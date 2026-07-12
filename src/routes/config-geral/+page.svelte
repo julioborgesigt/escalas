@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { AlertTriangle } from 'lucide-svelte';
 	import { enhance } from '$app/forms';
 	import { toaster } from '$lib/toast';
 
@@ -102,8 +103,9 @@
 				<p
 					class="rounded-lg border border-warning-500/30 bg-warning-500/10 p-3 text-xs text-warning-700 dark:text-warning-300"
 				>
-					⚠ O Resend não parece configurado (RESEND_API_KEY ausente). O envio cairá no fallback
-					(Cloudflare) até configurar a chave.
+					<AlertTriangle class="inline w-3.5 h-3.5 -mt-0.5" aria-hidden="true" /> O Resend não parece
+					configurado (RESEND_API_KEY ausente). O envio cairá no fallback (Cloudflare) até configurar
+					a chave.
 				</p>
 			{/if}
 

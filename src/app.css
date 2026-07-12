@@ -89,6 +89,18 @@
 	@apply bg-surface-100 dark:bg-surface-800 border border-surface-200 dark:border-white/10;
 }
 
+/* Feedback tátil de clique (decisão pós-auditoria UX-10): todo botão
+ * Skeleton "afunda" 5% enquanto pressionado — antes era um utilitário
+ * inline presente em só 28% dos botões. `scale` (propriedade própria,
+ * não `transform`) para não conflitar com translate/rotate utilitários.
+ * Elementos custom (fora de .btn/.btn-icon) que precisem do efeito
+ * seguem usando `active:scale-95` inline. */
+@layer components {
+	:is(.btn, .btn-icon):not(:disabled):active {
+		scale: 0.95;
+	}
+}
+
 /* Utilitários centralizados de Glass Card (V-6) */
 @utility card-glass {
 	@apply bg-white/80 dark:bg-surface-900/60 backdrop-blur-md

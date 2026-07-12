@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import { toaster } from '$lib/toast';
-	import { ChevronDown, ChevronUp } from 'lucide-svelte';
+	import { ChevronDown, ChevronUp, CheckCircle2, AlertTriangle } from 'lucide-svelte';
 	import { onMount } from 'svelte';
 
 	const { data, form } = $props();
@@ -217,7 +217,8 @@
 		>
 			{#if integridade.ok}
 				<p>
-					✓ Cadeia íntegra — {integridade.verificados} registro(s) encadeado(s) verificado(s) sem adulteração.
+					<CheckCircle2 class="inline w-4 h-4 -mt-0.5" aria-hidden="true" /> Cadeia íntegra — {integridade.verificados}
+					registro(s) encadeado(s) verificado(s) sem adulteração.
 				</p>
 				{#if integridade.ultimoHash}
 					<p class="mt-1 text-xs font-mono break-all opacity-80">
@@ -229,7 +230,7 @@
 					</p>
 				{/if}
 			{:else}
-				⚠ Inconsistência detectada{integridade.primeiroProblemaSeq
+				<AlertTriangle class="inline w-4 h-4 -mt-0.5" aria-hidden="true" /> Inconsistência detectada{integridade.primeiroProblemaSeq
 					? ` (seq ${integridade.primeiroProblemaSeq})`
 					: ''}: {integridade.problema}
 			{/if}

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { PenLine, Image as ImageIcon } from 'lucide-svelte';
 	import { Dialog, Tabs } from '@skeletonlabs/skeleton-svelte';
 	import { csrfHeaders } from '$lib/csrf';
 	import { toaster } from '$lib/toast';
@@ -306,12 +307,12 @@
 					<Tabs.Trigger
 						value="desenhar"
 						class="px-3 py-2 text-sm font-semibold rounded-lg flex-1 text-center cursor-pointer transition-all data-[selected]:bg-primary-500 data-[selected]:text-white"
-						>✍️ Desenhar</Tabs.Trigger
+						><PenLine class="inline w-4 h-4 -mt-0.5" aria-hidden="true" /> Desenhar</Tabs.Trigger
 					>
 					<Tabs.Trigger
 						value="imagem"
 						class="px-3 py-2 text-sm font-semibold rounded-lg flex-1 text-center cursor-pointer transition-all data-[selected]:bg-primary-500 data-[selected]:text-white"
-						>🖼️ Enviar imagem</Tabs.Trigger
+						><ImageIcon class="inline w-4 h-4 -mt-0.5" aria-hidden="true" /> Enviar imagem</Tabs.Trigger
 					>
 				</Tabs.List>
 

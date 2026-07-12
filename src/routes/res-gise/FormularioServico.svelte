@@ -123,7 +123,7 @@
 				     confirmação. A rubrica é gerida no cadastro (aviso pós-login). -->
 				<button
 					type="button"
-					class="btn preset-filled-tertiary-500 rounded-xl text-sm font-bold uppercase w-full shadow-sm active:scale-95 transition-all"
+					class="btn preset-filled-tertiary-500 rounded-xl text-sm font-bold uppercase w-full shadow-sm transition-all"
 					disabled={loading.active}
 					onclick={() => confirmarPresencaA3(tipo)}
 				>

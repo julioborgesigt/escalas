@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { AlertTriangle } from 'lucide-svelte';
 	/**
 	 * Avisos contextuais que aparecem abaixo do bloco principal da GISE:
 	 *  - Admin Seccional: alerta quando a seccional foi retificada após envio.
@@ -21,7 +22,9 @@
 
 {#if isSeccional && minhaSeccionalRetificada}
 	<div class="rounded-2xl border border-warning-500/40 bg-warning-500/10 p-4 text-sm">
-		<p class="font-semibold text-warning-700 dark:text-warning-400">⚠️ Seccional Retificada</p>
+		<p class="font-semibold text-warning-700 dark:text-warning-400">
+			<AlertTriangle class="inline w-4 h-4 -mt-0.5" aria-hidden="true" /> Seccional Retificada
+		</p>
 		<p class="text-warning-600 dark:text-warning-300 mt-1 text-sm">
 			Você realizou alterações após o envio. A assinatura digital da escala foi revogada. Finalize o
 			envio novamente para prosseguir com a assinatura.

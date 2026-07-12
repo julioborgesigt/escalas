@@ -290,7 +290,7 @@
 				>
 				<button
 					type="button"
-					class="btn preset-filled-primary-500 font-bold disabled:opacity-40 disabled:cursor-not-allowed active:scale-95 transition-all"
+					class="btn preset-filled-primary-500 font-bold disabled:opacity-40 disabled:cursor-not-allowed transition-all"
 					disabled={enviandoSolicitacao ||
 						(opcaoSolicitacao === 'respondencia' && !destinatarioSelecionado)}
 					onclick={confirmarSolicitacao}

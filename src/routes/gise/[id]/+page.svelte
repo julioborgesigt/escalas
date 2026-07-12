@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { PenLine } from 'lucide-svelte';
 	import { goto, invalidate, invalidateAll, replaceState } from '$app/navigation';
 	import type { PageData } from './$types';
 	import { page } from '$app/state';
@@ -480,7 +481,10 @@
 			<div
 				class="mb-4 rounded-xl border border-tertiary-300 bg-tertiary-50 dark:border-tertiary-700 dark:bg-tertiary-900/30 p-4 flex flex-col sm:flex-row sm:items-center gap-3"
 			>
-				<span class="text-2xl">✍️</span>
+				<PenLine
+					class="w-7 h-7 shrink-0 text-tertiary-600 dark:text-tertiary-400"
+					aria-hidden="true"
+				/>
 				<div class="flex-1 text-sm">
 					<p class="font-bold">Cadastre sua rubrica</p>
 					<p class="text-surface-600 dark:text-surface-300">
@@ -503,7 +507,8 @@
 					class="text-sm text-tertiary-600 dark:text-tertiary-400 hover:underline flex items-center gap-1"
 					onclick={() => (cadastrandoRubrica = true)}
 				>
-					✍️ {minhaRubrica ? 'Gerenciar minha rubrica' : 'Cadastrar minha rubrica'}
+					<PenLine class="w-4 h-4" aria-hidden="true" />
+					{minhaRubrica ? 'Gerenciar minha rubrica' : 'Cadastrar minha rubrica'}
 				</button>
 			</div>
 		{/if}
@@ -616,7 +621,7 @@
 						{#if supervisorSomente}
 							<button
 								type="button"
-								class="btn btn-sm preset-filled-primary-500 text-xs px-3 py-1.5 rounded-lg font-bold shadow-sm active:scale-95 transition-all"
+								class="btn btn-sm preset-filled-primary-500 text-xs px-3 py-1.5 rounded-lg font-bold shadow-sm transition-all"
 								onclick={() =>
 									(supervisorExpandiuQuadroSeccionais = !supervisorExpandiuQuadroSeccionais)}
 							>
@@ -690,7 +695,7 @@
 							<input type="hidden" name="seccionalId" value={seccionalParaAdicionarIdx} />
 							<button
 								type="submit"
-								class="btn preset-filled-primary-500 text-sm px-4 py-2 rounded-xl flex-1 sm:flex-none active:scale-95 transition-all"
+								class="btn preset-filled-primary-500 text-sm px-4 py-2 rounded-xl flex-1 sm:flex-none transition-all"
 								disabled={!seccionalParaAdicionarIdx || pendingCrud}
 							>
 								{pendingCrud ? 'Adicionando...' : 'Confirmar'}

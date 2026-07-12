@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { Dialog } from '@skeletonlabs/skeleton-svelte';
+	import { Moon, Sun, Calendar } from 'lucide-svelte';
 	import { enhance } from '$app/forms';
 	import { toaster } from '$lib/toast';
 	import type { Unidade } from '$lib/types';
@@ -211,24 +212,29 @@
 			tipo: 'plantao' | 'expediente' | 'fds';
 			label: string;
 			desc: string;
-			icon: string;
+			icon: typeof Moon;
 		}> = [];
 		if (u.tem_plantao)
 			tipos.push({
 				tipo: 'plantao',
 				label: 'Plantão Mensal',
 				desc: `${MESES[nextMes() - 1]} ${nextAno()}`,
-				icon: '🌙'
+				icon: Moon
 			});
 		if (u.tem_expediente)
 			tipos.push({
 				tipo: 'expediente',
 				label: 'Expediente Mensal',
 				desc: `${MESES[nextMes() - 1]} ${nextAno()}`,
-				icon: '☀️'
+				icon: Sun
 			});
 		if (u.tem_fds)
-			tipos.push({ tipo: 'fds', label: 'Final de Semana', desc: `FDS ${dS}/${mS}`, icon: '📅' });
+			tipos.push({
+				tipo: 'fds',
+				label: 'Final de Semana',
+				desc: `FDS ${dS}/${mS}`,
+				icon: Calendar
+			});
 		return tipos;
 	}
 	function calToggleDia(iso: string) {
@@ -347,7 +353,10 @@
 								class="p-4 rounded-2xl border-2 border-surface-200 dark:border-white/10 bg-surface-100/60 dark:bg-surface-800/60 hover:border-primary-500 hover:bg-primary-500/10 transition-all text-center group"
 								onclick={() => escolherTipo(t.tipo)}
 							>
-								<p class="text-2xl mb-1">{t.icon}</p>
+								<t.icon
+									class="w-7 h-7 mx-auto mb-1 text-surface-600 dark:text-surface-300 group-hover:text-primary-500 transition-colors"
+									aria-hidden="true"
+								/>
 								<p class="font-bold text-sm group-hover:text-primary-500 transition-colors">
 									{t.label}
 								</p>
@@ -522,7 +531,7 @@
 					</div>
 
 					{#if fdsTituloAuto}
-						<div class="rounded-lg bg-surface-100 dark:bg-surface-800/50 px-3 py-2">
+						<div class="rounded-xl bg-surface-100 dark:bg-surface-800/50 px-3 py-2">
 							<p class="text-3xs text-surface-500 dark:text-surface-400 mb-0.5">Título gerado</p>
 							<p class="text-xs text-surface-700 dark:text-surface-200 font-medium leading-snug">
 								{fdsTituloAuto}
@@ -551,7 +560,7 @@
 							<input type="hidden" name="titulo" value={fdsTituloAuto} />
 							<button
 								type="submit"
-								class="btn preset-filled-warning-500 border-2 border-warning-600/30 hover:border-warning-600 text-xs sm:text-sm px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg sm:rounded-xl transition-all active:scale-95"
+								class="btn preset-filled-warning-500 border-2 border-warning-600/30 hover:border-warning-600 text-xs sm:text-sm px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg sm:rounded-xl transition-all"
 								disabled={pendingCriar || fdsDiasOrdenados.length === 0}
 							>
 								{pendingCriar ? 'Criando...' : 'Criar Escala'}
@@ -634,7 +643,7 @@
 					</div>
 
 					{#if titulo}
-						<div class="rounded-lg bg-surface-100 dark:bg-surface-800/50 px-3 py-2">
+						<div class="rounded-xl bg-surface-100 dark:bg-surface-800/50 px-3 py-2">
 							<p class="text-3xs text-surface-500 dark:text-surface-400 mb-0.5">Título gerado</p>
 							<p class="text-xs text-surface-700 dark:text-surface-200 font-medium leading-snug">
 								{titulo}

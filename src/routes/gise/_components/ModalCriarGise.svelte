@@ -449,7 +449,7 @@
 					{/if}
 					<button
 						type="submit"
-						class="btn preset-filled-tertiary-500 border-2 border-tertiary-600/30 hover:border-tertiary-600 text-xs sm:text-sm px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg sm:rounded-xl transition-all active:scale-95 transition-all"
+						class="btn preset-filled-tertiary-500 border-2 border-tertiary-600/30 hover:border-tertiary-600 text-xs sm:text-sm px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg sm:rounded-xl transition-all transition-all"
 						disabled={loading.active ||
 							diasModalOrdenados.length === 0 ||
 							(modoCriacao === 'clonada' && !clonarDeId)}

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { Lock } from 'lucide-svelte';
 	import { untrack } from 'svelte';
 	import { page, navigating } from '$app/state';
 	import SkeletonCard from '$lib/components/SkeletonCard.svelte';
@@ -291,7 +292,7 @@
 
 {#if !isAdmin}
 	<div class="text-center py-32 text-surface-500">
-		<p class="text-2xl mb-2">🔒</p>
+		<Lock class="w-8 h-8 mx-auto mb-2" aria-hidden="true" />
 		<p>Acesso restrito a administradores.</p>
 	</div>
 {:else}
@@ -549,7 +550,7 @@
 											{#if escala.is_assinada}
 												<a
 													href="/api/escalas/{escala.id}/documento-assinado"
-													class="btn btn-sm preset-filled-success-500 text-xs font-bold active:scale-95 transition-all"
+													class="btn btn-sm preset-filled-success-500 text-xs font-bold transition-all"
 													target="_blank"
 												>
 													<svg
@@ -600,7 +601,7 @@
 
 											<button
 												type="button"
-												class="btn btn-sm preset-filled-error-500 text-xs active:scale-95 transition-all"
+												class="btn btn-sm preset-filled-error-500 text-xs transition-all"
 												title="Excluir"
 												onclick={() => solicitarExclusao(escala.id, escala.lotacao)}
 											>
@@ -698,7 +699,7 @@
 								{#if escala.is_assinada}
 									<a
 										href="/api/escalas/{escala.id}/documento-assinado"
-										class="btn btn-sm preset-filled-success-500 flex-1 text-xs active:scale-95 transition-all"
+										class="btn btn-sm preset-filled-success-500 flex-1 text-xs transition-all"
 										target="_blank">Baixar</a
 									>
 								{/if}
@@ -735,7 +736,7 @@
 
 								<button
 									type="button"
-									class="btn btn-sm preset-filled-error-500 flex-1 text-xs font-bold active:scale-95 transition-all"
+									class="btn btn-sm preset-filled-error-500 flex-1 text-xs font-bold transition-all"
 									onclick={() => solicitarExclusao(escala.id, escala.lotacao)}>Excluir</button
 								>
 							</div>
@@ -778,7 +779,7 @@
 					<input type="hidden" name="escala_id" value={escalaParaExcluir?.id} />
 					<button
 						type="submit"
-						class="btn preset-filled-error-500 flex items-center gap-2 active:scale-95 transition-all"
+						class="btn preset-filled-error-500 flex items-center gap-2 transition-all"
 						disabled={loadingService.active}
 					>
 						{loadingService.active ? 'Excluindo...' : 'Excluir'}

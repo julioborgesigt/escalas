@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { Camera, Check } from 'lucide-svelte';
 	import type {
 		SignaturePadLivenessResultado,
 		SignaturePadConfirmPayload
@@ -293,13 +294,13 @@
 							isMoving = false;
 							faceStatusMessage = headTurnAtivo
 								? 'Vire a cabeça conforme o desafio'
-								: 'Rosto Detectado ✅';
+								: 'Rosto detectado';
 						}
 					}
 				} else {
 					faceStatusMessage = headTurnAtivo
 						? 'Vire a cabeça conforme o desafio'
-						: 'Rosto Detectado ✅';
+						: 'Rosto detectado';
 				}
 				lastBox = box;
 
@@ -747,7 +748,7 @@
 									Desafio de presença
 								</p>
 								<p class="text-sm font-bold leading-tight truncate">
-									{ok ? '✅ Desafio concluído' : challengeAtual.instrucao}
+									{#if ok}<Check class="inline w-4 h-4 -mt-0.5" aria-hidden="true" /> Desafio concluído{:else}{challengeAtual.instrucao}{/if}
 								</p>
 								{#if !ok && challengeProgresso}
 									<p class="text-3xs opacity-90 mt-0.5">
@@ -953,14 +954,17 @@
 				</button>
 				<button
 					type="button"
-					class="btn preset-filled-primary-500 rounded-xl text-3xs sm:text-xs font-bold uppercase px-3 py-2 sm:px-4 sm:py-2 shadow-sm shadow-primary-500/20 active:scale-95 transition-all w-max"
+					class="btn preset-filled-primary-500 rounded-xl text-3xs sm:text-xs font-bold uppercase px-3 py-2 sm:px-4 sm:py-2 shadow-sm shadow-primary-500/20 transition-all w-max"
 					disabled={solicitandoCodigo}
 					onclick={() => (exigirFoto ? (step = 'camera') : confirmarSemFoto())}
 				>
 					{#if solicitandoCodigo}
 						Enviando...
 					{:else}
-						{exigirFoto ? 'Avançar 📸' : 'Confirmar ✔'}
+						{#if exigirFoto}Avançar <Camera
+								class="inline w-4 h-4 -mt-0.5"
+								aria-hidden="true"
+							/>{:else}Confirmar <Check class="inline w-4 h-4 -mt-0.5" aria-hidden="true" />{/if}
 					{/if}
 				</button>
 			</div>
@@ -978,7 +982,7 @@
 				type="button"
 				class="btn {faceDetected && !isMoving && challengeOk
 					? 'preset-filled-primary-500'
-					: 'bg-surface-300 dark:bg-surface-700 text-surface-500 opacity-60'} rounded-2xl text-sm font-bold uppercase px-6 py-3 shadow-lg shadow-primary-500/20 active:scale-95 transition-all ml-auto"
+					: 'bg-surface-300 dark:bg-surface-700 text-surface-500 opacity-60'} rounded-2xl text-sm font-bold uppercase px-6 py-3 shadow-lg shadow-primary-500/20 transition-all ml-auto"
 				onclick={startCaptureSequence}
 				disabled={capturingLocation ||
 					capturingImage ||
@@ -1011,7 +1015,7 @@
 
 			<button
 				type="button"
-				class="btn preset-filled-primary-500 rounded-xl text-sm font-bold uppercase px-6 py-3 shadow-lg shadow-primary-500/20 active:scale-95 transition-all ml-auto"
+				class="btn preset-filled-primary-500 rounded-xl text-sm font-bold uppercase px-6 py-3 shadow-lg shadow-primary-500/20 transition-all ml-auto"
 				onclick={confirmarCodigo}
 				disabled={solicitandoCodigo || codigoInput.length !== 6}
 			>

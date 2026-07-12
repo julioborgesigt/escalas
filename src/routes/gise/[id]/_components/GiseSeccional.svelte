@@ -484,7 +484,7 @@
 							<input type="hidden" name="hora_saida" value={normalizarHora(editSecHoraSai) ?? ''} />
 							<button
 								type="submit"
-								class="btn btn-sm preset-filled-primary-500 text-sm py-1 px-2 rounded active:scale-95 transition-all"
+								class="btn btn-sm preset-filled-primary-500 text-sm py-1 px-2 rounded transition-all"
 								disabled={pendingCrud}
 								title="Confirmar">{pendingSalvarHorariosSec ? '…' : '✓'}</button
 							>
@@ -794,7 +794,7 @@
 								<div class="w-full flex-1">
 									<select
 										bind:value={slotUnidadeId}
-										class="w-full px-2 py-1.5 rounded-lg border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-sm font-medium"
+										class="w-full px-2 py-1.5 rounded-xl border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-sm font-medium"
 									>
 										<option value=""
 											>{slot.nome ? 'Selecionar outra unidade...' : 'Selecionar unidade...'}</option
@@ -815,7 +815,7 @@
 										<input type="hidden" name="unidadeId" value={slotUnidadeId} />
 										<button
 											type="submit"
-											class="btn preset-filled-primary-500 text-sm px-4 py-1.5 rounded-xl w-full sm:w-auto sm:px-6 active:scale-95 transition-all font-semibold"
+											class="btn preset-filled-primary-500 text-sm px-4 py-1.5 rounded-xl w-full sm:w-auto sm:px-6 transition-all font-semibold"
 											disabled={!slotUnidadeId || pendingCrud}
 										>
 											{pendingSelecionarUnidade ? 'Salvando...' : 'Confirmar'}
@@ -1030,7 +1030,7 @@
 													min="0"
 													max="20"
 													bind:value={editSlotsDpc}
-													class="w-14 px-2 py-1 rounded-lg border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-sm text-center"
+													class="w-14 px-2 py-1 rounded-xl border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-sm text-center"
 												/>
 												<label for="edit-oip-{equipe.id}" class="text-sm text-surface-500"
 													>OIP:</label
@@ -1041,7 +1041,7 @@
 													min="0"
 													max="20"
 													bind:value={editSlotsOip}
-													class="w-14 px-2 py-1 rounded-lg border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-sm text-center"
+													class="w-14 px-2 py-1 rounded-xl border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-sm text-center"
 												/>
 												<div class="flex items-center gap-2 shrink-0">
 													<form
@@ -1055,7 +1055,7 @@
 														<input type="hidden" name="slots_oip" value={editSlotsOip} />
 														<button
 															type="submit"
-															class="btn btn-sm preset-filled-primary-500 text-sm py-1 px-2 rounded active:scale-95 transition-all"
+															class="btn btn-sm preset-filled-primary-500 text-sm py-1 px-2 rounded transition-all"
 															disabled={pendingCrud}
 															aria-label="Salvar vagas"
 															title="Confirmar">{pendingSalvarSlotsEquipe ? '…' : '✓'}</button
@@ -1144,7 +1144,7 @@
 														/>
 														<button
 															type="submit"
-															class="btn btn-sm preset-filled-primary-500 text-sm py-1 px-2 rounded active:scale-95 transition-all"
+															class="btn btn-sm preset-filled-primary-500 text-sm py-1 px-2 rounded transition-all"
 															disabled={pendingCrud}
 															title="Confirmar">{pendingSalvarHorariosEquipe ? '…' : '✓'}</button
 														>
@@ -1297,7 +1297,7 @@
 												<div class="w-full sm:w-auto flex gap-2">
 													<button
 														type="submit"
-														class="btn preset-filled-primary-500 text-sm px-3 py-1.5 rounded-lg flex-1 sm:flex-none active:scale-95 transition-all"
+														class="btn preset-filled-primary-500 text-sm px-3 py-1.5 rounded-lg flex-1 sm:flex-none transition-all"
 														disabled={!policialParaAdicionar || pendingCrud}
 														>{pendingAdicionarMembro ? 'Adicionando...' : 'Adicionar'}</button
 													>
@@ -1395,7 +1395,7 @@
 													novaEquipeOip = 2;
 												}
 											}}
-											class="px-2 py-1.5 rounded-lg border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-sm"
+											class="px-2 py-1.5 rounded-xl border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-sm"
 										>
 											<option value="operacional">Operacional</option>
 											<option value="seint">SEINT</option>
@@ -1413,7 +1413,7 @@
 											min="0"
 											max="20"
 											bind:value={novaEquipeDpc}
-											class="w-14 px-2 py-1.5 rounded-lg border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-sm text-center"
+											class="w-14 px-2 py-1.5 rounded-xl border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-sm text-center"
 										/>
 									</div>
 									<div>
@@ -1428,7 +1428,7 @@
 											min="0"
 											max="20"
 											bind:value={novaEquipeOip}
-											class="w-14 px-2 py-1.5 rounded-lg border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-sm text-center"
+											class="w-14 px-2 py-1.5 rounded-xl border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-sm text-center"
 										/>
 									</div>
 									<form
@@ -1444,7 +1444,7 @@
 										<input type="hidden" name="slots_oip" value={novaEquipeOip} />
 										<button
 											type="submit"
-											class="btn preset-filled-primary-500 text-sm px-3 py-1.5 rounded-lg active:scale-95 transition-all"
+											class="btn preset-filled-primary-500 text-sm px-3 py-1.5 rounded-lg transition-all"
 											disabled={pendingCrud}
 											>{pendingAdicionarEquipe ? 'Adicionando...' : 'Adicionar'}</button
 										>
@@ -1501,7 +1501,7 @@
 							<select
 								id="novo-slot-unidade-{sec.id}"
 								bind:value={novoSlotUnidadeId}
-								class="w-full px-2 py-1.5 rounded-lg border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-sm"
+								class="w-full px-2 py-1.5 rounded-xl border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-sm"
 							>
 								<option value="">Slot em branco (Adm Seccional preenche depois)</option>
 								{#each todasUnidades.filter((d: Unidade) => d.tipo === 'delegacia' && d.seccional_id === sec.seccional_id && !(sec.unidades ?? []).some((s: GiseUnidadeSlot) => s.unidade_id === d.id)) as d (d.id)}
@@ -1519,7 +1519,7 @@
 							<input type="hidden" name="unidadeId" value={novoSlotUnidadeId} />
 							<button
 								type="submit"
-								class="btn preset-filled-primary-500 text-sm px-3 py-1.5 rounded-xl active:scale-95 transition-all"
+								class="btn preset-filled-primary-500 text-sm px-3 py-1.5 rounded-xl transition-all"
 								disabled={pendingCrud}
 								>{pendingAdicionarUnidade ? 'Adicionando...' : 'Confirmar'}</button
 							>

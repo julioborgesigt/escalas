@@ -118,7 +118,7 @@
 				<div class="flex gap-2 w-full">
 					<button
 						type="button"
-						class="btn btn-sm flex-1 font-bold text-xs px-3 py-1.5 flex items-center justify-center gap-1 transition-all active:scale-95 {ativa.status ===
+						class="btn btn-sm flex-1 font-bold text-xs px-3 py-1.5 flex items-center justify-center gap-1 transition-all {ativa.status ===
 						'aguardando_assinatura'
 							? 'preset-filled-warning-500 text-warning-950'
 							: escalaConcluida
@@ -158,7 +158,7 @@
 
 					<button
 						type="button"
-						class="btn btn-sm flex-1 font-bold text-xs px-3 py-1.5 flex items-center justify-center gap-1 transition-all active:scale-95 {extraConcluido
+						class="btn btn-sm flex-1 font-bold text-xs px-3 py-1.5 flex items-center justify-center gap-1 transition-all {extraConcluido
 							? 'preset-filled-success-500 text-white'
 							: extraParcial
 								? 'preset-filled-tertiary-500'

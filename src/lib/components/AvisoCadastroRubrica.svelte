@@ -89,7 +89,7 @@
 					</button>
 					<button
 						type="button"
-						class="btn preset-filled-primary-500 font-bold active:scale-95 transition-all"
+						class="btn preset-filled-primary-500 font-bold transition-all"
 						onclick={cadastrarAgora}
 					>
 						Cadastrar rubrica

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { Check, Lock } from 'lucide-svelte';
 	import { page } from '$app/state';
 	import { toaster } from '$lib/toast';
 	import { csrfHeaders } from '$lib/csrf';
@@ -125,7 +126,7 @@
 			<ul class="mt-2 space-y-1 pl-4">
 				{#each requisitosSempreAtivos as r (r.id)}
 					<li class="text-surface-700 dark:text-surface-300">
-						<span class="text-success-600 font-black">✓</span>
+						<Check class="inline w-3.5 h-3.5 -mt-0.5 text-success-600" aria-hidden="true" />
 						{r.descricao}
 						<br />
 						<span class="text-surface-500 dark:text-surface-400 italic ml-3">{r.baseLegal}</span>
@@ -144,7 +145,7 @@
 			<ul class="mt-2 space-y-1 pl-4">
 				{#each requisitosObrigatorios as r (r.id)}
 					<li class="text-surface-700 dark:text-surface-300">
-						<span class="text-primary-600 font-black">🔒</span>
+						<Lock class="inline w-3.5 h-3.5 -mt-0.5 text-primary-600" aria-hidden="true" />
 						{r.descricao}
 						<br />
 						<span class="text-surface-500 dark:text-surface-400 italic ml-3">{r.baseLegal}</span>
@@ -244,7 +245,7 @@
 						class="text-3xs uppercase font-black px-1.5 py-0.5 rounded bg-primary-500/15 text-primary-700 dark:text-primary-300 tracking-widest"
 						title="Requisito legal — Lei 14.063/2020 art. 4º II"
 					>
-						🔒 Obrigatório
+						<Lock class="inline w-3 h-3 -mt-0.5" aria-hidden="true" /> Obrigatório
 					</span>
 				</p>
 				<p class="text-xs text-surface-500">
@@ -324,7 +325,7 @@
 				</div>
 				<button
 					type="button"
-					class="btn preset-filled-primary-500 text-sm px-6 py-2.5 flex items-center gap-2 shadow-lg shadow-primary-500/20 hover:scale-[1.02] active:scale-95 transition-all font-bold"
+					class="btn preset-filled-primary-500 text-sm px-6 py-2.5 flex items-center gap-2 shadow-lg shadow-primary-500/20 hover:scale-[1.02] transition-all font-bold"
 					onclick={salvar}
 					disabled={loading.active}
 				>

@@ -332,7 +332,7 @@
 		{/if}
 		<button
 			type="button"
-			class="btn btn-sm preset-filled-primary-500 active:scale-95 transition-all"
+			class="btn btn-sm preset-filled-primary-500 transition-all"
 			onclick={openCreateModal}>Novo Policial</button
 		>
 	</div>
@@ -625,7 +625,7 @@
 					<input type="hidden" name="policial_id" value={confirmDialog.currentItem?.id} />
 					<button
 						type="submit"
-						class="btn btn-sm preset-filled-error-500 flex items-center gap-2 active:scale-95 transition-all"
+						class="btn btn-sm preset-filled-error-500 flex items-center gap-2 transition-all"
 						disabled={excluindo}
 					>
 						{excluindo ? 'Excluindo...' : 'Remover Policial'}
@@ -740,7 +740,7 @@
 			{#if !filtroCargo}
 				<a
 					href="/policiais"
-					class="btn preset-filled-primary-500 active:scale-95 transition-all"
+					class="btn preset-filled-primary-500 transition-all"
 					onclick={(e) => {
 						e.preventDefault();
 						resetForm();
@@ -815,7 +815,7 @@
 										</button>
 										<button
 											type="button"
-											class="btn btn-sm preset-filled-error-500 active:scale-95 transition-all"
+											class="btn btn-sm preset-filled-error-500 transition-all"
 											onclick={() => solicitarExclusao(p.id, p.nome)}>Excluir</button
 										>
 									</div>
@@ -875,7 +875,7 @@
 							</button>
 							<button
 								type="button"
-								class="btn btn-sm preset-filled-error-500 transition-all flex-1 active:scale-95 transition-all"
+								class="btn btn-sm preset-filled-error-500 transition-all flex-1 transition-all"
 								onclick={() => solicitarExclusao(p.id, p.nome)}>Excluir</button
 							>
 						</div>

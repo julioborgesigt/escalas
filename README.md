@@ -584,13 +584,17 @@ Regras estabelecidas na [auditoria visual de jul/2026](docs/auditorias/AUDITORIA
 
 **Modais** — sempre `Dialog` do Skeleton (foco/ESC/ARIA de graça). Backdrop canônico: `bg-surface-950/80 backdrop-blur-sm`; modal empilhado sobre modal usa `backdrop-blur-md` + `z-[60]`/`z-[70]`. Card do modal: `card-elevated rounded-2xl shadow-2xl`. Rodapé: `flex-col-reverse sm:flex-row sm:justify-end gap-2 sm:gap-3` (Cancelar = `preset-outlined-surface-500`).
 
-**Botões (semântica dos presets)** — CTA `preset-filled-primary-500` · destrutivo `preset-filled-error-500` · cancelar/neutro `preset-outlined-surface-500`.
+**Botões (semântica dos presets)** — CTA `preset-filled-primary-500` · destrutivo `preset-filled-error-500` · cancelar/neutro `preset-outlined-surface-500`. O feedback tátil de clique (afundar 5% pressionado) é **global e automático** para `.btn`/`.btn-icon` (regra em `app.css`) — não adicionar `active:scale-95` inline; use-o apenas em elementos interativos custom fora dessas classes.
 
 **Border-radius** — o tema define `--radius-base` (= `rounded-xl`, botões/inputs) e `--radius-container` (= `rounded-2xl`, cards/modais); pills/chips usam `rounded-full`. Em código novo, não usar `rounded`/`rounded-md`; reservar `rounded-lg` para elementos ≤ 32 px de altura.
 
 **Z-index (escala)** — `z-10` elementos locais · `z-40` topbar mobile + backdrop da sidebar · `z-50` sidebar e modais · `z-[60]`/`z-[70]` modal sobre modal · `z-[100]` diálogos globais (logout, avisos) · `9999` toasts · `10000` LoadingOverlay e barra de progresso de navegação. Não inventar valores fora da escala.
 
 **Breakpoints** — `xs:` (400 px, definido no `@theme`) para telefones estreitos; demais são os padrões do Tailwind. Exceção documentada: o corte da sidebar no `+layout.svelte` é `min-[900px]` (deliberado — não migrar para `lg:`).
+
+**Ícones** — código novo usa [`lucide-svelte`](https://lucide.dev) (já é dependência; herda `currentColor`). **Nunca emoji como ícone** (✍️ ✅ 🔒…): renderizam diferente por SO e ignoram a cor do tema. O SVG inline legado migra oportunisticamente ao tocar no arquivo.
+
+**Transições** — em código novo, prefira a propriedade específica (`transition-colors`, `transition-transform`, `transition-opacity`) a `transition-all`, que anima layout sem querer e custa mais. O legado migra oportunisticamente.
 
 **Loading** — usar `$lib/components/Spinner.svelte` (acessível, herda `currentColor`); não desenhar SVG `animate-spin` à mão. Carregamento de página: skeletons (`SkeletonCard`) + barra de progresso do layout; operações de API: `loading.show()`/`hide()`.
 

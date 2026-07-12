@@ -214,7 +214,7 @@
 					</button>
 					<button
 						type="button"
-						class="btn preset-filled-primary-500 text-xs px-3 py-2 rounded-xl font-bold flex items-center justify-center gap-1.5 transition-all active:scale-95 disabled:preset-filled-surface-200 disabled:dark:preset-filled-surface-800 disabled:text-surface-400 disabled:cursor-not-allowed"
+						class="btn preset-filled-primary-500 text-xs px-3 py-2 rounded-xl font-bold flex items-center justify-center gap-1.5 transition-all disabled:preset-filled-surface-200 disabled:dark:preset-filled-surface-800 disabled:text-surface-400 disabled:cursor-not-allowed"
 						disabled={disponiveis.length === 0}
 						onclick={() => baixarTodos(false)}
 						title="Baixar todos sem manifesto (para impressão)"
@@ -224,7 +224,7 @@
 					</button>
 					<button
 						type="button"
-						class="btn preset-filled-tertiary-500 text-xs px-3 py-2 rounded-xl font-bold flex items-center justify-center gap-1.5 transition-all active:scale-95 disabled:preset-filled-surface-200 disabled:dark:preset-filled-surface-800 disabled:text-surface-400 disabled:cursor-not-allowed"
+						class="btn preset-filled-tertiary-500 text-xs px-3 py-2 rounded-xl font-bold flex items-center justify-center gap-1.5 transition-all disabled:preset-filled-surface-200 disabled:dark:preset-filled-surface-800 disabled:text-surface-400 disabled:cursor-not-allowed"
 						disabled={disponiveis.length === 0}
 						onclick={() => baixarTodos(true)}
 						title="Baixar todos com manifesto (folha de auditoria)"

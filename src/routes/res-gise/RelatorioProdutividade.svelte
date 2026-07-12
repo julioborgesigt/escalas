@@ -115,7 +115,7 @@
 				{id}
 				type="text"
 				{placeholder}
-				class="w-full px-3 py-2 rounded-lg border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-950 text-xs font-medium"
+				class="w-full px-3 py-2 rounded-xl border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-950 text-xs font-medium"
 				bind:value={item[campo]}
 			/>
 		</div>
@@ -306,7 +306,7 @@
 														id="qal-{q.id}-{i}"
 														type="number"
 														placeholder="0"
-														class="w-full px-3 py-2 rounded-lg border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-950 text-xs font-medium"
+														class="w-full px-3 py-2 rounded-xl border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-950 text-xs font-medium"
 														bind:value={item.q_alvos}
 													/>
 												</div>
@@ -357,7 +357,7 @@
 													>
 													<select
 														id="res-{q.id}-{i}"
-														class="w-full px-3 py-2 rounded-lg border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-950 text-xs font-bold"
+														class="w-full px-3 py-2 rounded-xl border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-950 text-xs font-bold"
 														bind:value={item.resultado}
 													>
 														<option value="">Selecione</option>

@@ -268,7 +268,7 @@
 		{#if isAdmin}
 			<button
 				type="button"
-				class="btn btn-sm preset-filled-primary-500 active:scale-95 transition-all"
+				class="btn btn-sm preset-filled-primary-500 transition-all"
 				onclick={() => (cadastroOpen = true)}
 			>
 				<svg class="w-4 h-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"
@@ -436,7 +436,7 @@
 												{@render editInputs()}
 												<button
 													type="submit"
-													class="btn btn-sm preset-filled-primary-500 flex items-center gap-1.5 active:scale-95 transition-all"
+													class="btn btn-sm preset-filled-primary-500 flex items-center gap-1.5 transition-all"
 													disabled={pendingEditar || !editNome.trim()}
 												>
 													{pendingEditar ? 'Salvando...' : 'Salvar'}
@@ -456,7 +456,7 @@
 												>
 												<button
 													type="button"
-													class="btn btn-sm preset-filled-error-500 active:scale-95 transition-all"
+													class="btn btn-sm preset-filled-error-500 transition-all"
 													onclick={() => solicitarExclusao(u.id, u.nome)}>Excluir</button
 												>
 											</div>
@@ -490,7 +490,7 @@
 									{@render editInputs()}
 									<button
 										type="submit"
-										class="btn btn-sm preset-filled-primary-500 flex-1 flex items-center justify-center gap-1.5 active:scale-95 transition-all"
+										class="btn btn-sm preset-filled-primary-500 flex-1 flex items-center justify-center gap-1.5 transition-all"
 										disabled={pendingEditar || !editNome.trim()}
 									>
 										{pendingEditar ? 'Salvando...' : 'Salvar'}
@@ -533,7 +533,7 @@
 										>
 										<button
 											type="button"
-											class="btn btn-sm preset-filled-error-500 active:scale-95 transition-all"
+											class="btn btn-sm preset-filled-error-500 transition-all"
 											onclick={() => solicitarExclusao(u.id, u.nome)}>Excluir</button
 										>
 									</div>

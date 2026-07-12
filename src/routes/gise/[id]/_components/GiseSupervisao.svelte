@@ -617,7 +617,7 @@
 													name="assessor_email_notificacao"
 													autocomplete="email"
 													bind:value={assessorEmailNotificacao}
-													class="w-full px-3 py-1.5 rounded-lg border border-surface-300 dark:border-surface-600 bg-white dark:bg-surface-800 text-sm focus:border-primary-400 focus:ring-1 focus:ring-primary-400/30 focus:outline-none transition-colors text-surface-900 dark:text-surface-50 placeholder:text-surface-400 dark:placeholder:text-surface-500 h-[38px]"
+													class="w-full px-3 py-1.5 rounded-xl border border-surface-300 dark:border-surface-600 bg-white dark:bg-surface-800 text-sm focus:border-primary-400 focus:ring-1 focus:ring-primary-400/30 focus:outline-none transition-colors text-surface-900 dark:text-surface-50 placeholder:text-surface-400 dark:placeholder:text-surface-500 h-[38px]"
 													placeholder="nome@provedor.com"
 												/>
 											</div>
@@ -982,7 +982,7 @@
 											<a
 												href={urlDocumentoAssinado}
 												target="_blank"
-												class="btn btn-xs preset-filled-primary-500 px-2.5 py-1.5 text-3xs font-bold rounded-lg no-underline flex items-center gap-1 hover:scale-[1.02] active:scale-95 transition-all"
+												class="btn btn-xs preset-filled-primary-500 px-2.5 py-1.5 text-3xs font-bold rounded-lg no-underline flex items-center gap-1 hover:scale-[1.02] transition-all"
 												title="Baixar sem manifesto (para impressão)"
 											>
 												<FileDown size={13} class="shrink-0" />
@@ -991,7 +991,7 @@
 											<a
 												href={urlDocumentoAssinadoManifesto}
 												target="_blank"
-												class="btn btn-xs preset-outlined-primary-500 px-2.5 py-1.5 text-3xs font-bold rounded-lg no-underline flex items-center gap-1 hover:scale-[1.02] active:scale-95 transition-all"
+												class="btn btn-xs preset-outlined-primary-500 px-2.5 py-1.5 text-3xs font-bold rounded-lg no-underline flex items-center gap-1 hover:scale-[1.02] transition-all"
 												title="Baixar com manifesto (folha de auditoria)"
 											>
 												<FileDown size={13} class="shrink-0" />
@@ -1000,7 +1000,7 @@
 										{:else}
 											{#if isSupervisor || isAdminGeral}
 												<a
-													class="btn btn-xs text-3xs px-2.5 py-1.5 rounded-lg font-semibold no-underline flex items-center gap-1 hover:scale-[1.02] active:scale-95 transition-all {assinaturaEscalaHabilitada
+													class="btn btn-xs text-3xs px-2.5 py-1.5 rounded-lg font-semibold no-underline flex items-center gap-1 hover:scale-[1.02] transition-all {assinaturaEscalaHabilitada
 														? 'preset-tonal-primary border border-primary-500/30 hover:border-primary-500'
 														: 'preset-tonal-surface opacity-50 pointer-events-none'}"
 													href={urlDownloadPdf}
@@ -1025,7 +1025,7 @@
 											{#if isSupervisor}
 												<button
 													type="button"
-													class="btn btn-xs preset-filled-tertiary-500 border border-tertiary-600/30 px-2.5 py-1.5 text-3xs font-bold rounded-lg hover:border-tertiary-600 disabled:opacity-40 flex items-center gap-1 hover:scale-[1.02] active:scale-95 transition-all"
+													class="btn btn-xs preset-filled-tertiary-500 border border-tertiary-600/30 px-2.5 py-1.5 text-3xs font-bold rounded-lg hover:border-tertiary-600 disabled:opacity-40 flex items-center gap-1 hover:scale-[1.02] transition-all"
 													disabled={!mostrarPainelAssinaturaEscala}
 													onclick={() => painelTokenGise?.assinarComSerpro()}
 												>
@@ -1364,7 +1364,7 @@
 												<a
 													href={urlDownloadExtra}
 													target="_blank"
-													class="btn btn-xs preset-filled-primary-500 px-2.5 py-1.5 text-3xs font-bold rounded-lg no-underline flex items-center gap-1 hover:scale-[1.02] active:scale-95 transition-all {!downloadExtraSupHabilitado
+													class="btn btn-xs preset-filled-primary-500 px-2.5 py-1.5 text-3xs font-bold rounded-lg no-underline flex items-center gap-1 hover:scale-[1.02] transition-all {!downloadExtraSupHabilitado
 														? 'pointer-events-none opacity-60'
 														: ''}"
 													title="Baixar sem manifesto (para impressão)"
@@ -1375,7 +1375,7 @@
 												<a
 													href={urlDownloadExtraManifesto}
 													target="_blank"
-													class="btn btn-xs preset-outlined-primary-500 px-2.5 py-1.5 text-3xs font-bold rounded-lg no-underline flex items-center gap-1 hover:scale-[1.02] active:scale-95 transition-all {!downloadExtraSupHabilitado
+													class="btn btn-xs preset-outlined-primary-500 px-2.5 py-1.5 text-3xs font-bold rounded-lg no-underline flex items-center gap-1 hover:scale-[1.02] transition-all {!downloadExtraSupHabilitado
 														? 'pointer-events-none opacity-60'
 														: ''}"
 													title="Baixar com manifesto (folha de auditoria)"
@@ -1385,7 +1385,7 @@
 												</a>
 											{:else}
 												<a
-													class="btn btn-xs text-3xs px-2.5 py-1.5 rounded-lg font-semibold no-underline flex items-center gap-1 hover:scale-[1.02] active:scale-95 transition-all {downloadExtraSupConferenciaHabilitado
+													class="btn btn-xs text-3xs px-2.5 py-1.5 rounded-lg font-semibold no-underline flex items-center gap-1 hover:scale-[1.02] transition-all {downloadExtraSupConferenciaHabilitado
 														? 'preset-tonal-primary border border-primary-500/30 hover:border-primary-500'
 														: 'preset-tonal-surface opacity-50 pointer-events-none'}"
 													href={urlDownloadExtra}
@@ -1408,7 +1408,7 @@
 												{#if isSupervisor && extraSupervisaoConfigurado}
 													<button
 														type="button"
-														class="btn btn-xs preset-filled-tertiary-500 border border-tertiary-600/30 px-2.5 py-1.5 text-3xs font-bold rounded-lg hover:border-tertiary-600 disabled:opacity-40 flex items-center gap-1 hover:scale-[1.02] active:scale-95 transition-all"
+														class="btn btn-xs preset-filled-tertiary-500 border border-tertiary-600/30 px-2.5 py-1.5 text-3xs font-bold rounded-lg hover:border-tertiary-600 disabled:opacity-40 flex items-center gap-1 hover:scale-[1.02] transition-all"
 														disabled={!assinaturaExtraHabilitada}
 														onclick={() => onAssinarExtraSupervisaoDigital?.()}
 													>

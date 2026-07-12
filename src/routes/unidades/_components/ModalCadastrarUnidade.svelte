@@ -227,7 +227,7 @@
 					>
 					<button
 						type="submit"
-						class="btn preset-filled-primary-500 flex items-center gap-2 active:scale-95 transition-all"
+						class="btn preset-filled-primary-500 flex items-center gap-2 transition-all"
 						disabled={pending ||
 							!novoNome.trim() ||
 							!buscaCidade?.trim() ||

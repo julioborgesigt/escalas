@@ -57,7 +57,7 @@
 					<input type="hidden" name="unidade_id" value={unidade?.id} />
 					<button
 						type="submit"
-						class="btn preset-filled-error-500 flex items-center gap-2 active:scale-95 transition-all"
+						class="btn preset-filled-error-500 flex items-center gap-2 transition-all"
 						disabled={pending}
 					>
 						{pending ? 'Excluindo...' : 'Excluir'}

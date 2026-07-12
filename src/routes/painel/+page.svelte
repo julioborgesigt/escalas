@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { Lock, CheckCircle2 } from 'lucide-svelte';
 	import { goto, invalidate } from '$app/navigation';
 	import { enhance } from '$app/forms';
 	import { page, navigating } from '$app/state';
@@ -356,7 +357,7 @@
 
 {#if !isAdmin}
 	<div class="text-center py-32 text-surface-500">
-		<p class="text-2xl mb-2">🔒</p>
+		<Lock class="w-8 h-8 mx-auto mb-2" aria-hidden="true" />
 		<p>Acesso restrito a administradores.</p>
 	</div>
 {:else}
@@ -406,7 +407,9 @@
 		<div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
 			<div class="p-4 rounded-2xl bg-success-500/10 border border-success-500/20 text-center">
 				<p class="text-2xl font-bold text-success-600 dark:text-success-400">{totais.ok}</p>
-				<p class="text-xs text-surface-500 mt-1 font-medium">✅ Em dia</p>
+				<p class="text-xs text-surface-500 mt-1 font-medium">
+					<CheckCircle2 class="inline w-3.5 h-3.5 -mt-0.5" aria-hidden="true" /> Em dia
+				</p>
 			</div>
 			<div class="p-4 rounded-2xl bg-warning-500/10 border border-warning-500/20 text-center">
 				<p class="text-2xl font-bold text-warning-600 dark:text-warning-400">
@@ -528,7 +531,7 @@
 						<input type="hidden" name="escala_id" value={itemParaExcluir?.escala_id} />
 						<button
 							type="submit"
-							class="btn preset-filled-error-500 flex items-center gap-2 active:scale-95 transition-all"
+							class="btn preset-filled-error-500 flex items-center gap-2 transition-all"
 							disabled={loadingService.active}
 						>
 							{loadingService.active ? 'Excluindo...' : 'Confirmar Exclusão'}
@@ -653,7 +656,7 @@
 											{#if item.status === 'ok'}
 												<span
 													class="badge preset-filled-success-500 text-white text-xs font-bold px-2"
-													>✅ Em dia</span
+													><CheckCircle2 class="inline w-3.5 h-3.5 -mt-0.5" aria-hidden="true" /> Em dia</span
 												>
 											{:else if item.status === 'nao_assinada' && item.escala_id}
 												<div class="flex items-center gap-1.5">

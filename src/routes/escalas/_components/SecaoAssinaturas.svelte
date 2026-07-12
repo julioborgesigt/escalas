@@ -170,7 +170,7 @@
 									type="button"
 									class="btn btn-sm {esc.is_assinada
 										? 'preset-filled-success-500 text-white'
-										: 'preset-filled-warning-500'} font-bold text-xs px-3 py-2 w-full disabled:opacity-40 disabled:cursor-not-allowed active:scale-95 transition-all flex items-center justify-center gap-1.5"
+										: 'preset-filled-warning-500'} font-bold text-xs px-3 py-2 w-full disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-1.5"
 									disabled={assinaturaTelaBloqueada || esc.is_assinada}
 									title={esc.is_assinada
 										? 'Já assinado'
@@ -209,7 +209,7 @@
 									type="button"
 									class="btn btn-sm {esc.is_assinada
 										? 'preset-filled-success-500 text-white'
-										: 'preset-filled-tertiary-500'} font-bold text-xs px-3 py-2 w-full active:scale-95 transition-all flex items-center justify-center gap-1.5"
+										: 'preset-filled-tertiary-500'} font-bold text-xs px-3 py-2 w-full transition-all flex items-center justify-center gap-1.5"
 									disabled={esc.is_assinada}
 									onclick={() => onIniciarAssinaturaToken(esc.id)}
 								>

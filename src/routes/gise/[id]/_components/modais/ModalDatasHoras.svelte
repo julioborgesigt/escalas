@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { AlertTriangle } from 'lucide-svelte';
 	import { enhance } from '$app/forms';
 	import type { SubmitFunction } from '@sveltejs/kit';
 	import { toaster } from '$lib/toast';
@@ -164,7 +165,8 @@
 				<div
 					class="rounded-xl bg-warning-500/10 border border-warning-500/30 px-3 py-2 text-xs text-warning-700 dark:text-warning-400"
 				>
-					⚠️ A assinatura digital será <strong>revogada</strong> ao salvar.
+					<AlertTriangle class="inline w-3.5 h-3.5 -mt-0.5" aria-hidden="true" /> A assinatura digital
+					será <strong>revogada</strong> ao salvar.
 				</div>
 			{/if}
 
@@ -338,7 +340,7 @@
 					<input type="hidden" name="feriado" value={feriado ? 'true' : 'false'} />
 					<button
 						type="submit"
-						class="btn preset-filled-primary-500 text-xs sm:text-sm px-6 py-2 rounded-xl font-bold transition-all active:scale-95"
+						class="btn preset-filled-primary-500 text-xs sm:text-sm px-6 py-2 rounded-xl font-bold transition-all"
 						disabled={pendingCrud}
 					>
 						{pendingCrud ? 'Salvando...' : 'Salvar Alterações'}

@@ -581,7 +581,7 @@
 						{#if !usuario?.isSuperAdmin}
 							<button
 								type="button"
-								class="btn-icon btn-sm preset-outlined-primary-500 hover:bg-primary-500/10 rounded-md active:scale-95 transition-all text-primary-600 dark:text-primary-400 flex items-center justify-center cursor-pointer p-1"
+								class="btn-icon btn-sm preset-outlined-primary-500 hover:bg-primary-500/10 rounded-md transition-all text-primary-600 dark:text-primary-400 flex items-center justify-center cursor-pointer p-1"
 								onclick={alternarModulo}
 								title="Alternar Módulo (GISE / Escalas)"
 								aria-label="Alternar Módulo"
@@ -662,7 +662,7 @@
 				<div class="flex flex-col gap-2">
 					<button
 						type="button"
-						class="btn preset-filled-error-500 py-3 rounded-xl font-bold transition-all active:scale-95 flex items-center justify-center gap-2"
+						class="btn preset-filled-error-500 py-3 rounded-xl font-bold transition-all flex items-center justify-center gap-2"
 						onclick={logout}
 						disabled={isLoggingOut}
 					>
@@ -675,7 +675,7 @@
 					</button>
 					<button
 						type="button"
-						class="btn preset-outlined-surface-500 py-3 rounded-xl font-bold transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
+						class="btn preset-outlined-surface-500 py-3 rounded-xl font-bold transition-all disabled:opacity-40 disabled:cursor-not-allowed"
 						onclick={() => (showLogoutConfirm = false)}
 						disabled={isLoggingOut}
 					>

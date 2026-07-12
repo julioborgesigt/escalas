@@ -83,7 +83,7 @@
 		<p class="mb-4">Nenhuma escala criada para os filtros selecionados.</p>
 		<button
 			type="button"
-			class="btn preset-filled-primary-500 active:scale-95 transition-all"
+			class="btn preset-filled-primary-500 transition-all"
 			onclick={onNovaEscala}>Criar Escala</button
 		>
 	</div>
@@ -291,14 +291,14 @@
 										{:else}
 											<button
 												type="button"
-												class="btn btn-sm preset-filled-success-500 active:scale-95 transition-all"
+												class="btn btn-sm preset-filled-success-500 transition-all"
 												onclick={() => onAbrirDialogSolicitar(esc.id)}>Solicitar Ass.</button
 											>
 										{/if}
 									{/if}
 									<button
 										type="button"
-										class="btn btn-sm preset-filled-error-500 flex-1 active:scale-95 transition-all"
+										class="btn btn-sm preset-filled-error-500 flex-1 transition-all"
 										onclick={() => onSolicitarExclusao(esc.id, esc.titulo)}>Excluir</button
 									>
 								</div>
@@ -493,7 +493,7 @@
 							{:else}
 								<button
 									type="button"
-									class="btn btn-sm preset-filled-success-500 w-full active:scale-95 transition-all"
+									class="btn btn-sm preset-filled-success-500 w-full transition-all"
 									onclick={() => onAbrirDialogSolicitar(esc.id)}>Solicitar Assinatura</button
 								>
 							{/if}

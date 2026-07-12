@@ -343,7 +343,7 @@
 						{#if isMobile}
 							<button
 								type="button"
-								class="btn btn-sm preset-filled-warning-500 font-bold text-xs px-3 shrink-0 active:scale-95 transition-all"
+								class="btn btn-sm preset-filled-warning-500 font-bold text-xs px-3 shrink-0 transition-all"
 								disabled={loading.active}
 								onclick={abrirModalAssinatura}>Assinar</button
 							>
@@ -389,7 +389,7 @@
 						{#if !isMobile}
 							<button
 								type="button"
-								class="btn btn-sm preset-filled-tertiary-500 font-bold text-xs px-3 shrink-0 active:scale-95 transition-all"
+								class="btn btn-sm preset-filled-tertiary-500 font-bold text-xs px-3 shrink-0 transition-all"
 								disabled={assinando}
 								onclick={() => {
 									if (painelTokenControl) painelTokenControl.assinarComSerpro();
@@ -497,7 +497,7 @@
 					</div>
 					<button
 						type="button"
-						class="btn btn-sm preset-filled-success-500 font-bold shrink-0 text-xs px-3 active:scale-95 transition-all"
+						class="btn btn-sm preset-filled-success-500 font-bold shrink-0 text-xs px-3 transition-all"
 						onclick={() => (dialogSolicitarAberto = true)}
 					>
 						Solicitar

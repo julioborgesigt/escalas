@@ -111,7 +111,7 @@
 						</div>
 						<button
 							type="button"
-							class="btn w-full preset-filled-primary-500 hover:brightness-110 py-2.5 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 text-white active:scale-95 shadow-md shadow-primary-500/25"
+							class="btn w-full preset-filled-primary-500 hover:brightness-110 py-2.5 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 text-white shadow-md shadow-primary-500/25"
 							onclick={() => goto(acao.rota)}
 						>
 							{acao.cta}

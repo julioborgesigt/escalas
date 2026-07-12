@@ -95,7 +95,7 @@
 		<div class="sm:col-span-3 flex gap-2 h-9 items-center">
 			<button
 				type="submit"
-				class="btn btn-sm preset-filled-primary-500 active:scale-95 transition-all flex-1"
+				class="btn btn-sm preset-filled-primary-500 transition-all flex-1"
 				disabled={pendingPlantao || !policialId || !addPrimeiroPlantao}
 			>
 				{pendingPlantao ? 'Salvando...' : 'Adicionar OIP'}
