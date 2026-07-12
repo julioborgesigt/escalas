@@ -76,14 +76,14 @@
 				>
 					Administração do Sistema
 				</span>
-				<h2
+				<h1
 					class="text-2xl sm:text-3xl font-black text-surface-900 dark:text-surface-50 tracking-tight leading-tight"
 				>
 					Seja bem-vindo, <span
 						class="bg-clip-text text-transparent bg-gradient-to-r from-primary-600 to-warning-500 dark:from-primary-400 dark:to-warning-400"
 						>{usuario?.nome?.split(' ')[0]}</span
 					>!
-				</h2>
+				</h1>
 			</div>
 
 			<p class="text-sm text-surface-600 dark:text-surface-300 leading-relaxed max-w-2xl mx-auto">

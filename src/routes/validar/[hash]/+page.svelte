@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { Check, X, AlertTriangle, HelpCircle } from 'lucide-svelte';
 	import { formatarData } from '$lib/utils';
 	import { toaster } from '$lib/toast';
 	import Spinner from '$lib/components/Spinner.svelte';
@@ -178,17 +179,17 @@
 						<!-- Integridade do arquivo -->
 						<div class="flex items-start gap-2">
 							{#if data.hashConfere === true}
-								<span class="text-success-600 font-black shrink-0">✓</span>
+								<Check class="w-4 h-4 shrink-0 mt-0.5 text-success-600" aria-hidden="true" />
 								<span class="text-surface-700 dark:text-surface-300"
 									><strong>Integridade do arquivo:</strong> hash do PDF confere com o registro original.</span
 								>
 							{:else if data.hashConfere === false}
-								<span class="text-error-600 font-black shrink-0">✕</span>
+								<X class="w-4 h-4 shrink-0 mt-0.5 text-error-600" aria-hidden="true" />
 								<span class="text-error-700 dark:text-error-400 font-bold"
 									>O arquivo armazenado foi alterado após a assinatura.</span
 								>
 							{:else}
-								<span class="text-surface-400 font-black shrink-0">?</span>
+								<HelpCircle class="w-4 h-4 shrink-0 mt-0.5 text-surface-400" aria-hidden="true" />
 								<span class="text-surface-500 italic"
 									>Verificação de integridade indisponível (registro antigo).</span
 								>
@@ -199,17 +200,20 @@
 							<!-- Cadeia ICP-Brasil -->
 							<div class="flex items-start gap-2">
 								{#if v.checks.cadeiaIcpBrasil === true}
-									<span class="text-success-600 font-black shrink-0">✓</span>
+									<Check class="w-4 h-4 shrink-0 mt-0.5 text-success-600" aria-hidden="true" />
 									<span class="text-surface-700 dark:text-surface-300"
 										><strong>Cadeia ICP-Brasil:</strong> certificado encadeia até uma AC Raiz reconhecida.</span
 									>
 								{:else if v.checks.cadeiaIcpBrasil === 'indisponivel'}
-									<span class="text-warning-600 font-black shrink-0">⚠</span>
+									<AlertTriangle
+										class="w-4 h-4 shrink-0 mt-0.5 text-warning-600"
+										aria-hidden="true"
+									/>
 									<span class="text-surface-500 italic"
 										>Cadeia ICP-Brasil não validada (trust store ainda não populado).</span
 									>
 								{:else}
-									<span class="text-error-600 font-black shrink-0">✕</span>
+									<X class="w-4 h-4 shrink-0 mt-0.5 text-error-600" aria-hidden="true" />
 									<span class="text-error-700 dark:text-error-400 font-bold"
 										>Cadeia ICP-Brasil inválida.</span
 									>
@@ -218,13 +222,13 @@
 							<!-- Assinatura RSA -->
 							<div class="flex items-start gap-2">
 								{#if v.checks.assinaturaRsa}
-									<span class="text-success-600 font-black shrink-0">✓</span>
+									<Check class="w-4 h-4 shrink-0 mt-0.5 text-success-600" aria-hidden="true" />
 									<span class="text-surface-700 dark:text-surface-300"
 										><strong>Assinatura RSA:</strong> SignedAttributes íntegros e assinados pela chave
 										do certificado.</span
 									>
 								{:else}
-									<span class="text-error-600 font-black shrink-0">✕</span>
+									<X class="w-4 h-4 shrink-0 mt-0.5 text-error-600" aria-hidden="true" />
 									<span class="text-error-700 dark:text-error-400 font-bold"
 										>Assinatura RSA inválida.</span
 									>
@@ -233,20 +237,26 @@
 							<!-- Carimbo de tempo -->
 							<div class="flex items-start gap-2">
 								{#if v.checks.timestampQualificado}
-									<span class="text-success-600 font-black shrink-0">✓</span>
+									<Check class="w-4 h-4 shrink-0 mt-0.5 text-success-600" aria-hidden="true" />
 									<span class="text-surface-700 dark:text-surface-300"
 										><strong>Carimbo de tempo qualificado:</strong> ACT/ICP-Brasil (RFC 3161){#if v.timestamp},
 											em {formatarDataHora(v.timestamp.momento)}{/if}.</span
 									>
 								{:else if v.timestamp?.tipo === 'tsa_externa'}
-									<span class="text-warning-600 font-black shrink-0">⚠</span>
+									<AlertTriangle
+										class="w-4 h-4 shrink-0 mt-0.5 text-warning-600"
+										aria-hidden="true"
+									/>
 									<span class="text-surface-700 dark:text-surface-300"
 										><strong>Carimbo de tempo:</strong> TSA externa não-ICP (RFC 3161){#if v.timestamp},
 											em {formatarDataHora(v.timestamp.momento)}{/if}. Assinatura do carimbo
 										verificada, mas sem a presunção ICP-Brasil.</span
 									>
 								{:else}
-									<span class="text-warning-600 font-black shrink-0">⚠</span>
+									<AlertTriangle
+										class="w-4 h-4 shrink-0 mt-0.5 text-warning-600"
+										aria-hidden="true"
+									/>
 									<span class="text-surface-500"
 										><strong>Carimbo de tempo:</strong> apenas hora do servidor (sem ACT/ICP).</span
 									>
@@ -256,19 +266,25 @@
 							{#if v.politica}
 								<div class="flex items-start gap-2">
 									{#if v.politica.conforme}
-										<span class="text-success-600 font-black shrink-0">✓</span>
+										<Check class="w-4 h-4 shrink-0 mt-0.5 text-success-600" aria-hidden="true" />
 										<span class="text-surface-700 dark:text-surface-300"
 											><strong>Política de assinatura:</strong>
 											{v.politica.nome} (ICP-Brasil).</span
 										>
 									{:else if v.politica.presente}
-										<span class="text-warning-600 font-black shrink-0">⚠</span>
+										<AlertTriangle
+											class="w-4 h-4 shrink-0 mt-0.5 text-warning-600"
+											aria-hidden="true"
+										/>
 										<span class="text-surface-500"
 											><strong>Política de assinatura:</strong> declarada, mas o OID/hash não confere
 											com a PA-AD-RB v2.3.</span
 										>
 									{:else}
-										<span class="text-warning-600 font-black shrink-0">⚠</span>
+										<AlertTriangle
+											class="w-4 h-4 shrink-0 mt-0.5 text-warning-600"
+											aria-hidden="true"
+										/>
 										<span class="text-surface-500"
 											><strong>Política de assinatura:</strong> não aplicada (sem id-aa-ets-sigPolicyId).</span
 										>
@@ -278,18 +294,18 @@
 							<!-- Revogação -->
 							<div class="flex items-start gap-2">
 								{#if v.checks.revogacao === 'good'}
-									<span class="text-success-600 font-black shrink-0">✓</span>
+									<Check class="w-4 h-4 shrink-0 mt-0.5 text-success-600" aria-hidden="true" />
 									<span class="text-surface-700 dark:text-surface-300"
 										><strong>Revogação:</strong> certificado válido (snapshot OCSP{#if data.documento.ocsp_consultado_em}
 											de {formatarDataHora(data.documento.ocsp_consultado_em)}{/if}).</span
 									>
 								{:else if v.checks.revogacao === 'revoked'}
-									<span class="text-error-600 font-black shrink-0">✕</span>
+									<X class="w-4 h-4 shrink-0 mt-0.5 text-error-600" aria-hidden="true" />
 									<span class="text-error-700 dark:text-error-400 font-bold"
 										>Certificado REVOGADO pela Autoridade Certificadora.</span
 									>
 								{:else}
-									<span class="text-surface-400 font-black shrink-0">?</span>
+									<HelpCircle class="w-4 h-4 shrink-0 mt-0.5 text-surface-400" aria-hidden="true" />
 									<span class="text-surface-500 italic"
 										>Verificação OCSP indisponível para este documento (assinado antes da migração
 										de auditoria).</span
@@ -320,13 +336,11 @@
 									<ul class="space-y-0.5">
 										{#each v.assinaturasAdicionais as ass (ass.ordem)}
 											<li class="flex items-center gap-2 text-2xs">
-												<span
-													class="font-black {ass.integridade && ass.assinaturaRsa
-														? 'text-success-600'
-														: 'text-error-600'}"
-												>
-													{ass.integridade && ass.assinaturaRsa ? '✓' : '✕'}
-												</span>
+												{#if ass.integridade && ass.assinaturaRsa}
+													<Check class="w-3 h-3 shrink-0 text-success-600" aria-hidden="true" />
+												{:else}
+													<X class="w-3 h-3 shrink-0 text-error-600" aria-hidden="true" />
+												{/if}
 												<span class="text-surface-700 dark:text-surface-300 truncate">
 													#{ass.ordem + 1}
 													{ass.signerCN || '(signatário desconhecido)'}
@@ -353,13 +367,13 @@
 								<!-- Selo institucional (CMS autoassinado, não-ICP) -->
 								<div class="flex items-start gap-2">
 									{#if data.selo.integro}
-										<span class="text-success-600 font-black shrink-0">✓</span>
+										<Check class="w-4 h-4 shrink-0 mt-0.5 text-success-600" aria-hidden="true" />
 										<span class="text-surface-700 dark:text-surface-300"
 											><strong>Selo institucional:</strong> documento íntegro e à prova de
 											adulteração{#if data.selo.autentico}, certificado confere com o selo oficial{/if}.</span
 										>
 									{:else}
-										<span class="text-error-600 font-black shrink-0">✕</span>
+										<X class="w-4 h-4 shrink-0 mt-0.5 text-error-600" aria-hidden="true" />
 										<span class="text-error-700 dark:text-error-400 font-bold"
 											>Selo institucional inválido — documento adulterado após a assinatura.</span
 										>
@@ -367,7 +381,7 @@
 								</div>
 								{#if data.selo.tipoCarimboTempo && data.selo.tipoCarimboTempo !== 'servidor'}
 									<div class="flex items-start gap-2">
-										<span class="text-success-600 font-black shrink-0">✓</span>
+										<Check class="w-4 h-4 shrink-0 mt-0.5 text-success-600" aria-hidden="true" />
 										<span class="text-surface-700 dark:text-surface-300"
 											><strong>Carimbo de tempo:</strong> RFC 3161 (TSA externa, não-ICP){#if data.selo.momento},
 												em {formatarDataHora(data.selo.momento)}{/if}.</span
