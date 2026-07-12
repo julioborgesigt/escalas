@@ -315,7 +315,7 @@
 		class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-sm overflow-y-auto"
 	>
 		<div
-			class="card p-4 sm:p-6 w-full max-w-lg bg-surface-100 dark:bg-surface-900 shadow-2xl rounded-2xl border border-surface-200 dark:border-white/10 overflow-y-auto max-h-[calc(100dvh-2rem)]"
+			class="card p-4 sm:p-6 w-full max-w-lg card-elevated shadow-2xl rounded-2xl overflow-y-auto max-h-[calc(100dvh-2rem)]"
 		>
 			<Dialog.Title class="h3 font-bold mb-4">Nova Escala</Dialog.Title>
 
@@ -426,7 +426,7 @@
 							</button>
 						</div>
 						<div
-							class="grid grid-cols-7 gap-px text-center text-[0.6rem] font-semibold uppercase tracking-wide text-surface-500 dark:text-surface-400 py-0.5"
+							class="grid grid-cols-7 gap-px text-center text-3xs font-semibold uppercase tracking-wide text-surface-500 dark:text-surface-400 py-0.5"
 						>
 							{#each DIAS_SEM as ds (ds)}<span>{ds}</span>{/each}
 						</div>
@@ -454,7 +454,7 @@
 
 					{#if fdsDiasOrdenados.length > 0}
 						<div class="min-w-0 space-y-0.5">
-							<span class="text-[0.65rem] font-semibold text-surface-500"
+							<span class="text-3xs font-semibold text-surface-500"
 								>Dias selecionados ({fdsDiasOrdenados.length})</span
 							>
 							<div
@@ -462,7 +462,7 @@
 							>
 								{#each fdsDiasOrdenados as iso (iso)}
 									<span
-										class="inline-flex items-center gap-0.5 pl-1.5 pr-0.5 py-0.5 rounded-md text-[0.65rem] font-medium border shrink-0 border-warning-400/80 bg-warning-500/10 text-warning-900 dark:text-warning-100"
+										class="inline-flex items-center gap-0.5 pl-1.5 pr-0.5 py-0.5 rounded-md text-3xs font-medium border shrink-0 border-warning-400/80 bg-warning-500/10 text-warning-900 dark:text-warning-100"
 									>
 										{fmtDia(iso)}
 										<button
@@ -489,14 +489,12 @@
 					<div
 						class="rounded-xl border border-surface-200 dark:border-surface-700 p-2.5 space-y-1.5"
 					>
-						<p
-							class="text-[0.65rem] sm:text-xs font-semibold text-surface-600 dark:text-surface-400"
-						>
+						<p class="text-3xs sm:text-xs font-semibold text-surface-600 dark:text-surface-400">
 							Horário
 						</p>
 						<div class="grid grid-cols-2 gap-2">
 							<div>
-								<span class="text-[0.65rem] text-surface-500 block mb-0.5">Hora entrada</span>
+								<span class="text-3xs text-surface-500 block mb-0.5">Hora entrada</span>
 								<div class="flex gap-1">
 									<select class="select text-xs flex-1" bind:value={fdsHoraEntrada}>
 										{#each horas as h (h)}<option value={h}>{h}h</option>{/each}
@@ -507,7 +505,7 @@
 								</div>
 							</div>
 							<div>
-								<span class="text-[0.65rem] text-surface-500 block mb-0.5">Hora saída</span>
+								<span class="text-3xs text-surface-500 block mb-0.5">Hora saída</span>
 								<div class="flex gap-1">
 									<select class="select text-xs flex-1" bind:value={fdsHoraSaida}>
 										{#each horas as h (h)}<option value={h}>{h}h</option>{/each}
@@ -518,16 +516,14 @@
 								</div>
 							</div>
 						</div>
-						<p class="text-[0.65rem] text-primary-600 dark:text-primary-400 font-medium">
+						<p class="text-3xs text-primary-600 dark:text-primary-400 font-medium">
 							{fdsHorarioLabel}
 						</p>
 					</div>
 
 					{#if fdsTituloAuto}
 						<div class="rounded-lg bg-surface-100 dark:bg-surface-800/50 px-3 py-2">
-							<p class="text-[0.6rem] text-surface-500 dark:text-surface-400 mb-0.5">
-								Título gerado
-							</p>
+							<p class="text-3xs text-surface-500 dark:text-surface-400 mb-0.5">Título gerado</p>
 							<p class="text-xs text-surface-700 dark:text-surface-200 font-medium leading-snug">
 								{fdsTituloAuto}
 							</p>
@@ -639,9 +635,7 @@
 
 					{#if titulo}
 						<div class="rounded-lg bg-surface-100 dark:bg-surface-800/50 px-3 py-2">
-							<p class="text-[0.6rem] text-surface-500 dark:text-surface-400 mb-0.5">
-								Título gerado
-							</p>
+							<p class="text-3xs text-surface-500 dark:text-surface-400 mb-0.5">Título gerado</p>
 							<p class="text-xs text-surface-700 dark:text-surface-200 font-medium leading-snug">
 								{titulo}
 							</p>

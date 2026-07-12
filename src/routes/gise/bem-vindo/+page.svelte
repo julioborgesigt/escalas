@@ -40,7 +40,7 @@
 			<!-- Title / Greeting -->
 			<div class="space-y-2">
 				<span
-					class="inline-block text-[0.65rem] font-black uppercase tracking-widest text-secondary-600 dark:text-secondary-400 bg-secondary-500/10 px-3 py-1 rounded-full"
+					class="inline-block text-3xs font-black uppercase tracking-widest text-secondary-600 dark:text-secondary-400 bg-secondary-500/10 px-3 py-1 rounded-full"
 				>
 					Módulo GISE
 				</span>

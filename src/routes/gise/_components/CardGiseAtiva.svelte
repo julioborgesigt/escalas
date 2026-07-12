@@ -82,12 +82,12 @@
 	<div class="flex flex-col gap-3 p-4 sm:p-5 flex-1">
 		<div class="flex items-center gap-2 flex-wrap">
 			<span
-				class="inline-flex items-center rounded-full bg-primary-500/10 px-2 py-0.5 text-[0.62rem] font-bold uppercase tracking-wide text-primary-700 dark:text-primary-400"
+				class="inline-flex items-center rounded-full bg-primary-500/10 px-2 py-0.5 text-3xs font-bold uppercase tracking-wide text-primary-700 dark:text-primary-400"
 			>
 				Ativa #{ativa.id}
 			</span>
 			<span
-				class="inline-flex items-center rounded-full px-2 py-0.5 text-[0.62rem] font-bold uppercase tracking-wide {statusColor(
+				class="inline-flex items-center rounded-full px-2 py-0.5 text-3xs font-bold uppercase tracking-wide {statusColor(
 					ativa.status
 				)}"
 			>
@@ -95,7 +95,7 @@
 			</span>
 			{#if ativa.supervisor_id === usuario?.id}
 				<span
-					class="inline-flex items-center rounded-full bg-warning-500/15 px-2 py-0.5 text-[0.62rem] font-bold uppercase tracking-wide text-warning-700 dark:text-warning-400 border border-warning-500/20"
+					class="inline-flex items-center rounded-full bg-warning-500/15 px-2 py-0.5 text-3xs font-bold uppercase tracking-wide text-warning-700 dark:text-warning-400 border border-warning-500/20"
 				>
 					Sou Supervisor
 				</span>
@@ -216,21 +216,21 @@
 				>
 					<button
 						type="button"
-						class="btn flex-1 justify-center preset-filled-surface-100 dark:preset-filled-surface-800 text-[0.65rem] sm:text-[0.7rem] py-2 px-1 border border-surface-200 dark:border-surface-700 hover:preset-filled-primary-500 hover:text-white transition-all font-bold uppercase tracking-tight whitespace-nowrap shadow-sm"
+						class="btn flex-1 justify-center preset-filled-surface-100 dark:preset-filled-surface-800 text-3xs sm:text-2xs py-2 px-1 border border-surface-200 dark:border-surface-700 hover:preset-filled-primary-500 hover:text-white transition-all font-bold uppercase tracking-tight whitespace-nowrap shadow-sm"
 						onclick={() => goto(`/gise/${ativa.id}`)}
 					>
 						Acessar GISE
 					</button>
 					<button
 						type="button"
-						class="btn flex-1 justify-center preset-filled-surface-100 dark:preset-filled-surface-800 text-[0.65rem] sm:text-[0.7rem] py-2 px-1 border border-surface-200 dark:border-surface-700 hover:preset-filled-primary-500 hover:text-white transition-all font-bold uppercase tracking-tight whitespace-nowrap shadow-sm"
+						class="btn flex-1 justify-center preset-filled-surface-100 dark:preset-filled-surface-800 text-3xs sm:text-2xs py-2 px-1 border border-surface-200 dark:border-surface-700 hover:preset-filled-primary-500 hover:text-white transition-all font-bold uppercase tracking-tight whitespace-nowrap shadow-sm"
 						onclick={onEscalaPdf}
 					>
 						Escala PDF
 					</button>
 					<button
 						type="button"
-						class="btn flex-1 justify-center preset-filled-surface-100 dark:preset-filled-surface-800 text-[0.65rem] sm:text-[0.7rem] py-2 px-1 border border-surface-200 dark:border-surface-700 hover:preset-filled-primary-500 hover:text-white transition-all font-bold uppercase tracking-tight whitespace-nowrap shadow-sm"
+						class="btn flex-1 justify-center preset-filled-surface-100 dark:preset-filled-surface-800 text-3xs sm:text-2xs py-2 px-1 border border-surface-200 dark:border-surface-700 hover:preset-filled-primary-500 hover:text-white transition-all font-bold uppercase tracking-tight whitespace-nowrap shadow-sm"
 						onclick={onExtraPdf}
 						title={isSupervisor
 							? 'Baixar relatório de extra da supervisão'

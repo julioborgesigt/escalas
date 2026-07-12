@@ -155,7 +155,7 @@
 						{emailPessoal || '—'}
 						{#if emailPessoal}
 							<span
-								class="ml-1 text-[0.6rem] font-bold uppercase px-1.5 py-0.5 rounded {emailPessoalVerificado
+								class="ml-1 text-3xs font-bold uppercase px-1.5 py-0.5 rounded {emailPessoalVerificado
 									? 'bg-success-500/15 text-success-700 dark:text-success-400'
 									: 'bg-warning-500/15 text-warning-700 dark:text-warning-400'}"
 							>
@@ -172,7 +172,7 @@
 					</button>
 				</div>
 				{#if emailPessoal}
-					<p class="text-[0.68rem] text-surface-500 dark:text-surface-400 mt-1">
+					<p class="text-2xs text-surface-500 dark:text-surface-400 mt-1">
 						A troca exige sua senha e um código enviado ao novo endereço.
 					</p>
 				{/if}
@@ -296,7 +296,7 @@
 				Minhas solicitações
 				{#if pendentes.length > 0}
 					<span
-						class="ml-2 text-[0.65rem] font-bold px-2 py-0.5 rounded-full bg-warning-500/15 text-warning-700 dark:text-warning-400"
+						class="ml-2 text-3xs font-bold px-2 py-0.5 rounded-full bg-warning-500/15 text-warning-700 dark:text-warning-400"
 					>
 						{pendentes.length} pendente{pendentes.length > 1 ? 's' : ''}
 					</span>
@@ -320,7 +320,7 @@
 								<td class="py-2 text-surface-500">{s.valor_atual || '—'}</td>
 								<td class="py-2 font-semibold">{s.valor_novo}</td>
 								<td class="py-2">
-									<span class="text-[0.65rem] font-bold uppercase px-2 py-0.5 rounded {b.classe}">
+									<span class="text-3xs font-bold uppercase px-2 py-0.5 rounded {b.classe}">
 										{b.rotulo}
 									</span>
 								</td>

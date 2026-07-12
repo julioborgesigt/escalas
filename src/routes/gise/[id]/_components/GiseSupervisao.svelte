@@ -17,9 +17,9 @@
 		PenLine,
 		X,
 		Check,
-		Trash2,
-		Loader2
+		Trash2
 	} from 'lucide-svelte';
+	import Spinner from '$lib/components/Spinner.svelte';
 	import {
 		estadoMarcadorRodagemSupervisao,
 		quadroSupervisaoExtraExigeRelatorio,
@@ -373,7 +373,7 @@
 			title="Salvar"
 		>
 			{#if pendingCrud && editandoPapel === papel}
-				<Loader2 size={18} class="animate-spin" />
+				<Spinner size="sm" />
 			{:else}
 				<Check size={18} />
 			{/if}
@@ -416,7 +416,7 @@
 					disabled={pendingCrud}
 				>
 					{#if pendingCrud && removendoPapel === papel}
-						<Loader2 size={compacto ? 12 : 14} class="animate-spin" />
+						<Spinner size="xs" />
 					{:else}
 						<Trash2 size={compacto ? 12 : 14} />
 					{/if}
@@ -438,7 +438,7 @@
 			</div>
 			<div class="overflow-hidden min-w-0 flex-1">
 				<span
-					class="block text-[0.6rem] uppercase font-bold text-secondary-500/80 dark:text-secondary-400/80"
+					class="block text-3xs uppercase font-bold text-secondary-500/80 dark:text-secondary-400/80"
 					>NUIP OIP</span
 				>
 				{#if editandoPapel === papel}
@@ -526,7 +526,7 @@
 						</div>
 						<div class="min-w-0 flex-1">
 							<span
-								class="block text-[0.65rem] uppercase tracking-wider font-bold text-surface-500 dark:text-surface-400 mb-0.5"
+								class="block text-3xs uppercase tracking-wider font-bold text-surface-500 dark:text-surface-400 mb-0.5"
 								>DPC Supervisão</span
 							>
 							{#if editandoPapel === 'supervisor'}
@@ -579,7 +579,7 @@
 											<Users size={14} />
 										</div>
 										<span
-											class="block text-[0.6rem] uppercase font-bold text-surface-400 dark:text-surface-500"
+											class="block text-3xs uppercase font-bold text-surface-400 dark:text-surface-500"
 										>
 											Assessor
 										</span>
@@ -587,7 +587,7 @@
 									<div class="flex flex-wrap lg:flex-nowrap items-end gap-3 w-full">
 										<div class="flex-1 min-w-[200px]">
 											<span
-												class="block text-[0.65rem] font-semibold text-surface-500 dark:text-surface-400 mb-1"
+												class="block text-3xs font-semibold text-surface-500 dark:text-surface-400 mb-1"
 											>
 												Nome do Assessor
 											</span>
@@ -607,7 +607,7 @@
 											<div class="flex-1 min-w-[200px]">
 												<label
 													for="assessorEmailNotif"
-													class="block text-[0.65rem] font-semibold text-surface-500 dark:text-surface-400 mb-1"
+													class="block text-3xs font-semibold text-surface-500 dark:text-surface-400 mb-1"
 												>
 													E-mail (avisos GISE)
 												</label>
@@ -632,7 +632,7 @@
 														required
 													/>
 													<span
-														class="text-[0.7rem] text-surface-500 dark:text-surface-400 leading-none select-none"
+														class="text-2xs text-surface-500 dark:text-surface-400 leading-none select-none"
 													>
 														Confirmo e-mail.
 													</span>
@@ -651,7 +651,7 @@
 										</div>
 										<div class="overflow-hidden min-w-0 flex-1">
 											<span
-												class="block text-[0.6rem] uppercase font-bold text-surface-400 dark:text-surface-500"
+												class="block text-3xs uppercase font-bold text-surface-400 dark:text-surface-500"
 												>Assessor</span
 											>
 											<div class="flex items-center gap-2">
@@ -667,7 +667,7 @@
 											</div>
 											{#if gise.assessor_email_notificacao}
 												<p
-													class="text-[0.65rem] text-surface-500 dark:text-surface-400 truncate mt-0.5"
+													class="text-3xs text-surface-500 dark:text-surface-400 truncate mt-0.5"
 													title="E-mail para avisos de seccionais"
 												>
 													Avisos: {gise.assessor_email_notificacao}
@@ -720,7 +720,7 @@
 							{#if isMobile}
 								<!-- Mobile: card normal com título externo -->
 								<p
-									class="text-[0.6rem] font-bold uppercase tracking-wider text-surface-400 dark:text-surface-500"
+									class="text-3xs font-bold uppercase tracking-wider text-surface-400 dark:text-surface-500"
 								>
 									{documentoAssinadoInfo?.existe ? 'Escala GISE' : 'Assinatura da escala GISE'}
 								</p>
@@ -743,7 +743,7 @@
 										<div class="min-w-0 flex-1">
 											{#if documentoAssinadoInfo?.existe}
 												<span
-													class="inline-flex items-center gap-1 rounded-full bg-success-500/15 px-1.5 py-0.5 text-[0.58rem] font-bold uppercase text-success-700 dark:text-success-400"
+													class="inline-flex items-center gap-1 rounded-full bg-success-500/15 px-1.5 py-0.5 text-3xs font-bold uppercase text-success-700 dark:text-success-400"
 												>
 													<CheckCircle2 size={9} />Assinada
 												</span>
@@ -755,13 +755,13 @@
 											{:else}
 												{#if gise.status === 'aguardando_assinatura'}
 													<span
-														class="inline-flex items-center gap-1 rounded-full bg-warning-500/15 px-1.5 py-0.5 text-[0.58rem] font-bold uppercase text-warning-700 dark:text-warning-400"
+														class="inline-flex items-center gap-1 rounded-full bg-warning-500/15 px-1.5 py-0.5 text-3xs font-bold uppercase text-warning-700 dark:text-warning-400"
 													>
 														<Clock size={9} />ass. Pendente
 													</span>
 												{:else}
 													<span
-														class="inline-flex items-center gap-1 rounded-full bg-surface-500/15 px-1.5 py-0.5 text-[0.58rem] font-bold uppercase text-surface-700 dark:text-surface-400"
+														class="inline-flex items-center gap-1 rounded-full bg-surface-500/15 px-1.5 py-0.5 text-3xs font-bold uppercase text-surface-700 dark:text-surface-400"
 													>
 														<Clock size={9} />em preenchimento
 													</span>
@@ -803,15 +803,11 @@
 														{documentoAssinadoInfo.assinante_nome}
 													</p>
 												{:else}
-													<p
-														class="text-[0.68rem] leading-snug text-surface-500 dark:text-surface-400"
-													>
+													<p class="text-2xs leading-snug text-surface-500 dark:text-surface-400">
 														O supervisor poderá assinar a escala quando todas as seccionais enviarem
 														a escala.
 													</p>
-													<p
-														class="text-[0.68rem] leading-snug text-surface-500 dark:text-surface-400"
-													>
+													<p class="text-2xs leading-snug text-surface-500 dark:text-surface-400">
 														<span class="text-error-600 dark:text-error-400 font-medium"
 															>Faltando envio de:</span
 														>
@@ -831,7 +827,7 @@
 													<a
 														href={urlDocumentoAssinado}
 														target="_blank"
-														class="btn btn-xs preset-filled-primary-500 px-2.5 py-1.5 text-[0.65rem] font-bold rounded-lg no-underline flex items-center gap-1"
+														class="btn btn-xs preset-filled-primary-500 px-2.5 py-1.5 text-3xs font-bold rounded-lg no-underline flex items-center gap-1"
 														title="Baixar sem manifesto (para impressão)"
 													>
 														<FileDown size={13} class="shrink-0" />
@@ -841,7 +837,7 @@
 													<a
 														href={urlDocumentoAssinadoManifesto}
 														target="_blank"
-														class="btn btn-xs preset-outlined-primary-500 px-2.5 py-1.5 text-[0.65rem] font-bold rounded-lg no-underline flex items-center gap-1"
+														class="btn btn-xs preset-outlined-primary-500 px-2.5 py-1.5 text-3xs font-bold rounded-lg no-underline flex items-center gap-1"
 														title="Baixar com manifesto (folha de auditoria)"
 													>
 														<FileDown size={13} class="shrink-0" />
@@ -850,7 +846,7 @@
 												{:else}
 													{#if isSupervisor || isAdminGeral}
 														<a
-															class="btn btn-xs text-[0.65rem] px-2.5 py-1.5 rounded-lg font-semibold no-underline flex items-center gap-1 {assinaturaEscalaHabilitada
+															class="btn btn-xs text-3xs px-2.5 py-1.5 rounded-lg font-semibold no-underline flex items-center gap-1 {assinaturaEscalaHabilitada
 																? 'preset-tonal-primary border border-primary-500/30 hover:border-primary-500'
 																: 'preset-tonal-surface opacity-50 pointer-events-none'}"
 															href={urlDownloadPdf}
@@ -875,7 +871,7 @@
 													{#if isSupervisor}
 														<button
 															type="button"
-															class="btn btn-xs preset-filled-warning-500 border border-warning-600/30 px-2.5 py-1.5 text-[0.65rem] font-bold rounded-lg hover:border-warning-600 disabled:opacity-40 flex items-center gap-1"
+															class="btn btn-xs preset-filled-warning-500 border border-warning-600/30 px-2.5 py-1.5 text-3xs font-bold rounded-lg hover:border-warning-600 disabled:opacity-40 flex items-center gap-1"
 															disabled={!mostrarPainelAssinaturaEscala}
 															onclick={() => onAbrirAssinaturaEscalaManual()}
 														>
@@ -914,7 +910,7 @@
 										<div class="min-w-0">
 											{#if documentoAssinadoInfo?.existe}
 												<span
-													class="inline-flex items-center gap-1 rounded-full bg-success-500/15 px-1.5 py-0.5 text-[0.58rem] font-bold uppercase text-success-700 dark:text-success-400"
+													class="inline-flex items-center gap-1 rounded-full bg-success-500/15 px-1.5 py-0.5 text-3xs font-bold uppercase text-success-700 dark:text-success-400"
 												>
 													<CheckCircle2 size={9} />Assinada
 												</span>
@@ -926,13 +922,13 @@
 											{:else}
 												{#if gise.status === 'aguardando_assinatura'}
 													<span
-														class="inline-flex items-center gap-1 rounded-full bg-warning-500/15 px-1.5 py-0.5 text-[0.58rem] font-bold uppercase text-warning-700 dark:text-warning-400"
+														class="inline-flex items-center gap-1 rounded-full bg-warning-500/15 px-1.5 py-0.5 text-3xs font-bold uppercase text-warning-700 dark:text-warning-400"
 													>
 														<Clock size={9} />ass. Pendente
 													</span>
 												{:else}
 													<span
-														class="inline-flex items-center gap-1 rounded-full bg-surface-500/15 px-1.5 py-0.5 text-[0.58rem] font-bold uppercase text-surface-700 dark:text-surface-400"
+														class="inline-flex items-center gap-1 rounded-full bg-surface-500/15 px-1.5 py-0.5 text-3xs font-bold uppercase text-surface-700 dark:text-surface-400"
 													>
 														<Clock size={9} />em preenchimento
 													</span>
@@ -957,12 +953,12 @@
 												{documentoAssinadoInfo.assinante_nome}
 											</p>
 										{:else}
-											<p class="text-[0.68rem] leading-snug text-surface-500 dark:text-surface-400">
+											<p class="text-2xs leading-snug text-surface-500 dark:text-surface-400">
 												O supervisor poderá assinar a escala quando todas as seccionais enviarem a
 												escala.
 											</p>
 											<p
-												class="text-[0.68rem] leading-snug text-surface-500 dark:text-surface-400 mt-0.5"
+												class="text-2xs leading-snug text-surface-500 dark:text-surface-400 mt-0.5"
 											>
 												<span class="text-error-600 dark:text-error-400 font-medium"
 													>Faltando envio de:</span
@@ -986,7 +982,7 @@
 											<a
 												href={urlDocumentoAssinado}
 												target="_blank"
-												class="btn btn-xs preset-filled-primary-500 px-2.5 py-1.5 text-[0.65rem] font-bold rounded-lg no-underline flex items-center gap-1 hover:scale-[1.02] active:scale-95 transition-all"
+												class="btn btn-xs preset-filled-primary-500 px-2.5 py-1.5 text-3xs font-bold rounded-lg no-underline flex items-center gap-1 hover:scale-[1.02] active:scale-95 transition-all"
 												title="Baixar sem manifesto (para impressão)"
 											>
 												<FileDown size={13} class="shrink-0" />
@@ -995,7 +991,7 @@
 											<a
 												href={urlDocumentoAssinadoManifesto}
 												target="_blank"
-												class="btn btn-xs preset-outlined-primary-500 px-2.5 py-1.5 text-[0.65rem] font-bold rounded-lg no-underline flex items-center gap-1 hover:scale-[1.02] active:scale-95 transition-all"
+												class="btn btn-xs preset-outlined-primary-500 px-2.5 py-1.5 text-3xs font-bold rounded-lg no-underline flex items-center gap-1 hover:scale-[1.02] active:scale-95 transition-all"
 												title="Baixar com manifesto (folha de auditoria)"
 											>
 												<FileDown size={13} class="shrink-0" />
@@ -1004,7 +1000,7 @@
 										{:else}
 											{#if isSupervisor || isAdminGeral}
 												<a
-													class="btn btn-xs text-[0.65rem] px-2.5 py-1.5 rounded-lg font-semibold no-underline flex items-center gap-1 hover:scale-[1.02] active:scale-95 transition-all {assinaturaEscalaHabilitada
+													class="btn btn-xs text-3xs px-2.5 py-1.5 rounded-lg font-semibold no-underline flex items-center gap-1 hover:scale-[1.02] active:scale-95 transition-all {assinaturaEscalaHabilitada
 														? 'preset-tonal-primary border border-primary-500/30 hover:border-primary-500'
 														: 'preset-tonal-surface opacity-50 pointer-events-none'}"
 													href={urlDownloadPdf}
@@ -1029,7 +1025,7 @@
 											{#if isSupervisor}
 												<button
 													type="button"
-													class="btn btn-xs preset-filled-tertiary-500 border border-tertiary-600/30 px-2.5 py-1.5 text-[0.65rem] font-bold rounded-lg hover:border-tertiary-600 disabled:opacity-40 flex items-center gap-1 hover:scale-[1.02] active:scale-95 transition-all"
+													class="btn btn-xs preset-filled-tertiary-500 border border-tertiary-600/30 px-2.5 py-1.5 text-3xs font-bold rounded-lg hover:border-tertiary-600 disabled:opacity-40 flex items-center gap-1 hover:scale-[1.02] active:scale-95 transition-all"
 													disabled={!mostrarPainelAssinaturaEscala}
 													onclick={() => painelTokenGise?.assinarComSerpro()}
 												>
@@ -1077,7 +1073,7 @@
 							{#if !extraSupervisaoConfigurado}
 								{#if isMobile}
 									<p
-										class="text-[0.6rem] font-bold uppercase tracking-wider text-surface-400 dark:text-surface-500"
+										class="text-3xs font-bold uppercase tracking-wider text-surface-400 dark:text-surface-500"
 									>
 										Relatório de extra (Supervisão e apoio)
 									</p>
@@ -1096,7 +1092,7 @@
 								{#if isMobile}
 									<!-- Mobile layout -->
 									<p
-										class="text-[0.6rem] font-bold uppercase tracking-wider text-surface-400 dark:text-surface-500"
+										class="text-3xs font-bold uppercase tracking-wider text-surface-400 dark:text-surface-500"
 									>
 										Relatório de extra (Supervisão e apoio)
 									</p>
@@ -1118,7 +1114,7 @@
 											<div class="min-w-0 flex-1">
 												{#if assRelSup}
 													<span
-														class="inline-flex items-center gap-1 rounded-full bg-success-500/15 px-1.5 py-0.5 text-[0.58rem] font-bold uppercase text-success-700 dark:text-success-400"
+														class="inline-flex items-center gap-1 rounded-full bg-success-500/15 px-1.5 py-0.5 text-3xs font-bold uppercase text-success-700 dark:text-success-400"
 													>
 														<CheckCircle2 size={9} />Assinado
 													</span>
@@ -1130,13 +1126,13 @@
 												{:else}
 													{#if rubSupOk}
 														<span
-															class="inline-flex items-center gap-1 rounded-full bg-warning-500/15 px-1.5 py-0.5 text-[0.58rem] font-bold uppercase text-warning-700 dark:text-warning-400"
+															class="inline-flex items-center gap-1 rounded-full bg-warning-500/15 px-1.5 py-0.5 text-3xs font-bold uppercase text-warning-700 dark:text-warning-400"
 														>
 															<Clock size={9} />pronto para assinar
 														</span>
 													{:else}
 														<span
-															class="inline-flex items-center gap-1 rounded-full bg-surface-500/15 px-1.5 py-0.5 text-[0.58rem] font-bold uppercase text-surface-700 dark:text-surface-400"
+															class="inline-flex items-center gap-1 rounded-full bg-surface-500/15 px-1.5 py-0.5 text-3xs font-bold uppercase text-surface-700 dark:text-surface-400"
 														>
 															<Clock size={9} />Aguardando rubricas
 														</span>
@@ -1178,15 +1174,13 @@
 															{assRelSup.assinante_nome}
 														</p>
 													{:else}
-														<p
-															class="text-[0.68rem] leading-snug text-surface-500 dark:text-surface-400"
-														>
+														<p class="text-2xs leading-snug text-surface-500 dark:text-surface-400">
 															O supervisor poderá assinar o relatório de extra do quadro de
 															supervisão quando todos os integrantes confirmarem sua saída.
 														</p>
 														{#if !rubSupOk}
 															<p
-																class="text-[0.68rem] leading-snug text-surface-500 dark:text-surface-400"
+																class="text-2xs leading-snug text-surface-500 dark:text-surface-400"
 															>
 																{#if faltSup?.startsWith(FALTANTE_RUBRICA_SUPER_PREFIX)}
 																	<span class="text-error-600 dark:text-error-400 font-medium"
@@ -1198,7 +1192,7 @@
 															</p>
 														{:else}
 															<p
-																class="text-[0.68rem] leading-snug text-surface-500 dark:text-surface-400"
+																class="text-2xs leading-snug text-surface-500 dark:text-surface-400"
 															>
 																Disponível para conferência. Aguardando assinatura.
 															</p>
@@ -1210,7 +1204,7 @@
 														<a
 															href={urlDownloadExtra}
 															target="_blank"
-															class="btn btn-xs preset-filled-primary-500 px-2.5 py-1.5 text-[0.65rem] font-bold rounded-lg no-underline flex items-center gap-1 {!downloadExtraSupHabilitado
+															class="btn btn-xs preset-filled-primary-500 px-2.5 py-1.5 text-3xs font-bold rounded-lg no-underline flex items-center gap-1 {!downloadExtraSupHabilitado
 																? 'pointer-events-none opacity-60'
 																: ''}"
 															title="Baixar sem manifesto (para impressão)"
@@ -1221,7 +1215,7 @@
 														<a
 															href={urlDownloadExtraManifesto}
 															target="_blank"
-															class="btn btn-xs preset-outlined-primary-500 px-2.5 py-1.5 text-[0.65rem] font-bold rounded-lg no-underline flex items-center gap-1 {!downloadExtraSupHabilitado
+															class="btn btn-xs preset-outlined-primary-500 px-2.5 py-1.5 text-3xs font-bold rounded-lg no-underline flex items-center gap-1 {!downloadExtraSupHabilitado
 																? 'pointer-events-none opacity-60'
 																: ''}"
 															title="Baixar com manifesto (folha de auditoria)"
@@ -1231,7 +1225,7 @@
 														</a>
 													{:else}
 														<a
-															class="btn btn-xs text-[0.65rem] px-2.5 py-1.5 rounded-lg font-semibold no-underline flex items-center gap-1 {downloadExtraSupConferenciaHabilitado
+															class="btn btn-xs text-3xs px-2.5 py-1.5 rounded-lg font-semibold no-underline flex items-center gap-1 {downloadExtraSupConferenciaHabilitado
 																? 'preset-tonal-primary border border-primary-500/30 hover:border-primary-500'
 																: 'preset-tonal-surface opacity-50 pointer-events-none'}"
 															href={urlDownloadExtra}
@@ -1254,7 +1248,7 @@
 														{#if isSupervisor && extraSupervisaoConfigurado}
 															<button
 																type="button"
-																class="btn btn-xs preset-filled-warning-500 border border-warning-600/30 px-2.5 py-1.5 text-[0.65rem] font-bold rounded-lg hover:border-warning-600 disabled:opacity-40 flex items-center gap-1"
+																class="btn btn-xs preset-filled-warning-500 border border-warning-600/30 px-2.5 py-1.5 text-3xs font-bold rounded-lg hover:border-warning-600 disabled:opacity-40 flex items-center gap-1"
 																disabled={!assinaturaExtraHabilitada}
 																onclick={() => onAssinarExtraSupervisaoManual?.()}
 															>
@@ -1293,7 +1287,7 @@
 											<div class="min-w-0">
 												{#if assRelSup}
 													<span
-														class="inline-flex items-center gap-1 rounded-full bg-success-500/15 px-1.5 py-0.5 text-[0.58rem] font-bold uppercase text-success-700 dark:text-success-400"
+														class="inline-flex items-center gap-1 rounded-full bg-success-500/15 px-1.5 py-0.5 text-3xs font-bold uppercase text-success-700 dark:text-success-400"
 													>
 														<CheckCircle2 size={9} />Assinado
 													</span>
@@ -1305,13 +1299,13 @@
 												{:else}
 													{#if rubSupOk}
 														<span
-															class="inline-flex items-center gap-1 rounded-full bg-warning-500/15 px-1.5 py-0.5 text-[0.58rem] font-bold uppercase text-warning-700 dark:text-warning-400"
+															class="inline-flex items-center gap-1 rounded-full bg-warning-500/15 px-1.5 py-0.5 text-3xs font-bold uppercase text-warning-700 dark:text-warning-400"
 														>
 															<Clock size={9} />pronto para assinar
 														</span>
 													{:else}
 														<span
-															class="inline-flex items-center gap-1 rounded-full bg-surface-500/15 px-1.5 py-0.5 text-[0.58rem] font-bold uppercase text-surface-700 dark:text-surface-400"
+															class="inline-flex items-center gap-1 rounded-full bg-surface-500/15 px-1.5 py-0.5 text-3xs font-bold uppercase text-surface-700 dark:text-surface-400"
 														>
 															<Clock size={9} />Aguardando rubricas
 														</span>
@@ -1336,15 +1330,13 @@
 													{assRelSup.assinante_nome}
 												</p>
 											{:else}
-												<p
-													class="text-[0.68rem] leading-snug text-surface-500 dark:text-surface-400"
-												>
+												<p class="text-2xs leading-snug text-surface-500 dark:text-surface-400">
 													O supervisor poderá assinar o relatório de extra do quadro de supervisão
 													quando todos os integrantes confirmarem sua saída.
 												</p>
 												{#if !rubSupOk}
 													<p
-														class="text-[0.68rem] leading-snug text-surface-500 dark:text-surface-400 mt-0.5"
+														class="text-2xs leading-snug text-surface-500 dark:text-surface-400 mt-0.5"
 													>
 														{#if faltSup?.startsWith(FALTANTE_RUBRICA_SUPER_PREFIX)}
 															<span class="text-error-600 dark:text-error-400 font-medium"
@@ -1356,7 +1348,7 @@
 													</p>
 												{:else}
 													<p
-														class="text-[0.68rem] leading-snug text-surface-500 dark:text-surface-400 mt-0.5"
+														class="text-2xs leading-snug text-surface-500 dark:text-surface-400 mt-0.5"
 													>
 														Disponível para conferência. Aguardando assinatura.
 													</p>
@@ -1372,7 +1364,7 @@
 												<a
 													href={urlDownloadExtra}
 													target="_blank"
-													class="btn btn-xs preset-filled-primary-500 px-2.5 py-1.5 text-[0.65rem] font-bold rounded-lg no-underline flex items-center gap-1 hover:scale-[1.02] active:scale-95 transition-all {!downloadExtraSupHabilitado
+													class="btn btn-xs preset-filled-primary-500 px-2.5 py-1.5 text-3xs font-bold rounded-lg no-underline flex items-center gap-1 hover:scale-[1.02] active:scale-95 transition-all {!downloadExtraSupHabilitado
 														? 'pointer-events-none opacity-60'
 														: ''}"
 													title="Baixar sem manifesto (para impressão)"
@@ -1383,7 +1375,7 @@
 												<a
 													href={urlDownloadExtraManifesto}
 													target="_blank"
-													class="btn btn-xs preset-outlined-primary-500 px-2.5 py-1.5 text-[0.65rem] font-bold rounded-lg no-underline flex items-center gap-1 hover:scale-[1.02] active:scale-95 transition-all {!downloadExtraSupHabilitado
+													class="btn btn-xs preset-outlined-primary-500 px-2.5 py-1.5 text-3xs font-bold rounded-lg no-underline flex items-center gap-1 hover:scale-[1.02] active:scale-95 transition-all {!downloadExtraSupHabilitado
 														? 'pointer-events-none opacity-60'
 														: ''}"
 													title="Baixar com manifesto (folha de auditoria)"
@@ -1393,7 +1385,7 @@
 												</a>
 											{:else}
 												<a
-													class="btn btn-xs text-[0.65rem] px-2.5 py-1.5 rounded-lg font-semibold no-underline flex items-center gap-1 hover:scale-[1.02] active:scale-95 transition-all {downloadExtraSupConferenciaHabilitado
+													class="btn btn-xs text-3xs px-2.5 py-1.5 rounded-lg font-semibold no-underline flex items-center gap-1 hover:scale-[1.02] active:scale-95 transition-all {downloadExtraSupConferenciaHabilitado
 														? 'preset-tonal-primary border border-primary-500/30 hover:border-primary-500'
 														: 'preset-tonal-surface opacity-50 pointer-events-none'}"
 													href={urlDownloadExtra}
@@ -1416,7 +1408,7 @@
 												{#if isSupervisor && extraSupervisaoConfigurado}
 													<button
 														type="button"
-														class="btn btn-xs preset-filled-tertiary-500 border border-tertiary-600/30 px-2.5 py-1.5 text-[0.65rem] font-bold rounded-lg hover:border-tertiary-600 disabled:opacity-40 flex items-center gap-1 hover:scale-[1.02] active:scale-95 transition-all"
+														class="btn btn-xs preset-filled-tertiary-500 border border-tertiary-600/30 px-2.5 py-1.5 text-3xs font-bold rounded-lg hover:border-tertiary-600 disabled:opacity-40 flex items-center gap-1 hover:scale-[1.02] active:scale-95 transition-all"
 														disabled={!assinaturaExtraHabilitada}
 														onclick={() => onAssinarExtraSupervisaoDigital?.()}
 													>

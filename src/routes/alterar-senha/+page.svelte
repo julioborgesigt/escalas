@@ -264,7 +264,7 @@
 					{/if}
 
 					{#if etapaEmailPessoal !== 'verificado'}
-						<p class="text-[0.65rem] text-surface-500 dark:text-surface-400 italic">
+						<p class="text-3xs text-surface-500 dark:text-surface-400 italic">
 							A alteração da senha ficará disponível após a confirmação do e-mail pessoal.
 						</p>
 					{/if}

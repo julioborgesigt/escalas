@@ -15,6 +15,7 @@
 	import { csrfHeaders } from '$lib/csrf';
 	import { loading } from '$lib/loading.svelte';
 	import LoadingOverlay from '$lib/components/LoadingOverlay.svelte';
+	import Spinner from '$lib/components/Spinner.svelte';
 	import AvisoCadastroRubrica from '$lib/components/AvisoCadastroRubrica.svelte';
 	import { useScrollLock } from '$lib/composables';
 
@@ -560,7 +561,7 @@
 							{usuario.nome}
 						</p>
 						{#if !usuario?.papel && !isSupervisorGise && usuario?.lotacao}
-							<p class="text-[0.65rem] text-surface-500 dark:text-surface-400 truncate mt-0.5">
+							<p class="text-3xs text-surface-500 dark:text-surface-400 truncate mt-0.5">
 								{usuario.lotacao}
 							</p>
 						{/if}
@@ -569,7 +570,7 @@
 				<div class="flex flex-wrap gap-1.5 items-center">
 					{#if usuario?.tipo === 'admin'}
 						<span
-							class="badge preset-filled-primary-500 text-[0.6rem] font-semibold tracking-wider uppercase"
+							class="badge preset-filled-primary-500 text-3xs font-semibold tracking-wider uppercase"
 						>
 							ADMIN {adminModulo === 'gise'
 								? 'GISE'
@@ -599,19 +600,19 @@
 					{/if}
 					{#if usuario?.papel === 'admin_seccional'}
 						<span
-							class="badge preset-filled-warning-500 text-[0.6rem] font-semibold tracking-wider uppercase"
+							class="badge preset-filled-warning-500 text-3xs font-semibold tracking-wider uppercase"
 							>ADM SECCIONAL</span
 						>
 					{/if}
 					{#if usuario?.papel === 'admin_unidade'}
 						<span
-							class="badge preset-filled-tertiary-500 text-[0.6rem] font-semibold tracking-wider uppercase"
+							class="badge preset-filled-tertiary-500 text-3xs font-semibold tracking-wider uppercase"
 							>ADM UNIDADE</span
 						>
 					{/if}
 					{#if isSupervisorGise}
 						<span
-							class="badge preset-filled-success-500 text-[0.6rem] font-semibold tracking-wider uppercase"
+							class="badge preset-filled-success-500 text-3xs font-semibold tracking-wider uppercase"
 							>SUPERVISOR GISE</span
 						>
 					{/if}
@@ -645,11 +646,9 @@
 		}}
 	>
 		<Dialog.Content
-			class="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-surface-950/40 backdrop-blur-sm"
+			class="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-sm"
 		>
-			<div
-				class="w-full max-w-sm rounded-2xl bg-white dark:bg-surface-900 border border-surface-200 dark:border-white/10 shadow-2xl p-6 space-y-6"
-			>
+			<div class="w-full max-w-sm rounded-2xl card-elevated shadow-2xl p-6 space-y-6">
 				<div class="flex flex-col items-center text-center space-y-2">
 					<Dialog.Title class="text-xl font-bold text-surface-900 dark:text-surface-50">
 						{isLoggingOut ? 'Encerrando sessão...' : 'Sair do Sistema'}
@@ -668,21 +667,7 @@
 						disabled={isLoggingOut}
 					>
 						{#if isLoggingOut}
-							<svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-								<circle
-									class="opacity-25"
-									cx="12"
-									cy="12"
-									r="10"
-									stroke="currentColor"
-									stroke-width="3"
-								></circle>
-								<path
-									class="opacity-75"
-									fill="currentColor"
-									d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-								></path>
-							</svg>
+							<Spinner size="sm" />
 							Saindo...
 						{:else}
 							Sim, Sair

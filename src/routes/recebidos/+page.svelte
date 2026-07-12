@@ -504,17 +504,17 @@
 									<td class="text-center">
 										{#if escala.tipo === 'plantao'}
 											<span
-												class="badge preset-filled-tertiary-500/20 text-tertiary-900 dark:text-tertiary-200 border border-tertiary-500/30 text-[10px] font-bold"
+												class="badge preset-filled-tertiary-500/20 text-tertiary-900 dark:text-tertiary-200 border border-tertiary-500/30 text-3xs font-bold"
 												>Plantão</span
 											>
 										{:else if escala.tipo === 'expediente'}
 											<span
-												class="badge preset-filled-primary-500/20 text-primary-900 dark:text-primary-200 border border-primary-500/30 text-[10px] font-bold"
+												class="badge preset-filled-primary-500/20 text-primary-900 dark:text-primary-200 border border-primary-500/30 text-3xs font-bold"
 												>Expediente</span
 											>
 										{:else if escala.tipo === 'fds'}
 											<span
-												class="badge preset-filled-warning-500/20 text-warning-900 dark:text-warning-200 border border-warning-500/30 text-[10px] font-bold"
+												class="badge preset-filled-warning-500/20 text-warning-900 dark:text-warning-200 border border-warning-500/30 text-3xs font-bold"
 												>FDS</span
 											>
 										{/if}
@@ -643,7 +643,7 @@
 									</p>
 								</div>
 								<label class="flex flex-col items-center gap-1 shrink-0">
-									<span class="text-[10px] uppercase font-bold text-surface-500">Lida</span>
+									<span class="text-3xs uppercase font-bold text-surface-500">Lida</span>
 									<form
 										method="POST"
 										action="?/toggleVisto"
@@ -668,21 +668,21 @@
 							<div class="flex items-center gap-2 mb-3">
 								{#if escala.tipo === 'plantao'}
 									<span
-										class="badge preset-filled-tertiary-500/20 text-tertiary-900 dark:text-tertiary-200 border border-tertiary-500/30 text-[10px] font-bold px-1.5"
+										class="badge preset-filled-tertiary-500/20 text-tertiary-900 dark:text-tertiary-200 border border-tertiary-500/30 text-3xs font-bold px-1.5"
 										>Plantão</span
 									>
 								{:else if escala.tipo === 'expediente'}
 									<span
-										class="badge preset-filled-primary-500/20 text-primary-900 dark:text-primary-200 border border-primary-500/30 text-[10px] font-bold px-1.5"
+										class="badge preset-filled-primary-500/20 text-primary-900 dark:text-primary-200 border border-primary-500/30 text-3xs font-bold px-1.5"
 										>Expediente</span
 									>
 								{:else if escala.tipo === 'fds'}
 									<span
-										class="badge preset-filled-warning-500/20 text-warning-900 dark:text-warning-200 border border-warning-500/30 text-[10px] font-bold px-1.5"
+										class="badge preset-filled-warning-500/20 text-warning-900 dark:text-warning-200 border border-warning-500/30 text-3xs font-bold px-1.5"
 										>FDS</span
 									>
 								{/if}
-								<span class="text-[11px] text-surface-500"
+								<span class="text-2xs text-surface-500"
 									>{formatRelativeTime(escala.created_at)}</span
 								>
 							</div>
@@ -762,7 +762,7 @@
 		class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-sm overflow-y-auto"
 	>
 		<div
-			class="card p-4 sm:p-6 max-w-sm w-full max-h-[calc(100dvh-2rem)] overflow-y-auto bg-surface-100 dark:bg-surface-900 shadow-2xl rounded-2xl border border-surface-200 dark:border-white/10"
+			class="card p-4 sm:p-6 max-w-sm w-full max-h-[calc(100dvh-2rem)] overflow-y-auto card-elevated shadow-2xl rounded-2xl"
 		>
 			<Dialog.Title class="h3 font-bold mb-2">Excluir Escala?</Dialog.Title>
 			<Dialog.Description class="text-surface-600 dark:text-surface-400 mb-6">

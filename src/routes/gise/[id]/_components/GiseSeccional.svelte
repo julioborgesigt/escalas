@@ -278,7 +278,7 @@
 							/></svg
 						>
 						<span class="shrink-0">{rótuloProd}</span>
-						<span class="text-[0.6rem] font-medium italic">(aguardando)</span>
+						<span class="text-3xs font-medium italic">(aguardando)</span>
 					</button>
 				{/if}
 			{/each}
@@ -351,7 +351,7 @@
 							/></svg
 						>
 						<span class="whitespace-nowrap">Relat. Extra</span>
-						<span class="text-[0.6rem] opacity-100 dark:opacity-80 font-normal italic ml-1"
+						<span class="text-3xs opacity-100 dark:opacity-80 font-normal italic ml-1"
 							>({!checkAllSigned(sec) ? 'não concluído' : 'conferência'})</span
 						>
 					</a>
@@ -373,8 +373,8 @@
 								false,
 								false,
 								compact
-									? 'border-2 border-warning-600/30 hover:border-warning-600 text-[0.65rem] py-2 shadow-sm font-bold uppercase w-full min-h-11 touch-manipulation shrink-0'
-									: 'border-2 border-warning-600/30 hover:border-warning-600 text-[0.65rem] py-1.5 sm:py-1 shadow-sm font-bold uppercase w-full min-[400px]:w-auto min-h-11 sm:min-h-0 touch-manipulation shrink-0',
+									? 'border-2 border-warning-600/30 hover:border-warning-600 text-3xs py-2 shadow-sm font-bold uppercase w-full min-h-11 touch-manipulation shrink-0'
+									: 'border-2 border-warning-600/30 hover:border-warning-600 text-3xs py-1.5 sm:py-1 shadow-sm font-bold uppercase w-full min-[400px]:w-auto min-h-11 sm:min-h-0 touch-manipulation shrink-0',
 								'button',
 								'xs'
 							)}
@@ -392,8 +392,8 @@
 								false,
 								false,
 								compact
-									? 'border-2 border-tertiary-600/30 hover:border-tertiary-600 text-[0.65rem] py-2 shadow-sm font-bold uppercase w-full min-h-11 touch-manipulation shrink-0'
-									: 'border-2 border-tertiary-600/30 hover:border-tertiary-600 text-[0.65rem] py-1.5 sm:py-1 shadow-sm font-bold uppercase w-full min-[400px]:w-auto min-h-11 sm:min-h-0 touch-manipulation shrink-0',
+									? 'border-2 border-tertiary-600/30 hover:border-tertiary-600 text-3xs py-2 shadow-sm font-bold uppercase w-full min-h-11 touch-manipulation shrink-0'
+									: 'border-2 border-tertiary-600/30 hover:border-tertiary-600 text-3xs py-1.5 sm:py-1 shadow-sm font-bold uppercase w-full min-[400px]:w-auto min-h-11 sm:min-h-0 touch-manipulation shrink-0',
 								'button',
 								'xs'
 							)}
@@ -503,7 +503,7 @@
 					<span>{sec.hora_entrada ?? gise.hora_entrada}h-{sec.hora_saida ?? gise.hora_saida}h</span>
 					{#if (sec.hora_entrada || sec.hora_saida) && !recolhida}
 						<span
-							class="hidden sm:inline-block ml-1 px-1 rounded bg-warning-500/10 text-warning-600 dark:text-warning-400 font-bold border border-warning-500/20 text-[0.65rem]"
+							class="hidden sm:inline-block ml-1 px-1 rounded bg-warning-500/10 text-warning-600 dark:text-warning-400 font-bold border border-warning-500/20 text-3xs"
 							>H. Personalizado</span
 						>
 					{/if}

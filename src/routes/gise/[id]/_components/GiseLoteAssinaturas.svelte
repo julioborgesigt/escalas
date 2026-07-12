@@ -132,9 +132,7 @@
 </script>
 
 <div class="flex flex-col gap-1.5 w-full animate-fade">
-	<p
-		class="text-[0.6rem] font-bold uppercase tracking-wider text-surface-400 dark:text-surface-500"
-	>
+	<p class="text-3xs font-bold uppercase tracking-wider text-surface-400 dark:text-surface-500">
 		Assinaturas em lote (equipes)
 	</p>
 	<div
@@ -196,7 +194,7 @@
 				</div>
 				<div class="min-w-0 flex-1">
 					<span
-						class="inline-flex items-center gap-1 rounded-full {statusLoteInfo.class} px-1.5 py-0.5 text-[0.58rem] font-bold uppercase"
+						class="inline-flex items-center gap-1 rounded-full {statusLoteInfo.class} px-1.5 py-0.5 text-3xs font-bold uppercase"
 					>
 						{statusLoteInfo.text}
 					</span>
@@ -228,11 +226,11 @@
 					class="px-3 pb-3 pt-2.5 border-t border-surface-200/50 dark:border-surface-700/50 flex flex-col justify-between gap-2.5"
 				>
 					<div class="space-y-2">
-						<p class="text-[0.68rem] leading-snug text-surface-500 dark:text-surface-400">
+						<p class="text-2xs leading-snug text-surface-500 dark:text-surface-400">
 							O supervisor poderá assinar os Relatórios de extra das equipes em lote, parcialmente
 							ou todos de uma vez.
 						</p>
-						<p class="text-[0.68rem] leading-snug text-surface-500 dark:text-surface-400">
+						<p class="text-2xs leading-snug text-surface-500 dark:text-surface-400">
 							<span class="text-error-600 dark:text-error-400 font-medium">Faltando envio de:</span>
 							{#if naoIniciou}
 								Aguardando início
@@ -244,7 +242,7 @@
 									: 'Nenhum'}
 							{/if}
 						</p>
-						<p class="text-[0.68rem] leading-snug text-surface-500 dark:text-surface-400">
+						<p class="text-2xs leading-snug text-surface-500 dark:text-surface-400">
 							<span class="text-success-600 dark:text-success-400 font-medium">Assinado de:</span>
 							{#if naoIniciou}
 								Aguardando início
@@ -260,7 +258,7 @@
 						{#if assinandoLote}
 							<div class="flex flex-col gap-1.5">
 								<p
-									class="text-[0.6rem] font-bold uppercase tracking-widest text-warning-700 dark:text-warning-400 text-center"
+									class="text-3xs font-bold uppercase tracking-widest text-warning-700 dark:text-warning-400 text-center"
 								>
 									{etapaAssinatura}
 								</p>
@@ -272,7 +270,7 @@
 										style="width: {(progressoLote.atual / progressoLote.total) * 100}%"
 									></div>
 								</div>
-								<p class="text-[0.6rem] text-surface-500 dark:text-surface-400 text-center">
+								<p class="text-3xs text-surface-500 dark:text-surface-400 text-center">
 									{progressoLote.atual} de {progressoLote.total}
 								</p>
 							</div>
@@ -283,7 +281,7 @@
 						<div class="flex items-center gap-1.5 flex-wrap justify-end">
 							<button
 								type="button"
-								class="btn btn-xs preset-tonal-primary border border-primary-500/30 hover:border-primary-500 px-2.5 py-1.5 text-[0.65rem] font-bold rounded-lg flex items-center gap-1"
+								class="btn btn-xs preset-tonal-primary border border-primary-500/30 hover:border-primary-500 px-2.5 py-1.5 text-3xs font-bold rounded-lg flex items-center gap-1"
 								onclick={onConferencia || mostrarOrientaConferencia}
 							>
 								<svg
@@ -303,7 +301,7 @@
 							{#if podeAssinar}
 								<button
 									type="button"
-									class="btn btn-xs preset-filled-warning-500 border border-warning-600/30 px-2.5 py-1.5 text-[0.65rem] font-bold rounded-lg hover:border-warning-600 disabled:opacity-40 flex items-center gap-1"
+									class="btn btn-xs preset-filled-warning-500 border border-warning-600/30 px-2.5 py-1.5 text-3xs font-bold rounded-lg hover:border-warning-600 disabled:opacity-40 flex items-center gap-1"
 									disabled={loading.active || quantidadePendentes === 0}
 									onclick={onAssinarManualLote}
 								>
@@ -329,14 +327,14 @@
 					{#if concluidosExtra.length > 0}
 						<div class="mt-1 pt-2.5 border-t border-surface-200/50 dark:border-surface-700/50">
 							<p
-								class="text-[0.6rem] font-bold uppercase tracking-widest text-surface-400 dark:text-surface-500 mb-1.5 px-0.5"
+								class="text-3xs font-bold uppercase tracking-widest text-surface-400 dark:text-surface-500 mb-1.5 px-0.5"
 							>
 								Relatórios Assinados
 							</p>
 							<div class="flex flex-wrap gap-1.5">
 								{#each concluidosExtra as ass (ass.seccional_id)}
 									<div
-										class="flex items-center gap-1.5 px-2 py-1 rounded-md bg-success-500/5 border border-success-500/10 text-[0.6rem]"
+										class="flex items-center gap-1.5 px-2 py-1 rounded-md bg-success-500/5 border border-success-500/10 text-3xs"
 										title="Assinado por {ass.assinante_nome}"
 									>
 										<span class="text-success-600 dark:text-success-400">✓</span>
@@ -402,7 +400,7 @@
 					</div>
 					<div class="min-w-0">
 						<span
-							class="inline-flex items-center gap-1 rounded-full {statusLoteInfo.class} px-1.5 py-0.5 text-[0.58rem] font-bold uppercase"
+							class="inline-flex items-center gap-1 rounded-full {statusLoteInfo.class} px-1.5 py-0.5 text-3xs font-bold uppercase"
 						>
 							{statusLoteInfo.text}
 						</span>
@@ -416,11 +414,11 @@
 				<div
 					class="flex-1 min-w-0 text-left border-l border-surface-200/40 dark:border-surface-800/80 pl-4 py-0.5"
 				>
-					<p class="text-[0.68rem] leading-snug text-surface-500 dark:text-surface-400">
+					<p class="text-2xs leading-snug text-surface-500 dark:text-surface-400">
 						O supervisor poderá assinar os Relatórios de extra das equipes em lote, parcialmente ou
 						todos de uma vez.
 					</p>
-					<p class="text-[0.68rem] leading-snug text-surface-500 dark:text-surface-400 mt-0.5">
+					<p class="text-2xs leading-snug text-surface-500 dark:text-surface-400 mt-0.5">
 						<span class="text-error-600 dark:text-error-400 font-medium">Faltando envio de:</span>
 						{#if naoIniciou}
 							Aguardando início
@@ -432,7 +430,7 @@
 								: 'Nenhum'}
 						{/if}
 					</p>
-					<p class="text-[0.68rem] leading-snug text-surface-500 dark:text-surface-400 mt-0.5">
+					<p class="text-2xs leading-snug text-surface-500 dark:text-surface-400 mt-0.5">
 						<span class="text-success-600 dark:text-success-400 font-medium">Assinado de:</span>
 						{#if naoIniciou}
 							Aguardando início
@@ -448,7 +446,7 @@
 					{#if assinandoLote}
 						<div class="flex flex-col gap-1.5 mt-2 max-w-md">
 							<p
-								class="text-[0.6rem] font-bold uppercase tracking-widest text-warning-700 dark:text-warning-400 text-center"
+								class="text-3xs font-bold uppercase tracking-widest text-warning-700 dark:text-warning-400 text-center"
 							>
 								{etapaAssinatura}
 							</p>
@@ -460,7 +458,7 @@
 									style="width: {(progressoLote.atual / progressoLote.total) * 100}%"
 								></div>
 							</div>
-							<p class="text-[0.6rem] text-surface-500 dark:text-surface-400 text-center">
+							<p class="text-3xs text-surface-500 dark:text-surface-400 text-center">
 								{progressoLote.atual} de {progressoLote.total}
 							</p>
 						</div>
@@ -470,14 +468,14 @@
 					{#if concluidosExtra.length > 0}
 						<div class="mt-2 pt-2 border-t border-surface-200/40 dark:border-surface-800/80">
 							<p
-								class="text-[0.6rem] font-bold uppercase tracking-widest text-surface-400 dark:text-surface-500 mb-1.5 px-0.5"
+								class="text-3xs font-bold uppercase tracking-widest text-surface-400 dark:text-surface-500 mb-1.5 px-0.5"
 							>
 								Relatórios Assinados
 							</p>
 							<div class="flex flex-wrap gap-1.5">
 								{#each concluidosExtra as ass (ass.seccional_id)}
 									<div
-										class="flex items-center gap-1.5 px-2 py-0.5 rounded bg-success-500/5 border border-success-500/10 text-[0.6rem]"
+										class="flex items-center gap-1.5 px-2 py-0.5 rounded bg-success-500/5 border border-success-500/10 text-3xs"
 										title="Assinado por {ass.assinante_nome}"
 									>
 										<span class="text-success-600 dark:text-success-400">✓</span>
@@ -497,7 +495,7 @@
 				>
 					<button
 						type="button"
-						class="btn btn-xs preset-tonal-primary border border-primary-500/30 hover:border-primary-500 px-2.5 py-1.5 text-[0.65rem] font-bold rounded-lg flex items-center gap-1 hover:scale-[1.02] active:scale-95 transition-all"
+						class="btn btn-xs preset-tonal-primary border border-primary-500/30 hover:border-primary-500 px-2.5 py-1.5 text-3xs font-bold rounded-lg flex items-center gap-1 hover:scale-[1.02] active:scale-95 transition-all"
 						onclick={onConferencia || mostrarOrientaConferencia}
 					>
 						<svg class="h-2.5 w-2.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"
@@ -513,7 +511,7 @@
 					{#if podeAssinar && !assinandoLote}
 						<button
 							type="button"
-							class="btn btn-xs preset-filled-tertiary-500 border border-tertiary-600/30 px-2.5 py-1.5 text-[0.65rem] font-bold rounded-lg hover:border-tertiary-600 disabled:opacity-40 flex items-center gap-1 hover:scale-[1.02] active:scale-95 transition-all"
+							class="btn btn-xs preset-filled-tertiary-500 border border-tertiary-600/30 px-2.5 py-1.5 text-3xs font-bold rounded-lg hover:border-tertiary-600 disabled:opacity-40 flex items-center gap-1 hover:scale-[1.02] active:scale-95 transition-all"
 							disabled={loading.active || quantidadePendentes === 0}
 							onclick={onAssinarDigitalLote}
 						>

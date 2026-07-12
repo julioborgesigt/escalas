@@ -630,7 +630,7 @@
 
 <div class="space-y-4">
 	{#if message}
-		<p class="text-[0.65rem] font-bold text-surface-500 uppercase text-center mb-1">
+		<p class="text-3xs font-bold text-surface-500 uppercase text-center mb-1">
 			{message}
 		</p>
 	{/if}
@@ -654,7 +654,7 @@
 					<p class="text-xs font-black text-error-600 uppercase tracking-widest leading-tight">
 						Erro na Assinatura
 					</p>
-					<p class="text-[0.65rem] font-bold text-error-700/80 leading-snug">
+					<p class="text-3xs font-bold text-error-700/80 leading-snug">
 						{codigoError}
 					</p>
 				</div>
@@ -665,8 +665,7 @@
 	<div class="flex flex-col gap-4">
 		<div class="space-y-2 {step !== 'signature' ? 'hidden' : ''}">
 			<div class="flex justify-between items-end">
-				<span class="text-[0.6rem] font-bold text-surface-500 uppercase tracking-wider"
-					>Sua Rubrica</span
+				<span class="text-3xs font-bold text-surface-500 uppercase tracking-wider">Sua Rubrica</span
 				>
 			</div>
 			<div
@@ -694,16 +693,13 @@
 					>
 						{#if capturingLocation}
 							<span class="w-2 h-2 rounded-full bg-warning-500 animate-pulse"></span>
-							<span class="text-[0.6rem] font-black uppercase text-warning-600"
-								>Capturando GPS...</span
-							>
+							<span class="text-3xs font-black uppercase text-warning-600">Capturando GPS...</span>
 						{:else if coords}
 							<span class="w-2 h-2 rounded-full bg-success-500"></span>
-							<span class="text-[0.6rem] font-black uppercase text-success-600">GPS Localizado</span
-							>
+							<span class="text-3xs font-black uppercase text-success-600">GPS Localizado</span>
 						{:else}
 							<span class="w-2 h-2 rounded-full bg-error-500"></span>
-							<span class="text-[0.6rem] font-black uppercase text-error-600">GPS Falhou</span>
+							<span class="text-3xs font-black uppercase text-error-600">GPS Falhou</span>
 						{/if}
 					</div>
 				{/if}
@@ -716,7 +712,7 @@
 				class="w-full bg-surface-100 dark:bg-surface-800 border-2 border-surface-200 dark:border-surface-700 rounded-xl overflow-hidden flex flex-col pt-3 items-center relative aspect-[3/4] min-h-[400px] object-cover"
 			>
 				<span
-					class="text-[0.65rem] font-bold text-surface-500 uppercase tracking-wider items-center mb-3 px-2 flex gap-1.5"
+					class="text-3xs font-bold text-surface-500 uppercase tracking-wider items-center mb-3 px-2 flex gap-1.5"
 				>
 					<span
 						class="w-2.5 h-2.5 rounded-full {stream
@@ -747,18 +743,18 @@
 					>
 						<div class="flex items-center justify-between gap-2">
 							<div class="flex-1 min-w-0">
-								<p class="text-[0.6rem] font-black uppercase tracking-widest opacity-80">
+								<p class="text-3xs font-black uppercase tracking-widest opacity-80">
 									Desafio de presença
 								</p>
 								<p class="text-sm font-bold leading-tight truncate">
 									{ok ? '✅ Desafio concluído' : challengeAtual.instrucao}
 								</p>
 								{#if !ok && challengeProgresso}
-									<p class="text-[0.65rem] opacity-90 mt-0.5">
+									<p class="text-3xs opacity-90 mt-0.5">
 										{challengeProgresso.mensagem}
 									</p>
 								{:else if !ok}
-									<p class="text-[0.65rem] opacity-70 mt-0.5">{challengeAtual.hint}</p>
+									<p class="text-3xs opacity-70 mt-0.5">{challengeAtual.hint}</p>
 								{/if}
 							</div>
 							{#if !ok}
@@ -766,7 +762,7 @@
 									<button
 										type="button"
 										onclick={trocarChallenge}
-										class="text-[0.6rem] uppercase font-bold px-2 py-1 rounded-md bg-white/10 hover:bg-white/20 transition-colors shrink-0"
+										class="text-3xs uppercase font-bold px-2 py-1 rounded-md bg-white/10 hover:bg-white/20 transition-colors shrink-0"
 									>
 										Trocar
 									</button>
@@ -809,7 +805,7 @@
 					<div
 						class="absolute inset-x-4 top-2 bg-error-600/95 text-white backdrop-blur-md px-4 py-3 rounded-2xl text-center shadow-xl z-50 animate-bounce"
 					>
-						<p class="text-[0.65rem] font-black uppercase tracking-widest">
+						<p class="text-3xs font-black uppercase tracking-widest">
 							{lastErrorCode}
 						</p>
 					</div>
@@ -823,7 +819,7 @@
 						<div
 							class="bg-error-500/90 text-white backdrop-blur-md px-4 py-2 rounded-xl text-center shadow-[0_0_15px_rgba(0,0,0,0.3)]"
 						>
-							<p class="text-[0.65rem] font-bold uppercase tracking-wide">
+							<p class="text-3xs font-bold uppercase tracking-wide">
 								{faceLoadError}
 							</p>
 						</div>
@@ -850,7 +846,7 @@
 								<Spinner size="xs" />
 							{/if}
 							<p
-								class="text-[0.7rem] font-black uppercase tracking-widest {isMoving
+								class="text-2xs font-black uppercase tracking-widest {isMoving
 									? 'text-warning-300'
 									: 'text-white'}"
 							>
@@ -922,13 +918,13 @@
 	</div>
 
 	{#if locationError && !coords && !capturingLocation}
-		<p class="text-[0.6rem] font-bold text-error-500 text-center uppercase tracking-tight italic">
+		<p class="text-3xs font-bold text-error-500 text-center uppercase tracking-tight italic">
 			{locationError}
 		</p>
 	{/if}
 
 	<div class="p-3 bg-primary-500/5 border border-dashed border-primary-500/20 rounded-xl">
-		<p class="text-[0.6rem] font-medium text-surface-500 leading-tight text-center">
+		<p class="text-3xs font-medium text-surface-500 leading-tight text-center">
 			Ao assinar, declaro a veracidade destas informações e autorizo o registro de minha <strong
 				>localização geográfica</strong
 			>,
@@ -950,14 +946,14 @@
 			<div class="flex items-center gap-2 ml-auto">
 				<button
 					type="button"
-					class="btn preset-outlined-surface-500 rounded-xl text-[0.65rem] sm:text-xs font-bold uppercase px-3 py-2 sm:px-4 sm:py-2 hover:bg-surface-50 dark:hover:bg-surface-900 transition-colors"
+					class="btn preset-outlined-surface-500 rounded-xl text-3xs sm:text-xs font-bold uppercase px-3 py-2 sm:px-4 sm:py-2 hover:bg-surface-50 dark:hover:bg-surface-900 transition-colors"
 					onclick={onCancel}
 				>
 					Cancelar
 				</button>
 				<button
 					type="button"
-					class="btn preset-filled-primary-500 rounded-xl text-[0.65rem] sm:text-xs font-bold uppercase px-3 py-2 sm:px-4 sm:py-2 shadow-sm shadow-primary-500/20 active:scale-95 transition-all w-max"
+					class="btn preset-filled-primary-500 rounded-xl text-3xs sm:text-xs font-bold uppercase px-3 py-2 sm:px-4 sm:py-2 shadow-sm shadow-primary-500/20 active:scale-95 transition-all w-max"
 					disabled={solicitandoCodigo}
 					onclick={() => (exigirFoto ? (step = 'camera') : confirmarSemFoto())}
 				>

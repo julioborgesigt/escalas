@@ -72,7 +72,7 @@
 
 			<div class="space-y-2">
 				<span
-					class="inline-block text-[0.65rem] font-black uppercase tracking-widest text-primary-700 dark:text-primary-400 bg-primary-500/10 px-3 py-1 rounded-full"
+					class="inline-block text-3xs font-black uppercase tracking-widest text-primary-700 dark:text-primary-400 bg-primary-500/10 px-3 py-1 rounded-full"
 				>
 					Administração do Sistema
 				</span>

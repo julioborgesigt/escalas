@@ -3,6 +3,7 @@
 	import { page } from '$app/state';
 	import RelatorioProdutividade from './RelatorioProdutividade.svelte';
 	import PainelAssinaturaToken from '$lib/components/PainelAssinaturaToken.svelte';
+	import Spinner from '$lib/components/Spinner.svelte';
 	import { loading } from '$lib/loading.svelte';
 	import { toaster } from '$lib/toast';
 	import type { useResGise } from './useResGise.svelte';
@@ -56,7 +57,7 @@
 	}}
 	{@const item = config[status] || { label: status, class: 'preset-tonal-surface' }}
 	<span
-		class="badge {item.class} text-[0.6rem] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full shadow-sm"
+		class="badge {item.class} text-3xs font-bold uppercase tracking-wider px-2 py-0.5 rounded-full shadow-sm"
 	>
 		{item.label}
 	</span>
@@ -111,7 +112,7 @@
 					/>
 				</svg>
 				<p class="text-sm font-bold text-surface-700 dark:text-surface-200 leading-tight">
-					Assinar pelo computador <span class="text-[0.6rem] font-black text-tertiary-500 uppercase"
+					Assinar pelo computador <span class="text-3xs font-black text-tertiary-500 uppercase"
 						>Certificado Digital · ICP-Brasil</span
 					>
 				</p>
@@ -159,7 +160,7 @@
 					Entendi — cadastrar rubrica
 				</button>
 			{/if}
-			<p class="text-[0.65rem] text-surface-500 dark:text-surface-400 italic leading-snug">
+			<p class="text-3xs text-surface-500 dark:text-surface-400 italic leading-snug">
 				Pelo celular, a confirmação continua disponível com foto (prova de vida) e GPS.
 			</p>
 		</div>
@@ -223,8 +224,8 @@
 					{#if resGise.escalaSelecionada.presenca?.entrada_timestamp}✓{:else}1{/if}
 				</div>
 				<span
-					class="text-[0.6rem] font-bold uppercase tracking-wider {resGise.escalaSelecionada
-						.presenca?.entrada_timestamp
+					class="text-3xs font-bold uppercase tracking-wider {resGise.escalaSelecionada.presenca
+						?.entrada_timestamp
 						? 'text-success-600'
 						: 'text-primary-500'}">Entrada</span
 				>
@@ -242,7 +243,7 @@
 					{#if resGise.escalaSelecionada.equipeRespondida}✓{:else}2{/if}
 				</div>
 				<span
-					class="text-[0.6rem] font-bold uppercase tracking-wider {resGise.escalaSelecionada
+					class="text-3xs font-bold uppercase tracking-wider {resGise.escalaSelecionada
 						.equipeRespondida
 						? 'text-success-600'
 						: 'text-surface-400'}">Produtividade</span
@@ -261,8 +262,8 @@
 					{#if resGise.escalaSelecionada.presenca?.saida_timestamp}✓{:else}3{/if}
 				</div>
 				<span
-					class="text-[0.6rem] font-bold uppercase tracking-wider {resGise.escalaSelecionada
-						.presenca?.saida_timestamp
+					class="text-3xs font-bold uppercase tracking-wider {resGise.escalaSelecionada.presenca
+						?.saida_timestamp
 						? 'text-success-600'
 						: 'text-surface-400'}">Saída</span
 				>
@@ -343,7 +344,7 @@
 							<p class="text-xs font-bold text-success-700 dark:text-success-400 uppercase">
 								Entrada Confirmada
 							</p>
-							<p class="text-[0.65rem] text-success-600 dark:text-success-500">
+							<p class="text-3xs text-success-600 dark:text-success-500">
 								{new Date(resGise.escalaSelecionada.presenca.entrada_timestamp).toLocaleString(
 									'pt-BR',
 									{ timeZone: 'America/Sao_Paulo' }
@@ -365,21 +366,7 @@
 
 						{#if loading.active}
 							<div class="flex flex-col items-center gap-3 py-12">
-								<svg class="w-8 h-8 text-primary-500 animate-spin" fill="none" viewBox="0 0 24 24">
-									<circle
-										class="opacity-25"
-										cx="12"
-										cy="12"
-										r="10"
-										stroke="currentColor"
-										stroke-width="4"
-									></circle>
-									<path
-										class="opacity-75"
-										fill="currentColor"
-										d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-									></path>
-								</svg>
+								<Spinner size="lg" class="text-primary-500" />
 								<p class="text-sm font-semibold text-surface-500 uppercase tracking-wider">
 									{loading.message}
 								</p>
@@ -417,7 +404,7 @@
 								{:else}
 									{#if resGise.escalaSelecionada.equipeRespondida && !Object.keys(resGise.respostas).length}
 										<div class="p-3 bg-primary-500/5 border border-primary-500/10 rounded-xl">
-											<p class="text-[0.65rem] text-primary-600 dark:text-primary-400 italic">
+											<p class="text-3xs text-primary-600 dark:text-primary-400 italic">
 												Um integrante da equipe já respondeu. Você pode visualizar ou retificar os
 												dados abaixo.
 											</p>
@@ -523,7 +510,7 @@
 								{@render btnIcon(
 									'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z'
 								)}
-								<p class="text-[0.65rem] text-warning-700 dark:text-warning-400">
+								<p class="text-3xs text-warning-700 dark:text-warning-400">
 									Você deve preencher e enviar o <strong>Relatório de Produtividade</strong> (resultados
 									do serviço) antes de confirmar a saída.
 								</p>
@@ -563,7 +550,7 @@
 								<p class="text-xs font-bold text-surface-700 dark:text-surface-400 uppercase">
 									Saída Confirmada
 								</p>
-								<p class="text-[0.65rem] text-surface-600 dark:text-surface-500">
+								<p class="text-3xs text-surface-600 dark:text-surface-500">
 									{new Date(resGise.escalaSelecionada.presenca.saida_timestamp).toLocaleString(
 										'pt-BR',
 										{ timeZone: 'America/Sao_Paulo' }

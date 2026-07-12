@@ -419,7 +419,7 @@
 												onclick={() => baixarHistoricoArquivo('xlsx')}
 											>
 												<span
-													class="rounded bg-success-500/15 px-1.5 py-0.5 text-[0.6rem] font-black text-success-700 dark:text-success-400"
+													class="rounded bg-success-500/15 px-1.5 py-0.5 text-3xs font-black text-success-700 dark:text-success-400"
 													>XLSX</span
 												>
 												Planilha
@@ -430,7 +430,7 @@
 												onclick={() => baixarHistoricoArquivo('pdf')}
 											>
 												<span
-													class="rounded bg-error-500/15 px-1.5 py-0.5 text-[0.6rem] font-black text-error-700 dark:text-error-400"
+													class="rounded bg-error-500/15 px-1.5 py-0.5 text-3xs font-black text-error-700 dark:text-error-400"
 													>PDF</span
 												>
 												Documento
@@ -522,7 +522,7 @@
 									</p>
 								</div>
 								<span
-									class="text-[0.65rem] sm:text-xs px-2 py-0.5 rounded-full font-semibold shrink-0 text-center leading-tight {statusColor(
+									class="text-3xs sm:text-xs px-2 py-0.5 rounded-full font-semibold shrink-0 text-center leading-tight {statusColor(
 										escala.status
 									)}"
 								>
@@ -572,7 +572,7 @@
 												class="z-30 bg-white dark:bg-surface-800 border border-surface-200 dark:border-surface-700 rounded-xl shadow-xl p-1.5 w-56 max-w-[calc(100vw-1.5rem)] sm:min-w-[200px] sm:w-auto"
 											>
 												<p
-													class="text-[0.6rem] font-bold uppercase text-surface-500 dark:text-surface-400 px-2 pt-1 pb-1.5 tracking-wider"
+													class="text-3xs font-bold uppercase text-surface-500 dark:text-surface-400 px-2 pt-1 pb-1.5 tracking-wider"
 												>
 													Produtividade por seccional
 												</p>
@@ -628,7 +628,7 @@
 												class="z-30 bg-white dark:bg-surface-800 border border-surface-200 dark:border-surface-700 rounded-xl shadow-xl p-1.5 w-56 max-w-[calc(100vw-1.5rem)] sm:min-w-[200px] sm:w-auto"
 											>
 												<p
-													class="text-[0.6rem] font-bold uppercase text-surface-500 dark:text-surface-400 px-2 pt-1 pb-1.5 tracking-wider"
+													class="text-3xs font-bold uppercase text-surface-500 dark:text-surface-400 px-2 pt-1 pb-1.5 tracking-wider"
 												>
 													Extra por seccional
 												</p>

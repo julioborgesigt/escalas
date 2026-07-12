@@ -36,7 +36,7 @@
 			<!-- Title / Greeting -->
 			<div class="space-y-2">
 				<span
-					class="inline-block text-[0.65rem] font-black uppercase tracking-widest text-indigo-600 dark:text-indigo-400 bg-indigo-500/10 px-3 py-1 rounded-full"
+					class="inline-block text-3xs font-black uppercase tracking-widest text-indigo-600 dark:text-indigo-400 bg-indigo-500/10 px-3 py-1 rounded-full"
 				>
 					Portal de Escalas
 				</span>

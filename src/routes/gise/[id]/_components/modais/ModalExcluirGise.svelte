@@ -23,7 +23,7 @@
 		class="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-surface-950/80 backdrop-blur-sm overflow-y-auto"
 	>
 		<div
-			class="bg-surface-50 dark:bg-surface-900 rounded-2xl shadow-2xl w-full max-w-sm max-h-[calc(100dvh-1.5rem)] overflow-y-auto p-4 sm:p-6 space-y-4 border border-surface-200 dark:border-white/10"
+			class="card-elevated rounded-2xl shadow-2xl w-full max-w-sm max-h-[calc(100dvh-1.5rem)] overflow-y-auto p-4 sm:p-6 space-y-4"
 		>
 			<Dialog.Title class="text-lg font-bold text-surface-900 dark:text-surface-50"
 				>Excluir Escala GISE</Dialog.Title

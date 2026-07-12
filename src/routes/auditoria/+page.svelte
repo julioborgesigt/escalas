@@ -594,7 +594,7 @@
 							<span class="font-medium text-surface-700 dark:text-surface-200">
 								{log.usuario_nome || '—'}
 								{#if log.actor_tipo}
-									<span class="text-[10px] text-surface-500 dark:text-surface-400 block">
+									<span class="text-3xs text-surface-500 dark:text-surface-400 block">
 										({ACTOR[log.actor_tipo] ?? log.actor_tipo})
 									</span>
 								{/if}

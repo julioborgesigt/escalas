@@ -209,7 +209,7 @@
 									<td class="!py-4 text-center align-middle font-mono">{p.matricula}</td>
 									<td class="!py-4 text-center align-middle">
 										<span
-											class="badge px-1.5 py-0.5 rounded font-bold text-[0.65rem] uppercase {p.cargo ===
+											class="badge px-1.5 py-0.5 rounded font-bold text-3xs uppercase {p.cargo ===
 											'DPC'
 												? 'bg-primary-500/20 text-primary-700'
 												: 'bg-warning-500/20 text-warning-700'}"
@@ -225,7 +225,7 @@
 										<div class="flex flex-wrap gap-1 max-w-[200px]">
 											{#each p.dias as dia (dia)}
 												<span
-													class="badge bg-surface-200 dark:bg-surface-700 px-1.5 py-0.5 rounded text-[0.65rem] font-bold tracking-wider"
+													class="badge bg-surface-200 dark:bg-surface-700 px-1.5 py-0.5 rounded text-3xs font-bold tracking-wider"
 													>{fmtDia(dia)}</span
 												>
 											{/each}
@@ -234,7 +234,7 @@
 									<td class="!py-4 align-middle italic text-surface-500">
 										{p.observacoes}
 										<div
-											class="text-[0.65rem] not-italic text-surface-500 dark:text-surface-400 mt-1 font-mono"
+											class="text-3xs not-italic text-surface-500 dark:text-surface-400 mt-1 font-mono"
 										>
 											{p.hora_entrada} - {p.hora_saida}
 										</div>
@@ -265,7 +265,7 @@
 												</IconTooltip>
 												<button
 													type="button"
-													class="btn btn-sm preset-filled-error-500 rounded font-bold text-[0.65rem] uppercase px-2 py-0.5 active:scale-95 transition-all"
+													class="btn btn-sm preset-filled-error-500 rounded font-bold text-3xs uppercase px-2 py-0.5 active:scale-95 transition-all"
 													onclick={() => onSolicitarRemocao(p.ids, p.nome)}>Rem.</button
 												>
 											</div>

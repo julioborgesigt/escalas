@@ -610,7 +610,7 @@
 								class="flex items-center gap-2 text-xs font-semibold data-[current]:text-primary-500 data-[complete]:text-success-500 text-surface-400 pointer-events-none"
 							>
 								<Steps.Indicator
-									class="w-6 h-6 rounded-full border-2 flex items-center justify-center text-[10px]"
+									class="w-6 h-6 rounded-full border-2 flex items-center justify-center text-3xs"
 									>{i + 1}</Steps.Indicator
 								>
 								<span class="hidden sm:inline">{label}</span>

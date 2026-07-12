@@ -106,13 +106,13 @@
 		<!-- Linha 1 -->
 		<div class="grid grid-cols-1 sm:grid-cols-12 gap-2">
 			<label class="label sm:col-span-4">
-				<span class="label-text text-[0.7rem] font-bold uppercase opacity-70 ml-1"
+				<span class="label-text text-2xs font-bold uppercase opacity-70 ml-1"
 					>Nome completo (Conforme Certificado Digital)</span
 				>
 				<input class="input py-1 px-3 text-sm" type="text" name="nome" bind:value={nome} required />
 			</label>
 			<label class="label sm:col-span-2">
-				<span class="label-text text-[0.7rem] font-bold uppercase opacity-70 ml-1">Matrícula</span>
+				<span class="label-text text-2xs font-bold uppercase opacity-70 ml-1">Matrícula</span>
 				<input
 					class="input py-1 px-3 text-sm"
 					type="text"
@@ -122,14 +122,14 @@
 				/>
 			</label>
 			<label class="label sm:col-span-3">
-				<span class="label-text text-[0.7rem] font-bold uppercase opacity-70 ml-1">Cargo</span>
+				<span class="label-text text-2xs font-bold uppercase opacity-70 ml-1">Cargo</span>
 				<select class="select py-1 px-3 text-sm" name="cargo" bind:value={cargo}>
 					<option value="DPC">DPC - Delegado</option>
 					<option value="OIP">OIP - Investigador</option>
 				</select>
 			</label>
 			<label class="label sm:col-span-3">
-				<span class="label-text text-[0.7rem] font-bold uppercase opacity-70 ml-1">Telefone</span>
+				<span class="label-text text-2xs font-bold uppercase opacity-70 ml-1">Telefone</span>
 				<input
 					class="input py-1 px-3 text-sm"
 					type="text"
@@ -140,7 +140,7 @@
 				/>
 			</label>
 			<label class="label sm:col-span-3">
-				<span class="label-text text-[0.7rem] font-bold uppercase opacity-70 ml-1"
+				<span class="label-text text-2xs font-bold uppercase opacity-70 ml-1"
 					>CPF (Obrigatório para Token)</span
 				>
 				<input
@@ -154,7 +154,7 @@
 				/>
 			</label>
 			<label class="label sm:col-span-9">
-				<span class="label-text text-[0.7rem] font-bold uppercase opacity-70 ml-1"
+				<span class="label-text text-2xs font-bold uppercase opacity-70 ml-1"
 					>E-mail funcional (para 2FA)</span
 				>
 				<input
@@ -170,7 +170,7 @@
 		<!-- Linha 2 -->
 		<div class="grid grid-cols-1 sm:grid-cols-12 gap-2">
 			<label class="label sm:col-span-1">
-				<span class="label-text text-[0.7rem] font-bold uppercase opacity-70 ml-1">Classe</span>
+				<span class="label-text text-2xs font-bold uppercase opacity-70 ml-1">Classe</span>
 				<select class="select py-1 px-3 text-sm" name="classe" bind:value={classe} required>
 					<option value="" disabled>-</option>
 					{#each classesDisponiveis as c (c)}
@@ -182,7 +182,7 @@
 				</select>
 			</label>
 			<label class="label sm:col-span-4">
-				<span class="label-text text-[0.7rem] font-bold uppercase opacity-70 ml-1"
+				<span class="label-text text-2xs font-bold uppercase opacity-70 ml-1"
 					>Regime de Trabalho</span
 				>
 				<select class="select py-1 px-3 text-sm" name="regime" bind:value={regime}>
@@ -191,7 +191,7 @@
 				</select>
 			</label>
 			<label class="label sm:col-span-7">
-				<span class="label-text text-[0.7rem] font-bold uppercase opacity-70 ml-1">Lotação</span>
+				<span class="label-text text-2xs font-bold uppercase opacity-70 ml-1">Lotação</span>
 				{#if isAdmin}
 					<select class="select py-1 px-3 text-sm" name="lotacao" bind:value={lotacao}>
 						<option value="">— Sem lotação —</option>
@@ -232,7 +232,7 @@
 		<form method="POST" action="?/salvarPapel" use:enhance={handleSalvarPapel} class="space-y-3">
 			<div class="grid grid-cols-1 sm:grid-cols-12 gap-2">
 				<label class="label sm:col-span-5">
-					<span class="label-text text-[0.7rem] font-bold uppercase opacity-70 ml-1">Papel</span>
+					<span class="label-text text-2xs font-bold uppercase opacity-70 ml-1">Papel</span>
 					<select class="select py-1 px-3 text-sm" name="papel" bind:value={papel}>
 						<option value={null}>Servidor (sem papel)</option>
 						{#if isAdminOrSeccional}
@@ -243,7 +243,7 @@
 				</label>
 				{#if papel && !(isAdminUnidade && papel === 'admin_unidade')}
 					<label class="label sm:col-span-7">
-						<span class="label-text text-[0.7rem] font-bold uppercase opacity-70 ml-1">
+						<span class="label-text text-2xs font-bold uppercase opacity-70 ml-1">
 							{papel === 'admin_seccional'
 								? 'Seccional de responsabilidade'
 								: 'Unidade de responsabilidade'}

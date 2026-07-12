@@ -147,7 +147,7 @@
 				>
 					← Ver Termo de Uso e Política de Privacidade (v1.1)
 				</a>
-				<p class="text-[10px] text-surface-500 dark:text-surface-400">
+				<p class="text-3xs text-surface-500 dark:text-surface-400">
 					Base legal: art. 41 da Lei nº 13.709/2018 (LGPD)
 				</p>
 			</div>

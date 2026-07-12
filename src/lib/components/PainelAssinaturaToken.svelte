@@ -224,7 +224,7 @@
 				<h4 class="font-bold text-sm text-surface-900 dark:text-white flex items-center gap-2">
 					Dados do Assinante
 				</h4>
-				<p class="text-[0.6rem] text-surface-500 uppercase tracking-wider font-semibold">
+				<p class="text-3xs text-surface-500 uppercase tracking-wider font-semibold">
 					CONFORME CADASTRO NO SISTEMA
 				</p>
 			</div>
@@ -232,7 +232,7 @@
 			<div class="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-1">
 				<div class="flex flex-col">
 					<span
-						class="text-[0.6rem] font-bold text-surface-500 dark:text-surface-400 uppercase tracking-tighter"
+						class="text-3xs font-bold text-surface-500 dark:text-surface-400 uppercase tracking-tighter"
 						>NOME</span
 					>
 					<span class="font-bold text-sm text-surface-700 dark:text-surface-200 uppercase truncate"
@@ -241,7 +241,7 @@
 				</div>
 				<div class="flex flex-col">
 					<span
-						class="text-[0.6rem] font-bold text-surface-500 dark:text-surface-400 uppercase tracking-tighter"
+						class="text-3xs font-bold text-surface-500 dark:text-surface-400 uppercase tracking-tighter"
 						>CPF</span
 					>
 					<span class="font-bold text-sm text-surface-700 dark:text-surface-200">
@@ -253,7 +253,7 @@
 				{#if signerEmail}
 					<div class="flex flex-col sm:col-span-2 mt-1">
 						<span
-							class="text-[0.6rem] font-bold text-surface-500 dark:text-surface-400 uppercase tracking-tighter"
+							class="text-3xs font-bold text-surface-500 dark:text-surface-400 uppercase tracking-tighter"
 							>E-MAIL INSTITUCIONAL</span
 						>
 						<span class="font-bold text-xs text-surface-600 dark:text-surface-400"
@@ -264,9 +264,7 @@
 			</div>
 
 			{#if !signerCpf}
-				<p
-					class="text-[0.6rem] text-error-500 mt-2 flex items-center gap-1 font-bold animate-pulse"
-				>
+				<p class="text-3xs text-error-500 mt-2 flex items-center gap-1 font-bold animate-pulse">
 					<svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"
 						><path
 							stroke-linecap="round"
@@ -282,7 +280,7 @@
 	</div>
 
 	<!-- Aviso jurídico (Lei 14.063/2020 art. 4º §1º) -->
-	<p class="text-[11px] text-surface-500 dark:text-surface-400 italic leading-snug">
+	<p class="text-2xs text-surface-500 dark:text-surface-400 italic leading-snug">
 		Ao clicar em <strong>Assinar</strong>, você confirma que leu o documento e que esta assinatura
 		tem valor jurídico equivalente à manuscrita, conforme o
 		<a href="/termo/1.0" target="_blank" rel="noopener" class="underline hover:text-primary-600"
@@ -315,7 +313,7 @@
 		</button>
 	</div>
 
-	<p class="text-[0.65rem] text-surface-400 dark:text-surface-500 mt-3 italic leading-tight">
+	<p class="text-3xs text-surface-400 dark:text-surface-500 mt-3 italic leading-tight">
 		Este fluxo utiliza o <a
 			href="https://www.serpro.gov.br/links-fixos-superiores/assinador-digital/assinador-serpro"
 			target="_blank"
@@ -325,7 +323,7 @@
 	</p>
 
 	<div class="p-3 bg-primary-500/5 border border-dashed border-primary-500/20 rounded-xl mt-2">
-		<p class="text-[0.6rem] font-medium text-surface-500 leading-tight text-center">
+		<p class="text-3xs font-medium text-surface-500 leading-tight text-center">
 			Ao assinar, declaro a veracidade destas informações e autorizo o registro da minha
 			<strong>localização geográfica</strong> e <strong>metadados técnicos</strong> para fins de validade
 			jurídica desta assinatura (Lei 14.063/20).

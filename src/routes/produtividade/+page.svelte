@@ -353,7 +353,7 @@
 					>
 					<div class="flex-1">
 						<p
-							class="text-[0.6rem] font-black uppercase text-surface-500 dark:text-surface-400 leading-none mb-1"
+							class="text-3xs font-black uppercase text-surface-500 dark:text-surface-400 leading-none mb-1"
 						>
 							Seccional
 						</p>
@@ -364,10 +364,10 @@
 					<div class="text-right">
 						<p class="text-xl font-black" style="color: {color}">
 							{labelUnit === 'kg' ? (item.total / 1000).toFixed(1) : item.total}<span
-								class="text-[0.6rem] ml-0.5 opacity-50">{labelUnit}</span
+								class="text-3xs ml-0.5 opacity-50">{labelUnit}</span
 							>
 						</p>
-						<p class="text-[0.6rem] font-bold uppercase opacity-50">Produção</p>
+						<p class="text-3xs font-bold uppercase opacity-50">Produção</p>
 					</div>
 				</div>
 			{/each}
@@ -450,7 +450,7 @@
 		<div class="space-y-4 flex-1">
 			{#each details as [tipo, valor] (tipo)}
 				<div class="space-y-1">
-					<div class="flex justify-between text-[0.6rem] font-black uppercase">
+					<div class="flex justify-between text-3xs font-black uppercase">
 						<span class="text-surface-500">{tipo}</span>
 						<span style="color: {color}"
 							>{unit === 'kg' ? (valor / 1000).toFixed(1) : valor.toLocaleString()}{unit}</span
@@ -519,7 +519,7 @@
 			{#if allChartsCount > 0}
 				<button
 					type="button"
-					class="btn text-[0.6rem] font-black uppercase tracking-widest px-4 py-2 rounded-xl transition-colors {selectedCharts.length >=
+					class="btn text-3xs font-black uppercase tracking-widest px-4 py-2 rounded-xl transition-colors {selectedCharts.length >=
 					allChartsCount
 						? 'bg-surface-900 dark:bg-surface-50 text-white dark:text-surface-950 shadow-lg'
 						: 'bg-surface-200/60 dark:bg-surface-800/60 text-surface-600 dark:text-surface-300 hover:bg-surface-200 dark:hover:bg-surface-700'}"
@@ -535,7 +535,7 @@
 				type="button"
 				class="btn {selectedCharts.length > 0
 					? 'bg-error-600 hover:bg-error-700 shadow-error-500/20 text-white'
-					: 'bg-surface-200/80 dark:bg-surface-800/80 text-surface-500 dark:text-surface-400 cursor-not-allowed'} shadow-xl text-[0.65rem] font-black uppercase py-2 px-6 rounded-xl transition-all {selectedCharts.length >
+					: 'bg-surface-200/80 dark:bg-surface-800/80 text-surface-500 dark:text-surface-400 cursor-not-allowed'} shadow-xl text-3xs font-black uppercase py-2 px-6 rounded-xl transition-all {selectedCharts.length >
 				0
 					? 'hover:scale-105 active:scale-95'
 					: ''} flex items-center gap-2"
@@ -562,7 +562,7 @@
 				type="button"
 				class="export-btn btn {selectedCharts.length > 0
 					? 'bg-secondary-600 hover:bg-secondary-700 shadow-secondary-500/20 text-white'
-					: 'bg-surface-200/80 dark:bg-surface-800/80 text-surface-500 dark:text-surface-400 cursor-not-allowed'} shadow-xl text-[0.65rem] font-black uppercase py-2 px-6 rounded-xl transition-all {selectedCharts.length >
+					: 'bg-surface-200/80 dark:bg-surface-800/80 text-surface-500 dark:text-surface-400 cursor-not-allowed'} shadow-xl text-3xs font-black uppercase py-2 px-6 rounded-xl transition-all {selectedCharts.length >
 				0
 					? 'hover:scale-105 active:scale-95'
 					: ''} flex items-center gap-2"
@@ -620,7 +620,7 @@
 					<!-- 1. Tipo de equipe -->
 					<div class="space-y-1.5 lg:col-span-3">
 						<p
-							class="text-[0.6rem] font-black uppercase tracking-widest text-surface-400 dark:text-surface-500 pl-0.5 block"
+							class="text-3xs font-black uppercase tracking-widest text-surface-400 dark:text-surface-500 pl-0.5 block"
 						>
 							1. Tipo de equipe
 						</p>
@@ -650,7 +650,7 @@
 					<div class="space-y-1.5 lg:col-span-3">
 						<label
 							for="f-sec"
-							class="text-[0.6rem] font-black uppercase tracking-widest text-surface-400 dark:text-surface-500 pl-0.5 block"
+							class="text-3xs font-black uppercase tracking-widest text-surface-400 dark:text-surface-500 pl-0.5 block"
 							>2. Seccional</label
 						>
 						<select
@@ -669,7 +669,7 @@
 					<div class="space-y-1.5 lg:col-span-6">
 						<label
 							for="f-ano"
-							class="text-[0.6rem] font-black uppercase tracking-widest text-surface-400 dark:text-surface-500 pl-0.5 block"
+							class="text-3xs font-black uppercase tracking-widest text-surface-400 dark:text-surface-500 pl-0.5 block"
 							>3. Período</label
 						>
 						<div class="flex flex-wrap lg:flex-nowrap items-end gap-2">
@@ -689,7 +689,7 @@
 									<div class="space-y-0.5 flex-1 lg:flex-initial">
 										<label
 											for="f-ini"
-											class="text-[0.6rem] font-black text-surface-500 dark:text-surface-400 uppercase tracking-widest block pl-0.5"
+											class="text-3xs font-black text-surface-500 dark:text-surface-400 uppercase tracking-widest block pl-0.5"
 											>De</label
 										>
 										<input
@@ -703,7 +703,7 @@
 									<div class="space-y-0.5 flex-1 lg:flex-initial">
 										<label
 											for="f-fim"
-											class="text-[0.6rem] font-black text-surface-500 dark:text-surface-400 uppercase tracking-widest block pl-0.5"
+											class="text-3xs font-black text-surface-500 dark:text-surface-400 uppercase tracking-widest block pl-0.5"
 											>Até</label
 										>
 										<input
@@ -847,7 +847,7 @@
 				</button>
 				<div class="md:w-1/6 flex flex-col justify-center">
 					<p
-						class="text-[0.6rem] font-black text-surface-500 dark:text-surface-400 uppercase tracking-widest mb-1"
+						class="text-3xs font-black text-surface-500 dark:text-surface-400 uppercase tracking-widest mb-1"
 					>
 						{q.label}
 					</p>
@@ -866,7 +866,7 @@
 					</h3>
 					<div class="mt-4 flex gap-2">
 						<span
-							class="text-[0.6rem] font-bold px-2 py-1 rounded uppercase bg-surface-100 dark:bg-surface-800 text-surface-500"
+							class="text-3xs font-bold px-2 py-1 rounded uppercase bg-surface-100 dark:bg-surface-800 text-surface-500"
 						>
 							{filterSeccional ? 'Tendência' : 'Comparação Seccional'}
 						</span>

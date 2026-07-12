@@ -203,7 +203,7 @@
 		<div class="flex flex-wrap gap-2 justify-end">
 			{#each ['DOCX', 'XLSX', 'PDF'] as format (format)}
 				<a
-					class="btn btn-sm bg-surface-100 dark:bg-surface-800 border border-surface-200 dark:border-white/5 text-[0.65rem] font-bold uppercase px-3 no-underline rounded-lg"
+					class="btn btn-sm bg-surface-100 dark:bg-surface-800 border border-surface-200 dark:border-white/5 text-3xs font-bold uppercase px-3 no-underline rounded-lg"
 					href={`/api/escalas/${escalaId}/download?format=${format.toLowerCase()}`}
 					target="_blank">{format}</a
 				>
@@ -265,7 +265,7 @@
 		class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-sm overflow-y-auto"
 	>
 		<div
-			class="card p-4 sm:p-6 max-w-md w-full max-h-[calc(100dvh-2rem)] overflow-y-auto bg-surface-100 dark:bg-surface-900 shadow-2xl rounded-2xl border border-surface-200 dark:border-white/10"
+			class="card p-4 sm:p-6 max-w-md w-full max-h-[calc(100dvh-2rem)] overflow-y-auto card-elevated shadow-2xl rounded-2xl"
 		>
 			<Dialog.Title class="h3 font-bold mb-1">Confirmar Envio</Dialog.Title>
 			<Dialog.Description class="text-sm text-surface-500 dark:text-surface-400 mb-5">
@@ -311,7 +311,7 @@
 		class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-sm overflow-y-auto"
 	>
 		<div
-			class="card p-4 sm:p-6 max-w-md w-full max-h-[calc(100dvh-2rem)] overflow-y-auto bg-surface-100 dark:bg-surface-900 shadow-2xl rounded-2xl border border-surface-200 dark:border-white/10"
+			class="card p-4 sm:p-6 max-w-md w-full max-h-[calc(100dvh-2rem)] overflow-y-auto card-elevated shadow-2xl rounded-2xl"
 		>
 			<Dialog.Title class="h3 font-bold mb-1">Reenviar E-mail</Dialog.Title>
 			<Dialog.Description class="text-sm text-surface-500 dark:text-surface-400 mb-5">
@@ -357,7 +357,7 @@
 		class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-sm overflow-y-auto"
 	>
 		<div
-			class="card p-4 sm:p-6 max-w-sm w-full max-h-[calc(100dvh-2rem)] overflow-y-auto bg-surface-100 dark:bg-surface-900 shadow-2xl rounded-2xl border border-surface-200 dark:border-white/10"
+			class="card p-4 sm:p-6 max-w-sm w-full max-h-[calc(100dvh-2rem)] overflow-y-auto card-elevated shadow-2xl rounded-2xl"
 		>
 			<Dialog.Title class="h3 font-bold mb-2">Reabrir para edição?</Dialog.Title>
 			<Dialog.Description class="text-surface-600 dark:text-surface-400 mb-6">

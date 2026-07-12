@@ -349,7 +349,7 @@
 		class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-sm overflow-y-auto"
 	>
 		<div
-			class="cadastro-policial-modal card p-4 sm:p-5 max-w-2xl w-full max-h-[calc(100dvh-2rem)] overflow-y-auto bg-surface-100 dark:bg-surface-900 shadow-2xl rounded-2xl border border-surface-200 dark:border-white/10"
+			class="cadastro-policial-modal card p-4 sm:p-5 max-w-2xl w-full max-h-[calc(100dvh-2rem)] overflow-y-auto card-elevated shadow-2xl rounded-2xl"
 		>
 			<Dialog.Title class="h3 font-bold mb-5">{modalTitle}</Dialog.Title>
 
@@ -372,7 +372,7 @@
 				<!-- Linha 1: Nome (7), Matrícula (2), Cargo (3) -->
 				<div class="grid grid-cols-1 sm:grid-cols-12 gap-2">
 					<label class="label sm:col-span-7">
-						<span class="label-text text-[0.7rem] font-bold uppercase opacity-70 ml-1"
+						<span class="label-text text-2xs font-bold uppercase opacity-70 ml-1"
 							>Nome completo (Conforme Certificado Digital)</span
 						>
 						<input
@@ -384,9 +384,7 @@
 						/>
 					</label>
 					<label class="label sm:col-span-2">
-						<span class="label-text text-[0.7rem] font-bold uppercase opacity-70 ml-1"
-							>Matrícula</span
-						>
+						<span class="label-text text-2xs font-bold uppercase opacity-70 ml-1">Matrícula</span>
 						<input
 							class="input py-1 px-3 text-sm"
 							type="text"
@@ -397,7 +395,7 @@
 						/>
 					</label>
 					<label class="label sm:col-span-3">
-						<span class="label-text text-[0.7rem] font-bold uppercase opacity-70 ml-1">Cargo</span>
+						<span class="label-text text-2xs font-bold uppercase opacity-70 ml-1">Cargo</span>
 						<select class="select py-1 px-3 text-sm" name="cargo" bind:value={cargo}>
 							<option value="DPC">DPC - Delegado</option>
 							<option value="OIP">OIP - Investigador</option>
@@ -408,7 +406,7 @@
 				<!-- Linha 2: CPF (4), E-mail institucional (4), E-mail pessoal (4) -->
 				<div class="grid grid-cols-1 sm:grid-cols-12 gap-2">
 					<label class="label sm:col-span-4">
-						<span class="label-text text-[0.7rem] font-bold uppercase opacity-70 ml-1"
+						<span class="label-text text-2xs font-bold uppercase opacity-70 ml-1"
 							>CPF (Obrigatório para Token)</span
 						>
 						<input
@@ -421,7 +419,7 @@
 						/>
 					</label>
 					<label class="label sm:col-span-4">
-						<span class="label-text text-[0.7rem] font-bold uppercase opacity-70 ml-1"
+						<span class="label-text text-2xs font-bold uppercase opacity-70 ml-1"
 							>E-mail funcional(para 2FA)</span
 						>
 						<input
@@ -433,7 +431,7 @@
 						/>
 					</label>
 					<label class="label sm:col-span-4">
-						<span class="label-text text-[0.7rem] font-bold uppercase opacity-70 ml-1"
+						<span class="label-text text-2xs font-bold uppercase opacity-70 ml-1"
 							>E-mail pessoal (rec. de senha)</span
 						>
 						<input
@@ -449,9 +447,7 @@
 				<!-- Linha 3: Telefone (3), Classe (2), Regime (3), Lotação (4) -->
 				<div class="grid grid-cols-1 sm:grid-cols-12 gap-2">
 					<label class="label sm:col-span-3">
-						<span class="label-text text-[0.7rem] font-bold uppercase opacity-70 ml-1"
-							>Telefone</span
-						>
+						<span class="label-text text-2xs font-bold uppercase opacity-70 ml-1">Telefone</span>
 						<input
 							class="input py-1 px-3 text-sm"
 							type="text"
@@ -462,7 +458,7 @@
 						/>
 					</label>
 					<label class="label sm:col-span-2">
-						<span class="label-text text-[0.7rem] font-bold uppercase opacity-70 ml-1">Classe</span>
+						<span class="label-text text-2xs font-bold uppercase opacity-70 ml-1">Classe</span>
 						<select class="select py-1 px-3 text-sm" name="classe" bind:value={classe} required>
 							<option value="" disabled>-</option>
 							{#each classesDisponiveis as c (c)}
@@ -471,7 +467,7 @@
 						</select>
 					</label>
 					<label class="label sm:col-span-3">
-						<span class="label-text text-[0.7rem] font-bold uppercase opacity-70 ml-1"
+						<span class="label-text text-2xs font-bold uppercase opacity-70 ml-1"
 							>Regime de Trabalho</span
 						>
 						<select class="select py-1 px-3 text-sm" bind:value={regime}>
@@ -480,8 +476,7 @@
 						</select>
 					</label>
 					<label class="label sm:col-span-4">
-						<span class="label-text text-[0.7rem] font-bold uppercase opacity-70 ml-1">Lotação</span
-						>
+						<span class="label-text text-2xs font-bold uppercase opacity-70 ml-1">Lotação</span>
 						{#if isAdmin}
 							<SearchableSelect
 								bind:value={lotacaoInput}
@@ -505,12 +500,10 @@
 
 				{#if isAdminOrSeccional || isAdminUnidade}
 					<div class="p-3 rounded-xl bg-surface-500/5 border border-surface-500/10 space-y-3 mt-1">
-						<h4 class="text-[0.7rem] font-bold uppercase opacity-50">
-							Papel Administrativo (Opcional)
-						</h4>
+						<h4 class="text-2xs font-bold uppercase opacity-50">Papel Administrativo (Opcional)</h4>
 						<div class="grid grid-cols-1 sm:grid-cols-12 gap-2">
 							<label class="label sm:col-span-5">
-								<span class="label-text text-[0.7rem] font-bold opacity-70 ml-1">Papel</span>
+								<span class="label-text text-2xs font-bold opacity-70 ml-1">Papel</span>
 								<select class="select py-1 px-3 text-sm" bind:value={papel}>
 									<option value={null}>Servidor (sem papel)</option>
 									{#if isAdminOrSeccional}
@@ -521,7 +514,7 @@
 							</label>
 							{#if papel && !(isAdminUnidade && papel === 'admin_unidade')}
 								<label class="label sm:col-span-7">
-									<span class="label-text text-[0.7rem] font-bold opacity-70 ml-1">
+									<span class="label-text text-2xs font-bold opacity-70 ml-1">
 										{papel === 'admin_seccional' ? 'Seccional de resp.' : 'Unidade de resp.'}
 									</span>
 									<select class="select py-1 px-3 text-sm" bind:value={papelUnidadeId}>
@@ -532,9 +525,7 @@
 									</select>
 								</label>
 							{:else if papel === 'admin_unidade' && isAdminUnidade}
-								<p
-									class="text-[0.65rem] text-surface-500 sm:col-span-7 flex items-end pb-2 ml-1 italic"
-								>
+								<p class="text-3xs text-surface-500 sm:col-span-7 flex items-end pb-2 ml-1 italic">
 									Será nomeado para a sua própria unidade.
 								</p>
 							{/if}
@@ -569,7 +560,7 @@
 					class="mt-3 p-3 rounded-xl bg-surface-500/5 border border-surface-500/10 flex items-center gap-3 flex-wrap"
 				>
 					<div class="flex-1 min-w-[12rem]">
-						<h4 class="text-[0.7rem] font-bold uppercase opacity-60">Admin Geral</h4>
+						<h4 class="text-2xs font-bold uppercase opacity-60">Admin Geral</h4>
 						<p class="text-xs text-surface-500">
 							Loga com a mesma matrícula/senha escolhendo "Administrador". Cumulativo com o papel.
 						</p>
@@ -619,7 +610,7 @@
 		class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-sm overflow-y-auto"
 	>
 		<div
-			class="card p-4 sm:p-6 max-w-sm w-full max-h-[calc(100dvh-2rem)] overflow-y-auto bg-surface-100 dark:bg-surface-900 shadow-2xl rounded-2xl border border-surface-200 dark:border-white/10"
+			class="card p-4 sm:p-6 max-w-sm w-full max-h-[calc(100dvh-2rem)] overflow-y-auto card-elevated shadow-2xl rounded-2xl"
 		>
 			<Dialog.Title class="h3 font-bold mb-2">Excluir Policial?</Dialog.Title>
 			<Dialog.Description class="text-surface-600 dark:text-surface-400 mb-6">

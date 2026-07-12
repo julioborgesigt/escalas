@@ -181,14 +181,14 @@
 		class="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-surface-950/80 backdrop-blur-sm overflow-y-auto"
 	>
 		<div
-			class="bg-surface-50 dark:bg-surface-900 rounded-2xl shadow-2xl w-full max-w-lg p-3 sm:p-4 space-y-2.5 max-h-[calc(100dvh-1rem)] sm:max-h-[calc(100dvh-2rem)] overflow-y-auto border border-surface-200 dark:border-white/10"
+			class="card-elevated rounded-2xl shadow-2xl w-full max-w-lg p-3 sm:p-4 space-y-2.5 max-h-[calc(100dvh-1rem)] sm:max-h-[calc(100dvh-2rem)] overflow-y-auto"
 		>
 			<Dialog.Title
 				class="text-base sm:text-lg font-bold text-surface-900 dark:text-surface-50 leading-tight"
 			>
 				Nova Escala GISE
 			</Dialog.Title>
-			<p class="text-[0.65rem] sm:text-xs text-surface-500 leading-snug">
+			<p class="text-3xs sm:text-xs text-surface-500 leading-snug">
 				Uma escala por dia. No calendário: <span
 					class="text-primary-600 dark:text-primary-400 font-medium">1º clique</span
 				>
@@ -239,7 +239,7 @@
 					</button>
 				</div>
 				<div
-					class="grid grid-cols-7 gap-px text-center text-[0.6rem] font-semibold uppercase tracking-wide text-surface-500 dark:text-surface-400 py-0.5"
+					class="grid grid-cols-7 gap-px text-center text-3xs font-semibold uppercase tracking-wide text-surface-500 dark:text-surface-400 py-0.5"
 				>
 					{#each DIAS_SEM_CAL as ds (ds)}
 						<span>{ds}</span>
@@ -286,7 +286,7 @@
 
 			{#if diasModalOrdenados.length > 0}
 				<div class="min-w-0 space-y-0.5">
-					<span class="text-[0.65rem] font-semibold text-surface-500"
+					<span class="text-3xs font-semibold text-surface-500"
 						>Dias ({diasModalOrdenados.length})</span
 					>
 					<div
@@ -294,14 +294,14 @@
 					>
 						{#each diasModalOrdenados as { iso, feriado } (iso)}
 							<span
-								class="inline-flex items-center gap-0.5 pl-1.5 pr-0.5 py-0.5 rounded-md text-[0.65rem] font-medium border shrink-0
+								class="inline-flex items-center gap-0.5 pl-1.5 pr-0.5 py-0.5 rounded-md text-3xs font-medium border shrink-0
 								{feriado
 									? 'border-error-400/80 bg-error-500/10 text-error-900 dark:text-error-100'
 									: 'border-primary-400/80 bg-primary-500/10 text-primary-900 dark:text-primary-100'}"
 							>
 								{fmtDate(iso)}
-								{#if feriado}<span
-										class="text-[0.6rem] font-bold text-error-600 dark:text-error-400">F</span
+								{#if feriado}<span class="text-3xs font-bold text-error-600 dark:text-error-400"
+										>F</span
 									>{/if}
 								<button
 									type="button"
@@ -326,12 +326,12 @@
 
 			<!-- Horários -->
 			<div class="rounded-xl border border-surface-200 dark:border-surface-700 p-2.5 space-y-1.5">
-				<p class="text-[0.65rem] sm:text-xs font-semibold text-surface-600 dark:text-surface-400">
+				<p class="text-3xs sm:text-xs font-semibold text-surface-600 dark:text-surface-400">
 					Horário padrão (todos os dias)
 				</p>
 				<div class="grid grid-cols-2 gap-2">
 					<div>
-						<label for="novaHoraEntrada" class="text-[0.65rem] text-surface-500 block mb-0.5"
+						<label for="novaHoraEntrada" class="text-3xs text-surface-500 block mb-0.5"
 							>Entrada</label
 						>
 						<input
@@ -346,9 +346,7 @@
 						/>
 					</div>
 					<div>
-						<label for="novaHoraSaida" class="text-[0.65rem] text-surface-500 block mb-0.5"
-							>Saída</label
-						>
+						<label for="novaHoraSaida" class="text-3xs text-surface-500 block mb-0.5">Saída</label>
 						<input
 							id="novaHoraSaida"
 							type="text"
@@ -365,7 +363,7 @@
 
 			<!-- Tipo de Criação -->
 			<div class="space-y-2">
-				<p class="text-[0.65rem] sm:text-xs font-semibold text-surface-600 dark:text-surface-400">
+				<p class="text-3xs sm:text-xs font-semibold text-surface-600 dark:text-surface-400">
 					Tipo de Escala
 				</p>
 				<div class="grid grid-cols-3 gap-1 sm:gap-2">
@@ -377,10 +375,8 @@
 							: 'border-surface-200 dark:border-surface-700 text-surface-500'}"
 						onclick={() => (modoCriacao = 'completa')}
 					>
-						<span class="font-bold text-[0.65rem] sm:text-xs leading-tight text-center"
-							>Completa</span
-						>
-						<span class="text-[0.6rem] opacity-70 leading-tight text-center hidden sm:block"
+						<span class="font-bold text-3xs sm:text-xs leading-tight text-center">Completa</span>
+						<span class="text-3xs opacity-70 leading-tight text-center hidden sm:block"
 							>Seccionais</span
 						>
 					</button>
@@ -392,10 +388,8 @@
 							: 'border-surface-200 dark:border-surface-700 text-surface-500'}"
 						onclick={() => (modoCriacao = 'branco')}
 					>
-						<span class="font-bold text-[0.65rem] sm:text-xs leading-tight text-center"
-							>Em branco</span
-						>
-						<span class="text-[0.6rem] opacity-70 leading-tight text-center hidden sm:block"
+						<span class="font-bold text-3xs sm:text-xs leading-tight text-center">Em branco</span>
+						<span class="text-3xs opacity-70 leading-tight text-center hidden sm:block"
 							>Sem equipes</span
 						>
 					</button>
@@ -408,9 +402,8 @@
 						onclick={() => (modoCriacao = 'clonada')}
 						disabled={escalas.length === 0}
 					>
-						<span class="font-bold text-[0.65rem] sm:text-xs leading-tight text-center">Copiar</span
-						>
-						<span class="text-[0.6rem] opacity-70 leading-tight text-center hidden sm:block"
+						<span class="font-bold text-3xs sm:text-xs leading-tight text-center">Copiar</span>
+						<span class="text-3xs opacity-70 leading-tight text-center hidden sm:block"
 							>De outra</span
 						>
 					</button>
@@ -420,7 +413,7 @@
 					<div class="mt-1 animate-in fade-in slide-in-from-top-1 duration-300">
 						<label
 							for="clonarDe"
-							class="text-[0.6rem] font-medium text-surface-500 dark:text-surface-400 block mb-0.5"
+							class="text-3xs font-medium text-surface-500 dark:text-surface-400 block mb-0.5"
 							>Escolha a escala de origem</label
 						>
 						<select

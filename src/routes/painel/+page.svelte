@@ -506,7 +506,7 @@
 			class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-sm overflow-y-auto"
 		>
 			<div
-				class="card p-4 sm:p-6 max-w-sm w-full max-h-[calc(100dvh-2rem)] overflow-y-auto bg-surface-100 dark:bg-surface-900 shadow-2xl rounded-2xl border border-surface-200 dark:border-white/10"
+				class="card p-4 sm:p-6 max-w-sm w-full max-h-[calc(100dvh-2rem)] overflow-y-auto card-elevated shadow-2xl rounded-2xl"
 			>
 				<Dialog.Title class="h3 font-bold mb-2">Excluir Escala?</Dialog.Title>
 				<Dialog.Description class="text-surface-600 dark:text-surface-400 mb-6">
@@ -618,7 +618,7 @@
 									<tr class="bg-surface-200/50 dark:bg-surface-800/50 shadow-inner">
 										<td
 											colspan="5"
-											class="py-1.5 px-4 text-[10px] font-extrabold uppercase tracking-widest text-primary-600 dark:text-primary-400"
+											class="py-1.5 px-4 text-3xs font-extrabold uppercase tracking-widest text-primary-600 dark:text-primary-400"
 										>
 											{grupo.titulo}
 										</td>
@@ -723,7 +723,7 @@
 					{#each dadosAgrupados as grupo (grupo.titulo)}
 						{#if grupo.titulo}
 							<div
-								class="py-2 px-4 bg-surface-100 dark:bg-surface-800/40 text-[10px] font-bold uppercase tracking-widest text-primary-600 dark:text-primary-400 rounded-lg"
+								class="py-2 px-4 bg-surface-100 dark:bg-surface-800/40 text-3xs font-bold uppercase tracking-widest text-primary-600 dark:text-primary-400 rounded-lg"
 							>
 								{grupo.titulo}
 							</div>
@@ -745,17 +745,17 @@
 										<div class="flex items-center gap-2 mt-1.5 flex-wrap">
 											{#if item.tipo_regime === 'plantao'}
 												<span
-													class="badge preset-filled-tertiary-500/20 text-tertiary-900 dark:text-tertiary-200 border border-tertiary-500/30 text-[9px] font-bold px-1.5 py-0 leading-tight"
+													class="badge preset-filled-tertiary-500/20 text-tertiary-900 dark:text-tertiary-200 border border-tertiary-500/30 text-3xs font-bold px-1.5 py-0 leading-tight"
 													>PLANTÃO</span
 												>
 											{:else if item.tipo_regime === 'expediente'}
 												<span
-													class="badge preset-filled-primary-500/20 text-primary-900 dark:text-primary-200 border border-primary-500/30 text-[9px] font-bold px-1.5 py-0 leading-tight"
+													class="badge preset-filled-primary-500/20 text-primary-900 dark:text-primary-200 border border-primary-500/30 text-3xs font-bold px-1.5 py-0 leading-tight"
 													>EXPEDIENTE</span
 												>
 											{:else}
 												<span
-													class="badge preset-filled-warning-500/20 text-warning-900 dark:text-warning-200 border border-warning-500/30 text-[9px] font-bold px-1.5 py-0 leading-tight"
+													class="badge preset-filled-warning-500/20 text-warning-900 dark:text-warning-200 border border-warning-500/30 text-3xs font-bold px-1.5 py-0 leading-tight"
 													>FDS</span
 												>
 											{/if}

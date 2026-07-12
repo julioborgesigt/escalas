@@ -287,7 +287,7 @@
 		class="fixed inset-0 z-[70] flex items-center justify-center p-3 sm:p-4 bg-surface-950/80 backdrop-blur-md overflow-y-auto"
 	>
 		<div
-			class="bg-surface-50 dark:bg-surface-900 rounded-3xl shadow-2xl w-full max-w-2xl max-h-[calc(100dvh-1.5rem)] overflow-y-auto p-4 sm:p-7 space-y-5 border border-white/10"
+			class="card-elevated rounded-3xl shadow-2xl w-full max-w-2xl max-h-[calc(100dvh-1.5rem)] overflow-y-auto p-4 sm:p-7 space-y-5 border border-white/10"
 		>
 			<div class="text-center space-y-1.5">
 				<Dialog.Title class="text-xl sm:text-2xl font-bold text-surface-900 dark:text-surface-50">
@@ -402,7 +402,7 @@
 							<div class="space-y-1">
 								<label
 									for="limiar-fundo"
-									class="text-[0.6rem] font-black text-surface-500 uppercase tracking-wider"
+									class="text-3xs font-black text-surface-500 uppercase tracking-wider"
 									>Remoção de fundo</label
 								>
 								<input
@@ -418,7 +418,7 @@
 
 							{#if previewUrl}
 								<div class="space-y-1">
-									<span class="text-[0.6rem] font-black text-surface-500 uppercase tracking-wider"
+									<span class="text-3xs font-black text-surface-500 uppercase tracking-wider"
 										>Pré-visualização (fundo transparente)</span
 									>
 									<div
@@ -454,7 +454,7 @@
 				class="flex items-start gap-2.5 p-3 bg-surface-100/60 dark:bg-surface-800/40 rounded-xl border border-surface-200 dark:border-surface-700 cursor-pointer"
 			>
 				<input type="checkbox" bind:checked={consentimento} class="mt-0.5 shrink-0" />
-				<span class="text-[0.7rem] text-surface-500 leading-snug">
+				<span class="text-2xs text-surface-500 leading-snug">
 					Autorizo o registro e o armazenamento desta rubrica para reutilização como elemento
 					gráfico nas minhas assinaturas de documentos funcionais. Posso solicitar sua exclusão a
 					qualquer momento (LGPD, Lei 13.709/2018, art. 18).

@@ -22,6 +22,19 @@
 @source '../node_modules/@skeletonlabs/skeleton-svelte/dist';
 @source '../node_modules/@skeletonlabs/skeleton/dist';
 
+/* Tokens de texto pequeno (auditoria 2026-07-11, UX-3). Antes havia 12
+ * tamanhos arbitrários (text-[0.55rem]…text-[11px]) espalhados por 400+
+ * usos; agora só existem dois degraus abaixo de text-xs:
+ *  - text-2xs (0.7rem ≈ 11,2px): labels, badges — piso confortável
+ *  - text-3xs (0.625rem = 10px): metadados densos — piso absoluto
+ * Sem --line-height propositalmente: como os valores arbitrários que
+ * substituem, definem só font-size e herdam o line-height do contexto.
+ * Não criar novos text-[...] arbitrários abaixo de text-xs. */
+@theme {
+	--text-2xs: 0.7rem;
+	--text-3xs: 0.625rem;
+}
+
 /* Fundo Premium Global (dark mode).
  * Pseudo-elemento `position: fixed` em vez de `background-attachment: fixed`
  * no body: o attachment fixed desabilita a composição acelerada do fundo e
@@ -55,6 +68,20 @@
 		transition-duration: 0.01ms !important;
 		scroll-behavior: auto !important;
 	}
+}
+
+/* Superfície elevada opaca (auditoria 2026-07-11, UX-4): fundo canônico de
+ * modais e cards sobre o fundo da página. Antes havia 9 combinações
+ * de par claro/escuro ad hoc. Para elementos aninhados dentro de uma superfície
+ * elevada (linhas, sub-cards), use card-elevated-2.
+ * Backdrop canônico de modal: bg-surface-950/80 backdrop-blur-sm
+ * (modal empilhado sobre modal usa backdrop-blur-md, z-[60]/z-[70]). */
+@utility card-elevated {
+	@apply bg-white dark:bg-surface-900 border border-surface-200 dark:border-white/10;
+}
+
+@utility card-elevated-2 {
+	@apply bg-surface-100 dark:bg-surface-800 border border-surface-200 dark:border-white/10;
 }
 
 /* Utilitários centralizados de Glass Card (V-6) */
