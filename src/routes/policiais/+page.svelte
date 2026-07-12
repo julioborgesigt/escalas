@@ -10,9 +10,13 @@
 	import { toaster } from '$lib/toast';
 	import PaginationControls from '$lib/components/PaginationControls.svelte';
 	import { Dialog, SegmentedControl } from '@skeletonlabs/skeleton-svelte';
-	import { browser } from '$app/environment';
 	import { formatarTelefone, formatarCPF, limparCPF } from '$lib/utils';
-	import { useAutorizacao, getSavedFilters, useConfirmationDialog } from '$lib/composables';
+	import {
+		useAutorizacao,
+		getSavedFilters,
+		useConfirmationDialog,
+		useFiltrosPaginados
+	} from '$lib/composables';
 	import type { Policial, Unidade } from '$lib/types';
 	import SearchableSelect from '$lib/components/SearchableSelect.svelte';
 	import type { ActionResult } from '@sveltejs/kit';
@@ -74,21 +78,6 @@
 	);
 	let filtroBusca = $state(untrack(() => data.filtros.busca || savedFilters.busca));
 
-	// Salvar filtros no localStorage a cada mudança
-	$effect(() => {
-		if (browser) {
-			localStorage.setItem(
-				'filtros_policiais',
-				JSON.stringify({
-					lotacao: filtroLotacao,
-					cargo: filtroCargo,
-					seccional: filtroSeccional,
-					busca: filtroBusca
-				})
-			);
-		}
-	});
-
 	const seccionais = $derived(unidades.filter((u) => u.tipo === 'seccional'));
 	const delegaciasDropdown = $derived(
 		filtroSeccional === 'todas'
@@ -102,6 +91,38 @@
 	// Special sentinel value for "sem lotação" filter
 	const SEM_LOTACAO = '__sem_lotacao__';
 	const TODAS_UNIDADES = '__todas__';
+
+	// Persistência dos filtros + navegação (query server-side). A paginação
+	// abaixo preserva a URL corrente; por isso navegarComFiltros vai sempre à
+	// página 1.
+	const filtros = useFiltrosPaginados({
+		chave: 'filtros_policiais',
+		snapshot: () => ({
+			lotacao: filtroLotacao,
+			cargo: filtroCargo,
+			seccional: filtroSeccional,
+			busca: filtroBusca
+		}),
+		query: (p) => {
+			// eslint-disable-next-line svelte/prefer-svelte-reactivity
+			const params = new URLSearchParams();
+			if (
+				filtroLotacao &&
+				filtroLotacao !== 'todas' &&
+				filtroLotacao !== TODAS_UNIDADES &&
+				filtroLotacao !== SEM_LOTACAO
+			) {
+				params.set('lotacao', filtroLotacao);
+			}
+			if (filtroCargo) params.set('cargo', filtroCargo);
+			if (filtroBusca) params.set('busca', filtroBusca);
+			if (filtroSeccional && filtroSeccional !== 'todas') {
+				params.set('seccional', String(filtroSeccional));
+			}
+			params.set('page', String(p));
+			return params;
+		}
+	});
 
 	// Cadastro
 	let cadastroOpen = $state(false);
@@ -234,24 +255,7 @@
 	});
 
 	function navegarComFiltros() {
-		// eslint-disable-next-line svelte/prefer-svelte-reactivity
-		const params = new URLSearchParams();
-		if (
-			filtroLotacao &&
-			filtroLotacao !== 'todas' &&
-			filtroLotacao !== TODAS_UNIDADES &&
-			filtroLotacao !== SEM_LOTACAO
-		) {
-			params.set('lotacao', filtroLotacao);
-		}
-		if (filtroCargo) params.set('cargo', filtroCargo);
-		if (filtroBusca) params.set('busca', filtroBusca);
-		if (filtroSeccional && filtroSeccional !== 'todas') {
-			params.set('seccional', String(filtroSeccional));
-		}
-		params.set('page', '1');
-		const query = params.toString();
-		goto(`/policiais?${query}`, { keepFocus: true, noScroll: true });
+		filtros.navegar(1);
 	}
 
 	function solicitarExclusao(id: number, nome: string) {

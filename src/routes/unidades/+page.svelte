@@ -6,10 +6,9 @@
 	import { invalidateAll } from '$app/navigation';
 	import { enhance } from '$app/forms';
 	import { toaster } from '$lib/toast';
-	import { browser } from '$app/environment';
 	import type { Unidade } from '$lib/types';
 	import { CIDADES_CEARA } from '$lib/constants/cidades';
-	import { useAutorizacao, getSavedFilters } from '$lib/composables';
+	import { useAutorizacao, getSavedFilters, useFiltrosPaginados } from '$lib/composables';
 	import type { ActionResult } from '@sveltejs/kit';
 	import ModalCadastrarUnidade from './_components/ModalCadastrarUnidade.svelte';
 	import ModalExcluirUnidade from './_components/ModalExcluirUnidade.svelte';
@@ -27,13 +26,9 @@
 	);
 	let filtroBusca = $state(savedFilters.busca);
 
-	$effect(() => {
-		if (browser) {
-			localStorage.setItem(
-				'filtros_unidades',
-				JSON.stringify({ seccional: filtroSeccional, busca: filtroBusca })
-			);
-		}
+	useFiltrosPaginados({
+		chave: 'filtros_unidades',
+		snapshot: () => ({ seccional: filtroSeccional, busca: filtroBusca })
 	});
 
 	const unidadesFiltradas = $derived(
