@@ -345,19 +345,8 @@
 
 	let abriuDoHome = $state(false);
 
-	const podeAssinar = $derived(data.podeAssinar as boolean);
-	const escalasParaAssinar = $derived(
-		(data.escalasParaAssinar ?? []) as Array<{
-			id: number;
-			titulo: string;
-			cidade: string;
-			data_inicio: string;
-			data_fim: string;
-			tipo: string;
-			lotacao: string;
-			is_assinada: boolean;
-		}>
-	);
+	const podeAssinar = $derived(data.podeAssinar);
+	const escalasParaAssinar = $derived(data.escalasParaAssinar);
 
 	// --- Rubrica reutilizável (cadastro para assinatura por token) ---
 	// Só consideramos "tem rubrica" quando é um dataURL de imagem real.
