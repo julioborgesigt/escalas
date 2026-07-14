@@ -9,15 +9,8 @@ import { conectarSerpro, type SerproSignerClient } from '$lib/serpro';
 import type { UsuarioLogado } from '$lib/auth';
 import { loading } from '$lib/loading.svelte';
 import { apiFetch } from '$lib/api-fetch';
+import { digestHexParaBase64, executarFluxoAssinaturaToken } from '$lib/assinatura-token';
 import { logger } from '$lib/logger';
-
-/** Response shape from /preparar-assinatura */
-interface PrepararAssinaturaResponse {
-	messageDigest: string;
-	preparedPdf: string;
-	signingTimeISO: string;
-	verificationHash: string;
-}
 
 interface UseAssinaturaParams {
 	getParams: () => {
@@ -94,39 +87,24 @@ export function useAssinaturaEscala({ getParams, onDocumentoAssinado }: UseAssin
 			gpsCoords = await getCoordinates();
 
 			loading.show('Preparando assinatura...');
-			const prepData = await apiFetch<PrepararAssinaturaResponse>(
-				`/api/escalas/${escalaId}/preparar-assinatura`,
-				{
-					method: 'POST',
-					body: JSON.stringify({ signerName: serproSignerName, signerCpf: serproSignerCpf })
-				}
-			);
-
-			loading.show('Assinando com SERPRO...');
-			const messageDigestBase64 = btoa(
-				// messageDigest is always a valid hex string, so match never returns null here
-				prepData.messageDigest
-					.match(/.{2}/g)!
-					.map((h: string) => String.fromCharCode(parseInt(h, 16)))
-					.join('')
-			);
-			const serproRes = await client.sign(messageDigestBase64);
-
-			loading.show('Finalizando assinatura...');
-			const info = await apiFetch<unknown>(`/api/escalas/${escalaId}/finalizar-assinatura`, {
-				method: 'POST',
-				body: JSON.stringify({
-					preparedPdf: prepData.preparedPdf,
-					serproCms: serproRes.rawSignature,
-					messageDigest: prepData.messageDigest,
-					signingTimeISO: prepData.signingTimeISO,
+			const finResp = await executarFluxoAssinaturaToken({
+				prepararUrl: `/api/escalas/${escalaId}/preparar-assinatura`,
+				finalizarUrl: `/api/escalas/${escalaId}/finalizar-assinatura`,
+				payloadPreparar: { signerName: serproSignerName, signerCpf: serproSignerCpf },
+				obterAssinatura: async (prep) => {
+					loading.show('Assinando com SERPRO...');
+					const serproRes = await client.sign(digestHexParaBase64(prep.messageDigest));
+					return { serproCms: serproRes.rawSignature };
+				},
+				payloadFinalizar: {
 					signerName: serproSignerName,
 					signerCpf: serproSignerCpf,
-					verificationHash: prepData.verificationHash,
 					latitude: gpsCoords?.lat,
 					longitude: gpsCoords?.lng
-				})
+				},
+				onFinalizando: () => loading.show('Finalizando assinatura...')
 			});
+			const info: unknown = await finResp.json().catch(() => null);
 
 			toaster.success({ title: 'Escala assinada com sucesso!' });
 			onDocumentoAssinado?.(info);

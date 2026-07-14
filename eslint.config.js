@@ -46,9 +46,8 @@ export default [
 		rules: {
 			'@typescript-eslint/no-unused-vars': 'off',
 			'svelte/no-at-html-tags': 'warn',
-			// Tech debt pré-existente — rebaixado para warning para não bloquear o
-			// CI. Item explícito no plano de remediação (Sprint 2/3). Não relaxar
-			// para 'off': queremos que cada nova ocorrência apareça no diff de PR.
+			// Base está limpa (lint:strict passa com zero warnings); o CI usa
+			// --max-warnings 0, então qualquer nova ocorrência bloqueia o PR.
 			'svelte/require-each-key': 'warn',
 			// Desativada: projeto não configura paths.base (svelte.config.js sem 'kit.paths.base').
 			// resolve() de '$app/paths' seria no-op; todos os warnings são falsos positivos.

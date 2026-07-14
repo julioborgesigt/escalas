@@ -13,7 +13,7 @@
 	import { goto, onNavigate, afterNavigate } from '$app/navigation';
 	import { Toast, Dialog, Avatar } from '@skeletonlabs/skeleton-svelte';
 	import { toaster } from '$lib/toast';
-	import { csrfHeaders } from '$lib/csrf';
+	import { apiFetch } from '$lib/api-fetch';
 	import { loading } from '$lib/loading.svelte';
 	import LoadingOverlay from '$lib/components/LoadingOverlay.svelte';
 	import Spinner from '$lib/components/Spinner.svelte';
@@ -99,7 +99,7 @@
 	async function logout() {
 		isLoggingOut = true;
 		try {
-			await fetch('/api/auth/logout', { method: 'POST', headers: csrfHeaders() });
+			await apiFetch('/api/auth/logout', { method: 'POST' });
 		} catch {
 			/* ignora erros de rede — o redirecionamento ocorre de qualquer forma */
 		}
@@ -135,20 +135,17 @@
 		switchingModule = true;
 		loading.show('Alternando módulo...');
 		try {
-			const res = await fetch('/api/auth/alternar-modulo', {
-				method: 'POST',
-				headers: csrfHeaders()
+			const result = await apiFetch<{ redirect?: string }>('/api/auth/alternar-modulo', {
+				method: 'POST'
 			});
-			if (res.ok) {
-				const result = await res.json();
-				if (result.redirect) {
-					await goto(result.redirect, { invalidateAll: true });
-				}
-			} else {
-				toaster.create({ title: 'Erro ao alternar módulo', type: 'error' });
+			if (result.redirect) {
+				await goto(result.redirect, { invalidateAll: true });
 			}
-		} catch {
-			toaster.create({ title: 'Erro de conexão ao alternar módulo', type: 'error' });
+		} catch (e: unknown) {
+			toaster.create({
+				title: e instanceof Error ? e.message : 'Erro ao alternar módulo',
+				type: 'error'
+			});
 		} finally {
 			switchingModule = false;
 			loading.hide();

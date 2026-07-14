@@ -3,7 +3,7 @@
 	import { enhance } from '$app/forms';
 	import { untrack } from 'svelte';
 	import { toaster } from '$lib/toast';
-	import { csrfHeaders } from '$lib/csrf';
+	import { apiFetch } from '$lib/api-fetch';
 	import ModalCadastrarRubrica from '$lib/components/ModalCadastrarRubrica.svelte';
 	import ModalAlterarEmailPessoal from './ModalAlterarEmailPessoal.svelte';
 	import SearchableSelect from '$lib/components/SearchableSelect.svelte';
@@ -81,15 +81,14 @@
 			return;
 		excluindoRubrica = true;
 		try {
-			const res = await fetch('/api/perfil/rubrica', { method: 'DELETE', headers: csrfHeaders() });
-			if (res.ok) {
-				minhaRubrica = null;
-				toaster.create({ title: 'Rubrica excluída', type: 'info' });
-			} else {
-				toaster.create({ title: 'Erro ao excluir rubrica', type: 'error' });
-			}
-		} catch {
-			toaster.create({ title: 'Erro de rede ao excluir rubrica', type: 'error' });
+			await apiFetch('/api/perfil/rubrica', { method: 'DELETE' });
+			minhaRubrica = null;
+			toaster.create({ title: 'Rubrica excluída', type: 'info' });
+		} catch (e: unknown) {
+			toaster.create({
+				title: e instanceof Error ? e.message : 'Erro ao excluir rubrica',
+				type: 'error'
+			});
 		} finally {
 			excluindoRubrica = false;
 		}

@@ -6,7 +6,7 @@
 	import { enhance } from '$app/forms';
 	import { toaster } from '$lib/toast';
 	import { invalidateAll } from '$app/navigation';
-	import { csrfHeaders } from '$lib/csrf';
+	import { apiFetch } from '$lib/api-fetch';
 	import type { ActionResult } from '@sveltejs/kit';
 	import type { EscalaPolicialComDados } from '$lib/types';
 	import PainelAssinaturaEscala from '$lib/components/PainelAssinaturaEscala.svelte';
@@ -121,23 +121,20 @@
 		if (enviandoSolicitacao) return;
 		enviandoSolicitacao = true;
 		try {
-			const res = await fetch(`/api/escalas/${data.escalaId}/solicitar-assinatura`, {
+			await apiFetch(`/api/escalas/${data.escalaId}/solicitar-assinatura`, {
 				method: 'POST',
-				headers: { 'Content-Type': 'application/json', ...csrfHeaders() },
 				body: JSON.stringify({ tipo: 'unidade' })
 			});
-			if (!res.ok) {
-				const err = await res.json().catch(() => ({}));
-				toaster.create({ title: err.error || 'Erro ao solicitar assinatura', type: 'error' });
-				return;
-			}
 			toaster.create({ title: 'Edição finalizada e solicitação enviada!', type: 'success' });
 			solicitacaoAtual = { tipo: 'unidade' };
 			modoEdicao = false;
 			confirmFinalizarEdicaoOpen = false;
 			await invalidateAll();
-		} catch {
-			toaster.create({ title: 'Erro ao finalizar edição', type: 'error' });
+		} catch (e: unknown) {
+			toaster.create({
+				title: e instanceof Error ? e.message : 'Erro ao solicitar assinatura',
+				type: 'error'
+			});
 		} finally {
 			enviandoSolicitacao = false;
 		}

@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { Dialog } from '@skeletonlabs/skeleton-svelte';
-	import { csrfHeaders } from '$lib/csrf';
 	import { toaster } from '$lib/toast';
+	import { useVerificacaoEmailPessoal } from '$lib/composables';
 	import CodigoTimer from '$lib/components/CodigoTimer.svelte';
 
 	/**
@@ -22,72 +22,11 @@
 
 	const ehTroca = $derived(!!emailAtual);
 
-	let etapa = $state<'dados' | 'codigo'>('dados');
-	let novoEmail = $state('');
 	let senha = $state('');
-	let codigo = $state('');
-	let desafioId = $state('');
-	let emailMascarado = $state('');
-	let enviando = $state(false);
-	let erro = $state('');
 
-	$effect(() => {
-		if (open) {
-			etapa = 'dados';
-			novoEmail = '';
-			senha = '';
-			codigo = '';
-			desafioId = '';
-			emailMascarado = '';
-			erro = '';
-		}
-	});
-
-	async function enviarCodigo(): Promise<void> {
-		erro = '';
-		enviando = true;
-		try {
-			const res = await fetch('/api/auth/solicitar-verificacao-email-pessoal', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json', ...csrfHeaders() },
-				body: JSON.stringify({
-					email: novoEmail.trim(),
-					...(senha ? { senha } : {})
-				})
-			});
-			const json = (await res.json().catch(() => ({}))) as {
-				desafioId?: string;
-				emailMascarado?: string;
-				error?: string;
-			};
-			if (!res.ok || !json.desafioId) {
-				erro = json.error || 'Erro ao enviar o código. Tente novamente.';
-				return;
-			}
-			desafioId = json.desafioId;
-			emailMascarado = json.emailMascarado ?? '';
-			etapa = 'codigo';
-		} catch {
-			erro = 'Erro de rede. Tente novamente.';
-		} finally {
-			enviando = false;
-		}
-	}
-
-	async function confirmarCodigo() {
-		erro = '';
-		enviando = true;
-		try {
-			const res = await fetch('/api/auth/confirmar-verificacao-email-pessoal', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json', ...csrfHeaders() },
-				body: JSON.stringify({ desafioId, codigo: codigo.trim(), email: novoEmail.trim() })
-			});
-			const json = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string };
-			if (!res.ok || !json.ok) {
-				erro = json.error || 'Código inválido. Tente novamente.';
-				return;
-			}
+	const verificacao = useVerificacaoEmailPessoal({
+		getSenha: () => senha,
+		onVerificado: (novoEmail) => {
 			open = false;
 			toaster.create({
 				title: ehTroca ? 'E-mail pessoal alterado' : 'E-mail pessoal cadastrado',
@@ -96,13 +35,16 @@
 					: undefined,
 				type: 'success'
 			});
-			onConfirmado(novoEmail.trim().toLowerCase());
-		} catch {
-			erro = 'Erro de rede. Tente novamente.';
-		} finally {
-			enviando = false;
+			onConfirmado(novoEmail);
 		}
-	}
+	});
+
+	$effect(() => {
+		if (open) {
+			verificacao.reset();
+			senha = '';
+		}
+	});
 </script>
 
 <Dialog
@@ -121,19 +63,19 @@
 				{ehTroca ? 'Trocar e-mail pessoal' : 'Cadastrar e-mail pessoal'}
 			</Dialog.Title>
 			<Dialog.Description class="text-sm text-surface-500 dark:text-surface-400 mb-5">
-				{etapa === 'dados'
+				{verificacao.etapa === 'dados'
 					? 'O e-mail pessoal é o seu canal de recuperação de senha.'
 					: 'Digite o código de 6 dígitos enviado ao novo endereço.'}
 			</Dialog.Description>
 
-			{#if etapa === 'dados'}
+			{#if verificacao.etapa === 'dados'}
 				<div class="space-y-4 mb-5">
 					<label class="label">
 						<span class="label-text">Novo e-mail pessoal</span>
 						<input
 							type="email"
 							class="input"
-							bind:value={novoEmail}
+							bind:value={verificacao.email}
 							placeholder="nome@provedor.com"
 							autocomplete="email"
 							maxlength="254"
@@ -164,16 +106,21 @@
 						inputmode="numeric"
 						maxlength="6"
 						class="input text-center text-2xl font-bold tracking-[0.5em]"
-						bind:value={codigo}
+						bind:value={verificacao.codigo}
 						placeholder="••••••"
 						autocomplete="one-time-code"
 					/>
-					<CodigoTimer {emailMascarado} onReenviar={enviarCodigo} />
+					<CodigoTimer
+						emailMascarado={verificacao.emailMascarado}
+						onReenviar={verificacao.enviarCodigo}
+					/>
 				</div>
 			{/if}
 
-			{#if erro}
-				<p class="text-sm text-error-600 dark:text-error-400 mb-4" role="alert">{erro}</p>
+			{#if verificacao.erro}
+				<p class="text-sm text-error-600 dark:text-error-400 mb-4" role="alert">
+					{verificacao.erro}
+				</p>
 			{/if}
 
 			<div class="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 sm:gap-3">
@@ -184,23 +131,23 @@
 				>
 					Cancelar
 				</button>
-				{#if etapa === 'dados'}
+				{#if verificacao.etapa === 'dados'}
 					<button
 						type="button"
 						class="btn preset-filled-primary-500 font-bold disabled:opacity-40"
-						disabled={enviando || !novoEmail.trim() || (ehTroca && !senha)}
-						onclick={enviarCodigo}
+						disabled={verificacao.enviando || !verificacao.email.trim() || (ehTroca && !senha)}
+						onclick={verificacao.enviarCodigo}
 					>
-						{enviando ? 'Enviando…' : 'Enviar código'}
+						{verificacao.enviando ? 'Enviando…' : 'Enviar código'}
 					</button>
 				{:else}
 					<button
 						type="button"
 						class="btn preset-filled-primary-500 font-bold disabled:opacity-40"
-						disabled={enviando || codigo.trim().length !== 6}
-						onclick={confirmarCodigo}
+						disabled={verificacao.enviando || verificacao.codigo.trim().length !== 6}
+						onclick={verificacao.confirmarCodigo}
 					>
-						{enviando ? 'Confirmando…' : 'Confirmar'}
+						{verificacao.enviando ? 'Confirmando…' : 'Confirmar'}
 					</button>
 				{/if}
 			</div>

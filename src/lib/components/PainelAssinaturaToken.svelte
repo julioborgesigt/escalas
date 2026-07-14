@@ -1,8 +1,8 @@
 <script lang="ts">
 	import { toaster } from '$lib/toast';
-	import { csrfHeaders } from '$lib/csrf';
 	import { loading } from '$lib/loading.svelte';
 	import { conectarSerpro, SerproSignerClient } from '$lib/serpro';
+	import { digestHexParaBase64, executarFluxoAssinaturaToken } from '$lib/assinatura-token';
 
 	let {
 		prepararUrl,
@@ -52,15 +52,6 @@
 
 	// ---- Fluxo SERPRO ----
 
-	function hexToBase64(hex: string): string {
-		return btoa(
-			hex
-				.match(/.{2}/g)!
-				.map((h) => String.fromCharCode(parseInt(h, 16)))
-				.join('')
-		);
-	}
-
 	function baixarBlob(blob: Blob, nome: string) {
 		const url = URL.createObjectURL(blob);
 		const a = document.createElement('a');
@@ -85,60 +76,25 @@
 		loading.show('Gerando PDF e preparando assinatura...');
 
 		try {
-			// 1. Preparar
-			const prepResp = await fetch(prepararUrl, {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json', ...csrfHeaders() },
-				body: JSON.stringify({
-					signerName,
-					signerCpf,
-					latitude: coords?.lat,
-					longitude: coords?.lng,
-					...extraPayload
-				})
+			// 1-3. Preparar → assinar → finalizar (orquestração compartilhada)
+			const dadosComuns = {
+				signerName,
+				signerCpf,
+				latitude: coords?.lat,
+				longitude: coords?.lng,
+				...extraPayload
+			};
+			const finResp = await executarFluxoAssinaturaToken({
+				prepararUrl,
+				finalizarUrl,
+				payloadPreparar: dadosComuns,
+				obterAssinatura: (prep) => {
+					loading.show('Aguardando assinatura no token...');
+					return getSignature(prep.signedAttrsHashHex ?? '', prep.messageDigest);
+				},
+				payloadFinalizar: dadosComuns,
+				onFinalizando: () => loading.show('Finalizando PDF assinado...')
 			});
-			if (!prepResp.ok) {
-				const err = await prepResp.json().catch(() => ({}));
-				throw new Error(err.error || 'Erro ao preparar assinatura');
-			}
-			const {
-				preparedPdf,
-				signedAttrsHashHex,
-				messageDigest,
-				signingTimeISO,
-				verificationHash,
-				documentHash,
-				assinanteEmail
-			} = await prepResp.json();
-
-			// 2. Assinar
-			loading.show('Aguardando assinatura no token...');
-			const sigResult = await getSignature(signedAttrsHashHex, messageDigest);
-
-			// 3. Finalizar
-			loading.show('Finalizando PDF assinado...');
-			const finResp = await fetch(finalizarUrl, {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json', ...csrfHeaders() },
-				body: JSON.stringify({
-					preparedPdf,
-					...sigResult,
-					messageDigest,
-					signingTimeISO,
-					signerName,
-					signerCpf,
-					verificationHash,
-					latitude: coords?.lat,
-					longitude: coords?.lng,
-					documentHash,
-					assinanteEmail,
-					...extraPayload
-				})
-			});
-			if (!finResp.ok) {
-				const err = await finResp.json().catch(() => ({}));
-				throw new Error(err.error || 'Erro ao finalizar assinatura');
-			}
 
 			// 4. Baixar
 			loading.show('Baixando PDF assinado...');
@@ -179,7 +135,7 @@
 
 			await executarAssinatura(async (_signedAttrsHashHex, messageDigestHex) => {
 				loading.show('Selecione o certificado e assine no SERPRO...');
-				const messageDigestBase64 = hexToBase64(messageDigestHex);
+				const messageDigestBase64 = digestHexParaBase64(messageDigestHex);
 				const result = await client.sign(messageDigestBase64);
 				return { serproCms: result.rawSignature, serproResponse: result };
 			});

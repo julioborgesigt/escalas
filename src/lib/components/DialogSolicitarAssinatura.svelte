@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { Dialog } from '@skeletonlabs/skeleton-svelte';
-	import { csrfHeaders } from '$lib/csrf';
+	import { apiFetch } from '$lib/api-fetch';
 	import { toaster } from '$lib/toast';
 	import Spinner from '$lib/components/Spinner.svelte';
 
@@ -98,30 +98,24 @@
 		if (opcaoSolicitacao === 'respondencia' && !destinatarioSelecionado) return;
 		enviandoSolicitacao = true;
 		try {
-			const res = await fetch(`/api/escalas/${escalaId}/solicitar-assinatura`, {
+			await apiFetch(`/api/escalas/${escalaId}/solicitar-assinatura`, {
 				method: 'POST',
-				headers: { 'Content-Type': 'application/json', ...csrfHeaders() },
 				body: JSON.stringify({
 					tipo: opcaoSolicitacao,
 					destinatario_id: destinatarioSelecionado?.id
 				})
 			});
-			if (res.ok) {
-				open = false;
-				toaster.create({ title: 'Solicitação de assinatura enviada', type: 'success' });
-				await onConfirmado({
-					tipo: opcaoSolicitacao,
-					destinatario_id: destinatarioSelecionado?.id
-				});
-			} else {
-				const json = await res.json().catch(() => ({}));
-				toaster.create({
-					title: (json as { error?: string }).error || 'Erro ao enviar solicitação',
-					type: 'error'
-				});
-			}
-		} catch {
-			toaster.create({ title: 'Erro de rede ao enviar solicitação', type: 'error' });
+			open = false;
+			toaster.create({ title: 'Solicitação de assinatura enviada', type: 'success' });
+			await onConfirmado({
+				tipo: opcaoSolicitacao,
+				destinatario_id: destinatarioSelecionado?.id
+			});
+		} catch (e: unknown) {
+			toaster.create({
+				title: e instanceof Error ? e.message : 'Erro ao enviar solicitação',
+				type: 'error'
+			});
 		} finally {
 			enviandoSolicitacao = false;
 		}
