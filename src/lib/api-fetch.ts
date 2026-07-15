@@ -5,8 +5,7 @@ import { csrfHeaders } from '$lib/csrf';
  *
  * Use `apiFetch` para APIs JSON e `apiFetchResponse` para downloads/blob.
  * `fetch` cru só se justifica quando o chamador precisa de semântica que os
- * helpers não cobrem: POST de form action do SvelteKit (body FormData) ou
- * tratamento próprio de erro em buscas com debounce.
+ * helpers não cobrem: POST de form action do SvelteKit (body FormData).
  */
 type ApiFetchInit = Omit<RequestInit, 'headers'> & { headers?: Record<string, string> };
 

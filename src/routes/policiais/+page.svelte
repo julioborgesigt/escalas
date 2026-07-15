@@ -8,6 +8,7 @@
 	import { untrack } from 'svelte';
 	import { enhance } from '$app/forms';
 	import { toaster } from '$lib/toast';
+	import { apiFetch } from '$lib/api-fetch';
 	import PaginationControls from '$lib/components/PaginationControls.svelte';
 	import { Dialog, SegmentedControl } from '@skeletonlabs/skeleton-svelte';
 	import { formatarTelefone, formatarCPF, limparCPF } from '$lib/utils';
@@ -231,12 +232,10 @@
 		});
 		if (query.trim()) params.set('q', query.trim());
 
-		const res = await fetch(`/api/unidades/search?${params.toString()}`, { signal });
-		if (!res.ok) {
-			const body = await res.json().catch(() => ({}));
-			throw new Error(body?.error || 'Erro ao buscar lotações');
-		}
-		const dataRes = await res.json();
+		const dataRes = await apiFetch<{ items?: { nome: string }[] }>(
+			`/api/unidades/search?${params.toString()}`,
+			{ signal }
+		);
 		const baseOptions = (dataRes.items || []).map((u: { nome: string }) => ({
 			value: u.nome,
 			label: u.nome
