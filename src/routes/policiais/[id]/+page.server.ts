@@ -166,9 +166,7 @@ export const actions: Actions = {
 
 		const formData = await request.formData();
 		const papel = (formData.get('papel')?.toString() || null) as
-			| 'admin_seccional'
-			| 'admin_unidade'
-			| null;
+			'admin_seccional' | 'admin_unidade' | null;
 		const papelUnidadeIdStr = formData.get('papel_unidade_id')?.toString();
 		const papelUnidadeId = papelUnidadeIdStr ? Number(papelUnidadeIdStr) : null;
 

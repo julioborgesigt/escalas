@@ -5,6 +5,7 @@
 		useListCollection,
 		type ComboboxRootProps
 	} from '@skeletonlabs/skeleton-svelte';
+	import { useBuscaDebounce } from '$lib/composables/useBuscaDebounce.svelte';
 	import Spinner from './Spinner.svelte';
 
 	type Option = { value: unknown; label: string };
@@ -48,25 +49,17 @@
 	// localmente para aplicar o filtro digitado.
 	let syncItems = $derived(options);
 
-	// Async mode items
-	let asyncItems = $state<Option[]>([]);
-	let asyncLoading = $state(false);
-	let asyncError = $state<string | null>(null);
-	let hasSearched = $state(false);
-	let debounceTimer: ReturnType<typeof setTimeout> | null = null;
-	let inFlightController: AbortController | null = null;
-
-	// Cleanup on unmount
-	$effect(() => {
-		return () => {
-			if (debounceTimer) clearTimeout(debounceTimer);
-			if (inFlightController) inFlightController.abort();
-		};
+	// Async mode: debounce + abort + flags encapsulados no composable.
+	// Getters preservam a reatividade das props (lidas a cada busca).
+	const busca = useBuscaDebounce<Option>({
+		debounceMs: () => debounceMs,
+		minChars: () => minSearchChars,
+		buscar: (termo, signal) => loadOptions!(termo, signal)
 	});
 
 	// For async: seed items with selectedOption so label shows for pre-selected values
 	const effectiveAsyncItems = $derived.by(() => {
-		if (asyncItems.length > 0) return asyncItems;
+		if (busca.resultados.length > 0) return busca.resultados;
 		if (!isValueEmpty(value)) {
 			const hint = selectedOption ?? null;
 			if (hint && String(hint.value) === String(value)) return [hint as Option];
@@ -99,7 +92,7 @@
 	};
 
 	const onOpenChange: ComboboxRootProps['onOpenChange'] = () => {
-		asyncError = null;
+		busca.erro = '';
 		if (!isAsync) {
 			syncItems = options;
 		}
@@ -115,38 +108,7 @@
 			return;
 		}
 
-		if (term.length < minSearchChars) {
-			asyncItems = [];
-			asyncLoading = false;
-			hasSearched = false;
-			return;
-		}
-
-		if (debounceTimer) clearTimeout(debounceTimer);
-		if (inFlightController) inFlightController.abort();
-
-		const controller = new AbortController();
-		inFlightController = controller;
-		asyncLoading = true;
-		asyncError = null;
-
-		debounceTimer = setTimeout(async () => {
-			try {
-				const result = await loadOptions!(term, controller.signal);
-				if (!controller.signal.aborted) {
-					asyncItems = result;
-					asyncLoading = false;
-					hasSearched = true;
-				}
-			} catch (err) {
-				if (!controller.signal.aborted) {
-					asyncItems = [];
-					asyncError = err instanceof Error ? err.message : 'Erro na busca';
-					asyncLoading = false;
-					hasSearched = true;
-				}
-			}
-		}, debounceMs);
+		busca.buscar(term);
 	};
 </script>
 
@@ -186,14 +148,14 @@
 				<Combobox.Content
 					class="z-50 min-w-[12rem] rounded-lg border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-800 shadow-lg py-1 max-h-64 overflow-y-auto"
 				>
-					{#if asyncLoading}
+					{#if busca.buscando}
 						<div class="px-3 py-2 text-sm text-surface-500 flex items-center gap-2">
 							<Spinner size="sm" class="text-primary-500" />
 							Buscando...
 						</div>
-					{:else if asyncError}
-						<div class="px-3 py-2 text-sm text-error-600">{asyncError}</div>
-					{:else if isAsync && minSearchChars > 0 && !hasSearched}
+					{:else if busca.erro}
+						<div class="px-3 py-2 text-sm text-error-600">{busca.erro}</div>
+					{:else if isAsync && minSearchChars > 0 && !busca.buscou}
 						<div class="px-3 py-2 text-sm text-surface-500">
 							Digite ao menos {minSearchChars} caractere{minSearchChars > 1 ? 's' : ''} para buscar
 						</div>

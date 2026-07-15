@@ -3,6 +3,7 @@
 	import { navigating } from '$app/state';
 	import { page } from '$app/state';
 	import SkeletonCard from '$lib/components/SkeletonCard.svelte';
+	import { apiFetchResponse } from '$lib/api-fetch';
 	import { loading } from '$lib/loading.svelte';
 	import { toaster } from '$lib/toast';
 	import { slide } from 'svelte/transition';
@@ -146,22 +147,11 @@
 		const url = buildHistoricoExportHref(format);
 		loading.show('Preparando download…');
 		try {
-			const res = await fetch(url, { credentials: 'same-origin' });
+			const res = await apiFetchResponse(url);
 			const fileName = nomeArquivoContentDisposition(
 				res.headers.get('Content-Disposition'),
 				fallbackName
 			);
-			if (!res.ok) {
-				let msg = `Não foi possível baixar (${res.status})`;
-				try {
-					const j = (await res.json()) as { error?: string };
-					if (j?.error) msg = j.error;
-				} catch {
-					// corpo não-JSON — mantém a mensagem padrão
-				}
-				toaster.error({ title: msg });
-				return;
-			}
 			const blob = await res.blob();
 			const href = URL.createObjectURL(blob);
 			const a = document.createElement('a');

@@ -45,7 +45,30 @@ function execSqlSafe(sql: string): boolean {
 	}
 }
 
+/**
+ * Aplica as migrations pendentes no D1 LOCAL antes de semear. Sem isto, num
+ * ambiente limpo (CI, container novo) o banco não tem NENHUMA tabela: os
+ * seeds abaixo falham silenciosamente (execSqlSafe → false), specs
+ * autenticados pulam e o login estoura 500 ("no such table: login_attempts")
+ * em vez dos 401/403 que o auth.spec espera. Em máquina de dev já migrada é
+ * um no-op rápido (controle em `_migrations_aplicadas`).
+ */
+function aplicarMigracoesLocais(): boolean {
+	try {
+		execSync('npx tsx scripts/migrate.ts', { cwd: ROOT, stdio: 'pipe' });
+		return true;
+	} catch {
+		return false;
+	}
+}
+
 export default async function globalSetup() {
+	if (!aplicarMigracoesLocais()) {
+		console.warn(
+			'[global-setup] Falha ao aplicar migrations no D1 local — specs que dependem do banco vão falhar/pular.'
+		);
+	}
+
 	// Limpa tentativas de login no D1 local para e2e não herdarem rate limit
 	// de execuções anteriores (preview reutiliza o mesmo arquivo de estado
 	// com `reuseExistingServer`). Sessões semeadas (e2e/session.ts) das contas

@@ -6,6 +6,7 @@
 	import { browser } from '$app/environment';
 	import { untrack } from 'svelte';
 	import { toaster } from '$lib/toast';
+	import { apiFetch } from '$lib/api-fetch';
 	import { enhance } from '$app/forms';
 	import { useGiseEstado, useGiseAssinatura } from '$lib/composables/gise';
 	import { loading } from '$lib/loading.svelte';
@@ -220,13 +221,13 @@
 			return;
 		}
 		try {
-			const res = await fetch(`/api/policiais/${id}/email-aviso`);
-			if (!res.ok) return;
-			const d = (await res.json()) as { email_pessoal?: string | null; email?: string | null };
+			const d = await apiFetch<{ email_pessoal?: string | null; email?: string | null }>(
+				`/api/policiais/${id}/email-aviso`
+			);
 			if (assessorId !== id) return;
 			assessorEmailNotificacao = (d.email_pessoal?.trim() || d.email?.trim() || '') ?? '';
 		} catch {
-			/* ignora falha de rede */
+			/* preenchimento é best-effort — ignora falha de rede/servidor */
 		}
 	}
 

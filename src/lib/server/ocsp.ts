@@ -54,9 +54,7 @@ export interface OcspSnapshot {
  */
 export function extrairUrlOcsp(cert: forge.pki.Certificate): string | null {
 	const ext = cert.getExtension('authorityInfoAccess') as
-		| { value: string; id?: string }
-		| null
-		| undefined;
+		{ value: string; id?: string } | null | undefined;
 	if (!ext || !ext.value) return null;
 
 	try {
@@ -546,9 +544,7 @@ function verificarSignatureBasic(
 
 	// E ter o EKU id-kp-OCSPSigning (RFC 6960 §4.2.2.2 b).
 	const eku = responderCert.getExtension('extKeyUsage') as
-		| { serverAuth?: boolean; OCSPSigning?: boolean }
-		| null
-		| undefined;
+		{ serverAuth?: boolean; OCSPSigning?: boolean } | null | undefined;
 	if (!eku?.OCSPSigning) {
 		logger.info('[OCSP] Cert responder delegate sem EKU id-kp-OCSPSigning');
 		return 'invalida';

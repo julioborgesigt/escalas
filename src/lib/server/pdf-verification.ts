@@ -771,8 +771,7 @@ export function verificarCadeiaIcpBrasil(
 /** EKU `timeStamping` marcada como crítica (RFC 3161 §2.3 — obrigatória em ACTs). */
 function temEkuTimeStampingCritica(cert: forge.pki.Certificate): boolean {
 	const eku = cert.extensions?.find((e) => e.name === 'extKeyUsage') as
-		| { critical?: boolean; timeStamping?: boolean }
-		| undefined;
+		{ critical?: boolean; timeStamping?: boolean } | undefined;
 	return !!(eku && eku.critical && eku.timeStamping);
 }
 

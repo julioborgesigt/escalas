@@ -12,10 +12,7 @@
  */
 import { describe, it, expect, vi } from 'vitest';
 import forge from 'node-forge';
-import {
-	avaliarSnapshotOcspLogin,
-	verificarRevogacaoParaLogin
-} from '../cert-login';
+import { avaliarSnapshotOcspLogin, verificarRevogacaoParaLogin } from '../cert-login';
 import type { OcspSnapshot } from '../ocsp';
 
 function snapshot(parcial: Partial<OcspSnapshot>): OcspSnapshot {
@@ -75,9 +72,7 @@ describe('avaliarSnapshotOcspLogin', () => {
 	});
 
 	it("permite quando status é 'good'", () => {
-		const d = avaliarSnapshotOcspLogin(
-			snapshot({ status: 'good', assinaturaResponder: 'valida' })
-		);
+		const d = avaliarSnapshotOcspLogin(snapshot({ status: 'good', assinaturaResponder: 'valida' }));
 		expect(d.permitido).toBe(true);
 		if (d.permitido) expect(d.ocsp).toBe('good');
 	});

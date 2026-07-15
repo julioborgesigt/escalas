@@ -8,7 +8,7 @@
 	import { Dialog } from '@skeletonlabs/skeleton-svelte';
 	import { browser } from '$app/environment';
 	import type { EscalaListagem, Unidade } from '$lib/types';
-	import { csrfHeaders } from '$lib/csrf';
+	import { apiFetch } from '$lib/api-fetch';
 	import { loading } from '$lib/loading.svelte';
 	import type { ActionResult } from '@sveltejs/kit';
 	import {
@@ -218,23 +218,18 @@
 		const id = escalaParaRevogar.id;
 		dialogRevogarOpen = false;
 		try {
-			const res = await fetch(`/api/escalas/${id}/documento-assinado`, {
-				method: 'DELETE',
-				headers: csrfHeaders()
+			await apiFetch(`/api/escalas/${id}/documento-assinado`, { method: 'DELETE' });
+			toaster.create({
+				title: 'Assinatura revogada',
+				description: 'A escala agora pode ser editada.',
+				type: 'info'
 			});
-			if (res.ok) {
-				toaster.create({
-					title: 'Assinatura revogada',
-					description: 'A escala agora pode ser editada.',
-					type: 'info'
-				});
-				goto(`/escalas/${id}`);
-			} else {
-				const err = await res.json().catch(() => ({}));
-				toaster.create({ title: err.error || 'Erro ao revogar assinatura', type: 'error' });
-			}
-		} catch {
-			toaster.create({ title: 'Falha de rede ao revogar assinatura', type: 'error' });
+			goto(`/escalas/${id}`);
+		} catch (e: unknown) {
+			toaster.create({
+				title: e instanceof Error ? e.message : 'Erro ao revogar assinatura',
+				type: 'error'
+			});
 		} finally {
 			pendingRevogar = false;
 			escalaParaRevogar = null;
@@ -333,22 +328,14 @@
 	async function cancelarSolicitacao(escalaId: number) {
 		loading.show('Cancelando solicitação...');
 		try {
-			const res = await fetch(`/api/escalas/${escalaId}/solicitar-assinatura`, {
-				method: 'DELETE',
-				headers: csrfHeaders()
+			await apiFetch(`/api/escalas/${escalaId}/solicitar-assinatura`, { method: 'DELETE' });
+			await invalidate('app:escalas');
+			toaster.create({ title: 'Solicitação cancelada', type: 'success' });
+		} catch (e: unknown) {
+			toaster.create({
+				title: e instanceof Error ? e.message : 'Erro ao cancelar solicitação',
+				type: 'error'
 			});
-			if (res.ok) {
-				await invalidate('app:escalas');
-				toaster.create({ title: 'Solicitação cancelada', type: 'success' });
-			} else {
-				const json = await res.json().catch(() => ({}));
-				toaster.create({
-					title: (json as { error?: string }).error || 'Erro ao cancelar solicitação',
-					type: 'error'
-				});
-			}
-		} catch {
-			toaster.create({ title: 'Erro de rede ao cancelar solicitação', type: 'error' });
 		} finally {
 			loading.hide();
 		}

@@ -45,11 +45,8 @@
 
 	let cargoBusca = $state<'DPC' | 'OIP' | ''>('');
 	let policialId = $state('');
-	// eslint-disable-next-line svelte/prefer-writable-derived
-	let dataPlantao = $state('');
-	$effect(() => {
-		dataPlantao = escala.data_inicio ?? '';
-	});
+	// Derivado gravável: acompanha a escala, mas admite edição manual no form.
+	let dataPlantao = $derived(escala.data_inicio ?? '');
 	let addHoraEntrada = $state('08');
 	let addMinutoEntrada = $state('00');
 	let addHoraSaida = $state('08');
@@ -61,8 +58,6 @@
 	// manuais do fluxo (criar equipe / pós-submit).
 	let addPrimeiroPlantao = $derived(primeiroPlantaoDoDia(escala.data_inicio ?? '', addPrimeiroDia));
 
-	// eslint-disable-next-line svelte/prefer-writable-derived
-	let addDatasSelecionadas = $state<string[]>([]);
 	let addObservacoes = $state('');
 
 	let activeEquipeForm = $state<string | null>(null);
@@ -90,11 +85,11 @@
 
 	const buscarPoliciaisAsync = buscarPoliciaisOptions({ cargo: () => cargoBusca });
 
-	const datasCalc = $derived(calcularDatasPlantao(escala, addPrimeiroPlantao, addTipoEscala));
-
-	$effect(() => {
-		addDatasSelecionadas = datasCalc;
-	});
+	// Derivado gravável: recalcula do 1º plantão/tipo, mas admite a seleção
+	// manual de datas e o reset pós-submit.
+	let addDatasSelecionadas = $derived(
+		calcularDatasPlantao(escala, addPrimeiroPlantao, addTipoEscala)
+	);
 
 	const datasPlantaoJson = $derived(
 		datasPlantaoParaJson(

@@ -1,5 +1,6 @@
 /* eslint-disable svelte/prefer-writable-derived */
 import { toaster } from '$lib/toast';
+import { apiFetchResponse } from '$lib/api-fetch';
 import { fmtDate } from '$lib/gise/gise-formatters';
 import { loading } from '$lib/loading.svelte';
 import { page } from '$app/state';
@@ -365,11 +366,7 @@ export function useResGise(getData: () => ResGisePageData) {
 		loading.show('Baixando Relatório de Produtividade...');
 		try {
 			const url = `/api/gise/${escala.id}/download?format=produtividade&seccionalId=${escala.seccional_id}&equipeType=${escala.equipe_tipo}`;
-			const res = await fetch(url);
-			if (!res.ok) {
-				const err = await res.json();
-				throw new Error(err.error || 'Erro ao baixar relatório');
-			}
+			const res = await apiFetchResponse(url);
 			const blob = await res.blob();
 			const downloadUrl = window.URL.createObjectURL(blob);
 			const a = document.createElement('a');
@@ -396,11 +393,7 @@ export function useResGise(getData: () => ResGisePageData) {
 					? data.supervisaoExtraUnidadeId
 					: escala.seccional_id;
 			const url = `/api/gise/${escala.id}/download?format=extraordinario&seccionalId=${secId}`;
-			const res = await fetch(url);
-			if (!res.ok) {
-				const err = await res.json();
-				throw new Error(err.error || 'Erro ao baixar relatório');
-			}
+			const res = await apiFetchResponse(url);
 			const blob = await res.blob();
 			const downloadUrl = window.URL.createObjectURL(blob);
 			const a = document.createElement('a');

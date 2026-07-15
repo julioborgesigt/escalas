@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { PageProps } from './$types';
 	import { enhance } from '$app/forms';
+	import { apiFetchResponse } from '$lib/api-fetch';
 	import { toaster } from '$lib/toast';
 	import { ChevronDown, ChevronUp, CheckCircle2, AlertTriangle } from 'lucide-svelte';
 
@@ -104,17 +105,7 @@
 		if (baixando) return;
 		baixando = true;
 		try {
-			const resp = await fetch(`/auditoria/export?${queryString({ format, ...extra })}`);
-			if (!resp.ok) {
-				let msg = 'Não foi possível gerar o arquivo.';
-				try {
-					msg = (await resp.json()).error ?? msg;
-				} catch {
-					/* corpo não-JSON */
-				}
-				toaster.error({ title: 'Exportação', description: msg });
-				return;
-			}
+			const resp = await apiFetchResponse(`/auditoria/export?${queryString({ format, ...extra })}`);
 			const blob = await resp.blob();
 			const cd = resp.headers.get('content-disposition') ?? '';
 			const nome = cd.match(/filename="([^"]+)"/)?.[1] ?? `auditoria.${format}`;
@@ -124,8 +115,11 @@
 			a.download = nome;
 			a.click();
 			URL.revokeObjectURL(href);
-		} catch {
-			toaster.error({ title: 'Exportação', description: 'Erro de rede ao exportar.' });
+		} catch (e: unknown) {
+			toaster.error({
+				title: 'Exportação',
+				description: e instanceof Error ? e.message : 'Não foi possível gerar o arquivo.'
+			});
 		} finally {
 			baixando = false;
 		}

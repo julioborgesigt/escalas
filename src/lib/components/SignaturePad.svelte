@@ -4,7 +4,7 @@
 		SignaturePadLivenessResultado,
 		SignaturePadConfirmPayload
 	} from './SignaturePadTypes';
-	import { csrfHeaders } from '$lib/csrf';
+	import { apiFetch } from '$lib/api-fetch';
 	import { toaster } from '$lib/toast';
 	import Spinner from './Spinner.svelte';
 	import IconTooltip from './IconTooltip.svelte';
@@ -131,15 +131,12 @@
 		codigoError = null;
 		codigoInput = '';
 		try {
-			const res = await fetch('/api/auth/solicitar-codigo-assinatura', {
-				method: 'POST',
-				headers: { ...csrfHeaders(), 'Content-Type': 'application/json' }
-			});
-			const data = await res.json();
-			if (!res.ok) throw new Error(data.error || data.message || 'Falha ao solicitar código');
-
-			emailMascarado = data.emailMascarado;
-			desafioId = data.desafioId;
+			const data = await apiFetch<{ emailMascarado?: string; desafioId?: string }>(
+				'/api/auth/solicitar-codigo-assinatura',
+				{ method: 'POST' }
+			);
+			emailMascarado = data.emailMascarado ?? '';
+			desafioId = data.desafioId ?? null;
 			return true;
 		} catch (e: unknown) {
 			const msg = e instanceof Error ? e.message : 'Erro desconhecido';

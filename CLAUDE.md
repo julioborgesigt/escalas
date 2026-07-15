@@ -72,3 +72,22 @@ com Sentry/logs.
 
 Nunca passe string livre como `errorType`. Se precisa de uma categoria
 nova, adicione ao enum `ErrorCode` em `src/lib/server/api.ts`.
+
+## Fetch no cliente — padrão obrigatório
+
+**Sempre use `$lib/api-fetch` para chamar a API interna do cliente.**
+Nunca escreva `fetch()` cru com `csrfHeaders()` + parse de erro à mão em
+componentes novos.
+
+- `apiFetch<T>(url, init?)` — APIs JSON: injeta CSRF, faz parse e lança
+  `Error` com a mensagem do servidor (incluindo o `errorId` rastreável).
+  Preserva `AbortError`, então funciona com `AbortSignal` de buscas.
+- `apiFetchResponse(url, init?)` — downloads/blob: mesmo tratamento de
+  erro, mas devolve a `Response` crua no sucesso.
+- Fluxo preparar → assinar → finalizar de assinatura com certificado:
+  use `executarFluxoAssinaturaToken` de `$lib/assinatura-token`.
+- Busca de UI com debounce + cancelamento: use `useBuscaDebounce` de
+  `$lib/composables` (é o motor do `SearchableSelect`).
+
+`fetch` cru só se justifica em: POST de form action do SvelteKit (body
+`FormData`).

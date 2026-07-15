@@ -554,8 +554,7 @@ export class SerproSignerClient {
 		}
 
 		const certificateBase64 = (o.certificate ?? o.signerCertificate ?? o.cert) as
-			| string
-			| undefined;
+			string | undefined;
 
 		return { rawSignature, certificateBase64, rawMessages: parsed };
 	}
