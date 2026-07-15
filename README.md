@@ -27,25 +27,25 @@ Plataforma de gestão de escalas de plantão, expediente e GISE (Grupo de Interv
 
 > As versões exatas estão no [`package.json`](package.json) — a tabela abaixo indica apenas a versão _major_ adotada.
 
-| Camada | Tecnologia | Major |
-|--------|-----------|-------|
-| Meta-framework | SvelteKit | 2 |
-| UI | Svelte (runes) | 5 |
-| Estilização | Tailwind CSS + Skeleton UI | 4 / 4 |
-| ORM | Drizzle ORM | 0.4x |
-| Banco de dados | Cloudflare D1 (SQLite serverless) | — |
-| Armazenamento | Cloudflare R2 (PDFs, selfies, documentos) | — |
-| Hospedagem | Cloudflare Pages (edge runtime) | — |
-| Validação | Zod | 4 |
-| Assinatura digital | pdf-lib + @signpdf + node-forge + web-pki | — |
-| Reconhecimento facial | @vladmandic/face-api (TensorFlow.js) | 1 |
-| E-mail | Cloudflare Email Sending (binding `EMAIL`) + Resend (fallback) | — |
-| Geração de documentos | jsPDF + ExcelJS + docx | — |
-| Monitoramento | Sentry (Cloudflare Workers) | 10 |
-| Testes unitários | Vitest | 4 |
-| Testes E2E | Playwright | 1 |
-| Build | Vite | 8 |
-| Linguagem | TypeScript | 5 |
+| Camada                | Tecnologia                                                     | Major |
+| --------------------- | -------------------------------------------------------------- | ----- |
+| Meta-framework        | SvelteKit                                                      | 2     |
+| UI                    | Svelte (runes)                                                 | 5     |
+| Estilização           | Tailwind CSS + Skeleton UI                                     | 4 / 4 |
+| ORM                   | Drizzle ORM                                                    | 0.4x  |
+| Banco de dados        | Cloudflare D1 (SQLite serverless)                              | —     |
+| Armazenamento         | Cloudflare R2 (PDFs, selfies, documentos)                      | —     |
+| Hospedagem            | Cloudflare Pages (edge runtime)                                | —     |
+| Validação             | Zod                                                            | 4     |
+| Assinatura digital    | pdf-lib + @signpdf + node-forge + web-pki                      | —     |
+| Reconhecimento facial | @vladmandic/face-api (TensorFlow.js)                           | 1     |
+| E-mail                | Cloudflare Email Sending (binding `EMAIL`) + Resend (fallback) | —     |
+| Geração de documentos | jsPDF + ExcelJS + docx                                         | —     |
+| Monitoramento         | Sentry (Cloudflare Workers)                                    | 10    |
+| Testes unitários      | Vitest                                                         | 4     |
+| Testes E2E            | Playwright                                                     | 1     |
+| Build                 | Vite                                                           | 8     |
+| Linguagem             | TypeScript                                                     | 5     |
 
 ---
 
@@ -148,19 +148,19 @@ npm run test       # testes unitários
 
 > **Fonte autoritativa:** a lista completa e comentada de todas as variáveis está em [`.env.example`](.env.example); os tipos em [`src/app.d.ts`](src/app.d.ts). Para o detalhe operacional de cada uma (avisos, rotação, go-live), veja [`DEPLOY.md`](DEPLOY.md). A tabela abaixo resume as principais.
 
-| Variável | Obrigatória | Descrição |
-|----------|:-----------:|-----------|
-| `SYNC_TOKEN` | ✅ | Bearer token para os webhooks de sincronização (`/api/webhook/sync-policiais`, `/api/webhook/sync-unidades`). Gere com `openssl rand -hex 32`. |
-| `RESET_TOKEN` | ⚠️ | Token **separado** do `SYNC_TOKEN` para o endpoint destrutivo `/api/webhook/reset-policiais`. Se não definido, o endpoint retorna 401 (fail-closed seguro). |
-| E-mail (binding `EMAIL` ou `RESEND_API_KEY` + `RESEND_FROM_EMAIL`) | ✅ produção | Envio de 2FA, primeiro acesso e reset de senha. **Sem e-mail funcionando, o login com 2FA trava (fail-closed).** |
-| `PASSWORD_PEPPER` | ⚠️ produção | Pepper de senha (HMAC antes do PBKDF2, formato `pbkdf2v3`). **Nunca rotacionar** sem plano de migração — ver [`DEPLOY.md`](DEPLOY.md#hashing-de-senha-e-o-password_pepper). |
-| `CPF_ENCRYPTION_KEY` / `CPF_INDEX_KEY` | ⚠️ produção | Cifra de CPF em repouso (AES-256-GCM) + índice cego para lookup (LGPD). |
-| `RATE_LIMIT_IP_SALT` | ⚠️ produção | Muda a chave do rate-limit de "/24 anonimizada" para hash salteado do IP completo (evita lockout do NAT corporativo). |
-| `APP_ORIGIN` | ⚠️ produção | Origem canônica (`https://...`) usada nos links de e-mail. |
-| `SUPER_ADMIN_LOGIN` / `SUPER_ADMIN_SENHA` / `SUPER_ADMIN_EMAIL` | ❌ | Conta root de break-glass via env. Prefira senha em hash PBKDF2 e defina o e-mail para exigir 2FA — ver [`DEPLOY.md`](DEPLOY.md#variáveis-e-secrets). |
-| `ADMIN_GERAL_LOGIN` / `ADMIN_GERAL_SENHA` | ❌ | Login de Admin Geral via env (bootstrap). Logins por credencial de bootstrap são auditados (`login_bootstrap`). |
-| `GISE_BASE_EQUIPE_WEBHOOK_URL` | ❌ | URL do Google Apps Script que popula a aba `Base_Equipe` da planilha. Ex: `https://script.google.com/macros/s/AKfy.../exec` |
-| `GISE_BASE_EQUIPE_SECRET` | ❌ | Segredo compartilhado com `ScriptProperties.BASE_EQUIPE_SECRET` no Apps Script. Gere com `openssl rand -hex 32`. |
+| Variável                                                           | Obrigatória | Descrição                                                                                                                                                                   |
+| ------------------------------------------------------------------ | :---------: | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `SYNC_TOKEN`                                                       |     ✅      | Bearer token para os webhooks de sincronização (`/api/webhook/sync-policiais`, `/api/webhook/sync-unidades`). Gere com `openssl rand -hex 32`.                              |
+| `RESET_TOKEN`                                                      |     ⚠️      | Token **separado** do `SYNC_TOKEN` para o endpoint destrutivo `/api/webhook/reset-policiais`. Se não definido, o endpoint retorna 401 (fail-closed seguro).                 |
+| E-mail (binding `EMAIL` ou `RESEND_API_KEY` + `RESEND_FROM_EMAIL`) | ✅ produção | Envio de 2FA, primeiro acesso e reset de senha. **Sem e-mail funcionando, o login com 2FA trava (fail-closed).**                                                            |
+| `PASSWORD_PEPPER`                                                  | ⚠️ produção | Pepper de senha (HMAC antes do PBKDF2, formato `pbkdf2v3`). **Nunca rotacionar** sem plano de migração — ver [`DEPLOY.md`](DEPLOY.md#hashing-de-senha-e-o-password_pepper). |
+| `CPF_ENCRYPTION_KEY` / `CPF_INDEX_KEY`                             | ⚠️ produção | Cifra de CPF em repouso (AES-256-GCM) + índice cego para lookup (LGPD).                                                                                                     |
+| `RATE_LIMIT_IP_SALT`                                               | ⚠️ produção | Muda a chave do rate-limit de "/24 anonimizada" para hash salteado do IP completo (evita lockout do NAT corporativo).                                                       |
+| `APP_ORIGIN`                                                       | ⚠️ produção | Origem canônica (`https://...`) usada nos links de e-mail.                                                                                                                  |
+| `SUPER_ADMIN_LOGIN` / `SUPER_ADMIN_SENHA` / `SUPER_ADMIN_EMAIL`    |     ❌      | Conta root de break-glass via env. Prefira senha em hash PBKDF2 e defina o e-mail para exigir 2FA — ver [`DEPLOY.md`](DEPLOY.md#variáveis-e-secrets).                       |
+| `ADMIN_GERAL_LOGIN` / `ADMIN_GERAL_SENHA`                          |     ❌      | Login de Admin Geral via env (bootstrap). Logins por credencial de bootstrap são auditados (`login_bootstrap`).                                                             |
+| `GISE_BASE_EQUIPE_WEBHOOK_URL`                                     |     ❌      | URL do Google Apps Script que popula a aba `Base_Equipe` da planilha. Ex: `https://script.google.com/macros/s/AKfy.../exec`                                                 |
+| `GISE_BASE_EQUIPE_SECRET`                                          |     ❌      | Segredo compartilhado com `ScriptProperties.BASE_EQUIPE_SECRET` no Apps Script. Gere com `openssl rand -hex 32`.                                                            |
 
 > **Dica:** Use `openssl rand -hex 32` para gerar qualquer token seguro de 256 bits.
 >
@@ -170,10 +170,10 @@ npm run test       # testes unitários
 
 Não são variáveis de ambiente, mas recursos Cloudflare vinculados automaticamente:
 
-| Binding | Tipo | Descrição |
-|---------|------|-----------|
-| `escalas_db` | D1 Database | Banco de dados SQLite serverless principal |
-| `escalas_docs` | R2 Bucket | Armazenamento de PDFs, selfies e documentos assinados |
+| Binding        | Tipo        | Descrição                                             |
+| -------------- | ----------- | ----------------------------------------------------- |
+| `escalas_db`   | D1 Database | Banco de dados SQLite serverless principal            |
+| `escalas_docs` | R2 Bucket   | Armazenamento de PDFs, selfies e documentos assinados |
 
 ---
 
@@ -188,27 +188,27 @@ O projeto usa **Cloudflare D1** (SQLite serverless) via **Drizzle ORM**. O schem
 
 ### Principais tabelas
 
-| Tabela | Descrição |
-|--------|-----------|
-| `policiais` | Servidores (matrícula, CPF, cargo, lotação, senha PBKDF2, papel RBAC) |
-| `administradores` | Admins gerais do sistema |
-| `sessoes` | Sessões ativas (token, tipo, expiração em 8h) |
-| `escalas` | Escalas de plantão, expediente e FDS |
-| `escala_policiais` | Associação policial ↔ escala (data, horário, equipe) |
-| `escala_documentos` | PDFs assinados com metadados CAdES-LT (OCSP, TST, selfie, GPS, IP) |
-| `escala_solicitacoes_assinatura` | Solicitações de assinatura por unidade/respondência |
-| `unidades` | Hierarquia: departamento → seccional → delegacia |
-| `gise_escalas` | GISE operacionais (status, supervisor, assessor, configuração) |
-| `gise_seccionais` | Seccionais dentro de uma GISE |
-| `gise_equipes` | Equipes (operacional/SEINT) com slots DPC/OIP |
-| `gise_membros` | Associação policial ↔ equipe GISE |
-| `gise_presencas` | Registros de entrada/saída (GPS, selfie, rubrica) |
-| `gise_documentos` | PDFs assinados de GISE |
-| `gise_respostas_formulario` | Respostas de formulários (JSON) por policial/equipe |
-| `gise_assinaturas_relatorios` | Assinaturas de relatórios de extra/produtividade |
-| `aceites_termos` | Histórico de aceite de termos de uso (versão, hash, IP, user-agent) |
-| `audit_log` | Trilha de auditoria forense (eventos de negócio, cadeia de hash tamper-evident) |
-| `app_log` | Logs técnicos do servidor (warn/error do logger, correlacionados por `request_id`) |
+| Tabela                           | Descrição                                                                          |
+| -------------------------------- | ---------------------------------------------------------------------------------- |
+| `policiais`                      | Servidores (matrícula, CPF, cargo, lotação, senha PBKDF2, papel RBAC)              |
+| `administradores`                | Admins gerais do sistema                                                           |
+| `sessoes`                        | Sessões ativas (token, tipo, expiração em 8h)                                      |
+| `escalas`                        | Escalas de plantão, expediente e FDS                                               |
+| `escala_policiais`               | Associação policial ↔ escala (data, horário, equipe)                               |
+| `escala_documentos`              | PDFs assinados com metadados CAdES-LT (OCSP, TST, selfie, GPS, IP)                 |
+| `escala_solicitacoes_assinatura` | Solicitações de assinatura por unidade/respondência                                |
+| `unidades`                       | Hierarquia: departamento → seccional → delegacia                                   |
+| `gise_escalas`                   | GISE operacionais (status, supervisor, assessor, configuração)                     |
+| `gise_seccionais`                | Seccionais dentro de uma GISE                                                      |
+| `gise_equipes`                   | Equipes (operacional/SEINT) com slots DPC/OIP                                      |
+| `gise_membros`                   | Associação policial ↔ equipe GISE                                                  |
+| `gise_presencas`                 | Registros de entrada/saída (GPS, selfie, rubrica)                                  |
+| `gise_documentos`                | PDFs assinados de GISE                                                             |
+| `gise_respostas_formulario`      | Respostas de formulários (JSON) por policial/equipe                                |
+| `gise_assinaturas_relatorios`    | Assinaturas de relatórios de extra/produtividade                                   |
+| `aceites_termos`                 | Histórico de aceite de termos de uso (versão, hash, IP, user-agent)                |
+| `audit_log`                      | Trilha de auditoria forense (eventos de negócio, cadeia de hash tamper-evident)    |
+| `app_log`                        | Logs técnicos do servidor (warn/error do logger, correlacionados por `request_id`) |
 
 ### Comandos de migração
 
@@ -403,11 +403,11 @@ Gerenciamento completo de operações GISE:
 
 Três modalidades suportadas:
 
-| Modalidade | Mecanismo | Dados coletados |
-|-----------|-----------|-----------------|
-| **Qualificada** | e-CPF ICP-Brasil via WebPKI (Lacuna) ou Assinador SERPRO Desktop | Certificado, OCSP, carimbo de tempo (CAdES-LT) |
-| **Avançada** | 2FA por e-mail (sempre) + selfie com liveness + rubrica gráfica + GPS + selo institucional | Foto, coordenadas, user-agent, timestamp |
-| **Simples** | Confirmação textual — **descontinuada** (restrita a fluxos FDS legados) | IP, user-agent, timestamp |
+| Modalidade      | Mecanismo                                                                                  | Dados coletados                                |
+| --------------- | ------------------------------------------------------------------------------------------ | ---------------------------------------------- |
+| **Qualificada** | e-CPF ICP-Brasil via WebPKI (Lacuna) ou Assinador SERPRO Desktop                           | Certificado, OCSP, carimbo de tempo (CAdES-LT) |
+| **Avançada**    | 2FA por e-mail (sempre) + selfie com liveness + rubrica gráfica + GPS + selo institucional | Foto, coordenadas, user-agent, timestamp       |
+| **Simples**     | Confirmação textual — **descontinuada** (restrita a fluxos FDS legados)                    | IP, user-agent, timestamp                      |
 
 O enquadramento jurídico de cada modalidade (Lei 14.063/2020, MP 2.200-2) está em [`docs/auditorias/ANALISE_JURIDICA_ASSINATURAS.md`](docs/auditorias/ANALISE_JURIDICA_ASSINATURAS.md).
 
@@ -419,9 +419,9 @@ A rota `/validar/[hash]` é **pública e sem autenticação**. Qualquer pessoa p
 
 Dois registros complementares, ambos restritos ao **Super Admin**:
 
-| Console | Fonte | Conteúdo |
-|---------|-------|----------|
-| `/auditoria` | `audit_log` ([`src/lib/db/audit.ts`](src/lib/db/audit.ts)) | Trilha forense de eventos de negócio: catálogo de ações, ator × alvo, severidade, cadeia de hash verificável, exportação CSV/PDF |
+| Console           | Fonte                                                          | Conteúdo                                                                                                                                         |
+| ----------------- | -------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `/auditoria`      | `audit_log` ([`src/lib/db/audit.ts`](src/lib/db/audit.ts))     | Trilha forense de eventos de negócio: catálogo de ações, ator × alvo, severidade, cadeia de hash verificável, exportação CSV/PDF                 |
 | `/auditoria/logs` | `app_log` ([`src/lib/db/app-logs.ts`](src/lib/db/app-logs.ts)) | Logs técnicos: todo `logger.warn`/`logger.error` do servidor, persistido por request após a resposta (`waitUntil`, sem custo no caminho crítico) |
 
 Os dois se correlacionam pelo `request_id` (gerado em `hooks.server.ts` e propagado por AsyncLocalStorage) — que é também o `errorId` exibido ao usuário em erros 5xx e a tag enviada ao Sentry. No detalhe de um evento da auditoria, o Request ID é um link para os logs técnicos daquela mesma request.
@@ -452,13 +452,13 @@ O aceite do termo de uso é obrigatório a cada nova versão. Qualquer mudança 
 
 ### Papéis (RBAC)
 
-| Tipo | Papel | Acesso |
-|------|-------|--------|
-| `admin` + `isSuperAdmin` | Super Admin | Tudo do Admin Geral **mais**: promover admins, gerenciar policiais/unidades, configurar política de assinatura, baixar PDF forense íntegro |
-| `admin` | Admin Geral | Operação global (escalas, GISE, LGPD/auditoria) em todas as unidades — não remodela a base |
-| `policial` | `admin_seccional` | Gerencia escalas e policiais da sua seccional |
-| `policial` | `admin_unidade` | Gerencia escalas da sua unidade |
-| `policial` | — | Acessa apenas suas próprias escalas e GISE |
+| Tipo                     | Papel             | Acesso                                                                                                                                     |
+| ------------------------ | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| `admin` + `isSuperAdmin` | Super Admin       | Tudo do Admin Geral **mais**: promover admins, gerenciar policiais/unidades, configurar política de assinatura, baixar PDF forense íntegro |
+| `admin`                  | Admin Geral       | Operação global (escalas, GISE, LGPD/auditoria) em todas as unidades — não remodela a base                                                 |
+| `policial`               | `admin_seccional` | Gerencia escalas e policiais da sua seccional                                                                                              |
+| `policial`               | `admin_unidade`   | Gerencia escalas da sua unidade                                                                                                            |
+| `policial`               | —                 | Acessa apenas suas próprias escalas e GISE                                                                                                 |
 
 A matriz completa de capacidades por papel está em [`DEPLOY.md`](DEPLOY.md#papéis-e-privilégios-de-administrador). Membros de GISE têm papéis adicionais (`supervisor`, `assessor/SEINT`, `membro`) calculados dinamicamente a partir da tabela `gise_membros`.
 
@@ -511,9 +511,15 @@ export function useContador(inicial = 0) {
 	const dobro = $derived(valor * 2);
 
 	return {
-		get valor() { return valor; },
-		get dobro() { return dobro; },
-		incrementar() { valor++; }
+		get valor() {
+			return valor;
+		},
+		get dobro() {
+			return dobro;
+		},
+		incrementar() {
+			valor++;
+		}
 	};
 }
 ```
@@ -633,7 +639,7 @@ npx playwright test --ui
 npx playwright test e2e/auth.spec.ts
 ```
 
-Os testes E2E fazem build + preview automático antes de rodar. Configure credenciais de teste em `e2e/global-setup.ts`.
+Os testes E2E fazem build + preview automático antes de rodar, e o `global-setup` aplica as migrations pendentes no D1 local e semeia os fixtures — não é preciso preparar o banco manualmente. Configure credenciais de teste em `e2e/global-setup.ts`.
 
 ### Testes manuais
 
@@ -730,6 +736,7 @@ Alternativa ao SERPRO para assinatura qualificada. Requer extensão do navegador
 O arquivo [`scripts/GoogleAppsScript_Sync.gs`](scripts/GoogleAppsScript_Sync.gs) é um Apps Script configurado em uma planilha Google que sincroniza policiais e unidades. Ele chama os webhooks da aplicação autenticado pelo `SYNC_TOKEN` (com replay protection — ver [`DEPLOY.md`](DEPLOY.md#replay-protection-dos-webhooks-p13)).
 
 Para configurar:
+
 1. Abra a planilha Google em `Extensões → Apps Script`
 2. Cole o conteúdo de `scripts/GoogleAppsScript_Sync.gs`
 3. Use o menu "🚀 Sincronização D1" → "⚙️ Configurar tokens" para gravar `SYNC_TOKEN` (e `RESET_TOKEN`, se for usar reset) no `PropertiesService`
@@ -801,4 +808,4 @@ npm run build
 
 ---
 
-*Em caso de dúvidas técnicas, comece pelos arquivos `+page.server.ts` da rota em questão — eles contêm a lógica de negócio mais próxima do banco. Para dúvidas de produto, consulte a liderança técnica do time.*
+_Em caso de dúvidas técnicas, comece pelos arquivos `+page.server.ts` da rota em questão — eles contêm a lógica de negócio mais próxima do banco. Para dúvidas de produto, consulte a liderança técnica do time._
