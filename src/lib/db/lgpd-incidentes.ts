@@ -4,12 +4,7 @@ import type { Database } from './core';
 import type { LgpdIncidente } from '../server/schema';
 
 type TipoIncidente =
-	| 'acesso_nao_autorizado'
-	| 'vazamento'
-	| 'uso_indevido'
-	| 'perda'
-	| 'alteracao'
-	| 'outro';
+	'acesso_nao_autorizado' | 'vazamento' | 'uso_indevido' | 'perda' | 'alteracao' | 'outro';
 type GravidadeIncidente = 'baixa' | 'media' | 'alta' | 'critica';
 type StatusIncidente = 'aberto' | 'investigando' | 'notificado_anpd' | 'encerrado';
 

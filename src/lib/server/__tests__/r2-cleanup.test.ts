@@ -21,7 +21,9 @@ import { chaveConferencia } from '../copia-conferencia';
 import type { Database } from '$lib/db';
 
 /** Bucket fake que registra deletes e serve `list` a partir de páginas dadas. */
-function fakeBucket(paginas: { objects: { key: string }[]; truncated: boolean; cursor?: string }[] = []) {
+function fakeBucket(
+	paginas: { objects: { key: string }[]; truncated: boolean; cursor?: string }[] = []
+) {
 	const deletados: string[] = [];
 	let i = 0;
 	const bucket: R2CleanupBucket = {
@@ -126,12 +128,8 @@ describe('coletarChavesR2DaGise (R2-2/R2-3)', () => {
 	}
 
 	it('combina tabelas + conferências (prefixo plano) + varredura paginada', async () => {
-		const {
-			giseDocumentos,
-			gisePresencas,
-			giseAssinaturasRelatorios,
-			gisePresencaTermos
-		} = await import('../schema');
+		const { giseDocumentos, gisePresencas, giseAssinaturasRelatorios, gisePresencaTermos } =
+			await import('../schema');
 
 		const porTabela = new Map<unknown, Record<string, unknown>[]>([
 			[giseDocumentos, [{ r2: 'blobDoc', selfie: 'selfieDoc', hash: 'HD' }]],
@@ -155,7 +153,14 @@ describe('coletarChavesR2DaGise (R2-2/R2-3)', () => {
 		expect(chaves.has(chaveConferencia('HR'))).toBe(true);
 		expect(chaves.has(chaveConferencia('HT'))).toBe(true);
 		// Blobs e selfies das tabelas.
-		for (const k of ['blobDoc', 'selfieDoc', 'selfieEntrada', 'selfieRel', 'blobRel', 'blobTermo']) {
+		for (const k of [
+			'blobDoc',
+			'selfieDoc',
+			'selfieEntrada',
+			'selfieRel',
+			'blobRel',
+			'blobTermo'
+		]) {
 			expect(chaves.has(k)).toBe(true);
 		}
 		// Objetos das duas páginas do prefixo.

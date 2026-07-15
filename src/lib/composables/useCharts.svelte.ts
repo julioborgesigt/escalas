@@ -86,8 +86,7 @@ export function useCharts(
 									Object.entries(res.drogas_detalhe as Record<string, unknown>).forEach(
 										([tipo, peso]) => {
 											const drogasUnidade = res.drogas_unidade as
-												| Record<string, string>
-												| undefined;
+												Record<string, string> | undefined;
 											const unidade = (drogasUnidade && drogasUnidade[tipo]) || 'g';
 											let pesoV = Number(peso) || 0;
 											if (unidade === 'kg') pesoV *= 1000;
@@ -114,8 +113,7 @@ export function useCharts(
 									Object.entries(res.drogas_detalhe as Record<string, unknown>).forEach(
 										([tipo, peso]) => {
 											const drogasUnidade = res.drogas_unidade as
-												| Record<string, string>
-												| undefined;
+												Record<string, string> | undefined;
 											const unidade = (drogasUnidade && drogasUnidade[tipo]) || 'g';
 											let pesoV = Number(peso) || 0;
 											if (unidade === 'kg') pesoV *= 1000;
