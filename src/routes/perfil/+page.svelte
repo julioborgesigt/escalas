@@ -21,11 +21,8 @@
 	let lotacao = $state(untrack(() => data.perfil.lotacao ?? ''));
 	let pendingSolicitar = $state(false);
 
-	// eslint-disable-next-line svelte/prefer-writable-derived
-	let solicitacoes = $state(untrack(() => data.solicitacoes));
-	$effect(() => {
-		solicitacoes = data.solicitacoes;
-	});
+	// Derivado gravável: espelha o load, mas admite a lista devolvida pela action.
+	let solicitacoes = $derived(data.solicitacoes);
 
 	const lotacaoOptions = $derived(data.lotacoes.map((n: string) => ({ value: n, label: n })));
 	const lotacaoSelectedOption = $derived(lotacao ? { value: lotacao, label: lotacao } : null);

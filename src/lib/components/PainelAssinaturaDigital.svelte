@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { untrack } from 'svelte';
 	import { slide } from 'svelte/transition';
 	import { Dialog } from '@skeletonlabs/skeleton-svelte';
 	import PainelAssinaturaToken from './PainelAssinaturaToken.svelte';
@@ -43,11 +42,8 @@
 	} = $props();
 
 	// --- Solicitar Assinatura (OIP) ---
-	// eslint-disable-next-line svelte/prefer-writable-derived
-	let solicitacaoLocal = $state(untrack(() => solicitacaoAtual));
-	$effect(() => {
-		solicitacaoLocal = solicitacaoAtual ?? null;
-	});
+	// Derivado gravável: espelha a prop, mas admite o reset local pós-cancelamento.
+	let solicitacaoLocal = $derived(solicitacaoAtual ?? null);
 	let dialogSolicitarAberto = $state(false);
 
 	async function cancelarSolicitacao() {

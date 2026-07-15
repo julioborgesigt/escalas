@@ -1,7 +1,6 @@
 <script lang="ts">
 	import type { PageProps } from './$types';
 	import { page } from '$app/state';
-	import { untrack } from 'svelte';
 	import { SvelteSet } from 'svelte/reactivity';
 	import { enhance } from '$app/forms';
 	import { toaster } from '$lib/toast';
@@ -27,19 +26,13 @@
 	const confirmDialog = useConfirmationDialog<{ itemId: number | number[]; nome: string }>();
 
 	const escala = $derived(data.escala);
-	// eslint-disable-next-line svelte/prefer-writable-derived
-	let finalizadaEm = $state<string | null>(untrack(() => data.escala?.finalizada_em ?? null));
-	$effect(() => {
-		finalizadaEm = data.escala?.finalizada_em ?? null;
-	});
+	// Derivados graváveis: espelham o load, mas admitem as atualizações
+	// otimistas locais (finalizar/solicitar) até o próximo invalidate.
+	let finalizadaEm: string | null = $derived(data.escala?.finalizada_em ?? null);
 	const emailEnvioInicial = $derived(data.escala?.email_envio ?? null);
-	// eslint-disable-next-line svelte/prefer-writable-derived
-	let solicitacaoAtual = $state<{ tipo: string; destinatario_id?: number } | null>(
-		untrack(() => data.solicitacaoAtual ?? null)
+	let solicitacaoAtual: { tipo: string; destinatario_id?: number } | null = $derived(
+		data.solicitacaoAtual ?? null
 	);
-	$effect(() => {
-		solicitacaoAtual = data.solicitacaoAtual ?? null;
-	});
 	let documentoAssinadoInfo = $derived(
 		data.documentoAssinadoInfo
 			? {
@@ -51,13 +44,10 @@
 			: null
 	);
 
-	// eslint-disable-next-line svelte/prefer-writable-derived
-	let policiaisEscalaLocal = $state<EscalaPolicialComDados[]>(
-		untrack(() => data.policiaisEscala as EscalaPolicialComDados[])
+	// Derivado gravável: espelha o load, mas admite a remoção otimista local.
+	let policiaisEscalaLocal: EscalaPolicialComDados[] = $derived(
+		data.policiaisEscala as EscalaPolicialComDados[]
 	);
-	$effect(() => {
-		policiaisEscalaLocal = data.policiaisEscala as EscalaPolicialComDados[];
-	});
 
 	const isFDS = $derived(escala?.tipo === 'fds');
 	const isExpediente = $derived(escala?.tipo === 'expediente');
