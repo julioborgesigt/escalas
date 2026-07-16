@@ -15,10 +15,10 @@ import { unidades, escalas, type Unidade } from '$lib/server/schema';
 
 export const load: PageServerLoad = async ({ locals, platform }) => {
 	const u = locals.usuario;
-	if (!u) throw redirect(302, '/login');
+	if (!u) redirect(302, '/login');
 
 	if (!u.isSuperAdmin) {
-		throw redirect(302, '/');
+		redirect(302, '/');
 	}
 
 	const db = getDB(platform);

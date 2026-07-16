@@ -19,7 +19,7 @@ import {
 } from '$lib/db';
 
 export const load: PageServerLoad = async ({ locals, platform }) => {
-	if (!locals.usuario?.isSuperAdmin) throw redirect(302, '/');
+	if (!locals.usuario?.isSuperAdmin) redirect(302, '/');
 
 	const db = getDB(platform);
 	const provedorEmail = await buscarProvedorEmailPadrao(db);

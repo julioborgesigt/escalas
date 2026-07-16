@@ -19,6 +19,7 @@
 	import ModalDownloadExtras from './_components/ModalDownloadExtras.svelte';
 	import DialogInfo from './_components/DialogInfo.svelte';
 	import { fmtDate, diaSemana } from '$lib/gise/gise-formatters';
+	import { MediaQuery } from 'svelte/reactivity';
 
 	type GiseEscala = {
 		id: number;
@@ -56,14 +57,10 @@
 	const minhaSeccionalId = $derived(data.minhaSeccionalId ?? null);
 	const supervisaoExtraUnidadeId = $derived(data.supervisaoExtraUnidadeId ?? null);
 
-	let isDesktop = $state(true);
-	$effect(() => {
-		const mql = window.matchMedia('(min-width: 768px)');
-		isDesktop = mql.matches;
-		const handler = (e: MediaQueryListEvent) => (isDesktop = e.matches);
-		mql.addEventListener('change', handler);
-		return () => mql.removeEventListener('change', handler);
-	});
+	// MediaQuery (svelte/reactivity) substitui o matchMedia + listener manual;
+	// fallback `true` = desktop-first no SSR, como o $state(true) anterior.
+	const desktopQuery = new MediaQuery('(min-width: 768px)', true);
+	const isDesktop = $derived(desktopQuery.current);
 
 	const ITEMS_ATIVAS = 4;
 	let paginaAtivas = $state(1);

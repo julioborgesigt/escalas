@@ -40,14 +40,14 @@ export const load: PageServerLoad = async ({ locals, platform, url, depends }) =
 	depends('app:escalas');
 
 	const u = locals.usuario;
-	if (!u) throw redirect(302, '/login');
+	if (!u) redirect(302, '/login');
 
 	// Admin geral n\u00e3o tem acesso \u00e0 listagem de escalas (aba "Arquivo")
 	if (u.tipo === 'admin') {
-		throw redirect(302, '/');
+		redirect(302, '/');
 	}
 	if (u.papel !== 'admin_seccional' && u.papel !== 'admin_unidade') {
-		throw redirect(302, '/');
+		redirect(302, '/');
 	}
 
 	const db = getDB(platform);

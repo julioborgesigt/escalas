@@ -24,10 +24,10 @@ import { actionsUnidade } from './_actions/actions-unidade';
 export const load: PageServerLoad = async ({ locals, params, platform, depends, parent }) => {
 	depends('gise:detail');
 	const u = locals.usuario;
-	if (!u) throw redirect(302, '/login');
+	if (!u) redirect(302, '/login');
 
 	const id = parseInt(params.id);
-	if (isNaN(id)) throw error(400, 'ID inválido');
+	if (isNaN(id)) error(400, 'ID inválido');
 
 	const db = getDB(platform);
 
@@ -55,12 +55,12 @@ export const load: PageServerLoad = async ({ locals, params, platform, depends, 
 	const isSeccionalParticipante =
 		isSeccional && (await adminParticipaDaGise(db, id, u.papel_unidade_id));
 	if (!isGeral && !isSeccionalParticipante && !isSupervisor) {
-		throw redirect(302, '/');
+		redirect(302, '/');
 	}
 
 	try {
 		const gise = await buscarGiseDetalhado(db, id);
-		if (!gise) throw error(404, 'Escala GISE não encontrada');
+		if (!gise) error(404, 'Escala GISE não encontrada');
 
 		// CPF do documento assinado é cifrado em repouso (LGPD) — decifra p/ exibição.
 		if (gise.documento) {
@@ -234,7 +234,7 @@ export const load: PageServerLoad = async ({ locals, params, platform, depends, 
 			error: msg,
 			stack: e instanceof Error ? e.stack : undefined
 		});
-		throw error(500, `Erro ao carregar a escala GISE. Informe o código ${errorId} ao suporte.`);
+		error(500, `Erro ao carregar a escala GISE. Informe o código ${errorId} ao suporte.`);
 	}
 };
 

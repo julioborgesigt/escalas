@@ -13,7 +13,7 @@ import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	const u = locals.usuario;
-	if (!u) throw redirect(302, '/login');
+	if (!u) redirect(302, '/login');
 
 	const hash = await calcularHashTermo();
 	return {
@@ -27,7 +27,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 export const actions: Actions = {
 	aceitar: async ({ request, locals, platform, cookies, getClientAddress }) => {
 		const u = locals.usuario;
-		if (!u) throw error(401, 'Não autorizado');
+		if (!u) error(401, 'Não autorizado');
 
 		// Aceite ÚNICO e implícito (v1.3): o próprio envio deliberado do formulário
 		// (clique em "Li e aceito", com o campo `confirmado`) É a manifestação de
@@ -83,6 +83,6 @@ export const actions: Actions = {
 		// Redireciona para a página de boas-vindas correta (mesmo destino do
 		// pós-login), conforme tipo de usuário e módulo admin selecionado.
 		const adminModulo = cookies.get('admin_modulo');
-		throw redirect(303, obterRotaBemVindo(u, adminModulo));
+		redirect(303, obterRotaBemVindo(u, adminModulo));
 	}
 };

@@ -4,12 +4,12 @@ import { obterRotaBemVindo } from '$lib/auth';
 
 export const load: PageServerLoad = async ({ locals, cookies }) => {
 	const u = locals.usuario;
-	if (!u) throw redirect(302, '/login');
+	if (!u) redirect(302, '/login');
 
 	const adminModulo = cookies.get('admin_modulo');
 	const rotaCorreta = obterRotaBemVindo(u, adminModulo);
 	if (rotaCorreta !== '/escalas/bem-vindo') {
-		throw redirect(302, rotaCorreta);
+		redirect(302, rotaCorreta);
 	}
 	return {
 		usuario: u

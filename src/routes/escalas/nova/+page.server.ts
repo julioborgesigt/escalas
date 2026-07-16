@@ -7,5 +7,5 @@ import type { PageServerLoad } from './$types';
  * existe como cortesia para favoritos antigos; nenhuma tela linka para cá.
  */
 export const load: PageServerLoad = async () => {
-	throw redirect(301, '/escalas');
+	redirect(301, '/escalas');
 };

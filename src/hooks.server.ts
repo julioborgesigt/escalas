@@ -212,7 +212,7 @@ const handleAuth: Handle = async ({ event, resolve }) => {
 		if (pathname.startsWith('/api/')) {
 			return apiError('Não autorizado', 401, ErrorCode.AUTH_REQUIRED);
 		}
-		throw redirect(302, '/login');
+		redirect(302, '/login');
 	}
 
 	// Propagar userId para contexto de logs e Sentry
@@ -229,7 +229,7 @@ const handleAuth: Handle = async ({ event, resolve }) => {
 		if (pathname.startsWith('/api/')) {
 			return apiError('Altere sua senha antes de continuar', 403, ErrorCode.FORBIDDEN);
 		}
-		throw redirect(302, '/alterar-senha');
+		redirect(302, '/alterar-senha');
 	}
 
 	// Fluxo de aceite do Termo de Uso vigente.
@@ -240,7 +240,7 @@ const handleAuth: Handle = async ({ event, resolve }) => {
 		if (pathname.startsWith('/api/')) {
 			return apiError('Aceite o Termo de Uso vigente antes de continuar', 403, ErrorCode.FORBIDDEN);
 		}
-		throw redirect(302, '/aceitar-termo');
+		redirect(302, '/aceitar-termo');
 	}
 
 	event.locals.usuario = usuario;
