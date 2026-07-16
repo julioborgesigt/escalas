@@ -22,6 +22,8 @@ export const FIXTURE = {
 	policialA: { id: 99001, matricula: 'EE990001' },
 	policialB: { id: 99002, matricula: 'EE990002' },
 	escalaA: { id: 99001 },
+	/** Escala de DEL-A COM policial escalado e SEM documento — alvo do spec de assinatura. */
+	escalaAssinavel: { id: 99002 },
 	// ── GISE ativa (telas /gise/[id] e /res-gise) ─────────────────────────
 	seccional: { id: 99010, nome: 'SECCIONAL E2E FIXTURE' },
 	supervisor: { id: 99003, matricula: 'EE990003', nome: 'Supervisor Fixture DPC' },
@@ -103,6 +105,13 @@ export default async function globalSetup() {
 		DELETE FROM escala_documentos WHERE escala_id = ${FIXTURE.escalaA.id};
 		INSERT INTO escala_documentos (escala_id, r2_key, assinante_nome, verificacao_hash)
 		VALUES (${FIXTURE.escalaA.id}, 'test/fixture-${FIXTURE.escalaA.id}.pdf', 'Policial Fixture A', 'fixture-hash-${FIXTURE.escalaA.id}');
+		INSERT OR REPLACE INTO escalas (id, titulo, cidade, tipo, lotacao, data_inicio, data_fim)
+		VALUES
+			(${FIXTURE.escalaAssinavel.id}, 'Escala E2E Assinável', 'Fortaleza', 'plantao', '${FIXTURE.unidadeA.nome}', '2026-02-01', '2026-02-28');
+		DELETE FROM escala_policiais WHERE escala_id = ${FIXTURE.escalaAssinavel.id};
+		INSERT INTO escala_policiais (escala_id, policial_id, data_plantao, hora_entrada, hora_saida, equipe)
+		VALUES (${FIXTURE.escalaAssinavel.id}, ${FIXTURE.policialA.id}, '2026-02-01', '08:00', '20:00', '1');
+		DELETE FROM escala_documentos WHERE escala_id = ${FIXTURE.escalaAssinavel.id};
 	`;
 
 	const fixtureOk = execSqlSafe(fixtureSeed);

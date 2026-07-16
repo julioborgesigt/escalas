@@ -14,8 +14,10 @@ export default defineConfig({
 			output: {
 				manualChunks(id) {
 					if (id.includes('node_modules')) {
-						if (id.includes('@vladmandic/face-api') || id.includes('@tensorflow')) return 'face-api';
-						if (id.includes('pdf-lib') || id.includes('jspdf') || id.includes('@signpdf')) return 'pdf';
+						if (id.includes('@vladmandic/face-api') || id.includes('@tensorflow'))
+							return 'face-api';
+						if (id.includes('pdf-lib') || id.includes('jspdf') || id.includes('@signpdf'))
+							return 'pdf';
 						if (id.includes('docx') || id.includes('exceljs')) return 'office';
 						if (id.includes('chart.js')) return 'charts';
 						if (id.includes('node-forge')) return 'crypto';
@@ -46,7 +48,16 @@ export default defineConfig({
 	},
 	test: {
 		include: ['src/**/*.test.ts'],
-		environment: 'node'
+		environment: 'node',
+		// Cobertura restrita a src/lib (lógica de negócio unit-testável);
+		// rotas e componentes Svelte são exercitados pela suíte E2E.
+		// Informativa por ora — sem threshold; quando os números
+		// estabilizarem, trave um piso (mesma estratégia ratchet do lint).
+		coverage: {
+			provider: 'v8',
+			reporter: ['text-summary', 'html'],
+			include: ['src/lib/**/*.ts'],
+			exclude: ['src/lib/**/__tests__/**', 'src/lib/**/*.test.ts']
+		}
 	}
 });
-

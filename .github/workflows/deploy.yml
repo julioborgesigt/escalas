@@ -31,26 +31,22 @@ jobs:
       # antes do svelte-check, senão ele falha por falta de tipos gerados.
       - run: npx svelte-kit sync
 
-      # Lint — gate de NÃO-REGRESSÃO (ratchet). Há dívida pré-existente
-      # (warnings majoritariamente em .svelte, onde `eslint --fix` não aplica os
-      # core-rules). Em vez de bloquear tudo (`lint:strict`/max-warnings 0,
-      # inviável hoje) ou ignorar (`continue-on-error`, deixa a dívida CRESCER),
-      # `lint:ci` fixa um TETO: qualquer PR que ADICIONE warning falha o CI.
-      # Conforme a dívida for paga, baixe o número em `lint:ci` (package.json)
-      # até chegar a 0 e então trocar por `lint:strict`.
+      # Lint — a dívida do ratchet foi paga: `lint:ci` roda com
+      # `--max-warnings 0` (equivalente a `lint:strict`) e a base está limpa.
+      # Qualquer warning novo falha o CI.
       - run: npm run lint:ci
-      # Format ainda é advisory (dívida separada — rode `npm run format`).
+      # Format e knip viraram gates HARD (a base zerou — plano ratchet
+      # concluído). Se falharem: `npm run format` / remover o código morto
+      # apontado pelo knip.
       - run: npm run format:check
-        continue-on-error: true
-      # Código morto (knip) — advisory por ora: aparece no log sem bloquear.
-      # Quando a saída estiver estável em zero, remova o continue-on-error
-      # para virar gate (mesma estratégia ratchet do lint).
       - run: npm run knip
-        continue-on-error: true
 
       # Gates HARD — qualquer falha aqui bloqueia merge:
       - run: npx svelte-check --threshold error
-      - run: npx vitest run --reporter=verbose
+      # `--coverage` imprime o resumo de cobertura de src/lib no log
+      # (informativo — sem threshold; ver vite.config.ts para travar um
+      # piso quando os números estabilizarem). Os testes seguem sendo gate.
+      - run: npx vitest run --reporter=verbose --coverage
       - run: npm run build
 
       # Guard contra regressão do padrão API: todas as rotas devem usar

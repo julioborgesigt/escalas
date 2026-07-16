@@ -10,7 +10,7 @@ export function formatarData(dateStr: string): string {
 /**
  * Retorna a data do dia seguinte no formato "YYYY-MM-DD".
  */
-export function proximoDia(dateStr: string): string {
+function proximoDia(dateStr: string): string {
 	const d = new Date(dateStr + 'T00:00:00');
 	d.setDate(d.getDate() + 1);
 	return d.toISOString().split('T')[0];
