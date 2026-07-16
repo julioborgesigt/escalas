@@ -50,7 +50,7 @@
 		busca: ''
 	});
 
-	const unidades = $derived(data.unidades as Unidade[]);
+	const unidades = $derived(data.unidades);
 	const paginaAtual = $derived(data.pagination.page);
 
 	let filtroLotacao = $state(untrack(() => data.filtros.lotacao || savedFilters.lotacao));
@@ -125,7 +125,7 @@
 		...delegaciasDaSeccional.map((del) => ({ value: del.nome, label: del.nome }))
 	]);
 
-	const escalas = $derived((data.escalas ?? []) as EscalaListagem[]);
+	const escalas = $derived(data.escalas ?? []);
 	// Exclusão otimista: ids removidos somem da tabela na hora; o
 	// invalidate('app:escalas') que segue corrige total/paginação no fundo.
 	let removidosLocais = $state<number[]>([]);

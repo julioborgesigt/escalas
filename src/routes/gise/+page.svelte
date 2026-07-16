@@ -480,8 +480,8 @@
 		try {
 			const client = await conectarSerpro();
 			loading.show('Conectando ao Assinador SERPRO...');
-			const signerName = (data as { usuario?: { nome?: string } }).usuario?.nome ?? '';
-			const signerCpf = (data as { usuario?: { cpf?: string } }).usuario?.cpf ?? '';
+			const signerName = data.usuario?.nome ?? '';
+			const signerCpf = data.usuario?.cpf ?? '';
 			for (let i = 0; i < gise.pendentesExtraIds.length; i++) {
 				const seccionalId = gise.pendentesExtraIds[i];
 				loading.show(`Preparando PDF ${i + 1} de ${gise.pendentesExtraIds.length}...`);
@@ -693,8 +693,8 @@
 		prepararUrl={tokenPrepararUrl}
 		finalizarUrl={tokenFinalizarUrl}
 		nomeArquivo={tokenNomeArquivo}
-		signerName={(data as { usuario?: { nome?: string } }).usuario?.nome ?? ''}
-		signerCpf={(data as { usuario?: { cpf?: string } }).usuario?.cpf ?? ''}
+		signerName={data.usuario?.nome ?? ''}
+		signerCpf={data.usuario?.cpf ?? ''}
 		bind:control={painelTokenGiseControl}
 		onSuccess={async () => {
 			giseParaAssinar = null;

@@ -4,12 +4,13 @@
  */
 
 import type { GiseDetalhado } from '$lib/db';
+import type { Unidade } from '$lib/types';
 import { MediaQuery, SvelteDate } from 'svelte/reactivity';
 
 interface GiseData {
 	gise?: GiseDetalhado | null;
 	policiais?: unknown[];
-	todasUnidades?: unknown[];
+	todasUnidades?: Unidade[];
 	papelGise?: string;
 	minhaSeccionalId?: number | null;
 	isGeral?: boolean;

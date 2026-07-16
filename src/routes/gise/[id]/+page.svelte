@@ -10,7 +10,7 @@
 	import { enhance } from '$app/forms';
 	import { useGiseEstado, useGiseAssinatura } from '$lib/composables/gise';
 	import { loading } from '$lib/loading.svelte';
-	import type { Policial, Unidade, GiseAssinaturaRelatorio } from '$lib/server/schema';
+	import type { Policial, GiseAssinaturaRelatorio } from '$lib/server/schema';
 	import { checkAllSigned, filtrarSeccionaisDisponiveis } from '$lib/gise/gise-page-helpers';
 	import {
 		quadroSupervisaoExtraExigeRelatorio,
@@ -164,9 +164,7 @@
 	}
 
 	// Gerenciamento de seccionais (Admin Geral) — derivado dos dados já carregados
-	const seccionaisDisponiveis = $derived(
-		filtrarSeccionaisDisponiveis(gise, todasUnidades as Unidade[])
-	);
+	const seccionaisDisponiveis = $derived(filtrarSeccionaisDisponiveis(gise, todasUnidades));
 	let adicionandoSeccional = $state(false);
 	let seccionalParaAdicionarIdx = $state<number | ''>('');
 	let pendingCrud = $state(false);
@@ -625,7 +623,7 @@
 						<GiseSeccional
 							{sec}
 							{gise}
-							todasUnidades={todasUnidades as Unidade[]}
+							{todasUnidades}
 							{isAdminGeral}
 							{isSeccional}
 							{isSupervisor}
