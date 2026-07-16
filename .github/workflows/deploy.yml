@@ -43,7 +43,10 @@ jobs:
 
       # Gates HARD — qualquer falha aqui bloqueia merge:
       - run: npx svelte-check --threshold error
-      - run: npx vitest run --reporter=verbose
+      # `--coverage` imprime o resumo de cobertura de src/lib no log
+      # (informativo — sem threshold; ver vite.config.ts para travar um
+      # piso quando os números estabilizarem). Os testes seguem sendo gate.
+      - run: npx vitest run --reporter=verbose --coverage
       - run: npm run build
 
       # Guard contra regressão do padrão API: todas as rotas devem usar

@@ -63,3 +63,4 @@ DPI_DATA_PLANTÃO_DADOS.xlsx
 # Valores de secrets de staging gerados localmente (script set-staging-secrets.sh).
 # A chave privada do selo já é coberta por *.key.pem acima; o cert público é versionado.
 /staging-secrets.generated.txt
+coverage/
