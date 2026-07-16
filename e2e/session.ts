@@ -1,5 +1,5 @@
 import { execSync } from 'node:child_process';
-import { randomBytes } from 'node:crypto';
+import { createHash, randomBytes } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import type { Page } from '@playwright/test';
@@ -60,6 +60,39 @@ export function seedSession(usuarioId: number, tipo: 'policial' | 'admin' = 'pol
 /** Header `cookie` para chamadas via APIRequestContext (`request.get(...)`). */
 export function cookieDeSessao(token: string): { cookie: string } {
 	return { cookie: `session_token=${token}` };
+}
+
+/**
+ * Headers de sessão + CSRF para POST/PUT/DELETE em /api/* via
+ * APIRequestContext. O guard é double-submit puro (hooks.server compara o
+ * header `x-csrf-token` com o cookie `__csrf`), então um token inventado
+ * aqui é válido desde que apareça nos dois lados.
+ */
+export function headersDeSessaoMutacao(token: string): Record<string, string> {
+	const csrf = randomBytes(32).toString('hex');
+	return {
+		cookie: `session_token=${token}; __csrf=${csrf}`,
+		'x-csrf-token': csrf
+	};
+}
+
+/**
+ * Semeia um desafio 2FA de ASSINATURA com código conhecido no D1 local e
+ * devolve o desafioId (hex puro — o schema Zod rejeita outros formatos).
+ *
+ * O app guarda `sha256(bindExtra + código)` (ver `hashCodigo2FA` em
+ * src/lib/auth.ts); o fluxo de assinatura usa `bindExtra = ''`, então o hash
+ * é reprodutível aqui sem depender de caixa de e-mail no runner.
+ * `null` quando o wrangler/D1 local não está disponível (caller deve pular).
+ */
+export function seedDesafioAssinatura(usuarioId: number, codigo: string): string | null {
+	const desafioId = randomBytes(20).toString('hex');
+	const codigoHash = createHash('sha256').update(codigo).digest('hex');
+	const sql =
+		`INSERT INTO dois_fatores_tokens (desafio_id, tipo, usuario_id, codigo, expires_at) ` +
+		`VALUES ('${desafioId}', 'assinatura', ${usuarioId}, '${codigoHash}', ` +
+		`strftime('%Y-%m-%dT%H:%M:%S', 'now', '+10 minutes') || '.000Z');`;
+	return execD1Local(sql) ? desafioId : null;
 }
 
 /**
