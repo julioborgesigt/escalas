@@ -33,7 +33,7 @@
 		"knip:fix": "knip --fix"
 	},
 	"devDependencies": {
-		"@cloudflare/workers-types": "^4.20260629.1",
+		"@cloudflare/workers-types": "^5.20260710.1",
 		"@eslint/js": "^10.0.1",
 		"@playwright/test": "^1.60.0",
 		"@sveltejs/adapter-cloudflare": "^7.0.0",
