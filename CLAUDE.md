@@ -84,6 +84,10 @@ componentes novos.
   Preserva `AbortError`, então funciona com `AbortSignal` de buscas.
 - `apiFetchResponse(url, init?)` — downloads/blob: mesmo tratamento de
   erro, mas devolve a `Response` crua no sucesso.
+- Download de blob no navegador: use `baixarBlob(blob, nome)` e
+  `nomeArquivoContentDisposition(header, fallback)` de
+  `$lib/utils/download` — nunca monte âncora + `createObjectURL` à mão
+  (os call sites antigos esqueciam o `revokeObjectURL`).
 - Fluxo preparar → assinar → finalizar de assinatura com certificado:
   use `executarFluxoAssinaturaToken` de `$lib/assinatura-token`.
 - Busca de UI com debounce + cancelamento: use `useBuscaDebounce` de

@@ -11,7 +11,7 @@ import type { PageServerLoad } from './$types';
 export const load: PageServerLoad = async ({ params, setHeaders }) => {
 	if (params.versao !== VERSAO) {
 		// No futuro, manter versões anteriores arquivadas; por ora só a vigente.
-		throw error(404, `Versão ${params.versao} do termo não encontrada.`);
+		error(404, `Versão ${params.versao} do termo não encontrada.`);
 	}
 
 	const hash = await calcularHashTermo();

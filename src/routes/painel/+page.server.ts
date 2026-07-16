@@ -232,8 +232,8 @@ export const load: PageServerLoad = async ({ locals, platform, url, depends }) =
 	depends('app:painel');
 
 	const u = locals.usuario;
-	if (!u) throw redirect(302, '/login');
-	if (u.tipo !== 'admin') throw redirect(302, '/');
+	if (!u) redirect(302, '/login');
+	if (u.tipo !== 'admin') redirect(302, '/');
 
 	const db = getDB(platform);
 

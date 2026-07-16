@@ -4,12 +4,13 @@
  */
 
 import type { GiseDetalhado } from '$lib/db';
-import { SvelteDate } from 'svelte/reactivity';
+import type { Unidade } from '$lib/types';
+import { MediaQuery, SvelteDate } from 'svelte/reactivity';
 
 interface GiseData {
 	gise?: GiseDetalhado | null;
 	policiais?: unknown[];
-	todasUnidades?: unknown[];
+	todasUnidades?: Unidade[];
 	papelGise?: string;
 	minhaSeccionalId?: number | null;
 	isGeral?: boolean;
@@ -106,17 +107,10 @@ export function useGiseEstado({ getData }: GiseEstadoParams) {
 		return d.toLocaleDateString('pt-BR', { weekday: 'long' });
 	}
 
-	// Detecção de mobile via matchMedia (confiável e reativa a resize)
-	let isMobile = $state(
-		typeof window !== 'undefined' ? !window.matchMedia('(min-width: 768px)').matches : true
-	);
-	$effect(() => {
-		const mql = window.matchMedia('(min-width: 768px)');
-		isMobile = !mql.matches;
-		const handler = (e: MediaQueryListEvent) => (isMobile = !e.matches);
-		mql.addEventListener('change', handler);
-		return () => mql.removeEventListener('change', handler);
-	});
+	// Detecção de mobile via MediaQuery (svelte/reactivity): reativa a resize,
+	// sem addEventListener manual; fallback `false` = mobile-first no SSR.
+	const desktopQuery = new MediaQuery('(min-width: 768px)', false);
+	const isMobile = $derived(!desktopQuery.current);
 
 	return {
 		get gise() {

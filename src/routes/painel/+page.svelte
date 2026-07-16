@@ -14,7 +14,6 @@
 	import { useAutorizacao, getSavedFilters } from '$lib/composables';
 	import { loading as loadingService } from '$lib/loading.svelte';
 	import type { ActionResult } from '@sveltejs/kit';
-	import type { Unidade } from '$lib/types';
 
 	const { data }: PageProps = $props();
 
@@ -54,7 +53,7 @@
 	});
 	const dados = $derived(complianceResolvido ?? []);
 	const carregandoCompliance = $derived(complianceResolvido === null);
-	const unidadesDB = $derived(data.unidades as Unidade[]);
+	const unidadesDB = $derived(data.unidades);
 
 	// Filtros
 	const filtroRegime = 'todos';

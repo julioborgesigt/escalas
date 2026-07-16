@@ -4,8 +4,8 @@ import { obterRotaBemVindo } from '$lib/auth';
 
 export const load: PageServerLoad = async ({ locals, cookies }) => {
 	const u = locals.usuario;
-	if (!u) throw redirect(303, '/login');
+	if (!u) redirect(303, '/login');
 
 	const adminModulo = cookies.get('admin_modulo');
-	throw redirect(303, obterRotaBemVindo(u, adminModulo));
+	redirect(303, obterRotaBemVindo(u, adminModulo));
 };

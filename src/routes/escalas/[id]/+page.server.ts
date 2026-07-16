@@ -72,11 +72,11 @@ function podeOIPSolicitar(u: App.Locals['usuario']): boolean {
 
 export const load: PageServerLoad = async ({ locals, platform, params }) => {
 	const u = locals.usuario;
-	if (!u) throw redirect(302, '/login');
+	if (!u) redirect(302, '/login');
 
 	const db = getDB(platform);
 	const escalaId = Number(params.id);
-	if (isNaN(escalaId)) throw redirect(302, '/escalas');
+	if (isNaN(escalaId)) redirect(302, '/escalas');
 
 	const [escala, policiaisEscala, docInfo] = await Promise.all([
 		buscarEscala(db, escalaId),
@@ -94,17 +94,17 @@ export const load: PageServerLoad = async ({ locals, platform, params }) => {
 		)
 	]);
 
-	if (!escala) throw redirect(302, '/escalas');
+	if (!escala) redirect(302, '/escalas');
 
 	// Policial: s\u00f3 v\u00ea sua pr\u00f3pria lota\u00e7\u00e3o
 	if (u.tipo === 'policial' && escala.lotacao !== u.lotacao) {
-		throw redirect(302, '/escalas');
+		redirect(302, '/escalas');
 	}
 
 	// Admin seccional/unidade fora da lota\u00e7\u00e3o: verifica solicita\u00e7\u00e3o de assinatura
 	if (u.tipo !== 'admin' && u.tipo !== 'policial' && u.lotacao !== escala.lotacao) {
 		const perm = await verificarPermissaoEscala(getDB(platform), escalaId, escala.lotacao, u);
-		if (!perm.permitido) throw redirect(302, '/escalas');
+		if (!perm.permitido) redirect(302, '/escalas');
 	}
 
 	const oipPodeSolicitar = podeOIPSolicitar(u);

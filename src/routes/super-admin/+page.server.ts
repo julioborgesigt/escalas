@@ -7,7 +7,7 @@ import type { PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	const u = locals.usuario;
-	if (!u) throw redirect(302, '/login');
-	if (!u.isSuperAdmin) throw redirect(302, '/');
+	if (!u) redirect(302, '/login');
+	if (!u.isSuperAdmin) redirect(302, '/');
 	return { usuario: u };
 };

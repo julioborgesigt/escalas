@@ -20,18 +20,18 @@ import { decifrarCpfDoDB } from '$lib/crypto/cpf-cripto';
 
 export const load: PageServerLoad = async ({ locals, params, platform }) => {
 	const u = locals.usuario;
-	if (!u) throw redirect(302, '/login');
+	if (!u) redirect(302, '/login');
 
 	if (!isAdminGeral(u)) {
-		throw redirect(302, '/');
+		redirect(302, '/');
 	}
 
 	const id = Number(params.id);
-	if (isNaN(id)) throw error(400, 'ID inválido');
+	if (isNaN(id)) error(400, 'ID inválido');
 
 	const db = getDB(platform);
 	const policial = await buscarPolicial(db, id);
-	if (!policial) throw error(404, 'Policial não encontrado');
+	if (!policial) error(404, 'Policial não encontrado');
 
 	const isAdm = isAdminGeral(u);
 	const isSeccional = isAdminSeccional(u);

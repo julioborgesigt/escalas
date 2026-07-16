@@ -19,6 +19,7 @@
 	import ModalDownloadExtras from './_components/ModalDownloadExtras.svelte';
 	import DialogInfo from './_components/DialogInfo.svelte';
 	import { fmtDate, diaSemana } from '$lib/gise/gise-formatters';
+	import { MediaQuery } from 'svelte/reactivity';
 
 	type GiseEscala = {
 		id: number;
@@ -56,14 +57,10 @@
 	const minhaSeccionalId = $derived(data.minhaSeccionalId ?? null);
 	const supervisaoExtraUnidadeId = $derived(data.supervisaoExtraUnidadeId ?? null);
 
-	let isDesktop = $state(true);
-	$effect(() => {
-		const mql = window.matchMedia('(min-width: 768px)');
-		isDesktop = mql.matches;
-		const handler = (e: MediaQueryListEvent) => (isDesktop = e.matches);
-		mql.addEventListener('change', handler);
-		return () => mql.removeEventListener('change', handler);
-	});
+	// MediaQuery (svelte/reactivity) substitui o matchMedia + listener manual;
+	// fallback `true` = desktop-first no SSR, como o $state(true) anterior.
+	const desktopQuery = new MediaQuery('(min-width: 768px)', true);
+	const isDesktop = $derived(desktopQuery.current);
 
 	const ITEMS_ATIVAS = 4;
 	let paginaAtivas = $state(1);
@@ -483,8 +480,8 @@
 		try {
 			const client = await conectarSerpro();
 			loading.show('Conectando ao Assinador SERPRO...');
-			const signerName = (data as { usuario?: { nome?: string } }).usuario?.nome ?? '';
-			const signerCpf = (data as { usuario?: { cpf?: string } }).usuario?.cpf ?? '';
+			const signerName = data.usuario?.nome ?? '';
+			const signerCpf = data.usuario?.cpf ?? '';
 			for (let i = 0; i < gise.pendentesExtraIds.length; i++) {
 				const seccionalId = gise.pendentesExtraIds[i];
 				loading.show(`Preparando PDF ${i + 1} de ${gise.pendentesExtraIds.length}...`);
@@ -696,8 +693,8 @@
 		prepararUrl={tokenPrepararUrl}
 		finalizarUrl={tokenFinalizarUrl}
 		nomeArquivo={tokenNomeArquivo}
-		signerName={(data as { usuario?: { nome?: string } }).usuario?.nome ?? ''}
-		signerCpf={(data as { usuario?: { cpf?: string } }).usuario?.cpf ?? ''}
+		signerName={data.usuario?.nome ?? ''}
+		signerCpf={data.usuario?.cpf ?? ''}
 		bind:control={painelTokenGiseControl}
 		onSuccess={async () => {
 			giseParaAssinar = null;

@@ -87,6 +87,8 @@ Abrir o PDF baixado:
 
 > Exige uma seccional em que **todos** confirmaram a saída; pelo menos um participante via **Token A3**.
 
+- [ ] 🐞 **Entrada pela listagem (`/gise`), no desktop:** no card da escala, clicar **"Ass. Extra"** → diálogo de confirmação → **"Assinar N relatório(s)"** dispara o fluxo SERPRO em sequência para todos os extras prontos (antes o clique não fazia nada no desktop; no mobile abre a rubrica em tela, como sempre).
+
 1. Como **supervisor**, assinar o **Relatório Extraordinário** da seccional com **Token A3**.
 2. Abrir o PDF → página(s) de Manifesto:
    - 🐞 As presenças confirmadas por **Token A3** aparecem na seção **QUALIFICADAS** (não mais como avançadas), **sem** quadros de rubrica/foto.
