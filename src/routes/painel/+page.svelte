@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { PageProps } from './$types';
-	import { Lock, CheckCircle2 } from 'lucide-svelte';
+	import { Lock, CheckCircle2, Clock, XCircle, BellOff, Search, PartyPopper } from 'lucide-svelte';
 	import { goto, invalidate } from '$app/navigation';
 	import { enhance } from '$app/forms';
 	import { page, navigating } from '$app/state';
@@ -390,11 +390,15 @@
 				<p class="text-2xl font-bold text-warning-600 dark:text-warning-400">
 					{totais.nao_assinada}
 				</p>
-				<p class="text-xs text-surface-500 mt-1 font-medium">🟡 Não Assinada</p>
+				<p class="text-xs text-surface-500 mt-1 font-medium">
+					<Clock class="inline w-3.5 h-3.5 -mt-0.5" aria-hidden="true" /> Não Assinada
+				</p>
 			</div>
 			<div class="p-4 rounded-2xl bg-error-500/10 border border-error-500/20 text-center">
 				<p class="text-2xl font-bold text-error-600 dark:text-error-400">{totais.nao_criada}</p>
-				<p class="text-xs text-surface-500 mt-1 font-medium">🔴 Não Criada</p>
+				<p class="text-xs text-surface-500 mt-1 font-medium">
+					<XCircle class="inline w-3.5 h-3.5 -mt-0.5" aria-hidden="true" /> Não Criada
+				</p>
 			</div>
 			<button
 				type="button"
@@ -405,7 +409,9 @@
 				}}
 			>
 				<p class="text-2xl font-bold text-surface-500">{totais.ignorados}</p>
-				<p class="text-xs text-surface-500 mt-1 font-medium">🔕 Ignorados</p>
+				<p class="text-xs text-surface-500 mt-1 font-medium">
+					<BellOff class="inline w-3.5 h-3.5 -mt-0.5" aria-hidden="true" /> Ignorados
+				</p>
 			</button>
 		</div>
 	{/if}
@@ -527,7 +533,7 @@
 			</div>
 		{:else if !filtroSeccional}
 			<div class="text-center py-20">
-				<p class="text-4xl mb-4">🔍</p>
+				<Search class="w-10 h-10 mx-auto mb-4 text-surface-400" aria-hidden="true" />
 				<p class="text-surface-600 dark:text-surface-400 text-lg font-semibold">
 					Escolha um opção nos filtros para exibir
 				</p>
@@ -542,7 +548,11 @@
 			</div>
 		{:else if dadosFiltrados.length === 0}
 			<div class="text-center py-20">
-				<p class="text-4xl mb-4">{mostrarIgnorados ? '🔕' : '🎉'}</p>
+				{#if mostrarIgnorados}
+					<BellOff class="w-10 h-10 mx-auto mb-4 text-surface-400" aria-hidden="true" />
+				{:else}
+					<PartyPopper class="w-10 h-10 mx-auto mb-4 text-success-500" aria-hidden="true" />
+				{/if}
 				<p class="text-surface-600 dark:text-surface-400 text-lg font-semibold">
 					{mostrarIgnorados ? 'Nenhum item ignorado' : 'Nenhuma pendência encontrada!'}
 				</p>
@@ -638,7 +648,7 @@
 													<a
 														href="/escalas/{item.escala_id}"
 														class="badge bg-warning-500/15 text-warning-700 dark:text-warning-300 border border-warning-500/30 text-xs font-bold px-2 hover:bg-warning-500/30 transition-colors pointer-events-auto"
-														>🟡 Não Assinada</a
+														><Clock class="inline w-3 h-3 -mt-0.5" aria-hidden="true" /> Não Assinada</a
 													>
 													<button
 														type="button"
@@ -654,12 +664,12 @@
 											{:else if item.status === 'nao_assinada'}
 												<span
 													class="badge bg-warning-500/15 text-warning-700 dark:text-warning-300 border border-warning-500/30 text-xs font-bold px-2"
-													>🟡 Não Assinada</span
+													><Clock class="inline w-3 h-3 -mt-0.5" aria-hidden="true" /> Não Assinada</span
 												>
 											{:else}
 												<span
 													class="badge bg-error-500/15 text-error-700 dark:text-error-300 border border-error-500/30 text-xs font-bold px-2"
-													>🔴 Não Criada</span
+													><XCircle class="inline w-3 h-3 -mt-0.5" aria-hidden="true" /> Não Criada</span
 												>
 											{/if}
 										</td>
@@ -677,7 +687,8 @@
 															type="button"
 															class="btn btn-sm preset-outlined-surface-500 opacity-60 hover:opacity-100"
 															title="Ignorar esta pendência"
-															onclick={() => ignorarItem(item)}>🔕</button
+															onclick={() => ignorarItem(item)}
+															><BellOff class="w-4 h-4" aria-hidden="true" /></button
 														>
 													</div>
 												{/if}
@@ -811,7 +822,7 @@
 												title="Ignorar"
 												onclick={() => ignorarItem(item)}
 											>
-												<span class="text-sm">🔕</span>
+												<BellOff class="w-4 h-4" aria-hidden="true" />
 											</button>
 										{/if}
 									</div>

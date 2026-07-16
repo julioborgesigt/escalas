@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Calendar, Shield, Lock } from 'lucide-svelte';
+	import { Calendar, Shield, Lock, Mail, Inbox, KeyRound } from 'lucide-svelte';
 	import { browser } from '$app/environment';
 	import { goto, replaceState } from '$app/navigation';
 	import { applyAction, enhance } from '$app/forms';
@@ -667,7 +667,10 @@
 				</div>
 			{:else if recuperacaoEtapa === 'codigo'}
 				<div class="text-center mb-6">
-					<div class="text-5xl mb-3">📧</div>
+					<Mail
+						class="w-12 h-12 mx-auto mb-3 text-surface-500 dark:text-surface-400"
+						aria-hidden="true"
+					/>
 					<p class="font-semibold mb-1">Código de validação</p>
 				</div>
 
@@ -707,7 +710,10 @@
 				</div>
 			{:else}
 				<div class="text-center">
-					<div class="text-5xl mb-4">📬</div>
+					<Inbox
+						class="w-12 h-12 mx-auto mb-4 text-surface-500 dark:text-surface-400"
+						aria-hidden="true"
+					/>
 					<p class="font-semibold mb-2">
 						{recuperacaoResultado === 'link' ? 'Link enviado!' : 'Código enviado!'}
 					</p>
@@ -732,7 +738,10 @@
 			<!-- ===== Primeiro acesso ===== -->
 			{#if !primeiroAcessoEnviado}
 				<div class="text-center mb-6">
-					<div class="text-5xl mb-3">🔑</div>
+					<KeyRound
+						class="w-12 h-12 mx-auto mb-3 text-surface-500 dark:text-surface-400"
+						aria-hidden="true"
+					/>
 					<p class="font-semibold mb-1">Primeiro acesso</p>
 					<p class="text-sm text-surface-600 dark:text-surface-400">
 						Informe sua matrícula para receber uma senha provisória no e-mail cadastrado.
@@ -769,7 +778,10 @@
 				</form>
 			{:else}
 				<div class="text-center">
-					<div class="text-5xl mb-4">📬</div>
+					<Inbox
+						class="w-12 h-12 mx-auto mb-4 text-surface-500 dark:text-surface-400"
+						aria-hidden="true"
+					/>
 					<p class="font-semibold mb-2">E-mail enviado!</p>
 					<p class="text-sm text-surface-600 dark:text-surface-400 mb-6">
 						Se a matrícula estiver cadastrada com e-mail, você receberá a senha provisória em
@@ -787,7 +799,10 @@
 		{:else}
 			<!-- ===== Formulário de verificação 2FA ===== -->
 			<div class="text-center mb-6">
-				<div class="text-5xl mb-3">📧</div>
+				<Mail
+					class="w-12 h-12 mx-auto mb-3 text-surface-500 dark:text-surface-400"
+					aria-hidden="true"
+				/>
 				<p class="font-semibold mb-1">Verificação em dois fatores</p>
 			</div>
 

@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { PageProps } from './$types';
-	import { Lock } from 'lucide-svelte';
+	import { Lock, Inbox } from 'lucide-svelte';
 	import { untrack } from 'svelte';
 	import { page, navigating } from '$app/state';
 	import SkeletonCard from '$lib/components/SkeletonCard.svelte';
@@ -416,7 +416,7 @@
 	<div class="rounded-3xl card-glass p-4 sm:p-5">
 		{#if escalas.length === 0}
 			<div class="text-center py-20 px-4">
-				<p class="text-4xl mb-4">📥</p>
+				<Inbox class="w-10 h-10 mx-auto mb-4 text-surface-400" aria-hidden="true" />
 				<p class="text-surface-600 dark:text-surface-400 text-lg font-semibold">
 					Nenhum recebimento encontrado
 				</p>

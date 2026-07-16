@@ -23,13 +23,13 @@
 		class="welcome-card relative overflow-hidden rounded-2xl sm:rounded-3xl p-5 sm:p-10 border border-surface-200 dark:border-white/10 shadow-2xl bg-white/40 dark:bg-surface-900/40 backdrop-blur-xl max-w-lg w-full text-center space-y-6"
 	>
 		<div
-			class="absolute inset-0 bg-gradient-to-br from-indigo-500/10 via-transparent to-teal-500/5 z-0"
+			class="absolute inset-0 bg-gradient-to-br from-secondary-500/10 via-transparent to-primary-500/5 z-0"
 		></div>
 
 		<div class="relative z-10 space-y-6">
 			<!-- Logo / Icon -->
 			<div
-				class="mx-auto w-14 h-14 rounded-2xl bg-indigo-500/10 text-indigo-500 flex items-center justify-center border border-indigo-500/20 shadow-sm"
+				class="mx-auto w-14 h-14 rounded-2xl bg-secondary-500/10 text-secondary-500 flex items-center justify-center border border-secondary-500/20 shadow-sm"
 			>
 				<User class="w-7 h-7" />
 			</div>
@@ -37,18 +37,18 @@
 			<!-- Title / Greeting -->
 			<div class="space-y-2">
 				<span
-					class="inline-block text-3xs font-black uppercase tracking-widest text-indigo-600 dark:text-indigo-400 bg-indigo-500/10 px-3 py-1 rounded-full"
+					class="inline-block text-3xs font-black uppercase tracking-widest text-secondary-600 dark:text-secondary-400 bg-secondary-500/10 px-3 py-1 rounded-full"
 				>
 					Portal de Escalas
 				</span>
-				<h2
+				<h1
 					class="text-2xl sm:text-3xl font-black text-surface-900 dark:text-surface-50 tracking-tight leading-tight"
 				>
 					Seja bem-vindo, <span
-						class="bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 to-teal-500 dark:from-indigo-400 dark:to-teal-400"
+						class="bg-clip-text text-transparent bg-gradient-to-r from-secondary-600 to-primary-500 dark:from-secondary-400 dark:to-primary-400"
 						>{usuario?.nome?.split(' ')[0]}</span
 					>!
-				</h2>
+				</h1>
 			</div>
 
 			<!-- Descrição -->

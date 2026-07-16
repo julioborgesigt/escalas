@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { PageProps } from './$types';
-	import { PenLine, CheckCircle2, ClipboardList } from 'lucide-svelte';
+	import { PenLine, CheckCircle2, ClipboardList, Archive } from 'lucide-svelte';
 	import { goto, invalidate } from '$app/navigation';
 	import { untrack } from 'svelte';
 	import { enhance } from '$app/forms';
@@ -484,7 +484,7 @@
 					}}
 					class="card p-6 sm:p-8 flex flex-col items-center gap-4 cursor-pointer hover:shadow-xl transition-shadow border-2 border-surface-300 dark:border-surface-600 bg-surface-50 dark:bg-surface-900 rounded-2xl group"
 				>
-					<span class="text-4xl">🗂️</span>
+					<Archive class="w-10 h-10 text-surface-500 dark:text-surface-400" aria-hidden="true" />
 					<span class="text-xl font-bold group-hover:text-primary-500 transition-colors"
 						>Escalas criadas/Arquivo</span
 					>

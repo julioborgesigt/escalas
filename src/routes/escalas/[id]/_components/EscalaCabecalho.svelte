@@ -39,12 +39,12 @@
 				<span class="badge preset-outlined-primary-500 font-bold text-sm px-3 py-1">Plantão</span>
 			{/if}
 			{#if !isFDS}
-				<span class="font-bold text-lg sm:text-xl text-surface-900 dark:text-surface-50">
+				<h1 class="font-bold text-lg sm:text-xl text-surface-900 dark:text-surface-50">
 					{new Date(escala.data_inicio + 'T00:00:00').toLocaleDateString('pt-BR', {
 						month: 'long'
 					})}
 					{new Date(escala.data_inicio + 'T00:00:00').getFullYear()}
-				</span>
+				</h1>
 			{/if}
 		</div>
 		<p class="text-surface-600 dark:text-surface-300 text-sm font-medium">{escala.lotacao}</p>

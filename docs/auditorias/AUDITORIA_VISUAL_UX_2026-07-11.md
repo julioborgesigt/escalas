@@ -205,3 +205,36 @@ Emojis como ícone ...................... 23
 Spinners manuais (animate-spin svg) .... 5 arquivos (Spinner.svelte existe)
 Tabelas sem wrapper responsivo ......... 1 arquivo (policiais/upload)
 ```
+
+---
+
+## 7. Re-varredura pós-remediação — 2026-07-12
+
+Varredura completa após a implementação das rodadas 1–3 e das decisões finais (1a/2a/3b/4b), medindo cada achado novamente.
+
+### 7.1 Confirmado resolvido
+
+| Achado | Medição em 12/jul |
+| --- | --- |
+| UX-1 foco | 2 `outline-none` restantes, ambos legítimos (input do SearchableSelect com `focus-within` no container; switch `disabled` de conf-ass) |
+| UX-2 contraste | 34 `text-surface-400` sem par dark, todos intencionais (ícones, estados disabled/inativos, marca-d'água) |
+| UX-3 micro-tipografia | **0** tamanhos arbitrários; 93 `text-2xs` + 312 `text-3xs` |
+| UX-4 superfícies | `card-elevated`/`-2` adotado em 30 arquivos |
+| UX-5 spinners | 1 `animate-spin` restante (FloatingRefresh — rotação de ícone de refresh, legítimo) |
+| UX-6 backdrops | 33× canônico `/80 blur-sm` + 4× `blur-md` **todos em modais empilhados z-[60]/[70]** (conforme regra); demais hits de `/40 /50 /90 /95` são fundos de código/sidebar, não backdrops |
+| 1a tato | regra global em `app.css`; 6 inline restantes em elementos custom fora de `.btn` (deliberados) |
+| Botões-ícone | 0 sem `aria-label` |
+| Formulários | login com `autocomplete` correto (`username`/`current-password`/`one-time-code`) |
+
+### 7.2 Encontrado e corrigido nesta varredura
+
+1. **23 emojis-ícone remanescentes** — a lista da migração 2a era incompleta. Migrados para lucide: painel (🟡→Clock, 🔴→XCircle, 🔕→BellOff, 🔍→Search, 🎉→PartyPopper), login (📧→Mail, 📬→Inbox, 🔑→KeyRound), recebidos (📥→Inbox), escalas (🗂️→Archive), SignaturePad (✋ removido de string de status) e os bullets de status de `/validar` (✓/✕/⚠/? → Check/X/AlertTriangle/HelpCircle, uniformizando as tríades). Varredura unicode ampla final: **0 pictogramas** em markup.
+2. **6 páginas sem `<h1>`** — títulos eram `<h2>` (super-admin e 3 boas-vindas) ou `<span>` (EscalaCabecalho). Promovidos a `<h1>` mantendo as classes (zero mudança visual). Restante: escala FDS não tem texto-título (só badge) — aceito.
+3. **V-3 encerrado** — as 12 últimas cores fora da paleta (`indigo`/`teal` em `bem-vindo`) migradas para `secondary`/`primary`.
+
+### 7.3 Apontado para decisão futura (não corrigido)
+
+- **`tertiary` (150°) ≈ `success` (140°)**: os dois canais verdes são quase indistinguíveis (badges "ADM UNIDADE" vs "SUPERVISOR GISE" na sidebar). Ou o `tertiary` muda de matiz (ex.: violeta/rosa), ou assume-se a duplicação.
+- **Banner "Cadastre sua rubrica" duplicado** em `escalas/+page` e `gise/[id]/+page` — candidato a componente.
+- **Empty states quase-iguais** em 9 arquivos — candidato a componente `EmptyState`.
+- Botões-ícone `p-1.5` (~30 px) em tabelas densas ficam abaixo dos 44 px de alvo de toque recomendados — mitigado pelo espaçamento das células; avaliar `p-2` no mobile.

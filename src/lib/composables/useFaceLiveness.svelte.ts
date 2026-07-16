@@ -252,7 +252,7 @@ export function useFaceLiveness(opts: { exigirFoto: () => boolean }) {
 						// não basta para piscar o alerta.
 						if (movingFrames >= 2) {
 							isMoving = true;
-							faceStatusMessage = 'Mantenha o celular firme! ✋';
+							faceStatusMessage = 'Mantenha o celular firme!';
 						}
 					} else {
 						movingFrames = 0;

@@ -45,14 +45,14 @@
 				>
 					Módulo GISE
 				</span>
-				<h2
+				<h1
 					class="text-2xl sm:text-3xl font-black text-surface-900 dark:text-surface-50 tracking-tight leading-tight"
 				>
 					Seja bem-vindo, <span
 						class="bg-clip-text text-transparent bg-gradient-to-r from-secondary-600 to-primary-500 dark:from-secondary-400 dark:to-primary-400"
 						>{usuario?.nome?.split(' ')[0]}</span
 					>!
-				</h2>
+				</h1>
 			</div>
 
 			{#if usuario?.tipo === 'admin'}
