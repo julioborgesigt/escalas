@@ -13,6 +13,7 @@
 
 import { invalidate } from '$app/navigation';
 import { toaster } from '$lib/toast';
+import { baixarBlob } from '$lib/utils/download';
 import { loading } from '$lib/loading.svelte';
 import { apiFetch, apiFetchResponse } from '$lib/api-fetch';
 import { digestHexParaBase64, executarFluxoAssinaturaToken } from '$lib/assinatura-token';
@@ -144,12 +145,7 @@ export function useGiseAssinatura({
 					livenessChallenge
 				})
 			});
-			const blob = await r.blob();
-			const url = URL.createObjectURL(blob);
-			const a = document.createElement('a');
-			a.href = url;
-			a.download = `gise_${getGiseDataInicio() ?? giseId}_confirmada.pdf`;
-			a.click();
+			baixarBlob(await r.blob(), `gise_${getGiseDataInicio() ?? giseId}_confirmada.pdf`);
 			toaster.success({ title: 'Escala confirmada com sucesso' });
 			await invalidate('gise:detail');
 		} catch (e: unknown) {

@@ -2,7 +2,7 @@
 	import { tick } from 'svelte';
 	import { enhance } from '$app/forms';
 	import { toaster } from '$lib/toast';
-	import { formatarData, calcularDataSaida } from '$lib/utils';
+	import { formatarData } from '$lib/utils';
 	import { buscarPoliciaisOptions } from '$lib/busca-policiais';
 	import { criarHelpersHorario, diaSemanaLabel } from './escala-horarios';
 	import { tratarResultadoAdicionarPlantao } from './plantao-datas';
@@ -61,8 +61,9 @@
 	}
 
 	// Helpers de horário/data compartilhados com TabelaServidores
-	const { getHoraEntrada, getHoraSaida, getDataSaida, formatarHorario, formatarDataPlantao } =
-		criarHelpersHorario(() => escala);
+	const { getHoraEntrada, getHoraSaida, getDataSaida, formatarHorario } = criarHelpersHorario(
+		() => escala
+	);
 
 	// === Edição inline (compartilhada com TabelaServidores) ===
 	const edicao = useEdicaoInlineServidor({

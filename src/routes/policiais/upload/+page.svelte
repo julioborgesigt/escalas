@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { toaster } from '$lib/toast';
-	import { csrfHeaders } from '$lib/csrf';
 	import { loading } from '$lib/loading.svelte';
 	import { Accordion } from '@skeletonlabs/skeleton-svelte';
 	import type { ActionResult } from '@sveltejs/kit';

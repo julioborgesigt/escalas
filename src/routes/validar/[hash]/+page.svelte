@@ -1,5 +1,7 @@
 <script lang="ts">
 	import { formatarData } from '$lib/utils';
+	import { baixarBlob } from '$lib/utils/download';
+	import { apiFetchResponse } from '$lib/api-fetch';
 	import { toaster } from '$lib/toast';
 	import Spinner from '$lib/components/Spinner.svelte';
 	import type { PageProps } from './$types';
@@ -27,65 +29,13 @@
 	async function handleDownload() {
 		if (baixando) return;
 		baixando = true;
-		if (import.meta.env.DEV) {
-			console.debug('[Download] requisição', `/api/validar/${data.hash}/download`);
-		}
-
 		try {
-			const res = await fetch(`/api/validar/${data.hash}/download`);
-			if (import.meta.env.DEV) {
-				console.debug('[Download] resposta', {
-					status: res.status,
-					statusText: res.statusText,
-					headers: Object.fromEntries(res.headers.entries())
-				});
-			}
-
-			if (!res.ok) {
-				const errorText = await res.text();
-				if (import.meta.env.DEV) {
-					console.error('[Download] corpo de erro', errorText);
-				}
-				toaster.create({
-					title: 'Erro ao carregar o arquivo',
-					description: `Status ${res.status}. Tente novamente em instantes.`,
-					type: 'error'
-				});
-				baixando = false;
-				return;
-			}
-
-			const contentType = res.headers.get('content-type');
-			if (contentType && contentType.includes('application/json')) {
-				const errJson = await res.json();
-				if (import.meta.env.DEV) {
-					console.error('[Download] JSON de erro', errJson);
-				}
-				toaster.create({
-					title: 'Erro do servidor',
-					description: errJson.error || 'Erro desconhecido',
-					type: 'error'
-				});
-				baixando = false;
-				return;
-			}
-
-			const blob = await res.blob();
-			const url = window.URL.createObjectURL(blob);
-			const a = document.createElement('a');
-			a.href = url;
-			a.download = `relatorio_${data.hash}.pdf`;
-			document.body.appendChild(a);
-			a.click();
-			document.body.removeChild(a);
-			window.URL.revokeObjectURL(url);
+			const res = await apiFetchResponse(`/api/validar/${data.hash}/download`);
+			baixarBlob(await res.blob(), `relatorio_${data.hash}.pdf`);
 		} catch (err) {
-			if (import.meta.env.DEV) {
-				console.error('[Download] exceção', err);
-			}
 			toaster.create({
-				title: 'Falha de comunicação',
-				description: 'Não foi possível contatar o servidor. Verifique sua conexão.',
+				title: 'Erro ao baixar o documento',
+				description: err instanceof Error ? err.message : 'Tente novamente em instantes.',
 				type: 'error'
 			});
 		} finally {

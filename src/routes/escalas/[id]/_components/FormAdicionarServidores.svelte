@@ -18,7 +18,6 @@
 
 	const {
 		escala,
-		isFDS,
 		isExpediente,
 		diasEscalaLocal,
 		modoEdicao,
@@ -29,7 +28,6 @@
 		onPoliciaisAtualizados
 	}: {
 		escala: Escala;
-		isFDS: boolean;
 		isExpediente: boolean;
 		diasEscalaLocal: string[];
 		modoEdicao: boolean;

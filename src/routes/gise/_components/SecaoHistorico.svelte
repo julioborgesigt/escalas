@@ -4,6 +4,7 @@
 	import { page } from '$app/state';
 	import SkeletonCard from '$lib/components/SkeletonCard.svelte';
 	import { apiFetchResponse } from '$lib/api-fetch';
+	import { baixarBlob, nomeArquivoContentDisposition } from '$lib/utils/download';
 	import { loading } from '$lib/loading.svelte';
 	import { toaster } from '$lib/toast';
 	import { slide } from 'svelte/transition';
@@ -127,21 +128,6 @@
 		return `/api/gise/historico/export?${p.toString()}`;
 	}
 
-	function nomeArquivoContentDisposition(cd: string | null, fallback: string): string {
-		if (!cd) return fallback;
-		const mStar = /filename\*=UTF-8''([^;\s]+)/i.exec(cd);
-		if (mStar) {
-			try {
-				return decodeURIComponent(mStar[1].replace(/\+/g, ' '));
-			} catch {
-				return fallback;
-			}
-		}
-		const m = /filename="([^"]+)"/i.exec(cd);
-		if (m?.[1]) return m[1];
-		return fallback;
-	}
-
 	async function baixarHistoricoArquivo(format: 'xlsx' | 'pdf') {
 		const fallbackName = `gise_historico_${historicoExportSlug}.${format}`;
 		const url = buildHistoricoExportHref(format);
@@ -152,16 +138,7 @@
 				res.headers.get('Content-Disposition'),
 				fallbackName
 			);
-			const blob = await res.blob();
-			const href = URL.createObjectURL(blob);
-			const a = document.createElement('a');
-			a.href = href;
-			a.download = fileName;
-			a.rel = 'noopener';
-			document.body.appendChild(a);
-			a.click();
-			a.remove();
-			URL.revokeObjectURL(href);
+			baixarBlob(await res.blob(), fileName);
 			toaster.success({ title: 'Download iniciado' });
 		} catch (err) {
 			toaster.error({

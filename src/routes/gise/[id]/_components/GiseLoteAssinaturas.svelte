@@ -10,7 +10,6 @@
 		etapaAssinatura: string;
 		progressoLote: { atual: number; total: number };
 		isMobile: boolean;
-		restringirSmartphone: boolean;
 		onAssinarManualLote: () => void;
 		onAssinarDigitalLote: () => void | Promise<void>;
 		podeAssinar?: boolean;
@@ -36,7 +35,6 @@
 		etapaAssinatura,
 		progressoLote,
 		isMobile,
-		restringirSmartphone,
 		onAssinarManualLote,
 		onAssinarDigitalLote,
 		podeAssinar = true,
@@ -62,9 +60,6 @@
 				(supervisaoExtraUnidadeId == null || a.seccional_id !== supervisaoExtraUnidadeId)
 		)
 	);
-
-	/** Verdadeiro quando não há nada pendente NEM nada concluído — escala sem equipes escaladas ainda. */
-	const semAtividade = $derived(quantidadePendentes === 0 && concluidosExtra.length === 0);
 
 	function nomeSeccional(seccionalId: number): string {
 		const s = seccionais?.find((x) => x.seccional_id === seccionalId || x.id === seccionalId);

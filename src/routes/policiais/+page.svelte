@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { PageProps } from './$types';
-	import { goto, invalidate, invalidateAll } from '$app/navigation';
+	import { goto, invalidateAll } from '$app/navigation';
 	import { fly } from 'svelte/transition';
 	import { page, navigating } from '$app/state';
 	import SkeletonCard from '$lib/components/SkeletonCard.svelte';
@@ -22,9 +22,9 @@
 	import SearchableSelect from '$lib/components/SearchableSelect.svelte';
 	import type { ActionResult } from '@sveltejs/kit';
 
-	const { data, form }: PageProps = $props();
+	const { data }: PageProps = $props();
 
-	function handleSalvarPolicial({ formData }: { formData: FormData }) {
+	function handleSalvarPolicial() {
 		pendingCadastro = true;
 		return async ({ result }: { result: ActionResult }) => {
 			pendingCadastro = false;
@@ -52,7 +52,6 @@
 	const isAdmin = $derived(auth.isAdmin);
 	const isAdminOrSeccional = $derived(auth.isAdminOrSeccional);
 	const isAdminUnidade = $derived(auth.isAdminUnidade);
-	const lotacaoUsuario = $derived(auth.lotacaoUsuario);
 	const savedFilters = getSavedFilters('filtros_policiais', {
 		lotacao: '',
 		cargo: '',
@@ -242,9 +241,6 @@
 		}));
 		return [{ value: '', label: '— Sem lotação —' }, ...baseOptions];
 	}
-
-	// Removido filtragem local: agora é feita no servidor para respeitar a paginação
-	const totalItens = $derived(data.pagination.total);
 
 	$effect(() => {
 		// Resetar para página 1 ao filtrar

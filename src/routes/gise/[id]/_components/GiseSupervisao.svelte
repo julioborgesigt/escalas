@@ -6,7 +6,6 @@
 	import SearchableSelect from '$lib/components/SearchableSelect.svelte';
 	import PainelAssinaturaToken from '$lib/components/PainelAssinaturaToken.svelte';
 	import SupervisaoDocumentoCard from './SupervisaoDocumentoCard.svelte';
-	import { loading } from '$lib/loading.svelte';
 	import {
 		ShieldCheck,
 		UserRound,
@@ -101,7 +100,6 @@
 		podeDownload?: boolean;
 		isSupervisor?: boolean;
 		isMobile?: boolean;
-		restringirSmartphone?: boolean;
 		onAssinarExtraSupervisaoManual?: () => void;
 		onAssinarExtraSupervisaoDigital?: () => void;
 		/** Exibe o painel de assinatura da escala (supervisor) dentro deste card, antes do relatório de extra. */
@@ -144,7 +142,6 @@
 		podeDownload = false,
 		isSupervisor = false,
 		isMobile = false,
-		restringirSmartphone = false,
 		onAssinarExtraSupervisaoManual,
 		onAssinarExtraSupervisaoDigital,
 		mostrarPainelAssinaturaEscala = false,
@@ -231,9 +228,6 @@
 		`/api/gise/${gise.id}/documento-assinado?manifesto=true`
 	);
 	const urlDownloadPdf = $derived(`/api/gise/${gise.id}/download?format=pdf`);
-	const urlDownloadPdfManifesto = $derived(
-		`/api/gise/${gise.id}/download?format=pdf&manifesto=true`
-	);
 	const urlDownloadExtra = $derived(
 		`/api/gise/${gise.id}/download?format=extraordinario&seccionalId=${supervisaoExtraUnidadeId}`
 	);

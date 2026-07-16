@@ -44,7 +44,10 @@ export default [
 			}
 		},
 		rules: {
-			'@typescript-eslint/no-unused-vars': 'off',
+			// O svelte-eslint-parser faz scope analysis também no template, então
+			// a regra enxerga usos em markup — não gera falso positivo para
+			// variáveis usadas só no HTML. Pega imports/variáveis realmente mortos.
+			'@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
 			'svelte/no-at-html-tags': 'warn',
 			// Base está limpa (lint:strict passa com zero warnings); o CI usa
 			// --max-warnings 0, então qualquer nova ocorrência bloqueia o PR.

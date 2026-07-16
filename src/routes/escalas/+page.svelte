@@ -30,13 +30,13 @@
 	import DialogSolicitarAssinatura from '$lib/components/DialogSolicitarAssinatura.svelte';
 	import SearchableSelect from '$lib/components/SearchableSelect.svelte';
 
-	const { data, form }: PageProps = $props();
+	const { data }: PageProps = $props();
 
 	const auth = useAutorizacao();
 	const isAdmin = $derived(auth.isAdmin);
 	const isAdminSeccional = $derived(auth.isAdminSeccional);
 	const lotacaoUsuario = $derived(auth.lotacaoUsuario);
-	const papelUnidadeId = $derived(data.papelUnidadeId as number | null);
+	const papelUnidadeId = $derived(data.papelUnidadeId);
 
 	const isAdminDPC = $derived(
 		!isAdmin && (auth.isAdminSeccional || auth.isAdminUnidade) && page.data.usuario?.cargo === 'DPC'
@@ -131,7 +131,6 @@
 	let removidosLocais = $state<number[]>([]);
 	const escalasVisiveis = $derived(escalas.filter((e) => !removidosLocais.includes(e.id)));
 	const totalPaginas = $derived(data.pagination.totalPages);
-	const ITEMS_POR_PAGINA = 20;
 
 	let dialogOpen = $state(false);
 	let dialogRevogarOpen = $state(false);
@@ -273,13 +272,13 @@
 
 	let visao = $state<'home' | 'lista' | 'assinaturas'>(
 		untrack(() => {
-			const iv = (data as Record<string, unknown>).initialView;
-			return iv === 'lista' || iv === 'assinaturas' ? (iv as 'lista' | 'assinaturas') : 'home';
+			const iv = data.initialView;
+			return iv === 'lista' || iv === 'assinaturas' ? iv : 'home';
 		})
 	);
 
 	$effect(() => {
-		const iv = (data as Record<string, unknown>).initialView as string;
+		const iv = data.initialView;
 		if (iv === 'home' || iv === 'assinaturas') {
 			visao = iv;
 		}
@@ -309,13 +308,8 @@
 		}
 	});
 
-	const podeOIPSolicitar = $derived((data.podeOIPSolicitar as boolean) ?? false);
-	type SolicitacaoInfo = {
-		tipo: 'unidade' | 'respondencia';
-		destinatario_nome?: string;
-		destinatario_id?: number;
-	};
-	const solicitacoesMap = $derived((data.solicitacoesMap ?? {}) as Record<number, SolicitacaoInfo>);
+	const podeOIPSolicitar = $derived(data.podeOIPSolicitar);
+	const solicitacoesMap = $derived(data.solicitacoesMap);
 
 	let dialogSolicitar = $state(false);
 	let escalaSolicitandoId = $state<number | null>(null);

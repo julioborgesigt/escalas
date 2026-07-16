@@ -11,7 +11,7 @@
 	import { tick } from 'svelte';
 	import { page, navigating } from '$app/state';
 	import { goto, onNavigate, afterNavigate } from '$app/navigation';
-	import { Toast, Dialog, Avatar } from '@skeletonlabs/skeleton-svelte';
+	import { Toast, Dialog } from '@skeletonlabs/skeleton-svelte';
 	import { toaster } from '$lib/toast';
 	import { apiFetch } from '$lib/api-fetch';
 	import { loading } from '$lib/loading.svelte';
@@ -23,18 +23,6 @@
 	const { children }: LayoutProps = $props();
 
 	const usuario = $derived(page.data.usuario);
-	const iniciaisUsuario = $derived(
-		usuario?.nome
-			? usuario.nome
-					.trim()
-					.split(/\s+/)
-					.map((n: string) => n[0])
-					.filter(Boolean)
-					.slice(0, 2)
-					.join('')
-					.toUpperCase()
-			: ''
-	);
 	const isSupervisorGise = $derived(page.data.isSupervisorGise ?? false);
 	const isMembroGise = $derived(page.data.isMembroGise ?? false);
 	const isSupervisaoGise = $derived(page.data.isSupervisaoGise ?? false);

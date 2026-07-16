@@ -1,7 +1,6 @@
 <script lang="ts">
 	import type { PageProps } from './$types';
-	import { goto, invalidate, invalidateAll } from '$app/navigation';
-	import { page } from '$app/state';
+	import { goto, invalidateAll } from '$app/navigation';
 	import { enhance } from '$app/forms';
 	import { toaster } from '$lib/toast';
 	import { formatarTelefone, formatarCPF } from '$lib/utils';
@@ -48,7 +47,7 @@
 		}
 	});
 
-	function handleSalvar({ formData }: { formData: FormData }) {
+	function handleSalvar() {
 		loading.show('Salvando dados do policial...');
 		return async ({ result }: { result: ActionResult }) => {
 			loading.hide();
@@ -62,7 +61,7 @@
 		};
 	}
 
-	function handleSalvarPapel({ formData }: { formData: FormData }) {
+	function handleSalvarPapel() {
 		loading.show('Atualizando papel administrativo...');
 		return async ({ result }: { result: ActionResult }) => {
 			loading.hide();

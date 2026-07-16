@@ -1,6 +1,7 @@
 /* eslint-disable svelte/prefer-writable-derived */
 import { toaster } from '$lib/toast';
 import { apiFetchResponse } from '$lib/api-fetch';
+import { baixarBlob } from '$lib/utils/download';
 import { fmtDate } from '$lib/gise/gise-formatters';
 import { loading } from '$lib/loading.svelte';
 import { page } from '$app/state';
@@ -367,15 +368,10 @@ export function useResGise(getData: () => ResGisePageData) {
 		try {
 			const url = `/api/gise/${escala.id}/download?format=produtividade&seccionalId=${escala.seccional_id}&equipeType=${escala.equipe_tipo}`;
 			const res = await apiFetchResponse(url);
-			const blob = await res.blob();
-			const downloadUrl = window.URL.createObjectURL(blob);
-			const a = document.createElement('a');
-			a.href = downloadUrl;
-			a.download = `relatorio_produtividade_${escala.seccional_nome}_${escala.data_inicio}.pdf`;
-			document.body.appendChild(a);
-			a.click();
-			a.remove();
-			window.URL.revokeObjectURL(downloadUrl);
+			baixarBlob(
+				await res.blob(),
+				`relatorio_produtividade_${escala.seccional_nome}_${escala.data_inicio}.pdf`
+			);
 		} catch (e: unknown) {
 			toaster.error({ title: 'Erro no Download', description: messageFromUnknown(e) });
 		} finally {
@@ -394,15 +390,10 @@ export function useResGise(getData: () => ResGisePageData) {
 					: escala.seccional_id;
 			const url = `/api/gise/${escala.id}/download?format=extraordinario&seccionalId=${secId}`;
 			const res = await apiFetchResponse(url);
-			const blob = await res.blob();
-			const downloadUrl = window.URL.createObjectURL(blob);
-			const a = document.createElement('a');
-			a.href = downloadUrl;
-			a.download = `relatorio_extraordinario_${escala.seccional_nome}_${escala.data_inicio}.pdf`;
-			document.body.appendChild(a);
-			a.click();
-			a.remove();
-			window.URL.revokeObjectURL(downloadUrl);
+			baixarBlob(
+				await res.blob(),
+				`relatorio_extraordinario_${escala.seccional_nome}_${escala.data_inicio}.pdf`
+			);
 		} catch (e: unknown) {
 			toaster.error({ title: 'Erro no Download', description: messageFromUnknown(e) });
 		} finally {

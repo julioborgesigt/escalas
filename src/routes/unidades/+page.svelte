@@ -13,7 +13,7 @@
 	import ModalCadastrarUnidade from './_components/ModalCadastrarUnidade.svelte';
 	import ModalExcluirUnidade from './_components/ModalExcluirUnidade.svelte';
 
-	const { data, form }: PageProps = $props();
+	const { data }: PageProps = $props();
 
 	const auth = useAutorizacao();
 	const isAdmin = $derived(auth.isAdmin);

@@ -12,7 +12,6 @@
 	import { apiFetch } from '$lib/api-fetch';
 	import { loading } from '$lib/loading.svelte';
 	import { useAssinaturaEscala, useMobile } from '$lib/composables';
-	import Spinner from './Spinner.svelte';
 
 	interface DocumentoAssinadoInfo {
 		existe: boolean;

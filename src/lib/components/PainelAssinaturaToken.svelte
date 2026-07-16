@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { toaster } from '$lib/toast';
 	import { loading } from '$lib/loading.svelte';
+	import { baixarBlob, nomeArquivoContentDisposition } from '$lib/utils/download';
 	import { conectarSerpro, SerproSignerClient } from '$lib/serpro';
 	import { digestHexParaBase64, executarFluxoAssinaturaToken } from '$lib/assinatura-token';
 
@@ -52,17 +53,6 @@
 
 	// ---- Fluxo SERPRO ----
 
-	function baixarBlob(blob: Blob, nome: string) {
-		const url = URL.createObjectURL(blob);
-		const a = document.createElement('a');
-		a.href = url;
-		a.download = nome;
-		document.body.appendChild(a);
-		a.click();
-		document.body.removeChild(a);
-		URL.revokeObjectURL(url);
-	}
-
 	async function executarAssinatura(
 		getSignature: (
 			signedAttrsHashHex: string,
@@ -98,10 +88,11 @@
 
 			// 4. Baixar
 			loading.show('Baixando PDF assinado...');
-			const blob = await finResp.blob();
-			const cd = finResp.headers.get('Content-Disposition');
-			const nome = cd?.match(/filename="(.+)"/)?.[1] || nomeArquivo;
-			baixarBlob(blob, nome);
+			const nome = nomeArquivoContentDisposition(
+				finResp.headers.get('Content-Disposition'),
+				nomeArquivo
+			);
+			baixarBlob(await finResp.blob(), nome);
 
 			toaster.success({ title: 'PDF assinado com sucesso!' });
 			await onSuccess();

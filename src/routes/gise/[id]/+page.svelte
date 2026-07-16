@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { PenLine } from 'lucide-svelte';
-	import { goto, invalidate, invalidateAll, replaceState } from '$app/navigation';
+	import { goto, invalidate, replaceState } from '$app/navigation';
 	import type { PageProps } from './$types';
 	import { page } from '$app/state';
 	import { browser } from '$app/environment';
@@ -85,17 +85,6 @@
 			}
 		}
 		return lista;
-	});
-
-	const nomesSupervisaoPorId = $derived.by(() => {
-		// eslint-disable-next-line svelte/prefer-svelte-reactivity
-		const m = new Map<number, string>();
-		if (!gise) return m;
-		if (gise.supervisor_id && gise.supervisor_nome) m.set(gise.supervisor_id, gise.supervisor_nome);
-		if (gise.assessor_id && gise.assessor_nome) m.set(gise.assessor_id, gise.assessor_nome);
-		if (gise.seint1_id && gise.seint1_nome) m.set(gise.seint1_id, gise.seint1_nome);
-		if (gise.seint2_id && gise.seint2_nome) m.set(gise.seint2_id, gise.seint2_nome);
-		return m;
 	});
 
 	// Hook de assinatura (captura de rubrica, assinatura simples/SERPRO, lote de relatórios)
@@ -451,7 +440,6 @@
 			{diaSemana}
 			{fmtDate}
 			{isAdminGeral}
-			{isSeccional}
 			{podeDownload}
 			{podeEditar}
 			{podeReabrir}
@@ -556,7 +544,6 @@
 				{podeDownload}
 				{isSupervisor}
 				{isMobile}
-				restringirSmartphone={data.restringirSmartphone}
 				onAssinarExtraSupervisaoManual={() => {
 					const id = data.supervisaoExtraUnidadeId;
 					if (id) assinatura.abrirAssinaturaRelatorio(id, 'extraordinario');
@@ -585,7 +572,6 @@
 							etapaAssinatura={assinatura.etapaAssinatura}
 							progressoLote={assinatura.progressoLote}
 							{isMobile}
-							restringirSmartphone={data.restringirSmartphone}
 							onAssinarManualLote={assinatura.abrirAssinaturaLote}
 							onAssinarDigitalLote={assinatura.executarAssinarRelatorioLoteSERPRO}
 							assinaturasRelatorios={data.assinaturasRelatorios}

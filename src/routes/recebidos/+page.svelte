@@ -9,7 +9,7 @@
 	import { enhance } from '$app/forms';
 	import { toaster } from '$lib/toast';
 	import { browser } from '$app/environment';
-	import { Popover, Portal, Dialog, SegmentedControl } from '@skeletonlabs/skeleton-svelte';
+	import { Popover, Portal, Dialog } from '@skeletonlabs/skeleton-svelte';
 	import type { EscalaListagem, Unidade } from '$lib/types';
 	import PaginationControls from '$lib/components/PaginationControls.svelte';
 	import { useAutorizacao, getSavedFilters } from '$lib/composables';
