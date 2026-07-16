@@ -5,7 +5,7 @@
 	import { applyAction, enhance } from '$app/forms';
 	import { page } from '$app/state';
 	import { toaster } from '$lib/toast';
-	import { csrfHeaders } from '$lib/csrf';
+	import { apiFetch } from '$lib/api-fetch';
 	import { loading as loadingService } from '$lib/loading.svelte';
 	import CodigoTimer from '$lib/components/CodigoTimer.svelte';
 	import { Steps, Tabs } from '@skeletonlabs/skeleton-svelte';
@@ -28,7 +28,6 @@
 	let pendente2FA = $state(false);
 	let desafioId = $state('');
 	let codigo2FA = $state('');
-	let tipoUsuario2FA = $state<'policial' | 'admin'>('policial');
 	let emailMascarado = $state('');
 
 	// Estado do primeiro acesso
@@ -98,7 +97,6 @@
 					const d = result.data;
 					if (d?.pendente2FA) {
 						desafioId = String(d.desafioId || '');
-						tipoUsuario2FA = (d.tipoUsuario2FA as 'policial' | 'admin') || tipo;
 						emailMascarado = String(d.emailMascarado || '');
 						pendente2FA = true;
 						loginError = null;
@@ -203,20 +201,21 @@
 	}
 
 	async function reenviarCodigo2FA() {
-		const res = await fetch('/api/auth/reenviar-codigo', {
-			method: 'POST',
-			headers: { 'Content-Type': 'application/json', ...csrfHeaders() },
-			body: JSON.stringify({ desafioId })
-		});
-		const data = await res.json().catch(() => ({}));
-		if (res.ok) {
+		try {
+			const data = await apiFetch<{ desafioId?: string; emailMascarado?: string }>(
+				'/api/auth/reenviar-codigo',
+				{ method: 'POST', body: JSON.stringify({ desafioId }) }
+			);
 			desafioId = String(data.desafioId || desafioId);
 			emailMascarado = String(data.emailMascarado || emailMascarado);
 			toaster.create({ title: 'Código reenviado com sucesso!', type: 'success' });
-		} else {
-			const msg = String(data?.error || 'Erro ao reenviar código');
-			toaster.create({ title: msg, type: 'error' });
-			throw new Error(msg);
+		} catch (e: unknown) {
+			toaster.create({
+				title: e instanceof Error ? e.message : 'Erro ao reenviar código',
+				type: 'error'
+			});
+			// Repassa o erro para o CodigoTimer não reiniciar a contagem.
+			throw e;
 		}
 	}
 
@@ -235,21 +234,10 @@
 			serproClient = await conectarSerproParaLogin(() => loadingService.hide());
 
 			// 2. Gerar desafio no servidor
-			const iniciarResp = await fetch('/api/auth/certificado/iniciar', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json', ...csrfHeaders() },
-				body: JSON.stringify({})
-			});
-			if (!iniciarResp.ok) {
-				const d = await iniciarResp.json().catch(() => ({}));
-				throw new Error(
-					(d as { error?: string }).error || 'Erro ao iniciar autenticação com certificado.'
-				);
-			}
-			const { desafioId: did, nonce } = (await iniciarResp.json()) as {
-				desafioId: string;
-				nonce: string;
-			};
+			const { desafioId: did, nonce } = await apiFetch<{ desafioId: string; nonce: string }>(
+				'/api/auth/certificado/iniciar',
+				{ method: 'POST', body: JSON.stringify({}) }
+			);
 
 			// 3. Computar SHA-256 do nonce e assinar via type:'hash' (igual à assinatura de documentos)
 			const nonceBytes = new Uint8Array(nonce.match(/.{2}/g)!.map((b) => parseInt(b, 16)));
@@ -263,20 +251,13 @@
 
 			// 4. Verificar no servidor
 			loadingService.show('Verificando certificado...');
-			const verificarResp = await fetch('/api/auth/certificado/verificar', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json', ...csrfHeaders() },
-				body: JSON.stringify({ desafioId: did, cmsBase64: resultado.rawSignature })
-			});
-			const data = (await verificarResp.json().catch(() => ({}))) as {
-				error?: string;
-				success?: boolean;
-				primeiro_acesso?: boolean;
-				nome?: string;
-			};
-			if (!verificarResp.ok) {
-				throw new Error(data.error || 'Certificado inválido ou CPF não encontrado.');
-			}
+			const data = await apiFetch<{ success?: boolean; primeiro_acesso?: boolean; nome?: string }>(
+				'/api/auth/certificado/verificar',
+				{
+					method: 'POST',
+					body: JSON.stringify({ desafioId: did, cmsBase64: resultado.rawSignature })
+				}
+			);
 
 			// 5. Redirecionar
 			const dest = data.primeiro_acesso ? '/alterar-senha' : '/escalas';
@@ -330,13 +311,15 @@
 		if (!identificadorRec.trim()) return;
 		loadingService.show('Enviando código de validação...');
 		try {
-			const res = await fetch('/api/auth/solicitar-redefinicao', {
+			const data = await apiFetch<{
+				requerCodigo?: boolean;
+				desafioId?: string;
+				emailMascarado?: string;
+			}>('/api/auth/solicitar-redefinicao', {
 				method: 'POST',
-				headers: { 'Content-Type': 'application/json', ...csrfHeaders() },
 				body: JSON.stringify({ identificador: identificadorRec.trim(), tipo })
 			});
-			const data = await res.json().catch(() => ({}));
-			if (res.ok && data?.requerCodigo && data?.desafioId) {
+			if (data?.requerCodigo && data?.desafioId) {
 				desafioIdRec = String(data.desafioId);
 				emailMascaradoRec = String(data.emailMascarado || '');
 				codigoRec = '';
@@ -360,25 +343,19 @@
 		}
 		loadingService.show('Validando código...');
 		try {
-			const res = await fetch('/api/auth/confirmar-redefinicao', {
+			await apiFetch('/api/auth/confirmar-redefinicao', {
 				method: 'POST',
-				headers: { 'Content-Type': 'application/json', ...csrfHeaders() },
 				body: JSON.stringify({ desafioId: desafioIdRec, codigo: codigoRec })
 			});
-			const data = await res.json().catch(() => ({}));
-			if (res.ok) {
-				recuperacaoResultado = 'link';
-				recuperacaoEtapa = 'concluida';
-				desafioIdRec = '';
-				codigoRec = '';
-			} else {
-				toaster.create({
-					title: String(data?.error || 'Código inválido ou expirado.'),
-					type: 'error'
-				});
-			}
-		} catch {
-			toaster.create({ title: 'Erro ao validar o código. Tente novamente.', type: 'error' });
+			recuperacaoResultado = 'link';
+			recuperacaoEtapa = 'concluida';
+			desafioIdRec = '';
+			codigoRec = '';
+		} catch (e: unknown) {
+			toaster.create({
+				title: e instanceof Error ? e.message : 'Código inválido ou expirado.',
+				type: 'error'
+			});
 		} finally {
 			loadingService.hide();
 		}

@@ -1,10 +1,12 @@
 <script lang="ts">
+	import type { PageProps } from './$types';
 	import { enhance } from '$app/forms';
+	import { apiFetchResponse } from '$lib/api-fetch';
+	import { baixarBlob, nomeArquivoContentDisposition } from '$lib/utils/download';
 	import { toaster } from '$lib/toast';
 	import { ChevronDown, ChevronUp, CheckCircle2, AlertTriangle } from 'lucide-svelte';
-	import { onMount } from 'svelte';
 
-	const { data, form } = $props();
+	const { data, form }: PageProps = $props();
 
 	// ---- Rótulos e cores ----
 	const SEVERIDADE: Record<string, { label: string; cls: string }> = {
@@ -104,28 +106,17 @@
 		if (baixando) return;
 		baixando = true;
 		try {
-			const resp = await fetch(`/auditoria/export?${queryString({ format, ...extra })}`);
-			if (!resp.ok) {
-				let msg = 'Não foi possível gerar o arquivo.';
-				try {
-					msg = (await resp.json()).error ?? msg;
-				} catch {
-					/* corpo não-JSON */
-				}
-				toaster.error({ title: 'Exportação', description: msg });
-				return;
-			}
-			const blob = await resp.blob();
-			const cd = resp.headers.get('content-disposition') ?? '';
-			const nome = cd.match(/filename="([^"]+)"/)?.[1] ?? `auditoria.${format}`;
-			const href = URL.createObjectURL(blob);
-			const a = document.createElement('a');
-			a.href = href;
-			a.download = nome;
-			a.click();
-			URL.revokeObjectURL(href);
-		} catch {
-			toaster.error({ title: 'Exportação', description: 'Erro de rede ao exportar.' });
+			const resp = await apiFetchResponse(`/auditoria/export?${queryString({ format, ...extra })}`);
+			const nome = nomeArquivoContentDisposition(
+				resp.headers.get('content-disposition'),
+				`auditoria.${format}`
+			);
+			baixarBlob(await resp.blob(), nome);
+		} catch (e: unknown) {
+			toaster.error({
+				title: 'Exportação',
+				description: e instanceof Error ? e.message : 'Não foi possível gerar o arquivo.'
+			});
 		} finally {
 			baixando = false;
 		}
@@ -144,13 +135,11 @@
 		].filter(Boolean).length
 	);
 
-	let filtrosExpandidos = $state(false);
-
-	onMount(() => {
-		if (filtrosAtivos > 0) {
-			filtrosExpandidos = true;
-		}
-	});
+	// Captura única e intencional: nasce expandido quando a URL já traz filtros
+	// (SSR renderiza igual ao cliente — sem flash pós-hidratação). Depois disso,
+	// só o usuário controla via toggle.
+	// svelte-ignore state_referenced_locally
+	let filtrosExpandidos = $state(filtrosAtivos > 0);
 </script>
 
 <svelte:head><title>Auditoria — Escalas PC</title></svelte:head>

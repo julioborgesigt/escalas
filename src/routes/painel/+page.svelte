@@ -1,4 +1,5 @@
 <script lang="ts">
+	import type { PageProps } from './$types';
 	import { Lock, CheckCircle2, Clock, XCircle, BellOff, Search, PartyPopper } from 'lucide-svelte';
 	import { goto, invalidate } from '$app/navigation';
 	import { enhance } from '$app/forms';
@@ -6,16 +7,15 @@
 	import { SvelteSet } from 'svelte/reactivity';
 	import SkeletonCard from '$lib/components/SkeletonCard.svelte';
 	import { browser } from '$app/environment';
-	import { Dialog, SegmentedControl } from '@skeletonlabs/skeleton-svelte';
+	import { Dialog } from '@skeletonlabs/skeleton-svelte';
 	import SearchableSelect from '$lib/components/SearchableSelect.svelte';
 	import { toaster } from '$lib/toast';
 	import type { ItemCompliance } from '../api/admin/compliance/+server';
 	import { useAutorizacao, getSavedFilters } from '$lib/composables';
 	import { loading as loadingService } from '$lib/loading.svelte';
 	import type { ActionResult } from '@sveltejs/kit';
-	import type { Unidade } from '$lib/types';
 
-	const { data } = $props();
+	const { data }: PageProps = $props();
 
 	const auth = useAutorizacao();
 	const isAdmin = $derived(auth.isAdmin);
@@ -53,7 +53,7 @@
 	});
 	const dados = $derived(complianceResolvido ?? []);
 	const carregandoCompliance = $derived(complianceResolvido === null);
-	const unidadesDB = $derived(data.unidades as Unidade[]);
+	const unidadesDB = $derived(data.unidades);
 
 	// Filtros
 	const filtroRegime = 'todos';
@@ -86,12 +86,6 @@
 			);
 		}
 	});
-
-	// Reset de unidade (apenas no clique seccional)
-	function mudarSeccional() {
-		filtroUnidade = '';
-		// carregar() não é necessário aqui pois dados já estão em memória
-	}
 
 	const seccionais = $derived(unidadesDB.filter((u) => u.tipo === 'seccional'));
 
@@ -134,11 +128,6 @@
 			return true;
 		})
 	);
-
-	interface GrupoCompliance {
-		titulo: string;
-		itens: ItemCompliance[];
-	}
 
 	const dadosAgrupados = $derived.by(() => {
 		const base = [...dadosFiltrados];
@@ -184,20 +173,6 @@
 	const seccionaisOptions = $derived(seccionais.map((s) => ({ value: s.id, label: s.nome })));
 
 	const unidadesDropdownOptions = $derived(unidadesDropdown.map((u) => ({ value: u, label: u })));
-
-	const agrupamentoOptions = [
-		{ value: 'nenhum', label: 'Nenhum' },
-		{ value: 'unidade', label: 'Delegacia' },
-		{ value: 'regime', label: 'Regime' },
-		{ value: 'ambos', label: 'Delegacia e Regime' }
-	];
-
-	const regimeOptions = [
-		{ value: 'todos', label: 'Todos' },
-		{ value: 'plantao', label: 'Plantão' },
-		{ value: 'expediente', label: 'Expediente' },
-		{ value: 'fds', label: 'FDS' }
-	];
 
 	const mesesOptions = [
 		{ value: 'todos', label: 'Todos' },

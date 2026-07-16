@@ -64,7 +64,7 @@ type GisePresenca = typeof gisePresencas.$inferSelect;
 
 export const load: PageServerLoad = async ({ locals, platform, url }) => {
 	const u = locals.usuario;
-	if (!u) throw redirect(302, '/login');
+	if (!u) redirect(302, '/login');
 
 	const statusFilter = url.searchParams.get('status') || ''; // 'ativas' ou 'finalizadas'
 	const mesFilter = url.searchParams.get('mes') || ''; // YYYY-MM
@@ -86,7 +86,7 @@ export const load: PageServerLoad = async ({ locals, platform, url }) => {
 			.where(eq(giseMembros.policial_id, u.id))
 			.limit(1)
 			.get();
-		if (!result && !isSupervisorGise && !isSupervisaoGise) throw redirect(302, '/');
+		if (!result && !isSupervisorGise && !isSupervisaoGise) redirect(302, '/');
 	}
 
 	const minhasEscalas: ResGiseMinhaEscalaLinha[] = [];

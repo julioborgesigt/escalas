@@ -2,7 +2,7 @@
 	import { Check, Lock } from 'lucide-svelte';
 	import { page } from '$app/state';
 	import { toaster } from '$lib/toast';
-	import { csrfHeaders } from '$lib/csrf';
+	import { apiFetch } from '$lib/api-fetch';
 	import { invalidateAll } from '$app/navigation';
 	import { loading } from '$lib/loading.svelte';
 
@@ -38,20 +38,17 @@
 	async function salvar() {
 		loading.show('Salvando configurações...');
 		try {
-			const res = await fetch('/api/configuracoes/assinatura', {
+			await apiFetch('/api/configuracoes/assinatura', {
 				method: 'PUT',
-				headers: { 'Content-Type': 'application/json', ...csrfHeaders() },
 				body: JSON.stringify({ exigirFoto, exigirGps, exigirCodigoEmail, restringirSmartphone })
 			});
-			if (res.ok) {
-				await invalidateAll();
-				toaster.create({ title: 'Configurações salvas com sucesso.', type: 'success' });
-			} else {
-				const data = await res.json();
-				toaster.create({ title: data.error || 'Erro ao salvar.', type: 'error' });
-			}
-		} catch {
-			toaster.create({ title: 'Erro de conexão.', type: 'error' });
+			await invalidateAll();
+			toaster.create({ title: 'Configurações salvas com sucesso.', type: 'success' });
+		} catch (e: unknown) {
+			toaster.create({
+				title: e instanceof Error ? e.message : 'Erro ao salvar.',
+				type: 'error'
+			});
 		} finally {
 			loading.hide();
 		}

@@ -27,7 +27,7 @@ const giseRowBreveNulo = {
 } as const;
 
 export const load: PageServerLoad = async ({ locals, platform }) => {
-	if (locals.usuario?.tipo !== 'admin') throw redirect(302, '/gise');
+	if (locals.usuario?.tipo !== 'admin') redirect(302, '/gise');
 	const db = getDB(platform);
 	const [vagas, brEnv, defaultHoraEntrada, defaultHoraSaida] = await Promise.all([
 		buscarVagasPadraoEquipesGise(db),

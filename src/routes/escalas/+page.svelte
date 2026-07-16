@@ -1,4 +1,5 @@
 <script lang="ts">
+	import type { PageProps } from './$types';
 	import { PenLine, CheckCircle2, ClipboardList, Archive } from 'lucide-svelte';
 	import { goto, invalidate } from '$app/navigation';
 	import { untrack } from 'svelte';
@@ -7,14 +8,15 @@
 	import { Dialog } from '@skeletonlabs/skeleton-svelte';
 	import { browser } from '$app/environment';
 	import type { EscalaListagem, Unidade } from '$lib/types';
-	import { csrfHeaders } from '$lib/csrf';
+	import { apiFetch } from '$lib/api-fetch';
 	import { loading } from '$lib/loading.svelte';
 	import type { ActionResult } from '@sveltejs/kit';
 	import {
 		useAutorizacao,
 		getSavedFilters,
 		useAssinaturaEscala,
-		useMobile
+		useMobile,
+		useFiltrosPaginados
 	} from '$lib/composables';
 	import SignaturePad from '$lib/components/SignaturePad.svelte';
 	import type { SignaturePadConfirmPayload } from '$lib/components/SignaturePadTypes';
@@ -28,13 +30,13 @@
 	import DialogSolicitarAssinatura from '$lib/components/DialogSolicitarAssinatura.svelte';
 	import SearchableSelect from '$lib/components/SearchableSelect.svelte';
 
-	const { data, form } = $props();
+	const { data }: PageProps = $props();
 
 	const auth = useAutorizacao();
 	const isAdmin = $derived(auth.isAdmin);
 	const isAdminSeccional = $derived(auth.isAdminSeccional);
 	const lotacaoUsuario = $derived(auth.lotacaoUsuario);
-	const papelUnidadeId = $derived(data.papelUnidadeId as number | null);
+	const papelUnidadeId = $derived(data.papelUnidadeId);
 
 	const isAdminDPC = $derived(
 		!isAdmin && (auth.isAdminSeccional || auth.isAdminUnidade) && page.data.usuario?.cargo === 'DPC'
@@ -48,7 +50,7 @@
 		busca: ''
 	});
 
-	const unidades = $derived(data.unidades as Unidade[]);
+	const unidades = $derived(data.unidades);
 	const paginaAtual = $derived(data.pagination.page);
 
 	let filtroLotacao = $state(untrack(() => data.filtros.lotacao || savedFilters.lotacao));
@@ -60,20 +62,39 @@
 	);
 	let filtroBusca = $state(untrack(() => data.filtros.busca || savedFilters.busca));
 
-	$effect(() => {
-		if (browser) {
-			localStorage.setItem(
-				'filtros_escalas',
-				JSON.stringify({
-					lotacao: filtroLotacao,
-					mes: filtroMes,
-					ano: filtroAno,
-					tipo: filtroTipo,
-					seccional: filtroSeccional,
-					busca: filtroBusca
-				})
-			);
+	// Persistência (localStorage) + navegação server-side + auto-nav ao mudar
+	// qualquer filtro exceto a busca (que navega via seu próprio handler).
+	// `seccional` entra na assinatura (reseta a página) mas não vai à query —
+	// só afeta o dropdown de delegacias no cliente.
+	const filtros = useFiltrosPaginados({
+		chave: 'filtros_escalas',
+		snapshot: () => ({
+			lotacao: filtroLotacao,
+			mes: filtroMes,
+			ano: filtroAno,
+			tipo: filtroTipo,
+			seccional: filtroSeccional,
+			busca: filtroBusca
+		}),
+		query: buildQueryParamsComFiltros,
+		auto: {
+			assinatura: () => [
+				filtroSeccional ?? 'todas',
+				filtroLotacao ?? '',
+				filtroTipo ?? 'todos',
+				filtroMes ?? 0,
+				filtroAno ?? 0
+			]
 		}
+	});
+
+	// Normaliza null vindo do clear do SearchableSelect (mantém o default no select).
+	$effect(() => {
+		if (filtroSeccional === null) filtroSeccional = 'todas';
+		if (filtroLotacao === null) filtroLotacao = '';
+		if (filtroTipo === null) filtroTipo = 'todos';
+		if (filtroMes === null) filtroMes = 0;
+		if (filtroAno === null) filtroAno = 0;
 	});
 
 	const seccionais = $derived(unidades.filter((u: Unidade) => u.tipo === 'seccional'));
@@ -104,13 +125,12 @@
 		...delegaciasDaSeccional.map((del) => ({ value: del.nome, label: del.nome }))
 	]);
 
-	const escalas = $derived((data.escalas ?? []) as EscalaListagem[]);
+	const escalas = $derived(data.escalas ?? []);
 	// Exclusão otimista: ids removidos somem da tabela na hora; o
 	// invalidate('app:escalas') que segue corrige total/paginação no fundo.
 	let removidosLocais = $state<number[]>([]);
 	const escalasVisiveis = $derived(escalas.filter((e) => !removidosLocais.includes(e.id)));
 	const totalPaginas = $derived(data.pagination.totalPages);
-	const ITEMS_POR_PAGINA = 20;
 
 	let dialogOpen = $state(false);
 	let dialogRevogarOpen = $state(false);
@@ -148,65 +168,6 @@
 		anos.map((ano) => ({ value: ano, label: ano === 0 ? 'Todos' : String(ano) }))
 	);
 
-	let mounted = false;
-	// svelte-ignore state_referenced_locally
-	let prevSeccional = $state(filtroSeccional);
-	// svelte-ignore state_referenced_locally
-	let prevLotacao = $state(filtroLotacao);
-	// svelte-ignore state_referenced_locally
-	let prevTipo = $state(filtroTipo);
-	// svelte-ignore state_referenced_locally
-	let prevMes = $state(filtroMes);
-	// svelte-ignore state_referenced_locally
-	let prevAno = $state(filtroAno);
-
-	$effect(() => {
-		// Normalize null values from SearchableSelect clear triggers
-		if (filtroSeccional === null) {
-			filtroSeccional = 'todas';
-		}
-		if (filtroLotacao === null) {
-			filtroLotacao = '';
-		}
-		if (filtroTipo === null) {
-			filtroTipo = 'todos';
-		}
-		if (filtroMes === null) {
-			filtroMes = 0;
-		}
-		if (filtroAno === null) {
-			filtroAno = 0;
-		}
-
-		if (!mounted) {
-			prevSeccional = filtroSeccional;
-			prevLotacao = filtroLotacao;
-			prevTipo = filtroTipo;
-			prevMes = filtroMes;
-			prevAno = filtroAno;
-			mounted = true;
-			return;
-		}
-
-		if (
-			filtroSeccional !== prevSeccional ||
-			filtroLotacao !== prevLotacao ||
-			filtroTipo !== prevTipo ||
-			filtroMes !== prevMes ||
-			filtroAno !== prevAno
-		) {
-			prevSeccional = filtroSeccional;
-			prevLotacao = filtroLotacao;
-			prevTipo = filtroTipo;
-			prevMes = filtroMes;
-			prevAno = filtroAno;
-
-			untrack(() => {
-				navegarComFiltros();
-			});
-		}
-	});
-
 	function buildQueryParamsComFiltros(p: number) {
 		// eslint-disable-next-line svelte/prefer-svelte-reactivity
 		const params = new URLSearchParams();
@@ -216,15 +177,7 @@
 		if (filtroTipo && filtroTipo !== 'todos') params.set('tipo', filtroTipo);
 		if (filtroBusca) params.set('busca', filtroBusca);
 		params.set('page', String(p));
-		return params.toString();
-	}
-
-	function navegarComFiltros() {
-		goto(`?${buildQueryParamsComFiltros(1)}`, { keepFocus: true, noScroll: true });
-	}
-
-	function irParaPaginaListagem(p: number) {
-		goto(`?${buildQueryParamsComFiltros(p)}`, { keepFocus: true, noScroll: true });
+		return params;
 	}
 
 	function limparFiltros() {
@@ -235,13 +188,7 @@
 		filtroTipo = 'todos';
 		filtroBusca = '';
 
-		prevSeccional = 'todas';
-		prevLotacao = 'todas';
-		prevMes = new Date().getMonth() + 1;
-		prevAno = new Date().getFullYear();
-		prevTipo = 'todos';
-
-		navegarComFiltros();
+		filtros.navegar(1);
 	}
 
 	function solicitarExclusao(id: number, titulo: string) {
@@ -270,23 +217,18 @@
 		const id = escalaParaRevogar.id;
 		dialogRevogarOpen = false;
 		try {
-			const res = await fetch(`/api/escalas/${id}/documento-assinado`, {
-				method: 'DELETE',
-				headers: csrfHeaders()
+			await apiFetch(`/api/escalas/${id}/documento-assinado`, { method: 'DELETE' });
+			toaster.create({
+				title: 'Assinatura revogada',
+				description: 'A escala agora pode ser editada.',
+				type: 'info'
 			});
-			if (res.ok) {
-				toaster.create({
-					title: 'Assinatura revogada',
-					description: 'A escala agora pode ser editada.',
-					type: 'info'
-				});
-				goto(`/escalas/${id}`);
-			} else {
-				const err = await res.json().catch(() => ({}));
-				toaster.create({ title: err.error || 'Erro ao revogar assinatura', type: 'error' });
-			}
-		} catch {
-			toaster.create({ title: 'Falha de rede ao revogar assinatura', type: 'error' });
+			goto(`/escalas/${id}`);
+		} catch (e: unknown) {
+			toaster.create({
+				title: e instanceof Error ? e.message : 'Erro ao revogar assinatura',
+				type: 'error'
+			});
 		} finally {
 			pendingRevogar = false;
 			escalaParaRevogar = null;
@@ -330,13 +272,13 @@
 
 	let visao = $state<'home' | 'lista' | 'assinaturas'>(
 		untrack(() => {
-			const iv = (data as Record<string, unknown>).initialView;
-			return iv === 'lista' || iv === 'assinaturas' ? (iv as 'lista' | 'assinaturas') : 'home';
+			const iv = data.initialView;
+			return iv === 'lista' || iv === 'assinaturas' ? iv : 'home';
 		})
 	);
 
 	$effect(() => {
-		const iv = (data as Record<string, unknown>).initialView as string;
+		const iv = data.initialView;
 		if (iv === 'home' || iv === 'assinaturas') {
 			visao = iv;
 		}
@@ -344,19 +286,8 @@
 
 	let abriuDoHome = $state(false);
 
-	const podeAssinar = $derived(data.podeAssinar as boolean);
-	const escalasParaAssinar = $derived(
-		(data.escalasParaAssinar ?? []) as Array<{
-			id: number;
-			titulo: string;
-			cidade: string;
-			data_inicio: string;
-			data_fim: string;
-			tipo: string;
-			lotacao: string;
-			is_assinada: boolean;
-		}>
-	);
+	const podeAssinar = $derived(data.podeAssinar);
+	const escalasParaAssinar = $derived(data.escalasParaAssinar);
 
 	// --- Rubrica reutilizável (cadastro para assinatura por token) ---
 	// Só consideramos "tem rubrica" quando é um dataURL de imagem real.
@@ -377,13 +308,8 @@
 		}
 	});
 
-	const podeOIPSolicitar = $derived((data.podeOIPSolicitar as boolean) ?? false);
-	type SolicitacaoInfo = {
-		tipo: 'unidade' | 'respondencia';
-		destinatario_nome?: string;
-		destinatario_id?: number;
-	};
-	const solicitacoesMap = $derived((data.solicitacoesMap ?? {}) as Record<number, SolicitacaoInfo>);
+	const podeOIPSolicitar = $derived(data.podeOIPSolicitar);
+	const solicitacoesMap = $derived(data.solicitacoesMap);
 
 	let dialogSolicitar = $state(false);
 	let escalaSolicitandoId = $state<number | null>(null);
@@ -396,22 +322,14 @@
 	async function cancelarSolicitacao(escalaId: number) {
 		loading.show('Cancelando solicitação...');
 		try {
-			const res = await fetch(`/api/escalas/${escalaId}/solicitar-assinatura`, {
-				method: 'DELETE',
-				headers: csrfHeaders()
+			await apiFetch(`/api/escalas/${escalaId}/solicitar-assinatura`, { method: 'DELETE' });
+			await invalidate('app:escalas');
+			toaster.create({ title: 'Solicitação cancelada', type: 'success' });
+		} catch (e: unknown) {
+			toaster.create({
+				title: e instanceof Error ? e.message : 'Erro ao cancelar solicitação',
+				type: 'error'
 			});
-			if (res.ok) {
-				await invalidate('app:escalas');
-				toaster.create({ title: 'Solicitação cancelada', type: 'success' });
-			} else {
-				const json = await res.json().catch(() => ({}));
-				toaster.create({
-					title: (json as { error?: string }).error || 'Erro ao cancelar solicitação',
-					type: 'error'
-				});
-			}
-		} catch {
-			toaster.create({ title: 'Erro de rede ao cancelar solicitação', type: 'error' });
 		} finally {
 			loading.hide();
 		}
@@ -799,7 +717,7 @@
 			onAbrirDialogSolicitar={abrirDialogSolicitar}
 			onCancelarSolicitacao={cancelarSolicitacao}
 			onNovaEscala={() => (dialogNovaEscalaAberto = true)}
-			onPageChange={irParaPaginaListagem}
+			onPageChange={filtros.irParaPagina}
 		/>
 	</div>
 {:else if visao === 'assinaturas'}

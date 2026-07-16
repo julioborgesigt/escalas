@@ -1,9 +1,10 @@
 <script lang="ts">
+	import type { PageProps } from './$types';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import { User } from 'lucide-svelte';
 
-	const { data } = $props();
+	const { data }: PageProps = $props();
 	const usuario = $derived(data.usuario);
 
 	const isSupervisorGise = $derived(page.data.isSupervisorGise ?? false);

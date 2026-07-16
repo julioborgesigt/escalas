@@ -15,7 +15,6 @@
 		horas: string[];
 		minutos: string[];
 		onSolicitarRemocao: (ids: number | number[], nome: string) => void;
-		onToggleSelecionar: (id: number) => void;
 	}
 
 	let {
@@ -27,8 +26,7 @@
 		escala,
 		horas,
 		minutos,
-		onSolicitarRemocao,
-		onToggleSelecionar
+		onSolicitarRemocao
 	}: Props = $props();
 
 	let modalEditarOpen = $state(false);

@@ -1,5 +1,6 @@
 <script lang="ts">
-	import { goto, invalidate, invalidateAll } from '$app/navigation';
+	import type { PageProps } from './$types';
+	import { goto, invalidateAll } from '$app/navigation';
 	import { fly } from 'svelte/transition';
 	import { page, navigating } from '$app/state';
 	import SkeletonCard from '$lib/components/SkeletonCard.svelte';
@@ -7,18 +8,23 @@
 	import { untrack } from 'svelte';
 	import { enhance } from '$app/forms';
 	import { toaster } from '$lib/toast';
+	import { apiFetch } from '$lib/api-fetch';
 	import PaginationControls from '$lib/components/PaginationControls.svelte';
 	import { Dialog, SegmentedControl } from '@skeletonlabs/skeleton-svelte';
-	import { browser } from '$app/environment';
 	import { formatarTelefone, formatarCPF, limparCPF } from '$lib/utils';
-	import { useAutorizacao, getSavedFilters, useConfirmationDialog } from '$lib/composables';
+	import {
+		useAutorizacao,
+		getSavedFilters,
+		useConfirmationDialog,
+		useFiltrosPaginados
+	} from '$lib/composables';
 	import type { Policial, Unidade } from '$lib/types';
 	import SearchableSelect from '$lib/components/SearchableSelect.svelte';
 	import type { ActionResult } from '@sveltejs/kit';
 
-	const { data, form } = $props();
+	const { data }: PageProps = $props();
 
-	function handleSalvarPolicial({ formData }: { formData: FormData }) {
+	function handleSalvarPolicial() {
 		pendingCadastro = true;
 		return async ({ result }: { result: ActionResult }) => {
 			pendingCadastro = false;
@@ -46,7 +52,6 @@
 	const isAdmin = $derived(auth.isAdmin);
 	const isAdminOrSeccional = $derived(auth.isAdminOrSeccional);
 	const isAdminUnidade = $derived(auth.isAdminUnidade);
-	const lotacaoUsuario = $derived(auth.lotacaoUsuario);
 	const savedFilters = getSavedFilters('filtros_policiais', {
 		lotacao: '',
 		cargo: '',
@@ -73,21 +78,6 @@
 	);
 	let filtroBusca = $state(untrack(() => data.filtros.busca || savedFilters.busca));
 
-	// Salvar filtros no localStorage a cada mudança
-	$effect(() => {
-		if (browser) {
-			localStorage.setItem(
-				'filtros_policiais',
-				JSON.stringify({
-					lotacao: filtroLotacao,
-					cargo: filtroCargo,
-					seccional: filtroSeccional,
-					busca: filtroBusca
-				})
-			);
-		}
-	});
-
 	const seccionais = $derived(unidades.filter((u) => u.tipo === 'seccional'));
 	const delegaciasDropdown = $derived(
 		filtroSeccional === 'todas'
@@ -101,6 +91,38 @@
 	// Special sentinel value for "sem lotação" filter
 	const SEM_LOTACAO = '__sem_lotacao__';
 	const TODAS_UNIDADES = '__todas__';
+
+	// Persistência dos filtros + navegação (query server-side). A paginação
+	// abaixo preserva a URL corrente; por isso navegarComFiltros vai sempre à
+	// página 1.
+	const filtros = useFiltrosPaginados({
+		chave: 'filtros_policiais',
+		snapshot: () => ({
+			lotacao: filtroLotacao,
+			cargo: filtroCargo,
+			seccional: filtroSeccional,
+			busca: filtroBusca
+		}),
+		query: (p) => {
+			// eslint-disable-next-line svelte/prefer-svelte-reactivity
+			const params = new URLSearchParams();
+			if (
+				filtroLotacao &&
+				filtroLotacao !== 'todas' &&
+				filtroLotacao !== TODAS_UNIDADES &&
+				filtroLotacao !== SEM_LOTACAO
+			) {
+				params.set('lotacao', filtroLotacao);
+			}
+			if (filtroCargo) params.set('cargo', filtroCargo);
+			if (filtroBusca) params.set('busca', filtroBusca);
+			if (filtroSeccional && filtroSeccional !== 'todas') {
+				params.set('seccional', String(filtroSeccional));
+			}
+			params.set('page', String(p));
+			return params;
+		}
+	});
 
 	// Cadastro
 	let cadastroOpen = $state(false);
@@ -209,21 +231,16 @@
 		});
 		if (query.trim()) params.set('q', query.trim());
 
-		const res = await fetch(`/api/unidades/search?${params.toString()}`, { signal });
-		if (!res.ok) {
-			const body = await res.json().catch(() => ({}));
-			throw new Error(body?.error || 'Erro ao buscar lotações');
-		}
-		const dataRes = await res.json();
+		const dataRes = await apiFetch<{ items?: { nome: string }[] }>(
+			`/api/unidades/search?${params.toString()}`,
+			{ signal }
+		);
 		const baseOptions = (dataRes.items || []).map((u: { nome: string }) => ({
 			value: u.nome,
 			label: u.nome
 		}));
 		return [{ value: '', label: '— Sem lotação —' }, ...baseOptions];
 	}
-
-	// Removido filtragem local: agora é feita no servidor para respeitar a paginação
-	const totalItens = $derived(data.pagination.total);
 
 	$effect(() => {
 		// Resetar para página 1 ao filtrar
@@ -233,24 +250,7 @@
 	});
 
 	function navegarComFiltros() {
-		// eslint-disable-next-line svelte/prefer-svelte-reactivity
-		const params = new URLSearchParams();
-		if (
-			filtroLotacao &&
-			filtroLotacao !== 'todas' &&
-			filtroLotacao !== TODAS_UNIDADES &&
-			filtroLotacao !== SEM_LOTACAO
-		) {
-			params.set('lotacao', filtroLotacao);
-		}
-		if (filtroCargo) params.set('cargo', filtroCargo);
-		if (filtroBusca) params.set('busca', filtroBusca);
-		if (filtroSeccional && filtroSeccional !== 'todas') {
-			params.set('seccional', String(filtroSeccional));
-		}
-		params.set('page', '1');
-		const query = params.toString();
-		goto(`/policiais?${query}`, { keepFocus: true, noScroll: true });
+		filtros.navegar(1);
 	}
 
 	function solicitarExclusao(id: number, nome: string) {

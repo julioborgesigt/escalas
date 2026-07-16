@@ -13,7 +13,7 @@ import { json } from '@sveltejs/kit';
 import { getDB } from '$lib/db';
 import { tryGetR2 } from '$lib/db';
 import { sql } from 'drizzle-orm';
-import type { RequestEvent } from '@sveltejs/kit';
+import type { RequestHandler } from './$types';
 import { compararSegredoUtf8TimingSafe } from '$lib/auth';
 import { verificarSaudeLimpezaRetencao, type SaudeLimpezaRetencao } from '$lib/db/lgpd-retencao';
 
@@ -21,7 +21,7 @@ interface HealthEnv {
 	HEALTH_DETAIL_TOKEN?: string;
 }
 
-export const GET = async ({ platform, url }: RequestEvent) => {
+export const GET: RequestHandler = async ({ platform, url }) => {
 	const checks: Record<string, 'ok' | 'error'> = {};
 	let healthy = true;
 

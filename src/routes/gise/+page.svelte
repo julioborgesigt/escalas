@@ -1,12 +1,14 @@
 <script lang="ts">
-	import type { PageData } from './$types';
+	import type { PageProps } from './$types';
 	import { Pagination } from '@skeletonlabs/skeleton-svelte';
 	import { ChevronLeft, ChevronRight } from 'lucide-svelte';
 	import { goto, invalidateAll } from '$app/navigation';
 	import { page } from '$app/state';
 	import { toaster } from '$lib/toast';
 	import { loading } from '$lib/loading.svelte';
-	import { csrfHeaders } from '$lib/csrf';
+	import { apiFetch, apiFetchResponse } from '$lib/api-fetch';
+	import { baixarBlob } from '$lib/utils/download';
+	import { digestHexParaBase64, executarFluxoAssinaturaToken } from '$lib/assinatura-token';
 	import { conectarSerpro } from '$lib/serpro';
 	import ModalRubrica from './[id]/_components/modais/ModalRubrica.svelte';
 	import type { SignaturePadConfirmPayload } from '$lib/components/SignaturePadTypes';
@@ -17,6 +19,7 @@
 	import ModalDownloadExtras from './_components/ModalDownloadExtras.svelte';
 	import DialogInfo from './_components/DialogInfo.svelte';
 	import { fmtDate, diaSemana } from '$lib/gise/gise-formatters';
+	import { MediaQuery } from 'svelte/reactivity';
 
 	type GiseEscala = {
 		id: number;
@@ -38,7 +41,7 @@
 		seccionais?: { id: number; tipos?: string[]; nome?: string }[];
 	};
 
-	const { data }: { data: PageData } = $props();
+	const { data }: PageProps = $props();
 
 	const escalas = $derived((data.escalas as GiseEscala[]) ?? []);
 	const isAdminGeral = $derived(!!data.isGeral);
@@ -54,14 +57,10 @@
 	const minhaSeccionalId = $derived(data.minhaSeccionalId ?? null);
 	const supervisaoExtraUnidadeId = $derived(data.supervisaoExtraUnidadeId ?? null);
 
-	let isDesktop = $state(true);
-	$effect(() => {
-		const mql = window.matchMedia('(min-width: 768px)');
-		isDesktop = mql.matches;
-		const handler = (e: MediaQueryListEvent) => (isDesktop = e.matches);
-		mql.addEventListener('change', handler);
-		return () => mql.removeEventListener('change', handler);
-	});
+	// MediaQuery (svelte/reactivity) substitui o matchMedia + listener manual;
+	// fallback `true` = desktop-first no SSR, como o $state(true) anterior.
+	const desktopQuery = new MediaQuery('(min-width: 768px)', true);
+	const isDesktop = $derived(desktopQuery.current);
 
 	const ITEMS_ATIVAS = 4;
 	let paginaAtivas = $state(1);
@@ -87,7 +86,6 @@
 
 	let giseParaAssinar = $state<GiseParaAssinar | null>(null);
 	let mostrarRubricaGise = $state(false);
-	let mostrarModalTokenExtra = $state(false);
 	let painelTokenGiseControl = $state<{ assinarComSerpro: () => Promise<void> } | null>(null);
 
 	const tokenPrepararUrl = $derived(
@@ -124,7 +122,10 @@
 			pendentesExtraIds: ativa.extrasPendentesIds
 		};
 		if (isDesktop) {
-			mostrarModalTokenExtra = true;
+			// Desktop assina direto com o token SERPRO, espelhando o fluxo da
+			// escala. (Antes ligava um flag de modal que nenhum template consumia,
+			// então o clique não fazia nada.)
+			void assinarExtrasComSerpro();
 		} else {
 			mostrarRubricaGise = true;
 		}
@@ -132,7 +133,6 @@
 
 	function cancelarAssinatura() {
 		mostrarRubricaGise = false;
-		mostrarModalTokenExtra = false;
 		giseParaAssinar = null;
 	}
 
@@ -427,9 +427,8 @@
 		loading.show('Assinando...');
 		try {
 			if (gise.tipo === 'escala') {
-				const r = await fetch(`/api/gise/${gise.id}/assinar-simples`, {
+				const r = await apiFetchResponse(`/api/gise/${gise.id}/assinar-simples`, {
 					method: 'POST',
-					headers: { 'Content-Type': 'application/json', ...csrfHeaders() },
 					body: JSON.stringify({
 						rubrica,
 						latitude: lat,
@@ -440,27 +439,13 @@
 						livenessChallenge
 					})
 				});
-				if (r.ok) {
-					const blob = await r.blob();
-					const a = document.createElement('a');
-					a.href = URL.createObjectURL(blob);
-					a.download = tokenNomeArquivo;
-					a.click();
-					toaster.success({ title: 'Escala GISE assinada com sucesso' });
-					await invalidateAll();
-				} else {
-					const j = (await r.json().catch(() => ({}))) as { error?: string; errorId?: string };
-					const titulo = j.error || 'Erro ao assinar';
-					toaster.error({
-						title: titulo,
-						description: j.errorId ? `Código de rastreamento: ${j.errorId}` : undefined
-					});
-				}
+				baixarBlob(await r.blob(), tokenNomeArquivo);
+				toaster.success({ title: 'Escala GISE assinada com sucesso' });
+				await invalidateAll();
 			} else {
 				for (const seccionalId of gise.pendentesExtraIds) {
-					const r = await fetch(`/api/gise/${gise.id}/relatorios/${seccionalId}/assinar`, {
+					await apiFetch(`/api/gise/${gise.id}/relatorios/${seccionalId}/assinar`, {
 						method: 'POST',
-						headers: { 'Content-Type': 'application/json', ...csrfHeaders() },
 						body: JSON.stringify({
 							tipo: 'extraordinario',
 							rubrica,
@@ -472,11 +457,6 @@
 							livenessChallenge
 						})
 					});
-					if (!r.ok) {
-						const j = (await r.json().catch(() => ({}))) as { error?: string; errorId?: string };
-						const base = j.error ?? 'Erro';
-						throw new Error(j.errorId ? `${base} (#${j.errorId})` : base);
-					}
 				}
 				toaster.success({
 					title: `${gise.pendentesExtraIds.length} relatório(s) de extra assinado(s)`
@@ -497,62 +477,27 @@
 	async function assinarExtrasComSerpro() {
 		const gise = giseParaAssinar;
 		if (!gise || gise.pendentesExtraIds.length === 0) return;
-		mostrarModalTokenExtra = false;
 		try {
 			const client = await conectarSerpro();
 			loading.show('Conectando ao Assinador SERPRO...');
-			const signerName = (data as { usuario?: { nome?: string } }).usuario?.nome ?? '';
-			const signerCpf = (data as { usuario?: { cpf?: string } }).usuario?.cpf ?? '';
+			const signerName = data.usuario?.nome ?? '';
+			const signerCpf = data.usuario?.cpf ?? '';
 			for (let i = 0; i < gise.pendentesExtraIds.length; i++) {
 				const seccionalId = gise.pendentesExtraIds[i];
 				loading.show(`Preparando PDF ${i + 1} de ${gise.pendentesExtraIds.length}...`);
-				const prepResp = await fetch(
-					`/api/gise/${gise.id}/relatorios/${seccionalId}/preparar-assinatura`,
-					{
-						method: 'POST',
-						headers: { 'Content-Type': 'application/json', ...csrfHeaders() },
-						body: JSON.stringify({ signerName, signerCpf, rubrica: null })
-					}
-				);
-				if (!prepResp.ok)
-					throw new Error(
-						((await prepResp.json()) as { error?: string }).error ?? 'Erro na preparação'
-					);
-				const prepData = (await prepResp.json()) as {
-					preparedPdf: string;
-					messageDigest: string;
-					signingTimeISO: string;
-					verificationHash: string;
-				};
-				loading.show(`Assinando ${i + 1} de ${gise.pendentesExtraIds.length}...`);
-				const messageDigestBase64 = btoa(
-					prepData.messageDigest
-						.match(/.{2}/g)!
-						.map((h) => String.fromCharCode(parseInt(h, 16)))
-						.join('')
-				);
-				const serproRes = await client.sign(messageDigestBase64);
-				loading.show(`Finalizando ${i + 1} de ${gise.pendentesExtraIds.length}...`);
-				const finResp = await fetch(
-					`/api/gise/${gise.id}/relatorios/${seccionalId}/finalizar-assinatura`,
-					{
-						method: 'POST',
-						headers: { 'Content-Type': 'application/json', ...csrfHeaders() },
-						body: JSON.stringify({
-							preparedPdf: prepData.preparedPdf,
-							serproCms: serproRes.rawSignature,
-							messageDigest: prepData.messageDigest,
-							signingTimeISO: prepData.signingTimeISO,
-							signerName,
-							signerCpf,
-							verificationHash: prepData.verificationHash
-						})
-					}
-				);
-				if (!finResp.ok)
-					throw new Error(
-						((await finResp.json()) as { error?: string }).error ?? 'Erro na finalização'
-					);
+				await executarFluxoAssinaturaToken({
+					prepararUrl: `/api/gise/${gise.id}/relatorios/${seccionalId}/preparar-assinatura`,
+					finalizarUrl: `/api/gise/${gise.id}/relatorios/${seccionalId}/finalizar-assinatura`,
+					payloadPreparar: { signerName, signerCpf, rubrica: null },
+					obterAssinatura: async (prep) => {
+						loading.show(`Assinando ${i + 1} de ${gise.pendentesExtraIds.length}...`);
+						const serproRes = await client.sign(digestHexParaBase64(prep.messageDigest));
+						return { serproCms: serproRes.rawSignature };
+					},
+					payloadFinalizar: { signerName, signerCpf },
+					onFinalizando: () =>
+						loading.show(`Finalizando ${i + 1} de ${gise.pendentesExtraIds.length}...`)
+				});
 			}
 			toaster.success({
 				title: `${gise.pendentesExtraIds.length} relatório(s) assinado(s) com token`
@@ -748,8 +693,8 @@
 		prepararUrl={tokenPrepararUrl}
 		finalizarUrl={tokenFinalizarUrl}
 		nomeArquivo={tokenNomeArquivo}
-		signerName={(data as { usuario?: { nome?: string } }).usuario?.nome ?? ''}
-		signerCpf={(data as { usuario?: { cpf?: string } }).usuario?.cpf ?? ''}
+		signerName={data.usuario?.nome ?? ''}
+		signerCpf={data.usuario?.cpf ?? ''}
 		bind:control={painelTokenGiseControl}
 		onSuccess={async () => {
 			giseParaAssinar = null;

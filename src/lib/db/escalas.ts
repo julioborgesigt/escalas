@@ -8,7 +8,7 @@ import {
 } from '../server/schema';
 import type * as schema from '../server/schema';
 import type { EscalaPolicialComDados, EscalaListagem } from '../types';
-import type { Database } from './core';
+import { batchNonEmpty, type Database } from './core';
 
 /** Escapa caracteres especiais do LIKE para evitar wildcard injection */
 function escapeLike(str: string): string {
@@ -282,8 +282,7 @@ export async function adicionarTodosPoliciais(
 			hora_saida: horaSaida
 		})
 	);
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any -- .map() returns T[] but db.batch() requires [U, ...U[]] non-empty tuple
-	await db.batch(insertsLote as any);
+	await batchNonEmpty(db, insertsLote);
 
 	return novos.length;
 }

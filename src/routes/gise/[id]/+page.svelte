@@ -1,15 +1,16 @@
 <script lang="ts">
 	import { PenLine } from 'lucide-svelte';
-	import { goto, invalidate, invalidateAll, replaceState } from '$app/navigation';
-	import type { PageData } from './$types';
+	import { goto, invalidate, replaceState } from '$app/navigation';
+	import type { PageProps } from './$types';
 	import { page } from '$app/state';
 	import { browser } from '$app/environment';
 	import { untrack } from 'svelte';
 	import { toaster } from '$lib/toast';
+	import { apiFetch } from '$lib/api-fetch';
 	import { enhance } from '$app/forms';
 	import { useGiseEstado, useGiseAssinatura } from '$lib/composables/gise';
 	import { loading } from '$lib/loading.svelte';
-	import type { Policial, Unidade, GiseAssinaturaRelatorio } from '$lib/server/schema';
+	import type { Policial, GiseAssinaturaRelatorio } from '$lib/server/schema';
 	import { checkAllSigned, filtrarSeccionaisDisponiveis } from '$lib/gise/gise-page-helpers';
 	import {
 		quadroSupervisaoExtraExigeRelatorio,
@@ -32,7 +33,7 @@
 	import ModalBreveRelatorio from './_components/modais/ModalBreveRelatorio.svelte';
 	import ModalDownloadExtras from '../_components/ModalDownloadExtras.svelte';
 
-	const { data }: { data: PageData } = $props();
+	const { data }: PageProps = $props();
 
 	// Hook de estados derivados e permissões
 	const giseEstado = useGiseEstado({ getData: () => data });
@@ -84,17 +85,6 @@
 			}
 		}
 		return lista;
-	});
-
-	const nomesSupervisaoPorId = $derived.by(() => {
-		// eslint-disable-next-line svelte/prefer-svelte-reactivity
-		const m = new Map<number, string>();
-		if (!gise) return m;
-		if (gise.supervisor_id && gise.supervisor_nome) m.set(gise.supervisor_id, gise.supervisor_nome);
-		if (gise.assessor_id && gise.assessor_nome) m.set(gise.assessor_id, gise.assessor_nome);
-		if (gise.seint1_id && gise.seint1_nome) m.set(gise.seint1_id, gise.seint1_nome);
-		if (gise.seint2_id && gise.seint2_nome) m.set(gise.seint2_id, gise.seint2_nome);
-		return m;
 	});
 
 	// Hook de assinatura (captura de rubrica, assinatura simples/SERPRO, lote de relatórios)
@@ -174,9 +164,7 @@
 	}
 
 	// Gerenciamento de seccionais (Admin Geral) — derivado dos dados já carregados
-	const seccionaisDisponiveis = $derived(
-		filtrarSeccionaisDisponiveis(gise, todasUnidades as Unidade[])
-	);
+	const seccionaisDisponiveis = $derived(filtrarSeccionaisDisponiveis(gise, todasUnidades));
 	let adicionandoSeccional = $state(false);
 	let seccionalParaAdicionarIdx = $state<number | ''>('');
 	let pendingCrud = $state(false);
@@ -220,13 +208,13 @@
 			return;
 		}
 		try {
-			const res = await fetch(`/api/policiais/${id}/email-aviso`);
-			if (!res.ok) return;
-			const d = (await res.json()) as { email_pessoal?: string | null; email?: string | null };
+			const d = await apiFetch<{ email_pessoal?: string | null; email?: string | null }>(
+				`/api/policiais/${id}/email-aviso`
+			);
 			if (assessorId !== id) return;
 			assessorEmailNotificacao = (d.email_pessoal?.trim() || d.email?.trim() || '') ?? '';
 		} catch {
-			/* ignora falha de rede */
+			/* preenchimento é best-effort — ignora falha de rede/servidor */
 		}
 	}
 
@@ -450,7 +438,6 @@
 			{diaSemana}
 			{fmtDate}
 			{isAdminGeral}
-			{isSeccional}
 			{podeDownload}
 			{podeEditar}
 			{podeReabrir}
@@ -555,7 +542,6 @@
 				{podeDownload}
 				{isSupervisor}
 				{isMobile}
-				restringirSmartphone={data.restringirSmartphone}
 				onAssinarExtraSupervisaoManual={() => {
 					const id = data.supervisaoExtraUnidadeId;
 					if (id) assinatura.abrirAssinaturaRelatorio(id, 'extraordinario');
@@ -584,7 +570,6 @@
 							etapaAssinatura={assinatura.etapaAssinatura}
 							progressoLote={assinatura.progressoLote}
 							{isMobile}
-							restringirSmartphone={data.restringirSmartphone}
 							onAssinarManualLote={assinatura.abrirAssinaturaLote}
 							onAssinarDigitalLote={assinatura.executarAssinarRelatorioLoteSERPRO}
 							assinaturasRelatorios={data.assinaturasRelatorios}
@@ -638,7 +623,7 @@
 						<GiseSeccional
 							{sec}
 							{gise}
-							todasUnidades={todasUnidades as Unidade[]}
+							{todasUnidades}
 							{isAdminGeral}
 							{isSeccional}
 							{isSupervisor}

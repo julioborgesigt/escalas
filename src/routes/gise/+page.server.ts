@@ -19,7 +19,7 @@ import { buscarConfiguracao } from '$lib/db/configuracoes';
 
 export const load: PageServerLoad = async ({ locals, platform }) => {
 	const u = locals.usuario;
-	if (!u) throw redirect(302, '/login');
+	if (!u) redirect(302, '/login');
 
 	const db = getDB(platform);
 
@@ -37,7 +37,7 @@ export const load: PageServerLoad = async ({ locals, platform }) => {
 
 	// Servidores sem qualquer vínculo com GISE: redirecionar
 	if (!isGeral && !isSeccional && !isSupervisor && !isMembro) {
-		throw redirect(302, '/');
+		redirect(302, '/');
 	}
 
 	const isUnidade = isAdminUnidade(u);

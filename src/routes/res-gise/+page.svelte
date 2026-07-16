@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { untrack } from 'svelte';
+	import type { PageProps } from './$types';
 	import { goto } from '$app/navigation';
 	import { page, navigating } from '$app/state';
 	import SkeletonCard from '$lib/components/SkeletonCard.svelte';
@@ -14,7 +14,7 @@
 	import FormularioServico from './FormularioServico.svelte';
 	import { toaster } from '$lib/toast';
 
-	const { data } = $props();
+	const { data }: PageProps = $props();
 	const auth = useAutorizacao();
 	const isAdminGeral = $derived(auth.isAdmin);
 	const resGise = useResGise(() => data);
@@ -39,11 +39,8 @@
 	function rubricaValida(v: string | null | undefined): string | null {
 		return typeof v === 'string' && v.startsWith('data:image/') && v.length > 100 ? v : null;
 	}
-	// eslint-disable-next-line svelte/prefer-writable-derived
-	let minhaRubrica = $state<string | null>(untrack(() => rubricaValida(data.minhaRubrica)));
-	$effect(() => {
-		minhaRubrica = rubricaValida(data.minhaRubrica);
-	});
+	// Derivado gravável: espelha o load, mas admite o set local pós-cadastro.
+	let minhaRubrica: string | null = $derived(rubricaValida(data.minhaRubrica));
 
 	function voltarParaLista() {
 		resGise.escalaSelecionada = null;

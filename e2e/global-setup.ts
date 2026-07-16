@@ -22,6 +22,8 @@ export const FIXTURE = {
 	policialA: { id: 99001, matricula: 'EE990001' },
 	policialB: { id: 99002, matricula: 'EE990002' },
 	escalaA: { id: 99001 },
+	/** Escala de DEL-A COM policial escalado e SEM documento — alvo do spec de assinatura. */
+	escalaAssinavel: { id: 99002 },
 	// ── GISE ativa (telas /gise/[id] e /res-gise) ─────────────────────────
 	seccional: { id: 99010, nome: 'SECCIONAL E2E FIXTURE' },
 	supervisor: { id: 99003, matricula: 'EE990003', nome: 'Supervisor Fixture DPC' },
@@ -45,7 +47,30 @@ function execSqlSafe(sql: string): boolean {
 	}
 }
 
+/**
+ * Aplica as migrations pendentes no D1 LOCAL antes de semear. Sem isto, num
+ * ambiente limpo (CI, container novo) o banco não tem NENHUMA tabela: os
+ * seeds abaixo falham silenciosamente (execSqlSafe → false), specs
+ * autenticados pulam e o login estoura 500 ("no such table: login_attempts")
+ * em vez dos 401/403 que o auth.spec espera. Em máquina de dev já migrada é
+ * um no-op rápido (controle em `_migrations_aplicadas`).
+ */
+function aplicarMigracoesLocais(): boolean {
+	try {
+		execSync('npx tsx scripts/migrate.ts', { cwd: ROOT, stdio: 'pipe' });
+		return true;
+	} catch {
+		return false;
+	}
+}
+
 export default async function globalSetup() {
+	if (!aplicarMigracoesLocais()) {
+		console.warn(
+			'[global-setup] Falha ao aplicar migrations no D1 local — specs que dependem do banco vão falhar/pular.'
+		);
+	}
+
 	// Limpa tentativas de login no D1 local para e2e não herdarem rate limit
 	// de execuções anteriores (preview reutiliza o mesmo arquivo de estado
 	// com `reuseExistingServer`). Sessões semeadas (e2e/session.ts) das contas
@@ -80,6 +105,13 @@ export default async function globalSetup() {
 		DELETE FROM escala_documentos WHERE escala_id = ${FIXTURE.escalaA.id};
 		INSERT INTO escala_documentos (escala_id, r2_key, assinante_nome, verificacao_hash)
 		VALUES (${FIXTURE.escalaA.id}, 'test/fixture-${FIXTURE.escalaA.id}.pdf', 'Policial Fixture A', 'fixture-hash-${FIXTURE.escalaA.id}');
+		INSERT OR REPLACE INTO escalas (id, titulo, cidade, tipo, lotacao, data_inicio, data_fim)
+		VALUES
+			(${FIXTURE.escalaAssinavel.id}, 'Escala E2E Assinável', 'Fortaleza', 'plantao', '${FIXTURE.unidadeA.nome}', '2026-02-01', '2026-02-28');
+		DELETE FROM escala_policiais WHERE escala_id = ${FIXTURE.escalaAssinavel.id};
+		INSERT INTO escala_policiais (escala_id, policial_id, data_plantao, hora_entrada, hora_saida, equipe)
+		VALUES (${FIXTURE.escalaAssinavel.id}, ${FIXTURE.policialA.id}, '2026-02-01', '08:00', '20:00', '1');
+		DELETE FROM escala_documentos WHERE escala_id = ${FIXTURE.escalaAssinavel.id};
 	`;
 
 	const fixtureOk = execSqlSafe(fixtureSeed);

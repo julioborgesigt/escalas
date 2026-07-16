@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { PenLine, Image as ImageIcon } from 'lucide-svelte';
 	import { Dialog, Tabs } from '@skeletonlabs/skeleton-svelte';
-	import { csrfHeaders } from '$lib/csrf';
+	import { apiFetch } from '$lib/api-fetch';
 	import { toaster } from '$lib/toast';
 	import RubricaCanvas, { type RubricaCanvasControl } from './RubricaCanvas.svelte';
 
@@ -242,13 +242,10 @@
 		}
 		salvando = true;
 		try {
-			const res = await fetch('/api/perfil/rubrica', {
+			await apiFetch('/api/perfil/rubrica', {
 				method: 'POST',
-				headers: { ...csrfHeaders(), 'Content-Type': 'application/json' },
 				body: JSON.stringify({ rubrica, consentimento: true })
 			});
-			const json = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-			if (!res.ok) throw new Error((json.error as string) || 'Falha ao salvar rubrica');
 			toaster.success({ title: 'Rubrica cadastrada com sucesso.' });
 			onSaved?.(rubrica);
 			open = false;
@@ -262,11 +259,7 @@
 	async function excluir() {
 		salvando = true;
 		try {
-			const res = await fetch('/api/perfil/rubrica', { method: 'DELETE', headers: csrfHeaders() });
-			if (!res.ok) {
-				const json = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-				throw new Error((json.error as string) || 'Falha ao excluir rubrica');
-			}
+			await apiFetch('/api/perfil/rubrica', { method: 'DELETE' });
 			toaster.success({ title: 'Rubrica removida.' });
 			onSaved?.(null);
 			open = false;

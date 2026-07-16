@@ -1,8 +1,8 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
-	import { csrfHeaders } from '$lib/csrf';
 	import { loading } from '$lib/loading.svelte';
+	import { useVerificacaoEmailPessoal } from '$lib/composables';
 	import type { ActionResult } from '@sveltejs/kit';
 
 	let senhaAtual = $state('');
@@ -13,61 +13,21 @@
 	const primeiroAcesso = $derived(page.data.primeiro_acesso);
 
 	// --- E-mail pessoal (apenas no primeiro acesso) ---
-	let emailPessoal = $state('');
-	let etapaEmailPessoal = $state<'idle' | 'enviando' | 'aguardando_codigo' | 'verificado'>('idle');
-	let codigoEmailPessoal = $state('');
-	let desafioIdEmailPessoal = $state('');
-	let emailMascaradoPessoal = $state('');
-	let erroEmailPessoal = $state('');
+	const verificacaoEmail = useVerificacaoEmailPessoal();
 
 	async function enviarCodigoEmailPessoal() {
-		erroEmailPessoal = '';
 		loading.show('Enviando código de verificação...');
-		etapaEmailPessoal = 'enviando';
 		try {
-			const res = await fetch('/api/auth/solicitar-verificacao-email-pessoal', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json', ...csrfHeaders() },
-				body: JSON.stringify({ email: emailPessoal })
-			});
-			const data = await res.json();
-			if (res.ok) {
-				desafioIdEmailPessoal = data.desafioId;
-				emailMascaradoPessoal = data.emailMascarado;
-				etapaEmailPessoal = 'aguardando_codigo';
-			} else {
-				erroEmailPessoal = data.error ?? 'Falha ao enviar código.';
-				etapaEmailPessoal = 'idle';
-			}
-		} catch {
-			erroEmailPessoal = 'Erro de conexão. Tente novamente.';
-			etapaEmailPessoal = 'idle';
+			await verificacaoEmail.enviarCodigo();
 		} finally {
 			loading.hide();
 		}
 	}
 
 	async function confirmarCodigoEmailPessoal() {
-		erroEmailPessoal = '';
 		loading.show('Verificando código...');
 		try {
-			const res = await fetch('/api/auth/confirmar-verificacao-email-pessoal', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json', ...csrfHeaders() },
-				body: JSON.stringify({
-					desafioId: desafioIdEmailPessoal,
-					codigo: codigoEmailPessoal,
-					email: emailPessoal
-				})
-			});
-			const data = await res.json();
-			if (res.ok && data.ok) {
-				etapaEmailPessoal = 'verificado';
-			} else {
-				erroEmailPessoal = data.error ?? 'Código inválido.';
-			}
-		} catch {
-			erroEmailPessoal = 'Erro de conexão. Tente novamente.';
+			await verificacaoEmail.confirmarCodigo();
 		} finally {
 			loading.hide();
 		}
@@ -75,7 +35,7 @@
 
 	const forca = $derived(validarForcaSenha(novaSenha, confirmarSenha));
 	const senhaOk = $derived(forca.senhaOk);
-	const emailPessoalOk = $derived(!primeiroAcesso || etapaEmailPessoal === 'verificado');
+	const emailPessoalOk = $derived(!primeiroAcesso || verificacaoEmail.etapa === 'verificado');
 	const podeAlterarSenha = $derived(senhaOk && forca.confirmaOk && emailPessoalOk);
 
 	import { enhance } from '$app/forms';
@@ -84,7 +44,7 @@
 	function handleAlterarSenha({ cancel }: { cancel: () => void }) {
 		error = '';
 
-		if (primeiroAcesso && etapaEmailPessoal !== 'verificado') {
+		if (primeiroAcesso && verificacaoEmail.etapa !== 'verificado') {
 			error = 'Confirme seu e-mail pessoal para continuar o primeiro acesso.';
 			cancel();
 			return;
@@ -195,7 +155,7 @@
 						</p>
 					</div>
 
-					{#if etapaEmailPessoal === 'verificado'}
+					{#if verificacaoEmail.etapa === 'verificado'}
 						<div
 							class="flex items-center gap-2 text-success-600 dark:text-success-400 text-sm font-medium"
 						>
@@ -210,26 +170,27 @@
 							</svg>
 							E-mail pessoal verificado com sucesso!
 						</div>
-					{:else if etapaEmailPessoal === 'idle' || etapaEmailPessoal === 'enviando'}
+					{:else if verificacaoEmail.etapa === 'dados'}
 						<div class="flex gap-2">
 							<input
 								class="input flex-1 text-sm"
 								type="email"
 								placeholder="seu@email.com"
-								bind:value={emailPessoal}
+								bind:value={verificacaoEmail.email}
 								disabled={loading.active}
 							/>
 							<button
 								type="button"
 								onclick={enviarCodigoEmailPessoal}
-								disabled={loading.active || !emailPessoal.trim()}
+								disabled={loading.active || !verificacaoEmail.email.trim()}
 							>
 								{loading.active ? 'Enviando...' : 'Enviar código'}
 							</button>
 						</div>
-					{:else if etapaEmailPessoal === 'aguardando_codigo'}
+					{:else if verificacaoEmail.etapa === 'codigo'}
 						<p class="text-xs text-surface-500">
-							Código enviado para <strong>{emailMascaradoPessoal}</strong>. Válido por 10 minutos.
+							Código enviado para <strong>{verificacaoEmail.emailMascarado}</strong>. Válido por 10
+							minutos.
 						</p>
 						<div class="flex gap-2">
 							<input
@@ -238,9 +199,9 @@
 								placeholder="000000"
 								maxlength="6"
 								inputmode="numeric"
-								bind:value={codigoEmailPessoal}
+								bind:value={verificacaoEmail.codigo}
 								oninput={(e) =>
-									(codigoEmailPessoal = e.currentTarget.value.replace(/\D/g, '').slice(0, 6))}
+									(verificacaoEmail.codigo = e.currentTarget.value.replace(/\D/g, '').slice(0, 6))}
 								disabled={loading.active}
 							/>
 							<button type="button" onclick={confirmarCodigoEmailPessoal}>
@@ -250,20 +211,17 @@
 						<button
 							type="button"
 							class="text-xs text-surface-500 dark:text-surface-400 hover:text-surface-700 dark:hover:text-surface-200 underline underline-offset-2"
-							onclick={() => {
-								etapaEmailPessoal = 'idle';
-								codigoEmailPessoal = '';
-							}}
+							onclick={verificacaoEmail.voltarParaDados}
 						>
 							Usar outro e-mail
 						</button>
 					{/if}
 
-					{#if erroEmailPessoal}
-						<p class="text-xs text-error-600 dark:text-error-400">{erroEmailPessoal}</p>
+					{#if verificacaoEmail.erro}
+						<p class="text-xs text-error-600 dark:text-error-400">{verificacaoEmail.erro}</p>
 					{/if}
 
-					{#if etapaEmailPessoal !== 'verificado'}
+					{#if verificacaoEmail.etapa !== 'verificado'}
 						<p class="text-3xs text-surface-500 dark:text-surface-400 italic">
 							A alteração da senha ficará disponível após a confirmação do e-mail pessoal.
 						</p>

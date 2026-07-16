@@ -12,7 +12,8 @@
  *  - Policial comum: só pode buscar policiais da própria lotação.
  */
 
-import { json, type RequestHandler } from '@sveltejs/kit';
+import { json } from '@sveltejs/kit';
+import type { RequestHandler } from './$types';
 import { getDB, listarPoliciais } from '$lib/db';
 import { isAdminGeral, isAdminSeccional, isAdminUnidade } from '$lib/auth';
 import { policialSearchQuerySchema } from '$lib/schemas';

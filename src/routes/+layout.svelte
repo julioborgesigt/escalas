@@ -1,4 +1,5 @@
 <script lang="ts">
+	import type { LayoutProps } from './$types';
 	import '../app.css';
 	// Preload das duas fontes críticas acima da dobra (corpo + títulos): sem
 	// isto o browser só descobre os woff2 após baixar e parsear o CSS, e o
@@ -10,30 +11,18 @@
 	import { tick } from 'svelte';
 	import { page, navigating } from '$app/state';
 	import { goto, onNavigate, afterNavigate } from '$app/navigation';
-	import { Toast, Dialog, Avatar } from '@skeletonlabs/skeleton-svelte';
+	import { Toast, Dialog } from '@skeletonlabs/skeleton-svelte';
 	import { toaster } from '$lib/toast';
-	import { csrfHeaders } from '$lib/csrf';
+	import { apiFetch } from '$lib/api-fetch';
 	import { loading } from '$lib/loading.svelte';
 	import LoadingOverlay from '$lib/components/LoadingOverlay.svelte';
 	import Spinner from '$lib/components/Spinner.svelte';
 	import AvisoCadastroRubrica from '$lib/components/AvisoCadastroRubrica.svelte';
 	import { useScrollLock } from '$lib/composables';
 
-	const { children } = $props();
+	const { children }: LayoutProps = $props();
 
 	const usuario = $derived(page.data.usuario);
-	const iniciaisUsuario = $derived(
-		usuario?.nome
-			? usuario.nome
-					.trim()
-					.split(/\s+/)
-					.map((n: string) => n[0])
-					.filter(Boolean)
-					.slice(0, 2)
-					.join('')
-					.toUpperCase()
-			: ''
-	);
 	const isSupervisorGise = $derived(page.data.isSupervisorGise ?? false);
 	const isMembroGise = $derived(page.data.isMembroGise ?? false);
 	const isSupervisaoGise = $derived(page.data.isSupervisaoGise ?? false);
@@ -98,7 +87,7 @@
 	async function logout() {
 		isLoggingOut = true;
 		try {
-			await fetch('/api/auth/logout', { method: 'POST', headers: csrfHeaders() });
+			await apiFetch('/api/auth/logout', { method: 'POST' });
 		} catch {
 			/* ignora erros de rede — o redirecionamento ocorre de qualquer forma */
 		}
@@ -134,20 +123,17 @@
 		switchingModule = true;
 		loading.show('Alternando módulo...');
 		try {
-			const res = await fetch('/api/auth/alternar-modulo', {
-				method: 'POST',
-				headers: csrfHeaders()
+			const result = await apiFetch<{ redirect?: string }>('/api/auth/alternar-modulo', {
+				method: 'POST'
 			});
-			if (res.ok) {
-				const result = await res.json();
-				if (result.redirect) {
-					await goto(result.redirect, { invalidateAll: true });
-				}
-			} else {
-				toaster.create({ title: 'Erro ao alternar módulo', type: 'error' });
+			if (result.redirect) {
+				await goto(result.redirect, { invalidateAll: true });
 			}
-		} catch {
-			toaster.create({ title: 'Erro de conexão ao alternar módulo', type: 'error' });
+		} catch (e: unknown) {
+			toaster.create({
+				title: e instanceof Error ? e.message : 'Erro ao alternar módulo',
+				type: 'error'
+			});
 		} finally {
 			switchingModule = false;
 			loading.hide();

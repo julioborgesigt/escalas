@@ -9,7 +9,7 @@ import {
 
 export async function load({ locals, platform, url }: PageServerLoadEvent) {
 	if (!locals.usuario || locals.usuario.tipo !== 'admin') {
-		throw error(403, 'Acesso restrito ao Administrador Geral');
+		error(403, 'Acesso restrito ao Administrador Geral');
 	}
 
 	const db = getDB(platform);

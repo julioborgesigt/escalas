@@ -11,7 +11,7 @@ import {
 	listarSolicitacoesEscalas
 } from '$lib/db';
 import { escalaSchema } from '$lib/schemas';
-import { registrarAuditComContexto, contextoDeEvento, getR2, hasR2 } from '$lib/db';
+import { registrarAuditComContexto, contextoDeEvento, getR2, hasR2, batchNonEmpty } from '$lib/db';
 import { limparR2DocumentoEscala } from '$lib/server/r2-cleanup';
 import { logger } from '$lib/server/logger';
 import { eq, or, and, inArray, sql, desc, type SQL } from 'drizzle-orm';
@@ -40,14 +40,14 @@ export const load: PageServerLoad = async ({ locals, platform, url, depends }) =
 	depends('app:escalas');
 
 	const u = locals.usuario;
-	if (!u) throw redirect(302, '/login');
+	if (!u) redirect(302, '/login');
 
 	// Admin geral n\u00e3o tem acesso \u00e0 listagem de escalas (aba "Arquivo")
 	if (u.tipo === 'admin') {
-		throw redirect(302, '/');
+		redirect(302, '/');
 	}
 	if (u.papel !== 'admin_seccional' && u.papel !== 'admin_unidade') {
-		throw redirect(302, '/');
+		redirect(302, '/');
 	}
 
 	const db = getDB(platform);
@@ -122,87 +122,80 @@ export const load: PageServerLoad = async ({ locals, platform, url, depends }) =
 	const podeOIPSolicitar =
 		(u.papel === 'admin_seccional' || u.papel === 'admin_unidade') && u.cargo === 'OIP';
 
-	let escalasParaAssinarQuery: ReturnType<typeof db.select> | Promise<never[]> = Promise.resolve(
-		[]
-	);
-	if (podeAssinar) {
+	// Query das escalas pendentes de assinatura. Montada numa função para que o
+	// tipo das linhas seja INFERIDO da própria cadeia do drizzle — um `let`
+	// anotado com `ReturnType<typeof db.select>` exigia `as any` nos dois ramos
+	// (a cadeia com .where/.limit é um subtipo especializado) e casts manuais
+	// no retorno do load e na página.
+	const montarQueryEscalasParaAssinar = () => {
 		const subqDocs = db.select({ escala_id: escalaDocumentos.escala_id }).from(escalaDocumentos);
 		const baseWhere = and(
 			or(eq(escalasTable.tipo, 'plantao'), eq(escalasTable.tipo, 'expediente'))!,
 			sql`${escalasTable.id} NOT IN (${subqDocs})` as SQL
 		);
+		const camposEscala = {
+			id: escalasTable.id,
+			titulo: escalasTable.titulo,
+			cidade: escalasTable.cidade,
+			data_inicio: escalasTable.data_inicio,
+			data_fim: escalasTable.data_fim,
+			tipo: escalasTable.tipo,
+			lotacao: escalasTable.lotacao,
+			is_assinada: sql<boolean>`EXISTS (SELECT 1 FROM escala_documentos WHERE escala_id = ${escalasTable.id})`
+		};
 
 		if (isAdmin) {
 			// Admin geral vê todas as escalas não assinadas (sem exigir solicitação)
-			escalasParaAssinarQuery = db
-				.select({
-					id: escalasTable.id,
-					titulo: escalasTable.titulo,
-					cidade: escalasTable.cidade,
-					data_inicio: escalasTable.data_inicio,
-					data_fim: escalasTable.data_fim,
-					tipo: escalasTable.tipo,
-					lotacao: escalasTable.lotacao,
-					is_assinada: sql<boolean>`EXISTS (SELECT 1 FROM escala_documentos WHERE escala_id = ${escalasTable.id})`
-				})
+			return db
+				.select(camposEscala)
 				.from(escalasTable)
 				.where(baseWhere)
 				.orderBy(desc(escalasTable.created_at))
-				// eslint-disable-next-line @typescript-eslint/no-explicit-any
-				.limit(50) as any; // drizzle's chained query type is a specialized subtype of ReturnType<typeof db.select>
-		} else {
-			// DPC admin só vê escalas que têm uma solicitação direcionada a eles
-			let scopeCondition;
-			if (u.papel === 'admin_unidade' && u.lotacao) {
-				scopeCondition = or(
-					and(
-						eq(escalaSolicitacoesAssinatura.tipo, 'unidade'),
-						eq(escalasTable.lotacao, u.lotacao)
-					),
-					and(
-						eq(escalaSolicitacoesAssinatura.tipo, 'respondencia'),
-						eq(escalaSolicitacoesAssinatura.destinatario_id, u.id)
-					)
-				);
-			} else if (
-				u.papel === 'admin_seccional' &&
-				lotacoesPermitidas &&
-				lotacoesPermitidas.length > 0
-			) {
-				scopeCondition = or(
-					and(
-						eq(escalaSolicitacoesAssinatura.tipo, 'unidade'),
-						inArray(escalasTable.lotacao, lotacoesPermitidas)
-					),
-					and(
-						eq(escalaSolicitacoesAssinatura.tipo, 'respondencia'),
-						eq(escalaSolicitacoesAssinatura.destinatario_id, u.id)
-					)
-				);
-			}
-
-			escalasParaAssinarQuery = db
-				.select({
-					id: escalasTable.id,
-					titulo: escalasTable.titulo,
-					cidade: escalasTable.cidade,
-					data_inicio: escalasTable.data_inicio,
-					data_fim: escalasTable.data_fim,
-					tipo: escalasTable.tipo,
-					lotacao: escalasTable.lotacao,
-					is_assinada: sql<boolean>`EXISTS (SELECT 1 FROM escala_documentos WHERE escala_id = ${escalasTable.id})`
-				})
-				.from(escalasTable)
-				.innerJoin(
-					escalaSolicitacoesAssinatura,
-					eq(escalaSolicitacoesAssinatura.escala_id, escalasTable.id)
-				)
-				.where(scopeCondition ? and(baseWhere, scopeCondition!) : baseWhere)
-				.orderBy(desc(escalasTable.created_at))
-				// eslint-disable-next-line @typescript-eslint/no-explicit-any
-				.limit(50) as any; // drizzle's chained query type is a specialized subtype of ReturnType<typeof db.select>
+				.limit(50);
 		}
-	}
+
+		// DPC admin só vê escalas que têm uma solicitação direcionada a eles
+		let scopeCondition;
+		if (u.papel === 'admin_unidade' && u.lotacao) {
+			scopeCondition = or(
+				and(eq(escalaSolicitacoesAssinatura.tipo, 'unidade'), eq(escalasTable.lotacao, u.lotacao)),
+				and(
+					eq(escalaSolicitacoesAssinatura.tipo, 'respondencia'),
+					eq(escalaSolicitacoesAssinatura.destinatario_id, u.id)
+				)
+			);
+		} else if (
+			u.papel === 'admin_seccional' &&
+			lotacoesPermitidas &&
+			lotacoesPermitidas.length > 0
+		) {
+			scopeCondition = or(
+				and(
+					eq(escalaSolicitacoesAssinatura.tipo, 'unidade'),
+					inArray(escalasTable.lotacao, lotacoesPermitidas)
+				),
+				and(
+					eq(escalaSolicitacoesAssinatura.tipo, 'respondencia'),
+					eq(escalaSolicitacoesAssinatura.destinatario_id, u.id)
+				)
+			);
+		}
+
+		return db
+			.select(camposEscala)
+			.from(escalasTable)
+			.innerJoin(
+				escalaSolicitacoesAssinatura,
+				eq(escalaSolicitacoesAssinatura.escala_id, escalasTable.id)
+			)
+			.where(scopeCondition ? and(baseWhere, scopeCondition!) : baseWhere)
+			.orderBy(desc(escalasTable.created_at))
+			.limit(50);
+	};
+
+	const escalasParaAssinarQuery = podeAssinar
+		? montarQueryEscalasParaAssinar()
+		: Promise.resolve([]);
 
 	const [resultado, unidades, escalasExistentes, escalasParaAssinarRaw] = await Promise.all([
 		skipLoad
@@ -278,16 +271,7 @@ export const load: PageServerLoad = async ({ locals, platform, url, depends }) =
 		minhaRubrica,
 		podeOIPSolicitar,
 		solicitacoesMap,
-		escalasParaAssinar: escalasParaAssinar as Array<{
-			id: number;
-			titulo: string;
-			cidade: string;
-			data_inicio: string;
-			data_fim: string;
-			tipo: string;
-			lotacao: string;
-			is_assinada: boolean;
-		}>
+		escalasParaAssinar
 	};
 };
 
@@ -555,8 +539,10 @@ export const actions: Actions = {
 				const BATCH_SIZE = 50;
 				for (let i = 0; i < linhasParaInserir.length; i += BATCH_SIZE) {
 					const chunk = linhasParaInserir.slice(i, i + BATCH_SIZE);
-					// eslint-disable-next-line @typescript-eslint/no-explicit-any
-					await db.batch(chunk.map((row) => db.insert(escalaPoliciais).values(row)) as any); // drizzle batch requires a non-empty tuple type; array from .map() is not assignable
+					await batchNonEmpty(
+						db,
+						chunk.map((row) => db.insert(escalaPoliciais).values(row))
+					);
 				}
 			}
 

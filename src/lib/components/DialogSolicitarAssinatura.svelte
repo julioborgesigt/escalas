@@ -1,7 +1,8 @@
 <script lang="ts">
 	import { Dialog } from '@skeletonlabs/skeleton-svelte';
-	import { csrfHeaders } from '$lib/csrf';
+	import { apiFetch } from '$lib/api-fetch';
 	import { toaster } from '$lib/toast';
+	import { useBuscaDebounce } from '$lib/composables';
 	import Spinner from '$lib/components/Spinner.svelte';
 
 	/**
@@ -23,105 +24,59 @@
 		}) => void | Promise<void>;
 	} = $props();
 
+	type Destinatario = { id: number; nome: string; cargo: string; lotacao: string };
+
 	let opcaoSolicitacao = $state<'unidade' | 'respondencia'>('unidade');
 	let buscaDestinatario = $state('');
 	let destinatarioSelecionado = $state<{ id: number; nome: string; lotacao: string } | null>(null);
-	let resultadosBuscaDestinatario = $state<
-		Array<{ id: number; nome: string; cargo: string; lotacao: string }>
-	>([]);
-	let buscandoDestinatario = $state(false);
 	let enviandoSolicitacao = $state(false);
-	let erroBuscaDestinatario = $state('');
 
-	let buscaTimer: ReturnType<typeof setTimeout> | null = null;
-	let buscaController: AbortController | null = null;
+	const busca = useBuscaDebounce<Destinatario>({
+		minChars: 2,
+		mensagemVazia: 'Nenhum delegado (DPC) administrador encontrado.',
+		buscar: async (q, signal) => {
+			const json = await apiFetch<{ policiais?: Destinatario[] }>(
+				`/api/policiais/search?cargo=DPC&somente_admins=true&q=${encodeURIComponent(q.trim())}&limit=8`,
+				{ signal }
+			);
+			return json.policiais ?? [];
+		}
+	});
 
 	$effect(() => {
 		if (open) {
 			opcaoSolicitacao = 'unidade';
 			buscaDestinatario = '';
 			destinatarioSelecionado = null;
-			resultadosBuscaDestinatario = [];
-			erroBuscaDestinatario = '';
+			busca.limpar();
 		} else {
-			if (buscaTimer) {
-				clearTimeout(buscaTimer);
-				buscaTimer = null;
-			}
-			buscaController?.abort();
-			buscaController = null;
-			buscandoDestinatario = false;
+			busca.cancelar();
 		}
 	});
-
-	async function buscarDestinatarios(q: string) {
-		if (buscaTimer) clearTimeout(buscaTimer);
-		// Cancela a busca em voo: evita resultado antigo chegando depois do novo
-		buscaController?.abort();
-		resultadosBuscaDestinatario = [];
-		erroBuscaDestinatario = '';
-		if (q.trim().length < 2) {
-			buscandoDestinatario = false;
-			return;
-		}
-		// Feedback imediato enquanto digita — antes o spinner só aparecia depois
-		// do debounce + rede, e em conexão lenta parecia que nada acontecia.
-		buscandoDestinatario = true;
-		buscaTimer = setTimeout(async () => {
-			const controller = new AbortController();
-			buscaController = controller;
-			try {
-				const res = await fetch(
-					`/api/policiais/search?cargo=DPC&somente_admins=true&q=${encodeURIComponent(q.trim())}&limit=8`,
-					{ signal: controller.signal }
-				);
-				if (res.ok) {
-					const json = await res.json();
-					resultadosBuscaDestinatario = json.policiais ?? [];
-					if (resultadosBuscaDestinatario.length === 0) {
-						erroBuscaDestinatario = 'Nenhum delegado (DPC) administrador encontrado.';
-					}
-				} else {
-					erroBuscaDestinatario = 'Erro ao buscar delegados. Tente novamente.';
-				}
-			} catch {
-				if (controller.signal.aborted) return; // substituída por busca mais nova
-				erroBuscaDestinatario = 'Erro de rede ao buscar delegados. Tente novamente.';
-			} finally {
-				if (!controller.signal.aborted) buscandoDestinatario = false;
-			}
-		}, 300);
-	}
 
 	async function confirmarSolicitacao() {
 		if (!escalaId) return;
 		if (opcaoSolicitacao === 'respondencia' && !destinatarioSelecionado) return;
 		enviandoSolicitacao = true;
 		try {
-			const res = await fetch(`/api/escalas/${escalaId}/solicitar-assinatura`, {
+			await apiFetch(`/api/escalas/${escalaId}/solicitar-assinatura`, {
 				method: 'POST',
-				headers: { 'Content-Type': 'application/json', ...csrfHeaders() },
 				body: JSON.stringify({
 					tipo: opcaoSolicitacao,
 					destinatario_id: destinatarioSelecionado?.id
 				})
 			});
-			if (res.ok) {
-				open = false;
-				toaster.create({ title: 'Solicitação de assinatura enviada', type: 'success' });
-				await onConfirmado({
-					tipo: opcaoSolicitacao,
-					destinatario_id: destinatarioSelecionado?.id
-				});
-			} else {
-				const json = await res.json().catch(() => ({}));
-				toaster.create({
-					title: (json as { error?: string }).error || 'Erro ao enviar solicitação',
-					type: 'error'
-				});
-			}
-		} catch {
-			toaster.create({ title: 'Erro de rede ao enviar solicitação', type: 'error' });
+			open = false;
+			toaster.create({ title: 'Solicitação de assinatura enviada', type: 'success' });
+			await onConfirmado({
+				tipo: opcaoSolicitacao,
+				destinatario_id: destinatarioSelecionado?.id
+			});
+		} catch (e: unknown) {
+			toaster.create({
+				title: e instanceof Error ? e.message : 'Erro ao enviar solicitação',
+				type: 'error'
+			});
 		} finally {
 			enviandoSolicitacao = false;
 		}
@@ -225,7 +180,7 @@
 									onclick={() => {
 										destinatarioSelecionado = null;
 										buscaDestinatario = '';
-										resultadosBuscaDestinatario = [];
+										busca.limpar();
 									}}
 								>
 									Trocar
@@ -238,16 +193,16 @@
 									class="input w-full text-sm pr-8"
 									placeholder="Buscar delegado (DPC) por nome ou matrícula…"
 									bind:value={buscaDestinatario}
-									oninput={(e) => buscarDestinatarios(e.currentTarget.value)}
+									oninput={(e) => busca.buscar(e.currentTarget.value)}
 								/>
-								{#if buscandoDestinatario}
+								{#if busca.buscando}
 									<Spinner
 										size="sm"
 										class="absolute right-3 top-1/2 -translate-y-1/2 text-tertiary-500"
 									/>
 								{/if}
 							</div>
-							{#if buscandoDestinatario}
+							{#if busca.buscando}
 								<p
 									class="text-xs text-surface-500 px-1 flex items-center gap-1.5"
 									role="status"
@@ -255,18 +210,18 @@
 								>
 									<Spinner size="sm" class="text-tertiary-500" /> Buscando delegados…
 								</p>
-							{:else if resultadosBuscaDestinatario.length > 0}
+							{:else if busca.resultados.length > 0}
 								<div
 									class="card rounded-xl border border-surface-200 dark:border-white/10 overflow-hidden max-h-44 overflow-y-auto shadow-md"
 								>
-									{#each resultadosBuscaDestinatario as p (p.id)}
+									{#each busca.resultados as p (p.id)}
 										<button
 											type="button"
 											class="w-full text-left px-3 py-2.5 hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors border-b border-surface-100 dark:border-white/5 last:border-0"
 											onclick={() => {
 												destinatarioSelecionado = p;
-												resultadosBuscaDestinatario = [];
 												buscaDestinatario = '';
+												busca.limpar();
 											}}
 										>
 											<div class="text-sm font-medium">{p.nome}</div>
@@ -274,9 +229,9 @@
 										</button>
 									{/each}
 								</div>
-							{:else if erroBuscaDestinatario}
+							{:else if busca.erro}
 								<p class="text-xs text-surface-500 dark:text-surface-400 px-1">
-									{erroBuscaDestinatario}
+									{busca.erro}
 								</p>
 							{/if}
 						{/if}

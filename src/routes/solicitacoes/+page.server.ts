@@ -16,8 +16,8 @@ import {
 
 export const load: PageServerLoad = async ({ locals, platform }) => {
 	const u = locals.usuario;
-	if (!u) throw redirect(302, '/login');
-	if (u.tipo !== 'admin') throw redirect(302, '/bem-vindo');
+	if (!u) redirect(302, '/login');
+	if (u.tipo !== 'admin') redirect(302, '/bem-vindo');
 
 	const db = getDB(platform);
 	const pendentes = await listarSolicitacoesCadastroPendentes(db);

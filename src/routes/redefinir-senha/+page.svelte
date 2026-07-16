@@ -3,10 +3,10 @@
 	import { enhance } from '$app/forms';
 	import { loading } from '$lib/loading.svelte';
 	import CamposNovaSenha, { validarForcaSenha } from '$lib/components/CamposNovaSenha.svelte';
-	import type { PageData } from './$types';
+	import type { PageProps } from './$types';
 	import type { ActionResult } from '@sveltejs/kit';
 
-	const { data }: { data: PageData } = $props();
+	const { data }: PageProps = $props();
 
 	let novaSenha = $state('');
 	let confirmarSenha = $state('');

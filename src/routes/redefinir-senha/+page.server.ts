@@ -112,7 +112,7 @@ export const actions: Actions = {
 				user_agent: request.headers.get('user-agent'),
 				env: platform?.env
 			});
-			throw redirect(303, '/alterar-senha');
+			redirect(303, '/alterar-senha');
 		}
 
 		// RESET NORMAL (não é primeiro acesso): exige senha.
@@ -179,6 +179,6 @@ export const actions: Actions = {
 			env: platform?.env
 		});
 
-		throw redirect(303, '/login?resetado=1');
+		redirect(303, '/login?resetado=1');
 	}
 };

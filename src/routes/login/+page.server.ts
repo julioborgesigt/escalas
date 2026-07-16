@@ -35,7 +35,7 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
 	const u = locals.usuario;
 	if (u) {
 		const adminModulo = cookies.get('admin_modulo');
-		throw redirect(302, obterRotaBemVindo(u, adminModulo));
+		redirect(302, obterRotaBemVindo(u, adminModulo));
 	}
 	return {};
 };

@@ -14,6 +14,8 @@
  * bater na API.
  */
 
+import { apiFetch } from '$lib/api-fetch';
+
 export interface OpcaoPolicial<V extends string | number = string | number> {
 	value: V;
 	label: string;
@@ -42,16 +44,9 @@ export function buscarPoliciaisOptions(opts: {
 		if (!cargo) return [];
 		const params = new URLSearchParams({ cargo, limit: '50' });
 		if (query) params.set('q', query);
-		const res = await fetch(`/api/policiais/search?${params}`, { signal });
-		if (!res.ok) {
-			const err = (await res.json().catch(() => ({ error: 'Erro na busca' }))) as {
-				error?: string;
-			};
-			throw new Error(err.error ?? 'Erro na busca');
-		}
-		const json = (await res.json()) as {
+		const json = await apiFetch<{
 			policiais: { id: number; nome: string; matricula: string; lotacao: string }[];
-		};
+		}>(`/api/policiais/search?${params}`, { signal });
 		return json.policiais.map((p) => ({
 			value: valorNumerico ? p.id : String(p.id),
 			label:

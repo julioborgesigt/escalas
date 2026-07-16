@@ -1,8 +1,8 @@
 <script lang="ts">
+	import type { PageProps } from './$types';
 	import { ChevronDown, ChevronUp, ArrowLeft } from 'lucide-svelte';
-	import { onMount } from 'svelte';
 
-	const { data } = $props();
+	const { data }: PageProps = $props();
 
 	// ---- Rótulos e cores ----
 	const NIVEL: Record<string, { label: string; cls: string }> = {
@@ -54,13 +54,11 @@
 		].filter(Boolean).length
 	);
 
-	let filtrosExpandidos = $state(false);
-
-	onMount(() => {
-		if (filtrosAtivos > 0) {
-			filtrosExpandidos = true;
-		}
-	});
+	// Captura única e intencional: nasce expandido quando a URL já traz filtros
+	// (SSR renderiza igual ao cliente — sem flash pós-hidratação). Depois disso,
+	// só o usuário controla via toggle.
+	// svelte-ignore state_referenced_locally
+	let filtrosExpandidos = $state(filtrosAtivos > 0);
 </script>
 
 <svelte:head><title>Logs técnicos — Escalas PC</title></svelte:head>

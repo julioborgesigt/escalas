@@ -13,8 +13,10 @@
 
 import { invalidate } from '$app/navigation';
 import { toaster } from '$lib/toast';
+import { baixarBlob } from '$lib/utils/download';
 import { loading } from '$lib/loading.svelte';
-import { csrfHeaders } from '$lib/csrf';
+import { apiFetch, apiFetchResponse } from '$lib/api-fetch';
+import { digestHexParaBase64, executarFluxoAssinaturaToken } from '$lib/assinatura-token';
 import { conectarSerpro, type SerproSignerClient } from '$lib/serpro';
 import type { SignaturePadConfirmPayload } from '$lib/components/SignaturePadTypes';
 
@@ -131,12 +133,8 @@ export function useGiseAssinatura({
 		loading.show('Assinando e gerando PDF...');
 		try {
 			const giseId = getGiseId();
-			const r = await fetch(`/api/gise/${giseId}/assinar-simples`, {
+			const r = await apiFetchResponse(`/api/gise/${giseId}/assinar-simples`, {
 				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json',
-					...csrfHeaders()
-				},
 				body: JSON.stringify({
 					rubrica: rubricaCapturada,
 					latitude,
@@ -147,24 +145,11 @@ export function useGiseAssinatura({
 					livenessChallenge
 				})
 			});
-			if (r.ok) {
-				const blob = await r.blob();
-				const url = URL.createObjectURL(blob);
-				const a = document.createElement('a');
-				a.href = url;
-				a.download = `gise_${getGiseDataInicio() ?? giseId}_confirmada.pdf`;
-				a.click();
-				toaster.success({ title: 'Escala confirmada com sucesso' });
-				await invalidate('gise:detail');
-			} else {
-				const j = (await r.json().catch(() => ({}))) as { error?: string; errorId?: string };
-				toaster.error({
-					title: j.error || 'Erro ao assinar',
-					description: j.errorId ? `Código de rastreamento: ${j.errorId}` : undefined
-				});
-			}
-		} catch {
-			toaster.error({ title: 'Erro de conexão' });
+			baixarBlob(await r.blob(), `gise_${getGiseDataInicio() ?? giseId}_confirmada.pdf`);
+			toaster.success({ title: 'Escala confirmada com sucesso' });
+			await invalidate('gise:detail');
+		} catch (e: unknown) {
+			toaster.error({ title: 'Erro ao assinar', description: messageFromUnknown(e) });
 		} finally {
 			loading.hide();
 			rubricaCapturada = null;
@@ -217,62 +202,26 @@ export function useGiseAssinatura({
 				progressoLote.atual = i + 1;
 				etapaAssinatura = `Preparando PDF ${i + 1} de ${pendentesExtra.length}...`;
 
-				const prepResp = await fetch(
-					`/api/gise/${giseId}/relatorios/${item.seccionalId}/preparar-assinatura`,
-					{
-						method: 'POST',
-						headers: {
-							'Content-Type': 'application/json',
-							...csrfHeaders()
+				try {
+					await executarFluxoAssinaturaToken({
+						prepararUrl: `/api/gise/${giseId}/relatorios/${item.seccionalId}/preparar-assinatura`,
+						finalizarUrl: `/api/gise/${giseId}/relatorios/${item.seccionalId}/finalizar-assinatura`,
+						payloadPreparar: { signerName, signerCpf, rubrica: null },
+						obterAssinatura: async (prep) => {
+							etapaAssinatura = `Assinando Relatório ${i + 1} de ${pendentesExtra.length}...`;
+							const serproRes = await clientSerpro.sign(digestHexParaBase64(prep.messageDigest));
+							return { serproCms: serproRes.rawSignature };
 						},
-						body: JSON.stringify({
-							signerName,
-							signerCpf,
-							rubrica: null
-						})
-					}
-				);
-				if (!prepResp.ok)
-					throw new Error(`Falha no item ${item.seccionalId}: ` + (await prepResp.json()).error);
-				const prepData = await prepResp.json();
-
-				etapaAssinatura = `Assinando Relatório ${i + 1} de ${pendentesExtra.length}...`;
-
-				const messageDigestBase64 = btoa(
-					prepData.messageDigest
-						.match(/.{2}/g)!
-						.map((h: string) => String.fromCharCode(parseInt(h, 16)))
-						.join('')
-				);
-				const serproRes = await clientSerpro.sign(messageDigestBase64);
-				const serproCms = serproRes.rawSignature;
-
-				etapaAssinatura = `Finalizando PDF ${i + 1} de ${pendentesExtra.length}...`;
-
-				const finResp = await fetch(
-					`/api/gise/${giseId}/relatorios/${item.seccionalId}/finalizar-assinatura`,
-					{
-						method: 'POST',
-						headers: {
-							'Content-Type': 'application/json',
-							...csrfHeaders()
-						},
-						body: JSON.stringify({
-							preparedPdf: prepData.preparedPdf,
-							serproCms,
-							messageDigest: prepData.messageDigest,
-							signingTimeISO: prepData.signingTimeISO,
-							signerName,
-							signerCpf,
-							verificationHash: prepData.verificationHash
-						})
-					}
-				);
-
-				if (!finResp.ok)
-					throw new Error(
-						`Falha ao finalizar item ${item.seccionalId}: ` + (await finResp.json()).error
-					);
+						payloadFinalizar: { signerName, signerCpf },
+						onFinalizando: () => {
+							etapaAssinatura = `Finalizando PDF ${i + 1} de ${pendentesExtra.length}...`;
+						}
+					});
+				} catch (e: unknown) {
+					throw new Error(`Falha no item ${item.seccionalId}: ${messageFromUnknown(e)}`, {
+						cause: e
+					});
+				}
 			}
 
 			toaster.success({
@@ -311,12 +260,8 @@ export function useGiseAssinatura({
 					const item = lote[i];
 					progressoLote.atual = i + 1;
 					etapaAssinatura = `Assinando ${i + 1} de ${lote.length}...`;
-					const res = await fetch(`/api/gise/${giseId}/relatorios/${item.seccionalId}/assinar`, {
+					await apiFetch(`/api/gise/${giseId}/relatorios/${item.seccionalId}/assinar`, {
 						method: 'POST',
-						headers: {
-							'Content-Type': 'application/json',
-							...csrfHeaders()
-						},
 						body: JSON.stringify({
 							tipo: item.tipo,
 							rubrica,
@@ -328,7 +273,6 @@ export function useGiseAssinatura({
 							livenessChallenge
 						})
 					});
-					if (!res.ok) throw new Error((await res.json()).error);
 				}
 				toaster.success({ title: 'Lote assinado com sucesso!' });
 				relatorioSendoAssinado = null;
@@ -349,14 +293,10 @@ export function useGiseAssinatura({
 
 		try {
 			etapaAssinatura = 'Processando assinatura...';
-			const res = await fetch(
+			await apiFetch(
 				`/api/gise/${giseId}/relatorios/${relatorioSendoAssinado.seccionalId}/assinar`,
 				{
 					method: 'POST',
-					headers: {
-						'Content-Type': 'application/json',
-						...csrfHeaders()
-					},
 					body: JSON.stringify({
 						tipo: relatorioSendoAssinado.tipo,
 						rubrica,
@@ -369,7 +309,6 @@ export function useGiseAssinatura({
 					})
 				}
 			);
-			if (!res.ok) throw new Error((await res.json()).error);
 			toaster.success({ title: 'Relatório assinado com sucesso!' });
 			relatorioSendoAssinado = null;
 			await invalidate('gise:detail');

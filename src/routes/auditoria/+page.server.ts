@@ -28,8 +28,8 @@ function fimDoDia(s: string | null): string | undefined {
 
 export const load: PageServerLoad = async ({ locals, platform, url }) => {
 	const u = locals.usuario;
-	if (!u) throw redirect(302, '/login');
-	if (!u.isSuperAdmin) throw redirect(302, '/');
+	if (!u) redirect(302, '/login');
+	if (!u.isSuperAdmin) redirect(302, '/');
 
 	const db = getDB(platform);
 	const q = url.searchParams;

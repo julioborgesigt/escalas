@@ -1,4 +1,5 @@
 <script lang="ts">
+	import type { PageProps } from './$types';
 	import { Lock, Inbox } from 'lucide-svelte';
 	import { untrack } from 'svelte';
 	import { page, navigating } from '$app/state';
@@ -8,7 +9,7 @@
 	import { enhance } from '$app/forms';
 	import { toaster } from '$lib/toast';
 	import { browser } from '$app/environment';
-	import { Popover, Portal, Dialog, SegmentedControl } from '@skeletonlabs/skeleton-svelte';
+	import { Popover, Portal, Dialog } from '@skeletonlabs/skeleton-svelte';
 	import type { EscalaListagem, Unidade } from '$lib/types';
 	import PaginationControls from '$lib/components/PaginationControls.svelte';
 	import { useAutorizacao, getSavedFilters } from '$lib/composables';
@@ -16,7 +17,7 @@
 	import { loading as loadingService } from '$lib/loading.svelte';
 	import SearchableSelect from '$lib/components/SearchableSelect.svelte';
 
-	const { data } = $props();
+	const { data }: PageProps = $props();
 
 	const auth = useAutorizacao();
 	const isAdmin = $derived(auth.isAdmin);

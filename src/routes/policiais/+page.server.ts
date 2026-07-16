@@ -23,10 +23,10 @@ import { decifrarCpfDoDB } from '$lib/crypto/cpf-cripto';
 
 export const load: PageServerLoad = async ({ locals, platform, url }) => {
 	const u = locals.usuario;
-	if (!u) throw redirect(302, '/login');
+	if (!u) redirect(302, '/login');
 
 	if (!isAdminGeral(u)) {
-		throw redirect(302, '/');
+		redirect(302, '/');
 	}
 
 	const db = getDB(platform);

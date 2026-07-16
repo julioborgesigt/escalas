@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { untrack } from 'svelte';
 	import { slide } from 'svelte/transition';
 	import { Dialog } from '@skeletonlabs/skeleton-svelte';
 	import PainelAssinaturaToken from './PainelAssinaturaToken.svelte';
@@ -10,10 +9,9 @@
 	import { page } from '$app/state';
 	import { invalidateAll } from '$app/navigation';
 	import { toaster } from '$lib/toast';
-	import { csrfHeaders } from '$lib/csrf';
+	import { apiFetch } from '$lib/api-fetch';
 	import { loading } from '$lib/loading.svelte';
 	import { useAssinaturaEscala, useMobile } from '$lib/composables';
-	import Spinner from './Spinner.svelte';
 
 	interface DocumentoAssinadoInfo {
 		existe: boolean;
@@ -43,29 +41,21 @@
 	} = $props();
 
 	// --- Solicitar Assinatura (OIP) ---
-	// eslint-disable-next-line svelte/prefer-writable-derived
-	let solicitacaoLocal = $state(untrack(() => solicitacaoAtual));
-	$effect(() => {
-		solicitacaoLocal = solicitacaoAtual ?? null;
-	});
+	// Derivado gravável: espelha a prop, mas admite o reset local pós-cancelamento.
+	let solicitacaoLocal = $derived(solicitacaoAtual ?? null);
 	let dialogSolicitarAberto = $state(false);
 
 	async function cancelarSolicitacao() {
 		try {
-			const res = await fetch(`/api/escalas/${escalaId}/solicitar-assinatura`, {
-				method: 'DELETE',
-				headers: csrfHeaders()
-			});
-			if (!res.ok) {
-				const err = await res.json().catch(() => ({}));
-				toaster.create({ title: err.error || 'Erro ao cancelar', type: 'error' });
-				return;
-			}
+			await apiFetch(`/api/escalas/${escalaId}/solicitar-assinatura`, { method: 'DELETE' });
 			solicitacaoLocal = null;
 			toaster.create({ title: 'Solicitação cancelada', type: 'info' });
 			invalidateAll();
-		} catch {
-			toaster.create({ title: 'Erro ao cancelar solicitação', type: 'error' });
+		} catch (e: unknown) {
+			toaster.create({
+				title: e instanceof Error ? e.message : 'Erro ao cancelar solicitação',
+				type: 'error'
+			});
 		}
 	}
 
@@ -95,22 +85,19 @@
 		loading.show('Revogando assinatura...');
 		// Keep local revoke logic since hook doesn't cover it yet
 		try {
-			const res = await fetch(`/api/escalas/${escalaId}/documento-assinado`, {
-				method: 'DELETE',
-				headers: csrfHeaders()
+			await apiFetch(`/api/escalas/${escalaId}/documento-assinado`, { method: 'DELETE' });
+			documentoAssinadoInfo = null;
+			toaster.create({
+				title: 'Assinatura revogada',
+				description: 'Você agora pode editar os dados da escala.',
+				type: 'info'
 			});
-			if (res.ok) {
-				documentoAssinadoInfo = null;
-				toaster.create({
-					title: 'Assinatura revogada',
-					description: 'Você agora pode editar os dados da escala.',
-					type: 'info'
-				});
-			} else {
-				throw new Error('Falha ao revogar');
-			}
-		} catch {
-			toaster.create({ title: 'Erro ao revogar assinatura', type: 'error' });
+		} catch (e: unknown) {
+			toaster.create({
+				title: 'Erro ao revogar assinatura',
+				description: e instanceof Error ? e.message : undefined,
+				type: 'error'
+			});
 		} finally {
 			loading.hide();
 		}

@@ -22,7 +22,6 @@
 		diaSemana: (s: string) => string;
 		fmtDate: (s: string) => string;
 		isAdminGeral: boolean;
-		isSeccional: boolean;
 		podeDownload: boolean;
 		podeEditar: boolean;
 		podeReabrir: boolean;
@@ -55,7 +54,6 @@
 		diaSemana,
 		fmtDate,
 		isAdminGeral,
-		isSeccional: _isSeccional,
 		podeDownload,
 		podeEditar,
 		podeReabrir,

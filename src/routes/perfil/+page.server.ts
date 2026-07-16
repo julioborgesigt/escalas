@@ -15,9 +15,9 @@ import { classesDoCargo, TELEFONE_RE } from '$lib/perfil-campos';
 
 export const load: PageServerLoad = async ({ locals, platform }) => {
 	const u = locals.usuario;
-	if (!u) throw redirect(302, '/login');
+	if (!u) redirect(302, '/login');
 	// Admin geral não tem cadastro de policial próprio — perfil é do servidor.
-	if (u.tipo !== 'policial') throw redirect(302, '/escalas/bem-vindo');
+	if (u.tipo !== 'policial') redirect(302, '/escalas/bem-vindo');
 
 	const db = getDB(platform);
 	const [row, unidades, solicitacoes] = await Promise.all([
@@ -43,7 +43,7 @@ export const load: PageServerLoad = async ({ locals, platform }) => {
 		listarMinhasSolicitacoesCadastro(db, u.id)
 	]);
 
-	if (!row) throw redirect(302, '/login');
+	if (!row) redirect(302, '/login');
 
 	return {
 		perfil: row,

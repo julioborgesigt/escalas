@@ -1,4 +1,5 @@
 <script lang="ts">
+	import type { PageProps } from './$types';
 	import { tick } from 'svelte';
 	import { slide } from 'svelte/transition';
 	import type { Snippet } from 'svelte';
@@ -33,17 +34,15 @@
 
 	// Chart.js loaded lazily to save ~200KB on initial bundle
 	let Chart: ChartJs | null = null;
-	let chartLoaded = $state(false);
 	let exporting = $state(false);
 
 	async function loadChart() {
 		if (!Chart) {
 			Chart = (await import('chart.js/auto')).default;
-			chartLoaded = true;
 		}
 	}
 
-	const { data } = $props();
+	const { data }: PageProps = $props();
 
 	// Filters
 	let filterTipo = $state('operacional');
