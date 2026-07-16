@@ -3,7 +3,7 @@ import { goto } from '$app/navigation';
 import { page } from '$app/state';
 import { untrack } from 'svelte';
 
-export interface FiltrosPaginadosAuto {
+interface FiltrosPaginadosAuto {
 	/**
 	 * Deps reativas cuja mudança dispara a navegação para a página 1.
 	 * Só as leituras feitas aqui são observadas — inclua apenas os filtros
