@@ -7,6 +7,7 @@
 	import { toaster } from '$lib/toast';
 	import { loading } from '$lib/loading.svelte';
 	import { apiFetch, apiFetchResponse } from '$lib/api-fetch';
+	import { baixarBlob } from '$lib/utils/download';
 	import { digestHexParaBase64, executarFluxoAssinaturaToken } from '$lib/assinatura-token';
 	import { conectarSerpro } from '$lib/serpro';
 	import ModalRubrica from './[id]/_components/modais/ModalRubrica.svelte';
@@ -88,7 +89,6 @@
 
 	let giseParaAssinar = $state<GiseParaAssinar | null>(null);
 	let mostrarRubricaGise = $state(false);
-	let mostrarModalTokenExtra = $state(false);
 	let painelTokenGiseControl = $state<{ assinarComSerpro: () => Promise<void> } | null>(null);
 
 	const tokenPrepararUrl = $derived(
@@ -125,7 +125,10 @@
 			pendentesExtraIds: ativa.extrasPendentesIds
 		};
 		if (isDesktop) {
-			mostrarModalTokenExtra = true;
+			// Desktop assina direto com o token SERPRO, espelhando o fluxo da
+			// escala. (Antes ligava um flag de modal que nenhum template consumia,
+			// então o clique não fazia nada.)
+			void assinarExtrasComSerpro();
 		} else {
 			mostrarRubricaGise = true;
 		}
@@ -133,7 +136,6 @@
 
 	function cancelarAssinatura() {
 		mostrarRubricaGise = false;
-		mostrarModalTokenExtra = false;
 		giseParaAssinar = null;
 	}
 
@@ -440,11 +442,7 @@
 						livenessChallenge
 					})
 				});
-				const blob = await r.blob();
-				const a = document.createElement('a');
-				a.href = URL.createObjectURL(blob);
-				a.download = tokenNomeArquivo;
-				a.click();
+				baixarBlob(await r.blob(), tokenNomeArquivo);
 				toaster.success({ title: 'Escala GISE assinada com sucesso' });
 				await invalidateAll();
 			} else {
@@ -482,7 +480,6 @@
 	async function assinarExtrasComSerpro() {
 		const gise = giseParaAssinar;
 		if (!gise || gise.pendentesExtraIds.length === 0) return;
-		mostrarModalTokenExtra = false;
 		try {
 			const client = await conectarSerpro();
 			loading.show('Conectando ao Assinador SERPRO...');

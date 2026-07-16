@@ -7,7 +7,7 @@
 	import { SvelteSet } from 'svelte/reactivity';
 	import SkeletonCard from '$lib/components/SkeletonCard.svelte';
 	import { browser } from '$app/environment';
-	import { Dialog, SegmentedControl } from '@skeletonlabs/skeleton-svelte';
+	import { Dialog } from '@skeletonlabs/skeleton-svelte';
 	import SearchableSelect from '$lib/components/SearchableSelect.svelte';
 	import { toaster } from '$lib/toast';
 	import type { ItemCompliance } from '../api/admin/compliance/+server';
@@ -88,12 +88,6 @@
 		}
 	});
 
-	// Reset de unidade (apenas no clique seccional)
-	function mudarSeccional() {
-		filtroUnidade = '';
-		// carregar() não é necessário aqui pois dados já estão em memória
-	}
-
 	const seccionais = $derived(unidadesDB.filter((u) => u.tipo === 'seccional'));
 
 	// Itens ignorados (persistidos no localStorage)
@@ -135,11 +129,6 @@
 			return true;
 		})
 	);
-
-	interface GrupoCompliance {
-		titulo: string;
-		itens: ItemCompliance[];
-	}
 
 	const dadosAgrupados = $derived.by(() => {
 		const base = [...dadosFiltrados];
@@ -185,20 +174,6 @@
 	const seccionaisOptions = $derived(seccionais.map((s) => ({ value: s.id, label: s.nome })));
 
 	const unidadesDropdownOptions = $derived(unidadesDropdown.map((u) => ({ value: u, label: u })));
-
-	const agrupamentoOptions = [
-		{ value: 'nenhum', label: 'Nenhum' },
-		{ value: 'unidade', label: 'Delegacia' },
-		{ value: 'regime', label: 'Regime' },
-		{ value: 'ambos', label: 'Delegacia e Regime' }
-	];
-
-	const regimeOptions = [
-		{ value: 'todos', label: 'Todos' },
-		{ value: 'plantao', label: 'Plantão' },
-		{ value: 'expediente', label: 'Expediente' },
-		{ value: 'fds', label: 'FDS' }
-	];
 
 	const mesesOptions = [
 		{ value: 'todos', label: 'Todos' },

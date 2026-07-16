@@ -34,13 +34,11 @@
 
 	// Chart.js loaded lazily to save ~200KB on initial bundle
 	let Chart: ChartJs | null = null;
-	let chartLoaded = $state(false);
 	let exporting = $state(false);
 
 	async function loadChart() {
 		if (!Chart) {
 			Chart = (await import('chart.js/auto')).default;
-			chartLoaded = true;
 		}
 	}
 

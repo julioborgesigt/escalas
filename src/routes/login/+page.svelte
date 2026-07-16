@@ -28,7 +28,6 @@
 	let pendente2FA = $state(false);
 	let desafioId = $state('');
 	let codigo2FA = $state('');
-	let tipoUsuario2FA = $state<'policial' | 'admin'>('policial');
 	let emailMascarado = $state('');
 
 	// Estado do primeiro acesso
@@ -98,7 +97,6 @@
 					const d = result.data;
 					if (d?.pendente2FA) {
 						desafioId = String(d.desafioId || '');
-						tipoUsuario2FA = (d.tipoUsuario2FA as 'policial' | 'admin') || tipo;
 						emailMascarado = String(d.emailMascarado || '');
 						pendente2FA = true;
 						loginError = null;

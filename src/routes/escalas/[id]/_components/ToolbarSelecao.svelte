@@ -1,6 +1,5 @@
 <script lang="ts">
 	const {
-		totalPoliciais,
 		totalSelecionados,
 		modoSelecao,
 		pendingRemoverSelecionados,
@@ -10,7 +9,6 @@
 		onIniciarSelecao,
 		onCancelarSelecao
 	}: {
-		totalPoliciais: number;
 		totalSelecionados: number;
 		modoSelecao: boolean;
 		pendingRemoverSelecionados: boolean;

@@ -2,6 +2,7 @@
 	import type { PageProps } from './$types';
 	import { enhance } from '$app/forms';
 	import { apiFetchResponse } from '$lib/api-fetch';
+	import { baixarBlob, nomeArquivoContentDisposition } from '$lib/utils/download';
 	import { toaster } from '$lib/toast';
 	import { ChevronDown, ChevronUp, CheckCircle2, AlertTriangle } from 'lucide-svelte';
 
@@ -106,15 +107,11 @@
 		baixando = true;
 		try {
 			const resp = await apiFetchResponse(`/auditoria/export?${queryString({ format, ...extra })}`);
-			const blob = await resp.blob();
-			const cd = resp.headers.get('content-disposition') ?? '';
-			const nome = cd.match(/filename="([^"]+)"/)?.[1] ?? `auditoria.${format}`;
-			const href = URL.createObjectURL(blob);
-			const a = document.createElement('a');
-			a.href = href;
-			a.download = nome;
-			a.click();
-			URL.revokeObjectURL(href);
+			const nome = nomeArquivoContentDisposition(
+				resp.headers.get('content-disposition'),
+				`auditoria.${format}`
+			);
+			baixarBlob(await resp.blob(), nome);
 		} catch (e: unknown) {
 			toaster.error({
 				title: 'Exportação',

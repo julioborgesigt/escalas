@@ -339,7 +339,6 @@
 
 	<FormAdicionarServidores
 		{escala}
-		{isFDS}
 		{isExpediente}
 		{diasEscalaLocal}
 		{modoEdicao}
@@ -361,7 +360,6 @@
 
 	{#if policiaisEscalaLocal.length > 0 && !documentoAssinadoInfo?.existe && !finalizadaEm}
 		<ToolbarSelecao
-			totalPoliciais={policiaisEscalaLocal.length}
 			{totalSelecionados}
 			{modoSelecao}
 			{pendingRemoverSelecionados}
@@ -406,7 +404,6 @@
 			{horas}
 			{minutos}
 			onSolicitarRemocao={solicitarRemocao}
-			onToggleSelecionar={toggleSelecionar}
 		/>
 	{:else}
 		<TabelaServidores
