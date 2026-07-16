@@ -57,7 +57,7 @@
 		"typescript-eslint": "^8.60.1",
 		"vite": "^8.1.5",
 		"vitest": "^4.1.10",
-		"wrangler": "^4.107.0"
+		"wrangler": "^4.111.0"
 	},
 	"overrides": {
 		"cookie": "^0.7.2",
