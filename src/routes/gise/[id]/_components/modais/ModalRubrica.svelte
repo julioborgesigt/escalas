@@ -8,11 +8,21 @@
 		exigirFoto: boolean;
 		exigirGps: boolean;
 		exigirCodigoEmail: boolean;
+		/** Rubrica cadastrada do supervisor — reutilizada em vez de exigir novo desenho. */
+		rubricaSalva?: string | null;
 		onConfirm: (payload: SignaturePadConfirmPayload) => void | Promise<void>;
 		onCancel: () => void;
 	}
 
-	const { open, exigirFoto, exigirGps, exigirCodigoEmail, onConfirm, onCancel }: Props = $props();
+	const {
+		open,
+		exigirFoto,
+		exigirGps,
+		exigirCodigoEmail,
+		rubricaSalva = null,
+		onConfirm,
+		onCancel
+	}: Props = $props();
 
 	let signatureStep = $state<'signature' | 'camera' | 'email_code'>('signature');
 
@@ -34,7 +44,9 @@
 			? 'Cumpra o desafio de presença na tela para provar que você está ativo.'
 			: signatureStep === 'email_code'
 				? 'Por razões de segurança, insira o código enviado para o seu e-mail funcional.'
-				: 'Desenhe sua rubrica no quadro abaixo para assinar a escala.'
+				: rubricaSalva
+					? 'Confira sua rubrica cadastrada abaixo para assinar a escala ou desenhe uma nova.'
+					: 'Desenhe sua rubrica no quadro abaixo para assinar a escala.'
 	);
 </script>
 
@@ -66,6 +78,7 @@
 					{exigirFoto}
 					{exigirGps}
 					{exigirCodigoEmail}
+					{rubricaSalva}
 					bind:step={signatureStep}
 				/>
 			{/if}

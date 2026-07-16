@@ -565,6 +565,7 @@
 				{#snippet loteSection()}
 					{#if isSupervisor || isAdminGeral}
 						<GiseLoteAssinaturas
+							giseId={gise.id}
 							quantidadePendentes={pendentesExtra.length}
 							assinandoLote={assinatura.assinandoLote}
 							etapaAssinatura={assinatura.etapaAssinatura}
@@ -795,6 +796,7 @@
 	exigirFoto={page.data.exigirFotoAssinatura ?? true}
 	exigirGps={page.data.exigirGpsAssinatura ?? true}
 	exigirCodigoEmail={page.data.exigirCodigoEmailAssinatura ?? false}
+	rubricaSalva={minhaRubrica}
 	onConfirm={assinatura.confirmarRubrica}
 	onCancel={assinatura.fecharModalRubrica}
 />

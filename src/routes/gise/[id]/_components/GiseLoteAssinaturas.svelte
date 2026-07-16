@@ -1,10 +1,12 @@
 <script lang="ts">
 	import { slide } from 'svelte/transition';
+	import { FileDown } from 'lucide-svelte';
 	import { loading } from '$lib/loading.svelte';
 	import { getMembrosFromSec, checkAllSigned } from '$lib/gise/gise-page-helpers';
 	import { toaster } from '$lib/toast';
 
 	interface Props {
+		giseId: number;
 		quantidadePendentes: number;
 		assinandoLote: boolean;
 		etapaAssinatura: string;
@@ -30,6 +32,7 @@
 	}
 
 	const {
+		giseId,
 		quantidadePendentes,
 		assinandoLote,
 		etapaAssinatura,
@@ -124,7 +127,56 @@
 				'Para visualizar o relatório individualmente de cada equipe, por favor, acesse a aba de detalhamento de cada seccional na seção "Seccionais Participantes" logo abaixo.'
 		});
 	}
+
+	/** Todas as equipes com relatório de extra já assinado — segue o padrão dos
+	    demais cards (escala/relatório de extra): oferecer download em vez de só conferência. */
+	const todosAssinados = $derived(totalEquipes > 0 && totalAssinados === totalEquipes);
+
+	/**
+	 * Baixa, em lote, todos os relatórios de extra assinados das equipes — um por
+	 * seccional. Mesma estratégia do `ModalDownloadExtras` (âncora + intervalo para
+	 * não esbarrar no bloqueio de pop-ups do navegador).
+	 */
+	async function baixarTodosRelatorios(comManifesto = false) {
+		if (concluidosExtra.length === 0) return;
+		for (const rel of concluidosExtra) {
+			const a = document.createElement('a');
+			a.href = `/api/gise/${giseId}/download?format=extraordinario&seccionalId=${rel.seccional_id}${comManifesto ? '&manifesto=true' : ''}`;
+			a.target = '_blank';
+			a.rel = 'noopener';
+			a.click();
+			await new Promise((resolve) => setTimeout(resolve, 250));
+		}
+	}
 </script>
+
+<!-- Par S/ manifesto + C/ manifesto — espelha o padrão dos cards de escala e de
+     relatório de extra (GiseSupervisao). Para o lote, cada botão baixa TODOS os
+     relatórios assinados das equipes de uma vez. -->
+{#snippet botoesDownloadLote(mobile: boolean)}
+	<button
+		type="button"
+		class="btn btn-xs preset-filled-primary-500 px-2.5 py-1.5 text-3xs font-bold rounded-lg flex items-center gap-1 {mobile
+			? ''
+			: 'hover:scale-[1.02] transition-all'}"
+		onclick={() => baixarTodosRelatorios(false)}
+		title="Baixar todos sem manifesto (para impressão)"
+	>
+		<FileDown size={13} class="shrink-0" />
+		S/ manifesto
+	</button>
+	<button
+		type="button"
+		class="btn btn-xs preset-outlined-primary-500 px-2.5 py-1.5 text-3xs font-bold rounded-lg flex items-center gap-1 {mobile
+			? ''
+			: 'hover:scale-[1.02] transition-all'}"
+		onclick={() => baixarTodosRelatorios(true)}
+		title="Baixar todos com manifesto (folha de auditoria)"
+	>
+		<FileDown size={13} class="shrink-0" />
+		C/ manifesto
+	</button>
+{/snippet}
 
 <div class="flex flex-col gap-1.5 w-full animate-fade">
 	<p class="text-3xs font-bold uppercase tracking-wider text-surface-400 dark:text-surface-500">
@@ -274,31 +326,13 @@
 
 					{#if !assinandoLote}
 						<div class="flex items-center gap-1.5 flex-wrap justify-end">
-							<button
-								type="button"
-								class="btn btn-xs preset-tonal-primary border border-primary-500/30 hover:border-primary-500 px-2.5 py-1.5 text-3xs font-bold rounded-lg flex items-center gap-1"
-								onclick={onConferencia || mostrarOrientaConferencia}
-							>
-								<svg
-									class="h-2.5 w-2.5 shrink-0"
-									fill="none"
-									stroke="currentColor"
-									viewBox="0 0 24 24"
-									><path
-										stroke-linecap="round"
-										stroke-linejoin="round"
-										stroke-width="2"
-										d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
-									/></svg
-								>
-								Conferência
-							</button>
-							{#if podeAssinar}
+							{#if todosAssinados}
+								{@render botoesDownloadLote(true)}
+							{:else}
 								<button
 									type="button"
-									class="btn btn-xs preset-filled-warning-500 border border-warning-600/30 px-2.5 py-1.5 text-3xs font-bold rounded-lg hover:border-warning-600 disabled:opacity-40 flex items-center gap-1"
-									disabled={loading.active || quantidadePendentes === 0}
-									onclick={onAssinarManualLote}
+									class="btn btn-xs preset-tonal-primary border border-primary-500/30 hover:border-primary-500 px-2.5 py-1.5 text-3xs font-bold rounded-lg flex items-center gap-1"
+									onclick={onConferencia || mostrarOrientaConferencia}
 								>
 									<svg
 										class="h-2.5 w-2.5 shrink-0"
@@ -312,8 +346,30 @@
 											d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
 										/></svg
 									>
-									Tela
+									Conferência
 								</button>
+								{#if podeAssinar}
+									<button
+										type="button"
+										class="btn btn-xs preset-filled-warning-500 border border-warning-600/30 px-2.5 py-1.5 text-3xs font-bold rounded-lg hover:border-warning-600 disabled:opacity-40 flex items-center gap-1"
+										disabled={loading.active || quantidadePendentes === 0}
+										onclick={onAssinarManualLote}
+									>
+										<svg
+											class="h-2.5 w-2.5 shrink-0"
+											fill="none"
+											stroke="currentColor"
+											viewBox="0 0 24 24"
+											><path
+												stroke-linecap="round"
+												stroke-linejoin="round"
+												stroke-width="2"
+												d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
+											/></svg
+										>
+										Tela
+									</button>
+								{/if}
 							{/if}
 						</div>
 					{/if}
@@ -488,27 +544,13 @@
 				<div
 					class="flex items-center gap-1.5 shrink-0 justify-end border-l border-surface-200/40 dark:border-surface-800/80 pl-4 py-0.5"
 				>
-					<button
-						type="button"
-						class="btn btn-xs preset-tonal-primary border border-primary-500/30 hover:border-primary-500 px-2.5 py-1.5 text-3xs font-bold rounded-lg flex items-center gap-1 hover:scale-[1.02] transition-all"
-						onclick={onConferencia || mostrarOrientaConferencia}
-					>
-						<svg class="h-2.5 w-2.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"
-							><path
-								stroke-linecap="round"
-								stroke-linejoin="round"
-								stroke-width="2"
-								d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
-							/></svg
-						>
-						Conferência
-					</button>
-					{#if podeAssinar && !assinandoLote}
+					{#if todosAssinados}
+						{@render botoesDownloadLote(false)}
+					{:else}
 						<button
 							type="button"
-							class="btn btn-xs preset-filled-tertiary-500 border border-tertiary-600/30 px-2.5 py-1.5 text-3xs font-bold rounded-lg hover:border-tertiary-600 disabled:opacity-40 flex items-center gap-1 hover:scale-[1.02] transition-all"
-							disabled={loading.active || quantidadePendentes === 0}
-							onclick={onAssinarDigitalLote}
+							class="btn btn-xs preset-tonal-primary border border-primary-500/30 hover:border-primary-500 px-2.5 py-1.5 text-3xs font-bold rounded-lg flex items-center gap-1 hover:scale-[1.02] transition-all"
+							onclick={onConferencia || mostrarOrientaConferencia}
 						>
 							<svg
 								class="h-2.5 w-2.5 shrink-0"
@@ -522,8 +564,30 @@
 									d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
 								/></svg
 							>
-							Token
+							Conferência
 						</button>
+						{#if podeAssinar && !assinandoLote}
+							<button
+								type="button"
+								class="btn btn-xs preset-filled-tertiary-500 border border-tertiary-600/30 px-2.5 py-1.5 text-3xs font-bold rounded-lg hover:border-tertiary-600 disabled:opacity-40 flex items-center gap-1 hover:scale-[1.02] transition-all"
+								disabled={loading.active || quantidadePendentes === 0}
+								onclick={onAssinarDigitalLote}
+							>
+								<svg
+									class="h-2.5 w-2.5 shrink-0"
+									fill="none"
+									stroke="currentColor"
+									viewBox="0 0 24 24"
+									><path
+										stroke-linecap="round"
+										stroke-linejoin="round"
+										stroke-width="2"
+										d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
+									/></svg
+								>
+								Token
+							</button>
+						{/if}
 					{/if}
 				</div>
 			</div>

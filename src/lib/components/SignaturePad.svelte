@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { untrack } from 'svelte';
 	import { Camera, Check } from 'lucide-svelte';
 	import type {
 		SignaturePadLivenessResultado,
@@ -19,6 +20,7 @@
 		exigirFoto = true,
 		exigirGps = true,
 		exigirCodigoEmail = false,
+		rubricaSalva = null,
 		step = $bindable('signature')
 	}: {
 		onConfirm: (payload: SignaturePadConfirmPayload) => void | Promise<void>;
@@ -27,8 +29,26 @@
 		exigirFoto?: boolean;
 		exigirGps?: boolean;
 		exigirCodigoEmail?: boolean;
+		/** Rubrica já cadastrada pelo usuário (dataURL). Quando presente, o pad
+		    reutiliza-a por padrão — evita obrigar o desenho na tela a cada assinatura. */
+		rubricaSalva?: string | null;
 		step?: 'signature' | 'camera' | 'email_code';
 	} = $props();
+
+	// Reutiliza a rubrica cadastrada por padrão quando ela existe; o usuário
+	// continua podendo alternar para desenhar uma nova a qualquer momento.
+	// O pad é montado a cada abertura do modal, então basta o valor inicial.
+	let usarRubricaSalva = $state(untrack(() => !!rubricaSalva));
+
+	function alternarRubricaSalva() {
+		usarRubricaSalva = !usarRubricaSalva;
+	}
+
+	/** Fonte da rubrica no momento de confirmar: a cadastrada (se reutilizada) ou
+	    o desenho atual do canvas. */
+	function rubricaSelecionada(): string {
+		return usarRubricaSalva && rubricaSalva ? rubricaSalva : rubrica.exportar(100);
+	}
 
 	// Máquinas de captura, extraídas para composables: desenho da rubrica
 	// (canvas + mouse/touch) e prova de vida (câmera + face-api + challenge).
@@ -96,7 +116,7 @@
 	});
 
 	function confirmarSemFoto() {
-		processarAssinatura(rubrica.exportar(100), coords?.lat, coords?.lng, null);
+		processarAssinatura(rubricaSelecionada(), coords?.lat, coords?.lng, null);
 	}
 
 	async function confirm() {
@@ -104,7 +124,7 @@
 		// undefined = captura ABORTADA (rosto sumiu/múltiplos no último
 		// milissegundo) — o overlay de erro já foi exibido pelo composable.
 		if (selfieBase64 === undefined) return;
-		processarAssinatura(rubrica.exportar(100), coords?.lat, coords?.lng, selfieBase64);
+		processarAssinatura(rubricaSelecionada(), coords?.lat, coords?.lng, selfieBase64);
 	}
 
 	async function processarAssinatura(
@@ -175,6 +195,27 @@
 	}
 </script>
 
+<!-- Indicador de GPS — usado tanto na área de desenho quanto na pré-visualização
+     da rubrica cadastrada. -->
+{#snippet gpsIndicator()}
+	{#if exigirGps}
+		<div
+			class="absolute bottom-2 right-2 flex items-center gap-1.5 px-2 py-1 rounded-full bg-white/80 dark:bg-surface-900/80 backdrop-blur-sm border border-surface-200 dark:border-surface-700"
+		>
+			{#if capturingLocation}
+				<span class="w-2 h-2 rounded-full bg-warning-500 animate-pulse"></span>
+				<span class="text-3xs font-black uppercase text-warning-600">Capturando GPS...</span>
+			{:else if coords}
+				<span class="w-2 h-2 rounded-full bg-success-500"></span>
+				<span class="text-3xs font-black uppercase text-success-600">GPS Localizado</span>
+			{:else}
+				<span class="w-2 h-2 rounded-full bg-error-500"></span>
+				<span class="text-3xs font-black uppercase text-error-600">GPS Falhou</span>
+			{/if}
+		</div>
+	{/if}
+{/snippet}
+
 <div class="space-y-4">
 	{#if message}
 		<p class="text-3xs font-bold text-surface-500 uppercase text-center mb-1">
@@ -214,43 +255,55 @@
 			<div class="flex justify-between items-end">
 				<span class="text-3xs font-bold text-surface-500 uppercase tracking-wider">Sua Rubrica</span
 				>
-			</div>
-			<div
-				class="bg-white border-2 border-surface-200 dark:border-surface-700 rounded-xl overflow-hidden touch-none relative min-h-[280px]"
-			>
-				<canvas
-					bind:this={rubrica.canvas}
-					width="500"
-					height="280"
-					aria-label="Área de desenho da assinatura manuscrita — desenhe sua assinatura com o dedo ou mouse"
-					class="w-full h-[280px] cursor-crosshair touch-none"
-					onmousedown={rubrica.startDrawing}
-					onmousemove={rubrica.draw}
-					onmouseup={rubrica.stopDrawing}
-					onmouseleave={rubrica.stopDrawing}
-					ontouchstart={rubrica.startDrawing}
-					ontouchmove={rubrica.draw}
-					ontouchend={rubrica.stopDrawing}
-				></canvas>
-
-				<!-- Indicador de GPS -->
-				{#if exigirGps}
-					<div
-						class="absolute bottom-2 right-2 flex items-center gap-1.5 px-2 py-1 rounded-full bg-white/80 dark:bg-surface-900/80 backdrop-blur-sm border border-surface-200 dark:border-surface-700"
+				{#if rubricaSalva}
+					<button
+						type="button"
+						class="text-3xs font-bold uppercase tracking-wider text-primary-600 dark:text-primary-400 hover:underline"
+						onclick={alternarRubricaSalva}
 					>
-						{#if capturingLocation}
-							<span class="w-2 h-2 rounded-full bg-warning-500 animate-pulse"></span>
-							<span class="text-3xs font-black uppercase text-warning-600">Capturando GPS...</span>
-						{:else if coords}
-							<span class="w-2 h-2 rounded-full bg-success-500"></span>
-							<span class="text-3xs font-black uppercase text-success-600">GPS Localizado</span>
-						{:else}
-							<span class="w-2 h-2 rounded-full bg-error-500"></span>
-							<span class="text-3xs font-black uppercase text-error-600">GPS Falhou</span>
-						{/if}
-					</div>
+						{usarRubricaSalva ? 'Desenhar nova rubrica' : 'Usar rubrica cadastrada'}
+					</button>
 				{/if}
 			</div>
+			{#if usarRubricaSalva && rubricaSalva}
+				<!-- Reutilizando a rubrica cadastrada: sem obrigar novo desenho na tela. -->
+				<div
+					class="bg-white border-2 border-primary-300 dark:border-primary-700 rounded-xl overflow-hidden relative min-h-[280px] flex items-center justify-center p-4"
+				>
+					<span
+						class="absolute top-2 left-2 flex items-center gap-1 px-2 py-1 rounded-full bg-primary-500/10 border border-primary-500/20 text-3xs font-black uppercase text-primary-600 dark:text-primary-400"
+					>
+						<Check class="w-3 h-3" aria-hidden="true" /> Rubrica cadastrada
+					</span>
+					<img
+						src={rubricaSalva}
+						alt="Sua rubrica cadastrada"
+						class="max-h-[240px] max-w-full object-contain"
+					/>
+					{@render gpsIndicator()}
+				</div>
+			{:else}
+				<div
+					class="bg-white border-2 border-surface-200 dark:border-surface-700 rounded-xl overflow-hidden touch-none relative min-h-[280px]"
+				>
+					<canvas
+						bind:this={rubrica.canvas}
+						width="500"
+						height="280"
+						aria-label="Área de desenho da assinatura manuscrita — desenhe sua assinatura com o dedo ou mouse"
+						class="w-full h-[280px] cursor-crosshair touch-none"
+						onmousedown={rubrica.startDrawing}
+						onmousemove={rubrica.draw}
+						onmouseup={rubrica.stopDrawing}
+						onmouseleave={rubrica.stopDrawing}
+						ontouchstart={rubrica.startDrawing}
+						ontouchmove={rubrica.draw}
+						ontouchend={rubrica.stopDrawing}
+					></canvas>
+
+					{@render gpsIndicator()}
+				</div>
+			{/if}
 		</div>
 
 		{#if step === 'camera'}
@@ -483,13 +536,19 @@
 
 	<div class="flex flex-wrap justify-between items-center gap-2 mt-4">
 		{#if step === 'signature'}
-			<button
-				type="button"
-				class="btn preset-tonal-surface rounded-xl text-xs font-bold uppercase px-4 py-2 hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors"
-				onclick={rubrica.clear}
-			>
-				Limpar
-			</button>
+			{#if usarRubricaSalva && rubricaSalva}
+				<span class="text-3xs font-medium text-surface-400 italic self-center">
+					Usando sua rubrica cadastrada
+				</span>
+			{:else}
+				<button
+					type="button"
+					class="btn preset-tonal-surface rounded-xl text-xs font-bold uppercase px-4 py-2 hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors"
+					onclick={rubrica.clear}
+				>
+					Limpar
+				</button>
+			{/if}
 
 			<div class="flex items-center gap-2 ml-auto">
 				<button

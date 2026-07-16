@@ -440,6 +440,7 @@
 						exigirFoto={page.data.exigirFotoAssinatura ?? true}
 						exigirGps={page.data.exigirGpsAssinatura ?? true}
 						exigirCodigoEmail={page.data.exigirCodigoEmailAssinatura ?? false}
+						rubricaSalva={minhaRubrica}
 						bind:step={signatureStep}
 					/>
 				{/if}
