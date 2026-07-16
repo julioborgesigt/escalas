@@ -565,6 +565,7 @@
 				{#snippet loteSection()}
 					{#if isSupervisor || isAdminGeral}
 						<GiseLoteAssinaturas
+							giseId={gise.id}
 							quantidadePendentes={pendentesExtra.length}
 							assinandoLote={assinatura.assinandoLote}
 							etapaAssinatura={assinatura.etapaAssinatura}
