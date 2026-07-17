@@ -524,13 +524,19 @@
 		</p>
 	{/if}
 
+	<!-- O aviso de consentimento lista só o que este nível de segurança (config
+	     do Super Admin) de fato captura: GPS e/ou selfie; metadados sempre. -->
 	<div class="p-3 bg-primary-500/5 border border-dashed border-primary-500/20 rounded-xl">
 		<p class="text-3xs font-medium text-surface-500 leading-tight text-center">
-			Ao assinar, declaro a veracidade destas informações e autorizo o registro de minha <strong
-				>localização geográfica</strong
-			>,
-			<strong>fotografia (prova de vida)</strong>
-			e <strong>metadados técnicos</strong> para fins de validade jurídica desta assinatura (Lei 14.063/20).
+			Ao assinar, declaro a veracidade destas informações e autorizo o registro de
+			{#if exigirGps && exigirFoto}
+				minha <strong>localização geográfica</strong>, <strong>fotografia (prova de vida)</strong> e
+			{:else if exigirGps}
+				minha <strong>localização geográfica</strong> e
+			{:else if exigirFoto}
+				minha <strong>fotografia (prova de vida)</strong> e
+			{/if}
+			<strong>metadados técnicos</strong> para fins de validade jurídica desta assinatura (Lei 14.063/20).
 		</p>
 	</div>
 

@@ -444,13 +444,6 @@
 						bind:step={signatureStep}
 					/>
 				{/if}
-
-				<p class="text-sm text-surface-500 dark:text-surface-400 text-center italic">
-					Esta rubrica será registrada permanentemente como comprovante de {tipoPresenca ===
-					'entrada'
-						? 'entrada'
-						: 'saída'} no serviço.
-				</p>
 			</div>
 		{/if}
 	</Dialog.Content>
