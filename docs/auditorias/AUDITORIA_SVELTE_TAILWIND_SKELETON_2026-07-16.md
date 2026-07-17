@@ -285,13 +285,15 @@ cada hex aparece 2×; num segundo passo, derivá-las dos tokens via
 
 Checklist priorizado:
 
-- [ ] **B-3** (quick win, Média): unificar exclusão de escala num helper com
-      limpeza R2 e usá-lo no `/painel`.
-- [ ] **B-2** (quick win, Média): replicar o guarda de papel do `load` nas
-      actions `criar`/`excluir` de `/escalas` — *confirmar antes se policiais
-      comuns devem mesmo poder criar/excluir escalas da própria lotação*.
-- [ ] **B-4** (quick win, Média): teclado/role nos cards expansíveis de
-      auditoria e logs.
+- [x] **B-3** (quick win, Média): unificar exclusão de escala num helper com
+      limpeza R2 e usá-lo no `/painel`. — *Aplicado em 2026-07-17
+      (`$lib/server/escala-exclusao.ts`, usado por /escalas, /recebidos e
+      /painel).*
+- [x] **B-2** (quick win, Média): replicar o guarda de papel do `load` nas
+      actions `criar`/`excluir` de `/escalas`. — *Aplicado em 2026-07-17 com
+      autorização do mantenedor.*
+- [x] **B-4** (quick win, Média): teclado/role nos cards expansíveis de
+      auditoria e logs. — *Aplicado em 2026-07-17.*
 - [ ] **B-1** (médio, Alta): corrigir a agregação truncada de `/produtividade`
       (curto prazo: buscar todas as páginas; médio prazo: agregar no servidor).
 - [ ] **B-6.1/6.2** (quick wins, Baixa): extrair composable da rubrica; trocar
