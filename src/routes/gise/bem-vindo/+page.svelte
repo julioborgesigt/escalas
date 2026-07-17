@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { PageProps } from './$types';
-	import { Shield, Calendar, TrendingUp, Sliders, FileText, FileCheck } from 'lucide-svelte';
+	import { ICONE } from '$lib/constants/icones';
 	import BemVindoPagina from '$lib/components/bem-vindo/BemVindoPagina.svelte';
 	import BemVindoCabecalho from '$lib/components/bem-vindo/BemVindoCabecalho.svelte';
 	import BemVindoCardAcao from '$lib/components/bem-vindo/BemVindoCardAcao.svelte';
@@ -32,7 +32,7 @@
 		if (usuario?.tipo === 'admin') {
 			return [
 				{
-					icone: Calendar,
+					icone: ICONE.pranchetaLista,
 					titulo: 'Escalas GISE',
 					descricao:
 						'Planeje, gerencie e valide a alocação de equipes operacionais e equipes de inteligência em serviço extraordinário.',
@@ -40,7 +40,7 @@
 					cta: 'Acessar escalas GISE'
 				},
 				{
-					icone: TrendingUp,
+					icone: ICONE.barras,
 					titulo: 'Produtividade',
 					descricao:
 						'Acompanhe relatórios de apreensões de armas e drogas, analise os índices de prisões e exporte gráficos consolidados.',
@@ -48,7 +48,7 @@
 					cta: 'Acessar produtividade'
 				},
 				{
-					icone: Sliders,
+					icone: ICONE.engrenagem,
 					titulo: 'Configurações GISE',
 					descricao:
 						'Configure parâmetros globais do módulo GISE, como valores limite de cotas financeiras e horas extras permitidas.',
@@ -56,7 +56,7 @@
 					cta: 'Abrir configurações'
 				},
 				{
-					icone: FileText,
+					icone: ICONE.documento,
 					titulo: 'Formulários e Presenças',
 					descricao:
 						'Gerencie modelos de formulários de relatório de inteligência e valide os arquivos de presença das equipes GISE.',
@@ -68,7 +68,7 @@
 		if (isSubAdmin && showResGise) {
 			return [
 				{
-					icone: Calendar,
+					icone: ICONE.pranchetaLista,
 					titulo: 'Escalas GISE',
 					descricao:
 						usuario?.papel === 'admin_unidade'
@@ -78,7 +78,7 @@
 					cta: 'Acessar escalas GISE'
 				},
 				{
-					icone: FileCheck,
+					icone: ICONE.documento,
 					titulo: 'Presença GISE',
 					descricao:
 						'Confirme sua presença nas escalas GISE ativas onde você foi alocado e assine a folha de presença correspondente.',
@@ -89,7 +89,7 @@
 		}
 		return [
 			{
-				icone: Shield,
+				icone: ICONE.pranchetaLista,
 				titulo: 'Painel GISE',
 				descricao:
 					'Acesse o painel para gerenciar a alocação de equipes e acompanhar o serviço extraordinário.',
@@ -105,7 +105,13 @@
 </svelte:head>
 
 <BemVindoPagina>
-	<BemVindoCabecalho icone={Shield} modulo="Módulo GISE" {usuario} {descricao} accent="secondary" />
+	<BemVindoCabecalho
+		icone={ICONE.casa}
+		modulo="Módulo GISE"
+		{usuario}
+		{descricao}
+		accent="secondary"
+	/>
 
 	<section class="mt-6 sm:mt-8">
 		<h2

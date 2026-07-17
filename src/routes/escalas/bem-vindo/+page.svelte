@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { PageProps } from './$types';
-	import { Calendar, LayoutDashboard, Inbox, Shield, FileCheck } from 'lucide-svelte';
+	import { ICONE } from '$lib/constants/icones';
 	import BemVindoPagina from '$lib/components/bem-vindo/BemVindoPagina.svelte';
 	import BemVindoCabecalho from '$lib/components/bem-vindo/BemVindoCabecalho.svelte';
 	import BemVindoCardAcao from '$lib/components/bem-vindo/BemVindoCardAcao.svelte';
@@ -27,7 +27,7 @@
 		if (usuario?.tipo === 'admin') {
 			return [
 				{
-					icone: LayoutDashboard,
+					icone: ICONE.painel,
 					titulo: 'Painel de Compliance',
 					descricao:
 						'Acompanhe o envio e assinatura das escalas por delegacia, monitorando o cumprimento dos prazos e identificando pendências.',
@@ -35,7 +35,7 @@
 					cta: 'Acessar painel'
 				},
 				{
-					icone: Inbox,
+					icone: ICONE.caixaEntrada,
 					titulo: 'Caixa de Entrada',
 					descricao:
 						'Visualize e gerencie os envios e assinaturas de escalas em tempo real, além de realizar exportações (Word, Excel, PDF).',
@@ -47,7 +47,7 @@
 		if (usuario?.papel === 'admin_seccional') {
 			const lista = [
 				{
-					icone: Calendar,
+					icone: ICONE.calendario,
 					titulo: 'Escalas Ordinárias',
 					descricao:
 						'Envie e gerencie as escalas ordinárias de sua seccional, incluindo plantão (mensal), expediente e a escala de final de semana.',
@@ -55,7 +55,7 @@
 					cta: 'Acessar escalas'
 				},
 				{
-					icone: Shield,
+					icone: ICONE.pranchetaLista,
 					titulo: 'Escalas GISE',
 					descricao:
 						'Preencha e gerencie a escalação dos policiais convocados para atuar nas operações extraordinárias do GISE.',
@@ -65,7 +65,7 @@
 			];
 			if (showResGise) {
 				lista.push({
-					icone: FileCheck,
+					icone: ICONE.documento,
 					titulo: 'Presença GISE',
 					descricao:
 						'Confirme sua presença nas escalas extraordinárias GISE onde foi alocado e assine a folha correspondente.',
@@ -78,7 +78,7 @@
 		if (usuario?.papel === 'admin_unidade' && showResGise) {
 			return [
 				{
-					icone: Calendar,
+					icone: ICONE.calendario,
 					titulo: 'Gestão de Escalas',
 					descricao:
 						'Crie e gerencie as escalas ordinárias (mensal) de plantão e expediente e a escala de final de semana de sua unidade administrativa.',
@@ -86,7 +86,7 @@
 					cta: 'Acessar escalas'
 				},
 				{
-					icone: FileCheck,
+					icone: ICONE.documento,
 					titulo: 'Presença GISE',
 					descricao:
 						'Confirme sua presença nas escalas GISE ativas onde você foi alocado e assine a folha de presença correspondente.',
@@ -97,7 +97,7 @@
 		}
 		return [
 			{
-				icone: Calendar,
+				icone: ICONE.calendario,
 				titulo: 'Painel de Escalas',
 				descricao:
 					'Acesse o painel para criar, enviar e acompanhar as escalas ordinárias de sua unidade.',
@@ -114,7 +114,7 @@
 
 <BemVindoPagina>
 	<BemVindoCabecalho
-		icone={Calendar}
+		icone={ICONE.casa}
 		modulo="Módulo de Escalas"
 		{usuario}
 		{descricao}

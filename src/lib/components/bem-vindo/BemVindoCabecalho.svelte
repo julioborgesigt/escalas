@@ -1,12 +1,12 @@
 <!-- Cabeçalho institucional das telas de boas-vindas: identificação do módulo,
      saudação, data corrente e metadados do usuário (perfil, matrícula, lotação). -->
 <script lang="ts">
-	import type { ComponentType, SvelteComponent } from 'svelte';
-	import type { IconProps } from 'lucide-svelte';
 	import type { UsuarioLogado } from '$lib/auth';
+	import IconeSvg from './IconeSvg.svelte';
 
 	interface Props {
-		icone: ComponentType<SvelteComponent<IconProps>>;
+		/** Paths SVG do ícone (`ICONE.*` de `$lib/constants/icones`). */
+		icone: string[];
 		/** Rótulo do módulo exibido acima da saudação (ex.: "Módulo de Escalas"). */
 		modulo: string;
 		usuario: UsuarioLogado | null | undefined;
@@ -14,7 +14,7 @@
 		accent?: 'primary' | 'secondary';
 	}
 
-	const { icone: Icone, modulo, usuario, descricao, accent = 'primary' }: Props = $props();
+	const { icone, modulo, usuario, descricao, accent = 'primary' }: Props = $props();
 
 	const estilos = {
 		primary: {
@@ -66,7 +66,7 @@
 	<div class="flex items-start justify-between gap-4">
 		<div class="flex items-center gap-3 sm:gap-4">
 			<div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border {e.icone}">
-				<Icone class="h-5 w-5" aria-hidden="true" />
+				<IconeSvg paths={icone} class="h-5 w-5" />
 			</div>
 			<div class="min-w-0">
 				<p class="text-2xs font-semibold tracking-[0.18em] uppercase {e.eyebrow}">{modulo}</p>

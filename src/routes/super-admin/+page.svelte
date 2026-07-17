@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { PageProps } from './$types';
-	import { ShieldCheck, Building, Users, Key, Settings, History } from 'lucide-svelte';
+	import { ICONE } from '$lib/constants/icones';
 	import BemVindoPagina from '$lib/components/bem-vindo/BemVindoPagina.svelte';
 	import BemVindoCabecalho from '$lib/components/bem-vindo/BemVindoCabecalho.svelte';
 	import BemVindoCardAcao from '$lib/components/bem-vindo/BemVindoCardAcao.svelte';
@@ -10,7 +10,7 @@
 
 	const acoes = [
 		{
-			icone: Building,
+			icone: ICONE.predio,
 			titulo: 'Unidades',
 			descricao:
 				'Cadastre e gerencie a estrutura organizacional: departamentos, seccionais e delegacias.',
@@ -18,7 +18,7 @@
 			cta: 'Gerenciar unidades'
 		},
 		{
-			icone: Users,
+			icone: ICONE.pessoas,
 			titulo: 'Policiais',
 			descricao:
 				'Gerencie o cadastro de policiais, papéis administrativos (RBAC) e a concessão de Admin Geral.',
@@ -26,7 +26,7 @@
 			cta: 'Gerenciar policiais'
 		},
 		{
-			icone: Key,
+			icone: ICONE.engrenagem,
 			titulo: 'Configurações de Assinatura',
 			descricao:
 				'Defina os requisitos das assinaturas eletrônicas (foto, GPS e código por e-mail / 2FA).',
@@ -34,7 +34,7 @@
 			cta: 'Abrir configurações'
 		},
 		{
-			icone: Settings,
+			icone: ICONE.sliders,
 			titulo: 'Configurações Gerais',
 			descricao:
 				'Ajustes globais do sistema, como o provedor de e-mail padrão (Cloudflare / Resend) com fallback.',
@@ -42,7 +42,7 @@
 			cta: 'Abrir configurações'
 		},
 		{
-			icone: History,
+			icone: ICONE.documento,
 			titulo: 'Auditoria',
 			descricao:
 				'Trilha forense de ações do sistema: filtros, verificação de integridade e exportação (CSV/PDF).',
@@ -58,7 +58,7 @@
 
 <BemVindoPagina>
 	<BemVindoCabecalho
-		icone={ShieldCheck}
+		icone={ICONE.casa}
 		modulo="Administração do Sistema"
 		{usuario}
 		descricao="Você está no console do Super Administrador. Aqui você gerencia a estrutura do sistema (unidades e policiais), as configurações globais e a auditoria/conformidade — sem as abas operacionais do dia a dia."

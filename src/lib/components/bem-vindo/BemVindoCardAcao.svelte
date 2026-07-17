@@ -3,12 +3,13 @@
      um link discreto com seta. `horizontal` vira uma linha larga (usada quando
      o papel do usuário tem uma única ação disponível). -->
 <script lang="ts">
-	import type { ComponentType, SvelteComponent } from 'svelte';
-	import type { IconProps } from 'lucide-svelte';
-	import { ArrowRight } from 'lucide-svelte';
+	import { ICONE } from '$lib/constants/icones';
+	import IconeSvg from './IconeSvg.svelte';
 
 	interface Props {
-		icone: ComponentType<SvelteComponent<IconProps>>;
+		/** Paths SVG do ícone (`ICONE.*` de `$lib/constants/icones`) — use o
+		 * mesmo ícone que a sidebar usa para a rota de destino. */
+		icone: string[];
 		titulo: string;
 		descricao: string;
 		href: string;
@@ -18,7 +19,7 @@
 	}
 
 	const {
-		icone: Icone,
+		icone,
 		titulo,
 		descricao,
 		href,
@@ -46,12 +47,13 @@
 
 	const base =
 		'group card-elevated rounded-xl transition-all duration-200 hover:shadow-md focus-visible:outline-2 focus-visible:outline-offset-2';
+	const seta = 'h-3.5 w-3.5 transition-transform duration-200 group-hover:translate-x-0.5';
 </script>
 
 {#if horizontal}
 	<a {href} class="{base} flex items-center gap-4 p-4 sm:p-5 {e.hover} {e.foco}">
 		<div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border {e.icone}">
-			<Icone class="h-5 w-5" aria-hidden="true" />
+			<IconeSvg paths={icone} class="h-5 w-5" />
 		</div>
 		<div class="min-w-0 flex-1">
 			<h3 class="text-base font-semibold text-surface-900 dark:text-surface-50">{titulo}</h3>
@@ -61,17 +63,14 @@
 		</div>
 		<span class="hidden shrink-0 items-center gap-1.5 text-xs font-semibold sm:inline-flex {e.cta}">
 			{cta}
-			<ArrowRight
-				class="h-3.5 w-3.5 transition-transform duration-200 group-hover:translate-x-0.5"
-				aria-hidden="true"
-			/>
+			<IconeSvg paths={ICONE.setaDireita} class={seta} />
 		</span>
-		<ArrowRight class="h-4 w-4 shrink-0 text-surface-400 sm:hidden" aria-hidden="true" />
+		<IconeSvg paths={ICONE.setaDireita} class="h-4 w-4 shrink-0 text-surface-400 sm:hidden" />
 	</a>
 {:else}
 	<a {href} class="{base} flex flex-col gap-4 p-5 {e.hover} {e.foco}">
 		<div class="flex h-10 w-10 items-center justify-center rounded-lg border {e.icone}">
-			<Icone class="h-5 w-5" aria-hidden="true" />
+			<IconeSvg paths={icone} class="h-5 w-5" />
 		</div>
 		<div class="flex-1 space-y-1.5">
 			<h3 class="text-base font-semibold text-surface-900 dark:text-surface-50">{titulo}</h3>
@@ -81,10 +80,7 @@
 		</div>
 		<span class="inline-flex items-center gap-1.5 text-xs font-semibold {e.cta}">
 			{cta}
-			<ArrowRight
-				class="h-3.5 w-3.5 transition-transform duration-200 group-hover:translate-x-0.5"
-				aria-hidden="true"
-			/>
+			<IconeSvg paths={ICONE.setaDireita} class={seta} />
 		</span>
 	</a>
 {/if}
