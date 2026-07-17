@@ -348,6 +348,7 @@ Verificar cada transição de status:
 - [ ] Gráficos renderizados corretamente
 - [ ] Filtrar por período/seccional
 - [ ] Dados vazios → estado vazio com mensagem
+- [ ] Com mais de 200 respostas acumuladas → stats/rankings/gráficos contam o conjunto completo (o load pagina internamente em lotes de 500)
 
 ---
 

@@ -294,11 +294,25 @@ Checklist priorizado:
       autorização do mantenedor.*
 - [x] **B-4** (quick win, Média): teclado/role nos cards expansíveis de
       auditoria e logs. — *Aplicado em 2026-07-17.*
-- [ ] **B-1** (médio, Alta): corrigir a agregação truncada de `/produtividade`
+- [x] **B-1** (médio, Alta): corrigir a agregação truncada de `/produtividade`
       (curto prazo: buscar todas as páginas; médio prazo: agregar no servidor).
-- [ ] **B-6.1/6.2** (quick wins, Baixa): extrair composable da rubrica; trocar
-      SVGs inline por lucide.
-- [ ] **B-5** (médio, Baixa): centralizar cores dos charts e derivar dos tokens.
+      — *Curto prazo aplicado em 2026-07-17: o load busca a 1ª página no batch
+      e as demais em paralelo (lotes de 500); campo `pagination` morto
+      removido. A agregação server-side segue como dívida de médio prazo.*
+- [x] **B-6.1/6.2** (quick wins, Baixa): extrair composable da rubrica; trocar
+      SVGs inline por lucide. — *Aplicado em 2026-07-17: composable
+      `useOfertaRubrica` + `rubricaValida` em `$lib/composables`; lucide
+      `Check`/`Plus` nos dois pontos flagrados (painel mobile e toggle de
+      export da produtividade, este último também ganhou
+      `aria-label`/`aria-pressed`). NOTA: o padrão de check-SVG inline é mais
+      amplo do que o flagrado — ~20 ocorrências em 12 arquivos (`grep -rn
+      "M5 13l4 4L19 7" src --include="*.svelte"`); a varredura completa fica
+      como item próprio, fora do escopo de quick win.*
+- [x] **B-5** (médio, Baixa): centralizar cores dos charts e derivar dos tokens.
+      — *Centralização aplicada em 2026-07-17: labels/cores dos destaques agora
+      vêm de `VIRTUAL_CHARTS` (`$lib/export-charts`), fonte única já usada pelo
+      export PNG — os hex duplicados saíram da página. Derivar dos tokens do
+      tema segue pendente (Chart.js/export PNG exigem cor concreta).*
 - [ ] **B-6.3** (refatoração, Baixa): componente compartilhado para as telas de
       auditoria — só quando houver mudança funcional nelas.
 

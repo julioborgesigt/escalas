@@ -9,3 +9,4 @@ export { useScrollLock } from './useScrollLock.svelte';
 export { useFiltrosPaginados } from './useFiltrosPaginados.svelte';
 export { useVerificacaoEmailPessoal } from './useVerificacaoEmailPessoal.svelte';
 export { useBuscaDebounce } from './useBuscaDebounce.svelte';
+export { useOfertaRubrica, rubricaValida } from './useOfertaRubrica.svelte';

@@ -14,26 +14,33 @@ export async function load({ locals, platform, url }: PageServerLoadEvent) {
 
 	const db = getDB(platform);
 
-	// Parse pagination from URL params
-	const page = Math.max(1, Number(url.searchParams.get('page')) || 1);
 	const mes = Number(url.searchParams.get('mes')) || undefined;
 	const ano = Number(url.searchParams.get('ano')) || undefined;
 
-	const [resultLista, modeloOpRow, modeloSeintRow, seccionais] = await Promise.all([
-		listarTodasRespostasGise(db, { page, mes, ano }),
+	// O dashboard agrega o conjunto COMPLETO de respostas (stats/rankings/charts
+	// e filtros de ano/seccional são computados no cliente): busca a 1ª página
+	// no batch principal e as demais em paralelo. Antes, só a 1ª página
+	// (`?page=` que a UI nunca enviava, 200 linhas) era retornada — com mais de
+	// 200 respostas os números erravam silenciosamente (auditoria 2026-07-16,
+	// achado B-1). Médio prazo: agregar no servidor para o payload parar de
+	// crescer com o histórico.
+	const [primeira, modeloOpRow, modeloSeintRow, seccionais] = await Promise.all([
+		listarTodasRespostasGise(db, { page: 1, limit: 500, mes, ano }),
 		buscarGiseModeloFormulario(db, 'operacional'),
 		buscarGiseModeloFormulario(db, 'seint'),
 		buscarSeccionaisUnidades(db)
 	]);
+	const paginasRestantes =
+		primeira.totalPages > 1
+			? await Promise.all(
+					Array.from({ length: primeira.totalPages - 1 }, (_, i) =>
+						listarTodasRespostasGise(db, { page: i + 2, limit: 500, mes, ano })
+					)
+				)
+			: [];
 
 	return {
-		lista: resultLista.respostas,
-		pagination: {
-			page: resultLista.page,
-			limit: resultLista.limit,
-			total: resultLista.total,
-			totalPages: resultLista.totalPages
-		},
+		lista: [...primeira.respostas, ...paginasRestantes.flatMap((p) => p.respostas)],
 		modeloOperacional: JSON.parse(modeloOpRow?.config || '[]'),
 		modeloSeint: JSON.parse(modeloSeintRow?.config || '[]'),
 		seccionais
