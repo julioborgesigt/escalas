@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { slide } from 'svelte/transition';
 	import { FileDown } from 'lucide-svelte';
+	import { Dialog } from '@skeletonlabs/skeleton-svelte';
 	import { loading } from '$lib/loading.svelte';
 	import { getMembrosFromSec, checkAllSigned } from '$lib/gise/gise-page-helpers';
 	import { toaster } from '$lib/toast';
@@ -131,6 +132,22 @@
 	/** Todas as equipes com relatório de extra já assinado — segue o padrão dos
 	    demais cards (escala/relatório de extra): oferecer download em vez de só conferência. */
 	const todosAssinados = $derived(totalEquipes > 0 && totalAssinados === totalEquipes);
+
+	/** Nome(s) de quem assinou — exibido no lugar da descrição quando todos os
+	    relatórios estão assinados, como os demais cards de documento já fazem. */
+	const nomesAssinantes = $derived(
+		[...new Set(concluidosExtra.map((a) => a.assinante_nome?.trim()).filter(Boolean))].join(', ')
+	);
+
+	/** Diálogo de ciência jurídica antes da assinatura em lote por Token —
+	    espelha o aviso do fluxo individual (ModalRelatorioDigital →
+	    PainelAssinaturaToken), que o lote não exibia. */
+	let confirmandoLote = $state(false);
+
+	function confirmarAssinaturaLote() {
+		confirmandoLote = false;
+		void onAssinarDigitalLote();
+	}
 
 	/**
 	 * Baixa, em lote, todos os relatórios de extra assinados das equipes — um por
@@ -273,34 +290,42 @@
 					class="px-3 pb-3 pt-2.5 border-t border-surface-200/50 dark:border-surface-700/50 flex flex-col justify-between gap-2.5"
 				>
 					<div class="space-y-2">
-						<p class="text-2xs leading-snug text-surface-500 dark:text-surface-400">
-							O supervisor poderá assinar os Relatórios de extra das equipes em lote, parcialmente
-							ou todos de uma vez.
-						</p>
-						<p class="text-2xs leading-snug text-surface-500 dark:text-surface-400">
-							<span class="text-error-600 dark:text-error-400 font-medium">Faltando envio de:</span>
-							{#if naoIniciou}
-								Aguardando início
-							{:else}
-								{seccionaisFaltantes.length > 0
-									? seccionaisFaltantes
-											.map((s) => nomeSeccional(s.seccional_id ?? s.id ?? 0))
-											.join(', ')
-									: 'Nenhum'}
-							{/if}
-						</p>
-						<p class="text-2xs leading-snug text-surface-500 dark:text-surface-400">
-							<span class="text-success-600 dark:text-success-400 font-medium">Assinado de:</span>
-							{#if naoIniciou}
-								Aguardando início
-							{:else}
-								{seccionaisAssinadas.length > 0
-									? seccionaisAssinadas
-											.map((s) => nomeSeccional(s.seccional_id ?? s.id ?? 0))
-											.join(', ')
-									: 'Nenhum'}
-							{/if}
-						</p>
+						{#if todosAssinados}
+							<p class="text-xs font-bold text-surface-800 dark:text-surface-100 break-words">
+								{nomesAssinantes || 'Assinado'}
+							</p>
+						{:else}
+							<p class="text-2xs leading-snug text-surface-500 dark:text-surface-400">
+								O supervisor poderá assinar os Relatórios de extra das equipes em lote (todos de uma
+								vez), ou individualmente, através do quadro de cada seccional.
+							</p>
+							<p class="text-2xs leading-snug text-surface-500 dark:text-surface-400">
+								<span class="text-error-600 dark:text-error-400 font-medium"
+									>Faltando envio de:</span
+								>
+								{#if naoIniciou}
+									Aguardando início
+								{:else}
+									{seccionaisFaltantes.length > 0
+										? seccionaisFaltantes
+												.map((s) => nomeSeccional(s.seccional_id ?? s.id ?? 0))
+												.join(', ')
+										: 'Nenhum'}
+								{/if}
+							</p>
+							<p class="text-2xs leading-snug text-surface-500 dark:text-surface-400">
+								<span class="text-success-600 dark:text-success-400 font-medium">Assinado de:</span>
+								{#if naoIniciou}
+									Aguardando início
+								{:else}
+									{seccionaisAssinadas.length > 0
+										? seccionaisAssinadas
+												.map((s) => nomeSeccional(s.seccional_id ?? s.id ?? 0))
+												.join(', ')
+										: 'Nenhum'}
+								{/if}
+							</p>
+						{/if}
 
 						{#if assinandoLote}
 							<div class="flex flex-col gap-1.5">
@@ -465,34 +490,40 @@
 				<div
 					class="flex-1 min-w-0 text-left border-l border-surface-200/40 dark:border-surface-800/80 pl-4 py-0.5"
 				>
-					<p class="text-2xs leading-snug text-surface-500 dark:text-surface-400">
-						O supervisor poderá assinar os Relatórios de extra das equipes em lote, parcialmente ou
-						todos de uma vez.
-					</p>
-					<p class="text-2xs leading-snug text-surface-500 dark:text-surface-400 mt-0.5">
-						<span class="text-error-600 dark:text-error-400 font-medium">Faltando envio de:</span>
-						{#if naoIniciou}
-							Aguardando início
-						{:else}
-							{seccionaisFaltantes.length > 0
-								? seccionaisFaltantes
-										.map((s) => nomeSeccional(s.seccional_id ?? s.id ?? 0))
-										.join(', ')
-								: 'Nenhum'}
-						{/if}
-					</p>
-					<p class="text-2xs leading-snug text-surface-500 dark:text-surface-400 mt-0.5">
-						<span class="text-success-600 dark:text-success-400 font-medium">Assinado de:</span>
-						{#if naoIniciou}
-							Aguardando início
-						{:else}
-							{seccionaisAssinadas.length > 0
-								? seccionaisAssinadas
-										.map((s) => nomeSeccional(s.seccional_id ?? s.id ?? 0))
-										.join(', ')
-								: 'Nenhum'}
-						{/if}
-					</p>
+					{#if todosAssinados}
+						<p class="text-xs font-bold text-surface-800 dark:text-surface-100 break-words">
+							{nomesAssinantes || 'Assinado'}
+						</p>
+					{:else}
+						<p class="text-2xs leading-snug text-surface-500 dark:text-surface-400">
+							O supervisor poderá assinar os Relatórios de extra das equipes em lote (todos de uma
+							vez), ou individualmente, através do quadro de cada seccional.
+						</p>
+						<p class="text-2xs leading-snug text-surface-500 dark:text-surface-400 mt-0.5">
+							<span class="text-error-600 dark:text-error-400 font-medium">Faltando envio de:</span>
+							{#if naoIniciou}
+								Aguardando início
+							{:else}
+								{seccionaisFaltantes.length > 0
+									? seccionaisFaltantes
+											.map((s) => nomeSeccional(s.seccional_id ?? s.id ?? 0))
+											.join(', ')
+									: 'Nenhum'}
+							{/if}
+						</p>
+						<p class="text-2xs leading-snug text-surface-500 dark:text-surface-400 mt-0.5">
+							<span class="text-success-600 dark:text-success-400 font-medium">Assinado de:</span>
+							{#if naoIniciou}
+								Aguardando início
+							{:else}
+								{seccionaisAssinadas.length > 0
+									? seccionaisAssinadas
+											.map((s) => nomeSeccional(s.seccional_id ?? s.id ?? 0))
+											.join(', ')
+									: 'Nenhum'}
+							{/if}
+						</p>
+					{/if}
 
 					{#if assinandoLote}
 						<div class="flex flex-col gap-1.5 mt-2 max-w-md">
@@ -571,7 +602,7 @@
 								type="button"
 								class="btn btn-xs preset-filled-tertiary-500 border border-tertiary-600/30 px-2.5 py-1.5 text-3xs font-bold rounded-lg hover:border-tertiary-600 disabled:opacity-40 flex items-center gap-1 hover:scale-[1.02] transition-all"
 								disabled={loading.active || quantidadePendentes === 0}
-								onclick={onAssinarDigitalLote}
+								onclick={() => (confirmandoLote = true)}
 							>
 								<svg
 									class="h-2.5 w-2.5 shrink-0"
@@ -594,3 +625,67 @@
 		{/if}
 	</div>
 </div>
+
+<!-- Ciência jurídica antes de disparar a assinatura em lote — o mesmo aviso do
+     fluxo individual (Lei 14.063/2020 art. 4º §1º), que o lote não exibia. -->
+<Dialog
+	open={confirmandoLote}
+	onOpenChange={(e) => {
+		if (!e.open) confirmandoLote = false;
+	}}
+>
+	<Dialog.Content
+		class="fixed inset-0 z-[60] flex items-center justify-center p-3 sm:p-4 bg-surface-950/80 backdrop-blur-md overflow-y-auto"
+	>
+		<div
+			class="card-elevated rounded-2xl shadow-2xl w-full max-w-lg p-5 sm:p-8 space-y-5 border border-white/10 max-h-[calc(100dvh-1.5rem)] overflow-y-auto"
+		>
+			<div class="text-center space-y-2">
+				<Dialog.Title class="text-xl sm:text-2xl font-bold text-surface-900 dark:text-surface-50">
+					Assinatura Digital em Lote
+				</Dialog.Title>
+				<Dialog.Description class="text-sm text-surface-500">
+					Você está assinando, de uma só vez, os Relatórios de extra pendentes de
+					<strong class="text-surface-900 dark:text-surface-50">
+						{quantidadePendentes}
+						{quantidadePendentes === 1 ? 'equipe' : 'equipes'}
+					</strong>.
+				</Dialog.Description>
+			</div>
+
+			<!-- Aviso jurídico (Lei 14.063/2020 art. 4º §1º) -->
+			<p class="text-2xs text-surface-500 dark:text-surface-400 italic leading-snug">
+				Ao clicar em <strong>Assinar</strong>, você confirma que leu os documentos e que estas
+				assinaturas têm valor jurídico equivalente à manuscrita, conforme o
+				<a href="/termo" target="_blank" rel="noopener" class="underline hover:text-primary-600"
+					>Termo de Uso</a
+				>
+				aceito.
+			</p>
+
+			<button
+				type="button"
+				class="btn btn-sm preset-filled-primary-500 font-bold px-4 py-2 rounded-lg shadow-sm hover:scale-[1.02] transition-transform w-full flex items-center justify-center gap-2"
+				onclick={confirmarAssinaturaLote}
+			>
+				<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"
+					><path
+						stroke-linecap="round"
+						stroke-linejoin="round"
+						stroke-width="2"
+						d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+					/></svg
+				>
+				Assinar com Certificado Digital (SERPRO)
+			</button>
+
+			<button
+				type="button"
+				class="w-full btn preset-outlined-surface-500 py-3 rounded-2xl text-sm"
+				onclick={() => (confirmandoLote = false)}
+			>
+				Cancelar e fechar
+			</button>
+		</div>
+	</Dialog.Content>
+</Dialog>

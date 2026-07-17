@@ -289,11 +289,8 @@
 			<div transition:slide={{ duration: 220 }} class="mt-3 space-y-3">
 				<p class="text-3xs text-surface-400 dark:text-surface-500 italic px-1">
 					Ao confirmar, você atesta valor jurídico equivalente à assinatura manuscrita, conforme o
-					<a
-						href="/termo/1.0"
-						target="_blank"
-						rel="noopener"
-						class="underline hover:text-primary-500">Termo de Uso</a
+					<a href="/termo" target="_blank" rel="noopener" class="underline hover:text-primary-500"
+						>Termo de Uso</a
 					> aceito.
 				</p>
 
