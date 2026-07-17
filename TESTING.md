@@ -68,6 +68,7 @@ Roteiro de regressão manual dos fluxos de negócio. Use antes de releases impor
 - [ ] Criar escala com dados válidos → redireciona para `/escalas/[id]` (edição)
 - [ ] Cancelar/fechar o modal → volta ao estado anterior sem criar
 - [ ] Escala criada → aparece na listagem
+- [ ] (servidor) Policial sem papel de administração → 403 ao criar via POST direto (`/escalas?/criar`)
 
 ### 3.3 Editar Escala (`/escalas/[id]`)
 
@@ -83,6 +84,8 @@ Roteiro de regressão manual dos fluxos de negócio. Use antes de releases impor
 - [ ] Solicitar exclusão → confirmação solicitada
 - [ ] Confirmar exclusão → escala removida da listagem
 - [ ] Cancelar exclusão → nada alterado
+- [ ] (servidor) Policial sem papel de administração → 403 ao excluir via POST direto (`/escalas?/excluir`)
+- [ ] Excluir escala assinada (por qualquer caminho: /escalas, /recebidos, /painel) → documento, cópia de conferência e selfie removidos do R2 junto
 
 ### 3.5 Marcar Visto
 
@@ -345,6 +348,7 @@ Verificar cada transição de status:
 - [ ] Gráficos renderizados corretamente
 - [ ] Filtrar por período/seccional
 - [ ] Dados vazios → estado vazio com mensagem
+- [ ] Com mais de 200 respostas acumuladas → stats/rankings/gráficos contam o conjunto completo (o load pagina internamente em lotes de 500)
 
 ---
 

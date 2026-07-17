@@ -1,6 +1,15 @@
 <script lang="ts">
 	import type { PageProps } from './$types';
-	import { Lock, CheckCircle2, Clock, XCircle, BellOff, Search, PartyPopper } from 'lucide-svelte';
+	import {
+		Lock,
+		Check,
+		CheckCircle2,
+		Clock,
+		XCircle,
+		BellOff,
+		Search,
+		PartyPopper
+	} from 'lucide-svelte';
 	import { goto, invalidate } from '$app/navigation';
 	import { enhance } from '$app/forms';
 	import { page, navigating } from '$app/state';
@@ -757,18 +766,7 @@
 												<span
 													class="text-xs text-success-600 dark:text-success-400 font-bold flex items-center gap-1"
 												>
-													<svg
-														class="w-3.5 h-3.5"
-														fill="none"
-														viewBox="0 0 24 24"
-														stroke="currentColor"
-														><path
-															stroke-linecap="round"
-															stroke-linejoin="round"
-															stroke-width="2"
-															d="M5 13l4 4L19 7"
-														/></svg
-													>
+													<Check class="w-3.5 h-3.5" aria-hidden="true" />
 													Em dia
 												</span>
 											{:else if item.status === 'nao_assinada' && item.escala_id}

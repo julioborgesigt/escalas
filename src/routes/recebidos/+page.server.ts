@@ -6,15 +6,11 @@ import {
 	listarEscalas,
 	listarUnidades,
 	marcarVisto,
-	excluirEscala,
-	excluirDocumentoEscala,
-	getR2,
-	hasR2,
 	registrarAuditComContexto,
 	contextoDeEvento
 } from '$lib/db';
 import { unidades as unidadesTable } from '$lib/server/schema';
-import { limparR2DocumentoEscala } from '$lib/server/r2-cleanup';
+import { excluirEscalaCompleta } from '$lib/server/escala-exclusao';
 
 /** Itens por página da caixa de entrada (mesmo tamanho da paginação antiga client-side). */
 const ITENS_POR_PAGINA = 10;
@@ -109,11 +105,7 @@ export const actions: Actions = {
 		// Deleta documento do R2 (blob + conferência + selfie) e do banco.
 		// R2-1/R2-3: antes apagava só o blob principal, deixando a cópia de
 		// conferência e a selfie biométrica órfãs. O helper cobre todos.
-		if (hasR2(platform)) {
-			await limparR2DocumentoEscala(db, getR2(platform), escalaId);
-		}
-		await excluirDocumentoEscala(db, escalaId);
-		await excluirEscala(db, escalaId);
+		await excluirEscalaCompleta(db, platform, escalaId);
 
 		const { contexto, env } = contextoDeEvento(event);
 		await registrarAuditComContexto(db, {

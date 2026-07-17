@@ -302,11 +302,18 @@
 				{@const niv = NIVEL[log.level] ?? NIVEL.warn}
 				{@const ctx = parseJson(log.contexto)}
 
-				<!-- svelte-ignore a11y_click_events_have_key_events -->
-				<!-- svelte-ignore a11y_no_static_element_interactions -->
 				<div
 					class="rounded-xl border border-surface-200 dark:border-white/10 bg-surface-50 dark:bg-surface-900 p-4 space-y-3 cursor-pointer transition-colors active:bg-surface-100 dark:active:bg-surface-800/40"
+					role="button"
+					tabindex="0"
+					aria-expanded={expandido === log.id}
 					onclick={() => (expandido = expandido === log.id ? null : log.id)}
+					onkeydown={(e) => {
+						if (e.key === 'Enter' || e.key === ' ') {
+							e.preventDefault();
+							expandido = expandido === log.id ? null : log.id;
+						}
+					}}
 				>
 					<div class="flex items-center justify-between gap-2">
 						<span class="inline-block px-2 py-0.5 rounded-full text-xs font-semibold {niv.cls}">
@@ -336,6 +343,8 @@
 					</div>
 
 					{#if expandido === log.id}
+						<!-- Barreira de propagação apenas (sem interação própria): impede que
+						     cliques em texto/seleção dentro dos detalhes recolham o card. -->
 						<!-- svelte-ignore a11y_click_events_have_key_events -->
 						<!-- svelte-ignore a11y_no_static_element_interactions -->
 						<div

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { Check, Plus } from 'lucide-svelte';
 	import type { PageProps } from './$types';
 	import { tick } from 'svelte';
 	import { slide } from 'svelte/transition';
@@ -726,17 +727,20 @@
 		<div class="space-y-6 animate-in fade-in slide-in-from-top-4 duration-500">
 			<!-- ROW 1: PRISONS -->
 			<section class="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+				<!-- Labels/cores vêm de VIRTUAL_CHARTS ($lib/export-charts) — fonte única
+				     compartilhada com o export PNG; antes os hex ficavam duplicados aqui
+				     (auditoria 2026-07-16, B-5). -->
 				{@render subRanking(
 					'rank-prisoes',
-					'Ranking de Prisões (P7)',
+					VIRTUAL_CHARTS['rank-prisoes'].label,
 					rankingPrisoes,
-					'#f43f5e',
+					VIRTUAL_CHARTS['rank-prisoes'].color,
 					iconPrison,
 					''
 				)}
 				{@render subDetailing(
 					'detail-prisoes',
-					'Detalhamento de Prisões',
+					VIRTUAL_CHARTS['detail-prisoes'].label,
 					(() => {
 						const v = (stats['prisoes_apreensoes_flagrante'] as number) || 0;
 						return [
@@ -750,7 +754,7 @@
 						stats.prisaoFlagrante,
 						stats.prisaoMandado
 					),
-					'#f43f5e',
+					VIRTUAL_CHARTS['detail-prisoes'].color,
 					''
 				)}
 			</section>
@@ -759,20 +763,20 @@
 			<section class="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
 				{@render subRanking(
 					'rank-drogas',
-					'Ranking de Drogas (P10)',
+					VIRTUAL_CHARTS['rank-drogas'].label,
 					rankingDrogasPeso,
-					'#ef4444',
+					VIRTUAL_CHARTS['rank-drogas'].color,
 					iconDrug,
 					'kg'
 				)}
 				{@render subDetailing(
 					'detail-drogas',
-					'Detalhamento de Substâncias',
+					VIRTUAL_CHARTS['detail-drogas'].label,
 					(Object.entries(stats.drogasPorTipo) as [string, number][])
 						.sort((a, b) => b[1] - a[1])
 						.slice(0, 8),
 					stats.drogasGeral,
-					'#ef4444',
+					VIRTUAL_CHARTS['detail-drogas'].color,
 					'g'
 				)}
 			</section>
@@ -781,20 +785,20 @@
 			<section class="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
 				{@render subRanking(
 					'rank-armas',
-					'Ranking de Armas (P11)',
+					VIRTUAL_CHARTS['rank-armas'].label,
 					rankingArmas,
-					'#6366f1',
+					VIRTUAL_CHARTS['rank-armas'].color,
 					iconWeapon,
 					''
 				)}
 				{@render subDetailing(
 					'detail-armas',
-					'Detalhamento de Armas',
+					VIRTUAL_CHARTS['detail-armas'].label,
 					(Object.entries(stats.armasPorTipo) as [string, number][])
 						.sort((a, b) => b[1] - a[1])
 						.slice(0, 8),
 					stats.apreensoes_armas,
-					'#6366f1',
+					VIRTUAL_CHARTS['detail-armas'].color,
 					''
 				)}
 			</section>
@@ -814,6 +818,10 @@
 				<button
 					type="button"
 					onclick={() => toggleChartSelection(q.id)}
+					aria-pressed={selectedCharts.includes(q.id)}
+					aria-label={selectedCharts.includes(q.id)
+						? 'Remover gráfico da seleção de exportação'
+						: 'Selecionar gráfico para exportação'}
 					class="absolute top-2 right-2 md:top-3 md:right-3 w-6 h-6 md:w-8 md:h-8 rounded-lg md:rounded-xl flex items-center justify-center transition-all {selectedCharts.includes(
 						q.id
 					)
@@ -821,27 +829,9 @@
 						: 'bg-surface-100 dark:bg-surface-800 text-surface-500 hover:scale-105'}"
 				>
 					{#if selectedCharts.includes(q.id)}
-						<svg class="w-4 h-4 md:w-6 md:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"
-							><path
-								stroke-linecap="round"
-								stroke-linejoin="round"
-								stroke-width="4"
-								d="M5 13l4 4L19 7"
-							/></svg
-						>
+						<Check class="w-4 h-4 md:w-6 md:h-6" strokeWidth={4} aria-hidden="true" />
 					{:else}
-						<svg
-							class="w-3 h-3 md:w-5 md:h-5 opacity-40"
-							fill="none"
-							stroke="currentColor"
-							viewBox="0 0 24 24"
-							><path
-								stroke-linecap="round"
-								stroke-linejoin="round"
-								stroke-width="3"
-								d="M12 6v6m0 0v6m0-6h6m-6 0H6"
-							/></svg
-						>
+						<Plus class="w-3 h-3 md:w-5 md:h-5 opacity-40" strokeWidth={3} aria-hidden="true" />
 					{/if}
 				</button>
 				<div class="md:w-1/6 flex flex-col justify-center">

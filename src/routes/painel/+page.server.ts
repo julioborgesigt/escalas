@@ -1,12 +1,7 @@
 import { redirect, fail } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
-import {
-	getDB,
-	listarUnidades,
-	excluirEscala,
-	registrarAuditComContexto,
-	contextoDeEvento
-} from '$lib/db';
+import { getDB, listarUnidades, registrarAuditComContexto, contextoDeEvento } from '$lib/db';
+import { excluirEscalaCompleta } from '$lib/server/escala-exclusao';
 import type { Database } from '$lib/db';
 import { getNowBR } from '$lib/utils';
 import { and, gte, lte, inArray } from 'drizzle-orm';
@@ -271,7 +266,11 @@ export const actions: Actions = {
 		if (isNaN(escalaId)) return fail(400, { error: 'ID inválido' });
 
 		const db = getDB(platform);
-		await excluirEscala(db, escalaId);
+		// A UI só oferece exclusão para escalas não assinadas, mas o servidor não
+		// pode confiar nisso: o helper limpa R2 + documento antes do DELETE — sem
+		// ele, excluir uma escala assinada deixava blob/conferência/selfie órfãos
+		// no R2 (auditoria 2026-07-16, achado B-3).
+		await excluirEscalaCompleta(db, platform, escalaId);
 
 		const { contexto, env } = contextoDeEvento(event);
 		await registrarAuditComContexto(db, {

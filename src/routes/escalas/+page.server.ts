@@ -5,14 +5,13 @@ import {
 	listarEscalas,
 	listarPoliciaisEscala,
 	criarEscala,
-	excluirEscala,
 	listarUnidades,
 	verificarEscalaExistente,
 	listarSolicitacoesEscalas
 } from '$lib/db';
 import { escalaSchema } from '$lib/schemas';
-import { registrarAuditComContexto, contextoDeEvento, getR2, hasR2, batchNonEmpty } from '$lib/db';
-import { limparR2DocumentoEscala } from '$lib/server/r2-cleanup';
+import { registrarAuditComContexto, contextoDeEvento, batchNonEmpty } from '$lib/db';
+import { excluirEscalaCompleta } from '$lib/server/escala-exclusao';
 import { logger } from '$lib/server/logger';
 import { eq, or, and, inArray, sql, desc, type SQL } from 'drizzle-orm';
 import {
@@ -279,6 +278,12 @@ export const actions: Actions = {
 	criar: async ({ request, locals, platform }) => {
 		const u = locals.usuario;
 		if (!u) return fail(401, { error: 'Não autorizado' });
+		// Mesmo guarda do load e de criarComBase: sem ele, qualquer policial
+		// autenticado criava escala para a própria lotação via POST direto
+		// (auditoria 2026-07-16, achado B-2).
+		if (u.tipo !== 'admin' && u.papel !== 'admin_seccional' && u.papel !== 'admin_unidade') {
+			return fail(403, { error: 'Sem permissão' });
+		}
 
 		const data = await request.formData();
 		const titulo = data.get('titulo')?.toString() || '';
@@ -368,6 +373,12 @@ export const actions: Actions = {
 		const { request, locals, platform } = event;
 		const u = locals.usuario;
 		if (!u) return fail(401, { error: 'Não autorizado' });
+		// Exclusão é destrutiva: exige papel de administração (mesmo guarda do
+		// load). "Mesma lotação" continua valendo apenas para leitura/assinatura
+		// (escala-permissao.ts) — auditoria 2026-07-16, achado B-2.
+		if (u.tipo !== 'admin' && u.papel !== 'admin_seccional' && u.papel !== 'admin_unidade') {
+			return fail(403, { error: 'Sem permissão' });
+		}
 
 		const data = await request.formData();
 		const escalaId = Number(data.get('escala_id'));
@@ -399,14 +410,10 @@ export const actions: Actions = {
 			}
 		}
 
-		// R2-1: apaga blob assinado + conferência + selfie ANTES do DELETE. A FK
-		// escala_documentos → escalas é ON DELETE CASCADE: sem isto, a linha some
-		// e o objeto no R2 (com PII forense) fica órfão e irrastreável.
-		if (hasR2(platform)) {
-			await limparR2DocumentoEscala(db, getR2(platform), escalaId);
-		}
-
-		await excluirEscala(db, escalaId);
+		// R2-1: o helper apaga blob assinado + conferência + selfie ANTES do
+		// DELETE (a FK escala_documentos → escalas é ON DELETE CASCADE: sem isto,
+		// a linha some e o objeto no R2, com PII forense, fica órfão).
+		await excluirEscalaCompleta(db, platform, escalaId);
 
 		if (u) {
 			const { contexto, env } = contextoDeEvento(event);

@@ -6,7 +6,6 @@
 	import { enhance } from '$app/forms';
 	import { toaster } from '$lib/toast';
 	import { Dialog } from '@skeletonlabs/skeleton-svelte';
-	import { browser } from '$app/environment';
 	import type { EscalaListagem, Unidade } from '$lib/types';
 	import { apiFetch } from '$lib/api-fetch';
 	import { loading } from '$lib/loading.svelte';
@@ -16,7 +15,9 @@
 		getSavedFilters,
 		useAssinaturaEscala,
 		useMobile,
-		useFiltrosPaginados
+		useFiltrosPaginados,
+		useOfertaRubrica,
+		rubricaValida
 	} from '$lib/composables';
 	import SignaturePad from '$lib/components/SignaturePad.svelte';
 	import type { SignaturePadConfirmPayload } from '$lib/components/SignaturePadTypes';
@@ -290,23 +291,15 @@
 	const escalasParaAssinar = $derived(data.escalasParaAssinar);
 
 	// --- Rubrica reutilizável (cadastro para assinatura por token) ---
-	// Só consideramos "tem rubrica" quando é um dataURL de imagem real.
-	function rubricaValida(v: unknown): string | null {
-		return typeof v === 'string' && v.startsWith('data:image/') ? v : null;
-	}
 	let minhaRubrica = $state<string | null>(untrack(() => rubricaValida(data.minhaRubrica)));
 	let cadastrandoRubrica = $state(false);
 	// Lógica 2a: quem pode assinar por token, tem pendência e NÃO tem rubrica.
 	const precisaRubrica = $derived(podeAssinar && escalasParaAssinar.length > 0 && !minhaRubrica);
-	// Oferece o cadastro UMA vez por sessão (login) — depois o banner mantém a
-	// opção visível sem incomodar a cada troca de aba. Nunca bloqueia a assinatura.
-	$effect(() => {
-		if (!browser || !precisaRubrica || cadastrandoRubrica) return;
-		if (!sessionStorage.getItem('rubrica-prompt-oferecido')) {
-			sessionStorage.setItem('rubrica-prompt-oferecido', '1');
-			cadastrandoRubrica = true;
-		}
-	});
+	useOfertaRubrica(
+		() => precisaRubrica,
+		() => cadastrandoRubrica,
+		() => (cadastrandoRubrica = true)
+	);
 
 	const podeOIPSolicitar = $derived(data.podeOIPSolicitar);
 	const solicitacoesMap = $derived(data.solicitacoesMap);

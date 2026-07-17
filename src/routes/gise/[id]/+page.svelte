@@ -3,12 +3,12 @@
 	import { goto, invalidate, replaceState } from '$app/navigation';
 	import type { PageProps } from './$types';
 	import { page } from '$app/state';
-	import { browser } from '$app/environment';
 	import { untrack } from 'svelte';
 	import { toaster } from '$lib/toast';
 	import { apiFetch } from '$lib/api-fetch';
 	import { enhance } from '$app/forms';
 	import { useGiseEstado, useGiseAssinatura } from '$lib/composables/gise';
+	import { useOfertaRubrica, rubricaValida } from '$lib/composables';
 	import { loading } from '$lib/loading.svelte';
 	import type { Policial, GiseAssinaturaRelatorio } from '$lib/server/schema';
 	import { checkAllSigned, filtrarSeccionaisDisponiveis } from '$lib/gise/gise-page-helpers';
@@ -393,24 +393,17 @@
 	);
 
 	// --- Rubrica reutilizável (cadastro para assinatura por token, Lógica 2a) ---
-	function rubricaValida(v: unknown): string | null {
-		return typeof v === 'string' && v.startsWith('data:image/') ? v : null;
-	}
 	let minhaRubrica = $state<string | null>(untrack(() => rubricaValida(data.minhaRubrica)));
 	let cadastrandoRubrica = $state(false);
 	// Supervisor que vai assinar (GISE diária ou relatórios) e ainda não tem rubrica.
 	const precisaRubrica = $derived(
 		isSupervisor && !minhaRubrica && (podeAssinar || gise?.status === 'aguardando_assinatura_relat')
 	);
-	// Oferece o cadastro UMA vez por sessão (chave compartilhada com a página de
-	// escalas: a rubrica é a mesma, cadastrar uma vez cobre ambas). Não bloqueia.
-	$effect(() => {
-		if (!browser || !precisaRubrica || cadastrandoRubrica) return;
-		if (!sessionStorage.getItem('rubrica-prompt-oferecido')) {
-			sessionStorage.setItem('rubrica-prompt-oferecido', '1');
-			cadastrandoRubrica = true;
-		}
-	});
+	useOfertaRubrica(
+		() => precisaRubrica,
+		() => cadastrandoRubrica,
+		() => (cadastrandoRubrica = true)
+	);
 </script>
 
 <svelte:head>
