@@ -1,9 +1,11 @@
 <script lang="ts">
 	import { slide } from 'svelte/transition';
+	import { page } from '$app/state';
 	import { FileDown } from 'lucide-svelte';
 	import { Dialog } from '@skeletonlabs/skeleton-svelte';
 	import { loading } from '$lib/loading.svelte';
 	import { getMembrosFromSec, checkAllSigned } from '$lib/gise/gise-page-helpers';
+	import { podeBaixarComManifesto } from '$lib/manifesto';
 	import { toaster } from '$lib/toast';
 
 	interface Props {
@@ -18,7 +20,13 @@
 		podeAssinar?: boolean;
 		// Novas props para exibir assinaturas concluídas
 		assinaturasRelatorios?:
-			{ tipo: string; seccional_id: number; assinante_nome?: string }[] | null;
+			| {
+					tipo: string;
+					seccional_id: number;
+					assinante_nome?: string;
+					assinante_id?: number | null;
+			  }[]
+			| null;
 		seccionais?:
 			| {
 					seccional_id?: number;
@@ -139,6 +147,14 @@
 		[...new Set(concluidosExtra.map((a) => a.assinante_nome?.trim()).filter(Boolean))].join(', ')
 	);
 
+	/** "C/ manifesto" do lote só aparece se o usuário receberia o blob forense de
+	    TODOS os relatórios (Admin Geral/Super, ou DPC assinante de todos) — para
+	    os demais o servidor entregaria a cópia de conferência de qualquer forma. */
+	const podeManifestoLote = $derived(
+		concluidosExtra.length > 0 &&
+			concluidosExtra.every((a) => podeBaixarComManifesto(page.data.usuario, a.assinante_id))
+	);
+
 	/** Diálogo de ciência jurídica antes da assinatura em lote por Token —
 	    espelha o aviso do fluxo individual (ModalRelatorioDigital →
 	    PainelAssinaturaToken), que o lote não exibia. */
@@ -177,22 +193,26 @@
 			? ''
 			: 'hover:scale-[1.02] transition-all'}"
 		onclick={() => baixarTodosRelatorios(false)}
-		title="Baixar todos sem manifesto (para impressão)"
+		title={podeManifestoLote
+			? 'Baixar todos sem manifesto (para impressão)'
+			: 'Baixar todos os relatórios assinados'}
 	>
 		<FileDown size={13} class="shrink-0" />
-		S/ manifesto
+		{podeManifestoLote ? 'S/ manifesto' : 'Baixar todos'}
 	</button>
-	<button
-		type="button"
-		class="btn btn-xs preset-outlined-primary-500 px-2.5 py-1.5 text-3xs font-bold rounded-lg flex items-center gap-1 {mobile
-			? ''
-			: 'hover:scale-[1.02] transition-all'}"
-		onclick={() => baixarTodosRelatorios(true)}
-		title="Baixar todos com manifesto (folha de auditoria)"
-	>
-		<FileDown size={13} class="shrink-0" />
-		C/ manifesto
-	</button>
+	{#if podeManifestoLote}
+		<button
+			type="button"
+			class="btn btn-xs preset-outlined-primary-500 px-2.5 py-1.5 text-3xs font-bold rounded-lg flex items-center gap-1 {mobile
+				? ''
+				: 'hover:scale-[1.02] transition-all'}"
+			onclick={() => baixarTodosRelatorios(true)}
+			title="Baixar todos com manifesto (folha de auditoria)"
+		>
+			<FileDown size={13} class="shrink-0" />
+			C/ manifesto
+		</button>
+	{/if}
 {/snippet}
 
 <div class="flex flex-col gap-1.5 w-full animate-fade">

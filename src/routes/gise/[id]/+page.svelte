@@ -12,6 +12,7 @@
 	import { loading } from '$lib/loading.svelte';
 	import type { Policial, GiseAssinaturaRelatorio } from '$lib/server/schema';
 	import { checkAllSigned, filtrarSeccionaisDisponiveis } from '$lib/gise/gise-page-helpers';
+	import { podeBaixarComManifesto } from '$lib/manifesto';
 	import {
 		quadroSupervisaoExtraExigeRelatorio,
 		supervisaoExtraRubricasCompletas
@@ -117,6 +118,16 @@
 	let showReabrirConfirm = $state(false);
 
 	let showDownloadExtrasModal = $state(false);
+
+	// "C/ manifesto" no modal de extras: só se o usuário receberia o blob forense
+	// de TODOS os relatórios assinados (Admin Geral/Super ou DPC assinante).
+	const podeManifestoExtras = $derived.by(() => {
+		const rels = (data.assinaturasRelatorios ?? []).filter((a) => a.tipo === 'extraordinario');
+		return (
+			rels.length > 0 &&
+			rels.every((a) => podeBaixarComManifesto(page.data.usuario, a.assinante_id))
+		);
+	});
 
 	const giseParaDownload = $derived.by(() => {
 		if (!gise) return null;
@@ -288,6 +299,7 @@
 			? {
 					existe: true,
 					assinante_nome: gise.documento.assinante_nome,
+					assinante_id: gise.documento.assinante_id,
 					assinante_cpf: gise.documento.assinante_cpf ?? '',
 					data: gise.documento.created_at,
 					verificacao_hash: gise.documento.verificacao_hash
@@ -798,6 +810,7 @@
 	bind:open={showDownloadExtrasModal}
 	gise={giseParaDownload}
 	supervisaoExtraUnidadeId={data.supervisaoExtraUnidadeId}
+	podeManifesto={podeManifestoExtras}
 />
 
 <!-- Cadastro/gestão da rubrica reutilizável (assinatura por token no computador) -->
