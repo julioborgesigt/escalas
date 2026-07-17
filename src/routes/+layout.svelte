@@ -418,7 +418,11 @@
 				<!-- Grupo 2: GISE · Produtividade (admin) · Config. GISE · Rel. GISE -->
 				{#if showGrupo2}
 					{#if showGise}
-						{#if usuario?.papel !== 'admin_seccional'}
+						<!-- Só o Admin Geral em módulo GISE tem /gise/bem-vindo como home
+						     (obterRotaBemVindo); para os demais (admin_seccional,
+						     admin_unidade e supervisor GISE) a página redireciona e o item
+						     duplicaria o "Boas-vindas" do próprio grupo do usuário. -->
+						{#if usuario?.tipo === 'admin' && adminModulo === 'gise'}
 							{@render itemMenu('/gise/bem-vindo', 'Boas-vindas', ICONE.casa)}
 						{/if}
 						{@render itemMenu('/gise', 'Escalas GISE', ICONE.pranchetaLista, giseListaOuEscalaPath)}
