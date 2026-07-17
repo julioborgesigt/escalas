@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
+	import { page } from '$app/state';
 	import type { SubmitFunction } from '@sveltejs/kit';
 	import { tick } from 'svelte';
 	import type { Snippet } from 'svelte';
@@ -26,6 +27,7 @@
 		FALTANTE_RUBRICA_SUPER_PREFIX
 	} from '$lib/gise/gise-supervisao-extra';
 	import type { GiseAssinaturaRelatorio } from '$lib/server/schema';
+	import { podeBaixarComManifesto } from '$lib/manifesto';
 	import { SvelteMap } from 'svelte/reactivity';
 
 	type PresencaGiseLinha = {
@@ -62,6 +64,8 @@
 	interface DocumentoAssinadoInfo {
 		existe: boolean;
 		assinante_nome: string;
+		/** Quem assinou (policiais.id) — decide a visibilidade do "C/ manifesto". */
+		assinante_id?: number | null;
 	}
 
 	type LoadOptionsFn = (
@@ -512,28 +516,34 @@
 
 {#snippet acoesEscala(mobile: boolean)}
 	{#if documentoAssinadoInfo?.existe}
+		{@const podeManifesto = podeBaixarComManifesto(
+			page.data.usuario,
+			documentoAssinadoInfo.assinante_id
+		)}
 		<a
 			href={urlDocumentoAssinado}
 			target="_blank"
 			class="btn btn-xs preset-filled-primary-500 px-2.5 py-1.5 text-3xs font-bold rounded-lg no-underline flex items-center gap-1 {mobile
 				? ''
 				: 'hover:scale-[1.02] transition-all'}"
-			title="Baixar sem manifesto (para impressão)"
+			title={podeManifesto ? 'Baixar sem manifesto (para impressão)' : 'Baixar PDF assinado'}
 		>
 			<FileDown size={13} class="shrink-0" />
-			S/ manifesto
+			{podeManifesto ? 'S/ manifesto' : 'Baixar PDF'}
 		</a>
-		<a
-			href={urlDocumentoAssinadoManifesto}
-			target="_blank"
-			class="btn btn-xs preset-outlined-primary-500 px-2.5 py-1.5 text-3xs font-bold rounded-lg no-underline flex items-center gap-1 {mobile
-				? ''
-				: 'hover:scale-[1.02] transition-all'}"
-			title="Baixar com manifesto (folha de auditoria)"
-		>
-			<FileDown size={13} class="shrink-0" />
-			C/ manifesto
-		</a>
+		{#if podeManifesto}
+			<a
+				href={urlDocumentoAssinadoManifesto}
+				target="_blank"
+				class="btn btn-xs preset-outlined-primary-500 px-2.5 py-1.5 text-3xs font-bold rounded-lg no-underline flex items-center gap-1 {mobile
+					? ''
+					: 'hover:scale-[1.02] transition-all'}"
+				title="Baixar com manifesto (folha de auditoria)"
+			>
+				<FileDown size={13} class="shrink-0" />
+				C/ manifesto
+			</a>
+		{/if}
 	{:else}
 		{#if isSupervisor || isAdminGeral}
 			<a
@@ -613,6 +623,7 @@
 
 {#snippet acoesExtra(mobile: boolean)}
 	{#if assRelSup}
+		{@const podeManifesto = podeBaixarComManifesto(page.data.usuario, assRelSup.assinante_id)}
 		<a
 			href={urlDownloadExtra}
 			target="_blank"
@@ -621,24 +632,26 @@
 				: 'hover:scale-[1.02] transition-all'} {!downloadExtraSupHabilitado
 				? 'pointer-events-none opacity-60'
 				: ''}"
-			title="Baixar sem manifesto (para impressão)"
+			title={podeManifesto ? 'Baixar sem manifesto (para impressão)' : 'Baixar PDF assinado'}
 		>
 			<FileDown size={13} class="shrink-0" />
-			S/ manifesto
+			{podeManifesto ? 'S/ manifesto' : 'Baixar PDF'}
 		</a>
-		<a
-			href={urlDownloadExtraManifesto}
-			target="_blank"
-			class="btn btn-xs preset-outlined-primary-500 px-2.5 py-1.5 text-3xs font-bold rounded-lg no-underline flex items-center gap-1 {mobile
-				? ''
-				: 'hover:scale-[1.02] transition-all'} {!downloadExtraSupHabilitado
-				? 'pointer-events-none opacity-60'
-				: ''}"
-			title="Baixar com manifesto (folha de auditoria)"
-		>
-			<FileDown size={13} class="shrink-0" />
-			C/ manifesto
-		</a>
+		{#if podeManifesto}
+			<a
+				href={urlDownloadExtraManifesto}
+				target="_blank"
+				class="btn btn-xs preset-outlined-primary-500 px-2.5 py-1.5 text-3xs font-bold rounded-lg no-underline flex items-center gap-1 {mobile
+					? ''
+					: 'hover:scale-[1.02] transition-all'} {!downloadExtraSupHabilitado
+					? 'pointer-events-none opacity-60'
+					: ''}"
+				title="Baixar com manifesto (folha de auditoria)"
+			>
+				<FileDown size={13} class="shrink-0" />
+				C/ manifesto
+			</a>
+		{/if}
 	{:else}
 		<a
 			class="btn btn-xs text-3xs px-2.5 py-1.5 rounded-lg font-semibold no-underline flex items-center gap-1 {mobile

@@ -57,6 +57,14 @@
 	const minhaSeccionalId = $derived(data.minhaSeccionalId ?? null);
 	const supervisaoExtraUnidadeId = $derived(data.supervisaoExtraUnidadeId ?? null);
 
+	// A listagem não carrega o assinante de cada documento; aproxima a regra de
+	// `podeBaixarComManifesto` (escala GISE e rel. da supervisão são assinados
+	// pelo supervisor): Admin Geral/Super, ou supervisor DPC. O servidor segue
+	// sendo quem decide — quem não passa lá recebe a cópia de conferência.
+	const podeManifestoProvavel = $derived(
+		page.data.usuario?.tipo === 'admin' || (isSupervisor && page.data.usuario?.cargo === 'DPC')
+	);
+
 	// MediaQuery (svelte/reactivity) substitui o matchMedia + listener manual;
 	// fallback `true` = desktop-first no SSR, como o $state(true) anterior.
 	const desktopQuery = new MediaQuery('(min-width: 768px)', true);
@@ -250,25 +258,34 @@
 		if (escalaAssinada) {
 			dialogInfo = {
 				titulo: 'Download de Escala Assinada',
-				linhas: [
-					'Esta escala já foi assinada digitalmente.',
-					'"Sem manifesto" gera o documento para impressão e distribuição.',
-					'"Com manifesto" inclui a folha de auditoria (evidências da assinatura).'
-				],
+				linhas: podeManifestoProvavel
+					? [
+							'Esta escala já foi assinada digitalmente.',
+							'"Sem manifesto" gera o documento para impressão e distribuição.',
+							'"Com manifesto" inclui a folha de auditoria (evidências da assinatura).'
+						]
+					: [
+							'Esta escala já foi assinada digitalmente.',
+							'O download gera o documento assinado para impressão e distribuição.'
+						],
 				acao: {
-					label: 'Sem manifesto',
+					label: podeManifestoProvavel ? 'Sem manifesto' : 'Baixar PDF',
 					fn: () => {
 						dialogInfo = null;
 						window.open(`/api/gise/${ativa.id}/download?format=pdf`, '_blank');
 					}
 				},
-				acaoSecundaria: {
-					label: 'Com manifesto',
-					fn: () => {
-						dialogInfo = null;
-						window.open(`/api/gise/${ativa.id}/download?format=pdf&manifesto=true`, '_blank');
-					}
-				}
+				...(podeManifestoProvavel
+					? {
+							acaoSecundaria: {
+								label: 'Com manifesto',
+								fn: () => {
+									dialogInfo = null;
+									window.open(`/api/gise/${ativa.id}/download?format=pdf&manifesto=true`, '_blank');
+								}
+							}
+						}
+					: {})
 			};
 		} else {
 			dialogInfo = {
@@ -300,13 +317,18 @@
 			if (isAssinado) {
 				dialogInfo = {
 					titulo: 'Download de Relatório de Extra Assinado',
-					linhas: [
-						'Este relatório de serviço extraordinário já foi assinado digitalmente.',
-						'"Sem manifesto" gera o documento para impressão e distribuição.',
-						'"Com manifesto" inclui a folha de auditoria (evidências da assinatura).'
-					],
+					linhas: podeManifestoProvavel
+						? [
+								'Este relatório de serviço extraordinário já foi assinado digitalmente.',
+								'"Sem manifesto" gera o documento para impressão e distribuição.',
+								'"Com manifesto" inclui a folha de auditoria (evidências da assinatura).'
+							]
+						: [
+								'Este relatório de serviço extraordinário já foi assinado digitalmente.',
+								'O download gera o documento assinado para impressão e distribuição.'
+							],
 					acao: {
-						label: 'Sem manifesto',
+						label: podeManifestoProvavel ? 'Sem manifesto' : 'Baixar Rel. Extra',
 						fn: () => {
 							dialogInfo = null;
 							window.open(
@@ -315,16 +337,20 @@
 							);
 						}
 					},
-					acaoSecundaria: {
-						label: 'Com manifesto',
-						fn: () => {
-							dialogInfo = null;
-							window.open(
-								`/api/gise/${giseId}/download?format=extraordinario&seccionalId=${supervisaoExtraUnidadeId}&manifesto=true`,
-								'_blank'
-							);
-						}
-					}
+					...(podeManifestoProvavel
+						? {
+								acaoSecundaria: {
+									label: 'Com manifesto',
+									fn: () => {
+										dialogInfo = null;
+										window.open(
+											`/api/gise/${giseId}/download?format=extraordinario&seccionalId=${supervisaoExtraUnidadeId}&manifesto=true`,
+											'_blank'
+										);
+									}
+								}
+							}
+						: {})
 				};
 			} else {
 				dialogInfo = {
@@ -352,13 +378,18 @@
 			if (isAssinado) {
 				dialogInfo = {
 					titulo: 'Download de Relatório de Extra Assinado',
-					linhas: [
-						'Este relatório de serviço extraordinário já foi assinado digitalmente.',
-						'"Sem manifesto" gera o documento para impressão e distribuição.',
-						'"Com manifesto" inclui a folha de auditoria (evidências da assinatura).'
-					],
+					linhas: podeManifestoProvavel
+						? [
+								'Este relatório de serviço extraordinário já foi assinado digitalmente.',
+								'"Sem manifesto" gera o documento para impressão e distribuição.',
+								'"Com manifesto" inclui a folha de auditoria (evidências da assinatura).'
+							]
+						: [
+								'Este relatório de serviço extraordinário já foi assinado digitalmente.',
+								'O download gera o documento assinado para impressão e distribuição.'
+							],
 					acao: {
-						label: 'Sem manifesto',
+						label: podeManifestoProvavel ? 'Sem manifesto' : 'Baixar Rel. Extra',
 						fn: () => {
 							dialogInfo = null;
 							window.open(
@@ -367,16 +398,20 @@
 							);
 						}
 					},
-					acaoSecundaria: {
-						label: 'Com manifesto',
-						fn: () => {
-							dialogInfo = null;
-							window.open(
-								`/api/gise/${giseId}/download?format=extraordinario&seccionalId=${minhaSeccionalId}&manifesto=true`,
-								'_blank'
-							);
-						}
-					}
+					...(podeManifestoProvavel
+						? {
+								acaoSecundaria: {
+									label: 'Com manifesto',
+									fn: () => {
+										dialogInfo = null;
+										window.open(
+											`/api/gise/${giseId}/download?format=extraordinario&seccionalId=${minhaSeccionalId}&manifesto=true`,
+											'_blank'
+										);
+									}
+								}
+							}
+						: {})
 				};
 			} else {
 				dialogInfo = {
@@ -677,6 +712,7 @@
 	bind:open={showDownloadExtrasModal}
 	gise={giseParaDownloadExtras}
 	supervisaoExtraUnidadeId={data.supervisaoExtraUnidadeId}
+	podeManifesto={podeManifestoProvavel}
 />
 
 <ModalRubrica

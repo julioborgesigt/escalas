@@ -19,32 +19,18 @@ import { adicionarRodapeSimples } from './pdf-signing-visual';
 import { logger } from './logger';
 
 /**
- * Quem pode baixar o PDF forense íntegro (com manifesto: CPF/IP/GPS/selfie)
- * ao solicitar explicitamente via `?manifesto=true`.
- * Inclui todos os tipos de administrador (Super Admin, Admin Geral, Admin Seccional).
+ * Quem pode baixar o blob forense pelo portal `/validar` (rota semi-pública,
+ * indexada só pelo hash): SOMENTE Super Admin — mais restrito que o
+ * `podeBaixarComManifesto` dos endpoints autenticados de download.
  */
 export function podeBaixarForense(u: UsuarioLogado | null): boolean {
 	return u?.isSuperAdmin === true;
 }
 
-/**
- * Quem pode solicitar download com manifesto (`?manifesto=true`).
- *
- * Regras (cumulativas — basta uma ser verdadeira):
- * - ADM Geral ou Super Admin (`tipo === 'admin'`).
- * - Policial com cargo DPC que seja o próprio assinante do documento
- *   (`assinanteId` é o `id` do usuário que assinou; passar `null`/`undefined`
- *   implica que a identidade do assinante não está disponível → acesso negado
- *   para esta regra, mas as anteriores ainda se aplicam).
- */
-export function podeBaixarComManifesto(
-	u: UsuarioLogado | null,
-	assinanteId?: number | null
-): boolean {
-	if (u?.tipo === 'admin') return true;
-	if (u?.cargo === 'DPC' && assinanteId != null && u.id === assinanteId) return true;
-	return false;
-}
+// Regra de acesso ao manifesto: definida em $lib/manifesto (módulo client-safe)
+// para que a UI esconda o botão "C/ manifesto" com a MESMA regra que o servidor
+// aplica aqui nos endpoints de download.
+export { podeBaixarComManifesto } from '$lib/manifesto';
 
 /**
  * Chave R2 da CÓPIA DE CONFERÊNCIA, indexada pelo código de verificação. Fonte

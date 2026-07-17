@@ -1,6 +1,8 @@
 <script lang="ts">
+	import { page } from '$app/state';
 	import type { GiseDetalhado } from '$lib/db/gise';
 	import type { GiseAssinaturaRelatorio } from '$lib/server/schema';
+	import { podeBaixarComManifesto } from '$lib/manifesto';
 	import {
 		checkAllSigned,
 		getFaltandoRubrica,
@@ -121,13 +123,18 @@
 				: 'flex w-full xs:w-auto xs:max-w-full xs:shrink-0 flex-col xs:flex-row xs:flex-wrap xs:items-center gap-2'}
 		>
 			{#if assRel}
+				<!-- "C/ manifesto" só aparece para quem o servidor de fato atende com o
+				     blob forense (Admin Geral/Super ou o DPC assinante) — os demais
+				     receberiam a cópia de conferência de qualquer forma, então veem um
+				     único botão "Rel. Extra". -->
+				{@const podeManifesto = podeBaixarComManifesto(page.data.usuario, assRel.assinante_id)}
 				<div class="flex gap-2 {compact ? 'w-full' : 'w-full xs:w-auto'}">
 					<a
 						class="btn flex-1 text-xs font-bold px-2 py-2 rounded-xl border-2 no-underline flex items-center justify-center gap-1.5 transition-all preset-filled-primary-500 border-primary-600/30 hover:border-primary-600"
 						href={`/api/gise/${gise.id}/download?format=extraordinario&seccionalId=${sec.seccional_id}`}
 						target="_blank"
 						rel="noopener noreferrer"
-						title={`Sem manifesto — assinado por ${assRel.assinante_nome}`}
+						title={`Relatório de extra${podeManifesto ? ' sem manifesto' : ''} — assinado por ${assRel.assinante_nome}`}
 					>
 						<svg class="w-3 h-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"
 							><path
@@ -137,25 +144,29 @@
 								d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
 							/></svg
 						>
-						<span class="whitespace-nowrap">S/ manifesto</span>
-					</a>
-					<a
-						class="btn flex-1 text-xs font-bold px-2 py-2 rounded-xl border-2 no-underline flex items-center justify-center gap-1.5 transition-all preset-outlined-primary-500 border-primary-500/30 hover:border-primary-500"
-						href={`/api/gise/${gise.id}/download?format=extraordinario&seccionalId=${sec.seccional_id}&manifesto=true`}
-						target="_blank"
-						rel="noopener noreferrer"
-						title="Com manifesto — inclui folha de auditoria"
-					>
-						<svg class="w-3 h-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"
-							><path
-								stroke-linecap="round"
-								stroke-linejoin="round"
-								stroke-width="2"
-								d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
-							/></svg
+						<span class="whitespace-nowrap"
+							>{podeManifesto ? 'Rel. Extra S/ manifesto' : 'Rel. Extra'}</span
 						>
-						<span class="whitespace-nowrap">C/ manifesto</span>
 					</a>
+					{#if podeManifesto}
+						<a
+							class="btn flex-1 text-xs font-bold px-2 py-2 rounded-xl border-2 no-underline flex items-center justify-center gap-1.5 transition-all preset-outlined-primary-500 border-primary-500/30 hover:border-primary-500"
+							href={`/api/gise/${gise.id}/download?format=extraordinario&seccionalId=${sec.seccional_id}&manifesto=true`}
+							target="_blank"
+							rel="noopener noreferrer"
+							title="Relatório de extra com manifesto — inclui folha de auditoria"
+						>
+							<svg class="w-3 h-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+								><path
+									stroke-linecap="round"
+									stroke-linejoin="round"
+									stroke-width="2"
+									d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
+								/></svg
+							>
+							<span class="whitespace-nowrap">Rel. Extra C/ manifesto</span>
+						</a>
+					{/if}
 				</div>
 			{:else}
 				<a
@@ -182,7 +193,7 @@
 							d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
 						/></svg
 					>
-					<span class="whitespace-nowrap">Relat. Extra</span>
+					<span class="whitespace-nowrap">Rel. Extra</span>
 					<span class="text-3xs opacity-100 dark:opacity-80 font-normal italic ml-1"
 						>({!checkAllSigned(sec) ? 'não concluído' : 'conferência'})</span
 					>

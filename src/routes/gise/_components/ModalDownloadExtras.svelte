@@ -17,11 +17,15 @@
 	let {
 		open = $bindable(false),
 		gise,
-		supervisaoExtraUnidadeId
+		supervisaoExtraUnidadeId,
+		podeManifesto = false
 	}: {
 		open: boolean;
 		gise: GiseEscala | null;
 		supervisaoExtraUnidadeId: number | null;
+		/** Exibe as opções "c/ manifesto" — só para quem o servidor de fato
+		 * atende com o blob forense (regra `podeBaixarComManifesto`). */
+		podeManifesto?: boolean;
 	} = $props();
 
 	type ExtraItem = {
@@ -169,19 +173,23 @@
 										type="button"
 										class="btn btn-sm rounded-lg px-2 py-1.5 transition-all bg-primary-500/10 hover:bg-primary-500 text-primary-600 hover:text-white dark:text-primary-400 text-3xs font-bold leading-tight"
 										onclick={() => baixarItem(item.id, false)}
-										title="Baixar sem manifesto (para impressão)"
+										title={podeManifesto
+											? 'Baixar sem manifesto (para impressão)'
+											: 'Baixar relatório assinado'}
 									>
 										<Download size={13} class="shrink-0" />
 									</button>
-									<button
-										type="button"
-										class="btn btn-sm rounded-lg px-2 py-1.5 transition-all bg-tertiary-500/10 hover:bg-tertiary-500 text-tertiary-600 hover:text-white dark:text-tertiary-400 text-3xs font-bold leading-tight"
-										onclick={() => baixarItem(item.id, true)}
-										title="Baixar com manifesto (folha de auditoria)"
-									>
-										<Download size={13} class="shrink-0" />
-										<span class="hidden sm:inline">+</span>
-									</button>
+									{#if podeManifesto}
+										<button
+											type="button"
+											class="btn btn-sm rounded-lg px-2 py-1.5 transition-all bg-tertiary-500/10 hover:bg-tertiary-500 text-tertiary-600 hover:text-white dark:text-tertiary-400 text-3xs font-bold leading-tight"
+											onclick={() => baixarItem(item.id, true)}
+											title="Baixar com manifesto (folha de auditoria)"
+										>
+											<Download size={13} class="shrink-0" />
+											<span class="hidden sm:inline">+</span>
+										</button>
+									{/if}
 								</div>
 							{:else}
 								<button
@@ -217,21 +225,25 @@
 						class="btn preset-filled-primary-500 text-xs px-3 py-2 rounded-xl font-bold flex items-center justify-center gap-1.5 transition-all disabled:preset-filled-surface-200 disabled:dark:preset-filled-surface-800 disabled:text-surface-400 disabled:cursor-not-allowed"
 						disabled={disponiveis.length === 0}
 						onclick={() => baixarTodos(false)}
-						title="Baixar todos sem manifesto (para impressão)"
+						title={podeManifesto
+							? 'Baixar todos sem manifesto (para impressão)'
+							: 'Baixar todos os relatórios assinados'}
 					>
 						<Download size={14} />
-						Todos s/ manifesto
+						{podeManifesto ? 'Todos s/ manifesto' : 'Baixar todos'}
 					</button>
-					<button
-						type="button"
-						class="btn preset-filled-tertiary-500 text-xs px-3 py-2 rounded-xl font-bold flex items-center justify-center gap-1.5 transition-all disabled:preset-filled-surface-200 disabled:dark:preset-filled-surface-800 disabled:text-surface-400 disabled:cursor-not-allowed"
-						disabled={disponiveis.length === 0}
-						onclick={() => baixarTodos(true)}
-						title="Baixar todos com manifesto (folha de auditoria)"
-					>
-						<Download size={14} />
-						Todos c/ manifesto
-					</button>
+					{#if podeManifesto}
+						<button
+							type="button"
+							class="btn preset-filled-tertiary-500 text-xs px-3 py-2 rounded-xl font-bold flex items-center justify-center gap-1.5 transition-all disabled:preset-filled-surface-200 disabled:dark:preset-filled-surface-800 disabled:text-surface-400 disabled:cursor-not-allowed"
+							disabled={disponiveis.length === 0}
+							onclick={() => baixarTodos(true)}
+							title="Baixar todos com manifesto (folha de auditoria)"
+						>
+							<Download size={14} />
+							Todos c/ manifesto
+						</button>
+					{/if}
 				</div>
 			</div>
 		</div>

@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { slide } from 'svelte/transition';
+	import { page } from '$app/state';
 	import { formatarData } from '$lib/utils';
+	import { podeBaixarComManifesto } from '$lib/manifesto';
 
 	const {
 		escalasParaAssinar,
@@ -256,23 +258,30 @@
 							{#if menuExpandidoId === esc.id}
 								<div class="flex flex-col gap-1.5 w-full mt-1" transition:slide={{ duration: 200 }}>
 									{#if esc.is_assinada}
+										<!-- No endpoint de escalas o manifesto sai só para Admin Geral/Super
+										     (a regra roda sem assinanteId) — os demais veem um único botão. -->
+										{@const podeManifesto = podeBaixarComManifesto(page.data.usuario)}
 										<div class="flex flex-row gap-2 w-full">
 											<a
 												class="btn flex-1 justify-center preset-filled-surface-100 dark:preset-filled-surface-800 text-3xs sm:text-2xs py-2 px-1 border border-surface-200 dark:border-surface-700 hover:preset-filled-primary-500 hover:text-white transition-all no-underline font-bold uppercase tracking-tight whitespace-nowrap shadow-sm"
 												href="/api/escalas/{esc.id}/documento-assinado"
 												target="_blank"
-												title="PDF para impressão e distribuição (sem folha de auditoria)"
+												title={podeManifesto
+													? 'PDF para impressão e distribuição (sem folha de auditoria)'
+													: 'PDF assinado para impressão e distribuição'}
 											>
-												Sem manifesto
+												{podeManifesto ? 'Sem manifesto' : 'PDF assinado'}
 											</a>
-											<a
-												class="btn flex-1 justify-center preset-filled-surface-100 dark:preset-filled-surface-800 text-3xs sm:text-2xs py-2 px-1 border border-surface-200 dark:border-surface-700 hover:preset-filled-tertiary-500 hover:text-white transition-all no-underline font-bold uppercase tracking-tight whitespace-nowrap shadow-sm"
-												href="/api/escalas/{esc.id}/documento-assinado?manifesto=true"
-												target="_blank"
-												title="PDF com folha de auditoria (evidências da assinatura)"
-											>
-												Com manifesto
-											</a>
+											{#if podeManifesto}
+												<a
+													class="btn flex-1 justify-center preset-filled-surface-100 dark:preset-filled-surface-800 text-3xs sm:text-2xs py-2 px-1 border border-surface-200 dark:border-surface-700 hover:preset-filled-tertiary-500 hover:text-white transition-all no-underline font-bold uppercase tracking-tight whitespace-nowrap shadow-sm"
+													href="/api/escalas/{esc.id}/documento-assinado?manifesto=true"
+													target="_blank"
+													title="PDF com folha de auditoria (evidências da assinatura)"
+												>
+													Com manifesto
+												</a>
+											{/if}
 										</div>
 									{:else}
 										<a
