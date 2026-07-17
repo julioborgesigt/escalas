@@ -1,10 +1,11 @@
 <script lang="ts">
 	import type { PageProps } from './$types';
 	import { page } from '$app/state';
-	import { User, Shield, FileCheck, Info } from 'lucide-svelte';
+	import { ICONE } from '$lib/constants/icones';
 	import BemVindoPagina from '$lib/components/bem-vindo/BemVindoPagina.svelte';
 	import BemVindoCabecalho from '$lib/components/bem-vindo/BemVindoCabecalho.svelte';
 	import BemVindoCardAcao from '$lib/components/bem-vindo/BemVindoCardAcao.svelte';
+	import IconeSvg from '$lib/components/bem-vindo/IconeSvg.svelte';
 
 	const { data }: PageProps = $props();
 	const usuario = $derived(data.usuario);
@@ -17,7 +18,7 @@
 		const lista = [];
 		if (isSupervisorGise) {
 			lista.push({
-				icone: Shield,
+				icone: ICONE.pranchetaLista,
 				titulo: 'Supervisão GISE',
 				descricao:
 					'Acompanhe e supervisione o planejamento e a execução das escalas GISE sob sua responsabilidade.',
@@ -27,7 +28,7 @@
 		}
 		if (isMembroGise || isSupervisaoGise) {
 			lista.push({
-				icone: FileCheck,
+				icone: ICONE.documento,
 				titulo: 'Presença GISE',
 				descricao:
 					'Confirme sua presença nas escalas GISE em que foi alocado e assine a folha correspondente.',
@@ -45,7 +46,7 @@
 
 <BemVindoPagina>
 	<BemVindoCabecalho
-		icone={User}
+		icone={ICONE.casa}
 		modulo="Portal de Escalas"
 		{usuario}
 		descricao="Acompanhe seus plantões de serviço ativo, registre suas presenças e preencha seus relatórios de produtividade operacional."
@@ -66,7 +67,7 @@
 			</div>
 		{:else}
 			<div class="card-elevated flex items-start gap-3 rounded-xl p-5">
-				<Info class="mt-0.5 h-4 w-4 shrink-0 text-surface-400" aria-hidden="true" />
+				<IconeSvg paths={ICONE.info} class="mt-0.5 h-4 w-4 shrink-0 text-surface-400" />
 				<div>
 					<p class="text-sm font-semibold text-surface-900 dark:text-surface-50">
 						Nenhuma convocação ativa
