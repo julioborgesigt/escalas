@@ -220,14 +220,13 @@
 {/if}
 
 <!-- Global Toast Provider -->
-<Toast.Group
-	{toaster}
-	class="fixed z-[9999] inset-0 pointer-events-none p-4 flex flex-col items-end justify-end gap-3"
->
+<!-- Posição/empilhamento vêm dos estilos inline do Zag (placement 'bottom' no
+     toast.ts); classes de posição aqui entrariam em conflito e desalinhariam. -->
+<Toast.Group {toaster}>
 	{#snippet children(toast)}
 		<Toast
 			{toast}
-			class="bg-surface-900 dark:bg-surface-100 text-surface-50 dark:text-surface-900 px-6 py-4 rounded-xl shadow-2xl pointer-events-auto border border-surface-700 dark:border-surface-300 w-full sm:w-auto sm:min-w-[300px] max-w-[calc(100vw-2rem)]"
+			class="bg-surface-900 dark:bg-surface-100 text-surface-50 dark:text-surface-900 px-6 py-4 rounded-xl shadow-2xl pointer-events-auto border border-surface-700 dark:border-surface-300 w-[calc(100vw-2rem)] sm:w-auto sm:min-w-[320px] sm:max-w-md"
 		>
 			<div class="flex items-center gap-3">
 				{#if toast.type === 'success'}
@@ -254,9 +253,9 @@
 					>
 				{/if}
 				<div class="flex-1">
-					<Toast.Title class="font-bold text-sm">{toast.title}</Toast.Title>
+					<Toast.Title class="font-bold text-base">{toast.title}</Toast.Title>
 					{#if toast.description}
-						<Toast.Description class="text-xs opacity-75">{toast.description}</Toast.Description>
+						<Toast.Description class="text-sm opacity-75">{toast.description}</Toast.Description>
 					{/if}
 				</div>
 				<Toast.CloseTrigger
