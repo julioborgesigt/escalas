@@ -50,7 +50,13 @@ export const certificadoVerificarSchema = z.object({
 	desafioId: desafioIdField,
 	// CMS PKCS#7 em base64 — a folha do SERPRO fica ~8-11 KB; cap generoso
 	// bloqueia payloads multi-MB que custariam parsing ASN.1 caro.
-	cmsBase64: z.string().trim().min(1, 'cmsBase64 inválido').max(50_000, 'Certificado muito grande')
+	cmsBase64: z.string().trim().min(1, 'cmsBase64 inválido').max(50_000, 'Certificado muito grande'),
+	// Intenção de entrar no console de Admin Geral (aba "Administrador" da tela de
+	// login). Só concede sessão admin se o CPF do certificado tiver uma conta
+	// vinculada em `administradores.policial_id`; caso contrário, erro claro.
+	comoAdmin: z.boolean().optional(),
+	// Módulo escolhido pelo admin (Escalas/GISE). Ignorado quando `comoAdmin` é falso.
+	adminModulo: z.enum(['ambas', 'gise', 'escalas']).optional()
 });
 
 /**
