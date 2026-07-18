@@ -19,6 +19,7 @@
 	import ModalDownloadExtras from './_components/ModalDownloadExtras.svelte';
 	import DialogInfo from './_components/DialogInfo.svelte';
 	import { fmtDate, diaSemana } from '$lib/gise/gise-formatters';
+	import { rubricaValida } from '$lib/composables';
 	import { MediaQuery } from 'svelte/reactivity';
 
 	type GiseEscala = {
@@ -56,6 +57,9 @@
 	const seccionaisList = $derived(data.seccionaisList ?? []);
 	const minhaSeccionalId = $derived(data.minhaSeccionalId ?? null);
 	const supervisaoExtraUnidadeId = $derived(data.supervisaoExtraUnidadeId ?? null);
+	// Rubrica salva do supervisor — reutilizada no modal aberto pelos cards (o
+	// pad abria vazio porque a listagem não carregava a rubrica, só o detalhe).
+	const minhaRubrica = $derived(rubricaValida(data.minhaRubrica));
 
 	// A listagem não carrega o assinante de cada documento; aproxima a regra de
 	// `podeBaixarComManifesto` (escala GISE e rel. da supervisão são assinados
@@ -720,6 +724,7 @@
 	exigirFoto={page.data.exigirFotoAssinatura ?? true}
 	exigirGps={page.data.exigirGpsAssinatura ?? true}
 	exigirCodigoEmail={page.data.exigirCodigoEmailAssinatura ?? false}
+	rubricaSalva={minhaRubrica}
 	onConfirm={confirmarRubricaGise}
 	onCancel={cancelarAssinatura}
 />

@@ -1,15 +1,15 @@
 <!-- Casca comum das telas de boas-vindas (redesign institucional): conteúdo
      apoiado direto no fundo da página, sem o antigo container translúcido.
-     Centraliza verticalmente porque essas telas têm pouco conteúdo. -->
+     Alinhado ao topo, como as demais telas — o espaçamento superior vem do
+     wrapper do layout (pt-20 mobile / pt-8 desktop); um min-height + centro
+     vertical aqui criava um gap no topo que fugia do padrão. -->
 <script lang="ts">
 	import type { Snippet } from 'svelte';
 
 	const { children }: { children: Snippet } = $props();
 </script>
 
-<div
-	class="animate-fade-in mx-auto flex min-h-[70vh] w-full max-w-5xl flex-col justify-center px-4 py-10 sm:px-6 sm:py-14"
->
+<div class="animate-fade-in mx-auto w-full max-w-5xl px-4 pb-10 sm:px-6">
 	{@render children()}
 </div>
 
