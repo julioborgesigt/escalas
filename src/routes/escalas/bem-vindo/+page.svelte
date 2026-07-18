@@ -15,24 +15,26 @@
 		!!(data.isMembroGise || data.isSupervisorGise || data.isSupervisaoGise)
 	);
 
+	const isSubAdmin = $derived(
+		usuario?.papel === 'admin_seccional' || usuario?.papel === 'admin_unidade'
+	);
+	const local = $derived(usuario?.papel === 'admin_seccional' ? 'sua seccional' : 'sua unidade');
+
 	const descricao = $derived.by(() => {
 		if (usuario?.tipo === 'admin') {
 			return 'Você está no ambiente de gestão do Portal de Escalas. Como administrador, utilize as áreas abaixo para monitorar a conformidade das escalas ou gerenciar os novos recebimentos.';
 		}
+		// DPC (unidade ou seccional): confere e assina — não cria escalas.
+		if (isSubAdmin && isDpc) {
+			const base = `Você está no ambiente da ${local}. Aqui você pode conferir e assinar as escalas ordinárias (mensal) de plantão e expediente.`;
+			return isSupervisorGise
+				? `${base} Você também tem acesso e pode assinar a escala GISE, quando supervisor, bem como confirmar sua presença.`
+				: base;
+		}
 		if (usuario?.papel === 'admin_seccional') {
-			return isDpc
-				? 'Você está no ambiente da seccional. Confira e assine as escalas ordinárias e acompanhe o planejamento do módulo GISE.'
-				: 'Você está no ambiente administrativo da seccional. Envie e gerencie as escalas ordinárias ou acesse o planejamento e acompanhamento do módulo GISE.';
+			return 'Você está no ambiente administrativo da seccional. Envie e gerencie as escalas ordinárias ou acesse o planejamento e acompanhamento do módulo GISE.';
 		}
 		if (usuario?.papel === 'admin_unidade') {
-			if (isDpc) {
-				const extra = isSupervisorGise
-					? ' Você também supervisiona a alocação de equipes na escala GISE.'
-					: showResGise
-						? ' Você também pode confirmar sua presença na escala GISE, quando escalado.'
-						: '';
-				return `Você está no ambiente da sua unidade. Confira e assine as escalas ordinárias (mensal) de plantão e expediente e a escala de final de semana.${extra}`;
-			}
 			return showResGise
 				? 'Você está no ambiente administrativo do Portal de Escalas. Por aqui, você poderá criar e gerenciar as escalas ordinárias (mensal) de plantão e expediente e a escala de final de semana, bem como confirmar sua presença na escala GISE, quando escalado.'
 				: 'Você está no ambiente de gestão do Portal de Escalas. Por aqui, você poderá criar e gerenciar as escalas ordinárias (mensal) de plantão e expediente e a escala de final de semana de sua unidade.';
@@ -69,7 +71,7 @@
 			? {
 					icone: ICONE.calendario,
 					titulo: 'Conferência e Assinatura',
-					descricao: `Confira e assine as escalas ordinárias (mensal) de plantão e expediente e a escala de final de semana ${ondeDesc}.`,
+					descricao: `Confira e assine as escalas ordinárias (mensal) de plantão e expediente ${ondeDesc}.`,
 					href: '/escalas',
 					cta: 'Conferir e assinar'
 				}

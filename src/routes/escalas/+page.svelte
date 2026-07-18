@@ -392,115 +392,117 @@
 </svelte:head>
 
 {#if visao === 'home'}
-	<div class="flex flex-col items-center justify-center min-h-[60vh] gap-4 sm:gap-6">
-		<h1 class="h1 text-2xl font-bold text-center">Escalas</h1>
+	<div class="space-y-6">
+		<h1 class="h1 text-2xl font-bold">Escalas</h1>
 
-		{#if isAdminDPC}
-			<div class="grid grid-cols-1 gap-6 w-full max-w-xs">
-				{#if podeAssinar && escalasParaAssinar.length > 0}
+		<div class="flex flex-col items-center gap-4 sm:gap-6">
+			{#if isAdminDPC}
+				<div class="grid grid-cols-1 gap-6 w-full max-w-xs">
+					{#if podeAssinar && escalasParaAssinar.length > 0}
+						<button
+							type="button"
+							onclick={() => {
+								visao = 'assinaturas';
+								goto('/escalas?v=assinaturas', { replaceState: true, noScroll: true });
+							}}
+							class="card p-6 sm:p-8 flex flex-col items-center gap-4 cursor-pointer hover:shadow-xl transition-shadow border-2 border-tertiary-500 bg-surface-50 dark:bg-surface-900 rounded-2xl group"
+						>
+							<div class="relative">
+								<PenLine class="w-10 h-10 text-tertiary-500" aria-hidden="true" />
+								<span
+									class="absolute -top-2 -right-4 min-w-[1.4rem] h-[1.4rem] flex items-center justify-center rounded-full bg-tertiary-500 text-white text-xs font-black px-1 shadow"
+									>{escalasParaAssinar.length}</span
+								>
+							</div>
+							<span class="text-xl font-bold group-hover:text-tertiary-500 transition-colors"
+								>Assinaturas Pendentes</span
+							>
+							<span class="text-sm text-surface-500 text-center"
+								>Escalas prontas para assinar com sua assinatura digital</span
+							>
+						</button>
+					{:else}
+						<div
+							class="card p-6 sm:p-8 flex flex-col items-center gap-3 border-2 border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-900 rounded-2xl text-center"
+						>
+							<CheckCircle2 class="w-10 h-10 text-success-500" aria-hidden="true" />
+							<span class="text-xl font-bold">Nenhuma pendência</span>
+							<span class="text-sm text-surface-500"
+								>Não há escalas aguardando sua assinatura no momento.</span
+							>
+						</div>
+					{/if}
+				</div>
+			{:else}
+				<div
+					class="grid grid-cols-1 gap-6 w-full {podeAssinar && escalasParaAssinar.length > 0
+						? 'sm:grid-cols-3 max-w-4xl'
+						: 'sm:grid-cols-2 max-w-xl'}"
+				>
 					<button
 						type="button"
 						onclick={() => {
-							visao = 'assinaturas';
-							goto('/escalas?v=assinaturas', { replaceState: true, noScroll: true });
+							abriuDoHome = true;
+							visao = 'lista';
+							dialogNovaEscalaAberto = true;
 						}}
-						class="card p-6 sm:p-8 flex flex-col items-center gap-4 cursor-pointer hover:shadow-xl transition-shadow border-2 border-tertiary-500 bg-surface-50 dark:bg-surface-900 rounded-2xl group"
+						class="card p-6 sm:p-8 flex flex-col items-center gap-4 cursor-pointer hover:shadow-xl transition-shadow border-2 border-primary-500 bg-surface-50 dark:bg-surface-900 rounded-2xl group"
 					>
-						<div class="relative">
-							<PenLine class="w-10 h-10 text-tertiary-500" aria-hidden="true" />
-							<span
-								class="absolute -top-2 -right-4 min-w-[1.4rem] h-[1.4rem] flex items-center justify-center rounded-full bg-tertiary-500 text-white text-xs font-black px-1 shadow"
-								>{escalasParaAssinar.length}</span
-							>
-						</div>
-						<span class="text-xl font-bold group-hover:text-tertiary-500 transition-colors"
-							>Assinaturas Pendentes</span
+						<ClipboardList class="w-10 h-10 text-primary-500" aria-hidden="true" />
+						<span class="text-xl font-bold group-hover:text-primary-500 transition-colors"
+							>Nova Escala</span
 						>
 						<span class="text-sm text-surface-500 text-center"
-							>Escalas prontas para assinar com sua assinatura digital</span
+							>Criar uma nova escala de plantão, expediente ou final de semana</span
 						>
 					</button>
-				{:else}
-					<div
-						class="card p-6 sm:p-8 flex flex-col items-center gap-3 border-2 border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-900 rounded-2xl text-center"
-					>
-						<CheckCircle2 class="w-10 h-10 text-success-500" aria-hidden="true" />
-						<span class="text-xl font-bold">Nenhuma pendência</span>
-						<span class="text-sm text-surface-500"
-							>Não há escalas aguardando sua assinatura no momento.</span
-						>
-					</div>
-				{/if}
-			</div>
-		{:else}
-			<div
-				class="grid grid-cols-1 gap-6 w-full {podeAssinar && escalasParaAssinar.length > 0
-					? 'sm:grid-cols-3 max-w-4xl'
-					: 'sm:grid-cols-2 max-w-xl'}"
-			>
-				<button
-					type="button"
-					onclick={() => {
-						abriuDoHome = true;
-						visao = 'lista';
-						dialogNovaEscalaAberto = true;
-					}}
-					class="card p-6 sm:p-8 flex flex-col items-center gap-4 cursor-pointer hover:shadow-xl transition-shadow border-2 border-primary-500 bg-surface-50 dark:bg-surface-900 rounded-2xl group"
-				>
-					<ClipboardList class="w-10 h-10 text-primary-500" aria-hidden="true" />
-					<span class="text-xl font-bold group-hover:text-primary-500 transition-colors"
-						>Nova Escala</span
-					>
-					<span class="text-sm text-surface-500 text-center"
-						>Criar uma nova escala de plantão, expediente ou final de semana</span
-					>
-				</button>
-				<button
-					type="button"
-					onclick={() => {
-						visao = 'lista';
-						goto(`?${buildQueryParamsComFiltros(1)}`, {
-							replaceState: true,
-							noScroll: true,
-							keepFocus: true
-						});
-					}}
-					class="card p-6 sm:p-8 flex flex-col items-center gap-4 cursor-pointer hover:shadow-xl transition-shadow border-2 border-surface-300 dark:border-surface-600 bg-surface-50 dark:bg-surface-900 rounded-2xl group"
-				>
-					<Archive class="w-10 h-10 text-surface-500 dark:text-surface-400" aria-hidden="true" />
-					<span class="text-xl font-bold group-hover:text-primary-500 transition-colors"
-						>Escalas criadas/Arquivo</span
-					>
-					<span class="text-sm text-surface-500 text-center"
-						>Consultar e gerenciar as escalas já cadastradas</span
-					>
-				</button>
-				{#if podeAssinar && escalasParaAssinar.length > 0}
 					<button
 						type="button"
 						onclick={() => {
-							visao = 'assinaturas';
-							goto('/escalas?v=assinaturas', { replaceState: true, noScroll: true });
+							visao = 'lista';
+							goto(`?${buildQueryParamsComFiltros(1)}`, {
+								replaceState: true,
+								noScroll: true,
+								keepFocus: true
+							});
 						}}
-						class="card p-6 sm:p-8 flex flex-col items-center gap-4 cursor-pointer hover:shadow-xl transition-shadow border-2 border-tertiary-500 bg-surface-50 dark:bg-surface-900 rounded-2xl group"
+						class="card p-6 sm:p-8 flex flex-col items-center gap-4 cursor-pointer hover:shadow-xl transition-shadow border-2 border-surface-300 dark:border-surface-600 bg-surface-50 dark:bg-surface-900 rounded-2xl group"
 					>
-						<div class="relative">
-							<PenLine class="w-10 h-10 text-tertiary-500" aria-hidden="true" />
-							<span
-								class="absolute -top-2 -right-4 min-w-[1.4rem] h-[1.4rem] flex items-center justify-center rounded-full bg-tertiary-500 text-white text-xs font-black px-1 shadow"
-								>{escalasParaAssinar.length}</span
-							>
-						</div>
-						<span class="text-xl font-bold group-hover:text-tertiary-500 transition-colors"
-							>Assinaturas Pendentes</span
+						<Archive class="w-10 h-10 text-surface-500 dark:text-surface-400" aria-hidden="true" />
+						<span class="text-xl font-bold group-hover:text-primary-500 transition-colors"
+							>Escalas criadas/Arquivo</span
 						>
 						<span class="text-sm text-surface-500 text-center"
-							>Escalas prontas para assinar com sua assinatura digital</span
+							>Consultar e gerenciar as escalas já cadastradas</span
 						>
 					</button>
-				{/if}
-			</div>
-		{/if}
+					{#if podeAssinar && escalasParaAssinar.length > 0}
+						<button
+							type="button"
+							onclick={() => {
+								visao = 'assinaturas';
+								goto('/escalas?v=assinaturas', { replaceState: true, noScroll: true });
+							}}
+							class="card p-6 sm:p-8 flex flex-col items-center gap-4 cursor-pointer hover:shadow-xl transition-shadow border-2 border-tertiary-500 bg-surface-50 dark:bg-surface-900 rounded-2xl group"
+						>
+							<div class="relative">
+								<PenLine class="w-10 h-10 text-tertiary-500" aria-hidden="true" />
+								<span
+									class="absolute -top-2 -right-4 min-w-[1.4rem] h-[1.4rem] flex items-center justify-center rounded-full bg-tertiary-500 text-white text-xs font-black px-1 shadow"
+									>{escalasParaAssinar.length}</span
+								>
+							</div>
+							<span class="text-xl font-bold group-hover:text-tertiary-500 transition-colors"
+								>Assinaturas Pendentes</span
+							>
+							<span class="text-sm text-surface-500 text-center"
+								>Escalas prontas para assinar com sua assinatura digital</span
+							>
+						</button>
+					{/if}
+				</div>
+			{/if}
+		</div>
 	</div>
 {:else if visao === 'lista'}
 	<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">

@@ -566,7 +566,11 @@ export async function adicionarPaginaAuditoria(
 					rubH = 80;
 				const fotW = 60,
 					fotH = 80;
-				const rubX = boxX + 25;
+				// Foto/liveness só quando de fato capturada: assinaturas com foto
+				// dispensada (config de segurança) não devem exibir um campo "FOTO DO
+				// ATO" vazio. Sem foto, a rúbrica centraliza no bloco de evidências.
+				const temFoto = !!s.selfieBase64;
+				const rubX = temFoto ? boxX + 25 : boxX + (boxW - rubW) / 2;
 				const fotX = boxX + boxW - 45 - fotW;
 
 				// Rótulos
@@ -577,13 +581,15 @@ export async function adicionarPaginaAuditoria(
 					font: fontBold,
 					color: cGray
 				});
-				page.drawText('FOTO DO ATO (LIVENESS)', {
-					x: fotX,
-					y: evidLabelY,
-					size: 6.5,
-					font: fontBold,
-					color: cGray
-				});
+				if (temFoto) {
+					page.drawText('FOTO DO ATO (LIVENESS)', {
+						x: fotX,
+						y: evidLabelY,
+						size: 6.5,
+						font: fontBold,
+						color: cGray
+					});
+				}
 
 				// Frame rúbrica
 				const rubFrameY = evidLabelY - 6 - rubH;
@@ -619,22 +625,22 @@ export async function adicionarPaginaAuditoria(
 					}
 				}
 
-				// Frame foto (3:4)
-				const fotFrameY = evidLabelY - 6 - fotH;
-				page.drawRectangle({
-					x: fotX,
-					y: fotFrameY,
-					width: fotW,
-					height: fotH,
-					color: rgb(0.99, 0.99, 0.99),
-					borderColor: cBorder,
-					borderWidth: 0.5
-				});
-				if (s.selfieBase64) {
+				// Frame foto (3:4) — só quando há selfie capturada.
+				if (temFoto) {
+					const fotFrameY = evidLabelY - 6 - fotH;
+					page.drawRectangle({
+						x: fotX,
+						y: fotFrameY,
+						width: fotW,
+						height: fotH,
+						color: rgb(0.99, 0.99, 0.99),
+						borderColor: cBorder,
+						borderWidth: 0.5
+					});
 					try {
-						const data = s.selfieBase64.includes(',')
-							? s.selfieBase64.split(',')[1]
-							: s.selfieBase64;
+						const data = s.selfieBase64!.includes(',')
+							? s.selfieBase64!.split(',')[1]
+							: s.selfieBase64!;
 						const bytes = Buffer.from(data, 'base64');
 						const img = await pdfDoc.embedJpg(bytes);
 						const ratio = img.width / img.height;

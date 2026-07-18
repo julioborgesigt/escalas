@@ -23,6 +23,7 @@ import {
 	secIdEhSupervisaoExtra
 } from '$lib/server/gise-supervisao-extra';
 import { adicionarRodapeSimples, adicionarPaginaAuditoria } from '$lib/server/pdf-signing';
+import { montarSignersPresencaExtra } from '$lib/server/gise-relatorio-manifesto';
 import { selarPdfInstitucional, tipoCarimboPrevisto } from '$lib/server/server-seal';
 import { tryGetR2 } from '$lib/db';
 import { uploadSelfieDataUri } from '$lib/server/selfie-upload';
@@ -182,28 +183,48 @@ export const POST: RequestHandler = async (event) => {
 		const originalHashBuffer = await crypto.subtle.digest('SHA-256', finalPdf.slice());
 		const documentHash = bytesToHex(new Uint8Array(originalHashBuffer));
 
-		// Adicionar folha de auditoria (Manifesto) profissional
-		finalPdf = await adicionarPaginaAuditoria(finalPdf, {
-			signerName: signerName || u.nome,
-			signerCpf: signerCpf || u.cpf || undefined,
-			// new Date() (UTC real): o manifesto formata em America/Sao_Paulo.
-			signingTime: new Date(),
-			verificationHash: hash,
-			verificationUrl: qrUrl,
-			ip,
-			userAgent: ua,
-			latitude: latitude || undefined,
-			longitude: longitude || undefined,
-			selfieBase64: selfieBase64 || undefined,
-			rubricBase64: rubrica || undefined,
+		// Manifesto: TODAS as rubricas de presença (entrada/saída) + a assinatura
+		// do supervisor. Mesmo array que o fluxo por token (`preparar-assinatura`)
+		// monta — antes, este fluxo mobile passava só o supervisor, e o relatório
+		// assinado no celular perdia as demais assinaturas na folha de auditoria.
+		const presenceSigners = await montarSignersPresencaExtra({
+			db,
+			gise,
+			giseId: giseIdNum,
+			secIdNum,
+			isSupervisaoExtra,
+			platform,
+			presencas,
 			documentHash,
-			token: crypto.randomUUID(),
-			documentName: `Relatório Extraordinário - GISE ${id}`,
-			signatureLevel: 'avancada',
-			tipoCarimoTempo: tipoCarimboPrevisto(
-				platform?.env as unknown as Record<string, string | undefined> | undefined
-			)
+			origin: url.origin,
+			documentName: `Relatório Extraordinário - GISE ${id}`
 		});
+
+		// Adicionar folha de auditoria (Manifesto) profissional
+		finalPdf = await adicionarPaginaAuditoria(finalPdf, [
+			...presenceSigners,
+			{
+				signerName: signerName || u.nome,
+				signerCpf: signerCpf || u.cpf || undefined,
+				// new Date() (UTC real): o manifesto formata em America/Sao_Paulo.
+				signingTime: new Date(),
+				verificationHash: hash,
+				verificationUrl: qrUrl,
+				ip,
+				userAgent: ua,
+				latitude: latitude || undefined,
+				longitude: longitude || undefined,
+				selfieBase64: selfieBase64 || undefined,
+				rubricBase64: rubrica || undefined,
+				documentHash,
+				token: crypto.randomUUID(),
+				documentName: `Relatório Extraordinário - GISE ${id}`,
+				signatureLevel: 'avancada',
+				tipoCarimoTempo: tipoCarimboPrevisto(
+					platform?.env as unknown as Record<string, string | undefined> | undefined
+				)
+			}
+		]);
 
 		// Selo institucional (avançada, Lei 14.063/2020 art. 4º II) + carimbo de tempo
 		// grátis. Sem SELO_INSTITUCIONAL_PEM, mantém o rodapé honesto (finalPdf).
