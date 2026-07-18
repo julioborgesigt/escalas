@@ -225,7 +225,7 @@
 		codigo2FA = '';
 	}
 
-	async function fazerLoginComCertificado() {
+	async function fazerLoginComCertificado(comoAdmin = false) {
 		let serproClient: Awaited<ReturnType<typeof conectarSerproParaLogin>> | null = null;
 		try {
 			// 1. Conectar ao SERPRO PRIMEIRO — sem loading overlay sobre o modal.
@@ -249,18 +249,27 @@
 			serproClient.disconnect();
 			serproClient = null;
 
-			// 4. Verificar no servidor
+			// 4. Verificar no servidor. Na aba Administrador, sinaliza `comoAdmin`
+			//    (+ módulo escolhido) — o servidor cria sessão admin se o CPF tiver
+			//    conta vinculada e devolve a rota de destino no `redirect`.
 			loadingService.show('Verificando certificado...');
-			const data = await apiFetch<{ success?: boolean; primeiro_acesso?: boolean; nome?: string }>(
-				'/api/auth/certificado/verificar',
-				{
-					method: 'POST',
-					body: JSON.stringify({ desafioId: did, cmsBase64: resultado.rawSignature })
-				}
-			);
+			const data = await apiFetch<{
+				success?: boolean;
+				primeiro_acesso?: boolean;
+				nome?: string;
+				redirect?: string;
+			}>('/api/auth/certificado/verificar', {
+				method: 'POST',
+				body: JSON.stringify({
+					desafioId: did,
+					cmsBase64: resultado.rawSignature,
+					comoAdmin,
+					adminModulo: comoAdmin ? adminModulo : undefined
+				})
+			});
 
 			// 5. Redirecionar
-			const dest = data.primeiro_acesso ? '/alterar-senha' : '/escalas';
+			const dest = data.redirect ?? (data.primeiro_acesso ? '/alterar-senha' : '/escalas');
 			await navegarAposLogin(dest, true);
 		} catch (err: unknown) {
 			const msg =
@@ -517,33 +526,36 @@
 				</button>
 			</form>
 
-			{#if tipo === 'policial'}
-				<div class="flex items-center gap-3 my-4">
-					<div class="flex-1 h-px bg-surface-200 dark:bg-surface-700"></div>
-					<span class="text-xs text-surface-500 dark:text-surface-400 shrink-0">ou</span>
-					<div class="flex-1 h-px bg-surface-200 dark:bg-surface-700"></div>
-				</div>
-				<button
-					type="button"
-					class="btn preset-outlined-surface-500 w-full py-3 flex items-center justify-center gap-2 text-sm"
-					disabled={loadingService.active}
-					onclick={fazerLoginComCertificado}
+			<div class="flex items-center gap-3 my-4">
+				<div class="flex-1 h-px bg-surface-200 dark:bg-surface-700"></div>
+				<span class="text-xs text-surface-500 dark:text-surface-400 shrink-0">ou</span>
+				<div class="flex-1 h-px bg-surface-200 dark:bg-surface-700"></div>
+			</div>
+			<button
+				type="button"
+				class="btn preset-outlined-surface-500 w-full py-3 flex items-center justify-center gap-2 text-sm"
+				disabled={loadingService.active}
+				onclick={() => fazerLoginComCertificado(tipo === 'admin')}
+			>
+				<svg
+					class="w-4 h-4 shrink-0"
+					fill="none"
+					viewBox="0 0 24 24"
+					stroke="currentColor"
+					stroke-width="2"
 				>
-					<svg
-						class="w-4 h-4 shrink-0"
-						fill="none"
-						viewBox="0 0 24 24"
-						stroke="currentColor"
-						stroke-width="2"
-					>
-						<path
-							stroke-linecap="round"
-							stroke-linejoin="round"
-							d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"
-						/>
-					</svg>
-					Entrar com Certificado Digital (SERPRO)
-				</button>
+					<path
+						stroke-linecap="round"
+						stroke-linejoin="round"
+						d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"
+					/>
+				</svg>
+				Entrar com Certificado Digital (SERPRO)
+			</button>
+			{#if tipo === 'admin'}
+				<p class="mt-2 text-2xs text-surface-500 dark:text-surface-400 text-center">
+					Requer certificado A3 de um policial com acesso de Administrador Geral.
+				</p>
 			{/if}
 
 			<div

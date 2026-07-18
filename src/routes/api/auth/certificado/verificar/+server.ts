@@ -1,11 +1,12 @@
 import { json } from '@sveltejs/kit';
 import { eq, and } from 'drizzle-orm';
 import { getDB, auditar, contextoDeEvento } from '$lib/db';
-import { criarSessao } from '$lib/auth';
-import { doisFatoresTokens, policiais } from '$lib/server/schema';
+import { criarSessao, obterRotaBemVindo } from '$lib/auth';
+import { administradores, doisFatoresTokens, policiais } from '$lib/server/schema';
 import {
 	badRequest,
 	unauthorized,
+	forbidden,
 	rateLimited,
 	ErrorCode,
 	apiError,
@@ -31,7 +32,7 @@ export const POST: RequestHandler = async (event) => {
 
 	const v = await validateBody(request, certificadoVerificarSchema);
 	if (!v.ok) return v.response;
-	const { desafioId, cmsBase64 } = v.data;
+	const { desafioId, cmsBase64, comoAdmin, adminModulo } = v.data;
 
 	// Rate limit compartilhado com o fluxo normal de login
 	const rateLimit = await checkRateLimit(db, ip);
@@ -173,6 +174,71 @@ export const POST: RequestHandler = async (event) => {
 			cpf: cpfLimpo.slice(0, 3) + '***'
 		});
 		return unauthorized('CPF não encontrado no sistema ou policial inativo.');
+	}
+
+	// Entrar no console de Admin Geral (aba "Administrador"): só se o CPF do
+	// certificado tiver uma conta admin VINCULADA (`administradores.policial_id`)
+	// — o mesmo vínculo que o login por senha usa. O certificado A3 substitui
+	// senha + 2FA (é um fator mais forte: posse do token + PIN + cadeia ICP).
+	if (comoAdmin) {
+		const admin = await db
+			.select()
+			.from(administradores)
+			.where(eq(administradores.policial_id, policial.id))
+			.get();
+
+		if (!admin) {
+			await recordAttempt(db, ip, false);
+			logger.info('[cert-login] Certificado sem conta de admin vinculada', {
+				cpf: cpfLimpo.slice(0, 3) + '***'
+			});
+			return forbidden(
+				'Este certificado não está vinculado a uma conta de Administrador Geral. Entre pela aba Policial ou use login e senha.'
+			);
+		}
+
+		// Marcar desafio como usado (one-time use)
+		await db
+			.update(doisFatoresTokens)
+			.set({ usado: 1 })
+			.where(eq(doisFatoresTokens.id, desafio.id));
+		await recordAttempt(db, ip, true);
+
+		const token = await criarSessao(db, 'admin', admin.id);
+		cookies.set('session_token', token, cookieOptions(url));
+
+		const modulo = adminModulo ?? 'ambas';
+		cookies.set('admin_modulo', modulo, cookieOptions(url));
+
+		const { contexto, env } = contextoDeEvento(event);
+		await auditar(
+			db,
+			{
+				acao: 'login_certificado',
+				usuario: { id: admin.id, nome: admin.nome, tipo: 'admin' },
+				entidade: 'admin',
+				entidade_id: admin.id,
+				alvo_tipo: 'admin',
+				alvo_id: admin.id,
+				alvo_nome: admin.nome,
+				detalhes: 'Login por certificado digital (ICP-Brasil) — console de administração',
+				metadados: { via: 'certificado_a3', comoAdmin: true, ocsp: revogacao.ocsp },
+				...contexto
+			},
+			{ env }
+		);
+
+		const primeiroAcesso = policial.primeiro_acesso === 1;
+		const rota = obterRotaBemVindo(
+			{ id: admin.id, tipo: 'admin', nome: admin.nome, primeiro_acesso: primeiroAcesso },
+			modulo
+		);
+		return json({
+			success: true,
+			primeiro_acesso: primeiroAcesso,
+			nome: admin.nome,
+			redirect: primeiroAcesso ? '/alterar-senha' : rota
+		});
 	}
 
 	// Marcar desafio como usado (one-time use)
