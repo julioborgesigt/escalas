@@ -492,17 +492,6 @@
 					Cadastrar rubrica
 				</button>
 			</div>
-		{:else if isSupervisor}
-			<div class="mb-3 flex justify-end">
-				<button
-					type="button"
-					class="text-sm text-tertiary-600 dark:text-tertiary-400 hover:underline flex items-center gap-1"
-					onclick={() => (cadastrandoRubrica = true)}
-				>
-					<PenLine class="w-4 h-4" aria-hidden="true" />
-					{minhaRubrica ? 'Gerenciar minha rubrica' : 'Cadastrar minha rubrica'}
-				</button>
-			</div>
 		{/if}
 
 		{#if !isSeccional || isSupervisor}

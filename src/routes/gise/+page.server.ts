@@ -14,7 +14,7 @@ import { isAdminGeral, isAdminSeccional, isAdminUnidade } from '$lib/auth';
 import { lerPapelGise } from '$lib/server/gise-papel-cache';
 import { buscarUnidadeIdSupervisaoExtra } from '$lib/server/gise-supervisao-extra';
 import { eq, asc } from 'drizzle-orm';
-import { unidades } from '$lib/server/schema';
+import { unidades, policiais } from '$lib/server/schema';
 import { buscarConfiguracao } from '$lib/db/configuracoes';
 
 export const load: PageServerLoad = async ({ locals, platform }) => {
@@ -55,7 +55,8 @@ export const load: PageServerLoad = async ({ locals, platform }) => {
 		seccionaisList,
 		supervisaoExtraUnidadeId,
 		defaultHoraEntrada,
-		defaultHoraSaida
+		defaultHoraSaida,
+		minhaRubricaRow
 	] = await Promise.all([
 		listarGiseEscalas(db, undefined, policialId, seccionalParticipanteId),
 		buscarGiseAtiva(db),
@@ -67,7 +68,17 @@ export const load: PageServerLoad = async ({ locals, platform }) => {
 			.all(),
 		buscarUnidadeIdSupervisaoExtra(db),
 		buscarConfiguracao(db, 'gise_default_hora_entrada'),
-		buscarConfiguracao(db, 'gise_default_hora_saida')
+		buscarConfiguracao(db, 'gise_default_hora_saida'),
+		// Rubrica reutilizável do supervisor — reutilizada no modal de assinatura
+		// aberto pelos cards (a página de detalhe já a carregava; a listagem não,
+		// então o pad abria vazio). Só o supervisor assina a GISE por token.
+		isSupervisor
+			? db
+					.select({ rubrica: policiais.rubrica })
+					.from(policiais)
+					.where(eq(policiais.id, u.id))
+					.get()
+			: Promise.resolve(null)
 	]);
 
 	const minhaSeccionalId = isSeccional || isUnidade ? u.papel_unidade_id : null;
@@ -83,6 +94,7 @@ export const load: PageServerLoad = async ({ locals, platform }) => {
 		seccionaisList,
 		minhaSeccionalId,
 		supervisaoExtraUnidadeId,
+		minhaRubrica: minhaRubricaRow?.rubrica ?? null,
 		defaultHoraEntrada: defaultHoraEntrada ?? '08:00',
 		defaultHoraSaida: defaultHoraSaida ?? '16:00'
 	};

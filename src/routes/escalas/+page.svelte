@@ -431,16 +431,6 @@
 						>
 					</div>
 				{/if}
-				{#if podeAssinar}
-					<button
-						type="button"
-						class="text-sm text-tertiary-600 dark:text-tertiary-400 hover:underline flex items-center justify-center gap-1"
-						onclick={() => (cadastrandoRubrica = true)}
-					>
-						<PenLine class="w-4 h-4" aria-hidden="true" />
-						{minhaRubrica ? 'Gerenciar minha rubrica' : 'Cadastrar minha rubrica'}
-					</button>
-				{/if}
 			</div>
 		{:else}
 			<div
