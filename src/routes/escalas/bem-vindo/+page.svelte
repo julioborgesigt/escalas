@@ -60,6 +60,21 @@
 						'Visualize e gerencie os envios e assinaturas de escalas em tempo real, além de realizar exportações (Word, Excel, PDF).',
 					href: '/recebidos',
 					cta: 'Acessar caixa de entrada'
+				},
+				{
+					icone: ICONE.pessoas,
+					titulo: 'Policiais',
+					descricao: 'Consulte e gerencie o cadastro de policiais e seus dados.',
+					href: '/policiais',
+					cta: 'Gerenciar policiais'
+				},
+				{
+					icone: ICONE.checkLista,
+					titulo: 'Solicitações',
+					descricao:
+						'Analise e aprove ou rejeite as solicitações de alteração de dados enviadas pelos policiais.',
+					href: '/solicitacoes',
+					cta: 'Ver solicitações'
 				}
 			];
 		}
@@ -113,10 +128,21 @@
 			cta: 'Acessar presença GISE'
 		};
 
+		// Todo policial (incl. sub-admins) tem "Meu perfil" na sidebar — espelhado aqui.
+		const cardMeuPerfil = {
+			icone: ICONE.perfil,
+			titulo: 'Meu perfil',
+			descricao:
+				'Atualize seus dados cadastrais, gerencie sua rubrica e ajuste as preferências da conta.',
+			href: '/perfil',
+			cta: 'Abrir meu perfil'
+		};
+
 		if (usuario?.papel === 'admin_seccional') {
 			// Admin seccional sempre tem acesso ao módulo GISE (espelha a sidebar).
 			const lista = [cardOrdinaria, cardGiseEscalas];
 			if (showResGise) lista.push(cardPresencaGise);
+			lista.push(cardMeuPerfil);
 			return lista;
 		}
 		if (usuario?.papel === 'admin_unidade') {
@@ -124,6 +150,7 @@
 			// GISE só quando supervisor (admin_unidade só supervisiona se DPC).
 			if (isSupervisorGise) lista.push(cardGiseEscalas);
 			if (showResGise) lista.push(cardPresencaGise);
+			lista.push(cardMeuPerfil);
 			return lista;
 		}
 		return [
@@ -134,7 +161,8 @@
 					'Acesse o painel para criar, enviar e acompanhar as escalas ordinárias de sua unidade.',
 				href: '/escalas',
 				cta: 'Entrar no painel'
-			}
+			},
+			cardMeuPerfil
 		];
 	});
 </script>
@@ -158,13 +186,7 @@
 		>
 			Acesso rápido
 		</h2>
-		<div
-			class="grid grid-cols-1 gap-4 {acoes.length === 3
-				? 'sm:grid-cols-2 lg:grid-cols-3'
-				: acoes.length === 2
-					? 'sm:grid-cols-2'
-					: ''}"
-		>
+		<div class="grid grid-cols-1 gap-4 {acoes.length > 1 ? 'sm:grid-cols-2 lg:grid-cols-3' : ''}">
 			{#each acoes as acao (acao.href)}
 				<BemVindoCardAcao {...acao} accent="primary" horizontal={acoes.length === 1} />
 			{/each}

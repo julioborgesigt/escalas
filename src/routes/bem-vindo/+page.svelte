@@ -14,7 +14,8 @@
 	const isMembroGise = $derived(page.data.isMembroGise ?? false);
 	const isSupervisaoGise = $derived(page.data.isSupervisaoGise ?? false);
 
-	const acoes = $derived.by(() => {
+	// Cards de convocação GISE (só quando há vínculo ativo).
+	const giseCards = $derived.by(() => {
 		const lista = [];
 		if (isSupervisorGise) {
 			lista.push({
@@ -38,6 +39,21 @@
 		}
 		return lista;
 	});
+
+	const semConvocacao = $derived(giseCards.length === 0);
+
+	// "Meu perfil" está na sidebar de todo policial — espelhado no acesso rápido.
+	const acoes = $derived([
+		...giseCards,
+		{
+			icone: ICONE.perfil,
+			titulo: 'Meu perfil',
+			descricao:
+				'Atualize seus dados cadastrais, gerencie sua rubrica e ajuste as preferências da conta.',
+			href: '/perfil',
+			cta: 'Abrir meu perfil'
+		}
+	]);
 </script>
 
 <svelte:head>
@@ -54,19 +70,13 @@
 	/>
 
 	<section class="mt-6 sm:mt-8">
-		{#if acoes.length > 0}
-			<h2
-				class="mb-4 text-2xs font-semibold tracking-[0.18em] text-surface-500 uppercase dark:text-surface-400"
-			>
-				Acesso rápido
-			</h2>
-			<div class="grid grid-cols-1 gap-4 {acoes.length > 1 ? 'sm:grid-cols-2' : ''}">
-				{#each acoes as acao (acao.href)}
-					<BemVindoCardAcao {...acao} accent="secondary" horizontal={acoes.length === 1} />
-				{/each}
-			</div>
-		{:else}
-			<div class="card-elevated flex items-start gap-3 rounded-xl p-5">
+		<h2
+			class="mb-4 text-2xs font-semibold tracking-[0.18em] text-surface-500 uppercase dark:text-surface-400"
+		>
+			Acesso rápido
+		</h2>
+		{#if semConvocacao}
+			<div class="card-elevated mb-4 flex items-start gap-3 rounded-xl p-5">
 				<IconeSvg paths={ICONE.info} class="mt-0.5 h-4 w-4 shrink-0 text-surface-400" />
 				<div>
 					<p class="text-sm font-semibold text-surface-900 dark:text-surface-50">
@@ -79,5 +89,10 @@
 				</div>
 			</div>
 		{/if}
+		<div class="grid grid-cols-1 gap-4 {acoes.length > 1 ? 'sm:grid-cols-2 lg:grid-cols-3' : ''}">
+			{#each acoes as acao (acao.href)}
+				<BemVindoCardAcao {...acao} accent="secondary" horizontal={acoes.length === 1} />
+			{/each}
+		</div>
 	</section>
 </BemVindoPagina>

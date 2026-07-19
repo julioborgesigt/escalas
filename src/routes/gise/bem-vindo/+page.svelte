@@ -53,6 +53,21 @@
 						'Crie e gerencie os modelos de formulário (operacional e SEINT) do relatório de produtividade preenchido pelas equipes GISE.',
 					href: '/res-gise',
 					cta: 'Configurar formulários'
+				},
+				{
+					icone: ICONE.pessoas,
+					titulo: 'Policiais',
+					descricao: 'Consulte e gerencie o cadastro de policiais e seus dados.',
+					href: '/policiais',
+					cta: 'Gerenciar policiais'
+				},
+				{
+					icone: ICONE.checkLista,
+					titulo: 'Solicitações',
+					descricao:
+						'Analise e aprove ou rejeite as solicitações de alteração de dados enviadas pelos policiais.',
+					href: '/solicitacoes',
+					cta: 'Ver solicitações'
 				}
 			];
 		}
@@ -89,7 +104,7 @@
 		>
 			Acesso rápido
 		</h2>
-		<div class="grid grid-cols-1 gap-4 {acoes.length > 1 ? 'sm:grid-cols-2' : ''}">
+		<div class="grid grid-cols-1 gap-4 {acoes.length > 1 ? 'sm:grid-cols-2 lg:grid-cols-3' : ''}">
 			{#each acoes as acao (acao.href)}
 				<BemVindoCardAcao {...acao} accent="secondary" horizontal={acoes.length === 1} />
 			{/each}
