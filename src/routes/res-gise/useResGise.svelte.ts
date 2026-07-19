@@ -1,7 +1,7 @@
 /* eslint-disable svelte/prefer-writable-derived */
 import { toaster } from '$lib/toast';
 import { apiFetchResponse } from '$lib/api-fetch';
-import { baixarBlob } from '$lib/utils/download';
+import { baixarBlob, nomeArquivoContentDisposition } from '$lib/utils/download';
 import { fmtDate } from '$lib/gise/gise-formatters';
 import { loading } from '$lib/loading.svelte';
 import { page } from '$app/state';
@@ -50,6 +50,8 @@ export function useResGise(getData: () => ResGisePageData) {
 
 	let idProdutividadeBaixando = $state<number | null>(null);
 	let idExtraBaixando = $state<number | null>(null);
+	// Qual comprovante de presença está baixando ('entrada' | 'saida' | null).
+	let termoBaixando = $state<'entrada' | 'saida' | null>(null);
 
 	// --- Efeitos de Sincronização ---
 	$effect(() => {
@@ -402,6 +404,31 @@ export function useResGise(getData: () => ResGisePageData) {
 		}
 	}
 
+	/**
+	 * Baixa o comprovante (Termo de Presença) da confirmação de entrada/saída do
+	 * próprio policial. O servidor decide a fonte: PDF assinado no R2 (Token A3) ou
+	 * geração sob demanda com selo institucional (confirmação em tela).
+	 */
+	async function baixarTermoPresenca(tipo: 'entrada' | 'saida') {
+		const sel = escalaSelecionada;
+		if (!sel) return;
+		termoBaixando = tipo;
+		loading.show('Baixando comprovante de presença...');
+		try {
+			const res = await apiFetchResponse(`/api/gise/${sel.id}/presenca/termo?tipo=${tipo}`);
+			const nome = nomeArquivoContentDisposition(
+				res.headers.get('Content-Disposition'),
+				`comprovante_presenca_${tipo}_gise_${sel.id}.pdf`
+			);
+			baixarBlob(await res.blob(), nome);
+		} catch (e: unknown) {
+			toaster.error({ title: 'Erro no Download', description: messageFromUnknown(e) });
+		} finally {
+			loading.hide();
+			termoBaixando = null;
+		}
+	}
+
 	return {
 		// Getters
 		get configTipo() {
@@ -446,6 +473,9 @@ export function useResGise(getData: () => ResGisePageData) {
 		get baixandoExtra() {
 			return idExtraBaixando;
 		},
+		get baixandoTermo() {
+			return termoBaixando;
+		},
 
 		// Derived
 		get configJson() {
@@ -482,6 +512,7 @@ export function useResGise(getData: () => ResGisePageData) {
 		sincronizarPresencaAtual,
 		baixarRelatorio,
 		baixarRelatorioExtra,
+		baixarTermoPresenca,
 		fmtDate,
 		isHorarioLiberado,
 		isSaidaLiberada

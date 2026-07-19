@@ -259,3 +259,33 @@ export async function buscarTermosPresencaGise(
 	}
 	return map;
 }
+
+/**
+ * Termo de presença QUALIFICADO (Token A3) de UM policial numa dada GISE, por tipo
+ * (entrada/saída). Devolve `r2_key` e `verification_hash` para servir o PDF assinado
+ * já guardado no R2 (fluxo de download do comprovante). Em re-confirmação, o último
+ * registro (maior `id`) prevalece. `null` quando a presença foi de tela (avançada).
+ */
+export async function buscarTermoPresencaGise(
+	db: Database,
+	giseId: number,
+	policialId: number,
+	tipo: 'entrada' | 'saida'
+): Promise<{ r2_key: string | null; verification_hash: string | null } | null> {
+	const row = await db
+		.select({
+			r2_key: gisePresencaTermos.r2_key,
+			verification_hash: gisePresencaTermos.verification_hash
+		})
+		.from(gisePresencaTermos)
+		.where(
+			and(
+				eq(gisePresencaTermos.gise_id, giseId),
+				eq(gisePresencaTermos.policial_id, policialId),
+				eq(gisePresencaTermos.tipo, tipo)
+			)
+		)
+		.orderBy(desc(gisePresencaTermos.id))
+		.get();
+	return row ?? null;
+}

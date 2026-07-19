@@ -10,6 +10,14 @@
 
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
 import { mascararCPF } from '../utils';
+import {
+	adicionarRodapeUniversal,
+	adicionarPaginaAuditoria,
+	estamparRubricaLimpa,
+	type AuditTrailOptions
+} from './pdf-signing';
+import { calcularHashBuffer } from './document-utils';
+import { selarPdfInstitucional, tipoCarimboPrevisto } from './server-seal';
 
 export interface TermoPresencaInput {
 	tipo: 'entrada' | 'saida';
@@ -22,6 +30,13 @@ export interface TermoPresencaInput {
 	unidadeNome?: string | null;
 	/** Momento da confirmação (ISO). */
 	timestampISO: string;
+	/**
+	 * Nível da assinatura, que muda apenas o TEXTO (declaração + rótulo da linha):
+	 *   - `'qualificada'` (default): Token A3 ICP-Brasil (MP 2.200-2 + Lei 14.063/2020);
+	 *   - `'avancada'`: confirmação em tela (Lei 14.063/2020 art. 4º II).
+	 * A força jurídica vem da assinatura embutida/selo, não do layout.
+	 */
+	nivel?: 'qualificada' | 'avancada';
 }
 
 function formatarDataBR(yyyatmmdd: string): string {
@@ -110,12 +125,16 @@ export async function gerarTermoPresencaPdf(
 	if (input.unidadeNome) campo('UNIDADE', input.unidadeNome);
 	campo('DATA/HORA DA CONFIRMAÇÃO', dataHora);
 
-	// Declaração
+	// Declaração — o texto muda conforme o nível da assinatura.
 	y -= 6;
-	const declaracao =
-		`Declaro, para os devidos fins e sob as penas da lei, a veracidade do registro de ${acao.toLowerCase()} ` +
-		`no serviço acima identificado, confirmado de forma eletrônica por mim, mediante assinatura digital ` +
-		`qualificada (certificado digital ICP-Brasil), nos termos da MP 2.200-2/2001 e da Lei 14.063/2020.`;
+	const avancada = input.nivel === 'avancada';
+	const declaracao = avancada
+		? `Declaro, para os devidos fins e sob as penas da lei, a veracidade do registro de ${acao.toLowerCase()} ` +
+			`no serviço acima identificado, confirmado de forma eletrônica por mim, mediante assinatura eletrônica ` +
+			`avançada (rubrica gráfica, prova de vida e geolocalização), nos termos da Lei 14.063/2020, art. 4º, II.`
+		: `Declaro, para os devidos fins e sob as penas da lei, a veracidade do registro de ${acao.toLowerCase()} ` +
+			`no serviço acima identificado, confirmado de forma eletrônica por mim, mediante assinatura digital ` +
+			`qualificada (certificado digital ICP-Brasil), nos termos da MP 2.200-2/2001 e da Lei 14.063/2020.`;
 	for (const linha of wrap(declaracao, font, 10.5, contentW)) {
 		page.drawText(linha, { x: margin, y, size: 10.5, font, color: text });
 		y -= 16;
@@ -129,7 +148,10 @@ export async function gerarTermoPresencaPdf(
 		thickness: 1,
 		color: gray
 	});
-	page.drawText(`${input.signerName} — Assinatura Digital Qualificada (ICP-Brasil)`, {
+	const rotuloAssinatura = avancada
+		? `${input.signerName} — Assinatura Eletrônica Avançada (Lei 14.063/2020)`
+		: `${input.signerName} — Assinatura Digital Qualificada (ICP-Brasil)`;
+	page.drawText(rotuloAssinatura, {
 		x: margin,
 		y: signatureLineY - 14,
 		size: 9,
@@ -139,4 +161,108 @@ export async function gerarTermoPresencaPdf(
 
 	const pdf = await doc.save();
 	return { pdf, signatureLineY };
+}
+
+/**
+ * Monta o **Termo de Presença AVANÇADO** (Lei 14.063/2020 art. 4º II) SOB DEMANDA,
+ * a partir das evidências já persistidas em `gise_presencas` (rubrica, selfie/prova
+ * de vida, GPS, IP, carimbo temporal). É o comprovante da confirmação feita em tela/
+ * mobile — que NÃO gera PDF no momento da confirmação (a prova fica só nas evidências).
+ *
+ * Nada é persistido: o PDF é reconstruído a cada download. A integridade vem do
+ * selo institucional (CMS autoassinado, à prova de adulteração); a validação pública
+ * autoritativa desta presença continua sendo o Relatório Extraordinário assinado
+ * (que carrega hash próprio em `/validar`). Por isso o identificador aqui é o mesmo
+ * pseudo-hash `PRES-<id>-<E|S>` que a presença já exibe no manifesto do relatório.
+ *
+ * O caller (endpoint) resolve a `selfieBase64` do R2 e passa as evidências prontas —
+ * mantendo este helper livre de acesso a banco/R2.
+ */
+export async function montarTermoPresencaAvancado(opts: {
+	tipo: 'entrada' | 'saida';
+	/** `gise_presencas.id` — base do identificador de referência. */
+	presencaId: number;
+	giseId: number;
+	dataInicio: string;
+	unidadeNome?: string | null;
+	signerName: string;
+	signerCpf?: string | null;
+	matricula?: string | null;
+	/** Momento da confirmação (ISO, UTC real). */
+	timestampISO?: string | null;
+	/** Rubrica gráfica desenhada na confirmação (data URI). */
+	rubricaBase64: string;
+	/** Selfie/prova de vida (data URI), já resolvida do R2 pelo caller. */
+	selfieBase64?: string;
+	ip?: string | null;
+	userAgent?: string | null;
+	latitude?: number | null;
+	longitude?: number | null;
+	/** `url.origin` para montar os links de referência. */
+	origin: string;
+	env?: Record<string, string | undefined>;
+}): Promise<Uint8Array> {
+	const timestampISO = opts.timestampISO ?? new Date().toISOString();
+
+	const { pdf, signatureLineY } = await gerarTermoPresencaPdf({
+		tipo: opts.tipo,
+		signerName: opts.signerName,
+		signerCpf: opts.signerCpf,
+		matricula: opts.matricula,
+		giseId: opts.giseId,
+		dataInicio: opts.dataInicio,
+		unidadeNome: opts.unidadeNome,
+		timestampISO,
+		nivel: 'avancada'
+	});
+
+	const documentHash = await calcularHashBuffer(pdf);
+	const sufixo = opts.tipo === 'entrada' ? 'E' : 'S';
+	const verificationHash = `PRES-${opts.presencaId}-${sufixo}`;
+	const verificationUrl = `${opts.origin}/validar/${verificationHash}`;
+
+	// Rodapé universal (hash + base legal + identidade na página do campo).
+	const pdfComRodape = await adicionarRodapeUniversal(pdf, {
+		signerName: opts.signerName,
+		signerMatricula: opts.matricula ?? undefined,
+		signedAtISO: timestampISO,
+		documentHash,
+		verificationUrl,
+		verificationHash
+	});
+
+	// Folha de auditoria (uma assinatura avançada, com rubrica + selfie + GPS/IP).
+	const signers: AuditTrailOptions[] = [
+		{
+			signerName: `${opts.signerName} (${opts.tipo === 'entrada' ? 'ENTRADA' : 'SAÍDA'})`,
+			signerCpf: opts.signerCpf ?? undefined,
+			signingTime: new Date(timestampISO),
+			verificationHash,
+			verificationUrl,
+			documentHash,
+			ip: opts.ip ?? undefined,
+			userAgent: opts.userAgent ?? undefined,
+			latitude: opts.latitude ?? undefined,
+			longitude: opts.longitude ?? undefined,
+			rubricBase64: opts.rubricaBase64,
+			selfieBase64: opts.selfieBase64,
+			documentName: `Termo de Presença - GISE ${opts.giseId}`,
+			signatureLevel: 'avancada',
+			tipoCarimoTempo: tipoCarimboPrevisto(opts.env)
+		}
+	];
+	const pdfComAuditoria = await adicionarPaginaAuditoria(pdfComRodape, signers);
+
+	// Estampa a rubrica sobre a linha de assinatura (página de conteúdo = índice 0).
+	const estampado = await estamparRubricaLimpa(pdfComAuditoria, {
+		alignment: 'center',
+		customBoxY: signatureLineY + 3,
+		rubricBase64: opts.rubricaBase64,
+		targetPageIndex: 0
+	});
+
+	// Selo institucional (avançada) — torna o PDF autocontido e à prova de adulteração.
+	// Sem SELO_INSTITUCIONAL_PEM, degrada honestamente para o PDF com rodapé.
+	const selado = await selarPdfInstitucional(estampado, opts.signerName, { env: opts.env });
+	return selado.ok ? selado.pdf : estampado;
 }

@@ -93,6 +93,23 @@
 	</button>
 {/snippet}
 
+{#snippet btnBaixarComprovante(tipo: 'entrada' | 'saida')}
+	<button
+		type="button"
+		class="btn btn-sm preset-tonal-surface-500 rounded-lg text-3xs font-bold uppercase flex items-center gap-1.5 shrink-0 ml-auto"
+		title="Baixar comprovante de {tipo === 'entrada' ? 'entrada' : 'saída'}"
+		onclick={() => resGise.baixarTermoPresenca(tipo)}
+		disabled={loading.active || resGise.baixandoTermo === tipo}
+	>
+		{#if resGise.baixandoTermo === tipo}
+			<Spinner size="sm" />
+		{:else}
+			{@render btnIcon('M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4')}
+		{/if}
+		<span class="hidden sm:inline">Comprovante</span>
+	</button>
+{/snippet}
+
 {#snippet blocoRestritoDesktop(tipo: 'entrada' | 'saida')}
 	{@const rotulo = tipo === 'entrada' ? 'entrada' : 'saída'}
 	<div class="flex flex-col gap-3 max-w-md mx-auto">
@@ -180,6 +197,7 @@
 			nomeArquivo="termo_presenca_entrada.pdf"
 			extraPayload={{ tipo: 'entrada' }}
 			disabled={loading.active}
+			baixarAutomatico={false}
 			onSuccess={async () => {
 				toaster.success({ title: 'Entrada confirmada com certificado digital.' });
 				await resGise.sincronizarPresencaAtual('entrada');
@@ -195,6 +213,7 @@
 			nomeArquivo="termo_presenca_saida.pdf"
 			extraPayload={{ tipo: 'saida' }}
 			disabled={loading.active}
+			baixarAutomatico={false}
 			onSuccess={async () => {
 				toaster.success({ title: 'Saída confirmada com certificado digital.' });
 				await resGise.sincronizarPresencaAtual('saida');
@@ -352,6 +371,7 @@
 							</p>
 						</div>
 					</div>
+					{@render btnBaixarComprovante('entrada')}
 				</div>
 
 				<!-- Formulário de produtividade (só equipes operacionais / SEINT com relatório) -->
@@ -557,6 +577,7 @@
 									)}
 								</p>
 							</div>
+							{@render btnBaixarComprovante('saida')}
 						</div>
 					{/if}
 				</div>
