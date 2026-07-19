@@ -734,6 +734,13 @@ interface RodapeUniversalOptions {
 	signedAtISO?: string;
 	/** Rótulo da identidade (default "Assinado digitalmente por"). */
 	signatureLabel?: string;
+	/**
+	 * Base legal exibida na linha "Assinado em <data> – <base>" do bloco de
+	 * identidade. Default: `'MP 2.200-2/2001 – ICP Brasil'` (fluxo qualificado).
+	 * O comprovante AVANÇADO (tela) passa a base da Lei 14.063/2020 para não
+	 * declarar ICP-Brasil num documento que não é qualificado.
+	 */
+	baseLegalIdentidade?: string;
 }
 
 /** Formata um ISO como DD/MM/AAAA no fuso de Brasília (UTC-3), sem horário. */
@@ -888,7 +895,8 @@ export async function adicionarRodapeUniversal(
 		});
 
 		const dataAss = formatarDataBR(options.signedAtISO);
-		page.drawText(`Assinado em ${dataAss} – MP 2.200-2/2001 – ICP Brasil`, {
+		const baseLegal = options.baseLegalIdentidade ?? 'MP 2.200-2/2001 – ICP Brasil';
+		page.drawText(`Assinado em ${dataAss} – ${baseLegal}`, {
 			x: tx,
 			y: 31.5,
 			size: 5,

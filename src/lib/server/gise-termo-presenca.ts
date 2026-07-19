@@ -221,14 +221,17 @@ export async function montarTermoPresencaAvancado(opts: {
 	const verificationHash = `PRES-${opts.presencaId}-${sufixo}`;
 	const verificationUrl = `${opts.origin}/validar/${verificationHash}`;
 
-	// Rodapé universal (hash + base legal + identidade na página do campo).
+	// Rodapé universal (hash + base legal + identidade na página do campo). A base
+	// legal da identidade é a AVANÇADA (Lei 14.063/2020) — nunca ICP-Brasil, que é
+	// exclusiva do fluxo qualificado (token A3).
 	const pdfComRodape = await adicionarRodapeUniversal(pdf, {
 		signerName: opts.signerName,
 		signerMatricula: opts.matricula ?? undefined,
 		signedAtISO: timestampISO,
 		documentHash,
 		verificationUrl,
-		verificationHash
+		verificationHash,
+		baseLegalIdentidade: 'Lei 14.063/2020 – Assinatura Avançada'
 	});
 
 	// Folha de auditoria (uma assinatura avançada, com rubrica + selfie + GPS/IP).
