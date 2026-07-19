@@ -162,6 +162,7 @@ export {
 	salvarAssinaturaRelatorioGise,
 	salvarTermoPresencaGise,
 	buscarTermosPresencaGise,
+	buscarTermoPresencaGise,
 	resolverParticipacaoGisePolicial,
 	horarioGiseLiberado,
 	verificarSaidaCompletaSeccional,

@@ -14,6 +14,7 @@
 		signerEmail = '',
 		extraPayload = {} as Record<string, unknown>,
 		disabled = false,
+		baixarAutomatico = true,
 		onSuccess = async () => {},
 		// eslint-disable-next-line no-useless-assignment
 		control = $bindable<{ assinarComSerpro: () => Promise<void> } | null>()
@@ -26,6 +27,12 @@
 		signerEmail?: string;
 		extraPayload?: Record<string, unknown>;
 		disabled?: boolean;
+		/**
+		 * Baixa o PDF assinado automaticamente ao concluir (default). Na presença GISE
+		 * é `false`: o comprovante fica disponível por um botão discreto de download
+		 * (mesma UX da assinatura em tela), evitando o download forçado logo após assinar.
+		 */
+		baixarAutomatico?: boolean;
 		onSuccess?: () => Promise<void>;
 		control?: { assinarComSerpro: () => Promise<void> } | null;
 	} = $props();
@@ -86,13 +93,16 @@
 				onFinalizando: () => loading.show('Finalizando PDF assinado...')
 			});
 
-			// 4. Baixar
-			loading.show('Baixando PDF assinado...');
-			const nome = nomeArquivoContentDisposition(
-				finResp.headers.get('Content-Disposition'),
-				nomeArquivo
-			);
-			baixarBlob(await finResp.blob(), nome);
+			// 4. Baixar (opcional). Na presença GISE, `baixarAutomatico=false`: o
+			//    comprovante fica disponível por botão discreto, sem download forçado.
+			if (baixarAutomatico) {
+				loading.show('Baixando PDF assinado...');
+				const nome = nomeArquivoContentDisposition(
+					finResp.headers.get('Content-Disposition'),
+					nomeArquivo
+				);
+				baixarBlob(await finResp.blob(), nome);
+			}
 
 			toaster.success({ title: 'PDF assinado com sucesso!' });
 			await onSuccess();
