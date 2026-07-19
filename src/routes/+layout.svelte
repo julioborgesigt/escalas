@@ -518,11 +518,13 @@
 						<span
 							class="badge preset-filled-primary-500 text-3xs font-semibold tracking-wider uppercase"
 						>
-							ADMIN {adminModulo === 'gise'
-								? 'GISE'
-								: adminModulo === 'escalas'
-									? 'ESCALAS'
-									: 'GERAL'}
+							{usuario?.isSuperAdmin
+								? 'SUPER ADMIN'
+								: adminModulo === 'gise'
+									? 'ADMIN GISE'
+									: adminModulo === 'escalas'
+										? 'ADMIN ESCALAS'
+										: 'ADMIN GERAL'}
 						</span>
 						{#if !usuario?.isSuperAdmin}
 							<button
