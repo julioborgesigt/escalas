@@ -67,11 +67,11 @@ describe('montarTermoPresencaAvancado — comprovante de presença sob demanda',
 		expect(texto).toContain('TERMO DE');
 		expect(texto).toContain('FULANO DE TAL');
 
-		// (2) Base legal AVANÇADA (art. 4º II) — e NÃO qualificada (ICP-Brasil). O
-		//     manifesto pode citar a MP 2.200-2 como base legal GERAL; o que não pode
-		//     é rotular esta assinatura como ICP-Brasil (grupo "qualificadas").
+		// (2) Base legal AVANÇADA (art. 4º II) — e NUNCA ICP-Brasil (exclusiva do
+		//     fluxo qualificado). Cobre as duas grafias: "ICP-Brasil" e "ICP Brasil"
+		//     (o rodapé de identidade usava a segunda, hardcoded — regressão fechada).
 		expect(texto).toContain('Lei 14.063/2020');
-		expect(texto).not.toMatch(/ICP-?Brasil/i);
+		expect(texto).not.toMatch(/ICP[\s-]?Brasil/i);
 
 		// (3) A folha de auditoria mostra RÚBRICA e FOTO (selfie presente).
 		expect(texto).toMatch(/R\xdaBRICA/);
