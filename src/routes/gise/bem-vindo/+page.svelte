@@ -7,25 +7,16 @@
 
 	const { data }: PageProps = $props();
 	const usuario = $derived(data.usuario);
-	const isSubAdmin = $derived(
-		usuario?.papel === 'admin_unidade' || usuario?.papel === 'admin_seccional'
-	);
-	const showResGise = $derived(
-		!!(data.isMembroGise || data.isSupervisorGise || data.isSupervisaoGise)
-	);
 
+	// Esta rota só é alcançada pelo Admin Geral no módulo GISE: o `load`
+	// redireciona seccional/unidade/policial para /escalas/bem-vindo (ou /bem-vindo)
+	// via `obterRotaBemVindo`. Por isso não há ramo de sub-admin aqui — o antigo
+	// (`isSubAdmin && showResGise`) era código morto. O ramo não-admin abaixo é só
+	// um fallback defensivo caso a rota seja renderizada fora do fluxo normal.
 	const descricao = $derived(
 		usuario?.tipo === 'admin'
 			? 'Você está no ambiente de gestão do módulo GISE. Como administrador, utilize as áreas abaixo para gerenciar a alocação das equipes, analisar a produtividade ou ajustar configurações.'
-			: isSubAdmin && showResGise
-				? usuario?.papel === 'admin_unidade'
-					? 'Você está no ambiente administrativo do GISE. Por aqui, você poderá gerenciar a alocação de equipes operacionais e de inteligência, bem como confirmar sua presença na escala GISE, quando escalado.'
-					: 'Você está no ambiente administrativo do GISE. Por aqui, você poderá planejar e gerenciar a alocação de equipes operacionais e de inteligência da seccional, bem como confirmar sua presença na escala GISE, quando escalado.'
-				: isSubAdmin
-					? usuario?.papel === 'admin_unidade'
-						? 'Você está no ambiente de planejamento especial do GISE. Como administrador da unidade, você poderá gerenciar a alocação de equipes operacionais e de inteligência, bem como confirmar sua presença na escala GISE, quando estiver escalado.'
-						: 'Você está no ambiente de planejamento especial do GISE. Como administrador da seccional, você poderá gerenciar a alocação de equipes operacionais e de inteligência, bem como confirmar sua presença na escala GISE, quando estiver escalado.'
-					: 'Você está no ambiente de planejamento especial do GISE. Aqui você pode gerenciar a alocação de equipes operacionais e validar os relatórios consolidados de serviço extraordinário.'
+			: 'Você está no ambiente de planejamento especial do GISE. Aqui você pode gerenciar a alocação de equipes operacionais e validar os relatórios consolidados de serviço extraordinário.'
 	);
 
 	const acoes = $derived.by(() => {
@@ -57,36 +48,15 @@
 				},
 				{
 					icone: ICONE.documento,
-					titulo: 'Formulários e Presenças',
+					titulo: 'Configuração de Formulários',
 					descricao:
-						'Gerencie modelos de formulários de relatório de inteligência e valide os arquivos de presença das equipes GISE.',
+						'Crie e gerencie os modelos de formulário (operacional e SEINT) do relatório de produtividade preenchido pelas equipes GISE.',
 					href: '/res-gise',
-					cta: 'Abrir formulários'
+					cta: 'Configurar formulários'
 				}
 			];
 		}
-		if (isSubAdmin && showResGise) {
-			return [
-				{
-					icone: ICONE.pranchetaLista,
-					titulo: 'Escalas GISE',
-					descricao:
-						usuario?.papel === 'admin_unidade'
-							? 'Gerencie a alocação de equipes operacionais e de inteligência da sua unidade na escala GISE.'
-							: 'Planeje, gerencie e valide a alocação de equipes operacionais e de inteligência na escala GISE da seccional.',
-					href: '/gise',
-					cta: 'Acessar escalas GISE'
-				},
-				{
-					icone: ICONE.documento,
-					titulo: 'Presença GISE',
-					descricao:
-						'Confirme sua presença nas escalas GISE ativas onde você foi alocado e assine a folha de presença correspondente.',
-					href: '/res-gise',
-					cta: 'Acessar presença GISE'
-				}
-			];
-		}
+		// Fallback defensivo — o `load` impede que não-admins cheguem aqui.
 		return [
 			{
 				icone: ICONE.pranchetaLista,
