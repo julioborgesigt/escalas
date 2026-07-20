@@ -1,8 +1,8 @@
 # Testes Manuais — ESCALAS
 
-Roteiro de regressão manual dos fluxos de negócio. Use antes de releases importantes, em complemento aos testes automatizados (`npm run test` e `npx playwright test`).
+Roteiro de regressão manual dos fluxos de negócio. **Papel deste arquivo: exceção, não gate** — a regressão padrão é a suíte automatizada (`npm run test` + `npx playwright test`, ambas no CI). Use este roteiro para o que a automação não alcança (hardware físico, caixa de e-mail real, ACT ICP) e para QA exploratório antes de releases grandes. Casos já automatizados estão marcados com `[E2E: <spec>]` — não precisam de reexecução manual.
 
-> **Fluxo Token A3 (presença GISE no desktop):** roteiro dedicado em [`docs/QA_ASSINATURA_A3_DESKTOP.md`](docs/QA_ASSINATURA_A3_DESKTOP.md) — exige Assinador SERPRO + token físico e não roda em CI.
+> **Fluxo Token A3 (presença GISE no desktop):** roteiro dedicado em [`docs/QA_ASSINATURA_A3_DESKTOP.md`](docs/QA_ASSINATURA_A3_DESKTOP.md) — o Assinador SERPRO + token físico seguem manuais, mas a cadeia criptográfica do fluxo A3 (preparar → CMS → finalizar → validar) roda em CI com CA de teste (`e2e/assinatura-qualificada-a3.spec.ts`).
 
 ## 1. Autenticação e Sessão
 
@@ -10,7 +10,7 @@ Roteiro de regressão manual dos fluxos de negócio. Use antes de releases impor
 
 - [ ] Acessar `/login` sem estar autenticado
 - [ ] Submeter matrícula + senha corretos → receber e-mail com código 2FA
-- [ ] Inserir código 2FA correto → redirecionar para a tela de boas-vindas conforme papel
+- [ ] Inserir código 2FA correto → redirecionar para a tela de boas-vindas conforme papel `[E2E: boas-vindas-rbac.spec.ts — exceto Super Admin, que depende de SUPER_ADMIN_LOGIN]`
   - Super Admin → `/super-admin`
   - Admin Geral → `/escalas/bem-vindo` ou `/gise/bem-vindo` (conforme o módulo escolhido)
   - Admin Seccional / Unidade → `/escalas/bem-vindo`
@@ -182,6 +182,8 @@ Verificar cada transição de status:
 - [ ] Assinar com certificado válido → finalizar com sucesso
 - [ ] Tentar sem extensão instalada → mensagem de erro adequada
 - [ ] Certificado expirado → mensagem de erro
+
+> `[E2E: assinatura-qualificada-a3.spec.ts]` cobre a cadeia criptográfica do fluxo qualificado (preparar → CMS → finalizar → download → `/validar`, com negativos de CA desconhecida, CPF divergente e digest adulterado) usando CA de teste. O que segue manual em 5.2/5.3 é a integração com o assinador real (WebPKI/SERPRO, PIN, token físico, certificado expirado de verdade).
 
 ### 5.3 Assinatura SERPRO
 
@@ -392,6 +394,8 @@ Verificar cada transição de status:
 ---
 
 ## 15. Controle de Acesso (RBAC)
+
+> `[E2E: boas-vindas-rbac.spec.ts]` cobre: policial comum barrado em `/painel` e `/auditoria`; Admin Geral com `/painel` liberado e consoles de auditoria vetados (Super Admin only, inclusive na API `/api/admin/audit`); anônimo → `/login`. `[E2E: escalas-cross-lotacao.spec.ts]` cobre o isolamento entre lotações. Manual: perfis que dependem de env (Super Admin) e a varredura exploratória completa da tabela.
 
 | Papel              | Deve acessar                                                                                         | Não deve acessar                                              |
 | ------------------ | ---------------------------------------------------------------------------------------------------- | ------------------------------------------------------------- |

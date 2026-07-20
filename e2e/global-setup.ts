@@ -19,11 +19,20 @@ export const FIXTURE = {
 	password: 'fixture-cross-lotacao-2026!',
 	unidadeA: { id: 99001, nome: 'DELEGACIA E2E FIXTURE A' },
 	unidadeB: { id: 99002, nome: 'DELEGACIA E2E FIXTURE B' },
-	policialA: { id: 99001, matricula: 'EE990001' },
+	/** CPF em claro (sem CPF_ENC_KEY local o app trata como legado) — precisa
+	 *  bater com TITULAR_TESTE do e2e/ca-teste/gerar-ca.ts (fluxo A3). */
+	policialA: { id: 99001, matricula: 'EE990001', nome: 'Policial Fixture A', cpf: '39053344705' },
 	policialB: { id: 99002, matricula: 'EE990002' },
+	/** Policial promovido a admin de unidade (boas-vindas/RBAC). */
+	adminUnidade: { id: 99005, matricula: 'EE990005', nome: 'Admin Unidade Fixture' },
+	/** Admin Geral standalone (linha em `administradores`, sessão tipo 'admin'). */
+	adminGeral: { id: 99001, login: 'e2e-admin-geral' },
 	escalaA: { id: 99001 },
 	/** Escala de DEL-A COM policial escalado e SEM documento — alvo do spec de assinatura. */
 	escalaAssinavel: { id: 99002 },
+	/** Idem, exclusiva do spec do fluxo A3 (assinatura-qualificada-a3) — cada
+	 *  spec assina a SUA escala para não invalidar asserções do outro. */
+	escalaAssinavelA3: { id: 99003 },
 	// ── GISE ativa (telas /gise/[id] e /res-gise) ─────────────────────────
 	seccional: { id: 99010, nome: 'SECCIONAL E2E FIXTURE' },
 	supervisor: { id: 99003, matricula: 'EE990003', nome: 'Supervisor Fixture DPC' },
@@ -95,10 +104,16 @@ export default async function globalSetup() {
 			(${FIXTURE.unidadeA.id}, '${FIXTURE.unidadeA.nome}', 'delegacia'),
 			(${FIXTURE.unidadeB.id}, '${FIXTURE.unidadeB.nome}', 'delegacia');
 		INSERT OR REPLACE INTO policiais
-			(id, matricula, nome, cargo, lotacao, senha, primeiro_acesso, email, ativo)
+			(id, matricula, nome, cargo, lotacao, senha, primeiro_acesso, email, ativo, cpf)
 		VALUES
-			(${FIXTURE.policialA.id}, '${FIXTURE.policialA.matricula}', 'Policial Fixture A', 'OIP', '${FIXTURE.unidadeA.nome}', '${senhaHash}', 0, NULL, 1),
-			(${FIXTURE.policialB.id}, '${FIXTURE.policialB.matricula}', 'Policial Fixture B', 'OIP', '${FIXTURE.unidadeB.nome}', '${senhaHash}', 0, NULL, 1);
+			(${FIXTURE.policialA.id}, '${FIXTURE.policialA.matricula}', '${FIXTURE.policialA.nome}', 'OIP', '${FIXTURE.unidadeA.nome}', '${senhaHash}', 0, NULL, 1, '${FIXTURE.policialA.cpf}'),
+			(${FIXTURE.policialB.id}, '${FIXTURE.policialB.matricula}', 'Policial Fixture B', 'OIP', '${FIXTURE.unidadeB.nome}', '${senhaHash}', 0, NULL, 1, NULL);
+		INSERT OR REPLACE INTO policiais
+			(id, matricula, nome, cargo, lotacao, senha, primeiro_acesso, email, ativo, papel, papel_unidade_id)
+		VALUES
+			(${FIXTURE.adminUnidade.id}, '${FIXTURE.adminUnidade.matricula}', '${FIXTURE.adminUnidade.nome}', 'DPC', '${FIXTURE.unidadeA.nome}', '${senhaHash}', 0, NULL, 1, 'admin_unidade', ${FIXTURE.unidadeA.id});
+		INSERT OR REPLACE INTO administradores (id, login, senha, nome, email, primeiro_acesso)
+		VALUES (${FIXTURE.adminGeral.id}, '${FIXTURE.adminGeral.login}', '${senhaHash}', 'Admin Geral Fixture', NULL, 0);
 		INSERT OR REPLACE INTO escalas (id, titulo, cidade, tipo, lotacao, data_inicio, data_fim)
 		VALUES
 			(${FIXTURE.escalaA.id}, 'Escala E2E Fixture A', 'Fortaleza', 'plantao', '${FIXTURE.unidadeA.nome}', '2026-01-01', '2026-01-01');
@@ -107,11 +122,14 @@ export default async function globalSetup() {
 		VALUES (${FIXTURE.escalaA.id}, 'test/fixture-${FIXTURE.escalaA.id}.pdf', 'Policial Fixture A', 'fixture-hash-${FIXTURE.escalaA.id}');
 		INSERT OR REPLACE INTO escalas (id, titulo, cidade, tipo, lotacao, data_inicio, data_fim)
 		VALUES
-			(${FIXTURE.escalaAssinavel.id}, 'Escala E2E Assinável', 'Fortaleza', 'plantao', '${FIXTURE.unidadeA.nome}', '2026-02-01', '2026-02-28');
-		DELETE FROM escala_policiais WHERE escala_id = ${FIXTURE.escalaAssinavel.id};
+			(${FIXTURE.escalaAssinavel.id}, 'Escala E2E Assinável', 'Fortaleza', 'plantao', '${FIXTURE.unidadeA.nome}', '2026-02-01', '2026-02-28'),
+			(${FIXTURE.escalaAssinavelA3.id}, 'Escala E2E Assinável A3', 'Fortaleza', 'plantao', '${FIXTURE.unidadeA.nome}', '2026-03-01', '2026-03-31');
+		DELETE FROM escala_policiais WHERE escala_id IN (${FIXTURE.escalaAssinavel.id}, ${FIXTURE.escalaAssinavelA3.id});
 		INSERT INTO escala_policiais (escala_id, policial_id, data_plantao, hora_entrada, hora_saida, equipe)
-		VALUES (${FIXTURE.escalaAssinavel.id}, ${FIXTURE.policialA.id}, '2026-02-01', '08:00', '20:00', '1');
-		DELETE FROM escala_documentos WHERE escala_id = ${FIXTURE.escalaAssinavel.id};
+		VALUES
+			(${FIXTURE.escalaAssinavel.id}, ${FIXTURE.policialA.id}, '2026-02-01', '08:00', '20:00', '1'),
+			(${FIXTURE.escalaAssinavelA3.id}, ${FIXTURE.policialA.id}, '2026-03-01', '08:00', '20:00', '1');
+		DELETE FROM escala_documentos WHERE escala_id IN (${FIXTURE.escalaAssinavel.id}, ${FIXTURE.escalaAssinavelA3.id});
 	`;
 
 	const fixtureOk = execSqlSafe(fixtureSeed);
@@ -153,16 +171,18 @@ export default async function globalSetup() {
 		FIXTURE.policialA.id,
 		FIXTURE.policialB.id,
 		FIXTURE.supervisor.id,
-		FIXTURE.membroGise.id
+		FIXTURE.membroGise.id,
+		FIXTURE.adminUnidade.id
 	];
 	const aceitesSeed = `
 		DELETE FROM aceites_termos
-		WHERE usuario_tipo = 'policial'
-			AND usuario_id IN (${idsFixture.join(', ')});
+		WHERE (usuario_tipo = 'policial' AND usuario_id IN (${idsFixture.join(', ')}))
+			OR (usuario_tipo = 'admin' AND usuario_id = ${FIXTURE.adminGeral.id});
 		INSERT INTO aceites_termos
 			(usuario_tipo, usuario_id, versao_termo, hash_termo, aceitou_lgpd, aceitou_uso_email, aceitou_uso_localizacao)
 		VALUES
-			${idsFixture.map((id) => `('policial', ${id}, '${TERMO_VERSAO}', '${termoHash}', 1, 1, 1)`).join(',\n\t\t\t')};
+			${idsFixture.map((id) => `('policial', ${id}, '${TERMO_VERSAO}', '${termoHash}', 1, 1, 1)`).join(',\n\t\t\t')},
+			('admin', ${FIXTURE.adminGeral.id}, '${TERMO_VERSAO}', '${termoHash}', 1, 1, 1);
 	`;
 	execSqlSafe(aceitesSeed);
 	if (!fixtureOk) {

@@ -648,11 +648,13 @@ npx playwright test --ui
 npx playwright test e2e/auth.spec.ts
 ```
 
-Os testes E2E fazem build + preview automático antes de rodar, e o `global-setup` aplica as migrations pendentes no D1 local e semeia os fixtures — não é preciso preparar o banco manualmente. Configure credenciais de teste em `e2e/global-setup.ts`.
+Os testes E2E fazem build + preview automático antes de rodar (via `e2e/servidor-e2e.ts`), e o `global-setup` aplica as migrations pendentes no D1 local e semeia os fixtures — não é preciso preparar o banco manualmente. Configure credenciais de teste em `e2e/global-setup.ts`. Além do projeto `chromium`, um projeto `mobile` (Pixel 7 emulado) reexecuta os specs de UI em viewport de celular.
+
+**Fluxo A3 qualificado em CI:** o build de E2E injeta uma **CA de teste** no trust store ICP-Brasil (`E2E_TEST_CA=1` no build → `define` do Vite → `trust-store.ts`; chaves regeneradas a cada execução em `e2e/ca-teste/artefatos/`, gitignored). O spec `assinatura-qualificada-a3.spec.ts` faz o papel do Assinador SERPRO no runner (CMS CAdES assinado com o "e-CPF" de teste) e percorre preparar → finalizar → download → `/validar` contra a verificação real do servidor — incluindo os negativos de CA desconhecida, CPF divergente e digest adulterado. Em build normal a constante não existe e o ramo é código morto: **não há env de runtime capaz de ligar a CA de teste em produção**.
 
 ### Testes manuais
 
-O arquivo [`TESTING.md`](TESTING.md) contém mais de 100 casos de teste documentados cobrindo todos os fluxos de negócio: login, 2FA, assinaturas, GISE, escalas, validação de documentos. Use-o como guia de regressão antes de releases importantes.
+O arquivo [`TESTING.md`](TESTING.md) é o roteiro de **exceção**: cobre o que exige hardware ou ambiente real (Assinador SERPRO com token físico, caixa de e-mail, ACT ICP). O gate de regressão é a suíte automatizada (Vitest + Playwright no CI); os casos do TESTING.md já cobertos por spec estão anotados no próprio arquivo.
 
 ---
 
