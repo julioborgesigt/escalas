@@ -10,11 +10,11 @@ Roteiro de regressão manual dos fluxos de negócio. Use antes de releases impor
 
 - [ ] Acessar `/login` sem estar autenticado
 - [ ] Submeter matrícula + senha corretos → receber e-mail com código 2FA
-- [ ] Inserir código 2FA correto → redirecionar conforme papel do usuário
-  - Admin → `/painel`
-  - Supervisor GISE → `/gise`
-  - Membro GISE → `/res-gise`
-  - Policial sem papel especial → `/`
+- [ ] Inserir código 2FA correto → redirecionar para a tela de boas-vindas conforme papel
+  - Super Admin → `/super-admin`
+  - Admin Geral → `/escalas/bem-vindo` ou `/gise/bem-vindo` (conforme o módulo escolhido)
+  - Admin Seccional / Unidade → `/escalas/bem-vindo`
+  - Demais policiais → `/bem-vindo` (cards de atalho conforme papel/GISE)
 
 ### 1.2 Validações de Login
 
@@ -29,7 +29,14 @@ Roteiro de regressão manual dos fluxos de negócio. Use antes de releases impor
 - [ ] Tentar acessar outra página sem alterar senha → redirecionado de volta
 - [ ] Alterar senha com sucesso → liberar acesso ao sistema
 
-### 1.4 Logout
+### 1.4 Login por certificado A3 (desktop, Assinador SERPRO)
+
+- [ ] Aba **Policial** → "Entrar com Certificado Digital" → assinar o desafio no token → sessão operacional criada (sem senha e sem 2FA)
+- [ ] Aba **Administrador** → mesmo botão com módulo escolhido → sessão de admin criada se o policial do certificado tiver conta admin vinculada; redireciona para a boas-vindas do módulo
+- [ ] Certificado de policial SEM vínculo admin na aba Administrador → 403 com mensagem clara
+- [ ] Certificado revogado (OCSP) → login recusado
+
+### 1.5 Logout
 
 - [ ] Clicar em logout → sessão encerrada, cookie removido
 - [ ] Tentar acessar página protegida após logout → redirecionar para `/login`
@@ -213,6 +220,9 @@ Verificar cada transição de status:
 - [ ] Policial registra saída com rubrica e selfie
 - [ ] Timestamps de entrada e saída salvos corretamente
 - [ ] No desktop (com restrição de smartphone), a tela de confirmação mostra APENAS o botão "Confirmar … com Certificado Digital" (sem quadro de rubrica/gerenciar); sem rubrica cadastrada, mostra o aviso com botão de cadastro
+- [ ] Após confirmar (tela OU Token A3), o botão **"Comprovante"** aparece ao lado do aviso de Entrada/Saída Confirmada e baixa o PDF
+  - Presença por Token A3 → serve o termo qualificado (ICP-Brasil) guardado no R2
+  - Presença em tela → gera o comprovante **avançado** sob demanda (rubrica + evidências), SEM menção a ICP-Brasil no rodapé
 
 ### 6.2.1 Aviso "Cadastre sua rubrica" (pós-login)
 
@@ -234,6 +244,8 @@ Verificar cada transição de status:
 - [ ] Assinar relatório tipo `extraordinario`
 - [ ] Assinar relatório tipo `produtividade`
 - [ ] Finalizar assinatura do relatório
+- [ ] Manifesto do relatório de extra contém TODAS as assinaturas de presença **tanto** quando o supervisor assina por Token A3 **quanto** pelo celular/tela; campo "FOTO DO ATO" só aparece quando há selfie
+- [ ] Botões de download "C/ manifesto" só aparecem para quem pode baixá-lo (admin, ou DPC assinante do documento); demais perfis veem apenas "S/ manifesto"
 
 ---
 

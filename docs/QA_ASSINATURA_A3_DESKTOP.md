@@ -38,7 +38,9 @@ Desktop SERPRO, do navegador com a extensão e de um Token A3 físico).
 
 ### 1.3 Enviar imagem
 
-1. Reabrir **Gerenciar rubrica** → aba **Enviar imagem** → enviar foto de assinatura em papel.
+> A gestão da rubrica (atualizar/excluir/cadastrar) fica no **Meu perfil** (`/perfil`) — os antigos links "Gerenciar rubrica" das telas de escala/GISE foram removidos.
+
+1. Abrir **Meu perfil** → **Atualizar rubrica** → aba **Enviar imagem** → enviar foto de assinatura em papel.
 2. Ajustar recorte e o slider de remoção de fundo → ✅ pré-visualização com fundo transparente.
 3. Salvar → ✅ substitui a rubrica anterior.
 
@@ -50,7 +52,7 @@ Desktop SERPRO, do navegador com a extensão e de um Token A3 físico).
 2. ✅ O Assinador SERPRO abre; selecionar o certificado do Token e informar o PIN.
 3. ✅ Ao concluir: toast "Entrada confirmada com Token A3.".
 4. 🐞 **O container muda de estado SEM precisar recarregar a página** (stepper marca Entrada ✓ e libera Produtividade). _(Regressão do `invalidateAll` sem repatch corrigida.)_
-5. ⚠️ O PDF do **termo** é devolvido/baixado (`termo_presenca_entrada.pdf`).
+5. ⚠️ **Não há mais download automático** ao assinar: ao lado do aviso "Entrada Confirmada" aparece o botão **"Comprovante"**, que baixa o termo qualificado guardado no R2 (`GET /api/gise/[id]/presenca/termo?tipo=entrada`). _(Na presença confirmada em tela — mobile —, o mesmo botão gera o comprovante **avançado** sob demanda, sem menção a ICP-Brasil.)_
 
 ### 2.1 Conferência visual do termo (PDF) — 🐞 sobreposição corrigida
 
@@ -101,7 +103,7 @@ Abrir o PDF baixado:
 
 ## 6. Direito de exclusão da rubrica (LGPD Art. 18)
 
-1. **Gerenciar rubrica** → **Excluir rubrica** → confirmar.
+1. **Meu perfil** (`/perfil`) → **Excluir rubrica** → confirmar.
 2. ✅ Toast "Rubrica removida."; a tela volta ao **estado vazio** (seção 1.1).
 3. ⚠️ Conferir que documentos já assinados **permanecem válidos** (a exclusão não os afeta).
 4. (Opcional, operador) Conferir evento `rubrica_excluida` no `audit_log`.

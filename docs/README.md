@@ -32,6 +32,9 @@ Estes documentos **não devem ser lidos como estado atual do sistema** — cada 
 | [`auditorias/AUDITORIA_PERFORMANCE_UX.md`](auditorias/AUDITORIA_PERFORMANCE_UX.md) | jun/2026 | Auditoria de performance/UX — 3 fases **implementadas** (resultados medidos no topo do documento) |
 | [`auditorias/AUDITORIA_VISUAL.md`](auditorias/AUDITORIA_VISUAL.md) | jun/2026 | Auditoria de consistência visual (tipografia, ícones, tokens de tema) |
 | [`auditorias/AUDITORIA_VISUAL_UX_2026-07-11.md`](auditorias/AUDITORIA_VISUAL_UX_2026-07-11.md) | 11/jul/2026 | Auditoria visual & UX (re-mede V-1…V-11 e adiciona UX-1…UX-10) — rodadas 1 e 2 do plano **implementadas**; regras resultantes documentadas no README §10 |
+| [`auditorias/AUDITORIA_SEGURANCA_2026-07-10.md`](auditorias/AUDITORIA_SEGURANCA_2026-07-10.md) | 10/jul/2026 | Auditoria de segurança pré-go-live (achados L-1… — o L-1, troca de e-mail pessoal sem senha, foi remediado em `email-pessoal-guard.ts`) |
+| [`auditorias/AUDITORIA_ASSINATURA_R2_2026-07-11.md`](auditorias/AUDITORIA_ASSINATURA_R2_2026-07-11.md) | 11/jul/2026 | Auditoria do fluxo de assinatura e do ciclo de vida no R2 (achados R2-1…R2-4, remediados pela limpeza unificada `r2-cleanup.ts`) |
+| [`auditorias/AUDITORIA_SVELTE_TAILWIND_SKELETON_2026-07-16.md`](auditorias/AUDITORIA_SVELTE_TAILWIND_SKELETON_2026-07-16.md) | 16/jul/2026 | Auditoria Svelte/SvelteKit + Tailwind + Skeleton (achados B-1…B-6 — quick wins aplicados em 2026-07-17) |
 | [`auditorias/skeleton_audit_final.md`](auditorias/skeleton_audit_final.md) | jun/2026 | **Consolidação final** das 3 auditorias de aproveitamento do Skeleton UI v4 |
 | [`auditorias/SKELETON_AUDIT.md`](auditorias/SKELETON_AUDIT.md) | jun/2026 | ⚠️ Supersedida — consolidada em `skeleton_audit_final.md` |
 | [`auditorias/SKELETON_DEEP_AUDIT.md`](auditorias/SKELETON_DEEP_AUDIT.md) | jun/2026 | ⚠️ Supersedida — consolidada em `skeleton_audit_final.md` |

@@ -112,16 +112,20 @@ Há quatro níveis. O **Super Admin é um Admin Geral com poderes extras** (é `
 | **Gerenciar policiais** (cadastrar/editar/excluir/upload CSV)       |     ✅      |     ❌      |       ❌        |        ❌        |
 | **Gerenciar unidades/seccionais** (CRUD)                            |     ✅      |     ❌      |       ❌        |        ❌        |
 | **Configurar política de assinatura** (foto/GPS/código/smartphone)  |     ✅      |     ❌      |       ❌        |        ❌        |
-| **Baixar PDF forense íntegro** (CPF/IP/GPS/selfie/liveness)         |     ✅      |     ❌      |       ❌        |        ❌        |
+| **Baixar PDF forense íntegro** (`?manifesto=true` nos downloads)    |     ✅      |     ✅      |       ❌        |    ❌ (¹)       |
+| **Baixar o forense pelo portal `/validar`** (rota semi-pública)     |     ✅      |     ❌      |       ❌        |        ❌        |
 | Escalas — **escopo**                                                |   global    |   global    |  sua seccional  |   sua unidade    |
 | GISE (finalizar/reabrir/exportar histórico)                         |     ✅      |     ✅      |       ❌        |        ❌        |
-| LGPD / Auditoria / Compliance / incidentes / direitos dos titulares |     ✅      |     ✅      |       ❌        |        ❌        |
+| LGPD / Compliance / incidentes / direitos dos titulares             |     ✅      |     ✅      |       ❌        |        ❌        |
+| Consoles de **auditoria** (`/auditoria`, `/auditoria/logs`, export) |     ✅      |     ❌      |       ❌        |        ❌        |
 | Alternar módulo (escalas ↔ GISE)                                    |     ✅      |     ✅      |       ❌        |        ❌        |
 | Receber a **cópia de conferência** dos documentos                   |     ✅      |     ✅      |       ✅        | ✅ (e policiais) |
 
+(¹) Exceção pontual à linha do forense: um **DPC que assinou o próprio documento** também pode baixá-lo com manifesto (`podeBaixarComManifesto` em `src/lib/manifesto.ts` — fonte única da regra, aplicada pelo servidor e pela visibilidade do botão "C/ manifesto").
+
 **Leitura rápida:**
 
-- **Super Admin** = _dono/configurador_: define **quem existe** (policiais), **a estrutura** (unidades), **quem é admin** (papéis) e **a política de assinatura**; único com o **forense íntegro**. **Insubstituível** — sem ele, não há como promover admins nem recriá-lo pela interface. Mantenha-o lacrado (senha em hash `pbkdf2v2` + `SUPER_ADMIN_EMAIL` para 2FA).
+- **Super Admin** = _dono/configurador_: define **quem existe** (policiais), **a estrutura** (unidades), **quem é admin** (papéis) e **a política de assinatura**; único que baixa o forense pelo portal **`/validar`**. **Insubstituível** — sem ele, não há como promover admins nem recriá-lo pela interface. Mantenha-o lacrado (senha em hash `pbkdf2v2` + `SUPER_ADMIN_EMAIL` para 2FA).
 - **Admin Geral** = _operador global_: opera **toda a operação** (escalas/GISE/LGPD) em **todas** as unidades, mas **não remodela a base** (não cadastra policial/unidade, não promove, não configura assinatura). Dispensável após o setup — ver [bootstrap dos admins por env](#variáveis-e-secrets).
 - **Admin Seccional / Unidade** = _operador com escopo_: policiais promovidos pelo Super Admin; operam **escalas** dentro da própria seccional/unidade (fecha IDOR cross-unidade).
 
