@@ -29,7 +29,7 @@ export function normalizarTexto(texto: string): string {
 /**
  * Retorna a data de saída efetiva: se horaSaida ≤ horaEntrada, avança um dia.
  * Hora vazia conta como meia-noite ('00'); com ambas vazias, mantém a data.
- * Implementação ÚNICA — `$lib/rotacao` re-exporta daqui (achado D1 do ARQUIVOS.md).
+ * Implementação ÚNICA — `$lib/rotacao` re-exporta daqui (achado D1 do antigo ARQUIVOS.md — ver docs/HISTORICO.md).
  */
 export function calcularDataSaida(
 	dataInicio: string,

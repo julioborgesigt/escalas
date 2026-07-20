@@ -10,10 +10,11 @@ integralmente preservados no histórico do Git.
 ```bash
 git show 4d8d2f7:docs/auditorias/<ARQUIVO>.md   # auditorias
 git show 4d8d2f7:docs/MIGRACAO-WORKERS.md        # avaliação Pages→Workers
+git show 864422c:docs/ARQUIVOS.md                # mapa arquivo-a-arquivo (revisão final)
 ```
 
-(`4d8d2f7` é o último commit que contém todos os arquivos; qualquer commit
-anterior à remoção também serve.)
+(`4d8d2f7`/`864422c` são os últimos commits que contêm cada arquivo; qualquer
+commit anterior à respectiva remoção também serve.)
 
 ## O que existia e por que importa
 
@@ -34,6 +35,7 @@ documentos:
 | `AUDITORIA_SVELTE_TAILWIND_SKELETON_2026-07-16.md` | 16/jul/2026 | Svelte/Tailwind/Skeleton — achados **B-1…B-6** (quick wins aplicados em 2026-07-17) |
 | `skeleton_audit_final.md` (+ `SKELETON_AUDIT.md`, `SKELETON_DEEP_AUDIT.md`, supersedidas) | jun/2026 | Aproveitamento do Skeleton UI v4 — achados **M-3/M-4** |
 | `docs/MIGRACAO-WORKERS.md` | jun/2026 | Avaliação Pages→Workers, **arquivada**: o teto de 100k iterações PBKDF2 é do runtime (idêntico em Pages e Workers); o achado A3 foi resolvido pelo `PASSWORD_PEPPER` |
+| `docs/ARQUIVOS.md` | 2026-07-20 (revisão final em `864422c`) | Mapa arquivo-a-arquivo do repositório. A revisão final não tem mais a seção de achados de código morto/duplicado (**D1/D2**, **M1–M5**, itens **11.3/11.4** citados em comentários do código) — para ela, use a versão de `4d8d2f7` |
 
 ## Convenção para novas auditorias
 

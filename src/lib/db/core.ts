@@ -51,7 +51,7 @@ export function getR2(platform: PlatformLike | undefined): _R2Bucket {
  * binding está ausente — para fluxos best-effort (logos, cópia de conferência)
  * e handlers que preferem responder 500/503 graciosamente.
  *
- * Única fonte dessas duas semânticas (achado D2 do ARQUIVOS.md): `getR2` lança,
+ * Única fonte dessas duas semânticas (achado D2 do antigo ARQUIVOS.md — ver docs/HISTORICO.md): `getR2` lança,
  * `tryGetR2` retorna `undefined` — o nome diz o comportamento, não o caminho
  * do import.
  */
