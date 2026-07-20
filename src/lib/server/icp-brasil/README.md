@@ -111,3 +111,17 @@ vazio seja **hard error** em vez de warning (ver `DEPLOY.md`).
 - **Raízes**: mudam raramente (a cada ~10 anos). v10 é válida até 2030.
 - **Intermediárias**: novas ACs são credenciadas e descredenciadas periodicamente.
   Recomendado revisar a cada 6 meses.
+
+## CA de teste da suíte E2E
+
+O spec `e2e/assinatura-qualificada-a3.spec.ts` exercita o fluxo A3 em CI com
+uma **raiz de teste sintética**. Ela entra no trust store **apenas em
+build-time** e apenas quando o build roda com `E2E_TEST_CA=1` (feito pelo
+`e2e/servidor-e2e.ts`): o `define` do Vite inlina o PEM na constante
+`__E2E_TEST_TRUST_ROOTS_PEM__` consumida por `trust-store.ts`. Em qualquer
+build normal a constante não existe e o ramo é código morto — **não há env de
+runtime capaz de ligar a raiz de teste em produção**. As chaves são
+regeneradas a cada execução da suíte (`e2e/ca-teste/artefatos/`, gitignored)
+e nunca versionadas. Um build feito com `E2E_TEST_CA=1` imprime um aviso no
+console a cada carga do trust store e **não deve ser deployado** — o deploy
+oficial sai do CI, que nunca define essa variável.

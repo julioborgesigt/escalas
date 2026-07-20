@@ -64,3 +64,6 @@ DPI_DATA_PLANTÃO_DADOS.xlsx
 # A chave privada do selo já é coberta por *.key.pem acima; o cert público é versionado.
 /staging-secrets.generated.txt
 coverage/
+
+# Artefatos da CA de TESTE da suíte E2E (chaves regeneradas a cada execução)
+e2e/ca-teste/artefatos/

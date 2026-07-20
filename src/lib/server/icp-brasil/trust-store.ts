@@ -29,6 +29,15 @@ import forge from 'node-forge';
 import rootsPem from './roots.pem?raw';
 import intermediatesPem from './intermediates.pem?raw';
 
+/**
+ * Raiz de TESTE da suíte E2E, inlinada em BUILD-time pelo `define` do Vite
+ * quando (e somente quando) o build roda com `E2E_TEST_CA=1` — vide
+ * vite.config.ts e e2e/servidor-e2e.ts. Em qualquer build normal a constante
+ * não é definida e o ramo abaixo é código morto: NÃO existe env de runtime
+ * capaz de ligar isto em produção.
+ */
+declare const __E2E_TEST_TRUST_ROOTS_PEM__: string | undefined;
+
 export interface TrustStore {
 	disponivel: boolean;
 	roots: forge.pki.Certificate[];
@@ -84,6 +93,17 @@ export function loadTrustStore(): TrustStore {
 
 	const rootsBlocos = extrairBlocosPem(String(rootsPem ?? ''));
 	const intermediatesBlocos = extrairBlocosPem(String(intermediatesPem ?? ''));
+
+	// Só existe em builds de E2E (define do Vite) — vide declaração no topo.
+	const testRootsPem =
+		typeof __E2E_TEST_TRUST_ROOTS_PEM__ === 'string' ? __E2E_TEST_TRUST_ROOTS_PEM__ : '';
+	if (testRootsPem) {
+		console.warn(
+			'[TRUST-STORE] ⚠️ RAIZ DE TESTE E2E ATIVA — este build confia numa CA sintética. ' +
+				'NUNCA use este artefato em produção (rebuilde sem E2E_TEST_CA).'
+		);
+		rootsBlocos.push(...extrairBlocosPem(testRootsPem));
+	}
 
 	const roots = rootsBlocos
 		.map(parsePemSeguro)

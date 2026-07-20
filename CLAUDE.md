@@ -7,7 +7,7 @@ O índice completo está em [`docs/README.md`](docs/README.md). Referências rá
 - [`README.md`](README.md) — setup, arquitetura, módulos, padrões de código
 - [`DEPLOY.md`](DEPLOY.md) — runbook de produção (envs/secrets, papéis de admin, backup/rollback, go-live)
 - [`.env.example`](.env.example) — fonte autoritativa de variáveis de ambiente
-- [`TESTING.md`](TESTING.md) — roteiro de regressão manual
+- [`TESTING.md`](TESTING.md) — roteiro manual de exceção (o gate de regressão é a suíte Vitest + Playwright)
 - [`docs/HISTORICO.md`](docs/HISTORICO.md) — catálogo dos **registros históricos** (auditorias/decisões arquivadas, removidas do working tree mas preservadas no Git; achados A1–A8, I-1…I-4, M-3/M-4, R2-1…R2-4, B-1…B-6 citados em comentários do código vêm daí)
 
 Documentos vivos (README/DEPLOY/TESTING) devem ser atualizados **no mesmo PR** que mudar o comportamento correspondente.

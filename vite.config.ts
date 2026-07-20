@@ -2,8 +2,27 @@ import { sveltekit } from '@sveltejs/kit/vite';
 import tailwindcss from '@tailwindcss/vite';
 import { defineConfig } from 'vitest/config';
 import { visualizer } from 'rollup-plugin-visualizer';
+import { readFileSync } from 'node:fs';
+
+// Build de E2E (e2e/servidor-e2e.ts): inlina a raiz de CA de TESTE no trust
+// store ICP-Brasil para o spec do fluxo A3 qualificado. Fora desse build a
+// constante fica indefinida e o ramo em trust-store.ts é código morto — não
+// há como ligar a raiz de teste por env de runtime.
+const e2eTestCa = process.env.E2E_TEST_CA === '1';
+if (e2eTestCa) {
+	console.warn(
+		'[vite] ⚠️ E2E_TEST_CA=1 — inlinando raiz de CA de TESTE no trust store (build de teste, não deployável).'
+	);
+}
 
 export default defineConfig({
+	define: e2eTestCa
+		? {
+				__E2E_TEST_TRUST_ROOTS_PEM__: JSON.stringify(
+					readFileSync('e2e/ca-teste/artefatos/root.pem', 'utf8')
+				)
+			}
+		: undefined,
 	plugins: [
 		tailwindcss(),
 		sveltekit(),
