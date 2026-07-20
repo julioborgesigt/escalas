@@ -367,8 +367,7 @@ escalas/
 ├── e2e/                            # Testes E2E Playwright
 ├── docs/                           # Documentação complementar (ver docs/README.md)
 │   ├── QA_ASSINATURA_A3_DESKTOP.md # Roteiro de QA manual do fluxo Token A3
-│   ├── MIGRACAO-WORKERS.md         # Avaliação Pages→Workers (arquivada)
-│   └── auditorias/                 # Relatórios de auditoria (registros históricos)
+│   └── HISTORICO.md                # Catálogo das auditorias/decisões arquivadas (preservadas no Git)
 ├── static/
 │   └── face-api/                   # Modelos ML do face-api (servidos localmente)
 ├── wrangler.toml                   # Config Cloudflare (D1, R2, adapter)
@@ -419,7 +418,7 @@ Três modalidades suportadas:
 | **Avançada**    | 2FA por e-mail (sempre) + selfie com liveness + rubrica gráfica + GPS + selo institucional | Foto, coordenadas, user-agent, timestamp       |
 | **Simples**     | Confirmação textual — **descontinuada** (restrita a fluxos FDS legados)                    | IP, user-agent, timestamp                      |
 
-O enquadramento jurídico de cada modalidade (Lei 14.063/2020, MP 2.200-2) está em [`docs/auditorias/ANALISE_JURIDICA_ASSINATURAS.md`](docs/auditorias/ANALISE_JURIDICA_ASSINATURAS.md).
+O enquadramento jurídico de cada modalidade (Lei 14.063/2020, MP 2.200-2) está no parecer `ANALISE_JURIDICA_ASSINATURAS.md`, arquivado no histórico do Git — ver [`docs/HISTORICO.md`](docs/HISTORICO.md).
 
 ### Validação Pública
 
@@ -586,7 +585,7 @@ manualChunks(id) {
 
 ### Padrões visuais (UI)
 
-Regras estabelecidas na [auditoria visual de jul/2026](docs/auditorias/AUDITORIA_VISUAL_UX_2026-07-11.md). Os tokens vivem em [`src/theme.css`](src/theme.css) (paleta oklch de 7 canais) e [`src/app.css`](src/app.css) (`@theme` + `@utility`).
+Regras estabelecidas na auditoria visual de jul/2026 (`AUDITORIA_VISUAL_UX_2026-07-11.md`, arquivada — ver [`docs/HISTORICO.md`](docs/HISTORICO.md)). Os tokens vivem em [`src/theme.css`](src/theme.css) (paleta oklch de 7 canais) e [`src/app.css`](src/app.css) (`@theme` + `@utility`).
 
 **Cores** — sempre pelos canais do tema (`primary`, `secondary`, `tertiary`, `success`, `warning`, `error`, `surface`). Nunca cores cruas da paleta Tailwind (`text-red-500`, `bg-indigo-600`…).
 

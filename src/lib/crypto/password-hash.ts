@@ -17,7 +17,7 @@
  * IMPÕE UM TETO RÍGIDO DE 100 000 iterações na API `crypto.subtle`: pedir mais
  * devolve "Pbkdf2 failed: iteration counts above 100000 are not supported". NÃO
  * é limite de CPU (não adianta `cpu_ms`), é um limite da API — idêntico no Pages
- * e no Workers (confirmado empiricamente; ver docs/MIGRACAO-WORKERS.md).
+ * e no Workers (confirmado empiricamente; ver MIGRACAO-WORKERS.md, arquivado — docs/HISTORICO.md).
  *
  * COMO O A3 É RESOLVIDO — PEPPER (v3): em vez de subir iterações, aplicamos um
  * HMAC-SHA256 da senha com um segredo GLOBAL `PASSWORD_PEPPER` (do ambiente,

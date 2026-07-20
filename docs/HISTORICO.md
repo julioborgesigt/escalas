@@ -1,0 +1,43 @@
+# Histórico de auditorias e decisões arquivadas
+
+Os relatórios de auditoria e as avaliações arquivadas foram **removidos do
+working tree** em 2026-07-20 para enxugar o repositório — eles são registros
+históricos (fotografias de uma data específica, nunca atualizados) e continuam
+integralmente preservados no histórico do Git.
+
+**Para ler qualquer um deles:**
+
+```bash
+git show 4d8d2f7:docs/auditorias/<ARQUIVO>.md   # auditorias
+git show 4d8d2f7:docs/MIGRACAO-WORKERS.md        # avaliação Pages→Workers
+```
+
+(`4d8d2f7` é o último commit que contém todos os arquivos; qualquer commit
+anterior à remoção também serve.)
+
+## O que existia e por que importa
+
+Os identificadores de achados citados em comentários do código vêm destes
+documentos:
+
+| Documento (em `docs/auditorias/`, salvo indicação) | Data | Achados / conteúdo |
+| --- | --- | --- |
+| `AUDITORIA_GERAL_2026-06-28.md` | jun/2026 | Auditoria geral (segurança, código, banco, deps, CI, LGPD) — achados **A1–A8**, I-1…I-4 |
+| `LGPD_AUDIT.md` + `LGPD_REMEDIATION_PLAN.md` | mai/2026 | Conformidade LGPD e plano de remediação (majoritariamente implementado) |
+| `SIGNATURE_HARDENING.md` | mai/2026 | Endurecimento das assinaturas digitais (16 achados) + ações de go-live |
+| `ANALISE_JURIDICA_ASSINATURAS.md` | mai/2026 | Parecer técnico-jurídico assinatura avançada × qualificada (Lei 14.063/2020, MP 2.200-2) |
+| `AUDITORIA_PERFORMANCE_UX.md` | jun/2026 | Performance/UX — 3 fases implementadas |
+| `AUDITORIA_VISUAL.md` | jun/2026 | Consistência visual (tipografia, ícones, tokens) |
+| `AUDITORIA_VISUAL_UX_2026-07-11.md` | 11/jul/2026 | Visual & UX — achados **V-1…V-11**, UX-1…UX-10; regras resultantes no README §10 |
+| `AUDITORIA_SEGURANCA_2026-07-10.md` | 10/jul/2026 | Segurança pré-go-live — achados **L-\*** (L-1 remediado em `email-pessoal-guard.ts`) |
+| `AUDITORIA_ASSINATURA_R2_2026-07-11.md` | 11/jul/2026 | Fluxo de assinatura + ciclo de vida no R2 — achados **R2-1…R2-4** (remediados em `r2-cleanup.ts`) |
+| `AUDITORIA_SVELTE_TAILWIND_SKELETON_2026-07-16.md` | 16/jul/2026 | Svelte/Tailwind/Skeleton — achados **B-1…B-6** (quick wins aplicados em 2026-07-17) |
+| `skeleton_audit_final.md` (+ `SKELETON_AUDIT.md`, `SKELETON_DEEP_AUDIT.md`, supersedidas) | jun/2026 | Aproveitamento do Skeleton UI v4 — achados **M-3/M-4** |
+| `docs/MIGRACAO-WORKERS.md` | jun/2026 | Avaliação Pages→Workers, **arquivada**: o teto de 100k iterações PBKDF2 é do runtime (idêntico em Pages e Workers); o achado A3 foi resolvido pelo `PASSWORD_PEPPER` |
+
+## Convenção para novas auditorias
+
+Uma auditoria nova pode ser commitada em `docs/auditorias/` enquanto seus
+achados estão sendo tratados. Quando encerrada (achados resolvidos ou
+formalmente aceitos), remova o arquivo e acrescente uma linha na tabela acima
+com o commit em que ele pode ser lido.

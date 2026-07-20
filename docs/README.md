@@ -1,6 +1,6 @@
 # Índice da Documentação
 
-Mapa de toda a documentação do projeto, separada em **documentos vivos** (mantidos atualizados — se o código mudar, eles mudam junto) e **registros históricos** (fotografias de auditorias/decisões em uma data específica — não são atualizados retroativamente).
+Mapa de toda a documentação do projeto, separada em **documentos vivos** (mantidos atualizados — se o código mudar, eles mudam junto) e **registros históricos** (fotografias de auditorias/decisões em uma data específica — arquivados no histórico do Git e catalogados em [`HISTORICO.md`](HISTORICO.md)).
 
 ## Documentos vivos
 
@@ -19,28 +19,9 @@ Mapa de toda a documentação do projeto, separada em **documentos vivos** (mant
 
 ## Registros históricos e decisões arquivadas
 
-Estes documentos **não devem ser lidos como estado atual do sistema** — cada um reflete a data em que foi escrito. Muitos achados já foram remediados (o histórico de remediação costuma estar anotado no próprio documento ou em auditorias posteriores).
-
-| Documento | Data | O que registra |
-|-----------|------|----------------|
-| [`MIGRACAO-WORKERS.md`](MIGRACAO-WORKERS.md) | jun/2026 | Avaliação da migração Pages→Workers — **ARQUIVADA** (o teto de 100k iterações PBKDF2 é do runtime, não da plataforma; o achado A3 foi resolvido pelo `PASSWORD_PEPPER`) |
-| [`auditorias/AUDITORIA_GERAL_2026-06-28.md`](auditorias/AUDITORIA_GERAL_2026-06-28.md) | 28/jun/2026 | Auditoria geral mais recente (segurança, código, banco, dependências, CI, LGPD) com plano de ação e status |
-| [`auditorias/LGPD_AUDIT.md`](auditorias/LGPD_AUDIT.md) | mai/2026 | Auditoria de conformidade LGPD (4 críticos, 11 altos, 7 médios na época) |
-| [`auditorias/LGPD_REMEDIATION_PLAN.md`](auditorias/LGPD_REMEDIATION_PLAN.md) | mai/2026 | Plano de remediação derivado do `LGPD_AUDIT.md` (a maior parte já implementada — ver auditoria geral de jun/2026) |
-| [`auditorias/SIGNATURE_HARDENING.md`](auditorias/SIGNATURE_HARDENING.md) | mai/2026 | Sessão de endurecimento das assinaturas digitais (16 achados resolvidos/documentados) + ações operacionais de go-live |
-| [`auditorias/ANALISE_JURIDICA_ASSINATURAS.md`](auditorias/ANALISE_JURIDICA_ASSINATURAS.md) | mai/2026 | Parecer técnico-jurídico das assinaturas avançada × qualificada (não vinculante) |
-| [`auditorias/AUDITORIA_PERFORMANCE_UX.md`](auditorias/AUDITORIA_PERFORMANCE_UX.md) | jun/2026 | Auditoria de performance/UX — 3 fases **implementadas** (resultados medidos no topo do documento) |
-| [`auditorias/AUDITORIA_VISUAL.md`](auditorias/AUDITORIA_VISUAL.md) | jun/2026 | Auditoria de consistência visual (tipografia, ícones, tokens de tema) |
-| [`auditorias/AUDITORIA_VISUAL_UX_2026-07-11.md`](auditorias/AUDITORIA_VISUAL_UX_2026-07-11.md) | 11/jul/2026 | Auditoria visual & UX (re-mede V-1…V-11 e adiciona UX-1…UX-10) — rodadas 1 e 2 do plano **implementadas**; regras resultantes documentadas no README §10 |
-| [`auditorias/AUDITORIA_SEGURANCA_2026-07-10.md`](auditorias/AUDITORIA_SEGURANCA_2026-07-10.md) | 10/jul/2026 | Auditoria de segurança pré-go-live (achados L-1… — o L-1, troca de e-mail pessoal sem senha, foi remediado em `email-pessoal-guard.ts`) |
-| [`auditorias/AUDITORIA_ASSINATURA_R2_2026-07-11.md`](auditorias/AUDITORIA_ASSINATURA_R2_2026-07-11.md) | 11/jul/2026 | Auditoria do fluxo de assinatura e do ciclo de vida no R2 (achados R2-1…R2-4, remediados pela limpeza unificada `r2-cleanup.ts`) |
-| [`auditorias/AUDITORIA_SVELTE_TAILWIND_SKELETON_2026-07-16.md`](auditorias/AUDITORIA_SVELTE_TAILWIND_SKELETON_2026-07-16.md) | 16/jul/2026 | Auditoria Svelte/SvelteKit + Tailwind + Skeleton (achados B-1…B-6 — quick wins aplicados em 2026-07-17) |
-| [`auditorias/skeleton_audit_final.md`](auditorias/skeleton_audit_final.md) | jun/2026 | **Consolidação final** das 3 auditorias de aproveitamento do Skeleton UI v4 |
-| [`auditorias/SKELETON_AUDIT.md`](auditorias/SKELETON_AUDIT.md) | jun/2026 | ⚠️ Supersedida — consolidada em `skeleton_audit_final.md` |
-| [`auditorias/SKELETON_DEEP_AUDIT.md`](auditorias/SKELETON_DEEP_AUDIT.md) | jun/2026 | ⚠️ Supersedida — consolidada em `skeleton_audit_final.md` |
+Os relatórios de auditoria e as avaliações arquivadas **não vivem mais no working tree** — foram removidos em 2026-07-20 para enxugar o repositório e continuam preservados no histórico do Git. O catálogo completo (o que cada um registra, quais achados vieram de cada um e o comando `git show` para lê-los) está em [`HISTORICO.md`](HISTORICO.md).
 
 ## Convenções
 
-- **Novas auditorias** entram em `docs/auditorias/` com data no nome ou no cabeçalho (ex.: `AUDITORIA_GERAL_2026-06-28.md`).
-- Quando um documento for **supersedido** por outro, adicione um banner no topo apontando para o sucessor (não apague — o histórico tem valor de rastreabilidade para achados como A1–A8, I-1…I-4, M-3/M-4, citados em comentários do código).
+- **Novas auditorias** podem ser commitadas em `docs/auditorias/` (data no nome ou no cabeçalho) enquanto seus achados estão sendo tratados; quando encerradas, o arquivo é removido e catalogado no [`HISTORICO.md`](HISTORICO.md) — o histórico do Git mantém a rastreabilidade dos achados (A1–A8, I-1…I-4, M-3/M-4, R2-1…R2-4, B-1…B-6…) citados em comentários do código.
 - Documentos **vivos** que ficarem defasados devem ser corrigidos no mesmo PR que muda o comportamento correspondente.

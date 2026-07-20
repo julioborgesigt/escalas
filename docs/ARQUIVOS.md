@@ -162,19 +162,7 @@ SQL gerado pelo Drizzle (nunca editar à mão — altere `src/lib/server/schema.
 | `README.md`                                               | Índice de toda a documentação.                                                                                       |
 | `ARQUIVOS.md`                                             | **Este documento** — mapa arquivo-a-arquivo do repositório.                                                          |
 | `QA_ASSINATURA_A3_DESKTOP.md`                             | Roteiro de QA manual do fluxo de presença GISE por Token A3 (exige Assinador SERPRO + token físico; não roda em CI). |
-| `MIGRACAO-WORKERS.md`                                     | Avaliação Pages→Workers — **arquivada** (o achado que a motivava foi resolvido pelo `PASSWORD_PEPPER`).              |
-| `auditorias/AUDITORIA_GERAL_2026-06-28.md`                | Auditoria geral mais recente (segurança, código, banco, dependências, CI, LGPD).                                     |
-| `auditorias/LGPD_AUDIT.md` / `LGPD_REMEDIATION_PLAN.md`   | Auditoria de conformidade LGPD e plano de remediação (mai/2026; majoritariamente implementado).                      |
-| `auditorias/SIGNATURE_HARDENING.md`                       | Sessão de endurecimento das assinaturas digitais (16 achados) + ações de go-live.                                    |
-| `auditorias/ANALISE_JURIDICA_ASSINATURAS.md`              | Parecer técnico-jurídico assinatura avançada × qualificada (Lei 14.063/2020, MP 2.200-2).                            |
-| `auditorias/AUDITORIA_PERFORMANCE_UX.md`                  | Auditoria de performance/UX (3 fases implementadas).                                                                 |
-| `auditorias/AUDITORIA_VISUAL.md`                          | Auditoria de consistência visual (tipografia, ícones, tokens).                                                       |
-| `auditorias/AUDITORIA_VISUAL_UX_2026-07-11.md`            | Auditoria visual & UX de 11/jul (re-mede V-1…V-11, adiciona UX-1…UX-10).                                             |
-| `auditorias/AUDITORIA_SEGURANCA_2026-07-10.md`            | Auditoria de segurança pré-go-live (achados L-*).                                                                    |
-| `auditorias/AUDITORIA_ASSINATURA_R2_2026-07-11.md`        | Auditoria do fluxo de assinatura e ciclo de vida no R2 (achados R2-1…R2-4).                                          |
-| `auditorias/AUDITORIA_SVELTE_TAILWIND_SKELETON_2026-07-16.md` | Auditoria Svelte/Tailwind/Skeleton (achados B-1…B-6).                                                            |
-| `auditorias/skeleton_audit_final.md`                      | Consolidação final das auditorias de aproveitamento do Skeleton UI v4.                                               |
-| `auditorias/SKELETON_AUDIT.md` / `SKELETON_DEEP_AUDIT.md` | ⚠️ Supersedidas — mantidas por rastreabilidade.                                                                      |
+| `HISTORICO.md`                                            | Catálogo das auditorias e decisões arquivadas — removidas do working tree em 2026-07-20, preservadas no histórico do Git (com o `git show` para lê-las). |
 
 ## 8. `src/` — raiz da aplicação
 
