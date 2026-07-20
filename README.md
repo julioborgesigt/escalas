@@ -286,11 +286,16 @@ escalas/
 │   │   │   ├── validar/            # Validação pública de assinaturas
 │   │   │   ├── webhook/            # Sync de planilha Google + reset destrutivo
 │   │   │   ├── configuracoes/      # Flags de assinatura (com cache edge)
+│   │   │   ├── admin/              # Audit log, compliance, LGPD (incidentes/solicitações/limpeza)
+│   │   │   ├── lgpd/               # Solicitações do titular (art. 18)
+│   │   │   ├── perfil/             # Rubrica reutilizável (POST/DELETE)
 │   │   │   └── health/             # Health check
-│   │   ├── login/                  # Página de login + 2FA
+│   │   ├── login/                  # Página de login + 2FA + certificado A3
 │   │   ├── alterar-senha/          # Troca de senha obrigatória (primeiro acesso)
 │   │   ├── redefinir-senha/        # Reset de senha via token
 │   │   ├── aceitar-termo/          # Aceite de termo de uso
+│   │   ├── bem-vindo/              # Boas-vindas pós-login (+ escalas/bem-vindo e gise/bem-vindo por módulo)
+│   │   ├── super-admin/            # Console de boas-vindas do Super Admin
 │   │   ├── escalas/                # Gestão de escalas (lista, nova, detalhe)
 │   │   ├── painel/                 # Dashboard admin
 │   │   ├── recebidos/              # Caixa de entrada de escalas recebidas
@@ -299,9 +304,13 @@ escalas/
 │   │   ├── policiais/              # Gestão de policiais (lista, detalhe, upload CSV)
 │   │   ├── unidades/               # Gestão de unidades
 │   │   ├── produtividade/          # Dashboard de produtividade
+│   │   ├── perfil/                 # Meu perfil (rubrica, e-mail pessoal, solicitações de alteração)
+│   │   ├── solicitacoes/           # Aprovação de alterações cadastrais (Admin Geral)
 │   │   ├── conf-ass/               # Configuração de assinatura
+│   │   ├── config-geral/           # Configurações gerais (provedor de e-mail)
+│   │   ├── auditoria/              # Trilha forense + logs técnicos (/auditoria/logs)
 │   │   ├── validar/                # Validação pública de PDF assinado
-│   │   ├── termo/[versao]/         # Consulta pública do termo de uso
+│   │   ├── termo/                  # Consulta pública do termo de uso (/termo → versão vigente)
 │   │   ├── +layout.svelte          # Layout raiz (sidebar, tema, toast)
 │   │   ├── +layout.server.ts       # Load global (usuário, flags, papel GISE)
 │   │   └── +error.svelte           # Página de erro
@@ -394,7 +403,8 @@ Gestão do ciclo de vida de escalas de plantão, expediente e finais de semana (
 Gerenciamento completo de operações GISE:
 
 - Criação e configuração pelo supervisor (seccionais, equipes, questões)
-- Registro de presença (entrada/saída com GPS, selfie e rubrica)
+- Registro de presença (entrada/saída com GPS, selfie e rubrica) — em desktop, confirmação por Token A3
+- Comprovante de presença baixável nos dois fluxos: Token A3 serve o termo qualificado do R2; presença em tela gera o comprovante avançado sob demanda
 - Preenchimento de formulários operacionais e SEINT por membros
 - Assinatura de relatórios de extra/produtividade
 - Relatórios e dashboards de produtividade
@@ -440,7 +450,7 @@ O logger estruturado ([`src/lib/logger.ts`](src/lib/logger.ts)) continua emitind
 4. Sessão criada com token de 256 bits, expira em 8 horas (`SESSION_TTL_MS` em `src/lib/auth.ts`)
 5. Sessão armazenada em cookie `session_token` (httpOnly, secure, SameSite=strict)
 
-Alternativa: **login por certificado digital A3** (e-CPF ICP-Brasil) via `/api/auth/certificado/*`, dispensa senha e 2FA por e-mail. Além da assinatura do desafio e da cadeia ICP-Brasil, o login consulta a **revogação (OCSP)** do certificado: um e-CPF revogado é recusado; se o responder da AC estiver indisponível, o login prossegue e registra `metadados.ocsp = 'unknown'` na auditoria (soft-fail).
+Alternativa: **login por certificado digital A3** (e-CPF ICP-Brasil) via `/api/auth/certificado/*`, dispensa senha e 2FA por e-mail. Além da assinatura do desafio e da cadeia ICP-Brasil, o login consulta a **revogação (OCSP)** do certificado: um e-CPF revogado é recusado; se o responder da AC estiver indisponível, o login prossegue e registra `metadados.ocsp = 'unknown'` na auditoria (soft-fail). O botão existe nas duas abas do `/login`: na aba **Policial** cria sessão operacional; na aba **Administrador** (`comoAdmin`) resolve a conta admin vinculada ao policial do certificado e cria sessão de administrador no módulo escolhido.
 
 ### Primeiro acesso
 
@@ -454,8 +464,8 @@ O aceite do termo de uso é obrigatório a cada nova versão. Qualquer mudança 
 
 | Tipo                     | Papel             | Acesso                                                                                                                                     |
 | ------------------------ | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
-| `admin` + `isSuperAdmin` | Super Admin       | Tudo do Admin Geral **mais**: promover admins, gerenciar policiais/unidades, configurar política de assinatura, baixar PDF forense íntegro |
-| `admin`                  | Admin Geral       | Operação global (escalas, GISE, LGPD/auditoria) em todas as unidades — não remodela a base                                                 |
+| `admin` + `isSuperAdmin` | Super Admin       | Tudo do Admin Geral **mais**: promover admins, gerenciar policiais/unidades, configurar política de assinatura, baixar o forense pelo portal `/validar` |
+| `admin`                  | Admin Geral       | Operação global (escalas, GISE, LGPD/compliance) em todas as unidades — não remodela a base; consoles de auditoria são do Super Admin      |
 | `policial`               | `admin_seccional` | Gerencia escalas e policiais da sua seccional                                                                                              |
 | `policial`               | `admin_unidade`   | Gerencia escalas da sua unidade                                                                                                            |
 | `policial`               | —                 | Acessa apenas suas próprias escalas e GISE                                                                                                 |
