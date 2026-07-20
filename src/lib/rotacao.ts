@@ -154,7 +154,7 @@ export function ultimoDiaDoMes(ano: number, mes: number): string {
 	return new Date(ano, mes, 0).toISOString().split('T')[0];
 }
 
-// Implementação única em $lib/utils (achado D1 do ARQUIVOS.md); re-export
+// Implementação única em $lib/utils (achado D1 do antigo ARQUIVOS.md — ver docs/HISTORICO.md); re-export
 // preserva os imports existentes `from '$lib/rotacao'`.
 export { calcularDataSaida } from './utils';
 

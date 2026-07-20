@@ -140,7 +140,7 @@ const DEFAULT_QUESTIONS = [
  * na tela o policial precisa de comando ("DIGITE O KM..."); no relatório, de
  * rótulo compacto ("KM INICIAL"). Antes, a versão de formulário era uma cópia
  * integral de ~120 linhas dentro de `/res-gise/+page.server.ts`, escondendo a
- * relação entre as duas (achado 11.3 do docs/ARQUIVOS.md).
+ * relação entre as duas (achado 11.3 do antigo ARQUIVOS.md — ver docs/HISTORICO.md).
  */
 const TEXTOS_FORM_OPERACIONAL: Record<
 	string,
@@ -191,7 +191,7 @@ export const DEFAULT_QUESTIONS_FORM_OPERACIONAL: PerguntaModelo[] = DEFAULT_QUES
  * Modelo padrão do formulário SEINT — fonte ÚNICA, usada como fallback tanto
  * aqui (agregação/relatórios) quanto no load de `/res-gise` (UI do formulário
  * e botão "restaurar padrão"). Antes existia uma cópia idêntica de 122 linhas
- * na página (achado 11.3 do docs/ARQUIVOS.md).
+ * na página (achado 11.3 do antigo ARQUIVOS.md — ver docs/HISTORICO.md).
  */
 export const DEFAULT_SEINT_QUESTIONS = [
 	{

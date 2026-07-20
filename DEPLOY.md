@@ -45,7 +45,7 @@ As senhas são hasheadas com **PBKDF2-HMAC-SHA256, 100 000 iterações** (format
 | `pbkdf2v2:` | Atual sem pepper.                                                       |
 | `pbkdf2v3:` | **Atual com pepper** — `PBKDF2( HMAC-SHA256(PASSWORD_PEPPER, senha) )`. |
 
-**Por que pepper e não "600k iterações" (achado A3):** o runtime da Cloudflare (workerd — o mesmo no Pages e no Workers) impõe um **teto rígido de 100 000 iterações** na API `crypto.subtle`; pedir mais lança erro. O pepper (HMAC com um segredo global do ambiente, custo de CPU ~zero) resolve o brute-force offline **sem** depender de iterações altas. A migração para Workers foi avaliada e **arquivada** por causa disso — ver [`docs/MIGRACAO-WORKERS.md`](docs/MIGRACAO-WORKERS.md).
+**Por que pepper e não "600k iterações" (achado A3):** o runtime da Cloudflare (workerd — o mesmo no Pages e no Workers) impõe um **teto rígido de 100 000 iterações** na API `crypto.subtle`; pedir mais lança erro. O pepper (HMAC com um segredo global do ambiente, custo de CPU ~zero) resolve o brute-force offline **sem** depender de iterações altas. A migração para Workers foi avaliada e **arquivada** por causa disso — a avaliação completa (`MIGRACAO-WORKERS.md`) está no histórico do Git, ver [`docs/HISTORICO.md`](docs/HISTORICO.md).
 
 **Operação do `PASSWORD_PEPPER`:**
 
@@ -153,7 +153,7 @@ Após mudanças de schema, gerar migrações com Drizzle conforme o fluxo já us
 - **Secrets de staging:** configurar no Pages → Settings → Environment variables, escopo **Preview**. Para o staging exercitar o caminho `pbkdf2v3`, defina também o `PASSWORD_PEPPER` no escopo Preview (pode ser um valor de teste, distinto do de produção — o D1 é isolado).
 - **Guarda de produção:** só a **migração remota de produção** (`npm run db:migrate:prod`) exige `-- --yes`, abortando antes de tocar o D1 sem confirmação explícita.
 
-> **Migração Pages → Workers (arquivada).** Houve uma avaliação de migrar para Cloudflare Workers (para subir o PBKDF2 a 600k); ela foi **descartada** porque o teto de 100k iterações é do runtime (idêntico em Pages e Workers) — o A3 foi resolvido pelo pepper. Histórico completo em [`docs/MIGRACAO-WORKERS.md`](docs/MIGRACAO-WORKERS.md). **O stack é Cloudflare Pages.**
+> **Migração Pages → Workers (arquivada).** Houve uma avaliação de migrar para Cloudflare Workers (para subir o PBKDF2 a 600k); ela foi **descartada** porque o teto de 100k iterações é do runtime (idêntico em Pages e Workers) — o A3 foi resolvido pelo pepper. Avaliação completa (`MIGRACAO-WORKERS.md`) arquivada no histórico do Git, ver [`docs/HISTORICO.md`](docs/HISTORICO.md). **O stack é Cloudflare Pages.**
 
 ## Primeiro acesso e reset em massa (go-live)
 
