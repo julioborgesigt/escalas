@@ -351,6 +351,8 @@ Verificar cada transição de status:
 
 ### 10.3 Auditoria
 
+> `[E2E: auditoria.spec.ts]` cobre o caminho do Super Admin: `/api/admin/audit` lista paginado; a trilha **captura** um evento ponta a ponta (webhook `sync_policiais` recuperável filtrando por ação); export CSV → 200 `text/csv`; janela longa demais → 400. Os negativos de RBAC (anônimo 401, policial/Admin Geral 403) estão em `boas-vindas-rbac.spec.ts`. A cadeia de hash/canonicalização está no unitário `audit-forense.test.ts`.
+
 - [ ] Ver log de auditoria das ações do sistema
 - [ ] Filtrar por usuário, ação ou entidade
 - [ ] Endpoint `/api/admin/audit` retorna dados no formato esperado

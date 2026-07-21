@@ -27,6 +27,9 @@ export const FIXTURE = {
 	adminUnidade: { id: 99005, matricula: 'EE990005', nome: 'Admin Unidade Fixture' },
 	/** Admin Geral standalone (linha em `administradores`, sessão tipo 'admin'). */
 	adminGeral: { id: 99001, login: 'e2e-admin-geral' },
+	/** Super Admin: login precisa bater com SUPER_ADMIN_LOGIN (o servidor-e2e o
+	 *  garante em `.dev.vars`); isSuperAdmin é derivado dessa igualdade. */
+	superAdmin: { id: 99002, login: 'e2e-super-admin' },
 	escalaA: { id: 99001 },
 	/** Escala de DEL-A COM policial escalado e SEM documento — alvo do spec de assinatura. */
 	escalaAssinavel: { id: 99002 },
@@ -120,7 +123,9 @@ export default async function globalSetup() {
 		VALUES
 			(${FIXTURE.adminUnidade.id}, '${FIXTURE.adminUnidade.matricula}', '${FIXTURE.adminUnidade.nome}', 'DPC', '${FIXTURE.unidadeA.nome}', '${senhaHash}', 0, NULL, 1, 'admin_unidade', ${FIXTURE.unidadeA.id});
 		INSERT OR REPLACE INTO administradores (id, login, senha, nome, email, primeiro_acesso)
-		VALUES (${FIXTURE.adminGeral.id}, '${FIXTURE.adminGeral.login}', '${senhaHash}', 'Admin Geral Fixture', NULL, 0);
+		VALUES
+			(${FIXTURE.adminGeral.id}, '${FIXTURE.adminGeral.login}', '${senhaHash}', 'Admin Geral Fixture', NULL, 0),
+			(${FIXTURE.superAdmin.id}, '${FIXTURE.superAdmin.login}', '${senhaHash}', 'Super Admin Fixture', NULL, 0);
 		INSERT OR REPLACE INTO escalas (id, titulo, cidade, tipo, lotacao, data_inicio, data_fim)
 		VALUES
 			(${FIXTURE.escalaA.id}, 'Escala E2E Fixture A', 'Fortaleza', 'plantao', '${FIXTURE.unidadeA.nome}', '2026-01-01', '2026-01-01');
@@ -188,15 +193,16 @@ export default async function globalSetup() {
 		FIXTURE.membroGise.id,
 		FIXTURE.adminUnidade.id
 	];
+	const idsAdmin = [FIXTURE.adminGeral.id, FIXTURE.superAdmin.id];
 	const aceitesSeed = `
 		DELETE FROM aceites_termos
 		WHERE (usuario_tipo = 'policial' AND usuario_id IN (${idsFixture.join(', ')}))
-			OR (usuario_tipo = 'admin' AND usuario_id = ${FIXTURE.adminGeral.id});
+			OR (usuario_tipo = 'admin' AND usuario_id IN (${idsAdmin.join(', ')}));
 		INSERT INTO aceites_termos
 			(usuario_tipo, usuario_id, versao_termo, hash_termo, aceitou_lgpd, aceitou_uso_email, aceitou_uso_localizacao)
 		VALUES
 			${idsFixture.map((id) => `('policial', ${id}, '${TERMO_VERSAO}', '${termoHash}', 1, 1, 1)`).join(',\n\t\t\t')},
-			('admin', ${FIXTURE.adminGeral.id}, '${TERMO_VERSAO}', '${termoHash}', 1, 1, 1);
+			${idsAdmin.map((id) => `('admin', ${id}, '${TERMO_VERSAO}', '${termoHash}', 1, 1, 1)`).join(',\n\t\t\t')};
 	`;
 	execSqlSafe(aceitesSeed);
 	if (!fixtureOk) {
