@@ -67,3 +67,6 @@ coverage/
 
 # Artefatos da CA de TESTE da suíte E2E (chaves regeneradas a cada execução)
 e2e/ca-teste/artefatos/
+
+# Token de webhook publicado pelo servidor E2E (gitignored)
+e2e/.webhook-token

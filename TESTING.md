@@ -439,3 +439,12 @@ Verificar cada transição de status:
 
 - [ ] `GET /api/health` → retorna 200 com status OK
 - [ ] Conectividade com banco de dados refletida no health check
+
+---
+
+## 18. Webhooks de Sincronização (operador / Apps Script)
+
+> `[E2E: webhook-sync.spec.ts]` cobre o contrato ponta a ponta contra o D1: `sync-policiais` cria e atualiza (upsert) a partir do payload do Apps Script, cargo inválido conta como falha sem derrubar o lote, `sync-unidades` cria a seccional; **M-4** — um SYNC_TOKEN válido tentando `papel: seccional` NÃO promove (fica `null`); **reset destrutivo** fail-closed (SYNC válido mas sem a 2ª credencial → 401, nada apagado); auth negativa (sem/errado bearer → 401). A lógica de auth (Bearer/HMAC/replay) tem cobertura unitária em `webhook-auth.test.ts`.
+
+- [ ] (manual) Rodar o menu "🚀 Sincronização D1" da planilha real → policiais/unidades refletidos no sistema
+- [ ] (manual) Reset destrutivo com as 3 credenciais corretas em ambiente de teste → tabelas operacionais zeradas com snapshot no log

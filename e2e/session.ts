@@ -1,5 +1,6 @@
 import { execSync } from 'node:child_process';
 import { createHash, randomBytes } from 'node:crypto';
+import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import type { Page } from '@playwright/test';
@@ -34,6 +35,40 @@ export function execD1Local(sql: string): boolean {
 		return true;
 	} catch {
 		return false;
+	}
+}
+
+/**
+ * Consulta o D1 local e devolve as linhas (`--json`). `null` quando o wrangler
+ * falha. Usado para verificar efeitos de escrita que não têm endpoint de leitura
+ * conveniente (ex.: upsert do webhook de sync).
+ */
+export function queryD1Local<T = Record<string, unknown>>(sql: string): T[] | null {
+	try {
+		const out = execSync(
+			`npx wrangler d1 execute escalas-db --local --json --command "${sql.replace(/"/g, '\\"')}"`,
+			{ cwd: ROOT, stdio: ['pipe', 'pipe', 'pipe'] }
+		).toString();
+		const parsed = JSON.parse(out) as Array<{ results?: T[] }>;
+		return parsed?.[0]?.results ?? [];
+	} catch {
+		return null;
+	}
+}
+
+/**
+ * SYNC_TOKEN de teste dos webhooks. O bootstrap do servidor E2E
+ * (e2e/servidor-e2e.ts) grava este valor em `.dev.vars` (não-destrutivo) para
+ * que o `getPlatformProxy` do adapter o exponha em `platform.env`, e o publica
+ * em `e2e/.webhook-token`. A spec lê daqui; quando o arquivo não existe (D1/env
+ * indisponível), pula os testes.
+ */
+export function tokenWebhookE2E(): string | null {
+	try {
+		const p = join(ROOT, 'e2e', '.webhook-token');
+		return existsSync(p) ? readFileSync(p, 'utf8').trim() : null;
+	} catch {
+		return null;
 	}
 }
 
