@@ -18,7 +18,7 @@ import { dirname, join } from 'node:path';
 
 const DIR = join(dirname(fileURLToPath(import.meta.url)), 'artefatos');
 
-export function carregarCertTeste(base: 'leaf' | 'outro-cpf' | 'rogue'): {
+export function carregarCertTeste(base: 'leaf' | 'outro-cpf' | 'supervisor' | 'rogue'): {
 	cert: forge.pki.Certificate;
 	key: forge.pki.PrivateKey;
 } {
@@ -48,7 +48,7 @@ export function bytesDoByteRange(preparedPdf: Buffer): Buffer {
  */
 export function assinarComoSerpro(
 	preparedPdfBase64: string,
-	base: 'leaf' | 'outro-cpf' | 'rogue' = 'leaf'
+	base: 'leaf' | 'outro-cpf' | 'supervisor' | 'rogue' = 'leaf'
 ): string {
 	const { cert, key } = carregarCertTeste(base);
 	const conteudo = bytesDoByteRange(Buffer.from(preparedPdfBase64, 'base64'));

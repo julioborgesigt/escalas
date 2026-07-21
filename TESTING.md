@@ -69,6 +69,8 @@ Roteiro de regressão manual dos fluxos de negócio. **Papel deste arquivo: exce
 
 ### 3.2 Criar Escala (modal "Nova Escala" em `/escalas`)
 
+> `[E2E: escala-crud.spec.ts]` cobre a criação pela action (`?/criar`): admin de unidade cria e a escala aparece na listagem; policial sem papel → 403; duplicata de tipo/lotação/período → 409. Manual: o modal em si (etapas de tipo→data) e o redirect para `/escalas/[id]`.
+
 - [ ] Card "Nova Escala" (home) e botão da listagem abrem o modal
 - [ ] Escolher tipo (plantão mensal / expediente mensal / FDS) → etapa de data correspondente
 - [ ] Mês/FDS que já possui escala para a lotação → aviso/bloqueio de duplicata
@@ -78,6 +80,8 @@ Roteiro de regressão manual dos fluxos de negócio. **Papel deste arquivo: exce
 - [ ] (servidor) Policial sem papel de administração → 403 ao criar via POST direto (`/escalas?/criar`)
 
 ### 3.3 Editar Escala (`/escalas/[id]`)
+
+> `[E2E: escala-crud.spec.ts]` cobre o `?/adicionar` servidor: admin adiciona e o servidor aparece na lista devolvida; mesmo servidor/data de novo → 409 (choque global); policial de outra lotação → 403. Manual: edição inline de campos, remoção e os fluxos por tipo (plantão/FDS) na tela.
 
 - [ ] Carregar página com dados corretos da escala
 - [ ] Editar campos e salvar → dados atualizados
@@ -91,8 +95,8 @@ Roteiro de regressão manual dos fluxos de negócio. **Papel deste arquivo: exce
 - [ ] Solicitar exclusão → confirmação solicitada
 - [ ] Confirmar exclusão → escala removida da listagem
 - [ ] Cancelar exclusão → nada alterado
-- [ ] (servidor) Policial sem papel de administração → 403 ao excluir via POST direto (`/escalas?/excluir`)
-- [ ] Excluir escala assinada (por qualquer caminho: /escalas, /recebidos, /painel) → documento, cópia de conferência e selfie removidos do R2 junto
+- [ ] (servidor) Policial sem papel de administração → 403 ao excluir via POST direto (`/escalas?/excluir`) `[E2E: escala-crud.spec.ts]`
+- [ ] Excluir escala assinada (por qualquer caminho: /escalas, /recebidos, /painel) → documento, cópia de conferência e selfie removidos do R2 junto _(revogação e re-assinatura: `[E2E: escala-revogacao.spec.ts]`; limpeza R2 no unitário `r2-cleanup.test.ts`)_
 
 ### 3.5 Marcar Visto
 
@@ -199,7 +203,9 @@ Verificar cada transição de status:
 - [ ] Código incorreto → erro de validação
 - [ ] Código expirado → erro com instrução para solicitar novo
 
-### 5.5 Re-assinatura
+### 5.5 Re-assinatura e revogação
+
+> `[E2E: escala-revogacao.spec.ts]` cobre o ciclo qualificado (CA de teste): assinar → documento baixável e `/validar` encontra → revogar (DELETE) → documento some do banco e do `/validar` → reassinar (hash novo). Também a re-assinatura sem revogar (overwrite): o hash antigo deixa de resolver (achado R2-4). Guarda: policial de outra lotação não revoga → 403. A limpeza dos objetos R2 em si (quais apagar) é coberta no unitário `r2-cleanup.test.ts`.
 
 - [ ] Tentar assinar escala já assinada → erro informando documento já assinado
 
@@ -243,6 +249,10 @@ Verificar cada transição de status:
 - [ ] Atualizar respostas já salvas → substituído corretamente
 
 ### 6.4 Assinatura de Relatórios Seccional
+
+> `[E2E: relatorio-extra-gise.spec.ts]` cobre a assinatura **qualificada** do relatório extraordinário pelo supervisor via CA de teste (preparar → CMS → finalizar → documento persistido → `/validar`) e as guardas: não-supervisor → 403, seccional inválida → 400, saída incompleta → 400, CPF do token ≠ supervisor → 400.
+> `[E2E: relatorio-extra-avancado.spec.ts]` cobre a assinatura **avançada em tela** (endpoint `assinar`): supervisor com rubrica + 2FA + selfie/GPS → 200; não-supervisor → 403; saída incompleta → 400; sem 2FA → 400.
+> A montagem do manifesto (todas as rubricas de presença + supervisor, FOTO condicional) é coberta no unitário `manifesto-signers.test.ts`. Manual: o Assinador SERPRO real, a selfie/câmera de verdade e a assinatura do relatório de `produtividade`.
 
 - [ ] Preparar relatório seccional
 - [ ] Assinar relatório tipo `extraordinario`

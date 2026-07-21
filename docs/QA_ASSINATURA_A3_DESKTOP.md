@@ -88,6 +88,8 @@ Abrir o PDF baixado:
 ## 5. Relatório Extraordinário (supervisor) com presenças A3 — 🐞 classificação corrigida
 
 > Exige uma seccional em que **todos** confirmaram a saída; pelo menos um participante via **Token A3**.
+>
+> **Automação:** a cadeia qualificada do relatório (preparar → CMS → finalizar → `/validar`) e as guardas do endpoint já rodam em CI com CA de teste (`e2e/relatorio-extra-gise.spec.ts`); a classificação QUALIFICADA×AVANÇADA no manifesto é coberta por `manifesto-signers.test.ts`. Este roteiro cobre o que exige hardware: o Assinador SERPRO real e a **conferência visual** do PDF abaixo.
 
 - [ ] 🐞 **Entrada pela listagem (`/gise`), no desktop:** no card da escala, clicar **"Ass. Extra"** → diálogo de confirmação → **"Assinar N relatório(s)"** dispara o fluxo SERPRO em sequência para todos os extras prontos (antes o clique não fazia nada no desktop; no mobile abre a rubrica em tela, como sempre).
 

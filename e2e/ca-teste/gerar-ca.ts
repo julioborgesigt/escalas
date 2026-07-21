@@ -37,6 +37,13 @@ export const OUTRO_TITULAR = {
 	cpf: '52998224725'
 } as const;
 
+/** "e-CPF" do supervisor DPC fixture — assina o relatório extraordinário.
+ *  Nome/CPF precisam bater com FIXTURE.supervisor do global-setup. */
+export const SUPERVISOR_TESTE = {
+	nome: 'Supervisor Fixture DPC',
+	cpf: '11144477735'
+} as const;
+
 type Cert = forge.pki.Certificate;
 type KeyPair = forge.pki.rsa.KeyPair;
 
@@ -102,6 +109,7 @@ export function gerarArtefatos(): void {
 	// ── Leafs ────────────────────────────────────────────────────────────
 	const leaf = emitirLeaf(TITULAR_TESTE, root, rootKeys.privateKey);
 	const outroCpf = emitirLeaf(OUTRO_TITULAR, root, rootKeys.privateKey);
+	const supervisor = emitirLeaf(SUPERVISOR_TESTE, root, rootKeys.privateKey);
 
 	// Rogue: mesma identidade do leaf, mas AUTOASSINADO (CA desconhecida).
 	const rogueKeys = forge.pki.rsa.generateKeyPair(2048);
@@ -122,6 +130,8 @@ export function gerarArtefatos(): void {
 	writeFileSync(join(DIR, 'leaf.key.pem'), keyPem(leaf.keys.privateKey));
 	writeFileSync(join(DIR, 'outro-cpf.pem'), pem(outroCpf.cert));
 	writeFileSync(join(DIR, 'outro-cpf.key.pem'), keyPem(outroCpf.keys.privateKey));
+	writeFileSync(join(DIR, 'supervisor.pem'), pem(supervisor.cert));
+	writeFileSync(join(DIR, 'supervisor.key.pem'), keyPem(supervisor.keys.privateKey));
 	writeFileSync(join(DIR, 'rogue.pem'), pem(rogue));
 	writeFileSync(join(DIR, 'rogue.key.pem'), keyPem(rogueKeys.privateKey));
 	console.warn(`[ca-teste] Artefatos de CA de TESTE regenerados em ${DIR}`);
