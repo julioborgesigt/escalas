@@ -96,7 +96,7 @@ Roteiro de regressão manual dos fluxos de negócio. **Papel deste arquivo: exce
 - [ ] Confirmar exclusão → escala removida da listagem
 - [ ] Cancelar exclusão → nada alterado
 - [ ] (servidor) Policial sem papel de administração → 403 ao excluir via POST direto (`/escalas?/excluir`) `[E2E: escala-crud.spec.ts]`
-- [ ] Excluir escala assinada (por qualquer caminho: /escalas, /recebidos, /painel) → documento, cópia de conferência e selfie removidos do R2 junto
+- [ ] Excluir escala assinada (por qualquer caminho: /escalas, /recebidos, /painel) → documento, cópia de conferência e selfie removidos do R2 junto _(revogação e re-assinatura: `[E2E: escala-revogacao.spec.ts]`; limpeza R2 no unitário `r2-cleanup.test.ts`)_
 
 ### 3.5 Marcar Visto
 
@@ -203,7 +203,9 @@ Verificar cada transição de status:
 - [ ] Código incorreto → erro de validação
 - [ ] Código expirado → erro com instrução para solicitar novo
 
-### 5.5 Re-assinatura
+### 5.5 Re-assinatura e revogação
+
+> `[E2E: escala-revogacao.spec.ts]` cobre o ciclo qualificado (CA de teste): assinar → documento baixável e `/validar` encontra → revogar (DELETE) → documento some do banco e do `/validar` → reassinar (hash novo). Também a re-assinatura sem revogar (overwrite): o hash antigo deixa de resolver (achado R2-4). Guarda: policial de outra lotação não revoga → 403. A limpeza dos objetos R2 em si (quais apagar) é coberta no unitário `r2-cleanup.test.ts`.
 
 - [ ] Tentar assinar escala já assinada → erro informando documento já assinado
 
