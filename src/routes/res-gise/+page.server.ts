@@ -9,6 +9,7 @@ import {
 	buscarRespostaGise,
 	salvarRespostaGise,
 	buscarGiseEscala,
+	resolverParticipacaoGisePolicial,
 	sincronizarStatusGiseAposPresencaRelatorios,
 	salvarEntradaGise,
 	salvarSaidaGise,
@@ -439,6 +440,15 @@ export const actions: Actions = {
 		const gise = await buscarGiseEscala(db, giseId);
 		if (!gise) return fail(404, { error: 'Escala não encontrada', giseId });
 
+		// Vínculo: só quem participa da GISE (membro de equipe, assessor/SEINT ou
+		// supervisor DPC) registra a própria presença. A UI já esconde o botão de
+		// quem não participa, mas a action precisa recusar por conta própria —
+		// mesma regra que o endpoint do comprovante aplica. Sem isto, qualquer
+		// policial autenticado gravava presença em qualquer GISE via POST direto.
+		const part = await resolverParticipacaoGisePolicial(db, giseId, u.id);
+		if (!part.participa)
+			return fail(403, { error: 'Você não participa desta escala GISE.', giseId });
+
 		let selfieKey: string | undefined = undefined;
 		if (hasR2(platform) && selfieBase64) {
 			const r2 = getR2(platform);
@@ -517,6 +527,11 @@ export const actions: Actions = {
 
 		const giseOrig = await buscarGiseEscala(db, giseId);
 		if (!giseOrig) return fail(404, { error: 'Escala não encontrada', giseId });
+
+		// Vínculo: mesma regra da entrada (ver salvarEntrada).
+		const part = await resolverParticipacaoGisePolicial(db, giseId, u.id);
+		if (!part.participa)
+			return fail(403, { error: 'Você não participa desta escala GISE.', giseId });
 
 		let selfieKey: string | undefined = undefined;
 		if (hasR2(platform) && selfieBase64) {
