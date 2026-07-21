@@ -77,6 +77,21 @@ export function headersDeSessaoMutacao(token: string): Record<string, string> {
 }
 
 /**
+ * Headers para POST em FORM ACTION do SvelteKit (rotas fora de `/api/*`, ex.:
+ * `/escalas?/criar`). Aqui não vale o double-submit do app (que só cobre
+ * `/api/*`) — vale a proteção CSRF NATIVA do kit, que compara o header
+ * `origin` com a origem do servidor. `x-sveltekit-action` faz a resposta vir
+ * como JSON (ActionResult) em vez de redirect.
+ */
+export function headersFormAction(token: string): Record<string, string> {
+	return {
+		...cookieDeSessao(token),
+		origin: BASE_URL,
+		'x-sveltekit-action': 'true'
+	};
+}
+
+/**
  * Semeia um desafio 2FA de ASSINATURA com código conhecido no D1 local e
  * devolve o desafioId (hex puro — o schema Zod rejeita outros formatos).
  *

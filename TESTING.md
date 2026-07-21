@@ -69,6 +69,8 @@ Roteiro de regressão manual dos fluxos de negócio. **Papel deste arquivo: exce
 
 ### 3.2 Criar Escala (modal "Nova Escala" em `/escalas`)
 
+> `[E2E: escala-crud.spec.ts]` cobre a criação pela action (`?/criar`): admin de unidade cria e a escala aparece na listagem; policial sem papel → 403; duplicata de tipo/lotação/período → 409. Manual: o modal em si (etapas de tipo→data) e o redirect para `/escalas/[id]`.
+
 - [ ] Card "Nova Escala" (home) e botão da listagem abrem o modal
 - [ ] Escolher tipo (plantão mensal / expediente mensal / FDS) → etapa de data correspondente
 - [ ] Mês/FDS que já possui escala para a lotação → aviso/bloqueio de duplicata
@@ -78,6 +80,8 @@ Roteiro de regressão manual dos fluxos de negócio. **Papel deste arquivo: exce
 - [ ] (servidor) Policial sem papel de administração → 403 ao criar via POST direto (`/escalas?/criar`)
 
 ### 3.3 Editar Escala (`/escalas/[id]`)
+
+> `[E2E: escala-crud.spec.ts]` cobre o `?/adicionar` servidor: admin adiciona e o servidor aparece na lista devolvida; mesmo servidor/data de novo → 409 (choque global); policial de outra lotação → 403. Manual: edição inline de campos, remoção e os fluxos por tipo (plantão/FDS) na tela.
 
 - [ ] Carregar página com dados corretos da escala
 - [ ] Editar campos e salvar → dados atualizados
@@ -91,7 +95,7 @@ Roteiro de regressão manual dos fluxos de negócio. **Papel deste arquivo: exce
 - [ ] Solicitar exclusão → confirmação solicitada
 - [ ] Confirmar exclusão → escala removida da listagem
 - [ ] Cancelar exclusão → nada alterado
-- [ ] (servidor) Policial sem papel de administração → 403 ao excluir via POST direto (`/escalas?/excluir`)
+- [ ] (servidor) Policial sem papel de administração → 403 ao excluir via POST direto (`/escalas?/excluir`) `[E2E: escala-crud.spec.ts]`
 - [ ] Excluir escala assinada (por qualquer caminho: /escalas, /recebidos, /painel) → documento, cópia de conferência e selfie removidos do R2 junto
 
 ### 3.5 Marcar Visto
