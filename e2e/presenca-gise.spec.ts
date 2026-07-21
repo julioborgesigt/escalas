@@ -125,6 +125,27 @@ test.describe('Presença GISE em tela + comprovante', () => {
 		expect((await termo.body()).subarray(0, 5).toString()).toBe('%PDF-');
 	});
 
+	test('não-participante com 2FA válido → 403 (vínculo é exigido na escrita)', async ({
+		request
+	}) => {
+		// policialA é conta legítima (sessão + termo aceito) mas NÃO participa da
+		// GISE fixture. Passa pelo 2FA (desafio próprio) e ainda assim a action
+		// deve recusar por vínculo — antes desta guarda, gravava presença alheia.
+		const tokenForasteiro = seedSession(FIXTURE.policialA.id);
+		const desafioForasteiro = seedDesafioAssinatura(FIXTURE.policialA.id, CODIGO);
+		test.skip(!tokenForasteiro || !desafioForasteiro, 'D1 local indisponível');
+
+		const res = await postAction(request, tokenForasteiro!, 'salvarEntrada', {
+			giseId: String(GISE),
+			rubrica: RUBRICA_PNG,
+			codigoEmail: CODIGO,
+			desafioId: desafioForasteiro!
+		});
+		const body = await res.text();
+		expect(body).toContain('não participa');
+		expect(body).not.toContain('"success":1');
+	});
+
 	test('guardas do comprovante: anônimo 401, não-participante 403, tipo inválido 400', async ({
 		request
 	}) => {

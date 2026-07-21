@@ -218,7 +218,7 @@ Verificar cada transição de status:
 
 ### 6.2 Presença (Check-in / Check-out)
 
-> `[E2E: presenca-gise.spec.ts]` cobre entrada/saída em tela com rubrica + 2FA + GPS (2FA obrigatório — a flag é semeada como em produção), o comprovante sob demanda dos dois sentidos e as guardas do comprovante (anônimo 401, não-participante 403, tipo inválido 400, sem presença 404). Manual: selfie/câmera real (liveness é client-side) e o fluxo por Token A3 (janela de horário + hardware — QA A3).
+> `[E2E: presenca-gise.spec.ts]` cobre entrada/saída em tela com rubrica + 2FA + GPS (2FA obrigatório — a flag é semeada como em produção), o comprovante sob demanda dos dois sentidos, o **vínculo na escrita** (não-participante com 2FA válido → 403, não grava) e as guardas do comprovante (anônimo 401, não-participante 403, tipo inválido 400, sem presença 404). Manual: selfie/câmera real (liveness é client-side) e o fluxo por Token A3 (janela de horário + hardware — QA A3).
 
 - [ ] Policial registra entrada com rubrica e selfie
 - [ ] Policial registra saída com rubrica e selfie
