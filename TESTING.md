@@ -244,6 +244,8 @@ Verificar cada transição de status:
 
 ### 6.4 Assinatura de Relatórios Seccional
 
+> `[E2E: relatorio-extra-gise.spec.ts]` cobre a assinatura **qualificada** do relatório extraordinário pelo supervisor via CA de teste (preparar → CMS → finalizar → documento persistido → `/validar`) e as guardas do endpoint: não-supervisor → 403, seccional inválida → 400, saída incompleta → 400, CPF do token ≠ supervisor → 400. A montagem do manifesto (todas as rubricas de presença + supervisor, FOTO condicional) é coberta no unitário `manifesto-signers.test.ts`. Manual: o Assinador real e a assinatura do relatório de `produtividade`.
+
 - [ ] Preparar relatório seccional
 - [ ] Assinar relatório tipo `extraordinario`
 - [ ] Assinar relatório tipo `produtividade`

@@ -35,7 +35,14 @@ export const FIXTURE = {
 	escalaAssinavelA3: { id: 99003 },
 	// ── GISE ativa (telas /gise/[id] e /res-gise) ─────────────────────────
 	seccional: { id: 99010, nome: 'SECCIONAL E2E FIXTURE' },
-	supervisor: { id: 99003, matricula: 'EE990003', nome: 'Supervisor Fixture DPC' },
+	/** cpf precisa bater com SUPERVISOR_TESTE do e2e/ca-teste/gerar-ca.ts
+	 *  (assina o relatório extraordinário via CA de teste). */
+	supervisor: {
+		id: 99003,
+		matricula: 'EE990003',
+		nome: 'Supervisor Fixture DPC',
+		cpf: '11144477735'
+	},
 	membroGise: { id: 99004, matricula: 'EE990004', nome: 'Membro Fixture GISE' },
 	gise: { id: 99001, dataInicio: '2026-06-01' },
 	giseSeccional: { id: 99001 },
@@ -142,10 +149,10 @@ export default async function globalSetup() {
 		INSERT OR REPLACE INTO unidades (id, nome, tipo) VALUES
 			(${FIXTURE.seccional.id}, '${FIXTURE.seccional.nome}', 'seccional');
 		INSERT OR REPLACE INTO policiais
-			(id, matricula, nome, cargo, lotacao, senha, primeiro_acesso, email, ativo)
+			(id, matricula, nome, cargo, lotacao, senha, primeiro_acesso, email, ativo, cpf)
 		VALUES
-			(${FIXTURE.supervisor.id}, '${FIXTURE.supervisor.matricula}', '${FIXTURE.supervisor.nome}', 'DPC', '${FIXTURE.seccional.nome}', '${senhaHash}', 0, NULL, 1),
-			(${FIXTURE.membroGise.id}, '${FIXTURE.membroGise.matricula}', '${FIXTURE.membroGise.nome}', 'OIP', '${FIXTURE.unidadeA.nome}', '${senhaHash}', 0, NULL, 1);
+			(${FIXTURE.supervisor.id}, '${FIXTURE.supervisor.matricula}', '${FIXTURE.supervisor.nome}', 'DPC', '${FIXTURE.seccional.nome}', '${senhaHash}', 0, NULL, 1, '${FIXTURE.supervisor.cpf}'),
+			(${FIXTURE.membroGise.id}, '${FIXTURE.membroGise.matricula}', '${FIXTURE.membroGise.nome}', 'OIP', '${FIXTURE.unidadeA.nome}', '${senhaHash}', 0, NULL, 1, NULL);
 		INSERT OR REPLACE INTO gise_escalas (id, data_inicio, status, hora_entrada, hora_saida, supervisor_id)
 		VALUES (${FIXTURE.gise.id}, '${FIXTURE.gise.dataInicio}', 'em_andamento', '08:00', '16:00', ${FIXTURE.supervisor.id});
 		INSERT OR REPLACE INTO gise_seccionais (id, gise_id, seccional_id, status, hora_entrada, hora_saida)
