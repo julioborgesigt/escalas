@@ -91,17 +91,21 @@ test.describe('Criar escala (/escalas ?/criar)', () => {
 	});
 
 	test('unicidade: mesmo tipo/lotação/período → 409', async ({ request }) => {
-		// Sobrepõe a escala ALVO (expediente, unidade A, 2026-09).
+		// Alvo dedicado (não depende do beforeAll nem de outros testes): expediente
+		// unidade A, dezembro/2026 — mês isolado das demais escalas fixture.
+		expect(seedEscala(99062, '2026-12-01', '2026-12-31', 'Unic')).toBe(true);
 		const res = await postForm(request, '/escalas?/criar', tokenAdmin!, {
 			titulo: `${TITULO} Duplicada`,
 			cidade: 'Fortaleza',
-			data_inicio: '2026-09-10',
-			data_fim: '2026-09-20',
+			data_inicio: '2026-12-10',
+			data_fim: '2026-12-20',
 			hora_entrada: '08',
 			hora_saida: '18',
 			tipo: 'expediente'
 		});
-		expect(await res.text()).toMatch(/Já existe uma Escala/i);
+		const body = await res.text();
+		// Diagnóstico no assert: se voltar a flakar, o status/body real aparece.
+		expect(body, `status=${res.status()} body=${body}`).toMatch(/Já existe uma Escala/i);
 	});
 });
 
