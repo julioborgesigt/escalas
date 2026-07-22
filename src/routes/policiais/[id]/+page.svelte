@@ -6,8 +6,14 @@
 	import { formatarTelefone, formatarCPF } from '$lib/utils';
 	import { loading } from '$lib/loading.svelte';
 	import type { ActionResult } from '@sveltejs/kit';
+	import ToggleSwitch from '$lib/components/ToggleSwitch.svelte';
+	import PainelAcoesServidor from './_components/PainelAcoesServidor.svelte';
+	import HistoricoServidor from './_components/HistoricoServidor.svelte';
 
 	const { data }: PageProps = $props();
+
+	// Form da chave Admin Geral: o Switch dispara o submit via requestSubmit().
+	let formAdminGeral = $state<HTMLFormElement>();
 
 	const isAdmin = $derived(data.isAdmin);
 	const isAdminOrSeccional = $derived(data.isAdminOrSeccional);
@@ -285,26 +291,41 @@
 			Concede acesso de Administrador Geral. A pessoa loga com a <b>mesma matrícula e senha</b>,
 			escolhendo <b>"Administrador"</b> na tela de login. É cumulativo com o papel acima.
 		</p>
-		<div class="flex items-center gap-3 flex-wrap">
-			<span
-				class="text-xs font-bold px-2 py-1 rounded-lg {ehAdminGeral
-					? 'bg-success-500/15 text-success-700 dark:text-success-400'
-					: 'bg-surface-500/10 text-surface-500'}"
+		<form
+			method="POST"
+			action="?/toggleAdminGeral"
+			use:enhance={handleToggleAdminGeral}
+			bind:this={formAdminGeral}
+			class="flex items-center gap-3 flex-wrap"
+		>
+			<input type="hidden" name="ativar" value={ehAdminGeral ? '0' : '1'} />
+			<ToggleSwitch
+				checked={ehAdminGeral}
+				disabled={loading.active}
+				onCheckedChange={() => formAdminGeral?.requestSubmit()}
 			>
-				{ehAdminGeral ? 'É Admin Geral' : 'Não é Admin Geral'}
-			</span>
-			<form method="POST" action="?/toggleAdminGeral" use:enhance={handleToggleAdminGeral}>
-				<input type="hidden" name="ativar" value={ehAdminGeral ? '0' : '1'} />
-				<button
-					type="submit"
-					class="btn btn-sm {ehAdminGeral
-						? 'preset-outlined-error-500'
-						: 'preset-filled-primary-500'} flex items-center gap-2"
-					disabled={loading.active}
+				<span
+					class="text-sm font-semibold {ehAdminGeral
+						? 'text-success-700 dark:text-success-400'
+						: 'text-surface-500'}"
 				>
-					{ehAdminGeral ? 'Revogar Admin Geral' : 'Conceder Admin Geral'}
-				</button>
-			</form>
-		</div>
+					{ehAdminGeral ? 'É Admin Geral' : 'Não é Admin Geral'}
+				</span>
+			</ToggleSwitch>
+		</form>
 	</div>
+{/if}
+
+{#if isAdmin}
+	<PainelAcoesServidor
+		policial={{
+			id: data.policial.id,
+			nome: data.policial.nome,
+			matricula: data.policial.matricula,
+			lotacao: data.policial.lotacao
+		}}
+		lotacoes={data.lotacoes}
+	/>
+
+	<HistoricoServidor historico={data.historico} afastamentoVigenteId={data.afastamentoVigenteId} />
 {/if}

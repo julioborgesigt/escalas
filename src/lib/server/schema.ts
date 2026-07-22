@@ -946,9 +946,65 @@ export const cadastroSolicitacoes = sqliteTable(
 	]
 );
 
+// ---- Histórico funcional do policial ----
+//
+// Linha do tempo por servidor: movimentações (transferências de lotação),
+// afastamentos (férias/licenças), desvinculações (baixa) e o diff das edições
+// cadastrais. Cada evento é imutável (append-only) e pode ter um documento PDF
+// anexo no R2 (`documento_r2_key`). O objetivo é responder "o que já aconteceu
+// com este policial?" — separado da trilha forense `audit_log` (Super Admin,
+// tamper-evident), que continua registrando os mesmos fatos para segurança.
+
+export const policialHistorico = sqliteTable(
+	'policial_historico',
+	{
+		id: integer('id').primaryKey({ autoIncrement: true }),
+		policial_id: integer('policial_id')
+			.notNull()
+			.references(() => policiais.id, { onDelete: 'cascade' }),
+		tipo: text('tipo', {
+			enum: ['movimentacao', 'afastamento', 'desvinculacao', 'edicao', 'papel']
+		}).notNull(),
+		/** Subtipo do afastamento: ferias | licenca_medica | judicial | licenca_outros | outros. */
+		subtipo: text('subtipo'),
+		/** Motivo/descrição livre (afastamento) ou destino do policial (desvinculação). */
+		descricao: text('descricao'),
+		// ---- Movimentação ----
+		unidade_origem: text('unidade_origem'),
+		unidade_destino: text('unidade_destino'),
+		// ---- Datas ----
+		/** Data principal do evento (movimentação/desvinculação). */
+		data_evento: text('data_evento'),
+		data_inicio: text('data_inicio'),
+		data_fim: text('data_fim'),
+		qtd_dias: integer('qtd_dias'),
+		// ---- Protocolo (NUP) ----
+		nup: text('nup'),
+		// ---- Documento anexo (PDF no R2) ----
+		documento_r2_key: text('documento_r2_key'),
+		documento_nome: text('documento_nome'),
+		// ---- Diff (edição de cadastro / mudança de papel) ----
+		/** JSON: snapshot ANTES da edição. */
+		dados_antes: text('dados_antes'),
+		/** JSON: snapshot DEPOIS da edição. */
+		dados_depois: text('dados_depois'),
+		// ---- Ator (quem registrou) ----
+		registrado_por_id: integer('registrado_por_id'),
+		registrado_por_nome: text('registrado_por_nome'),
+		created_at: text('created_at')
+			.notNull()
+			.default(sql`(datetime('now', '-3 hours'))`)
+	},
+	(table) => [
+		index('idx_pol_hist_policial').on(table.policial_id, table.created_at),
+		index('idx_pol_hist_tipo').on(table.tipo)
+	]
+);
+
 // ---- Tipos inferidos ----
 
 export type Policial = typeof policiais.$inferSelect;
+export type PolicialHistorico = typeof policialHistorico.$inferSelect;
 export type CadastroSolicitacao = typeof cadastroSolicitacoes.$inferSelect;
 export type Escala = typeof escalas.$inferSelect;
 export type NovaEscala = typeof escalas.$inferInsert;

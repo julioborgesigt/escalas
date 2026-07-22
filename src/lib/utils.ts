@@ -146,6 +146,42 @@ export function limparCPF(v: string): string {
 	if (!v) return '';
 	return String(v).replace(/\D/g, '').trim();
 }
+
+/**
+ * Soma `dias` a uma data ISO `YYYY-MM-DD` e devolve o resultado no mesmo
+ * formato. Aceita valores negativos. Retorna a entrada se ela for inválida.
+ */
+export function adicionarDias(iso: string, dias: number): string {
+	if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) return iso;
+	const d = new Date(iso + 'T00:00:00');
+	d.setDate(d.getDate() + dias);
+	return d.toISOString().slice(0, 10);
+}
+
+/**
+ * Diferença INCLUSIVA em dias entre duas datas ISO (`fim` >= `inicio`):
+ * "2026-01-01" a "2026-01-01" = 1 dia. Retorna 0 se as datas forem inválidas
+ * ou se `fim` < `inicio`.
+ */
+export function diffDiasInclusivo(inicio: string, fim: string): number {
+	if (!/^\d{4}-\d{2}-\d{2}$/.test(inicio) || !/^\d{4}-\d{2}-\d{2}$/.test(fim)) return 0;
+	const ms = new Date(fim + 'T00:00:00').getTime() - new Date(inicio + 'T00:00:00').getTime();
+	if (ms < 0) return 0;
+	return Math.round(ms / 86_400_000) + 1;
+}
+
+/**
+ * Aplica a máscara de NUP (Número Único de Protocolo): `00000.000000/0000-00`.
+ * Vai preenchendo os separadores conforme o usuário digita (até 17 dígitos).
+ */
+export function formatarNUP(v: string): string {
+	const d = v.replace(/\D/g, '').slice(0, 17);
+	let out = d.slice(0, 5);
+	if (d.length > 5) out += '.' + d.slice(5, 11);
+	if (d.length > 11) out += '/' + d.slice(11, 15);
+	if (d.length > 15) out += '-' + d.slice(15, 17);
+	return out;
+}
 /**
  * Retorna a data/hora atual ajustada para o fuso de Brasília/Fortaleza (UTC-3).
  * Útil para ambientes como Cloudflare Workers que operam em UTC.

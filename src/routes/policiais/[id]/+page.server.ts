@@ -2,6 +2,8 @@ import { redirect, fail, error } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
 import {
 	getDB,
+	getR2,
+	hasR2,
 	buscarPolicial,
 	atualizarPolicial,
 	listarLotacoes,
@@ -10,13 +12,82 @@ import {
 	vincularAdminGeral,
 	desvincularAdminGeral,
 	ehAdminGeralVinculado,
+	registrarHistorico,
+	listarHistoricoPolicial,
+	afastamentoVigente,
 	auditar,
 	contextoDeEvento
 } from '$lib/db';
 import { policialUpdateSchema } from '$lib/schemas/policial';
+import {
+	movimentacaoSchema,
+	afastamentoSchema,
+	desvinculacaoSchema,
+	LABEL_SUBTIPO_AFASTAMENTO
+} from '$lib/schemas/policial-historico';
 import { isAdminGeral, isAdminSeccional, isAdminUnidade } from '$lib/auth';
 import { lotacoesAdministradas, lotacaoNoEscopo } from '$lib/server/policial-permissao';
 import { decifrarCpfDoDB } from '$lib/crypto/cpf-cripto';
+import type { RequestEvent } from './$types';
+
+/** Data de hoje no fuso de Brasília (UTC-3) no formato ISO YYYY-MM-DD. */
+function hojeBrasilISO(): string {
+	return new Date(Date.now() - 3 * 3_600_000).toISOString().slice(0, 10);
+}
+
+const TAMANHO_MAX_PDF = 10 * 1024 * 1024; // 10 MB
+
+/**
+ * Faz upload best-effort de um PDF anexo (Portaria/Documento) para o R2 e
+ * devolve `{ key, nome }`, ou `null` quando nenhum arquivo foi enviado.
+ * Lança `Error` com mensagem amigável em caso de arquivo inválido.
+ */
+async function uploadDocumento(
+	event: RequestEvent,
+	formData: FormData,
+	policialId: number
+): Promise<{ key: string; nome: string } | null> {
+	const arquivo = formData.get('documento');
+	if (!(arquivo instanceof File) || arquivo.size === 0) return null;
+
+	if (arquivo.type && arquivo.type !== 'application/pdf') {
+		throw new Error('O documento deve ser um PDF.');
+	}
+	if (arquivo.size > TAMANHO_MAX_PDF) {
+		throw new Error('O documento excede o tamanho máximo de 10 MB.');
+	}
+	if (!hasR2(event.platform)) {
+		throw new Error('Armazenamento de documentos indisponível no momento.');
+	}
+
+	const key = `policial-historico/${policialId}/${crypto.randomUUID()}.pdf`;
+	const bytes = await arquivo.arrayBuffer();
+	await getR2(event.platform).put(key, bytes, {
+		httpMetadata: { contentType: 'application/pdf' }
+	});
+	const nome = arquivo.name?.slice(0, 200) || 'documento.pdf';
+	return { key, nome };
+}
+
+/**
+ * Autoriza a ação e devolve o `{ db, alvo }`, ou uma `Response`/objeto `fail`.
+ * Todas as operações de histórico são restritas ao Admin Geral (a própria
+ * página já exige isso no `load`).
+ */
+async function autorizarAcao(event: RequestEvent) {
+	const { locals, platform, params } = event;
+	const u = locals.usuario;
+	if (!u || !isAdminGeral(u)) {
+		return { erro: fail(403, { error: 'Apenas o Admin Geral pode registrar movimentações.' }) };
+	}
+	const id = Number(params.id);
+	if (isNaN(id)) return { erro: fail(400, { error: 'ID inválido' }) };
+
+	const db = getDB(platform);
+	const alvo = await buscarPolicial(db, id);
+	if (!alvo) return { erro: fail(404, { error: 'Policial não encontrado' }) };
+	return { u, db, id, alvo };
+}
 
 export const load: PageServerLoad = async ({ locals, params, platform }) => {
 	const u = locals.usuario;
@@ -37,15 +108,18 @@ export const load: PageServerLoad = async ({ locals, params, platform }) => {
 	const isSeccional = isAdminSeccional(u);
 	const isUnidade = isAdminUnidade(u);
 
-	const [lotacoes, todasUnidades, ehAdminGeral] = await Promise.all([
+	const [lotacoes, todasUnidades, ehAdminGeral, historico] = await Promise.all([
 		isAdm ? listarLotacoes(db) : Promise.resolve<string[]>([]),
 		isAdm || isSeccional || isUnidade ? listarUnidades(db) : Promise.resolve([]),
-		ehAdminGeralVinculado(db, id)
+		ehAdminGeralVinculado(db, id),
+		listarHistoricoPolicial(db, id)
 	]);
 
 	// CPF é cifrado em repouso (LGPD) — decifra para o formulário de edição
 	// (público restrito a Admin Geral).
 	const cpfClaro = await decifrarCpfDoDB(policial.cpf, platform?.env);
+
+	const afastamentoAtual = afastamentoVigente(historico, hojeBrasilISO());
 
 	return {
 		policial: {
@@ -59,7 +133,9 @@ export const load: PageServerLoad = async ({ locals, params, platform }) => {
 		isAdmin: isAdm,
 		isAdminOrSeccional: isAdm || isSeccional,
 		isAdminUnidade: isUnidade,
-		ehAdminGeral
+		ehAdminGeral,
+		historico,
+		afastamentoVigenteId: afastamentoAtual?.id ?? null
 	};
 };
 
@@ -70,6 +146,32 @@ function semCamposSensiveis(o: Record<string, unknown>): Record<string, unknown>
 	delete copia.senha;
 	delete copia.cpf_index;
 	return copia;
+}
+
+/** Campos que mudam com frequência técnica e não interessam ao histórico funcional. */
+const CAMPOS_IGNORAR_DIFF = new Set(['updated_at', 'created_at', 'id']);
+
+/**
+ * Compara dois snapshots e devolve apenas os campos cujo valor mudou, em dois
+ * objetos paralelos (`antes`/`depois`). Usado para não registrar "edições" que
+ * não alteraram nada e para deixar o histórico legível.
+ */
+function camposAlterados(
+	antes: Record<string, unknown>,
+	depois: Record<string, unknown>
+): { antes: Record<string, unknown>; depois: Record<string, unknown> } {
+	const difAntes: Record<string, unknown> = {};
+	const difDepois: Record<string, unknown> = {};
+	for (const chave of Object.keys(depois)) {
+		if (CAMPOS_IGNORAR_DIFF.has(chave)) continue;
+		const va = antes[chave] ?? null;
+		const vd = depois[chave] ?? null;
+		if (va !== vd) {
+			difAntes[chave] = va;
+			difDepois[chave] = vd;
+		}
+	}
+	return { antes: difAntes, depois: difDepois };
 }
 
 export const actions: Actions = {
@@ -127,6 +229,24 @@ export const actions: Actions = {
 				{ ...parsed.data, email: data.email ?? undefined },
 				platform?.env
 			);
+			const antes = semCamposSensiveis(alvo);
+			const depois = semCamposSensiveis({ ...parsed.data, email: data.email ?? undefined });
+
+			// Registra no histórico funcional apenas os campos que de fato mudaram,
+			// para a linha do tempo não poluir com "edições" sem alteração real.
+			const diff = camposAlterados(antes, depois);
+			if (Object.keys(diff.antes).length > 0) {
+				await registrarHistorico(db, {
+					policial_id: id,
+					tipo: 'edicao',
+					descricao: `Cadastro editado: ${Object.keys(diff.depois).join(', ')}`,
+					dados_antes: diff.antes,
+					dados_depois: diff.depois,
+					registrado_por_id: u.id,
+					registrado_por_nome: u.nome
+				});
+			}
+
 			const { contexto, env } = contextoDeEvento(event);
 			await auditar(
 				db,
@@ -139,8 +259,8 @@ export const actions: Actions = {
 					alvo_id: id,
 					alvo_nome: parsed.data.nome,
 					detalhes: `Policial editado: ${parsed.data.nome} (mat. ${parsed.data.matricula})`,
-					dados_antes: semCamposSensiveis(alvo),
-					dados_depois: semCamposSensiveis({ ...parsed.data, email: data.email ?? undefined }),
+					dados_antes: antes,
+					dados_depois: depois,
 					...contexto
 				},
 				{ env }
@@ -173,6 +293,21 @@ export const actions: Actions = {
 		const db = getDB(platform);
 		const alvo = await buscarPolicial(db, id);
 		await promoverPolicial(db, id, papel, papelUnidadeId);
+
+		if (u) {
+			await registrarHistorico(db, {
+				policial_id: id,
+				tipo: 'papel',
+				descricao: `Papel administrativo alterado para ${papel ?? 'nenhum'}`,
+				dados_antes: {
+					papel: alvo?.papel ?? null,
+					papel_unidade_id: alvo?.papel_unidade_id ?? null
+				},
+				dados_depois: { papel, papel_unidade_id: papelUnidadeId },
+				registrado_por_id: u.id,
+				registrado_por_nome: u.nome
+			});
+		}
 
 		const { contexto, env } = contextoDeEvento(event);
 		await auditar(
@@ -250,6 +385,182 @@ export const actions: Actions = {
 			{ env }
 		);
 		return { success: true };
+	},
+
+	// ---- Movimentação: transfere a lotação e registra no histórico ----
+	registrarMovimentacao: async (event) => {
+		const auth = await autorizarAcao(event);
+		if ('erro' in auth) return auth.erro;
+		const { u, db, id, alvo } = auth;
+
+		const formData = await event.request.formData();
+		const parsed = movimentacaoSchema.safeParse({
+			unidade_destino: formData.get('unidade_destino')?.toString() || '',
+			data_evento: formData.get('data_evento')?.toString() || '',
+			nup: formData.get('nup')?.toString() || ''
+		});
+		if (!parsed.success) return fail(400, { error: parsed.error.issues[0].message });
+
+		let doc: { key: string; nome: string } | null;
+		try {
+			doc = await uploadDocumento(event, formData, id);
+		} catch (e) {
+			return fail(400, { error: e instanceof Error ? e.message : 'Falha no upload do documento' });
+		}
+
+		const origem = alvo.lotacao || '';
+		if (parsed.data.unidade_destino === origem) {
+			return fail(400, { error: 'A unidade de destino é igual à unidade atual.' });
+		}
+		await atualizarPolicial(db, id, { lotacao: parsed.data.unidade_destino });
+		await registrarHistorico(db, {
+			policial_id: id,
+			tipo: 'movimentacao',
+			unidade_origem: origem,
+			unidade_destino: parsed.data.unidade_destino,
+			data_evento: parsed.data.data_evento,
+			nup: parsed.data.nup || null,
+			documento_r2_key: doc?.key ?? null,
+			documento_nome: doc?.nome ?? null,
+			registrado_por_id: u.id,
+			registrado_por_nome: u.nome
+		});
+		const { contexto, env } = contextoDeEvento(event);
+		await auditar(
+			db,
+			{
+				acao: 'registrar_movimentacao',
+				usuario: u,
+				entidade: 'policial',
+				entidade_id: id,
+				alvo_tipo: 'policial',
+				alvo_id: id,
+				alvo_nome: alvo.nome,
+				detalhes: `Movimentação: ${origem || '—'} → ${parsed.data.unidade_destino}`,
+				metadados: { nup: parsed.data.nup || null, data: parsed.data.data_evento },
+				...contexto
+			},
+			{ env }
+		);
+		return { success: true, tipo: 'movimentacao' };
+	},
+
+	// ---- Afastamento: férias/licenças (apenas registra na linha do tempo) ----
+	registrarAfastamento: async (event) => {
+		const auth = await autorizarAcao(event);
+		if ('erro' in auth) return auth.erro;
+		const { u, db, id, alvo } = auth;
+
+		const formData = await event.request.formData();
+		const qtdRaw = formData.get('qtd_dias')?.toString() || '';
+		const parsed = afastamentoSchema.safeParse({
+			subtipo: formData.get('subtipo')?.toString() || '',
+			descricao: formData.get('descricao')?.toString() || '',
+			data_inicio: formData.get('data_inicio')?.toString() || '',
+			data_fim: formData.get('data_fim')?.toString() || '',
+			qtd_dias: qtdRaw === '' ? undefined : qtdRaw,
+			nup: formData.get('nup')?.toString() || ''
+		});
+		if (!parsed.success) return fail(400, { error: parsed.error.issues[0].message });
+		if (parsed.data.data_fim < parsed.data.data_inicio) {
+			return fail(400, { error: 'A data final não pode ser anterior à data inicial.' });
+		}
+
+		let doc: { key: string; nome: string } | null;
+		try {
+			doc = await uploadDocumento(event, formData, id);
+		} catch (e) {
+			return fail(400, { error: e instanceof Error ? e.message : 'Falha no upload do documento' });
+		}
+
+		await registrarHistorico(db, {
+			policial_id: id,
+			tipo: 'afastamento',
+			subtipo: parsed.data.subtipo,
+			descricao: parsed.data.descricao || null,
+			data_inicio: parsed.data.data_inicio,
+			data_fim: parsed.data.data_fim,
+			qtd_dias: parsed.data.qtd_dias ?? null,
+			nup: parsed.data.nup || null,
+			documento_r2_key: doc?.key ?? null,
+			documento_nome: doc?.nome ?? null,
+			registrado_por_id: u.id,
+			registrado_por_nome: u.nome
+		});
+		const { contexto, env } = contextoDeEvento(event);
+		await auditar(
+			db,
+			{
+				acao: 'registrar_afastamento',
+				usuario: u,
+				entidade: 'policial',
+				entidade_id: id,
+				alvo_tipo: 'policial',
+				alvo_id: id,
+				alvo_nome: alvo.nome,
+				detalhes: `Afastamento (${LABEL_SUBTIPO_AFASTAMENTO[parsed.data.subtipo]}): ${parsed.data.data_inicio} a ${parsed.data.data_fim}`,
+				metadados: { subtipo: parsed.data.subtipo, nup: parsed.data.nup || null },
+				...contexto
+			},
+			{ env }
+		);
+		return { success: true, tipo: 'afastamento' };
+	},
+
+	// ---- Desvinculação: baixa do policial (inativa e registra) ----
+	registrarDesvinculacao: async (event) => {
+		const auth = await autorizarAcao(event);
+		if ('erro' in auth) return auth.erro;
+		const { u, db, id, alvo } = auth;
+
+		const formData = await event.request.formData();
+		const parsed = desvinculacaoSchema.safeParse({
+			destino: formData.get('destino')?.toString() || '',
+			data_evento: formData.get('data_evento')?.toString() || '',
+			nup: formData.get('nup')?.toString() || ''
+		});
+		if (!parsed.success) return fail(400, { error: parsed.error.issues[0].message });
+
+		let doc: { key: string; nome: string } | null;
+		try {
+			doc = await uploadDocumento(event, formData, id);
+		} catch (e) {
+			return fail(400, { error: e instanceof Error ? e.message : 'Falha no upload do documento' });
+		}
+
+		await atualizarPolicial(db, id, { ativo: 0 });
+		await registrarHistorico(db, {
+			policial_id: id,
+			tipo: 'desvinculacao',
+			descricao: parsed.data.destino,
+			unidade_origem: alvo.lotacao || '',
+			unidade_destino: parsed.data.destino,
+			data_evento: parsed.data.data_evento,
+			nup: parsed.data.nup || null,
+			documento_r2_key: doc?.key ?? null,
+			documento_nome: doc?.nome ?? null,
+			registrado_por_id: u.id,
+			registrado_por_nome: u.nome
+		});
+		const { contexto, env } = contextoDeEvento(event);
+		await auditar(
+			db,
+			{
+				acao: 'desvincular_policial',
+				usuario: u,
+				entidade: 'policial',
+				entidade_id: id,
+				alvo_tipo: 'policial',
+				alvo_id: id,
+				alvo_nome: alvo.nome,
+				resultado: 'sucesso',
+				detalhes: `Desvinculação de ${alvo.nome} (mat. ${alvo.matricula}) → ${parsed.data.destino}`,
+				metadados: { nup: parsed.data.nup || null, data: parsed.data.data_evento },
+				...contexto
+			},
+			{ env }
+		);
+		return { success: true, tipo: 'desvinculacao' };
 	}
 };
 

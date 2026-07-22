@@ -1,6 +1,13 @@
-import type { Policial, Escala, EscalaPolicial, Unidade, GisePresenca } from './server/schema';
+import type {
+	Policial,
+	Escala,
+	EscalaPolicial,
+	Unidade,
+	GisePresenca,
+	PolicialHistorico
+} from './server/schema';
 
-export type { Policial, Escala, Unidade };
+export type { Policial, Escala, Unidade, PolicialHistorico };
 
 /** Item do formulário GISE (modelo operacional / SEINT em JSON). */
 export interface GiseModeloPerguntaConfig {

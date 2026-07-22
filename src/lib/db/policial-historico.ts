@@ -1,0 +1,105 @@
+import { eq, desc } from 'drizzle-orm';
+import { policialHistorico } from '../server/schema';
+import type { PolicialHistorico } from '../server/schema';
+import type { Database } from './core';
+
+export type TipoHistorico = 'movimentacao' | 'afastamento' | 'desvinculacao' | 'edicao' | 'papel';
+
+/** Dados para registrar um evento no histórico funcional do policial. */
+export interface NovoEventoHistorico {
+	policial_id: number;
+	tipo: TipoHistorico;
+	subtipo?: string | null;
+	descricao?: string | null;
+	unidade_origem?: string | null;
+	unidade_destino?: string | null;
+	data_evento?: string | null;
+	data_inicio?: string | null;
+	data_fim?: string | null;
+	qtd_dias?: number | null;
+	nup?: string | null;
+	documento_r2_key?: string | null;
+	documento_nome?: string | null;
+	dados_antes?: Record<string, unknown> | null;
+	dados_depois?: Record<string, unknown> | null;
+	registrado_por_id?: number | null;
+	registrado_por_nome?: string | null;
+}
+
+function comoJson(v: Record<string, unknown> | null | undefined): string | null {
+	if (v == null) return null;
+	try {
+		return JSON.stringify(v);
+	} catch {
+		return null;
+	}
+}
+
+/** Insere um evento imutável na linha do tempo do policial e devolve o id gerado. */
+export async function registrarHistorico(
+	db: Database,
+	evento: NovoEventoHistorico
+): Promise<number> {
+	const row = await db
+		.insert(policialHistorico)
+		.values({
+			policial_id: evento.policial_id,
+			tipo: evento.tipo,
+			subtipo: evento.subtipo ?? null,
+			descricao: evento.descricao ?? null,
+			unidade_origem: evento.unidade_origem ?? null,
+			unidade_destino: evento.unidade_destino ?? null,
+			data_evento: evento.data_evento ?? null,
+			data_inicio: evento.data_inicio ?? null,
+			data_fim: evento.data_fim ?? null,
+			qtd_dias: evento.qtd_dias ?? null,
+			nup: evento.nup ?? null,
+			documento_r2_key: evento.documento_r2_key ?? null,
+			documento_nome: evento.documento_nome ?? null,
+			dados_antes: comoJson(evento.dados_antes),
+			dados_depois: comoJson(evento.dados_depois),
+			registrado_por_id: evento.registrado_por_id ?? null,
+			registrado_por_nome: evento.registrado_por_nome ?? null
+		})
+		.returning({ id: policialHistorico.id });
+	return row[0]?.id;
+}
+
+/** Lista o histórico de um policial, do mais recente para o mais antigo. */
+export async function listarHistoricoPolicial(
+	db: Database,
+	policialId: number
+): Promise<PolicialHistorico[]> {
+	return db
+		.select()
+		.from(policialHistorico)
+		.where(eq(policialHistorico.policial_id, policialId))
+		.orderBy(desc(policialHistorico.created_at), desc(policialHistorico.id));
+}
+
+/** Busca um evento específico (para download do documento / verificação de permissão). */
+export async function buscarEventoHistorico(
+	db: Database,
+	eventoId: number
+): Promise<PolicialHistorico | undefined> {
+	return db.select().from(policialHistorico).where(eq(policialHistorico.id, eventoId)).get();
+}
+
+/**
+ * Deriva se o policial está em afastamento HOJE a partir do histórico já
+ * carregado (evita nova ida ao banco). Considera o afastamento vigente quando
+ * `data_inicio <= hoje <= data_fim` (ou sem `data_fim`, aberto). Devolve o
+ * evento vigente ou `null`.
+ */
+export function afastamentoVigente(
+	historico: PolicialHistorico[],
+	hojeISO: string
+): PolicialHistorico | null {
+	for (const ev of historico) {
+		if (ev.tipo !== 'afastamento' || !ev.data_inicio) continue;
+		const inicio = ev.data_inicio;
+		const fim = ev.data_fim || null;
+		if (inicio <= hojeISO && (!fim || hojeISO <= fim)) return ev;
+	}
+	return null;
+}
