@@ -360,6 +360,8 @@ Verificar cada transição de status:
 ### 10.4 Logs técnicos (`/auditoria/logs`)
 
 > Acesso exclusivo do **Super Admin** (mesma política de `/auditoria`). Grava apenas `warn`/`error` do servidor; a persistência acontece após a resposta (waitUntil), então o registro pode levar alguns segundos para aparecer.
+>
+> `[E2E: auditoria-logs.spec.ts]` prova o pipeline inteiro: um `logger.warn` real (webhook com bearer inválido) → flush pós-resposta → `app_log` → o console exibe o registro filtrado por busca. O redirect de não-Super-Admin está em `boas-vindas-rbac.spec.ts`.
 
 - [ ] Botão "Logs técnicos" no cabeçalho de `/auditoria` abre a página
 - [ ] Provocar um aviso (ex.: chamar um webhook com token errado) → registro aparece com nível "Aviso", rota e Request ID
@@ -371,6 +373,8 @@ Verificar cada transição de status:
 ---
 
 ## 11. Produtividade (`/produtividade`)
+
+> `[E2E: produtividade.spec.ts]` cobre o acesso: Admin Geral entra e vê o dashboard; policial → 403; anônimo → `/login`. A agregação (stats/rankings) tem cobertura unitária em `produtividade/stats`. Manual: gráficos/filtros com dados reais.
 
 - [ ] Carregar dados de produtividade das GISE finalizadas
 - [ ] Gráficos renderizados corretamente
