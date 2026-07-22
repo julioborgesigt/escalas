@@ -6,6 +6,8 @@
 	import { formatarTelefone, formatarCPF } from '$lib/utils';
 	import { loading } from '$lib/loading.svelte';
 	import type { ActionResult } from '@sveltejs/kit';
+	import PainelAcoesServidor from './_components/PainelAcoesServidor.svelte';
+	import HistoricoServidor from './_components/HistoricoServidor.svelte';
 
 	const { data }: PageProps = $props();
 
@@ -307,4 +309,18 @@
 			</form>
 		</div>
 	</div>
+{/if}
+
+{#if isAdmin}
+	<PainelAcoesServidor
+		policial={{
+			id: data.policial.id,
+			nome: data.policial.nome,
+			matricula: data.policial.matricula,
+			lotacao: data.policial.lotacao
+		}}
+		lotacoes={data.lotacoes}
+	/>
+
+	<HistoricoServidor historico={data.historico} afastamentoVigenteId={data.afastamentoVigenteId} />
 {/if}

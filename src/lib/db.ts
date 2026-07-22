@@ -85,6 +85,14 @@ export {
 export type { CampoSolicitacao, SolicitacaoPendenteComPolicial } from './db/cadastro-solicitacoes';
 
 export {
+	registrarHistorico,
+	listarHistoricoPolicial,
+	buscarEventoHistorico,
+	afastamentoVigente
+} from './db/policial-historico';
+export type { NovoEventoHistorico, TipoHistorico } from './db/policial-historico';
+
+export {
 	listarUnidades,
 	criarUnidade,
 	atualizarUnidade,

@@ -116,6 +116,21 @@ export const CATALOGO_ACOES = {
 		categoria: 'policial',
 		severidade: 'aviso'
 	},
+	registrar_movimentacao: {
+		label: 'Movimentação de policial (transferência)',
+		categoria: 'policial',
+		severidade: 'aviso'
+	},
+	registrar_afastamento: {
+		label: 'Registro de afastamento de policial',
+		categoria: 'policial',
+		severidade: 'info'
+	},
+	desvincular_policial: {
+		label: 'Desvinculação (baixa) de policial',
+		categoria: 'policial',
+		severidade: 'critico'
+	},
 
 	// Unidades
 	criar_unidade: { label: 'Criação de unidade', categoria: 'unidade', severidade: 'aviso' },

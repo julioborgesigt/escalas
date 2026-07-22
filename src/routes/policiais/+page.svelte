@@ -813,6 +813,11 @@
 										>
 											Editar
 										</button>
+										<a
+											href="/policiais/{p.id}"
+											class="btn btn-sm preset-outlined-surface-500"
+											title="Histórico e movimentações">Histórico</a
+										>
 										<button
 											type="button"
 											class="btn btn-sm preset-filled-error-500 transition-all"
@@ -873,6 +878,11 @@
 							>
 								Editar
 							</button>
+							<a
+								href="/policiais/{p.id}"
+								class="btn btn-sm preset-outlined-surface-500 flex-1 text-center"
+								title="Histórico e movimentações">Histórico</a
+							>
 							<button
 								type="button"
 								class="btn btn-sm preset-filled-error-500 transition-all flex-1 transition-all"

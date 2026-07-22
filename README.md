@@ -188,27 +188,28 @@ O projeto usa **Cloudflare D1** (SQLite serverless) via **Drizzle ORM**. O schem
 
 ### Principais tabelas
 
-| Tabela                           | Descrição                                                                          |
-| -------------------------------- | ---------------------------------------------------------------------------------- |
-| `policiais`                      | Servidores (matrícula, CPF, cargo, lotação, senha PBKDF2, papel RBAC)              |
-| `administradores`                | Admins gerais do sistema                                                           |
-| `sessoes`                        | Sessões ativas (token, tipo, expiração em 8h)                                      |
-| `escalas`                        | Escalas de plantão, expediente e FDS                                               |
-| `escala_policiais`               | Associação policial ↔ escala (data, horário, equipe)                               |
-| `escala_documentos`              | PDFs assinados com metadados CAdES-LT (OCSP, TST, selfie, GPS, IP)                 |
-| `escala_solicitacoes_assinatura` | Solicitações de assinatura por unidade/respondência                                |
-| `unidades`                       | Hierarquia: departamento → seccional → delegacia                                   |
-| `gise_escalas`                   | GISE operacionais (status, supervisor, assessor, configuração)                     |
-| `gise_seccionais`                | Seccionais dentro de uma GISE                                                      |
-| `gise_equipes`                   | Equipes (operacional/SEINT) com slots DPC/OIP                                      |
-| `gise_membros`                   | Associação policial ↔ equipe GISE                                                  |
-| `gise_presencas`                 | Registros de entrada/saída (GPS, selfie, rubrica)                                  |
-| `gise_documentos`                | PDFs assinados de GISE                                                             |
-| `gise_respostas_formulario`      | Respostas de formulários (JSON) por policial/equipe                                |
-| `gise_assinaturas_relatorios`    | Assinaturas de relatórios de extra/produtividade                                   |
-| `aceites_termos`                 | Histórico de aceite de termos de uso (versão, hash, IP, user-agent)                |
-| `audit_log`                      | Trilha de auditoria forense (eventos de negócio, cadeia de hash tamper-evident)    |
-| `app_log`                        | Logs técnicos do servidor (warn/error do logger, correlacionados por `request_id`) |
+| Tabela                           | Descrição                                                                                                           |
+| -------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| `policiais`                      | Servidores (matrícula, CPF, cargo, lotação, senha PBKDF2, papel RBAC)                                               |
+| `policial_historico`             | Histórico funcional por servidor (movimentações, afastamentos, desvinculações, diffs de edição) com PDF anexo no R2 |
+| `administradores`                | Admins gerais do sistema                                                                                            |
+| `sessoes`                        | Sessões ativas (token, tipo, expiração em 8h)                                                                       |
+| `escalas`                        | Escalas de plantão, expediente e FDS                                                                                |
+| `escala_policiais`               | Associação policial ↔ escala (data, horário, equipe)                                                                |
+| `escala_documentos`              | PDFs assinados com metadados CAdES-LT (OCSP, TST, selfie, GPS, IP)                                                  |
+| `escala_solicitacoes_assinatura` | Solicitações de assinatura por unidade/respondência                                                                 |
+| `unidades`                       | Hierarquia: departamento → seccional → delegacia                                                                    |
+| `gise_escalas`                   | GISE operacionais (status, supervisor, assessor, configuração)                                                      |
+| `gise_seccionais`                | Seccionais dentro de uma GISE                                                                                       |
+| `gise_equipes`                   | Equipes (operacional/SEINT) com slots DPC/OIP                                                                       |
+| `gise_membros`                   | Associação policial ↔ equipe GISE                                                                                   |
+| `gise_presencas`                 | Registros de entrada/saída (GPS, selfie, rubrica)                                                                   |
+| `gise_documentos`                | PDFs assinados de GISE                                                                                              |
+| `gise_respostas_formulario`      | Respostas de formulários (JSON) por policial/equipe                                                                 |
+| `gise_assinaturas_relatorios`    | Assinaturas de relatórios de extra/produtividade                                                                    |
+| `aceites_termos`                 | Histórico de aceite de termos de uso (versão, hash, IP, user-agent)                                                 |
+| `audit_log`                      | Trilha de auditoria forense (eventos de negócio, cadeia de hash tamper-evident)                                     |
+| `app_log`                        | Logs técnicos do servidor (warn/error do logger, correlacionados por `request_id`)                                  |
 
 ### Comandos de migração
 
@@ -461,13 +462,13 @@ O aceite do termo de uso é obrigatório a cada nova versão. Qualquer mudança 
 
 ### Papéis (RBAC)
 
-| Tipo                     | Papel             | Acesso                                                                                                                                     |
-| ------------------------ | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| Tipo                     | Papel             | Acesso                                                                                                                                                  |
+| ------------------------ | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `admin` + `isSuperAdmin` | Super Admin       | Tudo do Admin Geral **mais**: promover admins, gerenciar policiais/unidades, configurar política de assinatura, baixar o forense pelo portal `/validar` |
-| `admin`                  | Admin Geral       | Operação global (escalas, GISE, LGPD/compliance) em todas as unidades — não remodela a base; consoles de auditoria são do Super Admin      |
-| `policial`               | `admin_seccional` | Gerencia escalas e policiais da sua seccional                                                                                              |
-| `policial`               | `admin_unidade`   | Gerencia escalas da sua unidade                                                                                                            |
-| `policial`               | —                 | Acessa apenas suas próprias escalas e GISE                                                                                                 |
+| `admin`                  | Admin Geral       | Operação global (escalas, GISE, LGPD/compliance) em todas as unidades — não remodela a base; consoles de auditoria são do Super Admin                   |
+| `policial`               | `admin_seccional` | Gerencia escalas e policiais da sua seccional                                                                                                           |
+| `policial`               | `admin_unidade`   | Gerencia escalas da sua unidade                                                                                                                         |
+| `policial`               | —                 | Acessa apenas suas próprias escalas e GISE                                                                                                              |
 
 A matriz completa de capacidades por papel está em [`DEPLOY.md`](DEPLOY.md#papéis-e-privilégios-de-administrador). Membros de GISE têm papéis adicionais (`supervisor`, `assessor/SEINT`, `membro`) calculados dinamicamente a partir da tabela `gise_membros`.
 
