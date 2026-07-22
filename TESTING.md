@@ -383,6 +383,8 @@ Verificar cada transição de status:
 ## 12. Configurações de Assinatura (`/conf-ass`)
 
 > Acesso exclusivo do **Super Admin**. As flags são cacheadas no edge por até 5 min — a alteração deve refletir no fluxo de assinatura em ≤ 5 min.
+>
+> `[E2E: conf-ass.spec.ts]` cobre: GET com flags + `bloqueados` (base legal); anônimo barrado (CSRF antes da auth) e Admin Geral → 403; **invariante legal** — nem o Super Admin desliga o 2FA (PUT `false` → 400 e GET segue `true`); PUT vazio → 400; e a **invalidação do cache edge** (PUT → GET reflete na hora, sem esperar o TTL). Manual: o efeito das flags na tela de assinatura real.
 
 - [ ] Visualizar configuração atual das flags de assinatura
 - [ ] Ligar/desligar `exigir_foto_assinatura` → refletido na próxima assinatura
