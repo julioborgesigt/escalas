@@ -450,3 +450,12 @@ Verificar cada transição de status:
 
 - [ ] (manual) Rodar o menu "🚀 Sincronização D1" da planilha real → policiais/unidades refletidos no sistema
 - [ ] (manual) Reset destrutivo com as 3 credenciais corretas em ambiente de teste → tabelas operacionais zeradas com snapshot no log
+
+---
+
+## 19. Direitos do Titular — LGPD art. 18
+
+> `[E2E: lgpd-solicitacoes.spec.ts]` cobre o ciclo completo: o titular abre a solicitação (`/api/lgpd/solicitar` → 201) e a vê na sua lista; um policial não acessa a lista administrativa (403); o Admin Geral lista, detalha e responde (conclui); o titular vê o desfecho; reencerrar uma solicitação já concluída → 409.
+
+- [ ] (manual) Conferir o texto de prazo (15 dias úteis) e o e-mail do encarregado (DPO) exibidos ao titular
+- [ ] (manual) Fluxo pela UI (`/perfil` / painel LGPD) além dos endpoints
