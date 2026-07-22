@@ -52,10 +52,6 @@ export const desvinculacaoSchema = z.object({
 	nup: nupSchema
 });
 
-export type MovimentacaoInput = z.infer<typeof movimentacaoSchema>;
-export type AfastamentoInput = z.infer<typeof afastamentoSchema>;
-export type DesvinculacaoInput = z.infer<typeof desvinculacaoSchema>;
-
 /** Rótulos PT-BR dos subtipos de afastamento (fonte única para UI e histórico). */
 export const LABEL_SUBTIPO_AFASTAMENTO: Record<(typeof SUBTIPOS_AFASTAMENTO)[number], string> = {
 	ferias: 'Férias',
