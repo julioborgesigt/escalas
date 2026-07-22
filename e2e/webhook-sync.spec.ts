@@ -162,7 +162,9 @@ test.describe('Webhook sync — contrato + segurança', () => {
 			headers: {
 				...bearer(SYNC!),
 				'X-Reset-Token': 'nao-e-o-reset-token-correto-000000000000',
-				'X-Confirm-Reset': '2026-07-21'
+				// Data UTC corrente (a 3ª credencial) — irrelevante para o 401 deste
+				// caso (RESET_TOKEN ausente/errado falha antes), mas mantida realista.
+				'X-Confirm-Reset': new Date().toISOString().slice(0, 10)
 			},
 			data: {}
 		});

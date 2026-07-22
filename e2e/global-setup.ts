@@ -169,13 +169,6 @@ export default async function globalSetup() {
 		VALUES (${FIXTURE.giseEquipe.id}, ${FIXTURE.membroGise.id});
 		DELETE FROM gise_presencas WHERE gise_id = ${FIXTURE.gise.id};
 	`;
-	// Espelha produção: 2FA por e-mail obrigatório também nas presenças GISE
-	// (num banco zerado a flag nasce '0' e a action de presença pularia o 2FA —
-	// o serviço de assinatura força o 2FA independente dela, mas a presença lê
-	// a tabela direto). O spec presenca-gise depende disto.
-	execSqlSafe(
-		`INSERT OR REPLACE INTO configuracoes (chave, valor) VALUES ('exigir_codigo_email_assinatura', '1');`
-	);
 	const giseOk = execSqlSafe(giseSeed);
 	if (!giseOk) {
 		console.warn('[global-setup] Fixture GISE não foi seedada — specs de GISE vão pular.');

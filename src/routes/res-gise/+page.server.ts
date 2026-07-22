@@ -14,7 +14,6 @@ import {
 	salvarEntradaGise,
 	salvarSaidaGise,
 	salvarGiseModeloFormulario,
-	buscarExigirCodigoEmailAssinatura,
 	buscarRestringirSmartphone,
 	isSupervisaoGiseAtiva,
 	isSupervisorGiseAtiva,
@@ -24,6 +23,7 @@ import {
 	DEFAULT_QUESTIONS_FORM_OPERACIONAL
 } from '$lib/db';
 import { buscarUnidadeIdSupervisaoExtra } from '$lib/server/gise-supervisao-extra';
+import { lerFlagsAssinatura } from '$lib/server/cfg-ass-cache';
 import { verificarDesafio2FA } from '$lib/auth';
 import { logger } from '$lib/server/logger';
 import { uploadSelfieDataUri } from '$lib/server/selfie-upload';
@@ -422,7 +422,12 @@ export const actions: Actions = {
 
 		const db = getDB(platform);
 
-		const exigirCodigoEmail = await buscarExigirCodigoEmailAssinatura(db);
+		// Fonte ÚNICA das flags (mesma da UI e do signature-service): o cache
+		// força exigirCodigoEmail=true independentemente da linha no banco —
+		// requisito mínimo da assinatura avançada (Lei 14.063/2020 art. 4º II).
+		// A leitura crua do banco (default '0' num banco recém-instalado)
+		// deixava a presença pular o 2FA que a UI já coleta.
+		const exigirCodigoEmail = (await lerFlagsAssinatura(platform)).exigirCodigoEmailAssinatura;
 		if (exigirCodigoEmail) {
 			if (!codigoEmail || !desafioId) {
 				return fail(400, { error: 'Código de verificação por e-mail é obrigatório.', giseId });
@@ -510,7 +515,12 @@ export const actions: Actions = {
 
 		const db = getDB(platform);
 
-		const exigirCodigoEmail = await buscarExigirCodigoEmailAssinatura(db);
+		// Fonte ÚNICA das flags (mesma da UI e do signature-service): o cache
+		// força exigirCodigoEmail=true independentemente da linha no banco —
+		// requisito mínimo da assinatura avançada (Lei 14.063/2020 art. 4º II).
+		// A leitura crua do banco (default '0' num banco recém-instalado)
+		// deixava a presença pular o 2FA que a UI já coleta.
+		const exigirCodigoEmail = (await lerFlagsAssinatura(platform)).exigirCodigoEmailAssinatura;
 		if (exigirCodigoEmail) {
 			if (!codigoEmail || !desafioId) {
 				return fail(400, { error: 'Código de verificação por e-mail é obrigatório.', giseId });
