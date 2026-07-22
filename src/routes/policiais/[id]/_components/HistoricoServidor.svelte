@@ -10,7 +10,9 @@
 		ShieldCheck,
 		FileText,
 		History,
-		CircleDot
+		CircleDot,
+		ChevronLeft,
+		ChevronRight
 	} from 'lucide-svelte';
 
 	interface Props {
@@ -19,6 +21,18 @@
 	}
 
 	const { historico, afastamentoVigenteId }: Props = $props();
+
+	// Paginação client-side (o histórico completo já vem no load).
+	const ITENS_POR_PAGINA = 5;
+	let paginaAtual = $state(1);
+	const totalPaginas = $derived(Math.max(1, Math.ceil(historico.length / ITENS_POR_PAGINA)));
+	// Se o histórico encolher (ou crescer após invalidateAll), mantém a página válida.
+	$effect(() => {
+		if (paginaAtual > totalPaginas) paginaAtual = totalPaginas;
+	});
+	const historicoPagina = $derived(
+		historico.slice((paginaAtual - 1) * ITENS_POR_PAGINA, paginaAtual * ITENS_POR_PAGINA)
+	);
 
 	const META: Record<
 		string,
@@ -128,7 +142,7 @@
 		</p>
 	{:else}
 		<ol class="relative border-s-2 border-surface-200 dark:border-surface-700 ml-2 space-y-4">
-			{#each historico as ev (ev.id)}
+			{#each historicoPagina as ev (ev.id)}
 				{@const m = meta(ev.tipo)}
 				{@const Icone = m.icon}
 				<li class="ms-5">
@@ -216,5 +230,35 @@
 				</li>
 			{/each}
 		</ol>
+
+		{#if totalPaginas > 1}
+			<div
+				class="mt-4 pt-3 border-t border-surface-200 dark:border-white/5 flex items-center justify-between gap-2"
+			>
+				<span class="text-xs text-surface-500">
+					Página {paginaAtual} de {totalPaginas} · {historico.length} registro(s)
+				</span>
+				<div class="flex gap-1">
+					<button
+						type="button"
+						class="btn btn-sm preset-outlined-surface-500"
+						disabled={paginaAtual <= 1}
+						onclick={() => (paginaAtual = Math.max(1, paginaAtual - 1))}
+						aria-label="Página anterior"
+					>
+						<ChevronLeft size={16} />
+					</button>
+					<button
+						type="button"
+						class="btn btn-sm preset-outlined-surface-500"
+						disabled={paginaAtual >= totalPaginas}
+						onclick={() => (paginaAtual = Math.min(totalPaginas, paginaAtual + 1))}
+						aria-label="Próxima página"
+					>
+						<ChevronRight size={16} />
+					</button>
+				</div>
+			</div>
+		{/if}
 	{/if}
 </div>

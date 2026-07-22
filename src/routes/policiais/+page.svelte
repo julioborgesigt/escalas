@@ -11,7 +11,6 @@
 	import { apiFetch } from '$lib/api-fetch';
 	import PaginationControls from '$lib/components/PaginationControls.svelte';
 	import { Dialog, SegmentedControl } from '@skeletonlabs/skeleton-svelte';
-	import ToggleSwitch from '$lib/components/ToggleSwitch.svelte';
 	import { formatarTelefone, formatarCPF, limparCPF } from '$lib/utils';
 	import {
 		useAutorizacao,
@@ -31,12 +30,7 @@
 			pendingCadastro = false;
 			if (result.type === 'success') {
 				await invalidateAll();
-				toaster.create({
-					title: editingPolicialId
-						? 'Policial atualizado com sucesso!'
-						: 'Policial cadastrado com sucesso!',
-					type: 'success'
-				});
+				toaster.create({ title: 'Policial cadastrado com sucesso!', type: 'success' });
 				resetForm();
 				cadastroOpen = false;
 			} else {
@@ -141,22 +135,16 @@
 	// Papel administrativo no cadastro
 	let papel = $state<string | null>(null);
 	let papelUnidadeId = $state<number | null>(null);
-	let editingPolicialId = $state<number | null>(null);
 	let excluindo = $state(false);
 	let pendingCadastro = $state(false);
-	// Form da chave Admin Geral no modal de edição (submit via requestSubmit()).
-	let formAdminGeralLista = $state<HTMLFormElement>();
 
 	const seccionaisParaPapel = $derived(unidades.filter((u) => u.tipo === 'seccional'));
 	const unidadesParaAdmin = $derived(unidades.filter((u) => u.tipo !== 'seccional'));
 
 	$effect(() => {
+		// Aplica a lotação padrão ao abrir o cadastro.
 		if (cadastroOpen) {
-			// Só aplica lotação padrão ao abrir em modo cadastro.
-			// Em edição, preserva a lotação já carregada do policial.
-			if (!editingPolicialId) {
-				lotacaoInput = isAdmin ? '' : (data.lotacaoUsuario ?? '');
-			}
+			lotacaoInput = isAdmin ? '' : (data.lotacaoUsuario ?? '');
 		}
 	});
 
@@ -166,28 +154,8 @@
 	const lotacaoSelectedOption = $derived(
 		lotacaoInput ? { value: lotacaoInput, label: lotacaoInput } : null
 	);
-	const modalTitle = $derived(editingPolicialId ? 'Editar Policial' : 'Cadastrar Novo Policial');
-	const submitLabel = $derived(editingPolicialId ? 'Salvar Alterações' : 'Cadastrar Policial');
-	const submitLoadingLabel = $derived(editingPolicialId ? 'Salvando...' : 'Cadastrando...');
-
-	const ehAdminGeralSelecionado = $derived(
-		editingPolicialId != null && (data.adminGeralIds ?? []).includes(editingPolicialId)
-	);
-
-	function handleToggleAdminGeral() {
-		return async ({ result }: { result: ActionResult }) => {
-			if (result.type === 'success') {
-				toaster.create({ title: 'Condição de Admin Geral atualizada!', type: 'success' });
-				await invalidateAll();
-			} else if (result.type === 'failure') {
-				const d = result.data as Record<string, unknown> | undefined;
-				toaster.create({ title: String(d?.error || 'Erro ao atualizar'), type: 'error' });
-			}
-		};
-	}
 
 	function resetForm() {
-		editingPolicialId = null;
 		nome = '';
 		matricula = '';
 		cargo = 'OIP';
@@ -204,23 +172,6 @@
 
 	function openCreateModal() {
 		resetForm();
-		cadastroOpen = true;
-	}
-
-	function openEditModal(policial: Policial) {
-		editingPolicialId = policial.id;
-		nome = policial.nome ?? '';
-		matricula = policial.matricula ?? '';
-		cargo = (policial.cargo as 'DPC' | 'OIP') ?? 'OIP';
-		cpf = formatarCPF(policial.cpf ?? '');
-		telefone = policial.telefone ?? '';
-		classe = policial.classe ?? '';
-		regime = (policial.regime as 'plantao' | 'expediente') ?? 'plantao';
-		lotacaoInput = policial.lotacao ?? '';
-		email = policial.email ?? '';
-		emailPessoal = policial.email_pessoal ?? '';
-		papel = (policial.papel as string | null) ?? null;
-		papelUnidadeId = policial.papel_unidade_id ?? null;
 		cadastroOpen = true;
 	}
 
@@ -354,17 +305,16 @@
 		<div
 			class="cadastro-policial-modal card p-4 sm:p-5 max-w-2xl w-full max-h-[calc(100dvh-2rem)] overflow-y-auto card-elevated shadow-2xl rounded-2xl"
 		>
-			<Dialog.Title class="h3 font-bold mb-5">{modalTitle}</Dialog.Title>
+			<Dialog.Title class="h3 font-bold mb-5">Cadastrar Novo Policial</Dialog.Title>
 
 			<form
 				id="policialForm"
 				method="POST"
-				action={editingPolicialId ? '?/atualizar' : '?/criar'}
+				action="?/criar"
 				use:enhance={handleSalvarPolicial}
 				class="space-y-3"
 			>
 				<!-- Campos hidden -->
-				<input type="hidden" name="policial_id" value={editingPolicialId ?? ''} />
 				<input type="hidden" name="cpf" value={limparCPF(cpf)} />
 				<input type="hidden" name="telefone" value={telefone} />
 				<input type="hidden" name="lotacao" value={lotacaoInput} />
@@ -537,7 +487,7 @@
 				{/if}
 			</form>
 
-			{#if !editingPolicialId && isAdmin}
+			{#if isAdmin}
 				<label
 					class="mt-3 flex items-start gap-2 p-3 rounded-xl bg-surface-500/5 border border-surface-500/10 cursor-pointer"
 				>
@@ -558,41 +508,6 @@
 				</label>
 			{/if}
 
-			{#if editingPolicialId && isAdmin}
-				<div
-					class="mt-3 p-3 rounded-xl bg-surface-500/5 border border-surface-500/10 flex items-center gap-3 flex-wrap"
-				>
-					<div class="flex-1 min-w-[12rem]">
-						<h4 class="text-2xs font-bold uppercase opacity-60">Admin Geral</h4>
-						<p class="text-xs text-surface-500">
-							Loga com a mesma matrícula/senha escolhendo "Administrador". Cumulativo com o papel.
-						</p>
-					</div>
-					<form
-						method="POST"
-						action="?/toggleAdminGeral"
-						use:enhance={handleToggleAdminGeral}
-						bind:this={formAdminGeralLista}
-					>
-						<input type="hidden" name="policial_id" value={editingPolicialId} />
-						<input type="hidden" name="ativar" value={ehAdminGeralSelecionado ? '0' : '1'} />
-						<ToggleSwitch
-							checked={ehAdminGeralSelecionado}
-							disabled={pendingCadastro}
-							onCheckedChange={() => formAdminGeralLista?.requestSubmit()}
-						>
-							<span
-								class="text-xs font-semibold {ehAdminGeralSelecionado
-									? 'text-success-700 dark:text-success-400'
-									: 'text-surface-500'}"
-							>
-								{ehAdminGeralSelecionado ? 'É Admin Geral' : 'Não é Admin Geral'}
-							</span>
-						</ToggleSwitch>
-					</form>
-				</div>
-			{/if}
-
 			<div class="flex justify-end gap-2 pt-4 mt-3 border-t border-surface-200 dark:border-white/5">
 				<Dialog.CloseTrigger class="btn btn-sm preset-outlined-surface-500"
 					>Cancelar</Dialog.CloseTrigger
@@ -603,7 +518,7 @@
 					class="btn btn-sm sm:btn-md preset-filled-primary-500 w-full flex items-center justify-center gap-2"
 					disabled={pendingCadastro}
 				>
-					{pendingCadastro ? submitLoadingLabel : submitLabel}
+					{pendingCadastro ? 'Cadastrando...' : 'Cadastrar Policial'}
 				</button>
 			</div>
 		</div>
@@ -811,17 +726,10 @@
 								<td>{p.lotacao}</td>
 								<td>
 									<div class="flex gap-2">
-										<button
-											type="button"
-											class="btn btn-sm preset-outlined-primary-500"
-											onclick={() => openEditModal(p)}
-										>
-											Editar
-										</button>
 										<a
 											href="/policiais/{p.id}"
-											class="btn btn-sm preset-outlined-surface-500"
-											title="Histórico e movimentações">Histórico</a
+											class="btn btn-sm preset-outlined-primary-500"
+											title="Gerenciar cadastro, movimentações e histórico">Gerenciar</a
 										>
 										<button
 											type="button"
@@ -876,17 +784,10 @@
 							</div>
 						</div>
 						<div class="flex gap-2 pt-3 border-t border-surface-200 dark:border-white/5">
-							<button
-								type="button"
-								class="btn btn-sm preset-outlined-primary-500 hover:bg-primary-500/10 transition-all flex-1"
-								onclick={() => openEditModal(p)}
-							>
-								Editar
-							</button>
 							<a
 								href="/policiais/{p.id}"
-								class="btn btn-sm preset-outlined-surface-500 flex-1 text-center"
-								title="Histórico e movimentações">Histórico</a
+								class="btn btn-sm preset-outlined-primary-500 hover:bg-primary-500/10 transition-all flex-1 text-center"
+								title="Gerenciar cadastro, movimentações e histórico">Gerenciar</a
 							>
 							<button
 								type="button"

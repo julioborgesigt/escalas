@@ -230,91 +230,102 @@
 	</form>
 </div>
 
-{#if isAdminOrSeccional || isAdminUnidade}
-	<div class="card-glass p-3 sm:p-4 rounded-xl mt-4">
-		<h2 class="text-base font-bold mb-3 text-surface-700 dark:text-surface-300">
-			Papel Administrativo
-		</h2>
-		<form method="POST" action="?/salvarPapel" use:enhance={handleSalvarPapel} class="space-y-3">
-			<div class="grid grid-cols-1 sm:grid-cols-12 gap-2">
-				<label class="label sm:col-span-5">
-					<span class="label-text text-2xs font-bold uppercase opacity-70 ml-1">Papel</span>
-					<select class="select py-1 px-3 text-sm" name="papel" bind:value={papel}>
-						<option value={null}>Servidor (sem papel)</option>
-						{#if isAdminOrSeccional}
-							<option value="admin_seccional">Admin Seccional</option>
-						{/if}
-						<option value="admin_unidade">Admin Unidade</option>
-					</select>
-				</label>
-				{#if papel && !(isAdminUnidade && papel === 'admin_unidade')}
-					<label class="label sm:col-span-7">
-						<span class="label-text text-2xs font-bold uppercase opacity-70 ml-1">
-							{papel === 'admin_seccional'
-								? 'Seccional de responsabilidade'
-								: 'Unidade de responsabilidade'}
-						</span>
-						<select
-							class="select py-1 px-3 text-sm"
-							name="papel_unidade_id"
-							bind:value={papelUnidadeId}
-						>
-							<option value={null}>Selecionar...</option>
-							{#each papel === 'admin_seccional' ? seccionaisParaPapel : unidadesParaAdmin as u (u.id)}
-								<option value={u.id}>{u.nome}</option>
-							{/each}
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-4 items-stretch">
+	{#if isAdminOrSeccional || isAdminUnidade}
+		<div class="card-glass p-3 sm:p-4 rounded-xl flex flex-col">
+			<h2 class="text-base font-bold mb-1 text-surface-700 dark:text-surface-300">
+				Papel Administrativo
+			</h2>
+			<p class="text-xs text-surface-500 mb-3">
+				Papel de gestão <b>restrito a uma seccional ou unidade</b>: gerencia escalas e policiais
+				apenas do próprio escopo. Diferente do Admin Geral, não concede acesso global.
+			</p>
+			<form
+				method="POST"
+				action="?/salvarPapel"
+				use:enhance={handleSalvarPapel}
+				class="space-y-3 mt-auto"
+			>
+				<div class="grid grid-cols-1 sm:grid-cols-12 gap-2">
+					<label class="label sm:col-span-5">
+						<span class="label-text text-2xs font-bold uppercase opacity-70 ml-1">Papel</span>
+						<select class="select py-1 px-3 text-sm" name="papel" bind:value={papel}>
+							<option value={null}>Servidor (sem papel)</option>
+							{#if isAdminOrSeccional}
+								<option value="admin_seccional">Admin Seccional</option>
+							{/if}
+							<option value="admin_unidade">Admin Unidade</option>
 						</select>
 					</label>
-				{:else if papel === 'admin_unidade' && isAdminUnidade}
-					<p class="text-xs text-surface-500 sm:col-span-7 flex items-end pb-2 ml-1">
-						Será nomeado para a sua própria unidade.
-					</p>
-				{/if}
-			</div>
-			<div class="flex gap-2 pt-1 border-t border-surface-200 dark:border-white/5 mt-2">
-				<button
-					type="submit"
-					class="btn btn-sm preset-filled-primary-500 flex items-center gap-2"
-					disabled={loading.active}
-				>
-					{loading.active ? 'Salvando...' : 'Salvar papel'}
-				</button>
-			</div>
-		</form>
-	</div>
-{/if}
+					{#if papel && !(isAdminUnidade && papel === 'admin_unidade')}
+						<label class="label sm:col-span-7">
+							<span class="label-text text-2xs font-bold uppercase opacity-70 ml-1">
+								{papel === 'admin_seccional'
+									? 'Seccional de responsabilidade'
+									: 'Unidade de responsabilidade'}
+							</span>
+							<select
+								class="select py-1 px-3 text-sm"
+								name="papel_unidade_id"
+								bind:value={papelUnidadeId}
+							>
+								<option value={null}>Selecionar...</option>
+								{#each papel === 'admin_seccional' ? seccionaisParaPapel : unidadesParaAdmin as u (u.id)}
+									<option value={u.id}>{u.nome}</option>
+								{/each}
+							</select>
+						</label>
+					{:else if papel === 'admin_unidade' && isAdminUnidade}
+						<p class="text-xs text-surface-500 sm:col-span-7 flex items-end pb-2 ml-1">
+							Será nomeado para a sua própria unidade.
+						</p>
+					{/if}
+				</div>
+				<div class="flex gap-2 pt-1 border-t border-surface-200 dark:border-white/5 mt-2">
+					<button
+						type="submit"
+						class="btn btn-sm preset-filled-primary-500 flex items-center gap-2"
+						disabled={loading.active}
+					>
+						{loading.active ? 'Salvando...' : 'Salvar papel'}
+					</button>
+				</div>
+			</form>
+		</div>
+	{/if}
 
-{#if isAdmin}
-	<div class="card-glass p-3 sm:p-4 rounded-xl mt-4">
-		<h2 class="text-base font-bold mb-1 text-surface-700 dark:text-surface-300">Admin Geral</h2>
-		<p class="text-xs text-surface-500 mb-3">
-			Concede acesso de Administrador Geral. A pessoa loga com a <b>mesma matrícula e senha</b>,
-			escolhendo <b>"Administrador"</b> na tela de login. É cumulativo com o papel acima.
-		</p>
-		<form
-			method="POST"
-			action="?/toggleAdminGeral"
-			use:enhance={handleToggleAdminGeral}
-			bind:this={formAdminGeral}
-			class="flex items-center gap-3 flex-wrap"
-		>
-			<input type="hidden" name="ativar" value={ehAdminGeral ? '0' : '1'} />
-			<ToggleSwitch
-				checked={ehAdminGeral}
-				disabled={loading.active}
-				onCheckedChange={() => formAdminGeral?.requestSubmit()}
+	{#if isAdmin}
+		<div class="card-glass p-3 sm:p-4 rounded-xl flex flex-col">
+			<h2 class="text-base font-bold mb-1 text-surface-700 dark:text-surface-300">Admin Geral</h2>
+			<p class="text-xs text-surface-500 mb-3">
+				Concede acesso de Administrador Geral. A pessoa loga com a <b>mesma matrícula e senha</b>,
+				escolhendo <b>"Administrador"</b> na tela de login. É cumulativo com o papel ao lado.
+			</p>
+			<form
+				method="POST"
+				action="?/toggleAdminGeral"
+				use:enhance={handleToggleAdminGeral}
+				bind:this={formAdminGeral}
+				class="flex items-center gap-3 flex-wrap mt-auto"
 			>
-				<span
-					class="text-sm font-semibold {ehAdminGeral
-						? 'text-success-700 dark:text-success-400'
-						: 'text-surface-500'}"
+				<input type="hidden" name="ativar" value={ehAdminGeral ? '0' : '1'} />
+				<ToggleSwitch
+					checked={ehAdminGeral}
+					disabled={loading.active}
+					onCheckedChange={() => formAdminGeral?.requestSubmit()}
 				>
-					{ehAdminGeral ? 'É Admin Geral' : 'Não é Admin Geral'}
-				</span>
-			</ToggleSwitch>
-		</form>
-	</div>
-{/if}
+					<span
+						class="text-sm font-semibold {ehAdminGeral
+							? 'text-success-700 dark:text-success-400'
+							: 'text-surface-500'}"
+					>
+						{ehAdminGeral ? 'É Admin Geral' : 'Não é Admin Geral'}
+					</span>
+				</ToggleSwitch>
+			</form>
+		</div>
+	{/if}
+</div>
 
 {#if isAdmin}
 	<PainelAcoesServidor
