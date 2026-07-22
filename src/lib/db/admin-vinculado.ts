@@ -1,4 +1,4 @@
-import { eq, isNotNull } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 import { administradores, policiais } from '../server/schema';
 import { gerarSenhaAleatoriaHash } from '../auth';
 import type { Database } from './core';
@@ -48,14 +48,4 @@ export async function ehAdminGeralVinculado(db: Database, policialId: number): P
 		.where(eq(administradores.policial_id, policialId))
 		.get();
 	return !!row;
-}
-
-/** Ids de policiais que têm conta Admin Geral vinculada (para marcar a lista). */
-export async function listarPolicialIdsAdminGeral(db: Database): Promise<number[]> {
-	const rows = await db
-		.select({ policial_id: administradores.policial_id })
-		.from(administradores)
-		.where(isNotNull(administradores.policial_id))
-		.all();
-	return rows.map((r) => r.policial_id).filter((v): v is number => v != null);
 }
