@@ -11,6 +11,7 @@
 	import { apiFetch } from '$lib/api-fetch';
 	import PaginationControls from '$lib/components/PaginationControls.svelte';
 	import { Dialog, SegmentedControl } from '@skeletonlabs/skeleton-svelte';
+	import ToggleSwitch from '$lib/components/ToggleSwitch.svelte';
 	import { formatarTelefone, formatarCPF, limparCPF } from '$lib/utils';
 	import {
 		useAutorizacao,
@@ -143,6 +144,8 @@
 	let editingPolicialId = $state<number | null>(null);
 	let excluindo = $state(false);
 	let pendingCadastro = $state(false);
+	// Form da chave Admin Geral no modal de edição (submit via requestSubmit()).
+	let formAdminGeralLista = $state<HTMLFormElement>();
 
 	const seccionaisParaPapel = $derived(unidades.filter((u) => u.tipo === 'seccional'));
 	const unidadesParaAdmin = $derived(unidades.filter((u) => u.tipo !== 'seccional'));
@@ -565,25 +568,27 @@
 							Loga com a mesma matrícula/senha escolhendo "Administrador". Cumulativo com o papel.
 						</p>
 					</div>
-					<span
-						class="text-xs font-bold px-2 py-1 rounded-lg {ehAdminGeralSelecionado
-							? 'bg-success-500/15 text-success-700 dark:text-success-400'
-							: 'bg-surface-500/10 text-surface-500'}"
+					<form
+						method="POST"
+						action="?/toggleAdminGeral"
+						use:enhance={handleToggleAdminGeral}
+						bind:this={formAdminGeralLista}
 					>
-						{ehAdminGeralSelecionado ? 'É Admin Geral' : 'Não é Admin Geral'}
-					</span>
-					<form method="POST" action="?/toggleAdminGeral" use:enhance={handleToggleAdminGeral}>
 						<input type="hidden" name="policial_id" value={editingPolicialId} />
 						<input type="hidden" name="ativar" value={ehAdminGeralSelecionado ? '0' : '1'} />
-						<button
-							type="submit"
-							class="btn btn-sm {ehAdminGeralSelecionado
-								? 'preset-outlined-error-500'
-								: 'preset-filled-primary-500'}"
+						<ToggleSwitch
+							checked={ehAdminGeralSelecionado}
 							disabled={pendingCadastro}
+							onCheckedChange={() => formAdminGeralLista?.requestSubmit()}
 						>
-							{ehAdminGeralSelecionado ? 'Revogar' : 'Conceder'}
-						</button>
+							<span
+								class="text-xs font-semibold {ehAdminGeralSelecionado
+									? 'text-success-700 dark:text-success-400'
+									: 'text-surface-500'}"
+							>
+								{ehAdminGeralSelecionado ? 'É Admin Geral' : 'Não é Admin Geral'}
+							</span>
+						</ToggleSwitch>
 					</form>
 				</div>
 			{/if}
