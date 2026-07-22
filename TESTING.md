@@ -224,7 +224,7 @@ Verificar cada transição de status:
 
 ### 6.2 Presença (Check-in / Check-out)
 
-> `[E2E: presenca-gise.spec.ts]` cobre entrada/saída em tela com rubrica + 2FA + GPS (2FA obrigatório — a flag é semeada como em produção), o comprovante sob demanda dos dois sentidos, o **vínculo na escrita** (não-participante com 2FA válido → 403, não grava) e as guardas do comprovante (anônimo 401, não-participante 403, tipo inválido 400, sem presença 404). Manual: selfie/câmera real (liveness é client-side) e o fluxo por Token A3 (janela de horário + hardware — QA A3).
+> `[E2E: presenca-gise.spec.ts]` cobre entrada/saída em tela com rubrica + 2FA + GPS (2FA **sempre** obrigatório — as actions leem a fonte única `lerFlagsAssinatura`, que o força ligado), o comprovante sob demanda dos dois sentidos, o **vínculo na escrita** (não-participante com 2FA válido → 403, não grava) e as guardas do comprovante (anônimo 401, não-participante 403, tipo inválido 400, sem presença 404). Manual: selfie/câmera real (liveness é client-side) e o fluxo por Token A3 (janela de horário + hardware — QA A3).
 
 - [ ] Policial registra entrada com rubrica e selfie
 - [ ] Policial registra saída com rubrica e selfie
@@ -383,6 +383,8 @@ Verificar cada transição de status:
 ## 12. Configurações de Assinatura (`/conf-ass`)
 
 > Acesso exclusivo do **Super Admin**. As flags são cacheadas no edge por até 5 min — a alteração deve refletir no fluxo de assinatura em ≤ 5 min.
+>
+> `[E2E: conf-ass.spec.ts]` cobre: GET com flags + `bloqueados` (base legal); anônimo barrado (CSRF antes da auth) e Admin Geral → 403; **invariante legal** — nem o Super Admin desliga o 2FA (PUT `false` → 400 e GET segue `true`); PUT vazio → 400; e a **invalidação do cache edge** (PUT → GET reflete na hora, sem esperar o TTL). Manual: o efeito das flags na tela de assinatura real.
 
 - [ ] Visualizar configuração atual das flags de assinatura
 - [ ] Ligar/desligar `exigir_foto_assinatura` → refletido na próxima assinatura
@@ -450,3 +452,12 @@ Verificar cada transição de status:
 
 - [ ] (manual) Rodar o menu "🚀 Sincronização D1" da planilha real → policiais/unidades refletidos no sistema
 - [ ] (manual) Reset destrutivo com as 3 credenciais corretas em ambiente de teste → tabelas operacionais zeradas com snapshot no log
+
+---
+
+## 19. Direitos do Titular — LGPD art. 18
+
+> `[E2E: lgpd-solicitacoes.spec.ts]` cobre o ciclo completo: o titular abre a solicitação (`/api/lgpd/solicitar` → 201) e a vê na sua lista; um policial não acessa a lista administrativa (403); o Admin Geral lista, detalha e responde (conclui); o titular vê o desfecho; reencerrar uma solicitação já concluída → 409.
+
+- [ ] (manual) Conferir o texto de prazo (15 dias úteis) e o e-mail do encarregado (DPO) exibidos ao titular
+- [ ] (manual) Fluxo pela UI (`/perfil` / painel LGPD) além dos endpoints
