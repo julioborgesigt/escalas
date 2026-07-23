@@ -329,10 +329,11 @@
 				action="?/toggleAdminGeral"
 				use:enhance={handleToggleAdminGeral}
 				bind:this={formAdminGeral}
-				class="flex items-center justify-end gap-3 flex-wrap mt-auto"
+				class="mt-auto"
 			>
 				<input type="hidden" name="ativar" value={ehAdminGeral ? '0' : '1'} />
 				<ToggleSwitch
+					reverse
 					checked={ehAdminGeral}
 					disabled={loading.active}
 					onCheckedChange={() => formAdminGeral?.requestSubmit()}
