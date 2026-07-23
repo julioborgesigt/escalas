@@ -11,6 +11,7 @@
 	import { apiFetch } from '$lib/api-fetch';
 	import PaginationControls from '$lib/components/PaginationControls.svelte';
 	import { Dialog, SegmentedControl } from '@skeletonlabs/skeleton-svelte';
+	import ToggleSwitch from '$lib/components/ToggleSwitch.svelte';
 	import { formatarTelefone, formatarCPF, limparCPF } from '$lib/utils';
 	import {
 		useAutorizacao,
@@ -134,6 +135,8 @@
 	// Papel administrativo no cadastro
 	let papel = $state<string | null>(null);
 	let papelUnidadeId = $state<number | null>(null);
+	// Chave "Conceder Admin Geral" no cadastro (submetida via input hidden).
+	let concederAdminGeral = $state(false);
 	let excluindo = $state(false);
 	let pendingCadastro = $state(false);
 
@@ -166,6 +169,7 @@
 		email = '';
 		papel = null;
 		papelUnidadeId = null;
+		concederAdminGeral = false;
 	}
 
 	function openCreateModal() {
@@ -265,7 +269,7 @@
 
 <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
 	<h1 class="h1 text-2xl font-bold">Gerenciar Policiais</h1>
-	<div class="flex flex-wrap gap-2">
+	<div class="flex flex-wrap justify-end gap-2">
 		<button
 			type="button"
 			class="btn btn-sm {temFiltros
@@ -446,6 +450,10 @@
 							<h4 class="text-2xs font-bold uppercase opacity-50">
 								Papel Administrativo (Opcional)
 							</h4>
+							<p class="text-xs text-surface-500 leading-snug">
+								Papel de gestão restrito a uma seccional ou unidade: gerencia escalas e policiais
+								apenas do próprio escopo. Diferente do Admin Geral, não concede acesso global.
+							</p>
 							<label class="label">
 								<span class="label-text text-2xs font-bold opacity-70 ml-1">Papel</span>
 								<select class="select py-1 px-3 text-sm" bind:value={papel}>
@@ -477,27 +485,34 @@
 					{/if}
 
 					{#if isAdmin}
-						<label
-							class="p-3 rounded-xl bg-surface-500/5 border border-surface-500/10 cursor-pointer flex flex-col"
-						>
-							<h4 class="text-2xs font-bold uppercase opacity-50 mb-2">Admin Geral (Opcional)</h4>
-							<div class="flex items-start gap-2">
-								<input
-									type="checkbox"
-									name="conceder_admin_geral"
-									value="1"
-									form="policialForm"
-									class="checkbox mt-0.5"
-								/>
-								<span class="text-xs">
-									<b class="block">Conceder Admin Geral</b>
-									<span class="text-surface-500">
-										Cria a conta de Administrador Geral vinculada. A pessoa loga com a mesma
-										matrícula/senha escolhendo "Administrador". Cumulativo com o papel.
+						<div class="p-3 rounded-xl bg-surface-500/5 border border-surface-500/10 flex flex-col">
+							<h4 class="text-2xs font-bold uppercase opacity-50">Admin Geral (Opcional)</h4>
+							<p class="text-xs text-surface-500 leading-snug mt-2">
+								Cria a conta de Administrador Geral vinculada. A pessoa loga com a mesma
+								matrícula/senha escolhendo "Administrador". Cumulativo com o papel.
+							</p>
+							<input
+								type="hidden"
+								name="conceder_admin_geral"
+								value={concederAdminGeral ? '1' : '0'}
+								form="policialForm"
+							/>
+							<div class="mt-auto pt-3">
+								<ToggleSwitch
+									reverse
+									checked={concederAdminGeral}
+									onCheckedChange={(v) => (concederAdminGeral = v)}
+								>
+									<span
+										class="text-xs font-semibold {concederAdminGeral
+											? 'text-success-700 dark:text-success-400'
+											: 'text-surface-500'}"
+									>
+										{concederAdminGeral ? 'Conceder Admin Geral' : 'Não conceder'}
 									</span>
-								</span>
+								</ToggleSwitch>
 							</div>
-						</label>
+						</div>
 					{/if}
 				</div>
 			</form>
