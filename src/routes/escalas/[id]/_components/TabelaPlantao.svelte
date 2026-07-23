@@ -222,7 +222,7 @@
 										>{p.lotacao}</td
 									>
 									<td class="!py-4 align-middle font-medium text-surface-700 dark:text-surface-200">
-										<div class="flex flex-wrap gap-1">
+										<div class="flex flex-wrap gap-1 max-w-[200px]">
 											{#each p.dias as dia (dia)}
 												<span
 													class="badge bg-surface-200 dark:bg-surface-700 px-1.5 py-0.5 rounded text-3xs font-bold tracking-wider"
