@@ -4,7 +4,6 @@
 	import { fly } from 'svelte/transition';
 	import { page, navigating } from '$app/state';
 	import SkeletonCard from '$lib/components/SkeletonCard.svelte';
-	import FloatingRefresh from '$lib/components/FloatingRefresh.svelte';
 	import { untrack } from 'svelte';
 	import { enhance } from '$app/forms';
 	import { toaster } from '$lib/toast';
@@ -142,6 +141,10 @@
 
 	const seccionaisParaPapel = $derived(unidades.filter((u) => u.tipo === 'seccional'));
 	const unidadesParaAdmin = $derived(unidades.filter((u) => u.tipo !== 'seccional'));
+
+	// Papel administrativo exige a unidade/seccional de responsabilidade.
+	const papelPrecisaUnidade = $derived(!!papel && !(isAdminUnidade && papel === 'admin_unidade'));
+	const papelSemUnidade = $derived(papelPrecisaUnidade && papelUnidadeId == null);
 
 	$effect(() => {
 		// Aplica a lotação padrão ao abrir o cadastro.
@@ -475,6 +478,11 @@
 											<option value={u.id}>{u.nome}</option>
 										{/each}
 									</select>
+									{#if papelSemUnidade}
+										<span class="text-3xs text-error-600 dark:text-error-400 ml-1 mt-0.5">
+											Obrigatório para o papel escolhido.
+										</span>
+									{/if}
 								</label>
 							{:else if papel === 'admin_unidade' && isAdminUnidade}
 								<p class="text-3xs text-surface-500 ml-1 italic">
@@ -525,7 +533,7 @@
 					type="submit"
 					form="policialForm"
 					class="btn btn-sm sm:btn-md preset-filled-primary-500 w-full flex items-center justify-center gap-2"
-					disabled={pendingCadastro}
+					disabled={pendingCadastro || papelSemUnidade}
 				>
 					{pendingCadastro ? 'Cadastrando...' : 'Cadastrar Policial'}
 				</button>
@@ -825,7 +833,6 @@
 		/>
 	{/if}
 </div>
-<FloatingRefresh />
 
 <style>
 	:global(.cadastro-policial-modal .input),

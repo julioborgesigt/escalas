@@ -101,6 +101,11 @@
 	const classesDisponiveis = $derived(
 		cargo === 'DPC' ? ['1ª', '2ª', '3ª', 'ESPECIAL'] : ['A', 'B', 'C', 'D']
 	);
+
+	// Papel administrativo exige a unidade/seccional de responsabilidade (exceto
+	// no caso de admin_unidade nomeando admin_unidade — cai na própria unidade).
+	const papelPrecisaUnidade = $derived(!!papel && !(isAdminUnidade && papel === 'admin_unidade'));
+	const papelSemUnidade = $derived(papelPrecisaUnidade && papelUnidadeId == null);
 </script>
 
 <div class="mb-6 space-y-3">
@@ -303,12 +308,17 @@
 					{/if}
 				</div>
 				<div
-					class="flex justify-end gap-2 pt-1 border-t border-surface-200 dark:border-white/5 mt-2"
+					class="flex items-center justify-end gap-2 pt-1 border-t border-surface-200 dark:border-white/5 mt-2"
 				>
+					{#if papelSemUnidade}
+						<span class="text-3xs text-error-600 dark:text-error-400 mr-auto">
+							Selecione a unidade de responsabilidade.
+						</span>
+					{/if}
 					<button
 						type="submit"
 						class="btn btn-sm preset-filled-primary-500 flex items-center gap-2"
-						disabled={loading.active}
+						disabled={loading.active || papelSemUnidade}
 					>
 						{loading.active ? 'Salvando...' : 'Salvar papel'}
 					</button>
@@ -362,5 +372,9 @@
 		lotacoes={data.lotacoes}
 	/>
 
-	<HistoricoServidor historico={data.historico} afastamentoVigenteId={data.afastamentoVigenteId} />
+	<HistoricoServidor
+		historico={data.historico}
+		afastamentoVigenteId={data.afastamentoVigenteId}
+		unidades={data.unidades}
+	/>
 {/if}
