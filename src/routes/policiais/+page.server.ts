@@ -109,6 +109,13 @@ export const actions: Actions = {
 		const papel = isAdminGeral(u) ? papelRequisitado : null;
 		const papelUnidadeId = isAdminGeral(u) ? papelUnidadeIdRequisitado : null;
 
+		// Papel administrativo exige a unidade/seccional de responsabilidade.
+		if (papel && !papelUnidadeId) {
+			return fail(400, {
+				error: 'Selecione a unidade de responsabilidade para o papel administrativo.'
+			});
+		}
+
 		const db = getDB(platform);
 
 		// Escopo: admin_unidade só cria na própria lotação; admin_seccional só

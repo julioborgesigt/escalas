@@ -290,6 +290,13 @@ export const actions: Actions = {
 		const papelUnidadeIdStr = formData.get('papel_unidade_id')?.toString();
 		const papelUnidadeId = papelUnidadeIdStr ? Number(papelUnidadeIdStr) : null;
 
+		// Papel administrativo exige a unidade/seccional de responsabilidade.
+		if (papel && !papelUnidadeId) {
+			return fail(400, {
+				error: 'Selecione a unidade de responsabilidade para o papel escolhido.'
+			});
+		}
+
 		const db = getDB(platform);
 		const alvo = await buscarPolicial(db, id);
 		await promoverPolicial(db, id, papel, papelUnidadeId);

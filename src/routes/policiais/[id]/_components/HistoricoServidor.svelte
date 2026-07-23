@@ -18,9 +18,13 @@
 	interface Props {
 		historico: PolicialHistorico[];
 		afastamentoVigenteId: number | null;
+		/** Unidades para resolver ids (ex.: papel_unidade_id) para nome legível. */
+		unidades?: { id: number; nome: string }[];
 	}
 
-	const { historico, afastamentoVigenteId }: Props = $props();
+	const { historico, afastamentoVigenteId, unidades = [] }: Props = $props();
+
+	const nomePorUnidadeId = $derived(new Map(unidades.map((u) => [u.id, u.nome])));
 
 	// Paginação client-side (o histórico completo já vem no load).
 	const ITENS_POR_PAGINA = 5;
@@ -112,8 +116,19 @@
 		}
 	}
 
-	function mostrarValor(v: unknown): string {
+	const LABEL_PAPEL: Record<string, string> = {
+		admin_seccional: 'Admin Seccional',
+		admin_unidade: 'Admin Unidade'
+	};
+
+	/** Converte o valor cru do diff em texto legível conforme o campo. */
+	function formatarValor(campo: string, v: unknown): string {
 		if (v === null || v === undefined || v === '') return '—';
+		if (campo === 'papel_unidade_id') return nomePorUnidadeId.get(Number(v)) ?? String(v);
+		if (campo === 'papel') return LABEL_PAPEL[String(v)] ?? String(v);
+		if (campo === 'regime')
+			return v === 'plantao' ? 'Plantão' : v === 'expediente' ? 'Expediente' : String(v);
+		if (campo === 'ativo') return v === 1 || v === '1' ? 'Ativo' : 'Inativo';
 		return String(v);
 	}
 
@@ -123,8 +138,8 @@
 		const chaves = new Set([...Object.keys(a), ...Object.keys(d)]);
 		return [...chaves].map((c) => ({
 			campo: LABEL_CAMPO[c] ?? c,
-			antes: mostrarValor(a[c]),
-			depois: mostrarValor(d[c])
+			antes: formatarValor(c, a[c]),
+			depois: formatarValor(c, d[c])
 		}));
 	}
 </script>
