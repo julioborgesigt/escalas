@@ -8,6 +8,7 @@
 	import ModalAlterarEmailPessoal from './ModalAlterarEmailPessoal.svelte';
 	import SearchableSelect from '$lib/components/SearchableSelect.svelte';
 	import { ROTULO_CAMPO } from '$lib/perfil-campos';
+	import { formatarData } from '$lib/utils';
 	import type { ActionResult } from '@sveltejs/kit';
 
 	const { data }: PageProps = $props();
@@ -104,11 +105,39 @@
 			classe: 'bg-warning-500/15 text-warning-700 dark:text-warning-400'
 		};
 	}
+
+	/**
+	 * Formata os timestamps das solicitações para "DD/MM/AAAA HH:MM".
+	 * `created_at` chega como "YYYY-MM-DD HH:MM:SS" (já em horário local, -3h);
+	 * `decidido_em` chega como ISO UTC (`new Date().toISOString()`) — convertido
+	 * para o fuso de Fortaleza na exibição.
+	 */
+	function fmtDataHora(ts: string | null | undefined): string {
+		if (!ts) return '—';
+		if (ts.includes('T')) {
+			const d = new Date(ts);
+			if (isNaN(d.getTime())) return ts;
+			// toLocaleString pt-BR devolve "DD/MM/AAAA, HH:MM" — remove a vírgula
+			// para casar com o formato do created_at ("DD/MM/AAAA HH:MM").
+			return d
+				.toLocaleString('pt-BR', {
+					timeZone: 'America/Fortaleza',
+					day: '2-digit',
+					month: '2-digit',
+					year: 'numeric',
+					hour: '2-digit',
+					minute: '2-digit'
+				})
+				.replace(',', '');
+		}
+		const [dia, hora] = ts.split(' ');
+		return `${formatarData(dia)}${hora ? ' ' + hora.slice(0, 5) : ''}`;
+	}
 </script>
 
 <svelte:head><title>Meu perfil</title></svelte:head>
 
-<div class="max-w-3xl mx-auto space-y-6">
+<div class="space-y-6">
 	<div>
 		<h1 class="h2 font-bold">Meu perfil</h1>
 		<p class="text-sm text-surface-500 dark:text-surface-400 mt-1">
@@ -117,112 +146,115 @@
 		</p>
 	</div>
 
-	<!-- Identificação (somente leitura) -->
-	<section class="card-glass p-4 sm:p-6 rounded-3xl">
-		<h2 class="font-semibold text-sm uppercase tracking-wider text-surface-500 mb-4">
-			Identificação
-		</h2>
-		<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-			<div>
-				<span class="label-text text-xs text-surface-500 dark:text-surface-400 block">Nome</span>
-				<p class="font-semibold">{perfil.nome}</p>
-			</div>
-			<div>
-				<span class="label-text text-xs text-surface-500 dark:text-surface-400 block"
-					>Matrícula</span
-				>
-				<p class="font-semibold">{perfil.matricula}</p>
-			</div>
-			<div>
-				<span class="label-text text-xs text-surface-500 dark:text-surface-400 block">Cargo</span>
-				<p class="font-semibold">{perfil.cargo}</p>
-			</div>
-			<div>
-				<span class="label-text text-xs text-surface-500 dark:text-surface-400 block"
-					>E-mail funcional</span
-				>
-				<p class="font-semibold">{perfil.email || '—'}</p>
-			</div>
-			<div>
-				<span class="label-text text-xs text-surface-500 dark:text-surface-400 block"
-					>E-mail pessoal</span
-				>
-				<div class="flex items-center gap-2 flex-wrap">
-					<p class="font-semibold">
-						{emailPessoal || '—'}
-						{#if emailPessoal}
-							<span
-								class="ml-1 text-3xs font-bold uppercase px-1.5 py-0.5 rounded {emailPessoalVerificado
-									? 'bg-success-500/15 text-success-700 dark:text-success-400'
-									: 'bg-warning-500/15 text-warning-700 dark:text-warning-400'}"
-							>
-								{emailPessoalVerificado ? 'Verificado' : 'Não verificado'}
-							</span>
-						{/if}
-					</p>
-					<button
-						type="button"
-						class="btn btn-sm preset-outlined-primary-500 text-xs"
-						onclick={() => (alterandoEmail = true)}
+	<!-- Identificação + Rubrica lado a lado (rubrica verticalizada à direita) -->
+	<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+		<!-- Identificação (somente leitura) -->
+		<section class="card-glass p-4 sm:p-6 rounded-3xl lg:col-span-2">
+			<h2 class="font-semibold text-sm uppercase tracking-wider text-surface-500 mb-4">
+				Identificação
+			</h2>
+			<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+				<div>
+					<span class="label-text text-xs text-surface-500 dark:text-surface-400 block">Nome</span>
+					<p class="font-semibold">{perfil.nome}</p>
+				</div>
+				<div>
+					<span class="label-text text-xs text-surface-500 dark:text-surface-400 block"
+						>Matrícula</span
 					>
-						{emailPessoal ? 'Alterar' : 'Cadastrar'}
-					</button>
+					<p class="font-semibold">{perfil.matricula}</p>
 				</div>
-				{#if emailPessoal}
-					<p class="text-2xs text-surface-500 dark:text-surface-400 mt-1">
-						A troca exige sua senha e um código enviado ao novo endereço.
-					</p>
-				{/if}
+				<div>
+					<span class="label-text text-xs text-surface-500 dark:text-surface-400 block">Cargo</span>
+					<p class="font-semibold">{perfil.cargo}</p>
+				</div>
+				<div>
+					<span class="label-text text-xs text-surface-500 dark:text-surface-400 block"
+						>E-mail funcional</span
+					>
+					<p class="font-semibold">{perfil.email || '—'}</p>
+				</div>
+				<div class="sm:col-span-2">
+					<span class="label-text text-xs text-surface-500 dark:text-surface-400 block"
+						>E-mail pessoal</span
+					>
+					<div class="flex items-center gap-2 flex-wrap">
+						<p class="font-semibold">
+							{emailPessoal || '—'}
+							{#if emailPessoal}
+								<span
+									class="ml-1 text-3xs font-bold uppercase px-1.5 py-0.5 rounded {emailPessoalVerificado
+										? 'bg-success-500/15 text-success-700 dark:text-success-400'
+										: 'bg-warning-500/15 text-warning-700 dark:text-warning-400'}"
+								>
+									{emailPessoalVerificado ? 'Verificado' : 'Não verificado'}
+								</span>
+							{/if}
+						</p>
+						<button
+							type="button"
+							class="btn btn-sm preset-outlined-primary-500 text-xs"
+							onclick={() => (alterandoEmail = true)}
+						>
+							{emailPessoal ? 'Alterar' : 'Cadastrar'}
+						</button>
+					</div>
+					{#if emailPessoal}
+						<p class="text-2xs text-surface-500 dark:text-surface-400 mt-1">
+							A troca exige sua senha e um código enviado ao novo endereço.
+						</p>
+					{/if}
+				</div>
 			</div>
-		</div>
-	</section>
+		</section>
 
-	<!-- Rubrica -->
-	<section class="card-glass p-4 sm:p-6 rounded-3xl">
-		<h2 class="font-semibold text-sm uppercase tracking-wider text-surface-500 mb-4">Rubrica</h2>
-		<div class="flex flex-col sm:flex-row sm:items-center gap-4">
-			{#if minhaRubrica}
-				<div
-					class="bg-white rounded-xl border border-surface-200 p-2 flex items-center justify-center sm:w-56"
-				>
-					<img src={minhaRubrica} alt="Sua rubrica cadastrada" class="h-14 object-contain" />
-				</div>
-				<div class="flex-1 text-xs text-surface-500">
-					Usada como assinatura gráfica nos documentos assinados digitalmente e na assinatura por
-					certificado digital (Token A3) no computador.
-				</div>
-				<div class="flex gap-2 shrink-0">
+		<!-- Rubrica (verticalizada) -->
+		<section class="card-glass p-4 sm:p-6 rounded-3xl lg:col-span-1">
+			<h2 class="font-semibold text-sm uppercase tracking-wider text-surface-500 mb-4">Rubrica</h2>
+			<div class="flex flex-col gap-4">
+				{#if minhaRubrica}
+					<div
+						class="bg-white rounded-xl border border-surface-200 p-2 flex items-center justify-center w-full"
+					>
+						<img src={minhaRubrica} alt="Sua rubrica cadastrada" class="h-16 object-contain" />
+					</div>
+					<p class="text-xs text-surface-500">
+						Usada como assinatura gráfica nos documentos assinados digitalmente e na assinatura por
+						certificado digital (Token A3) no computador.
+					</p>
+					<div class="flex gap-2">
+						<button
+							type="button"
+							class="btn btn-sm preset-outlined-primary-500 flex-1"
+							onclick={() => (cadastrandoRubrica = true)}
+						>
+							Atualizar
+						</button>
+						<button
+							type="button"
+							class="btn btn-sm preset-outlined-error-500 flex-1"
+							onclick={excluirRubrica}
+							disabled={excluindoRubrica}
+						>
+							{excluindoRubrica ? 'Excluindo…' : 'Excluir'}
+						</button>
+					</div>
+				{:else}
+					<p class="text-sm text-surface-500">
+						Você ainda não cadastrou sua rubrica. Ela é necessária para assinar pelo computador com
+						certificado digital e permite conferência visual em documentos impressos.
+					</p>
 					<button
 						type="button"
-						class="btn btn-sm preset-outlined-primary-500"
+						class="btn btn-sm preset-filled-primary-500 font-bold w-full"
 						onclick={() => (cadastrandoRubrica = true)}
 					>
-						Atualizar
+						Cadastrar rubrica
 					</button>
-					<button
-						type="button"
-						class="btn btn-sm preset-outlined-error-500"
-						onclick={excluirRubrica}
-						disabled={excluindoRubrica}
-					>
-						{excluindoRubrica ? 'Excluindo…' : 'Excluir'}
-					</button>
-				</div>
-			{:else}
-				<div class="flex-1 text-sm text-surface-500">
-					Você ainda não cadastrou sua rubrica. Ela é necessária para assinar pelo computador com
-					certificado digital e permite conferência visual em documentos impressos.
-				</div>
-				<button
-					type="button"
-					class="btn btn-sm preset-filled-primary-500 font-bold shrink-0"
-					onclick={() => (cadastrandoRubrica = true)}
-				>
-					Cadastrar rubrica
-				</button>
-			{/if}
-		</div>
-	</section>
+				{/if}
+			</div>
+		</section>
+	</div>
 
 	<!-- Dados alteráveis via solicitação -->
 	<section class="card-glass p-4 sm:p-6 rounded-3xl">
@@ -235,7 +267,7 @@
 		</p>
 
 		<form method="POST" action="?/solicitar" use:enhance={handleSolicitar}>
-			<div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+			<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
 				<label class="label">
 					<span class="label-text">Telefone</span>
 					<input
@@ -306,6 +338,8 @@
 							<th class="py-2">Campo</th>
 							<th class="py-2">De</th>
 							<th class="py-2">Para</th>
+							<th class="py-2 whitespace-nowrap">Solicitado em</th>
+							<th class="py-2 whitespace-nowrap">Decidido em</th>
 							<th class="py-2">Status</th>
 						</tr>
 					</thead>
@@ -316,6 +350,12 @@
 								<td class="py-2 font-medium">{ROTULO_CAMPO[s.campo]}</td>
 								<td class="py-2 text-surface-500">{s.valor_atual || '—'}</td>
 								<td class="py-2 font-semibold">{s.valor_novo}</td>
+								<td class="py-2 whitespace-nowrap text-xs tabular-nums text-surface-500">
+									{fmtDataHora(s.created_at)}
+								</td>
+								<td class="py-2 whitespace-nowrap text-xs tabular-nums text-surface-500">
+									{s.status === 'pendente' ? '—' : fmtDataHora(s.decidido_em)}
+								</td>
 								<td class="py-2">
 									<span class="text-3xs font-bold uppercase px-2 py-0.5 rounded {b.classe}">
 										{b.rotulo}
