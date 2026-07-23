@@ -524,96 +524,93 @@
 			</button>
 
 			<!-- User info -->
-			<div class="px-3 py-2 space-y-2">
-				{#if usuario?.nome}
-					<div class="flex-1 min-w-0">
-						<p
-							class="text-xs font-semibold text-surface-900 dark:text-surface-100 truncate leading-tight"
-						>
-							{usuario.nome}
+			{#if usuario?.nome}
+				<div
+					class="mx-1 mb-1 rounded-xl border border-surface-200/70 bg-surface-100/60 px-3 py-2.5 dark:border-white/5 dark:bg-surface-800/40"
+				>
+					<p
+						class="truncate text-xs font-semibold leading-tight text-surface-900 dark:text-surface-100"
+					>
+						{usuario.nome}
+					</p>
+					{#if !usuario?.papel && !isSupervisorGise && usuario?.lotacao}
+						<p class="mt-0.5 truncate text-3xs text-surface-500 dark:text-surface-400">
+							{usuario.lotacao}
 						</p>
-						{#if !usuario?.papel && !isSupervisorGise && usuario?.lotacao}
-							<p class="text-3xs text-surface-500 dark:text-surface-400 truncate mt-0.5">
-								{usuario.lotacao}
-							</p>
-						{/if}
-					</div>
-				{/if}
-				<div class="flex flex-wrap gap-1.5 items-center">
-					{#if usuario?.tipo === 'admin'}
-						<span
-							class="badge preset-filled-primary-500 text-3xs font-semibold tracking-wider uppercase"
-						>
-							{usuario?.isSuperAdmin
-								? 'SUPER ADMIN'
-								: adminModulo === 'gise'
-									? 'ADMIN GISE'
-									: adminModulo === 'escalas'
-										? 'ADMIN ESCALAS'
-										: 'ADMIN GERAL'}
-						</span>
-						{#if !usuario?.isSuperAdmin}
-							<button
-								type="button"
-								class="btn-icon btn-sm preset-outlined-primary-500 hover:bg-primary-500/10 rounded-md transition-all text-primary-600 dark:text-primary-400 flex items-center justify-center cursor-pointer p-1"
-								onclick={alternarModulo}
-								title="Alternar Módulo (GISE / Escalas)"
-								aria-label="Alternar Módulo"
-								disabled={switchingModule}
-							>
-								<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-									<path
-										stroke-linecap="round"
-										stroke-linejoin="round"
-										stroke-width="2.5"
-										d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"
-									/>
-								</svg>
-							</button>
-						{/if}
-						{#if podeAlternarParaUsuario}
-							<button
-								type="button"
-								class="btn btn-sm preset-outlined-surface-500 hover:bg-surface-500/10 rounded-md transition-all text-2xs font-semibold px-2 py-1"
-								onclick={alternarAcesso}
-								title="Entrar como usuário (mesma conta)"
-								disabled={switchingAcesso}
-							>
-								Ir p/ modo usuário
-							</button>
-						{/if}
 					{/if}
-					{#if podeAlternarParaAdmin}
+
+					<!-- Papéis / status (sempre acima do botão de alternar modo) -->
+					{#if usuario?.tipo === 'admin' || usuario?.papel === 'admin_seccional' || usuario?.papel === 'admin_unidade' || isSupervisorGise}
+						<div class="mt-2 flex flex-wrap items-center gap-1.5">
+							{#if usuario?.tipo === 'admin'}
+								<span
+									class="badge preset-filled-primary-500 text-3xs font-semibold uppercase tracking-wider"
+								>
+									{usuario?.isSuperAdmin
+										? 'SUPER ADMIN'
+										: adminModulo === 'gise'
+											? 'ADMIN GISE'
+											: adminModulo === 'escalas'
+												? 'ADMIN ESCALAS'
+												: 'ADMIN GERAL'}
+								</span>
+								{#if !usuario?.isSuperAdmin}
+									<button
+										type="button"
+										class="btn-icon btn-sm preset-outlined-primary-500 flex cursor-pointer items-center justify-center rounded-md p-1 text-primary-600 transition-all hover:bg-primary-500/10 dark:text-primary-400"
+										onclick={alternarModulo}
+										title="Alternar módulo (GISE ↔ Escalas)"
+										aria-label="Alternar módulo"
+										disabled={switchingModule}
+									>
+										<svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+											<path
+												stroke-linecap="round"
+												stroke-linejoin="round"
+												stroke-width="2.5"
+												d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"
+											/>
+										</svg>
+									</button>
+								{/if}
+							{/if}
+							{#if usuario?.papel === 'admin_seccional'}
+								<span
+									class="badge preset-filled-warning-500 text-3xs font-semibold uppercase tracking-wider"
+									>ADM SECCIONAL</span
+								>
+							{/if}
+							{#if usuario?.papel === 'admin_unidade'}
+								<span
+									class="badge preset-filled-tertiary-500 text-3xs font-semibold uppercase tracking-wider"
+									>ADM UNIDADE</span
+								>
+							{/if}
+							{#if isSupervisorGise}
+								<span
+									class="badge preset-filled-success-500 text-3xs font-semibold uppercase tracking-wider"
+									>SUPERVISOR GISE</span
+								>
+							{/if}
+						</div>
+					{/if}
+
+					<!-- Alternar modo (identidade) — abaixo dos papéis -->
+					{#if podeAlternarParaUsuario || podeAlternarParaAdmin}
 						<button
 							type="button"
-							class="btn btn-sm preset-outlined-primary-500 hover:bg-primary-500/10 rounded-md transition-all text-2xs font-semibold px-2 py-1 text-primary-600 dark:text-primary-400"
+							class="mt-2.5 flex w-full items-center justify-center rounded-lg border border-primary-500/40 bg-primary-500/5 px-3 py-1.5 text-2xs font-semibold text-primary-700 transition-colors hover:bg-primary-500/15 disabled:opacity-50 dark:text-primary-300"
 							onclick={alternarAcesso}
-							title="Assumir acesso de Administrador Geral (mesma conta)"
+							title={podeAlternarParaUsuario
+								? 'Entrar como usuário (mesma conta)'
+								: 'Assumir acesso de Administrador Geral (mesma conta)'}
 							disabled={switchingAcesso}
 						>
-							Ir p/ modo admin
+							{podeAlternarParaUsuario ? 'Ir p/ modo usuário' : 'Ir p/ modo admin'}
 						</button>
 					{/if}
-					{#if usuario?.papel === 'admin_seccional'}
-						<span
-							class="badge preset-filled-warning-500 text-3xs font-semibold tracking-wider uppercase"
-							>ADM SECCIONAL</span
-						>
-					{/if}
-					{#if usuario?.papel === 'admin_unidade'}
-						<span
-							class="badge preset-filled-tertiary-500 text-3xs font-semibold tracking-wider uppercase"
-							>ADM UNIDADE</span
-						>
-					{/if}
-					{#if isSupervisorGise}
-						<span
-							class="badge preset-filled-success-500 text-3xs font-semibold tracking-wider uppercase"
-							>SUPERVISOR GISE</span
-						>
-					{/if}
 				</div>
-			</div>
+			{/if}
 
 			<!-- Logout -->
 			<button
