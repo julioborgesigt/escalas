@@ -29,6 +29,10 @@
 	const isSupervisaoGise = $derived(page.data.isSupervisaoGise ?? false);
 	const adminModulo = $derived((page.data.adminModulo as 'ambas' | 'gise' | 'escalas') ?? 'ambas');
 
+	// Alternância de acesso ADM Geral ↔ Usuário (mesma pessoa vinculada).
+	const podeAlternarParaUsuario = $derived(page.data.podeAlternarParaUsuario ?? false);
+	const podeAlternarParaAdmin = $derived(page.data.podeAlternarParaAdmin ?? false);
+
 	// Admin Geral = sessão de admin (tipo 'admin'): bootstrap por env OU policial
 	// promovido (linha vinculada em `administradores`, logado como Administrador).
 	const isAdmGeral = $derived(usuario?.tipo === 'admin');
@@ -137,6 +141,28 @@
 			});
 		} finally {
 			switchingModule = false;
+			loading.hide();
+		}
+	}
+
+	let switchingAcesso = $state(false);
+
+	async function alternarAcesso() {
+		if (switchingAcesso) return;
+		switchingAcesso = true;
+		loading.show('Alternando acesso...');
+		try {
+			const result = await apiFetch<{ redirect?: string }>('/api/auth/alternar-acesso', {
+				method: 'POST'
+			});
+			await goto(result.redirect || '/', { invalidateAll: true });
+		} catch (e: unknown) {
+			toaster.create({
+				title: e instanceof Error ? e.message : 'Erro ao alternar acesso',
+				type: 'error'
+			});
+		} finally {
+			switchingAcesso = false;
 			loading.hide();
 		}
 	}
@@ -545,6 +571,28 @@
 								</svg>
 							</button>
 						{/if}
+						{#if podeAlternarParaUsuario}
+							<button
+								type="button"
+								class="btn btn-sm preset-outlined-surface-500 hover:bg-surface-500/10 rounded-md transition-all text-2xs font-semibold px-2 py-1"
+								onclick={alternarAcesso}
+								title="Entrar como usuário (mesma conta)"
+								disabled={switchingAcesso}
+							>
+								Ir p/ modo usuário
+							</button>
+						{/if}
+					{/if}
+					{#if podeAlternarParaAdmin}
+						<button
+							type="button"
+							class="btn btn-sm preset-outlined-primary-500 hover:bg-primary-500/10 rounded-md transition-all text-2xs font-semibold px-2 py-1 text-primary-600 dark:text-primary-400"
+							onclick={alternarAcesso}
+							title="Assumir acesso de Administrador Geral (mesma conta)"
+							disabled={switchingAcesso}
+						>
+							Ir p/ modo admin
+						</button>
 					{/if}
 					{#if usuario?.papel === 'admin_seccional'}
 						<span

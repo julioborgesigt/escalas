@@ -60,7 +60,8 @@ export type { EmailProvedor } from './db/configuracoes';
 export {
 	vincularAdminGeral,
 	desvincularAdminGeral,
-	ehAdminGeralVinculado
+	ehAdminGeralVinculado,
+	buscarAdminVinculadoPorPolicial
 } from './db/admin-vinculado';
 
 export {

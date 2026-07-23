@@ -95,6 +95,11 @@ export const CATALOGO_ACOES = {
 		categoria: 'autenticacao',
 		severidade: 'info'
 	},
+	alternar_acesso: {
+		label: 'Alternância de acesso (ADM Geral/Usuário)',
+		categoria: 'autenticacao',
+		severidade: 'info'
+	},
 	aceitar_termos: {
 		label: 'Aceite do Termo de Uso',
 		categoria: 'autenticacao',
