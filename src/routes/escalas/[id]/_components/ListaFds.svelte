@@ -17,6 +17,7 @@
 	let {
 		policiaisEscalaLocal = $bindable(),
 		modoEdicao,
+		podeEditarEscala,
 		documentoAssinadoExiste,
 		finalizadaEm,
 		solicitacaoAtual,
@@ -31,6 +32,7 @@
 	}: {
 		policiaisEscalaLocal: EscalaPolicialComDados[];
 		modoEdicao: boolean;
+		podeEditarEscala: boolean;
 		documentoAssinadoExiste: boolean;
 		finalizadaEm: string | null;
 		solicitacaoAtual: { tipo: string } | null;
@@ -251,7 +253,7 @@
 		Copiar Escala
 	</button>
 
-	{#if !documentoAssinadoExiste && !finalizadaEm}
+	{#if podeEditarEscala && !documentoAssinadoExiste && !finalizadaEm}
 		<button
 			type="button"
 			onclick={() => (showEditarDiasModal = true)}
@@ -313,7 +315,7 @@
 						</div>
 					{/if}
 				</div>
-				{#if modoEdicao && !documentoAssinadoExiste && !finalizadaEm && !solicitacaoAtual}
+				{#if podeEditarEscala && modoEdicao && !documentoAssinadoExiste && !finalizadaEm && !solicitacaoAtual}
 					<div class="flex gap-1.5 shrink-0">
 						<button
 							type="button"
@@ -494,7 +496,7 @@
 										>
 									</div>
 								</div>
-								{#if !documentoAssinadoExiste && !finalizadaEm}
+								{#if podeEditarEscala && !documentoAssinadoExiste && !finalizadaEm}
 									<div class="flex items-center gap-1 shrink-0 mt-0.5">
 										<IconTooltip label="Editar">
 											<button

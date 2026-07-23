@@ -10,11 +10,14 @@
 	let {
 		escalaId,
 		policiaisCount,
+		podeEditar = true,
 		finalizadaEm = $bindable(null),
 		emailEnvioInicial = null
 	}: {
 		escalaId: string;
 		policiaisCount: number;
+		/** Quem só visualiza (ex.: admin_seccional de outra unidade) não finaliza/reabre/reenvia. */
+		podeEditar?: boolean;
 		finalizadaEm?: string | null;
 		emailEnvioInicial?: string | null;
 	} = $props();
@@ -208,25 +211,31 @@
 					target="_blank">{format}</a
 				>
 			{/each}
-			<button
-				type="button"
-				class="btn btn-sm preset-outlined-primary-500 font-bold"
-				onclick={abrirModalReenviar}
-				disabled={pendingReenviar || pendingReenvioAuto}
-			>
-				{pendingReenvioAuto ? 'Reenviando...' : pendingReenviar ? 'Enviando...' : 'Reenviar E-mail'}
-			</button>
-			<button
-				type="button"
-				class="btn btn-sm preset-outlined-error-500 font-bold"
-				onclick={() => (dialogDesfinalizarAberto = true)}
-				disabled={pendingDesfinalizar}
-			>
-				Reabrir para edição
-			</button>
+			{#if podeEditar}
+				<button
+					type="button"
+					class="btn btn-sm preset-outlined-primary-500 font-bold"
+					onclick={abrirModalReenviar}
+					disabled={pendingReenviar || pendingReenvioAuto}
+				>
+					{pendingReenvioAuto
+						? 'Reenviando...'
+						: pendingReenviar
+							? 'Enviando...'
+							: 'Reenviar E-mail'}
+				</button>
+				<button
+					type="button"
+					class="btn btn-sm preset-outlined-error-500 font-bold"
+					onclick={() => (dialogDesfinalizarAberto = true)}
+					disabled={pendingDesfinalizar}
+				>
+					Reabrir para edição
+				</button>
+			{/if}
 		</div>
 	</div>
-{:else}
+{:else if podeEditar}
 	<!-- Painel: FDS não enviada -->
 	<div
 		class="mb-6 p-4 sm:p-5 bg-white/80 dark:bg-surface-900/60 backdrop-blur-md border border-surface-200 dark:border-white/5 rounded-2xl shadow-xl shadow-black/5 dark:shadow-black/20 flex flex-col sm:flex-row items-center justify-between gap-4"

@@ -96,16 +96,23 @@ export const load: PageServerLoad = async ({ locals, platform, params }) => {
 
 	if (!escala) redirect(302, '/escalas');
 
-	// Policial: s\u00f3 v\u00ea sua pr\u00f3pria lota\u00e7\u00e3o
-	if (u.tipo === 'policial' && escala.lotacao !== u.lotacao) {
-		redirect(302, '/escalas');
-	}
-
-	// Admin seccional/unidade fora da lota\u00e7\u00e3o: verifica solicita\u00e7\u00e3o de assinatura
-	if (u.tipo !== 'admin' && u.tipo !== 'policial' && u.lotacao !== escala.lotacao) {
-		const perm = await verificarPermissaoEscala(getDB(platform), escalaId, escala.lotacao, u);
+	// Permissão de LEITURA fora da própria lotação. Um admin_seccional/admin_unidade
+	// é um POLICIAL (u.tipo === 'policial') com u.papel definido — por isso a regra
+	// depende do PAPEL/escopo, não do tipo. `verificarPermissaoEscala` concentra
+	// tudo: Admin Geral irrestrito; mesma lotação; escopo do papel cobre a lotação
+	// da escala (a seccional vê as escalas das suas unidades); DPC admin com
+	// solicitação direcionada. Vale para qualquer tipo de escala (fds/plantão/
+	// expediente). Policial comum continua restrito à própria lotação.
+	if (u.tipo !== 'admin' && escala.lotacao !== u.lotacao) {
+		const perm = await verificarPermissaoEscala(db, escalaId, escala.lotacao, u);
 		if (!perm.permitido) redirect(302, '/escalas');
 	}
+
+	// Permissão de EDIÇÃO (mutar servidores/finalizar). Espelha exatamente o guard
+	// das actions (`carregarEscalaComPermissao`): Admin Geral em qualquer escala, ou
+	// dono da lotação. Um admin_seccional que apenas VÊ a escala de uma unidade sob
+	// seu escopo NÃO edita — mas continua podendo ASSINAR (fluxo próprio, cross-unidade).
+	const podeEditarEscala = u.tipo === 'admin' || escala.lotacao === u.lotacao;
 
 	const oipPodeSolicitar = podeOIPSolicitar(u);
 	const jaAssinada = docInfo.existe;
@@ -123,6 +130,7 @@ export const load: PageServerLoad = async ({ locals, platform, params }) => {
 		policiaisEscala,
 		documentoAssinadoInfo: docInfo,
 		escalaId,
+		podeEditarEscala,
 		podeOIPSolicitar: oipPodeSolicitar,
 		solicitacaoAtual: solicitacaoAtual
 			? {

@@ -7,6 +7,7 @@
 
 	interface Props {
 		policiaisEscalaLocal: EscalaPolicialComDados[];
+		podeEditarEscala: boolean;
 		documentoAssinadoExiste: boolean;
 		finalizadaEm: string | null;
 		modoSelecao: boolean;
@@ -19,6 +20,7 @@
 
 	let {
 		policiaisEscalaLocal = $bindable(),
+		podeEditarEscala,
 		documentoAssinadoExiste,
 		finalizadaEm,
 		modoSelecao,
@@ -169,7 +171,7 @@
 								<th class="!py-4 text-left text-surface-500 font-medium uppercase tracking-tight"
 									>Observações</th
 								>
-								{#if !modoSelecao && !documentoAssinadoExiste && !finalizadaEm}
+								{#if podeEditarEscala && !modoSelecao && !documentoAssinadoExiste && !finalizadaEm}
 									<th
 										class="!py-4 !px-4 text-right text-surface-500 font-medium uppercase tracking-tight w-24"
 										>Ações</th
@@ -237,7 +239,7 @@
 											{p.hora_entrada} - {p.hora_saida}
 										</div>
 									</td>
-									{#if !modoSelecao && !documentoAssinadoExiste && !finalizadaEm}
+									{#if podeEditarEscala && !modoSelecao && !documentoAssinadoExiste && !finalizadaEm}
 										<td class="!py-4 !px-4 align-middle text-right">
 											<div class="flex items-center justify-end gap-1">
 												<IconTooltip label="Editar">
@@ -275,7 +277,7 @@
 					</table>
 				</div>
 
-				{#if !modoSelecao && !documentoAssinadoExiste && !finalizadaEm}
+				{#if podeEditarEscala && !modoSelecao && !documentoAssinadoExiste && !finalizadaEm}
 					{#if addingOipEquipe === equipe}
 						<FormInlineAdicionarOip
 							{escala}
