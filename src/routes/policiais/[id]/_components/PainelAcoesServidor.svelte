@@ -141,7 +141,7 @@
 				use:enhance={handleSubmit}
 				class="space-y-3"
 			>
-				<div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+				<div class="grid grid-cols-1 gap-2">
 					<label class="label">
 						<span class="label-text text-2xs font-bold uppercase opacity-70 ml-1"
 							>Unidade Atual</span

@@ -168,7 +168,7 @@
 					maxlength="14"
 				/>
 			</label>
-			<label class="label sm:col-span-9">
+			<label class="label sm:col-span-5">
 				<span class="label-text text-2xs font-bold uppercase opacity-70 ml-1"
 					>E-mail funcional (para 2FA)</span
 				>
@@ -178,6 +178,18 @@
 					name="email"
 					bind:value={email}
 					placeholder="exemplo@gmail.com"
+				/>
+			</label>
+			<label class="label sm:col-span-4">
+				<span class="label-text text-2xs font-bold uppercase opacity-70 ml-1"
+					>E-mail pessoal (cadastrado pelo policial)</span
+				>
+				<input
+					class="input py-1 px-3 text-sm bg-surface-200 dark:bg-surface-800 cursor-not-allowed opacity-75"
+					type="email"
+					value={data.policial?.email_pessoal || ''}
+					placeholder="— não cadastrado —"
+					readonly
 				/>
 			</label>
 		</div>

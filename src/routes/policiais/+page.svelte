@@ -130,7 +130,6 @@
 	let regime = $state<'plantao' | 'expediente'>('plantao');
 	let lotacaoInput = $state('');
 	let email = $state('');
-	let emailPessoal = $state('');
 
 	// Papel administrativo no cadastro
 	let papel = $state<string | null>(null);
@@ -165,7 +164,6 @@
 		regime = 'plantao';
 		lotacaoInput = isAdmin ? '' : (data.lotacaoUsuario ?? '');
 		email = '';
-		emailPessoal = '';
 		papel = null;
 		papelUnidadeId = null;
 	}
@@ -356,7 +354,8 @@
 					</label>
 				</div>
 
-				<!-- Linha 2: CPF (4), E-mail institucional (4), E-mail pessoal (4) -->
+				<!-- Linha 2: CPF (4), E-mail funcional (8). O e-mail pessoal é cadastrado
+					 pelo próprio policial (recuperação de senha) — não vai no cadastro. -->
 				<div class="grid grid-cols-1 sm:grid-cols-12 gap-2">
 					<label class="label sm:col-span-4">
 						<span class="label-text text-2xs font-bold uppercase opacity-70 ml-1"
@@ -371,9 +370,9 @@
 							maxlength="14"
 						/>
 					</label>
-					<label class="label sm:col-span-4">
+					<label class="label sm:col-span-8">
 						<span class="label-text text-2xs font-bold uppercase opacity-70 ml-1"
-							>E-mail funcional(para 2FA)</span
+							>E-mail funcional (para 2FA)</span
 						>
 						<input
 							class="input py-1 px-3 text-sm"
@@ -381,18 +380,6 @@
 							name="email"
 							bind:value={email}
 							placeholder="exemplo@gmail.com"
-						/>
-					</label>
-					<label class="label sm:col-span-4">
-						<span class="label-text text-2xs font-bold uppercase opacity-70 ml-1"
-							>E-mail pessoal (rec. de senha)</span
-						>
-						<input
-							class="input py-1 px-3 text-sm"
-							type="email"
-							name="email_pessoal"
-							bind:value={emailPessoal}
-							placeholder="email pessoal"
 						/>
 					</label>
 				</div>
@@ -451,11 +438,15 @@
 					</label>
 				</div>
 
-				{#if isAdminOrSeccional || isAdminUnidade}
-					<div class="p-3 rounded-xl bg-surface-500/5 border border-surface-500/10 space-y-3 mt-1">
-						<h4 class="text-2xs font-bold uppercase opacity-50">Papel Administrativo (Opcional)</h4>
-						<div class="grid grid-cols-1 sm:grid-cols-12 gap-2">
-							<label class="label sm:col-span-5">
+				<div class="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-1 items-stretch">
+					{#if isAdminOrSeccional || isAdminUnidade}
+						<div
+							class="p-3 rounded-xl bg-surface-500/5 border border-surface-500/10 space-y-2 flex flex-col"
+						>
+							<h4 class="text-2xs font-bold uppercase opacity-50">
+								Papel Administrativo (Opcional)
+							</h4>
+							<label class="label">
 								<span class="label-text text-2xs font-bold opacity-70 ml-1">Papel</span>
 								<select class="select py-1 px-3 text-sm" bind:value={papel}>
 									<option value={null}>Servidor (sem papel)</option>
@@ -466,7 +457,7 @@
 								</select>
 							</label>
 							{#if papel && !(isAdminUnidade && papel === 'admin_unidade')}
-								<label class="label sm:col-span-7">
+								<label class="label">
 									<span class="label-text text-2xs font-bold opacity-70 ml-1">
 										{papel === 'admin_seccional' ? 'Seccional de resp.' : 'Unidade de resp.'}
 									</span>
@@ -478,35 +469,38 @@
 									</select>
 								</label>
 							{:else if papel === 'admin_unidade' && isAdminUnidade}
-								<p class="text-3xs text-surface-500 sm:col-span-7 flex items-end pb-2 ml-1 italic">
+								<p class="text-3xs text-surface-500 ml-1 italic">
 									Será nomeado para a sua própria unidade.
 								</p>
 							{/if}
 						</div>
-					</div>
-				{/if}
-			</form>
+					{/if}
 
-			{#if isAdmin}
-				<label
-					class="mt-3 flex items-start gap-2 p-3 rounded-xl bg-surface-500/5 border border-surface-500/10 cursor-pointer"
-				>
-					<input
-						type="checkbox"
-						name="conceder_admin_geral"
-						value="1"
-						form="policialForm"
-						class="checkbox mt-0.5"
-					/>
-					<span class="text-xs">
-						<b class="block">Conceder Admin Geral</b>
-						<span class="text-surface-500">
-							Cria a conta de Administrador Geral vinculada. A pessoa loga com a mesma
-							matrícula/senha escolhendo "Administrador". Cumulativo com o papel.
-						</span>
-					</span>
-				</label>
-			{/if}
+					{#if isAdmin}
+						<label
+							class="p-3 rounded-xl bg-surface-500/5 border border-surface-500/10 cursor-pointer flex flex-col"
+						>
+							<h4 class="text-2xs font-bold uppercase opacity-50 mb-2">Admin Geral (Opcional)</h4>
+							<div class="flex items-start gap-2">
+								<input
+									type="checkbox"
+									name="conceder_admin_geral"
+									value="1"
+									form="policialForm"
+									class="checkbox mt-0.5"
+								/>
+								<span class="text-xs">
+									<b class="block">Conceder Admin Geral</b>
+									<span class="text-surface-500">
+										Cria a conta de Administrador Geral vinculada. A pessoa loga com a mesma
+										matrícula/senha escolhendo "Administrador". Cumulativo com o papel.
+									</span>
+								</span>
+							</div>
+						</label>
+					{/if}
+				</div>
+			</form>
 
 			<div class="flex justify-end gap-2 pt-4 mt-3 border-t border-surface-200 dark:border-white/5">
 				<Dialog.CloseTrigger class="btn btn-sm preset-outlined-surface-500"
