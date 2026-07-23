@@ -49,3 +49,19 @@ export async function ehAdminGeralVinculado(db: Database, policialId: number): P
 		.get();
 	return !!row;
 }
+
+/**
+ * Devolve a conta admin (id/nome) vinculada a um policial, ou `undefined`.
+ * Usado pela alternância de sessão Usuário → ADM Geral (a pessoa já poderia
+ * logar como admin com as mesmas credenciais; aqui só evitamos o relogin).
+ */
+export async function buscarAdminVinculadoPorPolicial(
+	db: Database,
+	policialId: number
+): Promise<{ id: number; nome: string } | undefined> {
+	return db
+		.select({ id: administradores.id, nome: administradores.nome })
+		.from(administradores)
+		.where(eq(administradores.policial_id, policialId))
+		.get();
+}

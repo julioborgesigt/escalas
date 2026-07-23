@@ -1,5 +1,5 @@
 import type { LayoutServerLoad } from './$types';
-import { getDB } from '$lib/db';
+import { getDB, ehAdminGeralVinculado } from '$lib/db';
 import { lerFlagsAssinatura } from '$lib/server/cfg-ass-cache';
 import { lerPapelGise } from '$lib/server/gise-papel-cache';
 import { temAssinaturaEscalaPendente } from '$lib/server/rubrica-pendente';
@@ -16,6 +16,11 @@ export const load: LayoutServerLoad = async ({ locals, platform, cookies }) => {
 	let exigirCodigoEmailAssinatura = false;
 	let restringirSmartphone = false;
 	let precisaCadastrarRubrica = false;
+	// Alternância de acesso (ADM Geral ↔ Usuário) para a MESMA pessoa vinculada.
+	// admin → usuário: exige a sessão admin ter policial vinculado (adminPolicialId).
+	// usuário → admin: exige o policial ter conta Admin Geral vinculada.
+	const podeAlternarParaUsuario = u?.tipo === 'admin' && u.adminPolicialId != null;
+	let podeAlternarParaAdmin = false;
 
 	if (u) {
 		try {
@@ -30,10 +35,12 @@ export const load: LayoutServerLoad = async ({ locals, platform, cookies }) => {
 			// próprio handler, então o stale window real é só para
 			// cascatas raras (ex.: deletar uma seccional inteira).
 			const db = u.tipo === 'policial' ? getDB(platform) : null;
-			const [flags, papel] = await Promise.all([
+			const [flags, papel, vinculadoAdmin] = await Promise.all([
 				lerFlagsAssinatura(platform),
-				db ? lerPapelGise(db, u.id) : Promise.resolve(null)
+				db ? lerPapelGise(db, u.id) : Promise.resolve(null),
+				db ? ehAdminGeralVinculado(db, u.id) : Promise.resolve(false)
 			]);
+			podeAlternarParaAdmin = vinculadoAdmin;
 			exigirFotoAssinatura = flags.exigirFotoAssinatura;
 			exigirGpsAssinatura = flags.exigirGpsAssinatura;
 			exigirCodigoEmailAssinatura = flags.exigirCodigoEmailAssinatura;
@@ -77,6 +84,8 @@ export const load: LayoutServerLoad = async ({ locals, platform, cookies }) => {
 		exigirCodigoEmailAssinatura,
 		restringirSmartphone,
 		precisaCadastrarRubrica,
-		adminModulo
+		adminModulo,
+		podeAlternarParaUsuario,
+		podeAlternarParaAdmin
 	};
 };

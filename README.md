@@ -452,6 +452,10 @@ O logger estruturado ([`src/lib/logger.ts`](src/lib/logger.ts)) continua emitind
 
 Alternativa: **login por certificado digital A3** (e-CPF ICP-Brasil) via `/api/auth/certificado/*`, dispensa senha e 2FA por e-mail. Além da assinatura do desafio e da cadeia ICP-Brasil, o login consulta a **revogação (OCSP)** do certificado: um e-CPF revogado é recusado; se o responder da AC estiver indisponível, o login prossegue e registra `metadados.ocsp = 'unknown'` na auditoria (soft-fail). O botão existe nas duas abas do `/login`: na aba **Policial** cria sessão operacional; na aba **Administrador** (`comoAdmin`) resolve a conta admin vinculada ao policial do certificado e cria sessão de administrador no módulo escolhido.
 
+### Alternância de acesso (ADM Geral ↔ Usuário)
+
+Quem tem **Admin Geral vinculado** (linha em `administradores` ligada ao seu policial) pode alternar entre o modo Administrador e o modo Usuário **sem sair e logar de novo**, por um botão na sidebar (`/api/auth/alternar-acesso`). A troca só recria a sessão apontando para a outra identidade da **mesma pessoa** — **não concede privilégio novo**: quem não tem a conta vinculada não vê o botão e o endpoint responde 403. Como a pessoa já passou pelo 2FA no login (o admin vinculado usa o mesmo e-mail/2FA), a troca é imediata, análoga ao swap de módulo GISE/Escalas. Cada alternância é auditada (`alternar_acesso`).
+
 ### Primeiro acesso
 
 Após criar um policial/admin, a conta fica bloqueada até o usuário definir sua própria senha (`primeiro_acesso = true`). O sistema redireciona automaticamente para `/alterar-senha`.
