@@ -226,7 +226,8 @@
 			</label>
 		</div>
 
-		<div class="flex gap-2 pt-1 border-t border-surface-200 dark:border-white/5 mt-2">
+		<div class="flex justify-end gap-2 pt-1 border-t border-surface-200 dark:border-white/5 mt-2">
+			<a href="/policiais" class="btn btn-sm preset-outlined-primary-500">Cancelar</a>
 			<button
 				type="submit"
 				class="btn btn-sm sm:btn-md preset-filled-primary-500 flex items-center gap-2"
@@ -234,7 +235,6 @@
 			>
 				{loading.active ? 'Guardando...' : 'Salvar'}
 			</button>
-			<a href="/policiais" class="btn btn-sm preset-outlined-primary-500">Cancelar</a>
 		</div>
 	</form>
 </div>
@@ -290,7 +290,9 @@
 						</p>
 					{/if}
 				</div>
-				<div class="flex gap-2 pt-1 border-t border-surface-200 dark:border-white/5 mt-2">
+				<div
+					class="flex justify-end gap-2 pt-1 border-t border-surface-200 dark:border-white/5 mt-2"
+				>
 					<button
 						type="submit"
 						class="btn btn-sm preset-filled-primary-500 flex items-center gap-2"
@@ -315,7 +317,7 @@
 				action="?/toggleAdminGeral"
 				use:enhance={handleToggleAdminGeral}
 				bind:this={formAdminGeral}
-				class="flex items-center gap-3 flex-wrap mt-auto"
+				class="flex items-center justify-end gap-3 flex-wrap mt-auto"
 			>
 				<input type="hidden" name="ativar" value={ehAdminGeral ? '0' : '1'} />
 				<ToggleSwitch
