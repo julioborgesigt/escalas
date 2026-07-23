@@ -42,7 +42,8 @@ export const POST: RequestHandler = async (event) => {
 
 		const novoToken = await criarSessao(db, 'policial', policial.id);
 		cookies.set('session_token', novoToken, cookieOptions(url));
-		cookies.delete('admin_modulo', { path: '/' });
+		// Preserva o cookie `admin_modulo` (só surte efeito em sessão admin) para
+		// que, ao voltar ao modo admin, caia no último módulo usado.
 		if (tokenAtual) await excluirSessao(db, tokenAtual);
 
 		const destino: UsuarioLogado = {
@@ -81,9 +82,12 @@ export const POST: RequestHandler = async (event) => {
 
 	const novoToken = await criarSessao(db, 'admin', admin.id);
 	cookies.set('session_token', novoToken, cookieOptions(url));
-	// Sem preferência de módulo salva na troca: 'ambas' mostra a navegação
-	// completa e deixa o swap GISE/Escalas disponível.
-	cookies.set('admin_modulo', 'ambas', cookieOptions(url));
+	// Entra no ÚLTIMO módulo admin usado (cookie preservado); default GISE.
+	// Nunca cai em 'ambas' (o antigo "Admin Geral" GISE+Escalas está em desuso).
+	const moduloSalvo = cookies.get('admin_modulo');
+	const modulo: 'gise' | 'escalas' =
+		moduloSalvo === 'gise' || moduloSalvo === 'escalas' ? moduloSalvo : 'gise';
+	cookies.set('admin_modulo', modulo, cookieOptions(url));
 	if (tokenAtual) await excluirSessao(db, tokenAtual);
 
 	const destino: UsuarioLogado = {
@@ -104,12 +108,12 @@ export const POST: RequestHandler = async (event) => {
 			alvo_tipo: 'admin',
 			alvo_id: admin.id,
 			alvo_nome: admin.nome,
-			detalhes: 'Alternou de modo Usuário para ADM Geral',
-			metadados: { de: 'policial', para: 'admin' },
+			detalhes: `Alternou de modo Usuário para ADM Geral (${modulo})`,
+			metadados: { de: 'policial', para: 'admin', modulo },
 			...contexto
 		},
 		{ env }
 	);
 
-	return json({ success: true, redirect: obterRotaBemVindo(destino, 'ambas') });
+	return json({ success: true, redirect: obterRotaBemVindo(destino, modulo) });
 };
