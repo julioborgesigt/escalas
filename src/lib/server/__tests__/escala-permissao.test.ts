@@ -64,6 +64,38 @@ describe('verificarPermissaoEscala', () => {
 		expect(r.motivo).toMatch(/Sem permiss/i);
 	});
 
+	it('admin seccional VÊ escala de unidade sob seu escopo (sem solicitação, qualquer cargo/tipo)', async () => {
+		// Cenário reportado: a seccional administra a unidade dona da escala (FDS ou
+		// mensal). O acesso de LEITURA é direto pelo escopo — não exige solicitação
+		// nem cargo DPC. Antes desta regra o load expulsava a seccional para /escalas.
+		vi.mocked(lotacoesAdministradas).mockResolvedValueOnce(
+			new Set(['SECCIONAL A', 'DELEGACIA X', 'DELEGACIA Y'])
+		);
+		const u = user({
+			lotacao: 'SECCIONAL A',
+			papel: 'admin_seccional',
+			papel_unidade_id: 10,
+			cargo: 'OIP' // vale mesmo sem ser DPC — é somente leitura
+		});
+		const r = await verificarPermissaoEscala(fakeDb, 7, 'DELEGACIA X', u);
+		expect(r).toEqual({ permitido: true });
+		// Escopo já cobre a lotação → não recorre à solicitação de assinatura.
+		expect(temSolicitacaoParaDpcAdmin).not.toHaveBeenCalled();
+	});
+
+	it('admin seccional NÃO vê escala de unidade fora do seu escopo (sem solicitação)', async () => {
+		// Unidade de OUTRA seccional: fora do escopo e sem solicitação → negado.
+		vi.mocked(lotacoesAdministradas).mockResolvedValueOnce(new Set(['SECCIONAL A', 'DELEGACIA X']));
+		const u = user({
+			lotacao: 'SECCIONAL A',
+			papel: 'admin_seccional',
+			papel_unidade_id: 10,
+			cargo: 'OIP'
+		});
+		const r = await verificarPermissaoEscala(fakeDb, 8, 'DELEGACIA Z', u);
+		expect(r.permitido).toBe(false);
+	});
+
 	it('admin seccional DPC de outra lotação pode SE houver solicitação para ele', async () => {
 		vi.mocked(lotacoesAdministradas).mockResolvedValueOnce(new Set(['OUTRA']));
 		vi.mocked(temSolicitacaoParaDpcAdmin).mockResolvedValueOnce(true);

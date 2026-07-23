@@ -21,6 +21,7 @@
 		isExpediente,
 		diasEscalaLocal,
 		modoEdicao,
+		podeEditarEscala,
 		documentoAssinadoExiste,
 		finalizadaEm,
 		solicitacaoAtual,
@@ -31,6 +32,7 @@
 		isExpediente: boolean;
 		diasEscalaLocal: string[];
 		modoEdicao: boolean;
+		podeEditarEscala: boolean;
 		documentoAssinadoExiste: boolean;
 		finalizadaEm: string | null;
 		solicitacaoAtual: { tipo: string } | null;
@@ -165,7 +167,7 @@
 	}
 
 	const visivel = $derived(
-		modoEdicao && !documentoAssinadoExiste && !finalizadaEm && !solicitacaoAtual
+		podeEditarEscala && modoEdicao && !documentoAssinadoExiste && !finalizadaEm && !solicitacaoAtual
 	);
 </script>
 

@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { PageProps } from './$types';
+	import { untrack } from 'svelte';
 	import { page } from '$app/state';
 	import { SvelteSet } from 'svelte/reactivity';
 	import { enhance } from '$app/forms';
@@ -52,12 +53,21 @@
 	const isFDS = $derived(escala?.tipo === 'fds');
 	const isExpediente = $derived(escala?.tipo === 'expediente');
 
-	let modoEdicao = $state(true);
+	// Permissão de EDIÇÃO da escala (mutar servidores/finalizar), vinda do load.
+	// Admin Geral em qualquer escala, ou o dono da lotação. Um admin_seccional que
+	// apenas VISUALIZA a escala de uma unidade não vê os controles de edição — mas
+	// continua podendo ASSINAR (o painel de assinatura tem regra própria).
+	const podeEditarEscala = $derived(data.podeEditarEscala);
+
+	// Viewers (sem permissão de edição) começam fora do modo de edição.
+	// Captura só o valor inicial do load (o toggle é mutável a partir daí).
+	let modoEdicao = $state(untrack(() => data.podeEditarEscala));
 	const podeEditar = $derived(
-		data.podeOIPSolicitar ||
-			((page.data.usuario?.papel === 'admin_seccional' ||
-				page.data.usuario?.papel === 'admin_unidade') &&
-				page.data.usuario?.cargo === 'DPC')
+		podeEditarEscala &&
+			(data.podeOIPSolicitar ||
+				((page.data.usuario?.papel === 'admin_seccional' ||
+					page.data.usuario?.papel === 'admin_unidade') &&
+					page.data.usuario?.cargo === 'DPC'))
 	);
 
 	// diasEscalaLocal para FormAdicionarServidores (non-FDS pages — sem ModalEditarDias)
@@ -227,6 +237,7 @@
 		{isFDS}
 		policiaisCount={policiaisEscalaLocal.length}
 		usuario={page.data.usuario}
+		{podeEditarEscala}
 		bind:documentoAssinadoInfo
 		bind:finalizadaEm
 		{emailEnvioInicial}
@@ -342,6 +353,7 @@
 		{isExpediente}
 		{diasEscalaLocal}
 		{modoEdicao}
+		{podeEditarEscala}
 		documentoAssinadoExiste={documentoAssinadoInfo?.existe ?? false}
 		{finalizadaEm}
 		{solicitacaoAtual}
@@ -358,7 +370,7 @@
 		<hr class="flex-1 border-surface-200 dark:border-white/10" />
 	</div>
 
-	{#if policiaisEscalaLocal.length > 0 && !documentoAssinadoInfo?.existe && !finalizadaEm}
+	{#if policiaisEscalaLocal.length > 0 && !documentoAssinadoInfo?.existe && !finalizadaEm && podeEditarEscala}
 		<ToolbarSelecao
 			{totalSelecionados}
 			{modoSelecao}
@@ -378,6 +390,7 @@
 		<ListaFds
 			bind:policiaisEscalaLocal
 			{modoEdicao}
+			{podeEditarEscala}
 			documentoAssinadoExiste={documentoAssinadoInfo?.existe ?? false}
 			{finalizadaEm}
 			{solicitacaoAtual}
@@ -396,6 +409,7 @@
 	{:else if !isExpediente && !isFDS}
 		<TabelaPlantao
 			bind:policiaisEscalaLocal
+			{podeEditarEscala}
 			documentoAssinadoExiste={documentoAssinadoInfo?.existe ?? false}
 			{finalizadaEm}
 			{modoSelecao}
@@ -410,6 +424,7 @@
 			bind:policiaisEscalaLocal
 			{isExpediente}
 			{isFDS}
+			{podeEditarEscala}
 			documentoAssinadoExiste={documentoAssinadoInfo?.existe ?? false}
 			{finalizadaEm}
 			{modoSelecao}

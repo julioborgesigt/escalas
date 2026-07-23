@@ -15,6 +15,7 @@
 		isFDS,
 		policiaisCount,
 		usuario,
+		podeEditarEscala = true,
 		documentoAssinadoInfo = $bindable(),
 		finalizadaEm = $bindable(null),
 		emailEnvioInicial = null,
@@ -26,6 +27,13 @@
 		isFDS: boolean;
 		policiaisCount: number;
 		usuario: UsuarioLogado | null;
+		/**
+		 * Se o usuário pode EDITAR/FINALIZAR a escala. Um admin_seccional que apenas
+		 * visualiza a escala de uma unidade recebe `false` e não vê os controles de
+		 * finalizar/reabrir/reenviar do FDS (mas continua vendo downloads). A assinatura
+		 * digital (plantão/expediente) segue com regra própria, cross-unidade.
+		 */
+		podeEditarEscala?: boolean;
 		documentoAssinadoInfo: DocumentoAssinadoInfo | null;
 		finalizadaEm?: string | null;
 		emailEnvioInicial?: string | null;
@@ -36,7 +44,13 @@
 </script>
 
 {#if isFDS}
-	<PainelAssinaturaFDS {escalaId} {policiaisCount} bind:finalizadaEm {emailEnvioInicial} />
+	<PainelAssinaturaFDS
+		{escalaId}
+		{policiaisCount}
+		podeEditar={podeEditarEscala}
+		bind:finalizadaEm
+		{emailEnvioInicial}
+	/>
 {:else}
 	<PainelAssinaturaDigital
 		{escalaId}

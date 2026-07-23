@@ -13,6 +13,7 @@
 		policiaisEscalaLocal: EscalaPolicialComDados[];
 		isExpediente: boolean;
 		isFDS: boolean;
+		podeEditarEscala: boolean;
 		documentoAssinadoExiste: boolean;
 		finalizadaEm: string | null;
 		modoSelecao: boolean;
@@ -28,6 +29,7 @@
 		policiaisEscalaLocal = $bindable(),
 		isExpediente,
 		isFDS,
+		podeEditarEscala,
 		documentoAssinadoExiste,
 		finalizadaEm,
 		modoSelecao,
@@ -275,7 +277,7 @@
 										</div>
 									</div>
 								</div>
-								{#if !documentoAssinadoExiste && !finalizadaEm && !modoSelecao}
+								{#if podeEditarEscala && !documentoAssinadoExiste && !finalizadaEm && !modoSelecao}
 									<div class="flex items-center gap-1 shrink-0 mt-0.5">
 										<IconTooltip label="Editar">
 											<button
@@ -588,7 +590,7 @@
 										{#if !modoSelecao}
 											<td class="!py-4 !px-4 text-right align-middle">
 												<div class="flex items-center justify-end gap-1">
-													{#if !documentoAssinadoExiste && !finalizadaEm}
+													{#if podeEditarEscala && !documentoAssinadoExiste && !finalizadaEm}
 														<IconTooltip label="Editar">
 															<button
 																type="button"
