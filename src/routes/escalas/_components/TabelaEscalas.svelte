@@ -93,11 +93,14 @@
 		<table class="table">
 			<thead>
 				<tr>
-					<th>Título</th>
-					<th>Cidade</th>
-					<th>Período</th>
-					<th>Status</th>
-					<th>Ações</th>
+					<!-- Larguras proporcionais para espaçar as colunas de forma uniforme e
+					     evitar que a folga vire um vão único (ex.: entre Status e Ações).
+					     Ações mantém ~28% para caber a fileira de botões sem quebrar. -->
+					<th class="w-[30%]">Título</th>
+					<th class="w-[12%] whitespace-nowrap">Cidade</th>
+					<th class="w-[14%] whitespace-nowrap">Período</th>
+					<th class="w-[16%] whitespace-nowrap">Status</th>
+					<th class="w-[28%] whitespace-nowrap">Ações</th>
 				</tr>
 			</thead>
 			<tbody>

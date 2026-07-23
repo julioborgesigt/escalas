@@ -54,30 +54,36 @@
 			</svg>
 			<span class="text-sm font-bold uppercase tracking-wider">Voltar</span>
 		</button>
-		<div class="flex items-center gap-2 mb-1 flex-wrap">
-			{#if isExpediente}
-				<span class="badge preset-outlined-secondary-500 font-bold text-sm px-3 py-1"
-					>Expediente</span
-				>
-			{:else if isFDS}
-				<span class="badge preset-outlined-tertiary-500 font-bold text-sm px-3 py-1">FDS</span>
+		<!-- Tipo como "kicker" (rótulo em maiúsculas, colorido) — antes era um badge
+		     contornado que, perto do botão Voltar, parecia outro botão. -->
+		<p
+			class="text-2xs font-bold uppercase tracking-[0.15em] mb-1 {isExpediente
+				? 'text-secondary-600 dark:text-secondary-400'
+				: isFDS
+					? 'text-tertiary-600 dark:text-tertiary-400'
+					: 'text-primary-600 dark:text-primary-400'}"
+		>
+			{isExpediente ? 'Expediente' : isFDS ? 'FDS' : 'Plantão'}
+		</p>
+		<h1 class="font-bold text-lg sm:text-xl text-surface-900 dark:text-surface-50">
+			{#if isFDS}
+				{formatarData(escala.data_inicio)} a {formatarData(escala.data_fim)}
 			{:else}
-				<span class="badge preset-outlined-primary-500 font-bold text-sm px-3 py-1">Plantão</span>
+				{new Date(escala.data_inicio + 'T00:00:00').toLocaleDateString('pt-BR', {
+					month: 'long'
+				})}
+				{new Date(escala.data_inicio + 'T00:00:00').getFullYear()}
 			{/if}
-			{#if !isFDS}
-				<h1 class="font-bold text-lg sm:text-xl text-surface-900 dark:text-surface-50">
-					{new Date(escala.data_inicio + 'T00:00:00').toLocaleDateString('pt-BR', {
-						month: 'long'
-					})}
-					{new Date(escala.data_inicio + 'T00:00:00').getFullYear()}
-				</h1>
-			{/if}
-		</div>
-		<p class="text-surface-600 dark:text-surface-300 text-sm font-medium">{escala.lotacao}</p>
+		</h1>
+		<p class="text-surface-600 dark:text-surface-300 text-sm font-medium mt-0.5">
+			{escala.lotacao}
+		</p>
 		<p class="text-surface-400 dark:text-surface-500 text-xs mt-0.5">
-			{formatarData(escala.data_inicio)} a {formatarData(escala.data_fim)}{isFDS
-				? ` · ${escala.hora_entrada || '08:00'}H a ${escala.hora_saida || '08:00'}H`
-				: ''}
+			{#if isFDS}
+				{escala.hora_entrada || '08:00'}H a {escala.hora_saida || '08:00'}H
+			{:else}
+				{formatarData(escala.data_inicio)} a {formatarData(escala.data_fim)}
+			{/if}
 		</p>
 	</div>
 	<div class="flex items-center gap-2 shrink-0">
