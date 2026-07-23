@@ -6,6 +6,7 @@
 	import { formatarData } from '$lib/utils';
 	import SkeletonCard from '$lib/components/SkeletonCard.svelte';
 	import PaginationControls from '$lib/components/PaginationControls.svelte';
+	import IconTooltip from '$lib/components/IconTooltip.svelte';
 
 	type SolicitacaoInfo = {
 		tipo: 'unidade' | 'respondencia';
@@ -295,10 +296,23 @@
 												onclick={() => onAbrirDialogSolicitar(esc.id)}>Solicitar Ass.</button
 											>
 										{/if}
+									{:else if podeOIPSolicitar && esc.tipo === 'fds'}
+										<!-- FDS não passa por assinatura digital (é finalizada e enviada por
+										     e-mail). Mantemos o botão no lugar, desabilitado, para o layout
+										     ficar consistente e explicar o porquê no hover. -->
+										<IconTooltip label="Escalas de FDS não necessitam de assinatura.">
+											<button
+												type="button"
+												class="btn btn-sm preset-outlined-surface-500 opacity-50 cursor-not-allowed"
+												aria-disabled="true"
+												tabindex={-1}
+												onclick={(e) => e.preventDefault()}>Solicitar Ass.</button
+											>
+										</IconTooltip>
 									{/if}
 									<button
 										type="button"
-										class="btn btn-sm preset-filled-error-500 flex-1 transition-all"
+										class="btn btn-sm preset-filled-error-500 transition-all"
 										onclick={() => onSolicitarExclusao(esc.id, esc.titulo)}>Excluir</button
 									>
 								</div>
