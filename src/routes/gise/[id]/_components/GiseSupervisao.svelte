@@ -7,17 +7,7 @@
 	import SearchableSelect from '$lib/components/SearchableSelect.svelte';
 	import PainelAssinaturaToken from '$lib/components/PainelAssinaturaToken.svelte';
 	import SupervisaoDocumentoCard from './SupervisaoDocumentoCard.svelte';
-	import {
-		ShieldCheck,
-		UserRound,
-		Users,
-		FileDown,
-		Clock,
-		PenLine,
-		X,
-		Check,
-		Trash2
-	} from 'lucide-svelte';
+	import { ShieldCheck, UserRound, Users, FileDown, Clock, PenLine, Trash2 } from 'lucide-svelte';
 	import Spinner from '$lib/components/Spinner.svelte';
 	import {
 		estadoMarcadorRodagemSupervisao,
@@ -361,32 +351,30 @@
 {/snippet}
 
 <!-- Par Salvar/Cancelar da edição inline — repetia-se nos 4 slots.
-     Padronizado com os cards de equipe: confirmar preenchido (primário) e
-     cancelar contornado, em vez dos ícones "soltos" verde/vermelho. -->
+     Mesmo estilo dos botões "Adicionar/Fechar" que alocam policiais na equipe:
+     rótulos em texto, preenchido (primário) + contornado. No mobile os dois
+     dividem UMA linha em partes iguais (`grid-cols-2`); em sm+ voltam à
+     largura natural, lado a lado com o campo de busca. -->
 {#snippet botoesSalvarCancelar(papel: Papel, classe: string = '')}
-	<div class="flex items-center gap-1 shrink-0 {classe}">
+	<div class="w-full grid grid-cols-2 gap-2 sm:flex sm:w-auto sm:shrink-0 {classe}">
 		<button
 			type="submit"
-			class="btn btn-sm preset-filled-primary-500 rounded p-1.5 transition-all"
+			class="btn preset-filled-primary-500 text-sm px-3 py-1.5 rounded-lg w-full sm:w-auto transition-all"
 			disabled={pendingCrud}
-			title="Confirmar"
-			aria-label="Confirmar"
 		>
 			{#if pendingCrud && editandoPapel === papel}
 				<Spinner size="sm" />
 			{:else}
-				<Check size={16} />
+				Adicionar
 			{/if}
 		</button>
 		<button
 			type="button"
-			class="btn btn-sm preset-outlined-primary-500 rounded p-1.5"
+			class="btn preset-outlined-primary-500 text-sm px-3 py-1.5 rounded-lg w-full sm:w-auto"
 			onclick={cancelarEdicao}
-			title="Cancelar"
-			aria-label="Cancelar"
 			disabled={pendingCrud}
 		>
-			<X size={16} />
+			Fechar
 		</button>
 	</div>
 {/snippet}
@@ -441,7 +429,7 @@
 					>NUIP OIP</span
 				>
 				{#if editandoPapel === papel}
-					<div class="flex items-center gap-1.5 mt-1 w-full">
+					<div class="flex flex-col sm:flex-row sm:items-center gap-2 mt-1 w-full">
 						<div class="flex-1 min-w-0">
 							<SearchableSelect
 								id="{papel}Id"
@@ -745,7 +733,7 @@
 								>DPC Supervisão</span
 							>
 							{#if editandoPapel === 'supervisor'}
-								<div class="flex items-center gap-1.5 mt-1 w-full">
+								<div class="flex flex-col sm:flex-row sm:items-center gap-2 mt-1 w-full">
 									<div class="flex-1 min-w-0 sm:max-w-md">
 										<SearchableSelect
 											id="supId"
