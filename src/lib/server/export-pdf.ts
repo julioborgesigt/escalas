@@ -1248,7 +1248,7 @@ function assinaturaRelatorioExtra(
 			const txtX = qrX + qrSize + 2;
 			doc.setFontSize(6);
 			doc.setFont('helvetica', 'bold');
-			doc.text('Confirmado eletronicamente por:', txtX, qrY + 3);
+			doc.text('Assinado eletronicamente por:', txtX, qrY + 3);
 			doc.text((reportSignature.assinante_nome ?? '').toUpperCase(), txtX, qrY + 6.5);
 
 			doc.setFont('helvetica', 'normal');

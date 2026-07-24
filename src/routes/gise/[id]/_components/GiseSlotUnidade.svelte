@@ -314,32 +314,36 @@
 							class="w-14 px-2 py-1.5 rounded-xl border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-sm text-center"
 						/>
 					</div>
-					<form
-						method="POST"
-						action="?/adicionarEquipe"
-						use:enhance={actions.handleAdicionarEquipe}
-						class="contents"
-					>
-						<input type="hidden" name="secId" value={sec.id} />
-						<input type="hidden" name="unidadeId" value={slot.id} />
-						<input type="hidden" name="tipo" value={estado.novaEquipeTipo} />
-						<input type="hidden" name="slots_dpc" value={estado.novaEquipeDpc} />
-						<input type="hidden" name="slots_oip" value={estado.novaEquipeOip} />
-						<button
-							type="submit"
-							class="btn preset-filled-primary-500 text-sm px-3 py-1.5 rounded-lg transition-all"
-							disabled={actions.pendingCrud}
-							>{actions.pendingAdicionarEquipe ? 'Adicionando...' : 'Adicionar'}</button
+					<!-- No mobile os dois botões dividem UMA linha em partes iguais
+					     (`w-full` + `flex-1`); em sm+ voltam à largura natural. -->
+					<div class="w-full grid grid-cols-2 gap-2 sm:flex sm:w-auto">
+						<form
+							method="POST"
+							action="?/adicionarEquipe"
+							use:enhance={actions.handleAdicionarEquipe}
+							class="w-full sm:w-auto"
 						>
-					</form>
-					<button
-						type="button"
-						class="btn preset-outlined-surface-500 text-sm px-2 py-1.5 rounded-lg"
-						onclick={() => {
-							estado.adicionandoEquipe = false;
-							estado.adicionandoEquipeSlotId = null;
-						}}>Cancelar</button
-					>
+							<input type="hidden" name="secId" value={sec.id} />
+							<input type="hidden" name="unidadeId" value={slot.id} />
+							<input type="hidden" name="tipo" value={estado.novaEquipeTipo} />
+							<input type="hidden" name="slots_dpc" value={estado.novaEquipeDpc} />
+							<input type="hidden" name="slots_oip" value={estado.novaEquipeOip} />
+							<button
+								type="submit"
+								class="btn preset-filled-primary-500 text-sm px-3 py-1.5 rounded-lg transition-all w-full sm:w-auto"
+								disabled={actions.pendingCrud}
+								>{actions.pendingAdicionarEquipe ? 'Adicionando...' : 'Adicionar'}</button
+							>
+						</form>
+						<button
+							type="button"
+							class="btn preset-outlined-surface-500 text-sm px-2 py-1.5 rounded-lg w-full sm:w-auto"
+							onclick={() => {
+								estado.adicionandoEquipe = false;
+								estado.adicionandoEquipeSlotId = null;
+							}}>Cancelar</button
+						>
+					</div>
 				</div>
 			{:else}
 				<button

@@ -357,6 +357,10 @@ export const load: PageServerLoad = async ({ locals, platform, url }) => {
 		giseIdSelected,
 		equipeIdSelected,
 		respostas: respostasData,
+		// Carimbo de envio (created_at) e da última retificação (updated_at) da
+		// resposta de produtividade — exibidos no card "Relatório Entregue".
+		respostaEnviadaEm: respostaRow?.created_at ?? null,
+		respostaAtualizadaEm: respostaRow?.updated_at ?? null,
 		restringirSmartphone,
 		minhaRubrica: rubricaRow?.rubrica ?? null,
 		modeloOperacional,

@@ -553,6 +553,7 @@
 													href="/api/escalas/{escala.id}/documento-assinado"
 													class="btn btn-sm preset-filled-success-500 text-xs font-bold transition-all"
 													target="_blank"
+													title="PDF assinado sem folha de auditoria (para impressão e distribuição)"
 												>
 													<svg
 														class="w-4 h-4 mr-1"
@@ -566,7 +567,15 @@
 															d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
 														/></svg
 													>
-													Baixar
+													S/ manifesto
+												</a>
+												<a
+													href="/api/escalas/{escala.id}/documento-assinado?manifesto=true"
+													class="btn btn-sm preset-outlined-tertiary-500 text-xs font-bold transition-all"
+													target="_blank"
+													title="PDF com folha de auditoria (evidências da assinatura: CPF, IP, GPS, selfie)"
+												>
+													C/ manifesto
 												</a>
 											{/if}
 
@@ -701,7 +710,15 @@
 									<a
 										href="/api/escalas/{escala.id}/documento-assinado"
 										class="btn btn-sm preset-filled-success-500 flex-1 text-xs transition-all"
-										target="_blank">Baixar</a
+										target="_blank"
+										title="PDF assinado sem folha de auditoria (para impressão e distribuição)"
+										>S/ manifesto</a
+									>
+									<a
+										href="/api/escalas/{escala.id}/documento-assinado?manifesto=true"
+										class="btn btn-sm preset-outlined-tertiary-500 flex-1 text-xs transition-all"
+										target="_blank"
+										title="PDF com folha de auditoria (evidências da assinatura)">C/ manifesto</a
 									>
 								{/if}
 

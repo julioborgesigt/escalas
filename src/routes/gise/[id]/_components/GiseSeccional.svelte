@@ -564,29 +564,33 @@
 								{/each}
 							</select>
 						</div>
-						<form
-							method="POST"
-							action="?/adicionarUnidade"
-							use:enhance={actions.handleAdicionarUnidade}
-							class="flex gap-2 shrink-0"
-						>
-							<input type="hidden" name="secId" value={sec.id} />
-							<input type="hidden" name="unidadeId" value={estado.novoSlotUnidadeId} />
-							<button
-								type="submit"
-								class="btn preset-filled-primary-500 text-sm px-3 py-1.5 rounded-xl transition-all"
-								disabled={pendingCrud}
-								>{pendingAdicionarUnidade ? 'Adicionando...' : 'Confirmar'}</button
+						<!-- No mobile os dois botões dividem UMA linha em partes iguais
+						     (`w-full` + `flex-1`); em sm+ voltam à largura natural. -->
+						<div class="w-full grid grid-cols-2 gap-2 sm:flex sm:w-auto sm:shrink-0">
+							<form
+								method="POST"
+								action="?/adicionarUnidade"
+								use:enhance={actions.handleAdicionarUnidade}
+								class="w-full sm:w-auto"
 							>
-						</form>
-						<button
-							type="button"
-							class="btn preset-outlined-surface-500 text-sm px-3 py-1.5 rounded-xl"
-							onclick={() => {
-								estado.adicionandoSlot = false;
-								estado.novoSlotUnidadeId = '';
-							}}>Cancelar</button
-						>
+								<input type="hidden" name="secId" value={sec.id} />
+								<input type="hidden" name="unidadeId" value={estado.novoSlotUnidadeId} />
+								<button
+									type="submit"
+									class="btn preset-filled-primary-500 text-sm px-3 py-1.5 rounded-xl transition-all w-full sm:w-auto"
+									disabled={pendingCrud}
+									>{pendingAdicionarUnidade ? 'Adicionando...' : 'Confirmar'}</button
+								>
+							</form>
+							<button
+								type="button"
+								class="btn preset-outlined-surface-500 text-sm px-3 py-1.5 rounded-xl w-full sm:w-auto"
+								onclick={() => {
+									estado.adicionandoSlot = false;
+									estado.novoSlotUnidadeId = '';
+								}}>Cancelar</button
+							>
+						</div>
 					</div>
 				{:else}
 					<button

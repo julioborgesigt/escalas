@@ -31,6 +31,21 @@
 	const usuario = $derived(page.data.usuario);
 	const giseId = $derived(resGise.escalaSelecionada?.id ?? null);
 
+	/** "2026-07-18 20:42:55" (horário local, -3h) → "18/07/2026 às 20:42". */
+	function fmtDataHora(ts: string | null | undefined): string {
+		if (!ts) return '';
+		const [data, hora] = ts.split(/[ T]/);
+		const [ano, mes, dia] = data.split('-');
+		if (!ano || !mes || !dia) return ts;
+		return `${dia}/${mes}/${ano}${hora ? ' às ' + hora.slice(0, 5) : ''}`;
+	}
+	// Só mostra "última atualização" quando difere do envio (houve retificação).
+	const houveRetificacao = $derived(
+		!!resGise.respostaAtualizadaEm &&
+			!!resGise.respostaEnviadaEm &&
+			resGise.respostaAtualizadaEm !== resGise.respostaEnviadaEm
+	);
+
 	// Controles dos painéis ocultos de assinatura A3 (um por tipo de presença,
 	// evitando corrida ao alternar o payload `tipo` entre entrada e saída).
 	let painelA3Entrada = $state<{ assinarComSerpro: () => Promise<void> } | null>(null);
@@ -409,17 +424,56 @@
 											<p class="text-xs text-success-600 dark:text-success-500">
 												Os dados de produtividade foram registrados com sucesso.
 											</p>
+											{#if resGise.respostaEnviadaEm}
+												<div
+													class="mt-2 text-3xs text-success-700/80 dark:text-success-500/90 space-y-0.5 tabular-nums"
+												>
+													<p>
+														Enviado em
+														<span class="font-bold">{fmtDataHora(resGise.respostaEnviadaEm)}</span>
+													</p>
+													{#if houveRetificacao}
+														<p>
+															Última atualização em
+															<span class="font-bold"
+																>{fmtDataHora(resGise.respostaAtualizadaEm)}</span
+															>
+														</p>
+													{/if}
+												</div>
+											{/if}
 										</div>
-										{@render actionButton(
-											'Atualizar / Retificar Dados',
-											undefined,
-											'primary',
-											'outlined',
-											() => (resGise.exibirRelatorio = true),
-											false,
-											false,
-											'w-full py-2 text-xs uppercase'
-										)}
+										<div class="flex flex-col gap-2">
+											{@render actionButton(
+												'Atualizar / Retificar Dados',
+												undefined,
+												'primary',
+												'outlined',
+												() => (resGise.exibirRelatorio = true),
+												false,
+												false,
+												'w-full py-2 text-xs uppercase'
+											)}
+											{#if resGise.escalaSelecionada.seccional_id !== 0}
+												<button
+													type="button"
+													class="btn btn-sm preset-tonal-surface-500 rounded-lg text-3xs font-bold uppercase flex items-center justify-center gap-1.5 w-full"
+													title="Baixar relatório de produtividade em PDF"
+													onclick={() => resGise.baixarRelatorio(resGise.escalaSelecionada!)}
+													disabled={loading.active ||
+														resGise.baixandoProdutividade === resGise.escalaSelecionada.id}
+												>
+													{#if resGise.baixandoProdutividade === resGise.escalaSelecionada.id}
+														<Spinner size="sm" />
+													{:else}
+														{@render btnIcon(
+															'M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4'
+														)}
+													{/if}
+													<span>Baixar relatório</span>
+												</button>
+											{/if}
+										</div>
 									</div>
 								{:else}
 									{#if resGise.escalaSelecionada.equipeRespondida && !Object.keys(resGise.respostas).length}
@@ -479,7 +533,7 @@
 												undefined,
 												loading.active,
 												false,
-												'flex-1 py-4 text-lg shadow-xl shadow-primary-500/20',
+												'flex-1 shadow-sm',
 												'submit'
 											)}
 										</form>

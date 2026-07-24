@@ -94,7 +94,7 @@ export async function adicionarRodapeSimples(
 	const textX = marginX + qrSize + 10;
 
 	// 2 — Informações do assinante (rótulo e nome em linhas separadas; data/URL como antes)
-	lastPage.drawText('Confirmado eletronicamente por:', {
+	lastPage.drawText('Assinado eletronicamente por:', {
 		x: textX,
 		y: qrY + 32,
 		size: 8.5,

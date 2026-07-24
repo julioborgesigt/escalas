@@ -360,29 +360,33 @@
 	{/if}
 {/snippet}
 
-<!-- Par Salvar/Cancelar da edição inline — repetia-se nos 4 slots -->
+<!-- Par Salvar/Cancelar da edição inline — repetia-se nos 4 slots.
+     Padronizado com os cards de equipe: confirmar preenchido (primário) e
+     cancelar contornado, em vez dos ícones "soltos" verde/vermelho. -->
 {#snippet botoesSalvarCancelar(papel: Papel, classe: string = '')}
-	<div class="flex items-center gap-0.5 shrink-0 {classe}">
+	<div class="flex items-center gap-1 shrink-0 {classe}">
 		<button
 			type="submit"
-			class="p-2 rounded-xl text-success-600 dark:text-success-400 hover:bg-success-500/10 active:scale-95 transition-all"
+			class="btn btn-sm preset-filled-primary-500 rounded p-1.5 transition-all"
 			disabled={pendingCrud}
-			title="Salvar"
+			title="Confirmar"
+			aria-label="Confirmar"
 		>
 			{#if pendingCrud && editandoPapel === papel}
 				<Spinner size="sm" />
 			{:else}
-				<Check size={18} />
+				<Check size={16} />
 			{/if}
 		</button>
 		<button
 			type="button"
-			class="p-2 rounded-xl text-error-600 dark:text-error-400 hover:bg-error-500/10 active:scale-95 transition-all"
+			class="btn btn-sm preset-outlined-primary-500 rounded p-1.5"
 			onclick={cancelarEdicao}
 			title="Cancelar"
+			aria-label="Cancelar"
 			disabled={pendingCrud}
 		>
-			<X size={18} />
+			<X size={16} />
 		</button>
 	</div>
 {/snippet}
@@ -394,10 +398,9 @@
 		<div class="flex items-center gap-1 shrink-0">
 			<button
 				type="button"
-				class={compacto
-					? 'p-0.5 rounded text-surface-400 hover:text-primary-500 hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors'
-					: 'p-1 rounded-lg text-surface-450 hover:text-primary-500 hover:bg-surface-200/50 dark:hover:bg-surface-800 transition-colors'}
+				class="btn btn-xs preset-filled-surface-500 rounded p-1"
 				title="Editar"
+				aria-label="Editar"
 				onclick={() => iniciarEdicao(papel)}
 			>
 				<PenLine size={compacto ? 12 : 14} />
@@ -405,10 +408,9 @@
 			{#if temId}
 				<button
 					type="button"
-					class={compacto
-						? 'p-0.5 rounded text-error-500 hover:text-error-600 hover:bg-error-500/10 transition-colors'
-						: 'p-1 rounded-lg text-error-500 hover:text-error-600 hover:bg-error-500/10 transition-colors'}
+					class="btn btn-xs preset-outlined-error-500 rounded p-1"
 					title="Remover"
+					aria-label="Remover"
 					onclick={() => excluirMembro(papel)}
 					disabled={pendingCrud}
 				>
