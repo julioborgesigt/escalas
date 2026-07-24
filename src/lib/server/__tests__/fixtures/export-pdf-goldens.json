@@ -20,11 +20,11 @@
 		"bytes": 5484
 	},
 	"relatorio_extra_seccional": {
-		"sha256": "73bbe91230be9be58ff7294167032f9a24ae00a3c2c99748c5a8ef29cb337e6f",
-		"bytes": 10595
+		"sha256": "3a2daf5925ca159bfe9ca42500cae31182c09c0b0a74fc0cb1a6e4fd031de35d",
+		"bytes": 10593
 	},
 	"relatorio_extra_supervisao": {
-		"sha256": "a61bc4c812f6747ae76bc18c893547375b78531e56e89fab7907d8872b26dff4",
+		"sha256": "a90a008dfbd38d36affb5b9ea7c3cc4ad58cd19e8ffd2c09ff4bdde9cfbd0517",
 		"bytes": 11828
 	}
 }
