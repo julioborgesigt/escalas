@@ -12,6 +12,7 @@
 	import { apiFetch } from '$lib/api-fetch';
 	import { loading } from '$lib/loading.svelte';
 	import { useAssinaturaEscala, useMobile } from '$lib/composables';
+	import { podeBaixarComManifesto } from '$lib/manifesto';
 
 	interface DocumentoAssinadoInfo {
 		existe: boolean;
@@ -132,6 +133,11 @@
 				usuario?.cargo === 'DPC')
 	);
 
+	// Quem recebe o blob COM manifesto (folha forense). No endpoint de escalas a
+	// regra roda sem assinanteId → só Admin Geral/Super; os demais só veem a cópia
+	// de conferência (sem manifesto), então o botão extra nem aparece para eles.
+	const podeManifesto = $derived(podeBaixarComManifesto(usuario));
+
 	let signatureStep = $state<'signature' | 'camera' | 'email_code'>('signature');
 	$effect(() => {
 		if (dialogSignOpen) {
@@ -221,11 +227,14 @@
 				</p>
 			</div>
 		</div>
-		<div class="flex items-center gap-3 w-full sm:w-auto">
+		<div class="flex items-center gap-2 sm:gap-3 w-full sm:w-auto flex-wrap sm:flex-nowrap">
 			<a
 				href={`/api/escalas/${escalaId}/documento-assinado`}
 				class="btn preset-filled-success-500 font-bold px-5 py-2.5 rounded-xl shadow-sm transition-all flex-1 sm:flex-none justify-center no-underline"
 				target="_blank"
+				title={podeManifesto
+					? 'PDF para impressão e distribuição (sem folha de auditoria)'
+					: 'PDF assinado para impressão e distribuição'}
 			>
 				<svg class="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
 					<path
@@ -235,8 +244,18 @@
 						d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
 					/>
 				</svg>
-				Download PDF
+				{podeManifesto ? 'PDF (s/ manifesto)' : 'Download PDF'}
 			</a>
+			{#if podeManifesto}
+				<a
+					href={`/api/escalas/${escalaId}/documento-assinado?manifesto=true`}
+					class="btn preset-outlined-success-500 font-bold px-5 py-2.5 rounded-xl transition-all flex-1 sm:flex-none justify-center no-underline"
+					target="_blank"
+					title="PDF com folha de auditoria (evidências da assinatura: CPF, IP, GPS, selfie)"
+				>
+					C/ manifesto
+				</a>
+			{/if}
 			<button
 				type="button"
 				class="btn preset-outlined-error-500 font-bold px-5 py-2.5 rounded-xl transition-all flex-1 sm:flex-none justify-center"

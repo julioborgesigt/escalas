@@ -7,6 +7,7 @@
 	import SkeletonCard from '$lib/components/SkeletonCard.svelte';
 	import PaginationControls from '$lib/components/PaginationControls.svelte';
 	import IconTooltip from '$lib/components/IconTooltip.svelte';
+	import { podeBaixarComManifesto } from '$lib/manifesto';
 
 	type SolicitacaoInfo = {
 		tipo: 'unidade' | 'respondencia';
@@ -43,6 +44,10 @@
 	} = $props();
 
 	let menuExpandidoId = $state<number | null>(null);
+
+	// Só Admin Geral/Super recebe o blob COM manifesto forense (a regra do endpoint
+	// de escalas roda sem assinanteId); os demais só baixam a cópia de conferência.
+	const podeManifesto = $derived(podeBaixarComManifesto(page.data.usuario));
 
 	const ITEMS_POR_PAGINA = 20;
 	const MESES_PT = [
@@ -249,6 +254,9 @@
 															class="w-full text-left px-4 py-2 text-sm font-bold text-success-600 dark:text-success-400 rounded hover:bg-success-500/10 transition-colors flex items-center gap-2 no-underline"
 															href={`/api/escalas/${esc.id}/documento-assinado`}
 															target="_blank"
+															title={podeManifesto
+																? 'PDF para impressão e distribuição (sem folha de auditoria)'
+																: 'PDF assinado para impressão e distribuição'}
 														>
 															<svg
 																class="w-4 h-4"
@@ -262,8 +270,30 @@
 																	d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
 																/></svg
 															>
-															PDF Oficial
+															{podeManifesto ? 'PDF Oficial (s/ manifesto)' : 'PDF Oficial'}
 														</a>
+														{#if podeManifesto}
+															<a
+																class="w-full text-left px-4 py-2 text-sm font-bold text-tertiary-600 dark:text-tertiary-400 rounded hover:bg-tertiary-500/10 transition-colors flex items-center gap-2 no-underline"
+																href={`/api/escalas/${esc.id}/documento-assinado?manifesto=true`}
+																target="_blank"
+																title="PDF com folha de auditoria (evidências da assinatura)"
+															>
+																<svg
+																	class="w-4 h-4"
+																	fill="none"
+																	viewBox="0 0 24 24"
+																	stroke="currentColor"
+																	><path
+																		stroke-linecap="round"
+																		stroke-linejoin="round"
+																		stroke-width="2"
+																		d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+																	/></svg
+																>
+																PDF Oficial (c/ manifesto)
+															</a>
+														{/if}
 														<hr class="opacity-10 my-1" />
 													{/if}
 													<a
@@ -472,8 +502,18 @@
 									<a
 										class="btn flex-1 justify-center preset-filled-surface-100 dark:preset-filled-surface-800 text-3xs sm:text-2xs py-2 px-1 border border-surface-200 dark:border-surface-700 hover:preset-filled-success-500 hover:text-white transition-all no-underline font-bold uppercase tracking-tight whitespace-nowrap shadow-sm"
 										href={`/api/escalas/${esc.id}/documento-assinado`}
-										target="_blank">PDF Oficial</a
+										target="_blank"
+										title={podeManifesto ? 'PDF assinado sem folha de auditoria' : 'PDF assinado'}
+										>{podeManifesto ? 'Oficial' : 'PDF Oficial'}</a
 									>
+									{#if podeManifesto}
+										<a
+											class="btn flex-1 justify-center preset-filled-surface-100 dark:preset-filled-surface-800 text-3xs sm:text-2xs py-2 px-1 border border-surface-200 dark:border-surface-700 hover:preset-filled-tertiary-500 hover:text-white transition-all no-underline font-bold uppercase tracking-tight whitespace-nowrap shadow-sm"
+											href={`/api/escalas/${esc.id}/documento-assinado?manifesto=true`}
+											target="_blank"
+											title="PDF com folha de auditoria (evidências da assinatura)">Manif.</a
+										>
+									{/if}
 								{/if}
 								<a
 									class="btn flex-1 justify-center preset-filled-surface-100 dark:preset-filled-surface-800 text-3xs sm:text-2xs py-2 px-1 border border-surface-200 dark:border-surface-700 hover:preset-filled-primary-500 hover:text-white transition-all no-underline font-bold uppercase tracking-tight whitespace-nowrap shadow-sm"
