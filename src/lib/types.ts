@@ -74,6 +74,10 @@ export type ResGisePageData = {
 	giseIdSelected: number | null;
 	equipeIdSelected: number | null;
 	respostas: Record<string, unknown>;
+	/** Carimbo do 1º envio da resposta de produtividade (local, "YYYY-MM-DD HH:MM:SS") ou null. */
+	respostaEnviadaEm?: string | null;
+	/** Carimbo da última retificação da resposta de produtividade ou null. */
+	respostaAtualizadaEm?: string | null;
 	restringirSmartphone: boolean;
 	/** Rubrica reutilizável cadastrada pelo policial (PNG dataURL) ou `null`. */
 	minhaRubrica?: string | null;

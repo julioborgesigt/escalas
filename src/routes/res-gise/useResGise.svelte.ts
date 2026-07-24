@@ -455,6 +455,14 @@ export function useResGise(getData: () => ResGisePageData) {
 		set respostas(v) {
 			respostas = v;
 		},
+		/** Carimbo do 1º envio da resposta de produtividade (ou null) — vem do load. */
+		get respostaEnviadaEm() {
+			return data.respostaEnviadaEm ?? null;
+		},
+		/** Carimbo da última retificação da resposta de produtividade (ou null). */
+		get respostaAtualizadaEm() {
+			return data.respostaAtualizadaEm ?? null;
+		},
 		get exibirRelatorio() {
 			return exibirRelatorio;
 		},
