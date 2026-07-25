@@ -7,7 +7,7 @@
 	import SearchableSelect from '$lib/components/SearchableSelect.svelte';
 	import PainelAssinaturaToken from '$lib/components/PainelAssinaturaToken.svelte';
 	import SupervisaoDocumentoCard from './SupervisaoDocumentoCard.svelte';
-	import { ShieldCheck, UserRound, Users, FileDown, Clock, PenLine, Trash2 } from 'lucide-svelte';
+	import { UserRound, Users, FileDown, Clock, PenLine, Trash2 } from 'lucide-svelte';
 	import Spinner from '$lib/components/Spinner.svelte';
 	import {
 		estadoMarcadorRodagemSupervisao,
@@ -681,335 +681,323 @@
 	{/if}
 {/snippet}
 
-<div
-	class="relative overflow-visible rounded-2xl border border-surface-200 dark:border-surface-800 bg-white dark:bg-surface-900 shadow-sm transition-all duration-300 hover:shadow-md"
->
-	<div
-		class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-primary-500 via-secondary-500 to-tertiary-500 rounded-t-[15px]"
-	></div>
+<!-- Sem "card" externo: o quadro é uma SEÇÃO da página (título + blocos), não um
+     cartão dentro de cartão. Antes havia um container com borda/sombra/barra de
+     gradiente envolvendo tudo, o que empilhava molduras (card > card > card). -->
+<section class="space-y-3 sm:space-y-5">
+	<div class="flex flex-wrap items-baseline justify-between gap-2 sm:gap-4">
+		<h2 class="text-xl font-bold text-surface-900 dark:text-surface-50 tracking-tight">
+			Supervisão e apoio
+		</h2>
 
-	<div class="p-3 sm:p-5 md:p-6">
-		<div class="mb-3 sm:mb-5 flex flex-wrap items-center justify-between gap-2 sm:gap-4">
-			<div class="flex min-w-0 items-center gap-2 sm:gap-3">
-				<div class="p-2 rounded-lg bg-primary-500/10 text-primary-600 dark:text-primary-400">
-					<ShieldCheck size={24} />
-				</div>
-				<h2 class="text-xl font-bold text-surface-900 dark:text-surface-50 tracking-tight">
-					Supervisão e apoio
-				</h2>
-			</div>
-
-			<div class="flex w-full sm:w-auto flex-wrap items-center justify-end gap-2 sm:gap-3">
-				{#if !editando && !documentoAssinadoInfo?.existe && mostrarBlocoExtraSupervisao && !(mostrarPainelAssinaturaEscala || mostrarPainelAssinaturaEscalaReadonly)}
-					<span
-						class="inline-flex items-center gap-1.5 rounded-full bg-warning-500 px-3 py-1 text-xs font-bold uppercase tracking-wider text-white shadow-lg shadow-warning-500/20"
-					>
-						<Clock size={12} class="shrink-0" />
-						Ass. Escala Pend.
-					</span>
-				{/if}
-			</div>
+		<div class="flex w-full sm:w-auto flex-wrap items-center justify-end gap-2 sm:gap-3">
+			{#if !editando && !documentoAssinadoInfo?.existe && mostrarBlocoExtraSupervisao && !(mostrarPainelAssinaturaEscala || mostrarPainelAssinaturaEscalaReadonly)}
+				<span
+					class="inline-flex items-center gap-1.5 rounded-full bg-warning-500 px-3 py-1 text-xs font-bold uppercase tracking-wider text-white shadow-lg shadow-warning-500/20"
+				>
+					<Clock size={12} class="shrink-0" />
+					Ass. Escala Pend.
+				</span>
+			{/if}
 		</div>
-		<form
-			bind:this={formEl}
-			method="POST"
-			action="?/salvarSupervisores"
-			use:enhance={onSubmit}
-			class="contents"
+	</div>
+	<form
+		bind:this={formEl}
+		method="POST"
+		action="?/salvarSupervisores"
+		use:enhance={onSubmit}
+		class="contents"
+	>
+		<div
+			class="p-3 sm:p-4 md:p-5 rounded-2xl bg-white dark:bg-surface-950 border border-surface-200 dark:border-surface-800 shadow-sm"
 		>
-			<div
-				class="p-3 sm:p-4 md:p-5 rounded-2xl bg-white dark:bg-surface-950 border border-surface-200 dark:border-surface-800 shadow-sm"
-			>
-				<div class="space-y-2.5 sm:space-y-4">
-					<div class="flex items-start gap-2.5 sm:gap-4">
-						<div
-							class="mt-1 flex-shrink-0 w-10 h-10 rounded-full bg-white dark:bg-surface-800 border border-surface-200 dark:border-surface-700 flex items-center justify-center text-primary-600 dark:text-primary-400 shadow-sm"
+			<div class="space-y-2.5 sm:space-y-4">
+				<div class="flex items-start gap-2.5 sm:gap-4">
+					<div
+						class="mt-1 flex-shrink-0 w-10 h-10 rounded-full bg-white dark:bg-surface-800 border border-surface-200 dark:border-surface-700 flex items-center justify-center text-primary-600 dark:text-primary-400 shadow-sm"
+					>
+						<UserRound size={20} />
+					</div>
+					<div class="min-w-0 flex-1">
+						<span
+							class="block text-3xs uppercase tracking-wider font-bold text-surface-500 dark:text-surface-400 mb-0.5"
+							>DPC Supervisão</span
 						>
-							<UserRound size={20} />
-						</div>
-						<div class="min-w-0 flex-1">
-							<span
-								class="block text-3xs uppercase tracking-wider font-bold text-surface-500 dark:text-surface-400 mb-0.5"
-								>DPC Supervisão</span
-							>
-							{#if editandoPapel === 'supervisor'}
-								<div class="flex flex-col sm:flex-row sm:items-center gap-2 mt-1 w-full">
-									<div class="flex-1 min-w-0 sm:max-w-md">
+						{#if editandoPapel === 'supervisor'}
+							<div class="flex flex-col sm:flex-row sm:items-center gap-2 mt-1 w-full">
+								<div class="flex-1 min-w-0 sm:max-w-md">
+									<SearchableSelect
+										id="supId"
+										bind:value={supervisorId}
+										loadOptions={buscarDpcs}
+										selectedOption={selectedFromPoliciais(supervisorId)}
+										placeholder="Pesquisar DPC..."
+										minSearchChars={2}
+										showTrigger={false}
+										class="w-full"
+									/>
+								</div>
+								{@render botoesSalvarCancelar('supervisor')}
+							</div>
+						{:else}
+							<div class="flex min-w-0 items-center gap-3">
+								<div class="flex min-w-0 items-center gap-2">
+									<p
+										class="min-w-0 shrink font-bold text-lg leading-tight text-surface-900 dark:text-white truncate"
+									>
+										{gise.supervisor_nome ?? 'Não definido'}
+									</p>
+									<div class="flex shrink-0 items-center">
+										{@render badgeMarcador(stSupervisor, 'Entrada e saída confirmadas')}
+									</div>
+								</div>
+
+								{@render botoesEdicao('supervisor', !!gise.supervisor_id, false)}
+							</div>
+						{/if}
+					</div>
+				</div>
+
+				<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3 pt-1.5 sm:pt-2">
+					<!-- Assessor -->
+					<div
+						class="flex flex-col gap-2 p-2.5 px-3 rounded-xl bg-white dark:bg-surface-900 border border-surface-200 dark:border-surface-800 shadow-sm hover:shadow transition-all duration-200 {editandoPapel ===
+						'assessor'
+							? 'col-span-full'
+							: ''}"
+					>
+						{#if editandoPapel === 'assessor'}
+							<div class="flex flex-col gap-1.5 w-full">
+								<div class="flex items-center gap-2">
+									<div class="text-surface-400 dark:text-surface-500 shrink-0">
+										<Users size={14} />
+									</div>
+									<span
+										class="block text-3xs uppercase font-bold text-surface-400 dark:text-surface-500"
+									>
+										Assessor
+									</span>
+								</div>
+								<div class="flex flex-wrap lg:flex-nowrap items-end gap-3 w-full">
+									<div class="flex-1 min-w-[200px]">
+										<span
+											class="block text-3xs font-semibold text-surface-500 dark:text-surface-400 mb-1"
+										>
+											Nome do Assessor
+										</span>
 										<SearchableSelect
-											id="supId"
-											bind:value={supervisorId}
-											loadOptions={buscarDpcs}
-											selectedOption={selectedFromPoliciais(supervisorId)}
-											placeholder="Pesquisar DPC..."
+											id="assessorId"
+											bind:value={assessorId}
+											loadOptions={buscarOips}
+											selectedOption={selectedFromPoliciais(assessorId)}
+											placeholder="Pesquisar Assessor..."
 											minSearchChars={2}
 											showTrigger={false}
 											class="w-full"
 										/>
 									</div>
-									{@render botoesSalvarCancelar('supervisor')}
-								</div>
-							{:else}
-								<div class="flex min-w-0 items-center gap-3">
-									<div class="flex min-w-0 items-center gap-2">
-										<p
-											class="min-w-0 shrink font-bold text-lg leading-tight text-surface-900 dark:text-white truncate"
-										>
-											{gise.supervisor_nome ?? 'Não definido'}
-										</p>
-										<div class="flex shrink-0 items-center">
-											{@render badgeMarcador(stSupervisor, 'Entrada e saída confirmadas')}
-										</div>
-									</div>
 
-									{@render botoesEdicao('supervisor', !!gise.supervisor_id, false)}
-								</div>
-							{/if}
-						</div>
-					</div>
-
-					<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3 pt-1.5 sm:pt-2">
-						<!-- Assessor -->
-						<div
-							class="flex flex-col gap-2 p-2.5 px-3 rounded-xl bg-white dark:bg-surface-900 border border-surface-200 dark:border-surface-800 shadow-sm hover:shadow transition-all duration-200 {editandoPapel ===
-							'assessor'
-								? 'col-span-full'
-								: ''}"
-						>
-							{#if editandoPapel === 'assessor'}
-								<div class="flex flex-col gap-1.5 w-full">
-									<div class="flex items-center gap-2">
-										<div class="text-surface-400 dark:text-surface-500 shrink-0">
-											<Users size={14} />
-										</div>
-										<span
-											class="block text-3xs uppercase font-bold text-surface-400 dark:text-surface-500"
-										>
-											Assessor
-										</span>
-									</div>
-									<div class="flex flex-wrap lg:flex-nowrap items-end gap-3 w-full">
+									{#if assessorId != null}
 										<div class="flex-1 min-w-[200px]">
-											<span
+											<label
+												for="assessorEmailNotif"
 												class="block text-3xs font-semibold text-surface-500 dark:text-surface-400 mb-1"
 											>
-												Nome do Assessor
-											</span>
-											<SearchableSelect
-												id="assessorId"
-												bind:value={assessorId}
-												loadOptions={buscarOips}
-												selectedOption={selectedFromPoliciais(assessorId)}
-												placeholder="Pesquisar Assessor..."
-												minSearchChars={2}
-												showTrigger={false}
-												class="w-full"
+												E-mail (avisos GISE)
+											</label>
+											<input
+												id="assessorEmailNotif"
+												type="email"
+												name="assessor_email_notificacao"
+												autocomplete="email"
+												bind:value={assessorEmailNotificacao}
+												class="w-full px-3 py-1.5 rounded-xl border border-surface-300 dark:border-surface-600 bg-white dark:bg-surface-800 text-sm focus:border-primary-400 focus:ring-1 focus:ring-primary-400/30 focus:outline-none transition-colors text-surface-900 dark:text-surface-50 placeholder:text-surface-400 dark:placeholder:text-surface-500 h-[38px]"
+												placeholder="nome@provedor.com"
 											/>
 										</div>
 
-										{#if assessorId != null}
-											<div class="flex-1 min-w-[200px]">
-												<label
-													for="assessorEmailNotif"
-													class="block text-3xs font-semibold text-surface-500 dark:text-surface-400 mb-1"
-												>
-													E-mail (avisos GISE)
-												</label>
+										<div class="flex items-center h-[38px] shrink-0">
+											<label class="flex items-center gap-1.5 cursor-pointer">
 												<input
-													id="assessorEmailNotif"
-													type="email"
-													name="assessor_email_notificacao"
-													autocomplete="email"
-													bind:value={assessorEmailNotificacao}
-													class="w-full px-3 py-1.5 rounded-xl border border-surface-300 dark:border-surface-600 bg-white dark:bg-surface-800 text-sm focus:border-primary-400 focus:ring-1 focus:ring-primary-400/30 focus:outline-none transition-colors text-surface-900 dark:text-surface-50 placeholder:text-surface-400 dark:placeholder:text-surface-500 h-[38px]"
-													placeholder="nome@provedor.com"
+													type="checkbox"
+													name="confirmar_email_assessor"
+													value="1"
+													class="rounded border-surface-450 w-3.5 h-3.5"
+													required
 												/>
-											</div>
-
-											<div class="flex items-center h-[38px] shrink-0">
-												<label class="flex items-center gap-1.5 cursor-pointer">
-													<input
-														type="checkbox"
-														name="confirmar_email_assessor"
-														value="1"
-														class="rounded border-surface-450 w-3.5 h-3.5"
-														required
-													/>
-													<span
-														class="text-2xs text-surface-500 dark:text-surface-400 leading-none select-none"
-													>
-														Confirmo e-mail.
-													</span>
-												</label>
-											</div>
-										{/if}
-
-										{@render botoesSalvarCancelar('assessor', 'h-[38px]')}
-									</div>
-								</div>
-							{:else}
-								<div class="flex items-center justify-between gap-2">
-									<div class="flex items-center gap-2.5 min-w-0 flex-1">
-										<div class="text-surface-400 dark:text-surface-500 shrink-0">
-											<Users size={14} />
+												<span
+													class="text-2xs text-surface-500 dark:text-surface-400 leading-none select-none"
+												>
+													Confirmo e-mail.
+												</span>
+											</label>
 										</div>
-										<div class="overflow-hidden min-w-0 flex-1">
-											<span
-												class="block text-3xs uppercase font-bold text-surface-400 dark:text-surface-500"
-												>Assessor</span
+									{/if}
+
+									{@render botoesSalvarCancelar('assessor', 'h-[38px]')}
+								</div>
+							</div>
+						{:else}
+							<div class="flex items-center justify-between gap-2">
+								<div class="flex items-center gap-2.5 min-w-0 flex-1">
+									<div class="text-surface-400 dark:text-surface-500 shrink-0">
+										<Users size={14} />
+									</div>
+									<div class="overflow-hidden min-w-0 flex-1">
+										<span
+											class="block text-3xs uppercase font-bold text-surface-400 dark:text-surface-500"
+											>Assessor</span
+										>
+										<div class="flex items-center gap-2">
+											<p
+												class="text-sm font-semibold text-surface-700 dark:text-surface-200 truncate"
 											>
-											<div class="flex items-center gap-2">
-												<p
-													class="text-sm font-semibold text-surface-700 dark:text-surface-200 truncate"
-												>
-													{gise.assessor_id
-														? (policiais.find((p) => p.id === gise.assessor_id)?.nome ??
-															'Carregando...')
-														: 'Não definido'}
-												</p>
-												{@render botoesEdicao('assessor', !!gise.assessor_id)}
-											</div>
-											{#if gise.assessor_email_notificacao}
-												<p
-													class="text-3xs text-surface-500 dark:text-surface-400 truncate mt-0.5"
-													title="E-mail para avisos de seccionais"
-												>
-													Avisos: {gise.assessor_email_notificacao}
-												</p>
-											{/if}
+												{gise.assessor_id
+													? (policiais.find((p) => p.id === gise.assessor_id)?.nome ??
+														'Carregando...')
+													: 'Não definido'}
+											</p>
+											{@render botoesEdicao('assessor', !!gise.assessor_id)}
 										</div>
-									</div>
-									<div class="shrink-0 flex items-center">
-										{@render badgeMarcador(
-											gise.assessor_id ? marcador('assessor', gise.assessor_id) : null,
-											'Entrada e saída confirmadas'
-										)}
+										{#if gise.assessor_email_notificacao}
+											<p
+												class="text-3xs text-surface-500 dark:text-surface-400 truncate mt-0.5"
+												title="E-mail para avisos de seccionais"
+											>
+												Avisos: {gise.assessor_email_notificacao}
+											</p>
+										{/if}
 									</div>
 								</div>
-							{/if}
-						</div>
-
-						<!-- NUIP OIP 1 e 2 — mesmo card, parametrizado pelo papel -->
-						{@render slotSeint('seint1', gise.seint1_id)}
-						{@render slotSeint('seint2', gise.seint2_id)}
+								<div class="shrink-0 flex items-center">
+									{@render badgeMarcador(
+										gise.assessor_id ? marcador('assessor', gise.assessor_id) : null,
+										'Entrada e saída confirmadas'
+									)}
+								</div>
+							</div>
+						{/if}
 					</div>
+
+					<!-- NUIP OIP 1 e 2 — mesmo card, parametrizado pelo papel -->
+					{@render slotSeint('seint1', gise.seint1_id)}
+					{@render slotSeint('seint2', gise.seint2_id)}
 				</div>
 			</div>
+		</div>
 
-			<input type="hidden" name="supervisor_id" value={supervisorId ?? ''} />
-			<input type="hidden" name="assessor_id" value={assessorId ?? ''} />
-			<input type="hidden" name="seint1_id" value={seint1Id ?? ''} />
-			<input type="hidden" name="seint2_id" value={seint2Id ?? ''} />
-			{#if editandoPapel !== 'assessor'}
-				<input
-					type="hidden"
-					name="assessor_email_notificacao"
-					value={assessorEmailNotificacao ?? ''}
-				/>
-				{#if assessorId != null}
-					<input type="hidden" name="confirmar_email_assessor" value="1" />
-				{/if}
+		<input type="hidden" name="supervisor_id" value={supervisorId ?? ''} />
+		<input type="hidden" name="assessor_id" value={assessorId ?? ''} />
+		<input type="hidden" name="seint1_id" value={seint1Id ?? ''} />
+		<input type="hidden" name="seint2_id" value={seint2Id ?? ''} />
+		{#if editandoPapel !== 'assessor'}
+			<input
+				type="hidden"
+				name="assessor_email_notificacao"
+				value={assessorEmailNotificacao ?? ''}
+			/>
+			{#if assessorId != null}
+				<input type="hidden" name="confirmar_email_assessor" value="1" />
 			{/if}
-		</form>
-		{#if documentoAssinadoInfo?.existe || mostrarPainelAssinaturaEscala || mostrarPainelAssinaturaEscalaReadonly || mostrarBlocoExtraSupervisao || loteSection || isSupervisor}
-			{@const mostrarColEscala =
-				!!documentoAssinadoInfo?.existe ||
-				mostrarPainelAssinaturaEscala ||
-				mostrarPainelAssinaturaEscalaReadonly ||
-				isSupervisor}
-			<div class="border-t border-surface-200/60 dark:border-surface-700/60 pt-3 mt-4 sm:mt-5">
-				<div class="flex flex-col gap-4">
-					{#if mostrarColEscala}
-						<div class="flex flex-col gap-1.5 w-full animate-fade">
+		{/if}
+	</form>
+	{#if documentoAssinadoInfo?.existe || mostrarPainelAssinaturaEscala || mostrarPainelAssinaturaEscalaReadonly || mostrarBlocoExtraSupervisao || loteSection || isSupervisor}
+		{@const mostrarColEscala =
+			!!documentoAssinadoInfo?.existe ||
+			mostrarPainelAssinaturaEscala ||
+			mostrarPainelAssinaturaEscalaReadonly ||
+			isSupervisor}
+		<div class="border-t border-surface-200/60 dark:border-surface-700/60 pt-3 mt-4 sm:mt-5">
+			<div class="flex flex-col gap-4">
+				{#if mostrarColEscala}
+					<div class="flex flex-col gap-1.5 w-full animate-fade">
+						<SupervisaoDocumentoCard
+							{isMobile}
+							tituloExternoMobile={documentoAssinadoInfo?.existe
+								? 'Escala GISE'
+								: 'Assinatura da escala GISE'}
+							tituloMobile={documentoAssinadoInfo?.existe
+								? 'Escala assinada digitalmente'
+								: 'Assinatura da escala GISE'}
+							tituloDesktop={documentoAssinadoInfo?.existe
+								? 'Escala GISE'
+								: 'Assinatura da escala GISE'}
+							badgeEstado={documentoAssinadoInfo?.existe
+								? 'sucesso'
+								: gise.status === 'aguardando_assinatura'
+									? 'alerta'
+									: 'neutro'}
+							badgeLabel={documentoAssinadoInfo?.existe
+								? 'Assinada'
+								: gise.status === 'aguardando_assinatura'
+									? 'ass. Pendente'
+									: 'em preenchimento'}
+							bind:expandido={expandirEscala}
+							detalhes={detalhesEscala}
+							acoes={acoesEscala}
+						/>
+
+						{#if mostrarPainelAssinaturaEscala}
+							<div class="sr-only" aria-hidden="true">
+								<PainelAssinaturaToken
+									bind:control={painelTokenGise}
+									bind:signerName={serproSignerName}
+									bind:signerCpf={serproSignerCpf}
+									signerEmail={assinaturaEscalaSignerEmail ?? ''}
+									prepararUrl="/api/gise/{gise.id}/preparar-assinatura"
+									finalizarUrl="/api/gise/{gise.id}/finalizar-assinatura"
+									nomeArquivo="gise_{gise.data_inicio}_assinada.pdf"
+									extraPayload={{ rubrica: rubricaCapturada }}
+									disabled={false}
+									onSuccess={onAssinaturaEscalaDigitalSuccess}
+								/>
+							</div>
+						{/if}
+					</div>
+				{/if}
+
+				{#if mostrarBlocoExtraSupervisao}
+					<div class="flex flex-col gap-1.5 w-full animate-fade">
+						{#if !extraSupervisaoConfigurado}
+							{#if isMobile}
+								<p
+									class="text-3xs font-bold uppercase tracking-wider text-surface-400 dark:text-surface-500"
+								>
+									Relatório de extra (Supervisão e apoio)
+								</p>
+							{/if}
+							<div
+								class="rounded-xl border border-surface-200 dark:border-surface-800 bg-white dark:bg-surface-900 overflow-hidden shadow-sm hover:shadow-md transition-shadow duration-300 p-3.5"
+							>
+								<p
+									class="text-xs text-warning-700 dark:text-warning-400 bg-warning-500/10 border border-warning-500/20 rounded-lg px-3 py-2"
+								>
+									O relatório de extra do quadro ainda não está disponível. Peça ao administrador
+									para executar as migrações.
+								</p>
+							</div>
+						{:else}
 							<SupervisaoDocumentoCard
 								{isMobile}
-								tituloExternoMobile={documentoAssinadoInfo?.existe
-									? 'Escala GISE'
-									: 'Assinatura da escala GISE'}
-								tituloMobile={documentoAssinadoInfo?.existe
-									? 'Escala assinada digitalmente'
-									: 'Assinatura da escala GISE'}
-								tituloDesktop={documentoAssinadoInfo?.existe
-									? 'Escala GISE'
-									: 'Assinatura da escala GISE'}
-								badgeEstado={documentoAssinadoInfo?.existe
-									? 'sucesso'
-									: gise.status === 'aguardando_assinatura'
-										? 'alerta'
-										: 'neutro'}
-								badgeLabel={documentoAssinadoInfo?.existe
-									? 'Assinada'
-									: gise.status === 'aguardando_assinatura'
-										? 'ass. Pendente'
-										: 'em preenchimento'}
-								bind:expandido={expandirEscala}
-								detalhes={detalhesEscala}
-								acoes={acoesEscala}
+								tituloExternoMobile="Relatório de extra (Supervisão e apoio)"
+								tituloMobile="Relatório de extra — supervisão e apoio"
+								tituloDesktop={assRelSup ? 'Relatório de extra' : 'Relatório de extra (supervisão)'}
+								badgeEstado={assRelSup ? 'sucesso' : rubSupOk ? 'alerta' : 'neutro'}
+								badgeLabel={assRelSup
+									? 'Assinado'
+									: rubSupOk
+										? 'pronto para assinar'
+										: 'Aguardando rubricas'}
+								bind:expandido={expandirExtra}
+								detalhes={detalhesExtra}
+								acoes={acoesExtra}
 							/>
+						{/if}
+					</div>
+				{/if}
 
-							{#if mostrarPainelAssinaturaEscala}
-								<div class="sr-only" aria-hidden="true">
-									<PainelAssinaturaToken
-										bind:control={painelTokenGise}
-										bind:signerName={serproSignerName}
-										bind:signerCpf={serproSignerCpf}
-										signerEmail={assinaturaEscalaSignerEmail ?? ''}
-										prepararUrl="/api/gise/{gise.id}/preparar-assinatura"
-										finalizarUrl="/api/gise/{gise.id}/finalizar-assinatura"
-										nomeArquivo="gise_{gise.data_inicio}_assinada.pdf"
-										extraPayload={{ rubrica: rubricaCapturada }}
-										disabled={false}
-										onSuccess={onAssinaturaEscalaDigitalSuccess}
-									/>
-								</div>
-							{/if}
-						</div>
-					{/if}
-
-					{#if mostrarBlocoExtraSupervisao}
-						<div class="flex flex-col gap-1.5 w-full animate-fade">
-							{#if !extraSupervisaoConfigurado}
-								{#if isMobile}
-									<p
-										class="text-3xs font-bold uppercase tracking-wider text-surface-400 dark:text-surface-500"
-									>
-										Relatório de extra (Supervisão e apoio)
-									</p>
-								{/if}
-								<div
-									class="rounded-xl border border-surface-200 dark:border-surface-800 bg-white dark:bg-surface-900 overflow-hidden shadow-sm hover:shadow-md transition-shadow duration-300 p-3.5"
-								>
-									<p
-										class="text-xs text-warning-700 dark:text-warning-400 bg-warning-500/10 border border-warning-500/20 rounded-lg px-3 py-2"
-									>
-										O relatório de extra do quadro ainda não está disponível. Peça ao administrador
-										para executar as migrações.
-									</p>
-								</div>
-							{:else}
-								<SupervisaoDocumentoCard
-									{isMobile}
-									tituloExternoMobile="Relatório de extra (Supervisão e apoio)"
-									tituloMobile="Relatório de extra — supervisão e apoio"
-									tituloDesktop={assRelSup
-										? 'Relatório de extra'
-										: 'Relatório de extra (supervisão)'}
-									badgeEstado={assRelSup ? 'sucesso' : rubSupOk ? 'alerta' : 'neutro'}
-									badgeLabel={assRelSup
-										? 'Assinado'
-										: rubSupOk
-											? 'pronto para assinar'
-											: 'Aguardando rubricas'}
-									bind:expandido={expandirExtra}
-									detalhes={detalhesExtra}
-									acoes={acoesExtra}
-								/>
-							{/if}
-						</div>
-					{/if}
-
-					{@render loteSection?.()}
-				</div>
+				{@render loteSection?.()}
 			</div>
-		{/if}
-	</div>
-</div>
+		</div>
+	{/if}
+</section>

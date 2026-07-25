@@ -88,6 +88,20 @@
 	const seccionaisFaltantes = $derived(seccionaisComEquipes.filter((sec) => !isAssinado(sec)));
 	const seccionaisAssinadas = $derived(seccionaisComEquipes.filter((sec) => isAssinado(sec)));
 
+	// As pendências das faltantes têm CAUSAS diferentes, e o card agora as separa:
+	//  - falta SAÍDA: alguma equipe ainda não confirmou entrada/saída de todos os
+	//    membros (`checkAllSigned`), então o relatório nem pode ser assinado;
+	//  - falta ASSINAR: já está pronta (todos saíram), só aguarda o supervisor.
+	// Antes as duas apareciam juntas sob o rótulo "Faltando envio de:", que além de
+	// impreciso escondia qual era o bloqueio real.
+	const seccionaisSemSaida = $derived(seccionaisFaltantes.filter((sec) => !checkAllSigned(sec)));
+	const seccionaisAAssinar = $derived(seccionaisFaltantes.filter((sec) => checkAllSigned(sec)));
+
+	const nomesDe = (lista: typeof seccionaisComEquipes) =>
+		lista.length > 0
+			? lista.map((s) => nomeSeccional(s.seccional_id ?? s.id ?? 0)).join(', ')
+			: 'Nenhum';
+
 	const totalEquipes = $derived(seccionaisComEquipes.length);
 	const totalAssinados = $derived(seccionaisAssinadas.length);
 	const totalProntosNaoAssinados = $derived(
@@ -182,6 +196,25 @@
 		}
 	}
 </script>
+
+<!-- Situação das seccionais em 3 linhas (saída pendente / pronta p/ assinar /
+     assinada). Snippet único: as variantes mobile e desktop do card renderizam
+     exatamente o mesmo conteúdo, mudando só o espaçamento. -->
+{#snippet linhasSituacao(mobile: boolean)}
+	{@const espaco = mobile ? '' : 'mt-0.5'}
+	<p class="text-2xs leading-snug text-surface-500 dark:text-surface-400 {espaco}">
+		<span class="text-warning-600 dark:text-warning-400 font-medium">Faltando saída de:</span>
+		{naoIniciou ? 'Aguardando início' : nomesDe(seccionaisSemSaida)}
+	</p>
+	<p class="text-2xs leading-snug text-surface-500 dark:text-surface-400 {espaco}">
+		<span class="text-error-600 dark:text-error-400 font-medium">Faltando assinar de:</span>
+		{naoIniciou ? 'Aguardando início' : nomesDe(seccionaisAAssinar)}
+	</p>
+	<p class="text-2xs leading-snug text-surface-500 dark:text-surface-400 {espaco}">
+		<span class="text-success-600 dark:text-success-400 font-medium">Assinado de:</span>
+		{naoIniciou ? 'Aguardando início' : nomesDe(seccionaisAssinadas)}
+	</p>
+{/snippet}
 
 <!-- Par S/ manifesto + C/ manifesto — espelha o padrão dos cards de escala e de
      relatório de extra (GiseSupervisao). Para o lote, cada botão baixa TODOS os
@@ -319,32 +352,7 @@
 								O supervisor poderá assinar os Relatórios de extra das equipes em lote (todos de uma
 								vez), ou individualmente, através do quadro de cada seccional.
 							</p>
-							<p class="text-2xs leading-snug text-surface-500 dark:text-surface-400">
-								<span class="text-error-600 dark:text-error-400 font-medium"
-									>Faltando envio de:</span
-								>
-								{#if naoIniciou}
-									Aguardando início
-								{:else}
-									{seccionaisFaltantes.length > 0
-										? seccionaisFaltantes
-												.map((s) => nomeSeccional(s.seccional_id ?? s.id ?? 0))
-												.join(', ')
-										: 'Nenhum'}
-								{/if}
-							</p>
-							<p class="text-2xs leading-snug text-surface-500 dark:text-surface-400">
-								<span class="text-success-600 dark:text-success-400 font-medium">Assinado de:</span>
-								{#if naoIniciou}
-									Aguardando início
-								{:else}
-									{seccionaisAssinadas.length > 0
-										? seccionaisAssinadas
-												.map((s) => nomeSeccional(s.seccional_id ?? s.id ?? 0))
-												.join(', ')
-										: 'Nenhum'}
-								{/if}
-							</p>
+							{@render linhasSituacao(true)}
 						{/if}
 
 						{#if assinandoLote}
@@ -519,30 +527,7 @@
 							O supervisor poderá assinar os Relatórios de extra das equipes em lote (todos de uma
 							vez), ou individualmente, através do quadro de cada seccional.
 						</p>
-						<p class="text-2xs leading-snug text-surface-500 dark:text-surface-400 mt-0.5">
-							<span class="text-error-600 dark:text-error-400 font-medium">Faltando envio de:</span>
-							{#if naoIniciou}
-								Aguardando início
-							{:else}
-								{seccionaisFaltantes.length > 0
-									? seccionaisFaltantes
-											.map((s) => nomeSeccional(s.seccional_id ?? s.id ?? 0))
-											.join(', ')
-									: 'Nenhum'}
-							{/if}
-						</p>
-						<p class="text-2xs leading-snug text-surface-500 dark:text-surface-400 mt-0.5">
-							<span class="text-success-600 dark:text-success-400 font-medium">Assinado de:</span>
-							{#if naoIniciou}
-								Aguardando início
-							{:else}
-								{seccionaisAssinadas.length > 0
-									? seccionaisAssinadas
-											.map((s) => nomeSeccional(s.seccional_id ?? s.id ?? 0))
-											.join(', ')
-									: 'Nenhum'}
-							{/if}
-						</p>
+						{@render linhasSituacao(false)}
 					{/if}
 
 					{#if assinandoLote}
