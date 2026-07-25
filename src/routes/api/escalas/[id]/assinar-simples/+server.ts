@@ -12,6 +12,7 @@ import {
 } from '$lib/db';
 import { limparR2ObsoletoEscala } from '$lib/server/r2-cleanup';
 import { chaveConferencia } from '$lib/server/copia-conferencia';
+import { logger } from '$lib/server/logger';
 import { assinarSimplesSchema } from '$lib/schemas';
 import {
 	requireAuth,
@@ -173,6 +174,22 @@ export const POST: RequestHandler = async ({
 		await bucket.put(r2Key, pdfParaSalvar, {
 			httpMetadata: { contentType: 'application/pdf' }
 		});
+
+		// Cópia de conferência: os MESMOS bytes do documento assinado ANTES da folha
+		// de manifesto (`pdfComRodape` = escala + rodapé/QR + rubrica). Sem isto o
+		// download "sem manifesto" caía na regeneração legada (PDF refeito na hora a
+		// partir dos dados ATUAIS). O fluxo por token já gravava esta cópia.
+		// Best-effort: falha não aborta a assinatura.
+		try {
+			await bucket.put(chaveConferencia(verificationHash), pdfComRodape, {
+				httpMetadata: { contentType: 'application/pdf' }
+			});
+		} catch (err) {
+			logger.warn('[escalas/assinar-simples] Falha ao gravar cópia de conferência', {
+				escala_id: id,
+				error: err instanceof Error ? err.message : String(err)
+			});
+		}
 
 		// Upload de selfie quando enviada (helper valida magic bytes + tamanho).
 		let selfieKey: string | undefined;
