@@ -26,6 +26,8 @@ import { adicionarRodapeSimples, adicionarPaginaAuditoria } from '$lib/server/pd
 import { montarSignersPresencaExtra } from '$lib/server/gise-relatorio-manifesto';
 import { selarPdfInstitucional, tipoCarimboPrevisto } from '$lib/server/server-seal';
 import { tryGetR2 } from '$lib/db';
+import { chaveConferencia } from '$lib/server/copia-conferencia';
+import { logger } from '$lib/server/logger';
 import { uploadSelfieDataUri } from '$lib/server/selfie-upload';
 import { giseSignatureSchema } from '$lib/schemas';
 import { validarEvidenciasAvancada } from '$lib/server/signature-service';
@@ -179,6 +181,10 @@ export const POST: RequestHandler = async (event) => {
 			verificationUrl: qrUrl
 		});
 
+		// Guarda os bytes SEM manifesto para gravar a cópia de conferência no R2
+		// mais abaixo (`finalPdf` é sobrescrito pela folha de auditoria em seguida).
+		const pdfConferencia = finalPdf;
+
 		// Calcular Hash do original (Integridade)
 		const originalHashBuffer = await crypto.subtle.digest('SHA-256', finalPdf.slice());
 		const documentHash = bytesToHex(new Uint8Array(originalHashBuffer));
@@ -249,6 +255,22 @@ export const POST: RequestHandler = async (event) => {
 			await r2.put(`${prefixBase}_assinada.pdf`, pdfParaSalvar, {
 				httpMetadata: { contentType: 'application/pdf' }
 			});
+
+			// Cópia de conferência (mesmos bytes, sem a folha de manifesto). Sem ela o
+			// download "sem manifesto" regenerava o relatório na hora a partir dos dados
+			// atuais. Best-effort: falha não aborta a assinatura.
+			try {
+				await r2.put(chaveConferencia(hash), pdfConferencia, {
+					httpMetadata: { contentType: 'application/pdf' }
+				});
+			} catch (err) {
+				logger.warn('[gise/relatorios/assinar] Falha ao gravar cópia de conferência', {
+					gise_id: giseIdNum,
+					seccional_id: secIdNum,
+					error: err instanceof Error ? err.message : String(err)
+				});
+			}
+
 			if (selfieBase64) {
 				// Helper compartilhado: valida magic bytes, limita 5 MB, chave UUID.
 				const r = await uploadSelfieDataUri(r2, `${folder}/selfies`, selfieBase64);

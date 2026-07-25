@@ -42,6 +42,8 @@ import { selarPdfInstitucional, tipoCarimboPrevisto } from '$lib/server/server-s
 import { gerarCodigoValidacao } from '$lib/utils';
 import { tryGetR2 } from '$lib/db';
 import { uploadSelfieDataUri } from '$lib/server/selfie-upload';
+import { chaveConferencia } from '$lib/server/copia-conferencia';
+import { logger } from '$lib/server/logger';
 
 export const POST: RequestHandler = async (event) => {
 	const { platform, params, locals, url, request, getClientAddress } = event;
@@ -181,6 +183,24 @@ export const POST: RequestHandler = async (event) => {
 			await r2.put(documentKey, pdfParaSalvar, {
 				httpMetadata: { contentType: 'application/pdf' }
 			});
+
+			// Cópia de conferência: os MESMOS bytes do documento assinado ANTES da
+			// folha de manifesto (`pdfComRodape` = escala + rodapé/QR + rubrica).
+			// Sem isto, o download "sem manifesto" caía na regeneração legada e
+			// devolvia um PDF refeito na hora a partir dos dados ATUAIS da GISE —
+			// não o arquivo assinado. O fluxo por token (preparar-assinatura) já
+			// gravava esta cópia; aqui faltava. Best-effort: falha não aborta a
+			// assinatura (o download volta ao fallback de regeneração).
+			try {
+				await r2.put(chaveConferencia(verificationHash), pdfComRodape, {
+					httpMetadata: { contentType: 'application/pdf' }
+				});
+			} catch (err) {
+				logger.warn('[gise/assinar-simples] Falha ao gravar cópia de conferência', {
+					gise_id: id,
+					error: err instanceof Error ? err.message : String(err)
+				});
+			}
 
 			if (validatedEv.selfieBase64) {
 				// Helper compartilhado: valida magic bytes, limita 5 MB e gera
