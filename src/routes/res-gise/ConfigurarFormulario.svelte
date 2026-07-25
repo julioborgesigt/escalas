@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
+	import { actionButton } from './BotoesAcao.svelte';
 	import { Dialog } from '@skeletonlabs/skeleton-svelte';
 	import { loading } from '$lib/loading.svelte';
 	import type { useResGise } from './useResGise.svelte';
@@ -29,36 +30,6 @@
 		resGise.perguntasConfig = structuredClone(padrao);
 	}
 </script>
-
-{#snippet btnIcon(path: string)}
-	<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-		<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d={path} />
-	</svg>
-{/snippet}
-
-{#snippet actionButton(
-	label: string,
-	iconPath?: string,
-	variant = 'primary',
-	type = 'outlined',
-	onclick?: ((e: MouseEvent) => void) | undefined,
-	disabled = false,
-	loadingState = false,
-	classes = '',
-	btnType: 'button' | 'submit' = 'button',
-	size = 'sm'
-)}
-	{@const baseClass = `btn btn-${size} preset-${type}-${variant}-500 rounded-xl font-bold whitespace-nowrap transition-all flex items-center justify-center gap-2 ${classes}`}
-	<button
-		type={btnType}
-		class={baseClass}
-		{onclick}
-		disabled={disabled || loading.active || loadingState}
-	>
-		{#if iconPath}{@render btnIcon(iconPath)}{/if}
-		<span>{loading.active && loadingState ? 'Carregando...' : label}</span>
-	</button>
-{/snippet}
 
 <section
 	class="card p-4 sm:p-6 md:p-8 bg-white dark:bg-surface-900 border border-surface-200 dark:border-surface-800 rounded-3xl shadow-xl space-y-6 sm:space-y-8 animate-in fade-in zoom-in-95 duration-500"

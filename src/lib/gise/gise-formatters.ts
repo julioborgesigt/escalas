@@ -1,3 +1,5 @@
+import { DIAS_SEMANA_CURTO } from '$lib/utils';
+
 const STATUS_LABELS: Record<string, string> = {
 	em_definicao_supervisor: 'Em definição do supervisor',
 	em_preenchimento: 'Preenchendo escalados',
@@ -36,6 +38,6 @@ export function fmtDate(iso: string): string {
 
 export function diaSemana(iso: string): string {
 	if (!iso) return '';
-	const dias = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+	const dias = DIAS_SEMANA_CURTO;
 	return dias[new Date(iso + 'T12:00:00').getDay()];
 }

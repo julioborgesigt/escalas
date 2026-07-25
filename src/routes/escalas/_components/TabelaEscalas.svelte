@@ -3,7 +3,7 @@
 	import { slide, fly } from 'svelte/transition';
 	import { page, navigating } from '$app/state';
 	import type { EscalaListagem } from '$lib/types';
-	import { formatarData } from '$lib/utils';
+	import { formatarData, MESES_PT } from '$lib/utils';
 	import SkeletonCard from '$lib/components/SkeletonCard.svelte';
 	import PaginationControls from '$lib/components/PaginationControls.svelte';
 	import IconTooltip from '$lib/components/IconTooltip.svelte';
@@ -50,20 +50,6 @@
 	const podeManifesto = $derived(podeBaixarComManifesto(page.data.usuario));
 
 	const ITEMS_POR_PAGINA = 20;
-	const MESES_PT = [
-		'Janeiro',
-		'Fevereiro',
-		'Março',
-		'Abril',
-		'Maio',
-		'Junho',
-		'Julho',
-		'Agosto',
-		'Setembro',
-		'Outubro',
-		'Novembro',
-		'Dezembro'
-	];
 </script>
 
 {#if skipLoad}

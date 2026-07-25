@@ -45,8 +45,11 @@ export type ResGiseMinhaEscalaLinha = {
 	horarioPrevisto: { inicio: string; fim: string };
 };
 
-/** Linha da visão admin em `/res-gise`. */
-export type ResGiseListaAdminLinha = {
+/**
+ * Linha da visão admin em `/res-gise`. Só compõe a união `ResGiseEscalaSelecionavel`
+ * (o load não devolve mais uma lista admin separada), por isso não é exportada.
+ */
+type ResGiseListaAdminLinha = {
 	id: number;
 	data_inicio: string;
 	status: string;
@@ -65,14 +68,11 @@ export type ResGiseListaAdminLinha = {
 /** Shape de `data` em `src/routes/res-gise/+page.svelte` (+page.server load). */
 export type ResGisePageData = {
 	minhasEscalas: ResGiseMinhaEscalaLinha[];
-	listaAdmin: ResGiseListaAdminLinha[];
 	isSupervisorGise: boolean;
 	/** Assessor ou SEINT em GISE ativa (quadro de supervisão). */
 	isSupervisaoGise?: boolean;
 	/** ID da unidade sintética usada em assinaturas do relatório de extra da supervisão. */
 	supervisaoExtraUnidadeId: number | null;
-	giseIdSelected: number | null;
-	equipeIdSelected: number | null;
 	respostas: Record<string, unknown>;
 	/** Carimbo do 1º envio da resposta de produtividade (local, "YYYY-MM-DD HH:MM:SS") ou null. */
 	respostaEnviadaEm?: string | null;

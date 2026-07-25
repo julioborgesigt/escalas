@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
+	import { actionButton, btnIcon } from './BotoesAcao.svelte';
 	import { page } from '$app/state';
 	import RelatorioProdutividade from './RelatorioProdutividade.svelte';
 	import PainelAssinaturaToken from '$lib/components/PainelAssinaturaToken.svelte';
@@ -76,36 +77,6 @@
 	>
 		{item.label}
 	</span>
-{/snippet}
-
-{#snippet btnIcon(path: string)}
-	<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-		<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d={path} />
-	</svg>
-{/snippet}
-
-{#snippet actionButton(
-	label: string,
-	iconPath?: string,
-	variant = 'primary',
-	type = 'outlined',
-	onclick?: ((e: MouseEvent) => void) | undefined,
-	disabled = false,
-	loadingState = false,
-	classes = '',
-	btnType: 'button' | 'submit' = 'button',
-	size = 'sm'
-)}
-	{@const baseClass = `btn btn-${size} preset-${type}-${variant}-500 rounded-xl font-bold whitespace-nowrap transition-all flex items-center justify-center gap-2 ${classes}`}
-	<button
-		type={btnType}
-		class={baseClass}
-		{onclick}
-		disabled={disabled || loading.active || loadingState}
-	>
-		{#if iconPath}{@render btnIcon(iconPath)}{/if}
-		<span>{loading.active && loadingState ? 'Carregando...' : label}</span>
-	</button>
 {/snippet}
 
 {#snippet btnBaixarComprovante(tipo: 'entrada' | 'saida')}

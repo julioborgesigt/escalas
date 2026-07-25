@@ -25,8 +25,7 @@ export const load: PageServerLoad = async ({ locals, platform }) => {
 	const lista = await listarUnidades(db);
 
 	return {
-		unidades: lista,
-		isAdmin: true
+		unidades: lista
 	};
 };
 

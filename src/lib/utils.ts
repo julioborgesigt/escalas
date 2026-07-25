@@ -43,25 +43,54 @@ export function calcularDataSaida(
 }
 
 /**
+ * Nomes dos meses em português, índice 0 = Janeiro (mesma base de
+ * `Date.getMonth()`). Para mês 1-12 vindo do banco/URL, use `MESES_PT[mes - 1]`.
+ *
+ * Fonte única: a lista estava redeclarada em 13 arquivos (calendários, tabelas,
+ * PDFs, painel de compliance) com nomes diferentes (MESES, MESES_PT, MESES_CAL).
+ */
+export const MESES_PT = [
+	'Janeiro',
+	'Fevereiro',
+	'Março',
+	'Abril',
+	'Maio',
+	'Junho',
+	'Julho',
+	'Agosto',
+	'Setembro',
+	'Outubro',
+	'Novembro',
+	'Dezembro'
+] as const;
+
+/**
+ * Dias da semana abreviados, índice 0 = domingo (base de `Date.getDay()`).
+ * Também estava redeclarado em 6 arquivos (calendários e formatadores).
+ */
+export const DIAS_SEMANA_CURTO = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'] as const;
+
+/**
+ * Opções de mês para `<select>`, na ordem 1-12, com uma entrada inicial "Todos"
+ * (valor 0). `valorTexto` devolve os valores como string (formulários que
+ * comparam com `string`).
+ */
+export function opcoesMeses(): Array<{ value: number; label: string }>;
+export function opcoesMeses(valorTexto: true): Array<{ value: string; label: string }>;
+export function opcoesMeses(valorTexto = false) {
+	const todos = valorTexto ? { value: 'todos', label: 'Todos' } : { value: 0, label: 'Todos' };
+	return [
+		todos,
+		...MESES_PT.map((label, i) => ({ value: valorTexto ? String(i + 1) : i + 1, label }))
+	];
+}
+
+/**
  * Formata uma data por extenso. Ex: "01 de Janeiro de 2025".
  */
 export function formatarDataExtenso(date: Date): string {
 	const d = date.getDate();
-	const meses = [
-		'Janeiro',
-		'Fevereiro',
-		'Março',
-		'Abril',
-		'Maio',
-		'Junho',
-		'Julho',
-		'Agosto',
-		'Setembro',
-		'Outubro',
-		'Novembro',
-		'Dezembro'
-	];
-	const m = meses[date.getMonth()];
+	const m = MESES_PT[date.getMonth()];
 	const a = date.getFullYear();
 	return `${String(d).padStart(2, '0')} de ${m} de ${a}`;
 }

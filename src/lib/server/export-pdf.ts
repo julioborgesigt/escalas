@@ -2,7 +2,7 @@ import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { PDFDocument } from 'pdf-lib';
 import type { Escala, EscalaPolicialComDados } from '../types';
-import { formatarData, formatarDataExtenso, calcularDataSaida } from '../utils';
+import { formatarData, formatarDataExtenso, calcularDataSaida, MESES_PT } from '../utils';
 import type { BreveRelatorioEnv } from '$lib/gise/breve-relatorio';
 import {
 	resolveBreveRelatorioConteudoSeccional,
@@ -992,7 +992,7 @@ export function gerarRelatorioProdutividadeGisePdf(data: GiseProdutividadeData) 
 	}
 
 	const now = new Date();
-	const dataExtenso = `${now.getDate()} de ${['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'][now.getMonth()]} de ${now.getFullYear()}`;
+	const dataExtenso = `${now.getDate()} de ${MESES_PT[now.getMonth()]} de ${now.getFullYear()}`;
 	doc.setFontSize(10);
 	doc.setFont('helvetica', 'normal');
 	doc.text(`Gerado em: ${dataExtenso}`, margin, doc.internal.pageSize.getHeight() - 10);

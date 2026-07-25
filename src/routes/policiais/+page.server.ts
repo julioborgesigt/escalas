@@ -28,7 +28,6 @@ export const load: PageServerLoad = async ({ locals, platform, url }) => {
 	}
 
 	const db = getDB(platform);
-	const isAdmin = isAdminGeral(u);
 	const lotacaoParam = url.searchParams.get('lotacao') || undefined;
 	const cargo = url.searchParams.get('cargo') || undefined;
 	const busca = url.searchParams.get('busca') || undefined;
@@ -72,7 +71,6 @@ export const load: PageServerLoad = async ({ locals, platform, url }) => {
 			busca: busca ?? '',
 			seccional: seccional ?? 'todas'
 		},
-		isAdmin,
 		lotacaoUsuario: u.lotacao
 	};
 };

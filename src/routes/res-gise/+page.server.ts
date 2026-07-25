@@ -1,6 +1,6 @@
 import { redirect, fail } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
-import type { ResGiseMinhaEscalaLinha, ResGiseListaAdminLinha } from '$lib/types';
+import type { ResGiseMinhaEscalaLinha } from '$lib/types';
 import {
 	getDB,
 	getR2,
@@ -91,7 +91,6 @@ export const load: PageServerLoad = async ({ locals, platform, url }) => {
 	}
 
 	const minhasEscalas: ResGiseMinhaEscalaLinha[] = [];
-	const listaAdmin: ResGiseListaAdminLinha[] = [];
 
 	const effectiveStatus = statusFilter || 'ativas';
 
@@ -350,12 +349,9 @@ export const load: PageServerLoad = async ({ locals, platform, url }) => {
 
 	return {
 		minhasEscalas,
-		listaAdmin,
 		isSupervisorGise,
 		isSupervisaoGise,
 		supervisaoExtraUnidadeId,
-		giseIdSelected,
-		equipeIdSelected,
 		respostas: respostasData,
 		// Carimbo de envio (created_at) e da última retificação (updated_at) da
 		// resposta de produtividade — exibidos no card "Relatório Entregue".

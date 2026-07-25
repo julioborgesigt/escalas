@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { invalidateAll } from '$app/navigation';
+	import { MESES_PT, DIAS_SEMANA_CURTO } from '$lib/utils';
 	import { fmtDate, diaSemana } from '$lib/gise/gise-formatters';
 	import { enhance } from '$app/forms';
 	import { toaster } from '$lib/toast';
@@ -26,22 +27,6 @@
 	let modoCriacao = $state<'completa' | 'clonada' | 'branco'>('completa');
 	let clonarDeId = $state<number | ''>('');
 
-	const MESES_CAL = [
-		'Janeiro',
-		'Fevereiro',
-		'Março',
-		'Abril',
-		'Maio',
-		'Junho',
-		'Julho',
-		'Agosto',
-		'Setembro',
-		'Outubro',
-		'Novembro',
-		'Dezembro'
-	];
-	const DIAS_SEM_CAL = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
-
 	const diasModalOrdenados = $derived(
 		Object.keys(diasModal)
 			.sort()
@@ -50,7 +35,7 @@
 	const datasJsonHidden = $derived(
 		JSON.stringify(diasModalOrdenados.map(({ iso, feriado }) => ({ data: iso, feriado })))
 	);
-	const calTitulo = $derived(`${MESES_CAL[calMes]} de ${calAno}`);
+	const calTitulo = $derived(`${MESES_PT[calMes]} de ${calAno}`);
 	const gradeCalendario = $derived.by(() => {
 		const year = calAno;
 		const month = calMes;
@@ -241,7 +226,7 @@
 				<div
 					class="grid grid-cols-7 gap-px text-center text-3xs font-semibold uppercase tracking-wide text-surface-500 dark:text-surface-400 py-0.5"
 				>
-					{#each DIAS_SEM_CAL as ds (ds)}
+					{#each DIAS_SEMANA_CURTO as ds (ds)}
 						<span>{ds}</span>
 					{/each}
 				</div>
@@ -263,7 +248,7 @@
 									: 'border-transparent bg-surface-100/80 dark:bg-surface-700/50 text-surface-700 dark:text-surface-200 hover:bg-surface-200/80 dark:hover:bg-surface-600'}
 									{ehHoje && !sel ? 'ring-1 ring-surface-400 dark:ring-surface-500' : ''}"
 								aria-pressed={sel}
-								aria-label="Dia {cell?.day} de {MESES_CAL[calMes]}, {sel
+								aria-label="Dia {cell?.day} de {MESES_PT[calMes]}, {sel
 									? fer
 										? 'feriado'
 										: 'selecionado'
