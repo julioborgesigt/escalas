@@ -246,7 +246,7 @@
 {/if}
 
 <!-- Global Toast Provider -->
-<!-- Posição/empilhamento vêm dos estilos inline do Zag (placement 'bottom' no
+<!-- Posição/empilhamento vêm dos estilos inline do Zag (placement 'bottom-end' no
      toast.ts); classes de posição aqui entrariam em conflito e desalinhariam. -->
 <Toast.Group {toaster}>
 	{#snippet children(toast)}

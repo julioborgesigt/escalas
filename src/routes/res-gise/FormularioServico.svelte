@@ -213,8 +213,8 @@
 			extraPayload={{ tipo: 'entrada' }}
 			disabled={loading.active}
 			baixarAutomatico={false}
+			tituloSucesso="Entrada confirmada com certificado digital."
 			onSuccess={async () => {
-				toaster.success({ title: 'Entrada confirmada com certificado digital.' });
 				await resGise.sincronizarPresencaAtual('entrada');
 			}}
 		/>
@@ -229,8 +229,8 @@
 			extraPayload={{ tipo: 'saida' }}
 			disabled={loading.active}
 			baixarAutomatico={false}
+			tituloSucesso="Saída confirmada com certificado digital."
 			onSuccess={async () => {
-				toaster.success({ title: 'Saída confirmada com certificado digital.' });
 				await resGise.sincronizarPresencaAtual('saida');
 			}}
 		/>

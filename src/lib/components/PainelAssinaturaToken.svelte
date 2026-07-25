@@ -15,6 +15,7 @@
 		extraPayload = {} as Record<string, unknown>,
 		disabled = false,
 		baixarAutomatico = true,
+		tituloSucesso = 'PDF assinado com sucesso!',
 		onSuccess = async () => {},
 		// eslint-disable-next-line no-useless-assignment
 		control = $bindable<{ assinarComSerpro: () => Promise<void> } | null>()
@@ -33,6 +34,12 @@
 		 * (mesma UX da assinatura em tela), evitando o download forçado logo após assinar.
 		 */
 		baixarAutomatico?: boolean;
+		/**
+		 * Título do toast de sucesso. O chamador que quer uma mensagem própria
+		 * ("Entrada confirmada…") deve passá-la AQUI em vez de emitir um segundo
+		 * toast no `onSuccess` — senão os dois aparecem sobrepostos na tela.
+		 */
+		tituloSucesso?: string;
 		onSuccess?: () => Promise<void>;
 		control?: { assinarComSerpro: () => Promise<void> } | null;
 	} = $props();
@@ -104,7 +111,7 @@
 				baixarBlob(await finResp.blob(), nome);
 			}
 
-			toaster.success({ title: 'PDF assinado com sucesso!' });
+			toaster.success({ title: tituloSucesso });
 			await onSuccess();
 		} catch (err: unknown) {
 			toaster.error({
