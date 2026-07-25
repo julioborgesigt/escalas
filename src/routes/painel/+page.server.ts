@@ -3,7 +3,7 @@ import type { PageServerLoad, Actions } from './$types';
 import { getDB, listarUnidades, registrarAuditComContexto, contextoDeEvento } from '$lib/db';
 import { excluirEscalaCompleta } from '$lib/server/escala-exclusao';
 import type { Database } from '$lib/db';
-import { getNowBR } from '$lib/utils';
+import { getNowBR, MESES_PT } from '$lib/utils';
 import { and, gte, lte, inArray } from 'drizzle-orm';
 import { escalas as escTable, escalaDocumentos as docTable } from '$lib/server/schema';
 import type { Unidade } from '$lib/server/schema';
@@ -34,20 +34,6 @@ async function gerarCompliance(
 	function diasNoMes(y: number, m: number): number {
 		return new Date(y, m, 0).getDate();
 	}
-	const MESES_PT = [
-		'Janeiro',
-		'Fevereiro',
-		'Março',
-		'Abril',
-		'Maio',
-		'Junho',
-		'Julho',
-		'Agosto',
-		'Setembro',
-		'Outubro',
-		'Novembro',
-		'Dezembro'
-	];
 
 	function obterFdsDoMes(y: number, m: number) {
 		const list = [];

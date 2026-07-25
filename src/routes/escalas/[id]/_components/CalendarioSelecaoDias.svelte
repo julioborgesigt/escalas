@@ -5,21 +5,7 @@
 	 * e `ModalEditarPlantao` (modo 'avulso': dias independentes).
 	 * `cor` controla o tema do dia selecionado/chips (warning × primary).
 	 */
-	const MESES = [
-		'Janeiro',
-		'Fevereiro',
-		'Março',
-		'Abril',
-		'Maio',
-		'Junho',
-		'Julho',
-		'Agosto',
-		'Setembro',
-		'Outubro',
-		'Novembro',
-		'Dezembro'
-	];
-	const DIAS_SEM = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+	import { MESES_PT, DIAS_SEMANA_CURTO } from '$lib/utils';
 
 	let {
 		selecionados = $bindable<string[]>([]),
@@ -112,7 +98,7 @@
 			>‹</button
 		>
 		<span class="text-xs font-semibold text-surface-700 dark:text-surface-200">
-			{MESES[mes]}
+			{MESES_PT[mes]}
 			{ano}
 		</span>
 		<button
@@ -125,7 +111,7 @@
 	<div
 		class="grid grid-cols-7 gap-px text-center text-3xs font-semibold uppercase tracking-wide text-surface-500 dark:text-surface-400 py-0.5"
 	>
-		{#each DIAS_SEM as ds (ds)}<span>{ds}</span>{/each}
+		{#each DIAS_SEMANA_CURTO as ds (ds)}<span>{ds}</span>{/each}
 	</div>
 	<div class="grid grid-cols-7 gap-0.5">
 		{#each grade as cell, i (i)}

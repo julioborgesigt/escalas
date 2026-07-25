@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { AlertTriangle } from 'lucide-svelte';
+	import { MESES_PT, DIAS_SEMANA_CURTO } from '$lib/utils';
 	import { enhance } from '$app/forms';
 	import type { SubmitFunction } from '@sveltejs/kit';
 	import { toaster } from '$lib/toast';
@@ -34,23 +35,7 @@
 	let calAno = $state(new Date().getFullYear());
 	let calMes = $state(new Date().getMonth());
 
-	const MESES_CAL = [
-		'Janeiro',
-		'Fevereiro',
-		'Março',
-		'Abril',
-		'Maio',
-		'Junho',
-		'Julho',
-		'Agosto',
-		'Setembro',
-		'Outubro',
-		'Novembro',
-		'Dezembro'
-	];
-	const DIAS_SEM_CAL = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
-
-	const calTitulo = $derived(`${MESES_CAL[calMes]} de ${calAno}`);
+	const calTitulo = $derived(`${MESES_PT[calMes]} de ${calAno}`);
 	const gradeCalendario = $derived.by(() => {
 		const first = new Date(calAno, calMes, 1).getDay();
 		const n = new Date(calAno, calMes + 1, 0).getDate();
@@ -222,7 +207,7 @@
 				<div
 					class="grid grid-cols-7 gap-px text-center text-3xs font-semibold uppercase tracking-wide text-surface-500 dark:text-surface-400 py-0.5"
 				>
-					{#each DIAS_SEM_CAL as ds (ds)}<span>{ds}</span>{/each}
+					{#each DIAS_SEMANA_CURTO as ds (ds)}<span>{ds}</span>{/each}
 				</div>
 				<div class="grid grid-cols-7 gap-0.5">
 					{#each gradeCalendario as cell, i (i)}

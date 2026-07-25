@@ -1,26 +1,12 @@
 <script lang="ts">
 	import { Dialog } from '@skeletonlabs/skeleton-svelte';
+	import { MESES_PT, DIAS_SEMANA_CURTO } from '$lib/utils';
 	import { Moon, Sun, Calendar } from 'lucide-svelte';
 	import { enhance } from '$app/forms';
 	import { toaster } from '$lib/toast';
 	import type { Unidade } from '$lib/types';
 	import type { ActionResult } from '@sveltejs/kit';
 
-	const MESES = [
-		'Janeiro',
-		'Fevereiro',
-		'Março',
-		'Abril',
-		'Maio',
-		'Junho',
-		'Julho',
-		'Agosto',
-		'Setembro',
-		'Outubro',
-		'Novembro',
-		'Dezembro'
-	];
-	const DIAS_SEM = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
 	const horas = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'));
 	const minutos = Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0'));
 
@@ -173,7 +159,7 @@
 		horaSaida = '23';
 		minutoSaida = '59';
 		const tipoLabel = t === 'plantao' ? 'PLANTÃO' : 'EXPEDIENTE';
-		titulo = `ESCALA DE ${tipoLabel} DA ${u.nome.toUpperCase()} – ${MESES[mes - 1].toUpperCase()} ${ano}`;
+		titulo = `ESCALA DE ${tipoLabel} DA ${u.nome.toUpperCase()} – ${MESES_PT[mes - 1].toUpperCase()} ${ano}`;
 		cidade = u.cidade || '';
 		lotacao = u.nome;
 	}
@@ -218,14 +204,14 @@
 			tipos.push({
 				tipo: 'plantao',
 				label: 'Plantão Mensal',
-				desc: `${MESES[nextMes() - 1]} ${nextAno()}`,
+				desc: `${MESES_PT[nextMes() - 1]} ${nextAno()}`,
 				icon: Moon
 			});
 		if (u.tem_expediente)
 			tipos.push({
 				tipo: 'expediente',
 				label: 'Expediente Mensal',
-				desc: `${MESES[nextMes() - 1]} ${nextAno()}`,
+				desc: `${MESES_PT[nextMes() - 1]} ${nextAno()}`,
 				icon: Sun
 			});
 		if (u.tem_fds)
@@ -416,7 +402,7 @@
 							<p
 								class="text-xs sm:text-sm font-semibold text-surface-800 dark:text-surface-100 text-center min-w-0 flex-1"
 							>
-								{MESES[calMes]} de {calAno}
+								{MESES_PT[calMes]} de {calAno}
 							</p>
 							<button
 								type="button"
@@ -437,7 +423,7 @@
 						<div
 							class="grid grid-cols-7 gap-px text-center text-3xs font-semibold uppercase tracking-wide text-surface-500 dark:text-surface-400 py-0.5"
 						>
-							{#each DIAS_SEM as ds (ds)}<span>{ds}</span>{/each}
+							{#each DIAS_SEMANA_CURTO as ds (ds)}<span>{ds}</span>{/each}
 						</div>
 						<div class="grid grid-cols-7 gap-0.5">
 							{#each gradeCalendario as cell, i (i)}
@@ -452,7 +438,7 @@
 											? 'border-warning-500 bg-warning-500/15 text-warning-900 dark:text-warning-100'
 											: 'border-transparent bg-surface-100/80 dark:bg-surface-700/50 text-surface-700 dark:text-surface-200 hover:bg-surface-200/80 dark:hover:bg-surface-600'}"
 										aria-pressed={sel}
-										aria-label="Dia {cell.day} de {MESES[calMes]}">{cell.day}</button
+										aria-label="Dia {cell.day} de {MESES_PT[calMes]}">{cell.day}</button
 									>
 								{:else}
 									<div class="h-9"></div>
@@ -615,7 +601,7 @@
 					</div>
 
 					<div class="grid grid-cols-4 gap-2">
-						{#each MESES as nomeMes, i (nomeMes)}
+						{#each MESES_PT as nomeMes, i (nomeMes)}
 							{@const mesNum = i + 1}
 							{@const ocupado = mesOcupado(mesNum, pickerAno)}
 							{@const selecionado =
@@ -675,7 +661,7 @@
 									<p
 										class="font-semibold text-sm text-surface-800 dark:text-surface-100 leading-tight"
 									>
-										Com base em {MESES[(mesAnteriorInfo?.mes ?? 1) - 1]}/{mesAnteriorInfo?.ano}
+										Com base em {MESES_PT[(mesAnteriorInfo?.mes ?? 1) - 1]}/{mesAnteriorInfo?.ano}
 									</p>
 									<p class="text-xs text-surface-500 mt-1 leading-snug">
 										{tipo === 'plantao'

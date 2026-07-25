@@ -538,7 +538,29 @@ export function useContador(inicial = 0) {
 }
 ```
 
+### Constantes e snippets compartilhados
+
+Antes de declarar uma constante "óbvia" no componente, verifique se ela já existe
+em [`src/lib/utils.ts`](src/lib/utils.ts):
+
+- `MESES_PT` — nomes dos meses, índice 0 = Janeiro (base de `Date.getMonth()`;
+  para mês 1-12 do banco/URL use `MESES_PT[mes - 1]`);
+- `opcoesMeses()` / `opcoesMeses(true)` — as mesmas opções no formato
+  `{ value, label }` do `SearchableSelect`, com a entrada "Todos" (valores
+  numéricos ou string);
+- `DIAS_SEMANA_CURTO` — `Dom…Sáb`, índice 0 = domingo.
+
+Snippets de UI repetidos entre componentes irmãos vão para um `.svelte` próprio e
+são **exportados pelo `<script module>`** — só funciona se o snippet não
+referenciar nada do `<script>` de instância, então os imports de que ele depende
+também ficam no bloco `module` ([docs](https://svelte.dev/docs/svelte/snippet)).
+Exemplo: [`src/routes/res-gise/BotoesAcao.svelte`](src/routes/res-gise/BotoesAcao.svelte).
+
 ### SvelteKit — Server-first
+
+Devolva no `load()` apenas o que a página realmente consome: papéis do usuário
+não precisam ir no payload (a UI lê `page.data.usuario` via `useAutorizacao`), e
+parâmetros de URL usados só para montar a query ficam no servidor.
 
 ```typescript
 // ✅ CORRETO: Server Action em +page.server.ts

@@ -1,4 +1,4 @@
-import { formatarData, calcularDataSaida } from '$lib/utils';
+import { formatarData, calcularDataSaida, DIAS_SEMANA_CURTO } from '$lib/utils';
 import type { Escala } from '$lib/server/schema';
 import type { EscalaPolicialComDados } from '$lib/types';
 
@@ -38,5 +38,5 @@ export function criarHelpersHorario(getEscala: () => Escala | null | undefined) 
 
 /** Rótulo curto do dia da semana de uma data ISO. */
 export function diaSemanaLabel(iso: string): string {
-	return ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'][new Date(iso + 'T12:00:00').getDay()];
+	return DIAS_SEMANA_CURTO[new Date(iso + 'T12:00:00').getDay()];
 }

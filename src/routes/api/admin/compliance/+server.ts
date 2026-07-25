@@ -2,7 +2,7 @@ import { json } from '@sveltejs/kit';
 import { getDB } from '$lib/db';
 import { unidades, escalas, escalaDocumentos } from '$lib/server/schema';
 import { and, eq, gte, lte, inArray, sql } from 'drizzle-orm';
-import { getNowBR } from '$lib/utils';
+import { getNowBR, MESES_PT } from '$lib/utils';
 import { requireAdmin } from '$lib/server/api';
 import type { RequestHandler } from './$types';
 
@@ -23,21 +23,6 @@ function toISO(y: number, m: number, d: number): string {
 function diasNoMes(y: number, m: number): number {
 	return new Date(y, m, 0).getDate();
 }
-
-const MESES_PT = [
-	'Janeiro',
-	'Fevereiro',
-	'Março',
-	'Abril',
-	'Maio',
-	'Junho',
-	'Julho',
-	'Agosto',
-	'Setembro',
-	'Outubro',
-	'Novembro',
-	'Dezembro'
-];
 
 /** Retorna o FDS (Sáb–Dom) da semana corrente */
 function fdsAtualSemana(hoje: Date): { inicio: string; fim: string; label: string } {

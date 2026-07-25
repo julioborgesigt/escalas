@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { slide } from 'svelte/transition';
 	import { page } from '$app/state';
-	import { formatarData } from '$lib/utils';
+	import { formatarData, MESES_PT } from '$lib/utils';
 	import { podeBaixarComManifesto } from '$lib/manifesto';
 
 	const {
@@ -33,21 +33,6 @@
 	} = $props();
 
 	let menuExpandidoId = $state<number | null>(null);
-
-	const MESES_PT = [
-		'Janeiro',
-		'Fevereiro',
-		'Março',
-		'Abril',
-		'Maio',
-		'Junho',
-		'Julho',
-		'Agosto',
-		'Setembro',
-		'Outubro',
-		'Novembro',
-		'Dezembro'
-	];
 </script>
 
 <div class="flex flex-col gap-6">

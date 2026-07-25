@@ -261,7 +261,6 @@ export const load: PageServerLoad = async ({ locals, platform, url, depends }) =
 			tipo: tipo ?? 'todos',
 			busca: busca ?? ''
 		},
-		isAdmin,
 		skipLoad,
 		papelUnidadeId: u.papel_unidade_id ?? null,
 		escalasExistentes,
