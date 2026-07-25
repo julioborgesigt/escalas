@@ -468,8 +468,10 @@
 				</div>
 			{:else}
 				{#each historicoPaginado as escala (escala.id)}
+					<!-- Mesmo fundo/borda/sombra do CardGiseAtiva: o histórico usava
+					     bg-surface-50 e ficava acinzentado ao lado dos cards ativos. -->
 					<div
-						class="rounded-xl border border-surface-200 dark:border-surface-800 bg-surface-50 dark:bg-surface-900 hover:border-primary-500/30 transition-all"
+						class="rounded-2xl border border-surface-200 dark:border-white/5 bg-white/80 dark:bg-surface-900/60 backdrop-blur-md shadow-sm transition-all duration-200 hover:border-primary-500/40 hover:shadow-md dark:hover:border-primary-400/20"
 					>
 						<div class="flex flex-col gap-2 px-3 py-3 xs:flex-row xs:items-center xs:gap-2 sm:px-4">
 							<button
