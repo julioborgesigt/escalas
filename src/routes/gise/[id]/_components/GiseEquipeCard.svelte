@@ -2,6 +2,7 @@
 	import { enhance } from '$app/forms';
 	import type { GiseDetalhado, GiseEquipeComMembros } from '$lib/db/gise';
 	import SearchableSelect from '$lib/components/SearchableSelect.svelte';
+	import MarcadorPresenca from './MarcadorPresenca.svelte';
 	import { validarHora, normalizarHora } from '$lib/gise/gise-horarios';
 	import type { GiseSeccionalActions } from '$lib/composables/gise/useGiseSeccionalActions.svelte';
 	import type { GiseSeccionalEstado } from './gise-seccional-estado.svelte';
@@ -291,17 +292,13 @@
 							>{m.policial_nome}</span
 						>
 						<span class="text-surface-500">{m.policial_cargo} · {m.policial_matricula}</span>
-						{#if m.presenca?.entrada_timestamp && m.presenca?.saida_timestamp}
-							<span
-								class="text-xs px-1 py-0.5 rounded bg-success-500/20 text-success-700 dark:text-success-400"
-								>✓</span
-							>
-						{:else if m.presenca?.entrada_timestamp}
-							<span
-								class="text-xs px-1 py-0.5 rounded bg-warning-500/20 text-warning-700 dark:text-warning-400"
-								>Entrada</span
-							>
-						{/if}
+						<!-- Estado de presença SEMPRE explícito (entrada e saída). Antes só
+						     havia selo quando a entrada existia, então "aguardando entrada"
+						     ficava visualmente idêntico a "sem informação". -->
+						<MarcadorPresenca
+							entrada={!!m.presenca?.entrada_timestamp}
+							saida={!!m.presenca?.saida_timestamp}
+						/>
 					</div>
 					{#if podeEditarMembros}
 						<form

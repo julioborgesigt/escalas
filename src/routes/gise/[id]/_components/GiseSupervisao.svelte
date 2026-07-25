@@ -7,6 +7,7 @@
 	import SearchableSelect from '$lib/components/SearchableSelect.svelte';
 	import PainelAssinaturaToken from '$lib/components/PainelAssinaturaToken.svelte';
 	import SupervisaoDocumentoCard from './SupervisaoDocumentoCard.svelte';
+	import MarcadorPresenca from './MarcadorPresenca.svelte';
 	import { UserRound, Users, FileDown, Clock, PenLine, Trash2 } from 'lucide-svelte';
 	import Spinner from '$lib/components/Spinner.svelte';
 	import {
@@ -166,7 +167,18 @@
 		);
 	}
 
-	const stSupervisor = $derived(marcador('supervisor', gise.supervisor_id));
+	/**
+	 * Estado de entrada/saída do integrante, para o `<MarcadorPresenca>` exibido ao
+	 * lado do rótulo do papel. Deriva das MESMAS presenças que alimentam
+	 * `estadoMarcadorRodagemSupervisao`; `faltaRelatorio` só se aplica ao SEINT.
+	 */
+	function presencaDe(policialId: number | null | undefined) {
+		const p = (presencasGise ?? []).find((x) => x.policial_id === policialId);
+		return {
+			entrada: !!p?.entrada_timestamp,
+			saida: !!p?.saida_timestamp
+		};
+	}
 
 	const nomesSupervisaoPorId = $derived.by(() => {
 		const m = new SvelteMap<number, string>();
@@ -330,26 +342,6 @@
 	});
 </script>
 
-<!-- Badge de rodagem (✓ / Entrada / Relatório) — repetia-se nos 4 slots de papel -->
-{#snippet badgeMarcador(st: string | null, tituloOk: string)}
-	{#if st === 'ok'}
-		<span
-			class="text-xs px-1 py-0.5 rounded bg-success-500/20 text-success-700 dark:text-success-400"
-			title={tituloOk}>✓</span
-		>
-	{:else if st === 'falta_relatorio'}
-		<span
-			class="text-xs px-1 py-0.5 rounded bg-warning-500/20 text-warning-700 dark:text-warning-400"
-			title="Falta enviar o relatório SEINT (entrada e saída já confirmadas)">Relatório</span
-		>
-	{:else if st === 'entrada'}
-		<span
-			class="text-xs px-1 py-0.5 rounded bg-warning-500/20 text-warning-700 dark:text-warning-400"
-			title="Aguardando confirmação de saída">Entrada</span
-		>
-	{/if}
-{/snippet}
-
 <!-- Par Salvar/Cancelar da edição inline — repetia-se nos 4 slots.
      Mesmo estilo dos botões "Adicionar/Fechar" que alocam policiais na equipe:
      rótulos em texto, preenchido (primário) + contornado. No mobile os dois
@@ -424,10 +416,22 @@
 				<Users size={14} />
 			</div>
 			<div class="overflow-hidden min-w-0 flex-1">
-				<span
-					class="block text-3xs uppercase font-bold text-secondary-500/80 dark:text-secondary-400/80"
-					>NUIP OIP</span
-				>
+				<!-- Rótulo + indicador de presença na MESMA linha: fica fora do espaço do
+				     nome do escalado (que abaixo pode truncar). -->
+				<div class="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+					<span
+						class="text-3xs uppercase font-bold text-secondary-500/80 dark:text-secondary-400/80"
+						>NUIP OIP</span
+					>
+					{#if id}
+						{@const pr = presencaDe(id)}
+						<MarcadorPresenca
+							entrada={pr.entrada}
+							saida={pr.saida}
+							faltaRelatorio={marcador('seint', id) === 'falta_relatorio'}
+						/>
+					{/if}
+				</div>
 				{#if editandoPapel === papel}
 					<div class="flex flex-col sm:flex-row sm:items-center gap-2 mt-1 w-full">
 						<div class="flex-1 min-w-0">
@@ -454,14 +458,6 @@
 				{/if}
 			</div>
 		</div>
-		{#if editandoPapel !== papel}
-			<div class="shrink-0 flex flex-col items-end gap-0.5">
-				{@render badgeMarcador(
-					id ? marcador('seint', id) : null,
-					'Entrada, relatório SEINT e saída concluídos'
-				)}
-			</div>
-		{/if}
 	</div>
 {/snippet}
 
@@ -719,10 +715,16 @@
 						<UserRound size={20} />
 					</div>
 					<div class="min-w-0 flex-1">
-						<span
-							class="block text-3xs uppercase tracking-wider font-bold text-surface-500 dark:text-surface-400 mb-0.5"
-							>DPC Supervisão</span
-						>
+						<div class="flex flex-wrap items-center gap-x-2 gap-y-0.5 mb-0.5">
+							<span
+								class="text-3xs uppercase tracking-wider font-bold text-surface-500 dark:text-surface-400"
+								>DPC Supervisão</span
+							>
+							{#if gise.supervisor_id}
+								{@const pr = presencaDe(gise.supervisor_id)}
+								<MarcadorPresenca entrada={pr.entrada} saida={pr.saida} />
+							{/if}
+						</div>
 						{#if editandoPapel === 'supervisor'}
 							<div class="flex flex-col sm:flex-row sm:items-center gap-2 mt-1 w-full">
 								<div class="flex-1 min-w-0 sm:max-w-md">
@@ -741,16 +743,11 @@
 							</div>
 						{:else}
 							<div class="flex min-w-0 items-center gap-3">
-								<div class="flex min-w-0 items-center gap-2">
-									<p
-										class="min-w-0 shrink font-bold text-lg leading-tight text-surface-900 dark:text-white truncate"
-									>
-										{gise.supervisor_nome ?? 'Não definido'}
-									</p>
-									<div class="flex shrink-0 items-center">
-										{@render badgeMarcador(stSupervisor, 'Entrada e saída confirmadas')}
-									</div>
-								</div>
+								<p
+									class="min-w-0 shrink font-bold text-lg leading-tight text-surface-900 dark:text-white truncate"
+								>
+									{gise.supervisor_nome ?? 'Não definido'}
+								</p>
 
 								{@render botoesEdicao('supervisor', !!gise.supervisor_id, false)}
 							</div>
@@ -844,10 +841,16 @@
 										<Users size={14} />
 									</div>
 									<div class="overflow-hidden min-w-0 flex-1">
-										<span
-											class="block text-3xs uppercase font-bold text-surface-400 dark:text-surface-500"
-											>Assessor</span
-										>
+										<div class="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+											<span
+												class="text-3xs uppercase font-bold text-surface-400 dark:text-surface-500"
+												>Assessor</span
+											>
+											{#if gise.assessor_id}
+												{@const pr = presencaDe(gise.assessor_id)}
+												<MarcadorPresenca entrada={pr.entrada} saida={pr.saida} />
+											{/if}
+										</div>
 										<div class="flex items-center gap-2">
 											<p
 												class="text-sm font-semibold text-surface-700 dark:text-surface-200 truncate"
@@ -868,12 +871,6 @@
 											</p>
 										{/if}
 									</div>
-								</div>
-								<div class="shrink-0 flex items-center">
-									{@render badgeMarcador(
-										gise.assessor_id ? marcador('assessor', gise.assessor_id) : null,
-										'Entrada e saída confirmadas'
-									)}
 								</div>
 							</div>
 						{/if}
