@@ -65,7 +65,7 @@ de servidor, nenhum de componente.
 
 **Escopo** (ordem sugerida):
 
-- [ ] `routes/res-gise/+page.server.ts` — 108 ramos, **20 ramos/100: a maior
+- [x] `routes/res-gise/+page.server.ts` — 108 ramos, **20 ramos/100: a maior
       densidade de decisão do projeto**, sem cabeçalho. Presença + 2FA +
       relatório; os ramos de código expirado/tentativas esgotadas/usuário
       divergente são política de segurança
@@ -73,12 +73,12 @@ de servidor, nenhum de componente.
       vínculo de admin, afastamentos
 - [ ] `routes/escalas/+page.server.ts` — 117 ramos; filtros, escopo por papel e
       `skipLoad`
-- [ ] `routes/login/+page.server.ts` — 52 ramos; orquestra 2FA/bootstrap
+- [x] `routes/login/+page.server.ts` — 52 ramos; orquestra 2FA/bootstrap
       (`auth-flow.ts` já documentado, a rota não)
-- [ ] `routes/api/webhook/sync-unidades` e `sync-policiais` — contrato com
+- [x] `routes/api/webhook/sync-unidades` (falta `sync-policiais`) — contrato com
       sistema externo: formato do payload, idempotência, anti-replay
 - [ ] `routes/gise/+page.server.ts` — 44 ramos
-- [ ] `routes/policiais/upload/+page.server.ts` — importação em massa:
+- [x] `routes/policiais/upload/+page.server.ts` — importação em massa:
       deduplicação e erro parcial
 - [ ] `routes/api/escalas/[id]/download` e `routes/api/admin/compliance`
 
@@ -86,6 +86,9 @@ de servidor, nenhum de componente.
 cabeçalho; cada action/handler com uma linha dizendo o que decide.
 
 **Esforço:** 3 levas (≈3 commits). **Risco:** nulo (só comentário).
+
+**Progresso:** leva 1 concluída (2026-07-27) — opacos em _rotas: servidor_ caíram
+de 10 para 6; total do projeto, de 18 para 14.
 
 ---
 

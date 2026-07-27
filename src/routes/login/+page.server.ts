@@ -21,6 +21,19 @@ import { administradores, policiais } from '$lib/server/schema';
 import { loginSchema } from '$lib/schemas';
 import { resolverAppOrigin } from '$lib/server/app-origin';
 
+/**
+ * Form actions de `/login` — a porta de entrada por FORMULÁRIO.
+ *
+ * A regra de autenticação em si mora em `$lib/server/auth-flow` (senha,
+ * bootstrap por env, rate limit por IP e por conta); esta rota orquestra o que
+ * é específico da navegação: cookies de sessão e de módulo admin, destino
+ * pós-login e o segundo fator quando a conta exige.
+ *
+ * Existe uma rota JSON equivalente (`/api/auth/login`, usada pelo cliente com
+ * fetch). As duas precisam aplicar os MESMOS limites — uma porta com throttle e
+ * outra sem seria um brute-force gratuito. Daí os tetos replicados abaixo.
+ */
+
 const PRIMEIRO_ACESSO_MAX_TENTATIVAS_IP = 5;
 const PRIMEIRO_ACESSO_JANELA_IP_MINUTOS = 15;
 
@@ -29,6 +42,7 @@ const PRIMEIRO_ACESSO_JANELA_IP_MINUTOS = 15;
 const VERIFICAR_2FA_MAX = 10;
 const VERIFICAR_2FA_WINDOW_MIN = 15;
 
+/** Já autenticado não vê a tela de login: vai direto para a boas-vindas do papel. */
 export const load: PageServerLoad = async ({ locals, cookies }) => {
 	const u = locals.usuario;
 	if (u) {
@@ -39,6 +53,10 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
 };
 
 export const actions: Actions = {
+	/**
+	 * Login por senha. Três desfechos possíveis:
+	 * sessão criada · pendente de 2FA (nada de cookie de sessão ainda) · recusa.
+	 */
 	login: async ({ request, cookies, platform, url, getClientAddress }) => {
 		const db = getDB(platform);
 		const ip = getClientAddress();
@@ -102,6 +120,10 @@ export const actions: Actions = {
 		if (!result.formRedirect) {
 			return fail(500, { error: 'Resposta de login incompleta.' });
 		}
+		// Releitura do cadastro só para calcular o DESTINO: `auth-flow` devolve uma
+		// rota genérica, e a boas-vindas certa depende de papel/cargo/módulo — dados
+		// que ele não carrega. Em primeiro acesso o destino é fixo (troca de senha),
+		// então a consulta é pulada.
 		let redirectUrl = result.formRedirect;
 		if (!result.primeiroAcesso) {
 			if (result.role === 'admin') {
@@ -279,6 +301,13 @@ export const actions: Actions = {
 		};
 	},
 
+	/**
+	 * Envia o link de primeiro acesso ao e-mail pessoal já cadastrado.
+	 *
+	 * Responde SEMPRE com sucesso, exista a conta ou não: a mensagem não pode
+	 * revelar quais matrículas existem. O limite por IP é o que impede usar a
+	 * rota para enumerar o cadastro.
+	 */
 	solicitarPrimeiroAcesso: async ({ request, platform, url, getClientAddress }) => {
 		const db = getDB(platform);
 		const ip = getClientAddress();
