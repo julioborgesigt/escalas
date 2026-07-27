@@ -808,7 +808,7 @@
 							>
 							<button
 								type="button"
-								class="btn btn-sm preset-filled-error-500 transition-all flex-1 transition-all"
+								class="btn btn-sm preset-filled-error-500 transition-all flex-1"
 								onclick={() => solicitarExclusao(p.id, p.nome)}>Excluir</button
 							>
 						</div>

@@ -5,12 +5,9 @@ import type { Database } from './core';
 import * as fullSchema from '../server/schema';
 import { cifrarCpfParaArmazenar, type CpfCriptoEnv } from '../crypto/cpf-cripto';
 import { anonimizarIp } from './audit';
-import { parseUserAgent } from '../server/document-utils';
+import { parseUserAgent, reduzirPrecisaoGps } from '../server/document-utils';
 
 /** Reduz a precisão de coordenada GPS para ~1 km (2 casas decimais). */
-function gps2(v?: number): number | undefined {
-	return v !== undefined ? Math.round(v * 100) / 100 : undefined;
-}
 
 /**
  * Metadados criptográficos persistidos junto com a assinatura (CAdES-LT).
@@ -48,58 +45,40 @@ export async function salvarDocumentoEscala(
 	const meta = cadesMeta ?? {};
 	// CPF cifrado em repouso (LGPD Fase 2).
 	const cpfArmazenado = (await cifrarCpfParaArmazenar(assinanteCpf, env)) ?? '';
+
+	// Mesmos campos no INSERT e no UPDATE do upsert — montados uma vez para não
+	// divergirem. `escala_id` fica de fora: é o alvo do conflito.
+	const dados = {
+		r2_key: r2Key,
+		assinante_nome: assinanteNome,
+		assinante_cpf: cpfArmazenado,
+		verificacao_hash: verificacaoHash,
+		selfie_key: selfieKey,
+		arquivo_hash: arquivoHash,
+		ip_address: anonimizarIp(ipAddress) ?? undefined,
+		user_agent: userAgent ? parseUserAgent(userAgent) : undefined,
+		user_agent_raw: userAgent ? userAgent.slice(0, 1024) : undefined,
+		latitude: reduzirPrecisaoGps(latitude),
+		longitude: reduzirPrecisaoGps(longitude),
+		assinante_email: assinanteEmail ?? null,
+		tipo_carimbo_tempo: tipoCarimboTempo || 'servidor',
+		cert_issuer: meta.cert_issuer ?? null,
+		cert_serial: meta.cert_serial ?? null,
+		cert_valido_de: meta.cert_valido_de ?? null,
+		cert_valido_ate: meta.cert_valido_ate ?? null,
+		cms_sha256: meta.cms_sha256 ?? null,
+		ocsp_response_b64: meta.ocsp_response_b64 ?? null,
+		ocsp_consultado_em: meta.ocsp_consultado_em ?? null,
+		tst_token_b64: meta.tst_token_b64 ?? null
+	};
+
 	return db
 		.insert(escalaDocumentos)
-		.values({
-			escala_id: escalaId,
-			r2_key: r2Key,
-			assinante_nome: assinanteNome,
-			assinante_cpf: cpfArmazenado,
-			verificacao_hash: verificacaoHash,
-			selfie_key: selfieKey,
-			arquivo_hash: arquivoHash,
-			ip_address: anonimizarIp(ipAddress) ?? undefined,
-			user_agent: userAgent ? parseUserAgent(userAgent) : undefined,
-			user_agent_raw: userAgent ? userAgent.slice(0, 1024) : undefined,
-			latitude: gps2(latitude),
-			longitude: gps2(longitude),
-			assinante_email: assinanteEmail ?? null,
-			tipo_carimbo_tempo: tipoCarimboTempo || 'servidor',
-			cert_issuer: meta.cert_issuer ?? null,
-			cert_serial: meta.cert_serial ?? null,
-			cert_valido_de: meta.cert_valido_de ?? null,
-			cert_valido_ate: meta.cert_valido_ate ?? null,
-			cms_sha256: meta.cms_sha256 ?? null,
-			ocsp_response_b64: meta.ocsp_response_b64 ?? null,
-			ocsp_consultado_em: meta.ocsp_consultado_em ?? null,
-			tst_token_b64: meta.tst_token_b64 ?? null
-		})
+		.values({ escala_id: escalaId, ...dados })
 		.onConflictDoUpdate({
 			target: escalaDocumentos.escala_id,
-			set: {
-				r2_key: r2Key,
-				assinante_nome: assinanteNome,
-				assinante_cpf: cpfArmazenado,
-				verificacao_hash: verificacaoHash,
-				selfie_key: selfieKey,
-				arquivo_hash: arquivoHash,
-				ip_address: anonimizarIp(ipAddress) ?? undefined,
-				user_agent: userAgent ? parseUserAgent(userAgent) : undefined,
-				user_agent_raw: userAgent ? userAgent.slice(0, 1024) : undefined,
-				latitude: gps2(latitude),
-				longitude: gps2(longitude),
-				assinante_email: assinanteEmail ?? null,
-				tipo_carimbo_tempo: tipoCarimboTempo || 'servidor',
-				cert_issuer: meta.cert_issuer ?? null,
-				cert_serial: meta.cert_serial ?? null,
-				cert_valido_de: meta.cert_valido_de ?? null,
-				cert_valido_ate: meta.cert_valido_ate ?? null,
-				cms_sha256: meta.cms_sha256 ?? null,
-				ocsp_response_b64: meta.ocsp_response_b64 ?? null,
-				ocsp_consultado_em: meta.ocsp_consultado_em ?? null,
-				tst_token_b64: meta.tst_token_b64 ?? null,
-				created_at: sql`datetime('now', '-3 hours')`
-			}
+			// Reassinatura substitui o documento anterior por inteiro.
+			set: { ...dados, created_at: sql`datetime('now', '-3 hours')` }
 		});
 }
 

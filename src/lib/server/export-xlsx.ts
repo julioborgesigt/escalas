@@ -1,3 +1,11 @@
+/**
+ * Geração dos .xlsx de escala (FDS, expediente e plantão mensal).
+ *
+ * Mesma dupla do DOCX: formato de trabalho para as unidades, enquanto o PDF é o
+ * documento oficial. Os agrupamentos e a ordem dos nomes vêm de
+ * `export-shared.ts`, garantindo que planilha, DOCX e PDF descrevam a mesma
+ * escala.
+ */
 import ExcelJS from 'exceljs';
 import type { Escala, EscalaPolicialComDados } from '../types';
 import { formatarData, formatarDataExtenso } from '../utils';
@@ -15,7 +23,8 @@ import {
 	formatarMesAno
 } from './export-shared';
 
-// ---- XLSX ----
+// ---- XLSX Final de Semana ----
+/** Uma faixa de cabeçalho por dia, com as larguras de coluna fixadas em caracteres. */
 export async function gerarXlsx(
 	escala: Escala,
 	policiais: EscalaPolicialComDados[]
@@ -65,6 +74,11 @@ export async function gerarXlsx(
 }
 
 // ---- XLSX Expediente ----
+/**
+ * Reproduz o cabeçalho institucional do documento oficial (brasão em texto,
+ * título, mês/ano) com `mergeCells` sobre a largura da tabela, para que a
+ * planilha impressa fique igual ao PDF.
+ */
 export async function gerarXlsxExpediente(
 	escala: Escala,
 	policiais: EscalaPolicialComDados[]
@@ -191,6 +205,7 @@ export async function gerarXlsxExpediente(
 }
 
 // ---- XLSX Plantão ----
+/** Um bloco por equipe; a coluna DIAS concentra todos os plantões do policial. */
 export async function gerarXlsxPlantao(
 	escala: Escala,
 	policiais: EscalaPolicialComDados[]

@@ -13,6 +13,7 @@
  */
 
 import forge from 'node-forge';
+import { extrairDadosDoCertificado } from './pdf-signing-prepare';
 import { binStringToBytes } from '$lib/crypto/bin';
 import { PDFDocument } from 'pdf-lib';
 import { logger } from './logger';
@@ -1016,17 +1017,14 @@ export async function verificarAssinaturaCompleta(
 
 	// Certificado (metadados)
 	try {
-		const cn = (cms.certificate.subject.getField('CN')?.value as string) || '';
-		let cpf = '';
-		const sn = cms.certificate.subject.getField('serialNumber');
-		if (sn) cpf = String(sn.value).replace(/\D/g, '');
-		if (!cpf && cn.includes(':')) {
-			cpf = cn.split(':').pop()?.replace(/\D/g, '') || '';
-		}
-		if (cpf.length > 11) cpf = cpf.slice(-11);
+		// Mesma extração usada na preparação/finalização da assinatura — a cópia
+		// local que existia aqui usava `getField('serialNumber')`, que devolve null
+		// no node-forge, e por isso mostrava CPF vazio para e-CPF cujo CN não
+		// embute ":CPF".
+		const { nome, cpf } = extrairDadosDoCertificado(cms.certificate);
 
 		result.certificado = {
-			nome: cn.split(':')[0].trim(),
+			nome,
 			cpf,
 			cpfMascarado: cpf ? mascararCPF(cpf) : '',
 			issuer: (cms.certificate.issuer.getField('CN')?.value as string) || '',

@@ -2,12 +2,8 @@ import { eq, and, desc, sql } from 'drizzle-orm';
 import { giseAssinaturasRelatorios, gisePresencaTermos, policiais } from '../../server/schema';
 import type { Database } from '../core';
 import { anonimizarIp } from '../audit';
-import { parseUserAgent } from '../../server/document-utils';
+import { parseUserAgent, reduzirPrecisaoGps } from '../../server/document-utils';
 import { cifrarCpfParaArmazenar, type CpfCriptoEnv } from '../../crypto/cpf-cripto';
-
-function gps2(v?: number): number | undefined {
-	return v !== undefined ? Math.round(v * 100) / 100 : undefined;
-}
 
 export async function buscarAssinaturasRelatoriosGise(db: Database, giseId: number) {
 	return db
@@ -93,55 +89,41 @@ export async function salvarAssinaturaRelatorioGise(
 	const ipAnonimizado = anonimizarIp(data.ip_address) ?? undefined;
 	const uaResumido = data.user_agent ? parseUserAgent(data.user_agent) : undefined;
 	const uaRaw = data.user_agent ? data.user_agent.slice(0, 1024) : undefined;
-	const lat2 = gps2(data.latitude ?? undefined);
-	const lng2 = gps2(data.longitude ?? undefined);
+	const lat2 = reduzirPrecisaoGps(data.latitude ?? undefined);
+	const lng2 = reduzirPrecisaoGps(data.longitude ?? undefined);
 	// CPF cifrado em repouso (LGPD Fase 2). Coluna NOT NULL → fallback ''.
 	const cpfArmazenado = (await cifrarCpfParaArmazenar(data.assinante_cpf, env)) ?? '';
+
+	// A trinca do conflito fica de fora do payload: identifica a linha, não é
+	// conteúdo a reescrever.
+	const { gise_id, seccional_id, tipo, ...resto } = data;
+	// Mesmos campos no INSERT e no UPDATE — montados uma vez para não divergirem
+	// (a lista tem 24 colunas e cresce a cada campo novo de CAdES).
+	const dados = {
+		...resto,
+		assinante_id: data.assinante_id ?? null,
+		assinante_cpf: cpfArmazenado,
+		assinante_email: data.assinante_email ?? null,
+		ip_address: ipAnonimizado,
+		user_agent: uaResumido,
+		user_agent_raw: uaRaw,
+		latitude: lat2,
+		longitude: lng2,
+		tipo_carimbo_tempo: data.tipo_carimbo_tempo || 'servidor'
+	};
+
 	return db
 		.insert(giseAssinaturasRelatorios)
-		.values({
-			...data,
-			assinante_id: data.assinante_id ?? null,
-			assinante_cpf: cpfArmazenado,
-			ip_address: ipAnonimizado,
-			user_agent: uaResumido,
-			user_agent_raw: uaRaw,
-			latitude: lat2,
-			longitude: lng2
-		})
+		.values({ gise_id, seccional_id, tipo, ...dados })
 		.onConflictDoUpdate({
 			target: [
 				giseAssinaturasRelatorios.gise_id,
 				giseAssinaturasRelatorios.seccional_id,
 				giseAssinaturasRelatorios.tipo
 			],
-			set: {
-				assinante_id: data.assinante_id ?? null,
-				assinante_nome: data.assinante_nome,
-				assinante_cpf: cpfArmazenado,
-				tipo_assinatura: data.tipo_assinatura,
-				rubrica: data.rubrica,
-				verification_hash: data.verification_hash,
-				ip_address: ipAnonimizado,
-				user_agent: uaResumido,
-				user_agent_raw: uaRaw,
-				latitude: lat2,
-				longitude: lng2,
-				selfie_key: data.selfie_key,
-				arquivo_hash: data.arquivo_hash,
-				r2_key: data.r2_key,
-				assinante_email: data.assinante_email ?? null,
-				tipo_carimbo_tempo: data.tipo_carimbo_tempo || 'servidor',
-				cert_issuer: data.cert_issuer ?? null,
-				cert_serial: data.cert_serial ?? null,
-				cert_valido_de: data.cert_valido_de ?? null,
-				cert_valido_ate: data.cert_valido_ate ?? null,
-				cms_sha256: data.cms_sha256 ?? null,
-				ocsp_response_b64: data.ocsp_response_b64 ?? null,
-				ocsp_consultado_em: data.ocsp_consultado_em ?? null,
-				tst_token_b64: data.tst_token_b64 ?? null,
-				created_at: sql`datetime('now', '-3 hours')`
-			}
+			// Reassinar substitui a assinatura anterior por inteiro, inclusive o
+			// carimbo de criação.
+			set: { ...dados, created_at: sql`datetime('now', '-3 hours')` }
 		});
 }
 
@@ -192,8 +174,8 @@ export async function salvarTermoPresencaGise(
 		ip_address: anonimizarIp(data.ip_address) ?? undefined,
 		user_agent: data.user_agent ? parseUserAgent(data.user_agent) : undefined,
 		user_agent_raw: data.user_agent ? data.user_agent.slice(0, 1024) : undefined,
-		latitude: gps2(data.latitude),
-		longitude: gps2(data.longitude),
+		latitude: reduzirPrecisaoGps(data.latitude),
+		longitude: reduzirPrecisaoGps(data.longitude),
 		tipo_carimbo_tempo: data.tipo_carimbo_tempo || 'servidor',
 		cert_issuer: data.cert_issuer ?? null,
 		cert_serial: data.cert_serial ?? null,

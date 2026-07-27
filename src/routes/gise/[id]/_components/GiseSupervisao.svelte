@@ -819,7 +819,7 @@
 													type="checkbox"
 													name="confirmar_email_assessor"
 													value="1"
-													class="rounded border-surface-450 w-3.5 h-3.5"
+													class="rounded border-surface-400 w-3.5 h-3.5"
 													required
 												/>
 												<span

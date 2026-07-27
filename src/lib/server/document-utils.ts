@@ -45,6 +45,17 @@ interface UAResult {
  * Cobre os navegadores mais comuns em ambientes corporativos:
  * Chrome, Firefox, Edge, Safari, Opera, Samsung Browser.
  */
+/**
+ * Reduz a coordenada a 2 casas decimais (~1 km).
+ *
+ * A evidência exigida é "a assinatura ocorreu nesta região", não a localização
+ * exata do servidor — guardar menos precisão é o mínimo necessário (LGPD, art.
+ * 6º III). Estava reescrita como `gps2` em quatro módulos de dados.
+ */
+export function reduzirPrecisaoGps(v?: number): number | undefined {
+	return v !== undefined ? Math.round(v * 100) / 100 : undefined;
+}
+
 export function parseUserAgent(ua: string): string {
 	if (!ua || ua === 'N/A') return 'Desconhecido';
 
