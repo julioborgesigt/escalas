@@ -70,6 +70,25 @@ function podeOIPSolicitar(u: App.Locals['usuario']): boolean {
 	return (u.papel === 'admin_seccional' || u.papel === 'admin_unidade') && u.cargo === 'OIP';
 }
 
+/**
+ * Tela de uma escala (`/escalas/[id]`) — o núcleo do módulo de escalas.
+ *
+ * Um mesmo arquivo atende os TRÊS tipos, que têm ciclos de vida diferentes:
+ *
+ * - **plantão mensal**: cada policial ocupa vários dias do mês, em rotação
+ *   (24×72 h etc.). Actions próprias: `adicionarPlantao`, `repetir`,
+ *   `editarPlantaoAgrupado`, `gerarProximoMes`;
+ * - **expediente mensal**: uma linha por policial no mês, com horário próprio;
+ * - **FDS**: escala de fim de semana/feriado, que se ENCERRA por e-mail
+ *   (`finalizar` → `reenviarEmail` → `desfinalizar`) em vez de assinatura.
+ *
+ * Todas as mutações passam por `carregarEscalaComPermissao`, que concentra o
+ * guard de edição: Admin Geral em qualquer escala, ou dono da lotação. Só a
+ * LEITURA é mais ampla (ver comentários no `load`), e assinar é fluxo à parte.
+ *
+ * Convenção herdada da planilha original: hora padrão '08' quando o formulário
+ * não manda nada, e `calcularDataSaida` resolve o turno que vira o dia.
+ */
 export const load: PageServerLoad = async ({ locals, platform, params }) => {
 	const u = locals.usuario;
 	if (!u) redirect(302, '/login');
@@ -142,6 +161,7 @@ export const load: PageServerLoad = async ({ locals, platform, params }) => {
 };
 
 export const actions: Actions = {
+	/** Inclui UM policial num dia (plantão avulso ou expediente). */
 	adicionar: async ({ request, locals, platform, params }) => {
 		const ctx = await carregarEscalaComPermissao(platform, locals.usuario, params.id);
 		if ('erro' in ctx) return ctx.erro;
@@ -198,6 +218,10 @@ export const actions: Actions = {
 		}
 	},
 
+	/**
+	 * Inclui um policial em VÁRIOS dias de uma vez (as datas vêm do calendário
+	 * do modal, num campo oculto JSON).
+	 */
 	adicionarPlantao: async ({ request, locals, platform, params }) => {
 		const ctx = await carregarEscalaComPermissao(platform, locals.usuario, params.id);
 		if ('erro' in ctx) return ctx.erro;
@@ -253,6 +277,10 @@ export const actions: Actions = {
 		}
 	},
 
+	/**
+	 * Preenche a escala com todos os policiais da lotação, no horário padrão da
+	 * própria escala. Atalho do início do mês, antes dos ajustes individuais.
+	 */
 	adicionarTodos: async ({ locals, platform, params }) => {
 		const ctx = await carregarEscalaComPermissao(platform, locals.usuario, params.id);
 		if ('erro' in ctx) return ctx.erro;
@@ -294,6 +322,21 @@ export const actions: Actions = {
 		}
 	},
 
+	/**
+	 * Clona a escala para o mês seguinte — a operação mais carregada de regra do
+	 * módulo:
+	 *
+	 * - **expediente**: uma linha por policial (deduplicado) no primeiro dia do
+	 *   mês novo, preservando o horário individual de cada um;
+	 * - **plantão**: `calcularProximoMesDias` identifica a ROTAÇÃO de cada
+	 *   policial a partir dos dias que ele cumpriu e projeta o mesmo ciclo no mês
+	 *   seguinte. Quem não tem rotação reconhecível não é escalado no palpite: vai
+	 *   para `nao_processados` e a tela mostra a lista, para lançamento manual —
+	 *   errar a projeção é pior do que não projetar.
+	 *
+	 * Recusa com 409 (e o id da escala existente, para a tela oferecer o atalho)
+	 * quando já há escala do mesmo tipo/lotação naquele mês.
+	 */
 	gerarProximoMes: async (event) => {
 		const { locals, platform, params } = event;
 		const ctx = await carregarEscalaComPermissao(platform, locals.usuario, params.id);
@@ -429,6 +472,7 @@ export const actions: Actions = {
 		}
 	},
 
+	/** Edita uma linha (dia/horário/equipe/observações) de um policial. */
 	editar: async ({ request, locals, platform, params }) => {
 		const ctx = await carregarEscalaComPermissao(platform, locals.usuario, params.id);
 		if ('erro' in ctx) return ctx.erro;
@@ -484,6 +528,7 @@ export const actions: Actions = {
 		}
 	},
 
+	/** Remove uma linha e devolve a listagem já atualizada, em um round-trip. */
 	remover: async ({ request, locals, platform, params }) => {
 		const ctx = await carregarEscalaComPermissao(platform, locals.usuario, params.id);
 		if ('erro' in ctx) return ctx.erro;
@@ -506,6 +551,10 @@ export const actions: Actions = {
 		}
 	},
 
+	/**
+	 * Repete um policial já escalado em novas datas, herdando horário e equipe da
+	 * linha de origem — evita redigitar o que já está na escala.
+	 */
 	repetir: async ({ request, locals, platform, params }) => {
 		const ctx = await carregarEscalaComPermissao(platform, locals.usuario, params.id);
 		if ('erro' in ctx) return ctx.erro;
@@ -590,6 +639,12 @@ export const actions: Actions = {
 		}
 	},
 
+	/**
+	 * Edita de uma vez TODAS as linhas de um policial no plantão mensal: a tela
+	 * mostra uma linha por pessoa (com os dias agrupados), então salvar precisa
+	 * reconciliar o conjunto — os dias que saíram são apagados e os que entraram,
+	 * inseridos.
+	 */
 	editarPlantaoAgrupado: async ({ request, locals, platform, params }) => {
 		const ctx = await carregarEscalaComPermissao(platform, locals.usuario, params.id);
 		if ('erro' in ctx) return ctx.erro;
@@ -673,6 +728,11 @@ export const actions: Actions = {
 		}
 	},
 
+	/**
+	 * Troca as datas de uma escala de FDS (ex.: feriado prolongado que muda de
+	 * dia). Só antes de finalizar: depois do envio por e-mail, o documento já
+	 * circulou.
+	 */
 	editarDiasEscala: async ({ request, locals, platform, params }) => {
 		const ctx = await carregarEscalaComPermissao(platform, locals.usuario, params.id);
 		if ('erro' in ctx) return ctx.erro;
@@ -764,6 +824,12 @@ export const actions: Actions = {
 		};
 	},
 
+	/**
+	 * Encerra a escala de FDS ENVIANDO o PDF por e-mail ao destino informado.
+	 *
+	 * No FDS não há assinatura digital (a escala não exige): o marco de conclusão
+	 * é a entrega, e é o envio que grava `finalizada_em`.
+	 */
 	finalizar: async (event) => {
 		const { request, locals, platform, params } = event;
 		const ctx = await carregarEscalaComPermissao(platform, locals.usuario, params.id);
@@ -831,6 +897,7 @@ export const actions: Actions = {
 		}
 	},
 
+	/** Reenvia o PDF da escala de FDS já finalizada (endereço errado, caixa cheia). */
 	reenviarEmail: async ({ request, locals, platform, params }) => {
 		const ctx = await carregarEscalaComPermissao(platform, locals.usuario, params.id);
 		if ('erro' in ctx) return ctx.erro;
@@ -883,6 +950,7 @@ export const actions: Actions = {
 		}
 	},
 
+	/** Reabre a escala de FDS para correção, limpando `finalizada_em`. */
 	desfinalizar: async ({ locals, platform, params }) => {
 		const ctx = await carregarEscalaComPermissao(platform, locals.usuario, params.id);
 		if ('erro' in ctx) return ctx.erro;
@@ -899,6 +967,7 @@ export const actions: Actions = {
 		}
 	},
 
+	/** Esvazia a escala (recomeçar o mês do zero). */
 	removerTodos: async ({ locals, platform, params }) => {
 		const ctx = await carregarEscalaComPermissao(platform, locals.usuario, params.id);
 		if ('erro' in ctx) return ctx.erro;
@@ -912,6 +981,7 @@ export const actions: Actions = {
 		}
 	},
 
+	/** Remove em lote as linhas marcadas na tabela. */
 	removerSelecionados: async ({ request, locals, platform, params }) => {
 		const ctx = await carregarEscalaComPermissao(platform, locals.usuario, params.id);
 		if ('erro' in ctx) return ctx.erro;
