@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { salvarGiseDocumento } from '../gise/documentos';
+import { salvarAssinaturaRelatorioGise } from '../gise/assinaturas';
 import type { Database } from '../core';
 
 /**
@@ -70,5 +71,42 @@ describe('salvarGiseDocumento (upsert)', () => {
 		expect(capturado.values?.ip_address).toBe('203.0.113.0');
 		expect(capturado.values?.latitude).toBe(-3.73);
 		expect(capturado.values?.longitude).toBe(-38.53);
+	});
+});
+
+describe('salvarAssinaturaRelatorioGise (upsert)', () => {
+	it('grava os mesmos campos no INSERT e no UPDATE, sem reescrever a chave', async () => {
+		const { db, capturado } = dbEspiao();
+		await salvarAssinaturaRelatorioGise(db, {
+			gise_id: 3,
+			seccional_id: 9,
+			tipo: 'extraordinario',
+			assinante_id: 11,
+			assinante_nome: 'BELTRANA',
+			assinante_cpf: '98765432100',
+			tipo_assinatura: 'serpro',
+			ip_address: '198.51.100.7',
+			user_agent: 'Mozilla/5.0',
+			latitude: -3.731944,
+			longitude: -38.526667,
+			r2_key: 'gise/3/extra-9.pdf'
+		});
+
+		const insert = { ...capturado.values };
+		const update = { ...capturado.set };
+
+		// A trinca do conflito só aparece no INSERT.
+		for (const chave of ['gise_id', 'seccional_id', 'tipo']) {
+			expect(insert[chave]).toBeDefined();
+			expect(update[chave]).toBeUndefined();
+			delete insert[chave];
+		}
+		delete update.created_at;
+		expect(update).toEqual(insert);
+
+		// Normalizações aplicadas uma vez, valendo para os dois lados.
+		expect(insert.ip_address).toBe('198.51.100.0');
+		expect(insert.latitude).toBe(-3.73);
+		expect(insert.tipo_carimbo_tempo).toBe('servidor');
 	});
 });
