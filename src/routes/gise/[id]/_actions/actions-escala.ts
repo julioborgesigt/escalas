@@ -20,10 +20,23 @@ import {
 import { policiais, giseDocumentos, giseEscalas } from '$lib/server/schema';
 import { limparR2DaGise } from '$lib/server/r2-cleanup';
 import { eq } from 'drizzle-orm';
+import { saiuDaFaseDeEdicao } from './shared';
 
 type Event = RequestEvent<{ id: string }>;
 
+/**
+ * Form actions da ESCALA GISE em si (quadro de supervisão, datas, ciclo de
+ * status e exclusão). Todas restritas ao Admin Geral.
+ */
 export const actionsEscala = {
+	/**
+	 * Define supervisor, assessor e os dois SEINT.
+	 *
+	 * As regras de cargo vêm da estrutura da corporação: supervisão é de delegado
+	 * (DPC) e as demais funções são de OIP. É também aqui que a GISE sai de
+	 * `em_definicao_supervisor` — ter supervisor é o que a torna preenchível
+	 * pelas seccionais.
+	 */
 	salvarSupervisores: async (event: Event) => {
 		const { request, locals, platform, params } = event;
 		const u = locals.usuario;
@@ -57,6 +70,8 @@ export const actionsEscala = {
 			if (p.cargo !== 'DPC') return fail(400, { error: 'Apenas DPC pode ser Supervisor' });
 		}
 
+		// Devolve o próprio `fail(...)` para o chamador repassar — evita repetir o
+		// bloco de consulta + validação nos três papéis de OIP.
 		const checkOip = async (id: number | null, label: string) => {
 			if (id !== null) {
 				const p = await db
@@ -77,6 +92,9 @@ export const actionsEscala = {
 		const errSeint2 = await checkOip(seint2Id, 'SEINT 2');
 		if (errSeint2) return errSeint2;
 
+		// O assessor recebe aviso por e-mail a cada seccional que finaliza o
+		// preenchimento; sem endereço confirmado a função não faz sentido, por isso
+		// a confirmação é obrigatória quando há assessor.
 		const assessorEmailRaw = (
 			(formData.get('assessor_email_notificacao') as string | null) ?? ''
 		).trim();
@@ -102,6 +120,8 @@ export const actionsEscala = {
 			}
 		}
 
+		// Ninguém pode estar em duas escalas no mesmo horário — inclusive no quadro
+		// de supervisão, que não passa pelas validações de equipe.
 		const rolesParaVerificar: Array<[number | null, string]> = [
 			[supervisorId, 'Supervisor'],
 			[assessorId, 'Assessor'],
@@ -125,6 +145,8 @@ export const actionsEscala = {
 
 		await atualizarGiseEscala(db, giseId, updateData);
 
+		// Invalida o cache de papel de quem SAIU e de quem ENTROU: os dois lados
+		// mudam de acesso ao `/res-gise`.
 		await invalidarPapelGiseMultiplos([
 			gise.supervisor_id,
 			supervisorId,
@@ -167,6 +189,10 @@ export const actionsEscala = {
 		return { success: true };
 	},
 
+	/**
+	 * Textos do breve relatório desta GISE. String vazia grava `null`, que faz o
+	 * documento cair no texto padrão de `/gise/config`.
+	 */
 	salvarBreveRelatorio: async ({ request, locals, platform, params }: Event) => {
 		const u = locals.usuario;
 		if (!u) return fail(401, { error: 'Não autorizado' });
@@ -195,6 +221,11 @@ export const actionsEscala = {
 		return { success: true };
 	},
 
+	/**
+	 * Data e horário-base da escala. Mudou depois que o PDF foi gerado? O
+	 * documento é descartado e a GISE volta a `em_preenchimento` — a resposta
+	 * avisa a tela (`assinatura_revogada`) para o usuário entender o retrocesso.
+	 */
 	salvarDatasHorarios: async ({ request, locals, platform, params }: Event) => {
 		const u = locals.usuario;
 		if (!u || !isAdminGeral(u)) return fail(403, { error: 'Apenas Admin Geral' });
@@ -230,16 +261,7 @@ export const actionsEscala = {
 		};
 
 		let deveResetarStatus = false;
-		if (
-			[
-				'aguardando_assinatura',
-				'em_andamento',
-				'aguardando_relatorios',
-				'aguardando_assinatura_relat',
-				'pronta_para_finalizar',
-				'finalizada'
-			].includes(gise.status)
-		) {
+		if (saiuDaFaseDeEdicao(gise.status)) {
 			await db.delete(giseDocumentos).where(eq(giseDocumentos.gise_id, giseId));
 			updateData.status = 'em_preenchimento';
 			deveResetarStatus = true;
@@ -249,6 +271,7 @@ export const actionsEscala = {
 		return { success: true, assinatura_revogada: deveResetarStatus };
 	},
 
+	/** Envia a escala para a assinatura do supervisor. */
 	solicitarAssinatura: async ({ locals, platform, params }: Event) => {
 		const u = locals.usuario;
 		if (!u || !isAdminGeral(u)) return fail(403, { error: 'Apenas Admin Geral' });
@@ -261,6 +284,7 @@ export const actionsEscala = {
 		return { success: true };
 	},
 
+	/** Desfaz o pedido enquanto ninguém assinou (só vale em `aguardando_assinatura`). */
 	revogarPedidoAssinatura: async ({ locals, platform, params }: Event) => {
 		const u = locals.usuario;
 		if (!u || !isAdminGeral(u)) return fail(403, { error: 'Apenas Admin Geral' });
@@ -278,6 +302,10 @@ export const actionsEscala = {
 		return { success: true };
 	},
 
+	/**
+	 * Encerra a GISE. Dispara, sem bloquear a resposta, o envio da base de equipe
+	 * para a planilha institucional (`agendarSyncBaseEquipeAposFinalizar`).
+	 */
 	finalizarGise: async ({ locals, platform, params }: Event) => {
 		const u = locals.usuario;
 		if (!u || !isAdminGeral(u)) return fail(403, { error: 'Apenas Admin Geral' });
@@ -294,6 +322,8 @@ export const actionsEscala = {
 			return fail(400, { error: 'Status não permite finalizar' });
 		}
 
+		// Coleta os policiais ANTES de mexer no status: é a lista de caches de papel
+		// a invalidar depois.
 		const afetados = await coletarAfetadosGise(db, giseId);
 		await atualizarGiseEscala(db, giseId, { status: 'finalizada' });
 		await invalidarPapelGiseMultiplos(afetados);
@@ -303,6 +333,7 @@ export const actionsEscala = {
 		return { success: true };
 	},
 
+	/** Reenvio manual da base de equipe, para quando o envio automático falhou. */
 	reenviarBaseEquipePlanilha: async ({ locals, platform, params }: Event) => {
 		const u = locals.usuario;
 		if (!u || !isAdminGeral(u)) return fail(403, { error: 'Apenas Admin Geral' });
@@ -331,6 +362,10 @@ export const actionsEscala = {
 		return { success: true, linhas: r.linhas };
 	},
 
+	/**
+	 * Devolve uma escala já em operação para edição. Não vale para
+	 * `aguardando_assinatura` — nesse ponto o caminho é `revogarPedidoAssinatura`.
+	 */
 	reabrirEscala: async ({ locals, platform, params }: Event) => {
 		const u = locals.usuario;
 		if (!u || !isAdminGeral(u)) return fail(403, { error: 'Apenas Admin Geral' });
@@ -360,6 +395,7 @@ export const actionsEscala = {
 		return { success: true };
 	},
 
+	/** Exclui a GISE e tudo que ela gerou (linhas em cascata + arquivos no R2). */
 	excluirGise: async ({ locals, platform, params }: Event) => {
 		const u = locals.usuario;
 		if (!u || !isAdminGeral(u)) return fail(403, { error: 'Apenas Admin Geral' });
