@@ -1,4 +1,5 @@
 import { redirect, fail } from '@sveltejs/kit';
+import { ehViolacaoUnique } from '$lib/server/db-errors';
 import type { PageServerLoad, Actions } from './$types';
 import {
 	getDB,
@@ -190,8 +191,8 @@ export const actions: Actions = {
 			});
 			return { success: true };
 		} catch (e: unknown) {
-			const message = e instanceof Error ? e.message : String(e);
-			if (message.includes('UNIQUE')) {
+			// A violação de índice único fica em `e.cause` (ver `db-errors.ts`).
+			if (ehViolacaoUnique(e)) {
 				return fail(409, {
 					error: 'Matrícula já cadastrada',
 					fields: {
