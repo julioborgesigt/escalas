@@ -86,6 +86,11 @@ export async function salvarGiseDocumento(
 		});
 }
 
+/**
+ * A assinatura vigente da escala GISE, ou `undefined` se ainda não foi assinada
+ * — há no máximo uma por GISE (`gise_id` é o alvo do conflito no upsert).
+ * `assinante_cpf` sai cifrado.
+ */
 export async function buscarGiseDocumento(
 	db: Database,
 	giseId: number

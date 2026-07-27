@@ -67,11 +67,19 @@ function parseVagasEquipesGiseJson(raw: string | null): {
 	}
 }
 
+/** Vagas configuradas, ou o fallback histórico — nunca lança, nunca devolve nulo. */
 export async function buscarVagasPadraoEquipesGise(db: Database) {
 	const raw = await buscarConfiguracao(db, GISE_EQUIPES_VAGAS_JSON_KEY);
 	return parseVagasEquipesGiseJson(raw);
 }
 
+/**
+ * Grava as vagas padrão, saneando cada campo (0–999) antes de serializar — o
+ * valor vem de `<input>` da tela de configuração.
+ *
+ * Só afeta equipes CRIADAS DEPOIS: as existentes guardam suas próprias
+ * `slots_dpc`/`slots_oip`. Mudar aqui não redimensiona a GISE em andamento.
+ */
 export async function salvarVagasPadraoEquipesGise(
 	db: Database,
 	v: { operacional: { dpc: number; oip: number }; seint: { dpc: number; oip: number } }

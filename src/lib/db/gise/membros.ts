@@ -10,13 +10,39 @@ import {
 import type { Database } from '../core';
 import { seOverlapam } from '../../gise/gise-horarios';
 
+/**
+ * Escala o policial na equipe. INSERT cru, sem validação: as duas checagens que
+ * importam — já estar nesta GISE (`verificarConflitoMembroGise`) e choque de
+ * horário (`verificarConflitoHorarioPolicial`) — são responsabilidade do
+ * chamador, e não há constraint no banco que as substitua.
+ */
 export async function adicionarGiseMembro(db: Database, equipeId: number, policialId: number) {
 	return db.insert(giseMembros).values({ equipe_id: equipeId, policial_id: policialId });
 }
 
+/**
+ * Desescala o policial pelo id da LINHA de `gise_membros` (não pelo id do
+ * policial): o mesmo policial pode ter mais de uma linha, e remover a errada
+ * tiraria a pessoa da equipe errada.
+ *
+ * A presença já registrada (`gise_presencas`) NÃO é apagada — ela é vinculada à
+ * GISE e ao policial, não à equipe. Quem remove alguém que já confirmou entrada
+ * precisa tratar isso à parte.
+ */
 export async function removerGiseMembro(db: Database, id: number) {
 	return db.delete(giseMembros).where(eq(giseMembros.id, id));
 }
+
+/**
+ * O policial já está escalado nesta GISE, em qualquer seccional? Devolve
+ * `{ ok: false, motivo }` com a seccional em que ele está, para a mensagem de
+ * erro dizer ONDE — sem isso o admin que recebe "já escalado" não sabe onde
+ * procurar.
+ *
+ * Regra: um policial serve em UMA equipe por GISE. É checagem de aplicação, não
+ * do banco (não há unique em `(gise_id, policial_id)`, que teria de atravessar
+ * duas tabelas).
+ */
 export async function verificarConflitoMembroGise(
 	db: Database,
 	giseId: number,

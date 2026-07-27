@@ -108,10 +108,11 @@ rotas, endpoints e testes. É a maior concentração numérica do backlog.
 - [x] `db/gise/respostas.ts` (5 exports, 80 ramos, **também opaco**) — formulário
       de produtividade com schema dinâmico
 - [x] `db/gise/escalas-crud.ts` (6) e `db/gise/seccionais.ts` (6)
-- [ ] `db/escalas.ts` (6 restantes) e `db/documentos.ts` (4)
-- [ ] `lib/auth.ts` (4) e `lib/utils.ts` (4)
+- [x] `db/escalas.ts` (6 restantes) e `db/documentos.ts` (4)
+- [x] `lib/auth.ts` (4) e `lib/utils.ts` (4)
+- [x] Resto de `lib/db` (27 exports em 15 arquivos) — **fecha o aceite da fase**
 - [ ] `lib/gise/gise-page-helpers.ts` (6) — helpers puros usados pela UI
-- [ ] Restantes de `lib/server` (28) e `lib` (29), por ordem de uso
+- [ ] Restantes de `lib/server` (28) e `lib` (23), por ordem de uso
 
 **Aceite:** zero exports sem doc em `lib/db`; cada JSDoc diz o **contrato** — o
 que devolve, o que assume do chamador e que efeito colateral tem (cache
@@ -119,9 +120,10 @@ invalidado, auditoria gravada, arquivo no R2).
 
 **Esforço:** 3 levas. **Risco:** nulo.
 
-**Progresso:** levas 1 e 2 concluídas (2026-07-27) — exports sem doc em `lib/db`
-62 → 37; total do projeto 121 → 96; opacos 9 → 8 (`db/gise/respostas.ts` saiu da
-lista); `lib/db` sem cabeçalho 5 → 3.
+**Progresso:** 4 levas concluídas (2026-07-27). **Aceite da fase alcançado para
+`lib/db`:** 62 → **0** exports sem doc, 5 → **0** arquivos sem cabeçalho e 1 → **0**
+opacos. No projeto: 121 → 53 exports sem doc, 65 → 57 sem cabeçalho, 9 → 8 opacos.
+Resta o item de `lib` / `lib/server` (51 exports), que não faz parte do aceite.
 
 A leva 2 achou o **quinto bug do mesmo padrão** (lógica duplicada em três
 lugares, um deles errado): `removerGiseSeccionalUnidade` apagava só a linha do

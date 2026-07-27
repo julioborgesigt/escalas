@@ -50,6 +50,16 @@ function cutoffISO(dias: number): string {
 	return new Date(Date.now() - dias * 86_400_000).toISOString();
 }
 
+/**
+ * Prazos de retenção configurados — em dias, exceto `auditLogAnos`, que fica em
+ * anos por ser o único prazo definido por lei em anos.
+ *
+ * Todo campo tem padrão embutido (as oito consultas vão em paralelo, e cada
+ * chave ausente cai no seu), então a expurga sempre roda sob política conhecida,
+ * inclusive em banco recém-criado. `Number(x) || padrão` também absorve valor
+ * inválido e zero: um `NaN` escapando daqui faria o cutoff apagar tudo ou nada.
+ * Os padrões de cada campo estão justificados nos comentários ao lado.
+ */
 export async function carregarConfigRetencao(db: Database): Promise<RetencaoConfig> {
 	const [
 		sessoesDiasStr,
