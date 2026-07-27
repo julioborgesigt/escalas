@@ -23,10 +23,21 @@ import {
 	HEADERS_DETALHE_EQUIPE,
 	statusLabelGiseXlsx
 } from '$lib/server/gise-xlsx-workbook-append';
+/**
+ * GET /api/gise/historico/export — exporta o histórico de GISEs FINALIZADAS em
+ * XLSX (uma aba por escala) ou PDF (relatório corrido). Restrito a Admin Geral.
+ */
+
+/** `jspdf-autotable` injeta `lastAutoTable` em tempo de execução, fora do .d.ts. */
 interface JsPDFWithAutoTable extends jsPDF {
 	lastAutoTable?: { finalY: number };
 }
 
+/**
+ * Intervalo de um ciclo GISE: do dia 21 do mês anterior ao dia 20 do mês do
+ * ciclo (é o fechamento usado para pagamento da extra, não o mês civil).
+ * O ciclo 1 atravessa a virada do ano — daí o caso especial.
+ */
 function getCicloRange(ano: number, ciclo: number): { inicio: string; fim: string } {
 	if (ciclo === 1) return { inicio: `${ano - 1}-12-21`, fim: `${ano}-01-20` };
 	const mI = String(ciclo - 1).padStart(2, '0');
@@ -34,6 +45,10 @@ function getCicloRange(ano: number, ciclo: number): { inicio: string; fim: strin
 	return { inicio: `${ano}-${mI}-21`, fim: `${ano}-${mF}-20` };
 }
 
+/**
+ * PDF do histórico. A paginação é manual (`bumpY`): o jsPDF não quebra página
+ * sozinho para texto solto, só para as tabelas do autoTable.
+ */
 async function buildHistoricoPdfBuffer(
 	gises: GiseDetalhado[],
 	seccionalNome: string,
@@ -65,6 +80,7 @@ async function buildHistoricoPdfBuffer(
 		return doc.output('arraybuffer');
 	}
 
+	/** Quebra a página quando não sobra `minSpace` mm até o rodapé (A4 = 297 mm). */
 	const bumpY = (docu: jsPDF, cur: number, minSpace = 36): number => {
 		if (cur > 270 - minSpace) {
 			docu.addPage();
@@ -103,6 +119,7 @@ async function buildHistoricoPdfBuffer(
 			for (const unidade of sec.unidades ?? []) {
 				for (const equipe of unidade.equipes ?? []) {
 					const teamTitle = `${unidade.nome || sec.seccional_nome} — ${equipe.tipo === 'operacional' ? 'Operacional' : 'SEINT'}`;
+					// Horário em cascata: equipe > seccional > escala (o mais específico vence).
 					const hEnt = equipe.hora_entrada || sec.hora_entrada || gise.hora_entrada;
 					const hSai = equipe.hora_saida || sec.hora_saida || gise.hora_saida;
 
@@ -158,6 +175,8 @@ export const GET: RequestHandler = async ({ locals, platform, url }) => {
 	type EscalaLista = Awaited<ReturnType<typeof listarGiseEscalas>>[number];
 
 	const db = getDB(platform);
+	// Só escala finalizada entra no histórico — as em andamento saem pelos
+	// downloads da própria GISE.
 	const todas = await listarGiseEscalas(db);
 	const historico = todas.filter((e) => e.status === 'finalizada');
 
@@ -187,6 +206,8 @@ export const GET: RequestHandler = async ({ locals, platform, url }) => {
 		detalhes: `Formato: ${format} · Filtros: ${JSON.stringify({ seccionalId, periodo, mesAno, ano, ciclo, data: dataEspecifica })}`
 	});
 
+	// Nome da seccional para o cabeçalho: aproveita o que já veio na listagem e
+	// só vai ao banco se o filtro apontar para uma seccional fora do resultado.
 	let seccionalNome = 'Todas as seccionais';
 	if (seccionalId !== undefined) {
 		const fromEscala = (filtradas[0]?.seccionais ?? []).find((s) => s.id === seccionalId)?.nome;
@@ -217,6 +238,9 @@ export const GET: RequestHandler = async ({ locals, platform, url }) => {
 		return Number(b.id) - Number(a.id);
 	});
 
+	// Uma consulta detalhada por escala (a listagem não traz equipes/membros).
+	// Sequencial de propósito: o D1 serializa as queries e o paralelo só
+	// aumentaria a chance de estourar o limite de subrequests do Worker.
 	const gisesDetalhadas: GiseDetalhado[] = [];
 	for (const e of ordenadas) {
 		const g = await buscarGiseDetalhado(db, e.id);
@@ -230,6 +254,7 @@ export const GET: RequestHandler = async ({ locals, platform, url }) => {
 		);
 	}
 
+	// Sufixo do nome do arquivo, derivado do filtro (sem caracteres de caminho).
 	const safeSlug =
 		periodo === 'mes' && mesAno
 			? mesAno.replace('-', '')

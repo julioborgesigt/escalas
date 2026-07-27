@@ -14,11 +14,25 @@ import { isAdminSeccional } from '$lib/auth';
 import { invalidarPapelGise } from '$lib/server/gise-papel-cache';
 import { giseMembros, giseEquipes, giseSeccionais } from '$lib/server/schema';
 import { eq } from 'drizzle-orm';
-import { getInt } from './shared';
+import { getInt, saiuDaFaseDeEdicao } from './shared';
+
+/**
+ * Form actions dos MEMBROS (policiais alocados às vagas das equipes) em
+ * `/gise/[id]`.
+ *
+ * Diferente das equipes, aqui o admin seccional também escreve — desde que a
+ * seccional seja a dele (`u.papel_unidade_id === sec.seccional_id`). É o passo
+ * que cada seccional executa antes de "finalizar" seu preenchimento.
+ */
 
 type Event = RequestEvent<{ id: string }>;
 
 export const actionsMembros = {
+	/**
+	 * Aloca um policial numa equipe. Três validações antes de gravar, todas na
+	 * camada de dados: vaga livre no tipo certo (DPC/OIP), policial ainda não
+	 * escalado nesta GISE e sem conflito de horário com outra escala.
+	 */
 	adicionarMembro: async ({ request, locals, platform, params }: Event) => {
 		const u = locals.usuario;
 		if (!u) return fail(401, { error: 'Não autorizado' });
@@ -56,16 +70,19 @@ export const actionsMembros = {
 
 		await adicionarGiseMembro(db, equipeId, policialId);
 
+		// O papel GISE do policial é cacheado (usado no guard de `/res-gise`);
+		// sem invalidar, ele só enxergaria a escala nova quando o cache expirasse.
 		await invalidarPapelGise(policialId);
 
 		const gise = await buscarGiseEscala(db, giseId);
-		if (gise && !['em_definicao_supervisor', 'em_preenchimento'].includes(gise.status)) {
+		if (gise && saiuDaFaseDeEdicao(gise.status)) {
 			await revogarAssinaturasSeccional(db, giseId, secId);
 		}
 
 		return { success: true };
 	},
 
+	/** Desaloca um policial. Bloqueado quando a GISE já entrou em operação. */
 	removerMembro: async ({ request, locals, platform, params }: Event) => {
 		const u = locals.usuario;
 		if (!u) return fail(401, { error: 'Não autorizado' });
@@ -79,6 +96,9 @@ export const actionsMembros = {
 		const gise = await buscarGiseEscala(db, giseId);
 		if (!gise) return fail(404, { error: 'GISE não encontrada' });
 
+		// Janela maior que a de edição livre: dá para corrigir a composição
+		// enquanto a escala aguarda a assinatura do supervisor, mas não depois que
+		// ela entra em operação (haveria presença/relatório do policial removido).
 		if (
 			!['em_definicao_supervisor', 'em_preenchimento', 'aguardando_assinatura'].includes(
 				gise.status
@@ -87,6 +107,8 @@ export const actionsMembros = {
 			return fail(400, { error: 'Escala fechada para edição' });
 		}
 
+		// Uma consulta só resolve as três perguntas: qual equipe, qual seccional
+		// (para revogar assinaturas) e de quem é o cache de papel a invalidar.
 		const membroInfo = await db
 			.select({
 				equipe_id: giseMembros.equipe_id,
@@ -110,7 +132,7 @@ export const actionsMembros = {
 
 		await invalidarPapelGise(membroInfo.policial_id);
 
-		if (!['em_definicao_supervisor', 'em_preenchimento'].includes(gise.status)) {
+		if (saiuDaFaseDeEdicao(gise.status)) {
 			await revogarAssinaturasSeccional(db, giseId, membroInfo.gise_seccional_id);
 		}
 
