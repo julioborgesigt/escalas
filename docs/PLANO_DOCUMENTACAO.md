@@ -104,8 +104,8 @@ rotas, endpoints e testes. É a maior concentração numérica do backlog.
 
 **Escopo:**
 
-- [ ] `db/policiais.ts` (8 exports) — cadastro, o núcleo do RBAC
-- [ ] `db/gise/respostas.ts` (5 exports, 80 ramos, **também opaco**) — formulário
+- [x] `db/policiais.ts` (8 exports) — cadastro, o núcleo do RBAC
+- [x] `db/gise/respostas.ts` (5 exports, 80 ramos, **também opaco**) — formulário
       de produtividade com schema dinâmico
 - [ ] `db/gise/escalas-crud.ts` (6) e `db/gise/seccionais.ts` (6)
 - [ ] `db/escalas.ts` (6 restantes) e `db/documentos.ts` (4)
@@ -118,6 +118,10 @@ que devolve, o que assume do chamador e que efeito colateral tem (cache
 invalidado, auditoria gravada, arquivo no R2).
 
 **Esforço:** 3 levas. **Risco:** nulo.
+
+**Progresso:** leva 1 concluída (2026-07-27) — exports sem doc em `lib/db`
+62 → 49; total do projeto 121 → 108; opacos 9 → 8 (`db/gise/respostas.ts` saiu
+da lista).
 
 ---
 
