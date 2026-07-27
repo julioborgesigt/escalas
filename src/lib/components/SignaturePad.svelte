@@ -1,4 +1,26 @@
 <script lang="ts">
+	/**
+	 * Pad de ASSINATURA AVANÇADA em tela (Lei 14.063/2020 art. 4º II) — usado em
+	 * todos os pontos de assinatura sem certificado: escala, GISE, relatórios e
+	 * termos de presença.
+	 *
+	 * A assinatura avançada não tem certificado ICP-Brasil, então sua
+	 * oponibilidade vem do CONJUNTO de evidências coletadas aqui, em passos
+	 * (`step`), cada um ligável por configuração:
+	 *
+	 *   `signature` → rubrica (desenhada ou a cadastrada)
+	 *   `camera`    → foto com prova de vida (`exigirFoto`)
+	 *   `email_code`→ código enviado por e-mail (`exigirCodigoEmail`)
+	 *
+	 * mais GPS (`exigirGps`), IP e user-agent, capturados pelo servidor no POST.
+	 * As flags vêm das Configurações Gerais: o operador decide o nível de
+	 * exigência, e desligar uma delas enfraquece a prova, não o fluxo.
+	 *
+	 * `rubricaSalva` é reaproveitada por padrão quando existe — assinar várias
+	 * escalas seguidas não deve obrigar a redesenhar. O usuário pode alternar
+	 * para desenhar outra a qualquer momento; como o pad é remontado a cada
+	 * abertura do modal, basta o valor inicial.
+	 */
 	import { untrack } from 'svelte';
 	import { Camera, Check } from 'lucide-svelte';
 	import type {

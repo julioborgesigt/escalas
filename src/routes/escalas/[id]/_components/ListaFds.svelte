@@ -1,4 +1,26 @@
 <script lang="ts">
+	/**
+	 * Lista da escala de FIM DE SEMANA — a visão por DIA.
+	 *
+	 * É a diferença estrutural em relação a `TabelaServidores` (mensal): a escala
+	 * de FDS cobre poucos dias e cada dia tem sua própria composição, então a tela
+	 * é uma seção por dia do intervalo, com adição de DPC e OIP dentro do dia. Na
+	 * mensal, cada policial é uma linha com seus vários dias.
+	 *
+	 * Os dias vêm de `getDaysInRange`, isto é, do intervalo da escala — não das
+	 * linhas existentes. Dia sem ninguém escalado precisa aparecer vazio, senão o
+	 * buraco na cobertura fica invisível, que é justamente o que a tela existe
+	 * para mostrar.
+	 *
+	 * A edição inline e os helpers de horário são COMPARTILHADOS com a tabela
+	 * mensal (`useEdicaoInlineServidor`, `criarHelpersHorario`): as duas telas
+	 * gravam nos mesmos campos e precisam calcular data de saída do mesmo jeito —
+	 * plantão que vira o dia é regra do domínio, não de cada tela.
+	 *
+	 * Ao abrir o formulário de adição, os horários são pré-preenchidos com os da
+	 * escala e o bloco recebe `scrollIntoView` depois de `tick()`: em fim de
+	 * semana com muitos dias, o campo abriria fora da área visível.
+	 */
 	import { tick } from 'svelte';
 	import { enhance } from '$app/forms';
 	import { toaster } from '$lib/toast';

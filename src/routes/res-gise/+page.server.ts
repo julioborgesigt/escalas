@@ -1,3 +1,23 @@
+/**
+ * `/res-gise` — a tela do POLICIAL na GISE (o Admin Geral só observa).
+ *
+ * Reúne, para o usuário logado, todas as escalas GISE em que ele aparece, em
+ * dois papéis que vêm de origens diferentes no banco:
+ *
+ * - **membro de equipe** — linhas de `gise_membros`, com seccional e unidade;
+ * - **quadro de supervisão** (supervisor, assessor, SEINT) — não tem equipe;
+ *   essas linhas são sintetizadas com `equipe_id = 0` e `seccional_id = 0`, e o
+ *   `0` é depois traduzido para `supervisaoExtraUnidadeId` na hora de casar
+ *   assinaturas de relatório de extra.
+ *
+ * As três mutações que a tela oferece — confirmar entrada, confirmar saída e
+ * enviar/retificar o relatório de produtividade — são de assinatura AVANÇADA
+ * (Lei 14.063/2020 art. 4º II): exigem rubrica, 2FA por e-mail quando a flag
+ * está ligada, e gravam IP/GPS/foto como prova. Cada action revalida a
+ * participação do policial na escala: a UI esconde o botão, mas o POST direto
+ * precisa ser recusado no servidor.
+ */
+
 import { redirect, fail } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
 import type { ResGiseMinhaEscalaLinha } from '$lib/types';
@@ -44,27 +64,6 @@ import {
 	policiais
 } from '$lib/server/schema';
 import { eq, and, inArray, desc, like, sql } from 'drizzle-orm';
-
-/**
- * `/res-gise` — a tela do POLICIAL na GISE (o Admin Geral só observa).
- *
- * Reúne, para o usuário logado, todas as escalas GISE em que ele aparece, em
- * dois papéis que vêm de origens diferentes no banco:
- *
- * - **membro de equipe** — linhas de `gise_membros`, com seccional e unidade;
- * - **quadro de supervisão** (supervisor, assessor, SEINT) — não tem equipe;
- *   essas linhas são sintetizadas com `equipe_id = 0` e `seccional_id = 0`, e o
- *   `0` é depois traduzido para `supervisaoExtraUnidadeId` na hora de casar
- *   assinaturas de relatório de extra.
- *
- * As três mutações que a tela oferece — confirmar entrada, confirmar saída e
- * enviar/retificar o relatório de produtividade — são de assinatura AVANÇADA
- * (Lei 14.063/2020 art. 4º II): exigem rubrica, 2FA por e-mail quando a flag
- * está ligada, e gravam IP/GPS/foto como prova. Cada action revalida a
- * participação do policial na escala: a UI esconde o botão, mas o POST direto
- * precisa ser recusado no servidor.
- */
-
 interface GiseEscalaItem {
 	id: number;
 	data_inicio: string;

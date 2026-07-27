@@ -1,4 +1,21 @@
 <script lang="ts">
+	/**
+	 * Lista de ESCALAS GISE — porta de entrada do módulo.
+	 *
+	 * Divide em dois blocos: as ATIVAS (tudo que não está `finalizada`, em cards
+	 * grandes com o andamento de cada uma) e o HISTÓRICO, que só o Admin Geral
+	 * vê, paginado. Para os demais papéis a página é um painel do que está
+	 * acontecendo agora, não um arquivo.
+	 *
+	 * O que cada usuário recebe já vem filtrado pelo `load` (por vínculo:
+	 * supervisor, membro, seccional participante) — esta tela não faz controle de
+	 * acesso, só de apresentação.
+	 *
+	 * Também é ponto de assinatura: o supervisor pode assinar daqui os relatórios
+	 * de extra pendentes sem abrir a escala, com rubrica ou token SERPRO. É por
+	 * isso que uma tela de listagem importa `PainelAssinaturaToken` e
+	 * `ModalRubrica`.
+	 */
 	import type { PageProps } from './$types';
 	import { Pagination } from '@skeletonlabs/skeleton-svelte';
 	import { ChevronLeft, ChevronRight } from 'lucide-svelte';

@@ -1,4 +1,22 @@
 <script lang="ts">
+	/**
+	 * Tabela da visão `lista` de `/escalas`: uma linha por escala, com o estado
+	 * (rascunho, aguardando assinatura, assinada) e as ações disponíveis para o
+	 * papel de quem olha.
+	 *
+	 * É componente de APRESENTAÇÃO — nenhuma mutação acontece aqui. Toda ação
+	 * sobe por callback (`onSolicitarEdicao`, `onCancelarSolicitacao`, …) para a
+	 * página, que é quem tem os forms e a invalidação. Assim a mesma tabela serve
+	 * a admin e a OIP sem carregar as regras dos dois.
+	 *
+	 * `solicitacoesMap` chega indexado por `escala_id` justamente para o selo de
+	 * "aguardando assinatura" não custar uma consulta por linha (N+1).
+	 *
+	 * `skipLoad` vem ligado quando o Admin Geral abre a lista SEM escolher
+	 * lotação: o servidor nem consulta (seriam todas as escalas de todas as
+	 * unidades) e a tabela mostra o estado "escolha uma unidade". É estado
+	 * inicial esperado, não erro nem lista vazia.
+	 */
 	import { Popover, Portal } from '@skeletonlabs/skeleton-svelte';
 	import { slide, fly } from 'svelte/transition';
 	import { page, navigating } from '$app/state';

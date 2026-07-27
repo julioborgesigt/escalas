@@ -1,4 +1,27 @@
 <script lang="ts">
+	/**
+	 * Cadastro de UNIDADES — departamentos, seccionais e delegacias, com a
+	 * hierarquia entre elas (`seccional_id`) e as flags de quais tipos de escala
+	 * cada uma aceita.
+	 *
+	 * É a tabela mais estrutural do sistema: `policiais.lotacao` e
+	 * `escalas.lotacao` referenciam a unidade pelo NOME, não por chave
+	 * estrangeira. Renomear aqui cascateia no servidor (`atualizarUnidade`
+	 * reescreve as duas colunas) e excluir exige checar vínculos antes — daí o
+	 * modal de exclusão dedicado, que não é confirmação genérica.
+	 *
+	 * Filtro e busca são do CLIENTE: são poucas centenas de unidades, todas já
+	 * carregadas pelo `load`, e filtrar local dá resposta imediata.
+	 * `filtroSeccional` esconde departamentos por desenho — eles não pertencem a
+	 * seccional nenhuma, e mantê-los na lista filtrada faria o resultado parecer
+	 * errado.
+	 *
+	 * `unidadesAgrupadas` monta a ÁRVORE a partir da lista plana e, no fim,
+	 * acrescenta os ÓRFÃOS na raiz: unidade cujo pai não está na lista (por causa
+	 * do filtro, ou porque o `seccional_id` aponta para algo que não existe mais)
+	 * precisa continuar visível e editável — some da árvore, some da tela, e
+	 * ninguém conserta o vínculo quebrado.
+	 */
 	import type { PageProps } from './$types';
 	import { page, navigating } from '$app/state';
 	import SkeletonCard from '$lib/components/SkeletonCard.svelte';

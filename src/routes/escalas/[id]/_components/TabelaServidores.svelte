@@ -1,4 +1,22 @@
 <script lang="ts">
+	/**
+	 * Tabela de escalados da escala MENSAL (plantão e expediente) — uma linha por
+	 * policial, com os dias em que ele serve. A visão por DIA, usada no fim de
+	 * semana, é a `ListaFds`; as duas dividem os helpers de horário e a edição
+	 * inline (`criarHelpersHorario`, `useEdicaoInlineServidor`) porque calcular
+	 * data de saída de plantão que vira o dia é regra do domínio, não da tela.
+	 *
+	 * `isExpediente` muda o que a tabela mostra: expediente não tem plantão por
+	 * dia, então as colunas de data/horário dão lugar às de regime.
+	 *
+	 * Paginação em 50 é do CLIENTE — a escala inteira já veio no `load`, e
+	 * paginar aqui é só para o DOM não montar centenas de linhas editáveis de uma
+	 * vez.
+	 *
+	 * A edição só existe quando `podeEditarEscala`; escala com documento assinado
+	 * ou finalizada fica somente-leitura, porque alterar depois invalidaria a
+	 * assinatura que já está no PDF.
+	 */
 	import { enhance } from '$app/forms';
 	import { formatarData } from '$lib/utils';
 	import type { Escala } from '$lib/server/schema';
