@@ -15,6 +15,11 @@ function escapeLike(str: string): string {
 	return str.replace(/[%_\\]/g, '\\$&');
 }
 
+/**
+ * Listagem paginada de escalas, com todos os filtros da UI (lotação, status,
+ * mês/ano, tipo, "visto", busca livre). Os parâmetros posicionais são herança
+ * dos primeiros call sites; filtros novos entram em `opts`.
+ */
 export async function listarEscalas(
 	db: Database,
 	lotacao?: string,
@@ -142,6 +147,18 @@ export async function excluirEscala(db: Database, id: number) {
 	return db.delete(escalas).where(eq(escalas.id, id));
 }
 
+/**
+ * Já existe escala equivalente para esta lotação? A regra de "equivalente"
+ * muda por tipo:
+ *
+ * - **fds**: qualquer SOBREPOSIÇÃO de datas com o intervalo pedido (dois fins
+ *   de semana não podem cobrir o mesmo dia);
+ * - **mensal**: qualquer escala do mesmo tipo naquele MÊS.
+ *
+ * A comparação mensal é feita por intervalo (`>= dia 1` e `< dia 1 do mês
+ * seguinte`) em vez de `substr(data_inicio, 1, 7)` para que o índice de
+ * `data_inicio` seja usado.
+ */
 export async function verificarEscalaExistente(
 	db: Database,
 	lotacao: string,
@@ -185,6 +202,7 @@ export async function verificarEscalaExistente(
 		.get();
 }
 
+/** Marca/desmarca a escala como lida na caixa de entrada do Admin Geral. */
 export async function marcarVisto(db: Database, id: number, visto: boolean) {
 	return db
 		.update(escalas)
@@ -192,6 +210,12 @@ export async function marcarVisto(db: Database, id: number, visto: boolean) {
 		.where(eq(escalas.id, id));
 }
 
+/**
+ * Conclui a escala de FDS: grava o instante do envio e o e-mail de destino.
+ *
+ * `finalizada_em` é gravado no horário de Brasília (UTC-3) em texto, no mesmo
+ * formato dos outros carimbos legados desta tabela — não é ISO com `Z`.
+ */
 export async function finalizarEscalaFDS(
 	db: Database,
 	id: number,
@@ -207,12 +231,14 @@ export async function finalizarEscalaFDS(
 		.where(eq(escalas.id, id));
 }
 
+/** Reabre a escala de FDS. Preserva `email_envio` como histórico do último envio. */
 export async function desfinalizarEscalaFDS(db: Database, id: number): Promise<void> {
 	await db.update(escalas).set({ finalizada_em: null }).where(eq(escalas.id, id));
 }
 
 // ---- Escala Policiais ----
 
+/** Insere um policial em várias datas de uma vez (um INSERT por lote, não por dia). */
 export async function adicionarMultiplasDatasPlantao(
 	db: Database,
 	escalaId: number,
@@ -240,6 +266,7 @@ export async function adicionarMultiplasDatasPlantao(
 	);
 }
 
+/** Preenche a escala com todos os policiais da lotação, no horário padrão dela. */
 export async function adicionarTodosPoliciais(
 	db: Database,
 	escalaId: number,
@@ -292,6 +319,10 @@ export async function adicionarTodosPoliciais(
  * Útil para uso com `db.batch([mutation, listarPoliciaisEscalaQuery(...)])`,
  * que combina mutação + listagem em um único round-trip ao D1.
  */
+/**
+ * Query (não executada) da listagem de escalados — serve para compor
+ * `db.batch([...])` e resolver mutação + releitura em um só round-trip ao D1.
+ */
 export function listarPoliciaisEscalaQuery(db: Database, escalaId: number) {
 	return db
 		.select({
@@ -329,6 +360,11 @@ export async function listarPoliciaisEscala(
 
 // ---- Solicitações de Assinatura ----
 
+/**
+ * Registra o pedido de assinatura de uma escala mensal. O destinatário pode ser
+ * um DPC específico (`destinatario_id`) ou o papel genérico — é o que decide
+ * quem enxerga a escala fora da própria lotação.
+ */
 export async function criarSolicitacaoAssinatura(
 	db: Database,
 	escalaId: number,
@@ -358,6 +394,12 @@ export async function criarSolicitacaoAssinatura(
  *   (`lotacoesPermitidas`). ANTES este ramo retornava `true` para QUALQUER admin
  *   DPC, permitindo acesso cross-unidade/seccional.
  */
+/**
+ * A solicitação dá a este DPC acesso à escala de outra unidade?
+ *
+ * Puro de propósito (sem banco): é reaproveitado pelo guard de permissão e pelos
+ * testes de RBAC, que cobrem a matriz de casos sem tocar o D1.
+ */
 export function solicitacaoConcedeAcessoDpc(
 	sol: { tipo: string; destinatario_id: number | null } | undefined,
 	usuarioId: number,
@@ -382,6 +424,7 @@ export function solicitacaoConcedeAcessoDpc(
  *   (escopo de unidades que o admin administra). Sem esse escopo, o ramo `unidade`
  *   NÃO concede acesso (defesa contra IDOR cross-unidade).
  */
+/** Existe pedido de assinatura direcionado a este DPC admin? (atalho do guard) */
 export async function temSolicitacaoParaDpcAdmin(
 	db: Database,
 	escalaId: number,
@@ -409,6 +452,7 @@ export async function buscarSolicitacaoAssinatura(db: Database, escalaId: number
 		.get();
 }
 
+/** Revoga o pedido de assinatura — e, com ele, o acesso cross-unidade que ele concedia. */
 export async function excluirSolicitacaoAssinatura(db: Database, escalaId: number) {
 	await db
 		.delete(escalaSolicitacoesAssinatura)
