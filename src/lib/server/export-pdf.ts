@@ -1277,6 +1277,23 @@ function assinaturaRelatorioExtra(
 	return sigY;
 }
 
+/**
+ * Gera o PDF do RELATÓRIO DE SERVIÇO EXTRAORDINÁRIO de uma seccional (ou do
+ * quadro de supervisão), com a lista de quem serviu e os horários de entrada e
+ * saída efetivos.
+ *
+ * `isPreparando = true` é a versão que vai ser ASSINADA: omite o placeholder
+ * "Aguardando Conferência e Assinatura da Supervisão", deixando o espaço livre
+ * para o carimbo visual que o fluxo de assinatura desenha depois. Com `false`
+ * sai o documento de leitura — com o placeholder, ou com a assinatura já
+ * registrada em `reportSignature`.
+ *
+ * O `finalY` devolvido é a coordenada dessa área: é por ele que o fluxo de
+ * assinatura ancora rubrica e QR sem remedir o documento.
+ *
+ * Logos e QR chegam como bytes/base64 pelo chamador em vez de serem buscados
+ * aqui: geração de PDF roda no Worker e não deve depender de rede nem de R2.
+ */
 export async function gerarRelatorioExtraordinarioPdf(
 	gise: GisePdfData,
 	presencas: GisePresenca[],

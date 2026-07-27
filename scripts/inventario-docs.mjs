@@ -9,7 +9,9 @@
  *      linhas ≥ 12 com menos de 6% de comentário costumam esconder regra de
  *      negócio que não se recupera lendo o código;
  *   3. exports públicos sem JSDoc, que são contratos consumidos por outras
- *      camadas.
+ *      camadas. Não contam: assinaturas de SOBRECARGA (o JSDoc fica na
+ *      primeira do encadeamento) e o export ÚNICO de um módulo que já tem
+ *      cabeçalho — nesse caso o cabeçalho É a documentação do export.
  *
  * Uso:
  *   node scripts/inventario-docs.mjs             # resumo por categoria + listas
@@ -56,11 +58,24 @@ function medir(p) {
 	const temCabecalho = /^\s*(\/\*\*|\/\/)/m.test(inicio);
 
 	// Export sem JSDoc: linha anterior não faz parte de um bloco de comentário.
-	let exportsSemDoc = 0;
+	// Sobrecarga de tipo (`export function f(): A;` seguida de outra assinatura)
+	// não conta: o JSDoc fica na PRIMEIRA do encadeamento, e cobrar um por
+	// assinatura só produzia falso positivo.
+	// Agrupa por NOME: sobrecarga são várias declarações da mesma função, e o
+	// JSDoc de qualquer uma delas documenta o conjunto.
+	const porNome = new Map();
 	for (const m of s.matchAll(/^export (?:async )?function (\w+)/gm)) {
 		const anterior = s.slice(0, m.index).trimEnd().split('\n').pop()?.trim() ?? '';
-		if (!/^(\*|\/\*\*|\/\/|\*\/)/.test(anterior)) exportsSemDoc++;
+		const temDoc = /^(\*|\/\*\*|\/\/|\*\/)/.test(anterior);
+		porNome.set(m[1], (porNome.get(m[1]) ?? false) || temDoc);
 	}
+	// Módulo de export ÚNICO com cabeçalho: o cabeçalho já é a documentação desse
+	// export (o caso dos composables e das factories). Exigir um JSDoc a mais só
+	// produziria "/** Ver acima. */".
+	const cobertoPeloCabecalho = temCabecalho && porNome.size === 1;
+	const exportsSemDoc = cobertoPeloCabecalho
+		? 0
+		: [...porNome.values()].filter((doc) => !doc).length;
 
 	const ramos = (s.match(RAMOS) ?? []).length;
 	return {

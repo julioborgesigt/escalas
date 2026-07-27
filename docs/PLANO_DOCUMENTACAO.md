@@ -97,7 +97,7 @@ ramos, mas já acima do corte de 6%, portanto não sinalizados) e
 
 ---
 
-## Fase 2 — Contratos da camada de dados
+## Fase 2 — Contratos da camada de dados ✅ (concluída)
 
 **Por que:** 62 exports sem JSDoc em `lib/db` — são contratos consumidos por
 rotas, endpoints e testes. É a maior concentração numérica do backlog.
@@ -111,8 +111,8 @@ rotas, endpoints e testes. É a maior concentração numérica do backlog.
 - [x] `db/escalas.ts` (6 restantes) e `db/documentos.ts` (4)
 - [x] `lib/auth.ts` (4) e `lib/utils.ts` (4)
 - [x] Resto de `lib/db` (27 exports em 15 arquivos) — **fecha o aceite da fase**
-- [ ] `lib/gise/gise-page-helpers.ts` (6) — helpers puros usados pela UI
-- [ ] Restantes de `lib/server` (28) e `lib` (23), por ordem de uso
+- [x] `lib/gise/gise-page-helpers.ts` (6) — helpers puros usados pela UI
+- [x] Restantes de `lib/server` (28) e `lib` (23), por ordem de uso
 
 **Aceite:** zero exports sem doc em `lib/db`; cada JSDoc diz o **contrato** — o
 que devolve, o que assume do chamador e que efeito colateral tem (cache
@@ -120,10 +120,28 @@ invalidado, auditoria gravada, arquivo no R2).
 
 **Esforço:** 3 levas. **Risco:** nulo.
 
-**Progresso:** 4 levas concluídas (2026-07-27). **Aceite da fase alcançado para
-`lib/db`:** 62 → **0** exports sem doc, 5 → **0** arquivos sem cabeçalho e 1 → **0**
-opacos. No projeto: 121 → 53 exports sem doc, 65 → 57 sem cabeçalho, 9 → 8 opacos.
-Resta o item de `lib` / `lib/server` (51 exports), que não faz parte do aceite.
+**✅ CONCLUÍDA** em 6 levas (2026-07-27), acima do aceite: em vez de zerar só
+`lib/db`, o projeto INTEIRO ficou sem export público sem contrato.
+
+| métrica              | antes | depois |
+| -------------------- | ----: | -----: |
+| exports sem doc      |   121 |  **0** |
+| `lib/db` sem cabeçalho |     5 |  **0** |
+| opacos               |     9 |      7 |
+
+Duas correções na régua (`scripts/inventario-docs.mjs`) vieram desta fase, e são
+o motivo de a contagem cair mais do que os JSDoc escritos: assinatura de
+SOBRECARGA não é export separado (o JSDoc fica na primeira do encadeamento) e o
+export ÚNICO de um módulo com cabeçalho já está documentado por ele — cobrar um
+JSDoc a mais ali só produziria `/** Ver acima. */`.
+
+Achados de código que saíram das leituras, além do bug da leva 2:
+
+- `mapQuestions` recebia `filterTipo` e o usava em `filterTipo === 'seint' ? modelo : modelo`
+  — ternário de ramos idênticos. Parâmetro e ternário removidos; o chamador já
+  escolhia o modelo;
+- os dois remetentes de e-mail que não passavam por `enviarERegistrar`
+  (anexo e texto puro) foram unificados nele, com o helper ganhando `extras`.
 
 A leva 2 achou o **quinto bug do mesmo padrão** (lógica duplicada em três
 lugares, um deles errado): `removerGiseSeccionalUnidade` apagava só a linha do

@@ -93,7 +93,7 @@
 
 	// Questions mapeadas via utilitário
 	const QUESTIONS = $derived(
-		mapQuestions(filterTipo === 'seint' ? data.modeloSeint : data.modeloOperacional, filterTipo)
+		mapQuestions(filterTipo === 'seint' ? data.modeloSeint : data.modeloOperacional)
 	);
 
 	const allChartsCount = $derived(QUESTIONS.length + TOP_IDS.length);

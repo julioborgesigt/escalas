@@ -156,6 +156,19 @@ export interface CadesFinalizationError {
 	error: string;
 }
 
+/**
+ * Fecha a assinatura com certificado: verifica o CMS que o cliente devolveu e,
+ * se estiver correto, obtém o CARIMBO DE TEMPO qualificado e o snapshot OCSP —
+ * é o que eleva PAdES-B para PAdES-LT.
+ *
+ * Devolve um resultado discriminado (`ok: true` com os artefatos, ou
+ * `ok: false` com status HTTP e mensagem) em vez de lançar, porque cada motivo
+ * de recusa tem um código próprio na resposta da API — CMS ausente é 422, não
+ * 500.
+ *
+ * A verificação acontece ANTES de gravar qualquer coisa: só entra no banco
+ * assinatura que já provou fechar com o certificado apresentado.
+ */
 export async function verificarECarimbarAssinatura(
 	signedPdfBytes: Uint8Array,
 	options: {

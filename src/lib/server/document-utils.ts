@@ -56,6 +56,19 @@ export function reduzirPrecisaoGps(v?: number): number | undefined {
 	return v !== undefined ? Math.round(v * 100) / 100 : undefined;
 }
 
+/**
+ * Reduz o user-agent bruto a `Navegador versão / SO / dispositivo` — a forma que
+ * é gravada nos documentos assinados, nos aceites de termo e na auditoria
+ * (`Desktop` é omitido por ser o caso comum).
+ *
+ * Minimização LGPD: o UA completo é impressão digital razoavelmente única
+ * (plugins, build, arquitetura). Navegador e sistema bastam para a conferência
+ * de "assinou de onde"; o restante seria rastreamento.
+ *
+ * Nunca devolve string vazia — o campo do documento não pode ficar em branco:
+ * UA ausente vira `'Desconhecido'` e UA irreconhecível volta truncado em 60
+ * caracteres, preservando alguma pista sem guardar a linha inteira.
+ */
 export function parseUserAgent(ua: string): string {
 	if (!ua || ua === 'N/A') return 'Desconhecido';
 

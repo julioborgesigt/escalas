@@ -53,19 +53,23 @@ export interface Question {
 	specialStore: string | null;
 }
 
-/**
- * Converte o modelo cru de perguntas em perguntas processadas para gráficos.
- */
 type ModeloQuestion = { id: number; texto: string; key: string; tipo: string };
 
-export function mapQuestions(
-	modelo: ModeloQuestion[] | undefined | null,
-	filterTipo: string
-): Question[] {
-	const base = filterTipo === 'seint' ? modelo : modelo;
-	if (!base || base.length === 0) return [];
+/**
+ * Converte o modelo cru de perguntas em perguntas prontas para gráfico.
+ *
+ * Só sobrevivem os tipos de `CHARTABLE_TYPES`: pergunta de texto livre não
+ * agrega em nada. Cada uma recebe `mappedKey` (a chave onde a RESPOSTA de fato
+ * está no blob, que difere da `key` da pergunta nos tipos compostos) e uma cor
+ * fixa pela posição — a mesma pergunta mantém a mesma cor entre os gráficos.
+ *
+ * Recebe o modelo já escolhido pelo chamador (operacional ou SEINT); não decide
+ * qual usar.
+ */
+export function mapQuestions(modelo: ModeloQuestion[] | undefined | null): Question[] {
+	if (!modelo || modelo.length === 0) return [];
 
-	return base
+	return modelo
 		.filter((q) => CHARTABLE_TYPES.includes(q.tipo))
 		.map((q, idx: number) => {
 			const mappedKey = KEY_MAP[q.tipo] ?? q.key;
