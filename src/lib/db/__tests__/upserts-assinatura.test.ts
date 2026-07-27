@@ -1,13 +1,15 @@
 import { describe, it, expect, vi } from 'vitest';
 import { salvarGiseDocumento } from '../gise/documentos';
 import { salvarAssinaturaRelatorioGise } from '../gise/assinaturas';
+import { salvarDocumentoEscala } from '../documentos';
 import type { Database } from '../core';
 
 /**
- * `salvarGiseDocumento` é um upsert: os mesmos campos vão no INSERT e no
- * UPDATE. Antes eles estavam escritos duas vezes, lado a lado — uma coluna
- * acrescentada só no INSERT sobreviveria à primeira assinatura e sumiria na
- * reassinatura, sem erro nenhum. Este teste trava os dois lados como iguais.
+ * Os quatro pontos que gravam assinatura são upserts: os mesmos campos vão no
+ * INSERT e no UPDATE. Antes cada um escrevia a lista duas vezes, lado a lado —
+ * uma coluna acrescentada só no INSERT sobreviveria à primeira assinatura e
+ * sumiria na reassinatura, sem erro nenhum. Estes testes travam os dois lados
+ * como iguais.
  */
 function dbEspiao() {
 	const capturado: { values?: Record<string, unknown>; set?: Record<string, unknown> } = {};
@@ -108,5 +110,31 @@ describe('salvarAssinaturaRelatorioGise (upsert)', () => {
 		expect(insert.ip_address).toBe('198.51.100.0');
 		expect(insert.latitude).toBe(-3.73);
 		expect(insert.tipo_carimbo_tempo).toBe('servidor');
+	});
+});
+
+describe('salvarDocumentoEscala (upsert)', () => {
+	it('grava os mesmos campos no INSERT e no UPDATE', async () => {
+		const { db, capturado } = dbEspiao();
+		await salvarDocumentoEscala(
+			db,
+			5,
+			'escalas/5/plantao.pdf',
+			'CICRANO',
+			'11122233344',
+			'hash-verificacao',
+			'203.0.113.9',
+			'Mozilla/5.0',
+			-3.731944,
+			-38.526667
+		);
+
+		const insert = { ...capturado.values };
+		const update = { ...capturado.set };
+		expect(insert.escala_id).toBe(5);
+		expect(update.escala_id).toBeUndefined();
+		delete insert.escala_id;
+		delete update.created_at;
+		expect(update).toEqual(insert);
 	});
 });
