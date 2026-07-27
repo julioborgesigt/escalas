@@ -1,3 +1,15 @@
+/**
+ * Seccionais participantes de uma GISE e os SLOTS de unidade que pendem delas.
+ *
+ * Um "slot" (`gise_seccional_unidades`) é a vaga de uma unidade dentro da
+ * seccional: nasce em branco (`unidade_id = null`) e o Adm Seccional escolhe
+ * depois qual unidade vai ocupá-la. Todo slot carrega o par fixo de equipes
+ * — uma `operacional` e uma `seint` — porque é assim que o serviço é composto:
+ * quem preenche o formulário é a EQUIPE, não a unidade.
+ *
+ * Corolário: seccional sem slot é seccional impossível de preencher. Por isso
+ * todos os caminhos de criação passam por `criarSlotComEquipesPadrao`.
+ */
 import { eq, and, ne, inArray } from 'drizzle-orm';
 import { buscarVagasPadraoEquipesGise } from './vagas-padrao';
 import {
@@ -14,6 +26,66 @@ import {
 import type { Database } from '../core';
 import { decifrarCpfDoDB, type CpfCriptoEnv } from '../../crypto/cpf-cripto';
 
+type VagasPadrao = Awaited<ReturnType<typeof buscarVagasPadraoEquipesGise>>;
+
+/**
+ * Cria um slot de unidade na seccional JÁ COM o par de equipes padrão
+ * (operacional + SEINT, com as vagas configuradas em `/gise/config`) e devolve
+ * o id do slot.
+ *
+ * Slot e equipes nascem juntos de propósito: slot sem equipe não aparece para
+ * preenchimento nenhum, então separar as duas escritas só criaria estados
+ * intermediários inúteis. Os três caminhos que criam slot — abrir seccional,
+ * acrescentar unidade e clonar GISE — chamam esta função para que a composição
+ * padrão seja definida em um lugar só.
+ *
+ * `vagas` existe para quem cria vários slots em laço passar a configuração já
+ * lida e não repetir a consulta a cada iteração.
+ */
+export async function criarSlotComEquipesPadrao(
+	db: Database,
+	giseSeccionalId: number,
+	unidadeId: number | null = null,
+	vagas?: VagasPadrao
+): Promise<number> {
+	const v = vagas ?? (await buscarVagasPadraoEquipesGise(db));
+
+	const [slot] = await db
+		.insert(giseSeccionalUnidades)
+		.values({ gise_seccional_id: giseSeccionalId, unidade_id: unidadeId })
+		.returning({ id: giseSeccionalUnidades.id });
+
+	await db.insert(giseEquipes).values([
+		{
+			gise_seccional_id: giseSeccionalId,
+			gise_unidade_id: slot.id,
+			tipo: 'operacional' as const,
+			slots_dpc: v.operacional.dpc,
+			slots_oip: v.operacional.oip
+		},
+		{
+			gise_seccional_id: giseSeccionalId,
+			gise_unidade_id: slot.id,
+			tipo: 'seint' as const,
+			slots_dpc: v.seint.dpc,
+			slots_oip: v.seint.oip
+		}
+	]);
+
+	return slot.id;
+}
+
+/**
+ * Garante que a seccional participe da GISE e devolve o id de
+ * `gise_seccionais` — idempotente, é o que permite a `/gise` chamar em laço
+ * para todas as seccionais ao criar uma escala "completa".
+ *
+ * Assimetria importante: no INSERT a seccional ganha um slot em branco com as
+ * equipes padrão; no ramo já-existe, NADA é recriado — só a
+ * `unidade_operacional_id` é atualizada, e apenas se o parâmetro tiver sido
+ * passado (`undefined` = "não mexe", distinto de `null` = "limpa"). Recriar
+ * slots aqui duplicaria a composição de quem já preencheu.
+ */
 export async function upsertGiseSeccional(
 	db: Database,
 	giseId: number,
@@ -46,35 +118,20 @@ export async function upsertGiseSeccional(
 		.returning({ id: giseSeccionais.id });
 
 	const secId = result[0].id;
-	const v = await buscarVagasPadraoEquipesGise(db);
-
-	// Cria 1 slot de unidade em branco (sem unidade definida) com equipe padrão
-	const [slotResult] = await db
-		.insert(giseSeccionalUnidades)
-		.values({ gise_seccional_id: secId, unidade_id: null })
-		.returning({ id: giseSeccionalUnidades.id });
-	if (slotResult) {
-		await db.insert(giseEquipes).values([
-			{
-				gise_seccional_id: secId,
-				gise_unidade_id: slotResult.id,
-				tipo: 'operacional',
-				slots_dpc: v.operacional.dpc,
-				slots_oip: v.operacional.oip
-			},
-			{
-				gise_seccional_id: secId,
-				gise_unidade_id: slotResult.id,
-				tipo: 'seint',
-				slots_dpc: v.seint.dpc,
-				slots_oip: v.seint.oip
-			}
-		]);
-	}
-
+	await criarSlotComEquipesPadrao(db, secId, null);
 	return secId;
 }
 
+/**
+ * Patch da participação da seccional. `status` é o que a supervisão enxerga na
+ * tela de acompanhamento: `pendente` (ainda não enviou) → `preenchida`;
+ * `retificada` marca que a supervisão devolveu para correção e
+ * `preenchida_retificada`, que a seccional reenviou depois da devolução — a
+ * distinção existe para o supervisor saber o que já foi conferido uma vez.
+ *
+ * `hora_entrada`/`hora_saida` sobrescrevem o horário da GISE só para esta
+ * seccional; `null` volta a valer o horário geral.
+ */
 export async function atualizarGiseSeccional(
 	db: Database,
 	id: number,
@@ -88,9 +145,24 @@ export async function atualizarGiseSeccional(
 	return db.update(giseSeccionais).set(data).where(eq(giseSeccionais.id, id));
 }
 
+/**
+ * Remove a seccional da GISE. Slots, equipes e membros descem junto por
+ * `ON DELETE CASCADE` do schema — mas presenças e assinaturas de relatório NÃO,
+ * porque referenciam a GISE e o policial, não a seccional. Quem exclui uma
+ * seccional já preenchida deve passar antes por `revogarAssinaturasSeccional`.
+ */
 export async function excluirGiseSeccional(db: Database, id: number) {
 	return db.delete(giseSeccionais).where(eq(giseSeccionais.id, id));
 }
+
+/**
+ * Membros escalados na seccional, com nome e CPF do policial — a lista que
+ * alimenta o termo de presença e o relatório.
+ *
+ * O CPF sai DECIFRADO (o banco guarda cifrado); passe `env` com as chaves
+ * quando o valor for usado. Chamador que só precisa dos ids pode passar
+ * `undefined` e ignorar o campo, como faz `revogarAssinaturasSeccional`.
+ */
 export async function buscarGiseSeccionalMembros(
 	db: Database,
 	giseId: number,
@@ -123,6 +195,19 @@ export async function buscarGiseSeccionalMembros(
 /**
  * Revoga as assinaturas de policiais e relatórios de uma seccional específica.
  * Usado quando há alteração na escala que invalida as assinaturas anteriores.
+ *
+ * Uma assinatura vale para o documento que existia no momento em que foi feita;
+ * mexer na composição da seccional muda esse documento, então manter as
+ * assinaturas antigas significaria exibir como assinado um conteúdo que ninguém
+ * assinou. O alcance é deliberadamente maior que a seccional: a assinatura
+ * PRINCIPAL da GISE (`gise_documentos`, uma por escala) também cai, porque o
+ * documento consolidado contém a seccional alterada.
+ *
+ * O status volta a `em_preenchimento` para forçar o novo ciclo de assinaturas —
+ * exceto se a GISE já estiver `finalizada`, caso em que reabrir é ato
+ * deliberado do admin, não efeito colateral de uma edição.
+ *
+ * Só apaga LINHAS: os blobs no R2 precisam ser limpos pelo chamador.
  */
 export async function revogarAssinaturasSeccional(
 	db: Database,
@@ -169,36 +254,17 @@ export async function revogarAssinaturasSeccional(
 			)
 		);
 }
+/**
+ * Acrescenta mais um slot à seccional — usado quando uma segunda unidade entra
+ * na mesma seccional no plantão. `unidadeId` pode ser `null` para deixar a
+ * escolha da unidade para o Adm Seccional.
+ */
 export async function adicionarGiseSeccionalUnidade(
 	db: Database,
 	giseSeccionalId: number,
 	unidadeId: number | null
 ): Promise<number> {
-	const v = await buscarVagasPadraoEquipesGise(db);
-	const [result] = await db
-		.insert(giseSeccionalUnidades)
-		.values({ gise_seccional_id: giseSeccionalId, unidade_id: unidadeId })
-		.returning({ id: giseSeccionalUnidades.id });
-
-	// Equipes padrão vinculadas ao slot
-	await db.insert(giseEquipes).values([
-		{
-			gise_seccional_id: giseSeccionalId,
-			gise_unidade_id: result.id,
-			tipo: 'operacional',
-			slots_dpc: v.operacional.dpc,
-			slots_oip: v.operacional.oip
-		},
-		{
-			gise_seccional_id: giseSeccionalId,
-			gise_unidade_id: result.id,
-			tipo: 'seint',
-			slots_dpc: v.seint.dpc,
-			slots_oip: v.seint.oip
-		}
-	]);
-
-	return result.id;
+	return criarSlotComEquipesPadrao(db, giseSeccionalId, unidadeId);
 }
 
 /**
@@ -215,7 +281,23 @@ export async function atualizarGiseSeccionalUnidade(
 		.where(eq(giseSeccionalUnidades.id, slotId));
 }
 
+/**
+ * Remove o slot E as equipes penduradas nele (os membros descem por cascade da
+ * FK `gise_membros.equipe_id`).
+ *
+ * Apagar as equipes é obrigatório porque `gise_equipes.gise_unidade_id` NÃO tem
+ * foreign key para o slot — só a coluna e um índice. Removendo apenas a linha
+ * do slot, as equipes viravam órfãs: sumiam da tela (o load agrupa equipes por
+ * slot existente) mas continuavam sendo contadas por `verificarTodosEntraram`,
+ * que caminha membro → equipe → seccional sem passar pelo slot. Resultado: a
+ * GISE nunca alcançava "todos entraram" por causa de policiais que ninguém
+ * conseguia ver para remover.
+ *
+ * Não revoga assinatura — quem remove slot de seccional já preenchida chama
+ * `revogarAssinaturasSeccional` em seguida.
+ */
 export async function removerGiseSeccionalUnidade(db: Database, giseSeccionalUnidadeId: number) {
+	await db.delete(giseEquipes).where(eq(giseEquipes.gise_unidade_id, giseSeccionalUnidadeId));
 	return db
 		.delete(giseSeccionalUnidades)
 		.where(eq(giseSeccionalUnidades.id, giseSeccionalUnidadeId));

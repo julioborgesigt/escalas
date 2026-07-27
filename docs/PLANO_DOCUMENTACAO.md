@@ -107,7 +107,7 @@ rotas, endpoints e testes. É a maior concentração numérica do backlog.
 - [x] `db/policiais.ts` (8 exports) — cadastro, o núcleo do RBAC
 - [x] `db/gise/respostas.ts` (5 exports, 80 ramos, **também opaco**) — formulário
       de produtividade com schema dinâmico
-- [ ] `db/gise/escalas-crud.ts` (6) e `db/gise/seccionais.ts` (6)
+- [x] `db/gise/escalas-crud.ts` (6) e `db/gise/seccionais.ts` (6)
 - [ ] `db/escalas.ts` (6 restantes) e `db/documentos.ts` (4)
 - [ ] `lib/auth.ts` (4) e `lib/utils.ts` (4)
 - [ ] `lib/gise/gise-page-helpers.ts` (6) — helpers puros usados pela UI
@@ -119,9 +119,16 @@ invalidado, auditoria gravada, arquivo no R2).
 
 **Esforço:** 3 levas. **Risco:** nulo.
 
-**Progresso:** leva 1 concluída (2026-07-27) — exports sem doc em `lib/db`
-62 → 49; total do projeto 121 → 108; opacos 9 → 8 (`db/gise/respostas.ts` saiu
-da lista).
+**Progresso:** levas 1 e 2 concluídas (2026-07-27) — exports sem doc em `lib/db`
+62 → 37; total do projeto 121 → 96; opacos 9 → 8 (`db/gise/respostas.ts` saiu da
+lista); `lib/db` sem cabeçalho 5 → 3.
+
+A leva 2 achou o **quinto bug do mesmo padrão** (lógica duplicada em três
+lugares, um deles errado): `removerGiseSeccionalUnidade` apagava só a linha do
+slot, deixando equipes e membros órfãos — invisíveis na tela, mas ainda contados
+pelo gate de presença. Corrigido com o delete das equipes, regressão travada em
+`db/__tests__/slot-remocao-equipes.test.ts` e a criação de slot unificada em
+`criarSlotComEquipesPadrao`.
 
 ---
 
