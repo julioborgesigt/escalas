@@ -25,7 +25,8 @@ import {
 	enviarCodigoRedefinicaoSenha,
 	enviarLinkRedefinicaoSenha,
 	enviarLinkPrimeiroAcesso,
-	enviarNotificacaoAssessorGisePreenchimentoSeccional
+	enviarNotificacaoAssessorGisePreenchimentoSeccional,
+	enviarEscalaFDSPorEmail
 } from '../email';
 
 const GOLDENS_PATH = join(
@@ -127,6 +128,43 @@ describe('templates de e-mail (goldens)', () => {
 		expect(existsSync(GOLDENS_PATH), 'rode com UPDATE_EMAIL_GOLDENS=1 para criar').toBe(true);
 		const goldens = JSON.parse(readFileSync(GOLDENS_PATH, 'utf8'));
 		expect(atuais).toEqual(goldens);
+	});
+
+	it('o envio da escala de FDS leva texto puro e o .docx em base64', async () => {
+		// Os goldens acima comparam só assunto + HTML; este é o único remetente
+		// com ANEXO, e o caminho que monta o anexo não passa por eles.
+		const capturado: { msg?: Record<string, unknown> } = {};
+		const platform = {
+			env: {
+				EMAIL: {
+					async send(m: Record<string, unknown>) {
+						capturado.msg = m;
+						return { messageId: 'golden' };
+					}
+				}
+			}
+		} as unknown as App.Platform;
+
+		await enviarEscalaFDSPorEmail(
+			'chefe@pc.ce.gov.br',
+			'ESCALA FDS 01/02 DE MARÇO',
+			'FULANO DE TAL',
+			new Uint8Array([0x50, 0x4b, 0x03, 0x04]), // assinatura de .docx (zip)
+			'escala-fds.docx',
+			platform
+		);
+
+		const m = capturado.msg!;
+		expect(m.subject).toBe('Escala de FDS — ESCALA FDS 01/02 DE MARÇO');
+		expect(String(m.text)).toContain('ESCALA FDS 01/02 DE MARÇO');
+		expect(m.attachments).toEqual([
+			{
+				disposition: 'attachment',
+				filename: 'escala-fds.docx',
+				content: Buffer.from([0x50, 0x4b, 0x03, 0x04]).toString('base64'),
+				type: 'application/octet-stream'
+			}
+		]);
 	});
 
 	it('todo template traz o cabeçalho institucional e escapa o nome do usuário', async () => {

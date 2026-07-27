@@ -281,6 +281,11 @@ ${corpo}          </td>
  *
  * Relança em caso de falha: quem chama decide se o envio é crítico (bloqueia a
  * ação) ou best-effort (só loga).
+ *
+ * `extras` cobre os envios que não são só assunto + HTML: `text` (alternativa em
+ * texto puro, para quem lê o e-mail sem HTML), `attachments` e `logExtra` com
+ * campos adicionais de log. Sem isso, cada um desses remetentes reescrevia o
+ * try/catch inteiro e o formato do log podia divergir em silêncio.
  */
 async function enviarERegistrar(
 	platform: App.Platform | undefined,
@@ -288,12 +293,24 @@ async function enviarERegistrar(
 	destinatario: string,
 	subject: string,
 	html: string,
-	acao = 'enviado'
+	acao = 'enviado',
+	extras?: {
+		text?: string;
+		attachments?: EmailOptions['attachments'];
+		logExtra?: Record<string, unknown>;
+	}
 ): Promise<void> {
 	try {
-		const info = await dispararEmail(platform, { to: destinatario, subject, html });
+		const info = await dispararEmail(platform, {
+			to: destinatario,
+			subject,
+			html,
+			...(extras?.text ? { text: extras.text } : {}),
+			...(extras?.attachments ? { attachments: extras.attachments } : {})
+		});
 		logger.info(`[email/${tag}] ${acao}`, {
 			destinatario: mascararEmail(destinatario),
+			...(extras?.logExtra ?? {}),
 			messageId: info.messageId
 		});
 	} catch (err) {
@@ -305,6 +322,11 @@ async function enviarERegistrar(
 	}
 }
 
+/**
+ * Código de 2FA para entrar no sistema, enviado ao e-mail INSTITUCIONAL.
+ * Crítico: relança em caso de falha, porque sem o código ninguém entra — a rota
+ * de login precisa saber que o envio não aconteceu.
+ */
 export async function enviarCodigo2FA(
 	destinatario: string,
 	codigo: string,
@@ -337,6 +359,11 @@ export async function enviarCodigo2FA(
 	);
 }
 
+/**
+ * Código para o titular confirmar um e-mail PESSOAL como canal de recuperação.
+ * Vai para o endereço sendo verificado, que é justamente o que ainda não se
+ * pode considerar confiável — daí o código, e não um simples aviso.
+ */
 export async function enviarCodigoEmailPessoal(
 	destinatario: string,
 	codigo: string,
@@ -406,6 +433,10 @@ export async function enviarAvisoTrocaEmailPessoal(
 	);
 }
 
+/**
+ * Código de redefinição de senha, enviado ao e-mail pessoal já verificado.
+ * Alternativa ao link para quem abre o e-mail em outro aparelho.
+ */
 export async function enviarCodigoRedefinicaoSenha(
 	destinatario: string,
 	codigo: string,
@@ -439,6 +470,11 @@ export async function enviarCodigoRedefinicaoSenha(
 	);
 }
 
+/**
+ * Link de redefinição de senha. A URL carrega o token em claro — é a
+ * credencial: quem tem o link redefine a senha, e por isso o e-mail traz o
+ * prazo de validade e o aviso de ignorar se não foi o titular que pediu.
+ */
 export async function enviarLinkRedefinicaoSenha(
 	destinatario: string,
 	nomeUsuario: string,
@@ -482,6 +518,11 @@ export async function enviarLinkRedefinicaoSenha(
 	);
 }
 
+/**
+ * Link de primeiro acesso, o único caminho de entrada de quem foi cadastrado
+ * (`criarPolicial` grava senha aleatória). Mesma natureza do link de
+ * redefinição: a URL é a credencial.
+ */
 export async function enviarLinkPrimeiroAcesso(
 	destinatario: string,
 	nomeUsuario: string,
@@ -524,6 +565,12 @@ export async function enviarLinkPrimeiroAcesso(
 	);
 }
 
+/**
+ * Envia a escala de fim de semana com o `.docx` ANEXADO — único remetente com
+ * anexo. O buffer é convertido para base64 aqui porque é o formato que os dois
+ * provedores esperam, e vai acompanhado de uma versão em texto puro, já que
+ * este e-mail costuma ser reencaminhado.
+ */
 export async function enviarEscalaFDSPorEmail(
 	destinatario: string,
 	tituloEscala: string,
@@ -546,35 +593,29 @@ export async function enviarEscalaFDSPorEmail(
             </p>
 `);
 
+	// O provedor recebe o anexo em base64, não em bytes.
 	const base64Content = Buffer.from(docxBuffer).toString('base64');
 
-	try {
-		const info = await dispararEmail(platform, {
-			to: destinatario,
-			subject: `Escala de FDS — ${tituloEscala}`,
+	await enviarERegistrar(
+		platform,
+		'fds',
+		destinatario,
+		`Escala de FDS — ${tituloEscala}`,
+		html,
+		'Escala enviada',
+		{
 			text: `Segue em anexo a Escala de Plantão do Final de Semana.\n\nTítulo: ${tituloEscala}\nEnviado por: ${nomeRemetente}`,
-			html,
-			attachments: [
-				{
-					filename: nomeArquivo,
-					content: base64Content
-				}
-			]
-		});
-		logger.info('[email/fds] Escala enviada', {
-			destinatario: mascararEmail(destinatario),
-			titulo: tituloEscala,
-			messageId: info.messageId
-		});
-	} catch (err) {
-		logger.error('[email/fds] Erro ao enviar', {
-			destinatario: mascararEmail(destinatario),
-			error: err instanceof Error ? err.message : String(err)
-		});
-		throw err;
-	}
+			attachments: [{ filename: nomeArquivo, content: base64Content }],
+			logExtra: { titulo: tituloEscala }
+		}
+	);
 }
 
+/**
+ * Avisa o assessor que uma seccional enviou sua composição, com o resumo em
+ * TEXTO PURO pronto para ele copiar no WhatsApp — o `text` aqui não é fallback
+ * do HTML, é o produto principal do e-mail.
+ */
 export async function enviarNotificacaoAssessorGisePreenchimentoSeccional(
 	destinatario: string,
 	nomeAssessor: string,
@@ -583,23 +624,13 @@ export async function enviarNotificacaoAssessorGisePreenchimentoSeccional(
 ): Promise<void> {
 	const html = montarHtmlEmailNotificacaoAssessorGise(textoPlano);
 
-	try {
-		const info = await dispararEmail(platform, {
-			to: destinatario,
-			subject: 'GISE — seccional enviou a escala (resumo para WhatsApp)',
-			text: textoPlano,
-			html
-		});
-		logger.info('[email/gise-assessor] Notificação enviada', {
-			destinatario: mascararEmail(destinatario),
-			assessor: nomeAssessor,
-			messageId: info.messageId
-		});
-	} catch (err) {
-		logger.error('[email/gise-assessor] Erro ao enviar', {
-			destinatario: mascararEmail(destinatario),
-			error: err instanceof Error ? err.message : String(err)
-		});
-		throw err;
-	}
+	await enviarERegistrar(
+		platform,
+		'gise-assessor',
+		destinatario,
+		'GISE — seccional enviou a escala (resumo para WhatsApp)',
+		html,
+		'Notificação enviada',
+		{ text: textoPlano, logExtra: { assessor: nomeAssessor } }
+	);
 }

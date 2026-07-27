@@ -41,6 +41,11 @@ function getDataSaida(p: EscalaPolicialComDados, escala: Escala): string {
 	return calcularDataSaida(p.data_plantao, getHoraEntrada(p, escala), getHoraSaida(p, escala));
 }
 
+/**
+ * Horário do plantão no formato do documento: `"08H A 08H"`. Entrada e saída
+ * iguais significam turno de 24h — a corporação escreve assim, não "08H A 08H
+ * do dia seguinte"; quem precisa das datas usa `formatarDataPlantao`.
+ */
 export function formatarHorario(p: EscalaPolicialComDados, escala: Escala): string {
 	const entrada = getHoraEntrada(p, escala);
 	const saida = getHoraSaida(p, escala);
@@ -109,6 +114,14 @@ export const COLS_EXPEDIENTE = [
 	'OBSERVAÇÕES'
 ] as const;
 
+/**
+ * Uma linha da tabela de EXPEDIENTE, na ordem exata de `COLS_EXPEDIENTE` — os
+ * dois têm de ser editados juntos, ou a coluna passa a exibir outro campo sem
+ * nenhum erro aparecer.
+ *
+ * Campo ausente vira string vazia em vez de `undefined`: os três exportadores
+ * escrevem células de texto, e `undefined` apareceria literalmente no PDF.
+ */
 export function rowExpediente(p: EscalaPolicialComDados): string[] {
 	return [
 		p.nome,
@@ -187,6 +200,12 @@ export const COLS_PLANTAO = [
 	'OBSERVAÇÕES'
 ] as const;
 
+/**
+ * Uma linha da tabela de PLANTÃO mensal, na ordem de `COLS_PLANTAO` (mesma
+ * regra de edição conjunta de `rowExpediente`). Recebe o policial já colapsado
+ * por `agruparPlantao`: a coluna DIAS traz a lista compactada por
+ * `formatarDias`, não uma data só.
+ */
 export function rowPlantao(o: OficialPlantao): string[] {
 	return [o.nome, o.matricula, o.cargo, o.telefone, o.lotacao, formatarDias(o.dias), o.observacoes];
 }

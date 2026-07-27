@@ -22,6 +22,15 @@ function rotuloStatusSeccional(status: string): string {
 	}
 }
 
+/**
+ * Monta o resumo em TEXTO PURO que o assessor recebe quando uma seccional envia
+ * sua composição — feito para ser copiado e colado no WhatsApp, e é por isso que
+ * o produto principal é texto e não HTML.
+ *
+ * Traz quem acabou de enviar e o estado das demais, traduzido por
+ * `rotuloStatusSeccional`: `retificada` aparece como "pendente de reenvio", não
+ * como enviada, porque para o assessor essa seccional voltou a ser pendência.
+ */
 export function montarTextoNotificacaoAssessorGise(opts: {
 	dataInicioIso: string;
 	giseId: number;
@@ -75,6 +84,14 @@ function escapeHtml(s: string): string {
 		.replace(/"/g, '&quot;');
 }
 
+/**
+ * Embrulha o texto plano num e-mail HTML legível, sem alterar o conteúdo.
+ *
+ * O texto vai ESCAPADO dentro de um bloco pré-formatado: ele contém nomes de
+ * seccionais e é montado a partir de dados do banco, então injetar HTML aqui
+ * seria injeção na caixa de entrada de quem recebe. Não usa o `layoutEmail`
+ * institucional de propósito — este e-mail é operacional, não um documento.
+ */
 export function montarHtmlEmailNotificacaoAssessorGise(textoPlano: string): string {
 	const esc = escapeHtml(textoPlano);
 	return `<!DOCTYPE html>

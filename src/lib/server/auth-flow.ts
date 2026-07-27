@@ -97,6 +97,19 @@ function alertarLoginBootstrap(mensagem: string, ip: string): void {
 	}
 }
 
+/**
+ * Rate limit por IP: quantas tentativas FALHADAS restam antes do bloqueio
+ * (`LOGIN_MAX_ATTEMPTS` na janela de `LOGIN_WINDOW_MINUTES`).
+ *
+ * Só conta falhas — login bem-sucedido não consome cota, senão trabalhar no
+ * sistema levaria ao próprio bloqueio. `remaining` é devolvido para a resposta
+ * poder avisar "restam N tentativas", que é o que evita o usuário legítimo
+ * insistir até travar.
+ *
+ * Nada é gravado aqui; quem registra é `recordAttempt`, e as duas funções TÊM de
+ * derivar a chave do IP do mesmo jeito (`chaveRateLimitIp`) — chaves
+ * divergentes deixam o limite silenciosamente inoperante.
+ */
 export async function checkRateLimit(
 	db: Database,
 	ip: string
@@ -126,6 +139,16 @@ export async function checkRateLimit(
 	};
 }
 
+/**
+ * Registra a tentativa de login (sucesso ou falha) — a linha que alimenta
+ * `checkRateLimit` e o throttle por conta.
+ *
+ * O IP nunca é gravado em claro: vira a chave derivada de `chaveRateLimitIp`
+ * aqui dentro. Já `identifier` deve chegar JÁ HASHEADO pelo chamador
+ * (`hashIdentificadorLogin`) — é assim que o throttle por conta funciona sem
+ * guardar matrícula em texto numa tabela que, por natureza, acumula tentativas
+ * de terceiros. As linhas expiram pela retenção LGPD.
+ */
 export async function recordAttempt(
 	db: Database,
 	ip: string,
