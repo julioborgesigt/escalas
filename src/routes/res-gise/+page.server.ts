@@ -45,6 +45,26 @@ import {
 } from '$lib/server/schema';
 import { eq, and, inArray, desc, like, sql } from 'drizzle-orm';
 
+/**
+ * `/res-gise` — a tela do POLICIAL na GISE (o Admin Geral só observa).
+ *
+ * Reúne, para o usuário logado, todas as escalas GISE em que ele aparece, em
+ * dois papéis que vêm de origens diferentes no banco:
+ *
+ * - **membro de equipe** — linhas de `gise_membros`, com seccional e unidade;
+ * - **quadro de supervisão** (supervisor, assessor, SEINT) — não tem equipe;
+ *   essas linhas são sintetizadas com `equipe_id = 0` e `seccional_id = 0`, e o
+ *   `0` é depois traduzido para `supervisaoExtraUnidadeId` na hora de casar
+ *   assinaturas de relatório de extra.
+ *
+ * As três mutações que a tela oferece — confirmar entrada, confirmar saída e
+ * enviar/retificar o relatório de produtividade — são de assinatura AVANÇADA
+ * (Lei 14.063/2020 art. 4º II): exigem rubrica, 2FA por e-mail quando a flag
+ * está ligada, e gravam IP/GPS/foto como prova. Cada action revalida a
+ * participação do policial na escala: a UI esconde o botão, mas o POST direto
+ * precisa ser recusado no servidor.
+ */
+
 interface GiseEscalaItem {
 	id: number;
 	data_inicio: string;
@@ -67,6 +87,8 @@ export const load: PageServerLoad = async ({ locals, platform, url }) => {
 	const u = locals.usuario;
 	if (!u) redirect(302, '/login');
 
+	// Filtros da tela. "Ativa × finalizada" NÃO é o status da escala: uma GISE em
+	// andamento já é "finalizada" para quem bateu a saída (ver `isFinished`).
 	const statusFilter = url.searchParams.get('status') || ''; // 'ativas' ou 'finalizadas'
 	const mesFilter = url.searchParams.get('mes') || ''; // YYYY-MM
 	const dataFilter = url.searchParams.get('data') || ''; // YYYY-MM-DD
@@ -127,6 +149,9 @@ export const load: PageServerLoad = async ({ locals, platform, url }) => {
 			.orderBy(desc(giseEscalas.data_inicio))
 			.all()) as unknown as GiseEscalaItem[];
 
+		// Segunda origem: o policial no quadro de supervisão da escala. Sem equipe
+		// e sem seccional, os campos são preenchidos com `0`/NULL para caber no
+		// mesmo shape das linhas de equipe e seguir por um único caminho abaixo.
 		const rawSupervisoes = (await db
 			.select({
 				id: giseEscalas.id,
@@ -200,6 +225,9 @@ export const load: PageServerLoad = async ({ locals, platform, url }) => {
 		const respostasEquipeMap = new Map<string, boolean>();
 		const respostasPolicialMap = new Map<string, boolean>();
 
+		// Um lote por informação, em paralelo, em vez de N consultas por escala:
+		// presença do usuário, escalas com documento assinado, extras assinados e
+		// relatórios já enviados. Viram mapas para consulta O(1) no laço seguinte.
 		if (giseIds.length > 0) {
 			// 4 queries independentes em paralelo
 			const [presencas, docs, extras, respostas] = await Promise.all([
@@ -252,17 +280,25 @@ export const load: PageServerLoad = async ({ locals, platform, url }) => {
 
 		for (const e of rawEscalas) {
 			const presenca = presencasMap.get(e.id);
+			// Para o policial, a escala "acabou" quando ELE bateu a saída — mesmo que
+			// a GISE siga aberta para os demais. O outro caso é a escala finalizada
+			// pelo Admin Geral.
 			const isFinished = (presenca && presenca.saida_timestamp) || e.status === 'finalizada';
 
 			if (effectiveStatus === 'ativas' && isFinished) continue;
 			if (effectiveStatus === 'finalizadas' && !isFinished) continue;
 
 			const docAssinado = docsAssinadosMap.get(e.id);
+			// Linha do quadro de supervisão (`seccional_id === 0`) casa com a unidade
+			// sintética do extra da supervisão; as demais, com a própria seccional.
 			const secKeyExtra =
 				e.seccional_id === 0 && supervisaoExtraUnidadeId != null
 					? supervisaoExtraUnidadeId
 					: e.seccional_id;
 			const extraAssinado = extrasAssinadosMap.get(`${e.id}_${secKeyExtra}`);
+			// Quem deve o relatório muda por papel: no quadro de supervisão só o SEINT
+			// entrega (e a resposta é individual, sem equipe); supervisor e assessor
+			// não devem nada, por isso `true`. Nas equipes, a entrega é do time.
 			const respostaEquipe =
 				e.seccional_id === 0
 					? e.equipe_tipo === 'seint'
@@ -367,6 +403,12 @@ export const load: PageServerLoad = async ({ locals, platform, url }) => {
 };
 
 export const actions: Actions = {
+	/**
+	 * Envia ou RETIFICA o relatório de produtividade. O parser é o `strict`: o
+	 * conteúdo vai para um documento assinável, então formato inesperado é
+	 * recusado em vez de sanitizado. Ao final, o status da GISE é recalculado —
+	 * o último relatório pode deixá-la pronta para finalizar.
+	 */
 	salvarResposta: async ({ request, locals, platform }) => {
 		const u = locals.usuario;
 		if (!u) return fail(401, { error: 'Não autorizado' });
@@ -395,6 +437,13 @@ export const actions: Actions = {
 		return { success: true, giseId, equipeId };
 	},
 
+	/**
+	 * Confirma a ENTRADA em serviço (assinatura avançada).
+	 *
+	 * Ordem obrigatória: 2FA → existência da escala → participação → foto → grava.
+	 * Nada é persistido antes das três verificações, para que uma tentativa
+	 * recusada não deixe rastro de presença.
+	 */
 	salvarEntrada: async (event) => {
 		const { request, locals, platform, getClientAddress } = event;
 		const u = locals.usuario;
@@ -488,6 +537,11 @@ export const actions: Actions = {
 		return { success: true, giseId };
 	},
 
+	/**
+	 * Confirma a SAÍDA de serviço. Mesmas verificações da entrada — e é este
+	 * carimbo que tira a escala da aba "Ativas" do policial e libera o relatório
+	 * de extra da seccional.
+	 */
 	salvarSaida: async (event) => {
 		const { request, locals, platform, getClientAddress } = event;
 		const u = locals.usuario;
@@ -577,6 +631,10 @@ export const actions: Actions = {
 		return { success: true, giseId };
 	},
 
+	/**
+	 * Salva o MODELO do formulário de produtividade (perguntas), não as respostas.
+	 * Restrito ao Admin Geral: vale para todas as escalas seguintes.
+	 */
 	salvarModelo: async ({ request, locals, platform }) => {
 		const u = locals.usuario;
 		if (!u || u.tipo !== 'admin') return fail(403, { error: 'Somente administradores gerais' });

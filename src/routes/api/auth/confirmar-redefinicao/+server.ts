@@ -17,6 +17,13 @@ import { confirmarRedefinicaoSchema } from '$lib/schemas';
 import { resolverAppOrigin } from '$lib/server/app-origin';
 import type { RequestHandler } from './$types';
 
+/**
+ * Resposta única para conta inexistente, sem e-mail cadastrado ou limite de IP
+ * atingido — os três casos precisam ser indistinguíveis, senão a rota vira um
+ * oráculo para descobrir quais matrículas existem. Só erro do CÓDIGO (expirado,
+ * inválido, tentativas esgotadas) responde de forma específica: aí o requisitante
+ * já provou ter acesso ao e-mail.
+ */
 const RESPOSTA_GENERICA =
 	'Dentro de instantes você receberá em seu e-mail funcional um link de redefinição de senha.';
 const MAX_TENTATIVAS_IP = 5;

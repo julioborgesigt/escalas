@@ -1,3 +1,14 @@
+/**
+ * GET /api/admin/compliance — o painel de conformidade do Admin Geral.
+ *
+ * Responde a uma pergunta operacional: no período pedido, cada unidade entregou
+ * as escalas que o seu regime exige? A varredura é por unidade × regime
+ * habilitado (`tem_plantao`, `tem_expediente`, `tem_fds`) — unidade que não tem
+ * o regime ligado simplesmente não é cobrada dele.
+ *
+ * Três estados por linha, nesta ordem de gravidade:
+ *   `nao_criada` (nem existe) · `nao_assinada` (existe, sem assinatura) · `ok`.
+ */
 import { json } from '@sveltejs/kit';
 import { getDB } from '$lib/db';
 import { unidades, escalas, escalaDocumentos } from '$lib/server/schema';
