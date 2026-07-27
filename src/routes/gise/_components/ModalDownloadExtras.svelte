@@ -1,4 +1,9 @@
 <script lang="ts">
+	/**
+	 * Modal "Relatórios de Extra (GISE)": lista um item por relatório —
+	 * o do quadro de supervisão (quando há supervisor/assessor/SEINT) e um por
+	 * seccional — e libera o download apenas dos que já foram assinados.
+	 */
 	import { Dialog } from '@skeletonlabs/skeleton-svelte';
 	import { Download, FileText, CheckCircle2, Clock, X } from 'lucide-svelte';
 
@@ -34,6 +39,11 @@
 		disponivel: boolean;
 	};
 
+	/**
+	 * `disponivel` = existe assinatura para aquele destino. A comparação é feita
+	 * pelo id da unidade: o quadro de supervisão usa a unidade sintética
+	 * (`supervisaoExtraUnidadeId`) e cada seccional, o próprio id.
+	 */
 	const items = $derived.by<ExtraItem[]>(() => {
 		if (!gise) return [];
 		const list: ExtraItem[] = [];
@@ -76,6 +86,10 @@
 		window.open(url, '_blank');
 	}
 
+	/**
+	 * "Baixar todos" dispara um clique por arquivo com 250 ms de intervalo — o
+	 * navegador bloqueia downloads em rajada disparados no mesmo tick.
+	 */
 	async function baixarTodos(comManifesto = false) {
 		if (!gise || disponiveis.length === 0) return;
 		for (const item of disponiveis) {
@@ -107,13 +121,13 @@
 					<Dialog.Title class="text-lg font-bold text-surface-900 dark:text-surface-50">
 						Relatórios de Extra (GISE)
 					</Dialog.Title>
-					<p class="text-xs text-surface-505 dark:text-surface-400 mt-0.5">
+					<p class="text-xs text-surface-500 dark:text-surface-400 mt-0.5">
 						Escala de {gise ? gise.data_inicio : ''}
 					</p>
 				</div>
 				<button
 					type="button"
-					class="btn btn-sm preset-outlined-surface-500 p-1.5 rounded-lg text-surface-500 hover:text-surface-850 dark:hover:text-surface-200"
+					class="btn btn-sm preset-outlined-surface-500 p-1.5 rounded-lg text-surface-500 hover:text-surface-800 dark:hover:text-surface-200"
 					onclick={() => (open = false)}
 				>
 					<X size={18} />
