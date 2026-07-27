@@ -176,6 +176,10 @@ critério aqui.
 
 **Esforço:** 2 levas. **Risco:** nulo.
 
+**Progresso:** leva 1 concluída (2026-07-27) — as 7 maiores telas (`GiseSupervisao`,
+`produtividade`, `escalas/+page`, `policiais/+page`, `login/+page`, `painel`,
+`recebidos`) ganharam cabeçalho. UI sem cabeçalho 41 → 34; projeto 57 → 50.
+
 ---
 
 ## Fase 4 — Geração de documento com valor jurídico

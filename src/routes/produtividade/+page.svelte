@@ -1,4 +1,26 @@
 <script lang="ts">
+	/**
+	 * Painel de PRODUTIVIDADE: agrega as respostas dos formulários GISE em
+	 * gráficos, rankings por seccional e detalhamentos exportáveis em PNG.
+	 *
+	 * A página recebe do servidor a LISTA CRUA de respostas (blobs JSON) e faz
+	 * toda a agregação no cliente. É deliberado: os filtros — tipo de equipe,
+	 * seccional, ano ou intervalo — recombinam os mesmos dados, e refazer a
+	 * consulta a cada mexida de filtro seria uma ida ao servidor por clique.
+	 *
+	 * A cadeia de `$derived` existe nesta ordem por causa de custo:
+	 *   filteredData → parsedData → stats / rankings / gráficos
+	 * `parsedData` faz `JSON.parse` UMA vez por resposta; sem esse degrau, cada
+	 * estatística e cada ranking reparsearia os mesmos blobs.
+	 *
+	 * As PERGUNTAS não são fixas: vêm do modelo salvo em
+	 * `gise_modelo_formulario` e passam por `mapQuestions`, que descarta os tipos
+	 * não graficáveis. Um formulário editado pelo assessor muda os gráficos sem
+	 * tocar esta tela — e por isso nada aqui indexa resposta por posição.
+	 *
+	 * Chart.js entra por `import()` dinâmico (~200 KB): a página abre com os
+	 * filtros e a tabela antes de a biblioteca chegar.
+	 */
 	import { Check, Plus } from 'lucide-svelte';
 	import type { PageProps } from './$types';
 	import { tick } from 'svelte';

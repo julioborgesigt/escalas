@@ -1,4 +1,25 @@
 <script lang="ts">
+	/**
+	 * RECEBIDOS — a caixa de entrada das escalas já assinadas que chegaram ao
+	 * Admin Geral, com o "não lido" como estado padrão do filtro.
+	 *
+	 * Diferente das outras telas de lista, aqui a URL é a FONTE DE VERDADE dos
+	 * filtros (`?seccional=&unidade=&ano=&mes=&vistos=&page=`): o `load` filtra e
+	 * pagina no banco. Trafegar todas as escalas assinadas para filtrar no
+	 * cliente era o gargalo apontado na auditoria de performance (B-2), e o
+	 * volume só cresce.
+	 *
+	 * O localStorage continua guardando a última escolha, mas em papel
+	 * secundário: quando a página abre SEM parâmetros, os filtros salvos são
+	 * reaplicados via `replaceState` — assim a preferência sobrevive sem que a URL
+	 * deixe de descrever o que está na tela.
+	 *
+	 * Marcar como visto é o único efeito colateral da tela, e é por escala — quem
+	 * confere assume que conferiu aquele documento. O toggle é OTIMISTA (pinta
+	 * antes da resposta) e guarda `togglingId` para ignorar cliques repetidos: sem
+	 * isso, dois cliques rápidos invertiam o estado duas vezes e a tela terminava
+	 * discordando do banco.
+	 */
 	import type { PageProps } from './$types';
 	import { opcoesMeses } from '$lib/utils';
 	import { Lock, Inbox } from 'lucide-svelte';
