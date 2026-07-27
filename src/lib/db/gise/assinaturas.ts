@@ -2,12 +2,8 @@ import { eq, and, desc, sql } from 'drizzle-orm';
 import { giseAssinaturasRelatorios, gisePresencaTermos, policiais } from '../../server/schema';
 import type { Database } from '../core';
 import { anonimizarIp } from '../audit';
-import { parseUserAgent } from '../../server/document-utils';
+import { parseUserAgent, reduzirPrecisaoGps } from '../../server/document-utils';
 import { cifrarCpfParaArmazenar, type CpfCriptoEnv } from '../../crypto/cpf-cripto';
-
-function gps2(v?: number): number | undefined {
-	return v !== undefined ? Math.round(v * 100) / 100 : undefined;
-}
 
 export async function buscarAssinaturasRelatoriosGise(db: Database, giseId: number) {
 	return db
@@ -93,8 +89,8 @@ export async function salvarAssinaturaRelatorioGise(
 	const ipAnonimizado = anonimizarIp(data.ip_address) ?? undefined;
 	const uaResumido = data.user_agent ? parseUserAgent(data.user_agent) : undefined;
 	const uaRaw = data.user_agent ? data.user_agent.slice(0, 1024) : undefined;
-	const lat2 = gps2(data.latitude ?? undefined);
-	const lng2 = gps2(data.longitude ?? undefined);
+	const lat2 = reduzirPrecisaoGps(data.latitude ?? undefined);
+	const lng2 = reduzirPrecisaoGps(data.longitude ?? undefined);
 	// CPF cifrado em repouso (LGPD Fase 2). Coluna NOT NULL → fallback ''.
 	const cpfArmazenado = (await cifrarCpfParaArmazenar(data.assinante_cpf, env)) ?? '';
 	return db
@@ -192,8 +188,8 @@ export async function salvarTermoPresencaGise(
 		ip_address: anonimizarIp(data.ip_address) ?? undefined,
 		user_agent: data.user_agent ? parseUserAgent(data.user_agent) : undefined,
 		user_agent_raw: data.user_agent ? data.user_agent.slice(0, 1024) : undefined,
-		latitude: gps2(data.latitude),
-		longitude: gps2(data.longitude),
+		latitude: reduzirPrecisaoGps(data.latitude),
+		longitude: reduzirPrecisaoGps(data.longitude),
 		tipo_carimbo_tempo: data.tipo_carimbo_tempo || 'servidor',
 		cert_issuer: data.cert_issuer ?? null,
 		cert_serial: data.cert_serial ?? null,

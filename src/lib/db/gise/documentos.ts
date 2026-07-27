@@ -10,16 +10,13 @@ import { giseDocumentos } from '../../server/schema';
 import type * as schema from '../../server/schema';
 import type { Database } from '../core';
 import { anonimizarIp } from '../audit';
-import { parseUserAgent } from '../../server/document-utils';
+import { parseUserAgent, reduzirPrecisaoGps } from '../../server/document-utils';
 import { cifrarCpfParaArmazenar, type CpfCriptoEnv } from '../../crypto/cpf-cripto';
 
 /**
  * Arredonda a coordenada para 2 casas (~1 km): a lei pede evidência de que a
  * assinatura ocorreu na região, não a localização exata do servidor.
  */
-function gps2(v?: number): number | undefined {
-	return v !== undefined ? Math.round(v * 100) / 100 : undefined;
-}
 
 /** Reexportado de '../documentos' para uso pelos endpoints. */
 import type { AssinaturaCadesMetadata } from '../documentos';
@@ -65,8 +62,8 @@ export async function salvarGiseDocumento(
 		ip_address: anonimizarIp(ipAddress) ?? undefined,
 		user_agent: userAgent ? parseUserAgent(userAgent) : undefined,
 		user_agent_raw: userAgent ? userAgent.slice(0, 1024) : undefined,
-		latitude: gps2(latitude),
-		longitude: gps2(longitude),
+		latitude: reduzirPrecisaoGps(latitude),
+		longitude: reduzirPrecisaoGps(longitude),
 		tipo_carimbo_tempo: tipoCarimboTempo || 'servidor',
 		cert_issuer: meta.cert_issuer ?? null,
 		cert_serial: meta.cert_serial ?? null,
