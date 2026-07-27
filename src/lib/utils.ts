@@ -1,4 +1,23 @@
 /**
+ * Utilidades puras compartilhadas por servidor E cliente — sem import de
+ * `$lib/server`, sem acesso a banco, sem estado.
+ *
+ * O que reúne: formatação de data/hora no padrão brasileiro, máscaras de
+ * entrada (telefone, CPF, NUP, matrícula) e mascaramento para EXIBIÇÃO
+ * (`mascararNome`, `mascararCPF`, `mascararEmail`), usado nas telas públicas de
+ * validação — ali o objetivo é permitir conferir sem publicar dado pessoal.
+ *
+ * Duas convenções do projeto que valem para todo o arquivo:
+ *
+ * - **Data é string `YYYY-MM-DD`**, não `Date`. Tudo que constrói um `Date`
+ *   concatena `'T00:00:00'` para forçar horário LOCAL: sem isso a string é lida
+ *   como UTC e, em UTC-3, "2026-01-15" se torna 14/01 na exibição;
+ * - **entrada inválida devolve valor neutro** (`''`, a própria entrada, 0), sem
+ *   lançar. São funções chamadas em meio a markup e a laços de formatação, onde
+ *   uma exceção derrubaria a tela inteira por causa de um campo vazio.
+ */
+
+/**
  * Formata uma data no formato "YYYY-MM-DD" para "DD/MM/YYYY".
  */
 export function formatarData(dateStr: string): string {
@@ -123,6 +142,15 @@ export function gerarCodigoValidacao(): string {
 	const out = Array.from(bytes, (b) => chars[b % chars.length]).join('');
 	return `${out.slice(0, 4)}-${out.slice(4, 8)}`;
 }
+/**
+ * Máscara de telefone aplicada A CADA TECLA, por isso trata a string
+ * parcialmente digitada: com 1 dígito devolve `(8`, com 5 devolve `(88) 9.8`.
+ * Um formatador que só aceitasse o número completo faria o campo "pular" ao
+ * terminar de digitar.
+ *
+ * Celular é detectado pelo 3º dígito `9` (primeiro do número, depois do DDD) e
+ * ganha o ponto de separação — `(88) 9.8888-8888`. Corta em 11 dígitos.
+ */
 export function formatarTelefone(v: string): string {
 	if (!v) return '';
 	v = v.replace(/\D/g, ''); // Remove tudo o que não é dígito
@@ -247,6 +275,18 @@ export function mascararCPF(cpf: string | undefined): string {
 	return `***.${limpo.slice(3, 6)}.***-**`;
 }
 
+/**
+ * Mascara e-mail para confirmação de envio ("enviamos um código para
+ * jo****a@***.com"): o titular reconhece o endereço, quem não é titular não o
+ * descobre.
+ *
+ * Mostra até 2 caracteres iniciais e o último do local-part, preservando o
+ * comprimento (é o que dá o "parece o meu" ao titular). Local-part de 1 ou 2
+ * caracteres cai em casos especiais, onde não há o que mascarar sem apagar tudo.
+ *
+ * O DOMÍNIO é escondido de propósito, sobrando só o TLD: saber que a conta de
+ * recuperação é do Gmail já é meio caminho para tentar tomá-la.
+ */
 export function mascararEmail(email: string): string {
 	const at = email.indexOf('@');
 	if (at <= 0) return email;
