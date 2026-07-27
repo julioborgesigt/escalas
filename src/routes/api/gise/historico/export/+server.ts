@@ -15,6 +15,7 @@ import ExcelJS from 'exceljs';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import type { GiseDetalhado } from '$lib/db/gise/types';
+import { getCicloRange } from '$lib/gise/gise-ciclos';
 import {
 	appendGiseDetalhadoToXlsxWorkbook,
 	createAppendGiseXlsxState,
@@ -33,22 +34,6 @@ interface JsPDFWithAutoTable extends jsPDF {
 	lastAutoTable?: { finalY: number };
 }
 
-/**
- * Intervalo de um ciclo GISE: do dia 21 do mês anterior ao dia 20 do mês do
- * ciclo (é o fechamento usado para pagamento da extra, não o mês civil).
- * O ciclo 1 atravessa a virada do ano — daí o caso especial.
- */
-function getCicloRange(ano: number, ciclo: number): { inicio: string; fim: string } {
-	if (ciclo === 1) return { inicio: `${ano - 1}-12-21`, fim: `${ano}-01-20` };
-	const mI = String(ciclo - 1).padStart(2, '0');
-	const mF = String(ciclo).padStart(2, '0');
-	return { inicio: `${ano}-${mI}-21`, fim: `${ano}-${mF}-20` };
-}
-
-/**
- * PDF do histórico. A paginação é manual (`bumpY`): o jsPDF não quebra página
- * sozinho para texto solto, só para as tabelas do autoTable.
- */
 async function buildHistoricoPdfBuffer(
 	gises: GiseDetalhado[],
 	seccionalNome: string,
