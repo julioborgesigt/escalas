@@ -13,15 +13,13 @@ import { logger } from '$lib/server/logger';
 import {
 	tentarLogin,
 	LOGIN_WINDOW_MINUTES,
-	cookieOptionsLogin,
+	cookieOptions,
 	type AdminModulo
 } from '$lib/server/auth-flow';
 import { contarRecoveryAttempts, registrarRecoveryAttempt } from '$lib/server/recovery-rate-limit';
 import { administradores, policiais } from '$lib/server/schema';
 import { loginSchema } from '$lib/schemas';
 import { resolverAppOrigin } from '$lib/server/app-origin';
-
-const cookieOptions = cookieOptionsLogin;
 
 const PRIMEIRO_ACESSO_MAX_TENTATIVAS_IP = 5;
 const PRIMEIRO_ACESSO_JANELA_IP_MINUTOS = 15;

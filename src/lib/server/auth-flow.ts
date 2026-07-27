@@ -172,9 +172,6 @@ async function checkAccountRateLimit(
 	return { blocked: (row?.n ?? 0) >= ACCOUNT_MAX_ATTEMPTS };
 }
 
-/** Alias legado — mesmo que `cookieOptions`. */
-export const cookieOptionsLogin = (url: URL) => cookieOptions(url);
-
 export type AdminModulo = 'ambas' | 'gise' | 'escalas';
 
 type TentarLoginArgs = {

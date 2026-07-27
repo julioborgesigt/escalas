@@ -1,11 +1,9 @@
 import { json } from '@sveltejs/kit';
 import { getDB } from '$lib/db';
-import { tentarLogin, cookieOptionsLogin } from '$lib/server/auth-flow';
+import { tentarLogin, cookieOptions } from '$lib/server/auth-flow';
 import { loginSchema } from '$lib/schemas';
 import { apiError, ErrorCode, badRequest, rateLimited } from '$lib/server/api';
 import type { RequestHandler } from './$types';
-
-const cookieOptions = cookieOptionsLogin;
 
 export const POST: RequestHandler = async ({
 	platform,
