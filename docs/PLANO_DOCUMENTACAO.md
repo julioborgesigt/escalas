@@ -152,7 +152,7 @@ pelo gate de presença. Corrigido com o delete das equipes, regressão travada e
 
 ---
 
-## Fase 3 — Cabeçalhos de UI
+## Fase 3 — Cabeçalhos de UI ✅ (concluída)
 
 **Por que:** 41 componentes sem cabeçalho, 14 deles com mais de 500 linhas. É o
 comentário de maior retorno por linha escrita: orienta quem abre a tela pela
@@ -176,9 +176,24 @@ critério aqui.
 
 **Esforço:** 2 levas. **Risco:** nulo.
 
-**Progresso:** leva 1 concluída (2026-07-27) — as 7 maiores telas (`GiseSupervisao`,
-`produtividade`, `escalas/+page`, `policiais/+page`, `login/+page`, `painel`,
-`recebidos`) ganharam cabeçalho. UI sem cabeçalho 41 → 34; projeto 57 → 50.
+**✅ CONCLUÍDA** em 3 levas (2026-07-27), acima do aceite: **nenhum arquivo do
+projeto com ≥ 200 linhas está sem cabeçalho** — nem UI, nem rota de servidor.
+
+| métrica                          | antes | depois |
+| -------------------------------- | ----: | -----: |
+| arquivos ≥200 ln sem cabeçalho   |    27 |  **0** |
+| sem cabeçalho (qualquer tamanho) |    65 |     23 |
+| opacos                           |     9 |      6 |
+
+`gise/[id]/+page.svelte` e `gise-xlsx-workbook-append.ts` saíram da lista de
+opacos pelo próprio cabeçalho. O de `res-gise/+page.server.ts`, escrito na Fase
+1, estava DEPOIS dos imports e foi movido para o topo — convenção do projeto e
+o único lugar onde a régua (e quem abre o arquivo) o encontra.
+
+Correções de rota feitas na leitura: o mapa tipo → componente estava trocado em
+dois cabeçalhos (plantão usa `TabelaPlantao`, expediente usa
+`TabelaServidores`), e `skipLoad` não suprime skeleton — é o estado "Admin Geral
+ainda não escolheu lotação", em que o servidor nem consulta.
 
 ---
 

@@ -1,13 +1,13 @@
 <script lang="ts">
 	/**
-	 * Tabela de escalados da escala MENSAL (plantão e expediente) — uma linha por
-	 * policial, com os dias em que ele serve. A visão por DIA, usada no fim de
-	 * semana, é a `ListaFds`; as duas dividem os helpers de horário e a edição
-	 * inline (`criarHelpersHorario`, `useEdicaoInlineServidor`) porque calcular
-	 * data de saída de plantão que vira o dia é regra do domínio, não da tela.
+	 * Tabela de escalados da escala de EXPEDIENTE — uma linha por policial, sem
+	 * dias de plantão (é o que `isExpediente` controla).
 	 *
-	 * `isExpediente` muda o que a tabela mostra: expediente não tem plantão por
-	 * dia, então as colunas de data/horário dão lugar às de regime.
+	 * As outras duas visões da mesma escala são `TabelaPlantao` (plantão, com os
+	 * dias de cada um) e `ListaFds` (fim de semana, agrupada por dia). As três
+	 * dividem os helpers de horário e a edição inline (`criarHelpersHorario`,
+	 * `useEdicaoInlineServidor`): calcular data de saída de turno que vira o dia é
+	 * regra do domínio, não de cada tela.
 	 *
 	 * Paginação em 50 é do CLIENTE — a escala inteira já veio no `load`, e
 	 * paginar aqui é só para o DOM não montar centenas de linhas editáveis de uma

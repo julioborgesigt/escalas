@@ -1,4 +1,21 @@
 <script lang="ts">
+	/**
+	 * `/res-gise` — a tela do POLICIAL na GISE: onde ele confirma entrada e saída
+	 * e entrega o relatório de produtividade das escalas em que está escalado.
+	 *
+	 * Duas audiências no mesmo arquivo, e é essa a razão do tamanho:
+	 * - o POLICIAL vê seus cards de serviço (`FormularioServico`, um por escala);
+	 * - o ADMIN GERAL não tem serviço nenhum aqui — para ele a tela é a
+	 *   `ConfigurarFormulario`, o editor do modelo de perguntas.
+	 *
+	 * O estado e as chamadas ficam em `useResGise`; este arquivo escolhe o que
+	 * mostrar e hospeda os modais compartilhados (pad de assinatura e cadastro de
+	 * rubrica).
+	 *
+	 * `minhaRubrica` espelha o dado do `load` mas é estado local: salvar ou
+	 * excluir a rubrica precisa refletir na hora, sem recarregar a página inteira
+	 * no meio de uma assinatura.
+	 */
 	import type { PageProps } from './$types';
 	import { actionButton } from './BotoesAcao.svelte';
 	import { goto } from '$app/navigation';
