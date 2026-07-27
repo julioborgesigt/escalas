@@ -197,7 +197,7 @@ ainda não escolheu lotação", em que o servidor nem consulta.
 
 ---
 
-## Fase 4 — Geração de documento com valor jurídico
+## Fase 4 — Geração de documento com valor jurídico ✅ (concluída)
 
 **Por que:** `export-pdf.ts` tem 165 ramos e 4,5% de comentário — é o arquivo
 mais opaco do projeto e produz os PDFs que o policial assina. Cada bloco de
@@ -206,16 +206,31 @@ hoje só está na cabeça de quem escreveu.
 
 **Escopo:**
 
-- [ ] `lib/server/export-pdf.ts` — por seção: o que cada bloco imprime e por quê;
+- [x] `lib/server/export-pdf.ts` — por seção: o que cada bloco imprime e por quê;
       apontar que a saída é congelada por `export-pdf-goldens`
-- [ ] `lib/server/gise-xlsx-workbook-append.ts` (32 ramos, 4 exports sem doc)
-- [ ] `lib/server/pdf-signing-visual.ts` — já em 14%, revisar apenas lacunas
+- [x] `lib/server/gise-xlsx-workbook-append.ts` (32 ramos, 4 exports sem doc)
+- [x] `lib/server/pdf-signing-visual.ts` — já em 14%, revisar apenas lacunas
+- [x] Os quatro opacos restantes fora do escopo original
+      (`RelatorioProdutividade`, `api/gise/historico/export`, `useCharts`,
+      `escalas/bem-vindo`, `SearchableSelect`)
 
 **Aceite:** cada função de layout com uma linha de propósito; toda constante de
 posicionamento/medida com o motivo do valor quando não for arbitrária.
 
 **Esforço:** 2 levas (mais lento: exige entender o layout). **Risco:** nulo em
 comentário; se algo for refatorado, os goldens são o guarda.
+
+**✅ CONCLUÍDA** em 1 leva (2026-07-27). **O projeto ficou com ZERO arquivos
+opacos** (18 no baseline): além do escopo da fase, os cinco opacos restantes de
+UI e endpoint foram fechados junto, porque todos eram o mesmo problema — muita
+decisão, nenhum registro do porquê.
+
+Goldens de PDF conferidos após a passada: byte-idênticos (só comentário
+entrou). O cabeçalho de `export-pdf.ts` registra o que faltava: unidade em
+milímetro e A4 paisagem, `finalY` como âncora do carimbo de assinatura, a
+checagem de "o bloco ainda cabe na página" antes de desenhar, e o aviso de
+nunca regravar golden para "fazer o teste passar" — são documentos que alguém
+já assinou.
 
 ---
 

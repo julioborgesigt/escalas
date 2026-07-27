@@ -1,3 +1,21 @@
+/**
+ * `GET /api/gise/historico/export` — exporta o histórico de GISEs FINALIZADAS
+ * em XLSX (uma aba por escala) ou PDF (relatório corrido). Restrito ao Admin
+ * Geral, e sempre auditado com os filtros usados: exportar histórico é levar
+ * dado pessoal de muita gente para fora do sistema.
+ *
+ * A filtragem por PERÍODO tem três formas, e só a primeira é trivial:
+ *   - `mesAno` — mês calendário;
+ *   - `ciclo` — o ciclo da corporação, que NÃO é o mês: vai do dia 21 do mês
+ *     anterior ao dia 20 (`getCicloRange`), e o ciclo 1 atravessa o ano;
+ *   - `data` — um dia específico.
+ *
+ * Só entram escalas `finalizada`. O histórico é o que já se encerrou; escala em
+ * andamento muda depois da exportação e o arquivo passaria a mentir.
+ *
+ * O nome da seccional para o cabeçalho vem do resultado já carregado e só custa
+ * consulta quando o filtro aponta para uma seccional que não aparece nele.
+ */
 import type { RequestHandler } from './$types';
 import { getDB, listarGiseEscalas, buscarGiseDetalhado } from '$lib/db';
 import { registrarAuditComContexto } from '$lib/db/audit';
@@ -24,10 +42,6 @@ import {
 	HEADERS_DETALHE_EQUIPE,
 	statusLabelGiseXlsx
 } from '$lib/server/gise-xlsx-workbook-append';
-/**
- * GET /api/gise/historico/export — exporta o histórico de GISEs FINALIZADAS em
- * XLSX (uma aba por escala) ou PDF (relatório corrido). Restrito a Admin Geral.
- */
 
 /** `jspdf-autotable` injeta `lastAutoTable` em tempo de execução, fora do .d.ts. */
 interface JsPDFWithAutoTable extends jsPDF {

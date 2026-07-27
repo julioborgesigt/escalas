@@ -1,6 +1,25 @@
 /**
- * Composable para gerenciar gráficos Chart.js em componentes Svelte.
- * Cuida do lifecycle, destruição de instâncias stale e atualização.
+ * Ciclo de vida dos gráficos Chart.js no painel de produtividade.
+ *
+ * Chart.js não é reativo: ele desenha num `<canvas>` e mantém a instância viva
+ * por conta própria. Isso conflita com Svelte de dois jeitos, e o composable
+ * existe para resolver os dois:
+ *
+ * - **instância órfã** — recriar um gráfico sobre um canvas que já tem um sem
+ *   `destroy()` deixa o antigo escutando eventos e vazando memória. Todo
+ *   redesenho destrói o anterior primeiro;
+ * - **gráfico obsoleto** — as perguntas vêm do modelo do formulário e podem
+ *   sumir quando o filtro muda de tipo de equipe. `destroyStaleCharts` remove os
+ *   que não estão mais na lista; sem isso, ficariam gráficos de perguntas que a
+ *   tela não mostra mais.
+ *
+ * O EIXO X muda com o filtro, e é essa a única regra de negócio aqui: sem
+ * seccional escolhida, cada barra é uma SECCIONAL (comparação entre elas); com
+ * uma seccional escolhida, cada barra é uma DATA (evolução daquela seccional).
+ *
+ * O construtor `Chart` chega por função (`getChart`) porque a biblioteca é
+ * carregada sob demanda — o composable é montado antes de ela existir e
+ * simplesmente não desenha até chegar.
  */
 
 import type { Chart, TooltipItem } from 'chart.js';

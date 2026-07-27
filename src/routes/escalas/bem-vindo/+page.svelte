@@ -1,4 +1,24 @@
 <script lang="ts">
+	/**
+	 * Página inicial do módulo de escalas — o que cada usuário vê ao entrar.
+	 *
+	 * Toda a ramificação daqui existe por um motivo só: **o portal atende papéis
+	 * com atribuições opostas**, e mostrar o mesmo menu para todos fazia o usuário
+	 * clicar em coisas que não podia fazer. As combinações que importam:
+	 *
+	 * - Admin Geral → conformidade e recebidos, não cria escala;
+	 * - DPC (seccional ou unidade) → CONFERE e ASSINA; não cria;
+	 * - OIP admin de unidade → CRIA e gerencia as escalas da sua unidade;
+	 * - admin de seccional (não-DPC) → envia e gerencia, mais o módulo GISE;
+	 * - qualquer um com vínculo GISE ativo → ganha também o acesso à `/res-gise`.
+	 *
+	 * `descricao` e `acoes` são derivados dessas condições e ficam neste arquivo,
+	 * juntos, de propósito: espalhar as regras pelos componentes de card faria
+	 * cada mudança de política ter de ser caçada em cinco lugares.
+	 *
+	 * Os flags (`isSupervisorGise`, `isMembroGise`, `isSupervisaoGise`) chegam
+	 * resolvidos pelo servidor — a página não decide permissão, só apresentação.
+	 */
 	import type { PageProps } from './$types';
 	import { ICONE } from '$lib/constants/icones';
 	import BemVindoPagina from '$lib/components/bem-vindo/BemVindoPagina.svelte';
