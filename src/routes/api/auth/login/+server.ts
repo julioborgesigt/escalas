@@ -1,3 +1,11 @@
+/**
+ * POST /api/auth/login — gêmea JSON da form action de `/login`.
+ *
+ * Ambas delegam a `tentarLogin` (`$lib/server/auth-flow`) e precisam manter os
+ * MESMOS limites: duas portas para a mesma senha, uma delas sem throttle, seria
+ * brute-force gratuito. A diferença é só o transporte — aqui a resposta é JSON
+ * para o cliente decidir a navegação, lá é redirect do SvelteKit.
+ */
 import { json } from '@sveltejs/kit';
 import { getDB } from '$lib/db';
 import { tentarLogin, cookieOptions } from '$lib/server/auth-flow';

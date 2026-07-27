@@ -77,18 +77,23 @@ de servidor, nenhum de componente.
       (`auth-flow.ts` já documentado, a rota não)
 - [x] `routes/api/webhook/sync-unidades` (falta `sync-policiais`) — contrato com
       sistema externo: formato do payload, idempotência, anti-replay
-- [ ] `routes/gise/+page.server.ts` — 44 ramos
+- [x] `routes/gise/+page.server.ts` — 44 ramos
 - [x] `routes/policiais/upload/+page.server.ts` — importação em massa:
       deduplicação e erro parcial
-- [ ] `routes/api/escalas/[id]/download` e `routes/api/admin/compliance`
+- [x] `routes/api/escalas/[id]/download` e `routes/api/admin/compliance`
+- [x] `routes/api/auth/login` e `routes/api/auth/confirmar-redefinicao` (fora do
+      escopo inicial; entraram por estarem na lista de opacos)
 
 **Aceite:** nenhum arquivo de _rotas: servidor_ classificado como opaco; todos com
 cabeçalho; cada action/handler com uma linha dizendo o que decide.
 
 **Esforço:** 3 levas (≈3 commits). **Risco:** nulo (só comentário).
 
-**Progresso:** leva 1 concluída (2026-07-27) — opacos em _rotas: servidor_ caíram
-de 10 para 6; total do projeto, de 18 para 14.
+**Progresso:** levas 1 e 2 concluídas (2026-07-27) — opacos em _rotas: servidor_
+caíram de **10 para 1**; total do projeto, de **18 para 9**. Restam da fase:
+`policiais/[id]/+page.server.ts` e `escalas/+page.server.ts` (alta contagem de
+ramos, mas já acima do corte de 6%, portanto não sinalizados) e
+`api/webhook/sync-policiais`.
 
 ---
 
