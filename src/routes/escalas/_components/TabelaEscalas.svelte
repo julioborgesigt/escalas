@@ -12,10 +12,9 @@
 	 * `solicitacoesMap` chega indexado por `escala_id` justamente para o selo de
 	 * "aguardando assinatura" não custar uma consulta por linha (N+1).
 	 *
-	 * `skipLoad` vem ligado quando o Admin Geral abre a lista SEM escolher
-	 * lotação: o servidor nem consulta (seriam todas as escalas de todas as
-	 * unidades) e a tabela mostra o estado "escolha uma unidade". É estado
-	 * inicial esperado, não erro nem lista vazia.
+	 * Não há estado "escolha uma unidade": o Admin Geral é redirecionado antes de
+	 * chegar aqui, então quem abre esta tabela sempre tem lotação definida pelo
+	 * papel. Lista vazia é lista vazia.
 	 */
 	import { Popover, Portal } from '@skeletonlabs/skeleton-svelte';
 	import { slide, fly } from 'svelte/transition';
@@ -37,7 +36,6 @@
 		escalas,
 		podeOIPSolicitar,
 		solicitacoesMap,
-		skipLoad,
 		paginaAtual,
 		totalPaginas,
 		onSolicitarEdicao,
@@ -50,7 +48,6 @@
 		escalas: EscalaListagem[];
 		podeOIPSolicitar: boolean;
 		solicitacoesMap: Record<number, SolicitacaoInfo>;
-		skipLoad: boolean;
 		paginaAtual: number;
 		totalPaginas: number;
 		onSolicitarEdicao: (esc: EscalaListagem) => void;
@@ -70,25 +67,7 @@
 	const ITEMS_POR_PAGINA = 20;
 </script>
 
-{#if skipLoad}
-	<div class="text-center py-20">
-		<div
-			class="bg-surface-200/50 dark:bg-surface-800/50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 grayscale opacity-50"
-		>
-			<svg class="w-8 h-8 text-surface-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-				<path
-					stroke-linecap="round"
-					stroke-linejoin="round"
-					stroke-width="2"
-					d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
-				/>
-			</svg>
-		</div>
-		<p class="text-surface-600 dark:text-surface-400 text-lg">
-			Escolha uma unidade para exibir os dados.
-		</p>
-	</div>
-{:else if escalas.length === 0}
+{#if escalas.length === 0}
 	<div class="text-center py-12 text-surface-500">
 		<p class="mb-4">Nenhuma escala criada para os filtros selecionados.</p>
 		<button
