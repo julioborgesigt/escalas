@@ -1,3 +1,29 @@
+/**
+ * A MÁQUINA DE ESTADOS da GISE: quem decide quando ela avança de status.
+ * `escalas-crud` grava o campo; aqui mora a condição que autoriza a gravação.
+ *
+ * O ciclo tem oito estados, e é a metade final que se decide aqui:
+ *
+ *   em_definicao_supervisor → em_preenchimento → aguardando_assinatura
+ *     → em_andamento → aguardando_relatorios → aguardando_assinatura_relat
+ *     → pronta_para_finalizar → finalizada
+ *
+ * As transições são derivadas de FATOS, nunca de um clique: todas as seccionais
+ * enviaram (`verificarGiseCompleta`), todos confirmaram entrada, todos
+ * confirmaram saída (`sincronizarStatusGiseAposPresencaRelatorios`), documento e
+ * relatórios assinados (`tentarPromoverGiseProntaParaFinalizar`). Por isso as
+ * funções recalculam do banco em vez de receber o próximo estado — e por isso
+ * são idempotentes: chamar duas vezes não pula etapa, e cada uma sai cedo se o
+ * status atual não for um dos que ela sabe mover.
+ *
+ * Duas armadilhas conhecidas nas condições:
+ *   - `retificada` conta como PENDENTE. É a seccional que a supervisão devolveu
+ *     para correção; tratá-la como enviada libera a GISE com um formulário que
+ *     a própria supervisão recusou.
+ *   - GISE SEM seccional nenhuma satisfaz "todas enviaram" por vacuidade.
+ *     `verificarGiseCompleta` devolve `true` nesse caso; quem usa isso como
+ *     portão precisa checar `totalSeccionais > 0` antes.
+ */
 import { eq, and, or, sql, inArray } from 'drizzle-orm';
 import {
 	giseEscalas,

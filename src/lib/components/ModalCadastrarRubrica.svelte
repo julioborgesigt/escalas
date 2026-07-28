@@ -1,10 +1,4 @@
 <script lang="ts">
-	import { PenLine, Image as ImageIcon } from 'lucide-svelte';
-	import { Dialog, Tabs } from '@skeletonlabs/skeleton-svelte';
-	import { apiFetch } from '$lib/api-fetch';
-	import { toaster } from '$lib/toast';
-	import RubricaCanvas, { type RubricaCanvasControl } from './RubricaCanvas.svelte';
-
 	/**
 	 * Modal de CADASTRO de rubrica reutilizável (perfil do policial), para
 	 * assinatura por Token A3 no computador. Duas formas, à la Adobe Acrobat:
@@ -17,6 +11,12 @@
 	 * minimizado, é enviado ao servidor. Um aceite explícito de consentimento é
 	 * exigido antes de salvar (nova finalidade, Art. 8º).
 	 */
+	import { PenLine, Image as ImageIcon } from 'lucide-svelte';
+	import { Dialog, Tabs } from '@skeletonlabs/skeleton-svelte';
+	import { apiFetch } from '$lib/api-fetch';
+	import { toaster } from '$lib/toast';
+	import RubricaCanvas, { type RubricaCanvasControl } from './RubricaCanvas.svelte';
+
 	let {
 		open = $bindable(false),
 		rubricaAtual = null,

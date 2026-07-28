@@ -1,3 +1,24 @@
+/**
+ * Expurga por prazo de retenção (LGPD art. 15/16) e o failsafe que avisa quando
+ * ela para de rodar.
+ *
+ * A linha que divide o que é apagado do que não é: TEMPORÁRIO sai, PROBATÓRIO
+ * fica. Sessões, tokens e tentativas têm TTL curto; `audit_log` tem TTL longo e
+ * configurável (5 anos por padrão); documento, assinatura e termo de presença
+ * NÃO são tocados por nada aqui — apagar prova assinada é decisão do
+ * controlador, nunca de um cron.
+ *
+ * Toda janela vem de `configuracoes`, mas todo campo tem padrão embutido: a
+ * expurga precisa rodar sob política conhecida mesmo em banco recém-criado, e
+ * um `NaN` escapando de uma configuração inválida apagaria tudo ou nada.
+ *
+ * O Pages não tem cron nativo — quem dispara é um agendador externo (GitHub
+ * Actions). Se ele morrer, ninguém percebe: o sintoma é a AUSÊNCIA de deletes.
+ * Daí `verificarSaudeLimpezaRetencao`, que deduz a última execução do próprio
+ * `audit_log` (`acao='limpeza_retencao'`) em vez de criar tabela de controle, e
+ * expõe o atraso no health detail. `avaliarSaudeLimpeza` é a parte pura, para
+ * ser testável sem banco.
+ */
 import { lt, eq, desc } from 'drizzle-orm';
 import {
 	sessoes,

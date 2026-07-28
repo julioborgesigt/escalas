@@ -1,3 +1,25 @@
+/**
+ * Acesso a dados da escala MENSAL (`escalas` + `escala_policiais` +
+ * `escala_solicitacoes_assinatura`) — a escala comum das unidades, que não tem
+ * relação com a GISE (essa vive em `db/gise/`).
+ *
+ * Junto do CRUD mora a regra de acesso CROSS-UNIDADE, e ela é o ponto sensível
+ * do arquivo: normalmente um admin DPC só vê escala da própria lotação, mas uma
+ * solicitação de assinatura abre exceção. `solicitacaoConcedeAcessoDpc` é a
+ * regra, deliberadamente PURA (sem banco) para que a matriz de casos seja
+ * testável — foi o IDOR A1, em que o ramo `unidade` devolvia `true` para
+ * qualquer admin DPC, sem conferir a lotação. `temSolicitacaoParaDpcAdmin` é só
+ * o invólucro que lê a linha e chama a regra: quem for validar permissão nova
+ * chama uma das duas, não reimplementa a condição.
+ *
+ * Há no máximo UMA solicitação por escala — `criarSolicitacaoAssinatura` apaga a
+ * anterior antes de inserir, então pedir de novo substitui o destinatário, e
+ * `excluirSolicitacaoAssinatura` revoga junto o acesso que ela concedia.
+ *
+ * Nas leituras em lote (`listarSolicitacoesEscalas`, `adicionarTodosPoliciais`)
+ * o `inArray` com lista vazia gera SQL inválido no D1; use `batchNonEmpty` ou
+ * devolva cedo, como já fazem os call sites daqui.
+ */
 import { eq, and, or, sql, desc, asc, inArray, like, type SQL } from 'drizzle-orm';
 import {
 	escalas,

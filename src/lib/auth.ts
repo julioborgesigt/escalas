@@ -1,3 +1,35 @@
+/**
+ * Sessões, 2FA e redefinição de senha — quem o usuário é e por quanto tempo.
+ * As três coisas moram juntas porque compartilham o mesmo token opaco
+ * (`gerarToken`) e a mesma regra de armazenamento.
+ *
+ * TOKEN NUNCA VAI EM CLARO PARA O BANCO. `criarSessao` devolve o valor em claro
+ * uma única vez, para ir direto ao cookie; a linha guarda só o `sha256:`. Por
+ * isso não existe "listar minhas sessões e mostrar o token", e por isso um dump
+ * do D1 não dá acesso a ninguém. Há um fallback para linhas anteriores à
+ * migração (token em claro), que migra a linha ao ser usada.
+ *
+ * A sessão é SLIDING: 8h que se renovam com o uso, mas o UPDATE só sai quando
+ * falta menos de 30min (`SESSION_SLIDING_THRESHOLD_MS`) — senão todo request
+ * autenticado escreveria no D1.
+ *
+ * Papel administrativo tem DOIS eixos independentes, e confundi-los é o erro
+ * clássico aqui:
+ *   - `tipo` ('admin' | 'policial') é a SESSÃO. `isAdminGeral` só olha isto.
+ *   - `papel` ('admin_seccional' | 'admin_unidade') é RBAC operacional, vive na
+ *     linha do policial e é CUMULATIVO com Admin Geral.
+ * Um Admin Geral vinculado tem linha em `administradores` e em `policiais`, e
+ * loga escolhendo qual identidade quer. Nada disso concede `isSuperAdmin`.
+ *
+ * `validarSessaoComAceite` é a que o `hooks.server.ts` usa: agrupa usuário +
+ * aceite do Termo (+ sliding) num `db.batch` para não fazer 3 idas ao D1 em
+ * série a cada request. `validarSessao` é a versão simples, para quem já está
+ * fora do hook.
+ *
+ * Mora em `lib/` e não em `lib/server/` por um motivo só: componentes importam
+ * o TIPO `UsuarioLogado` (import type, apagado no build). Qualquer import de
+ * VALOR daqui no cliente arrasta `node:crypto` e o schema para o bundle.
+ */
 import { eq, and, gt, inArray, desc } from 'drizzle-orm';
 import { timingSafeEqual } from 'node:crypto';
 import {
