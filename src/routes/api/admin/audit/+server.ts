@@ -9,7 +9,9 @@
  *   - page: página (default 1)
  *   - limit: itens por página (default 20, max 100)
  *
- * Acesso: apenas Admin Geral.
+ * Acesso: apenas SUPER ADMIN (`requireSuperAdmin`) — não Admin Geral. A trilha
+ * forense é console do Super Admin, e afrouxar este gate para `isAdminGeral`
+ * entregaria o log inteiro a quem só tem operação global.
  */
 
 import { json } from '@sveltejs/kit';

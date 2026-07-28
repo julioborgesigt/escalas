@@ -1,4 +1,21 @@
 <script lang="ts">
+	/**
+	 * Timeline do histórico funcional do servidor — a leitura do que
+	 * `PainelAcoesServidor` grava.
+	 *
+	 * A tabela é APPEND-ONLY e esta tela é só leitura: não há caminho de UI que
+	 * edite ou apague um evento. É a visão de RH, e complementa (não substitui)
+	 * a trilha forense do Super Admin em `/auditoria`.
+	 *
+	 * `afastamentoVigenteId` marca o afastamento em curso HOJE, calculado no
+	 * servidor: comparar datas aqui reintroduziria o problema de fuso que a
+	 * timeline não tem como resolver sozinha.
+	 *
+	 * Paginação é client-side porque o histórico completo já vem no `load` — o
+	 * `$effect` que corrige `paginaAtual` existe para o caso de a lista encolher
+	 * ou crescer num `invalidateAll()` depois de registrar um evento, que
+	 * deixaria o usuário numa página vazia.
+	 */
 	import type { PolicialHistorico } from '$lib/types';
 	import { formatarData } from '$lib/utils';
 	import { LABEL_SUBTIPO_AFASTAMENTO } from '$lib/schemas/policial-historico';

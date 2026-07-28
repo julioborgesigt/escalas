@@ -1,4 +1,21 @@
 <script lang="ts">
+	/**
+	 * Troca de senha — e, no PRIMEIRO ACESSO, o portão obrigatório do sistema.
+	 * É uma das `ROTAS_SEM_SIDEBAR` do layout justamente por isso: enquanto o
+	 * usuário está aqui, ele ainda não entrou.
+	 *
+	 * A tela tem dois modos no mesmo formulário. Troca voluntária pede só a
+	 * senha; primeiro acesso exige TAMBÉM verificar o e-mail pessoal por código
+	 * (`useVerificacaoEmailPessoal`) antes de liberar. O e-mail é o canal de
+	 * recuperação e de 2FA — sem ele confirmado, uma senha perdida deixa a conta
+	 * inacessível, e é essa a razão de o passo ser bloqueante e não um lembrete.
+	 *
+	 * A validação daqui é de USABILIDADE, não de segurança: `podeAlterarSenha`
+	 * desabilita o botão e `handleAlterarSenha` cancela o submit com mensagem,
+	 * mas quem decide é a action do servidor. `validarForcaSenha` vem de
+	 * `CamposNovaSenha` para que a régua exibida seja a mesma em todas as telas
+	 * de senha.
+	 */
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import { loading } from '$lib/loading.svelte';

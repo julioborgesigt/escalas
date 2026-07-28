@@ -1,4 +1,24 @@
 <script lang="ts">
+	/**
+	 * Política de assinatura EM TELA (a avançada, Lei 14.063/2020) — os
+	 * requisitos que o sistema exige de quem assina pelo celular.
+	 *
+	 * Mexer aqui muda o valor probatório de documento futuro, então a tela
+	 * separa três coisas que parecem iguais e não são:
+	 *   - REQUISITOS SEMPRE ATIVOS — não têm interruptor;
+	 *   - OBRIGATÓRIOS da avançada — o código por e-mail, fixo em `true`. Está
+	 *     como `const` e não `$state` de propósito: desligar rebaixaria a
+	 *     assinatura a simples, e isso não é escolha de tela;
+	 *   - REFORÇOS OPCIONAIS — foto, GPS e restrição a smartphone. Somam prova,
+	 *     mas NÃO mudam a classificação legal, e é isso que o "score" informa.
+	 *
+	 * A classificação (`nivelEfetivo`) e a base legal vêm calculadas do
+	 * servidor (`signature-level`), nunca deduzidas aqui — o mesmo cálculo
+	 * decide o texto impresso no rodapé e no manifesto do PDF. Declarar na tela
+	 * um nível diferente do que o PDF carimba é afirmar uma qualificação falsa.
+	 *
+	 * Documento já assinado não é afetado: a política vale para os próximos.
+	 */
 	import { Check, Lock } from 'lucide-svelte';
 	import { page } from '$app/state';
 	import { toaster } from '$lib/toast';

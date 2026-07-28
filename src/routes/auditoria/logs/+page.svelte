@@ -1,4 +1,17 @@
 <script lang="ts">
+	/**
+	 * Console de logs TÉCNICOS (`app_log`) — warn/error do logger de servidor.
+	 * Vizinho de `/auditoria`, mesmo gate de Super Admin, mas registro de
+	 * natureza oposta: aqui é diagnóstico, não prova. Some em 90 dias e não
+	 * entra em cadeia de hash.
+	 *
+	 * O que liga os dois é o `request_id`, que correlaciona uma linha daqui com
+	 * o evento forense e com o `errorId` que o usuário vê na tela de erro 5xx —
+	 * é por ele que se parte de "o servidor me deu um código" até o stack real.
+	 *
+	 * Tela puramente de leitura, sem estado próprio além do acordeão: os
+	 * filtros vêm da query string via `load`.
+	 */
 	import type { PageProps } from './$types';
 	import { ChevronDown, ChevronUp, ArrowLeft } from 'lucide-svelte';
 

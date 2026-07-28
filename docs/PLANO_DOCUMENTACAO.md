@@ -365,10 +365,10 @@ Em três levas, por categoria, do maior risco ao menor:
 | ---- | ---------------------------- | -------: | -----: | --- |
 | B1   | servidor (rotas e endpoints) |       12 |  4 391 | ✅  |
 | B2   | `lib/` e `lib/server/`       |       16 |  7 826 | ✅  |
-| B3   | UI                           |       18 |  7 839 |     |
+| B3   | UI                           |       18 |  7 839 | ✅  |
 
 **Aceite:** `docs:inventario` com 0 arquivos ≥ 200 linhas sem cabeçalho — agora
-medido pela régua correta.
+medido pela régua correta. **Cumprido em 2026-07-28.**
 
 **B1 ✅ concluída** (2026-07-28): _rotas: servidor_ zerada. Dos 10 arquivos,
 **7 já tinham cabeçalho — escrito e depois enterrado sob os imports**. Foi o
@@ -412,12 +412,58 @@ Goldens de PDF e e-mail conferidos antes e depois: nenhum byte alterado.
 Métrica: **34 → 18** arquivos ≥ 200 linhas sem cabeçalho. Os 18 restantes são
 todos de UI (B3).
 
+**B3 ✅ concluída** (2026-07-28): _rotas: UI_ zerada. **O aceite da Fase B está
+cumprido: 0 arquivos ≥ 200 linhas sem cabeçalho, em todas as categorias.**
+
+Aqui o padrão das levas anteriores se inverteu — só 3 dos 18 tinham cabeçalho
+enterrado (`GiseEquipeCard`, `GiseSlotUnidade`, `SeccionalRelatoriosDownloads`).
+Os outros 15 nunca tiveram. Faz sentido: os arquivos de UI foram os que menos
+receberam auditoria, justamente por não parecerem perigosos.
+
+Dois achados que não eram de documentação:
+
+**1. Cinco arquivos diziam "Admin Geral" e exigiam SUPER ADMIN.** Todos os
+consoles de administração do sistema: `/auditoria`, `/auditoria/logs`,
+`/auditoria/export`, `/api/admin/audit` e `/config-geral`. O README (linha 498)
+sempre esteve certo — "consoles de auditoria são do Super Admin"; os cabeçalhos
+do código é que descreviam um público mais largo do que o gate permite.
+
+Não é um typo. `isAdminGeral` e `isSuperAdmin` são poderes diferentes e o
+próprio `auth.ts` documenta a separação. Quem lesse o cabeçalho e "consertasse
+a inconsistência" na direção do comentário abriria a trilha forense inteira para
+qualquer Admin Geral. Comentário errado sobre gate de permissão é um convite a
+afrouxá-lo.
+
+Confirmado no app rodando, nos cinco: com sessão de `superadm` → 200 nas quatro
+páginas e no export; com sessão de `admgeral` → 302 nas páginas e **403** no
+export.
+
+**2. `hoje()` do `ModalDatasHoras` marcava AMANHÃ como hoje.** Era
+`new Date().toISOString().slice(0,10)` — data em UTC. Das 21h à meia-noite no
+horário de Brasília, o anel de "hoje" no calendário caía na célula do dia
+seguinte. Corrigido com o `isoData` extraído na Fase 5 e verificado simulando
+28/07 às 21:30 em `America/Fortaleza`: antes `2026-07-29`, agora `2026-07-28`.
+
+Um detalhe útil para a Fase C: **não existe uma troca mecânica**. Este ponto
+roda no NAVEGADOR, e ali os getters locais são a resposta certa (respeitam o
+fuso do aparelho). Mas `hojeBrasilISO()` em `policiais/[id]/+page.server.ts`
+roda no WORKER, que está sempre em UTC, e por isso precisa fixar o −3 na mão.
+Mesma pergunta, duas respostas opostas conforme onde o código executa.
+
+Métrica: **18 → 0**.
+
 ## Fase C — fragilidade de fuso em datas
 
 12 pontos constroem `Date` em horário local e chamam `toISOString()`. Hoje é
 seguro (Workers em UTC, navegador brasileiro em UTC-3) e quebraria só em fuso
 positivo. Decidir caso a caso: trocar por `isoData` onde for barato, registrar
 a premissa onde não for.
+
+**1 dos 12 já saiu** (o `hoje()` do `ModalDatasHoras`, em B3) — e não era
+hipotético: quebrava três horas por dia no fuso atual. Ao varrer os 11
+restantes, classificar cada um por ONDE RODA antes de decidir a correção:
+navegador → getters locais; Worker → offset explícito de Brasília. Trocar tudo
+por `isoData` sem essa distinção troca um bug por outro.
 
 ## Fase D — exclusão de unidade (precisa de decisão de PRODUTO)
 

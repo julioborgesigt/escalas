@@ -1,4 +1,22 @@
 <script lang="ts">
+	/**
+	 * A tela que o CIDADÃO vê ao conferir o código impresso no rodapé de um PDF
+	 * assinado. Pública, sem sessão — é o único ponto do sistema desenhado para
+	 * quem não tem conta.
+	 *
+	 * Ela é uma VISTA, não uma verificação: quem decide é o `+page.server.ts`
+	 * (`verificarAssinaturaCompleta`, com cadeia ICP-Brasil, carimbo de tempo e
+	 * revogação). Aqui só se desenha o veredito item por item, e nenhum dado
+	 * novo é derivado do documento.
+	 *
+	 * Por isso o que chega em `data` já vem MINIMIZADO pelo servidor: CPF
+	 * mascarado, nome reduzido, IP/user-agent/GPS ausentes. Quem valida não é o
+	 * titular do dado (LGPD art. 6º). Nada de novo deve ser exibido aqui sem que
+	 * o servidor tenha decidido, antes, que aquilo pode sair.
+	 *
+	 * O botão de baixar o PDF íntegro aparece só para autenticado, mas isso é
+	 * cosmético: a permissão real é do endpoint `/api/validar/[hash]/download`.
+	 */
 	import { Check, X, AlertTriangle, HelpCircle } from 'lucide-svelte';
 	import { formatarData } from '$lib/utils';
 	import { baixarBlob } from '$lib/utils/download';
