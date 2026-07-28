@@ -506,15 +506,46 @@ comparados entre o laço antigo e `intervaloDeDatas` — **zero divergências** 
 `America/Fortaleza` e UTC, divergência em 100% em `Asia/Tokyo`. Ou seja, em
 produção o comportamento é idêntico, e só muda onde estava errado.
 
-## Fase D — exclusão de unidade (precisa de decisão de PRODUTO)
+## Fase D — exclusão de unidade ✅
 
-`excluirUnidade` valida só `escalas.lotacao`. Não valida `policiais.lotacao`,
-`policiais.papel_unidade_id` nem as unidades-filhas. Excluir uma seccional deixa
-delegacias e policiais apontando para um nome inexistente.
+**Decisão do produto (2026-07-28): BLOQUEAR** a exclusão quando houver vínculo
+com outra unidade ou servidores lotados. Implementada no mesmo dia.
 
-O RBAC falha FECHADO (escopo vazio, admin perde acesso), então não é urgente. A
-pergunta é de produto: bloquear a exclusão, avisar, ou migrar os vínculos? **Não
-implementar sem a resposta.**
+A checagem era parcial e morava inline na action: olhava só `escalas.lotacao`.
+Uma unidade com 40 servidores lotados e nenhuma escala era excluída sem aviso.
+
+Passou para `lib/db/unidades.ts`, e `excluirUnidade` agora **recusa em vez de
+apagar** (devolve `{ ok: false, motivo }`, que a action converte em 409). São
+cinco vínculos, dois por nome e três por id:
+
+| vínculo              | como liga                      |
+| -------------------- | ------------------------------ |
+| escalas              | `escalas.lotacao` = nome       |
+| servidores lotados   | `policiais.lotacao` = nome     |
+| papel administrativo | `policiais.papel_unidade_id`   |
+| unidades filhas      | `unidades.seccional_id`        |
+| GISE                 | `gise_seccionais.seccional_id` |
+
+Duas decisões de desenho que valem registro:
+
+- **A mensagem lista TODOS os vínculos de uma vez**, não o primeiro encontrado.
+  Quem vai desativar uma unidade precisa do tamanho do trabalho antes de
+  começar; descobrir uma pendência por tentativa é o que faz alguém parar no
+  meio e deixar a base pela metade.
+- **GISE entrou na checagem mesmo já tendo FK `ON DELETE RESTRICT`.** O banco
+  bloquearia de qualquer jeito, mas como erro de constraint — que chega ao
+  usuário como 500 com SQL cru. Checar antes troca isso por uma frase que diz o
+  que fazer.
+
+A regra pura (`descreverBloqueioUnidade`) é separada da consulta, no mesmo
+padrão de `solicitacaoConcedeAcessoDpc` e `avaliarSaudeLimpeza`: 11 testes
+cobrem a matriz sem tocar o D1.
+
+Verificado no app rodando, com POST real na action: unidade só com servidor
+lotado → 409 "1 servidor lotado"; com lotado + papel → 409 com os dois;
+seccional com filha + GISE → 409 com os dois; **unidade sem vínculo nenhum
+continua sendo excluída normalmente**, com a auditoria gravada. Nada foi apagado
+nos casos bloqueados.
 
 ## Fase E — arquivamento
 

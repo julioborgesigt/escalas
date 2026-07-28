@@ -11,7 +11,7 @@ import {
 } from '$lib/db';
 import { unidadeSchema } from '$lib/schemas';
 import { eq } from 'drizzle-orm';
-import { unidades, escalas, type Unidade } from '$lib/server/schema';
+import { unidades, type Unidade } from '$lib/server/schema';
 import { ehViolacaoUnique, mensagemComCausas } from '$lib/server/db-errors';
 import { logger } from '$lib/server/logger';
 
@@ -181,22 +181,12 @@ export const actions: Actions = {
 		const unidade = await db.select().from(unidades).where(eq(unidades.id, id)).get();
 		if (!unidade) return fail(404, { error: 'Unidade não encontrada' });
 
-		// Escala aponta para a unidade pelo NOME (`escalas.lotacao`), não por chave
-		// estrangeira — sem esta checagem a exclusão deixaria escalas órfãs, sem
-		// erro do banco.
-		const escalasVinculadas = await db
-			.select({ id: escalas.id })
-			.from(escalas)
-			.where(eq(escalas.lotacao, unidade.nome));
-
-		if (escalasVinculadas.length > 0) {
-			const count = escalasVinculadas.length;
-			return fail(409, {
-				error: `Não é possível excluir: esta unidade possui ${count} escala${count !== 1 ? 's' : ''} vinculada${count !== 1 ? 's' : ''}. Exclua as escalas primeiro.`
-			});
-		}
-
-		await excluirUnidade(db, id);
+		// A checagem de vínculos mora em `excluirUnidade` (lib/db/unidades), que
+		// recusa em vez de apagar. Antes ela era parcial e inline aqui: só olhava
+		// `escalas.lotacao`, e deixava passar servidor lotado, papel administrativo
+		// e unidade subordinada.
+		const resultado = await excluirUnidade(db, id);
+		if (!resultado.ok) return fail(409, { error: resultado.motivo });
 		const { contexto, env } = contextoDeEvento(event);
 		await auditar(
 			db,
