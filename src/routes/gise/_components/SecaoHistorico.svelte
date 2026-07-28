@@ -8,8 +8,8 @@
 	import { loading } from '$lib/loading.svelte';
 	import { toaster } from '$lib/toast';
 	import { slide } from 'svelte/transition';
-	import { Popover, Portal, Pagination } from '@skeletonlabs/skeleton-svelte';
-	import { ChevronLeft, ChevronRight } from 'lucide-svelte';
+	import { Popover, Portal } from '@skeletonlabs/skeleton-svelte';
+	import Paginador from '$lib/components/Paginador.svelte';
 	import { statusLabel, statusColor, fmtDate, diaSemana } from '$lib/gise/gise-formatters';
 	import { SvelteURLSearchParams } from 'svelte/reactivity';
 	import { CICLOS, getCicloRange } from '$lib/gise/gise-ciclos';
@@ -627,38 +627,12 @@
 				<span class="text-xs text-surface-500">
 					{historicoFiltrado.length} resultado(s) — página {paginaHistorico} de {totalPaginasHistorico}
 				</span>
-				<Pagination
+				<Paginador
 					count={historicoFiltrado.length}
 					pageSize={ITEMS_POR_PAGINA}
 					page={paginaHistorico}
-					onPageChange={(e) => (paginaHistorico = e.page)}
-					siblingCount={1}
-				>
-					<Pagination.PrevTrigger
-						class="btn btn-sm preset-outlined-surface-500"
-						aria-label="Página anterior"><ChevronLeft size={16} /></Pagination.PrevTrigger
-					>
-					<Pagination.Context>
-						{#snippet children(pagination)}
-							{#each pagination().pages as p, index (p)}
-								{#if p.type === 'page'}
-									<Pagination.Item
-										{...p}
-										class="btn btn-sm min-w-[32px] {p.value === paginaHistorico
-											? 'preset-filled-primary-500'
-											: 'preset-outlined-surface-500'}">{p.value}</Pagination.Item
-									>
-								{:else}
-									<Pagination.Ellipsis {index} class="px-1 opacity-50">&#8230;</Pagination.Ellipsis>
-								{/if}
-							{/each}
-						{/snippet}
-					</Pagination.Context>
-					<Pagination.NextTrigger
-						class="btn btn-sm preset-outlined-surface-500"
-						aria-label="Próxima página"><ChevronRight size={16} /></Pagination.NextTrigger
-					>
-				</Pagination>
+					onPageChange={(p) => (paginaHistorico = p)}
+				/>
 			</div>
 		{/if}
 	</div>

@@ -13,27 +13,10 @@ import { json } from '@sveltejs/kit';
 import { getDB } from '$lib/db';
 import { unidades, escalas, escalaDocumentos } from '$lib/server/schema';
 import { and, eq, gte, lte, inArray, sql } from 'drizzle-orm';
-import { getNowBR, MESES_PT } from '$lib/utils';
+import { getNowBR, MESES_PT, isoData, diasNoMes } from '$lib/utils';
+import type { ItemCompliance } from '$lib/types';
 import { requireAdmin } from '$lib/server/api';
 import type { RequestHandler } from './$types';
-
-export interface ItemCompliance {
-	unidade_nome: string;
-	tipo_regime: 'plantao' | 'expediente' | 'fds';
-	periodo: string;
-	data_inicio: string;
-	data_fim: string;
-	status: 'ok' | 'nao_assinada' | 'nao_criada';
-	escala_id?: number;
-}
-
-function toISO(y: number, m: number, d: number): string {
-	return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-}
-
-function diasNoMes(y: number, m: number): number {
-	return new Date(y, m, 0).getDate();
-}
 
 /** Retorna o FDS (Sáb–Dom) da semana corrente */
 function fdsAtualSemana(hoje: Date): { inicio: string; fim: string; label: string } {
@@ -54,8 +37,8 @@ function fdsAtualSemana(hoje: Date): { inicio: string; fim: string; label: strin
 	const diaD = domingo.getDate();
 
 	return {
-		inicio: toISO(anoS, mesS, diaS),
-		fim: toISO(anoD, mesD, diaD),
+		inicio: isoData(anoS, mesS, diaS),
+		fim: isoData(anoD, mesD, diaD),
 		label: `FDS ${String(diaS).padStart(2, '0')}/${String(mesS).padStart(2, '0')}–${String(diaD).padStart(2, '0')}/${String(mesD).padStart(2, '0')}`
 	};
 }
@@ -76,17 +59,17 @@ export const GET: RequestHandler = async ({ platform, locals, url }) => {
 	const mesRelAno = diaHoje >= 20 ? (mesHoje === 12 ? anoHoje + 1 : anoHoje) : anoHoje;
 	const mesRelMes = diaHoje >= 20 ? (mesHoje === 12 ? 1 : mesHoje + 1) : mesHoje;
 
-	let inicioMesRel = toISO(mesRelAno, mesRelMes, 1);
-	let fimMesRel = toISO(mesRelAno, mesRelMes, diasNoMes(mesRelAno, mesRelMes));
+	let inicioMesRel = isoData(mesRelAno, mesRelMes, 1);
+	let fimMesRel = isoData(mesRelAno, mesRelMes, diasNoMes(mesRelAno, mesRelMes));
 
 	if (showAll) {
 		const inicioDate = new Date(hoje);
 		inicioDate.setMonth(hoje.getMonth() - 1);
-		inicioMesRel = toISO(inicioDate.getFullYear(), inicioDate.getMonth() + 1, 1);
+		inicioMesRel = isoData(inicioDate.getFullYear(), inicioDate.getMonth() + 1, 1);
 
 		const fimDate = new Date(hoje);
 		fimDate.setMonth(hoje.getMonth() + 1);
-		fimMesRel = toISO(
+		fimMesRel = isoData(
 			fimDate.getFullYear(),
 			fimDate.getMonth() + 1,
 			diasNoMes(fimDate.getFullYear(), fimDate.getMonth() + 1)

@@ -21,9 +21,8 @@
 	import { formatarData } from '$lib/utils';
 	import type { Escala } from '$lib/server/schema';
 	import type { EscalaPolicialComDados } from '$lib/types';
-	import { Pagination } from '@skeletonlabs/skeleton-svelte';
 	import IconTooltip from '$lib/components/IconTooltip.svelte';
-	import { ChevronLeft, ChevronRight } from 'lucide-svelte';
+	import Paginador from '$lib/components/Paginador.svelte';
 	import { criarHelpersHorario, diaSemanaLabel } from './escala-horarios';
 	import { useEdicaoInlineServidor } from './useEdicaoInlineServidor.svelte';
 
@@ -661,42 +660,12 @@
 					policiaisEscalaLocal.length
 				)} de {policiaisEscalaLocal.length} servidores
 			</span>
-			<Pagination
+			<Paginador
 				count={policiaisEscalaLocal.length}
 				pageSize={SERV_POR_PAG}
 				page={paginaServidor}
-				onPageChange={(e) => (paginaServidor = e.page)}
-				siblingCount={1}
-			>
-				<Pagination.PrevTrigger
-					class="btn btn-sm preset-outlined-surface-500"
-					aria-label="Página anterior"
-				>
-					<ChevronLeft size={16} />
-				</Pagination.PrevTrigger>
-				<Pagination.Context>
-					{#snippet children(pagination)}
-						{#each pagination().pages as p, index (p)}
-							{#if p.type === 'page'}
-								<Pagination.Item
-									{...p}
-									class="btn btn-sm min-w-[32px] {p.value === paginaServidor
-										? 'preset-filled-primary-500'
-										: 'preset-outlined-surface-500'}">{p.value}</Pagination.Item
-								>
-							{:else}
-								<Pagination.Ellipsis {index} class="px-1 opacity-50">&#8230;</Pagination.Ellipsis>
-							{/if}
-						{/each}
-					{/snippet}
-				</Pagination.Context>
-				<Pagination.NextTrigger
-					class="btn btn-sm preset-outlined-surface-500"
-					aria-label="Próxima página"
-				>
-					<ChevronRight size={16} />
-				</Pagination.NextTrigger>
-			</Pagination>
+				onPageChange={(p) => (paginaServidor = p)}
+			/>
 		</div>
 	{/if}
 {/if}

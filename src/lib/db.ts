@@ -1,15 +1,20 @@
 /**
- * Ponto central de acesso ao banco de dados.
- * Re-exporta tudo dos módulos de domínio para manter compatibilidade
- * com todos os imports existentes (`import { ... } from '$lib/db'`).
+ * Ponto central de acesso ao banco — a API que rotas e endpoints consomem
+ * (`import { ... } from '$lib/db'`).
  *
- * Módulos internos (src/lib/db/):
- *  - core.ts     — getDB + Database type
- *  - policiais.ts — operações de policiais e RBAC
- *  - unidades.ts  — operações de unidades
- *  - escalas.ts   — operações de escalas e escala_policiais
- *  - documentos.ts — operações de documentos assinados
- *  - gise.ts      — operações de GISE (escalas diárias de serviço)
+ * Módulos internos (`src/lib/db/`):
+ *  - `core.ts`       — `getDB`, bindings R2 e o tipo `Database`
+ *  - `policiais.ts`  — cadastro e RBAC
+ *  - `unidades.ts`   — unidades e a hierarquia entre elas
+ *  - `escalas.ts`    — escalas e `escala_policiais`
+ *  - `documentos.ts` — documentos assinados
+ *  - `gise/`         — o módulo GISE inteiro
+ *
+ * **Regra do barrel:** aqui ficam as FUNÇÕES da camada de dados e só os TIPOS
+ * que alguém realmente importa por este caminho. Tipo consumido por um módulo
+ * só deve vir do módulo de origem — a dependência fica explícita, e o barrel
+ * não vira uma segunda lista para manter em dia. Em jul/2026, 16 tipos
+ * reexportados aqui não tinham um único consumidor pelo barrel e saíram.
  */
 
 export { getDB, getR2, tryGetR2, hasR2, batchNonEmpty } from './db/core';
@@ -28,21 +33,9 @@ export {
 	metaDaAcao,
 	CATALOGO_ACOES
 } from './db/audit';
-export type {
-	AuditEvento,
-	AcaoAudit,
-	AuditCategoria,
-	AuditSeveridade,
-	AuditResultado,
-	AuditActorTipo,
-	AuditCriptoEnv,
-	ListarAuditOpts,
-	ResultadoIntegridade,
-	ResumoAuditoria
-} from './db/audit';
+export type { AuditCriptoEnv } from './db/audit';
 
 export { registrarAppLogs, listarAppLogs, resumoAppLogs } from './db/app-logs';
-export type { NovoAppLog, AppLogLevel, ListarAppLogsOpts, ResumoAppLogs } from './db/app-logs';
 
 export { registrarAceite } from './db/termos';
 
@@ -82,7 +75,7 @@ export {
 	listarSolicitacoesCadastroPendentes,
 	decidirSolicitacaoCadastro
 } from './db/cadastro-solicitacoes';
-export type { CampoSolicitacao, SolicitacaoPendenteComPolicial } from './db/cadastro-solicitacoes';
+export type { CampoSolicitacao } from './db/cadastro-solicitacoes';
 
 export {
 	registrarHistorico,
@@ -90,7 +83,6 @@ export {
 	buscarEventoHistorico,
 	afastamentoVigente
 } from './db/policial-historico';
-export type { NovoEventoHistorico, TipoHistorico } from './db/policial-historico';
 
 export {
 	listarUnidades,
