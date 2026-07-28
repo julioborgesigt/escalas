@@ -1,6 +1,7 @@
 /**
  * Inventário de documentação do código-fonte — a régua do
- * [`docs/PLANO_DOCUMENTACAO.md`](../docs/PLANO_DOCUMENTACAO.md).
+ * As regras que ela mede estão no `CLAUDE.md` (seção "Documentação de
+ * código"); o histórico da varredura, em `docs/HISTORICO.md`.
  *
  * Mede três coisas que importam mais do que "porcentagem de comentário":
  *   1. arquivos sem CABEÇALHO de módulo (o comentário de maior retorno: diz o

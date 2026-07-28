@@ -84,7 +84,7 @@ if (problemas.length > 0) {
 	console.error(
 		'\nO cabeçalho diz o que o módulo é e quem o usa; o JSDoc diz o CONTRATO ' +
 			'(o que devolve, o que assume do chamador, que efeito colateral tem).\n' +
-			'Ver docs/PLANO_DOCUMENTACAO.md → Princípios.\n'
+			'Ver CLAUDE.md → "Documentação de código".\n'
 	);
 	process.exit(1);
 }

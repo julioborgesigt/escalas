@@ -198,7 +198,7 @@ O projeto usa **Cloudflare D1** (SQLite serverless) via **Drizzle ORM**. O schem
 | `escala_policiais`               | Associação policial ↔ escala (data, horário, equipe)                                                                |
 | `escala_documentos`              | PDFs assinados com metadados CAdES-LT (OCSP, TST, selfie, GPS, IP)                                                  |
 | `escala_solicitacoes_assinatura` | Solicitações de assinatura por unidade/respondência                                                                 |
-| `unidades`                       | Hierarquia: departamento → seccional → delegacia                                                                    |
+| `unidades`                       | Hierarquia: departamento → seccional → delegacia. Ligada por **nome** (ver abaixo)                                  |
 | `gise_escalas`                   | GISE operacionais (status, supervisor, assessor, configuração)                                                      |
 | `gise_seccionais`                | Seccionais dentro de uma GISE                                                                                       |
 | `gise_equipes`                   | Equipes (operacional/SEINT) com slots DPC/OIP                                                                       |
@@ -211,6 +211,21 @@ O projeto usa **Cloudflare D1** (SQLite serverless) via **Drizzle ORM**. O schem
 | `audit_log`                      | Trilha de auditoria forense (eventos de negócio, cadeia de hash tamper-evident)                                     |
 | `app_log`                        | Logs técnicos do servidor (warn/error do logger, correlacionados por `request_id`)                                  |
 
+### Unidade é referenciada por NOME
+
+Herança da planilha que originou o sistema: `policiais.lotacao` e
+`escalas.lotacao` guardam o **nome** da unidade, não uma chave estrangeira. Duas
+consequências que valem para qualquer mudança nessa área:
+
+- **Renomear cascateia.** `atualizarUnidade` propaga o nome novo para policiais e
+  escalas na mesma operação. Um `UPDATE` direto no banco quebraria os vínculos.
+- **Excluir é bloqueado enquanto houver vínculo.** `excluirUnidade` recusa se
+  ainda houver escala, servidor lotado, servidor com papel administrativo na
+  unidade, unidade subordinada ou GISE — e devolve 409 listando **todos** os
+  vínculos de uma vez. Sem essa checagem a exclusão não daria erro: os registros
+  ficariam apontando para um nome inexistente, e o RBAC falharia fechado (o admin
+  perde o escopo em silêncio).
+
 ### Comandos de migração
 
 ```bash
@@ -222,16 +237,24 @@ npm run db:migrate:staging
 
 # Aplicar migrações em produção (requer Wrangler autenticado; --yes obrigatório)
 npm run db:migrate:prod -- --yes
-
-# Gerar nova migração após alterar src/lib/server/schema.ts
-npx drizzle-kit generate --dialect sqlite
 ```
 
-> **Importante:** nunca edite arquivos em `migrations/` manualmente. Sempre edite o schema e deixe o Drizzle gerar o SQL.
+> **Importante:** as migrações são **escritas à mão**, e editar
+> `src/lib/server/schema.ts` **não cria tabela nenhuma** — muda só o tipo visto
+> pelo TypeScript. Uma coluna que existe só no schema compila, passa no `check` e
+> falha no primeiro `SELECT`. Toda alteração precisa do par: schema **+** um
+> `migrations/00NN_descricao.sql` novo.
+>
+> Não use `drizzle-kit generate`. O `drizzle.config.ts` ainda aponta para o
+> schema e as 12 primeiras migrações saíram dele, mas o gerador não produz o
+> _rebuild_ de tabela (criar nova → copiar → dropar → renomear) que o SQLite do
+> D1 exige para quase todo `ALTER` real.
 
 ### Histórico de migrações
 
-O histórico completo está na própria pasta [`migrations/`](migrations/) — os nomes dos arquivos são autoexplicativos (`0000_initial_schema.sql` … `0033_audit_forense.sql`) e o `migrations/meta/_journal.json` rastreia o que já foi aplicado em cada ambiente. Para entender uma migração específica, leia o SQL dela e o trecho correspondente do [`src/lib/server/schema.ts`](src/lib/server/schema.ts).
+O histórico completo está na própria pasta [`migrations/`](migrations/) — os nomes dos arquivos são autoexplicativos (`0000_initial_schema.sql` … `0036_policial_historico.sql`). Para entender uma migração específica, leia o SQL dela e o trecho correspondente do [`src/lib/server/schema.ts`](src/lib/server/schema.ts).
+
+O que já rodou em cada ambiente é rastreado pela tabela `_migrations_aplicadas`, gravada pelo runner [`scripts/migrate.ts`](scripts/migrate.ts) — **não** pelo `migrations/meta/_journal.json`, que é resíduo do `drizzle-kit` e ficou parado em 2 entradas para 39 arquivos.
 
 ---
 
@@ -293,8 +316,8 @@ Ele mede três coisas, na ordem de retorno que importa:
 2% de comentário pode estar certo — o que ele precisa é do cabeçalho. O gate
 automático é só para arquivo novo em `lib/db` (`npm run docs:guard`, no CI).
 
-O histórico das levas e os critérios de aceite estão em
-[`docs/PLANO_DOCUMENTACAO.md`](docs/PLANO_DOCUMENTACAO.md).
+O histórico da varredura que zerou esse backlog está arquivado — ver
+[`docs/HISTORICO.md`](docs/HISTORICO.md).
 
 ---
 
