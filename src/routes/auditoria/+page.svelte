@@ -1,4 +1,22 @@
 <script lang="ts">
+	/**
+	 * Console da trilha forense (`audit_log`) — a tela do SUPER ADMIN, não do
+	 * Admin Geral. Tudo que se vê aqui é somente leitura: o log é
+	 * tamper-evident, e nenhum caminho da UI edita ou apaga evento.
+	 *
+	 * Os filtros vivem na QUERY STRING, não em `$state`: o `+page.server.ts`
+	 * refaz a consulta a cada navegação, e em troca a busca vira link
+	 * compartilhável e sobrevive a reload — o que importa quando alguém está
+	 * documentando um incidente.
+	 *
+	 * A verificação de integridade é server action (`form?.integridade`) porque
+	 * recalcular a cadeia de hash é trabalho de servidor; o cliente só exibe o
+	 * veredito.
+	 *
+	 * O export não usa navegação: `baixar()` faz fetch + blob de propósito. Um
+	 * `<a download>` deixaria o router em "carregando" eterno e engoliria o 400
+	 * do limite de janela (1 ano no CSV, 1 mês no PDF), que aqui vira toast.
+	 */
 	import type { PageProps } from './$types';
 	import { enhance } from '$app/forms';
 	import { apiFetchResponse } from '$lib/api-fetch';

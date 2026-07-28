@@ -1,4 +1,23 @@
 <script lang="ts">
+	/**
+	 * Modal de data e horários da GISE: calendário de UM dia (com marcação de
+	 * feriado) e as horas de entrada/saída do serviço.
+	 *
+	 * O calendário é desenhado à mão, não é `<input type="date">`, porque
+	 * precisa de um estado que o nativo não tem: clicar no dia JÁ selecionado
+	 * alterna feriado em vez de reselecionar. Feriado muda o pagamento do
+	 * extraordinário, então é decisão consciente e não um efeito colateral de
+	 * escolher a data.
+	 *
+	 * Datas se montam com `isoData(ano, mês 1-12, dia)`, nunca com
+	 * `toISOString()` sobre um `Date` local — a diferença some em UTC e aparece
+	 * como um dia de erro no fuso de Brasília. `calMes` é 0-based (vem de
+	 * `getMonth`), daí o `+1` na chamada.
+	 *
+	 * Os campos são preenchidos no `$effect` da abertura, não na criação: o
+	 * modal permanece montado entre aberturas, e sem isso ele mostraria os
+	 * valores da GISE anterior.
+	 */
 	import { AlertTriangle } from 'lucide-svelte';
 	import { MESES_PT, DIAS_SEMANA_CURTO, isoData } from '$lib/utils';
 	import { enhance } from '$app/forms';
@@ -46,8 +65,14 @@
 		return cells;
 	});
 
+	/**
+	 * Hoje no fuso LOCAL. `new Date().toISOString().slice(0,10)` daria a data em
+	 * UTC: das 21h à meia-noite no horário de Brasília (UTC-3) o marcador de
+	 * "hoje" pulava para a célula de amanhã.
+	 */
 	function hoje(): string {
-		return new Date().toISOString().slice(0, 10);
+		const d = new Date();
+		return isoData(d.getFullYear(), d.getMonth() + 1, d.getDate());
 	}
 
 	function fmtDate(iso: string): string {

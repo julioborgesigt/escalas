@@ -1,4 +1,24 @@
 <script lang="ts">
+	/**
+	 * Histórico de GISEs encerradas: filtros, paginação e export.
+	 *
+	 * Tudo aqui é CLIENTE. A lista chega inteira por prop e é filtrada e
+	 * paginada em memória — nenhum filtro volta ao servidor. Simples enquanto o
+	 * volume for o de um ano de GISEs; se a listagem crescer, é este ponto que
+	 * precisa virar consulta paginada, não a UI ao redor.
+	 *
+	 * Os três filtros de tempo (data exata, mês, ciclo) são MUTUAMENTE
+	 * EXCLUSIVOS, e a exclusão é imposta nos handlers: escolher um limpa os
+	 * outros dois. A precedência no `$derived` — data > mês > ciclo — é a rede
+	 * de segurança para qualquer estado que escape disso. Os três campos ficam
+	 * visíveis ao mesmo tempo, então sem essa regra o resultado dependeria da
+	 * ordem em que o usuário tocou nos campos.
+	 *
+	 * Exportar exige um recorte de tempo ativo (`podeExportarHistorico`): sem
+	 * ele o arquivo sairia com a base inteira. É por isso que o botão nasce
+	 * desabilitado mesmo para o Admin Geral, e o histórico já abre filtrado pelo
+	 * mês corrente.
+	 */
 	import { goto } from '$app/navigation';
 	import { navigating } from '$app/state';
 	import { page } from '$app/state';

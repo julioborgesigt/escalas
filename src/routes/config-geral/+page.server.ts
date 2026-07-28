@@ -1,5 +1,7 @@
 /**
- * Configurações Gerais (Admin Geral).
+ * Configurações Gerais — restrito ao SUPER ADMIN (`isSuperAdmin`), tanto no
+ * `load` quanto na action. O nome da tela não reflete o gate: quem configura o
+ * sistema é o Super Admin, não o Admin Geral.
  *
  * Por ora: escolha do provedor de e-mail PADRÃO (Cloudflare ou Resend). O outro
  * provedor assume automaticamente por fallback quando o padrão falha ou

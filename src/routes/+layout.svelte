@@ -1,4 +1,29 @@
 <script lang="ts">
+	/**
+	 * Casca de toda página autenticada: sidebar, tema, overlay de carregamento e
+	 * as duas alternâncias de identidade. Nada aqui é gate de segurança — a
+	 * sidebar apenas ESCONDE o que o usuário não usa; quem barra é o `load` de
+	 * cada rota. Somar um item ao menu não dá acesso a nada, e removê-lo não
+	 * protege nada.
+	 *
+	 * A visibilidade dos itens cruza dois eixos que não se implicam:
+	 *   - QUEM é (`tipo`/`papel` + os flags de participação na GISE, que vêm do
+	 *     `+layout.server.ts` porque dependem do banco);
+	 *   - QUAL MÓDULO o admin escolheu (`adminModulo`: ambas/gise/escalas), que
+	 *     é preferência de tela, não permissão.
+	 * Daí `showGrupo1`/`showGrupo2` responderem `true` para não-admin: o filtro
+	 * de módulo só existe para admin.
+	 *
+	 * `ROTAS_SEM_SIDEBAR` são os PORTÕES — login, troca de senha obrigatória e
+	 * aceite do termo. `/aceitar-termo` é autenticado e por isso precisa estar
+	 * listado à mão, senão a sidebar aparece atrás do card de aceite.
+	 *
+	 * Duas armadilhas de navegação já resolvidas aqui, ambas invisíveis em teste
+	 * unitário: o `tick()` antes de `startViewTransition` (sem ele a barra de
+	 * progresso é fotografada ainda em `opacity:0` e nunca aparece) e o
+	 * `afterNavigate(() => loading.hide())`, que solta o overlay quando um
+	 * `loading.show()` anterior a um `goto` ficaria preso pedindo refresh.
+	 */
 	import type { LayoutProps } from './$types';
 	import '../app.css';
 	// Preload das duas fontes críticas acima da dobra (corpo + títulos): sem

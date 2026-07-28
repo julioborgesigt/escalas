@@ -1,4 +1,20 @@
 <script lang="ts">
+	/**
+	 * Os três atos de RH sobre um servidor: movimentar (trocar de lotação),
+	 * afastar (férias/licença) e desvincular (baixa). Um modal cada, três form
+	 * actions do `+page.server.ts` (`?/registrarMovimentacao`,
+	 * `?/registrarAfastamento`, `?/registrarDesvinculacao`).
+	 *
+	 * Nenhum deles é só um registro: cada um grava uma linha APPEND-ONLY em
+	 * `policial_historico`, que é a visão de RH do servidor e não se apaga pela
+	 * interface. Daí o `invalidateAll()` no sucesso — a timeline logo abaixo
+	 * (`HistoricoServidor`) precisa refletir o que acabou de ser gravado.
+	 *
+	 * No afastamento, "Qtd de dias" e "Data final" são o MESMO dado por dois
+	 * caminhos, e cada campo recalcula o outro. A contagem é INCLUSIVA (um
+	 * afastamento de 1 dia começa e termina no mesmo dia), daí o `q - 1` em
+	 * `adicionarDias` — tratar como exclusiva desloca todo afastamento em um dia.
+	 */
 	import { Dialog } from '@skeletonlabs/skeleton-svelte';
 	import { enhance } from '$app/forms';
 	import { invalidateAll } from '$app/navigation';

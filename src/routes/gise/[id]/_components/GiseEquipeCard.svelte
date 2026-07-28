@@ -1,4 +1,10 @@
 <script lang="ts">
+	/**
+	 * Card de uma equipe dentro de um slot de unidade: vagas DPC/OIP, horários
+	 * (com edição inline do Admin Geral), membros e o fluxo de adicionar membro.
+	 * O estado de edição vem de `GiseSeccionalEstado` (compartilhado com os
+	 * demais cards — os fluxos são mutuamente exclusivos por id).
+	 */
 	import { enhance } from '$app/forms';
 	import type { GiseDetalhado, GiseEquipeComMembros } from '$lib/db/gise';
 	import SearchableSelect from '$lib/components/SearchableSelect.svelte';
@@ -9,12 +15,6 @@
 
 	type Seccional = GiseDetalhado['seccionais'][number];
 
-	/**
-	 * Card de uma equipe dentro de um slot de unidade: vagas DPC/OIP, horários
-	 * (com edição inline do Admin Geral), membros e o fluxo de adicionar membro.
-	 * O estado de edição vem de `GiseSeccionalEstado` (compartilhado com os
-	 * demais cards — os fluxos são mutuamente exclusivos por id).
-	 */
 	const {
 		equipe,
 		sec,
