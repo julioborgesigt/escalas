@@ -28,7 +28,7 @@ import { bytesToHex, hexToBytes } from '../crypto/hex';
 
 // ---- Classificação ----------------------------------------------------------
 
-export type AuditCategoria =
+type AuditCategoria =
 	| 'autenticacao'
 	| 'escala'
 	| 'gise'
@@ -39,7 +39,7 @@ export type AuditCategoria =
 	| 'lgpd'
 	| 'sistema';
 
-export type AuditSeveridade = 'info' | 'aviso' | 'critico';
+type AuditSeveridade = 'info' | 'aviso' | 'critico';
 export type AuditResultado = 'sucesso' | 'falha' | 'negado';
 export type AuditActorTipo = 'policial' | 'admin' | 'sistema' | 'webhook';
 

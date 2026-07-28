@@ -105,6 +105,27 @@ export function opcoesMeses(valorTexto = false) {
 }
 
 /**
+ * Monta a data ISO `YYYY-MM-DD` a partir de ano, mês e dia.
+ *
+ * **`mes` é 1–12**, como no banco e como se fala — não o 0–11 de
+ * `Date.getMonth()`. Quem vem de um `Date` passa `d.getMonth() + 1`, e o `+ 1`
+ * fica visível no call site de propósito: existiam cinco cópias desta função
+ * espalhadas pelos calendários, metade com base 0 e metade com base 1, e a
+ * diferença só aparecia como data errada de um mês.
+ *
+ * Constrói a string diretamente, sem passar por `Date`: `toISOString()` converte
+ * para UTC e, em UTC-3, devolveria o dia anterior.
+ */
+export function isoData(ano: number, mes: number, dia: number): string {
+	return `${ano}-${String(mes).padStart(2, '0')}-${String(dia).padStart(2, '0')}`;
+}
+
+/** Quantos dias tem o mês (`mes` 1–12). Dia 0 do mês seguinte é o último deste. */
+export function diasNoMes(ano: number, mes: number): number {
+	return new Date(ano, mes, 0).getDate();
+}
+
+/**
  * Formata uma data por extenso. Ex: "01 de Janeiro de 2025".
  */
 export function formatarDataExtenso(date: Date): string {

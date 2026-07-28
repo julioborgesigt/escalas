@@ -41,7 +41,7 @@
 	import { Dialog } from '@skeletonlabs/skeleton-svelte';
 	import SearchableSelect from '$lib/components/SearchableSelect.svelte';
 	import { toaster } from '$lib/toast';
-	import type { ItemCompliance } from '../api/admin/compliance/+server';
+	import type { ItemCompliance } from '$lib/types';
 	import { useAutorizacao, getSavedFilters } from '$lib/composables';
 	import { loading as loadingService } from '$lib/loading.svelte';
 	import type { ActionResult } from '@sveltejs/kit';

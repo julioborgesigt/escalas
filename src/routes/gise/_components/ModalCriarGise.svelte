@@ -18,7 +18,7 @@
 	 * todas em paralelo.
 	 */
 	import { invalidateAll } from '$app/navigation';
-	import { MESES_PT, DIAS_SEMANA_CURTO } from '$lib/utils';
+	import { MESES_PT, DIAS_SEMANA_CURTO, isoData } from '$lib/utils';
 	import { fmtDate, diaSemana } from '$lib/gise/gise-formatters';
 	import { enhance } from '$app/forms';
 	import { toaster } from '$lib/toast';
@@ -82,10 +82,6 @@
 		}
 		prevOpen = open;
 	});
-
-	function isoDiaLocal(year: number, month: number, day: number): string {
-		return `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-	}
 
 	function calCicloDia(iso: string) {
 		const next = { ...diasModal };
@@ -251,7 +247,7 @@
 				<div class="grid grid-cols-7 gap-0.5">
 					{#each gradeCalendario as cell, i (i)}
 						{#if cell}
-							{@const iso = cell ? isoDiaLocal(calAno, calMes, cell.day) : ''}
+							{@const iso = cell ? isoData(calAno, calMes + 1, cell.day) : ''}
 							{@const sel = iso in diasModal}
 							{@const fer = sel && diasModal[iso].f}
 							{@const ehHoje = iso === hoje()}

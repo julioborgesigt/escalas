@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { AlertTriangle } from 'lucide-svelte';
-	import { MESES_PT, DIAS_SEMANA_CURTO } from '$lib/utils';
+	import { MESES_PT, DIAS_SEMANA_CURTO, isoData } from '$lib/utils';
 	import { enhance } from '$app/forms';
 	import type { SubmitFunction } from '@sveltejs/kit';
 	import { toaster } from '$lib/toast';
@@ -45,10 +45,6 @@
 		while (cells.length % 7 !== 0) cells.push(null);
 		return cells;
 	});
-
-	function isoDiaLocal(year: number, month: number, day: number): string {
-		return `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-	}
 
 	function hoje(): string {
 		return new Date().toISOString().slice(0, 10);
@@ -212,7 +208,7 @@
 				<div class="grid grid-cols-7 gap-0.5">
 					{#each gradeCalendario as cell, i (i)}
 						{#if cell}
-							{@const iso = cell ? isoDiaLocal(calAno, calMes, cell.day) : ''}
+							{@const iso = cell ? isoData(calAno, calMes + 1, cell.day) : ''}
 							{@const sel = iso === dataInicio}
 							{@const fer = sel && feriado}
 							{@const ehHoje = iso === hoje()}

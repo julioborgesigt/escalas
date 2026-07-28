@@ -12,6 +12,25 @@
  * Nota: os nomes dos campos JSON foram obtidos da documentação pública do portal
  * https://www.assinadorserpro.estaleiro.serpro.gov.br/minimalista/tutorial/
  * Verifique a documentação oficial caso ocorram erros de protocolo.
+ *
+ * **Escopo deliberado: só `sign` (type `hash`).** O sistema monta o CMS no
+ * servidor e manda ao Assinador apenas o SHA-256 dos SignedAttributes — é o que
+ * o fluxo CAdES/PAdES exige, e o que `PainelAssinaturaToken` usa.
+ *
+ * Duas capacidades que o protocolo oferece foram REMOVIDAS em jul/2026 por não
+ * terem nenhum chamador (ver `git log -- src/lib/serpro.ts` para o código):
+ *
+ * - `listCertificates()` — descobria o comando de listagem por tentativa e erro
+ *   (`list`, `getCertificates`, `listarCertificados`…). Era exploração de
+ *   protocolo, não funcionalidade: quem escolhe o certificado é a interface
+ *   nativa do próprio Assinador, na hora de assinar;
+ * - `signFile()` — assinatura com type `file`, em que o SERPRO calcula o digest
+ *   dos bytes enviados. Não serve ao modelo atual, e o comentário dela dizia
+ *   "é o que precisamos", contradizendo o caminho realmente em uso — dois
+ *   métodos parecidos com um deles enganando o próximo leitor.
+ *
+ * Se um dia for preciso listar certificados ou assinar por arquivo, recupere do
+ * histórico em vez de reescrever: o protocolo foi levantado por sondagem.
  */
 
 const dev = import.meta.env.DEV;
@@ -32,21 +51,6 @@ interface SerproSignResult {
 	signerAlias?: string;
 	/** Todas as mensagens recebidas (ACK + resposta real), para diagnóstico. */
 	rawMessages: unknown[];
-}
-
-interface SerproCertificate {
-	alias: string;
-	subjectDN: string;
-	issuerDN?: string;
-	/**
-	 * Certificado em formato DER codificado em Base64.
-	 * Pode não estar presente na listagem — use getCertificate(alias) para obter.
-	 */
-	certificate?: string;
-	/** CPF extraído do subjectDN (formato ICP-Brasil) */
-	cpf?: string;
-	/** Nome legível extraído do subjectDN */
-	subjectName?: string;
 }
 
 /**
@@ -73,45 +77,6 @@ const SERPRO_WS_URLS = [
 	'ws://127.0.0.1:65156/signer/',
 	'ws://127.0.0.1:65500/signer/'
 ];
-
-/**
- * Extrai CPF de uma string subjectDN no padrão ICP-Brasil.
- * Formatos comuns:
- *   CN=NOME DA PESSOA:12345678901
- *   CN=NOME DA PESSOA, C=BR  (CPF na OID 2.16.76.1.3.1 — não presente no DN)
- */
-function extrairCpfDoDN(dn: string): string | undefined {
-	// Formato "CN=Nome:CPF" — padrão mais comum em ICP-Brasil
-	const matchColon = dn.match(/CN=[^,]+:(\d{11})/i);
-	if (matchColon) return matchColon[1];
-	// Formato "CPF=12345678901"
-	const matchCpf = dn.match(/(?:^|,\s*)CPF=(\d{11})/i);
-	if (matchCpf) return matchCpf[1];
-	return undefined;
-}
-
-/**
- * Extrai o nome legível do subjectDN.
- * Remove o CPF sufixado e retorna apenas o nome.
- */
-function extrairNomeDoDN(dn: string): string {
-	// Busca valor do campo CN
-	const match = dn.match(/(?:^|,\s*)CN=([^,]+)/i);
-	if (!match) return dn;
-	// Remove CPF sufixado no formato "Nome:12345678901"
-	return match[1].replace(/:\d{11}$/, '').trim();
-}
-
-/**
- * Enriquece um certificado com cpf e subjectName extraídos do subjectDN.
- */
-function enriquecerCert(cert: SerproCertificate): SerproCertificate {
-	return {
-		...cert,
-		cpf: cert.cpf ?? extrairCpfDoDN(cert.subjectDN),
-		subjectName: cert.subjectName ?? extrairNomeDoDN(cert.subjectDN)
-	};
-}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Classe cliente
@@ -294,103 +259,6 @@ export class SerproSignerClient {
 	}
 
 	/**
-	 * Lista os certificados digitais disponíveis no computador.
-	 *
-	 * Estratégia:
-	 * 1. Envia {"command":"list"} para descobrir comandos suportados pelo servidor.
-	 * 2. Tenta variações de nome de comando para listar certificados.
-	 * 3. Cada probe coleta TODAS as mensagens recebidas (ACK + resposta real).
-	 *
-	 * Importante: a resposta {"command":"","requestId":0,"actionCanceled":false}
-	 * parece ser um ACK genérico — pode vir uma segunda mensagem com os dados reais.
-	 */
-	async listCertificates(): Promise<SerproCertificate[]> {
-		if (dev) console.warn('[SERPRO] Descobrindo protocolo de certificados...');
-
-		// Passo 1: listar comandos disponíveis no servidor SERPRO
-		try {
-			const listMsgs = await this.probeMulti({ command: 'list' });
-			if (dev)
-				console.warn(
-					'[SERPRO] 🔬 Resposta ao comando "list" (todas as mensagens):',
-					listMsgs.map((m) => {
-						try {
-							return JSON.parse(m);
-						} catch {
-							return m;
-						}
-					})
-				);
-		} catch (e) {
-			if (dev) console.warn('[SERPRO] 🔬 Comando "list" falhou:', e);
-		}
-
-		// Passo 2: testar variações de nome de comando para listar certificados
-		const candidates = [
-			{ command: 'listCertificates', requestId: 1 },
-			{ command: 'getCertificates', requestId: 2 },
-			{ command: 'obterCertificados', requestId: 3 },
-			{ command: 'listarCertificados', requestId: 4 },
-			{ command: 'certificates', requestId: 5 },
-			{ command: 'getAliases', requestId: 6 },
-			{ command: 'aliases', requestId: 7 }
-		];
-
-		for (const cmd of candidates) {
-			try {
-				const msgs = await this.probeMulti(cmd);
-				const parsed = msgs.map((m) => {
-					try {
-						return JSON.parse(m);
-					} catch {
-						return m;
-					}
-				});
-				if (dev) console.warn(`[SERPRO] 🔬 ${cmd.command} → ${msgs.length} msg(s):`, parsed);
-
-				// Verifica TODAS as mensagens recebidas em busca de certificados
-				for (const p of parsed) {
-					if (typeof p !== 'object' || p === null) continue;
-					const certs =
-						(p as Record<string, unknown>).certificates ??
-						(p as Record<string, unknown>).aliases ??
-						(p as Record<string, unknown>).content ??
-						(p as Record<string, unknown>).data;
-					if (Array.isArray(certs) && certs.length > 0) {
-						if (dev) console.warn(`[SERPRO] ✅ "${cmd.command}" retornou ${certs.length} cert(s)`);
-						return (
-							certs as Array<{
-								alias?: string;
-								subjectDN?: string;
-								issuerDN?: string;
-								certificate?: string;
-								thumbprint?: string;
-							}>
-						).map((c) =>
-							enriquecerCert({
-								alias: c.alias ?? c.thumbprint ?? '',
-								subjectDN: c.subjectDN ?? '',
-								issuerDN: c.issuerDN,
-								certificate: c.certificate
-							})
-						);
-					}
-				}
-			} catch (e) {
-				if (dev) console.warn(`[SERPRO] 🔬 ${cmd.command} → erro:`, e);
-			}
-		}
-
-		console.warn(
-			'[SERPRO] ⚠️ Nenhum comando retornou certificados.\n' +
-				'O protocolo SERPRO 4.x pode não suportar listagem programática de certificados.\n' +
-				'A seleção de certificado deve ser feita pela UI nativa do Assinador SERPRO ' +
-				'durante o comando "sign".'
-		);
-		return [];
-	}
-
-	/**
 	 * Assina um hash SHA-256 usando o comando "sign" do Assinador SERPRO.
 	 *
 	 * O SERPRO abre sua interface nativa para o usuário selecionar o certificado
@@ -482,83 +350,6 @@ export class SerproSignerClient {
 		return { rawSignature, certificateBase64: undefined, signerAlias, rawMessages: parsed };
 	}
 
-	/**
-	 * Assina um arquivo (bytes em Base64) usando o Assinador SERPRO com type:'file'.
-	 *
-	 * O SERPRO computa SHA-256(input_bytes) e usa como messageDigest no CMS — sem double-hash.
-	 * Isso é o que precisamos: enviar o byte-range do PDF para que o CMS.messageDigest
-	 * seja SHA-256(byte-range), valor esperado pelo validador de assinaturas PDF.
-	 *
-	 * @param dataBase64  - Bytes do arquivo em Base64 (ex: byte-range do PDF)
-	 * @param timeoutMs   - Tempo máximo aguardando interação do usuário (padrão 120 s)
-	 */
-	async signFile(dataBase64: string, timeoutMs = 120_000): Promise<SerproSignResult> {
-		const requestId = Date.now();
-		if (dev)
-			console.warn(
-				`[SERPRO] → Enviando sign (file, ${Math.round((dataBase64.length * 3) / 4 / 1024)} KB). Aguardando interação (${timeoutMs / 1000}s)...`
-			);
-
-		const msgs = await this.probeMulti(
-			{ command: 'sign', type: 'file', inputData: dataBase64, outputDataType: 'base64', requestId },
-			timeoutMs,
-			3_000
-		);
-
-		const parsed = msgs.map((m) => {
-			try {
-				return JSON.parse(m as string);
-			} catch {
-				return m;
-			}
-		});
-		if (dev) console.warn('[SERPRO] ← Todas as respostas do signFile:', parsed);
-
-		const real =
-			parsed.find((p: unknown) => {
-				if (typeof p !== 'object' || p === null) return false;
-				const o = p as Record<string, unknown>;
-				return (
-					o.outputData !== undefined ||
-					o.signature !== undefined ||
-					o.actionCanceled === true ||
-					typeof o.error === 'string'
-				);
-			}) ?? parsed[parsed.length - 1];
-
-		if (!real || typeof real !== 'object') {
-			if (dev) console.error('[SERPRO] Nenhuma resposta válida. Mensagens:', parsed);
-			throw new Error(
-				'O Assinador SERPRO não retornou resposta. Verifique se o aplicativo está em execução.'
-			);
-		}
-
-		const o = real as Record<string, unknown>;
-
-		if (typeof o.error === 'string' || o.result === 'ERROR' || o.result === 'FAILURE') {
-			throw new Error(interpretarErroSerpro(o));
-		}
-
-		if (o.actionCanceled === true) {
-			throw new Error('Assinatura cancelada pelo usuário no Assinador SERPRO');
-		}
-
-		if (dev) console.warn('[SERPRO] Campos disponíveis na resposta signFile:', Object.keys(o));
-
-		const rawSignature = (o.outputData ?? o.signature) as string | undefined;
-		if (!rawSignature) {
-			if (dev) console.error('[SERPRO] Resposta sem assinatura:', Object.keys(o), o);
-			throw new Error(
-				'O Assinador SERPRO não retornou a assinatura. Verifique se o seu certificado digital está disponível e tente novamente.'
-			);
-		}
-
-		const certificateBase64 = (o.certificate ?? o.signerCertificate ?? o.cert) as
-			string | undefined;
-
-		return { rawSignature, certificateBase64, rawMessages: parsed };
-	}
-
 	/** Encerra a conexão WebSocket. */
 	disconnect(): void {
 		this.clearPending();
@@ -578,7 +369,7 @@ export class SerproSignerClient {
 
 /**
  * Mapeia erros técnicos do Assinador SERPRO para mensagens amigáveis em português.
- * Usado por sign() e signFile() quando a resposta contém um campo `error`.
+ * Usado por `sign()` quando a resposta contém um campo `error`.
  */
 function interpretarErroSerpro(o: Record<string, unknown>): string {
 	const raw = String(o.error ?? o.causedBy ?? o.message ?? '');

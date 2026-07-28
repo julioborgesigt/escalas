@@ -239,31 +239,40 @@ já assinou.
 **Por que:** é a dívida que já produziu bug. Cada item aqui é uma classe de
 defeito fechada, não apenas explicada.
 
-- [ ] **Blocos de paginação inline** — `TabelaServidores.svelte:646`,
-      `SecaoHistorico.svelte:642` e `gise/+page.svelte:662` repetem o bloco que
-      `PaginationControls.svelte` encapsula. Precisa de prop/snippet para o texto
-      do contador, que difere em cada tela. _Verificação: validação visual das 3
-      telas._
-- [ ] **`ItemCompliance` declarado duas vezes** — idêntica em
-      `routes/painel/+page.server.ts` e `routes/api/admin/compliance/+server.ts`;
-      a `.svelte` importa a da API. Manter uma e importar.
-- [ ] **Calendários** — `ModalNovaEscala` × `ModalCriarGise` compartilham blocos
-      idênticos de 22, 20 e 15 linhas (navegação de mês e grade);
-      `CalendarioSelecaoDias` repete 15. Extrair o cabeçalho de navegação e a
-      grade. _Risco médio: markup compartilhado por 3 telas → validar visualmente
-      cada uma, incluindo mobile._
-- [ ] **`SerproSignerClient.listCertificates` e `.signFile`** — API pública sem
-      nenhum chamador (~120 linhas). Decidir: remover ou marcar explicitamente
-      como material de diagnóstico do protocolo SERPRO. Registrar a decisão no
-      próprio arquivo.
-- [ ] **Re-exports não usados em `lib/db.ts`** — 20 tipos reexportados que
-      ninguém importa do barrel (os consumidores importam do módulo de origem).
-      Decidir se o barrel é API pública ou conveniência interna.
+- [x] **Blocos de paginação inline** — extraído `Paginador.svelte` com só os
+      BOTÕES; cada tela mantém o seu contador e espaçamento, e
+      `PaginationControls` passou a usá-lo. Forçar o contador a prop deixaria a
+      API pior que a duplicação. _Validado nas 3 telas com clique real de
+      troca de página._
+- [x] **`ItemCompliance` declarado duas vezes** — movido para `$lib/types`; as
+      duas rotas e a `.svelte` importam de lá. Junto saíram `toISO`/`diasNoMes`,
+      que tinham CINCO cópias entre calendários e compliance.
+- [x] **Calendários** — unificado o helper de data (`isoData`), que era a parte
+      com risco real: havia duas convenções de mês (base 0 e base 1) no mesmo
+      sistema. A grade e a navegação NÃO foram extraídas: os três calendários
+      têm interações diferentes (dias avulsos, ciclo de 3 estados com feriado,
+      data única) e um componente comum precisaria de tantos props que viraria
+      pior. _Os três validados: clique de dia, virada de mês e ISO resultante._
+- [x] **`SerproSignerClient.listCertificates` e `.signFile`** — REMOVIDOS
+      (−249 linhas com os helpers que só eles usavam). Decisão registrada no
+      cabeçalho de `serpro.ts`, com o porquê e o ponteiro para o histórico.
+- [x] **Re-exports não usados em `lib/db.ts`** — o barrel é a API pública das
+      FUNÇÕES; tipo vem do módulo de origem. 16 dos 21 tipos não tinham
+      consumidor pelo barrel e saíram, com a regra escrita no cabeçalho.
 
 **Aceite:** cada item resolvido ou com decisão registrada no código. Nada aqui
 entra sem gates verdes + validação visual quando toca markup.
 
 **Esforço:** 2 levas. **Risco:** médio na parte de markup.
+
+**✅ CONCLUÍDA** em 1 leva (2026-07-28): −469 linhas, +131. Dois itens fechados
+com decisão em vez de refactor (grade dos calendários e barrel), registrada no
+código como o aceite exige.
+
+Ao tirar os re-exports do barrel, o `knip` passou a enxergar 4 tipos que ele
+mascarava (`AppLogLevel`, `AuditCategoria`, `AuditSeveridade`, `TipoHistorico`):
+exportados, usados só dentro do próprio módulo. Viraram locais. O barrel estava
+escondendo dead code da ferramenta que existe para achá-lo.
 
 ---
 
