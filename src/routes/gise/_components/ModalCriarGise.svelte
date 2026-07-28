@@ -18,7 +18,7 @@
 	 * todas em paralelo.
 	 */
 	import { invalidateAll } from '$app/navigation';
-	import { MESES_PT, DIAS_SEMANA_CURTO, isoData } from '$lib/utils';
+	import { MESES_PT, DIAS_SEMANA_CURTO, isoData, hojeLocalISO } from '$lib/utils';
 	import { fmtDate, diaSemana } from '$lib/gise/gise-formatters';
 	import { enhance } from '$app/forms';
 	import { toaster } from '$lib/toast';
@@ -125,9 +125,7 @@
 		return /^\d{1,2}:\d{2}$/.test(v);
 	}
 
-	function hoje(): string {
-		return new Date().toISOString().slice(0, 10);
-	}
+	const hoje = hojeLocalISO;
 
 	function handleCriarGise({ cancel }: { cancel: () => void }) {
 		if (diasModalOrdenados.length === 0) {

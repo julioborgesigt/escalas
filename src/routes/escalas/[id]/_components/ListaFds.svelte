@@ -24,7 +24,7 @@
 	import { tick } from 'svelte';
 	import { enhance } from '$app/forms';
 	import { toaster } from '$lib/toast';
-	import { formatarData } from '$lib/utils';
+	import { formatarData, intervaloDeDatas } from '$lib/utils';
 	import { buscarPoliciaisOptions } from '$lib/busca-policiais';
 	import { criarHelpersHorario, diaSemanaLabel } from './escala-horarios';
 	import { tratarResultadoAdicionarPlantao } from './plantao-datas';
@@ -72,16 +72,7 @@
 
 	function getDaysInRange(start: string, end: string) {
 		if (!start || !end) return [];
-		const days = [];
-		// eslint-disable-next-line svelte/prefer-svelte-reactivity
-		const current = new Date(start + 'T00:00:00');
-
-		const last = new Date(end + 'T00:00:00');
-		while (current <= last) {
-			days.push(new Date(current).toISOString().split('T')[0]);
-			current.setDate(current.getDate() + 1);
-		}
-		return days;
+		return intervaloDeDatas(start, end);
 	}
 
 	// Helpers de horário/data compartilhados com TabelaServidores

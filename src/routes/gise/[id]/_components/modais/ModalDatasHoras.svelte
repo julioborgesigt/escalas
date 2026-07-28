@@ -19,7 +19,7 @@
 	 * valores da GISE anterior.
 	 */
 	import { AlertTriangle } from 'lucide-svelte';
-	import { MESES_PT, DIAS_SEMANA_CURTO, isoData } from '$lib/utils';
+	import { MESES_PT, DIAS_SEMANA_CURTO, isoData, hojeLocalISO } from '$lib/utils';
 	import { enhance } from '$app/forms';
 	import type { SubmitFunction } from '@sveltejs/kit';
 	import { toaster } from '$lib/toast';
@@ -65,15 +65,7 @@
 		return cells;
 	});
 
-	/**
-	 * Hoje no fuso LOCAL. `new Date().toISOString().slice(0,10)` daria a data em
-	 * UTC: das 21h à meia-noite no horário de Brasília (UTC-3) o marcador de
-	 * "hoje" pulava para a célula de amanhã.
-	 */
-	function hoje(): string {
-		const d = new Date();
-		return isoData(d.getFullYear(), d.getMonth() + 1, d.getDate());
-	}
+	const hoje = hojeLocalISO;
 
 	function fmtDate(iso: string): string {
 		if (!iso) return '';

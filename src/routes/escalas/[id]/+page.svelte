@@ -29,6 +29,7 @@
 	import { SvelteSet } from 'svelte/reactivity';
 	import { enhance } from '$app/forms';
 	import { toaster } from '$lib/toast';
+	import { intervaloDeDatas } from '$lib/utils';
 	import { invalidateAll } from '$app/navigation';
 	import { apiFetch } from '$lib/api-fetch';
 	import type { ActionResult } from '@sveltejs/kit';
@@ -97,16 +98,7 @@
 	// diasEscalaLocal para FormAdicionarServidores (non-FDS pages — sem ModalEditarDias)
 	const diasEscalaLocal = $derived.by(() => {
 		if (!escala) return [];
-		const days: string[] = [];
-		// eslint-disable-next-line svelte/prefer-svelte-reactivity
-		const current = new Date(escala.data_inicio + 'T00:00:00');
-
-		const last = new Date(escala.data_fim + 'T00:00:00');
-		while (current <= last) {
-			days.push(new Date(current).toISOString().split('T')[0]);
-			current.setDate(current.getDate() + 1);
-		}
-		return days;
+		return intervaloDeDatas(escala.data_inicio, escala.data_fim);
 	});
 
 	function solicitarRemocao(itemId: number | number[], nome: string) {
