@@ -1,3 +1,23 @@
+/**
+ * As duas LEITURAS grandes da GISE: a listagem (`listarGiseEscalas`) e o
+ * carregamento completo de uma (`buscarGiseDetalhado`). Separadas do
+ * `escalas-crud` porque o que dói aqui não é a regra, é o número de queries —
+ * uma GISE tem seccionais → equipes → membros → presenças, e a versão ingênua
+ * é N+1 em quatro níveis.
+ *
+ * A saída é uma query por NÍVEL, todas disparadas juntas num `Promise.all` e
+ * costuradas em memória — cada uma puxa o nível inteiro com `inArray(ids)` e
+ * usa join só para alcançar as tabelas vizinhas. Não existe um join único de
+ * tudo, de propósito: ele produziria o produto cartesiano de presenças ×
+ * membros. Ao acrescentar um nível, siga o mesmo formato, nunca um `.get()`
+ * dentro de `map` — o D1 cobra por round-trip.
+ *
+ * A listagem NÃO é uma tabela: é um filtro de VISIBILIDADE. Os vínculos
+ * (supervisor, participante do quadro ou de equipe, admin de seccional
+ * participante) combinam por OR, e ausência de filtro significa "todas" — o
+ * caso do Admin Geral e do export. Passar o filtro errado aqui não dá erro, só
+ * mostra GISE de quem não devia ver.
+ */
 import { eq, and, or, ne, isNotNull, desc, asc, inArray, sql, type SQL } from 'drizzle-orm';
 import {
 	giseEscalas,

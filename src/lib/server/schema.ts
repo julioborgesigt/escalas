@@ -1,3 +1,30 @@
+/**
+ * Schema Drizzle de TODAS as tabelas do D1 — fonte única de tipos do servidor.
+ * Os `$inferSelect`/`$inferInsert` do fim do arquivo são o que o resto do
+ * código importa; `lib/db/` nunca redeclara a forma de uma linha.
+ *
+ * ESTE ARQUIVO NÃO CRIA TABELA. Editar aqui só muda o TIPO — o banco continua
+ * como estava até alguém escrever o `.sql` correspondente em `migrations/` e
+ * rodar `npm run db:migrate` (o runner é `scripts/migrate.ts`, com controle em
+ * `_migrations_aplicadas`). Uma coluna que existe aqui e não na migração
+ * compila, passa no `check` e só falha em runtime, no primeiro SELECT.
+ *
+ * As migrações hoje são ESCRITAS À MÃO. O `drizzle.config.ts` ainda aponta para
+ * cá e as 12 primeiras saíram do `drizzle-kit`, mas não há script de `generate`
+ * e o journal dele (`migrations/meta/_journal.json`, parado em 2 entradas para
+ * 39 arquivos) foi abandonado — quem decide o que já rodou é
+ * `_migrations_aplicadas`. O motivo é o SQLite do D1: quase todo ALTER de
+ * verdade é um rebuild de tabela (criar nova, copiar, dropar, renomear), que o
+ * gerador não produz. Numerar em sequência (`00NN_descrição.sql`) é obrigatório
+ * — o runner ordena por nome de arquivo.
+ *
+ * A maior parte das colunas `*_id` NÃO tem FK declarada, e isso é deliberado em
+ * dois casos: referência polimórfica (o mesmo `*_id` aponta para tabelas
+ * diferentes conforme o tipo) e preservação de prova — assinatura, presença e
+ * auditoria copiam nome/CPF/matrícula para a própria linha justamente para
+ * continuarem válidas depois que o cadastro do policial some. Um CASCADE ali
+ * apagaria a evidência.
+ */
 import { sqliteTable, text, integer, real, index, unique } from 'drizzle-orm/sqlite-core';
 import { sql } from 'drizzle-orm';
 

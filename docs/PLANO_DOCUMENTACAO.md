@@ -361,11 +361,11 @@ descrevia esse estado morto como se fosse real — corrigido junto.
 
 Em três levas, por categoria, do maior risco ao menor:
 
-| leva | categoria                    | arquivos | linhas |
-| ---- | ---------------------------- | -------: | -----: |
-| B1   | servidor (rotas e endpoints) |       12 |  4 391 |
-| B2   | `lib/` e `lib/server/`       |       16 |  7 826 |
-| B3   | UI                           |       18 |  7 839 |
+| leva | categoria                    | arquivos | linhas |     |
+| ---- | ---------------------------- | -------: | -----: | --- |
+| B1   | servidor (rotas e endpoints) |       12 |  4 391 | ✅  |
+| B2   | `lib/` e `lib/server/`       |       16 |  7 826 | ✅  |
+| B3   | UI                           |       18 |  7 839 |     |
 
 **Aceite:** `docs:inventario` com 0 arquivos ≥ 200 linhas sem cabeçalho — agora
 medido pela régua correta.
@@ -379,6 +379,38 @@ arquivo não acha. Mover custou nada; o que faltava era medir direito.
 Escritos do zero: `escalas/[id]/+page.server.ts` (154 ramos, o mais denso do
 projeto), `api/validar/[hash]/download`, `api/webhook/sync-policiais` e
 `painel/+page.server.ts`.
+
+**B2 ✅ concluída** (2026-07-28): _lib (resto)_, _lib/db_ e _lib/server_ zeradas
+— nenhum arquivo de biblioteca com ≥ 200 linhas está sem cabeçalho. O padrão de
+B1 se repetiu, em menor escala: **5 dos 16 só precisavam do cabeçalho movido**
+para cima dos imports (`useFaceLiveness`, `export-docx`, `gise/assinaturas`,
+`ModalCadastrarRubrica`, `DialogSolicitarAssinatura`).
+
+Onze escritos do zero. Os quatro que mais faltavam:
+
+- `pdf-signing-prepare.ts` (1 186 ln) — o fluxo é em DOIS TEMPOS porque a chave
+  privada não está no servidor, e há três embutimentos de CMS que diferem só na
+  origem dos bytes. Documentado o motivo de o CMS do SERPRO não ser
+  re-serializado (invalidaria a assinatura RSA — e é por isso que a qualificada
+  não leva TST server-side).
+- `schema.ts` (971 ln) — **editar aqui não cria tabela.** O tipo muda, o banco
+  não, e a divergência só aparece em runtime. Registrado também por que as
+  migrações são escritas à mão (o journal do `drizzle-kit` está parado em 2
+  entradas para 39 arquivos; quem manda é `_migrations_aplicadas`) e por que a
+  maioria das colunas `*_id` não tem FK — CASCADE apagaria prova assinada.
+- `pdf-signing-visual.ts` (857 ln) — nada ali assina; são desenhos que
+  TESTEMUNHAM a assinatura. Ordem obrigatória (tudo antes do preparar, ou os
+  bytes caem fora do `/ByteRange`) e a regra de que a avançada não pode exibir
+  "ICP-Brasil" nem MP 2.200-2.
+- `auth.ts` (548 ln) — os dois eixos de papel (`tipo` da sessão × `papel` do
+  RBAC, cumulativos) e o motivo de o arquivo estar em `lib/` e não `lib/server/`:
+  só o TIPO `UsuarioLogado` é importado no cliente, e qualquer import de valor
+  arrastaria `node:crypto` para o bundle.
+
+Goldens de PDF e e-mail conferidos antes e depois: nenhum byte alterado.
+
+Métrica: **34 → 18** arquivos ≥ 200 linhas sem cabeçalho. Os 18 restantes são
+todos de UI (B3).
 
 ## Fase C — fragilidade de fuso em datas
 

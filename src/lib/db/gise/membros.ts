@@ -1,3 +1,25 @@
+/**
+ * Escalar e desescalar policial em equipe de GISE — mais as três checagens de
+ * conflito que impedem escalar a mesma pessoa duas vezes.
+ *
+ * O insert é CRU: `adicionarGiseMembro` não valida nada, e não há constraint
+ * que o cubra (a unicidade que importaria é `(gise_id, policial_id)`, que
+ * atravessa três tabelas e não cabe num UNIQUE). Toda a proteção é de
+ * aplicação, e é responsabilidade de QUEM CHAMA rodar antes:
+ *   - `verificarConflitoMembroGise` — um policial serve em UMA equipe por GISE;
+ *   - `verificarConflitoHorarioPolicial` — choque de horário ao entrar em
+ *     equipe, contra outras GISEs E contra escala comum
+ *     (`verificarConflitoEscalasNaoGise`, de `server/escala-conflict`);
+ *   - `verificarConflitoHorarioPorGise` — o mesmo para quem entra como
+ *     supervisor/assessor/SEINT, que não é membro de equipe.
+ * Pular a checagem não dá erro: gera silenciosamente um policial em dois
+ * lugares ao mesmo tempo.
+ *
+ * O horário efetivo é uma CASCATA de três níveis — equipe → seccional → GISE,
+ * com o primeiro não-nulo vencendo. Comparar direto `giseEscalas.hora_entrada`
+ * ignora a equipe que tem horário próprio, que é exatamente o caso em que o
+ * conflito aparece.
+ */
 import { eq, and, or, ne } from 'drizzle-orm';
 import { verificarConflitoEscalasNaoGise } from '../../server/escala-conflict';
 import {

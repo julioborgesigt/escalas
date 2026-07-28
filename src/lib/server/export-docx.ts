@@ -1,3 +1,11 @@
+/**
+ * Geração dos .docx de escala (FDS, expediente e plantão mensal).
+ *
+ * É o formato EDITÁVEL entregue às unidades — o PDF assinado é o documento
+ * oficial (`export-pdf.ts`). Os dois consomem os mesmos agrupamentos de
+ * `export-shared.ts`, de modo que a ordem dos nomes e os horários batem entre
+ * as duas saídas; aqui só muda o desenho (tabelas do pacote `docx`).
+ */
 import {
 	Document,
 	Packer,
@@ -11,14 +19,6 @@ import {
 	BorderStyle,
 	PageOrientation
 } from 'docx';
-/**
- * Geração dos .docx de escala (FDS, expediente e plantão mensal).
- *
- * É o formato EDITÁVEL entregue às unidades — o PDF assinado é o documento
- * oficial (`export-pdf.ts`). Os dois consomem os mesmos agrupamentos de
- * `export-shared.ts`, de modo que a ordem dos nomes e os horários batem entre
- * as duas saídas; aqui só muda o desenho (tabelas do pacote `docx`).
- */
 import type { Escala, EscalaPolicialComDados } from '../types';
 import { formatarData, formatarDataExtenso } from '../utils';
 import {

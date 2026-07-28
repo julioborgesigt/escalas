@@ -1,4 +1,21 @@
 <script lang="ts">
+	/**
+	 * Botão de "assinar com Token A3" reaproveitável — o mesmo componente serve
+	 * escala, GISE, relatório de extra e formulário de serviço, e é por isso que
+	 * ele não sabe o que está assinando: recebe `prepararUrl`/`finalizarUrl` e
+	 * `extraPayload`, e a rota é quem define o documento.
+	 *
+	 * A orquestração preparar → assinar → finalizar NÃO está aqui: está em
+	 * `executarFluxoAssinaturaToken` ($lib/assinatura-token), compartilhada com
+	 * `useAssinaturaEscala` e a assinatura em lote. O que sobra neste arquivo é
+	 * UI — conectar no Assinador SERPRO, escolher o certificado, mostrar erro e
+	 * baixar o resultado. Correção de robustez do fluxo vai no módulo, nunca
+	 * aqui, ou volta a valer só para um dos chamadores.
+	 *
+	 * `control` é `$bindable` porque alguns chamadores disparam a assinatura de
+	 * um botão PRÓPRIO, fora do painel (o lote da GISE e a lista de escalas
+	 * renderizam o componente oculto só pelo fluxo).
+	 */
 	import { toaster } from '$lib/toast';
 	import { loading } from '$lib/loading.svelte';
 	import { baixarBlob, nomeArquivoContentDisposition } from '$lib/utils/download';
