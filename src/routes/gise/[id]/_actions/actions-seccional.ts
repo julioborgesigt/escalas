@@ -1,3 +1,11 @@
+/**
+ * Form actions das SECCIONAIS de uma GISE em `/gise/[id]`.
+ *
+ * Montagem (adicionar/remover) é do Admin Geral; o preenchimento
+ * (`finalizarSeccional`, horários) é do admin da própria seccional — daí os
+ * guards mistos de `isAdminGeral` × `isAdminSeccional` + `papel_unidade_id`.
+ */
+
 import { fail } from '@sveltejs/kit';
 import type { RequestEvent } from '@sveltejs/kit';
 import {
@@ -26,14 +34,6 @@ import {
 } from '$lib/server/schema';
 import { eq, and, asc, inArray } from 'drizzle-orm';
 import { getInt, saiuDaFaseDeEdicao } from './shared';
-
-/**
- * Form actions das SECCIONAIS de uma GISE em `/gise/[id]`.
- *
- * Montagem (adicionar/remover) é do Admin Geral; o preenchimento
- * (`finalizarSeccional`, horários) é do admin da própria seccional — daí os
- * guards mistos de `isAdminGeral` × `isAdminSeccional` + `papel_unidade_id`.
- */
 
 type Event = RequestEvent<{ id: string }>;
 

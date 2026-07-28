@@ -719,7 +719,6 @@
 			escalas={escalasVisiveis}
 			{podeOIPSolicitar}
 			{solicitacoesMap}
-			skipLoad={data.skipLoad}
 			{paginaAtual}
 			{totalPaginas}
 			onSolicitarEdicao={solicitarEdicao}

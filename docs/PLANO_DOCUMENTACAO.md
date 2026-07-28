@@ -77,10 +77,10 @@ de servidor, nenhum de componente.
       densidade de decisão do projeto**, sem cabeçalho. Presença + 2FA +
       relatório; os ramos de código expirado/tentativas esgotadas/usuário
       divergente são política de segurança
-- [ ] `routes/policiais/[id]/+page.server.ts` — 118 ramos; histórico do servidor,
-      vínculo de admin, afastamentos
-- [ ] `routes/escalas/+page.server.ts` — 117 ramos; filtros, escopo por papel e
-      `skipLoad`
+- [x] `routes/policiais/[id]/+page.server.ts` — 118 ramos; histórico do servidor,
+      vínculo de admin, afastamentos (fechado na Fase A)
+- [x] `routes/escalas/+page.server.ts` — 117 ramos; filtros, escopo por papel e
+      `skipLoad` — que se revelou código MORTO (fechado na Fase A)
 - [x] `routes/login/+page.server.ts` — 52 ramos; orquestra 2FA/bootstrap
       (`auth-flow.ts` já documentado, a rota não)
 - [x] `routes/api/webhook/sync-unidades` (falta `sync-policiais`) — contrato com
@@ -327,6 +327,80 @@ precisa de um critério exato, que a frouxidão apareceu. Números honestos hoje
 
 As fases 2, 4 e 5 não são afetadas: seus critérios (exports, opacidade,
 duplicação) não dependiam do cabeçalho. A fase 3 foi reaberta.
+
+---
+
+# Parte II — o que a auditoria de 2026-07-28 reabriu
+
+A correção da régua (Fase 6) devolveu 46 arquivos ≥ 200 linhas ao backlog, e a
+varredura pelas cinco classes de defeito achou mais duas instâncias. As fases
+abaixo fecham o que sobrou, **na ordem do risco**, não do tamanho.
+
+## Fase A — as duas rotas de servidor mais densas ✅ (concluída)
+
+`policiais/[id]/+page.server.ts` (524 ln, **118 ramos**) e
+`escalas/+page.server.ts` (517 ln, **117 ramos**) são os dois arquivos com maior
+densidade de decisão do projeto sem cabeçalho. Estavam no escopo da Fase 1 e
+nunca foram fechados porque a régua antiga não os sinalizava.
+
+**Por que primeiro:** é onde mora regra de negócio irrecuperável — histórico do
+servidor, vínculo de admin, afastamentos, escopo por papel. Os seis bugs da
+sessão saíram todos de `.ts` de servidor.
+
+**Aceite:** cabeçalho + uma linha por action dizendo o que ela decide.
+
+**✅ CONCLUÍDA** (2026-07-28). E a leitura de `escalas/+page.server.ts` achou
+código morto que a régua não pega: `const isAdmin = false` — hardcoded porque o
+Admin Geral passou a ser redirecionado no guarda do `load`. Isso tornava
+inalcançáveis quatro ramos, incluindo uma query inteira e o `skipLoad`, que
+viajava até `TabelaEscalas` e mantinha lá um estado vazio ("Escolha uma
+unidade") que nunca renderizava. −40 linhas. O cabeçalho que escrevi na Fase 3
+descrevia esse estado morto como se fosse real — corrigido junto.
+
+## Fase B — os 46 cabeçalhos reabertos
+
+Em três levas, por categoria, do maior risco ao menor:
+
+| leva | categoria                    | arquivos | linhas |
+| ---- | ---------------------------- | -------: | -----: |
+| B1   | servidor (rotas e endpoints) |       12 |  4 391 |
+| B2   | `lib/` e `lib/server/`       |       16 |  7 826 |
+| B3   | UI                           |       18 |  7 839 |
+
+**Aceite:** `docs:inventario` com 0 arquivos ≥ 200 linhas sem cabeçalho — agora
+medido pela régua correta.
+
+**B1 ✅ concluída** (2026-07-28): _rotas: servidor_ zerada. Dos 10 arquivos,
+**7 já tinham cabeçalho — escrito e depois enterrado sob os imports**. Foi o
+padrão dominante da leva, e a razão de a Fase 1 parecer completa quando não
+estava: a régua antiga achava o comentário em qualquer lugar, e quem abre o
+arquivo não acha. Mover custou nada; o que faltava era medir direito.
+
+Escritos do zero: `escalas/[id]/+page.server.ts` (154 ramos, o mais denso do
+projeto), `api/validar/[hash]/download`, `api/webhook/sync-policiais` e
+`painel/+page.server.ts`.
+
+## Fase C — fragilidade de fuso em datas
+
+12 pontos constroem `Date` em horário local e chamam `toISOString()`. Hoje é
+seguro (Workers em UTC, navegador brasileiro em UTC-3) e quebraria só em fuso
+positivo. Decidir caso a caso: trocar por `isoData` onde for barato, registrar
+a premissa onde não for.
+
+## Fase D — exclusão de unidade (precisa de decisão de PRODUTO)
+
+`excluirUnidade` valida só `escalas.lotacao`. Não valida `policiais.lotacao`,
+`policiais.papel_unidade_id` nem as unidades-filhas. Excluir uma seccional deixa
+delegacias e policiais apontando para um nome inexistente.
+
+O RBAC falha FECHADO (escopo vazio, admin perde acesso), então não é urgente. A
+pergunta é de produto: bloquear a exclusão, avisar, ou migrar os vínculos? **Não
+implementar sem a resposta.**
+
+## Fase E — arquivamento
+
+Quando A–C fecharem: reavaliar o baseline, arquivar este plano em
+[`HISTORICO.md`](HISTORICO.md) e deixar no lugar só a régua + os guardrails.
 
 ---
 
