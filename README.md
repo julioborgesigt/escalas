@@ -316,8 +316,8 @@ Ele mede três coisas, na ordem de retorno que importa:
 2% de comentário pode estar certo — o que ele precisa é do cabeçalho. O gate
 automático é só para arquivo novo em `lib/db` (`npm run docs:guard`, no CI).
 
-O histórico das levas e os critérios de aceite estão em
-[`docs/PLANO_DOCUMENTACAO.md`](docs/PLANO_DOCUMENTACAO.md).
+O histórico da varredura que zerou esse backlog está arquivado — ver
+[`docs/HISTORICO.md`](docs/HISTORICO.md).
 
 ---
 

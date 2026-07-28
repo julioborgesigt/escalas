@@ -20,7 +20,7 @@ Este arquivo descreve o objetivo de cada script utilitário e os comandos de ata
 
 - **Função:** mede a dívida de documentação do `src/` — arquivos sem cabeçalho de
   módulo, arquivos "opacos" (muita decisão e pouco comentário) e exports públicos
-  sem JSDoc. É a régua do [`docs/PLANO_DOCUMENTACAO.md`](../docs/PLANO_DOCUMENTACAO.md).
+  sem JSDoc. Mede as regras do [`CLAUDE.md`](../CLAUDE.md) (seção "Documentação de código").
 - **Atalho:** `npm run docs:inventario`
 - **Comando direto:** `node scripts/inventario-docs.mjs [--lista|--json]`
 - **Observação:** é heurística de priorização, não gate de CI — não reprova arquivo.

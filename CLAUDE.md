@@ -107,20 +107,28 @@ componentes novos.
 
 **Achou a mesma lógica em dois lugares? Extraia — não comente as duas.**
 
-Os cinco bugs corrigidos em jul/2026 têm a mesma forma: lógica copiada, uma
-cópia consertada, as outras não. E em todos eles a cópia CORRETA vinha
-acompanhada de um comentário explicando a armadilha:
+Os bugs corrigidos em jul/2026 têm todos a mesma forma: lógica copiada, uma
+cópia consertada, as outras não. E na maioria a cópia CORRETA vinha acompanhada
+de um comentário explicando a armadilha — que não protegeu ninguém:
 
-| bug                                    | o que a duplicação escondia                             |
-| -------------------------------------- | ------------------------------------------------------- |
-| `message.includes('UNIQUE')` (4 sites) | violação de unique virava 500 com SQL cru, não 409      |
-| `getField('serialNumber')`             | CPF vazio no `/validar` para e-CPF sem `:CPF` no CN     |
-| shades Tailwind inexistentes           | classes que não geravam CSS nenhum                      |
-| slot removido sem as equipes           | membros invisíveis na tela e ativos no gate de presença |
-| `toISO` com duas convenções de mês     | data de um mês errado, sem erro nenhum                  |
+| bug                                    | o que a duplicação escondia                               |
+| -------------------------------------- | --------------------------------------------------------- |
+| `message.includes('UNIQUE')` (4 sites) | violação de unique virava 500 com SQL cru, não 409        |
+| `getField('serialNumber')`             | CPF vazio no `/validar` para e-CPF sem `:CPF` no CN       |
+| shades Tailwind inexistentes           | classes que não geravam CSS nenhum                        |
+| slot removido sem as equipes           | membros invisíveis na tela e ativos no gate de presença   |
+| `toISO` com duas convenções de mês     | data de um mês errado, sem erro nenhum                    |
+| `hoje()` com `toISOString()` (2 sites) | calendário marcava AMANHÃ das 21h à meia-noite, em UTC-3  |
+| laço "dias do intervalo" (3 sites)     | a mesma troca local↔UTC, latente em fuso positivo         |
+| "restrito ao Admin Geral" (5 arquivos) | o gate era Super Admin; o comentário convidava a afrouxar |
+
+As três últimas linhas saíram da varredura de documentação — foram achadas por
+LEITURA, não por teste, e duas delas quebravam em produção.
 
 Comentário protege quem lê **aquele** arquivo. Extração protege quem não sabe
-que o arquivo existe — que é justamente quem quebra o sistema.
+que o arquivo existe — que é justamente quem quebra o sistema. E comentário
+errado sobre gate de permissão é pior que comentário nenhum: alguém "conserta a
+inconsistência" na direção da frase.
 
 Corolário prático: se a extração exigir tantos props que o componente comum
 fique pior que a duplicação, **registre a decisão no código** em vez de
@@ -142,15 +150,20 @@ documento que alguém já assinou.
 
 ## Documentação de código
 
-A régua é `npm run docs:inventario` (detalhes em
-[`docs/PLANO_DOCUMENTACAO.md`](docs/PLANO_DOCUMENTACAO.md)). Três alvos, nesta
-ordem de retorno: **cabeçalho de módulo** → **contrato de export público** →
-comentário de ponto em trecho opaco.
+A régua é `npm run docs:inventario`. Três alvos, nesta ordem de retorno:
+**cabeçalho de módulo** → **contrato de export público** → comentário de ponto
+em trecho opaco.
 
 O cabeçalho vai no TOPO do arquivo, antes dos imports — cabeçalho no meio do
 arquivo não é encontrado por quem o abre. Comentário explica DECISÃO
 (regra da corporação, ordem obrigatória, armadilha de biblioteca,
 consequência legal), nunca o que o código já diz.
+
+**Densidade de comentário não é meta.** A régua serve para PRIORIZAR, não é
+gate: um componente com 800 linhas de markup e 2% de comentário pode estar
+correto — o que falta nele é o cabeçalho. Perseguir porcentagem produz ruído,
+e `/** Busca a escala por id. */` é dívida: ocupa espaço, envelhece e não diz
+nada que a assinatura já não diga.
 
 Arquivo NOVO em `src/lib/db/` é verificado no CI (`npm run docs:guard`):
 precisa de cabeçalho e de JSDoc nos exports.

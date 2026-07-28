@@ -87,7 +87,8 @@ jobs:
       # Guard de documentação: arquivo NOVO em src/lib/db/ tem de nascer com
       # cabeçalho de módulo e JSDoc nos exports. Só arquivos ADICIONADOS no
       # diff — o legado é pago em levas, medido por `npm run docs:inventario`
-      # (ver docs/PLANO_DOCUMENTACAO.md). Aqui só impedimos que volte a crescer.
+      # (varredura de jul/2026 — ver docs/HISTORICO.md). Aqui só impedimos que
+      # volte a crescer.
       - name: Guard — documentação de arquivo novo em lib/db
         run: |
           BASE="${{ github.event.pull_request.base.sha || 'HEAD~1' }}"
