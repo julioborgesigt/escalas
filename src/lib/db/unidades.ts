@@ -1,16 +1,22 @@
-import { eq, asc } from 'drizzle-orm';
-import { unidades, policiais, escalas, giseSeccionais } from '../server/schema';
-import type * as schema from '../server/schema';
-import type { Database } from './core';
-
 /**
  * Unidades (departamentos, seccionais e delegacias).
  *
  * Ponto central do modelo: policiais e escalas referenciam a unidade pelo
  * NOME (`policiais.lotacao`, `escalas.lotacao`), não por chave estrangeira —
- * herança da planilha que originou o sistema. Por isso renomear cascateia
- * (ver `atualizarUnidade`) e excluir exige checar vínculos antes.
+ * herança da planilha que originou o sistema. As duas consequências disso são
+ * as duas operações perigosas deste arquivo:
+ *
+ * - **renomear cascateia** (`atualizarUnidade` propaga o nome novo para
+ *   policiais e escalas na mesma operação);
+ * - **excluir é recusado enquanto houver vínculo** (`excluirUnidade` checa e
+ *   devolve `{ ok: false }`). A checagem mora AQUI, não em quem chama: era
+ *   responsabilidade do chamador antes, e o único chamador implementava só
+ *   metade dela.
  */
+import { eq, asc } from 'drizzle-orm';
+import { unidades, policiais, escalas, giseSeccionais } from '../server/schema';
+import type * as schema from '../server/schema';
+import type { Database } from './core';
 
 /** Campos editáveis de uma unidade (mesmo shape em criar e atualizar). */
 type DadosUnidade = {
