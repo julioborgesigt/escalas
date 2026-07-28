@@ -1,4 +1,30 @@
 <script lang="ts">
+	/**
+	 * Formulário de PRODUTIVIDADE da GISE — renderiza o modelo de perguntas
+	 * (árvore, vinda do banco) e escreve as respostas no blob `respostas`.
+	 *
+	 * É o componente com mais ramificação da UI porque cada `tipo` de pergunta é
+	 * um widget diferente: sim/não, número, texto, drogas com peso e unidade,
+	 * armas por tipo, e os "complexos" que abrem uma LISTA de itens (mandados,
+	 * celulares, operações…).
+	 *
+	 * Duas tabelas evitam que isso vire cadeia de `if` por tipo, repetida em três
+	 * lugares:
+	 * - `CHAVES_TIPO` — onde cada tipo grava a quantidade e a lista no blob. As
+	 *   chaves são FIXAS e não derivam da `key` da pergunta: é o mesmo contrato
+	 *   que a leitura usa em `db/gise/respostas.ts`, e renomear a pergunta no
+	 *   editor não pode perder o detalhe já gravado;
+	 * - `ITEM_PADRAO` — a forma de um item vazio de cada lista.
+	 *
+	 * Responder "Sim" já cria o primeiro item da lista (`handleSimNao`), porque
+	 * "sim, houve" sem nenhum item nunca é a resposta final — e o policial que
+	 * marcou Sim e não preencheu nada teria de descobrir sozinho que faltava
+	 * clicar em "adicionar".
+	 *
+	 * Trocar para "Não" NÃO apaga o que já foi digitado: o dado fica no blob e é
+	 * a leitura que o ignora (detalhe só expande sob um "Sim"). Assim, marcar
+	 * "Não" por engano e voltar atrás não custa o preenchimento.
+	 */
 	import type { GiseModeloPerguntaConfig } from '$lib/types';
 
 	let { respostas = $bindable(), modelo = [] } = $props<{
@@ -121,6 +147,18 @@
 		</div>
 	{/snippet}
 
+	<!--
+		Um widget por `tipo` de pergunta, e o `{:else}` final é a rede: tipo
+		DESCONHECIDO (modelo mais novo que este código, ou digitado à mão) vira
+		campo de texto livre gravando na própria `key` da pergunta. Degrada em vez
+		de sumir — a resposta continua sendo coletada e guardada no lugar certo.
+
+		`renderCampo` chama a si mesmo para os `filhos`, então a profundidade é a
+		do modelo, não fixa aqui; `level` controla só o recuo. Os filhos só são
+		renderizados sob um "Sim" (exceto `operacoes_seint_pura`, que não tem pai
+		sim/não) — a MESMA regra que a leitura aplica em `db/gise/respostas.ts`,
+		e as duas precisam continuar iguais.
+	-->
 	{#snippet renderCampo(q: GiseModeloPerguntaConfig, level = 0)}
 		{@const chavesTipo = CHAVES_TIPO[q.tipo] ?? CHAVES_TIPO.operacoes_seint_pura}
 		{@const resKey = chavesTipo.lista}

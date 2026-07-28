@@ -1,4 +1,36 @@
 <script lang="ts">
+	/**
+	 * Card do QUADRO DE SUPERVISÃO da GISE — supervisor (DPC), assessor e os dois
+	 * SEINT. São os quatro papéis que não pertencem a nenhuma seccional, e é por
+	 * isso que ficam num card próprio, acima da lista de seccionais.
+	 *
+	 * O card acumula três responsabilidades que na tela são a mesma coisa:
+	 *   1. DESIGNAR os papéis (Admin Geral), um por vez;
+	 *   2. mostrar a RODAGEM de cada integrante — entrada, saída e, para o SEINT,
+	 *      o relatório entregue;
+	 *   3. hospedar as ASSINATURAS que são do quadro e não de uma seccional: a da
+	 *      escala GISE (quando `mostrarPainelAssinaturaEscala`) e a do relatório
+	 *      de extra da "unidade sintética" de supervisão.
+	 *
+	 * Decisões que o markup não explica:
+	 *
+	 * - a edição é POR PAPEL (`editandoPapel`), não do card inteiro: trocar o
+	 *   assessor não pode obrigar a reconfirmar supervisor e SEINT;
+	 * - `idsPapel` é um objeto com getters/setters em vez de quatro variáveis
+	 *   soltas porque snippet não aceita prop `$bindable` — `bind:` numa
+	 *   propriedade de objeto funciona, e os accessors fazem proxy para as props
+	 *   bindables, mantendo a API do componente intacta;
+	 * - remover uma designação submete o form por `requestSubmit()` depois de
+	 *   `tick()`: os inputs hidden precisam já refletir o `null`. A versão
+	 *   anterior usava `setTimeout(50)` e corria com o DOM;
+	 * - o bloco de extra aparece sempre que existe quadro nomeado
+	 *   (`quadroSupervisaoExtraExigeRelatorio`), independentemente de
+	 *   `podeDownload` — senão o card desaparecia para o DPC, que precisa vê-lo
+	 *   para assinar. O que a permissão controla é o BOTÃO, não o bloco;
+	 * - o download do relatório de extra exige rubricas completas de TODO o
+	 *   quadro (`supervisaoExtraRubricasCompletas`); faltando alguém, o motivo é
+	 *   mostrado com os primeiros nomes (`faltantesSupervisaoExtra`).
+	 */
 	import { enhance } from '$app/forms';
 	import { page } from '$app/state';
 	import type { SubmitFunction } from '@sveltejs/kit';

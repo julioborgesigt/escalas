@@ -1,4 +1,24 @@
 <script lang="ts">
+	/**
+	 * Modal de NOVA ESCALA. Um formulário por tipo, porque os três não têm nada
+	 * em comum além do título:
+	 *
+	 * - `plantao` e `expediente` são MENSAIS: escolhe-se mês/ano e o intervalo é
+	 *   preenchido do dia 1 ao último (`preencherMensal`), com horário 00:00 →
+	 *   23:59 — a escala cobre o mês inteiro, o horário de cada plantão é por
+	 *   servidor;
+	 * - `fds` é por DIAS avulsos, escolhidos num calendário, com um horário único
+	 *   aplicado a todos.
+	 *
+	 * `escalasExistentes` chega do pai só para evitar duplicata ANTES do submit:
+	 * `mesOcupado` desabilita mês que já tem escala daquele tipo naquela lotação,
+	 * e `mesAnteriorInfo` habilita "criar com base no mês anterior". É prevenção
+	 * de UI — quem valida de verdade é `verificarEscalaExistente` no servidor,
+	 * que aqui só devolveria erro depois de o usuário preencher tudo.
+	 *
+	 * Todo o estado é resetado ao FECHAR (não ao abrir): reabrir depois de um
+	 * cancelamento não pode trazer de volta o rascunho da tentativa anterior.
+	 */
 	import { Dialog } from '@skeletonlabs/skeleton-svelte';
 	import { MESES_PT, DIAS_SEMANA_CURTO } from '$lib/utils';
 	import { Moon, Sun, Calendar } from 'lucide-svelte';

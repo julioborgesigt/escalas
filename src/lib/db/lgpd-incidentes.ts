@@ -79,10 +79,12 @@ export async function registrarIncidente(
 	return result;
 }
 
+/** Todos os incidentes, mais recentes primeiro — painel do encarregado. */
 export async function listarIncidentes(db: Database): Promise<LgpdIncidente[]> {
 	return db.select().from(lgpdIncidentes).orderBy(desc(lgpdIncidentes.created_at)).all();
 }
 
+/** Um incidente por id, para a tela de detalhe/edição do encarregado. */
 export async function buscarIncidente(
 	db: Database,
 	id: number

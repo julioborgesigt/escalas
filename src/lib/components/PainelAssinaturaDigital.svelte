@@ -1,4 +1,22 @@
 <script lang="ts">
+	/**
+	 * Painel de assinatura da ESCALA (mensal ou FDS) — o bloco que fica no rodapé
+	 * de `/escalas/[id]` e concentra os três caminhos possíveis:
+	 *
+	 * - assinar EM TELA (assinatura avançada, via `SignaturePad`);
+	 * - assinar com CERTIFICADO (Token A3 / SERPRO, via `PainelAssinaturaToken`),
+	 *   que produz assinatura qualificada;
+	 * - SOLICITAR que outro DPC assine (`DialogSolicitarAssinatura`), quando quem
+	 *   está na tela não é quem deve assinar.
+	 *
+	 * Depois de assinada, o mesmo painel vira o cartão do documento: quem
+	 * assinou, quando, e os downloads — inclusive a versão "com manifesto",
+	 * oferecida só a quem `podeBaixarComManifesto` permite.
+	 *
+	 * O `documentoAssinadoInfo` é `$bindable` porque a assinatura acontece aqui e
+	 * a página precisa saber na hora: escala assinada passa a ser somente-leitura,
+	 * e a tabela de servidores reage a esse mesmo estado.
+	 */
 	import { slide } from 'svelte/transition';
 	import { Dialog } from '@skeletonlabs/skeleton-svelte';
 	import PainelAssinaturaToken from './PainelAssinaturaToken.svelte';

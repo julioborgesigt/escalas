@@ -97,21 +97,22 @@ ramos, mas já acima do corte de 6%, portanto não sinalizados) e
 
 ---
 
-## Fase 2 — Contratos da camada de dados
+## Fase 2 — Contratos da camada de dados ✅ (concluída)
 
 **Por que:** 62 exports sem JSDoc em `lib/db` — são contratos consumidos por
 rotas, endpoints e testes. É a maior concentração numérica do backlog.
 
 **Escopo:**
 
-- [ ] `db/policiais.ts` (8 exports) — cadastro, o núcleo do RBAC
-- [ ] `db/gise/respostas.ts` (5 exports, 80 ramos, **também opaco**) — formulário
+- [x] `db/policiais.ts` (8 exports) — cadastro, o núcleo do RBAC
+- [x] `db/gise/respostas.ts` (5 exports, 80 ramos, **também opaco**) — formulário
       de produtividade com schema dinâmico
-- [ ] `db/gise/escalas-crud.ts` (6) e `db/gise/seccionais.ts` (6)
-- [ ] `db/escalas.ts` (6 restantes) e `db/documentos.ts` (4)
-- [ ] `lib/auth.ts` (4) e `lib/utils.ts` (4)
-- [ ] `lib/gise/gise-page-helpers.ts` (6) — helpers puros usados pela UI
-- [ ] Restantes de `lib/server` (28) e `lib` (29), por ordem de uso
+- [x] `db/gise/escalas-crud.ts` (6) e `db/gise/seccionais.ts` (6)
+- [x] `db/escalas.ts` (6 restantes) e `db/documentos.ts` (4)
+- [x] `lib/auth.ts` (4) e `lib/utils.ts` (4)
+- [x] Resto de `lib/db` (27 exports em 15 arquivos) — **fecha o aceite da fase**
+- [x] `lib/gise/gise-page-helpers.ts` (6) — helpers puros usados pela UI
+- [x] Restantes de `lib/server` (28) e `lib` (23), por ordem de uso
 
 **Aceite:** zero exports sem doc em `lib/db`; cada JSDoc diz o **contrato** — o
 que devolve, o que assume do chamador e que efeito colateral tem (cache
@@ -119,9 +120,39 @@ invalidado, auditoria gravada, arquivo no R2).
 
 **Esforço:** 3 levas. **Risco:** nulo.
 
+**✅ CONCLUÍDA** em 6 levas (2026-07-27), acima do aceite: em vez de zerar só
+`lib/db`, o projeto INTEIRO ficou sem export público sem contrato.
+
+| métrica              | antes | depois |
+| -------------------- | ----: | -----: |
+| exports sem doc      |   121 |  **0** |
+| `lib/db` sem cabeçalho |     5 |  **0** |
+| opacos               |     9 |      7 |
+
+Duas correções na régua (`scripts/inventario-docs.mjs`) vieram desta fase, e são
+o motivo de a contagem cair mais do que os JSDoc escritos: assinatura de
+SOBRECARGA não é export separado (o JSDoc fica na primeira do encadeamento) e o
+export ÚNICO de um módulo com cabeçalho já está documentado por ele — cobrar um
+JSDoc a mais ali só produziria `/** Ver acima. */`.
+
+Achados de código que saíram das leituras, além do bug da leva 2:
+
+- `mapQuestions` recebia `filterTipo` e o usava em `filterTipo === 'seint' ? modelo : modelo`
+  — ternário de ramos idênticos. Parâmetro e ternário removidos; o chamador já
+  escolhia o modelo;
+- os dois remetentes de e-mail que não passavam por `enviarERegistrar`
+  (anexo e texto puro) foram unificados nele, com o helper ganhando `extras`.
+
+A leva 2 achou o **quinto bug do mesmo padrão** (lógica duplicada em três
+lugares, um deles errado): `removerGiseSeccionalUnidade` apagava só a linha do
+slot, deixando equipes e membros órfãos — invisíveis na tela, mas ainda contados
+pelo gate de presença. Corrigido com o delete das equipes, regressão travada em
+`db/__tests__/slot-remocao-equipes.test.ts` e a criação de slot unificada em
+`criarSlotComEquipesPadrao`.
+
 ---
 
-## Fase 3 — Cabeçalhos de UI
+## Fase 3 — Cabeçalhos de UI ✅ (concluída)
 
 **Por que:** 41 componentes sem cabeçalho, 14 deles com mais de 500 linhas. É o
 comentário de maior retorno por linha escrita: orienta quem abre a tela pela
@@ -145,9 +176,28 @@ critério aqui.
 
 **Esforço:** 2 levas. **Risco:** nulo.
 
+**✅ CONCLUÍDA** em 3 levas (2026-07-27), acima do aceite: **nenhum arquivo do
+projeto com ≥ 200 linhas está sem cabeçalho** — nem UI, nem rota de servidor.
+
+| métrica                          | antes | depois |
+| -------------------------------- | ----: | -----: |
+| arquivos ≥200 ln sem cabeçalho   |    27 |  **0** |
+| sem cabeçalho (qualquer tamanho) |    65 |     23 |
+| opacos                           |     9 |      6 |
+
+`gise/[id]/+page.svelte` e `gise-xlsx-workbook-append.ts` saíram da lista de
+opacos pelo próprio cabeçalho. O de `res-gise/+page.server.ts`, escrito na Fase
+1, estava DEPOIS dos imports e foi movido para o topo — convenção do projeto e
+o único lugar onde a régua (e quem abre o arquivo) o encontra.
+
+Correções de rota feitas na leitura: o mapa tipo → componente estava trocado em
+dois cabeçalhos (plantão usa `TabelaPlantao`, expediente usa
+`TabelaServidores`), e `skipLoad` não suprime skeleton — é o estado "Admin Geral
+ainda não escolheu lotação", em que o servidor nem consulta.
+
 ---
 
-## Fase 4 — Geração de documento com valor jurídico
+## Fase 4 — Geração de documento com valor jurídico ✅ (concluída)
 
 **Por que:** `export-pdf.ts` tem 165 ramos e 4,5% de comentário — é o arquivo
 mais opaco do projeto e produz os PDFs que o policial assina. Cada bloco de
@@ -156,16 +206,31 @@ hoje só está na cabeça de quem escreveu.
 
 **Escopo:**
 
-- [ ] `lib/server/export-pdf.ts` — por seção: o que cada bloco imprime e por quê;
+- [x] `lib/server/export-pdf.ts` — por seção: o que cada bloco imprime e por quê;
       apontar que a saída é congelada por `export-pdf-goldens`
-- [ ] `lib/server/gise-xlsx-workbook-append.ts` (32 ramos, 4 exports sem doc)
-- [ ] `lib/server/pdf-signing-visual.ts` — já em 14%, revisar apenas lacunas
+- [x] `lib/server/gise-xlsx-workbook-append.ts` (32 ramos, 4 exports sem doc)
+- [x] `lib/server/pdf-signing-visual.ts` — já em 14%, revisar apenas lacunas
+- [x] Os quatro opacos restantes fora do escopo original
+      (`RelatorioProdutividade`, `api/gise/historico/export`, `useCharts`,
+      `escalas/bem-vindo`, `SearchableSelect`)
 
 **Aceite:** cada função de layout com uma linha de propósito; toda constante de
 posicionamento/medida com o motivo do valor quando não for arbitrária.
 
 **Esforço:** 2 levas (mais lento: exige entender o layout). **Risco:** nulo em
 comentário; se algo for refatorado, os goldens são o guarda.
+
+**✅ CONCLUÍDA** em 1 leva (2026-07-27). **O projeto ficou com ZERO arquivos
+opacos** (18 no baseline): além do escopo da fase, os cinco opacos restantes de
+UI e endpoint foram fechados junto, porque todos eram o mesmo problema — muita
+decisão, nenhum registro do porquê.
+
+Goldens de PDF conferidos após a passada: byte-idênticos (só comentário
+entrou). O cabeçalho de `export-pdf.ts` registra o que faltava: unidade em
+milímetro e A4 paisagem, `finalY` como âncora do carimbo de assinatura, a
+checagem de "o bloco ainda cabe na página" antes de desenhar, e o aviso de
+nunca regravar golden para "fazer o teste passar" — são documentos que alguém
+já assinou.
 
 ---
 

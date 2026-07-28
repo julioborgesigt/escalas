@@ -238,6 +238,17 @@ function indiceAssinaturaPrincipal(todas: CmsExtraido[]): number {
 	return melhor;
 }
 
+/**
+ * Extrai a assinatura CMS do PDF — a PRINCIPAL, quando há mais de uma.
+ *
+ * Um PDF assinado em incrementos carrega várias entradas `/ByteRange`, uma por
+ * assinatura. A escolhida é a de maior alcance (`indiceAssinaturaPrincipal`),
+ * isto é, a que cobre mais bytes do arquivo: é ela que atesta o documento
+ * inteiro como está hoje. Pegar a primeira validaria uma versão anterior e
+ * ignoraria tudo que foi acrescentado depois — o vetor do shadow attack.
+ *
+ * `null` quando não há `/ByteRange` algum: PDF não assinado.
+ */
 export function extrairCmsDoPdf(pdfBytes: Uint8Array): CmsExtraido | null {
 	const todas = extrairTodasCmsDoPdf(pdfBytes);
 	if (todas.length === 0) return null;
@@ -740,6 +751,21 @@ export function avaliarPoliticaCriptografica(
 	return { ok: true };
 }
 
+/**
+ * Valida a cadeia do certificado contra o trust store da ICP-Brasil.
+ *
+ * Três respostas, e a terceira é o ponto: `'indisponivel'` significa que o trust
+ * store não foi carregado no ambiente — não é reprovação. Quem chama decide se
+ * aceita com aviso ou recusa (`ICP_BRASIL_TRUST_STORE_REQUIRED`); reduzir isso a
+ * `false` diria que o certificado é inválido quando o que falta é a nossa lista
+ * de ACs.
+ *
+ * `dataReferencia` deve ser o instante do CARIMBO DE TEMPO qualificado, não
+ * "agora": a assinatura foi feita com o certificado válido, e um e-CPF expira em
+ * 1–3 anos. Validando em "agora", toda assinatura antiga passaria a reprovar
+ * sozinha com o tempo — exatamente o que o carimbo CAdES-T/PAdES-LT existe para
+ * evitar.
+ */
 export function verificarCadeiaIcpBrasil(
 	cert: forge.pki.Certificate,
 	dataReferencia?: Date
@@ -985,6 +1011,28 @@ interface VerifyOptions {
 	env?: Record<string, string | undefined>;
 }
 
+/**
+ * Verificação completa da assinatura do PDF — o que a página pública `/validar`
+ * mostra em forma de checklist.
+ *
+ * Confere, de forma independente: INTEGRIDADE (o digest do conteúdo bate),
+ * ASSINATURA RSA (o CMS fecha com a chave do certificado), CADEIA ICP-Brasil,
+ * CARIMBO DE TEMPO qualificado, REVOGAÇÃO (OCSP) e COBERTURA do `/ByteRange`.
+ *
+ * Cada item é devolvido em `checks`, e os problemas em `erros`, em vez de lançar:
+ * a tela precisa dizer O QUE falhou, item por item.
+ *
+ * O `valid` consolidado NÃO é a conjunção ingênua dos checks:
+ * - exige integridade, cobertura do ByteRange, assinatura RSA, política
+ *   criptográfica e cadeia;
+ * - o CARIMBO DE TEMPO é reportado mas não exigido — sem ele a assinatura é
+ *   válida e não qualificada, distinção que a tela mostra;
+ * - `revogacao === 'unknown'` (OCSP fora do ar, sem snapshot) não invalida:
+ *   indisponibilidade de terceiro não é prova de revogação. Só `'revoked'`
+ *   reprova, ou um snapshot que não se possa confiar;
+ * - cadeia `'indisponivel'` conta como ok por padrão (trust store em
+ *   implantação) e reprova com `ICP_BRASIL_TRUST_STORE_REQUIRED=true`.
+ */
 export async function verificarAssinaturaCompleta(
 	pdfBytes: Uint8Array,
 	options: VerifyOptions = {}

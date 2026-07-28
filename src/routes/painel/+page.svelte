@@ -1,4 +1,25 @@
 <script lang="ts">
+	/**
+	 * PAINEL DE COMPLIANCE — quais unidades deviam ter escala e não têm.
+	 *
+	 * Uma linha por (unidade × regime × mês) exigível, com o estado apurado: em
+	 * dia, pendente, assinada, ignorada. É a tela que o Admin Geral usa para
+	 * cobrar, então "ausência de escala" é o dado principal — e por isso a
+	 * apuração é do servidor, que sabe o universo de unidades, e não da lista de
+	 * escalas existentes.
+	 *
+	 * `data.compliance` chega como PROMISE (streaming do `load`): a página pinta
+	 * os filtros de imediato e o relatório preenche quando resolve. A promessa é
+	 * resolvida aqui num `$effect` em vez de `{#await}` no markup para preservar
+	 * a cadeia de deriveds (dados → filtrados → agrupados) — com `{#await}` cada
+	 * bloco receberia o valor por conta própria e a filtragem teria de ser
+	 * duplicada. `null` significa "computando" e é o que mostra o skeleton.
+	 *
+	 * "Ignorar" uma pendência é TRIAGEM LOCAL: a chave vai para o localStorage
+	 * deste navegador, não para o banco. Serve para o admin tirar da frente o que
+	 * já resolveu por fora — a pendência continua existindo e outro admin (ou
+	 * outro navegador) continua vendo. Não confundir com decisão registrada.
+	 */
 	import type { PageProps } from './$types';
 	import { opcoesMeses } from '$lib/utils';
 	import {

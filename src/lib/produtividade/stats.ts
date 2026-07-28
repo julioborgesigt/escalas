@@ -23,6 +23,26 @@ type FilteredDataItem = {
 	seccional_id?: number;
 };
 
+/**
+ * Agrega os blobs de resposta nos totais do painel de produtividade.
+ *
+ * Percorre cada resposta uma única vez somando todas as perguntas: são centenas
+ * de blobs por mês e a alternativa (uma passada por pergunta) multiplicaria o
+ * custo pelo número de perguntas do modelo.
+ *
+ * Duas formas de agregar, decididas pelo tipo da pergunta: `isBool` CONTA
+ * ocorrências (cada `'Sim'` vale 1 evento) e o resto SOMA o valor numérico —
+ * tratar um "sim" como número daria zero e a pergunta desapareceria do painel.
+ * A leitura usa `mappedKey`, não `key`, porque nos tipos compostos a resposta
+ * mora em outra chave do blob.
+ *
+ * Drogas: os pesos são normalizados para GRAMAS (`kg` × 1000) antes de somar,
+ * senão 2 kg e 2 g virariam o mesmo 2 no total.
+ *
+ * Armas: o detalhe por tipo só é contado quando a pergunta booleana (`armasKey`,
+ * que vem do modelo porque o assessor pode ter renomeado) está `'Sim'` — mesma
+ * regra do relatório, para que lista digitada e depois negada não conte.
+ */
 export function calculateStats(
 	filteredData: FilteredDataItem[],
 	questions: Question[],
@@ -99,6 +119,15 @@ interface RankingItem {
  */
 type SeccionalItem = { id: number; nome: string };
 
+/**
+ * Ranking por seccional a partir de um extrator — quem chama decide O QUE está
+ * sendo contado (`res => Number(res.mandados_cumpridos)`), esta função só soma e
+ * ordena.
+ *
+ * TODA seccional recebida entra no mapa antes da soma, então seccional sem
+ * nenhuma resposta aparece com total 0 em vez de desaparecer do ranking: no
+ * painel de produtividade, "não produziu" é informação, não ausência de dado.
+ */
 export function calculateRanking(
 	seccionais: SeccionalItem[],
 	filteredData: FilteredDataItem[],

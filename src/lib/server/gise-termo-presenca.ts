@@ -68,6 +68,15 @@ function wrap(
 	return linhas;
 }
 
+/**
+ * Gera o TERMO DE CONFIRMAÇÃO DE PRESENÇA (entrada ou saída) de um policial na
+ * GISE e devolve, junto com o PDF, o `signatureLineY` — a coordenada onde a
+ * assinatura será desenhada.
+ *
+ * Devolver a coordenada é o ponto: este termo é assinado com certificado, e o
+ * fluxo de assinatura precisa saber onde ancorar o carimbo visual sem
+ * redesenhar nem remedir o documento.
+ */
 export async function gerarTermoPresencaPdf(
 	input: TermoPresencaInput
 ): Promise<{ pdf: Uint8Array; signatureLineY: number }> {

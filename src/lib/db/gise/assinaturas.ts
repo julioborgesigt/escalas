@@ -5,6 +5,21 @@ import { anonimizarIp } from '../audit';
 import { parseUserAgent, reduzirPrecisaoGps } from '../../server/document-utils';
 import { cifrarCpfParaArmazenar, type CpfCriptoEnv } from '../../crypto/cpf-cripto';
 
+/**
+ * Assinaturas de RELATÓRIO da GISE (`gise_assinaturas_relatorios`) e termos de
+ * presença — os documentos que cada seccional assina, distintos da assinatura
+ * única da escala (`gise_documentos`).
+ *
+ * A identidade de uma assinatura de relatório é a trinca
+ * `(gise_id, seccional_id, tipo)`: uma por seccional por tipo. `tipo` separa o
+ * relatório `extraordinario` (do serviço) do de `produtividade`; a seccional 0
+ * é o quadro de supervisão extra, que não é seccional de verdade.
+ *
+ * Mesma minimização LGPD da assinatura de escala: CPF cifrado, IP anonimizado,
+ * user-agent resumido (com o bruto truncado) e GPS a ~1 km.
+ */
+
+/** Todas as assinaturas de relatório da GISE, sem filtro de seccional ou tipo. */
 export async function buscarAssinaturasRelatoriosGise(db: Database, giseId: number) {
 	return db
 		.select()
@@ -13,6 +28,15 @@ export async function buscarAssinaturasRelatoriosGise(db: Database, giseId: numb
 		.all();
 }
 
+/**
+ * A assinatura da trinca `(gise, seccional, tipo)`, com a matrícula do assinante
+ * resolvida por `leftJoin` — `left` porque o assinante pode ter sido excluído do
+ * cadastro depois de assinar, e a assinatura continua valendo (o nome e o CPF
+ * foram copiados para a própria linha justamente por isso).
+ *
+ * `orderBy(desc(created_at))` é defensivo: a trinca é única, então há no máximo
+ * uma linha; se um índice faltar em algum ambiente, a mais recente ganha.
+ */
 export async function buscarAssinaturaRelatorioGise(
 	db: Database,
 	giseId: number,
@@ -53,6 +77,17 @@ export async function buscarAssinaturaRelatorioGise(
 		.get();
 }
 
+/**
+ * Registra (ou substitui) a assinatura do relatório. Reassinar sobrescreve a
+ * linha inteira, inclusive o `created_at`: o que vale é a assinatura vigente.
+ *
+ * `tipo_assinatura` guarda COMO foi assinado — `simples` (em tela),
+ * `webpki`/`serpro` (certificado ICP-Brasil) — e é o que a validação usa para
+ * decidir se há CMS a verificar. Os campos CAdES só vêm nos dois últimos.
+ *
+ * Nunca chame com o CPF já cifrado: a cifra é feita aqui, e cifrar duas vezes
+ * torna o valor inútil para comparação.
+ */
 export async function salvarAssinaturaRelatorioGise(
 	db: Database,
 	data: {

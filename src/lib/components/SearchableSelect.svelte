@@ -1,4 +1,20 @@
 <script lang="ts">
+	/**
+	 * Select com busca — usado em todo lugar que escolhe policial ou unidade.
+	 *
+	 * Dois modos, e a diferença é de onde vêm as opções:
+	 * - `options` fixo (unidades, alguns milhares no máximo, já carregados);
+	 * - `loadOptions` assíncrono (policiais), com debounce e CANCELAMENTO da
+	 *   busca anterior via `useBuscaDebounce`. Sem cancelar, respostas fora de
+	 *   ordem faziam a lista piscar com o resultado de uma busca já abandonada.
+	 *
+	 * `selectedOption` existe além de `value` porque o rótulo do item escolhido
+	 * pode não estar na lista atual: reabrir uma escala mostra "FULANO DE TAL"
+	 * sem precisar rebuscar, e digitar outra coisa não apaga a seleção.
+	 *
+	 * O menu vai num `Portal` para escapar do `overflow` das tabelas e modais
+	 * onde o componente costuma viver.
+	 */
 	import {
 		Combobox,
 		Portal,

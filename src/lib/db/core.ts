@@ -13,6 +13,16 @@ export type Database = ReturnType<typeof getDB>;
  */
 type PlatformLike = { env?: Partial<Env> } & Partial<Env>;
 
+/**
+ * Cliente Drizzle sobre o binding D1 — o ponto de entrada de toda a camada de
+ * dados. Barato de chamar (só embrulha o binding), então cada handler chama o
+ * seu; não existe conexão a reaproveitar entre requests em Workers.
+ *
+ * LANÇA quando o binding não está presente, em vez de devolver `undefined`: sem
+ * banco não há nada de útil a fazer, e o erro no ponto da chamada aponta o
+ * problema real (wrangler/env mal configurado) em vez de estourar em algum
+ * `.select()` adiante.
+ */
 export function getDB(
 	platform: PlatformLike | undefined
 ): ReturnType<typeof drizzle<typeof schema>> {

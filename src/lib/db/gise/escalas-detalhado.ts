@@ -17,6 +17,15 @@ import { logger } from '../../server/logger';
 import type { GiseDetalhado, GiseUnidadeSlot } from './types';
 import { buscarUnidadeIdSupervisaoExtra } from '../../server/gise-supervisao-extra';
 
+/**
+ * GISEs visíveis para quem pede, com os agregados que a listagem mostra.
+ *
+ * Os três filtros são VÍNCULOS, combinados por OR: supervisor, participante
+ * (quadro de supervisão ou membro de equipe) e admin de seccional participante.
+ * Nenhum filtro = todas as GISEs, que é o caso do Admin Geral e do export
+ * administrativo — então omitir os parâmetros é escolha de escopo, não descuido:
+ * chamar sem argumentos entrega o sistema inteiro.
+ */
 export async function listarGiseEscalas(
 	db: Database,
 	supervisorId?: number,

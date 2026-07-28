@@ -252,6 +252,13 @@ const _fmtDataHora = new Intl.DateTimeFormat('pt-BR', {
 	hour12: false
 });
 
+/**
+ * Data/hora do carimbo visual no rodapé, no formato `DD/MM/AA HH:MM`.
+ *
+ * Fuso FIXO em `America/Sao_Paulo` (definido no `Intl.DateTimeFormat` acima), não
+ * o do servidor: em Workers o servidor é UTC, e um documento oficial da PCCE com
+ * horário três horas adiantado é erro material no papel.
+ */
 export function formatarDataHora(): string {
 	const parts = Object.fromEntries(
 		_fmtDataHora.formatToParts(new Date()).map((p) => [p.type, p.value])

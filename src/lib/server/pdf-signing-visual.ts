@@ -25,6 +25,18 @@ interface RodapeSimplesOptions {
 	signatureLevel?: 'avancada' | 'qualificada';
 }
 
+/**
+ * Desenha o rodapé de assinatura na ÚLTIMA página do PDF: nome do assinante,
+ * data/hora, rubrica (quando houver), código de validação e QR do `/validar`.
+ *
+ * Só a última página, e as medidas vêm em milímetros convertidos para pontos
+ * (`mmToPts`), porque o desenho segue o padrão de documento impresso da
+ * corporação, não coordenadas de tela.
+ *
+ * IMPORTANTE: isto altera os bytes do PDF, então tem de rodar ANTES de calcular
+ * o `/ByteRange` e assinar. Chamar depois invalidaria a assinatura — o rodapé é
+ * parte do documento assinado, não um enfeite posterior.
+ */
 export async function adicionarRodapeSimples(
 	pdfBytes: Uint8Array,
 	assinante: string,

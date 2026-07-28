@@ -23,10 +23,19 @@ type DadosUnidade = {
 	cidade: string;
 };
 
+/** Todas as unidades em ordem alfabética — não há filtro de ativo/inativo. */
 export async function listarUnidades(db: Database): Promise<schema.Unidade[]> {
 	return db.select().from(unidades).orderBy(asc(unidades.nome));
 }
 
+/**
+ * Cria a unidade. O `nome` é a chave real do modelo (é por ele que policiais e
+ * escalas se ligam) e vai `trim()`ado por isso: espaço sobrando cria uma unidade
+ * que parece existir mas não casa com nenhuma lotação.
+ *
+ * As flags `tem_*` definem quais tipos de escala a unidade aceita e são o que a
+ * tela de nova escala consulta.
+ */
 export async function criarUnidade(db: Database, data: DadosUnidade) {
 	return db.insert(unidades).values({
 		nome: data.nome.trim(),
@@ -126,6 +135,12 @@ export async function upsertUnidade(
 		});
 }
 
+/**
+ * Resolve nome → unidade, aplicando o mesmo `trim()` da gravação. É o caminho
+ * usado para transformar a `lotacao` (texto) de um policial na unidade de
+ * verdade; `null` significa lotação órfã — nome que não corresponde a nenhuma
+ * unidade cadastrada, situação normal em registros vindos do sync.
+ */
 export async function buscarUnidadePorNome(db: Database, nome: string) {
 	if (!nome) return null;
 	const trimmedNome = nome.trim();

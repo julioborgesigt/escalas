@@ -1,4 +1,33 @@
 <script lang="ts">
+	/**
+	 * Tela de uma ESCALA GISE — a mais densa do sistema, porque reúne num só
+	 * lugar as visões de quatro papéis diferentes sobre o mesmo documento:
+	 * Admin Geral (monta e finaliza), admin de seccional (preenche a sua),
+	 * supervisor DPC (assina) e observador (só lê).
+	 *
+	 * A página é sobretudo COMPOSIÇÃO. A lógica mora em três composables, e é
+	 * assim que se mantém legível apesar do tamanho:
+	 *
+	 * - `useGiseEstado` — permissões, formatação e derivações (`podeEditar`,
+	 *   `editaBloqueado`, `todasSeccionaisPreenchidas`);
+	 * - `useGiseAssinatura` — todos os fluxos de assinatura (rubrica, token
+	 *   SERPRO, lote de relatórios);
+	 * - `makeEnhanceHandler` — o padrão dos ~30 forms (pending → invalidate →
+	 *   toast → reset).
+	 *
+	 * O resto são os componentes de cada bloco (`GiseCabecalho`,
+	 * `GiseSupervisao`, `GiseSeccional`, os modais) e o estado de UI que precisa
+	 * viver aqui por ser compartilhado entre eles.
+	 *
+	 * Duas coisas que não se deduzem do markup:
+	 *
+	 * - a chave de invalidação é `'gise:detail'`, e não `invalidateAll()`: quase
+	 *   toda ação muda a árvore da GISE e precisa recarregá-la, mas recarregar o
+	 *   layout inteiro a cada clique piscava a sidebar;
+	 * - o "quadro de supervisão" é tratado como uma pseudo-seccional (a unidade
+	 *   sintética de supervisão extra), e por isso aparece nas mesmas listas de
+	 *   pendência e assinatura das seccionais de verdade.
+	 */
 	import { PenLine } from 'lucide-svelte';
 	import { goto, invalidate, replaceState } from '$app/navigation';
 	import type { PageProps } from './$types';

@@ -1,4 +1,29 @@
 <script lang="ts">
+	/**
+	 * Lista e CADASTRO de policiais — a tela de onde nasce o vínculo de cada
+	 * pessoa com uma unidade, e por consequência todo o escopo de RBAC.
+	 *
+	 * Listagem paginada no servidor (20 por página) com filtros de lotação,
+	 * cargo, seccional e busca, persistidos em localStorage por
+	 * `useFiltrosPaginados`. O filtro por seccional é do CLIENTE: ele restringe
+	 * as opções de lotação do dropdown, não a consulta. `'__todas__'` é a
+	 * sentinela de "sem filtro" que o servidor entende.
+	 *
+	 * O que a tela deliberadamente NÃO faz:
+	 *
+	 * - não define senha. O cadastro cria o registro com senha aleatória e
+	 *   `primeiro_acesso`, e o policial entra pelo link enviado por e-mail;
+	 * - não exibe CPF de ninguém: o campo é de ENTRADA, mascarado ao digitar
+	 *   (`formatarCPF`) e enviado limpo (`limparCPF`) para ser cifrado no
+	 *   servidor. A lista não traz CPF em claro do banco.
+	 *
+	 * O formulário de cadastro PODE conceder papel administrativo já na criação —
+	 * e aí `papel_unidade_id` é obrigatório, porque papel sem alcance deixa o
+	 * escopo indefinido (`papelSemUnidade` trava o submit). A única exceção é o
+	 * admin de unidade cadastrando outro admin da própria unidade, onde o alcance
+	 * é implícito. Alterar papel depois é na tela do policial
+	 * (`/policiais/[id]`).
+	 */
 	import type { PageProps } from './$types';
 	import { goto, invalidateAll } from '$app/navigation';
 	import { fly } from 'svelte/transition';

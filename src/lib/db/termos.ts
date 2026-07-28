@@ -35,6 +35,17 @@ interface RegistrarAceiteInput {
 	conteudo_html_snapshot?: string | null;
 }
 
+/**
+ * Grava o aceite e devolve a linha inserida. É uma tabela de LOG: nunca
+ * atualiza, cada aceite é uma linha nova, e a vigência é decidida na leitura
+ * (`aceiteEhVigente` sobre o aceite mais recente). Termo novo publicado
+ * simplesmente deixa os aceites antigos fora de vigência, sem apagá-los.
+ *
+ * IP e user-agent passam pela mesma minimização dos documentos assinados
+ * (anonimizado / reduzido a navegador+SO). O `conteudo_html_snapshot` faz o
+ * oposto de minimizar, de propósito: guarda o texto exato aceito, para que a
+ * prova não dependa do histórico do Git.
+ */
 export async function registrarAceite(
 	db: Database,
 	input: RegistrarAceiteInput

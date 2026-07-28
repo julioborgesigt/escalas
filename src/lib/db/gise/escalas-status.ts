@@ -13,6 +13,18 @@ import { buscarGiseEscala, atualizarGiseEscala } from './escalas-crud';
 import { buscarUnidadeIdSupervisaoExtra } from '../../server/gise-supervisao-extra';
 import { quadroSupervisaoExtraExigeRelatorio } from '../../gise/gise-supervisao-extra';
 
+/**
+ * Todas as seccionais já enviaram sua composição? É a condição para a GISE sair
+ * do preenchimento e ir para assinatura.
+ *
+ * "Não preenchida" são os status `pendente` e `retificada` — o segundo é a
+ * seccional que a supervisão DEVOLVEU para correção, e por isso volta a contar
+ * como pendência mesmo já tendo sido enviada uma vez.
+ *
+ * GISE sem nenhuma seccional devolve `true` (nada pendente). Quem depende disso
+ * como gate deve checar `totalSeccionais > 0` antes, ou uma escala vazia passa
+ * por completa.
+ */
 export async function verificarGiseCompleta(db: Database, giseId: number): Promise<boolean> {
 	const naoPreenchidas = await db
 		.select({ id: giseSeccionais.id })

@@ -1,3 +1,21 @@
+/**
+ * Assinatura EM TELA do relatório de serviço extraordinário de uma seccional
+ * (ou do quadro de supervisão) — assinatura avançada, sem certificado.
+ *
+ * A ordem do fluxo é o que dá valor ao documento:
+ *
+ *   1. permissão + seccional realmente pertencente a esta GISE;
+ *   2. **todos confirmaram a SAÍDA?** Sem isso o relatório sairia incompleto,
+ *      faltando a rubrica de quem ainda estava em serviço — e um relatório
+ *      assinado não se corrige, se refaz;
+ *   3. gera o PDF, aplica rodapé com QR de validação e a página de auditoria;
+ *   4. grava blob no R2 e a linha da assinatura;
+ *   5. tenta promover a GISE a `pronta_para_finalizar`.
+ *
+ * A página de auditoria consolida TODAS as rubricas de presença (entrada e
+ * saída) mais a assinatura do supervisor: é o manifesto que sustenta a prova, e
+ * por isso não vai na cópia de conferência que circula.
+ */
 import { json } from '@sveltejs/kit';
 import { bytesToHex } from '$lib/crypto/hex';
 import type { RequestHandler } from './$types';
