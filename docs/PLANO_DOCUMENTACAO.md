@@ -452,18 +452,59 @@ Mesma pergunta, duas respostas opostas conforme onde o código executa.
 
 Métrica: **18 → 0**.
 
-## Fase C — fragilidade de fuso em datas
+## Fase C — fragilidade de fuso em datas ✅
 
-12 pontos constroem `Date` em horário local e chamam `toISOString()`. Hoje é
-seguro (Workers em UTC, navegador brasileiro em UTC-3) e quebraria só em fuso
-positivo. Decidir caso a caso: trocar por `isoData` onde for barato, registrar
-a premissa onde não for.
+**Concluída** (2026-07-28). A premissa original ("12 pontos, latentes, quebram
+só em fuso positivo") estava errada nas duas metades.
 
-**1 dos 12 já saiu** (o `hoje()` do `ModalDatasHoras`, em B3) — e não era
-hipotético: quebrava três horas por dia no fuso atual. Ao varrer os 11
-restantes, classificar cada um por ONDE RODA antes de decidir a correção:
-navegador → getters locais; Worker → offset explícito de Brasília. Trocar tudo
-por `isoData` sem essa distinção troca um bug por outro.
+**Não eram 12 pontos: eram 4 padrões, com 9 cópias.** A varredura por
+`toISOString()` devolvia dezenas de linhas, mas a esmagadora maioria grava
+INSTANTE (`created_at`, `expires_at`, carimbo de assinatura) — e para instante,
+UTC é exatamente o certo. O defeito real é outro e tem nome: **ler a data em
+horário LOCAL e devolvê-la em UTC dentro da mesma função**. Em UTC-3 as duas
+pontas se compensam e o resultado sai certo por acidente.
+
+| padrão                     | cópias | onde                                                       |
+| -------------------------- | -----: | ---------------------------------------------------------- |
+| somar dias a uma data      |      3 | `adicionarDias`, `proximoDia` (utils), `addDias` (rotação) |
+| enumerar dias do intervalo |      3 | lista FDS, grade da escala, `getDaysInRange` do servidor   |
+| "hoje"                     |      2 | `ModalDatasHoras`, `ModalCriarGise`                        |
+| último dia do mês          |      1 | `ultimoDiaDoMes`                                           |
+
+**E nem todos eram latentes.** As duas cópias de `hoje()` quebravam AGORA, no
+fuso da corporação: das 21h à meia-noite o calendário marcava amanhã como hoje.
+Uma foi corrigida em B3; a segunda só apareceu nesta varredura — o mesmo bug,
+copiado, exatamente o cenário que o CLAUDE.md descreve.
+
+Correção seguindo "extrair antes de comentar" — as 9 cópias viraram 2 helpers
+novos em `$lib/utils`, e nenhum call site ficou com aritmética de data própria:
+
+- `intervaloDeDatas(inicio, fim)` — sem `Date` nenhum: compara string ISO
+  (lexicográfica) e soma com `adicionarDias`;
+- `hojeLocalISO()` — esta PRECISA seguir o fuso do aparelho, e só serve no
+  navegador. Está documentado no próprio JSDoc que no Worker (sempre UTC) a
+  resposta certa é outra: offset de Brasília explícito, como faz
+  `hojeBrasilISO` em `policiais/[id]/+page.server.ts`. **Não existe troca
+  mecânica** — a resposta depende de onde o código roda.
+- `adicionarDias` e `ultimoDiaDoMes` passaram a fazer a conta inteira em UTC
+  (`Date.UTC` → `setUTCDate` → `toISOString`), porque ali não existe "agora" e
+  nenhum fuso deveria participar.
+
+Também corrigido o CABEÇALHO de `utils.ts`, que documentava a convenção
+`'T00:00:00'` como regra geral — era ela que legitimava o padrão defeituoso. A
+regra escrita agora é: quem EXIBE lê em local, quem CALCULA fica em UTC, e
+misturar as duas na mesma função é o bug.
+
+**O entregável é o teste** (`src/lib/__tests__/datas-fuso.test.ts`, 24 casos).
+`utils.test.ts` já cobria `adicionarDias` e passava com o defeito presente: não
+faltava teste, faltava a DIMENSÃO fuso. O novo roda cada função sob 5 fusos
+(incluindo `Pacific/Kiritimati`, +14) e exige o mesmo resultado. Validado
+reintroduzindo o defeito de propósito: **12 falhas**; com a correção, 24 verdes.
+
+Equivalência do refactor comprovada à parte: 3.360 intervalos de datas
+comparados entre o laço antigo e `intervaloDeDatas` — **zero divergências** em
+`America/Fortaleza` e UTC, divergência em 100% em `Asia/Tokyo`. Ou seja, em
+produção o comportamento é idêntico, e só muda onde estava errado.
 
 ## Fase D — exclusão de unidade (precisa de decisão de PRODUTO)
 

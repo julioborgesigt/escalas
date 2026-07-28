@@ -8,6 +8,8 @@
  *   Exemplo: dias 1, 2, 9, 10, 17, 18, 25, 26
  */
 
+import { adicionarDias, isoData, diasNoMes } from './utils';
+
 export const MESES_PT = [
 	'JANEIRO',
 	'FEVEREIRO',
@@ -31,11 +33,9 @@ function diffDias(a: string, b: string): number {
 	return Math.round((db.getTime() - da.getTime()) / (1000 * 60 * 60 * 24));
 }
 
-function addDias(isoDate: string, n: number): string {
-	const d = new Date(isoDate + 'T00:00:00');
-	d.setDate(d.getDate() + n);
-	return d.toISOString().split('T')[0];
-}
+// `addDias` era uma terceira cópia de `adicionarDias`, com o mesmo defeito de
+// fuso das outras duas. Aliás local para não reescrever os ~10 call sites.
+const addDias = adicionarDias;
 
 /**
  * Detecta o tipo de rotação a partir de um array de datas ISO (data_plantao).
@@ -144,14 +144,21 @@ export function proximoMes(ano: number, mes: number): { ano: number; mes: number
 	return mes === 12 ? { ano: ano + 1, mes: 1 } : { ano, mes: mes + 1 };
 }
 
-/** Retorna o primeiro dia de um mês no formato ISO */
+/** Retorna o primeiro dia de um mês no formato ISO (`mes` 1–12). */
 export function primeiroDiaDoMes(ano: number, mes: number): string {
-	return `${ano}-${String(mes).padStart(2, '0')}-01`;
+	return isoData(ano, mes, 1);
 }
 
-/** Retorna o último dia de um mês no formato ISO */
+/**
+ * Retorna o último dia de um mês no formato ISO (`mes` 1–12).
+ *
+ * Montado com `diasNoMes` + `isoData`, sem `toISOString()`. A versão anterior
+ * era `new Date(ano, mes, 0).toISOString()`: construía a data em horário local
+ * e a formatava em UTC, e por isso devolvia 30/07 em vez de 31/07 em qualquer
+ * fuso positivo — um mês inteiro de escala deslocado, sem erro nenhum.
+ */
 export function ultimoDiaDoMes(ano: number, mes: number): string {
-	return new Date(ano, mes, 0).toISOString().split('T')[0];
+	return isoData(ano, mes, diasNoMes(ano, mes));
 }
 
 // Implementação única em $lib/utils (achado D1 do antigo ARQUIVOS.md — ver docs/HISTORICO.md); re-export

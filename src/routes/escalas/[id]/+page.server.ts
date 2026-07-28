@@ -34,6 +34,7 @@
 import { redirect, fail } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
 import { decifrarCpfDoDB } from '$lib/crypto/cpf-cripto';
+import { intervaloDeDatas } from '$lib/utils';
 import {
 	getDB,
 	buscarEscala,
@@ -793,16 +794,7 @@ export const actions: Actions = {
 		const novaDataFim = sorted[sorted.length - 1];
 
 		// Dias atualmente no range da escala
-		function getDaysInRange(start: string, end: string): string[] {
-			const days: string[] = [];
-			const cur = new Date(start + 'T00:00:00');
-			const last = new Date(end + 'T00:00:00');
-			while (cur <= last) {
-				days.push(cur.toISOString().split('T')[0]);
-				cur.setDate(cur.getDate() + 1);
-			}
-			return days;
-		}
+		const getDaysInRange = intervaloDeDatas;
 
 		const velhoRange = getDaysInRange(escala.data_inicio, escala.data_fim);
 		const novoRangeSet = new Set(getDaysInRange(novaDataInicio, novaDataFim));

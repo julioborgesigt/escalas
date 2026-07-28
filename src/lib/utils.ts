@@ -9,9 +9,14 @@
  *
  * Duas convenções do projeto que valem para todo o arquivo:
  *
- * - **Data é string `YYYY-MM-DD`**, não `Date`. Tudo que constrói um `Date`
- *   concatena `'T00:00:00'` para forçar horário LOCAL: sem isso a string é lida
- *   como UTC e, em UTC-3, "2026-01-15" se torna 14/01 na exibição;
+ * - **Data é string `YYYY-MM-DD`**, não `Date` — e a regra que importa é NÃO
+ *   MISTURAR CONVENÇÃO dentro de uma mesma função. Quem só EXIBE concatena
+ *   `'T00:00:00'` para ler em horário local (sem isso a string é lida como UTC
+ *   e, em UTC-3, "2026-01-15" vira 14/01 na tela). Quem faz ARITMÉTICA de data
+ *   fica inteiro em UTC (`Date.UTC` → `setUTCDate` → `toISOString`), porque ali
+ *   não existe "agora" e nenhum fuso deveria entrar na conta. Ler em local e
+ *   devolver com `toISOString()` é o erro que se compensa em UTC-3 e quebra em
+ *   fuso positivo;
  * - **entrada inválida devolve valor neutro** (`''`, a própria entrada, 0), sem
  *   lançar. São funções chamadas em meio a markup e a laços de formatação, onde
  *   uma exceção derrubaria a tela inteira por causa de um campo vazio.
@@ -26,13 +31,9 @@ export function formatarData(dateStr: string): string {
 	return `${day}/${month}/${year}`;
 }
 
-/**
- * Retorna a data do dia seguinte no formato "YYYY-MM-DD".
- */
+/** Retorna a data do dia seguinte no formato "YYYY-MM-DD". */
 function proximoDia(dateStr: string): string {
-	const d = new Date(dateStr + 'T00:00:00');
-	d.setDate(d.getDate() + 1);
-	return d.toISOString().split('T')[0];
+	return adicionarDias(dateStr, 1);
 }
 
 /** Remove acentos e normaliza espaços. Útil para comparações case-insensitive. */
@@ -228,12 +229,63 @@ export function limparCPF(v: string): string {
 /**
  * Soma `dias` a uma data ISO `YYYY-MM-DD` e devolve o resultado no mesmo
  * formato. Aceita valores negativos. Retorna a entrada se ela for inválida.
+ *
+ * A conta inteira roda em UTC — `Date.UTC` para entrar, `setUTCDate` para
+ * somar, `toISOString` para sair. Não é preciosismo: a versão anterior lia a
+ * data em horário LOCAL (`iso + 'T00:00:00'`) e a devolvia em UTC, misturando
+ * as duas convenções na mesma função. Em UTC-3 as pontas se compensavam e
+ * ninguém via; em qualquer fuso POSITIVO o resultado voltava um dia — a ponto
+ * de `adicionarDias(x, 1)` devolver o próprio `x`.
+ *
+ * Como aqui não existe noção de "agora", nenhum fuso deveria participar do
+ * cálculo, e agora nenhum participa.
  */
 export function adicionarDias(iso: string, dias: number): string {
 	if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) return iso;
-	const d = new Date(iso + 'T00:00:00');
-	d.setDate(d.getDate() + dias);
+	const [ano, mes, dia] = iso.split('-').map(Number);
+	const d = new Date(Date.UTC(ano, mes - 1, dia));
+	d.setUTCDate(d.getUTCDate() + dias);
 	return d.toISOString().slice(0, 10);
+}
+
+/**
+ * Todas as datas de `inicio` a `fim`, INCLUSIVE, em `YYYY-MM-DD`.
+ *
+ * Devolve `[]` quando `fim < inicio` ou quando alguma data é inválida — nunca
+ * lança e nunca entra em laço infinito.
+ *
+ * Existiam três cópias deste laço (a lista de FDS, a grade da escala e o
+ * `getDaysInRange` do servidor), todas construindo `new Date(iso+'T00:00:00')`
+ * e devolvendo `toISOString()`: local na entrada, UTC na saída. Aqui não há
+ * `Date` nenhum — comparação de string ISO é lexicográfica, e a soma vem de
+ * `adicionarDias`, que já é independente de fuso.
+ */
+export function intervaloDeDatas(inicio: string, fim: string): string[] {
+	const ISO = /^\d{4}-\d{2}-\d{2}$/;
+	if (!ISO.test(inicio) || !ISO.test(fim)) return [];
+	const dias: string[] = [];
+	let cur = inicio;
+	while (cur <= fim) {
+		dias.push(cur);
+		cur = adicionarDias(cur, 1);
+	}
+	return dias;
+}
+
+/**
+ * Hoje em `YYYY-MM-DD`, no fuso DO APARELHO. Para uso no NAVEGADOR.
+ *
+ * `new Date().toISOString().slice(0,10)` devolveria a data em UTC: das 21h à
+ * meia-noite no horário de Brasília, "hoje" já é amanhã em UTC. Era o defeito
+ * em duas cópias de `hoje()` (os modais de data da GISE), quebrando três horas
+ * por dia no fuso da corporação.
+ *
+ * NÃO use no servidor. O Worker roda em UTC, onde "local" não é o fuso de
+ * ninguém — lá a data de hoje precisa do offset de Brasília explícito.
+ */
+export function hojeLocalISO(): string {
+	const d = new Date();
+	return isoData(d.getFullYear(), d.getMonth() + 1, d.getDate());
 }
 
 /**
