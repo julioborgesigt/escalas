@@ -1,16 +1,3 @@
-import { json } from '@sveltejs/kit';
-import type { RequestHandler } from './$types';
-import { getDB, auditar, contextoDeEvento } from '$lib/db';
-import { upsertUnidade, buscarUnidadePorNome } from '$lib/db/unidades';
-import {
-	validarWebhookSync,
-	validarReplayProtection,
-	replayEnforceLigado,
-	logFaltaReplayHeaders
-} from '$lib/server/webhook-auth';
-import { logger } from '$lib/server/logger';
-import { apiError, ErrorCode, unauthorized } from '$lib/server/api';
-
 /**
  * POST /api/webhook/sync-unidades — espelha a estrutura organizacional vinda da
  * planilha institucional (Google Apps Script; ver `scripts/README.md`).
@@ -31,6 +18,20 @@ import { apiError, ErrorCode, unauthorized } from '$lib/server/api';
  * Os quatro níveis são processados em ordem (departamento → sub → seccional →
  * delegacia) porque cada um referencia o anterior como pai.
  */
+
+import { json } from '@sveltejs/kit';
+import type { RequestHandler } from './$types';
+import { getDB, auditar, contextoDeEvento } from '$lib/db';
+import { upsertUnidade, buscarUnidadePorNome } from '$lib/db/unidades';
+import {
+	validarWebhookSync,
+	validarReplayProtection,
+	replayEnforceLigado,
+	logFaltaReplayHeaders
+} from '$lib/server/webhook-auth';
+import { logger } from '$lib/server/logger';
+import { apiError, ErrorCode, unauthorized } from '$lib/server/api';
+
 type SyncNivel = 'DEPARTAMENTO' | 'SUB_DEPARTAMENTO' | 'SECCIONAL' | 'DELEGACIA';
 
 /** Lê a coluna `nivel` (aceita maiúsculas/minúsculas); `null` = linha legada. */

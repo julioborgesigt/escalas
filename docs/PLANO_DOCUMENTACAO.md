@@ -370,6 +370,16 @@ Em três levas, por categoria, do maior risco ao menor:
 **Aceite:** `docs:inventario` com 0 arquivos ≥ 200 linhas sem cabeçalho — agora
 medido pela régua correta.
 
+**B1 ✅ concluída** (2026-07-28): _rotas: servidor_ zerada. Dos 10 arquivos,
+**7 já tinham cabeçalho — escrito e depois enterrado sob os imports**. Foi o
+padrão dominante da leva, e a razão de a Fase 1 parecer completa quando não
+estava: a régua antiga achava o comentário em qualquer lugar, e quem abre o
+arquivo não acha. Mover custou nada; o que faltava era medir direito.
+
+Escritos do zero: `escalas/[id]/+page.server.ts` (154 ramos, o mais denso do
+projeto), `api/validar/[hash]/download`, `api/webhook/sync-policiais` e
+`painel/+page.server.ts`.
+
 ## Fase C — fragilidade de fuso em datas
 
 12 pontos constroem `Date` em horário local e chamam `toISOString()`. Hoje é

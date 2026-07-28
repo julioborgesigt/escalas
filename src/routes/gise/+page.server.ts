@@ -1,3 +1,15 @@
+/**
+ * `/gise` — lista das escalas GISE (ativas + histórico).
+ *
+ * A GISE é a operação extraordinária: uma escala por data, montada pelo Admin
+ * Geral e preenchida pelas seccionais. Esta rota é a porta de entrada dos
+ * quatro públicos que a enxergam — Admin Geral, admin seccional/unidade,
+ * supervisor DPC e policial escalado —, cada um com um recorte diferente.
+ *
+ * Só o Admin Geral CRIA escalas; a `criar` aceita várias datas de uma vez, do
+ * zero ou clonando uma escala existente.
+ */
+
 import type { PageServerLoad, Actions } from './$types';
 import { redirect, fail } from '@sveltejs/kit';
 import {
@@ -17,17 +29,6 @@ import { eq, asc } from 'drizzle-orm';
 import { unidades, policiais } from '$lib/server/schema';
 import { buscarConfiguracao } from '$lib/db/configuracoes';
 
-/**
- * `/gise` — lista das escalas GISE (ativas + histórico).
- *
- * A GISE é a operação extraordinária: uma escala por data, montada pelo Admin
- * Geral e preenchida pelas seccionais. Esta rota é a porta de entrada dos
- * quatro públicos que a enxergam — Admin Geral, admin seccional/unidade,
- * supervisor DPC e policial escalado —, cada um com um recorte diferente.
- *
- * Só o Admin Geral CRIA escalas; a `criar` aceita várias datas de uma vez, do
- * zero ou clonando uma escala existente.
- */
 export const load: PageServerLoad = async ({ locals, platform }) => {
 	const u = locals.usuario;
 	if (!u) redirect(302, '/login');

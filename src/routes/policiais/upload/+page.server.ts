@@ -1,16 +1,3 @@
-import { fail, redirect } from '@sveltejs/kit';
-import { getDB, listarUnidades, auditar, contextoDeEvento } from '$lib/db';
-import { policiais as policiaisTable } from '$lib/server/schema';
-import { limparMatricula, normalizarTexto } from '$lib/utils';
-import { gerarSenhaAleatoriaHash, isAdminGeral } from '$lib/auth';
-import type { PageServerLoad, Actions } from './$types';
-
-export const load: PageServerLoad = async ({ locals }) => {
-	if (!isAdminGeral(locals.usuario)) {
-		redirect(302, '/');
-	}
-};
-
 /**
  * `/policiais/upload` — importação de servidores em massa por CSV (Admin Geral).
  *
@@ -23,6 +10,19 @@ export const load: PageServerLoad = async ({ locals }) => {
  * Colunas esperadas: A Nome · B Matrícula · C Cargo (DPC/OIP) · D Lotação.
  * A senha inicial é aleatória — o servidor entra pelo fluxo de primeiro acesso.
  */
+
+import { fail, redirect } from '@sveltejs/kit';
+import { getDB, listarUnidades, auditar, contextoDeEvento } from '$lib/db';
+import { policiais as policiaisTable } from '$lib/server/schema';
+import { limparMatricula, normalizarTexto } from '$lib/utils';
+import { gerarSenhaAleatoriaHash, isAdminGeral } from '$lib/auth';
+import type { PageServerLoad, Actions } from './$types';
+
+export const load: PageServerLoad = async ({ locals }) => {
+	if (!isAdminGeral(locals.usuario)) {
+		redirect(302, '/');
+	}
+};
 
 /**
  * Casa o nome digitado na planilha com uma unidade cadastrada, ignorando

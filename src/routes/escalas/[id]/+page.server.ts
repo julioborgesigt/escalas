@@ -1,3 +1,36 @@
+/**
+ * `load` e as 15 actions da tela de UMA ESCALA — o arquivo com mais pontos de
+ * decisão do projeto (154). Quase toda a densidade vem de uma coisa só: o tipo
+ * da escala muda o que cada operação significa.
+ *
+ * **Todas as actions começam por `carregarEscalaComPermissao`.** É o preâmbulo
+ * único: autentica, valida o id e devolve `{db, escala, escalaId, usuario}` ou
+ * um `fail()` pronto. A regra que ele carrega e que não está em lugar nenhum
+ * além dele: DPC admin com solicitação de assinatura pode VER e ASSINAR, mas
+ * não MUTAR — por isso a restrição por lotação continua valendo aqui, mesmo
+ * que a leitura já tenha passado.
+ *
+ * As actions, agrupadas pelo que decidem:
+ *
+ * - **composição** (`adicionar`, `adicionarPlantao`, `adicionarTodos`,
+ *   `editar`, `remover`, `removerTodos`, `removerSelecionados`) — quem está na
+ *   escala. `adicionarPlantao` recebe as datas já projetadas pelo cliente
+ *   (ciclo 1x3/2x6) e insere uma linha por dia;
+ * - **datas e horários** (`editarPlantaoAgrupado`, `editarDiasEscala`,
+ *   `repetir`) — mexem nas linhas existentes sem trocar quem serve;
+ * - **ciclo de vida do FDS** (`finalizar`, `desfinalizar`, `reenviarEmail`) —
+ *   a escala de fim de semana não é assinada, é ENVIADA por e-mail com o
+ *   `.docx` anexo. `finalizar` grava o destinatário e dispara o envio;
+ *   `reenviarEmail` repete o envio sem refazer o registro;
+ * - **projeção** (`gerarProximoMes`) — cria a escala do mês seguinte a partir
+ *   desta, avançando a rotação. Recusa com 409 se já existir escala
+ *   equivalente, porque "equivalente" varia por tipo (ver
+ *   `verificarEscalaExistente`).
+ *
+ * O que NÃO está aqui: assinar. A assinatura é dos endpoints
+ * `/api/escalas/[id]/*`, porque envolve R2, CMS e carimbo de tempo — fluxo que
+ * não cabe em form action.
+ */
 import { redirect, fail } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
 import { decifrarCpfDoDB } from '$lib/crypto/cpf-cripto';

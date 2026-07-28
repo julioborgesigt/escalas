@@ -1,3 +1,8 @@
+/**
+ * Form actions da ESCALA GISE em si (quadro de supervisão, datas, ciclo de
+ * status e exclusão). Todas restritas ao Admin Geral.
+ */
+
 import { fail } from '@sveltejs/kit';
 import type { RequestEvent } from '@sveltejs/kit';
 import {
@@ -24,10 +29,6 @@ import { saiuDaFaseDeEdicao } from './shared';
 
 type Event = RequestEvent<{ id: string }>;
 
-/**
- * Form actions da ESCALA GISE em si (quadro de supervisão, datas, ciclo de
- * status e exclusão). Todas restritas ao Admin Geral.
- */
 export const actionsEscala = {
 	/**
 	 * Define supervisor, assessor e os dois SEINT.

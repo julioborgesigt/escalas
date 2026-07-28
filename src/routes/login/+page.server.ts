@@ -1,3 +1,16 @@
+/**
+ * Form actions de `/login` — a porta de entrada por FORMULÁRIO.
+ *
+ * A regra de autenticação em si mora em `$lib/server/auth-flow` (senha,
+ * bootstrap por env, rate limit por IP e por conta); esta rota orquestra o que
+ * é específico da navegação: cookies de sessão e de módulo admin, destino
+ * pós-login e o segundo fator quando a conta exige.
+ *
+ * Existe uma rota JSON equivalente (`/api/auth/login`, usada pelo cliente com
+ * fetch). As duas precisam aplicar os MESMOS limites — uma porta com throttle e
+ * outra sem seria um brute-force gratuito. Daí os tetos replicados abaixo.
+ */
+
 import { redirect, fail } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { eq, and } from 'drizzle-orm';
@@ -20,19 +33,6 @@ import { contarRecoveryAttempts, registrarRecoveryAttempt } from '$lib/server/re
 import { administradores, policiais } from '$lib/server/schema';
 import { loginSchema } from '$lib/schemas';
 import { resolverAppOrigin } from '$lib/server/app-origin';
-
-/**
- * Form actions de `/login` — a porta de entrada por FORMULÁRIO.
- *
- * A regra de autenticação em si mora em `$lib/server/auth-flow` (senha,
- * bootstrap por env, rate limit por IP e por conta); esta rota orquestra o que
- * é específico da navegação: cookies de sessão e de módulo admin, destino
- * pós-login e o segundo fator quando a conta exige.
- *
- * Existe uma rota JSON equivalente (`/api/auth/login`, usada pelo cliente com
- * fetch). As duas precisam aplicar os MESMOS limites — uma porta com throttle e
- * outra sem seria um brute-force gratuito. Daí os tetos replicados abaixo.
- */
 
 const PRIMEIRO_ACESSO_MAX_TENTATIVAS_IP = 5;
 const PRIMEIRO_ACESSO_JANELA_IP_MINUTOS = 15;
