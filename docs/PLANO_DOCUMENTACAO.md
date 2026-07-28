@@ -45,6 +45,14 @@ escrever**:
 
 ¹ _Opaco_ = ≥ 12 pontos de decisão por 100 linhas **e** < 6% de comentário.
 
+> **Correção do baseline (2026-07-28).** A coluna "sem cabeçalho" acima foi
+> medida com a régua antiga, que aceitava um comentário em qualquer lugar dos
+> primeiros 1200 caracteres — inclusive o JSDoc de uma função interna. Pela
+> definição correta (_comentário antes da primeira linha de código_) o baseline
+> real era **129**, não 65, e os arquivos com ≥ 200 linhas eram **73**, não 27.
+> A régua foi corrigida na Fase 6; as contagens das fases abaixo estão marcadas
+> como "antiga" ou "real" conforme o caso.
+
 ---
 
 ## Fase 0 — Instrumentação ✅ (concluída)
@@ -123,11 +131,11 @@ invalidado, auditoria gravada, arquivo no R2).
 **✅ CONCLUÍDA** em 6 levas (2026-07-27), acima do aceite: em vez de zerar só
 `lib/db`, o projeto INTEIRO ficou sem export público sem contrato.
 
-| métrica              | antes | depois |
-| -------------------- | ----: | -----: |
-| exports sem doc      |   121 |  **0** |
+| métrica                | antes | depois |
+| ---------------------- | ----: | -----: |
+| exports sem doc        |   121 |  **0** |
 | `lib/db` sem cabeçalho |     5 |  **0** |
-| opacos               |     9 |      7 |
+| opacos                 |     9 |      7 |
 
 Duas correções na régua (`scripts/inventario-docs.mjs`) vieram desta fase, e são
 o motivo de a contagem cair mais do que os JSDoc escritos: assinatura de
@@ -152,7 +160,7 @@ pelo gate de presença. Corrigido com o delete das equipes, regressão travada e
 
 ---
 
-## Fase 3 — Cabeçalhos de UI ✅ (concluída)
+## Fase 3 — Cabeçalhos de UI ⚠️ (reaberta na Fase 6)
 
 **Por que:** 41 componentes sem cabeçalho, 14 deles com mais de 500 linhas. É o
 comentário de maior retorno por linha escrita: orienta quem abre a tela pela
@@ -176,14 +184,24 @@ critério aqui.
 
 **Esforço:** 2 levas. **Risco:** nulo.
 
-**✅ CONCLUÍDA** em 3 levas (2026-07-27), acima do aceite: **nenhum arquivo do
-projeto com ≥ 200 linhas está sem cabeçalho** — nem UI, nem rota de servidor.
+**⚠️ CONCLUÍDA PARCIALMENTE** em 3 levas (2026-07-27) — e o número que este
+plano registrava estava ERRADO.
 
-| métrica                          | antes | depois |
-| -------------------------------- | ----: | -----: |
-| arquivos ≥200 ln sem cabeçalho   |    27 |  **0** |
-| sem cabeçalho (qualquer tamanho) |    65 |     23 |
-| opacos                           |     9 |      6 |
+À época a régua marcava "0 arquivos ≥ 200 linhas sem cabeçalho". Na Fase 6
+descobriu-se que ela procurava um comentário em qualquer lugar dos primeiros
+1200 caracteres: arquivo cujo primeiro comentário era o JSDoc de uma função
+interna passava como documentado. Pela definição que o próprio script
+declarava — _comentário antes da primeira linha de código_ — o número real
+era **46**, não 0.
+
+A régua foi corrigida (2026-07-28) e o backlog reaberto com a contagem
+honesta. As 34 telas e componentes efetivamente documentados nas 3 levas
+continuam valendo; o que muda é saber quanto ainda falta.
+
+| métrica                        | baseline | fim da fase 3 (real) |
+| ------------------------------ | -------: | -------------------: |
+| arquivos ≥200 ln sem cabeçalho |       73 |               **46** |
+| opacos                         |        9 |                    6 |
 
 `gise/[id]/+page.svelte` e `gise-xlsx-workbook-append.ts` saíram da lista de
 opacos pelo próprio cabeçalho. O de `res-gise/+page.server.ts`, escrito na Fase
@@ -278,16 +296,37 @@ escondendo dead code da ferramenta que existe para achá-lo.
 
 ## Fase 6 — Guardrails (para não voltar)
 
-- [ ] Registrar em [`CLAUDE.md`](../CLAUDE.md) as duas regras que produziram os
+- [x] Registrar em [`CLAUDE.md`](../CLAUDE.md) as duas regras que produziram os
       achados: **duplicação → extrair antes de comentar** e **golden antes de
-      refatorar artefato jurídico**
-- [ ] Documentar `npm run docs:inventario` no [`README.md`](../README.md) como
+      refatorar artefato jurídico** — com a tabela dos cinco bugs e o corolário
+      de quando NÃO extrair
+- [x] Documentar `npm run docs:inventario` no [`README.md`](../README.md) como
       passo de revisão de PR grande
-- [ ] Avaliar gate leve no CI: falhar quando um arquivo **novo** em `lib/db`
-      exportar função sem JSDoc (só arquivos novos — travar o legado inteiro
-      irritaria sem ganho)
+- [x] Gate leve no CI: `scripts/guard-docs-novos.mjs` (`npm run docs:guard`)
+      falha quando um arquivo **novo** em `lib/db` vem sem cabeçalho ou com
+      export sem JSDoc. Só arquivos ADICIONADOS no diff; base inacessível
+      (clone raso) desliga o guard com aviso em vez de reprovar
+- [x] **Corrigir a régua** (item que não estava previsto e virou o principal):
+      `temCabecalho` aceitava comentário em qualquer lugar dos primeiros 1200
+      caracteres. Passou a exigir comentário antes da primeira linha de código
+- [ ] Fechar os 46 arquivos ≥ 200 linhas que a régua corrigida reabriu
 - [ ] Reavaliar o baseline deste plano e arquivá-lo em
       [`HISTORICO.md`](HISTORICO.md) quando as fases 1–5 fecharem
+
+**O que a correção da régua revelou.** O guardrail que este plano criou na
+Fase 0 estava medindo a coisa errada — e foi só ao escrever o gate de CI, que
+precisa de um critério exato, que a frouxidão apareceu. Números honestos hoje
+(2026-07-28):
+
+| métrica                      | baseline real |  hoje |
+| ---------------------------- | ------------: | ----: |
+| exports sem doc              |           121 | **0** |
+| opacos                       |            18 | **0** |
+| sem cabeçalho (≥ 200 linhas) |            73 |    46 |
+| sem cabeçalho (qualquer)     |           129 |   126 |
+
+As fases 2, 4 e 5 não são afetadas: seus critérios (exports, opacidade,
+duplicação) não dependiam do cabeçalho. A fase 3 foi reaberta.
 
 ---
 

@@ -253,6 +253,8 @@ npm run lint:fix           # ESLint com auto-fix
 npm run format             # Prettier (formata todos os arquivos)
 npm run format:check       # Prettier sem alterar (só verifica)
 npm run knip               # Detecção de código/exports mortos
+npm run docs:inventario    # Inventário de documentação (cabeçalhos, contratos, opacos)
+npm run docs:guard         # Falha se arquivo NOVO em lib/db vier sem doc (roda no CI)
 
 # Testes
 npm run test               # Vitest (run once)
@@ -269,6 +271,30 @@ npm run users:set-default-password:prod     # Idem, em produção
 npm run users:clear-passwords-non-admins    # Limpa senhas de não-admins (local)
 npm run users:clear-passwords-non-admins:prod  # Idem, em produção
 ```
+
+### Revisão de PR grande: `npm run docs:inventario`
+
+Antes de abrir (ou revisar) um PR que mexe em muitos arquivos, rode:
+
+```bash
+npm run docs:inventario          # resumo por categoria
+npm run docs:inventario -- --lista   # backlog completo
+```
+
+Ele mede três coisas, na ordem de retorno que importa:
+
+| métrica             | o que significa                                                                            |
+| ------------------- | ------------------------------------------------------------------------------------------ |
+| **sem cabeçalho**   | o arquivo não diz o que é nem quem o usa — comentário de maior retorno                     |
+| **opacos**          | ≥ 12 pontos de decisão por 100 linhas e < 6% de comentário: regra de negócio irrecuperável |
+| **exports sem doc** | contrato público sem dizer o que devolve, o que assume e que efeito tem                    |
+
+É heurística para PRIORIZAR, não gate: componente com 800 linhas de markup e
+2% de comentário pode estar certo — o que ele precisa é do cabeçalho. O gate
+automático é só para arquivo novo em `lib/db` (`npm run docs:guard`, no CI).
+
+O histórico das levas e os critérios de aceite estão em
+[`docs/PLANO_DOCUMENTACAO.md`](docs/PLANO_DOCUMENTACAO.md).
 
 ---
 

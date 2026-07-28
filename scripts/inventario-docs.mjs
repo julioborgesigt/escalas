@@ -49,13 +49,21 @@ function medir(p) {
 	const linhas = s.split('\n').filter((l) => l.trim());
 	const comentario = linhas.filter((l) => /^\s*(\/\/|\/\*|\*|<!--)/.test(l)).length;
 
-	// Cabeçalho = comentário antes do primeiro código; em .svelte, dentro do <script>.
-	let inicio = s.slice(0, 1200);
+	// Cabeçalho = comentário ANTES da primeira linha de código. Em `.svelte`,
+	// logo depois da abertura do `<script>`.
+	//
+	// A versão anterior procurava um comentário em qualquer lugar dos primeiros
+	// 1200 caracteres e dava "tem cabeçalho" para arquivo cujo primeiro
+	// comentário era o JSDoc de uma função interna — 46 arquivos com mais de 200
+	// linhas passavam assim. Um cabeçalho que não está no topo não é encontrado
+	// por quem abre o arquivo, que é a única coisa que ele existe para resolver.
+	let corpo = s;
 	if (extname(p) === '.svelte') {
 		const m = /<script[^>]*>/.exec(s);
-		inicio = m ? s.slice(m.index + m[0].length, m.index + m[0].length + 900) : '';
+		corpo = m ? s.slice(m.index + m[0].length) : '';
 	}
-	const temCabecalho = /^\s*(\/\*\*|\/\/)/m.test(inicio);
+	const primeiraLinha = corpo.split('\n').find((l) => l.trim()) ?? '';
+	const temCabecalho = /^(\/\*\*|\/\*|\/\/)/.test(primeiraLinha.trim());
 
 	// Export sem JSDoc: linha anterior não faz parte de um bloco de comentário.
 	// Sobrecarga de tipo (`export function f(): A;` seguida de outra assinatura)

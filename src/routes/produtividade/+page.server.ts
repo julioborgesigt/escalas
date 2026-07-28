@@ -1,3 +1,11 @@
+/**
+ * `load` do painel de PRODUTIVIDADE — restrito ao Admin Geral.
+ *
+ * Entrega a lista COMPLETA de respostas do período, não uma página: a tela
+ * recombina os mesmos dados a cada filtro, e agregar no cliente evita uma ida
+ * ao servidor por clique. O custo é o payload crescer com o histórico — é
+ * dívida conhecida, com a solução (agregar no servidor) registrada abaixo.
+ */
 import { error } from '@sveltejs/kit';
 import type { PageServerLoadEvent } from './$types';
 import {
