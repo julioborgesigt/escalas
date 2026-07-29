@@ -1,3 +1,29 @@
+/**
+ * Schema Drizzle de TODAS as tabelas do D1 — fonte única de tipos do servidor.
+ * Os `$inferSelect`/`$inferInsert` do fim do arquivo são o que o resto do
+ * código importa; `lib/db/` nunca redeclara a forma de uma linha.
+ *
+ * ESTE ARQUIVO NÃO CRIA TABELA. Editar aqui só muda o TIPO — o banco continua
+ * como estava até alguém escrever o `.sql` correspondente em `migrations/` e
+ * rodar `npm run db:migrate` (o runner é `scripts/migrate.ts`, com controle em
+ * `_migrations_aplicadas`). Uma coluna que existe aqui e não na migração
+ * compila, passa no `check` e só falha em runtime, no primeiro SELECT.
+ *
+ * As migrações hoje são ESCRITAS À MÃO. O `drizzle.config.ts` ainda aponta para
+ * cá e as 12 primeiras saíram do `drizzle-kit`, mas não há script de `generate`
+ * e o journal dele foi removido em jul/2026 — quem decide o que já rodou é
+ * `_migrations_aplicadas`. O motivo é o SQLite do D1: quase todo ALTER de
+ * verdade é um rebuild de tabela (criar nova, copiar, dropar, renomear), que o
+ * gerador não produz. Numerar em sequência (`00NN_descrição.sql`) é obrigatório
+ * — o runner ordena por nome de arquivo.
+ *
+ * A maior parte das colunas `*_id` NÃO tem FK declarada, e isso é deliberado em
+ * dois casos: referência polimórfica (o mesmo `*_id` aponta para tabelas
+ * diferentes conforme o tipo) e preservação de prova — assinatura, presença e
+ * auditoria copiam nome/CPF/matrícula para a própria linha justamente para
+ * continuarem válidas depois que o cadastro do policial some. Um CASCADE ali
+ * apagaria a evidência.
+ */
 import { sqliteTable, text, integer, real, index, unique } from 'drizzle-orm/sqlite-core';
 import { sql } from 'drizzle-orm';
 
@@ -166,11 +192,24 @@ export const unidades = sqliteTable(
 		tem_plantao: integer('tem_plantao', { mode: 'boolean' }).default(false).notNull(),
 		tem_expediente: integer('tem_expediente', { mode: 'boolean' }).default(false).notNull(),
 		tem_fds: integer('tem_fds', { mode: 'boolean' }).default(false).notNull(),
+		/**
+		 * Unidade DESATIVADA (`ativo = 0`) sai das listas de escolha, mas continua
+		 * existindo: escala, lotação e assinatura de relatório antigas seguem
+		 * resolvendo o nome e o id.
+		 *
+		 * Não existe exclusão de unidade — de propósito. `gise_assinaturas_relatorios`
+		 * referencia `unidades(id)` e apagar a linha destruiria prova de documento
+		 * assinado. Desativar é a operação segura equivalente.
+		 */
+		ativo: integer('ativo', { mode: 'boolean' }).default(true).notNull(),
 		created_at: text('created_at')
 			.notNull()
 			.default(sql`(datetime('now', '-3 hours'))`)
 	},
-	(table) => [index('idx_unidades_nome').on(table.nome)]
+	(table) => [
+		index('idx_unidades_nome').on(table.nome),
+		index('idx_unidades_ativo').on(table.ativo)
+	]
 );
 
 // ---- Documentos de Escalas (R2) ----
@@ -487,9 +526,15 @@ export const giseAssinaturasRelatorios = sqliteTable(
 		gise_id: integer('gise_id')
 			.notNull()
 			.references(() => giseEscalas.id, { onDelete: 'cascade' }),
+		// onDelete: restrict — o banco RECUSA apagar uma unidade que tenha
+		// assinatura de relatório. Era `cascade` até a migração 0038, e apagar a
+		// unidade levava junto o registro do ato de assinar (assinante, CPF,
+		// rubrica, selfie, IP, GPS, hash, chave do PDF no R2), fazendo o `/validar`
+		// negar um documento já entregue. A aplicação nem exclui unidade mais (só
+		// desativa); isto fecha o DELETE manual.
 		seccional_id: integer('seccional_id')
 			.notNull()
-			.references(() => unidades.id, { onDelete: 'cascade' }),
+			.references(() => unidades.id, { onDelete: 'restrict' }),
 		tipo: text('tipo', { enum: ['extraordinario', 'produtividade'] }).notNull(),
 		assinante_id: integer('assinante_id'),
 		assinante_nome: text('assinante_nome').notNull(),

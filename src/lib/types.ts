@@ -105,3 +105,27 @@ export interface EscalaPolicialComDados extends EscalaPolicial {
 export interface EscalaListagem extends Escala {
 	is_assinada: boolean;
 }
+
+/**
+ * Uma linha do painel de COMPLIANCE: a exigência de escala (unidade × regime ×
+ * período) e o estado em que ela está.
+ *
+ * `status` distingue os três casos que o painel precisa cobrar de formas
+ * diferentes — `nao_criada` (ninguém montou), `nao_assinada` (montada mas sem
+ * valor de documento) e `ok`. Sem escala não há `escala_id`.
+ *
+ * Vive aqui, e não na rota, porque é produzido em DOIS lugares com algoritmos
+ * distintos — o `load` de `/painel` (qualquer mês/ano) e
+ * `/api/admin/compliance` (mês corrente + FDS da semana) — e consumido pela
+ * mesma tela. Duas declarações idênticas em arquivos diferentes divergem em
+ * silêncio.
+ */
+export interface ItemCompliance {
+	unidade_nome: string;
+	tipo_regime: 'plantao' | 'expediente' | 'fds';
+	periodo: string;
+	data_inicio: string;
+	data_fim: string;
+	status: 'ok' | 'nao_assinada' | 'nao_criada';
+	escala_id?: number;
+}

@@ -23,12 +23,19 @@ export const HEADERS_DETALHE_EQUIPE = [
 	'Hora Término'
 ] as const;
 
+/** `YYYY-MM-DD` → `DD/MM/YYYY`; string vazia para data ausente (célula em branco). */
 export function fmtDateGiseXlsx(iso: string): string {
 	if (!iso) return '';
 	const [y, m, d] = iso.split('-');
 	return `${d}/${m}/${y}`;
 }
 
+/**
+ * Normaliza hora para `HH:MM` na planilha. O banco guarda hora de duas formas
+ * históricas — `'08'` (só a hora, campo antigo) e `'08:00'` — e a coluna do XLSX
+ * precisa de uma só. Valor irreconhecível é devolvido como veio: melhor a
+ * planilha mostrar o dado estranho do que esconder que ele existe.
+ */
 export function fmtHoraGiseXlsx(h: string | number | null | undefined): string {
 	if (h == null || h === '') return '';
 	if (String(h).includes(':')) return String(h);
@@ -37,6 +44,12 @@ export function fmtHoraGiseXlsx(h: string | number | null | undefined): string {
 	return `${String(n).padStart(2, '0')}:00`;
 }
 
+/**
+ * Status técnico → rótulo para leitura humana na planilha. O mapa é a mesma
+ * tradução da UI, repetida aqui porque a planilha é lida fora do sistema, sem
+ * acesso a nenhum componente. Status desconhecido volta cru (nunca vazio), para
+ * que uma versão futura não gere células em branco silenciosas.
+ */
 export function statusLabelGiseXlsx(status: string): string {
 	const m: Record<string, string> = {
 		em_definicao_supervisor: 'Em definição da supervisão',
@@ -55,6 +68,14 @@ type AppendGiseXlsxState = {
 	usedWorksheetNames: Set<string>;
 };
 
+/**
+ * Estado compartilhado entre chamadas de `appendGiseToWorkbook` quando várias
+ * GISEs entram no MESMO arquivo (export do histórico).
+ *
+ * Guarda os nomes de aba já usados: o Excel limita o nome a 31 caracteres e
+ * proíbe repetição, então duas GISEs com a mesma seccional colidiriam e a
+ * segunda aba seria rejeitada. Criar um estado por arquivo, nunca global.
+ */
 export function createAppendGiseXlsxState(): AppendGiseXlsxState {
 	return { usedWorksheetNames: new Set<string>() };
 }

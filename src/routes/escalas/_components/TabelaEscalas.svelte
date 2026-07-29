@@ -1,4 +1,21 @@
 <script lang="ts">
+	/**
+	 * Tabela da visão `lista` de `/escalas`: uma linha por escala, com o estado
+	 * (rascunho, aguardando assinatura, assinada) e as ações disponíveis para o
+	 * papel de quem olha.
+	 *
+	 * É componente de APRESENTAÇÃO — nenhuma mutação acontece aqui. Toda ação
+	 * sobe por callback (`onSolicitarEdicao`, `onCancelarSolicitacao`, …) para a
+	 * página, que é quem tem os forms e a invalidação. Assim a mesma tabela serve
+	 * a admin e a OIP sem carregar as regras dos dois.
+	 *
+	 * `solicitacoesMap` chega indexado por `escala_id` justamente para o selo de
+	 * "aguardando assinatura" não custar uma consulta por linha (N+1).
+	 *
+	 * Não há estado "escolha uma unidade": o Admin Geral é redirecionado antes de
+	 * chegar aqui, então quem abre esta tabela sempre tem lotação definida pelo
+	 * papel. Lista vazia é lista vazia.
+	 */
 	import { Popover, Portal } from '@skeletonlabs/skeleton-svelte';
 	import { slide, fly } from 'svelte/transition';
 	import { page, navigating } from '$app/state';
@@ -19,7 +36,6 @@
 		escalas,
 		podeOIPSolicitar,
 		solicitacoesMap,
-		skipLoad,
 		paginaAtual,
 		totalPaginas,
 		onSolicitarEdicao,
@@ -32,7 +48,6 @@
 		escalas: EscalaListagem[];
 		podeOIPSolicitar: boolean;
 		solicitacoesMap: Record<number, SolicitacaoInfo>;
-		skipLoad: boolean;
 		paginaAtual: number;
 		totalPaginas: number;
 		onSolicitarEdicao: (esc: EscalaListagem) => void;
@@ -52,25 +67,7 @@
 	const ITEMS_POR_PAGINA = 20;
 </script>
 
-{#if skipLoad}
-	<div class="text-center py-20">
-		<div
-			class="bg-surface-200/50 dark:bg-surface-800/50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 grayscale opacity-50"
-		>
-			<svg class="w-8 h-8 text-surface-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-				<path
-					stroke-linecap="round"
-					stroke-linejoin="round"
-					stroke-width="2"
-					d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
-				/>
-			</svg>
-		</div>
-		<p class="text-surface-600 dark:text-surface-400 text-lg">
-			Escolha uma unidade para exibir os dados.
-		</p>
-	</div>
-{:else if escalas.length === 0}
+{#if escalas.length === 0}
 	<div class="text-center py-12 text-surface-500">
 		<p class="mb-4">Nenhuma escala criada para os filtros selecionados.</p>
 		<button

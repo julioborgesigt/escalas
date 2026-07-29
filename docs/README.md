@@ -4,17 +4,17 @@ Mapa de toda a documentação do projeto, separada em **documentos vivos** (mant
 
 ## Documentos vivos
 
-| Documento | Conteúdo | Público-alvo |
-|-----------|----------|--------------|
-| [`README.md`](../README.md) (raiz) | Visão geral, stack, setup local, arquitetura, módulos, padrões de código, troubleshooting | Qualquer dev entrando no projeto |
-| [`DEPLOY.md`](../DEPLOY.md) (raiz) | Runbook de produção: variáveis/secrets, papéis de admin, backup/rollback, staging, trust store ICP-Brasil, TSA, go-live | Operador / responsável pelo deploy |
-| [`TESTING.md`](../TESTING.md) (raiz) | Roteiro manual de **exceção** (hardware/ambiente real); o gate de regressão é a suíte automatizada — casos cobertos por spec estão anotados | QA / dev antes de release |
-| [`CLAUDE.md`](../CLAUDE.md) (raiz) | Diretrizes de código (Svelte 5 runes, padrão de erros de API) para agentes e devs | Dev / agente de IA |
-| [`QA_ASSINATURA_A3_DESKTOP.md`](QA_ASSINATURA_A3_DESKTOP.md) | Roteiro de QA manual do fluxo de presença GISE por Token A3 (exige hardware; não roda em CI) | QA com token físico |
-| [`.env.example`](../.env.example) (raiz) | **Fonte autoritativa** de todas as variáveis de ambiente, comentadas | Dev / operador |
-| [`scripts/README.md`](../scripts/README.md) | Scripts utilitários (migrações, senhas) e setup detalhado da integração Google Sheets / Base_Equipe | Operador |
-| [`src/lib/server/icp-brasil/README.md`](../src/lib/server/icp-brasil/README.md) | Trust store ICP-Brasil: o que é, como atualizar (script Windows/Linux), frequência | Dev / operador |
-| [`static/face-api/README.md`](../static/face-api/README.md) | Modelos de reconhecimento facial servidos localmente e como atualizá-los | Dev |
+| Documento                                                                       | Conteúdo                                                                                                                                    | Público-alvo                       |
+| ------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------- |
+| [`README.md`](../README.md) (raiz)                                              | Visão geral, stack, setup local, arquitetura, módulos, padrões de código, troubleshooting                                                   | Qualquer dev entrando no projeto   |
+| [`DEPLOY.md`](../DEPLOY.md) (raiz)                                              | Runbook de produção: variáveis/secrets, papéis de admin, backup/rollback, staging, trust store ICP-Brasil, TSA, go-live                     | Operador / responsável pelo deploy |
+| [`TESTING.md`](../TESTING.md) (raiz)                                            | Roteiro manual de **exceção** (hardware/ambiente real); o gate de regressão é a suíte automatizada — casos cobertos por spec estão anotados | QA / dev antes de release          |
+| [`CLAUDE.md`](../CLAUDE.md) (raiz)                                              | Diretrizes de código (Svelte 5 runes, padrão de erros de API) para agentes e devs                                                           | Dev / agente de IA                 |
+| [`QA_ASSINATURA_A3_DESKTOP.md`](QA_ASSINATURA_A3_DESKTOP.md)                    | Roteiro de QA manual do fluxo de presença GISE por Token A3 (exige hardware; não roda em CI)                                                | QA com token físico                |
+| [`.env.example`](../.env.example) (raiz)                                        | **Fonte autoritativa** de todas as variáveis de ambiente, comentadas                                                                        | Dev / operador                     |
+| [`scripts/README.md`](../scripts/README.md)                                     | Scripts utilitários (migrações, senhas) e setup detalhado da integração Google Sheets / Base_Equipe                                         | Operador                           |
+| [`src/lib/server/icp-brasil/README.md`](../src/lib/server/icp-brasil/README.md) | Trust store ICP-Brasil: o que é, como atualizar (script Windows/Linux), frequência                                                          | Dev / operador                     |
+| [`static/face-api/README.md`](../static/face-api/README.md)                     | Modelos de reconhecimento facial servidos localmente e como atualizá-los                                                                    | Dev                                |
 
 ## Registros históricos e decisões arquivadas
 

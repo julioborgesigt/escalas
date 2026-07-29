@@ -1,16 +1,16 @@
 <script lang="ts">
-	import { Dialog } from '@skeletonlabs/skeleton-svelte';
-	import { apiFetch } from '$lib/api-fetch';
-	import { toaster } from '$lib/toast';
-	import { useBuscaDebounce } from '$lib/composables';
-	import Spinner from '$lib/components/Spinner.svelte';
-
 	/**
 	 * Diálogo de solicitação de assinatura de escala a um DPC (unidade titular
 	 * ou respondência com busca). Compartilhado pela lista `/escalas` e pelo
 	 * `PainelAssinaturaDigital` (detalhe) — cada caller trata o sucesso no
 	 * `onConfirmado` (invalidação segmentada, atualização de estado local etc.).
 	 */
+	import { Dialog } from '@skeletonlabs/skeleton-svelte';
+	import { apiFetch } from '$lib/api-fetch';
+	import { toaster } from '$lib/toast';
+	import { useBuscaDebounce } from '$lib/composables';
+	import Spinner from '$lib/components/Spinner.svelte';
+
 	let {
 		open = $bindable(false),
 		escalaId,

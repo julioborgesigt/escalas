@@ -1,3 +1,24 @@
+/**
+ * POST /api/webhook/sync-unidades — espelha a estrutura organizacional vinda da
+ * planilha institucional (Google Apps Script; ver `scripts/README.md`).
+ *
+ * Contrato com sistema externo, então tudo aqui é defensivo:
+ *
+ * - autenticação por Bearer (`SYNC_TOKEN`) + HMAC do corpo cru, e proteção de
+ *   replay por nonce — o `rawBody` é lido ANTES de qualquer parse porque a
+ *   assinatura cobre os bytes exatos;
+ * - a planilha manda a hierarquia achatada, uma linha por unidade, e a coluna
+ *   `nivel` é recente: as linhas sem ela caem na heurística legada (coluna A
+ *   vazia = seccional raiz; A e B preenchidas = delegacia);
+ * - linhas incompletas são PULADAS, não rejeitadas: uma célula em branco na
+ *   planilha não pode derrubar a sincronização inteira;
+ * - a gravação é upsert por nome (`upsertUnidade`), que preserva os regimes
+ *   configurados na tela — a planilha não conhece plantão/expediente/FDS.
+ *
+ * Os quatro níveis são processados em ordem (departamento → sub → seccional →
+ * delegacia) porque cada um referencia o anterior como pai.
+ */
+
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { getDB, auditar, contextoDeEvento } from '$lib/db';
@@ -13,6 +34,7 @@ import { apiError, ErrorCode, unauthorized } from '$lib/server/api';
 
 type SyncNivel = 'DEPARTAMENTO' | 'SUB_DEPARTAMENTO' | 'SECCIONAL' | 'DELEGACIA';
 
+/** Lê a coluna `nivel` (aceita maiúsculas/minúsculas); `null` = linha legada. */
 function parseNivel(item: Record<string, unknown>): SyncNivel | null {
 	const raw = String(item.nivel ?? item.NIVEL ?? '')
 		.trim()
@@ -69,6 +91,8 @@ export const POST: RequestHandler = async (event) => {
 		const seccionais: Record<string, unknown>[] = [];
 		const delegacias: Record<string, unknown>[] = [];
 
+		// Separa por nível antes de gravar: a ordem de inserção importa (o pai
+		// precisa existir para a filha referenciá-lo).
 		for (const item of data) {
 			const nivel = parseNivel(item);
 			const colUnidade = trimCol(item, 'unidade');

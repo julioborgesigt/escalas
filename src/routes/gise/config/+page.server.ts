@@ -20,6 +20,17 @@ import {
 import { logger } from '$lib/server/logger';
 import { validarHora, normalizarHora } from '$lib/gise/gise-horarios';
 
+/**
+ * Tela `/gise/config` (Admin Geral): padrões que valem para toda GISE nova —
+ * vagas por tipo de equipe, textos do breve relatório e horários padrão.
+ */
+
+/**
+ * GISE "vazia" passada aos resolvedores do breve relatório: como os três campos
+ * são nulos, eles caem no fallback (config do banco → env → texto embutido), que
+ * é justamente o que esta tela edita. Sem isso seria preciso duplicar a cadeia
+ * de precedência aqui.
+ */
 const giseRowBreveNulo = {
 	breve_relatorio_titulo: null,
 	breve_relatorio_texto_seccional: null,
@@ -47,6 +58,7 @@ export const load: PageServerLoad = async ({ locals, platform }) => {
 	};
 };
 
+/** Inteiro de 0 a 999 vindo do form; qualquer coisa fora disso cai no padrão `d`. */
 function parseN(v: FormDataEntryValue | null, d: number): number {
 	if (v === null || v === undefined) return d;
 	const s = String(v).trim();
@@ -66,9 +78,9 @@ export const actions: Actions = {
 		const vSeDpc = parseN(fd.get('seint_dpc'), 0);
 		const vSeOip = parseN(fd.get('seint_oip'), 2);
 
-		const t = (fd.get('breve_titulo') as string | null) ?? '';
-		const s = (fd.get('breve_texto_seccional') as string | null) ?? '';
-		const u = (fd.get('breve_texto_supervisao') as string | null) ?? '';
+		const breveTitulo = (fd.get('breve_titulo') as string | null) ?? '';
+		const breveTextoSeccional = (fd.get('breve_texto_seccional') as string | null) ?? '';
+		const breveTextoSupervisao = (fd.get('breve_texto_supervisao') as string | null) ?? '';
 
 		const defaultHoraEntradaRaw = (fd.get('default_hora_entrada') as string | null) ?? '';
 		const defaultHoraSaidaRaw = (fd.get('default_hora_saida') as string | null) ?? '';
@@ -76,18 +88,12 @@ export const actions: Actions = {
 		const defaultHoraEntrada = normalizarHora(defaultHoraEntradaRaw.trim());
 		const defaultHoraSaida = normalizarHora(defaultHoraSaidaRaw.trim());
 
-		if (
-			!defaultHoraEntrada ||
-			!validarHora(defaultHoraEntrada) ||
-			!/^\d{1,2}:\d{2}$/.test(defaultHoraEntrada)
-		) {
+		// `validarHora('')` é true (o campo é opcional nas outras telas), então o
+		// teste de vazio é o que torna o horário obrigatório aqui.
+		if (!defaultHoraEntrada || !validarHora(defaultHoraEntrada)) {
 			return fail(400, { error: 'Horário de entrada padrão inválido. Use o formato HH:MM.' });
 		}
-		if (
-			!defaultHoraSaida ||
-			!validarHora(defaultHoraSaida) ||
-			!/^\d{1,2}:\d{2}$/.test(defaultHoraSaida)
-		) {
+		if (!defaultHoraSaida || !validarHora(defaultHoraSaida)) {
 			return fail(400, { error: 'Horário de saída padrão inválido. Use o formato HH:MM.' });
 		}
 
@@ -98,12 +104,14 @@ export const actions: Actions = {
 				seint: { dpc: vSeDpc, oip: vSeOip }
 			});
 
+			// String vazia é gravada de propósito: significa "sem texto", diferente de
+			// não ter a chave (que faria o resolvedor cair no default do env).
 			const salvarBreve = async (k: string, val: string) => {
 				await salvarConfiguracao(db, k, val.trim() ? val.trim() : '');
 			};
-			await salvarBreve(GISE_BREVE_RELATORIO_CONFIG_KEYS.titulo, t);
-			await salvarBreve(GISE_BREVE_RELATORIO_CONFIG_KEYS.textoSeccional, s);
-			await salvarBreve(GISE_BREVE_RELATORIO_CONFIG_KEYS.textoSupervisao, u);
+			await salvarBreve(GISE_BREVE_RELATORIO_CONFIG_KEYS.titulo, breveTitulo);
+			await salvarBreve(GISE_BREVE_RELATORIO_CONFIG_KEYS.textoSeccional, breveTextoSeccional);
+			await salvarBreve(GISE_BREVE_RELATORIO_CONFIG_KEYS.textoSupervisao, breveTextoSupervisao);
 
 			await salvarConfiguracao(db, 'gise_default_hora_entrada', defaultHoraEntrada);
 			await salvarConfiguracao(db, 'gise_default_hora_saida', defaultHoraSaida);
@@ -113,6 +121,8 @@ export const actions: Actions = {
 			return fail(500, { error: 'Erro ao salvar' });
 		}
 
+		// Auditoria depois do commit: a tela é de configuração global e o registro
+		// precisa refletir o que de fato ficou gravado.
 		const { contexto, env } = contextoDeEvento(event);
 		await auditar(
 			db,

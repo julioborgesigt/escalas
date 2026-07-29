@@ -1,4 +1,21 @@
 <script lang="ts">
+	/**
+	 * Tabela da escala de PLANTÃO mensal — uma linha por policial, com todos os
+	 * dias em que ele serve agrupados nela.
+	 *
+	 * O agrupamento é o ponto: o banco guarda uma linha por (policial, dia), e
+	 * mostrar assim daria oito linhas para o mesmo plantonista. A tabela colapsa
+	 * essas linhas e trata o conjunto como uma escalação — por isso
+	 * `onSolicitarRemocao` aceita um ARRAY de ids: remover um plantonista é
+	 * remover todos os dias dele de uma vez.
+	 *
+	 * Editar um plantão específico abre o `ModalEditarPlantao` (data e horário
+	 * daquele dia), e o OIP pode ser acrescentado direto na linha
+	 * (`FormInlineAdicionarOip`), que é o caso frequente de última hora.
+	 *
+	 * As outras visões da mesma escala são `TabelaServidores` (expediente) e
+	 * `ListaFds` (fim de semana).
+	 */
 	import type { Escala } from '$lib/server/schema';
 	import type { EscalaPolicialComDados } from '$lib/types';
 	import IconTooltip from '$lib/components/IconTooltip.svelte';

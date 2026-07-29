@@ -1,7 +1,18 @@
+/**
+ * Equipes de uma seccional na GISE.
+ *
+ * Cada equipe reserva um número de vagas por cargo (`slots_dpc`/`slots_oip`) e
+ * pode ter horário próprio; membros entram por `membros.ts`, respeitando essas
+ * vagas.
+ */
 import { eq, and } from 'drizzle-orm';
 import { giseEquipes, giseMembros, policiais } from '../../server/schema';
 import type { Database } from '../core';
 
+/**
+ * Atualização parcial: cada argumento só é gravado se vier definido, para que
+ * salvar horário não zere as vagas (e vice-versa) — as duas telas são separadas.
+ */
 export async function atualizarGiseEquipe(
 	db: Database,
 	id: number,
@@ -17,10 +28,12 @@ export async function atualizarGiseEquipe(
 	return db.update(giseEquipes).set(data).where(eq(giseEquipes.id, id));
 }
 
+/** Remove a equipe; os membros caem junto pela cascata do schema. */
 export async function excluirGiseEquipe(db: Database, id: number) {
 	return db.delete(giseEquipes).where(eq(giseEquipes.id, id));
 }
 
+/** Cria a equipe e devolve o id gerado. `giseUnidadeId` nulo = slot em aberto. */
 export async function criarGiseEquipe(
 	db: Database,
 	giseSeccionalId: number,
@@ -41,12 +54,19 @@ export async function criarGiseEquipe(
 		.returning({ id: giseEquipes.id });
 	return result[0].id;
 }
+/**
+ * Ainda há vaga nesta equipe para o CARGO do policial?
+ *
+ * As vagas são contadas por cargo: um OIP não ocupa vaga de DPC. O limite é o
+ * `slots_*` da equipe e a contagem considera só os membros do mesmo cargo.
+ */
 export async function verificarSlotEquipe(
 	db: Database,
 	equipeId: number,
 	policialId: number
 ): Promise<{ ok: boolean; motivo?: string }> {
-	// Parallelize independent queries
+	// Consultas independentes em paralelo (o cargo do policial define qual limite
+	// consultar, mas nenhuma depende do resultado da outra).
 	const [equipe, policial] = await Promise.all([
 		db.select().from(giseEquipes).where(eq(giseEquipes.id, equipeId)).get(),
 		db.select({ cargo: policiais.cargo }).from(policiais).where(eq(policiais.id, policialId)).get()

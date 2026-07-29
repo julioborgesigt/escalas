@@ -1,3 +1,20 @@
+/**
+ * `GET /api/validar/[hash]/download` — o download da rota PÚBLICA de validação.
+ *
+ * É o endpoint com o maior desnível de confiança do sistema: sem sessão, o
+ * chamador é qualquer pessoa que tenha o código impresso no rodapé de um PDF.
+ * Por isso a regra dos dois artefatos vale aqui na forma mais estrita:
+ *
+ * - **cópia de conferência** (padrão) — o documento REGERADO, com rodapé e QR,
+ *   SEM o manifesto forense. É o que qualquer um recebe;
+ * - **blob íntegro do R2** — só para usuário autenticado e privilegiado. Ele
+ *   carrega o manifesto com CPF, IP, GPS e selfie de quem assinou; entregá-lo
+ *   a quem só tem o código transformaria a validação pública em vazamento.
+ *
+ * O nome do arquivo é derivado do `tipo_doc` resolvido pelo hash (escala, GISE,
+ * relatório ou termo de presença) — os quatro tipos passam por aqui, porque o
+ * código de validação é único no sistema inteiro.
+ */
 import { getDB, buscarDocumentoPorHash } from '$lib/db';
 import { validarSessao } from '$lib/auth';
 import { tryGetR2 } from '$lib/db';

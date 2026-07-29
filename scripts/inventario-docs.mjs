@@ -1,0 +1,184 @@
+/**
+ * Inventário de documentação do código-fonte — a régua do
+ * As regras que ela mede estão no `CLAUDE.md` (seção "Documentação de
+ * código"); o histórico da varredura, em `docs/HISTORICO.md`.
+ *
+ * Mede três coisas que importam mais do que "porcentagem de comentário":
+ *   1. arquivos sem CABEÇALHO de módulo (o comentário de maior retorno: diz o
+ *      que o arquivo é e quem o usa);
+ *   2. arquivos com alta densidade de DECISÃO e pouco comentário — ramos por 100
+ *      linhas ≥ 12 com menos de 6% de comentário costumam esconder regra de
+ *      negócio que não se recupera lendo o código;
+ *   3. exports públicos sem JSDoc, que são contratos consumidos por outras
+ *      camadas. Não contam: assinaturas de SOBRECARGA (o JSDoc fica na
+ *      primeira do encadeamento) e o export ÚNICO de um módulo que já tem
+ *      cabeçalho — nesse caso o cabeçalho É a documentação do export.
+ *
+ * Uso:
+ *   node scripts/inventario-docs.mjs             # resumo por categoria + listas
+ *   node scripts/inventario-docs.mjs --lista     # todos os arquivos pendentes
+ *   node scripts/inventario-docs.mjs --json      # saída para diff entre fases
+ *
+ * Heurística, não verdade absoluta: serve para priorizar e medir progresso, não
+ * para aprovar/reprovar arquivo. Arquivo de UI com 800 linhas de markup e 2% de
+ * comentário pode estar correto — o que ele precisa é do cabeçalho.
+ */
+import { readdirSync, readFileSync, statSync } from 'node:fs';
+import { join, extname } from 'node:path';
+
+const RAIZ = 'src';
+const MIN_LINHAS = 40;
+/** Proxy de complexidade: pontos de decisão no arquivo. */
+const RAMOS = /\bif\s*\(|\?\?|\?\s|&&|\|\||\bcase\b|\bcatch\b/g;
+
+function arquivos(dir) {
+	const out = [];
+	for (const nome of readdirSync(dir)) {
+		const p = join(dir, nome);
+		if (statSync(p).isDirectory()) {
+			if (nome === '__tests__') continue;
+			out.push(...arquivos(p));
+		} else if (['.ts', '.svelte'].includes(extname(p))) {
+			out.push(p);
+		}
+	}
+	return out;
+}
+
+function medir(p) {
+	const s = readFileSync(p, 'utf8');
+	const linhas = s.split('\n').filter((l) => l.trim());
+	const comentario = linhas.filter((l) => /^\s*(\/\/|\/\*|\*|<!--)/.test(l)).length;
+
+	// Cabeçalho = comentário ANTES da primeira linha de código. Em `.svelte`,
+	// logo depois da abertura do `<script>`.
+	//
+	// A versão anterior procurava um comentário em qualquer lugar dos primeiros
+	// 1200 caracteres e dava "tem cabeçalho" para arquivo cujo primeiro
+	// comentário era o JSDoc de uma função interna — 46 arquivos com mais de 200
+	// linhas passavam assim. Um cabeçalho que não está no topo não é encontrado
+	// por quem abre o arquivo, que é a única coisa que ele existe para resolver.
+	let corpo = s;
+	if (extname(p) === '.svelte') {
+		const m = /<script[^>]*>/.exec(s);
+		corpo = m ? s.slice(m.index + m[0].length) : '';
+	}
+	const primeiraLinha = corpo.split('\n').find((l) => l.trim()) ?? '';
+	const temCabecalho = /^(\/\*\*|\/\*|\/\/)/.test(primeiraLinha.trim());
+
+	// Export sem JSDoc: linha anterior não faz parte de um bloco de comentário.
+	// Sobrecarga de tipo (`export function f(): A;` seguida de outra assinatura)
+	// não conta: o JSDoc fica na PRIMEIRA do encadeamento, e cobrar um por
+	// assinatura só produzia falso positivo.
+	// Agrupa por NOME: sobrecarga são várias declarações da mesma função, e o
+	// JSDoc de qualquer uma delas documenta o conjunto.
+	const porNome = new Map();
+	for (const m of s.matchAll(/^export (?:async )?function (\w+)/gm)) {
+		const anterior = s.slice(0, m.index).trimEnd().split('\n').pop()?.trim() ?? '';
+		const temDoc = /^(\*|\/\*\*|\/\/|\*\/)/.test(anterior);
+		porNome.set(m[1], (porNome.get(m[1]) ?? false) || temDoc);
+	}
+	// Módulo de export ÚNICO com cabeçalho: o cabeçalho já é a documentação desse
+	// export (o caso dos composables e das factories). Exigir um JSDoc a mais só
+	// produziria "/** Ver acima. */".
+	const cobertoPeloCabecalho = temCabecalho && porNome.size === 1;
+	const exportsSemDoc = cobertoPeloCabecalho
+		? 0
+		: [...porNome.values()].filter((doc) => !doc).length;
+
+	const ramos = (s.match(RAMOS) ?? []).length;
+	return {
+		arquivo: p,
+		linhas: linhas.length,
+		pctComentario: +((100 * comentario) / linhas.length).toFixed(1),
+		temCabecalho,
+		ramos,
+		densidadeDecisao: +((100 * ramos) / linhas.length).toFixed(1),
+		exportsSemDoc
+	};
+}
+
+function categoria(f) {
+	if (f.startsWith(join('src', 'lib', 'server'))) return 'lib/server';
+	if (f.startsWith(join('src', 'lib', 'db'))) return 'lib/db';
+	if (f.startsWith(join('src', 'lib'))) return 'lib (resto)';
+	if (/\+page\.server\.ts|\+server\.ts|_actions/.test(f)) return 'rotas: servidor';
+	return 'rotas: UI';
+}
+
+/** Arquivo em que a falta de comentário é RISCO, não estilo. */
+const opaco = (d) => d.densidadeDecisao >= 12 && d.pctComentario < 6;
+
+const medidos = arquivos(RAIZ)
+	.map(medir)
+	.filter((d) => d.linhas >= MIN_LINHAS);
+
+if (process.argv.includes('--json')) {
+	console.log(JSON.stringify(medidos, null, '\t'));
+	process.exit(0);
+}
+
+const porCategoria = new Map();
+for (const d of medidos) {
+	const c = categoria(d.arquivo);
+	const a = porCategoria.get(c) ?? { arqs: 0, semCabecalho: 0, opacos: 0, exportsSemDoc: 0 };
+	a.arqs++;
+	if (!d.temCabecalho) a.semCabecalho++;
+	if (opaco(d)) a.opacos++;
+	a.exportsSemDoc += d.exportsSemDoc;
+	porCategoria.set(c, a);
+}
+
+console.log(`\nInventário de documentação — ${medidos.length} arquivos ≥ ${MIN_LINHAS} linhas\n`);
+console.log(
+	'categoria'.padEnd(18) +
+		'arqs'.padStart(6) +
+		'sem cabeçalho'.padStart(15) +
+		'opacos'.padStart(9) +
+		'exports s/doc'.padStart(15)
+);
+for (const [c, a] of [...porCategoria].sort()) {
+	console.log(
+		c.padEnd(18) +
+			String(a.arqs).padStart(6) +
+			String(a.semCabecalho).padStart(15) +
+			String(a.opacos).padStart(9) +
+			String(a.exportsSemDoc).padStart(15)
+	);
+}
+
+const total = (k) => [...porCategoria.values()].reduce((s, a) => s + a[k], 0);
+console.log(
+	`\nTOTAIS: ${total('semCabecalho')} sem cabeçalho · ${total('opacos')} opacos · ` +
+		`${total('exportsSemDoc')} exports sem doc`
+);
+
+const limite = process.argv.includes('--lista') ? Infinity : 10;
+
+console.log('\n── Opacos (alta decisão, pouco comentário) — prioridade máxima');
+for (const d of medidos
+	.filter(opaco)
+	.sort((a, b) => b.ramos - a.ramos)
+	.slice(0, limite)) {
+	console.log(
+		`  ${String(d.ramos).padStart(4)} ramos · ${String(d.linhas).padStart(4)} ln · ` +
+			`${String(d.pctComentario).padStart(4)}%  ${d.arquivo}`
+	);
+}
+
+console.log('\n── Sem cabeçalho de módulo (do maior para o menor)');
+for (const d of medidos
+	.filter((d) => !d.temCabecalho)
+	.sort((a, b) => b.linhas - a.linhas)
+	.slice(0, limite)) {
+	console.log(`  ${String(d.linhas).padStart(5)} ln · ${categoria(d.arquivo)}  ${d.arquivo}`);
+}
+
+console.log('\n── Exports públicos sem JSDoc');
+for (const d of medidos
+	.filter((d) => d.exportsSemDoc > 0)
+	.sort((a, b) => b.exportsSemDoc - a.exportsSemDoc)
+	.slice(0, limite)) {
+	console.log(`  ${String(d.exportsSemDoc).padStart(3)} exports  ${d.arquivo}`);
+}
+console.log('');

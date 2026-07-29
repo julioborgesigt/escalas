@@ -1,4 +1,13 @@
 <script lang="ts">
+	/**
+	 * Diálogo genérico de aviso da lista GISE: um título, bullets de explicação e
+	 * até duas ações opcionais.
+	 *
+	 * É o modal usado quando o clique do usuário não pôde ser atendido ("faltam
+	 * assinaturas", "escala ainda em preenchimento") e às vezes oferece o caminho
+	 * alternativo — por isso a aparência muda conforme haja ação: com ação vira um
+	 * convite (ícone de lápis, tertiary); sem ação, um alerta (warning).
+	 */
 	import { Dialog } from '@skeletonlabs/skeleton-svelte';
 
 	type AcaoDialog = { label: string; fn: () => void };
@@ -6,7 +15,9 @@
 	type DialogInfo = {
 		titulo: string;
 		linhas: string[];
+		/** Ação principal; sua presença é o que troca o modal de "alerta" para "convite". */
 		acao?: AcaoDialog;
+		/** Alternativa (ex.: baixar sem manifesto × com manifesto); exige `acao`. */
 		acaoSecundaria?: AcaoDialog;
 	};
 
@@ -82,8 +93,12 @@
 					{/each}
 				</ul>
 
+				<!-- Duas ações empilham (lado a lado + Cancelar embaixo); uma só fica na
+				     linha do rodapé, no padrão dos demais modais. -->
 				<div class="flex flex-col gap-2 pt-1">
 					{#if dialogInfo.acao && dialogInfo.acaoSecundaria}
+						<!-- `@const` locais: o TypeScript não estreita `dialogInfo.acao` dentro
+						     dos handlers, então guardamos a referência já verificada. -->
 						{@const acao = dialogInfo.acao}
 						{@const acaoSec = dialogInfo.acaoSecundaria}
 						<div class="flex gap-2">

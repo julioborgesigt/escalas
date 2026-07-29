@@ -1,4 +1,10 @@
 <script lang="ts">
+	/**
+	 * Bloco de downloads e assinatura de relatórios da seccional (produtividade
+	 * por tipo de equipe + relatório extraordinário). Extraído do antigo snippet
+	 * `seccionalRelatoriosDownloads` de GiseSeccional; `compact` alterna o layout
+	 * empilhado (accordion mobile) e o inline (barra desktop).
+	 */
 	import { page } from '$app/state';
 	import type { GiseDetalhado } from '$lib/db/gise';
 	import type { GiseAssinaturaRelatorio } from '$lib/server/schema';
@@ -12,12 +18,6 @@
 
 	type Seccional = GiseDetalhado['seccionais'][number];
 
-	/**
-	 * Bloco de downloads e assinatura de relatórios da seccional (produtividade
-	 * por tipo de equipe + relatório extraordinário). Extraído do antigo snippet
-	 * `seccionalRelatoriosDownloads` de GiseSeccional; `compact` alterna o layout
-	 * empilhado (accordion mobile) e o inline (barra desktop).
-	 */
 	const {
 		compact,
 		sec,

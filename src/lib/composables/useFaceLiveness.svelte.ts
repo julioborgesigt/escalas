@@ -1,12 +1,3 @@
-import {
-	sortearChallenge,
-	HeadTurnDetector,
-	SmileDetector,
-	type ChallengeDefinicao,
-	type ChallengeProgresso
-} from '$lib/liveness-challenge';
-import type { SignaturePadLivenessResultado } from '$lib/components/SignaturePadTypes';
-
 /**
  * Máquina de prova de vida (câmera + face-api + challenge ativo), extraída
  * de SignaturePad.svelte.
@@ -24,6 +15,15 @@ import type { SignaturePadLivenessResultado } from '$lib/components/SignaturePad
  * `entrarNaCamera()`/`aoVoltarDaCamera()` no `$effect` do `step` e registra
  * `limparRecursos()` como cleanup.
  */
+import {
+	sortearChallenge,
+	HeadTurnDetector,
+	SmileDetector,
+	type ChallengeDefinicao,
+	type ChallengeProgresso
+} from '$lib/liveness-challenge';
+import type { SignaturePadLivenessResultado } from '$lib/components/SignaturePadTypes';
+
 export function useFaceLiveness(opts: { exigirFoto: () => boolean }) {
 	let faceapi: typeof import('@vladmandic/face-api') | null = $state(null);
 

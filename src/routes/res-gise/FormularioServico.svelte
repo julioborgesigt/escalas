@@ -1,4 +1,20 @@
 <script lang="ts">
+	/**
+	 * O card de UMA ESCALA GISE na tela do policial (`/res-gise`) — onde ele faz
+	 * as três coisas que lhe cabem, na ordem em que o serviço acontece:
+	 *
+	 *   confirmar ENTRADA → confirmar SAÍDA → enviar o RELATÓRIO de produtividade
+	 *
+	 * Cada passo só aparece quando o anterior está cumprido, e todos são
+	 * assinatura avançada: exigem rubrica e, conforme as flags, foto, GPS e código
+	 * por e-mail. A tela esconde o que não cabe, mas quem valida é o servidor —
+	 * `/res-gise/+page.server.ts` revalida participação e horário em cada action.
+	 *
+	 * O estado e as chamadas vivem em `useResGise`; este componente é a
+	 * apresentação de um item da lista. O formulário de produtividade em si é o
+	 * `RelatorioProdutividade`, montado a partir do modelo salvo — as perguntas
+	 * não são fixas.
+	 */
 	import { enhance } from '$app/forms';
 	import { actionButton, btnIcon } from './BotoesAcao.svelte';
 	import { page } from '$app/state';

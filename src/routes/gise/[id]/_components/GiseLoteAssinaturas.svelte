@@ -1,4 +1,27 @@
 <script lang="ts">
+	/**
+	 * Painel do SUPERVISOR para assinar de uma vez os relatórios de
+	 * extraordinário de todas as seccionais, e baixá-los em lote.
+	 *
+	 * O valor do card está em separar as pendências por CAUSA, porque o
+	 * bloqueio não é o mesmo:
+	 *   - "falta saída" — alguma equipe não confirmou entrada/saída de todos
+	 *     (`checkAllSigned`), e nesse caso o relatório sequer PODE ser assinado;
+	 *   - "falta assinar" — já está pronta, só espera o supervisor.
+	 * As duas já apareceram juntas sob um rótulo único, que escondia justamente
+	 * qual era o impedimento.
+	 *
+	 * O aviso jurídico antes de assinar não é enfeite: o fluxo individual
+	 * (ModalRelatorioDigital) sempre o exibiu, e o lote assinava sem ele — o
+	 * mesmo ato com duas cerimônias diferentes. Ao mexer num, mexa no outro.
+	 *
+	 * "C/ manifesto" só aparece quando o usuário receberia o blob forense de
+	 * TODOS os relatórios (`podeBaixarComManifesto` para cada assinante); do
+	 * contrário o servidor entregaria cópia de conferência e o rótulo mentiria.
+	 *
+	 * O download em lote usa âncora + intervalo de 250ms de propósito: disparar
+	 * as abas em sequência imediata esbarra no bloqueio de pop-ups.
+	 */
 	import { slide } from 'svelte/transition';
 	import { page } from '$app/state';
 	import { FileDown } from 'lucide-svelte';

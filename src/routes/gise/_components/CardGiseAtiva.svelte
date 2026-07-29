@@ -1,4 +1,12 @@
 <script lang="ts">
+	/**
+	 * Card de uma GISE ativa na lista `/gise`.
+	 *
+	 * Concentra o "o que falta" da escala: a faixa colorida no topo dá o status
+	 * num relance e os dois botões (escala × extras) mudam de cor e de dica
+	 * conforme o supervisor ainda precise assinar, esteja no meio ou já tenha
+	 * terminado. Quem não é o supervisor da escala vê só os downloads.
+	 */
 	import { goto } from '$app/navigation';
 	import { slide } from 'svelte/transition';
 	import { statusLabel, statusColor, fmtDate, diaSemana } from '$lib/gise/gise-formatters';
@@ -40,6 +48,7 @@
 		onToggleMenu: () => void;
 	} = $props();
 
+	/** Faixa de 4 px no topo do card: cor por status (leitura periférica). */
 	const statusStrip = $derived(
 		ativa.status === 'aguardando_assinatura'
 			? 'bg-primary-500'
@@ -56,10 +65,14 @@
 								: 'bg-surface-400'
 	);
 
+	// O quadro de supervisão (supervisor/assessor/SEINT) rende um relatório de
+	// extra próprio, somado ao de cada seccional — daí o "+1" no total esperado.
 	const temSupervisao = $derived(
 		!!(ativa.supervisor_id || ativa.assessor_id || ativa.seint1_id || ativa.seint2_id)
 	);
 	const totalExtras = $derived(ativa.totalSeccionais + (temSupervisao ? 1 : 0));
+	// Status a partir dos quais a escala já foi assinada e seguiu adiante — todos
+	// contam como "assinada" para o botão, inclusive os posteriores.
 	const escalaConcluida = $derived(
 		[
 			'em_andamento',
@@ -69,6 +82,9 @@
 			'finalizada'
 		].includes(ativa.status)
 	);
+	// Três estados do botão de extras: nenhum, alguns (tertiary) e todos (success).
+	// `>=` e não `===` porque uma seccional removida depois da assinatura deixaria
+	// o contador acima do total esperado.
 	const jaAssinados = $derived(ativa.assinaturasRelatorioExtra ?? 0);
 	const extraConcluido = $derived(jaAssinados >= totalExtras);
 	const extraParcial = $derived(jaAssinados > 0 && jaAssinados < totalExtras);

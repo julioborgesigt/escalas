@@ -15,6 +15,7 @@ import { timingSafeEqual } from 'node:crypto';
 import { bytesToHex } from '$lib/crypto/hex';
 import { compararSegredoUtf8TimingSafe } from '$lib/auth';
 import { webhookNonces } from './schema';
+import { ehViolacaoUnique } from './db-errors';
 import { logger } from './logger';
 import type { Database } from '$lib/db';
 
@@ -183,11 +184,11 @@ export async function validarReplayProtection(
 		await db.insert(webhookNonces).values({ nonce }).run();
 		return { ok: true };
 	} catch (err) {
-		// Drizzle/D1: erros de UNIQUE vêm com mensagens contendo "UNIQUE" ou
-		// código SQLITE_CONSTRAINT. Não temos código estruturado em D1, então
-		// matching textual é o mais robusto.
-		const msg = err instanceof Error ? err.message : String(err);
-		if (/UNIQUE|constraint/i.test(msg)) return { ok: false, reason: 'replay' };
+		// A violação NÃO está em `err.message` — o Drizzle põe lá só o
+		// "Failed query: insert into ...". O texto "UNIQUE constraint failed"
+		// fica dois níveis abaixo, em `cause`, e é por isso que a checagem passa
+		// por `ehViolacaoUnique` em vez de olhar a mensagem de topo.
+		if (ehViolacaoUnique(err)) return { ok: false, reason: 'replay' };
 		throw err;
 	}
 }

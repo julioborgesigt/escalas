@@ -1,3 +1,15 @@
+/**
+ * `/gise` — lista das escalas GISE (ativas + histórico).
+ *
+ * A GISE é a operação extraordinária: uma escala por data, montada pelo Admin
+ * Geral e preenchida pelas seccionais. Esta rota é a porta de entrada dos
+ * quatro públicos que a enxergam — Admin Geral, admin seccional/unidade,
+ * supervisor DPC e policial escalado —, cada um com um recorte diferente.
+ *
+ * Só o Admin Geral CRIA escalas; a `criar` aceita várias datas de uma vez, do
+ * zero ou clonando uma escala existente.
+ */
+
 import type { PageServerLoad, Actions } from './$types';
 import { redirect, fail } from '@sveltejs/kit';
 import {
@@ -133,6 +145,14 @@ function parseDatasCriacaoGise(
 }
 
 export const actions: Actions = {
+	/**
+	 * Cria uma ou VÁRIAS escalas GISE de uma vez (uma por data do calendário).
+	 *
+	 * Dois modos: do zero, com os horários padrão de `/gise/config`, ou clonada de
+	 * uma escala existente — que copia a estrutura (seccionais, unidades, equipes
+	 * e vagas), mas não as pessoas nem as presenças. Datas repetidas na seleção
+	 * são descartadas antes de gravar.
+	 */
 	criar: async (event) => {
 		const { request, locals, platform } = event;
 		const u = locals.usuario;

@@ -1,7 +1,8 @@
 /**
  * Console de auditoria — consulta a trilha forense (`audit_log`).
  *
- * Acesso restrito ao Admin Geral (mesma política do endpoint /api/admin/audit).
+ * Acesso restrito ao SUPER ADMIN — não ao Admin Geral (mesma política do
+ * endpoint /api/admin/audit, que usa `requireSuperAdmin`).
  * Os filtros viajam pela query string (GET), então o estado é compartilhável por
  * link e sobrevive a reload. A verificação de integridade da cadeia de hash é
  * exposta como server action.

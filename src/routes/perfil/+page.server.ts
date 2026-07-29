@@ -13,6 +13,14 @@ import {
 import { policiais } from '$lib/server/schema';
 import { classesDoCargo, TELEFONE_RE } from '$lib/perfil-campos';
 
+/**
+ * "Meu perfil" (`/perfil`) — visão do próprio servidor.
+ *
+ * O policial não edita o próprio cadastro: ele SOLICITA a alteração, que fica
+ * pendente até o Admin Geral decidir em `/solicitacoes`. Nome, matrícula e
+ * cargo nem entram na solicitação (vêm da sincronização institucional).
+ */
+
 export const load: PageServerLoad = async ({ locals, platform }) => {
 	const u = locals.usuario;
 	if (!u) redirect(302, '/login');
@@ -74,6 +82,7 @@ export const actions: Actions = {
 		if (!atual) return fail(404, { error: 'Cadastro não encontrado' });
 
 		const data = await request.formData();
+		// Campo em branco = "não quero mudar isto", não "apagar o valor".
 		const telefone = (data.get('telefone')?.toString() ?? '').trim();
 		const classe = (data.get('classe')?.toString() ?? '').trim();
 		const regime = (data.get('regime')?.toString() ?? '').trim();
@@ -96,6 +105,8 @@ export const actions: Actions = {
 			}
 		}
 
+		// Só vira solicitação o que realmente difere do cadastro atual — evita fila
+		// de pedidos que não mudam nada quando o usuário salva o formulário inteiro.
 		const mudancas: Array<{
 			campo: CampoSolicitacao;
 			valorAtual: string | null;
@@ -118,6 +129,7 @@ export const actions: Actions = {
 			return fail(400, { error: 'Nenhuma alteração em relação ao cadastro atual.' });
 		}
 
+		// Uma solicitação por campo: o admin pode aprovar telefone e recusar lotação.
 		try {
 			await criarSolicitacoesCadastro(db, u.id, mudancas);
 		} catch {
@@ -139,6 +151,8 @@ export const actions: Actions = {
 			env
 		});
 
+		// Devolve a lista já atualizada: a tela troca o quadro "Minhas solicitações"
+		// sem precisar de `invalidateAll`.
 		const solicitacoes = await listarMinhasSolicitacoesCadastro(db, u.id);
 		return { success: true, solicitacoes };
 	}

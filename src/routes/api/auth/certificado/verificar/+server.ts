@@ -1,3 +1,33 @@
+/**
+ * Segunda metade do LOGIN POR CERTIFICADO (Token A3): recebe o CMS que o
+ * assinador produziu sobre o desafio emitido em `/iniciar` e, se tudo fechar,
+ * abre sessão.
+ *
+ * Este endpoint concede acesso sem senha e sem 2FA, então a ordem das
+ * verificações é a própria segurança do fluxo — cada uma fecha um bypass:
+ *
+ *   1. RATE LIMIT, compartilhado com o login normal;
+ *   2. DESAFIO válido, não usado e não expirado (uso único);
+ *   3. ASSINATURA do CMS sobre os SignedAttributes — prova de posse da chave
+ *      privada — **e** conteúdo assinado igual ao hash do nonce DESTE desafio.
+ *      A identidade só é lida do certificado DEPOIS disso;
+ *   4. VALIDADE temporal do certificado;
+ *   5. CADEIA ICP-Brasil, obrigatória e fail-closed. É ela que garante que o CPF
+ *      do subject pertence ao titular — uma AC só emite e-CPF após validar
+ *      identidade. Sem esta checagem, um certificado AUTOASSINADO com o CPF da
+ *      vítima passaria nos passos 3 e 4. Não existe modo permissivo: trust store
+ *      indisponível responde 503 e manda usar matrícula e senha;
+ *   6. REVOGAÇÃO (OCSP) — cadeia válida não cobre e-CPF revogado dentro da
+ *      validade (token perdido ou roubado, M-1);
+ *   7. casamento do CPF com um cadastro ATIVO, pelo índice cego `cpf_index`
+ *      (o CPF é cifrado em repouso e o GCM não é determinístico, então não se
+ *      pode comparar o valor cifrado).
+ *
+ * Toda falha registra tentativa (`recordAttempt`). Diferente do login por
+ * senha, aqui a resposta final PODE dizer que o CPF não está cadastrado: para
+ * chegar até esse ponto o requisitante já provou posse de um e-CPF válido
+ * daquele CPF, então não há enumeração a proteger — ele só descobre sobre si.
+ */
 import { json } from '@sveltejs/kit';
 import { eq, and } from 'drizzle-orm';
 import { getDB, auditar, contextoDeEvento } from '$lib/db';

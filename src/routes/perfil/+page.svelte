@@ -1,4 +1,23 @@
 <script lang="ts">
+	/**
+	 * "Meu perfil" — o que o próprio policial vê e pode mudar sobre si.
+	 *
+	 * A distinção central: o policial NÃO edita o próprio cadastro. Telefone,
+	 * classe, regime e lotação viram uma SOLICITAÇÃO (`?/solicitar` →
+	 * `cadastro_solicitacoes`) que um administrador aprova; até lá o valor
+	 * exibido continua sendo o do banco. Quem mexe direto é a tela
+	 * administrativa `/policiais/[id]`.
+	 *
+	 * O que muda na hora é o que pertence ao próprio usuário e não afeta a
+	 * escala: e-mail pessoal (com verificação por código) e rubrica — esses vão
+	 * por API e refletem imediatamente.
+	 *
+	 * Os `$state` do formulário nascem com `untrack` de propósito: são o
+	 * RASCUNHO do usuário, e re-sincronizar com `data` a cada `invalidate`
+	 * apagaria o que ele está digitando. `solicitacoes` é o oposto — `$derived`
+	 * regravável, para aceitar a lista devolvida pela action sem esperar um
+	 * novo `load`.
+	 */
 	import type { PageProps } from './$types';
 	import { enhance } from '$app/forms';
 	import { untrack } from 'svelte';

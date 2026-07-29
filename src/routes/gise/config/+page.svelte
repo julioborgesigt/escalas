@@ -1,4 +1,12 @@
 <script lang="ts">
+	/**
+	 * Configurações do módulo GISE (Admin Geral): as VAGAS padrão de cada equipe
+	 * nova — quantos DPC e OIP — e os textos fixos dos relatórios de extra.
+	 *
+	 * As vagas valem apenas para equipes CRIADAS DEPOIS: cada equipe guarda as
+	 * suas em `slots_dpc`/`slots_oip`, então mudar aqui não redimensiona GISE em
+	 * andamento. É preset, não política retroativa.
+	 */
 	import type { PageProps } from './$types';
 	import { enhance } from '$app/forms';
 	import { loading } from '$lib/loading.svelte';
