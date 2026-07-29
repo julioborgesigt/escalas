@@ -1,4 +1,42 @@
+/**
+ * Ficha do POLICIAL (`/policiais/[id]`) — a tela de vida funcional: dados
+ * cadastrais, papel administrativo, vínculo de Admin Geral e a linha do tempo
+ * de movimentações, afastamentos e desvinculação.
+ *
+ * **Tudo aqui é restrito ao Admin Geral**, e a restrição é imposta em três
+ * camadas independentes: o `load` redireciona, cada action confere de novo, e
+ * as ações de histórico passam por `autorizarAcao`. Não é redundância inútil —
+ * a tela esconde botões, mas POST direto tem de morrer no servidor.
+ *
+ * As três ações de histórico têm a mesma forma, e a ordem importa:
+ *
+ *   autorizar → validar (Zod) → **upload do PDF** → mutar → registrar histórico
+ *   → auditar
+ *
+ * O upload vem ANTES da mutação de propósito: anexo inválido (não-PDF, > 10 MB,
+ * R2 fora do ar) aborta com 400 sem ter mexido no cadastro. Invertido, um
+ * policial ficaria movimentado com a portaria faltando.
+ *
+ * O que cada ação decide:
+ *
+ * - `salvar` — dados cadastrais. Matrícula duplicada vira 409 legível
+ *   (`ehViolacaoUnique`), não 500 com SQL cru;
+ * - `salvarPapel` — concede/revoga papel. Papel SEM unidade de
+ *   responsabilidade é recusado: papel sem alcance deixa o escopo do RBAC
+ *   indefinido;
+ * - `toggleAdminGeral` — cria ou remove a conta administrativa VINCULADA ao
+ *   policial. É a concessão mais forte do sistema, e por isso é a única
+ *   auditada com `metadados` do estado alvo;
+ * - `registrarMovimentacao` — troca a lotação E registra na linha do tempo.
+ *   Recusa destino igual à origem, que só sujaria o histórico;
+ * - `registrarAfastamento` — férias/licença. NÃO altera o cadastro: afastado
+ *   continua ativo e escalável, e é `afastamentoVigente` que diz à tela quem
+ *   está fora hoje;
+ * - `registrarDesvinculacao` — inativa (`ativo: 0`), nunca apaga. O histórico
+ *   de escalas continua apontando para o policial.
+ */
 import { redirect, fail, error } from '@sveltejs/kit';
+import { ehViolacaoUnique } from '$lib/server/db-errors';
 import type { PageServerLoad, Actions } from './$types';
 import {
 	getDB,
@@ -267,8 +305,8 @@ export const actions: Actions = {
 			);
 			return { success: true };
 		} catch (e: unknown) {
-			const message = e instanceof Error ? e.message : 'Erro desconhecido';
-			if (message.includes('UNIQUE')) {
+			// A violação de índice único fica em `e.cause` (ver `db-errors.ts`).
+			if (ehViolacaoUnique(e)) {
 				return fail(409, { error: 'Matrícula já cadastrada', fields: data });
 			}
 			return fail(500, { error: 'Erro interno ao atualizar policial', fields: data });
@@ -364,8 +402,7 @@ export const actions: Actions = {
 				await desvincularAdminGeral(db, id);
 			}
 		} catch (e: unknown) {
-			const msg = e instanceof Error ? e.message : 'Erro desconhecido';
-			if (msg.includes('UNIQUE')) {
+			if (ehViolacaoUnique(e)) {
 				return fail(409, {
 					error: 'Já existe um administrador com este login/matrícula.'
 				});

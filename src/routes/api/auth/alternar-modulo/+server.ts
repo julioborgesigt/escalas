@@ -1,7 +1,7 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { obterRotaBemVindo } from '$lib/auth';
-import { cookieOptionsLogin } from '$lib/server/auth-flow';
+import { cookieOptions } from '$lib/server/auth-flow';
 import { requireAdmin } from '$lib/server/api';
 
 export const POST: RequestHandler = async ({ cookies, locals, url }) => {
@@ -11,7 +11,7 @@ export const POST: RequestHandler = async ({ cookies, locals, url }) => {
 	const rawAdminModulo = cookies.get('admin_modulo');
 	const novoModulo = rawAdminModulo === 'gise' ? 'escalas' : 'gise';
 
-	cookies.set('admin_modulo', novoModulo, cookieOptionsLogin(url));
+	cookies.set('admin_modulo', novoModulo, cookieOptions(url));
 
 	const redirectUrl = obterRotaBemVindo(u, novoModulo);
 

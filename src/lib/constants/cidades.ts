@@ -1,3 +1,10 @@
+/**
+ * Os 184 municípios do Ceará, em ordem alfabética (IBGE).
+ *
+ * Alimenta o campo "cidade" do cadastro de unidades — lista fechada em vez de
+ * texto livre para que o filtro por cidade em `/escalas` continue casando
+ * (antes havia "Juazeiro do Norte", "juazeiro" e "JUAZEIRO DO N." na base).
+ */
 export const CIDADES_CEARA = [
 	'Abaiara',
 	'Acarape',

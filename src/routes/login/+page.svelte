@@ -1,4 +1,28 @@
 <script lang="ts">
+	/**
+	 * Tela de LOGIN — quatro fluxos numa página, cada um com sua máquina de
+	 * estados:
+	 *
+	 *   1. senha → 2FA por e-mail (`pendente2FA`, `desafioId`);
+	 *   2. certificado digital (Token A3 via SERPRO), que dispensa o 2FA porque
+	 *      já é posse criptográfica;
+	 *   3. primeiro acesso — pede o link por matrícula;
+	 *   4. recuperação de senha, em três passos (`recuperacaoEtapa`).
+	 *
+	 * Ficam juntos porque são a mesma decisão do usuário ("não consigo entrar") e
+	 * porque nenhum deles pode revelar se a matrícula existe: as respostas de
+	 * primeiro acesso e recuperação são genéricas por desenho, e a tela apenas
+	 * repete o que o servidor devolve.
+	 *
+	 * Dois cuidados que parecem detalhe e não são:
+	 *
+	 * - o erro de login é exibido por `loginErrorDisplay`, que lê o estado do
+	 *   cliente OU o `page.form` do submit sem JS. A tela precisa funcionar com
+	 *   JavaScript bloqueado pelo CSP;
+	 * - `?resetado=1` é removido com `replaceState`, não com `goto()`: uma
+	 *   navegação de cliente aqui corre com o `goto` pós-2FA e pode deixar o
+	 *   layout sem `usuario` — a sidebar desaparece e a página parece sem estilo.
+	 */
 	import { Calendar, Shield, Lock, Mail, Inbox, KeyRound } from 'lucide-svelte';
 	import { browser } from '$app/environment';
 	import { goto, replaceState } from '$app/navigation';

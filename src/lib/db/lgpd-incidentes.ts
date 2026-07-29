@@ -1,3 +1,10 @@
+/**
+ * Registro de incidentes de segurança com dados pessoais (LGPD, art. 48).
+ *
+ * Serve de evidência de que o incidente foi detectado, tratado e — quando o
+ * caso — comunicado à ANPD dentro das 72 h. Como é peça de conformidade, o
+ * fluxo só avança de status (`aberto` → … → `encerrado`); nada é excluído.
+ */
 import { desc, eq } from 'drizzle-orm';
 import { lgpdIncidentes } from '../server/schema';
 import type { Database } from './core';
@@ -42,6 +49,7 @@ function calcularPrazoAnpd(dataDescoberta: string): string {
 	return d.toISOString();
 }
 
+/** Abre o incidente já com o prazo da ANPD calculado a partir da descoberta. */
 export async function registrarIncidente(
 	db: Database,
 	input: NovoIncidenteInput
@@ -71,10 +79,12 @@ export async function registrarIncidente(
 	return result;
 }
 
+/** Todos os incidentes, mais recentes primeiro — painel do encarregado. */
 export async function listarIncidentes(db: Database): Promise<LgpdIncidente[]> {
 	return db.select().from(lgpdIncidentes).orderBy(desc(lgpdIncidentes.created_at)).all();
 }
 
+/** Um incidente por id, para a tela de detalhe/edição do encarregado. */
 export async function buscarIncidente(
 	db: Database,
 	id: number
@@ -82,6 +92,11 @@ export async function buscarIncidente(
 	return db.select().from(lgpdIncidentes).where(eq(lgpdIncidentes.id, id)).get();
 }
 
+/**
+ * Patch parcial: cada campo só é tocado se veio no `patch`, para que uma
+ * atualização de status não sobrescreva o que outro operador escreveu nas
+ * medidas tomadas.
+ */
 export async function atualizarIncidente(
 	db: Database,
 	id: number,

@@ -1,6 +1,24 @@
 <script lang="ts">
+	/**
+	 * Modal de CRIAR GISE — cria uma escala por DIA selecionado no calendário,
+	 * em lote. GISE é serviço de um dia, então abrir o mês inteiro de uma vez é o
+	 * uso normal, não exceção.
+	 *
+	 * Três modos, que só mudam a ESTRUTURA inicial de cada escala criada:
+	 * - `completa`: uma seccional para cada seccional cadastrada;
+	 * - `clonada`: copia a árvore de outra GISE (seccionais, slots e equipes com
+	 *   suas vagas) — sem membros, que são preenchidos do zero;
+	 * - `branco`: só a escala, sem seccional nenhuma.
+	 *
+	 * Cada dia pode ser marcado como FERIADO no próprio calendário, porque isso
+	 * muda o efetivo esperado, e a marcação é por dia — não por lote.
+	 *
+	 * A seleção viaja num hidden como JSON (`datasJsonHidden`) em vez de um campo
+	 * por dia: são até 31 datas com a flag de feriado junto, e o servidor cria
+	 * todas em paralelo.
+	 */
 	import { invalidateAll } from '$app/navigation';
-	import { MESES_PT, DIAS_SEMANA_CURTO } from '$lib/utils';
+	import { MESES_PT, DIAS_SEMANA_CURTO, isoData, hojeLocalISO } from '$lib/utils';
 	import { fmtDate, diaSemana } from '$lib/gise/gise-formatters';
 	import { enhance } from '$app/forms';
 	import { toaster } from '$lib/toast';
@@ -65,10 +83,6 @@
 		prevOpen = open;
 	});
 
-	function isoDiaLocal(year: number, month: number, day: number): string {
-		return `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-	}
-
 	function calCicloDia(iso: string) {
 		const next = { ...diasModal };
 		if (!(iso in next)) {
@@ -111,9 +125,7 @@
 		return /^\d{1,2}:\d{2}$/.test(v);
 	}
 
-	function hoje(): string {
-		return new Date().toISOString().slice(0, 10);
-	}
+	const hoje = hojeLocalISO;
 
 	function handleCriarGise({ cancel }: { cancel: () => void }) {
 		if (diasModalOrdenados.length === 0) {
@@ -233,7 +245,7 @@
 				<div class="grid grid-cols-7 gap-0.5">
 					{#each gradeCalendario as cell, i (i)}
 						{#if cell}
-							{@const iso = cell ? isoDiaLocal(calAno, calMes, cell.day) : ''}
+							{@const iso = cell ? isoData(calAno, calMes + 1, cell.day) : ''}
 							{@const sel = iso in diasModal}
 							{@const fer = sel && diasModal[iso].f}
 							{@const ehHoje = iso === hoje()}

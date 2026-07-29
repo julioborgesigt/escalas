@@ -16,11 +16,20 @@ export const LGPD_RETENCAO_APP_LOG_DIAS = 'lgpd.retencao.app_log_dias';
 export const EMAIL_PROVEDOR_PADRAO = 'email.provedor_padrao';
 export type EmailProvedor = 'cloudflare' | 'resend';
 
+/**
+ * Valor bruto da chave, ou `null` se nunca foi salva — todo leitor precisa ter
+ * um padrão próprio para esse caso (ver as flags abaixo). `configuracoes` é
+ * chave/valor em TEXTO: números e JSON são convertidos por quem lê.
+ */
 export async function buscarConfiguracao(db: Database, chave: string): Promise<string | null> {
 	const row = await db.select().from(configuracoes).where(eq(configuracoes.chave, chave)).get();
 	return row?.valor ?? null;
 }
 
+/**
+ * Grava a chave (upsert). Não valida nem a chave nem o formato do valor: quem
+ * chama é dono do contrato de leitura correspondente.
+ */
 export async function salvarConfiguracao(
 	db: Database,
 	chave: string,

@@ -1,24 +1,33 @@
+/**
+ * `load` do PAINEL DE COMPLIANCE (`/painel`) — apura quais unidades deviam ter
+ * escala num período e não têm.
+ *
+ * A apuração parte do UNIVERSO DE UNIDADES, não da lista de escalas: o dado
+ * que interessa é a AUSÊNCIA, e ela só aparece cruzando o que existe com o que
+ * era exigível. Cada unidade contribui com uma linha por regime que ela aceita
+ * (`tem_plantao`, `tem_expediente`, `tem_fds`).
+ *
+ * O período aceita as quatro combinações de mês/ano — inclusive "todos os meses
+ * de um ano" e "o mesmo mês em vários anos" —, e é isso que explica a lista de
+ * `periodos` montada antes da consulta: uma só ida ao banco cobre o intervalo
+ * inteiro, em vez de uma consulta por mês.
+ *
+ * O resultado é devolvido como PROMISE, sem `await`: o SvelteKit faz streaming,
+ * a tela pinta os filtros de imediato e o relatório preenche quando resolve.
+ * Quem consome está em `+page.svelte`.
+ */
 import { redirect, fail } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
 import { getDB, listarUnidades, registrarAuditComContexto, contextoDeEvento } from '$lib/db';
 import { excluirEscalaCompleta } from '$lib/server/escala-exclusao';
 import type { Database } from '$lib/db';
-import { getNowBR, MESES_PT } from '$lib/utils';
+import { getNowBR, MESES_PT, isoData, diasNoMes } from '$lib/utils';
+import type { ItemCompliance } from '$lib/types';
 import { and, gte, lte, inArray } from 'drizzle-orm';
 import { escalas as escTable, escalaDocumentos as docTable } from '$lib/server/schema';
 import type { Unidade } from '$lib/server/schema';
 
 // Re-exportar interface do compliance
-export interface ItemCompliance {
-	unidade_nome: string;
-	tipo_regime: 'plantao' | 'expediente' | 'fds';
-	periodo: string;
-	data_inicio: string;
-	data_fim: string;
-	status: 'ok' | 'nao_assinada' | 'nao_criada';
-	escala_id?: number;
-}
-
 // Importar a lógica de compliance existente.
 // `listaUnidades` vem do load (já buscado para os filtros da UI) — antes a
 // função refazia o mesmo SELECT em unidades, duplicando o round-trip ao D1.
@@ -28,13 +37,6 @@ async function gerarCompliance(
 	mes: number,
 	listaUnidades: Unidade[]
 ): Promise<ItemCompliance[]> {
-	function toISO(y: number, m: number, d: number): string {
-		return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-	}
-	function diasNoMes(y: number, m: number): number {
-		return new Date(y, m, 0).getDate();
-	}
-
 	function obterFdsDoMes(y: number, m: number) {
 		const list = [];
 		const days = diasNoMes(y, m);
@@ -45,8 +47,8 @@ async function gerarCompliance(
 				const sab = new Date(y, m - 1, d);
 				const dom = new Date(y, m - 1, d + 1);
 				list.push({
-					inicio: toISO(sab.getFullYear(), sab.getMonth() + 1, sab.getDate()),
-					fim: toISO(dom.getFullYear(), dom.getMonth() + 1, dom.getDate()),
+					inicio: isoData(sab.getFullYear(), sab.getMonth() + 1, sab.getDate()),
+					fim: isoData(dom.getFullYear(), dom.getMonth() + 1, dom.getDate()),
 					label: `FDS ${String(sab.getDate()).padStart(2, '0')}/${String(sab.getMonth() + 1).padStart(2, '0')}–${String(dom.getDate()).padStart(2, '0')}/${String(dom.getMonth() + 1).padStart(2, '0')}`
 				});
 			}
@@ -84,8 +86,8 @@ async function gerarCompliance(
 	let minDate = '9999-12-31';
 	let maxDate = '0000-01-01';
 	for (const p of periodos) {
-		const start = toISO(p.ano, p.mes, 1);
-		const end = toISO(p.ano, p.mes, diasNoMes(p.ano, p.mes));
+		const start = isoData(p.ano, p.mes, 1);
+		const end = isoData(p.ano, p.mes, diasNoMes(p.ano, p.mes));
 		if (start < minDate) minDate = start;
 		if (end > maxDate) maxDate = end;
 	}
@@ -106,8 +108,8 @@ async function gerarCompliance(
 	const result: ItemCompliance[] = [];
 
 	for (const p of periodos) {
-		const inicioMes = toISO(p.ano, p.mes, 1);
-		const fimMes = toISO(p.ano, p.mes, diasNoMes(p.ano, p.mes));
+		const inicioMes = isoData(p.ano, p.mes, 1);
+		const fimMes = isoData(p.ano, p.mes, diasNoMes(p.ano, p.mes));
 		const fdsList = obterFdsDoMes(p.ano, p.mes);
 
 		for (const unidade of listaUnidades) {

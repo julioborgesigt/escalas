@@ -1,5 +1,6 @@
 /**
- * GET /auditoria/export — exporta a trilha de auditoria. Restrito ao Admin Geral.
+ * GET /auditoria/export — exporta a trilha de auditoria. Restrito ao SUPER
+ * ADMIN (`requireSuperAdmin`), não ao Admin Geral.
  *
  * Parâmetros:
  *   - format = csv | pdf          (default csv)

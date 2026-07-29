@@ -146,6 +146,28 @@ describe('validarWebhookSync', () => {
 const NONCE_OK = 'a'.repeat(NONCE_MIN_LEN);
 
 /**
+ * Erro de UNIQUE como o Drizzle/D1 REALMENTE lança: a mensagem de topo traz só
+ * o "Failed query: insert into ...", e o "UNIQUE constraint failed" fica dois
+ * níveis abaixo, em `cause` (cadeia capturada do miniflare — ver
+ * `db-errors.test.ts`).
+ *
+ * O fixture anterior lançava um `Error` com a mensagem de UNIQUE no TOPO, que
+ * nenhum banco produz. Com ele, o `validarReplayProtection` passava no teste e
+ * falhava em produção: a checagem olhava `err.message`, não encontrava nada, e
+ * PROPAGAVA a exceção — o replay virava 500 em vez de rejeição registrada.
+ */
+function erroUniqueComoOD1Lanca(): Error {
+	const raiz = new Error(
+		'UNIQUE constraint failed: webhook_nonces.nonce: SQLITE_CONSTRAINT (extended: SQLITE_CONSTRAINT_PRIMARYKEY)'
+	);
+	const d1 = new Error(`D1_ERROR: ${raiz.message}`, { cause: raiz });
+	return new Error(
+		'Failed query: insert into "webhook_nonces" ("nonce", "created_at") values (?, ?)\nparams: abc',
+		{ cause: d1 }
+	);
+}
+
+/**
  * Mock mínimo do Drizzle: `db.insert(table).values(v).run()`. Aceita
  * configuração para simular UNIQUE constraint violation no segundo INSERT
  * com o mesmo nonce.
@@ -157,7 +179,7 @@ function makeFakeDb(opts: { failWith?: Error } = {}): Database {
 			return {
 				run() {
 					if (opts.failWith) throw opts.failWith;
-					if (seen.has(v.nonce)) throw new Error('UNIQUE constraint failed: webhook_nonces.nonce');
+					if (seen.has(v.nonce)) throw erroUniqueComoOD1Lanca();
 					seen.add(v.nonce);
 					return Promise.resolve();
 				}

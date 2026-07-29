@@ -1,3 +1,24 @@
+/**
+ * Downloads da escala GISE — um endpoint para todos os formatos
+ * (`?format=pdf|xlsx|extraordinario`), porque todos partem da mesma permissão e
+ * da mesma auditoria: exportar é acesso a dado pessoal e fica registrado antes
+ * de qualquer byte sair.
+ *
+ * A regra dos DOIS ARTEFATOS aparece aqui inteira. Para um documento já
+ * assinado existem duas versões:
+ *
+ * - **com manifesto** — o blob ÍNTEGRO do R2, com a assinatura criptográfica
+ *   preservada. Só o Admin Geral e o próprio assinante recebem
+ *   (`podeBaixarComManifesto` + `?manifesto=true`), porque o manifesto carrega
+ *   dados forenses (IP, GPS, selfie);
+ * - **cópia de conferência** — o mesmo conteúdo regerado com rodapé e QR para
+ *   `/validar`, sem manifesto. É o que circula.
+ *
+ * Sem assinatura, o que sai é RASCUNHO, marcado como tal.
+ *
+ * O caminho legado regenera o relatório quando não há blob no R2 (assinaturas
+ * anteriores à gravação do arquivo) — mesma aparência, sem valor forense.
+ */
 import type { RequestHandler } from './$types';
 import {
 	getDB,

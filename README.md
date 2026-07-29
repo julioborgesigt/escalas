@@ -89,8 +89,11 @@ cp .env.example .dev.vars
 Edite `.dev.vars` com os valores mínimos para desenvolvimento:
 
 ```ini
-SYNC_TOKEN=qualquer-string-para-dev
-RESET_TOKEN=outra-string-diferente-do-sync-token
+# Gere cada um com `openssl rand -hex 32`. NÃO use uma string curta qualquer:
+# os webhooks recusam SYNC_TOKEN com menos de 32 caracteres (fail-closed contra
+# segredo fraco em produção), e a suíte E2E falha com 401 se você encurtar.
+SYNC_TOKEN=<openssl rand -hex 32>
+RESET_TOKEN=<outro openssl rand -hex 32, diferente do SYNC_TOKEN>
 # Opcional — só se quiser testar envio de e-mail (2FA, primeiro acesso):
 # RESEND_API_KEY=re_...
 # RESEND_FROM_EMAIL=onboarding@resend.dev
@@ -198,7 +201,7 @@ O projeto usa **Cloudflare D1** (SQLite serverless) via **Drizzle ORM**. O schem
 | `escala_policiais`               | Associação policial ↔ escala (data, horário, equipe)                                                                |
 | `escala_documentos`              | PDFs assinados com metadados CAdES-LT (OCSP, TST, selfie, GPS, IP)                                                  |
 | `escala_solicitacoes_assinatura` | Solicitações de assinatura por unidade/respondência                                                                 |
-| `unidades`                       | Hierarquia: departamento → seccional → delegacia                                                                    |
+| `unidades`                       | Hierarquia: departamento → seccional → delegacia. Ligada por **nome** (ver abaixo)                                  |
 | `gise_escalas`                   | GISE operacionais (status, supervisor, assessor, configuração)                                                      |
 | `gise_seccionais`                | Seccionais dentro de uma GISE                                                                                       |
 | `gise_equipes`                   | Equipes (operacional/SEINT) com slots DPC/OIP                                                                       |
@@ -211,6 +214,32 @@ O projeto usa **Cloudflare D1** (SQLite serverless) via **Drizzle ORM**. O schem
 | `audit_log`                      | Trilha de auditoria forense (eventos de negócio, cadeia de hash tamper-evident)                                     |
 | `app_log`                        | Logs técnicos do servidor (warn/error do logger, correlacionados por `request_id`)                                  |
 
+### Unidade é referenciada por NOME
+
+Herança da planilha que originou o sistema: `policiais.lotacao` e
+`escalas.lotacao` guardam o **nome** da unidade, não uma chave estrangeira. Duas
+consequências que valem para qualquer mudança nessa área:
+
+- **Renomear cascateia.** `atualizarUnidade` propaga o nome novo para policiais e
+  escalas na mesma operação. Um `UPDATE` direto no banco quebraria os vínculos.
+- **Unidade NÃO se exclui — só se desativa.** Não existe ação de excluir na
+  interface nem função de DELETE na camada de dados: `definirUnidadeAtiva` marca
+  `ativo = 0`, a unidade some das listas de escolha (`listarUnidades`) e continua
+  existindo para todo o resto. A tela de gestão usa `listarTodasUnidades` e a
+  exibe marcada como "Desativada", com botão de reativar.
+
+  O motivo é a assinatura: `gise_assinaturas_relatorios.seccional_id` referencia
+  `unidades(id)`, e o D1 aplica chave estrangeira de verdade. Apagar a unidade
+  levava junto o registro do ato de assinar — assinante, CPF, rubrica, selfie,
+  IP, GPS, hash do arquivo e a chave do PDF no R2 — e o portal público
+  `/validar` passava a responder "documento não encontrado" para um papel já
+  entregue, indistinguível de documento falso. Escala e lotação, que ligam por
+  NOME e sem FK, ficavam órfãs sem erro nenhum.
+
+  Como defesa em profundidade, a FK passou de `CASCADE` para `RESTRICT`
+  (migração `0038`): mesmo um `DELETE` manual fora da aplicação é recusado pelo
+  banco.
+
 ### Comandos de migração
 
 ```bash
@@ -222,16 +251,24 @@ npm run db:migrate:staging
 
 # Aplicar migrações em produção (requer Wrangler autenticado; --yes obrigatório)
 npm run db:migrate:prod -- --yes
-
-# Gerar nova migração após alterar src/lib/server/schema.ts
-npx drizzle-kit generate --dialect sqlite
 ```
 
-> **Importante:** nunca edite arquivos em `migrations/` manualmente. Sempre edite o schema e deixe o Drizzle gerar o SQL.
+> **Importante:** as migrações são **escritas à mão**, e editar
+> `src/lib/server/schema.ts` **não cria tabela nenhuma** — muda só o tipo visto
+> pelo TypeScript. Uma coluna que existe só no schema compila, passa no `check` e
+> falha no primeiro `SELECT`. Toda alteração precisa do par: schema **+** um
+> `migrations/00NN_descricao.sql` novo.
+>
+> Não use `drizzle-kit generate`. O `drizzle.config.ts` ainda aponta para o
+> schema e as 12 primeiras migrações saíram dele, mas o gerador não produz o
+> _rebuild_ de tabela (criar nova → copiar → dropar → renomear) que o SQLite do
+> D1 exige para quase todo `ALTER` real.
 
 ### Histórico de migrações
 
-O histórico completo está na própria pasta [`migrations/`](migrations/) — os nomes dos arquivos são autoexplicativos (`0000_initial_schema.sql` … `0033_audit_forense.sql`) e o `migrations/meta/_journal.json` rastreia o que já foi aplicado em cada ambiente. Para entender uma migração específica, leia o SQL dela e o trecho correspondente do [`src/lib/server/schema.ts`](src/lib/server/schema.ts).
+O histórico completo está na própria pasta [`migrations/`](migrations/) — os nomes dos arquivos são autoexplicativos (`0000_initial_schema.sql` … `0038_gise_assinaturas_fk_restrict.sql`). Para entender uma migração específica, leia o SQL dela e o trecho correspondente do [`src/lib/server/schema.ts`](src/lib/server/schema.ts).
+
+O que já rodou em cada ambiente é rastreado pela tabela `_migrations_aplicadas`, gravada pelo runner [`scripts/migrate.ts`](scripts/migrate.ts). (O `migrations/meta/` do `drizzle-kit` foi removido em jul/2026: ficou parado em 2 entradas para 41 arquivos e só induzia a erro.)
 
 ---
 
@@ -253,6 +290,8 @@ npm run lint:fix           # ESLint com auto-fix
 npm run format             # Prettier (formata todos os arquivos)
 npm run format:check       # Prettier sem alterar (só verifica)
 npm run knip               # Detecção de código/exports mortos
+npm run docs:inventario    # Inventário de documentação (cabeçalhos, contratos, opacos)
+npm run docs:guard         # Falha se arquivo NOVO em lib/db vier sem doc (roda no CI)
 
 # Testes
 npm run test               # Vitest (run once)
@@ -269,6 +308,30 @@ npm run users:set-default-password:prod     # Idem, em produção
 npm run users:clear-passwords-non-admins    # Limpa senhas de não-admins (local)
 npm run users:clear-passwords-non-admins:prod  # Idem, em produção
 ```
+
+### Revisão de PR grande: `npm run docs:inventario`
+
+Antes de abrir (ou revisar) um PR que mexe em muitos arquivos, rode:
+
+```bash
+npm run docs:inventario          # resumo por categoria
+npm run docs:inventario -- --lista   # backlog completo
+```
+
+Ele mede três coisas, na ordem de retorno que importa:
+
+| métrica             | o que significa                                                                            |
+| ------------------- | ------------------------------------------------------------------------------------------ |
+| **sem cabeçalho**   | o arquivo não diz o que é nem quem o usa — comentário de maior retorno                     |
+| **opacos**          | ≥ 12 pontos de decisão por 100 linhas e < 6% de comentário: regra de negócio irrecuperável |
+| **exports sem doc** | contrato público sem dizer o que devolve, o que assume e que efeito tem                    |
+
+É heurística para PRIORIZAR, não gate: componente com 800 linhas de markup e
+2% de comentário pode estar certo — o que ele precisa é do cabeçalho. O gate
+automático é só para arquivo novo em `lib/db` (`npm run docs:guard`, no CI).
+
+O histórico da varredura que zerou esse backlog está arquivado — ver
+[`docs/HISTORICO.md`](docs/HISTORICO.md).
 
 ---
 
@@ -653,7 +716,7 @@ npm run test          # Executa uma vez
 npm run test:watch    # Watch mode (recomendado durante desenvolvimento)
 ```
 
-Arquivos de teste ficam em `src/` com o padrão `*.test.ts`, distribuídos em pastas `__tests__/` junto do código testado (50+ arquivos, 530+ testes). Os principais grupos:
+Arquivos de teste ficam em `src/` com o padrão `*.test.ts`, distribuídos em pastas `__tests__/` junto do código testado (60 arquivos, 617 testes). Os principais grupos:
 
 - `src/lib/__tests__/` — autenticação (PBKDF2/pepper, sessões, 2FA), CSRF, headers de segurança, utilitários
 - `src/lib/server/__tests__/` — fluxo de login, assinatura (CAdES, OCSP, TSA, trust store), permissões, webhooks, Sentry/PII
@@ -665,15 +728,25 @@ Arquivos de teste ficam em `src/` com o padrão `*.test.ts`, distribuídos em pa
 # Instalar browsers (apenas uma vez)
 npx playwright install --with-deps chromium
 
-# Rodar todos os testes E2E
-npx playwright test
+npm run test:e2e            # todos os specs
+npm run test:e2e:ui         # interface visual (útil para debugar)
+npm run test:e2e:report     # abre o relatório da última execução
 
-# Rodar com interface visual (útil para debugar)
-npx playwright test --ui
-
-# Rodar um arquivo específico
-npx playwright test e2e/auth.spec.ts
+npm run test:e2e -- e2e/auth.spec.ts       # um arquivo
+npm run test:e2e -- --project=chromium     # só desktop (pula o projeto mobile)
 ```
+
+> **`SYNC_TOKEN` curto derruba 4 specs com 401.** Os webhooks recusam segredo
+> com menos de 32 caracteres, então um placeholder do tipo `token-de-dev` faz
+> `webhook-sync.spec.ts` falhar inteiro — uma falha que parece bug do sistema e
+> é só configuração. Gere com `openssl rand -hex 32`, como manda o
+> [`.env.example`](.env.example).
+
+> **O E2E roda contra o seu D1 local, não contra um banco limpo.** O
+> `global-setup` purga o que a própria suíte cria (faixa de id 99xxx), mas não
+> toca em dados reais — se você andou usando o app, eles continuam lá. Os specs
+> são escritos para tolerar isso (asserções miradas na fixture); se algum falhar
+> por dado alheio, é bug do spec, não do seu banco.
 
 Os testes E2E fazem build + preview automático antes de rodar (via `e2e/servidor-e2e.ts`), e o `global-setup` aplica as migrations pendentes no D1 local e semeia os fixtures — não é preciso preparar o banco manualmente. Configure credenciais de teste em `e2e/global-setup.ts`. Além do projeto `chromium`, um projeto `mobile` (Pixel 7 emulado) reexecuta os specs de UI em viewport de celular.
 
@@ -833,7 +906,8 @@ Verifique se o relógio do servidor está sincronizado (NTP). O D1 usa timestamp
 
 1. Certifique-se de que o Wrangler está autenticado: `wrangler whoami`
 2. Verifique se o `database_id` em `wrangler.toml` corresponde ao banco correto no dashboard
-3. Confira o arquivo `migrations/meta/_journal.json` — ele rastreia quais migrações já foram aplicadas
+3. Confira a tabela `_migrations_aplicadas` no D1 — é ela que rastreia o que já rodou:
+   `npx wrangler d1 execute escalas-db --remote --command "SELECT * FROM _migrations_aplicadas ORDER BY id DESC LIMIT 10"`
 
 ### Análise de bundle
 

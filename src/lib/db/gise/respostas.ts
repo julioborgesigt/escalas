@@ -1,3 +1,24 @@
+/**
+ * Formulário de produtividade da GISE: o MODELO (quais perguntas existem) e as
+ * RESPOSTAS de cada equipe.
+ *
+ * Três conceitos que se confundem facilmente:
+ *
+ * - **modelo** — árvore de perguntas em JSON, versionada em
+ *   `gise_modelo_formulario` por `tipo` (`operacional` | `seint`) e editável
+ *   pelo assessor. Se a linha não existir, valem as constantes DEFAULT deste
+ *   arquivo;
+ * - **respostas** — um blob JSON por equipe em `gise_respostas_formulario`,
+ *   com chaves soltas (`{ km_inicial: '10', drogas_detalhe: {...} }`). Não há
+ *   FK entre resposta e pergunta: o casamento é por `key`, em tempo de leitura;
+ * - **relatório** — a versão achatada `(pergunta, resposta)` que
+ *   `buscarRespostasProdutividadeSeccional` produz para o PDF/XLSX.
+ *
+ * Consequência prática: modelo e respostas evoluem em ritmos diferentes. Uma
+ * resposta gravada em janeiro é lida com o modelo de hoje, então toda leitura é
+ * tolerante (chave ausente = pergunta some do relatório, nunca quebra) e o
+ * parse do blob usa a variante *loose* do schema.
+ */
 import { eq, and, desc, sql, type SQL } from 'drizzle-orm';
 import {
 	giseEscalas,
@@ -316,6 +337,36 @@ export const DEFAULT_SEINT_QUESTIONS = [
 	}
 ];
 
+/**
+ * Achata as respostas de TODAS as equipes de uma seccional em uma lista
+ * `(equipe_id, pergunta, resposta)` — o formato que o PDF e o XLSX de
+ * produtividade consomem, linha a linha.
+ *
+ * Regras de tradução do blob para linhas, todas deliberadas:
+ *
+ * - **Pergunta some se não houver resposta.** `undefined`, `null` e `''` não
+ *   viram linha; o relatório mostra o que foi feito, não o que ficou em branco.
+ * - **Detalhe só aparece sob um "sim".** Trocar a resposta para "não" na tela
+ *   não apaga as listas já digitadas no blob; expandir independentemente do
+ *   pai faria o relatório declarar apreensões que a equipe negou. `filhos`
+ *   segue a mesma regra — subpergunta de um "não" nem é visitada. A exceção é
+ *   `operacoes_seint_pura`, que não tem pai sim/não: sua lista é sempre
+ *   expandida.
+ * - **Detalhe vem de chave FIXA, não da `key` da pergunta.** Os widgets
+ *   complexos sempre gravam em `mandados_lista`, `armas_detalhe`,
+ *   `drogas_selecionadas` etc., independentemente de onde a pergunta esteja no
+ *   modelo. Por isso o `if` por `p.tipo` + chave literal, em vez de derivar de
+ *   `p.key`: renomear a pergunta no editor não pode perder o detalhe já gravado.
+ * - **`  ↳` é indentação visual**, não markup — o relatório é uma tabela plana
+ *   de duas colunas e essa é a única forma de mostrar aninhamento nela.
+ *
+ * O modelo aplicado é o customizado da seccional (por `equipe_tipo`) e, na
+ * falta dele, o DEFAULT do tipo. Aqui usa-se `DEFAULT_QUESTIONS` (rótulos
+ * curtos), não a variante de formulário.
+ *
+ * Modelo com JSON corrompido é registrado e IGNORADO — a equipe cai no default
+ * em vez de derrubar a geração do relatório inteiro.
+ */
 export async function buscarRespostasProdutividadeSeccional(
 	db: Database,
 	giseId: number,
@@ -353,6 +404,9 @@ export async function buscarRespostasProdutividadeSeccional(
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any -- resps is a dynamic untyped JSON blob; narrowing every access would change logic
 	const processarPerguntas = (listaPerguntas: PerguntaModelo[], resps: any, eqId: number) => {
 		for (const p of listaPerguntas) {
+			// Três tentativas de lookup por compatibilidade: blobs antigos indexavam
+			// a resposta pelo ID da pergunta (como string ou como número); os atuais
+			// usam a `key`. Ler pelas três mantém legível o histórico já gravado.
 			const resp = resps[p.key] ?? resps[String(p.id)] ?? resps[p.id];
 			if (resp !== undefined && resp !== null && resp !== '') {
 				allResults.push({ equipe_id: eqId, pergunta: p.texto, resposta: String(resp) });
@@ -511,6 +565,14 @@ export async function buscarRespostasProdutividadeSeccional(
 	return allResults;
 }
 
+/**
+ * Modelo customizado do tipo, ou `undefined` se nunca foi salvo (o chamador cai
+ * no DEFAULT correspondente).
+ *
+ * Devolve `null` em caso de FALHA de query em vez de propagar: o modelo é
+ * enfeite comparado ao resto da página — quebrar o `load` inteiro porque a
+ * customização não pôde ser lida seria pior do que exibir o formulário padrão.
+ */
 export async function buscarGiseModeloFormulario(
 	db: Database,
 	tipo: 'operacional' | 'seint' = 'operacional'
@@ -523,6 +585,15 @@ export async function buscarGiseModeloFormulario(
 	}
 }
 
+/**
+ * Grava o modelo do tipo (upsert manual: uma linha por `tipo`). `config` é o
+ * JSON da árvore de perguntas, já validado pelo chamador.
+ *
+ * Substitui o modelo INTEIRO e não versiona: as respostas antigas continuam no
+ * banco com as `key` velhas e simplesmente deixam de aparecer no relatório se a
+ * `key` sumir do modelo. É o preço de guardar resposta como blob — trocar a
+ * `key` de uma pergunta é, na prática, apagá-la do histórico.
+ */
 export async function salvarGiseModeloFormulario(
 	db: Database,
 	tipo: 'operacional' | 'seint',
@@ -548,6 +619,21 @@ export async function salvarGiseModeloFormulario(
 
 // ---- Respostas ----
 
+/**
+ * Resposta já gravada de uma equipe nesta GISE, para reabrir o formulário
+ * preenchido. Resolve o alvo nesta ordem:
+ *
+ *   1. `equipeId` explícito — o caminho normal; a UI sempre manda qual equipe
+ *      está sendo preenchida (o policial pode compor equipes diferentes);
+ *   2. a equipe do policial em `gise_membros` — fallback para quando a tela
+ *      abre sem `equipeId` na URL. Cuidado: `gise_membros` não guarda
+ *      `gise_id`, então esse lookup pega uma membresia QUALQUER do policial. Se
+ *      ele participou de mais de uma GISE, a equipe encontrada pode ser de
+ *      outra e o filtro por `gise_id` devolve vazio — daí os chamadores
+ *      passarem `equipeId` em vez de confiar neste ramo;
+ *   3. sem equipe alguma, procura pela resposta individual (`policial_id`),
+ *      formato das GISEs antigas, anteriores às equipes.
+ */
 export async function buscarRespostaGise(
 	db: Database,
 	giseId: number,
@@ -592,6 +678,15 @@ export async function buscarRespostaGise(
 	return null;
 }
 
+/**
+ * Salva o formulário da equipe — UPDATE se já existir resposta (mesma regra de
+ * resolução de `buscarRespostaGise`), INSERT caso contrário.
+ *
+ * `respostas` chega como STRING JSON já validada pelo chamador; esta camada não
+ * inspeciona o conteúdo. `policial_id` grava quem enviou por último, mas a
+ * resposta pertence à EQUIPE: outro membro que salvar depois sobrescreve o
+ * mesmo registro, por desenho — o relatório é da equipe, não de cada policial.
+ */
 export async function salvarRespostaGise(
 	db: Database,
 	giseId: number,
@@ -618,6 +713,20 @@ export async function salvarRespostaGise(
 	});
 }
 
+/**
+ * Todas as respostas do sistema, paginadas, com a GISE, a seccional e o tipo de
+ * equipe já resolvidos — a base do painel de produtividade, que agrega os blobs
+ * em memória.
+ *
+ * Detalhes que o chamador precisa saber:
+ * - os `innerJoin` fazem esta consulta ignorar respostas sem equipe (o formato
+ *   individual antigo) e respostas cuja seccional não casa com uma unidade;
+ * - `mes`/`ano` filtram pela `data_inicio` da GISE via `strftime`, não pelo
+ *   `updated_at` da resposta: o que interessa é o período do serviço, não
+ *   quando alguém preencheu;
+ * - `limit` é limitado a 500 por página. O painel pagina em laço até esgotar,
+ *   então mudar esse teto muda o número de idas ao banco, não o resultado.
+ */
 export async function listarTodasRespostasGise(
 	db: Database,
 	opts?: { page?: number; limit?: number; mes?: number; ano?: number }

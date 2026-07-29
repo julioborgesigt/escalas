@@ -9,6 +9,10 @@
  *   EMAIL binding            ← Cloudflare Email Sending
  *   RESEND_API_KEY=re_...    ← Chave de API do Resend
  *   RESEND_FROM_EMAIL=...    ← Remetente verificado no Resend
+ *
+ * Cada remetente monta só o CORPO da mensagem; a moldura visual vem de
+ * `layoutEmail` e o envio + log padronizado, de `enviarERegistrar`. O HTML
+ * resultante é congelado por goldens (`__tests__/email-templates.test.ts`).
  */
 
 import { montarHtmlEmailNotificacaoAssessorGise } from './gise-assessor-notificacao-text';
@@ -230,13 +234,17 @@ async function dispararEmail(
 	}
 }
 
-export async function enviarCodigo2FA(
-	destinatario: string,
-	codigo: string,
-	nomeUsuario: string,
-	platform: App.Platform | undefined
-): Promise<void> {
-	const html = `
+/**
+ * Moldura comum dos e-mails transacionais: cabeçalho institucional, cartão
+ * branco centralizado e rodapé. Os sete remetentes usavam cópias byte a byte
+ * destas 28 linhas — mudar a identidade visual exigia editar todas.
+ *
+ * `corpo` entra dentro da célula de conteúdo (já com `padding:32px`) e é HTML
+ * confiável, montado aqui no servidor; texto vindo do usuário passa por
+ * `escapeHtml` antes.
+ */
+function layoutEmail(corpo: string): string {
+	return `
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"></head>
@@ -252,7 +260,81 @@ export async function enviarCodigo2FA(
         </tr>
         <tr>
           <td style="padding:32px;">
-            <p style="margin:0 0 8px;color:#333;font-size:15px;">Olá, <strong>${escapeHtml(nomeUsuario)}</strong>!</p>
+${corpo}          </td>
+        </tr>
+        <tr>
+          <td style="background:#f8f9fc;padding:16px 32px;border-top:1px solid #eee;">
+            <p style="margin:0;color:#999;font-size:11px;">Sistema de Escalas de Plantão — Polícia Civil do Ceará</p>
+          </td>
+        </tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`;
+}
+
+/**
+ * Envia e registra o resultado com o mesmo formato de log em todos os
+ * remetentes: sucesso com `messageId`, falha com a mensagem do erro — sempre
+ * com o destinatário MASCARADO (o log não guarda e-mail em claro).
+ *
+ * Relança em caso de falha: quem chama decide se o envio é crítico (bloqueia a
+ * ação) ou best-effort (só loga).
+ *
+ * `extras` cobre os envios que não são só assunto + HTML: `text` (alternativa em
+ * texto puro, para quem lê o e-mail sem HTML), `attachments` e `logExtra` com
+ * campos adicionais de log. Sem isso, cada um desses remetentes reescrevia o
+ * try/catch inteiro e o formato do log podia divergir em silêncio.
+ */
+async function enviarERegistrar(
+	platform: App.Platform | undefined,
+	tag: string,
+	destinatario: string,
+	subject: string,
+	html: string,
+	acao = 'enviado',
+	extras?: {
+		text?: string;
+		attachments?: EmailOptions['attachments'];
+		logExtra?: Record<string, unknown>;
+	}
+): Promise<void> {
+	try {
+		const info = await dispararEmail(platform, {
+			to: destinatario,
+			subject,
+			html,
+			...(extras?.text ? { text: extras.text } : {}),
+			...(extras?.attachments ? { attachments: extras.attachments } : {})
+		});
+		logger.info(`[email/${tag}] ${acao}`, {
+			destinatario: mascararEmail(destinatario),
+			...(extras?.logExtra ?? {}),
+			messageId: info.messageId
+		});
+	} catch (err) {
+		logger.error(`[email/${tag}] Erro ao enviar`, {
+			destinatario: mascararEmail(destinatario),
+			error: err instanceof Error ? err.message : String(err)
+		});
+		throw err;
+	}
+}
+
+/**
+ * Código de 2FA para entrar no sistema, enviado ao e-mail INSTITUCIONAL.
+ * Crítico: relança em caso de falha, porque sem o código ninguém entra — a rota
+ * de login precisa saber que o envio não aconteceu.
+ */
+export async function enviarCodigo2FA(
+	destinatario: string,
+	codigo: string,
+	nomeUsuario: string,
+	platform: App.Platform | undefined
+): Promise<void> {
+	const html =
+		layoutEmail(`            <p style="margin:0 0 8px;color:#333;font-size:15px;">Olá, <strong>${escapeHtml(nomeUsuario)}</strong>!</p>
             <p style="margin:0 0 24px;color:#555;font-size:14px;">
               Seu código de verificação para acesso ao sistema é:
             </p>
@@ -265,61 +347,31 @@ export async function enviarCodigo2FA(
             <p style="margin:0;color:#666;font-size:13px;">
               🔒 Se você não tentou fazer login, ignore este e-mail.
             </p>
-          </td>
-        </tr>
-        <tr>
-          <td style="background:#f8f9fc;padding:16px 32px;border-top:1px solid #eee;">
-            <p style="margin:0;color:#999;font-size:11px;">Sistema de Escalas de Plantão — Polícia Civil do Ceará</p>
-          </td>
-        </tr>
-      </table>
-    </td></tr>
-  </table>
-</body>
-</html>`;
+`);
 
-	try {
-		const info = await dispararEmail(platform, {
-			to: destinatario,
-			subject: 'Código de Verificação — Acesso ao Sistema',
-			html
-		});
-		logger.info('[email/2fa] Código enviado', {
-			destinatario: mascararEmail(destinatario),
-			messageId: info.messageId
-		});
-	} catch (err) {
-		logger.error('[email/2fa] Erro ao enviar', {
-			destinatario: mascararEmail(destinatario),
-			error: err instanceof Error ? err.message : String(err)
-		});
-		throw err;
-	}
+	await enviarERegistrar(
+		platform,
+		'2fa',
+		destinatario,
+		'Código de Verificação — Acesso ao Sistema',
+		html,
+		'Código enviado'
+	);
 }
 
+/**
+ * Código para o titular confirmar um e-mail PESSOAL como canal de recuperação.
+ * Vai para o endereço sendo verificado, que é justamente o que ainda não se
+ * pode considerar confiável — daí o código, e não um simples aviso.
+ */
 export async function enviarCodigoEmailPessoal(
 	destinatario: string,
 	codigo: string,
 	nomeUsuario: string,
 	platform: App.Platform | undefined
 ): Promise<void> {
-	const html = `
-<!DOCTYPE html>
-<html lang="pt-BR">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"></head>
-<body style="margin:0;padding:0;background:#f4f6fb;font-family:Arial,sans-serif;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f6fb;padding:32px 0;">
-    <tr><td align="center">
-      <table width="480" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.08);">
-        <tr>
-          <td style="background:#1a3a6e;padding:24px 32px;">
-            <p style="margin:0;color:#ffffff;font-size:18px;font-weight:bold;">Polícia Civil do Ceará</p>
-            <p style="margin:4px 0 0;color:#a0b4d6;font-size:13px;">Sistema de Escalas de Plantão</p>
-          </td>
-        </tr>
-        <tr>
-          <td style="padding:32px;">
-            <p style="margin:0 0 8px;color:#333;font-size:15px;">Olá, <strong>${escapeHtml(nomeUsuario)}</strong>!</p>
+	const html =
+		layoutEmail(`            <p style="margin:0 0 8px;color:#333;font-size:15px;">Olá, <strong>${escapeHtml(nomeUsuario)}</strong>!</p>
             <p style="margin:0 0 24px;color:#555;font-size:14px;">
               Para confirmar seu e-mail pessoal no sistema como canal de recuperação de senha, use o código abaixo:
             </p>
@@ -333,36 +385,16 @@ export async function enviarCodigoEmailPessoal(
             <p style="margin:0;color:#666;font-size:13px;">
               🔒 Se você não solicitou isso, ignore este e-mail.
             </p>
-          </td>
-        </tr>
-        <tr>
-          <td style="background:#f8f9fc;padding:16px 32px;border-top:1px solid #eee;">
-            <p style="margin:0;color:#999;font-size:11px;">Sistema de Escalas de Plantão — Polícia Civil do Ceará</p>
-          </td>
-        </tr>
-      </table>
-    </td></tr>
-  </table>
-</body>
-</html>`;
+`);
 
-	try {
-		const info = await dispararEmail(platform, {
-			to: destinatario,
-			subject: 'Verificação de E-mail Pessoal — Sistema de Escalas',
-			html
-		});
-		logger.info('[email/verificacao-pessoal] Código enviado', {
-			destinatario: mascararEmail(destinatario),
-			messageId: info.messageId
-		});
-	} catch (err) {
-		logger.error('[email/verificacao-pessoal] Erro ao enviar', {
-			destinatario: mascararEmail(destinatario),
-			error: err instanceof Error ? err.message : String(err)
-		});
-		throw err;
-	}
+	await enviarERegistrar(
+		platform,
+		'verificacao-pessoal',
+		destinatario,
+		'Verificação de E-mail Pessoal — Sistema de Escalas',
+		html,
+		'Código enviado'
+	);
 }
 
 /**
@@ -376,23 +408,8 @@ export async function enviarAvisoTrocaEmailPessoal(
 	novoEmailMascarado: string,
 	platform: App.Platform | undefined
 ): Promise<void> {
-	const html = `
-<!DOCTYPE html>
-<html lang="pt-BR">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"></head>
-<body style="margin:0;padding:0;background:#f4f6fb;font-family:Arial,sans-serif;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f6fb;padding:32px 0;">
-    <tr><td align="center">
-      <table width="480" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.08);">
-        <tr>
-          <td style="background:#1a3a6e;padding:24px 32px;">
-            <p style="margin:0;color:#ffffff;font-size:18px;font-weight:bold;">Polícia Civil do Ceará</p>
-            <p style="margin:4px 0 0;color:#a0b4d6;font-size:13px;">Sistema de Escalas de Plantão</p>
-          </td>
-        </tr>
-        <tr>
-          <td style="padding:32px;">
-            <p style="margin:0 0 8px;color:#333;font-size:15px;">Olá, <strong>${escapeHtml(nomeUsuario)}</strong>!</p>
+	const html =
+		layoutEmail(`            <p style="margin:0 0 8px;color:#333;font-size:15px;">Olá, <strong>${escapeHtml(nomeUsuario)}</strong>!</p>
             <p style="margin:0 0 16px;color:#555;font-size:14px;">
               O <strong>e-mail pessoal</strong> cadastrado na sua conta (usado para recuperação de senha)
               acaba de ser <strong>alterado</strong> para <strong>${escapeHtml(novoEmailMascarado)}</strong>.
@@ -404,61 +421,30 @@ export async function enviarAvisoTrocaEmailPessoal(
               🔒 Se você <strong>não reconhece</strong> esta alteração, troque sua senha imediatamente e
               comunique o administrador do sistema.
             </p>
-          </td>
-        </tr>
-        <tr>
-          <td style="background:#f8f9fc;padding:16px 32px;border-top:1px solid #eee;">
-            <p style="margin:0;color:#999;font-size:11px;">Sistema de Escalas de Plantão — Polícia Civil do Ceará</p>
-          </td>
-        </tr>
-      </table>
-    </td></tr>
-  </table>
-</body>
-</html>`;
+`);
 
-	try {
-		const info = await dispararEmail(platform, {
-			to: destinatarioFuncional,
-			subject: 'Aviso de segurança: e-mail pessoal alterado — Sistema de Escalas',
-			html
-		});
-		logger.info('[email/aviso-troca-email-pessoal] Aviso enviado', {
-			destinatario: mascararEmail(destinatarioFuncional),
-			messageId: info.messageId
-		});
-	} catch (err) {
-		logger.error('[email/aviso-troca-email-pessoal] Erro ao enviar', {
-			destinatario: mascararEmail(destinatarioFuncional),
-			error: err instanceof Error ? err.message : String(err)
-		});
-		throw err;
-	}
+	await enviarERegistrar(
+		platform,
+		'aviso-troca-email-pessoal',
+		destinatarioFuncional,
+		'Aviso de segurança: e-mail pessoal alterado — Sistema de Escalas',
+		html,
+		'Aviso enviado'
+	);
 }
 
+/**
+ * Código de redefinição de senha, enviado ao e-mail pessoal já verificado.
+ * Alternativa ao link para quem abre o e-mail em outro aparelho.
+ */
 export async function enviarCodigoRedefinicaoSenha(
 	destinatario: string,
 	codigo: string,
 	nomeUsuario: string,
 	platform: App.Platform | undefined
 ): Promise<void> {
-	const html = `
-<!DOCTYPE html>
-<html lang="pt-BR">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"></head>
-<body style="margin:0;padding:0;background:#f4f6fb;font-family:Arial,sans-serif;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f6fb;padding:32px 0;">
-    <tr><td align="center">
-      <table width="480" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.08);">
-        <tr>
-          <td style="background:#1a3a6e;padding:24px 32px;">
-            <p style="margin:0;color:#ffffff;font-size:18px;font-weight:bold;">Polícia Civil do Ceará</p>
-            <p style="margin:4px 0 0;color:#a0b4d6;font-size:13px;">Sistema de Escalas de Plantão</p>
-          </td>
-        </tr>
-        <tr>
-          <td style="padding:32px;">
-            <p style="margin:0 0 8px;color:#333;font-size:15px;">Olá, <strong>${escapeHtml(nomeUsuario)}</strong>!</p>
+	const html =
+		layoutEmail(`            <p style="margin:0 0 8px;color:#333;font-size:15px;">Olá, <strong>${escapeHtml(nomeUsuario)}</strong>!</p>
             <p style="margin:0 0 24px;color:#555;font-size:14px;">
               Use o código abaixo para autorizar o envio do link de redefinição de senha:
             </p>
@@ -472,61 +458,31 @@ export async function enviarCodigoRedefinicaoSenha(
             <p style="margin:0;color:#666;font-size:13px;">
               🔒 Se você não solicitou a redefinição de senha, ignore este e-mail.
             </p>
-          </td>
-        </tr>
-        <tr>
-          <td style="background:#f8f9fc;padding:16px 32px;border-top:1px solid #eee;">
-            <p style="margin:0;color:#999;font-size:11px;">Sistema de Escalas de Plantão — Polícia Civil do Ceará</p>
-          </td>
-        </tr>
-      </table>
-    </td></tr>
-  </table>
-</body>
-</html>`;
+`);
 
-	try {
-		const info = await dispararEmail(platform, {
-			to: destinatario,
-			subject: 'Código de Redefinição de Senha — Sistema de Escalas',
-			html
-		});
-		logger.info('[email/redefinicao-codigo] Código enviado', {
-			destinatario: mascararEmail(destinatario),
-			messageId: info.messageId
-		});
-	} catch (err) {
-		logger.error('[email/redefinicao-codigo] Erro ao enviar', {
-			destinatario: mascararEmail(destinatario),
-			error: err instanceof Error ? err.message : String(err)
-		});
-		throw err;
-	}
+	await enviarERegistrar(
+		platform,
+		'redefinicao-codigo',
+		destinatario,
+		'Código de Redefinição de Senha — Sistema de Escalas',
+		html,
+		'Código enviado'
+	);
 }
 
+/**
+ * Link de redefinição de senha. A URL carrega o token em claro — é a
+ * credencial: quem tem o link redefine a senha, e por isso o e-mail traz o
+ * prazo de validade e o aviso de ignorar se não foi o titular que pediu.
+ */
 export async function enviarLinkRedefinicaoSenha(
 	destinatario: string,
 	nomeUsuario: string,
 	linkRedefinicao: string,
 	platform: App.Platform | undefined
 ): Promise<void> {
-	const html = `
-<!DOCTYPE html>
-<html lang="pt-BR">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"></head>
-<body style="margin:0;padding:0;background:#f4f6fb;font-family:Arial,sans-serif;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f6fb;padding:32px 0;">
-    <tr><td align="center">
-      <table width="480" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.08);">
-        <tr>
-          <td style="background:#1a3a6e;padding:24px 32px;">
-            <p style="margin:0;color:#ffffff;font-size:18px;font-weight:bold;">Polícia Civil do Ceará</p>
-            <p style="margin:4px 0 0;color:#a0b4d6;font-size:13px;">Sistema de Escalas de Plantão</p>
-          </td>
-        </tr>
-        <tr>
-          <td style="padding:32px;">
-            <p style="margin:0 0 8px;color:#333;font-size:15px;">Olá, <strong>${escapeHtml(nomeUsuario)}</strong>!</p>
+	const html =
+		layoutEmail(`            <p style="margin:0 0 8px;color:#333;font-size:15px;">Olá, <strong>${escapeHtml(nomeUsuario)}</strong>!</p>
             <p style="margin:0 0 24px;color:#555;font-size:14px;">
               Recebemos uma solicitação de redefinição de senha para a sua conta no Sistema de Escalas de Plantão.
               Clique no botão abaixo para definir uma nova senha:
@@ -550,61 +506,31 @@ export async function enviarLinkRedefinicaoSenha(
             <p style="margin:0;color:#e53e3e;font-size:13px;font-weight:bold;">
               🔒 Se você não solicitou a redefinição de senha, ignore este e-mail. Sua senha permanece a mesma.
             </p>
-          </td>
-        </tr>
-        <tr>
-          <td style="background:#f8f9fc;padding:16px 32px;border-top:1px solid #eee;">
-            <p style="margin:0;color:#999;font-size:11px;">Sistema de Escalas de Plantão — Polícia Civil do Ceará</p>
-          </td>
-        </tr>
-      </table>
-    </td></tr>
-  </table>
-</body>
-</html>`;
+`);
 
-	try {
-		const info = await dispararEmail(platform, {
-			to: destinatario,
-			subject: 'Redefinição de Senha — Sistema de Escalas',
-			html
-		});
-		logger.info('[email/redefinicao] Link enviado', {
-			destinatario: mascararEmail(destinatario),
-			messageId: info.messageId
-		});
-	} catch (err) {
-		logger.error('[email/redefinicao] Erro ao enviar', {
-			destinatario: mascararEmail(destinatario),
-			error: err instanceof Error ? err.message : String(err)
-		});
-		throw err;
-	}
+	await enviarERegistrar(
+		platform,
+		'redefinicao',
+		destinatario,
+		'Redefinição de Senha — Sistema de Escalas',
+		html,
+		'Link enviado'
+	);
 }
 
+/**
+ * Link de primeiro acesso, o único caminho de entrada de quem foi cadastrado
+ * (`criarPolicial` grava senha aleatória). Mesma natureza do link de
+ * redefinição: a URL é a credencial.
+ */
 export async function enviarLinkPrimeiroAcesso(
 	destinatario: string,
 	nomeUsuario: string,
 	linkPrimeiroAcesso: string,
 	platform: App.Platform | undefined
 ): Promise<void> {
-	const html = `
-<!DOCTYPE html>
-<html lang="pt-BR">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"></head>
-<body style="margin:0;padding:0;background:#f4f6fb;font-family:Arial,sans-serif;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f6fb;padding:32px 0;">
-    <tr><td align="center">
-      <table width="480" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.08);">
-        <tr>
-          <td style="background:#1a3a6e;padding:24px 32px;">
-            <p style="margin:0;color:#ffffff;font-size:18px;font-weight:bold;">Polícia Civil do Ceará</p>
-            <p style="margin:4px 0 0;color:#a0b4d6;font-size:13px;">Sistema de Escalas de Plantão</p>
-          </td>
-        </tr>
-        <tr>
-          <td style="padding:32px;">
-            <p style="margin:0 0 8px;color:#333;font-size:15px;">Olá, <strong>${escapeHtml(nomeUsuario)}</strong>!</p>
+	const html =
+		layoutEmail(`            <p style="margin:0 0 8px;color:#333;font-size:15px;">Olá, <strong>${escapeHtml(nomeUsuario)}</strong>!</p>
             <p style="margin:0 0 24px;color:#555;font-size:14px;">
               Sua conta no Sistema de Escalas de Plantão foi criada. Clique no botão abaixo para definir sua senha e ativar o acesso:
             </p>
@@ -627,38 +553,24 @@ export async function enviarLinkPrimeiroAcesso(
             <p style="margin:0;color:#e53e3e;font-size:13px;font-weight:bold;">
               🔒 Se você não esperava este e-mail, entre em contato com o administrador do sistema.
             </p>
-          </td>
-        </tr>
-        <tr>
-          <td style="background:#f8f9fc;padding:16px 32px;border-top:1px solid #eee;">
-            <p style="margin:0;color:#999;font-size:11px;">Sistema de Escalas de Plantão — Polícia Civil do Ceará</p>
-          </td>
-        </tr>
-      </table>
-    </td></tr>
-  </table>
-</body>
-</html>`;
+`);
 
-	try {
-		const info = await dispararEmail(platform, {
-			to: destinatario,
-			subject: 'Primeiro Acesso — Sistema de Escalas',
-			html
-		});
-		logger.info('[email/primeiro-acesso] Link enviado', {
-			destinatario: mascararEmail(destinatario),
-			messageId: info.messageId
-		});
-	} catch (err) {
-		logger.error('[email/primeiro-acesso] Erro ao enviar', {
-			destinatario: mascararEmail(destinatario),
-			error: err instanceof Error ? err.message : String(err)
-		});
-		throw err;
-	}
+	await enviarERegistrar(
+		platform,
+		'primeiro-acesso',
+		destinatario,
+		'Primeiro Acesso — Sistema de Escalas',
+		html,
+		'Link enviado'
+	);
 }
 
+/**
+ * Envia a escala de fim de semana com o `.docx` ANEXADO — único remetente com
+ * anexo. O buffer é convertido para base64 aqui porque é o formato que os dois
+ * provedores esperam, e vai acompanhado de uma versão em texto puro, já que
+ * este e-mail costuma ser reencaminhado.
+ */
 export async function enviarEscalaFDSPorEmail(
 	destinatario: string,
 	tituloEscala: string,
@@ -667,23 +579,7 @@ export async function enviarEscalaFDSPorEmail(
 	nomeArquivo: string,
 	platform: App.Platform | undefined
 ): Promise<void> {
-	const html = `
-<!DOCTYPE html>
-<html lang="pt-BR">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"></head>
-<body style="margin:0;padding:0;background:#f4f6fb;font-family:Arial,sans-serif;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f6fb;padding:32px 0;">
-    <tr><td align="center">
-      <table width="480" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.08);">
-        <tr>
-          <td style="background:#1a3a6e;padding:24px 32px;">
-            <p style="margin:0;color:#ffffff;font-size:18px;font-weight:bold;">Polícia Civil do Ceará</p>
-            <p style="margin:4px 0 0;color:#a0b4d6;font-size:13px;">Sistema de Escalas de Plantão</p>
-          </td>
-        </tr>
-        <tr>
-          <td style="padding:32px;">
-            <p style="margin:0 0 16px;color:#333;font-size:15px;">
+	const html = layoutEmail(`            <p style="margin:0 0 16px;color:#333;font-size:15px;">
               Segue em anexo a <strong>Escala de Plantão do Final de Semana</strong>:
             </p>
             <div style="background:#eef2ff;border-left:4px solid #1a3a6e;border-radius:6px;padding:16px 20px;margin-bottom:24px;">
@@ -695,48 +591,31 @@ export async function enviarEscalaFDSPorEmail(
             <p style="margin:0;color:#888;font-size:12px;">
               O arquivo <em>.docx</em> está disponível em anexo.
             </p>
-          </td>
-        </tr>
-        <tr>
-          <td style="background:#f8f9fc;padding:16px 32px;border-top:1px solid #eee;">
-            <p style="margin:0;color:#999;font-size:11px;">Sistema de Escalas de Plantão — Polícia Civil do Ceará</p>
-          </td>
-        </tr>
-      </table>
-    </td></tr>
-  </table>
-</body>
-</html>`;
+`);
 
+	// O provedor recebe o anexo em base64, não em bytes.
 	const base64Content = Buffer.from(docxBuffer).toString('base64');
 
-	try {
-		const info = await dispararEmail(platform, {
-			to: destinatario,
-			subject: `Escala de FDS — ${tituloEscala}`,
+	await enviarERegistrar(
+		platform,
+		'fds',
+		destinatario,
+		`Escala de FDS — ${tituloEscala}`,
+		html,
+		'Escala enviada',
+		{
 			text: `Segue em anexo a Escala de Plantão do Final de Semana.\n\nTítulo: ${tituloEscala}\nEnviado por: ${nomeRemetente}`,
-			html,
-			attachments: [
-				{
-					filename: nomeArquivo,
-					content: base64Content
-				}
-			]
-		});
-		logger.info('[email/fds] Escala enviada', {
-			destinatario: mascararEmail(destinatario),
-			titulo: tituloEscala,
-			messageId: info.messageId
-		});
-	} catch (err) {
-		logger.error('[email/fds] Erro ao enviar', {
-			destinatario: mascararEmail(destinatario),
-			error: err instanceof Error ? err.message : String(err)
-		});
-		throw err;
-	}
+			attachments: [{ filename: nomeArquivo, content: base64Content }],
+			logExtra: { titulo: tituloEscala }
+		}
+	);
 }
 
+/**
+ * Avisa o assessor que uma seccional enviou sua composição, com o resumo em
+ * TEXTO PURO pronto para ele copiar no WhatsApp — o `text` aqui não é fallback
+ * do HTML, é o produto principal do e-mail.
+ */
 export async function enviarNotificacaoAssessorGisePreenchimentoSeccional(
 	destinatario: string,
 	nomeAssessor: string,
@@ -745,23 +624,13 @@ export async function enviarNotificacaoAssessorGisePreenchimentoSeccional(
 ): Promise<void> {
 	const html = montarHtmlEmailNotificacaoAssessorGise(textoPlano);
 
-	try {
-		const info = await dispararEmail(platform, {
-			to: destinatario,
-			subject: 'GISE — seccional enviou a escala (resumo para WhatsApp)',
-			text: textoPlano,
-			html
-		});
-		logger.info('[email/gise-assessor] Notificação enviada', {
-			destinatario: mascararEmail(destinatario),
-			assessor: nomeAssessor,
-			messageId: info.messageId
-		});
-	} catch (err) {
-		logger.error('[email/gise-assessor] Erro ao enviar', {
-			destinatario: mascararEmail(destinatario),
-			error: err instanceof Error ? err.message : String(err)
-		});
-		throw err;
-	}
+	await enviarERegistrar(
+		platform,
+		'gise-assessor',
+		destinatario,
+		'GISE — seccional enviou a escala (resumo para WhatsApp)',
+		html,
+		'Notificação enviada',
+		{ text: textoPlano, logExtra: { assessor: nomeAssessor } }
+	);
 }

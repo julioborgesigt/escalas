@@ -1,4 +1,22 @@
 <script lang="ts">
+	/**
+	 * Caixa de entrada do DPC: as escalas que ele precisa assinar, com os dois
+	 * caminhos de assinatura lado a lado.
+	 *
+	 * A escolha do caminho é do DISPOSITIVO, não do usuário: no celular oferece
+	 * assinatura em tela (avançada, com selfie/GPS conforme a política); no
+	 * desktop, Token A3 (qualificada, ICP-Brasil). São níveis jurídicos
+	 * diferentes do mesmo ato.
+	 *
+	 * `assinaturaTelaBloqueada` é `restringirSmartphone && !isMobile` — quando o
+	 * administrador restringe a assinatura em tela a dispositivos móveis, o
+	 * botão fica desabilitado COM explicação em vez de sumir: some sem aviso e o
+	 * DPC acha que o sistema quebrou.
+	 *
+	 * Componente de apresentação puro — abrir o fluxo é responsabilidade do
+	 * chamador (`onIniciarAssinaturaTela` / `onIniciarAssinaturaToken`), que é
+	 * quem tem o painel de assinatura montado.
+	 */
 	import { slide } from 'svelte/transition';
 	import { page } from '$app/state';
 	import { formatarData, MESES_PT } from '$lib/utils';

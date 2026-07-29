@@ -1,3 +1,35 @@
+/**
+ * Sessões, 2FA e redefinição de senha — quem o usuário é e por quanto tempo.
+ * As três coisas moram juntas porque compartilham o mesmo token opaco
+ * (`gerarToken`) e a mesma regra de armazenamento.
+ *
+ * TOKEN NUNCA VAI EM CLARO PARA O BANCO. `criarSessao` devolve o valor em claro
+ * uma única vez, para ir direto ao cookie; a linha guarda só o `sha256:`. Por
+ * isso não existe "listar minhas sessões e mostrar o token", e por isso um dump
+ * do D1 não dá acesso a ninguém. Há um fallback para linhas anteriores à
+ * migração (token em claro), que migra a linha ao ser usada.
+ *
+ * A sessão é SLIDING: 8h que se renovam com o uso, mas o UPDATE só sai quando
+ * falta menos de 30min (`SESSION_SLIDING_THRESHOLD_MS`) — senão todo request
+ * autenticado escreveria no D1.
+ *
+ * Papel administrativo tem DOIS eixos independentes, e confundi-los é o erro
+ * clássico aqui:
+ *   - `tipo` ('admin' | 'policial') é a SESSÃO. `isAdminGeral` só olha isto.
+ *   - `papel` ('admin_seccional' | 'admin_unidade') é RBAC operacional, vive na
+ *     linha do policial e é CUMULATIVO com Admin Geral.
+ * Um Admin Geral vinculado tem linha em `administradores` e em `policiais`, e
+ * loga escolhendo qual identidade quer. Nada disso concede `isSuperAdmin`.
+ *
+ * `validarSessaoComAceite` é a que o `hooks.server.ts` usa: agrupa usuário +
+ * aceite do Termo (+ sliding) num `db.batch` para não fazer 3 idas ao D1 em
+ * série a cada request. `validarSessao` é a versão simples, para quem já está
+ * fora do hook.
+ *
+ * Mora em `lib/` e não em `lib/server/` por um motivo só: componentes importam
+ * o TIPO `UsuarioLogado` (import type, apagado no build). Qualquer import de
+ * VALOR daqui no cliente arrasta `node:crypto` e o schema para o bundle.
+ */
 import { eq, and, gt, inArray, desc } from 'drizzle-orm';
 import { timingSafeEqual } from 'node:crypto';
 import {
@@ -93,6 +125,14 @@ export function isAnyAdmin(u: UsuarioLogado | null): boolean {
 	return isAdminGeral(u) || isAdminSeccional(u) || isAdminUnidade(u);
 }
 
+/**
+ * Token opaco de 32 bytes (64 hex chars) para sessão e para link de redefinição.
+ *
+ * CSPRNG, não `Math.random`: o token É a credencial — quem o adivinha entra sem
+ * senha e sem 2FA. 256 bits de entropia tornam a busca inviável, e o formato
+ * hex fixo é o que permite a `hashTokenArmazenado` distinguir hash de token
+ * legado em claro.
+ */
 export function gerarToken(): string {
 	const bytes = new Uint8Array(32);
 	crypto.getRandomValues(bytes);
@@ -141,6 +181,15 @@ export const SESSION_TTL_MS = 8 * 60 * 60 * 1000;
  */
 const SESSION_SLIDING_THRESHOLD_MS = 30 * 60 * 1000; // 30 min
 
+/**
+ * Abre sessão e devolve o token EM CLARO — a única vez que ele existe fora do
+ * cookie do usuário. O banco recebe apenas o `sha256:` (ver bloco acima), então
+ * este valor de retorno precisa ir direto para o cookie e não ser registrado em
+ * log nem em auditoria.
+ *
+ * Não valida credencial nenhuma: quem chama já autenticou. Chamar isto é, por
+ * definição, conceder acesso.
+ */
 export async function criarSessao(
 	db: Database,
 	tipo: 'policial' | 'admin',
@@ -246,6 +295,20 @@ async function mapearPolicial(
 	};
 }
 
+/**
+ * Token → usuário logado, ou `null` para sessão inexistente, expirada ou de
+ * conta que não serve mais.
+ *
+ * Todo `null` é tratado igual pelo chamador (redirect ao login), e é por isso
+ * que a função não distingue os motivos. Em particular, o policial é relido com
+ * `ativo = 1`: **desativar o cadastro derruba a sessão no próximo request**, sem
+ * precisar apagar linha de sessão nenhuma. Já o admin não tem esse filtro — a
+ * conta administrativa é removida, não desativada.
+ *
+ * Efeito colateral: renova `expires_at` quando a sessão está perto de vencer
+ * (sliding). Use `validarSessaoComAceite` no `hooks.server.ts`, que faz o mesmo
+ * já checando o Termo de Uso no mesmo batch.
+ */
 export async function validarSessao(
 	db: Database,
 	token: string | undefined,
@@ -343,6 +406,14 @@ export async function validarSessaoComAceite(
 	return { usuario, aceiteVigente: aceiteEhVigente(ultimoAceite, termo.versao, termo.hash) };
 }
 
+/**
+ * Logout: apaga a linha da sessão. Idempotente — token desconhecido não é erro.
+ *
+ * NÃO invalida o cache de sessão do edge: apagar a linha não basta, porque
+ * `hooks.server.ts` responde do cache antes de consultar o D1 e o token seguiria
+ * aceito por até um TTL (60s por padrão). Quem faz logout tem de chamar
+ * `invalidarSessaoCache(token)` também — é o que a rota `/api/auth/logout` faz.
+ */
 export async function excluirSessao(db: Database, token: string): Promise<void> {
 	// Cobre tanto a forma hasheada (atual) quanto linhas legadas em claro.
 	await db.delete(sessoes).where(inArray(sessoes.token, [await hashTokenArmazenado(token), token]));

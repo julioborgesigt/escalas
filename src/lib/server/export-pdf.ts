@@ -1,3 +1,35 @@
+/**
+ * Geração dos PDFs do sistema — os documentos que o policial assina e que
+ * circulam fora dele. São seis, todos aqui porque compartilham a mesma moldura
+ * e as mesmas medidas:
+ *
+ *   escala de FDS · expediente · plantão mensal · escala GISE ·
+ *   relatório de produtividade GISE · relatório de serviço extraordinário
+ *   (em duas variantes: por seccional e do quadro de supervisão)
+ *
+ * **A saída é congelada por goldens** (`__tests__/export-pdf-goldens.test.ts`).
+ * Qualquer mudança visual quebra o teste — o que é o comportamento desejado.
+ * Ao mudar de propósito, confira o PDF gerado e regrave com
+ * `UPDATE_PDF_GOLDENS=1`. Nunca regrave para "fazer o teste passar": estes
+ * arquivos são prova documental, e uma alteração silenciosa de layout muda um
+ * documento que alguém já assinou em papel.
+ *
+ * Convenções que valem para o arquivo inteiro:
+ *
+ * - unidade é MILÍMETRO e o formato é A4 PAISAGEM (297 × 210) nas escalas — as
+ *   tabelas têm sete a nove colunas e não cabem em retrato. Daí as constantes
+ *   `297` e a margem de 10 mm repetidas nos cálculos de posição;
+ * - `PdfExportResult.finalY` é a coordenada onde termina o conteúdo e onde
+ *   entra o carimbo visual da assinatura. Quem assina não remede o documento:
+ *   ancora por este valor;
+ * - antes de desenhar o bloco de assinatura, verifica-se se ele ainda cabe na
+ *   página (`sigY > 173` nas escalas); se não couber, abre-se página nova. Uma
+ *   assinatura espremida contra o rodapé de identidade/QR não é aceitável num
+ *   documento oficial;
+ * - texto vindo do banco é sempre normalizado (maiúsculas, data por extenso,
+ *   hora `HH:MM`) — a praxe da corporação é o documento sair uniforme,
+ *   independentemente de como foi digitado.
+ */
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { PDFDocument } from 'pdf-lib';
@@ -271,6 +303,13 @@ export function toGisePdfData(
 }
 
 // ---- PDF ----
+/**
+ * PDF da escala de FIM DE SEMANA: uma tabela por DIA, na ordem cronológica.
+ *
+ * Sem cabeçalho institucional com logos — o FDS é documento operacional de
+ * curto prazo, distribuído internamente, ao contrário do expediente e do
+ * plantão, que são a escala oficial do mês.
+ */
 export function gerarPdf(
 	escala: Escala,
 	policiais: EscalaPolicialComDados[],
@@ -371,6 +410,18 @@ function finalizarEscalaComAssinatura(
 }
 
 // ---- PDF Expediente ----
+/**
+ * PDF da escala de EXPEDIENTE — o documento oficial do mês, com o cabeçalho
+ * institucional completo (Polícia Civil → Delegacia Geral → Departamento) e as
+ * logos embutidas quando o chamador as fornece.
+ *
+ * As logos chegam como BYTES por parâmetro, nunca buscadas aqui: a geração roda
+ * no Worker e não pode depender de rede nem de R2 no meio do documento.
+ *
+ * Uma linha por policial, sem datas — expediente não tem dia de plantão. O
+ * rodapé de OBSERVAÇÕES é texto FIXO da corporação (o que declarar em férias e
+ * licenças) e faz parte do formulário, não é dica de UI.
+ */
 export async function gerarPdfExpediente(
 	escala: Escala,
 	policiais: EscalaPolicialComDados[],
@@ -573,6 +624,13 @@ export async function gerarPdfExpediente(
 }
 
 // ---- PDF Plantão ----
+/**
+ * PDF da escala de PLANTÃO mensal, agrupada por EQUIPE — é assim que a escala é
+ * lida no plantão: primeiro qual equipe, depois quem está nela e em que dias.
+ *
+ * Cada equipe vira uma tabela própria; policial sem equipe cai num grupo
+ * genérico "EQUIPE" em vez de sumir do documento.
+ */
 export function gerarPdfPlantao(
 	escala: Escala,
 	policiais: EscalaPolicialComDados[],
@@ -669,6 +727,26 @@ export function gerarPdfPlantao(
 }
 
 // ---- PDF GISE ----
+/**
+ * PDF da ESCALA GISE — a estrutura completa do serviço: quadro de supervisão,
+ * cada seccional com suas unidades, equipes e membros.
+ *
+ * É o mais longo dos documentos e o único hierárquico, então é aqui que a
+ * paginação exige cuidado: antes de cada seccional e de cada equipe verifica-se
+ * `y > 175` e, se for o caso, abre-se página — assim um título nunca fica
+ * sozinho no pé da folha, separado da sua tabela.
+ *
+ * Seccional cujas equipes estejam TODAS vazias é omitida por inteiro. Mostrar
+ * "(sem membros alocados)" enchia o documento de blocos sem informação; foi
+ * pedido dos operadores.
+ *
+ * O horário de cada equipe segue a mesma cadeia da tela — equipe > seccional >
+ * escala — para o papel não divergir do sistema.
+ *
+ * Presenças aparecem como RUBRICA desenhada sobre a linha, não como texto
+ * "assinado": o documento tem de exibir a marca de quem confirmou entrada e
+ * saída.
+ */
 export async function gerarPdfGise(
 	gise: GisePdfData,
 	logoJpgBytes?: Uint8Array,
@@ -920,6 +998,15 @@ async function embutirLogosGise(
 }
 
 // ---- PDF Relatório de Produtividade GISE ----
+/**
+ * PDF do RELATÓRIO DE PRODUTIVIDADE de uma seccional na GISE — as respostas do
+ * formulário, já achatadas em `(pergunta, resposta)` por
+ * `buscarRespostasProdutividadeSeccional`.
+ *
+ * A ordem das perguntas é a do MODELO, não a do blob: modelo editado muda o
+ * relatório sem mexer aqui. Pergunta sem resposta não aparece — o relatório
+ * mostra o que foi feito.
+ */
 export function gerarRelatorioProdutividadeGisePdf(data: GiseProdutividadeData) {
 	const { gise, seccional, respostas = [] } = data;
 	const doc = new jsPDF('p', 'mm', 'a4');
@@ -1277,6 +1364,23 @@ function assinaturaRelatorioExtra(
 	return sigY;
 }
 
+/**
+ * Gera o PDF do RELATÓRIO DE SERVIÇO EXTRAORDINÁRIO de uma seccional (ou do
+ * quadro de supervisão), com a lista de quem serviu e os horários de entrada e
+ * saída efetivos.
+ *
+ * `isPreparando = true` é a versão que vai ser ASSINADA: omite o placeholder
+ * "Aguardando Conferência e Assinatura da Supervisão", deixando o espaço livre
+ * para o carimbo visual que o fluxo de assinatura desenha depois. Com `false`
+ * sai o documento de leitura — com o placeholder, ou com a assinatura já
+ * registrada em `reportSignature`.
+ *
+ * O `finalY` devolvido é a coordenada dessa área: é por ele que o fluxo de
+ * assinatura ancora rubrica e QR sem remedir o documento.
+ *
+ * Logos e QR chegam como bytes/base64 pelo chamador em vez de serem buscados
+ * aqui: geração de PDF roda no Worker e não deve depender de rede nem de R2.
+ */
 export async function gerarRelatorioExtraordinarioPdf(
 	gise: GisePdfData,
 	presencas: GisePresenca[],

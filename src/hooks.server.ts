@@ -1,3 +1,27 @@
+/**
+ * Middleware de TODA requisição — a cadeia por onde passa qualquer rota antes
+ * de chegar a um `load` ou endpoint.
+ *
+ * A ORDEM do `sequence()` no fim do arquivo é a parte que importa:
+ *
+ *   1. `handleRequestContext` — cria o `requestId` e o contexto de log. Vem
+ *      primeiro para que TUDO adiante, inclusive uma falha nos hooks seguintes,
+ *      seja correlacionável;
+ *   2. `handleSentry` — embrulha a requisição para capturar exceção;
+ *   3. `handleCsrf` — double-submit cookie nas rotas `/api/` que mudam estado.
+ *      Antes da autenticação de propósito: requisição forjada é recusada sem
+ *      nem custar uma consulta de sessão;
+ *   4. `handleAuth` — resolve a sessão (com cache de edge à frente do D1),
+ *      impõe o aceite do Termo de Uso e redireciona quem não tem acesso;
+ *   5. `handleSecurity` — cabeçalhos de resposta, incluindo a CSP.
+ *
+ * Inverter 3 e 4 abriria caminho para gastar D1 em requisição forjada; tirar 1
+ * do topo deixaria erros sem `requestId` para o usuário reportar.
+ *
+ * `ROTAS_PUBLICAS` é a lista fechada do que dispensa sessão — login, validação
+ * pública de documento, webhooks e health. O match respeita delimitador (ver
+ * abaixo), senão `/termo` liberaria `/termos-secretos`.
+ */
 import type { Handle, HandleServerError } from '@sveltejs/kit';
 import { sequence } from '@sveltejs/kit/hooks';
 import { redirect } from '@sveltejs/kit';

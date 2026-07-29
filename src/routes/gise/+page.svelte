@@ -1,7 +1,23 @@
 <script lang="ts">
+	/**
+	 * Lista de ESCALAS GISE — porta de entrada do módulo.
+	 *
+	 * Divide em dois blocos: as ATIVAS (tudo que não está `finalizada`, em cards
+	 * grandes com o andamento de cada uma) e o HISTÓRICO, que só o Admin Geral
+	 * vê, paginado. Para os demais papéis a página é um painel do que está
+	 * acontecendo agora, não um arquivo.
+	 *
+	 * O que cada usuário recebe já vem filtrado pelo `load` (por vínculo:
+	 * supervisor, membro, seccional participante) — esta tela não faz controle de
+	 * acesso, só de apresentação.
+	 *
+	 * Também é ponto de assinatura: o supervisor pode assinar daqui os relatórios
+	 * de extra pendentes sem abrir a escala, com rubrica ou token SERPRO. É por
+	 * isso que uma tela de listagem importa `PainelAssinaturaToken` e
+	 * `ModalRubrica`.
+	 */
 	import type { PageProps } from './$types';
-	import { Pagination } from '@skeletonlabs/skeleton-svelte';
-	import { ChevronLeft, ChevronRight } from 'lucide-svelte';
+	import Paginador from '$lib/components/Paginador.svelte';
 	import { goto, invalidateAll } from '$app/navigation';
 	import { page } from '$app/state';
 	import { toaster } from '$lib/toast';
@@ -659,38 +675,12 @@
 				<span class="text-xs text-surface-500">
 					{ativas.length} escalas ativas — página {paginaAtivas} de {totalPaginasAtivas}
 				</span>
-				<Pagination
+				<Paginador
 					count={ativas.length}
 					pageSize={ITEMS_ATIVAS}
 					page={paginaAtivas}
-					onPageChange={(e) => (paginaAtivas = e.page)}
-					siblingCount={1}
-				>
-					<Pagination.PrevTrigger
-						class="btn btn-sm preset-outlined-surface-500"
-						aria-label="Página anterior"><ChevronLeft size={16} /></Pagination.PrevTrigger
-					>
-					<Pagination.Context>
-						{#snippet children(pagination)}
-							{#each pagination().pages as p, index (p)}
-								{#if p.type === 'page'}
-									<Pagination.Item
-										{...p}
-										class="btn btn-sm min-w-[32px] {p.value === paginaAtivas
-											? 'preset-filled-primary-500'
-											: 'preset-outlined-surface-500'}">{p.value}</Pagination.Item
-									>
-								{:else}
-									<Pagination.Ellipsis {index} class="px-1 opacity-50">&#8230;</Pagination.Ellipsis>
-								{/if}
-							{/each}
-						{/snippet}
-					</Pagination.Context>
-					<Pagination.NextTrigger
-						class="btn btn-sm preset-outlined-surface-500"
-						aria-label="Próxima página"><ChevronRight size={16} /></Pagination.NextTrigger
-					>
-				</Pagination>
+					onPageChange={(p) => (paginaAtivas = p)}
+				/>
 			</div>
 		{/if}
 	{:else if isAdminGeral || isSeccional || isUnidade || isSupervisor}

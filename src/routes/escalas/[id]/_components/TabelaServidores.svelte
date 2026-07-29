@@ -1,11 +1,28 @@
 <script lang="ts">
+	/**
+	 * Tabela de escalados da escala de EXPEDIENTE — uma linha por policial, sem
+	 * dias de plantão (é o que `isExpediente` controla).
+	 *
+	 * As outras duas visões da mesma escala são `TabelaPlantao` (plantão, com os
+	 * dias de cada um) e `ListaFds` (fim de semana, agrupada por dia). As três
+	 * dividem os helpers de horário e a edição inline (`criarHelpersHorario`,
+	 * `useEdicaoInlineServidor`): calcular data de saída de turno que vira o dia é
+	 * regra do domínio, não de cada tela.
+	 *
+	 * Paginação em 50 é do CLIENTE — a escala inteira já veio no `load`, e
+	 * paginar aqui é só para o DOM não montar centenas de linhas editáveis de uma
+	 * vez.
+	 *
+	 * A edição só existe quando `podeEditarEscala`; escala com documento assinado
+	 * ou finalizada fica somente-leitura, porque alterar depois invalidaria a
+	 * assinatura que já está no PDF.
+	 */
 	import { enhance } from '$app/forms';
 	import { formatarData } from '$lib/utils';
 	import type { Escala } from '$lib/server/schema';
 	import type { EscalaPolicialComDados } from '$lib/types';
-	import { Pagination } from '@skeletonlabs/skeleton-svelte';
 	import IconTooltip from '$lib/components/IconTooltip.svelte';
-	import { ChevronLeft, ChevronRight } from 'lucide-svelte';
+	import Paginador from '$lib/components/Paginador.svelte';
 	import { criarHelpersHorario, diaSemanaLabel } from './escala-horarios';
 	import { useEdicaoInlineServidor } from './useEdicaoInlineServidor.svelte';
 
@@ -643,42 +660,12 @@
 					policiaisEscalaLocal.length
 				)} de {policiaisEscalaLocal.length} servidores
 			</span>
-			<Pagination
+			<Paginador
 				count={policiaisEscalaLocal.length}
 				pageSize={SERV_POR_PAG}
 				page={paginaServidor}
-				onPageChange={(e) => (paginaServidor = e.page)}
-				siblingCount={1}
-			>
-				<Pagination.PrevTrigger
-					class="btn btn-sm preset-outlined-surface-500"
-					aria-label="Página anterior"
-				>
-					<ChevronLeft size={16} />
-				</Pagination.PrevTrigger>
-				<Pagination.Context>
-					{#snippet children(pagination)}
-						{#each pagination().pages as p, index (p)}
-							{#if p.type === 'page'}
-								<Pagination.Item
-									{...p}
-									class="btn btn-sm min-w-[32px] {p.value === paginaServidor
-										? 'preset-filled-primary-500'
-										: 'preset-outlined-surface-500'}">{p.value}</Pagination.Item
-								>
-							{:else}
-								<Pagination.Ellipsis {index} class="px-1 opacity-50">&#8230;</Pagination.Ellipsis>
-							{/if}
-						{/each}
-					{/snippet}
-				</Pagination.Context>
-				<Pagination.NextTrigger
-					class="btn btn-sm preset-outlined-surface-500"
-					aria-label="Próxima página"
-				>
-					<ChevronRight size={16} />
-				</Pagination.NextTrigger>
-			</Pagination>
+				onPageChange={(p) => (paginaServidor = p)}
+			/>
 		</div>
 	{/if}
 {/if}

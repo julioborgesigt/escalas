@@ -1,3 +1,19 @@
+/**
+ * `load` da escala GISE e o ponto de junção das suas form actions.
+ *
+ * O `load` monta a árvore inteira (`buscarGiseDetalhado`) e resolve o PAPEL de
+ * quem abriu — Admin Geral, admin de seccional/unidade, supervisor ou membro —
+ * porque quase tudo na tela depende disso. `isSupervisorGise` vem do `parent()`,
+ * já resolvido pelo layout, para não repetir a consulta a cada navegação.
+ *
+ * `depends('gise:detail')` é a chave que as ações invalidam: a página se
+ * recarrega sem `invalidateAll()`, que também derrubaria o layout.
+ *
+ * As actions estão divididas por ASSUNTO em `_actions/` — escala, seccional,
+ * equipe, membros e unidade — e são espalhadas aqui num objeto só. São mais de
+ * trinta; num arquivo só, achar a que interessa era o problema. O que elas
+ * compartilham (`getInt`, `saiuDaFaseDeEdicao`) mora em `_actions/shared.ts`.
+ */
 import type { PageServerLoad, Actions } from './$types';
 import { redirect, error } from '@sveltejs/kit';
 import {

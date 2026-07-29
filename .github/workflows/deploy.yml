@@ -84,6 +84,19 @@ jobs:
           check_imports src/routes/api/gise/\[id\]/documento-assinado/info/+server.ts verificarPermissaoGise
           check_imports src/routes/api/gise/\[id\]/download/+server.ts verificarPermissaoGise
 
+      # Guard de documentação: arquivo NOVO em src/lib/db/ tem de nascer com
+      # cabeçalho de módulo e JSDoc nos exports. Só arquivos ADICIONADOS no
+      # diff — o legado é pago em levas, medido por `npm run docs:inventario`
+      # (varredura de jul/2026 — ver docs/HISTORICO.md). Aqui só impedimos que
+      # volte a crescer.
+      - name: Guard — documentação de arquivo novo em lib/db
+        run: |
+          BASE="${{ github.event.pull_request.base.sha || 'HEAD~1' }}"
+          # O checkout é raso (depth 1): sem buscar a base, o `git diff` não
+          # tem com o que comparar e o guard se auto-desliga com um aviso.
+          git fetch --no-tags --depth=50 origin "$BASE" 2>/dev/null || true
+          node scripts/guard-docs-novos.mjs "$BASE"
+
       - name: Apply D1 migrations (local, for E2E)
         run: npx wrangler d1 migrations apply escalas-db --local
 
