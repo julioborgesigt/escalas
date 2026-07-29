@@ -326,8 +326,14 @@
 				</div>
 
 				<!-- Panel 2: Formulário de Serviço -->
-				<div class="min-w-0 px-2 sm:px-4" style="width: 50%;">
-					<div class="max-w-2xl mx-auto space-y-4">
+				<!-- Largura cheia do container, igual ao painel 1 e às demais telas de
+				     detalhe. `px-2` idêntico ao do painel 1: qualquer diferença faz o
+				     card saltar na horizontal durante o slide. Quem precisa de coluna
+				     estreita (stepper, CTAs, estados vazios) trava por dentro, no
+				     `FormularioServico` — não aqui, senão o formulário de
+				     produtividade perde a largura de que os grids dele precisam. -->
+				<div class="min-w-0 px-2" style="width: 50%;">
+					<div class="space-y-4">
 						<button
 							type="button"
 							class="btn btn-sm preset-outlined-surface-500 flex items-center gap-1.5"
