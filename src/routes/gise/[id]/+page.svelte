@@ -588,7 +588,7 @@
 				{#snippet loteSection()}
 					{#if isSupervisor || isAdminGeral}
 						<GiseLoteAssinaturas
-							giseId={gise.id}
+							giseId={gise?.id ?? 0}
 							quantidadePendentes={pendentesExtra.length}
 							assinandoLote={assinatura.assinandoLote}
 							etapaAssinatura={assinatura.etapaAssinatura}
@@ -772,6 +772,7 @@
 
 <ModalExcluirGise
 	open={showExcluirGiseConfirm}
+	giseId={gise?.id ?? 0}
 	{pendingCrud}
 	onClose={() => (showExcluirGiseConfirm = false)}
 	onSubmit={handleExcluirGise}

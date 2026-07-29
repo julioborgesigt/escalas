@@ -1,11 +1,35 @@
+/**
+ * Cadastro de unidades (`/unidades`) — restrito ao SUPER ADMIN, não ao Admin
+ * Geral: o nome da unidade é a chave que amarra lotação do policial, escala e
+ * cabeçalho dos documentos, então renomear tem efeito em cascata pelo sistema
+ * inteiro.
+ *
+ * **Unidade não se exclui.** Só se desativa (`definirAtivo`), e é por isso que
+ * não há action de excluir aqui. `gise_assinaturas_relatorios.seccional_id`
+ * referencia `unidades(id)` com `ON DELETE CASCADE`, e o D1 aplica FK de
+ * verdade: um DELETE levava junto o registro do ato de assinar, e o portal
+ * público `/validar` passava a negar um documento que alguém já tinha em mãos.
+ * Escala e lotação, que ligam por NOME e sem FK, simplesmente ficavam órfãs sem
+ * erro nenhum.
+ *
+ * O `load` usa `listarTodasUnidades` (inclui desativadas) porque esta é a tela
+ * que as gerencia; todo o resto do sistema usa `listarUnidades`, que só devolve
+ * ativas.
+ *
+ * A FK citada acima passou a `ON DELETE RESTRICT` na migração 0038 — o banco
+ * agora recusa a exclusão mesmo por `wrangler d1 execute`. A ausência da action
+ * de excluir aqui é a primeira barreira; a FK é a segunda.
+ */
 import { redirect, fail } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
 import {
 	getDB,
-	listarUnidades,
+	listarTodasUnidades,
 	criarUnidade,
 	atualizarUnidade,
-	excluirUnidade,
+	definirUnidadeAtiva,
+	vinculosDaUnidade,
+	descreverVinculosUnidade,
 	auditar,
 	contextoDeEvento
 } from '$lib/db';
@@ -14,13 +38,6 @@ import { eq } from 'drizzle-orm';
 import { unidades, type Unidade } from '$lib/server/schema';
 import { ehViolacaoUnique, mensagemComCausas } from '$lib/server/db-errors';
 import { logger } from '$lib/server/logger';
-
-/**
- * Cadastro de unidades (`/unidades`) — restrito ao SUPER ADMIN, não ao Admin
- * Geral: o nome da unidade é a chave que amarra lotação do policial, escala e
- * cabeçalho dos documentos, então renomear ou excluir tem efeito em cascata
- * pelo sistema inteiro.
- */
 
 /**
  * Lê e valida os campos de unidade do FormData (mesmos campos em criar/editar).
@@ -64,7 +81,7 @@ export const load: PageServerLoad = async ({ locals, platform }) => {
 	}
 
 	const db = getDB(platform);
-	const lista = await listarUnidades(db);
+	const lista = await listarTodasUnidades(db);
 
 	return {
 		unidades: lista
@@ -165,45 +182,54 @@ export const actions: Actions = {
 		}
 	},
 
-	excluir: async (event) => {
+	/**
+	 * Desativa ou reativa a unidade. **Não existe ação de excluir** — ver o
+	 * cabeçalho: apagar a linha destruiria prova de documento assinado.
+	 *
+	 * Desativar nunca é recusado. Os vínculos são só informados na confirmação,
+	 * porque continuam válidos depois: escala, lotação e assinatura antigas
+	 * seguem resolvendo a unidade normalmente.
+	 */
+	definirAtivo: async (event) => {
 		const { request, locals, platform } = event;
 		const u = locals.usuario;
 		if (!u || !u.isSuperAdmin)
-			return fail(403, { error: 'Apenas o Super Administrador pode excluir unidades' });
+			return fail(403, { error: 'Apenas o Super Administrador pode desativar unidades' });
 
 		const data = await request.formData();
 		const id = Number(data.get('unidade_id'));
 		if (isNaN(id)) return fail(400, { error: 'ID inválido' });
+		const ativo = data.get('ativo') === 'true';
 
 		const db = getDB(platform);
-
-		// Buscar a unidade completa (nome + estado para o diff de auditoria)
 		const unidade = await db.select().from(unidades).where(eq(unidades.id, id)).get();
 		if (!unidade) return fail(404, { error: 'Unidade não encontrada' });
 
-		// A checagem de vínculos mora em `excluirUnidade` (lib/db/unidades), que
-		// recusa em vez de apagar. Antes ela era parcial e inline aqui: só olhava
-		// `escalas.lotacao`, e deixava passar servidor lotado, papel administrativo
-		// e unidade subordinada.
-		const resultado = await excluirUnidade(db, id);
-		if (!resultado.ok) return fail(409, { error: resultado.motivo });
+		await definirUnidadeAtiva(db, id, ativo);
+
+		const vinculos = ativo ? null : await vinculosDaUnidade(db, id);
+		const resumo = vinculos ? descreverVinculosUnidade(vinculos) : null;
+
 		const { contexto, env } = contextoDeEvento(event);
 		await auditar(
 			db,
 			{
-				acao: 'excluir_unidade',
+				acao: ativo ? 'reativar_unidade' : 'desativar_unidade',
 				usuario: u,
 				entidade: 'unidade',
 				entidade_id: id,
 				alvo_tipo: 'unidade',
 				alvo_id: id,
 				alvo_nome: unidade.nome,
-				detalhes: `Unidade excluída: ${unidade.nome}`,
+				detalhes: ativo
+					? `Unidade reativada: ${unidade.nome}`
+					: `Unidade desativada: ${unidade.nome}${resumo ? ` (mantém ${resumo})` : ''}`,
 				dados_antes: unidade,
+				dados_depois: { ...unidade, ativo },
 				...contexto
 			},
 			{ env }
 		);
-		return { success: true };
+		return { success: true, ativo };
 	}
 };

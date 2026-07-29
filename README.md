@@ -222,12 +222,23 @@ consequências que valem para qualquer mudança nessa área:
 
 - **Renomear cascateia.** `atualizarUnidade` propaga o nome novo para policiais e
   escalas na mesma operação. Um `UPDATE` direto no banco quebraria os vínculos.
-- **Excluir é bloqueado enquanto houver vínculo.** `excluirUnidade` recusa se
-  ainda houver escala, servidor lotado, servidor com papel administrativo na
-  unidade, unidade subordinada ou GISE — e devolve 409 listando **todos** os
-  vínculos de uma vez. Sem essa checagem a exclusão não daria erro: os registros
-  ficariam apontando para um nome inexistente, e o RBAC falharia fechado (o admin
-  perde o escopo em silêncio).
+- **Unidade NÃO se exclui — só se desativa.** Não existe ação de excluir na
+  interface nem função de DELETE na camada de dados: `definirUnidadeAtiva` marca
+  `ativo = 0`, a unidade some das listas de escolha (`listarUnidades`) e continua
+  existindo para todo o resto. A tela de gestão usa `listarTodasUnidades` e a
+  exibe marcada como "Desativada", com botão de reativar.
+
+  O motivo é a assinatura: `gise_assinaturas_relatorios.seccional_id` referencia
+  `unidades(id)`, e o D1 aplica chave estrangeira de verdade. Apagar a unidade
+  levava junto o registro do ato de assinar — assinante, CPF, rubrica, selfie,
+  IP, GPS, hash do arquivo e a chave do PDF no R2 — e o portal público
+  `/validar` passava a responder "documento não encontrado" para um papel já
+  entregue, indistinguível de documento falso. Escala e lotação, que ligam por
+  NOME e sem FK, ficavam órfãs sem erro nenhum.
+
+  Como defesa em profundidade, a FK passou de `CASCADE` para `RESTRICT`
+  (migração `0038`): mesmo um `DELETE` manual fora da aplicação é recusado pelo
+  banco.
 
 ### Comandos de migração
 
@@ -255,9 +266,9 @@ npm run db:migrate:prod -- --yes
 
 ### Histórico de migrações
 
-O histórico completo está na própria pasta [`migrations/`](migrations/) — os nomes dos arquivos são autoexplicativos (`0000_initial_schema.sql` … `0036_policial_historico.sql`). Para entender uma migração específica, leia o SQL dela e o trecho correspondente do [`src/lib/server/schema.ts`](src/lib/server/schema.ts).
+O histórico completo está na própria pasta [`migrations/`](migrations/) — os nomes dos arquivos são autoexplicativos (`0000_initial_schema.sql` … `0038_gise_assinaturas_fk_restrict.sql`). Para entender uma migração específica, leia o SQL dela e o trecho correspondente do [`src/lib/server/schema.ts`](src/lib/server/schema.ts).
 
-O que já rodou em cada ambiente é rastreado pela tabela `_migrations_aplicadas`, gravada pelo runner [`scripts/migrate.ts`](scripts/migrate.ts) — **não** pelo `migrations/meta/_journal.json`, que é resíduo do `drizzle-kit` e ficou parado em 2 entradas para 39 arquivos.
+O que já rodou em cada ambiente é rastreado pela tabela `_migrations_aplicadas`, gravada pelo runner [`scripts/migrate.ts`](scripts/migrate.ts). (O `migrations/meta/` do `drizzle-kit` foi removido em jul/2026: ficou parado em 2 entradas para 41 arquivos e só induzia a erro.)
 
 ---
 
@@ -895,7 +906,8 @@ Verifique se o relógio do servidor está sincronizado (NTP). O D1 usa timestamp
 
 1. Certifique-se de que o Wrangler está autenticado: `wrangler whoami`
 2. Verifique se o `database_id` em `wrangler.toml` corresponde ao banco correto no dashboard
-3. Confira o arquivo `migrations/meta/_journal.json` — ele rastreia quais migrações já foram aplicadas
+3. Confira a tabela `_migrations_aplicadas` no D1 — é ela que rastreia o que já rodou:
+   `npx wrangler d1 execute escalas-db --remote --command "SELECT * FROM _migrations_aplicadas ORDER BY id DESC LIMIT 10"`
 
 ### Análise de bundle
 

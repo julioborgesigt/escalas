@@ -240,6 +240,67 @@ export async function coletarChavesR2DaGise(
 	return chaves;
 }
 
+/** O que a exclusão de uma GISE vai destruir, para a tela de confirmação. */
+export interface ImpactoExclusaoGise {
+	/** Documentos ASSINADOS no D1: escala, relatórios de seccional e termos de presença. */
+	documentosAssinados: number;
+	/** Objetos no R2: PDFs assinados, cópias de conferência e selfies. */
+	arquivosR2: number;
+	detalhe: {
+		documentoEscala: number;
+		relatorios: number;
+		termosPresenca: number;
+	};
+}
+
+/**
+ * Conta o que a exclusão destruiria, SEM destruir nada.
+ *
+ * Existe porque "excluir GISE" não é uma operação reversível nem recuperável: o
+ * blob assinado sai do R2 e a linha que prova o ato de assinar sai do D1. Quem
+ * confirma precisa ver o número antes, não a palavra "irreversível" — que todo
+ * mundo já leu mil vezes e ninguém mais lê.
+ *
+ * Reaproveita `coletarChavesR2DaGise` de propósito: se a contagem usasse regra
+ * própria, ela e a limpeza divergiriam, e o aviso passaria a mentir — o número
+ * exibido tem de vir exatamente da mesma varredura que apaga.
+ */
+export async function contarImpactoExclusaoGise(
+	db: Database,
+	r2: R2CleanupBucket | null,
+	gise: GiseParaLimpeza
+): Promise<ImpactoExclusaoGise> {
+	const [docs, relatorios, termos] = await Promise.all([
+		db
+			.select({ id: giseDocumentos.id })
+			.from(giseDocumentos)
+			.where(eq(giseDocumentos.gise_id, gise.id))
+			.all(),
+		db
+			.select({ id: giseAssinaturasRelatorios.id })
+			.from(giseAssinaturasRelatorios)
+			.where(eq(giseAssinaturasRelatorios.gise_id, gise.id))
+			.all(),
+		db
+			.select({ id: gisePresencaTermos.id })
+			.from(gisePresencaTermos)
+			.where(eq(gisePresencaTermos.gise_id, gise.id))
+			.all()
+	]);
+
+	const arquivosR2 = r2 ? (await coletarChavesR2DaGise(db, r2, gise)).size : 0;
+
+	return {
+		documentosAssinados: docs.length + relatorios.length + termos.length,
+		arquivosR2,
+		detalhe: {
+			documentoEscala: docs.length,
+			relatorios: relatorios.length,
+			termosPresenca: termos.length
+		}
+	};
+}
+
 /**
  * Remove do R2 todos os objetos de uma GISE (blobs + conferências + selfies).
  * Use na EXCLUSÃO total e também ao REABRIR (R2-2/R2-3), antes/depois de apagar

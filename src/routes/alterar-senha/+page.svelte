@@ -21,6 +21,8 @@
 	import { loading } from '$lib/loading.svelte';
 	import { useVerificacaoEmailPessoal } from '$lib/composables';
 	import type { ActionResult } from '@sveltejs/kit';
+	import { enhance } from '$app/forms';
+	import CamposNovaSenha, { validarForcaSenha } from '$lib/components/CamposNovaSenha.svelte';
 
 	let senhaAtual = $state('');
 	let novaSenha = $state('');
@@ -54,9 +56,6 @@
 	const senhaOk = $derived(forca.senhaOk);
 	const emailPessoalOk = $derived(!primeiroAcesso || verificacaoEmail.etapa === 'verificado');
 	const podeAlterarSenha = $derived(senhaOk && forca.confirmaOk && emailPessoalOk);
-
-	import { enhance } from '$app/forms';
-	import CamposNovaSenha, { validarForcaSenha } from '$lib/components/CamposNovaSenha.svelte';
 
 	function handleAlterarSenha({ cancel }: { cancel: () => void }) {
 		error = '';

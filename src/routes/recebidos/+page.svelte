@@ -434,7 +434,10 @@
 			</div>
 		{:else}
 			<!-- Desktop table -->
-			<div class="hidden md:block table-wrap overflow-hidden rounded-xl">
+			<!-- Sem `overflow-hidden` aqui (VIS-3): ele vence o `overflow:auto` do
+			     `table-wrap` por ordem na folha e mata o scroll horizontal. O
+			     `rounded-xl` continua recortando — `overflow:auto` já recorta. -->
+			<div class="hidden md:block table-wrap rounded-xl">
 				<table class="table">
 					<thead>
 						<tr>

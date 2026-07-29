@@ -34,7 +34,7 @@
 	import { useAutorizacao, getSavedFilters, useFiltrosPaginados } from '$lib/composables';
 	import type { ActionResult } from '@sveltejs/kit';
 	import ModalCadastrarUnidade from './_components/ModalCadastrarUnidade.svelte';
-	import ModalExcluirUnidade from './_components/ModalExcluirUnidade.svelte';
+	import ModalDesativarUnidade from './_components/ModalDesativarUnidade.svelte';
 
 	const { data }: PageProps = $props();
 
@@ -137,9 +137,9 @@
 	let editCidade = $state('');
 	let pendingEditar = $state(false);
 
-	// Exclusão
-	let dialogExcluirOpen = $state(false);
-	let unidadeParaExcluir = $state<{ id: number; nome: string } | null>(null);
+	// Desativação (não há exclusão de unidade — ver o cabeçalho)
+	let dialogDesativarOpen = $state(false);
+	let unidadeParaDesativar = $state<{ id: number; nome: string; ativo: boolean } | null>(null);
 
 	// Cadastro
 	let cadastroOpen = $state(false);
@@ -186,9 +186,9 @@
 		};
 	}
 
-	function solicitarExclusao(id: number, nome: string) {
-		unidadeParaExcluir = { id, nome };
-		dialogExcluirOpen = true;
+	function solicitarDesativacao(id: number, nome: string, ativo: boolean) {
+		unidadeParaDesativar = { id, nome, ativo };
+		dialogDesativarOpen = true;
 	}
 
 	function limparFiltros() {
@@ -339,7 +339,7 @@
 	</div>
 </div>
 
-<ModalExcluirUnidade bind:open={dialogExcluirOpen} unidade={unidadeParaExcluir} />
+<ModalDesativarUnidade bind:open={dialogDesativarOpen} unidade={unidadeParaDesativar} />
 <ModalCadastrarUnidade bind:open={cadastroOpen} {seccionais} />
 
 <div class="p-4 sm:p-6 rounded-3xl card-glass overflow-hidden">
@@ -419,7 +419,15 @@
 										</div>
 									{:else}
 										<div>
-											<span class="font-medium block">{u.nome}</span>
+											<span class="font-medium block {u.ativo ? '' : 'opacity-60 line-through'}"
+												>{u.nome}</span
+											>
+											{#if !u.ativo}
+												<span
+													class="inline-block mt-1 mr-1 text-3xs font-bold uppercase tracking-wide px-2 py-0.5 rounded-md bg-warning-500/20 text-warning-700 dark:text-warning-300"
+													>Desativada</span
+												>
+											{/if}
 											<span
 												class="inline-block mt-1 text-3xs font-bold uppercase tracking-wide px-2 py-0.5 rounded-md bg-surface-200/80 dark:bg-surface-700/80 text-surface-600 dark:text-surface-300"
 												>{tipoLabel(u.tipo)}</span
@@ -475,8 +483,11 @@
 												>
 												<button
 													type="button"
-													class="btn btn-sm preset-filled-error-500 transition-all"
-													onclick={() => solicitarExclusao(u.id, u.nome)}>Excluir</button
+													class="btn btn-sm {u.ativo
+														? 'preset-outlined-warning-500'
+														: 'preset-filled-success-500'} transition-all"
+													onclick={() => solicitarDesativacao(u.id, u.nome, u.ativo)}
+													>{u.ativo ? 'Desativar' : 'Reativar'}</button
 												>
 											</div>
 										{/if}
@@ -524,7 +535,15 @@
 						{:else}
 							<div class="flex items-center justify-between gap-3">
 								<div class="min-w-0">
-									<p class="font-semibold text-sm">{u.nome}</p>
+									<p class="font-semibold text-sm {u.ativo ? '' : 'opacity-60 line-through'}">
+										{u.nome}
+									</p>
+									{#if !u.ativo}
+										<span
+											class="inline-block mt-0.5 text-3xs font-bold uppercase tracking-wide px-2 py-0.5 rounded-md bg-warning-500/20 text-warning-700 dark:text-warning-300"
+											>Desativada</span
+										>
+									{/if}
 									<p class="text-3xs font-bold uppercase text-surface-500 mt-0.5">
 										{tipoLabel(u.tipo)}
 									</p>
@@ -552,8 +571,11 @@
 										>
 										<button
 											type="button"
-											class="btn btn-sm preset-filled-error-500 transition-all"
-											onclick={() => solicitarExclusao(u.id, u.nome)}>Excluir</button
+											class="btn btn-sm {u.ativo
+												? 'preset-outlined-warning-500'
+												: 'preset-filled-success-500'} transition-all"
+											onclick={() => solicitarDesativacao(u.id, u.nome, u.ativo)}
+											>{u.ativo ? 'Desativar' : 'Reativar'}</button
 										>
 									</div>
 								{/if}

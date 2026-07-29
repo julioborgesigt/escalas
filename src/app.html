@@ -10,9 +10,13 @@
 		<script src="/init.js"></script>
 		%sveltekit.head%
 	</head>
+	<!-- `selection:` precisa dos DOIS modos (VIS-2): o realce é primary-500/30,
+	     que compõe claro sobre fundo claro e escuro sobre fundo escuro. Um texto
+	     de seleção só-claro (primary-100) dava 1,22:1 no modo claro — o texto
+	     selecionado sumia. -->
 	<body
 		data-theme="policial"
-		class="bg-surface-50 dark:bg-surface-950 text-surface-950 dark:text-surface-50 antialiased selection:bg-primary-500/30 selection:text-primary-100"
+		class="bg-surface-50 dark:bg-surface-950 text-surface-950 dark:text-surface-50 antialiased selection:bg-primary-500/30 selection:text-surface-950 dark:selection:text-primary-100"
 		data-sveltekit-preload-data="hover"
 	>
 		<div style="display: contents">%sveltekit.body%</div>
