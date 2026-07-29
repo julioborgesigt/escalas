@@ -65,7 +65,14 @@ test('admin geral aprova na aba Solicitações e o cadastro é atualizado', asyn
 
 	await page.getByRole('button', { name: /Aprovar solicitação de Policial Fixture A/ }).click();
 	await expect(page.getByText('Alteração aprovada e aplicada')).toBeVisible();
-	await expect(page.getByText('Nenhuma solicitação pendente.')).toBeVisible();
+	// Asserção sobre a FIXTURE, não sobre o estado global da tabela. Antes era
+	// `getByText('Nenhuma solicitação pendente.')`, que exige a lista INTEIRA
+	// vazia: qualquer solicitação pendente não relacionada no D1 local (dado de
+	// quem estava usando o app) derrubava o spec, com uma falha que parece
+	// regressão e não é. Em CI passava sempre, porque lá o banco nasce limpo.
+	await expect(
+		page.getByRole('button', { name: /Aprovar solicitação de Policial Fixture A/ })
+	).toBeHidden();
 });
 
 test('policial vê o telefone aplicado e a solicitação aprovada', async ({ page }) => {

@@ -1,3 +1,17 @@
+/**
+ * Documentos assinados das ESCALAS (`escala_documentos`) e a busca pelo código
+ * de validação, que atravessa todos os tipos de documento do sistema.
+ *
+ * `escala_documentos` tem no máximo UMA linha por escala: assinar de novo
+ * substitui a anterior por inteiro (upsert com `created_at` renovado), porque a
+ * escala só tem uma versão vigente. O histórico de quem assinou o quê fica na
+ * auditoria, não aqui.
+ *
+ * Minimização LGPD aplicada na gravação, não na exibição — o dado bruto nunca
+ * chega ao banco: CPF cifrado, IP anonimizado, user-agent reduzido a
+ * navegador/SO (com o original truncado em 1 KB para perícia) e GPS arredondado
+ * para ~1 km. Assinar prova identidade e circunstância; não é vigilância.
+ */
 import { eq, sql } from 'drizzle-orm';
 import { escalaDocumentos, giseDocumentos } from '../server/schema';
 import type * as schema from '../server/schema';
@@ -5,12 +19,7 @@ import type { Database } from './core';
 import * as fullSchema from '../server/schema';
 import { cifrarCpfParaArmazenar, type CpfCriptoEnv } from '../crypto/cpf-cripto';
 import { anonimizarIp } from './audit';
-import { parseUserAgent } from '../server/document-utils';
-
-/** Reduz a precisão de coordenada GPS para ~1 km (2 casas decimais). */
-function gps2(v?: number): number | undefined {
-	return v !== undefined ? Math.round(v * 100) / 100 : undefined;
-}
+import { parseUserAgent, reduzirPrecisaoGps } from '../server/document-utils';
 
 /**
  * Metadados criptográficos persistidos junto com a assinatura (CAdES-LT).
@@ -27,6 +36,23 @@ export interface AssinaturaCadesMetadata {
 	tst_token_b64?: string;
 }
 
+/**
+ * Registra (ou substitui) a assinatura da escala. Recebe os dados brutos e
+ * aplica a minimização descrita no cabeçalho — nenhum chamador precisa lembrar
+ * de cifrar CPF ou anonimizar IP.
+ *
+ * A lista de campos é montada UMA vez e usada no INSERT e no UPDATE do upsert.
+ * Quando eram duas listas lado a lado, uma coluna nova acrescentada só ao
+ * INSERT sobrevivia à primeira assinatura e desaparecia na reassinatura, sem
+ * erro nenhum — travado por teste em `__tests__/upserts-assinatura.test.ts`.
+ *
+ * `cadesMeta` só vem preenchido na assinatura com certificado (CAdES-LT: cadeia,
+ * OCSP e carimbo de tempo). Assinatura simples passa `undefined` e as colunas
+ * ficam nulas — é o que distingue os dois níveis na tela de validação.
+ *
+ * Não escreve auditoria nem toca no R2: o blob já foi gravado quando esta função
+ * é chamada, e é o `r2_key` daqui que o torna localizável.
+ */
 export async function salvarDocumentoEscala(
 	db: Database,
 	escalaId: number,
@@ -48,61 +74,48 @@ export async function salvarDocumentoEscala(
 	const meta = cadesMeta ?? {};
 	// CPF cifrado em repouso (LGPD Fase 2).
 	const cpfArmazenado = (await cifrarCpfParaArmazenar(assinanteCpf, env)) ?? '';
+
+	// Mesmos campos no INSERT e no UPDATE do upsert — montados uma vez para não
+	// divergirem. `escala_id` fica de fora: é o alvo do conflito.
+	const dados = {
+		r2_key: r2Key,
+		assinante_nome: assinanteNome,
+		assinante_cpf: cpfArmazenado,
+		verificacao_hash: verificacaoHash,
+		selfie_key: selfieKey,
+		arquivo_hash: arquivoHash,
+		ip_address: anonimizarIp(ipAddress) ?? undefined,
+		user_agent: userAgent ? parseUserAgent(userAgent) : undefined,
+		user_agent_raw: userAgent ? userAgent.slice(0, 1024) : undefined,
+		latitude: reduzirPrecisaoGps(latitude),
+		longitude: reduzirPrecisaoGps(longitude),
+		assinante_email: assinanteEmail ?? null,
+		tipo_carimbo_tempo: tipoCarimboTempo || 'servidor',
+		cert_issuer: meta.cert_issuer ?? null,
+		cert_serial: meta.cert_serial ?? null,
+		cert_valido_de: meta.cert_valido_de ?? null,
+		cert_valido_ate: meta.cert_valido_ate ?? null,
+		cms_sha256: meta.cms_sha256 ?? null,
+		ocsp_response_b64: meta.ocsp_response_b64 ?? null,
+		ocsp_consultado_em: meta.ocsp_consultado_em ?? null,
+		tst_token_b64: meta.tst_token_b64 ?? null
+	};
+
 	return db
 		.insert(escalaDocumentos)
-		.values({
-			escala_id: escalaId,
-			r2_key: r2Key,
-			assinante_nome: assinanteNome,
-			assinante_cpf: cpfArmazenado,
-			verificacao_hash: verificacaoHash,
-			selfie_key: selfieKey,
-			arquivo_hash: arquivoHash,
-			ip_address: anonimizarIp(ipAddress) ?? undefined,
-			user_agent: userAgent ? parseUserAgent(userAgent) : undefined,
-			user_agent_raw: userAgent ? userAgent.slice(0, 1024) : undefined,
-			latitude: gps2(latitude),
-			longitude: gps2(longitude),
-			assinante_email: assinanteEmail ?? null,
-			tipo_carimbo_tempo: tipoCarimboTempo || 'servidor',
-			cert_issuer: meta.cert_issuer ?? null,
-			cert_serial: meta.cert_serial ?? null,
-			cert_valido_de: meta.cert_valido_de ?? null,
-			cert_valido_ate: meta.cert_valido_ate ?? null,
-			cms_sha256: meta.cms_sha256 ?? null,
-			ocsp_response_b64: meta.ocsp_response_b64 ?? null,
-			ocsp_consultado_em: meta.ocsp_consultado_em ?? null,
-			tst_token_b64: meta.tst_token_b64 ?? null
-		})
+		.values({ escala_id: escalaId, ...dados })
 		.onConflictDoUpdate({
 			target: escalaDocumentos.escala_id,
-			set: {
-				r2_key: r2Key,
-				assinante_nome: assinanteNome,
-				assinante_cpf: cpfArmazenado,
-				verificacao_hash: verificacaoHash,
-				selfie_key: selfieKey,
-				arquivo_hash: arquivoHash,
-				ip_address: anonimizarIp(ipAddress) ?? undefined,
-				user_agent: userAgent ? parseUserAgent(userAgent) : undefined,
-				user_agent_raw: userAgent ? userAgent.slice(0, 1024) : undefined,
-				latitude: gps2(latitude),
-				longitude: gps2(longitude),
-				assinante_email: assinanteEmail ?? null,
-				tipo_carimbo_tempo: tipoCarimboTempo || 'servidor',
-				cert_issuer: meta.cert_issuer ?? null,
-				cert_serial: meta.cert_serial ?? null,
-				cert_valido_de: meta.cert_valido_de ?? null,
-				cert_valido_ate: meta.cert_valido_ate ?? null,
-				cms_sha256: meta.cms_sha256 ?? null,
-				ocsp_response_b64: meta.ocsp_response_b64 ?? null,
-				ocsp_consultado_em: meta.ocsp_consultado_em ?? null,
-				tst_token_b64: meta.tst_token_b64 ?? null,
-				created_at: sql`datetime('now', '-3 hours')`
-			}
+			// Reassinatura substitui o documento anterior por inteiro.
+			set: { ...dados, created_at: sql`datetime('now', '-3 hours')` }
 		});
 }
 
+/**
+ * A assinatura vigente da escala, ou `undefined` se ela ainda não foi assinada
+ * — é assim que as telas distinguem "rascunho" de "documento oficial".
+ * O `assinante_cpf` sai CIFRADO; use `decifrarCpfDoDB` para exibir.
+ */
 export async function buscarDocumentoEscala(
 	db: Database,
 	escalaId: number
@@ -110,10 +123,37 @@ export async function buscarDocumentoEscala(
 	return db.select().from(escalaDocumentos).where(eq(escalaDocumentos.escala_id, escalaId)).get();
 }
 
+/**
+ * Revoga a assinatura apagando a linha — a escala volta a ser editável.
+ *
+ * Só a LINHA: o PDF e a selfie no R2 continuam lá se o chamador não os remover,
+ * e sem esta linha ninguém mais sabe que existem (R2-2/R2-3). Limpe o R2 antes.
+ */
 export async function excluirDocumentoEscala(db: Database, escalaId: number) {
 	return db.delete(escalaDocumentos).where(eq(escalaDocumentos.escala_id, escalaId));
 }
 
+/**
+ * Resolve um código de validação (`gerarCodigoValidacao`, impresso no rodapé do
+ * PDF) para o documento correspondente — o coração da rota PÚBLICA
+ * `/validar/[hash]`, onde qualquer pessoa confere um papel que recebeu.
+ *
+ * O mesmo código pode pertencer a quatro documentos diferentes, cada um em sua
+ * tabela: escala assinada, escala GISE, relatório de seccional e termo de
+ * presença. As quatro consultas vão em paralelo (uma ida ao banco em vez de
+ * quatro em série, e a rota é pública, logo o custo é do pior caso).
+ *
+ * O retorno é NORMALIZADO num formato comum — `escala_id`, `r2_key`,
+ * `arquivo_hash` e um discriminante `tipo_doc` — para que a página de validação
+ * tenha um só caminho de verificação criptográfica. Os campos precisam ser
+ * listados um a um porque cada tabela nomeia a sua chave de outro jeito
+ * (`gise_id`, `verification_hash`) e traz colunas que ali não fazem sentido.
+ *
+ * `undefined` cobre dois casos que a rota não distingue — código inexistente e
+ * documento revogado (revogar apaga a linha) — e é bom que seja assim: separar
+ * os dois daria a quem tenta adivinhar códigos a informação de que um documento
+ * existiu.
+ */
 export async function buscarDocumentoPorHash(db: Database, hash: string) {
 	// Query all 4 tables in parallel instead of sequentially
 	const [esc, gise, rel, termo] = await Promise.all([

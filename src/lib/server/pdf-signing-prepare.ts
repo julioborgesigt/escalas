@@ -1,3 +1,37 @@
+/**
+ * Núcleo PAdES: prepara o PDF para receber uma assinatura e embute o CMS
+ * resultante. Reexportado inteiro por `pdf-signing.ts`, que é a fachada usada
+ * pelas rotas.
+ *
+ * O fluxo é sempre em DOIS TEMPOS, porque a chave privada não está aqui:
+ *
+ *   preparar → (o dono da chave assina o hash) → embutir
+ *
+ * Duas preparações, conforme o nível da assinatura:
+ *   - `prepararPdfParaAssinatura` — QUALIFICADA. Carimbo visual + placeholder
+ *     visível; devolve o hash dos SignedAttributes para o cliente assinar no
+ *     token A3 (Web PKI/SERPRO).
+ *   - `prepararPdfParaSelo` — AVANÇADA (Lei 14.063/2020). Campo INVISÍVEL, sem
+ *     branding ICP-Brasil: quem assina é a instituição, e afirmar o contrário
+ *     no visual seria falso. O honesto vem do rodapé e do manifesto.
+ *
+ * Três embutimentos, e a diferença entre eles é de onde vem o CMS:
+ *   - `finalizarAssinatura` — NÓS montamos o CMS (cert + assinatura RSA crua).
+ *   - `embedSerproCms` — o SERPRO devolve o CMS PRONTO, em BER. Só os wrappers
+ *     externos viram DER (`berToDer`); re-serializar o SignedData inteiro pelo
+ *     forge invalidaria a assinatura RSA. É por isso que a qualificada não
+ *     recebe TST server-side — vide `cades-finalizer`.
+ *   - `embedCmsBytesNoPlaceholder` — bytes arbitrários, para o re-embed do
+ *     CAdES-T depois de anexar o TimeStampToken.
+ *
+ * A extração de nome/CPF do certificado (`extrairDadosDoCertificado`) mora aqui
+ * mas serve muito mais gente: `cert-login`, `pdf-verification` e
+ * `cades-finalizer` dependem dela — mexer no parsing do CN/serialNumber quebra
+ * o login por certificado junto com a assinatura.
+ *
+ * PDF assinado é DOCUMENTO, não saída de função: antes de refatorar, rode
+ * `export-pdf-goldens` e confirme que não mudou um byte.
+ */
 import { PDFDocument, StandardFonts, rgb, degrees, type PDFPage } from 'pdf-lib';
 import { pdflibAddPlaceholder } from '@signpdf/placeholder-pdf-lib';
 import { removeTrailingNewLine } from '@signpdf/utils';
@@ -252,6 +286,13 @@ const _fmtDataHora = new Intl.DateTimeFormat('pt-BR', {
 	hour12: false
 });
 
+/**
+ * Data/hora do carimbo visual no rodapé, no formato `DD/MM/AA HH:MM`.
+ *
+ * Fuso FIXO em `America/Sao_Paulo` (definido no `Intl.DateTimeFormat` acima), não
+ * o do servidor: em Workers o servidor é UTC, e um documento oficial da PCCE com
+ * horário três horas adiantado é erro material no papel.
+ */
 export function formatarDataHora(): string {
 	const parts = Object.fromEntries(
 		_fmtDataHora.formatToParts(new Date()).map((p) => [p.type, p.value])

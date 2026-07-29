@@ -1,6 +1,26 @@
 <script lang="ts">
+	/**
+	 * Modal de NOVA ESCALA. Um formulário por tipo, porque os três não têm nada
+	 * em comum além do título:
+	 *
+	 * - `plantao` e `expediente` são MENSAIS: escolhe-se mês/ano e o intervalo é
+	 *   preenchido do dia 1 ao último (`preencherMensal`), com horário 00:00 →
+	 *   23:59 — a escala cobre o mês inteiro, o horário de cada plantão é por
+	 *   servidor;
+	 * - `fds` é por DIAS avulsos, escolhidos num calendário, com um horário único
+	 *   aplicado a todos.
+	 *
+	 * `escalasExistentes` chega do pai só para evitar duplicata ANTES do submit:
+	 * `mesOcupado` desabilita mês que já tem escala daquele tipo naquela lotação,
+	 * e `mesAnteriorInfo` habilita "criar com base no mês anterior". É prevenção
+	 * de UI — quem valida de verdade é `verificarEscalaExistente` no servidor,
+	 * que aqui só devolveria erro depois de o usuário preencher tudo.
+	 *
+	 * Todo o estado é resetado ao FECHAR (não ao abrir): reabrir depois de um
+	 * cancelamento não pode trazer de volta o rascunho da tentativa anterior.
+	 */
 	import { Dialog } from '@skeletonlabs/skeleton-svelte';
-	import { MESES_PT, DIAS_SEMANA_CURTO } from '$lib/utils';
+	import { MESES_PT, DIAS_SEMANA_CURTO, isoData, diasNoMes } from '$lib/utils';
 	import { Moon, Sun, Calendar } from 'lucide-svelte';
 	import { enhance } from '$app/forms';
 	import { toaster } from '$lib/toast';
@@ -114,12 +134,6 @@
 		`${fdsHoraEntrada}:${fdsMinutoEntrada}H A ${fdsHoraSaida}:${fdsMinutoSaida}H`
 	);
 
-	function toISO(y: number, m: number, d: number): string {
-		return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-	}
-	function diasNoMes(y: number, m: number): number {
-		return new Date(y, m, 0).getDate();
-	}
 	function nextMes(): number {
 		const m = new Date().getMonth() + 1;
 		return m === 12 ? 1 : m + 1;
@@ -127,9 +141,6 @@
 	function nextAno(): number {
 		const h = new Date();
 		return h.getMonth() + 1 === 12 ? h.getFullYear() + 1 : h.getFullYear();
-	}
-	function isoDiaLocal(year: number, month: number, day: number): string {
-		return `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
 	}
 	function fmtDia(iso: string): string {
 		const [, m, d] = iso.split('-');
@@ -152,8 +163,8 @@
 		);
 	}
 	function preencherMensal(t: 'plantao' | 'expediente', u: Unidade, mes: number, ano: number) {
-		dataInicio = toISO(ano, mes, 1);
-		dataFim = toISO(ano, mes, diasNoMes(ano, mes));
+		dataInicio = isoData(ano, mes, 1);
+		dataFim = isoData(ano, mes, diasNoMes(ano, mes));
 		horaEntrada = '00';
 		minutoEntrada = '00';
 		horaSaida = '23';
@@ -428,7 +439,7 @@
 						<div class="grid grid-cols-7 gap-0.5">
 							{#each gradeCalendario as cell, i (i)}
 								{#if cell}
-									{@const iso = isoDiaLocal(calAno, calMes, cell.day)}
+									{@const iso = isoData(calAno, calMes + 1, cell.day)}
 									{@const sel = fdsDias.includes(iso)}
 									<button
 										type="button"

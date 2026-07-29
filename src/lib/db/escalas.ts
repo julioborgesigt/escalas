@@ -1,3 +1,25 @@
+/**
+ * Acesso a dados da escala MENSAL (`escalas` + `escala_policiais` +
+ * `escala_solicitacoes_assinatura`) — a escala comum das unidades, que não tem
+ * relação com a GISE (essa vive em `db/gise/`).
+ *
+ * Junto do CRUD mora a regra de acesso CROSS-UNIDADE, e ela é o ponto sensível
+ * do arquivo: normalmente um admin DPC só vê escala da própria lotação, mas uma
+ * solicitação de assinatura abre exceção. `solicitacaoConcedeAcessoDpc` é a
+ * regra, deliberadamente PURA (sem banco) para que a matriz de casos seja
+ * testável — foi o IDOR A1, em que o ramo `unidade` devolvia `true` para
+ * qualquer admin DPC, sem conferir a lotação. `temSolicitacaoParaDpcAdmin` é só
+ * o invólucro que lê a linha e chama a regra: quem for validar permissão nova
+ * chama uma das duas, não reimplementa a condição.
+ *
+ * Há no máximo UMA solicitação por escala — `criarSolicitacaoAssinatura` apaga a
+ * anterior antes de inserir, então pedir de novo substitui o destinatário, e
+ * `excluirSolicitacaoAssinatura` revoga junto o acesso que ela concedia.
+ *
+ * Nas leituras em lote (`listarSolicitacoesEscalas`, `adicionarTodosPoliciais`)
+ * o `inArray` com lista vazia gera SQL inválido no D1; use `batchNonEmpty` ou
+ * devolva cedo, como já fazem os call sites daqui.
+ */
 import { eq, and, or, sql, desc, asc, inArray, like, type SQL } from 'drizzle-orm';
 import {
 	escalas,
@@ -15,6 +37,11 @@ function escapeLike(str: string): string {
 	return str.replace(/[%_\\]/g, '\\$&');
 }
 
+/**
+ * Listagem paginada de escalas, com todos os filtros da UI (lotação, status,
+ * mês/ano, tipo, "visto", busca livre). Os parâmetros posicionais são herança
+ * dos primeiros call sites; filtros novos entram em `opts`.
+ */
 export async function listarEscalas(
 	db: Database,
 	lotacao?: string,
@@ -127,10 +154,21 @@ export async function listarEscalas(
 	return { escalas: mapeadas, total, page, limit, totalPages };
 }
 
+/**
+ * A escala em si (cabeçalho: título, lotação, tipo, intervalo e horário), sem os
+ * escalados — quem precisa deles chama `listarPoliciaisEscala`.
+ */
 export async function buscarEscala(db: Database, id: number): Promise<schema.Escala | undefined> {
 	return db.select().from(escalas).where(eq(escalas.id, id)).get();
 }
 
+/**
+ * Cria a escala VAZIA e devolve `[{ id }]` — os policiais entram depois, por
+ * `adicionarTodosPoliciais` ou pela adição manual.
+ *
+ * Não checa duplicidade: chame `verificarEscalaExistente` antes, ou a mesma
+ * lotação ganha duas escalas para o mesmo período.
+ */
 export async function criarEscala(
 	db: Database,
 	data: Omit<schema.NovaEscala, 'id' | 'created_at'>
@@ -138,10 +176,32 @@ export async function criarEscala(
 	return db.insert(escalas).values(data).returning({ id: escalas.id });
 }
 
+/**
+ * Apaga a escala. Escalados, documento assinado e solicitação de assinatura
+ * descem por `ON DELETE CASCADE`.
+ *
+ * É justamente esse cascade que torna a chamada DIRETA perigosa: a linha de
+ * `escala_documentos` desaparece levando consigo o `r2_key`, e o PDF assinado, a
+ * cópia de conferência e a selfie ficam no R2 sem ninguém que saiba que existem
+ * (R2-1). Use `excluirEscalaCompleta` (`$lib/server/escala-exclusao`), que limpa
+ * o R2 antes — esta função é a peça interna dele.
+ */
 export async function excluirEscala(db: Database, id: number) {
 	return db.delete(escalas).where(eq(escalas.id, id));
 }
 
+/**
+ * Já existe escala equivalente para esta lotação? A regra de "equivalente"
+ * muda por tipo:
+ *
+ * - **fds**: qualquer SOBREPOSIÇÃO de datas com o intervalo pedido (dois fins
+ *   de semana não podem cobrir o mesmo dia);
+ * - **mensal**: qualquer escala do mesmo tipo naquele MÊS.
+ *
+ * A comparação mensal é feita por intervalo (`>= dia 1` e `< dia 1 do mês
+ * seguinte`) em vez de `substr(data_inicio, 1, 7)` para que o índice de
+ * `data_inicio` seja usado.
+ */
 export async function verificarEscalaExistente(
 	db: Database,
 	lotacao: string,
@@ -185,6 +245,7 @@ export async function verificarEscalaExistente(
 		.get();
 }
 
+/** Marca/desmarca a escala como lida na caixa de entrada do Admin Geral. */
 export async function marcarVisto(db: Database, id: number, visto: boolean) {
 	return db
 		.update(escalas)
@@ -192,6 +253,12 @@ export async function marcarVisto(db: Database, id: number, visto: boolean) {
 		.where(eq(escalas.id, id));
 }
 
+/**
+ * Conclui a escala de FDS: grava o instante do envio e o e-mail de destino.
+ *
+ * `finalizada_em` é gravado no horário de Brasília (UTC-3) em texto, no mesmo
+ * formato dos outros carimbos legados desta tabela — não é ISO com `Z`.
+ */
 export async function finalizarEscalaFDS(
 	db: Database,
 	id: number,
@@ -207,12 +274,14 @@ export async function finalizarEscalaFDS(
 		.where(eq(escalas.id, id));
 }
 
+/** Reabre a escala de FDS. Preserva `email_envio` como histórico do último envio. */
 export async function desfinalizarEscalaFDS(db: Database, id: number): Promise<void> {
 	await db.update(escalas).set({ finalizada_em: null }).where(eq(escalas.id, id));
 }
 
 // ---- Escala Policiais ----
 
+/** Insere um policial em várias datas de uma vez (um INSERT por lote, não por dia). */
 export async function adicionarMultiplasDatasPlantao(
 	db: Database,
 	escalaId: number,
@@ -240,6 +309,7 @@ export async function adicionarMultiplasDatasPlantao(
 	);
 }
 
+/** Preenche a escala com todos os policiais da lotação, no horário padrão dela. */
 export async function adicionarTodosPoliciais(
 	db: Database,
 	escalaId: number,
@@ -288,9 +358,12 @@ export async function adicionarTodosPoliciais(
 }
 
 /**
- * Constrói a query de listagem de policiais de uma escala SEM executá-la.
- * Útil para uso com `db.batch([mutation, listarPoliciaisEscalaQuery(...)])`,
- * que combina mutação + listagem em um único round-trip ao D1.
+ * Query (NÃO executada) da listagem de escalados, para compor
+ * `db.batch([mutação, listarPoliciaisEscalaQuery(...)])` e resolver escrita +
+ * releitura em um só round-trip ao D1.
+ *
+ * A ordenação é a da tabela na tela: por data de plantão, DPC antes de OIP
+ * (`desc` no cargo, porque 'D' < 'O') e nome em ordem alfabética.
  */
 export function listarPoliciaisEscalaQuery(db: Database, escalaId: number) {
 	return db
@@ -319,6 +392,14 @@ export function listarPoliciaisEscalaQuery(db: Database, escalaId: number) {
 		.orderBy(asc(escalaPoliciais.data_plantao), desc(policiais.cargo), asc(policiais.nome));
 }
 
+/**
+ * Escalados da escala, com os dados do policial já juntados — a mesma query de
+ * `listarPoliciaisEscalaQuery`, executada. Use esta salvo quando precisar
+ * compor um `db.batch`.
+ *
+ * Devolve UMA LINHA POR DIA de plantão do policial, não uma por policial: a
+ * granularidade da tabela é (escala, policial, data).
+ */
 export async function listarPoliciaisEscala(
 	db: Database,
 	escalaId: number
@@ -329,6 +410,11 @@ export async function listarPoliciaisEscala(
 
 // ---- Solicitações de Assinatura ----
 
+/**
+ * Registra o pedido de assinatura de uma escala mensal. O destinatário pode ser
+ * um DPC específico (`destinatario_id`) ou o papel genérico — é o que decide
+ * quem enxerga a escala fora da própria lotação.
+ */
 export async function criarSolicitacaoAssinatura(
 	db: Database,
 	escalaId: number,
@@ -348,15 +434,18 @@ export async function criarSolicitacaoAssinatura(
 }
 
 /**
- * Decisão pura (sem DB) sobre se uma solicitação de assinatura concede acesso a
- * um admin DPC. Extraída para teste isolado da regra (fecha o IDOR A1).
+ * A solicitação de assinatura dá a este admin DPC acesso à escala de outra
+ * unidade? Decisão PURA (sem banco), reaproveitada pelo guard de permissão e
+ * pelos testes de RBAC, que cobrem a matriz de casos sem tocar o D1.
  *
  * Concede quando:
- * - `respondencia` direcionada diretamente a este usuário (nomeação explícita —
- *   vale mesmo fora do escopo, é o ponto de nomear alguém), OU
- * - `unidade` E a lotação da escala está dentro do escopo administrativo do admin
- *   (`lotacoesPermitidas`). ANTES este ramo retornava `true` para QUALQUER admin
- *   DPC, permitindo acesso cross-unidade/seccional.
+ * - `respondencia` direcionada diretamente a este usuário — nomeação explícita
+ *   vale mesmo fora do escopo administrativo, que é justamente o sentido de
+ *   nomear alguém; OU
+ * - `unidade` **E** a lotação da escala está dentro do escopo do admin
+ *   (`lotacoesPermitidas`). Sem a segunda condição o ramo devolvia `true` para
+ *   QUALQUER admin DPC, o que abria acesso cross-unidade/seccional — é o IDOR
+ *   A1, e é por isso que a regra virou função testável.
  */
 export function solicitacaoConcedeAcessoDpc(
 	sol: { tipo: string; destinatario_id: number | null } | undefined,
@@ -373,14 +462,9 @@ export function solicitacaoConcedeAcessoDpc(
 }
 
 /**
- * Verifica se um admin DPC tem acesso a uma escala fora de sua lotação/seccional
- * através de uma solicitação de assinatura.
- *
- * Retorna `true` quando:
- * - há solicitação do tipo `respondencia` direcionada diretamente a este usuário, OU
- * - há solicitação do tipo `unidade` e `escalaLotacao` está em `lotacoesPermitidas`
- *   (escopo de unidades que o admin administra). Sem esse escopo, o ramo `unidade`
- *   NÃO concede acesso (defesa contra IDOR cross-unidade).
+ * Versão com banco de `solicitacaoConcedeAcessoDpc`: lê a solicitação da escala
+ * (há no máximo uma) e aplica a mesma regra. É o atalho usado pelo guard de
+ * permissão; a regra em si mora na função pura acima.
  */
 export async function temSolicitacaoParaDpcAdmin(
 	db: Database,
@@ -401,6 +485,11 @@ export async function temSolicitacaoParaDpcAdmin(
 	return solicitacaoConcedeAcessoDpc(sol, usuarioId, escalaLotacao, lotacoesPermitidas);
 }
 
+/**
+ * A solicitação de assinatura da escala, completa, ou `undefined` se não houver
+ * pedido pendente. Há no máximo uma: `criarSolicitacaoAssinatura` apaga a
+ * anterior antes de inserir, então pedir de novo SUBSTITUI o destinatário.
+ */
 export async function buscarSolicitacaoAssinatura(db: Database, escalaId: number) {
 	return db
 		.select()
@@ -409,12 +498,26 @@ export async function buscarSolicitacaoAssinatura(db: Database, escalaId: number
 		.get();
 }
 
+/** Revoga o pedido de assinatura — e, com ele, o acesso cross-unidade que ele concedia. */
 export async function excluirSolicitacaoAssinatura(db: Database, escalaId: number) {
 	await db
 		.delete(escalaSolicitacoesAssinatura)
 		.where(eq(escalaSolicitacoesAssinatura.escala_id, escalaId));
 }
 
+/**
+ * Solicitações de várias escalas de uma vez, indexadas por `escala_id` — evita o
+ * N+1 na lista de escalas, que mostra o selo "aguardando assinatura" em cada
+ * linha.
+ *
+ * `Map` em vez de array porque o consumidor faz lookup por id, e escala sem
+ * solicitação simplesmente não tem chave (nada de entrada nula para filtrar).
+ * `escalaIds` vazio devolve `Map` vazio sem consultar o banco: `inArray` com
+ * lista vazia gera SQL inválido no D1.
+ *
+ * `destinatario_nome` vem de `leftJoin` e fica `undefined` na solicitação por
+ * papel genérico, que não nomeia ninguém.
+ */
 export async function listarSolicitacoesEscalas(
 	db: Database,
 	escalaIds: number[]

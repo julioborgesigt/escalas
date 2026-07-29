@@ -1,6 +1,5 @@
 <script lang="ts">
-	import { Pagination } from '@skeletonlabs/skeleton-svelte';
-	import { ChevronLeft, ChevronRight } from 'lucide-svelte';
+	import Paginador from './Paginador.svelte';
 
 	interface Props {
 		paginaAtual: number;
@@ -25,8 +24,10 @@
 	const itensInicio = $derived((paginaAtual - 1) * itensPorPagina + 1);
 	const itensFim = $derived(Math.min(paginaAtual * itensPorPagina, totalItens));
 
-	function handlePageChange(event: { page: number }) {
-		onPageChange?.(event.page);
+	function handlePageChange(pagina: number) {
+		onPageChange?.(pagina);
+		// Listas de página inteira: trocar de página sem voltar ao topo deixaria
+		// o usuário no meio do conteúdo novo.
 		window.scrollTo({ top: 0, behavior: 'smooth' });
 	}
 </script>
@@ -41,45 +42,11 @@
 	</p>
 
 	{#if totalPaginas > 1}
-		<Pagination
+		<Paginador
 			count={totalItens}
 			pageSize={itensPorPagina}
 			page={paginaAtual}
 			onPageChange={handlePageChange}
-			siblingCount={1}
-		>
-			<Pagination.PrevTrigger
-				class="btn btn-sm preset-outlined-surface-500"
-				aria-label="Página anterior"
-			>
-				<ChevronLeft size={16} />
-			</Pagination.PrevTrigger>
-
-			<Pagination.Context>
-				{#snippet children(pagination)}
-					{#each pagination().pages as p, index (p)}
-						{#if p.type === 'page'}
-							<Pagination.Item
-								{...p}
-								class="btn btn-sm min-w-[32px] {p.value === paginaAtual
-									? 'preset-filled-primary-500'
-									: 'preset-outlined-surface-500'}"
-							>
-								{p.value}
-							</Pagination.Item>
-						{:else}
-							<Pagination.Ellipsis {index} class="px-1 opacity-50">&#8230;</Pagination.Ellipsis>
-						{/if}
-					{/each}
-				{/snippet}
-			</Pagination.Context>
-
-			<Pagination.NextTrigger
-				class="btn btn-sm preset-outlined-surface-500"
-				aria-label="Próxima página"
-			>
-				<ChevronRight size={16} />
-			</Pagination.NextTrigger>
-		</Pagination>
+		/>
 	{/if}
 </div>

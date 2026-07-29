@@ -1,4 +1,20 @@
 <script lang="ts">
+	/**
+	 * Faixa superior da tela de uma GISE: identificação, selo de status e os
+	 * botões de ação do momento.
+	 *
+	 * O componente é quase todo GUARDA DE ESTADO — cada ação aparece só no
+	 * status em que faz sentido (`solicitarAssinatura` em `em_preenchimento`
+	 * com todas as seccionais preenchidas, `revogarPedidoAssinatura` em
+	 * `aguardando_assinatura` e ainda sem documento, downloads e reenvio de
+	 * planilha só em `finalizada`). Quem define esses status é
+	 * `db/gise/escalas-status.ts`; aqui só se decide o que MOSTRAR, e esconder
+	 * um botão não impede nada — as actions revalidam no servidor.
+	 *
+	 * `statusLabel`/`statusColor` chegam por prop, vindos de
+	 * `$lib/gise/gise-formatters`, para que o mesmo status tenha o mesmo rótulo
+	 * e a mesma cor no cabeçalho, na listagem e no histórico.
+	 */
 	import { goto } from '$app/navigation';
 	import { enhance } from '$app/forms';
 	import type { SubmitFunction } from '@sveltejs/kit';

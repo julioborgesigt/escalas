@@ -31,6 +31,13 @@ export function listarPoliciaisSupervisaoExtra(
 	return out;
 }
 
+/**
+ * O quadro de supervisão desta GISE deve um relatório? Verdade quando há ao
+ * menos um integrante DEFINIDO (supervisor, assessor ou SEINT).
+ *
+ * É o que decide se o "quadro de supervisão extra" aparece como uma pseudo-
+ * seccional pendente: GISE sem quadro nomeado não cobra relatório de ninguém.
+ */
 export function quadroSupervisaoExtraExigeRelatorio(
 	gise: Pick<GiseDetalhado, 'supervisor_id' | 'assessor_id' | 'seint1_id' | 'seint2_id'>
 ): boolean {
@@ -64,6 +71,15 @@ export function supervisaoExtraRubricasCompletas(
 /** Prefixo da mensagem quando faltam rubricas (UI pode colorir só este trecho). */
 export const FALTANTE_RUBRICA_SUPER_PREFIX = 'Faltando rubrica de: ';
 
+/**
+ * Mensagem de quem, no quadro de supervisão, ainda não rubricou entrada E saída
+ * — ou `''` quando não falta ninguém (o chamador testa a string vazia).
+ *
+ * Só o PRIMEIRO nome de cada faltante, e o papel (`'Assessor'`, `'SEINT 1'`)
+ * quando o nome não está no mapa: a mensagem tem de continuar útil mesmo com o
+ * cadastro incompleto. O prefixo sai em `FALTANTE_RUBRICA_SUPER_PREFIX` para a
+ * UI poder destacar só a parte dos nomes.
+ */
 export function faltantesSupervisaoExtra(
 	gise: Pick<GiseDetalhado, 'supervisor_id' | 'assessor_id' | 'seint1_id' | 'seint2_id'>,
 	presencas: PresencaMin[],

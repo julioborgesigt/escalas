@@ -1,18 +1,27 @@
+/**
+ * Documento assinado de uma GISE (um por escala, relação 1:1).
+ *
+ * Guarda o ponteiro para o PDF no R2 e todo o dossiê da assinatura — quem
+ * assinou, rubrica, prova de vida, GPS, metadados do certificado A3 e resposta
+ * OCSP — que a página `/validar` usa para conferir o arquivo depois.
+ */
 import { eq, sql } from 'drizzle-orm';
 import { giseDocumentos } from '../../server/schema';
 import type * as schema from '../../server/schema';
 import type { Database } from '../core';
 import { anonimizarIp } from '../audit';
-import { parseUserAgent } from '../../server/document-utils';
+import { parseUserAgent, reduzirPrecisaoGps } from '../../server/document-utils';
 import { cifrarCpfParaArmazenar, type CpfCriptoEnv } from '../../crypto/cpf-cripto';
 
-function gps2(v?: number): number | undefined {
-	return v !== undefined ? Math.round(v * 100) / 100 : undefined;
-}
+/**
+ * Arredonda a coordenada para 2 casas (~1 km): a lei pede evidência de que a
+ * assinatura ocorreu na região, não a localização exata do servidor.
+ */
 
 /** Reexportado de '../documentos' para uso pelos endpoints. */
 import type { AssinaturaCadesMetadata } from '../documentos';
 
+/** Insere o documento assinado ou substitui o anterior (upsert por `gise_id`). */
 export async function salvarGiseDocumento(
 	db: Database,
 	giseId: number,
@@ -36,65 +45,52 @@ export async function salvarGiseDocumento(
 	const meta = cadesMeta ?? {};
 	// CPF cifrado em repouso (LGPD Fase 2).
 	const cpfArmazenado = await cifrarCpfParaArmazenar(assinanteCpf, env);
+
+	// Mesmos campos no INSERT e no UPDATE do upsert — montados uma vez só para
+	// não haver o risco clássico de acrescentar coluna em um lado e esquecer o
+	// outro. `gise_id` fica de fora: é o alvo do conflito.
+	const dados = {
+		r2_key: r2Key,
+		assinante_id: assinanteId,
+		assinante_nome: assinanteNome,
+		assinante_cpf: cpfArmazenado ?? '',
+		assinante_email: assinanteEmail ?? null,
+		verificacao_hash: verificacaoHash,
+		selfie_key: selfieKey,
+		arquivo_hash: arquivoHash,
+		rubrica: rubrica || null,
+		ip_address: anonimizarIp(ipAddress) ?? undefined,
+		user_agent: userAgent ? parseUserAgent(userAgent) : undefined,
+		user_agent_raw: userAgent ? userAgent.slice(0, 1024) : undefined,
+		latitude: reduzirPrecisaoGps(latitude),
+		longitude: reduzirPrecisaoGps(longitude),
+		tipo_carimbo_tempo: tipoCarimboTempo || 'servidor',
+		cert_issuer: meta.cert_issuer ?? null,
+		cert_serial: meta.cert_serial ?? null,
+		cert_valido_de: meta.cert_valido_de ?? null,
+		cert_valido_ate: meta.cert_valido_ate ?? null,
+		cms_sha256: meta.cms_sha256 ?? null,
+		ocsp_response_b64: meta.ocsp_response_b64 ?? null,
+		ocsp_consultado_em: meta.ocsp_consultado_em ?? null,
+		tst_token_b64: meta.tst_token_b64 ?? null
+	};
+
 	return db
 		.insert(giseDocumentos)
-		.values({
-			gise_id: giseId,
-			r2_key: r2Key,
-			assinante_id: assinanteId,
-			assinante_nome: assinanteNome,
-			assinante_cpf: cpfArmazenado ?? '',
-			assinante_email: assinanteEmail ?? null,
-			verificacao_hash: verificacaoHash,
-			selfie_key: selfieKey,
-			arquivo_hash: arquivoHash,
-			rubrica: rubrica || null,
-			ip_address: anonimizarIp(ipAddress) ?? undefined,
-			user_agent: userAgent ? parseUserAgent(userAgent) : undefined,
-			user_agent_raw: userAgent ? userAgent.slice(0, 1024) : undefined,
-			latitude: gps2(latitude),
-			longitude: gps2(longitude),
-			tipo_carimbo_tempo: tipoCarimboTempo || 'servidor',
-			cert_issuer: meta.cert_issuer ?? null,
-			cert_serial: meta.cert_serial ?? null,
-			cert_valido_de: meta.cert_valido_de ?? null,
-			cert_valido_ate: meta.cert_valido_ate ?? null,
-			cms_sha256: meta.cms_sha256 ?? null,
-			ocsp_response_b64: meta.ocsp_response_b64 ?? null,
-			ocsp_consultado_em: meta.ocsp_consultado_em ?? null,
-			tst_token_b64: meta.tst_token_b64 ?? null
-		})
+		.values({ gise_id: giseId, ...dados })
 		.onConflictDoUpdate({
 			target: [giseDocumentos.gise_id],
-			set: {
-				r2_key: r2Key,
-				assinante_id: assinanteId,
-				assinante_nome: assinanteNome,
-				assinante_cpf: cpfArmazenado ?? '',
-				assinante_email: assinanteEmail ?? null,
-				verificacao_hash: verificacaoHash,
-				selfie_key: selfieKey,
-				arquivo_hash: arquivoHash,
-				rubrica: rubrica || null,
-				ip_address: anonimizarIp(ipAddress) ?? undefined,
-				user_agent: userAgent ? parseUserAgent(userAgent) : undefined,
-				user_agent_raw: userAgent ? userAgent.slice(0, 1024) : undefined,
-				latitude: gps2(latitude),
-				longitude: gps2(longitude),
-				tipo_carimbo_tempo: tipoCarimboTempo || 'servidor',
-				cert_issuer: meta.cert_issuer ?? null,
-				cert_serial: meta.cert_serial ?? null,
-				cert_valido_de: meta.cert_valido_de ?? null,
-				cert_valido_ate: meta.cert_valido_ate ?? null,
-				cms_sha256: meta.cms_sha256 ?? null,
-				ocsp_response_b64: meta.ocsp_response_b64 ?? null,
-				ocsp_consultado_em: meta.ocsp_consultado_em ?? null,
-				tst_token_b64: meta.tst_token_b64 ?? null,
-				created_at: sql`datetime('now', '-3 hours')`
-			}
+			// Reassinatura substitui o documento anterior por inteiro, inclusive o
+			// carimbo de criação — o que vale é a assinatura vigente.
+			set: { ...dados, created_at: sql`datetime('now', '-3 hours')` }
 		});
 }
 
+/**
+ * A assinatura vigente da escala GISE, ou `undefined` se ainda não foi assinada
+ * — há no máximo uma por GISE (`gise_id` é o alvo do conflito no upsert).
+ * `assinante_cpf` sai cifrado.
+ */
 export async function buscarGiseDocumento(
 	db: Database,
 	giseId: number

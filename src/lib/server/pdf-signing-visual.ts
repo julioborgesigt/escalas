@@ -1,3 +1,32 @@
+/**
+ * O que o HUMANO vê num PDF assinado — sem nenhuma criptografia. Nada aqui
+ * assina: são desenhos com `pdf-lib` que TESTEMUNHAM a assinatura feita em
+ * `pdf-signing-prepare`. Reexportado inteiro por `pdf-signing.ts`.
+ *
+ * Três peças, em três níveis de compromisso:
+ *   - `adicionarRodapeSimples` — carimbo textual SEM PKI (escalas de FDS). É
+ *     confirmação administrativa, não assinatura; o texto não pode sugerir o
+ *     contrário.
+ *   - `adicionarRodapeUniversal` — hash + URL de validação + base legal em toda
+ *     página de conteúdo, mais o bloco de identidade na última. É o que carrega
+ *     o "assinado por" quando o campo usa o estilo `'rubrica'`.
+ *   - `adicionarPaginaAuditoria` — o MANIFESTO, página final com o dossiê do
+ *     ato (IP, GPS, user-agent, selfie, liveness). Aceita vários signatários,
+ *     para o manifesto misto do relatório extraordinário.
+ *
+ * ORDEM OBRIGATÓRIA: tudo isto entra ANTES de `prepararPdfParaAssinatura`.
+ * Desenhar depois altera bytes fora do `/ByteRange` e invalida a assinatura —
+ * o Adobe acusa "documento modificado".
+ *
+ * O nível da assinatura muda o TEXTO, não só o layout: a avançada não pode
+ * exibir "ICP-Brasil" nem MP 2.200-2 (daí `baseLegalIdentidade` e
+ * `signatureLevel`). Escrever a base legal errada é declarar num documento
+ * oficial uma qualificação que ele não tem.
+ *
+ * Estes desenhos são cobertos por `export-pdf-goldens`: rode antes e depois de
+ * mexer, e só regrave com `UPDATE_PDF_GOLDENS=1` se a mudança visual for
+ * intencional.
+ */
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
 import * as QRCode from 'qrcode';
 import { parseUserAgent, descreverTipoCarimbo, type TipoCarimoTempo } from './document-utils';
@@ -25,6 +54,18 @@ interface RodapeSimplesOptions {
 	signatureLevel?: 'avancada' | 'qualificada';
 }
 
+/**
+ * Desenha o rodapé de assinatura na ÚLTIMA página do PDF: nome do assinante,
+ * data/hora, rubrica (quando houver), código de validação e QR do `/validar`.
+ *
+ * Só a última página, e as medidas vêm em milímetros convertidos para pontos
+ * (`mmToPts`), porque o desenho segue o padrão de documento impresso da
+ * corporação, não coordenadas de tela.
+ *
+ * IMPORTANTE: isto altera os bytes do PDF, então tem de rodar ANTES de calcular
+ * o `/ByteRange` e assinar. Chamar depois invalidaria a assinatura — o rodapé é
+ * parte do documento assinado, não um enfeite posterior.
+ */
 export async function adicionarRodapeSimples(
 	pdfBytes: Uint8Array,
 	assinante: string,

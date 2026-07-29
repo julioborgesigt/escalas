@@ -17,6 +17,7 @@
  */
 
 import { desc, asc, eq, and, gte, lte, isNotNull, sql } from 'drizzle-orm';
+import { ehViolacaoUnique, mensagemComCausas } from '$lib/server/db-errors';
 import { auditLog } from '../server/schema';
 import type { Database } from './core';
 import type { AuditLog } from '../server/schema';
@@ -27,7 +28,7 @@ import { bytesToHex, hexToBytes } from '../crypto/hex';
 
 // ---- Classificação ----------------------------------------------------------
 
-export type AuditCategoria =
+type AuditCategoria =
 	| 'autenticacao'
 	| 'escala'
 	| 'gise'
@@ -38,7 +39,7 @@ export type AuditCategoria =
 	| 'lgpd'
 	| 'sistema';
 
-export type AuditSeveridade = 'info' | 'aviso' | 'critico';
+type AuditSeveridade = 'info' | 'aviso' | 'critico';
 export type AuditResultado = 'sucesso' | 'falha' | 'negado';
 export type AuditActorTipo = 'policial' | 'admin' | 'sistema' | 'webhook';
 
@@ -572,9 +573,19 @@ export function contextoDeEvento(event: EventoRequestLike): {
 
 const MAX_TENTATIVAS_CHAIN = 5;
 
+/**
+ * Colisão do índice `uq_audit_seq` (dois appends simultâneos pegaram o mesmo
+ * `seq`) — condição de retry do encadeamento.
+ *
+ * Precisa olhar a cadeia de `cause`: o Drizzle põe só "Failed query: insert
+ * into audit_log ..." na mensagem de topo, e o "UNIQUE constraint failed" fica
+ * na causa. Testando apenas `err.message`, o retry nunca acontecia e o evento
+ * era descartado (a falha só aparecia no log).
+ */
 function ehViolacaoSeq(err: unknown): boolean {
-	const msg = (err instanceof Error ? err.message : String(err)).toUpperCase();
-	return msg.includes('UNIQUE') && (msg.includes('SEQ') || msg.includes('UQ_AUDIT_SEQ'));
+	if (!ehViolacaoUnique(err)) return false;
+	const msg = mensagemComCausas(err).toUpperCase();
+	return msg.includes('SEQ') || msg.includes('UQ_AUDIT_SEQ');
 }
 
 /**

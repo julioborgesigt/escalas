@@ -1,11 +1,17 @@
+/**
+ * POST /api/auth/login — gêmea JSON da form action de `/login`.
+ *
+ * Ambas delegam a `tentarLogin` (`$lib/server/auth-flow`) e precisam manter os
+ * MESMOS limites: duas portas para a mesma senha, uma delas sem throttle, seria
+ * brute-force gratuito. A diferença é só o transporte — aqui a resposta é JSON
+ * para o cliente decidir a navegação, lá é redirect do SvelteKit.
+ */
 import { json } from '@sveltejs/kit';
 import { getDB } from '$lib/db';
-import { tentarLogin, cookieOptionsLogin } from '$lib/server/auth-flow';
+import { tentarLogin, cookieOptions } from '$lib/server/auth-flow';
 import { loginSchema } from '$lib/schemas';
 import { apiError, ErrorCode, badRequest, rateLimited } from '$lib/server/api';
 import type { RequestHandler } from './$types';
-
-const cookieOptions = cookieOptionsLogin;
 
 export const POST: RequestHandler = async ({
 	platform,

@@ -5,7 +5,7 @@
 	 * e `ModalEditarPlantao` (modo 'avulso': dias independentes).
 	 * `cor` controla o tema do dia selecionado/chips (warning × primary).
 	 */
-	import { MESES_PT, DIAS_SEMANA_CURTO } from '$lib/utils';
+	import { MESES_PT, DIAS_SEMANA_CURTO, isoData } from '$lib/utils';
 
 	let {
 		selecionados = $bindable<string[]>([]),
@@ -39,10 +39,6 @@
 		return cells;
 	});
 
-	function isoLocal(y: number, m: number, d: number): string {
-		return `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-	}
-
 	function fmtDia(iso: string): string {
 		const [, m, d] = iso.split('-');
 		return `${d}/${m}`;
@@ -55,7 +51,9 @@
 
 		const last = new Date(end + 'T00:00:00');
 		while (current <= last) {
-			days.push(new Date(current).toISOString().split('T')[0]);
+			// `isoData` em vez de `toISOString()`: o segundo converte para UTC e,
+			// em fuso positivo, devolveria o dia anterior.
+			days.push(isoData(current.getFullYear(), current.getMonth() + 1, current.getDate()));
 			current.setDate(current.getDate() + 1);
 		}
 		return days;
@@ -116,7 +114,7 @@
 	<div class="grid grid-cols-7 gap-0.5">
 		{#each grade as cell, i (i)}
 			{#if cell}
-				{@const iso = isoLocal(ano, mes, cell.day)}
+				{@const iso = isoData(ano, mes + 1, cell.day)}
 				{@const sel = selecionados.includes(iso)}
 				<button
 					type="button"

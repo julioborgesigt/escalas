@@ -1,3 +1,11 @@
+/**
+ * Form actions das SECCIONAIS de uma GISE em `/gise/[id]`.
+ *
+ * Montagem (adicionar/remover) é do Admin Geral; o preenchimento
+ * (`finalizarSeccional`, horários) é do admin da própria seccional — daí os
+ * guards mistos de `isAdminGeral` × `isAdminSeccional` + `papel_unidade_id`.
+ */
+
 import { fail } from '@sveltejs/kit';
 import type { RequestEvent } from '@sveltejs/kit';
 import {
@@ -25,11 +33,12 @@ import {
 	giseDocumentos
 } from '$lib/server/schema';
 import { eq, and, asc, inArray } from 'drizzle-orm';
-import { getInt } from './shared';
+import { getInt, saiuDaFaseDeEdicao } from './shared';
 
 type Event = RequestEvent<{ id: string }>;
 
 export const actionsSeccional = {
+	/** Inclui uma seccional na GISE, já com um slot de unidade em branco. */
 	adicionarSeccional: async ({ request, locals, platform, params }: Event) => {
 		const u = locals.usuario;
 		if (!u || !isAdminGeral(u)) return fail(403, { error: 'Apenas Admin Geral' });
@@ -54,6 +63,8 @@ export const actionsSeccional = {
 			})
 			.returning({ id: giseSeccionais.id });
 
+		// Slot vazio inicial: a tela sempre mostra ao menos uma linha de unidade
+		// para preencher, em vez de uma seccional sem nada abaixo.
 		if (novaSec) {
 			await adicionarGiseSeccionalUnidade(db, novaSec.id, null);
 		}
@@ -61,6 +72,11 @@ export const actionsSeccional = {
 		return { success: true };
 	},
 
+	/**
+	 * Remove a seccional da GISE e recalcula o status da escala: some uma parte
+	 * do documento, então o PDF gerado é descartado; se as seccionais restantes
+	 * já estiverem todas preenchidas, a escala volta direto para assinatura.
+	 */
 	removerSeccional: async ({ request, locals, platform, params }: Event) => {
 		const u = locals.usuario;
 		if (!u || !isAdminGeral(u)) return fail(403, { error: 'Apenas Admin Geral' });
@@ -97,6 +113,14 @@ export const actionsSeccional = {
 		return { success: true, gise_status: novoStatus };
 	},
 
+	/**
+	 * A seccional declara seu preenchimento concluído.
+	 *
+	 * Só passa com a escala completa: toda unidade escolhida e cada uma com pelo
+	 * menos um policial — checagens feitas aqui (e não no clique) porque o admin
+	 * seccional pode ter várias abas abertas. Quando a última seccional finaliza,
+	 * a GISE inteira vai para `aguardando_assinatura`.
+	 */
 	finalizarSeccional: async ({ request, locals, platform, params }: Event) => {
 		const u = locals.usuario;
 		if (!u) return fail(401, { error: 'Não autorizado' });
@@ -144,6 +168,8 @@ export const actionsSeccional = {
 		if (slotSemMembro)
 			return fail(400, { error: 'Cada unidade deve ter pelo menos 1 policial alocado' });
 
+		// Preserva a marca de retificação: uma seccional que foi reaberta e
+		// preenchida de novo continua distinguível da que acertou de primeira.
 		const novoStatus = sec.status === 'retificada' ? 'preenchida_retificada' : 'preenchida';
 		await atualizarGiseSeccional(db, secId, { status: novoStatus });
 
@@ -181,6 +207,9 @@ export const actionsSeccional = {
 			.where(eq(giseSeccionais.gise_id, giseId))
 			.orderBy(asc(unidades.nome));
 
+		// Notificação ao assessor: e-mail configurado na GISE tem prioridade sobre
+		// o cadastro do policial. Falha de envio é logada e ignorada — o
+		// preenchimento já foi gravado e não pode ser desfeito por causa de e-mail.
 		if (giseRow?.assessor_id && secComNome?.nome) {
 			let destino =
 				(giseRow.assessor_email_notificacao && giseRow.assessor_email_notificacao.trim()) || '';
@@ -233,6 +262,7 @@ export const actionsSeccional = {
 		return { success: true, gise_status: giseStatus };
 	},
 
+	/** Horário padrão da seccional (as equipes podem sobrepor o seu). */
 	salvarHorariosSec: async ({ request, locals, platform, params }: Event) => {
 		const u = locals.usuario;
 		if (!u) return fail(401, { error: 'Não autorizado' });
@@ -265,7 +295,9 @@ export const actionsSeccional = {
 			hora_saida: horaSaida || null
 		});
 
-		if (gise && !['em_definicao_supervisor', 'em_preenchimento'].includes(gise.status)) {
+		// Horário sai impresso no relatório de extra: mudou, as assinaturas desta
+		// seccional caem.
+		if (gise && saiuDaFaseDeEdicao(gise.status)) {
 			await revogarAssinaturasSeccional(db, giseId, secId);
 		}
 

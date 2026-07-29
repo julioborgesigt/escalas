@@ -1,3 +1,31 @@
+/**
+ * `load` e actions da listagem de escalas (`/escalas`, a aba "Arquivo").
+ *
+ * **Quem entra aqui já é admin de unidade ou de seccional.** O `load` redireciona
+ * todo o resto — inclusive o Admin Geral, que tem a caixa de entrada
+ * (`/recebidos`) e o painel, não a listagem operacional. Esse guarda é a
+ * premissa de que o arquivo inteiro depende: por causa dele, o escopo por papel
+ * nunca é "todas as unidades".
+ *
+ * Escopo, na ordem em que é decidido:
+ *   1. `admin_unidade` → a lotação dele, ignorando o `?lotacao=` da URL;
+ *   2. `admin_seccional` → a seccional e as delegacias abaixo dela; um
+ *      `?lotacao=` fora dessa lista é DESCARTADO em vez de recusado, porque
+ *      link antigo ou filtro salvo não deve virar erro na cara do usuário;
+ *   3. a query só então é montada, já restrita.
+ *
+ * `depends('app:escalas')` é a chave de invalidação segmentada: as mutações da
+ * listagem revalidam só este `load`, não o do layout (flags + papel GISE) —
+ * `invalidateAll()` refazia tudo a cada exclusão (auditoria U-1).
+ *
+ * As três actions:
+ * - `criar` — recusa duplicata via `verificarEscalaExistente` (a UI já bloqueia
+ *   no modal, mas o POST direto precisa morrer aqui);
+ * - `excluir` — destrutiva, exige papel de administração. "Mesma lotação" vale
+ *   para ler e assinar, não para apagar (achado B-2). Delega a
+ *   `excluirEscalaCompleta`, que limpa o R2 ANTES do DELETE (R2-1);
+ * - `criarComBase` — copia a escala do mês anterior da mesma lotação/tipo.
+ */
 import { redirect, fail } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
 import {
@@ -52,8 +80,6 @@ export const load: PageServerLoad = async ({ locals, platform, url, depends }) =
 	const db = getDB(platform);
 
 	// Parâmetros de filtro
-	// isAdmin sempre false aqui: o admin geral é redirecionado no guarda acima
-	const isAdmin = false;
 	let lotacaoParam = url.searchParams.get('lotacao') || undefined;
 	const mes = url.searchParams.get('mes') ? Number(url.searchParams.get('mes')) : undefined;
 	const ano = url.searchParams.get('ano') ? Number(url.searchParams.get('ano')) : undefined;
@@ -63,7 +89,7 @@ export const load: PageServerLoad = async ({ locals, platform, url, depends }) =
 
 	// Escopo por papel: admin_unidade vê só sua unidade; admin_seccional vê sua seccional
 	let lotacoesPermitidas: string[] | undefined = undefined;
-	if (!isAdmin) {
+	{
 		if (u.papel === 'admin_unidade') {
 			lotacaoParam = u.lotacao ?? undefined;
 		} else if (u.papel === 'admin_seccional' && u.papel_unidade_id) {
@@ -83,9 +109,6 @@ export const load: PageServerLoad = async ({ locals, platform, url, depends }) =
 			}
 		}
 	}
-
-	// Admin geral sem unidade selecionada: aguarda seleção
-	const skipLoad = isAdmin && !lotacaoParam;
 
 	// Meses já ocupados para o picker de nova escala (plantão/expediente)
 	const anoAtual = new Date().getFullYear();
@@ -143,16 +166,6 @@ export const load: PageServerLoad = async ({ locals, platform, url, depends }) =
 			is_assinada: sql<boolean>`EXISTS (SELECT 1 FROM escala_documentos WHERE escala_id = ${escalasTable.id})`
 		};
 
-		if (isAdmin) {
-			// Admin geral vê todas as escalas não assinadas (sem exigir solicitação)
-			return db
-				.select(camposEscala)
-				.from(escalasTable)
-				.where(baseWhere)
-				.orderBy(desc(escalasTable.created_at))
-				.limit(50);
-		}
-
 		// DPC admin só vê escalas que têm uma solicitação direcionada a eles
 		let scopeCondition;
 		if (u.papel === 'admin_unidade' && u.lotacao) {
@@ -197,14 +210,12 @@ export const load: PageServerLoad = async ({ locals, platform, url, depends }) =
 		: Promise.resolve([]);
 
 	const [resultado, unidades, escalasExistentes, escalasParaAssinarRaw] = await Promise.all([
-		skipLoad
-			? { escalas: [], total: 0, page: 1, limit: 20, totalPages: 1 }
-			: listarEscalas(db, lotacaoParam, undefined, mes, ano, tipo, undefined, undefined, {
-					busca,
-					page,
-					limit: 20,
-					lotacoes: !lotacaoParam ? lotacoesPermitidas : undefined
-				}),
+		listarEscalas(db, lotacaoParam, undefined, mes, ano, tipo, undefined, undefined, {
+			busca,
+			page,
+			limit: 20,
+			lotacoes: !lotacaoParam ? lotacoesPermitidas : undefined
+		}),
 		listarUnidades(db),
 		db
 			.select({
@@ -227,8 +238,7 @@ export const load: PageServerLoad = async ({ locals, platform, url, depends }) =
 		destinatario_id?: number;
 	};
 	const solicitacoesMap: Record<number, SolicitacaoInfo> = {};
-	const deveCarregarSolicitacoes =
-		!isAdmin && (u.papel === 'admin_seccional' || u.papel === 'admin_unidade');
+	const deveCarregarSolicitacoes = u.papel === 'admin_seccional' || u.papel === 'admin_unidade';
 	if (deveCarregarSolicitacoes && resultado.escalas.length > 0) {
 		const escalasNaoAssinadas = resultado.escalas
 			.filter((e) => (e.tipo === 'plantao' || e.tipo === 'expediente') && !e.is_assinada)
@@ -261,7 +271,6 @@ export const load: PageServerLoad = async ({ locals, platform, url, depends }) =
 			tipo: tipo ?? 'todos',
 			busca: busca ?? ''
 		},
-		skipLoad,
 		papelUnidadeId: u.papel_unidade_id ?? null,
 		escalasExistentes,
 		initialView,

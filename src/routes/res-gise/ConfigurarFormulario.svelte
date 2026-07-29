@@ -1,4 +1,20 @@
 <script lang="ts">
+	/**
+	 * Editor do MODELO do formulário de produtividade — a tela do Admin Geral em
+	 * `/res-gise`. Um modelo por tipo de equipe (`operacional` e `seint`),
+	 * gravado como JSON em `gise_modelo_formulario`.
+	 *
+	 * O que se edita é a estrutura das perguntas que TODO policial vai responder,
+	 * então duas coisas precisam ficar claras para quem mexer aqui:
+	 *
+	 * - a `key` de cada pergunta é o que casa com a resposta gravada. Trocá-la
+	 *   não migra nada: as respostas antigas continuam no banco com a chave velha
+	 *   e simplesmente deixam de aparecer nos relatórios;
+	 * - "restaurar padrão" substitui o modelo em edição pelas constantes de
+	 *   `db/gise/respostas.ts` — daí o diálogo de confirmação, e daí o
+	 *   `structuredClone`: sem a cópia, editar depois de restaurar mutaria a
+	 *   constante importada.
+	 */
 	import { enhance } from '$app/forms';
 	import { actionButton } from './BotoesAcao.svelte';
 	import { Dialog } from '@skeletonlabs/skeleton-svelte';

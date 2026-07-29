@@ -1,10 +1,35 @@
 <script lang="ts">
+	/**
+	 * Tela de UMA ESCALA — cabeçalho, servidores escalados e o painel de
+	 * assinatura. A composição da lista muda com o tipo:
+	 *
+	 * - `fds` → `ListaFds`, agrupada por DIA;
+	 * - `plantao` → `TabelaPlantao`, uma linha por policial com os dias em que
+	 *   ele serve;
+	 * - `expediente` → `TabelaServidores`, sem datas (expediente não tem dia de
+	 *   plantão, só regime).
+	 *
+	 * Lista vazia tem estado próprio antes dessa escolha — escala recém-criada é
+	 * o caso comum, não erro.
+	 *
+	 * Vários estados são DERIVADOS GRAVÁVEIS (`finalizadaEm`,
+	 * `documentoAssinadoInfo`, `solicitacaoAtual`, `policiaisEscalaLocal`):
+	 * espelham o `load` e voltam a espelhá-lo no próximo invalidate, mas aceitam
+	 * atualização otimista no meio. Finalizar, solicitar assinatura e editar uma
+	 * linha precisam de resposta imediata — esperar o round-trip para repintar
+	 * fazia a tela parecer travada em conexão de campo.
+	 *
+	 * O estado que trava a edição é `documentoAssinadoExiste` + `finalizadaEm`:
+	 * escala assinada é documento, e alterá-la invalidaria a assinatura já
+	 * gravada no PDF.
+	 */
 	import type { PageProps } from './$types';
 	import { untrack } from 'svelte';
 	import { page } from '$app/state';
 	import { SvelteSet } from 'svelte/reactivity';
 	import { enhance } from '$app/forms';
 	import { toaster } from '$lib/toast';
+	import { intervaloDeDatas } from '$lib/utils';
 	import { invalidateAll } from '$app/navigation';
 	import { apiFetch } from '$lib/api-fetch';
 	import type { ActionResult } from '@sveltejs/kit';
@@ -73,16 +98,7 @@
 	// diasEscalaLocal para FormAdicionarServidores (non-FDS pages — sem ModalEditarDias)
 	const diasEscalaLocal = $derived.by(() => {
 		if (!escala) return [];
-		const days: string[] = [];
-		// eslint-disable-next-line svelte/prefer-svelte-reactivity
-		const current = new Date(escala.data_inicio + 'T00:00:00');
-
-		const last = new Date(escala.data_fim + 'T00:00:00');
-		while (current <= last) {
-			days.push(new Date(current).toISOString().split('T')[0]);
-			current.setDate(current.getDate() + 1);
-		}
-		return days;
+		return intervaloDeDatas(escala.data_inicio, escala.data_fim);
 	});
 
 	function solicitarRemocao(itemId: number | number[], nome: string) {

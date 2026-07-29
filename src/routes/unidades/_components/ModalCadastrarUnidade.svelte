@@ -1,4 +1,13 @@
 <script lang="ts">
+	/**
+	 * Cadastro de unidade (`/unidades`, Admin Geral).
+	 *
+	 * O nome NÃO é digitado livremente: é montado por partes
+	 * (prefixo ordinal + fórmula fixa + local) e mostrado no preview antes de
+	 * salvar. A padronização importa porque o nome da unidade é a chave que
+	 * amarra lotação do policial, escala e cabeçalho dos PDFs — variações como
+	 * "1a DP de Iguatu" quebravam esse casamento.
+	 */
 	import { Dialog, SegmentedControl, Switch } from '@skeletonlabs/skeleton-svelte';
 	import { enhance } from '$app/forms';
 	import { invalidateAll } from '$app/navigation';
@@ -29,7 +38,10 @@
 	let pending = $state(false);
 
 	const cidadesOptions = CIDADES_CEARA.map((c) => ({ value: c, label: c }));
+	/** Prefixos ordinais ("1ª"…"99ª") usados por delegacias e seccionais. */
+	const ORDINAIS = Array.from({ length: 99 }, (_, i) => `${i + 1}ª`);
 
+	/** Nome final, na fórmula oficial de cada tipo de unidade. */
 	const novoNome = $derived(
 		tipoUnidade === 'delegacia'
 			? `${delegaciaPrefixo ? delegaciaPrefixo + ' ' : ''}Delegacia de Polícia Civil de ${delegaciaSufixo}`.trim()
@@ -80,6 +92,9 @@
 		>
 			<Dialog.Title class="h3 font-bold mb-5">Cadastrar Nova Unidade</Dialog.Title>
 			<form method="POST" action="?/criar" use:enhance={handleCadastro} class="flex flex-col gap-4">
+				<!-- Campos ocultos: os controles do Skeleton (SegmentedControl/Switch) e o
+				     nome derivado não têm input nativo com `name`, então o POST leva estas
+				     cópias. `cidade` é exceção — o SearchableSelect já emite a sua. -->
 				<input type="hidden" name="nome" value={novoNome} />
 				<input type="hidden" name="tipo" value={tipoUnidade} />
 				<input type="hidden" name="seccional_id" value={novoSeccionalId ?? ''} />
@@ -140,7 +155,7 @@
 								<span class="label-text">Prefixo</span>
 								<select class="select" bind:value={delegaciaPrefixo}>
 									<option value="">—</option>
-									{#each Array.from({ length: 99 }, (_, i) => `${i + 1}ª`) as ord (ord)}
+									{#each ORDINAIS as ord (ord)}
 										<option value={ord}>{ord}</option>
 									{/each}
 								</select>
@@ -163,7 +178,7 @@
 								<span class="label-text">Prefixo</span>
 								<select class="select" bind:value={seccionalPrefixo}>
 									<option value="">—</option>
-									{#each Array.from({ length: 99 }, (_, i) => `${i + 1}ª`) as ord (ord)}
+									{#each ORDINAIS as ord (ord)}
 										<option value={ord}>{ord}</option>
 									{/each}
 								</select>

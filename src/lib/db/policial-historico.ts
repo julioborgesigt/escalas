@@ -3,7 +3,7 @@ import { policialHistorico } from '../server/schema';
 import type { PolicialHistorico } from '../server/schema';
 import type { Database } from './core';
 
-export type TipoHistorico = 'movimentacao' | 'afastamento' | 'desvinculacao' | 'edicao' | 'papel';
+type TipoHistorico = 'movimentacao' | 'afastamento' | 'desvinculacao' | 'edicao' | 'papel';
 
 /** Dados para registrar um evento no histórico funcional do policial. */
 export interface NovoEventoHistorico {

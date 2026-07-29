@@ -69,6 +69,18 @@ function safeCacheRef(): Cache | null {
 	return c.default ?? null;
 }
 
+/**
+ * Lê a sessão do cache do edge, ou `null` para MISS (o chamador cai no D1).
+ *
+ * A chave é o SHA-256 do token, nunca o token: entradas de cache podem ser
+ * inspecionadas por operador, e uma delas com o token em claro seria uma sessão
+ * sequestrável.
+ *
+ * `ttlSeconds <= 0` desliga o cache — é o botão de revogação imediata, para
+ * quando derrubar sessão na hora importa mais que a latência. Toda falha
+ * (ambiente sem `caches`, JSON inválido) devolve `null` em silêncio: cache é
+ * otimização, e quebrá-lo não pode quebrar a autenticação.
+ */
 export async function lerSessaoCache(
 	token: string,
 	ttlSeconds: number = SESSION_CACHE_TTL_DEFAULT
