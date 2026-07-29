@@ -91,7 +91,13 @@
 	<title>Relatórios GISE - Portal de Escalas</title>
 </svelte:head>
 
-<div class="space-y-6">
+<!-- A largura de leitura trava a PÁGINA INTEIRA, header incluído — mesmo padrão
+     de `config-geral` e `solicitacoes`. Antes ela vivia só no painel do
+     formulário (`max-w-2xl mx-auto`), o que deixava o card ~225px à direita do
+     título e fazia a página encolher ao selecionar uma escala. Se precisar
+     mudar, mude AQUI: uma trava aplicada painel a painel traz os dois defeitos
+     de volta. -->
+<div class="max-w-3xl mx-auto space-y-6">
 	<header class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 sm:mb-8">
 		<div>
 			<h1 class="h1 text-2xl font-bold">Relatórios GISE</h1>
@@ -326,8 +332,10 @@
 				</div>
 
 				<!-- Panel 2: Formulário de Serviço -->
-				<div class="min-w-0 px-2 sm:px-4" style="width: 50%;">
-					<div class="max-w-2xl mx-auto space-y-4">
+				<!-- `px-2` igual ao do painel 1: qualquer diferença faz o card saltar
+				     na horizontal durante o slide entre lista e formulário. -->
+				<div class="min-w-0 px-2" style="width: 50%;">
+					<div class="space-y-4">
 						<button
 							type="button"
 							class="btn btn-sm preset-outlined-surface-500 flex items-center gap-1.5"
