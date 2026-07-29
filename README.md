@@ -266,9 +266,9 @@ npm run db:migrate:prod -- --yes
 
 ### Histórico de migrações
 
-O histórico completo está na própria pasta [`migrations/`](migrations/) — os nomes dos arquivos são autoexplicativos (`0000_initial_schema.sql` … `0036_policial_historico.sql`). Para entender uma migração específica, leia o SQL dela e o trecho correspondente do [`src/lib/server/schema.ts`](src/lib/server/schema.ts).
+O histórico completo está na própria pasta [`migrations/`](migrations/) — os nomes dos arquivos são autoexplicativos (`0000_initial_schema.sql` … `0038_gise_assinaturas_fk_restrict.sql`). Para entender uma migração específica, leia o SQL dela e o trecho correspondente do [`src/lib/server/schema.ts`](src/lib/server/schema.ts).
 
-O que já rodou em cada ambiente é rastreado pela tabela `_migrations_aplicadas`, gravada pelo runner [`scripts/migrate.ts`](scripts/migrate.ts) — **não** pelo `migrations/meta/_journal.json`, que é resíduo do `drizzle-kit` e ficou parado em 2 entradas para 39 arquivos.
+O que já rodou em cada ambiente é rastreado pela tabela `_migrations_aplicadas`, gravada pelo runner [`scripts/migrate.ts`](scripts/migrate.ts). (O `migrations/meta/` do `drizzle-kit` foi removido em jul/2026: ficou parado em 2 entradas para 41 arquivos e só induzia a erro.)
 
 ---
 
@@ -906,7 +906,8 @@ Verifique se o relógio do servidor está sincronizado (NTP). O D1 usa timestamp
 
 1. Certifique-se de que o Wrangler está autenticado: `wrangler whoami`
 2. Verifique se o `database_id` em `wrangler.toml` corresponde ao banco correto no dashboard
-3. Confira o arquivo `migrations/meta/_journal.json` — ele rastreia quais migrações já foram aplicadas
+3. Confira a tabela `_migrations_aplicadas` no D1 — é ela que rastreia o que já rodou:
+   `npx wrangler d1 execute escalas-db --remote --command "SELECT * FROM _migrations_aplicadas ORDER BY id DESC LIMIT 10"`
 
 ### Análise de bundle
 
