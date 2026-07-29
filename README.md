@@ -89,8 +89,11 @@ cp .env.example .dev.vars
 Edite `.dev.vars` com os valores mínimos para desenvolvimento:
 
 ```ini
-SYNC_TOKEN=qualquer-string-para-dev
-RESET_TOKEN=outra-string-diferente-do-sync-token
+# Gere cada um com `openssl rand -hex 32`. NÃO use uma string curta qualquer:
+# os webhooks recusam SYNC_TOKEN com menos de 32 caracteres (fail-closed contra
+# segredo fraco em produção), e a suíte E2E falha com 401 se você encurtar.
+SYNC_TOKEN=<openssl rand -hex 32>
+RESET_TOKEN=<outro openssl rand -hex 32, diferente do SYNC_TOKEN>
 # Opcional — só se quiser testar envio de e-mail (2FA, primeiro acesso):
 # RESEND_API_KEY=re_...
 # RESEND_FROM_EMAIL=onboarding@resend.dev
@@ -702,7 +705,7 @@ npm run test          # Executa uma vez
 npm run test:watch    # Watch mode (recomendado durante desenvolvimento)
 ```
 
-Arquivos de teste ficam em `src/` com o padrão `*.test.ts`, distribuídos em pastas `__tests__/` junto do código testado (50+ arquivos, 530+ testes). Os principais grupos:
+Arquivos de teste ficam em `src/` com o padrão `*.test.ts`, distribuídos em pastas `__tests__/` junto do código testado (60 arquivos, 617 testes). Os principais grupos:
 
 - `src/lib/__tests__/` — autenticação (PBKDF2/pepper, sessões, 2FA), CSRF, headers de segurança, utilitários
 - `src/lib/server/__tests__/` — fluxo de login, assinatura (CAdES, OCSP, TSA, trust store), permissões, webhooks, Sentry/PII
@@ -714,15 +717,25 @@ Arquivos de teste ficam em `src/` com o padrão `*.test.ts`, distribuídos em pa
 # Instalar browsers (apenas uma vez)
 npx playwright install --with-deps chromium
 
-# Rodar todos os testes E2E
-npx playwright test
+npm run test:e2e            # todos os specs
+npm run test:e2e:ui         # interface visual (útil para debugar)
+npm run test:e2e:report     # abre o relatório da última execução
 
-# Rodar com interface visual (útil para debugar)
-npx playwright test --ui
-
-# Rodar um arquivo específico
-npx playwright test e2e/auth.spec.ts
+npm run test:e2e -- e2e/auth.spec.ts       # um arquivo
+npm run test:e2e -- --project=chromium     # só desktop (pula o projeto mobile)
 ```
+
+> **`SYNC_TOKEN` curto derruba 4 specs com 401.** Os webhooks recusam segredo
+> com menos de 32 caracteres, então um placeholder do tipo `token-de-dev` faz
+> `webhook-sync.spec.ts` falhar inteiro — uma falha que parece bug do sistema e
+> é só configuração. Gere com `openssl rand -hex 32`, como manda o
+> [`.env.example`](.env.example).
+
+> **O E2E roda contra o seu D1 local, não contra um banco limpo.** O
+> `global-setup` purga o que a própria suíte cria (faixa de id 99xxx), mas não
+> toca em dados reais — se você andou usando o app, eles continuam lá. Os specs
+> são escritos para tolerar isso (asserções miradas na fixture); se algum falhar
+> por dado alheio, é bug do spec, não do seu banco.
 
 Os testes E2E fazem build + preview automático antes de rodar (via `e2e/servidor-e2e.ts`), e o `global-setup` aplica as migrations pendentes no D1 local e semeia os fixtures — não é preciso preparar o banco manualmente. Configure credenciais de teste em `e2e/global-setup.ts`. Além do projeto `chromium`, um projeto `mobile` (Pixel 7 emulado) reexecuta os specs de UI em viewport de celular.
 
