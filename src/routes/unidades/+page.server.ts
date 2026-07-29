@@ -1,3 +1,25 @@
+/**
+ * Cadastro de unidades (`/unidades`) — restrito ao SUPER ADMIN, não ao Admin
+ * Geral: o nome da unidade é a chave que amarra lotação do policial, escala e
+ * cabeçalho dos documentos, então renomear tem efeito em cascata pelo sistema
+ * inteiro.
+ *
+ * **Unidade não se exclui.** Só se desativa (`definirAtivo`), e é por isso que
+ * não há action de excluir aqui. `gise_assinaturas_relatorios.seccional_id`
+ * referencia `unidades(id)` com `ON DELETE CASCADE`, e o D1 aplica FK de
+ * verdade: um DELETE levava junto o registro do ato de assinar, e o portal
+ * público `/validar` passava a negar um documento que alguém já tinha em mãos.
+ * Escala e lotação, que ligam por NOME e sem FK, simplesmente ficavam órfãs sem
+ * erro nenhum.
+ *
+ * O `load` usa `listarTodasUnidades` (inclui desativadas) porque esta é a tela
+ * que as gerencia; todo o resto do sistema usa `listarUnidades`, que só devolve
+ * ativas.
+ *
+ * A FK citada acima passou a `ON DELETE RESTRICT` na migração 0038 — o banco
+ * agora recusa a exclusão mesmo por `wrangler d1 execute`. A ausência da action
+ * de excluir aqui é a primeira barreira; a FK é a segunda.
+ */
 import { redirect, fail } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
 import {
@@ -16,25 +38,6 @@ import { eq } from 'drizzle-orm';
 import { unidades, type Unidade } from '$lib/server/schema';
 import { ehViolacaoUnique, mensagemComCausas } from '$lib/server/db-errors';
 import { logger } from '$lib/server/logger';
-
-/**
- * Cadastro de unidades (`/unidades`) — restrito ao SUPER ADMIN, não ao Admin
- * Geral: o nome da unidade é a chave que amarra lotação do policial, escala e
- * cabeçalho dos documentos, então renomear tem efeito em cascata pelo sistema
- * inteiro.
- *
- * **Unidade não se exclui.** Só se desativa (`definirAtivo`), e é por isso que
- * não há action de excluir aqui. `gise_assinaturas_relatorios.seccional_id`
- * referencia `unidades(id)` com `ON DELETE CASCADE`, e o D1 aplica FK de
- * verdade: um DELETE levava junto o registro do ato de assinar, e o portal
- * público `/validar` passava a negar um documento que alguém já tinha em mãos.
- * Escala e lotação, que ligam por NOME e sem FK, simplesmente ficavam órfãs sem
- * erro nenhum.
- *
- * O `load` usa `listarTodasUnidades` (inclui desativadas) porque esta é a tela
- * que as gerencia; todo o resto do sistema usa `listarUnidades`, que só devolve
- * ativas.
- */
 
 /**
  * Lê e valida os campos de unidade do FormData (mesmos campos em criar/editar).
