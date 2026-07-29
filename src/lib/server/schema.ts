@@ -11,8 +11,7 @@
  *
  * As migrações hoje são ESCRITAS À MÃO. O `drizzle.config.ts` ainda aponta para
  * cá e as 12 primeiras saíram do `drizzle-kit`, mas não há script de `generate`
- * e o journal dele (`migrations/meta/_journal.json`, parado em 2 entradas para
- * 39 arquivos) foi abandonado — quem decide o que já rodou é
+ * e o journal dele foi removido em jul/2026 — quem decide o que já rodou é
  * `_migrations_aplicadas`. O motivo é o SQLite do D1: quase todo ALTER de
  * verdade é um rebuild de tabela (criar nova, copiar, dropar, renomear), que o
  * gerador não produz. Numerar em sequência (`00NN_descrição.sql`) é obrigatório

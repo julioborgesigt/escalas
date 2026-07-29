@@ -27,6 +27,17 @@ export const MESES_PT = [
 
 type Rotacao = '1x3' | '2x6';
 
+/**
+ * Dias ENTRE duas datas — EXCLUSIVO. `01` → `05` devolve 4.
+ *
+ * Não confundir com `diffDiasInclusivo` de `$lib/utils`, que conta quantos dias
+ * o período TEM (`01` → `05` = 5). São perguntas diferentes, não duplicação: a
+ * rotação precisa do intervalo entre plantões (1x3 = 4, 2x6 = 1 e 7), enquanto
+ * a duração de um afastamento inclui as duas pontas.
+ *
+ * Privada de propósito. Exportar exigiria um nome que dissesse "exclusivo" no
+ * call site, e o único consumidor é a detecção de padrão logo abaixo.
+ */
 function diffDias(a: string, b: string): number {
 	const da = new Date(a + 'T00:00:00');
 	const db = new Date(b + 'T00:00:00');
