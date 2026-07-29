@@ -707,8 +707,11 @@
 							{#if mudancas.length > 0}
 								<div class="space-y-1">
 									<div class="font-semibold text-surface-500 dark:text-surface-400">Alterações</div>
+									<!-- `overflow-x-auto`, não `overflow-hidden` (VIS-3): valores de
+									     "De"/"Para" podem ser longos (JSON, user agent) e a tabela
+									     transborda dentro do log expandido. -->
 									<div
-										class="border border-surface-200 dark:border-white/10 rounded-lg overflow-hidden"
+										class="border border-surface-200 dark:border-white/10 rounded-lg overflow-x-auto"
 									>
 										<table class="w-full text-xs">
 											<thead
