@@ -222,12 +222,23 @@ consequências que valem para qualquer mudança nessa área:
 
 - **Renomear cascateia.** `atualizarUnidade` propaga o nome novo para policiais e
   escalas na mesma operação. Um `UPDATE` direto no banco quebraria os vínculos.
-- **Excluir é bloqueado enquanto houver vínculo.** `excluirUnidade` recusa se
-  ainda houver escala, servidor lotado, servidor com papel administrativo na
-  unidade, unidade subordinada ou GISE — e devolve 409 listando **todos** os
-  vínculos de uma vez. Sem essa checagem a exclusão não daria erro: os registros
-  ficariam apontando para um nome inexistente, e o RBAC falharia fechado (o admin
-  perde o escopo em silêncio).
+- **Unidade NÃO se exclui — só se desativa.** Não existe ação de excluir na
+  interface nem função de DELETE na camada de dados: `definirUnidadeAtiva` marca
+  `ativo = 0`, a unidade some das listas de escolha (`listarUnidades`) e continua
+  existindo para todo o resto. A tela de gestão usa `listarTodasUnidades` e a
+  exibe marcada como "Desativada", com botão de reativar.
+
+  O motivo é a assinatura: `gise_assinaturas_relatorios.seccional_id` referencia
+  `unidades(id)`, e o D1 aplica chave estrangeira de verdade. Apagar a unidade
+  levava junto o registro do ato de assinar — assinante, CPF, rubrica, selfie,
+  IP, GPS, hash do arquivo e a chave do PDF no R2 — e o portal público
+  `/validar` passava a responder "documento não encontrado" para um papel já
+  entregue, indistinguível de documento falso. Escala e lotação, que ligam por
+  NOME e sem FK, ficavam órfãs sem erro nenhum.
+
+  Como defesa em profundidade, a FK passou de `CASCADE` para `RESTRICT`
+  (migração `0038`): mesmo um `DELETE` manual fora da aplicação é recusado pelo
+  banco.
 
 ### Comandos de migração
 

@@ -86,9 +86,12 @@ export {
 
 export {
 	listarUnidades,
+	listarTodasUnidades,
 	criarUnidade,
 	atualizarUnidade,
-	excluirUnidade,
+	definirUnidadeAtiva,
+	vinculosDaUnidade,
+	descreverVinculosUnidade,
 	buscarSeccionaisUnidades
 } from './db/unidades';
 

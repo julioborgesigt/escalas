@@ -29,8 +29,21 @@ type DadosUnidade = {
 	cidade: string;
 };
 
-/** Todas as unidades em ordem alfabética — não há filtro de ativo/inativo. */
+/**
+ * Unidades ATIVAS, em ordem alfabética — é a lista de ESCOLHA (combo de nova
+ * escala, lotação de policial, seccional da GISE).
+ *
+ * Desativada não aparece aqui de propósito: o objetivo de desativar é sumir das
+ * opções sem deixar de existir. Para telas que precisam ver o histórico
+ * completo — a própria gestão de unidades, e qualquer resolução de nome de
+ * registro antigo — use `listarTodasUnidades`.
+ */
 export async function listarUnidades(db: Database): Promise<schema.Unidade[]> {
+	return db.select().from(unidades).where(eq(unidades.ativo, true)).orderBy(asc(unidades.nome));
+}
+
+/** Todas as unidades, ativas e desativadas. Para a tela de gestão. */
+export async function listarTodasUnidades(db: Database): Promise<schema.Unidade[]> {
 	return db.select().from(unidades).orderBy(asc(unidades.nome));
 }
 
@@ -141,7 +154,7 @@ async function contarVinculosUnidade(
 	};
 }
 
-/** Contagem de registros que impedem a exclusão de uma unidade. */
+/** Contagem de registros que apontam para uma unidade, por tipo de vínculo. */
 export interface VinculosUnidade {
 	escalas: number;
 	policiaisLotados: number;
@@ -151,15 +164,15 @@ export interface VinculosUnidade {
 }
 
 /**
- * Mensagem de bloqueio para os vínculos encontrados, ou `null` se a unidade
- * pode ser excluída. Pura, para que a matriz de casos seja testável sem banco.
+ * Frase legível com TODOS os vínculos da unidade, ou `null` se não houver
+ * nenhum. Pura, para que a matriz de casos seja testável sem banco.
  *
- * Lista TODOS os vínculos de uma vez, não o primeiro que encontra: quem está
- * desativando uma unidade precisa saber o tamanho do trabalho antes de começar,
- * e descobrir uma pendência por vez a cada tentativa é o que faz alguém
- * desistir no meio e deixar a base inconsistente.
+ * É INFORMAÇÃO, não bloqueio: desativar uma unidade é sempre permitido, e os
+ * vínculos continuam válidos depois (é justamente o ponto de desativar em vez
+ * de excluir). A frase existe para quem confirma saber o tamanho do que está
+ * mexendo — e lista tudo de uma vez, não um item por tentativa.
  */
-export function descreverBloqueioUnidade(v: VinculosUnidade): string | null {
+export function descreverVinculosUnidade(v: VinculosUnidade): string | null {
 	const plural = (n: number, um: string, muitos: string) => `${n} ${n === 1 ? um : muitos}`;
 	const partes: string[] = [];
 	if (v.escalas) partes.push(plural(v.escalas, 'escala', 'escalas'));
@@ -178,44 +191,50 @@ export function descreverBloqueioUnidade(v: VinculosUnidade): string | null {
 	if (v.gises) partes.push(plural(v.gises, 'GISE', 'GISEs'));
 	if (partes.length === 0) return null;
 
-	const lista =
-		partes.length === 1
-			? partes[0]
-			: `${partes.slice(0, -1).join(', ')} e ${partes[partes.length - 1]}`;
-	return `Não é possível excluir: esta unidade ainda tem ${lista}. Transfira ou remova esses vínculos antes.`;
+	return partes.length === 1
+		? partes[0]
+		: `${partes.slice(0, -1).join(', ')} e ${partes[partes.length - 1]}`;
 }
 
 /**
- * Exclui a unidade, RECUSANDO se ainda houver qualquer vínculo apontando para
- * ela. Devolve `{ ok: false, motivo }` em vez de lançar — o chamador transforma
- * em 409.
+ * Vínculos da unidade, para a tela de confirmação de desativação.
  *
- * A checagem mora aqui, e não na action, porque nada no banco a substitui: os
- * dois vínculos mais comuns (escala e lotação de policial) são por NOME, sem
- * chave estrangeira, e apagar a unidade os deixaria apontando para um nome
- * inexistente sem erro nenhum. O RBAC até falha fechado nesse estado (o admin
- * simplesmente perde o escopo), o que torna o estrago silencioso — que é pior.
- *
- * `gise_seccionais` é o único com FK `ON DELETE RESTRICT`: ali o banco já
- * bloquearia, mas como erro de constraint, que chegaria ao usuário como 500 com
- * SQL cru. Checar antes troca isso por uma frase que diz o que fazer.
+ * Não impede nada — quem chama usa só para exibir. Ver
+ * `descreverVinculosUnidade` para a frase pronta.
  */
-export async function excluirUnidade(
-	db: Database,
-	id: number
-): Promise<{ ok: true } | { ok: false; motivo: string }> {
+export async function vinculosDaUnidade(db: Database, id: number): Promise<VinculosUnidade | null> {
 	const unidade = await db
 		.select({ nome: unidades.nome })
 		.from(unidades)
 		.where(eq(unidades.id, id))
 		.get();
-	if (!unidade) return { ok: false, motivo: 'Unidade não encontrada' };
+	if (!unidade) return null;
+	return contarVinculosUnidade(db, id, unidade.nome);
+}
 
-	const motivo = descreverBloqueioUnidade(await contarVinculosUnidade(db, id, unidade.nome));
-	if (motivo) return { ok: false, motivo };
-
-	await db.delete(unidades).where(eq(unidades.id, id));
-	return { ok: true };
+/**
+ * Desativa (ou reativa) a unidade. **Não existe exclusão de unidade** — este é
+ * o substituto, e é irreversível apenas no sentido de precisar de outra ação
+ * para voltar.
+ *
+ * Por que não há DELETE, e por que isso não é excesso de zelo: o D1 aplica
+ * chave estrangeira de verdade (verificado empiricamente), e
+ * `gise_assinaturas_relatorios.seccional_id` referencia `unidades(id)`. Apagar
+ * uma unidade levava junto o registro do ato de assinar — nome do assinante,
+ * CPF, rubrica, selfie, IP, GPS, hash do arquivo e a chave do PDF no R2 — e o
+ * portal público `/validar` passava a responder "documento não encontrado" para
+ * um papel que alguém já tinha em mãos, indistinguível de documento falso.
+ *
+ * Os outros dois vínculos (escala e lotação) são por NOME, sem FK: ali o DELETE
+ * não daria erro nenhum, só deixaria registros apontando para um nome que não
+ * existe mais, com o RBAC falhando fechado em silêncio.
+ *
+ * Unidade desativada some das listas de ESCOLHA (`listarUnidades`), mas continua
+ * existindo para todo o resto: escala antiga, lotação de policial e assinatura
+ * de relatório seguem resolvendo normalmente.
+ */
+export async function definirUnidadeAtiva(db: Database, id: number, ativo: boolean) {
+	return db.update(unidades).set({ ativo }).where(eq(unidades.id, id));
 }
 
 /**
