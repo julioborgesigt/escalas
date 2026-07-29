@@ -17,14 +17,22 @@
 --
 -- É o mesmo tratamento que `gise_seccionais.seccional_id` já tinha desde o
 -- início ("bloqueia remoção de unidades que têm GISE histórico vinculado").
--- Duas tabelas irmãs resolviam a mesma preocupação de formas opostas, e a que
--- guardava a assinatura era justamente a permissiva.
 --
 -- `gise_id` continua CASCADE de propósito: excluir a GISE DEVE levar seus
--- documentos, e isso agora é avisado com números na confirmação da tela.
+-- documentos, e isso é avisado com números na confirmação da tela.
 --
--- SQLite não tem ALTER TABLE ... DROP CONSTRAINT: a troca exige rebuild
--- completo (criar nova → copiar → dropar → renomear → recriar índices).
+-- ATENÇÃO AO REBUILD. SQLite não tem ALTER TABLE ... DROP CONSTRAINT, então a
+-- troca exige recriar a tabela. A lista de colunas abaixo tem de refletir o
+-- estado ATUAL — não o de `0000_initial_schema.sql`. Esta tabela recebeu
+-- colunas depois:
+--   * 0012_signature_verification_metadata: cert_issuer, cert_serial,
+--     cert_valido_de, cert_valido_ate, cms_sha256, ocsp_response_b64,
+--     ocsp_consultado_em, tst_token_b64  (metadados CAdES-LT — OCSP e carimbo
+--     de tempo, ou seja, exatamente a prova que esta migração quer preservar);
+--   * 0025_user_agent_raw: user_agent_raw.
+-- São 29 colunas no total. Copiar a definição de 0000 dropa silenciosamente as
+-- 9 acrescentadas depois, e o sintoma aparece longe daqui: INSERT de assinatura
+-- falhando com "no such column".
 
 PRAGMA foreign_keys=OFF;
 --> statement-breakpoint
@@ -45,12 +53,20 @@ CREATE TABLE `gise_assinaturas_relatorios_nova` (
 	`verification_hash` text,
 	`ip_address` text,
 	`user_agent` text,
-	`user_agent_raw` text,
 	`latitude` real,
 	`longitude` real,
 	`r2_key` text,
 	`tipo_carimbo_tempo` text DEFAULT 'servidor',
 	`created_at` text DEFAULT (datetime('now', '-3 hours')),
+	`cert_issuer` text,
+	`cert_serial` text,
+	`cert_valido_de` text,
+	`cert_valido_ate` text,
+	`cms_sha256` text,
+	`ocsp_response_b64` text,
+	`ocsp_consultado_em` text,
+	`tst_token_b64` text,
+	`user_agent_raw` text,
 	FOREIGN KEY (`gise_id`) REFERENCES `gise_escalas`(`id`) ON UPDATE no action ON DELETE cascade,
 	FOREIGN KEY (`seccional_id`) REFERENCES `unidades`(`id`) ON UPDATE no action ON DELETE restrict
 );
@@ -59,14 +75,18 @@ CREATE TABLE `gise_assinaturas_relatorios_nova` (
 INSERT INTO `gise_assinaturas_relatorios_nova` (
 	`id`, `gise_id`, `seccional_id`, `tipo`, `assinante_id`, `assinante_nome`,
 	`assinante_cpf`, `assinante_email`, `tipo_assinatura`, `rubrica`, `selfie_key`,
-	`arquivo_hash`, `verification_hash`, `ip_address`, `user_agent`, `user_agent_raw`,
-	`latitude`, `longitude`, `r2_key`, `tipo_carimbo_tempo`, `created_at`
+	`arquivo_hash`, `verification_hash`, `ip_address`, `user_agent`,
+	`latitude`, `longitude`, `r2_key`, `tipo_carimbo_tempo`, `created_at`,
+	`cert_issuer`, `cert_serial`, `cert_valido_de`, `cert_valido_ate`, `cms_sha256`,
+	`ocsp_response_b64`, `ocsp_consultado_em`, `tst_token_b64`, `user_agent_raw`
 )
 SELECT
 	`id`, `gise_id`, `seccional_id`, `tipo`, `assinante_id`, `assinante_nome`,
 	`assinante_cpf`, `assinante_email`, `tipo_assinatura`, `rubrica`, `selfie_key`,
-	`arquivo_hash`, `verification_hash`, `ip_address`, `user_agent`, `user_agent_raw`,
-	`latitude`, `longitude`, `r2_key`, `tipo_carimbo_tempo`, `created_at`
+	`arquivo_hash`, `verification_hash`, `ip_address`, `user_agent`,
+	`latitude`, `longitude`, `r2_key`, `tipo_carimbo_tempo`, `created_at`,
+	`cert_issuer`, `cert_serial`, `cert_valido_de`, `cert_valido_ate`, `cms_sha256`,
+	`ocsp_response_b64`, `ocsp_consultado_em`, `tst_token_b64`, `user_agent_raw`
 FROM `gise_assinaturas_relatorios`;
 --> statement-breakpoint
 
