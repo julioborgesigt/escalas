@@ -243,6 +243,11 @@ export async function definirUnidadeAtiva(db: Database, id: number, ativo: boole
  * Os regimes (`tem_*`) só entram na criação, com tudo habilitado; num conflito
  * eles são preservados, para não desfazer o que o Super Admin configurou na
  * tela a cada sincronização.
+ *
+ * `ativo` segue a mesma regra, e a omissão no `set` é DELIBERADA: unidade
+ * desativada continua desativada depois de sincronizar. Acrescentar `ativo`
+ * ali faria a planilha reativar, a cada execução, tudo que a corporação tinha
+ * decidido tirar de circulação.
  */
 export async function upsertUnidade(
 	db: Database,
