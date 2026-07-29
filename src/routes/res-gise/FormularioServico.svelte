@@ -234,7 +234,13 @@
 		</div>
 
 		<!-- Stepper Visual -->
-		<div class="flex items-center justify-between px-2 sm:px-4 mb-4">
+		<!-- `max-w-2xl mx-auto` aqui e nos blocos marcados abaixo: o card ocupa a
+		     largura cheia do container (~1120px no desktop) para o formulário de
+		     produtividade, cujos grids são `md:grid-cols-4`. Stepper, CTAs de
+		     entrada/saída e estados vazios não ganham nada com essa largura — ao
+		     contrário, `justify-between` espalha os três passos até as beiradas e
+		     um botão de 1120px fica absurdo. Estes travam; o formulário, não. -->
+		<div class="flex items-center justify-between px-2 sm:px-4 mb-4 max-w-2xl mx-auto">
 			<div class="flex flex-col items-center gap-1 group">
 				<div
 					class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold {resGise
@@ -292,7 +298,8 @@
 		</div>
 
 		{#if !resGise.isHorarioLiberado(resGise.escalaSelecionada, isAdminGeral)}
-			<div class="p-4 sm:p-6 text-center space-y-4">
+			<!-- estado vazio: coluna estreita (ver nota no stepper) -->
+			<div class="p-4 sm:p-6 text-center space-y-4 max-w-md mx-auto">
 				<div
 					class="bg-primary-500/10 p-4 rounded-full w-16 h-16 mx-auto flex items-center justify-center"
 				>
@@ -319,7 +326,8 @@
 				</div>
 			</div>
 		{:else if !resGise.escalaSelecionada.presenca?.entrada_timestamp}
-			<div class="p-4 sm:p-6 space-y-10">
+			<!-- CTA de entrada: coluna estreita (ver nota no stepper) -->
+			<div class="p-4 sm:p-6 space-y-10 max-w-md mx-auto">
 				<div class="space-y-2">
 					<h3 class="font-bold uppercase text-sm tracking-wider">Confirmação de Entrada</h3>
 					<p class="text-xs text-surface-500">
@@ -430,7 +438,8 @@
 												</div>
 											{/if}
 										</div>
-										<div class="flex flex-col gap-2">
+										<!-- ações: coluna estreita (ver nota no stepper) -->
+										<div class="flex flex-col gap-2 max-w-md mx-auto">
 											{@render actionButton(
 												'Atualizar / Retificar Dados',
 												undefined,
@@ -479,7 +488,10 @@
 										/>
 									</div>
 
-									<div class="flex gap-3">
+									<!-- Rodapé de formulário no padrão da casa (README §10): empilhado
+									     em mobile, alinhado à direita no desktop. Antes o submit era
+									     `flex-1`, o que virava um botão de ~1050px na largura cheia. -->
+									<div class="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 sm:gap-3">
 										{#if resGise.escalaSelecionada.equipeRespondida}
 											{@render actionButton(
 												'Cancelar',
@@ -489,7 +501,7 @@
 												() => (resGise.exibirRelatorio = false),
 												false,
 												false,
-												'px-6'
+												'w-full sm:w-auto px-6'
 											)}
 										{/if}
 										<form
@@ -520,7 +532,7 @@
 												undefined,
 												loading.active,
 												false,
-												'flex-1 shadow-sm',
+												'w-full sm:w-auto sm:px-10 shadow-sm',
 												'submit'
 											)}
 										</form>
@@ -532,12 +544,18 @@
 				{/if}
 
 				<!-- Saída -->
-				<div class="space-y-10 pt-8 border-t border-surface-200 dark:border-surface-800 p-4 sm:p-6">
+				<!-- Sem `p-4 sm:p-6`: o padding é do card (`<section>` no +page.svelte).
+				     Somar outro aqui indentava "Término do Plantão" e o aviso de saída
+				     ~24px à direita de "Resultados do Serviço", com a borda de topo
+				     cruzando a largura toda — desalinhamento que a largura cheia
+				     escancara. -->
+				<div class="space-y-10 pt-8 border-t border-surface-200 dark:border-surface-800">
 					<h3 class="font-bold uppercase text-sm tracking-wider">Término do Plantão</h3>
 
 					{#if !resGise.escalaSelecionada.presenca?.saida_timestamp}
 						{#if !resGise.isSaidaLiberada(resGise.escalaSelecionada, isAdminGeral)}
-							<div class="p-4 sm:p-6 text-center space-y-4">
+							<!-- estado vazio: coluna estreita (ver nota no stepper) -->
+							<div class="p-4 sm:p-6 text-center space-y-4 max-w-md mx-auto">
 								<div
 									class="bg-primary-500/10 p-4 rounded-full w-16 h-16 mx-auto flex items-center justify-center"
 								>
@@ -565,38 +583,44 @@
 								</div>
 							</div>
 						{:else if !resGise.escalaSelecionada.equipeRespondida}
-							<div
-								class="p-3 bg-warning-500/10 border border-warning-500/20 rounded-xl flex items-start gap-3"
-							>
-								{@render btnIcon(
-									'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z'
+							<!-- gate + CTA travado: coluna estreita (ver nota no stepper) -->
+							<div class="max-w-md mx-auto space-y-4">
+								<div
+									class="p-3 bg-warning-500/10 border border-warning-500/20 rounded-xl flex items-start gap-3"
+								>
+									{@render btnIcon(
+										'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z'
+									)}
+									<p class="text-3xs text-warning-700 dark:text-warning-400">
+										Você deve preencher e enviar o <strong>Relatório de Produtividade</strong>
+										(resultados do serviço) antes de confirmar a saída.
+									</p>
+								</div>
+								{@render actionButton(
+									'Confirmar Saída',
+									undefined,
+									'surface',
+									'outlined',
+									undefined,
+									true,
+									false,
+									'w-full py-4 text-lg bg-surface-200 dark:bg-surface-800 text-surface-500 dark:text-surface-400 border-2 border-surface-300 dark:border-surface-700 cursor-not-allowed'
 								)}
-								<p class="text-3xs text-warning-700 dark:text-warning-400">
-									Você deve preencher e enviar o <strong>Relatório de Produtividade</strong> (resultados
-									do serviço) antes de confirmar a saída.
-								</p>
 							</div>
-							{@render actionButton(
-								'Confirmar Saída',
-								undefined,
-								'surface',
-								'outlined',
-								undefined,
-								true,
-								false,
-								'w-full py-4 text-lg bg-surface-200 dark:bg-surface-800 text-surface-500 dark:text-surface-400 border-2 border-surface-300 dark:border-surface-700 cursor-not-allowed'
-							)}
 						{:else if isMobile || !restringirSmartphone}
-							{@render actionButton(
-								'Confirmar Saída',
-								undefined,
-								'primary',
-								'filled',
-								() => (resGise.capturandoRubrica = true),
-								false,
-								false,
-								'w-full py-4 text-lg shadow-xl shadow-primary-500/20'
-							)}
+							<!-- CTA de saída: coluna estreita (ver nota no stepper) -->
+							<div class="max-w-md mx-auto">
+								{@render actionButton(
+									'Confirmar Saída',
+									undefined,
+									'primary',
+									'filled',
+									() => (resGise.capturandoRubrica = true),
+									false,
+									false,
+									'w-full py-4 text-lg shadow-xl shadow-primary-500/20'
+								)}
+							</div>
 						{:else}
 							{@render blocoRestritoDesktop('saida')}
 						{/if}
