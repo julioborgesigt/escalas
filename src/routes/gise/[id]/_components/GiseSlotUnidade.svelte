@@ -1,4 +1,9 @@
 <script lang="ts">
+	/**
+	 * Slot de unidade (DP) dentro de uma seccional: cabeçalho com seleção/troca
+	 * da unidade, grid de equipes (GiseEquipeCard) e o fluxo do Admin Geral de
+	 * adicionar equipe. Estado de edição compartilhado via GiseSeccionalEstado.
+	 */
 	import { enhance } from '$app/forms';
 	import type { GiseDetalhado, GiseUnidadeSlot } from '$lib/db/gise';
 	import type { Unidade } from '$lib/server/schema';
@@ -8,11 +13,6 @@
 
 	type Seccional = GiseDetalhado['seccionais'][number];
 
-	/**
-	 * Slot de unidade (DP) dentro de uma seccional: cabeçalho com seleção/troca
-	 * da unidade, grid de equipes (GiseEquipeCard) e o fluxo do Admin Geral de
-	 * adicionar equipe. Estado de edição compartilhado via GiseSeccionalEstado.
-	 */
 	const {
 		slot,
 		sec,

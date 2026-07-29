@@ -1,4 +1,27 @@
 <script lang="ts">
+	/**
+	 * Tela de ESCALAS — três visões em uma rota, alternadas por `visao`:
+	 *
+	 * - `home`: atalhos e pendências (o que o usuário vê ao entrar);
+	 * - `lista`: a tabela filtrável de escalas, paginada no servidor;
+	 * - `assinaturas`: as escalas que dependem da assinatura deste usuário.
+	 *
+	 * A visão inicial vem do servidor (`data.initialView`, derivada do `?v=`):
+	 * qualquer query string já indica busca/filtro e abre direto na `lista`. Isso
+	 * mantém link compartilhado e recarga de página estáveis, em vez de sempre
+	 * cair na home e obrigar a refiltrar.
+	 *
+	 * Filtros: `useFiltrosPaginados` cuida de persistir em localStorage, navegar
+	 * no servidor e resetar a página quando qualquer filtro muda — exceto a busca,
+	 * que tem handler próprio (debounce). `seccional` participa da assinatura de
+	 * mudança mas NÃO vai para a query: ela só filtra o dropdown de delegacias no
+	 * cliente.
+	 *
+	 * A tela também é um dos pontos de assinatura: hospeda o SignaturePad, o
+	 * painel de token e a oferta de cadastro de RUBRICA reutilizável — oferecida
+	 * apenas a quem pode assinar por token, tem pendência e ainda não tem rubrica
+	 * (`useOfertaRubrica`), para não virar interrupção para o resto.
+	 */
 	import type { PageProps } from './$types';
 	import { opcoesMeses } from '$lib/utils';
 	import { PenLine, CheckCircle2, ClipboardList, Archive } from 'lucide-svelte';
@@ -696,7 +719,6 @@
 			escalas={escalasVisiveis}
 			{podeOIPSolicitar}
 			{solicitacoesMap}
-			skipLoad={data.skipLoad}
 			{paginaAtual}
 			{totalPaginas}
 			onSolicitarEdicao={solicitarEdicao}

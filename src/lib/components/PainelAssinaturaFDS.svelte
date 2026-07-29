@@ -1,4 +1,26 @@
 <script lang="ts">
+	/**
+	 * Painel da escala de FDS, que NÃO tem assinatura digital: aqui o ato é
+	 * "finalizar e enviar por e-mail à DPIS". `PainelAssinaturaEscala` escolhe
+	 * entre este e o `PainelAssinaturaDigital` pelo `isFDS` — o fluxo de PKI
+	 * (plantão/expediente) não passa por este arquivo.
+	 *
+	 * Finalizar, reabrir e reenviar são form actions do `+page.server.ts` da
+	 * escala (`?/finalizar`, `?/desfinalizar`, `?/reenviarEmail`) — daí o `fetch`
+	 * cru com `FormData` no reenvio automático, que é o caso em que
+	 * `$lib/api-fetch` não se aplica.
+	 *
+	 * Reabrir uma escala já enviada é ação com efeito EXTERNO: o e-mail que a
+	 * DPIS recebeu continua valendo, e o reenvio manda um segundo documento pelo
+	 * mesmo canal. Por isso reabrir e reenviar passam por diálogo de confirmação.
+	 * A única tentativa não confirmada é o reenvio AUTOMÁTICO, e ela só dispara
+	 * quando o finalizar deu certo mas o e-mail falhou (`emailEnviado === false`)
+	 * — ou seja, quando a DPIS ainda não recebeu nada. Uma tentativa, e se falhar
+	 * degrada para um aviso pedindo o botão manual.
+	 *
+	 * `podeEditar=false` — admin_seccional visitando escala de outra unidade —
+	 * esconde finalizar/reabrir/reenviar, mas mantém os downloads.
+	 */
 	import { untrack } from 'svelte';
 	import { Dialog } from '@skeletonlabs/skeleton-svelte';
 	import { page } from '$app/state';

@@ -1,3 +1,28 @@
+/**
+ * Página PÚBLICA de validação de documento — `/validar/[hash]`, o código
+ * impresso no rodapé do PDF. Sem sessão: qualquer pessoa que receba o papel
+ * precisa poder conferir se ele é autêntico.
+ *
+ * Daí as duas forças opostas que este `load` equilibra.
+ *
+ * **Provar** — a verificação é criptográfica de verdade
+ * (`verificarAssinaturaCompleta`): integridade, assinatura, cadeia ICP-Brasil,
+ * carimbo de tempo e revogação, item por item, não um "documento válido"
+ * genérico.
+ *
+ * **Não expor** — quem valida não é o titular. Antes de serializar ao cliente:
+ * CPF do assinante reduzido a `123.***.***-01`, nome mascarado, CPF do
+ * certificado zerado, e IP, user-agent e GPS simplesmente omitidos (LGPD art.
+ * 6º e 46). Nada disso é necessário para conferir autenticidade, e tudo isso
+ * permitiria rastrear a pessoa.
+ *
+ * O cache é curto e com revalidação obrigatória, nunca `immutable`: o BLOB é
+ * imutável, mas o STATUS não — um certificado revogado depois da assinatura
+ * muda o resultado, e o snapshot OCSP revela isso na consulta seguinte.
+ *
+ * `autenticado` só liga o botão de baixar o PDF íntegro; a permissão de fato é
+ * checada no endpoint de download.
+ */
 import {
 	getDB,
 	buscarDocumentoPorHash,

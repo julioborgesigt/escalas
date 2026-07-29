@@ -1,4 +1,24 @@
 <script lang="ts">
+	/**
+	 * Card de UMA SECCIONAL dentro da escala GISE — o bloco que o admin daquela
+	 * seccional preenche e que o Admin Geral e o supervisor acompanham.
+	 *
+	 * Contém a árvore inteira abaixo da seccional: slots de unidade
+	 * (`GiseSlotUnidade`), equipes de cada slot, membros de cada equipe, e os
+	 * downloads/assinaturas dos relatórios (`SeccionalRelatoriosDownloads`).
+	 *
+	 * A divisão de trabalho é deliberada:
+	 * - `useGiseSeccionalActions` tem os 11 fluxos de mutação (form actions,
+	 *   toasts, invalidação, modal de remoção);
+	 * - `GiseSeccionalEstado` tem o estado de edição inline do card;
+	 * - este arquivo é markup e ligação entre os dois.
+	 *
+	 * Sem essa separação o card passava de mil linhas — foi o que motivou a
+	 * extração.
+	 *
+	 * `getSeccionalColorClass` dá a mesma cor de borda para a mesma seccional em
+	 * qualquer GISE, o que faz a lista longa ficar navegável de relance.
+	 */
 	import { enhance } from '$app/forms';
 	import { Accordion } from '@skeletonlabs/skeleton-svelte';
 	import type { GiseDetalhado, GiseUnidadeSlot, GiseEquipeComMembros } from '$lib/db/gise';

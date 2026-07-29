@@ -1,3 +1,11 @@
+/**
+ * Geração dos .docx de escala (FDS, expediente e plantão mensal).
+ *
+ * É o formato EDITÁVEL entregue às unidades — o PDF assinado é o documento
+ * oficial (`export-pdf.ts`). Os dois consomem os mesmos agrupamentos de
+ * `export-shared.ts`, de modo que a ordem dos nomes e os horários batem entre
+ * as duas saídas; aqui só muda o desenho (tabelas do pacote `docx`).
+ */
 import {
 	Document,
 	Packer,
@@ -27,7 +35,8 @@ import {
 	formatarMesAno
 } from './export-shared';
 
-// ---- DOCX ----
+// ---- DOCX Final de Semana ----
+/** Uma tabela por dia do fim de semana, na cor institucional (#1a5c57). */
 export async function gerarDocx(
 	escala: Escala,
 	policiais: EscalaPolicialComDados[]
@@ -146,6 +155,7 @@ export async function gerarDocx(
 }
 
 // ---- DOCX Expediente ----
+/** Lista única de servidores, com o rodapé de local/data para assinatura. */
 export async function gerarDocxExpediente(
 	escala: Escala,
 	policiais: EscalaPolicialComDados[]
@@ -225,6 +235,8 @@ export async function gerarDocxExpediente(
 		})
 	];
 
+	// "Iguatu, 05 de Julho de 2026" — omite a cidade quando ela repetiria o nome
+	// da unidade (ex.: lotação "DELEGACIA DE IGUATU" na cidade "Iguatu").
 	const localizacao = escala.cidade && escala.cidade !== escala.lotacao ? escala.cidade : '';
 	const dataExtenso = formatarDataExtenso(new Date());
 	const textoData = localizacao ? `${localizacao}, ${dataExtenso}` : dataExtenso;
@@ -296,6 +308,7 @@ export async function gerarDocxExpediente(
 }
 
 // ---- DOCX Plantão ----
+/** Uma tabela por equipe; cada policial ocupa uma linha com todos os seus dias. */
 export async function gerarDocxPlantao(
 	escala: Escala,
 	policiais: EscalaPolicialComDados[]

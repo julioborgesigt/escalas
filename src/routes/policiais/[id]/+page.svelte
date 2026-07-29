@@ -1,4 +1,26 @@
 <script lang="ts">
+	/**
+	 * Ficha administrativa do servidor — o outro lado de `/perfil`: aqui o
+	 * administrador edita DIRETO, sem passar por solicitação.
+	 *
+	 * A tela junta três poderes de alcances muito diferentes, e quem os enxerga
+	 * é decidido no `+page.server.ts` (`isAdmin`, `isAdminOrSeccional`,
+	 * `isAdminUnidade`) — os flags daqui só escondem:
+	 *   - dados cadastrais (nome, matrícula, lotação…);
+	 *   - PAPEL operacional (admin_seccional/admin_unidade), que sempre exige a
+	 *     unidade de responsabilidade — sem ela o papel não tem escopo e o RBAC
+	 *     fica indefinido. A exceção é o admin_unidade nomeando outro
+	 *     admin_unidade, que cai na própria unidade;
+	 *   - condição de ADMIN GERAL, formulário próprio porque não é papel scoped:
+	 *     cria/remove a linha vinculada em `administradores`.
+	 * Abaixo ficam as ações de RH (`PainelAcoesServidor`) e a timeline
+	 * (`HistoricoServidor`).
+	 *
+	 * O `$effect` que copia `data.policial` para os campos re-sincroniza a cada
+	 * `invalidateAll()` — o oposto do `untrack` de `/perfil`, e aqui é o
+	 * desejado: depois de salvar, o formulário deve mostrar o que ficou gravado,
+	 * não o rascunho.
+	 */
 	import type { PageProps } from './$types';
 	import { goto, invalidateAll } from '$app/navigation';
 	import { enhance } from '$app/forms';

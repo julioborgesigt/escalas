@@ -11,11 +11,21 @@ import {
 import { isAdminGeral, isAdminSeccional } from '$lib/auth';
 import { giseSeccionalUnidades, giseSeccionais, giseEquipes } from '$lib/server/schema';
 import { eq, and, isNull } from 'drizzle-orm';
-import { getInt } from './shared';
+import { getInt, saiuDaFaseDeEdicao } from './shared';
+
+/**
+ * Form actions dos SLOTS DE UNIDADE de cada seccional em `/gise/[id]`.
+ *
+ * Um "slot" (`gise_seccional_unidades`) é a linha que reserva espaço para uma
+ * unidade dentro da seccional; ele nasce vazio e depois recebe a unidade.
+ * Criar/remover slot é do Admin Geral; escolher qual unidade ocupa o slot
+ * também cabe ao admin da seccional.
+ */
 
 type Event = RequestEvent<{ id: string }>;
 
 export const actionsUnidade = {
+	/** Preenche (ou troca) a unidade de um slot já existente. */
 	selecionarUnidade: async ({ request, locals, platform, params }: Event) => {
 		const u = locals.usuario;
 		if (!u) return fail(401, { error: 'Não autorizado' });
@@ -57,6 +67,7 @@ export const actionsUnidade = {
 		return { success: true };
 	},
 
+	/** Cria mais um slot vazio na seccional. */
 	adicionarUnidade: async ({ request, locals, platform, params }: Event) => {
 		const u = locals.usuario;
 		if (!u || !isAdminGeral(u)) return fail(403, { error: 'Apenas Admin Geral' });
@@ -81,6 +92,7 @@ export const actionsUnidade = {
 		return { success: true };
 	},
 
+	/** Remove um slot — e, com ele, as equipes penduradas nesse slot. */
 	removerUnidade: async ({ request, locals, platform, params }: Event) => {
 		const u = locals.usuario;
 		if (!u || !isAdminGeral(u)) return fail(403, { error: 'Apenas Admin Geral' });
@@ -100,6 +112,9 @@ export const actionsUnidade = {
 			.get();
 		if (!sec) return fail(404, { error: 'Seccional não encontrada' });
 
+		// `linkId === 0` é o pseudo-slot legado das equipes criadas antes dos slots
+		// existirem (`gise_unidade_id` nulo): não há linha para apagar, então a
+		// remoção recai sobre as próprias equipes órfãs da seccional.
 		if (linkId === 0) {
 			await db
 				.delete(giseEquipes)
@@ -109,7 +124,7 @@ export const actionsUnidade = {
 		}
 
 		const gise = await buscarGiseEscala(db, giseId);
-		if (gise && !['em_definicao_supervisor', 'em_preenchimento'].includes(gise.status)) {
+		if (gise && saiuDaFaseDeEdicao(gise.status)) {
 			await revogarAssinaturasSeccional(db, giseId, secId);
 		}
 

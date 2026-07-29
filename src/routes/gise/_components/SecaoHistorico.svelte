@@ -1,4 +1,24 @@
 <script lang="ts">
+	/**
+	 * Histórico de GISEs encerradas: filtros, paginação e export.
+	 *
+	 * Tudo aqui é CLIENTE. A lista chega inteira por prop e é filtrada e
+	 * paginada em memória — nenhum filtro volta ao servidor. Simples enquanto o
+	 * volume for o de um ano de GISEs; se a listagem crescer, é este ponto que
+	 * precisa virar consulta paginada, não a UI ao redor.
+	 *
+	 * Os três filtros de tempo (data exata, mês, ciclo) são MUTUAMENTE
+	 * EXCLUSIVOS, e a exclusão é imposta nos handlers: escolher um limpa os
+	 * outros dois. A precedência no `$derived` — data > mês > ciclo — é a rede
+	 * de segurança para qualquer estado que escape disso. Os três campos ficam
+	 * visíveis ao mesmo tempo, então sem essa regra o resultado dependeria da
+	 * ordem em que o usuário tocou nos campos.
+	 *
+	 * Exportar exige um recorte de tempo ativo (`podeExportarHistorico`): sem
+	 * ele o arquivo sairia com a base inteira. É por isso que o botão nasce
+	 * desabilitado mesmo para o Admin Geral, e o histórico já abre filtrado pelo
+	 * mês corrente.
+	 */
 	import { goto } from '$app/navigation';
 	import { navigating } from '$app/state';
 	import { page } from '$app/state';
@@ -8,11 +28,17 @@
 	import { loading } from '$lib/loading.svelte';
 	import { toaster } from '$lib/toast';
 	import { slide } from 'svelte/transition';
-	import { Popover, Portal, Pagination } from '@skeletonlabs/skeleton-svelte';
-	import { ChevronLeft, ChevronRight } from 'lucide-svelte';
+	import { Popover, Portal } from '@skeletonlabs/skeleton-svelte';
+	import Paginador from '$lib/components/Paginador.svelte';
 	import { statusLabel, statusColor, fmtDate, diaSemana } from '$lib/gise/gise-formatters';
 	import { SvelteURLSearchParams } from 'svelte/reactivity';
+	import { CICLOS, getCicloRange } from '$lib/gise/gise-ciclos';
 
+	/**
+	 * Bloco "Histórico" da lista `/gise`: escalas finalizadas, com filtros
+	 * (seccional, mês, ciclo ou data exata), paginação e — para o Admin Geral —
+	 * exportação em XLSX/PDF do recorte filtrado.
+	 */
 	const {
 		historico,
 		seccionaisList,
@@ -30,6 +56,7 @@
 		isAdminGeral: boolean;
 	} = $props();
 
+	/** "2026-07" — o histórico já abre filtrado pelo mês corrente. */
 	function getCurrentMonth() {
 		const d = new Date();
 		return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
@@ -43,21 +70,6 @@
 	let mostrarFiltrosHistorico = $state(false);
 	let paginaHistorico = $state(1);
 
-	const CICLOS = [
-		{ n: 1, label: 'Ciclo 1  (21/Dez – 20/Jan)' },
-		{ n: 2, label: 'Ciclo 2  (21/Jan – 20/Fev)' },
-		{ n: 3, label: 'Ciclo 3  (21/Fev – 20/Mar)' },
-		{ n: 4, label: 'Ciclo 4  (21/Mar – 20/Abr)' },
-		{ n: 5, label: 'Ciclo 5  (21/Abr – 20/Mai)' },
-		{ n: 6, label: 'Ciclo 6  (21/Mai – 20/Jun)' },
-		{ n: 7, label: 'Ciclo 7  (21/Jun – 20/Jul)' },
-		{ n: 8, label: 'Ciclo 8  (21/Jul – 20/Ago)' },
-		{ n: 9, label: 'Ciclo 9  (21/Ago – 20/Set)' },
-		{ n: 10, label: 'Ciclo 10 (21/Set – 20/Out)' },
-		{ n: 11, label: 'Ciclo 11 (21/Out – 20/Nov)' },
-		{ n: 12, label: 'Ciclo 12 (21/Nov – 20/Dez)' }
-	];
-
 	const ITEMS_POR_PAGINA = 5;
 
 	const anosDisponiveisHistorico = $derived(
@@ -66,13 +78,8 @@
 		)
 	);
 
-	function getCicloRange(ano: number, ciclo: number): { inicio: string; fim: string } {
-		if (ciclo === 1) return { inicio: `${ano - 1}-12-21`, fim: `${ano}-01-20` };
-		const mI = String(ciclo - 1).padStart(2, '0');
-		const mF = String(ciclo).padStart(2, '0');
-		return { inicio: `${ano}-${mI}-21`, fim: `${ano}-${mF}-20` };
-	}
-
+	// Precedência dos filtros de tempo: data exata > mês > ciclo. Os três campos
+	// ficam visíveis ao mesmo tempo, então o mais específico é quem manda.
 	const historicoFiltrado = $derived(
 		historico.filter((e) => {
 			if (
@@ -91,6 +98,7 @@
 		})
 	);
 
+	// Exportar exige um recorte de tempo: sem isso o arquivo traria a base inteira.
 	const podeExportarHistorico = $derived(
 		isAdminGeral &&
 			(!!filtroMesAno || (filtroAnoCiclo !== '' && filtroNumeroCiclo !== '') || !!filtroData)
@@ -639,38 +647,12 @@
 				<span class="text-xs text-surface-500">
 					{historicoFiltrado.length} resultado(s) — página {paginaHistorico} de {totalPaginasHistorico}
 				</span>
-				<Pagination
+				<Paginador
 					count={historicoFiltrado.length}
 					pageSize={ITEMS_POR_PAGINA}
 					page={paginaHistorico}
-					onPageChange={(e) => (paginaHistorico = e.page)}
-					siblingCount={1}
-				>
-					<Pagination.PrevTrigger
-						class="btn btn-sm preset-outlined-surface-500"
-						aria-label="Página anterior"><ChevronLeft size={16} /></Pagination.PrevTrigger
-					>
-					<Pagination.Context>
-						{#snippet children(pagination)}
-							{#each pagination().pages as p, index (p)}
-								{#if p.type === 'page'}
-									<Pagination.Item
-										{...p}
-										class="btn btn-sm min-w-[32px] {p.value === paginaHistorico
-											? 'preset-filled-primary-500'
-											: 'preset-outlined-surface-500'}">{p.value}</Pagination.Item
-									>
-								{:else}
-									<Pagination.Ellipsis {index} class="px-1 opacity-50">&#8230;</Pagination.Ellipsis>
-								{/if}
-							{/each}
-						{/snippet}
-					</Pagination.Context>
-					<Pagination.NextTrigger
-						class="btn btn-sm preset-outlined-surface-500"
-						aria-label="Próxima página"><ChevronRight size={16} /></Pagination.NextTrigger
-					>
-				</Pagination>
+					onPageChange={(p) => (paginaHistorico = p)}
+				/>
 			</div>
 		{/if}
 	</div>

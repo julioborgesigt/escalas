@@ -1,4 +1,27 @@
 <script lang="ts">
+	/**
+	 * Cadastro de UNIDADES — departamentos, seccionais e delegacias, com a
+	 * hierarquia entre elas (`seccional_id`) e as flags de quais tipos de escala
+	 * cada uma aceita.
+	 *
+	 * É a tabela mais estrutural do sistema: `policiais.lotacao` e
+	 * `escalas.lotacao` referenciam a unidade pelo NOME, não por chave
+	 * estrangeira. Renomear aqui cascateia no servidor (`atualizarUnidade`
+	 * reescreve as duas colunas) e excluir exige checar vínculos antes — daí o
+	 * modal de exclusão dedicado, que não é confirmação genérica.
+	 *
+	 * Filtro e busca são do CLIENTE: são poucas centenas de unidades, todas já
+	 * carregadas pelo `load`, e filtrar local dá resposta imediata.
+	 * `filtroSeccional` esconde departamentos por desenho — eles não pertencem a
+	 * seccional nenhuma, e mantê-los na lista filtrada faria o resultado parecer
+	 * errado.
+	 *
+	 * `unidadesAgrupadas` monta a ÁRVORE a partir da lista plana e, no fim,
+	 * acrescenta os ÓRFÃOS na raiz: unidade cujo pai não está na lista (por causa
+	 * do filtro, ou porque o `seccional_id` aponta para algo que não existe mais)
+	 * precisa continuar visível e editável — some da árvore, some da tela, e
+	 * ninguém conserta o vínculo quebrado.
+	 */
 	import type { PageProps } from './$types';
 	import { page, navigating } from '$app/state';
 	import SkeletonCard from '$lib/components/SkeletonCard.svelte';
@@ -11,7 +34,7 @@
 	import { useAutorizacao, getSavedFilters, useFiltrosPaginados } from '$lib/composables';
 	import type { ActionResult } from '@sveltejs/kit';
 	import ModalCadastrarUnidade from './_components/ModalCadastrarUnidade.svelte';
-	import ModalExcluirUnidade from './_components/ModalExcluirUnidade.svelte';
+	import ModalDesativarUnidade from './_components/ModalDesativarUnidade.svelte';
 
 	const { data }: PageProps = $props();
 
@@ -114,9 +137,9 @@
 	let editCidade = $state('');
 	let pendingEditar = $state(false);
 
-	// Exclusão
-	let dialogExcluirOpen = $state(false);
-	let unidadeParaExcluir = $state<{ id: number; nome: string } | null>(null);
+	// Desativação (não há exclusão de unidade — ver o cabeçalho)
+	let dialogDesativarOpen = $state(false);
+	let unidadeParaDesativar = $state<{ id: number; nome: string; ativo: boolean } | null>(null);
 
 	// Cadastro
 	let cadastroOpen = $state(false);
@@ -163,9 +186,9 @@
 		};
 	}
 
-	function solicitarExclusao(id: number, nome: string) {
-		unidadeParaExcluir = { id, nome };
-		dialogExcluirOpen = true;
+	function solicitarDesativacao(id: number, nome: string, ativo: boolean) {
+		unidadeParaDesativar = { id, nome, ativo };
+		dialogDesativarOpen = true;
 	}
 
 	function limparFiltros() {
@@ -316,7 +339,7 @@
 	</div>
 </div>
 
-<ModalExcluirUnidade bind:open={dialogExcluirOpen} unidade={unidadeParaExcluir} />
+<ModalDesativarUnidade bind:open={dialogDesativarOpen} unidade={unidadeParaDesativar} />
 <ModalCadastrarUnidade bind:open={cadastroOpen} {seccionais} />
 
 <div class="p-4 sm:p-6 rounded-3xl card-glass overflow-hidden">
@@ -396,7 +419,15 @@
 										</div>
 									{:else}
 										<div>
-											<span class="font-medium block">{u.nome}</span>
+											<span class="font-medium block {u.ativo ? '' : 'opacity-60 line-through'}"
+												>{u.nome}</span
+											>
+											{#if !u.ativo}
+												<span
+													class="inline-block mt-1 mr-1 text-3xs font-bold uppercase tracking-wide px-2 py-0.5 rounded-md bg-warning-500/20 text-warning-700 dark:text-warning-300"
+													>Desativada</span
+												>
+											{/if}
 											<span
 												class="inline-block mt-1 text-3xs font-bold uppercase tracking-wide px-2 py-0.5 rounded-md bg-surface-200/80 dark:bg-surface-700/80 text-surface-600 dark:text-surface-300"
 												>{tipoLabel(u.tipo)}</span
@@ -452,8 +483,11 @@
 												>
 												<button
 													type="button"
-													class="btn btn-sm preset-filled-error-500 transition-all"
-													onclick={() => solicitarExclusao(u.id, u.nome)}>Excluir</button
+													class="btn btn-sm {u.ativo
+														? 'preset-outlined-warning-500'
+														: 'preset-filled-success-500'} transition-all"
+													onclick={() => solicitarDesativacao(u.id, u.nome, u.ativo)}
+													>{u.ativo ? 'Desativar' : 'Reativar'}</button
 												>
 											</div>
 										{/if}
@@ -501,7 +535,15 @@
 						{:else}
 							<div class="flex items-center justify-between gap-3">
 								<div class="min-w-0">
-									<p class="font-semibold text-sm">{u.nome}</p>
+									<p class="font-semibold text-sm {u.ativo ? '' : 'opacity-60 line-through'}">
+										{u.nome}
+									</p>
+									{#if !u.ativo}
+										<span
+											class="inline-block mt-0.5 text-3xs font-bold uppercase tracking-wide px-2 py-0.5 rounded-md bg-warning-500/20 text-warning-700 dark:text-warning-300"
+											>Desativada</span
+										>
+									{/if}
 									<p class="text-3xs font-bold uppercase text-surface-500 mt-0.5">
 										{tipoLabel(u.tipo)}
 									</p>
@@ -529,8 +571,11 @@
 										>
 										<button
 											type="button"
-											class="btn btn-sm preset-filled-error-500 transition-all"
-											onclick={() => solicitarExclusao(u.id, u.nome)}>Excluir</button
+											class="btn btn-sm {u.ativo
+												? 'preset-outlined-warning-500'
+												: 'preset-filled-success-500'} transition-all"
+											onclick={() => solicitarDesativacao(u.id, u.nome, u.ativo)}
+											>{u.ativo ? 'Desativar' : 'Reativar'}</button
 										>
 									</div>
 								{/if}

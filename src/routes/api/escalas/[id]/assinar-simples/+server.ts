@@ -1,3 +1,18 @@
+/**
+ * Assinatura EM TELA da escala (avançada, sem certificado) — o caminho usado
+ * pela maioria: rubrica desenhada, mais foto, GPS e código por e-mail conforme
+ * as flags de configuração.
+ *
+ * Produz e persiste os dois artefatos da escala assinada:
+ *   - o PDF com o rodapé e o QR de `/validar`, gravado no R2;
+ *   - a CÓPIA DE CONFERÊNCIA, em chave própria (`chaveConferencia`), que é a
+ *     versão que circula.
+ *
+ * Reassinar substitui o documento anterior, e `limparR2ObsoletoEscala` remove
+ * os blobs da assinatura antiga — mantendo os recém-gravados na lista de
+ * exceções. Sem isso, cada reassinatura deixaria PDF e selfie órfãos no R2, com
+ * dado pessoal e sem nenhuma linha que os localize (R2-1).
+ */
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import {

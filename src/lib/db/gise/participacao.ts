@@ -25,6 +25,22 @@ export interface ParticipacaoGise {
 	unidadeNome: string | null;
 }
 
+/**
+ * Devolve SE o policial participa desta GISE e, se sim, o horário previsto para
+ * ele — a autorização de registrar presença.
+ *
+ * Duas origens de participação, checadas nesta ordem: membro de equipe e, se não
+ * for, quadro de supervisão (assessor, SEINT 1/2 ou supervisor DPC, cujo
+ * "unidade" é a Supervisão Geral). Um policial não pode ser as duas coisas, mas
+ * a ordem importa para o HORÁRIO: o de equipe pode ser mais específico.
+ *
+ * O horário sai da cadeia de fallback equipe > seccional > escala > `'08:00'`:
+ * cada nível pode sobrescrever o de cima, e o literal final cobre a escala
+ * gravada sem horário. Fim de linha `'16:00'`.
+ *
+ * `participa: false` é a resposta para "não escalado" e para "GISE inexistente"
+ * indistintamente — os dois negam presença.
+ */
 export async function resolverParticipacaoGisePolicial(
 	db: Database,
 	giseId: number,

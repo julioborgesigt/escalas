@@ -1,3 +1,18 @@
+/**
+ * GET /api/escalas/[id]/download — baixa a escala em PDF, DOCX ou XLSX.
+ *
+ * O PDF tem dois caminhos que não se misturam:
+ *
+ * - **escala já assinada** (plantão/expediente): devolve o BLOB do R2, o
+ *   arquivo exato que foi assinado — regerar quebraria o hash e a assinatura.
+ *   `?manifesto=true` entrega a versão com o manifesto de auditoria (restrita a
+ *   quem pode vê-lo); sem o parâmetro vai a cópia de conferência, sem os dados
+ *   pessoais do manifesto (minimização, LGPD);
+ * - **demais casos**: gera na hora a partir do banco.
+ *
+ * DOCX e XLSX são sempre gerados — são formatos de trabalho, não o documento
+ * oficial. Todo download é auditado, com o formato e a cópia escolhida.
+ */
 import type { RequestHandler } from './$types';
 import {
 	getDB,

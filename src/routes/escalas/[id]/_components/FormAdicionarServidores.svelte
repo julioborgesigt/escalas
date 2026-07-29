@@ -1,4 +1,23 @@
 <script lang="ts">
+	/**
+	 * Formulário de ADIÇÃO de servidores à escala mensal — o inverso das tabelas
+	 * (`TabelaPlantao`, `TabelaServidores`), que editam quem já está.
+	 *
+	 * A diferença entre os dois tipos está aqui:
+	 * - EXPEDIENTE: o policial é adicionado uma vez, sem dias;
+	 * - PLANTÃO: escolhe-se o primeiro plantão e o regime — `1x3` (de 4 em 4
+	 *   dias) ou `2x6` (dois dias seguidos a cada 8) — e `calcularDatasPlantao`
+	 *   projeta as demais datas até o fim da escala. É o ciclo da corporação, não
+	 *   uma data por vez: escalar um plantonista dia a dia seriam oito submits.
+	 *
+	 * As datas projetadas vão num campo hidden como JSON
+	 * (`datasPlantaoParaJson`): o servidor insere uma linha por dia, e é ele quem
+	 * decide o que já existe. A tela não tenta adivinhar duplicata.
+	 *
+	 * `podeEditarEscala`, `documentoAssinadoExiste` e `finalizadaEm` bloqueiam o
+	 * formulário pelo mesmo motivo da tabela: acrescentar alguém depois da
+	 * assinatura mudaria um documento já assinado.
+	 */
 	import { enhance } from '$app/forms';
 	import { toaster } from '$lib/toast';
 	import { formatarData } from '$lib/utils';

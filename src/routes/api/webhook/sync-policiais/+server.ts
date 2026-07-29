@@ -1,3 +1,25 @@
+/**
+ * `POST /api/webhook/sync-policiais` — espelha a folha de pessoal vinda do
+ * sistema institucional (mesmo emissor de `sync-unidades`).
+ *
+ * Aceita objeto único ou array, e processa item a item: um registro inválido
+ * NÃO aborta o lote. O retorno traz `successCount` + a lista de erros por
+ * linha, porque uma matrícula com cargo errado no meio de sete mil não pode
+ * impedir a sincronização das outras.
+ *
+ * Três defesas, nesta ordem:
+ *   1. HMAC/Bearer (`validarWebhookSync`);
+ *   2. anti-replay (timestamp + nonce), DEPOIS do HMAC — não se gasta D1 com
+ *      payload não autenticado;
+ *   3. **safe-default de PAPEL (M-4)**: o sync não altera `papel` nem
+ *      `papel_unidade_id` a menos que `WEBHOOK_ALLOW_PAPEL_CHANGES` esteja
+ *      ligado. Sem isso, um SYNC_TOKEN comprometido promoveria qualquer
+ *      matrícula a admin. Tentativa de trocar papel com a flag desligada é
+ *      registrada em log para perícia.
+ *
+ * O upsert é por MATRÍCULA e preserva o que a fonte externa não é dona:
+ * senha, `primeiro_acesso` e contatos já cadastrados (ver `upsertPolicial`).
+ */
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { getDB, auditar, contextoDeEvento } from '$lib/db';

@@ -14,7 +14,7 @@ import { appLog } from '../server/schema';
 import type { AppLog } from '../server/schema';
 import type { Database } from './core';
 
-export type AppLogLevel = 'warn' | 'error';
+type AppLogLevel = 'warn' | 'error';
 
 export interface NovoAppLog {
 	level: AppLogLevel;

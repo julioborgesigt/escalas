@@ -1,4 +1,9 @@
 <script lang="ts">
+	/**
+	 * Fila de aprovação das alterações cadastrais pedidas em "Meu perfil"
+	 * (`/solicitacoes`, Admin Geral). Aprovar grava o novo valor no cadastro na
+	 * hora; rejeitar apenas encerra a solicitação.
+	 */
 	import type { PageProps } from './$types';
 	import { enhance } from '$app/forms';
 	import { toaster } from '$lib/toast';
@@ -12,6 +17,10 @@
 
 	let decidindoId = $state<number | null>(null);
 
+	/**
+	 * A action devolve a lista já sem o item decidido — usar essa resposta evita
+	 * um `invalidateAll()` (e o piscar da tabela) a cada decisão.
+	 */
 	function handleDecidir(id: number, decisao: 'aprovar' | 'rejeitar') {
 		decidindoId = id;
 		return async ({ result }: { result: ActionResult }) => {

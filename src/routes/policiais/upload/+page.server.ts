@@ -1,3 +1,16 @@
+/**
+ * `/policiais/upload` — importação de servidores em massa por CSV (Admin Geral).
+ *
+ * O arquivo vem preenchido à mão pelas unidades, então o processamento é
+ * TOLERANTE POR LINHA: cada linha inválida vira um item na lista de erros
+ * devolvida à tela, com o número da linha, e a importação segue. Rejeitar o
+ * arquivo inteiro por causa de uma matrícula repetida obrigaria o operador a
+ * reeditar e reenviar tudo.
+ *
+ * Colunas esperadas: A Nome · B Matrícula · C Cargo (DPC/OIP) · D Lotação.
+ * A senha inicial é aleatória — o servidor entra pelo fluxo de primeiro acesso.
+ */
+
 import { fail, redirect } from '@sveltejs/kit';
 import { getDB, listarUnidades, auditar, contextoDeEvento } from '$lib/db';
 import { policiais as policiaisTable } from '$lib/server/schema';
@@ -11,6 +24,12 @@ export const load: PageServerLoad = async ({ locals }) => {
 	}
 };
 
+/**
+ * Casa o nome digitado na planilha com uma unidade cadastrada, ignorando
+ * acentos, caixa e espaços (`normalizarTexto`). Sem correspondência devolve
+ * string vazia: a lotação fica em branco e a linha é sinalizada, em vez de
+ * cadastrar o servidor numa unidade inventada.
+ */
 function encontrarUnidade(nomeNaPlanilha: string, unidades: { nome: string }[]): string {
 	const normalizado = normalizarTexto(nomeNaPlanilha);
 	const encontrada = unidades.find((u) => normalizarTexto(u.nome) === normalizado);
@@ -20,6 +39,11 @@ function encontrarUnidade(nomeNaPlanilha: string, unidades: { nome: string }[]):
 /**
  * Parser simples de CSV que suporta campos com aspas e vírgulas internas.
  * Retorna array de arrays de strings.
+ *
+ * Feito à mão de propósito: a alternativa seria carregar uma biblioteca de CSV
+ * no bundle do Worker para ler um arquivo de 4 colunas. Cobre aspas duplas
+ * escapadas (`""`) e quebra de linha CRLF/CR/LF; não cobre quebra de linha
+ * DENTRO de campo entre aspas — caso que a planilha de origem não produz.
  */
 function parseCSV(text: string): string[][] {
 	const rows: string[][] = [];
@@ -55,6 +79,15 @@ function parseCSV(text: string): string[][] {
 }
 
 export const actions = {
+	/**
+	 * Recebe o CSV e cadastra. Validações em camadas, da mais barata para a mais
+	 * cara: papel → banco disponível → há unidades → extensão/MIME/tamanho (5 MB)
+	 * → conteúdo linha a linha.
+	 *
+	 * Matrícula duplicada não é erro fatal: o INSERT usa `onConflictDoNothing` e a
+	 * linha é reportada como "já cadastrada — registro ignorado", o que torna o
+	 * reenvio do mesmo arquivo seguro (idempotente).
+	 */
 	upload: async (event) => {
 		const { request, platform, locals } = event;
 		if (!isAdminGeral(locals.usuario)) {

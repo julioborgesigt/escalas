@@ -1,3 +1,18 @@
+/**
+ * Forma da GISE **montada** — o que `buscarGiseDetalhado` devolve e a página
+ * `/gise/[id]` consome.
+ *
+ * São tipos de VISTA, não de tabela: cada um estende a linha do schema com os
+ * campos que só existem depois dos joins e da agregação em memória
+ * (`policial_nome`, `presenca`, `temRespostas`, contadores). Manter isso à parte
+ * do schema é o que impede que campo derivado seja confundido com coluna.
+ *
+ * A hierarquia espelha o banco — escala → seccionais → slots de unidade →
+ * equipes → membros — com uma diferença: aqui os slots são a camada visível
+ * (`GiseUnidadeSlot.equipes`), porque é assim que a tela agrupa. Equipe cujo
+ * slot não existe mais não aparece em `unidades` (ver
+ * `removerGiseSeccionalUnidade`).
+ */
 import type * as schema from '../../server/schema';
 
 export type GiseMembro = schema.GiseMembro & {

@@ -2,7 +2,8 @@
  * Console de logs técnicos — consulta `app_log` (warn/error do logger de
  * servidor, persistidos por request em hooks.server.ts).
  *
- * Acesso restrito ao Admin Geral, como o console de auditoria. Filtros na query
+ * Acesso restrito ao SUPER ADMIN, como o console de auditoria — não ao Admin
+ * Geral, que não alcança nenhum dos dois consoles. Filtros na query
  * string (GET): estado compartilhável por link. O `request_id` correlaciona com
  * a trilha forense (/auditoria) e com o `errorId` que o usuário vê em erros 5xx.
  */

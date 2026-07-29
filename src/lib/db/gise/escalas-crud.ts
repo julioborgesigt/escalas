@@ -1,3 +1,22 @@
+/**
+ * CRUD da escala GISE — a linha de `gise_escalas` e a árvore que pende dela:
+ *
+ *     gise_escalas
+ *       └── gise_seccionais            (uma por seccional participante)
+ *             └── gise_seccional_unidades  ("slots": qual unidade ocupa a vaga)
+ *                   └── gise_equipes       (operacional | seint, com nº de vagas)
+ *                         └── gise_membros (os policiais)
+ *
+ * Regra de negócio central do módulo: **só existe uma GISE não finalizada por
+ * vez**. É isso que `buscarGiseAtiva` assume, e é o que faz `/gise` conseguir
+ * abrir "a" escala corrente sem que o usuário escolha nada.
+ *
+ * O ciclo de status (`em_definicao_supervisor` → `em_preenchimento` →
+ * `aguardando_assinatura` → `em_andamento` → `aguardando_relatorios` →
+ * `aguardando_assinatura_relat` → `pronta_para_finalizar` → `finalizada`) é
+ * dirigido por `escalas-status.ts`; aqui só se GRAVA o status que aquele módulo
+ * decidiu.
+ */
 import { eq, and, ne, isNotNull, desc, inArray, sql } from 'drizzle-orm';
 import {
 	giseEscalas,
@@ -12,7 +31,9 @@ import {
 import type * as schema from '../../server/schema';
 import type { Database } from '../core';
 import { buscarVagasPadraoEquipesGise } from './vagas-padrao';
+import { criarSlotComEquipesPadrao } from './seccionais';
 
+/** Linha crua de `gise_escalas`, sem nada da árvore de seccionais/equipes. */
 export async function buscarGiseEscala(
 	db: Database,
 	id: number
@@ -20,6 +41,21 @@ export async function buscarGiseEscala(
 	return db.select().from(giseEscalas).where(eq(giseEscalas.id, id)).get();
 }
 
+/**
+ * A GISE corrente — a mais recente que ainda não foi finalizada — enriquecida
+ * com três contadores que a UI usa para decidir o que mostrar:
+ *
+ * - `temSaidaConfirmada`: alguém já registrou saída. Marca a escala como "em
+ *   encerramento" mesmo antes do status mudar;
+ * - `totalSeccionais`: se for 0, a escala foi criada em branco e ainda não tem
+ *   seccional nenhuma — a tela pede a montagem antes de qualquer outra coisa;
+ * - `assinaturasRelatorioExtra`: assinaturas do relatório do quadro de
+ *   supervisão (`tipo = 'extraordinario'`), contadas à parte porque esse quadro
+ *   não pertence a nenhuma seccional.
+ *
+ * Devolve `undefined` quando todas estão finalizadas — estado normal entre uma
+ * GISE e a próxima, não erro.
+ */
 export async function buscarGiseAtiva(db: Database) {
 	const ativa = await db
 		.select()
@@ -62,6 +98,14 @@ export async function buscarGiseAtiva(db: Database) {
 	};
 }
 
+/**
+ * Cria a escala VAZIA e devolve o id — sem seccionais, sem equipes. Montar a
+ * árvore é do chamador (`/gise` cria as seccionais em seguida no modo
+ * "completa"), ou de `clonarGiseParaData`, que faz as duas coisas.
+ *
+ * `feriado` é `boolean` na API e `0|1` na coluna; a conversão fica aqui para
+ * que nenhum chamador precise saber disso.
+ */
 export async function criarGiseEscala(
 	db: Database,
 	dataInicio: string,
@@ -83,6 +127,14 @@ export async function criarGiseEscala(
 	return result[0].id;
 }
 
+/**
+ * Patch da linha da escala: escreve exatamente os campos recebidos. É por onde
+ * passam tanto o avanço de status quanto a designação do quadro de supervisão
+ * (`supervisor_id`, `assessor_id`, `seint1_id`, `seint2_id`).
+ *
+ * Não valida a transição de status — quem decide é `escalas-status.ts`. Chamar
+ * com um status arbitrário coloca a escala nesse estado sem checagem alguma.
+ */
 export async function atualizarGiseEscala(
 	db: Database,
 	id: number,
@@ -113,6 +165,23 @@ export async function atualizarGiseEscala(
 	return db.update(giseEscalas).set(data).where(eq(giseEscalas.id, id));
 }
 
+/**
+ * DESFAZ o encerramento da escala: apaga documentos assinados, assinaturas de
+ * relatório e presenças, e volta o status para `em_preenchimento`.
+ *
+ * É destrutivo por desenho — reabrir significa que a escala vai ser refeita e
+ * reassinada, então as evidências do ciclo anterior não podem sobreviver e
+ * confundir a conferência.
+ *
+ * **Apaga apenas as LINHAS.** Os blobs correspondentes no R2 (PDF assinado,
+ * cópias de conferência e selfies de presença) ficam órfãos se o chamador não
+ * limpar antes — ver `limparR2DaGise` no endpoint de revogação (R2-2/R2-3).
+ * A ordem importa: R2 primeiro, banco depois, porque é a linha que diz quais
+ * objetos existem.
+ *
+ * As seccionais e equipes NÃO são tocadas: a composição continua montada, é o
+ * preenchimento que recomeça.
+ */
 export async function reabrirGiseEscala(db: Database, giseId: number) {
 	// Todas as operações são independentes — executa em paralelo
 	await Promise.all([
@@ -126,6 +195,34 @@ export async function reabrirGiseEscala(db: Database, giseId: number) {
 	]);
 }
 
+/**
+ * Cria uma GISE nova para `novaData` reaproveitando a estrutura de outra — o
+ * caminho normal de abrir a escala do próximo plantão, já que a composição
+ * costuma repetir.
+ *
+ * Dois modos:
+ * - `'clonada'` — copia as seccionais da GISE de origem com seus slots e
+ *   equipes (tipo e número de vagas). **Membros e presenças não vêm junto**: a
+ *   escala nova nasce vazia de gente, para ser preenchida do zero;
+ * - `'completa'` — ignora a origem e cria uma seccional para CADA unidade do
+ *   tipo `seccional` cadastrada.
+ *
+ * A parte delicada é o remapeamento de ids. Equipe aponta para slot
+ * (`gise_unidade_id`), e slot aponta para seccional; copiar os ids antigos
+ * faria a escala nova apontar para a árvore da velha. Daí os dois mapas
+ * `old id → new id` (`secIdMap`, `slotIdMap`) e os inserts SEQUENCIAIS: cada
+ * `returning` precisa ser conhecido antes do insert que o referencia, e o D1
+ * não permite aninhar transações em `batch`.
+ *
+ * Fechamento de lacuna: seccional que terminar sem nenhum slot (sempre no modo
+ * `'completa'`, ou na origem incompleta) ganha um slot vazio e o par de equipes
+ * padrão operacional + SEINT, com as vagas de `buscarVagasPadraoEquipesGise`.
+ * Assim nenhuma seccional nasce impossível de preencher.
+ *
+ * A escala nova nasce sempre em `em_definicao_supervisor`, independentemente do
+ * status da origem, e herda hora de entrada/saída e feriado quando os
+ * parâmetros correspondentes não são passados.
+ */
 export async function clonarGiseParaData(
 	db: Database,
 	giseId: number,
@@ -244,32 +341,10 @@ export async function clonarGiseParaData(
 			(id) => !slotsExistentes.some((s) => s.gise_seccional_id === id)
 		);
 
+		// Vagas lidas uma vez só: são as mesmas para todos os slots do laço.
 		const v = await buscarVagasPadraoEquipesGise(db);
 		for (const secId of secIdsSemSlot) {
-			const [slot] = await db
-				.insert(giseSeccionalUnidades)
-				.values({
-					gise_seccional_id: secId,
-					unidade_id: null
-				})
-				.returning({ id: giseSeccionalUnidades.id });
-
-			await db.insert(giseEquipes).values([
-				{
-					gise_seccional_id: secId,
-					gise_unidade_id: slot.id,
-					tipo: 'operacional' as const,
-					slots_dpc: v.operacional.dpc,
-					slots_oip: v.operacional.oip
-				},
-				{
-					gise_seccional_id: secId,
-					gise_unidade_id: slot.id,
-					tipo: 'seint' as const,
-					slots_dpc: v.seint.dpc,
-					slots_oip: v.seint.oip
-				}
-			]);
+			await criarSlotComEquipesPadrao(db, secId, null, v);
 		}
 	}
 

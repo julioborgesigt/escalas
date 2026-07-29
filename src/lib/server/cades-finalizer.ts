@@ -30,7 +30,7 @@ import { loadTrustStore, trustStoreRequerido } from './icp-brasil/trust-store';
 import { aplicarDss } from './pades-lt';
 import { solicitarCarimboTempo } from './tsa';
 import { adicionarTimestampTokenAoCms } from './cms-tst';
-import { embedCmsBytesNoPlaceholder } from './pdf-signing-prepare';
+import { embedCmsBytesNoPlaceholder, extrairDadosDoCertificado } from './pdf-signing-prepare';
 import type { AssinaturaCadesMetadata } from '$lib/db/documentos';
 import type { TipoCarimoTempo } from './document-utils';
 
@@ -156,6 +156,19 @@ export interface CadesFinalizationError {
 	error: string;
 }
 
+/**
+ * Fecha a assinatura com certificado: verifica o CMS que o cliente devolveu e,
+ * se estiver correto, obtém o CARIMBO DE TEMPO qualificado e o snapshot OCSP —
+ * é o que eleva PAdES-B para PAdES-LT.
+ *
+ * Devolve um resultado discriminado (`ok: true` com os artefatos, ou
+ * `ok: false` com status HTTP e mensagem) em vez de lançar, porque cada motivo
+ * de recusa tem um código próprio na resposta da API — CMS ausente é 422, não
+ * 500.
+ *
+ * A verificação acontece ANTES de gravar qualquer coisa: só entra no banco
+ * assinatura que já provou fechar com o certificado apresentado.
+ */
 export async function verificarECarimbarAssinatura(
 	signedPdfBytes: Uint8Array,
 	options: {
@@ -460,15 +473,12 @@ export async function verificarECarimbarAssinatura(
 	const cmsHashBuf = await crypto.subtle.digest('SHA-256', cmsDerFinal as unknown as ArrayBuffer);
 	const cmsSha256 = bytesToHex(new Uint8Array(cmsHashBuf));
 
-	// 8. Metadados do certificado
+	// 8. Metadados do certificado.
+	// A extração de nome/CPF é a de `pdf-signing-prepare`: `getField('serialNumber')`
+	// devolve null no node-forge (o atributo 2.5.4.5 não tem shortName na tabela
+	// OID), e a cópia local que existia aqui caía sempre no fallback do CN.
 	const cn = (cms.certificate.subject.getField('CN')?.value as string) || '';
-	let cpf = '';
-	const sn = cms.certificate.subject.getField('serialNumber');
-	if (sn) cpf = String(sn.value).replace(/\D/g, '');
-	if (!cpf && cn.includes(':')) {
-		cpf = cn.split(':').pop()?.replace(/\D/g, '') || '';
-	}
-	if (cpf.length > 11) cpf = cpf.slice(-11);
+	const { cpf } = extrairDadosDoCertificado(cms.certificate);
 
 	const metadata: AssinaturaCadesMetadata = {
 		cert_issuer: (cms.certificate.issuer.getField('CN')?.value as string) || undefined,

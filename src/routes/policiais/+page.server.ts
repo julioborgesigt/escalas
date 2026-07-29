@@ -1,4 +1,21 @@
+/**
+ * `load` e actions da lista de policiais (`/policiais`).
+ *
+ * O `load` só lista — paginação, filtros e escopo por lotação. As duas actions
+ * são **exclusivas do Admin Geral**, e é o servidor que impõe isso: a tela
+ * esconde os botões, mas quem recusa o POST direto é este arquivo.
+ *
+ * - `criar`: cadastra o policial (senha aleatória + primeiro acesso), vincula
+ *   conta de Admin Geral quando pedido e audita. Matrícula duplicada é o erro
+ *   esperado e vira 409 legível via `ehViolacaoUnique` — a mensagem crua do
+ *   Drizzle é só `"Failed query: insert into ..."`, e a violação real fica dois
+ *   níveis de `cause` abaixo;
+ * - `excluir`: DELETE físico, precedido de `desvincularAdminGeral` para não
+ *   deixar login admin órfão, e auditado com nome e matrícula — depois do
+ *   delete não haveria mais como saber quem foi.
+ */
 import { redirect, fail } from '@sveltejs/kit';
+import { ehViolacaoUnique } from '$lib/server/db-errors';
 import type { PageServerLoad, Actions } from './$types';
 import {
 	getDB,
@@ -190,8 +207,8 @@ export const actions: Actions = {
 			});
 			return { success: true };
 		} catch (e: unknown) {
-			const message = e instanceof Error ? e.message : String(e);
-			if (message.includes('UNIQUE')) {
+			// A violação de índice único fica em `e.cause` (ver `db-errors.ts`).
+			if (ehViolacaoUnique(e)) {
 				return fail(409, {
 					error: 'Matrícula já cadastrada',
 					fields: {

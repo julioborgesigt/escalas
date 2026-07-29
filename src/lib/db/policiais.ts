@@ -1,3 +1,22 @@
+/**
+ * Cadastro de policiais — a raiz de duas coisas críticas do sistema:
+ *
+ *   1. **RBAC**: o par `papel` + `papel_unidade_id` desta tabela é o que
+ *      `lotacoesAdministradas()` lê para decidir escopo de admin. Escrever
+ *      `papel` aqui É conceder permissão; por isso o webhook de sync só
+ *      repassa o papel atual (M-4) em vez de aceitar o do payload.
+ *   2. **Identidade da assinatura**: `cpf`/`cpf_index` casam o policial com o
+ *      titular do certificado ICP-Brasil na hora de assinar.
+ *
+ * O CPF nunca é gravado em claro quando há chave configurada:
+ * `prepararCpfParaDB()` devolve o valor cifrado em `cpf` e um índice cego
+ * (HMAC) em `cpf_index`, que é a única coluna pesquisável. Sem chave (dev), o
+ * CPF fica em claro e `cpf_index` fica nulo — daí todo lookup por CPF ter os
+ * dois caminhos.
+ *
+ * Convenção de horário: `updated_at` usa `datetime('now','-3 hours')` para
+ * gravar horário de Brasília, igual ao resto do schema.
+ */
 import { eq, and, or, isNull, asc, sql, like } from 'drizzle-orm';
 import { policiais, unidades } from '../server/schema';
 import type * as schema from '../server/schema';
@@ -46,6 +65,27 @@ function escapeLike(str: string): string {
 	return str.replace(/[%_\\]/g, '\\$&');
 }
 
+/**
+ * Listagem paginada do cadastro, para a tela de policiais e para o autocomplete.
+ *
+ * Contrato:
+ * - devolve **apenas ativos** (`ativo = 1`); inativos só aparecem via
+ *   `buscarPolicial`;
+ * - a projeção OMITE `senha` e os campos de rubrica — é a lista que vai para o
+ *   cliente, e rubrica é dado de assinatura (minimização LGPD). O tipo de
+ *   retorno reflete isso;
+ * - `cpf` volta **como está no banco**, ou seja cifrado: quem precisa exibir
+ *   chama `decifrarCpfDoDB`;
+ * - `lotacao === '__todas__'` é sentinela de "sem filtro" (o `<select>` da UI
+ *   manda essa string); `semLotacao` tem precedência sobre `lotacao` e traz os
+ *   registros com lotação vazia/nula, que são os que a sincronização não
+ *   conseguiu casar com nenhuma unidade;
+ * - `seccionalId` casa por NOME de unidade (a própria seccional ou qualquer
+ *   unidade que aponte para ela), porque `policiais.lotacao` é texto, não FK.
+ *
+ * A contagem vem de `count(*) OVER()` na mesma query: paginar custa uma ida ao
+ * banco, não duas.
+ */
 export async function listarPoliciais(
 	db: Database,
 	lotacao?: string,
@@ -157,6 +197,13 @@ export async function listarPoliciais(
 	};
 }
 
+/**
+ * Registro completo por id, incluindo inativos.
+ *
+ * ATENÇÃO: é `select()` sem projeção — traz `senha` (hash) e `rubrica`. Serve
+ * para o servidor decidir/assinar, nunca para devolver cru ao cliente; quem
+ * expõe em `load` monta o objeto campo a campo.
+ */
 export async function buscarPolicial(
 	db: Database,
 	id: number
@@ -180,6 +227,17 @@ export async function buscarPolicialPorMatricula(
 		.get();
 }
 
+/**
+ * Cria um policial pela tela de cadastro.
+ *
+ * A senha NÃO é escolhida aqui: grava um hash de senha aleatória e
+ * `primeiro_acesso = 1`, de modo que o único caminho de entrada seja o link de
+ * primeiro acesso enviado por e-mail. Ninguém — nem o admin que cadastrou —
+ * conhece uma senha utilizável.
+ *
+ * `papel`/`papel_unidade_id` vêm do chamador já validados: esta função concede
+ * a permissão que receber.
+ */
 export async function criarPolicial(
 	db: Database,
 	data: {
@@ -222,6 +280,27 @@ export async function criarPolicial(
 	});
 }
 
+/**
+ * Insere ou atualiza pela MATRÍCULA — é a porta do webhook de sincronização
+ * com o sistema de pessoal, que reenvia a folha inteira a cada rodada.
+ *
+ * O que o UPDATE deliberadamente NÃO faz:
+ * - **não mexe em `senha` nem em `primeiro_acesso`**: eles só existem no ramo
+ *   de INSERT. Uma rodada de sync não pode derrubar o acesso de quem já usa o
+ *   sistema;
+ * - **não apaga contato**: `email`/`email_pessoal` vazios no payload viram
+ *   `sql\`email\`` / `sql\`email_pessoal\``, isto é, mantêm o valor atual. A
+ *   fonte externa costuma vir sem e-mail, e o e-mail pessoal foi cadastrado
+ *   pelo próprio policial — o sync não é dono desse dado.
+ *
+ * Já `email_pessoal_verificado` é zerado quando um e-mail pessoal novo chega:
+ * endereço trocado volta a exigir confirmação por código.
+ *
+ * `papel`/`papel_unidade_id` são gravados COMO RECEBIDOS. Preservá-los é
+ * responsabilidade do chamador — o webhook lê o valor atual com
+ * `buscarPolicialPorMatricula` antes de chamar (M-4), senão um SYNC_TOKEN
+ * vazado promoveria qualquer matrícula a admin.
+ */
 export async function upsertPolicial(
 	db: Database,
 	data: {
@@ -288,6 +367,18 @@ export async function upsertPolicial(
 		});
 }
 
+/**
+ * Atualização parcial: só os campos presentes em `data` entram no SET —
+ * `undefined` significa "não mexe", e `null` significa "limpa". Por isso o
+ * `if (x !== undefined)` repetido em vez de espalhar o objeto.
+ *
+ * Trocar `cpf` regrava também o `cpf_index`: os dois têm de andar juntos, ou o
+ * lookup pelo índice cego deixa de encontrar o registro.
+ *
+ * Também é o caminho da INATIVAÇÃO (`{ ativo: 0 }`) e da transferência de
+ * lotação — não existe delete nesses fluxos, o histórico de escalas continua
+ * apontando para o policial.
+ */
 export async function atualizarPolicial(
 	db: Database,
 	id: number,
@@ -337,10 +428,22 @@ export async function atualizarPolicial(
 	return db.update(policiais).set(updateData).where(eq(policiais.id, id));
 }
 
+/**
+ * DELETE físico. Não faz verificação de escopo nem limpeza de dependentes: o
+ * chamador é quem confere a permissão, chama `desvincularAdminGeral` (para não
+ * deixar login admin órfão) e grava a auditoria. Para "desligar" um policial
+ * preservando o histórico, use `atualizarPolicial(db, id, { ativo: 0 })`.
+ */
 export async function excluirPolicial(db: Database, id: number) {
 	return db.delete(policiais).where(eq(policiais.id, id));
 }
 
+/**
+ * Nomes de todas as unidades, em ordem alfabética — as opções válidas de
+ * lotação. `policiais.lotacao` guarda o NOME, não o id, então esta lista é o
+ * domínio do campo: renomear uma unidade sem migrar os policiais os deixa
+ * "sem lotação" na prática.
+ */
 export async function listarLotacoes(db: Database): Promise<string[]> {
 	const result = await db
 		.select({ nome: unidades.nome })
@@ -349,6 +452,14 @@ export async function listarLotacoes(db: Database): Promise<string[]> {
 	return result.map((r) => r.nome);
 }
 
+/**
+ * Concede, troca ou revoga papel administrativo — `papel = null` revoga.
+ *
+ * É a única escrita cujo efeito é puramente de PERMISSÃO: o par gravado aqui é
+ * lido a cada requisição para montar o escopo do admin. `papel_unidade_id`
+ * define o alcance (a seccional ou a unidade em que o papel vale) e precisa
+ * acompanhar o papel; passar um sem o outro deixa o escopo inconsistente.
+ */
 export async function promoverPolicial(
 	db: Database,
 	policialId: number,
