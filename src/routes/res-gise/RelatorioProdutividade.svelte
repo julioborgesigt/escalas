@@ -49,6 +49,29 @@
 		operacoes_seint_pura: { qtd: 'operacoes_seint_qtd', lista: 'operacoes_seint_lista' }
 	};
 
+	/**
+	 * Perguntas que ocupam a LINHA INTEIRA da grade (as demais entram em duas
+	 * colunas a partir de `@4xl`).
+	 *
+	 * O critério é o widget, não a semântica: quem abre listagem detalhada
+	 * (`CHAVES_TIPO`), paleta de seleção (drogas/armas), textarea ou tem filhos
+	 * precisa da largura toda. Um `numero` ou um `sim_nao` folha, não — e era daí
+	 * que vinha o esticamento: card de ~1050px com um input de 192px dentro.
+	 *
+	 * Deliberadamente NÃO depende da resposta atual: se dependesse, responder
+	 * "Sim" reflowaria a grade inteira debaixo do dedo do usuário.
+	 */
+	const TIPOS_LINHA_INTEIRA = new Set([
+		...Object.keys(CHAVES_TIPO),
+		'drogas_complex',
+		'armas_complex',
+		'textarea'
+	]);
+
+	function ocupaLinhaInteira(q: GiseModeloPerguntaConfig): boolean {
+		return TIPOS_LINHA_INTEIRA.has(q.tipo) || (q.filhos?.length ?? 0) > 0;
+	}
+
 	const ITEM_PADRAO: Record<string, Record<string, string>> = {
 		mandados_maiores: { nome: '', mandado: '' },
 		prisoes_maiores: { nome: '', mandado: '' },
@@ -105,10 +128,19 @@
 	});
 </script>
 
-<div class="space-y-6">
+<!-- `@container`: a grade abaixo consulta a largura DESTE elemento, não a da
+     viewport. É o que importa aqui — o espaço que sobra pro formulário depende
+     do card e da coluna em volta, não do tamanho da tela. Seguro porque não há
+     descendente `position: fixed`/`sticky`: `container-type` implica
+     `contain: layout`, que viraria containing block pra eles. -->
+<div class="@container">
 	<!-- Par de botões Sim/Não — repetia-se em 4 tipos de pergunta -->
+	<!-- `max-w-xs`: os dois botões são `flex-1`, então sem teto viravam dois
+	     retângulos de ~500px cada na largura de desktop. Em telefone o teto não
+	     morde (a tela é menor que 20rem de conteúdo) e eles seguem ocupando a
+	     linha, como hoje. -->
 	{#snippet botoesSimNao(q: GiseModeloPerguntaConfig)}
-		<div class="flex gap-2 sm:gap-4 w-full">
+		<div class="flex gap-2 sm:gap-4 w-full max-w-xs">
 			{#each ['Sim', 'Não'] as opt (opt)}
 				<button
 					type="button"
@@ -165,7 +197,10 @@
 		{@const resQtdKey = chavesTipo.qtd}
 
 		<div
-			class="nested-card card p-3 sm:p-4 md:p-6 bg-white dark:bg-surface-900 border border-surface-200 dark:border-surface-800 rounded-3xl shadow-sm space-y-4 animate-in fade-in slide-in-from-top-4 duration-500"
+			class="nested-card card p-3 sm:p-4 md:p-6 bg-white dark:bg-surface-900 border border-surface-200 dark:border-surface-800 rounded-3xl shadow-sm space-y-4 animate-in fade-in slide-in-from-top-4 duration-500 {level ===
+				0 && ocupaLinhaInteira(q)
+				? '@4xl:col-span-2'
+				: ''}"
 			style="--level: {level}"
 		>
 			<div class="space-y-1">
@@ -629,9 +664,20 @@
 		</div>
 	{/snippet}
 
-	{#each modelo as q (q.id)}
-		{@render renderCampo(q)}
-	{/each}
+	<!--
+		Grade de perguntas. Uma coluna até `@4xl` (56rem do CONTAINER, não da
+		viewport — o formulário reage à largura que sobra pra ele, que depende do
+		card em volta), duas acima disso. As perguntas de `ocupaLinhaInteira`
+		atravessam as duas.
+
+		`items-start` para que um card curto não seja esticado até a altura do
+		vizinho alto.
+	-->
+	<div class="grid grid-cols-1 @4xl:grid-cols-2 gap-4 @4xl:gap-5 items-start">
+		{#each modelo as q (q.id)}
+			{@render renderCampo(q)}
+		{/each}
+	</div>
 </div>
 
 <style>

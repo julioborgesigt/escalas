@@ -697,6 +697,10 @@ Regras estabelecidas na auditoria visual de jul/2026 (`AUDITORIA_VISUAL_UX_2026-
 
 **Breakpoints** — `xs:` (400 px, definido no `@theme`) para telefones estreitos; demais são os padrões do Tailwind. Exceção documentada: o corte da sidebar no `+layout.svelte` é `min-[900px]` (deliberado — não migrar para `lg:`).
 
+**Largura de conteúdo** — páginas usam o container do layout (`max-w-6xl`); telas de detalhe não travam largura. Quando uma página precisa ser mais estreita, a trava envolve **a página toda, `<header>` incluído** (`config-geral` = `max-w-3xl`, `solicitacoes` = `max-w-5xl`) — travar só um bloco do meio desalinha o card do título. Dentro de um card largo, o certo é o inverso: o conteúdo que ganha com a largura (formulário, tabela) fica solto, e só os elementos intrinsecamente estreitos — stepper, CTA, estado vazio, selo de status — recebem teto.
+
+**Container queries** — quando o layout de um bloco depende do espaço que sobra **para ele** (e não do tamanho da tela), use `@container` no ancestral e as variantes `@2xl:`/`@4xl:` nos filhos, em vez de `sm:`/`lg:`. É o caso de `FormularioServico`/`RelatorioProdutividade`, que medem diferente conforme a coluna em volta. Cuidado: `container-type: inline-size` implica `contain: layout`, ou seja o elemento passa a ser containing block de descendentes `position: fixed` — não colocar `@container` acima de um modal/overlay.
+
 **Ícones** — código novo usa [`lucide-svelte`](https://lucide.dev) (já é dependência; herda `currentColor`). **Nunca emoji como ícone** (✍️ ✅ 🔒…): renderizam diferente por SO e ignoram a cor do tema. O SVG inline legado migra oportunisticamente ao tocar no arquivo.
 
 **Transições** — em código novo, prefira a propriedade específica (`transition-colors`, `transition-transform`, `transition-opacity`) a `transition-all`, que anima layout sem querer e custa mais. O legado migra oportunisticamente.
