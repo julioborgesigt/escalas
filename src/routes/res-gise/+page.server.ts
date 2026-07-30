@@ -20,7 +20,7 @@
 
 import { redirect, fail } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
-import type { ResGiseMinhaEscalaLinha } from '$lib/types';
+import type { ResGiseMinhaEscalaLinha, GiseModeloPerguntaConfig } from '$lib/types';
 import {
 	getDB,
 	getR2,
@@ -382,6 +382,22 @@ export const load: PageServerLoad = async ({ locals, platform, url }) => {
 		}
 	}
 
+	/**
+	 * Versão anterior de cada modelo, para o "Restaurar anterior" do editor.
+	 * `null` quando nunca houve uma segunda gravação — ou quando o JSON está
+	 * corrompido, caso em que é melhor desabilitar o botão do que oferecer uma
+	 * restauração que quebraria o editor.
+	 */
+	function parseAnterior(raw: string | null | undefined, rotulo: string) {
+		if (!raw) return null;
+		try {
+			return JSON.parse(raw) as GiseModeloPerguntaConfig[];
+		} catch (err) {
+			logger.warn(`[res-gise] modelo anterior ${rotulo} JSON inválido`, { err: String(err) });
+			return null;
+		}
+	}
+
 	return {
 		minhasEscalas,
 		isSupervisorGise,
@@ -396,8 +412,8 @@ export const load: PageServerLoad = async ({ locals, platform, url }) => {
 		minhaRubrica: rubricaRow?.rubrica ?? null,
 		modeloOperacional,
 		modeloSeint,
-		modeloPadraoOperacional: DEFAULT_QUESTIONS_FORM_OPERACIONAL,
-		modeloPadraoSeint: DEFAULT_SEINT_QUESTIONS
+		modeloAnteriorOperacional: parseAnterior(modeloOp?.config_anterior, 'operacional'),
+		modeloAnteriorSeint: parseAnterior(modeloSeintRow?.config_anterior, 'seint')
 	};
 };
 
