@@ -56,19 +56,20 @@ jobs:
       - run: npx vitest run --reporter=verbose --coverage
       - run: npm run build
 
-      # ⚠️ O upload TEM de ficar aqui, colado no build, e ANTES dos passos de
-      # E2E. O `e2e/servidor-e2e.ts` roda `npm run build` de novo com
-      # `E2E_TEST_CA=1`, que inlina a raiz de CA de TESTE no trust store
-      # ICP-Brasil e SOBRESCREVE `.svelte-kit/cloudflare`. Subir o artefato
-      # depois do E2E publicaria essa raiz de teste em produção.
-      - name: Guardar build de produção para os jobs de deploy
-        if: github.event_name == 'push'
-        uses: actions/upload-artifact@v4
-        with:
-          name: build-cloudflare
-          path: .svelte-kit/cloudflare
-          retention-days: 1
-          if-no-files-found: error
+      # NÃO tente passar `.svelte-kit/cloudflare` como artefato para os jobs de
+      # deploy pouparem o segundo build. Já foi tentado e quebrou o deploy de
+      # produção (run 30555839855): o `_worker.js` do adapter NÃO é
+      # autocontido — o wrangler o empacota na hora do `pages deploy`, e ele
+      # importa `../output/server/index.js` e `../cloudflare-tmp/manifest.js`,
+      # que ficam FORA daquele diretório:
+      #
+      #   ✘ Could not resolve "./../output/server/index.js"
+      #   ✘ Could not resolve "./../cloudflare-tmp/manifest.js"
+      #
+      # Levar os três diretórios (~16 MB) faria o CI depender do layout interno
+      # do `@sveltejs/adapter-cloudflare` — `cloudflare-tmp` é diretório
+      # temporário dele. Um bump do adapter quebraria o DEPLOY, depois do
+      # merge. Rebuildar no job de deploy custa ~40 s e não tem esse acoplamento.
 
       # Guard contra regressão do padrão API: todas as rotas devem usar
       # os helpers de \$lib/server/api (badRequest, unauthorized, etc.) em
@@ -163,16 +164,10 @@ jobs:
           node-version: 22
           cache: npm
 
-      # `npm ci` continua necessário: o passo de migração roda `tsx` +
-      # `wrangler` do node_modules. O que sai é o `npm run build` — o artefato
-      # vem pronto do job `test`, que já buildou o MESMO commit.
       - run: npm ci
-
-      - name: Baixar build de produção do job `test`
-        uses: actions/download-artifact@v4
-        with:
-          name: build-cloudflare
-          path: .svelte-kit/cloudflare
+      # Rebuild deliberado (ver nota no job `test`): o output do adapter não é
+      # transportável como artefato.
+      - run: npm run build
 
       # Migra o D1 de STAGING antes do deploy. O script é INCREMENTAL: controla
       # o que já foi aplicado em `_migrations_aplicadas` e só executa as
@@ -205,15 +200,10 @@ jobs:
           node-version: 22
           cache: npm
 
-      # Idem staging: `npm ci` para o `tsx`/`wrangler` da migração; o build vem
-      # pronto do job `test` (mesmo commit, e sem a raiz de CA de teste do E2E).
       - run: npm ci
-
-      - name: Baixar build de produção do job `test`
-        uses: actions/download-artifact@v4
-        with:
-          name: build-cloudflare
-          path: .svelte-kit/cloudflare
+      # Rebuild deliberado (ver nota no job `test`): o output do adapter não é
+      # transportável como artefato.
+      - run: npm run build
 
       # Migra o D1 de PRODUÇÃO antes do deploy (incremental — só as pendentes
       # de `_migrations_aplicadas`; `--yes` é a confirmação exigida pelo
