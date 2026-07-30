@@ -10,10 +10,11 @@
 	 * - a `key` de cada pergunta é o que casa com a resposta gravada. Trocá-la
 	 *   não migra nada: as respostas antigas continuam no banco com a chave velha
 	 *   e simplesmente deixam de aparecer nos relatórios;
-	 * - "restaurar padrão" substitui o modelo em edição pelas constantes de
-	 *   `db/gise/respostas.ts` — daí o diálogo de confirmação, e daí o
-	 *   `structuredClone`: sem a cópia, editar depois de restaurar mutaria a
-	 *   constante importada.
+	 * - "Restaurar anterior" traz de volta a versão salva ANTES da última
+	 *   gravação (coluna `config_anterior`, migração 0039). Ele só CARREGA no
+	 *   editor — nada é gravado até o admin clicar em Salvar, que é quando as
+	 *   duas versões trocam de lugar. O `structuredClone` evita que editar
+	 *   depois de restaurar mute o objeto vindo do `load`.
 	 */
 	import { enhance } from '$app/forms';
 	import { actionButton } from './BotoesAcao.svelte';
@@ -26,24 +27,31 @@
 
 	const {
 		resGise,
-		modeloPadraoOperacional,
-		modeloPadraoSeint
+		modeloAnteriorOperacional,
+		modeloAnteriorSeint
 	}: {
 		resGise: ResGise;
-		modeloPadraoOperacional: GiseModeloPerguntaConfig[];
-		modeloPadraoSeint: GiseModeloPerguntaConfig[];
+		modeloAnteriorOperacional: GiseModeloPerguntaConfig[] | null;
+		modeloAnteriorSeint: GiseModeloPerguntaConfig[] | null;
 	} = $props();
+
+	/** Versão anterior do tipo em edição — `null` enquanto só houve a primeira
+	 *  gravação, e é o que desabilita o botão. */
+	const modeloAnterior = $derived(
+		resGise.configTipo === 'seint' ? modeloAnteriorSeint : modeloAnteriorOperacional
+	);
 
 	let dialogRestaurarAberto = $state(false);
 
-	function solicitarRestaurarPadrao() {
+	function solicitarRestaurarAnterior() {
+		if (!modeloAnterior) return;
 		dialogRestaurarAberto = true;
 	}
 
-	function confirmarRestaurarPadrao() {
+	function confirmarRestaurarAnterior() {
 		dialogRestaurarAberto = false;
-		const padrao = resGise.configTipo === 'seint' ? modeloPadraoSeint : modeloPadraoOperacional;
-		resGise.perguntasConfig = structuredClone(padrao);
+		if (!modeloAnterior) return;
+		resGise.perguntasConfig = structuredClone(modeloAnterior);
 	}
 </script>
 
@@ -81,16 +89,26 @@
 			</div>
 		</div>
 		<div class="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-			{@render actionButton(
-				'Restaurar Padrão',
-				undefined,
-				'surface',
-				'outlined',
-				solicitarRestaurarPadrao,
-				false,
-				false,
-				'w-full sm:w-auto sm:flex-none px-4 py-2.5 text-xs'
-			)}
+			<!-- Desabilitado enquanto não existe versão anterior (primeira gravação
+			     do tipo, ou JSON corrompido) — o `title` explica, senão o botão
+			     apagado vira mistério. -->
+			<span
+				class="w-full sm:w-auto"
+				title={modeloAnterior
+					? 'Carrega no editor a versão salva antes da última alteração'
+					: 'Ainda não há versão anterior deste modelo'}
+			>
+				{@render actionButton(
+					'Restaurar Anterior',
+					'M3 10h10a4 4 0 110 8h-1m-9-8l4-4m-4 4l4 4',
+					'surface',
+					'outlined',
+					solicitarRestaurarAnterior,
+					!modeloAnterior,
+					false,
+					'w-full sm:w-auto sm:flex-none px-4 py-2.5 text-xs'
+				)}
+			</span>
 
 			{@render actionButton(
 				'Nova Pergunta',
@@ -380,6 +398,10 @@
 				</div>
 			</div>
 
+			<!-- O 9º argumento (`btnType`) é obrigatório aqui: sem ele o
+			     `actionButton` cai no default `type="button"`, e um botão desse tipo
+			     dentro de um `<form>` NÃO submete. Como também não há `onclick`, o
+			     clique não fazia absolutamente nada — o modelo nunca era salvo. -->
 			{@render actionButton(
 				loading.active
 					? 'Salvando...'
@@ -390,13 +412,14 @@
 				undefined,
 				loading.active,
 				false,
-				'w-full sm:w-auto py-3.5 text-sm shadow-lg shadow-primary-500/20'
+				'w-full sm:w-auto py-3.5 text-sm shadow-lg shadow-primary-500/20',
+				'submit'
 			)}
 		</form>
 	</div>
 </section>
 
-<!-- Diálogo de confirmação para restaurar modelo padrão -->
+<!-- Diálogo de confirmação para restaurar a versão anterior -->
 <Dialog open={dialogRestaurarAberto} onOpenChange={(e) => (dialogRestaurarAberto = e.open)}>
 	<Dialog.Content
 		class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-sm overflow-y-auto"
@@ -404,17 +427,19 @@
 		<div
 			class="card p-4 sm:p-6 max-w-sm w-full max-h-[calc(100dvh-2rem)] overflow-y-auto card-elevated shadow-2xl rounded-2xl"
 		>
-			<Dialog.Title class="text-lg font-bold mb-2">Restaurar modelo padrão?</Dialog.Title>
+			<Dialog.Title class="text-lg font-bold mb-2">Restaurar versão anterior?</Dialog.Title>
 			<Dialog.Description class="text-sm text-surface-600 dark:text-surface-300 mb-6">
-				As perguntas do modelo <strong>{resGise.configTipo}</strong> serão substituídas pelo padrão. Essa
-				ação não pode ser desfeita.
+				As perguntas do modelo <strong>{resGise.configTipo}</strong> voltam a ser as da versão salva
+				antes da última alteração. As edições que estiverem na tela agora são descartadas.
+				<br /><br />
+				Nada é gravado ainda: revise e clique em <strong>Salvar</strong> para efetivar.
 			</Dialog.Description>
 			<div class="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 sm:gap-3">
 				<Dialog.CloseTrigger class="btn preset-outlined-surface-500">Cancelar</Dialog.CloseTrigger>
 				<button
 					type="button"
 					class="btn preset-filled-warning-500"
-					onclick={confirmarRestaurarPadrao}
+					onclick={confirmarRestaurarAnterior}
 				>
 					Restaurar
 				</button>

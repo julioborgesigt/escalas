@@ -83,8 +83,11 @@ export type ResGisePageData = {
 	minhaRubrica?: string | null;
 	modeloOperacional: GiseModeloPerguntaConfig[];
 	modeloSeint: GiseModeloPerguntaConfig[];
-	modeloPadraoOperacional: GiseModeloPerguntaConfig[];
-	modeloPadraoSeint: GiseModeloPerguntaConfig[];
+	/** Versão salva ANTES da última alteração de cada modelo — alimenta o
+	 *  "Restaurar Anterior" do editor do Admin Geral. `null` enquanto só houve
+	 *  a primeira gravação (coluna `config_anterior`, migração 0039). */
+	modeloAnteriorOperacional: GiseModeloPerguntaConfig[] | null;
+	modeloAnteriorSeint: GiseModeloPerguntaConfig[] | null;
 };
 
 export type ResGiseEscalaSelecionavel = ResGiseMinhaEscalaLinha | ResGiseListaAdminLinha;

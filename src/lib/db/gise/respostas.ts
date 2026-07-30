@@ -589,10 +589,15 @@ export async function buscarGiseModeloFormulario(
  * Grava o modelo do tipo (upsert manual: uma linha por `tipo`). `config` é o
  * JSON da árvore de perguntas, já validado pelo chamador.
  *
- * Substitui o modelo INTEIRO e não versiona: as respostas antigas continuam no
- * banco com as `key` velhas e simplesmente deixam de aparecer no relatório se a
- * `key` sumir do modelo. É o preço de guardar resposta como blob — trocar a
- * `key` de uma pergunta é, na prática, apagá-la do histórico.
+ * Substitui o modelo INTEIRO: as respostas antigas continuam no banco com as
+ * `key` velhas e simplesmente deixam de aparecer no relatório se a `key` sumir
+ * do modelo. É o preço de guardar resposta como blob — trocar a `key` de uma
+ * pergunta é, na prática, apagá-la do histórico.
+ *
+ * O que existe de versionamento é UM nível: o `config` vigente é copiado para
+ * `config_anterior` antes de ser sobrescrito, alimentando o "Restaurar
+ * anterior" do editor. Gravar o MESMO conteúdo não mexe no anterior — senão
+ * salvar duas vezes seguidas sem editar nada destruiria o ponto de retorno.
  */
 export async function salvarGiseModeloFormulario(
 	db: Database,
@@ -600,15 +605,20 @@ export async function salvarGiseModeloFormulario(
 	config: string
 ) {
 	const existente = await db
-		.select({ id: giseModeloFormulario.id })
+		.select({ id: giseModeloFormulario.id, config: giseModeloFormulario.config })
 		.from(giseModeloFormulario)
 		.where(eq(giseModeloFormulario.tipo, tipo))
 		.get();
 
 	if (existente) {
+		const semMudanca = existente.config === config;
 		return db
 			.update(giseModeloFormulario)
-			.set({ config, updated_at: sql`datetime('now', '-3 hours')` })
+			.set({
+				config,
+				...(semMudanca ? {} : { config_anterior: existente.config }),
+				updated_at: sql`datetime('now', '-3 hours')`
+			})
 			.where(eq(giseModeloFormulario.id, existente.id));
 	}
 

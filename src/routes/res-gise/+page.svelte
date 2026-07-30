@@ -104,8 +104,8 @@
 	{#if isAdminGeral}
 		<ConfigurarFormulario
 			{resGise}
-			modeloPadraoOperacional={data.modeloPadraoOperacional}
-			modeloPadraoSeint={data.modeloPadraoSeint}
+			modeloAnteriorOperacional={data.modeloAnteriorOperacional}
+			modeloAnteriorSeint={data.modeloAnteriorSeint}
 		/>
 	{:else}
 		<!-- Slide lateral: container oculta o painel fora de tela -->
