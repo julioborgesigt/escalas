@@ -163,13 +163,17 @@ export function useResGise(getData: () => ResGisePageData) {
 	}
 
 	// --- Funções de Escala ---
-	async function selecionarEscala(escala: ResGiseEscalaSelecionavel, isAdminGeral: boolean) {
+	async function selecionarEscala(escala: ResGiseEscalaSelecionavel) {
 		const isSame =
 			escalaSelecionada?.id === escala.id && escalaSelecionada?.equipe_id === escala.equipe_id;
 		if (isSame) return;
 
 		escalaSelecionada = escala;
-		exibirRelatorio = isAdminGeral || !escala.equipeRespondida;
+		// `exibirRelatorio` é o estado ABERTO/FECHADO do modal do relatório na tela
+		// do policial. Selecionar uma escala nunca abre modal — quem abre é o botão
+		// do passo "Produtividade". (Para o admin geral este componente nem
+		// renderiza: `+page.svelte` manda ele para a `ConfigurarFormulario`.)
+		exibirRelatorio = false;
 		respostas = {};
 
 		// eslint-disable-next-line svelte/prefer-svelte-reactivity
