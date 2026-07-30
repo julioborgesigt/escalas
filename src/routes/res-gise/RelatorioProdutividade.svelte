@@ -49,36 +49,6 @@
 		operacoes_seint_pura: { qtd: 'operacoes_seint_qtd', lista: 'operacoes_seint_lista' }
 	};
 
-	/**
-	 * Perguntas que ocupam a LINHA INTEIRA da grade (as demais entram em duas
-	 * colunas a partir de `@4xl`).
-	 *
-	 * O critério é o conteúdo largo estar VISÍVEL AGORA, não o tipo da pergunta.
-	 * A diferença importa: quase todo tipo "complexo" é um par sim/não que só
-	 * revela a listagem/paleta sob um "Sim". Reservar a linha inteira desde o
-	 * início deixava três perguntas seguidas com ~670px de vazio à direita — e
-	 * esse é justamente o estado em que a pessoa passa mais tempo, preenchendo.
-	 *
-	 * O custo é a grade reflowar quando se responde "Sim". É aceitável porque o
-	 * card já cresce nesse mesmo instante (a listagem aparece): a mudança de
-	 * coluna acompanha um conteúdo que o usuário acabou de pedir, em vez de
-	 * surgir do nada.
-	 *
-	 * `textarea` e `operacoes_seint_pura` não têm gate — nascem largos.
-	 */
-	const TIPOS_SEMPRE_LARGOS = new Set(['textarea', 'operacoes_seint_pura']);
-	const TIPOS_LARGOS_SOB_SIM = new Set([
-		...Object.keys(CHAVES_TIPO),
-		'drogas_complex',
-		'armas_complex'
-	]);
-
-	function ocupaLinhaInteira(q: GiseModeloPerguntaConfig): boolean {
-		if (TIPOS_SEMPRE_LARGOS.has(q.tipo)) return true;
-		if (respostas[q.key] !== 'Sim') return false;
-		return TIPOS_LARGOS_SOB_SIM.has(q.tipo) || (q.filhos?.length ?? 0) > 0;
-	}
-
 	const ITEM_PADRAO: Record<string, Record<string, string>> = {
 		mandados_maiores: { nome: '', mandado: '' },
 		prisoes_maiores: { nome: '', mandado: '' },
@@ -135,27 +105,25 @@
 	});
 </script>
 
-<!-- `@container`: a grade abaixo consulta a largura DESTE elemento, não a da
-     viewport. É o que importa aqui — o espaço que sobra pro formulário depende
-     do card e da coluna em volta, não do tamanho da tela. Seguro porque não há
-     descendente `position: fixed`/`sticky`: `container-type` implica
-     `contain: layout`, que viraria containing block pra eles. -->
-<div class="@container">
-	<!-- Par de botões Sim/Não — repetia-se em 4 tipos de pergunta -->
-	<!-- `max-w-xs`: os dois botões são `flex-1`, então sem teto viravam dois
-	     retângulos de ~500px cada na largura de desktop. Em telefone o teto não
-	     morde (a tela é menor que 20rem de conteúdo) e eles seguem ocupando a
-	     linha, como hoje. -->
+<div>
+	<!--
+		Par de botões Sim/Não — repetia-se em 4 tipos de pergunta.
+
+		`.btn` + presets do tema em vez do botão desenhado à mão que havia aqui
+		(`border-2`, `font-black`, sombra própria): entra na escala de botão do
+		projeto e herda de graça o feedback tátil global de `.btn` (README §10).
+		`max-w-xs` porque os dois são `flex-1` — sem teto viravam dois retângulos
+		de ~500px cada no desktop.
+	-->
 	{#snippet botoesSimNao(q: GiseModeloPerguntaConfig)}
-		<div class="flex gap-2 sm:gap-4 w-full max-w-xs">
+		<div class="flex gap-2 sm:gap-3 w-full max-w-xs">
 			{#each ['Sim', 'Não'] as opt (opt)}
 				<button
 					type="button"
-					class="flex-1 px-4 py-3 rounded-xl text-xs font-black uppercase border-2 transition-all {respostas[
-						q.key
-					] === opt
-						? 'bg-primary-500 text-white border-primary-500 shadow-lg shadow-primary-500/30'
-						: 'bg-surface-50 dark:bg-surface-800 border-surface-200 dark:border-surface-700 text-surface-400 hover:border-primary-500/50 hover:text-surface-600'}"
+					class="btn flex-1 font-bold {respostas[q.key] === opt
+						? 'preset-filled-primary-500'
+						: 'preset-outlined-surface-500'}"
+					aria-pressed={respostas[q.key] === opt}
 					onclick={() => handleSimNao(q.key, opt, q)}
 				>
 					{opt}
@@ -176,13 +144,7 @@
 			<label class="text-3xs font-bold text-surface-500 dark:text-surface-400 uppercase" for={id}
 				>{rotulo}</label
 			>
-			<input
-				{id}
-				type="text"
-				{placeholder}
-				class="w-full px-3 py-2 rounded-xl border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-950 text-xs font-medium"
-				bind:value={item[campo]}
-			/>
+			<input {id} type="text" {placeholder} class="input text-xs" bind:value={item[campo]} />
 		</div>
 	{/snippet}
 
@@ -204,16 +166,13 @@
 		{@const resQtdKey = chavesTipo.qtd}
 
 		<div
-			class="nested-card card p-3 sm:p-4 md:p-6 bg-white dark:bg-surface-900 border border-surface-200 dark:border-surface-800 rounded-3xl shadow-sm space-y-4 animate-in fade-in slide-in-from-top-4 duration-500 {level ===
-				0 && ocupaLinhaInteira(q)
-				? '@4xl:col-span-2'
-				: ''}"
+			class="nested-card card p-3 sm:p-4 md:p-6 bg-white dark:bg-surface-900 border border-surface-200 dark:border-surface-800 rounded-3xl shadow-sm space-y-4 animate-in fade-in slide-in-from-top-4 duration-500"
 			style="--level: {level}"
 		>
 			<div class="space-y-1">
 				<label
 					for="q-{q.id}"
-					class="text-sm font-bold text-surface-900 dark:text-surface-50 uppercase tracking-tight leading-tight block"
+					class="block text-base font-semibold leading-snug text-surface-900 dark:text-surface-50"
 				>
 					{q.texto}
 				</label>
@@ -225,7 +184,7 @@
 						id="q-{q.id}"
 						type="text"
 						placeholder="Ex: XXX-0000"
-						class="w-full md:w-64 px-4 py-3 rounded-xl border border-surface-300 dark:border-surface-600 bg-surface-50 dark:bg-surface-800 text-sm font-black uppercase tracking-widest focus:ring-2 focus:ring-primary-500 transition-all shadow-inner"
+						class="input w-full md:w-64 text-sm font-bold uppercase tracking-widest"
 						bind:value={respostas[q.key]}
 					/>
 				{:else if q.tipo === 'numero'}
@@ -233,13 +192,13 @@
 						id="q-{q.id}"
 						type="number"
 						placeholder="0"
-						class="w-full md:w-48 px-4 py-3 rounded-xl border border-surface-300 dark:border-surface-600 bg-surface-50 dark:bg-surface-800 text-sm font-bold focus:ring-2 focus:ring-primary-500 transition-all shadow-inner"
+						class="input w-full md:w-48 text-sm font-bold"
 						bind:value={respostas[q.key]}
 					/>
 				{:else if q.tipo === 'select_99'}
 					<select
 						id="q-{q.id}"
-						class="w-full md:w-48 px-4 py-3 rounded-xl border border-surface-300 dark:border-surface-600 bg-surface-50 dark:bg-surface-800 text-sm font-bold focus:ring-2 focus:ring-primary-500 transition-all shadow-inner appearance-none"
+						class="select w-full md:w-48 text-sm font-bold"
 						bind:value={respostas[q.key]}
 					>
 						<option value="">Selecione</option>
@@ -254,7 +213,7 @@
 						id="q-{q.id}"
 						rows="4"
 						placeholder="Descreva detalhadamente..."
-						class="w-full px-4 py-3 rounded-2xl border border-surface-300 dark:border-surface-600 bg-surface-50 dark:bg-surface-800 text-sm font-medium focus:ring-2 focus:ring-primary-500 transition-all shadow-inner"
+						class="textarea text-sm"
 						bind:value={respostas[q.key]}></textarea>
 				{:else if q.tipo === 'mandados_maiores' || q.tipo === 'prisoes_maiores' || q.tipo === 'apreensoes_menores' || q.tipo === 'celulares_complex' || q.tipo === 'analise_complex' || q.tipo === 'relatorios_seint_complex' || q.tipo === 'foragidos_complex' || q.tipo === 'operacoes_seint_complex' || q.tipo === 'operacoes_seint_pura'}
 					{@const isPura = q.tipo === 'operacoes_seint_pura'}
@@ -274,7 +233,7 @@
 											>{q.subtexto_qtd || 'Quantidade:'}</span
 										>
 										<select
-											class="w-24 px-4 py-2.5 rounded-xl border border-surface-300 dark:border-surface-600 bg-white dark:bg-surface-900 text-sm font-bold shadow-sm"
+											class="select w-24 text-sm font-bold"
 											bind:value={respostas[resQtdKey]}
 											onchange={(e) => {
 												const n = Number((e.currentTarget as HTMLSelectElement).value);
@@ -386,7 +345,7 @@
 														id="qal-{q.id}-{i}"
 														type="number"
 														placeholder="0"
-														class="w-full px-3 py-2 rounded-xl border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-950 text-xs font-medium"
+														class="input text-xs"
 														bind:value={item.q_alvos}
 													/>
 												</div>
@@ -437,7 +396,7 @@
 													>
 													<select
 														id="res-{q.id}-{i}"
-														class="w-full px-3 py-2 rounded-xl border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-950 text-xs font-bold"
+														class="input text-xs font-bold"
 														bind:value={item.resultado}
 													>
 														<option value="">Selecione</option>
@@ -507,11 +466,11 @@
 										{#each ['Maconha', 'Cocaína', 'Crack', 'Extase', 'LSD', 'Haxixe', 'Skunk', 'Outros'] as d (d)}
 											<button
 												type="button"
-												class="px-3 py-2 rounded-xl text-3xs font-black uppercase border-2 transition-all {(
-													respostas.drogas_selecionadas || []
-												).includes(d)
-													? 'bg-primary-500 text-white border-primary-500 shadow-md'
-													: 'bg-white dark:bg-surface-900 text-surface-500 border-surface-100 dark:border-surface-800 hover:border-primary-500/50'}"
+												class="btn btn-sm font-bold {(respostas.drogas_selecionadas || []).includes(
+													d
+												)
+													? 'preset-filled-primary-500'
+													: 'preset-outlined-surface-500'}"
 												onclick={() => {
 													const current = respostas.drogas_selecionadas || [];
 													if (current.includes(d)) {
@@ -548,7 +507,7 @@
 															type="number"
 															step="0.001"
 															placeholder="0.000"
-															class="w-full pl-4 pr-4 py-2 rounded-xl border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-950 text-xs font-bold focus:ring-2 focus:ring-primary-500 transition-all shadow-inner"
+															class="input text-xs font-bold"
 															bind:value={respostas.drogas_detalhe[d]}
 														/>
 													</div>
@@ -597,11 +556,11 @@
 										{#each ['Revolver', 'Pistola', 'Arma Longa', 'Arma Branca', 'Munição', 'Outros'] as a (a)}
 											<button
 												type="button"
-												class="px-3 py-2 rounded-xl text-3xs font-black uppercase border-2 transition-all {(
-													respostas.armas_selecionadas || []
-												).includes(a)
-													? 'bg-primary-500 text-white border-primary-500 shadow-md'
-													: 'bg-white dark:bg-surface-900 text-surface-500 border-surface-100 dark:border-surface-800 hover:border-primary-500/50'}"
+												class="btn btn-sm font-bold {(respostas.armas_selecionadas || []).includes(
+													a
+												)
+													? 'preset-filled-primary-500'
+													: 'preset-outlined-surface-500'}"
 												onclick={() => {
 													const current = respostas.armas_selecionadas || [];
 													if (current.includes(a)) {
@@ -635,7 +594,7 @@
 												>
 
 												<select
-													class="flex-1 min-w-0 sm:flex-none sm:w-32 px-3 sm:px-4 py-2.5 rounded-xl border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-950 text-xs font-bold focus:ring-2 focus:ring-primary-500 transition-all"
+													class="select flex-1 min-w-0 sm:flex-none sm:w-32 text-xs font-bold"
 													bind:value={respostas.armas_detalhe[a]}
 												>
 													{#each Array(100) as _, i (i)}
@@ -654,7 +613,7 @@
 						id="q-{q.id}"
 						type="text"
 						placeholder="Digite aqui..."
-						class="w-full px-4 py-3 rounded-xl border border-surface-300 dark:border-surface-600 bg-surface-50 dark:bg-surface-800 text-sm font-medium focus:ring-2 focus:ring-primary-500 transition-all shadow-inner"
+						class="input text-sm"
 						bind:value={respostas[q.key]}
 					/>
 				{/if}
@@ -671,16 +630,9 @@
 		</div>
 	{/snippet}
 
-	<!--
-		Grade de perguntas. Uma coluna até `@4xl` (56rem do CONTAINER, não da
-		viewport — o formulário reage à largura que sobra pra ele, que depende do
-		card em volta), duas acima disso. As perguntas de `ocupaLinhaInteira`
-		atravessam as duas.
-
-		`items-start` para que um card curto não seja esticado até a altura do
-		vizinho alto.
-	-->
-	<div class="grid grid-cols-1 @4xl:grid-cols-2 gap-4 @4xl:gap-5 items-start">
+	<!-- Uma pergunta por linha: o modal é estreito de propósito (largura de
+	     leitura), então não há grade de colunas para gerir. -->
+	<div class="space-y-4">
 		{#each modelo as q (q.id)}
 			{@render renderCampo(q)}
 		{/each}

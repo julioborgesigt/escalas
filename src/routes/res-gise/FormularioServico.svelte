@@ -701,45 +701,83 @@
 			<Dialog.Content
 				class="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-surface-950/80 backdrop-blur-sm overflow-y-auto"
 			>
+				<!--
+					`max-w-3xl` (768px): largura de LEITURA, uma pergunta por linha. O
+					formulário é uma coluna de perguntas curtas — mais largo que isso e
+					sobra vazio à direita de cada campo.
+
+					Cabeçalho e rodapé `sticky`: o modelo tem dezenas de perguntas, e sem
+					isso o X e o "Finalizar Entrega" só existiriam nas pontas do scroll.
+					Ambos precisam de fundo opaco (`card-elevated` é translúcido em alguns
+					temas) para o conteúdo não passar por baixo.
+				-->
 				<div
-					class="card p-4 sm:p-6 max-w-5xl w-full max-h-[calc(100dvh-1.5rem)] overflow-y-auto card-elevated shadow-2xl rounded-2xl space-y-5"
+					class="card relative max-w-3xl w-full max-h-[calc(100dvh-1.5rem)] overflow-y-auto card-elevated shadow-2xl rounded-2xl"
 				>
-					<div class="flex flex-wrap items-start justify-between gap-3">
-						<div class="space-y-1">
+					<div
+						class="sticky top-0 z-10 flex items-start justify-between gap-3 border-b border-surface-200 bg-surface-50 px-4 py-3 sm:px-6 sm:py-4 dark:border-surface-800 dark:bg-surface-900"
+					>
+						<div class="min-w-0 space-y-1">
 							<Dialog.Title class="text-lg font-bold">Resultados do Serviço</Dialog.Title>
 							<Dialog.Description class="text-sm text-surface-600 dark:text-surface-400">
 								Relatório de produtividade do plantão de {resGise.fmtDate(escala.data_inicio)}.
 							</Dialog.Description>
 						</div>
-						{#if relatorioOk}
-							{@render statusBadge('finalizadas')}
+						<div class="flex shrink-0 items-center gap-2">
+							{#if relatorioOk}
+								{@render statusBadge('finalizadas')}
+							{/if}
+							<Dialog.CloseTrigger
+								class="btn-icon rounded-lg p-1.5 text-surface-600 transition-colors hover:bg-surface-200 hover:text-surface-900 dark:text-surface-400 dark:hover:bg-surface-800 dark:hover:text-surface-50"
+								aria-label="Fechar relatório"
+							>
+								<svg
+									class="h-5 w-5"
+									fill="none"
+									stroke="currentColor"
+									viewBox="0 0 24 24"
+									aria-hidden="true"
+									><path
+										stroke-linecap="round"
+										stroke-linejoin="round"
+										stroke-width="2"
+										d="M6 18L18 6M6 6l12 12"
+									/></svg
+								>
+							</Dialog.CloseTrigger>
+						</div>
+					</div>
+
+					<div class="space-y-5 p-4 sm:p-6">
+						{#if loading.active}
+							<div class="flex flex-col items-center gap-3 py-12">
+								<Spinner size="lg" class="text-primary-500" />
+								<p class="text-sm font-semibold text-surface-600 uppercase tracking-wider">
+									{loading.message}
+								</p>
+							</div>
+						{:else}
+							{#if relatorioOk && !Object.keys(resGise.respostas).length}
+								<div class="p-3 bg-primary-500/5 border border-primary-500/10 rounded-xl">
+									<p class="text-3xs text-primary-600 dark:text-primary-400 italic">
+										Um integrante da equipe já respondeu. Você pode visualizar ou retificar os dados
+										abaixo.
+									</p>
+								</div>
+							{/if}
+
+							<RelatorioProdutividade
+								modelo={resGise.perguntasForm}
+								bind:respostas={resGise.respostas}
+							/>
 						{/if}
 					</div>
 
-					{#if loading.active}
-						<div class="flex flex-col items-center gap-3 py-12">
-							<Spinner size="lg" class="text-primary-500" />
-							<p class="text-sm font-semibold text-surface-600 uppercase tracking-wider">
-								{loading.message}
-							</p>
-						</div>
-					{:else}
-						{#if relatorioOk && !Object.keys(resGise.respostas).length}
-							<div class="p-3 bg-primary-500/5 border border-primary-500/10 rounded-xl">
-								<p class="text-3xs text-primary-600 dark:text-primary-400 italic">
-									Um integrante da equipe já respondeu. Você pode visualizar ou retificar os dados
-									abaixo.
-								</p>
-							</div>
-						{/if}
-
-						<RelatorioProdutividade
-							modelo={resGise.perguntasForm}
-							bind:respostas={resGise.respostas}
-						/>
-
-						<!-- Rodapé no padrão da casa (README §10). -->
-						<div class="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 sm:gap-3">
+					{#if !loading.active}
+						<!-- Rodapé no padrão da casa (README §10), fixo no rodapé do modal. -->
+						<div
+							class="sticky bottom-0 z-10 flex flex-col-reverse gap-2 border-t border-surface-200 bg-surface-50 px-4 py-3 sm:flex-row sm:justify-end sm:gap-3 sm:px-6 sm:py-4 dark:border-surface-800 dark:bg-surface-900"
+						>
 							{@render actionButton(
 								'Cancelar',
 								undefined,
@@ -763,11 +801,7 @@
 								<input type="hidden" name="respostas" value={resGise.respostasJson} />
 
 								{@render actionButton(
-									loading.active
-										? 'Processando...'
-										: relatorioOk
-											? 'Salvar Alterações'
-											: 'Finalizar Entrega',
+									relatorioOk ? 'Salvar Alterações' : 'Finalizar Entrega',
 									undefined,
 									'primary',
 									'filled',
@@ -780,8 +814,8 @@
 							</form>
 						</div>
 					{/if}
-				</div>
-			</Dialog.Content>
+				</div></Dialog.Content
+			>
 		</Portal>
 	</Dialog>
 {/if}
