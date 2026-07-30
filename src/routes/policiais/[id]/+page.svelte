@@ -28,10 +28,10 @@
 	import { formatarTelefone, formatarCPF } from '$lib/utils';
 	import { loading } from '$lib/loading.svelte';
 	import type { ActionResult } from '@sveltejs/kit';
-	import { ArrowLeft } from 'lucide-svelte';
 	import ToggleSwitch from '$lib/components/ToggleSwitch.svelte';
 	import PainelAcoesServidor from './_components/PainelAcoesServidor.svelte';
 	import HistoricoServidor from './_components/HistoricoServidor.svelte';
+	import BotaoVoltar from '$lib/components/BotaoVoltar.svelte';
 
 	const { data }: PageProps = $props();
 
@@ -131,14 +131,7 @@
 </script>
 
 <div class="mb-6 space-y-3">
-	<button
-		type="button"
-		class="btn btn-sm preset-outlined-surface-500 hover:bg-surface-50 dark:hover:bg-surface-900 px-3 py-1.5 rounded-xl transition-all flex w-fit max-w-full items-center gap-2 group"
-		onclick={() => goto('/policiais')}
-	>
-		<ArrowLeft size={16} class="shrink-0 transition-transform group-hover:-translate-x-1" />
-		<span class="text-sm font-bold uppercase tracking-wider">Voltar</span>
-	</button>
+	<BotaoVoltar onclick={() => goto('/policiais')} />
 
 	<h1 class="h1 text-2xl font-bold">Editar Policial</h1>
 </div>

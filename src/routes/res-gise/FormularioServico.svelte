@@ -20,6 +20,7 @@
 	 * automático; entrada e saída continuam aqui porque são um botão cada.
 	 */
 	import { Dialog, Portal } from '@skeletonlabs/skeleton-svelte';
+	import { Check, Clock } from 'lucide-svelte';
 	import { actionButton, btnIcon } from './BotoesAcao.svelte';
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
@@ -179,7 +180,7 @@
 				     confirmação. A rubrica é gerida no cadastro (aviso pós-login). -->
 				<button
 					type="button"
-					class="btn preset-filled-tertiary-500 rounded-xl text-sm font-bold uppercase w-full shadow-sm transition-all"
+					class="btn btn-sm preset-filled-tertiary-500 rounded-xl py-2.5 text-sm font-bold uppercase w-full shadow-sm transition-all"
 					disabled={loading.active}
 					onclick={() => confirmarPresencaA3(tipo)}
 				>
@@ -309,47 +310,31 @@
 	Cabeçalho do quadro de resultado: marcador + rótulo + linha de detalhe. O
 	texto muda conforme a tarefa esteja cumprida (`detalhe`) ou não
 	(`pendencia`) — é o mesmo conteúdo dos avisos antigos, em coluna.
+
+	O marcador é o estado da tarefa, no MESMO lugar nos dois casos: ✓ verde
+	cumprida, relógio laranja pendente. Antes o pendente era um ponto cinza —
+	que lido de relance é "desligado", não "falta fazer". Os três quadros usam
+	o mesmo par: a saída já foi `surface` (cinza) quando cumprida e destoava
+	dos outros dois na mesma linha, sem que nada distinguisse a tarefa.
 -->
-{#snippet cabecalhoQuadro(
-	rotulo: string,
-	concluido: boolean,
-	detalhe: string,
-	pendencia: string,
-	tom: 'success' | 'surface'
-)}
+{#snippet cabecalhoQuadro(rotulo: string, concluido: boolean, detalhe: string, pendencia: string)}
 	<div class="flex items-start gap-2">
 		<div
 			class="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full {concluido
-				? tom === 'success'
-					? 'bg-success-500'
-					: 'bg-surface-500'
-				: 'bg-surface-200 dark:bg-surface-800'}"
+				? 'bg-success-500'
+				: 'bg-warning-500'}"
 		>
 			{#if concluido}
-				<svg
-					class="h-3.5 w-3.5 text-white"
-					fill="none"
-					stroke="currentColor"
-					viewBox="0 0 24 24"
-					aria-hidden="true"
-					><path
-						stroke-linecap="round"
-						stroke-linejoin="round"
-						stroke-width="3"
-						d="M5 13l4 4L19 7"
-					/></svg
-				>
+				<Check class="h-3.5 w-3.5 text-white" strokeWidth={3} aria-hidden="true" />
 			{:else}
-				<span class="block h-1.5 w-1.5 rounded-full bg-surface-500 dark:bg-surface-500"></span>
+				<Clock class="h-3.5 w-3.5 text-white" strokeWidth={2.5} aria-hidden="true" />
 			{/if}
 		</div>
 		<div class="min-w-0">
 			<p
 				class="text-3xs font-bold uppercase tracking-wider {concluido
-					? tom === 'success'
-						? 'text-success-700 dark:text-success-400'
-						: 'text-surface-700 dark:text-surface-300'
-					: 'text-surface-600 dark:text-surface-400'}"
+					? 'text-success-700 dark:text-success-400'
+					: 'text-warning-700 dark:text-warning-400'}"
 			>
 				{rotulo}
 			</p>
@@ -458,8 +443,7 @@
 						: '',
 					horarioEntradaLiberado
 						? 'Aguardando confirmação'
-						: `Disponível às ${escala.horarioPrevisto?.inicio ?? '—'}`,
-					'success'
+						: `Disponível às ${escala.horarioPrevisto?.inicio ?? '—'}`
 				)}
 				{#if entradaOk}
 					<div class="mt-auto flex pt-1">{@render btnBaixarComprovante('entrada')}</div>
@@ -482,8 +466,7 @@
 										: ''
 								}`
 							: 'Registrado',
-						entradaOk ? 'Aguardando envio' : 'Confirme a entrada primeiro',
-						'success'
+						entradaOk ? 'Aguardando envio' : 'Confirme a entrada primeiro'
 					)}
 					{#if relatorioOk && escala.seccional_id !== 0}
 						<div class="mt-auto flex pt-1">
@@ -510,7 +493,7 @@
 
 			<div
 				class="{molduraQuadro} {saidaOk
-					? 'border-surface-500/25 bg-surface-500/10'
+					? 'border-success-500/25 bg-success-500/10'
 					: molduraPendente}"
 			>
 				{@render cabecalhoQuadro(
@@ -525,8 +508,7 @@
 						? `Disponível às ${escala.horarioPrevisto?.fim ?? '—'}`
 						: !relatorioOk
 							? 'Depende do relatório'
-							: 'Aguardando confirmação',
-					'surface'
+							: 'Aguardando confirmação'
 				)}
 				{#if saidaOk}
 					<div class="mt-auto flex pt-1">{@render btnBaixarComprovante('saida')}</div>
@@ -603,7 +585,7 @@
 							() => (resGise.capturandoRubrica = true),
 							false,
 							false,
-							'w-full py-4 text-lg shadow-xl shadow-primary-500/20'
+							'w-full py-2.5 text-sm shadow-sm'
 						)}
 					{:else}
 						{@render blocoRestritoDesktop('entrada')}
@@ -667,7 +649,7 @@
 							() => (resGise.capturandoRubrica = true),
 							false,
 							false,
-							'w-full py-4 text-lg shadow-xl shadow-primary-500/20'
+							'w-full py-2.5 text-sm shadow-sm'
 						)}
 					{:else}
 						{@render blocoRestritoDesktop('saida')}

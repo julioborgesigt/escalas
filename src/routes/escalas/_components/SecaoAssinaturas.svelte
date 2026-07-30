@@ -21,6 +21,7 @@
 	import { page } from '$app/state';
 	import { formatarData, MESES_PT } from '$lib/utils';
 	import { podeBaixarComManifesto } from '$lib/manifesto';
+	import BotaoVoltar from '$lib/components/BotaoVoltar.svelte';
 
 	const {
 		escalasParaAssinar,
@@ -57,26 +58,7 @@
 	<div
 		class="min-w-0 flex-1 space-y-3 pb-5 border-b border-surface-200/70 dark:border-surface-700/60"
 	>
-		<button
-			type="button"
-			class="btn btn-sm preset-outlined-surface-500 hover:bg-surface-50 dark:hover:bg-surface-900 px-3 py-1.5 rounded-xl transition-all flex w-fit max-w-full items-center gap-2 group"
-			onclick={onVoltar}
-		>
-			<svg
-				class="w-4 h-4 shrink-0 transition-transform group-hover:-translate-x-1"
-				fill="none"
-				stroke="currentColor"
-				viewBox="0 0 24 24"
-			>
-				<path
-					stroke-linecap="round"
-					stroke-linejoin="round"
-					stroke-width="2.5"
-					d="M10 19l-7-7m0 0l7-7m-7 7h18"
-				/>
-			</svg>
-			<span class="text-sm font-bold uppercase tracking-wider">Voltar</span>
-		</button>
+		<BotaoVoltar onclick={onVoltar} />
 
 		<div class="flex items-center gap-3">
 			<h1
