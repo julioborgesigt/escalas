@@ -41,6 +41,8 @@ interface PerguntaModelo {
 	texto: string;
 	tipo: string;
 	key: string;
+	/** Etapa do wizard (só nível 0 — ver `GiseModeloPerguntaConfig.etapa`). */
+	etapa?: string;
 	filhos: PerguntaModelo[];
 	subtexto_qtd?: string;
 	subtexto_lista?: string;
@@ -165,38 +167,52 @@ const DEFAULT_QUESTIONS = [
  */
 const TEXTOS_FORM_OPERACIONAL: Record<
 	string,
-	Partial<Pick<PerguntaModelo, 'texto' | 'subtexto_qtd' | 'subtexto_lista' | 'subtexto_tipo'>>
+	Partial<
+		Pick<PerguntaModelo, 'texto' | 'etapa' | 'subtexto_qtd' | 'subtexto_lista' | 'subtexto_tipo'>
+	>
 > = {
-	vtr_placa: { texto: '1. DIGITE A VTR E A PLACA' },
-	km_inicial: { texto: '2. DIGITE O KM INCIAL DA VTR' },
-	km_final: { texto: '3. DIGITE O KM FINAL DA VTR' },
-	procedimentos_flagrante_bool: { texto: '4. Houve PROCEDIMENTOS em flagrante realizados?' },
+	vtr_placa: { etapa: 'Viatura', texto: '1. DIGITE A VTR E A PLACA' },
+	km_inicial: { etapa: 'Viatura', texto: '2. DIGITE O KM INCIAL DA VTR' },
+	km_final: { etapa: 'Viatura', texto: '3. DIGITE O KM FINAL DA VTR' },
+	procedimentos_flagrante_bool: {
+		etapa: 'Ocorrências',
+		texto: '4. Houve PROCEDIMENTOS em flagrante realizados?'
+	},
 	mandados_cumpridos: {
+		etapa: 'Ocorrências',
 		texto: '5. Houve MANDADOS cumpridos (MAIORES)?',
 		subtexto_qtd: '5.1 QUANTIDADE:',
 		subtexto_lista: '5.2 INFORMAR NOMES E MANDADOS:'
 	},
 	apreensoes_cumpridas: {
+		etapa: 'Ocorrências',
 		texto: '6. Houve APREENSÕES cumpridas (MENORES)?',
 		subtexto_qtd: '6.1 QUANTIDADE:',
 		subtexto_lista: '6.2 INFORMAR NOMES E PROCESSOS:'
 	},
-	prisoes_apreensoes_flagrante: { texto: '7. Nº PRISÕES/APREENSÕES em flagrante (por preso)' },
-	tentativa_mandado: { texto: '8. Houve tentativa de cumprimento de mandado?' },
-	busca_apreensao: { texto: '9. Houve mandado de busca e apreensão?' },
+	prisoes_apreensoes_flagrante: {
+		etapa: 'Ocorrências',
+		texto: '7. Nº PRISÕES/APREENSÕES em flagrante (por preso)'
+	},
+	tentativa_mandado: {
+		etapa: 'Ocorrências',
+		texto: '8. Houve tentativa de cumprimento de mandado?'
+	},
+	busca_apreensao: { etapa: 'Ocorrências', texto: '9. Houve mandado de busca e apreensão?' },
 	apreensoes_drogas: {
+		etapa: 'Apreensões',
 		texto: '10. Houve apreensão de drogas?',
 		subtexto_tipo: '10.1 TIPO DE DROGA:'
 	},
-	apreensoes_armas_bool: { texto: '11. Houve APREENSÃO DE ARMAS/MUNIÇÕES?' },
-	local_crime: { texto: '12. Local de Crime' },
-	ordem_missao: { texto: '13. Ordem de Missão Cumprida' },
-	levantamento_alvos: { texto: '14. Levantamento de Alvos' },
-	oitivas: { texto: '15. Oitivas Realizadas' },
-	representacao_prisao: { texto: '16. Representação Prisão' },
-	representacao_busca: { texto: '17. Representação Busca' },
-	abordagens: { texto: '18. Nº Abordagens' },
-	descricao: { texto: '19. Descreva resumidamente as diligências' }
+	apreensoes_armas_bool: { etapa: 'Apreensões', texto: '11. Houve APREENSÃO DE ARMAS/MUNIÇÕES?' },
+	local_crime: { etapa: 'Diligências', texto: '12. Local de Crime' },
+	ordem_missao: { etapa: 'Diligências', texto: '13. Ordem de Missão Cumprida' },
+	levantamento_alvos: { etapa: 'Diligências', texto: '14. Levantamento de Alvos' },
+	oitivas: { etapa: 'Diligências', texto: '15. Oitivas Realizadas' },
+	representacao_prisao: { etapa: 'Diligências', texto: '16. Representação Prisão' },
+	representacao_busca: { etapa: 'Diligências', texto: '17. Representação Busca' },
+	abordagens: { etapa: 'Diligências', texto: '18. Nº Abordagens' },
+	descricao: { etapa: 'Diligências', texto: '19. Descreva resumidamente as diligências' }
 };
 
 /**

@@ -10,6 +10,9 @@
 	 * - a `key` de cada pergunta é o que casa com a resposta gravada. Trocá-la
 	 *   não migra nada: as respostas antigas continuam no banco com a chave velha
 	 *   e simplesmente deixam de aparecer nos relatórios;
+	 * - a `etapa` é o que fatia o formulário em passos para o policial. É editável
+	 *   só no NÍVEL 0 porque os filhos aparecem sob o "Sim" do pai — separá-los
+	 *   dele em outra etapa quebraria o gate;
 	 * - "Restaurar anterior" traz de volta a versão salva ANTES da última
 	 *   gravação (coluna `config_anterior`, migração 0039). Ele só CARREGA no
 	 *   editor — nada é gravado até o admin clicar em Salvar, que é quando as
@@ -20,6 +23,7 @@
 	import { actionButton } from './BotoesAcao.svelte';
 	import { Dialog } from '@skeletonlabs/skeleton-svelte';
 	import { loading } from '$lib/loading.svelte';
+	import { agruparPorEtapa } from '$lib/gise/etapas-formulario';
 	import type { useResGise } from './useResGise.svelte';
 	import type { GiseModeloPerguntaConfig } from '$lib/types';
 
@@ -40,6 +44,14 @@
 	const modeloAnterior = $derived(
 		resGise.configTipo === 'seint' ? modeloAnteriorSeint : modeloAnteriorOperacional
 	);
+
+	/**
+	 * Prévia do fatiamento em etapas — pela MESMA função que o wizard do policial
+	 * usa, então o que o admin vê aqui é o que o policial vai ver. Serve de
+	 * resumo no topo e de fonte do `datalist`, que é o que evita "Viatura" e
+	 * "viatura" virarem duas etapas por erro de digitação.
+	 */
+	const etapas = $derived(agruparPorEtapa(resGise.perguntasConfig));
 
 	let dialogRestaurarAberto = $state(false);
 
@@ -123,12 +135,74 @@
 		</div>
 	</div>
 
+	<!-- Prévia das etapas: o policial responde uma por tela, nesta ordem. -->
+	<div
+		class="p-4 bg-surface-50 dark:bg-surface-950/40 rounded-2xl border border-surface-200 dark:border-surface-800 space-y-3"
+	>
+		<p class="text-3xs font-black text-surface-500 dark:text-surface-400 uppercase tracking-widest">
+			Etapas do formulário ({etapas.length})
+		</p>
+		<div class="flex flex-wrap items-center gap-2">
+			{#each etapas as etapa, i (etapa.chave)}
+				{#if i > 0}
+					<span class="text-surface-400 dark:text-surface-600" aria-hidden="true">→</span>
+				{/if}
+				<span
+					class="badge {etapa.chave
+						? 'preset-filled-primary-500'
+						: 'preset-outlined-surface-500'} text-3xs font-black uppercase"
+				>
+					{etapa.titulo}
+					<span class="opacity-70">· {etapa.perguntas.length}</span>
+				</span>
+			{/each}
+		</div>
+		<p class="text-xs text-surface-500 dark:text-surface-400">
+			O policial responde uma etapa por tela. A ordem segue a
+			<strong>primeira pergunta</strong> de cada etapa, então mover a pergunta move a etapa. Perguntas
+			sem etapa ficam juntas num grupo próprio; se nenhuma tiver etapa, o formulário vira página única.
+		</p>
+	</div>
+
+	<!-- Autocompletar do campo "Etapa": só nomes já em uso, para não multiplicar
+	     etapas por variação de digitação. Não restringe — o admin pode criar uma
+	     nova digitando um nome que ainda não existe. -->
+	<datalist id="etapas-em-uso">
+		{#each etapas as etapa (etapa.chave)}
+			{#if etapa.chave}
+				<option value={etapa.chave}></option>
+			{/if}
+		{/each}
+	</datalist>
+
 	<div class="grid grid-cols-1 gap-4">
 		{#snippet renderItem(p: GiseModeloPerguntaConfig, level = 0)}
 			<div
 				class="group p-3 sm:p-5 bg-surface-50 dark:bg-surface-950/40 rounded-2xl border border-surface-200 dark:border-surface-800 transition-all hover:border-primary-500/50 hover:shadow-lg"
 				style="margin-left: clamp(0px, {level * 1.5}vw, {level * 2}rem)"
 			>
+				<!-- Só no nível 0: o filho aparece sob o "Sim" do pai, então tem de
+				     ficar na etapa dele. Ver `agruparPorEtapa`. -->
+				{#if level === 0}
+					<div
+						class="flex flex-wrap items-center gap-2 mb-4 pb-4 border-b border-dashed border-surface-300 dark:border-surface-700"
+					>
+						<label
+							for="p-et-{p.id}"
+							class="text-3xs font-black text-surface-500 dark:text-surface-400 uppercase tracking-widest"
+							>Etapa</label
+						>
+						<input
+							id="p-et-{p.id}"
+							type="text"
+							list="etapas-em-uso"
+							bind:value={p.etapa}
+							placeholder="Sem etapa"
+							class="flex-1 min-w-0 sm:max-w-xs px-3 py-2 rounded-lg border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-900 text-xs font-bold"
+						/>
+					</div>
+				{/if}
+
 				<div class="flex flex-col md:flex-row gap-3 sm:gap-5 items-start">
 					<div
 						class="w-8 h-8 flex items-center justify-center rounded-lg bg-surface-200 dark:bg-surface-800 text-3xs font-black text-surface-500 shrink-0"

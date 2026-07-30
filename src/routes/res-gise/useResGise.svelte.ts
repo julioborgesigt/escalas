@@ -1,4 +1,3 @@
-/* eslint-disable svelte/prefer-writable-derived */
 import { toaster } from '$lib/toast';
 import { apiFetchResponse } from '$lib/api-fetch';
 import { baixarBlob, nomeArquivoContentDisposition } from '$lib/utils/download';
@@ -39,8 +38,6 @@ export function useResGise(getData: () => ResGisePageData) {
 	let perguntasConfig = $state<GiseModeloPerguntaConfig[]>([]);
 	// --- Estados de Escala / Resposta ---
 	let escalaSelecionada = $state<ResGiseEscalaSelecionavel | null>(null);
-	let respostas = $state<Record<string, unknown>>({});
-	let exibirRelatorio = $state(false);
 	let capturandoRubrica = $state(false);
 
 	// --- Filtros ---
@@ -59,10 +56,6 @@ export function useResGise(getData: () => ResGisePageData) {
 		perguntasConfig = structuredClone(source);
 	});
 
-	$effect(() => {
-		respostas = data.respostas ?? {};
-	});
-
 	/** Sincroniza com a URL quando `?status=` está presente (evita sobrescrever antes do `goto`). */
 	$effect(() => {
 		const q = page.url.searchParams.get('status');
@@ -73,14 +66,6 @@ export function useResGise(getData: () => ResGisePageData) {
 
 	// --- Derived ---
 	const configJson = $derived(JSON.stringify(perguntasConfig));
-	const respostasJson = $derived(JSON.stringify(respostas));
-
-	const perguntasForm = $derived.by(() => {
-		if (!escalaSelecionada) return [];
-		const res =
-			escalaSelecionada.equipe_tipo === 'seint' ? data.modeloSeint : data.modeloOperacional;
-		return Array.isArray(res) ? res : [];
-	});
 
 	// --- Funções de Navegação e Filtro ---
 	function navigateWithFilters(params: Record<string, string | null>) {
@@ -120,9 +105,21 @@ export function useResGise(getData: () => ResGisePageData) {
 	// --- Funções do Configurador ---
 	function adicionarPergunta() {
 		const id = Date.now();
+		// Herda a etapa da última pergunta: a nova entra no FIM do formulário, que
+		// é dentro da última etapa. Sem isso, cada pergunta nova abriria sozinha um
+		// grupo "sem etapa" no fim — e o admin teria de redigitar o nome sempre.
+		const etapa = perguntasConfig.at(-1)?.etapa;
 		perguntasConfig = [
 			...perguntasConfig,
-			{ id, texto: '', tipo: 'texto', obrigatoria: false, key: `extra_${id}`, filhos: [] }
+			{
+				id,
+				texto: '',
+				tipo: 'texto',
+				obrigatoria: false,
+				key: `extra_${id}`,
+				...(etapa ? { etapa } : {}),
+				filhos: []
+			}
 		];
 	}
 
@@ -169,12 +166,6 @@ export function useResGise(getData: () => ResGisePageData) {
 		if (isSame) return;
 
 		escalaSelecionada = escala;
-		// `exibirRelatorio` é o estado ABERTO/FECHADO do modal do relatório na tela
-		// do policial. Selecionar uma escala nunca abre modal — quem abre é o botão
-		// do passo "Produtividade". (Para o admin geral este componente nem
-		// renderiza: `+page.svelte` manda ele para a `ConfigurarFormulario`.)
-		exibirRelatorio = false;
-		respostas = {};
 
 		// eslint-disable-next-line svelte/prefer-svelte-reactivity
 		const params = new URLSearchParams(page.url.searchParams);
@@ -183,34 +174,6 @@ export function useResGise(getData: () => ResGisePageData) {
 		else params.delete('equipeId');
 
 		await goto(`?${params}`, { keepFocus: true, noScroll: true });
-	}
-
-	function handleSalvarResposta(isAdminGeral: boolean) {
-		return ({ cancel }: { cancel: () => void }) => {
-			const sel = escalaSelecionada;
-			if (!sel) {
-				cancel();
-				return;
-			}
-			loading.show('Enviando relatório de produtividade...');
-			return async ({ result }: { result: ActionResult }) => {
-				loading.hide();
-				if (result.type === 'success') {
-					toaster.success({ title: 'Relatório salvo com sucesso' });
-					// Atualiza imediatamente sem precisar de reload da página
-					escalaSelecionada = { ...sel, equipeRespondida: true } as ResGiseEscalaSelecionavel;
-					if (!isAdminGeral) exibirRelatorio = false;
-					await invalidateAll();
-					const atualizada = data.minhasEscalas?.find(
-						(e) => e.id === sel.id && e.equipe_id === sel.equipe_id
-					);
-					if (atualizada) escalaSelecionada = atualizada;
-				} else if (result.type === 'failure') {
-					const d = result.data as Record<string, unknown> | undefined;
-					toaster.error({ title: String(d?.error || 'Erro ao salvar resposta') });
-				}
-			};
-		};
 	}
 
 	/**
@@ -453,12 +416,6 @@ export function useResGise(getData: () => ResGisePageData) {
 		set escalaSelecionada(v) {
 			escalaSelecionada = v;
 		},
-		get respostas() {
-			return respostas;
-		},
-		set respostas(v) {
-			respostas = v;
-		},
 		/** Carimbo do 1º envio da resposta de produtividade (ou null) — vem do load. */
 		get respostaEnviadaEm() {
 			return data.respostaEnviadaEm ?? null;
@@ -466,12 +423,6 @@ export function useResGise(getData: () => ResGisePageData) {
 		/** Carimbo da última retificação da resposta de produtividade (ou null). */
 		get respostaAtualizadaEm() {
 			return data.respostaAtualizadaEm ?? null;
-		},
-		get exibirRelatorio() {
-			return exibirRelatorio;
-		},
-		set exibirRelatorio(v) {
-			exibirRelatorio = v;
 		},
 		get capturandoRubrica() {
 			return capturandoRubrica;
@@ -493,12 +444,6 @@ export function useResGise(getData: () => ResGisePageData) {
 		get configJson() {
 			return configJson;
 		},
-		get respostasJson() {
-			return respostasJson;
-		},
-		get perguntasForm() {
-			return perguntasForm;
-		},
 		get statusFilterUrl() {
 			return statusFilterUrl;
 		},
@@ -518,7 +463,6 @@ export function useResGise(getData: () => ResGisePageData) {
 		removerPergunta,
 		handleSalvarModelo,
 		selecionarEscala,
-		handleSalvarResposta,
 		salvarEntrada,
 		salvarSaida,
 		sincronizarPresencaAtual,
