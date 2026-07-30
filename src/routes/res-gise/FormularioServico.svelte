@@ -225,7 +225,12 @@
 {/if}
 
 {#if resGise.escalaSelecionada}
-	<div class="space-y-6">
+	<!-- `@container`: os blocos abaixo se adaptam à largura DESTE card, não à da
+	     viewport — o card mede diferente conforme a página o coloque em coluna
+	     cheia ou estreita. Seguro porque a subárvore não tem `position: fixed`
+	     (os modais moram no `+page.svelte`): `container-type` implica
+	     `contain: layout`, que viraria containing block pra eles. -->
+	<div class="@container space-y-6">
 		<div class="border-b border-surface-200 dark:border-surface-800 pb-4">
 			<h2 class="text-xl font-bold">Relatório de Serviço</h2>
 			<p class="text-xs text-primary-500 font-medium">
@@ -240,7 +245,7 @@
 		     entrada/saída e estados vazios não ganham nada com essa largura — ao
 		     contrário, `justify-between` espalha os três passos até as beiradas e
 		     um botão de 1120px fica absurdo. Estes travam; o formulário, não. -->
-		<div class="flex items-center justify-between px-2 sm:px-4 mb-4 max-w-2xl mx-auto">
+		<div class="flex items-center justify-between px-2 sm:px-4 mb-4 max-w-2xl">
 			<div class="flex flex-col items-center gap-1 group">
 				<div
 					class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold {resGise
@@ -355,8 +360,12 @@
 			<!-- Fluxo Pós-Entrada -->
 			<div class="space-y-8">
 				<!-- Entrada Info -->
+				<!-- `@2xl:w-fit`: é um SELO de status, não uma faixa. Em largura de
+				     desktop a versão full-width deixava ~800px de vazio entre o horário
+				     e o botão de comprovante. O `min-w` evita que encolha a ponto de
+				     parecer um chip perdido. Abaixo de `@2xl` segue ocupando a linha. -->
 				<div
-					class="flex items-center justify-between p-4 bg-success-500/10 border border-success-500/20 rounded-2xl"
+					class="flex items-center justify-between gap-3 @2xl:gap-8 p-4 bg-success-500/10 border border-success-500/20 rounded-2xl @2xl:w-fit @2xl:min-w-[26rem]"
 				>
 					<div class="flex items-center gap-3">
 						<div class="bg-success-500 p-2 rounded-full">
@@ -404,15 +413,19 @@
 						{:else}
 							<div class="space-y-5">
 								{#if resGise.escalaSelecionada.equipeRespondida && !resGise.exibirRelatorio}
+									<!-- Painel de "já entregue". Em telefone: pilha centrada (ícone,
+									     texto, ações), como sempre foi. A partir de `@2xl` vira faixa
+									     horizontal — ícone e texto à esquerda, ações à direita — em vez
+									     de uma caixa de ~1050px com uma ilha de ~450px no meio. -->
 									<div
-										class="p-4 sm:p-6 bg-success-500/5 border border-success-500/20 rounded-3xl text-center space-y-4 animate-in fade-in zoom-in-95 duration-500"
+										class="p-4 sm:p-6 bg-success-500/5 border border-success-500/20 rounded-3xl text-center space-y-4 animate-in fade-in zoom-in-95 duration-500 @2xl:flex @2xl:items-center @2xl:gap-6 @2xl:space-y-0 @2xl:text-left"
 									>
 										<div
-											class="bg-success-500/10 w-16 h-16 rounded-full flex items-center justify-center mx-auto"
+											class="bg-success-500/10 w-16 h-16 rounded-full flex items-center justify-center mx-auto @2xl:mx-0 @2xl:shrink-0"
 										>
 											{@render btnIcon('M5 13l4 4L19 7')}
 										</div>
-										<div>
+										<div class="@2xl:min-w-0 @2xl:flex-1">
 											<p class="font-bold text-success-700 dark:text-success-400">
 												Relatório Entregue
 											</p>
@@ -438,8 +451,11 @@
 												</div>
 											{/if}
 										</div>
-										<!-- ações: coluna estreita (ver nota no stepper) -->
-										<div class="flex flex-col gap-2 max-w-md mx-auto">
+										<!-- ações: coluna estreita (ver nota no stepper); na faixa
+										     horizontal viram a coluna da direita, largura fixa -->
+										<div
+											class="flex flex-col gap-2 max-w-md mx-auto @2xl:mx-0 @2xl:w-60 @2xl:max-w-none @2xl:shrink-0"
+										>
 											{@render actionButton(
 												'Atualizar / Retificar Dados',
 												undefined,
@@ -625,8 +641,9 @@
 							{@render blocoRestritoDesktop('saida')}
 						{/if}
 					{:else}
+						<!-- Mesmo selo de status da entrada (ver nota lá). -->
 						<div
-							class="flex items-center gap-3 p-4 bg-surface-500/10 border border-surface-500/20 rounded-2xl"
+							class="flex items-center gap-3 @2xl:gap-8 p-4 bg-surface-500/10 border border-surface-500/20 rounded-2xl @2xl:w-fit @2xl:min-w-[26rem]"
 						>
 							<div class="bg-surface-500 p-2 rounded-full">
 								{@render btnIcon('M5 13l4 4L19 7')}
