@@ -60,8 +60,34 @@
 	// Derivado gravável: espelha o load, mas admite o set local pós-cadastro.
 	let minhaRubrica: string | null = $derived(rubricaValida(data.minhaRubrica));
 
+	/**
+	 * A URL manda na seleção. `selecionarEscala` já ESCREVIA `?giseId=&equipeId=`,
+	 * mas ninguém lia de volta: recarregar a página — ou voltar do wizard do
+	 * relatório — caía na lista com a URL apontando para uma escala que a tela não
+	 * mostrava. Aqui os dois sentidos existem, então a rota é de fato endereçável.
+	 *
+	 * O efeito escreve o mesmo estado que lê; a guarda de igualdade é o que faz a
+	 * segunda passada parar. E é ela também que preserva o objeto local depois de
+	 * um `invalidateAll` — quem re-sincroniza com o dado fresco é
+	 * `sincronizarPresencaAtual`, que sabe o que fazer quando a escala SAI da lista.
+	 */
+	$effect(() => {
+		const idUrl = Number(page.url.searchParams.get('giseId')) || 0;
+		if (!idUrl) {
+			if (resGise.escalaSelecionada) resGise.escalaSelecionada = null;
+			return;
+		}
+		const equipeUrl = Number(page.url.searchParams.get('equipeId')) || 0;
+		const atual = resGise.escalaSelecionada;
+		if (atual?.id === idUrl && (!equipeUrl || atual.equipe_id === equipeUrl)) return;
+		const alvo = data.minhasEscalas?.find(
+			(e) => e.id === idUrl && (!equipeUrl || e.equipe_id === equipeUrl)
+		);
+		if (alvo) resGise.escalaSelecionada = alvo;
+	});
+
 	function voltarParaLista() {
-		resGise.escalaSelecionada = null;
+		// Só mexe na URL: o efeito acima é quem tira a seleção.
 		// eslint-disable-next-line svelte/prefer-svelte-reactivity
 		const params = new URLSearchParams(page.url.searchParams);
 		params.delete('giseId');

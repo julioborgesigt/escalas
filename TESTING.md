@@ -404,6 +404,19 @@ Verificar cada transição de status:
 - [ ] Formulários de produtividade preenchidos exibidos corretamente
 - [ ] Sem GISE atribuída → estado vazio com mensagem
 
+### 13.1 Wizard do relatório (`/res-gise/relatorio/[giseId]`)
+
+> O gate de entrada, a navegação entre etapas, o autosave e o envio têm
+> cobertura E2E. Manual: o rascunho em condições que o navegador headless não
+> reproduz.
+
+- [ ] Preencher metade, **fechar a aba** e reabrir a rota → rascunho restaurado com o horário
+- [ ] Aba anônima / `localStorage` cheio → o formulário continua funcionando (sem rascunho, sem erro)
+- [ ] Dois policiais da mesma equipe no mesmo aparelho → cada um vê o próprio rascunho
+- [ ] Colega entrega o relatório enquanto você tem rascunho → banner de oferta, e "Descartar" some com ele
+- [ ] Admin Geral define etapas no editor → o wizard abre exatamente nesses grupos, na mesma ordem
+- [ ] Modelo antigo (nenhuma pergunta com etapa) → uma etapa só, sem navegador
+
 ---
 
 ## 14. Documentos Recebidos (`/recebidos`)

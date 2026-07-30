@@ -3,23 +3,26 @@
 	 * O card de UMA ESCALA GISE na tela do policial (`/res-gise`) — onde ele faz
 	 * as três coisas que lhe cabem, na ordem em que o serviço acontece:
 	 *
-	 *   confirmar ENTRADA → confirmar SAÍDA → enviar o RELATÓRIO de produtividade
+	 *   confirmar ENTRADA → enviar o RELATÓRIO de produtividade → confirmar SAÍDA
 	 *
-	 * Cada passo só aparece quando o anterior está cumprido, e todos são
+	 * Cada passo só libera quando o anterior está cumprido, e as duas presenças são
 	 * assinatura avançada: exigem rubrica e, conforme as flags, foto, GPS e código
 	 * por e-mail. A tela esconde o que não cabe, mas quem valida é o servidor —
-	 * `/res-gise/+page.server.ts` revalida participação e horário em cada action.
+	 * cada action revalida participação e horário por conta própria.
 	 *
 	 * O estado e as chamadas vivem em `useResGise`; este componente é a
-	 * apresentação de um item da lista. O formulário de produtividade em si é o
-	 * `RelatorioProdutividade`, montado a partir do modelo salvo — as perguntas
-	 * não são fixas.
+	 * apresentação de um item da lista.
+	 *
+	 * A produtividade é a exceção entre os três passos: em vez de abrir um modal,
+	 * o botão NAVEGA para `/res-gise/relatorio/[giseId]`. O modelo operacional tem
+	 * 19 perguntas de nível 0 e os filhos condicionais — cabia num modal só como
+	 * rolagem infinita. Lá o formulário é um wizard por etapas, com rascunho
+	 * automático; entrada e saída continuam aqui porque são um botão cada.
 	 */
-	import { enhance } from '$app/forms';
 	import { Dialog, Portal } from '@skeletonlabs/skeleton-svelte';
 	import { actionButton, btnIcon } from './BotoesAcao.svelte';
 	import { page } from '$app/state';
-	import RelatorioProdutividade from './RelatorioProdutividade.svelte';
+	import { goto } from '$app/navigation';
 	import PainelAssinaturaToken from '$lib/components/PainelAssinaturaToken.svelte';
 	import Spinner from '$lib/components/Spinner.svelte';
 	import { loading } from '$lib/loading.svelte';
@@ -51,6 +54,23 @@
 	const esc = $derived(resGise.escalaSelecionada);
 
 	/**
+	 * Rota do wizard do relatório. Dois parâmetros, ambos opcionais:
+	 * `equipeId` só vai quando existe (no quadro de supervisão ele é `0`, e a
+	 * resposta do SEINT lá é individual), e `status` viaja de ida e volta para o
+	 * retorno cair na MESMA aba de filtro — sem ele, quem retifica um relatório
+	 * de escala finalizada volta para "Ativas" e não acha a própria escala.
+	 */
+	const urlRelatorio = $derived.by(() => {
+		// eslint-disable-next-line svelte/prefer-svelte-reactivity
+		const params = new URLSearchParams();
+		if (esc?.equipe_id) params.set('equipeId', String(esc.equipe_id));
+		const status = page.url.searchParams.get('status');
+		if (status) params.set('status', status);
+		const qs = params.toString();
+		return `/res-gise/relatorio/${giseId}${qs ? `?${qs}` : ''}`;
+	});
+
+	/**
 	 * Estado das três tarefas, num lugar só. O template lia estas mesmas
 	 * condições em oito pontos diferentes (`presenca?.entrada_timestamp` seis
 	 * vezes), e cada leitura era uma chance de divergir das outras.
@@ -69,12 +89,7 @@
 	const horarioEntradaLiberado = $derived(!!esc && resGise.isHorarioLiberado(esc, isAdminGeral));
 	const horarioSaidaLiberado = $derived(!!esc && resGise.isSaidaLiberada(esc, isAdminGeral));
 
-	/**
-	 * Qual modal de tarefa está aberto. O do relatório é a exceção: reusa
-	 * `resGise.exibirRelatorio`, que já existia com exatamente essa semântica e
-	 * que o `handleSalvarResposta` zera sozinho ao salvar — é o que fecha o modal
-	 * depois da entrega, sem precisar interceptar o `enhance`.
-	 */
+	/** Qual modal de PRESENÇA está aberto (o relatório é rota, não modal). */
 	let modalPresenca = $state<'entrada' | 'saida' | null>(null);
 
 	/** Fecha o modal da tarefa assim que ela é cumprida (inclusive pelo A3, que
@@ -116,20 +131,6 @@
 		await ctrl.assinarComSerpro();
 	}
 </script>
-
-{#snippet statusBadge(status: string)}
-	{@const config: Record<string, { label: string; class: string }> = {
-		ativas: { label: 'Em Andamento', class: 'preset-filled-primary-500' },
-		finalizadas: { label: 'Finalizada', class: 'preset-filled-success-500' },
-		pendentes: { label: 'Pendente', class: 'preset-filled-warning-500' }
-	}}
-	{@const item = config[status] || { label: status, class: 'preset-tonal-surface' }}
-	<span
-		class="badge {item.class} text-3xs font-bold uppercase tracking-wider px-2 py-0.5 rounded-full shadow-sm"
-	>
-		{item.label}
-	</span>
-{/snippet}
 
 {#snippet btnBaixarComprovante(tipo: 'entrada' | 'saida')}
 	<button
@@ -410,7 +411,7 @@
 			{#if temProdutividade}
 				{@render passo(2, 'Produtividade', relatorioOk, passoAtivo === 2, {
 					label: relatorioOk ? 'Retificar dados' : 'Preencher relatório',
-					onclick: () => (resGise.exibirRelatorio = true),
+					onclick: () => goto(urlRelatorio),
 					disabled: !entradaOk,
 					titulo: entradaOk ? undefined : 'Confirme a entrada primeiro'
 				})}
@@ -686,136 +687,6 @@
 					</div>
 				</div>
 			</Dialog.Content>
-		</Portal>
-	</Dialog>
-
-	<!-- Relatório de produtividade. Modal largo: o formulário tem grades de até
-	     4 colunas e é o único conteúdo desta tela que ganha com largura. -->
-	<Dialog
-		open={resGise.exibirRelatorio}
-		onOpenChange={(e) => {
-			if (!e.open && !loading.active) resGise.exibirRelatorio = false;
-		}}
-	>
-		<Portal>
-			<Dialog.Content
-				class="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-surface-950/80 backdrop-blur-sm overflow-y-auto"
-			>
-				<!--
-					`max-w-3xl` (768px): largura de LEITURA, uma pergunta por linha. O
-					formulário é uma coluna de perguntas curtas — mais largo que isso e
-					sobra vazio à direita de cada campo.
-
-					Cabeçalho e rodapé `sticky`: o modelo tem dezenas de perguntas, e sem
-					isso o X e o "Finalizar Entrega" só existiriam nas pontas do scroll.
-					Ambos precisam de fundo opaco (`card-elevated` é translúcido em alguns
-					temas) para o conteúdo não passar por baixo.
-				-->
-				<div
-					class="card relative max-w-3xl w-full max-h-[calc(100dvh-1.5rem)] overflow-y-auto card-elevated shadow-2xl rounded-2xl"
-				>
-					<div
-						class="sticky top-0 z-10 flex items-start justify-between gap-3 border-b border-surface-200 bg-surface-50 px-4 py-3 sm:px-6 sm:py-4 dark:border-surface-800 dark:bg-surface-900"
-					>
-						<div class="min-w-0 space-y-1">
-							<Dialog.Title class="text-lg font-bold">Resultados do Serviço</Dialog.Title>
-							<Dialog.Description class="text-sm text-surface-600 dark:text-surface-400">
-								Relatório de produtividade do plantão de {resGise.fmtDate(escala.data_inicio)}.
-							</Dialog.Description>
-						</div>
-						<div class="flex shrink-0 items-center gap-2">
-							{#if relatorioOk}
-								{@render statusBadge('finalizadas')}
-							{/if}
-							<Dialog.CloseTrigger
-								class="btn-icon rounded-lg p-1.5 text-surface-600 transition-colors hover:bg-surface-200 hover:text-surface-900 dark:text-surface-400 dark:hover:bg-surface-800 dark:hover:text-surface-50"
-								aria-label="Fechar relatório"
-							>
-								<svg
-									class="h-5 w-5"
-									fill="none"
-									stroke="currentColor"
-									viewBox="0 0 24 24"
-									aria-hidden="true"
-									><path
-										stroke-linecap="round"
-										stroke-linejoin="round"
-										stroke-width="2"
-										d="M6 18L18 6M6 6l12 12"
-									/></svg
-								>
-							</Dialog.CloseTrigger>
-						</div>
-					</div>
-
-					<div class="space-y-5 p-4 sm:p-6">
-						{#if loading.active}
-							<div class="flex flex-col items-center gap-3 py-12">
-								<Spinner size="lg" class="text-primary-500" />
-								<p class="text-sm font-semibold text-surface-600 uppercase tracking-wider">
-									{loading.message}
-								</p>
-							</div>
-						{:else}
-							{#if relatorioOk && !Object.keys(resGise.respostas).length}
-								<div class="p-3 bg-primary-500/5 border border-primary-500/10 rounded-xl">
-									<p class="text-3xs text-primary-600 dark:text-primary-400 italic">
-										Um integrante da equipe já respondeu. Você pode visualizar ou retificar os dados
-										abaixo.
-									</p>
-								</div>
-							{/if}
-
-							<RelatorioProdutividade
-								modelo={resGise.perguntasForm}
-								bind:respostas={resGise.respostas}
-							/>
-						{/if}
-					</div>
-
-					{#if !loading.active}
-						<!-- Rodapé no padrão da casa (README §10), fixo no rodapé do modal. -->
-						<div
-							class="sticky bottom-0 z-10 flex flex-col-reverse gap-2 border-t border-surface-200 bg-surface-50 px-4 py-3 sm:flex-row sm:justify-end sm:gap-3 sm:px-6 sm:py-4 dark:border-surface-800 dark:bg-surface-900"
-						>
-							{@render actionButton(
-								'Cancelar',
-								undefined,
-								'surface',
-								'tonal',
-								() => (resGise.exibirRelatorio = false),
-								false,
-								false,
-								'w-full sm:w-auto px-6'
-							)}
-							<form
-								method="POST"
-								action="?/salvarResposta"
-								use:enhance={resGise.handleSalvarResposta(isAdminGeral)}
-								class="contents"
-							>
-								<input type="hidden" name="giseId" value={escala.id} />
-								{#if escala.equipe_id}
-									<input type="hidden" name="equipeId" value={escala.equipe_id} />
-								{/if}
-								<input type="hidden" name="respostas" value={resGise.respostasJson} />
-
-								{@render actionButton(
-									relatorioOk ? 'Salvar Alterações' : 'Finalizar Entrega',
-									undefined,
-									'primary',
-									'filled',
-									undefined,
-									loading.active,
-									false,
-									'w-full sm:w-auto sm:px-10 shadow-sm',
-									'submit'
-								)}
-							</form>
-						</div>
-					{/if}
-				</div></Dialog.Content
-			>
 		</Portal>
 	</Dialog>
 {/if}
