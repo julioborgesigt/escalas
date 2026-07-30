@@ -2,6 +2,7 @@
 	import { goto } from '$app/navigation';
 	import { formatarData } from '$lib/utils';
 	import type { Escala } from '$lib/server/schema';
+	import BotaoVoltar from '$lib/components/BotaoVoltar.svelte';
 
 	let {
 		escala,
@@ -28,9 +29,8 @@
 
 <div class="flex flex-col sm:flex-row sm:items-start justify-between gap-3 mb-6">
 	<div class="min-w-0">
-		<button
-			type="button"
-			class="btn btn-sm preset-outlined-surface-500 hover:bg-surface-50 dark:hover:bg-surface-900 px-3 py-1.5 rounded-xl transition-all flex w-fit max-w-full items-center gap-2 group mb-3"
+		<BotaoVoltar
+			class="mb-3"
 			onclick={() => {
 				if (window.history.length > 1) {
 					window.history.back();
@@ -38,22 +38,7 @@
 					goto('/escalas?page=1');
 				}
 			}}
-		>
-			<svg
-				class="w-4 h-4 shrink-0 transition-transform group-hover:-translate-x-1"
-				fill="none"
-				stroke="currentColor"
-				viewBox="0 0 24 24"
-			>
-				<path
-					stroke-linecap="round"
-					stroke-linejoin="round"
-					stroke-width="2.5"
-					d="M10 19l-7-7m0 0l7-7m-7 7h18"
-				/>
-			</svg>
-			<span class="text-sm font-bold uppercase tracking-wider">Voltar</span>
-		</button>
+		/>
 		<!-- Tipo como "kicker" (rótulo em maiúsculas, colorido) — antes era um badge
 		     contornado que, perto do botão Voltar, parecia outro botão. -->
 		<p

@@ -90,7 +90,7 @@ test.describe('Wizard do relatório de produtividade', () => {
 		// Trocar de etapa não perde resposta: o blob vive na página, não no passo.
 		await page.getByRole('button', { name: 'Avançar' }).click();
 		await expect(page.getByText('Etapa 2 de 4')).toBeVisible();
-		await page.getByRole('button', { name: 'Voltar', exact: true }).click();
+		await page.getByRole('button', { name: 'Anterior', exact: true }).click();
 		await expect(page.getByPlaceholder('Ex: XXX-0000')).toHaveValue('ABC-1234');
 
 		// Rascunho restaurado do localStorage (nada foi enviado ainda).

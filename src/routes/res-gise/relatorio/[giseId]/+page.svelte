@@ -39,6 +39,7 @@
 	import { loading } from '$lib/loading.svelte';
 	import { toaster } from '$lib/toast';
 	import Spinner from '$lib/components/Spinner.svelte';
+	import BotaoVoltar from '$lib/components/BotaoVoltar.svelte';
 	import RelatorioProdutividade from '../../RelatorioProdutividade.svelte';
 	import type { PageProps } from './$types';
 	import type { ActionResult } from '@sveltejs/kit';
@@ -226,19 +227,16 @@
 
 <div class="space-y-6">
 	<div class="flex flex-wrap items-start justify-between gap-3">
-		<div class="min-w-0">
-			<a
-				href={voltarUrl}
-				class="text-3xs font-bold uppercase tracking-widest text-surface-500 transition-colors hover:text-primary-500"
-			>
-				← Voltar para a escala
-			</a>
-			<h1 class="mt-1 text-xl font-black uppercase tracking-tight sm:text-2xl">
-				Relatório de Produtividade
-			</h1>
-			<p class="text-sm text-surface-500 dark:text-surface-400">
-				{data.seccionalNome} · plantão de {fmtDate(data.dataInicio)}
-			</p>
+		<div class="min-w-0 space-y-3">
+			<BotaoVoltar href={voltarUrl} />
+			<div>
+				<h1 class="text-xl font-black uppercase tracking-tight sm:text-2xl">
+					Relatório de Produtividade
+				</h1>
+				<p class="text-sm text-surface-500 dark:text-surface-400">
+					{data.seccionalNome} · plantão de {fmtDate(data.dataInicio)}
+				</p>
+			</div>
 		</div>
 		{#if jaEntregue}
 			<span class="badge preset-filled-success-500 text-3xs font-black uppercase tracking-wider">
@@ -358,13 +356,16 @@
 		</p>
 
 		<div class="flex flex-1 justify-end gap-2 sm:flex-none">
+			<!-- "Anterior", e não "Voltar": o `BotaoVoltar` do topo já é o Voltar
+			     desta tela, e dois botões com a mesma palavra fazendo coisas
+			     diferentes na mesma tela é troca garantida. -->
 			<button
 				type="button"
 				class="btn btn-sm preset-outlined-surface-500"
 				disabled={indiceEtapa === 0 || enviando}
 				onclick={() => irPara(indiceEtapa - 1)}
 			>
-				Voltar
+				Anterior
 			</button>
 
 			{#if !naUltima}

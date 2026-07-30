@@ -691,6 +691,12 @@ Regras estabelecidas na auditoria visual de jul/2026 (`AUDITORIA_VISUAL_UX_2026-
 
 **Botões (semântica dos presets)** — CTA `preset-filled-primary-500` · destrutivo `preset-filled-error-500` · cancelar/neutro `preset-outlined-surface-500`. O feedback tátil de clique (afundar 5% pressionado) é **global e automático** para `.btn`/`.btn-icon` (regra em `app.css`) — não adicionar `active:scale-95` inline; use-o apenas em elementos interativos custom fora dessas classes.
 
+**Tamanho de botão** — `.btn-sm` do tema NÃO embute padding vertical: sem `py-*` o botão fica em ~24px de altura. A escala em uso é `py-1.5` (~34px, botões de navegação como o Voltar), `py-2.5` (~40px, CTA de modal/formulário) e `py-3.5` (~48px, ação final de página). Nada de `py-4 text-lg`, que produz um bloco de ~64px destoante do resto da tela.
+
+**Voltar** — usar `$lib/components/BotaoVoltar.svelte`, sempre **acima do `<h1>`**, nunca no rodapé. `href` para mudar de rota, `onclick` para desfazer estado local. Não repetir a palavra "Voltar" em outro controle da mesma tela (o passo anterior de um wizard é "Anterior") — duas coisas diferentes com o mesmo rótulo trocam de lugar na cabeça de quem usa.
+
+**Estado de tarefa (marcador)** — o mesmo lugar mostra os dois estados: `Check` em círculo `bg-success-500` cumprida, `Clock` em círculo `bg-warning-500` pendente. Não usar ponto cinza para "falta fazer" (lê-se como "desligado"), e não variar a cor de concluído por tipo de tarefa — na mesma linha, um quadro verde e outro cinza parecem estados diferentes quando são o mesmo.
+
 **Border-radius** — o tema define `--radius-base` (= `rounded-xl`, botões/inputs) e `--radius-container` (= `rounded-2xl`, cards/modais); pills/chips usam `rounded-full`. Em código novo, não usar `rounded`/`rounded-md`; reservar `rounded-lg` para elementos ≤ 32 px de altura.
 
 **Z-index (escala)** — `z-10` elementos locais · `z-40` topbar mobile + backdrop da sidebar · `z-50` sidebar e modais · `z-[60]`/`z-[70]` modal sobre modal · `z-[100]` diálogos globais (logout, avisos) · `9999` toasts · `10000` LoadingOverlay e barra de progresso de navegação. Não inventar valores fora da escala.
