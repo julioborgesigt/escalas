@@ -53,23 +53,30 @@
 	 * Perguntas que ocupam a LINHA INTEIRA da grade (as demais entram em duas
 	 * colunas a partir de `@4xl`).
 	 *
-	 * O critério é o widget, não a semântica: quem abre listagem detalhada
-	 * (`CHAVES_TIPO`), paleta de seleção (drogas/armas), textarea ou tem filhos
-	 * precisa da largura toda. Um `numero` ou um `sim_nao` folha, não — e era daí
-	 * que vinha o esticamento: card de ~1050px com um input de 192px dentro.
+	 * O critério é o conteúdo largo estar VISÍVEL AGORA, não o tipo da pergunta.
+	 * A diferença importa: quase todo tipo "complexo" é um par sim/não que só
+	 * revela a listagem/paleta sob um "Sim". Reservar a linha inteira desde o
+	 * início deixava três perguntas seguidas com ~670px de vazio à direita — e
+	 * esse é justamente o estado em que a pessoa passa mais tempo, preenchendo.
 	 *
-	 * Deliberadamente NÃO depende da resposta atual: se dependesse, responder
-	 * "Sim" reflowaria a grade inteira debaixo do dedo do usuário.
+	 * O custo é a grade reflowar quando se responde "Sim". É aceitável porque o
+	 * card já cresce nesse mesmo instante (a listagem aparece): a mudança de
+	 * coluna acompanha um conteúdo que o usuário acabou de pedir, em vez de
+	 * surgir do nada.
+	 *
+	 * `textarea` e `operacoes_seint_pura` não têm gate — nascem largos.
 	 */
-	const TIPOS_LINHA_INTEIRA = new Set([
+	const TIPOS_SEMPRE_LARGOS = new Set(['textarea', 'operacoes_seint_pura']);
+	const TIPOS_LARGOS_SOB_SIM = new Set([
 		...Object.keys(CHAVES_TIPO),
 		'drogas_complex',
-		'armas_complex',
-		'textarea'
+		'armas_complex'
 	]);
 
 	function ocupaLinhaInteira(q: GiseModeloPerguntaConfig): boolean {
-		return TIPOS_LINHA_INTEIRA.has(q.tipo) || (q.filhos?.length ?? 0) > 0;
+		if (TIPOS_SEMPRE_LARGOS.has(q.tipo)) return true;
+		if (respostas[q.key] !== 'Sim') return false;
+		return TIPOS_LARGOS_SOB_SIM.has(q.tipo) || (q.filhos?.length ?? 0) > 0;
 	}
 
 	const ITEM_PADRAO: Record<string, Record<string, string>> = {

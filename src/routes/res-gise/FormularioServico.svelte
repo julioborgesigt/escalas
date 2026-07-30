@@ -16,7 +16,7 @@
 	 * não são fixas.
 	 */
 	import { enhance } from '$app/forms';
-	import { Dialog } from '@skeletonlabs/skeleton-svelte';
+	import { Dialog, Portal } from '@skeletonlabs/skeleton-svelte';
 	import { actionButton, btnIcon } from './BotoesAcao.svelte';
 	import { page } from '$app/state';
 	import RelatorioProdutividade from './RelatorioProdutividade.svelte';
@@ -547,6 +547,21 @@
 	<!--
 		Modais das três tarefas.
 
+		O `<Portal>` NÃO É OPCIONAL aqui, e a razão não é óbvia: este componente
+		vive dentro do painel 2 do slider de `+page.svelte`, cujo trilho tem
+		`transform: translateX(-50%)`. Um `transform` diferente de `none` faz o
+		elemento virar CONTAINING BLOCK dos descendentes `position: fixed` — então
+		o `inset-0` do `Dialog.Content` passaria a se referir ao trilho (200% de
+		largura, deslocado meia tela) e não à viewport, e o `overflow-hidden` do
+		wrapper ainda recortaria o que sobrasse. Medido em Chromium: um `fixed
+		inset-0` ali dentro rende `left:-648 · 2304×18px` num viewport de
+		1920×900. O `Portal` monta o conteúdo em `document.body`, fora do trilho,
+		preservando o contexto do Svelte (é assim que o `IconTooltip` e o popover
+		da `TabelaEscalas` já fazem).
+
+		A mesma armadilha existe com `contain: layout` (que `container-type`
+		implica) — por isso este arquivo também não usa `@container`.
+
 		`z-50` é o degrau de modal da escala do README; o pad de rubrica e o
 		cadastro de rubrica (no `+page.svelte`) são `z-[60]`/`z-[70]` e abrem POR
 		CIMA destes — empilhamento correto, já que a rubrica é o passo seguinte de
@@ -563,49 +578,51 @@
 			if (!e.open && !loading.active) modalPresenca = null;
 		}}
 	>
-		<Dialog.Content
-			class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-sm overflow-y-auto"
-		>
-			<div
-				class="card p-4 sm:p-6 max-w-md w-full max-h-[calc(100dvh-2rem)] overflow-y-auto card-elevated shadow-2xl rounded-2xl space-y-5"
+		<Portal>
+			<Dialog.Content
+				class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-sm overflow-y-auto"
 			>
-				<div class="space-y-1">
-					<Dialog.Title class="text-lg font-bold">Confirmação de Entrada</Dialog.Title>
-					<Dialog.Description class="text-sm text-surface-600 dark:text-surface-400">
-						Confirme sua entrada no serviço com uma rubrica para liberar o formulário de
-						produtividade.
-					</Dialog.Description>
-				</div>
+				<div
+					class="card p-4 sm:p-6 max-w-md w-full max-h-[calc(100dvh-2rem)] overflow-y-auto card-elevated shadow-2xl rounded-2xl space-y-5"
+				>
+					<div class="space-y-1">
+						<Dialog.Title class="text-lg font-bold">Confirmação de Entrada</Dialog.Title>
+						<Dialog.Description class="text-sm text-surface-600 dark:text-surface-400">
+							Confirme sua entrada no serviço com uma rubrica para liberar o formulário de
+							produtividade.
+						</Dialog.Description>
+					</div>
 
-				{#if isMobile || !restringirSmartphone}
-					{@render actionButton(
-						'Confirmar Entrada',
-						undefined,
-						'primary',
-						'filled',
-						() => (resGise.capturandoRubrica = true),
-						false,
-						false,
-						'w-full py-4 text-lg shadow-xl shadow-primary-500/20'
-					)}
-				{:else}
-					{@render blocoRestritoDesktop('entrada')}
-				{/if}
+					{#if isMobile || !restringirSmartphone}
+						{@render actionButton(
+							'Confirmar Entrada',
+							undefined,
+							'primary',
+							'filled',
+							() => (resGise.capturandoRubrica = true),
+							false,
+							false,
+							'w-full py-4 text-lg shadow-xl shadow-primary-500/20'
+						)}
+					{:else}
+						{@render blocoRestritoDesktop('entrada')}
+					{/if}
 
-				<div class="flex justify-end">
-					{@render actionButton(
-						'Fechar',
-						undefined,
-						'surface',
-						'outlined',
-						() => (modalPresenca = null),
-						false,
-						false,
-						'px-6'
-					)}
+					<div class="flex justify-end">
+						{@render actionButton(
+							'Fechar',
+							undefined,
+							'surface',
+							'outlined',
+							() => (modalPresenca = null),
+							false,
+							false,
+							'px-6'
+						)}
+					</div>
 				</div>
-			</div>
-		</Dialog.Content>
+			</Dialog.Content>
+		</Portal>
 	</Dialog>
 
 	<Dialog
@@ -614,60 +631,62 @@
 			if (!e.open && !loading.active) modalPresenca = null;
 		}}
 	>
-		<Dialog.Content
-			class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-sm overflow-y-auto"
-		>
-			<div
-				class="card p-4 sm:p-6 max-w-md w-full max-h-[calc(100dvh-2rem)] overflow-y-auto card-elevated shadow-2xl rounded-2xl space-y-5"
+		<Portal>
+			<Dialog.Content
+				class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-sm overflow-y-auto"
 			>
-				<div class="space-y-1">
-					<Dialog.Title class="text-lg font-bold">Término do Plantão</Dialog.Title>
-					<Dialog.Description class="text-sm text-surface-600 dark:text-surface-400">
-						Confirme sua saída do serviço com uma rubrica.
-					</Dialog.Description>
-				</div>
-
-				{#if !relatorioOk}
-					<div
-						class="p-3 bg-warning-500/10 border border-warning-500/20 rounded-xl flex items-start gap-3"
-					>
-						{@render btnIcon(
-							'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z'
-						)}
-						<p class="text-3xs text-warning-700 dark:text-warning-400">
-							Você deve preencher e enviar o <strong>Relatório de Produtividade</strong>
-							(resultados do serviço) antes de confirmar a saída.
-						</p>
+				<div
+					class="card p-4 sm:p-6 max-w-md w-full max-h-[calc(100dvh-2rem)] overflow-y-auto card-elevated shadow-2xl rounded-2xl space-y-5"
+				>
+					<div class="space-y-1">
+						<Dialog.Title class="text-lg font-bold">Término do Plantão</Dialog.Title>
+						<Dialog.Description class="text-sm text-surface-600 dark:text-surface-400">
+							Confirme sua saída do serviço com uma rubrica.
+						</Dialog.Description>
 					</div>
-				{:else if isMobile || !restringirSmartphone}
-					{@render actionButton(
-						'Confirmar Saída',
-						undefined,
-						'primary',
-						'filled',
-						() => (resGise.capturandoRubrica = true),
-						false,
-						false,
-						'w-full py-4 text-lg shadow-xl shadow-primary-500/20'
-					)}
-				{:else}
-					{@render blocoRestritoDesktop('saida')}
-				{/if}
 
-				<div class="flex justify-end">
-					{@render actionButton(
-						'Fechar',
-						undefined,
-						'surface',
-						'outlined',
-						() => (modalPresenca = null),
-						false,
-						false,
-						'px-6'
-					)}
+					{#if !relatorioOk}
+						<div
+							class="p-3 bg-warning-500/10 border border-warning-500/20 rounded-xl flex items-start gap-3"
+						>
+							{@render btnIcon(
+								'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z'
+							)}
+							<p class="text-3xs text-warning-700 dark:text-warning-400">
+								Você deve preencher e enviar o <strong>Relatório de Produtividade</strong>
+								(resultados do serviço) antes de confirmar a saída.
+							</p>
+						</div>
+					{:else if isMobile || !restringirSmartphone}
+						{@render actionButton(
+							'Confirmar Saída',
+							undefined,
+							'primary',
+							'filled',
+							() => (resGise.capturandoRubrica = true),
+							false,
+							false,
+							'w-full py-4 text-lg shadow-xl shadow-primary-500/20'
+						)}
+					{:else}
+						{@render blocoRestritoDesktop('saida')}
+					{/if}
+
+					<div class="flex justify-end">
+						{@render actionButton(
+							'Fechar',
+							undefined,
+							'surface',
+							'outlined',
+							() => (modalPresenca = null),
+							false,
+							false,
+							'px-6'
+						)}
+					</div>
 				</div>
-			</div>
-		</Dialog.Content>
+			</Dialog.Content>
+		</Portal>
 	</Dialog>
 
 	<!-- Relatório de produtividade. Modal largo: o formulário tem grades de até
@@ -678,89 +697,91 @@
 			if (!e.open && !loading.active) resGise.exibirRelatorio = false;
 		}}
 	>
-		<Dialog.Content
-			class="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-surface-950/80 backdrop-blur-sm overflow-y-auto"
-		>
-			<div
-				class="card p-4 sm:p-6 max-w-5xl w-full max-h-[calc(100dvh-1.5rem)] overflow-y-auto card-elevated shadow-2xl rounded-2xl space-y-5"
+		<Portal>
+			<Dialog.Content
+				class="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-surface-950/80 backdrop-blur-sm overflow-y-auto"
 			>
-				<div class="flex flex-wrap items-start justify-between gap-3">
-					<div class="space-y-1">
-						<Dialog.Title class="text-lg font-bold">Resultados do Serviço</Dialog.Title>
-						<Dialog.Description class="text-sm text-surface-600 dark:text-surface-400">
-							Relatório de produtividade do plantão de {resGise.fmtDate(escala.data_inicio)}.
-						</Dialog.Description>
+				<div
+					class="card p-4 sm:p-6 max-w-5xl w-full max-h-[calc(100dvh-1.5rem)] overflow-y-auto card-elevated shadow-2xl rounded-2xl space-y-5"
+				>
+					<div class="flex flex-wrap items-start justify-between gap-3">
+						<div class="space-y-1">
+							<Dialog.Title class="text-lg font-bold">Resultados do Serviço</Dialog.Title>
+							<Dialog.Description class="text-sm text-surface-600 dark:text-surface-400">
+								Relatório de produtividade do plantão de {resGise.fmtDate(escala.data_inicio)}.
+							</Dialog.Description>
+						</div>
+						{#if relatorioOk}
+							{@render statusBadge('finalizadas')}
+						{/if}
 					</div>
-					{#if relatorioOk}
-						{@render statusBadge('finalizadas')}
-					{/if}
-				</div>
 
-				{#if loading.active}
-					<div class="flex flex-col items-center gap-3 py-12">
-						<Spinner size="lg" class="text-primary-500" />
-						<p class="text-sm font-semibold text-surface-600 uppercase tracking-wider">
-							{loading.message}
-						</p>
-					</div>
-				{:else}
-					{#if relatorioOk && !Object.keys(resGise.respostas).length}
-						<div class="p-3 bg-primary-500/5 border border-primary-500/10 rounded-xl">
-							<p class="text-3xs text-primary-600 dark:text-primary-400 italic">
-								Um integrante da equipe já respondeu. Você pode visualizar ou retificar os dados
-								abaixo.
+					{#if loading.active}
+						<div class="flex flex-col items-center gap-3 py-12">
+							<Spinner size="lg" class="text-primary-500" />
+							<p class="text-sm font-semibold text-surface-600 uppercase tracking-wider">
+								{loading.message}
 							</p>
 						</div>
-					{/if}
+					{:else}
+						{#if relatorioOk && !Object.keys(resGise.respostas).length}
+							<div class="p-3 bg-primary-500/5 border border-primary-500/10 rounded-xl">
+								<p class="text-3xs text-primary-600 dark:text-primary-400 italic">
+									Um integrante da equipe já respondeu. Você pode visualizar ou retificar os dados
+									abaixo.
+								</p>
+							</div>
+						{/if}
 
-					<RelatorioProdutividade
-						modelo={resGise.perguntasForm}
-						bind:respostas={resGise.respostas}
-					/>
+						<RelatorioProdutividade
+							modelo={resGise.perguntasForm}
+							bind:respostas={resGise.respostas}
+						/>
 
-					<!-- Rodapé no padrão da casa (README §10). -->
-					<div class="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 sm:gap-3">
-						{@render actionButton(
-							'Cancelar',
-							undefined,
-							'surface',
-							'tonal',
-							() => (resGise.exibirRelatorio = false),
-							false,
-							false,
-							'w-full sm:w-auto px-6'
-						)}
-						<form
-							method="POST"
-							action="?/salvarResposta"
-							use:enhance={resGise.handleSalvarResposta(isAdminGeral)}
-							class="contents"
-						>
-							<input type="hidden" name="giseId" value={escala.id} />
-							{#if escala.equipe_id}
-								<input type="hidden" name="equipeId" value={escala.equipe_id} />
-							{/if}
-							<input type="hidden" name="respostas" value={resGise.respostasJson} />
-
+						<!-- Rodapé no padrão da casa (README §10). -->
+						<div class="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 sm:gap-3">
 							{@render actionButton(
-								loading.active
-									? 'Processando...'
-									: relatorioOk
-										? 'Salvar Alterações'
-										: 'Finalizar Entrega',
+								'Cancelar',
 								undefined,
-								'primary',
-								'filled',
-								undefined,
-								loading.active,
+								'surface',
+								'tonal',
+								() => (resGise.exibirRelatorio = false),
 								false,
-								'w-full sm:w-auto sm:px-10 shadow-sm',
-								'submit'
+								false,
+								'w-full sm:w-auto px-6'
 							)}
-						</form>
-					</div>
-				{/if}
-			</div>
-		</Dialog.Content>
+							<form
+								method="POST"
+								action="?/salvarResposta"
+								use:enhance={resGise.handleSalvarResposta(isAdminGeral)}
+								class="contents"
+							>
+								<input type="hidden" name="giseId" value={escala.id} />
+								{#if escala.equipe_id}
+									<input type="hidden" name="equipeId" value={escala.equipe_id} />
+								{/if}
+								<input type="hidden" name="respostas" value={resGise.respostasJson} />
+
+								{@render actionButton(
+									loading.active
+										? 'Processando...'
+										: relatorioOk
+											? 'Salvar Alterações'
+											: 'Finalizar Entrega',
+									undefined,
+									'primary',
+									'filled',
+									undefined,
+									loading.active,
+									false,
+									'w-full sm:w-auto sm:px-10 shadow-sm',
+									'submit'
+								)}
+							</form>
+						</div>
+					{/if}
+				</div>
+			</Dialog.Content>
+		</Portal>
 	</Dialog>
 {/if}
