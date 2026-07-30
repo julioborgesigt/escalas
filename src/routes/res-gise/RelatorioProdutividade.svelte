@@ -144,13 +144,7 @@
 			<label class="text-3xs font-bold text-surface-500 dark:text-surface-400 uppercase" for={id}
 				>{rotulo}</label
 			>
-			<input
-				{id}
-				type="text"
-				{placeholder}
-				class="input text-xs"
-				bind:value={item[campo]}
-			/>
+			<input {id} type="text" {placeholder} class="input text-xs" bind:value={item[campo]} />
 		</div>
 	{/snippet}
 
@@ -472,9 +466,9 @@
 										{#each ['Maconha', 'Cocaína', 'Crack', 'Extase', 'LSD', 'Haxixe', 'Skunk', 'Outros'] as d (d)}
 											<button
 												type="button"
-												class="btn btn-sm font-bold {(
-													respostas.drogas_selecionadas || []
-												).includes(d)
+												class="btn btn-sm font-bold {(respostas.drogas_selecionadas || []).includes(
+													d
+												)
 													? 'preset-filled-primary-500'
 													: 'preset-outlined-surface-500'}"
 												onclick={() => {
@@ -562,9 +556,9 @@
 										{#each ['Revolver', 'Pistola', 'Arma Longa', 'Arma Branca', 'Munição', 'Outros'] as a (a)}
 											<button
 												type="button"
-												class="btn btn-sm font-bold {(
-													respostas.armas_selecionadas || []
-												).includes(a)
+												class="btn btn-sm font-bold {(respostas.armas_selecionadas || []).includes(
+													a
+												)
 													? 'preset-filled-primary-500'
 													: 'preset-outlined-surface-500'}"
 												onclick={() => {

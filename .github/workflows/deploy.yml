@@ -9,10 +9,17 @@ on:
   push:
     branches: [main, staging]
 
-# Cancela runs anteriores quando um novo commit é pushado para a mesma branch/PR.
+# Cancela runs anteriores quando um novo commit é pushado para o mesmo PR.
+#
+# `cancel-in-progress` SÓ em pull_request, nunca em push. Num push para main o
+# `github.ref` é `refs/heads/main`, então dois merges em sequência colocariam os
+# dois runs no mesmo grupo e o segundo cancelaria o primeiro — que é justamente
+# o run que faz `db:migrate:prod` + `pages deploy`. O `migrate.ts` só grava em
+# `_migrations_aplicadas` DEPOIS do `d1 execute`, então um cancelamento nessa
+# janela deixa a migração aplicada e não registrada.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   test:
@@ -48,6 +55,20 @@ jobs:
       # piso quando os números estabilizarem). Os testes seguem sendo gate.
       - run: npx vitest run --reporter=verbose --coverage
       - run: npm run build
+
+      # ⚠️ O upload TEM de ficar aqui, colado no build, e ANTES dos passos de
+      # E2E. O `e2e/servidor-e2e.ts` roda `npm run build` de novo com
+      # `E2E_TEST_CA=1`, que inlina a raiz de CA de TESTE no trust store
+      # ICP-Brasil e SOBRESCREVE `.svelte-kit/cloudflare`. Subir o artefato
+      # depois do E2E publicaria essa raiz de teste em produção.
+      - name: Guardar build de produção para os jobs de deploy
+        if: github.event_name == 'push'
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-cloudflare
+          path: .svelte-kit/cloudflare
+          retention-days: 1
+          if-no-files-found: error
 
       # Guard contra regressão do padrão API: todas as rotas devem usar
       # os helpers de \$lib/server/api (badRequest, unauthorized, etc.) em
@@ -100,8 +121,30 @@ jobs:
       - name: Apply D1 migrations (local, for E2E)
         run: npx wrangler d1 migrations apply escalas-db --local
 
+      # O browser são ~150 MB baixados a cada run. A chave é a VERSÃO do
+      # @playwright/test resolvida no lockfile: o binário é atrelado a ela, e
+      # assim o cache invalida sozinho quando o dependabot sobe a versão.
+      - name: Versão do Playwright (chave do cache)
+        id: pw
+        run: echo "versao=$(node -p "require('@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
+
+      - name: Cache do browser do Playwright
+        id: cache-pw
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.pw.outputs.versao }}
+
+      # No cache hit só faltam as libs de sistema (`--with-deps` instala via
+      # apt, fora de ~/.cache) — o `--only-shell` não serve porque a suíte usa
+      # o Chromium completo.
       - name: Install Playwright (Chromium)
-        run: npx playwright install --with-deps chromium
+        run: |
+          if [ "${{ steps.cache-pw.outputs.cache-hit }}" = "true" ]; then
+            npx playwright install-deps chromium
+          else
+            npx playwright install --with-deps chromium
+          fi
 
       - name: End-to-end tests
         run: npx playwright test
@@ -120,8 +163,16 @@ jobs:
           node-version: 22
           cache: npm
 
+      # `npm ci` continua necessário: o passo de migração roda `tsx` +
+      # `wrangler` do node_modules. O que sai é o `npm run build` — o artefato
+      # vem pronto do job `test`, que já buildou o MESMO commit.
       - run: npm ci
-      - run: npm run build
+
+      - name: Baixar build de produção do job `test`
+        uses: actions/download-artifact@v4
+        with:
+          name: build-cloudflare
+          path: .svelte-kit/cloudflare
 
       # Migra o D1 de STAGING antes do deploy. O script é INCREMENTAL: controla
       # o que já foi aplicado em `_migrations_aplicadas` e só executa as
@@ -154,8 +205,15 @@ jobs:
           node-version: 22
           cache: npm
 
+      # Idem staging: `npm ci` para o `tsx`/`wrangler` da migração; o build vem
+      # pronto do job `test` (mesmo commit, e sem a raiz de CA de teste do E2E).
       - run: npm ci
-      - run: npm run build
+
+      - name: Baixar build de produção do job `test`
+        uses: actions/download-artifact@v4
+        with:
+          name: build-cloudflare
+          path: .svelte-kit/cloudflare
 
       # Migra o D1 de PRODUÇÃO antes do deploy (incremental — só as pendentes
       # de `_migrations_aplicadas`; `--yes` é a confirmação exigida pelo
