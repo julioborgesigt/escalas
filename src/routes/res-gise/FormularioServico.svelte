@@ -16,6 +16,7 @@
 	 * não são fixas.
 	 */
 	import { enhance } from '$app/forms';
+	import { Dialog } from '@skeletonlabs/skeleton-svelte';
 	import { actionButton, btnIcon } from './BotoesAcao.svelte';
 	import { page } from '$app/state';
 	import RelatorioProdutividade from './RelatorioProdutividade.svelte';
@@ -47,6 +48,41 @@
 
 	const usuario = $derived(page.data.usuario);
 	const giseId = $derived(resGise.escalaSelecionada?.id ?? null);
+	const esc = $derived(resGise.escalaSelecionada);
+
+	/**
+	 * Estado das três tarefas, num lugar só. O template lia estas mesmas
+	 * condições em oito pontos diferentes (`presenca?.entrada_timestamp` seis
+	 * vezes), e cada leitura era uma chance de divergir das outras.
+	 *
+	 * `temProdutividade`: supervisor e assessor não devem relatório — o servidor
+	 * já lhes dá `equipeRespondida: true` de saída (`+page.server.ts`, "quem deve
+	 * o relatório muda por papel"). Para eles o passo não existe, em vez de
+	 * aparecer eternamente concluído.
+	 */
+	const temProdutividade = $derived(
+		!!esc && esc.equipe_tipo !== 'assessor' && esc.equipe_tipo !== 'supervisor'
+	);
+	const entradaOk = $derived(!!esc?.presenca?.entrada_timestamp);
+	const relatorioOk = $derived(!!esc?.equipeRespondida);
+	const saidaOk = $derived(!!esc?.presenca?.saida_timestamp);
+	const horarioEntradaLiberado = $derived(!!esc && resGise.isHorarioLiberado(esc, isAdminGeral));
+	const horarioSaidaLiberado = $derived(!!esc && resGise.isSaidaLiberada(esc, isAdminGeral));
+
+	/**
+	 * Qual modal de tarefa está aberto. O do relatório é a exceção: reusa
+	 * `resGise.exibirRelatorio`, que já existia com exatamente essa semântica e
+	 * que o `handleSalvarResposta` zera sozinho ao salvar — é o que fecha o modal
+	 * depois da entrega, sem precisar interceptar o `enhance`.
+	 */
+	let modalPresenca = $state<'entrada' | 'saida' | null>(null);
+
+	/** Fecha o modal da tarefa assim que ela é cumprida (inclusive pelo A3, que
+	 *  confirma pela API e volta pelo `sincronizarPresencaAtual`). */
+	$effect(() => {
+		if (modalPresenca === 'entrada' && entradaOk) modalPresenca = null;
+		if (modalPresenca === 'saida' && saidaOk) modalPresenca = null;
+	});
 
 	/** "2026-07-18 20:42:55" (horário local, -3h) → "18/07/2026 às 20:42". */
 	function fmtDataHora(ts: string | null | undefined): string {
@@ -224,121 +260,321 @@
 	</div>
 {/if}
 
+{#snippet passo(
+	indice: number,
+	rotulo: string,
+	concluido: boolean,
+	ativo: boolean,
+	acao: { label: string; onclick: () => void; disabled: boolean; titulo?: string } | null
+)}
+	<!-- `relative`: posicionado, então pinta ACIMA da linha conectora (que é
+	     `absolute` e vem antes no DOM). -->
+	<div class="relative flex flex-col items-center gap-1.5 text-center">
+		<div
+			class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold {concluido
+				? 'bg-success-500 text-white'
+				: ativo
+					? 'bg-primary-500 text-white shadow-lg shadow-primary-500/30'
+					: 'bg-surface-200 text-surface-600 dark:bg-surface-800 dark:text-surface-400'}"
+		>
+			{#if concluido}✓{:else}{indice}{/if}
+		</div>
+		<span
+			class="text-3xs font-bold uppercase tracking-wider {concluido
+				? 'text-success-600 dark:text-success-500'
+				: ativo
+					? 'text-primary-600 dark:text-primary-400'
+					: 'text-surface-600 dark:text-surface-400'}">{rotulo}</span
+		>
+		{#if acao}
+			<button
+				type="button"
+				class="btn btn-sm mt-1 w-full max-w-[11rem] rounded-xl text-3xs font-black uppercase tracking-wide whitespace-normal {acao.disabled
+					? 'preset-outlined-surface-500 opacity-45 cursor-not-allowed'
+					: concluido
+						? 'preset-outlined-primary-500'
+						: 'preset-filled-primary-500 shadow-md shadow-primary-500/20'}"
+				disabled={acao.disabled || loading.active}
+				title={acao.titulo}
+				onclick={acao.onclick}
+			>
+				{acao.label}
+			</button>
+		{/if}
+	</div>
+{/snippet}
+
+<!--
+	Cabeçalho do quadro de resultado: marcador + rótulo + linha de detalhe. O
+	texto muda conforme a tarefa esteja cumprida (`detalhe`) ou não
+	(`pendencia`) — é o mesmo conteúdo dos avisos antigos, em coluna.
+-->
+{#snippet cabecalhoQuadro(
+	rotulo: string,
+	concluido: boolean,
+	detalhe: string,
+	pendencia: string,
+	tom: 'success' | 'surface'
+)}
+	<div class="flex items-start gap-2">
+		<div
+			class="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full {concluido
+				? tom === 'success'
+					? 'bg-success-500'
+					: 'bg-surface-500'
+				: 'bg-surface-200 dark:bg-surface-800'}"
+		>
+			{#if concluido}
+				<svg
+					class="h-3.5 w-3.5 text-white"
+					fill="none"
+					stroke="currentColor"
+					viewBox="0 0 24 24"
+					aria-hidden="true"
+					><path
+						stroke-linecap="round"
+						stroke-linejoin="round"
+						stroke-width="3"
+						d="M5 13l4 4L19 7"
+					/></svg
+				>
+			{:else}
+				<span class="block h-1.5 w-1.5 rounded-full bg-surface-500 dark:bg-surface-500"></span>
+			{/if}
+		</div>
+		<div class="min-w-0">
+			<p
+				class="text-3xs font-bold uppercase tracking-wider {concluido
+					? tom === 'success'
+						? 'text-success-700 dark:text-success-400'
+						: 'text-surface-700 dark:text-surface-300'
+					: 'text-surface-600 dark:text-surface-400'}"
+			>
+				{rotulo}
+			</p>
+			<p class="text-3xs tabular-nums text-surface-600 dark:text-surface-400">
+				{concluido ? detalhe : pendencia}
+			</p>
+		</div>
+	</div>
+{/snippet}
+
 {#if resGise.escalaSelecionada}
-	<!-- `@container`: os blocos abaixo se adaptam à largura DESTE card, não à da
-	     viewport — o card mede diferente conforme a página o coloque em coluna
-	     cheia ou estreita. Seguro porque a subárvore não tem `position: fixed`
-	     (os modais moram no `+page.svelte`): `container-type` implica
-	     `contain: layout`, que viraria containing block pra eles. -->
-	<div class="@container space-y-6">
+	{@const escala = resGise.escalaSelecionada}
+	{@const passoAtivo = !entradaOk ? 1 : temProdutividade && !relatorioOk ? 2 : !saidaOk ? 3 : 0}
+	{@const molduraQuadro = 'flex h-full flex-col gap-2 rounded-2xl border p-3 transition-colors'}
+	{@const molduraPendente =
+		'border-surface-200 bg-surface-50 dark:border-surface-800 dark:bg-surface-950/40'}
+
+	<div class="space-y-6">
 		<div class="border-b border-surface-200 dark:border-surface-800 pb-4">
 			<h2 class="text-xl font-bold">Relatório de Serviço</h2>
 			<p class="text-xs text-primary-500 font-medium">
-				Data: {resGise.fmtDate(resGise.escalaSelecionada.data_inicio)}
+				Data: {resGise.fmtDate(escala.data_inicio)}
 			</p>
 		</div>
 
-		<!-- Stepper Visual -->
-		<!-- `max-w-2xl mx-auto` aqui e nos blocos marcados abaixo: o card ocupa a
-		     largura cheia do container (~1120px no desktop) para o formulário de
-		     produtividade, cujos grids são `md:grid-cols-4`. Stepper, CTAs de
-		     entrada/saída e estados vazios não ganham nada com essa largura — ao
-		     contrário, `justify-between` espalha os três passos até as beiradas e
-		     um botão de 1120px fica absurdo. Estes travam; o formulário, não. -->
-		<div class="flex items-center justify-between px-2 sm:px-4 mb-4 max-w-2xl">
-			<div class="flex flex-col items-center gap-1 group">
-				<div
-					class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold {resGise
-						.escalaSelecionada.presenca?.entrada_timestamp
-						? 'bg-success-500 text-white'
-						: 'bg-primary-500 text-white shadow-lg shadow-primary-500/30'}"
-				>
-					{#if resGise.escalaSelecionada.presenca?.entrada_timestamp}✓{:else}1{/if}
-				</div>
-				<span
-					class="text-3xs font-bold uppercase tracking-wider {resGise.escalaSelecionada.presenca
-						?.entrada_timestamp
-						? 'text-success-600'
-						: 'text-primary-500'}">Entrada</span
-				>
+		<!--
+			Barra de progresso: os passos ficam FIXOS na tela e cada um leva ao seu
+			modal. Antes as três tarefas eram seções empilhadas dentro do card, o que
+			no desktop virava ~1050px de faixa com o conteúdo perdido no meio.
+
+			Grade de N colunas com a linha conectora `absolute` entre os centros das
+			colunas extremas: assim o botão de cada passo cai exatamente sob o seu
+			círculo — o que o `justify-between` do layout antigo não permitia.
+		-->
+		<div class="relative grid gap-2 {temProdutividade ? 'grid-cols-3' : 'grid-cols-2'}">
+			<div
+				class="pointer-events-none absolute top-4 h-px bg-surface-200 dark:bg-surface-700 {temProdutividade
+					? 'left-[16.667%] right-[16.667%]'
+					: 'left-1/4 right-1/4'}"
+			></div>
+
+			{@render passo(
+				1,
+				'Entrada',
+				entradaOk,
+				passoAtivo === 1,
+				entradaOk
+					? null
+					: {
+							label: horarioEntradaLiberado ? 'Confirmar entrada' : 'Aguardando horário',
+							onclick: () => (modalPresenca = 'entrada'),
+							disabled: !horarioEntradaLiberado,
+							titulo: horarioEntradaLiberado
+								? undefined
+								: `Liberado às ${escala.horarioPrevisto?.inicio ?? '—'}`
+						}
+			)}
+
+			{#if temProdutividade}
+				{@render passo(2, 'Produtividade', relatorioOk, passoAtivo === 2, {
+					label: relatorioOk ? 'Retificar dados' : 'Preencher relatório',
+					onclick: () => (resGise.exibirRelatorio = true),
+					disabled: !entradaOk,
+					titulo: entradaOk ? undefined : 'Confirme a entrada primeiro'
+				})}
+			{/if}
+
+			{@render passo(
+				temProdutividade ? 3 : 2,
+				'Saída',
+				saidaOk,
+				passoAtivo === 3,
+				saidaOk
+					? null
+					: {
+							label: !horarioSaidaLiberado
+								? 'Aguardando horário'
+								: !relatorioOk
+									? 'Relatório pendente'
+									: 'Confirmar saída',
+							onclick: () => (modalPresenca = 'saida'),
+							disabled: !entradaOk || !horarioSaidaLiberado || !relatorioOk,
+							titulo: !horarioSaidaLiberado
+								? `Liberado às ${escala.horarioPrevisto?.fim ?? '—'}`
+								: !relatorioOk
+									? 'Envie o relatório de produtividade antes'
+									: undefined
+						}
+			)}
+		</div>
+
+		<!-- Resultados: um quadro por tarefa, lado a lado, na ordem de execução. -->
+		<div class="grid grid-cols-1 gap-3 {temProdutividade ? 'sm:grid-cols-3' : 'sm:grid-cols-2'}">
+			<div
+				class="{molduraQuadro} {entradaOk
+					? 'border-success-500/25 bg-success-500/10'
+					: molduraPendente}"
+			>
+				{@render cabecalhoQuadro(
+					'Entrada confirmada',
+					entradaOk,
+					entradaOk && escala.presenca?.entrada_timestamp
+						? new Date(escala.presenca.entrada_timestamp).toLocaleString('pt-BR', {
+								timeZone: 'America/Sao_Paulo'
+							})
+						: '',
+					horarioEntradaLiberado
+						? 'Aguardando confirmação'
+						: `Disponível às ${escala.horarioPrevisto?.inicio ?? '—'}`,
+					'success'
+				)}
+				{#if entradaOk}
+					<div class="mt-auto flex pt-1">{@render btnBaixarComprovante('entrada')}</div>
+				{/if}
 			</div>
-			<div class="flex-1 h-px bg-surface-200 dark:border-surface-800 mx-2 -mt-4"></div>
-			<div class="flex flex-col items-center gap-1">
+
+			{#if temProdutividade}
 				<div
-					class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold {resGise
-						.escalaSelecionada.equipeRespondida
-						? 'bg-success-500 text-white'
-						: resGise.escalaSelecionada.presenca?.entrada_timestamp
-							? 'bg-primary-500 text-white'
-							: 'bg-surface-200 text-surface-400'}"
+					class="{molduraQuadro} {relatorioOk
+						? 'border-success-500/25 bg-success-500/10'
+						: molduraPendente}"
 				>
-					{#if resGise.escalaSelecionada.equipeRespondida}✓{:else}2{/if}
+					{@render cabecalhoQuadro(
+						'Relatório entregue',
+						relatorioOk,
+						resGise.respostaEnviadaEm
+							? `Enviado em ${fmtDataHora(resGise.respostaEnviadaEm)}${
+									houveRetificacao
+										? ` · retificado em ${fmtDataHora(resGise.respostaAtualizadaEm)}`
+										: ''
+								}`
+							: 'Registrado',
+						entradaOk ? 'Aguardando envio' : 'Confirme a entrada primeiro',
+						'success'
+					)}
+					{#if relatorioOk && escala.seccional_id !== 0}
+						<div class="mt-auto flex pt-1">
+							<button
+								type="button"
+								class="btn btn-sm preset-tonal-surface-500 rounded-lg text-3xs font-bold uppercase flex items-center gap-1.5 shrink-0 ml-auto"
+								title="Baixar relatório de produtividade em PDF"
+								onclick={() => resGise.baixarRelatorio(escala)}
+								disabled={loading.active || resGise.baixandoProdutividade === escala.id}
+							>
+								{#if resGise.baixandoProdutividade === escala.id}
+									<Spinner size="sm" />
+								{:else}
+									{@render btnIcon(
+										'M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4'
+									)}
+								{/if}
+								<span class="hidden sm:inline">Relatório</span>
+							</button>
+						</div>
+					{/if}
 				</div>
-				<span
-					class="text-3xs font-bold uppercase tracking-wider {resGise.escalaSelecionada
-						.equipeRespondida
-						? 'text-success-600'
-						: 'text-surface-400'}">Produtividade</span
-				>
-			</div>
-			<div class="flex-1 h-px bg-surface-200 dark:border-surface-800 mx-2 -mt-4"></div>
-			<div class="flex flex-col items-center gap-1">
-				<div
-					class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold {resGise
-						.escalaSelecionada.presenca?.saida_timestamp
-						? 'bg-success-500 text-white'
-						: resGise.escalaSelecionada.equipeRespondida
-							? 'bg-primary-500 text-white'
-							: 'bg-surface-200 text-surface-400'}"
-				>
-					{#if resGise.escalaSelecionada.presenca?.saida_timestamp}✓{:else}3{/if}
-				</div>
-				<span
-					class="text-3xs font-bold uppercase tracking-wider {resGise.escalaSelecionada.presenca
-						?.saida_timestamp
-						? 'text-success-600'
-						: 'text-surface-400'}">Saída</span
-				>
+			{/if}
+
+			<div
+				class="{molduraQuadro} {saidaOk
+					? 'border-surface-500/25 bg-surface-500/10'
+					: molduraPendente}"
+			>
+				{@render cabecalhoQuadro(
+					'Saída confirmada',
+					saidaOk,
+					saidaOk && escala.presenca?.saida_timestamp
+						? new Date(escala.presenca.saida_timestamp).toLocaleString('pt-BR', {
+								timeZone: 'America/Sao_Paulo'
+							})
+						: '',
+					!horarioSaidaLiberado
+						? `Disponível às ${escala.horarioPrevisto?.fim ?? '—'}`
+						: !relatorioOk
+							? 'Depende do relatório'
+							: 'Aguardando confirmação',
+					'surface'
+				)}
+				{#if saidaOk}
+					<div class="mt-auto flex pt-1">{@render btnBaixarComprovante('saida')}</div>
+				{/if}
 			</div>
 		</div>
 
-		{#if !resGise.isHorarioLiberado(resGise.escalaSelecionada, isAdminGeral)}
-			<!-- estado vazio: coluna estreita (ver nota no stepper) -->
-			<div class="p-4 sm:p-6 text-center space-y-4 max-w-md mx-auto">
-				<div
-					class="bg-primary-500/10 p-4 rounded-full w-16 h-16 mx-auto flex items-center justify-center"
-				>
-					<svg
-						class="w-8 h-8 text-primary-500"
-						fill="none"
-						stroke="currentColor"
-						viewBox="0 0 24 24"
-						><path
-							stroke-linecap="round"
-							stroke-linejoin="round"
-							stroke-width="2"
-							d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-						/></svg
-					>
-				</div>
-				<div>
-					<h3 class="font-bold text-lg">Horário não atingido</h3>
-					<p class="text-sm text-surface-500">
-						O registro de entrada estará disponível às <span class="font-bold text-primary-500"
-							>{resGise.escalaSelecionada.horarioPrevisto?.inicio ?? '—'}</span
-						>.
-					</p>
-				</div>
-			</div>
-		{:else if !resGise.escalaSelecionada.presenca?.entrada_timestamp}
-			<!-- CTA de entrada: coluna estreita (ver nota no stepper) -->
-			<div class="p-4 sm:p-6 space-y-10 max-w-md mx-auto">
-				<div class="space-y-2">
-					<h3 class="font-bold uppercase text-sm tracking-wider">Confirmação de Entrada</h3>
-					<p class="text-xs text-surface-500">
+		<div class="pt-2">
+			<button
+				type="button"
+				class="btn btn-sm text-surface-600 hover:text-primary-500 transition-colors w-full"
+				onclick={voltarParaLista}
+			>
+				← Voltar para lista de escalas
+			</button>
+		</div>
+	</div>
+
+	<!--
+		Modais das três tarefas.
+
+		`z-50` é o degrau de modal da escala do README; o pad de rubrica e o
+		cadastro de rubrica (no `+page.svelte`) são `z-[60]`/`z-[70]` e abrem POR
+		CIMA destes — empilhamento correto, já que a rubrica é o passo seguinte de
+		dentro da confirmação.
+
+		Não foram extraídos para componentes: os três dependem de `resGise`,
+		`isMobile`, `restringirSmartphone`, `minhaRubrica`, dos painéis A3 e do
+		snippet `blocoRestritoDesktop` — a extração custaria mais props do que
+		poupa marcação (corolário do CLAUDE.md sobre quando NÃO extrair).
+	-->
+	<Dialog
+		open={modalPresenca === 'entrada'}
+		onOpenChange={(e) => {
+			if (!e.open && !loading.active) modalPresenca = null;
+		}}
+	>
+		<Dialog.Content
+			class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-sm overflow-y-auto"
+		>
+			<div
+				class="card p-4 sm:p-6 max-w-md w-full max-h-[calc(100dvh-2rem)] overflow-y-auto card-elevated shadow-2xl rounded-2xl space-y-5"
+			>
+				<div class="space-y-1">
+					<Dialog.Title class="text-lg font-bold">Confirmação de Entrada</Dialog.Title>
+					<Dialog.Description class="text-sm text-surface-600 dark:text-surface-400">
 						Confirme sua entrada no serviço com uma rubrica para liberar o formulário de
 						produtividade.
-					</p>
+					</Dialog.Description>
 				</div>
 
 				{#if isMobile || !restringirSmartphone}
@@ -355,325 +591,176 @@
 				{:else}
 					{@render blocoRestritoDesktop('entrada')}
 				{/if}
+
+				<div class="flex justify-end">
+					{@render actionButton(
+						'Fechar',
+						undefined,
+						'surface',
+						'outlined',
+						() => (modalPresenca = null),
+						false,
+						false,
+						'px-6'
+					)}
+				</div>
 			</div>
-		{:else}
-			<!-- Fluxo Pós-Entrada -->
-			<div class="space-y-8">
-				<!-- Entrada Info -->
-				<!-- `@2xl:w-fit`: é um SELO de status, não uma faixa. Em largura de
-				     desktop a versão full-width deixava ~800px de vazio entre o horário
-				     e o botão de comprovante. O `min-w` evita que encolha a ponto de
-				     parecer um chip perdido. Abaixo de `@2xl` segue ocupando a linha. -->
-				<div
-					class="flex items-center justify-between gap-3 @2xl:gap-8 p-4 bg-success-500/10 border border-success-500/20 rounded-2xl @2xl:w-fit @2xl:min-w-[26rem]"
-				>
-					<div class="flex items-center gap-3">
-						<div class="bg-success-500 p-2 rounded-full">
-							<svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"
-								><path
-									stroke-linecap="round"
-									stroke-linejoin="round"
-									stroke-width="2"
-									d="M5 13l4 4L19 7"
-								/></svg
-							>
-						</div>
-						<div>
-							<p class="text-xs font-bold text-success-700 dark:text-success-400 uppercase">
-								Entrada Confirmada
-							</p>
-							<p class="text-3xs text-success-600 dark:text-success-500">
-								{new Date(resGise.escalaSelecionada.presenca.entrada_timestamp).toLocaleString(
-									'pt-BR',
-									{ timeZone: 'America/Sao_Paulo' }
-								)}
-							</p>
-						</div>
-					</div>
-					{@render btnBaixarComprovante('entrada')}
+		</Dialog.Content>
+	</Dialog>
+
+	<Dialog
+		open={modalPresenca === 'saida'}
+		onOpenChange={(e) => {
+			if (!e.open && !loading.active) modalPresenca = null;
+		}}
+	>
+		<Dialog.Content
+			class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-sm overflow-y-auto"
+		>
+			<div
+				class="card p-4 sm:p-6 max-w-md w-full max-h-[calc(100dvh-2rem)] overflow-y-auto card-elevated shadow-2xl rounded-2xl space-y-5"
+			>
+				<div class="space-y-1">
+					<Dialog.Title class="text-lg font-bold">Término do Plantão</Dialog.Title>
+					<Dialog.Description class="text-sm text-surface-600 dark:text-surface-400">
+						Confirme sua saída do serviço com uma rubrica.
+					</Dialog.Description>
 				</div>
 
-				<!-- Formulário de produtividade (só equipes operacionais / SEINT com relatório) -->
-				{#if resGise.escalaSelecionada.equipe_tipo !== 'assessor' && resGise.escalaSelecionada.equipe_tipo !== 'supervisor'}
-					<div class="space-y-4 pt-4 border-t border-surface-200 dark:border-surface-800">
-						<div class="flex items-center justify-between">
-							<h3 class="font-bold uppercase text-sm tracking-wider">Resultados do Serviço</h3>
-							{#if resGise.escalaSelecionada.equipeRespondida}
-								{@render statusBadge('finalizadas')}
-							{/if}
-						</div>
-
-						{#if loading.active}
-							<div class="flex flex-col items-center gap-3 py-12">
-								<Spinner size="lg" class="text-primary-500" />
-								<p class="text-sm font-semibold text-surface-500 uppercase tracking-wider">
-									{loading.message}
-								</p>
-							</div>
-						{:else}
-							<div class="space-y-5">
-								{#if resGise.escalaSelecionada.equipeRespondida && !resGise.exibirRelatorio}
-									<!-- Painel de "já entregue". Em telefone: pilha centrada (ícone,
-									     texto, ações), como sempre foi. A partir de `@2xl` vira faixa
-									     horizontal — ícone e texto à esquerda, ações à direita — em vez
-									     de uma caixa de ~1050px com uma ilha de ~450px no meio. -->
-									<div
-										class="p-4 sm:p-6 bg-success-500/5 border border-success-500/20 rounded-3xl text-center space-y-4 animate-in fade-in zoom-in-95 duration-500 @2xl:flex @2xl:items-center @2xl:gap-6 @2xl:space-y-0 @2xl:text-left"
-									>
-										<div
-											class="bg-success-500/10 w-16 h-16 rounded-full flex items-center justify-center mx-auto @2xl:mx-0 @2xl:shrink-0"
-										>
-											{@render btnIcon('M5 13l4 4L19 7')}
-										</div>
-										<div class="@2xl:min-w-0 @2xl:flex-1">
-											<p class="font-bold text-success-700 dark:text-success-400">
-												Relatório Entregue
-											</p>
-											<p class="text-xs text-success-600 dark:text-success-500">
-												Os dados de produtividade foram registrados com sucesso.
-											</p>
-											{#if resGise.respostaEnviadaEm}
-												<div
-													class="mt-2 text-3xs text-success-700/80 dark:text-success-500/90 space-y-0.5 tabular-nums"
-												>
-													<p>
-														Enviado em
-														<span class="font-bold">{fmtDataHora(resGise.respostaEnviadaEm)}</span>
-													</p>
-													{#if houveRetificacao}
-														<p>
-															Última atualização em
-															<span class="font-bold"
-																>{fmtDataHora(resGise.respostaAtualizadaEm)}</span
-															>
-														</p>
-													{/if}
-												</div>
-											{/if}
-										</div>
-										<!-- ações: coluna estreita (ver nota no stepper); na faixa
-										     horizontal viram a coluna da direita, largura fixa -->
-										<div
-											class="flex flex-col gap-2 max-w-md mx-auto @2xl:mx-0 @2xl:w-60 @2xl:max-w-none @2xl:shrink-0"
-										>
-											{@render actionButton(
-												'Atualizar / Retificar Dados',
-												undefined,
-												'primary',
-												'outlined',
-												() => (resGise.exibirRelatorio = true),
-												false,
-												false,
-												'w-full py-2 text-xs uppercase'
-											)}
-											{#if resGise.escalaSelecionada.seccional_id !== 0}
-												<button
-													type="button"
-													class="btn btn-sm preset-tonal-surface-500 rounded-lg text-3xs font-bold uppercase flex items-center justify-center gap-1.5 w-full"
-													title="Baixar relatório de produtividade em PDF"
-													onclick={() => resGise.baixarRelatorio(resGise.escalaSelecionada!)}
-													disabled={loading.active ||
-														resGise.baixandoProdutividade === resGise.escalaSelecionada.id}
-												>
-													{#if resGise.baixandoProdutividade === resGise.escalaSelecionada.id}
-														<Spinner size="sm" />
-													{:else}
-														{@render btnIcon(
-															'M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4'
-														)}
-													{/if}
-													<span>Baixar relatório</span>
-												</button>
-											{/if}
-										</div>
-									</div>
-								{:else}
-									{#if resGise.escalaSelecionada.equipeRespondida && !Object.keys(resGise.respostas).length}
-										<div class="p-3 bg-primary-500/5 border border-primary-500/10 rounded-xl">
-											<p class="text-3xs text-primary-600 dark:text-primary-400 italic">
-												Um integrante da equipe já respondeu. Você pode visualizar ou retificar os
-												dados abaixo.
-											</p>
-										</div>
-									{/if}
-
-									<div class="animate-in fade-in slide-in-from-top-4 duration-500">
-										<RelatorioProdutividade
-											modelo={resGise.perguntasForm}
-											bind:respostas={resGise.respostas}
-										/>
-									</div>
-
-									<!-- Rodapé de formulário no padrão da casa (README §10): empilhado
-									     em mobile, alinhado à direita no desktop. Antes o submit era
-									     `flex-1`, o que virava um botão de ~1050px na largura cheia. -->
-									<div class="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 sm:gap-3">
-										{#if resGise.escalaSelecionada.equipeRespondida}
-											{@render actionButton(
-												'Cancelar',
-												undefined,
-												'surface',
-												'tonal',
-												() => (resGise.exibirRelatorio = false),
-												false,
-												false,
-												'w-full sm:w-auto px-6'
-											)}
-										{/if}
-										<form
-											method="POST"
-											action="?/salvarResposta"
-											use:enhance={resGise.handleSalvarResposta(isAdminGeral)}
-											class="contents"
-										>
-											<input type="hidden" name="giseId" value={resGise.escalaSelecionada?.id} />
-											{#if resGise.escalaSelecionada?.equipe_id}
-												<input
-													type="hidden"
-													name="equipeId"
-													value={resGise.escalaSelecionada.equipe_id}
-												/>
-											{/if}
-											<input type="hidden" name="respostas" value={resGise.respostasJson} />
-
-											{@render actionButton(
-												loading.active
-													? 'Processando...'
-													: resGise.escalaSelecionada.equipeRespondida
-														? 'Salvar Alterações'
-														: 'Finalizar Entrega',
-												undefined,
-												'primary',
-												'filled',
-												undefined,
-												loading.active,
-												false,
-												'w-full sm:w-auto sm:px-10 shadow-sm',
-												'submit'
-											)}
-										</form>
-									</div>
-								{/if}
-							</div>
-						{/if}
+				{#if !relatorioOk}
+					<div
+						class="p-3 bg-warning-500/10 border border-warning-500/20 rounded-xl flex items-start gap-3"
+					>
+						{@render btnIcon(
+							'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z'
+						)}
+						<p class="text-3xs text-warning-700 dark:text-warning-400">
+							Você deve preencher e enviar o <strong>Relatório de Produtividade</strong>
+							(resultados do serviço) antes de confirmar a saída.
+						</p>
 					</div>
+				{:else if isMobile || !restringirSmartphone}
+					{@render actionButton(
+						'Confirmar Saída',
+						undefined,
+						'primary',
+						'filled',
+						() => (resGise.capturandoRubrica = true),
+						false,
+						false,
+						'w-full py-4 text-lg shadow-xl shadow-primary-500/20'
+					)}
+				{:else}
+					{@render blocoRestritoDesktop('saida')}
 				{/if}
 
-				<!-- Saída -->
-				<!-- Sem `p-4 sm:p-6`: o padding é do card (`<section>` no +page.svelte).
-				     Somar outro aqui indentava "Término do Plantão" e o aviso de saída
-				     ~24px à direita de "Resultados do Serviço", com a borda de topo
-				     cruzando a largura toda — desalinhamento que a largura cheia
-				     escancara. -->
-				<div class="space-y-10 pt-8 border-t border-surface-200 dark:border-surface-800">
-					<h3 class="font-bold uppercase text-sm tracking-wider">Término do Plantão</h3>
+				<div class="flex justify-end">
+					{@render actionButton(
+						'Fechar',
+						undefined,
+						'surface',
+						'outlined',
+						() => (modalPresenca = null),
+						false,
+						false,
+						'px-6'
+					)}
+				</div>
+			</div>
+		</Dialog.Content>
+	</Dialog>
 
-					{#if !resGise.escalaSelecionada.presenca?.saida_timestamp}
-						{#if !resGise.isSaidaLiberada(resGise.escalaSelecionada, isAdminGeral)}
-							<!-- estado vazio: coluna estreita (ver nota no stepper) -->
-							<div class="p-4 sm:p-6 text-center space-y-4 max-w-md mx-auto">
-								<div
-									class="bg-primary-500/10 p-4 rounded-full w-16 h-16 mx-auto flex items-center justify-center"
-								>
-									<svg
-										class="w-8 h-8 text-primary-500"
-										fill="none"
-										stroke="currentColor"
-										viewBox="0 0 24 24"
-										><path
-											stroke-linecap="round"
-											stroke-linejoin="round"
-											stroke-width="2"
-											d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-										/></svg
-									>
-								</div>
-								<div>
-									<h3 class="font-bold text-lg">Saída ainda não disponível</h3>
-									<p class="text-sm text-surface-500">
-										A confirmação de saída estará disponível às <span
-											class="font-bold text-primary-500"
-											>{resGise.escalaSelecionada.horarioPrevisto?.fim ?? '—'}</span
-										>.
-									</p>
-								</div>
-							</div>
-						{:else if !resGise.escalaSelecionada.equipeRespondida}
-							<!-- gate + CTA travado: coluna estreita (ver nota no stepper) -->
-							<div class="max-w-md mx-auto space-y-4">
-								<div
-									class="p-3 bg-warning-500/10 border border-warning-500/20 rounded-xl flex items-start gap-3"
-								>
-									{@render btnIcon(
-										'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z'
-									)}
-									<p class="text-3xs text-warning-700 dark:text-warning-400">
-										Você deve preencher e enviar o <strong>Relatório de Produtividade</strong>
-										(resultados do serviço) antes de confirmar a saída.
-									</p>
-								</div>
-								{@render actionButton(
-									'Confirmar Saída',
-									undefined,
-									'surface',
-									'outlined',
-									undefined,
-									true,
-									false,
-									'w-full py-4 text-lg bg-surface-200 dark:bg-surface-800 text-surface-500 dark:text-surface-400 border-2 border-surface-300 dark:border-surface-700 cursor-not-allowed'
-								)}
-							</div>
-						{:else if isMobile || !restringirSmartphone}
-							<!-- CTA de saída: coluna estreita (ver nota no stepper) -->
-							<div class="max-w-md mx-auto">
-								{@render actionButton(
-									'Confirmar Saída',
-									undefined,
-									'primary',
-									'filled',
-									() => (resGise.capturandoRubrica = true),
-									false,
-									false,
-									'w-full py-4 text-lg shadow-xl shadow-primary-500/20'
-								)}
-							</div>
-						{:else}
-							{@render blocoRestritoDesktop('saida')}
-						{/if}
-					{:else}
-						<!-- Mesmo selo de status da entrada (ver nota lá). -->
-						<div
-							class="flex items-center gap-3 @2xl:gap-8 p-4 bg-surface-500/10 border border-surface-500/20 rounded-2xl @2xl:w-fit @2xl:min-w-[26rem]"
-						>
-							<div class="bg-surface-500 p-2 rounded-full">
-								{@render btnIcon('M5 13l4 4L19 7')}
-							</div>
-							<div>
-								<p class="text-xs font-bold text-surface-700 dark:text-surface-400 uppercase">
-									Saída Confirmada
-								</p>
-								<p class="text-3xs text-surface-600 dark:text-surface-500">
-									{new Date(resGise.escalaSelecionada.presenca.saida_timestamp).toLocaleString(
-										'pt-BR',
-										{ timeZone: 'America/Sao_Paulo' }
-									)}
-								</p>
-							</div>
-							{@render btnBaixarComprovante('saida')}
-						</div>
+	<!-- Relatório de produtividade. Modal largo: o formulário tem grades de até
+	     4 colunas e é o único conteúdo desta tela que ganha com largura. -->
+	<Dialog
+		open={resGise.exibirRelatorio}
+		onOpenChange={(e) => {
+			if (!e.open && !loading.active) resGise.exibirRelatorio = false;
+		}}
+	>
+		<Dialog.Content
+			class="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-surface-950/80 backdrop-blur-sm overflow-y-auto"
+		>
+			<div
+				class="card p-4 sm:p-6 max-w-5xl w-full max-h-[calc(100dvh-1.5rem)] overflow-y-auto card-elevated shadow-2xl rounded-2xl space-y-5"
+			>
+				<div class="flex flex-wrap items-start justify-between gap-3">
+					<div class="space-y-1">
+						<Dialog.Title class="text-lg font-bold">Resultados do Serviço</Dialog.Title>
+						<Dialog.Description class="text-sm text-surface-600 dark:text-surface-400">
+							Relatório de produtividade do plantão de {resGise.fmtDate(escala.data_inicio)}.
+						</Dialog.Description>
+					</div>
+					{#if relatorioOk}
+						{@render statusBadge('finalizadas')}
 					{/if}
 				</div>
 
-				<div class="pt-6">
-					<button
-						type="button"
-						class="btn btn-sm text-surface-500 hover:text-primary-500 transition-colors w-full"
-						onclick={voltarParaLista}
-					>
-						← Voltar para lista de escalas
-					</button>
-				</div>
+				{#if loading.active}
+					<div class="flex flex-col items-center gap-3 py-12">
+						<Spinner size="lg" class="text-primary-500" />
+						<p class="text-sm font-semibold text-surface-600 uppercase tracking-wider">
+							{loading.message}
+						</p>
+					</div>
+				{:else}
+					{#if relatorioOk && !Object.keys(resGise.respostas).length}
+						<div class="p-3 bg-primary-500/5 border border-primary-500/10 rounded-xl">
+							<p class="text-3xs text-primary-600 dark:text-primary-400 italic">
+								Um integrante da equipe já respondeu. Você pode visualizar ou retificar os dados
+								abaixo.
+							</p>
+						</div>
+					{/if}
+
+					<RelatorioProdutividade
+						modelo={resGise.perguntasForm}
+						bind:respostas={resGise.respostas}
+					/>
+
+					<!-- Rodapé no padrão da casa (README §10). -->
+					<div class="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 sm:gap-3">
+						{@render actionButton(
+							'Cancelar',
+							undefined,
+							'surface',
+							'tonal',
+							() => (resGise.exibirRelatorio = false),
+							false,
+							false,
+							'w-full sm:w-auto px-6'
+						)}
+						<form
+							method="POST"
+							action="?/salvarResposta"
+							use:enhance={resGise.handleSalvarResposta(isAdminGeral)}
+							class="contents"
+						>
+							<input type="hidden" name="giseId" value={escala.id} />
+							{#if escala.equipe_id}
+								<input type="hidden" name="equipeId" value={escala.equipe_id} />
+							{/if}
+							<input type="hidden" name="respostas" value={resGise.respostasJson} />
+
+							{@render actionButton(
+								loading.active
+									? 'Processando...'
+									: relatorioOk
+										? 'Salvar Alterações'
+										: 'Finalizar Entrega',
+								undefined,
+								'primary',
+								'filled',
+								undefined,
+								loading.active,
+								false,
+								'w-full sm:w-auto sm:px-10 shadow-sm',
+								'submit'
+							)}
+						</form>
+					</div>
+				{/if}
 			</div>
-		{/if}
-	</div>
+		</Dialog.Content>
+	</Dialog>
 {/if}

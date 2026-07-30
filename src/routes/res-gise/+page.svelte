@@ -220,9 +220,8 @@
 										: 'border-surface-200 dark:border-surface-800 bg-surface-50 dark:bg-surface-900 hover:border-primary-500/50'} {estaCarregando
 										? 'opacity-60'
 										: ''}"
-									onclick={() => resGise.selecionarEscala(escala, isAdminGeral)}
-									onkeydown={(e) =>
-										e.key === 'Enter' && resGise.selecionarEscala(escala, isAdminGeral)}
+									onclick={() => resGise.selecionarEscala(escala)}
+									onkeydown={(e) => e.key === 'Enter' && resGise.selecionarEscala(escala)}
 								>
 									<div class="flex items-center justify-between">
 										<p class="text-sm font-bold text-surface-900 dark:text-surface-100">
