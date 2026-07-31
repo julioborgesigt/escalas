@@ -8,13 +8,12 @@
 	 * armas por tipo, e os "complexos" que abrem uma LISTA de itens (mandados,
 	 * celulares, operações…).
 	 *
-	 * Duas tabelas evitam que isso vire cadeia de `if` por tipo, repetida em três
-	 * lugares:
-	 * - `CHAVES_TIPO` — onde cada tipo grava a quantidade e a lista no blob. As
-	 *   chaves são FIXAS e não derivam da `key` da pergunta: é o mesmo contrato
-	 *   que a leitura usa em `db/gise/respostas.ts`, e renomear a pergunta no
-	 *   editor não pode perder o detalhe já gravado;
-	 * - `ITEM_PADRAO` — a forma de um item vazio de cada lista.
+	 * As tabelas que evitam a cadeia de `if` por tipo moram em
+	 * `$lib/gise/tipos-pergunta` — `chavesLista` (onde cada tipo grava no blob) e
+	 * `ITEM_PADRAO` (a forma de um item vazio). Ficam LÁ, e não aqui, porque a
+	 * expansão do relatório em `db/gise/respostas.ts` precisa das mesmas
+	 * respostas: escrever numa chave e ler de outra faz o detalhe sumir do PDF
+	 * assinado sem erro nenhum.
 	 *
 	 * Responder "Sim" já cria o primeiro item da lista (`handleSimNao`), porque
 	 * "sim, houve" sem nenhum item nunca é a resposta final — e o policial que
@@ -26,46 +25,25 @@
 	 * "Não" por engano e voltar atrás não custa o preenchimento.
 	 */
 	import type { GiseModeloPerguntaConfig } from '$lib/types';
+	import {
+		ITEM_PADRAO,
+		TIPOS_COM_FILHOS,
+		TIPOS_COM_LISTA,
+		TIPO_LISTA_REUTILIZAVEL,
+		chavesLista,
+		chavesListaComFallback
+	} from '$lib/gise/tipos-pergunta';
 
 	let { respostas = $bindable(), modelo = [] } = $props<{
 		respostas: Record<string, unknown>;
 		modelo: GiseModeloPerguntaConfig[];
 	}>();
 
-	/**
-	 * Chaves de resposta e item vazio da listagem detalhada de cada tipo
-	 * sistêmico. Substituem as cadeias de ternários/`if` repetidas por tipo
-	 * que existiam no snippet e no `handleSimNao`.
-	 */
-	const CHAVES_TIPO: Record<string, { qtd: string; lista: string }> = {
-		mandados_maiores: { qtd: 'mandados_qtd', lista: 'mandados_lista' },
-		prisoes_maiores: { qtd: 'prisoes_qtd', lista: 'prisoes_lista' },
-		apreensoes_menores: { qtd: 'apreensoes_qtd', lista: 'apreensoes_lista' },
-		celulares_complex: { qtd: 'celulares_qtd', lista: 'celulares_lista' },
-		analise_complex: { qtd: 'analise_qtd', lista: 'analise_lista' },
-		relatorios_seint_complex: { qtd: 'relatorios_seint_qtd', lista: 'relatorios_seint_lista' },
-		foragidos_complex: { qtd: 'foragidos_qtd', lista: 'foragidos_lista' },
-		operacoes_seint_complex: { qtd: 'operacoes_seint_qtd', lista: 'operacoes_seint_lista' },
-		operacoes_seint_pura: { qtd: 'operacoes_seint_qtd', lista: 'operacoes_seint_lista' }
-	};
-
-	const ITEM_PADRAO: Record<string, Record<string, string>> = {
-		mandados_maiores: { nome: '', mandado: '' },
-		prisoes_maiores: { nome: '', mandado: '' },
-		apreensoes_menores: { nome: '', mandado: '' },
-		celulares_complex: { modelo: '', n_proc: '', delegacia: '', situacao: '' },
-		analise_complex: { tamanho: '', modelo: '', n_proc: '', delegacia: '' },
-		relatorios_seint_complex: { n_relat: '', q_alvos: '', proc_vinc: '', delegacia: '' },
-		foragidos_complex: { nome: '', proc_vinc: '', delegacia: '', resultado: '' },
-		operacoes_seint_complex: { nome: '', delegacia: '' },
-		operacoes_seint_pura: { nome: '', delegacia: '' }
-	};
-
 	function handleSimNao(key: string, val: string, q: GiseModeloPerguntaConfig) {
 		respostas[key] = val;
 		// Inicializações automáticas para tipos sistêmicos
 		if (val === 'Sim') {
-			const chaves = CHAVES_TIPO[q.tipo];
+			const chaves = chavesLista(q);
 			if (chaves && !respostas[chaves.qtd]) {
 				respostas[chaves.qtd] = 1;
 				respostas[chaves.lista] = [{ ...ITEM_PADRAO[q.tipo] }];
@@ -161,7 +139,7 @@
 		e as duas precisam continuar iguais.
 	-->
 	{#snippet renderCampo(q: GiseModeloPerguntaConfig, level = 0)}
-		{@const chavesTipo = CHAVES_TIPO[q.tipo] ?? CHAVES_TIPO.operacoes_seint_pura}
+		{@const chavesTipo = chavesListaComFallback(q)}
 		{@const resKey = chavesTipo.lista}
 		{@const resQtdKey = chavesTipo.qtd}
 
@@ -215,7 +193,7 @@
 						placeholder="Descreva detalhadamente..."
 						class="textarea text-sm"
 						bind:value={respostas[q.key]}></textarea>
-				{:else if q.tipo === 'mandados_maiores' || q.tipo === 'prisoes_maiores' || q.tipo === 'apreensoes_menores' || q.tipo === 'celulares_complex' || q.tipo === 'analise_complex' || q.tipo === 'relatorios_seint_complex' || q.tipo === 'foragidos_complex' || q.tipo === 'operacoes_seint_complex' || q.tipo === 'operacoes_seint_pura'}
+				{:else if TIPOS_COM_LISTA.includes(q.tipo)}
 					{@const isPura = q.tipo === 'operacoes_seint_pura'}
 					<div class="space-y-4">
 						{#if !isPura}
@@ -437,7 +415,9 @@
 												)}
 												{@render campoTexto(
 													`m-${q.id}-${i}`,
-													q.tipo === 'prisoes_maiores' ? 'Procedimento' : 'Mandado/Processo',
+													q.tipo === 'prisoes_maiores' || q.tipo === TIPO_LISTA_REUTILIZAVEL
+														? 'Procedimento'
+														: 'Mandado/Processo',
 													'Número',
 													item,
 													'mandado'
@@ -620,7 +600,7 @@
 			</div>
 
 			<!-- RECURSIVIDADE PARA FILHOS -->
-			{#if (q.tipo === 'sim_nao' || q.tipo === 'mandados_maiores' || q.tipo === 'prisoes_maiores' || q.tipo === 'apreensoes_menores' || q.tipo === 'celulares_complex' || q.tipo === 'analise_complex' || q.tipo === 'relatorios_seint_complex' || q.tipo === 'foragidos_complex' || q.tipo === 'operacoes_seint_complex' || q.tipo === 'operacoes_seint_pura' || q.tipo === 'drogas_complex' || q.tipo === 'armas_complex') && (respostas[q.key] === 'Sim' || q.tipo === 'operacoes_seint_pura') && q.filhos && q.filhos.length > 0}
+			{#if TIPOS_COM_FILHOS.includes(q.tipo) && (respostas[q.key] === 'Sim' || q.tipo === 'operacoes_seint_pura') && q.filhos && q.filhos.length > 0}
 				<div class="mt-6 space-y-6 pt-6 border-l-4 border-primary-500/20">
 					{#each q.filhos as filho (filho.id)}
 						{@render renderCampo(filho, level + 1)}

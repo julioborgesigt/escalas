@@ -24,6 +24,7 @@
 	import { Dialog } from '@skeletonlabs/skeleton-svelte';
 	import { loading } from '$lib/loading.svelte';
 	import { agruparPorEtapa } from '$lib/gise/etapas-formulario';
+	import { TIPOS_COM_FILHOS, TIPOS_COM_LISTA } from '$lib/gise/tipos-pergunta';
 	import type { useResGise } from './useResGise.svelte';
 	import type { GiseModeloPerguntaConfig } from '$lib/types';
 
@@ -52,6 +53,17 @@
 	 * "viatura" virarem duas etapas por erro de digitação.
 	 */
 	const etapas = $derived(agruparPorEtapa(resGise.perguntasConfig));
+
+	/**
+	 * Tipos com rótulos personalizáveis: os de lista (Quantidade + Legenda) mais
+	 * drogas e armas (Lista de Tipos + Detalhamento). `operacoes_seint_pura` fica
+	 * de fora porque não tem par Sim/Não para rotular.
+	 */
+	const TIPOS_COM_ROTULOS = [
+		...TIPOS_COM_LISTA.filter((t) => t !== 'operacoes_seint_pura'),
+		'drogas_complex',
+		'armas_complex'
+	];
 
 	let dialogRestaurarAberto = $state(false);
 
@@ -256,6 +268,12 @@
 								<option value="select_99">Quantitativo (0-99)</option>
 							</optgroup>
 							<optgroup label="Campos Inteligentes (Sistemáticos)">
+								<!-- Primeiro da lista por ser o ÚNICO que pode se repetir no
+								     formulário: os demais gravam em chave fixa e só funcionam
+								     uma vez (ver `$lib/gise/tipos-pergunta`). -->
+								<option value="lista_detalhada"
+									>Quantidade + Lista Nome/Procedimento (reutilizável)</option
+								>
 								<option value="vtr_placa">VTR e Placa (Inteligente)</option>
 								<option value="mandados_maiores">Mandados Maiores (Auto-Listagem)</option>
 								<option value="prisoes_maiores">Prisões Maiores (Auto-Listagem)</option>
@@ -273,7 +291,7 @@
 					</div>
 
 					<div class="flex gap-2 shrink-0 self-end md:self-start">
-						{#if p.tipo === 'sim_nao' || p.tipo === 'mandados_maiores' || p.tipo === 'prisoes_maiores' || p.tipo === 'apreensoes_menores' || p.tipo === 'drogas_complex' || p.tipo === 'armas_complex' || p.tipo === 'celulares_complex' || p.tipo === 'analise_complex' || p.tipo === 'relatorios_seint_complex' || p.tipo === 'foragidos_complex' || p.tipo === 'operacoes_seint_complex'}
+						{#if TIPOS_COM_FILHOS.includes(p.tipo)}
 							<button
 								type="button"
 								class="p-3 text-primary-500 hover:bg-primary-500/10 rounded-xl transition-all"
@@ -309,7 +327,7 @@
 				</div>
 
 				<!-- Novos controles de sub-textos para QUALQUER pergunta que use os tipos inteligentes -->
-				{#if ['mandados_maiores', 'prisoes_maiores', 'apreensoes_menores', 'drogas_complex', 'armas_complex', 'celulares_complex', 'analise_complex', 'relatorios_seint_complex', 'foragidos_complex', 'operacoes_seint_complex'].includes(p.tipo)}
+				{#if TIPOS_COM_ROTULOS.includes(p.tipo)}
 					<div
 						class="mt-4 p-4 bg-primary-500/5 dark:bg-primary-500/10 rounded-2xl border border-dashed border-primary-500/30 space-y-4"
 					>
@@ -333,7 +351,7 @@
 						</div>
 
 						<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-							{#if p.tipo === 'mandados_maiores' || p.tipo === 'prisoes_maiores' || p.tipo === 'apreensoes_menores' || p.tipo === 'celulares_complex' || p.tipo === 'analise_complex' || p.tipo === 'relatorios_seint_complex' || p.tipo === 'foragidos_complex' || p.tipo === 'operacoes_seint_complex'}
+							{#if TIPOS_COM_LISTA.includes(p.tipo)}
 								<div class="space-y-1">
 									<label
 										for="subqtd-{p.id}"
