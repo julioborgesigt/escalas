@@ -2,6 +2,7 @@ import { toaster } from '$lib/toast';
 import { apiFetchResponse } from '$lib/api-fetch';
 import { baixarBlob, nomeArquivoContentDisposition } from '$lib/utils/download';
 import { fmtDate } from '$lib/gise/gise-formatters';
+import { renumerarPerguntas } from '$lib/gise/renumerar-perguntas';
 import { loading } from '$lib/loading.svelte';
 import { page } from '$app/state';
 import { goto, invalidateAll } from '$app/navigation';
@@ -132,11 +133,31 @@ export function useResGise(getData: () => ResGisePageData) {
 		perguntasConfig = [...perguntasConfig];
 	}
 
+	/**
+	 * Move a pergunta de NÍVEL 0 de uma posição para outra e renumera os rótulos.
+	 *
+	 * A renumeração é o ponto: o badge do card sai de `indexOf` e se acerta
+	 * sozinho, mas o número que o policial lê está DENTRO do texto ("4. Houve…")
+	 * e nos sub-rótulos ("4.1 QUANTIDADE:"). Sem `renumerarPerguntas`, arrastar a
+	 * 4 para o fim deixaria um "4." na posição 8.
+	 */
+	function moverPergunta(de: number, para: number) {
+		const total = perguntasConfig.length;
+		if (de === para || de < 0 || para < 0 || de >= total || para >= total) return;
+		const lista = [...perguntasConfig];
+		const [movida] = lista.splice(de, 1);
+		lista.splice(para, 0, movida);
+		perguntasConfig = renumerarPerguntas(lista);
+	}
+
 	function removerPergunta(id: number, lista = perguntasConfig) {
 		const idx = lista.findIndex((p) => p.id === id);
 		if (idx > -1) {
 			lista.splice(idx, 1);
-			perguntasConfig = [...perguntasConfig];
+			// Renumera também aqui: remover a 4 e deixar 5,6,7… seria a mesma
+			// inconsistência que o arraste corrige. Remoção de FILHO não mexe em
+			// nada (a função só toca no primeiro segmento, que não mudou).
+			perguntasConfig = renumerarPerguntas([...perguntasConfig]);
 			return true;
 		}
 		for (const p of lista) {
@@ -460,6 +481,7 @@ export function useResGise(getData: () => ResGisePageData) {
 		limparFiltros,
 		adicionarPergunta,
 		adicionarSubPergunta,
+		moverPergunta,
 		removerPergunta,
 		handleSalvarModelo,
 		selecionarEscala,

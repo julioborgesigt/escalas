@@ -418,7 +418,19 @@ Verificar cada transição de status:
 - [ ] Modelo antigo (nenhuma pergunta com etapa) → uma etapa só, sem navegador
 - [ ] Celular: o navegador mostra só a etapa anterior (esquerda) e a atual (direita); na 1ª etapa, só a atual, encostada à direita
 
-### 13.2 Tipo "Quantidade + Lista Nome/Procedimento" (`lista_detalhada`)
+### 13.2 Reordenar perguntas no editor
+
+> Arraste, setas e renumeração têm cobertura automatizada
+> (`e2e/reordenar-perguntas.spec.ts` + `lib/gise/renumerar-perguntas.test`).
+> Manual: o que depende de aparelho real.
+
+- [ ] Celular/tablet: as setas ↑/↓ movem (o arraste HTML5 não funciona no toque — é esperado)
+- [ ] Arrastar um card sobre outro no desktop → destaque no destino e a ordem troca ao soltar
+- [ ] Selecionar texto dentro do card **não** inicia arraste (só a alça inicia)
+- [ ] Reordenar e **não salvar** → sair da tela desfaz tudo, inclusive a renumeração
+- [ ] Pergunta cujo texto não começa com número ("Quantos?") → continua sem número após reordenar
+
+### 13.3 Tipo "Quantidade + Lista Nome/Procedimento" (`lista_detalhada`)
 
 > Escrita e expansão têm cobertura automatizada
 > (`e2e/lista-reutilizavel.spec.ts` + `db/__tests__/produtividade-lista-reutilizavel`).
