@@ -275,20 +275,35 @@
 	{/if}
 
 	<!--
-		Navegador de etapas. Uma lista só, que vira coluna no desktop (`lg:`) e
-		faixa rolável no celular — duas marcações fariam duas coisas para manter
-		iguais. No desktop fica `sticky`, então a divisão do formulário está
-		sempre à vista enquanto se responde.
+		Navegador de etapas. Uma lista só, que vira coluna no desktop (`lg:`) e,
+		no celular, mostra APENAS a etapa anterior (à esquerda) e a atual (à
+		direita) — duas marcações fariam duas coisas para manter iguais.
+		No desktop fica `sticky`, então a divisão do formulário está sempre à
+		vista enquanto se responde.
+
+		No celular as demais são escondidas com `hidden`, e não removidas do
+		`{#each}`: assim a lista continua sendo a mesma nos dois tamanhos, e o
+		`irPara` de qualquer etapa segue existindo para quem tem tela grande.
+		Era uma faixa rolável com todas — no celular, uma barra que rola dentro
+		de uma página que também rola é fácil de não perceber que existe.
+
+		`justify-end` (e não `justify-between`) é o que segura a etapa atual
+		SEMPRE encostada à direita, inclusive na primeira, quando não há anterior
+		e ela é o único item visível. Se a posição da atual mudasse entre a 1ª e a
+		2ª etapa, o olho teria de reencontrá-la a cada avanço.
 	-->
 	<div class="lg:grid lg:grid-cols-[15rem_minmax(0,1fr)] lg:gap-8">
 		<nav aria-label="Etapas do relatório" class="mb-5 lg:mb-0">
-			<ol
-				class="flex gap-2 overflow-x-auto pb-2 lg:sticky lg:top-6 lg:flex-col lg:gap-1 lg:overflow-visible lg:pb-0"
-			>
+			<ol class="flex justify-end gap-2 lg:sticky lg:top-6 lg:flex-col lg:justify-start lg:gap-1">
 				{#each etapas as etapa, i (etapa.chave)}
 					{@const atual = i === indiceEtapa}
+					{@const anterior = i === indiceEtapa - 1}
 					{@const preenchida = etapaPreenchida(etapa)}
-					<li class="shrink-0 lg:shrink">
+					<li
+						class="min-w-0 {atual || anterior ? '' : 'hidden lg:block'} {anterior
+							? 'mr-auto lg:mr-0'
+							: ''}"
+					>
 						<button
 							type="button"
 							onclick={() => irPara(i)}
@@ -306,7 +321,9 @@
 							>
 								{#if preenchida}✓{:else}{i + 1}{/if}
 							</span>
-							<span class="whitespace-nowrap text-xs font-bold lg:whitespace-normal">
+							<!-- `truncate` no celular: com dois nomes longos lado a lado, sem
+							     teto, a barra voltaria a empurrar a página para os lados. -->
+							<span class="truncate text-xs font-bold lg:overflow-visible lg:whitespace-normal">
 								{etapa.titulo}
 							</span>
 						</button>
@@ -320,8 +337,10 @@
 				<div
 					class="flex items-baseline justify-between gap-3 border-b border-surface-200 pb-3 dark:border-surface-800"
 				>
-					<h2 class="text-lg font-bold">{etapaAtual.titulo}</h2>
-					<span class="text-3xs font-bold uppercase tracking-widest text-surface-500">
+					<h2 class="min-w-0 text-lg font-bold">{etapaAtual.titulo}</h2>
+					<span
+						class="shrink-0 whitespace-nowrap text-3xs font-bold uppercase tracking-widest text-surface-500"
+					>
 						Etapa {indiceEtapa + 1} de {etapas.length}
 					</span>
 				</div>
