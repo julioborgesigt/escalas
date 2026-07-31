@@ -25,6 +25,7 @@
 	import { loading } from '$lib/loading.svelte';
 	import { agruparPorEtapa } from '$lib/gise/etapas-formulario';
 	import { TIPOS_COM_FILHOS, TIPOS_COM_LISTA } from '$lib/gise/tipos-pergunta';
+	import { ChevronDown, ChevronUp, CornerDownRight, GripVertical } from 'lucide-svelte';
 	import type { useResGise } from './useResGise.svelte';
 	import type { GiseModeloPerguntaConfig } from '$lib/types';
 
@@ -64,6 +65,32 @@
 		'drogas_complex',
 		'armas_complex'
 	];
+
+	/**
+	 * Arraste para reordenar (só NÍVEL 0 — filho pertence ao pai).
+	 *
+	 * `idArrastavel` existe por causa de um detalhe do HTML5 drag-and-drop: quem
+	 * arrasta tem de ser o CARD inteiro, mas marcá-lo `draggable` fixo impede
+	 * selecionar texto nos campos dentro dele. Então a alça liga o `draggable` no
+	 * `mousedown` e o `dragend`/`mouseup` desliga.
+	 *
+	 * Arrastar sozinho não serve para toque nem para teclado, por isso as setas
+	 * ↑/↓ ao lado da alça fazem a MESMA coisa e são o caminho acessível.
+	 */
+	let idArrastavel = $state<number | null>(null);
+	let indiceArrastando = $state<number | null>(null);
+	let indiceAlvo = $state<number | null>(null);
+
+	function limparArraste() {
+		idArrastavel = null;
+		indiceArrastando = null;
+		indiceAlvo = null;
+	}
+
+	function soltarEm(indice: number) {
+		if (indiceArrastando !== null) resGise.moverPergunta(indiceArrastando, indice);
+		limparArraste();
+	}
 
 	let dialogRestaurarAberto = $state(false);
 
@@ -187,11 +214,32 @@
 		{/each}
 	</datalist>
 
-	<div class="grid grid-cols-1 gap-4">
-		{#snippet renderItem(p: GiseModeloPerguntaConfig, level = 0)}
+	<!-- `role="list"`/`listitem`: além de exigido pelo a11y do arraste, é o que
+	     descreve a tela — uma lista ORDENADA de perguntas, em que a posição é
+	     informação (ver `renumerarPerguntas`). -->
+	<div class="grid grid-cols-1 gap-4" role="list">
+		{#snippet renderItem(p: GiseModeloPerguntaConfig, level = 0, indice = -1)}
+			{@const arrastando = indiceArrastando === indice && indice >= 0}
+			{@const alvo = indiceAlvo === indice && indiceArrastando !== null && !arrastando}
 			<div
-				class="group p-3 sm:p-5 bg-surface-50 dark:bg-surface-950/40 rounded-2xl border border-surface-200 dark:border-surface-800 transition-all hover:border-primary-500/50 hover:shadow-lg"
+				class="group p-3 sm:p-5 bg-surface-50 dark:bg-surface-950/40 rounded-2xl border transition-all hover:border-primary-500/50 hover:shadow-lg {alvo
+					? 'border-primary-500 ring-2 ring-primary-500/40'
+					: 'border-surface-200 dark:border-surface-800'} {arrastando ? 'opacity-40' : ''}"
 				style="margin-left: clamp(0px, {level * 1.5}vw, {level * 2}rem)"
+				role="listitem"
+				draggable={idArrastavel === p.id}
+				ondragstart={() => (indiceArrastando = indice)}
+				ondragover={(e) => {
+					if (indiceArrastando !== null && indice >= 0) e.preventDefault();
+				}}
+				ondragenter={() => {
+					if (indiceArrastando !== null && indice >= 0) indiceAlvo = indice;
+				}}
+				ondrop={(e) => {
+					e.preventDefault();
+					soltarEm(indice);
+				}}
+				ondragend={limparArraste}
 			>
 				<!-- Só no nível 0: o filho aparece sob o "Sim" do pai, então tem de
 				     ficar na etapa dele. Ver `agruparPorEtapa`. -->
@@ -199,6 +247,39 @@
 					<div
 						class="flex flex-wrap items-center gap-2 mb-4 pb-4 border-b border-dashed border-surface-300 dark:border-surface-700"
 					>
+						<!-- Alça de arraste + setas. As setas não são enfeite: são o único
+						     caminho no celular e no teclado. -->
+						<div class="flex items-center gap-0.5 shrink-0">
+							<span
+								class="flex cursor-grab items-center rounded-lg p-1.5 text-surface-400 transition-colors hover:bg-surface-200 active:cursor-grabbing dark:hover:bg-surface-800"
+								title="Arraste para reordenar a pergunta"
+								aria-hidden="true"
+								onmousedown={() => (idArrastavel = p.id)}
+								onmouseup={() => (idArrastavel = null)}
+							>
+								<GripVertical size={16} />
+							</span>
+							<button
+								type="button"
+								class="rounded-lg p-1 text-surface-400 transition-colors hover:bg-surface-200 disabled:opacity-30 dark:hover:bg-surface-800"
+								title="Mover para cima"
+								aria-label="Mover a pergunta {indice + 1} para cima"
+								disabled={indice <= 0}
+								onclick={() => resGise.moverPergunta(indice, indice - 1)}
+							>
+								<ChevronUp size={16} />
+							</button>
+							<button
+								type="button"
+								class="rounded-lg p-1 text-surface-400 transition-colors hover:bg-surface-200 disabled:opacity-30 dark:hover:bg-surface-800"
+								title="Mover para baixo"
+								aria-label="Mover a pergunta {indice + 1} para baixo"
+								disabled={indice < 0 || indice >= resGise.perguntasConfig.length - 1}
+								onclick={() => resGise.moverPergunta(indice, indice + 1)}
+							>
+								<ChevronDown size={16} />
+							</button>
+						</div>
 						<label
 							for="p-et-{p.id}"
 							class="text-3xs font-black text-surface-500 dark:text-surface-400 uppercase tracking-widest"
@@ -292,20 +373,15 @@
 
 					<div class="flex gap-2 shrink-0 self-end md:self-start">
 						{#if TIPOS_COM_FILHOS.includes(p.tipo)}
+							<!-- `CornerDownRight` e não a seta reta de antes: ao lado das setas
+							     de MOVER, uma seta para baixo virava "descer a pergunta". -->
 							<button
 								type="button"
 								class="p-3 text-primary-500 hover:bg-primary-500/10 rounded-xl transition-all"
 								onclick={() => resGise.adicionarSubPergunta(p)}
 								title="Adicionar Sub-pergunta (se SIM)"
 							>
-								<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"
-									><path
-										stroke-linecap="round"
-										stroke-linejoin="round"
-										stroke-width="2.5"
-										d="M19 14l-7 7m0 0l-7-7m7 7V3"
-									/></svg
-								>
+								<CornerDownRight class="w-5 h-5" />
 							</button>
 						{/if}
 						<button
@@ -444,7 +520,7 @@
 				{/if}
 
 				{#if p.filhos && p.filhos.length > 0}
-					<div class="mt-6 space-y-6 pt-2 border-l-4 border-primary-500/20">
+					<div class="mt-6 space-y-6 pt-2 border-l-4 border-primary-500/20" role="list">
 						{#each p.filhos as filho (filho.id)}
 							{@render renderItem(filho, level + 1)}
 						{/each}
@@ -453,8 +529,8 @@
 			</div>
 		{/snippet}
 
-		{#each resGise.perguntasConfig as p (p.id)}
-			{@render renderItem(p)}
+		{#each resGise.perguntasConfig as p, i (p.id)}
+			{@render renderItem(p, 0, i)}
 		{/each}
 	</div>
 
