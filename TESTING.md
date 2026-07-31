@@ -416,6 +416,17 @@ Verificar cada transição de status:
 - [ ] Colega entrega o relatório enquanto você tem rascunho → banner de oferta, e "Descartar" some com ele
 - [ ] Admin Geral define etapas no editor → o wizard abre exatamente nesses grupos, na mesma ordem
 - [ ] Modelo antigo (nenhuma pergunta com etapa) → uma etapa só, sem navegador
+- [ ] Celular: o navegador mostra só a etapa anterior (esquerda) e a atual (direita); na 1ª etapa, só a atual, encostada à direita
+
+### 13.2 Tipo "Quantidade + Lista Nome/Procedimento" (`lista_detalhada`)
+
+> Escrita e expansão têm cobertura automatizada
+> (`e2e/lista-reutilizavel.spec.ts` + `db/__tests__/produtividade-lista-reutilizavel`).
+> Manual: o que só o PDF mostra.
+
+- [ ] Duas perguntas do tipo, ambas preenchidas → **baixar o PDF de produtividade** e conferir que cada uma lista os SEUS itens
+- [ ] Mesma conferência com um tipo original (ex.: "Prisões Maiores") junto na tela — as listas não podem se cruzar
+- [ ] Trocar o tipo de uma pergunta já respondida → o detalhe antigo some do relatório (é esperado: a chave mudou)
 
 ---
 

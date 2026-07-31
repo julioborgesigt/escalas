@@ -126,6 +126,48 @@ test.describe('Wizard do relatório de produtividade', () => {
 		expect(estouro).toBeLessThanOrEqual(0);
 	});
 
+	test('celular: navegador mostra só a etapa anterior e a atual', async ({ page }) => {
+		confirmarEntrada();
+		await page.setViewportSize({ width: 390, height: 844 });
+		await silenciarAvisoRubrica(page);
+		const ok = await autenticarPagina(page, FIXTURE.membroGise.id);
+		test.skip(!ok, 'D1 local indisponível');
+		await page.goto(ROTA);
+		await expect(page.getByText('Etapa 1 de 4')).toBeVisible();
+
+		const nav = page.getByRole('navigation', { name: 'Etapas do relatório' });
+		const visiveis = nav.getByRole('button');
+		const caixaNav = (await nav.boundingBox())!;
+		/** Distância entre a borda direita do botão e a da barra. */
+		const folgaDireita = async (i: number) => {
+			const b = (await visiveis.nth(i).boundingBox())!;
+			return caixaNav.x + caixaNav.width - (b.x + b.width);
+		};
+
+		// 1ª etapa: não há anterior, e a atual continua encostada à direita — a
+		// posição dela não pode mudar quando a anterior aparecer.
+		await expect(visiveis).toHaveCount(1);
+		expect(await folgaDireita(0)).toBeLessThan(2);
+
+		// Daí em diante: anterior à esquerda, atual à direita.
+		await page.getByRole('button', { name: 'Avançar' }).click();
+		await expect(page.getByText('Etapa 2 de 4')).toBeVisible();
+		await expect(visiveis).toHaveCount(2);
+		await expect(visiveis.nth(0)).toContainText('Viatura');
+		await expect(visiveis.nth(1)).toContainText('Ocorrências');
+		const bAnterior = (await visiveis.nth(0).boundingBox())!;
+		expect(bAnterior.x - caixaNav.x).toBeLessThan(2);
+		expect(await folgaDireita(1)).toBeLessThan(2);
+
+		// A anterior continua clicável, e nada empurra a página para os lados.
+		await visiveis.nth(0).click();
+		await expect(page.getByText('Etapa 1 de 4')).toBeVisible();
+		const estouro = await page.evaluate(
+			() => document.documentElement.scrollWidth - document.documentElement.clientWidth
+		);
+		expect(estouro).toBeLessThanOrEqual(0);
+	});
+
 	test('editor do Admin Geral: campo Etapa por pergunta e prévia ao vivo', async ({ page }) => {
 		await silenciarAvisoRubrica(page);
 		const ok = await autenticarPagina(page, FIXTURE.adminGeral.id, 'admin');
