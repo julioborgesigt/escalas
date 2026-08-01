@@ -10,7 +10,7 @@ import {
 	contextoDeEvento
 } from '$lib/db';
 import { unidades as unidadesTable } from '$lib/server/schema';
-import { excluirEscalaCompleta } from '$lib/server/escalas/escala-exclusao';
+import { excluirEscalaCompleta } from '$lib/server/escalas/exclusao';
 
 /** Itens por página da caixa de entrada (mesmo tamanho da paginação antiga client-side). */
 const ITENS_POR_PAGINA = 10;

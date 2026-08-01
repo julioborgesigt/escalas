@@ -7,7 +7,7 @@
  * D1 (sessão; usuário+aceite). Com este cache, a maioria dos requests dentro
  * da janela de 60s não toca o banco para autenticação.
  *
- * Trade-offs conscientes (mesma família do gise-papel-cache, TTL 60s default):
+ * Trade-offs conscientes (mesma família do papel-cache, TTL 60s default):
  *  - Revogação: uma sessão excluída/expirada ou um usuário desativado podem
  *    continuar válidos por até o TTL. O logout invalida explicitamente NO COLO
  *    que atendeu o request; o Cache API é por data center, então um token

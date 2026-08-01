@@ -19,7 +19,7 @@
 	 */
 	import { invalidateAll } from '$app/navigation';
 	import { MESES_PT, DIAS_SEMANA_CURTO, isoData, hojeLocalISO } from '$lib/utils/datas';
-	import { fmtDate, diaSemana } from '$lib/gise/gise-formatters';
+	import { fmtDate, diaSemana } from '$lib/gise/formatters';
 	import { enhance } from '$app/forms';
 	import { toaster } from '$lib/toast';
 	import { loading } from '$lib/loading.svelte';

@@ -21,7 +21,7 @@ import {
 	buscarDocumentoEscala,
 	buscarRubricaAssinante
 } from '$lib/db';
-import * as exportLib from '$lib/server/export/export';
+import * as exportLib from '$lib/server/export';
 import {
 	contentDisposition,
 	requireAuth,
@@ -32,7 +32,7 @@ import {
 } from '$lib/server/api';
 import { tryGetR2 } from '$lib/db';
 import { logger } from '$lib/server/logger';
-import { verificarPermissaoEscala } from '$lib/server/escalas/escala-permissao';
+import { verificarPermissaoEscala } from '$lib/server/escalas/permissao';
 import {
 	podeBaixarComManifesto,
 	gerarCopiaConferencia,

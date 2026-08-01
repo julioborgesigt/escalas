@@ -5,8 +5,8 @@
  * mesma cópia de conferência, sem divergência.
  */
 
-import * as exportLib from '$lib/server/export/export';
-import { carregarLogosGise } from '$lib/server/gise/gise-logos';
+import * as exportLib from '$lib/server/export';
+import { carregarLogosGise } from '$lib/server/gise/logos';
 import { getBreveRelatorioEnvMergido } from '$lib/server/gise/breve-relatorio-env';
 import type { Database } from '$lib/db';
 

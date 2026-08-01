@@ -33,18 +33,18 @@ import {
 	gerarRelatorioExtraordinarioPdf,
 	gerarRelatorioExtraordinarioSupervisaoPdf,
 	toGisePdfData
-} from '$lib/server/export/export';
+} from '$lib/server/export';
 import { getBreveRelatorioEnvMergido } from '$lib/server/gise/breve-relatorio-env';
-import { carregarLogosGise } from '$lib/server/gise/gise-logos';
+import { carregarLogosGise } from '$lib/server/gise/logos';
 import {
 	giseAutorizaSeccionalRelatorioExtra,
 	secIdEhSupervisaoExtra
-} from '$lib/server/gise/gise-supervisao-extra';
+} from '$lib/server/gise/supervisao-extra';
 import {
 	adicionarRodapeSimples,
 	adicionarPaginaAuditoria
 } from '$lib/server/assinatura/pdf-signing';
-import { montarSignersPresencaExtra } from '$lib/server/gise/gise-relatorio-manifesto';
+import { montarSignersPresencaExtra } from '$lib/server/gise/relatorio-manifesto';
 import { selarPdfInstitucional, tipoCarimboPrevisto } from '$lib/server/assinatura/server-seal';
 import { tryGetR2 } from '$lib/db';
 import { chaveConferencia } from '$lib/server/assinatura/copia-conferencia';

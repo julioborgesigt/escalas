@@ -40,12 +40,12 @@
 	import { useOfertaRubrica, rubricaValida } from '$lib/composables';
 	import { loading } from '$lib/loading.svelte';
 	import type { Policial, GiseAssinaturaRelatorio } from '$lib/server/schema';
-	import { checkAllSigned, filtrarSeccionaisDisponiveis } from '$lib/gise/gise-page-helpers';
+	import { checkAllSigned, filtrarSeccionaisDisponiveis } from '$lib/gise/page-helpers';
 	import { podeBaixarComManifesto } from '$lib/manifesto';
 	import {
 		quadroSupervisaoExtraExigeRelatorio,
 		supervisaoExtraRubricasCompletas
-	} from '$lib/gise/gise-supervisao-extra';
+	} from '$lib/gise/supervisao-extra';
 	import { makeEnhanceHandler } from '$lib/enhance-handler';
 	import { buscarPoliciaisOptions } from '$lib/busca-policiais';
 	import GiseCabecalho from './_components/GiseCabecalho.svelte';

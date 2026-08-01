@@ -19,7 +19,7 @@ import {
 	forbidden,
 	serverError
 } from '$lib/server/api';
-import { verificarPermissaoEscala } from '$lib/server/escalas/escala-permissao';
+import { verificarPermissaoEscala } from '$lib/server/escalas/permissao';
 import {
 	podeBaixarComManifesto,
 	gerarCopiaConferencia,

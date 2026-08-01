@@ -9,7 +9,7 @@
  *   - `verificarConflitoMembroGise` — um policial serve em UMA equipe por GISE;
  *   - `verificarConflitoHorarioPolicial` — choque de horário ao entrar em
  *     equipe, contra outras GISEs E contra escala comum
- *     (`verificarConflitoEscalasNaoGise`, de `server/escala-conflict`);
+ *     (`verificarConflitoEscalasNaoGise`, de `server/escalas/conflict`);
  *   - `verificarConflitoHorarioPorGise` — o mesmo para quem entra como
  *     supervisor/assessor/SEINT, que não é membro de equipe.
  * Pular a checagem não dá erro: gera silenciosamente um policial em dois
@@ -21,7 +21,7 @@
  * conflito aparece.
  */
 import { eq, and, or, ne } from 'drizzle-orm';
-import { verificarConflitoEscalasNaoGise } from '../../server/escalas/escala-conflict';
+import { verificarConflitoEscalasNaoGise } from '../../server/escalas/conflict';
 import {
 	giseEscalas,
 	giseSeccionais,
@@ -30,7 +30,7 @@ import {
 	unidades
 } from '../../server/schema';
 import type { Database } from '../core';
-import { seOverlapam } from '../../gise/gise-horarios';
+import { seOverlapam } from '../../gise/horarios';
 
 /**
  * Escala o policial na equipe. INSERT cru, sem validação: as duas checagens que

@@ -1,6 +1,6 @@
 /**
  * Geração de PDF da trilha de auditoria (server-side, jspdf + autotable —
- * mesmo stack do export-pdf.ts das escalas).
+ * mesmo stack do pdf.ts das escalas).
  *
  *  - `gerarAuditPdfTabela`: relatório tabular de N eventos (landscape).
  *  - `gerarAuditPdfEvento`: comprovante detalhado de UM evento (portrait),

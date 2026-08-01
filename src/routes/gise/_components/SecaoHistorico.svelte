@@ -30,9 +30,9 @@
 	import { slide } from 'svelte/transition';
 	import { Popover, Portal } from '@skeletonlabs/skeleton-svelte';
 	import Paginador from '$lib/components/Paginador.svelte';
-	import { statusLabel, statusColor, fmtDate, diaSemana } from '$lib/gise/gise-formatters';
+	import { statusLabel, statusColor, fmtDate, diaSemana } from '$lib/gise/formatters';
 	import { SvelteURLSearchParams } from 'svelte/reactivity';
-	import { CICLOS, getCicloRange } from '$lib/gise/gise-ciclos';
+	import { CICLOS, getCicloRange } from '$lib/gise/ciclos';
 
 	/**
 	 * Bloco "Histórico" da lista `/gise`: escalas finalizadas, com filtros

@@ -45,7 +45,7 @@ import {
 	DEFAULT_SEINT_QUESTIONS,
 	DEFAULT_QUESTIONS_FORM_OPERACIONAL
 } from '$lib/db';
-import { buscarUnidadeIdSupervisaoExtra } from '$lib/server/gise/gise-supervisao-extra';
+import { buscarUnidadeIdSupervisaoExtra } from '$lib/server/gise/supervisao-extra';
 import { lerFlagsAssinatura } from '$lib/server/assinatura/cfg-ass-cache';
 import { verificarDesafio2FA } from '$lib/auth';
 import { logger } from '$lib/server/logger';

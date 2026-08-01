@@ -41,7 +41,7 @@ import {
 } from '$lib/server/api';
 import { validarEvidenciasAvancada } from '$lib/server/assinatura/signature-service';
 import { uploadSelfieDataUri } from '$lib/server/assinatura/selfie-upload';
-import { gerarPdf, gerarPdfPlantao, gerarPdfExpediente } from '$lib/server/export/export';
+import { gerarPdf, gerarPdfPlantao, gerarPdfExpediente } from '$lib/server/export';
 import {
 	adicionarRodapeSimples,
 	adicionarPaginaAuditoria
@@ -49,7 +49,7 @@ import {
 import { calcularHashBuffer } from '$lib/server/assinatura/document-utils';
 import { selarPdfInstitucional, tipoCarimboPrevisto } from '$lib/server/assinatura/server-seal';
 import { gerarCodigoValidacao } from '$lib/utils/formato';
-import { verificarPermissaoEscala } from '$lib/server/escalas/escala-permissao';
+import { verificarPermissaoEscala } from '$lib/server/escalas/permissao';
 
 export const POST: RequestHandler = async ({
 	platform,

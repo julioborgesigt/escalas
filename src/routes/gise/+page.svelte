@@ -34,7 +34,7 @@
 	import ModalCriarGise from './_components/ModalCriarGise.svelte';
 	import ModalDownloadExtras from './_components/ModalDownloadExtras.svelte';
 	import DialogInfo from './_components/DialogInfo.svelte';
-	import { fmtDate, diaSemana } from '$lib/gise/gise-formatters';
+	import { fmtDate, diaSemana } from '$lib/gise/formatters';
 	import { rubricaValida } from '$lib/composables';
 	import { MediaQuery } from 'svelte/reactivity';
 

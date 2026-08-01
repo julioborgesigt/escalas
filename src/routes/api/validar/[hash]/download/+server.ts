@@ -36,7 +36,7 @@ import {
 	gerarCopiaConferencia,
 	chaveConferencia
 } from '$lib/server/assinatura/copia-conferencia';
-import { carregarLogosGise } from '$lib/server/gise/gise-logos';
+import { carregarLogosGise } from '$lib/server/gise/logos';
 import { logger } from '$lib/server/logger';
 import type { RequestHandler } from './$types';
 
@@ -252,9 +252,9 @@ export const GET: RequestHandler = async ({ platform, params, url, cookies, getC
 				gerarRelatorioExtraordinarioSupervisaoPdf,
 				gerarRelatorioProdutividadeGisePdf,
 				toGisePdfData
-			} = await import('$lib/server/export/export');
+			} = await import('$lib/server/export');
 			const { getBreveRelatorioEnvMergido } = await import('$lib/server/gise/breve-relatorio-env');
-			const { secIdEhSupervisaoExtra } = await import('$lib/server/gise/gise-supervisao-extra');
+			const { secIdEhSupervisaoExtra } = await import('$lib/server/gise/supervisao-extra');
 			const { adicionarRodapeSimples } = await import('$lib/server/assinatura/pdf-signing');
 			const brEnv = await getBreveRelatorioEnvMergido(db);
 

@@ -25,7 +25,7 @@ import {
 	conflict,
 	validateBody
 } from '$lib/server/api';
-import { gerarTermoPresencaPdf } from '$lib/server/gise/gise-termo-presenca';
+import { gerarTermoPresencaPdf } from '$lib/server/gise/termo-presenca';
 import {
 	prepararPdfParaAssinatura,
 	adicionarPaginaAuditoria,

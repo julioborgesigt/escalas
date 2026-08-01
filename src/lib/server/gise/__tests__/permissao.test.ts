@@ -17,7 +17,7 @@ const dbChain = {
 
 const fakeDb = dbChain as unknown as Database;
 
-import { verificarPermissaoGise } from '../gise-permissao';
+import { verificarPermissaoGise } from '../permissao';
 
 function gise(overrides: Partial<GiseEscala> = {}): GiseEscala {
 	return {

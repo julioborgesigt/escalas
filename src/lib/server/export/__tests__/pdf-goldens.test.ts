@@ -4,8 +4,8 @@
  * Os PDFs gerados aqui são artefatos com valor jurídico (documentos que o
  * policial assina). Este harness congela o relógio, gera cada tipo de PDF a
  * partir de fixtures fixas e compara o SHA-256 com o golden versionado em
- * `fixtures/export-pdf-goldens.json` — qualquer refactor em `export-pdf.ts`
- * (ou nos helpers de `export-shared.ts`) que altere UM byte do resultado
+ * `fixtures/pdf-goldens.json` — qualquer refactor em `pdf.ts`
+ * (ou nos helpers de `shared.ts`) que altere UM byte do resultado
  * falha o teste.
  *
  * Cada gerador roda DUAS vezes por execução: hashes diferentes entre as duas
@@ -13,7 +13,7 @@
  * quebraria o golden — o teste aponta isso separadamente.
  *
  * Para regravar goldens após uma mudança de layout INTENCIONAL:
- *   UPDATE_PDF_GOLDENS=1 npx vitest run export-pdf-goldens
+ *   UPDATE_PDF_GOLDENS=1 npx vitest run pdf-goldens
  * e revise o diff visual dos PDFs antes de commitar o JSON.
  */
 import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
@@ -31,15 +31,11 @@ import {
 	gerarRelatorioExtraordinarioPdf,
 	gerarRelatorioExtraordinarioSupervisaoPdf,
 	toGisePdfData
-} from '../export-pdf';
+} from '../pdf';
 import type { Escala, EscalaPolicialComDados } from '../../../types';
 import type { GiseDetalhado } from '$lib/db';
 
-const GOLDENS_PATH = join(
-	dirname(fileURLToPath(import.meta.url)),
-	'fixtures',
-	'export-pdf-goldens.json'
-);
+const GOLDENS_PATH = join(dirname(fileURLToPath(import.meta.url)), 'fixtures', 'pdf-goldens.json');
 const UPDATE = process.env.UPDATE_PDF_GOLDENS === '1';
 
 // PNG 1×1 válido — exercita os caminhos de addImage (logo/QR/rubrica).
@@ -337,7 +333,7 @@ const geradores: Record<string, () => Promise<Uint8Array>> = {
 
 // ─── Testes ──────────────────────────────────────────────────────────────────
 
-describe('export-pdf — goldens de layout', () => {
+describe('export/pdf — goldens de layout', () => {
 	beforeAll(() => {
 		// Congela SOMENTE Date: jsPDF grava /CreationDate e os cabeçalhos usam
 		// formatarDataExtenso(new Date()). Timers reais seguem funcionando.
@@ -373,7 +369,7 @@ describe('export-pdf — goldens de layout', () => {
 
 			expect(
 				goldens[nome],
-				`golden ausente para '${nome}' — rode UPDATE_PDF_GOLDENS=1 vitest run export-pdf-goldens`
+				`golden ausente para '${nome}' — rode UPDATE_PDF_GOLDENS=1 vitest run pdf-goldens`
 			).toBeDefined();
 			expect(hashA).toBe(goldens[nome].sha256);
 		});

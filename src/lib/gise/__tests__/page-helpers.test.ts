@@ -4,7 +4,7 @@ import {
 	filtrarSeccionaisDisponiveis,
 	getSeccionalColorClass,
 	tiposEquipeNaSeccional
-} from '../gise-page-helpers';
+} from '../page-helpers';
 import type { GiseEquipeComMembros } from '$lib/db/gise';
 import type { GiseDetalhado } from '$lib/db/gise';
 import type { Unidade } from '$lib/server/schema';
@@ -22,7 +22,7 @@ function u(id: number, tipo: Unidade['tipo'], nome = 'U'): Unidade {
 	} as Unidade;
 }
 
-describe('gise-page-helpers', () => {
+describe('page-helpers', () => {
 	it('filtrarSeccionaisDisponiveis exclui seccionais já ligadas à GISE', () => {
 		const gise = {
 			seccionais: [{ seccional_id: 1 }]

@@ -7,7 +7,7 @@
  *   relatório de produtividade GISE · relatório de serviço extraordinário
  *   (em duas variantes: por seccional e do quadro de supervisão)
  *
- * **A saída é congelada por goldens** (`__tests__/export-pdf-goldens.test.ts`).
+ * **A saída é congelada por goldens** (`__tests__/pdf-goldens.test.ts`).
  * Qualquer mudança visual quebra o teste — o que é o comportamento desejado.
  * Ao mudar de propósito, confira o PDF gerado e regrave com
  * `UPDATE_PDF_GOLDENS=1`. Nunca regrave para "fazer o teste passar": estes
@@ -53,7 +53,7 @@ import {
 	COLS_PLANTAO,
 	rowPlantao,
 	formatarMesAno
-} from './export-shared';
+} from './shared';
 
 // Type augmentation for jspdf-autotable's lastAutoTable property
 interface JsPDFWithAutoTable extends jsPDF {

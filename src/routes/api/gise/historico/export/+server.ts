@@ -33,7 +33,7 @@ import ExcelJS from 'exceljs';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import type { GiseDetalhado } from '$lib/db/gise/types';
-import { getCicloRange } from '$lib/gise/gise-ciclos';
+import { getCicloRange } from '$lib/gise/ciclos';
 import {
 	appendGiseDetalhadoToXlsxWorkbook,
 	createAppendGiseXlsxState,
@@ -41,7 +41,7 @@ import {
 	fmtHoraGiseXlsx,
 	HEADERS_DETALHE_EQUIPE,
 	statusLabelGiseXlsx
-} from '$lib/server/gise/gise-xlsx-workbook-append';
+} from '$lib/server/gise/xlsx-workbook-append';
 
 /** `jspdf-autotable` injeta `lastAutoTable` em tempo de execução, fora do .d.ts. */
 interface JsPDFWithAutoTable extends jsPDF {

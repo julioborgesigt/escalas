@@ -192,7 +192,7 @@ extrair (ver a grade dos três calendários e o barrel `lib/db.ts`).
 PDF assinado, e-mail transacional e termo de presença são **documentos**, não
 saída de função. Antes de tocar em qualquer um:
 
-1. rode o harness (`export-pdf-goldens`, `email-templates`) e confirme verde;
+1. rode o harness (`pdf-goldens`, `email-templates`) e confirme verde;
 2. refatore;
 3. confirme que **não mudou um byte**.
 

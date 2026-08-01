@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { gerarTermoPresencaPdf } from '../gise-termo-presenca';
+import { gerarTermoPresencaPdf } from '../termo-presenca';
 
 describe('gerarTermoPresencaPdf', () => {
 	const base = {

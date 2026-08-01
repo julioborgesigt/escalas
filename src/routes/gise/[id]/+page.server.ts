@@ -26,8 +26,8 @@ import {
 import { isAdminGeral, isAdminSeccional, isAdminUnidade } from '$lib/auth';
 import { decifrarCpfDoDB } from '$lib/crypto/cpf-cripto';
 import { getBreveRelatorioEnvMergido } from '$lib/server/gise/breve-relatorio-env';
-import { buscarUnidadeIdSupervisaoExtra } from '$lib/server/gise/gise-supervisao-extra';
-import { adminParticipaDaGise } from '$lib/server/gise/gise-permissao';
+import { buscarUnidadeIdSupervisaoExtra } from '$lib/server/gise/supervisao-extra';
+import { adminParticipaDaGise } from '$lib/server/gise/permissao';
 import { logger } from '$lib/server/logger';
 import { unidades, policiais, giseRespostasFormulario } from '$lib/server/schema';
 import { eq, asc, inArray, and, isNull } from 'drizzle-orm';

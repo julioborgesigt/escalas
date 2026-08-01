@@ -4,7 +4,7 @@
  *
  * Existem fora dos componentes por dois motivos: são compartilhados por
  * `GiseSeccional` e `GiseSupervisao`, e são testáveis sem renderizar nada
- * (`gise-page-helpers.test.ts`). Toda função aqui tolera árvore incompleta —
+ * (`page-helpers.test.ts`). Toda função aqui tolera árvore incompleta —
  * `undefined` em `unidades`/`equipes`/`membros` — porque o `load` degrada quando
  * a migração de slots ainda não rodou no ambiente.
  */

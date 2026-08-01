@@ -7,7 +7,7 @@ import {
 	buscarTermosPresencaGise,
 	tryGetR2
 } from '$lib/db';
-import { listarPoliciaisSupervisaoExtra } from '$lib/gise/gise-supervisao-extra';
+import { listarPoliciaisSupervisaoExtra } from '$lib/gise/supervisao-extra';
 
 type Presencas = Awaited<ReturnType<typeof buscarPresencasGise>>;
 

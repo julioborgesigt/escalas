@@ -13,7 +13,7 @@
 		checkAllSigned,
 		getFaltandoRubrica,
 		tiposEquipeNaSeccional
-	} from '$lib/gise/gise-page-helpers';
+	} from '$lib/gise/page-helpers';
 	import GiseActionButton from './GiseActionButton.svelte';
 
 	type Seccional = GiseDetalhado['seccionais'][number];

@@ -18,7 +18,7 @@ import {
 	resolveBreveRelatorioConteudoSupervisao
 } from '$lib/gise/breve-relatorio';
 import { logger } from '$lib/server/logger';
-import { validarHora, normalizarHora } from '$lib/gise/gise-horarios';
+import { validarHora, normalizarHora } from '$lib/gise/horarios';
 
 /**
  * Tela `/gise/config` (Admin Geral): padrões que valem para toda GISE nova —

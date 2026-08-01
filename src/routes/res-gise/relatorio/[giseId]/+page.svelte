@@ -35,7 +35,7 @@
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import { agruparPorEtapa, type EtapaFormulario } from '$lib/gise/etapas-formulario';
-	import { fmtDate } from '$lib/gise/gise-formatters';
+	import { fmtDate } from '$lib/gise/formatters';
 	import { loading } from '$lib/loading.svelte';
 	import { toaster } from '$lib/toast';
 	import Spinner from '$lib/components/Spinner.svelte';

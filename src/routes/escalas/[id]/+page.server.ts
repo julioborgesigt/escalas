@@ -51,7 +51,7 @@ import {
 	desfinalizarEscalaFDS,
 	buscarSolicitacaoAssinatura
 } from '$lib/db';
-import * as exportLib from '$lib/server/export/export';
+import * as exportLib from '$lib/server/export';
 import { enviarEscalaFDSPorEmail } from '$lib/server/email';
 import { logger } from '$lib/server/logger';
 import { eq, and, inArray } from 'drizzle-orm';
@@ -59,7 +59,7 @@ import { escalaPoliciais, escalas as escalasTable } from '$lib/server/schema';
 import {
 	verificarConflitoGlobal,
 	verificarConflitoGlobalBatch
-} from '$lib/server/escalas/escala-conflict';
+} from '$lib/server/escalas/conflict';
 import {
 	calcularProximoMesDias,
 	proximoMes,
@@ -69,7 +69,7 @@ import {
 	agruparDiasPorPolicial,
 	MESES_PT
 } from '$lib/rotacao';
-import { verificarPermissaoEscala } from '$lib/server/escalas/escala-permissao';
+import { verificarPermissaoEscala } from '$lib/server/escalas/permissao';
 
 /**
  * Preâmbulo único das actions: autentica, valida o id e garante que o usuário

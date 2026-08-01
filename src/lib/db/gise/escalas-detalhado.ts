@@ -35,7 +35,7 @@ import {
 import type { Database } from '../core';
 import { logger } from '../../server/logger';
 import type { GiseDetalhado, GiseUnidadeSlot } from './types';
-import { buscarUnidadeIdSupervisaoExtra } from '../../server/gise/gise-supervisao-extra';
+import { buscarUnidadeIdSupervisaoExtra } from '../../server/gise/supervisao-extra';
 
 /**
  * GISEs visíveis para quem pede, com os agregados que a listagem mostra.

@@ -2,8 +2,8 @@
  * Geração dos .docx de escala (FDS, expediente e plantão mensal).
  *
  * É o formato EDITÁVEL entregue às unidades — o PDF assinado é o documento
- * oficial (`export-pdf.ts`). Os dois consomem os mesmos agrupamentos de
- * `export-shared.ts`, de modo que a ordem dos nomes e os horários batem entre
+ * oficial (`pdf.ts`). Os dois consomem os mesmos agrupamentos de
+ * `shared.ts`, de modo que a ordem dos nomes e os horários batem entre
  * as duas saídas; aqui só muda o desenho (tabelas do pacote `docx`).
  */
 import {
@@ -33,7 +33,7 @@ import {
 	COLS_PLANTAO,
 	rowPlantao,
 	formatarMesAno
-} from './export-shared';
+} from './shared';
 
 // ---- DOCX Final de Semana ----
 /** Uma tabela por dia do fim de semana, na cor institucional (#1a5c57). */

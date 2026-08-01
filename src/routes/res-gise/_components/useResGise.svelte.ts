@@ -1,7 +1,7 @@
 import { toaster } from '$lib/toast';
 import { apiFetchResponse } from '$lib/api-fetch';
 import { baixarBlob, nomeArquivoContentDisposition } from '$lib/utils/download';
-import { fmtDate } from '$lib/gise/gise-formatters';
+import { fmtDate } from '$lib/gise/formatters';
 import { renumerarPerguntas } from '$lib/gise/renumerar-perguntas';
 import { loading } from '$lib/loading.svelte';
 import { page } from '$app/state';

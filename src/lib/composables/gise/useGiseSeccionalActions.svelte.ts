@@ -17,7 +17,7 @@ import { invalidate } from '$app/navigation';
 import { toaster } from '$lib/toast';
 import { csrfHeaders } from '$lib/csrf';
 import { makeEnhanceHandler } from '$lib/enhance-handler';
-import { validarHora } from '$lib/gise/gise-horarios';
+import { validarHora } from '$lib/gise/horarios';
 import { buscarPoliciaisOptions } from '$lib/busca-policiais';
 
 interface UseGiseSeccionalActionsParams {

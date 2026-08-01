@@ -19,14 +19,14 @@ import {
 	gerarRelatorioExtraordinarioPdf,
 	gerarRelatorioExtraordinarioSupervisaoPdf,
 	toGisePdfData
-} from '$lib/server/export/export';
+} from '$lib/server/export';
 import { getBreveRelatorioEnvMergido } from '$lib/server/gise/breve-relatorio-env';
-import { carregarLogosGise } from '$lib/server/gise/gise-logos';
-import { montarSignersPresencaExtra } from '$lib/server/gise/gise-relatorio-manifesto';
+import { carregarLogosGise } from '$lib/server/gise/logos';
+import { montarSignersPresencaExtra } from '$lib/server/gise/relatorio-manifesto';
 import {
 	giseAutorizaSeccionalRelatorioExtra,
 	secIdEhSupervisaoExtra
-} from '$lib/server/gise/gise-supervisao-extra';
+} from '$lib/server/gise/supervisao-extra';
 import {
 	prepararPdfParaAssinatura,
 	adicionarPaginaAuditoria,

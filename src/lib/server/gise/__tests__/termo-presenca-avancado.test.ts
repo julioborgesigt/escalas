@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import zlib from 'node:zlib';
-import { montarTermoPresencaAvancado } from '../gise-termo-presenca';
+import { montarTermoPresencaAvancado } from '../termo-presenca';
 
 // JPEG 1×1 válido (selfie/prova de vida) e PNG 1×1 (rubrica).
 const JPEG_1X1 =

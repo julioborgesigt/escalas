@@ -19,7 +19,7 @@ import {
 } from '$lib/db';
 import { finalizarAssinaturaEscalasSchema } from '$lib/schemas';
 import { finalizarQualificadaDoPayload } from '$lib/server/assinatura/signature-service';
-import { verificarPermissaoEscala } from '$lib/server/escalas/escala-permissao';
+import { verificarPermissaoEscala } from '$lib/server/escalas/permissao';
 import { limparR2ObsoletoEscala } from '$lib/server/r2-cleanup';
 import { chaveConferencia } from '$lib/server/assinatura/copia-conferencia';
 

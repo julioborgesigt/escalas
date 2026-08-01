@@ -30,7 +30,7 @@
  * o login por certificado junto com a assinatura.
  *
  * PDF assinado é DOCUMENTO, não saída de função: antes de refatorar, rode
- * `export-pdf-goldens` e confirme que não mudou um byte.
+ * `pdf-goldens` e confirme que não mudou um byte.
  */
 import { PDFDocument, StandardFonts, rgb, degrees, type PDFPage } from 'pdf-lib';
 import { pdflibAddPlaceholder } from '@signpdf/placeholder-pdf-lib';

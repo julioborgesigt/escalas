@@ -33,8 +33,8 @@ import {
 	buscarPresencasGise
 } from '$lib/db';
 import { decifrarCpfDoDB } from '$lib/crypto/cpf-cripto';
-import { listarPoliciaisSupervisaoExtra } from '$lib/gise/gise-supervisao-extra';
-import { secIdEhSupervisaoExtra } from '$lib/server/gise/gise-supervisao-extra';
+import { listarPoliciaisSupervisaoExtra } from '$lib/gise/supervisao-extra';
+import { secIdEhSupervisaoExtra } from '$lib/server/gise/supervisao-extra';
 import { logger } from '$lib/server/logger';
 import { tryGetR2 } from '$lib/db';
 import { calcularHashBuffer } from '$lib/server/assinatura/document-utils';

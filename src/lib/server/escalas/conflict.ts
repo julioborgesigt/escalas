@@ -4,7 +4,7 @@
  * seja escalado no mesmo dia e horário em dois locais.
  */
 import { and, eq, inArray, ne, or } from 'drizzle-orm';
-import { seOverlapam } from '$lib/gise/gise-horarios';
+import { seOverlapam } from '$lib/gise/horarios';
 import type { Database } from '$lib/db';
 import {
 	escalaPoliciais,

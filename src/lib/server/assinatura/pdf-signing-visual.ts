@@ -23,7 +23,7 @@
  * `signatureLevel`). Escrever a base legal errada é declarar num documento
  * oficial uma qualificação que ele não tem.
  *
- * Estes desenhos são cobertos por `export-pdf-goldens`: rode antes e depois de
+ * Estes desenhos são cobertos por `pdf-goldens`: rode antes e depois de
  * mexer, e só regrave com `UPDATE_PDF_GOLDENS=1` se a mudança visual for
  * intencional.
  */

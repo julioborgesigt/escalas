@@ -1,7 +1,7 @@
 import type { LayoutServerLoad } from './$types';
 import { getDB, ehAdminGeralVinculado } from '$lib/db';
 import { lerFlagsAssinatura } from '$lib/server/assinatura/cfg-ass-cache';
-import { lerPapelGise } from '$lib/server/gise/gise-papel-cache';
+import { lerPapelGise } from '$lib/server/gise/papel-cache';
 import { temAssinaturaEscalaPendente } from '$lib/server/escalas/rubrica-pendente';
 import { logger } from '$lib/server/logger';
 

@@ -4,7 +4,7 @@ import type { Database } from '$lib/db/core';
 import {
 	GISE_SUPERVISAO_EXTRA_DEPARTAMENTO_NOME,
 	GISE_SUPERVISAO_EXTRA_UNIDADE_NOME
-} from '$lib/gise/gise-supervisao-extra';
+} from '$lib/gise/supervisao-extra';
 
 /**
  * `undefined` = ainda não consultado; `number` = ID a usar; `null` = nenhum departamento/legado

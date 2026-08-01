@@ -25,7 +25,7 @@ import {
 	forbidden,
 	serverError
 } from '$lib/server/api';
-import { verificarPermissaoGise } from '$lib/server/gise/gise-permissao';
+import { verificarPermissaoGise } from '$lib/server/gise/permissao';
 import {
 	podeBaixarComManifesto,
 	gerarCopiaConferencia,

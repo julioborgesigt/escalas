@@ -3,7 +3,7 @@
  *
  * Mesma dupla do DOCX: formato de trabalho para as unidades, enquanto o PDF é o
  * documento oficial. Os agrupamentos e a ordem dos nomes vêm de
- * `export-shared.ts`, garantindo que planilha, DOCX e PDF descrevam a mesma
+ * `shared.ts`, garantindo que planilha, DOCX e PDF descrevam a mesma
  * escala.
  */
 import ExcelJS from 'exceljs';
@@ -21,7 +21,7 @@ import {
 	COLS_PLANTAO,
 	rowPlantao,
 	formatarMesAno
-} from './export-shared';
+} from './shared';
 
 // ---- XLSX Final de Semana ----
 /** Uma faixa de cabeçalho por dia, com as larguras de coluna fixadas em caracteres. */

@@ -7,7 +7,7 @@
  */
 
 import type { RequestHandler } from './$types';
-import { carregarLogosGise } from '$lib/server/gise/gise-logos';
+import { carregarLogosGise } from '$lib/server/gise/logos';
 import { bytesToHex } from '$lib/crypto/hex';
 import {
 	apiError,
@@ -35,7 +35,7 @@ import {
 	gerarPdfGise,
 	toGisePdfData,
 	giseDetalhadoComMatriculaSupervisorSessao
-} from '$lib/server/export/export';
+} from '$lib/server/export';
 import { getBreveRelatorioEnvMergido } from '$lib/server/gise/breve-relatorio-env';
 import {
 	adicionarRodapeSimples,
