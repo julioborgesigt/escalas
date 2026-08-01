@@ -1,5 +1,5 @@
 import { toaster } from '$lib/toast';
-import { calcularDataSaida } from '$lib/utils';
+import { calcularDataSaida } from '$lib/utils/datas';
 import type { ActionResult } from '@sveltejs/kit';
 import type { EscalaPolicialComDados } from '$lib/types';
 

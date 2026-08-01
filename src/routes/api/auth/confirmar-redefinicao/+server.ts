@@ -11,7 +11,10 @@ import { getDB, registrarAuditComContexto } from '$lib/db';
 import { criarTokenRedefinicao, verificarDesafio2FA } from '$lib/auth';
 import { enviarLinkRedefinicaoSenha } from '$lib/server/email';
 import { administradores, policiais, resetSenhaTokens } from '$lib/server/schema';
-import { contarRecoveryAttempts, registrarRecoveryAttempt } from '$lib/server/recovery-rate-limit';
+import {
+	contarRecoveryAttempts,
+	registrarRecoveryAttempt
+} from '$lib/server/auth/recovery-rate-limit';
 import { badRequest, rateLimited, validateBody } from '$lib/server/api';
 import { confirmarRedefinicaoSchema } from '$lib/schemas';
 import { resolverAppOrigin } from '$lib/server/app-origin';

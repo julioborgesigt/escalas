@@ -13,7 +13,7 @@ import { json } from '@sveltejs/kit';
 import { getDB } from '$lib/db';
 import { unidades, escalas, escalaDocumentos } from '$lib/server/schema';
 import { and, eq, gte, lte, inArray, sql } from 'drizzle-orm';
-import { getNowBR, MESES_PT, isoData, diasNoMes } from '$lib/utils';
+import { getNowBR, MESES_PT, isoData, diasNoMes } from '$lib/utils/datas';
 import type { ItemCompliance } from '$lib/types';
 import { requireAdmin } from '$lib/server/api';
 import type { RequestHandler } from './$types';

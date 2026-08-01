@@ -9,10 +9,17 @@ on:
   push:
     branches: [main, staging]
 
-# Cancela runs anteriores quando um novo commit é pushado para a mesma branch/PR.
+# Cancela runs anteriores quando um novo commit é pushado para o mesmo PR.
+#
+# `cancel-in-progress` SÓ em pull_request, nunca em push. Num push para main o
+# `github.ref` é `refs/heads/main`, então dois merges em sequência colocariam os
+# dois runs no mesmo grupo e o segundo cancelaria o primeiro — que é justamente
+# o run que faz `db:migrate:prod` + `pages deploy`. O `migrate.ts` só grava em
+# `_migrations_aplicadas` DEPOIS do `d1 execute`, então um cancelamento nessa
+# janela deixa a migração aplicada e não registrada.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   test:
@@ -48,6 +55,35 @@ jobs:
       # piso quando os números estabilizarem). Os testes seguem sendo gate.
       - run: npx vitest run --reporter=verbose --coverage
       - run: npm run build
+
+      # NÃO tente passar `.svelte-kit/cloudflare` como artefato para os jobs de
+      # deploy pouparem o segundo build. Já foi tentado e quebrou o deploy de
+      # produção (run 30555839855): o `_worker.js` do adapter NÃO é
+      # autocontido — o wrangler o empacota na hora do `pages deploy`, e ele
+      # importa `../output/server/index.js` e `../cloudflare-tmp/manifest.js`,
+      # que ficam FORA daquele diretório:
+      #
+      #   ✘ Could not resolve "./../output/server/index.js"
+      #   ✘ Could not resolve "./../cloudflare-tmp/manifest.js"
+      #
+      # Levar os três diretórios (~16 MB) faria o CI depender do layout interno
+      # do `@sveltejs/adapter-cloudflare` — `cloudflare-tmp` é diretório
+      # temporário dele. Um bump do adapter quebraria o DEPLOY, depois do
+      # merge. Rebuildar no job de deploy custa ~40 s e não tem esse acoplamento.
+
+      # Guard contra regressão da convenção de testes: todo *.test.ts em
+      # src/ mora numa pasta __tests__/ junto do código testado. Antes
+      # conviviam duas convenções (5 arquivos colocados, 60 em __tests__/),
+      # e "onde está o teste de X" tinha duas respostas. Ver CLAUDE.md →
+      # "Onde colocar teste novo".
+      - name: Guard — convenção de testes (__tests__/)
+        run: |
+          violations=$(find src -name '*.test.ts' -not -path '*/__tests__/*' || true)
+          if [ -n "$violations" ]; then
+            echo "::error::Testes fora de __tests__/ — mova para a pasta __tests__/ do módulo testado:"
+            echo "$violations"
+            exit 1
+          fi
 
       # Guard contra regressão do padrão API: todas as rotas devem usar
       # os helpers de \$lib/server/api (badRequest, unauthorized, etc.) em
@@ -100,8 +136,30 @@ jobs:
       - name: Apply D1 migrations (local, for E2E)
         run: npx wrangler d1 migrations apply escalas-db --local
 
+      # O browser são ~150 MB baixados a cada run. A chave é a VERSÃO do
+      # @playwright/test resolvida no lockfile: o binário é atrelado a ela, e
+      # assim o cache invalida sozinho quando o dependabot sobe a versão.
+      - name: Versão do Playwright (chave do cache)
+        id: pw
+        run: echo "versao=$(node -p "require('@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
+
+      - name: Cache do browser do Playwright
+        id: cache-pw
+        uses: actions/cache@v6
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.pw.outputs.versao }}
+
+      # No cache hit só faltam as libs de sistema (`--with-deps` instala via
+      # apt, fora de ~/.cache) — o `--only-shell` não serve porque a suíte usa
+      # o Chromium completo.
       - name: Install Playwright (Chromium)
-        run: npx playwright install --with-deps chromium
+        run: |
+          if [ "${{ steps.cache-pw.outputs.cache-hit }}" = "true" ]; then
+            npx playwright install-deps chromium
+          else
+            npx playwright install --with-deps chromium
+          fi
 
       - name: End-to-end tests
         run: npx playwright test
@@ -121,6 +179,8 @@ jobs:
           cache: npm
 
       - run: npm ci
+      # Rebuild deliberado (ver nota no job `test`): o output do adapter não é
+      # transportável como artefato.
       - run: npm run build
 
       # Migra o D1 de STAGING antes do deploy. O script é INCREMENTAL: controla
@@ -155,6 +215,8 @@ jobs:
           cache: npm
 
       - run: npm ci
+      # Rebuild deliberado (ver nota no job `test`): o output do adapter não é
+      # transportável como artefato.
       - run: npm run build
 
       # Migra o D1 de PRODUÇÃO antes do deploy (incremental — só as pendentes

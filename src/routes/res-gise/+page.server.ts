@@ -10,24 +10,27 @@
  *   `0` é depois traduzido para `supervisaoExtraUnidadeId` na hora de casar
  *   assinaturas de relatório de extra.
  *
- * As três mutações que a tela oferece — confirmar entrada, confirmar saída e
- * enviar/retificar o relatório de produtividade — são de assinatura AVANÇADA
- * (Lei 14.063/2020 art. 4º II): exigem rubrica, 2FA por e-mail quando a flag
- * está ligada, e gravam IP/GPS/foto como prova. Cada action revalida a
- * participação do policial na escala: a UI esconde o botão, mas o POST direto
- * precisa ser recusado no servidor.
+ * As duas mutações de presença — confirmar entrada e confirmar saída — são de
+ * assinatura AVANÇADA (Lei 14.063/2020 art. 4º II): exigem rubrica, 2FA por
+ * e-mail quando a flag está ligada, e gravam IP/GPS/foto como prova. Cada action
+ * revalida a participação do policial na escala: a UI esconde o botão, mas o
+ * POST direto precisa ser recusado no servidor.
+ *
+ * A terceira tarefa do policial, o relatório de produtividade, NÃO mora mais
+ * aqui: o formulário virou a rota `/res-gise/relatorio/[giseId]`, com o `load` e
+ * a action dele. Esta tela só mostra o estado da entrega (carimbos de envio e
+ * retificação) e leva até lá.
  */
 
 import { redirect, fail } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
-import type { ResGiseMinhaEscalaLinha } from '$lib/types';
+import type { ResGiseMinhaEscalaLinha, GiseModeloPerguntaConfig } from '$lib/types';
 import {
 	getDB,
 	getR2,
 	hasR2,
 	buscarGiseModeloFormulario,
 	buscarRespostaGise,
-	salvarRespostaGise,
 	buscarGiseEscala,
 	resolverParticipacaoGisePolicial,
 	sincronizarStatusGiseAposPresencaRelatorios,
@@ -42,15 +45,11 @@ import {
 	DEFAULT_SEINT_QUESTIONS,
 	DEFAULT_QUESTIONS_FORM_OPERACIONAL
 } from '$lib/db';
-import { buscarUnidadeIdSupervisaoExtra } from '$lib/server/gise-supervisao-extra';
-import { lerFlagsAssinatura } from '$lib/server/cfg-ass-cache';
+import { buscarUnidadeIdSupervisaoExtra } from '$lib/server/gise/supervisao-extra';
+import { lerFlagsAssinatura } from '$lib/server/assinatura/cfg-ass-cache';
 import { verificarDesafio2FA } from '$lib/auth';
 import { logger } from '$lib/server/logger';
-import { uploadSelfieDataUri } from '$lib/server/selfie-upload';
-import {
-	parseRespostasFormularioJsonLoose,
-	parseRespostasFormularioJsonStrict
-} from '$lib/schemas/gise-respostas-form';
+import { uploadSelfieDataUri } from '$lib/server/assinatura/selfie-upload';
 import {
 	giseEscalas,
 	giseMembros,
@@ -353,18 +352,6 @@ export const load: PageServerLoad = async ({ locals, platform, url }) => {
 				: Promise.resolve(null)
 		]);
 
-	let respostasData: Record<string, unknown> = {};
-	if (respostaRow?.respostas) {
-		respostasData = parseRespostasFormularioJsonLoose(respostaRow.respostas);
-		const raw = respostaRow.respostas.trim();
-		if (raw && raw !== '{}' && Object.keys(respostasData).length === 0) {
-			logger.warn('res-gise load: respostas não é objeto JSON válido', {
-				giseId: giseIdSelected,
-				amostra: raw.slice(0, 80)
-			});
-		}
-	}
-
 	let modeloOperacional = DEFAULT_QUESTIONS_FORM_OPERACIONAL;
 	if (modeloOp?.config) {
 		try {
@@ -382,60 +369,43 @@ export const load: PageServerLoad = async ({ locals, platform, url }) => {
 		}
 	}
 
+	/**
+	 * Versão anterior de cada modelo, para o "Restaurar anterior" do editor.
+	 * `null` quando nunca houve uma segunda gravação — ou quando o JSON está
+	 * corrompido, caso em que é melhor desabilitar o botão do que oferecer uma
+	 * restauração que quebraria o editor.
+	 */
+	function parseAnterior(raw: string | null | undefined, rotulo: string) {
+		if (!raw) return null;
+		try {
+			return JSON.parse(raw) as GiseModeloPerguntaConfig[];
+		} catch (err) {
+			logger.warn(`[res-gise] modelo anterior ${rotulo} JSON inválido`, { err: String(err) });
+			return null;
+		}
+	}
+
 	return {
 		minhasEscalas,
 		isSupervisorGise,
 		isSupervisaoGise,
 		supervisaoExtraUnidadeId,
-		respostas: respostasData,
 		// Carimbo de envio (created_at) e da última retificação (updated_at) da
-		// resposta de produtividade — exibidos no card "Relatório Entregue".
+		// resposta de produtividade — exibidos no card "Relatório Entregue". O
+		// BLOB das respostas não vem mais daqui: quem edita é o wizard em
+		// `/res-gise/relatorio/[giseId]`, que carrega o seu próprio.
 		respostaEnviadaEm: respostaRow?.created_at ?? null,
 		respostaAtualizadaEm: respostaRow?.updated_at ?? null,
 		restringirSmartphone,
 		minhaRubrica: rubricaRow?.rubrica ?? null,
 		modeloOperacional,
 		modeloSeint,
-		modeloPadraoOperacional: DEFAULT_QUESTIONS_FORM_OPERACIONAL,
-		modeloPadraoSeint: DEFAULT_SEINT_QUESTIONS
+		modeloAnteriorOperacional: parseAnterior(modeloOp?.config_anterior, 'operacional'),
+		modeloAnteriorSeint: parseAnterior(modeloSeintRow?.config_anterior, 'seint')
 	};
 };
 
 export const actions: Actions = {
-	/**
-	 * Envia ou RETIFICA o relatório de produtividade. O parser é o `strict`: o
-	 * conteúdo vai para um documento assinável, então formato inesperado é
-	 * recusado em vez de sanitizado. Ao final, o status da GISE é recalculado —
-	 * o último relatório pode deixá-la pronta para finalizar.
-	 */
-	salvarResposta: async ({ request, locals, platform }) => {
-		const u = locals.usuario;
-		if (!u) return fail(401, { error: 'Não autorizado' });
-
-		const formData = await request.formData();
-		const giseId = parseInt(formData.get('giseId') as string);
-		const equipeId = formData.get('equipeId')
-			? parseInt(formData.get('equipeId') as string)
-			: undefined;
-		const respostasStr = formData.get('respostas') as string;
-
-		if (isNaN(giseId) || !respostasStr) {
-			return fail(400, { error: 'Dados inválidos', giseId, equipeId });
-		}
-
-		const parsed = parseRespostasFormularioJsonStrict(respostasStr);
-		if (!parsed.ok) {
-			return fail(400, { error: 'Respostas em formato inválido', giseId, equipeId });
-		}
-
-		const db = getDB(platform);
-		await salvarRespostaGise(db, giseId, u.id, JSON.stringify(parsed.data), equipeId);
-
-		await sincronizarStatusGiseAposPresencaRelatorios(db, giseId);
-
-		return { success: true, giseId, equipeId };
-	},
-
 	/**
 	 * Confirma a ENTRADA em serviço (assinatura avançada).
 	 *

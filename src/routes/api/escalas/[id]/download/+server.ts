@@ -32,13 +32,13 @@ import {
 } from '$lib/server/api';
 import { tryGetR2 } from '$lib/db';
 import { logger } from '$lib/server/logger';
-import { verificarPermissaoEscala } from '$lib/server/escala-permissao';
+import { verificarPermissaoEscala } from '$lib/server/escalas/permissao';
 import {
 	podeBaixarComManifesto,
 	gerarCopiaConferencia,
 	chaveConferencia
-} from '$lib/server/copia-conferencia';
-import { gerarRascunhoEscalaPdf } from '$lib/server/conferencia-pdf';
+} from '$lib/server/assinatura/copia-conferencia';
+import { gerarRascunhoEscalaPdf } from '$lib/server/assinatura/conferencia-pdf';
 import { registrarAuditComContexto } from '$lib/db/audit';
 
 export const GET: RequestHandler = async ({ params, platform, url, locals }) => {

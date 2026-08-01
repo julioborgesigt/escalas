@@ -1,0 +1,12 @@
+-- Guarda a versão IMEDIATAMENTE anterior do modelo do formulário de
+-- produtividade, para o botão "Restaurar anterior" do editor do Admin Geral.
+--
+-- Um nível só, de propósito: a `salvarGiseModeloFormulario` copia o `config`
+-- vigente para cá antes de gravar o novo. Restaurar é carregar esta coluna no
+-- editor — o admin revisa e salva, e nessa hora a troca se inverte (o que
+-- estava vigente vira o anterior). Na prática o par funciona como um
+-- desfazer/refazer de um passo.
+--
+-- NULL = nunca houve alteração salva depois da primeira (o botão fica
+-- desabilitado nesse caso).
+ALTER TABLE `gise_modelo_formulario` ADD COLUMN `config_anterior` text;

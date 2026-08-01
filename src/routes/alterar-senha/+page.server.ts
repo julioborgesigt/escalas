@@ -4,9 +4,12 @@ import { getDB, auditar, contextoDeEvento } from '$lib/db';
 import { hashSenha, verificarSenha, criarSessao } from '$lib/auth';
 import { administradores, policiais, sessoes } from '$lib/server/schema';
 import { alterarSenhaSchema } from '$lib/schemas';
-import { cookieOptions } from '$lib/server/auth-flow';
-import { invalidarSessaoCache } from '$lib/server/session-cache';
-import { contarRecoveryAttempts, registrarRecoveryAttempt } from '$lib/server/recovery-rate-limit';
+import { cookieOptions } from '$lib/server/auth/auth-flow';
+import { invalidarSessaoCache } from '$lib/server/auth/session-cache';
+import {
+	contarRecoveryAttempts,
+	registrarRecoveryAttempt
+} from '$lib/server/auth/recovery-rate-limit';
 import type { Actions, PageServerLoad } from './$types';
 
 // Throttle da verificação de senha_atual: com uma sessão roubada, este era o

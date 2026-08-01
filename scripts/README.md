@@ -51,7 +51,7 @@ Este arquivo descreve o objetivo de cada script utilitário e os comandos de ata
 
 ### `gerar-selo-institucional.mjs`
 
-- **Função:** gera o par de chaves do **selo institucional** (RSA 2048, autoassinado, 10 anos, `digitalSignature + nonRepudiation`) consumido por `src/lib/server/server-seal.ts`. Grava `selo-institucional.key.pem` (privada — gitignored, guardar em cofre) e `selo-institucional.cert.pem` (pública — versionada para conferência de terceiros) e imprime no stdout o bundle base64 pronto para `wrangler secret put SELO_INSTITUCIONAL_PEM`.
+- **Função:** gera o par de chaves do **selo institucional** (RSA 2048, autoassinado, 10 anos, `digitalSignature + nonRepudiation`) consumido por `src/lib/server/assinatura/server-seal.ts`. Grava `selo-institucional.key.pem` (privada — gitignored, guardar em cofre) e `selo-institucional.cert.pem` (pública — versionada para conferência de terceiros) e imprime no stdout o bundle base64 pronto para `wrangler secret put SELO_INSTITUCIONAL_PEM`.
 - **Comando direto:** `node scripts/gerar-selo-institucional.mjs "Sistema de Escalas - PCCE" "Policia Civil do Ceara"`
 - **Proteção:** aborta se os PEMs já existirem na pasta atual (trocar a chave = trocar a identidade do selo). Use `--force` apenas se a troca for intencional, atualizando o secret e o cert público versionado no mesmo PR.
 

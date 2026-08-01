@@ -36,7 +36,7 @@
 	import PaginationControls from '$lib/components/PaginationControls.svelte';
 	import { Dialog, SegmentedControl } from '@skeletonlabs/skeleton-svelte';
 	import ToggleSwitch from '$lib/components/ToggleSwitch.svelte';
-	import { formatarTelefone, formatarCPF, limparCPF } from '$lib/utils';
+	import { formatarTelefone, formatarCPF, limparCPF } from '$lib/utils/formato';
 	import {
 		useAutorizacao,
 		getSavedFilters,

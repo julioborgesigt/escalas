@@ -20,7 +20,7 @@
 import { eq, and, or, isNull, asc, sql, like } from 'drizzle-orm';
 import { policiais, unidades } from '../server/schema';
 import type * as schema from '../server/schema';
-import { limparMatricula } from '../utils';
+import { limparMatricula } from '../utils/formato';
 import { gerarSenhaAleatoriaHash } from '../auth';
 import {
 	prepararCpfParaDB,

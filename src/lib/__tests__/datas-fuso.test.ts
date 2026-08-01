@@ -22,7 +22,7 @@ import {
 	diffDiasInclusivo,
 	hojeLocalISO,
 	intervaloDeDatas
-} from '../utils';
+} from '../utils/datas';
 import { ultimoDiaDoMes, primeiroDiaDoMes } from '../rotacao';
 
 const FUSOS = [

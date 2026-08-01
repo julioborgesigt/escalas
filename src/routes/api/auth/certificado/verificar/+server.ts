@@ -43,13 +43,13 @@ import {
 	validateBody
 } from '$lib/server/api';
 import { certificadoVerificarSchema } from '$lib/schemas';
-import { checkRateLimit, recordAttempt, cookieOptions } from '$lib/server/auth-flow';
+import { checkRateLimit, recordAttempt, cookieOptions } from '$lib/server/auth/auth-flow';
 import {
 	verificarRespostaDesafioCertificado,
 	verificarRevogacaoParaLogin
-} from '$lib/server/cert-login';
-import { loadTrustStore } from '$lib/server/icp-brasil/trust-store';
-import { limparCPF } from '$lib/utils';
+} from '$lib/server/auth/cert-login';
+import { loadTrustStore } from '$lib/server/assinatura/icp-brasil/trust-store';
+import { limparCPF } from '$lib/utils/formato';
 import { cpfKeys, indiceCPF } from '$lib/crypto/cpf-cripto';
 import { logger } from '$lib/server/logger';
 import forge from 'node-forge';

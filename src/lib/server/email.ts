@@ -15,9 +15,9 @@
  * resultante é congelado por goldens (`__tests__/email-templates.test.ts`).
  */
 
-import { montarHtmlEmailNotificacaoAssessorGise } from './gise-assessor-notificacao-text';
+import { montarHtmlEmailNotificacaoAssessorGise } from './gise/assessor-notificacao-text';
 import { logger } from './logger';
-import { mascararEmail } from '$lib/utils';
+import { mascararEmail } from '$lib/utils/pii';
 import { getDB, buscarProvedorEmailPadrao, type EmailProvedor } from '$lib/db';
 
 function escapeHtml(value: string): string {

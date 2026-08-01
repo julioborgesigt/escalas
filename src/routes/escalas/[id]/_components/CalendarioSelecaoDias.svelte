@@ -5,7 +5,7 @@
 	 * e `ModalEditarPlantao` (modo 'avulso': dias independentes).
 	 * `cor` controla o tema do dia selecionado/chips (warning × primary).
 	 */
-	import { MESES_PT, DIAS_SEMANA_CURTO, isoData } from '$lib/utils';
+	import { MESES_PT, DIAS_SEMANA_CURTO, isoData } from '$lib/utils/datas';
 
 	let {
 		selecionados = $bindable<string[]>([]),
