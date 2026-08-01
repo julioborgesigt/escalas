@@ -80,6 +80,22 @@ com Sentry/logs.
 Nunca passe string livre como `errorType`. Se precisa de uma categoria
 nova, adicione ao enum `ErrorCode` em `src/lib/server/api.ts`.
 
+## Onde colocar código novo em `src/lib/server/`
+
+**Raiz = infra transversal. Subpasta = domínio.** A raiz de `server/` só
+aceita o que é usado por vários domínios sem pertencer a nenhum: `api.ts`,
+`schema.ts`, `logger.ts`, `sentry.ts`, `request-context.ts`, `csp.ts`,
+`app-origin.ts`, `db-errors.ts`, `email.ts`, `r2-cleanup.ts`,
+`policial-permissao.ts`.
+
+Todo o resto vai para o domínio correspondente — `assinatura/`, `auth/`,
+`escalas/`, `gise/`, `export/`, `termo/` — junto com seu `__tests__/`.
+
+Arquivo novo cujo nome só faz sentido com prefixo de domínio (`gise-*`,
+`escala-*`, `pdf-*`) é sinal de que ele pertence a uma subpasta, não à raiz.
+Até jul/2026 essa pasta era plana com 58 arquivos e cinco domínios
+misturados; não a deixe voltar a ser.
+
 ## Fetch no cliente — padrão obrigatório
 
 **Sempre use `$lib/api-fetch` para chamar a API interna do cliente.**

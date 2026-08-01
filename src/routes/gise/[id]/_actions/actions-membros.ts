@@ -11,7 +11,7 @@ import {
 	revogarAssinaturasSeccional
 } from '$lib/db';
 import { isAdminSeccional } from '$lib/auth';
-import { invalidarPapelGise } from '$lib/server/gise-papel-cache';
+import { invalidarPapelGise } from '$lib/server/gise/gise-papel-cache';
 import { giseMembros, giseEquipes, giseSeccionais } from '$lib/server/schema';
 import { eq } from 'drizzle-orm';
 import { getInt, saiuDaFaseDeEdicao } from './shared';

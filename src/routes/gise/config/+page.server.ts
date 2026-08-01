@@ -11,7 +11,7 @@ import { buscarConfiguracao, salvarConfiguracao } from '$lib/db/configuracoes';
 import {
 	getBreveRelatorioEnvMergido,
 	GISE_BREVE_RELATORIO_CONFIG_KEYS
-} from '$lib/server/breve-relatorio-env';
+} from '$lib/server/gise/breve-relatorio-env';
 import {
 	resolveBreveRelatorioTitulo,
 	resolveBreveRelatorioConteudoSeccional,

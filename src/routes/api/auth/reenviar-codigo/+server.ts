@@ -21,8 +21,11 @@ import { criarDesafio2FA, gerarCodigo2FA } from '$lib/auth';
 import { enviarCodigo2FA } from '$lib/server/email';
 import { logger } from '$lib/server/logger';
 import { administradores, policiais, doisFatoresTokens } from '$lib/server/schema';
-import { mascararEmail } from '$lib/server/auth-flow';
-import { contarRecoveryAttempts, registrarRecoveryAttempt } from '$lib/server/recovery-rate-limit';
+import { mascararEmail } from '$lib/server/auth/auth-flow';
+import {
+	contarRecoveryAttempts,
+	registrarRecoveryAttempt
+} from '$lib/server/auth/recovery-rate-limit';
 import { badRequest, rateLimited, serverError, validateBody } from '$lib/server/api';
 import { reenviarCodigoSchema } from '$lib/schemas';
 import type { RequestHandler } from './$types';

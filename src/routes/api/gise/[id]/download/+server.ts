@@ -27,13 +27,13 @@ import {
 	buscarAssinaturaRelatorioGise
 } from '$lib/db';
 import { isAdminGeral, isAdminSeccional } from '$lib/auth';
-import { verificarPermissaoGise } from '$lib/server/gise-permissao';
+import { verificarPermissaoGise } from '$lib/server/gise/gise-permissao';
 import {
 	podeBaixarComManifesto,
 	gerarCopiaConferencia,
 	chaveConferencia
-} from '$lib/server/copia-conferencia';
-import { carregarLogosGise } from '$lib/server/gise-logos';
+} from '$lib/server/assinatura/copia-conferencia';
+import { carregarLogosGise } from '$lib/server/gise/gise-logos';
 import { registrarAuditComContexto } from '$lib/db/audit';
 import { tryGetR2 } from '$lib/db';
 import { giseDownloadSchema, giseIdParamSchema } from '$lib/schemas';
@@ -45,17 +45,17 @@ import {
 	forbidden,
 	serverError
 } from '$lib/server/api';
-import { toGisePdfData } from '$lib/server/export';
-import { getBreveRelatorioEnvMergido } from '$lib/server/breve-relatorio-env';
+import { toGisePdfData } from '$lib/server/export/export';
+import { getBreveRelatorioEnvMergido } from '$lib/server/gise/breve-relatorio-env';
 import { logger } from '$lib/server/logger';
 import {
 	giseAutorizaSeccionalRelatorioExtra,
 	secIdEhSupervisaoExtra
-} from '$lib/server/gise-supervisao-extra';
+} from '$lib/server/gise/gise-supervisao-extra';
 import {
 	appendGiseDetalhadoToXlsxWorkbook,
 	createAppendGiseXlsxState
-} from '$lib/server/gise-xlsx-workbook-append';
+} from '$lib/server/gise/gise-xlsx-workbook-append';
 import ExcelJS from 'exceljs';
 
 export const GET: RequestHandler = async ({ locals, params, platform, url }) => {
@@ -173,7 +173,7 @@ export const GET: RequestHandler = async ({ locals, params, platform, url }) => 
 				const presencas = await buscarPresencasGise(db, id, platform?.env);
 				const isSupExtra = await secIdEhSupervisaoExtra(db, seccionalId);
 				const { gerarRelatorioExtraordinarioPdf, gerarRelatorioExtraordinarioSupervisaoPdf } =
-					await import('$lib/server/export');
+					await import('$lib/server/export/export');
 				const brEnv = await getBreveRelatorioEnvMergido(db);
 				const result = isSupExtra
 					? await gerarRelatorioExtraordinarioSupervisaoPdf(
@@ -234,7 +234,7 @@ export const GET: RequestHandler = async ({ locals, params, platform, url }) => 
 			const presencas = await buscarPresencasGise(db, id, platform?.env);
 			const isSupervisaoExtra = await secIdEhSupervisaoExtra(db, seccionalId);
 			const { gerarRelatorioExtraordinarioPdf, gerarRelatorioExtraordinarioSupervisaoPdf } =
-				await import('$lib/server/export');
+				await import('$lib/server/export/export');
 			const brEnv = await getBreveRelatorioEnvMergido(db);
 			const result = isSupervisaoExtra
 				? await gerarRelatorioExtraordinarioSupervisaoPdf(
@@ -326,7 +326,7 @@ export const GET: RequestHandler = async ({ locals, params, platform, url }) => 
 
 		// Rascunho sem manifesto — base para a cópia de conferência (documento
 		// assinado, usuário não privilegiado) e para a GISE ainda não assinada.
-		const { gerarPdfGise } = await import('$lib/server/export');
+		const { gerarPdfGise } = await import('$lib/server/export/export');
 		const r2Logo = tryGetR2(platform);
 		let logoBytes: Uint8Array | undefined;
 		let logoCearaBytes: Uint8Array | undefined;
@@ -383,7 +383,7 @@ export const GET: RequestHandler = async ({ locals, params, platform, url }) => 
 			return badRequest('Seccional é obrigatória');
 
 		const { buscarRespostasProdutividadeSeccional } = await import('$lib/db');
-		const { gerarRelatorioProdutividadeGisePdf } = await import('$lib/server/export');
+		const { gerarRelatorioProdutividadeGisePdf } = await import('$lib/server/export/export');
 
 		const seccional = gise.seccionais.find(
 			(s) => s.id === seccionalId || s.seccional_id === seccionalId

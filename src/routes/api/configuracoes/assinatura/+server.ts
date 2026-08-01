@@ -2,9 +2,9 @@ import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { getDB, salvarConfiguracao, auditar, contextoDeEvento } from '$lib/db';
 import { assinaturaConfigSchema } from '$lib/schemas';
-import { invalidarFlagsAssinatura, lerFlagsAssinatura } from '$lib/server/cfg-ass-cache';
+import { invalidarFlagsAssinatura, lerFlagsAssinatura } from '$lib/server/assinatura/cfg-ass-cache';
 import { requireSuperAdmin, badRequest, validateBody } from '$lib/server/api';
-import { REQUISITOS_OBRIGATORIOS_AVANCADA } from '$lib/server/signature-level';
+import { REQUISITOS_OBRIGATORIOS_AVANCADA } from '$lib/server/assinatura/signature-level';
 
 export const GET: RequestHandler = async ({ platform }) => {
 	const flags = await lerFlagsAssinatura(platform);

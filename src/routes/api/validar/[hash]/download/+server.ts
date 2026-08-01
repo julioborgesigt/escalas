@@ -26,14 +26,17 @@ import {
 	rateLimited,
 	serverError
 } from '$lib/server/api';
-import { contarRecoveryAttempts, registrarRecoveryAttempt } from '$lib/server/recovery-rate-limit';
+import {
+	contarRecoveryAttempts,
+	registrarRecoveryAttempt
+} from '$lib/server/auth/recovery-rate-limit';
 import { registrarAuditComContexto } from '$lib/db/audit';
 import {
 	podeBaixarForense,
 	gerarCopiaConferencia,
 	chaveConferencia
-} from '$lib/server/copia-conferencia';
-import { carregarLogosGise } from '$lib/server/gise-logos';
+} from '$lib/server/assinatura/copia-conferencia';
+import { carregarLogosGise } from '$lib/server/gise/gise-logos';
 import { logger } from '$lib/server/logger';
 import type { RequestHandler } from './$types';
 
@@ -139,7 +142,7 @@ export const GET: RequestHandler = async ({ platform, params, url, cookies, getC
 		if (documento.tipo_doc === 'escala') {
 			const { buscarEscala, listarPoliciaisEscala, buscarRubricaAssinante } =
 				await import('$lib/db');
-			const { gerarRascunhoEscalaPdf } = await import('$lib/server/conferencia-pdf');
+			const { gerarRascunhoEscalaPdf } = await import('$lib/server/assinatura/conferencia-pdf');
 			const escala = await buscarEscala(db, documento.escala_id);
 			if (!escala) return notFound('Escala');
 			const policiais = await listarPoliciaisEscala(db, documento.escala_id);
@@ -160,7 +163,7 @@ export const GET: RequestHandler = async ({ platform, params, url, cookies, getC
 		}
 		if (documento.tipo_doc === 'gise') {
 			const { buscarGiseDetalhado } = await import('$lib/db');
-			const { gerarRascunhoGisePdf } = await import('$lib/server/conferencia-pdf');
+			const { gerarRascunhoGisePdf } = await import('$lib/server/assinatura/conferencia-pdf');
 			const gise = await buscarGiseDetalhado(db, documento.escala_id);
 			if (!gise) return notFound('GISE');
 			const rascunho = await gerarRascunhoGisePdf(db, gise, platform);
@@ -249,10 +252,10 @@ export const GET: RequestHandler = async ({ platform, params, url, cookies, getC
 				gerarRelatorioExtraordinarioSupervisaoPdf,
 				gerarRelatorioProdutividadeGisePdf,
 				toGisePdfData
-			} = await import('$lib/server/export');
-			const { getBreveRelatorioEnvMergido } = await import('$lib/server/breve-relatorio-env');
-			const { secIdEhSupervisaoExtra } = await import('$lib/server/gise-supervisao-extra');
-			const { adicionarRodapeSimples } = await import('$lib/server/pdf-signing');
+			} = await import('$lib/server/export/export');
+			const { getBreveRelatorioEnvMergido } = await import('$lib/server/gise/breve-relatorio-env');
+			const { secIdEhSupervisaoExtra } = await import('$lib/server/gise/gise-supervisao-extra');
+			const { adicionarRodapeSimples } = await import('$lib/server/assinatura/pdf-signing');
 			const brEnv = await getBreveRelatorioEnvMergido(db);
 
 			const gise = await buscarGiseDetalhado(db, documento.escala_id);

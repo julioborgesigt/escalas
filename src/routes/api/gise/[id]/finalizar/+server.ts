@@ -9,8 +9,11 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { getDB, buscarGiseEscala, atualizarGiseEscala, auditar, contextoDeEvento } from '$lib/db';
-import { coletarAfetadosGise, invalidarPapelGiseMultiplos } from '$lib/server/gise-papel-cache';
-import { agendarSyncBaseEquipeAposFinalizar } from '$lib/server/gise-base-equipe-sync';
+import {
+	coletarAfetadosGise,
+	invalidarPapelGiseMultiplos
+} from '$lib/server/gise/gise-papel-cache';
+import { agendarSyncBaseEquipeAposFinalizar } from '$lib/server/gise/gise-base-equipe-sync';
 import { giseIdParamSchema } from '$lib/schemas';
 import { requireAdmin, badRequest, notFound, conflict } from '$lib/server/api';
 

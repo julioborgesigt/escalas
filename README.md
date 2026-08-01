@@ -392,11 +392,22 @@ escalas/
 │   │   │   ├── useCharts.svelte.ts             # Integração Chart.js
 │   │   │   └── ...
 │   │   ├── server/                 # Backend puro — nunca importar no cliente
+│   │   │   │                       # Raiz = infra transversal; subpastas = domínio
 │   │   │   ├── schema.ts           # Schema Drizzle (fonte de verdade do banco)
-│   │   │   ├── pdf-signing.ts      # Geração e assinatura de PDFs
-│   │   │   ├── pdf-verification.ts # Validação de assinaturas (OCSP, CAdES)
-│   │   │   ├── icp-brasil/         # Trust store ICP-Brasil
+│   │   │   ├── api.ts              # Helpers de erro da API (ErrorCode, requireAuth…)
 │   │   │   ├── email.ts            # Envio de e-mail (binding EMAIL / Resend)
+│   │   │   ├── logger.ts           # Logger com contexto de request + persistência
+│   │   │   ├── r2-cleanup.ts       # Limpeza de objetos no R2
+│   │   │   ├── policial-permissao.ts  # Escopo administrativo sobre o cadastro
+│   │   │   ├── assinatura/         # Assinatura digital: PAdES/CAdES, OCSP, TSA, selo
+│   │   │   │   ├── pdf-signing.ts      # Geração e assinatura de PDFs
+│   │   │   │   ├── pdf-verification.ts # Validação de assinaturas (OCSP, CAdES)
+│   │   │   │   ├── icp-brasil/         # Trust store ICP-Brasil
+│   │   │   │   └── ...
+│   │   │   ├── auth/               # Login, certificado A3, sessão, CSRF, webhooks
+│   │   │   ├── escalas/            # Regras de escala: conflito, exclusão, permissão
+│   │   │   ├── gise/               # Regras GISE: permissão, papéis, termo de presença
+│   │   │   ├── export/             # Geração de PDF/XLSX/DOCX
 │   │   │   ├── termo/              # Conteúdo e hash do termo de uso vigente
 │   │   │   └── ...
 │   │   ├── db/                     # Camada de acesso ao banco (queries tipadas)
@@ -738,11 +749,16 @@ npm run test          # Executa uma vez
 npm run test:watch    # Watch mode (recomendado durante desenvolvimento)
 ```
 
-Arquivos de teste ficam em `src/` com o padrão `*.test.ts`, distribuídos em pastas `__tests__/` junto do código testado (60 arquivos, 617 testes). Os principais grupos:
+Arquivos de teste ficam em `src/` com o padrão `*.test.ts`, distribuídos em pastas `__tests__/` junto do código testado (65 arquivos, 680 testes). Os principais grupos:
 
 - `src/lib/__tests__/` — autenticação (PBKDF2/pepper, sessões, 2FA), CSRF, headers de segurança, utilitários
-- `src/lib/server/__tests__/` — fluxo de login, assinatura (CAdES, OCSP, TSA, trust store), permissões, webhooks, Sentry/PII
 - `src/lib/schemas/__tests__/` — schemas Zod (LGPD, formulários)
+- `src/lib/server/__tests__/` — infraestrutura transversal: e-mail, `r2-cleanup`, `request-context`, Sentry/PII, schema × migrações
+- `src/lib/server/assinatura/__tests__/` — CAdES, OCSP, TSA, trust store ICP-Brasil, ByteRange, verificação
+- `src/lib/server/auth/__tests__/` — fluxo de login, login por certificado (e revogação), webhooks
+- `src/lib/server/gise/__tests__/` — permissões GISE, termo de presença
+- `src/lib/server/export/__tests__/` — goldens de PDF
+- `src/lib/server/escalas/__tests__/` — permissões de escala
 
 ### Testes E2E (Playwright)
 

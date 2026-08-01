@@ -13,7 +13,7 @@ Mapa de toda a documentação do projeto, separada em **documentos vivos** (mant
 | [`QA_ASSINATURA_A3_DESKTOP.md`](QA_ASSINATURA_A3_DESKTOP.md)                    | Roteiro de QA manual do fluxo de presença GISE por Token A3 (exige hardware; não roda em CI)                                                | QA com token físico                |
 | [`.env.example`](../.env.example) (raiz)                                        | **Fonte autoritativa** de todas as variáveis de ambiente, comentadas                                                                        | Dev / operador                     |
 | [`scripts/README.md`](../scripts/README.md)                                     | Scripts utilitários (migrações, senhas) e setup detalhado da integração Google Sheets / Base_Equipe                                         | Operador                           |
-| [`src/lib/server/icp-brasil/README.md`](../src/lib/server/icp-brasil/README.md) | Trust store ICP-Brasil: o que é, como atualizar (script Windows/Linux), frequência                                                          | Dev / operador                     |
+| [`src/lib/server/assinatura/icp-brasil/README.md`](../src/lib/server/assinatura/icp-brasil/README.md) | Trust store ICP-Brasil: o que é, como atualizar (script Windows/Linux), frequência                                                          | Dev / operador                     |
 | [`static/face-api/README.md`](../static/face-api/README.md)                     | Modelos de reconhecimento facial servidos localmente e como atualizá-los                                                                    | Dev                                |
 
 ## Registros históricos e decisões arquivadas

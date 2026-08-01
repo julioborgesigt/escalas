@@ -4,7 +4,7 @@ import { getDB } from '$lib/db';
 import { gerarToken } from '$lib/auth';
 import { doisFatoresTokens } from '$lib/server/schema';
 import { rateLimited } from '$lib/server/api';
-import { checkRateLimit } from '$lib/server/auth-flow';
+import { checkRateLimit } from '$lib/server/auth/auth-flow';
 import type { RequestHandler } from './$types';
 
 // Desafios de login por certificado expiram em 5 minutos

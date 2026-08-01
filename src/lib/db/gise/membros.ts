@@ -21,7 +21,7 @@
  * conflito aparece.
  */
 import { eq, and, or, ne } from 'drizzle-orm';
-import { verificarConflitoEscalasNaoGise } from '../../server/escala-conflict';
+import { verificarConflitoEscalasNaoGise } from '../../server/escalas/escala-conflict';
 import {
 	giseEscalas,
 	giseSeccionais,

@@ -25,19 +25,19 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y curl openssl unzip
 
       - name: Rodar update-trust-store.sh
-        working-directory: src/lib/server/icp-brasil
+        working-directory: src/lib/server/assinatura/icp-brasil
         run: ./update-trust-store.sh
 
       - name: Verificar se houve mudança
         id: diff
         run: |
-          if git diff --quiet src/lib/server/icp-brasil/roots.pem src/lib/server/icp-brasil/intermediates.pem; then
+          if git diff --quiet src/lib/server/assinatura/icp-brasil/roots.pem src/lib/server/assinatura/icp-brasil/intermediates.pem; then
             echo "changed=false" >> "$GITHUB_OUTPUT"
             echo "Cadeia ICP-Brasil sem alterações — nada a fazer."
           else
             echo "changed=true" >> "$GITHUB_OUTPUT"
             echo "Mudanças detectadas — abrindo PR."
-            git diff --stat src/lib/server/icp-brasil/roots.pem src/lib/server/icp-brasil/intermediates.pem
+            git diff --stat src/lib/server/assinatura/icp-brasil/roots.pem src/lib/server/assinatura/icp-brasil/intermediates.pem
           fi
 
       - name: Abrir PR

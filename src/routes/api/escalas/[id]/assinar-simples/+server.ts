@@ -26,7 +26,7 @@ import {
 	hasR2
 } from '$lib/db';
 import { limparR2ObsoletoEscala } from '$lib/server/r2-cleanup';
-import { chaveConferencia } from '$lib/server/copia-conferencia';
+import { chaveConferencia } from '$lib/server/assinatura/copia-conferencia';
 import { logger } from '$lib/server/logger';
 import { assinarSimplesSchema } from '$lib/schemas';
 import {
@@ -39,14 +39,17 @@ import {
 	serverError,
 	validateBody
 } from '$lib/server/api';
-import { validarEvidenciasAvancada } from '$lib/server/signature-service';
-import { uploadSelfieDataUri } from '$lib/server/selfie-upload';
-import { gerarPdf, gerarPdfPlantao, gerarPdfExpediente } from '$lib/server/export';
-import { adicionarRodapeSimples, adicionarPaginaAuditoria } from '$lib/server/pdf-signing';
-import { calcularHashBuffer } from '$lib/server/document-utils';
-import { selarPdfInstitucional, tipoCarimboPrevisto } from '$lib/server/server-seal';
+import { validarEvidenciasAvancada } from '$lib/server/assinatura/signature-service';
+import { uploadSelfieDataUri } from '$lib/server/assinatura/selfie-upload';
+import { gerarPdf, gerarPdfPlantao, gerarPdfExpediente } from '$lib/server/export/export';
+import {
+	adicionarRodapeSimples,
+	adicionarPaginaAuditoria
+} from '$lib/server/assinatura/pdf-signing';
+import { calcularHashBuffer } from '$lib/server/assinatura/document-utils';
+import { selarPdfInstitucional, tipoCarimboPrevisto } from '$lib/server/assinatura/server-seal';
 import { gerarCodigoValidacao } from '$lib/utils';
-import { verificarPermissaoEscala } from '$lib/server/escala-permissao';
+import { verificarPermissaoEscala } from '$lib/server/escalas/escala-permissao';
 
 export const POST: RequestHandler = async ({
 	platform,

@@ -16,12 +16,15 @@ import {
 	contextoDeEvento
 } from '$lib/db';
 import { isAdminGeral } from '$lib/auth';
-import { invalidarPapelGiseMultiplos, coletarAfetadosGise } from '$lib/server/gise-papel-cache';
+import {
+	invalidarPapelGiseMultiplos,
+	coletarAfetadosGise
+} from '$lib/server/gise/gise-papel-cache';
 import {
 	agendarSyncBaseEquipeAposFinalizar,
 	executarSyncBaseEquipeGiseComResultado,
 	type BaseEquipeEnv
-} from '$lib/server/gise-base-equipe-sync';
+} from '$lib/server/gise/gise-base-equipe-sync';
 import { policiais, giseDocumentos, giseEscalas } from '$lib/server/schema';
 import { limparR2DaGise } from '$lib/server/r2-cleanup';
 import { eq } from 'drizzle-orm';

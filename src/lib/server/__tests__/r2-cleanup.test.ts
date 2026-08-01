@@ -17,7 +17,7 @@ import {
 	coletarChavesR2DaGise,
 	type R2CleanupBucket
 } from '../r2-cleanup';
-import { chaveConferencia } from '../copia-conferencia';
+import { chaveConferencia } from '../assinatura/copia-conferencia';
 import type { Database } from '$lib/db';
 
 /** Bucket fake que registra deletes e serve `list` a partir de páginas dadas. */

@@ -34,14 +34,20 @@ import {
 } from '$lib/db';
 import { decifrarCpfDoDB } from '$lib/crypto/cpf-cripto';
 import { listarPoliciaisSupervisaoExtra } from '$lib/gise/gise-supervisao-extra';
-import { secIdEhSupervisaoExtra } from '$lib/server/gise-supervisao-extra';
+import { secIdEhSupervisaoExtra } from '$lib/server/gise/gise-supervisao-extra';
 import { logger } from '$lib/server/logger';
 import { tryGetR2 } from '$lib/db';
-import { calcularHashBuffer } from '$lib/server/document-utils';
+import { calcularHashBuffer } from '$lib/server/assinatura/document-utils';
 import { mascararNome } from '$lib/utils';
 import { validarSessao } from '$lib/auth';
-import { verificarAssinaturaCompleta, type VerificationResult } from '$lib/server/pdf-verification';
-import { verificarSeloInstitucional, type ResultadoVerificacaoSelo } from '$lib/server/server-seal';
+import {
+	verificarAssinaturaCompleta,
+	type VerificationResult
+} from '$lib/server/assinatura/pdf-verification';
+import {
+	verificarSeloInstitucional,
+	type ResultadoVerificacaoSelo
+} from '$lib/server/assinatura/server-seal';
 import type { PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ params, platform, setHeaders, cookies }) => {

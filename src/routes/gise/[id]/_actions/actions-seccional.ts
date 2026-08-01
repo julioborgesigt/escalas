@@ -21,7 +21,7 @@ import {
 import { isAdminGeral, isAdminSeccional } from '$lib/auth';
 import { logger } from '$lib/server/logger';
 import { enviarNotificacaoAssessorGisePreenchimentoSeccional } from '$lib/server/email';
-import { montarTextoNotificacaoAssessorGise } from '$lib/server/gise-assessor-notificacao-text';
+import { montarTextoNotificacaoAssessorGise } from '$lib/server/gise/gise-assessor-notificacao-text';
 import {
 	policiais,
 	giseEscalas,

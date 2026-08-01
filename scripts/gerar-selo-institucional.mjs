@@ -1,6 +1,6 @@
 /**
  * Gera o par de chaves do SELO INSTITUCIONAL (assinatura avançada, custo zero)
- * consumido por `src/lib/server/server-seal.ts` via env `SELO_INSTITUCIONAL_PEM`.
+ * consumido por `src/lib/server/assinatura/server-seal.ts` via env `SELO_INSTITUCIONAL_PEM`.
  *
  * Uso:
  *   node scripts/gerar-selo-institucional.mjs "CN do selo" "Organizacao" [anos]

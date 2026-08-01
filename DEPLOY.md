@@ -254,7 +254,7 @@ O reconhecimento facial usado pelo `SignaturePad.svelte` carrega o modelo `tinyF
 
 ## Cache edge das flags de assinatura
 
-As flags `exigir_foto_assinatura`, `exigir_gps_assinatura`, `exigir_codigo_email_assinatura` e `restringir_smartphone` são lidas via [`lerFlagsAssinatura`](src/lib/server/cfg-ass-cache.ts) — wrapper sobre `caches.default` (Cache API edge do Cloudflare) com TTL de 5 min.
+As flags `exigir_foto_assinatura`, `exigir_gps_assinatura`, `exigir_codigo_email_assinatura` e `restringir_smartphone` são lidas via [`lerFlagsAssinatura`](src/lib/server/assinatura/cfg-ass-cache.ts) — wrapper sobre `caches.default` (Cache API edge do Cloudflare) com TTL de 5 min.
 
 - Em **miss**, consulta o D1 e popula o cache.
 - Quando o admin altera uma flag em [`PUT /api/configuracoes/assinatura`](src/routes/api/configuracoes/assinatura/+server.ts), o handler chama `invalidarFlagsAssinatura()` para zerar o cache em todos os PoPs.
@@ -264,10 +264,10 @@ As flags `exigir_foto_assinatura`, `exigir_gps_assinatura`, `exigir_codigo_email
 
 ## Trust Store ICP-Brasil (assinatura qualificada)
 
-A verificação da cadeia ICP-Brasil em [`pdf-verification.ts`](src/lib/server/pdf-verification.ts) depende dos arquivos [`src/lib/server/icp-brasil/roots.pem`](src/lib/server/icp-brasil/roots.pem) e [`intermediates.pem`](src/lib/server/icp-brasil/intermediates.pem). Estes nascem vazios no repo — **antes do primeiro deploy em produção**, popule-os:
+A verificação da cadeia ICP-Brasil em [`pdf-verification.ts`](src/lib/server/assinatura/pdf-verification.ts) depende dos arquivos [`src/lib/server/assinatura/icp-brasil/roots.pem`](src/lib/server/assinatura/icp-brasil/roots.pem) e [`intermediates.pem`](src/lib/server/assinatura/icp-brasil/intermediates.pem). Estes nascem vazios no repo — **antes do primeiro deploy em produção**, popule-os:
 
 ```sh
-cd src/lib/server/icp-brasil
+cd src/lib/server/assinatura/icp-brasil
 ./update-trust-store.sh   # baixa raízes da ITI + ZIP das ACs credenciadas
 git diff roots.pem intermediates.pem   # confira o que mudou
 git add roots.pem intermediates.pem
@@ -290,7 +290,7 @@ O fluxo de assinatura qualificada pode receber `TimeStampToken` por dois caminho
 
 1. **Do cliente:** Web PKI / Assinador SERPRO v4+ podem embarcar TST direto no CMS. Quando presente, é validado e adotado como `act_icp`.
 
-2. **Server-side:** quando o cliente não embarca, [`cades-finalizer.ts`](src/lib/server/cades-finalizer.ts) consulta a TSA configurada via env e **reescreve o CMS** anexando o TST como `UnsignedAttribute` do `SignerInfo` (promove CAdES-BES → CAdES-T).
+2. **Server-side:** quando o cliente não embarca, [`cades-finalizer.ts`](src/lib/server/assinatura/cades-finalizer.ts) consulta a TSA configurada via env e **reescreve o CMS** anexando o TST como `UnsignedAttribute` do `SignerInfo` (promove CAdES-BES → CAdES-T).
 
 Configuração:
 
@@ -305,7 +305,7 @@ Provedores credenciados ICP-Brasil: Bry, Soluti, Certisign, AC Safeweb, ICP-EDU.
 
 > **Aviso:** sem `EXIGIR_TSA_QUALIFICADA=1`, o sistema aceita assinaturas com apenas o `signingTime` do servidor — sem oponibilidade a terceiros conforme DOC-ICP-15.
 
-> ⚠️ **Armadilha — não ligue `EXIGIR_TSA_QUALIFICADA=1` sem trocar a `TSA_URL`.** O default embarcado em `wrangler.toml` é a DigiCert (`timestamp.digicert.com`), que **não é ACT ICP-Brasil** → o carimbo é sempre `tsa_externa`, nunca `act_icp`. Com o flag ligado e a `TSA_URL` ainda na DigiCert, o [`cades-finalizer.ts`](src/lib/server/cades-finalizer.ts) **rejeita 100% das assinaturas qualificadas com HTTP 422**. Ligue o flag **somente** depois de apontar `TSA_URL` para uma ACT credenciada. O `cades-finalizer` detecta essa combinação e emite `[CADES][CONFIG]` no log (configure alerta no Sentry).
+> ⚠️ **Armadilha — não ligue `EXIGIR_TSA_QUALIFICADA=1` sem trocar a `TSA_URL`.** O default embarcado em `wrangler.toml` é a DigiCert (`timestamp.digicert.com`), que **não é ACT ICP-Brasil** → o carimbo é sempre `tsa_externa`, nunca `act_icp`. Com o flag ligado e a `TSA_URL` ainda na DigiCert, o [`cades-finalizer.ts`](src/lib/server/assinatura/cades-finalizer.ts) **rejeita 100% das assinaturas qualificadas com HTTP 422**. Ligue o flag **somente** depois de apontar `TSA_URL` para uma ACT credenciada. O `cades-finalizer` detecta essa combinação e emite `[CADES][CONFIG]` no log (configure alerta no Sentry).
 
 ## Sincronização Google Sheets
 

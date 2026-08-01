@@ -12,7 +12,10 @@ import { criarTokenRedefinicao } from '$lib/auth';
 import { enviarLinkPrimeiroAcesso } from '$lib/server/email';
 import { policiais } from '$lib/server/schema';
 import { and, eq } from 'drizzle-orm';
-import { contarRecoveryAttempts, registrarRecoveryAttempt } from '$lib/server/recovery-rate-limit';
+import {
+	contarRecoveryAttempts,
+	registrarRecoveryAttempt
+} from '$lib/server/auth/recovery-rate-limit';
 import { serverError, validateBody } from '$lib/server/api';
 import { primeiroAcessoSchema } from '$lib/schemas';
 import { resolverAppOrigin } from '$lib/server/app-origin';

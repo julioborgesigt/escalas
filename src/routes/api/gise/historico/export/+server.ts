@@ -41,7 +41,7 @@ import {
 	fmtHoraGiseXlsx,
 	HEADERS_DETALHE_EQUIPE,
 	statusLabelGiseXlsx
-} from '$lib/server/gise-xlsx-workbook-append';
+} from '$lib/server/gise/gise-xlsx-workbook-append';
 
 /** `jspdf-autotable` injeta `lastAutoTable` em tempo de execução, fora do .d.ts. */
 interface JsPDFWithAutoTable extends jsPDF {

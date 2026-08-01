@@ -36,7 +36,7 @@ import {
 } from '../../server/schema';
 import type { Database } from '../core';
 import { buscarGiseEscala, atualizarGiseEscala } from './escalas-crud';
-import { buscarUnidadeIdSupervisaoExtra } from '../../server/gise-supervisao-extra';
+import { buscarUnidadeIdSupervisaoExtra } from '../../server/gise/gise-supervisao-extra';
 import { quadroSupervisaoExtraExigeRelatorio } from '../../gise/gise-supervisao-extra';
 
 /**

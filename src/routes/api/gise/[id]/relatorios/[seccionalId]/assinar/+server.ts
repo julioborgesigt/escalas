@@ -33,22 +33,25 @@ import {
 	gerarRelatorioExtraordinarioPdf,
 	gerarRelatorioExtraordinarioSupervisaoPdf,
 	toGisePdfData
-} from '$lib/server/export';
-import { getBreveRelatorioEnvMergido } from '$lib/server/breve-relatorio-env';
-import { carregarLogosGise } from '$lib/server/gise-logos';
+} from '$lib/server/export/export';
+import { getBreveRelatorioEnvMergido } from '$lib/server/gise/breve-relatorio-env';
+import { carregarLogosGise } from '$lib/server/gise/gise-logos';
 import {
 	giseAutorizaSeccionalRelatorioExtra,
 	secIdEhSupervisaoExtra
-} from '$lib/server/gise-supervisao-extra';
-import { adicionarRodapeSimples, adicionarPaginaAuditoria } from '$lib/server/pdf-signing';
-import { montarSignersPresencaExtra } from '$lib/server/gise-relatorio-manifesto';
-import { selarPdfInstitucional, tipoCarimboPrevisto } from '$lib/server/server-seal';
+} from '$lib/server/gise/gise-supervisao-extra';
+import {
+	adicionarRodapeSimples,
+	adicionarPaginaAuditoria
+} from '$lib/server/assinatura/pdf-signing';
+import { montarSignersPresencaExtra } from '$lib/server/gise/gise-relatorio-manifesto';
+import { selarPdfInstitucional, tipoCarimboPrevisto } from '$lib/server/assinatura/server-seal';
 import { tryGetR2 } from '$lib/db';
-import { chaveConferencia } from '$lib/server/copia-conferencia';
+import { chaveConferencia } from '$lib/server/assinatura/copia-conferencia';
 import { logger } from '$lib/server/logger';
-import { uploadSelfieDataUri } from '$lib/server/selfie-upload';
+import { uploadSelfieDataUri } from '$lib/server/assinatura/selfie-upload';
 import { giseSignatureSchema } from '$lib/schemas';
-import { validarEvidenciasAvancada } from '$lib/server/signature-service';
+import { validarEvidenciasAvancada } from '$lib/server/assinatura/signature-service';
 import {
 	apiError,
 	ErrorCode,

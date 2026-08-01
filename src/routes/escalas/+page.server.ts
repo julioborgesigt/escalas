@@ -39,7 +39,7 @@ import {
 } from '$lib/db';
 import { escalaSchema } from '$lib/schemas';
 import { registrarAuditComContexto, contextoDeEvento, batchNonEmpty } from '$lib/db';
-import { excluirEscalaCompleta } from '$lib/server/escala-exclusao';
+import { excluirEscalaCompleta } from '$lib/server/escalas/escala-exclusao';
 import { logger } from '$lib/server/logger';
 import { eq, or, and, inArray, sql, desc, type SQL } from 'drizzle-orm';
 import {

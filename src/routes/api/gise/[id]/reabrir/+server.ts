@@ -17,7 +17,10 @@ import {
 	auditar,
 	contextoDeEvento
 } from '$lib/db';
-import { coletarAfetadosGise, invalidarPapelGiseMultiplos } from '$lib/server/gise-papel-cache';
+import {
+	coletarAfetadosGise,
+	invalidarPapelGiseMultiplos
+} from '$lib/server/gise/gise-papel-cache';
 import { limparR2DaGise } from '$lib/server/r2-cleanup';
 import { giseIdParamSchema } from '$lib/schemas';
 import { requireAdmin, badRequest, notFound } from '$lib/server/api';

@@ -12,12 +12,12 @@ import { and, gt, count, eq } from 'drizzle-orm';
 import { getDB } from '$lib/db';
 import { gerarCodigo2FA, criarDesafio2FA } from '$lib/auth';
 import { enviarCodigoEmailPessoal } from '$lib/server/email';
-import { mascararEmail } from '$lib/server/auth-flow';
+import { mascararEmail } from '$lib/server/auth/auth-flow';
 import { doisFatoresTokens } from '$lib/server/schema';
 import {
 	exigirSenhaParaTrocaEmailPessoal,
 	SENHA_ATUAL_JANELA_MIN
-} from '$lib/server/email-pessoal-guard';
+} from '$lib/server/auth/email-pessoal-guard';
 import {
 	requireAuth,
 	badRequest,

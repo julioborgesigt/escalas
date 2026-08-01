@@ -3,19 +3,19 @@ import type { RequestHandler } from './$types';
 import { getDB, getR2, hasR2, buscarEscala, listarPoliciaisEscala, buscarPolicial } from '$lib/db';
 import { prepararAssinaturaSchema } from '$lib/schemas';
 import { requireAuth, badRequest, notFound, forbidden, validateBody } from '$lib/server/api';
-import { gerarPdf, gerarPdfPlantao, gerarPdfExpediente } from '$lib/server/export';
+import { gerarPdf, gerarPdfPlantao, gerarPdfExpediente } from '$lib/server/export/export';
 import {
 	prepararPdfParaAssinatura,
 	adicionarPaginaAuditoria,
 	adicionarRodapeUniversal,
 	estamparRubricaLimpa
-} from '$lib/server/pdf-signing';
-import { chaveConferencia } from '$lib/server/copia-conferencia';
-import { calcularHashBuffer } from '$lib/server/document-utils';
+} from '$lib/server/assinatura/pdf-signing';
+import { chaveConferencia } from '$lib/server/assinatura/copia-conferencia';
+import { calcularHashBuffer } from '$lib/server/assinatura/document-utils';
 import { logger } from '$lib/server/logger';
 import { PDFDocument } from 'pdf-lib';
 import { gerarCodigoValidacao } from '$lib/utils';
-import { verificarPermissaoEscala } from '$lib/server/escala-permissao';
+import { verificarPermissaoEscala } from '$lib/server/escalas/escala-permissao';
 
 export const POST: RequestHandler = async ({
 	platform,

@@ -23,8 +23,8 @@ import {
 	contextoDeEvento
 } from '$lib/db';
 import { isAdminGeral, isAdminSeccional, isAdminUnidade } from '$lib/auth';
-import { lerPapelGise } from '$lib/server/gise-papel-cache';
-import { buscarUnidadeIdSupervisaoExtra } from '$lib/server/gise-supervisao-extra';
+import { lerPapelGise } from '$lib/server/gise/gise-papel-cache';
+import { buscarUnidadeIdSupervisaoExtra } from '$lib/server/gise/gise-supervisao-extra';
 import { eq, asc } from 'drizzle-orm';
 import { unidades, policiais } from '$lib/server/schema';
 import { buscarConfiguracao } from '$lib/db/configuracoes';

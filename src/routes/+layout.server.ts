@@ -1,8 +1,8 @@
 import type { LayoutServerLoad } from './$types';
 import { getDB, ehAdminGeralVinculado } from '$lib/db';
-import { lerFlagsAssinatura } from '$lib/server/cfg-ass-cache';
-import { lerPapelGise } from '$lib/server/gise-papel-cache';
-import { temAssinaturaEscalaPendente } from '$lib/server/rubrica-pendente';
+import { lerFlagsAssinatura } from '$lib/server/assinatura/cfg-ass-cache';
+import { lerPapelGise } from '$lib/server/gise/gise-papel-cache';
+import { temAssinaturaEscalaPendente } from '$lib/server/escalas/rubrica-pendente';
 import { logger } from '$lib/server/logger';
 
 export const load: LayoutServerLoad = async ({ locals, platform, cookies }) => {
