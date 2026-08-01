@@ -34,7 +34,7 @@
 import { redirect, fail } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
 import { decifrarCpfDoDB } from '$lib/crypto/cpf-cripto';
-import { intervaloDeDatas } from '$lib/utils';
+import { intervaloDeDatas } from '$lib/utils/datas';
 import {
 	getDB,
 	buscarEscala,

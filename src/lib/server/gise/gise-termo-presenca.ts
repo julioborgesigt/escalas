@@ -9,7 +9,7 @@
  */
 
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
-import { mascararCPF } from '../../utils';
+import { mascararCPF } from '../../utils/pii';
 import {
 	adicionarRodapeUniversal,
 	adicionarPaginaAuditoria,

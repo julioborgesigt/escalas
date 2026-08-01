@@ -17,7 +17,7 @@
 
 import { montarHtmlEmailNotificacaoAssessorGise } from './gise/gise-assessor-notificacao-text';
 import { logger } from './logger';
-import { mascararEmail } from '$lib/utils';
+import { mascararEmail } from '$lib/utils/pii';
 import { getDB, buscarProvedorEmailPadrao, type EmailProvedor } from '$lib/db';
 
 function escapeHtml(value: string): string {

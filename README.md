@@ -426,8 +426,13 @@ escalas/
 │   │   ├── csrf.ts                 # Helpers CSRF (cliente)
 │   │   ├── loading.svelte.ts       # Estado global de loading
 │   │   ├── toast.ts                # Sistema de toasts
-│   │   ├── logger.ts               # Logger estruturado
-│   │   └── utils.ts                # Utilitários genéricos
+│   │   ├── utils/                  # Utilidades puras (sem barrel — importe o módulo)
+│   │   │   ├── datas.ts            # Datas/calendário BR (ISO YYYY-MM-DD, fuso)
+│   │   │   ├── formato.ts          # Máscaras de entrada (CPF, telefone, NUP)
+│   │   │   ├── pii.ts              # Mascaramento de dado pessoal para exibição
+│   │   │   ├── download.ts         # Download de blob no navegador
+│   │   │   └── localStorage.ts     # Acesso seguro ao localStorage
+│   │   └── logger.ts               # Logger estruturado
 │   ├── hooks.server.ts             # Middleware global (CSRF, auth, headers de segurança)
 │   ├── app.d.ts                    # Tipos globais (bindings CF, App.Locals)
 │   ├── app.css                     # Estilos globais
@@ -615,7 +620,7 @@ export function useContador(inicial = 0) {
 ### Constantes e snippets compartilhados
 
 Antes de declarar uma constante "óbvia" no componente, verifique se ela já existe
-em [`src/lib/utils.ts`](src/lib/utils.ts):
+em [`src/lib/utils/datas.ts`](src/lib/utils/datas.ts):
 
 - `MESES_PT` — nomes dos meses, índice 0 = Janeiro (base de `Date.getMonth()`;
   para mês 1-12 do banco/URL use `MESES_PT[mes - 1]`);

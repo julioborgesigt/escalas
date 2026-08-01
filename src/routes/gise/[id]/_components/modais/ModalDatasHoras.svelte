@@ -19,7 +19,7 @@
 	 * valores da GISE anterior.
 	 */
 	import { AlertTriangle } from 'lucide-svelte';
-	import { MESES_PT, DIAS_SEMANA_CURTO, isoData, hojeLocalISO } from '$lib/utils';
+	import { MESES_PT, DIAS_SEMANA_CURTO, isoData, hojeLocalISO } from '$lib/utils/datas';
 	import { enhance } from '$app/forms';
 	import type { SubmitFunction } from '@sveltejs/kit';
 	import { toaster } from '$lib/toast';

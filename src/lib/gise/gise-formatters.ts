@@ -1,4 +1,4 @@
-import { DIAS_SEMANA_CURTO } from '$lib/utils';
+import { DIAS_SEMANA_CURTO } from '$lib/utils/datas';
 
 const STATUS_LABELS: Record<string, string> = {
 	em_definicao_supervisor: 'Em definição do supervisor',

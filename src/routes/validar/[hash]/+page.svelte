@@ -18,7 +18,7 @@
 	 * cosmético: a permissão real é do endpoint `/api/validar/[hash]/download`.
 	 */
 	import { Check, X, AlertTriangle, HelpCircle } from 'lucide-svelte';
-	import { formatarData } from '$lib/utils';
+	import { formatarData } from '$lib/utils/datas';
 	import { baixarBlob } from '$lib/utils/download';
 	import { apiFetchResponse } from '$lib/api-fetch';
 	import { toaster } from '$lib/toast';

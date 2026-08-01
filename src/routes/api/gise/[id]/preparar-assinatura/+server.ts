@@ -35,7 +35,7 @@ import { chaveConferencia } from '$lib/server/assinatura/copia-conferencia';
 import { calcularHashBuffer } from '$lib/server/assinatura/document-utils';
 import { logger } from '$lib/server/logger';
 import { PDFDocument } from 'pdf-lib';
-import { gerarCodigoValidacao } from '$lib/utils';
+import { gerarCodigoValidacao } from '$lib/utils/formato';
 import { tryGetR2 } from '$lib/db';
 
 export const POST: RequestHandler = async ({

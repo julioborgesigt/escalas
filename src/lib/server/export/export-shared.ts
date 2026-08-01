@@ -4,7 +4,7 @@
  * saem daqui iguais para os três.
  */
 import type { Escala, EscalaPolicialComDados } from '../../types';
-import { formatarData, calcularDataSaida, MESES_PT } from '../../utils';
+import { formatarData, calcularDataSaida, MESES_PT } from '../../utils/datas';
 
 /** Um dia de plantão com os policiais escalados nele. */
 interface DiaPlantao {

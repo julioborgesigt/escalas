@@ -24,7 +24,7 @@
 	import { tick } from 'svelte';
 	import { enhance } from '$app/forms';
 	import { toaster } from '$lib/toast';
-	import { formatarData, intervaloDeDatas } from '$lib/utils';
+	import { formatarData, intervaloDeDatas } from '$lib/utils/datas';
 	import { buscarPoliciaisOptions } from '$lib/busca-policiais';
 	import { criarHelpersHorario, diaSemanaLabel } from './escala-horarios';
 	import { tratarResultadoAdicionarPlantao } from './plantao-datas';

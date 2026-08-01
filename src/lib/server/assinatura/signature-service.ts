@@ -36,7 +36,7 @@ import {
 	type CadesFinalizationResult,
 	type CadesFinalizationError
 } from './cades-finalizer';
-import { normalizarTexto } from '../../utils';
+import { normalizarTexto } from '../../utils/formato';
 import { verificarDesafio2FA } from '../../auth';
 import { lerFlagsAssinatura, type FlagsAssinatura } from './cfg-ass-cache';
 import { apiError, ErrorCode, contentDisposition } from '../api';

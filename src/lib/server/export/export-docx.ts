@@ -20,7 +20,7 @@ import {
 	PageOrientation
 } from 'docx';
 import type { Escala, EscalaPolicialComDados } from '../../types';
-import { formatarData, formatarDataExtenso } from '../../utils';
+import { formatarData, formatarDataExtenso } from '../../utils/datas';
 import {
 	sepDatas,
 	agruparPorData,

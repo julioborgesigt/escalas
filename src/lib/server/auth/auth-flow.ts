@@ -21,7 +21,7 @@ import { logger } from '$lib/server/logger';
 import { administradores, policiais, loginAttempts } from '$lib/server/schema';
 import type { Database } from '$lib/db';
 import { chaveRateLimitIp } from '$lib/server/auth/recovery-rate-limit';
-import { mascararEmail } from '$lib/utils';
+import { mascararEmail } from '$lib/utils/pii';
 
 export { mascararEmail };
 

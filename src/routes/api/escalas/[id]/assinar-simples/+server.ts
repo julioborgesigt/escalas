@@ -48,7 +48,7 @@ import {
 } from '$lib/server/assinatura/pdf-signing';
 import { calcularHashBuffer } from '$lib/server/assinatura/document-utils';
 import { selarPdfInstitucional, tipoCarimboPrevisto } from '$lib/server/assinatura/server-seal';
-import { gerarCodigoValidacao } from '$lib/utils';
+import { gerarCodigoValidacao } from '$lib/utils/formato';
 import { verificarPermissaoEscala } from '$lib/server/escalas/escala-permissao';
 
 export const POST: RequestHandler = async ({

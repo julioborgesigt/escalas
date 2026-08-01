@@ -34,7 +34,7 @@ import {
 	type AuditTrailOptions
 } from '$lib/server/assinatura/pdf-signing';
 import { chaveConferencia } from '$lib/server/assinatura/copia-conferencia';
-import { gerarCodigoValidacao } from '$lib/utils';
+import { gerarCodigoValidacao } from '$lib/utils/formato';
 import { calcularHashBuffer } from '$lib/server/assinatura/document-utils';
 import { tryGetR2 } from '$lib/db';
 import { logger } from '$lib/server/logger';

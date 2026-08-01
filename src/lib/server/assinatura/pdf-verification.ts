@@ -19,7 +19,7 @@ import { PDFDocument } from 'pdf-lib';
 import { logger } from '../logger';
 import { loadTrustStore, trustStoreRequerido } from './icp-brasil/trust-store';
 import { statusDeSnapshot, type StatusOcsp } from './ocsp';
-import { mascararCPF } from '../../utils';
+import { mascararCPF } from '../../utils/pii';
 import { detectarDss } from './pades-lt';
 import { verificarAssinaturaCms, SIGNATURE_OIDS, DIGEST_OIDS } from './crypto-verify';
 import { OID_SIG_POLICY_ID, avaliarPoliticaAssinatura, type AvaliacaoPolitica } from './icp-policy';

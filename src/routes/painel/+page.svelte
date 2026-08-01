@@ -21,7 +21,7 @@
 	 * outro navegador) continua vendo. Não confundir com decisão registrada.
 	 */
 	import type { PageProps } from './$types';
-	import { opcoesMeses } from '$lib/utils';
+	import { opcoesMeses } from '$lib/utils/datas';
 	import {
 		Lock,
 		Check,

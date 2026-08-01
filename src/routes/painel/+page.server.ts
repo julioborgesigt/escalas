@@ -21,7 +21,7 @@ import type { PageServerLoad, Actions } from './$types';
 import { getDB, listarUnidades, registrarAuditComContexto, contextoDeEvento } from '$lib/db';
 import { excluirEscalaCompleta } from '$lib/server/escalas/escala-exclusao';
 import type { Database } from '$lib/db';
-import { getNowBR, MESES_PT, isoData, diasNoMes } from '$lib/utils';
+import { getNowBR, MESES_PT, isoData, diasNoMes } from '$lib/utils/datas';
 import type { ItemCompliance } from '$lib/types';
 import { and, gte, lte, inArray } from 'drizzle-orm';
 import { escalas as escTable, escalaDocumentos as docTable } from '$lib/server/schema';

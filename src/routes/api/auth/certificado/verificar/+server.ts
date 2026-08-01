@@ -49,7 +49,7 @@ import {
 	verificarRevogacaoParaLogin
 } from '$lib/server/auth/cert-login';
 import { loadTrustStore } from '$lib/server/assinatura/icp-brasil/trust-store';
-import { limparCPF } from '$lib/utils';
+import { limparCPF } from '$lib/utils/formato';
 import { cpfKeys, indiceCPF } from '$lib/crypto/cpf-cripto';
 import { logger } from '$lib/server/logger';
 import forge from 'node-forge';

@@ -42,7 +42,7 @@ import {
 	adicionarPaginaAuditoria
 } from '$lib/server/assinatura/pdf-signing';
 import { selarPdfInstitucional, tipoCarimboPrevisto } from '$lib/server/assinatura/server-seal';
-import { gerarCodigoValidacao } from '$lib/utils';
+import { gerarCodigoValidacao } from '$lib/utils/formato';
 import { tryGetR2 } from '$lib/db';
 import { uploadSelfieDataUri } from '$lib/server/assinatura/selfie-upload';
 import { chaveConferencia } from '$lib/server/assinatura/copia-conferencia';

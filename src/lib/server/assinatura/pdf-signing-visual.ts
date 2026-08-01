@@ -30,7 +30,7 @@
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
 import * as QRCode from 'qrcode';
 import { parseUserAgent, descreverTipoCarimbo, type TipoCarimoTempo } from './document-utils';
-import { mascararCPF } from '../../utils';
+import { mascararCPF } from '../../utils/pii';
 import { logger } from '../logger';
 import { formatarDataHora } from './pdf-signing-prepare';
 

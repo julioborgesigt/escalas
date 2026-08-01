@@ -20,7 +20,7 @@
 	 * cancelamento não pode trazer de volta o rascunho da tentativa anterior.
 	 */
 	import { Dialog } from '@skeletonlabs/skeleton-svelte';
-	import { MESES_PT, DIAS_SEMANA_CURTO, isoData, diasNoMes } from '$lib/utils';
+	import { MESES_PT, DIAS_SEMANA_CURTO, isoData, diasNoMes } from '$lib/utils/datas';
 	import { Moon, Sun, Calendar } from 'lucide-svelte';
 	import { enhance } from '$app/forms';
 	import { toaster } from '$lib/toast';

@@ -96,6 +96,19 @@ Arquivo novo cujo nome só faz sentido com prefixo de domínio (`gise-*`,
 Até jul/2026 essa pasta era plana com 58 arquivos e cinco domínios
 misturados; não a deixe voltar a ser.
 
+## `$lib/utils/` não tem barrel
+
+Importe o MÓDULO, não a pasta: `$lib/utils/datas` (datas e calendário),
+`$lib/utils/formato` (máscaras de entrada), `$lib/utils/pii` (mascaramento
+para exibição), `$lib/utils/download`, `$lib/utils/localStorage`.
+
+Não existe `$lib/utils` — até jul/2026 era um `utils.ts` de 24 exports ao
+lado da pasta `utils/`, então `$lib/utils` e `$lib/utils/download` pareciam
+o mesmo módulo e não eram. Não recrie o barrel: o ganho aqui é o call site
+dizer de qual assunto a função veio.
+
+`$lib/db` é a exceção deliberada, e está documentada no próprio `lib/db.ts`.
+
 ## Onde colocar teste novo
 
 **Todo `*.test.ts` mora numa pasta `__tests__/` junto do código testado** —
