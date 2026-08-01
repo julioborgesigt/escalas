@@ -145,7 +145,7 @@ jobs:
 
       - name: Cache do browser do Playwright
         id: cache-pw
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ steps.pw.outputs.versao }}
