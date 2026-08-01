@@ -49,7 +49,7 @@ jobs:
     steps:
       # O checkout dá contexto (wrangler.toml) ao wrangler; o export em si
       # referencia o banco pelo nome via API.
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Validar secrets
         run: |
