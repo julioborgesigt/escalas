@@ -40,7 +40,7 @@
 	import { toaster } from '$lib/toast';
 	import Spinner from '$lib/components/Spinner.svelte';
 	import BotaoVoltar from '$lib/components/BotaoVoltar.svelte';
-	import RelatorioProdutividade from '../../RelatorioProdutividade.svelte';
+	import RelatorioProdutividade from '../../_components/RelatorioProdutividade.svelte';
 	import type { PageProps } from './$types';
 	import type { ActionResult } from '@sveltejs/kit';
 

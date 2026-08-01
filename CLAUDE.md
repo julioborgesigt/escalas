@@ -96,6 +96,18 @@ Arquivo novo cujo nome só faz sentido com prefixo de domínio (`gise-*`,
 Até jul/2026 essa pasta era plana com 58 arquivos e cinco domínios
 misturados; não a deixe voltar a ser.
 
+## Arquivo auxiliar de rota vai em `_components/`
+
+Componente, composable ou action que só serve a UMA rota mora em
+`_components/` (ou `_actions/`) dentro dela — o `_` é o que mantém o
+arquivo fora do roteador do SvelteKit, e a pasta é o que separa "a rota"
+de "as peças da rota". Componente usado por DUAS rotas sobe para
+`$lib/components/`; composable reutilizável sobe para `$lib/composables/`.
+
+Composable de uma rota só fica junto dela, em `_components/` — é o caso de
+`escalas/[id]/_components/useEdicaoInlineServidor.svelte.ts` e de
+`res-gise/_components/useResGise.svelte.ts`.
+
 ## `$lib/utils/` não tem barrel
 
 Importe o MÓDULO, não a pasta: `$lib/utils/datas` (datas e calendário),

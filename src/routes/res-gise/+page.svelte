@@ -17,7 +17,7 @@
 	 * no meio de uma assinatura.
 	 */
 	import type { PageProps } from './$types';
-	import { actionButton } from './BotoesAcao.svelte';
+	import { actionButton } from './_components/BotoesAcao.svelte';
 	import { goto } from '$app/navigation';
 	import { page, navigating } from '$app/state';
 	import SkeletonCard from '$lib/components/SkeletonCard.svelte';
@@ -26,10 +26,10 @@
 	import { Dialog, Tabs } from '@skeletonlabs/skeleton-svelte';
 	import SignaturePad from '$lib/components/SignaturePad.svelte';
 	import ModalCadastrarRubrica from '$lib/components/ModalCadastrarRubrica.svelte';
-	import { useResGise } from './useResGise.svelte';
+	import { useResGise } from './_components/useResGise.svelte';
 	import { loading } from '$lib/loading.svelte';
-	import ConfigurarFormulario from './ConfigurarFormulario.svelte';
-	import FormularioServico from './FormularioServico.svelte';
+	import ConfigurarFormulario from './_components/ConfigurarFormulario.svelte';
+	import FormularioServico from './_components/FormularioServico.svelte';
 	import { toaster } from '$lib/toast';
 
 	const { data }: PageProps = $props();
