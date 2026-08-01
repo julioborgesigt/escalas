@@ -38,7 +38,7 @@
 		"knip:fix": "knip --fix"
 	},
 	"devDependencies": {
-		"@cloudflare/workers-types": "^5.20260719.1",
+		"@cloudflare/workers-types": "^5.20260727.1",
 		"@eslint/js": "^10.0.1",
 		"@playwright/test": "^1.62.0",
 		"@sveltejs/adapter-cloudflare": "^7.0.0",
@@ -55,14 +55,14 @@
 		"prettier": "^3.9.6",
 		"prettier-plugin-svelte": "^4.1.1",
 		"rollup-plugin-visualizer": "^7.0.1",
-		"svelte": "^5.56.6",
+		"svelte": "^5.56.8",
 		"svelte-check": "^4.7.3",
 		"tsx": "^4.23.0",
 		"typescript": "^5.9.3",
 		"typescript-eslint": "^8.60.1",
 		"vite": "^8.1.5",
 		"vitest": "^4.1.10",
-		"wrangler": "^4.112.0"
+		"wrangler": "^4.114.0"
 	},
 	"overrides": {
 		"cookie": "^0.7.2",
