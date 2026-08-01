@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	import { formatarData } from '$lib/utils';
+	import { formatarData } from '$lib/utils/datas';
 	import type { Escala } from '$lib/server/schema';
 	import BotaoVoltar from '$lib/components/BotaoVoltar.svelte';
 

@@ -7,7 +7,7 @@
  */
 
 import type { RequestHandler } from './$types';
-import { carregarLogosGise } from '$lib/server/gise-logos';
+import { carregarLogosGise } from '$lib/server/gise/logos';
 import { bytesToHex } from '$lib/crypto/hex';
 import {
 	apiError,
@@ -30,19 +30,22 @@ import {
 	contextoDeEvento
 } from '$lib/db';
 import { assinarSimplesSchema } from '$lib/schemas';
-import { validarEvidenciasAvancada } from '$lib/server/signature-service';
+import { validarEvidenciasAvancada } from '$lib/server/assinatura/signature-service';
 import {
 	gerarPdfGise,
 	toGisePdfData,
 	giseDetalhadoComMatriculaSupervisorSessao
 } from '$lib/server/export';
-import { getBreveRelatorioEnvMergido } from '$lib/server/breve-relatorio-env';
-import { adicionarRodapeSimples, adicionarPaginaAuditoria } from '$lib/server/pdf-signing';
-import { selarPdfInstitucional, tipoCarimboPrevisto } from '$lib/server/server-seal';
-import { gerarCodigoValidacao } from '$lib/utils';
+import { getBreveRelatorioEnvMergido } from '$lib/server/gise/breve-relatorio-env';
+import {
+	adicionarRodapeSimples,
+	adicionarPaginaAuditoria
+} from '$lib/server/assinatura/pdf-signing';
+import { selarPdfInstitucional, tipoCarimboPrevisto } from '$lib/server/assinatura/server-seal';
+import { gerarCodigoValidacao } from '$lib/utils/formato';
 import { tryGetR2 } from '$lib/db';
-import { uploadSelfieDataUri } from '$lib/server/selfie-upload';
-import { chaveConferencia } from '$lib/server/copia-conferencia';
+import { uploadSelfieDataUri } from '$lib/server/assinatura/selfie-upload';
+import { chaveConferencia } from '$lib/server/assinatura/copia-conferencia';
 import { logger } from '$lib/server/logger';
 
 export const POST: RequestHandler = async (event) => {

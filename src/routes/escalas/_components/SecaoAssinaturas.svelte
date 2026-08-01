@@ -19,7 +19,7 @@
 	 */
 	import { slide } from 'svelte/transition';
 	import { page } from '$app/state';
-	import { formatarData, MESES_PT } from '$lib/utils';
+	import { formatarData, MESES_PT } from '$lib/utils/datas';
 	import { podeBaixarComManifesto } from '$lib/manifesto';
 	import BotaoVoltar from '$lib/components/BotaoVoltar.svelte';
 

@@ -19,7 +19,7 @@ import type { Database } from './core';
 import * as fullSchema from '../server/schema';
 import { cifrarCpfParaArmazenar, type CpfCriptoEnv } from '../crypto/cpf-cripto';
 import { anonimizarIp } from './audit';
-import { parseUserAgent, reduzirPrecisaoGps } from '../server/document-utils';
+import { parseUserAgent, reduzirPrecisaoGps } from '../server/assinatura/document-utils';
 
 /**
  * Metadados criptográficos persistidos junto com a assinatura (CAdES-LT).

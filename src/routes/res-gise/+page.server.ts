@@ -45,11 +45,11 @@ import {
 	DEFAULT_SEINT_QUESTIONS,
 	DEFAULT_QUESTIONS_FORM_OPERACIONAL
 } from '$lib/db';
-import { buscarUnidadeIdSupervisaoExtra } from '$lib/server/gise-supervisao-extra';
-import { lerFlagsAssinatura } from '$lib/server/cfg-ass-cache';
+import { buscarUnidadeIdSupervisaoExtra } from '$lib/server/gise/supervisao-extra';
+import { lerFlagsAssinatura } from '$lib/server/assinatura/cfg-ass-cache';
 import { verificarDesafio2FA } from '$lib/auth';
 import { logger } from '$lib/server/logger';
-import { uploadSelfieDataUri } from '$lib/server/selfie-upload';
+import { uploadSelfieDataUri } from '$lib/server/assinatura/selfie-upload';
 import {
 	giseEscalas,
 	giseMembros,

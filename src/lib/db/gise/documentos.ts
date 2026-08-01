@@ -10,7 +10,7 @@ import { giseDocumentos } from '../../server/schema';
 import type * as schema from '../../server/schema';
 import type { Database } from '../core';
 import { anonimizarIp } from '../audit';
-import { parseUserAgent, reduzirPrecisaoGps } from '../../server/document-utils';
+import { parseUserAgent, reduzirPrecisaoGps } from '../../server/assinatura/document-utils';
 import { cifrarCpfParaArmazenar, type CpfCriptoEnv } from '../../crypto/cpf-cripto';
 
 /**

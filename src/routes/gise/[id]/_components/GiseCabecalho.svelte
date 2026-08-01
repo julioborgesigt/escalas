@@ -12,7 +12,7 @@
 	 * um botão não impede nada — as actions revalidam no servidor.
 	 *
 	 * `statusLabel`/`statusColor` chegam por prop, vindos de
-	 * `$lib/gise/gise-formatters`, para que o mesmo status tenha o mesmo rótulo
+	 * `$lib/gise/formatters`, para que o mesmo status tenha o mesmo rótulo
 	 * e a mesma cor no cabeçalho, na listagem e no histórico.
 	 */
 	import { goto } from '$app/navigation';

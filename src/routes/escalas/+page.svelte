@@ -23,7 +23,7 @@
 	 * (`useOfertaRubrica`), para não virar interrupção para o resto.
 	 */
 	import type { PageProps } from './$types';
-	import { opcoesMeses } from '$lib/utils';
+	import { opcoesMeses } from '$lib/utils/datas';
 	import { PenLine, CheckCircle2, ClipboardList, Archive } from 'lucide-svelte';
 	import { goto, invalidate } from '$app/navigation';
 	import { untrack } from 'svelte';

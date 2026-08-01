@@ -18,7 +18,7 @@
 	 * assinatura que já está no PDF.
 	 */
 	import { enhance } from '$app/forms';
-	import { formatarData } from '$lib/utils';
+	import { formatarData } from '$lib/utils/datas';
 	import type { Escala } from '$lib/server/schema';
 	import type { EscalaPolicialComDados } from '$lib/types';
 	import IconTooltip from '$lib/components/IconTooltip.svelte';

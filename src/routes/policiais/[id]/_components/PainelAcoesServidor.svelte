@@ -20,7 +20,8 @@
 	import { invalidateAll } from '$app/navigation';
 	import { toaster } from '$lib/toast';
 	import { loading } from '$lib/loading.svelte';
-	import { formatarNUP, adicionarDias, diffDiasInclusivo } from '$lib/utils';
+	import { adicionarDias, diffDiasInclusivo } from '$lib/utils/datas';
+	import { formatarNUP } from '$lib/utils/formato';
 	import { ArrowRightLeft, CalendarOff, UserMinus } from 'lucide-svelte';
 	import type { ActionResult } from '@sveltejs/kit';
 

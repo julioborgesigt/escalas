@@ -392,11 +392,22 @@ escalas/
 │   │   │   ├── useCharts.svelte.ts             # Integração Chart.js
 │   │   │   └── ...
 │   │   ├── server/                 # Backend puro — nunca importar no cliente
+│   │   │   │                       # Raiz = infra transversal; subpastas = domínio
 │   │   │   ├── schema.ts           # Schema Drizzle (fonte de verdade do banco)
-│   │   │   ├── pdf-signing.ts      # Geração e assinatura de PDFs
-│   │   │   ├── pdf-verification.ts # Validação de assinaturas (OCSP, CAdES)
-│   │   │   ├── icp-brasil/         # Trust store ICP-Brasil
+│   │   │   ├── api.ts              # Helpers de erro da API (ErrorCode, requireAuth…)
 │   │   │   ├── email.ts            # Envio de e-mail (binding EMAIL / Resend)
+│   │   │   ├── logger.ts           # Logger com contexto de request + persistência
+│   │   │   ├── r2-cleanup.ts       # Limpeza de objetos no R2
+│   │   │   ├── policial-permissao.ts  # Escopo administrativo sobre o cadastro
+│   │   │   ├── assinatura/         # Assinatura digital: PAdES/CAdES, OCSP, TSA, selo
+│   │   │   │   ├── pdf-signing.ts      # Geração e assinatura de PDFs
+│   │   │   │   ├── pdf-verification.ts # Validação de assinaturas (OCSP, CAdES)
+│   │   │   │   ├── icp-brasil/         # Trust store ICP-Brasil
+│   │   │   │   └── ...
+│   │   │   ├── auth/               # Login, certificado A3, sessão, CSRF, webhooks
+│   │   │   ├── escalas/            # Regras de escala: conflito, exclusão, permissão
+│   │   │   ├── gise/               # Regras GISE: permissão, papéis, termo de presença
+│   │   │   ├── export/             # Geração de PDF/XLSX/DOCX
 │   │   │   ├── termo/              # Conteúdo e hash do termo de uso vigente
 │   │   │   └── ...
 │   │   ├── db/                     # Camada de acesso ao banco (queries tipadas)
@@ -415,8 +426,13 @@ escalas/
 │   │   ├── csrf.ts                 # Helpers CSRF (cliente)
 │   │   ├── loading.svelte.ts       # Estado global de loading
 │   │   ├── toast.ts                # Sistema de toasts
-│   │   ├── logger.ts               # Logger estruturado
-│   │   └── utils.ts                # Utilitários genéricos
+│   │   ├── utils/                  # Utilidades puras (sem barrel — importe o módulo)
+│   │   │   ├── datas.ts            # Datas/calendário BR (ISO YYYY-MM-DD, fuso)
+│   │   │   ├── formato.ts          # Máscaras de entrada (CPF, telefone, NUP)
+│   │   │   ├── pii.ts              # Mascaramento de dado pessoal para exibição
+│   │   │   ├── download.ts         # Download de blob no navegador
+│   │   │   └── localStorage.ts     # Acesso seguro ao localStorage
+│   │   └── logger.ts               # Logger estruturado
 │   ├── hooks.server.ts             # Middleware global (CSRF, auth, headers de segurança)
 │   ├── app.d.ts                    # Tipos globais (bindings CF, App.Locals)
 │   ├── app.css                     # Estilos globais
@@ -604,7 +620,7 @@ export function useContador(inicial = 0) {
 ### Constantes e snippets compartilhados
 
 Antes de declarar uma constante "óbvia" no componente, verifique se ela já existe
-em [`src/lib/utils.ts`](src/lib/utils.ts):
+em [`src/lib/utils/datas.ts`](src/lib/utils/datas.ts):
 
 - `MESES_PT` — nomes dos meses, índice 0 = Janeiro (base de `Date.getMonth()`;
   para mês 1-12 do banco/URL use `MESES_PT[mes - 1]`);
@@ -617,7 +633,7 @@ Snippets de UI repetidos entre componentes irmãos vão para um `.svelte` própr
 são **exportados pelo `<script module>`** — só funciona se o snippet não
 referenciar nada do `<script>` de instância, então os imports de que ele depende
 também ficam no bloco `module` ([docs](https://svelte.dev/docs/svelte/snippet)).
-Exemplo: [`src/routes/res-gise/BotoesAcao.svelte`](src/routes/res-gise/BotoesAcao.svelte).
+Exemplo: [`src/routes/res-gise/_components/BotoesAcao.svelte`](src/routes/res-gise/_components/BotoesAcao.svelte).
 
 ### SvelteKit — Server-first
 
@@ -707,7 +723,7 @@ Regras estabelecidas na auditoria visual de jul/2026 (`AUDITORIA_VISUAL_UX_2026-
 
 **Container queries** — quando o layout de um bloco depende do espaço que sobra **para ele** (e não do tamanho da tela), use `@container` no ancestral e as variantes `@2xl:`/`@4xl:` nos filhos, em vez de `sm:`/`lg:`. Cuidado: `container-type: inline-size` implica `contain: layout`, ou seja o elemento passa a ser containing block de descendentes `position: fixed` — nunca colocar `@container` acima de um `Dialog`/overlay, ou o modal fica preso dentro do card.
 
-**Tarefa longa vira modal — formulário longo vira rota** — quando uma tela tem passos sequenciais (confirmar presença → entregar relatório → confirmar saída), a página mostra o **estado** (barra de progresso + um quadro compacto por passo, lado a lado na ordem de execução) e cada passo abre um modal com o seu formulário. Ver `res-gise/FormularioServico.svelte`. Empilhar os passos como seções do mesmo card foi o que gerou faixas de ~1050px com o conteúdo perdido no meio no desktop.
+**Tarefa longa vira modal — formulário longo vira rota** — quando uma tela tem passos sequenciais (confirmar presença → entregar relatório → confirmar saída), a página mostra o **estado** (barra de progresso + um quadro compacto por passo, lado a lado na ordem de execução) e cada passo abre um modal com o seu formulário. Ver `res-gise/_components/FormularioServico.svelte`. Empilhar os passos como seções do mesmo card foi o que gerou faixas de ~1050px com o conteúdo perdido no meio no desktop.
 
 O modal é para o passo que cabe em uma tela. Passando disso — o relatório de produtividade tem 19 perguntas de nível 0 mais os filhos condicionais — o passo vira **rota própria com wizard**: `res-gise/relatorio/[giseId]`. Uma etapa por tela, navegador de etapas (`lg:` coluna lateral `sticky`, no celular faixa rolável — a MESMA `<ol>`, com `lg:flex-col`), coluna de conteúdo em `max-w-3xl` e rodapé `sticky` com Voltar/Avançar. Rota, e não modal, porque o preenchimento tem endereço, sobrevive a um reload e admite rascunho.
 
@@ -738,11 +754,19 @@ npm run test          # Executa uma vez
 npm run test:watch    # Watch mode (recomendado durante desenvolvimento)
 ```
 
-Arquivos de teste ficam em `src/` com o padrão `*.test.ts`, distribuídos em pastas `__tests__/` junto do código testado (60 arquivos, 617 testes). Os principais grupos:
+Arquivos de teste ficam em `src/` com o padrão `*.test.ts`, **sempre** em pastas `__tests__/` junto do código testado (65 arquivos, 680 testes) — convenção verificada no CI. Os principais grupos:
 
 - `src/lib/__tests__/` — autenticação (PBKDF2/pepper, sessões, 2FA), CSRF, headers de segurança, utilitários
-- `src/lib/server/__tests__/` — fluxo de login, assinatura (CAdES, OCSP, TSA, trust store), permissões, webhooks, Sentry/PII
-- `src/lib/schemas/__tests__/` — schemas Zod (LGPD, formulários)
+- `src/lib/schemas/__tests__/` — schemas Zod (LGPD, formulários GISE)
+- `src/lib/gise/__tests__/` — regras GISE puras: etapas do formulário, renumeração, tipos de pergunta
+- `src/lib/crypto/__tests__/` — criptografia de campos e CPF
+- `src/lib/db/__tests__/` — camada de dados: auditoria forense, retenção LGPD, upserts de assinatura
+- `src/lib/server/__tests__/` — infraestrutura transversal: e-mail, `r2-cleanup`, `request-context`, Sentry/PII, schema × migrações
+- `src/lib/server/assinatura/__tests__/` — CAdES, OCSP, TSA, trust store ICP-Brasil, ByteRange, verificação
+- `src/lib/server/auth/__tests__/` — fluxo de login, login por certificado (e revogação), webhooks
+- `src/lib/server/gise/__tests__/` — permissões GISE, termo de presença
+- `src/lib/server/export/__tests__/` — goldens de PDF
+- `src/lib/server/escalas/__tests__/` — permissões de escala
 
 ### Testes E2E (Playwright)
 

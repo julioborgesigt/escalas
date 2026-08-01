@@ -15,7 +15,7 @@
 import type { RequestHandler } from './$types';
 import { getDB, listarAuditLog, buscarAuditLog, cabecaCadeiaAudit, metaDaAcao } from '$lib/db';
 import type { AuditLog } from '$lib/server/schema';
-import { gerarAuditPdfTabela, gerarAuditPdfEvento } from '$lib/server/audit-pdf';
+import { gerarAuditPdfTabela, gerarAuditPdfEvento } from '$lib/server/export/audit-pdf';
 import { requireSuperAdmin, contentDisposition, badRequest, notFound } from '$lib/server/api';
 
 const MAX_DIAS_CSV = 366;

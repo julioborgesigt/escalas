@@ -15,7 +15,10 @@ import {
 	contextoDeEvento
 } from '$lib/db';
 import { finalizarAssinaturaGiseSchema } from '$lib/schemas';
-import { finalizarQualificadaDoPayload, respostaPdfAssinado } from '$lib/server/signature-service';
+import {
+	finalizarQualificadaDoPayload,
+	respostaPdfAssinado
+} from '$lib/server/assinatura/signature-service';
 import { tryGetR2 } from '$lib/db';
 import {
 	requireAuth,

@@ -35,12 +35,12 @@
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import { agruparPorEtapa, type EtapaFormulario } from '$lib/gise/etapas-formulario';
-	import { fmtDate } from '$lib/gise/gise-formatters';
+	import { fmtDate } from '$lib/gise/formatters';
 	import { loading } from '$lib/loading.svelte';
 	import { toaster } from '$lib/toast';
 	import Spinner from '$lib/components/Spinner.svelte';
 	import BotaoVoltar from '$lib/components/BotaoVoltar.svelte';
-	import RelatorioProdutividade from '../../RelatorioProdutividade.svelte';
+	import RelatorioProdutividade from '../../_components/RelatorioProdutividade.svelte';
 	import type { PageProps } from './$types';
 	import type { ActionResult } from '@sveltejs/kit';
 

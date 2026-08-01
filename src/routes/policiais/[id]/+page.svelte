@@ -25,7 +25,7 @@
 	import { goto, invalidateAll } from '$app/navigation';
 	import { enhance } from '$app/forms';
 	import { toaster } from '$lib/toast';
-	import { formatarTelefone, formatarCPF } from '$lib/utils';
+	import { formatarTelefone, formatarCPF } from '$lib/utils/formato';
 	import { loading } from '$lib/loading.svelte';
 	import type { ActionResult } from '@sveltejs/kit';
 	import ToggleSwitch from '$lib/components/ToggleSwitch.svelte';

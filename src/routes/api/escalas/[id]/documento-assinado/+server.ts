@@ -19,13 +19,13 @@ import {
 	forbidden,
 	serverError
 } from '$lib/server/api';
-import { verificarPermissaoEscala } from '$lib/server/escala-permissao';
+import { verificarPermissaoEscala } from '$lib/server/escalas/permissao';
 import {
 	podeBaixarComManifesto,
 	gerarCopiaConferencia,
 	chaveConferencia
-} from '$lib/server/copia-conferencia';
-import { gerarRascunhoEscalaPdf } from '$lib/server/conferencia-pdf';
+} from '$lib/server/assinatura/copia-conferencia';
+import { gerarRascunhoEscalaPdf } from '$lib/server/assinatura/conferencia-pdf';
 import { limparR2DocumentoEscala } from '$lib/server/r2-cleanup';
 
 export const GET: RequestHandler = async ({ platform, params, locals, url }) => {

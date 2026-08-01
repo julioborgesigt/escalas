@@ -21,8 +21,11 @@ import { criarDesafio2FA, gerarCodigo2FA, gerarToken } from '$lib/auth';
 import { enviarCodigoRedefinicaoSenha } from '$lib/server/email';
 import { logger } from '$lib/server/logger';
 import { administradores, policiais, doisFatoresTokens } from '$lib/server/schema';
-import { mascararEmail } from '$lib/server/auth-flow';
-import { contarRecoveryAttempts, registrarRecoveryAttempt } from '$lib/server/recovery-rate-limit';
+import { mascararEmail } from '$lib/server/auth/auth-flow';
+import {
+	contarRecoveryAttempts,
+	registrarRecoveryAttempt
+} from '$lib/server/auth/recovery-rate-limit';
 import { solicitarRedefinicaoSchema } from '$lib/schemas';
 import type { RequestHandler } from './$types';
 

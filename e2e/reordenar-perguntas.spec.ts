@@ -12,7 +12,7 @@ import { autenticarPagina, execD1Local } from './session';
  * texto errado — que é justamente o que o policial lê e o que sai no relatório.
  * Por isso as asserções são sobre o conteúdo dos `textarea` e dos sub-rótulos.
  *
- * A regra em si tem cobertura unitária em `lib/gise/renumerar-perguntas.test`.
+ * A regra em si tem cobertura unitária em `lib/gise/__tests__/renumerar-perguntas.test`.
  */
 
 async function silenciar(page: import('@playwright/test').Page) {

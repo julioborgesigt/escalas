@@ -1,11 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import {
-	limparMatricula,
-	formatarTelefone,
-	formatarNUP,
-	adicionarDias,
-	diffDiasInclusivo
-} from '../utils';
+import { adicionarDias, diffDiasInclusivo } from '../utils/datas';
+import { limparMatricula, formatarTelefone, formatarNUP } from '../utils/formato';
 
 describe('formatarNUP', () => {
 	it('aplica a máscara completa 00000.000000/0000-00', () => {

@@ -21,7 +21,7 @@ import {
 	tryGetR2
 } from '$lib/db';
 import { requireAuth, badRequest, notFound, forbidden, serverError } from '$lib/server/api';
-import { montarTermoPresencaAvancado } from '$lib/server/gise-termo-presenca';
+import { montarTermoPresencaAvancado } from '$lib/server/gise/termo-presenca';
 
 function respostaPdf(data: ArrayBuffer | Uint8Array, filename: string): Response {
 	return new Response(data as BodyInit, {

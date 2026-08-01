@@ -21,7 +21,7 @@
 	 * discordando do banco.
 	 */
 	import type { PageProps } from './$types';
-	import { opcoesMeses } from '$lib/utils';
+	import { opcoesMeses } from '$lib/utils/datas';
 	import { Lock, Inbox } from 'lucide-svelte';
 	import { untrack } from 'svelte';
 	import { page, navigating } from '$app/state';

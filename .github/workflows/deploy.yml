@@ -71,6 +71,20 @@ jobs:
       # temporário dele. Um bump do adapter quebraria o DEPLOY, depois do
       # merge. Rebuildar no job de deploy custa ~40 s e não tem esse acoplamento.
 
+      # Guard contra regressão da convenção de testes: todo *.test.ts em
+      # src/ mora numa pasta __tests__/ junto do código testado. Antes
+      # conviviam duas convenções (5 arquivos colocados, 60 em __tests__/),
+      # e "onde está o teste de X" tinha duas respostas. Ver CLAUDE.md →
+      # "Onde colocar teste novo".
+      - name: Guard — convenção de testes (__tests__/)
+        run: |
+          violations=$(find src -name '*.test.ts' -not -path '*/__tests__/*' || true)
+          if [ -n "$violations" ]; then
+            echo "::error::Testes fora de __tests__/ — mova para a pasta __tests__/ do módulo testado:"
+            echo "$violations"
+            exit 1
+          fi
+
       # Guard contra regressão do padrão API: todas as rotas devem usar
       # os helpers de \$lib/server/api (badRequest, unauthorized, etc.) em
       # vez de retornar json({ error }) manual. Ver CLAUDE.md → "Erros de

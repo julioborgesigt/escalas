@@ -25,17 +25,17 @@ import {
 	conflict,
 	validateBody
 } from '$lib/server/api';
-import { gerarTermoPresencaPdf } from '$lib/server/gise-termo-presenca';
+import { gerarTermoPresencaPdf } from '$lib/server/gise/termo-presenca';
 import {
 	prepararPdfParaAssinatura,
 	adicionarPaginaAuditoria,
 	adicionarRodapeUniversal,
 	estamparRubricaLimpa,
 	type AuditTrailOptions
-} from '$lib/server/pdf-signing';
-import { chaveConferencia } from '$lib/server/copia-conferencia';
-import { gerarCodigoValidacao } from '$lib/utils';
-import { calcularHashBuffer } from '$lib/server/document-utils';
+} from '$lib/server/assinatura/pdf-signing';
+import { chaveConferencia } from '$lib/server/assinatura/copia-conferencia';
+import { gerarCodigoValidacao } from '$lib/utils/formato';
+import { calcularHashBuffer } from '$lib/server/assinatura/document-utils';
 import { tryGetR2 } from '$lib/db';
 import { logger } from '$lib/server/logger';
 import { json } from '@sveltejs/kit';

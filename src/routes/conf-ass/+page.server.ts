@@ -12,7 +12,7 @@ import {
 	REFORCOS_OPCIONAIS,
 	classificarNivelAssinaturaTela,
 	baseLegalDoNivel
-} from '$lib/server/signature-level';
+} from '$lib/server/assinatura/signature-level';
 
 export const load: PageServerLoad = async ({ locals, platform }) => {
 	if (!locals.usuario?.isSuperAdmin) redirect(302, '/');

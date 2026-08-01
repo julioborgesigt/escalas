@@ -8,7 +8,7 @@ import { eq, and, sql } from 'drizzle-orm';
 import { gisePresencas, policiais } from '../../server/schema';
 import type { Database } from '../core';
 import { anonimizarIp } from '../audit';
-import { parseUserAgent, reduzirPrecisaoGps } from '../../server/document-utils';
+import { parseUserAgent, reduzirPrecisaoGps } from '../../server/assinatura/document-utils';
 import { decifrarCpfDoDB, type CpfCriptoEnv } from '../../crypto/cpf-cripto';
 
 /** Confirma (ou re-confirma) a entrada — upsert por (gise, policial). */

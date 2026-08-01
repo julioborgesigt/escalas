@@ -5,8 +5,11 @@ import { eq } from 'drizzle-orm';
 import { gerarCodigo2FA, criarDesafio2FA } from '$lib/auth';
 import { enviarCodigo2FA } from '$lib/server/email';
 import { logger } from '$lib/server/logger';
-import { mascararEmail } from '$lib/server/auth-flow';
-import { contarRecoveryAttempts, registrarRecoveryAttempt } from '$lib/server/recovery-rate-limit';
+import { mascararEmail } from '$lib/server/auth/auth-flow';
+import {
+	contarRecoveryAttempts,
+	registrarRecoveryAttempt
+} from '$lib/server/auth/recovery-rate-limit';
 import { requireAuth, badRequest, rateLimited, serverError } from '$lib/server/api';
 import type { RequestHandler } from './$types';
 

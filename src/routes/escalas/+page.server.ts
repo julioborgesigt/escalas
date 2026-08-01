@@ -39,7 +39,7 @@ import {
 } from '$lib/db';
 import { escalaSchema } from '$lib/schemas';
 import { registrarAuditComContexto, contextoDeEvento, batchNonEmpty } from '$lib/db';
-import { excluirEscalaCompleta } from '$lib/server/escala-exclusao';
+import { excluirEscalaCompleta } from '$lib/server/escalas/exclusao';
 import { logger } from '$lib/server/logger';
 import { eq, or, and, inArray, sql, desc, type SQL } from 'drizzle-orm';
 import {
@@ -383,7 +383,7 @@ export const actions: Actions = {
 		if (!u) return fail(401, { error: 'Não autorizado' });
 		// Exclusão é destrutiva: exige papel de administração (mesmo guarda do
 		// load). "Mesma lotação" continua valendo apenas para leitura/assinatura
-		// (escala-permissao.ts) — auditoria 2026-07-16, achado B-2.
+		// (escalas/permissao.ts) — auditoria 2026-07-16, achado B-2.
 		if (u.tipo !== 'admin' && u.papel !== 'admin_seccional' && u.papel !== 'admin_unidade') {
 			return fail(403, { error: 'Sem permissão' });
 		}

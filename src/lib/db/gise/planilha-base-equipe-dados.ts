@@ -7,7 +7,7 @@ import type { Database } from '../core';
 import type { GiseEscala } from '../../server/schema';
 import { buscarGiseEscala } from './escalas';
 import { listarMembrosParaBaseEquipe, type LinhaBaseEquipeMembro } from './base-equipe';
-import { calcularDataSaida } from '../../utils';
+import { calcularDataSaida } from '../../utils/datas';
 
 const TZ = 'America/Sao_Paulo';
 
