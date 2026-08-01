@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { renumerarPerguntas } from './renumerar-perguntas';
+import { renumerarPerguntas } from '../renumerar-perguntas';
 import type { GiseModeloPerguntaConfig } from '$lib/types';
 
 function p(texto: string, extra: Partial<GiseModeloPerguntaConfig> = {}): GiseModeloPerguntaConfig {

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { agruparPorEtapa, ETAPA_SEM_NOME } from './etapas-formulario';
+import { agruparPorEtapa, ETAPA_SEM_NOME } from '../etapas-formulario';
 import type { GiseModeloPerguntaConfig } from '$lib/types';
 
 function pergunta(key: string, etapa?: string): GiseModeloPerguntaConfig {

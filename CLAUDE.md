@@ -96,6 +96,18 @@ Arquivo novo cujo nome só faz sentido com prefixo de domínio (`gise-*`,
 Até jul/2026 essa pasta era plana com 58 arquivos e cinco domínios
 misturados; não a deixe voltar a ser.
 
+## Onde colocar teste novo
+
+**Todo `*.test.ts` mora numa pasta `__tests__/` junto do código testado** —
+`src/lib/gise/x.ts` é testado por `src/lib/gise/__tests__/x.test.ts`. Nunca
+colocado ao lado do fonte. Verificado no CI (`deploy.yml`, guard "convenção
+de testes").
+
+Fixture lida por caminho (`import.meta.url`) fica em `__tests__/fixtures/` e
+acompanha o teste que a consome quando ele se mover.
+
+Teste de ponta a ponta é outra história: vai em `e2e/`, com Playwright.
+
 ## Fetch no cliente — padrão obrigatório
 
 **Sempre use `$lib/api-fetch` para chamar a API interna do cliente.**

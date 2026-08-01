@@ -4,7 +4,7 @@ import {
 	filtrarSeccionaisDisponiveis,
 	getSeccionalColorClass,
 	tiposEquipeNaSeccional
-} from './gise-page-helpers';
+} from '../gise-page-helpers';
 import type { GiseEquipeComMembros } from '$lib/db/gise';
 import type { GiseDetalhado } from '$lib/db/gise';
 import type { Unidade } from '$lib/server/schema';

@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
 	parseRespostasFormularioJsonLoose,
 	parseRespostasFormularioJsonStrict
-} from './gise-respostas-form';
+} from '../gise-respostas-form';
 
 describe('parseRespostasFormularioJsonLoose', () => {
 	it('objeto válido', () => {

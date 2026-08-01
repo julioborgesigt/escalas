@@ -6,7 +6,7 @@ import {
 	TIPO_LISTA_REUTILIZAVEL,
 	chavesLista,
 	chavesListaComFallback
-} from './tipos-pergunta';
+} from '../tipos-pergunta';
 
 describe('chavesLista', () => {
 	it('tipo original devolve a chave FIXA — contrato dos blobs já gravados', () => {
