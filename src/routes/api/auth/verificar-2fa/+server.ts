@@ -10,8 +10,11 @@ import { getDB, auditar, contextoDeEvento } from '$lib/db';
 import { criarSessao, verificarDesafio2FA } from '$lib/auth';
 import { policiais, administradores } from '$lib/server/schema';
 import { eq } from 'drizzle-orm';
-import { cookieOptions } from '$lib/server/auth-flow';
-import { contarRecoveryAttempts, registrarRecoveryAttempt } from '$lib/server/recovery-rate-limit';
+import { cookieOptions } from '$lib/server/auth/auth-flow';
+import {
+	contarRecoveryAttempts,
+	registrarRecoveryAttempt
+} from '$lib/server/auth/recovery-rate-limit';
 import {
 	apiError,
 	ErrorCode,

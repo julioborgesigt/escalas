@@ -183,7 +183,7 @@ export async function criarEscala(
  * É justamente esse cascade que torna a chamada DIRETA perigosa: a linha de
  * `escala_documentos` desaparece levando consigo o `r2_key`, e o PDF assinado, a
  * cópia de conferência e a selfie ficam no R2 sem ninguém que saiba que existem
- * (R2-1). Use `excluirEscalaCompleta` (`$lib/server/escala-exclusao`), que limpa
+ * (R2-1). Use `excluirEscalaCompleta` (`$lib/server/escalas/exclusao`), que limpa
  * o R2 antes — esta função é a peça interna dele.
  */
 export async function excluirEscala(db: Database, id: number) {

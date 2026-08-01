@@ -20,25 +20,25 @@ import {
 	gerarRelatorioExtraordinarioSupervisaoPdf,
 	toGisePdfData
 } from '$lib/server/export';
-import { getBreveRelatorioEnvMergido } from '$lib/server/breve-relatorio-env';
-import { carregarLogosGise } from '$lib/server/gise-logos';
-import { montarSignersPresencaExtra } from '$lib/server/gise-relatorio-manifesto';
+import { getBreveRelatorioEnvMergido } from '$lib/server/gise/breve-relatorio-env';
+import { carregarLogosGise } from '$lib/server/gise/logos';
+import { montarSignersPresencaExtra } from '$lib/server/gise/relatorio-manifesto';
 import {
 	giseAutorizaSeccionalRelatorioExtra,
 	secIdEhSupervisaoExtra
-} from '$lib/server/gise-supervisao-extra';
+} from '$lib/server/gise/supervisao-extra';
 import {
 	prepararPdfParaAssinatura,
 	adicionarPaginaAuditoria,
 	type AuditTrailOptions,
 	adicionarRodapeUniversal,
 	estamparRubricaLimpa
-} from '$lib/server/pdf-signing';
-import { chaveConferencia } from '$lib/server/copia-conferencia';
+} from '$lib/server/assinatura/pdf-signing';
+import { chaveConferencia } from '$lib/server/assinatura/copia-conferencia';
 import { PDFDocument } from 'pdf-lib';
-import { gerarCodigoValidacao } from '$lib/utils';
+import { gerarCodigoValidacao } from '$lib/utils/formato';
 import { tryGetR2 } from '$lib/db';
-import { calcularHashBuffer } from '$lib/server/document-utils';
+import { calcularHashBuffer } from '$lib/server/assinatura/document-utils';
 import { logger } from '$lib/server/logger';
 import { json } from '@sveltejs/kit';
 

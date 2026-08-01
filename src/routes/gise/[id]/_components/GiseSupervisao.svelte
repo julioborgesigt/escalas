@@ -48,7 +48,7 @@
 		supervisaoExtraRubricasCompletas,
 		faltantesSupervisaoExtra,
 		FALTANTE_RUBRICA_SUPER_PREFIX
-	} from '$lib/gise/gise-supervisao-extra';
+	} from '$lib/gise/supervisao-extra';
 	import type { GiseAssinaturaRelatorio } from '$lib/server/schema';
 	import { podeBaixarComManifesto } from '$lib/manifesto';
 	import { SvelteMap } from 'svelte/reactivity';

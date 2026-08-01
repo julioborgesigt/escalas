@@ -21,7 +21,7 @@ import {
 	validarReplayProtection,
 	replayEnforceLigado,
 	logFaltaReplayHeaders
-} from '$lib/server/webhook-auth';
+} from '$lib/server/auth/webhook-auth';
 import { logger } from '$lib/server/logger';
 import { unauthorized } from '$lib/server/api';
 

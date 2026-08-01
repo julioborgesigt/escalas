@@ -20,7 +20,7 @@
 	 */
 	import { enhance } from '$app/forms';
 	import { toaster } from '$lib/toast';
-	import { formatarData } from '$lib/utils';
+	import { formatarData } from '$lib/utils/datas';
 	import { buscarPoliciaisOptions } from '$lib/busca-policiais';
 	import SearchableSelect from '$lib/components/SearchableSelect.svelte';
 	import {

@@ -29,7 +29,7 @@
 	import { SvelteSet } from 'svelte/reactivity';
 	import { enhance } from '$app/forms';
 	import { toaster } from '$lib/toast';
-	import { intervaloDeDatas } from '$lib/utils';
+	import { intervaloDeDatas } from '$lib/utils/datas';
 	import { invalidateAll } from '$app/navigation';
 	import { apiFetch } from '$lib/api-fetch';
 	import type { ActionResult } from '@sveltejs/kit';

@@ -8,7 +8,7 @@
 
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { carregarLogosGise } from '$lib/server/gise-logos';
+import { carregarLogosGise } from '$lib/server/gise/logos';
 import { getDB, buscarGiseEscala, buscarGiseDetalhado, buscarPolicial } from '$lib/db';
 import { prepararAssinaturaSchema } from '$lib/schemas';
 import {
@@ -24,18 +24,18 @@ import {
 	toGisePdfData,
 	giseDetalhadoComMatriculaSupervisorSessao
 } from '$lib/server/export';
-import { getBreveRelatorioEnvMergido } from '$lib/server/breve-relatorio-env';
+import { getBreveRelatorioEnvMergido } from '$lib/server/gise/breve-relatorio-env';
 import {
 	prepararPdfParaAssinatura,
 	adicionarPaginaAuditoria,
 	adicionarRodapeUniversal,
 	estamparRubricaLimpa
-} from '$lib/server/pdf-signing';
-import { chaveConferencia } from '$lib/server/copia-conferencia';
-import { calcularHashBuffer } from '$lib/server/document-utils';
+} from '$lib/server/assinatura/pdf-signing';
+import { chaveConferencia } from '$lib/server/assinatura/copia-conferencia';
+import { calcularHashBuffer } from '$lib/server/assinatura/document-utils';
 import { logger } from '$lib/server/logger';
 import { PDFDocument } from 'pdf-lib';
-import { gerarCodigoValidacao } from '$lib/utils';
+import { gerarCodigoValidacao } from '$lib/utils/formato';
 import { tryGetR2 } from '$lib/db';
 
 export const POST: RequestHandler = async ({

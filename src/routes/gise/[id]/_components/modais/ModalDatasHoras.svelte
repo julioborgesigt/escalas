@@ -19,11 +19,11 @@
 	 * valores da GISE anterior.
 	 */
 	import { AlertTriangle } from 'lucide-svelte';
-	import { MESES_PT, DIAS_SEMANA_CURTO, isoData, hojeLocalISO } from '$lib/utils';
+	import { MESES_PT, DIAS_SEMANA_CURTO, isoData, hojeLocalISO } from '$lib/utils/datas';
 	import { enhance } from '$app/forms';
 	import type { SubmitFunction } from '@sveltejs/kit';
 	import { toaster } from '$lib/toast';
-	import { normalizarHora, validarHora } from '$lib/gise/gise-horarios';
+	import { normalizarHora, validarHora } from '$lib/gise/horarios';
 	import { Dialog } from '@skeletonlabs/skeleton-svelte';
 
 	interface GiseInfo {

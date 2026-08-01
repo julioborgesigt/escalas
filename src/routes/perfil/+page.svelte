@@ -27,7 +27,7 @@
 	import ModalAlterarEmailPessoal from './ModalAlterarEmailPessoal.svelte';
 	import SearchableSelect from '$lib/components/SearchableSelect.svelte';
 	import { ROTULO_CAMPO } from '$lib/perfil-campos';
-	import { formatarData } from '$lib/utils';
+	import { formatarData } from '$lib/utils/datas';
 	import type { ActionResult } from '@sveltejs/kit';
 
 	const { data }: PageProps = $props();

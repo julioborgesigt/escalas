@@ -1,4 +1,4 @@
-import { formatarData, calcularDataSaida, DIAS_SEMANA_CURTO } from '$lib/utils';
+import { formatarData, calcularDataSaida, DIAS_SEMANA_CURTO } from '$lib/utils/datas';
 import type { Escala } from '$lib/server/schema';
 import type { EscalaPolicialComDados } from '$lib/types';
 

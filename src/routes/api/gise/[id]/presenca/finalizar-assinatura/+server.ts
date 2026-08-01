@@ -21,7 +21,10 @@ import {
 } from '$lib/db';
 import { policiais } from '$lib/server/schema';
 import { finalizarPresencaSchema } from '$lib/schemas';
-import { finalizarQualificadaDoPayload, respostaPdfAssinado } from '$lib/server/signature-service';
+import {
+	finalizarQualificadaDoPayload,
+	respostaPdfAssinado
+} from '$lib/server/assinatura/signature-service';
 import { tryGetR2 } from '$lib/db';
 import {
 	requireAuth,

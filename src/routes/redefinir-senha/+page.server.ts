@@ -9,7 +9,7 @@ import {
 } from '$lib/auth';
 import { administradores, policiais, sessoes } from '$lib/server/schema';
 import { alterarSenhaSchema } from '$lib/schemas';
-import { cookieOptions } from '$lib/server/auth-flow';
+import { cookieOptions } from '$lib/server/auth/auth-flow';
 import type { PageServerLoad, Actions } from './$types';
 
 /**

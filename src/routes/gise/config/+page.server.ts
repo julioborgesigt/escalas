@@ -11,14 +11,14 @@ import { buscarConfiguracao, salvarConfiguracao } from '$lib/db/configuracoes';
 import {
 	getBreveRelatorioEnvMergido,
 	GISE_BREVE_RELATORIO_CONFIG_KEYS
-} from '$lib/server/breve-relatorio-env';
+} from '$lib/server/gise/breve-relatorio-env';
 import {
 	resolveBreveRelatorioTitulo,
 	resolveBreveRelatorioConteudoSeccional,
 	resolveBreveRelatorioConteudoSupervisao
 } from '$lib/gise/breve-relatorio';
 import { logger } from '$lib/server/logger';
-import { validarHora, normalizarHora } from '$lib/gise/gise-horarios';
+import { validarHora, normalizarHora } from '$lib/gise/horarios';
 
 /**
  * Tela `/gise/config` (Admin Geral): padrões que valem para toda GISE nova —

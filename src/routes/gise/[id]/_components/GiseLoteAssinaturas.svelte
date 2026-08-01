@@ -27,7 +27,7 @@
 	import { FileDown } from 'lucide-svelte';
 	import { Dialog } from '@skeletonlabs/skeleton-svelte';
 	import { loading } from '$lib/loading.svelte';
-	import { getMembrosFromSec, checkAllSigned } from '$lib/gise/gise-page-helpers';
+	import { getMembrosFromSec, checkAllSigned } from '$lib/gise/page-helpers';
 	import { podeBaixarComManifesto } from '$lib/manifesto';
 	import { toaster } from '$lib/toast';
 

@@ -9,13 +9,13 @@ import {
 	adicionarPaginaAuditoria,
 	adicionarRodapeUniversal,
 	estamparRubricaLimpa
-} from '$lib/server/pdf-signing';
-import { chaveConferencia } from '$lib/server/copia-conferencia';
-import { calcularHashBuffer } from '$lib/server/document-utils';
+} from '$lib/server/assinatura/pdf-signing';
+import { chaveConferencia } from '$lib/server/assinatura/copia-conferencia';
+import { calcularHashBuffer } from '$lib/server/assinatura/document-utils';
 import { logger } from '$lib/server/logger';
 import { PDFDocument } from 'pdf-lib';
-import { gerarCodigoValidacao } from '$lib/utils';
-import { verificarPermissaoEscala } from '$lib/server/escala-permissao';
+import { gerarCodigoValidacao } from '$lib/utils/formato';
+import { verificarPermissaoEscala } from '$lib/server/escalas/permissao';
 
 export const POST: RequestHandler = async ({
 	platform,

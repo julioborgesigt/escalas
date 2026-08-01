@@ -9,7 +9,7 @@
 	import type { GiseDetalhado, GiseEquipeComMembros } from '$lib/db/gise';
 	import SearchableSelect from '$lib/components/SearchableSelect.svelte';
 	import MarcadorPresenca from './MarcadorPresenca.svelte';
-	import { validarHora, normalizarHora } from '$lib/gise/gise-horarios';
+	import { validarHora, normalizarHora } from '$lib/gise/horarios';
 	import type { GiseSeccionalActions } from '$lib/composables/gise/useGiseSeccionalActions.svelte';
 	import type { GiseSeccionalEstado } from './gise-seccional-estado.svelte';
 

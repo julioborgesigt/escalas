@@ -1,0 +1,117 @@
+/**
+ * Tipos de pergunta do formulário de produtividade — quais abrem listagem
+ * detalhada, quais aceitam sub-pergunta, e ONDE cada um grava no blob de
+ * respostas.
+ *
+ * Existe porque essas três respostas eram dadas em sete lugares: o widget do
+ * formulário (`RelatorioProdutividade`), o editor do admin
+ * (`ConfigurarFormulario`) e a expansão do relatório (`db/gise/respostas.ts`).
+ * A pior das sete é a das CHAVES: a tela escreve `prisoes_lista` e o relatório
+ * lê `prisoes_lista`, cada um com o literal repetido no seu arquivo. Um lado
+ * mudar sem o outro não quebra nada visível — o policial preenche, salva, e o
+ * detalhe simplesmente não aparece no PDF assinado.
+ *
+ * ## Chave fixa × chave derivada
+ *
+ * Os tipos ORIGINAIS gravam em chave fixa (`prisoes_qtd`/`prisoes_lista`),
+ * escolha deliberada na época: renomear a pergunta no editor não perde o
+ * detalhe já gravado. O preço é que cada um deles só funciona UMA VEZ no
+ * formulário — duas perguntas do mesmo tipo escreveriam uma por cima da outra,
+ * e o relatório mostraria a mesma lista nas duas.
+ *
+ * `lista_detalhada` existe para poder repetir: as chaves saem da `key` da
+ * pergunta (`extra_1753...__lista`), então cada pergunta tem o seu espaço. A
+ * `key` é gerada na criação e não é editável em lugar nenhum da UI — é o que
+ * torna essa derivação segura.
+ */
+
+/**
+ * O tipo genérico: quantidade + lista de itens (nome e procedimento),
+ * REUTILIZÁVEL em quantas perguntas o admin quiser. Os demais tipos de lista
+ * são de uso único (ver o cabeçalho).
+ */
+export const TIPO_LISTA_REUTILIZAVEL = 'lista_detalhada';
+
+/** Onde cada tipo ORIGINAL grava quantidade e lista. Chaves fixas, de propósito. */
+const CHAVES_FIXAS: Record<string, { qtd: string; lista: string }> = {
+	mandados_maiores: { qtd: 'mandados_qtd', lista: 'mandados_lista' },
+	prisoes_maiores: { qtd: 'prisoes_qtd', lista: 'prisoes_lista' },
+	apreensoes_menores: { qtd: 'apreensoes_qtd', lista: 'apreensoes_lista' },
+	celulares_complex: { qtd: 'celulares_qtd', lista: 'celulares_lista' },
+	analise_complex: { qtd: 'analise_qtd', lista: 'analise_lista' },
+	relatorios_seint_complex: { qtd: 'relatorios_seint_qtd', lista: 'relatorios_seint_lista' },
+	foragidos_complex: { qtd: 'foragidos_qtd', lista: 'foragidos_lista' },
+	operacoes_seint_complex: { qtd: 'operacoes_seint_qtd', lista: 'operacoes_seint_lista' },
+	operacoes_seint_pura: { qtd: 'operacoes_seint_qtd', lista: 'operacoes_seint_lista' }
+};
+
+/** O mínimo de uma pergunta para resolver as chaves dela. */
+type PerguntaChaveavel = { tipo: string; key: string };
+
+/**
+ * Tipos que abrem o bloco "quantidade + listagem detalhada".
+ *
+ * `operacoes_seint_pura` está aqui, mas é o único sem par Sim/Não: a lista dele
+ * aparece sempre, sem depender de resposta anterior.
+ */
+export const TIPOS_COM_LISTA: readonly string[] = [
+	TIPO_LISTA_REUTILIZAVEL,
+	'mandados_maiores',
+	'prisoes_maiores',
+	'apreensoes_menores',
+	'celulares_complex',
+	'analise_complex',
+	'relatorios_seint_complex',
+	'foragidos_complex',
+	'operacoes_seint_complex',
+	'operacoes_seint_pura'
+];
+
+/**
+ * Tipos que aceitam SUB-PERGUNTA (o "se Sim, ...") — os de lista mais os dois
+ * de seleção por chips e o `sim_nao` puro.
+ */
+export const TIPOS_COM_FILHOS: readonly string[] = [
+	...TIPOS_COM_LISTA,
+	'sim_nao',
+	'drogas_complex',
+	'armas_complex'
+];
+
+/**
+ * As chaves do blob onde esta pergunta grava quantidade e lista, ou `null` se o
+ * tipo não tem listagem. Fonte ÚNICA para quem escreve (formulário) e para quem
+ * lê (relatório) — ver o cabeçalho.
+ */
+export function chavesLista(p: PerguntaChaveavel): { qtd: string; lista: string } | null {
+	if (p.tipo === TIPO_LISTA_REUTILIZAVEL) {
+		return { qtd: `${p.key}__qtd`, lista: `${p.key}__lista` };
+	}
+	return CHAVES_FIXAS[p.tipo] ?? null;
+}
+
+/**
+ * Como `chavesLista`, mas nunca `null`.
+ *
+ * O snippet do formulário resolve as chaves no topo, ANTES de saber por qual
+ * ramo de `tipo` vai passar, então precisa de um par mesmo para tipos sem
+ * lista — em que ele nunca é lido. O valor de reserva é o histórico, mantido
+ * para não mudar comportamento de blob já gravado.
+ */
+export function chavesListaComFallback(p: PerguntaChaveavel): { qtd: string; lista: string } {
+	return chavesLista(p) ?? CHAVES_FIXAS.operacoes_seint_pura;
+}
+
+/** Forma de um item vazio da lista, por tipo. */
+export const ITEM_PADRAO: Record<string, Record<string, string>> = {
+	[TIPO_LISTA_REUTILIZAVEL]: { nome: '', mandado: '' },
+	mandados_maiores: { nome: '', mandado: '' },
+	prisoes_maiores: { nome: '', mandado: '' },
+	apreensoes_menores: { nome: '', mandado: '' },
+	celulares_complex: { modelo: '', n_proc: '', delegacia: '', situacao: '' },
+	analise_complex: { tamanho: '', modelo: '', n_proc: '', delegacia: '' },
+	relatorios_seint_complex: { n_relat: '', q_alvos: '', proc_vinc: '', delegacia: '' },
+	foragidos_complex: { nome: '', proc_vinc: '', delegacia: '', resultado: '' },
+	operacoes_seint_complex: { nome: '', delegacia: '' },
+	operacoes_seint_pura: { nome: '', delegacia: '' }
+};

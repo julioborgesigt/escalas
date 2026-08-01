@@ -27,13 +27,13 @@ import {
 	buscarAssinaturaRelatorioGise
 } from '$lib/db';
 import { isAdminGeral, isAdminSeccional } from '$lib/auth';
-import { verificarPermissaoGise } from '$lib/server/gise-permissao';
+import { verificarPermissaoGise } from '$lib/server/gise/permissao';
 import {
 	podeBaixarComManifesto,
 	gerarCopiaConferencia,
 	chaveConferencia
-} from '$lib/server/copia-conferencia';
-import { carregarLogosGise } from '$lib/server/gise-logos';
+} from '$lib/server/assinatura/copia-conferencia';
+import { carregarLogosGise } from '$lib/server/gise/logos';
 import { registrarAuditComContexto } from '$lib/db/audit';
 import { tryGetR2 } from '$lib/db';
 import { giseDownloadSchema, giseIdParamSchema } from '$lib/schemas';
@@ -46,16 +46,16 @@ import {
 	serverError
 } from '$lib/server/api';
 import { toGisePdfData } from '$lib/server/export';
-import { getBreveRelatorioEnvMergido } from '$lib/server/breve-relatorio-env';
+import { getBreveRelatorioEnvMergido } from '$lib/server/gise/breve-relatorio-env';
 import { logger } from '$lib/server/logger';
 import {
 	giseAutorizaSeccionalRelatorioExtra,
 	secIdEhSupervisaoExtra
-} from '$lib/server/gise-supervisao-extra';
+} from '$lib/server/gise/supervisao-extra';
 import {
 	appendGiseDetalhadoToXlsxWorkbook,
 	createAppendGiseXlsxState
-} from '$lib/server/gise-xlsx-workbook-append';
+} from '$lib/server/gise/xlsx-workbook-append';
 import ExcelJS from 'exceljs';
 
 export const GET: RequestHandler = async ({ locals, params, platform, url }) => {
