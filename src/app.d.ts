@@ -89,7 +89,7 @@ declare global {
 		 * — útil em fase de implantação, perigoso em produção.
 		 *
 		 * Ativar APÓS popular roots.pem/intermediates.pem via
-		 * `src/lib/server/icp-brasil/update-trust-store.sh`.
+		 * `src/lib/server/assinatura/icp-brasil/update-trust-store.sh`.
 		 */
 		ICP_BRASIL_TRUST_STORE_REQUIRED?: string;
 		/**

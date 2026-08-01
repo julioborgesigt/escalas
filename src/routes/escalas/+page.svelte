@@ -23,7 +23,7 @@
 	 * (`useOfertaRubrica`), para não virar interrupção para o resto.
 	 */
 	import type { PageProps } from './$types';
-	import { opcoesMeses } from '$lib/utils';
+	import { opcoesMeses } from '$lib/utils/datas';
 	import { PenLine, CheckCircle2, ClipboardList, Archive } from 'lucide-svelte';
 	import { goto, invalidate } from '$app/navigation';
 	import { untrack } from 'svelte';
@@ -54,6 +54,7 @@
 	import ModalCadastrarRubrica from '$lib/components/ModalCadastrarRubrica.svelte';
 	import DialogSolicitarAssinatura from '$lib/components/DialogSolicitarAssinatura.svelte';
 	import SearchableSelect from '$lib/components/SearchableSelect.svelte';
+	import BotaoVoltar from '$lib/components/BotaoVoltar.svelte';
 
 	const { data }: PageProps = $props();
 
@@ -516,29 +517,12 @@
 	</div>
 {:else if visao === 'lista'}
 	<div class="mb-6 space-y-3">
-		<button
-			type="button"
-			class="btn btn-sm preset-outlined-surface-500 hover:bg-surface-50 dark:hover:bg-surface-900 px-3 py-1.5 rounded-xl transition-all flex w-fit max-w-full items-center gap-2 group"
+		<BotaoVoltar
 			onclick={() => {
 				visao = 'home';
 				goto('/escalas', { replaceState: true, noScroll: true });
 			}}
-		>
-			<svg
-				class="w-4 h-4 shrink-0 transition-transform group-hover:-translate-x-1"
-				fill="none"
-				stroke="currentColor"
-				viewBox="0 0 24 24"
-			>
-				<path
-					stroke-linecap="round"
-					stroke-linejoin="round"
-					stroke-width="2.5"
-					d="M10 19l-7-7m0 0l7-7m-7 7h18"
-				/>
-			</svg>
-			<span class="text-sm font-bold uppercase tracking-wider">Voltar</span>
-		</button>
+		/>
 		<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
 			<h1 class="h1 text-2xl font-bold">Arquivo</h1>
 			<div class="flex gap-2 justify-end w-full sm:w-auto">

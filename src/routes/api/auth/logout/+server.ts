@@ -1,8 +1,8 @@
 import { json } from '@sveltejs/kit';
 import { getDB, auditar, contextoDeEvento } from '$lib/db';
 import { excluirSessao } from '$lib/auth';
-import { invalidarSessaoCache } from '$lib/server/session-cache';
-import { CSRF_COOKIE_NAME } from '$lib/server/csrf';
+import { invalidarSessaoCache } from '$lib/server/auth/session-cache';
+import { CSRF_COOKIE_NAME } from '$lib/server/auth/csrf';
 import type { RequestHandler } from './$types';
 
 export const POST: RequestHandler = async (event) => {

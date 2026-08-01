@@ -80,6 +80,59 @@ com Sentry/logs.
 Nunca passe string livre como `errorType`. Se precisa de uma categoria
 nova, adicione ao enum `ErrorCode` em `src/lib/server/api.ts`.
 
+## Onde colocar código novo em `src/lib/server/`
+
+**Raiz = infra transversal. Subpasta = domínio.** A raiz de `server/` só
+aceita o que é usado por vários domínios sem pertencer a nenhum: `api.ts`,
+`schema.ts`, `logger.ts`, `sentry.ts`, `request-context.ts`, `csp.ts`,
+`app-origin.ts`, `db-errors.ts`, `email.ts`, `r2-cleanup.ts`,
+`policial-permissao.ts`.
+
+Todo o resto vai para o domínio correspondente — `assinatura/`, `auth/`,
+`escalas/`, `gise/`, `export/`, `termo/` — junto com seu `__tests__/`.
+
+Arquivo novo cujo nome só faz sentido com prefixo de domínio (`gise-*`,
+`escala-*`, `pdf-*`) é sinal de que ele pertence a uma subpasta, não à raiz.
+Até jul/2026 essa pasta era plana com 58 arquivos e cinco domínios
+misturados; não a deixe voltar a ser.
+
+## Arquivo auxiliar de rota vai em `_components/`
+
+Componente, composable ou action que só serve a UMA rota mora em
+`_components/` (ou `_actions/`) dentro dela — o `_` é o que mantém o
+arquivo fora do roteador do SvelteKit, e a pasta é o que separa "a rota"
+de "as peças da rota". Componente usado por DUAS rotas sobe para
+`$lib/components/`; composable reutilizável sobe para `$lib/composables/`.
+
+Composable de uma rota só fica junto dela, em `_components/` — é o caso de
+`escalas/[id]/_components/useEdicaoInlineServidor.svelte.ts` e de
+`res-gise/_components/useResGise.svelte.ts`.
+
+## `$lib/utils/` não tem barrel
+
+Importe o MÓDULO, não a pasta: `$lib/utils/datas` (datas e calendário),
+`$lib/utils/formato` (máscaras de entrada), `$lib/utils/pii` (mascaramento
+para exibição), `$lib/utils/download`, `$lib/utils/localStorage`.
+
+Não existe `$lib/utils` — até jul/2026 era um `utils.ts` de 24 exports ao
+lado da pasta `utils/`, então `$lib/utils` e `$lib/utils/download` pareciam
+o mesmo módulo e não eram. Não recrie o barrel: o ganho aqui é o call site
+dizer de qual assunto a função veio.
+
+`$lib/db` é a exceção deliberada, e está documentada no próprio `lib/db.ts`.
+
+## Onde colocar teste novo
+
+**Todo `*.test.ts` mora numa pasta `__tests__/` junto do código testado** —
+`src/lib/gise/x.ts` é testado por `src/lib/gise/__tests__/x.test.ts`. Nunca
+colocado ao lado do fonte. Verificado no CI (`deploy.yml`, guard "convenção
+de testes").
+
+Fixture lida por caminho (`import.meta.url`) fica em `__tests__/fixtures/` e
+acompanha o teste que a consome quando ele se mover.
+
+Teste de ponta a ponta é outra história: vai em `e2e/`, com Playwright.
+
 ## Fetch no cliente — padrão obrigatório
 
 **Sempre use `$lib/api-fetch` para chamar a API interna do cliente.**
@@ -139,7 +192,7 @@ extrair (ver a grade dos três calendários e o barrel `lib/db.ts`).
 PDF assinado, e-mail transacional e termo de presença são **documentos**, não
 saída de função. Antes de tocar em qualquer um:
 
-1. rode o harness (`export-pdf-goldens`, `email-templates`) e confirme verde;
+1. rode o harness (`pdf-goldens`, `email-templates`) e confirme verde;
 2. refatore;
 3. confirme que **não mudou um byte**.
 

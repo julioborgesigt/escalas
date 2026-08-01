@@ -28,8 +28,11 @@ import {
 	LOGIN_WINDOW_MINUTES,
 	cookieOptions,
 	type AdminModulo
-} from '$lib/server/auth-flow';
-import { contarRecoveryAttempts, registrarRecoveryAttempt } from '$lib/server/recovery-rate-limit';
+} from '$lib/server/auth/auth-flow';
+import {
+	contarRecoveryAttempts,
+	registrarRecoveryAttempt
+} from '$lib/server/auth/recovery-rate-limit';
 import { administradores, policiais } from '$lib/server/schema';
 import { loginSchema } from '$lib/schemas';
 import { resolverAppOrigin } from '$lib/server/app-origin';

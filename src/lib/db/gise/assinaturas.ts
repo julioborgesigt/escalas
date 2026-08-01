@@ -15,7 +15,7 @@ import { eq, and, desc, sql } from 'drizzle-orm';
 import { giseAssinaturasRelatorios, gisePresencaTermos, policiais } from '../../server/schema';
 import type { Database } from '../core';
 import { anonimizarIp } from '../audit';
-import { parseUserAgent, reduzirPrecisaoGps } from '../../server/document-utils';
+import { parseUserAgent, reduzirPrecisaoGps } from '../../server/assinatura/document-utils';
 import { cifrarCpfParaArmazenar, type CpfCriptoEnv } from '../../crypto/cpf-cripto';
 
 /** Todas as assinaturas de relatório da GISE, sem filtro de seccional ou tipo. */

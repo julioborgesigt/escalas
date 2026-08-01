@@ -14,7 +14,7 @@
 import { fail, redirect } from '@sveltejs/kit';
 import { getDB, listarUnidades, auditar, contextoDeEvento } from '$lib/db';
 import { policiais as policiaisTable } from '$lib/server/schema';
-import { limparMatricula, normalizarTexto } from '$lib/utils';
+import { limparMatricula, normalizarTexto } from '$lib/utils/formato';
 import { gerarSenhaAleatoriaHash, isAdminGeral } from '$lib/auth';
 import type { PageServerLoad, Actions } from './$types';
 

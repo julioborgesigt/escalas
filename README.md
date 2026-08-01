@@ -392,11 +392,22 @@ escalas/
 │   │   │   ├── useCharts.svelte.ts             # Integração Chart.js
 │   │   │   └── ...
 │   │   ├── server/                 # Backend puro — nunca importar no cliente
+│   │   │   │                       # Raiz = infra transversal; subpastas = domínio
 │   │   │   ├── schema.ts           # Schema Drizzle (fonte de verdade do banco)
-│   │   │   ├── pdf-signing.ts      # Geração e assinatura de PDFs
-│   │   │   ├── pdf-verification.ts # Validação de assinaturas (OCSP, CAdES)
-│   │   │   ├── icp-brasil/         # Trust store ICP-Brasil
+│   │   │   ├── api.ts              # Helpers de erro da API (ErrorCode, requireAuth…)
 │   │   │   ├── email.ts            # Envio de e-mail (binding EMAIL / Resend)
+│   │   │   ├── logger.ts           # Logger com contexto de request + persistência
+│   │   │   ├── r2-cleanup.ts       # Limpeza de objetos no R2
+│   │   │   ├── policial-permissao.ts  # Escopo administrativo sobre o cadastro
+│   │   │   ├── assinatura/         # Assinatura digital: PAdES/CAdES, OCSP, TSA, selo
+│   │   │   │   ├── pdf-signing.ts      # Geração e assinatura de PDFs
+│   │   │   │   ├── pdf-verification.ts # Validação de assinaturas (OCSP, CAdES)
+│   │   │   │   ├── icp-brasil/         # Trust store ICP-Brasil
+│   │   │   │   └── ...
+│   │   │   ├── auth/               # Login, certificado A3, sessão, CSRF, webhooks
+│   │   │   ├── escalas/            # Regras de escala: conflito, exclusão, permissão
+│   │   │   ├── gise/               # Regras GISE: permissão, papéis, termo de presença
+│   │   │   ├── export/             # Geração de PDF/XLSX/DOCX
 │   │   │   ├── termo/              # Conteúdo e hash do termo de uso vigente
 │   │   │   └── ...
 │   │   ├── db/                     # Camada de acesso ao banco (queries tipadas)
@@ -415,8 +426,13 @@ escalas/
 │   │   ├── csrf.ts                 # Helpers CSRF (cliente)
 │   │   ├── loading.svelte.ts       # Estado global de loading
 │   │   ├── toast.ts                # Sistema de toasts
-│   │   ├── logger.ts               # Logger estruturado
-│   │   └── utils.ts                # Utilitários genéricos
+│   │   ├── utils/                  # Utilidades puras (sem barrel — importe o módulo)
+│   │   │   ├── datas.ts            # Datas/calendário BR (ISO YYYY-MM-DD, fuso)
+│   │   │   ├── formato.ts          # Máscaras de entrada (CPF, telefone, NUP)
+│   │   │   ├── pii.ts              # Mascaramento de dado pessoal para exibição
+│   │   │   ├── download.ts         # Download de blob no navegador
+│   │   │   └── localStorage.ts     # Acesso seguro ao localStorage
+│   │   └── logger.ts               # Logger estruturado
 │   ├── hooks.server.ts             # Middleware global (CSRF, auth, headers de segurança)
 │   ├── app.d.ts                    # Tipos globais (bindings CF, App.Locals)
 │   ├── app.css                     # Estilos globais
@@ -604,7 +620,7 @@ export function useContador(inicial = 0) {
 ### Constantes e snippets compartilhados
 
 Antes de declarar uma constante "óbvia" no componente, verifique se ela já existe
-em [`src/lib/utils.ts`](src/lib/utils.ts):
+em [`src/lib/utils/datas.ts`](src/lib/utils/datas.ts):
 
 - `MESES_PT` — nomes dos meses, índice 0 = Janeiro (base de `Date.getMonth()`;
   para mês 1-12 do banco/URL use `MESES_PT[mes - 1]`);
@@ -617,7 +633,7 @@ Snippets de UI repetidos entre componentes irmãos vão para um `.svelte` própr
 são **exportados pelo `<script module>`** — só funciona se o snippet não
 referenciar nada do `<script>` de instância, então os imports de que ele depende
 também ficam no bloco `module` ([docs](https://svelte.dev/docs/svelte/snippet)).
-Exemplo: [`src/routes/res-gise/BotoesAcao.svelte`](src/routes/res-gise/BotoesAcao.svelte).
+Exemplo: [`src/routes/res-gise/_components/BotoesAcao.svelte`](src/routes/res-gise/_components/BotoesAcao.svelte).
 
 ### SvelteKit — Server-first
 
@@ -691,11 +707,33 @@ Regras estabelecidas na auditoria visual de jul/2026 (`AUDITORIA_VISUAL_UX_2026-
 
 **Botões (semântica dos presets)** — CTA `preset-filled-primary-500` · destrutivo `preset-filled-error-500` · cancelar/neutro `preset-outlined-surface-500`. O feedback tátil de clique (afundar 5% pressionado) é **global e automático** para `.btn`/`.btn-icon` (regra em `app.css`) — não adicionar `active:scale-95` inline; use-o apenas em elementos interativos custom fora dessas classes.
 
+**Tamanho de botão** — `.btn-sm` do tema NÃO embute padding vertical: sem `py-*` o botão fica em ~24px de altura. A escala em uso é `py-1.5` (~34px, botões de navegação como o Voltar), `py-2.5` (~40px, CTA de modal/formulário) e `py-3.5` (~48px, ação final de página). Nada de `py-4 text-lg`, que produz um bloco de ~64px destoante do resto da tela.
+
+**Voltar** — usar `$lib/components/BotaoVoltar.svelte`, sempre **acima do `<h1>`**, nunca no rodapé. `href` para mudar de rota, `onclick` para desfazer estado local. Não repetir a palavra "Voltar" em outro controle da mesma tela (o passo anterior de um wizard é "Anterior") — duas coisas diferentes com o mesmo rótulo trocam de lugar na cabeça de quem usa.
+
+**Estado de tarefa (marcador)** — o mesmo lugar mostra os dois estados: `Check` em círculo `bg-success-500` cumprida, `Clock` em círculo `bg-warning-500` pendente. Não usar ponto cinza para "falta fazer" (lê-se como "desligado"), e não variar a cor de concluído por tipo de tarefa — na mesma linha, um quadro verde e outro cinza parecem estados diferentes quando são o mesmo.
+
 **Border-radius** — o tema define `--radius-base` (= `rounded-xl`, botões/inputs) e `--radius-container` (= `rounded-2xl`, cards/modais); pills/chips usam `rounded-full`. Em código novo, não usar `rounded`/`rounded-md`; reservar `rounded-lg` para elementos ≤ 32 px de altura.
 
 **Z-index (escala)** — `z-10` elementos locais · `z-40` topbar mobile + backdrop da sidebar · `z-50` sidebar e modais · `z-[60]`/`z-[70]` modal sobre modal · `z-[100]` diálogos globais (logout, avisos) · `9999` toasts · `10000` LoadingOverlay e barra de progresso de navegação. Não inventar valores fora da escala.
 
 **Breakpoints** — `xs:` (400 px, definido no `@theme`) para telefones estreitos; demais são os padrões do Tailwind. Exceção documentada: o corte da sidebar no `+layout.svelte` é `min-[900px]` (deliberado — não migrar para `lg:`).
+
+**Largura de conteúdo** — páginas usam o container do layout (`max-w-6xl`); telas de detalhe não travam largura. Quando uma página precisa ser mais estreita, a trava envolve **a página toda, `<header>` incluído** (`config-geral` = `max-w-3xl`, `solicitacoes` = `max-w-5xl`) — travar só um bloco do meio desalinha o card do título. Dentro de um card largo, o certo é o inverso: o conteúdo que ganha com a largura (formulário, tabela) fica solto, e só os elementos intrinsecamente estreitos — stepper, CTA, estado vazio, selo de status — recebem teto.
+
+**Container queries** — quando o layout de um bloco depende do espaço que sobra **para ele** (e não do tamanho da tela), use `@container` no ancestral e as variantes `@2xl:`/`@4xl:` nos filhos, em vez de `sm:`/`lg:`. Cuidado: `container-type: inline-size` implica `contain: layout`, ou seja o elemento passa a ser containing block de descendentes `position: fixed` — nunca colocar `@container` acima de um `Dialog`/overlay, ou o modal fica preso dentro do card.
+
+**Tarefa longa vira modal — formulário longo vira rota** — quando uma tela tem passos sequenciais (confirmar presença → entregar relatório → confirmar saída), a página mostra o **estado** (barra de progresso + um quadro compacto por passo, lado a lado na ordem de execução) e cada passo abre um modal com o seu formulário. Ver `res-gise/_components/FormularioServico.svelte`. Empilhar os passos como seções do mesmo card foi o que gerou faixas de ~1050px com o conteúdo perdido no meio no desktop.
+
+O modal é para o passo que cabe em uma tela. Passando disso — o relatório de produtividade tem 19 perguntas de nível 0 mais os filhos condicionais — o passo vira **rota própria com wizard**: `res-gise/relatorio/[giseId]`. Uma etapa por tela, navegador de etapas (`lg:` coluna lateral `sticky`, no celular faixa rolável — a MESMA `<ol>`, com `lg:flex-col`), coluna de conteúdo em `max-w-3xl` e rodapé `sticky` com Voltar/Avançar. Rota, e não modal, porque o preenchimento tem endereço, sobrevive a um reload e admite rascunho.
+
+**Rascunho local (autosave)** — formulário longo grava o blob no `localStorage` a cada pausa de digitação (debounce 800 ms), com chave por (registro, dono). Restaurar exige uma regra explícita: aplique sozinho **só quando não há nada no servidor**; havendo, o servidor manda e o rascunho vira uma oferta com botão. Nunca decida por comparação de relógios — os carimbos do banco são hora local em texto e o do navegador é do aparelho. Limpe o rascunho ao entregar **e** trave o autosave nesse instante, senão um timer pendente regrava o que acabou de ser apagado.
+
+**Reordenar lista onde a posição é informação** — arraste (HTML5 DnD com alça: a alça liga o `draggable` no `mousedown`, senão não dá para selecionar texto nos campos do card) **mais** setas ↑/↓, que são o único caminho no toque e no teclado. Arraste sozinho é inacessível. E se a ordem aparece escrita no conteúdo (o "4." dentro do texto da pergunta), reordenar tem de reescrever esse conteúdo — ver `$lib/gise/renumerar-perguntas.ts`; um badge derivado de `indexOf` se acerta sozinho e esconde o problema.
+
+**Tipos de pergunta do formulário de produtividade** — a tabela é `$lib/gise/tipos-pergunta.ts`: quais tipos abrem listagem, quais aceitam sub-pergunta e **onde cada um grava no blob**. Mexer em tipo de pergunta começa por lá, nunca pelos componentes. Os tipos originais (`prisoes_maiores`, `mandados_maiores`…) gravam em **chave fixa** e por isso só funcionam **uma vez** no formulário — duas perguntas do mesmo tipo escrevem uma por cima da outra. Para um campo repetível existe `lista_detalhada`, que deriva as chaves da `key` da pergunta. Ao acrescentar um tipo, a expansão em `db/gise/respostas.ts` é obrigatória no mesmo passo: sem ela o policial preenche, o dado é gravado e **some do PDF assinado sem erro nenhum**.
+
+**A URL manda na seleção** — se uma tela escreve o item selecionado na query string (`?giseId=`), ela precisa **ler de volta**, senão recarregar ou voltar de outra rota cai na lista com a URL apontando para um item que não está na tela. O efeito que faz isso escreve o mesmo estado que lê: a guarda de igualdade é o que faz a segunda passada parar.
 
 **Ícones** — código novo usa [`lucide-svelte`](https://lucide.dev) (já é dependência; herda `currentColor`). **Nunca emoji como ícone** (✍️ ✅ 🔒…): renderizam diferente por SO e ignoram a cor do tema. O SVG inline legado migra oportunisticamente ao tocar no arquivo.
 
@@ -716,11 +754,19 @@ npm run test          # Executa uma vez
 npm run test:watch    # Watch mode (recomendado durante desenvolvimento)
 ```
 
-Arquivos de teste ficam em `src/` com o padrão `*.test.ts`, distribuídos em pastas `__tests__/` junto do código testado (60 arquivos, 617 testes). Os principais grupos:
+Arquivos de teste ficam em `src/` com o padrão `*.test.ts`, **sempre** em pastas `__tests__/` junto do código testado (65 arquivos, 680 testes) — convenção verificada no CI. Os principais grupos:
 
 - `src/lib/__tests__/` — autenticação (PBKDF2/pepper, sessões, 2FA), CSRF, headers de segurança, utilitários
-- `src/lib/server/__tests__/` — fluxo de login, assinatura (CAdES, OCSP, TSA, trust store), permissões, webhooks, Sentry/PII
-- `src/lib/schemas/__tests__/` — schemas Zod (LGPD, formulários)
+- `src/lib/schemas/__tests__/` — schemas Zod (LGPD, formulários GISE)
+- `src/lib/gise/__tests__/` — regras GISE puras: etapas do formulário, renumeração, tipos de pergunta
+- `src/lib/crypto/__tests__/` — criptografia de campos e CPF
+- `src/lib/db/__tests__/` — camada de dados: auditoria forense, retenção LGPD, upserts de assinatura
+- `src/lib/server/__tests__/` — infraestrutura transversal: e-mail, `r2-cleanup`, `request-context`, Sentry/PII, schema × migrações
+- `src/lib/server/assinatura/__tests__/` — CAdES, OCSP, TSA, trust store ICP-Brasil, ByteRange, verificação
+- `src/lib/server/auth/__tests__/` — fluxo de login, login por certificado (e revogação), webhooks
+- `src/lib/server/gise/__tests__/` — permissões GISE, termo de presença
+- `src/lib/server/export/__tests__/` — goldens de PDF
+- `src/lib/server/escalas/__tests__/` — permissões de escala
 
 ### Testes E2E (Playwright)
 

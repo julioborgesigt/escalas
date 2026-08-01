@@ -12,7 +12,7 @@
 	 * um botão não impede nada — as actions revalidam no servidor.
 	 *
 	 * `statusLabel`/`statusColor` chegam por prop, vindos de
-	 * `$lib/gise/gise-formatters`, para que o mesmo status tenha o mesmo rótulo
+	 * `$lib/gise/formatters`, para que o mesmo status tenha o mesmo rótulo
 	 * e a mesma cor no cabeçalho, na listagem e no histórico.
 	 */
 	import { goto } from '$app/navigation';
@@ -20,6 +20,7 @@
 	import type { SubmitFunction } from '@sveltejs/kit';
 	import { loading } from '$lib/loading.svelte';
 	import IconTooltip from '$lib/components/IconTooltip.svelte';
+	import BotaoVoltar from '$lib/components/BotaoVoltar.svelte';
 
 	interface Gise {
 		id: number;
@@ -102,26 +103,7 @@
 	class="flex flex-col gap-4 border-b border-surface-200/70 pb-5 dark:border-surface-700/60 xl:flex-row xl:items-start xl:justify-between xl:gap-6"
 >
 	<div class="min-w-0 flex-1 space-y-3">
-		<button
-			type="button"
-			class="btn btn-sm preset-outlined-surface-500 hover:bg-surface-50 dark:hover:bg-surface-900 px-3 py-1.5 rounded-xl transition-all flex w-fit max-w-full items-center gap-2 group"
-			onclick={() => goto('/gise')}
-		>
-			<svg
-				class="w-4 h-4 shrink-0 transition-transform group-hover:-translate-x-1"
-				fill="none"
-				stroke="currentColor"
-				viewBox="0 0 24 24"
-			>
-				<path
-					stroke-linecap="round"
-					stroke-linejoin="round"
-					stroke-width="2.5"
-					d="M10 19l-7-7m0 0l7-7m-7 7h18"
-				/>
-			</svg>
-			<span class="text-sm font-bold uppercase tracking-wider">Voltar</span>
-		</button>
+		<BotaoVoltar onclick={() => goto('/gise')} />
 
 		<h1
 			class="break-words font-bold leading-tight text-surface-900 dark:text-surface-50 text-xl sm:text-2xl xl:text-3xl"

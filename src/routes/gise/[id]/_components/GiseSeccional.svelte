@@ -25,8 +25,8 @@
 	import type { Unidade, GiseAssinaturaRelatorio } from '$lib/server/schema';
 	import ModalRemoverSeccional from './modais/ModalRemoverSeccional.svelte';
 	import { useGiseSeccionalActions } from '$lib/composables/gise';
-	import { getSeccionalColorClass } from '$lib/gise/gise-page-helpers';
-	import { validarHora, normalizarHora } from '$lib/gise/gise-horarios';
+	import { getSeccionalColorClass } from '$lib/gise/page-helpers';
+	import { validarHora, normalizarHora } from '$lib/gise/horarios';
 	import { GiseSeccionalEstado } from './gise-seccional-estado.svelte';
 	import GiseActionButton from './GiseActionButton.svelte';
 	import SeccionalRelatoriosDownloads from './SeccionalRelatoriosDownloads.svelte';

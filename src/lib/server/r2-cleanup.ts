@@ -30,7 +30,7 @@ import {
 	giseAssinaturasRelatorios,
 	gisePresencaTermos
 } from './schema';
-import { chaveConferencia } from './copia-conferencia';
+import { chaveConferencia } from './assinatura/copia-conferencia';
 import { logger } from './logger';
 import type { Database } from '$lib/db';
 

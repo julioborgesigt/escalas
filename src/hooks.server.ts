@@ -33,12 +33,12 @@ import {
 	lerSessaoCache,
 	gravarSessaoCache,
 	resolverTtlCacheSessao
-} from '$lib/server/session-cache';
+} from '$lib/server/auth/session-cache';
 import { VERSAO as TERMO_VERSAO, calcularHashTermo } from '$lib/server/termo/termo-vigente';
 import { logger } from '$lib/server/logger';
 import { requestStore, getRequestCtx, type RequestCtx } from '$lib/server/request-context';
 import { registrarAppLogs } from '$lib/db/app-logs';
-import { CSRF_COOKIE_NAME, CSRF_HEADER_NAME, generateCsrfToken } from '$lib/server/csrf';
+import { CSRF_COOKIE_NAME, CSRF_HEADER_NAME, generateCsrfToken } from '$lib/server/auth/csrf';
 import { buildCSP } from '$lib/server/csp';
 import { withSentryRequest } from '$lib/server/sentry';
 import { apiError, ErrorCode } from '$lib/server/api';

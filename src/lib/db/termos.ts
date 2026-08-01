@@ -10,7 +10,7 @@ import { aceitesTermos } from '../server/schema';
 import type { AceiteTermo } from '../server/schema';
 import type { Database } from './core';
 import { anonimizarIp } from './audit';
-import { parseUserAgent } from '../server/document-utils';
+import { parseUserAgent } from '../server/assinatura/document-utils';
 
 interface RegistrarAceiteInput {
 	usuario_tipo: 'policial' | 'admin';

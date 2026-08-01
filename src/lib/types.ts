@@ -16,6 +16,17 @@ export interface GiseModeloPerguntaConfig {
 	tipo: string;
 	key: string;
 	obrigatoria?: boolean;
+	/**
+	 * Nome da etapa do formulário em que a pergunta aparece (o wizard de
+	 * `/res-gise/relatorio` agrupa por este valor, na ordem da primeira
+	 * ocorrência). Só vale em perguntas de NÍVEL 0 — filhos herdam a etapa do
+	 * pai, porque separá-los dele quebraria o gate "só aparece sob um Sim".
+	 *
+	 * Opcional de propósito: modelo antigo (sem o campo) e pergunta nova criada
+	 * pelo editor caem numa etapa única, e o formulário vira página só. É o que
+	 * mantém a mudança retrocompatível com os modelos já salvos no banco.
+	 */
+	etapa?: string;
 	filhos?: GiseModeloPerguntaConfig[];
 	subtexto_qtd?: string;
 	subtexto_lista?: string;
@@ -73,7 +84,6 @@ export type ResGisePageData = {
 	isSupervisaoGise?: boolean;
 	/** ID da unidade sintética usada em assinaturas do relatório de extra da supervisão. */
 	supervisaoExtraUnidadeId: number | null;
-	respostas: Record<string, unknown>;
 	/** Carimbo do 1º envio da resposta de produtividade (local, "YYYY-MM-DD HH:MM:SS") ou null. */
 	respostaEnviadaEm?: string | null;
 	/** Carimbo da última retificação da resposta de produtividade ou null. */
@@ -83,8 +93,11 @@ export type ResGisePageData = {
 	minhaRubrica?: string | null;
 	modeloOperacional: GiseModeloPerguntaConfig[];
 	modeloSeint: GiseModeloPerguntaConfig[];
-	modeloPadraoOperacional: GiseModeloPerguntaConfig[];
-	modeloPadraoSeint: GiseModeloPerguntaConfig[];
+	/** Versão salva ANTES da última alteração de cada modelo — alimenta o
+	 *  "Restaurar Anterior" do editor do Admin Geral. `null` enquanto só houve
+	 *  a primeira gravação (coluna `config_anterior`, migração 0039). */
+	modeloAnteriorOperacional: GiseModeloPerguntaConfig[] | null;
+	modeloAnteriorSeint: GiseModeloPerguntaConfig[] | null;
 };
 
 export type ResGiseEscalaSelecionavel = ResGiseMinhaEscalaLinha | ResGiseListaAdminLinha;

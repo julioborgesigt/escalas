@@ -17,7 +17,7 @@
 	 * no meio de uma assinatura.
 	 */
 	import type { PageProps } from './$types';
-	import { actionButton } from './BotoesAcao.svelte';
+	import { actionButton } from './_components/BotoesAcao.svelte';
 	import { goto } from '$app/navigation';
 	import { page, navigating } from '$app/state';
 	import SkeletonCard from '$lib/components/SkeletonCard.svelte';
@@ -26,10 +26,10 @@
 	import { Dialog, Tabs } from '@skeletonlabs/skeleton-svelte';
 	import SignaturePad from '$lib/components/SignaturePad.svelte';
 	import ModalCadastrarRubrica from '$lib/components/ModalCadastrarRubrica.svelte';
-	import { useResGise } from './useResGise.svelte';
+	import { useResGise } from './_components/useResGise.svelte';
 	import { loading } from '$lib/loading.svelte';
-	import ConfigurarFormulario from './ConfigurarFormulario.svelte';
-	import FormularioServico from './FormularioServico.svelte';
+	import ConfigurarFormulario from './_components/ConfigurarFormulario.svelte';
+	import FormularioServico from './_components/FormularioServico.svelte';
 	import { toaster } from '$lib/toast';
 
 	const { data }: PageProps = $props();
@@ -60,8 +60,34 @@
 	// Derivado gravável: espelha o load, mas admite o set local pós-cadastro.
 	let minhaRubrica: string | null = $derived(rubricaValida(data.minhaRubrica));
 
+	/**
+	 * A URL manda na seleção. `selecionarEscala` já ESCREVIA `?giseId=&equipeId=`,
+	 * mas ninguém lia de volta: recarregar a página — ou voltar do wizard do
+	 * relatório — caía na lista com a URL apontando para uma escala que a tela não
+	 * mostrava. Aqui os dois sentidos existem, então a rota é de fato endereçável.
+	 *
+	 * O efeito escreve o mesmo estado que lê; a guarda de igualdade é o que faz a
+	 * segunda passada parar. E é ela também que preserva o objeto local depois de
+	 * um `invalidateAll` — quem re-sincroniza com o dado fresco é
+	 * `sincronizarPresencaAtual`, que sabe o que fazer quando a escala SAI da lista.
+	 */
+	$effect(() => {
+		const idUrl = Number(page.url.searchParams.get('giseId')) || 0;
+		if (!idUrl) {
+			if (resGise.escalaSelecionada) resGise.escalaSelecionada = null;
+			return;
+		}
+		const equipeUrl = Number(page.url.searchParams.get('equipeId')) || 0;
+		const atual = resGise.escalaSelecionada;
+		if (atual?.id === idUrl && (!equipeUrl || atual.equipe_id === equipeUrl)) return;
+		const alvo = data.minhasEscalas?.find(
+			(e) => e.id === idUrl && (!equipeUrl || e.equipe_id === equipeUrl)
+		);
+		if (alvo) resGise.escalaSelecionada = alvo;
+	});
+
 	function voltarParaLista() {
-		resGise.escalaSelecionada = null;
+		// Só mexe na URL: o efeito acima é quem tira a seleção.
 		// eslint-disable-next-line svelte/prefer-svelte-reactivity
 		const params = new URLSearchParams(page.url.searchParams);
 		params.delete('giseId');
@@ -91,13 +117,7 @@
 	<title>Relatórios GISE - Portal de Escalas</title>
 </svelte:head>
 
-<!-- A largura de leitura trava a PÁGINA INTEIRA, header incluído — mesmo padrão
-     de `config-geral` e `solicitacoes`. Antes ela vivia só no painel do
-     formulário (`max-w-2xl mx-auto`), o que deixava o card ~225px à direita do
-     título e fazia a página encolher ao selecionar uma escala. Se precisar
-     mudar, mude AQUI: uma trava aplicada painel a painel traz os dois defeitos
-     de volta. -->
-<div class="max-w-3xl mx-auto space-y-6">
+<div class="space-y-6">
 	<header class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 sm:mb-8">
 		<div>
 			<h1 class="h1 text-2xl font-bold">Relatórios GISE</h1>
@@ -110,8 +130,8 @@
 	{#if isAdminGeral}
 		<ConfigurarFormulario
 			{resGise}
-			modeloPadraoOperacional={data.modeloPadraoOperacional}
-			modeloPadraoSeint={data.modeloPadraoSeint}
+			modeloAnteriorOperacional={data.modeloAnteriorOperacional}
+			modeloAnteriorSeint={data.modeloAnteriorSeint}
 		/>
 	{:else}
 		<!-- Slide lateral: container oculta o painel fora de tela -->
@@ -226,9 +246,8 @@
 										: 'border-surface-200 dark:border-surface-800 bg-surface-50 dark:bg-surface-900 hover:border-primary-500/50'} {estaCarregando
 										? 'opacity-60'
 										: ''}"
-									onclick={() => resGise.selecionarEscala(escala, isAdminGeral)}
-									onkeydown={(e) =>
-										e.key === 'Enter' && resGise.selecionarEscala(escala, isAdminGeral)}
+									onclick={() => resGise.selecionarEscala(escala)}
+									onkeydown={(e) => e.key === 'Enter' && resGise.selecionarEscala(escala)}
 								>
 									<div class="flex items-center justify-between">
 										<p class="text-sm font-bold text-surface-900 dark:text-surface-100">
@@ -332,8 +351,12 @@
 				</div>
 
 				<!-- Panel 2: Formulário de Serviço -->
-				<!-- `px-2` igual ao do painel 1: qualquer diferença faz o card saltar
-				     na horizontal durante o slide entre lista e formulário. -->
+				<!-- Largura cheia do container, igual ao painel 1 e às demais telas de
+				     detalhe. `px-2` idêntico ao do painel 1: qualquer diferença faz o
+				     card saltar na horizontal durante o slide. Quem precisa de coluna
+				     estreita (stepper, CTAs, estados vazios) trava por dentro, no
+				     `FormularioServico` — não aqui, senão o formulário de
+				     produtividade perde a largura de que os grids dele precisam. -->
 				<div class="min-w-0 px-2" style="width: 50%;">
 					<div class="space-y-4">
 						<button

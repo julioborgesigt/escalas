@@ -10,9 +10,9 @@ import { getDB, buscarGiseEscala } from '$lib/db';
 import * as schema from '$lib/server/schema';
 import { eq } from 'drizzle-orm';
 import { requireAuth, badRequest, notFound, forbidden } from '$lib/server/api';
-import { verificarPermissaoGise } from '$lib/server/gise-permissao';
-import { podeBaixarForense } from '$lib/server/copia-conferencia';
-import { mascararCPF } from '$lib/utils';
+import { verificarPermissaoGise } from '$lib/server/gise/permissao';
+import { podeBaixarForense } from '$lib/server/assinatura/copia-conferencia';
+import { mascararCPF } from '$lib/utils/pii';
 import { decifrarCpfDoDB } from '$lib/crypto/cpf-cripto';
 
 export const GET: RequestHandler = async ({ params, locals, platform }) => {

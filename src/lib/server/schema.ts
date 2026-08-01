@@ -452,6 +452,10 @@ export const giseModeloFormulario = sqliteTable(
 		id: integer('id').primaryKey({ autoIncrement: true }),
 		tipo: text('tipo').notNull().default('operacional'),
 		config: text('config').notNull().default('[]'),
+		/** Versão anterior do `config` — um nível de desfazer para o editor do
+		 *  Admin Geral ("Restaurar anterior"). `null` enquanto só houve a
+		 *  primeira gravação. Ver migração 0039. */
+		config_anterior: text('config_anterior'),
 		updated_at: text('updated_at')
 			.notNull()
 			.default(sql`(datetime('now', '-3 hours'))`)

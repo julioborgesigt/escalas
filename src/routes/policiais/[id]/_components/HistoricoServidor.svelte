@@ -17,7 +17,7 @@
 	 * deixaria o usuário numa página vazia.
 	 */
 	import type { PolicialHistorico } from '$lib/types';
-	import { formatarData } from '$lib/utils';
+	import { formatarData } from '$lib/utils/datas';
 	import { LABEL_SUBTIPO_AFASTAMENTO } from '$lib/schemas/policial-historico';
 	import {
 		ArrowRightLeft,

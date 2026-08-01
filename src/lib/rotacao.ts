@@ -8,7 +8,7 @@
  *   Exemplo: dias 1, 2, 9, 10, 17, 18, 25, 26
  */
 
-import { adicionarDias, isoData, diasNoMes } from './utils';
+import { adicionarDias, isoData, diasNoMes } from './utils/datas';
 
 export const MESES_PT = [
 	'JANEIRO',
@@ -174,7 +174,7 @@ export function ultimoDiaDoMes(ano: number, mes: number): string {
 
 // Implementação única em $lib/utils (achado D1 do antigo ARQUIVOS.md — ver docs/HISTORICO.md); re-export
 // preserva os imports existentes `from '$lib/rotacao'`.
-export { calcularDataSaida } from './utils';
+export { calcularDataSaida } from './utils/datas';
 
 /** Dias de plantão de um policial, agrupados para o cálculo de rotação. */
 interface DiasPorPolicial {

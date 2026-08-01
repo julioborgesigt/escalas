@@ -8,7 +8,7 @@ import {
 	contextoDeEvento
 } from '$lib/db';
 import { criarSessao, excluirSessao, obterRotaBemVindo, type UsuarioLogado } from '$lib/auth';
-import { cookieOptions } from '$lib/server/auth-flow';
+import { cookieOptions } from '$lib/server/auth/auth-flow';
 import { requireAuth, forbidden, conflict } from '$lib/server/api';
 
 /**

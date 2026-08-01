@@ -20,7 +20,7 @@
 	import { slide, fly } from 'svelte/transition';
 	import { page, navigating } from '$app/state';
 	import type { EscalaListagem } from '$lib/types';
-	import { formatarData, MESES_PT } from '$lib/utils';
+	import { formatarData, MESES_PT } from '$lib/utils/datas';
 	import SkeletonCard from '$lib/components/SkeletonCard.svelte';
 	import PaginationControls from '$lib/components/PaginationControls.svelte';
 	import IconTooltip from '$lib/components/IconTooltip.svelte';

@@ -404,6 +404,42 @@ Verificar cada transição de status:
 - [ ] Formulários de produtividade preenchidos exibidos corretamente
 - [ ] Sem GISE atribuída → estado vazio com mensagem
 
+### 13.1 Wizard do relatório (`/res-gise/relatorio/[giseId]`)
+
+> O gate de entrada, a navegação entre etapas, o autosave e o envio têm
+> cobertura E2E. Manual: o rascunho em condições que o navegador headless não
+> reproduz.
+
+- [ ] Preencher metade, **fechar a aba** e reabrir a rota → rascunho restaurado com o horário
+- [ ] Aba anônima / `localStorage` cheio → o formulário continua funcionando (sem rascunho, sem erro)
+- [ ] Dois policiais da mesma equipe no mesmo aparelho → cada um vê o próprio rascunho
+- [ ] Colega entrega o relatório enquanto você tem rascunho → banner de oferta, e "Descartar" some com ele
+- [ ] Admin Geral define etapas no editor → o wizard abre exatamente nesses grupos, na mesma ordem
+- [ ] Modelo antigo (nenhuma pergunta com etapa) → uma etapa só, sem navegador
+- [ ] Celular: o navegador mostra só a etapa anterior (esquerda) e a atual (direita); na 1ª etapa, só a atual, encostada à direita
+
+### 13.2 Reordenar perguntas no editor
+
+> Arraste, setas e renumeração têm cobertura automatizada
+> (`e2e/reordenar-perguntas.spec.ts` + `lib/gise/renumerar-perguntas.test`).
+> Manual: o que depende de aparelho real.
+
+- [ ] Celular/tablet: as setas ↑/↓ movem (o arraste HTML5 não funciona no toque — é esperado)
+- [ ] Arrastar um card sobre outro no desktop → destaque no destino e a ordem troca ao soltar
+- [ ] Selecionar texto dentro do card **não** inicia arraste (só a alça inicia)
+- [ ] Reordenar e **não salvar** → sair da tela desfaz tudo, inclusive a renumeração
+- [ ] Pergunta cujo texto não começa com número ("Quantos?") → continua sem número após reordenar
+
+### 13.3 Tipo "Quantidade + Lista Nome/Procedimento" (`lista_detalhada`)
+
+> Escrita e expansão têm cobertura automatizada
+> (`e2e/lista-reutilizavel.spec.ts` + `db/__tests__/produtividade-lista-reutilizavel`).
+> Manual: o que só o PDF mostra.
+
+- [ ] Duas perguntas do tipo, ambas preenchidas → **baixar o PDF de produtividade** e conferir que cada uma lista os SEUS itens
+- [ ] Mesma conferência com um tipo original (ex.: "Prisões Maiores") junto na tela — as listas não podem se cruzar
+- [ ] Trocar o tipo de uma pergunta já respondida → o detalhe antigo some do relatório (é esperado: a chave mudou)
+
 ---
 
 ## 14. Documentos Recebidos (`/recebidos`)

@@ -7,7 +7,7 @@ import {
 	calcularHashTermo
 } from '$lib/server/termo/termo-vigente';
 import { sanitizeTermoHtml } from '$lib/server/termo/sanitize';
-import { invalidarSessaoCache } from '$lib/server/session-cache';
+import { invalidarSessaoCache } from '$lib/server/auth/session-cache';
 import { obterRotaBemVindo } from '$lib/auth';
 import type { Actions, PageServerLoad } from './$types';
 
