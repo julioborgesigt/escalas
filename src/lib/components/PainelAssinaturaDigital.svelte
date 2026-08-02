@@ -86,6 +86,9 @@
 		getParams: () => ({ escalaId, isFDS, policiaisCount, usuario }),
 		onDocumentoAssinado: (info) => {
 			documentoAssinadoInfo = info as DocumentoAssinadoInfo | null;
+			// Paridade com o fluxo token (`invalidateAll`): a lista `/escalas`
+			// (`depends('app:escalas')`) e demais loads ativos revalidam sem F5.
+			void invalidateAll();
 		}
 	});
 
@@ -486,6 +489,9 @@
 	onConfirmado={(solicitacao) => {
 		solicitacaoLocal = solicitacao;
 		onSolicitacaoEnviada?.();
+		// Mesma razão do cancelar/assinar token: lista de pendências do DPC
+		// precisa sair do estado stale sem F5.
+		void invalidateAll();
 	}}
 />
 

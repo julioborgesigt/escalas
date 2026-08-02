@@ -7,6 +7,7 @@ import { loading } from '$lib/loading.svelte';
 import { page } from '$app/state';
 import { goto, invalidateAll } from '$app/navigation';
 import type { ActionResult } from '@sveltejs/kit';
+import { csrfHeaders } from '$lib/csrf';
 import type {
 	GiseModeloPerguntaConfig,
 	ResGiseEscalaSelecionavel,
@@ -17,6 +18,31 @@ import type { SignaturePadConfirmPayload } from '$lib/components/SignaturePadTyp
 
 function messageFromUnknown(e: unknown): string {
 	return e instanceof Error ? e.message : String(e);
+}
+
+function erroDaAction(result: ActionResult, fallback: string): string {
+	if (result.type === 'failure') {
+		const data = result.data as { error?: string } | undefined;
+		if (data?.error) return data.error;
+	}
+	if (result.type === 'error' && result.error) {
+		return typeof result.error === 'string' ? result.error : fallback;
+	}
+	return fallback;
+}
+
+/** POST de form action do Kit (não use `apiFetch` — body é FormData). */
+async function postAction(nome: string, fd: FormData): Promise<ActionResult> {
+	const resp = await fetch(`?/${nome}`, {
+		method: 'POST',
+		headers: {
+			accept: 'application/json',
+			'x-sveltekit-action': 'true',
+			...csrfHeaders()
+		},
+		body: fd
+	});
+	return (await resp.json()) as ActionResult;
 }
 
 /** Filtro de escalas na URL (`?status=ativas|finalizadas`); admin não usa mais lista nesta rota. */
@@ -251,10 +277,10 @@ export function useResGise(getData: () => ResGisePageData) {
 			if (codigoEmail) fd.set('codigoEmail', codigoEmail);
 			if (desafioId) fd.set('desafioId', desafioId);
 
-			const resp = await fetch('?/salvarEntrada', { method: 'POST', body: fd });
-			const result = (await resp.json()) as Record<string, unknown> | undefined;
-
-			if (!resp.ok) throw new Error((result?.error as string) || 'Erro ao salvar entrada');
+			const result = await postAction('salvarEntrada', fd);
+			if (result.type !== 'success') {
+				throw new Error(erroDaAction(result, 'Erro ao salvar entrada'));
+			}
 
 			toaster.success({ title: 'Entrada confirmada com sucesso' });
 			capturandoRubrica = false;
@@ -320,10 +346,10 @@ export function useResGise(getData: () => ResGisePageData) {
 			if (codigoEmail) fd.set('codigoEmail', codigoEmail);
 			if (desafioId) fd.set('desafioId', desafioId);
 
-			const resp = await fetch('?/salvarSaida', { method: 'POST', body: fd });
-			const result = (await resp.json()) as Record<string, unknown> | undefined;
-
-			if (!resp.ok) throw new Error((result?.error as string) || 'Erro ao salvar saída');
+			const result = await postAction('salvarSaida', fd);
+			if (result.type !== 'success') {
+				throw new Error(erroDaAction(result, 'Erro ao salvar saída'));
+			}
 
 			toaster.success({ title: 'Saída confirmada com sucesso' });
 			capturandoRubrica = false;

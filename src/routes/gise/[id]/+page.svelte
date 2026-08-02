@@ -24,6 +24,9 @@
 	 * - a chave de invalidação é `'gise:detail'`, e não `invalidateAll()`: quase
 	 *   toda ação muda a árvore da GISE e precisa recarregá-la, mas recarregar o
 	 *   layout inteiro a cada clique piscava a sidebar;
+	 * - `useInvalidateOnFocus('gise:detail')` cobre o gap cross-user leve
+	 *   (outra sessão preenche presença/relatório/assinatura): refetch ao
+	 *   voltar à aba + poll silencioso, sem WebSocket;
 	 * - o "quadro de supervisão" é tratado como uma pseudo-seccional (a unidade
 	 *   sintética de supervisão extra), e por isso aparece nas mesmas listas de
 	 *   pendência e assinatura das seccionais de verdade.
@@ -37,7 +40,7 @@
 	import { apiFetch } from '$lib/api-fetch';
 	import { enhance } from '$app/forms';
 	import { useGiseEstado, useGiseAssinatura } from '$lib/composables/gise';
-	import { useOfertaRubrica, rubricaValida } from '$lib/composables';
+	import { useOfertaRubrica, rubricaValida, useInvalidateOnFocus } from '$lib/composables';
 	import { loading } from '$lib/loading.svelte';
 	import type { Policial, GiseAssinaturaRelatorio } from '$lib/server/schema';
 	import { checkAllSigned, filtrarSeccionaisDisponiveis } from '$lib/gise/page-helpers';
@@ -64,6 +67,9 @@
 	import ModalDownloadExtras from '../_components/ModalDownloadExtras.svelte';
 
 	const { data }: PageProps = $props();
+
+	// Outras sessões (presença, relatório, assinatura): refetch ao focar + poll.
+	useInvalidateOnFocus('gise:detail');
 
 	// Hook de estados derivados e permissões
 	const giseEstado = useGiseEstado({ getData: () => data });

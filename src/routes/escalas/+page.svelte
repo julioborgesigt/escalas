@@ -40,7 +40,8 @@
 		useMobile,
 		useFiltrosPaginados,
 		useOfertaRubrica,
-		rubricaValida
+		rubricaValida,
+		useInvalidateOnFocus
 	} from '$lib/composables';
 	import SignaturePad from '$lib/components/SignaturePad.svelte';
 	import type { SignaturePadConfirmPayload } from '$lib/components/SignaturePadTypes';
@@ -57,6 +58,9 @@
 	import ModalShell from '$lib/components/ModalShell.svelte';
 
 	const { data }: PageProps = $props();
+
+	// Pendências de assinatura criadas por outras sessões: refetch ao focar + poll.
+	useInvalidateOnFocus('app:escalas');
 
 	const auth = useAutorizacao();
 	const isAdmin = $derived(auth.isAdmin);

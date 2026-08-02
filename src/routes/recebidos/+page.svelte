@@ -34,7 +34,7 @@
 	import { Popover, Portal, Dialog } from '@skeletonlabs/skeleton-svelte';
 	import type { EscalaListagem, Unidade } from '$lib/types';
 	import PaginationControls from '$lib/components/PaginationControls.svelte';
-	import { useAutorizacao, getSavedFilters } from '$lib/composables';
+	import { useAutorizacao, getSavedFilters, useInvalidateOnFocus } from '$lib/composables';
 	import type { ActionResult } from '@sveltejs/kit';
 	import { loading as loadingService } from '$lib/loading.svelte';
 	import SearchableSelect from '$lib/components/SearchableSelect.svelte';
@@ -43,6 +43,9 @@
 
 	const auth = useAutorizacao();
 	const isAdmin = $derived(auth.isAdmin);
+
+	// Novos envios de outras sessões: refetch ao focar a aba + poll silencioso.
+	useInvalidateOnFocus('app:recebidos');
 
 	const escalas = $derived(data.escalas as EscalaListagem[]);
 	const unidades = $derived(data.unidades as Unidade[]);
@@ -196,9 +199,7 @@
 	async function recarregar() {
 		loadingService.show('Atualizando caixa de entrada...');
 		try {
-			// Predicado por pathname: o load agora depende da URL COM search params
-			// (filtros/página), então o match exato por string não bastaria.
-			await invalidate((url) => url.pathname === page.url.pathname);
+			await invalidate('app:recebidos');
 		} finally {
 			loadingService.hide();
 		}
@@ -281,7 +282,7 @@
 			loadingService.hide();
 			if (result.type === 'success') {
 				toaster.create({ title: 'Escala removida com sucesso', type: 'success' });
-				await invalidate(page.url.pathname);
+				await invalidate('app:recebidos');
 				dialogOpen = false;
 				escalaParaExcluir = null;
 			} else {
@@ -309,7 +310,7 @@
 		<div>
 			<h1 class="h1 text-2xl font-bold">Cx. de Entrada</h1>
 			<p class="text-sm text-surface-600 dark:text-surface-400 mt-0.5">
-				Acompanhamento de novos envios em tempo real
+				Escalas assinadas enviadas ao Admin Geral — atualiza ao voltar à aba ou pelo botão Atualizar
 			</p>
 		</div>
 		<div class="flex gap-2 justify-end w-full sm:w-auto">
