@@ -26,7 +26,7 @@
 	import { page, navigating } from '$app/state';
 	import SkeletonCard from '$lib/components/SkeletonCard.svelte';
 	import FloatingRefresh from '$lib/components/FloatingRefresh.svelte';
-	import { invalidateAll } from '$app/navigation';
+	import { invalidateShared } from '$lib/cross-tab-invalidate';
 	import { enhance } from '$app/forms';
 	import { toaster } from '$lib/toast';
 	import type { Unidade } from '$lib/types';
@@ -173,7 +173,7 @@
 		return async ({ result }: { result: ActionResult }) => {
 			pendingEditar = false;
 			if (result.type === 'success') {
-				await invalidateAll();
+				await invalidateShared('app:unidades');
 				toaster.create({ title: 'Unidade atualizada com sucesso!', type: 'success' });
 				cancelarEdicao();
 			} else {
@@ -596,4 +596,4 @@
 		</p>
 	{/if}
 </div>
-<FloatingRefresh />
+<FloatingRefresh chaves="app:unidades" />

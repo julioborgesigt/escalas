@@ -19,7 +19,7 @@
 	import type { PageProps } from './$types';
 	import Paginador from '$lib/components/Paginador.svelte';
 	import { goto } from '$app/navigation';
-	import { invalidateAllShared } from '$lib/cross-tab-invalidate';
+	import { invalidateShared } from '$lib/cross-tab-invalidate';
 	import { page } from '$app/state';
 	import { toaster } from '$lib/toast';
 	import { loading } from '$lib/loading.svelte';
@@ -36,7 +36,8 @@
 	import ModalDownloadExtras from './_components/ModalDownloadExtras.svelte';
 	import DialogInfo from './_components/DialogInfo.svelte';
 	import { fmtDate, diaSemana } from '$lib/gise/formatters';
-	import { rubricaValida } from '$lib/composables';
+	import { rubricaValida, useInvalidateOnFocus } from '$lib/composables';
+	import { fetchSyncEstado } from '$lib/sync-estado';
 	import { MediaQuery } from 'svelte/reactivity';
 
 	type GiseEscala = {
@@ -70,6 +71,18 @@
 
 	const ativas = $derived(escalas.filter((e) => e.status !== 'finalizada'));
 	const historico = $derived(isAdminGeral ? escalas.filter((e) => e.status === 'finalizada') : []);
+
+	useInvalidateOnFocus('app:gise-list', {
+		isHot: () => ativas.length > 0,
+		probe: async () => {
+			try {
+				const e = await fetchSyncEstado();
+				return e.giseList?.stamp ?? null;
+			} catch {
+				return null;
+			}
+		}
+	});
 
 	const seccionaisList = $derived(data.seccionaisList ?? []);
 	const minhaSeccionalId = $derived(data.minhaSeccionalId ?? null);
@@ -497,7 +510,7 @@
 				});
 				baixarBlob(await r.blob(), tokenNomeArquivo);
 				toaster.success({ title: 'Escala GISE assinada com sucesso' });
-				await invalidateAllShared();
+				await invalidateShared('app:gise-list');
 			} else {
 				for (const seccionalId of gise.pendentesExtraIds) {
 					await apiFetch(`/api/gise/${gise.id}/relatorios/${seccionalId}/assinar`, {
@@ -517,7 +530,7 @@
 				toaster.success({
 					title: `${gise.pendentesExtraIds.length} relatório(s) de extra assinado(s)`
 				});
-				await invalidateAllShared();
+				await invalidateShared('app:gise-list');
 			}
 		} catch (e: unknown) {
 			toaster.error({
@@ -558,7 +571,7 @@
 			toaster.success({
 				title: `${gise.pendentesExtraIds.length} relatório(s) assinado(s) com token`
 			});
-			await invalidateAllShared();
+			await invalidateShared('app:gise-list');
 		} catch (e: unknown) {
 			toaster.error({
 				title: 'Erro ao assinar com token',
@@ -730,7 +743,7 @@
 		bind:control={painelTokenGiseControl}
 		onSuccess={async () => {
 			giseParaAssinar = null;
-			await invalidateAllShared();
+			await invalidateShared('app:gise-list');
 		}}
 	/>
 </div>

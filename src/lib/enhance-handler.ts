@@ -18,8 +18,8 @@ interface MakeEnhanceHandlerOptions<D extends ResultData = ResultData> {
 	setPending: (pending: boolean) => void;
 	/** Validação pré-submit. Retornar `false` aborta o submit. */
 	beforeSubmit?: () => boolean;
-	/** Chave passada para `invalidate`. `false` desliga a invalidação. Default: `'gise:detail'`. */
-	invalidateKey?: string | false;
+	/** Chave(s) passadas para `invalidateShared`. `false` desliga. Default: detalhe + lista GISE. */
+	invalidateKey?: string | string[] | false;
 	/** Título do toast de sucesso. Pode depender do `result.data`. Se omitido ou retornar `null`, nenhum toast é mostrado. */
 	successTitle?: string | ((data: D) => string | null | undefined);
 	/** Descrição opcional do toast de sucesso. */
@@ -38,7 +38,7 @@ export function makeEnhanceHandler<D extends ResultData = ResultData>(
 	const {
 		setPending,
 		beforeSubmit,
-		invalidateKey = 'gise:detail',
+		invalidateKey = ['gise:detail', 'app:gise-list'],
 		successTitle,
 		successDescription,
 		errorTitle = 'Erro',
@@ -57,7 +57,8 @@ export function makeEnhanceHandler<D extends ResultData = ResultData>(
 				if (result.type === 'success') {
 					const data = (result.data ?? {}) as D;
 					if (invalidateKey !== false) {
-						await invalidateShared(invalidateKey);
+						const keys = Array.isArray(invalidateKey) ? invalidateKey : [invalidateKey];
+						await invalidateShared(...keys);
 					}
 					await onSuccess?.(data);
 					const title = typeof successTitle === 'function' ? successTitle(data) : successTitle;

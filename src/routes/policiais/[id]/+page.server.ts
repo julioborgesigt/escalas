@@ -127,7 +127,10 @@ async function autorizarAcao(event: RequestEvent) {
 	return { u, db, id, alvo };
 }
 
-export const load: PageServerLoad = async ({ locals, params, platform }) => {
+export const load: PageServerLoad = async ({ locals, params, platform, depends }) => {
+	const id = Number(params.id);
+	if (!isNaN(id)) depends(`policial:${id}`);
+
 	const u = locals.usuario;
 	if (!u) redirect(302, '/login');
 
@@ -135,7 +138,6 @@ export const load: PageServerLoad = async ({ locals, params, platform }) => {
 		redirect(302, '/');
 	}
 
-	const id = Number(params.id);
 	if (isNaN(id)) error(400, 'ID inválido');
 
 	const db = getDB(platform);

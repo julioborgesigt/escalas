@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
-	import { invalidateAll } from '$app/navigation';
+	import { invalidateShared } from '$lib/cross-tab-invalidate';
 	import ModalShell from '$lib/components/ModalShell.svelte';
 	import { toaster } from '$lib/toast';
 	import CalendarioSelecaoDias from './CalendarioSelecaoDias.svelte';
@@ -9,6 +9,7 @@
 
 	let {
 		open = $bindable(false),
+		escalaId,
 		ids,
 		diasIniciais,
 		horaEntradaInicial,
@@ -19,6 +20,7 @@
 		onsalvo
 	}: {
 		open: boolean;
+		escalaId: number;
 		ids: number[];
 		diasIniciais: string[];
 		horaEntradaInicial: string;
@@ -87,7 +89,7 @@
 					});
 				}
 
-				await invalidateAll();
+				await invalidateShared(`escala:${escalaId}`, 'app:escalas');
 			} else if (result.type === 'error') {
 				toaster.create({ title: 'Erro de conexão. Tente novamente.', type: 'error' });
 			} else {

@@ -325,6 +325,7 @@
 
 <ModalEditarPlantao
 	bind:open={modalEditarOpen}
+	escalaId={escala.id}
 	ids={editIds}
 	diasIniciais={editDiasIniciais}
 	horaEntradaInicial={editHoraEntradaInicial}

@@ -873,4 +873,4 @@
 	onSaved={(nova) => (minhaRubrica = rubricaValida(nova))}
 />
 
-<FloatingRefresh />
+<FloatingRefresh chaves="app:escalas" />

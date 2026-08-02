@@ -13,13 +13,18 @@ const CHANNEL = 'escalas:invalidate';
 
 type Mensagem = { chaves: string[] };
 
+/** Canal único por aba — evita open/close a cada notify/subscribe. */
+let canalSingleton: BroadcastChannel | null | undefined;
+
 function canal(): BroadcastChannel | null {
 	if (!browser || typeof BroadcastChannel === 'undefined') return null;
+	if (canalSingleton !== undefined) return canalSingleton;
 	try {
-		return new BroadcastChannel(CHANNEL);
+		canalSingleton = new BroadcastChannel(CHANNEL);
 	} catch {
-		return null;
+		canalSingleton = null;
 	}
+	return canalSingleton;
 }
 
 /** Avisa outras abas que estas chaves de `depends(...)` ficaram stale. */
@@ -27,12 +32,8 @@ export function notifyInvalidate(...chaves: string[]) {
 	if (chaves.length === 0) return;
 	const ch = canal();
 	if (!ch) return;
-	try {
-		const msg: Mensagem = { chaves };
-		ch.postMessage(msg);
-	} finally {
-		ch.close();
-	}
+	const msg: Mensagem = { chaves };
+	ch.postMessage(msg);
 }
 
 /** Equivalente a `notifyInvalidate('*')` — listeners invalidam a própria chave. */
@@ -69,6 +70,5 @@ export function subscribeInvalidate(interesse: string, onMatch: () => void): () 
 	ch.addEventListener('message', handler);
 	return () => {
 		ch.removeEventListener('message', handler);
-		ch.close();
 	};
 }

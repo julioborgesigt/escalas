@@ -37,9 +37,10 @@ export const load: LayoutServerLoad = async ({ locals, platform, cookies, depend
 			// próprio handler, então o stale window real é só para
 			// cascatas raras (ex.: deletar uma seccional inteira).
 			const db = getDB(platform);
-			// Contador da sidebar: chave própria para o poll do badge não
-			// reexecutar o `load` pesado de `/recebidos` (nem o contrário).
+			// Contador da sidebar + flags de assinatura (conf-ass) — chaves
+			// segmentadas para não invalidar o layout inteiro à toa.
 			if (u.tipo === 'admin') depends('app:recebidos-badge');
+			depends('app:assinatura-flags');
 			const [flags, papel, vinculadoAdmin, recebidos] = await Promise.all([
 				lerFlagsAssinatura(platform),
 				u.tipo === 'policial' ? lerPapelGise(db, u.id) : Promise.resolve(null),

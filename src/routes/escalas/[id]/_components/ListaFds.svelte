@@ -729,6 +729,7 @@
 
 <ModalEditarDias
 	bind:open={showEditarDiasModal}
+	escalaId={escala.id}
 	diasIniciais={diasEscalaLocal}
 	onsalvo={(r) => {
 		localDataInicio = r.data_inicio;

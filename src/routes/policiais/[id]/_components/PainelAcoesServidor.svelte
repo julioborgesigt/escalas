@@ -7,7 +7,7 @@
 	 *
 	 * Nenhum deles é só um registro: cada um grava uma linha APPEND-ONLY em
 	 * `policial_historico`, que é a visão de RH do servidor e não se apaga pela
-	 * interface. Daí o `invalidateAll()` no sucesso — a timeline logo abaixo
+	 * interface. Daí o `invalidateShared` no sucesso — a timeline logo abaixo
 	 * (`HistoricoServidor`) precisa refletir o que acabou de ser gravado.
 	 *
 	 * No afastamento, "Qtd de dias" e "Data final" são o MESMO dado por dois
@@ -17,7 +17,7 @@
 	 */
 	import { Dialog } from '@skeletonlabs/skeleton-svelte';
 	import { enhance } from '$app/forms';
-	import { invalidateAll } from '$app/navigation';
+	import { invalidateShared } from '$lib/cross-tab-invalidate';
 	import { toaster } from '$lib/toast';
 	import { loading } from '$lib/loading.svelte';
 	import { adicionarDias, diffDiasInclusivo } from '$lib/utils/datas';
@@ -88,7 +88,7 @@
 			if (result.type === 'success') {
 				toaster.create({ title: 'Registro salvo com sucesso!', type: 'success' });
 				fechar();
-				await invalidateAll();
+				await invalidateShared(`policial:${policial.id}`, 'app:policiais');
 			} else if (result.type === 'failure') {
 				const d = result.data as Record<string, unknown> | undefined;
 				toaster.create({ title: String(d?.error || 'Erro ao registrar'), type: 'error' });

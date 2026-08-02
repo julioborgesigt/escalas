@@ -1,13 +1,32 @@
 <script lang="ts">
-	import { invalidateAllShared } from '$lib/cross-tab-invalidate';
+	/**
+	 * Botão flutuante (mobile) para forçar revalidação.
+	 * Prefira passar `chaves` de `depends(...)` — `invalidateAll` só como fallback.
+	 */
+	import { invalidateShared, invalidateAllShared } from '$lib/cross-tab-invalidate';
+
+	const {
+		chaves
+	}: {
+		/** Uma ou mais chaves de `depends`. Se omitido, usa `invalidateAllShared`. */
+		chaves?: string | string[];
+	} = $props();
 
 	let refreshing = $state(false);
 
 	async function handleRefresh() {
 		if (refreshing) return;
 		refreshing = true;
-		await invalidateAllShared();
-		refreshing = false;
+		try {
+			if (chaves) {
+				const lista = Array.isArray(chaves) ? chaves : [chaves];
+				await invalidateShared(...lista);
+			} else {
+				await invalidateAllShared();
+			}
+		} finally {
+			refreshing = false;
+		}
 	}
 </script>
 

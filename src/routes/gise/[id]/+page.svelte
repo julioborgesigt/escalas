@@ -605,7 +605,7 @@
 				onAbrirAssinaturaEscalaManual={() => assinatura.abrirModalRubrica('simples')}
 				onAssinaturaEscalaDigitalSuccess={async () => {
 					assinatura.rubricaCapturada = null;
-					await invalidateShared('gise:detail');
+					await invalidateShared('gise:detail', 'app:gise-list');
 				}}
 			>
 				{#snippet loteSection()}
@@ -829,7 +829,7 @@
 		onSuccess={async () => {
 			showDigitalModalRelatorio = false;
 			relatorioDigitalInfo = null;
-			await invalidateShared('gise:detail');
+			await invalidateShared('gise:detail', 'app:gise-list');
 		}}
 		onClose={() => {
 			showDigitalModalRelatorio = false;

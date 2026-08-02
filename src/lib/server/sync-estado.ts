@@ -9,6 +9,7 @@ import {
 	escalas,
 	escalaDocumentos,
 	escalaSolicitacoesAssinatura,
+	escalaPoliciais,
 	giseEscalas,
 	gisePresencas,
 	giseAssinaturasRelatorios,
@@ -275,5 +276,74 @@ export async function carimboResGise(db: Database, policialId: number | null): P
 		Number(sup?.n ?? 0),
 		sup?.statuses ?? '',
 		Number(sup?.maxId ?? 0)
+	].join('|');
+}
+
+/** Lista `/gise` — ativas + histórico resumido. */
+export async function carimboGiseList(db: Database): Promise<string> {
+	const [[tot], [ativas]] = await Promise.all([
+		db
+			.select({
+				n: sql<number>`count(*)`,
+				maxId: sql<number>`coalesce(max(${giseEscalas.id}), 0)`
+			})
+			.from(giseEscalas),
+		db
+			.select({
+				n: sql<number>`count(*)`,
+				finger: sql<string>`coalesce(group_concat(${giseEscalas.id} || ':' || ${giseEscalas.status}), '')`
+			})
+			.from(giseEscalas)
+			.where(sql`${giseEscalas.status} != 'finalizada'`)
+	]);
+	return `${Number(tot?.n ?? 0)}:${Number(tot?.maxId ?? 0)}:${Number(ativas?.n ?? 0)}:${ativas?.finger ?? ''}`;
+}
+
+/** Detalhe `/escalas/[id]` — servidores, documento e solicitação. */
+export async function carimboEscala(db: Database, escalaId: number): Promise<string | null> {
+	const [esc] = await db
+		.select({
+			id: escalas.id,
+			finalizada_em: escalas.finalizada_em,
+			visto: escalas.visto_por_admin,
+			data_inicio: escalas.data_inicio,
+			data_fim: escalas.data_fim
+		})
+		.from(escalas)
+		.where(eq(escalas.id, escalaId))
+		.limit(1);
+	if (!esc) return null;
+
+	const [[pols], [doc], [sol]] = await Promise.all([
+		db
+			.select({
+				n: sql<number>`count(*)`,
+				finger: sql<string>`coalesce(group_concat(${escalaPoliciais.policial_id} || ':' || ${escalaPoliciais.data_plantao} || ':' || ${escalaPoliciais.hora_entrada} || '-' || ${escalaPoliciais.hora_saida}), '')`
+			})
+			.from(escalaPoliciais)
+			.where(eq(escalaPoliciais.escala_id, escalaId)),
+		db
+			.select({ n: sql<number>`count(*)` })
+			.from(escalaDocumentos)
+			.where(eq(escalaDocumentos.escala_id, escalaId)),
+		db
+			.select({
+				n: sql<number>`count(*)`,
+				tipos: sql<string>`coalesce(group_concat(${escalaSolicitacoesAssinatura.tipo}), '')`
+			})
+			.from(escalaSolicitacoesAssinatura)
+			.where(eq(escalaSolicitacoesAssinatura.escala_id, escalaId))
+	]);
+
+	return [
+		esc.finalizada_em ?? '',
+		esc.visto,
+		esc.data_inicio,
+		esc.data_fim,
+		Number(pols?.n ?? 0),
+		pols?.finger ?? '',
+		Number(doc?.n ?? 0),
+		Number(sol?.n ?? 0),
+		sol?.tipos ?? ''
 	].join('|');
 }

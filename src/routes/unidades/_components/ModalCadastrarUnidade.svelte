@@ -10,7 +10,7 @@
 	 */
 	import { SegmentedControl, Switch } from '@skeletonlabs/skeleton-svelte';
 	import { enhance } from '$app/forms';
-	import { invalidateAll } from '$app/navigation';
+	import { invalidateShared } from '$lib/cross-tab-invalidate';
 	import ModalShell from '$lib/components/ModalShell.svelte';
 	import { toaster } from '$lib/toast';
 	import { CIDADES_CEARA } from '$lib/constants/cidades';
@@ -68,7 +68,7 @@
 		return async ({ result }: { result: ActionResult }) => {
 			pending = false;
 			if (result.type === 'success') {
-				await invalidateAll();
+				await invalidateShared('app:unidades');
 				toaster.create({ title: 'Unidade cadastrada com sucesso!', type: 'success' });
 				reset();
 				open = false;

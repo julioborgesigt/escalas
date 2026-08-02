@@ -22,7 +22,8 @@
 	 * não o rascunho.
 	 */
 	import type { PageProps } from './$types';
-	import { goto, invalidateAll } from '$app/navigation';
+	import { goto } from '$app/navigation';
+	import { invalidateShared } from '$lib/cross-tab-invalidate';
 	import { enhance } from '$app/forms';
 	import { toaster } from '$lib/toast';
 	import { formatarTelefone, formatarCPF } from '$lib/utils/formato';
@@ -96,7 +97,7 @@
 			loading.hide();
 			if (result.type === 'success') {
 				toaster.create({ title: 'Papel atualizado com sucesso!', type: 'success' });
-				await invalidateAll();
+				await invalidateShared(`policial:${data.policial.id}`, 'app:policiais');
 			} else if (result.type === 'failure') {
 				const d = result.data as Record<string, unknown> | undefined;
 				if (d?.error) toaster.create({ title: String(d.error), type: 'error' });
@@ -112,7 +113,7 @@
 			loading.hide();
 			if (result.type === 'success') {
 				toaster.create({ title: 'Condição de Admin Geral atualizada!', type: 'success' });
-				await invalidateAll();
+				await invalidateShared(`policial:${data.policial.id}`, 'app:policiais');
 			} else if (result.type === 'failure') {
 				const d = result.data as Record<string, unknown> | undefined;
 				if (d?.error) toaster.create({ title: String(d.error), type: 'error' });

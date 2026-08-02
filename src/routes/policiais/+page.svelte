@@ -25,7 +25,8 @@
 	 * (`/policiais/[id]`).
 	 */
 	import type { PageProps } from './$types';
-	import { goto, invalidateAll } from '$app/navigation';
+	import { goto } from '$app/navigation';
+	import { invalidateShared } from '$lib/cross-tab-invalidate';
 	import { fly } from 'svelte/transition';
 	import { page, navigating } from '$app/state';
 	import SkeletonCard from '$lib/components/SkeletonCard.svelte';
@@ -54,7 +55,7 @@
 		return async ({ result }: { result: ActionResult }) => {
 			pendingCadastro = false;
 			if (result.type === 'success') {
-				await invalidateAll();
+				await invalidateShared('app:policiais');
 				toaster.create({ title: 'Policial cadastrado com sucesso!', type: 'success' });
 				resetForm();
 				cadastroOpen = false;
@@ -245,7 +246,7 @@
 		excluindo = true;
 		return async ({ result }: { result: ActionResult }) => {
 			if (result.type === 'success') {
-				await invalidateAll();
+				await invalidateShared('app:policiais');
 				toaster.create({
 					title: `${confirmDialog.currentItem?.nome} removido com sucesso`,
 					type: 'success'

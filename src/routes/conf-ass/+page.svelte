@@ -23,7 +23,7 @@
 	import { page } from '$app/state';
 	import { toaster } from '$lib/toast';
 	import { apiFetch } from '$lib/api-fetch';
-	import { invalidateAll } from '$app/navigation';
+	import { invalidateShared } from '$lib/cross-tab-invalidate';
 	import { loading } from '$lib/loading.svelte';
 
 	let exigirFoto = $state(page.data.exigirFoto as boolean);
@@ -32,6 +32,13 @@
 	// mantido como const local para o body do PUT (idempotente).
 	const exigirCodigoEmail = true;
 	let restringirSmartphone = $state(page.data.restringirSmartphone as boolean);
+
+	// Após invalidate externo, realinha os toggles ao load (evita divergência).
+	$effect(() => {
+		exigirFoto = page.data.exigirFoto as boolean;
+		exigirGps = page.data.exigirGps as boolean;
+		restringirSmartphone = page.data.restringirSmartphone as boolean;
+	});
 
 	// Metadados vindos do +page.server.ts — referência legal e classificação.
 	const nivelEfetivo = page.data.nivelEfetivo as 'simples' | 'avancada';
@@ -62,7 +69,7 @@
 				method: 'PUT',
 				body: JSON.stringify({ exigirFoto, exigirGps, exigirCodigoEmail, restringirSmartphone })
 			});
-			await invalidateAll();
+			await invalidateShared('app:assinatura-flags');
 			toaster.create({ title: 'Configurações salvas com sucesso.', type: 'success' });
 		} catch (e: unknown) {
 			toaster.create({

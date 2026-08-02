@@ -25,7 +25,7 @@
 	import type { SignaturePadConfirmPayload } from './SignaturePadTypes';
 	import type { UsuarioLogado } from '$lib/auth';
 	import { page } from '$app/state';
-	import { invalidateAllShared } from '$lib/cross-tab-invalidate';
+	import { invalidateShared } from '$lib/cross-tab-invalidate';
 	import { toaster } from '$lib/toast';
 	import { apiFetch } from '$lib/api-fetch';
 	import { loading } from '$lib/loading.svelte';
@@ -65,12 +65,24 @@
 	let solicitacaoLocal = $derived(solicitacaoAtual ?? null);
 	let dialogSolicitarAberto = $state(false);
 
+	const chavesAposMutacaoAssinatura = $derived([
+		'app:escalas',
+		`escala:${escalaId}`,
+		'app:recebidos',
+		'app:recebidos-badge',
+		'app:painel'
+	] as const);
+
+	async function invalidarAposAssinatura() {
+		await invalidateShared(...chavesAposMutacaoAssinatura);
+	}
+
 	async function cancelarSolicitacao() {
 		try {
 			await apiFetch(`/api/escalas/${escalaId}/solicitar-assinatura`, { method: 'DELETE' });
 			solicitacaoLocal = null;
 			toaster.create({ title: 'Solicitação cancelada', type: 'info' });
-			await invalidateAllShared();
+			await invalidarAposAssinatura();
 		} catch (e: unknown) {
 			toaster.create({
 				title: e instanceof Error ? e.message : 'Erro ao cancelar solicitação',
@@ -86,9 +98,7 @@
 		getParams: () => ({ escalaId, isFDS, policiaisCount, usuario }),
 		onDocumentoAssinado: (info) => {
 			documentoAssinadoInfo = info as DocumentoAssinadoInfo | null;
-			// Paridade com o fluxo token (`invalidateAll`): a lista `/escalas`
-			// (`depends('app:escalas')`) e demais loads ativos revalidam sem F5.
-			void invalidateAllShared();
+			void invalidarAposAssinatura();
 		}
 	});
 
@@ -115,7 +125,7 @@
 				description: 'Você agora pode editar os dados da escala.',
 				type: 'info'
 			});
-			await invalidateAllShared();
+			await invalidarAposAssinatura();
 		} catch (e: unknown) {
 			toaster.create({
 				title: 'Erro ao revogar assinatura',
@@ -399,7 +409,7 @@
 				nomeArquivo="escala_assinada.pdf"
 				disabled={assinando}
 				onSuccess={async () => {
-					await invalidateAllShared();
+					await invalidarAposAssinatura();
 				}}
 			/>
 		</div>
@@ -492,7 +502,7 @@
 		onSolicitacaoEnviada?.();
 		// Mesma razão do cancelar/assinar token: lista de pendências do DPC
 		// precisa sair do estado stale sem F5.
-		void invalidateAllShared();
+		void invalidarAposAssinatura();
 	}}
 />
 

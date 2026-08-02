@@ -36,7 +36,9 @@ import { isAdminGeral } from '$lib/auth';
 import { lotacoesAdministradas, lotacaoNoEscopo } from '$lib/server/policial-permissao';
 import { decifrarCpfDoDB } from '$lib/crypto/cpf-cripto';
 
-export const load: PageServerLoad = async ({ locals, platform, url }) => {
+export const load: PageServerLoad = async ({ locals, platform, url, depends }) => {
+	depends('app:policiais');
+
 	const u = locals.usuario;
 	if (!u) redirect(302, '/login');
 
