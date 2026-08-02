@@ -18,10 +18,12 @@
 	 */
 	import { Popover, Portal } from '@skeletonlabs/skeleton-svelte';
 	import { slide, fly } from 'svelte/transition';
-	import { page, navigating } from '$app/state';
+	import { page } from '$app/state';
 	import type { EscalaListagem } from '$lib/types';
 	import { formatarData, MESES_PT } from '$lib/utils/datas';
-	import SkeletonCard from '$lib/components/SkeletonCard.svelte';
+	import SkeletonCards from '$lib/components/SkeletonCards.svelte';
+	import SkeletonTableRows from '$lib/components/SkeletonTableRows.svelte';
+	import { useSamePathNavigating } from '$lib/composables';
 	import PaginationControls from '$lib/components/PaginationControls.svelte';
 	import IconTooltip from '$lib/components/IconTooltip.svelte';
 	import { podeBaixarComManifesto } from '$lib/manifesto';
@@ -66,6 +68,8 @@
 	const podeManifesto = $derived(podeBaixarComManifesto(page.data.usuario));
 
 	const ITEMS_POR_PAGINA = 20;
+
+	const samePathNav = useSamePathNavigating();
 </script>
 
 {#if escalas.length === 0}
@@ -93,29 +97,16 @@
 				</tr>
 			</thead>
 			<tbody>
-				{#if navigating?.to && navigating.to.url.pathname === page.url.pathname}
-					{#each { length: 8 } as _, i (i)}
-						<tr class="animate-pulse">
-							<td class="px-4 py-3"
-								><div class="h-4 w-36 rounded bg-surface-200 dark:bg-surface-700"></div></td
-							>
-							<td class="px-4 py-3"
-								><div class="h-4 w-20 rounded bg-surface-200 dark:bg-surface-700"></div></td
-							>
-							<td class="px-4 py-3"
-								><div class="h-4 w-32 rounded bg-surface-200 dark:bg-surface-700"></div></td
-							>
-							<td class="px-4 py-3"
-								><div class="h-6 w-24 rounded-full bg-surface-200 dark:bg-surface-700"></div></td
-							>
-							<td class="px-4 py-3"
-								><div class="flex gap-2">
-									<div class="h-8 w-14 rounded-lg bg-surface-200 dark:bg-surface-700"></div>
-									<div class="h-8 w-18 rounded-lg bg-surface-200 dark:bg-surface-700"></div>
-								</div></td
-							>
-						</tr>
-					{/each}
+				{#if samePathNav.current}
+					<SkeletonTableRows
+						cols={[
+							'h-4 w-36',
+							'h-4 w-20',
+							'h-4 w-32',
+							'h-6 w-24 rounded-full',
+							'h-8 w-32 rounded-lg'
+						]}
+					/>
 				{:else}
 					{#each escalas as esc (esc.id)}
 						{@const dRow = new Date(esc.data_inicio + 'T00:00:00')}
@@ -319,10 +310,8 @@
 	</div>
 
 	<div class="lg:hidden space-y-3">
-		{#if navigating?.to && navigating.to.url.pathname === page.url.pathname}
-			{#each { length: 5 } as _, i (i)}
-				<SkeletonCard />
-			{/each}
+		{#if samePathNav.current}
+			<SkeletonCards />
 		{:else}
 			{#each escalas as esc, i (esc.id)}
 				{@const d = new Date(esc.data_inicio + 'T00:00:00')}

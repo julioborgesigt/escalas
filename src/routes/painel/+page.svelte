@@ -34,15 +34,22 @@
 	} from '@lucide/svelte';
 	import { goto } from '$app/navigation';
 	import { enhance } from '$app/forms';
-	import { page, navigating } from '$app/state';
+	import { page } from '$app/state';
 	import { SvelteSet } from 'svelte/reactivity';
 	import SkeletonCard from '$lib/components/SkeletonCard.svelte';
+	import SkeletonCards from '$lib/components/SkeletonCards.svelte';
+	import SkeletonTableRows from '$lib/components/SkeletonTableRows.svelte';
 	import { browser } from '$app/environment';
 	import { Dialog } from '@skeletonlabs/skeleton-svelte';
 	import SearchableSelect from '$lib/components/SearchableSelect.svelte';
 	import { toaster } from '$lib/toast';
 	import type { ItemCompliance } from '$lib/types';
-	import { useAutorizacao, getSavedFilters, useInvalidateOnFocus } from '$lib/composables';
+	import {
+		useAutorizacao,
+		getSavedFilters,
+		useInvalidateOnFocus,
+		useSamePathNavigating
+	} from '$lib/composables';
 	import { invalidateShared } from '$lib/cross-tab-invalidate';
 	import { fetchSyncEstado } from '$lib/sync-estado';
 	import { loading as loadingService } from '$lib/loading.svelte';
@@ -52,6 +59,7 @@
 
 	const auth = useAutorizacao();
 	const isAdmin = $derived(auth.isAdmin);
+	const samePathNav = useSamePathNavigating();
 	const savedFilters = getSavedFilters('filtros_painel', {
 		regime: 'todos',
 		seccional: '',
@@ -623,30 +631,16 @@
 						</tr>
 					</thead>
 					<tbody>
-						{#if navigating?.to && navigating.to.url.pathname === page.url.pathname}
-							{#each { length: 8 } as _, i (i)}
-								<tr class="animate-pulse">
-									<td class="px-4 py-3"
-										><div class="h-4 w-40 rounded bg-surface-200 dark:bg-surface-700"></div></td
-									>
-									<td class="px-4 py-3"
-										><div
-											class="h-6 w-20 rounded-full bg-surface-200 dark:bg-surface-700"
-										></div></td
-									>
-									<td class="px-4 py-3"
-										><div class="h-4 w-28 rounded bg-surface-200 dark:bg-surface-700"></div></td
-									>
-									<td class="px-4 py-3"
-										><div
-											class="h-6 w-20 rounded-full bg-surface-200 dark:bg-surface-700"
-										></div></td
-									>
-									<td class="px-4 py-3"
-										><div class="h-8 w-24 rounded-lg bg-surface-200 dark:bg-surface-700"></div></td
-									>
-								</tr>
-							{/each}
+						{#if samePathNav.current}
+							<SkeletonTableRows
+								cols={[
+									'h-4 w-40',
+									'h-6 w-20 rounded-full',
+									'h-4 w-28',
+									'h-6 w-20 rounded-full',
+									'h-8 w-24 rounded-lg'
+								]}
+							/>
 						{:else}
 							{#each dadosAgrupados as grupo (grupo.titulo)}
 								{#if grupo.titulo}
@@ -751,10 +745,8 @@
 
 			<!-- Mobile cards -->
 			<div class="md:hidden space-y-2">
-				{#if navigating?.to && navigating.to.url.pathname === page.url.pathname}
-					{#each { length: 5 } as _, i (i)}
-						<SkeletonCard lines={3} hasFooter={false} />
-					{/each}
+				{#if samePathNav.current}
+					<SkeletonCards />
 				{:else}
 					{#each dadosAgrupados as grupo (grupo.titulo)}
 						{#if grupo.titulo}

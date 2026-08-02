@@ -23,15 +23,20 @@
 	 * ninguém conserta o vínculo quebrado.
 	 */
 	import type { PageProps } from './$types';
-	import { page, navigating } from '$app/state';
-	import SkeletonCard from '$lib/components/SkeletonCard.svelte';
+	import SkeletonCards from '$lib/components/SkeletonCards.svelte';
+	import SkeletonTableRows from '$lib/components/SkeletonTableRows.svelte';
 	import FloatingRefresh from '$lib/components/FloatingRefresh.svelte';
 	import { invalidateShared } from '$lib/cross-tab-invalidate';
 	import { enhance } from '$app/forms';
 	import { toaster } from '$lib/toast';
 	import type { Unidade } from '$lib/types';
 	import { CIDADES_CEARA } from '$lib/constants/cidades';
-	import { useAutorizacao, getSavedFilters, useFiltrosPaginados } from '$lib/composables';
+	import {
+		useAutorizacao,
+		getSavedFilters,
+		useFiltrosPaginados,
+		useSamePathNavigating
+	} from '$lib/composables';
 	import type { ActionResult } from '@sveltejs/kit';
 	import ModalCadastrarUnidade from './_components/ModalCadastrarUnidade.svelte';
 	import ModalDesativarUnidade from './_components/ModalDesativarUnidade.svelte';
@@ -40,6 +45,7 @@
 
 	const auth = useAutorizacao();
 	const isAdmin = $derived(auth.isAdmin);
+	const samePathNav = useSamePathNavigating();
 	const savedFilters = getSavedFilters('filtros_unidades', { seccional: 'todas', busca: '' });
 
 	const unidades = $derived(data.unidades as Unidade[]);
@@ -377,20 +383,8 @@
 					</tr>
 				</thead>
 				<tbody>
-					{#if navigating?.to && navigating.to.url.pathname === page.url.pathname}
-						{#each { length: 8 } as _, i (i)}
-							<tr class="animate-pulse">
-								<td class="px-4 py-3"
-									><div class="h-4 w-44 rounded bg-surface-200 dark:bg-surface-700"></div></td
-								>
-								<td class="px-4 py-3"
-									><div class="h-6 w-28 rounded-full bg-surface-200 dark:bg-surface-700"></div></td
-								>
-								<td class="px-4 py-3"
-									><div class="h-4 w-24 rounded bg-surface-200 dark:bg-surface-700"></div></td
-								>
-							</tr>
-						{/each}
+					{#if samePathNav.current}
+						<SkeletonTableRows cols={['h-4 w-44', 'h-6 w-28 rounded-full', 'h-4 w-24']} />
 					{:else}
 						{#each unidadesAgrupadas as u (u.id)}
 							<tr>
@@ -502,10 +496,8 @@
 
 		<!-- Mobile cards -->
 		<div class="md:hidden space-y-3">
-			{#if navigating?.to && navigating.to.url.pathname === page.url.pathname}
-				{#each { length: 5 } as _, i (i)}
-					<SkeletonCard lines={3} hasFooter={false} />
-				{/each}
+			{#if samePathNav.current}
+				<SkeletonCards />
 			{:else}
 				{#each unidadesAgrupadas as u (u.id)}
 					<div

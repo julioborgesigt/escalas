@@ -9,7 +9,7 @@ import { goto } from '$app/navigation';
 import { untrack } from 'svelte';
 import { invalidateShared } from '$lib/cross-tab-invalidate';
 import type { ActionResult } from '@sveltejs/kit';
-import { csrfHeaders } from '$lib/csrf';
+import { postPageAction } from '$lib/post-form-action';
 import type {
 	GiseModeloPerguntaConfig,
 	ResGiseEscalaSelecionavel,
@@ -31,20 +31,6 @@ function erroDaAction(result: ActionResult, fallback: string): string {
 		return typeof result.error === 'string' ? result.error : fallback;
 	}
 	return fallback;
-}
-
-/** POST de form action do Kit (não use `apiFetch` — body é FormData). */
-async function postAction(nome: string, fd: FormData): Promise<ActionResult> {
-	const resp = await fetch(`?/${nome}`, {
-		method: 'POST',
-		headers: {
-			accept: 'application/json',
-			'x-sveltekit-action': 'true',
-			...csrfHeaders()
-		},
-		body: fd
-	});
-	return (await resp.json()) as ActionResult;
 }
 
 /** Filtro de escalas na URL (`?status=ativas|finalizadas`); admin não usa mais lista nesta rota. */
@@ -298,7 +284,7 @@ export function useResGise(getData: () => ResGisePageData) {
 			if (codigoEmail) fd.set('codigoEmail', codigoEmail);
 			if (desafioId) fd.set('desafioId', desafioId);
 
-			const result = await postAction('salvarEntrada', fd);
+			const result = await postPageAction('salvarEntrada', fd);
 			if (result.type !== 'success') {
 				throw new Error(erroDaAction(result, 'Erro ao salvar entrada'));
 			}
@@ -363,7 +349,7 @@ export function useResGise(getData: () => ResGisePageData) {
 			if (codigoEmail) fd.set('codigoEmail', codigoEmail);
 			if (desafioId) fd.set('desafioId', desafioId);
 
-			const result = await postAction('salvarSaida', fd);
+			const result = await postPageAction('salvarSaida', fd);
 			if (result.type !== 'success') {
 				throw new Error(erroDaAction(result, 'Erro ao salvar saída'));
 			}

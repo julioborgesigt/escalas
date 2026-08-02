@@ -194,18 +194,28 @@ export async function carimboGise(db: Database, giseId: number): Promise<string 
 	].join('|');
 }
 
-/** Mudanças em escalas (criar/assinar/excluir) — suficiente para invalidar o compliance. */
+/** Mudanças em escalas (criar/assinar/excluir/ver) — suficiente para o compliance. */
 export async function carimboPainel(db: Database): Promise<string> {
 	const [[esc], [docs]] = await Promise.all([
 		db
 			.select({
 				n: sql<number>`count(*)`,
-				maxId: sql<number>`coalesce(max(${escalas.id}), 0)`
+				maxId: sql<number>`coalesce(max(${escalas.id}), 0)`,
+				maxCreated: sql<string>`coalesce(max(${escalas.created_at}), '')`,
+				vistos: sql<number>`coalesce(sum(${escalas.visto_por_admin}), 0)`,
+				finalizadas: sql<number>`coalesce(sum(case when ${escalas.finalizada_em} is not null then 1 else 0 end), 0)`
 			})
 			.from(escalas),
 		db.select({ n: sql<number>`count(*)` }).from(escalaDocumentos)
 	]);
-	return `${Number(esc?.n ?? 0)}:${Number(esc?.maxId ?? 0)}:${Number(docs?.n ?? 0)}`;
+	return [
+		Number(esc?.n ?? 0),
+		Number(esc?.maxId ?? 0),
+		esc?.maxCreated ?? '',
+		Number(esc?.vistos ?? 0),
+		Number(esc?.finalizadas ?? 0),
+		Number(docs?.n ?? 0)
+	].join(':');
 }
 
 /**

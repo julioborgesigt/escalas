@@ -27,7 +27,7 @@
 	import { enhance } from '$app/forms';
 	import type { ActionResult } from '@sveltejs/kit';
 	import { toaster } from '$lib/toast';
-	import { csrfHeaders } from '$lib/csrf';
+	import { postFormAction } from '$lib/post-form-action';
 	import { CheckCircle2 } from '@lucide/svelte';
 
 	let {
@@ -78,12 +78,7 @@
 		try {
 			const fd = new FormData();
 			fd.append('email_destino', email);
-			const res = await fetch(`${page.url.pathname}?/reenviarEmail`, {
-				method: 'POST',
-				headers: { accept: 'application/json', 'x-sveltekit-action': 'true', ...csrfHeaders() },
-				body: fd
-			});
-			const json = await res.json();
+			const json = await postFormAction(`${page.url.pathname}?/reenviarEmail`, fd);
 			if (json.type === 'success') {
 				toaster.create({
 					title: 'E-mail reenviado com sucesso!',
@@ -91,7 +86,11 @@
 					type: 'success'
 				});
 			} else {
-				throw new Error(json.data?.error ?? 'Falha');
+				throw new Error(
+					json.type === 'failure'
+						? String((json.data as { error?: string } | undefined)?.error ?? 'Falha')
+						: 'Falha'
+				);
 			}
 		} catch {
 			toaster.create({

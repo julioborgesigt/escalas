@@ -35,8 +35,8 @@
 	import outfit700Url from '@fontsource/outfit/files/outfit-latin-700-normal.woff2?url';
 	import { tick } from 'svelte';
 	import { MediaQuery } from 'svelte/reactivity';
-	import { page, navigating } from '$app/state';
-	import { goto, onNavigate, afterNavigate } from '$app/navigation';
+	import { page, navigating, updated } from '$app/state';
+	import { goto, onNavigate, afterNavigate, beforeNavigate } from '$app/navigation';
 	import { Toast, Dialog } from '@skeletonlabs/skeleton-svelte';
 	import { toaster } from '$lib/toast';
 	import { apiFetch } from '$lib/api-fetch';
@@ -301,6 +301,13 @@
 			void tick().then(() => document.getElementById('botao-menu-mobile')?.focus());
 		}
 	});
+
+	// Deploy novo detectado: força reload na próxima navegação (bundle fresco).
+	beforeNavigate(({ willUnload, to }) => {
+		if (updated.current && !willUnload && to?.url) {
+			location.href = to.url.href;
+		}
+	});
 </script>
 
 <svelte:window onkeydown={closeOnEscape} />
@@ -332,6 +339,22 @@
 >
 	<div class="nav-progress-bar"></div>
 </div>
+
+{#if updated.current && showSidebar}
+	<div
+		class="fixed inset-x-0 top-0 z-[60] flex items-center justify-center gap-3 bg-warning-500 px-4 py-2 text-sm font-semibold text-surface-950 shadow-md"
+		role="status"
+	>
+		<span>Nova versão do sistema disponível.</span>
+		<button
+			type="button"
+			class="rounded-lg bg-surface-950/15 px-3 py-1 text-xs font-bold uppercase tracking-wide hover:bg-surface-950/25"
+			onclick={() => location.reload()}
+		>
+			Atualizar agora
+		</button>
+	</div>
+{/if}
 
 <!-- Global Loading Overlay — only for API operations (signing, saving). Page navigation uses the top progress bar + inline skeletons. -->
 <LoadingOverlay

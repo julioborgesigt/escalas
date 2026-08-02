@@ -14,8 +14,8 @@
  */
 
 import { invalidateShared } from '$lib/cross-tab-invalidate';
+import { postFormAction } from '$lib/post-form-action';
 import { toaster } from '$lib/toast';
-import { csrfHeaders } from '$lib/csrf';
 import { makeEnhanceHandler } from '$lib/enhance-handler';
 import { validarHora } from '$lib/gise/horarios';
 import { buscarPoliciaisOptions } from '$lib/busca-policiais';
@@ -215,17 +215,14 @@ export function useGiseSeccionalActions(params: UseGiseSeccionalActionsParams) {
 		pendingRemoverSeccional = true;
 		const formData = new FormData(formRemoverSeccionalPendente);
 		try {
-			const res = await fetch(formRemoverSeccionalPendente.action, {
-				method: 'POST',
-				body: formData,
-				headers: csrfHeaders()
-			});
-			if (res.ok) {
+			const result = await postFormAction(formRemoverSeccionalPendente.action, formData);
+			if (result.type === 'success') {
 				dialogRemoverSeccionalAberto = false;
-				await invalidateShared('gise:detail');
+				await invalidateShared('gise:detail', 'app:gise-list');
 				toaster.success({ title: 'Seccional removida' });
 			} else {
-				const data = (await res.json().catch(() => ({}))) as { error?: string };
+				const data =
+					result.type === 'failure' ? (result.data as { error?: string } | undefined) : undefined;
 				toaster.error({ title: String(data?.error || 'Erro ao remover') });
 			}
 		} catch {

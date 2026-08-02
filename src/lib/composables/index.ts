@@ -11,3 +11,4 @@ export { useVerificacaoEmailPessoal } from './useVerificacaoEmailPessoal.svelte'
 export { useBuscaDebounce } from './useBuscaDebounce.svelte';
 export { useOfertaRubrica, rubricaValida } from './useOfertaRubrica.svelte';
 export { useInvalidateOnFocus } from './useInvalidateOnFocus.svelte';
+export { useSamePathNavigating } from './useSamePathNavigating.svelte';

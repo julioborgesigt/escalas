@@ -24,8 +24,9 @@
 	import { opcoesMeses } from '$lib/utils/datas';
 	import { Download, Inbox, Lock } from '@lucide/svelte';
 	import { untrack } from 'svelte';
-	import { page, navigating } from '$app/state';
-	import SkeletonCard from '$lib/components/SkeletonCard.svelte';
+	import { page } from '$app/state';
+	import SkeletonCards from '$lib/components/SkeletonCards.svelte';
+	import SkeletonTableRows from '$lib/components/SkeletonTableRows.svelte';
 	import Spinner from '$lib/components/Spinner.svelte';
 	import { goto } from '$app/navigation';
 	import { invalidateShared } from '$lib/cross-tab-invalidate';
@@ -35,7 +36,12 @@
 	import { Popover, Portal, Dialog } from '@skeletonlabs/skeleton-svelte';
 	import type { EscalaListagem, Unidade } from '$lib/types';
 	import PaginationControls from '$lib/components/PaginationControls.svelte';
-	import { useAutorizacao, getSavedFilters, useInvalidateOnFocus } from '$lib/composables';
+	import {
+		useAutorizacao,
+		getSavedFilters,
+		useInvalidateOnFocus,
+		useSamePathNavigating
+	} from '$lib/composables';
 	import type { ActionResult } from '@sveltejs/kit';
 	import { loading as loadingService } from '$lib/loading.svelte';
 	import SearchableSelect from '$lib/components/SearchableSelect.svelte';
@@ -45,6 +51,7 @@
 
 	const auth = useAutorizacao();
 	const isAdmin = $derived(auth.isAdmin);
+	const samePathNav = useSamePathNavigating();
 
 	const escalas = $derived(data.escalas as EscalaListagem[]);
 	const unidades = $derived(data.unidades as Unidade[]);
@@ -478,41 +485,17 @@
 						</tr>
 					</thead>
 					<tbody>
-						{#if navigating?.to && navigating.to.url.pathname === page.url.pathname}
-							{#each { length: 8 } as _, i (i)}
-								<tr class="animate-pulse">
-									<td class="px-4 py-3"
-										><div
-											class="h-4 w-6 rounded bg-surface-200 dark:bg-surface-700 mx-auto"
-										></div></td
-									>
-									<td class="px-4 py-3"
-										><div
-											class="h-4 w-32 rounded bg-surface-200 dark:bg-surface-700 mx-auto"
-										></div></td
-									>
-									<td class="px-4 py-3"
-										><div
-											class="h-4 w-24 rounded bg-surface-200 dark:bg-surface-700 mx-auto"
-										></div></td
-									>
-									<td class="px-4 py-3"
-										><div
-											class="h-6 w-20 rounded-full bg-surface-200 dark:bg-surface-700 mx-auto"
-										></div></td
-									>
-									<td class="px-4 py-3"
-										><div
-											class="h-4 w-28 rounded bg-surface-200 dark:bg-surface-700 mx-auto"
-										></div></td
-									>
-									<td class="px-4 py-3"
-										><div class="flex gap-2 justify-center">
-											<div class="h-8 w-16 rounded-lg bg-surface-200 dark:bg-surface-700"></div>
-										</div></td
-									>
-								</tr>
-							{/each}
+						{#if samePathNav.current}
+							<SkeletonTableRows
+								cols={[
+									'h-4 w-6',
+									'h-4 w-32',
+									'h-4 w-24',
+									'h-6 w-20 rounded-full',
+									'h-4 w-28',
+									'h-8 w-16 rounded-lg'
+								]}
+							/>
 						{:else}
 							{#each escalas as escala (escala.id)}
 								<tr
@@ -664,10 +647,8 @@
 
 			<!-- Mobile cards -->
 			<div class="md:hidden space-y-3">
-				{#if navigating?.to && navigating.to.url.pathname === page.url.pathname}
-					{#each { length: 5 } as _, i (i)}
-						<SkeletonCard />
-					{/each}
+				{#if samePathNav.current}
+					<SkeletonCards />
 				{:else}
 					{#each escalas as escala (escala.id)}
 						<div

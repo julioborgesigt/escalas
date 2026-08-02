@@ -22,6 +22,14 @@ const config = {
 		adapter: adapter(),
 
 		/**
+		 * Poll de versão do build: quando um deploy sobe, `updated.current`
+		 * fica true e o layout oferece banner + força reload na próxima navegação.
+		 */
+		version: {
+			pollInterval: 60_000
+		},
+
+		/**
 		 * CSP gerenciada pelo SvelteKit para respostas HTML...
 		 * `mode: 'auto'` adiciona automaticamente nonces (SSR) ou hashes (prerender)
 		 * para os inline scripts/styles que o próprio framework emite na hidratação,

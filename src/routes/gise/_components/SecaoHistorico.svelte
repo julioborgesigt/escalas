@@ -20,9 +20,8 @@
 	 * mês corrente.
 	 */
 	import { goto } from '$app/navigation';
-	import { navigating } from '$app/state';
-	import { page } from '$app/state';
-	import SkeletonCard from '$lib/components/SkeletonCard.svelte';
+	import SkeletonCards from '$lib/components/SkeletonCards.svelte';
+	import { useSamePathNavigating } from '$lib/composables';
 	import { apiFetchResponse } from '$lib/api-fetch';
 	import { baixarBlob, nomeArquivoContentDisposition } from '$lib/utils/download';
 	import { loading } from '$lib/loading.svelte';
@@ -72,6 +71,8 @@
 	let paginaHistorico = $state(1);
 
 	const ITEMS_POR_PAGINA = 5;
+
+	const samePathNav = useSamePathNavigating();
 
 	const anosDisponiveisHistorico = $derived(
 		([...new Set(historico.map((e) => Number(e.data_inicio.slice(0, 4))))] as number[]).sort(
@@ -431,10 +432,8 @@
 		{/if}
 
 		<div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
-			{#if navigating?.to && navigating.to.url.pathname === page.url.pathname}
-				{#each { length: 6 } as _, i (i)}
-					<SkeletonCard lines={2} hasFooter={false} />
-				{/each}
+			{#if samePathNav.current}
+				<SkeletonCards count={6} />
 			{:else if historicoPaginado.length === 0}
 				<div
 					class="col-span-full rounded-2xl border border-dashed border-surface-300 dark:border-surface-700 bg-surface-50/50 dark:bg-surface-900/50 p-8 text-center flex flex-col items-center justify-center gap-3"

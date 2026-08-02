@@ -28,8 +28,8 @@
 	import { goto } from '$app/navigation';
 	import { invalidateShared } from '$lib/cross-tab-invalidate';
 	import { fly } from 'svelte/transition';
-	import { page, navigating } from '$app/state';
-	import SkeletonCard from '$lib/components/SkeletonCard.svelte';
+	import SkeletonCards from '$lib/components/SkeletonCards.svelte';
+	import SkeletonTableRows from '$lib/components/SkeletonTableRows.svelte';
 	import { untrack } from 'svelte';
 	import { enhance } from '$app/forms';
 	import { toaster } from '$lib/toast';
@@ -42,7 +42,8 @@
 		useAutorizacao,
 		getSavedFilters,
 		useConfirmationDialog,
-		useFiltrosPaginados
+		useFiltrosPaginados,
+		useSamePathNavigating
 	} from '$lib/composables';
 	import type { Policial, Unidade } from '$lib/types';
 	import SearchableSelect from '$lib/components/SearchableSelect.svelte';
@@ -71,6 +72,7 @@
 
 	const auth = useAutorizacao();
 	const isAdmin = $derived(auth.isAdmin);
+	const samePathNav = useSamePathNavigating();
 	const isAdminOrSeccional = $derived(auth.isAdminOrSeccional);
 	const isAdminUnidade = $derived(auth.isAdminUnidade);
 	const savedFilters = getSavedFilters('filtros_policiais', {
@@ -727,32 +729,17 @@
 					</tr>
 				</thead>
 				<tbody>
-					{#if navigating?.to && navigating.to.url.pathname === page.url.pathname}
-						{#each { length: 8 } as _, i (i)}
-							<tr class="animate-pulse">
-								<td class="px-4 py-3"
-									><div class="h-4 w-40 rounded bg-surface-200 dark:bg-surface-700"></div></td
-								>
-								<td class="px-4 py-3"
-									><div class="h-4 w-20 rounded bg-surface-200 dark:bg-surface-700"></div></td
-								>
-								<td class="px-4 py-3"
-									><div class="h-6 w-16 rounded-full bg-surface-200 dark:bg-surface-700"></div></td
-								>
-								<td class="px-4 py-3"
-									><div class="h-4 w-28 rounded bg-surface-200 dark:bg-surface-700"></div></td
-								>
-								<td class="px-4 py-3"
-									><div class="h-4 w-32 rounded bg-surface-200 dark:bg-surface-700"></div></td
-								>
-								<td class="px-4 py-3"
-									><div class="flex gap-2">
-										<div class="h-8 w-14 rounded-lg bg-surface-200 dark:bg-surface-700"></div>
-										<div class="h-8 w-14 rounded-lg bg-surface-200 dark:bg-surface-700"></div>
-									</div></td
-								>
-							</tr>
-						{/each}
+					{#if samePathNav.current}
+						<SkeletonTableRows
+							cols={[
+								'h-4 w-40',
+								'h-4 w-20',
+								'h-6 w-16 rounded-full',
+								'h-4 w-28',
+								'h-4 w-32',
+								'h-8 w-32 rounded-lg'
+							]}
+						/>
 					{:else}
 						{#each policiais as p (p.id)}
 							<tr>
@@ -790,10 +777,8 @@
 
 		<!-- Mobile cards -->
 		<div class="md:hidden space-y-3">
-			{#if navigating?.to && navigating.to.url.pathname === page.url.pathname}
-				{#each { length: 5 } as _, i (i)}
-					<SkeletonCard />
-				{/each}
+			{#if samePathNav.current}
+				<SkeletonCards />
 			{:else}
 				{#each policiais as p, i (p.id)}
 					<div
