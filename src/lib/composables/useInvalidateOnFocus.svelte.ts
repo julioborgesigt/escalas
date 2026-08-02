@@ -4,8 +4,11 @@
  *  - outra aba do mesmo browser notifica via BroadcastChannel;
  *  - um poll silencioso enquanto a aba está visível.
  *
- * Poll “quente” vs “frio”: estados ativos (pendências, GISE em curso) usam
- * intervalo curto; o restante usa intervalo longo (ou só foco + broadcast).
+ * Com `probe`, o poll/foco só chama `invalidate` se o carimbo mudou
+ * (`GET /api/sync/estado`) — evita rerodar o `load` pesado a cada tick.
+ * Notificação cross-tab continua forçando invalidate (já sabemos que mudou).
+ *
+ * Poll “quente” vs “frio”: estados ativos usam intervalo curto; o restante, longo.
  */
 import { browser } from '$app/environment';
 import { invalidate } from '$app/navigation';
@@ -31,6 +34,11 @@ export function useInvalidateOnFocus(
 		 * o estado da página (ex.: status GISE, filtro “não vistos”).
 		 */
 		isHot?: () => boolean;
+		/**
+		 * Carimbo leve (ex.: stamp de `/api/sync/estado`). Se igual ao anterior,
+		 * o poll/foco NÃO invalida. Em falha de rede devolve `null` e ignora o tick.
+		 */
+		probe?: () => Promise<string | null>;
 	}
 ) {
 	$effect(() => {
@@ -45,28 +53,48 @@ export function useInvalidateOnFocus(
 					: (opcoes?.coldIntervalMs ?? INTERVALO_FRIO_MS);
 
 		let emCurso = false;
-		async function refrescar() {
+		let ultimoStamp: string | null = null;
+
+		async function refrescar(force = false) {
 			if (emCurso || document.visibilityState !== 'visible') return;
 			emCurso = true;
 			try {
+				if (!force && opcoes?.probe) {
+					const stamp = await opcoes.probe();
+					if (stamp === null) return;
+					// Primeiro tick só semeia o carimbo — o `load` já veio fresco.
+					if (ultimoStamp === null) {
+						ultimoStamp = stamp;
+						return;
+					}
+					if (stamp === ultimoStamp) return;
+					ultimoStamp = stamp;
+				}
 				await invalidate(chave);
+				if (force && opcoes?.probe) {
+					try {
+						ultimoStamp = await opcoes.probe();
+					} catch {
+						/* carimbo pós-invalidate é best-effort */
+					}
+				}
 			} finally {
 				emCurso = false;
 			}
 		}
 
 		function aoMudarVisibilidade() {
-			if (document.visibilityState === 'visible') void refrescar();
+			if (document.visibilityState === 'visible') void refrescar(false);
 		}
 
 		document.addEventListener('visibilitychange', aoMudarVisibilidade);
 		const unscribeTab = subscribeInvalidate(chave, () => {
-			void refrescar();
+			void refrescar(true);
 		});
 		const timer =
 			intervalMs > 0
 				? setInterval(() => {
-						void refrescar();
+						void refrescar(false);
 					}, intervalMs)
 				: null;
 

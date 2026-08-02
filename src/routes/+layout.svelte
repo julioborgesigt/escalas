@@ -55,6 +55,7 @@
 	const isMembroGise = $derived(page.data.isMembroGise ?? false);
 	const isSupervisaoGise = $derived(page.data.isSupervisaoGise ?? false);
 	const adminModulo = $derived((page.data.adminModulo as 'ambas' | 'gise' | 'escalas') ?? 'ambas');
+	const recebidosNaoVistos = $derived(Number(page.data.recebidosNaoVistos ?? 0));
 
 	// Alternância de acesso ADM Geral ↔ Usuário (mesma pessoa vinculada).
 	const podeAlternarParaUsuario = $derived(page.data.podeAlternarParaUsuario ?? false);
@@ -463,7 +464,13 @@
 
 		<!-- Navigation -->
 		<nav id="navegacao-principal" class="flex-1 px-3 py-4 space-y-1 overflow-y-auto" tabindex="-1">
-			{#snippet itemMenu(href: string, rotulo: string, paths: string[], ativo?: boolean)}
+			{#snippet itemMenu(
+				href: string,
+				rotulo: string,
+				paths: string[],
+				ativo?: boolean,
+				badge?: number
+			)}
 				<a
 					{href}
 					data-sveltekit-preload-data="hover"
@@ -478,7 +485,15 @@
 							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" {d} />
 						{/each}
 					</svg>
-					{rotulo}
+					<span class="truncate flex-1 text-left">{rotulo}</span>
+					{#if badge && badge > 0}
+						<span
+							class="shrink-0 min-w-5 h-5 px-1.5 rounded-full bg-primary-500 text-white text-3xs font-bold tabular-nums flex items-center justify-center"
+							aria-label={`${badge} não lidos`}
+						>
+							{badge > 99 ? '99+' : badge}
+						</span>
+					{/if}
 				</a>
 			{/snippet}
 
@@ -500,7 +515,13 @@
 					{#if usuario?.tipo === 'admin'}
 						{@render itemMenu('/escalas/bem-vindo', 'Boas-vindas', ICONE.casa)}
 						{@render itemMenu('/painel', 'Painel', ICONE.painel)}
-						{@render itemMenu('/recebidos', 'Cx. de Entrada', ICONE.caixaEntrada)}
+						{@render itemMenu(
+							'/recebidos',
+							'Cx. de Entrada',
+							ICONE.caixaEntrada,
+							undefined,
+							recebidosNaoVistos
+						)}
 					{/if}
 					{#if showEscalasPoliciais}
 						{@render itemMenu('/escalas/bem-vindo', 'Boas-vindas', ICONE.casa)}

@@ -39,6 +39,7 @@
 	import type { ActionResult } from '@sveltejs/kit';
 	import { loading as loadingService } from '$lib/loading.svelte';
 	import SearchableSelect from '$lib/components/SearchableSelect.svelte';
+	import { fetchSyncEstado } from '$lib/sync-estado';
 
 	const { data }: PageProps = $props();
 
@@ -74,8 +75,17 @@
 	);
 
 	// Inbox “não vistos” fica quente (30s); histórico completo, frio (120s).
+	// Probe: só invalida o load (e o badge do layout) se o carimbo mudou.
 	useInvalidateOnFocus('app:recebidos', {
-		isHot: () => mostrarApenasNaoVistos
+		isHot: () => mostrarApenasNaoVistos,
+		probe: async () => {
+			try {
+				const e = await fetchSyncEstado();
+				return e.recebidos?.stamp ?? null;
+			} catch {
+				return null;
+			}
+		}
 	});
 
 	// Salvar a cada mudança
@@ -221,15 +231,15 @@
 			escala.visto_por_admin = novoStatus ? 1 : 0;
 			togglingId = escala.id;
 			return async ({
-				result,
-				update
+				result
 			}: {
 				result: ActionResult;
 				update: (opts?: { reset?: boolean }) => Promise<void>;
 			}) => {
 				togglingId = null;
 				if (result.type === 'success') {
-					await update({ reset: false });
+					// Atualiza lista + badge do layout nesta aba e nas outras.
+					await invalidateShared('app:recebidos');
 				} else {
 					escala.visto_por_admin = novoStatus ? 0 : 1;
 					toaster.create({ title: 'Erro ao atualizar status', type: 'error' });

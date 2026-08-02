@@ -44,6 +44,7 @@
 		rubricaValida,
 		useInvalidateOnFocus
 	} from '$lib/composables';
+	import { fetchSyncEstado } from '$lib/sync-estado';
 	import SignaturePad from '$lib/components/SignaturePad.svelte';
 	import type { SignaturePadConfirmPayload } from '$lib/components/SignaturePadTypes';
 	import PainelAssinaturaToken from '$lib/components/PainelAssinaturaToken.svelte';
@@ -305,7 +306,17 @@
 
 	// Pendências: foco + broadcast + poll quente se houver fila ou visão assinaturas.
 	useInvalidateOnFocus('app:escalas', {
-		isHot: () => escalasParaAssinar.length > 0 || visao === 'assinaturas'
+		isHot: () => escalasParaAssinar.length > 0 || visao === 'assinaturas',
+		probe: async () => {
+			try {
+				const e = await fetchSyncEstado();
+				// Só DPC admin recebe fatia; sem ela, força invalidate a cada tick
+				// (mesmo comportamento do poll sem probe).
+				return e.escalas?.stamp ?? `t:${Date.now()}`;
+			} catch {
+				return null;
+			}
+		}
 	});
 
 	// --- Rubrica reutilizável (cadastro para assinatura por token) ---

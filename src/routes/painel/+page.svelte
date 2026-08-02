@@ -32,7 +32,7 @@
 		Search,
 		PartyPopper
 	} from '@lucide/svelte';
-	import { goto, invalidate } from '$app/navigation';
+	import { goto } from '$app/navigation';
 	import { enhance } from '$app/forms';
 	import { page, navigating } from '$app/state';
 	import { SvelteSet } from 'svelte/reactivity';
@@ -42,7 +42,9 @@
 	import SearchableSelect from '$lib/components/SearchableSelect.svelte';
 	import { toaster } from '$lib/toast';
 	import type { ItemCompliance } from '$lib/types';
-	import { useAutorizacao, getSavedFilters } from '$lib/composables';
+	import { useAutorizacao, getSavedFilters, useInvalidateOnFocus } from '$lib/composables';
+	import { invalidateShared } from '$lib/cross-tab-invalidate';
+	import { fetchSyncEstado } from '$lib/sync-estado';
 	import { loading as loadingService } from '$lib/loading.svelte';
 	import type { ActionResult } from '@sveltejs/kit';
 
@@ -101,6 +103,19 @@
 	const filtroAgrupamento = 'unidade';
 	let filtroPendentes = $state(true);
 	let mostrarIgnorados = $state(!!savedFilters.ignorados);
+
+	// Compliance é caro: foco/poll só refetch se o carimbo mudou; broadcast força.
+	useInvalidateOnFocus('app:painel', {
+		isHot: () => filtroPendentes,
+		probe: async () => {
+			try {
+				const e = await fetchSyncEstado();
+				return e.painel?.stamp ?? null;
+			} catch {
+				return null;
+			}
+		}
+	});
 
 	// Salvar filtros a cada mudança
 	$effect(() => {
@@ -283,7 +298,7 @@
 		}
 		// Chave declarada com depends() no load: invalidate(pathname) exigia
 		// match exato de URL e não funcionava com ?ano=&mes= presentes.
-		await invalidate('app:painel');
+		await invalidateShared('app:painel');
 		loadingService.hide();
 	}
 
@@ -306,7 +321,7 @@
 			loadingService.hide();
 			if (result.type === 'success') {
 				toaster.create({ title: 'Escala excluída com sucesso!', type: 'success' });
-				await invalidate('app:painel');
+				await invalidateShared('app:painel');
 				escalaExcluirOpen = false;
 				itemParaExcluir = null;
 			} else {

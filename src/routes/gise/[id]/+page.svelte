@@ -43,6 +43,7 @@
 	import { enhance } from '$app/forms';
 	import { useGiseEstado, useGiseAssinatura } from '$lib/composables/gise';
 	import { useOfertaRubrica, rubricaValida, useInvalidateOnFocus } from '$lib/composables';
+	import { fetchSyncEstado } from '$lib/sync-estado';
 	import { loading } from '$lib/loading.svelte';
 	import type { Policial, GiseAssinaturaRelatorio } from '$lib/server/schema';
 	import { checkAllSigned, filtrarSeccionaisDisponiveis } from '$lib/gise/page-helpers';
@@ -87,8 +88,20 @@
 	const gise = $derived(giseEstado.gise);
 
 	// Outras sessões / abas: foco + broadcast + poll (30s quente / 120s frio).
+	// Probe: carimbo leve — só refetch completo se a GISE mudou no servidor.
 	useInvalidateOnFocus('gise:detail', {
-		isHot: () => Boolean(gise?.status && gise.status !== 'finalizada')
+		isHot: () => Boolean(gise?.status && gise.status !== 'finalizada'),
+		probe: async () => {
+			const id = gise?.id;
+			if (!id) return null;
+			try {
+				const e = await fetchSyncEstado({ giseId: id });
+				const stamp = e.gise?.stamp;
+				return stamp ? `${id}:${stamp}` : null;
+			} catch {
+				return null;
+			}
+		}
 	});
 	const policiais = $derived(data.policiais as Policial[]);
 	const todasUnidades = $derived(giseEstado.todasUnidades);
