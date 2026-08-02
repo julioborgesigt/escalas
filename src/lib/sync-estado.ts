@@ -9,6 +9,7 @@ export type SyncEstado = {
 	escalas?: { stamp: string; pendentes: number };
 	gise?: { stamp: string };
 	painel?: { stamp: string };
+	resGise?: { stamp: string };
 };
 
 export async function fetchSyncEstado(opts?: { giseId?: number }): Promise<SyncEstado> {

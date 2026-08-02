@@ -310,9 +310,8 @@
 		probe: async () => {
 			try {
 				const e = await fetchSyncEstado();
-				// Só DPC admin recebe fatia; sem ela, força invalidate a cada tick
-				// (mesmo comportamento do poll sem probe).
-				return e.escalas?.stamp ?? `t:${Date.now()}`;
+				// Sem fatia para este papel: pula o tick (não força invalidate).
+				return e.escalas?.stamp ?? null;
 			} catch {
 				return null;
 			}

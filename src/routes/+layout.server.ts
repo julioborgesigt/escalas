@@ -37,13 +37,13 @@ export const load: LayoutServerLoad = async ({ locals, platform, cookies, depend
 			// próprio handler, então o stale window real é só para
 			// cascatas raras (ex.: deletar uma seccional inteira).
 			const db = getDB(platform);
-			if (u.tipo === 'admin') depends('app:recebidos');
+			// Contador da sidebar: chave própria para o poll do badge não
+			// reexecutar o `load` pesado de `/recebidos` (nem o contrário).
+			if (u.tipo === 'admin') depends('app:recebidos-badge');
 			const [flags, papel, vinculadoAdmin, recebidos] = await Promise.all([
 				lerFlagsAssinatura(platform),
 				u.tipo === 'policial' ? lerPapelGise(db, u.id) : Promise.resolve(null),
 				u.tipo === 'policial' ? ehAdminGeralVinculado(db, u.id) : Promise.resolve(false),
-				// Badge da Cx. de Entrada: mesma chave `app:recebidos` da página,
-				// para `invalidate('app:recebidos')` atualizar o contador no menu.
 				u.tipo === 'admin' ? resumoRecebidosAdmin(db) : Promise.resolve(null)
 			]);
 			podeAlternarParaAdmin = vinculadoAdmin;

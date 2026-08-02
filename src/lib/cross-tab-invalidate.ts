@@ -40,9 +40,11 @@ export function notifyInvalidateAll() {
 	notifyInvalidate('*');
 }
 
-export async function invalidateShared(chave: string) {
-	await invalidate(chave);
-	notifyInvalidate(chave);
+/** Invalida uma ou mais chaves de `depends(...)` e notifica as outras abas. */
+export async function invalidateShared(...chaves: string[]) {
+	if (chaves.length === 0) return;
+	await Promise.all(chaves.map((c) => invalidate(c)));
+	notifyInvalidate(...chaves);
 }
 
 export async function invalidateAllShared() {

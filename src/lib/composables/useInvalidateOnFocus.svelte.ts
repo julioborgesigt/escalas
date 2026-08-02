@@ -39,6 +39,11 @@ export function useInvalidateOnFocus(
 		 * o poll/foco NÃO invalida. Em falha de rede devolve `null` e ignora o tick.
 		 */
 		probe?: () => Promise<string | null>;
+		/**
+		 * Chaves extras invalidadas junto (ex.: badge do layout junto da inbox).
+		 * Broadcast continua escutando só `chave`.
+		 */
+		also?: string[];
 	}
 ) {
 	$effect(() => {
@@ -51,6 +56,8 @@ export function useInvalidateOnFocus(
 				: hot
 					? (opcoes?.hotIntervalMs ?? INTERVALO_QUENTE_MS)
 					: (opcoes?.coldIntervalMs ?? INTERVALO_FRIO_MS);
+
+		const chaves = [chave, ...(opcoes?.also ?? [])];
 
 		let emCurso = false;
 		let ultimoStamp: string | null = null;
@@ -70,7 +77,7 @@ export function useInvalidateOnFocus(
 					if (stamp === ultimoStamp) return;
 					ultimoStamp = stamp;
 				}
-				await invalidate(chave);
+				await Promise.all(chaves.map((c) => invalidate(c)));
 				if (force && opcoes?.probe) {
 					try {
 						ultimoStamp = await opcoes.probe();

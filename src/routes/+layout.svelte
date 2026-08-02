@@ -44,7 +44,8 @@
 	import LoadingOverlay from '$lib/components/LoadingOverlay.svelte';
 	import Spinner from '$lib/components/Spinner.svelte';
 	import AvisoCadastroRubrica from '$lib/components/AvisoCadastroRubrica.svelte';
-	import { useScrollLock } from '$lib/composables';
+	import { useScrollLock, useInvalidateOnFocus } from '$lib/composables';
+	import { fetchSyncEstado } from '$lib/sync-estado';
 	import { ICONE } from '$lib/constants/icones';
 	import { AlertCircle, CheckCircle2 } from '@lucide/svelte';
 
@@ -56,6 +57,21 @@
 	const isSupervisaoGise = $derived(page.data.isSupervisaoGise ?? false);
 	const adminModulo = $derived((page.data.adminModulo as 'ambas' | 'gise' | 'escalas') ?? 'ambas');
 	const recebidosNaoVistos = $derived(Number(page.data.recebidosNaoVistos ?? 0));
+
+	// Badge da Cx. de Entrada: poll frio em qualquer rota (admin). A inbox tem
+	// poll próprio quente/frio; as duas chaves ficam alinhadas via `also`.
+	useInvalidateOnFocus('app:recebidos-badge', {
+		isHot: () => false,
+		probe: async () => {
+			if (usuario?.tipo !== 'admin') return null;
+			try {
+				const e = await fetchSyncEstado();
+				return e.recebidos?.stamp ?? null;
+			} catch {
+				return null;
+			}
+		}
+	});
 
 	// Alternância de acesso ADM Geral ↔ Usuário (mesma pessoa vinculada).
 	const podeAlternarParaUsuario = $derived(page.data.podeAlternarParaUsuario ?? false);

@@ -22,7 +22,8 @@
 	import { page, navigating } from '$app/state';
 	import SkeletonCard from '$lib/components/SkeletonCard.svelte';
 	import Spinner from '$lib/components/Spinner.svelte';
-	import { useAutorizacao, useMobile } from '$lib/composables';
+	import { useAutorizacao, useMobile, useInvalidateOnFocus } from '$lib/composables';
+	import { fetchSyncEstado } from '$lib/sync-estado';
 	import { Tabs } from '@skeletonlabs/skeleton-svelte';
 	import SignaturePad from '$lib/components/SignaturePad.svelte';
 	import ModalCadastrarRubrica from '$lib/components/ModalCadastrarRubrica.svelte';
@@ -39,6 +40,28 @@
 	const resGise = useResGise(() => data);
 	const mobileState = useMobile();
 	const isMobile = $derived(mobileState.isMobile);
+
+	// Presença/relatório de outra sessão: foco + broadcast + poll (quente se há
+	// serviço ativo sem saída).
+	useInvalidateOnFocus('app:res-gise', {
+		isHot: () =>
+			!isAdminGeral &&
+			Boolean(
+				resGise.escalaSelecionada &&
+				!(
+					'presenca' in resGise.escalaSelecionada &&
+					resGise.escalaSelecionada.presenca?.saida_timestamp
+				)
+			),
+		probe: async () => {
+			try {
+				const e = await fetchSyncEstado();
+				return e.resGise?.stamp ?? null;
+			} catch {
+				return null;
+			}
+		}
+	});
 
 	let signatureStep = $state<'signature' | 'camera' | 'email_code'>('signature');
 	$effect(() => {

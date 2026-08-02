@@ -78,6 +78,7 @@
 	// Probe: só invalida o load (e o badge do layout) se o carimbo mudou.
 	useInvalidateOnFocus('app:recebidos', {
 		isHot: () => mostrarApenasNaoVistos,
+		also: ['app:recebidos-badge'],
 		probe: async () => {
 			try {
 				const e = await fetchSyncEstado();
@@ -212,7 +213,7 @@
 	async function recarregar() {
 		loadingService.show('Atualizando caixa de entrada...');
 		try {
-			await invalidateShared('app:recebidos');
+			await invalidateShared('app:recebidos', 'app:recebidos-badge');
 		} finally {
 			loadingService.hide();
 		}
@@ -239,7 +240,7 @@
 				togglingId = null;
 				if (result.type === 'success') {
 					// Atualiza lista + badge do layout nesta aba e nas outras.
-					await invalidateShared('app:recebidos');
+					await invalidateShared('app:recebidos', 'app:recebidos-badge');
 				} else {
 					escala.visto_por_admin = novoStatus ? 0 : 1;
 					toaster.create({ title: 'Erro ao atualizar status', type: 'error' });
@@ -295,7 +296,7 @@
 			loadingService.hide();
 			if (result.type === 'success') {
 				toaster.create({ title: 'Escala removida com sucesso', type: 'success' });
-				await invalidateShared('app:recebidos');
+				await invalidateShared('app:recebidos', 'app:recebidos-badge');
 				dialogOpen = false;
 				escalaParaExcluir = null;
 			} else {

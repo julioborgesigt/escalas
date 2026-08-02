@@ -3,7 +3,7 @@
  *
  * Query opcional: `?giseId=` inclui o stamp da GISE aberta.
  * Só devolve fatias pertinentes ao papel da sessão (admin → recebidos/painel;
- * DPC admin → escalas pendentes).
+ * DPC admin → escalas pendentes; policial/admin → res-gise).
  */
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
@@ -14,7 +14,8 @@ import {
 	resumoRecebidosAdmin,
 	resumoEscalasPendentes,
 	carimboGise,
-	carimboPainel
+	carimboPainel,
+	carimboResGise
 } from '$lib/server/sync-estado';
 import { unidades as unidadesTable } from '$lib/server/schema';
 
@@ -35,6 +36,7 @@ export const GET: RequestHandler = async ({ locals, platform, url }) => {
 			escalas?: { stamp: string; pendentes: number };
 			gise?: { stamp: string };
 			painel?: { stamp: string };
+			resGise?: { stamp: string };
 		} = {};
 
 		const tasks: Promise<void>[] = [];
@@ -46,6 +48,17 @@ export const GET: RequestHandler = async ({ locals, platform, url }) => {
 				}),
 				carimboPainel(db).then((stamp) => {
 					body.painel = { stamp };
+				}),
+				carimboResGise(db, null).then((stamp) => {
+					body.resGise = { stamp };
+				})
+			);
+		}
+
+		if (u.tipo === 'policial') {
+			tasks.push(
+				carimboResGise(db, u.id).then((stamp) => {
+					body.resGise = { stamp };
 				})
 			);
 		}

@@ -6,7 +6,8 @@ import { renumerarPerguntas } from '$lib/gise/renumerar-perguntas';
 import { loading } from '$lib/loading.svelte';
 import { page } from '$app/state';
 import { goto } from '$app/navigation';
-import { invalidateAllShared } from '$lib/cross-tab-invalidate';
+import { untrack } from 'svelte';
+import { invalidateShared } from '$lib/cross-tab-invalidate';
 import type { ActionResult } from '@sveltejs/kit';
 import { csrfHeaders } from '$lib/csrf';
 import type {
@@ -77,6 +78,16 @@ export function useResGise(getData: () => ResGisePageData) {
 	let idExtraBaixando = $state<number | null>(null);
 	// Qual comprovante de presença está baixando ('entrada' | 'saida' | null).
 	let termoBaixando = $state<'entrada' | 'saida' | null>(null);
+
+	// Após invalidate externo (outra aba / poll), realinha a seleção ao load fresco.
+	// Só depende de `minhasEscalas` — ler `escalaSelecionada` no effect causaria loop.
+	$effect(() => {
+		const lista = data.minhasEscalas;
+		const sel = untrack(() => escalaSelecionada);
+		if (!sel || !lista) return;
+		const atualizada = lista.find((e) => e.id === sel.id && e.equipe_id === sel.equipe_id);
+		if (atualizada) escalaSelecionada = atualizada;
+	});
 
 	// --- Efeitos de Sincronização ---
 	$effect(() => {
@@ -199,7 +210,7 @@ export function useResGise(getData: () => ResGisePageData) {
 			loading.hide();
 			if (result.type === 'success') {
 				toaster.success({ title: `Modelo ${configTipo} salvo com sucesso` });
-				await invalidateAllShared();
+				await invalidateShared('app:res-gise');
 				reaplicarEscalaSelecionada();
 			} else if (result.type === 'failure') {
 				const d = result.data as Record<string, unknown> | undefined;
@@ -226,8 +237,8 @@ export function useResGise(getData: () => ResGisePageData) {
 	}
 
 	/**
-	 * Após qualquer `invalidateAll`, `escalaSelecionada` ainda aponta para o
-	 * objeto antigo. Reaplica a partir de `data.minhasEscalas`; se sumiu da
+	 * Após qualquer invalidate de `app:res-gise`, `escalaSelecionada` ainda aponta
+	 * para o objeto antigo. Reaplica a partir de `data.minhasEscalas`; se sumiu da
 	 * lista (saída finalizada), opcionalmente carimba o timestamp local.
 	 */
 	function reaplicarEscalaSelecionada(tipoPresenca?: 'entrada' | 'saida') {
@@ -261,7 +272,7 @@ export function useResGise(getData: () => ResGisePageData) {
 	 */
 	async function sincronizarPresencaAtual(tipo: 'entrada' | 'saida') {
 		if (!escalaSelecionada) return;
-		await invalidateAllShared();
+		await invalidateShared('app:res-gise');
 		reaplicarEscalaSelecionada(tipo);
 	}
 
@@ -294,7 +305,7 @@ export function useResGise(getData: () => ResGisePageData) {
 
 			toaster.success({ title: 'Entrada confirmada com sucesso' });
 			capturandoRubrica = false;
-			await invalidateAllShared();
+			await invalidateShared('app:res-gise');
 			reaplicarEscalaSelecionada('entrada');
 		} catch (e: unknown) {
 			toaster.error({ title: 'Erro', description: messageFromUnknown(e) });
@@ -359,7 +370,7 @@ export function useResGise(getData: () => ResGisePageData) {
 
 			toaster.success({ title: 'Saída confirmada com sucesso' });
 			capturandoRubrica = false;
-			await invalidateAllShared();
+			await invalidateShared('app:res-gise');
 			// Saída costuma tirar a escala de `minhasEscalas`; o helper carimba
 			// o timestamp local quando a linha some da lista.
 			reaplicarEscalaSelecionada('saida');
