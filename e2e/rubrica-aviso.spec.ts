@@ -52,7 +52,9 @@ test.describe('Aviso de cadastro de rubrica', () => {
 		if (!ok) test.skip(true, 'D1 indisponível');
 
 		await page.goto('/bem-vindo');
-		await expect(page.getByRole('button', { name: /Sair/ })).toBeVisible();
+		// Sentinel de sessão no conteúdo principal — não usar "Sair": no mobile a
+		// sidebar começa fechada e `inert` (VIS-13), então o botão não é visível.
+		await expect(page.getByRole('heading', { name: /Bem-vindo/ })).toBeVisible();
 		await expect(page.getByText('Cadastre sua rubrica')).toHaveCount(0);
 	});
 });
