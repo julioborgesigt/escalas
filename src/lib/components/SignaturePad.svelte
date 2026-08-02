@@ -275,7 +275,9 @@
 	<div class="flex flex-col gap-4">
 		<div class="space-y-2 {step !== 'signature' ? 'hidden' : ''}">
 			<div class="flex justify-between items-end">
-				<span class="text-3xs font-bold text-surface-600 dark:text-surface-400 uppercase tracking-wider">Sua Rubrica</span
+				<span
+					class="text-3xs font-bold text-surface-600 dark:text-surface-400 uppercase tracking-wider"
+					>Sua Rubrica</span
 				>
 				{#if rubricaSalva}
 					<button
@@ -551,7 +553,9 @@
 	<!-- O aviso de consentimento lista só o que este nível de segurança (config
 	     do Super Admin) de fato captura: GPS e/ou selfie; metadados sempre. -->
 	<div class="p-3 bg-primary-500/5 border border-dashed border-primary-500/20 rounded-xl">
-		<p class="text-3xs font-medium text-surface-600 dark:text-surface-400 leading-tight text-center">
+		<p
+			class="text-3xs font-medium text-surface-600 dark:text-surface-400 leading-tight text-center"
+		>
 			Ao assinar, declaro a veracidade destas informações e autorizo o registro de
 			{#if exigirGps && exigirFoto}
 				minha <strong>localização geográfica</strong>, <strong>fotografia (prova de vida)</strong> e

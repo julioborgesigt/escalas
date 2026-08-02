@@ -352,7 +352,9 @@
 					<RelatorioProdutividade modelo={etapaAtual.perguntas} bind:respostas />
 				</div>
 			{:else}
-				<p class="text-sm text-surface-600 dark:text-surface-400">Nenhuma pergunta configurada para este formulário.</p>
+				<p class="text-sm text-surface-600 dark:text-surface-400">
+					Nenhuma pergunta configurada para este formulário.
+				</p>
 			{/if}
 		</div>
 	</div>

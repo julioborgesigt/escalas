@@ -152,7 +152,9 @@
 						</svg>
 					</div>
 					<h1 class="text-xl font-bold">Definir nova senha</h1>
-					<p class="text-sm text-surface-600 dark:text-surface-400 mt-1">Escolha uma senha segura para sua conta.</p>
+					<p class="text-sm text-surface-600 dark:text-surface-400 mt-1">
+						Escolha uma senha segura para sua conta.
+					</p>
 				</div>
 
 				{#if erroForm}

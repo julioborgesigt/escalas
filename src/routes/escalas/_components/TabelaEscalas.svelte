@@ -143,7 +143,9 @@
 											? `${MESES_PT[dRow.getMonth()]} ${dRow.getFullYear()}`
 											: `${formatarData(esc.data_inicio)} a ${formatarData(esc.data_fim)}`}
 									</a>
-									<span class="text-xs text-surface-600 dark:text-surface-400 truncate">{esc.lotacao}</span>
+									<span class="text-xs text-surface-600 dark:text-surface-400 truncate"
+										>{esc.lotacao}</span
+									>
 								</div>
 							</td>
 							<td>{esc.cidade}</td>

@@ -169,7 +169,9 @@
 	<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
 		<!-- Identificação (somente leitura) -->
 		<section class="card-glass p-4 sm:p-6 rounded-3xl lg:col-span-2">
-			<h2 class="font-semibold text-sm uppercase tracking-wider text-surface-600 dark:text-surface-400 mb-4">
+			<h2
+				class="font-semibold text-sm uppercase tracking-wider text-surface-600 dark:text-surface-400 mb-4"
+			>
 				Identificação
 			</h2>
 			<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -229,7 +231,11 @@
 
 		<!-- Rubrica (verticalizada) -->
 		<section class="card-glass p-4 sm:p-6 rounded-3xl lg:col-span-1">
-			<h2 class="font-semibold text-sm uppercase tracking-wider text-surface-600 dark:text-surface-400 mb-4">Rubrica</h2>
+			<h2
+				class="font-semibold text-sm uppercase tracking-wider text-surface-600 dark:text-surface-400 mb-4"
+			>
+				Rubrica
+			</h2>
 			<div class="flex flex-col gap-4">
 				{#if minhaRubrica}
 					<div
@@ -283,7 +289,9 @@
 
 	<!-- Dados alteráveis via solicitação -->
 	<section class="card-glass p-4 sm:p-6 rounded-3xl">
-		<h2 class="font-semibold text-sm uppercase tracking-wider text-surface-600 dark:text-surface-400 mb-1">
+		<h2
+			class="font-semibold text-sm uppercase tracking-wider text-surface-600 dark:text-surface-400 mb-1"
+		>
 			Dados cadastrais
 		</h2>
 		<p class="text-xs text-surface-600 dark:text-surface-400 mb-4">
@@ -346,7 +354,9 @@
 	<!-- Histórico de solicitações -->
 	{#if solicitacoes.length > 0}
 		<section class="card-glass p-4 sm:p-6 rounded-3xl">
-			<h2 class="font-semibold text-sm uppercase tracking-wider text-surface-600 dark:text-surface-400 mb-4">
+			<h2
+				class="font-semibold text-sm uppercase tracking-wider text-surface-600 dark:text-surface-400 mb-4"
+			>
 				Minhas solicitações
 				{#if pendentes.length > 0}
 					<span
@@ -375,10 +385,14 @@
 								<td class="py-2 font-medium">{ROTULO_CAMPO[s.campo]}</td>
 								<td class="py-2 text-surface-600 dark:text-surface-400">{s.valor_atual || '—'}</td>
 								<td class="py-2 font-semibold">{s.valor_novo}</td>
-								<td class="py-2 whitespace-nowrap text-xs tabular-nums text-surface-600 dark:text-surface-400">
+								<td
+									class="py-2 whitespace-nowrap text-xs tabular-nums text-surface-600 dark:text-surface-400"
+								>
 									{fmtDataHora(s.created_at)}
 								</td>
-								<td class="py-2 whitespace-nowrap text-xs tabular-nums text-surface-600 dark:text-surface-400">
+								<td
+									class="py-2 whitespace-nowrap text-xs tabular-nums text-surface-600 dark:text-surface-400"
+								>
 									{s.status === 'pendente' ? '—' : fmtDataHora(s.decidido_em)}
 								</td>
 								<td class="py-2">

@@ -780,7 +780,8 @@
 													>FDS</span
 												>
 											{/if}
-											<span class="text-xs text-surface-600 dark:text-surface-400 font-medium font-mono tabular-nums"
+											<span
+												class="text-xs text-surface-600 dark:text-surface-400 font-medium font-mono tabular-nums"
 												>{item.periodo}</span
 											>
 										</div>

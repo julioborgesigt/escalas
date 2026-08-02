@@ -308,7 +308,9 @@
 	<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
 		<div>
 			<h1 class="h1 text-2xl font-bold">Cx. de Entrada</h1>
-			<p class="text-sm text-surface-600 dark:text-surface-400 mt-0.5">Acompanhamento de novos envios em tempo real</p>
+			<p class="text-sm text-surface-600 dark:text-surface-400 mt-0.5">
+				Acompanhamento de novos envios em tempo real
+			</p>
 		</div>
 		<div class="flex gap-2 justify-end w-full sm:w-auto">
 			<button
@@ -666,7 +668,9 @@
 									</p>
 								</div>
 								<label class="flex flex-col items-center gap-1 shrink-0">
-									<span class="text-3xs uppercase font-bold text-surface-600 dark:text-surface-400">Lida</span>
+									<span class="text-3xs uppercase font-bold text-surface-600 dark:text-surface-400"
+										>Lida</span
+									>
 									<form
 										method="POST"
 										action="?/toggleVisto"

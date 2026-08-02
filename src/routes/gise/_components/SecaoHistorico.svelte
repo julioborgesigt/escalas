@@ -559,7 +559,10 @@
 															download
 															class="flex items-center gap-2 px-2 py-2 rounded-lg text-xs text-surface-700 dark:text-surface-300 hover:bg-surface-100 dark:hover:bg-surface-700 transition-colors touch-manipulation"
 														>
-															<Download class="w-3 h-3 shrink-0 text-success-500" aria-hidden="true" />
+															<Download
+																class="w-3 h-3 shrink-0 text-success-500"
+																aria-hidden="true"
+															/>
 															<span class="truncate"
 																>{sec.nome} — {tipo === 'seint' ? 'SEINT' : 'Operacional'}</span
 															>
@@ -602,7 +605,10 @@
 														download
 														class="flex items-center gap-2 px-2 py-2 rounded-lg text-xs text-surface-700 dark:text-surface-300 hover:bg-surface-100 dark:hover:bg-surface-700 transition-colors touch-manipulation"
 													>
-														<Download class="w-3 h-3 shrink-0 text-warning-500" aria-hidden="true" />
+														<Download
+															class="w-3 h-3 shrink-0 text-warning-500"
+															aria-hidden="true"
+														/>
 														<span class="truncate">{sec.nome}</span>
 													</a>
 												{/each}

@@ -44,7 +44,9 @@
 			>
 				Verificação de Documentos
 			</h1>
-			<p class="text-surface-600 dark:text-surface-400 font-medium text-center mt-3 text-sm max-w-[280px]">
+			<p
+				class="text-surface-600 dark:text-surface-400 font-medium text-center mt-3 text-sm max-w-[280px]"
+			>
 				Confirme a validade jurídica de escalas e relatórios oficiais.
 			</p>
 		</div>

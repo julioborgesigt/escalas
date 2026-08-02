@@ -544,7 +544,9 @@
 											>Desativada</span
 										>
 									{/if}
-									<p class="text-3xs font-bold uppercase text-surface-600 dark:text-surface-400 mt-0.5">
+									<p
+										class="text-3xs font-bold uppercase text-surface-600 dark:text-surface-400 mt-0.5"
+									>
 										{tipoLabel(u.tipo)}
 									</p>
 									{#if u.seccional_id}

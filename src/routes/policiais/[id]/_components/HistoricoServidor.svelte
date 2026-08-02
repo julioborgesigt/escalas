@@ -192,13 +192,17 @@
 									<span class="badge preset-filled-warning-500 text-3xs">Vigente</span>
 								{/if}
 							</div>
-							<span class="text-3xs text-surface-600 dark:text-surface-400 tabular-nums">{dataHora(ev.created_at)}</span>
+							<span class="text-3xs text-surface-600 dark:text-surface-400 tabular-nums"
+								>{dataHora(ev.created_at)}</span
+							>
 						</div>
 
 						<div class="mt-2 text-sm text-surface-700 dark:text-surface-200 space-y-1">
 							{#if ev.tipo === 'movimentacao'}
 								<p class="flex items-center gap-1.5 flex-wrap">
-									<span class="text-surface-600 dark:text-surface-400">{ev.unidade_origem || '—'}</span>
+									<span class="text-surface-600 dark:text-surface-400"
+										>{ev.unidade_origem || '—'}</span
+									>
 									<ArrowRightLeft size={14} class="text-primary-500" />
 									<span class="font-medium">{ev.unidade_destino}</span>
 								</p>
@@ -228,7 +232,9 @@
 									{#each diffLinhas(ev.dados_antes, ev.dados_depois) as l (l.campo)}
 										<p class="text-xs">
 											<span class="font-medium">{l.campo}:</span>
-											<span class="text-surface-600 dark:text-surface-400 line-through">{l.antes}</span>
+											<span class="text-surface-600 dark:text-surface-400 line-through"
+												>{l.antes}</span
+											>
 											<span class="mx-1">→</span>
 											<span>{l.depois}</span>
 										</p>
@@ -237,7 +243,9 @@
 							{/if}
 
 							{#if ev.nup}
-								<p class="text-3xs text-surface-600 dark:text-surface-400 font-mono">NUP: {ev.nup}</p>
+								<p class="text-3xs text-surface-600 dark:text-surface-400 font-mono">
+									NUP: {ev.nup}
+								</p>
 							{/if}
 						</div>
 

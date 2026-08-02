@@ -321,7 +321,9 @@
 							</select>
 						</label>
 					{:else if papel === 'admin_unidade' && isAdminUnidade}
-						<p class="text-xs text-surface-600 dark:text-surface-400 sm:col-span-7 flex items-end pb-2 ml-1">
+						<p
+							class="text-xs text-surface-600 dark:text-surface-400 sm:col-span-7 flex items-end pb-2 ml-1"
+						>
 							Será nomeado para a sua própria unidade.
 						</p>
 					{/if}

@@ -88,7 +88,9 @@
 									</p>
 								</td>
 								<td class="py-3 px-4 font-medium">{ROTULO_CAMPO[s.campo]}</td>
-								<td class="py-3 px-4 text-surface-600 dark:text-surface-400">{s.valor_atual || '—'}</td>
+								<td class="py-3 px-4 text-surface-600 dark:text-surface-400"
+									>{s.valor_atual || '—'}</td
+								>
 								<td class="py-3 px-4 font-semibold">{s.valor_novo}</td>
 								<td
 									class="py-3 px-4 text-xs text-surface-600 dark:text-surface-400 whitespace-nowrap"

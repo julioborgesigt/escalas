@@ -392,7 +392,9 @@
 							Nova Escala — Final de Semana
 						</h2>
 						{#if unidadeSelecionada}
-							<p class="text-xs text-surface-600 dark:text-surface-400 mt-0.5">{unidadeSelecionada.nome}</p>
+							<p class="text-xs text-surface-600 dark:text-surface-400 mt-0.5">
+								{unidadeSelecionada.nome}
+							</p>
 						{/if}
 					</div>
 
@@ -505,7 +507,9 @@
 						</p>
 						<div class="grid grid-cols-2 gap-2">
 							<div>
-								<span class="text-3xs text-surface-600 dark:text-surface-400 block mb-0.5">Hora entrada</span>
+								<span class="text-3xs text-surface-600 dark:text-surface-400 block mb-0.5"
+									>Hora entrada</span
+								>
 								<div class="flex gap-1">
 									<select class="select text-xs flex-1" bind:value={fdsHoraEntrada}>
 										{#each horas as h (h)}<option value={h}>{h}h</option>{/each}
@@ -516,7 +520,9 @@
 								</div>
 							</div>
 							<div>
-								<span class="text-3xs text-surface-600 dark:text-surface-400 block mb-0.5">Hora saída</span>
+								<span class="text-3xs text-surface-600 dark:text-surface-400 block mb-0.5"
+									>Hora saída</span
+								>
 								<div class="flex gap-1">
 									<select class="select text-xs flex-1" bind:value={fdsHoraSaida}>
 										{#each horas as h (h)}<option value={h}>{h}h</option>{/each}
@@ -578,7 +584,9 @@
 							Nova Escala — {tipo === 'plantao' ? 'Plantão Mensal' : 'Expediente Mensal'}
 						</h2>
 						{#if unidadeSelecionada}
-							<p class="text-xs text-surface-600 dark:text-surface-400 mt-0.5">{unidadeSelecionada.nome}</p>
+							<p class="text-xs text-surface-600 dark:text-surface-400 mt-0.5">
+								{unidadeSelecionada.nome}
+							</p>
 						{/if}
 					</div>
 
@@ -652,7 +660,9 @@
 							</p>
 						</div>
 
-						<p class="text-xs font-semibold text-surface-600 dark:text-surface-400">Como deseja criar esta escala?</p>
+						<p class="text-xs font-semibold text-surface-600 dark:text-surface-400">
+							Como deseja criar esta escala?
+						</p>
 
 						<div class="grid grid-cols-2 gap-2">
 							<form

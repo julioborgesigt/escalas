@@ -238,7 +238,9 @@
 </svelte:head>
 
 {#if !escala}
-	<div class="text-center py-12 text-surface-600 dark:text-surface-400"><p>Escala não encontrada.</p></div>
+	<div class="text-center py-12 text-surface-600 dark:text-surface-400">
+		<p>Escala não encontrada.</p>
+	</div>
 {:else}
 	<EscalaCabecalho
 		{escala}

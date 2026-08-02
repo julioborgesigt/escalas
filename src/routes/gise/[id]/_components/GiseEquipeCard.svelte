@@ -99,7 +99,9 @@
 		>
 			{#if estado.editandoEquipe === equipe.id}
 				<div class="flex flex-wrap items-center gap-1.5">
-					<label for="edit-dpc-{equipe.id}" class="text-sm text-surface-600 dark:text-surface-400">DPC:</label>
+					<label for="edit-dpc-{equipe.id}" class="text-sm text-surface-600 dark:text-surface-400"
+						>DPC:</label
+					>
 					<input
 						id="edit-dpc-{equipe.id}"
 						type="number"
@@ -108,7 +110,9 @@
 						bind:value={estado.editSlotsDpc}
 						class="w-14 px-2 py-1 rounded-xl border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-sm text-center"
 					/>
-					<label for="edit-oip-{equipe.id}" class="text-sm text-surface-600 dark:text-surface-400">OIP:</label>
+					<label for="edit-oip-{equipe.id}" class="text-sm text-surface-600 dark:text-surface-400"
+						>OIP:</label
+					>
 					<input
 						id="edit-oip-{equipe.id}"
 						type="number"
@@ -278,7 +282,9 @@
 						<span class="font-semibold text-surface-900 dark:text-surface-100"
 							>{m.policial_nome}</span
 						>
-						<span class="text-surface-600 dark:text-surface-400">{m.policial_cargo} · {m.policial_matricula}</span>
+						<span class="text-surface-600 dark:text-surface-400"
+							>{m.policial_cargo} · {m.policial_matricula}</span
+						>
 						<!-- Estado de presença SEMPRE explícito (entrada e saída). Antes só
 						     havia selo quando a entrada existia, então "aguardando entrada"
 						     ficava visualmente idêntico a "sem informação". -->

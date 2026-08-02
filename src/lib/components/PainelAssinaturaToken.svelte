@@ -206,7 +206,9 @@
 				<h4 class="font-bold text-sm text-surface-900 dark:text-white flex items-center gap-2">
 					Dados do Assinante
 				</h4>
-				<p class="text-3xs text-surface-600 dark:text-surface-400 uppercase tracking-wider font-semibold">
+				<p
+					class="text-3xs text-surface-600 dark:text-surface-400 uppercase tracking-wider font-semibold"
+				>
 					CONFORME CADASTRO NO SISTEMA
 				</p>
 			</div>
@@ -298,7 +300,9 @@
 	</p>
 
 	<div class="p-3 bg-primary-500/5 border border-dashed border-primary-500/20 rounded-xl mt-2">
-		<p class="text-3xs font-medium text-surface-600 dark:text-surface-400 leading-tight text-center">
+		<p
+			class="text-3xs font-medium text-surface-600 dark:text-surface-400 leading-tight text-center"
+		>
 			Ao assinar, declaro a veracidade destas informações e autorizo o registro da minha
 			<strong>localização geográfica</strong> e <strong>metadados técnicos</strong> para fins de validade
 			jurídica desta assinatura (Lei 14.063/20).

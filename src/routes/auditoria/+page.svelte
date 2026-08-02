@@ -502,7 +502,9 @@
 													>
 														Alterações
 													</div>
-													<div class="table-wrap rounded border border-surface-200 dark:border-white/10">
+													<div
+														class="table-wrap rounded border border-surface-200 dark:border-white/10"
+													>
 														<table class="table w-full text-xs">
 															<thead class="text-surface-600 dark:text-surface-400">
 																<tr>
@@ -710,9 +712,7 @@
 									<!-- `table-wrap` já faz overflow-x:auto (VIS-3): valores de
 									     "De"/"Para" podem ser longos (JSON, user agent) e a tabela
 									     transborda dentro do log expandido. -->
-									<div
-										class="table-wrap border border-surface-200 dark:border-white/10 rounded-lg"
-									>
+									<div class="table-wrap border border-surface-200 dark:border-white/10 rounded-lg">
 										<table class="table w-full text-xs">
 											<thead
 												class="bg-surface-100 dark:bg-surface-800 text-surface-600 dark:text-surface-400"

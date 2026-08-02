@@ -17,7 +17,15 @@
 	 * O botão de baixar o PDF íntegro aparece só para autenticado, mas isso é
 	 * cosmético: a permissão real é do endpoint `/api/validar/[hash]/download`.
 	 */
-	import { AlertCircle, AlertTriangle, Check, Download, HelpCircle, ShieldCheck, X } from '@lucide/svelte';
+	import {
+		AlertCircle,
+		AlertTriangle,
+		Check,
+		Download,
+		HelpCircle,
+		ShieldCheck,
+		X
+	} from '@lucide/svelte';
 	import { formatarData } from '$lib/utils/datas';
 	import { baixarBlob } from '$lib/utils/download';
 	import { apiFetchResponse } from '$lib/api-fetch';
@@ -91,14 +99,20 @@
 				<div
 					class="w-12 h-12 sm:w-16 sm:h-16 rounded-full preset-tonal-success flex items-center justify-center mb-3 sm:mb-4"
 				>
-					<ShieldCheck class="w-7 h-7 sm:w-9 sm:h-9 text-success-600" aria-hidden="true" strokeWidth={2.5} />
+					<ShieldCheck
+						class="w-7 h-7 sm:w-9 sm:h-9 text-success-600"
+						aria-hidden="true"
+						strokeWidth={2.5}
+					/>
 				</div>
 				<h1
 					class="text-xl sm:text-2xl font-black text-success-600 dark:text-success-400 uppercase tracking-tighter text-center"
 				>
 					Autenticidade Confirmada
 				</h1>
-				<p class="text-surface-600 dark:text-surface-400 font-medium text-center text-sm sm:text-base mt-1">
+				<p
+					class="text-surface-600 dark:text-surface-400 font-medium text-center text-sm sm:text-base mt-1"
+				>
 					Este documento é autêntico e foi assinado digitalmente
 				</p>
 			</div>
@@ -109,7 +123,9 @@
 					class="p-4 sm:p-6 bg-surface-100 dark:bg-surface-700/50 rounded-xl sm:rounded-2xl border border-surface-200 dark:border-white/5"
 				>
 					<div class="flex items-center justify-between mb-3 sm:mb-4 flex-wrap gap-2">
-						<h2 class="text-3xs font-bold text-surface-600 dark:text-surface-400 uppercase tracking-widest">
+						<h2
+							class="text-3xs font-bold text-surface-600 dark:text-surface-400 uppercase tracking-widest"
+						>
 							Status Criptográfico
 						</h2>
 						<div class="flex gap-2 flex-wrap">
@@ -288,7 +304,9 @@
 							{/if}
 							{#if v.assinaturasAdicionais && v.assinaturasAdicionais.length > 0}
 								<div class="pt-2 mt-2 border-t border-surface-200 dark:border-white/5">
-									<p class="text-2xs font-bold text-surface-600 dark:text-surface-400 uppercase tracking-wider mb-1">
+									<p
+										class="text-2xs font-bold text-surface-600 dark:text-surface-400 uppercase tracking-wider mb-1"
+									>
 										Assinaturas anteriores ({v.assinaturasAdicionais.length})
 									</p>
 									<ul class="space-y-0.5">
@@ -364,7 +382,9 @@
 				<section
 					class="p-4 sm:p-6 bg-surface-100 dark:bg-surface-700/50 rounded-xl sm:rounded-2xl border border-surface-200 dark:border-white/5"
 				>
-					<h2 class="text-3xs font-bold text-surface-600 dark:text-surface-400 uppercase tracking-widest mb-3 sm:mb-4">
+					<h2
+						class="text-3xs font-bold text-surface-600 dark:text-surface-400 uppercase tracking-widest mb-3 sm:mb-4"
+					>
 						Informações do Documento
 					</h2>
 					<div class="grid grid-cols-1 gap-3 sm:gap-6">
@@ -449,7 +469,9 @@
 				<!-- Confirmações de Presença (Equipe) — agregado (LGPD: sem roster nominal) -->
 				{#if data.equipeResumo && data.equipeResumo.total > 0}
 					<section class="space-y-3">
-						<h2 class="text-3xs font-bold text-surface-600 dark:text-surface-400 uppercase tracking-widest px-1">
+						<h2
+							class="text-3xs font-bold text-surface-600 dark:text-surface-400 uppercase tracking-widest px-1"
+						>
 							Confirmações de Presença (Equipe)
 						</h2>
 						<div
@@ -627,7 +649,11 @@
 						: 'bg-error-500/10'} flex items-center justify-center mb-3 sm:mb-4"
 				>
 					{#if erroInterno}
-						<AlertCircle class="w-7 h-7 sm:w-9 sm:h-9 text-warning-600" aria-hidden="true" strokeWidth={2.5} />
+						<AlertCircle
+							class="w-7 h-7 sm:w-9 sm:h-9 text-warning-600"
+							aria-hidden="true"
+							strokeWidth={2.5}
+						/>
 					{:else}
 						<svg
 							class="w-7 h-7 sm:w-9 sm:h-9 text-error-600"
@@ -651,7 +677,9 @@
 				>
 					{erroInterno ? 'Erro ao Consultar' : 'Documento Não Encontrado'}
 				</h1>
-				<p class="text-surface-600 dark:text-surface-400 font-medium text-center mt-2 text-sm sm:text-base">
+				<p
+					class="text-surface-600 dark:text-surface-400 font-medium text-center mt-2 text-sm sm:text-base"
+				>
 					{#if erroInterno}
 						Ocorreu um erro interno ao consultar o sistema. Tente novamente em alguns instantes.
 					{:else}
@@ -694,5 +722,7 @@
 		{/if}
 	</div>
 
-	<p class="mt-6 text-xs text-surface-600 dark:text-surface-400">SISTEMA GERENCIADOR DE ESCALAS © 2026</p>
+	<p class="mt-6 text-xs text-surface-600 dark:text-surface-400">
+		SISTEMA GERENCIADOR DE ESCALAS © 2026
+	</p>
 </div>

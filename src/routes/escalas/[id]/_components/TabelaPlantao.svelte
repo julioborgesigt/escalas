@@ -142,7 +142,9 @@
 </script>
 
 {#if policiaisEscalaLocal.length === 0}
-	<div class="text-center py-12 text-surface-600 dark:text-surface-400"><p>Nenhum policial nesta escala ainda.</p></div>
+	<div class="text-center py-12 text-surface-600 dark:text-surface-400">
+		<p>Nenhum policial nesta escala ainda.</p>
+	</div>
 {:else}
 	<div class="space-y-8">
 		{#each equipesAgrupadas as [equipe, items] (equipe)}
@@ -171,22 +173,28 @@
 									class="!py-4 !px-4 text-surface-600 dark:text-surface-400 font-medium uppercase tracking-tight text-left"
 									>Nome</th
 								>
-								<th class="!py-4 text-center text-surface-600 dark:text-surface-400 font-medium uppercase tracking-tight"
+								<th
+									class="!py-4 text-center text-surface-600 dark:text-surface-400 font-medium uppercase tracking-tight"
 									>Matrícula</th
 								>
-								<th class="!py-4 text-center text-surface-600 dark:text-surface-400 font-medium uppercase tracking-tight"
+								<th
+									class="!py-4 text-center text-surface-600 dark:text-surface-400 font-medium uppercase tracking-tight"
 									>Cargo</th
 								>
-								<th class="!py-4 text-center text-surface-600 dark:text-surface-400 font-medium uppercase tracking-tight"
+								<th
+									class="!py-4 text-center text-surface-600 dark:text-surface-400 font-medium uppercase tracking-tight"
 									>Telefone</th
 								>
-								<th class="!py-4 text-left text-surface-600 dark:text-surface-400 font-medium uppercase tracking-tight"
+								<th
+									class="!py-4 text-left text-surface-600 dark:text-surface-400 font-medium uppercase tracking-tight"
 									>Lotação</th
 								>
-								<th class="!py-4 text-left text-surface-600 dark:text-surface-400 font-medium uppercase tracking-tight"
+								<th
+									class="!py-4 text-left text-surface-600 dark:text-surface-400 font-medium uppercase tracking-tight"
 									>Dias</th
 								>
-								<th class="!py-4 text-left text-surface-600 dark:text-surface-400 font-medium uppercase tracking-tight"
+								<th
+									class="!py-4 text-left text-surface-600 dark:text-surface-400 font-medium uppercase tracking-tight"
 									>Observações</th
 								>
 								{#if podeEditarEscala && !modoSelecao && !documentoAssinadoExiste && !finalizadaEm}

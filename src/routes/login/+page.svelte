@@ -457,7 +457,8 @@
 				{#if tipo === 'admin'}
 					<input type="hidden" name="adminModulo" value={adminModulo} />
 					<label class="label">
-						<span class="label-text text-xs font-semibold uppercase tracking-wider text-surface-600 dark:text-surface-400"
+						<span
+							class="label-text text-xs font-semibold uppercase tracking-wider text-surface-600 dark:text-surface-400"
 							>Módulo de Acesso</span
 						>
 						<div class="flex gap-2 mt-1">

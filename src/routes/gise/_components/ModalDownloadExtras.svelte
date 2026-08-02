@@ -228,7 +228,9 @@
 			<div
 				class="border-t border-surface-200 dark:border-surface-800 pt-3 flex flex-col sm:flex-row items-center gap-3"
 			>
-				<div class="text-2xs text-surface-600 dark:text-surface-400 font-medium text-center sm:text-left flex-1">
+				<div
+					class="text-2xs text-surface-600 dark:text-surface-400 font-medium text-center sm:text-left flex-1"
+				>
 					{disponiveis.length} de {items.length} relatórios disponíveis
 				</div>
 				<div class="flex flex-wrap justify-end gap-2 w-full sm:w-auto">

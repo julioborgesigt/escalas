@@ -169,7 +169,9 @@
 					class="z-50 min-w-[12rem] rounded-lg border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-800 shadow-lg py-1 max-h-64 overflow-y-auto"
 				>
 					{#if busca.buscando}
-						<div class="px-3 py-2 text-sm text-surface-600 dark:text-surface-400 flex items-center gap-2">
+						<div
+							class="px-3 py-2 text-sm text-surface-600 dark:text-surface-400 flex items-center gap-2"
+						>
 							<Spinner size="sm" class="text-primary-500" />
 							Buscando...
 						</div>
@@ -180,7 +182,9 @@
 							Digite ao menos {minSearchChars} caractere{minSearchChars > 1 ? 's' : ''} para buscar
 						</div>
 					{:else if items.length === 0}
-						<div class="px-3 py-2 text-sm text-surface-600 dark:text-surface-400">Nenhum resultado encontrado</div>
+						<div class="px-3 py-2 text-sm text-surface-600 dark:text-surface-400">
+							Nenhum resultado encontrado
+						</div>
 					{:else}
 						{#each items as item (String(item.value))}
 							<Combobox.Item

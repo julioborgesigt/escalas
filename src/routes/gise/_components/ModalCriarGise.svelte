@@ -328,8 +328,9 @@
 				</p>
 				<div class="grid grid-cols-2 gap-2">
 					<div>
-						<label for="novaHoraEntrada" class="text-3xs text-surface-600 dark:text-surface-400 block mb-0.5"
-							>Entrada</label
+						<label
+							for="novaHoraEntrada"
+							class="text-3xs text-surface-600 dark:text-surface-400 block mb-0.5">Entrada</label
 						>
 						<input
 							id="novaHoraEntrada"
@@ -343,7 +344,10 @@
 						/>
 					</div>
 					<div>
-						<label for="novaHoraSaida" class="text-3xs text-surface-600 dark:text-surface-400 block mb-0.5">Saída</label>
+						<label
+							for="novaHoraSaida"
+							class="text-3xs text-surface-600 dark:text-surface-400 block mb-0.5">Saída</label
+						>
 						<input
 							id="novaHoraSaida"
 							type="text"

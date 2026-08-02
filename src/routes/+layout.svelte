@@ -462,11 +462,7 @@
 		</div>
 
 		<!-- Navigation -->
-		<nav
-			id="navegacao-principal"
-			class="flex-1 px-3 py-4 space-y-1 overflow-y-auto"
-			tabindex="-1"
-		>
+		<nav id="navegacao-principal" class="flex-1 px-3 py-4 space-y-1 overflow-y-auto" tabindex="-1">
 			{#snippet itemMenu(href: string, rotulo: string, paths: string[], ativo?: boolean)}
 				<a
 					{href}

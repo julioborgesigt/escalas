@@ -501,7 +501,9 @@
 											{p.cargo}
 										</span>
 									</div>
-									<div class="flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-surface-600 dark:text-surface-400">
+									<div
+										class="flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-surface-600 dark:text-surface-400"
+									>
 										<span>{p.matricula}</span>
 										{#if p.telefone}<span>{p.telefone}</span>{/if}
 										<span class="max-w-[200px] truncate">{p.lotacao || '-'}</span>

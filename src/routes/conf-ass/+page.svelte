@@ -113,7 +113,9 @@
 	>
 		<div class="flex items-center justify-between mb-3 gap-3 flex-wrap">
 			<div>
-				<p class="text-3xs font-black uppercase tracking-widest text-surface-600 dark:text-surface-400">
+				<p
+					class="text-3xs font-black uppercase tracking-widest text-surface-600 dark:text-surface-400"
+				>
 					Nível Legal das Assinaturas em Tela
 				</p>
 				<p class="text-xl font-black text-surface-900 dark:text-white mt-1">
@@ -329,7 +331,8 @@
 			<div class="flex items-center justify-between gap-4">
 				<div class="flex flex-col gap-0.5">
 					<div class="flex items-center gap-2">
-						<span class="text-3xs font-bold uppercase tracking-wider text-surface-600 dark:text-surface-400"
+						<span
+							class="text-3xs font-bold uppercase tracking-wider text-surface-600 dark:text-surface-400"
 							>Reforços ativos:</span
 						>
 						<span class="badge {reforcoCor} font-black px-3 py-1 rounded-full text-3xs uppercase"
