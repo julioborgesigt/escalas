@@ -17,7 +17,7 @@
 	 * por dia: são até 31 datas com a flag de feriado junto, e o servidor cria
 	 * todas em paralelo.
 	 */
-	import { invalidateAll } from '$app/navigation';
+	import { invalidateAllShared } from '$lib/cross-tab-invalidate';
 	import { MESES_PT, DIAS_SEMANA_CURTO, isoData, hojeLocalISO } from '$lib/utils/datas';
 	import { fmtDate, diaSemana } from '$lib/gise/formatters';
 	import { enhance } from '$app/forms';
@@ -155,7 +155,7 @@
 					description: count > 1 ? 'As escalas foram adicionadas à lista de escalas ativas.' : ''
 				});
 				open = false;
-				await invalidateAll();
+				await invalidateAllShared();
 				onSuccess(count, primeiroId);
 			} else {
 				const d =

@@ -30,7 +30,7 @@
 	import { enhance } from '$app/forms';
 	import { toaster } from '$lib/toast';
 	import { intervaloDeDatas } from '$lib/utils/datas';
-	import { invalidateAll } from '$app/navigation';
+	import { invalidateAllShared } from '$lib/cross-tab-invalidate';
 	import { apiFetch } from '$lib/api-fetch';
 	import type { ActionResult } from '@sveltejs/kit';
 	import type { EscalaPolicialComDados } from '$lib/types';
@@ -145,7 +145,7 @@
 			solicitacaoAtual = { tipo: 'unidade' };
 			modoEdicao = false;
 			confirmFinalizarEdicaoOpen = false;
-			await invalidateAll();
+			await invalidateAllShared();
 		} catch (e: unknown) {
 			toaster.create({
 				title: e instanceof Error ? e.message : 'Erro ao solicitar assinatura',

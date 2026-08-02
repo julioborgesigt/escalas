@@ -13,7 +13,7 @@
  * sem que o composable saiba quais variáveis de UI existem.
  */
 
-import { invalidate } from '$app/navigation';
+import { invalidateShared } from '$lib/cross-tab-invalidate';
 import { toaster } from '$lib/toast';
 import { csrfHeaders } from '$lib/csrf';
 import { makeEnhanceHandler } from '$lib/enhance-handler';
@@ -222,7 +222,7 @@ export function useGiseSeccionalActions(params: UseGiseSeccionalActionsParams) {
 			});
 			if (res.ok) {
 				dialogRemoverSeccionalAberto = false;
-				await invalidate('gise:detail');
+				await invalidateShared('gise:detail');
 				toaster.success({ title: 'Seccional removida' });
 			} else {
 				const data = (await res.json().catch(() => ({}))) as { error?: string };

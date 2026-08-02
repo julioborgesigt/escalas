@@ -25,7 +25,8 @@
 	import type { PageProps } from './$types';
 	import { opcoesMeses } from '$lib/utils/datas';
 	import { PenLine, CheckCircle2, ClipboardList, Archive } from '@lucide/svelte';
-	import { goto, invalidate } from '$app/navigation';
+	import { goto } from '$app/navigation';
+	import { invalidateShared } from '$lib/cross-tab-invalidate';
 	import { untrack } from 'svelte';
 	import { enhance } from '$app/forms';
 	import { toaster } from '$lib/toast';
@@ -58,9 +59,6 @@
 	import ModalShell from '$lib/components/ModalShell.svelte';
 
 	const { data }: PageProps = $props();
-
-	// Pendências de assinatura criadas por outras sessões: refetch ao focar + poll.
-	useInvalidateOnFocus('app:escalas');
 
 	const auth = useAutorizacao();
 	const isAdmin = $derived(auth.isAdmin);
@@ -272,7 +270,7 @@
 				if (removida) removidosLocais = [...removidosLocais, removida.id];
 				dialogOpen = false;
 				escalaParaExcluir = null;
-				await invalidate('app:escalas');
+				await invalidateShared('app:escalas');
 				removidosLocais = [];
 			} else {
 				const d =
@@ -305,6 +303,11 @@
 	const podeAssinar = $derived(data.podeAssinar);
 	const escalasParaAssinar = $derived(data.escalasParaAssinar);
 
+	// Pendências: foco + broadcast + poll quente se houver fila ou visão assinaturas.
+	useInvalidateOnFocus('app:escalas', {
+		isHot: () => escalasParaAssinar.length > 0 || visao === 'assinaturas'
+	});
+
 	// --- Rubrica reutilizável (cadastro para assinatura por token) ---
 	let minhaRubrica = $state<string | null>(untrack(() => rubricaValida(data.minhaRubrica)));
 	let cadastrandoRubrica = $state(false);
@@ -331,7 +334,7 @@
 		loading.show('Cancelando solicitação...');
 		try {
 			await apiFetch(`/api/escalas/${escalaId}/solicitar-assinatura`, { method: 'DELETE' });
-			await invalidate('app:escalas');
+			await invalidateShared('app:escalas');
 			toaster.create({ title: 'Solicitação cancelada', type: 'success' });
 		} catch (e: unknown) {
 			toaster.create({
@@ -362,7 +365,7 @@
 		onDocumentoAssinado: async () => {
 			dialogAssinaturaTela = false;
 			escalaAssinandoId = null;
-			await invalidate('app:escalas');
+			await invalidateShared('app:escalas');
 		}
 	});
 
@@ -765,7 +768,7 @@
 		nomeArquivo="escala_assinada.pdf"
 		onSuccess={async () => {
 			escalaAssinandoId = null;
-			await invalidate('app:escalas');
+			await invalidateShared('app:escalas');
 		}}
 	/>
 </div>
@@ -818,7 +821,7 @@
 		escalaSolicitandoId = null;
 		// Invalidação segmentada: refaz só o load da listagem (depends em
 		// /escalas/+page.server.ts), não o layout inteiro.
-		await invalidate('app:escalas');
+		await invalidateShared('app:escalas');
 	}}
 />
 

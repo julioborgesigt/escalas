@@ -27,7 +27,8 @@
 	import { page, navigating } from '$app/state';
 	import SkeletonCard from '$lib/components/SkeletonCard.svelte';
 	import Spinner from '$lib/components/Spinner.svelte';
-	import { goto, invalidate } from '$app/navigation';
+	import { goto } from '$app/navigation';
+	import { invalidateShared } from '$lib/cross-tab-invalidate';
 	import { enhance } from '$app/forms';
 	import { toaster } from '$lib/toast';
 	import { browser } from '$app/environment';
@@ -43,9 +44,6 @@
 
 	const auth = useAutorizacao();
 	const isAdmin = $derived(auth.isAdmin);
-
-	// Novos envios de outras sessões: refetch ao focar a aba + poll silencioso.
-	useInvalidateOnFocus('app:recebidos');
 
 	const escalas = $derived(data.escalas as EscalaListagem[]);
 	const unidades = $derived(data.unidades as Unidade[]);
@@ -74,6 +72,11 @@
 	let mostrarApenasNaoVistos = $state(
 		untrack(() => page.url.searchParams.get('vistos') !== 'todos')
 	);
+
+	// Inbox “não vistos” fica quente (30s); histórico completo, frio (120s).
+	useInvalidateOnFocus('app:recebidos', {
+		isHot: () => mostrarApenasNaoVistos
+	});
 
 	// Salvar a cada mudança
 	$effect(() => {
@@ -199,7 +202,7 @@
 	async function recarregar() {
 		loadingService.show('Atualizando caixa de entrada...');
 		try {
-			await invalidate('app:recebidos');
+			await invalidateShared('app:recebidos');
 		} finally {
 			loadingService.hide();
 		}
@@ -282,7 +285,7 @@
 			loadingService.hide();
 			if (result.type === 'success') {
 				toaster.create({ title: 'Escala removida com sucesso', type: 'success' });
-				await invalidate('app:recebidos');
+				await invalidateShared('app:recebidos');
 				dialogOpen = false;
 				escalaParaExcluir = null;
 			} else {

@@ -11,7 +11,7 @@
  * `ModalRelatorioDigital`).
  */
 
-import { invalidate } from '$app/navigation';
+import { invalidateShared } from '$lib/cross-tab-invalidate';
 import { toaster } from '$lib/toast';
 import { baixarBlob } from '$lib/utils/download';
 import { loading } from '$lib/loading.svelte';
@@ -147,7 +147,7 @@ export function useGiseAssinatura({
 			});
 			baixarBlob(await r.blob(), `gise_${getGiseDataInicio() ?? giseId}_confirmada.pdf`);
 			toaster.success({ title: 'Escala confirmada com sucesso' });
-			await invalidate('gise:detail');
+			await invalidateShared('gise:detail');
 		} catch (e: unknown) {
 			toaster.error({ title: 'Erro ao assinar', description: messageFromUnknown(e) });
 		} finally {
@@ -228,7 +228,7 @@ export function useGiseAssinatura({
 				title: 'Lote assinado com sucesso!',
 				description: `${pendentesExtra.length} relatórios assinados digitalmente.`
 			});
-			await invalidate('gise:detail');
+			await invalidateShared('gise:detail');
 		} catch (err: unknown) {
 			toaster.error({ title: 'Erro no lote', description: messageFromUnknown(err) });
 		} finally {
@@ -276,7 +276,7 @@ export function useGiseAssinatura({
 				}
 				toaster.success({ title: 'Lote assinado com sucesso!' });
 				relatorioSendoAssinado = null;
-				await invalidate('gise:detail');
+				await invalidateShared('gise:detail');
 			} catch (e: unknown) {
 				toaster.error({
 					title: 'Erro ao assinar lote',
@@ -311,7 +311,7 @@ export function useGiseAssinatura({
 			);
 			toaster.success({ title: 'Relatório assinado com sucesso!' });
 			relatorioSendoAssinado = null;
-			await invalidate('gise:detail');
+			await invalidateShared('gise:detail');
 		} catch (e: unknown) {
 			toaster.error({
 				title: 'Erro ao assinar relatório',

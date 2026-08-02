@@ -1,12 +1,12 @@
 <script lang="ts">
-	import { invalidateAll } from '$app/navigation';
+	import { invalidateAllShared } from '$lib/cross-tab-invalidate';
 
 	let refreshing = $state(false);
 
 	async function handleRefresh() {
 		if (refreshing) return;
 		refreshing = true;
-		await invalidateAll();
+		await invalidateAllShared();
 		refreshing = false;
 	}
 </script>

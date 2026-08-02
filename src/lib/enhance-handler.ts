@@ -7,7 +7,7 @@
  * Evita repetir ~30 vezes a mesma boilerplate na página de GISE.
  */
 
-import { invalidate } from '$app/navigation';
+import { invalidateShared } from '$lib/cross-tab-invalidate';
 import { toaster } from '$lib/toast';
 import type { SubmitFunction } from '@sveltejs/kit';
 
@@ -57,7 +57,7 @@ export function makeEnhanceHandler<D extends ResultData = ResultData>(
 				if (result.type === 'success') {
 					const data = (result.data ?? {}) as D;
 					if (invalidateKey !== false) {
-						await invalidate(invalidateKey);
+						await invalidateShared(invalidateKey);
 					}
 					await onSuccess?.(data);
 					const title = typeof successTitle === 'function' ? successTitle(data) : successTitle;

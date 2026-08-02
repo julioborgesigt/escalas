@@ -1,27 +1,48 @@
 /**
- * Revalida um `depends(...)` quando a aba volta ao foco e, opcionalmente,
- * em intervalo enquanto estiver visível. Cobre o gap cross-user sem WebSocket:
- * quem deixou `/recebidos` ou `/gise/[id]` abertos vê dados frescos ao voltar
- * (ou a cada tick), sem F5.
+ * Revalida um `depends(...)` quando:
+ *  - a aba volta ao foco (`visibilitychange`);
+ *  - outra aba do mesmo browser notifica via BroadcastChannel;
+ *  - um poll silencioso enquanto a aba está visível.
  *
- * O refresh é silencioso — sem overlay de loading — para não interromper leitura.
+ * Poll “quente” vs “frio”: estados ativos (pendências, GISE em curso) usam
+ * intervalo curto; o restante usa intervalo longo (ou só foco + broadcast).
  */
 import { browser } from '$app/environment';
 import { invalidate } from '$app/navigation';
+import { subscribeInvalidate } from '$lib/cross-tab-invalidate';
 
-const INTERVALO_PADRAO_MS = 90_000;
+const INTERVALO_QUENTE_MS = 30_000;
+const INTERVALO_FRIO_MS = 120_000;
 
 export function useInvalidateOnFocus(
 	chave: string,
 	opcoes?: {
-		/** Intervalo em ms enquanto a aba está visível. `0` desliga o poll. */
+		/**
+		 * Intervalo fixo (legado). Se omitido, usa quente/frio conforme `isHot`.
+		 * `0` desliga o poll (mantém foco + broadcast).
+		 */
 		intervalMs?: number;
+		/** Intervalo quando `isHot()` é true. Default 30s. */
+		hotIntervalMs?: number;
+		/** Intervalo quando `isHot()` é false. Default 120s. */
+		coldIntervalMs?: number;
+		/**
+		 * Getter reativo: chamado dentro do `$effect` para o intervalo acompanhar
+		 * o estado da página (ex.: status GISE, filtro “não vistos”).
+		 */
+		isHot?: () => boolean;
 	}
 ) {
-	const intervalMs = opcoes?.intervalMs ?? INTERVALO_PADRAO_MS;
-
 	$effect(() => {
 		if (!browser) return;
+
+		const hot = opcoes?.isHot?.() ?? false;
+		const intervalMs =
+			opcoes?.intervalMs !== undefined
+				? opcoes.intervalMs
+				: hot
+					? (opcoes?.hotIntervalMs ?? INTERVALO_QUENTE_MS)
+					: (opcoes?.coldIntervalMs ?? INTERVALO_FRIO_MS);
 
 		let emCurso = false;
 		async function refrescar() {
@@ -39,6 +60,9 @@ export function useInvalidateOnFocus(
 		}
 
 		document.addEventListener('visibilitychange', aoMudarVisibilidade);
+		const unscribeTab = subscribeInvalidate(chave, () => {
+			void refrescar();
+		});
 		const timer =
 			intervalMs > 0
 				? setInterval(() => {
@@ -48,6 +72,7 @@ export function useInvalidateOnFocus(
 
 		return () => {
 			document.removeEventListener('visibilitychange', aoMudarVisibilidade);
+			unscribeTab();
 			if (timer) clearInterval(timer);
 		};
 	});

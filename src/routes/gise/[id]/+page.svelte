@@ -26,13 +26,15 @@
 	 *   layout inteiro a cada clique piscava a sidebar;
 	 * - `useInvalidateOnFocus('gise:detail')` cobre o gap cross-user leve
 	 *   (outra sessão preenche presença/relatório/assinatura): refetch ao
-	 *   voltar à aba + poll silencioso, sem WebSocket;
+	 *   voltar à aba + poll quente/frio; BroadcastChannel sincroniza outras
+	 *   abas do mesmo browser na hora da mutação;
 	 * - o "quadro de supervisão" é tratado como uma pseudo-seccional (a unidade
 	 *   sintética de supervisão extra), e por isso aparece nas mesmas listas de
 	 *   pendência e assinatura das seccionais de verdade.
 	 */
 	import { PenLine } from '@lucide/svelte';
-	import { goto, invalidate, replaceState } from '$app/navigation';
+	import { goto, replaceState } from '$app/navigation';
+	import { invalidateShared } from '$lib/cross-tab-invalidate';
 	import type { PageProps } from './$types';
 	import { page } from '$app/state';
 	import { untrack } from 'svelte';
@@ -68,9 +70,6 @@
 
 	const { data }: PageProps = $props();
 
-	// Outras sessões (presença, relatório, assinatura): refetch ao focar + poll.
-	useInvalidateOnFocus('gise:detail');
-
 	// Hook de estados derivados e permissões
 	const giseEstado = useGiseEstado({ getData: () => data });
 	const isAdminGeral = $derived(giseEstado.isAdminGeral);
@@ -86,6 +85,11 @@
 	const { statusLabel, statusColor, fmtDate, diaSemana } = giseEstado;
 
 	const gise = $derived(giseEstado.gise);
+
+	// Outras sessões / abas: foco + broadcast + poll (30s quente / 120s frio).
+	useInvalidateOnFocus('gise:detail', {
+		isHot: () => Boolean(gise?.status && gise.status !== 'finalizada')
+	});
 	const policiais = $derived(data.policiais as Policial[]);
 	const todasUnidades = $derived(giseEstado.todasUnidades);
 
@@ -588,7 +592,7 @@
 				onAbrirAssinaturaEscalaManual={() => assinatura.abrirModalRubrica('simples')}
 				onAssinaturaEscalaDigitalSuccess={async () => {
 					assinatura.rubricaCapturada = null;
-					await invalidate('gise:detail');
+					await invalidateShared('gise:detail');
 				}}
 			>
 				{#snippet loteSection()}
@@ -812,7 +816,7 @@
 		onSuccess={async () => {
 			showDigitalModalRelatorio = false;
 			relatorioDigitalInfo = null;
-			await invalidate('gise:detail');
+			await invalidateShared('gise:detail');
 		}}
 		onClose={() => {
 			showDigitalModalRelatorio = false;

@@ -18,7 +18,8 @@
 	 */
 	import type { PageProps } from './$types';
 	import Paginador from '$lib/components/Paginador.svelte';
-	import { goto, invalidateAll } from '$app/navigation';
+	import { goto } from '$app/navigation';
+	import { invalidateAllShared } from '$lib/cross-tab-invalidate';
 	import { page } from '$app/state';
 	import { toaster } from '$lib/toast';
 	import { loading } from '$lib/loading.svelte';
@@ -496,7 +497,7 @@
 				});
 				baixarBlob(await r.blob(), tokenNomeArquivo);
 				toaster.success({ title: 'Escala GISE assinada com sucesso' });
-				await invalidateAll();
+				await invalidateAllShared();
 			} else {
 				for (const seccionalId of gise.pendentesExtraIds) {
 					await apiFetch(`/api/gise/${gise.id}/relatorios/${seccionalId}/assinar`, {
@@ -516,7 +517,7 @@
 				toaster.success({
 					title: `${gise.pendentesExtraIds.length} relatório(s) de extra assinado(s)`
 				});
-				await invalidateAll();
+				await invalidateAllShared();
 			}
 		} catch (e: unknown) {
 			toaster.error({
@@ -557,7 +558,7 @@
 			toaster.success({
 				title: `${gise.pendentesExtraIds.length} relatório(s) assinado(s) com token`
 			});
-			await invalidateAll();
+			await invalidateAllShared();
 		} catch (e: unknown) {
 			toaster.error({
 				title: 'Erro ao assinar com token',
@@ -729,7 +730,7 @@
 		bind:control={painelTokenGiseControl}
 		onSuccess={async () => {
 			giseParaAssinar = null;
-			await invalidateAll();
+			await invalidateAllShared();
 		}}
 	/>
 </div>
