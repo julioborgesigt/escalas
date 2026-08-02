@@ -20,6 +20,8 @@
 			<img
 				src="/api/validar/logo"
 				alt="Brasão do Estado do Ceará"
+				width="200"
+				height="200"
 				class="h-16 sm:h-24 w-auto mb-2 drop-shadow-md"
 			/>
 			<h1
@@ -27,10 +29,10 @@
 			>
 				Termo de Uso e Política de Privacidade
 			</h1>
-			<p class="text-xs text-surface-500 mt-1">
+			<p class="text-xs text-surface-600 dark:text-surface-400 mt-1">
 				Versão {data.versao} · vigente desde {data.vigenteDesde}
 			</p>
-			<p class="text-3xs text-surface-500 dark:text-surface-400 mt-1 font-mono">
+			<p class="text-3xs text-surface-600 dark:text-surface-400 mt-1 font-mono">
 				Hash SHA-256: {data.hash}
 			</p>
 		</header>

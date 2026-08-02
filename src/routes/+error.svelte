@@ -35,7 +35,7 @@
 	</p>
 
 	{#if page.error?.errorId}
-		<p class="text-xs text-surface-500 dark:text-surface-400 mt-2 font-mono">
+		<p class="text-xs text-surface-600 dark:text-surface-400 mt-2 font-mono">
 			Ref: {page.error.errorId}
 		</p>
 	{/if}

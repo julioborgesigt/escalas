@@ -12,7 +12,7 @@
 	 * mudança por `onPageChange`.
 	 */
 	import { Pagination } from '@skeletonlabs/skeleton-svelte';
-	import { ChevronLeft, ChevronRight } from 'lucide-svelte';
+	import { ChevronLeft, ChevronRight } from '@lucide/svelte';
 
 	const {
 		count,

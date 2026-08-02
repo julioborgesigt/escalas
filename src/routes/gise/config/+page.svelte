@@ -25,7 +25,7 @@
 	<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6 sm:mb-8">
 		<div>
 			<h1 class="h1 text-2xl font-bold">Configurações GISE</h1>
-			<p class="text-sm text-surface-500 mt-0.5">
+			<p class="text-sm text-surface-600 dark:text-surface-400 mt-0.5">
 				Vagas padrão por unidade e textos dos relatórios de extra.
 			</p>
 		</div>

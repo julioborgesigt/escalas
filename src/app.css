@@ -76,11 +76,13 @@
 }
 
 /* Superfície elevada opaca (auditoria 2026-07-11, UX-4): fundo canônico de
- * modais e cards sobre o fundo da página. Antes havia 9 combinações
- * de par claro/escuro ad hoc. Para elementos aninhados dentro de uma superfície
+ * modais e cards sobre o fundo da página. Antes havia 9 combinações de par
+ * claro/escuro ad hoc. Para elementos aninhados dentro de uma superfície
  * elevada (linhas, sub-cards), use card-elevated-2.
- * Backdrop canônico de modal: bg-surface-950/80 backdrop-blur-sm
- * (modal empilhado sobre modal usa backdrop-blur-md, z-[60]/z-[70]). */
+ *
+ * Backdrop, painel, camadas e rodapé de modal pertencem ao ModalShell.svelte;
+ * não copie as classes aqui para componentes novos. Exceções de domínio ficam
+ * no próprio componente com a decisão registrada. */
 @utility card-elevated {
 	@apply bg-white dark:bg-surface-900 border border-surface-200 dark:border-white/10;
 }

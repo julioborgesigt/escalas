@@ -1,7 +1,7 @@
 <script lang="ts">
-	import { Dialog } from '@skeletonlabs/skeleton-svelte';
 	import { enhance } from '$app/forms';
 	import { invalidateAll } from '$app/navigation';
+	import ModalShell from '$lib/components/ModalShell.svelte';
 	import { toaster } from '$lib/toast';
 	import CalendarioSelecaoDias from './CalendarioSelecaoDias.svelte';
 	import type { EscalaPolicialComDados } from '$lib/types';
@@ -71,49 +71,34 @@
 	}
 </script>
 
-<Dialog {open} onOpenChange={(e) => (open = e.open)}>
-	<Dialog.Content
-		class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-sm overflow-y-auto"
-	>
-		<div
-			class="card w-full max-w-sm max-h-[calc(100dvh-2rem)] overflow-y-auto card-elevated shadow-2xl rounded-2xl border border-warning-500/20 p-4 sm:p-5 space-y-4"
-		>
-			<div>
-				<Dialog.Title class="font-bold text-base">Editar Qtd. dias da escala</Dialog.Title>
-				<Dialog.Description class="text-xs text-surface-500 mt-0.5">
-					Selecione os dias. Dias com policiais escalados não podem ser removidos.
-				</Dialog.Description>
-			</div>
+<ModalShell
+	bind:open
+	title="Editar Qtd. dias da escala"
+	description="Selecione os dias. Dias com policiais escalados não podem ser removidos."
+	{pending}
+	cancelLabel="Cancelar"
+>
+	<div class="rounded-xl border border-warning-500/20 p-4 sm:p-5">
+		<CalendarioSelecaoDias
+			bind:selecionados
+			bind:ano={calAno}
+			bind:mes={calMes}
+			modo="intervalo"
+			cor="warning"
+			mostrarChips
+		/>
+	</div>
 
-			<CalendarioSelecaoDias
-				bind:selecionados
-				bind:ano={calAno}
-				bind:mes={calMes}
-				modo="intervalo"
-				cor="warning"
-				mostrarChips
-			/>
-
-			<!-- Ações -->
-			<div class="flex justify-end gap-2 pt-1">
-				<button
-					type="button"
-					class="btn text-xs px-3 py-1.5 rounded-lg border border-surface-300 dark:border-surface-600 text-surface-600 dark:text-surface-400 hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors"
-					onclick={() => (open = false)}
-				>
-					Cancelar
-				</button>
-				<form method="POST" action="?/editarDiasEscala" use:enhance={handleSalvar} class="contents">
-					<input type="hidden" name="datas" value={diasJson} />
-					<button
-						type="submit"
-						class="btn text-xs font-bold px-4 py-1.5 rounded-lg preset-filled-warning-500"
-						disabled={pending || ordenados.length === 0}
-					>
-						{pending ? 'Salvando...' : 'Salvar dias'}
-					</button>
-				</form>
-			</div>
-		</div>
-	</Dialog.Content>
-</Dialog>
+	{#snippet footer()}
+		<form method="POST" action="?/editarDiasEscala" use:enhance={handleSalvar} class="contents">
+			<input type="hidden" name="datas" value={diasJson} />
+			<button
+				type="submit"
+				class="btn text-xs font-bold px-4 py-1.5 rounded-lg preset-filled-warning-500"
+				disabled={pending || ordenados.length === 0}
+			>
+				{pending ? 'Salvando...' : 'Salvar dias'}
+			</button>
+		</form>
+	{/snippet}
+</ModalShell>

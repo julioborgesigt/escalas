@@ -24,8 +24,8 @@
 	 */
 	import { slide } from 'svelte/transition';
 	import { page } from '$app/state';
-	import { FileDown } from 'lucide-svelte';
-	import { Dialog } from '@skeletonlabs/skeleton-svelte';
+	import { FileDown, PenLine, SquarePen } from '@lucide/svelte';
+	import ModalShell from '$lib/components/ModalShell.svelte';
 	import { loading } from '$lib/loading.svelte';
 	import { getMembrosFromSec, checkAllSigned } from '$lib/gise/page-helpers';
 	import { podeBaixarComManifesto } from '$lib/manifesto';
@@ -410,18 +410,7 @@
 									class="btn btn-xs preset-tonal-primary border border-primary-500/30 hover:border-primary-500 px-2.5 py-1.5 text-3xs font-bold rounded-lg flex items-center gap-1"
 									onclick={onConferencia || mostrarOrientaConferencia}
 								>
-									<svg
-										class="h-2.5 w-2.5 shrink-0"
-										fill="none"
-										stroke="currentColor"
-										viewBox="0 0 24 24"
-										><path
-											stroke-linecap="round"
-											stroke-linejoin="round"
-											stroke-width="2"
-											d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
-										/></svg
-									>
+									<PenLine class="h-2.5 w-2.5 shrink-0" aria-hidden="true" />
 									Conferência
 								</button>
 								{#if podeAssinar}
@@ -431,18 +420,7 @@
 										disabled={loading.active || quantidadePendentes === 0}
 										onclick={onAssinarManualLote}
 									>
-										<svg
-											class="h-2.5 w-2.5 shrink-0"
-											fill="none"
-											stroke="currentColor"
-											viewBox="0 0 24 24"
-											><path
-												stroke-linecap="round"
-												stroke-linejoin="round"
-												stroke-width="2"
-												d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
-											/></svg
-										>
+										<PenLine class="h-2.5 w-2.5 shrink-0" aria-hidden="true" />
 										Tela
 									</button>
 								{/if}
@@ -611,18 +589,7 @@
 							class="btn btn-xs preset-tonal-primary border border-primary-500/30 hover:border-primary-500 px-2.5 py-1.5 text-3xs font-bold rounded-lg flex items-center gap-1 hover:scale-[1.02] transition-all"
 							onclick={onConferencia || mostrarOrientaConferencia}
 						>
-							<svg
-								class="h-2.5 w-2.5 shrink-0"
-								fill="none"
-								stroke="currentColor"
-								viewBox="0 0 24 24"
-								><path
-									stroke-linecap="round"
-									stroke-linejoin="round"
-									stroke-width="2"
-									d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
-								/></svg
-							>
+							<PenLine class="h-2.5 w-2.5 shrink-0" aria-hidden="true" />
 							Conferência
 						</button>
 						{#if podeAssinar && !assinandoLote}
@@ -632,18 +599,7 @@
 								disabled={loading.active || quantidadePendentes === 0}
 								onclick={() => (confirmandoLote = true)}
 							>
-								<svg
-									class="h-2.5 w-2.5 shrink-0"
-									fill="none"
-									stroke="currentColor"
-									viewBox="0 0 24 24"
-									><path
-										stroke-linecap="round"
-										stroke-linejoin="round"
-										stroke-width="2"
-										d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
-									/></svg
-								>
+								<PenLine class="h-2.5 w-2.5 shrink-0" aria-hidden="true" />
 								Token
 							</button>
 						{/if}
@@ -656,64 +612,53 @@
 
 <!-- Ciência jurídica antes de disparar a assinatura em lote — o mesmo aviso do
      fluxo individual (Lei 14.063/2020 art. 4º §1º), que o lote não exibia. -->
-<Dialog
+{#snippet descricaoAssinaturaLote()}
+	Você está assinando, de uma só vez, os Relatórios de extra pendentes de
+	<strong class="text-surface-900 dark:text-surface-50">
+		{quantidadePendentes}
+		{quantidadePendentes === 1 ? 'equipe' : 'equipes'}
+	</strong>.
+{/snippet}
+
+<ModalShell
 	open={confirmandoLote}
-	onOpenChange={(e) => {
-		if (!e.open) confirmandoLote = false;
+	title="Assinatura Digital em Lote"
+	description={descricaoAssinaturaLote}
+	largura="lg"
+	camada="empilhado"
+	padding="compacto"
+	familia="assinatura"
+	pending={assinandoLote || loading.active}
+	onOpenChange={(novoOpen) => {
+		if (!novoOpen) confirmandoLote = false;
 	}}
 >
-	<Dialog.Content
-		class="fixed inset-0 z-[60] flex items-center justify-center p-3 sm:p-4 bg-surface-950/80 backdrop-blur-md overflow-y-auto"
-	>
-		<div
-			class="card-elevated rounded-2xl shadow-2xl w-full max-w-lg p-5 sm:p-8 space-y-5 border border-white/10 max-h-[calc(100dvh-1.5rem)] overflow-y-auto"
+	<!-- Aviso jurídico (Lei 14.063/2020 art. 4º §1º) -->
+	<p class="text-2xs text-surface-500 dark:text-surface-400 italic leading-snug">
+		Ao clicar em <strong>Assinar</strong>, você confirma que leu os documentos e que estas
+		assinaturas têm valor jurídico equivalente à manuscrita, conforme o
+		<a href="/termo" target="_blank" rel="noopener" class="underline hover:text-primary-600"
+			>Termo de Uso</a
 		>
-			<div class="text-center space-y-2">
-				<Dialog.Title class="text-xl sm:text-2xl font-bold text-surface-900 dark:text-surface-50">
-					Assinatura Digital em Lote
-				</Dialog.Title>
-				<Dialog.Description class="text-sm text-surface-500">
-					Você está assinando, de uma só vez, os Relatórios de extra pendentes de
-					<strong class="text-surface-900 dark:text-surface-50">
-						{quantidadePendentes}
-						{quantidadePendentes === 1 ? 'equipe' : 'equipes'}
-					</strong>.
-				</Dialog.Description>
-			</div>
+		aceito.
+	</p>
 
-			<!-- Aviso jurídico (Lei 14.063/2020 art. 4º §1º) -->
-			<p class="text-2xs text-surface-500 dark:text-surface-400 italic leading-snug">
-				Ao clicar em <strong>Assinar</strong>, você confirma que leu os documentos e que estas
-				assinaturas têm valor jurídico equivalente à manuscrita, conforme o
-				<a href="/termo" target="_blank" rel="noopener" class="underline hover:text-primary-600"
-					>Termo de Uso</a
-				>
-				aceito.
-			</p>
+	<button
+		type="button"
+		class="btn btn-sm preset-filled-primary-500 font-bold px-4 py-2 rounded-lg shadow-sm hover:scale-[1.02] transition-transform w-full flex items-center justify-center gap-2"
+		onclick={confirmarAssinaturaLote}
+		disabled={assinandoLote || loading.active}
+	>
+		<SquarePen class="w-4 h-4" aria-hidden="true" />
+		Assinar com Certificado Digital (SERPRO)
+	</button>
 
-			<button
-				type="button"
-				class="btn btn-sm preset-filled-primary-500 font-bold px-4 py-2 rounded-lg shadow-sm hover:scale-[1.02] transition-transform w-full flex items-center justify-center gap-2"
-				onclick={confirmarAssinaturaLote}
-			>
-				<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"
-					><path
-						stroke-linecap="round"
-						stroke-linejoin="round"
-						stroke-width="2"
-						d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-					/></svg
-				>
-				Assinar com Certificado Digital (SERPRO)
-			</button>
-
-			<button
-				type="button"
-				class="w-full btn preset-outlined-surface-500 py-3 rounded-2xl text-sm"
-				onclick={() => (confirmandoLote = false)}
-			>
-				Cancelar e fechar
-			</button>
-		</div>
-	</Dialog.Content>
-</Dialog>
+	<button
+		type="button"
+		class="w-full btn preset-outlined-surface-500 py-3 rounded-2xl text-sm"
+		onclick={() => (confirmandoLote = false)}
+		disabled={assinandoLote || loading.active}
+	>
+		Cancelar e fechar
+	</button>
+</ModalShell>

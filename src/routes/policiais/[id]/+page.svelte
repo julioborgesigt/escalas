@@ -130,6 +130,10 @@
 	const papelSemUnidade = $derived(papelPrecisaUnidade && papelUnidadeId == null);
 </script>
 
+<svelte:head>
+	<title>Editar policial — Escalas PC-CE</title>
+</svelte:head>
+
 <div class="mb-6 space-y-3">
 	<BotaoVoltar onclick={() => goto('/policiais')} />
 
@@ -277,7 +281,7 @@
 			<h2 class="text-base font-bold mb-1 text-surface-700 dark:text-surface-300">
 				Papel Administrativo
 			</h2>
-			<p class="text-xs text-surface-500 mb-3">
+			<p class="text-xs text-surface-600 dark:text-surface-400 mb-3">
 				Papel de gestão <b>restrito a uma seccional ou unidade</b>: gerencia escalas e policiais
 				apenas do próprio escopo. Diferente do Admin Geral, não concede acesso global.
 			</p>
@@ -317,7 +321,7 @@
 							</select>
 						</label>
 					{:else if papel === 'admin_unidade' && isAdminUnidade}
-						<p class="text-xs text-surface-500 sm:col-span-7 flex items-end pb-2 ml-1">
+						<p class="text-xs text-surface-600 dark:text-surface-400 sm:col-span-7 flex items-end pb-2 ml-1">
 							Será nomeado para a sua própria unidade.
 						</p>
 					{/if}
@@ -345,7 +349,7 @@
 	{#if isAdmin}
 		<div class="card-glass p-3 sm:p-4 rounded-xl flex flex-col">
 			<h2 class="text-base font-bold mb-1 text-surface-700 dark:text-surface-300">Admin Geral</h2>
-			<p class="text-xs text-surface-500 mb-3">
+			<p class="text-xs text-surface-600 dark:text-surface-400 mb-3">
 				Concede acesso de Administrador Geral. A pessoa loga com a <b>mesma matrícula e senha</b>,
 				escolhendo <b>"Administrador"</b> na tela de login. É cumulativo com o papel ao lado.
 			</p>
@@ -366,7 +370,7 @@
 					<span
 						class="text-sm font-semibold {ehAdminGeral
 							? 'text-success-700 dark:text-success-400'
-							: 'text-surface-500'}"
+							: 'text-surface-600 dark:text-surface-400'}"
 					>
 						{ehAdminGeral ? 'É Admin Geral' : 'Não é Admin Geral'}
 					</span>

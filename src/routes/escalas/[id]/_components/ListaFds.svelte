@@ -35,6 +35,7 @@
 	import ModalEditarDias from './ModalEditarDias.svelte';
 	import type { Escala } from '$lib/server/schema';
 	import type { EscalaPolicialComDados } from '$lib/types';
+	import { PenLine } from '@lucide/svelte';
 
 	let {
 		policiaisEscalaLocal = $bindable(),
@@ -433,7 +434,7 @@
 										</button>
 										<button
 											type="button"
-											class="w-8 h-8 flex items-center justify-center rounded-lg border border-surface-300 dark:border-surface-600 text-surface-500 dark:text-surface-400 hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors text-sm font-bold"
+											class="w-8 h-8 flex items-center justify-center rounded-lg border border-surface-300 dark:border-surface-600 text-surface-600 dark:text-surface-400 hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors text-sm font-bold"
 											onclick={() => (edicao.editingId = null)}>×</button
 										>
 									</div>
@@ -477,6 +478,7 @@
 										<input
 											type="checkbox"
 											class="checkbox"
+											aria-label={`Selecionar ${p.nome}`}
 											checked={selecionados.has(p.id)}
 											onclick={(e) => e.stopPropagation()}
 											onchange={() => onToggleSelecionar(p.id)}
@@ -499,7 +501,7 @@
 											{p.cargo}
 										</span>
 									</div>
-									<div class="flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-surface-500">
+									<div class="flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-surface-600 dark:text-surface-400">
 										<span>{p.matricula}</span>
 										{#if p.telefone}<span>{p.telefone}</span>{/if}
 										<span class="max-w-[200px] truncate">{p.lotacao || '-'}</span>
@@ -523,19 +525,7 @@
 													repeticaoDatas = [];
 												}}
 											>
-												<svg
-													class="w-3.5 h-3.5"
-													fill="none"
-													viewBox="0 0 24 24"
-													stroke="currentColor"
-												>
-													<path
-														stroke-linecap="round"
-														stroke-linejoin="round"
-														stroke-width="2"
-														d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
-													/>
-												</svg>
+												<PenLine class="w-3.5 h-3.5" aria-hidden="true" />
 											</button>
 										</IconTooltip>
 										<IconTooltip label="Repetir em outros dias">
@@ -666,6 +656,7 @@
 										name="policial_id"
 										bind:value={fdsPolicialId}
 										loadOptions={buscarPoliciaisFds}
+										ariaLabel={`Selecionar ${fdsAddingCargo} para ${diaSemanaLabel(dia)}, ${formatarData(dia)}`}
 										placeholder="Digite para buscar servidor..."
 										class="w-full"
 									/>

@@ -23,7 +23,7 @@
 	 *   navegação de cliente aqui corre com o `goto` pós-2FA e pode deixar o
 	 *   layout sem `usuario` — a sidebar desaparece e a página parece sem estilo.
 	 */
-	import { Calendar, Shield, Lock, Mail, Inbox, KeyRound } from 'lucide-svelte';
+	import { AlertCircle, Calendar, Inbox, KeyRound, Lock, Mail, Shield } from '@lucide/svelte';
 	import { browser } from '$app/environment';
 	import { goto, replaceState } from '$app/navigation';
 	import { applyAction, enhance } from '$app/forms';
@@ -435,12 +435,12 @@
 					>
 						<Tabs.Trigger
 							value="policial"
-							class="px-3 py-2 text-sm font-semibold rounded-lg flex-1 text-center cursor-pointer select-none transition-all duration-200 text-surface-500 dark:text-surface-400 data-[selected]:bg-primary-500 data-[selected]:text-white data-[selected]:shadow-md data-[selected]:shadow-primary-500/25 hover:text-surface-700 dark:hover:text-surface-200"
+							class="px-3 py-2 text-sm font-semibold rounded-lg flex-1 text-center cursor-pointer select-none transition-all duration-200 text-surface-600 dark:text-surface-400 data-[selected]:bg-primary-500 data-[selected]:text-white data-[selected]:shadow-md data-[selected]:shadow-primary-500/25 hover:text-surface-700 dark:hover:text-surface-200"
 							>Policial</Tabs.Trigger
 						>
 						<Tabs.Trigger
 							value="admin"
-							class="px-3 py-2 text-sm font-semibold rounded-lg flex-1 text-center cursor-pointer select-none transition-all duration-200 text-surface-500 dark:text-surface-400 data-[selected]:bg-primary-500 data-[selected]:text-white data-[selected]:shadow-md data-[selected]:shadow-primary-500/25 hover:text-surface-700 dark:hover:text-surface-200"
+							class="px-3 py-2 text-sm font-semibold rounded-lg flex-1 text-center cursor-pointer select-none transition-all duration-200 text-surface-600 dark:text-surface-400 data-[selected]:bg-primary-500 data-[selected]:text-white data-[selected]:shadow-md data-[selected]:shadow-primary-500/25 hover:text-surface-700 dark:hover:text-surface-200"
 							>Administrador</Tabs.Trigger
 						>
 					</Tabs.List>
@@ -457,7 +457,7 @@
 				{#if tipo === 'admin'}
 					<input type="hidden" name="adminModulo" value={adminModulo} />
 					<label class="label">
-						<span class="label-text text-xs font-semibold uppercase tracking-wider text-surface-500"
+						<span class="label-text text-xs font-semibold uppercase tracking-wider text-surface-600 dark:text-surface-400"
 							>Módulo de Acesso</span
 						>
 						<div class="flex gap-2 mt-1">
@@ -467,7 +467,7 @@
 									class="flex-1 flex flex-col items-center gap-1 py-2 px-1 rounded-xl border text-xs font-medium transition-all
 										{adminModulo === opt.value
 										? 'bg-primary-500/15 border-primary-500/50 text-primary-700 dark:text-primary-400'
-										: 'border-surface-200 dark:border-surface-700 text-surface-500 hover:border-surface-400 dark:hover:border-surface-500'}"
+										: 'border-surface-200 dark:border-surface-700 text-surface-600 dark:text-surface-400 hover:border-surface-400 dark:hover:border-surface-500'}"
 									onclick={() => (adminModulo = opt.value as typeof adminModulo)}
 								>
 									{#if opt.value === 'escalas'}<Calendar
@@ -524,19 +524,7 @@
 						aria-live="assertive"
 						class="flex items-center gap-2 p-3 rounded-xl bg-error-500/10 border border-error-500/25 text-error-700 dark:text-error-300 text-sm"
 					>
-						<svg
-							class="w-4 h-4 shrink-0"
-							fill="none"
-							viewBox="0 0 24 24"
-							stroke="currentColor"
-							stroke-width="2"
-						>
-							<path
-								stroke-linecap="round"
-								stroke-linejoin="round"
-								d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-							/>
-						</svg>
+						<AlertCircle class="w-4 h-4 shrink-0" aria-hidden="true" />
 						{loginErrorDisplay}
 					</div>
 				{/if}
@@ -552,7 +540,7 @@
 
 			<div class="flex items-center gap-3 my-4">
 				<div class="flex-1 h-px bg-surface-200 dark:bg-surface-700"></div>
-				<span class="text-xs text-surface-500 dark:text-surface-400 shrink-0">ou</span>
+				<span class="text-xs text-surface-600 dark:text-surface-400 shrink-0">ou</span>
 				<div class="flex-1 h-px bg-surface-200 dark:bg-surface-700"></div>
 			</div>
 			<button
@@ -577,13 +565,13 @@
 				Entrar com Certificado Digital (SERPRO)
 			</button>
 			{#if tipo === 'admin'}
-				<p class="mt-2 text-2xs text-surface-500 dark:text-surface-400 text-center">
+				<p class="mt-2 text-2xs text-surface-600 dark:text-surface-400 text-center">
 					Requer certificado A3 de um policial com acesso de Administrador Geral.
 				</p>
 			{/if}
 
 			<div
-				class="mt-4 flex flex-wrap items-center justify-center gap-x-2 gap-y-1.5 text-xs text-surface-500 text-center"
+				class="mt-4 flex flex-wrap items-center justify-center gap-x-2 gap-y-1.5 text-xs text-surface-600 dark:text-surface-400 text-center"
 				role="navigation"
 				aria-label="Ajuda de acesso"
 			>
@@ -642,7 +630,7 @@
 			{#if recuperacaoEtapa === 'identificador'}
 				<div class="text-center mb-6">
 					<Lock
-						class="w-12 h-12 mx-auto mb-3 text-surface-500 dark:text-surface-400"
+						class="w-12 h-12 mx-auto mb-3 text-surface-600 dark:text-surface-400"
 						aria-hidden="true"
 					/>
 					<p class="font-semibold mb-1">Recuperar senha</p>
@@ -666,12 +654,12 @@
 						>
 							<Tabs.Trigger
 								value="policial"
-								class="px-3 py-2 text-sm font-semibold rounded-lg flex-1 text-center cursor-pointer select-none transition-all duration-200 text-surface-500 dark:text-surface-400 data-[selected]:bg-primary-500 data-[selected]:text-white data-[selected]:shadow-md data-[selected]:shadow-primary-500/25 hover:text-surface-700 dark:hover:text-surface-200"
+								class="px-3 py-2 text-sm font-semibold rounded-lg flex-1 text-center cursor-pointer select-none transition-all duration-200 text-surface-600 dark:text-surface-400 data-[selected]:bg-primary-500 data-[selected]:text-white data-[selected]:shadow-md data-[selected]:shadow-primary-500/25 hover:text-surface-700 dark:hover:text-surface-200"
 								>Policial</Tabs.Trigger
 							>
 							<Tabs.Trigger
 								value="admin"
-								class="px-3 py-2 text-sm font-semibold rounded-lg flex-1 text-center cursor-pointer select-none transition-all duration-200 text-surface-500 dark:text-surface-400 data-[selected]:bg-primary-500 data-[selected]:text-white data-[selected]:shadow-md data-[selected]:shadow-primary-500/25 hover:text-surface-700 dark:hover:text-surface-200"
+								class="px-3 py-2 text-sm font-semibold rounded-lg flex-1 text-center cursor-pointer select-none transition-all duration-200 text-surface-600 dark:text-surface-400 data-[selected]:bg-primary-500 data-[selected]:text-white data-[selected]:shadow-md data-[selected]:shadow-primary-500/25 hover:text-surface-700 dark:hover:text-surface-200"
 								>Administrador</Tabs.Trigger
 							>
 						</Tabs.List>
@@ -704,7 +692,7 @@
 			{:else if recuperacaoEtapa === 'codigo'}
 				<div class="text-center mb-6">
 					<Mail
-						class="w-12 h-12 mx-auto mb-3 text-surface-500 dark:text-surface-400"
+						class="w-12 h-12 mx-auto mb-3 text-surface-600 dark:text-surface-400"
 						aria-hidden="true"
 					/>
 					<p class="font-semibold mb-1">Código de validação</p>
@@ -747,7 +735,7 @@
 			{:else}
 				<div class="text-center">
 					<Inbox
-						class="w-12 h-12 mx-auto mb-4 text-surface-500 dark:text-surface-400"
+						class="w-12 h-12 mx-auto mb-4 text-surface-600 dark:text-surface-400"
 						aria-hidden="true"
 					/>
 					<p class="font-semibold mb-2">
@@ -775,7 +763,7 @@
 			{#if !primeiroAcessoEnviado}
 				<div class="text-center mb-6">
 					<KeyRound
-						class="w-12 h-12 mx-auto mb-3 text-surface-500 dark:text-surface-400"
+						class="w-12 h-12 mx-auto mb-3 text-surface-600 dark:text-surface-400"
 						aria-hidden="true"
 					/>
 					<p class="font-semibold mb-1">Primeiro acesso</p>
@@ -815,7 +803,7 @@
 			{:else}
 				<div class="text-center">
 					<Inbox
-						class="w-12 h-12 mx-auto mb-4 text-surface-500 dark:text-surface-400"
+						class="w-12 h-12 mx-auto mb-4 text-surface-600 dark:text-surface-400"
 						aria-hidden="true"
 					/>
 					<p class="font-semibold mb-2">E-mail enviado!</p>
@@ -836,7 +824,7 @@
 			<!-- ===== Formulário de verificação 2FA ===== -->
 			<div class="text-center mb-6">
 				<Mail
-					class="w-12 h-12 mx-auto mb-3 text-surface-500 dark:text-surface-400"
+					class="w-12 h-12 mx-auto mb-3 text-surface-600 dark:text-surface-400"
 					aria-hidden="true"
 				/>
 				<p class="font-semibold mb-1">Verificação em dois fatores</p>

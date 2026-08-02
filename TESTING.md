@@ -314,6 +314,10 @@ Verificar cada transição de status:
 
 ### 8.6 E-mail pessoal pelo perfil (cadastro/troca)
 
+> `[E2E: email-pessoal.spec.ts]` também protege o contrato do `ModalShell`:
+> foco inicial e restaurado, fechamento por Escape/backdrop e bloqueio desses
+> dismisses enquanto a requisição está pendente.
+
 - [ ] Sem e-mail pessoal: "Cadastrar" abre o modal SEM campo de senha; código chega no novo endereço; confirmar persiste verificado
 - [ ] Com e-mail pessoal: "Alterar" exige a senha de acesso; senha errada → "Senha incorreta."; sem senha o envio fica bloqueado
 - [ ] Código correto → e-mail trocado, selo "Verificado" e **aviso de segurança no e-mail funcional**

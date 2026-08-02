@@ -67,7 +67,7 @@
 
 	<section class="mt-6 sm:mt-8">
 		<h2
-			class="mb-4 text-2xs font-semibold tracking-[0.18em] text-surface-500 uppercase dark:text-surface-400"
+			class="mb-4 text-2xs font-semibold tracking-[0.18em] text-surface-600 uppercase dark:text-surface-400"
 		>
 			Áreas de gestão
 		</h2>

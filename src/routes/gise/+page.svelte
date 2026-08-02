@@ -630,13 +630,13 @@
 			<p class="text-base font-semibold text-surface-900 dark:text-surface-100">
 				Você está escalado na GISE
 			</p>
-			<p class="text-sm text-surface-500 dark:text-surface-400">
+			<p class="text-sm text-surface-600 dark:text-surface-400">
 				Os formulários de produtividade estarão disponíveis nesta área.
 			</p>
 			{#if ativas.length > 0}
 				<div class="mt-2 space-y-1">
 					{#each ativas as ativa (ativa.id)}
-						<p class="text-xs text-surface-500 dark:text-surface-400">
+						<p class="text-xs text-surface-600 dark:text-surface-400">
 							Escala vigente: <span class="font-medium"
 								>{diaSemana(ativa.data_inicio)}
 								{fmtDate(ativa.data_inicio)}</span
@@ -672,7 +672,7 @@
 			<div
 				class="mt-3 pt-3 border-t border-surface-200 dark:border-white/5 flex flex-col sm:flex-row items-center justify-between gap-3"
 			>
-				<span class="text-xs text-surface-500">
+				<span class="text-xs text-surface-600 dark:text-surface-400">
 					{ativas.length} escalas ativas — página {paginaAtivas} de {totalPaginasAtivas}
 				</span>
 				<Paginador
@@ -687,7 +687,7 @@
 		<div
 			class="rounded-2xl border border-dashed border-surface-300 dark:border-surface-700 p-4 sm:p-6 text-center"
 		>
-			<p class="text-surface-500 dark:text-surface-400">Nenhuma escala GISE ativa no momento.</p>
+			<p class="text-surface-600 dark:text-surface-400">Nenhuma escala GISE ativa no momento.</p>
 		</div>
 	{/if}
 

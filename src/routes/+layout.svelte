@@ -34,6 +34,7 @@
 	import inter400Url from '@fontsource/inter/files/inter-latin-400-normal.woff2?url';
 	import outfit700Url from '@fontsource/outfit/files/outfit-latin-700-normal.woff2?url';
 	import { tick } from 'svelte';
+	import { MediaQuery } from 'svelte/reactivity';
 	import { page, navigating } from '$app/state';
 	import { goto, onNavigate, afterNavigate } from '$app/navigation';
 	import { Toast, Dialog } from '@skeletonlabs/skeleton-svelte';
@@ -45,6 +46,7 @@
 	import AvisoCadastroRubrica from '$lib/components/AvisoCadastroRubrica.svelte';
 	import { useScrollLock } from '$lib/composables';
 	import { ICONE } from '$lib/constants/icones';
+	import { AlertCircle, CheckCircle2 } from '@lucide/svelte';
 
 	const { children }: LayoutProps = $props();
 
@@ -95,13 +97,58 @@
 	const showSidebar = $derived(!ROTAS_SEM_SIDEBAR.includes(page.url.pathname));
 
 	let sidebarOpen = $state(false);
+	const desktopViewport = new MediaQuery('(min-width: 900px)', false);
+	const isDesktop = $derived(desktopViewport.current);
 	let isDark = $state(
 		typeof document !== 'undefined' ? document.documentElement.classList.contains('dark') : true
 	);
 	let showLogoutConfirm = $state(false);
 	let isLoggingOut = $state(false);
+	let restoreMenuFocusAfterNavigation = false;
 
-	useScrollLock(() => sidebarOpen);
+	const sidebarIsModal = $derived(!isDesktop && sidebarOpen);
+	const sidebarIsInert = $derived(!isDesktop && !sidebarOpen);
+
+	useScrollLock(() => sidebarIsModal);
+
+	function closeOnEscape(event: KeyboardEvent) {
+		if (event.key === 'Escape' && sidebarIsModal) {
+			event.preventDefault();
+			void closeSidebar();
+		}
+	}
+
+	async function openSidebar() {
+		if (isDesktop) return;
+		sidebarOpen = true;
+		await tick();
+		document.getElementById('navegacao-principal')?.focus();
+	}
+
+	async function closeSidebar({
+		restoreFocus = true,
+		afterNavigation = false
+	}: { restoreFocus?: boolean; afterNavigation?: boolean } = {}) {
+		if (!sidebarOpen) return;
+		sidebarOpen = false;
+
+		if (!restoreFocus || isDesktop) return;
+		if (afterNavigation) {
+			restoreMenuFocusAfterNavigation = true;
+			return;
+		}
+
+		await tick();
+		document.getElementById('botao-menu-mobile')?.focus();
+	}
+
+	function toggleSidebar() {
+		return sidebarOpen ? closeSidebar() : openSidebar();
+	}
+
+	function handleSidebarNavigation() {
+		return closeSidebar({ afterNavigation: true });
+	}
 
 	function toggleTheme() {
 		isDark = !isDark;
@@ -207,6 +254,9 @@
 	const giseConfigPathAtivo = $derived(rotaPath.startsWith('/gise/config'));
 
 	onNavigate((navigation) => {
+		if (!isDesktop && sidebarOpen) {
+			void closeSidebar({ afterNavigation: true });
+		}
 		if (!document.startViewTransition) return;
 		// await tick() flushes Svelte's pending DOM updates (e.g. nav-progress-visible)
 		// BEFORE startViewTransition captures the old-state screenshot. Without this,
@@ -227,8 +277,16 @@
 	// Fecha o overlay global de carregamento quando QUALQUER navegação termina.
 	// Sem isto, `loading.show()` chamado antes de um goto() (ex.: /validar) ficava
 	// preso, exigindo refresh para ver o resultado já renderizado por baixo.
-	afterNavigate(() => loading.hide());
+	afterNavigate(() => {
+		loading.hide();
+		if (restoreMenuFocusAfterNavigation) {
+			restoreMenuFocusAfterNavigation = false;
+			void tick().then(() => document.getElementById('botao-menu-mobile')?.focus());
+		}
+	});
 </script>
+
+<svelte:window onkeydown={closeOnEscape} />
 
 <svelte:head>
 	<!-- crossorigin é obrigatório em preload de fonte (fetch em modo CORS
@@ -281,27 +339,9 @@
 		>
 			<div class="flex items-center gap-3">
 				{#if toast.type === 'success'}
-					<svg
-						class="w-6 h-6 text-success-500"
-						fill="none"
-						stroke="currentColor"
-						viewBox="0 0 24 24"
-						><path
-							stroke-linecap="round"
-							stroke-linejoin="round"
-							stroke-width="2"
-							d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-						/></svg
-					>
+					<CheckCircle2 class="w-6 h-6 text-success-500" aria-hidden="true" />
 				{:else if toast.type === 'error'}
-					<svg class="w-6 h-6 text-error-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"
-						><path
-							stroke-linecap="round"
-							stroke-linejoin="round"
-							stroke-width="2"
-							d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-						/></svg
-					>
+					<AlertCircle class="w-6 h-6 text-error-500" aria-hidden="true" />
 				{/if}
 				<div class="flex-1">
 					<Toast.Title class="font-bold text-base">{toast.title}</Toast.Title>
@@ -327,16 +367,28 @@
 	{/snippet}
 </Toast.Group>
 
+<a
+	href="#conteudo-principal"
+	class="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-[10001] focus:rounded-lg focus:bg-primary-600 focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:text-white focus:shadow-lg"
+	inert={sidebarIsModal}
+>
+	Pular para o conteúdo
+</a>
+
 {#if showSidebar && usuario}
 	<!-- Mobile: hamburger top bar -->
 	<div
 		class="min-[900px]:hidden fixed top-0 left-0 right-0 z-40 h-14 bg-surface-50/90 dark:bg-surface-950/90 backdrop-blur-lg border-b border-surface-200 dark:border-white/10 flex items-center px-4"
+		inert={sidebarIsModal}
 	>
 		<button
 			type="button"
 			class="p-2 -ml-2 text-surface-600 dark:text-surface-300 hover:text-primary-500 transition-colors"
-			onclick={() => (sidebarOpen = !sidebarOpen)}
+			onclick={toggleSidebar}
 			aria-label="Menu"
+			aria-expanded={sidebarOpen}
+			aria-controls="navegacao-principal"
+			id="botao-menu-mobile"
 		>
 			<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 				<path
@@ -360,7 +412,7 @@
 		<button
 			type="button"
 			class="min-[900px]:hidden fixed inset-0 z-40 bg-black/50 backdrop-blur-sm"
-			onclick={() => (sidebarOpen = false)}
+			onclick={() => void closeSidebar()}
 			aria-label="Fechar menu"
 		></button>
 	{/if}
@@ -378,6 +430,8 @@
 			{sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
 		"
 		style="width: var(--sidebar-width, 240px);"
+		inert={sidebarIsInert}
+		aria-hidden={sidebarIsInert}
 	>
 		<!-- Logo -->
 		<div
@@ -393,7 +447,7 @@
 			<button
 				type="button"
 				class="min-[900px]:hidden ml-auto p-1 text-surface-400 hover:text-surface-600 dark:hover:text-surface-200 transition-colors"
-				onclick={() => (sidebarOpen = false)}
+				onclick={() => void closeSidebar()}
 				aria-label="Fechar menu"
 			>
 				<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"
@@ -408,7 +462,11 @@
 		</div>
 
 		<!-- Navigation -->
-		<nav class="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
+		<nav
+			id="navegacao-principal"
+			class="flex-1 px-3 py-4 space-y-1 overflow-y-auto"
+			tabindex="-1"
+		>
 			{#snippet itemMenu(href: string, rotulo: string, paths: string[], ativo?: boolean)}
 				<a
 					{href}
@@ -417,7 +475,7 @@
 						{(ativo ?? isActive(href))
 						? 'bg-primary-500/15 text-primary-700 dark:text-primary-400 border border-primary-500/20'
 						: 'text-surface-600 dark:text-surface-300 hover:bg-surface-200/50 dark:hover:bg-surface-800/50 border border-transparent'}"
-					onclick={() => (sidebarOpen = false)}
+					onclick={handleSidebarNavigation}
 				>
 					<svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 						{#each paths as d (d)}
@@ -522,7 +580,7 @@
 			<!-- Theme toggle -->
 			<button
 				type="button"
-				class="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sm text-surface-500 dark:text-surface-400 hover:bg-surface-200/50 dark:hover:bg-surface-800/50 transition-colors"
+				class="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sm text-surface-600 dark:text-surface-400 hover:bg-surface-200/50 dark:hover:bg-surface-800/50 transition-colors"
 				onclick={toggleTheme}
 			>
 				{#if isDark}
@@ -559,7 +617,7 @@
 						{usuario.nome}
 					</p>
 					{#if !usuario?.papel && !isSupervisorGise && usuario?.lotacao}
-						<p class="mt-0.5 truncate text-3xs text-surface-500 dark:text-surface-400">
+						<p class="mt-0.5 truncate text-3xs text-surface-600 dark:text-surface-400">
 							{usuario.lotacao}
 						</p>
 					{/if}
@@ -640,7 +698,7 @@
 			<!-- Logout -->
 			<button
 				type="button"
-				class="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sm text-surface-500 dark:text-surface-400 hover:bg-error-500/10 hover:text-error-600 dark:hover:text-error-400 transition-colors"
+				class="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sm text-surface-600 dark:text-surface-400 hover:bg-error-500/10 hover:text-error-600 dark:hover:text-error-400 transition-colors"
 				onclick={() => (showLogoutConfirm = true)}
 			>
 				<svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"
@@ -656,7 +714,11 @@
 		</div>
 	</aside>
 
-	<!-- Modal de Confirmação de Logout -->
+	<!--
+		Exceção deliberada ao ModalShell: o logout é um diálogo global z-[100],
+		com estado de redirecionamento e ações verticais próprias do shell da
+		aplicação. Mantê-lo aqui evita transformar o primitive em um segundo layout.
+	-->
 	<Dialog
 		open={showLogoutConfirm}
 		onOpenChange={(e) => {
@@ -671,7 +733,7 @@
 					<Dialog.Title class="text-xl font-bold text-surface-900 dark:text-surface-50">
 						{isLoggingOut ? 'Encerrando sessão...' : 'Sair do Sistema'}
 					</Dialog.Title>
-					<Dialog.Description class="text-sm text-surface-500 dark:text-surface-400">
+					<Dialog.Description class="text-sm text-surface-600 dark:text-surface-400">
 						{isLoggingOut
 							? 'Aguarde, você será redirecionado em instantes.'
 							: 'Deseja realmente encerrar sua sessão?'}
@@ -706,8 +768,11 @@
 
 	<!-- Main content with sidebar offset -->
 	<main
+		id="conteudo-principal"
 		class="min-h-screen relative transition-[margin] duration-300"
 		style="margin-left: {usuario ? 'var(--desktop-sidebar-offset)' : '0'};"
+		inert={sidebarIsModal}
+		aria-hidden={sidebarIsModal}
 	>
 		<div
 			class="max-w-6xl mx-auto min-w-0 px-2 sm:px-4 pt-20 min-[900px]:pt-8 pb-12 transition-opacity duration-200 {navigating?.to &&
@@ -720,7 +785,7 @@
 	</main>
 {:else}
 	<!-- No sidebar: login / alterar-senha -->
-	<main>
+	<main id="conteudo-principal">
 		{@render children()}
 	</main>
 {/if}

@@ -119,7 +119,7 @@
 		campo: string
 	)}
 		<div class="space-y-1">
-			<label class="text-3xs font-bold text-surface-500 dark:text-surface-400 uppercase" for={id}
+			<label class="text-3xs font-bold text-surface-600 dark:text-surface-400 uppercase" for={id}
 				>{rotulo}</label
 			>
 			<input {id} type="text" {placeholder} class="input text-xs" bind:value={item[campo]} />
@@ -207,7 +207,7 @@
 								<div class="flex items-center gap-4">
 									<label class="block">
 										<span
-											class="text-3xs font-black text-surface-500 dark:text-surface-400 uppercase tracking-widest block"
+											class="text-3xs font-black text-surface-600 dark:text-surface-400 uppercase tracking-widest block"
 											>{q.subtexto_qtd || 'Quantidade:'}</span
 										>
 										<select
@@ -233,7 +233,7 @@
 
 								<div class="space-y-3">
 									<span
-										class="text-3xs font-black text-surface-500 dark:text-surface-400 uppercase tracking-widest block"
+										class="text-3xs font-black text-surface-600 dark:text-surface-400 uppercase tracking-widest block"
 										>{q.subtexto_lista || 'Listagem Detalhada:'}</span
 									>
 									{#each respostas[resKey] || [] as item, i (i)}
@@ -316,7 +316,7 @@
 												)}
 												<div class="space-y-1">
 													<label
-														class="text-3xs font-bold text-surface-500 dark:text-surface-400 uppercase"
+														class="text-3xs font-bold text-surface-600 dark:text-surface-400 uppercase"
 														for="qal-{q.id}-{i}">Qtd Alvos</label
 													>
 													<input
@@ -369,7 +369,7 @@
 												)}
 												<div class="space-y-1">
 													<label
-														class="text-3xs font-bold text-surface-500 dark:text-surface-400 uppercase"
+														class="text-3xs font-bold text-surface-600 dark:text-surface-400 uppercase"
 														for="res-{q.id}-{i}">Resultado</label
 													>
 													<select
@@ -439,7 +439,7 @@
 							>
 								<div class="space-y-3">
 									<span
-										class="text-3xs font-black text-surface-500 dark:text-surface-400 uppercase tracking-widest block"
+										class="text-3xs font-black text-surface-600 dark:text-surface-400 uppercase tracking-widest block"
 										>{q.subtexto_tipo || 'Tipos de Droga Apreendidos:'}</span
 									>
 									<div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
@@ -469,7 +469,7 @@
 										class="space-y-4 pt-2 border-t border-surface-100 dark:border-surface-800 transition-all"
 									>
 										<span
-											class="text-3xs font-black text-surface-500 dark:text-surface-400 uppercase tracking-widest block"
+											class="text-3xs font-black text-surface-600 dark:text-surface-400 uppercase tracking-widest block"
 											>{q.subtexto_detalhe || 'Indique o Peso Aproximado e a Unidade:'}</span
 										>
 										{#each respostas.drogas_selecionadas as d (d)}
@@ -529,7 +529,7 @@
 							>
 								<div class="space-y-3">
 									<span
-										class="text-3xs font-black text-surface-500 dark:text-surface-400 uppercase tracking-widest block"
+										class="text-3xs font-black text-surface-600 dark:text-surface-400 uppercase tracking-widest block"
 										>{q.subtexto_tipo || 'Tipos de Armas/Munições:'}</span
 									>
 									<div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
@@ -561,7 +561,7 @@
 										class="space-y-4 pt-2 border-t border-surface-100 dark:border-surface-800 transition-all"
 									>
 										<span
-											class="text-3xs font-black text-surface-500 dark:text-surface-400 uppercase tracking-widest block"
+											class="text-3xs font-black text-surface-600 dark:text-surface-400 uppercase tracking-widest block"
 											>{q.subtexto_detalhe || 'Indique a Quantidade:'}</span
 										>
 										{#each respostas.armas_selecionadas as a (a)}

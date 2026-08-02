@@ -19,7 +19,7 @@
 	 *
 	 * Documento já assinado não é afetado: a política vale para os próximos.
 	 */
-	import { Check, Lock } from 'lucide-svelte';
+	import { Check, Lock } from '@lucide/svelte';
 	import { page } from '$app/state';
 	import { toaster } from '$lib/toast';
 	import { apiFetch } from '$lib/api-fetch';
@@ -102,7 +102,7 @@
 
 <div class="space-y-6">
 	<h1 class="h2 font-bold mb-1">Configurações de Assinatura</h1>
-	<p class="text-surface-500 text-sm mb-6">
+	<p class="text-surface-600 dark:text-surface-400 text-sm mb-6">
 		Parâmetros globais que afetam todas as assinaturas em tela do sistema.
 	</p>
 
@@ -113,13 +113,13 @@
 	>
 		<div class="flex items-center justify-between mb-3 gap-3 flex-wrap">
 			<div>
-				<p class="text-3xs font-black uppercase tracking-widest text-surface-500">
+				<p class="text-3xs font-black uppercase tracking-widest text-surface-600 dark:text-surface-400">
 					Nível Legal das Assinaturas em Tela
 				</p>
 				<p class="text-xl font-black text-surface-900 dark:text-white mt-1">
 					{nivelEfetivo === 'avancada' ? 'AVANÇADA' : 'SIMPLES'}
 				</p>
-				<p class="text-2xs text-surface-500 italic mt-0.5">
+				<p class="text-2xs text-surface-600 dark:text-surface-400 italic mt-0.5">
 					Base legal: {baseLegalAtual}
 				</p>
 			</div>
@@ -146,7 +146,7 @@
 						<Check class="inline w-3.5 h-3.5 -mt-0.5 text-success-600" aria-hidden="true" />
 						{r.descricao}
 						<br />
-						<span class="text-surface-500 dark:text-surface-400 italic ml-3">{r.baseLegal}</span>
+						<span class="text-surface-600 dark:text-surface-400 italic ml-3">{r.baseLegal}</span>
 					</li>
 				{/each}
 			</ul>
@@ -165,7 +165,7 @@
 						<Lock class="inline w-3.5 h-3.5 -mt-0.5 text-primary-600" aria-hidden="true" />
 						{r.descricao}
 						<br />
-						<span class="text-surface-500 dark:text-surface-400 italic ml-3">{r.baseLegal}</span>
+						<span class="text-surface-600 dark:text-surface-400 italic ml-3">{r.baseLegal}</span>
 					</li>
 				{/each}
 			</ul>
@@ -188,7 +188,7 @@
 							valor {r.valorProbatorio}
 						</span>
 						<br />
-						<span class="text-surface-500 dark:text-surface-400 italic ml-3">{r.notas}</span>
+						<span class="text-surface-600 dark:text-surface-400 italic ml-3">{r.notas}</span>
 					</li>
 				{/each}
 			</ul>
@@ -202,7 +202,7 @@
 		<div class="flex items-start justify-between gap-4">
 			<div class="flex-1">
 				<p class="font-semibold text-sm mb-0.5">Exigir foto do assinante (Prova de Vida)</p>
-				<p class="text-xs text-surface-500">
+				<p class="text-xs text-surface-600 dark:text-surface-400">
 					Quando ativado, o sistema solicita que o assinante tire uma selfie via câmera com detecção
 					de rosto antes de confirmar a assinatura em tela. Desativando, a prova de vida por imagem
 					não será solicitada.
@@ -230,7 +230,7 @@
 		<div class="flex items-start justify-between gap-4">
 			<div class="flex-1">
 				<p class="font-semibold text-sm mb-0.5">Exigir geolocalização (GPS)</p>
-				<p class="text-xs text-surface-500">
+				<p class="text-xs text-surface-600 dark:text-surface-400">
 					Quando ativado, o sistema tenta capturar as coordenadas GPS do assinante no momento da
 					assinatura em tela. Desativando, nenhuma localização é solicitada ao dispositivo.
 				</p>
@@ -265,7 +265,7 @@
 						<Lock class="inline w-3 h-3 -mt-0.5" aria-hidden="true" /> Obrigatório
 					</span>
 				</p>
-				<p class="text-xs text-surface-500">
+				<p class="text-xs text-surface-600 dark:text-surface-400">
 					Confirmação por código numérico de 6 dígitos no e-mail cadastrado. Este requisito é o que
 					caracteriza a assinatura como
 					<strong>AVANÇADA</strong> nos termos da
@@ -299,7 +299,7 @@
 		<div class="flex items-start justify-between gap-4">
 			<div class="flex-1">
 				<p class="font-semibold text-sm mb-0.5">Restringir assinatura em tela a Smartphone</p>
-				<p class="text-xs text-surface-500">
+				<p class="text-xs text-surface-600 dark:text-surface-400">
 					Quando ativado, o sistema bloqueia o desenho da assinatura e a captura de foto/GPS se
 					detectado que o usuário está em um computador/desktop.
 					<strong
@@ -329,14 +329,14 @@
 			<div class="flex items-center justify-between gap-4">
 				<div class="flex flex-col gap-0.5">
 					<div class="flex items-center gap-2">
-						<span class="text-3xs font-bold uppercase tracking-wider text-surface-500"
+						<span class="text-3xs font-bold uppercase tracking-wider text-surface-600 dark:text-surface-400"
 							>Reforços ativos:</span
 						>
 						<span class="badge {reforcoCor} font-black px-3 py-1 rounded-full text-3xs uppercase"
 							>{reforcoNivel} ({reforcoScore}/3)</span
 						>
 					</div>
-					<span class="text-3xs text-surface-500 dark:text-surface-400 italic">
+					<span class="text-3xs text-surface-600 dark:text-surface-400 italic">
 						Não alteram a classificação legal (sempre AVANÇADA), apenas o valor probatório em juízo.
 					</span>
 				</div>

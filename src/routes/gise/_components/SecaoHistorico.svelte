@@ -33,6 +33,7 @@
 	import { statusLabel, statusColor, fmtDate, diaSemana } from '$lib/gise/formatters';
 	import { SvelteURLSearchParams } from 'svelte/reactivity';
 	import { CICLOS, getCicloRange } from '$lib/gise/ciclos';
+	import { Download } from '@lucide/svelte';
 
 	/**
 	 * Bloco "Histórico" da lista `/gise`: escalas finalizadas, com filtros
@@ -355,7 +356,7 @@
 						<span class="font-black tabular-nums text-primary-600 dark:text-primary-400"
 							>{historicoFiltrado.length}</span
 						>
-						<span class="text-surface-500 dark:text-surface-400">resultado(s)</span>
+						<span class="text-surface-600 dark:text-surface-400">resultado(s)</span>
 					</p>
 					<div class="flex flex-wrap items-center gap-2 sm:gap-3">
 						{#if isAdminGeral}
@@ -386,7 +387,7 @@
 								<Portal>
 									<Popover.Positioner>
 										<Popover.Content
-											class="z-30 min-w-[11rem] overflow-hidden rounded-xl border border-surface-200 bg-white py-1 shadow-xl dark:border-surface-600 dark:bg-surface-800"
+											class="z-50 min-w-[11rem] overflow-hidden rounded-xl border border-surface-200 bg-white py-1 shadow-xl dark:border-surface-600 dark:bg-surface-800"
 										>
 											<button
 												type="button"
@@ -459,7 +460,7 @@
 						Nenhum resultado encontrado
 					</p>
 					<p
-						class="text-xs text-surface-500 dark:text-surface-400 max-w-xs mx-auto leading-relaxed"
+						class="text-xs text-surface-600 dark:text-surface-400 max-w-xs mx-auto leading-relaxed"
 					>
 						Não encontramos escalas para os filtros aplicados. Tente alterar o mês, ano ou
 						seccional.
@@ -492,7 +493,7 @@
 										{diaSemana(escala.data_inicio)}, {fmtDate(escala.data_inicio)}
 										<span class="ml-1 opacity-50 font-normal">#{escala.id}</span>
 									</p>
-									<p class="text-xs text-surface-500 mt-0.5">
+									<p class="text-xs text-surface-600 dark:text-surface-400 mt-0.5">
 										{escala.hora_entrada} às {escala.hora_saida}
 									</p>
 								</div>
@@ -544,10 +545,10 @@
 									<Portal>
 										<Popover.Positioner>
 											<Popover.Content
-												class="z-30 bg-white dark:bg-surface-800 border border-surface-200 dark:border-surface-700 rounded-xl shadow-xl p-1.5 w-56 max-w-[calc(100vw-1.5rem)] sm:min-w-[200px] sm:w-auto"
+												class="z-50 bg-white dark:bg-surface-800 border border-surface-200 dark:border-surface-700 rounded-xl shadow-xl p-1.5 w-56 max-w-[calc(100vw-1.5rem)] sm:min-w-[200px] sm:w-auto"
 											>
 												<p
-													class="text-3xs font-bold uppercase text-surface-500 dark:text-surface-400 px-2 pt-1 pb-1.5 tracking-wider"
+													class="text-3xs font-bold uppercase text-surface-600 dark:text-surface-400 px-2 pt-1 pb-1.5 tracking-wider"
 												>
 													Produtividade por seccional
 												</p>
@@ -558,19 +559,7 @@
 															download
 															class="flex items-center gap-2 px-2 py-2 rounded-lg text-xs text-surface-700 dark:text-surface-300 hover:bg-surface-100 dark:hover:bg-surface-700 transition-colors touch-manipulation"
 														>
-															<svg
-																class="w-3 h-3 shrink-0 text-success-500"
-																fill="none"
-																viewBox="0 0 24 24"
-																stroke="currentColor"
-															>
-																<path
-																	stroke-linecap="round"
-																	stroke-linejoin="round"
-																	stroke-width="2"
-																	d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
-																/>
-															</svg>
+															<Download class="w-3 h-3 shrink-0 text-success-500" aria-hidden="true" />
 															<span class="truncate"
 																>{sec.nome} — {tipo === 'seint' ? 'SEINT' : 'Operacional'}</span
 															>
@@ -600,10 +589,10 @@
 									<Portal>
 										<Popover.Positioner>
 											<Popover.Content
-												class="z-30 bg-white dark:bg-surface-800 border border-surface-200 dark:border-surface-700 rounded-xl shadow-xl p-1.5 w-56 max-w-[calc(100vw-1.5rem)] sm:min-w-[200px] sm:w-auto"
+												class="z-50 bg-white dark:bg-surface-800 border border-surface-200 dark:border-surface-700 rounded-xl shadow-xl p-1.5 w-56 max-w-[calc(100vw-1.5rem)] sm:min-w-[200px] sm:w-auto"
 											>
 												<p
-													class="text-3xs font-bold uppercase text-surface-500 dark:text-surface-400 px-2 pt-1 pb-1.5 tracking-wider"
+													class="text-3xs font-bold uppercase text-surface-600 dark:text-surface-400 px-2 pt-1 pb-1.5 tracking-wider"
 												>
 													Extra por seccional
 												</p>
@@ -613,19 +602,7 @@
 														download
 														class="flex items-center gap-2 px-2 py-2 rounded-lg text-xs text-surface-700 dark:text-surface-300 hover:bg-surface-100 dark:hover:bg-surface-700 transition-colors touch-manipulation"
 													>
-														<svg
-															class="w-3 h-3 shrink-0 text-warning-500"
-															fill="none"
-															viewBox="0 0 24 24"
-															stroke="currentColor"
-														>
-															<path
-																stroke-linecap="round"
-																stroke-linejoin="round"
-																stroke-width="2"
-																d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
-															/>
-														</svg>
+														<Download class="w-3 h-3 shrink-0 text-warning-500" aria-hidden="true" />
 														<span class="truncate">{sec.nome}</span>
 													</a>
 												{/each}
@@ -644,7 +621,7 @@
 			<div
 				class="mt-3 pt-3 border-t border-surface-200 dark:border-white/5 flex flex-col sm:flex-row items-center justify-between gap-3"
 			>
-				<span class="text-xs text-surface-500">
+				<span class="text-xs text-surface-600 dark:text-surface-400">
 					{historicoFiltrado.length} resultado(s) — página {paginaHistorico} de {totalPaginasHistorico}
 				</span>
 				<Paginador

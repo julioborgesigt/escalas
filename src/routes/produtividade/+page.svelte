@@ -21,7 +21,7 @@
 	 * Chart.js entra por `import()` dinâmico (~200 KB): a página abre com os
 	 * filtros e a tabela antes de a biblioteca chegar.
 	 */
-	import { Check, Plus } from 'lucide-svelte';
+	import { Check, Plus } from '@lucide/svelte';
 	import type { PageProps } from './$types';
 	import { tick } from 'svelte';
 	import { slide } from 'svelte/transition';
@@ -307,6 +307,10 @@
 	}
 </script>
 
+<svelte:head>
+	<title>Produtividade — Escalas PC-CE</title>
+</svelte:head>
+
 {#snippet subRanking(
 	id: string,
 	title: string,
@@ -375,7 +379,7 @@
 					>
 					<div class="flex-1">
 						<p
-							class="text-3xs font-black uppercase text-surface-500 dark:text-surface-400 leading-none mb-1"
+							class="text-3xs font-black uppercase text-surface-600 dark:text-surface-400 leading-none mb-1"
 						>
 							Seccional
 						</p>
@@ -473,7 +477,7 @@
 			{#each details as [tipo, valor] (tipo)}
 				<div class="space-y-1">
 					<div class="flex justify-between text-3xs font-black uppercase">
-						<span class="text-surface-500">{tipo}</span>
+						<span class="text-surface-600 dark:text-surface-400">{tipo}</span>
 						<span style="color: {color}"
 							>{unit === 'kg' ? (valor / 1000).toFixed(1) : valor.toLocaleString()}{unit}</span
 						>
@@ -486,7 +490,7 @@
 					</div>
 				</div>
 			{:else}
-				<p class="text-center text-xs text-surface-500 dark:text-surface-400 italic py-8">
+				<p class="text-center text-xs text-surface-600 dark:text-surface-400 italic py-8">
 					Sem registros no período.
 				</p>
 			{/each}
@@ -531,7 +535,7 @@
 			<h1 class="h1 text-2xl font-bold">
 				Produção {filterTipo === 'seint' ? 'Inteligência' : 'Operacional'} GISE
 			</h1>
-			<p class="text-surface-500 font-medium">
+			<p class="text-surface-600 dark:text-surface-400 font-medium">
 				Análise filtrada e segmentada dos resultados reais {filterTipo === 'seint'
 					? '(SEINT)'
 					: '(P4-P19)'}
@@ -654,7 +658,7 @@
 								class="flex-1 rounded-lg py-1.5 text-xs font-bold transition-all {filterTipo ===
 								'operacional'
 									? 'bg-warning-500 text-white shadow-sm'
-									: 'text-surface-500 hover:text-surface-700 dark:text-surface-400 dark:hover:text-surface-200'}"
+									: 'text-surface-600 dark:text-surface-400 hover:text-surface-700 dark:hover:text-surface-200'}"
 								onclick={() => (filterTipo = 'operacional')}>Operacional</button
 							>
 							<button
@@ -662,7 +666,7 @@
 								class="flex-1 rounded-lg py-1.5 text-xs font-bold transition-all {filterTipo ===
 								'seint'
 									? 'bg-tertiary-500 text-white shadow-sm'
-									: 'text-surface-500 hover:text-surface-700 dark:text-surface-400 dark:hover:text-surface-200'}"
+									: 'text-surface-600 dark:text-surface-400 hover:text-surface-700 dark:hover:text-surface-200'}"
 								onclick={() => (filterTipo = 'seint')}>Inteligência</button
 							>
 						</div>
@@ -711,7 +715,7 @@
 									<div class="space-y-0.5 flex-1 lg:flex-initial">
 										<label
 											for="f-ini"
-											class="text-3xs font-black text-surface-500 dark:text-surface-400 uppercase tracking-widest block pl-0.5"
+											class="text-3xs font-black text-surface-600 dark:text-surface-400 uppercase tracking-widest block pl-0.5"
 											>De</label
 										>
 										<input
@@ -725,7 +729,7 @@
 									<div class="space-y-0.5 flex-1 lg:flex-initial">
 										<label
 											for="f-fim"
-											class="text-3xs font-black text-surface-500 dark:text-surface-400 uppercase tracking-widest block pl-0.5"
+											class="text-3xs font-black text-surface-600 dark:text-surface-400 uppercase tracking-widest block pl-0.5"
 											>Até</label
 										>
 										<input
@@ -858,7 +862,7 @@
 				</button>
 				<div class="md:w-1/6 flex flex-col justify-center">
 					<p
-						class="text-3xs font-black text-surface-500 dark:text-surface-400 uppercase tracking-widest mb-1"
+						class="text-3xs font-black text-surface-600 dark:text-surface-400 uppercase tracking-widest mb-1"
 					>
 						{q.label}
 					</p>
@@ -877,7 +881,7 @@
 					</h3>
 					<div class="mt-4 flex gap-2">
 						<span
-							class="text-3xs font-bold px-2 py-1 rounded uppercase bg-surface-100 dark:bg-surface-800 text-surface-500"
+							class="text-3xs font-bold px-2 py-1 rounded uppercase bg-surface-100 dark:bg-surface-800 text-surface-600 dark:text-surface-400"
 						>
 							{filterSeccional ? 'Tendência' : 'Comparação Seccional'}
 						</span>

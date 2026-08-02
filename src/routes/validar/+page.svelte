@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { loading } from '$lib/loading.svelte';
+	import { ShieldCheck } from '@lucide/svelte';
 
 	let hash = $state('');
 
@@ -29,6 +30,8 @@
 				<img
 					src="/api/validar/logo"
 					alt="Brasão do Estado do Ceará"
+					width="200"
+					height="200"
 					class="relative w-20 sm:w-24 drop-shadow-2xl"
 				/>
 			</div>
@@ -41,7 +44,7 @@
 			>
 				Verificação de Documentos
 			</h1>
-			<p class="text-surface-500 font-medium text-center mt-3 text-sm max-w-[280px]">
+			<p class="text-surface-600 dark:text-surface-400 font-medium text-center mt-3 text-sm max-w-[280px]">
 				Confirme a validade jurídica de escalas e relatórios oficiais.
 			</p>
 		</div>
@@ -57,21 +60,14 @@
 			<div class="space-y-2">
 				<label
 					for="hash"
-					class="block text-3xs font-bold text-surface-500 dark:text-surface-400 uppercase tracking-widest ml-1"
+					class="block text-3xs font-bold text-surface-600 dark:text-surface-400 uppercase tracking-widest ml-1"
 					>Código de Verificação (Hash)</label
 				>
 				<div class="relative group">
 					<div
 						class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-surface-400 group-focus-within:text-primary-500 transition-colors"
 					>
-						<svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-							<path
-								stroke-linecap="round"
-								stroke-linejoin="round"
-								stroke-width="2"
-								d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
-							/>
-						</svg>
+						<ShieldCheck class="w-5 h-5" aria-hidden="true" />
 					</div>
 					<input
 						id="hash"
@@ -102,7 +98,7 @@
 		<!-- Info / Helper -->
 		<div class="mt-12 pt-8 border-t border-surface-100 dark:border-white/5 text-center">
 			<div
-				class="flex items-center justify-center gap-2 text-surface-500 dark:text-surface-400 text-2xs mb-4"
+				class="flex items-center justify-center gap-2 text-surface-600 dark:text-surface-400 text-2xs mb-4"
 			>
 				<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
 					<path
@@ -115,7 +111,7 @@
 				<span>Onde encontrar o código?</span>
 			</div>
 			<p
-				class="text-3xs text-surface-500 dark:text-surface-400 leading-relaxed max-w-[320px] mx-auto italic"
+				class="text-3xs text-surface-600 dark:text-surface-400 leading-relaxed max-w-[320px] mx-auto italic"
 			>
 				O código alfanumérico está localizado no rodapé do documento impresso, logo abaixo do QR
 				Code de validação.

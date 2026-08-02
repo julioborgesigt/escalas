@@ -18,7 +18,7 @@
 	 * modal permanece montado entre aberturas, e sem isso ele mostraria os
 	 * valores da GISE anterior.
 	 */
-	import { AlertTriangle } from 'lucide-svelte';
+	import { AlertTriangle } from '@lucide/svelte';
 	import { MESES_PT, DIAS_SEMANA_CURTO, isoData, hojeLocalISO } from '$lib/utils/datas';
 	import { enhance } from '$app/forms';
 	import type { SubmitFunction } from '@sveltejs/kit';
@@ -128,6 +128,11 @@
 	};
 </script>
 
+<!--
+	Exceção deliberada ao ModalShell: o calendário usa painel mais baixo,
+	header compacto com CloseTrigger próprio e formulário integrado. Essas três
+	diferenças são de interação, não apenas classes visuais.
+-->
 <Dialog
 	{open}
 	onOpenChange={(e) => {
@@ -168,7 +173,7 @@
 				</div>
 			{/if}
 
-			<p class="text-3xs sm:text-xs text-surface-500 leading-snug">
+			<p class="text-3xs sm:text-xs text-surface-600 dark:text-surface-400 leading-snug">
 				No calendário: <span class="text-primary-600 dark:text-primary-400 font-medium"
 					>1º clique</span
 				>
@@ -218,7 +223,7 @@
 					</button>
 				</div>
 				<div
-					class="grid grid-cols-7 gap-px text-center text-3xs font-semibold uppercase tracking-wide text-surface-500 dark:text-surface-400 py-0.5"
+					class="grid grid-cols-7 gap-px text-center text-3xs font-semibold uppercase tracking-wide text-surface-600 dark:text-surface-400 py-0.5"
 				>
 					{#each DIAS_SEMANA_CURTO as ds (ds)}<span>{ds}</span>{/each}
 				</div>
@@ -287,7 +292,7 @@
 				</p>
 				<div class="grid grid-cols-2 gap-2">
 					<div>
-						<label for="editHoraEntrada" class="text-3xs text-surface-500 block mb-0.5"
+						<label for="editHoraEntrada" class="text-3xs text-surface-600 dark:text-surface-400 block mb-0.5"
 							>Entrada</label
 						>
 						<input
@@ -302,7 +307,7 @@
 						/>
 					</div>
 					<div>
-						<label for="editHoraSaida" class="text-3xs text-surface-500 block mb-0.5">Saída</label>
+						<label for="editHoraSaida" class="text-3xs text-surface-600 dark:text-surface-400 block mb-0.5">Saída</label>
 						<input
 							id="editHoraSaida"
 							type="text"
@@ -315,7 +320,7 @@
 						/>
 					</div>
 				</div>
-				<p class="text-3xs text-surface-500 dark:text-surface-400">
+				<p class="text-3xs text-surface-600 dark:text-surface-400">
 					Formato: HH:MM · ex: 08:00 · 14:30
 				</p>
 			</div>

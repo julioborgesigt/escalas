@@ -40,7 +40,7 @@
 	import PainelAssinaturaToken from '$lib/components/PainelAssinaturaToken.svelte';
 	import SupervisaoDocumentoCard from './SupervisaoDocumentoCard.svelte';
 	import MarcadorPresenca from './MarcadorPresenca.svelte';
-	import { UserRound, Users, FileDown, Clock, PenLine, Trash2 } from 'lucide-svelte';
+	import { Clock, FileDown, PenLine, Trash2, UserRound, Users } from '@lucide/svelte';
 	import Spinner from '$lib/components/Spinner.svelte';
 	import {
 		estadoMarcadorRodagemSupervisao,
@@ -471,6 +471,7 @@
 								id="{papel}Id"
 								bind:value={idsPapel[papel]}
 								loadOptions={buscarOips}
+								ariaLabel="Selecionar NUIP OIP"
 								selectedOption={selectedFromPoliciais(idsPapel[papel])}
 								placeholder="Pesquisar NUIP OIP..."
 								minSearchChars={2}
@@ -495,14 +496,7 @@
 
 <!-- Ícone de caneta usado nas ações dos cards de documento (repetia-se 6×) -->
 {#snippet iconeCaneta()}
-	<svg class="h-2.5 w-2.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"
-		><path
-			stroke-linecap="round"
-			stroke-linejoin="round"
-			stroke-width="2"
-			d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
-		/></svg
-	>
+	<PenLine class="h-2.5 w-2.5 shrink-0" aria-hidden="true" />
 {/snippet}
 
 <!-- Detalhes/ações dos dois cards de documento (escala GISE e relatório de
@@ -514,11 +508,11 @@
 			{documentoAssinadoInfo.assinante_nome}
 		</p>
 	{:else}
-		<p class="text-2xs leading-snug text-surface-500 dark:text-surface-400">
+		<p class="text-2xs leading-snug text-surface-600 dark:text-surface-400">
 			O supervisor poderá assinar a escala quando todas as seccionais enviarem a escala.
 		</p>
 		<p
-			class="text-2xs leading-snug text-surface-500 dark:text-surface-400 {mobile ? '' : 'mt-0.5'}"
+			class="text-2xs leading-snug text-surface-600 dark:text-surface-400 {mobile ? '' : 'mt-0.5'}"
 		>
 			<span class="text-error-600 dark:text-error-400 font-medium">Faltando envio de:</span>
 			{#if !gise.seccionais || gise.seccionais.length === 0}
@@ -610,13 +604,13 @@
 			{assRelSup.assinante_nome}
 		</p>
 	{:else}
-		<p class="text-2xs leading-snug text-surface-500 dark:text-surface-400">
+		<p class="text-2xs leading-snug text-surface-600 dark:text-surface-400">
 			O supervisor poderá assinar o relatório de extra do quadro de supervisão quando todos os
 			integrantes confirmarem sua saída.
 		</p>
 		{#if !rubSupOk}
 			<p
-				class="text-2xs leading-snug text-surface-500 dark:text-surface-400 {mobile
+				class="text-2xs leading-snug text-surface-600 dark:text-surface-400 {mobile
 					? ''
 					: 'mt-0.5'}"
 			>
@@ -629,7 +623,7 @@
 			</p>
 		{:else}
 			<p
-				class="text-2xs leading-snug text-surface-500 dark:text-surface-400 {mobile
+				class="text-2xs leading-snug text-surface-600 dark:text-surface-400 {mobile
 					? ''
 					: 'mt-0.5'}"
 			>
@@ -749,7 +743,7 @@
 					<div class="min-w-0 flex-1">
 						<div class="flex flex-wrap items-center gap-x-2 gap-y-0.5 mb-0.5">
 							<span
-								class="text-3xs uppercase tracking-wider font-bold text-surface-500 dark:text-surface-400"
+								class="text-3xs uppercase tracking-wider font-bold text-surface-600 dark:text-surface-400"
 								>DPC Supervisão</span
 							>
 							{#if gise.supervisor_id}
@@ -764,6 +758,7 @@
 										id="supId"
 										bind:value={supervisorId}
 										loadOptions={buscarDpcs}
+										ariaLabel="Selecionar DPC de supervisão"
 										selectedOption={selectedFromPoliciais(supervisorId)}
 										placeholder="Pesquisar DPC..."
 										minSearchChars={2}
@@ -810,7 +805,7 @@
 								<div class="flex flex-wrap lg:flex-nowrap items-end gap-3 w-full">
 									<div class="flex-1 min-w-[200px]">
 										<span
-											class="block text-3xs font-semibold text-surface-500 dark:text-surface-400 mb-1"
+											class="block text-3xs font-semibold text-surface-600 dark:text-surface-400 mb-1"
 										>
 											Nome do Assessor
 										</span>
@@ -818,6 +813,7 @@
 											id="assessorId"
 											bind:value={assessorId}
 											loadOptions={buscarOips}
+											ariaLabel="Selecionar assessor"
 											selectedOption={selectedFromPoliciais(assessorId)}
 											placeholder="Pesquisar Assessor..."
 											minSearchChars={2}
@@ -830,7 +826,7 @@
 										<div class="flex-1 min-w-[200px]">
 											<label
 												for="assessorEmailNotif"
-												class="block text-3xs font-semibold text-surface-500 dark:text-surface-400 mb-1"
+												class="block text-3xs font-semibold text-surface-600 dark:text-surface-400 mb-1"
 											>
 												E-mail (avisos GISE)
 											</label>
@@ -855,7 +851,7 @@
 													required
 												/>
 												<span
-													class="text-2xs text-surface-500 dark:text-surface-400 leading-none select-none"
+													class="text-2xs text-surface-600 dark:text-surface-400 leading-none select-none"
 												>
 													Confirmo e-mail.
 												</span>
@@ -896,7 +892,7 @@
 										</div>
 										{#if gise.assessor_email_notificacao}
 											<p
-												class="text-3xs text-surface-500 dark:text-surface-400 truncate mt-0.5"
+												class="text-3xs text-surface-600 dark:text-surface-400 truncate mt-0.5"
 												title="E-mail para avisos de seccionais"
 											>
 												Avisos: {gise.assessor_email_notificacao}

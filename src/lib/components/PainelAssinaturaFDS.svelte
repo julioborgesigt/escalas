@@ -22,12 +22,13 @@
 	 * esconde finalizar/reabrir/reenviar, mas mantém os downloads.
 	 */
 	import { untrack } from 'svelte';
-	import { Dialog } from '@skeletonlabs/skeleton-svelte';
+	import ModalShell from './ModalShell.svelte';
 	import { page } from '$app/state';
 	import { enhance } from '$app/forms';
 	import type { ActionResult } from '@sveltejs/kit';
 	import { toaster } from '$lib/toast';
 	import { csrfHeaders } from '$lib/csrf';
+	import { CheckCircle2 } from '@lucide/svelte';
 
 	let {
 		escalaId,
@@ -192,19 +193,7 @@
 	>
 		<div class="flex items-center gap-4">
 			<div class="bg-success-500/20 p-3 rounded-xl">
-				<svg
-					class="w-6 h-6 text-success-600 dark:text-success-400"
-					fill="none"
-					viewBox="0 0 24 24"
-					stroke="currentColor"
-				>
-					<path
-						stroke-linecap="round"
-						stroke-linejoin="round"
-						stroke-width="2"
-						d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-					/>
-				</svg>
+				<CheckCircle2 class="w-6 h-6 text-success-600 dark:text-success-400" aria-hidden="true" />
 			</div>
 			<div>
 				<h3 class="font-bold text-success-800 dark:text-success-400 text-lg">Escala Enviada</h3>
@@ -269,7 +258,7 @@
 			<p
 				class="text-xs mt-1 transition-colors {mensagemDemora
 					? 'text-warning-600 dark:text-warning-400'
-					: 'text-surface-500'}"
+					: 'text-surface-600 dark:text-surface-400'}"
 			>
 				{mensagemDemora || 'Confirme o e-mail de destino e envie a escala em formato Word.'}
 			</p>
@@ -290,133 +279,123 @@
 	{/if}
 {/if}
 
+{#snippet descricaoEnvio()}
+	A escala será enviada como arquivo <strong>.docx</strong> para o e-mail abaixo. Verifique antes de confirmar.
+{/snippet}
+
+{#snippet descricaoReenvio()}
+	A escala será reenviada como arquivo <strong>.docx</strong>. Confirme ou altere o e-mail de
+	destino.
+{/snippet}
+
 <!-- Modal: confirmar e-mail para finalizar envio -->
-<Dialog open={dialogEnvioAberto} onOpenChange={(e) => (dialogEnvioAberto = e.open)}>
-	<Dialog.Content
-		class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-sm overflow-y-auto"
-	>
-		<div
-			class="card p-4 sm:p-6 max-w-md w-full max-h-[calc(100dvh-2rem)] overflow-y-auto card-elevated shadow-2xl rounded-2xl"
-		>
-			<Dialog.Title class="h3 font-bold mb-1">Confirmar Envio</Dialog.Title>
-			<Dialog.Description class="text-sm text-surface-500 dark:text-surface-400 mb-5">
-				A escala será enviada como arquivo <strong>.docx</strong> para o e-mail abaixo. Verifique antes
-				de confirmar.
-			</Dialog.Description>
-			<form method="POST" action="?/finalizar" use:enhance={handleFinalizar} class="space-y-4">
-				<label class="label">
-					<span class="label-text font-semibold">E-mail de destino</span>
-					<input
-						type="email"
-						name="email_destino"
-						class="input"
-						bind:value={emailModal}
-						required
-						placeholder="destinatario@policiacivil.ce.gov.br"
-					/>
-				</label>
-				<div class="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 sm:gap-3 pt-2">
-					<button
-						type="button"
-						class="btn preset-outlined-surface-500"
-						onclick={() => (dialogEnvioAberto = false)}
-					>
-						Cancelar
-					</button>
-					<button
-						type="submit"
-						class="btn preset-filled-primary-500 font-bold"
-						disabled={pendingFinalizar}
-					>
-						{pendingFinalizar ? 'Enviando...' : 'Confirmar e Enviar'}
-					</button>
-				</div>
-			</form>
+<ModalShell
+	bind:open={dialogEnvioAberto}
+	title="Confirmar Envio"
+	description={descricaoEnvio}
+	largura="md"
+	camada="base"
+	familia="escalas"
+	pending={pendingFinalizar}
+>
+	<form method="POST" action="?/finalizar" use:enhance={handleFinalizar} class="space-y-4">
+		<label class="label">
+			<span class="label-text font-semibold">E-mail de destino</span>
+			<input
+				type="email"
+				name="email_destino"
+				class="input"
+				bind:value={emailModal}
+				required
+				placeholder="destinatario@policiacivil.ce.gov.br"
+			/>
+		</label>
+		<div class="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 sm:gap-3 pt-2">
+			<button
+				type="button"
+				class="btn preset-outlined-surface-500"
+				onclick={() => (dialogEnvioAberto = false)}
+			>
+				Cancelar
+			</button>
+			<button
+				type="submit"
+				class="btn preset-filled-primary-500 font-bold"
+				disabled={pendingFinalizar}
+			>
+				{pendingFinalizar ? 'Enviando...' : 'Confirmar e Enviar'}
+			</button>
 		</div>
-	</Dialog.Content>
-</Dialog>
+	</form>
+</ModalShell>
 
 <!-- Modal: reenviar e-mail -->
-<Dialog open={dialogReenvioAberto} onOpenChange={(e) => (dialogReenvioAberto = e.open)}>
-	<Dialog.Content
-		class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-sm overflow-y-auto"
-	>
-		<div
-			class="card p-4 sm:p-6 max-w-md w-full max-h-[calc(100dvh-2rem)] overflow-y-auto card-elevated shadow-2xl rounded-2xl"
-		>
-			<Dialog.Title class="h3 font-bold mb-1">Reenviar E-mail</Dialog.Title>
-			<Dialog.Description class="text-sm text-surface-500 dark:text-surface-400 mb-5">
-				A escala será reenviada como arquivo <strong>.docx</strong>. Confirme ou altere o e-mail de
-				destino.
-			</Dialog.Description>
-			<form method="POST" action="?/reenviarEmail" use:enhance={handleReenviar} class="space-y-4">
-				<label class="label">
-					<span class="label-text font-semibold">E-mail de destino</span>
-					<input
-						type="email"
-						name="email_destino"
-						class="input"
-						bind:value={emailModal}
-						required
-						placeholder="destinatario@policiacivil.ce.gov.br"
-					/>
-				</label>
-				<div class="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 sm:gap-3 pt-2">
-					<button
-						type="button"
-						class="btn preset-outlined-surface-500"
-						onclick={() => (dialogReenvioAberto = false)}
-					>
-						Cancelar
-					</button>
-					<button
-						type="submit"
-						class="btn preset-filled-primary-500 font-bold"
-						disabled={pendingReenviar}
-					>
-						{pendingReenviar ? 'Reenviando...' : 'Reenviar'}
-					</button>
-				</div>
-			</form>
+<ModalShell
+	bind:open={dialogReenvioAberto}
+	title="Reenviar E-mail"
+	description={descricaoReenvio}
+	largura="md"
+	camada="base"
+	familia="escalas"
+	pending={pendingReenviar}
+>
+	<form method="POST" action="?/reenviarEmail" use:enhance={handleReenviar} class="space-y-4">
+		<label class="label">
+			<span class="label-text font-semibold">E-mail de destino</span>
+			<input
+				type="email"
+				name="email_destino"
+				class="input"
+				bind:value={emailModal}
+				required
+				placeholder="destinatario@policiacivil.ce.gov.br"
+			/>
+		</label>
+		<div class="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 sm:gap-3 pt-2">
+			<button
+				type="button"
+				class="btn preset-outlined-surface-500"
+				onclick={() => (dialogReenvioAberto = false)}
+			>
+				Cancelar
+			</button>
+			<button
+				type="submit"
+				class="btn preset-filled-primary-500 font-bold"
+				disabled={pendingReenviar}
+			>
+				{pendingReenviar ? 'Reenviando...' : 'Reenviar'}
+			</button>
 		</div>
-	</Dialog.Content>
-</Dialog>
+	</form>
+</ModalShell>
 
 <!-- Diálogo confirmar desfinalizar -->
-<Dialog open={dialogDesfinalizarAberto} onOpenChange={(e) => (dialogDesfinalizarAberto = e.open)}>
-	<Dialog.Content
-		class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-sm overflow-y-auto"
-	>
-		<div
-			class="card p-4 sm:p-6 max-w-sm w-full max-h-[calc(100dvh-2rem)] overflow-y-auto card-elevated shadow-2xl rounded-2xl"
+<ModalShell
+	bind:open={dialogDesfinalizarAberto}
+	title="Reabrir para edição?"
+	description="A escala voltará ao estado de rascunho e poderá ser editada novamente."
+	largura="sm"
+	camada="base"
+	familia="escalas"
+	pending={pendingDesfinalizar}
+>
+	<div class="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 sm:gap-3">
+		<button
+			type="button"
+			class="btn preset-outlined-surface-500"
+			onclick={() => (dialogDesfinalizarAberto = false)}
 		>
-			<Dialog.Title class="h3 font-bold mb-2">Reabrir para edição?</Dialog.Title>
-			<Dialog.Description class="text-surface-600 dark:text-surface-400 mb-6">
-				A escala voltará ao estado de rascunho e poderá ser editada novamente.
-			</Dialog.Description>
-			<div class="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 sm:gap-3">
-				<button
-					type="button"
-					class="btn preset-outlined-surface-500"
-					onclick={() => (dialogDesfinalizarAberto = false)}
-				>
-					Cancelar
-				</button>
-				<form
-					method="POST"
-					action="?/desfinalizar"
-					use:enhance={handleDesfinalizar}
-					class="contents"
-				>
-					<button
-						type="submit"
-						class="btn preset-filled-warning-500 font-bold"
-						disabled={pendingDesfinalizar}
-					>
-						{pendingDesfinalizar ? 'Desfazendo...' : 'Reabrir Escala'}
-					</button>
-				</form>
-			</div>
-		</div>
-	</Dialog.Content>
-</Dialog>
+			Cancelar
+		</button>
+		<form method="POST" action="?/desfinalizar" use:enhance={handleDesfinalizar} class="contents">
+			<button
+				type="submit"
+				class="btn preset-filled-warning-500 font-bold"
+				disabled={pendingDesfinalizar}
+			>
+				{pendingDesfinalizar ? 'Desfazendo...' : 'Reabrir Escala'}
+			</button>
+		</form>
+	</div>
+</ModalShell>

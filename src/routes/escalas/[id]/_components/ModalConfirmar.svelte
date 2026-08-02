@@ -1,5 +1,9 @@
+<!--
+	Adapter das confirmações da escala: preserva a API local enquanto delega
+	semântica, fechamento e layout ao ModalShell compartilhado.
+-->
 <script lang="ts">
-	import { Dialog } from '@skeletonlabs/skeleton-svelte';
+	import ModalShell from '$lib/components/ModalShell.svelte';
 	import type { Snippet } from 'svelte';
 
 	let {
@@ -15,21 +19,8 @@
 	} = $props();
 </script>
 
-<Dialog {open} onOpenChange={(e) => (open = e.open)}>
-	<Dialog.Content
-		class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-sm overflow-y-auto"
-	>
-		<div
-			class="card p-4 sm:p-6 max-w-sm w-full max-h-[calc(100dvh-2rem)] overflow-y-auto card-elevated shadow-2xl rounded-2xl"
-		>
-			<Dialog.Title class="h3 font-bold mb-2">{title}</Dialog.Title>
-			<Dialog.Description class="text-surface-600 dark:text-surface-400 mb-6">
-				{@render description()}
-			</Dialog.Description>
-			<div class="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 sm:gap-3">
-				<Dialog.CloseTrigger class="btn preset-outlined-surface-500">Cancelar</Dialog.CloseTrigger>
-				{@render actions()}
-			</div>
-		</div>
-	</Dialog.Content>
-</Dialog>
+<ModalShell bind:open {title} {description} cancelLabel="Cancelar">
+	{#snippet footer()}
+		{@render actions()}
+	{/snippet}
+</ModalShell>

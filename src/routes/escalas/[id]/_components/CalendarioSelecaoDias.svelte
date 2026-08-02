@@ -107,7 +107,7 @@
 		>
 	</div>
 	<div
-		class="grid grid-cols-7 gap-px text-center text-3xs font-semibold uppercase tracking-wide text-surface-500 dark:text-surface-400 py-0.5"
+		class="grid grid-cols-7 gap-px text-center text-3xs font-semibold uppercase tracking-wide text-surface-600 dark:text-surface-400 py-0.5"
 	>
 		{#each DIAS_SEMANA_CURTO as ds (ds)}<span>{ds}</span>{/each}
 	</div>
@@ -139,7 +139,7 @@
 <!-- Dias selecionados -->
 {#if mostrarChips && ordenados.length > 0}
 	<div class="space-y-0.5">
-		<span class="text-3xs font-semibold text-surface-500">
+		<span class="text-3xs font-semibold text-surface-600 dark:text-surface-400">
 			Dias selecionados ({ordenados.length}){modo === 'intervalo'
 				? ' — todos os dias entre o primeiro e o último são incluídos'
 				: ''}

@@ -25,7 +25,7 @@
 	import { loading } from '$lib/loading.svelte';
 	import { agruparPorEtapa } from '$lib/gise/etapas-formulario';
 	import { TIPOS_COM_FILHOS, TIPOS_COM_LISTA } from '$lib/gise/tipos-pergunta';
-	import { ChevronDown, ChevronUp, CornerDownRight, GripVertical } from 'lucide-svelte';
+	import { ChevronDown, ChevronUp, CornerDownRight, GripVertical, SquarePen } from '@lucide/svelte';
 	import type { useResGise } from './useResGise.svelte';
 	import type { GiseModeloPerguntaConfig } from '$lib/types';
 
@@ -114,7 +114,7 @@
 	>
 		<div class="w-full sm:w-auto">
 			<h2 class="text-xl sm:text-2xl font-black uppercase tracking-tight">Configurar Formulário</h2>
-			<p class="text-sm text-surface-500 mt-1">
+			<p class="text-sm text-surface-600 dark:text-surface-400 mt-1">
 				Defina os textos e campos do relatório de produtividade oficial.
 			</p>
 
@@ -126,7 +126,7 @@
 					class="flex-1 sm:flex-none px-4 py-2 rounded-lg text-xs font-bold transition-all {resGise.configTipo ===
 					'operacional'
 						? 'bg-white dark:bg-surface-700 shadow text-primary-600'
-						: 'text-surface-500'}"
+						: 'text-surface-600 dark:text-surface-400'}"
 					onclick={() => (resGise.configTipo = 'operacional')}>Operacional</button
 				>
 				<button
@@ -134,7 +134,7 @@
 					class="flex-1 sm:flex-none px-4 py-2 rounded-lg text-xs font-bold transition-all {resGise.configTipo ===
 					'seint'
 						? 'bg-white dark:bg-surface-700 shadow text-primary-600'
-						: 'text-surface-500'}"
+						: 'text-surface-600 dark:text-surface-400'}"
 					onclick={() => (resGise.configTipo = 'seint')}>SEINT (Inteligência)</button
 				>
 			</div>
@@ -178,7 +178,7 @@
 	<div
 		class="p-4 bg-surface-50 dark:bg-surface-950/40 rounded-2xl border border-surface-200 dark:border-surface-800 space-y-3"
 	>
-		<p class="text-3xs font-black text-surface-500 dark:text-surface-400 uppercase tracking-widest">
+		<p class="text-3xs font-black text-surface-600 dark:text-surface-400 uppercase tracking-widest">
 			Etapas do formulário ({etapas.length})
 		</p>
 		<div class="flex flex-wrap items-center gap-2">
@@ -196,7 +196,7 @@
 				</span>
 			{/each}
 		</div>
-		<p class="text-xs text-surface-500 dark:text-surface-400">
+		<p class="text-xs text-surface-600 dark:text-surface-400">
 			O policial responde uma etapa por tela. A ordem segue a
 			<strong>primeira pergunta</strong> de cada etapa, então mover a pergunta move a etapa. Perguntas
 			sem etapa ficam juntas num grupo próprio; se nenhuma tiver etapa, o formulário vira página única.
@@ -282,7 +282,7 @@
 						</div>
 						<label
 							for="p-et-{p.id}"
-							class="text-3xs font-black text-surface-500 dark:text-surface-400 uppercase tracking-widest"
+							class="text-3xs font-black text-surface-600 dark:text-surface-400 uppercase tracking-widest"
 							>Etapa</label
 						>
 						<input
@@ -298,7 +298,7 @@
 
 				<div class="flex flex-col md:flex-row gap-3 sm:gap-5 items-start">
 					<div
-						class="w-8 h-8 flex items-center justify-center rounded-lg bg-surface-200 dark:bg-surface-800 text-3xs font-black text-surface-500 shrink-0"
+						class="w-8 h-8 flex items-center justify-center rounded-lg bg-surface-200 dark:bg-surface-800 text-3xs font-black text-surface-600 dark:text-surface-400 shrink-0"
 					>
 						{#if level > 0}↳{:else}{resGise.perguntasConfig.indexOf(p) + 1}{/if}
 					</div>
@@ -307,7 +307,7 @@
 						<div class="flex items-center justify-between pl-1 gap-2 flex-wrap mb-1">
 							<label
 								for="qtxt-{p.id}"
-								class="text-3xs font-black text-surface-500 dark:text-surface-400 uppercase tracking-widest"
+								class="text-3xs font-black text-surface-600 dark:text-surface-400 uppercase tracking-widest"
 								>Texto da Pergunta</label
 							>
 							{#if p.key?.startsWith('extra_')}
@@ -317,7 +317,7 @@
 								>
 							{:else}
 								<span
-									class="bg-surface-100 dark:bg-surface-800 text-3xs font-black px-2 py-0.5 rounded-full text-surface-500 dark:text-surface-400 uppercase border border-surface-200 dark:border-surface-700 whitespace-nowrap"
+									class="bg-surface-100 dark:bg-surface-800 text-3xs font-black px-2 py-0.5 rounded-full text-surface-600 dark:text-surface-400 uppercase border border-surface-200 dark:border-surface-700 whitespace-nowrap"
 									>Campo Sistema</span
 								>
 							{/if}
@@ -333,7 +333,7 @@
 					<div class="w-full md:w-56 space-y-1.5 md:shrink-0">
 						<label
 							for="p-tp-{p.id}"
-							class="text-3xs font-black text-surface-500 dark:text-surface-400 uppercase tracking-widest"
+							class="text-3xs font-black text-surface-600 dark:text-surface-400 uppercase tracking-widest"
 							>Tipo do Campo</label
 						>
 						<select
@@ -408,18 +408,7 @@
 						class="mt-4 p-4 bg-primary-500/5 dark:bg-primary-500/10 rounded-2xl border border-dashed border-primary-500/30 space-y-4"
 					>
 						<div class="flex items-center gap-2 mb-2">
-							<svg
-								class="w-4 h-4 text-primary-500"
-								fill="none"
-								stroke="currentColor"
-								viewBox="0 0 24 24"
-								><path
-									stroke-linecap="round"
-									stroke-linejoin="round"
-									stroke-width="2"
-									d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-								/></svg
-							>
+							<SquarePen class="w-4 h-4 text-primary-500" aria-hidden="true" />
 							<span
 								class="text-3xs font-black text-primary-600 dark:text-primary-400 uppercase tracking-widest"
 								>Personalizar Rótulos do Campo Inteligente</span
@@ -431,7 +420,7 @@
 								<div class="space-y-1">
 									<label
 										for="subqtd-{p.id}"
-										class="text-3xs font-bold text-surface-500 dark:text-surface-400 uppercase"
+										class="text-3xs font-bold text-surface-600 dark:text-surface-400 uppercase"
 										>Quantidade:</label
 									>
 									<input
@@ -445,7 +434,7 @@
 								<div class="space-y-1 md:col-span-2">
 									<label
 										for="sublst-{p.id}"
-										class="text-3xs font-bold text-surface-500 dark:text-surface-400 uppercase tracking-wider"
+										class="text-3xs font-bold text-surface-600 dark:text-surface-400 uppercase tracking-wider"
 										>Legenda Lista (ex: 5.2)</label
 									>
 									<input
@@ -460,7 +449,7 @@
 								<div class="space-y-1">
 									<label
 										for="subtp-{p.id}"
-										class="text-3xs font-bold text-surface-500 dark:text-surface-400 uppercase"
+										class="text-3xs font-bold text-surface-600 dark:text-surface-400 uppercase"
 										>Lista de Tipos:</label
 									>
 									<input
@@ -474,7 +463,7 @@
 								<div class="space-y-1">
 									<label
 										for="subdet-{p.id}"
-										class="text-3xs font-bold text-surface-500 dark:text-surface-400 uppercase"
+										class="text-3xs font-bold text-surface-600 dark:text-surface-400 uppercase"
 										>Detalhamento Pesos:</label
 									>
 									<input
@@ -489,7 +478,7 @@
 								<div class="space-y-1">
 									<label
 										for="subtp-{p.id}"
-										class="text-3xs font-bold text-surface-500 dark:text-surface-400 uppercase"
+										class="text-3xs font-bold text-surface-600 dark:text-surface-400 uppercase"
 										>Lista de Tipos:</label
 									>
 									<input
@@ -503,7 +492,7 @@
 								<div class="space-y-1">
 									<label
 										for="subdet-{p.id}"
-										class="text-3xs font-bold text-surface-500 dark:text-surface-400 uppercase"
+										class="text-3xs font-bold text-surface-600 dark:text-surface-400 uppercase"
 										>Legenda Quantidade:</label
 									>
 									<input

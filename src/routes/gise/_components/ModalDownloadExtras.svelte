@@ -5,7 +5,7 @@
 	 * seccional — e libera o download apenas dos que já foram assinados.
 	 */
 	import { Dialog } from '@skeletonlabs/skeleton-svelte';
-	import { Download, FileText, CheckCircle2, Clock, X } from 'lucide-svelte';
+	import { Download, FileText, CheckCircle2, Clock, X } from '@lucide/svelte';
 
 	type GiseEscala = {
 		id: number;
@@ -102,6 +102,11 @@
 	}
 </script>
 
+<!--
+	Exceção deliberada ao ModalShell: a lista de downloads controla o próprio
+	header e scroll (`max-h-[85vh]`) e não permite scroll no backdrop, para não
+	deslocar a relação entre seccional e ações de arquivo.
+-->
 <Dialog
 	{open}
 	onOpenChange={(e) => {
@@ -121,7 +126,7 @@
 					<Dialog.Title class="text-lg font-bold text-surface-900 dark:text-surface-50">
 						Relatórios de Extra (GISE)
 					</Dialog.Title>
-					<p class="text-xs text-surface-500 dark:text-surface-400 mt-0.5">
+					<p class="text-xs text-surface-600 dark:text-surface-400 mt-0.5">
 						Escala de {gise ? gise.data_inicio : ''}
 					</p>
 				</div>
@@ -136,7 +141,7 @@
 
 			<div class="flex-1 overflow-y-auto space-y-2 pr-1 max-h-[50vh]">
 				{#if items.length === 0}
-					<div class="text-center py-6 text-sm text-surface-500 dark:text-surface-400">
+					<div class="text-center py-6 text-sm text-surface-600 dark:text-surface-400">
 						Nenhum relatório de extra configurado para esta escala.
 					</div>
 				{:else}
@@ -223,7 +228,7 @@
 			<div
 				class="border-t border-surface-200 dark:border-surface-800 pt-3 flex flex-col sm:flex-row items-center gap-3"
 			>
-				<div class="text-2xs text-surface-500 font-medium text-center sm:text-left flex-1">
+				<div class="text-2xs text-surface-600 dark:text-surface-400 font-medium text-center sm:text-left flex-1">
 					{disponiveis.length} de {items.length} relatórios disponíveis
 				</div>
 				<div class="flex flex-wrap justify-end gap-2 w-full sm:w-auto">

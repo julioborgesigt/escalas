@@ -359,7 +359,7 @@
 			</div>
 			<p class="text-surface-600 dark:text-surface-400 text-lg">Nenhuma unidade cadastrada.</p>
 			{#if isAdmin}
-				<p class="text-surface-500 text-sm mt-2">
+				<p class="text-surface-600 dark:text-surface-400 text-sm mt-2">
 					Cadastre unidades acima para habilitar a importação de policiais.
 				</p>
 			{/if}
@@ -544,11 +544,11 @@
 											>Desativada</span
 										>
 									{/if}
-									<p class="text-3xs font-bold uppercase text-surface-500 mt-0.5">
+									<p class="text-3xs font-bold uppercase text-surface-600 dark:text-surface-400 mt-0.5">
 										{tipoLabel(u.tipo)}
 									</p>
 									{#if u.seccional_id}
-										<p class="text-3xs text-surface-500 mt-0.5 truncate">
+										<p class="text-3xs text-surface-600 dark:text-surface-400 mt-0.5 truncate">
 											Subordinada a: {unidades.find((x) => x.id === u.seccional_id)?.nome ??
 												u.seccional_id}
 										</p>
@@ -586,7 +586,7 @@
 			{/if}
 		</div>
 
-		<p class="mt-3 text-surface-500 text-sm">
+		<p class="mt-3 text-surface-600 dark:text-surface-400 text-sm">
 			{unidadesFiltradas.length} unidade{unidadesFiltradas.length !== 1 ? 's' : ''} encontrada{unidadesFiltradas.length !==
 			1
 				? 's'

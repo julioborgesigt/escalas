@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { AlertTriangle } from 'lucide-svelte';
+	import { AlertTriangle } from '@lucide/svelte';
 	/**
 	 * Avisos contextuais que aparecem abaixo do bloco principal da GISE:
 	 *  - Admin Seccional: alerta quando a seccional foi retificada após envio.

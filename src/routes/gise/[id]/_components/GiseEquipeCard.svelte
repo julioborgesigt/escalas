@@ -12,6 +12,7 @@
 	import { validarHora, normalizarHora } from '$lib/gise/horarios';
 	import type { GiseSeccionalActions } from '$lib/composables/gise/useGiseSeccionalActions.svelte';
 	import type { GiseSeccionalEstado } from './gise-seccional-estado.svelte';
+	import { PenLine } from '@lucide/svelte';
 
 	type Seccional = GiseDetalhado['seccionais'][number];
 
@@ -98,7 +99,7 @@
 		>
 			{#if estado.editandoEquipe === equipe.id}
 				<div class="flex flex-wrap items-center gap-1.5">
-					<label for="edit-dpc-{equipe.id}" class="text-sm text-surface-500">DPC:</label>
+					<label for="edit-dpc-{equipe.id}" class="text-sm text-surface-600 dark:text-surface-400">DPC:</label>
 					<input
 						id="edit-dpc-{equipe.id}"
 						type="number"
@@ -107,7 +108,7 @@
 						bind:value={estado.editSlotsDpc}
 						class="w-14 px-2 py-1 rounded-xl border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-sm text-center"
 					/>
-					<label for="edit-oip-{equipe.id}" class="text-sm text-surface-500">OIP:</label>
+					<label for="edit-oip-{equipe.id}" class="text-sm text-surface-600 dark:text-surface-400">OIP:</label>
 					<input
 						id="edit-oip-{equipe.id}"
 						type="number"
@@ -145,7 +146,7 @@
 				</div>
 			{:else}
 				<div class="flex flex-wrap items-center gap-2 min-w-0">
-					<span class="text-sm text-surface-500"
+					<span class="text-sm text-surface-600 dark:text-surface-400"
 						>{equipe.slots_dpc} DPC + {equipe.slots_oip} OIP</span
 					>
 					{#if isAdminGeral && podeEditar && modoEdicaoGeral}
@@ -159,14 +160,7 @@
 							}}
 							title="Editar vagas da equipe"
 						>
-							<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"
-								><path
-									stroke-linecap="round"
-									stroke-linejoin="round"
-									stroke-width="2"
-									d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
-								/></svg
-							>
+							<PenLine class="w-3 h-3" aria-hidden="true" />
 						</button>
 					{/if}
 				</div>
@@ -228,7 +222,7 @@
 			{:else}
 				<div class="flex flex-wrap items-center gap-2 min-w-0">
 					<div
-						class="flex flex-wrap items-center gap-1.5 text-sm text-surface-500 dark:text-surface-400 font-medium min-w-0"
+						class="flex flex-wrap items-center gap-1.5 text-sm text-surface-600 dark:text-surface-400 font-medium min-w-0"
 					>
 						<span
 							>{equipe.hora_entrada ?? sec.hora_entrada ?? gise.hora_entrada}h-{equipe.hora_saida ??
@@ -254,14 +248,7 @@
 							}}
 							title="Editar horários da equipe"
 						>
-							<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"
-								><path
-									stroke-linecap="round"
-									stroke-linejoin="round"
-									stroke-width="2"
-									d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
-								/></svg
-							>
+							<PenLine class="w-3 h-3" aria-hidden="true" />
 						</button>
 					{/if}
 				</div>
@@ -291,7 +278,7 @@
 						<span class="font-semibold text-surface-900 dark:text-surface-100"
 							>{m.policial_nome}</span
 						>
-						<span class="text-surface-500">{m.policial_cargo} · {m.policial_matricula}</span>
+						<span class="text-surface-600 dark:text-surface-400">{m.policial_cargo} · {m.policial_matricula}</span>
 						<!-- Estado de presença SEMPRE explícito (entrada e saída). Antes só
 						     havia selo quando a entrada existia, então "aguardando entrada"
 						     ficava visualmente idêntico a "sem informação". -->
@@ -323,7 +310,7 @@
 			{/each}
 		</div>
 	{:else}
-		<p class="text-sm text-surface-500 dark:text-surface-400 italic mb-3">Nenhum membro alocado</p>
+		<p class="text-sm text-surface-600 dark:text-surface-400 italic mb-3">Nenhum membro alocado</p>
 	{/if}
 
 	<!-- Adicionar membro -->
@@ -339,6 +326,7 @@
 							<SearchableSelect
 								bind:value={estado.policialParaAdicionar}
 								loadOptions={buscarMembroAdicional}
+								ariaLabel={`Selecionar ${estado.cargoParaAdicionar ?? 'policial'} para a equipe`}
 								placeholder={`Pesquisar ${estado.cargoParaAdicionar}...`}
 								class="w-full"
 							/>

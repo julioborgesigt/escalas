@@ -22,7 +22,7 @@
 	 */
 	import type { PageProps } from './$types';
 	import { opcoesMeses } from '$lib/utils/datas';
-	import { Lock, Inbox } from 'lucide-svelte';
+	import { Download, Inbox, Lock } from '@lucide/svelte';
 	import { untrack } from 'svelte';
 	import { page, navigating } from '$app/state';
 	import SkeletonCard from '$lib/components/SkeletonCard.svelte';
@@ -300,7 +300,7 @@
 </svelte:head>
 
 {#if !isAdmin}
-	<div class="text-center py-32 text-surface-500">
+	<div class="text-center py-32 text-surface-600 dark:text-surface-400">
 		<Lock class="w-8 h-8 mx-auto mb-2" aria-hidden="true" />
 		<p>Acesso restrito a administradores.</p>
 	</div>
@@ -308,7 +308,7 @@
 	<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
 		<div>
 			<h1 class="h1 text-2xl font-bold">Cx. de Entrada</h1>
-			<p class="text-sm text-surface-500 mt-0.5">Acompanhamento de novos envios em tempo real</p>
+			<p class="text-sm text-surface-600 dark:text-surface-400 mt-0.5">Acompanhamento de novos envios em tempo real</p>
 		</div>
 		<div class="flex gap-2 justify-end w-full sm:w-auto">
 			<button
@@ -352,6 +352,7 @@
 				<SearchableSelect
 					options={seccionaisOptions}
 					bind:value={filtroSeccional}
+					ariaLabel="Filtrar por seccional"
 					placeholder="Todas"
 				/>
 			</div>
@@ -382,12 +383,22 @@
 
 			<div class="flex flex-col gap-1 w-full lg:w-28">
 				<span class="label-text text-sm font-semibold">Ano</span>
-				<SearchableSelect options={anosOptions} bind:value={filtroAno} placeholder="Todos" />
+				<SearchableSelect
+					options={anosOptions}
+					bind:value={filtroAno}
+					ariaLabel="Filtrar por ano"
+					placeholder="Todos"
+				/>
 			</div>
 
 			<div class="flex flex-col gap-1 w-full lg:w-36">
 				<span class="label-text text-sm font-semibold">Mês</span>
-				<SearchableSelect options={mesesOptions} bind:value={filtroMes} placeholder="Todos" />
+				<SearchableSelect
+					options={mesesOptions}
+					bind:value={filtroMes}
+					ariaLabel="Filtrar por mês"
+					placeholder="Todos"
+				/>
 			</div>
 
 			<div class="flex items-center justify-between sm:justify-start gap-4 pb-2 lg:pb-3 lg:pl-2">
@@ -428,7 +439,7 @@
 				<p class="text-surface-600 dark:text-surface-400 text-lg font-semibold">
 					Nenhum recebimento encontrado
 				</p>
-				<p class="text-surface-500 text-sm mt-1">
+				<p class="text-surface-600 dark:text-surface-400 text-sm mt-1">
 					Tente ajustar os filtros acima para visualizar mais escalas.
 				</p>
 			</div>
@@ -504,6 +515,7 @@
 												<input
 													type="checkbox"
 													class="checkbox mx-auto"
+													aria-label={`Marcar escala de ${escala.lotacao} como vista`}
 													checked={!!escala.visto_por_admin}
 													onchange={(e) => e.currentTarget.closest('form')?.requestSubmit()}
 												/>
@@ -533,7 +545,7 @@
 										{/if}
 									</td>
 									<td
-										class="text-xs text-surface-500 whitespace-nowrap text-center font-mono tabular-nums"
+										class="text-xs text-surface-600 dark:text-surface-400 whitespace-nowrap text-center font-mono tabular-nums"
 									>
 										{formatRelativeTime(escala.created_at)}
 									</td>
@@ -566,18 +578,7 @@
 													target="_blank"
 													title="PDF assinado sem folha de auditoria (para impressão e distribuição)"
 												>
-													<svg
-														class="w-4 h-4 mr-1"
-														fill="none"
-														viewBox="0 0 24 24"
-														stroke="currentColor"
-														><path
-															stroke-linecap="round"
-															stroke-linejoin="round"
-															stroke-width="2"
-															d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
-														/></svg
-													>
+													<Download class="w-4 h-4 mr-1" aria-hidden="true" />
 													S/ manifesto
 												</a>
 												<a
@@ -660,12 +661,12 @@
 							<div class="flex items-start justify-between gap-3 mb-2">
 								<div class="min-w-0">
 									<p class="font-bold text-sm truncate">{escala.lotacao}</p>
-									<p class="text-xs text-surface-500 font-medium">
+									<p class="text-xs text-surface-600 dark:text-surface-400 font-medium">
 										{getMesExtenso(escala.data_inicio)}
 									</p>
 								</div>
 								<label class="flex flex-col items-center gap-1 shrink-0">
-									<span class="text-3xs uppercase font-bold text-surface-500">Lida</span>
+									<span class="text-3xs uppercase font-bold text-surface-600 dark:text-surface-400">Lida</span>
 									<form
 										method="POST"
 										action="?/toggleVisto"
@@ -679,6 +680,7 @@
 											<input
 												type="checkbox"
 												class="checkbox checkbox-sm"
+												aria-label={`Marcar escala de ${escala.lotacao} como vista`}
 												checked={!!escala.visto_por_admin}
 												onchange={(e) => e.currentTarget.closest('form')?.requestSubmit()}
 											/>
@@ -704,7 +706,7 @@
 										>FDS</span
 									>
 								{/if}
-								<span class="text-2xs text-surface-500"
+								<span class="text-2xs text-surface-600 dark:text-surface-400"
 									>{formatRelativeTime(escala.created_at)}</span
 								>
 							</div>

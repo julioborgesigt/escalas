@@ -28,7 +28,7 @@
 	 *   sintética de supervisão extra), e por isso aparece nas mesmas listas de
 	 *   pendência e assinatura das seccionais de verdade.
 	 */
-	import { PenLine } from 'lucide-svelte';
+	import { PenLine } from '@lucide/svelte';
 	import { goto, invalidate, replaceState } from '$app/navigation';
 	import type { PageProps } from './$types';
 	import { page } from '$app/state';
@@ -496,7 +496,7 @@
 	{/if}
 
 	{#if !gise}
-		<p class="text-surface-500">Escala não encontrada.</p>
+		<p class="text-surface-600 dark:text-surface-400">Escala não encontrada.</p>
 	{:else}
 		{#if precisaRubrica}
 			<div

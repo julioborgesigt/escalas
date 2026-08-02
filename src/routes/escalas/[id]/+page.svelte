@@ -233,8 +233,12 @@
 	}
 </script>
 
+<svelte:head>
+	<title>Escala — Escalas PC-CE</title>
+</svelte:head>
+
 {#if !escala}
-	<div class="text-center py-12 text-surface-500"><p>Escala não encontrada.</p></div>
+	<div class="text-center py-12 text-surface-600 dark:text-surface-400"><p>Escala não encontrada.</p></div>
 {:else}
 	<EscalaCabecalho
 		{escala}
@@ -419,7 +423,7 @@
 			onSolicitarRemocao={solicitarRemocao}
 		/>
 	{:else if policiaisEscalaLocal.length === 0}
-		<div class="text-center py-12 text-surface-500">
+		<div class="text-center py-12 text-surface-600 dark:text-surface-400">
 			<p>Nenhum policial nesta escala ainda.</p>
 		</div>
 	{:else if !isExpediente && !isFDS}

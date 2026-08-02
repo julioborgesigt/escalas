@@ -31,7 +31,7 @@
 		BellOff,
 		Search,
 		PartyPopper
-	} from 'lucide-svelte';
+	} from '@lucide/svelte';
 	import { goto, invalidate } from '$app/navigation';
 	import { enhance } from '$app/forms';
 	import { page, navigating } from '$app/state';
@@ -348,7 +348,7 @@
 </svelte:head>
 
 {#if !isAdmin}
-	<div class="text-center py-32 text-surface-500">
+	<div class="text-center py-32 text-surface-600 dark:text-surface-400">
 		<Lock class="w-8 h-8 mx-auto mb-2" aria-hidden="true" />
 		<p>Acesso restrito a administradores.</p>
 	</div>
@@ -356,7 +356,7 @@
 	<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
 		<div>
 			<h1 class="h1 text-2xl font-bold">Painel de Compliance</h1>
-			<p class="text-sm text-surface-500 mt-0.5">
+			<p class="text-sm text-surface-600 dark:text-surface-400 mt-0.5">
 				Controle de envio e assinatura de escalas por unidade
 			</p>
 		</div>
@@ -399,7 +399,7 @@
 		<div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
 			<div class="p-4 rounded-2xl bg-success-500/10 border border-success-500/20 text-center">
 				<p class="text-2xl font-bold text-success-600 dark:text-success-400">{totais.ok}</p>
-				<p class="text-xs text-surface-500 mt-1 font-medium">
+				<p class="text-xs text-surface-600 dark:text-surface-400 mt-1 font-medium">
 					<CheckCircle2 class="inline w-3.5 h-3.5 -mt-0.5" aria-hidden="true" /> Em dia
 				</p>
 			</div>
@@ -407,13 +407,13 @@
 				<p class="text-2xl font-bold text-warning-600 dark:text-warning-400">
 					{totais.nao_assinada}
 				</p>
-				<p class="text-xs text-surface-500 mt-1 font-medium">
+				<p class="text-xs text-surface-600 dark:text-surface-400 mt-1 font-medium">
 					<Clock class="inline w-3.5 h-3.5 -mt-0.5" aria-hidden="true" /> Não Assinada
 				</p>
 			</div>
 			<div class="p-4 rounded-2xl bg-error-500/10 border border-error-500/20 text-center">
 				<p class="text-2xl font-bold text-error-600 dark:text-error-400">{totais.nao_criada}</p>
-				<p class="text-xs text-surface-500 mt-1 font-medium">
+				<p class="text-xs text-surface-600 dark:text-surface-400 mt-1 font-medium">
 					<XCircle class="inline w-3.5 h-3.5 -mt-0.5" aria-hidden="true" /> Não Criada
 				</p>
 			</div>
@@ -425,8 +425,8 @@
 					filtroPendentes = false;
 				}}
 			>
-				<p class="text-2xl font-bold text-surface-500">{totais.ignorados}</p>
-				<p class="text-xs text-surface-500 mt-1 font-medium">
+				<p class="text-2xl font-bold text-surface-600 dark:text-surface-400">{totais.ignorados}</p>
+				<p class="text-xs text-surface-600 dark:text-surface-400 mt-1 font-medium">
 					<BellOff class="inline w-3.5 h-3.5 -mt-0.5" aria-hidden="true" /> Ignorados
 				</p>
 			</button>
@@ -443,6 +443,7 @@
 				<SearchableSelect
 					options={seccionaisOptions}
 					bind:value={filtroSeccional}
+					ariaLabel="Filtrar por seccional"
 					placeholder="Selecione"
 				/>
 			</div>
@@ -452,18 +453,29 @@
 				<SearchableSelect
 					options={unidadesDropdownOptions}
 					bind:value={filtroUnidade}
+					ariaLabel="Filtrar por unidade"
 					placeholder="Todas as unidades"
 				/>
 			</div>
 
 			<div class="flex flex-col gap-1 w-full lg:w-28">
 				<span class="label-text text-sm font-semibold">Ano</span>
-				<SearchableSelect options={anosOptions} bind:value={filtroAno} placeholder="Todos" />
+				<SearchableSelect
+					options={anosOptions}
+					bind:value={filtroAno}
+					ariaLabel="Filtrar por ano"
+					placeholder="Todos"
+				/>
 			</div>
 
 			<div class="flex flex-col gap-1 w-full lg:w-36">
 				<span class="label-text text-sm font-semibold">Mês</span>
-				<SearchableSelect options={mesesOptions} bind:value={filtroMes} placeholder="Todos" />
+				<SearchableSelect
+					options={mesesOptions}
+					bind:value={filtroMes}
+					ariaLabel="Filtrar por mês"
+					placeholder="Todos"
+				/>
 			</div>
 		</div>
 
@@ -573,7 +585,7 @@
 				<p class="text-surface-600 dark:text-surface-400 text-lg font-semibold">
 					{mostrarIgnorados ? 'Nenhum item ignorado' : 'Nenhuma pendência encontrada!'}
 				</p>
-				<p class="text-surface-500 text-sm mt-1">
+				<p class="text-surface-600 dark:text-surface-400 text-sm mt-1">
 					{mostrarIgnorados
 						? 'Você não ignorou nenhuma pendência.'
 						: 'Todas as escalas estão em dia com os filtros selecionados.'}
@@ -768,7 +780,7 @@
 													>FDS</span
 												>
 											{/if}
-											<span class="text-xs text-surface-500 font-medium font-mono tabular-nums"
+											<span class="text-xs text-surface-600 dark:text-surface-400 font-medium font-mono tabular-nums"
 												>{item.periodo}</span
 											>
 										</div>

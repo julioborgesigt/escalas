@@ -19,6 +19,8 @@
 			<img
 				src="/api/validar/logo"
 				alt="Brasão do Estado do Ceará"
+				width="200"
+				height="200"
 				class="h-16 sm:h-24 w-auto mb-2 drop-shadow-md"
 			/>
 			<h1
@@ -26,7 +28,7 @@
 			>
 				Encarregado de Dados (DPO)
 			</h1>
-			<p class="text-xs text-surface-500 mt-1 text-center">
+			<p class="text-xs text-surface-600 dark:text-surface-400 mt-1 text-center">
 				Polícia Civil do Estado do Ceará · Sistema de Escalas de Plantão
 			</p>
 		</header>
@@ -116,7 +118,7 @@
 					<li>Revogação do consentimento, nos termos do art. 8º, §5º, da LGPD;</li>
 					<li>Oposição ao tratamento realizado com fundamento em legítimo interesse.</li>
 				</ul>
-				<p class="mt-3 text-xs text-surface-500 dark:text-surface-400 leading-relaxed">
+				<p class="mt-3 text-xs text-surface-600 dark:text-surface-400 leading-relaxed">
 					<strong>Atenção:</strong> alguns dados são retidos por obrigação legal ou para o exercício regular
 					de direitos em processo judicial, administrativo ou arbitral, e não podem ser eliminados durante
 					o período mínimo de retenção (art. 16 da LGPD e Decreto nº 10.748/2021).
@@ -147,7 +149,7 @@
 				>
 					← Ver Termo de Uso e Política de Privacidade (v1.1)
 				</a>
-				<p class="text-3xs text-surface-500 dark:text-surface-400">
+				<p class="text-3xs text-surface-600 dark:text-surface-400">
 					Base legal: art. 41 da Lei nº 13.709/2018 (LGPD)
 				</p>
 			</div>

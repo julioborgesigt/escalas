@@ -22,6 +22,7 @@
 	import { formatarData, MESES_PT } from '$lib/utils/datas';
 	import { podeBaixarComManifesto } from '$lib/manifesto';
 	import BotaoVoltar from '$lib/components/BotaoVoltar.svelte';
+	import { CheckCircle2, PenLine } from '@lucide/svelte';
 
 	const {
 		escalasParaAssinar,
@@ -74,19 +75,7 @@
 
 	{#if escalasParaAssinar.length === 0}
 		<div class="text-center py-16 text-surface-500">
-			<svg
-				class="w-12 h-12 mx-auto mb-3 opacity-30"
-				fill="none"
-				stroke="currentColor"
-				viewBox="0 0 24 24"
-			>
-				<path
-					stroke-linecap="round"
-					stroke-linejoin="round"
-					stroke-width="1.5"
-					d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-				/>
-			</svg>
+			<CheckCircle2 class="w-12 h-12 mx-auto mb-3 opacity-30" aria-hidden="true" />
 			<p class="font-semibold">Nenhuma escala pendente de assinatura.</p>
 		</div>
 	{:else}
@@ -126,14 +115,7 @@
 							<span
 								class="inline-flex items-center gap-1 rounded-full bg-warning-500/15 px-2 py-0.5 text-3xs font-bold uppercase tracking-wide text-warning-700 dark:text-warning-400"
 							>
-								<svg class="w-3 h-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-									<path
-										stroke-linecap="round"
-										stroke-linejoin="round"
-										stroke-width="2"
-										d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
-									/>
-								</svg>
+								<PenLine class="w-3 h-3 shrink-0" aria-hidden="true" />
 								Aguardando assinatura
 							</span>
 						</div>
@@ -179,18 +161,7 @@
 											/>
 										</svg>
 									{:else}
-										<svg
-											class="w-3 h-3 shrink-0"
-											fill="none"
-											stroke="currentColor"
-											viewBox="0 0 24 24"
-											><path
-												stroke-linecap="round"
-												stroke-linejoin="round"
-												stroke-width="2"
-												d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
-											/></svg
-										>
+										<PenLine class="w-3 h-3 shrink-0" aria-hidden="true" />
 									{/if}
 									{esc.is_assinada ? 'Assinado' : 'Assinar (Tela)'}
 								</button>
@@ -213,18 +184,7 @@
 											/>
 										</svg>
 									{:else}
-										<svg
-											class="w-3 h-3 shrink-0"
-											fill="none"
-											stroke="currentColor"
-											viewBox="0 0 24 24"
-											><path
-												stroke-linecap="round"
-												stroke-linejoin="round"
-												stroke-width="2"
-												d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
-											/></svg
-										>
+										<PenLine class="w-3 h-3 shrink-0" aria-hidden="true" />
 									{/if}
 									{esc.is_assinada ? 'Assinado' : 'Assinar (Token)'}
 								</button>

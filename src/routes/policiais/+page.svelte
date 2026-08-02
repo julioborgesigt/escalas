@@ -478,7 +478,7 @@
 							<h4 class="text-2xs font-bold uppercase opacity-50">
 								Papel Administrativo (Opcional)
 							</h4>
-							<p class="text-xs text-surface-500 leading-snug">
+							<p class="text-xs text-surface-600 dark:text-surface-400 leading-snug">
 								Papel de gestão restrito a uma seccional ou unidade: gerencia escalas e policiais
 								apenas do próprio escopo. Diferente do Admin Geral, não concede acesso global.
 							</p>
@@ -510,7 +510,7 @@
 									{/if}
 								</label>
 							{:else if papel === 'admin_unidade' && isAdminUnidade}
-								<p class="text-3xs text-surface-500 ml-1 italic">
+								<p class="text-3xs text-surface-600 dark:text-surface-400 ml-1 italic">
 									Será nomeado para a sua própria unidade.
 								</p>
 							{/if}
@@ -520,7 +520,7 @@
 					{#if isAdmin}
 						<div class="p-3 rounded-xl bg-surface-500/5 border border-surface-500/10 flex flex-col">
 							<h4 class="text-2xs font-bold uppercase opacity-50">Admin Geral (Opcional)</h4>
-							<p class="text-xs text-surface-500 leading-snug mt-2">
+							<p class="text-xs text-surface-600 dark:text-surface-400 leading-snug mt-2">
 								Cria a conta de Administrador Geral vinculada. A pessoa loga com a mesma
 								matrícula/senha escolhendo "Administrador". Cumulativo com o papel.
 							</p>
@@ -539,7 +539,7 @@
 									<span
 										class="text-xs font-semibold {concederAdminGeral
 											? 'text-success-700 dark:text-success-400'
-											: 'text-surface-500'}"
+											: 'text-surface-600 dark:text-surface-400'}"
 									>
 										{concederAdminGeral ? 'Conceder Admin Geral' : 'Não conceder'}
 									</span>
@@ -647,7 +647,7 @@
 					{#each [['', 'Todos'], ['DPC', 'DPC'], ['OIP', 'OIP']] as [val, label] (val)}
 						<SegmentedControl.Item
 							value={val}
-							class="flex-1 px-3 py-1.5 text-center text-sm font-semibold rounded-lg cursor-pointer select-none transition-all duration-200 text-surface-500 dark:text-surface-400 data-[state=checked]:bg-primary-500 data-[state=checked]:text-white data-[state=checked]:shadow-md data-[state=checked]:shadow-primary-500/25 hover:text-surface-700 dark:hover:text-surface-200"
+							class="flex-1 px-3 py-1.5 text-center text-sm font-semibold rounded-lg cursor-pointer select-none transition-all duration-200 text-surface-600 dark:text-surface-400 data-[state=checked]:bg-primary-500 data-[state=checked]:text-white data-[state=checked]:shadow-md data-[state=checked]:shadow-primary-500/25 hover:text-surface-700 dark:hover:text-surface-200"
 						>
 							<SegmentedControl.ItemText>{label}</SegmentedControl.ItemText>
 							<SegmentedControl.ItemHiddenInput />
@@ -687,13 +687,13 @@
 		</label>
 	</div>
 	{#if isAdmin && !filtroLotacao && !filtroBusca}
-		<p class="text-xs text-surface-500 -mt-5 mb-4 italic px-1">
+		<p class="text-xs text-surface-600 dark:text-surface-400 -mt-5 mb-4 italic px-1">
 			Selecione uma unidade ou pesquise por nome/matrícula para visualizar os policiais.
 		</p>
 	{/if}
 
 	{#if policiais.length === 0}
-		<div class="text-center py-12 text-surface-500">
+		<div class="text-center py-12 text-surface-600 dark:text-surface-400">
 			<p class="mb-4">
 				{filtroCargo
 					? `Nenhum policial com cargo ${filtroCargo} encontrado.`
@@ -809,19 +809,19 @@
 						</div>
 						<div class="space-y-1 text-sm mb-3">
 							<div class="flex justify-between">
-								<span class="text-surface-500">Matrícula</span>
+								<span class="text-surface-600 dark:text-surface-400">Matrícula</span>
 								<span class="text-surface-900 dark:text-surface-100 font-mono tabular-nums"
 									>{p.matricula}</span
 								>
 							</div>
 							<div class="flex justify-between">
-								<span class="text-surface-500">Telefone</span>
+								<span class="text-surface-600 dark:text-surface-400">Telefone</span>
 								<span class="text-surface-900 dark:text-surface-100 font-mono tabular-nums"
 									>{p.telefone}</span
 								>
 							</div>
 							<div class="flex justify-between">
-								<span class="text-surface-500">Lotação</span>
+								<span class="text-surface-600 dark:text-surface-400">Lotação</span>
 								<span class="text-right text-surface-900 dark:text-surface-100">{p.lotacao}</span>
 							</div>
 						</div>

@@ -45,6 +45,11 @@
 	});
 </script>
 
+<!--
+	Exceção deliberada ao ModalShell: o editor precisa de altura limitada a
+	720px e layout flex com textarea rolável e rodapé preso ao painel. O contrato
+	canônico de conteúdo rolável inteiro quebraria essa composição.
+-->
 <Dialog
 	{open}
 	onOpenChange={(e) => {
