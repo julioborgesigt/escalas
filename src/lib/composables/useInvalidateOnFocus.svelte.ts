@@ -61,6 +61,7 @@ export function useInvalidateOnFocus(
 
 		let emCurso = false;
 		let ultimoStamp: string | null = null;
+		let desmontado = false;
 
 		async function refrescar(force = false) {
 			if (emCurso || document.visibilityState !== 'visible') return;
@@ -69,7 +70,8 @@ export function useInvalidateOnFocus(
 				if (!force && opcoes?.probe) {
 					const stamp = await opcoes.probe();
 					if (stamp === null) return;
-					// Primeiro tick só semeia o carimbo — o `load` já veio fresco.
+					// Sem carimbo de referência ainda (a semeadura da montagem falhou ou
+					// não terminou): adota este e espera o próximo para comparar.
 					if (ultimoStamp === null) {
 						ultimoStamp = stamp;
 						return;
@@ -90,6 +92,32 @@ export function useInvalidateOnFocus(
 			}
 		}
 
+		/**
+		 * Semeia o carimbo de referência JÁ na montagem, e não no primeiro
+		 * foco/tick.
+		 *
+		 * Antes, o primeiro `refrescar` é que semeava — e entre o `load` e esse
+		 * primeiro tick passam até 2 minutos (o intervalo frio). Uma mudança nessa
+		 * janela era registrada como "estado conhecido" sobre uma tela que ainda
+		 * mostrava o dado velho: a partir daí os carimbos batiam, nada invalidava,
+		 * e a tela só se corrigia quando ALGUÉM mudasse o dado de novo.
+		 * Reproduzido em Chromium: mudar o status da GISE logo após abrir a tela e
+		 * voltar o foco duas vezes deixava o status antigo na tela.
+		 *
+		 * Semeando aqui, a janela cai para o intervalo entre o `load` e a montagem
+		 * do efeito — e o primeiro retorno de foco já detecta a mudança.
+		 */
+		if (opcoes?.probe) {
+			void opcoes
+				.probe()
+				.then((stamp) => {
+					if (!desmontado && ultimoStamp === null) ultimoStamp = stamp;
+				})
+				.catch(() => {
+					/* sem carimbo inicial, o primeiro refrescar semeia (ver acima) */
+				});
+		}
+
 		function aoMudarVisibilidade() {
 			if (document.visibilityState === 'visible') void refrescar(false);
 		}
@@ -106,6 +134,7 @@ export function useInvalidateOnFocus(
 				: null;
 
 		return () => {
+			desmontado = true;
 			document.removeEventListener('visibilitychange', aoMudarVisibilidade);
 			unscribeTab();
 			if (timer) clearInterval(timer);
