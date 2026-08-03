@@ -51,29 +51,76 @@ test('troca exige senha: sem senha o envio fica bloqueado; senha errada é rejei
 	await expect(page.getByText('Senha incorreta.')).toBeVisible();
 });
 
-test('shell do modal gerencia foco, backdrop, Escape e bloqueio durante envio', async ({ page }) => {
+test('shell do modal gerencia foco, backdrop, Escape e bloqueio durante envio', async ({
+	page
+}) => {
 	const ok = await autenticarPagina(page, FIXTURE.policialA.id);
 	if (!ok) test.skip(true, 'D1 indisponível');
 
 	await page.goto('/perfil');
 	const abrir = page.getByRole('button', { name: 'Alterar', exact: true });
-	await abrir.click();
-
 	const dialog = page.getByRole('dialog', { name: 'Trocar e-mail pessoal' });
 	const email = page.getByLabel('Novo e-mail pessoal');
-	await expect(dialog).toBeVisible();
-	await expect(email).toBeFocused();
+	const corpo = page.locator('body');
+
+	/**
+	 * Abre o modal e só devolve quando a CAMADA DE DISPENSA está montada —
+	 * visibilidade do conteúdo não é esse sinal.
+	 *
+	 * O `@zag-js/dismissable` monta a camada e, na mesma volta síncrona, (a)
+	 * registra o `keydown` de `Escape` no documento e (b) enfileira um microtask
+	 * que marca `body[data-inert]`. Como o microtask só roda depois do bloco
+	 * síncrono inteiro, ver o atributo PROVA que o `Escape` já está armado.
+	 * Antes disso a tecla é engolida e o diálogo fica `data-state="open"` —
+	 * instabilidade que reproduz com a CPU saturada.
+	 */
+	async function abrirModal() {
+		// A camada anterior já precisa ter sido desfeita, senão o `data-inert`
+		// observado abaixo seria o do modal ANTERIOR.
+		await expect(corpo).not.toHaveAttribute('data-inert');
+		await abrir.click();
+		await expect(dialog).toBeVisible();
+		await expect(email).toBeFocused();
+		await expect(corpo).toHaveAttribute('data-inert', '');
+	}
+
+	/**
+	 * Fecha o modal clicando FORA dele, repetindo o clique até a aplicação estar
+	 * de fato escutando.
+	 *
+	 * O clique fora não tem plano B: com a camada bloqueando ponteiro o `body`
+	 * fica `pointer-events: none` (medido — o elemento em 4,4 é o `<html>`), de
+	 * modo que o `onclick` do backdrop no `ModalShell` sequer é alcançado. Quem
+	 * fecha é só o `pointerdown` do `@zag-js/interact-outside`, e ele é armado
+	 * três saltos depois da montagem da camada: `raf` → `raf` → `setTimeout(0)`.
+	 * Um clique que chegue antes some sem deixar rastro (o `pointerdown` chega ao
+	 * documento, ninguém escuta) e o diálogo continua aberto.
+	 *
+	 * Esperar esses saltos por fora seria amarrar o teste ao número de
+	 * deferimentos internos de dois pacotes do zag-js — e, pior, uma versão que
+	 * mudasse a contagem voltaria a flakear EM SILÊNCIO, porque o sintoma é um
+	 * clique perdido, não um erro. Repetir o clique é o que não depende disso.
+	 *
+	 * Nenhum clique escapa para a aplicação: só clicamos enquanto o `body` está
+	 * `data-inert`, isto é, enquanto a camada ainda cobre a tela.
+	 */
+	async function fecharClicandoFora() {
+		await expect(async () => {
+			if ((await corpo.getAttribute('data-inert')) !== null) await page.mouse.click(4, 4);
+			await expect(dialog).not.toBeVisible({ timeout: 1000 });
+		}).toPass({ timeout: 15_000 });
+	}
+
+	await abrirModal();
 
 	await page.keyboard.press('Escape');
 	await expect(dialog).not.toBeVisible();
 	await expect(abrir).toBeFocused();
 
-	await abrir.click();
-	await expect(dialog).toBeVisible();
-	await page.mouse.click(4, 4);
-	await expect(dialog).not.toBeVisible();
+	await abrirModal();
+	await fecharClicandoFora();
 
-	await abrir.click();
+	await abrirModal();
 	await email.fill(EMAIL_NOVO);
 	await page.getByLabel('Sua senha de acesso').fill('senha-aguardando-resposta');
 
@@ -106,7 +153,12 @@ test('shell do modal gerencia foco, backdrop, Escape e bloqueio durante envio', 
 	await page.mouse.click(4, 4);
 	await expect(dialog).toBeVisible();
 
+	// Amarra a chegada da resposta antes de olhar a tela: sem isto, a asserção
+	// disputa com o `route.fulfill` (que atravessa o IPC do Playwright) dentro do
+	// mesmo orçamento de 5s.
+	const resposta = page.waitForResponse('**/api/auth/solicitar-verificacao-email-pessoal');
 	liberarResposta();
+	await resposta;
 	await expect(page.getByRole('alert')).toContainText('Falha simulada no envio');
 	await page.unroute('**/api/auth/solicitar-verificacao-email-pessoal');
 });
