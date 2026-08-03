@@ -28,7 +28,7 @@ function canal(): BroadcastChannel | null {
 }
 
 /** Avisa outras abas que estas chaves de `depends(...)` ficaram stale. */
-export function notifyInvalidate(...chaves: string[]) {
+function notifyInvalidate(...chaves: string[]) {
 	if (chaves.length === 0) return;
 	const ch = canal();
 	if (!ch) return;
@@ -37,7 +37,7 @@ export function notifyInvalidate(...chaves: string[]) {
 }
 
 /** Equivalente a `notifyInvalidate('*')` — listeners invalidam a própria chave. */
-export function notifyInvalidateAll() {
+function notifyInvalidateAll() {
 	notifyInvalidate('*');
 }
 
