@@ -94,13 +94,6 @@
 		open = event.open;
 		onOpenChange?.(event.open);
 	}
-
-	function handleBackdropClick(): void {
-		if (pending) return;
-
-		open = false;
-		onOpenChange?.(false);
-	}
 </script>
 
 <Dialog
@@ -111,9 +104,19 @@
 	onOpenChange={handleOpenChange}
 >
 	<Portal disabled={!portal}>
+		<!--
+			Sem `onclick` aqui, de propósito. O `modal` do zag-js (padrão) bloqueia
+			ponteiro: o `body` fica `pointer-events: none` e o backdrop nunca é alvo
+			de clique — medido no Chromium, `elementFromPoint(4, 4)` devolve o
+			`<html>` com o diálogo aberto. Quem fecha no clique fora é o
+			`closeOnInteractOutside` → `onOpenChange`, que já respeita o `pending`.
+
+			Um handler aqui não seria só código morto com cara de load-bearing: se
+			algum dia passasse a receber o clique, fecharia também o `alertdialog`,
+			que o zag-js deliberadamente NÃO dispensa por clique fora.
+		-->
 		<Dialog.Backdrop
 			class={['fixed inset-0 bg-surface-950/80', camadas[camada].zIndex, camadas[camada].blur]}
-			onclick={handleBackdropClick}
 		/>
 		<Dialog.Positioner
 			class={[
