@@ -52,7 +52,7 @@ export const FIXTURE = {
 	giseEquipe: { id: 99001 }
 } as const;
 
-function execSqlSafe(sql: string): boolean {
+function execSqlSafe(sql: string, rotulo = 'seed'): boolean {
 	try {
 		// `--command` aceita múltiplos statements separados por `;`. Aspas duplas
 		// dentro do SQL precisam ser escapadas no shell.
@@ -61,7 +61,16 @@ function execSqlSafe(sql: string): boolean {
 			stdio: 'pipe'
 		});
 		return true;
-	} catch {
+	} catch (err) {
+		// O motivo IMPORTA. Este catch mudo escondeu por semanas uma violação de
+		// FK que derrubava o seed GISE inteiro a partir da 2ª execução local: o
+		// operador via só "specs vão pular" e os specs rodavam sobre o estado do
+		// run anterior. Reportar aqui é o que torna a próxima falha diagnosticável.
+		const bruto = String(
+			(err as { stderr?: Buffer }).stderr ?? (err as Error).message ?? ''
+		).replace(/\u001b\[[0-9;]*m/g, '');
+		const linha = bruto.split('\n').find((l) => l.includes('ERROR')) ?? bruto.slice(0, 200);
+		console.warn(`[global-setup] SQL de ${rotulo} falhou: ${linha.trim()}`);
 		return false;
 	}
 }
@@ -110,32 +119,49 @@ export default async function globalSetup() {
 	// primeiro_acesso=0 pula redirect para /alterar-senha.
 	const senhaHash = await hashSenha(FIXTURE.password);
 	const fixtureSeed = `
-		INSERT OR REPLACE INTO unidades (id, nome, tipo) VALUES
+		INSERT INTO unidades (id, nome, tipo) VALUES
 			(${FIXTURE.unidadeA.id}, '${FIXTURE.unidadeA.nome}', 'delegacia'),
-			(${FIXTURE.unidadeB.id}, '${FIXTURE.unidadeB.nome}', 'delegacia');
-		INSERT OR REPLACE INTO policiais
+			(${FIXTURE.unidadeB.id}, '${FIXTURE.unidadeB.nome}', 'delegacia')
+		ON CONFLICT(id) DO UPDATE SET nome = excluded.nome, tipo = excluded.tipo;
+		INSERT INTO policiais
 			(id, matricula, nome, cargo, lotacao, senha, primeiro_acesso, email, ativo, cpf)
 		VALUES
 			(${FIXTURE.policialA.id}, '${FIXTURE.policialA.matricula}', '${FIXTURE.policialA.nome}', 'OIP', '${FIXTURE.unidadeA.nome}', '${senhaHash}', 0, NULL, 1, '${FIXTURE.policialA.cpf}'),
-			(${FIXTURE.policialB.id}, '${FIXTURE.policialB.matricula}', 'Policial Fixture B', 'OIP', '${FIXTURE.unidadeB.nome}', '${senhaHash}', 0, NULL, 1, NULL);
-		INSERT OR REPLACE INTO policiais
+			(${FIXTURE.policialB.id}, '${FIXTURE.policialB.matricula}', 'Policial Fixture B', 'OIP', '${FIXTURE.unidadeB.nome}', '${senhaHash}', 0, NULL, 1, NULL)
+		ON CONFLICT(id) DO UPDATE SET matricula = excluded.matricula, nome = excluded.nome,
+			cargo = excluded.cargo, lotacao = excluded.lotacao, senha = excluded.senha,
+			primeiro_acesso = excluded.primeiro_acesso, email = excluded.email,
+			ativo = excluded.ativo, cpf = excluded.cpf;
+		INSERT INTO policiais
 			(id, matricula, nome, cargo, lotacao, senha, primeiro_acesso, email, ativo, papel, papel_unidade_id)
 		VALUES
-			(${FIXTURE.adminUnidade.id}, '${FIXTURE.adminUnidade.matricula}', '${FIXTURE.adminUnidade.nome}', 'DPC', '${FIXTURE.unidadeA.nome}', '${senhaHash}', 0, NULL, 1, 'admin_unidade', ${FIXTURE.unidadeA.id});
-		INSERT OR REPLACE INTO administradores (id, login, senha, nome, email, primeiro_acesso)
+			(${FIXTURE.adminUnidade.id}, '${FIXTURE.adminUnidade.matricula}', '${FIXTURE.adminUnidade.nome}', 'DPC', '${FIXTURE.unidadeA.nome}', '${senhaHash}', 0, NULL, 1, 'admin_unidade', ${FIXTURE.unidadeA.id})
+		ON CONFLICT(id) DO UPDATE SET matricula = excluded.matricula, nome = excluded.nome,
+			cargo = excluded.cargo, lotacao = excluded.lotacao, senha = excluded.senha,
+			primeiro_acesso = excluded.primeiro_acesso, email = excluded.email,
+			ativo = excluded.ativo, papel = excluded.papel, papel_unidade_id = excluded.papel_unidade_id;
+		INSERT INTO administradores (id, login, senha, nome, email, primeiro_acesso)
 		VALUES
 			(${FIXTURE.adminGeral.id}, '${FIXTURE.adminGeral.login}', '${senhaHash}', 'Admin Geral Fixture', NULL, 0),
-			(${FIXTURE.superAdmin.id}, '${FIXTURE.superAdmin.login}', '${senhaHash}', 'Super Admin Fixture', NULL, 0);
-		INSERT OR REPLACE INTO escalas (id, titulo, cidade, tipo, lotacao, data_inicio, data_fim)
+			(${FIXTURE.superAdmin.id}, '${FIXTURE.superAdmin.login}', '${senhaHash}', 'Super Admin Fixture', NULL, 0)
+		ON CONFLICT(id) DO UPDATE SET login = excluded.login, senha = excluded.senha,
+			nome = excluded.nome, email = excluded.email, primeiro_acesso = excluded.primeiro_acesso;
+		INSERT INTO escalas (id, titulo, cidade, tipo, lotacao, data_inicio, data_fim)
 		VALUES
-			(${FIXTURE.escalaA.id}, 'Escala E2E Fixture A', 'Fortaleza', 'plantao', '${FIXTURE.unidadeA.nome}', '2026-01-01', '2026-01-01');
+			(${FIXTURE.escalaA.id}, 'Escala E2E Fixture A', 'Fortaleza', 'plantao', '${FIXTURE.unidadeA.nome}', '2026-01-01', '2026-01-01')
+		ON CONFLICT(id) DO UPDATE SET titulo = excluded.titulo, cidade = excluded.cidade,
+			tipo = excluded.tipo, lotacao = excluded.lotacao,
+			data_inicio = excluded.data_inicio, data_fim = excluded.data_fim;
 		DELETE FROM escala_documentos WHERE escala_id = ${FIXTURE.escalaA.id};
 		INSERT INTO escala_documentos (escala_id, r2_key, assinante_nome, verificacao_hash)
 		VALUES (${FIXTURE.escalaA.id}, 'test/fixture-${FIXTURE.escalaA.id}.pdf', 'Policial Fixture A', 'fixture-hash-${FIXTURE.escalaA.id}');
-		INSERT OR REPLACE INTO escalas (id, titulo, cidade, tipo, lotacao, data_inicio, data_fim)
+		INSERT INTO escalas (id, titulo, cidade, tipo, lotacao, data_inicio, data_fim)
 		VALUES
 			(${FIXTURE.escalaAssinavel.id}, 'Escala E2E Assinável', 'Fortaleza', 'plantao', '${FIXTURE.unidadeA.nome}', '2026-02-01', '2026-02-28'),
-			(${FIXTURE.escalaAssinavelA3.id}, 'Escala E2E Assinável A3', 'Fortaleza', 'plantao', '${FIXTURE.unidadeA.nome}', '2026-03-01', '2026-03-31');
+			(${FIXTURE.escalaAssinavelA3.id}, 'Escala E2E Assinável A3', 'Fortaleza', 'plantao', '${FIXTURE.unidadeA.nome}', '2026-03-01', '2026-03-31')
+		ON CONFLICT(id) DO UPDATE SET titulo = excluded.titulo, cidade = excluded.cidade,
+			tipo = excluded.tipo, lotacao = excluded.lotacao,
+			data_inicio = excluded.data_inicio, data_fim = excluded.data_fim;
 		DELETE FROM escala_policiais WHERE escala_id IN (${FIXTURE.escalaAssinavel.id}, ${FIXTURE.escalaAssinavelA3.id});
 		INSERT INTO escala_policiais (escala_id, policial_id, data_plantao, hora_entrada, hora_saida, equipe)
 		VALUES
@@ -144,32 +170,47 @@ export default async function globalSetup() {
 		DELETE FROM escala_documentos WHERE escala_id IN (${FIXTURE.escalaAssinavel.id}, ${FIXTURE.escalaAssinavelA3.id});
 	`;
 
-	const fixtureOk = execSqlSafe(fixtureSeed);
+	const fixtureOk = execSqlSafe(fixtureSeed, 'fixture base');
 
 	// ── Fixture GISE ativa ───────────────────────────────────────────────
 	// Uma GISE 'em_andamento' (= "ativa": status != finalizada) com seccional
 	// preenchida, 1 equipe operacional e 1 membro; supervisor DPC designado.
 	// Destrava as telas /gise/[id] (supervisor/admin) e /res-gise (membro).
 	const giseSeed = `
-		INSERT OR REPLACE INTO unidades (id, nome, tipo) VALUES
-			(${FIXTURE.seccional.id}, '${FIXTURE.seccional.nome}', 'seccional');
-		INSERT OR REPLACE INTO policiais
+		INSERT INTO unidades (id, nome, tipo) VALUES
+			(${FIXTURE.seccional.id}, '${FIXTURE.seccional.nome}', 'seccional')
+		ON CONFLICT(id) DO UPDATE SET nome = excluded.nome, tipo = excluded.tipo;
+		INSERT INTO policiais
 			(id, matricula, nome, cargo, lotacao, senha, primeiro_acesso, email, ativo, cpf)
 		VALUES
 			(${FIXTURE.supervisor.id}, '${FIXTURE.supervisor.matricula}', '${FIXTURE.supervisor.nome}', 'DPC', '${FIXTURE.seccional.nome}', '${senhaHash}', 0, NULL, 1, '${FIXTURE.supervisor.cpf}'),
-			(${FIXTURE.membroGise.id}, '${FIXTURE.membroGise.matricula}', '${FIXTURE.membroGise.nome}', 'OIP', '${FIXTURE.unidadeA.nome}', '${senhaHash}', 0, NULL, 1, NULL);
-		INSERT OR REPLACE INTO gise_escalas (id, data_inicio, status, hora_entrada, hora_saida, supervisor_id)
-		VALUES (${FIXTURE.gise.id}, '${FIXTURE.gise.dataInicio}', 'em_andamento', '08:00', '16:00', ${FIXTURE.supervisor.id});
-		INSERT OR REPLACE INTO gise_seccionais (id, gise_id, seccional_id, status, hora_entrada, hora_saida)
-		VALUES (${FIXTURE.giseSeccional.id}, ${FIXTURE.gise.id}, ${FIXTURE.seccional.id}, 'preenchida', '08:00', '16:00');
-		INSERT OR REPLACE INTO gise_equipes (id, gise_seccional_id, tipo, slots_dpc, slots_oip)
-		VALUES (${FIXTURE.giseEquipe.id}, ${FIXTURE.giseSeccional.id}, 'operacional', 1, 4);
+			(${FIXTURE.membroGise.id}, '${FIXTURE.membroGise.matricula}', '${FIXTURE.membroGise.nome}', 'OIP', '${FIXTURE.unidadeA.nome}', '${senhaHash}', 0, NULL, 1, NULL)
+		ON CONFLICT(id) DO UPDATE SET matricula = excluded.matricula, nome = excluded.nome,
+			cargo = excluded.cargo, lotacao = excluded.lotacao, senha = excluded.senha,
+			primeiro_acesso = excluded.primeiro_acesso, email = excluded.email,
+			ativo = excluded.ativo, cpf = excluded.cpf, rubrica = NULL;
+		INSERT INTO gise_escalas (id, data_inicio, status, hora_entrada, hora_saida, supervisor_id)
+		VALUES (${FIXTURE.gise.id}, '${FIXTURE.gise.dataInicio}', 'em_andamento', '08:00', '16:00', ${FIXTURE.supervisor.id})
+		ON CONFLICT(id) DO UPDATE SET data_inicio = excluded.data_inicio, status = excluded.status,
+			hora_entrada = excluded.hora_entrada, hora_saida = excluded.hora_saida,
+			supervisor_id = excluded.supervisor_id;
+		INSERT INTO gise_seccionais (id, gise_id, seccional_id, status, hora_entrada, hora_saida)
+		VALUES (${FIXTURE.giseSeccional.id}, ${FIXTURE.gise.id}, ${FIXTURE.seccional.id}, 'preenchida', '08:00', '16:00')
+		ON CONFLICT(id) DO UPDATE SET gise_id = excluded.gise_id, seccional_id = excluded.seccional_id,
+			status = excluded.status, hora_entrada = excluded.hora_entrada,
+			hora_saida = excluded.hora_saida;
+		INSERT INTO gise_equipes (id, gise_seccional_id, tipo, slots_dpc, slots_oip)
+		VALUES (${FIXTURE.giseEquipe.id}, ${FIXTURE.giseSeccional.id}, 'operacional', 1, 4)
+		ON CONFLICT(id) DO UPDATE SET gise_seccional_id = excluded.gise_seccional_id,
+			tipo = excluded.tipo, slots_dpc = excluded.slots_dpc, slots_oip = excluded.slots_oip;
 		DELETE FROM gise_membros WHERE equipe_id = ${FIXTURE.giseEquipe.id};
 		INSERT INTO gise_membros (equipe_id, policial_id)
 		VALUES (${FIXTURE.giseEquipe.id}, ${FIXTURE.membroGise.id});
 		DELETE FROM gise_presencas WHERE gise_id = ${FIXTURE.gise.id};
+		DELETE FROM gise_respostas_formulario WHERE gise_id = ${FIXTURE.gise.id};
+		DELETE FROM gise_modelo_formulario;
 	`;
-	const giseOk = execSqlSafe(giseSeed);
+	const giseOk = execSqlSafe(giseSeed, 'fixture GISE');
 	if (!giseOk) {
 		console.warn('[global-setup] Fixture GISE não foi seedada — specs de GISE vão pular.');
 	}
