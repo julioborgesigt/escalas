@@ -17,7 +17,7 @@
 	 * por dia: são até 31 datas com a flag de feriado junto, e o servidor cria
 	 * todas em paralelo.
 	 */
-	import { invalidateAll } from '$app/navigation';
+	import { invalidateShared } from '$lib/cross-tab-invalidate';
 	import { MESES_PT, DIAS_SEMANA_CURTO, isoData, hojeLocalISO } from '$lib/utils/datas';
 	import { fmtDate, diaSemana } from '$lib/gise/formatters';
 	import { enhance } from '$app/forms';
@@ -155,7 +155,7 @@
 					description: count > 1 ? 'As escalas foram adicionadas à lista de escalas ativas.' : ''
 				});
 				open = false;
-				await invalidateAll();
+				await invalidateShared('app:gise-list');
 				onSuccess(count, primeiroId);
 			} else {
 				const d =
@@ -185,7 +185,7 @@
 			>
 				Nova Escala GISE
 			</Dialog.Title>
-			<p class="text-3xs sm:text-xs text-surface-500 leading-snug">
+			<p class="text-3xs sm:text-xs text-surface-600 dark:text-surface-400 leading-snug">
 				Uma escala por dia. No calendário: <span
 					class="text-primary-600 dark:text-primary-400 font-medium">1º clique</span
 				>
@@ -236,7 +236,7 @@
 					</button>
 				</div>
 				<div
-					class="grid grid-cols-7 gap-px text-center text-3xs font-semibold uppercase tracking-wide text-surface-500 dark:text-surface-400 py-0.5"
+					class="grid grid-cols-7 gap-px text-center text-3xs font-semibold uppercase tracking-wide text-surface-600 dark:text-surface-400 py-0.5"
 				>
 					{#each DIAS_SEMANA_CURTO as ds (ds)}
 						<span>{ds}</span>
@@ -283,7 +283,7 @@
 
 			{#if diasModalOrdenados.length > 0}
 				<div class="min-w-0 space-y-0.5">
-					<span class="text-3xs font-semibold text-surface-500"
+					<span class="text-3xs font-semibold text-surface-600 dark:text-surface-400"
 						>Dias ({diasModalOrdenados.length})</span
 					>
 					<div
@@ -328,8 +328,9 @@
 				</p>
 				<div class="grid grid-cols-2 gap-2">
 					<div>
-						<label for="novaHoraEntrada" class="text-3xs text-surface-500 block mb-0.5"
-							>Entrada</label
+						<label
+							for="novaHoraEntrada"
+							class="text-3xs text-surface-600 dark:text-surface-400 block mb-0.5">Entrada</label
 						>
 						<input
 							id="novaHoraEntrada"
@@ -343,7 +344,10 @@
 						/>
 					</div>
 					<div>
-						<label for="novaHoraSaida" class="text-3xs text-surface-500 block mb-0.5">Saída</label>
+						<label
+							for="novaHoraSaida"
+							class="text-3xs text-surface-600 dark:text-surface-400 block mb-0.5">Saída</label
+						>
 						<input
 							id="novaHoraSaida"
 							type="text"
@@ -369,7 +373,7 @@
 						class="btn py-2 rounded-lg flex flex-col items-center gap-0.5 border transition-all min-h-0 {modoCriacao ===
 						'completa'
 							? 'border-primary-500 bg-primary-500/10 text-primary-600'
-							: 'border-surface-200 dark:border-surface-700 text-surface-500'}"
+							: 'border-surface-200 dark:border-surface-700 text-surface-600 dark:text-surface-400'}"
 						onclick={() => (modoCriacao = 'completa')}
 					>
 						<span class="font-bold text-3xs sm:text-xs leading-tight text-center">Completa</span>
@@ -382,7 +386,7 @@
 						class="btn py-2 rounded-lg flex flex-col items-center gap-0.5 border transition-all min-h-0 {modoCriacao ===
 						'branco'
 							? 'border-primary-500 bg-primary-500/10 text-primary-600'
-							: 'border-surface-200 dark:border-surface-700 text-surface-500'}"
+							: 'border-surface-200 dark:border-surface-700 text-surface-600 dark:text-surface-400'}"
 						onclick={() => (modoCriacao = 'branco')}
 					>
 						<span class="font-bold text-3xs sm:text-xs leading-tight text-center">Em branco</span>
@@ -395,7 +399,7 @@
 						class="btn py-2 rounded-lg flex flex-col items-center gap-0.5 border transition-all min-h-0 {modoCriacao ===
 						'clonada'
 							? 'border-primary-500 bg-primary-500/10 text-primary-600'
-							: 'border-surface-200 dark:border-surface-700 text-surface-500'}"
+							: 'border-surface-200 dark:border-surface-700 text-surface-600 dark:text-surface-400'}"
 						onclick={() => (modoCriacao = 'clonada')}
 						disabled={escalas.length === 0}
 					>
@@ -410,7 +414,7 @@
 					<div class="mt-1 animate-in fade-in slide-in-from-top-1 duration-300">
 						<label
 							for="clonarDe"
-							class="text-3xs font-medium text-surface-500 dark:text-surface-400 block mb-0.5"
+							class="text-3xs font-medium text-surface-600 dark:text-surface-400 block mb-0.5"
 							>Escolha a escala de origem</label
 						>
 						<select

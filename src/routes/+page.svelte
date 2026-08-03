@@ -3,6 +3,10 @@
 	const usuario = $derived(page.data.usuario);
 </script>
 
+<svelte:head>
+	<title>Início — Escalas PC-CE</title>
+</svelte:head>
+
 <div class="flex flex-col items-center justify-center min-h-[60vh] text-center px-4">
 	{#if usuario}
 		<div
@@ -15,7 +19,7 @@
 		<h1 class="text-2xl font-bold text-surface-900 dark:text-surface-50 mb-3">
 			Login bem sucedido!
 		</h1>
-		<p class="text-surface-500 dark:text-surface-400 text-base max-w-sm">
+		<p class="text-surface-600 dark:text-surface-400 text-base max-w-sm">
 			Volte depois, você ainda não foi escalado.
 		</p>
 	{/if}

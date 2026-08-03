@@ -81,7 +81,9 @@ interface GiseEscalaItem {
 
 type GisePresenca = typeof gisePresencas.$inferSelect;
 
-export const load: PageServerLoad = async ({ locals, platform, url }) => {
+export const load: PageServerLoad = async ({ locals, platform, url, depends }) => {
+	depends('app:res-gise');
+
 	const u = locals.usuario;
 	if (!u) redirect(302, '/login');
 

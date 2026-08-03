@@ -49,24 +49,24 @@
 <div class="max-w-5xl mx-auto space-y-6">
 	<div>
 		<h1 class="h2 font-bold">Solicitações</h1>
-		<p class="text-sm text-surface-500 dark:text-surface-400 mt-1">
+		<p class="text-sm text-surface-600 dark:text-surface-400 mt-1">
 			Alterações cadastrais pedidas pelos servidores no "Meu perfil". Aprovar aplica o novo valor
 			imediatamente no cadastro.
 		</p>
 	</div>
 
 	{#if pendentes.length === 0}
-		<div class="card-glass p-10 rounded-3xl text-center text-surface-500">
+		<div class="card-glass p-10 rounded-3xl text-center text-surface-600 dark:text-surface-400">
 			<p class="font-semibold">Nenhuma solicitação pendente.</p>
 			<p class="text-xs mt-1">Quando um servidor pedir alteração cadastral, ela aparecerá aqui.</p>
 		</div>
 	{:else}
 		<div class="card-glass rounded-3xl overflow-hidden">
-			<div class="overflow-x-auto">
+			<div class="table-wrap">
 				<table class="table w-full text-sm">
 					<thead>
 						<tr
-							class="text-left text-xs uppercase text-surface-500 dark:text-surface-400 border-b border-surface-200 dark:border-white/10"
+							class="text-left text-xs uppercase text-surface-600 dark:text-surface-400 border-b border-surface-200 dark:border-white/10"
 						>
 							<th class="py-3 px-4">Servidor</th>
 							<th class="py-3 px-4">Campo</th>
@@ -83,15 +83,17 @@
 							>
 								<td class="py-3 px-4">
 									<p class="font-semibold leading-tight">{s.policial_nome}</p>
-									<p class="text-xs text-surface-500 dark:text-surface-400">
+									<p class="text-xs text-surface-600 dark:text-surface-400">
 										{s.policial_matricula} · {s.policial_cargo} · {s.policial_lotacao}
 									</p>
 								</td>
 								<td class="py-3 px-4 font-medium">{ROTULO_CAMPO[s.campo]}</td>
-								<td class="py-3 px-4 text-surface-500">{s.valor_atual || '—'}</td>
+								<td class="py-3 px-4 text-surface-600 dark:text-surface-400"
+									>{s.valor_atual || '—'}</td
+								>
 								<td class="py-3 px-4 font-semibold">{s.valor_novo}</td>
 								<td
-									class="py-3 px-4 text-xs text-surface-500 dark:text-surface-400 whitespace-nowrap"
+									class="py-3 px-4 text-xs text-surface-600 dark:text-surface-400 whitespace-nowrap"
 								>
 									{new Date(s.created_at + (s.created_at.includes('T') ? '' : 'Z')).toLocaleString(
 										'pt-BR',

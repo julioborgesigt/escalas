@@ -31,18 +31,27 @@
 		BellOff,
 		Search,
 		PartyPopper
-	} from 'lucide-svelte';
-	import { goto, invalidate } from '$app/navigation';
+	} from '@lucide/svelte';
+	import { goto } from '$app/navigation';
 	import { enhance } from '$app/forms';
-	import { page, navigating } from '$app/state';
+	import { page } from '$app/state';
 	import { SvelteSet } from 'svelte/reactivity';
 	import SkeletonCard from '$lib/components/SkeletonCard.svelte';
+	import SkeletonCards from '$lib/components/SkeletonCards.svelte';
+	import SkeletonTableRows from '$lib/components/SkeletonTableRows.svelte';
 	import { browser } from '$app/environment';
 	import { Dialog } from '@skeletonlabs/skeleton-svelte';
 	import SearchableSelect from '$lib/components/SearchableSelect.svelte';
 	import { toaster } from '$lib/toast';
 	import type { ItemCompliance } from '$lib/types';
-	import { useAutorizacao, getSavedFilters } from '$lib/composables';
+	import {
+		useAutorizacao,
+		getSavedFilters,
+		useInvalidateOnFocus,
+		useSamePathNavigating
+	} from '$lib/composables';
+	import { invalidateShared } from '$lib/cross-tab-invalidate';
+	import { fetchSyncEstado } from '$lib/sync-estado';
 	import { loading as loadingService } from '$lib/loading.svelte';
 	import type { ActionResult } from '@sveltejs/kit';
 
@@ -50,6 +59,7 @@
 
 	const auth = useAutorizacao();
 	const isAdmin = $derived(auth.isAdmin);
+	const samePathNav = useSamePathNavigating();
 	const savedFilters = getSavedFilters('filtros_painel', {
 		regime: 'todos',
 		seccional: '',
@@ -101,6 +111,19 @@
 	const filtroAgrupamento = 'unidade';
 	let filtroPendentes = $state(true);
 	let mostrarIgnorados = $state(!!savedFilters.ignorados);
+
+	// Compliance é caro: foco/poll só refetch se o carimbo mudou; broadcast força.
+	useInvalidateOnFocus('app:painel', {
+		isHot: () => filtroPendentes,
+		probe: async () => {
+			try {
+				const e = await fetchSyncEstado();
+				return e.painel?.stamp ?? null;
+			} catch {
+				return null;
+			}
+		}
+	});
 
 	// Salvar filtros a cada mudança
 	$effect(() => {
@@ -283,7 +306,7 @@
 		}
 		// Chave declarada com depends() no load: invalidate(pathname) exigia
 		// match exato de URL e não funcionava com ?ano=&mes= presentes.
-		await invalidate('app:painel');
+		await invalidateShared('app:painel');
 		loadingService.hide();
 	}
 
@@ -306,7 +329,7 @@
 			loadingService.hide();
 			if (result.type === 'success') {
 				toaster.create({ title: 'Escala excluída com sucesso!', type: 'success' });
-				await invalidate('app:painel');
+				await invalidateShared('app:painel');
 				escalaExcluirOpen = false;
 				itemParaExcluir = null;
 			} else {
@@ -348,7 +371,7 @@
 </svelte:head>
 
 {#if !isAdmin}
-	<div class="text-center py-32 text-surface-500">
+	<div class="text-center py-32 text-surface-600 dark:text-surface-400">
 		<Lock class="w-8 h-8 mx-auto mb-2" aria-hidden="true" />
 		<p>Acesso restrito a administradores.</p>
 	</div>
@@ -356,7 +379,7 @@
 	<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
 		<div>
 			<h1 class="h1 text-2xl font-bold">Painel de Compliance</h1>
-			<p class="text-sm text-surface-500 mt-0.5">
+			<p class="text-sm text-surface-600 dark:text-surface-400 mt-0.5">
 				Controle de envio e assinatura de escalas por unidade
 			</p>
 		</div>
@@ -399,7 +422,7 @@
 		<div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
 			<div class="p-4 rounded-2xl bg-success-500/10 border border-success-500/20 text-center">
 				<p class="text-2xl font-bold text-success-600 dark:text-success-400">{totais.ok}</p>
-				<p class="text-xs text-surface-500 mt-1 font-medium">
+				<p class="text-xs text-surface-600 dark:text-surface-400 mt-1 font-medium">
 					<CheckCircle2 class="inline w-3.5 h-3.5 -mt-0.5" aria-hidden="true" /> Em dia
 				</p>
 			</div>
@@ -407,13 +430,13 @@
 				<p class="text-2xl font-bold text-warning-600 dark:text-warning-400">
 					{totais.nao_assinada}
 				</p>
-				<p class="text-xs text-surface-500 mt-1 font-medium">
+				<p class="text-xs text-surface-600 dark:text-surface-400 mt-1 font-medium">
 					<Clock class="inline w-3.5 h-3.5 -mt-0.5" aria-hidden="true" /> Não Assinada
 				</p>
 			</div>
 			<div class="p-4 rounded-2xl bg-error-500/10 border border-error-500/20 text-center">
 				<p class="text-2xl font-bold text-error-600 dark:text-error-400">{totais.nao_criada}</p>
-				<p class="text-xs text-surface-500 mt-1 font-medium">
+				<p class="text-xs text-surface-600 dark:text-surface-400 mt-1 font-medium">
 					<XCircle class="inline w-3.5 h-3.5 -mt-0.5" aria-hidden="true" /> Não Criada
 				</p>
 			</div>
@@ -425,8 +448,8 @@
 					filtroPendentes = false;
 				}}
 			>
-				<p class="text-2xl font-bold text-surface-500">{totais.ignorados}</p>
-				<p class="text-xs text-surface-500 mt-1 font-medium">
+				<p class="text-2xl font-bold text-surface-600 dark:text-surface-400">{totais.ignorados}</p>
+				<p class="text-xs text-surface-600 dark:text-surface-400 mt-1 font-medium">
 					<BellOff class="inline w-3.5 h-3.5 -mt-0.5" aria-hidden="true" /> Ignorados
 				</p>
 			</button>
@@ -443,6 +466,7 @@
 				<SearchableSelect
 					options={seccionaisOptions}
 					bind:value={filtroSeccional}
+					ariaLabel="Filtrar por seccional"
 					placeholder="Selecione"
 				/>
 			</div>
@@ -452,18 +476,29 @@
 				<SearchableSelect
 					options={unidadesDropdownOptions}
 					bind:value={filtroUnidade}
+					ariaLabel="Filtrar por unidade"
 					placeholder="Todas as unidades"
 				/>
 			</div>
 
 			<div class="flex flex-col gap-1 w-full lg:w-28">
 				<span class="label-text text-sm font-semibold">Ano</span>
-				<SearchableSelect options={anosOptions} bind:value={filtroAno} placeholder="Todos" />
+				<SearchableSelect
+					options={anosOptions}
+					bind:value={filtroAno}
+					ariaLabel="Filtrar por ano"
+					placeholder="Todos"
+				/>
 			</div>
 
 			<div class="flex flex-col gap-1 w-full lg:w-36">
 				<span class="label-text text-sm font-semibold">Mês</span>
-				<SearchableSelect options={mesesOptions} bind:value={filtroMes} placeholder="Todos" />
+				<SearchableSelect
+					options={mesesOptions}
+					bind:value={filtroMes}
+					ariaLabel="Filtrar por mês"
+					placeholder="Todos"
+				/>
 			</div>
 		</div>
 
@@ -573,7 +608,7 @@
 				<p class="text-surface-600 dark:text-surface-400 text-lg font-semibold">
 					{mostrarIgnorados ? 'Nenhum item ignorado' : 'Nenhuma pendência encontrada!'}
 				</p>
-				<p class="text-surface-500 text-sm mt-1">
+				<p class="text-surface-600 dark:text-surface-400 text-sm mt-1">
 					{mostrarIgnorados
 						? 'Você não ignorou nenhuma pendência.'
 						: 'Todas as escalas estão em dia com os filtros selecionados.'}
@@ -596,30 +631,16 @@
 						</tr>
 					</thead>
 					<tbody>
-						{#if navigating?.to && navigating.to.url.pathname === page.url.pathname}
-							{#each { length: 8 } as _, i (i)}
-								<tr class="animate-pulse">
-									<td class="px-4 py-3"
-										><div class="h-4 w-40 rounded bg-surface-200 dark:bg-surface-700"></div></td
-									>
-									<td class="px-4 py-3"
-										><div
-											class="h-6 w-20 rounded-full bg-surface-200 dark:bg-surface-700"
-										></div></td
-									>
-									<td class="px-4 py-3"
-										><div class="h-4 w-28 rounded bg-surface-200 dark:bg-surface-700"></div></td
-									>
-									<td class="px-4 py-3"
-										><div
-											class="h-6 w-20 rounded-full bg-surface-200 dark:bg-surface-700"
-										></div></td
-									>
-									<td class="px-4 py-3"
-										><div class="h-8 w-24 rounded-lg bg-surface-200 dark:bg-surface-700"></div></td
-									>
-								</tr>
-							{/each}
+						{#if samePathNav.current}
+							<SkeletonTableRows
+								cols={[
+									'h-4 w-40',
+									'h-6 w-20 rounded-full',
+									'h-4 w-28',
+									'h-6 w-20 rounded-full',
+									'h-8 w-24 rounded-lg'
+								]}
+							/>
 						{:else}
 							{#each dadosAgrupados as grupo (grupo.titulo)}
 								{#if grupo.titulo}
@@ -724,10 +745,8 @@
 
 			<!-- Mobile cards -->
 			<div class="md:hidden space-y-2">
-				{#if navigating?.to && navigating.to.url.pathname === page.url.pathname}
-					{#each { length: 5 } as _, i (i)}
-						<SkeletonCard lines={3} hasFooter={false} />
-					{/each}
+				{#if samePathNav.current}
+					<SkeletonCards />
 				{:else}
 					{#each dadosAgrupados as grupo (grupo.titulo)}
 						{#if grupo.titulo}
@@ -768,7 +787,8 @@
 													>FDS</span
 												>
 											{/if}
-											<span class="text-xs text-surface-500 font-medium font-mono tabular-nums"
+											<span
+												class="text-xs text-surface-600 dark:text-surface-400 font-medium font-mono tabular-nums"
 												>{item.periodo}</span
 											>
 										</div>

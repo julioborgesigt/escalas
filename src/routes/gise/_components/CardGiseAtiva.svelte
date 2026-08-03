@@ -10,6 +10,7 @@
 	import { goto } from '$app/navigation';
 	import { slide } from 'svelte/transition';
 	import { statusLabel, statusColor, fmtDate, diaSemana } from '$lib/gise/formatters';
+	import { PenLine } from '@lucide/svelte';
 
 	const {
 		ativa,
@@ -139,7 +140,7 @@
 							? 'preset-filled-warning-500 text-warning-950'
 							: escalaConcluida
 								? 'preset-filled-success-500 text-white'
-								: 'bg-surface-200/50 dark:bg-surface-800 text-surface-500 dark:text-surface-400 border border-surface-300/50 dark:border-surface-700'}"
+								: 'bg-surface-200/50 dark:bg-surface-800 text-surface-600 dark:text-surface-400 border border-surface-300/50 dark:border-surface-700'}"
 						onclick={onAssEscala}
 						title={ativa.status === 'aguardando_assinatura'
 							? isDesktop
@@ -160,14 +161,7 @@
 								<path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
 							</svg>
 						{:else}
-							<svg class="w-3 h-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-								<path
-									stroke-linecap="round"
-									stroke-linejoin="round"
-									stroke-width="2"
-									d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
-								/>
-							</svg>
+							<PenLine class="w-3 h-3 shrink-0" aria-hidden="true" />
 						{/if}
 						{escalaConcluida ? 'Escala assinada' : 'Ass. Escala'}
 					</button>
@@ -180,7 +174,7 @@
 								? 'preset-filled-tertiary-500'
 								: ativa.extrasPendentes > 0
 									? 'preset-filled-warning-500 text-warning-950'
-									: 'bg-surface-200/50 dark:bg-surface-800 text-surface-500 dark:text-surface-400 border border-surface-300/50 dark:border-surface-700'}"
+									: 'bg-surface-200/50 dark:bg-surface-800 text-surface-600 dark:text-surface-400 border border-surface-300/50 dark:border-surface-700'}"
 						onclick={onAssExtra}
 						title={ativa.extrasPendentes > 0
 							? isDesktop
@@ -201,14 +195,7 @@
 								<path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
 							</svg>
 						{:else}
-							<svg class="w-3 h-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-								<path
-									stroke-linecap="round"
-									stroke-linejoin="round"
-									stroke-width="2"
-									d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
-								/>
-							</svg>
+							<PenLine class="w-3 h-3 shrink-0" aria-hidden="true" />
 						{/if}
 						{extraConcluido ? 'Extra assinado' : `Ass. Extra (${jaAssinados}/${totalExtras})`}
 					</button>

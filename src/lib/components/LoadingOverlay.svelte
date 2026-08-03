@@ -56,7 +56,7 @@
 						{message}
 					</p>
 					<p
-						class="text-surface-500 dark:text-surface-400 text-3xs uppercase font-medium tracking-widest opacity-60"
+						class="text-surface-600 dark:text-surface-400 text-3xs uppercase font-medium tracking-widest"
 					>
 						Aguarde um instante
 					</p>
@@ -65,10 +65,3 @@
 		</div>
 	</div>
 {/if}
-
-<style>
-	/* Garantir que o backdrop-blur seja aplicado suavemente */
-	div {
-		will-change: backdrop-filter;
-	}
-</style>

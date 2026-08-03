@@ -233,7 +233,7 @@
 				<h1 class="text-xl font-black uppercase tracking-tight sm:text-2xl">
 					Relatório de Produtividade
 				</h1>
-				<p class="text-sm text-surface-500 dark:text-surface-400">
+				<p class="text-sm text-surface-600 dark:text-surface-400">
 					{data.seccionalNome} · plantão de {fmtDate(data.dataInicio)}
 				</p>
 			</div>
@@ -339,7 +339,7 @@
 				>
 					<h2 class="min-w-0 text-lg font-bold">{etapaAtual.titulo}</h2>
 					<span
-						class="shrink-0 whitespace-nowrap text-3xs font-bold uppercase tracking-widest text-surface-500"
+						class="shrink-0 whitespace-nowrap text-3xs font-bold uppercase tracking-widest text-surface-600 dark:text-surface-400"
 					>
 						Etapa {indiceEtapa + 1} de {etapas.length}
 					</span>
@@ -352,7 +352,9 @@
 					<RelatorioProdutividade modelo={etapaAtual.perguntas} bind:respostas />
 				</div>
 			{:else}
-				<p class="text-sm text-surface-500">Nenhuma pergunta configurada para este formulário.</p>
+				<p class="text-sm text-surface-600 dark:text-surface-400">
+					Nenhuma pergunta configurada para este formulário.
+				</p>
 			{/if}
 		</div>
 	</div>
@@ -366,7 +368,7 @@
 	class="sticky bottom-0 z-20 -mx-2 mt-6 border-t border-surface-200 bg-surface-50/95 px-2 py-3 backdrop-blur sm:-mx-4 sm:px-4 dark:border-surface-800 dark:bg-surface-900/95"
 >
 	<div class="flex flex-wrap items-center justify-between gap-3">
-		<p class="text-3xs text-surface-500 dark:text-surface-400" aria-live="polite">
+		<p class="text-3xs text-surface-600 dark:text-surface-400" aria-live="polite">
 			{#if rascunhoSalvoEm}
 				Rascunho salvo às {rascunhoSalvoEm} neste aparelho
 			{:else}

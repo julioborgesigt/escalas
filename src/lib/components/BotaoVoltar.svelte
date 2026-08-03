@@ -13,7 +13,7 @@
 	 * `onclick` renderiza um `<button>`, para quem volta desfazendo estado local
 	 * em vez de mudar de rota. Passar os dois é erro de uso — o `href` vence.
 	 */
-	import { ArrowLeft } from 'lucide-svelte';
+	import { ArrowLeft } from '@lucide/svelte';
 
 	const {
 		href,

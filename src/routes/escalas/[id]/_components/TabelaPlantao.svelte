@@ -21,6 +21,7 @@
 	import IconTooltip from '$lib/components/IconTooltip.svelte';
 	import ModalEditarPlantao from './ModalEditarPlantao.svelte';
 	import FormInlineAdicionarOip from './FormInlineAdicionarOip.svelte';
+	import { PenLine } from '@lucide/svelte';
 
 	interface Props {
 		policiaisEscalaLocal: EscalaPolicialComDados[];
@@ -141,7 +142,9 @@
 </script>
 
 {#if policiaisEscalaLocal.length === 0}
-	<div class="text-center py-12 text-surface-500"><p>Nenhum policial nesta escala ainda.</p></div>
+	<div class="text-center py-12 text-surface-600 dark:text-surface-400">
+		<p>Nenhum policial nesta escala ainda.</p>
+	</div>
 {:else}
 	<div class="space-y-8">
 		{#each equipesAgrupadas as [equipe, items] (equipe)}
@@ -154,7 +157,7 @@
 					<span class="font-bold text-sm text-surface-800 dark:text-surface-100 uppercase">
 						{equipe ? `EQUIPE ${equipe}` : 'SEM EQUIPE'}
 					</span>
-					<span class="text-xs text-surface-500 dark:text-surface-400"
+					<span class="text-xs text-surface-600 dark:text-surface-400"
 						>{items.length} servidor{items.length !== 1 ? 'es' : ''}</span
 					>
 				</div>
@@ -167,30 +170,36 @@
 									<th class="!py-4 !px-4 w-10"></th>
 								{/if}
 								<th
-									class="!py-4 !px-4 text-surface-500 font-medium uppercase tracking-tight text-left"
+									class="!py-4 !px-4 text-surface-600 dark:text-surface-400 font-medium uppercase tracking-tight text-left"
 									>Nome</th
 								>
-								<th class="!py-4 text-center text-surface-500 font-medium uppercase tracking-tight"
+								<th
+									class="!py-4 text-center text-surface-600 dark:text-surface-400 font-medium uppercase tracking-tight"
 									>Matrícula</th
 								>
-								<th class="!py-4 text-center text-surface-500 font-medium uppercase tracking-tight"
+								<th
+									class="!py-4 text-center text-surface-600 dark:text-surface-400 font-medium uppercase tracking-tight"
 									>Cargo</th
 								>
-								<th class="!py-4 text-center text-surface-500 font-medium uppercase tracking-tight"
+								<th
+									class="!py-4 text-center text-surface-600 dark:text-surface-400 font-medium uppercase tracking-tight"
 									>Telefone</th
 								>
-								<th class="!py-4 text-left text-surface-500 font-medium uppercase tracking-tight"
+								<th
+									class="!py-4 text-left text-surface-600 dark:text-surface-400 font-medium uppercase tracking-tight"
 									>Lotação</th
 								>
-								<th class="!py-4 text-left text-surface-500 font-medium uppercase tracking-tight"
+								<th
+									class="!py-4 text-left text-surface-600 dark:text-surface-400 font-medium uppercase tracking-tight"
 									>Dias</th
 								>
-								<th class="!py-4 text-left text-surface-500 font-medium uppercase tracking-tight"
+								<th
+									class="!py-4 text-left text-surface-600 dark:text-surface-400 font-medium uppercase tracking-tight"
 									>Observações</th
 								>
 								{#if podeEditarEscala && !modoSelecao && !documentoAssinadoExiste && !finalizadaEm}
 									<th
-										class="!py-4 !px-4 text-right text-surface-500 font-medium uppercase tracking-tight w-24"
+										class="!py-4 !px-4 text-right text-surface-600 dark:text-surface-400 font-medium uppercase tracking-tight w-24"
 										>Ações</th
 									>
 								{/if}
@@ -206,6 +215,7 @@
 											<input
 												type="checkbox"
 												class="checkbox"
+												aria-label={`Selecionar ${p.nome}`}
 												checked={p.ids.every((id) => selecionados.has(id))}
 												onchange={(e) => {
 													if ((e.target as HTMLInputElement).checked) {
@@ -248,10 +258,10 @@
 											{/each}
 										</div>
 									</td>
-									<td class="!py-4 align-middle italic text-surface-500">
+									<td class="!py-4 align-middle italic text-surface-600 dark:text-surface-400">
 										{p.observacoes}
 										<div
-											class="text-3xs not-italic text-surface-500 dark:text-surface-400 mt-1 font-mono"
+											class="text-3xs not-italic text-surface-600 dark:text-surface-400 mt-1 font-mono"
 										>
 											{p.hora_entrada} - {p.hora_saida}
 										</div>
@@ -266,18 +276,7 @@
 														class="p-1.5 rounded transition-colors text-surface-400 hover:text-primary-500 hover:bg-primary-500/10"
 														onclick={() => startEdit(p)}
 													>
-														<svg
-															class="w-4 h-4"
-															fill="none"
-															viewBox="0 0 24 24"
-															stroke="currentColor"
-															><path
-																stroke-linecap="round"
-																stroke-linejoin="round"
-																stroke-width="2"
-																d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
-															/></svg
-														>
+														<PenLine class="w-4 h-4" aria-hidden="true" />
 													</button>
 												</IconTooltip>
 												<button
@@ -326,6 +325,7 @@
 
 <ModalEditarPlantao
 	bind:open={modalEditarOpen}
+	escalaId={escala.id}
 	ids={editIds}
 	diasIniciais={editDiasIniciais}
 	horaEntradaInicial={editHoraEntradaInicial}

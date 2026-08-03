@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { PageProps } from './$types';
-	import { AlertTriangle } from 'lucide-svelte';
+	import { AlertTriangle } from '@lucide/svelte';
 	import { enhance } from '$app/forms';
 	import { toaster } from '$lib/toast';
 
@@ -36,7 +36,7 @@
 <div class="max-w-3xl mx-auto p-4 sm:p-6 space-y-6">
 	<header>
 		<h1 class="text-2xl font-bold text-surface-900 dark:text-white">Configurações Gerais</h1>
-		<p class="text-sm text-surface-500 dark:text-surface-400">
+		<p class="text-sm text-surface-600 dark:text-surface-400">
 			Ajustes globais do sistema. Alterações ficam registradas na auditoria.
 		</p>
 	</header>
@@ -48,7 +48,7 @@
 			<h2 class="text-lg font-semibold text-surface-900 dark:text-white">
 				Provedor de e-mail padrão
 			</h2>
-			<p class="text-sm text-surface-500 dark:text-surface-400">
+			<p class="text-sm text-surface-600 dark:text-surface-400">
 				Define qual serviço envia os e-mails primeiro (códigos 2FA, recuperação de senha, link de
 				primeiro acesso). Se o provedor padrão falhar ou estourar a cota, o outro assume
 				automaticamente.
@@ -92,7 +92,7 @@
 						/>
 						<span class="space-y-1">
 							<span class="block font-medium text-surface-900 dark:text-white">{op.titulo}</span>
-							<span class="block text-xs text-surface-500 dark:text-surface-400"
+							<span class="block text-xs text-surface-600 dark:text-surface-400"
 								>{op.descricao}</span
 							>
 						</span>
@@ -118,7 +118,7 @@
 				>
 					{salvando ? 'Salvando…' : 'Salvar'}
 				</button>
-				<span class="text-xs text-surface-500 dark:text-surface-400">
+				<span class="text-xs text-surface-600 dark:text-surface-400">
 					Padrão atual: <strong>{data.provedorEmail === 'resend' ? 'Resend' : 'Cloudflare'}</strong>
 				</span>
 			</div>

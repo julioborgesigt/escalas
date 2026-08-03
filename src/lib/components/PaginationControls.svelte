@@ -35,7 +35,7 @@
 <div
 	class="mt-6 pt-6 border-t border-surface-200 dark:border-white/5 flex flex-col sm:flex-row items-center justify-between gap-4"
 >
-	<p class="text-surface-500 text-xs px-1">
+	<p class="text-surface-600 dark:text-surface-400 text-xs px-1">
 		Mostrando <strong>{totalItens > 0 ? itensInicio : 0}</strong>–<strong>{itensFim}</strong>
 		de <strong>{totalItens}</strong>
 		{totalItens === 1 ? labelSingular : labelPlural}

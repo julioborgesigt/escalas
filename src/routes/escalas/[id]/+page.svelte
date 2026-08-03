@@ -30,12 +30,13 @@
 	import { enhance } from '$app/forms';
 	import { toaster } from '$lib/toast';
 	import { intervaloDeDatas } from '$lib/utils/datas';
-	import { invalidateAll } from '$app/navigation';
+	import { invalidateShared } from '$lib/cross-tab-invalidate';
 	import { apiFetch } from '$lib/api-fetch';
 	import type { ActionResult } from '@sveltejs/kit';
 	import type { EscalaPolicialComDados } from '$lib/types';
 	import PainelAssinaturaEscala from '$lib/components/PainelAssinaturaEscala.svelte';
-	import { useConfirmationDialog } from '$lib/composables';
+	import { useConfirmationDialog, useInvalidateOnFocus } from '$lib/composables';
+	import { fetchSyncEstado } from '$lib/sync-estado';
 	import ModalConfirmar from './_components/ModalConfirmar.svelte';
 	import EscalaCabecalho from './_components/EscalaCabecalho.svelte';
 	import FormAdicionarServidores from './_components/FormAdicionarServidores.svelte';
@@ -52,6 +53,9 @@
 	const confirmDialog = useConfirmationDialog<{ itemId: number | number[]; nome: string }>();
 
 	const escala = $derived(data.escala);
+	// Id estável nesta instância de rota (não muda sem remount).
+	const escalaIdPagina = untrack(() => data.escalaId);
+
 	// Derivados graváveis: espelham o load, mas admitem as atualizações
 	// otimistas locais (finalizar/solicitar) até o próximo invalidate.
 	let finalizadaEm: string | null = $derived(data.escala?.finalizada_em ?? null);
@@ -69,6 +73,18 @@
 				}
 			: null
 	);
+
+	useInvalidateOnFocus(`escala:${escalaIdPagina}`, {
+		isHot: () => !documentoAssinadoInfo?.existe && !finalizadaEm,
+		probe: async () => {
+			try {
+				const e = await fetchSyncEstado({ escalaId: escalaIdPagina });
+				return e.escala?.stamp ?? null;
+			} catch {
+				return null;
+			}
+		}
+	});
 
 	// Derivado gravável: espelha o load, mas admite a remoção otimista local.
 	let policiaisEscalaLocal: EscalaPolicialComDados[] = $derived(
@@ -145,7 +161,7 @@
 			solicitacaoAtual = { tipo: 'unidade' };
 			modoEdicao = false;
 			confirmFinalizarEdicaoOpen = false;
-			await invalidateAll();
+			await invalidateShared(`escala:${escalaIdPagina}`, 'app:escalas');
 		} catch (e: unknown) {
 			toaster.create({
 				title: e instanceof Error ? e.message : 'Erro ao solicitar assinatura',
@@ -233,8 +249,14 @@
 	}
 </script>
 
+<svelte:head>
+	<title>Escala — Escalas PC-CE</title>
+</svelte:head>
+
 {#if !escala}
-	<div class="text-center py-12 text-surface-500"><p>Escala não encontrada.</p></div>
+	<div class="text-center py-12 text-surface-600 dark:text-surface-400">
+		<p>Escala não encontrada.</p>
+	</div>
 {:else}
 	<EscalaCabecalho
 		{escala}
@@ -419,7 +441,7 @@
 			onSolicitarRemocao={solicitarRemocao}
 		/>
 	{:else if policiaisEscalaLocal.length === 0}
-		<div class="text-center py-12 text-surface-500">
+		<div class="text-center py-12 text-surface-600 dark:text-surface-400">
 			<p>Nenhum policial nesta escala ainda.</p>
 		</div>
 	{:else if !isExpediente && !isFDS}

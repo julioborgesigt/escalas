@@ -5,6 +5,7 @@
 	import CamposNovaSenha, { validarForcaSenha } from '$lib/components/CamposNovaSenha.svelte';
 	import type { PageProps } from './$types';
 	import type { ActionResult } from '@sveltejs/kit';
+	import { AlertCircle } from '@lucide/svelte';
 
 	const { data }: PageProps = $props();
 
@@ -80,7 +81,7 @@
 						</svg>
 					</div>
 					<h1 class="text-xl font-bold mb-2">Link inválido</h1>
-					<p class="text-sm text-surface-500 mb-6">{data.erro}</p>
+					<p class="text-sm text-surface-600 dark:text-surface-400 mb-6">{data.erro}</p>
 					<a href="/login" class="btn preset-filled-primary-500 w-full no-underline justify-center">
 						Ir para o login
 					</a>
@@ -106,7 +107,7 @@
 						</svg>
 					</div>
 					<h1 class="text-xl font-bold mb-2">Primeiro acesso</h1>
-					<p class="text-sm text-surface-500 mb-6">
+					<p class="text-sm text-surface-600 dark:text-surface-400 mb-6">
 						Para concluir seu primeiro acesso, clique no botão abaixo. Em seguida você definirá sua
 						senha e confirmará seu e-mail pessoal.
 					</p>
@@ -151,26 +152,16 @@
 						</svg>
 					</div>
 					<h1 class="text-xl font-bold">Definir nova senha</h1>
-					<p class="text-sm text-surface-500 mt-1">Escolha uma senha segura para sua conta.</p>
+					<p class="text-sm text-surface-600 dark:text-surface-400 mt-1">
+						Escolha uma senha segura para sua conta.
+					</p>
 				</div>
 
 				{#if erroForm}
 					<div
 						class="flex items-center gap-2 p-3 mb-4 rounded-xl bg-error-500/10 border border-error-500/25 text-error-700 dark:text-error-300 text-sm"
 					>
-						<svg
-							class="w-4 h-4 shrink-0"
-							fill="none"
-							viewBox="0 0 24 24"
-							stroke="currentColor"
-							stroke-width="2"
-						>
-							<path
-								stroke-linecap="round"
-								stroke-linejoin="round"
-								d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-							/>
-						</svg>
+						<AlertCircle class="w-4 h-4 shrink-0" aria-hidden="true" />
 						{erroForm}
 					</div>
 				{/if}

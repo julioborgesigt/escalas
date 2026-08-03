@@ -21,6 +21,7 @@
 	import { loading } from '$lib/loading.svelte';
 	import IconTooltip from '$lib/components/IconTooltip.svelte';
 	import BotaoVoltar from '$lib/components/BotaoVoltar.svelte';
+	import { PenLine } from '@lucide/svelte';
 
 	interface Gise {
 		id: number;
@@ -136,7 +137,7 @@
 				</IconTooltip>
 			{/if}
 			<span
-				class="inline-flex flex-wrap items-center gap-2 text-sm text-surface-500 dark:text-surface-400"
+				class="inline-flex flex-wrap items-center gap-2 text-sm text-surface-600 dark:text-surface-400"
 			>
 				<span class="whitespace-nowrap">{gise.hora_entrada}h–{gise.hora_saida}h</span>
 				{#if isAdminGeral && podeEditar && modoEdicaoGeral}
@@ -147,14 +148,7 @@
 							class="btn btn-xs preset-filled-surface-500 rounded p-1"
 							onclick={onAbrirDataHoras}
 						>
-							<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"
-								><path
-									stroke-linecap="round"
-									stroke-linejoin="round"
-									stroke-width="2"
-									d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
-								/></svg
-							>
+							<PenLine class="w-3 h-3" aria-hidden="true" />
 						</button>
 					</IconTooltip>
 				{/if}

@@ -199,7 +199,7 @@
 				<h3 class="font-semibold text-sm text-primary-700 dark:text-primary-400">
 					Adicionar Todos os Servidores do Expediente
 				</h3>
-				<p class="text-xs text-surface-500 mt-1">
+				<p class="text-xs text-surface-600 dark:text-surface-400 mt-1">
 					Adiciona automaticamente todos os servidores cadastrados com regime de expediente da {escala.lotacao}
 					que ainda não estão na escala.
 				</p>

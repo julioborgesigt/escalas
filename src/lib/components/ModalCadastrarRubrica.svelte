@@ -6,16 +6,21 @@
 	 *  - Enviar uma FOTO da assinatura feita em papel, com recorte e remoção de
 	 *    fundo client-side.
 	 *
+	 * O recorte mantém o arraste para ponteiro, mas seus quatro parâmetros também
+	 * são ranges nativos: teclado e leitor de tela podem ajustar posição/tamanho
+	 * sem depender da área visual da imagem.
+	 *
 	 * LGPD: todo o processamento da imagem (re-render p/ remover EXIF, recorte,
 	 * remoção de fundo) ocorre NO NAVEGADOR — só o PNG transparente final, já
 	 * minimizado, é enviado ao servidor. Um aceite explícito de consentimento é
 	 * exigido antes de salvar (nova finalidade, Art. 8º).
 	 */
-	import { PenLine, Image as ImageIcon } from 'lucide-svelte';
-	import { Dialog, Tabs } from '@skeletonlabs/skeleton-svelte';
+	import { PenLine, Image as ImageIcon } from '@lucide/svelte';
+	import { Tabs } from '@skeletonlabs/skeleton-svelte';
 	import { apiFetch } from '$lib/api-fetch';
 	import { toaster } from '$lib/toast';
 	import RubricaCanvas, { type RubricaCanvasControl } from './RubricaCanvas.svelte';
+	import ModalShell from './ModalShell.svelte';
 
 	let {
 		open = $bindable(false),
@@ -39,8 +44,8 @@
 
 	// --- Aba imagem ---
 	let srcDataUrl = $state<string | null>(null); // imagem já re-renderizada (sem EXIF)
-	let srcW = 0;
-	let srcH = 0;
+	let srcW = $state(0);
+	let srcH = $state(0);
 	let limiarFundo = $state(170); // 0–255; pixels mais claros que isto viram transparentes
 	let previewUrl = $state<string | null>(null);
 	let containerEl = $state<HTMLDivElement | null>(null);
@@ -52,6 +57,7 @@
 	let cropH = $state(0.84);
 
 	const MAX_DIM = 1600; // limita a maior dimensão da imagem processada
+	const CROP_MIN_SIZE = 0.1;
 
 	$effect(() => {
 		if (open) {
@@ -188,6 +194,37 @@
 		img.src = srcDataUrl;
 	}
 
+	type CampoRecorte = 'x' | 'y' | 'w' | 'h';
+
+	function limitar(valor: number, minimo: number, maximo: number): number {
+		return Math.min(Math.max(minimo, valor), maximo);
+	}
+
+	/**
+	 * Atualiza um único lado do recorte, preservando o mínimo de 10% e os
+	 * limites da imagem. A mesma regra serve ao range (teclado) e ao ponteiro.
+	 */
+	function atualizarRecorte(
+		campo: CampoRecorte,
+		valor: number | undefined,
+		atualizarPreview = true
+	) {
+		if (valor === undefined || !Number.isFinite(valor)) return;
+
+		if (campo === 'x') cropX = limitar(valor, 0, 1 - cropW);
+		if (campo === 'y') cropY = limitar(valor, 0, 1 - cropH);
+		if (campo === 'w') cropW = limitar(valor, CROP_MIN_SIZE, 1 - cropX);
+		if (campo === 'h') cropH = limitar(valor, CROP_MIN_SIZE, 1 - cropY);
+
+		if (atualizarPreview) gerarPreview();
+	}
+
+	function atualizarLimiarFundo(valor: number | undefined) {
+		if (valor === undefined || !Number.isFinite(valor)) return;
+		limiarFundo = limitar(valor, 80, 240);
+		gerarPreview();
+	}
+
 	// --- Arrastar/redimensionar a caixa de recorte ---
 	let dragMode: 'move' | 'resize' | null = null;
 	let dragStart = { mx: 0, my: 0, x: 0, y: 0, w: 0, h: 0 };
@@ -206,11 +243,11 @@
 		const dx = (e.clientX - dragStart.mx) / rect.width;
 		const dy = (e.clientY - dragStart.my) / rect.height;
 		if (dragMode === 'move') {
-			cropX = Math.min(Math.max(0, dragStart.x + dx), 1 - cropW);
-			cropY = Math.min(Math.max(0, dragStart.y + dy), 1 - cropH);
+			atualizarRecorte('x', dragStart.x + dx, false);
+			atualizarRecorte('y', dragStart.y + dy, false);
 		} else {
-			cropW = Math.min(Math.max(0.1, dragStart.w + dx), 1 - cropX);
-			cropH = Math.min(Math.max(0.1, dragStart.h + dy), 1 - cropY);
+			atualizarRecorte('w', dragStart.w + dx, false);
+			atualizarRecorte('h', dragStart.h + dy, false);
 		}
 		gerarPreview();
 	}
@@ -271,222 +308,297 @@
 	}
 </script>
 
-<Dialog
-	{open}
-	onOpenChange={(e) => {
-		if (!e.open && !salvando) open = false;
-	}}
+<ModalShell
+	bind:open
+	title="Cadastrar Rubrica"
+	description="Sua rubrica será usada como elemento gráfico ao assinar pelo computador com certificado digital."
+	largura="2xl"
+	camada="duplo"
+	padding="compacto"
+	familia="assinatura"
+	pending={salvando}
 >
-	<Dialog.Content
-		class="fixed inset-0 z-[70] flex items-center justify-center p-3 sm:p-4 bg-surface-950/80 backdrop-blur-md overflow-y-auto"
-	>
-		<div
-			class="card-elevated rounded-3xl shadow-2xl w-full max-w-2xl max-h-[calc(100dvh-1.5rem)] overflow-y-auto p-4 sm:p-7 space-y-5 border border-white/10"
+	<Tabs value={aba} onValueChange={(e) => (aba = (e.value as 'desenhar' | 'imagem') ?? aba)}>
+		<Tabs.List
+			class="flex items-center rounded-xl border border-surface-200 dark:border-surface-700 bg-surface-100 dark:bg-surface-800 p-1 gap-1"
 		>
-			<div class="text-center space-y-1.5">
-				<Dialog.Title class="text-xl sm:text-2xl font-bold text-surface-900 dark:text-surface-50">
-					Cadastrar Rubrica
-				</Dialog.Title>
-				<Dialog.Description class="text-sm text-surface-500">
-					Sua rubrica será usada como elemento gráfico ao assinar pelo computador com certificado
-					digital.
-				</Dialog.Description>
-			</div>
+			<Tabs.Trigger
+				value="desenhar"
+				class="px-3 py-2 text-sm font-semibold rounded-lg flex-1 text-center cursor-pointer transition-all data-[selected]:bg-primary-500 data-[selected]:text-white"
+				><PenLine class="inline w-4 h-4 -mt-0.5" aria-hidden="true" /> Desenhar</Tabs.Trigger
+			>
+			<Tabs.Trigger
+				value="imagem"
+				class="px-3 py-2 text-sm font-semibold rounded-lg flex-1 text-center cursor-pointer transition-all data-[selected]:bg-primary-500 data-[selected]:text-white"
+				><ImageIcon class="inline w-4 h-4 -mt-0.5" aria-hidden="true" /> Enviar imagem</Tabs.Trigger
+			>
+		</Tabs.List>
 
-			<Tabs value={aba} onValueChange={(e) => (aba = (e.value as 'desenhar' | 'imagem') ?? aba)}>
-				<Tabs.List
-					class="flex items-center rounded-xl border border-surface-200 dark:border-surface-700 bg-surface-100 dark:bg-surface-800 p-1 gap-1"
+		<Tabs.Content value="desenhar" class="pt-4">
+			<p class="text-xs text-surface-600 dark:text-surface-400 mb-3">
+				Desenhe sua rubrica no quadro abaixo usando o mouse (ou o dedo, em telas sensíveis ao
+				toque).
+			</p>
+			<RubricaCanvas bind:control={canvasControl} {aspecto} />
+		</Tabs.Content>
+
+		<Tabs.Content value="imagem" class="pt-4 space-y-4">
+			{#if !srcDataUrl}
+				<div
+					class="p-4 bg-primary-500/5 border border-dashed border-primary-500/30 rounded-2xl space-y-3"
 				>
-					<Tabs.Trigger
-						value="desenhar"
-						class="px-3 py-2 text-sm font-semibold rounded-lg flex-1 text-center cursor-pointer transition-all data-[selected]:bg-primary-500 data-[selected]:text-white"
-						><PenLine class="inline w-4 h-4 -mt-0.5" aria-hidden="true" /> Desenhar</Tabs.Trigger
-					>
-					<Tabs.Trigger
-						value="imagem"
-						class="px-3 py-2 text-sm font-semibold rounded-lg flex-1 text-center cursor-pointer transition-all data-[selected]:bg-primary-500 data-[selected]:text-white"
-						><ImageIcon class="inline w-4 h-4 -mt-0.5" aria-hidden="true" /> Enviar imagem</Tabs.Trigger
-					>
-				</Tabs.List>
-
-				<Tabs.Content value="desenhar" class="pt-4">
-					<p class="text-xs text-surface-500 mb-3">
-						Desenhe sua rubrica no quadro abaixo usando o mouse (ou o dedo, em telas sensíveis ao
-						toque).
+					<p class="text-sm font-semibold text-surface-700 dark:text-surface-200">
+						Como obter uma boa rubrica digital
 					</p>
-					<RubricaCanvas bind:control={canvasControl} {aspecto} />
-				</Tabs.Content>
-
-				<Tabs.Content value="imagem" class="pt-4 space-y-4">
-					{#if !srcDataUrl}
+					<ol
+						class="text-xs text-surface-600 dark:text-surface-400 list-decimal list-inside space-y-1"
+					>
+						<li>Assine com caneta escura em uma <strong>folha branca</strong>, sem pauta.</li>
+						<li>
+							Fotografe de cima, com <strong>boa luz</strong> e sem sombras, enquadrando só a assinatura.
+						</li>
+						<li>Envie a foto abaixo — você poderá recortar e limpar o fundo.</li>
+					</ol>
+					<svg viewBox="0 0 200 80" class="w-40 mx-auto opacity-70" aria-hidden="true">
+						<rect
+							x="2"
+							y="2"
+							width="196"
+							height="76"
+							rx="6"
+							fill="white"
+							stroke="#cbd5e1"
+							stroke-width="2"
+						/>
+						<path
+							d="M20 55 C 45 10, 60 70, 80 40 S 120 10, 140 50 C 150 65, 165 35, 185 45"
+							fill="none"
+							stroke="#0f172a"
+							stroke-width="3"
+							stroke-linecap="round"
+						/>
+					</svg>
+					<label
+						class="btn preset-filled-primary-500 rounded-xl font-bold w-full justify-center cursor-pointer"
+					>
+						Escolher imagem da assinatura
+						<input type="file" accept="image/*" class="hidden" onchange={aoEscolherArquivo} />
+					</label>
+				</div>
+			{:else}
+				<div class="space-y-3">
+					<p class="text-xs text-surface-600 dark:text-surface-400">
+						Arraste a caixa para enquadrar a assinatura e ajuste a remoção de fundo.
+					</p>
+					<!-- Imagem + caixa de recorte -->
+					<div
+						bind:this={containerEl}
+						class="relative w-full select-none rounded-xl overflow-hidden border border-surface-200 dark:border-surface-700 bg-[repeating-conic-gradient(#e5e7eb_0%_25%,#f9fafb_0%_50%)] bg-[length:20px_20px]"
+					>
+						<!-- eslint-disable-next-line svelte/no-at-html-tags -->
+						<img
+							src={srcDataUrl}
+							alt="Assinatura enviada"
+							width={srcW || undefined}
+							height={srcH || undefined}
+							class="w-full block pointer-events-none"
+						/>
 						<div
-							class="p-4 bg-primary-500/5 border border-dashed border-primary-500/30 rounded-2xl space-y-3"
+							role="presentation"
+							class="absolute border-2 border-primary-500 bg-primary-500/10 cursor-move touch-none"
+							style="left:{cropX * 100}%;top:{cropY * 100}%;width:{cropW * 100}%;height:{cropH *
+								100}%;"
+							onpointerdown={(e) => iniciarDrag('move', e)}
+							onpointermove={moverDrag}
+							onpointerup={fimDrag}
 						>
-							<p class="text-sm font-semibold text-surface-700 dark:text-surface-200">
-								Como obter uma boa rubrica digital
-							</p>
-							<ol class="text-xs text-surface-500 list-decimal list-inside space-y-1">
-								<li>Assine com caneta escura em uma <strong>folha branca</strong>, sem pauta.</li>
-								<li>
-									Fotografe de cima, com <strong>boa luz</strong> e sem sombras, enquadrando só a assinatura.
-								</li>
-								<li>Envie a foto abaixo — você poderá recortar e limpar o fundo.</li>
-							</ol>
-							<svg viewBox="0 0 200 80" class="w-40 mx-auto opacity-70" aria-hidden="true">
-								<rect
-									x="2"
-									y="2"
-									width="196"
-									height="76"
-									rx="6"
-									fill="white"
-									stroke="#cbd5e1"
-									stroke-width="2"
-								/>
-								<path
-									d="M20 55 C 45 10, 60 70, 80 40 S 120 10, 140 50 C 150 65, 165 35, 185 45"
-									fill="none"
-									stroke="#0f172a"
-									stroke-width="3"
-									stroke-linecap="round"
-								/>
-							</svg>
-							<label
-								class="btn preset-filled-primary-500 rounded-xl font-bold w-full justify-center cursor-pointer"
-							>
-								Escolher imagem da assinatura
-								<input type="file" accept="image/*" class="hidden" onchange={aoEscolherArquivo} />
-							</label>
-						</div>
-					{:else}
-						<div class="space-y-3">
-							<p class="text-xs text-surface-500">
-								Arraste a caixa para enquadrar a assinatura e ajuste a remoção de fundo.
-							</p>
-							<!-- Imagem + caixa de recorte -->
 							<div
-								bind:this={containerEl}
-								class="relative w-full select-none rounded-xl overflow-hidden border border-surface-200 dark:border-surface-700 bg-[repeating-conic-gradient(#e5e7eb_0%_25%,#f9fafb_0%_50%)] bg-[length:20px_20px]"
-							>
-								<!-- eslint-disable-next-line svelte/no-at-html-tags -->
-								<img
-									src={srcDataUrl}
-									alt="Assinatura enviada"
-									class="w-full block pointer-events-none"
-								/>
-								<div
-									role="presentation"
-									class="absolute border-2 border-primary-500 bg-primary-500/10 cursor-move touch-none"
-									style="left:{cropX * 100}%;top:{cropY * 100}%;width:{cropW * 100}%;height:{cropH *
-										100}%;"
-									onpointerdown={(e) => iniciarDrag('move', e)}
-									onpointermove={moverDrag}
-									onpointerup={fimDrag}
-								>
-									<div
-										role="presentation"
-										class="absolute -right-1.5 -bottom-1.5 w-4 h-4 bg-primary-500 rounded-full cursor-nwse-resize touch-none"
-										onpointerdown={(e) => iniciarDrag('resize', e)}
-										onpointermove={moverDrag}
-										onpointerup={fimDrag}
-									></div>
-								</div>
-							</div>
+								role="presentation"
+								class="absolute -right-1.5 -bottom-1.5 w-4 h-4 bg-primary-500 rounded-full cursor-nwse-resize touch-none"
+								onpointerdown={(e) => iniciarDrag('resize', e)}
+								onpointermove={moverDrag}
+								onpointerup={fimDrag}
+							></div>
+						</div>
+					</div>
 
+					<fieldset
+						class="space-y-3 rounded-xl border border-surface-200 dark:border-surface-700 p-3"
+					>
+						<legend
+							class="px-1 text-3xs font-black text-surface-600 dark:text-surface-400 uppercase tracking-wider"
+						>
+							Ajustar recorte por teclado
+						</legend>
+						<p id="ajuda-recorte" class="text-2xs text-surface-600 dark:text-surface-400">
+							Use as setas para mover ou redimensionar a área em incrementos de 1%.
+						</p>
+						<div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
 							<div class="space-y-1">
-								<label
-									for="limiar-fundo"
-									class="text-3xs font-black text-surface-500 uppercase tracking-wider"
-									>Remoção de fundo</label
-								>
+								<label for="recorte-x" class="flex justify-between text-2xs font-semibold">
+									<span>Posição horizontal</span>
+									<output for="recorte-x">{Math.round(cropX * 100)}%</output>
+								</label>
 								<input
-									id="limiar-fundo"
+									id="recorte-x"
 									type="range"
-									min="80"
-									max="240"
-									bind:value={limiarFundo}
-									oninput={gerarPreview}
-									class="w-full"
+									min={0}
+									max={1 - cropW}
+									step={0.01}
+									aria-describedby="ajuda-recorte"
+									aria-valuetext={`${Math.round(cropX * 100)}%`}
+									bind:value={() => cropX, (valor) => atualizarRecorte('x', valor)}
+									class="w-full accent-primary-500"
 								/>
 							</div>
+							<div class="space-y-1">
+								<label for="recorte-y" class="flex justify-between text-2xs font-semibold">
+									<span>Posição vertical</span>
+									<output for="recorte-y">{Math.round(cropY * 100)}%</output>
+								</label>
+								<input
+									id="recorte-y"
+									type="range"
+									min={0}
+									max={1 - cropH}
+									step={0.01}
+									aria-describedby="ajuda-recorte"
+									aria-valuetext={`${Math.round(cropY * 100)}%`}
+									bind:value={() => cropY, (valor) => atualizarRecorte('y', valor)}
+									class="w-full accent-primary-500"
+								/>
+							</div>
+							<div class="space-y-1">
+								<label for="recorte-largura" class="flex justify-between text-2xs font-semibold">
+									<span>Largura</span>
+									<output for="recorte-largura">{Math.round(cropW * 100)}%</output>
+								</label>
+								<input
+									id="recorte-largura"
+									type="range"
+									min={CROP_MIN_SIZE}
+									max={1 - cropX}
+									step={0.01}
+									aria-describedby="ajuda-recorte"
+									aria-valuetext={`${Math.round(cropW * 100)}%`}
+									bind:value={() => cropW, (valor) => atualizarRecorte('w', valor)}
+									class="w-full accent-primary-500"
+								/>
+							</div>
+							<div class="space-y-1">
+								<label for="recorte-altura" class="flex justify-between text-2xs font-semibold">
+									<span>Altura</span>
+									<output for="recorte-altura">{Math.round(cropH * 100)}%</output>
+								</label>
+								<input
+									id="recorte-altura"
+									type="range"
+									min={CROP_MIN_SIZE}
+									max={1 - cropY}
+									step={0.01}
+									aria-describedby="ajuda-recorte"
+									aria-valuetext={`${Math.round(cropH * 100)}%`}
+									bind:value={() => cropH, (valor) => atualizarRecorte('h', valor)}
+									class="w-full accent-primary-500"
+								/>
+							</div>
+						</div>
+					</fieldset>
 
-							{#if previewUrl}
-								<div class="space-y-1">
-									<span class="text-3xs font-black text-surface-500 uppercase tracking-wider"
-										>Pré-visualização (fundo transparente)</span
-									>
-									<div
-										class="rounded-xl border border-surface-200 dark:border-surface-700 bg-[repeating-conic-gradient(#e5e7eb_0%_25%,#f9fafb_0%_50%)] bg-[length:16px_16px] p-2"
-									>
-										<img
-											src={previewUrl}
-											alt="Pré-visualização da rubrica"
-											class="w-full block"
-											style="aspect-ratio:{aspecto};object-fit:contain;"
-										/>
-									</div>
-								</div>
-							{/if}
+					<div class="space-y-1">
+						<label
+							for="limiar-fundo"
+							class="text-3xs font-black text-surface-600 dark:text-surface-400 uppercase tracking-wider"
+							>Remoção de fundo</label
+						>
+						<input
+							id="limiar-fundo"
+							type="range"
+							min="80"
+							max="240"
+							bind:value={() => limiarFundo, atualizarLimiarFundo}
+							class="w-full"
+						/>
+					</div>
 
-							<button
-								type="button"
-								class="btn btn-sm preset-tonal-surface rounded-lg text-xs font-bold uppercase"
-								onclick={() => {
-									srcDataUrl = null;
-									previewUrl = null;
-								}}
+					{#if previewUrl}
+						<div class="space-y-1">
+							<span
+								class="text-3xs font-black text-surface-600 dark:text-surface-400 uppercase tracking-wider"
+								>Pré-visualização (fundo transparente)</span
 							>
-								Trocar imagem
-							</button>
+							<div
+								class="rounded-xl border border-surface-200 dark:border-surface-700 bg-[repeating-conic-gradient(#e5e7eb_0%_25%,#f9fafb_0%_50%)] bg-[length:16px_16px] p-2"
+							>
+								<img
+									src={previewUrl}
+									alt="Pré-visualização da rubrica"
+									width="500"
+									height={Math.round(500 / aspecto)}
+									class="w-full block"
+									style="aspect-ratio:{aspecto};object-fit:contain;"
+								/>
+							</div>
 						</div>
 					{/if}
-				</Tabs.Content>
-			</Tabs>
 
-			<!-- Consentimento LGPD -->
-			<label
-				class="flex items-start gap-2.5 p-3 bg-surface-100/60 dark:bg-surface-800/40 rounded-xl border border-surface-200 dark:border-surface-700 cursor-pointer"
-			>
-				<input type="checkbox" bind:checked={consentimento} class="mt-0.5 shrink-0" />
-				<span class="text-2xs text-surface-500 leading-snug">
-					Autorizo o registro e o armazenamento desta rubrica para reutilização como elemento
-					gráfico nas minhas assinaturas de documentos funcionais. Posso solicitar sua exclusão a
-					qualquer momento (LGPD, Lei 13.709/2018, art. 18).
-				</span>
-			</label>
-
-			<div class="flex flex-wrap items-center justify-between gap-2">
-				{#if rubricaAtual}
 					<button
 						type="button"
-						class="btn btn-sm preset-outlined-error-500 rounded-xl text-xs font-bold uppercase"
-						onclick={excluir}
-						disabled={salvando}
+						class="btn btn-sm preset-tonal-surface rounded-lg text-xs font-bold uppercase"
+						onclick={() => {
+							srcDataUrl = null;
+							previewUrl = null;
+						}}
 					>
-						Excluir rubrica
-					</button>
-				{:else}
-					<span></span>
-				{/if}
-				<div class="flex items-center gap-2 ml-auto">
-					<button
-						type="button"
-						class="btn btn-sm preset-outlined-surface-500 rounded-xl text-xs font-bold uppercase"
-						onclick={() => (open = false)}
-						disabled={salvando}
-					>
-						Cancelar
-					</button>
-					<button
-						type="button"
-						class="btn btn-sm preset-filled-primary-500 rounded-xl text-xs font-bold uppercase shadow-sm"
-						onclick={salvar}
-						disabled={salvando || !consentimento}
-					>
-						{salvando ? 'Salvando...' : 'Salvar rubrica'}
+						Trocar imagem
 					</button>
 				</div>
-			</div>
+			{/if}
+		</Tabs.Content>
+	</Tabs>
+
+	<!-- Consentimento LGPD -->
+	<label
+		class="flex items-start gap-2.5 p-3 bg-surface-100/60 dark:bg-surface-800/40 rounded-xl border border-surface-200 dark:border-surface-700 cursor-pointer"
+	>
+		<input type="checkbox" bind:checked={consentimento} class="mt-0.5 shrink-0" />
+		<span class="text-2xs text-surface-600 dark:text-surface-400 leading-snug">
+			Autorizo o registro e o armazenamento desta rubrica para reutilização como elemento gráfico
+			nas minhas assinaturas de documentos funcionais. Posso solicitar sua exclusão a qualquer
+			momento (LGPD, Lei 13.709/2018, art. 18).
+		</span>
+	</label>
+
+	<div class="flex flex-wrap items-center justify-between gap-2">
+		{#if rubricaAtual}
+			<button
+				type="button"
+				class="btn btn-sm preset-outlined-error-500 rounded-xl text-xs font-bold uppercase"
+				onclick={excluir}
+				disabled={salvando}
+			>
+				Excluir rubrica
+			</button>
+		{:else}
+			<span></span>
+		{/if}
+		<div class="flex items-center gap-2 ml-auto">
+			<button
+				type="button"
+				class="btn btn-sm preset-outlined-surface-500 rounded-xl text-xs font-bold uppercase"
+				onclick={() => (open = false)}
+				disabled={salvando}
+			>
+				Cancelar
+			</button>
+			<button
+				type="button"
+				class="btn btn-sm preset-filled-primary-500 rounded-xl text-xs font-bold uppercase shadow-sm"
+				onclick={salvar}
+				disabled={salvando || !consentimento}
+			>
+				{salvando ? 'Salvando...' : 'Salvar rubrica'}
+			</button>
 		</div>
-	</Dialog.Content>
-</Dialog>
+	</div>
+</ModalShell>

@@ -25,10 +25,11 @@
 	 * (`/policiais/[id]`).
 	 */
 	import type { PageProps } from './$types';
-	import { goto, invalidateAll } from '$app/navigation';
+	import { goto } from '$app/navigation';
+	import { invalidateShared } from '$lib/cross-tab-invalidate';
 	import { fly } from 'svelte/transition';
-	import { page, navigating } from '$app/state';
-	import SkeletonCard from '$lib/components/SkeletonCard.svelte';
+	import SkeletonCards from '$lib/components/SkeletonCards.svelte';
+	import SkeletonTableRows from '$lib/components/SkeletonTableRows.svelte';
 	import { untrack } from 'svelte';
 	import { enhance } from '$app/forms';
 	import { toaster } from '$lib/toast';
@@ -41,7 +42,8 @@
 		useAutorizacao,
 		getSavedFilters,
 		useConfirmationDialog,
-		useFiltrosPaginados
+		useFiltrosPaginados,
+		useSamePathNavigating
 	} from '$lib/composables';
 	import type { Policial, Unidade } from '$lib/types';
 	import SearchableSelect from '$lib/components/SearchableSelect.svelte';
@@ -54,7 +56,7 @@
 		return async ({ result }: { result: ActionResult }) => {
 			pendingCadastro = false;
 			if (result.type === 'success') {
-				await invalidateAll();
+				await invalidateShared('app:policiais');
 				toaster.create({ title: 'Policial cadastrado com sucesso!', type: 'success' });
 				resetForm();
 				cadastroOpen = false;
@@ -70,6 +72,7 @@
 
 	const auth = useAutorizacao();
 	const isAdmin = $derived(auth.isAdmin);
+	const samePathNav = useSamePathNavigating();
 	const isAdminOrSeccional = $derived(auth.isAdminOrSeccional);
 	const isAdminUnidade = $derived(auth.isAdminUnidade);
 	const savedFilters = getSavedFilters('filtros_policiais', {
@@ -245,7 +248,7 @@
 		excluindo = true;
 		return async ({ result }: { result: ActionResult }) => {
 			if (result.type === 'success') {
-				await invalidateAll();
+				await invalidateShared('app:policiais');
 				toaster.create({
 					title: `${confirmDialog.currentItem?.nome} removido com sucesso`,
 					type: 'success'
@@ -478,7 +481,7 @@
 							<h4 class="text-2xs font-bold uppercase opacity-50">
 								Papel Administrativo (Opcional)
 							</h4>
-							<p class="text-xs text-surface-500 leading-snug">
+							<p class="text-xs text-surface-600 dark:text-surface-400 leading-snug">
 								Papel de gestão restrito a uma seccional ou unidade: gerencia escalas e policiais
 								apenas do próprio escopo. Diferente do Admin Geral, não concede acesso global.
 							</p>
@@ -510,7 +513,7 @@
 									{/if}
 								</label>
 							{:else if papel === 'admin_unidade' && isAdminUnidade}
-								<p class="text-3xs text-surface-500 ml-1 italic">
+								<p class="text-3xs text-surface-600 dark:text-surface-400 ml-1 italic">
 									Será nomeado para a sua própria unidade.
 								</p>
 							{/if}
@@ -520,7 +523,7 @@
 					{#if isAdmin}
 						<div class="p-3 rounded-xl bg-surface-500/5 border border-surface-500/10 flex flex-col">
 							<h4 class="text-2xs font-bold uppercase opacity-50">Admin Geral (Opcional)</h4>
-							<p class="text-xs text-surface-500 leading-snug mt-2">
+							<p class="text-xs text-surface-600 dark:text-surface-400 leading-snug mt-2">
 								Cria a conta de Administrador Geral vinculada. A pessoa loga com a mesma
 								matrícula/senha escolhendo "Administrador". Cumulativo com o papel.
 							</p>
@@ -539,7 +542,7 @@
 									<span
 										class="text-xs font-semibold {concederAdminGeral
 											? 'text-success-700 dark:text-success-400'
-											: 'text-surface-500'}"
+											: 'text-surface-600 dark:text-surface-400'}"
 									>
 										{concederAdminGeral ? 'Conceder Admin Geral' : 'Não conceder'}
 									</span>
@@ -647,7 +650,7 @@
 					{#each [['', 'Todos'], ['DPC', 'DPC'], ['OIP', 'OIP']] as [val, label] (val)}
 						<SegmentedControl.Item
 							value={val}
-							class="flex-1 px-3 py-1.5 text-center text-sm font-semibold rounded-lg cursor-pointer select-none transition-all duration-200 text-surface-500 dark:text-surface-400 data-[state=checked]:bg-primary-500 data-[state=checked]:text-white data-[state=checked]:shadow-md data-[state=checked]:shadow-primary-500/25 hover:text-surface-700 dark:hover:text-surface-200"
+							class="flex-1 px-3 py-1.5 text-center text-sm font-semibold rounded-lg cursor-pointer select-none transition-all duration-200 text-surface-600 dark:text-surface-400 data-[state=checked]:bg-primary-500 data-[state=checked]:text-white data-[state=checked]:shadow-md data-[state=checked]:shadow-primary-500/25 hover:text-surface-700 dark:hover:text-surface-200"
 						>
 							<SegmentedControl.ItemText>{label}</SegmentedControl.ItemText>
 							<SegmentedControl.ItemHiddenInput />
@@ -687,13 +690,13 @@
 		</label>
 	</div>
 	{#if isAdmin && !filtroLotacao && !filtroBusca}
-		<p class="text-xs text-surface-500 -mt-5 mb-4 italic px-1">
+		<p class="text-xs text-surface-600 dark:text-surface-400 -mt-5 mb-4 italic px-1">
 			Selecione uma unidade ou pesquise por nome/matrícula para visualizar os policiais.
 		</p>
 	{/if}
 
 	{#if policiais.length === 0}
-		<div class="text-center py-12 text-surface-500">
+		<div class="text-center py-12 text-surface-600 dark:text-surface-400">
 			<p class="mb-4">
 				{filtroCargo
 					? `Nenhum policial com cargo ${filtroCargo} encontrado.`
@@ -726,32 +729,17 @@
 					</tr>
 				</thead>
 				<tbody>
-					{#if navigating?.to && navigating.to.url.pathname === page.url.pathname}
-						{#each { length: 8 } as _, i (i)}
-							<tr class="animate-pulse">
-								<td class="px-4 py-3"
-									><div class="h-4 w-40 rounded bg-surface-200 dark:bg-surface-700"></div></td
-								>
-								<td class="px-4 py-3"
-									><div class="h-4 w-20 rounded bg-surface-200 dark:bg-surface-700"></div></td
-								>
-								<td class="px-4 py-3"
-									><div class="h-6 w-16 rounded-full bg-surface-200 dark:bg-surface-700"></div></td
-								>
-								<td class="px-4 py-3"
-									><div class="h-4 w-28 rounded bg-surface-200 dark:bg-surface-700"></div></td
-								>
-								<td class="px-4 py-3"
-									><div class="h-4 w-32 rounded bg-surface-200 dark:bg-surface-700"></div></td
-								>
-								<td class="px-4 py-3"
-									><div class="flex gap-2">
-										<div class="h-8 w-14 rounded-lg bg-surface-200 dark:bg-surface-700"></div>
-										<div class="h-8 w-14 rounded-lg bg-surface-200 dark:bg-surface-700"></div>
-									</div></td
-								>
-							</tr>
-						{/each}
+					{#if samePathNav.current}
+						<SkeletonTableRows
+							cols={[
+								'h-4 w-40',
+								'h-4 w-20',
+								'h-6 w-16 rounded-full',
+								'h-4 w-28',
+								'h-4 w-32',
+								'h-8 w-32 rounded-lg'
+							]}
+						/>
 					{:else}
 						{#each policiais as p (p.id)}
 							<tr>
@@ -789,10 +777,8 @@
 
 		<!-- Mobile cards -->
 		<div class="md:hidden space-y-3">
-			{#if navigating?.to && navigating.to.url.pathname === page.url.pathname}
-				{#each { length: 5 } as _, i (i)}
-					<SkeletonCard />
-				{/each}
+			{#if samePathNav.current}
+				<SkeletonCards />
 			{:else}
 				{#each policiais as p, i (p.id)}
 					<div
@@ -809,19 +795,19 @@
 						</div>
 						<div class="space-y-1 text-sm mb-3">
 							<div class="flex justify-between">
-								<span class="text-surface-500">Matrícula</span>
+								<span class="text-surface-600 dark:text-surface-400">Matrícula</span>
 								<span class="text-surface-900 dark:text-surface-100 font-mono tabular-nums"
 									>{p.matricula}</span
 								>
 							</div>
 							<div class="flex justify-between">
-								<span class="text-surface-500">Telefone</span>
+								<span class="text-surface-600 dark:text-surface-400">Telefone</span>
 								<span class="text-surface-900 dark:text-surface-100 font-mono tabular-nums"
 									>{p.telefone}</span
 								>
 							</div>
 							<div class="flex justify-between">
-								<span class="text-surface-500">Lotação</span>
+								<span class="text-surface-600 dark:text-surface-400">Lotação</span>
 								<span class="text-right text-surface-900 dark:text-surface-100">{p.lotacao}</span>
 							</div>
 						</div>

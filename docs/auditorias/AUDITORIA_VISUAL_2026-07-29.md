@@ -379,3 +379,462 @@ descartou:
 6. **VIS-8/9/10/11** — higiene, oportunisticamente.
 
 Nada aqui bloqueia deploy.
+
+---
+
+## Revarredura de acompanhamento — 02/ago/2026
+
+Esta seção é uma atualização do snapshot de 29/jul, não uma reescrita dos
+achados originais. A revisão foi estática: leitura do fonte, consultas
+reproduzíveis com `rg` e `svelte-check`. Não foram feitas novas medições em
+Chromium; portanto, números de contraste, CSS compilado e viewport das seções
+acima continuam sendo os da auditoria original.
+
+### Método e baseline atual
+
+- `npm run check`: **0 erros e 0 avisos**;
+- todos os 33 arquivos `src/routes/**/+page.svelte` foram confrontados com
+  a presença de `<title>` próprio;
+- foram recontadas ocorrências nos `.svelte` do `src/`, sem incluir
+  dependências ou artefatos gerados;
+- a documentação oficial do SvelteKit para acessibilidade foi consultada:
+  navegações de cliente são anunciadas a partir de `<title>`, portanto cada
+  página precisa de título único e descritivo.
+
+### Correções confirmadas
+
+#### VIS-2 — corrigido
+
+`src/app.html:19` agora usa:
+
+```html
+selection:text-surface-950 dark:selection:text-primary-100
+```
+
+O comentário imediatamente acima conserva a razão e os valores medidos no
+achado original. A correção é exatamente a recomendação de VIS-2.
+
+#### VIS-3 — corrigido
+
+Os três locais citados não combinam mais `table-wrap` com
+`overflow-hidden`:
+
+- `src/routes/painel/+page.svelte:587`;
+- `src/routes/recebidos/+page.svelte:440`;
+- `src/routes/auditoria/+page.svelte:713-715` (agora `overflow-x-auto`).
+
+Os dois primeiros preservam um comentário que explica a precedência de
+`overflow:auto` do Skeleton; o terceiro explica por que a tabela de valores
+longos precisa de scroll. Remover VIS-3 da fila de implementação.
+
+### VIS-12 — 5 páginas herdam o título genérico do layout
+
+**Severidade: Média (acessibilidade e orientação).**
+
+O layout raiz sempre fornece `<title>Escalas de Plantão Policial</title>`.
+Isso é um fallback adequado, mas cinco das 33 páginas não o sobrescrevem:
+
+- `src/routes/+page.svelte`;
+- `src/routes/escalas/[id]/+page.svelte`;
+- `src/routes/policiais/upload/+page.svelte`;
+- `src/routes/policiais/[id]/+page.svelte`;
+- `src/routes/produtividade/+page.svelte`.
+
+Em navegação cliente, o SvelteKit usa o conteúdo de `<title>` para anunciar a
+mudança de página aos leitores de tela. Nesses cinco destinos a rota muda,
+mas o anúncio permanece “Escalas de Plantão Policial”, que não diferencia
+início, escala individual, importação, edição de policial e produtividade.
+Isso também deixa a aba do navegador e o histórico menos informativos.
+
+**Correção mínima:** cada página deve declarar `<svelte:head><title>…</title>
+</svelte:head>`. Onde o dado já existe no `load`, preferir título específico
+e seguro, por exemplo “Escala — Escalas PC-CE” ou “Editar policial — Escalas
+PC-CE”; não incluir CPF, matrícula ou outro dado pessoal no título. O layout
+continua como fallback para erros e rotas futuras.
+
+Referência: [SvelteKit — Accessibility: route
+announcements](https://svelte.dev/docs/kit/accessibility#Route-announcements).
+
+### VIS-13 — sidebar móvel deixa elementos invisíveis no fluxo de foco
+
+**Severidade: Alta (navegação por teclado).**
+
+Em telas menores que 900px, `src/routes/+layout.svelte:369-381` fecha a
+sidebar apenas com `translate-x-full`. Os links continuam no DOM e focáveis;
+`sidebarOpen` começa em `false` (`:97`), mas o `<aside>` não recebe `inert`,
+`aria-hidden` ou remoção condicional. O conteúdo da página também continua
+focável quando o backdrop é exibido (`:358-366`).
+
+O impacto é global nas rotas autenticadas em mobile: com o menu fechado, Tab
+alcança links que não estão visíveis; com o menu aberto, Tab pode escapar para
+o conteúdo encoberto. O scroll lock atual não corrige a ordem de foco.
+
+**Correção mínima:** no mobile, tornar a sidebar inerte quando fechada. Ao
+abrir, mover o foco para o menu, impedir a interação do conteúdo principal
+enquanto o backdrop estiver ativo e restaurar o foco ao botão “Menu” ao
+fechar. A solução precisa preservar o comportamento desktop, onde a sidebar é
+sempre visível.
+
+### VIS-14 — não há atalho para pular a navegação lateral
+
+**Severidade: Média (navegação por teclado).**
+
+O menu global começa em `src/routes/+layout.svelte:411`, enquanto o conteúdo
+principal só começa em `:708`. Não há link `href="#..."` no código. Assim,
+quem navega por teclado precisa percorrer a sidebar inteira a cada página.
+
+**Correção mínima:** inserir antes da navegação um link “Pular para o
+conteúdo”, inicialmente `sr-only` e visível quando recebe foco, apontando para
+`id="conteudo-principal"` no `<main>`. A âncora precisa estar presente tanto
+no layout com sidebar quanto nas telas de portão que usam o outro `<main>`.
+
+### VIS-15 — `SearchableSelect` não expõe nome acessível ao campo focável
+
+**Severidade: Média (formulários e leitores de tela).**
+
+`src/lib/components/SearchableSelect.svelte:29-55` aceita `id`, mas aplica
+esse valor apenas ao `<input type="hidden">` em `:132`. O controle focável
+real (`Combobox.Input`, `:148-150`) não recebe `id`, `aria-label` nem
+`aria-labelledby`. Logo, um `<label for>` de um consumidor não nomeia a
+combobox que o usuário realmente opera.
+
+Há 25 usos do componente. A revisão dos consumidores encontrou pelo menos 20
+com rótulo visual em `span`/`div`, sem associação semântica — entre eles os
+filtros de `/painel`, `/escalas` e `/recebidos`, além de formulários GISE.
+Leitores de tela podem anunciar uma caixa de busca sem informar se ela filtra
+unidade, mês, policial ou outro campo.
+
+**Correção mínima:** expor `label` ou `ariaLabel` como prop, aplicá-la a
+`Combobox.Input`, e encaminhar o `id` ao elemento focável. Nos usos com rótulo
+visual, preferir `<label for>` ou `aria-labelledby`; somente controles cujo
+contexto já seja inequívoco devem usar `aria-label`.
+
+### VIS-16 — seis checkboxes de seleção não têm rótulo acessível
+
+**Severidade: Média (listas e tabelas operáveis por leitor de tela).**
+
+Foram confirmados controles sem `<label>` ou `aria-label` em:
+
+- `src/routes/recebidos/+page.svelte:504-509`;
+- `src/routes/escalas/[id]/_components/TabelaPlantao.svelte:206-217`;
+- `src/routes/escalas/[id]/_components/TabelaServidores.svelte:253-259`,
+  `339-350` e `533-539`;
+- `src/routes/escalas/[id]/_components/ListaFds.svelte:477-483`.
+
+Visualmente, a linha próxima contém o nome ou a lotação. Esse contexto não é
+nome programático do checkbox, portanto não informa com segurança qual pessoa
+ou escala será marcada.
+
+**Correção mínima:** adicionar nomes específicos, como “Selecionar
+{p.nome}”, “Selecionar todos os servidores” e “Marcar escala de
+{escala.lotacao} como vista”. Não usar rótulos genéricos como “Selecionar” em
+listas repetidas.
+
+### VIS-17 — recorte de rubrica por imagem só funciona com ponteiro
+
+**Severidade: Média (acessibilidade do fluxo de assinatura).**
+
+`src/lib/components/ModalCadastrarRubrica.svelte:377-392` implementa mover e
+redimensionar a área de recorte exclusivamente com seis handlers de ponteiro:
+`onpointerdown`, `onpointermove` e `onpointerup`. As regiões foram marcadas
+como `role="presentation"` e não são focáveis. Não há alternativa de teclado
+para atualizar `cropX`, `cropY`, `cropW` e `cropH`.
+
+Uma pessoa que usa apenas teclado ou tecnologia assistiva consegue enviar a
+imagem, mas não consegue enquadrar a rubrica antes de confirmar.
+
+**Correção mínima:** manter o arraste para ponteiro e adicionar controles
+focáveis (ranges ou inputs numéricos) para posição horizontal/vertical e
+largura/altura do recorte. Cada controle deve ter label e faixa limitada, com
+o preview permanecendo sincronizado.
+
+### Correções implementadas em 02/ago
+
+O primeiro pacote global foi implementado e passou em `npm run check`
+(0 erros/avisos) e `npm run test` (680/680).
+
+- **VIS-12:** as cinco rotas agora declaram títulos próprios, estáveis e sem
+  dado pessoal: Início, Escala, Importar policiais, Editar policial e
+  Produtividade.
+- **VIS-13:** a sidebar móvel fechada recebe `inert`; ao abrir, o foco vai
+  para a navegação; o conteúdo principal, o atalho de salto e a barra móvel
+  ficam inertes enquanto ela funciona como modal; Escape, botão de fechar,
+  backdrop e navegação restauram o foco ao botão Menu. O scroll lock agora só
+  atua no estado modal móvel.
+- **VIS-14:** o link “Pular para o conteúdo” aponta para
+  `#conteudo-principal`, que existe tanto no layout autenticado quanto no
+  caminho sem sidebar.
+- **VIS-15:** `SearchableSelect` agora encaminha `id` ao `Combobox.Input`
+  focável, em vez do campo oculto. Os 19 usos que não ficam dentro de um
+  `<label>` recebem `ariaLabel` específico; os seis restantes preservam o
+  nome nativo fornecido pelo `<label>` envolvente.
+- **VIS-16:** os seis checkboxes de seleção passaram a anunciar a pessoa,
+  a escala ou a seleção total a que se referem. O equivalente móvel de
+  “escala vista” também recebeu o mesmo nome específico.
+- **VIS-17:** o recorte de imagem mantém ponteiro e ganhou quatro ranges
+  focáveis para posição horizontal/vertical e largura/altura. Os limites
+  dinâmicos preservam a caixa dentro da imagem e a atualização usa function
+  bindings para regenerar o preview com o valor recém-informado pelo teclado.
+- **VIS-4:** os canais de contraste escuro dos níveis `tertiary` e `success`
+  400/500 passaram a ser usados pelos presets preenchidos. Isso preserva os
+  verdes existentes e eleva o texto sobre `-500` para 6,18:1 e 6,12:1.
+- **VIS-1:** o README agora determina o par AA
+  `text-surface-600 dark:text-surface-400` e proíbe `text-surface-500` em
+  superfícies claras. A migração contextual cobre textos, labels, tabelas,
+  abas, chips, estados vazios e mensagens de status. A busca atual encontra
+  523 usos do par alvo. As 42 referências restantes a `text-surface-500`
+  ficam limitadas a pares invertidos para fundo escuro, placeholders, estados
+  desabilitados ou ícones — elementos gráficos cujo contraste mínimo é 3:1,
+  já atingido pelo tom.
+- **VIS-6:** `lucide-svelte` foi removido em favor de
+  `@lucide/svelte` (1.28.0). Os 28 imports nomeados foram migrados sem mudar
+  suas APIs; `rg` não encontra mais o pacote deprecado no fonte. O README foi
+  atualizado no mesmo lote.
+- **VIS-7 (escopo prioritário):** os 54 SVGs estáticos das sete famílias mais
+  repetidas foram convertidos para Lucide em 29 componentes, preservando
+  classes, tamanhos e eventos. Ícones decorativos agora também declaram
+  `aria-hidden="true"`. Permanecem SVGs fora deste escopo — logos, gráficos,
+  QR, ícones com cor dinâmica e renderizadores que recebem `path` como string
+  — para migração oportunista ou uma refatoração própria de API.
+- **VIS-5 (primeiros lotes):** `ModalShell.svelte` passou a concentrar o
+  `Dialog` acessível, backdrop, larguras, famílias de painel, rodapé, camadas,
+  `Portal` e bloqueio de dismiss durante `pending`. Foram migradas 24 das 43
+  instâncias originais, incluindo confirmações de escala, unidades, e-mail,
+  quatro diálogos inline de `/escalas`, rubrica, assinatura e os dois portais
+  sob o slider de presença. Um E2E específico confirmou foco inicial,
+  restauração de foco, Escape, backdrop e bloqueio durante request pendente; o
+  teste revelou e corrigiu a interceptação de clique pelo `Positioner`.
+
+Ainda falta a validação manual em viewport menor que 900px, com teclado e
+leitor de tela, antes de classificar VIS-13 como totalmente encerrado.
+
+### Achados ainda abertos, recontados
+
+As contagens abaixo são um novo snapshot; não devem substituir silenciosamente
+as medições originais, que foram feitas em 29/jul.
+
+| Achado | Estado em 02/ago | Evidência atual |
+| --- | --- | --- |
+| VIS-1 | implementado; validação visual pendente | 523 usos do par AA para texto normal; as 42 referências residuais a `text-surface-500` são invertidas, placeholders, disabled ou ícones com contraste gráfico suficiente |
+| VIS-4 | implementado; validação visual pendente | os quatro canais 400/500 agora usam contraste escuro; build e testes verdes; inspecionar amostra dos 48 usos em claro/escuro |
+| VIS-5 | parcialmente implementado | 24/43 instâncias usam `ModalShell`; restam 19 explícitas, das quais 9 são exceções estruturais documentadas e 10 são candidatos a lotes posteriores por domínio |
+| VIS-6 | implementado | `@lucide/svelte` 1.28.0 é a única dependência Lucide; 28 imports foram migrados e não há specifier antigo no fonte |
+| VIS-7 | implementado no escopo prioritário | as sete famílias repetidas não têm mais SVG estático inline; restam 125 `<svg>` de logos, gráficos, QR, ícones dinâmicos e demais legado fora do lote |
+| VIS-8 | implementado | brasão público com `width`/`height` 200×200; rubricas com proporção 2,5:1 (ou dimensões do recorte); preview do cadastro declara `width`/`height` + `aspect-ratio` |
+| VIS-9 | implementado | README admite `z-20`/`z-30` para overlays locais e FABs; popovers portados de `SecaoHistorico` sobem a `z-50` (camada de portal); `FloatingRefresh` e overlays internos do `SignaturePad` permanecem nos degraus locais documentados |
+| VIS-10 | implementado | `auditoria` (+ nested de alterações), `auditoria/logs`, `solicitacoes` e `perfil` usam `table-wrap` + `class="table"` |
+| VIS-11 | implementado | bloco `<style>` com `will-change` em todo `div` removido de `LoadingOverlay.svelte`; o `backdrop-blur-sm` do overlay basta para promover a camada |
+
+As nove exceções estruturais de VIS-5 permanecem explícitas e registram a
+decisão no próprio componente: logout global (`+layout`), `DialogInfo`, wizard
+`ModalNovaEscala`, calendário `ModalDatasHoras`, `ModalDownloadExtras`,
+`ModalBreveRelatorio` e os três diálogos da máquina de ações de RH em
+`PainelAcoesServidor`. Os dez candidatos restantes são confirmações e
+formulários dos domínios recebidos, painel, policiais e CRUD GISE; não exigem
+ampliar a API do primitive e podem ser migrados em lotes independentes.
+
+### Ordem revisada
+
+1. **VIS-5** — migrar os 10 candidatos canônicos restantes por domínio,
+   mantendo explícitas as 9 exceções estruturais documentadas.
+
+VIS-1 a VIS-4, VIS-6, VIS-8 a VIS-12 e VIS-14 a VIS-17 não pertencem mais à
+fila de implementação. VIS-7 segue como higiene oportunística para o legado
+fora do escopo prioritário. VIS-1 e VIS-4 aguardam amostragem visual em
+claro/escuro; VIS-13, a validação manual de foco em viewport móvel.
+
+---
+
+## Plano de uniformização de layout e interação
+
+**Objetivo:** reduzir variações visuais e comportamentais sem forçar
+componentes artificialmente genéricos. Para uma mesma intenção do usuário, o
+sistema deve apresentar o mesmo componente, rótulo, ordem, estado de foco e
+feedback; diferenças só são aceitáveis quando representam uma diferença
+semântica, de risco ou de contexto comprovada.
+
+Este plano complementa os achados VIS. Ele não autoriza substituir classes ou
+componentes em massa sem primeiro definir o padrão e preservar os fluxos
+críticos de autenticação, assinatura e documentos.
+
+### Princípios de decisão
+
+1. **Semântica antes de aparência.** “Excluir” é destrutivo e não deve parecer
+   nem se comportar como “Salvar”, ainda que ambos sejam botões.
+2. **Mesma intenção, mesmo contrato.** “Cancelar”, “Voltar”, “Baixar PDF” e
+   “Editar” devem ter rótulo, ícone, ordem, confirmação e estado desabilitado
+   previsíveis em todas as telas.
+3. **Componente compartilhado só para regra compartilhada.** Se duas telas
+   diferem em autorização, ciclo de vida, conteúdo jurídico ou fluxo de
+   formulário, manter componentes separados e documentar a diferença.
+4. **Tokens antes de migração.** Nenhuma tela deve ser migrada para uma
+   convenção que ainda não tem escala tipográfica, variantes e exemplos
+   definidos.
+5. **Acessibilidade faz parte do padrão.** Foco visível, nome acessível,
+   teclado, contraste, ordem de tabulação e estado `disabled` são requisitos
+   de cada primitive, não uma revisão posterior.
+6. **Uma fonte de verdade.** Não duplicar o mesmo shell de modal, estilo de
+   botão ou regra de layout em dezenas de componentes. VIS-5 é a referência
+   de risco já comprovada.
+
+### Catálogo canônico a definir antes das migrações
+
+O catálogo deve ficar em documentação viva e ter dono técnico. Cada item
+precisa definir API, variantes permitidas, estados, comportamento de teclado,
+exemplos e contraexemplos.
+
+| Família | Contrato mínimo | Variantes permitidas |
+| --- | --- | --- |
+| Botão de ação | `type`, texto/nome acessível, ícone decorativo, foco, loading e bloqueio contra duplo clique | principal, secundário, discreto, destrutivo |
+| Botão de ícone | `aria-label` obrigatório, área de toque consistente, tooltip quando útil | editar, excluir, baixar, fechar, atualizar |
+| Link de navegação | usa `<a>`, não simula botão; rota, estado ativo e preloading consistentes | menu, voltar, ação inline |
+| Modal/diálogo | foco, Escape, backdrop, z-index, largura, altura móvel, rodapé e ações em ordem fixa | pequeno, médio, largo, empilhado |
+| Campo de formulário | label associado, ajuda/erro, estado obrigatório, desabilitado e tamanho | texto, select, busca, data, toggle, upload |
+| Tabela/lista | wrapper responsivo, cabeçalho, densidade, estado vazio, ações e seleção acessíveis | desktop+cards mobile quando necessário |
+| Card e estado vazio | raio, padding, título, ação primária e ilustração/ícone coerentes | informativo, sucesso, alerta, erro |
+| Feedback | toast, alerta inline, loading e confirmação destrutiva com semântica consistente | sucesso, informação, aviso, erro |
+
+Os componentes compartilhados pertencem a `src/lib/components/`; peças de uma
+única rota permanecem no respectivo `_components/`. Em Svelte, as APIs novas
+devem usar runes e snippets, conforme as diretrizes do projeto.
+
+### Matriz de ações equivalentes
+
+Antes de alterar UI, criar e manter uma matriz com todos os usos das ações
+abaixo. Ela identifica nome, ícone, variante, ordem, confirmação, destino e
+arquivo de cada ocorrência.
+
+| Intenção | Padrão proposto | Não aceitar |
+| --- | --- | --- |
+| Salvar / Confirmar | ação principal, à direita no desktop; loading impede reenvio | “Salvar”, “OK” e ícone sem texto para a mesma operação |
+| Cancelar / Fechar | ação secundária; não submete formulário | botão primário visualmente indistinto de salvar |
+| Excluir / Revogar / Desfinalizar | variante destrutiva e confirmação contextual | ação destrutiva silenciosa ou rotulada apenas “Sim” |
+| Editar | ícone/lótulo com nome acessível e mesma posição na linha/card | lápis, texto ou menu sem critério por tela |
+| Baixar / Exportar | ícone e rótulo do formato; usar estado de carregamento | âncora improvisada e nomes genéricos “Download” |
+| Voltar | link/navegação, preservando histórico quando aplicável | botão de submit que simula navegação |
+| Filtrar / Limpar filtros | controles identificados, resumo de filtros ativos e limpeza previsível | selects sem label ou filtros que mudam a página sem feedback |
+
+Uma exceção precisa registrar na matriz: arquivo, motivo, responsável e data
+de revisão. “Já estava assim” não é justificativa.
+
+### Escala tipográfica e de espaçamento
+
+Definir uma escala curta e utilizá-la em vez de combinações livres de
+`text-*`, `p-*`, `gap-*`, `rounded-*` e `shadow-*`.
+
+| Papel | Uso | Regra de consistência |
+| --- | --- | --- |
+| Título de página (`h1`) | objetivo principal da rota | um por tela, mesmo peso e faixa responsiva |
+| Título de seção (`h2`) | agrupamentos da página | abaixo de `h1`, nunca usado apenas para obter tamanho |
+| Título de card (`h3`) | conteúdo autônomo dentro da seção | não competir visualmente com `h2` |
+| Corpo | instruções, conteúdo e descrição | contraste AA e largura legível |
+| Auxiliar | metadados, ajuda, data, contagem | não usar tom abaixo do contraste mínimo de VIS-1 |
+| Ação/controle | botão, label e célula acionável | mesma altura e tamanho de texto por densidade |
+
+Também definir tokens para:
+
+- espaçamento vertical entre página, seção, card e controles;
+- padding de card e modal em mobile e desktop;
+- raio e sombra por superfície;
+- largura máxima de conteúdo e breakpoints;
+- densidade de tabelas e listas;
+- camadas de `z-index`, em complemento a VIS-9.
+
+O padrão deve usar os canais de tema existentes, não cores cruas. VIS-1 e
+VIS-4 precisam ser resolvidos antes de transformar uma classe de contraste
+insuficiente em token “oficial”.
+
+### Execução em fases
+
+#### U0 — Baseline e inventário
+
+1. Capturar screenshots desktop e mobile das rotas críticas: login, painel,
+   escalas, detalhe de escala, GISE, formulário/relatório GISE, perfil,
+   validação pública e assinatura.
+2. Inventariar as ocorrências das famílias do catálogo e preencher a matriz de
+   ações equivalentes.
+3. Contar variantes de classes e componentes por família; registrar o
+   baseline, não uma meta de “menos classes”.
+4. Associar cada entrada aos VIS existentes, especialmente VIS-5 a VIS-17.
+
+#### U1 — Especificação do sistema visual
+
+1. Escolher nomes, variantes e contratos do catálogo.
+2. Documentar a escala tipográfica, espaçamento, superfícies, breakpoints e
+   ordem de ações.
+3. Atualizar o README como documento vivo com a regra de uso, não apenas
+   comentários em CSS.
+4. Revisar a especificação com produto/design e acessibilidade antes de criar
+   abstrações.
+
+#### U2 — Primitives compartilhadas
+
+1. Implementar ou consolidar primitives uma por vez, com testes de
+   comportamento e exemplos dos estados críticos.
+2. Começar pelo `ModalShell` de VIS-5, pois ele reduz a maior duplicação
+   visual já medida.
+3. Criar componentes de ação somente depois que a matriz determinar as
+   variantes necessárias; não introduzir um “Button” com dezenas de props
+   para casos que não compartilham comportamento.
+4. Incorporar desde o início as correções de VIS-13 a VIS-17 nos componentes
+   afetados.
+
+#### U3 — Migração por domínio
+
+Migrar em PRs pequenos e independentes, nesta ordem:
+
+1. shell global, navegação, títulos e acessibilidade de foco;
+2. formulários e filtros compartilhados;
+3. modais e confirmações;
+4. tabelas/listas e ações de linha;
+5. assinatura e documentos, com atenção reforçada a regressão;
+6. páginas administrativas e dashboards.
+
+Cada PR deve migrar uma família ou domínio inteiro. Não deixar metade dos
+botões “Salvar” no padrão antigo e metade no novo sem um plano de conclusão.
+
+#### U4 — Regressão e prevenção
+
+1. Comparar screenshots com o baseline nas larguras mobile e desktop.
+2. Executar `npm run check`, lint e os testes afetados.
+3. Para mudanças em assinatura, PDF ou e-mail, executar os respectivos
+   goldens antes e depois, sem regravá-los por conveniência.
+4. Adicionar checks de PR para impedir novas variantes fora do catálogo quando
+   uma regra estável e de baixo falso positivo for possível.
+5. Revisar o inventário após cada lote e remover apenas as exceções que foram
+   efetivamente migradas.
+
+### Critérios de aceite
+
+Uma fase só está concluída quando:
+
+- [ ] toda ação equivalente do domínio está na matriz e segue o padrão ou tem
+  exceção justificada;
+- [ ] título de página, títulos de seção, corpo e auxiliar usam a escala
+  definida;
+- [ ] botões e inputs têm foco, teclado e nome acessível adequados;
+- [ ] nenhuma nova cor, tamanho, sombra, raio ou `z-index` fora dos tokens foi
+  introduzido;
+- [ ] mobile e desktop foram comparados visualmente em cada rota alterada;
+- [ ] testes, `npm run check` e lint foram registrados;
+- [ ] documentação viva mudou no mesmo PR quando o padrão público mudou.
+
+### Registro por lote
+
+Cada PR de uniformização deve registrar:
+
+```md
+## UNI-<domínio>-<NNN>
+
+**Família:** botão | modal | formulário | tabela | tipografia | navegação
+**Rotas afetadas:** ...
+**Padrão adotado:** link para o catálogo/matriz
+**Exceções mantidas:** arquivo + justificativa
+**VIS tratados:** ...
+**Screenshots comparados:** desktop/mobile, antes/depois
+**Verificação:** comandos e resultado
+```
+
+O sucesso não é ter componentes “iguais” em toda parte. É tornar a intenção
+do sistema previsível para usuários e mantenedores, preservando diferenças
+que representam regras reais do negócio.

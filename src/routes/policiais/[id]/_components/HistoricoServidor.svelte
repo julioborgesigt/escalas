@@ -30,7 +30,7 @@
 		CircleDot,
 		ChevronLeft,
 		ChevronRight
-	} from 'lucide-svelte';
+	} from '@lucide/svelte';
 
 	interface Props {
 		historico: PolicialHistorico[];
@@ -80,7 +80,7 @@
 		edicao: {
 			label: 'Edição cadastral',
 			icon: Pencil,
-			cor: 'text-surface-500',
+			cor: 'text-surface-600 dark:text-surface-400',
 			ponto: 'bg-surface-400'
 		},
 		papel: {
@@ -96,7 +96,7 @@
 			META[tipo] ?? {
 				label: tipo,
 				icon: CircleDot,
-				cor: 'text-surface-500',
+				cor: 'text-surface-600 dark:text-surface-400',
 				ponto: 'bg-surface-400'
 			}
 		);
@@ -169,7 +169,7 @@
 	</h2>
 
 	{#if historico.length === 0}
-		<p class="text-sm text-surface-500 italic py-4 text-center">
+		<p class="text-sm text-surface-600 dark:text-surface-400 italic py-4 text-center">
 			Nenhum registro no histórico ainda.
 		</p>
 	{:else}
@@ -192,17 +192,21 @@
 									<span class="badge preset-filled-warning-500 text-3xs">Vigente</span>
 								{/if}
 							</div>
-							<span class="text-3xs text-surface-500 tabular-nums">{dataHora(ev.created_at)}</span>
+							<span class="text-3xs text-surface-600 dark:text-surface-400 tabular-nums"
+								>{dataHora(ev.created_at)}</span
+							>
 						</div>
 
 						<div class="mt-2 text-sm text-surface-700 dark:text-surface-200 space-y-1">
 							{#if ev.tipo === 'movimentacao'}
 								<p class="flex items-center gap-1.5 flex-wrap">
-									<span class="text-surface-500">{ev.unidade_origem || '—'}</span>
+									<span class="text-surface-600 dark:text-surface-400"
+										>{ev.unidade_origem || '—'}</span
+									>
 									<ArrowRightLeft size={14} class="text-primary-500" />
 									<span class="font-medium">{ev.unidade_destino}</span>
 								</p>
-								{#if ev.data_evento}<p class="text-xs text-surface-500">
+								{#if ev.data_evento}<p class="text-xs text-surface-600 dark:text-surface-400">
 										Data: {formatarData(ev.data_evento)}
 									</p>{/if}
 							{:else if ev.tipo === 'afastamento'}
@@ -212,7 +216,7 @@
 									] ?? ev.subtipo}
 								</p>
 								{#if ev.descricao}<p class="text-xs">{ev.descricao}</p>{/if}
-								<p class="text-xs text-surface-500">
+								<p class="text-xs text-surface-600 dark:text-surface-400">
 									{formatarData(ev.data_inicio ?? '')} a {formatarData(ev.data_fim ?? '')}
 									{#if ev.qtd_dias}· {ev.qtd_dias} dia(s){/if}
 								</p>
@@ -220,7 +224,7 @@
 								<p>
 									Destino: <span class="font-medium">{ev.descricao || ev.unidade_destino}</span>
 								</p>
-								{#if ev.data_evento}<p class="text-xs text-surface-500">
+								{#if ev.data_evento}<p class="text-xs text-surface-600 dark:text-surface-400">
 										Data: {formatarData(ev.data_evento)}
 									</p>{/if}
 							{:else if ev.tipo === 'edicao' || ev.tipo === 'papel'}
@@ -228,7 +232,9 @@
 									{#each diffLinhas(ev.dados_antes, ev.dados_depois) as l (l.campo)}
 										<p class="text-xs">
 											<span class="font-medium">{l.campo}:</span>
-											<span class="text-surface-500 line-through">{l.antes}</span>
+											<span class="text-surface-600 dark:text-surface-400 line-through"
+												>{l.antes}</span
+											>
 											<span class="mx-1">→</span>
 											<span>{l.depois}</span>
 										</p>
@@ -237,7 +243,9 @@
 							{/if}
 
 							{#if ev.nup}
-								<p class="text-3xs text-surface-500 font-mono">NUP: {ev.nup}</p>
+								<p class="text-3xs text-surface-600 dark:text-surface-400 font-mono">
+									NUP: {ev.nup}
+								</p>
 							{/if}
 						</div>
 
@@ -267,7 +275,7 @@
 			<div
 				class="mt-4 pt-3 border-t border-surface-200 dark:border-white/5 flex items-center justify-between gap-2"
 			>
-				<span class="text-xs text-surface-500">
+				<span class="text-xs text-surface-600 dark:text-surface-400">
 					Página {paginaAtual} de {totalPaginas} · {historico.length} registro(s)
 				</span>
 				<div class="flex gap-1">

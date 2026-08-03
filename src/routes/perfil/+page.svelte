@@ -159,7 +159,7 @@
 <div class="space-y-6">
 	<div>
 		<h1 class="h2 font-bold">Meu perfil</h1>
-		<p class="text-sm text-surface-500 dark:text-surface-400 mt-1">
+		<p class="text-sm text-surface-600 dark:text-surface-400 mt-1">
 			Dados do seu cadastro. Alterações de telefone, classe, regime e lotação passam pela aprovação
 			do administrador.
 		</p>
@@ -169,32 +169,34 @@
 	<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
 		<!-- Identificação (somente leitura) -->
 		<section class="card-glass p-4 sm:p-6 rounded-3xl lg:col-span-2">
-			<h2 class="font-semibold text-sm uppercase tracking-wider text-surface-500 mb-4">
+			<h2
+				class="font-semibold text-sm uppercase tracking-wider text-surface-600 dark:text-surface-400 mb-4"
+			>
 				Identificação
 			</h2>
 			<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
 				<div>
-					<span class="label-text text-xs text-surface-500 dark:text-surface-400 block">Nome</span>
+					<span class="label-text text-xs text-surface-600 dark:text-surface-400 block">Nome</span>
 					<p class="font-semibold">{perfil.nome}</p>
 				</div>
 				<div>
-					<span class="label-text text-xs text-surface-500 dark:text-surface-400 block"
+					<span class="label-text text-xs text-surface-600 dark:text-surface-400 block"
 						>Matrícula</span
 					>
 					<p class="font-semibold">{perfil.matricula}</p>
 				</div>
 				<div>
-					<span class="label-text text-xs text-surface-500 dark:text-surface-400 block">Cargo</span>
+					<span class="label-text text-xs text-surface-600 dark:text-surface-400 block">Cargo</span>
 					<p class="font-semibold">{perfil.cargo}</p>
 				</div>
 				<div>
-					<span class="label-text text-xs text-surface-500 dark:text-surface-400 block"
+					<span class="label-text text-xs text-surface-600 dark:text-surface-400 block"
 						>E-mail funcional</span
 					>
 					<p class="font-semibold">{perfil.email || '—'}</p>
 				</div>
 				<div class="sm:col-span-2">
-					<span class="label-text text-xs text-surface-500 dark:text-surface-400 block"
+					<span class="label-text text-xs text-surface-600 dark:text-surface-400 block"
 						>E-mail pessoal</span
 					>
 					<div class="flex items-center gap-2 flex-wrap">
@@ -219,7 +221,7 @@
 						</button>
 					</div>
 					{#if emailPessoal}
-						<p class="text-2xs text-surface-500 dark:text-surface-400 mt-1">
+						<p class="text-2xs text-surface-600 dark:text-surface-400 mt-1">
 							A troca exige sua senha e um código enviado ao novo endereço.
 						</p>
 					{/if}
@@ -229,15 +231,25 @@
 
 		<!-- Rubrica (verticalizada) -->
 		<section class="card-glass p-4 sm:p-6 rounded-3xl lg:col-span-1">
-			<h2 class="font-semibold text-sm uppercase tracking-wider text-surface-500 mb-4">Rubrica</h2>
+			<h2
+				class="font-semibold text-sm uppercase tracking-wider text-surface-600 dark:text-surface-400 mb-4"
+			>
+				Rubrica
+			</h2>
 			<div class="flex flex-col gap-4">
 				{#if minhaRubrica}
 					<div
 						class="bg-white rounded-xl border border-surface-200 p-2 flex items-center justify-center w-full"
 					>
-						<img src={minhaRubrica} alt="Sua rubrica cadastrada" class="h-16 object-contain" />
+						<img
+							src={minhaRubrica}
+							alt="Sua rubrica cadastrada"
+							width="400"
+							height="160"
+							class="h-16 object-contain"
+						/>
 					</div>
-					<p class="text-xs text-surface-500">
+					<p class="text-xs text-surface-600 dark:text-surface-400">
 						Usada como assinatura gráfica nos documentos assinados digitalmente e na assinatura por
 						certificado digital (Token A3) no computador.
 					</p>
@@ -259,7 +271,7 @@
 						</button>
 					</div>
 				{:else}
-					<p class="text-sm text-surface-500">
+					<p class="text-sm text-surface-600 dark:text-surface-400">
 						Você ainda não cadastrou sua rubrica. Ela é necessária para assinar pelo computador com
 						certificado digital e permite conferência visual em documentos impressos.
 					</p>
@@ -277,10 +289,12 @@
 
 	<!-- Dados alteráveis via solicitação -->
 	<section class="card-glass p-4 sm:p-6 rounded-3xl">
-		<h2 class="font-semibold text-sm uppercase tracking-wider text-surface-500 mb-1">
+		<h2
+			class="font-semibold text-sm uppercase tracking-wider text-surface-600 dark:text-surface-400 mb-1"
+		>
 			Dados cadastrais
 		</h2>
-		<p class="text-xs text-surface-500 dark:text-surface-400 mb-4">
+		<p class="text-xs text-surface-600 dark:text-surface-400 mb-4">
 			As alterações abaixo são enviadas como <strong>solicitação</strong> e só entram em vigor após a
 			aprovação do administrador.
 		</p>
@@ -340,7 +354,9 @@
 	<!-- Histórico de solicitações -->
 	{#if solicitacoes.length > 0}
 		<section class="card-glass p-4 sm:p-6 rounded-3xl">
-			<h2 class="font-semibold text-sm uppercase tracking-wider text-surface-500 mb-4">
+			<h2
+				class="font-semibold text-sm uppercase tracking-wider text-surface-600 dark:text-surface-400 mb-4"
+			>
 				Minhas solicitações
 				{#if pendentes.length > 0}
 					<span
@@ -350,10 +366,10 @@
 					</span>
 				{/if}
 			</h2>
-			<div class="overflow-x-auto">
+			<div class="table-wrap">
 				<table class="table w-full text-sm">
 					<thead>
-						<tr class="text-left text-xs uppercase text-surface-500 dark:text-surface-400">
+						<tr class="text-left text-xs uppercase text-surface-600 dark:text-surface-400">
 							<th class="py-2">Campo</th>
 							<th class="py-2">De</th>
 							<th class="py-2">Para</th>
@@ -367,12 +383,16 @@
 							{@const b = statusBadge(s.status)}
 							<tr class="border-t border-surface-200 dark:border-white/5">
 								<td class="py-2 font-medium">{ROTULO_CAMPO[s.campo]}</td>
-								<td class="py-2 text-surface-500">{s.valor_atual || '—'}</td>
+								<td class="py-2 text-surface-600 dark:text-surface-400">{s.valor_atual || '—'}</td>
 								<td class="py-2 font-semibold">{s.valor_novo}</td>
-								<td class="py-2 whitespace-nowrap text-xs tabular-nums text-surface-500">
+								<td
+									class="py-2 whitespace-nowrap text-xs tabular-nums text-surface-600 dark:text-surface-400"
+								>
 									{fmtDataHora(s.created_at)}
 								</td>
-								<td class="py-2 whitespace-nowrap text-xs tabular-nums text-surface-500">
+								<td
+									class="py-2 whitespace-nowrap text-xs tabular-nums text-surface-600 dark:text-surface-400"
+								>
 									{s.status === 'pendente' ? '—' : fmtDataHora(s.decidido_em)}
 								</td>
 								<td class="py-2">

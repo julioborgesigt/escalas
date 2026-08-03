@@ -19,11 +19,11 @@
 	 * rolagem infinita. Lá o formulário é um wizard por etapas, com rascunho
 	 * automático; entrada e saída continuam aqui porque são um botão cada.
 	 */
-	import { Dialog, Portal } from '@skeletonlabs/skeleton-svelte';
-	import { Check, Clock } from 'lucide-svelte';
+	import { Check, Clock, ShieldCheck } from '@lucide/svelte';
 	import { actionButton, btnIcon } from './BotoesAcao.svelte';
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
+	import ModalShell from '$lib/components/ModalShell.svelte';
 	import PainelAssinaturaToken from '$lib/components/PainelAssinaturaToken.svelte';
 	import Spinner from '$lib/components/Spinner.svelte';
 	import { loading } from '$lib/loading.svelte';
@@ -155,19 +155,7 @@
 	<div class="flex flex-col gap-3 max-w-md mx-auto">
 		<div class="bg-tertiary-500/5 border border-tertiary-500/25 p-4 rounded-2xl space-y-3">
 			<div class="flex items-center gap-2">
-				<svg
-					class="w-5 h-5 text-tertiary-500 shrink-0"
-					fill="none"
-					viewBox="0 0 24 24"
-					stroke="currentColor"
-				>
-					<path
-						stroke-linecap="round"
-						stroke-linejoin="round"
-						stroke-width="2"
-						d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
-					/>
-				</svg>
+				<ShieldCheck class="w-5 h-5 text-tertiary-500 shrink-0" aria-hidden="true" />
 				<p class="text-sm font-bold text-surface-700 dark:text-surface-200 leading-tight">
 					Assinar pelo computador <span class="text-3xs font-black text-tertiary-500 uppercase"
 						>Certificado Digital · ICP-Brasil</span
@@ -217,7 +205,7 @@
 					Entendi — cadastrar rubrica
 				</button>
 			{/if}
-			<p class="text-3xs text-surface-500 dark:text-surface-400 italic leading-snug">
+			<p class="text-3xs text-surface-600 dark:text-surface-400 italic leading-snug">
 				Pelo celular, a confirmação continua disponível com foto (prova de vida) e GPS.
 			</p>
 		</div>
@@ -530,17 +518,17 @@
 	<!--
 		Modais das três tarefas.
 
-		O `<Portal>` NÃO É OPCIONAL aqui, e a razão não é óbvia: este componente
-		vive dentro do painel 2 do slider de `+page.svelte`, cujo trilho tem
-		`transform: translateX(-50%)`. Um `transform` diferente de `none` faz o
-		elemento virar CONTAINING BLOCK dos descendentes `position: fixed` — então
-		o `inset-0` do `Dialog.Content` passaria a se referir ao trilho (200% de
-		largura, deslocado meia tela) e não à viewport, e o `overflow-hidden` do
-		wrapper ainda recortaria o que sobrasse. Medido em Chromium: um `fixed
-		inset-0` ali dentro rende `left:-648 · 2304×18px` num viewport de
-		1920×900. O `Portal` monta o conteúdo em `document.body`, fora do trilho,
-		preservando o contexto do Svelte (é assim que o `IconTooltip` e o popover
-		da `TabelaEscalas` já fazem).
+		O `portal={true}` do `ModalShell` NÃO É OPCIONAL aqui, e a razão não é
+		óbvia: este componente vive dentro do painel 2 do slider de `+page.svelte`,
+		cujo trilho tem `transform: translateX(-50%)`. Um `transform` diferente de
+		`none` faz o elemento virar CONTAINING BLOCK dos descendentes
+		`position: fixed` — então o `inset-0` do shell passaria a se referir ao
+		trilho (200% de largura, deslocado meia tela) e não à viewport, e o
+		`overflow-hidden` do wrapper ainda recortaria o que sobrasse. Medido em
+		Chromium: um `fixed inset-0` ali dentro rende `left:-648 · 2304×18px` num
+		viewport de 1920×900. O portal monta o conteúdo em `document.body`, fora
+		do trilho, preservando o contexto do Svelte (é assim que o `IconTooltip` e
+		o popover da `TabelaEscalas` já fazem).
 
 		A mesma armadilha existe com `contain: layout` (que `container-type`
 		implica) — por isso este arquivo também não usa `@container`.
@@ -555,120 +543,99 @@
 		snippet `blocoRestritoDesktop` — a extração custaria mais props do que
 		poupa marcação (corolário do CLAUDE.md sobre quando NÃO extrair).
 	-->
-	<Dialog
+	<ModalShell
 		open={modalPresenca === 'entrada'}
-		onOpenChange={(e) => {
-			if (!e.open && !loading.active) modalPresenca = null;
+		title="Confirmação de Entrada"
+		description="Confirme sua entrada no serviço com uma rubrica para liberar o formulário de produtividade."
+		largura="md"
+		camada="base"
+		familia="gise"
+		portal={true}
+		pending={loading.active}
+		onOpenChange={(novoOpen) => {
+			if (!novoOpen && !loading.active) modalPresenca = null;
 		}}
 	>
-		<Portal>
-			<Dialog.Content
-				class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-sm overflow-y-auto"
-			>
-				<div
-					class="card p-4 sm:p-6 max-w-md w-full max-h-[calc(100dvh-2rem)] overflow-y-auto card-elevated shadow-2xl rounded-2xl space-y-5"
-				>
-					<div class="space-y-1">
-						<Dialog.Title class="text-lg font-bold">Confirmação de Entrada</Dialog.Title>
-						<Dialog.Description class="text-sm text-surface-600 dark:text-surface-400">
-							Confirme sua entrada no serviço com uma rubrica para liberar o formulário de
-							produtividade.
-						</Dialog.Description>
-					</div>
+		{#if isMobile || !restringirSmartphone}
+			{@render actionButton(
+				'Confirmar Entrada',
+				undefined,
+				'primary',
+				'filled',
+				() => (resGise.capturandoRubrica = true),
+				false,
+				false,
+				'w-full py-2.5 text-sm shadow-sm'
+			)}
+		{:else}
+			{@render blocoRestritoDesktop('entrada')}
+		{/if}
 
-					{#if isMobile || !restringirSmartphone}
-						{@render actionButton(
-							'Confirmar Entrada',
-							undefined,
-							'primary',
-							'filled',
-							() => (resGise.capturandoRubrica = true),
-							false,
-							false,
-							'w-full py-2.5 text-sm shadow-sm'
-						)}
-					{:else}
-						{@render blocoRestritoDesktop('entrada')}
-					{/if}
+		<div class="flex justify-end">
+			{@render actionButton(
+				'Fechar',
+				undefined,
+				'surface',
+				'outlined',
+				() => (modalPresenca = null),
+				false,
+				false,
+				'px-6'
+			)}
+		</div>
+	</ModalShell>
 
-					<div class="flex justify-end">
-						{@render actionButton(
-							'Fechar',
-							undefined,
-							'surface',
-							'outlined',
-							() => (modalPresenca = null),
-							false,
-							false,
-							'px-6'
-						)}
-					</div>
-				</div>
-			</Dialog.Content>
-		</Portal>
-	</Dialog>
-
-	<Dialog
+	<ModalShell
 		open={modalPresenca === 'saida'}
-		onOpenChange={(e) => {
-			if (!e.open && !loading.active) modalPresenca = null;
+		title="Término do Plantão"
+		description="Confirme sua saída do serviço com uma rubrica."
+		largura="md"
+		camada="base"
+		familia="gise"
+		portal={true}
+		pending={loading.active}
+		onOpenChange={(novoOpen) => {
+			if (!novoOpen && !loading.active) modalPresenca = null;
 		}}
 	>
-		<Portal>
-			<Dialog.Content
-				class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-sm overflow-y-auto"
+		{#if !relatorioOk}
+			<div
+				class="p-3 bg-warning-500/10 border border-warning-500/20 rounded-xl flex items-start gap-3"
 			>
-				<div
-					class="card p-4 sm:p-6 max-w-md w-full max-h-[calc(100dvh-2rem)] overflow-y-auto card-elevated shadow-2xl rounded-2xl space-y-5"
-				>
-					<div class="space-y-1">
-						<Dialog.Title class="text-lg font-bold">Término do Plantão</Dialog.Title>
-						<Dialog.Description class="text-sm text-surface-600 dark:text-surface-400">
-							Confirme sua saída do serviço com uma rubrica.
-						</Dialog.Description>
-					</div>
+				{@render btnIcon(
+					'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z'
+				)}
+				<p class="text-3xs text-warning-700 dark:text-warning-400">
+					Você deve preencher e enviar o <strong>Relatório de Produtividade</strong> (resultados do serviço)
+					antes de confirmar a saída.
+				</p>
+			</div>
+		{:else if isMobile || !restringirSmartphone}
+			{@render actionButton(
+				'Confirmar Saída',
+				undefined,
+				'primary',
+				'filled',
+				() => (resGise.capturandoRubrica = true),
+				false,
+				false,
+				'w-full py-2.5 text-sm shadow-sm'
+			)}
+		{:else}
+			{@render blocoRestritoDesktop('saida')}
+		{/if}
 
-					{#if !relatorioOk}
-						<div
-							class="p-3 bg-warning-500/10 border border-warning-500/20 rounded-xl flex items-start gap-3"
-						>
-							{@render btnIcon(
-								'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z'
-							)}
-							<p class="text-3xs text-warning-700 dark:text-warning-400">
-								Você deve preencher e enviar o <strong>Relatório de Produtividade</strong>
-								(resultados do serviço) antes de confirmar a saída.
-							</p>
-						</div>
-					{:else if isMobile || !restringirSmartphone}
-						{@render actionButton(
-							'Confirmar Saída',
-							undefined,
-							'primary',
-							'filled',
-							() => (resGise.capturandoRubrica = true),
-							false,
-							false,
-							'w-full py-2.5 text-sm shadow-sm'
-						)}
-					{:else}
-						{@render blocoRestritoDesktop('saida')}
-					{/if}
-
-					<div class="flex justify-end">
-						{@render actionButton(
-							'Fechar',
-							undefined,
-							'surface',
-							'outlined',
-							() => (modalPresenca = null),
-							false,
-							false,
-							'px-6'
-						)}
-					</div>
-				</div>
-			</Dialog.Content>
-		</Portal>
-	</Dialog>
+		<div class="flex justify-end">
+			{@render actionButton(
+				'Fechar',
+				undefined,
+				'surface',
+				'outlined',
+				() => (modalPresenca = null),
+				false,
+				false,
+				'px-6'
+			)}
+		</div>
+	</ModalShell>
 {/if}

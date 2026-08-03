@@ -22,7 +22,7 @@
 	 * abertura do modal, basta o valor inicial.
 	 */
 	import { untrack } from 'svelte';
-	import { Camera, Check } from 'lucide-svelte';
+	import { Camera, Check } from '@lucide/svelte';
 	import type {
 		SignaturePadLivenessResultado,
 		SignaturePadConfirmPayload
@@ -240,7 +240,7 @@
 
 <div class="space-y-4">
 	{#if message}
-		<p class="text-3xs font-bold text-surface-500 uppercase text-center mb-1">
+		<p class="text-3xs font-bold text-surface-600 dark:text-surface-400 uppercase text-center mb-1">
 			{message}
 		</p>
 	{/if}
@@ -275,7 +275,9 @@
 	<div class="flex flex-col gap-4">
 		<div class="space-y-2 {step !== 'signature' ? 'hidden' : ''}">
 			<div class="flex justify-between items-end">
-				<span class="text-3xs font-bold text-surface-500 uppercase tracking-wider">Sua Rubrica</span
+				<span
+					class="text-3xs font-bold text-surface-600 dark:text-surface-400 uppercase tracking-wider"
+					>Sua Rubrica</span
 				>
 				{#if rubricaSalva}
 					<button
@@ -300,6 +302,8 @@
 					<img
 						src={rubricaSalva}
 						alt="Sua rubrica cadastrada"
+						width="600"
+						height="240"
 						class="max-h-[240px] max-w-full object-contain"
 					/>
 					{@render gpsIndicator()}
@@ -334,7 +338,7 @@
 				class="w-full bg-surface-100 dark:bg-surface-800 border-2 border-surface-200 dark:border-surface-700 rounded-xl overflow-hidden flex flex-col pt-3 items-center relative aspect-[3/4] min-h-[400px] object-cover"
 			>
 				<span
-					class="text-3xs font-bold text-surface-500 uppercase tracking-wider items-center mb-3 px-2 flex gap-1.5"
+					class="text-3xs font-bold text-surface-600 dark:text-surface-400 uppercase tracking-wider items-center mb-3 px-2 flex gap-1.5"
 				>
 					<span
 						class="w-2.5 h-2.5 rounded-full {liveness.stream
@@ -549,7 +553,9 @@
 	<!-- O aviso de consentimento lista só o que este nível de segurança (config
 	     do Super Admin) de fato captura: GPS e/ou selfie; metadados sempre. -->
 	<div class="p-3 bg-primary-500/5 border border-dashed border-primary-500/20 rounded-xl">
-		<p class="text-3xs font-medium text-surface-500 leading-tight text-center">
+		<p
+			class="text-3xs font-medium text-surface-600 dark:text-surface-400 leading-tight text-center"
+		>
 			Ao assinar, declaro a veracidade destas informações e autorizo o registro de
 			{#if exigirGps && exigirFoto}
 				minha <strong>localização geográfica</strong>, <strong>fotografia (prova de vida)</strong> e

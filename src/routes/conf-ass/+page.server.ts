@@ -14,7 +14,9 @@ import {
 	baseLegalDoNivel
 } from '$lib/server/assinatura/signature-level';
 
-export const load: PageServerLoad = async ({ locals, platform }) => {
+export const load: PageServerLoad = async ({ locals, platform, depends }) => {
+	depends('app:assinatura-flags');
+
 	if (!locals.usuario?.isSuperAdmin) redirect(302, '/');
 
 	const db = getDB(platform);

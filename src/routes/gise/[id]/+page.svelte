@@ -24,12 +24,17 @@
 	 * - a chave de invalidação é `'gise:detail'`, e não `invalidateAll()`: quase
 	 *   toda ação muda a árvore da GISE e precisa recarregá-la, mas recarregar o
 	 *   layout inteiro a cada clique piscava a sidebar;
+	 * - `useInvalidateOnFocus('gise:detail')` cobre o gap cross-user leve
+	 *   (outra sessão preenche presença/relatório/assinatura): refetch ao
+	 *   voltar à aba + poll quente/frio; BroadcastChannel sincroniza outras
+	 *   abas do mesmo browser na hora da mutação;
 	 * - o "quadro de supervisão" é tratado como uma pseudo-seccional (a unidade
 	 *   sintética de supervisão extra), e por isso aparece nas mesmas listas de
 	 *   pendência e assinatura das seccionais de verdade.
 	 */
-	import { PenLine } from 'lucide-svelte';
-	import { goto, invalidate, replaceState } from '$app/navigation';
+	import { PenLine } from '@lucide/svelte';
+	import { goto, replaceState } from '$app/navigation';
+	import { invalidateShared } from '$lib/cross-tab-invalidate';
 	import type { PageProps } from './$types';
 	import { page } from '$app/state';
 	import { untrack } from 'svelte';
@@ -37,7 +42,8 @@
 	import { apiFetch } from '$lib/api-fetch';
 	import { enhance } from '$app/forms';
 	import { useGiseEstado, useGiseAssinatura } from '$lib/composables/gise';
-	import { useOfertaRubrica, rubricaValida } from '$lib/composables';
+	import { useOfertaRubrica, rubricaValida, useInvalidateOnFocus } from '$lib/composables';
+	import { fetchSyncEstado } from '$lib/sync-estado';
 	import { loading } from '$lib/loading.svelte';
 	import type { Policial, GiseAssinaturaRelatorio } from '$lib/server/schema';
 	import { checkAllSigned, filtrarSeccionaisDisponiveis } from '$lib/gise/page-helpers';
@@ -80,6 +86,23 @@
 	const { statusLabel, statusColor, fmtDate, diaSemana } = giseEstado;
 
 	const gise = $derived(giseEstado.gise);
+
+	// Outras sessões / abas: foco + broadcast + poll (30s quente / 120s frio).
+	// Probe: carimbo leve — só refetch completo se a GISE mudou no servidor.
+	useInvalidateOnFocus('gise:detail', {
+		isHot: () => Boolean(gise?.status && gise.status !== 'finalizada'),
+		probe: async () => {
+			const id = gise?.id;
+			if (!id) return null;
+			try {
+				const e = await fetchSyncEstado({ giseId: id });
+				const stamp = e.gise?.stamp;
+				return stamp ? `${id}:${stamp}` : null;
+			} catch {
+				return null;
+			}
+		}
+	});
 	const policiais = $derived(data.policiais as Policial[]);
 	const todasUnidades = $derived(giseEstado.todasUnidades);
 
@@ -496,7 +519,7 @@
 	{/if}
 
 	{#if !gise}
-		<p class="text-surface-500">Escala não encontrada.</p>
+		<p class="text-surface-600 dark:text-surface-400">Escala não encontrada.</p>
 	{:else}
 		{#if precisaRubrica}
 			<div
@@ -582,7 +605,7 @@
 				onAbrirAssinaturaEscalaManual={() => assinatura.abrirModalRubrica('simples')}
 				onAssinaturaEscalaDigitalSuccess={async () => {
 					assinatura.rubricaCapturada = null;
-					await invalidate('gise:detail');
+					await invalidateShared('gise:detail', 'app:gise-list');
 				}}
 			>
 				{#snippet loteSection()}
@@ -806,7 +829,7 @@
 		onSuccess={async () => {
 			showDigitalModalRelatorio = false;
 			relatorioDigitalInfo = null;
-			await invalidate('gise:detail');
+			await invalidateShared('gise:detail', 'app:gise-list');
 		}}
 		onClose={() => {
 			showDigitalModalRelatorio = false;

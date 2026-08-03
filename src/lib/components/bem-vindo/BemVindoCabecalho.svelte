@@ -78,7 +78,7 @@
 			</div>
 		</div>
 		{#if dataAtual}
-			<p class="hidden shrink-0 pt-1 text-xs text-surface-500 md:block dark:text-surface-400">
+			<p class="hidden shrink-0 pt-1 text-xs text-surface-600 md:block dark:text-surface-400">
 				{dataAtual}
 			</p>
 		{/if}

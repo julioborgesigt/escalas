@@ -72,7 +72,9 @@ function falhaDeGravacao(e: unknown, acao: string) {
 	return fail(500, { error: 'Erro ao salvar a unidade. Tente novamente.' });
 }
 
-export const load: PageServerLoad = async ({ locals, platform }) => {
+export const load: PageServerLoad = async ({ locals, platform, depends }) => {
+	depends('app:unidades');
+
 	const u = locals.usuario;
 	if (!u) redirect(302, '/login');
 

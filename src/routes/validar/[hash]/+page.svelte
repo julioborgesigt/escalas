@@ -17,7 +17,15 @@
 	 * O botão de baixar o PDF íntegro aparece só para autenticado, mas isso é
 	 * cosmético: a permissão real é do endpoint `/api/validar/[hash]/download`.
 	 */
-	import { Check, X, AlertTriangle, HelpCircle } from 'lucide-svelte';
+	import {
+		AlertCircle,
+		AlertTriangle,
+		Check,
+		Download,
+		HelpCircle,
+		ShieldCheck,
+		X
+	} from '@lucide/svelte';
 	import { formatarData } from '$lib/utils/datas';
 	import { baixarBlob } from '$lib/utils/download';
 	import { apiFetchResponse } from '$lib/api-fetch';
@@ -84,31 +92,27 @@
 				<img
 					src="/api/validar/logo"
 					alt="Brasão do Estado do Ceará"
+					width="200"
+					height="200"
 					class="w-14 sm:w-20 mb-3 sm:mb-4 drop-shadow-md"
 				/>
 				<div
 					class="w-12 h-12 sm:w-16 sm:h-16 rounded-full preset-tonal-success flex items-center justify-center mb-3 sm:mb-4"
 				>
-					<svg
+					<ShieldCheck
 						class="w-7 h-7 sm:w-9 sm:h-9 text-success-600"
-						fill="none"
-						viewBox="0 0 24 24"
-						stroke="currentColor"
-					>
-						<path
-							stroke-linecap="round"
-							stroke-linejoin="round"
-							stroke-width="2.5"
-							d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
-						/>
-					</svg>
+						aria-hidden="true"
+						strokeWidth={2.5}
+					/>
 				</div>
 				<h1
 					class="text-xl sm:text-2xl font-black text-success-600 dark:text-success-400 uppercase tracking-tighter text-center"
 				>
 					Autenticidade Confirmada
 				</h1>
-				<p class="text-surface-500 font-medium text-center text-sm sm:text-base mt-1">
+				<p
+					class="text-surface-600 dark:text-surface-400 font-medium text-center text-sm sm:text-base mt-1"
+				>
 					Este documento é autêntico e foi assinado digitalmente
 				</p>
 			</div>
@@ -119,7 +123,9 @@
 					class="p-4 sm:p-6 bg-surface-100 dark:bg-surface-700/50 rounded-xl sm:rounded-2xl border border-surface-200 dark:border-white/5"
 				>
 					<div class="flex items-center justify-between mb-3 sm:mb-4 flex-wrap gap-2">
-						<h2 class="text-3xs font-bold text-surface-500 uppercase tracking-widest">
+						<h2
+							class="text-3xs font-bold text-surface-600 dark:text-surface-400 uppercase tracking-widest"
+						>
 							Status Criptográfico
 						</h2>
 						<div class="flex gap-2 flex-wrap">
@@ -158,7 +164,7 @@
 								>
 							{:else}
 								<HelpCircle class="w-4 h-4 shrink-0 mt-0.5 text-surface-400" aria-hidden="true" />
-								<span class="text-surface-500 italic"
+								<span class="text-surface-600 dark:text-surface-400 italic"
 									>Verificação de integridade indisponível (registro antigo).</span
 								>
 							{/if}
@@ -177,7 +183,7 @@
 										class="w-4 h-4 shrink-0 mt-0.5 text-warning-600"
 										aria-hidden="true"
 									/>
-									<span class="text-surface-500 italic"
+									<span class="text-surface-600 dark:text-surface-400 italic"
 										>Cadeia ICP-Brasil não validada (trust store ainda não populado).</span
 									>
 								{:else}
@@ -225,7 +231,7 @@
 										class="w-4 h-4 shrink-0 mt-0.5 text-warning-600"
 										aria-hidden="true"
 									/>
-									<span class="text-surface-500"
+									<span class="text-surface-600 dark:text-surface-400"
 										><strong>Carimbo de tempo:</strong> apenas hora do servidor (sem ACT/ICP).</span
 									>
 								{/if}
@@ -244,7 +250,7 @@
 											class="w-4 h-4 shrink-0 mt-0.5 text-warning-600"
 											aria-hidden="true"
 										/>
-										<span class="text-surface-500"
+										<span class="text-surface-600 dark:text-surface-400"
 											><strong>Política de assinatura:</strong> declarada, mas o OID/hash não confere
 											com a PA-AD-RB v2.3.</span
 										>
@@ -253,7 +259,7 @@
 											class="w-4 h-4 shrink-0 mt-0.5 text-warning-600"
 											aria-hidden="true"
 										/>
-										<span class="text-surface-500"
+										<span class="text-surface-600 dark:text-surface-400"
 											><strong>Política de assinatura:</strong> não aplicada (sem id-aa-ets-sigPolicyId).</span
 										>
 									{/if}
@@ -274,7 +280,7 @@
 									>
 								{:else}
 									<HelpCircle class="w-4 h-4 shrink-0 mt-0.5 text-surface-400" aria-hidden="true" />
-									<span class="text-surface-500 italic"
+									<span class="text-surface-600 dark:text-surface-400 italic"
 										>Verificação OCSP indisponível para este documento (assinado antes da migração
 										de auditoria).</span
 									>
@@ -282,7 +288,7 @@
 							</div>
 							{#if v.certificado}
 								<div
-									class="pt-2 mt-2 border-t border-surface-200 dark:border-white/5 grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1 text-2xs text-surface-500"
+									class="pt-2 mt-2 border-t border-surface-200 dark:border-white/5 grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1 text-2xs text-surface-600 dark:text-surface-400"
 								>
 									<div><strong>Emissor:</strong> {v.certificado.issuer || '—'}</div>
 									<div>
@@ -298,7 +304,9 @@
 							{/if}
 							{#if v.assinaturasAdicionais && v.assinaturasAdicionais.length > 0}
 								<div class="pt-2 mt-2 border-t border-surface-200 dark:border-white/5">
-									<p class="text-2xs font-bold text-surface-500 uppercase tracking-wider mb-1">
+									<p
+										class="text-2xs font-bold text-surface-600 dark:text-surface-400 uppercase tracking-wider mb-1"
+									>
 										Assinaturas anteriores ({v.assinaturasAdicionais.length})
 									</p>
 									<ul class="space-y-0.5">
@@ -356,12 +364,12 @@
 										>
 									</div>
 								{/if}
-								<p class="text-2xs text-surface-500 italic pt-1">
+								<p class="text-2xs text-surface-600 dark:text-surface-400 italic pt-1">
 									Avançada (Lei 14.063/2020 art. 4º, II) com selo criptográfico da instituição. Não
 									é ICP-Brasil — sem a presunção do art. 10 §1º da MP 2.200-2/2001.
 								</p>
 							{:else}
-								<p class="text-2xs text-surface-500 italic pt-1">
+								<p class="text-2xs text-surface-600 dark:text-surface-400 italic pt-1">
 									Assinatura avançada (rubrica + selfie + GPS + IP). Validade jurídica conforme Lei
 									14.063/2020 art. 4º, II.
 								</p>
@@ -374,13 +382,15 @@
 				<section
 					class="p-4 sm:p-6 bg-surface-100 dark:bg-surface-700/50 rounded-xl sm:rounded-2xl border border-surface-200 dark:border-white/5"
 				>
-					<h2 class="text-3xs font-bold text-surface-500 uppercase tracking-widest mb-3 sm:mb-4">
+					<h2
+						class="text-3xs font-bold text-surface-600 dark:text-surface-400 uppercase tracking-widest mb-3 sm:mb-4"
+					>
 						Informações do Documento
 					</h2>
 					<div class="grid grid-cols-1 gap-3 sm:gap-6">
 						<div>
 							<span
-								class="block text-3xs uppercase font-bold text-surface-500 dark:text-surface-400"
+								class="block text-3xs uppercase font-bold text-surface-600 dark:text-surface-400"
 								>Título / Tipo</span
 							>
 							<span
@@ -390,7 +400,7 @@
 						</div>
 						<div>
 							<span
-								class="block text-3xs uppercase font-bold text-surface-500 dark:text-surface-400"
+								class="block text-3xs uppercase font-bold text-surface-600 dark:text-surface-400"
 								>Unidade / Cidade</span
 							>
 							<span
@@ -400,7 +410,7 @@
 						</div>
 						<div>
 							<span
-								class="block text-3xs uppercase font-bold text-surface-500 dark:text-surface-400"
+								class="block text-3xs uppercase font-bold text-surface-600 dark:text-surface-400"
 								>Período</span
 							>
 							<span class="text-base sm:text-lg font-bold text-surface-800 dark:text-white">
@@ -424,23 +434,11 @@
 							<div
 								class="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-primary-500/20 flex items-center justify-center text-primary-500 shrink-0"
 							>
-								<svg
-									class="w-5 h-5 sm:w-6 sm:h-6"
-									fill="none"
-									viewBox="0 0 24 24"
-									stroke="currentColor"
-								>
-									<path
-										stroke-linecap="round"
-										stroke-linejoin="round"
-										stroke-width="2"
-										d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
-									/>
-								</svg>
+								<ShieldCheck class="w-5 h-5 sm:w-6 sm:h-6" aria-hidden="true" />
 							</div>
 							<div class="min-w-0">
 								<span
-									class="block text-3xs uppercase font-bold text-surface-500 dark:text-surface-400"
+									class="block text-3xs uppercase font-bold text-surface-600 dark:text-surface-400"
 									>Assinado Digitalmente por</span
 								>
 								<span
@@ -448,7 +446,7 @@
 									>{documento.assinante_nome}</span
 								>
 								{#if documento.assinante_cpf}
-									<span class="block text-xs text-surface-500 mt-1"
+									<span class="block text-xs text-surface-600 dark:text-surface-400 mt-1"
 										>CPF: {documento.assinante_cpf}</span
 									>
 								{/if}
@@ -471,7 +469,9 @@
 				<!-- Confirmações de Presença (Equipe) — agregado (LGPD: sem roster nominal) -->
 				{#if data.equipeResumo && data.equipeResumo.total > 0}
 					<section class="space-y-3">
-						<h2 class="text-3xs font-bold text-surface-500 uppercase tracking-widest px-1">
+						<h2
+							class="text-3xs font-bold text-surface-600 dark:text-surface-400 uppercase tracking-widest px-1"
+						>
 							Confirmações de Presença (Equipe)
 						</h2>
 						<div
@@ -485,7 +485,7 @@
 								<strong class="text-surface-900 dark:text-white">{data.equipeResumo.total}</strong>
 								integrantes confirmaram presença.
 							</p>
-							<p class="text-3xs text-surface-500 dark:text-surface-400 mt-1.5">
+							<p class="text-3xs text-surface-600 dark:text-surface-400 mt-1.5">
 								Nomes e horários individuais são restritos e não exibidos na validação pública.
 							</p>
 						</div>
@@ -516,14 +516,7 @@
 								<Spinner size="md" class="text-white" />
 								<span>PROCESSANDO...</span>
 							{:else}
-								<svg class="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-									<path
-										stroke-linecap="round"
-										stroke-linejoin="round"
-										stroke-width="2"
-										d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
-									/>
-								</svg>
+								<Download class="w-5 h-5 shrink-0" aria-hidden="true" />
 								<span>Baixar Documento Assinado (PDF)</span>
 							{/if}
 						</button>
@@ -613,7 +606,7 @@
 									/>
 								</svg>
 							</a>
-							<p class="text-3xs text-surface-500 mt-1">
+							<p class="text-3xs text-surface-600 dark:text-surface-400 mt-1">
 								Faça upload do PDF baixado acima para conferir independentemente.
 							</p>
 						</div>
@@ -625,12 +618,12 @@
 				class="mt-6 sm:mt-10 pt-4 sm:pt-6 border-t border-surface-200 dark:border-white/5 text-center"
 			>
 				<p
-					class="text-3xs text-surface-500 dark:text-surface-400 uppercase font-black tracking-widest"
+					class="text-3xs text-surface-600 dark:text-surface-400 uppercase font-black tracking-widest"
 				>
 					Ponto de Preservação Digital - PC-CE
 				</p>
 				<p
-					class="text-3xs text-surface-500 dark:text-surface-400 mt-2 max-w-md mx-auto leading-relaxed"
+					class="text-3xs text-surface-600 dark:text-surface-400 mt-2 max-w-md mx-auto leading-relaxed"
 				>
 					Esta conferência confirma que o arquivo digital carregado corresponde integralmente ao
 					teor da escala gerenciada pelo sistema oficial em {formatarDataHora(
@@ -646,6 +639,8 @@
 				<img
 					src="/api/validar/logo"
 					alt="Brasão do Estado do Ceará"
+					width="200"
+					height="200"
 					class="w-14 sm:w-20 mb-3 sm:mb-4 drop-shadow-md"
 				/>
 				<div
@@ -654,19 +649,11 @@
 						: 'bg-error-500/10'} flex items-center justify-center mb-3 sm:mb-4"
 				>
 					{#if erroInterno}
-						<svg
+						<AlertCircle
 							class="w-7 h-7 sm:w-9 sm:h-9 text-warning-600"
-							fill="none"
-							viewBox="0 0 24 24"
-							stroke="currentColor"
-						>
-							<path
-								stroke-linecap="round"
-								stroke-linejoin="round"
-								stroke-width="2.5"
-								d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-							/>
-						</svg>
+							aria-hidden="true"
+							strokeWidth={2.5}
+						/>
 					{:else}
 						<svg
 							class="w-7 h-7 sm:w-9 sm:h-9 text-error-600"
@@ -690,7 +677,9 @@
 				>
 					{erroInterno ? 'Erro ao Consultar' : 'Documento Não Encontrado'}
 				</h1>
-				<p class="text-surface-500 font-medium text-center mt-2 text-sm sm:text-base">
+				<p
+					class="text-surface-600 dark:text-surface-400 font-medium text-center mt-2 text-sm sm:text-base"
+				>
 					{#if erroInterno}
 						Ocorreu um erro interno ao consultar o sistema. Tente novamente em alguns instantes.
 					{:else}
@@ -715,7 +704,7 @@
 						Este documento pode ser <strong>falso ou adulterado</strong>. Não utilize este
 						documento.
 					</p>
-					<p class="text-xs text-surface-500">
+					<p class="text-xs text-surface-600 dark:text-surface-400">
 						Se você acredita que há um erro, entre em contato com a unidade que emitiu o documento.
 					</p>
 				{/if}
@@ -725,7 +714,7 @@
 				class="mt-6 sm:mt-10 pt-4 sm:pt-6 border-t border-surface-200 dark:border-white/5 text-center"
 			>
 				<p
-					class="text-3xs text-surface-500 dark:text-surface-400 uppercase font-black tracking-widest"
+					class="text-3xs text-surface-600 dark:text-surface-400 uppercase font-black tracking-widest"
 				>
 					Ponto de Preservação Digital - PC-CE
 				</p>
@@ -733,5 +722,7 @@
 		{/if}
 	</div>
 
-	<p class="mt-6 text-xs text-surface-500/50">SISTEMA GERENCIADOR DE ESCALAS © 2026</p>
+	<p class="mt-6 text-xs text-surface-600 dark:text-surface-400">
+		SISTEMA GERENCIADOR DE ESCALAS © 2026
+	</p>
 </div>

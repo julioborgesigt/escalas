@@ -3,9 +3,10 @@ import { getDB, ehAdminGeralVinculado } from '$lib/db';
 import { lerFlagsAssinatura } from '$lib/server/assinatura/cfg-ass-cache';
 import { lerPapelGise } from '$lib/server/gise/papel-cache';
 import { temAssinaturaEscalaPendente } from '$lib/server/escalas/rubrica-pendente';
+import { resumoRecebidosAdmin } from '$lib/server/sync-estado';
 import { logger } from '$lib/server/logger';
 
-export const load: LayoutServerLoad = async ({ locals, platform, cookies }) => {
+export const load: LayoutServerLoad = async ({ locals, platform, cookies, depends }) => {
 	const u = locals.usuario;
 
 	let isSupervisorGise = false;
@@ -16,6 +17,7 @@ export const load: LayoutServerLoad = async ({ locals, platform, cookies }) => {
 	let exigirCodigoEmailAssinatura = false;
 	let restringirSmartphone = false;
 	let precisaCadastrarRubrica = false;
+	let recebidosNaoVistos = 0;
 	// Alternância de acesso (ADM Geral ↔ Usuário) para a MESMA pessoa vinculada.
 	// admin → usuário: exige a sessão admin ter policial vinculado (adminPolicialId).
 	// usuário → admin: exige o policial ter conta Admin Geral vinculada.
@@ -34,17 +36,23 @@ export const load: LayoutServerLoad = async ({ locals, platform, cookies }) => {
 			// (mudar supervisor, add/remove membro) invalidam o cache no
 			// próprio handler, então o stale window real é só para
 			// cascatas raras (ex.: deletar uma seccional inteira).
-			const db = u.tipo === 'policial' ? getDB(platform) : null;
-			const [flags, papel, vinculadoAdmin] = await Promise.all([
+			const db = getDB(platform);
+			// Contador da sidebar + flags de assinatura (conf-ass) — chaves
+			// segmentadas para não invalidar o layout inteiro à toa.
+			if (u.tipo === 'admin') depends('app:recebidos-badge');
+			depends('app:assinatura-flags');
+			const [flags, papel, vinculadoAdmin, recebidos] = await Promise.all([
 				lerFlagsAssinatura(platform),
-				db ? lerPapelGise(db, u.id) : Promise.resolve(null),
-				db ? ehAdminGeralVinculado(db, u.id) : Promise.resolve(false)
+				u.tipo === 'policial' ? lerPapelGise(db, u.id) : Promise.resolve(null),
+				u.tipo === 'policial' ? ehAdminGeralVinculado(db, u.id) : Promise.resolve(false),
+				u.tipo === 'admin' ? resumoRecebidosAdmin(db) : Promise.resolve(null)
 			]);
 			podeAlternarParaAdmin = vinculadoAdmin;
 			exigirFotoAssinatura = flags.exigirFotoAssinatura;
 			exigirGpsAssinatura = flags.exigirGpsAssinatura;
 			exigirCodigoEmailAssinatura = flags.exigirCodigoEmailAssinatura;
 			restringirSmartphone = flags.restringirSmartphone;
+			if (recebidos) recebidosNaoVistos = recebidos.naoVistos;
 
 			if (papel) {
 				isSupervisorGise = papel.isSupervisor;
@@ -57,7 +65,7 @@ export const load: LayoutServerLoad = async ({ locals, platform, cookies }) => {
 			// relatórios a assinar) ou solicitação de assinatura de escala dirigida
 			// a ele (DPC admin). A checagem extra de solicitação só roda nesse caso
 			// raro (1 EXISTS); `temRubrica` vem da própria sessão.
-			if (db && u.tipo === 'policial' && u.temRubrica === false) {
+			if (u.tipo === 'policial' && u.temRubrica === false) {
 				const papelGiseAtivo = isSupervisorGise || isMembroGise || isSupervisaoGise;
 				precisaCadastrarRubrica = papelGiseAtivo || (await temAssinaturaEscalaPendente(db, u));
 			}
@@ -84,6 +92,7 @@ export const load: LayoutServerLoad = async ({ locals, platform, cookies }) => {
 		exigirCodigoEmailAssinatura,
 		restringirSmartphone,
 		precisaCadastrarRubrica,
+		recebidosNaoVistos,
 		adminModulo,
 		podeAlternarParaUsuario,
 		podeAlternarParaAdmin

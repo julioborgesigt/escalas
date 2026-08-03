@@ -126,12 +126,14 @@ function podeOIPSolicitar(u: App.Locals['usuario']): boolean {
  * Convenção herdada da planilha original: hora padrão '08' quando o formulário
  * não manda nada, e `calcularDataSaida` resolve o turno que vira o dia.
  */
-export const load: PageServerLoad = async ({ locals, platform, params }) => {
+export const load: PageServerLoad = async ({ locals, platform, params, depends }) => {
+	const escalaId = Number(params.id);
+	if (!isNaN(escalaId)) depends(`escala:${escalaId}`);
+
 	const u = locals.usuario;
 	if (!u) redirect(302, '/login');
 
 	const db = getDB(platform);
-	const escalaId = Number(params.id);
 	if (isNaN(escalaId)) redirect(302, '/escalas');
 
 	const [escala, policiaisEscala, docInfo] = await Promise.all([

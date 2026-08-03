@@ -36,6 +36,7 @@
 		value = $bindable<unknown>(null),
 		placeholder = 'Selecione...',
 		id = '',
+		ariaLabel = '',
 		name = '',
 		class: className = '',
 		disabled = false
@@ -49,6 +50,7 @@
 		value: unknown;
 		placeholder?: string;
 		id?: string;
+		ariaLabel?: string;
 		name?: string;
 		class?: string;
 		disabled?: boolean;
@@ -129,7 +131,7 @@
 </script>
 
 <div class="relative w-full {className}">
-	<input type="hidden" {id} {name} value={isValueEmpty(value) ? '' : String(value)} />
+	<input type="hidden" {name} value={isValueEmpty(value) ? '' : String(value)} />
 	<Combobox
 		value={comboboxValue}
 		{collection}
@@ -146,6 +148,8 @@
 				: ''}"
 		>
 			<Combobox.Input
+				id={id || undefined}
+				aria-label={ariaLabel || undefined}
 				class="flex-1 min-w-0 pl-3 pr-1 py-1.5 text-sm bg-transparent text-surface-900 dark:text-surface-50 placeholder:text-surface-400 dark:placeholder:text-surface-500 focus:outline-none disabled:cursor-not-allowed"
 			/>
 			{#if !isValueEmpty(value)}
@@ -165,18 +169,22 @@
 					class="z-50 min-w-[12rem] rounded-lg border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-800 shadow-lg py-1 max-h-64 overflow-y-auto"
 				>
 					{#if busca.buscando}
-						<div class="px-3 py-2 text-sm text-surface-500 flex items-center gap-2">
+						<div
+							class="px-3 py-2 text-sm text-surface-600 dark:text-surface-400 flex items-center gap-2"
+						>
 							<Spinner size="sm" class="text-primary-500" />
 							Buscando...
 						</div>
 					{:else if busca.erro}
 						<div class="px-3 py-2 text-sm text-error-600">{busca.erro}</div>
 					{:else if isAsync && minSearchChars > 0 && !busca.buscou}
-						<div class="px-3 py-2 text-sm text-surface-500">
+						<div class="px-3 py-2 text-sm text-surface-600 dark:text-surface-400">
 							Digite ao menos {minSearchChars} caractere{minSearchChars > 1 ? 's' : ''} para buscar
 						</div>
 					{:else if items.length === 0}
-						<div class="px-3 py-2 text-sm text-surface-500">Nenhum resultado encontrado</div>
+						<div class="px-3 py-2 text-sm text-surface-600 dark:text-surface-400">
+							Nenhum resultado encontrado
+						</div>
 					{:else}
 						{#each items as item (String(item.value))}
 							<Combobox.Item

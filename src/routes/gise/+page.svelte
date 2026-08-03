@@ -18,7 +18,8 @@
 	 */
 	import type { PageProps } from './$types';
 	import Paginador from '$lib/components/Paginador.svelte';
-	import { goto, invalidateAll } from '$app/navigation';
+	import { goto } from '$app/navigation';
+	import { invalidateShared } from '$lib/cross-tab-invalidate';
 	import { page } from '$app/state';
 	import { toaster } from '$lib/toast';
 	import { loading } from '$lib/loading.svelte';
@@ -35,7 +36,8 @@
 	import ModalDownloadExtras from './_components/ModalDownloadExtras.svelte';
 	import DialogInfo from './_components/DialogInfo.svelte';
 	import { fmtDate, diaSemana } from '$lib/gise/formatters';
-	import { rubricaValida } from '$lib/composables';
+	import { rubricaValida, useInvalidateOnFocus } from '$lib/composables';
+	import { fetchSyncEstado } from '$lib/sync-estado';
 	import { MediaQuery } from 'svelte/reactivity';
 
 	type GiseEscala = {
@@ -69,6 +71,18 @@
 
 	const ativas = $derived(escalas.filter((e) => e.status !== 'finalizada'));
 	const historico = $derived(isAdminGeral ? escalas.filter((e) => e.status === 'finalizada') : []);
+
+	useInvalidateOnFocus('app:gise-list', {
+		isHot: () => ativas.length > 0,
+		probe: async () => {
+			try {
+				const e = await fetchSyncEstado();
+				return e.giseList?.stamp ?? null;
+			} catch {
+				return null;
+			}
+		}
+	});
 
 	const seccionaisList = $derived(data.seccionaisList ?? []);
 	const minhaSeccionalId = $derived(data.minhaSeccionalId ?? null);
@@ -496,7 +510,7 @@
 				});
 				baixarBlob(await r.blob(), tokenNomeArquivo);
 				toaster.success({ title: 'Escala GISE assinada com sucesso' });
-				await invalidateAll();
+				await invalidateShared('app:gise-list');
 			} else {
 				for (const seccionalId of gise.pendentesExtraIds) {
 					await apiFetch(`/api/gise/${gise.id}/relatorios/${seccionalId}/assinar`, {
@@ -516,7 +530,7 @@
 				toaster.success({
 					title: `${gise.pendentesExtraIds.length} relatório(s) de extra assinado(s)`
 				});
-				await invalidateAll();
+				await invalidateShared('app:gise-list');
 			}
 		} catch (e: unknown) {
 			toaster.error({
@@ -557,7 +571,7 @@
 			toaster.success({
 				title: `${gise.pendentesExtraIds.length} relatório(s) assinado(s) com token`
 			});
-			await invalidateAll();
+			await invalidateShared('app:gise-list');
 		} catch (e: unknown) {
 			toaster.error({
 				title: 'Erro ao assinar com token',
@@ -630,13 +644,13 @@
 			<p class="text-base font-semibold text-surface-900 dark:text-surface-100">
 				Você está escalado na GISE
 			</p>
-			<p class="text-sm text-surface-500 dark:text-surface-400">
+			<p class="text-sm text-surface-600 dark:text-surface-400">
 				Os formulários de produtividade estarão disponíveis nesta área.
 			</p>
 			{#if ativas.length > 0}
 				<div class="mt-2 space-y-1">
 					{#each ativas as ativa (ativa.id)}
-						<p class="text-xs text-surface-500 dark:text-surface-400">
+						<p class="text-xs text-surface-600 dark:text-surface-400">
 							Escala vigente: <span class="font-medium"
 								>{diaSemana(ativa.data_inicio)}
 								{fmtDate(ativa.data_inicio)}</span
@@ -672,7 +686,7 @@
 			<div
 				class="mt-3 pt-3 border-t border-surface-200 dark:border-white/5 flex flex-col sm:flex-row items-center justify-between gap-3"
 			>
-				<span class="text-xs text-surface-500">
+				<span class="text-xs text-surface-600 dark:text-surface-400">
 					{ativas.length} escalas ativas — página {paginaAtivas} de {totalPaginasAtivas}
 				</span>
 				<Paginador
@@ -687,7 +701,7 @@
 		<div
 			class="rounded-2xl border border-dashed border-surface-300 dark:border-surface-700 p-4 sm:p-6 text-center"
 		>
-			<p class="text-surface-500 dark:text-surface-400">Nenhuma escala GISE ativa no momento.</p>
+			<p class="text-surface-600 dark:text-surface-400">Nenhuma escala GISE ativa no momento.</p>
 		</div>
 	{/if}
 
@@ -729,7 +743,7 @@
 		bind:control={painelTokenGiseControl}
 		onSuccess={async () => {
 			giseParaAssinar = null;
-			await invalidateAll();
+			await invalidateShared('app:gise-list');
 		}}
 	/>
 </div>

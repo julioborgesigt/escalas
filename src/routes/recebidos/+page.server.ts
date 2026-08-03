@@ -15,10 +15,14 @@ import { excluirEscalaCompleta } from '$lib/server/escalas/exclusao';
 /** Itens por página da caixa de entrada (mesmo tamanho da paginação antiga client-side). */
 const ITENS_POR_PAGINA = 10;
 
-export const load: PageServerLoad = async ({ locals, platform, url }) => {
+export const load: PageServerLoad = async ({ locals, platform, url, depends }) => {
 	const u = locals.usuario;
 	if (!u) redirect(302, '/login');
 	if (u.tipo !== 'admin') redirect(302, '/');
+
+	// Chave segmentada: mutações e o auto-refetch usam `invalidate('app:recebidos')`
+	// em vez de pathname (que falhava com query de filtros — mesmo padrão do painel).
+	depends('app:recebidos');
 
 	const db = getDB(platform);
 

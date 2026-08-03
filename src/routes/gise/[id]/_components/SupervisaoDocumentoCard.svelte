@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { slide } from 'svelte/transition';
 	import type { Snippet } from 'svelte';
-	import { ShieldCheck, CheckCircle2, Clock } from 'lucide-svelte';
+	import { ShieldCheck, CheckCircle2, Clock } from '@lucide/svelte';
 
 	/**
 	 * Moldura dos cards de documento do quadro de supervisão (escala GISE e

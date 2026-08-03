@@ -1,7 +1,7 @@
 <script lang="ts">
-	import { Dialog } from '@skeletonlabs/skeleton-svelte';
 	import { enhance } from '$app/forms';
-	import { invalidateAll } from '$app/navigation';
+	import { invalidateShared } from '$lib/cross-tab-invalidate';
+	import ModalShell from '$lib/components/ModalShell.svelte';
 	import { toaster } from '$lib/toast';
 	import CalendarioSelecaoDias from './CalendarioSelecaoDias.svelte';
 	import type { EscalaPolicialComDados } from '$lib/types';
@@ -9,6 +9,7 @@
 
 	let {
 		open = $bindable(false),
+		escalaId,
 		ids,
 		diasIniciais,
 		horaEntradaInicial,
@@ -19,6 +20,7 @@
 		onsalvo
 	}: {
 		open: boolean;
+		escalaId: number;
 		ids: number[];
 		diasIniciais: string[];
 		horaEntradaInicial: string;
@@ -87,7 +89,7 @@
 					});
 				}
 
-				await invalidateAll();
+				await invalidateShared(`escala:${escalaId}`, 'app:escalas');
 			} else if (result.type === 'error') {
 				toaster.create({ title: 'Erro de conexão. Tente novamente.', type: 'error' });
 			} else {
@@ -101,101 +103,86 @@
 	}
 </script>
 
-<Dialog {open} onOpenChange={(e) => (open = e.open)}>
-	<Dialog.Content
-		class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-sm overflow-y-auto"
-	>
-		<div
-			class="card w-full max-w-sm max-h-[calc(100dvh-2rem)] overflow-y-auto card-elevated shadow-2xl rounded-2xl border border-primary-500/20 p-4 sm:p-5 space-y-4"
-		>
-			<div>
-				<Dialog.Title class="font-bold text-base">Editar Escala de Plantão</Dialog.Title>
-				<Dialog.Description class="text-xs text-surface-500 mt-0.5">
-					Selecione os dias, ajuste o horário e preencha a observação.
-				</Dialog.Description>
-			</div>
+<ModalShell
+	bind:open
+	title="Editar Escala de Plantão"
+	description="Selecione os dias, ajuste o horário e preencha a observação."
+	{pending}
+	cancelLabel="Cancelar"
+>
+	<div class="rounded-xl border border-primary-500/20 p-4 sm:p-5 space-y-4">
+		<CalendarioSelecaoDias bind:selecionados bind:ano={calAno} bind:mes={calMes} cor="primary" />
 
-			<CalendarioSelecaoDias bind:selecionados bind:ano={calAno} bind:mes={calMes} cor="primary" />
-
-			<!-- Horários e Obs -->
-			<div class="space-y-3">
-				<div class="flex gap-4">
-					<label class="flex-1 min-w-0">
-						<span class="label-text text-2xs mb-1 block">Entrada</span>
-						<div class="flex gap-1">
-							<select
-								class="select text-xs h-8 py-0 rounded-lg px-1 flex-1"
-								bind:value={editHoraEntrada}
-							>
-								{#each horas as h (h)}<option value={h}>{h}h</option>{/each}
-							</select>
-							<select
-								class="select text-xs h-8 py-0 rounded-lg px-1 flex-1"
-								bind:value={editMinutoEntrada}
-							>
-								{#each minutos as m (m)}<option value={m}>{m}m</option>{/each}
-							</select>
-						</div>
-					</label>
-					<label class="flex-1 min-w-0">
-						<span class="label-text text-2xs mb-1 block">Saída</span>
-						<div class="flex gap-1">
-							<select
-								class="select text-xs h-8 py-0 rounded-lg px-1 flex-1"
-								bind:value={editHoraSaida}
-							>
-								{#each horas as h (h)}<option value={h}>{h}h</option>{/each}
-							</select>
-							<select
-								class="select text-xs h-8 py-0 rounded-lg px-1 flex-1"
-								bind:value={editMinutoSaida}
-							>
-								{#each minutos as m (m)}<option value={m}>{m}m</option>{/each}
-							</select>
-						</div>
-					</label>
-				</div>
-				<label class="block">
-					<span class="label-text text-2xs mb-1 block">Observações</span>
-					<input
-						type="text"
-						class="input text-xs h-8 px-2 rounded-lg w-full"
-						bind:value={editObservacoes}
-						maxlength="500"
-						placeholder="Informações complementares..."
-					/>
+		<!-- Horários e Obs -->
+		<div class="space-y-3">
+			<div class="flex gap-4">
+				<label class="flex-1 min-w-0">
+					<span class="label-text text-2xs mb-1 block">Entrada</span>
+					<div class="flex gap-1">
+						<select
+							class="select text-xs h-8 py-0 rounded-lg px-1 flex-1"
+							bind:value={editHoraEntrada}
+						>
+							{#each horas as h (h)}<option value={h}>{h}h</option>{/each}
+						</select>
+						<select
+							class="select text-xs h-8 py-0 rounded-lg px-1 flex-1"
+							bind:value={editMinutoEntrada}
+						>
+							{#each minutos as m (m)}<option value={m}>{m}m</option>{/each}
+						</select>
+					</div>
+				</label>
+				<label class="flex-1 min-w-0">
+					<span class="label-text text-2xs mb-1 block">Saída</span>
+					<div class="flex gap-1">
+						<select
+							class="select text-xs h-8 py-0 rounded-lg px-1 flex-1"
+							bind:value={editHoraSaida}
+						>
+							{#each horas as h (h)}<option value={h}>{h}h</option>{/each}
+						</select>
+						<select
+							class="select text-xs h-8 py-0 rounded-lg px-1 flex-1"
+							bind:value={editMinutoSaida}
+						>
+							{#each minutos as m (m)}<option value={m}>{m}m</option>{/each}
+						</select>
+					</div>
 				</label>
 			</div>
-
-			<!-- Ações -->
-			<div class="flex justify-end gap-2 pt-1">
-				<button
-					type="button"
-					class="btn text-xs px-3 py-1.5 rounded-lg border border-surface-300 dark:border-surface-600 text-surface-600 dark:text-surface-400 hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors"
-					onclick={() => (open = false)}
-				>
-					Cancelar
-				</button>
-				<form
-					method="POST"
-					action="?/editarPlantaoAgrupado"
-					use:enhance={handleSalvar}
-					class="contents"
-				>
-					<input type="hidden" name="ids" value={idsJson} />
-					<input type="hidden" name="datas" value={diasJson} />
-					<input type="hidden" name="hora_entrada" value="{editHoraEntrada}:{editMinutoEntrada}" />
-					<input type="hidden" name="hora_saida" value="{editHoraSaida}:{editMinutoSaida}" />
-					<input type="hidden" name="observacoes" value={editObservacoes} />
-					<button
-						type="submit"
-						class="btn text-xs font-bold px-4 py-1.5 rounded-lg preset-filled-primary-500"
-						disabled={pending || ordenados.length === 0}
-					>
-						{pending ? 'Salvando...' : 'Salvar Alterações'}
-					</button>
-				</form>
-			</div>
+			<label class="block">
+				<span class="label-text text-2xs mb-1 block">Observações</span>
+				<input
+					type="text"
+					class="input text-xs h-8 px-2 rounded-lg w-full"
+					bind:value={editObservacoes}
+					maxlength="500"
+					placeholder="Informações complementares..."
+				/>
+			</label>
 		</div>
-	</Dialog.Content>
-</Dialog>
+	</div>
+
+	{#snippet footer()}
+		<form
+			method="POST"
+			action="?/editarPlantaoAgrupado"
+			use:enhance={handleSalvar}
+			class="contents"
+		>
+			<input type="hidden" name="ids" value={idsJson} />
+			<input type="hidden" name="datas" value={diasJson} />
+			<input type="hidden" name="hora_entrada" value="{editHoraEntrada}:{editMinutoEntrada}" />
+			<input type="hidden" name="hora_saida" value="{editHoraSaida}:{editMinutoSaida}" />
+			<input type="hidden" name="observacoes" value={editObservacoes} />
+			<button
+				type="submit"
+				class="btn text-xs font-bold px-4 py-1.5 rounded-lg preset-filled-primary-500"
+				disabled={pending || ordenados.length === 0}
+			>
+				{pending ? 'Salvando...' : 'Salvar Alterações'}
+			</button>
+		</form>
+	{/snippet}
+</ModalShell>

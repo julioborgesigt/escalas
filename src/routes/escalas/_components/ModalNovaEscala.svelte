@@ -21,7 +21,7 @@
 	 */
 	import { Dialog } from '@skeletonlabs/skeleton-svelte';
 	import { MESES_PT, DIAS_SEMANA_CURTO, isoData, diasNoMes } from '$lib/utils/datas';
-	import { Moon, Sun, Calendar } from 'lucide-svelte';
+	import { Moon, Sun, Calendar } from '@lucide/svelte';
 	import { enhance } from '$app/forms';
 	import { toaster } from '$lib/toast';
 	import type { Unidade } from '$lib/types';
@@ -305,6 +305,11 @@
 	}
 </script>
 
+<!--
+	Exceção deliberada ao ModalShell: este wizard mantém navegação, validação e
+	ações dentro de cada etapa, sem o rodapé fixo do primitive. Extrair apenas a
+	moldura adicionaria variantes sem reduzir as regras locais.
+-->
 <Dialog
 	{open}
 	onOpenChange={(e) => {
@@ -342,7 +347,7 @@
 							{unidadeSelecionada.nome}
 						</p>
 					{/if}
-					<p class="text-sm text-surface-500 mb-3">Qual tipo de escala?</p>
+					<p class="text-sm text-surface-600 dark:text-surface-400 mb-3">Qual tipo de escala?</p>
 					<div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
 						{#each tiposDisponiveis(unidadeSelecionada) as t (t.tipo)}
 							<button
@@ -357,12 +362,12 @@
 								<p class="font-bold text-sm group-hover:text-primary-500 transition-colors">
 									{t.label}
 								</p>
-								<p class="text-xs text-surface-500 mt-0.5">{t.desc}</p>
+								<p class="text-xs text-surface-600 dark:text-surface-400 mt-0.5">{t.desc}</p>
 							</button>
 						{/each}
 					</div>
 				{:else if !isAdmin}
-					<p class="text-sm text-surface-500 py-4 text-center">
+					<p class="text-sm text-surface-600 dark:text-surface-400 py-4 text-center">
 						Nenhum tipo de escala configurado para sua unidade.
 					</p>
 				{/if}
@@ -387,7 +392,9 @@
 							Nova Escala — Final de Semana
 						</h2>
 						{#if unidadeSelecionada}
-							<p class="text-xs text-surface-500 mt-0.5">{unidadeSelecionada.nome}</p>
+							<p class="text-xs text-surface-600 dark:text-surface-400 mt-0.5">
+								{unidadeSelecionada.nome}
+							</p>
 						{/if}
 					</div>
 
@@ -432,7 +439,7 @@
 							</button>
 						</div>
 						<div
-							class="grid grid-cols-7 gap-px text-center text-3xs font-semibold uppercase tracking-wide text-surface-500 dark:text-surface-400 py-0.5"
+							class="grid grid-cols-7 gap-px text-center text-3xs font-semibold uppercase tracking-wide text-surface-600 dark:text-surface-400 py-0.5"
 						>
 							{#each DIAS_SEMANA_CURTO as ds (ds)}<span>{ds}</span>{/each}
 						</div>
@@ -460,7 +467,7 @@
 
 					{#if fdsDiasOrdenados.length > 0}
 						<div class="min-w-0 space-y-0.5">
-							<span class="text-3xs font-semibold text-surface-500"
+							<span class="text-3xs font-semibold text-surface-600 dark:text-surface-400"
 								>Dias selecionados ({fdsDiasOrdenados.length})</span
 							>
 							<div
@@ -500,7 +507,9 @@
 						</p>
 						<div class="grid grid-cols-2 gap-2">
 							<div>
-								<span class="text-3xs text-surface-500 block mb-0.5">Hora entrada</span>
+								<span class="text-3xs text-surface-600 dark:text-surface-400 block mb-0.5"
+									>Hora entrada</span
+								>
 								<div class="flex gap-1">
 									<select class="select text-xs flex-1" bind:value={fdsHoraEntrada}>
 										{#each horas as h (h)}<option value={h}>{h}h</option>{/each}
@@ -511,7 +520,9 @@
 								</div>
 							</div>
 							<div>
-								<span class="text-3xs text-surface-500 block mb-0.5">Hora saída</span>
+								<span class="text-3xs text-surface-600 dark:text-surface-400 block mb-0.5"
+									>Hora saída</span
+								>
 								<div class="flex gap-1">
 									<select class="select text-xs flex-1" bind:value={fdsHoraSaida}>
 										{#each horas as h (h)}<option value={h}>{h}h</option>{/each}
@@ -529,7 +540,7 @@
 
 					{#if fdsTituloAuto}
 						<div class="rounded-xl bg-surface-100 dark:bg-surface-800/50 px-3 py-2">
-							<p class="text-3xs text-surface-500 dark:text-surface-400 mb-0.5">Título gerado</p>
+							<p class="text-3xs text-surface-600 dark:text-surface-400 mb-0.5">Título gerado</p>
 							<p class="text-xs text-surface-700 dark:text-surface-200 font-medium leading-snug">
 								{fdsTituloAuto}
 							</p>
@@ -573,7 +584,9 @@
 							Nova Escala — {tipo === 'plantao' ? 'Plantão Mensal' : 'Expediente Mensal'}
 						</h2>
 						{#if unidadeSelecionada}
-							<p class="text-xs text-surface-500 mt-0.5">{unidadeSelecionada.nome}</p>
+							<p class="text-xs text-surface-600 dark:text-surface-400 mt-0.5">
+								{unidadeSelecionada.nome}
+							</p>
 						{/if}
 					</div>
 
@@ -641,13 +654,15 @@
 
 					{#if titulo}
 						<div class="rounded-xl bg-surface-100 dark:bg-surface-800/50 px-3 py-2">
-							<p class="text-3xs text-surface-500 dark:text-surface-400 mb-0.5">Título gerado</p>
+							<p class="text-3xs text-surface-600 dark:text-surface-400 mb-0.5">Título gerado</p>
 							<p class="text-xs text-surface-700 dark:text-surface-200 font-medium leading-snug">
 								{titulo}
 							</p>
 						</div>
 
-						<p class="text-xs font-semibold text-surface-500">Como deseja criar esta escala?</p>
+						<p class="text-xs font-semibold text-surface-600 dark:text-surface-400">
+							Como deseja criar esta escala?
+						</p>
 
 						<div class="grid grid-cols-2 gap-2">
 							<form
@@ -674,7 +689,7 @@
 									>
 										Com base em {MESES_PT[(mesAnteriorInfo?.mes ?? 1) - 1]}/{mesAnteriorInfo?.ano}
 									</p>
-									<p class="text-xs text-surface-500 mt-1 leading-snug">
+									<p class="text-xs text-surface-600 dark:text-surface-400 mt-1 leading-snug">
 										{tipo === 'plantao'
 											? 'Copia os servidores e recalcula os dias pela rotação'
 											: 'Copia os servidores do mês anterior'}
@@ -706,7 +721,7 @@
 									>
 										Escala limpa
 									</p>
-									<p class="text-xs text-surface-500 mt-1 leading-snug">
+									<p class="text-xs text-surface-600 dark:text-surface-400 mt-1 leading-snug">
 										Começa do zero, sem servidores
 									</p>
 									{#if pendingCriar}<p class="text-xs text-success-500 mt-1">Criando...</p>{/if}

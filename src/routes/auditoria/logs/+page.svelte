@@ -13,7 +13,7 @@
 	 * filtros vêm da query string via `load`.
 	 */
 	import type { PageProps } from './$types';
-	import { ChevronDown, ChevronUp, ArrowLeft } from 'lucide-svelte';
+	import { ChevronDown, ChevronUp, ArrowLeft } from '@lucide/svelte';
 
 	const { data }: PageProps = $props();
 
@@ -87,7 +87,7 @@
 				Trilha de Auditoria
 			</a>
 			<h1 class="text-2xl font-bold text-surface-900 dark:text-white">Logs técnicos</h1>
-			<p class="text-sm text-surface-500 dark:text-surface-400">
+			<p class="text-sm text-surface-600 dark:text-surface-400">
 				Avisos e erros do servidor, correlacionáveis com a auditoria pelo Request ID. O mesmo
 				Request ID é o "código do erro" exibido ao usuário em falhas internas.
 			</p>
@@ -100,7 +100,7 @@
 			<div
 				class="rounded-xl border border-surface-200 dark:border-white/10 bg-surface-50 dark:bg-surface-900 p-4 flex flex-col justify-between min-h-[90px]"
 			>
-				<div class="text-xs uppercase tracking-wide text-surface-500 dark:text-surface-400">
+				<div class="text-xs uppercase tracking-wide text-surface-600 dark:text-surface-400">
 					{rotulo}
 				</div>
 				<div
@@ -155,7 +155,7 @@
 				: 'hidden lg:grid'} grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3"
 		>
 			<label class="flex flex-col gap-1 text-sm">
-				<span class="text-surface-500 dark:text-surface-400">Nível</span>
+				<span class="text-surface-600 dark:text-surface-400">Nível</span>
 				<select name="level" class="select">
 					<option value="" selected={!data.filtros.level}>Todos</option>
 					<option value="warn" selected={data.filtros.level === 'warn'}>Aviso</option>
@@ -163,7 +163,7 @@
 				</select>
 			</label>
 			<label class="flex flex-col gap-1 text-sm">
-				<span class="text-surface-500 dark:text-surface-400"
+				<span class="text-surface-600 dark:text-surface-400"
 					>Busca (mensagem / contexto / rota)</span
 				>
 				<input
@@ -174,7 +174,7 @@
 				/>
 			</label>
 			<label class="flex flex-col gap-1 text-sm">
-				<span class="text-surface-500 dark:text-surface-400">Request ID</span>
+				<span class="text-surface-600 dark:text-surface-400">Request ID</span>
 				<input
 					name="request_id"
 					class="input font-mono"
@@ -184,11 +184,11 @@
 			</label>
 			<div class="grid grid-cols-2 gap-3">
 				<label class="flex flex-col gap-1 text-sm">
-					<span class="text-surface-500 dark:text-surface-400">De</span>
+					<span class="text-surface-600 dark:text-surface-400">De</span>
 					<input type="date" name="de" class="input" value={data.filtros.de ?? ''} />
 				</label>
 				<label class="flex flex-col gap-1 text-sm">
-					<span class="text-surface-500 dark:text-surface-400">Até</span>
+					<span class="text-surface-600 dark:text-surface-400">Até</span>
 					<input type="date" name="ate" class="input" value={data.filtros.ate ?? ''} />
 				</label>
 			</div>
@@ -211,18 +211,18 @@
 		</form>
 	</div>
 
-	<div class="flex justify-end -mb-2 text-sm text-surface-500 dark:text-surface-400">
+	<div class="flex justify-end -mb-2 text-sm text-surface-600 dark:text-surface-400">
 		{data.total.toLocaleString('pt-BR')} resultado(s)
 	</div>
 
 	{#if data.logs.length > 0}
 		<!-- Tabela (Desktop) -->
 		<div
-			class="hidden md:block rounded-xl border border-surface-200 dark:border-white/10 overflow-x-auto bg-surface-50 dark:bg-surface-900"
+			class="hidden md:block table-wrap rounded-xl border border-surface-200 dark:border-white/10 bg-surface-50 dark:bg-surface-900"
 		>
-			<table class="w-full text-sm">
+			<table class="table w-full text-sm">
 				<thead
-					class="text-left text-xs uppercase tracking-wide text-surface-500 dark:text-surface-400 border-b border-surface-200 dark:border-white/10"
+					class="text-left text-xs uppercase tracking-wide text-surface-600 dark:text-surface-400 border-b border-surface-200 dark:border-white/10"
 				>
 					<tr>
 						<th class="px-3 py-2">Data/hora</th>
@@ -278,7 +278,7 @@
 										{#if ctx}
 											<div>
 												<div
-													class="text-xs font-semibold text-surface-500 dark:text-surface-400 mb-1"
+													class="text-xs font-semibold text-surface-600 dark:text-surface-400 mb-1"
 												>
 													Contexto
 												</div>
@@ -292,7 +292,7 @@
 										{:else if log.contexto}
 											<div>
 												<div
-													class="text-xs font-semibold text-surface-500 dark:text-surface-400 mb-1"
+													class="text-xs font-semibold text-surface-600 dark:text-surface-400 mb-1"
 												>
 													Contexto (truncado)
 												</div>
@@ -332,7 +332,7 @@
 						<span class="inline-block px-2 py-0.5 rounded-full text-xs font-semibold {niv.cls}">
 							{niv.label}
 						</span>
-						<span class="text-xs text-surface-500 dark:text-surface-400"
+						<span class="text-xs text-surface-600 dark:text-surface-400"
 							>{fmtData(log.created_at)}</span
 						>
 					</div>
@@ -342,7 +342,7 @@
 					</h3>
 
 					<div
-						class="flex items-center justify-between border-t border-surface-200/50 dark:border-white/5 pt-2 text-xs text-surface-500 dark:text-surface-400"
+						class="flex items-center justify-between border-t border-surface-200/50 dark:border-white/5 pt-2 text-xs text-surface-600 dark:text-surface-400"
 					>
 						<span class="font-mono truncate max-w-[60%]">{log.rota ?? '—'}</span>
 						<span class="flex items-center gap-0.5 text-primary-500 font-medium">
@@ -368,15 +368,15 @@
 								<dl
 									class="grid grid-cols-[90px_1fr] gap-x-2 gap-y-1.5 text-surface-600 dark:text-surface-300"
 								>
-									<dt class="font-semibold text-surface-500 dark:text-surface-400">Rota</dt>
+									<dt class="font-semibold text-surface-600 dark:text-surface-400">Rota</dt>
 									<dd class="font-mono break-all text-surface-800 dark:text-surface-200">
 										{log.rota ?? '—'}
 									</dd>
-									<dt class="font-semibold text-surface-500 dark:text-surface-400">Request ID</dt>
+									<dt class="font-semibold text-surface-600 dark:text-surface-400">Request ID</dt>
 									<dd class="font-mono text-surface-800 dark:text-surface-200">
 										{log.request_id ?? '—'}
 									</dd>
-									<dt class="font-semibold text-surface-500 dark:text-surface-400">Usuário (id)</dt>
+									<dt class="font-semibold text-surface-600 dark:text-surface-400">Usuário (id)</dt>
 									<dd class="text-surface-800 dark:text-surface-200">
 										{log.usuario_id ?? 'anônimo'}
 									</dd>
@@ -384,7 +384,7 @@
 							</div>
 							{#if ctx}
 								<div class="space-y-1">
-									<div class="font-semibold text-surface-500 dark:text-surface-400">Contexto</div>
+									<div class="font-semibold text-surface-600 dark:text-surface-400">Contexto</div>
 									<pre
 										class="text-xs bg-surface-200/50 dark:bg-surface-950/50 rounded-lg p-2.5 overflow-x-auto text-surface-800 dark:text-surface-200 font-mono">{JSON.stringify(
 											ctx,
@@ -394,7 +394,7 @@
 								</div>
 							{:else if log.contexto}
 								<div class="space-y-1">
-									<div class="font-semibold text-surface-500 dark:text-surface-400">
+									<div class="font-semibold text-surface-600 dark:text-surface-400">
 										Contexto (truncado)
 									</div>
 									<pre
@@ -408,7 +408,7 @@
 		</div>
 	{:else}
 		<div
-			class="rounded-xl border border-surface-200 dark:border-white/10 p-10 text-center bg-surface-50 dark:bg-surface-900 text-surface-500 dark:text-surface-400 text-sm"
+			class="rounded-xl border border-surface-200 dark:border-white/10 p-10 text-center bg-surface-50 dark:bg-surface-900 text-surface-600 dark:text-surface-400 text-sm"
 		>
 			Nenhum log encontrado para os filtros atuais.
 		</div>
@@ -425,7 +425,7 @@
 					Anterior
 				</a>
 			{/if}
-			<span class="text-sm text-surface-500 dark:text-surface-400">
+			<span class="text-sm text-surface-600 dark:text-surface-400">
 				Página {data.page} de {data.totalPages}
 			</span>
 			{#if data.page < data.totalPages}

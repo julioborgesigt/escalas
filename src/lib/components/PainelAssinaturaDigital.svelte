@@ -18,19 +18,20 @@
 	 * e a tabela de servidores reage a esse mesmo estado.
 	 */
 	import { slide } from 'svelte/transition';
-	import { Dialog } from '@skeletonlabs/skeleton-svelte';
+	import ModalShell from './ModalShell.svelte';
 	import PainelAssinaturaToken from './PainelAssinaturaToken.svelte';
 	import SignaturePad from './SignaturePad.svelte';
 	import DialogSolicitarAssinatura from './DialogSolicitarAssinatura.svelte';
 	import type { SignaturePadConfirmPayload } from './SignaturePadTypes';
 	import type { UsuarioLogado } from '$lib/auth';
 	import { page } from '$app/state';
-	import { invalidateAll } from '$app/navigation';
+	import { invalidateShared } from '$lib/cross-tab-invalidate';
 	import { toaster } from '$lib/toast';
 	import { apiFetch } from '$lib/api-fetch';
 	import { loading } from '$lib/loading.svelte';
 	import { useAssinaturaEscala, useMobile } from '$lib/composables';
 	import { podeBaixarComManifesto } from '$lib/manifesto';
+	import { CheckCircle2, Clock, Download, PenLine, ShieldCheck } from '@lucide/svelte';
 
 	interface DocumentoAssinadoInfo {
 		existe: boolean;
@@ -64,12 +65,24 @@
 	let solicitacaoLocal = $derived(solicitacaoAtual ?? null);
 	let dialogSolicitarAberto = $state(false);
 
+	const chavesAposMutacaoAssinatura = $derived([
+		'app:escalas',
+		`escala:${escalaId}`,
+		'app:recebidos',
+		'app:recebidos-badge',
+		'app:painel'
+	] as const);
+
+	async function invalidarAposAssinatura() {
+		await invalidateShared(...chavesAposMutacaoAssinatura);
+	}
+
 	async function cancelarSolicitacao() {
 		try {
 			await apiFetch(`/api/escalas/${escalaId}/solicitar-assinatura`, { method: 'DELETE' });
 			solicitacaoLocal = null;
 			toaster.create({ title: 'Solicitação cancelada', type: 'info' });
-			invalidateAll();
+			await invalidarAposAssinatura();
 		} catch (e: unknown) {
 			toaster.create({
 				title: e instanceof Error ? e.message : 'Erro ao cancelar solicitação',
@@ -85,6 +98,7 @@
 		getParams: () => ({ escalaId, isFDS, policiaisCount, usuario }),
 		onDocumentoAssinado: (info) => {
 			documentoAssinadoInfo = info as DocumentoAssinadoInfo | null;
+			void invalidarAposAssinatura();
 		}
 	});
 
@@ -111,6 +125,7 @@
 				description: 'Você agora pode editar os dados da escala.',
 				type: 'info'
 			});
+			await invalidarAposAssinatura();
 		} catch (e: unknown) {
 			toaster.create({
 				title: 'Erro ao revogar assinatura',
@@ -180,38 +195,27 @@
 </script>
 
 <!-- Diálogo de confirmação de revogação de assinatura -->
-<Dialog open={dialogRevogacaoAberto} onOpenChange={(e) => (dialogRevogacaoAberto = e.open)}>
-	<Dialog.Content
-		class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-sm overflow-y-auto"
-	>
-		<div
-			class="card p-4 sm:p-6 max-w-sm w-full max-h-[calc(100dvh-2rem)] overflow-y-auto card-elevated shadow-2xl rounded-2xl"
+<ModalShell
+	bind:open={dialogRevogacaoAberto}
+	title="Revogar assinatura?"
+	description="Isso excluirá o PDF oficial e permitirá editar a escala novamente. Esta ação não pode ser desfeita."
+	largura="sm"
+	camada="base"
+	familia="escalas"
+	pending={loading.active}
+	cancelLabel="Cancelar"
+>
+	{#snippet footer()}
+		<button
+			type="button"
+			class="btn preset-filled-error-500 flex items-center gap-2"
+			onclick={confirmarRevogacao}
+			disabled={loading.active}
 		>
-			<Dialog.Title class="h3 font-bold mb-2">Revogar assinatura?</Dialog.Title>
-			<Dialog.Description class="text-surface-600 dark:text-surface-400 mb-6">
-				Isso excluirá o PDF oficial e permitirá editar a escala novamente. Esta ação não pode ser
-				desfeita.
-			</Dialog.Description>
-			<div class="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 sm:gap-3">
-				<button
-					type="button"
-					class="btn preset-outlined-surface-500"
-					onclick={() => (dialogRevogacaoAberto = false)}
-				>
-					Cancelar
-				</button>
-				<button
-					type="button"
-					class="btn preset-filled-error-500 flex items-center gap-2"
-					onclick={confirmarRevogacao}
-					disabled={loading.active}
-				>
-					{loading.active ? 'Revogando...' : 'Revogar'}
-				</button>
-			</div>
-		</div>
-	</Dialog.Content>
-</Dialog>
+			{loading.active ? 'Revogando...' : 'Revogar'}
+		</button>
+	{/snippet}
+</ModalShell>
 
 <!-- Banner: escala assinada -->
 {#if documentoAssinadoInfo?.existe}
@@ -220,19 +224,7 @@
 	>
 		<div class="flex items-center gap-4">
 			<div class="bg-success-500/20 p-3 rounded-xl">
-				<svg
-					class="w-6 h-6 text-success-600 dark:text-success-400"
-					fill="none"
-					viewBox="0 0 24 24"
-					stroke="currentColor"
-				>
-					<path
-						stroke-linecap="round"
-						stroke-linejoin="round"
-						stroke-width="2"
-						d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-					/>
-				</svg>
+				<CheckCircle2 class="w-6 h-6 text-success-600 dark:text-success-400" aria-hidden="true" />
 			</div>
 			<div>
 				<h3 class="font-bold text-success-800 dark:text-success-400 text-lg">
@@ -254,14 +246,7 @@
 					? 'PDF para impressão e distribuição (sem folha de auditoria)'
 					: 'PDF assinado para impressão e distribuição'}
 			>
-				<svg class="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-					<path
-						stroke-linecap="round"
-						stroke-linejoin="round"
-						stroke-width="2"
-						d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
-					/>
-				</svg>
+				<Download class="w-4 h-4 mr-2" aria-hidden="true" />
 				{podeManifesto ? 'PDF (s/ manifesto)' : 'Download PDF'}
 			</a>
 			{#if podeManifesto}
@@ -300,14 +285,7 @@
 			<span
 				class="flex items-center gap-2 text-sm font-semibold text-surface-700 dark:text-surface-200"
 			>
-				<svg class="w-4 h-4 text-primary-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-					<path
-						stroke-linecap="round"
-						stroke-linejoin="round"
-						stroke-width="2"
-						d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
-					/>
-				</svg>
+				<PenLine class="w-4 h-4 text-primary-500" aria-hidden="true" />
 				Opções de Assinatura
 			</span>
 			<svg
@@ -356,7 +334,7 @@
 								>
 									Rubrica na Tela
 								</p>
-								<p class="text-3xs text-surface-500 dark:text-surface-400 mt-0.5">
+								<p class="text-3xs text-surface-600 dark:text-surface-400 mt-0.5">
 									Ideal para tablets e smartphones
 								</p>
 							</div>
@@ -370,7 +348,7 @@
 							>
 						{:else}
 							<span
-								class="text-3xs font-bold uppercase text-surface-500 dark:text-surface-400 shrink-0"
+								class="text-3xs font-bold uppercase text-surface-600 dark:text-surface-400 shrink-0"
 								>Mobile only</span
 							>
 						{/if}
@@ -381,19 +359,7 @@
 						class="flex items-center justify-between px-4 py-3 rounded-xl border bg-tertiary-500/5 border-tertiary-500/20"
 					>
 						<div class="flex items-center gap-2 min-w-0">
-							<svg
-								class="w-4 h-4 text-tertiary-500 shrink-0"
-								fill="none"
-								viewBox="0 0 24 24"
-								stroke="currentColor"
-							>
-								<path
-									stroke-linecap="round"
-									stroke-linejoin="round"
-									stroke-width="2"
-									d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
-								/>
-							</svg>
+							<ShieldCheck class="w-4 h-4 text-tertiary-500 shrink-0" aria-hidden="true" />
 							<div class="min-w-0">
 								<p
 									class="text-xs font-semibold text-surface-700 dark:text-surface-200 leading-none"
@@ -402,7 +368,7 @@
 										>ICP-Brasil</span
 									>
 								</p>
-								<p class="text-3xs text-surface-500 dark:text-surface-400 mt-0.5">
+								<p class="text-3xs text-surface-600 dark:text-surface-400 mt-0.5">
 									Via Assinador SERPRO (desktop)
 								</p>
 							</div>
@@ -423,7 +389,7 @@
 							>
 						{:else}
 							<span
-								class="text-3xs font-bold uppercase text-surface-500 dark:text-surface-400 shrink-0"
+								class="text-3xs font-bold uppercase text-surface-600 dark:text-surface-400 shrink-0"
 								>Desktop only</span
 							>
 						{/if}
@@ -443,7 +409,7 @@
 				nomeArquivo="escala_assinada.pdf"
 				disabled={assinando}
 				onSuccess={async () => {
-					await invalidateAll();
+					await invalidarAposAssinatura();
 				}}
 			/>
 		</div>
@@ -457,19 +423,7 @@
 					<div
 						class="w-9 h-9 rounded-xl bg-warning-500/20 flex items-center justify-center shrink-0"
 					>
-						<svg
-							class="w-4 h-4 text-warning-600 dark:text-warning-400"
-							fill="none"
-							viewBox="0 0 24 24"
-							stroke="currentColor"
-						>
-							<path
-								stroke-linecap="round"
-								stroke-linejoin="round"
-								stroke-width="2"
-								d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-							/>
-						</svg>
+						<Clock class="w-4 h-4 text-warning-600 dark:text-warning-400" aria-hidden="true" />
 					</div>
 					<div class="flex-1 min-w-0">
 						<p class="font-bold text-sm text-warning-800 dark:text-warning-300 leading-tight">
@@ -496,25 +450,18 @@
 					<div
 						class="w-9 h-9 rounded-xl bg-success-500/15 flex items-center justify-center shrink-0"
 					>
-						<svg
+						<CheckCircle2
 							class="w-4 h-4 text-success-600 dark:text-success-400"
-							fill="none"
-							viewBox="0 0 24 24"
-							stroke="currentColor"
-						>
-							<path
-								stroke-linecap="round"
-								stroke-linejoin="round"
-								stroke-width="2"
-								d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-							/>
-						</svg>
+							aria-hidden="true"
+						/>
 					</div>
 					<div class="flex-1 min-w-0">
 						<p class="font-bold text-sm text-surface-700 dark:text-surface-200 leading-tight">
 							Solicitar Assinatura
 						</p>
-						<p class="text-xs text-surface-500 mt-0.5">Notifique o delegado para assinar.</p>
+						<p class="text-xs text-surface-600 dark:text-surface-400 mt-0.5">
+							Notifique o delegado para assinar.
+						</p>
 					</div>
 					<button
 						type="button"
@@ -531,7 +478,7 @@
 	<!-- Downloads auxiliares — sempre visíveis para escalas não-FDS -->
 	<div class="py-3 border-t border-surface-200 dark:border-white/5 mb-4">
 		<span
-			class="text-3xs font-bold text-surface-500 dark:text-surface-400 uppercase tracking-widest mb-2 block"
+			class="text-3xs font-bold text-surface-600 dark:text-surface-400 uppercase tracking-widest mb-2 block"
 			>Você pode conferir a escala antes de assinar ou solicitar uma assinatura</span
 		>
 		<div class="flex gap-2 flex-wrap">
@@ -553,36 +500,33 @@
 	onConfirmado={(solicitacao) => {
 		solicitacaoLocal = solicitacao;
 		onSolicitacaoEnviada?.();
+		// Mesma razão do cancelar/assinar token: lista de pendências do DPC
+		// precisa sair do estado stale sem F5.
+		void invalidarAposAssinatura();
 	}}
 />
 
-<Dialog
+<ModalShell
 	open={dialogSignOpen}
-	onOpenChange={(e) => {
-		if (!e.open) assinatura.dialogSignOpen = false;
+	title={signatureTitulo}
+	description={signatureDescricao}
+	largura="lg"
+	camada="base"
+	familia="escalas"
+	pending={assinando || loading.active}
+	onOpenChange={(novoOpen) => {
+		if (!novoOpen) assinatura.dialogSignOpen = false;
 	}}
 >
-	<Dialog.Content
-		class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-sm overflow-y-auto"
-	>
-		<div
-			class="card p-4 sm:p-6 max-w-lg w-full max-h-[calc(100dvh-2rem)] overflow-y-auto card-elevated shadow-2xl rounded-2xl"
-		>
-			<Dialog.Title class="h3 font-bold mb-2">{signatureTitulo}</Dialog.Title>
-			<Dialog.Description class="text-xs text-surface-600 dark:text-surface-400 mb-4">
-				{signatureDescricao}
-			</Dialog.Description>
-			{#if dialogSignOpen}
-				<SignaturePad
-					message="Rubrica do Organizador"
-					onConfirm={assinarSimples}
-					onCancel={() => (assinatura.dialogSignOpen = false)}
-					exigirFoto={page.data.exigirFotoAssinatura ?? true}
-					exigirGps={page.data.exigirGpsAssinatura ?? true}
-					exigirCodigoEmail={page.data.exigirCodigoEmailAssinatura ?? false}
-					bind:step={signatureStep}
-				/>
-			{/if}
-		</div>
-	</Dialog.Content>
-</Dialog>
+	{#if dialogSignOpen}
+		<SignaturePad
+			message="Rubrica do Organizador"
+			onConfirm={assinarSimples}
+			onCancel={() => (assinatura.dialogSignOpen = false)}
+			exigirFoto={page.data.exigirFotoAssinatura ?? true}
+			exigirGps={page.data.exigirGpsAssinatura ?? true}
+			exigirCodigoEmail={page.data.exigirCodigoEmailAssinatura ?? false}
+			bind:step={signatureStep}
+		/>
+	{/if}
+</ModalShell>

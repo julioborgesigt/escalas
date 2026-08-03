@@ -37,6 +37,7 @@ import type { GiseDetalhado } from '$lib/db';
 
 const GOLDENS_PATH = join(dirname(fileURLToPath(import.meta.url)), 'fixtures', 'pdf-goldens.json');
 const UPDATE = process.env.UPDATE_PDF_GOLDENS === '1';
+const FUSO_ORIGINAL = process.env.TZ;
 
 // PNG 1×1 válido — exercita os caminhos de addImage (logo/QR/rubrica).
 const PNG_1PX =
@@ -335,6 +336,10 @@ const geradores: Record<string, () => Promise<Uint8Array>> = {
 
 describe('export/pdf — goldens de layout', () => {
 	beforeAll(() => {
+		// jsPDF serializa /CreationDate com o offset local. O CI roda em UTC,
+		// mas o desenvolvedor pode estar em UTC-3; fixar o fuso preserva o
+		// contrato byte a byte do golden em qualquer máquina.
+		process.env.TZ = 'UTC';
 		// Congela SOMENTE Date: jsPDF grava /CreationDate e os cabeçalhos usam
 		// formatarDataExtenso(new Date()). Timers reais seguem funcionando.
 		vi.useFakeTimers({ toFake: ['Date'] });
@@ -342,6 +347,11 @@ describe('export/pdf — goldens de layout', () => {
 	});
 	afterAll(() => {
 		vi.useRealTimers();
+		if (FUSO_ORIGINAL === undefined) {
+			delete process.env.TZ;
+		} else {
+			process.env.TZ = FUSO_ORIGINAL;
+		}
 	});
 
 	const goldens: Record<string, { sha256: string; bytes: number }> = existsSync(GOLDENS_PATH)

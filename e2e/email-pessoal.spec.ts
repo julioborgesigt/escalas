@@ -51,6 +51,66 @@ test('troca exige senha: sem senha o envio fica bloqueado; senha errada é rejei
 	await expect(page.getByText('Senha incorreta.')).toBeVisible();
 });
 
+test('shell do modal gerencia foco, backdrop, Escape e bloqueio durante envio', async ({ page }) => {
+	const ok = await autenticarPagina(page, FIXTURE.policialA.id);
+	if (!ok) test.skip(true, 'D1 indisponível');
+
+	await page.goto('/perfil');
+	const abrir = page.getByRole('button', { name: 'Alterar', exact: true });
+	await abrir.click();
+
+	const dialog = page.getByRole('dialog', { name: 'Trocar e-mail pessoal' });
+	const email = page.getByLabel('Novo e-mail pessoal');
+	await expect(dialog).toBeVisible();
+	await expect(email).toBeFocused();
+
+	await page.keyboard.press('Escape');
+	await expect(dialog).not.toBeVisible();
+	await expect(abrir).toBeFocused();
+
+	await abrir.click();
+	await expect(dialog).toBeVisible();
+	await page.mouse.click(4, 4);
+	await expect(dialog).not.toBeVisible();
+
+	await abrir.click();
+	await email.fill(EMAIL_NOVO);
+	await page.getByLabel('Sua senha de acesso').fill('senha-aguardando-resposta');
+
+	let liberarResposta!: () => void;
+	const respostaLiberada = new Promise<void>((resolve) => {
+		liberarResposta = resolve;
+	});
+	let registrarRequisicao!: () => void;
+	const requisicaoIniciada = new Promise<void>((resolve) => {
+		registrarRequisicao = resolve;
+	});
+
+	await page.route('**/api/auth/solicitar-verificacao-email-pessoal', async (route) => {
+		registrarRequisicao();
+		await respostaLiberada;
+		await route.fulfill({
+			status: 500,
+			contentType: 'application/json',
+			body: JSON.stringify({ error: 'Falha simulada no envio' })
+		});
+	});
+
+	const enviar = page.getByRole('button', { name: 'Enviar código' });
+	await enviar.click();
+	await requisicaoIniciada;
+	await expect(page.getByRole('button', { name: 'Enviando…' })).toBeDisabled();
+
+	await page.keyboard.press('Escape');
+	await expect(dialog).toBeVisible();
+	await page.mouse.click(4, 4);
+	await expect(dialog).toBeVisible();
+
+	liberarResposta();
+	await expect(page.getByRole('alert')).toContainText('Falha simulada no envio');
+	await page.unroute('**/api/auth/solicitar-verificacao-email-pessoal');
+});
+
 test('confirmação por código OTP aplica a troca e marca como verificado', async ({ page }) => {
 	const ok = await autenticarPagina(page, FIXTURE.policialA.id);
 	if (!ok) test.skip(true, 'D1 indisponível');

@@ -15,6 +15,7 @@
 		tiposEquipeNaSeccional
 	} from '$lib/gise/page-helpers';
 	import GiseActionButton from './GiseActionButton.svelte';
+	import { Download, PenLine } from '@lucide/svelte';
 
 	type Seccional = GiseDetalhado['seccionais'][number];
 
@@ -136,14 +137,7 @@
 						rel="noopener noreferrer"
 						title={`Relatório de extra${podeManifesto ? ' sem manifesto' : ''} — assinado por ${assRel.assinante_nome}`}
 					>
-						<svg class="w-3 h-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"
-							><path
-								stroke-linecap="round"
-								stroke-linejoin="round"
-								stroke-width="2"
-								d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
-							/></svg
-						>
+						<Download class="w-3 h-3 shrink-0" aria-hidden="true" />
 						<span class="whitespace-nowrap"
 							>{podeManifesto ? 'Rel. Extra S/ manifesto' : 'Rel. Extra'}</span
 						>
@@ -156,14 +150,7 @@
 							rel="noopener noreferrer"
 							title="Relatório de extra com manifesto — inclui folha de auditoria"
 						>
-							<svg class="w-3 h-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"
-								><path
-									stroke-linecap="round"
-									stroke-linejoin="round"
-									stroke-width="2"
-									d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
-								/></svg
-							>
+							<Download class="w-3 h-3 shrink-0" aria-hidden="true" />
 							<span class="whitespace-nowrap">Rel. Extra C/ manifesto</span>
 						</a>
 					{/if}
@@ -185,14 +172,7 @@
 						? getFaltandoRubrica(sec)
 						: 'Aguardando assinatura do supervisor (escala)'}
 				>
-					<svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"
-						><path
-							stroke-linecap="round"
-							stroke-linejoin="round"
-							stroke-width="2"
-							d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
-						/></svg
-					>
+					<PenLine class="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
 					<span class="whitespace-nowrap">Rel. Extra</span>
 					<span class="text-3xs opacity-100 dark:opacity-80 font-normal italic ml-1"
 						>({!checkAllSigned(sec) ? 'não concluído' : 'conferência'})</span

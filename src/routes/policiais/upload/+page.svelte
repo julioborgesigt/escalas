@@ -50,6 +50,10 @@
 	}
 </script>
 
+<svelte:head>
+	<title>Importar policiais — Escalas PC-CE</title>
+</svelte:head>
+
 <div class="flex items-center justify-between mb-6">
 	<h1 class="h1 text-2xl font-bold">Importar Planilha</h1>
 	<a href="/policiais" class="btn preset-outlined-primary-500">Voltar</a>
@@ -80,7 +84,7 @@
 						<td class="font-medium">Telefone</td>
 						<td class="font-medium">Lotação *</td>
 					</tr>
-					<tr class="text-surface-500 italic">
+					<tr class="text-surface-600 dark:text-surface-400 italic">
 						<td>João Silva</td>
 						<td>12345</td>
 						<td>DPC</td>
@@ -90,7 +94,7 @@
 				</tbody>
 			</table>
 		</div>
-		<p class="text-xs text-surface-500 mt-2">
+		<p class="text-xs text-surface-600 dark:text-surface-400 mt-2">
 			* Campos obrigatórios. A primeira linha (cabeçalho) será ignorada. Cargo deve ser <strong
 				>DPC</strong
 			>
@@ -104,7 +108,7 @@
 			<div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
 				<div class="text-center p-3 rounded-lg bg-surface-200">
 					<div class="text-2xl font-bold">{result.total}</div>
-					<div class="text-xs text-surface-500">Total de linhas</div>
+					<div class="text-xs text-surface-600 dark:text-surface-400">Total de linhas</div>
 				</div>
 				<div class="text-center p-3 rounded-lg preset-tonal-success">
 					<div class="text-2xl font-bold">{result.imported}</div>

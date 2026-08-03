@@ -23,15 +23,20 @@
 	 * ninguém conserta o vínculo quebrado.
 	 */
 	import type { PageProps } from './$types';
-	import { page, navigating } from '$app/state';
-	import SkeletonCard from '$lib/components/SkeletonCard.svelte';
+	import SkeletonCards from '$lib/components/SkeletonCards.svelte';
+	import SkeletonTableRows from '$lib/components/SkeletonTableRows.svelte';
 	import FloatingRefresh from '$lib/components/FloatingRefresh.svelte';
-	import { invalidateAll } from '$app/navigation';
+	import { invalidateShared } from '$lib/cross-tab-invalidate';
 	import { enhance } from '$app/forms';
 	import { toaster } from '$lib/toast';
 	import type { Unidade } from '$lib/types';
 	import { CIDADES_CEARA } from '$lib/constants/cidades';
-	import { useAutorizacao, getSavedFilters, useFiltrosPaginados } from '$lib/composables';
+	import {
+		useAutorizacao,
+		getSavedFilters,
+		useFiltrosPaginados,
+		useSamePathNavigating
+	} from '$lib/composables';
 	import type { ActionResult } from '@sveltejs/kit';
 	import ModalCadastrarUnidade from './_components/ModalCadastrarUnidade.svelte';
 	import ModalDesativarUnidade from './_components/ModalDesativarUnidade.svelte';
@@ -40,6 +45,7 @@
 
 	const auth = useAutorizacao();
 	const isAdmin = $derived(auth.isAdmin);
+	const samePathNav = useSamePathNavigating();
 	const savedFilters = getSavedFilters('filtros_unidades', { seccional: 'todas', busca: '' });
 
 	const unidades = $derived(data.unidades as Unidade[]);
@@ -173,7 +179,7 @@
 		return async ({ result }: { result: ActionResult }) => {
 			pendingEditar = false;
 			if (result.type === 'success') {
-				await invalidateAll();
+				await invalidateShared('app:unidades');
 				toaster.create({ title: 'Unidade atualizada com sucesso!', type: 'success' });
 				cancelarEdicao();
 			} else {
@@ -359,7 +365,7 @@
 			</div>
 			<p class="text-surface-600 dark:text-surface-400 text-lg">Nenhuma unidade cadastrada.</p>
 			{#if isAdmin}
-				<p class="text-surface-500 text-sm mt-2">
+				<p class="text-surface-600 dark:text-surface-400 text-sm mt-2">
 					Cadastre unidades acima para habilitar a importação de policiais.
 				</p>
 			{/if}
@@ -377,20 +383,8 @@
 					</tr>
 				</thead>
 				<tbody>
-					{#if navigating?.to && navigating.to.url.pathname === page.url.pathname}
-						{#each { length: 8 } as _, i (i)}
-							<tr class="animate-pulse">
-								<td class="px-4 py-3"
-									><div class="h-4 w-44 rounded bg-surface-200 dark:bg-surface-700"></div></td
-								>
-								<td class="px-4 py-3"
-									><div class="h-6 w-28 rounded-full bg-surface-200 dark:bg-surface-700"></div></td
-								>
-								<td class="px-4 py-3"
-									><div class="h-4 w-24 rounded bg-surface-200 dark:bg-surface-700"></div></td
-								>
-							</tr>
-						{/each}
+					{#if samePathNav.current}
+						<SkeletonTableRows cols={['h-4 w-44', 'h-6 w-28 rounded-full', 'h-4 w-24']} />
 					{:else}
 						{#each unidadesAgrupadas as u (u.id)}
 							<tr>
@@ -502,10 +496,8 @@
 
 		<!-- Mobile cards -->
 		<div class="md:hidden space-y-3">
-			{#if navigating?.to && navigating.to.url.pathname === page.url.pathname}
-				{#each { length: 5 } as _, i (i)}
-					<SkeletonCard lines={3} hasFooter={false} />
-				{/each}
+			{#if samePathNav.current}
+				<SkeletonCards />
 			{:else}
 				{#each unidadesAgrupadas as u (u.id)}
 					<div
@@ -544,11 +536,13 @@
 											>Desativada</span
 										>
 									{/if}
-									<p class="text-3xs font-bold uppercase text-surface-500 mt-0.5">
+									<p
+										class="text-3xs font-bold uppercase text-surface-600 dark:text-surface-400 mt-0.5"
+									>
 										{tipoLabel(u.tipo)}
 									</p>
 									{#if u.seccional_id}
-										<p class="text-3xs text-surface-500 mt-0.5 truncate">
+										<p class="text-3xs text-surface-600 dark:text-surface-400 mt-0.5 truncate">
 											Subordinada a: {unidades.find((x) => x.id === u.seccional_id)?.nome ??
 												u.seccional_id}
 										</p>
@@ -586,7 +580,7 @@
 			{/if}
 		</div>
 
-		<p class="mt-3 text-surface-500 text-sm">
+		<p class="mt-3 text-surface-600 dark:text-surface-400 text-sm">
 			{unidadesFiltradas.length} unidade{unidadesFiltradas.length !== 1 ? 's' : ''} encontrada{unidadesFiltradas.length !==
 			1
 				? 's'
@@ -594,4 +588,4 @@
 		</p>
 	{/if}
 </div>
-<FloatingRefresh />
+<FloatingRefresh chaves="app:unidades" />

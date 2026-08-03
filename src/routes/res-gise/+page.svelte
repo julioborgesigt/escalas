@@ -22,10 +22,12 @@
 	import { page, navigating } from '$app/state';
 	import SkeletonCard from '$lib/components/SkeletonCard.svelte';
 	import Spinner from '$lib/components/Spinner.svelte';
-	import { useAutorizacao, useMobile } from '$lib/composables';
-	import { Dialog, Tabs } from '@skeletonlabs/skeleton-svelte';
+	import { useAutorizacao, useMobile, useInvalidateOnFocus } from '$lib/composables';
+	import { fetchSyncEstado } from '$lib/sync-estado';
+	import { Tabs } from '@skeletonlabs/skeleton-svelte';
 	import SignaturePad from '$lib/components/SignaturePad.svelte';
 	import ModalCadastrarRubrica from '$lib/components/ModalCadastrarRubrica.svelte';
+	import ModalShell from '$lib/components/ModalShell.svelte';
 	import { useResGise } from './_components/useResGise.svelte';
 	import { loading } from '$lib/loading.svelte';
 	import ConfigurarFormulario from './_components/ConfigurarFormulario.svelte';
@@ -38,6 +40,28 @@
 	const resGise = useResGise(() => data);
 	const mobileState = useMobile();
 	const isMobile = $derived(mobileState.isMobile);
+
+	// Presença/relatório de outra sessão: foco + broadcast + poll (quente se há
+	// serviço ativo sem saída).
+	useInvalidateOnFocus('app:res-gise', {
+		isHot: () =>
+			!isAdminGeral &&
+			Boolean(
+				resGise.escalaSelecionada &&
+				!(
+					'presenca' in resGise.escalaSelecionada &&
+					resGise.escalaSelecionada.presenca?.saida_timestamp
+				)
+			),
+		probe: async () => {
+			try {
+				const e = await fetchSyncEstado();
+				return e.resGise?.stamp ?? null;
+			} catch {
+				return null;
+			}
+		}
+	});
 
 	let signatureStep = $state<'signature' | 'camera' | 'email_code'>('signature');
 	$effect(() => {
@@ -121,7 +145,7 @@
 	<header class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 sm:mb-8">
 		<div>
 			<h1 class="h1 text-2xl font-bold">Relatórios GISE</h1>
-			<p class="text-sm text-surface-500 font-medium">
+			<p class="text-sm text-surface-600 dark:text-surface-400 font-medium">
 				Gestão de produtividade e relatórios operacionais
 			</p>
 		</div>
@@ -160,12 +184,12 @@
 								>
 									<Tabs.Trigger
 										value="ativas"
-										class="px-3 py-2 text-sm font-semibold rounded-lg flex-1 sm:flex-none text-center cursor-pointer select-none transition-all duration-200 text-surface-500 dark:text-surface-400 data-[selected]:bg-primary-500 data-[selected]:text-white data-[selected]:shadow-md data-[selected]:shadow-primary-500/25 hover:text-surface-700 dark:hover:text-surface-200"
+										class="px-3 py-2 text-sm font-semibold rounded-lg flex-1 sm:flex-none text-center cursor-pointer select-none transition-all duration-200 text-surface-600 dark:text-surface-400 data-[selected]:bg-primary-500 data-[selected]:text-white data-[selected]:shadow-md data-[selected]:shadow-primary-500/25 hover:text-surface-700 dark:hover:text-surface-200"
 										>Ativas</Tabs.Trigger
 									>
 									<Tabs.Trigger
 										value="finalizadas"
-										class="px-3 py-2 text-sm font-semibold rounded-lg flex-1 sm:flex-none text-center cursor-pointer select-none transition-all duration-200 text-surface-500 dark:text-surface-400 data-[selected]:bg-primary-500 data-[selected]:text-white data-[selected]:shadow-md data-[selected]:shadow-primary-500/25 hover:text-surface-700 dark:hover:text-surface-200"
+										class="px-3 py-2 text-sm font-semibold rounded-lg flex-1 sm:flex-none text-center cursor-pointer select-none transition-all duration-200 text-surface-600 dark:text-surface-400 data-[selected]:bg-primary-500 data-[selected]:text-white data-[selected]:shadow-md data-[selected]:shadow-primary-500/25 hover:text-surface-700 dark:hover:text-surface-200"
 										>Histórico</Tabs.Trigger
 									>
 								</Tabs.List>
@@ -179,7 +203,7 @@
 							>
 								<div class="flex items-center justify-between">
 									<span
-										class="text-3xs font-black text-surface-500 dark:text-surface-400 uppercase tracking-widest"
+										class="text-3xs font-black text-surface-600 dark:text-surface-400 uppercase tracking-widest"
 										>Busca Detalhada</span
 									>
 									{#if resGise.mesFilterUrl || resGise.dataFilterUrl}
@@ -196,7 +220,7 @@
 								>
 									<div class="space-y-1">
 										<label
-											class="text-3xs font-black text-surface-500 uppercase tracking-wider ml-0.5"
+											class="text-3xs font-black text-surface-600 dark:text-surface-400 uppercase tracking-wider ml-0.5"
 											for="mesMember">Mês/Ano</label
 										>
 										<input
@@ -209,7 +233,7 @@
 									</div>
 									<div class="space-y-1">
 										<label
-											class="text-3xs font-black text-surface-500 uppercase tracking-wider ml-0.5"
+											class="text-3xs font-black text-surface-600 dark:text-surface-400 uppercase tracking-wider ml-0.5"
 											for="dataMember">Data Específica</label
 										>
 										<input
@@ -274,7 +298,7 @@
 										<p
 											class="text-xs uppercase tracking-wider leading-tight {escala.assinada
 												? 'text-success-500 font-bold'
-												: 'text-surface-500'}"
+												: 'text-surface-600 dark:text-surface-400'}"
 										>
 											{escala.assinada
 												? 'SUPERVISOR ASSINOU'
@@ -342,7 +366,7 @@
 									</div>
 								</div>
 							{:else}
-								<p class="text-sm text-surface-500 italic col-span-full px-2">
+								<p class="text-sm text-surface-600 dark:text-surface-400 italic col-span-full px-2">
 									Nenhuma escala gise encontrada para o seu perfil ou você já enviou o relatório.
 								</p>
 							{/each}
@@ -404,69 +428,60 @@
 />
 
 <!-- Modal de Rubrica — Confirmação de Entrada / Saída do Policial -->
-<Dialog
-	open={resGise.capturandoRubrica && !!resGise.escalaSelecionada}
-	onOpenChange={(e) => {
-		if (!e.open && !loading.active) resGise.capturandoRubrica = false;
-	}}
->
-	<Dialog.Content
-		class="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-md overflow-y-auto"
+{#if resGise.escalaSelecionada}
+	{@const tipoPresenca = !resGise.escalaSelecionada.presenca?.entrada_timestamp
+		? 'entrada'
+		: 'saida'}
+	{@const titulo =
+		signatureStep === 'camera'
+			? 'Prova de Vida'
+			: signatureStep === 'email_code'
+				? 'Confirmação de Identidade'
+				: tipoPresenca === 'entrada'
+					? 'Confirmação de Entrada'
+					: 'Confirmação de Saída'}
+	{@const descricao =
+		signatureStep === 'camera'
+			? 'Cumpra o desafio de presença na tela para provar que você está ativo.'
+			: signatureStep === 'email_code'
+				? 'Por razões de segurança, insira o código enviado para o seu e-mail funcional.'
+				: tipoPresenca === 'entrada'
+					? 'Registre sua rubrica para confirmar a entrada no serviço.'
+					: 'Registre sua rubrica para confirmar a saída do serviço.'}
+	<ModalShell
+		open={resGise.capturandoRubrica}
+		title={titulo}
+		description={descricao}
+		largura="2xl"
+		camada="empilhado"
+		familia="assinatura"
+		pending={loading.active}
+		onOpenChange={(novoOpen) => {
+			if (!novoOpen && !loading.active) resGise.capturandoRubrica = false;
+		}}
 	>
-		{#if resGise.escalaSelecionada}
-			{@const tipoPresenca = !resGise.escalaSelecionada.presenca?.entrada_timestamp
-				? 'entrada'
-				: 'saida'}
-			{@const titulo =
-				signatureStep === 'camera'
-					? 'Prova de Vida'
-					: signatureStep === 'email_code'
-						? 'Confirmação de Identidade'
-						: tipoPresenca === 'entrada'
-							? 'Confirmação de Entrada'
-							: 'Confirmação de Saída'}
-			{@const descricao =
-				signatureStep === 'camera'
-					? 'Cumpra o desafio de presença na tela para provar que você está ativo.'
-					: signatureStep === 'email_code'
-						? 'Por razões de segurança, insira o código enviado para o seu e-mail funcional.'
-						: tipoPresenca === 'entrada'
-							? 'Registre sua rubrica para confirmar a entrada no serviço.'
-							: 'Registre sua rubrica para confirmar a saída do serviço.'}
-			<div
-				class="bg-surface-50 dark:bg-surface-900 rounded-3xl shadow-2xl w-full max-w-2xl max-h-[calc(100dvh-2rem)] overflow-y-auto p-4 sm:p-8 space-y-6 border border-white/10"
-			>
-				<div class="text-center space-y-2">
-					<Dialog.Title class="text-2xl font-bold text-surface-900 dark:text-surface-50">
-						{titulo}
-					</Dialog.Title>
-					<Dialog.Description class="text-sm text-surface-500">
-						{descricao}
-					</Dialog.Description>
-				</div>
-
-				{#if loading.active}
-					<div class="flex flex-col items-center gap-4 py-10">
-						<Spinner size="lg" class="text-primary-500" />
-						<p class="text-sm font-semibold text-surface-500 uppercase tracking-wider">
-							{tipoPresenca === 'entrada' ? 'Registrando entrada...' : 'Registrando saída...'}
-						</p>
-					</div>
-				{:else if resGise.capturandoRubrica}
-					<SignaturePad
-						onConfirm={tipoPresenca === 'entrada' ? resGise.salvarEntrada : resGise.salvarSaida}
-						onCancel={() => (resGise.capturandoRubrica = false)}
-						exigirFoto={page.data.exigirFotoAssinatura ?? true}
-						exigirGps={page.data.exigirGpsAssinatura ?? true}
-						exigirCodigoEmail={page.data.exigirCodigoEmailAssinatura ?? false}
-						rubricaSalva={minhaRubrica}
-						bind:step={signatureStep}
-					/>
-				{/if}
+		{#if loading.active}
+			<div class="flex flex-col items-center gap-4 py-10">
+				<Spinner size="lg" class="text-primary-500" />
+				<p
+					class="text-sm font-semibold text-surface-600 dark:text-surface-400 uppercase tracking-wider"
+				>
+					{tipoPresenca === 'entrada' ? 'Registrando entrada...' : 'Registrando saída...'}
+				</p>
 			</div>
+		{:else if resGise.capturandoRubrica}
+			<SignaturePad
+				onConfirm={tipoPresenca === 'entrada' ? resGise.salvarEntrada : resGise.salvarSaida}
+				onCancel={() => (resGise.capturandoRubrica = false)}
+				exigirFoto={page.data.exigirFotoAssinatura ?? true}
+				exigirGps={page.data.exigirGpsAssinatura ?? true}
+				exigirCodigoEmail={page.data.exigirCodigoEmailAssinatura ?? false}
+				rubricaSalva={minhaRubrica}
+				bind:step={signatureStep}
+			/>
 		{/if}
-	</Dialog.Content>
-</Dialog>
+	</ModalShell>
+{/if}
 
 <!-- Modal de cadastro/gestão da rubrica reutilizável (assinatura Token A3 no computador) -->
 <ModalCadastrarRubrica

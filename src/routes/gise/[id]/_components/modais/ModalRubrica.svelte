@@ -1,7 +1,7 @@
 <script lang="ts">
+	import ModalShell from '$lib/components/ModalShell.svelte';
 	import SignaturePad from '$lib/components/SignaturePad.svelte';
 	import type { SignaturePadConfirmPayload } from '$lib/components/SignaturePadTypes';
-	import { Dialog } from '@skeletonlabs/skeleton-svelte';
 
 	interface Props {
 		open: boolean;
@@ -50,42 +50,31 @@
 	);
 </script>
 
-<Dialog
+<ModalShell
 	{open}
-	onOpenChange={(e) => {
-		if (!e.open) onCancel();
+	title={signatureTitulo}
+	description={signatureDescricao}
+	largura="2xl"
+	camada="empilhado"
+	padding="compacto"
+	familia="assinatura"
+	onOpenChange={(novoOpen) => {
+		if (!novoOpen) onCancel();
 	}}
 >
-	<Dialog.Content
-		class="fixed inset-0 z-[60] flex items-center justify-center p-3 sm:p-4 bg-surface-950/80 backdrop-blur-md overflow-y-auto"
-	>
-		<div
-			class="card-elevated rounded-2xl shadow-2xl w-full max-w-2xl p-4 sm:p-8 space-y-5 sm:space-y-6 border border-white/10 max-h-[calc(100dvh-1.5rem)] overflow-y-auto"
-		>
-			<div class="text-center space-y-2">
-				<Dialog.Title class="text-xl sm:text-2xl font-bold text-surface-900 dark:text-surface-50">
-					{signatureTitulo}
-				</Dialog.Title>
-				<Dialog.Description class="text-sm text-surface-500">
-					{signatureDescricao}
-				</Dialog.Description>
-			</div>
+	{#if open}
+		<SignaturePad
+			{onConfirm}
+			{onCancel}
+			{exigirFoto}
+			{exigirGps}
+			{exigirCodigoEmail}
+			{rubricaSalva}
+			bind:step={signatureStep}
+		/>
+	{/if}
 
-			{#if open}
-				<SignaturePad
-					{onConfirm}
-					{onCancel}
-					{exigirFoto}
-					{exigirGps}
-					{exigirCodigoEmail}
-					{rubricaSalva}
-					bind:step={signatureStep}
-				/>
-			{/if}
-
-			<p class="text-sm text-surface-500 dark:text-surface-400 text-center italic">
-				Esta rubrica será anexada permanentemente ao documento PDF desta escala.
-			</p>
-		</div>
-	</Dialog.Content>
-</Dialog>
+	<p class="text-sm text-surface-600 dark:text-surface-400 text-center italic">
+		Esta rubrica será anexada permanentemente ao documento PDF desta escala.
+	</p>
+</ModalShell>

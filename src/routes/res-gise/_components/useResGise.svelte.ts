@@ -5,8 +5,11 @@ import { fmtDate } from '$lib/gise/formatters';
 import { renumerarPerguntas } from '$lib/gise/renumerar-perguntas';
 import { loading } from '$lib/loading.svelte';
 import { page } from '$app/state';
-import { goto, invalidateAll } from '$app/navigation';
+import { goto } from '$app/navigation';
+import { untrack } from 'svelte';
+import { invalidateShared } from '$lib/cross-tab-invalidate';
 import type { ActionResult } from '@sveltejs/kit';
+import { postPageAction } from '$lib/post-form-action';
 import type {
 	GiseModeloPerguntaConfig,
 	ResGiseEscalaSelecionavel,
@@ -17,6 +20,17 @@ import type { SignaturePadConfirmPayload } from '$lib/components/SignaturePadTyp
 
 function messageFromUnknown(e: unknown): string {
 	return e instanceof Error ? e.message : String(e);
+}
+
+function erroDaAction(result: ActionResult, fallback: string): string {
+	if (result.type === 'failure') {
+		const data = result.data as { error?: string } | undefined;
+		if (data?.error) return data.error;
+	}
+	if (result.type === 'error' && result.error) {
+		return typeof result.error === 'string' ? result.error : fallback;
+	}
+	return fallback;
 }
 
 /** Filtro de escalas na URL (`?status=ativas|finalizadas`); admin não usa mais lista nesta rota. */
@@ -50,6 +64,16 @@ export function useResGise(getData: () => ResGisePageData) {
 	let idExtraBaixando = $state<number | null>(null);
 	// Qual comprovante de presença está baixando ('entrada' | 'saida' | null).
 	let termoBaixando = $state<'entrada' | 'saida' | null>(null);
+
+	// Após invalidate externo (outra aba / poll), realinha a seleção ao load fresco.
+	// Só depende de `minhasEscalas` — ler `escalaSelecionada` no effect causaria loop.
+	$effect(() => {
+		const lista = data.minhasEscalas;
+		const sel = untrack(() => escalaSelecionada);
+		if (!sel || !lista) return;
+		const atualizada = lista.find((e) => e.id === sel.id && e.equipe_id === sel.equipe_id);
+		if (atualizada) escalaSelecionada = atualizada;
+	});
 
 	// --- Efeitos de Sincronização ---
 	$effect(() => {
@@ -172,7 +196,8 @@ export function useResGise(getData: () => ResGisePageData) {
 			loading.hide();
 			if (result.type === 'success') {
 				toaster.success({ title: `Modelo ${configTipo} salvo com sucesso` });
-				await invalidateAll();
+				await invalidateShared('app:res-gise');
+				reaplicarEscalaSelecionada();
 			} else if (result.type === 'failure') {
 				const d = result.data as Record<string, unknown> | undefined;
 				toaster.error({ title: String(d?.error || 'Erro ao salvar modelo') });
@@ -198,35 +223,43 @@ export function useResGise(getData: () => ResGisePageData) {
 	}
 
 	/**
+	 * Após qualquer invalidate de `app:res-gise`, `escalaSelecionada` ainda aponta
+	 * para o objeto antigo. Reaplica a partir de `data.minhasEscalas`; se sumiu da
+	 * lista (saída finalizada), opcionalmente carimba o timestamp local.
+	 */
+	function reaplicarEscalaSelecionada(tipoPresenca?: 'entrada' | 'saida') {
+		const sel = escalaSelecionada;
+		if (!sel) return;
+		const atualizada = data.minhasEscalas?.find(
+			(e) => e.id === sel.id && e.equipe_id === sel.equipe_id
+		);
+		if (atualizada) {
+			escalaSelecionada = atualizada;
+			return;
+		}
+		if (!tipoPresenca) return;
+		const prev = 'presenca' in sel && sel.presenca ? sel.presenca : undefined;
+		// eslint-disable-next-line svelte/prefer-svelte-reactivity
+		const ts = new Date().toISOString();
+		escalaSelecionada = {
+			...sel,
+			presenca: {
+				...prev,
+				...(tipoPresenca === 'entrada' ? { entrada_timestamp: ts } : { saida_timestamp: ts })
+			} as GisePresenca
+		} as ResGiseEscalaSelecionavel;
+	}
+
+	/**
 	 * Re-sincroniza `escalaSelecionada` após uma confirmação de presença feita
 	 * FORA do fluxo de `salvarEntrada`/`salvarSaida` — caso do Token A3 no
 	 * desktop, em que o PainelAssinaturaToken posta direto na API. Sem isto, o
 	 * container fica preso no objeto antigo e só muda de estado após reload.
 	 */
 	async function sincronizarPresencaAtual(tipo: 'entrada' | 'saida') {
-		const sel = escalaSelecionada;
-		if (!sel) return;
-		await invalidateAll();
-		const atualizada = data.minhasEscalas?.find(
-			(e) => e.id === sel.id && e.equipe_id === sel.equipe_id
-		);
-		if (atualizada) {
-			// Entrada (e saída que continua visível): pega a versão fresca da lista.
-			escalaSelecionada = atualizada;
-		} else {
-			// Saída finaliza a escala e a remove de 'ativas'; aplica o timestamp
-			// localmente para a UI mostrar "confirmada" sem reload.
-			const prev = 'presenca' in sel && sel.presenca ? sel.presenca : undefined;
-			// eslint-disable-next-line svelte/prefer-svelte-reactivity
-			const ts = new Date().toISOString();
-			escalaSelecionada = {
-				...sel,
-				presenca: {
-					...prev,
-					...(tipo === 'entrada' ? { entrada_timestamp: ts } : { saida_timestamp: ts })
-				} as GisePresenca
-			} as ResGiseEscalaSelecionavel;
-		}
+		if (!escalaSelecionada) return;
+		await invalidateShared('app:res-gise');
+		reaplicarEscalaSelecionada(tipo);
 	}
 
 	async function salvarEntrada(payload: SignaturePadConfirmPayload) {
@@ -251,19 +284,15 @@ export function useResGise(getData: () => ResGisePageData) {
 			if (codigoEmail) fd.set('codigoEmail', codigoEmail);
 			if (desafioId) fd.set('desafioId', desafioId);
 
-			const resp = await fetch('?/salvarEntrada', { method: 'POST', body: fd });
-			const result = (await resp.json()) as Record<string, unknown> | undefined;
-
-			if (!resp.ok) throw new Error((result?.error as string) || 'Erro ao salvar entrada');
+			const result = await postPageAction('salvarEntrada', fd);
+			if (result.type !== 'success') {
+				throw new Error(erroDaAction(result, 'Erro ao salvar entrada'));
+			}
 
 			toaster.success({ title: 'Entrada confirmada com sucesso' });
 			capturandoRubrica = false;
-			await invalidateAll();
-			const eqIdEnt = escalaSelecionada?.equipe_id;
-			const atualizada = data.minhasEscalas?.find(
-				(e) => e.id === giseAlvoId && e.equipe_id === eqIdEnt
-			);
-			if (atualizada) escalaSelecionada = atualizada;
+			await invalidateShared('app:res-gise');
+			reaplicarEscalaSelecionada('entrada');
 		} catch (e: unknown) {
 			toaster.error({ title: 'Erro', description: messageFromUnknown(e) });
 		} finally {
@@ -320,31 +349,17 @@ export function useResGise(getData: () => ResGisePageData) {
 			if (codigoEmail) fd.set('codigoEmail', codigoEmail);
 			if (desafioId) fd.set('desafioId', desafioId);
 
-			const resp = await fetch('?/salvarSaida', { method: 'POST', body: fd });
-			const result = (await resp.json()) as Record<string, unknown> | undefined;
-
-			if (!resp.ok) throw new Error((result?.error as string) || 'Erro ao salvar saída');
+			const result = await postPageAction('salvarSaida', fd);
+			if (result.type !== 'success') {
+				throw new Error(erroDaAction(result, 'Erro ao salvar saída'));
+			}
 
 			toaster.success({ title: 'Saída confirmada com sucesso' });
 			capturandoRubrica = false;
-			await invalidateAll();
-			// After saving saída, the escala is filtered out of minhasEscalas (it's now 'finished').
-			// Patch escalaSelecionada directly so the UI shows 'Saída Confirmada' without a page reload.
-			const eqId = escalaSelecionada?.equipe_id;
-			const atualizada = data.minhasEscalas?.find(
-				(e) => e.id === giseAlvoIdSaida && e.equipe_id === eqId
-			);
-			if (atualizada) {
-				escalaSelecionada = atualizada;
-			} else {
-				const sel = escalaSelecionada;
-				const prev = 'presenca' in sel && sel.presenca ? sel.presenca : undefined;
-				escalaSelecionada = {
-					...sel,
-					// eslint-disable-next-line svelte/prefer-svelte-reactivity
-					presenca: { ...prev, saida_timestamp: new Date().toISOString() } as GisePresenca
-				} as ResGiseEscalaSelecionavel;
-			}
+			await invalidateShared('app:res-gise');
+			// Saída costuma tirar a escala de `minhasEscalas`; o helper carimba
+			// o timestamp local quando a linha some da lista.
+			reaplicarEscalaSelecionada('saida');
 		} catch (e: unknown) {
 			toaster.error({ title: 'Erro', description: messageFromUnknown(e) });
 		} finally {

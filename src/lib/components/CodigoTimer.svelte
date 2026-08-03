@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
+	import { Clock } from '@lucide/svelte';
 
 	const {
 		emailMascarado = '',
@@ -52,15 +53,8 @@
 	{/if}
 
 	{#if segundosRestantes > 0}
-		<div class="flex items-center gap-1.5 text-xs text-surface-500 mt-1">
-			<svg class="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-				<path
-					stroke-linecap="round"
-					stroke-linejoin="round"
-					stroke-width="2"
-					d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-				/>
-			</svg>
+		<div class="flex items-center gap-1.5 text-xs text-surface-600 dark:text-surface-400 mt-1">
+			<Clock class="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
 			<span>
 				Reenviar disponível em
 				<span class="font-bold tabular-nums text-surface-700 dark:text-surface-300">
@@ -78,7 +72,7 @@
 			{reenviando ? 'Reenviando...' : 'Reenviar código'}
 		</button>
 	{:else}
-		<p class="text-xs text-surface-500">
+		<p class="text-xs text-surface-600 dark:text-surface-400">
 			Não recebeu?
 			<span class="font-medium">Volte ao login para solicitar um novo código.</span>
 		</p>

@@ -25,6 +25,8 @@
 			<img
 				src="/api/validar/logo"
 				alt="Brasão do Estado do Ceará"
+				width="200"
+				height="200"
 				class="h-16 w-auto mb-3 drop-shadow-md"
 			/>
 			<h1
@@ -32,7 +34,7 @@
 			>
 				Termo de Uso e Política de Privacidade
 			</h1>
-			<p class="text-2xs text-surface-500 mt-1">
+			<p class="text-2xs text-surface-600 dark:text-surface-400 mt-1">
 				Versão {data.versao} · vigente desde {data.vigenteDesde}
 			</p>
 		</header>
@@ -94,7 +96,7 @@
 				</button>
 			</div>
 
-			<p class="text-3xs text-surface-500 dark:text-surface-400 mt-4 text-center">
+			<p class="text-3xs text-surface-600 dark:text-surface-400 mt-4 text-center">
 				O aceite registra data/hora, IP e dispositivo · Hash do termo:
 				<code class="font-mono">{data.hash.slice(0, 16)}…</code>
 			</p>

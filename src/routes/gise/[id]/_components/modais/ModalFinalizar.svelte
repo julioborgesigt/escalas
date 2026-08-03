@@ -29,7 +29,7 @@
 				<Dialog.Title class="text-xl sm:text-2xl font-bold text-surface-900 dark:text-surface-50">
 					Finalizar Escala GISE
 				</Dialog.Title>
-				<Dialog.Description class="text-sm text-surface-500">
+				<Dialog.Description class="text-sm text-surface-600 dark:text-surface-400">
 					A escala atual será marcada como <span
 						class="font-bold text-surface-900 dark:text-surface-50 uppercase">Finalizada</span
 					>. Esta ação não poderá ser desfeita e a escala sairá da lista de escalas ativas.
@@ -49,7 +49,7 @@
 
 				<button
 					type="button"
-					class="w-full text-sm text-surface-500 hover:text-surface-700 dark:hover:text-surface-300 transition-colors py-4 mt-2"
+					class="w-full text-sm text-surface-600 dark:text-surface-400 hover:text-surface-700 dark:hover:text-surface-300 transition-colors py-4 mt-2"
 					onclick={onClose}
 					disabled={pendingCrud}
 				>

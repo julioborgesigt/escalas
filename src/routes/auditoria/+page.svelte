@@ -22,7 +22,7 @@
 	import { apiFetchResponse } from '$lib/api-fetch';
 	import { baixarBlob, nomeArquivoContentDisposition } from '$lib/utils/download';
 	import { toaster } from '$lib/toast';
-	import { ChevronDown, ChevronUp, CheckCircle2, AlertTriangle } from 'lucide-svelte';
+	import { ChevronDown, ChevronUp, CheckCircle2, AlertTriangle } from '@lucide/svelte';
 
 	const { data, form }: PageProps = $props();
 
@@ -166,7 +166,7 @@
 	<header class="flex flex-wrap items-center justify-between gap-3">
 		<div>
 			<h1 class="text-2xl font-bold text-surface-900 dark:text-white">Trilha de Auditoria</h1>
-			<p class="text-sm text-surface-500 dark:text-surface-400">
+			<p class="text-sm text-surface-600 dark:text-surface-400">
 				Registro forense de ações do sistema — cadeia de hash verificável.
 			</p>
 		</div>
@@ -250,7 +250,7 @@
 			<div
 				class="rounded-xl border border-surface-200 dark:border-white/10 bg-surface-50 dark:bg-surface-900 p-4 flex flex-col justify-between min-h-[90px]"
 			>
-				<div class="text-xs uppercase tracking-wide text-surface-500 dark:text-surface-400">
+				<div class="text-xs uppercase tracking-wide text-surface-600 dark:text-surface-400">
 					{rotulo}
 				</div>
 				<div
@@ -280,13 +280,13 @@
 			<ul class="space-y-1 text-sm">
 				{#each data.criticosRecentes as ev (ev.id)}
 					<li class="flex flex-wrap items-baseline gap-x-2">
-						<span class="text-surface-500 dark:text-surface-400 text-xs whitespace-nowrap"
+						<span class="text-surface-600 dark:text-surface-400 text-xs whitespace-nowrap"
 							>{fmtData(ev.created_at)}</span
 						>
 						<span class="font-medium text-surface-900 dark:text-white">{rotuloAcao(ev.acao)}</span>
 						<span class="text-surface-600 dark:text-surface-300">— {ev.usuario_nome || '—'}</span>
 						{#if ev.detalhes}
-							<span class="text-surface-500 dark:text-surface-400 text-xs">· {ev.detalhes}</span>
+							<span class="text-surface-600 dark:text-surface-400 text-xs">· {ev.detalhes}</span>
 						{/if}
 					</li>
 				{/each}
@@ -330,7 +330,7 @@
 				: 'hidden lg:grid'} grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3"
 		>
 			<label class="flex flex-col gap-1 text-sm">
-				<span class="text-surface-500 dark:text-surface-400">Categoria</span>
+				<span class="text-surface-600 dark:text-surface-400">Categoria</span>
 				<select name="categoria" class="select">
 					<option value="" selected={!data.filtros.categoria}>Todas</option>
 					{#each data.facetas.categorias as c (c)}
@@ -339,7 +339,7 @@
 				</select>
 			</label>
 			<label class="flex flex-col gap-1 text-sm">
-				<span class="text-surface-500 dark:text-surface-400">Ação</span>
+				<span class="text-surface-600 dark:text-surface-400">Ação</span>
 				<select name="acao" class="select">
 					<option value="" selected={!data.filtros.acao}>Todas</option>
 					{#each data.facetas.acoes as a (a.valor)}
@@ -348,7 +348,7 @@
 				</select>
 			</label>
 			<label class="flex flex-col gap-1 text-sm">
-				<span class="text-surface-500 dark:text-surface-400">Severidade</span>
+				<span class="text-surface-600 dark:text-surface-400">Severidade</span>
 				<select name="severidade" class="select">
 					<option value="" selected={!data.filtros.severidade}>Todas</option>
 					<option value="info" selected={data.filtros.severidade === 'info'}>Info</option>
@@ -357,7 +357,7 @@
 				</select>
 			</label>
 			<label class="flex flex-col gap-1 text-sm">
-				<span class="text-surface-500 dark:text-surface-400">Resultado</span>
+				<span class="text-surface-600 dark:text-surface-400">Resultado</span>
 				<select name="resultado" class="select">
 					<option value="" selected={!data.filtros.resultado}>Todos</option>
 					<option value="sucesso" selected={data.filtros.resultado === 'sucesso'}>Sucesso</option>
@@ -366,7 +366,7 @@
 				</select>
 			</label>
 			<label class="flex flex-col gap-1 text-sm col-span-1 sm:col-span-2 lg:col-span-1">
-				<span class="text-surface-500 dark:text-surface-400">Busca (ator / detalhes / alvo)</span>
+				<span class="text-surface-600 dark:text-surface-400">Busca (ator / detalhes / alvo)</span>
 				<input
 					name="busca"
 					class="input"
@@ -375,11 +375,11 @@
 				/>
 			</label>
 			<label class="flex flex-col gap-1 text-sm">
-				<span class="text-surface-500 dark:text-surface-400">De</span>
+				<span class="text-surface-600 dark:text-surface-400">De</span>
 				<input type="date" name="de" class="input" value={data.filtros.de ?? ''} />
 			</label>
 			<label class="flex flex-col gap-1 text-sm">
-				<span class="text-surface-500 dark:text-surface-400">Até</span>
+				<span class="text-surface-600 dark:text-surface-400">Até</span>
 				<input type="date" name="ate" class="input" value={data.filtros.ate ?? ''} />
 			</label>
 			<div class="flex items-end gap-2 pt-2 lg:pt-0 col-span-1 sm:col-span-2 lg:col-span-1">
@@ -395,7 +395,7 @@
 		</form>
 	</div>
 
-	<div class="flex justify-end -mb-2 text-sm text-surface-500 dark:text-surface-400">
+	<div class="flex justify-end -mb-2 text-sm text-surface-600 dark:text-surface-400">
 		{data.total.toLocaleString('pt-BR')} resultado(s)
 	</div>
 
@@ -403,11 +403,11 @@
 	{#if data.logs.length > 0}
 		<!-- Tabela (Desktop) -->
 		<div
-			class="hidden md:block rounded-xl border border-surface-200 dark:border-white/10 overflow-x-auto bg-surface-50 dark:bg-surface-900"
+			class="hidden md:block table-wrap rounded-xl border border-surface-200 dark:border-white/10 bg-surface-50 dark:bg-surface-900"
 		>
-			<table class="w-full text-sm">
+			<table class="table w-full text-sm">
 				<thead
-					class="text-left text-xs uppercase tracking-wide text-surface-500 dark:text-surface-400 border-b border-surface-200 dark:border-white/10"
+					class="text-left text-xs uppercase tracking-wide text-surface-600 dark:text-surface-400 border-b border-surface-200 dark:border-white/10"
 				>
 					<tr>
 						<th class="px-3 py-2">Data/hora</th>
@@ -444,7 +444,7 @@
 							</td>
 							<td class="px-3 py-2 text-surface-700 dark:text-surface-200">
 								{log.usuario_nome || '—'}
-								<span class="text-xs text-surface-500 dark:text-surface-400">
+								<span class="text-xs text-surface-600 dark:text-surface-400">
 									{log.actor_tipo ? `· ${ACTOR[log.actor_tipo] ?? log.actor_tipo}` : ''}
 								</span>
 							</td>
@@ -498,40 +498,42 @@
 											{#if mudancas.length > 0}
 												<div>
 													<div
-														class="text-xs font-semibold text-surface-500 dark:text-surface-400 mb-1"
+														class="text-xs font-semibold text-surface-600 dark:text-surface-400 mb-1"
 													>
 														Alterações
 													</div>
-													<table
-														class="w-full text-xs border border-surface-200 dark:border-white/10 rounded"
+													<div
+														class="table-wrap rounded border border-surface-200 dark:border-white/10"
 													>
-														<thead class="text-surface-500 dark:text-surface-400">
-															<tr>
-																<th class="px-2 py-1 text-left">Campo</th>
-																<th class="px-2 py-1 text-left">De</th>
-																<th class="px-2 py-1 text-left">Para</th>
-															</tr>
-														</thead>
-														<tbody>
-															{#each mudancas as m (m.campo)}
-																<tr class="border-t border-surface-200/60 dark:border-white/5">
-																	<td class="px-2 py-1 font-medium">{m.campo}</td>
-																	<td class="px-2 py-1 text-error-600 dark:text-error-400"
-																		>{val(m.de)}</td
-																	>
-																	<td class="px-2 py-1 text-success-700 dark:text-success-400"
-																		>{val(m.para)}</td
-																	>
+														<table class="table w-full text-xs">
+															<thead class="text-surface-600 dark:text-surface-400">
+																<tr>
+																	<th class="px-2 py-1 text-left">Campo</th>
+																	<th class="px-2 py-1 text-left">De</th>
+																	<th class="px-2 py-1 text-left">Para</th>
 																</tr>
-															{/each}
-														</tbody>
-													</table>
+															</thead>
+															<tbody>
+																{#each mudancas as m (m.campo)}
+																	<tr class="border-t border-surface-200/60 dark:border-white/5">
+																		<td class="px-2 py-1 font-medium">{m.campo}</td>
+																		<td class="px-2 py-1 text-error-600 dark:text-error-400"
+																			>{val(m.de)}</td
+																		>
+																		<td class="px-2 py-1 text-success-700 dark:text-success-400"
+																			>{val(m.para)}</td
+																		>
+																	</tr>
+																{/each}
+															</tbody>
+														</table>
+													</div>
 												</div>
 											{/if}
 											{#if parseJson(log.metadados)}
 												<div>
 													<div
-														class="text-xs font-semibold text-surface-500 dark:text-surface-400 mb-1"
+														class="text-xs font-semibold text-surface-600 dark:text-surface-400 mb-1"
 													>
 														Metadados
 													</div>
@@ -588,7 +590,7 @@
 							<span class="inline-block px-2 py-0.5 rounded-full text-xs font-semibold {sev.cls}">
 								{sev.label}
 							</span>
-							<span class="text-xs font-medium text-surface-500 dark:text-surface-400">
+							<span class="text-xs font-medium text-surface-600 dark:text-surface-400">
 								{CATEGORIA[log.categoria ?? ''] ?? log.categoria ?? '—'}
 							</span>
 						</div>
@@ -605,18 +607,18 @@
 
 					<div class="grid grid-cols-2 gap-2 text-xs text-surface-600 dark:text-surface-300">
 						<div>
-							<span class="text-surface-500 dark:text-surface-400 block mb-0.5">Ator</span>
+							<span class="text-surface-600 dark:text-surface-400 block mb-0.5">Ator</span>
 							<span class="font-medium text-surface-700 dark:text-surface-200">
 								{log.usuario_nome || '—'}
 								{#if log.actor_tipo}
-									<span class="text-3xs text-surface-500 dark:text-surface-400 block">
+									<span class="text-3xs text-surface-600 dark:text-surface-400 block">
 										({ACTOR[log.actor_tipo] ?? log.actor_tipo})
 									</span>
 								{/if}
 							</span>
 						</div>
 						<div>
-							<span class="text-surface-500 dark:text-surface-400 block mb-0.5">Alvo</span>
+							<span class="text-surface-600 dark:text-surface-400 block mb-0.5">Alvo</span>
 							<span class="font-medium text-surface-700 dark:text-surface-200">
 								{log.alvo_nome ?? (log.alvo_id ? `#${log.alvo_id}` : '—')}
 							</span>
@@ -624,7 +626,7 @@
 					</div>
 
 					<div
-						class="flex items-center justify-between border-t border-surface-200/50 dark:border-white/5 pt-2 text-xs text-surface-500 dark:text-surface-400"
+						class="flex items-center justify-between border-t border-surface-200/50 dark:border-white/5 pt-2 text-xs text-surface-600 dark:text-surface-400"
 					>
 						<span>{fmtData(log.created_at)}</span>
 						<span class="flex items-center gap-0.5 text-primary-500 font-medium">
@@ -657,23 +659,23 @@
 									<dl
 										class="grid grid-cols-[80px_1fr] gap-x-2 gap-y-1.5 text-surface-600 dark:text-surface-300"
 									>
-										<dt class="font-semibold text-surface-500 dark:text-surface-400">Entidade</dt>
+										<dt class="font-semibold text-surface-600 dark:text-surface-400">Entidade</dt>
 										<dd class="text-surface-800 dark:text-surface-200">
 											{log.entidade}{log.entidade_id ? ` #${log.entidade_id}` : ''}
 										</dd>
 
-										<dt class="font-semibold text-surface-500 dark:text-surface-400">IP</dt>
+										<dt class="font-semibold text-surface-600 dark:text-surface-400">IP</dt>
 										<dd class="text-surface-800 dark:text-surface-200">
 											{log.ip ?? '—'}{log.ip_cifrado ? ' (completo cifrado)' : ''}
 										</dd>
 
-										<dt class="font-semibold text-surface-500 dark:text-surface-400">Rota</dt>
+										<dt class="font-semibold text-surface-600 dark:text-surface-400">Rota</dt>
 										<dd class="text-surface-800 dark:text-surface-200">
 											{log.metodo ?? ''}
 											{log.rota ?? '—'}
 										</dd>
 
-										<dt class="font-semibold text-surface-500 dark:text-surface-400">Request ID</dt>
+										<dt class="font-semibold text-surface-600 dark:text-surface-400">Request ID</dt>
 										<dd class="font-mono text-surface-700 dark:text-surface-300 break-all">
 											{#if log.request_id}
 												<a
@@ -687,13 +689,13 @@
 											{/if}
 										</dd>
 
-										<dt class="font-semibold text-surface-500 dark:text-surface-400">Seq / Hash</dt>
+										<dt class="font-semibold text-surface-600 dark:text-surface-400">Seq / Hash</dt>
 										<dd class="font-mono text-surface-700 dark:text-surface-300 break-all">
 											{log.seq ?? '—'} · {log.hash_registro?.slice(0, 18) ?? '—'}…
 										</dd>
 
 										{#if log.user_agent}
-											<dt class="font-semibold text-surface-500 dark:text-surface-400">
+											<dt class="font-semibold text-surface-600 dark:text-surface-400">
 												User-Agent
 											</dt>
 											<dd class="break-all text-surface-700 dark:text-surface-300">
@@ -706,16 +708,14 @@
 
 							{#if mudancas.length > 0}
 								<div class="space-y-1">
-									<div class="font-semibold text-surface-500 dark:text-surface-400">Alterações</div>
-									<!-- `overflow-x-auto`, não `overflow-hidden` (VIS-3): valores de
+									<div class="font-semibold text-surface-600 dark:text-surface-400">Alterações</div>
+									<!-- `table-wrap` já faz overflow-x:auto (VIS-3): valores de
 									     "De"/"Para" podem ser longos (JSON, user agent) e a tabela
 									     transborda dentro do log expandido. -->
-									<div
-										class="border border-surface-200 dark:border-white/10 rounded-lg overflow-x-auto"
-									>
-										<table class="w-full text-xs">
+									<div class="table-wrap border border-surface-200 dark:border-white/10 rounded-lg">
+										<table class="table w-full text-xs">
 											<thead
-												class="bg-surface-100 dark:bg-surface-800 text-surface-500 dark:text-surface-400"
+												class="bg-surface-100 dark:bg-surface-800 text-surface-600 dark:text-surface-400"
 											>
 												<tr>
 													<th class="px-2 py-1.5 text-left font-medium">Campo</th>
@@ -748,7 +748,7 @@
 
 							{#if parseJson(log.metadados)}
 								<div class="space-y-1">
-									<div class="font-semibold text-surface-500 dark:text-surface-400">Metadados</div>
+									<div class="font-semibold text-surface-600 dark:text-surface-400">Metadados</div>
 									<pre
 										class="text-xs bg-surface-200/50 dark:bg-surface-950/50 rounded-lg p-2.5 overflow-x-auto text-surface-800 dark:text-surface-200 font-mono">{JSON.stringify(
 											parseJson(log.metadados),
@@ -775,7 +775,7 @@
 		</div>
 	{:else}
 		<div
-			class="rounded-xl border border-surface-200 dark:border-white/10 p-10 text-center bg-surface-50 dark:bg-surface-900 text-surface-500 dark:text-surface-400 text-sm"
+			class="rounded-xl border border-surface-200 dark:border-white/10 p-10 text-center bg-surface-50 dark:bg-surface-900 text-surface-600 dark:text-surface-400 text-sm"
 		>
 			Nenhum evento encontrado para os filtros atuais.
 		</div>
@@ -792,7 +792,7 @@
 					Anterior
 				</a>
 			{/if}
-			<span class="text-sm text-surface-500 dark:text-surface-400">
+			<span class="text-sm text-surface-600 dark:text-surface-400">
 				Página {data.page} de {data.totalPages}
 			</span>
 			{#if data.page < data.totalPages}

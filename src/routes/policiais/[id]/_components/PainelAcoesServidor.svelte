@@ -7,7 +7,7 @@
 	 *
 	 * Nenhum deles é só um registro: cada um grava uma linha APPEND-ONLY em
 	 * `policial_historico`, que é a visão de RH do servidor e não se apaga pela
-	 * interface. Daí o `invalidateAll()` no sucesso — a timeline logo abaixo
+	 * interface. Daí o `invalidateShared` no sucesso — a timeline logo abaixo
 	 * (`HistoricoServidor`) precisa refletir o que acabou de ser gravado.
 	 *
 	 * No afastamento, "Qtd de dias" e "Data final" são o MESMO dado por dois
@@ -17,12 +17,12 @@
 	 */
 	import { Dialog } from '@skeletonlabs/skeleton-svelte';
 	import { enhance } from '$app/forms';
-	import { invalidateAll } from '$app/navigation';
+	import { invalidateShared } from '$lib/cross-tab-invalidate';
 	import { toaster } from '$lib/toast';
 	import { loading } from '$lib/loading.svelte';
 	import { adicionarDias, diffDiasInclusivo } from '$lib/utils/datas';
 	import { formatarNUP } from '$lib/utils/formato';
-	import { ArrowRightLeft, CalendarOff, UserMinus } from 'lucide-svelte';
+	import { ArrowRightLeft, CalendarOff, UserMinus } from '@lucide/svelte';
 	import type { ActionResult } from '@sveltejs/kit';
 
 	interface Props {
@@ -88,7 +88,7 @@
 			if (result.type === 'success') {
 				toaster.create({ title: 'Registro salvo com sucesso!', type: 'success' });
 				fechar();
-				await invalidateAll();
+				await invalidateShared(`policial:${policial.id}`, 'app:policiais');
 			} else if (result.type === 'failure') {
 				const d = result.data as Record<string, unknown> | undefined;
 				toaster.create({ title: String(d?.error || 'Erro ao registrar'), type: 'error' });
@@ -103,7 +103,7 @@
 	<h2 class="text-base font-bold mb-1 text-surface-700 dark:text-surface-300">
 		Afastar / Movimentar Servidor
 	</h2>
-	<p class="text-xs text-surface-500 mb-3">
+	<p class="text-xs text-surface-600 dark:text-surface-400 mb-3">
 		Toda movimentação, afastamento ou desvinculação fica registrada no histórico do servidor.
 	</p>
 	<div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
@@ -139,6 +139,11 @@
 	</div>
 {/snippet}
 
+<!--
+	Exceção deliberada ao ModalShell: os três diálogos formam uma única máquina
+	de ações de RH, com banners, formulários e rodapés distintos por operação.
+	Separar apenas as molduras aumentaria props sem compartilhar comportamento.
+-->
 <!-- ============ MOVIMENTAÇÃO ============ -->
 <Dialog open={modal === 'movimentacao'} onOpenChange={(e) => (e.open ? null : fechar())}>
 	<Dialog.Content
@@ -377,7 +382,7 @@
 			>
 				<UserMinus size={20} /> Confirmar Desvinculação
 			</Dialog.Title>
-			<p class="text-xs text-surface-500 mb-3">
+			<p class="text-xs text-surface-600 dark:text-surface-400 mb-3">
 				A desvinculação <b>inativa</b> o servidor (sai das listas e escalas). O registro fica preservado
 				no histórico.
 			</p>

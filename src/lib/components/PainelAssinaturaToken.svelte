@@ -21,6 +21,7 @@
 	import { baixarBlob, nomeArquivoContentDisposition } from '$lib/utils/download';
 	import { conectarSerpro, SerproSignerClient } from '$lib/serpro';
 	import { digestHexParaBase64, executarFluxoAssinaturaToken } from '$lib/assinatura-token';
+	import { SquarePen } from '@lucide/svelte';
 
 	let {
 		prepararUrl,
@@ -205,7 +206,9 @@
 				<h4 class="font-bold text-sm text-surface-900 dark:text-white flex items-center gap-2">
 					Dados do Assinante
 				</h4>
-				<p class="text-3xs text-surface-500 uppercase tracking-wider font-semibold">
+				<p
+					class="text-3xs text-surface-600 dark:text-surface-400 uppercase tracking-wider font-semibold"
+				>
 					CONFORME CADASTRO NO SISTEMA
 				</p>
 			</div>
@@ -213,7 +216,7 @@
 			<div class="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-1">
 				<div class="flex flex-col">
 					<span
-						class="text-3xs font-bold text-surface-500 dark:text-surface-400 uppercase tracking-tighter"
+						class="text-3xs font-bold text-surface-600 dark:text-surface-400 uppercase tracking-tighter"
 						>NOME</span
 					>
 					<span class="font-bold text-sm text-surface-700 dark:text-surface-200 uppercase truncate"
@@ -222,7 +225,7 @@
 				</div>
 				<div class="flex flex-col">
 					<span
-						class="text-3xs font-bold text-surface-500 dark:text-surface-400 uppercase tracking-tighter"
+						class="text-3xs font-bold text-surface-600 dark:text-surface-400 uppercase tracking-tighter"
 						>CPF</span
 					>
 					<span class="font-bold text-sm text-surface-700 dark:text-surface-200">
@@ -234,7 +237,7 @@
 				{#if signerEmail}
 					<div class="flex flex-col sm:col-span-2 mt-1">
 						<span
-							class="text-3xs font-bold text-surface-500 dark:text-surface-400 uppercase tracking-tighter"
+							class="text-3xs font-bold text-surface-600 dark:text-surface-400 uppercase tracking-tighter"
 							>E-MAIL INSTITUCIONAL</span
 						>
 						<span class="font-bold text-xs text-surface-600 dark:text-surface-400"
@@ -261,7 +264,7 @@
 	</div>
 
 	<!-- Aviso jurídico (Lei 14.063/2020 art. 4º §1º) -->
-	<p class="text-2xs text-surface-500 dark:text-surface-400 italic leading-snug">
+	<p class="text-2xs text-surface-600 dark:text-surface-400 italic leading-snug">
 		Ao clicar em <strong>Assinar</strong>, você confirma que leu o documento e que esta assinatura
 		tem valor jurídico equivalente à manuscrita, conforme o
 		<a href="/termo" target="_blank" rel="noopener" class="underline hover:text-primary-600"
@@ -281,14 +284,7 @@
 			{#if loading.active}
 				Assinando...
 			{:else}
-				<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"
-					><path
-						stroke-linecap="round"
-						stroke-linejoin="round"
-						stroke-width="2"
-						d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-					/></svg
-				>
+				<SquarePen class="w-4 h-4" aria-hidden="true" />
 				Assinar com Certificado Digital (SERPRO)
 			{/if}
 		</button>
@@ -304,7 +300,9 @@
 	</p>
 
 	<div class="p-3 bg-primary-500/5 border border-dashed border-primary-500/20 rounded-xl mt-2">
-		<p class="text-3xs font-medium text-surface-500 leading-tight text-center">
+		<p
+			class="text-3xs font-medium text-surface-600 dark:text-surface-400 leading-tight text-center"
+		>
 			Ao assinar, declaro a veracidade destas informações e autorizo o registro da minha
 			<strong>localização geográfica</strong> e <strong>metadados técnicos</strong> para fins de validade
 			jurídica desta assinatura (Lei 14.063/20).

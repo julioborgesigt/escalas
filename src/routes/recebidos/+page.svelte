@@ -22,27 +22,36 @@
 	 */
 	import type { PageProps } from './$types';
 	import { opcoesMeses } from '$lib/utils/datas';
-	import { Lock, Inbox } from 'lucide-svelte';
+	import { Download, Inbox, Lock } from '@lucide/svelte';
 	import { untrack } from 'svelte';
-	import { page, navigating } from '$app/state';
-	import SkeletonCard from '$lib/components/SkeletonCard.svelte';
+	import { page } from '$app/state';
+	import SkeletonCards from '$lib/components/SkeletonCards.svelte';
+	import SkeletonTableRows from '$lib/components/SkeletonTableRows.svelte';
 	import Spinner from '$lib/components/Spinner.svelte';
-	import { goto, invalidate } from '$app/navigation';
+	import { goto } from '$app/navigation';
+	import { invalidateShared } from '$lib/cross-tab-invalidate';
 	import { enhance } from '$app/forms';
 	import { toaster } from '$lib/toast';
 	import { browser } from '$app/environment';
 	import { Popover, Portal, Dialog } from '@skeletonlabs/skeleton-svelte';
 	import type { EscalaListagem, Unidade } from '$lib/types';
 	import PaginationControls from '$lib/components/PaginationControls.svelte';
-	import { useAutorizacao, getSavedFilters } from '$lib/composables';
+	import {
+		useAutorizacao,
+		getSavedFilters,
+		useInvalidateOnFocus,
+		useSamePathNavigating
+	} from '$lib/composables';
 	import type { ActionResult } from '@sveltejs/kit';
 	import { loading as loadingService } from '$lib/loading.svelte';
 	import SearchableSelect from '$lib/components/SearchableSelect.svelte';
+	import { fetchSyncEstado } from '$lib/sync-estado';
 
 	const { data }: PageProps = $props();
 
 	const auth = useAutorizacao();
 	const isAdmin = $derived(auth.isAdmin);
+	const samePathNav = useSamePathNavigating();
 
 	const escalas = $derived(data.escalas as EscalaListagem[]);
 	const unidades = $derived(data.unidades as Unidade[]);
@@ -71,6 +80,21 @@
 	let mostrarApenasNaoVistos = $state(
 		untrack(() => page.url.searchParams.get('vistos') !== 'todos')
 	);
+
+	// Inbox “não vistos” fica quente (30s); histórico completo, frio (120s).
+	// Probe: só invalida o load (e o badge do layout) se o carimbo mudou.
+	useInvalidateOnFocus('app:recebidos', {
+		isHot: () => mostrarApenasNaoVistos,
+		also: ['app:recebidos-badge'],
+		probe: async () => {
+			try {
+				const e = await fetchSyncEstado();
+				return e.recebidos?.stamp ?? null;
+			} catch {
+				return null;
+			}
+		}
+	});
 
 	// Salvar a cada mudança
 	$effect(() => {
@@ -196,9 +220,7 @@
 	async function recarregar() {
 		loadingService.show('Atualizando caixa de entrada...');
 		try {
-			// Predicado por pathname: o load agora depende da URL COM search params
-			// (filtros/página), então o match exato por string não bastaria.
-			await invalidate((url) => url.pathname === page.url.pathname);
+			await invalidateShared('app:recebidos', 'app:recebidos-badge');
 		} finally {
 			loadingService.hide();
 		}
@@ -217,15 +239,15 @@
 			escala.visto_por_admin = novoStatus ? 1 : 0;
 			togglingId = escala.id;
 			return async ({
-				result,
-				update
+				result
 			}: {
 				result: ActionResult;
 				update: (opts?: { reset?: boolean }) => Promise<void>;
 			}) => {
 				togglingId = null;
 				if (result.type === 'success') {
-					await update({ reset: false });
+					// Atualiza lista + badge do layout nesta aba e nas outras.
+					await invalidateShared('app:recebidos', 'app:recebidos-badge');
 				} else {
 					escala.visto_por_admin = novoStatus ? 0 : 1;
 					toaster.create({ title: 'Erro ao atualizar status', type: 'error' });
@@ -281,7 +303,7 @@
 			loadingService.hide();
 			if (result.type === 'success') {
 				toaster.create({ title: 'Escala removida com sucesso', type: 'success' });
-				await invalidate(page.url.pathname);
+				await invalidateShared('app:recebidos', 'app:recebidos-badge');
 				dialogOpen = false;
 				escalaParaExcluir = null;
 			} else {
@@ -300,7 +322,7 @@
 </svelte:head>
 
 {#if !isAdmin}
-	<div class="text-center py-32 text-surface-500">
+	<div class="text-center py-32 text-surface-600 dark:text-surface-400">
 		<Lock class="w-8 h-8 mx-auto mb-2" aria-hidden="true" />
 		<p>Acesso restrito a administradores.</p>
 	</div>
@@ -308,7 +330,9 @@
 	<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
 		<div>
 			<h1 class="h1 text-2xl font-bold">Cx. de Entrada</h1>
-			<p class="text-sm text-surface-500 mt-0.5">Acompanhamento de novos envios em tempo real</p>
+			<p class="text-sm text-surface-600 dark:text-surface-400 mt-0.5">
+				Escalas assinadas enviadas ao Admin Geral — atualiza ao voltar à aba ou pelo botão Atualizar
+			</p>
 		</div>
 		<div class="flex gap-2 justify-end w-full sm:w-auto">
 			<button
@@ -352,6 +376,7 @@
 				<SearchableSelect
 					options={seccionaisOptions}
 					bind:value={filtroSeccional}
+					ariaLabel="Filtrar por seccional"
 					placeholder="Todas"
 				/>
 			</div>
@@ -382,12 +407,22 @@
 
 			<div class="flex flex-col gap-1 w-full lg:w-28">
 				<span class="label-text text-sm font-semibold">Ano</span>
-				<SearchableSelect options={anosOptions} bind:value={filtroAno} placeholder="Todos" />
+				<SearchableSelect
+					options={anosOptions}
+					bind:value={filtroAno}
+					ariaLabel="Filtrar por ano"
+					placeholder="Todos"
+				/>
 			</div>
 
 			<div class="flex flex-col gap-1 w-full lg:w-36">
 				<span class="label-text text-sm font-semibold">Mês</span>
-				<SearchableSelect options={mesesOptions} bind:value={filtroMes} placeholder="Todos" />
+				<SearchableSelect
+					options={mesesOptions}
+					bind:value={filtroMes}
+					ariaLabel="Filtrar por mês"
+					placeholder="Todos"
+				/>
 			</div>
 
 			<div class="flex items-center justify-between sm:justify-start gap-4 pb-2 lg:pb-3 lg:pl-2">
@@ -428,7 +463,7 @@
 				<p class="text-surface-600 dark:text-surface-400 text-lg font-semibold">
 					Nenhum recebimento encontrado
 				</p>
-				<p class="text-surface-500 text-sm mt-1">
+				<p class="text-surface-600 dark:text-surface-400 text-sm mt-1">
 					Tente ajustar os filtros acima para visualizar mais escalas.
 				</p>
 			</div>
@@ -450,41 +485,17 @@
 						</tr>
 					</thead>
 					<tbody>
-						{#if navigating?.to && navigating.to.url.pathname === page.url.pathname}
-							{#each { length: 8 } as _, i (i)}
-								<tr class="animate-pulse">
-									<td class="px-4 py-3"
-										><div
-											class="h-4 w-6 rounded bg-surface-200 dark:bg-surface-700 mx-auto"
-										></div></td
-									>
-									<td class="px-4 py-3"
-										><div
-											class="h-4 w-32 rounded bg-surface-200 dark:bg-surface-700 mx-auto"
-										></div></td
-									>
-									<td class="px-4 py-3"
-										><div
-											class="h-4 w-24 rounded bg-surface-200 dark:bg-surface-700 mx-auto"
-										></div></td
-									>
-									<td class="px-4 py-3"
-										><div
-											class="h-6 w-20 rounded-full bg-surface-200 dark:bg-surface-700 mx-auto"
-										></div></td
-									>
-									<td class="px-4 py-3"
-										><div
-											class="h-4 w-28 rounded bg-surface-200 dark:bg-surface-700 mx-auto"
-										></div></td
-									>
-									<td class="px-4 py-3"
-										><div class="flex gap-2 justify-center">
-											<div class="h-8 w-16 rounded-lg bg-surface-200 dark:bg-surface-700"></div>
-										</div></td
-									>
-								</tr>
-							{/each}
+						{#if samePathNav.current}
+							<SkeletonTableRows
+								cols={[
+									'h-4 w-6',
+									'h-4 w-32',
+									'h-4 w-24',
+									'h-6 w-20 rounded-full',
+									'h-4 w-28',
+									'h-8 w-16 rounded-lg'
+								]}
+							/>
 						{:else}
 							{#each escalas as escala (escala.id)}
 								<tr
@@ -504,6 +515,7 @@
 												<input
 													type="checkbox"
 													class="checkbox mx-auto"
+													aria-label={`Marcar escala de ${escala.lotacao} como vista`}
 													checked={!!escala.visto_por_admin}
 													onchange={(e) => e.currentTarget.closest('form')?.requestSubmit()}
 												/>
@@ -533,7 +545,7 @@
 										{/if}
 									</td>
 									<td
-										class="text-xs text-surface-500 whitespace-nowrap text-center font-mono tabular-nums"
+										class="text-xs text-surface-600 dark:text-surface-400 whitespace-nowrap text-center font-mono tabular-nums"
 									>
 										{formatRelativeTime(escala.created_at)}
 									</td>
@@ -566,18 +578,7 @@
 													target="_blank"
 													title="PDF assinado sem folha de auditoria (para impressão e distribuição)"
 												>
-													<svg
-														class="w-4 h-4 mr-1"
-														fill="none"
-														viewBox="0 0 24 24"
-														stroke="currentColor"
-														><path
-															stroke-linecap="round"
-															stroke-linejoin="round"
-															stroke-width="2"
-															d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
-														/></svg
-													>
+													<Download class="w-4 h-4 mr-1" aria-hidden="true" />
 													S/ manifesto
 												</a>
 												<a
@@ -646,10 +647,8 @@
 
 			<!-- Mobile cards -->
 			<div class="md:hidden space-y-3">
-				{#if navigating?.to && navigating.to.url.pathname === page.url.pathname}
-					{#each { length: 5 } as _, i (i)}
-						<SkeletonCard />
-					{/each}
+				{#if samePathNav.current}
+					<SkeletonCards />
 				{:else}
 					{#each escalas as escala (escala.id)}
 						<div
@@ -660,12 +659,14 @@
 							<div class="flex items-start justify-between gap-3 mb-2">
 								<div class="min-w-0">
 									<p class="font-bold text-sm truncate">{escala.lotacao}</p>
-									<p class="text-xs text-surface-500 font-medium">
+									<p class="text-xs text-surface-600 dark:text-surface-400 font-medium">
 										{getMesExtenso(escala.data_inicio)}
 									</p>
 								</div>
 								<label class="flex flex-col items-center gap-1 shrink-0">
-									<span class="text-3xs uppercase font-bold text-surface-500">Lida</span>
+									<span class="text-3xs uppercase font-bold text-surface-600 dark:text-surface-400"
+										>Lida</span
+									>
 									<form
 										method="POST"
 										action="?/toggleVisto"
@@ -679,6 +680,7 @@
 											<input
 												type="checkbox"
 												class="checkbox checkbox-sm"
+												aria-label={`Marcar escala de ${escala.lotacao} como vista`}
 												checked={!!escala.visto_por_admin}
 												onchange={(e) => e.currentTarget.closest('form')?.requestSubmit()}
 											/>
@@ -704,7 +706,7 @@
 										>FDS</span
 									>
 								{/if}
-								<span class="text-2xs text-surface-500"
+								<span class="text-2xs text-surface-600 dark:text-surface-400"
 									>{formatRelativeTime(escala.created_at)}</span
 								>
 							</div>

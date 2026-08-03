@@ -18,13 +18,16 @@
 	 */
 	import { Popover, Portal } from '@skeletonlabs/skeleton-svelte';
 	import { slide, fly } from 'svelte/transition';
-	import { page, navigating } from '$app/state';
+	import { page } from '$app/state';
 	import type { EscalaListagem } from '$lib/types';
 	import { formatarData, MESES_PT } from '$lib/utils/datas';
-	import SkeletonCard from '$lib/components/SkeletonCard.svelte';
+	import SkeletonCards from '$lib/components/SkeletonCards.svelte';
+	import SkeletonTableRows from '$lib/components/SkeletonTableRows.svelte';
+	import { useSamePathNavigating } from '$lib/composables';
 	import PaginationControls from '$lib/components/PaginationControls.svelte';
 	import IconTooltip from '$lib/components/IconTooltip.svelte';
 	import { podeBaixarComManifesto } from '$lib/manifesto';
+	import { Clock, Download, SquarePen } from '@lucide/svelte';
 
 	type SolicitacaoInfo = {
 		tipo: 'unidade' | 'respondencia';
@@ -65,10 +68,12 @@
 	const podeManifesto = $derived(podeBaixarComManifesto(page.data.usuario));
 
 	const ITEMS_POR_PAGINA = 20;
+
+	const samePathNav = useSamePathNavigating();
 </script>
 
 {#if escalas.length === 0}
-	<div class="text-center py-12 text-surface-500">
+	<div class="text-center py-12 text-surface-600 dark:text-surface-400">
 		<p class="mb-4">Nenhuma escala criada para os filtros selecionados.</p>
 		<button
 			type="button"
@@ -92,29 +97,16 @@
 				</tr>
 			</thead>
 			<tbody>
-				{#if navigating?.to && navigating.to.url.pathname === page.url.pathname}
-					{#each { length: 8 } as _, i (i)}
-						<tr class="animate-pulse">
-							<td class="px-4 py-3"
-								><div class="h-4 w-36 rounded bg-surface-200 dark:bg-surface-700"></div></td
-							>
-							<td class="px-4 py-3"
-								><div class="h-4 w-20 rounded bg-surface-200 dark:bg-surface-700"></div></td
-							>
-							<td class="px-4 py-3"
-								><div class="h-4 w-32 rounded bg-surface-200 dark:bg-surface-700"></div></td
-							>
-							<td class="px-4 py-3"
-								><div class="h-6 w-24 rounded-full bg-surface-200 dark:bg-surface-700"></div></td
-							>
-							<td class="px-4 py-3"
-								><div class="flex gap-2">
-									<div class="h-8 w-14 rounded-lg bg-surface-200 dark:bg-surface-700"></div>
-									<div class="h-8 w-18 rounded-lg bg-surface-200 dark:bg-surface-700"></div>
-								</div></td
-							>
-						</tr>
-					{/each}
+				{#if samePathNav.current}
+					<SkeletonTableRows
+						cols={[
+							'h-4 w-36',
+							'h-4 w-20',
+							'h-4 w-32',
+							'h-6 w-24 rounded-full',
+							'h-8 w-32 rounded-lg'
+						]}
+					/>
 				{:else}
 					{#each escalas as esc (esc.id)}
 						{@const dRow = new Date(esc.data_inicio + 'T00:00:00')}
@@ -142,7 +134,9 @@
 											? `${MESES_PT[dRow.getMonth()]} ${dRow.getFullYear()}`
 											: `${formatarData(esc.data_inicio)} a ${formatarData(esc.data_fim)}`}
 									</a>
-									<span class="text-xs text-surface-500 truncate">{esc.lotacao}</span>
+									<span class="text-xs text-surface-600 dark:text-surface-400 truncate"
+										>{esc.lotacao}</span
+									>
 								</div>
 							</td>
 							<td>{esc.cidade}</td>
@@ -186,28 +180,14 @@
 									<span
 										class="badge preset-tonal-warning font-bold px-2 py-1 flex items-center gap-1 w-max shadow-sm"
 									>
-										<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"
-											><path
-												stroke-linecap="round"
-												stroke-linejoin="round"
-												stroke-width="2"
-												d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-											/></svg
-										>
+										<Clock class="w-4 h-4" aria-hidden="true" />
 										Ass. Pendente
 									</span>
 								{:else}
 									<span
 										class="badge preset-tonal-surface font-bold px-2 py-1 flex items-center gap-1 w-max shadow-sm"
 									>
-										<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"
-											><path
-												stroke-linecap="round"
-												stroke-linejoin="round"
-												stroke-width="2"
-												d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-											/></svg
-										>
+										<SquarePen class="w-4 h-4" aria-hidden="true" />
 										{esc.tipo === 'fds' ? 'Pendente' : 'Em preenchimento'}
 									</span>
 								{/if}
@@ -241,18 +221,7 @@
 																? 'PDF para impressão e distribuição (sem folha de auditoria)'
 																: 'PDF assinado para impressão e distribuição'}
 														>
-															<svg
-																class="w-4 h-4"
-																fill="none"
-																viewBox="0 0 24 24"
-																stroke="currentColor"
-																><path
-																	stroke-linecap="round"
-																	stroke-linejoin="round"
-																	stroke-width="2"
-																	d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
-																/></svg
-															>
+															<Download class="w-4 h-4" aria-hidden="true" />
 															{podeManifesto ? 'PDF Oficial (s/ manifesto)' : 'PDF Oficial'}
 														</a>
 														{#if podeManifesto}
@@ -341,10 +310,8 @@
 	</div>
 
 	<div class="lg:hidden space-y-3">
-		{#if navigating?.to && navigating.to.url.pathname === page.url.pathname}
-			{#each { length: 5 } as _, i (i)}
-				<SkeletonCard />
-			{/each}
+		{#if samePathNav.current}
+			<SkeletonCards />
 		{:else}
 			{#each escalas as esc, i (esc.id)}
 				{@const d = new Date(esc.data_inicio + 'T00:00:00')}
@@ -378,7 +345,7 @@
 									? `${MESES_PT[d.getMonth()]} ${d.getFullYear()}`
 									: `${formatarData(esc.data_inicio)} a ${formatarData(esc.data_fim)}`}
 							</a>
-							<p class="text-xs text-surface-500 dark:text-surface-400 truncate">{esc.lotacao}</p>
+							<p class="text-xs text-surface-600 dark:text-surface-400 truncate">{esc.lotacao}</p>
 						</div>
 						{#if esc.is_assinada}
 							<span
@@ -412,46 +379,32 @@
 							<span
 								class="badge preset-tonal-warning font-bold px-1.5 py-0.5 text-3xs rounded-full flex items-center gap-1 shadow-sm"
 							>
-								<svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"
-									><path
-										stroke-linecap="round"
-										stroke-linejoin="round"
-										stroke-width="2"
-										d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-									/></svg
-								>
+								<Clock class="w-3 h-3" aria-hidden="true" />
 								Ass. Pendente
 							</span>
 						{:else}
 							<span
 								class="badge preset-tonal-surface font-bold px-1.5 py-0.5 text-3xs rounded-full flex items-center gap-1 shadow-sm"
 							>
-								<svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"
-									><path
-										stroke-linecap="round"
-										stroke-linejoin="round"
-										stroke-width="2"
-										d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-									/></svg
-								>
+								<SquarePen class="w-3 h-3" aria-hidden="true" />
 								{esc.tipo === 'fds' ? 'Pendente' : 'Em preenchimento'}
 							</span>
 						{/if}
 					</div>
 					<div class="space-y-1 mb-3 text-sm">
 						<div class="flex justify-between">
-							<span class="text-surface-500 font-medium">Cidade</span>
+							<span class="text-surface-600 dark:text-surface-400 font-medium">Cidade</span>
 							<span class="text-surface-900 dark:text-surface-100">{esc.cidade}</span>
 						</div>
 						<div class="flex justify-between">
-							<span class="text-surface-500 font-medium">Período</span>
+							<span class="text-surface-600 dark:text-surface-400 font-medium">Período</span>
 							<span class="text-surface-900 dark:text-surface-100 font-mono tabular-nums text-xs"
 								>{formatarData(esc.data_inicio)} a {formatarData(esc.data_fim)}</span
 							>
 						</div>
 						{#if esc.tipo === 'fds'}
 							<div class="flex justify-between">
-								<span class="text-surface-500 font-medium">Horário</span>
+								<span class="text-surface-600 dark:text-surface-400 font-medium">Horário</span>
 								<span class="text-surface-900 dark:text-surface-100 font-mono tabular-nums"
 									>{esc.horario}</span
 								>

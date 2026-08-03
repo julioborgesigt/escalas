@@ -29,7 +29,9 @@ import { eq, asc } from 'drizzle-orm';
 import { unidades, policiais } from '$lib/server/schema';
 import { buscarConfiguracao } from '$lib/db/configuracoes';
 
-export const load: PageServerLoad = async ({ locals, platform }) => {
+export const load: PageServerLoad = async ({ locals, platform, depends }) => {
+	depends('app:gise-list');
+
 	const u = locals.usuario;
 	if (!u) redirect(302, '/login');
 

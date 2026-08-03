@@ -35,9 +35,16 @@ test.describe('Aviso de cadastro de rubrica', () => {
 		// Modal de cadastro (abas desenhar/foto) assume o lugar do aviso. Locators
 		// por role (não por texto literal): o rótulo da aba trocou de emoji para
 		// ícone lucide (02a3e32) e o seletor antigo '✍️ Desenhar' quebrou.
-		await expect(page.getByRole('dialog', { name: 'Cadastrar Rubrica' })).toBeVisible();
-		await expect(page.getByRole('tab', { name: 'Desenhar' })).toBeVisible();
+		const dialog = page.getByRole('dialog', { name: 'Cadastrar Rubrica' });
+		const tabDesenhar = page.getByRole('tab', { name: 'Desenhar' });
+		await expect(dialog).toBeVisible();
+		await expect(dialog.locator('..')).toHaveClass(/z-\[70\]/);
+		await expect(tabDesenhar).toBeVisible();
+		await expect(tabDesenhar).toBeFocused();
 		await expect(page.getByRole('button', { name: 'Deixar para depois' })).not.toBeVisible();
+
+		await page.keyboard.press('Escape');
+		await expect(dialog).not.toBeVisible();
 	});
 
 	test('policial sem pendência de assinatura não vê o aviso', async ({ page }) => {
@@ -45,7 +52,9 @@ test.describe('Aviso de cadastro de rubrica', () => {
 		if (!ok) test.skip(true, 'D1 indisponível');
 
 		await page.goto('/bem-vindo');
-		await expect(page.getByRole('button', { name: /Sair/ })).toBeVisible();
+		// Sentinel de sessão no conteúdo principal — não usar "Sair": no mobile a
+		// sidebar começa fechada e `inert` (VIS-13), então o botão não é visível.
+		await expect(page.getByRole('heading', { name: /Bem-vindo/ })).toBeVisible();
 		await expect(page.getByText('Cadastre sua rubrica')).toHaveCount(0);
 	});
 });

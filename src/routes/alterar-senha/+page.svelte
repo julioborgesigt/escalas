@@ -23,6 +23,7 @@
 	import type { ActionResult } from '@sveltejs/kit';
 	import { enhance } from '$app/forms';
 	import CamposNovaSenha, { validarForcaSenha } from '$lib/components/CamposNovaSenha.svelte';
+	import { AlertCircle } from '@lucide/svelte';
 
 	let senhaAtual = $state('');
 	let novaSenha = $state('');
@@ -122,7 +123,7 @@
 				<h1 class="text-xl font-bold">
 					{primeiroAcesso ? 'Defina sua nova senha' : 'Alterar Senha'}
 				</h1>
-				<p class="text-sm text-surface-500 mt-1">
+				<p class="text-sm text-surface-600 dark:text-surface-400 mt-1">
 					{primeiroAcesso
 						? 'Confirme seu e-mail pessoal e escolha uma senha segura para continuar.'
 						: 'Preencha os campos abaixo para alterar sua senha.'}
@@ -165,7 +166,7 @@
 						>
 							E-mail pessoal obrigatório
 						</p>
-						<p class="text-xs text-surface-500 leading-relaxed">
+						<p class="text-xs text-surface-600 dark:text-surface-400 leading-relaxed">
 							Você deve confirmar seu e-mail pessoal para recuperar sua senha no futuro e continuar
 							o primeiro acesso.
 						</p>
@@ -204,7 +205,7 @@
 							</button>
 						</div>
 					{:else if verificacaoEmail.etapa === 'codigo'}
-						<p class="text-xs text-surface-500">
+						<p class="text-xs text-surface-600 dark:text-surface-400">
 							Código enviado para <strong>{verificacaoEmail.emailMascarado}</strong>. Válido por 10
 							minutos.
 						</p>
@@ -226,7 +227,7 @@
 						</div>
 						<button
 							type="button"
-							class="text-xs text-surface-500 dark:text-surface-400 hover:text-surface-700 dark:hover:text-surface-200 underline underline-offset-2"
+							class="text-xs text-surface-600 dark:text-surface-400 hover:text-surface-700 dark:hover:text-surface-200 underline underline-offset-2"
 							onclick={verificacaoEmail.voltarParaDados}
 						>
 							Usar outro e-mail
@@ -238,7 +239,7 @@
 					{/if}
 
 					{#if verificacaoEmail.etapa !== 'verificado'}
-						<p class="text-3xs text-surface-500 dark:text-surface-400 italic">
+						<p class="text-3xs text-surface-600 dark:text-surface-400 italic">
 							A alteração da senha ficará disponível após a confirmação do e-mail pessoal.
 						</p>
 					{/if}
@@ -250,19 +251,7 @@
 				<div
 					class="flex items-center gap-2 p-3 mb-4 rounded-xl bg-error-500/10 border border-error-500/25 text-error-700 dark:text-error-300 text-sm"
 				>
-					<svg
-						class="w-4 h-4 shrink-0"
-						fill="none"
-						viewBox="0 0 24 24"
-						stroke="currentColor"
-						stroke-width="2"
-					>
-						<path
-							stroke-linecap="round"
-							stroke-linejoin="round"
-							d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-						/>
-					</svg>
+					<AlertCircle class="w-4 h-4 shrink-0" aria-hidden="true" />
 					{error}
 				</div>
 			{/if}
