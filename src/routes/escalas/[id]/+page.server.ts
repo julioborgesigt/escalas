@@ -3,12 +3,21 @@
  * decisão do projeto (154). Quase toda a densidade vem de uma coisa só: o tipo
  * da escala muda o que cada operação significa.
  *
- * **Todas as actions começam por `carregarEscalaComPermissao`.** É o preâmbulo
- * único: autentica, valida o id e devolve `{db, escala, escalaId, usuario}` ou
- * um `fail()` pronto. A regra que ele carrega e que não está em lugar nenhum
- * além dele: DPC admin com solicitação de assinatura pode VER e ASSINAR, mas
- * não MUTAR — por isso a restrição por lotação continua valendo aqui, mesmo
- * que a leitura já tenha passado.
+ * **Todas as actions começam por `carregarEscalaComPermissao`**, declarando o
+ * que vão fazer (`'conteudo'` ou `'ciclo'`). É o preâmbulo único: autentica,
+ * valida o id, confere permissão e — para conteúdo — que a escala ainda POSSA
+ * mudar. Duas regras moram só ali:
+ *
+ *   - DPC admin com solicitação de assinatura pode VER e ASSINAR, mas não
+ *     MUTAR; por isso a restrição por lotação continua valendo mesmo depois de
+ *     a leitura ter passado;
+ *   - escala assinada ou finalizada não tem o conteúdo alterado. Voltar a
+ *     editar exige revogar a assinatura ou reabrir o FDS — os dois caminhos
+ *     explícitos e auditados (FLW-ESC-003).
+ *
+ * Item de `escala_policiais` é sempre buscado por `id` **e** `escala_id`: sem
+ * o par, um `item_id` de outra escala é aceito por quem só tem permissão nesta
+ * (FLW-ESC-002).
  *
  * As actions, agrupadas pelo que decidem:
  *
@@ -72,16 +81,45 @@ import {
 import { verificarPermissaoEscala } from '$lib/server/escalas/permissao';
 
 /**
- * Preâmbulo único das actions: autentica, valida o id e garante que o usuário
- * tem permissão para mutar a escala alvo (adicionar/remover policiais etc.).
- * DPC admins com solicitação de assinatura podem VISUALIZAR e ASSINAR, mas não mutam
- * diretamente a escala — portanto essa função mantém a restrição por lotação para mutations.
- * Devolve `db`/`escala`/`usuario` para reaproveitamento; ou um `fail()` pronto para retornar.
+ * O que a action vai fazer com a escala. **Parâmetro obrigatório de
+ * propósito**: é ele que decide se o guard de imutabilidade roda, e deixá-lo
+ * opcional faria a próxima action nascer sem proteção por omissão.
+ *
+ * - `'conteudo'` — mexe em QUEM está na escala ou em QUANDO (composição,
+ *   datas, horários). É o que o documento assinado atesta, e por isso trava
+ *   depois de assinar ou finalizar.
+ * - `'ciclo'` — o ciclo de vida em si (finalizar, reabrir, reenviar) e a
+ *   projeção do mês seguinte, que cria escala NOVA sem tocar nesta. Não pode
+ *   travar pelo próprio estado que ela existe para mudar.
+ */
+type OperacaoEscala = 'conteudo' | 'ciclo';
+
+/**
+ * Preâmbulo único das actions: autentica, valida o id, confere permissão e —
+ * para operações de conteúdo — que a escala ainda possa mudar.
+ *
+ * DPC admin com solicitação de assinatura pode VER e ASSINAR, mas não MUTAR;
+ * por isso a restrição por lotação continua valendo aqui, mesmo depois de a
+ * leitura ter passado por `verificarPermissaoEscala`.
+ *
+ * **Imutabilidade após assinatura (FLW-ESC-003).** Havia PDF assinado, com
+ * hash e carimbo de tempo, atestando uma composição que qualquer das dez
+ * actions de conteúdo podia trocar por baixo — o documento seguia válido
+ * criptograficamente e passava a descrever uma escala que não existe mais. A
+ * UI escondia os controles; o servidor aceitava o POST. Só uma das catorze
+ * actions checava `finalizada_em`, e nenhuma checava assinatura.
+ *
+ * Voltar a poder editar exige o caminho explícito e auditado que já existe:
+ * revogar a assinatura (`DELETE /api/escalas/[id]/documento-assinado`) ou
+ * reabrir o FDS (action `desfinalizar`).
+ *
+ * Devolve `db`/`escala`/`escalaId`/`usuario`, ou um `fail()` pronto.
  */
 async function carregarEscalaComPermissao(
 	platform: App.Platform | undefined,
 	usuario: App.Locals['usuario'],
-	escalaIdRaw: string | undefined
+	escalaIdRaw: string | undefined,
+	operacao: OperacaoEscala
 ) {
 	if (!usuario) {
 		return { erro: fail(401, { error: 'Não autorizado' }) } as const;
@@ -98,6 +136,24 @@ async function carregarEscalaComPermissao(
 	if (usuario.tipo !== 'admin' && usuario.lotacao !== escala.lotacao) {
 		return { erro: fail(403, { error: 'Sem permissão para alterar esta escala' }) } as const;
 	}
+
+	if (operacao === 'conteudo') {
+		if (escala.finalizada_em) {
+			return {
+				erro: fail(409, {
+					error: 'Escala finalizada. Reabra-a antes de alterar a composição.'
+				})
+			} as const;
+		}
+		if (await buscarDocumentoEscala(db, escalaId)) {
+			return {
+				erro: fail(409, {
+					error: 'Escala já assinada. Revogue a assinatura antes de alterar a composição.'
+				})
+			} as const;
+		}
+	}
+
 	return { db, escala, escalaId, usuario } as const;
 }
 
@@ -202,7 +258,7 @@ export const load: PageServerLoad = async ({ locals, platform, params, depends }
 export const actions: Actions = {
 	/** Inclui UM policial num dia (plantão avulso ou expediente). */
 	adicionar: async ({ request, locals, platform, params }) => {
-		const ctx = await carregarEscalaComPermissao(platform, locals.usuario, params.id);
+		const ctx = await carregarEscalaComPermissao(platform, locals.usuario, params.id, 'conteudo');
 		if ('erro' in ctx) return ctx.erro;
 		const { db, escalaId } = ctx;
 
@@ -262,7 +318,7 @@ export const actions: Actions = {
 	 * do modal, num campo oculto JSON).
 	 */
 	adicionarPlantao: async ({ request, locals, platform, params }) => {
-		const ctx = await carregarEscalaComPermissao(platform, locals.usuario, params.id);
+		const ctx = await carregarEscalaComPermissao(platform, locals.usuario, params.id, 'conteudo');
 		if ('erro' in ctx) return ctx.erro;
 		const { db, escalaId } = ctx;
 
@@ -321,7 +377,7 @@ export const actions: Actions = {
 	 * própria escala. Atalho do início do mês, antes dos ajustes individuais.
 	 */
 	adicionarTodos: async ({ locals, platform, params }) => {
-		const ctx = await carregarEscalaComPermissao(platform, locals.usuario, params.id);
+		const ctx = await carregarEscalaComPermissao(platform, locals.usuario, params.id, 'conteudo');
 		if ('erro' in ctx) return ctx.erro;
 		const { db, escala, escalaId } = ctx;
 
@@ -378,7 +434,7 @@ export const actions: Actions = {
 	 */
 	gerarProximoMes: async (event) => {
 		const { locals, platform, params } = event;
-		const ctx = await carregarEscalaComPermissao(platform, locals.usuario, params.id);
+		const ctx = await carregarEscalaComPermissao(platform, locals.usuario, params.id, 'ciclo');
 		if ('erro' in ctx) return ctx.erro;
 		const { db, escala: escalaAtual, escalaId, usuario: u } = ctx;
 
@@ -513,7 +569,7 @@ export const actions: Actions = {
 
 	/** Edita uma linha (dia/horário/equipe/observações) de um policial. */
 	editar: async ({ request, locals, platform, params }) => {
-		const ctx = await carregarEscalaComPermissao(platform, locals.usuario, params.id);
+		const ctx = await carregarEscalaComPermissao(platform, locals.usuario, params.id, 'conteudo');
 		if ('erro' in ctx) return ctx.erro;
 		const { db, escalaId } = ctx;
 
@@ -531,10 +587,16 @@ export const actions: Actions = {
 		const registro = await db
 			.select({ policial_id: escalaPoliciais.policial_id })
 			.from(escalaPoliciais)
-			.where(eq(escalaPoliciais.id, item_id))
+			// `escala_id` junto do `id`: sem isso, um `item_id` de OUTRA escala é
+			// aceito por quem só tem permissão nesta (FLW-ESC-002).
+			.where(and(eq(escalaPoliciais.escala_id, escalaId), eq(escalaPoliciais.id, item_id)))
 			.get();
 
-		if (registro && hora_entrada && hora_saida && data_plantao) {
+		// Recusa explícita em vez de UPDATE que não acha linha e devolve sucesso:
+		// item de outra escala tem de ser indistinguível de item inexistente.
+		if (!registro) return fail(404, { error: 'Item não encontrado nesta escala' });
+
+		if (hora_entrada && hora_saida && data_plantao) {
 			const conflito = await verificarConflitoGlobal(
 				db,
 				registro.policial_id,
@@ -558,7 +620,7 @@ export const actions: Actions = {
 						hora_saida,
 						observacoes
 					})
-					.where(eq(escalaPoliciais.id, item_id)),
+					.where(and(eq(escalaPoliciais.escala_id, escalaId), eq(escalaPoliciais.id, item_id))),
 				listarPoliciaisEscalaQuery(db, escalaId)
 			]);
 			return { success: true, policiais };
@@ -569,7 +631,7 @@ export const actions: Actions = {
 
 	/** Remove uma linha e devolve a listagem já atualizada, em um round-trip. */
 	remover: async ({ request, locals, platform, params }) => {
-		const ctx = await carregarEscalaComPermissao(platform, locals.usuario, params.id);
+		const ctx = await carregarEscalaComPermissao(platform, locals.usuario, params.id, 'conteudo');
 		if ('erro' in ctx) return ctx.erro;
 		const { db, escalaId } = ctx;
 
@@ -578,10 +640,19 @@ export const actions: Actions = {
 
 		if (isNaN(item_id)) return fail(400, { error: 'ID inválido' });
 
+		const alvo = await db
+			.select({ id: escalaPoliciais.id })
+			.from(escalaPoliciais)
+			.where(and(eq(escalaPoliciais.escala_id, escalaId), eq(escalaPoliciais.id, item_id)))
+			.get();
+		if (!alvo) return fail(404, { error: 'Item não encontrado nesta escala' });
+
 		try {
 			// D1 batch: delete + listagem em 1 round-trip
 			const [, policiais] = await db.batch([
-				db.delete(escalaPoliciais).where(eq(escalaPoliciais.id, item_id)),
+				db
+					.delete(escalaPoliciais)
+					.where(and(eq(escalaPoliciais.escala_id, escalaId), eq(escalaPoliciais.id, item_id))),
 				listarPoliciaisEscalaQuery(db, escalaId)
 			]);
 			return { success: true, policiais };
@@ -595,7 +666,7 @@ export const actions: Actions = {
 	 * linha de origem — evita redigitar o que já está na escala.
 	 */
 	repetir: async ({ request, locals, platform, params }) => {
-		const ctx = await carregarEscalaComPermissao(platform, locals.usuario, params.id);
+		const ctx = await carregarEscalaComPermissao(platform, locals.usuario, params.id, 'conteudo');
 		if ('erro' in ctx) return ctx.erro;
 		const { db, escalaId } = ctx;
 
@@ -685,7 +756,7 @@ export const actions: Actions = {
 	 * inseridos.
 	 */
 	editarPlantaoAgrupado: async ({ request, locals, platform, params }) => {
-		const ctx = await carregarEscalaComPermissao(platform, locals.usuario, params.id);
+		const ctx = await carregarEscalaComPermissao(platform, locals.usuario, params.id, 'conteudo');
 		if ('erro' in ctx) return ctx.erro;
 		const { db, escalaId } = ctx;
 
@@ -711,7 +782,7 @@ export const actions: Actions = {
 		const origin = await db
 			.select({ policial_id: escalaPoliciais.policial_id, equipe: escalaPoliciais.equipe })
 			.from(escalaPoliciais)
-			.where(eq(escalaPoliciais.id, ids[0]))
+			.where(and(eq(escalaPoliciais.escala_id, escalaId), eq(escalaPoliciais.id, ids[0])))
 			.get();
 		if (!origin) return fail(404, { error: 'Registro não encontrado' });
 
@@ -721,9 +792,11 @@ export const actions: Actions = {
 		const oldRows = await db
 			.select()
 			.from(escalaPoliciais)
-			.where(inArray(escalaPoliciais.id, ids))
+			.where(and(eq(escalaPoliciais.escala_id, escalaId), inArray(escalaPoliciais.id, ids)))
 			.all();
-		await db.delete(escalaPoliciais).where(inArray(escalaPoliciais.id, ids));
+		await db
+			.delete(escalaPoliciais)
+			.where(and(eq(escalaPoliciais.escala_id, escalaId), inArray(escalaPoliciais.id, ids)));
 
 		const conflitosMap = await verificarConflitoGlobalBatch(
 			db,
@@ -773,7 +846,7 @@ export const actions: Actions = {
 	 * circulou.
 	 */
 	editarDiasEscala: async ({ request, locals, platform, params }) => {
-		const ctx = await carregarEscalaComPermissao(platform, locals.usuario, params.id);
+		const ctx = await carregarEscalaComPermissao(platform, locals.usuario, params.id, 'conteudo');
 		if ('erro' in ctx) return ctx.erro;
 		const { db, escala, escalaId } = ctx;
 
@@ -862,7 +935,7 @@ export const actions: Actions = {
 	 */
 	finalizar: async (event) => {
 		const { request, locals, platform, params } = event;
-		const ctx = await carregarEscalaComPermissao(platform, locals.usuario, params.id);
+		const ctx = await carregarEscalaComPermissao(platform, locals.usuario, params.id, 'ciclo');
 		if ('erro' in ctx) return ctx.erro;
 		const { db, escala, escalaId, usuario: u } = ctx;
 
@@ -929,7 +1002,7 @@ export const actions: Actions = {
 
 	/** Reenvia o PDF da escala de FDS já finalizada (endereço errado, caixa cheia). */
 	reenviarEmail: async ({ request, locals, platform, params }) => {
-		const ctx = await carregarEscalaComPermissao(platform, locals.usuario, params.id);
+		const ctx = await carregarEscalaComPermissao(platform, locals.usuario, params.id, 'ciclo');
 		if ('erro' in ctx) return ctx.erro;
 		const { db, escala, escalaId, usuario: u } = ctx;
 
@@ -982,7 +1055,7 @@ export const actions: Actions = {
 
 	/** Reabre a escala de FDS para correção, limpando `finalizada_em`. */
 	desfinalizar: async ({ locals, platform, params }) => {
-		const ctx = await carregarEscalaComPermissao(platform, locals.usuario, params.id);
+		const ctx = await carregarEscalaComPermissao(platform, locals.usuario, params.id, 'ciclo');
 		if ('erro' in ctx) return ctx.erro;
 		const { db, escala, escalaId } = ctx;
 
@@ -999,7 +1072,7 @@ export const actions: Actions = {
 
 	/** Esvazia a escala (recomeçar o mês do zero). */
 	removerTodos: async ({ locals, platform, params }) => {
-		const ctx = await carregarEscalaComPermissao(platform, locals.usuario, params.id);
+		const ctx = await carregarEscalaComPermissao(platform, locals.usuario, params.id, 'conteudo');
 		if ('erro' in ctx) return ctx.erro;
 		const { db, escalaId } = ctx;
 
@@ -1013,7 +1086,7 @@ export const actions: Actions = {
 
 	/** Remove em lote as linhas marcadas na tabela. */
 	removerSelecionados: async ({ request, locals, platform, params }) => {
-		const ctx = await carregarEscalaComPermissao(platform, locals.usuario, params.id);
+		const ctx = await carregarEscalaComPermissao(platform, locals.usuario, params.id, 'conteudo');
 		if ('erro' in ctx) return ctx.erro;
 		const { db, escalaId } = ctx;
 
