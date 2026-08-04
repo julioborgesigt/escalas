@@ -28,7 +28,7 @@
  * intencional.
  */
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
-import * as QRCode from 'qrcode';
+import { desenharQrCode } from './pdf-qr';
 import { parseUserAgent, descreverTipoCarimbo, type TipoCarimoTempo } from './document-utils';
 import { mascararCPF } from '../../utils/pii';
 import { logger } from '../logger';
@@ -96,41 +96,15 @@ export async function adicionarRodapeSimples(
 	const qrX = marginX;
 	const qrY = bottomY - 5; // Centralizado verticalmente com o texto
 
-	if (verificationUrl) {
-		try {
-			// Usando errorCorrectionLevel H (mais robusto para câmeras)
-			const qr = QRCode.create(verificationUrl, { errorCorrectionLevel: 'H' });
-			const moduleCount = qr.modules.size;
-			const dotSize = qrSize / moduleCount;
-
-			// Fundo branco sutil
-			lastPage.drawRectangle({
-				x: qrX - 2,
-				y: qrY - 2,
-				width: qrSize + 4,
-				height: qrSize + 4,
-				color: rgb(1, 1, 1)
-			});
-
-			for (let row = 0; row < moduleCount; row++) {
-				for (let col = 0; col < moduleCount; col++) {
-					if (qr.modules.get(row, col)) {
-						lastPage.drawRectangle({
-							x: qrX + col * dotSize,
-							y: qrY + (moduleCount - row - 1) * dotSize,
-							width: dotSize + 0.1,
-							height: dotSize + 0.1,
-							color: cBlack // Preto puro para máximo contraste
-						});
-					}
-				}
-			}
-		} catch (err: unknown) {
-			logger.error('Erro ao gerar QR Code para rodape simples', {
-				error: err instanceof Error ? err.message : String(err)
-			});
-		}
-	}
+	desenharQrCode(lastPage, {
+		url: verificationUrl ?? '',
+		x: qrX,
+		y: qrY,
+		tamanho: qrSize,
+		cor: cBlack, // preto puro para máximo contraste
+		fundo: { cor: rgb(1, 1, 1), margem: 2 },
+		contexto: 'rodapé simples'
+	});
 
 	const textX = marginX + qrSize + 10;
 
@@ -389,29 +363,14 @@ export async function adicionarPaginaAuditoria(
 		}
 
 		// QR Code de Validação no canto superior direito
-		if (principal.verificationUrl) {
-			try {
-				const qrSize = 65;
-				const qr = QRCode.create(principal.verificationUrl, { errorCorrectionLevel: 'H' });
-				const moduleCount = qr.modules.size;
-				const dotSize = qrSize / moduleCount;
-				for (let r = 0; r < moduleCount; r++) {
-					for (let c = 0; c < moduleCount; c++) {
-						if (qr.modules.get(r, c)) {
-							page.drawRectangle({
-								x: width - 105 + c * dotSize,
-								y: height - 155 + (moduleCount - r - 1) * dotSize,
-								width: dotSize + 0.1,
-								height: dotSize + 0.1,
-								color: cNavy
-							});
-						}
-					}
-				}
-			} catch (err) {
-				logger.warn('[pdf-signing] QR code de validação', { err: String(err) });
-			}
-		}
+		desenharQrCode(page, {
+			url: principal.verificationUrl ?? '',
+			x: width - 105,
+			y: height - 155,
+			tamanho: 65,
+			cor: cNavy,
+			contexto: 'página de auditoria'
+		});
 
 		page.drawLine({
 			start: { x: 40, y: currY - 10 },
@@ -896,37 +855,18 @@ export async function adicionarRodapeUniversal(
 		const qrX = 20;
 		const qrY = 17;
 
-		if (verificationUrl) {
-			try {
-				const qr = QRCode.create(verificationUrl, { errorCorrectionLevel: 'M' });
-				const moduleCount = qr.modules.size;
-				const dot = qrSize / moduleCount;
-				page.drawRectangle({
-					x: qrX - 1.5,
-					y: qrY - 1.5,
-					width: qrSize + 3,
-					height: qrSize + 3,
-					color: rgb(1, 1, 1)
-				});
-				for (let row = 0; row < moduleCount; row++) {
-					for (let col = 0; col < moduleCount; col++) {
-						if (qr.modules.get(row, col)) {
-							page.drawRectangle({
-								x: qrX + col * dot,
-								y: qrY + (moduleCount - row - 1) * dot,
-								width: dot + 0.1,
-								height: dot + 0.1,
-								color: rgb(0, 0, 0)
-							});
-						}
-					}
-				}
-			} catch (err) {
-				logger.error('Erro ao gerar QR no rodapé de identidade', {
-					error: err instanceof Error ? err.message : String(err)
-				});
-			}
-		}
+		desenharQrCode(page, {
+			url: verificationUrl ?? '',
+			x: qrX,
+			y: qrY,
+			tamanho: qrSize,
+			cor: rgb(0, 0, 0),
+			// 'M' e não 'H': neste bloco o QR é compacto (33pt) e a correção mais
+			// alta engrossaria a matriz a ponto de o módulo ficar sub-pixel.
+			correcao: 'M',
+			fundo: { cor: rgb(1, 1, 1), margem: 1.5 },
+			contexto: 'bloco de identidade'
+		});
 
 		// Bloco de texto (5 linhas) ao lado do QR.
 		const tx = qrX + qrSize + 8;

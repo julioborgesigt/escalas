@@ -28,9 +28,8 @@ import {
 import { consultarOcsp } from './ocsp';
 import { loadTrustStore, trustStoreRequerido } from './icp-brasil/trust-store';
 import { aplicarDss } from './pades-lt';
-import { solicitarCarimboTempo } from './tsa';
-import { adicionarTimestampTokenAoCms } from './cms-tst';
-import { embedCmsBytesNoPlaceholder, extrairDadosDoCertificado } from './pdf-signing-prepare';
+import { anexarCarimboTempo, tstEmBase64 } from './tsa-embed';
+import { extrairDadosDoCertificado } from './pdf-signing-prepare';
 import type { AssinaturaCadesMetadata } from '$lib/db/documentos';
 import type { TipoCarimoTempo } from './document-utils';
 
@@ -303,11 +302,7 @@ export async function verificarECarimbarAssinatura(
 		const tst = await verificarTimestampToken(cms.timestampToken, cms.signatureValue);
 		tipoCarimboTempo = rotuloDoCarimbo(tst);
 		if (tst) {
-			try {
-				tstTokenB64 = forge.util.encode64(forge.asn1.toDer(cms.timestampToken).getBytes());
-			} catch {
-				/* ignore */
-			}
+			tstTokenB64 = tstEmBase64(cms.timestampToken);
 		} else {
 			logger.warn(
 				'[CADES] TST do cliente não verificável — rebaixado para servidor (sem bloquear).'
@@ -315,51 +310,24 @@ export async function verificarECarimbarAssinatura(
 		}
 	}
 
-	// (b) Sem TST do cliente + `TSA_URL` configurada: solicitamos um carimbo de tempo
-	// RFC 3161 (ex.: DigiCert grátis) e o anexamos como UnsignedAttribute, promovendo
-	// CAdES-BES → CAdES-T. É BEST-EFFORT: qualquer falha (rede, TSA fora, placeholder
-	// cheio) mantém a assinatura SEM TST — nunca a quebra.
-	//
-	// Por que é seguro (verificado em PDF real do token, e-CPF SERPRO):
-	//   - O TST vive DENTRO do /Contents (no gap do ByteRange) — não altera os bytes
-	//     assinados nem adiciona revisão pós-assinatura. Logo NÃO dispara o "documento
-	//     modificado" do Adobe (diferente do DSS), e o ByteRange continua idêntico.
-	//   - adicionarTimestampTokenAoCms só ACRESCENTA unsignedAttrs; a assinatura RSA é
-	//     sobre os signedAttrs (intactos). Testado: forge round-trip do CMS do SERPRO é
-	//     byte-idêntico e integridade + RSA continuam válidos após o re-embed.
-	//
-	// Observação jurídica: DigiCert/FreeTSA NÃO são ACT credenciada ICP-Brasil, então
-	// isto é 'tsa_externa' (atestação de tempo de terceiro confiável, não carimbo
-	// qualificado). Ainda assim é muito superior ao relógio do signatário.
-	const tsaUrl = options.env?.TSA_URL;
-	if (!cms.timestampToken && tsaUrl) {
-		try {
-			const tsa = await solicitarCarimboTempo(cms.signatureValue, {
-				url: tsaUrl,
-				username: options.env?.TSA_USERNAME,
-				password: options.env?.TSA_PASSWORD
-			});
-			if (tsa.ok) {
-				const novoCmsDer = adicionarTimestampTokenAoCms(extracao.cmsDer, tsa.tstAsn1);
-				pdfComTst = embedCmsBytesNoPlaceholder(signedPdfBytes, novoCmsDer);
-				cmsDerComTst = novoCmsDer;
-				tstAplicadoServerSide = true;
-				tipoCarimboTempo = 'tsa_externa';
-				try {
-					tstTokenB64 = forge.util.encode64(forge.asn1.toDer(tsa.tstAsn1).getBytes());
-				} catch {
-					/* metadado opcional */
-				}
-			} else {
-				logger.warn('[CADES] TSA falhou — assinatura mantida sem carimbo de tempo', {
-					url: tsaUrl,
-					error: tsa.error
-				});
-			}
-		} catch (e) {
-			logger.warn('[CADES] Erro ao anexar carimbo de tempo — assinatura mantida sem TST', {
-				error: e instanceof Error ? e.message : String(e)
-			});
+	// (b) Sem TST do cliente + `TSA_URL` configurada: pedimos um carimbo RFC 3161
+	// e o embutimos, promovendo CAdES-BES → CAdES-T. O contrato best-effort e o
+	// porquê de carimbar depois de assinar não invalidar nada estão em
+	// `tsa-embed.ts` — mesmo caminho usado pelo selo institucional.
+	if (!cms.timestampToken) {
+		const carimbo = await anexarCarimboTempo(
+			signedPdfBytes,
+			extracao.cmsDer,
+			cms.signatureValue,
+			options.env,
+			'[CADES]'
+		);
+		if (carimbo.aplicado) {
+			pdfComTst = carimbo.pdf;
+			cmsDerComTst = carimbo.cmsDer;
+			tstAplicadoServerSide = true;
+			tipoCarimboTempo = 'tsa_externa';
+			tstTokenB64 = carimbo.tstTokenB64;
 		}
 	}
 

@@ -7,15 +7,18 @@
  *                   └── gise_equipes       (operacional | seint, com nº de vagas)
  *                         └── gise_membros (os policiais)
  *
- * Regra de negócio central do módulo: **só existe uma GISE não finalizada por
- * vez**. É isso que `buscarGiseAtiva` assume, e é o que faz `/gise` conseguir
- * abrir "a" escala corrente sem que o usuário escolha nada.
+ * **Várias GISEs não finalizadas coexistem, e isso é o normal.** Uma GISE é de
+ * um DIA: o formulário de criação recebe uma lista de datas e cria uma escala
+ * por data, todas em `em_definicao_supervisor`. A tela lista as ativas
+ * paginadas ("N escalas ativas — página X de Y").
  *
- * A regra NÃO é protegida por constraint nem serializada na criação — só
- * assumida (achado FLW-GISE-010 em
- * docs/auditorias/PLANO_AUDITORIA_FLUXOS_INTEGRIDADE_2026-08-02.md). Se mais
- * de uma GISE ativa existir, `buscarGiseAtiva` escolhe a mais recente por
- * `data_inicio` e as demais ficam ocultas em silêncio, sem erro.
+ * Este cabeçalho afirmava o contrário até ago/2026 — "só existe uma GISE não
+ * finalizada por vez" —, e o achado FLW-GISE-010 pedia uma constraint de
+ * unicidade para proteger a regra. **A regra não existe**: a constraint
+ * quebraria a criação em lote por datas, que é a forma normal de uso. O que
+ * havia era uma `buscarGiseAtiva` que escolhia a mais recente por `data_inicio`
+ * e escondia as demais em silêncio — cujo resultado, ao final, a página nem
+ * lia. Foi removida com o comentário que a justificava.
  *
  * O ciclo de status (`em_definicao_supervisor` → `em_preenchimento` →
  * `aguardando_assinatura` → `em_andamento` → `aguardando_relatorios` →
@@ -23,7 +26,7 @@
  * dirigido por `escalas-status.ts`; aqui só se GRAVA o status que aquele módulo
  * decidiu.
  */
-import { eq, and, ne, isNotNull, desc, inArray, sql } from 'drizzle-orm';
+import { eq, inArray } from 'drizzle-orm';
 import {
 	giseEscalas,
 	giseSeccionais,
@@ -45,63 +48,6 @@ export async function buscarGiseEscala(
 	id: number
 ): Promise<schema.GiseEscala | undefined> {
 	return db.select().from(giseEscalas).where(eq(giseEscalas.id, id)).get();
-}
-
-/**
- * A GISE corrente — a mais recente que ainda não foi finalizada — enriquecida
- * com três contadores que a UI usa para decidir o que mostrar:
- *
- * - `temSaidaConfirmada`: alguém já registrou saída. Marca a escala como "em
- *   encerramento" mesmo antes do status mudar;
- * - `totalSeccionais`: se for 0, a escala foi criada em branco e ainda não tem
- *   seccional nenhuma — a tela pede a montagem antes de qualquer outra coisa;
- * - `assinaturasRelatorioExtra`: assinaturas do relatório do quadro de
- *   supervisão (`tipo = 'extraordinario'`), contadas à parte porque esse quadro
- *   não pertence a nenhuma seccional.
- *
- * Devolve `undefined` quando todas estão finalizadas — estado normal entre uma
- * GISE e a próxima, não erro.
- */
-export async function buscarGiseAtiva(db: Database) {
-	const ativa = await db
-		.select()
-		.from(giseEscalas)
-		.where(ne(giseEscalas.status, 'finalizada'))
-		.orderBy(desc(giseEscalas.data_inicio))
-		.get();
-
-	if (!ativa) return undefined;
-
-	const [temSaida, totalSecRow, assExtraRow] = await Promise.all([
-		db
-			.select({ id: gisePresencas.id })
-			.from(gisePresencas)
-			.where(and(eq(gisePresencas.gise_id, ativa.id), isNotNull(gisePresencas.saida_timestamp)))
-			.limit(1)
-			.get(),
-		db
-			.select({ count: sql<number>`count(*)` })
-			.from(giseSeccionais)
-			.where(eq(giseSeccionais.gise_id, ativa.id))
-			.get(),
-		db
-			.select({ count: sql<number>`count(*)` })
-			.from(giseAssinaturasRelatorios)
-			.where(
-				and(
-					eq(giseAssinaturasRelatorios.gise_id, ativa.id),
-					eq(giseAssinaturasRelatorios.tipo, 'extraordinario')
-				)
-			)
-			.get()
-	]);
-
-	return {
-		...ativa,
-		temSaidaConfirmada: !!temSaida,
-		totalSeccionais: totalSecRow?.count ?? 0,
-		assinaturasRelatorioExtra: assExtraRow?.count ?? 0
-	};
 }
 
 /**

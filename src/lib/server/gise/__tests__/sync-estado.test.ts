@@ -1,12 +1,12 @@
 /**
- * Carimbos de `/api/sync/estado` contra um SQLite REAL, com todas as migrações
- * aplicadas (mesmo harness de `schema-x-migracoes`).
+ * Carimbos de `/api/sync/estado` para as telas de GISE, contra um SQLite REAL
+ * com todas as migrações aplicadas.
  *
  * O contrato de um carimbo é uma propriedade, não um formato: **muda quando o
  * dado que a tela mostra muda, e não muda quando nada muda**. Um fake de `db`
  * testaria só a concatenação da string — passaria de verde com uma query que
- * ignora a coluna errada. Por isso aqui o banco é de verdade: cada caso grava
- * uma alteração e compara o antes com o depois.
+ * ignora a coluna errada. Por isso o banco é de verdade: cada caso grava uma
+ * alteração e compara o antes com o depois.
  *
  * Os dois lados importam igualmente:
  * - carimbo que NÃO muda quando deveria → a tela fica desatualizada em silêncio,
@@ -15,35 +15,10 @@
  *   anulando o ganho de ter um endpoint leve.
  */
 import { describe, it, expect, beforeAll } from 'vitest';
-import { DatabaseSync } from 'node:sqlite';
-import { readdirSync, readFileSync } from 'node:fs';
-import { join } from 'node:path';
-import { drizzle } from 'drizzle-orm/sqlite-proxy';
+import type { DatabaseSync } from 'node:sqlite';
 import type { Database } from '$lib/db';
-import {
-	carimboGise,
-	carimboEscala,
-	carimboGiseList,
-	carimboPainel,
-	carimboResGise,
-	resumoRecebidosAdmin
-} from '../sync-estado';
-
-const DIR_MIGRACOES = join(process.cwd(), 'migrations');
-
-function bancoMigrado(): DatabaseSync {
-	const db = new DatabaseSync(':memory:');
-	for (const arquivo of readdirSync(DIR_MIGRACOES)
-		.filter((f) => f.endsWith('.sql'))
-		.sort()) {
-		const sql = readFileSync(join(DIR_MIGRACOES, arquivo), 'utf8');
-		for (const stmt of sql.split('--> statement-breakpoint')) {
-			const s = stmt.trim();
-			if (s) db.exec(s);
-		}
-	}
-	return db;
-}
+import { carimboGise, carimboGiseList, carimboResGise } from '../sync-estado';
+import { bancoMigrado, drizzleSobre } from '$lib/db/__tests__/sqlite-migrado';
 
 let sqlite: DatabaseSync;
 let db: Database;
@@ -55,22 +30,7 @@ function exec(sql: string) {
 
 beforeAll(() => {
 	sqlite = bancoMigrado();
-	// `sqlite-proxy` adapta qualquer driver: recebe SQL + params e devolve
-	// linhas como array de arrays, que é o formato que o drizzle espera.
-	db = drizzle(async (sql, params, method) => {
-		const stmt = sqlite.prepare(sql);
-		if (method === 'run') {
-			stmt.run(...(params as never[]));
-			return { rows: [] };
-		}
-		const linhas = stmt.all(...(params as never[])) as Record<string, unknown>[];
-		const arrays = linhas.map((l) => Object.values(l));
-		return { rows: method === 'get' ? (arrays[0] ?? []) : arrays };
-	}) as unknown as Database;
-
-	// Base mínima: uma unidade, dois policiais, uma GISE completa e uma escala.
-	// Ids na faixa 9xxx: as migrações já semeiam `unidades` 1 e 2 (a unidade
-	// sintética do extra da supervisão e a seccional padrão).
+	db = drizzleSobre(sqlite);
 	exec(`
 		INSERT INTO unidades (id, nome, tipo) VALUES (9001, 'DP TESTE', 'delegacia'), (9002, 'SEC TESTE', 'seccional');
 		INSERT INTO policiais (id, matricula, nome, cargo, lotacao, senha, ativo)
@@ -81,10 +41,6 @@ beforeAll(() => {
 		INSERT INTO gise_seccionais (id, gise_id, seccional_id, status) VALUES (200, 100, 9002, 'preenchida');
 		INSERT INTO gise_equipes (id, gise_seccional_id, tipo, slots_dpc, slots_oip) VALUES (300, 200, 'operacional', 1, 4);
 		INSERT INTO gise_membros (id, equipe_id, policial_id) VALUES (400, 300, 10);
-		INSERT INTO escalas (id, titulo, cidade, tipo, lotacao, data_inicio, data_fim)
-			VALUES (500, 'Escala Teste', 'Fortaleza', 'plantao', 'DP TESTE', '2026-05-01', '2026-05-31');
-		INSERT INTO escala_policiais (id, escala_id, policial_id, data_plantao, hora_entrada, hora_saida, equipe)
-			VALUES (600, 500, 10, '2026-05-01', '08:00', '20:00', '1');
 	`);
 });
 
@@ -146,30 +102,6 @@ describe('carimboGise', () => {
 	});
 });
 
-describe('carimboEscala', () => {
-	const alvo = () => carimboEscala(db, 500);
-
-	it('devolve null para escala inexistente', async () => {
-		expect(await carimboEscala(db, 999)).toBeNull();
-	});
-
-	it('é estável quando nada muda', async () => {
-		expect(await alvo()).toBe(await alvo());
-	});
-
-	it.each([
-		['período', `UPDATE escalas SET data_fim = '2026-06-30' WHERE id = 500`],
-		[
-			'escalado adicionado',
-			`INSERT INTO escala_policiais (id, escala_id, policial_id, data_plantao, hora_entrada, hora_saida, equipe) VALUES (601, 500, 11, '2026-05-02', '08:00', '20:00', '2')`
-		],
-		['horário do escalado', `UPDATE escala_policiais SET hora_saida = '19:00' WHERE id = 600`]
-	])('muda quando muda %s', async (_rotulo, mudanca) => {
-		const { antes, depois } = await aoRedorDe(alvo, mudanca);
-		expect(depois).not.toBe(antes);
-	});
-});
-
 describe('carimboGiseList', () => {
 	it('muda quando entra uma GISE nova', async () => {
 		const { antes, depois } = await aoRedorDe(
@@ -215,24 +147,5 @@ describe('carimboResGise', () => {
 		const antes = await carimboResGise(db, 10);
 		exec(`UPDATE gise_presencas SET latitude = -3.7 WHERE id = 700`);
 		expect(await carimboResGise(db, 10)).toBe(antes);
-	});
-});
-
-describe('carimboPainel e resumoRecebidosAdmin', () => {
-	it('o painel é estável quando nada muda', async () => {
-		expect(await carimboPainel(db)).toBe(await carimboPainel(db));
-	});
-
-	it('recebidos conta os NÃO vistos e o carimbo acompanha', async () => {
-		exec(
-			`INSERT INTO escala_documentos (id, escala_id, r2_key, assinante_nome, verificacao_hash) VALUES (900, 500, 'k', 'A', 'h')`
-		);
-		const antes = await resumoRecebidosAdmin(db);
-		expect(antes.naoVistos).toBe(1);
-
-		exec(`UPDATE escalas SET visto_por_admin = 1 WHERE id = 500`);
-		const depois = await resumoRecebidosAdmin(db);
-		expect(depois.naoVistos).toBe(0);
-		expect(depois.stamp).not.toBe(antes.stamp);
 	});
 });

@@ -1,37 +1,37 @@
 {
 	"codigo2FA": {
 		"subject": "Código de Verificação — Acesso ao Sistema",
-		"sha256": "ab31e45c05219592d7e0759d0be3674c10947a3e372d5b8ecddd607771909e77",
-		"tamanho": 2026
+		"sha256": "e5b94c3686cb57bf9e2880aed2b8ba37bb77e5a04bb24dddc1e46f6d6f50c2fb",
+		"tamanho": 2046
 	},
 	"codigoEmailPessoal": {
 		"subject": "Verificação de E-mail Pessoal — Sistema de Escalas",
-		"sha256": "1491ea1b6f631e262e489b29274d2fb1bc57da491b46f49d98388d7a8519d5ec",
-		"tamanho": 2209
+		"sha256": "0de31771e3c50f7a52e02b10c846d3b0e378955b22a4db7d8f8f1bc5e0dcdac7",
+		"tamanho": 2229
 	},
 	"avisoTrocaEmailPessoal": {
 		"subject": "Aviso de segurança: e-mail pessoal alterado — Sistema de Escalas",
-		"sha256": "550b247f216e28b9b0411cd137d4f146df1f53383f0ac68daa2d2587e0cbdd86",
-		"tamanho": 1968
+		"sha256": "4269e16bfe16eaed570caa254595ce6bfc044123012987e9100122247d0e2d18",
+		"tamanho": 1988
 	},
 	"codigoRedefinicaoSenha": {
 		"subject": "Código de Redefinição de Senha — Sistema de Escalas",
-		"sha256": "d22adab4b269444b3395a7afc598438ca3ef23a2b34272d60134d7d4fe27afb2",
-		"tamanho": 2201
+		"sha256": "b5315773a266be6470e3cbcd1740b82e7a6b51c636bdd48e6bcc8b14ff98de16",
+		"tamanho": 2221
 	},
 	"linkRedefinicaoSenha": {
 		"subject": "Redefinição de Senha — Sistema de Escalas",
-		"sha256": "a5d391c94abd20620e4839c48ce5a17ceb6d9e0e952f9a80db9c634329f69d69",
-		"tamanho": 2662
+		"sha256": "e116358343c29d8b7af50fd5df8ef713525f851437dd875afd60b893ad9b9bb4",
+		"tamanho": 2682
 	},
 	"linkPrimeiroAcesso": {
 		"subject": "Primeiro Acesso — Sistema de Escalas",
-		"sha256": "4dec2425ee05b7a26408a6074bcc0178768ea624efe3e16d0566a177f1c13b1e",
-		"tamanho": 2607
+		"sha256": "68366d039ac03c23666dd6cb41076461bc9006c6453cec8efb83e46ddfee54a3",
+		"tamanho": 2627
 	},
 	"notificacaoAssessorGise": {
 		"subject": "GISE — seccional enviou a escala (resumo para WhatsApp)",
-		"sha256": "763c39d9ba50c4963033f1de50d61f7bd935868614160219ff84430f869aec63",
-		"tamanho": 1455
+		"sha256": "9ec9eae1230bd86c5ad7ff425164332ed48f6afcaa52296a2c780f79af3d5fdf",
+		"tamanho": 1465
 	}
 }

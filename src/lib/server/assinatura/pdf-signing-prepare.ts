@@ -36,7 +36,8 @@ import { PDFDocument, StandardFonts, rgb, degrees, type PDFPage } from 'pdf-lib'
 import { pdflibAddPlaceholder } from '@signpdf/placeholder-pdf-lib';
 import { removeTrailingNewLine } from '@signpdf/utils';
 import forge from 'node-forge';
-import * as QRCode from 'qrcode';
+import { desenharQrCode } from './pdf-qr';
+import { CORPORACAO } from '$lib/institucional';
 import { logger } from '../logger';
 import { bytesToHex } from '$lib/crypto/hex';
 // Identidade da política (OIDs, hash oficial, resolver) — fonte única
@@ -818,8 +819,16 @@ export async function prepararPdfParaAssinatura(
 		color: cNavy
 	});
 
-	const headerTitle = 'ASSINATURA DIGITAL — ICP-BRASIL — POLÍCIA CIVIL DO CEARÁ';
-	const headerFontSize = 4.2;
+	const headerTitle = `ASSINATURA DIGITAL — ICP-BRASIL — ${CORPORACAO}`;
+	// 4.2pt é o TETO, não o valor: a largura do texto cresce linearmente com o
+	// corpo, então basta reduzir na proporção do excesso para o título caber
+	// sempre. Sem isso, alongar o nome da corporação faz a faixa transbordar a
+	// caixa — o carimbo é centralizado, e sobra dos dois lados. O desconto cobre
+	// os quadrados de acento nos cantos (4pt + 3pt de lado) mais 3pt de folga,
+	// para o título não encostar neles.
+	const larguraUtil = boxW - 20;
+	const larguraNoTeto = fontBold.widthOfTextAtSize(headerTitle, 4.2);
+	const headerFontSize = larguraNoTeto > larguraUtil ? (4.2 * larguraUtil) / larguraNoTeto : 4.2;
 	const titleWidth = fontBold.widthOfTextAtSize(headerTitle, headerFontSize);
 	const titleX = boxX + (boxW - titleWidth) / 2;
 	const titleY = boxY + boxH - headerH + (headerH - headerFontSize) / 2 + 0.3; // Centralização vertical refinada
@@ -855,37 +864,15 @@ export async function prepararPdfParaAssinatura(
 	const qrX = boxX + boxW - qrSize - 4;
 	const qrYPos = boxY + (boxH - headerH - qrSize) / 2 + 0.5;
 
-	if (verificationUrl) {
-		try {
-			const qr = QRCode.create(verificationUrl, { errorCorrectionLevel: 'H' });
-			const moduleCount = qr.modules.size;
-			const dotSize = qrSize / moduleCount;
-			lastPage.drawRectangle({
-				x: qrX - 2,
-				y: qrYPos - 2,
-				width: qrSize + 4,
-				height: qrSize + 4,
-				color: cWhite
-			});
-			for (let row = 0; row < moduleCount; row++) {
-				for (let col = 0; col < moduleCount; col++) {
-					if (qr.modules.get(row, col)) {
-						lastPage.drawRectangle({
-							x: qrX + col * dotSize,
-							y: qrYPos + (moduleCount - row - 1) * dotSize,
-							width: dotSize + 0.1,
-							height: dotSize + 0.1,
-							color: cNavy
-						});
-					}
-				}
-			}
-		} catch (err: unknown) {
-			logger.error('Erro ao gerar QR Code para assinatura', {
-				error: err instanceof Error ? err.message : String(err)
-			});
-		}
-	}
+	desenharQrCode(lastPage, {
+		url: verificationUrl ?? '',
+		x: qrX,
+		y: qrYPos,
+		tamanho: qrSize,
+		cor: cNavy,
+		fundo: { cor: cWhite, margem: 2 },
+		contexto: 'caixa de assinatura'
+	});
 
 	// 6 — Linha divisória vertical entre conteúdo e QR
 	lastPage.drawLine({

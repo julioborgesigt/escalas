@@ -31,7 +31,7 @@
 import { json } from '@sveltejs/kit';
 import { eq, and } from 'drizzle-orm';
 import { getDB, auditar, contextoDeEvento } from '$lib/db';
-import { criarSessao, obterRotaBemVindo } from '$lib/auth';
+import { criarSessao, obterRotaBemVindo, consumirDesafio2FA } from '$lib/auth';
 import { administradores, doisFatoresTokens, policiais } from '$lib/server/schema';
 import {
 	badRequest,
@@ -227,11 +227,13 @@ export const POST: RequestHandler = async (event) => {
 			);
 		}
 
-		// Marcar desafio como usado (one-time use)
-		await db
-			.update(doisFatoresTokens)
-			.set({ usado: 1 })
-			.where(eq(doisFatoresTokens.id, desafio.id));
+		// Consumo de uso único: se outra requisição gastou o desafio primeiro,
+		// esta NÃO cria sessão. A checagem de `usado` lá em cima é diagnóstico;
+		// a autorização é este UPDATE condicional.
+		if (!(await consumirDesafio2FA(db, desafio.id))) {
+			await recordAttempt(db, ip, false);
+			return apiError('Desafio inválido ou já utilizado.', 401, ErrorCode.AUTH_REQUIRED);
+		}
 		await recordAttempt(db, ip, true);
 
 		const token = await criarSessao(db, 'admin', admin.id);
@@ -271,8 +273,11 @@ export const POST: RequestHandler = async (event) => {
 		});
 	}
 
-	// Marcar desafio como usado (one-time use)
-	await db.update(doisFatoresTokens).set({ usado: 1 }).where(eq(doisFatoresTokens.id, desafio.id));
+	// Mesmo consumo de uso único do ramo de admin, acima.
+	if (!(await consumirDesafio2FA(db, desafio.id))) {
+		await recordAttempt(db, ip, false);
+		return apiError('Desafio inválido ou já utilizado.', 401, ErrorCode.AUTH_REQUIRED);
+	}
 
 	await recordAttempt(db, ip, true);
 

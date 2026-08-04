@@ -30,7 +30,7 @@
  * o TIPO `UsuarioLogado` (import type, apagado no build). Qualquer import de
  * VALOR daqui no cliente arrasta `node:crypto` e o schema para o bundle.
  */
-import { eq, and, gt, inArray, desc } from 'drizzle-orm';
+import { eq, and, gt, inArray, desc, sql } from 'drizzle-orm';
 import {
 	sessoes,
 	administradores,
@@ -516,21 +516,78 @@ export async function verificarTokenRedefinicao(
 }
 
 /**
- * Marca um token de redefinição como usado (uso único). Cobre a forma
- * hasheada (atual) e linhas legadas em claro.
+ * CONSOME o token de redefinição: marca como usado e devolve o dono, numa
+ * operação só. É esta — e não `verificarTokenRedefinicao` — que autoriza a
+ * troca de senha.
  *
- * NÃO é atômico com a leitura em `verificarTokenRedefinicao`: é um UPDATE
- * incondicional, sem `WHERE usado = 0`, então duas requisições concorrentes
- * podem ambas passar pela verificação antes de qualquer uma marcar o token
- * (achado FLW-AUTH-004 em
- * docs/auditorias/PLANO_AUDITORIA_FLUXOS_INTEGRIDADE_2026-08-02.md). Chamar
- * ANTES de trocar a senha reduz a janela, mas não a fecha.
+ * A leitura separada da marcação era o achado FLW-AUTH-004: entre o SELECT que
+ * validava e o UPDATE que marcava cabia outra requisição, que lia a mesma linha
+ * ainda com `usado = 0`. Um único link redefinia a senha duas vezes, e quem
+ * interceptou o e-mail podia redefini-la DEPOIS do dono sem que o link "já
+ * usado" o denunciasse. Marcar antes de trocar a senha encurtava a janela; não
+ * a fechava.
+ *
+ * O `WHERE usado = 0 AND expires_at > agora` é o que fecha: o próprio SQLite
+ * serializa os UPDATEs, então exatamente um altera a linha. Quem alterou ganha
+ * — os demais recebem `'invalido'`.
+ *
+ * Expirado NÃO é consumido (fica fora do `WHERE`), para que a segunda tentativa
+ * ainda diga "expirou, solicite outro link" em vez de "inválido". A distinção
+ * entre os motivos da recusa é feita por uma leitura extra, e serve só à
+ * MENSAGEM: a autorização já foi decidida pelo UPDATE.
  */
-export async function marcarTokenRedefinicaoUsado(db: Database, token: string): Promise<void> {
-	await db
+export async function consumirTokenRedefinicao(
+	db: Database,
+	tokenInput: string
+): Promise<{ tipo: 'policial' | 'admin'; usuarioId: number } | 'expirado' | 'invalido'> {
+	const tokenHash = await hashTokenArmazenado(tokenInput);
+	const linhas = await db
 		.update(resetSenhaTokens)
 		.set({ usado: 1 })
-		.where(inArray(resetSenhaTokens.token, [await hashTokenArmazenado(token), token]));
+		.where(
+			and(
+				// Linhas legadas guardam o token em claro; as atuais, o `sha256:`.
+				inArray(resetSenhaTokens.token, [tokenHash, tokenInput]),
+				eq(resetSenhaTokens.usado, 0),
+				gt(resetSenhaTokens.expires_at, new Date().toISOString())
+			)
+		)
+		.returning({
+			tipo: resetSenhaTokens.tipo_usuario,
+			usuarioId: resetSenhaTokens.usuario_id
+		});
+
+	const linha = linhas[0];
+	if (linha) {
+		return { tipo: linha.tipo as 'policial' | 'admin', usuarioId: linha.usuarioId };
+	}
+
+	// Perdeu a corrida, já estava usado, expirou ou nunca existiu — só a
+	// primeira letra da mensagem muda, e nada aqui concede acesso.
+	return (await verificarTokenRedefinicao(db, tokenInput)) === 'expirado' ? 'expirado' : 'invalido';
+}
+
+/**
+ * CONSOME um desafio de dois fatores: marca `usado = 1` e diz se ESTA chamada
+ * foi a que conseguiu.
+ *
+ * `false` significa que outra requisição chegou primeiro — o desafio é de uso
+ * único e já foi gasto. Quem recebe `false` tem de recusar o acesso, não
+ * seguir em frente.
+ *
+ * Sem o `WHERE usado = 0` (como era nos três call sites até ago/2026) o UPDATE
+ * é incondicional e duas submissões paralelas do MESMO código válido criam duas
+ * sessões: o código de 6 dígitos que o usuário recebeu por e-mail vira
+ * reutilizável dentro da janela entre a leitura e a marcação. É a mesma
+ * causa-raiz do FLW-AUTH-004 no token de redefinição.
+ */
+export async function consumirDesafio2FA(db: Database, desafioId: number): Promise<boolean> {
+	const linhas = await db
+		.update(doisFatoresTokens)
+		.set({ usado: 1 })
+		.where(and(eq(doisFatoresTokens.id, desafioId), eq(doisFatoresTokens.usado, 0)))
+		.returning({ id: doisFatoresTokens.id });
+	return linhas.length === 1;
 }
 
 /**
@@ -575,21 +632,20 @@ export async function verificarDesafio2FA(
 	// fluxos legados que não usam binding.
 	const hashedInput = await hashCodigo2FA(String(codigoInput), bindExtra);
 	if (!comparacaoTimingSafe(desafio.codigo, hashedInput)) {
+		// Incremento no SQL, e não `desafio.tentativas + 1`: cinco palpites
+		// paralelos com o valor lido antes de qualquer um gravar registrariam
+		// UMA tentativa, e o teto de 5 nunca seria alcançado.
 		await db
 			.update(doisFatoresTokens)
-			.set({ tentativas: desafio.tentativas + 1 })
+			.set({ tentativas: sql`${doisFatoresTokens.tentativas} + 1` })
 			.where(eq(doisFatoresTokens.id, desafio.id));
 		return null;
 	}
 
 	// Em lote (`markUsed: false`) o desafio permanece válido até expirar, para
 	// autorizar várias assinaturas na mesma sessão sem novo código a cada uma.
-	if (markUsed) {
-		await db
-			.update(doisFatoresTokens)
-			.set({ usado: 1 })
-			.where(eq(doisFatoresTokens.id, desafio.id));
-	}
+	// Fora do lote, perder a corrida do consumo é recusa: o código já foi gasto.
+	if (markUsed && !(await consumirDesafio2FA(db, desafio.id))) return null;
 
 	return { tipo: desafio.tipo as TipoDesafio2FA, usuarioId: desafio.usuario_id };
 }

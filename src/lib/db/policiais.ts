@@ -217,6 +217,75 @@ export async function buscarPolicialPorMatricula(
 }
 
 /**
+ * Cadastro completo de um policial, como chega da tela de cadastro e do
+ * webhook de pessoal. Os dois caminhos recebem exatamente estes campos.
+ */
+export interface DadosPolicial {
+	nome: string;
+	matricula: string;
+	cargo: string;
+	cpf?: string | null;
+	telefone?: string;
+	lotacao?: string;
+	regime?: string;
+	classe?: string;
+	papel?: string | null;
+	papel_unidade_id?: number | null;
+	email?: string | null;
+	email_pessoal?: string | null;
+	ativo?: number;
+}
+
+/**
+ * Traduz o payload externo para colunas, UMA vez, e separa em dois grupos.
+ *
+ * A separação é o contrato entre cadastro e sync, não arrumação: `daFolha` são
+ * os campos de que o sistema de pessoal é dono e que uma rodada de sync pode
+ * sobrescrever; o resto — matrícula, credencial e contato — só existe no
+ * INSERT, porque sobrescrevê-lo derrubaria o acesso de quem já usa o sistema.
+ *
+ * Devolve os dois porque `prepararCpfParaDB` **não é determinístico**: o
+ * envelope AES-GCM leva IV aleatório, então chamá-lo duas vezes para a mesma
+ * linha gravaria `cpf` diferente no INSERT e no UPDATE do mesmo `upsert`.
+ *
+ * As duas cópias existiam lado a lado desde sempre e já haviam divergido:
+ * `papel_unidade_id` usava `|| null` no cadastro e `?? null` no sync. Ficou o
+ * `??` — `0` é um id que não existe, mas transformá-lo em `null` silenciosamente
+ * apaga um escopo de permissão em vez de acusar o valor inválido.
+ */
+async function colunasDoPolicial(data: DadosPolicial, env?: CpfCriptoEnv) {
+	const { cpf, cpf_index } = await prepararCpfParaDB(data.cpf, env);
+
+	const daFolha = {
+		nome: data.nome,
+		cargo: data.cargo as 'DPC' | 'OIP',
+		cpf,
+		cpf_index,
+		telefone: data.telefone || '',
+		lotacao: data.lotacao || '',
+		regime: (data.regime as 'plantao' | 'expediente') || 'plantao',
+		classe: data.classe || '',
+		papel: (data.papel as 'admin_seccional' | 'admin_unidade' | null) || null,
+		papel_unidade_id: data.papel_unidade_id ?? null,
+		ativo: data.ativo ?? 1
+	};
+
+	return {
+		daFolha,
+		/** Linha completa de INSERT: a folha mais o que só nasce uma vez. */
+		nova: {
+			...daFolha,
+			matricula: limparMatricula(data.matricula),
+			senha: await gerarSenhaAleatoriaHash(),
+			primeiro_acesso: 1,
+			email: data.email || null,
+			email_pessoal: data.email_pessoal || null,
+			email_pessoal_verificado: 0
+		}
+	};
+}
+
+/**
  * Cria um policial pela tela de cadastro.
  *
  * A senha NÃO é escolhida aqui: grava um hash de senha aleatória e
@@ -227,46 +296,9 @@ export async function buscarPolicialPorMatricula(
  * `papel`/`papel_unidade_id` vêm do chamador já validados: esta função concede
  * a permissão que receber.
  */
-export async function criarPolicial(
-	db: Database,
-	data: {
-		nome: string;
-		matricula: string;
-		cargo: string;
-		cpf?: string | null;
-		telefone?: string;
-		lotacao?: string;
-		regime?: string;
-		classe?: string;
-		papel?: string | null;
-		papel_unidade_id?: number | null;
-		email?: string | null;
-		email_pessoal?: string | null;
-		ativo?: number;
-	},
-	env?: CpfCriptoEnv
-) {
-	const senhaHash = await gerarSenhaAleatoriaHash();
-	const { cpf, cpf_index } = await prepararCpfParaDB(data.cpf, env);
-	return db.insert(policiais).values({
-		nome: data.nome,
-		matricula: limparMatricula(data.matricula),
-		cargo: data.cargo as 'DPC' | 'OIP',
-		cpf,
-		cpf_index,
-		telefone: data.telefone || '',
-		lotacao: data.lotacao || '',
-		regime: (data.regime as 'plantao' | 'expediente') || 'plantao',
-		classe: data.classe || '',
-		senha: senhaHash,
-		primeiro_acesso: 1,
-		papel: (data.papel as 'admin_seccional' | 'admin_unidade' | null) || null,
-		papel_unidade_id: data.papel_unidade_id || null,
-		email: data.email || null,
-		email_pessoal: data.email_pessoal || null,
-		email_pessoal_verificado: 0,
-		ativo: data.ativo ?? 1
-	});
+export async function criarPolicial(db: Database, data: DadosPolicial, env?: CpfCriptoEnv) {
+	const { nova } = await colunasDoPolicial(data, env);
+	return db.insert(policiais).values(nova);
 }
 
 /**
@@ -290,67 +322,19 @@ export async function criarPolicial(
  * `buscarPolicialPorMatricula` antes de chamar (M-4), senão um SYNC_TOKEN
  * vazado promoveria qualquer matrícula a admin.
  */
-export async function upsertPolicial(
-	db: Database,
-	data: {
-		nome: string;
-		matricula: string;
-		cargo: string;
-		cpf?: string | null;
-		telefone?: string;
-		lotacao?: string;
-		regime?: string;
-		classe?: string;
-		papel?: string | null;
-		papel_unidade_id?: number | null;
-		email?: string | null;
-		email_pessoal?: string | null;
-		ativo?: number;
-	},
-	env?: CpfCriptoEnv
-) {
-	const matriculaLimpa = limparMatricula(data.matricula);
-	const { cpf, cpf_index } = await prepararCpfParaDB(data.cpf, env);
-	const senhaHash = await gerarSenhaAleatoriaHash();
+export async function upsertPolicial(db: Database, data: DadosPolicial, env?: CpfCriptoEnv) {
+	const { daFolha, nova } = await colunasDoPolicial(data, env);
 
 	return db
 		.insert(policiais)
-		.values({
-			nome: data.nome,
-			matricula: matriculaLimpa,
-			cargo: data.cargo as 'DPC' | 'OIP',
-			cpf,
-			cpf_index,
-			telefone: data.telefone || '',
-			lotacao: data.lotacao || '',
-			regime: (data.regime as 'plantao' | 'expediente') || 'plantao',
-			classe: data.classe || '',
-			senha: senhaHash,
-			primeiro_acesso: 1,
-			papel: (data.papel as 'admin_seccional' | 'admin_unidade' | null) || null,
-			papel_unidade_id: data.papel_unidade_id ?? null,
-			email: data.email || null,
-			email_pessoal: data.email_pessoal || null,
-			email_pessoal_verificado: 0,
-			ativo: data.ativo ?? 1
-		})
+		.values(nova)
 		.onConflictDoUpdate({
 			target: policiais.matricula,
 			set: {
-				nome: data.nome,
-				cargo: data.cargo as 'DPC' | 'OIP',
-				cpf,
-				cpf_index,
-				telefone: data.telefone || '',
-				lotacao: data.lotacao || '',
-				regime: (data.regime as 'plantao' | 'expediente') || 'plantao',
-				classe: data.classe || '',
-				papel: (data.papel as 'admin_seccional' | 'admin_unidade' | null) || null,
-				papel_unidade_id: data.papel_unidade_id ?? null,
+				...daFolha,
 				email: data.email ? data.email : sql`email`,
 				email_pessoal: data.email_pessoal ? data.email_pessoal : sql`email_pessoal`,
 				email_pessoal_verificado: data.email_pessoal ? 0 : sql`email_pessoal_verificado`,
-				ativo: data.ativo ?? 1,
 				updated_at: sql`datetime('now', '-3 hours')`
 			}
 		});

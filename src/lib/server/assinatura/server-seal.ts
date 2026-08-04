@@ -27,11 +27,7 @@
 
 import forge from 'node-forge';
 import { logger } from '../logger';
-import {
-	prepararPdfParaSelo,
-	finalizarAssinatura,
-	embedCmsBytesNoPlaceholder
-} from './pdf-signing-prepare';
+import { prepararPdfParaSelo, finalizarAssinatura } from './pdf-signing-prepare';
 import {
 	extrairCmsDoPdf,
 	parseCms,
@@ -40,8 +36,7 @@ import {
 	verificarTimestampToken,
 	avaliarCoberturaAssinatura
 } from './pdf-verification';
-import { solicitarCarimboTempo } from './tsa';
-import { adicionarTimestampTokenAoCms } from './cms-tst';
+import { anexarCarimboTempo } from './tsa-embed';
 import type { TipoCarimoTempo } from './document-utils';
 
 interface SeloInstitucional {
@@ -168,34 +163,21 @@ export async function selarPdfInstitucional(
 		);
 
 		// Carimbo de tempo GRATUITO (best-effort). Falha aqui NÃO invalida o selo —
-		// apenas mantém o tipo 'servidor'. Se o TST não couber no placeholder,
-		// embedCmsBytesNoPlaceholder lança e caímos para o selo sem TST.
+		// apenas mantém o tipo 'servidor'. Mesmo caminho da assinatura
+		// qualificada; o contrato está documentado em `tsa-embed.ts`.
 		let tipoCarimboTempo: TipoCarimoTempo = 'servidor';
-		const tsaUrl = options.env?.TSA_URL;
-		if (tsaUrl) {
-			try {
-				const tsa = await solicitarCarimboTempo(signatureBytes, {
-					url: tsaUrl,
-					username: options.env?.TSA_USERNAME,
-					password: options.env?.TSA_PASSWORD
-				});
-				if (tsa.ok) {
-					const extra = extrairCmsDoPdf(signedPdf);
-					if (extra) {
-						const novoCmsDer = adicionarTimestampTokenAoCms(extra.cmsDer, tsa.tstAsn1);
-						signedPdf = embedCmsBytesNoPlaceholder(signedPdf, novoCmsDer);
-						tipoCarimboTempo = 'tsa_externa';
-					}
-				} else {
-					logger.warn('[selo] TSA falhou — selo sem carimbo de tempo', {
-						url: tsaUrl,
-						error: tsa.error
-					});
-				}
-			} catch (e) {
-				logger.warn('[selo] Erro ao anexar carimbo de tempo — selo mantido sem TST', {
-					error: e instanceof Error ? e.message : String(e)
-				});
+		const cmsDoSelo = extrairCmsDoPdf(signedPdf);
+		if (cmsDoSelo) {
+			const carimbo = await anexarCarimboTempo(
+				signedPdf,
+				cmsDoSelo.cmsDer,
+				signatureBytes,
+				options.env,
+				'[selo]'
+			);
+			if (carimbo.aplicado) {
+				signedPdf = carimbo.pdf;
+				tipoCarimboTempo = 'tsa_externa';
 			}
 		}
 

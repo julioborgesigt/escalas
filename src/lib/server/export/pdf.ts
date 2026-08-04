@@ -61,6 +61,7 @@ import {
 	formatarMesAno,
 	cabecalhoDelegacia
 } from './shared';
+import { CORPORACAO, DELEGACIA_GERAL, DEPARTAMENTO } from '$lib/institucional';
 
 // Type augmentation for jspdf-autotable's lastAutoTable property
 interface JsPDFWithAutoTable extends jsPDF {
@@ -445,13 +446,13 @@ export async function gerarPdfExpediente(
 	let y = 10;
 	doc.setFont('helvetica', 'bold');
 	doc.setFontSize(9);
-	doc.text('POLÍCIA CIVIL DO CEARÁ', PAGE_W / 2, y, { align: 'center' });
+	doc.text(CORPORACAO, PAGE_W / 2, y, { align: 'center' });
 	y += 4.5;
 	doc.setFont('helvetica', 'normal');
 	doc.setFontSize(8);
-	doc.text('DELEGACIA GERAL DA POLÍCIA CIVIL', PAGE_W / 2, y, { align: 'center' });
+	doc.text(DELEGACIA_GERAL, PAGE_W / 2, y, { align: 'center' });
 	y += 4;
-	doc.text('DEPARTAMENTO DE POLÍCIA DO INTERIOR SUL', PAGE_W / 2, y, { align: 'center' });
+	doc.text(DEPARTAMENTO, PAGE_W / 2, y, { align: 'center' });
 	y += 7;
 
 	const TEAL: [number, number, number] = [26, 92, 87];
@@ -571,63 +572,13 @@ export async function gerarPdfExpediente(
 	});
 
 	const pdfBytes = new Uint8Array(doc.output('arraybuffer'));
-	const hasLogos =
-		(logoPoliciaBytes && logoPoliciaBytes.length > 0) ||
-		(logoCearaBytes && logoCearaBytes.length > 0);
-	if (!hasLogos) return { pdf: pdfBytes, finalY: sigY, pageHeightMm: PAGE_H };
-
-	try {
-		const pdfDoc = await PDFDocument.load(pdfBytes);
-		const mmToPt = 2.83465;
-		const logoH = 14;
-		const logoW = 42;
-		const logoTopMm = 3;
-
-		let imgPolicia: Awaited<ReturnType<typeof pdfDoc.embedJpg>> | null = null;
-		let imgCeara: Awaited<ReturnType<typeof pdfDoc.embedJpg>> | null = null;
-		if (logoPoliciaBytes && logoPoliciaBytes.length > 0) {
-			try {
-				imgPolicia = await pdfDoc.embedJpg(logoPoliciaBytes);
-			} catch {
-				/* logo indisponível */
-			}
-		}
-		if (logoCearaBytes && logoCearaBytes.length > 0) {
-			try {
-				imgCeara = await pdfDoc.embedJpg(logoCearaBytes);
-			} catch {
-				/* logo indisponível */
-			}
-		}
-
-		for (const page of pdfDoc.getPages()) {
-			const { height } = page.getSize();
-			if (imgPolicia) {
-				page.drawImage(imgPolicia, {
-					x: margin * mmToPt,
-					y: height - (logoTopMm + logoH) * mmToPt,
-					width: logoW * mmToPt,
-					height: logoH * mmToPt
-				});
-			}
-			if (imgCeara) {
-				page.drawImage(imgCeara, {
-					x: (PAGE_W - margin - logoW) * mmToPt,
-					y: height - (logoTopMm + logoH) * mmToPt,
-					width: logoW * mmToPt,
-					height: logoH * mmToPt
-				});
-			}
-		}
-
-		return { pdf: await pdfDoc.save(), finalY: sigY, pageHeightMm: PAGE_H };
-	} catch (e: unknown) {
-		console.error(
-			'[export] Erro ao inserir logos (expediente):',
-			e instanceof Error ? e.message : e
-		);
-		return { pdf: pdfBytes, finalY: sigY, pageHeightMm: PAGE_H };
-	}
+	const comLogos = await embutirLogosNoTopo(
+		pdfBytes,
+		logoPoliciaBytes,
+		logoCearaBytes,
+		LOGOS_EXPEDIENTE
+	);
+	return { pdf: comLogos, finalY: sigY, pageHeightMm: PAGE_H };
 }
 
 // ---- PDF Plantão ----
@@ -651,16 +602,13 @@ export function gerarPdfPlantao(
 	let y = 12;
 	doc.setFontSize(10);
 	doc.setFont('helvetica', 'bold');
-	doc.text('POLÍCIA CIVIL DO ESTADO DO CEARÁ', pageWidth / 2, y, { align: 'center' });
+	doc.text(CORPORACAO, pageWidth / 2, y, { align: 'center' });
 	y += 5;
 	doc.setFontSize(8);
 	doc.setFont('helvetica', 'normal');
-	doc.text(
-		'DELEGACIA GERAL DA POLÍCIA CIVIL / DEPARTAMENTO DE POLÍCIA JUDICIÁRIA DO INTERIOR SUL',
-		pageWidth / 2,
-		y,
-		{ align: 'center' }
-	);
+	// Única das seis escalas que junta Delegacia Geral e Departamento numa linha
+	// só — o cabeçalho do plantão mensal é mais compacto que o do expediente.
+	doc.text(`${DELEGACIA_GERAL} / ${DEPARTAMENTO}`, pageWidth / 2, y, { align: 'center' });
 	y += 5;
 	doc.setFont('helvetica', 'bold');
 	doc.text(cabecalhoDelegacia(escala), margin, y);
@@ -872,32 +820,7 @@ export async function gerarPdfGise(
 	const sigCenterX = pageWidth * 0.75;
 	const docData = gise.documento;
 
-	if (docData?.rubrica) {
-		try {
-			const format = getImgFormat(docData.rubrica);
-			// Preserva o aspecto natural da rubrica (antes era fixo 60x22 → esticava).
-			const props = doc.getImageProperties(docData.rubrica);
-			const ratio = props.width > 0 ? props.height / props.width : 22 / 60;
-			let rubW = 60;
-			let rubH = rubW * ratio;
-			const maxH = 24;
-			if (rubH > maxH) {
-				rubH = maxH;
-				rubW = ratio > 0 ? rubH / ratio : 60;
-			}
-			// Centraliza no campo de assinatura, logo acima da linha (em sigY).
-			doc.addImage(
-				docData.rubrica,
-				format || 'PNG',
-				sigCenterX - rubW / 2,
-				sigY - 3 - rubH,
-				rubW,
-				rubH
-			);
-		} catch (e) {
-			console.error('Erro ao inserir rubrica no PDF GISE:', e);
-		}
-	}
+	if (docData?.rubrica) desenharRubricaSobreLinha(doc, docData.rubrica, sigCenterX, sigY);
 
 	doc.setFontSize(8);
 	doc.setFont('helvetica', 'bold');
@@ -952,16 +875,61 @@ export async function gerarPdfGise(
 	return { pdf: withLogos, finalY: sigY };
 }
 
+/** Geometria do par de logos no topo da página, em milímetros. */
+interface GeometriaLogos {
+	larguraMm: number;
+	alturaMm: number;
+	/** Do topo da página até o topo do logo. */
+	topoMm: number;
+	/** Margem lateral — ancora o logo esquerdo e, espelhada, o direito. */
+	margemMm: number;
+	/** Largura da página, para ancorar o logo direito pela borda. */
+	paginaMm: number;
+}
+
 /**
- * Embute os logos institucionais GISE em TODAS as páginas de um PDF landscape A4:
- * `logogise` no canto superior esquerdo e `logo_ceara` no superior direito.
- * Best-effort: se um logo faltar ou falhar o embed, mantém o PDF original.
- * Reusado pelo PDF GISE e pelos relatórios de serviço extraordinário.
+ * As duas geometrias em uso, e elas NÃO são iguais.
+ *
+ * O expediente usa 42mm a 3mm do topo; o GISE e os relatórios extraordinários,
+ * 45mm a 5mm. A diferença é anterior a esta extração e nunca teve justificativa
+ * registrada — pode ser ajuste deliberado ao cabeçalho de cada documento ou
+ * pode ser cópia que derivou. Uniformizar mudaria a aparência de documentos
+ * oficiais, então é decisão do operador, não de refatoração: até lá, ficam
+ * explícitas lado a lado em vez de escondidas em dois blocos distantes.
  */
-async function embutirLogosGise(
+const LOGOS_EXPEDIENTE: GeometriaLogos = {
+	larguraMm: 42,
+	alturaMm: 14,
+	topoMm: 3,
+	margemMm: 10,
+	paginaMm: 297
+};
+const LOGOS_GISE: GeometriaLogos = {
+	larguraMm: 45,
+	alturaMm: 14,
+	topoMm: 5,
+	margemMm: 10,
+	paginaMm: 297
+};
+
+/**
+ * Embute o par de logos institucionais em TODAS as páginas de um PDF já gerado:
+ * um no canto superior esquerdo, outro no direito.
+ *
+ * Roda como segundo passo, sobre os bytes que o jsPDF produziu, porque o jsPDF
+ * não embute JPEG com a fidelidade que o pdf-lib embute — daí o `PDFDocument.load`
+ * de um PDF recém-serializado.
+ *
+ * BEST-EFFORT em três níveis, e é isso que a extração protege: logo ausente é
+ * pulado, logo que falha no embed vira `null` e é pulado, e qualquer erro no
+ * caminho todo devolve o PDF ORIGINAL. Uma escala tem de sair mesmo sem timbre;
+ * o que não pode é o servidor devolver erro por causa de uma imagem.
+ */
+async function embutirLogosNoTopo(
 	pdfBytes: Uint8Array,
-	logoEsqBytes?: Uint8Array,
-	logoDirBytes?: Uint8Array
+	logoEsqBytes: Uint8Array | undefined,
+	logoDirBytes: Uint8Array | undefined,
+	geo: GeometriaLogos
 ): Promise<Uint8Array> {
 	const temEsq = !!(logoEsqBytes && logoEsqBytes.length > 0);
 	const temDir = !!(logoDirBytes && logoDirBytes.length > 0);
@@ -970,38 +938,39 @@ async function embutirLogosGise(
 	try {
 		const pdfDoc = await PDFDocument.load(pdfBytes);
 		const mmToPt = 2.83465;
-		const logoW = 45;
-		const logoH = 14;
-		const topMm = 5;
 		const imgEsq = temEsq ? await pdfDoc.embedJpg(logoEsqBytes!).catch(() => null) : null;
 		const imgDir = temDir ? await pdfDoc.embedJpg(logoDirBytes!).catch(() => null) : null;
 
+		const largura = geo.larguraMm * mmToPt;
+		const altura = geo.alturaMm * mmToPt;
 		for (const page of pdfDoc.getPages()) {
 			const { height } = page.getSize();
-			const y = height - (topMm + logoH) * mmToPt;
+			// A origem do pdf-lib fica embaixo; a medida do documento é a partir
+			// do topo, então a conversão passa pela altura REAL desta página.
+			const y = height - (geo.topoMm + geo.alturaMm) * mmToPt;
 			if (imgEsq) {
-				page.drawImage(imgEsq, {
-					x: 10 * mmToPt,
-					y,
-					width: logoW * mmToPt,
-					height: logoH * mmToPt
-				});
+				page.drawImage(imgEsq, { x: geo.margemMm * mmToPt, y, width: largura, height: altura });
 			}
 			if (imgDir) {
-				page.drawImage(imgDir, {
-					x: (297 - 10 - logoW) * mmToPt,
-					y,
-					width: logoW * mmToPt,
-					height: logoH * mmToPt
-				});
+				const x = (geo.paginaMm - geo.margemMm - geo.larguraMm) * mmToPt;
+				page.drawImage(imgDir, { x, y, width: largura, height: altura });
 			}
 		}
 
 		return await pdfDoc.save();
 	} catch (e: unknown) {
-		console.error('Erro ao inserir logos GISE com pdf-lib:', e instanceof Error ? e.message : e);
+		console.error('Erro ao inserir logos com pdf-lib:', e instanceof Error ? e.message : e);
 		return pdfBytes;
 	}
+}
+
+/** `logogise` à esquerda e `logo_ceara` à direita — PDF GISE e relatórios extraordinários. */
+async function embutirLogosGise(
+	pdfBytes: Uint8Array,
+	logoEsqBytes?: Uint8Array,
+	logoDirBytes?: Uint8Array
+): Promise<Uint8Array> {
+	return embutirLogosNoTopo(pdfBytes, logoEsqBytes, logoDirBytes, LOGOS_GISE);
 }
 
 // ---- PDF Relatório de Produtividade GISE ----
@@ -1023,10 +992,10 @@ export function gerarRelatorioProdutividadeGisePdf(data: GiseProdutividadeData) 
 
 	doc.setFont('helvetica', 'bold');
 	doc.setFontSize(14);
-	doc.text('POLÍCIA CIVIL DO ESTADO DO CEARÁ', pageWidth / 2, y, { align: 'center' });
+	doc.text(CORPORACAO, pageWidth / 2, y, { align: 'center' });
 	y += 7;
 	doc.setFontSize(12);
-	doc.text('DEPARTAMENTO DE POLÍCIA DO INTERIOR SUL', pageWidth / 2, y, { align: 'center' });
+	doc.text(DEPARTAMENTO, pageWidth / 2, y, { align: 'center' });
 	y += 10;
 
 	doc.setFontSize(14);
@@ -1118,14 +1087,12 @@ function iniciarRelatorioExtra(opts: {
 	let y = 14;
 	doc.setFontSize(11);
 	doc.setFont('helvetica', 'bold');
-	doc.text('POLÍCIA CIVIL DO ESTADO DO CEARÁ', pageWidth / 2, y, { align: 'center' });
+	doc.text(CORPORACAO, pageWidth / 2, y, { align: 'center' });
 	y += 5;
-	doc.text('DELEGACIA GERAL DE POLÍCIA CIVIL', pageWidth / 2, y, { align: 'center' });
+	doc.text(DELEGACIA_GERAL, pageWidth / 2, y, { align: 'center' });
 	y += 5;
 	doc.setFontSize(10);
-	doc.text('DEPARTAMENTO DE POLÍCIA DO INTERIOR SUL - DPI SUL', pageWidth / 2, y, {
-		align: 'center'
-	});
+	doc.text(DEPARTAMENTO, pageWidth / 2, y, { align: 'center' });
 	y += 5;
 	doc.text(opts.linhaUnidade, pageWidth / 2, y, { align: 'center' });
 	y += 10;

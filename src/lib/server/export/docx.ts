@@ -35,6 +35,7 @@ import {
 	formatarMesAno,
 	cabecalhoDelegacia
 } from './shared';
+import { CORPORACAO, DELEGACIA_GERAL, DEPARTAMENTO } from '$lib/institucional';
 
 // ---- DOCX Final de Semana ----
 /** Uma tabela por dia do fim de semana, na cor institucional (#1a5c57). */
@@ -253,25 +254,15 @@ export async function gerarDocxExpediente(
 				},
 				children: [
 					new Paragraph({
-						children: [
-							new TextRun({ text: 'POLÍCIA CIVIL DO CEARÁ', bold: true, size: 20, font: 'Arial' })
-						],
+						children: [new TextRun({ text: CORPORACAO, bold: true, size: 20, font: 'Arial' })],
 						alignment: AlignmentType.CENTER
 					}),
 					new Paragraph({
-						children: [
-							new TextRun({ text: 'DELEGACIA GERAL DA POLÍCIA CIVIL', size: 18, font: 'Arial' })
-						],
+						children: [new TextRun({ text: DELEGACIA_GERAL, size: 18, font: 'Arial' })],
 						alignment: AlignmentType.CENTER
 					}),
 					new Paragraph({
-						children: [
-							new TextRun({
-								text: 'DEPARTAMENTO DE POLÍCIA DO INTERIOR SUL',
-								size: 18,
-								font: 'Arial'
-							})
-						],
+						children: [new TextRun({ text: DEPARTAMENTO, size: 18, font: 'Arial' })],
 						alignment: AlignmentType.CENTER,
 						spacing: { after: 200 }
 					}),
@@ -317,9 +308,7 @@ export async function gerarDocxPlantao(
 	const equipes = agruparPlantao(policiais);
 
 	const titulo = new Paragraph({
-		children: [
-			new TextRun({ text: 'POLÍCIA CIVIL DO ESTADO DO CEARÁ', bold: true, size: 22, font: 'Arial' })
-		],
+		children: [new TextRun({ text: CORPORACAO, bold: true, size: 22, font: 'Arial' })],
 		alignment: AlignmentType.CENTER,
 		spacing: { after: 100 }
 	});

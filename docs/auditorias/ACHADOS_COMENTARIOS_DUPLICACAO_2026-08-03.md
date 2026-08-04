@@ -2,8 +2,9 @@
 
 **Status:** diagnóstico concluído para o escopo abaixo, e **todos os bugs ativos da seção 1
 corrigidos** (ver §9), assim como os achados de duplicação 3.23/3.24 (§8) e as correções de
-comentário/docstring (§2 e §4, commit `d533633`). Seguem abertas as duplicações restantes da
-seção 3 — dívida de manutenção, sem bug conhecido.
+comentário/docstring (§2 e §4, commit `d533633`). **A lista está fechada**: seções 1 a 4 corrigidas (§8–§14) ou classificadas
+DUP-MANTER, incluindo os achados FLW-AUTH-004 e FLW-GISE-010 que vinham do plano
+de auditoria de fluxos.
 **Executor:** 6 auditorias paralelas (agentes) + verificações diretas do orquestrador.
 **Referência de método e taxonomia:** [`PLANO_REVISAO_COMPREENSIBILIDADE_2026-08-02.md`](./PLANO_REVISAO_COMPREENSIBILIDADE_2026-08-02.md) (lotes 1, 2, 3, 7 — parcialmente combinados/reorganizados por domínio nesta execução) e [`PLANO_AUDITORIA_FLUXOS_INTEGRIDADE_2026-08-02.md`](./PLANO_AUDITORIA_FLUXOS_INTEGRIDADE_2026-08-02.md) (achados FLW-\* citados por referência, não reinvestigados).
 
@@ -62,53 +63,53 @@ No formato PLANTÃO, o PDF usa `escala.lotacao` para "DELEGACIA:", mas DOCX e XL
 
 ## 2. Comentário que contradiz comportamento (DOC-ERR / DOC-OBS de alto risco)
 
-| # | Local | Sev | Comentário diz / código faz |
-|---|---|---|---|
-| 2.1 | `src/lib/auth.ts:12-14,176-182,242-243` | P1 | Diz "UPDATE só sai quando falta menos de 30min pro vencimento"; o código dispara quando faz **mais de 30min desde a última renovação** — o oposto. Sem teste cobrindo `buscarSessaoValida`. |
-| 2.2 | `src/lib/auth.ts:536-546` + `redefinir-senha/+page.server.ts:131-132` | P1 | JSDoc/caller dizem "anti-race condition"; `marcarTokenRedefinicaoUsado` é `UPDATE` incondicional (sem `WHERE usado=0`), duas requisições concorrentes passam ambas pela verificação — mesma causa-raiz do achado já confirmado **FLW-AUTH-004**. |
-| 2.3 | `src/lib/server/auth/auth-flow.ts:459-465` vs `:378-382` | P1 | Duas cópias da lógica de alerta "login via bootstrap": no bloco `ADMIN_GERAL` o alerta dispara **antes** de validar a senha (falso positivo em toda tentativa com senha errada); no bloco `SUPER_ADMIN` dispara **depois**. Divergiu entre as cópias. |
-| 2.4 | `src/lib/server/escalas/permissao.ts:5-16` | P1 | JSDoc de `verificarPermissaoEscala` lista 4 regras e omite a real: admin seccional/unidade cujo escopo cobre a lotação tem acesso DIRETO, sem checar solicitação/cargo — regra confirmada pelo próprio teste (`permissao.test.ts:67-84`), nunca refletida no comentário da função. |
-| 2.5 | `src/lib/db/unidades.ts:1-15` (cabeçalho) | P1 | Descreve uma função `excluirUnidade` que **não existe mais** — foi substituída por soft-delete (`definirUnidadeAtiva`) num pivô de segurança (commit `9ac285b`), cujo próprio comentário 200 linhas abaixo já está correto. Cabeçalho nunca foi atualizado. |
-| 2.6 | `src/lib/server/export/pdf.ts` (cabeçalho institucional, 4 ocorrências) | P1 | Nome da corporação/delegacia geral/departamento grafado de 3 formas diferentes dentro do MESMO arquivo (ex.: "POLÍCIA CIVIL DO CEARÁ" vs "...DO ESTADO DO CEARÁ"), contrariando a própria convenção que o cabeçalho do arquivo declara. Mesma divergência em `docx.ts:256-269`. Confirmar grafia oficial com o operador. |
-| 2.7 | `src/lib/server/sync-estado.ts` (localização, não conteúdo) | COESAO/P1 | Arquivo mora na raiz de `server/` mas serve só 2 consumidores (não é infra transversal), com nomes já domínio-prefixados (`carimboGise*` vs `resumoEscalas*`/`carimboPainel`), e foi criado em 02/ago/2026 — um dia depois da limpeza que o próprio `CLAUDE.md` descreve ter corrigido exatamente esse padrão. Sem guard de CI para a pureza da raiz de `server/`. **Ação:** dividir em `server/escalas/sync-estado.ts` e `server/gise/sync-estado.ts`. |
+| #       | Local                                                                                       | Sev       | Comentário diz / código faz                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| ------- | ------------------------------------------------------------------------------------------- | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2.1     | `src/lib/auth.ts:12-14,176-182,242-243`                                                     | P1        | Diz "UPDATE só sai quando falta menos de 30min pro vencimento"; o código dispara quando faz **mais de 30min desde a última renovação** — o oposto. Sem teste cobrindo `buscarSessaoValida`.                                                                                                                                                                                                                                                             |
+| ~~2.2~~ | **CORRIGIDO (§14)** — `src/lib/auth.ts:536-546` + `redefinir-senha/+page.server.ts:131-132` | P1        | JSDoc/caller dizem "anti-race condition"; `marcarTokenRedefinicaoUsado` é `UPDATE` incondicional (sem `WHERE usado=0`), duas requisições concorrentes passam ambas pela verificação — mesma causa-raiz do achado já confirmado **FLW-AUTH-004**.                                                                                                                                                                                                        |
+| 2.3     | `src/lib/server/auth/auth-flow.ts:459-465` vs `:378-382`                                    | P1        | Duas cópias da lógica de alerta "login via bootstrap": no bloco `ADMIN_GERAL` o alerta dispara **antes** de validar a senha (falso positivo em toda tentativa com senha errada); no bloco `SUPER_ADMIN` dispara **depois**. Divergiu entre as cópias.                                                                                                                                                                                                   |
+| 2.4     | `src/lib/server/escalas/permissao.ts:5-16`                                                  | P1        | JSDoc de `verificarPermissaoEscala` lista 4 regras e omite a real: admin seccional/unidade cujo escopo cobre a lotação tem acesso DIRETO, sem checar solicitação/cargo — regra confirmada pelo próprio teste (`permissao.test.ts:67-84`), nunca refletida no comentário da função.                                                                                                                                                                      |
+| 2.5     | `src/lib/db/unidades.ts:1-15` (cabeçalho)                                                   | P1        | Descreve uma função `excluirUnidade` que **não existe mais** — foi substituída por soft-delete (`definirUnidadeAtiva`) num pivô de segurança (commit `9ac285b`), cujo próprio comentário 200 linhas abaixo já está correto. Cabeçalho nunca foi atualizado.                                                                                                                                                                                             |
+| ~~2.6~~ | `src/lib/server/export/pdf.ts` (cabeçalho institucional, 4 ocorrências)                     | P1        | **CORRIGIDO — ver §12.** Nome da corporação/delegacia geral/departamento grafado de 3 formas diferentes dentro do MESMO arquivo (ex.: "POLÍCIA CIVIL DO CEARÁ" vs "...DO ESTADO DO CEARÁ"), contrariando a própria convenção que o cabeçalho do arquivo declara. Mesma divergência em `docx.ts:256-269`. Confirmar grafia oficial com o operador.                                                                                                       |
+| ~~2.7~~ | **CORRIGIDO (§14)** — `src/lib/server/sync-estado.ts` (localização, não conteúdo)           | COESAO/P1 | Arquivo mora na raiz de `server/` mas serve só 2 consumidores (não é infra transversal), com nomes já domínio-prefixados (`carimboGise*` vs `resumoEscalas*`/`carimboPainel`), e foi criado em 02/ago/2026 — um dia depois da limpeza que o próprio `CLAUDE.md` descreve ter corrigido exatamente esse padrão. Sem guard de CI para a pureza da raiz de `server/`. **Ação:** dividir em `server/escalas/sync-estado.ts` e `server/gise/sync-estado.ts`. |
 
 ## 3. Duplicação confirmada por leitura (DUP-EXTRAIR)
 
 Agrupado por risco de drift — primitivas de segurança e lógica de estado primeiro.
 
-| # | Local | Sev | O que está copiado |
-|---|---|---|---|
-| 3.1 | `src/lib/auth.ts` (×3 sites) + `password-hash.ts:92-98` | P2 | Comparação timing-safe de segredo/hash reimplementada 4×, cada uma com padding próprio. |
-| 3.2 | `src/lib/crypto/cpf-cripto.ts` vs `field-cripto.ts` | P2 | Envelope AES-256-GCM idêntico linha a linha; o cabeçalho de `field-cripto.ts` já **reconhece em prosa** a duplicação em vez de extrair. |
-| 3.3 | `src/lib/auth.ts`×3, `auth-flow.ts`, `recovery-rate-limit.ts`, `session-cache.ts` | P2/P3 | "SHA-256(texto)→hex" reimplementado inline 5×, apesar de `crypto/hex.ts` existir para centralizar exatamente esse idioma. |
-| 3.4 | `src/lib/auth.ts:136-140` vs `server/auth/csrf.ts:14-18` | P2 | `gerarToken()`/`generateCsrfToken()` idênticas byte a byte. |
-| 3.5 | `src/lib/server/assinatura/pdf-signing-prepare.ts` (4 sites) | **P1** | Localizar+validar+escrever o placeholder `/Contents` do PDF copiado 4×; já divergiu (mensagens de erro reportam tamanho em unidades diferentes). Qualquer correção exige golden de PDF. |
-| 3.6 | `src/lib/db/gise/membros.ts:132-195` vs `:231-294` | P2 | `verificarConflitoHorarioPolicial`/`PorGise` repetem ~70 linhas quase idênticas de checagem de conflito de horário. |
-| 3.7 | `src/lib/db/gise/escalas-status.ts` (3 sites) | P2 | Mesma agregação de "todos entraram/saíram" repetida 3×, variando só a coluna — é a máquina de estados da GISE, ponto de maior custo se uma cópia divergir. |
-| 3.8 | `src/lib/server/escalas/conflict.ts:18-21` vs `$lib/gise/horarios.ts` | **RISCO/P2** | `conflict.ts` já importa `seOverlapam` de `horarios.ts`, mas define uma função LOCAL `normalizarHora` de mesmo nome e semântica diferente, em vez de importar a irmã do mesmo módulo — colisão de nome perigosa. |
-| 3.9 | `src/lib/db/policiais.ts:262-280` vs `:329-347` | P2 | `criarPolicial`/`upsertPolicial` remontam os mesmos 17 campos; já diverge (`||` vs `??` no mesmo default). |
-| 3.10 | `src/lib/db/audit.ts:489-491`, `:860`, `app-logs.ts:124` | P2 | Formatação de timestamp SQLite (`toISOString().slice(0,19).replace('T',' ')`) reimplementada 3× — é exatamente a peça que falta no achado 1.1. |
-| 3.11 | `src/lib/db/{app-logs,audit,escalas,policiais}.ts` | P2 | Epílogo de paginação (`total`, `totalPages`, strip da coluna `total`) repetido em 4 listagens. |
-| 3.12 | `src/lib/server/export/pdf.ts` (QR code, 4 sites) | P2 | Loop de desenho de QR code copiado 4× entre `pdf-signing-prepare.ts`/`pdf-signing-visual.ts` (~100 linhas). Cosmético, coberto por golden. |
-| 3.13 | `src/lib/server/assinatura/{cms-tst,crypto-verify,pdf-verification,ocsp,tsa}.ts` | P2 | Conversão binary-string↔bytes reimplementada em ≥5 arquivos; `$lib/crypto/bin.ts` já existe e só é usado por 1 deles. |
-| 3.14 | `cades-finalizer.ts:334-364` ↔ `server-seal.ts:174-200` | P2 | Fluxo "TSA → embutir → marcar tipo → logar falha" duplicado entre assinatura qualificada e selo institucional. |
-| 3.15 | `src/lib/server/export/pdf.ts` (logo, rubrica, bloco de supervisão) | P2 | 3 helpers já extraídos (`embutirLogosGise`, `desenharRubricaSobreLinha`, `pushSlot` do relatório extra) não são reaproveitados em `gerarPdfExpediente`/`gerarPdfGise` — cada um tem cópia inline divergente (ex.: tamanho de logo diferente, sem explicação). |
-| 3.16 | `src/lib/server/export/pdf.ts` + `gise/{termo-presenca,assessor-notificacao-text}.ts` | P2 | `toLocaleString('pt-BR', {timeZone:'America/Sao_Paulo'})` reimplementado inline 5×, sem passar pelos helpers de `$lib/utils/datas`. |
-| 3.17 | `src/lib/server/email.ts` (5 blocos HTML) | P2 | 3 remetentes de "código" + 2 de "link" repetem HTML quase idêntico; já divergiu (1 dos 3 não tem o rótulo "Código de Verificação"). Exige golden de e-mail antes/depois de extrair. |
-| 3.18 | `src/lib/db/gise/assinaturas.ts:111-119,186-193` | P2 | Tipo `AssinaturaCadesMetadata` (8 campos) redeclarado inline 2×; já existe em `$lib/db/documentos.ts` e é usado corretamente por `gise/documentos.ts`. |
-| 3.19 | `routes/policiais/[id]/+page.server.ts:71-74` (achado direto do orquestrador) | P2 | `hojeBrasilISO()` local reimplementa `getNowBR()` de `$lib/utils/datas.ts` (mesma fórmula, sem importar) — fora do escopo desta rodada (é rota), registrado aqui para não se perder. |
-| 3.20 | `src/lib/db/escalas.ts:262-275`, `lgpd-solicitacoes.ts:35-39` | P3 | Reimplementações menores de aritmética de data que já têm helper em `$lib/utils/datas` (`getNowBR`, `adicionarDias`). Sem bug hoje (Workers roda em UTC), frágil se o runtime mudar. |
-| 3.21 | `src/lib/server/assinatura/pdf-signing-visual.ts:787-793` (`formatarDataBR`) | P2/P3 | Reimplementa o deslocamento de fuso de `getNowBR()` para uma data arbitrária; só 2 ocorrências no repo (abaixo do limiar de "disseminado"). **Colide de nome** com uma SEGUNDA função `formatarDataBR` em `gise/termo-presenca.ts:42`, de contrato totalmente diferente. DUP-MANTER quanto à lógica, mas o nome duplicado deveria mudar. |
-| 3.22 | `src/lib/rotacao.ts:111-147`, `export-charts.ts:197-261` | P3 | Loops/esqueletos parecidos, baixo risco. |
-| 3.23 | ~~`src/routes/api/sync/estado/+server.ts:100-131` vs `escalas/+page.server.ts:~95-105,~402-409`~~ | **P1** | **CORRIGIDO** (ver §8). Escopo de lotações de admin seccional/unidade reimplementado pela 3ª vez no arquivo novo de sync entre abas. Extraído para `lotacoesDaSeccional()` em `policial-permissao.ts`. |
-| 3.24 | ~~`escalas/[id]/+page.svelte`, `FormAdicionarServidores.svelte`, `ListaFds.svelte`, `ModalEditarDias.svelte`, `ModalEditarPlantao.svelte`, `plantao-datas.ts`, `useEdicaoInlineServidor.svelte.ts`, `perfil/+page.svelte`, `solicitacoes/+page.svelte`~~ | P2 | **CORRIGIDO** (ver §8). Ramo de erro de `use:enhance` copiado em 11 handlers. Extraído para `mostrarErroDeResultado()` em `enhance-handler.ts`. |
+| #        | Local                                                                                                                                                                                                                                                    | Sev          | O que está copiado                                                                                                                                                                                                                                                                                                                       |
+| -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 3.1      | `src/lib/auth.ts` (×3 sites) + `password-hash.ts:92-98`                                                                                                                                                                                                  | P2           | Comparação timing-safe de segredo/hash reimplementada 4×, cada uma com padding próprio.                                                                                                                                                                                                                                                  |
+| 3.2      | `src/lib/crypto/cpf-cripto.ts` vs `field-cripto.ts`                                                                                                                                                                                                      | P2           | Envelope AES-256-GCM idêntico linha a linha; o cabeçalho de `field-cripto.ts` já **reconhece em prosa** a duplicação em vez de extrair.                                                                                                                                                                                                  |
+| 3.3      | `src/lib/auth.ts`×3, `auth-flow.ts`, `recovery-rate-limit.ts`, `session-cache.ts`                                                                                                                                                                        | P2/P3        | "SHA-256(texto)→hex" reimplementado inline 5×, apesar de `crypto/hex.ts` existir para centralizar exatamente esse idioma.                                                                                                                                                                                                                |
+| 3.4      | `src/lib/auth.ts:136-140` vs `server/auth/csrf.ts:14-18`                                                                                                                                                                                                 | P2           | `gerarToken()`/`generateCsrfToken()` idênticas byte a byte.                                                                                                                                                                                                                                                                              |
+| 3.5      | `src/lib/server/assinatura/pdf-signing-prepare.ts` (4 sites)                                                                                                                                                                                             | **P1**       | Localizar+validar+escrever o placeholder `/Contents` do PDF copiado 4×; já divergiu (mensagens de erro reportam tamanho em unidades diferentes). Qualquer correção exige golden de PDF.                                                                                                                                                  |
+| 3.6      | `src/lib/db/gise/membros.ts:132-195` vs `:231-294`                                                                                                                                                                                                       | P2           | `verificarConflitoHorarioPolicial`/`PorGise` repetem ~70 linhas quase idênticas de checagem de conflito de horário.                                                                                                                                                                                                                      |
+| 3.7      | `src/lib/db/gise/escalas-status.ts` (3 sites)                                                                                                                                                                                                            | P2           | Mesma agregação de "todos entraram/saíram" repetida 3×, variando só a coluna — é a máquina de estados da GISE, ponto de maior custo se uma cópia divergir.                                                                                                                                                                               |
+| 3.8      | `src/lib/server/escalas/conflict.ts:18-21` vs `$lib/gise/horarios.ts`                                                                                                                                                                                    | **RISCO/P2** | `conflict.ts` já importa `seOverlapam` de `horarios.ts`, mas define uma função LOCAL `normalizarHora` de mesmo nome e semântica diferente, em vez de importar a irmã do mesmo módulo — colisão de nome perigosa.                                                                                                                         |
+| 3.9      | `src/lib/db/policiais.ts:262-280` vs `:329-347`                                                                                                                                                                                                          | P2           | `criarPolicial`/`upsertPolicial` remontam os mesmos 17 campos; já diverge (`                                                                                                                                                                                                                                                             |     | `vs`??` no mesmo default). |
+| 3.10     | `src/lib/db/audit.ts:489-491`, `:860`, `app-logs.ts:124`                                                                                                                                                                                                 | P2           | Formatação de timestamp SQLite (`toISOString().slice(0,19).replace('T',' ')`) reimplementada 3× — é exatamente a peça que falta no achado 1.1.                                                                                                                                                                                           |
+| 3.11     | `src/lib/db/{app-logs,audit,escalas,policiais}.ts`                                                                                                                                                                                                       | P2           | Epílogo de paginação (`total`, `totalPages`, strip da coluna `total`) repetido em 4 listagens.                                                                                                                                                                                                                                           |
+| ~~3.12~~ | `src/lib/server/export/pdf.ts` (QR code, 4 sites)                                                                                                                                                                                                        | P2           | Loop de desenho de QR code copiado 4× entre `pdf-signing-prepare.ts`/`pdf-signing-visual.ts` (~100 linhas). Cosmético, coberto por golden.                                                                                                                                                                                               |
+| 3.13     | `src/lib/server/assinatura/{cms-tst,crypto-verify,pdf-verification,ocsp,tsa}.ts`                                                                                                                                                                         | P2           | Conversão binary-string↔bytes reimplementada em ≥5 arquivos; `$lib/crypto/bin.ts` já existe e só é usado por 1 deles.                                                                                                                                                                                                                    |
+| ~~3.14~~ | `cades-finalizer.ts:334-364` ↔ `server-seal.ts:174-200`                                                                                                                                                                                                  | P2           | Fluxo "TSA → embutir → marcar tipo → logar falha" duplicado entre assinatura qualificada e selo institucional.                                                                                                                                                                                                                           |
+| ~~3.15~~ | `src/lib/server/export/pdf.ts` (logo, rubrica, bloco de supervisão)                                                                                                                                                                                      | P2           | 3 helpers já extraídos (`embutirLogosGise`, `desenharRubricaSobreLinha`, `pushSlot` do relatório extra) não são reaproveitados em `gerarPdfExpediente`/`gerarPdfGise` — cada um tem cópia inline divergente (ex.: tamanho de logo diferente, sem explicação).                                                                            |
+| 3.16     | `src/lib/server/export/pdf.ts` + `gise/{termo-presenca,assessor-notificacao-text}.ts`                                                                                                                                                                    | P2           | `toLocaleString('pt-BR', {timeZone:'America/Sao_Paulo'})` reimplementado inline 5×, sem passar pelos helpers de `$lib/utils/datas`.                                                                                                                                                                                                      |
+| 3.17     | `src/lib/server/email.ts` (5 blocos HTML)                                                                                                                                                                                                                | P2           | 3 remetentes de "código" + 2 de "link" repetem HTML quase idêntico; já divergiu (1 dos 3 não tem o rótulo "Código de Verificação"). Exige golden de e-mail antes/depois de extrair.                                                                                                                                                      |
+| 3.18     | `src/lib/db/gise/assinaturas.ts:111-119,186-193`                                                                                                                                                                                                         | P2           | Tipo `AssinaturaCadesMetadata` (8 campos) redeclarado inline 2×; já existe em `$lib/db/documentos.ts` e é usado corretamente por `gise/documentos.ts`.                                                                                                                                                                                   |
+| 3.19     | `routes/policiais/[id]/+page.server.ts:71-74` (achado direto do orquestrador)                                                                                                                                                                            | P2           | `hojeBrasilISO()` local reimplementa `getNowBR()` de `$lib/utils/datas.ts` (mesma fórmula, sem importar) — fora do escopo desta rodada (é rota), registrado aqui para não se perder.                                                                                                                                                     |
+| 3.20     | `src/lib/db/escalas.ts:262-275`, `lgpd-solicitacoes.ts:35-39`                                                                                                                                                                                            | P3           | Reimplementações menores de aritmética de data que já têm helper em `$lib/utils/datas` (`getNowBR`, `adicionarDias`). Sem bug hoje (Workers roda em UTC), frágil se o runtime mudar.                                                                                                                                                     |
+| 3.21     | `src/lib/server/assinatura/pdf-signing-visual.ts:787-793` (`formatarDataBR`)                                                                                                                                                                             | P2/P3        | Reimplementa o deslocamento de fuso de `getNowBR()` para uma data arbitrária; só 2 ocorrências no repo (abaixo do limiar de "disseminado"). **Colide de nome** com uma SEGUNDA função `formatarDataBR` em `gise/termo-presenca.ts:42`, de contrato totalmente diferente. DUP-MANTER quanto à lógica, mas o nome duplicado deveria mudar. |
+| 3.22     | `src/lib/rotacao.ts:111-147`, `export-charts.ts:197-261`                                                                                                                                                                                                 | P3           | Loops/esqueletos parecidos, baixo risco.                                                                                                                                                                                                                                                                                                 |
+| 3.23     | ~~`src/routes/api/sync/estado/+server.ts:100-131` vs `escalas/+page.server.ts:~95-105,~402-409`~~                                                                                                                                                        | **P1**       | **CORRIGIDO** (ver §8). Escopo de lotações de admin seccional/unidade reimplementado pela 3ª vez no arquivo novo de sync entre abas. Extraído para `lotacoesDaSeccional()` em `policial-permissao.ts`.                                                                                                                                   |
+| 3.24     | ~~`escalas/[id]/+page.svelte`, `FormAdicionarServidores.svelte`, `ListaFds.svelte`, `ModalEditarDias.svelte`, `ModalEditarPlantao.svelte`, `plantao-datas.ts`, `useEdicaoInlineServidor.svelte.ts`, `perfil/+page.svelte`, `solicitacoes/+page.svelte`~~ | P2           | **CORRIGIDO** (ver §8). Ramo de erro de `use:enhance` copiado em 11 handlers. Extraído para `mostrarErroDeResultado()` em `enhance-handler.ts`.                                                                                                                                                                                          |
 
 ## 4. Outros achados de documentação (DOC-INC / DOC-OBS / COESAO menores)
 
 - `src/lib/serpro.ts:44-45` — JSDoc implica preenchimento condicional de `certificateBase64`; o código sempre devolve `undefined` neste provedor (P2).
 - `src/lib/logger.ts:3` — diz que `server/logger.ts` "reexporta a mesma API"; na prática ele ENVOLVE com contexto de request e persistência (P3).
 - `src/lib/rotacao.ts:33,175` — comentário ainda cita `$lib/utils` genérico (barrel que não existe mais); o import real já está correto (P3).
-- `src/lib/db/gise/escalas-crud.ts:10-12` — cabeçalho afirma "só existe uma GISE não finalizada por vez" sem qualificar que isso não é protegido por constraint (achado já confirmado, FLW-GISE-010) nem que `buscarGiseAtiva` oculta as demais silenciosamente quando a premissa é violada (P2).
+- ~~`src/lib/db/gise/escalas-crud.ts:10-12`~~ — **CORRIGIDO (§14)**: cabeçalho afirmava "só existe uma GISE não finalizada por vez" sem qualificar que isso não é protegido por constraint (achado já confirmado, FLW-GISE-010) nem que `buscarGiseAtiva` oculta as demais silenciosamente quando a premissa é violada (P2).
 - `src/lib/db/gise/escalas-detalhado.ts:468-493` — `try/catch` com log de "possível migração pendente" para uma tabela que está na baseline há 39 migrações; falha real hoje é engolida silenciosamente (P2).
 - `src/lib/db/gise/base-equipe.ts` — único arquivo do domínio GISE sem cabeçalho de módulo (P2).
 - `src/lib/server/document-utils.ts:39-47,164-166` e `pdf-verification.ts:90-93` — docstrings órfãs deslocadas para a função errada por edições sucessivas (P2/P3).
@@ -400,13 +401,258 @@ aqui. `paginarComContagem` em `db/core.ts` fechou as quatro listagens paginadas.
 
 ### O que fica em aberto, e por quê
 
-| Achado | Por que não foi feito |
-| --- | --- |
-| 3.9 (`criarPolicial`/`upsertPolicial`, 17 campos) | Vale extrair; ficou de fora só por ordem de prioridade. |
-| 3.12, 3.14, 3.15 (QR code, fluxo TSA, logo/rubrica no `pdf.ts`) | Extrações maiores dentro de geradores com golden. Seguras de fazer, mas merecem um lote próprio. |
-| 3.17 (blocos HTML de e-mail) | Precisa do golden de e-mail antes/depois; já divergiu num rótulo, então a extração deve começar por conciliar as três caixas. |
-| 3.22, e os grupos ASN.1 de `assinatura/` | **DUP-MANTER.** Construção declarativa de estrutura (SEQUENCE/OID do node-forge) e laços curtos: extrair criaria abstração pior que a repetição — o corolário que o próprio `CLAUDE.md` prevê. |
-| `respostas.ts` (8 blocos de expansão) | **DUP-MANTER**, já registrado como decisão deliberada no cabeçalho da própria função. |
+| Achado                                                              | Por que não foi feito                                                                                                                                                                          |
+| ------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 3.9 (`criarPolicial`/`upsertPolicial`, 17 campos)                   | Vale extrair; ficou de fora só por ordem de prioridade.                                                                                                                                        |
+| ~~3.12, 3.14, 3.15~~ (QR code, fluxo TSA, logo/rubrica no `pdf.ts`) | **CORRIGIDOS** — ver §13.                                                                                                                                                                      |     |
+| ~~3.17 (blocos HTML de e-mail)~~                                    | **CORRIGIDO** — ver §11.                                                                                                                                                                       |
+| 3.22, e os grupos ASN.1 de `assinatura/`                            | **DUP-MANTER.** Construção declarativa de estrutura (SEQUENCE/OID do node-forge) e laços curtos: extrair criaria abstração pior que a repetição — o corolário que o próprio `CLAUDE.md` prevê. |
+| `respostas.ts` (8 blocos de expansão)                               | **DUP-MANTER**, já registrado como decisão deliberada no cabeçalho da própria função.                                                                                                          |
+
+## 11. Correção aplicada — 3.17, blocos HTML de e-mail
+
+Atacado primeiro entre os remanescentes por ser o único que **já havia divergido de
+fato** — o padrão que o histórico deste projeto mostra terminar em bug.
+
+`caixaCodigo(codigo, rotulo?)` e `botaoComLink(link, textoBotao)` em `email.ts`,
+consumidos pelos cinco remetentes que antes repetiam os blocos.
+
+### A divergência, e por que ela virou parâmetro em vez de correção
+
+As três caixas de código não eram idênticas: **`enviarCodigo2FA` é a única sem a
+legenda acima do número** ("Código de Verificação" / "Código de Redefinição"). É
+justamente o e-mail de maior alcance — todo usuário o recebe a cada login.
+
+Tem cara de esquecimento, mas uniformizar mudaria o e-mail que já chega às caixas
+de entrada. Então o rótulo ficou OPCIONAL, com a diferença explícita no call site e
+documentada no helper: a extração não decide conteúdo de comunicação institucional.
+**Para uniformizar, basta passar um rótulo em `enviarCodigo2FA` e regravar o
+golden** — decisão do operador.
+
+### Verificação
+
+O golden de e-mail (SHA-256 do HTML de cada remetente) **passou sem regravação**,
+provando que os cinco e-mails saem byte a byte idênticos. `npm run test` 782/782;
+lint, check, prettier e knip limpos.
+
+## 12. Correção aplicada — 2.6, grafia oficial do timbre institucional
+
+Decidido pelo operador. As três linhas do timbre viraram constantes em
+`export/shared.ts` — `CORPORACAO`, `DELEGACIA_GERAL`, `DEPARTAMENTO` — e alimentam
+os oito cabeçalhos de PDF, DOCX e XLSX.
+
+### O que estava divergente
+
+Doze ocorrências, quatro grafias da corporação, duas da Delegacia Geral e duas do
+Departamento. Cada documento tinha nascido de um copiar-colar do anterior, então a
+correção de um nunca chegava aos demais:
+
+| Linha                      | Antes                                                    | Depois                             |
+| -------------------------- | -------------------------------------------------------- | ---------------------------------- |
+| Corporação                 | `POLÍCIA CIVIL DO CEARÁ` (expediente PDF/DOCX/XLSX)      | `POLÍCIA CIVIL DO ESTADO DO CEARÁ` |
+| Delegacia Geral            | `DELEGACIA GERAL DA POLÍCIA CIVIL` (4 sites)             | `DELEGACIA GERAL DE POLÍCIA CIVIL` |
+| Departamento               | `DEPARTAMENTO DE POLÍCIA DO INTERIOR SUL` (4 sites)      | `...DO INTERIOR SUL - DPI SUL`     |
+| Departamento (plantão PDF) | `DEPARTAMENTO DE POLÍCIA **JUDICIÁRIA** DO INTERIOR SUL` | idem acima                         |
+
+A última linha é o achado material: o cabeçalho do plantão mensal — documento
+impresso e assinado — nomeava um **órgão que não existe**. Sobreviveu porque era a
+única das seis escalas que junta Delegacia Geral e Departamento numa linha só, o
+que a deixava fora de qualquer busca pelas outras grafias.
+
+### Verificação
+
+Os goldens de PDF foram regravados (mudança visual intencional), mas **só depois de
+conferir o diff**: os sete PDFs foram gerados antes e depois e tiveram o texto dos
+content streams comparado. Mudaram **cinco linhas em três documentos**
+(`expediente`, `plantao`, `produtividade`) e nada mais; `fds`, `gise` e os dois
+relatórios extraordinários saíram byte a byte idênticos — estes últimos porque já
+usavam a grafia correta, que foi a que o operador escolheu.
+
+As linhas novas são mais largas; a mais apertada (`produtividade`, A4 retrato, 12pt)
+ocupa 119mm dos 180mm disponíveis. Nenhuma estoura a margem.
+
+Quatro casos novos em `cabecalho-delegacia.test.ts` travam a grafia e conferem que
+ela chega ao XLSX gerado de verdade. `npm run test` 786/786; lint, check, prettier
+e knip limpos.
+
+### Fechamento — a grafia passou a valer em TODO artefato (15/§12)
+
+O operador autorizou mudar a aparência de PDFs já assinados (sistema em testes),
+e a varredura completa achou mais do que o carimbo: **quatro** grafias da
+corporação espalhadas por PDF, DOCX, planilha, carimbo de assinatura, dois
+e-mails e a página do DPO.
+
+As constantes saíram de `export/shared.ts` para **`$lib/institucional`** — é
+`lib/` e não `lib/server/` porque a página do DPO também exibe o nome, e são
+strings puras. Ganhou `CORPORACAO_PROSA` para os textos corridos.
+
+| artefato                                      | antes                    |
+| --------------------------------------------- | ------------------------ |
+| carimbo de assinatura (`pdf-signing-prepare`) | `POLÍCIA CIVIL DO CEARÁ` |
+| cabeçalho e rodapé dos e-mails transacionais  | `Polícia Civil do Ceará` |
+| e-mail de notificação do assessor GISE        | `Polícia Civil do Ceará` |
+| página do DPO (endereço)                      | `Polícia Civil do Ceará` |
+
+O nome mais longo **estourava a faixa do carimbo** (160pt de 144pt úteis). Em vez
+de encolher a fonte na mão, o corpo passou a se ajustar: 4,2pt virou TETO, e a
+largura do texto escala linearmente, então basta reduzir na proporção do excesso.
+Fica em 3,6pt e não transborda mais, qualquer que seja a string.
+
+Aproveitando, a **caixa de assinatura ganhou golden** — era o quarto carimbo e o
+único ainda fora de qualquer verificação. `prepararPdfParaAssinatura` não exige
+certificado (só desenha e abre o placeholder), então dava para congelar.
+
+Goldens de e-mail regravados após conferir o HTML: mudaram **três linhas**, todas
+o nome da corporação. Os três carimbos visuais anteriores seguem com o mesmo
+SHA-256.
+
+## 13. Correção aplicada — 3.12, 3.14 e 3.15 (fecha a Onda D)
+
+As três extrações que faltavam. Todas em código que produz **documento assinado**,
+então a verificação em cada uma foi a mesma: gravar o golden com o código NOVO e
+conferi-lo contra o código ANTIGO. Passar nessa ordem prova que a extração não
+mudou um byte.
+
+### O que a auditoria errou sobre a cobertura
+
+O achado 3.12 dizia "cosmético, **coberto por golden**". Não estava. `pdf-goldens`
+cobre os geradores de `export/pdf.ts` — as ESCALAS —, e nenhum deles passa pelos
+carimbos de assinatura. Os três desenhos que o leitor de um PDF assinado vê
+(rodapé simples, rodapé universal e página de auditoria) não tinham verificação
+nenhuma. E dentro de `pdf-goldens`, dois outros caminhos passavam batidos:
+
+| caminho                           | por que escapava                                                                                                                     |
+| --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| logos no topo (expediente e GISE) | as fixtures passavam **PNG** para `pdf-lib.embedJpg`, que só aceita JPEG — o timbre caía sempre no `catch` e nunca era desenhado     |
+| rubrica do PDF GISE               | a fixture tem `documento: null`, e o desenho nem chega a ser chamado                                                                 |
+| fluxo TSA (`anexarCarimboTempo`)  | os testes cobriam a configuração (`avaliarConfiguracaoTsa`), nunca o envio; `server-seal.test.ts` até anotava "sem TSA_URL no teste" |
+
+Os três foram fechados junto com as extrações — sem isso, refatorar aqui seria
+mexer no escuro.
+
+### 3.12 — QR de validação (4 cópias → `pdf-qr.ts`)
+
+`desenharQrCode` assume a geometria E o `try`/`catch`. A armadilha que a
+duplicação escondia: o eixo Y do PDF cresce para cima e a matriz do `qrcode` é
+indexada de cima para baixo, então o termo `(moduleCount - row - 1)` é o que
+separa um QR legível de um espelhado — que **continua parecendo um QR**, sai
+impresso e arquivado, e só não lê.
+
+`pdf-qr.test.ts` reconstrói a matriz a partir dos retângulos desenhados e a
+compara com a da biblioteca; espelhar o eixo ou transpor linha/coluna faz dois
+testes falharem. `carimbos-visuais.test.ts` acrescenta goldens SHA-256 dos três
+carimbos — a primeira cobertura que eles têm.
+
+Uniformizei também o nível de log (um dos quatro usava `warn`): QR ausente é a
+mesma falha nos quatro lugares.
+
+### 3.14 — carimbo de tempo (2 cópias → `tsa-embed.ts`)
+
+O que as duas cópias precisavam garantir era idêntico: **nada relacionado à TSA
+pode derrubar um ato de assinatura já consumado**. Rede caída, TSA com erro ou
+TST que não cabe no placeholder mantêm o PDF válido, só que sem carimbo.
+
+Duas cópias dessa política e nenhum teste. O modo de falha é o pior possível —
+500 na cara de quem acabou de assinar, depois de a assinatura já existir. Os nove
+casos novos incluem os três caminhos em que a exceção nasce DEPOIS de a TSA
+responder com sucesso.
+
+### 3.15 — timbre e rubrica (`embutirLogosNoTopo`)
+
+`gerarPdfExpediente` reimplementava `embutirLogosGise` e `gerarPdfGise`
+reimplementava `desenharRubricaSobreLinha` — helpers que já existiam no mesmo
+arquivo.
+
+**Não uniformizei as geometrias.** Expediente usa 42mm a 3mm do topo, GISE 45mm a
+5mm; a diferença é anterior e não tem justificativa registrada. Igualar mudaria a
+aparência de documento oficial — decisão do operador, não de refatoração. As duas
+ficam explícitas lado a lado, com o comentário dizendo isso em vez de convidar
+alguém a "consertar a inconsistência" às cegas.
+
+### Verificação
+
+`npm run test` 808/808 em 77 arquivos (era 786/74). Sete goldens de PDF com o
+mesmo SHA-256; cinco goldens novos (2 de escala com timbre, 3 de carimbo visual),
+todos conferidos contra o código antigo. Lint, check, prettier e knip limpos.
+
+## 14. Correção aplicada — o que restava (2.2/FLW-AUTH-004, FLW-GISE-010, 3.9, 2.7)
+
+Fechou a lista. Em ordem de risco, não de esforço.
+
+### 2.2 + FLW-AUTH-004 — segredos de uso único consumidos duas vezes
+
+O achado apontava três: token de redefinição, desafio 2FA e desafio de
+certificado. Todos tinham a mesma forma — LER o segredo, conferir, e só então
+marcar `usado = 1` num `UPDATE` incondicional. Entre a leitura e a marcação cabe
+outra requisição, que lê a mesma linha ainda íntegra.
+
+O comentário do caller do reset dizia "previne race condition". **Marcar antes de
+gravar a senha encurta a janela; não a fecha** — e é o tipo de frase que faz o
+próximo leitor acreditar que o problema está resolvido.
+
+| segredo                | o que a corrida permitia                                                                                                    |
+| ---------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| token de redefinição   | duas trocas de senha pelo mesmo link; quem interceptou o e-mail redefine DEPOIS do dono, e o link "já usado" não o denuncia |
+| desafio 2FA            | o código de 6 dígitos vira reutilizável dentro da janela                                                                    |
+| desafio de certificado | duas sessões a partir de um desafio só                                                                                      |
+
+`consumirTokenRedefinicao` e `consumirDesafio2FA` fazem `UPDATE ... WHERE usado =
+0 ... RETURNING`: o SQLite serializa, exatamente um altera a linha, e quem alterou
+ganha. No reset, o token EXPIRADO fica fora do `WHERE` de propósito, para a
+segunda tentativa ainda dizer "expirou, solicite outro" em vez de "inválido".
+
+Junto veio a forma inversa do mesmo problema: `tentativas: desafio.tentativas + 1`
+calculado em JS sobre o valor lido antes de qualquer gravação. **Cinco palpites
+paralelos registravam UMA tentativa**, e o teto de 5 — o anti-brute-force de um
+código de 6 dígitos — nunca era atingido. Agora o incremento é do SQL.
+
+### FLW-GISE-010 — a regra protegida não existe
+
+O cabeçalho de `escalas-crud.ts` declarava como regra central que "só existe uma
+GISE não finalizada por vez", e o achado pedia uma constraint de unicidade.
+
+**A regra é falsa.** Uma GISE é de um DIA, o formulário recebe uma LISTA de datas
+e cria uma escala por data, e a tela mostra "N escalas ativas — página X de Y". A
+constraint proposta quebraria a criação em lote, que é a forma normal de uso.
+Aqui o desfecho perigoso era _implementar o achado_.
+
+O que existia era `buscarGiseAtiva`, escolhendo a mais recente e escondendo as
+demais — e ela era **dead code** no único caminho que a chamava: `/gise` rodava
+quatro consultas por carregamento e a página nunca lia o resultado (todo `ativa`
+no `.svelte` é a variável do `{#each ativasPaginadas as ativa}`). Removida.
+
+### 3.9 — cadastro e sync remontavam as mesmas 17 colunas
+
+`criarPolicial` e `upsertPolicial` já haviam divergido: `papel_unidade_id` com
+`|| null` num e `?? null` no outro. Uma tecla, numa coluna que define **escopo de
+permissão**.
+
+`colunasDoPolicial` traduz o payload uma vez e devolve dois grupos — `daFolha` (o
+que o sistema de pessoal é dono e o sync sobrescreve) e a linha completa de
+INSERT. Devolver os dois de uma chamada só é obrigatório: `prepararCpfParaDB` não
+é determinístico (IV aleatório no envelope AES-GCM), então chamá-lo duas vezes
+gravaria `cpf` diferente no INSERT e no UPDATE do mesmo upsert.
+
+### 2.7 — `sync-estado.ts` fora do lugar
+
+Sete funções com nomes já prefixados por domínio, na raiz de `server/`, que é
+reservada a infra transversal. Nenhuma cruzava os dois lados — conferi tabela por
+tabela antes de dividir em `server/escalas/` e `server/gise/`.
+
+A divisão forçou uma extração: o harness de SQLite real estava copiado em **oito**
+arquivos de teste, e separar o de `sync-estado` faria o nono. Virou
+`db/__tests__/sqlite-migrado.ts`.
+
+### Verificação
+
+`npm run test` 831/831 em 80 arquivos (era 786/74 no início desta rodada). Cada
+correção de comportamento tem um caso que **reprova a implementação antiga**,
+confirmado rodando o teste novo contra o código velho: três consumos concorrentes
+do token, três do desafio, cinco palpites paralelos e o `papel_unidade_id: 0`.
+
+Duas suítes que cobriam `verificarDesafio2FA` por mock do query builder quebraram
+ao trocar o `UPDATE` — prendiam-se à FORMA da consulta, não ao contrato. Foram
+reunidas num arquivo só, com banco de verdade.
 
 ## Próximo domínio sugerido
 

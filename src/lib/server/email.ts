@@ -17,6 +17,7 @@
 
 import { montarHtmlEmailNotificacaoAssessorGise } from './gise/assessor-notificacao-text';
 import { logger } from './logger';
+import { CORPORACAO_PROSA } from '$lib/institucional';
 import { mascararEmail } from '$lib/utils/pii';
 import { getDB, buscarProvedorEmailPadrao, type EmailProvedor } from '$lib/db';
 
@@ -254,7 +255,7 @@ function layoutEmail(corpo: string): string {
       <table width="480" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.08);">
         <tr>
           <td style="background:#1a3a6e;padding:24px 32px;">
-            <p style="margin:0;color:#ffffff;font-size:18px;font-weight:bold;">Polícia Civil do Ceará</p>
+            <p style="margin:0;color:#ffffff;font-size:18px;font-weight:bold;">${CORPORACAO_PROSA}</p>
             <p style="margin:4px 0 0;color:#a0b4d6;font-size:13px;">Sistema de Escalas de Plantão</p>
           </td>
         </tr>
@@ -264,7 +265,7 @@ ${corpo}          </td>
         </tr>
         <tr>
           <td style="background:#f8f9fc;padding:16px 32px;border-top:1px solid #eee;">
-            <p style="margin:0;color:#999;font-size:11px;">Sistema de Escalas de Plantão — Polícia Civil do Ceará</p>
+            <p style="margin:0;color:#999;font-size:11px;">Sistema de Escalas de Plantão — ${CORPORACAO_PROSA}</p>
           </td>
         </tr>
       </table>
@@ -272,6 +273,56 @@ ${corpo}          </td>
   </table>
 </body>
 </html>`;
+}
+
+/**
+ * A caixa azul destacada com o código de uso único.
+ *
+ * `rotulo` é OPCIONAL porque as três cópias divergiram: o e-mail de 2FA — o
+ * único que todo usuário recebe, a cada login — é o que NÃO traz a legenda
+ * acima do número; os de verificação de e-mail pessoal e de redefinição trazem.
+ * A diferença tem toda a cara de esquecimento, mas mudá-la altera o e-mail que
+ * já chega às caixas de entrada, então fica como parâmetro explícito: a
+ * extração não decide isso sozinha. Para uniformizar, passe um rótulo em
+ * `enviarCodigo2FA` e regrave o golden.
+ */
+function caixaCodigo(codigo: string, rotulo?: string): string {
+	const linhaRotulo = rotulo
+		? `\n              <p style="margin:0 0 8px;color:#666;font-size:12px;text-transform:uppercase;letter-spacing:1px;">${rotulo}</p>`
+		: '';
+	return `            <div style="background:#eef2ff;border:2px solid #1a3a6e;border-radius:10px;padding:24px;text-align:center;margin-bottom:24px;">${linhaRotulo}
+              <span style="font-size:40px;font-weight:bold;letter-spacing:10px;color:#1a3a6e;">${codigo}</span>
+            </div>`;
+}
+
+/**
+ * Botão de ação mais o link em texto logo abaixo — a mesma URL nas duas formas.
+ *
+ * O link repetido não é redundância: cliente de e-mail corporativo com HTML
+ * desligado, ou que reescreve o `href` do botão, deixaria o usuário sem
+ * caminho nenhum. E como a URL É a credencial (quem a tem redefine a senha),
+ * ficar sem caminho significa não conseguir entrar.
+ *
+ * `word-break:break-all` no parágrafo evita que o token seja quebrado com
+ * hífen pelo cliente de e-mail, o que invalidaria o link ao copiar.
+ */
+function botaoComLink(link: string, textoBotao: string): string {
+	return `            <div style="text-align:center;margin-bottom:24px;">
+              <a href="${link}"
+                 style="display:inline-block;background:#1a3a6e;color:#ffffff;font-size:15px;font-weight:bold;
+                        text-decoration:none;padding:14px 32px;border-radius:8px;">
+                ${textoBotao}
+              </a>
+            </div>
+            <p style="margin:0 0 8px;color:#666;font-size:13px;">
+              ⏱ Este link expira em <strong>1 hora</strong>.
+            </p>
+            <p style="margin:0 0 8px;color:#666;font-size:13px;">
+              Se o botão não funcionar, copie e cole este link no navegador:
+            </p>
+            <p style="margin:0 0 16px;font-size:12px;word-break:break-all;">
+              <a href="${link}" style="color:#1a3a6e;">${link}</a>
+            </p>`;
 }
 
 /**
@@ -338,9 +389,7 @@ export async function enviarCodigo2FA(
             <p style="margin:0 0 24px;color:#555;font-size:14px;">
               Seu código de verificação para acesso ao sistema é:
             </p>
-            <div style="background:#eef2ff;border:2px solid #1a3a6e;border-radius:10px;padding:24px;text-align:center;margin-bottom:24px;">
-              <span style="font-size:40px;font-weight:bold;letter-spacing:10px;color:#1a3a6e;">${codigo}</span>
-            </div>
+${caixaCodigo(codigo)}
             <p style="margin:0 0 8px;color:#666;font-size:13px;">
               ⏱ Este código expira em <strong>10 minutos</strong>.
             </p>
@@ -375,10 +424,7 @@ export async function enviarCodigoEmailPessoal(
             <p style="margin:0 0 24px;color:#555;font-size:14px;">
               Para confirmar seu e-mail pessoal no sistema como canal de recuperação de senha, use o código abaixo:
             </p>
-            <div style="background:#eef2ff;border:2px solid #1a3a6e;border-radius:10px;padding:24px;text-align:center;margin-bottom:24px;">
-              <p style="margin:0 0 8px;color:#666;font-size:12px;text-transform:uppercase;letter-spacing:1px;">Código de Verificação</p>
-              <span style="font-size:40px;font-weight:bold;letter-spacing:10px;color:#1a3a6e;">${codigo}</span>
-            </div>
+${caixaCodigo(codigo, 'Código de Verificação')}
             <p style="margin:0 0 8px;color:#666;font-size:13px;">
               ⏱ Este código expira em <strong>10 minutos</strong>.
             </p>
@@ -448,10 +494,7 @@ export async function enviarCodigoRedefinicaoSenha(
             <p style="margin:0 0 24px;color:#555;font-size:14px;">
               Use o código abaixo para autorizar o envio do link de redefinição de senha:
             </p>
-            <div style="background:#eef2ff;border:2px solid #1a3a6e;border-radius:10px;padding:24px;text-align:center;margin-bottom:24px;">
-              <p style="margin:0 0 8px;color:#666;font-size:12px;text-transform:uppercase;letter-spacing:1px;">Código de Redefinição</p>
-              <span style="font-size:40px;font-weight:bold;letter-spacing:10px;color:#1a3a6e;">${codigo}</span>
-            </div>
+${caixaCodigo(codigo, 'Código de Redefinição')}
             <p style="margin:0 0 8px;color:#666;font-size:13px;">
               ⏱ Este código expira em <strong>10 minutos</strong>.
             </p>
@@ -487,22 +530,7 @@ export async function enviarLinkRedefinicaoSenha(
               Recebemos uma solicitação de redefinição de senha para a sua conta no Sistema de Escalas de Plantão.
               Clique no botão abaixo para definir uma nova senha:
             </p>
-            <div style="text-align:center;margin-bottom:24px;">
-              <a href="${linkRedefinicao}"
-                 style="display:inline-block;background:#1a3a6e;color:#ffffff;font-size:15px;font-weight:bold;
-                        text-decoration:none;padding:14px 32px;border-radius:8px;">
-                Redefinir minha senha
-              </a>
-            </div>
-            <p style="margin:0 0 8px;color:#666;font-size:13px;">
-              ⏱ Este link expira em <strong>1 hora</strong>.
-            </p>
-            <p style="margin:0 0 8px;color:#666;font-size:13px;">
-              Se o botão não funcionar, copie e cole este link no navegador:
-            </p>
-            <p style="margin:0 0 16px;font-size:12px;word-break:break-all;">
-              <a href="${linkRedefinicao}" style="color:#1a3a6e;">${linkRedefinicao}</a>
-            </p>
+${botaoComLink(linkRedefinicao, 'Redefinir minha senha')}
             <p style="margin:0;color:#e53e3e;font-size:13px;font-weight:bold;">
               🔒 Se você não solicitou a redefinição de senha, ignore este e-mail. Sua senha permanece a mesma.
             </p>
@@ -534,22 +562,7 @@ export async function enviarLinkPrimeiroAcesso(
             <p style="margin:0 0 24px;color:#555;font-size:14px;">
               Sua conta no Sistema de Escalas de Plantão foi criada. Clique no botão abaixo para definir sua senha e ativar o acesso:
             </p>
-            <div style="text-align:center;margin-bottom:24px;">
-              <a href="${linkPrimeiroAcesso}"
-                 style="display:inline-block;background:#1a3a6e;color:#ffffff;font-size:15px;font-weight:bold;
-                        text-decoration:none;padding:14px 32px;border-radius:8px;">
-                Definir minha senha
-              </a>
-            </div>
-            <p style="margin:0 0 8px;color:#666;font-size:13px;">
-              ⏱ Este link expira em <strong>1 hora</strong>.
-            </p>
-            <p style="margin:0 0 8px;color:#666;font-size:13px;">
-              Se o botão não funcionar, copie e cole este link no navegador:
-            </p>
-            <p style="margin:0 0 16px;font-size:12px;word-break:break-all;">
-              <a href="${linkPrimeiroAcesso}" style="color:#1a3a6e;">${linkPrimeiroAcesso}</a>
-            </p>
+${botaoComLink(linkPrimeiroAcesso, 'Definir minha senha')}
             <p style="margin:0;color:#e53e3e;font-size:13px;font-weight:bold;">
               🔒 Se você não esperava este e-mail, entre em contato com o administrador do sistema.
             </p>

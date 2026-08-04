@@ -4,20 +4,28 @@
 		"bytes": 12701
 	},
 	"expediente": {
-		"sha256": "f70e025eaa15572d3e8b906338889e65129703998cedb84c4def583edc73b45c",
-		"bytes": 11049
+		"sha256": "193eb46df3b12a3a8c1793582dcdd3b6080ee5d406eaa79eb40e4f8e25f21d23",
+		"bytes": 11071
 	},
 	"plantao": {
-		"sha256": "72f4e9ac859c2ad8a28c43559bd0c671a25dbcd0bffc84d4720006c7b340c547",
-		"bytes": 13573
+		"sha256": "f821347404703d71463a514d91015a33f79e460bdf234dfb5fd6518d05bab559",
+		"bytes": 13572
 	},
 	"gise": {
 		"sha256": "213522c42fbcb3d64006681402be5fab1b6069d3b4978f9166b3fec22a849be2",
 		"bytes": 9126
 	},
+	"expediente_com_logos": {
+		"sha256": "fd6bc58945e6c409a411b10b1dc11e1424388c66d6d5600ac992343567efb4a4",
+		"bytes": 12499
+	},
+	"gise_com_logos": {
+		"sha256": "2fd6e6085d0da40cbf0d595dbcc7e61c6ded75b36a91b9c268824cef5a1a98ad",
+		"bytes": 11053
+	},
 	"produtividade": {
-		"sha256": "4f6c526b974409a1b957280fa0c9d86fb5acda32b71fdb3cbd4518cd34b9d975",
-		"bytes": 5484
+		"sha256": "791a4667404510299aef40e204eff107983de63281d6b711fe7ce69fd30c8b66",
+		"bytes": 5493
 	},
 	"relatorio_extra_seccional": {
 		"sha256": "3a2daf5925ca159bfe9ca42500cae31182c09c0b0a74fc0cb1a6e4fd031de35d",
