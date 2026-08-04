@@ -293,6 +293,7 @@ npm run format:check       # Prettier sem alterar (só verifica)
 npm run knip               # Detecção de código/exports mortos
 npm run docs:inventario    # Inventário de documentação (cabeçalhos, contratos, opacos)
 npm run docs:guard         # Falha se arquivo NOVO em lib/db vier sem doc (roda no CI)
+npm run guard:autorizacao  # Falha se operação material não recusar ninguém (roda no CI)
 
 # Testes
 npm run test               # Vitest (run once)
@@ -561,6 +562,45 @@ O aceite do termo de uso é obrigatório a cada nova versão. Qualquer mudança 
 | `policial`               | —                 | Acessa apenas suas próprias escalas e GISE                                                                                                              |
 
 A matriz completa de capacidades por papel está em [`DEPLOY.md`](DEPLOY.md#papéis-e-privilégios-de-administrador). Membros de GISE têm papéis adicionais (`supervisor`, `assessor/SEINT`, `membro`) calculados dinamicamente a partir da tabela `gise_membros`.
+
+### Autorização das operações materiais
+
+Esconder o botão na tela não é autorização: o POST direto tem de morrer no
+servidor. São **114 operações materiais** — handlers de mutação de API
+(`POST`/`PUT`/`PATCH`/`DELETE`) e form actions do SvelteKit —, e
+`npm run guard:autorizacao` (rodado no CI) verifica que cada uma recusa alguém.
+
+O guard não procura o nome de um helper, e isso é deliberado. A decisão de
+autorização é tomada de treze formas diferentes, porque ela genuinamente difere
+por domínio: escala vai por lotação mais solicitação de assinatura
+(`verificarPermissaoEscala`), GISE vai por participação da seccional, quadro de
+supervisão ou vínculo de equipe (`verificarPermissaoGise`,
+`resolverParticipacaoGisePolicial`), policial vai por escopo administrado
+(`lotacoesAdministradas`), e várias rotas resolvem no preâmbulo local do próprio
+arquivo (`autorizarAcao`, `carregarEscalaComPermissao`). Uma lista de nomes
+nunca estaria completa — e deixaria passar justamente o handler novo com o
+resolvedor novo, que é o caso perigoso.
+
+O que o guard olha é o RESULTADO, que é fechado:
+
+| nível | o que a operação faz     | como aparece                                                    |
+| ----- | ------------------------ | --------------------------------------------------------------- |
+| 2     | recusa por **permissão** | `fail(403)`, `forbidden()`, `requireAdmin`, `requireSuperAdmin` |
+| 1     | só exige **sessão**      | `fail(401)`, `unauthorized()`, `requireAuth`                    |
+| 0     | não recusa ninguém       | —                                                               |
+
+Nível 0 e 1 existem legitimamente: login não tem sessão para exigir, trocar a
+própria senha não tem segundo sujeito para autorizar, e webhook se autentica por
+segredo compartilhado. As 20 dispensas ficam declaradas **com motivo** em
+`scripts/guard-autorizacao.mjs` — a diferença entre "público de propósito" e
+"esqueceram o guard" não está no código, só na cabeça de quem escreveu; ali ela
+fica escrita. Encolher aquela lista é progresso.
+
+O guard reprova em quatro situações, e a última é a que impede falso verde:
+operação nova em nível 0/1 sem declaração; dispensa que virou nível 2 (lista
+mentindo); dispensa que aponta para operação inexistente; e **handler declarado
+que o parser não conseguiu ler** — rota que o guard não enxerga é rota que ele
+não protege.
 
 ### Proteção CSRF
 

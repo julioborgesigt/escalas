@@ -80,6 +80,33 @@ com Sentry/logs.
 Nunca passe string livre como `errorType`. Se precisa de uma categoria
 nova, adicione ao enum `ErrorCode` em `src/lib/server/api.ts`.
 
+## Operação material precisa recusar alguém
+
+Handler de mutação de API (`POST`/`PUT`/`PATCH`/`DELETE`) e form action são
+**operações materiais**: mudam estado. Toda operação material precisa recusar
+alguém no SERVIDOR — esconder o botão na tela não é autorização, o POST direto
+tem de morrer no servidor. Verificado no CI por
+`npm run guard:autorizacao`.
+
+Não existe um `autorizar()` único, e isso é decisão registrada: a regra difere
+por domínio de verdade (escala vai por lotação + solicitação; GISE por
+participação, quadro ou vínculo de equipe; policial por escopo administrado).
+Use o resolvedor do domínio — `verificarPermissaoEscala`,
+`verificarPermissaoGise`, `resolverParticipacaoGisePolicial`,
+`lotacoesAdministradas` — ou os helpers de `$lib/server/api`
+(`requireAdmin`, `requireSuperAdmin`).
+
+`requireAuth` sozinho **não** é autorização: prova que há sessão, não que
+aquela sessão pode agir sobre aquele recurso. Se a operação lê um id de fora da
+URL (corpo, `FormData`), confira que o recurso pertence ao escopo de quem
+chamou — foi assim que membro de outra escala virava editável por ID
+(FLW-ESC-002).
+
+Operação que legitimamente não recusa ninguém (login, troca da própria senha,
+webhook por segredo) vai declarada **com o motivo** em
+`scripts/guard-autorizacao.mjs`. Declarar é o ponto: a diferença entre "público
+de propósito" e "esqueceram o guard" não está no código.
+
 ## Onde colocar código novo em `src/lib/server/`
 
 **Raiz = infra transversal. Subpasta = domínio.** A raiz de `server/` só

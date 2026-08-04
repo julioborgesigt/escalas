@@ -1122,6 +1122,45 @@ vínculo de intenção.
    cada teste e aceitar formalmente apenas itens que tenham risco, dono e
    prazo definidos.
 
+### Controle estrutural — varredura de autorização (04/ago/2026)
+
+Antes de atacar a onda 1 achado a achado, o inventário completo das operações
+materiais foi levantado e virou guard de CI (`npm run guard:autorizacao`,
+`scripts/guard-autorizacao.mjs`).
+
+| operações materiais              | 114 |
+| -------------------------------- | --- |
+| recusam por permissão (403)      | 94  |
+| dispensadas com motivo declarado | 20  |
+| **sem decisão e sem motivo**     | 0   |
+
+As 20 dispensas são pré-autenticação (10 — login, primeiro acesso, redefinição
+por token), autosserviço sobre a própria conta (5), webhook autenticado por
+segredo compartilhado (4) e um endpoint aposentado que responde 410.
+
+**O que isso fecha e o que NÃO fecha.** Fecha a pergunta "existe operação
+material sem gate?" — não existe. Não fecha "o gate está certo": FLW-ESC-001,
+GISE-004…006, ACL-002 e RBAC-001 são gates que decidem a coisa ERRADA, e nível
+2 não distingue isso. É por essa razão que a matriz F8 continua sendo o gate de
+liberação, e não este guard.
+
+Duas escolhas do guard merecem registro, porque a alternativa óbvia é pior:
+
+- **Olha o resultado (403 × 401), não o nome do helper.** A autorização é
+  decidida de treze formas — `requireAdmin`, `verificarPermissaoEscala`,
+  `resolverParticipacaoGisePolicial`, comparação de lotação escrita à mão, além
+  de preâmbulos locais a um arquivo só (`autorizarAcao`,
+  `carregarEscalaComPermissao`). Uma lista de nomes nunca estaria completa, e
+  deixaria passar justamente o handler novo com resolvedor novo.
+- **Não foi criado um `autorizar()` único.** A regra difere por domínio de
+  verdade; unificar produziria um switch maior e menos legível que os
+  resolvedores atuais — o corolário de CLAUDE.md → "Duplicação: extrair antes de
+  comentar". O que foi unificado é o VOCABULÁRIO da recusa, não a decisão.
+
+O guard reprova também quando o parser lê menos handlers do que o arquivo
+declara. Sem isso ele daria verde sobre rota que não enxerga, e silêncio
+pareceria aprovação.
+
 ### Limites desta auditoria
 
 - A análise foi predominantemente estática; não substitui teste contra R2,
