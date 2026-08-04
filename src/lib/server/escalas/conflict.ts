@@ -15,7 +15,18 @@ import {
 	giseSeccionais
 } from '$lib/server/schema';
 
-function normalizarHora(h: string | null | undefined): string {
+/**
+ * Hora sempre em `HH:MM`, pronta para `seOverlapam` — completa `"8"` → `"08:00"`
+ * e assume o padrão `08:00` da corporação quando a escala não define horário.
+ *
+ * NÃO é o `normalizarHora` de `$lib/gise/horarios` (de onde vem `seOverlapam`,
+ * logo acima): aquele devolve `null` para vazio e não completa os minutos.
+ * Chamava-se `normalizarHora` também, e a colisão era perigosa justamente por
+ * estarem no mesmo grafo de imports — trocar um pelo outro num "conserto de
+ * duplicata" mudaria em silêncio quem pode ser escalado duas vezes no mesmo
+ * horário. O nome agora diz o contrato: comparável, nunca nulo.
+ */
+function horaComparavel(h: string | null | undefined): string {
 	if (!h) return '08:00';
 	return h.includes(':') ? h : `${String(h).padStart(2, '0')}:00`;
 }
@@ -32,8 +43,8 @@ export async function verificarConflitoEscalasNaoGise(
 	horaSaida: string,
 	excludeEscalaId: number = -1
 ): Promise<{ ok: boolean; motivo?: string }> {
-	const he = normalizarHora(horaEntrada);
-	const hs = normalizarHora(horaSaida);
+	const he = horaComparavel(horaEntrada);
+	const hs = horaComparavel(horaSaida);
 
 	const conflitos = await db
 		.select({
@@ -55,8 +66,8 @@ export async function verificarConflitoEscalasNaoGise(
 		.all();
 
 	for (const c of conflitos) {
-		const eHe = normalizarHora(c.ep_he || c.esc_he);
-		const eHs = normalizarHora(c.ep_hs || c.esc_hs);
+		const eHe = horaComparavel(c.ep_he || c.esc_he);
+		const eHs = horaComparavel(c.ep_hs || c.esc_hs);
 		if (seOverlapam(he, hs, eHe, eHs)) {
 			return {
 				ok: false,
@@ -92,8 +103,8 @@ export async function verificarConflitoGlobal(
 	if (!naoGise.ok) return naoGise;
 
 	// 2. GISE (membro + supervisor/assessor/SEINT)
-	const he = normalizarHora(horaEntrada);
-	const hs = normalizarHora(horaSaida);
+	const he = horaComparavel(horaEntrada);
+	const hs = horaComparavel(horaSaida);
 
 	const [membrosGise, supervisoresGise] = await Promise.all([
 		db
@@ -172,8 +183,8 @@ export async function verificarConflitoGlobalBatch(
 ): Promise<Map<string, string>> {
 	if (datas.length === 0) return new Map();
 
-	const he = normalizarHora(horaEntrada);
-	const hs = normalizarHora(horaSaida);
+	const he = horaComparavel(horaEntrada);
+	const hs = horaComparavel(horaSaida);
 	const conflitos = new Map<string, string>();
 
 	// Batch query: escalas não-GISE
@@ -199,8 +210,8 @@ export async function verificarConflitoGlobalBatch(
 
 	for (const c of existentesEscalas) {
 		if (conflitos.has(c.data_plantao)) continue;
-		const eHe = normalizarHora(c.ep_he || c.esc_he);
-		const eHs = normalizarHora(c.ep_hs || c.esc_hs);
+		const eHe = horaComparavel(c.ep_he || c.esc_he);
+		const eHs = horaComparavel(c.ep_hs || c.esc_hs);
 		if (seOverlapam(he, hs, eHe, eHs)) {
 			conflitos.set(
 				c.data_plantao,
