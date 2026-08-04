@@ -17,6 +17,7 @@ import type { Database } from '../core';
 import { anonimizarIp } from '../audit';
 import { parseUserAgent, reduzirPrecisaoGps } from '../../server/assinatura/document-utils';
 import { cifrarCpfParaArmazenar, type CpfCriptoEnv } from '../../crypto/cpf-cripto';
+import type { AssinaturaCadesMetadata } from '../documentos';
 
 /** Todas as assinaturas de relatório da GISE, sem filtro de seccional ou tipo. */
 export async function buscarAssinaturasRelatoriosGise(db: Database, giseId: number) {
@@ -108,16 +109,7 @@ export async function salvarAssinaturaRelatorioGise(
 		r2_key?: string | null;
 		assinante_email?: string | null;
 		tipo_carimbo_tempo?: string;
-		// Metadados CAdES-LT (migração 0012)
-		cert_issuer?: string | null;
-		cert_serial?: string | null;
-		cert_valido_de?: string | null;
-		cert_valido_ate?: string | null;
-		cms_sha256?: string | null;
-		ocsp_response_b64?: string | null;
-		ocsp_consultado_em?: string | null;
-		tst_token_b64?: string | null;
-	},
+	} & AssinaturaCadesMetadata,
 	env?: CpfCriptoEnv
 ) {
 	const ipAnonimizado = anonimizarIp(data.ip_address) ?? undefined;
@@ -203,15 +195,7 @@ export async function salvarTermoPresencaGise(
 		latitude?: number;
 		longitude?: number;
 		tipo_carimbo_tempo?: string;
-		cert_issuer?: string | null;
-		cert_serial?: string | null;
-		cert_valido_de?: string | null;
-		cert_valido_ate?: string | null;
-		cms_sha256?: string | null;
-		ocsp_response_b64?: string | null;
-		ocsp_consultado_em?: string | null;
-		tst_token_b64?: string | null;
-	},
+	} & AssinaturaCadesMetadata,
 	env?: CpfCriptoEnv
 ) {
 	const cpfArmazenado = (await cifrarCpfParaArmazenar(data.assinante_cpf, env)) ?? null;

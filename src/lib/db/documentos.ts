@@ -26,14 +26,14 @@ import { parseUserAgent, reduzirPrecisaoGps } from '../server/assinatura/documen
  * Campos opcionais; signatures avançadas/simples passam undefined.
  */
 export interface AssinaturaCadesMetadata {
-	cert_issuer?: string;
-	cert_serial?: string;
-	cert_valido_de?: string;
-	cert_valido_ate?: string;
-	cms_sha256?: string;
-	ocsp_response_b64?: string;
-	ocsp_consultado_em?: string;
-	tst_token_b64?: string;
+	cert_issuer?: string | null;
+	cert_serial?: string | null;
+	cert_valido_de?: string | null;
+	cert_valido_ate?: string | null;
+	cms_sha256?: string | null;
+	ocsp_response_b64?: string | null;
+	ocsp_consultado_em?: string | null;
+	tst_token_b64?: string | null;
 }
 
 /**
