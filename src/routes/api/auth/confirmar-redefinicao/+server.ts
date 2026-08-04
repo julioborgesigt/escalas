@@ -8,6 +8,7 @@
 import { json } from '@sveltejs/kit';
 import { and, count, eq, gt } from 'drizzle-orm';
 import { getDB, registrarAuditComContexto } from '$lib/db';
+import { timestampSqliteBrasilia } from '$lib/db/core';
 import { criarTokenRedefinicao, verificarDesafio2FA } from '$lib/auth';
 import { enviarLinkRedefinicaoSenha } from '$lib/server/email';
 import { administradores, policiais, resetSenhaTokens } from '$lib/server/schema';
@@ -110,7 +111,10 @@ export const POST: RequestHandler = async ({ request, platform, url, getClientAd
 		return json({ message: RESPOSTA_GENERICA });
 	}
 
-	const windowUsuario = new Date(Date.now() - JANELA_USUARIO_MINUTOS * 60 * 1000).toISOString();
+	// `created_at` guarda horário de BRASÍLIA no formato do SQLite
+	// (`datetime('now','-3 hours')`). Comparar com `toISOString()` deixava o
+	// contador sempre em zero — o limite existia e nunca disparava.
+	const windowUsuario = timestampSqliteBrasilia(Date.now() - JANELA_USUARIO_MINUTOS * 60 * 1000);
 	const [userTokenCount] = await db
 		.select({ n: count() })
 		.from(resetSenhaTokens)

@@ -46,8 +46,8 @@ export async function batchNonEmpty(db: Database, stmts: BatchItem<'sqlite'>[]):
 }
 
 /**
- * Timestamp UTC no formato que as colunas de data TEXT deste projeto guardam:
- * `"YYYY-MM-DD HH:MM:SS"` — o mesmo que o default `datetime('now')` do SQLite
+ * Timestamp no formato que as colunas de data TEXT deste projeto guardam:
+ * `"YYYY-MM-DD HH:MM:SS"`, o mesmo que o default `datetime(...)` do SQLite
  * produz. Sem argumento, é "agora".
  *
  * Fonte ÚNICA desse formato, e a razão é um bug real: comparar uma dessas
@@ -57,12 +57,26 @@ export async function batchNonEmpty(db: Database, stmts: BatchItem<'sqlite'>[]):
  * qualquer que seja a hora. Era assim que a expurga de retenção apagava até 24h
  * a mais de dado pessoal a cada execução, sem falhar teste nenhum.
  *
+ * **São DUAS funções porque o schema tem DUAS convenções de fuso**, e escolher
+ * a errada erra por três horas em silêncio — o mesmo tipo de falha do parágrafo
+ * acima, uma casa depois:
+ *
+ * | default da coluna              | use               | tabelas                                          |
+ * | ------------------------------ | ----------------- | ------------------------------------------------ |
+ * | `datetime('now')`              | `timestampSqliteUtc`      | `audit_log`, `app_log`, `login_attempts`, `recovery_attempts`, `webhook_nonces` |
+ * | `datetime('now', '-3 hours')`  | `timestampSqliteBrasilia` | `dois_fatores_tokens`, `reset_senha_tokens` e as tabelas de domínio |
+ *
  * As colunas gravadas pelo APP com `toISOString()` (`sessoes.expires_at` e os
- * `expires_at` dos tokens) são a outra convenção e NÃO usam este formato —
- * misturar as duas é justamente o que se quer evitar.
+ * `expires_at` dos tokens) são uma TERCEIRA convenção e não usam nenhuma das
+ * duas — comparar essas com ISO é o certo.
  */
-export function timestampSqlite(ms: number = Date.now()): string {
+export function timestampSqliteUtc(ms: number = Date.now()): string {
 	return new Date(ms).toISOString().slice(0, 19).replace('T', ' ');
+}
+
+/** Horário de Brasília (UTC-3), para as colunas com `datetime('now','-3 hours')`. */
+export function timestampSqliteBrasilia(ms: number = Date.now()): string {
+	return timestampSqliteUtc(ms - 3 * 3_600_000);
 }
 
 /**

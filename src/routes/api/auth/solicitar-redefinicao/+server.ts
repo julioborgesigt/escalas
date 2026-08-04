@@ -17,6 +17,7 @@
 import { json } from '@sveltejs/kit';
 import { eq, and, gt, count } from 'drizzle-orm';
 import { getDB } from '$lib/db';
+import { timestampSqliteBrasilia } from '$lib/db/core';
 import { criarDesafio2FA, gerarCodigo2FA, gerarToken } from '$lib/auth';
 import { enviarCodigoRedefinicaoSenha } from '$lib/server/email';
 import { logger } from '$lib/server/logger';
@@ -138,9 +139,12 @@ export const POST: RequestHandler = async ({ request, platform, getClientAddress
 		const tipoDesafio = tipo === 'policial' ? 'reset_policial' : 'reset_admin';
 
 		// Rate limit por usuário (máx 3 códigos nos últimos 10 minutos)
-		const windowUsuario = new Date(
+		// `created_at` guarda horário de BRASÍLIA no formato do SQLite
+		// (`datetime('now','-3 hours')`). Comparar com `toISOString()` deixava o
+		// contador sempre em zero — o limite existia e nunca disparava.
+		const windowUsuario = timestampSqliteBrasilia(
 			Date.now() - JANELA_CODIGOS_USUARIO_MINUTOS * 60 * 1000
-		).toISOString();
+		);
 		const [userCodeCount] = await db
 			.select({ n: count() })
 			.from(doisFatoresTokens)
