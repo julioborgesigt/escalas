@@ -1,6 +1,6 @@
 # Achados — comentários, duplicação e compreensibilidade (03/ago/2026)
 
-**Status:** diagnóstico concluído para o escopo abaixo — nenhuma correção aplicada.
+**Status:** diagnóstico concluído para o escopo abaixo. As correções de comentário/docstring de baixíssimo risco (zero mudança de comportamento) foram aplicadas no mesmo commit — ver seções 2 e 4, e o diff em `d533633`. Bugs de comportamento (seção 1) e duplicações (seção 3) **não foram tocados**, aguardam teste de regressão e decisão.
 **Executor:** 6 auditorias paralelas (agentes) + verificações diretas do orquestrador.
 **Referência de método e taxonomia:** [`PLANO_REVISAO_COMPREENSIBILIDADE_2026-08-02.md`](./PLANO_REVISAO_COMPREENSIBILIDADE_2026-08-02.md) (lotes 1, 2, 3, 7 — parcialmente combinados/reorganizados por domínio nesta execução) e [`PLANO_AUDITORIA_FLUXOS_INTEGRIDADE_2026-08-02.md`](./PLANO_AUDITORIA_FLUXOS_INTEGRIDADE_2026-08-02.md) (achados FLW-\* citados por referência, não reinvestigados).
 
@@ -97,6 +97,8 @@ Agrupado por risco de drift — primitivas de segurança e lógica de estado pri
 | 3.20 | `src/lib/db/escalas.ts:262-275`, `lgpd-solicitacoes.ts:35-39` | P3 | Reimplementações menores de aritmética de data que já têm helper em `$lib/utils/datas` (`getNowBR`, `adicionarDias`). Sem bug hoje (Workers roda em UTC), frágil se o runtime mudar. |
 | 3.21 | `src/lib/server/assinatura/pdf-signing-visual.ts:787-793` (`formatarDataBR`) | P2/P3 | Reimplementa o deslocamento de fuso de `getNowBR()` para uma data arbitrária; só 2 ocorrências no repo (abaixo do limiar de "disseminado"). **Colide de nome** com uma SEGUNDA função `formatarDataBR` em `gise/termo-presenca.ts:42`, de contrato totalmente diferente. DUP-MANTER quanto à lógica, mas o nome duplicado deveria mudar. |
 | 3.22 | `src/lib/rotacao.ts:111-147`, `export-charts.ts:197-261` | P3 | Loops/esqueletos parecidos, baixo risco. |
+| 3.23 | `src/routes/api/sync/estado/+server.ts:100-131` vs `escalas/+page.server.ts:~95-105,~402-409` | **P1** | Escopo de lotações de admin seccional/unidade (`or(eq(unidades.id,...), eq(unidades.seccional_id,...))`) reimplementado pela 3ª vez no arquivo novo de sync entre abas, em vez de importar `lotacoesAdministradas()` já existente em `policial-permissao.ts`. Regra de autorização, não estilo — ver §7. |
+| 3.24 | `escalas/[id]/+page.svelte`, `FormAdicionarServidores.svelte`, `ModalEditarDias.svelte`, `ModalEditarPlantao.svelte`, `plantao-datas.ts`, `useEdicaoInlineServidor.svelte.ts`, `perfil/+page.svelte`, `solicitacoes/+page.svelte` | P2 | Handler de toast em `use:enhance` (9 cópias, cresceu de 3 para 9 recentemente) — `$lib/enhance-handler.ts` já existe para isso, mas só é usado no domínio GISE. Ver §7. |
 
 ## 4. Outros achados de documentação (DOC-INC / DOC-OBS / COESAO menores)
 
@@ -128,6 +130,77 @@ Vale registrar o que **não** precisa de ação — reduz retrabalho de quem con
 3. **Seção 2** (comentários que contradizem código em áreas de autorização/sessão) — corrigir o texto é baixo risco; os itens 2.3 e 2.4 têm componente de comportamento (auth-flow.ts, permissao.ts) que merece teste antes de tocar.
 4. **3.5, 3.6, 3.7, 3.8** — duplicações em código que decide estado/segurança; extrair com teste antes/depois, não mecanicamente.
 5. Resto da seção 3 e seção 4 — dívida de manutenção, sem urgência; boa forma de ocupar um lote de limpeza dedicado.
+
+## 7. Verificação pós-hoc — a mesclagem `staging` → `main` de 03/ago regrediu alguma deduplicação?
+
+Investigação disparada por dúvida do dono do projeto: a `staging` estava desatualizada, foi
+atualizada a partir da `main` por um agente (Cursor) e depois mesclada de volta (PR #497,
+commit `9fd04d3`, 03/ago 13:46 -03). Risco temido: a atualização ter revertido trabalho de
+remoção de duplicação feito antes.
+
+### Método
+
+1. `git merge-base --is-ancestor` para checar se `staging` ficou totalmente contida em `main`
+   (nenhum commit perdido) e se o commit da varredura de duplicação de julho (`4fafd05`,
+   28/jul — acessível via `docs/HISTORICO.md`) é ancestral do estado atual.
+2. Comparação de `fallow dupes` (config versionada, sem alteração) entre o último ponto de
+   convergência claro entre as branches antes desta leva (`724b564`, 01/ago) e a `main` atual,
+   via `git worktree`, para achar grupos de duplicação que apareceram ou sumiram no intervalo.
+3. Leitura direta do código de cada grupo novo/alterado para separar ruído de fingerprint
+   (reformatação) de duplicação real.
+
+### Resultado — nenhum histórico foi perdido
+
+`origin/staging` (`c76d193`) é ancestral estrito de `origin/main`: todo commit que já existiu em
+`staging` está preservado em `main`, sem indício de reset/force-push destrutivo. `4fafd05`
+(bloqueio de exclusão de unidade com vínculo, acabou substituído por algo ainda mais
+conservador — ver achado 2.5 acima) é ancestral de `724b564`, ou seja, já estava consolidado
+**antes** desta leva de mudanças e não dependeu dela para sobreviver. As verificações cruzadas
+da seção 5 (Admin Geral × Super Admin, `UNIQUE`, helpers de data) foram todas rodadas contra o
+estado **pós-merge** — continuam limpas.
+
+### Resultado — duplicação NÃO diminuiu líquida no período, e dois pontos pioraram
+
+`fallow dupes` (config padrão) foi de 55 para 53 grupos no período — estável, não uma regressão
+ampla. Só que o número líquido esconde: **11 instâncias de duplicação genuína foram eliminadas**
+(consolidação de badge/estado vazio em `TabelaEscalas`/`painel`/`policiais`/`recebidos`/
+`unidades`, em `GiseEquipeCard`/`GiseSeccional`, e em `ListaFds`/`TabelaServidores` — não
+investigado a fundo, mas os arquivos batem com a auditoria visual `928333a` e a limpeza do
+ModalShell `7832e14`), **mas dois padrões cresceram** no mesmo intervalo:
+
+- **Handler de toast em `use:enhance` do domínio de escalas** (`escalas/[id]/+page.svelte`,
+  `FormAdicionarServidores.svelte`, `ModalEditarDias.svelte`, `ModalEditarPlantao.svelte`,
+  `plantao-datas.ts`, `useEdicaoInlineServidor.svelte.ts`, `perfil/+page.svelte`,
+  `solicitacoes/+page.svelte`): já eram 3 cópias antes, viraram 9 depois. `$lib/enhance-handler.ts`
+  já existe e seu próprio cabeçalho diz ter sido criado para "evitar repetir ~30 vezes a mesma
+  boilerplate" — mas só é usado no domínio GISE; o código novo/tocado no domínio de escalas
+  neste período seguiu copiando o padrão manualmente em vez de usar a fábrica já disponível.
+  DUP-EXTRAIR, P2.
+- **Escopo de lotações administradas por admin seccional/unidade**
+  (`or(eq(unidades.id, u.papel_unidade_id), eq(unidades.seccional_id, u.papel_unidade_id))`):
+  já existiam 2 cópias inline em `src/routes/escalas/+page.server.ts` (linhas ~95-105 e
+  ~402-409) desde antes de 01/ago, ao lado do helper centralizado já existente
+  `lotacoesAdministradas()` (`$lib/server/policial-permissao.ts`). O arquivo **novo** desta leva,
+  `src/routes/api/sync/estado/+server.ts:100-131` (parte da feature de sincronização entre abas,
+  commits `83e37b0`…`c4aace9`, 02/ago), reimplementou a MESMA query pela terceira vez em vez de
+  importar o helper. Nenhuma das três cópias diverge hoje, mas é exatamente a forma dos bugs
+  já catalogados no `CLAUDE.md` — regra de escopo administrativo reimplementada em vez de
+  centralizada. DUP-EXTRAIR, **P1** (é regra de autorização, não só estilo).
+- Duplicação de grade de calendário entre `CalendarioSelecaoDias.svelte`, `ModalNovaEscala.svelte`,
+  `ModalDatasHoras.svelte` (GISE) e `ModalCriarGise.svelte` (4 instâncias) permanece igual —
+  não é nova nem foi corrigida neste intervalo, só teve o fingerprint alterado por reformatação
+  (Prettier, commit `2698720`).
+
+### Conclusão
+
+Não há evidência de que a mesclagem em si tenha revertido ou perdido correções anteriores — a
+varredura de julho está intacta e os padrões históricos do `CLAUDE.md` continuam corrigidos. O
+risco real é outro: **código novo escrito durante essas duas atualizações de staging (parte via
+Cursor, parte via outras branches `claude/*` mescladas na staging) não reaproveitou abstrações
+que já existiam** (`enhance-handler.ts`, `lotacoesAdministradas()`), repetindo manualmente
+uma lógica de autorização — o padrão exato que o histórico do projeto já registrou como causa de
+bug. Recomenda-se tratar os dois itens acima (achados 3.23 e 3.24, adicionados à seção 3) no
+próximo lote de limpeza, priorizando o de escopo administrativo por ser P1.
 
 ## Próximo domínio sugerido
 
