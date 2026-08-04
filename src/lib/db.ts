@@ -126,7 +126,6 @@ export type { GiseDetalhado } from './db/gise';
 export {
 	listarGiseEscalas,
 	buscarGiseEscala,
-	buscarGiseAtiva,
 	criarGiseEscala,
 	buscarGiseDetalhado,
 	atualizarGiseEscala,

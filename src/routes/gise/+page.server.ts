@@ -15,7 +15,6 @@ import { redirect, fail } from '@sveltejs/kit';
 import {
 	getDB,
 	listarGiseEscalas,
-	buscarGiseAtiva,
 	criarGiseEscala,
 	clonarGiseParaData,
 	upsertGiseSeccional,
@@ -65,7 +64,6 @@ export const load: PageServerLoad = async ({ locals, platform, depends }) => {
 	const policialId = !isGeral && u.tipo === 'policial' ? u.id : undefined;
 	const [
 		escalas,
-		ativa,
 		seccionaisList,
 		supervisaoExtraUnidadeId,
 		defaultHoraEntrada,
@@ -73,7 +71,6 @@ export const load: PageServerLoad = async ({ locals, platform, depends }) => {
 		minhaRubricaRow
 	] = await Promise.all([
 		listarGiseEscalas(db, undefined, policialId, seccionalParticipanteId),
-		buscarGiseAtiva(db),
 		db
 			.select({ id: unidades.id, nome: unidades.nome })
 			.from(unidades)
@@ -99,7 +96,6 @@ export const load: PageServerLoad = async ({ locals, platform, depends }) => {
 
 	return {
 		escalas,
-		ativa,
 		isGeral,
 		isSeccional,
 		isUnidade,

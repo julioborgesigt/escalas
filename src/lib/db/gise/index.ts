@@ -16,7 +16,6 @@ export type { GiseRespostaListagemItem } from './respostas';
 export {
 	listarGiseEscalas,
 	buscarGiseEscala,
-	buscarGiseAtiva,
 	criarGiseEscala,
 	buscarGiseDetalhado,
 	atualizarGiseEscala,
