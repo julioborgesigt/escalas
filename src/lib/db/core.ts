@@ -66,6 +66,36 @@ export function timestampSqlite(ms: number = Date.now()): string {
 }
 
 /**
+ * Fecha uma listagem paginada feita com `count(*) OVER()`.
+ *
+ * Esse `OVER()` traz o total de linhas do filtro em CADA linha da página — é o
+ * que evita uma segunda query de contagem. O preço é que a coluna `total` viaja
+ * junto com os dados e precisa sair antes de devolver, senão vaza para a UI.
+ *
+ * Era este desfecho — ler o total da primeira linha, calcular as páginas,
+ * remover a coluna e montar o envelope — que estava repetido nas quatro
+ * listagens paginadas do projeto (logs técnicos, auditoria, escalas,
+ * policiais), com pequenas variações inúteis entre elas.
+ *
+ * Página vazia devolve `total: 0`, e não há caso especial a tratar: o `map` de
+ * uma lista vazia é uma lista vazia.
+ */
+export function paginarComContagem<T extends { total: unknown }>(
+	rows: T[],
+	page: number,
+	limit: number
+): { itens: Omit<T, 'total'>[]; total: number; page: number; limit: number; totalPages: number } {
+	const total = rows.length > 0 ? Number(rows[0].total ?? 0) : 0;
+	return {
+		itens: rows.map(({ total: _descartado, ...resto }) => resto),
+		total,
+		page,
+		limit,
+		totalPages: Math.ceil(total / limit)
+	};
+}
+
+/**
  * Retorna o binding do bucket R2 para armazenamento de documentos.
  */
 export function getR2(platform: PlatformLike | undefined): _R2Bucket {

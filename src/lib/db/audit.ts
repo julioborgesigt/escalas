@@ -19,7 +19,7 @@
 import { desc, asc, eq, and, gte, lte, isNotNull, sql } from 'drizzle-orm';
 import { ehViolacaoUnique, mensagemComCausas } from '$lib/server/db-errors';
 import { auditLog } from '../server/schema';
-import { timestampSqlite, type Database } from './core';
+import { timestampSqlite, paginarComContagem, type Database } from './core';
 import type { AuditLog } from '../server/schema';
 import { logger } from '../server/logger';
 import { getRequestCtx } from '../server/request-context';
@@ -834,11 +834,8 @@ export async function listarAuditLog(
 		.limit(limit)
 		.offset(offset);
 
-	const total = rows.length > 0 ? (rows[0].total ?? 0) : 0;
-	const totalPages = Math.ceil(total / limit);
-	const logs = rows.map(({ total: _t, ...rest }) => rest);
-
-	return { logs, total, page, limit, totalPages };
+	const { itens, ...paginacao } = paginarComContagem(rows, page, limit);
+	return { logs: itens, ...paginacao };
 }
 
 export interface ResumoAuditoria {

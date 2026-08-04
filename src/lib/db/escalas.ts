@@ -30,7 +30,7 @@ import {
 } from '../server/schema';
 import type * as schema from '../server/schema';
 import type { EscalaPolicialComDados, EscalaListagem } from '../types';
-import { batchNonEmpty, type Database } from './core';
+import { batchNonEmpty, paginarComContagem, type Database } from './core';
 
 /** Escapa caracteres especiais do LIKE para evitar wildcard injection */
 function escapeLike(str: string): string {
@@ -142,16 +142,8 @@ export async function listarEscalas(
 		.limit(limit)
 		.offset(offset);
 
-	const total = results.length > 0 ? Number(results[0].total) : 0;
-	const totalPages = Math.ceil(total / limit);
-
-	if (results.length === 0) {
-		return { escalas: [], total, page, limit, totalPages };
-	}
-
-	const mapeadas = results.map(({ total: _t, ...e }) => e);
-
-	return { escalas: mapeadas, total, page, limit, totalPages };
+	const { itens, ...paginacao } = paginarComContagem(results, page, limit);
+	return { escalas: itens, ...paginacao };
 }
 
 /**

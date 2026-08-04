@@ -342,6 +342,72 @@ os goldens de e-mail passam sem regravação.
 Nada. Os quatro itens da seção 1 estão corrigidos. A seção 3 (duplicações) mantém os itens não
 citados em §8/§9 — dívida de manutenção sem bug conhecido, boa carga para um lote dedicado.
 
+## 10. Correção aplicada — duplicações da seção 3
+
+Feito em quatro ondas, priorizadas por risco. Cada onda foi validada com a suíte
+completa antes de seguir, e nenhum golden de PDF ou e-mail foi regravado.
+
+`fallow dupes` (config versionada): **158 → 122 instâncias** de duplicação (−23%),
+36 grupos restantes.
+
+### Onda 1 — primitivas de segurança (3.1-3.4, 3.13)
+
+Cinco módulos novos em `lib/crypto/`, cada um com um assunto: `timing-safe.ts`,
+`digest.ts`, `token.ts`, `envelope.ts`, e `bin.ts` ampliado. As APIs públicas
+(`compararSegredoUtf8TimingSafe`, `gerarToken`, `generateCsrfToken`,
+`cifrarTexto`/`cifrarCPF`) mantiveram nome e assinatura — nenhum dos ~15 chamadores
+mudou.
+
+A unificação do timing-safe corrigiu **dois defeitos latentes** que só apareceram ao
+comparar as quatro cópias lado a lado: elas preenchiam com o CARACTERE `'0'` (então
+`"abc"` e `"abc0"` viravam a mesma sequência, e só a checagem de comprimento
+separada salvava) e truncavam em 64/96 bytes (segredos diferentes a partir dali
+passariam por iguais). Ambos cobertos por teste agora.
+
+### Onda 2 — os dois de maior risco (3.5, 3.8)
+
+Placeholder `/Contents` do PDF unificado em `localizarPlaceholderContents` +
+`escreverCmsNoPlaceholder`; as três mensagens de erro divergentes viraram uma, em
+bytes (uma delas reportava hex chars — o dobro do número — justamente para quem
+fosse dimensionar `SIGNATURE_LENGTH`).
+
+A colisão de `normalizarHora` foi desfeita: `escalas/conflict.ts` definia um local
+com contrato incompatível com o de `$lib/gise/horarios`, de onde ele já importava
+`seOverlapam`. Renomeado para `horaComparavel`.
+
+### Onda 3 — camada de dados (3.6, 3.7, 3.18)
+
+Condições de presença da máquina de estados GISE unificadas
+(`contarMembros`/`contarSupervisao`/`todosMarcaram`), e as ~70 linhas idênticas de
+checagem de conflito de horário extraídas para `conflitoEmOutrasGises`.
+
+`saida-completa-seccional.test.ts` foi reescrito com SQLite real (6 → 9 casos). A
+versão anterior mockava o query builder do Drizzle, prendendo a FORMA da query em
+vez do contrato: quebrava ao trocar um `.all()` por `count()` com resultado idêntico
+e passaria se a query mudasse de coluna.
+
+### Onda 4 — data/fuso e paginação (3.16, 3.19, 3.20, 3.21, 3.11)
+
+`dataHoraBrasilia` em `$lib/utils/datas` substituiu o
+`toLocaleString('pt-BR', {timeZone})` inline em cinco geradores de documento.
+`formatarData` absorveu a cópia do termo de presença e ganhou o fallback robusto
+dela — a versão de `utils` devolvia `"undefined/undefined/<valor>"` para entrada
+malformada, e é ela que escreve dentro de PDF, DOCX e XLSX.
+
+`calcularPrazoResposta` (LGPD) deixou de misturar `setDate` (local) com
+`toISOString` (UTC) na mesma função — a forma exata dos bugs de data já corrigidos
+aqui. `paginarComContagem` em `db/core.ts` fechou as quatro listagens paginadas.
+
+### O que fica em aberto, e por quê
+
+| Achado | Por que não foi feito |
+| --- | --- |
+| 3.9 (`criarPolicial`/`upsertPolicial`, 17 campos) | Vale extrair; ficou de fora só por ordem de prioridade. |
+| 3.12, 3.14, 3.15 (QR code, fluxo TSA, logo/rubrica no `pdf.ts`) | Extrações maiores dentro de geradores com golden. Seguras de fazer, mas merecem um lote próprio. |
+| 3.17 (blocos HTML de e-mail) | Precisa do golden de e-mail antes/depois; já divergiu num rótulo, então a extração deve começar por conciliar as três caixas. |
+| 3.22, e os grupos ASN.1 de `assinatura/` | **DUP-MANTER.** Construção declarativa de estrutura (SEQUENCE/OID do node-forge) e laços curtos: extrair criaria abstração pior que a repetição — o corolário que o próprio `CLAUDE.md` prevê. |
+| `respostas.ts` (8 blocos de expansão) | **DUP-MANTER**, já registrado como decisão deliberada no cabeçalho da própria função. |
+
 ## Próximo domínio sugerido
 
 `src/routes/**` (UI + servidor) e o restante de `src/lib/components|composables|gise|schemas` ainda não foram auditados nesta rodada — são o maior volume de arquivos do projeto e onde vive a maior parte da UI. Seguir a mesma metodologia (comparar comentário↔código↔teste, taxonomia do plano formal) nesses diretórios é o próximo passo natural.

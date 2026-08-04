@@ -12,7 +12,7 @@
 import { desc, eq, and, gte, lte, sql } from 'drizzle-orm';
 import { appLog } from '../server/schema';
 import type { AppLog } from '../server/schema';
-import { timestampSqlite, type Database } from './core';
+import { timestampSqlite, paginarComContagem, type Database } from './core';
 
 type AppLogLevel = 'warn' | 'error';
 
@@ -105,11 +105,8 @@ export async function listarAppLogs(
 		.limit(limit)
 		.offset(offset);
 
-	const total = rows.length > 0 ? (rows[0].total ?? 0) : 0;
-	const totalPages = Math.ceil(total / limit);
-	const logs = rows.map(({ total: _t, ...rest }) => rest);
-
-	return { logs, total, page, limit, totalPages };
+	const { itens, ...paginacao } = paginarComContagem(rows, page, limit);
+	return { logs: itens, ...paginacao };
 }
 
 export interface ResumoAppLogs {
