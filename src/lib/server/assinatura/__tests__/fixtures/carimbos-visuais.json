@@ -1,0 +1,14 @@
+{
+	"rodape_simples": {
+		"sha256": "0630ac53352813aae988f032601b1af7b4efd9f3a809f3cfcddf1a8219521179",
+		"bytes": 5121
+	},
+	"rodape_universal": {
+		"sha256": "ee86ce232197dfe79ff324b5a957bcdd2835edefc7b1480a7a34c9c8b70a8c69",
+		"bytes": 3952
+	},
+	"pagina_auditoria": {
+		"sha256": "85048ef0c864d2ccaea64e1d3c41c11ba133e5cd91a67997edbd2de5c9d5bf09",
+		"bytes": 6129
+	}
+}
