@@ -191,6 +191,25 @@ export function formatarMesAno(dateStr: string): string {
 }
 
 /**
+ * As três linhas do timbre institucional, na grafia oficial da corporação.
+ *
+ * São constantes, e não literais no lugar de uso, porque os oito cabeçalhos
+ * (expediente e plantão em PDF/DOCX/XLSX, produtividade GISE e relatório de
+ * extra) já divergiam entre si em agosto/2026: quatro grafias diferentes da
+ * corporação, duas da Delegacia Geral e duas do Departamento — inclusive um
+ * "DEPARTAMENTO DE POLÍCIA **JUDICIÁRIA** DO INTERIOR SUL" que nomeava um órgão
+ * que não existe. Cada documento nascia de um copiar-colar do anterior, então a
+ * correção de um nunca chegava aos outros.
+ *
+ * São documentos oficiais impressos e assinados: a grafia é a que consta do
+ * organograma da corporação, não uma escolha de estilo. Alterar exige regravar
+ * os goldens de PDF (`UPDATE_PDF_GOLDENS=1`).
+ */
+export const CORPORACAO = 'POLÍCIA CIVIL DO ESTADO DO CEARÁ';
+export const DELEGACIA_GERAL = 'DELEGACIA GERAL DE POLÍCIA CIVIL';
+export const DEPARTAMENTO = 'DEPARTAMENTO DE POLÍCIA DO INTERIOR SUL - DPI SUL';
+
+/**
  * Cabeçalho "DELEGACIA: <unidade>" dos três formatos.
  *
  * O campo é `lotacao` (o NOME da unidade — "1ª DELEGACIA DE JUAZEIRO"), nunca

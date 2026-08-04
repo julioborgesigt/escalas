@@ -21,7 +21,10 @@ import {
 	COLS_PLANTAO,
 	rowPlantao,
 	formatarMesAno,
-	cabecalhoDelegacia
+	cabecalhoDelegacia,
+	CORPORACAO,
+	DELEGACIA_GERAL,
+	DEPARTAMENTO
 } from './shared';
 
 // ---- XLSX Final de Semana ----
@@ -139,17 +142,17 @@ export async function gerarXlsxExpediente(
 		});
 	}
 
-	const r1 = ws.addRow(['POLÍCIA CIVIL DO CEARÁ']);
+	const r1 = ws.addRow([CORPORACAO]);
 	ws.mergeCells(`A${r1.number}:${lastCol}${r1.number}`);
 	r1.getCell(1).font = { bold: true, name: 'Arial', size: 12 };
 	r1.getCell(1).alignment = { horizontal: 'center' };
 
-	const r2 = ws.addRow(['DELEGACIA GERAL DA POLÍCIA CIVIL']);
+	const r2 = ws.addRow([DELEGACIA_GERAL]);
 	ws.mergeCells(`A${r2.number}:${lastCol}${r2.number}`);
 	r2.getCell(1).font = { name: 'Arial', size: 10 };
 	r2.getCell(1).alignment = { horizontal: 'center' };
 
-	const r3 = ws.addRow(['DEPARTAMENTO DE POLÍCIA DO INTERIOR SUL']);
+	const r3 = ws.addRow([DEPARTAMENTO]);
 	ws.mergeCells(`A${r3.number}:${lastCol}${r3.number}`);
 	r3.getCell(1).font = { name: 'Arial', size: 10 };
 	r3.getCell(1).alignment = { horizontal: 'center' };
@@ -223,7 +226,7 @@ export async function gerarXlsxPlantao(
 		{ width: 35 },
 		{ width: 30 }
 	];
-	ws.addRow(['POLÍCIA CIVIL DO ESTADO DO CEARÁ']);
+	ws.addRow([CORPORACAO]);
 	ws.addRow([`${cabecalhoDelegacia(escala)} — MÊS/ANO: ${formatarMesAno(escala.data_inicio)}`]);
 	ws.addRow([]);
 

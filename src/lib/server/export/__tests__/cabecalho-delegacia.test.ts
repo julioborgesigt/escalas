@@ -16,7 +16,7 @@
 import { describe, it, expect } from 'vitest';
 import ExcelJS from 'exceljs';
 import type { Escala, EscalaPolicialComDados } from '$lib/types';
-import { cabecalhoDelegacia } from '../shared';
+import { cabecalhoDelegacia, CORPORACAO, DELEGACIA_GERAL, DEPARTAMENTO } from '../shared';
 import { gerarXlsxPlantao, gerarXlsxExpediente } from '../xlsx';
 
 /** Escala em que município e unidade são DIFERENTES — sem isso o teste não distingue nada. */
@@ -84,5 +84,42 @@ describe('XLSX gerado de verdade', () => {
 	it('expediente idem — os dois tipos usam a mesma fonte', async () => {
 		const texto = await textoDoXlsx(await gerarXlsxExpediente(escala, policiais));
 		expect(texto).toContain('DELEGACIA: 1ª DELEGACIA DE JUAZEIRO DO NORTE');
+	});
+});
+
+/**
+ * O timbre institucional é um GOLDEN, não uma verificação de lógica: as três
+ * linhas nomeiam órgãos reais em documento oficial impresso e assinado, e a
+ * comparação literal é o que força uma mudança de grafia a aparecer no diff em
+ * vez de entrar de carona num refactor.
+ *
+ * O PDF já está coberto por `pdf-goldens`; o XLSX é conferido de ponta a ponta
+ * aqui. O DOCX segue sem verificação de saída — ler um .docx exigiria um leitor
+ * de zip que o projeto não tem como dependência direta —, mas desde a extração
+ * das constantes ele não pode mais divergir sozinho: as três linhas vêm da
+ * mesma fonte que o PDF e a planilha.
+ */
+describe('timbre institucional', () => {
+	it('mantém a grafia oficial das três linhas', () => {
+		expect(CORPORACAO).toBe('POLÍCIA CIVIL DO ESTADO DO CEARÁ');
+		expect(DELEGACIA_GERAL).toBe('DELEGACIA GERAL DE POLÍCIA CIVIL');
+		expect(DEPARTAMENTO).toBe('DEPARTAMENTO DE POLÍCIA DO INTERIOR SUL - DPI SUL');
+	});
+
+	it('não ressuscita o "Departamento de Polícia JUDICIÁRIA"', () => {
+		// O cabeçalho do plantão em PDF nomeava um órgão inexistente até ago/2026.
+		expect(DEPARTAMENTO).not.toContain('JUDICIÁRIA');
+	});
+
+	it('chega ao XLSX de expediente nas três linhas', async () => {
+		const texto = await textoDoXlsx(await gerarXlsxExpediente(escala, policiais));
+		expect(texto).toContain(CORPORACAO);
+		expect(texto).toContain(DELEGACIA_GERAL);
+		expect(texto).toContain(DEPARTAMENTO);
+	});
+
+	it('chega ao XLSX de plantão (que só imprime a corporação)', async () => {
+		const texto = await textoDoXlsx(await gerarXlsxPlantao(escala, policiais));
+		expect(texto).toContain(CORPORACAO);
 	});
 });

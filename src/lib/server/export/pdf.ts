@@ -59,7 +59,10 @@ import {
 	COLS_PLANTAO,
 	rowPlantao,
 	formatarMesAno,
-	cabecalhoDelegacia
+	cabecalhoDelegacia,
+	CORPORACAO,
+	DELEGACIA_GERAL,
+	DEPARTAMENTO
 } from './shared';
 
 // Type augmentation for jspdf-autotable's lastAutoTable property
@@ -445,13 +448,13 @@ export async function gerarPdfExpediente(
 	let y = 10;
 	doc.setFont('helvetica', 'bold');
 	doc.setFontSize(9);
-	doc.text('POLÍCIA CIVIL DO CEARÁ', PAGE_W / 2, y, { align: 'center' });
+	doc.text(CORPORACAO, PAGE_W / 2, y, { align: 'center' });
 	y += 4.5;
 	doc.setFont('helvetica', 'normal');
 	doc.setFontSize(8);
-	doc.text('DELEGACIA GERAL DA POLÍCIA CIVIL', PAGE_W / 2, y, { align: 'center' });
+	doc.text(DELEGACIA_GERAL, PAGE_W / 2, y, { align: 'center' });
 	y += 4;
-	doc.text('DEPARTAMENTO DE POLÍCIA DO INTERIOR SUL', PAGE_W / 2, y, { align: 'center' });
+	doc.text(DEPARTAMENTO, PAGE_W / 2, y, { align: 'center' });
 	y += 7;
 
 	const TEAL: [number, number, number] = [26, 92, 87];
@@ -651,16 +654,13 @@ export function gerarPdfPlantao(
 	let y = 12;
 	doc.setFontSize(10);
 	doc.setFont('helvetica', 'bold');
-	doc.text('POLÍCIA CIVIL DO ESTADO DO CEARÁ', pageWidth / 2, y, { align: 'center' });
+	doc.text(CORPORACAO, pageWidth / 2, y, { align: 'center' });
 	y += 5;
 	doc.setFontSize(8);
 	doc.setFont('helvetica', 'normal');
-	doc.text(
-		'DELEGACIA GERAL DA POLÍCIA CIVIL / DEPARTAMENTO DE POLÍCIA JUDICIÁRIA DO INTERIOR SUL',
-		pageWidth / 2,
-		y,
-		{ align: 'center' }
-	);
+	// Única das seis escalas que junta Delegacia Geral e Departamento numa linha
+	// só — o cabeçalho do plantão mensal é mais compacto que o do expediente.
+	doc.text(`${DELEGACIA_GERAL} / ${DEPARTAMENTO}`, pageWidth / 2, y, { align: 'center' });
 	y += 5;
 	doc.setFont('helvetica', 'bold');
 	doc.text(cabecalhoDelegacia(escala), margin, y);
@@ -1023,10 +1023,10 @@ export function gerarRelatorioProdutividadeGisePdf(data: GiseProdutividadeData) 
 
 	doc.setFont('helvetica', 'bold');
 	doc.setFontSize(14);
-	doc.text('POLÍCIA CIVIL DO ESTADO DO CEARÁ', pageWidth / 2, y, { align: 'center' });
+	doc.text(CORPORACAO, pageWidth / 2, y, { align: 'center' });
 	y += 7;
 	doc.setFontSize(12);
-	doc.text('DEPARTAMENTO DE POLÍCIA DO INTERIOR SUL', pageWidth / 2, y, { align: 'center' });
+	doc.text(DEPARTAMENTO, pageWidth / 2, y, { align: 'center' });
 	y += 10;
 
 	doc.setFontSize(14);
@@ -1118,14 +1118,12 @@ function iniciarRelatorioExtra(opts: {
 	let y = 14;
 	doc.setFontSize(11);
 	doc.setFont('helvetica', 'bold');
-	doc.text('POLÍCIA CIVIL DO ESTADO DO CEARÁ', pageWidth / 2, y, { align: 'center' });
+	doc.text(CORPORACAO, pageWidth / 2, y, { align: 'center' });
 	y += 5;
-	doc.text('DELEGACIA GERAL DE POLÍCIA CIVIL', pageWidth / 2, y, { align: 'center' });
+	doc.text(DELEGACIA_GERAL, pageWidth / 2, y, { align: 'center' });
 	y += 5;
 	doc.setFontSize(10);
-	doc.text('DEPARTAMENTO DE POLÍCIA DO INTERIOR SUL - DPI SUL', pageWidth / 2, y, {
-		align: 'center'
-	});
+	doc.text(DEPARTAMENTO, pageWidth / 2, y, { align: 'center' });
 	y += 5;
 	doc.text(opts.linhaUnidade, pageWidth / 2, y, { align: 'center' });
 	y += 10;
