@@ -22,10 +22,10 @@
  */
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { eq, or } from 'drizzle-orm';
 import { getDB, buscarGiseEscala, buscarEscala } from '$lib/db';
 import { requireAuth, badRequest, serverError } from '$lib/server/api';
 import { isAdminGeral, isAdminSeccional } from '$lib/auth';
+import { lotacoesDaSeccional } from '$lib/server/policial-permissao';
 import { verificarPermissaoGise } from '$lib/server/gise/permissao';
 import { verificarPermissaoEscala } from '$lib/server/escalas/permissao';
 import { lerPapelGise } from '$lib/server/gise/papel-cache';
@@ -38,7 +38,6 @@ import {
 	carimboGiseList,
 	carimboEscala
 } from '$lib/server/sync-estado';
-import { unidades as unidadesTable } from '$lib/server/schema';
 
 export const GET: RequestHandler = async ({ locals, platform, url }) => {
 	const u = requireAuth(locals);
@@ -112,19 +111,12 @@ export const GET: RequestHandler = async ({ locals, platform, url }) => {
 		) {
 			tasks.push(
 				(async () => {
-					let lotacoes: string[] | undefined;
-					if (u.papel === 'admin_seccional' && u.papel_unidade_id) {
-						const rows = await db
-							.select({ nome: unidadesTable.nome })
-							.from(unidadesTable)
-							.where(
-								or(
-									eq(unidadesTable.id, u.papel_unidade_id),
-									eq(unidadesTable.seccional_id, u.papel_unidade_id)
-								)
-							);
-						lotacoes = rows.map((r) => r.nome);
-					}
+					// `admin_unidade` não passa lista: `resumoEscalasPendentes` escopa
+					// esse papel pela própria `lotacao` do usuário.
+					const lotacoes =
+						u.papel === 'admin_seccional' && u.papel_unidade_id
+							? await lotacoesDaSeccional(db, u.papel_unidade_id)
+							: undefined;
 					body.escalas = await resumoEscalasPendentes(db, u, lotacoes);
 				})()
 			);

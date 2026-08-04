@@ -46,6 +46,56 @@ export async function batchNonEmpty(db: Database, stmts: BatchItem<'sqlite'>[]):
 }
 
 /**
+ * Timestamp UTC no formato que as colunas de data TEXT deste projeto guardam:
+ * `"YYYY-MM-DD HH:MM:SS"` — o mesmo que o default `datetime('now')` do SQLite
+ * produz. Sem argumento, é "agora".
+ *
+ * Fonte ÚNICA desse formato, e a razão é um bug real: comparar uma dessas
+ * colunas com um `toISOString()` (`"...T...Z"`) não dá erro nenhum, porque em
+ * SQLite a comparação de TEXT é lexicográfica — e como `' '` (0x20) vem antes
+ * de `'T'` (0x54), toda linha do MESMO DIA do limite parece anterior a ele,
+ * qualquer que seja a hora. Era assim que a expurga de retenção apagava até 24h
+ * a mais de dado pessoal a cada execução, sem falhar teste nenhum.
+ *
+ * As colunas gravadas pelo APP com `toISOString()` (`sessoes.expires_at` e os
+ * `expires_at` dos tokens) são a outra convenção e NÃO usam este formato —
+ * misturar as duas é justamente o que se quer evitar.
+ */
+export function timestampSqlite(ms: number = Date.now()): string {
+	return new Date(ms).toISOString().slice(0, 19).replace('T', ' ');
+}
+
+/**
+ * Fecha uma listagem paginada feita com `count(*) OVER()`.
+ *
+ * Esse `OVER()` traz o total de linhas do filtro em CADA linha da página — é o
+ * que evita uma segunda query de contagem. O preço é que a coluna `total` viaja
+ * junto com os dados e precisa sair antes de devolver, senão vaza para a UI.
+ *
+ * Era este desfecho — ler o total da primeira linha, calcular as páginas,
+ * remover a coluna e montar o envelope — que estava repetido nas quatro
+ * listagens paginadas do projeto (logs técnicos, auditoria, escalas,
+ * policiais), com pequenas variações inúteis entre elas.
+ *
+ * Página vazia devolve `total: 0`, e não há caso especial a tratar: o `map` de
+ * uma lista vazia é uma lista vazia.
+ */
+export function paginarComContagem<T extends { total: unknown }>(
+	rows: T[],
+	page: number,
+	limit: number
+): { itens: Omit<T, 'total'>[]; total: number; page: number; limit: number; totalPages: number } {
+	const total = rows.length > 0 ? Number(rows[0].total ?? 0) : 0;
+	return {
+		itens: rows.map(({ total: _descartado, ...resto }) => resto),
+		total,
+		page,
+		limit,
+		totalPages: Math.ceil(total / limit)
+	};
+}
+
+/**
  * Retorna o binding do bucket R2 para armazenamento de documentos.
  */
 export function getR2(platform: PlatformLike | undefined): _R2Bucket {

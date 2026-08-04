@@ -13,6 +13,7 @@ import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import type { AuditLog } from '../schema';
 import { metaDaAcao } from '../../db/audit';
+import { dataHoraBrasilia } from '../../utils/datas';
 
 interface JsPDFAuto extends jsPDF {
 	lastAutoTable?: { finalY: number };
@@ -39,10 +40,9 @@ const RESULTADO: Record<string, string> = {
 /** UTC "YYYY-MM-DD HH:MM:SS" → "DD/MM/AAAA HH:MM:SS" (horário de Brasília). */
 function fmt(s: string | null | undefined): string {
 	if (!s) return '—';
-	const d = new Date(s.includes('T') ? s : s.replace(' ', 'T') + 'Z');
-	return Number.isNaN(d.getTime())
-		? s
-		: d.toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+	// `audit_log.created_at` vem no formato do SQLite (sem T nem Z) e é UTC;
+	// sem normalizar, o `Date` o leria como horário local.
+	return dataHoraBrasilia(s.includes('T') ? s : s.replace(' ', 'T') + 'Z') || s;
 }
 
 function rodapePaginas(doc: JsPDFAuto, geradoPor: string): void {

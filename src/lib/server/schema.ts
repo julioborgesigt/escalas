@@ -363,7 +363,7 @@ export const giseEquipes = sqliteTable(
 		gise_seccional_id: integer('gise_seccional_id')
 			.notNull()
 			.references(() => giseSeccionais.id, { onDelete: 'cascade' }),
-		// Slot de unidade ao qual esta equipe pertence (null = legado, antes da migração 0054)
+		// Slot de unidade ao qual esta equipe pertence (null = legado, de antes deste campo existir)
 		gise_unidade_id: integer('gise_unidade_id'),
 		tipo: text('tipo', { enum: ['operacional', 'seint'] }).notNull(),
 		slots_dpc: integer('slots_dpc').notNull().default(0),

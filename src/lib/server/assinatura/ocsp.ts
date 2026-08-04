@@ -10,6 +10,7 @@
  */
 
 import forge from 'node-forge';
+import { binStringToBytes, bytesToBinString } from '$lib/crypto/bin';
 import { logger } from '../logger';
 
 const OID_OCSP_AIA = '1.3.6.1.5.5.7.48.1';
@@ -343,8 +344,7 @@ function buildOcspRequestDer(
 
 	// Nonce de 16 bytes (RFC 8954 recomenda 1..32 octets).
 	const nonce = crypto.getRandomValues(new Uint8Array(16));
-	let nonceStr = '';
-	for (const b of nonce) nonceStr += String.fromCharCode(b);
+	const nonceStr = bytesToBinString(nonce);
 
 	// Extension ::= SEQUENCE { extnID OID, critical BOOLEAN DEFAULT FALSE, extnValue OCTET STRING }
 	// extnValue contém um OCTET STRING DER aninhado (que é o valor real da extensão).
@@ -383,10 +383,7 @@ function buildOcspRequestDer(
 		[tbsRequest]
 	);
 	const der = forge.asn1.toDer(ocspRequest).getBytes();
-
-	const bytes = new Uint8Array(der.length);
-	for (let i = 0; i < der.length; i++) bytes[i] = der.charCodeAt(i) & 0xff;
-	return { requestDer: bytes, nonce };
+	return { requestDer: binStringToBytes(der), nonce };
 }
 
 // ---------------------------------------------------------------------------
@@ -749,11 +746,7 @@ export async function consultarOcsp(
 			};
 		}
 		const respBuf = new Uint8Array(await res.arrayBuffer());
-		const respB64 = forge.util.encode64(
-			Array.from(respBuf)
-				.map((b) => String.fromCharCode(b))
-				.join('')
-		);
+		const respB64 = forge.util.encode64(bytesToBinString(respBuf));
 		const parsed = parseOcspStatus(respBuf);
 
 		// Validar assinatura matemática + confiança do responder.
@@ -828,9 +821,7 @@ export function statusDeSnapshot(
 	if (!snapshotB64) return { status: 'unknown' };
 	try {
 		const der = forge.util.decode64(snapshotB64);
-		const bytes = new Uint8Array(der.length);
-		for (let i = 0; i < der.length; i++) bytes[i] = der.charCodeAt(i) & 0xff;
-		const parsed = parseOcspStatus(bytes);
+		const parsed = parseOcspStatus(binStringToBytes(der));
 		let assinaturaResponder: 'valida' | 'invalida' | 'nao_verificada' = 'nao_verificada';
 		if (parsed.basicAsn1 && issuer) {
 			assinaturaResponder = verificarSignatureBasic(parsed.basicAsn1, issuer);

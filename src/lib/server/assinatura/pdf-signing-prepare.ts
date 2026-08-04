@@ -1087,13 +1087,7 @@ async function finalizarPreparacao(
 	const bracketStart = pdfString.indexOf('[', byteRangePos);
 	const bracketEnd = pdfString.indexOf(']', bracketStart);
 
-	const contentsTagPos = pdfString.lastIndexOf('/Contents <');
-	if (contentsTagPos === -1) {
-		throw new Error('Não foi possível encontrar /Contents no PDF preparado');
-	}
-
-	const sigStart = pdfString.indexOf('<', contentsTagPos + 9);
-	const sigEnd = pdfString.indexOf('>', sigStart);
+	const { sigStart, sigEnd } = localizarPlaceholderContents(pdfString);
 
 	const br = [0, sigStart, sigEnd + 1, pdfBuffer.length - (sigEnd + 1)];
 
@@ -1158,6 +1152,68 @@ export async function prepararPdfParaSelo(
 }
 
 /**
+ * Onde fica o placeholder `/Contents <...>` no PDF preparado.
+ *
+ * Fonte ÚNICA dessa busca, que estava repetida nos quatro pontos que tocam o
+ * placeholder. É a âncora de tudo: `sigStart`/`sigEnd` definem o `/ByteRange`
+ * (o que entra no hash) e a região onde o CMS é escrito. Um deslocamento de um
+ * byte aqui produz um PDF que abre normalmente e falha a validação de
+ * assinatura — sem erro em lugar nenhum.
+ *
+ * `lastIndexOf` porque assinaturas incrementais anexam novos `/Contents` ao
+ * final: o placeholder a preencher é sempre o mais recente. O `+ 9` pula o
+ * texto `'/Contents'` para achar o `<` que abre o valor.
+ */
+function localizarPlaceholderContents(pdfString: string): {
+	sigStart: number;
+	sigEnd: number;
+	placeholderLength: number;
+} {
+	const contentsTagPos = pdfString.lastIndexOf('/Contents <');
+	if (contentsTagPos === -1) {
+		throw new Error('Não foi possível encontrar /Contents no PDF preparado');
+	}
+	const sigStart = pdfString.indexOf('<', contentsTagPos + 9);
+	const sigEnd = pdfString.indexOf('>', sigStart);
+	return { sigStart, sigEnd, placeholderLength: sigEnd - sigStart - 1 };
+}
+
+/**
+ * Escreve o CMS (em hex) dentro do placeholder, preenchendo o resto com zeros.
+ *
+ * O tamanho reservado é fixo (`SIGNATURE_LENGTH`) porque o `/ByteRange` já foi
+ * calculado e assinado sobre ele: encolher ou crescer a região invalidaria o
+ * hash. Daí o padding — e daí o erro ser a única saída quando o CMS não cabe.
+ *
+ * `rotulo` só distingue a origem na mensagem de erro. Antes cada um dos três
+ * pontos tinha sua própria mensagem, e elas já haviam divergido: dois
+ * reportavam o tamanho em BYTES e o terceiro em hex chars — o dobro do número,
+ * para o operador que fosse dimensionar `SIGNATURE_LENGTH`.
+ */
+function escreverCmsNoPlaceholder(
+	preparedPdf: Uint8Array,
+	cmsHex: string,
+	rotulo: string
+): Uint8Array {
+	const pdfBuffer = Buffer.from(preparedPdf);
+	const { sigStart, placeholderLength } = localizarPlaceholderContents(
+		pdfBuffer.toString('latin1')
+	);
+
+	if (cmsHex.length > placeholderLength) {
+		throw new Error(
+			`${rotulo} muito grande: ${cmsHex.length / 2} bytes — ` +
+				`placeholder suporta ${placeholderLength / 2} bytes. ` +
+				`Aumente SIGNATURE_LENGTH em pdf-signing-prepare.ts.`
+		);
+	}
+
+	const signedPdf = Buffer.from(pdfBuffer);
+	signedPdf.write(cmsHex.padEnd(placeholderLength, '0'), sigStart + 1, placeholderLength, 'latin1');
+	return new Uint8Array(signedPdf);
+}
+
+/**
  * Embute bytes CMS arbitrários no placeholder /Contents do PDF preparado.
  *
  * Reusada por `embedSerproCms` (CMS do cliente) e pelo `cades-finalizer`
@@ -1175,32 +1231,7 @@ export function embedCmsBytesNoPlaceholder(
 	preparedPdf: Uint8Array,
 	cmsDer: Uint8Array
 ): Uint8Array {
-	const pdfBuffer = Buffer.from(preparedPdf);
-	const pdfString = pdfBuffer.toString('latin1');
-
-	const contentsTagPos = pdfString.lastIndexOf('/Contents <');
-	if (contentsTagPos === -1) {
-		throw new Error('Não foi possível encontrar /Contents no PDF preparado');
-	}
-
-	const sigStart = pdfString.indexOf('<', contentsTagPos + 9);
-	const sigEnd = pdfString.indexOf('>', sigStart);
-	const placeholderLength = sigEnd - sigStart - 1;
-
-	const cmsHex = bytesToHex(cmsDer);
-
-	if (cmsHex.length > placeholderLength) {
-		throw new Error(
-			`CMS muito grande: ${cmsHex.length / 2} bytes — ` +
-				`placeholder suporta ${placeholderLength / 2} bytes. ` +
-				`Aumente SIGNATURE_LENGTH em pdf-signing-prepare.ts.`
-		);
-	}
-
-	const paddedSig = cmsHex.padEnd(placeholderLength, '0');
-	const signedPdf = Buffer.from(pdfBuffer);
-	signedPdf.write(paddedSig, sigStart + 1, placeholderLength, 'latin1');
-	return new Uint8Array(signedPdf);
+	return escreverCmsNoPlaceholder(preparedPdf, bytesToHex(cmsDer), 'CMS');
 }
 
 /**
@@ -1234,23 +1265,12 @@ export async function embedSerproCms(
 
 	const cmsHex = cmsDer.toString('hex');
 
-	const pdfBuffer = Buffer.from(preparedPdf);
-	const pdfString = pdfBuffer.toString('latin1');
-
-	const contentsTagPos = pdfString.lastIndexOf('/Contents <');
-	if (contentsTagPos === -1) {
-		throw new Error('Não foi possível encontrar /Contents no PDF preparado');
-	}
-
-	const sigStart = pdfString.indexOf('<', contentsTagPos + 9);
-	const sigEnd = pdfString.indexOf('>', sigStart);
-	const placeholderLength = sigEnd - sigStart - 1;
-
 	// Diagnóstico (somente desenvolvimento — evita ruído em produção)
-	const byteRangeMatch = pdfString.match(/\/ByteRange\s*\[([^\]]+)\]/);
 	if (import.meta.env.DEV) {
+		const pdfString = Buffer.from(preparedPdf).toString('latin1');
+		const { sigStart, sigEnd, placeholderLength } = localizarPlaceholderContents(pdfString);
 		logger.debug('[PDF] embedSerproCms diagnóstico', {
-			byteRange: byteRangeMatch?.[1]?.trim() ?? 'NÃO ENCONTRADO',
+			byteRange: pdfString.match(/\/ByteRange\s*\[([^\]]+)\]/)?.[1]?.trim() ?? 'NÃO ENCONTRADO',
 			sigStart,
 			sigEnd,
 			placeholderLength,
@@ -1260,19 +1280,7 @@ export async function embedSerproCms(
 		});
 	}
 
-	if (cmsHex.length > placeholderLength) {
-		throw new Error(
-			`CMS SERPRO muito grande: ${cmsHex.length / 2} bytes — ` +
-				`placeholder suporta ${placeholderLength / 2} bytes. ` +
-				`Aumente SIGNATURE_LENGTH em pdf-signing-prepare.ts.`
-		);
-	}
-
-	const paddedSig = cmsHex.padEnd(placeholderLength, '0');
-	const signedPdf = Buffer.from(pdfBuffer);
-	signedPdf.write(paddedSig, sigStart + 1, placeholderLength, 'latin1');
-
-	return new Uint8Array(signedPdf);
+	return escreverCmsNoPlaceholder(preparedPdf, cmsHex, 'CMS SERPRO');
 }
 
 /**
@@ -1303,28 +1311,5 @@ export async function finalizarAssinatura(
 	const cmsDer = buildCmsSignedData(certDer, signedAttrs, signatureBytes);
 	const cmsHex = forge.util.bytesToHex(cmsDer);
 
-	// Embutir no PDF
-	const pdfBuffer = Buffer.from(preparedPdf);
-	const pdfString = pdfBuffer.toString('latin1');
-
-	const contentsTagPos = pdfString.lastIndexOf('/Contents <');
-	if (contentsTagPos === -1) {
-		throw new Error('Não foi possível encontrar /Contents no PDF preparado');
-	}
-
-	const sigStart = pdfString.indexOf('<', contentsTagPos + 9);
-	const sigEnd = pdfString.indexOf('>', sigStart);
-	const placeholderLength = sigEnd - sigStart - 1;
-
-	if (cmsHex.length > placeholderLength) {
-		throw new Error(
-			`CMS SignedData muito grande: ${cmsHex.length} hex chars, máximo ${placeholderLength}`
-		);
-	}
-
-	const paddedSig = cmsHex.padEnd(placeholderLength, '0');
-	const signedPdf = Buffer.from(pdfBuffer);
-	signedPdf.write(paddedSig, sigStart + 1, placeholderLength, 'latin1');
-
-	return new Uint8Array(signedPdf);
+	return escreverCmsNoPlaceholder(preparedPdf, cmsHex, 'CMS SignedData');
 }

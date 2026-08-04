@@ -22,6 +22,7 @@
  */
 
 import forge from 'node-forge';
+import { binStringToBytes, bytesToBinString } from '$lib/crypto/bin';
 import { logger } from '../logger';
 import { urlOcspPermitida } from './ocsp';
 
@@ -70,8 +71,7 @@ function montarTimeStampReq(signatureValue: string): Uint8Array {
 	// INTEGER em DER tem semântica two's-complement: para garantir positivo,
 	// força o bit mais significativo a 0.
 	nonceBytes[0] = nonceBytes[0] & 0x7f;
-	let nonceStr = '';
-	for (const b of nonceBytes) nonceStr += String.fromCharCode(b);
+	const nonceStr = bytesToBinString(nonceBytes);
 
 	const algSha256 = forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.SEQUENCE, true, [
 		forge.asn1.create(
@@ -113,10 +113,7 @@ function montarTimeStampReq(signatureValue: string): Uint8Array {
 		forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.BOOLEAN, false, '\xff')
 	]);
 
-	const der = forge.asn1.toDer(tsq).getBytes();
-	const out = new Uint8Array(der.length);
-	for (let i = 0; i < der.length; i++) out[i] = der.charCodeAt(i) & 0xff;
-	return out;
+	return binStringToBytes(forge.asn1.toDer(tsq).getBytes());
 }
 
 /**
@@ -132,9 +129,7 @@ function extrairTokenDaResposta(respDer: Uint8Array): {
 	tstDer: Uint8Array;
 	tstAsn1: forge.asn1.Asn1;
 } {
-	let binStr = '';
-	for (const b of respDer) binStr += String.fromCharCode(b);
-	const asn1 = forge.asn1.fromDer(forge.util.createBuffer(binStr));
+	const asn1 = forge.asn1.fromDer(forge.util.createBuffer(bytesToBinString(respDer)));
 	const children = asn1.value as forge.asn1.Asn1[];
 
 	const statusInfo = children[0];
@@ -148,9 +143,7 @@ function extrairTokenDaResposta(respDer: Uint8Array): {
 	if (!token) throw new Error('TSA aceitou mas não devolveu TimeStampToken');
 
 	const der = forge.asn1.toDer(token).getBytes();
-	const out = new Uint8Array(der.length);
-	for (let i = 0; i < der.length; i++) out[i] = der.charCodeAt(i) & 0xff;
-	return { tstDer: out, tstAsn1: token };
+	return { tstDer: binStringToBytes(der), tstAsn1: token };
 }
 
 /**

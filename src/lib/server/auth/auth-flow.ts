@@ -3,7 +3,7 @@
  * Rate limit, auditoria, migração de hash legado e 2FA permanecem alinhados entre os canais.
  */
 import { eq, and, gt, sql, count } from 'drizzle-orm';
-import { bytesToHex } from '$lib/crypto/hex';
+import { sha256Hex } from '$lib/crypto/digest';
 import { registrarAuditComContexto } from '$lib/db';
 import {
 	hashSenha,
@@ -167,9 +167,7 @@ export async function recordAttempt(
  * tentativas por conta SEM gravar a matrícula em texto no log de tentativas.
  */
 async function hashIdentificadorLogin(tipo: string, matricula: string): Promise<string> {
-	const data = new TextEncoder().encode(`${tipo}:${matricula.trim().toLowerCase()}`);
-	const buf = await crypto.subtle.digest('SHA-256', data);
-	return bytesToHex(new Uint8Array(buf));
+	return sha256Hex(`${tipo}:${matricula.trim().toLowerCase()}`);
 }
 
 /**
@@ -456,13 +454,6 @@ export async function tentarLogin({
 				};
 			}
 
-			alertarLoginBootstrap(
-				'[security] Login via credenciais de bootstrap (ADMIN_GERAL). ' +
-					'Configure e-mail pessoal verificado e remova ADMIN_GERAL_LOGIN/SENHA do ambiente ' +
-					'para encerrar este caminho sem 2FA.',
-				ip
-			);
-
 			if (!(await verificarSenhaBootstrap(senha, envSenha, pepper))) {
 				await recordAttempt(db, ip, false, identHash);
 				await registrarAuditComContexto(db, {
@@ -530,6 +521,17 @@ export async function tentarLogin({
 				};
 			}
 
+			// ORDEM OBRIGATÓRIA, igual à do SUPER_ADMIN acima: o alerta sai só DEPOIS
+			// da senha conferida e do desvio para 2FA. Antes ele saía logo na entrada
+			// do bloco, então bastava acertar o LOGIN — nome previsível — para
+			// disparar à vontade um alerta dizendo que a credencial root tinha sido
+			// usada. Alerta que grita sem motivo é alerta que o operador desliga.
+			alertarLoginBootstrap(
+				'[security] Login via credenciais de bootstrap (ADMIN_GERAL). ' +
+					'Configure e-mail pessoal verificado e remova ADMIN_GERAL_LOGIN/SENHA do ambiente ' +
+					'para encerrar este caminho sem 2FA.',
+				ip
+			);
 			await recordAttempt(db, ip, true, identHash);
 			// Rastreabilidade forense (A7): registra o uso do bootstrap ADMIN_GERAL
 			// (sem 2FA) no audit log consultável. try/catch — não pode quebrar o login.

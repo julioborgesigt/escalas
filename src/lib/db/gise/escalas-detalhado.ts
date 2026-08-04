@@ -486,10 +486,13 @@ export async function buscarGiseDetalhado(db: Database, id: number): Promise<Gis
 			.where(eq(giseSeccionais.gise_id, id))
 			.orderBy(asc(giseSeccionalUnidades.id));
 	} catch (err) {
-		logger.warn('[buscarGiseDetalhado] slots/unidades — possível migração pendente', {
-			gise_id: id,
-			err: String(err)
-		});
+		logger.warn(
+			'[buscarGiseDetalhado] slots/unidades — consulta falhou; GISE renderiza sem slots/unidades',
+			{
+				gise_id: id,
+				err: String(err)
+			}
+		);
 	}
 
 	const temSaidaConfirmada = todasPresencas.some((p) => p.saida_timestamp !== null);

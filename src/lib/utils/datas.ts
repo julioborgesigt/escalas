@@ -19,11 +19,32 @@
 
 /**
  * Formata uma data no formato "YYYY-MM-DD" para "DD/MM/YYYY".
+ *
+ * Entrada fora do formato volta COMO VEIO. A versão anterior devolvia
+ * `"undefined/undefined/abc"` nesse caso — e esta função escreve dentro de PDF,
+ * DOCX e XLSX, então o valor cru é sempre menos ruim que a palavra `undefined`
+ * num documento oficial.
  */
 export function formatarData(dateStr: string): string {
 	if (!dateStr) return '';
-	const [year, month, day] = dateStr.split('-');
-	return `${day}/${month}/${year}`;
+	const [ano, mes, dia] = dateStr.split('-');
+	if (!ano || !mes || !dia) return dateStr;
+	return `${dia}/${mes}/${ano}`;
+}
+
+/**
+ * Data e hora no fuso de Brasília, no formato pt-BR (`01/08/2026, 14:30:00`).
+ * Devolve `''` para entrada inválida, deixando o fallback a cargo do chamador.
+ *
+ * O `timeZone` explícito é obrigatório e não é preciosismo: o Worker roda em
+ * UTC, então sem ele o termo de presença, o PDF de auditoria e o carimbo do
+ * relatório exibiriam três horas a menos — o horário em que nada aconteceu.
+ * Estava reimplementado inline em quatro geradores de documento.
+ */
+export function dataHoraBrasilia(entrada: string | Date): string {
+	const d = typeof entrada === 'string' ? new Date(entrada) : entrada;
+	if (Number.isNaN(d.getTime())) return '';
+	return d.toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' });
 }
 
 /** Retorna a data do dia seguinte no formato "YYYY-MM-DD". */

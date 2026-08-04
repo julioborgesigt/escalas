@@ -1,3 +1,10 @@
+/**
+ * Monta a lista de policiais de uma GISE para a planilha externa Base_Equipe
+ * (uma linha por pessoa): membros escalados em equipes e o quadro de
+ * "Supervisão e apoio" (supervisor/assessor/SEINT) que não esteja em nenhuma
+ * equipe, com a mesma regra de cidade (por lotação) e presença para os dois
+ * grupos. Consumido só por `planilha-base-equipe-dados.ts`.
+ */
 import { eq, inArray, sql } from 'drizzle-orm';
 import {
 	giseEscalas,

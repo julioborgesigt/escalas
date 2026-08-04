@@ -17,6 +17,7 @@ import type { Database } from '../core';
 import { anonimizarIp } from '../audit';
 import { parseUserAgent, reduzirPrecisaoGps } from '../../server/assinatura/document-utils';
 import { cifrarCpfParaArmazenar, type CpfCriptoEnv } from '../../crypto/cpf-cripto';
+import type { AssinaturaCadesMetadata } from '../documentos';
 
 /** Todas as assinaturas de relatório da GISE, sem filtro de seccional ou tipo. */
 export async function buscarAssinaturasRelatoriosGise(db: Database, giseId: number) {
@@ -108,16 +109,7 @@ export async function salvarAssinaturaRelatorioGise(
 		r2_key?: string | null;
 		assinante_email?: string | null;
 		tipo_carimbo_tempo?: string;
-		// Metadados CAdES-LT (migração 0012)
-		cert_issuer?: string | null;
-		cert_serial?: string | null;
-		cert_valido_de?: string | null;
-		cert_valido_ate?: string | null;
-		cms_sha256?: string | null;
-		ocsp_response_b64?: string | null;
-		ocsp_consultado_em?: string | null;
-		tst_token_b64?: string | null;
-	},
+	} & AssinaturaCadesMetadata,
 	env?: CpfCriptoEnv
 ) {
 	const ipAnonimizado = anonimizarIp(data.ip_address) ?? undefined;
@@ -130,20 +122,40 @@ export async function salvarAssinaturaRelatorioGise(
 
 	// A trinca do conflito fica de fora do payload: identifica a linha, não é
 	// conteúdo a reescrever.
-	const { gise_id, seccional_id, tipo, ...resto } = data;
-	// Mesmos campos no INSERT e no UPDATE — montados uma vez para não divergirem
-	// (a lista tem 24 colunas e cresce a cada campo novo de CAdES).
+	const { gise_id, seccional_id, tipo } = data;
+	// Mesmos campos no INSERT e no UPDATE — montados uma vez para não divergirem.
+	//
+	// Todo campo opcional vira `null` EXPLÍCITO, e a lista é escrita por extenso
+	// justamente por isso: com `...resto`, um campo que o chamador não envia não
+	// existe como chave, o drizzle o omite do `.set()` e o valor da assinatura
+	// ANTERIOR sobrevive à reassinatura. Era assim que um relatório reassinado
+	// como `simples` seguia carregando o certificado ICP-Brasil, o carimbo de
+	// tempo e a selfie da assinatura qualificada que ele substituiu.
 	const dados = {
-		...resto,
+		assinante_nome: data.assinante_nome,
+		tipo_assinatura: data.tipo_assinatura,
 		assinante_id: data.assinante_id ?? null,
 		assinante_cpf: cpfArmazenado,
 		assinante_email: data.assinante_email ?? null,
-		ip_address: ipAnonimizado,
-		user_agent: uaResumido,
-		user_agent_raw: uaRaw,
-		latitude: lat2,
-		longitude: lng2,
-		tipo_carimbo_tempo: data.tipo_carimbo_tempo || 'servidor'
+		rubrica: data.rubrica ?? null,
+		verification_hash: data.verification_hash ?? null,
+		selfie_key: data.selfie_key ?? null,
+		arquivo_hash: data.arquivo_hash ?? null,
+		r2_key: data.r2_key ?? null,
+		ip_address: ipAnonimizado ?? null,
+		user_agent: uaResumido ?? null,
+		user_agent_raw: uaRaw ?? null,
+		latitude: lat2 ?? null,
+		longitude: lng2 ?? null,
+		tipo_carimbo_tempo: data.tipo_carimbo_tempo || 'servidor',
+		cert_issuer: data.cert_issuer ?? null,
+		cert_serial: data.cert_serial ?? null,
+		cert_valido_de: data.cert_valido_de ?? null,
+		cert_valido_ate: data.cert_valido_ate ?? null,
+		cms_sha256: data.cms_sha256 ?? null,
+		ocsp_response_b64: data.ocsp_response_b64 ?? null,
+		ocsp_consultado_em: data.ocsp_consultado_em ?? null,
+		tst_token_b64: data.tst_token_b64 ?? null
 	};
 
 	return db
@@ -183,15 +195,7 @@ export async function salvarTermoPresencaGise(
 		latitude?: number;
 		longitude?: number;
 		tipo_carimbo_tempo?: string;
-		cert_issuer?: string | null;
-		cert_serial?: string | null;
-		cert_valido_de?: string | null;
-		cert_valido_ate?: string | null;
-		cms_sha256?: string | null;
-		ocsp_response_b64?: string | null;
-		ocsp_consultado_em?: string | null;
-		tst_token_b64?: string | null;
-	},
+	} & AssinaturaCadesMetadata,
 	env?: CpfCriptoEnv
 ) {
 	const cpfArmazenado = (await cifrarCpfParaArmazenar(data.assinante_cpf, env)) ?? null;

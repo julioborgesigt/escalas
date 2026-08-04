@@ -21,6 +21,7 @@
  */
 
 import forge from 'node-forge';
+import { binStringToBytes } from '$lib/crypto/bin';
 import { logger } from '../logger';
 
 // OIDs de algoritmos de assinatura (encontrados em SignerInfo.signatureAlgorithm).
@@ -70,11 +71,7 @@ interface VerifyParams {
 // Helpers
 // ---------------------------------------------------------------------------
 
-function binStringToUint8(s: string): Uint8Array {
-	const out = new Uint8Array(s.length);
-	for (let i = 0; i < s.length; i++) out[i] = s.charCodeAt(i) & 0xff;
-	return out;
-}
+const binStringToUint8 = binStringToBytes;
 
 function uint8ToArrayBuffer(u: Uint8Array): ArrayBuffer {
 	return u.buffer.slice(u.byteOffset, u.byteOffset + u.byteLength) as ArrayBuffer;

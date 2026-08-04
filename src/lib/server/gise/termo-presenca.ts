@@ -10,6 +10,7 @@
 
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
 import { mascararCPF } from '../../utils/pii';
+import { formatarData, dataHoraBrasilia } from '../../utils/datas';
 import {
 	adicionarRodapeUniversal,
 	adicionarPaginaAuditoria,
@@ -37,12 +38,6 @@ export interface TermoPresencaInput {
 	 * A força jurídica vem da assinatura embutida/selo, não do layout.
 	 */
 	nivel?: 'qualificada' | 'avancada';
-}
-
-function formatarDataBR(yyyatmmdd: string): string {
-	const [y, m, d] = yyyatmmdd.split('-');
-	if (!y || !m || !d) return yyyatmmdd;
-	return `${d}/${m}/${y}`;
 }
 
 /** Quebra um texto em linhas que cabem em `maxWidth` (pts) na fonte/tamanho dados. */
@@ -119,18 +114,15 @@ export async function gerarTermoPresencaPdf(
 		y -= 42;
 	};
 
-	const dt = new Date(input.timestampISO);
 	// timestampISO é UTC real; o runtime do Worker é UTC, então é obrigatório
 	// fixar o fuso de Brasília para o termo não exibir o horário em UTC.
-	const dataHora = isNaN(dt.getTime())
-		? input.timestampISO
-		: dt.toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+	const dataHora = dataHoraBrasilia(input.timestampISO) || input.timestampISO;
 
 	campo('TIPO DE REGISTRO', `Confirmação de ${acao} no serviço`);
 	campo('SERVIDOR', input.signerName);
 	campo('MATRÍCULA', input.matricula || '—');
 	campo('CPF', input.signerCpf ? mascararCPF(input.signerCpf) : '—');
-	campo('ESCALA GISE', `#${input.giseId} — ${formatarDataBR(input.dataInicio)}`);
+	campo('ESCALA GISE', `#${input.giseId} — ${formatarData(input.dataInicio)}`);
 	if (input.unidadeNome) campo('UNIDADE', input.unidadeNome);
 	campo('DATA/HORA DA CONFIRMAÇÃO', dataHora);
 

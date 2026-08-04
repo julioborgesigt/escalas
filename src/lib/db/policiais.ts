@@ -29,7 +29,7 @@ import {
 	indiceCPF,
 	type CpfCriptoEnv
 } from '../crypto/cpf-cripto';
-import type { Database } from './core';
+import { paginarComContagem, type Database } from './core';
 
 /**
  * Busca a rubrica reutilizável do policial a partir do CPF CIFRADO gravado no
@@ -182,19 +182,8 @@ export async function listarPoliciais(
 		.limit(limit)
 		.offset(offset);
 
-	const total = results.length > 0 ? (results[0].total ?? 0) : 0;
-	const totalPages = Math.ceil(total / limit);
-
-	// Remove campo extra 'total' antes de retornar
-	const policiaisList = results.map(({ total: _t, ...rest }) => rest);
-
-	return {
-		policiais: policiaisList,
-		total,
-		page,
-		limit,
-		totalPages
-	};
+	const { itens, ...paginacao } = paginarComContagem(results, page, limit);
+	return { policiais: itens, ...paginacao };
 }
 
 /**

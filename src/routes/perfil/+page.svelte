@@ -22,6 +22,7 @@
 	import { enhance } from '$app/forms';
 	import { untrack } from 'svelte';
 	import { toaster } from '$lib/toast';
+	import { mostrarErroDeResultado } from '$lib/enhance-handler';
 	import { apiFetch } from '$lib/api-fetch';
 	import ModalCadastrarRubrica from '$lib/components/ModalCadastrarRubrica.svelte';
 	import ModalAlterarEmailPessoal from './ModalAlterarEmailPessoal.svelte';
@@ -67,14 +68,8 @@
 					description: 'As alterações aguardam aprovação do administrador.',
 					type: 'success'
 				});
-			} else if (result.type === 'error') {
-				toaster.create({ title: 'Erro de conexão. Tente novamente.', type: 'error' });
 			} else {
-				const d =
-					result.type === 'failure'
-						? (result.data as Record<string, unknown> | undefined)
-						: undefined;
-				toaster.create({ title: String(d?.error || 'Erro ao solicitar'), type: 'error' });
+				mostrarErroDeResultado(result, 'Erro ao solicitar');
 			}
 		};
 	}

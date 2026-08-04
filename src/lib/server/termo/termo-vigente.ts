@@ -1,4 +1,3 @@
-import { bytesToHex } from '$lib/crypto/hex';
 /**
  * Termo de Uso e Política de Privacidade — versão vigente.
  *
@@ -28,6 +27,8 @@ import { bytesToHex } from '$lib/crypto/hex';
  * aceite passou a ser ÚNICO e implícito (um clique em "Li e aceito"), sem as
  * múltiplas caixas anteriores.
  */
+
+import { sha256Hex } from '$lib/crypto/digest';
 
 export const VERSAO = '1.3';
 export const VIGENTE_DESDE = '2026-07-11';
@@ -86,8 +87,6 @@ let _hashCache: string | null = null;
 export async function calcularHashTermo(): Promise<string> {
 	if (_hashCache) return _hashCache;
 	const payload = `v${VERSAO}\n${VIGENTE_DESDE}\n${CONTEUDO_HTML}`;
-	const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(payload));
-	const arr = new Uint8Array(buf);
-	_hashCache = bytesToHex(arr);
+	_hashCache = await sha256Hex(payload);
 	return _hashCache;
 }

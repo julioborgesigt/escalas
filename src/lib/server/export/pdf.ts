@@ -34,7 +34,13 @@ import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { PDFDocument } from 'pdf-lib';
 import type { Escala, EscalaPolicialComDados } from '../../types';
-import { formatarData, formatarDataExtenso, calcularDataSaida, MESES_PT } from '../../utils/datas';
+import {
+	formatarData,
+	formatarDataExtenso,
+	calcularDataSaida,
+	dataHoraBrasilia,
+	MESES_PT
+} from '../../utils/datas';
 import type { BreveRelatorioEnv } from '$lib/gise/breve-relatorio';
 import {
 	resolveBreveRelatorioConteudoSeccional,
@@ -52,7 +58,8 @@ import {
 	agruparPlantao,
 	COLS_PLANTAO,
 	rowPlantao,
-	formatarMesAno
+	formatarMesAno,
+	cabecalhoDelegacia
 } from './shared';
 
 // Type augmentation for jspdf-autotable's lastAutoTable property
@@ -482,7 +489,7 @@ export async function gerarPdfExpediente(
 			],
 			[
 				{
-					content: `DELEGACIA: ${escala.lotacao.toUpperCase()}`,
+					content: cabecalhoDelegacia(escala),
 					colSpan: NCOLS,
 					styles: { ...headMeta, fontSize: 8, cellPadding: 1.5 }
 				}
@@ -656,7 +663,7 @@ export function gerarPdfPlantao(
 	);
 	y += 5;
 	doc.setFont('helvetica', 'bold');
-	doc.text(`DELEGACIA: ${escala.lotacao.toUpperCase()}`, margin, y);
+	doc.text(cabecalhoDelegacia(escala), margin, y);
 	y += 5;
 	doc.text(`MÊS/ANO: ${formatarMesAno(escala.data_inicio)}`, margin, y);
 	y += 8;
@@ -1339,11 +1346,7 @@ function assinaturaRelatorioExtra(
 			doc.text((reportSignature.assinante_nome ?? '').toUpperCase(), txtX, qrY + 6.5);
 
 			doc.setFont('helvetica', 'normal');
-			const dataH = reportSignature.created_at
-				? new Date(reportSignature.created_at).toLocaleString('pt-BR', {
-						timeZone: 'America/Sao_Paulo'
-					})
-				: '';
+			const dataH = reportSignature.created_at ? dataHoraBrasilia(reportSignature.created_at) : '';
 			doc.text(
 				`Data/Hora: ${dataH} | Código: ${reportSignature.verification_hash}`,
 				txtX,

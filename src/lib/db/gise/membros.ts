@@ -89,6 +89,103 @@ export async function verificarConflitoMembroGise(
 }
 
 /**
+ * O policial já está comprometido, naquele dia e horário, em outro lugar?
+ *
+ * Cobre as três formas de estar escalado, nesta ordem:
+ *   1. escala não-GISE (plantão, expediente, FDS), via `escalas/conflict`;
+ *   2. membro de equipe de OUTRA GISE;
+ *   3. quadro de supervisão (supervisor/assessor/SEINT) de outra GISE.
+ *
+ * GISE `finalizada` não conta — já encerrou, não há sobreposição real. E a
+ * própria GISE de destino é excluída por `giseIdExcluir`: sem isso, mover um
+ * membro dentro da mesma escala colidiria consigo mesmo.
+ *
+ * O horário de um membro é resolvido em cascata — equipe → seccional → GISE —,
+ * e é por isso que as queries trazem os três pares: o primeiro preenchido vence.
+ *
+ * Existe como função única porque as duas checagens públicas abaixo (entrar numa
+ * equipe × assumir o quadro de supervisão) diferem apenas em COMO descobrem a
+ * data e o horário de destino. Daqui para baixo eram ~70 linhas idênticas
+ * duplicadas, nas duas portas que impedem o mesmo policial de estar em dois
+ * lugares ao mesmo tempo.
+ */
+async function conflitoEmOutrasGises(
+	db: Database,
+	policialId: number,
+	data: string,
+	entrada: string,
+	saida: string,
+	giseIdExcluir: number
+): Promise<{ ok: boolean; motivo?: string }> {
+	const naoGiseCheck = await verificarConflitoEscalasNaoGise(db, policialId, data, entrada, saida);
+	if (!naoGiseCheck.ok) return naoGiseCheck;
+
+	const outraGiseNoMesmoDia = [
+		ne(giseEscalas.id, giseIdExcluir),
+		ne(giseEscalas.status, 'finalizada'),
+		eq(giseEscalas.data_inicio, data)
+	];
+
+	const [membrosExistentes, supervisorGises] = await Promise.all([
+		db
+			.select({
+				gise_hora_entrada: giseEscalas.hora_entrada,
+				gise_hora_saida: giseEscalas.hora_saida,
+				sec_hora_entrada: giseSeccionais.hora_entrada,
+				sec_hora_saida: giseSeccionais.hora_saida,
+				eq_hora_entrada: giseEquipes.hora_entrada,
+				eq_hora_saida: giseEquipes.hora_saida
+			})
+			.from(giseMembros)
+			.innerJoin(giseEquipes, eq(giseMembros.equipe_id, giseEquipes.id))
+			.innerJoin(giseSeccionais, eq(giseEquipes.gise_seccional_id, giseSeccionais.id))
+			.innerJoin(giseEscalas, eq(giseSeccionais.gise_id, giseEscalas.id))
+			.where(and(eq(giseMembros.policial_id, policialId), ...outraGiseNoMesmoDia))
+			.all(),
+		db
+			.select({
+				gise_hora_entrada: giseEscalas.hora_entrada,
+				gise_hora_saida: giseEscalas.hora_saida
+			})
+			.from(giseEscalas)
+			.where(
+				and(
+					or(
+						eq(giseEscalas.supervisor_id, policialId),
+						eq(giseEscalas.assessor_id, policialId),
+						eq(giseEscalas.seint1_id, policialId),
+						eq(giseEscalas.seint2_id, policialId)
+					),
+					...outraGiseNoMesmoDia
+				)
+			)
+			.all()
+	]);
+
+	for (const e of membrosExistentes) {
+		const existenteEntrada = e.eq_hora_entrada ?? e.sec_hora_entrada ?? e.gise_hora_entrada;
+		const existenteSaida = e.eq_hora_saida ?? e.sec_hora_saida ?? e.gise_hora_saida;
+		if (seOverlapam(entrada, saida, existenteEntrada, existenteSaida)) {
+			return {
+				ok: false,
+				motivo: `Policial já escalado como membro em outra GISE neste dia com horário conflitante (${existenteEntrada}–${existenteSaida})`
+			};
+		}
+	}
+
+	for (const g of supervisorGises) {
+		if (seOverlapam(entrada, saida, g.gise_hora_entrada, g.gise_hora_saida)) {
+			return {
+				ok: false,
+				motivo: `Policial já escalado como supervisor/SEINT em outra GISE neste dia com horário conflitante (${g.gise_hora_entrada}–${g.gise_hora_saida})`
+			};
+		}
+	}
+
+	return { ok: true };
+}
+
+/**
  * Verifica se o policial tem choque de horário em outra GISE (como membro)
  * no mesmo dia da equipe alvo.
  */
@@ -116,85 +213,18 @@ export async function verificarConflitoHorarioPolicial(
 
 	if (!target) return { ok: false, motivo: 'Equipe não encontrada' };
 
+	// Horário do membro: equipe → seccional → GISE, o primeiro preenchido vence.
 	const novaEntrada = target.eq_hora_entrada ?? target.sec_hora_entrada ?? target.gise_hora_entrada;
 	const novaSaida = target.eq_hora_saida ?? target.sec_hora_saida ?? target.gise_hora_saida;
 
-	// Verifica conflito com escalas não-GISE (plantão/expediente/fds)
-	const naoGiseCheck = await verificarConflitoEscalasNaoGise(
+	return conflitoEmOutrasGises(
 		db,
 		policialId,
 		target.data_inicio,
 		novaEntrada,
-		novaSaida
+		novaSaida,
+		target.gise_id
 	);
-	if (!naoGiseCheck.ok) return naoGiseCheck;
-
-	const [membrosExistentes, supervisorGises] = await Promise.all([
-		db
-			.select({
-				gise_hora_entrada: giseEscalas.hora_entrada,
-				gise_hora_saida: giseEscalas.hora_saida,
-				sec_hora_entrada: giseSeccionais.hora_entrada,
-				sec_hora_saida: giseSeccionais.hora_saida,
-				eq_hora_entrada: giseEquipes.hora_entrada,
-				eq_hora_saida: giseEquipes.hora_saida
-			})
-			.from(giseMembros)
-			.innerJoin(giseEquipes, eq(giseMembros.equipe_id, giseEquipes.id))
-			.innerJoin(giseSeccionais, eq(giseEquipes.gise_seccional_id, giseSeccionais.id))
-			.innerJoin(giseEscalas, eq(giseSeccionais.gise_id, giseEscalas.id))
-			.where(
-				and(
-					eq(giseMembros.policial_id, policialId),
-					ne(giseEscalas.id, target.gise_id),
-					ne(giseEscalas.status, 'finalizada'),
-					eq(giseEscalas.data_inicio, target.data_inicio)
-				)
-			)
-			.all(),
-		db
-			.select({
-				gise_hora_entrada: giseEscalas.hora_entrada,
-				gise_hora_saida: giseEscalas.hora_saida
-			})
-			.from(giseEscalas)
-			.where(
-				and(
-					or(
-						eq(giseEscalas.supervisor_id, policialId),
-						eq(giseEscalas.assessor_id, policialId),
-						eq(giseEscalas.seint1_id, policialId),
-						eq(giseEscalas.seint2_id, policialId)
-					),
-					ne(giseEscalas.id, target.gise_id),
-					ne(giseEscalas.status, 'finalizada'),
-					eq(giseEscalas.data_inicio, target.data_inicio)
-				)
-			)
-			.all()
-	]);
-
-	for (const e of membrosExistentes) {
-		const existenteEntrada = e.eq_hora_entrada ?? e.sec_hora_entrada ?? e.gise_hora_entrada;
-		const existenteSaida = e.eq_hora_saida ?? e.sec_hora_saida ?? e.gise_hora_saida;
-		if (seOverlapam(novaEntrada, novaSaida, existenteEntrada, existenteSaida)) {
-			return {
-				ok: false,
-				motivo: `Policial já escalado em outra GISE neste dia com horário conflitante (${existenteEntrada}–${existenteSaida})`
-			};
-		}
-	}
-
-	for (const g of supervisorGises) {
-		if (seOverlapam(novaEntrada, novaSaida, g.gise_hora_entrada, g.gise_hora_saida)) {
-			return {
-				ok: false,
-				motivo: `Policial já escalado como supervisor/SEINT em outra GISE neste dia com horário conflitante (${g.gise_hora_entrada}–${g.gise_hora_saida})`
-			};
-		}
-	}
-
-	return { ok: true };
 }
 
 /**
@@ -218,80 +248,14 @@ export async function verificarConflitoHorarioPorGise(
 
 	if (!gise) return { ok: false, motivo: 'GISE não encontrada' };
 
-	// Verifica conflito com escalas não-GISE (plantão/expediente/fds)
-	const naoGiseCheck = await verificarConflitoEscalasNaoGise(
+	// O quadro de supervisão não pertence a equipe nenhuma: o horário é o da
+	// própria GISE, sem a cascata equipe → seccional.
+	return conflitoEmOutrasGises(
 		db,
 		policialId,
 		gise.data_inicio,
 		gise.hora_entrada,
-		gise.hora_saida
+		gise.hora_saida,
+		giseId
 	);
-	if (!naoGiseCheck.ok) return naoGiseCheck;
-
-	const [membrosExistentes, supervisorGises] = await Promise.all([
-		db
-			.select({
-				gise_hora_entrada: giseEscalas.hora_entrada,
-				gise_hora_saida: giseEscalas.hora_saida,
-				sec_hora_entrada: giseSeccionais.hora_entrada,
-				sec_hora_saida: giseSeccionais.hora_saida,
-				eq_hora_entrada: giseEquipes.hora_entrada,
-				eq_hora_saida: giseEquipes.hora_saida
-			})
-			.from(giseMembros)
-			.innerJoin(giseEquipes, eq(giseMembros.equipe_id, giseEquipes.id))
-			.innerJoin(giseSeccionais, eq(giseEquipes.gise_seccional_id, giseSeccionais.id))
-			.innerJoin(giseEscalas, eq(giseSeccionais.gise_id, giseEscalas.id))
-			.where(
-				and(
-					eq(giseMembros.policial_id, policialId),
-					ne(giseEscalas.id, giseId),
-					ne(giseEscalas.status, 'finalizada'),
-					eq(giseEscalas.data_inicio, gise.data_inicio)
-				)
-			)
-			.all(),
-		db
-			.select({
-				gise_hora_entrada: giseEscalas.hora_entrada,
-				gise_hora_saida: giseEscalas.hora_saida
-			})
-			.from(giseEscalas)
-			.where(
-				and(
-					or(
-						eq(giseEscalas.supervisor_id, policialId),
-						eq(giseEscalas.assessor_id, policialId),
-						eq(giseEscalas.seint1_id, policialId),
-						eq(giseEscalas.seint2_id, policialId)
-					),
-					ne(giseEscalas.id, giseId),
-					ne(giseEscalas.status, 'finalizada'),
-					eq(giseEscalas.data_inicio, gise.data_inicio)
-				)
-			)
-			.all()
-	]);
-
-	for (const e of membrosExistentes) {
-		const existenteEntrada = e.eq_hora_entrada ?? e.sec_hora_entrada ?? e.gise_hora_entrada;
-		const existenteSaida = e.eq_hora_saida ?? e.sec_hora_saida ?? e.gise_hora_saida;
-		if (seOverlapam(gise.hora_entrada, gise.hora_saida, existenteEntrada, existenteSaida)) {
-			return {
-				ok: false,
-				motivo: `Policial já escalado como membro em outra GISE neste dia com horário conflitante (${existenteEntrada}–${existenteSaida})`
-			};
-		}
-	}
-
-	for (const g of supervisorGises) {
-		if (seOverlapam(gise.hora_entrada, gise.hora_saida, g.gise_hora_entrada, g.gise_hora_saida)) {
-			return {
-				ok: false,
-				motivo: `Policial já escalado como supervisor/SEINT em outra GISE neste dia com horário conflitante (${g.gise_hora_entrada}–${g.gise_hora_saida})`
-			};
-		}
-	}
-
-	return { ok: true };
 }

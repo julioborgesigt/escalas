@@ -20,7 +20,8 @@ import {
 	agruparPlantao,
 	COLS_PLANTAO,
 	rowPlantao,
-	formatarMesAno
+	formatarMesAno,
+	cabecalhoDelegacia
 } from './shared';
 
 // ---- XLSX Final de Semana ----
@@ -158,7 +159,7 @@ export async function gerarXlsxExpediente(
 	applyTeal(rTit);
 	rTit.height = 20;
 
-	const rDel = ws.addRow([`DELEGACIA: ${escala.lotacao.toUpperCase()}`]);
+	const rDel = ws.addRow([cabecalhoDelegacia(escala)]);
 	ws.mergeCells(`A${rDel.number}:${lastCol}${rDel.number}`);
 	applyMeta(rDel);
 
@@ -223,9 +224,7 @@ export async function gerarXlsxPlantao(
 		{ width: 30 }
 	];
 	ws.addRow(['POLÍCIA CIVIL DO ESTADO DO CEARÁ']);
-	ws.addRow([
-		`DELEGACIA: ${escala.cidade.toUpperCase()} — MÊS/ANO: ${formatarMesAno(escala.data_inicio)}`
-	]);
+	ws.addRow([`${cabecalhoDelegacia(escala)} — MÊS/ANO: ${formatarMesAno(escala.data_inicio)}`]);
 	ws.addRow([]);
 
 	for (const [equipe, oficiais] of equipes) {

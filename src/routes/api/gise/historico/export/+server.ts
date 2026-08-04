@@ -20,6 +20,7 @@ import type { RequestHandler } from './$types';
 import { getDB, listarGiseEscalas, buscarGiseDetalhado } from '$lib/db';
 import { registrarAuditComContexto } from '$lib/db/audit';
 import { giseHistoricoExportQuerySchema } from '$lib/schemas';
+import { dataHoraBrasilia } from '$lib/utils/datas';
 import {
 	contentDisposition,
 	requireAdmin,
@@ -66,11 +67,7 @@ async function buildHistoricoPdfBuffer(
 	y += 5;
 	doc.text(`Período: ${periodoLabel}`, 14, y);
 	y += 5;
-	doc.text(
-		`Gerado em: ${new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}`,
-		14,
-		y
-	);
+	doc.text(`Gerado em: ${dataHoraBrasilia(new Date())}`, 14, y);
 	y += 10;
 
 	if (gises.length === 0) {

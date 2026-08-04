@@ -14,7 +14,7 @@
 
 import forge from 'node-forge';
 import { extrairDadosDoCertificado } from './pdf-signing-prepare';
-import { binStringToBytes } from '$lib/crypto/bin';
+import { binStringToBytes, bytesToBinString } from '$lib/crypto/bin';
 import { PDFDocument } from 'pdf-lib';
 import { logger } from '../logger';
 import { loadTrustStore, trustStoreRequerido } from './icp-brasil/trust-store';
@@ -88,10 +88,6 @@ interface CmsExtraido {
 }
 
 /**
- * Extrai 1 assinatura a partir de um match de /ByteRange. Retorna `null`
- * se a estrutura não bate (PDF corrompido ou ByteRange órfão).
- */
-/**
  * Lê o comprimento TOTAL (header + conteúdo) do objeto DER que começa em
  * `bytes[0]` (a SEQUENCE externa do ContentInfo CMS). Retorna `null` se o
  * cabeçalho for inválido/indefinido ou estourar o buffer. Robusto a padding
@@ -112,6 +108,10 @@ export function lerComprimentoDerTotal(bytes: Uint8Array): number | null {
 	return pos + len;
 }
 
+/**
+ * Extrai 1 assinatura a partir de um match de /ByteRange. Retorna `null`
+ * se a estrutura não bate (PDF corrompido ou ByteRange órfão).
+ */
 function extrairAssinaturaDeByteRange(
 	pdfBytes: Uint8Array,
 	a: number,
@@ -212,13 +212,6 @@ function extrairTodasCmsDoPdf(pdfBytes: Uint8Array): CmsExtraido[] {
 	return out;
 }
 
-/**
- * Localiza o /ByteRange e /Contents da última assinatura embarcada no PDF
- * e retorna o CMS DER + os bytes que entraram no hash.
- *
- * Mantém comportamento legado (apenas a última). Para validar todas as
- * assinaturas em workflow multi-signature, use `extrairTodasCmsDoPdf`.
- */
 /**
  * Índice da assinatura "principal" entre as extraídas: a de MAIOR cobertura
  * (`c+d`). Usar a última na ordem do arquivo permitiria que um atacante
@@ -438,11 +431,7 @@ export async function avaliarCoberturaAssinatura(
 // Helpers ASN.1
 // ---------------------------------------------------------------------------
 
-function uint8ToBinaryString(b: Uint8Array): string {
-	let s = '';
-	for (let i = 0; i < b.length; i++) s += String.fromCharCode(b[i]);
-	return s;
-}
+const uint8ToBinaryString = bytesToBinString;
 
 interface CmsParsed {
 	signedData: forge.asn1.Asn1;

@@ -1,4 +1,5 @@
 import { toaster } from '$lib/toast';
+import { mostrarErroDeResultado } from '$lib/enhance-handler';
 import { calcularDataSaida } from '$lib/utils/datas';
 import type { ActionResult } from '@sveltejs/kit';
 import type { EscalaPolicialComDados } from '$lib/types';
@@ -106,14 +107,7 @@ export function tratarResultadoAdicionarPlantao(
 			});
 		}
 		aoSucesso();
-	} else if (result.type === 'error') {
-		toaster.create({ title: 'Erro de conexão. Tente novamente.', type: 'error' });
 	} else {
-		const d =
-			result.type === 'failure' ? (result.data as Record<string, unknown> | undefined) : undefined;
-		toaster.create({
-			title: String(d?.error || textos?.erroPadrao || 'Erro ao adicionar'),
-			type: 'error'
-		});
+		mostrarErroDeResultado(result, textos?.erroPadrao ?? 'Erro ao adicionar');
 	}
 }

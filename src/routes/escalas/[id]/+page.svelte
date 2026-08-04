@@ -29,6 +29,7 @@
 	import { SvelteSet } from 'svelte/reactivity';
 	import { enhance } from '$app/forms';
 	import { toaster } from '$lib/toast';
+	import { mostrarErroDeResultado } from '$lib/enhance-handler';
 	import { intervaloDeDatas } from '$lib/utils/datas';
 	import { invalidateShared } from '$lib/cross-tab-invalidate';
 	import { apiFetch } from '$lib/api-fetch';
@@ -210,14 +211,8 @@
 			if (result.type === 'success') {
 				policiaisEscalaLocal = [];
 				toaster.create({ title: 'Todos os servidores removidos da escala', type: 'success' });
-			} else if (result.type === 'error') {
-				toaster.create({ title: 'Erro de conexão. Tente novamente.', type: 'error' });
 			} else {
-				const d =
-					result.type === 'failure'
-						? (result.data as Record<string, unknown> | undefined)
-						: undefined;
-				toaster.create({ title: String(d?.error || 'Erro ao remover'), type: 'error' });
+				mostrarErroDeResultado(result, 'Erro ao remover');
 			}
 		};
 	}
@@ -236,14 +231,8 @@
 					title: `${removidos} servidor(es) removido(s) da escala`,
 					type: 'success'
 				});
-			} else if (result.type === 'error') {
-				toaster.create({ title: 'Erro de conexão. Tente novamente.', type: 'error' });
 			} else {
-				const d =
-					result.type === 'failure'
-						? (result.data as Record<string, unknown> | undefined)
-						: undefined;
-				toaster.create({ title: String(d?.error || 'Erro ao remover'), type: 'error' });
+				mostrarErroDeResultado(result, 'Erro ao remover');
 			}
 		};
 	}

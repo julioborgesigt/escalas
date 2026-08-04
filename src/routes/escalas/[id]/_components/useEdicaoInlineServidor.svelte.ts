@@ -1,4 +1,5 @@
 import { toaster } from '$lib/toast';
+import { mostrarErroDeResultado } from '$lib/enhance-handler';
 import type { ActionResult } from '@sveltejs/kit';
 import type { EscalaPolicialComDados } from '$lib/types';
 import type { criarHelpersHorario } from './escala-horarios';
@@ -47,14 +48,8 @@ export function useEdicaoInlineServidor(deps: {
 				deps.aplicarPoliciais(result.data?.policiais);
 				editingId = null;
 				toaster.create({ title: 'Dados salvos', type: 'success' });
-			} else if (result.type === 'error') {
-				toaster.create({ title: 'Erro de conexão. Tente novamente.', type: 'error' });
 			} else {
-				const d =
-					result.type === 'failure'
-						? (result.data as Record<string, unknown> | undefined)
-						: undefined;
-				toaster.create({ title: String(d?.error || 'Erro ao salvar'), type: 'error' });
+				mostrarErroDeResultado(result, 'Erro ao salvar');
 			}
 		};
 	}

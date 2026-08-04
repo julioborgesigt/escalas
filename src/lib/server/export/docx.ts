@@ -32,7 +32,8 @@ import {
 	agruparPlantao,
 	COLS_PLANTAO,
 	rowPlantao,
-	formatarMesAno
+	formatarMesAno,
+	cabecalhoDelegacia
 } from './shared';
 
 // ---- DOCX Final de Semana ----
@@ -199,7 +200,7 @@ export async function gerarDocxExpediente(
 
 	const rows: TableRow[] = [
 		new TableRow({ children: [tealCell('ESCALA DE EXPEDIENTE', { span: NCOLS, size: 22 })] }),
-		new TableRow({ children: [metaCell(`DELEGACIA: ${escala.lotacao.toUpperCase()}`)] }),
+		new TableRow({ children: [metaCell(cabecalhoDelegacia(escala))] }),
 		new TableRow({ children: [metaCell(`MÊS/ANO: ${formatarMesAno(escala.data_inicio)}`)] }),
 		new TableRow({ children: COLS_EXPEDIENTE.map((c) => tealCell(c, { size: 16 })) }),
 		...sorted.map(
@@ -326,7 +327,7 @@ export async function gerarDocxPlantao(
 	const subtitulo = new Paragraph({
 		children: [
 			new TextRun({
-				text: `DELEGACIA: ${escala.cidade.toUpperCase()} — MÊS/ANO: ${formatarMesAno(escala.data_inicio)}`,
+				text: `${cabecalhoDelegacia(escala)} — MÊS/ANO: ${formatarMesAno(escala.data_inicio)}`,
 				bold: true,
 				size: 20,
 				font: 'Arial'

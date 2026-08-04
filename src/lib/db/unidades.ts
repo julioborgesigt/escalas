@@ -8,10 +8,11 @@
  *
  * - **renomear cascateia** (`atualizarUnidade` propaga o nome novo para
  *   policiais e escalas na mesma operação);
- * - **excluir é recusado enquanto houver vínculo** (`excluirUnidade` checa e
- *   devolve `{ ok: false }`). A checagem mora AQUI, não em quem chama: era
- *   responsabilidade do chamador antes, e o único chamador implementava só
- *   metade dela.
+ * - **não existe exclusão de unidade** (`definirUnidadeAtiva` desativa; nunca
+ *   apaga). O D1 aplica FK real em `gise_assinaturas_relatorios`, e as duas
+ *   ligações por nome (escala/lotação) não têm FK nenhuma — um DELETE
+ *   quebraria evidência de assinatura ou deixaria RBAC falhando em silêncio.
+ *   Ver `definirUnidadeAtiva` para o raciocínio completo.
  */
 import { eq, asc } from 'drizzle-orm';
 import { unidades, policiais, escalas, giseSeccionais } from '../server/schema';

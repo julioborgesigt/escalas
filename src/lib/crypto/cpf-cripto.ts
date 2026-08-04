@@ -16,60 +16,25 @@
  *
  * Módulo puro (só WebCrypto + ./hex), importável pelo app e por scripts.
  */
-import { bytesToHex, hexToBytes } from './hex';
+import { bytesToHex } from './hex';
+import { cifrarComChave, decifrarComChave, chaveHexParaBytes } from './envelope';
 
-const ENC_PREFIX = 'enc:v1:';
+/** Nome da variável de ambiente, para a mensagem de erro apontar a chave certa. */
+const NOME_CHAVE_ENC = 'CPF_ENCRYPTION_KEY';
 
 /** Mantém só os dígitos do CPF (normalização antes de cifrar/indexar). */
 function normalizarCPF(cpf: string | null | undefined): string {
 	return String(cpf ?? '').replace(/\D/g, '');
 }
 
-function bytesToBase64(bytes: Uint8Array): string {
-	let s = '';
-	for (let i = 0; i < bytes.length; i++) s += String.fromCharCode(bytes[i]);
-	return btoa(s);
-}
-
-function base64ToBytes(b64: string): Uint8Array {
-	const bin = atob(b64);
-	const out = new Uint8Array(bin.length);
-	for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
-	return out;
-}
-
-function chaveHexParaBytes(hex: string, nome: string): Uint8Array<ArrayBuffer> {
-	const bytes = hexToBytes(hex.trim());
-	if (!bytes || bytes.length !== 32) {
-		throw new Error(
-			`${nome} inválida: esperado 32 bytes em hex (64 chars). Gere com "openssl rand -hex 32".`
-		);
-	}
-	return bytes;
-}
-
-/** Cifra o CPF (normalizado) → `enc:v1:<base64>`. */
+/**
+ * Cifra o CPF → `enc:v1:<base64>`. A NORMALIZAÇÃO é o que distingue esta função
+ * do `cifrarTexto` genérico: "123.456.789-01" e "12345678901" precisam produzir
+ * o mesmo texto claro, senão o mesmo CPF gravado por caminhos diferentes deixa
+ * de casar com o índice de busca.
+ */
 export async function cifrarCPF(cpfPlain: string, encKeyHex: string): Promise<string> {
-	const norm = normalizarCPF(cpfPlain);
-	const key = await crypto.subtle.importKey(
-		'raw',
-		chaveHexParaBytes(encKeyHex, 'CPF_ENCRYPTION_KEY'),
-		{ name: 'AES-GCM' },
-		false,
-		['encrypt']
-	);
-	const iv = crypto.getRandomValues(new Uint8Array(12));
-	const ct = new Uint8Array(
-		await crypto.subtle.encrypt(
-			{ name: 'AES-GCM', iv: iv as BufferSource },
-			key,
-			new TextEncoder().encode(norm) as BufferSource
-		)
-	);
-	const blob = new Uint8Array(iv.length + ct.length);
-	blob.set(iv, 0);
-	blob.set(ct, iv.length);
-	return ENC_PREFIX + bytesToBase64(blob);
+	return cifrarComChave(normalizarCPF(cpfPlain), encKeyHex, NOME_CHAVE_ENC);
 }
 
 /**
@@ -80,24 +45,7 @@ export async function decifrarCPF(
 	armazenado: string | null | undefined,
 	encKeyHex: string
 ): Promise<string> {
-	const v = String(armazenado ?? '');
-	if (!v.startsWith(ENC_PREFIX)) return v;
-	const blob = base64ToBytes(v.slice(ENC_PREFIX.length));
-	const iv = blob.slice(0, 12);
-	const ct = blob.slice(12);
-	const key = await crypto.subtle.importKey(
-		'raw',
-		chaveHexParaBytes(encKeyHex, 'CPF_ENCRYPTION_KEY'),
-		{ name: 'AES-GCM' },
-		false,
-		['decrypt']
-	);
-	const pt = await crypto.subtle.decrypt(
-		{ name: 'AES-GCM', iv: iv as BufferSource },
-		key,
-		ct as BufferSource
-	);
-	return new TextDecoder().decode(pt);
+	return decifrarComChave(armazenado, encKeyHex, NOME_CHAVE_ENC);
 }
 
 /** Índice cego determinístico para lookup: `HMAC-SHA256(indexKey, cpf)` em hex. */
