@@ -1,6 +1,7 @@
 /**
  * Texto plano (WhatsApp / copiar-colar) para aviso ao assessor quando uma seccional envia a GISE.
  */
+import { CORPORACAO_PROSA } from '$lib/institucional';
 
 type GiseSecLinha = { nome: string; status: string };
 
@@ -104,7 +105,7 @@ export function montarHtmlEmailNotificacaoAssessorGise(textoPlano: string): stri
         <tr>
           <td style="background:#0f766e;padding:18px 22px;border-radius:12px 12px 0 0;">
             <p style="margin:0;color:#ecfeff;font-size:16px;font-weight:700;">GISE — Seccionais</p>
-            <p style="margin:6px 0 0;color:#99f6e4;font-size:12px;">Polícia Civil do Ceará</p>
+            <p style="margin:6px 0 0;color:#99f6e4;font-size:12px;">${CORPORACAO_PROSA}</p>
           </td>
         </tr>
         <tr>

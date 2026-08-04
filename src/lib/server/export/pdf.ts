@@ -59,11 +59,9 @@ import {
 	COLS_PLANTAO,
 	rowPlantao,
 	formatarMesAno,
-	cabecalhoDelegacia,
-	CORPORACAO,
-	DELEGACIA_GERAL,
-	DEPARTAMENTO
+	cabecalhoDelegacia
 } from './shared';
+import { CORPORACAO, DELEGACIA_GERAL, DEPARTAMENTO } from '$lib/institucional';
 
 // Type augmentation for jspdf-autotable's lastAutoTable property
 interface JsPDFWithAutoTable extends jsPDF {

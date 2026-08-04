@@ -37,6 +37,7 @@ import { pdflibAddPlaceholder } from '@signpdf/placeholder-pdf-lib';
 import { removeTrailingNewLine } from '@signpdf/utils';
 import forge from 'node-forge';
 import { desenharQrCode } from './pdf-qr';
+import { CORPORACAO } from '$lib/institucional';
 import { logger } from '../logger';
 import { bytesToHex } from '$lib/crypto/hex';
 // Identidade da política (OIDs, hash oficial, resolver) — fonte única
@@ -818,8 +819,16 @@ export async function prepararPdfParaAssinatura(
 		color: cNavy
 	});
 
-	const headerTitle = 'ASSINATURA DIGITAL — ICP-BRASIL — POLÍCIA CIVIL DO CEARÁ';
-	const headerFontSize = 4.2;
+	const headerTitle = `ASSINATURA DIGITAL — ICP-BRASIL — ${CORPORACAO}`;
+	// 4.2pt é o TETO, não o valor: a largura do texto cresce linearmente com o
+	// corpo, então basta reduzir na proporção do excesso para o título caber
+	// sempre. Sem isso, alongar o nome da corporação faz a faixa transbordar a
+	// caixa — o carimbo é centralizado, e sobra dos dois lados. O desconto cobre
+	// os quadrados de acento nos cantos (4pt + 3pt de lado) mais 3pt de folga,
+	// para o título não encostar neles.
+	const larguraUtil = boxW - 20;
+	const larguraNoTeto = fontBold.widthOfTextAtSize(headerTitle, 4.2);
+	const headerFontSize = larguraNoTeto > larguraUtil ? (4.2 * larguraUtil) / larguraNoTeto : 4.2;
 	const titleWidth = fontBold.widthOfTextAtSize(headerTitle, headerFontSize);
 	const titleX = boxX + (boxW - titleWidth) / 2;
 	const titleY = boxY + boxH - headerH + (headerH - headerFontSize) / 2 + 0.3; // Centralização vertical refinada

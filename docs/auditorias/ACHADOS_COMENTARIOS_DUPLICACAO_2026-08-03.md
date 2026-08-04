@@ -475,12 +475,36 @@ Quatro casos novos em `cabecalho-delegacia.test.ts` travam a grafia e conferem q
 ela chega ao XLSX gerado de verdade. `npm run test` 786/786; lint, check, prettier
 e knip limpos.
 
-### O que fica em aberto
+### Fechamento — a grafia passou a valer em TODO artefato (15/§12)
 
-`pdf-signing-prepare.ts:821` traz
-`'ASSINATURA DIGITAL — ICP-BRASIL — POLÍCIA CIVIL DO CEARÁ'`. É o carimbo de
-assinatura, não um dos oito cabeçalhos de documento — contexto diferente, e mexer
-nele altera a aparência de PDFs já assinados. **Fica para decisão do operador.**
+O operador autorizou mudar a aparência de PDFs já assinados (sistema em testes),
+e a varredura completa achou mais do que o carimbo: **quatro** grafias da
+corporação espalhadas por PDF, DOCX, planilha, carimbo de assinatura, dois
+e-mails e a página do DPO.
+
+As constantes saíram de `export/shared.ts` para **`$lib/institucional`** — é
+`lib/` e não `lib/server/` porque a página do DPO também exibe o nome, e são
+strings puras. Ganhou `CORPORACAO_PROSA` para os textos corridos.
+
+| artefato                                      | antes                    |
+| --------------------------------------------- | ------------------------ |
+| carimbo de assinatura (`pdf-signing-prepare`) | `POLÍCIA CIVIL DO CEARÁ` |
+| cabeçalho e rodapé dos e-mails transacionais  | `Polícia Civil do Ceará` |
+| e-mail de notificação do assessor GISE        | `Polícia Civil do Ceará` |
+| página do DPO (endereço)                      | `Polícia Civil do Ceará` |
+
+O nome mais longo **estourava a faixa do carimbo** (160pt de 144pt úteis). Em vez
+de encolher a fonte na mão, o corpo passou a se ajustar: 4,2pt virou TETO, e a
+largura do texto escala linearmente, então basta reduzir na proporção do excesso.
+Fica em 3,6pt e não transborda mais, qualquer que seja a string.
+
+Aproveitando, a **caixa de assinatura ganhou golden** — era o quarto carimbo e o
+único ainda fora de qualquer verificação. `prepararPdfParaAssinatura` não exige
+certificado (só desenha e abre o placeholder), então dava para congelar.
+
+Goldens de e-mail regravados após conferir o HTML: mudaram **três linhas**, todas
+o nome da corporação. Os três carimbos visuais anteriores seguem com o mesmo
+SHA-256.
 
 ## 13. Correção aplicada — 3.12, 3.14 e 3.15 (fecha a Onda D)
 

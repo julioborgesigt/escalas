@@ -33,11 +33,9 @@ import {
 	COLS_PLANTAO,
 	rowPlantao,
 	formatarMesAno,
-	cabecalhoDelegacia,
-	CORPORACAO,
-	DELEGACIA_GERAL,
-	DEPARTAMENTO
+	cabecalhoDelegacia
 } from './shared';
+import { CORPORACAO, DELEGACIA_GERAL, DEPARTAMENTO } from '$lib/institucional';
 
 // ---- DOCX Final de Semana ----
 /** Uma tabela por dia do fim de semana, na cor institucional (#1a5c57). */

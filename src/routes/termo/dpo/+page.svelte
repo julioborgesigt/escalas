@@ -1,6 +1,7 @@
 <script lang="ts">
 	// Sem import de logo: o brasão do Estado do Ceará é servido do R2
 	// (assets/logo_ceara.jpg) pela rota pública /api/validar/logo.
+	import { CORPORACAO_PROSA } from '$lib/institucional';
 </script>
 
 <svelte:head>
@@ -80,7 +81,7 @@
 						</dt>
 						<dd class="leading-snug">
 							Secretaria de Segurança Pública e Defesa Social do Estado do Ceará<br />
-							Polícia Civil do Ceará — Setor de Proteção de Dados<br />
+							{CORPORACAO_PROSA} — Setor de Proteção de Dados<br />
 							Av. Bezerra de Menezes, 581 — São Gerardo<br />
 							Fortaleza/CE — CEP 60325-003
 						</dd>

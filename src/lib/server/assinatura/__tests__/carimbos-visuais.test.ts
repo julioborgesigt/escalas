@@ -27,6 +27,7 @@ import {
 	adicionarRodapeUniversal,
 	adicionarPaginaAuditoria
 } from '../pdf-signing-visual';
+import { prepararPdfParaAssinatura } from '../pdf-signing-prepare';
 
 const GOLDENS_PATH = join(
 	dirname(fileURLToPath(import.meta.url)),
@@ -73,6 +74,26 @@ const carimbos: Record<string, () => Promise<Uint8Array>> = {
 			verificationUrl: URL_VALIDACAO,
 			signedAtISO: '2026-07-01T12:00:00.000Z'
 		}),
+	/**
+	 * A CAIXA de assinatura — o quarto carimbo, e o único que estava fora de
+	 * qualquer golden. Não exige certificado: `prepararPdfParaAssinatura` só
+	 * desenha e abre o placeholder; quem assina vem depois.
+	 *
+	 * A faixa navy do topo é o ponto sensível: o título é centralizado e o corpo
+	 * se ajusta à largura da caixa, então uma mudança no nome da corporação
+	 * aparece aqui como bytes diferentes — e não como texto transbordando um
+	 * documento oficial.
+	 */
+	caixa_assinatura: async () =>
+		(
+			await prepararPdfParaAssinatura(
+				await pdfBase(),
+				'FULANO DE TAL',
+				'right',
+				'B48T-4N22',
+				URL_VALIDACAO
+			)
+		).preparedPdf,
 	pagina_auditoria: async () =>
 		adicionarPaginaAuditoria(await pdfBase(), {
 			signerName: 'FULANO DE TAL',

@@ -17,6 +17,7 @@
 
 import { montarHtmlEmailNotificacaoAssessorGise } from './gise/assessor-notificacao-text';
 import { logger } from './logger';
+import { CORPORACAO_PROSA } from '$lib/institucional';
 import { mascararEmail } from '$lib/utils/pii';
 import { getDB, buscarProvedorEmailPadrao, type EmailProvedor } from '$lib/db';
 
@@ -254,7 +255,7 @@ function layoutEmail(corpo: string): string {
       <table width="480" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.08);">
         <tr>
           <td style="background:#1a3a6e;padding:24px 32px;">
-            <p style="margin:0;color:#ffffff;font-size:18px;font-weight:bold;">Polícia Civil do Ceará</p>
+            <p style="margin:0;color:#ffffff;font-size:18px;font-weight:bold;">${CORPORACAO_PROSA}</p>
             <p style="margin:4px 0 0;color:#a0b4d6;font-size:13px;">Sistema de Escalas de Plantão</p>
           </td>
         </tr>
@@ -264,7 +265,7 @@ ${corpo}          </td>
         </tr>
         <tr>
           <td style="background:#f8f9fc;padding:16px 32px;border-top:1px solid #eee;">
-            <p style="margin:0;color:#999;font-size:11px;">Sistema de Escalas de Plantão — Polícia Civil do Ceará</p>
+            <p style="margin:0;color:#999;font-size:11px;">Sistema de Escalas de Plantão — ${CORPORACAO_PROSA}</p>
           </td>
         </tr>
       </table>

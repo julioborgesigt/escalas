@@ -16,7 +16,8 @@
 import { describe, it, expect } from 'vitest';
 import ExcelJS from 'exceljs';
 import type { Escala, EscalaPolicialComDados } from '$lib/types';
-import { cabecalhoDelegacia, CORPORACAO, DELEGACIA_GERAL, DEPARTAMENTO } from '../shared';
+import { cabecalhoDelegacia } from '../shared';
+import { CORPORACAO, DELEGACIA_GERAL, DEPARTAMENTO } from '$lib/institucional';
 import { gerarXlsxPlantao, gerarXlsxExpediente } from '../xlsx';
 
 /** Escala em que município e unidade são DIFERENTES — sem isso o teste não distingue nada. */

@@ -21,11 +21,9 @@ import {
 	COLS_PLANTAO,
 	rowPlantao,
 	formatarMesAno,
-	cabecalhoDelegacia,
-	CORPORACAO,
-	DELEGACIA_GERAL,
-	DEPARTAMENTO
+	cabecalhoDelegacia
 } from './shared';
+import { CORPORACAO, DELEGACIA_GERAL, DEPARTAMENTO } from '$lib/institucional';
 
 // ---- XLSX Final de Semana ----
 /** Uma faixa de cabeçalho por dia, com as larguras de coluna fixadas em caracteres. */

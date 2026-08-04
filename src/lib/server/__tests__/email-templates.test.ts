@@ -28,6 +28,7 @@ import {
 	enviarNotificacaoAssessorGisePreenchimentoSeccional,
 	enviarEscalaFDSPorEmail
 } from '../email';
+import { CORPORACAO_PROSA } from '$lib/institucional';
 
 const GOLDENS_PATH = join(
 	dirname(fileURLToPath(import.meta.url)),
@@ -171,7 +172,7 @@ describe('templates de e-mail (goldens)', () => {
 		const { html } = await capturar((p) =>
 			enviarCodigo2FA('x@y.com', '111222', '<script>alert(1)</script>', p)
 		);
-		expect(html).toContain('Polícia Civil do Ceará');
+		expect(html).toContain(CORPORACAO_PROSA);
 		expect(html).not.toContain('<script>alert(1)</script>');
 		expect(html).toContain('&lt;script&gt;');
 	});
