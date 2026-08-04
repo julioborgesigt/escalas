@@ -516,21 +516,55 @@ export async function verificarTokenRedefinicao(
 }
 
 /**
- * Marca um token de redefinição como usado (uso único). Cobre a forma
- * hasheada (atual) e linhas legadas em claro.
+ * CONSOME o token de redefinição: marca como usado e devolve o dono, numa
+ * operação só. É esta — e não `verificarTokenRedefinicao` — que autoriza a
+ * troca de senha.
  *
- * NÃO é atômico com a leitura em `verificarTokenRedefinicao`: é um UPDATE
- * incondicional, sem `WHERE usado = 0`, então duas requisições concorrentes
- * podem ambas passar pela verificação antes de qualquer uma marcar o token
- * (achado FLW-AUTH-004 em
- * docs/auditorias/PLANO_AUDITORIA_FLUXOS_INTEGRIDADE_2026-08-02.md). Chamar
- * ANTES de trocar a senha reduz a janela, mas não a fecha.
+ * A leitura separada da marcação era o achado FLW-AUTH-004: entre o SELECT que
+ * validava e o UPDATE que marcava cabia outra requisição, que lia a mesma linha
+ * ainda com `usado = 0`. Um único link redefinia a senha duas vezes, e quem
+ * interceptou o e-mail podia redefini-la DEPOIS do dono sem que o link "já
+ * usado" o denunciasse. Marcar antes de trocar a senha encurtava a janela; não
+ * a fechava.
+ *
+ * O `WHERE usado = 0 AND expires_at > agora` é o que fecha: o próprio SQLite
+ * serializa os UPDATEs, então exatamente um altera a linha. Quem alterou ganha
+ * — os demais recebem `'invalido'`.
+ *
+ * Expirado NÃO é consumido (fica fora do `WHERE`), para que a segunda tentativa
+ * ainda diga "expirou, solicite outro link" em vez de "inválido". A distinção
+ * entre os motivos da recusa é feita por uma leitura extra, e serve só à
+ * MENSAGEM: a autorização já foi decidida pelo UPDATE.
  */
-export async function marcarTokenRedefinicaoUsado(db: Database, token: string): Promise<void> {
-	await db
+export async function consumirTokenRedefinicao(
+	db: Database,
+	tokenInput: string
+): Promise<{ tipo: 'policial' | 'admin'; usuarioId: number } | 'expirado' | 'invalido'> {
+	const tokenHash = await hashTokenArmazenado(tokenInput);
+	const linhas = await db
 		.update(resetSenhaTokens)
 		.set({ usado: 1 })
-		.where(inArray(resetSenhaTokens.token, [await hashTokenArmazenado(token), token]));
+		.where(
+			and(
+				// Linhas legadas guardam o token em claro; as atuais, o `sha256:`.
+				inArray(resetSenhaTokens.token, [tokenHash, tokenInput]),
+				eq(resetSenhaTokens.usado, 0),
+				gt(resetSenhaTokens.expires_at, new Date().toISOString())
+			)
+		)
+		.returning({
+			tipo: resetSenhaTokens.tipo_usuario,
+			usuarioId: resetSenhaTokens.usuario_id
+		});
+
+	const linha = linhas[0];
+	if (linha) {
+		return { tipo: linha.tipo as 'policial' | 'admin', usuarioId: linha.usuarioId };
+	}
+
+	// Perdeu a corrida, já estava usado, expirou ou nunca existiu — só a
+	// primeira letra da mensagem muda, e nada aqui concede acesso.
+	return (await verificarTokenRedefinicao(db, tokenInput)) === 'expirado' ? 'expirado' : 'invalido';
 }
 
 /**

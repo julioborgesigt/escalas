@@ -3,7 +3,7 @@ import { eq, and } from 'drizzle-orm';
 import { getDB, registrarAuditComContexto } from '$lib/db';
 import {
 	verificarTokenRedefinicao,
-	marcarTokenRedefinicaoUsado,
+	consumirTokenRedefinicao,
 	hashSenha,
 	criarSessao
 } from '$lib/auth';
@@ -84,23 +84,35 @@ export const actions: Actions = {
 
 		const db = getDB(platform);
 
-		// Verificação do token ANTES de qualquer ramificação
-		const resultado = await verificarTokenRedefinicao(db, token);
-		if (resultado === 'expirado') {
+		// Leitura ANTES de ramificar: só para saber de quem é o token e se o
+		// fluxo pede senha. Não autoriza nada — quem autoriza é o consumo
+		// atômico, mais abaixo em cada ramo.
+		const previa = await verificarTokenRedefinicao(db, token);
+		if (previa === 'expirado') {
 			return fail(400, { error: 'Este link expirou. Solicite um novo link de redefinição.' });
 		}
-		if (resultado === 'invalido') {
+		if (previa === 'invalido') {
 			return fail(400, { error: 'Este link é inválido ou já foi utilizado.' });
 		}
 
-		const { tipo, usuarioId } = resultado;
+		/** Traduz a recusa do consumo para a mensagem da tela. */
+		const recusa = (motivo: 'expirado' | 'invalido') =>
+			fail(400, {
+				error:
+					motivo === 'expirado'
+						? 'Este link expirou. Solicite um novo link de redefinição.'
+						: 'Este link é inválido ou já foi utilizado.'
+			});
 
 		// PRIMEIRO ACESSO (magic link): não define senha aqui nem fecha o primeiro
 		// acesso. Autentica e manda para /alterar-senha, onde senha + e-mail
 		// pessoal são definidos/verificados (igual ao fluxo do Token A3). Fecha o
 		// furo de um POST direto a ?/redefinir burlar a coleta do e-mail pessoal.
-		if (await ehPrimeiroAcesso(db, tipo, usuarioId)) {
-			await marcarTokenRedefinicaoUsado(db, token);
+		if (await ehPrimeiroAcesso(db, previa.tipo, previa.usuarioId)) {
+			const consumo = await consumirTokenRedefinicao(db, token);
+			if (typeof consumo === 'string') return recusa(consumo);
+			const { tipo, usuarioId } = consumo;
+
 			const sessionToken = await criarSessao(db, tipo, usuarioId);
 			cookies.set('session_token', sessionToken, cookieOptions(url));
 			await registrarAuditComContexto(db, {
@@ -128,8 +140,14 @@ export const actions: Actions = {
 			return fail(400, { error: parsed.error.issues[0].message });
 		}
 
-		// Marcar token como usado ANTES de alterar a senha (previne race condition)
-		await marcarTokenRedefinicaoUsado(db, token);
+		// O consumo vem DEPOIS de validar a senha e ANTES de gravá-la, e é o que
+		// autoriza a troca: perder a corrida aqui interrompe o fluxo. A ordem
+		// importa nos dois sentidos — consumir antes de validar queimaria o link
+		// de quem só errou a confirmação; consumir depois de gravar reabriria a
+		// janela que este consumo existe para fechar.
+		const consumo = await consumirTokenRedefinicao(db, token);
+		if (typeof consumo === 'string') return recusa(consumo);
+		const { tipo, usuarioId } = consumo;
 
 		const pepper = (platform?.env as Env | undefined)?.PASSWORD_PEPPER?.trim() || undefined;
 		const novaSenhaHash = await hashSenha(parsed.data.nova_senha, pepper);
