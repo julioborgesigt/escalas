@@ -2,8 +2,9 @@
 
 **Status:** diagnóstico concluído para o escopo abaixo, e **todos os bugs ativos da seção 1
 corrigidos** (ver §9), assim como os achados de duplicação 3.23/3.24 (§8) e as correções de
-comentário/docstring (§2 e §4, commit `d533633`). Da seção 3, **resta apenas o 3.9** —
-as demais foram corrigidas (§10, §11 e §13) ou classificadas DUP-MANTER.
+comentário/docstring (§2 e §4, commit `d533633`). **A lista está fechada**: seções 1 a 4 corrigidas (§8–§14) ou classificadas
+DUP-MANTER, incluindo os achados FLW-AUTH-004 e FLW-GISE-010 que vinham do plano
+de auditoria de fluxos.
 **Executor:** 6 auditorias paralelas (agentes) + verificações diretas do orquestrador.
 **Referência de método e taxonomia:** [`PLANO_REVISAO_COMPREENSIBILIDADE_2026-08-02.md`](./PLANO_REVISAO_COMPREENSIBILIDADE_2026-08-02.md) (lotes 1, 2, 3, 7 — parcialmente combinados/reorganizados por domínio nesta execução) e [`PLANO_AUDITORIA_FLUXOS_INTEGRIDADE_2026-08-02.md`](./PLANO_AUDITORIA_FLUXOS_INTEGRIDADE_2026-08-02.md) (achados FLW-\* citados por referência, não reinvestigados).
 
@@ -62,15 +63,15 @@ No formato PLANTÃO, o PDF usa `escala.lotacao` para "DELEGACIA:", mas DOCX e XL
 
 ## 2. Comentário que contradiz comportamento (DOC-ERR / DOC-OBS de alto risco)
 
-| #       | Local                                                                   | Sev       | Comentário diz / código faz                                                                                                                                                                                                                                                                                                                                                                                                                             |
-| ------- | ----------------------------------------------------------------------- | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 2.1     | `src/lib/auth.ts:12-14,176-182,242-243`                                 | P1        | Diz "UPDATE só sai quando falta menos de 30min pro vencimento"; o código dispara quando faz **mais de 30min desde a última renovação** — o oposto. Sem teste cobrindo `buscarSessaoValida`.                                                                                                                                                                                                                                                             |
-| 2.2     | `src/lib/auth.ts:536-546` + `redefinir-senha/+page.server.ts:131-132`   | P1        | JSDoc/caller dizem "anti-race condition"; `marcarTokenRedefinicaoUsado` é `UPDATE` incondicional (sem `WHERE usado=0`), duas requisições concorrentes passam ambas pela verificação — mesma causa-raiz do achado já confirmado **FLW-AUTH-004**.                                                                                                                                                                                                        |
-| 2.3     | `src/lib/server/auth/auth-flow.ts:459-465` vs `:378-382`                | P1        | Duas cópias da lógica de alerta "login via bootstrap": no bloco `ADMIN_GERAL` o alerta dispara **antes** de validar a senha (falso positivo em toda tentativa com senha errada); no bloco `SUPER_ADMIN` dispara **depois**. Divergiu entre as cópias.                                                                                                                                                                                                   |
-| 2.4     | `src/lib/server/escalas/permissao.ts:5-16`                              | P1        | JSDoc de `verificarPermissaoEscala` lista 4 regras e omite a real: admin seccional/unidade cujo escopo cobre a lotação tem acesso DIRETO, sem checar solicitação/cargo — regra confirmada pelo próprio teste (`permissao.test.ts:67-84`), nunca refletida no comentário da função.                                                                                                                                                                      |
-| 2.5     | `src/lib/db/unidades.ts:1-15` (cabeçalho)                               | P1        | Descreve uma função `excluirUnidade` que **não existe mais** — foi substituída por soft-delete (`definirUnidadeAtiva`) num pivô de segurança (commit `9ac285b`), cujo próprio comentário 200 linhas abaixo já está correto. Cabeçalho nunca foi atualizado.                                                                                                                                                                                             |
-| ~~2.6~~ | `src/lib/server/export/pdf.ts` (cabeçalho institucional, 4 ocorrências) | P1        | **CORRIGIDO — ver §12.** Nome da corporação/delegacia geral/departamento grafado de 3 formas diferentes dentro do MESMO arquivo (ex.: "POLÍCIA CIVIL DO CEARÁ" vs "...DO ESTADO DO CEARÁ"), contrariando a própria convenção que o cabeçalho do arquivo declara. Mesma divergência em `docx.ts:256-269`. Confirmar grafia oficial com o operador.                                                                                                       |
-| 2.7     | `src/lib/server/sync-estado.ts` (localização, não conteúdo)             | COESAO/P1 | Arquivo mora na raiz de `server/` mas serve só 2 consumidores (não é infra transversal), com nomes já domínio-prefixados (`carimboGise*` vs `resumoEscalas*`/`carimboPainel`), e foi criado em 02/ago/2026 — um dia depois da limpeza que o próprio `CLAUDE.md` descreve ter corrigido exatamente esse padrão. Sem guard de CI para a pureza da raiz de `server/`. **Ação:** dividir em `server/escalas/sync-estado.ts` e `server/gise/sync-estado.ts`. |
+| #       | Local                                                                                       | Sev       | Comentário diz / código faz                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| ------- | ------------------------------------------------------------------------------------------- | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2.1     | `src/lib/auth.ts:12-14,176-182,242-243`                                                     | P1        | Diz "UPDATE só sai quando falta menos de 30min pro vencimento"; o código dispara quando faz **mais de 30min desde a última renovação** — o oposto. Sem teste cobrindo `buscarSessaoValida`.                                                                                                                                                                                                                                                             |
+| ~~2.2~~ | **CORRIGIDO (§14)** — `src/lib/auth.ts:536-546` + `redefinir-senha/+page.server.ts:131-132` | P1        | JSDoc/caller dizem "anti-race condition"; `marcarTokenRedefinicaoUsado` é `UPDATE` incondicional (sem `WHERE usado=0`), duas requisições concorrentes passam ambas pela verificação — mesma causa-raiz do achado já confirmado **FLW-AUTH-004**.                                                                                                                                                                                                        |
+| 2.3     | `src/lib/server/auth/auth-flow.ts:459-465` vs `:378-382`                                    | P1        | Duas cópias da lógica de alerta "login via bootstrap": no bloco `ADMIN_GERAL` o alerta dispara **antes** de validar a senha (falso positivo em toda tentativa com senha errada); no bloco `SUPER_ADMIN` dispara **depois**. Divergiu entre as cópias.                                                                                                                                                                                                   |
+| 2.4     | `src/lib/server/escalas/permissao.ts:5-16`                                                  | P1        | JSDoc de `verificarPermissaoEscala` lista 4 regras e omite a real: admin seccional/unidade cujo escopo cobre a lotação tem acesso DIRETO, sem checar solicitação/cargo — regra confirmada pelo próprio teste (`permissao.test.ts:67-84`), nunca refletida no comentário da função.                                                                                                                                                                      |
+| 2.5     | `src/lib/db/unidades.ts:1-15` (cabeçalho)                                                   | P1        | Descreve uma função `excluirUnidade` que **não existe mais** — foi substituída por soft-delete (`definirUnidadeAtiva`) num pivô de segurança (commit `9ac285b`), cujo próprio comentário 200 linhas abaixo já está correto. Cabeçalho nunca foi atualizado.                                                                                                                                                                                             |
+| ~~2.6~~ | `src/lib/server/export/pdf.ts` (cabeçalho institucional, 4 ocorrências)                     | P1        | **CORRIGIDO — ver §12.** Nome da corporação/delegacia geral/departamento grafado de 3 formas diferentes dentro do MESMO arquivo (ex.: "POLÍCIA CIVIL DO CEARÁ" vs "...DO ESTADO DO CEARÁ"), contrariando a própria convenção que o cabeçalho do arquivo declara. Mesma divergência em `docx.ts:256-269`. Confirmar grafia oficial com o operador.                                                                                                       |
+| ~~2.7~~ | **CORRIGIDO (§14)** — `src/lib/server/sync-estado.ts` (localização, não conteúdo)           | COESAO/P1 | Arquivo mora na raiz de `server/` mas serve só 2 consumidores (não é infra transversal), com nomes já domínio-prefixados (`carimboGise*` vs `resumoEscalas*`/`carimboPainel`), e foi criado em 02/ago/2026 — um dia depois da limpeza que o próprio `CLAUDE.md` descreve ter corrigido exatamente esse padrão. Sem guard de CI para a pureza da raiz de `server/`. **Ação:** dividir em `server/escalas/sync-estado.ts` e `server/gise/sync-estado.ts`. |
 
 ## 3. Duplicação confirmada por leitura (DUP-EXTRAIR)
 
@@ -108,7 +109,7 @@ Agrupado por risco de drift — primitivas de segurança e lógica de estado pri
 - `src/lib/serpro.ts:44-45` — JSDoc implica preenchimento condicional de `certificateBase64`; o código sempre devolve `undefined` neste provedor (P2).
 - `src/lib/logger.ts:3` — diz que `server/logger.ts` "reexporta a mesma API"; na prática ele ENVOLVE com contexto de request e persistência (P3).
 - `src/lib/rotacao.ts:33,175` — comentário ainda cita `$lib/utils` genérico (barrel que não existe mais); o import real já está correto (P3).
-- `src/lib/db/gise/escalas-crud.ts:10-12` — cabeçalho afirma "só existe uma GISE não finalizada por vez" sem qualificar que isso não é protegido por constraint (achado já confirmado, FLW-GISE-010) nem que `buscarGiseAtiva` oculta as demais silenciosamente quando a premissa é violada (P2).
+- ~~`src/lib/db/gise/escalas-crud.ts:10-12`~~ — **CORRIGIDO (§14)**: cabeçalho afirmava "só existe uma GISE não finalizada por vez" sem qualificar que isso não é protegido por constraint (achado já confirmado, FLW-GISE-010) nem que `buscarGiseAtiva` oculta as demais silenciosamente quando a premissa é violada (P2).
 - `src/lib/db/gise/escalas-detalhado.ts:468-493` — `try/catch` com log de "possível migração pendente" para uma tabela que está na baseline há 39 migrações; falha real hoje é engolida silenciosamente (P2).
 - `src/lib/db/gise/base-equipe.ts` — único arquivo do domínio GISE sem cabeçalho de módulo (P2).
 - `src/lib/server/document-utils.ts:39-47,164-166` e `pdf-verification.ts:90-93` — docstrings órfãs deslocadas para a função errada por edições sucessivas (P2/P3).
@@ -549,6 +550,85 @@ alguém a "consertar a inconsistência" às cegas.
 `npm run test` 808/808 em 77 arquivos (era 786/74). Sete goldens de PDF com o
 mesmo SHA-256; cinco goldens novos (2 de escala com timbre, 3 de carimbo visual),
 todos conferidos contra o código antigo. Lint, check, prettier e knip limpos.
+
+## 14. Correção aplicada — o que restava (2.2/FLW-AUTH-004, FLW-GISE-010, 3.9, 2.7)
+
+Fechou a lista. Em ordem de risco, não de esforço.
+
+### 2.2 + FLW-AUTH-004 — segredos de uso único consumidos duas vezes
+
+O achado apontava três: token de redefinição, desafio 2FA e desafio de
+certificado. Todos tinham a mesma forma — LER o segredo, conferir, e só então
+marcar `usado = 1` num `UPDATE` incondicional. Entre a leitura e a marcação cabe
+outra requisição, que lê a mesma linha ainda íntegra.
+
+O comentário do caller do reset dizia "previne race condition". **Marcar antes de
+gravar a senha encurta a janela; não a fecha** — e é o tipo de frase que faz o
+próximo leitor acreditar que o problema está resolvido.
+
+| segredo                | o que a corrida permitia                                                                                                    |
+| ---------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| token de redefinição   | duas trocas de senha pelo mesmo link; quem interceptou o e-mail redefine DEPOIS do dono, e o link "já usado" não o denuncia |
+| desafio 2FA            | o código de 6 dígitos vira reutilizável dentro da janela                                                                    |
+| desafio de certificado | duas sessões a partir de um desafio só                                                                                      |
+
+`consumirTokenRedefinicao` e `consumirDesafio2FA` fazem `UPDATE ... WHERE usado =
+0 ... RETURNING`: o SQLite serializa, exatamente um altera a linha, e quem alterou
+ganha. No reset, o token EXPIRADO fica fora do `WHERE` de propósito, para a
+segunda tentativa ainda dizer "expirou, solicite outro" em vez de "inválido".
+
+Junto veio a forma inversa do mesmo problema: `tentativas: desafio.tentativas + 1`
+calculado em JS sobre o valor lido antes de qualquer gravação. **Cinco palpites
+paralelos registravam UMA tentativa**, e o teto de 5 — o anti-brute-force de um
+código de 6 dígitos — nunca era atingido. Agora o incremento é do SQL.
+
+### FLW-GISE-010 — a regra protegida não existe
+
+O cabeçalho de `escalas-crud.ts` declarava como regra central que "só existe uma
+GISE não finalizada por vez", e o achado pedia uma constraint de unicidade.
+
+**A regra é falsa.** Uma GISE é de um DIA, o formulário recebe uma LISTA de datas
+e cria uma escala por data, e a tela mostra "N escalas ativas — página X de Y". A
+constraint proposta quebraria a criação em lote, que é a forma normal de uso.
+Aqui o desfecho perigoso era _implementar o achado_.
+
+O que existia era `buscarGiseAtiva`, escolhendo a mais recente e escondendo as
+demais — e ela era **dead code** no único caminho que a chamava: `/gise` rodava
+quatro consultas por carregamento e a página nunca lia o resultado (todo `ativa`
+no `.svelte` é a variável do `{#each ativasPaginadas as ativa}`). Removida.
+
+### 3.9 — cadastro e sync remontavam as mesmas 17 colunas
+
+`criarPolicial` e `upsertPolicial` já haviam divergido: `papel_unidade_id` com
+`|| null` num e `?? null` no outro. Uma tecla, numa coluna que define **escopo de
+permissão**.
+
+`colunasDoPolicial` traduz o payload uma vez e devolve dois grupos — `daFolha` (o
+que o sistema de pessoal é dono e o sync sobrescreve) e a linha completa de
+INSERT. Devolver os dois de uma chamada só é obrigatório: `prepararCpfParaDB` não
+é determinístico (IV aleatório no envelope AES-GCM), então chamá-lo duas vezes
+gravaria `cpf` diferente no INSERT e no UPDATE do mesmo upsert.
+
+### 2.7 — `sync-estado.ts` fora do lugar
+
+Sete funções com nomes já prefixados por domínio, na raiz de `server/`, que é
+reservada a infra transversal. Nenhuma cruzava os dois lados — conferi tabela por
+tabela antes de dividir em `server/escalas/` e `server/gise/`.
+
+A divisão forçou uma extração: o harness de SQLite real estava copiado em **oito**
+arquivos de teste, e separar o de `sync-estado` faria o nono. Virou
+`db/__tests__/sqlite-migrado.ts`.
+
+### Verificação
+
+`npm run test` 831/831 em 80 arquivos (era 786/74 no início desta rodada). Cada
+correção de comportamento tem um caso que **reprova a implementação antiga**,
+confirmado rodando o teste novo contra o código velho: três consumos concorrentes
+do token, três do desafio, cinco palpites paralelos e o `papel_unidade_id: 0`.
+
+Duas suítes que cobriam `verificarDesafio2FA` por mock do query builder quebraram
+ao trocar o `UPDATE` — prendiam-se à FORMA da consulta, não ao contrato. Foram
+reunidas num arquivo só, com banco de verdade.
 
 ## Próximo domínio sugerido
 
