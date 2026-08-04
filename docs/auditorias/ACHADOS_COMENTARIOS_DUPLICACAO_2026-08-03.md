@@ -404,9 +404,35 @@ aqui. `paginarComContagem` em `db/core.ts` fechou as quatro listagens paginadas.
 | --- | --- |
 | 3.9 (`criarPolicial`/`upsertPolicial`, 17 campos) | Vale extrair; ficou de fora só por ordem de prioridade. |
 | 3.12, 3.14, 3.15 (QR code, fluxo TSA, logo/rubrica no `pdf.ts`) | Extrações maiores dentro de geradores com golden. Seguras de fazer, mas merecem um lote próprio. |
-| 3.17 (blocos HTML de e-mail) | Precisa do golden de e-mail antes/depois; já divergiu num rótulo, então a extração deve começar por conciliar as três caixas. |
+| ~~3.17 (blocos HTML de e-mail)~~ | **CORRIGIDO** — ver §11. |
 | 3.22, e os grupos ASN.1 de `assinatura/` | **DUP-MANTER.** Construção declarativa de estrutura (SEQUENCE/OID do node-forge) e laços curtos: extrair criaria abstração pior que a repetição — o corolário que o próprio `CLAUDE.md` prevê. |
 | `respostas.ts` (8 blocos de expansão) | **DUP-MANTER**, já registrado como decisão deliberada no cabeçalho da própria função. |
+
+## 11. Correção aplicada — 3.17, blocos HTML de e-mail
+
+Atacado primeiro entre os remanescentes por ser o único que **já havia divergido de
+fato** — o padrão que o histórico deste projeto mostra terminar em bug.
+
+`caixaCodigo(codigo, rotulo?)` e `botaoComLink(link, textoBotao)` em `email.ts`,
+consumidos pelos cinco remetentes que antes repetiam os blocos.
+
+### A divergência, e por que ela virou parâmetro em vez de correção
+
+As três caixas de código não eram idênticas: **`enviarCodigo2FA` é a única sem a
+legenda acima do número** ("Código de Verificação" / "Código de Redefinição"). É
+justamente o e-mail de maior alcance — todo usuário o recebe a cada login.
+
+Tem cara de esquecimento, mas uniformizar mudaria o e-mail que já chega às caixas
+de entrada. Então o rótulo ficou OPCIONAL, com a diferença explícita no call site e
+documentada no helper: a extração não decide conteúdo de comunicação institucional.
+**Para uniformizar, basta passar um rótulo em `enviarCodigo2FA` e regravar o
+golden** — decisão do operador.
+
+### Verificação
+
+O golden de e-mail (SHA-256 do HTML de cada remetente) **passou sem regravação**,
+provando que os cinco e-mails saem byte a byte idênticos. `npm run test` 782/782;
+lint, check, prettier e knip limpos.
 
 ## Próximo domínio sugerido
 
