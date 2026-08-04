@@ -519,7 +519,7 @@ sem regravar um documento juridicamente relevante. Após a correção,
 
 **Severidade:** P0  
 **Fluxo:** FLX-04  
-**Estado:** confirmado
+**Estado:** corrigido
 
 As actions de finalizar seccional e de incluir/remover membros só restringem o
 usuário quando ele _já é_ `admin_seccional`
@@ -534,6 +534,30 @@ com `papel_unidade_id` igual à seccional do recurso, em cada action mutável.
 **Teste de regressão:** POST direto como policial comum, admin de outra
 seccional e admin de unidade fora do escopo deve retornar 403 e não alterar
 nenhuma linha.
+
+> **CORRIGIDO (04/ago/2026)** — a regra virou UMA função,
+> `podePreencherSeccional` em `gise/[id]/_actions/shared.ts`: Admin Geral em
+> qualquer seccional, admin de seccional só na sua. As QUATRO actions
+> (`adicionarMembro`, `removerMembro`, `finalizarSeccional`,
+> `salvarHorariosSec`) passaram a chamá-la.
+>
+> Eram quatro cópias da mesma META-regra, e nenhuma errada sozinha — o erro
+> estava no que faltava nas quatro. Comentar cada uma não teria ajudado: quem
+> escreve a quinta não lê as outras quatro. Extraída, não há como escrever só
+> a metade.
+>
+> Confirmado por execução, não por leitura. Com a meia-regra restaurada,
+> `e2e/autorizacao-negativa.spec.ts` reporta `success` — literal — para
+> `adicionarMembro`, `removerMembro` e `salvarHorariosSec` chamadas por um
+> policial de OUTRA unidade, sem papel algum, numa GISE com que não tem
+> relação. Com a correção, os três dão 403.
+>
+> Duas correções de ORDEM saíram junto, achadas pelo mesmo spec:
+> `removerMembro` conferia o estado da escala ("fechada para edição", 400)
+> antes da permissão, e as duas rotas de finalizar assinatura da GISE
+> consumiam a intenção antes dela. Gate de estado que dispara primeiro esconde
+> a ausência do gate de permissão — foi exatamente assim que a primeira versão
+> do spec passou com o servidor furado.
 
 ### FLW-GISE-005 — finalização aceita estado anterior aos relatórios exigidos
 
@@ -1046,7 +1070,7 @@ rodar em paralelo com suites que compartilham esses recursos.
 | ---------------- | ----------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
 | FLW-AUDIT-001    | `routes/api/gise/[id]/finalizar/__tests__/finalizar-audit.test.ts`                              | falha de auditoria e duas finalizações concorrentes: rollback total **ou** pendência durável, sem perda na cadeia |
 | FLW-LGPD-002     | `lib/server/__tests__/email-logging.test.ts`                                                    | resposta de e-mail com destinatário/corpo: logger e erro não podem conter PII/conteúdo                            |
-| FLW-GISE-004     | `e2e/gise-acoes-autorizacao.spec.ts`                                                            | POST direto por policial comum/admin fora do escopo: 403 e nenhum estado/documento/audit alterado                 |
+| FLW-GISE-004     | ✅ `e2e/autorizacao-negativa.spec.ts`                                                           | POST direto por policial comum/admin fora do escopo: 403 e nenhum estado/documento/audit alterado                 |
 | FLW-GISE-005     | `e2e/gise-finalizacao-negativa.spec.ts`                                                         | finalizar `em_andamento` por action e API: 409 e status/documento/integração intactos                             |
 | FLW-GISE-006     | `e2e/gise-reabertura-guard.spec.ts`                                                             | alterar vagas em GISE finalizada: 409, slots/hash/R2/auditoria preservados                                        |
 | FLW-WEBHOOK-001  | `routes/api/webhook/reset-policiais/__tests__/atomicidade.test.ts`                              | falha na segunda deleção: nenhuma tabela alterada e tentativa registrada                                          |
@@ -1160,6 +1184,32 @@ Duas escolhas do guard merecem registro, porque a alternativa óbvia é pior:
 O guard reprova também quando o parser lê menos handlers do que o arquivo
 declara. Sem isso ele daria verde sobre rota que não enxerga, e silêncio
 pareceria aprovação.
+
+### Controle executável — cobertura negativa (04/ago/2026)
+
+O guard LÊ o código. Duas perguntas ficam fora do alcance dele, e as duas
+importam: **a decisão acontece antes do trabalho?** e **o gate olha o RECURSO
+ou só o usuário?** As duas exigem requisição, e são as de
+`e2e/autorizacao-negativa.spec.ts`, que varre `src/routes/**` em tempo de teste
+— rota nova entra sozinha, sem alguém lembrar de acrescentá-la — e exerce as
+113 operações materiais em dois cenários: anônimo, e policial de outra unidade
+contra recurso REAL da unidade A.
+
+Achou FLW-GISE-004 no primeiro tiro. Ver o registro do achado.
+
+Três armadilhas que este spec custou a acertar, e valem para o próximo:
+
+1. **Alvo protegido por outro motivo não testa este.** A primeira versão
+   apontava para `escalaA`, que tem documento assinado: as actions paravam no
+   409 de imutabilidade, e o spec passava com a checagem de lotação REMOVIDA do
+   servidor. Trocado por `escalaAssinavel`, que está editável.
+2. **Recusa por corpo inválido não prova permissão.** Onze operações validavam
+   o `FormData`/Zod antes de autorizar e respondiam 400 ao corpo vazio.
+   Aceitar 400 como "recusou" mascarava o buraco do GISE-004. Hoje só 401, 403
+   e 404 contam; as que precisavam têm corpo mínimo declarado no spec.
+3. **Form action não usa o status HTTP.** Com `x-sveltekit-action`, o
+   `ActionResult` viaja em JSON sob HTTP 200 — inclusive o da action que
+   EXECUTOU. Um spec que lesse `res.status()` passaria em todas as 70.
 
 ### Limites desta auditoria
 

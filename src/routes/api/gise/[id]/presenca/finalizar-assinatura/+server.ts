@@ -64,9 +64,20 @@ export const POST: RequestHandler = async (event) => {
 		tipo
 	} = validated.data;
 
+	const gise = await buscarGiseEscala(db, giseId);
+	if (!gise) return notFound('Escala GISE');
+
+	// Revalida vínculo (defesa em profundidade — `preparar` já checou).
+	const part = await resolverParticipacaoGisePolicial(db, giseId, u.id);
+	if (!part.participa) return forbidden('Você não participa desta escala GISE.');
+
 	// Consome a preparação: prova que ESTE pdf foi preparado por ESTE usuário
 	// para ESTE alvo, uma vez só (FLW-DOC-001). O código público de validação
 	// vem daqui, não do corpo da requisição.
+	//
+	// DEPOIS da permissão, como na escala: o consumo QUEIMA a intenção, e quem
+	// saiu da GISE no meio do caminho perderia junto a preparação — teria de
+	// refazer a assinatura só para ouvir o 403 que já cabia aqui.
 	const consumo = await consumirIntencaoAssinatura(
 		db,
 		intencao,
@@ -76,13 +87,6 @@ export const POST: RequestHandler = async (event) => {
 	);
 	if (!consumo.ok) return badRequest(mensagemRecusaIntencao());
 	const { verificacaoHash: verificationHash } = consumo;
-
-	const gise = await buscarGiseEscala(db, giseId);
-	if (!gise) return notFound('Escala GISE');
-
-	// Revalida vínculo (defesa em profundidade — `preparar` já checou).
-	const part = await resolverParticipacaoGisePolicial(db, giseId, u.id);
-	if (!part.participa) return forbidden('Você não participa desta escala GISE.');
 
 	const ip = getClientAddress();
 	const ua = request.headers.get('user-agent') || '';

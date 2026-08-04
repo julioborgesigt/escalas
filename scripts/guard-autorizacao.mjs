@@ -2,7 +2,7 @@
  * Guard de CI: **toda operação material do servidor recusa alguém.**
  *
  * Operação material = handler de mutação de API (`POST`/`PUT`/`PATCH`/`DELETE`
- * em `+server.ts`) ou form action do SvelteKit. São 114 hoje, e a decisão de
+ * em `+server.ts`) ou form action do SvelteKit. São 113 hoje, e a decisão de
  * autorização é tomada de treze formas diferentes — `requireAdmin`,
  * `isAdminGeral`, `verificarPermissaoEscala`, `resolverParticipacaoGisePolicial`,
  * comparação de lotação escrita à mão, além de preâmbulos locais a um arquivo
@@ -35,6 +35,8 @@
  */
 import { readFileSync } from 'node:fs';
 import { execSync } from 'node:child_process';
+import { resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 /**
  * Operações que legitimamente NÃO recusam por permissão, com o motivo.
@@ -42,8 +44,13 @@ import { execSync } from 'node:child_process';
  *
  * Encolher esta lista é progresso. Crescer, sem um motivo desta natureza, é o
  * que o guard existe para pegar.
+ *
+ * Exportada porque `e2e/autorizacao-negativa.spec.ts` a consome: o teste que
+ * exige 401 de todo mutador anônimo precisa saber exatamente quais rotas são
+ * públicas de propósito. Duas listas divergiriam — e a que divergisse em
+ * silêncio seria a do teste.
  */
-const DECLARADAS = {
+export const DECLARADAS = {
 	// ---- Pré-autenticação: não há sessão para exigir ----
 	'src/routes/api/auth/login/+server.ts → POST': 'login: cria a sessão',
 	'src/routes/api/auth/logout/+server.ts → POST': 'logout: destrói a própria sessão',
@@ -72,11 +79,39 @@ const DECLARADAS = {
 	'src/routes/api/webhook/reset-policiais/+server.ts → POST':
 		'segredo compartilhado + 2ª credencial de reset',
 	'src/routes/api/webhook/sync-policiais/+server.ts → POST': 'segredo compartilhado (Apps Script)',
-	'src/routes/api/webhook/sync-unidades/+server.ts → POST': 'segredo compartilhado (Apps Script)',
-
-	// ---- Stub ----
-	'src/routes/api/gise/[id]/assinar/+server.ts → POST': 'endpoint aposentado: responde 410 a todos'
+	'src/routes/api/webhook/sync-unidades/+server.ts → POST': 'segredo compartilhado (Apps Script)'
 };
+
+/**
+ * Rotas de API que o ANÔNIMO pode alcançar. Pergunta diferente da de
+ * `DECLARADAS`, e a diferença já produziu confusão uma vez:
+ *
+ * - `DECLARADAS` responde "esta operação recusa alguém por permissão?";
+ * - `PUBLICAS` responde "quem ainda não tem sessão pode bater aqui?".
+ *
+ * `verificar-2fa` e `certificado/verificar` respondem SIM às duas: recusam o
+ * código errado com 403 (por isso ficam fora de `DECLARADAS`) e existem
+ * justamente para quem ainda não tem sessão. Fundir as listas classificaria uma
+ * das duas errado.
+ *
+ * Consumida por `e2e/autorizacao-negativa.spec.ts`, que exige 401/403 de todo
+ * mutador anônimo fora desta lista.
+ */
+export const PUBLICAS = [
+	'src/routes/api/auth/login/+server.ts',
+	'src/routes/api/auth/logout/+server.ts',
+	'src/routes/api/auth/primeiro-acesso/+server.ts',
+	'src/routes/api/auth/reenviar-codigo/+server.ts',
+	'src/routes/api/auth/verificar-2fa/+server.ts',
+	'src/routes/api/auth/solicitar-redefinicao/+server.ts',
+	'src/routes/api/auth/confirmar-redefinicao/+server.ts',
+	'src/routes/api/auth/certificado/iniciar/+server.ts',
+	'src/routes/api/auth/certificado/verificar/+server.ts',
+	// Telas de login e de redefinição por link: as form actions são o próprio
+	// caminho de quem ainda não tem sessão.
+	'src/routes/login/+page.server.ts',
+	'src/routes/redefinir-senha/+page.server.ts'
+];
 
 const RE_403 = /fail\(403|forbidden\(|status:\s*403|error\(403|requireAdmin\(|requireSuperAdmin\(/;
 const RE_401 = /fail\(401|unauthorized\(|requireAuth\(|error\(401/;
@@ -94,119 +129,144 @@ function blocoBalanceado(src, iAbre) {
 	return src.slice(iAbre);
 }
 
-const arquivos = execSync(
-	"find src/routes -name '+server.ts' -o -name '+page.server.ts' -o -path '*_actions/*.ts'",
-	{ encoding: 'utf8' }
-)
-	.split('\n')
-	.filter(Boolean)
-	.sort();
+/**
+ * A varredura e o veredito. Fica numa função porque
+ * `e2e/autorizacao-negativa.spec.ts` importa as listas deste arquivo — e um
+ * `process.exit(1)` disparado no import mataria o worker do Playwright, com o
+ * erro aparecendo como falha do teste errado.
+ */
+function principal() {
+	const arquivos = execSync(
+		"find src/routes -name '+server.ts' -o -name '+page.server.ts' -o -path '*_actions/*.ts'",
+		{ encoding: 'utf8' }
+	)
+		.split('\n')
+		.filter(Boolean)
+		.sort();
 
-const operacoes = [];
-/** Contagem frouxa das DECLARAÇÕES, para conferir contra o que foi lido. */
-let declaradas = 0;
+	const operacoes = [];
+	/** Contagem frouxa das DECLARAÇÕES, para conferir contra o que foi lido. */
+	let declaradas = 0;
 
-for (const arquivo of arquivos) {
-	const src = readFileSync(arquivo, 'utf8');
-	declaradas += [...src.matchAll(/export const (?:POST|PUT|PATCH|DELETE)\b/g)].length;
-	declaradas += [...src.matchAll(/^\s+([a-zA-Z][\w]*): async/gm)].length;
+	for (const arquivo of arquivos) {
+		const src = readFileSync(arquivo, 'utf8');
+		declaradas += [...src.matchAll(/export const (?:POST|PUT|PATCH|DELETE)\b/g)].length;
+		declaradas += [...src.matchAll(/^\s+([a-zA-Z][\w]*): async/gm)].length;
 
-	// O preâmbulo (helpers acima do primeiro handler) conta: é onde moram
-	// `autorizarAcao` e `carregarEscalaComPermissao`, cujo `fail(403)` vale para
-	// todas as actions que os chamam.
-	const iPrimeiro = src.search(/export const (?:actions|POST|PUT|PATCH|DELETE)\b/);
-	const preambulo = iPrimeiro > 0 ? src.slice(0, iPrimeiro) : '';
+		// O preâmbulo (helpers acima do primeiro handler) conta: é onde moram
+		// `autorizarAcao` e `carregarEscalaComPermissao`, cujo `fail(403)` vale para
+		// todas as actions que os chamam.
+		const iPrimeiro = src.search(/export const (?:actions|POST|PUT|PATCH|DELETE)\b/);
+		const preambulo = iPrimeiro > 0 ? src.slice(0, iPrimeiro) : '';
 
-	for (const m of src.matchAll(/export const (POST|PUT|PATCH|DELETE)[^=]*=\s*async\s*\(/g)) {
-		const iAbre = src.indexOf('{', src.indexOf('=>', m.index));
-		operacoes.push({ arquivo, nome: m[1], corpo: blocoBalanceado(src, iAbre) + preambulo });
-	}
+		for (const m of src.matchAll(/export const (POST|PUT|PATCH|DELETE)[^=]*=\s*async\s*\(/g)) {
+			const iAbre = src.indexOf('{', src.indexOf('=>', m.index));
+			operacoes.push({ arquivo, nome: m[1], corpo: blocoBalanceado(src, iAbre) + preambulo });
+		}
 
-	const decl = src.match(/export const (?:actions\w*)[^=]*=\s*\{/);
-	if (decl) {
-		const bloco = blocoBalanceado(src, src.indexOf('{', decl.index + decl[0].length - 1));
-		let profundidade = 0;
-		for (let i = 0; i < bloco.length; i++) {
-			if (bloco[i] === '{') profundidade++;
-			else if (bloco[i] === '}') profundidade--;
-			else if (profundidade === 1) {
-				const nm = bloco.slice(i).match(/^(\w+):\s*async\s*\(/);
-				if (nm) {
-					const iAbre = bloco.indexOf('{', bloco.indexOf('=>', i));
-					const corpo = blocoBalanceado(bloco, iAbre);
-					operacoes.push({ arquivo, nome: nm[1], corpo: corpo + preambulo });
-					i = iAbre + corpo.length - 1;
-					profundidade = 1;
+		const decl = src.match(/export const (?:actions\w*)[^=]*=\s*\{/);
+		if (decl) {
+			const bloco = blocoBalanceado(src, src.indexOf('{', decl.index + decl[0].length - 1));
+			let profundidade = 0;
+			for (let i = 0; i < bloco.length; i++) {
+				if (bloco[i] === '{') profundidade++;
+				else if (bloco[i] === '}') profundidade--;
+				else if (profundidade === 1) {
+					const nm = bloco.slice(i).match(/^(\w+):\s*async\s*\(/);
+					if (nm) {
+						const iAbre = bloco.indexOf('{', bloco.indexOf('=>', i));
+						const corpo = blocoBalanceado(bloco, iAbre);
+						operacoes.push({ arquivo, nome: nm[1], corpo: corpo + preambulo });
+						i = iAbre + corpo.length - 1;
+						profundidade = 1;
+					}
 				}
 			}
 		}
 	}
-}
 
-const problemas = [];
+	const problemas = [];
 
-// (3) Ponto cego: declaração que o parser não leu.
-if (operacoes.length !== declaradas) {
-	problemas.push({
-		arquivo: 'scripts/guard-autorizacao.mjs',
-		msg:
-			`o parser leu ${operacoes.length} operações, mas há ${declaradas} declaradas — ` +
-			'alguma escapou. Rota que o guard não enxerga é rota que ele não protege; ' +
-			'ajuste o parser antes de confiar neste resultado'
-	});
-}
+	// (3) Ponto cego: declaração que o parser não leu.
+	if (operacoes.length !== declaradas) {
+		problemas.push({
+			arquivo: 'scripts/guard-autorizacao.mjs',
+			msg:
+				`o parser leu ${operacoes.length} operações, mas há ${declaradas} declaradas — ` +
+				'alguma escapou. Rota que o guard não enxerga é rota que ele não protege; ' +
+				'ajuste o parser antes de confiar neste resultado'
+		});
+	}
 
-const vistas = new Set();
-for (const op of operacoes) {
-	const chave = `${op.arquivo} → ${op.nome}`;
-	const nivel = RE_403.test(op.corpo) ? 2 : RE_401.test(op.corpo) ? 1 : 0;
-	if (nivel === 2) {
-		// (2) Promovida a nível 2 e ainda na lista: a lista mente.
-		if (chave in DECLARADAS) {
+	const vistas = new Set();
+	for (const op of operacoes) {
+		const chave = `${op.arquivo} → ${op.nome}`;
+		const nivel = RE_403.test(op.corpo) ? 2 : RE_401.test(op.corpo) ? 1 : 0;
+		if (nivel === 2) {
+			// (2) Promovida a nível 2 e ainda na lista: a lista mente.
+			if (chave in DECLARADAS) {
+				problemas.push({
+					arquivo: op.arquivo,
+					msg: `"${op.nome}" agora recusa por permissão — remova a dispensa de DECLARADAS`
+				});
+			}
+			continue;
+		}
+		vistas.add(chave);
+		// (1) Gap novo.
+		if (!(chave in DECLARADAS)) {
 			problemas.push({
 				arquivo: op.arquivo,
-				msg: `"${op.nome}" agora recusa por permissão — remova a dispensa de DECLARADAS`
+				msg:
+					`"${op.nome}" ${nivel === 0 ? 'não recusa ninguém' : 'só exige sessão'} — ` +
+					'autorize a operação ou declare o motivo em scripts/guard-autorizacao.mjs'
 			});
 		}
-		continue;
 	}
-	vistas.add(chave);
-	// (1) Gap novo.
-	if (!(chave in DECLARADAS)) {
-		problemas.push({
-			arquivo: op.arquivo,
-			msg:
-				`"${op.nome}" ${nivel === 0 ? 'não recusa ninguém' : 'só exige sessão'} — ` +
-				'autorize a operação ou declare o motivo em scripts/guard-autorizacao.mjs'
-		});
-	}
-}
 
-// (2) Entrada da lista que não corresponde a operação nenhuma.
-for (const chave of Object.keys(DECLARADAS)) {
-	if (!vistas.has(chave)) {
-		problemas.push({
-			arquivo: chave.split(' → ')[0],
-			msg: `dispensa obsoleta em DECLARADAS: "${chave}" não existe mais`
-		});
+	// (2) Entrada da lista que não corresponde a operação nenhuma.
+	for (const chave of Object.keys(DECLARADAS)) {
+		if (!vistas.has(chave)) {
+			problemas.push({
+				arquivo: chave.split(' → ')[0],
+				msg: `dispensa obsoleta em DECLARADAS: "${chave}" não existe mais`
+			});
+		}
 	}
-}
 
-if (problemas.length > 0) {
-	console.error('\n[guard-autorizacao] operação material sem decisão de autorização:\n');
-	for (const { arquivo, msg } of problemas) {
-		console.error(`::error file=${arquivo}::${msg}`);
-		console.error(`  ${arquivo} — ${msg}`);
+	// Idem para PUBLICAS: rota pública que sumiu deixaria o spec de autorização
+	// negativa dispensando um alvo que não existe — e um alvo a menos exercitado.
+	const arquivosVistos = new Set(operacoes.map((o) => o.arquivo));
+	for (const arquivo of PUBLICAS) {
+		if (!arquivosVistos.has(arquivo)) {
+			problemas.push({
+				arquivo,
+				msg: `rota pública obsoleta em PUBLICAS: "${arquivo}" não existe mais`
+			});
+		}
 	}
-	console.error(
-		'\nEsconder o botão na tela não é autorização: o POST direto tem de morrer no\n' +
-			'servidor. Ver README → "Autorização das operações materiais".\n'
+
+	if (problemas.length > 0) {
+		console.error('\n[guard-autorizacao] operação material sem decisão de autorização:\n');
+		for (const { arquivo, msg } of problemas) {
+			console.error(`::error file=${arquivo}::${msg}`);
+			console.error(`  ${arquivo} — ${msg}`);
+		}
+		console.error(
+			'\nEsconder o botão na tela não é autorização: o POST direto tem de morrer no\n' +
+				'servidor. Ver README → "Autorização das operações materiais".\n'
+		);
+		process.exit(1);
+	}
+
+	console.log(
+		`[guard-autorizacao] ${operacoes.length} operações materiais — ` +
+			`${operacoes.length - vistas.size} recusam por permissão, ` +
+			`${vistas.size} dispensadas com motivo declarado.`
 	);
-	process.exit(1);
 }
 
-console.log(
-	`[guard-autorizacao] ${operacoes.length} operações materiais — ` +
-		`${operacoes.length - vistas.size} recusam por permissão, ` +
-		`${vistas.size} dispensadas com motivo declarado.`
-);
+// Só executa quando chamado direto (`node scripts/guard-autorizacao.mjs`).
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+	principal();
+}

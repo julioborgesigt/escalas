@@ -818,7 +818,7 @@ npm run test          # Executa uma vez
 npm run test:watch    # Watch mode (recomendado durante desenvolvimento)
 ```
 
-Arquivos de teste ficam em `src/` com o padrão `*.test.ts`, **sempre** em pastas `__tests__/` junto do código testado (82 arquivos, 856 testes) — convenção verificada no CI. Os principais grupos:
+Arquivos de teste ficam em `src/` com o padrão `*.test.ts`, **sempre** em pastas `__tests__/` junto do código testado (83 arquivos, 865 testes) — convenção verificada no CI. Os principais grupos:
 
 - `src/lib/__tests__/` — autenticação (PBKDF2/pepper, sessões, 2FA), CSRF, headers de segurança, utilitários
 - `src/lib/schemas/__tests__/` — schemas Zod (LGPD, formulários GISE)
@@ -859,6 +859,20 @@ npm run test:e2e -- --project=chromium     # só desktop (pula o projeto mobile)
 > por dado alheio, é bug do spec, não do seu banco.
 
 Os testes E2E fazem build + preview automático antes de rodar (via `e2e/servidor-e2e.ts`), e o `global-setup` aplica as migrations pendentes no D1 local e semeia os fixtures — não é preciso preparar o banco manualmente. Configure credenciais de teste em `e2e/global-setup.ts`. Além do projeto `chromium`, um projeto `mobile` (Pixel 7 emulado) reexecuta os specs de UI em viewport de celular.
+
+**Cobertura negativa automática:** `autorizacao-negativa.spec.ts` varre
+`src/routes/**` em tempo de teste e exerce **todas** as operações materiais em
+dois cenários — anônimo, e policial de outra unidade contra um recurso real —
+exigindo 401/403/404 e nenhum documento criado ou apagado. A tabela não é
+escrita à mão: rota nova entra sozinha, sem depender de alguém lembrar. É o
+complemento executável do `guard:autorizacao`, que só lê o código: o guard vê
+_se_ existe gate, o spec vê se ele **vem antes do trabalho** e se olha o
+**recurso**, não só o usuário. Foi ele que achou o FLW-GISE-004.
+
+Duas armadilhas ao mexer nele: alvo protegido por outro motivo (escala já
+assinada, GISE fechada) não testa permissão — o 409 chega primeiro e esconde a
+falta do 403; e form action **não** usa o status HTTP, porque o `ActionResult`
+viaja em JSON sob 200 mesmo quando a action executou.
 
 **Fluxo A3 qualificado em CI:** o build de E2E injeta uma **CA de teste** no trust store ICP-Brasil (`E2E_TEST_CA=1` no build → `define` do Vite → `trust-store.ts`; chaves regeneradas a cada execução em `e2e/ca-teste/artefatos/`, gitignored). O spec `assinatura-qualificada-a3.spec.ts` faz o papel do Assinador SERPRO no runner (CMS CAdES assinado com o "e-CPF" de teste) e percorre preparar → finalizar → download → `/validar` contra a verificação real do servidor — incluindo os negativos de CA desconhecida, CPF divergente e digest adulterado. Em build normal a constante não existe e o ramo é código morto: **não há env de runtime capaz de ligar a CA de teste em produção**.
 

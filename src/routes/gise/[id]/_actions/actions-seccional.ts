@@ -2,8 +2,9 @@
  * Form actions das SECCIONAIS de uma GISE em `/gise/[id]`.
  *
  * Montagem (adicionar/remover) é do Admin Geral; o preenchimento
- * (`finalizarSeccional`, horários) é do admin da própria seccional — daí os
- * guards mistos de `isAdminGeral` × `isAdminSeccional` + `papel_unidade_id`.
+ * (`finalizarSeccional`, horários) é do Admin Geral OU do admin da própria
+ * seccional — regra em `podePreencherSeccional` (shared.ts), não escrita à mão
+ * aqui: quando era, faltava a metade que barra quem não tem papel nenhum.
  */
 
 import { fail } from '@sveltejs/kit';
@@ -18,7 +19,7 @@ import {
 	revogarAssinaturasSeccional,
 	adicionarGiseSeccionalUnidade
 } from '$lib/db';
-import { isAdminGeral, isAdminSeccional } from '$lib/auth';
+import { isAdminGeral } from '$lib/auth';
 import { logger } from '$lib/server/logger';
 import { enviarNotificacaoAssessorGisePreenchimentoSeccional } from '$lib/server/email';
 import { montarTextoNotificacaoAssessorGise } from '$lib/server/gise/assessor-notificacao-text';
@@ -33,7 +34,7 @@ import {
 	giseDocumentos
 } from '$lib/server/schema';
 import { eq, and, asc, inArray } from 'drizzle-orm';
-import { getInt, saiuDaFaseDeEdicao } from './shared';
+import { getInt, saiuDaFaseDeEdicao, podePreencherSeccional } from './shared';
 
 type Event = RequestEvent<{ id: string }>;
 
@@ -138,8 +139,8 @@ export const actionsSeccional = {
 			.get();
 		if (!sec) return fail(404, { error: 'Seccional não encontrada' });
 
-		if (isAdminSeccional(u) && u.papel_unidade_id !== sec.seccional_id) {
-			return fail(403, { error: 'Sem permissão' });
+		if (!podePreencherSeccional(u, sec.seccional_id)) {
+			return fail(403, { error: 'Sem permissão para preencher esta seccional' });
 		}
 
 		const slots = await db
@@ -286,8 +287,8 @@ export const actionsSeccional = {
 			.get();
 		if (!sec) return fail(404, { error: 'Seccional não encontrada' });
 
-		if (isAdminSeccional(u) && u.papel_unidade_id !== sec.seccional_id) {
-			return fail(403, { error: 'Sem permissão' });
+		if (!podePreencherSeccional(u, sec.seccional_id)) {
+			return fail(403, { error: 'Sem permissão para preencher esta seccional' });
 		}
 
 		await atualizarGiseSeccional(db, secId, {

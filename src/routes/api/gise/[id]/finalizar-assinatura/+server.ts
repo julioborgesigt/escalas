@@ -59,9 +59,23 @@ export const POST: RequestHandler = async (event) => {
 		assinanteEmail
 	} = validated.data;
 
+	const gise = await buscarGiseEscala(db, id);
+	if (!gise) return notFound('GISE');
+
+	// Permissão de negócio: apenas supervisor designado ou admin.
+	if (u.tipo !== 'admin' && gise.supervisor_id !== u.id) {
+		return forbidden(
+			'Apenas o supervisor designado ou administradores podem finalizar esta escala'
+		);
+	}
+
 	// Consome a preparação: prova que ESTE pdf foi preparado por ESTE usuário
 	// para ESTE alvo, uma vez só (FLW-DOC-001). O código público de validação
 	// vem daqui, não do corpo da requisição.
+	//
+	// DEPOIS da permissão, como na escala: o consumo QUEIMA a intenção, e quem
+	// perdeu a permissão no meio do caminho perderia junto a preparação — teria
+	// de refazer a assinatura só para ouvir o 403 que já cabia aqui.
 	const consumo = await consumirIntencaoAssinatura(
 		db,
 		intencao,
@@ -73,16 +87,6 @@ export const POST: RequestHandler = async (event) => {
 	const { verificacaoHash: verificationHash } = consumo;
 
 	try {
-		const gise = await buscarGiseEscala(db, id);
-		if (!gise) return notFound('GISE');
-
-		// Permissão de negócio: apenas supervisor designado ou admin.
-		if (u.tipo !== 'admin' && gise.supervisor_id !== u.id) {
-			return forbidden(
-				'Apenas o supervisor designado ou administradores podem finalizar esta escala'
-			);
-		}
-
 		// Delega ao serviço unificado: validação CPF token vs CPF logado
 		// (sem bypass), embed do CMS, verificação CAdES-LT, OCSP, PAdES-LT
 		// e hash do PDF final.

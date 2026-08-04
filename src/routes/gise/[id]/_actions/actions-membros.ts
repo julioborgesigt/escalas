@@ -10,11 +10,10 @@ import {
 	verificarConflitoHorarioPolicial,
 	revogarAssinaturasSeccional
 } from '$lib/db';
-import { isAdminSeccional } from '$lib/auth';
 import { invalidarPapelGise } from '$lib/server/gise/papel-cache';
 import { giseMembros, giseEquipes, giseSeccionais } from '$lib/server/schema';
 import { eq } from 'drizzle-orm';
-import { getInt, saiuDaFaseDeEdicao } from './shared';
+import { getInt, saiuDaFaseDeEdicao, podePreencherSeccional } from './shared';
 
 /**
  * Form actions dos MEMBROS (policiais alocados às vagas das equipes) em
@@ -51,8 +50,8 @@ export const actionsMembros = {
 		const sec = await db.select().from(giseSeccionais).where(eq(giseSeccionais.id, secId)).get();
 		if (!sec || sec.gise_id !== giseId) return fail(404, { error: 'Seccional não encontrada' });
 
-		if (isAdminSeccional(u) && u.papel_unidade_id !== sec.seccional_id) {
-			return fail(403, { error: 'Sem permissão' });
+		if (!podePreencherSeccional(u, sec.seccional_id)) {
+			return fail(403, { error: 'Sem permissão para montar equipes desta seccional' });
 		}
 
 		const equipe = await db.select().from(giseEquipes).where(eq(giseEquipes.id, equipeId)).get();
@@ -96,17 +95,6 @@ export const actionsMembros = {
 		const gise = await buscarGiseEscala(db, giseId);
 		if (!gise) return fail(404, { error: 'GISE não encontrada' });
 
-		// Janela maior que a de edição livre: dá para corrigir a composição
-		// enquanto a escala aguarda a assinatura do supervisor, mas não depois que
-		// ela entra em operação (haveria presença/relatório do policial removido).
-		if (
-			!['em_definicao_supervisor', 'em_preenchimento', 'aguardando_assinatura'].includes(
-				gise.status
-			)
-		) {
-			return fail(400, { error: 'Escala fechada para edição' });
-		}
-
 		// Uma consulta só resolve as três perguntas: qual equipe, qual seccional
 		// (para revogar assinaturas) e de quem é o cache de papel a invalidar.
 		const membroInfo = await db
@@ -124,8 +112,19 @@ export const actionsMembros = {
 
 		if (!membroInfo) return fail(404, { error: 'Membro não encontrado' });
 
-		if (isAdminSeccional(u) && membroInfo.seccional_id !== u.papel_unidade_id) {
-			return fail(403, { error: 'Sem permissão' });
+		if (!podePreencherSeccional(u, membroInfo.seccional_id)) {
+			return fail(403, { error: 'Sem permissão para montar equipes desta seccional' });
+		}
+
+		// Janela maior que a de edição livre: dá para corrigir a composição
+		// enquanto a escala aguarda a assinatura do supervisor, mas não depois que
+		// ela entra em operação (haveria presença/relatório do policial removido).
+		if (
+			!['em_definicao_supervisor', 'em_preenchimento', 'aguardando_assinatura'].includes(
+				gise.status
+			)
+		) {
+			return fail(400, { error: 'Escala fechada para edição' });
 		}
 
 		await removerGiseMembro(db, memId);
