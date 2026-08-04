@@ -1,6 +1,7 @@
 /**
  * Logger estruturado (browser e worker): JSON compatível com Cloudflare Logs / Logpush.
- * Use `$lib/logger` em código compartilhado; `$lib/server/logger` reexporta a mesma API.
+ * Use `$lib/logger` em código compartilhado; `$lib/server/logger` envolve esta
+ * API com contexto de request e persistência em `app_log` (ver seu cabeçalho).
  */
 
 type LogLevel = 'debug' | 'info' | 'warn' | 'error';

@@ -11,6 +11,12 @@
  * vez**. É isso que `buscarGiseAtiva` assume, e é o que faz `/gise` conseguir
  * abrir "a" escala corrente sem que o usuário escolha nada.
  *
+ * A regra NÃO é protegida por constraint nem serializada na criação — só
+ * assumida (achado FLW-GISE-010 em
+ * docs/auditorias/PLANO_AUDITORIA_FLUXOS_INTEGRIDADE_2026-08-02.md). Se mais
+ * de uma GISE ativa existir, `buscarGiseAtiva` escolhe a mais recente por
+ * `data_inicio` e as demais ficam ocultas em silêncio, sem erro.
+ *
  * O ciclo de status (`em_definicao_supervisor` → `em_preenchimento` →
  * `aguardando_assinatura` → `em_andamento` → `aguardando_relatorios` →
  * `aguardando_assinatura_relat` → `pronta_para_finalizar` → `finalizada`) é

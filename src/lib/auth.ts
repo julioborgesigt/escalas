@@ -9,9 +9,9 @@
  * do D1 não dá acesso a ninguém. Há um fallback para linhas anteriores à
  * migração (token em claro), que migra a linha ao ser usada.
  *
- * A sessão é SLIDING: 8h que se renovam com o uso, mas o UPDATE só sai quando
- * falta menos de 30min (`SESSION_SLIDING_THRESHOLD_MS`) — senão todo request
- * autenticado escreveria no D1.
+ * A sessão é SLIDING: 8h que se renovam com o uso, mas o UPDATE só sai quando já
+ * se passaram mais de 30min (`SESSION_SLIDING_THRESHOLD_MS`) desde a última
+ * renovação — senão todo request autenticado escreveria no D1.
  *
  * Papel administrativo tem DOIS eixos independentes, e confundi-los é o erro
  * clássico aqui:
@@ -174,10 +174,11 @@ export function compararSegredoUtf8TimingSafe(input: string, expected: string): 
 /** Tempo de vida da sessão (8h). Toda atividade reseta o relógio (sliding). */
 export const SESSION_TTL_MS = 8 * 60 * 60 * 1000;
 /**
- * Threshold para evitar UPDATE em todo request. Só estende `expires_at` quando
- * faltar menos que `SESSION_SLIDING_THRESHOLD_MS` do vencimento. Mantém o
- * throughput sem perder a propriedade sliding (no pior caso, a sessão é
- * estendida `SESSION_TTL_MS - threshold` antes do vencimento).
+ * Threshold para evitar UPDATE em todo request: só estende `expires_at`
+ * quando já se passaram mais de `SESSION_SLIDING_THRESHOLD_MS` desde a última
+ * renovação (equivalente a faltar menos que `SESSION_TTL_MS - threshold`,
+ * 7h30, para o vencimento). Mantém o throughput sem perder a propriedade
+ * sliding.
  */
 const SESSION_SLIDING_THRESHOLD_MS = 30 * 60 * 1000; // 30 min
 
@@ -239,8 +240,8 @@ async function buscarSessaoValida(db: Database, token: string | undefined) {
 
 	if (!sessao) return null;
 
-	// Sliding: se a sessão está perto de expirar, estende para now + SESSION_TTL_MS.
-	// Cap por threshold evita UPDATE em todo request.
+	// Sliding: se já passou o threshold desde a última renovação, estende para
+	// now + SESSION_TTL_MS. Cap por threshold evita UPDATE em todo request.
 	const expiresAtMs = new Date(sessao.expires_at).getTime();
 	const slidingUpdate =
 		expiresAtMs - now < SESSION_TTL_MS - SESSION_SLIDING_THRESHOLD_MS
@@ -535,8 +536,14 @@ export async function verificarTokenRedefinicao(
 
 /**
  * Marca um token de redefinição como usado (uso único). Cobre a forma
- * hasheada (atual) e linhas legadas em claro. Chamar ANTES de trocar a
- * senha (anti-race).
+ * hasheada (atual) e linhas legadas em claro.
+ *
+ * NÃO é atômico com a leitura em `verificarTokenRedefinicao`: é um UPDATE
+ * incondicional, sem `WHERE usado = 0`, então duas requisições concorrentes
+ * podem ambas passar pela verificação antes de qualquer uma marcar o token
+ * (achado FLW-AUTH-004 em
+ * docs/auditorias/PLANO_AUDITORIA_FLUXOS_INTEGRIDADE_2026-08-02.md). Chamar
+ * ANTES de trocar a senha reduz a janela, mas não a fecha.
  */
 export async function marcarTokenRedefinicaoUsado(db: Database, token: string): Promise<void> {
 	await db

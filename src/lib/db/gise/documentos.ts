@@ -13,12 +13,7 @@ import { anonimizarIp } from '../audit';
 import { parseUserAgent, reduzirPrecisaoGps } from '../../server/assinatura/document-utils';
 import { cifrarCpfParaArmazenar, type CpfCriptoEnv } from '../../crypto/cpf-cripto';
 
-/**
- * Arredonda a coordenada para 2 casas (~1 km): a lei pede evidência de que a
- * assinatura ocorreu na região, não a localização exata do servidor.
- */
-
-/** Reexportado de '../documentos' para uso pelos endpoints. */
+/** Tipo usado só localmente (a origem, `$lib/db/documentos`, é quem os outros módulos importam). */
 import type { AssinaturaCadesMetadata } from '../documentos';
 
 /** Insere o documento assinado ou substitui o anterior (upsert por `gise_id`). */

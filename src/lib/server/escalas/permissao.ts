@@ -5,11 +5,13 @@ import type { Database } from '$lib/db';
 /**
  * Verifica se o usuário tem permissão de leitura/assinatura sobre a escala.
  *
- * Regras:
+ * Regras, nesta ordem:
  * - Admin geral → sempre permitido
  * - Mesma lotação → sempre permitido
- * - Admin DPC (seccional ou unidade) → permitido se houver solicitação de assinatura
- *   direcionada a ele (respondência direta ou tipo 'unidade')
+ * - Admin seccional/unidade cujo escopo administrado (`lotacoesAdministradas`)
+ *   cobre a lotação da escala → permitido DIRETO, sem checar solicitação nem cargo
+ * - Admin DPC (seccional ou unidade) fora do escopo acima → permitido se houver
+ *   solicitação de assinatura direcionada a ele (respondência direta ou tipo 'unidade')
  * - Demais → negado
  *
  * Retorna `{ permitido: true }` ou `{ permitido: false, motivo: string }`.

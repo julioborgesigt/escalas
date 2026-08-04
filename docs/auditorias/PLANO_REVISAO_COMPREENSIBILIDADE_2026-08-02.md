@@ -1,8 +1,11 @@
 # Plano operacional — revisão de compreensão, comentários e duplicação
 
 **Data-base:** 02/ago/2026  
-**Status:** proposto — não iniciado  
-**Dono da revisão:** a definir  
+**Status:** em andamento — lotes 0, 1, 2 (parcial), 3 (parcial) e 7 com diagnóstico
+concluído em 03/ago/2026 (ver Registro de execução e
+[`ACHADOS_COMENTARIOS_DUPLICACAO_2026-08-03.md`](./ACHADOS_COMENTARIOS_DUPLICACAO_2026-08-03.md)).
+Lotes 4, 5, 6, 8, 9, 10, 11 (rotas/UI/composables) ainda não iniciados.  
+**Dono da revisão:** a definir (diagnóstico de 03/ago/2026 executado por sessão Claude Code)  
 **Escopo mínimo obrigatório:** arquivos de código com mais de 200 linhas físicas  
 **Objetivo:** fazer com que uma pessoa que nunca trabalhou no sistema consiga
 entender a responsabilidade, os contratos e as decisões não óbvias do código
@@ -396,14 +399,14 @@ com uma razão, dono e próximo passo explícitos.
 
 | Lote | Responsável | Início | Fim | Estado | PRs / achados principais |
 | --- | --- | --- | --- | --- | --- |
-| 0 | — | — | — | pendente | — |
-| 1 | — | — | — | pendente | — |
-| 2 | — | — | — | pendente | — |
-| 3 | — | — | — | pendente | — |
+| 0 | sessão Claude Code 03/ago | 03/ago/2026 | 03/ago/2026 | concluído | baseline + `fallow dupes` (config isolada, não versionada) — ver `ACHADOS_COMENTARIOS_DUPLICACAO_2026-08-03.md` |
+| 1 | sessão Claude Code 03/ago (agente dedicado) | 03/ago/2026 | 03/ago/2026 | concluído (diagnóstico) | `assinatura/**` revisado por inteiro — achados §1.2 (RISCO P0, comentário morto de shadow-attack, corrigido), §3.5/§3.12-14/§3.21 (dup); 3 correções de comentário aplicadas, DUP-EXTRAIR seguem abertos |
+| 2 | sessão Claude Code 03/ago (agente dedicado) | 03/ago/2026 | 03/ago/2026 | concluído (diagnóstico) | `export/gise/termo/escalas(server)` + `email.ts` — achados §1.4 (bug de dado DOCX/XLSX, precisa decisão do operador), §2.4/§2.6/§3.6-10/§3.15-17; nenhuma correção de comportamento aplicada ainda |
+| 3 | sessão Claude Code 03/ago (agente dedicado) | 03/ago/2026 | 03/ago/2026 | concluído (diagnóstico) | `auth.ts`, `server/auth/**`, `crypto/**`, `policial-permissao.ts` (`hooks.server.ts` NÃO coberto) — achados §2.1-3/§2.5/§3.1-4; comentários de §2.1/§2.2/§2.5 corrigidos, §2.3 (alerta de bootstrap divergente) é bug de comportamento, ainda aberto |
 | 4 | — | — | — | pendente | — |
 | 5 | — | — | — | pendente | — |
 | 6 | — | — | — | pendente | — |
-| 7 | — | — | — | pendente | — |
+| 7 | sessão Claude Code 03/ago (agentes dedicados) | 03/ago/2026 | 03/ago/2026 | concluído (diagnóstico) | `lib/db/**` + `schema.ts` + `db-errors.ts` — achados §1.1 (RISCO P0, bug ativo de retenção LGPD), §1.3/§2.7 (`sync-estado.ts` fora de lugar)/§3.9-11/§3.18; comentários corrigidos, bugs de comportamento seguem abertos |
 | 8 | — | — | — | pendente | — |
 | 9 | — | — | — | pendente | — |
 | 10 | — | — | — | pendente | — |

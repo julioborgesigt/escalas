@@ -30,7 +30,7 @@ type Rotacao = '1x3' | '2x6';
 /**
  * Dias ENTRE duas datas — EXCLUSIVO. `01` → `05` devolve 4.
  *
- * Não confundir com `diffDiasInclusivo` de `$lib/utils`, que conta quantos dias
+ * Não confundir com `diffDiasInclusivo` de `$lib/utils/datas`, que conta quantos dias
  * o período TEM (`01` → `05` = 5). São perguntas diferentes, não duplicação: a
  * rotação precisa do intervalo entre plantões (1x3 = 4, 2x6 = 1 e 7), enquanto
  * a duração de um afastamento inclui as duas pontas.
@@ -172,7 +172,7 @@ export function ultimoDiaDoMes(ano: number, mes: number): string {
 	return isoData(ano, mes, diasNoMes(ano, mes));
 }
 
-// Implementação única em $lib/utils (achado D1 do antigo ARQUIVOS.md — ver docs/HISTORICO.md); re-export
+// Implementação única em $lib/utils/datas (achado D1 do antigo ARQUIVOS.md — ver docs/HISTORICO.md); re-export
 // preserva os imports existentes `from '$lib/rotacao'`.
 export { calcularDataSaida } from './utils/datas';
 

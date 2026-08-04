@@ -41,7 +41,12 @@ const dev = import.meta.env.DEV;
 interface SerproSignResult {
 	/** Assinatura RSA bruta em Base64 (campo outputData ou signature da resposta). */
 	rawSignature: string;
-	/** Certificado do signatário em Base64 DER, se retornado pelo SERPRO. */
+	/**
+	 * Sempre `undefined` no fluxo `sign()` (type `hash`): o certificado já vem
+	 * embutido no CMS PKCS#7 devolvido em `rawSignature`, então não há nada a
+	 * extrair separadamente aqui. Campo mantido pela forma compartilhada com
+	 * outros back-ends de assinatura (Web PKI), que podem preenchê-lo.
+	 */
 	certificateBase64?: string;
 	/**
 	 * Nome do titular do certificado A3, extraído do campo by.alias da resposta SERPRO.

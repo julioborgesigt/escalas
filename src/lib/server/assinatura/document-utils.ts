@@ -37,15 +37,6 @@ interface UAResult {
 }
 
 /**
- * Converte a string bruta do User-Agent em formato legível para impressão em PDF.
- *
- * Em vez de exibir "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537...",
- * retorna "Chrome 114 / Windows 10 / Desktop".
- *
- * Cobre os navegadores mais comuns em ambientes corporativos:
- * Chrome, Firefox, Edge, Safari, Opera, Samsung Browser.
- */
-/**
  * Reduz a coordenada a 2 casas decimais (~1 km).
  *
  * A evidência exigida é "a assinatura ocorreu nesta região", não a localização
@@ -160,10 +151,6 @@ function parseUAInternal(ua: string): UAResult {
 
 	return result;
 }
-
-// ---------------------------------------------------------------------------
-// Formatação de CPF (LGPD)
-// ---------------------------------------------------------------------------
 
 // ---------------------------------------------------------------------------
 // Determinação do tipo de carimbo de tempo
