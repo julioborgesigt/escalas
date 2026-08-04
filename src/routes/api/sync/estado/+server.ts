@@ -32,12 +32,10 @@ import { lerPapelGise } from '$lib/server/gise/papel-cache';
 import {
 	resumoRecebidosAdmin,
 	resumoEscalasPendentes,
-	carimboGise,
 	carimboPainel,
-	carimboResGise,
-	carimboGiseList,
 	carimboEscala
-} from '$lib/server/sync-estado';
+} from '$lib/server/escalas/sync-estado';
+import { carimboGise, carimboResGise, carimboGiseList } from '$lib/server/gise/sync-estado';
 
 export const GET: RequestHandler = async ({ locals, platform, url }) => {
 	const u = requireAuth(locals);

@@ -18,44 +18,17 @@
  * autorreferência são SQL, e um mock do query builder não os executaria.
  */
 import { describe, it, expect, beforeEach } from 'vitest';
-import { DatabaseSync } from 'node:sqlite';
-import { readdirSync, readFileSync } from 'node:fs';
-import { join } from 'node:path';
-import { drizzle } from 'drizzle-orm/sqlite-proxy';
+import type { DatabaseSync } from 'node:sqlite';
 import type { Database } from '$lib/db';
 import { criarPolicial, upsertPolicial, type DadosPolicial } from '../policiais';
-
-const DIR_MIGRACOES = join(process.cwd(), 'migrations');
-
-function bancoMigrado(): DatabaseSync {
-	const db = new DatabaseSync(':memory:');
-	for (const arquivo of readdirSync(DIR_MIGRACOES)
-		.filter((f) => f.endsWith('.sql'))
-		.sort()) {
-		const sql = readFileSync(join(DIR_MIGRACOES, arquivo), 'utf8');
-		for (const stmt of sql.split('--> statement-breakpoint')) {
-			const s = stmt.trim();
-			if (s) db.exec(s);
-		}
-	}
-	return db;
-}
+import { bancoMigrado, drizzleSobre } from './sqlite-migrado';
 
 let sqlite: DatabaseSync;
 let db: Database;
 
 beforeEach(() => {
 	sqlite = bancoMigrado();
-	db = drizzle(async (sql, params, method) => {
-		const stmt = sqlite.prepare(sql);
-		if (method === 'run') {
-			const r = stmt.run(...(params as never[]));
-			return { rows: [], rowsAffected: Number(r.changes ?? 0) } as never;
-		}
-		const linhas = stmt.all(...(params as never[])) as Record<string, unknown>[];
-		const arrays = linhas.map((l) => Object.values(l));
-		return { rows: method === 'get' ? (arrays[0] ?? []) : arrays };
-	}) as unknown as Database;
+	db = drizzleSobre(sqlite);
 });
 
 const BASE: DadosPolicial = {

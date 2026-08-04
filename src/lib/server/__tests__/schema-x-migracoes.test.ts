@@ -22,40 +22,12 @@
  * das colunas, que é a divergência que produz erro de runtime.
  */
 import { describe, it, expect } from 'vitest';
-import { DatabaseSync } from 'node:sqlite';
-import { readdirSync, readFileSync } from 'node:fs';
-import { join } from 'node:path';
 import { getTableColumns, getTableName, is } from 'drizzle-orm';
 import { SQLiteTable } from 'drizzle-orm/sqlite-core';
 import * as schema from '../schema';
-
-const DIR_MIGRACOES = join(process.cwd(), 'migrations');
+import { bancoMigrado, drizzleSobre } from '$lib/db/__tests__/sqlite-migrado';
 
 /** Aplica todas as migrações, na ordem, num banco em memória. */
-function bancoMigrado(): DatabaseSync {
-	const db = new DatabaseSync(':memory:');
-	const arquivos = readdirSync(DIR_MIGRACOES)
-		.filter((f) => f.endsWith('.sql'))
-		.sort();
-
-	for (const arquivo of arquivos) {
-		const sql = readFileSync(join(DIR_MIGRACOES, arquivo), 'utf8');
-		// O separador é o mesmo que `scripts/migrate.ts` usa.
-		for (const stmt of sql.split('--> statement-breakpoint')) {
-			const s = stmt.trim();
-			if (!s) continue;
-			try {
-				db.exec(s);
-			} catch (e) {
-				throw new Error(
-					`migração ${arquivo} falhou ao replicar em SQLite: ${e instanceof Error ? e.message : String(e)}`
-				);
-			}
-		}
-	}
-	return db;
-}
-
 /** Todas as tabelas declaradas no `schema.ts`, pelo nome real no banco. */
 function tabelasDoSchema(): Array<{ nome: string; colunas: string[] }> {
 	// O predicado é `unknown`, não `SQLiteTable`: os valores exportados são
