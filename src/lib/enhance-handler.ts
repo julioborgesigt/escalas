@@ -1,15 +1,42 @@
 /**
- * Fábrica para construir `SubmitFunction`s de `use:enhance` seguindo o padrão
- *   - marca um flag de "em progresso" no início
- *   - invalida dependências ao sucesso
- *   - mostra toast de sucesso/erro
- *   - executa callback de reset/side-effect ao sucesso
- * Evita repetir ~30 vezes a mesma boilerplate na página de GISE.
+ * Tratamento do resultado de um form action do SvelteKit no cliente.
+ *
+ * Dois níveis, porque os dois domínios pedem coisas diferentes:
+ *
+ * - `makeEnhanceHandler` — a fábrica COMPLETA de `SubmitFunction` (flag de
+ *   progresso + invalidação + toast + callbacks), usada pela página de GISE,
+ *   onde ~30 actions seguem exatamente o mesmo roteiro;
+ * - `mostrarErroDeResultado` — só o ramo de ERRO. É o que serve ao domínio de
+ *   escalas, onde cada handler faz uma atualização otimista própria no sucesso
+ *   (aplicar a lista devolvida, limpar seleção, fechar modal) e portanto não
+ *   cabe na fábrica, mas trata a falha de forma idêntica.
  */
 
 import { invalidateShared } from '$lib/cross-tab-invalidate';
 import { toaster } from '$lib/toast';
-import type { SubmitFunction } from '@sveltejs/kit';
+import type { ActionResult, SubmitFunction } from '@sveltejs/kit';
+
+/**
+ * Toast de erro para um `ActionResult` que não é `success`.
+ *
+ * Distingue os dois motivos, que não são a mesma coisa para quem está na tela:
+ * `error` é falha de REDE/exceção não tratada — não adianta mostrar detalhe
+ * técnico, o usuário precisa é tentar de novo; `failure` é recusa do servidor,
+ * e aí a mensagem dele (`data.error`) é a informação útil. `fallback` só entra
+ * quando a action falhou sem dizer por quê.
+ *
+ * Estava copiado em 11 handlers de escalas/perfil/solicitações, cada um com sua
+ * versão do `as Record<string, unknown>`.
+ */
+export function mostrarErroDeResultado(result: ActionResult, fallback: string): void {
+	if (result.type === 'error') {
+		toaster.create({ title: 'Erro de conexão. Tente novamente.', type: 'error' });
+		return;
+	}
+	const d =
+		result.type === 'failure' ? (result.data as Record<string, unknown> | undefined) : undefined;
+	toaster.create({ title: String(d?.error || fallback), type: 'error' });
+}
 
 type ResultData = Record<string, unknown>;
 

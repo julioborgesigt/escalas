@@ -97,8 +97,8 @@ Agrupado por risco de drift — primitivas de segurança e lógica de estado pri
 | 3.20 | `src/lib/db/escalas.ts:262-275`, `lgpd-solicitacoes.ts:35-39` | P3 | Reimplementações menores de aritmética de data que já têm helper em `$lib/utils/datas` (`getNowBR`, `adicionarDias`). Sem bug hoje (Workers roda em UTC), frágil se o runtime mudar. |
 | 3.21 | `src/lib/server/assinatura/pdf-signing-visual.ts:787-793` (`formatarDataBR`) | P2/P3 | Reimplementa o deslocamento de fuso de `getNowBR()` para uma data arbitrária; só 2 ocorrências no repo (abaixo do limiar de "disseminado"). **Colide de nome** com uma SEGUNDA função `formatarDataBR` em `gise/termo-presenca.ts:42`, de contrato totalmente diferente. DUP-MANTER quanto à lógica, mas o nome duplicado deveria mudar. |
 | 3.22 | `src/lib/rotacao.ts:111-147`, `export-charts.ts:197-261` | P3 | Loops/esqueletos parecidos, baixo risco. |
-| 3.23 | `src/routes/api/sync/estado/+server.ts:100-131` vs `escalas/+page.server.ts:~95-105,~402-409` | **P1** | Escopo de lotações de admin seccional/unidade (`or(eq(unidades.id,...), eq(unidades.seccional_id,...))`) reimplementado pela 3ª vez no arquivo novo de sync entre abas, em vez de importar `lotacoesAdministradas()` já existente em `policial-permissao.ts`. Regra de autorização, não estilo — ver §7. |
-| 3.24 | `escalas/[id]/+page.svelte`, `FormAdicionarServidores.svelte`, `ModalEditarDias.svelte`, `ModalEditarPlantao.svelte`, `plantao-datas.ts`, `useEdicaoInlineServidor.svelte.ts`, `perfil/+page.svelte`, `solicitacoes/+page.svelte` | P2 | Handler de toast em `use:enhance` (9 cópias, cresceu de 3 para 9 recentemente) — `$lib/enhance-handler.ts` já existe para isso, mas só é usado no domínio GISE. Ver §7. |
+| 3.23 | ~~`src/routes/api/sync/estado/+server.ts:100-131` vs `escalas/+page.server.ts:~95-105,~402-409`~~ | **P1** | **CORRIGIDO** (ver §8). Escopo de lotações de admin seccional/unidade reimplementado pela 3ª vez no arquivo novo de sync entre abas. Extraído para `lotacoesDaSeccional()` em `policial-permissao.ts`. |
+| 3.24 | ~~`escalas/[id]/+page.svelte`, `FormAdicionarServidores.svelte`, `ListaFds.svelte`, `ModalEditarDias.svelte`, `ModalEditarPlantao.svelte`, `plantao-datas.ts`, `useEdicaoInlineServidor.svelte.ts`, `perfil/+page.svelte`, `solicitacoes/+page.svelte`~~ | P2 | **CORRIGIDO** (ver §8). Ramo de erro de `use:enhance` copiado em 11 handlers. Extraído para `mostrarErroDeResultado()` em `enhance-handler.ts`. |
 
 ## 4. Outros achados de documentação (DOC-INC / DOC-OBS / COESAO menores)
 
@@ -201,6 +201,61 @@ que já existiam** (`enhance-handler.ts`, `lotacoesAdministradas()`), repetindo 
 uma lógica de autorização — o padrão exato que o histórico do projeto já registrou como causa de
 bug. Recomenda-se tratar os dois itens acima (achados 3.23 e 3.24, adicionados à seção 3) no
 próximo lote de limpeza, priorizando o de escopo administrativo por ser P1.
+
+## 8. Correção aplicada — achados 3.23 e 3.24
+
+Os dois achados que a §7 levantou (código novo que não reaproveitou abstração
+existente) foram corrigidos. Ambos são extrações **sem mudança de comportamento**, e
+cada uma ganhou o teste que faltava antes de a lógica ser movida.
+
+### 3.23 — `lotacoesDaSeccional()` (P1, regra de autorização)
+
+A query "a unidade `X` mais as unidades subordinadas a ela" estava escrita quatro
+vezes: dentro de `lotacoesAdministradas()` e em três call sites. Foi extraída para
+`lotacoesDaSeccional(db, seccionalId): Promise<string[]>` em
+`$lib/server/policial-permissao.ts`, e agora os quatro pontos a usam — inclusive
+`lotacoesAdministradas`, que passou a ser uma casca fina sobre ela.
+
+Por que um helper NOVO em vez de simplesmente chamar `lotacoesAdministradas` nos três
+call sites: eles divergem no tratamento dos OUTROS papéis, e a diferença é
+intencional. A listagem de escalas converte `admin_unidade` num filtro de lotação
+única (`lotacaoParam`), não numa lista; o poll de `/api/sync/estado` não passa lista
+nenhuma para `admin_unidade`, porque `resumoEscalasPendentes` escopa esse papel pela
+`lotacao` do usuário. Forçar o helper de alto nível nos três criaria acoplamento
+invisível a esse detalhe. O que era genuinamente idêntico — e só isso — virou fonte
+única.
+
+**Teste novo:** `src/lib/server/__tests__/policial-permissao.test.ts` (8 casos, SQLite
+real com as 42 migrações). Cobre lacuna real: `lotacoesAdministradas` é consumida por
+7 pontos de autorização e até agora só tinha cobertura **indireta, com ela mockada** —
+nada verificava a query de expansão em si. O teste fixa também a distinção
+`null` (Admin Geral, sem restrição) × `Set` vazio (não administra nada), que é o que
+inverte o gate se alguém trocar um pelo outro.
+
+### 3.24 — `mostrarErroDeResultado()` (P2)
+
+O ramo de erro dos handlers de form action estava copiado, caractere por caractere, em
+**11** lugares (escalas, perfil, solicitações), variando só a mensagem de fallback.
+Extraído para `mostrarErroDeResultado(result, fallback)` em `$lib/enhance-handler.ts`.
+
+Só o ramo de ERRO foi extraído, de propósito. O `makeEnhanceHandler` que já existia no
+mesmo módulo não serve a estes call sites: ele embute invalidação e um roteiro de
+sucesso fixo, enquanto cada handler de escalas faz uma atualização otimista própria
+(aplicar a lista devolvida, limpar seleção, fechar modal). Forçá-los na fábrica exigiria
+a "interface artificial" que o `CLAUDE.md` manda evitar — e, de quebra, `makeEnhanceHandler`
+não distingue falha de rede de recusa do servidor, então a unificação cega teria
+apagado a mensagem "Erro de conexão. Tente novamente." nos 11 pontos.
+
+**Teste novo:** `src/lib/__tests__/enhance-handler.test.ts` (5 casos), fixando
+justamente essa distinção entre `error` (rede → convite a repetir) e `failure`
+(recusa → mensagem do servidor, com fallback).
+
+### Verificação
+
+`npm run lint`, `npm run check`, `npx prettier --check src/` e `npm run knip` limpos;
+`npm run test` 746/746 verde (13 testes novos). `fallow dupes` com a config versionada:
+**158 → 135 instâncias** de duplicação, com os dois grupos atacados desaparecendo por
+completo do relatório.
 
 ## Próximo domínio sugerido
 

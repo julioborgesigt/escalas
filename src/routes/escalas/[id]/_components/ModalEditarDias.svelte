@@ -3,6 +3,7 @@
 	import { invalidateShared } from '$lib/cross-tab-invalidate';
 	import ModalShell from '$lib/components/ModalShell.svelte';
 	import { toaster } from '$lib/toast';
+	import { mostrarErroDeResultado } from '$lib/enhance-handler';
 	import CalendarioSelecaoDias from './CalendarioSelecaoDias.svelte';
 	import type { EscalaPolicialComDados } from '$lib/types';
 	import type { ActionResult } from '@sveltejs/kit';
@@ -60,14 +61,8 @@
 				open = false;
 				toaster.create({ title: 'Dias da escala atualizados!', type: 'success' });
 				await invalidateShared(`escala:${escalaId}`, 'app:escalas');
-			} else if (result.type === 'error') {
-				toaster.create({ title: 'Erro de conexão. Tente novamente.', type: 'error' });
 			} else {
-				const d =
-					result.type === 'failure'
-						? (result.data as Record<string, unknown> | undefined)
-						: undefined;
-				toaster.create({ title: String(d?.error || 'Erro ao atualizar dias'), type: 'error' });
+				mostrarErroDeResultado(result, 'Erro ao atualizar dias');
 			}
 		};
 	}

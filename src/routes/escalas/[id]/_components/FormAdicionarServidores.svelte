@@ -20,6 +20,7 @@
 	 */
 	import { enhance } from '$app/forms';
 	import { toaster } from '$lib/toast';
+	import { mostrarErroDeResultado } from '$lib/enhance-handler';
 	import { formatarData } from '$lib/utils/datas';
 	import { buscarPoliciaisOptions } from '$lib/busca-policiais';
 	import SearchableSelect from '$lib/components/SearchableSelect.svelte';
@@ -132,14 +133,8 @@
 				cargoBusca = '';
 				policialId = '';
 				addObservacoes = '';
-			} else if (result.type === 'error') {
-				toaster.create({ title: 'Erro de conexão. Tente novamente.', type: 'error' });
 			} else {
-				const d =
-					result.type === 'failure'
-						? (result.data as Record<string, unknown> | undefined)
-						: undefined;
-				toaster.create({ title: String(d?.error || 'Erro ao adicionar'), type: 'error' });
+				mostrarErroDeResultado(result, 'Erro ao adicionar');
 			}
 		};
 	}
@@ -173,14 +168,8 @@
 					toaster.create({ title: 'Todos os servidores já estão na escala', type: 'warning' });
 				else
 					toaster.create({ title: `${d?.quantidade} servidor(es) adicionado(s)`, type: 'success' });
-			} else if (result.type === 'error') {
-				toaster.create({ title: 'Erro de conexão. Tente novamente.', type: 'error' });
 			} else {
-				const d =
-					result.type === 'failure'
-						? (result.data as Record<string, unknown> | undefined)
-						: undefined;
-				toaster.create({ title: String(d?.error || 'Erro'), type: 'error' });
+				mostrarErroDeResultado(result, 'Erro');
 			}
 		};
 	}

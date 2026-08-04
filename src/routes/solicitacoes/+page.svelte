@@ -7,6 +7,7 @@
 	import type { PageProps } from './$types';
 	import { enhance } from '$app/forms';
 	import { toaster } from '$lib/toast';
+	import { mostrarErroDeResultado } from '$lib/enhance-handler';
 	import { ROTULO_CAMPO } from '$lib/perfil-campos';
 	import type { ActionResult } from '@sveltejs/kit';
 
@@ -31,14 +32,8 @@
 					title: decisao === 'aprovar' ? 'Alteração aprovada e aplicada' : 'Solicitação rejeitada',
 					type: decisao === 'aprovar' ? 'success' : 'info'
 				});
-			} else if (result.type === 'error') {
-				toaster.create({ title: 'Erro de conexão. Tente novamente.', type: 'error' });
 			} else {
-				const d =
-					result.type === 'failure'
-						? (result.data as Record<string, unknown> | undefined)
-						: undefined;
-				toaster.create({ title: String(d?.error || 'Erro ao decidir'), type: 'error' });
+				mostrarErroDeResultado(result, 'Erro ao decidir');
 			}
 		};
 	}

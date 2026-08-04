@@ -42,8 +42,8 @@ import { registrarAuditComContexto, contextoDeEvento, batchNonEmpty } from '$lib
 import { excluirEscalaCompleta } from '$lib/server/escalas/exclusao';
 import { logger } from '$lib/server/logger';
 import { eq, or, and, inArray, sql, desc, type SQL } from 'drizzle-orm';
+import { lotacoesDaSeccional } from '$lib/server/policial-permissao';
 import {
-	unidades as unidadesTable,
 	escalas as escalasTable,
 	escalaPoliciais,
 	escalaDocumentos,
@@ -93,16 +93,7 @@ export const load: PageServerLoad = async ({ locals, platform, url, depends }) =
 		if (u.papel === 'admin_unidade') {
 			lotacaoParam = u.lotacao ?? undefined;
 		} else if (u.papel === 'admin_seccional' && u.papel_unidade_id) {
-			const rows = await db
-				.select({ nome: unidadesTable.nome })
-				.from(unidadesTable)
-				.where(
-					or(
-						eq(unidadesTable.id, u.papel_unidade_id),
-						eq(unidadesTable.seccional_id, u.papel_unidade_id)
-					)
-				);
-			lotacoesPermitidas = rows.map((r) => r.nome);
+			lotacoesPermitidas = await lotacoesDaSeccional(db, u.papel_unidade_id);
 			// Valida que o filtro manual está dentro do escopo permitido
 			if (lotacaoParam && !lotacoesPermitidas.includes(lotacaoParam)) {
 				lotacaoParam = undefined;
@@ -400,17 +391,8 @@ export const actions: Actions = {
 			if (!escala) return fail(404, { error: 'Escala não encontrada' });
 
 			if (u.papel === 'admin_seccional' && u.papel_unidade_id) {
-				const rows = await db
-					.select({ nome: unidadesTable.nome })
-					.from(unidadesTable)
-					.where(
-						or(
-							eq(unidadesTable.id, u.papel_unidade_id),
-							eq(unidadesTable.seccional_id, u.papel_unidade_id)
-						)
-					);
-				const permitidas = new Set(rows.map((r) => r.nome));
-				if (!permitidas.has(escala.lotacao)) {
+				const permitidas = await lotacoesDaSeccional(db, u.papel_unidade_id);
+				if (!permitidas.includes(escala.lotacao)) {
 					return fail(403, { error: 'Sem permissão' });
 				}
 			} else if (escala.lotacao !== u.lotacao) {

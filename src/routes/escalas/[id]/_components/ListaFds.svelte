@@ -24,6 +24,7 @@
 	import { tick } from 'svelte';
 	import { enhance } from '$app/forms';
 	import { toaster } from '$lib/toast';
+	import { mostrarErroDeResultado } from '$lib/enhance-handler';
 	import { formatarData, intervaloDeDatas } from '$lib/utils/datas';
 	import { buscarPoliciaisOptions } from '$lib/busca-policiais';
 	import { criarHelpersHorario, diaSemanaLabel } from './escala-horarios';
@@ -141,14 +142,8 @@
 				fdsAddingDia = null;
 				fdsAddingCargo = null;
 				fdsPolicialId = '';
-			} else if (result.type === 'error') {
-				toaster.create({ title: 'Erro de conexão. Tente novamente.', type: 'error' });
 			} else {
-				const d =
-					result.type === 'failure'
-						? (result.data as Record<string, unknown> | undefined)
-						: undefined;
-				toaster.create({ title: String(d?.error || 'Erro ao adicionar'), type: 'error' });
+				mostrarErroDeResultado(result, 'Erro ao adicionar');
 			}
 		};
 	}
