@@ -25,6 +25,7 @@ import { logger } from '../server/logger';
 import { getRequestCtx } from '../server/request-context';
 import { cifrarTexto } from '../crypto/field-cripto';
 import { bytesToHex, hexToBytes } from '../crypto/hex';
+import { sha256Hex } from '../crypto/digest';
 
 // ---- Classificação ----------------------------------------------------------
 
@@ -332,11 +333,6 @@ function lerChave(valor: string | undefined): string | undefined {
 // ---- Cadeia de hash (tamper-evidence) --------------------------------------
 
 const GENESIS = 'GENESIS';
-
-async function sha256Hex(s: string): Promise<string> {
-	const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s) as BufferSource);
-	return bytesToHex(new Uint8Array(buf));
-}
 
 async function hmacHex(keyHex: string, s: string): Promise<string> {
 	const raw = hexToBytes(keyHex);

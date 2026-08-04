@@ -26,20 +26,14 @@
  */
 
 import forge from 'node-forge';
+import { binStringToBytes, bytesToBinString } from '$lib/crypto/bin';
 
 const OID_SIGNATURE_TIME_STAMP_TOKEN = '1.2.840.113549.1.9.16.2.14';
 
-function uint8ToBinaryString(b: Uint8Array): string {
-	let s = '';
-	for (let i = 0; i < b.length; i++) s += String.fromCharCode(b[i]);
-	return s;
-}
+const uint8ToBinaryString = bytesToBinString;
 
 function asn1ToUint8(a: forge.asn1.Asn1): Uint8Array {
-	const bin = forge.asn1.toDer(a).getBytes();
-	const out = new Uint8Array(bin.length);
-	for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i) & 0xff;
-	return out;
+	return binStringToBytes(forge.asn1.toDer(a).getBytes());
 }
 
 /**

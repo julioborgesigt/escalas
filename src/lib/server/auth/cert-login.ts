@@ -25,6 +25,7 @@
  * para o handler aplicar (3) e extrair a identidade.
  */
 import forge from 'node-forge';
+import { binStringToBytes } from '$lib/crypto/bin';
 import { parseCms, verificarAssinaturaCmsAsync } from '../assinatura/pdf-verification';
 import { extrairDadosDoCertificado } from '../assinatura/pdf-signing-prepare';
 import { compararSegredoUtf8TimingSafe } from '$lib/auth';
@@ -40,10 +41,7 @@ type ResultadoDesafioCert =
 
 function base64ParaBytes(b64: string): Uint8Array | null {
 	try {
-		const bin = forge.util.decode64(b64);
-		const out = new Uint8Array(bin.length);
-		for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i) & 0xff;
-		return out;
+		return binStringToBytes(forge.util.decode64(b64));
 	} catch {
 		return null;
 	}

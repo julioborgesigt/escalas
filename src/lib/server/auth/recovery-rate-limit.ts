@@ -6,7 +6,7 @@
  */
 
 import { and, count, eq, gt } from 'drizzle-orm';
-import { bytesToHex } from '$lib/crypto/hex';
+import { sha256Hex } from '$lib/crypto/digest';
 import { recoveryAttempts } from '../schema';
 import type { Database } from '$lib/db';
 import { anonimizarIp } from '$lib/db/audit';
@@ -39,9 +39,7 @@ type RecoveryPurpose =
 export async function chaveRateLimitIp(ip: string): Promise<string> {
 	const salt = typeof process !== 'undefined' ? process.env?.RATE_LIMIT_IP_SALT?.trim() : undefined;
 	if (!salt) return anonimizarIp(ip) ?? ip;
-	const data = new TextEncoder().encode(`${salt}\x1f${ip}`);
-	const buf = await crypto.subtle.digest('SHA-256', data);
-	const hex = bytesToHex(new Uint8Array(buf));
+	const hex = await sha256Hex(`${salt}\x1f${ip}`);
 	return `iph:${hex.slice(0, 40)}`;
 }
 

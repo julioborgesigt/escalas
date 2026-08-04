@@ -29,7 +29,7 @@
  * Com o segredo presente, o login re-hasha v1/v2/legado → v3 progressivamente.
  */
 
-import { timingSafeEqual } from 'node:crypto';
+import { comparacaoTimingSafe } from './timing-safe';
 import { bytesToHex, hexToBytes } from './hex';
 
 const PBKDF2_V1_PREFIX = 'pbkdf2v1:';
@@ -88,14 +88,8 @@ async function pepperizarSenha(senha: string, pepper: string): Promise<Uint8Arra
 	return new Uint8Array(sig);
 }
 
-/** Compara dois hex de hash (64 chars) em tempo ~constante. */
-function hashHexConfere(actualHex: string, expectedHex: string): boolean {
-	const a = Buffer.from(actualHex.padEnd(64, '0').slice(0, 64));
-	const b = Buffer.from(expectedHex.padEnd(64, '0').slice(0, 64));
-	const hashMatch = timingSafeEqual(a, b) ? 1 : 0;
-	const lenMatch = actualHex.length === expectedHex.length ? 1 : 0;
-	return (hashMatch & lenMatch) === 1;
-}
+/** Compara dois hex de hash em tempo ~constante. */
+const hashHexConfere = comparacaoTimingSafe;
 
 function iterValido(iter: number): boolean {
 	return Number.isFinite(iter) && iter >= PBKDF2_V1_ITERATIONS && iter <= 10_000_000;

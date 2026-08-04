@@ -3,7 +3,7 @@
  * Rate limit, auditoria, migração de hash legado e 2FA permanecem alinhados entre os canais.
  */
 import { eq, and, gt, sql, count } from 'drizzle-orm';
-import { bytesToHex } from '$lib/crypto/hex';
+import { sha256Hex } from '$lib/crypto/digest';
 import { registrarAuditComContexto } from '$lib/db';
 import {
 	hashSenha,
@@ -167,9 +167,7 @@ export async function recordAttempt(
  * tentativas por conta SEM gravar a matrícula em texto no log de tentativas.
  */
 async function hashIdentificadorLogin(tipo: string, matricula: string): Promise<string> {
-	const data = new TextEncoder().encode(`${tipo}:${matricula.trim().toLowerCase()}`);
-	const buf = await crypto.subtle.digest('SHA-256', data);
-	return bytesToHex(new Uint8Array(buf));
+	return sha256Hex(`${tipo}:${matricula.trim().toLowerCase()}`);
 }
 
 /**

@@ -14,7 +14,7 @@
 
 import forge from 'node-forge';
 import { extrairDadosDoCertificado } from './pdf-signing-prepare';
-import { binStringToBytes } from '$lib/crypto/bin';
+import { binStringToBytes, bytesToBinString } from '$lib/crypto/bin';
 import { PDFDocument } from 'pdf-lib';
 import { logger } from '../logger';
 import { loadTrustStore, trustStoreRequerido } from './icp-brasil/trust-store';
@@ -431,11 +431,7 @@ export async function avaliarCoberturaAssinatura(
 // Helpers ASN.1
 // ---------------------------------------------------------------------------
 
-function uint8ToBinaryString(b: Uint8Array): string {
-	let s = '';
-	for (let i = 0; i < b.length; i++) s += String.fromCharCode(b[i]);
-	return s;
-}
+const uint8ToBinaryString = bytesToBinString;
 
 interface CmsParsed {
 	signedData: forge.asn1.Asn1;

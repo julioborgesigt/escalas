@@ -28,7 +28,7 @@
  */
 
 import type { UsuarioLogado } from '$lib/auth';
-import { bytesToHex } from '$lib/crypto/hex';
+import { sha256Hex } from '$lib/crypto/digest';
 
 interface SessaoCacheada {
 	usuario: UsuarioLogado;
@@ -58,8 +58,7 @@ export function resolverTtlCacheSessao(platform: App.Platform | undefined): numb
 }
 
 async function chaveCache(token: string): Promise<Request> {
-	const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(token));
-	const hex = bytesToHex(new Uint8Array(buf));
+	const hex = await sha256Hex(token);
 	return new Request(`https://internal.escalas.local/sessao/v1/${hex}`, { method: 'GET' });
 }
 
