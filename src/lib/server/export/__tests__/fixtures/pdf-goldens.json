@@ -15,6 +15,14 @@
 		"sha256": "213522c42fbcb3d64006681402be5fab1b6069d3b4978f9166b3fec22a849be2",
 		"bytes": 9126
 	},
+	"expediente_com_logos": {
+		"sha256": "fd6bc58945e6c409a411b10b1dc11e1424388c66d6d5600ac992343567efb4a4",
+		"bytes": 12499
+	},
+	"gise_com_logos": {
+		"sha256": "2fd6e6085d0da40cbf0d595dbcc7e61c6ded75b36a91b9c268824cef5a1a98ad",
+		"bytes": 11053
+	},
 	"produtividade": {
 		"sha256": "791a4667404510299aef40e204eff107983de63281d6b711fe7ce69fd30c8b66",
 		"bytes": 5493

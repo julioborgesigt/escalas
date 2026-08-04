@@ -45,6 +45,21 @@ const PNG_1PX =
 const PNG_1PX_BYTES = Uint8Array.from(atob(PNG_1PX.split(',')[1]), (c) => c.charCodeAt(0));
 
 /**
+ * JPEG 1×1 baseline — os LOGOS passam por `pdf-lib.embedJpg`, que rejeita PNG.
+ *
+ * Sem isto os goldens exercitavam só o caminho de FALHA do timbre (o `catch`
+ * que devolve o PDF sem logo), e a geometria de posicionamento — que difere
+ * entre expediente e GISE — não era coberta por nada. Os dois casos
+ * `*_com_logos` abaixo existem para travá-la.
+ */
+const JPG_1PX_BYTES = Uint8Array.from(
+	atob(
+		'/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDABAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBD/wAALCAABAAEBAREA/8QAHwAAAQAAAAAAAAAAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8gISIjJCUmJygpKissLS4vMDEyMzQ1Njc4OTo7PD0+P0BBQkNERUZHSElKS0xNTk9QUVJTVFVWV1hZWltcXV5fYGFiY2RlZmdoaWprbG1ub3BxcnN0dXZ3eHl6e3x9fn+AgYKDhIWGh4iJiouMjY6PkJGSk5SVlpeYmZqbnJ2en6Ch/9oACAEBAAA/AAD/2Q=='
+	),
+	(c) => c.charCodeAt(0)
+);
+
+/**
  * Zera o identificador de arquivo (`/ID [ <…> <…> ]`) do trailer antes do
  * hash: o jsPDF o gera aleatoriamente a cada execução e ele não faz parte do
  * LAYOUT — todo o resto do PDF continua protegido byte a byte.
@@ -288,6 +303,28 @@ const geradores: Record<string, () => Promise<Uint8Array>> = {
 	plantao: async () => gerarPdfPlantao(escalaFixture('plantao'), policiaisFixture(), PNG_1PX).pdf,
 	gise: async () =>
 		(await gerarPdfGise(toGisePdfData(giseDetalhadoFixture()), PNG_1PX_BYTES, PNG_1PX_BYTES)).pdf,
+	// Os dois abaixo repetem os de cima com o timbre em JPEG, para que ele seja
+	// DESENHADO em vez de cair no catch. Expediente e GISE usam geometrias
+	// diferentes (42mm a 3mm do topo vs 45mm a 5mm) — é essa diferença que
+	// estes goldens congelam.
+	expediente_com_logos: async () =>
+		(
+			await gerarPdfExpediente(
+				escalaFixture('expediente'),
+				policiaisFixture(),
+				JPG_1PX_BYTES,
+				JPG_1PX_BYTES,
+				PNG_1PX
+			)
+		).pdf,
+	// Este é o GISE COMPLETO: além do timbre, traz `documento.rubrica`, que é o
+	// outro desenho do PDF GISE sem cobertura (`gise` acima passa
+	// `documento: null` e nem chega nele).
+	gise_com_logos: async () => {
+		const gise = giseDetalhadoFixture();
+		(gise as unknown as { documento: unknown }).documento = { rubrica: PNG_1PX };
+		return (await gerarPdfGise(toGisePdfData(gise), JPG_1PX_BYTES, JPG_1PX_BYTES)).pdf;
+	},
 	produtividade: async () =>
 		gerarRelatorioProdutividadeGisePdf({
 			gise: { data_inicio: '2026-07-04' },
