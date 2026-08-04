@@ -21,22 +21,29 @@ Roteiro de regressão manual dos fluxos de negócio. **Papel deste arquivo: exce
 - [ ] Senha incorreta → mensagem de erro (sem revelar se matrícula existe)
 - [ ] 5 tentativas falhas seguidas → bloqueio por 15 minutos (rate limiting)
 - [ ] Código 2FA expirado → mensagem informando expiração
-- [ ] Código 2FA incorreto múltiplas vezes → comportamento esperado
+- [ ] Código 2FA incorreto 5 vezes → o desafio esgota e nem o código certo passa mais `[Vitest: desafio-2fa-uso-unico.test.ts]`
+- [ ] Código 2FA correto usado DUAS vezes → só a primeira cria sessão `[Vitest: desafio-2fa-uso-unico.test.ts]`
+- [ ] Pedir código de redefinição 4× em 10 min → o 4º é recusado sem enviar e-mail `[Vitest: janela-timestamp.test.ts]`
 
-### 1.3 Primeiro Acesso
+### 1.3 Redefinição de senha
+
+- [ ] Abrir o link de redefinição duas vezes na MESMA tela e submeter as duas → só a primeira troca a senha; a segunda diz "inválido ou já utilizado" `[Vitest: token-redefinicao-uso-unico.test.ts]`
+- [ ] Link expirado → "expirou, solicite um novo", e o link continua expirado (não vira "inválido") na segunda tentativa
+
+### 1.4 Primeiro Acesso
 
 - [ ] Login com credencial temporária → redirecionar para `/alterar-senha`
 - [ ] Tentar acessar outra página sem alterar senha → redirecionado de volta
 - [ ] Alterar senha com sucesso → liberar acesso ao sistema
 
-### 1.4 Login por certificado A3 (desktop, Assinador SERPRO)
+### 1.5 Login por certificado A3 (desktop, Assinador SERPRO)
 
 - [ ] Aba **Policial** → "Entrar com Certificado Digital" → assinar o desafio no token → sessão operacional criada (sem senha e sem 2FA)
 - [ ] Aba **Administrador** → mesmo botão com módulo escolhido → sessão de admin criada se o policial do certificado tiver conta admin vinculada; redireciona para a boas-vindas do módulo
 - [ ] Certificado de policial SEM vínculo admin na aba Administrador → 403 com mensagem clara
 - [ ] Certificado revogado (OCSP) → login recusado
 
-### 1.5 Logout
+### 1.6 Logout
 
 - [ ] Clicar em logout → sessão encerrada, cookie removido
 - [ ] Tentar acessar página protegida após logout → redirecionar para `/login`

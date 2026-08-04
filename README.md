@@ -411,7 +411,7 @@ escalas/
 │   │   │   ├── termo/              # Conteúdo e hash do termo de uso vigente
 │   │   │   └── ...
 │   │   ├── db/                     # Camada de acesso ao banco (queries tipadas)
-│   │   │   ├── core.ts             # getDB() e getR2() — entry points do banco
+│   │   │   ├── core.ts             # getDB()/getR2(), paginação e timestamps SQLite
 │   │   │   ├── policiais.ts        # Queries de policiais
 │   │   │   ├── escalas.ts          # Queries de escalas
 │   │   │   ├── gise/               # Sub-módulo GISE
@@ -422,10 +422,16 @@ escalas/
 │   │   │   ├── gise.ts             # GISE e operações
 │   │   │   └── ...
 │   │   ├── auth.ts                 # Exports públicos de auth (tipos, helpers RBAC)
+│   │   ├── api-fetch.ts            # Fetch da API interna (CSRF + erro tipado) — obrigatório
+│   │   ├── assinatura-token.ts     # Fluxo preparar → assinar → finalizar com certificado
+│   │   ├── enhance-handler.ts      # Resultado de form action → toast (fonte única)
+│   │   ├── sync-estado.ts          # Poll de revalidação no cliente (par de server/*/sync-estado)
+│   │   ├── institucional.ts        # Nome oficial da corporação e dos órgãos (timbre e prosa)
 │   │   ├── serpro.ts               # Cliente WebSocket para Assinador SERPRO Desktop
 │   │   ├── csrf.ts                 # Helpers CSRF (cliente)
 │   │   ├── loading.svelte.ts       # Estado global de loading
 │   │   ├── toast.ts                # Sistema de toasts
+│   │   ├── crypto/                 # Primitivas: hash, token opaco, timing-safe, envelope AES
 │   │   ├── utils/                  # Utilidades puras (sem barrel — importe o módulo)
 │   │   │   ├── datas.ts            # Datas/calendário BR (ISO YYYY-MM-DD, fuso)
 │   │   │   ├── formato.ts          # Máscaras de entrada (CPF, telefone, NUP)
@@ -771,19 +777,19 @@ npm run test          # Executa uma vez
 npm run test:watch    # Watch mode (recomendado durante desenvolvimento)
 ```
 
-Arquivos de teste ficam em `src/` com o padrão `*.test.ts`, **sempre** em pastas `__tests__/` junto do código testado (65 arquivos, 680 testes) — convenção verificada no CI. Os principais grupos:
+Arquivos de teste ficam em `src/` com o padrão `*.test.ts`, **sempre** em pastas `__tests__/` junto do código testado (81 arquivos, 840 testes) — convenção verificada no CI. Os principais grupos:
 
 - `src/lib/__tests__/` — autenticação (PBKDF2/pepper, sessões, 2FA), CSRF, headers de segurança, utilitários
 - `src/lib/schemas/__tests__/` — schemas Zod (LGPD, formulários GISE)
 - `src/lib/gise/__tests__/` — regras GISE puras: etapas do formulário, renumeração, tipos de pergunta
-- `src/lib/crypto/__tests__/` — criptografia de campos e CPF
+- `src/lib/crypto/__tests__/` — criptografia de campos e CPF, primitivas (hash, token, timing-safe)
 - `src/lib/db/__tests__/` — camada de dados: auditoria forense, retenção LGPD, upserts de assinatura
 - `src/lib/server/__tests__/` — infraestrutura transversal: e-mail, `r2-cleanup`, `request-context`, Sentry/PII, schema × migrações
-- `src/lib/server/assinatura/__tests__/` — CAdES, OCSP, TSA, trust store ICP-Brasil, ByteRange, verificação
+- `src/lib/server/assinatura/__tests__/` — CAdES, OCSP, TSA, trust store ICP-Brasil, ByteRange, verificação, goldens dos carimbos visuais
 - `src/lib/server/auth/__tests__/` — fluxo de login, login por certificado (e revogação), webhooks
-- `src/lib/server/gise/__tests__/` — permissões GISE, termo de presença
-- `src/lib/server/export/__tests__/` — goldens de PDF
-- `src/lib/server/escalas/__tests__/` — permissões de escala
+- `src/lib/server/gise/__tests__/` — permissões GISE, termo de presença, carimbos de revalidação
+- `src/lib/server/export/__tests__/` — goldens de PDF (escalas) e cabeçalho institucional
+- `src/lib/server/escalas/__tests__/` — permissões de escala, carimbos de revalidação
 
 ### Testes E2E (Playwright)
 
