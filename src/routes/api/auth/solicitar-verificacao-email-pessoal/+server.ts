@@ -10,6 +10,7 @@
 import { json } from '@sveltejs/kit';
 import { and, gt, count, eq } from 'drizzle-orm';
 import { getDB } from '$lib/db';
+import { timestampSqliteBrasilia } from '$lib/db/core';
 import { gerarCodigo2FA, criarDesafio2FA } from '$lib/auth';
 import { enviarCodigoEmailPessoal } from '$lib/server/email';
 import { mascararEmail } from '$lib/server/auth/auth-flow';
@@ -81,7 +82,10 @@ export const POST: RequestHandler = async ({ request, platform, locals }) => {
 	// separado de `assinatura` (que cobre signing). Antes os dois compartilhavam
 	// o mesmo contador — disparar pedidos de verificação de e-mail bloqueava
 	// solicitações legítimas de código para assinatura.
-	const windowStart = new Date(Date.now() - 10 * 60 * 1000).toISOString();
+	// `created_at` guarda horário de BRASÍLIA no formato do SQLite
+	// (`datetime('now','-3 hours')`). Comparar com `toISOString()` deixava o
+	// contador sempre em zero — o limite existia e nunca disparava.
+	const windowStart = timestampSqliteBrasilia(Date.now() - 10 * 60 * 1000);
 	const [countResult] = await db
 		.select({ n: count() })
 		.from(doisFatoresTokens)

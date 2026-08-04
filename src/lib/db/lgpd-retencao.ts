@@ -30,7 +30,7 @@ import {
 	auditLog,
 	appLog
 } from '../server/schema';
-import { timestampSqlite, type Database } from './core';
+import { timestampSqliteUtc, type Database } from './core';
 import {
 	buscarConfiguracao,
 	LGPD_RETENCAO_SESSOES_DIAS,
@@ -70,7 +70,7 @@ interface ResultadoLimpeza {
 /**
  * O limite de corte, nos DOIS formatos que as colunas de data usam — e é
  * obrigatório casar o formato com o da coluna, senão o corte erra em até 24h
- * (ver `timestampSqlite` em `core.ts`).
+ * (ver `timestampSqliteUtc` em `core.ts`).
  *
  * `cutoffISO` serve às colunas gravadas pelo APP com `toISOString()`:
  * `sessoes.expires_at`, `dois_fatores_tokens.expires_at`,
@@ -86,7 +86,7 @@ function cutoffISO(dias: number): string {
 }
 
 function cutoffSqlite(dias: number): string {
-	return timestampSqlite(Date.now() - dias * 86_400_000);
+	return timestampSqliteUtc(Date.now() - dias * 86_400_000);
 }
 
 /**
