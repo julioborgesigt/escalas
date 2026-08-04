@@ -784,8 +784,14 @@ interface RodapeUniversalOptions {
 	baseLegalIdentidade?: string;
 }
 
-/** Formata um ISO como DD/MM/AAAA no fuso de Brasília (UTC-3), sem horário. */
-function formatarDataBR(iso?: string): string {
+/**
+ * Formata um ISO como DD/MM/AAAA no fuso de Brasília (UTC-3), sem horário.
+ *
+ * Nome distinto de propósito: existia outra `formatarDataBR` em
+ * `gise/termo-presenca`, com contrato incompatível (recebia `YYYY-MM-DD` puro,
+ * sem fuso). Aquela era cópia de `formatarData` e foi substituída por ela.
+ */
+function dataBrasiliaDDMMAAAA(iso?: string): string {
 	const d = iso ? new Date(iso) : new Date();
 	if (isNaN(d.getTime())) return '';
 	const br = new Date(d.getTime() - 3 * 3600 * 1000);
@@ -935,7 +941,7 @@ export async function adicionarRodapeUniversal(
 			color: cDark
 		});
 
-		const dataAss = formatarDataBR(options.signedAtISO);
+		const dataAss = dataBrasiliaDDMMAAAA(options.signedAtISO);
 		const baseLegal = options.baseLegalIdentidade ?? 'MP 2.200-2/2001 – ICP Brasil';
 		page.drawText(`Assinado em ${dataAss} – ${baseLegal}`, {
 			x: tx,

@@ -9,6 +9,7 @@ import { desc, eq, and } from 'drizzle-orm';
 import { lgpdSolicitacoes } from '../server/schema';
 import type { Database } from './core';
 import type { LgpdSolicitacao } from '../server/schema';
+import { adicionarDias } from '../utils/datas';
 
 /** Direitos do art. 18 da LGPD que o formulário oferece. */
 type TipoDireitoLgpd =
@@ -31,11 +32,17 @@ interface NovaSolicitacaoInput {
 	descricao?: string | null;
 }
 
-/** Prazo: 15 dias úteis ≈ 21 dias corridos (art. 18, §5º, LGPD). */
+/**
+ * Prazo: 15 dias úteis ≈ 21 dias corridos (art. 18, §5º, LGPD).
+ *
+ * Via `adicionarDias`, que faz a conta inteira em UTC. A versão anterior
+ * misturava as duas convenções na mesma função — `setDate` (local) para somar e
+ * `toISOString` (UTC) para sair —, que é exatamente a forma dos bugs de data já
+ * corrigidos neste projeto. Não errava porque o Worker roda em UTC; erraria em
+ * qualquer runtime com fuso.
+ */
 function calcularPrazoResposta(): string {
-	const d = new Date();
-	d.setDate(d.getDate() + 21);
-	return d.toISOString().slice(0, 10);
+	return adicionarDias(new Date().toISOString().slice(0, 10), 21);
 }
 
 /**

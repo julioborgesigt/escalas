@@ -66,11 +66,12 @@ import {
 import { isAdminGeral, isAdminSeccional, isAdminUnidade } from '$lib/auth';
 import { lotacoesAdministradas, lotacaoNoEscopo } from '$lib/server/policial-permissao';
 import { decifrarCpfDoDB } from '$lib/crypto/cpf-cripto';
+import { getNowBR } from '$lib/utils/datas';
 import type { RequestEvent } from './$types';
 
 /** Data de hoje no fuso de Brasília (UTC-3) no formato ISO YYYY-MM-DD. */
 function hojeBrasilISO(): string {
-	return new Date(Date.now() - 3 * 3_600_000).toISOString().slice(0, 10);
+	return getNowBR().toISOString().slice(0, 10);
 }
 
 const TAMANHO_MAX_PDF = 10 * 1024 * 1024; // 10 MB
