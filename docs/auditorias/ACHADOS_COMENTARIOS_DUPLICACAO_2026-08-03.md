@@ -645,7 +645,7 @@ arquivos de teste, e separar o de `sync-estado` faria o nono. Virou
 
 ### Verificação
 
-`npm run test` 831/831 em 80 arquivos (era 786/74 no início desta rodada). Cada
+`npm run test` 840/840 em 81 arquivos (era 786/74 no início desta rodada). Cada
 correção de comportamento tem um caso que **reprova a implementação antiga**,
 confirmado rodando o teste novo contra o código velho: três consumos concorrentes
 do token, três do desafio, cinco palpites paralelos e o `papel_unidade_id: 0`.
@@ -653,6 +653,74 @@ do token, três do desafio, cinco palpites paralelos e o `papel_unidade_id: 0`.
 Duas suítes que cobriam `verificarDesafio2FA` por mock do query builder quebraram
 ao trocar o `UPDATE` — prendiam-se à FORMA da consulta, não ao contrato. Foram
 reunidas num arquivo só, com banco de verdade.
+
+## 16. Revisão final — o que a própria auditoria tinha deixado passar
+
+Passe de revisão sobre o conjunto do trabalho, rodando o que ainda não havia
+sido rodado: `npm run build`, os cinco guards de CI localmente e a suíte E2E
+completa.
+
+### O E2E não estava rodando de verdade
+
+`npx playwright test` fechava com "82 passed" — e parecia verde. Não estava: o
+Playwright novo procura `chrome-headless-shell`, que não existe nesta imagem, e
+**todo spec que abre página falhava no launch**. Os 82 eram os specs de API, que
+usam o fixture `request` e não sobem browser.
+
+Apontando `PW_CHROMIUM_EXECUTABLE` para o Chromium completo, a suíte roda
+inteira: **123 passed**. Vale registrar porque o número parcial era plausível
+demais para levantar suspeita.
+
+### O bug que a revisão encontrou: três limites de taxa desligados
+
+Mesma família do 1.1, uma casa adiante. O schema tem **duas** convenções de
+fuso entre as colunas em formato SQLite, e não só uma:
+
+| default da coluna             | fuso     | tabelas                                      |
+| ----------------------------- | -------- | -------------------------------------------- |
+| `datetime('now')`             | UTC      | `audit_log`, `app_log`, `login_attempts`…    |
+| `datetime('now', '-3 hours')` | Brasília | `dois_fatores_tokens`, `reset_senha_tokens`… |
+
+Três endpoints comparavam `created_at` — Brasília — com um `toISOString()`. Como
+`' '` (0x20) vem antes de `'T'` (0x54), o valor gravado **sempre** ordena antes
+do corte no mesmo dia: o contador dava zero e o limite nunca disparava.
+
+- `/api/auth/confirmar-redefinicao` — links de redefinição por usuário
+- `/api/auth/solicitar-redefinicao` — códigos de reset por usuário
+- `/api/auth/solicitar-verificacao-email-pessoal` — códigos de verificação
+
+Os três defendem a caixa de entrada de um servidor e o código de 6 dígitos
+contra força bruta. Não falhavam: não contavam. E o bug era intermitente —
+virando o dia, a comparação volta a "funcionar".
+
+`timestampSqlite` virou `timestampSqliteUtc` e ganhou o par
+`timestampSqliteBrasilia`. Renomear os call sites existentes foi de propósito:
+escolher o fuso passa a ser decisão visível, porque errá-lo custa três horas em
+silêncio. Oito casos novos cobrem os DOIS jeitos de errar — formato e fuso.
+
+### Documentação viva defasada
+
+O README não listava `crypto/` nem quatro módulos que o próprio `CLAUDE.md`
+manda usar (`api-fetch`, `assinatura-token`, `enhance-handler`, `sync-estado`) —
+exatamente o que um recém-chegado precisa achar primeiro, que é o objetivo
+declarado desta auditoria. Contagem de testes e grupos de `__tests__/` também
+estavam velhos. TESTING ganhou o que mudou de comportamento.
+
+### O que foi conferido e estava certo
+
+- **nonce de webhook** — já era `INSERT` + UNIQUE, atômico, com o comentário
+  explicando por que não há `SELECT` antes;
+- **filtros de data da auditoria** (`de`/`ate`) — `"YYYY-MM-DD"` na abertura e
+  `"… 23:59:59"` no fechamento, ambos no formato da coluna;
+- **`.set()` parciais** de `escalas-crud`, `equipes` e `seccionais` — o
+  `undefined` que sobrevive ali é o contrato documentado, não o bug 1.3;
+- **`expires_at` do token de redefinição** — tem escritor único, sempre ISO, o
+  que torna seguro o `WHERE expires_at > ?` do consumo atômico.
+
+### Estado final
+
+`npm run test` 840/840 em 81 arquivos · E2E 123/123 · `npm run build` ok ·
+lint, check, prettier, knip limpos · os cinco guards de CI passam localmente.
 
 ## Próximo domínio sugerido
 
