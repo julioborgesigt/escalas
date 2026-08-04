@@ -12,7 +12,7 @@
 import { desc, eq, and, gte, lte, sql } from 'drizzle-orm';
 import { appLog } from '../server/schema';
 import type { AppLog } from '../server/schema';
-import type { Database } from './core';
+import { timestampSqlite, type Database } from './core';
 
 type AppLogLevel = 'warn' | 'error';
 
@@ -121,7 +121,7 @@ export interface ResumoAppLogs {
 
 /** KPIs do cabeçalho do console de logs técnicos. */
 export async function resumoAppLogs(db: Database): Promise<ResumoAppLogs> {
-	const h24 = new Date(Date.now() - 24 * 3_600_000).toISOString().slice(0, 19).replace('T', ' ');
+	const h24 = timestampSqlite(Date.now() - 24 * 3_600_000);
 
 	const [tot, err, avi, ult] = await Promise.all([
 		db.select({ n: sql<number>`count(*)` }).from(appLog),

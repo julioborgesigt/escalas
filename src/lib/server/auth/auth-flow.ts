@@ -456,13 +456,6 @@ export async function tentarLogin({
 				};
 			}
 
-			alertarLoginBootstrap(
-				'[security] Login via credenciais de bootstrap (ADMIN_GERAL). ' +
-					'Configure e-mail pessoal verificado e remova ADMIN_GERAL_LOGIN/SENHA do ambiente ' +
-					'para encerrar este caminho sem 2FA.',
-				ip
-			);
-
 			if (!(await verificarSenhaBootstrap(senha, envSenha, pepper))) {
 				await recordAttempt(db, ip, false, identHash);
 				await registrarAuditComContexto(db, {
@@ -530,6 +523,17 @@ export async function tentarLogin({
 				};
 			}
 
+			// ORDEM OBRIGATÓRIA, igual à do SUPER_ADMIN acima: o alerta sai só DEPOIS
+			// da senha conferida e do desvio para 2FA. Antes ele saía logo na entrada
+			// do bloco, então bastava acertar o LOGIN — nome previsível — para
+			// disparar à vontade um alerta dizendo que a credencial root tinha sido
+			// usada. Alerta que grita sem motivo é alerta que o operador desliga.
+			alertarLoginBootstrap(
+				'[security] Login via credenciais de bootstrap (ADMIN_GERAL). ' +
+					'Configure e-mail pessoal verificado e remova ADMIN_GERAL_LOGIN/SENHA do ambiente ' +
+					'para encerrar este caminho sem 2FA.',
+				ip
+			);
 			await recordAttempt(db, ip, true, identHash);
 			// Rastreabilidade forense (A7): registra o uso do bootstrap ADMIN_GERAL
 			// (sem 2FA) no audit log consultável. try/catch — não pode quebrar o login.

@@ -52,7 +52,8 @@ import {
 	agruparPlantao,
 	COLS_PLANTAO,
 	rowPlantao,
-	formatarMesAno
+	formatarMesAno,
+	cabecalhoDelegacia
 } from './shared';
 
 // Type augmentation for jspdf-autotable's lastAutoTable property
@@ -482,7 +483,7 @@ export async function gerarPdfExpediente(
 			],
 			[
 				{
-					content: `DELEGACIA: ${escala.lotacao.toUpperCase()}`,
+					content: cabecalhoDelegacia(escala),
 					colSpan: NCOLS,
 					styles: { ...headMeta, fontSize: 8, cellPadding: 1.5 }
 				}
@@ -656,7 +657,7 @@ export function gerarPdfPlantao(
 	);
 	y += 5;
 	doc.setFont('helvetica', 'bold');
-	doc.text(`DELEGACIA: ${escala.lotacao.toUpperCase()}`, margin, y);
+	doc.text(cabecalhoDelegacia(escala), margin, y);
 	y += 5;
 	doc.text(`MÊS/ANO: ${formatarMesAno(escala.data_inicio)}`, margin, y);
 	y += 8;

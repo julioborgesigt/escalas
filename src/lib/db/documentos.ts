@@ -77,18 +77,23 @@ export async function salvarDocumentoEscala(
 
 	// Mesmos campos no INSERT e no UPDATE do upsert — montados uma vez para não
 	// divergirem. `escala_id` fica de fora: é o alvo do conflito.
+	//
+	// Campo opcional vira `null` EXPLÍCITO, nunca `undefined`: o drizzle omite
+	// chave `undefined` do `.set()`, e aí a coluna da assinatura ANTERIOR
+	// sobrevive à reassinatura (certificado, selfie e GPS de outra assinatura
+	// colados no registro da nova).
 	const dados = {
 		r2_key: r2Key,
 		assinante_nome: assinanteNome,
 		assinante_cpf: cpfArmazenado,
-		verificacao_hash: verificacaoHash,
-		selfie_key: selfieKey,
-		arquivo_hash: arquivoHash,
-		ip_address: anonimizarIp(ipAddress) ?? undefined,
-		user_agent: userAgent ? parseUserAgent(userAgent) : undefined,
-		user_agent_raw: userAgent ? userAgent.slice(0, 1024) : undefined,
-		latitude: reduzirPrecisaoGps(latitude),
-		longitude: reduzirPrecisaoGps(longitude),
+		verificacao_hash: verificacaoHash ?? null,
+		selfie_key: selfieKey ?? null,
+		arquivo_hash: arquivoHash ?? null,
+		ip_address: anonimizarIp(ipAddress) ?? null,
+		user_agent: userAgent ? parseUserAgent(userAgent) : null,
+		user_agent_raw: userAgent ? userAgent.slice(0, 1024) : null,
+		latitude: reduzirPrecisaoGps(latitude) ?? null,
+		longitude: reduzirPrecisaoGps(longitude) ?? null,
 		assinante_email: assinanteEmail ?? null,
 		tipo_carimbo_tempo: tipoCarimboTempo || 'servidor',
 		cert_issuer: meta.cert_issuer ?? null,

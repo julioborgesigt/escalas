@@ -19,7 +19,7 @@
 import { desc, asc, eq, and, gte, lte, isNotNull, sql } from 'drizzle-orm';
 import { ehViolacaoUnique, mensagemComCausas } from '$lib/server/db-errors';
 import { auditLog } from '../server/schema';
-import type { Database } from './core';
+import { timestampSqlite, type Database } from './core';
 import type { AuditLog } from '../server/schema';
 import { logger } from '../server/logger';
 import { getRequestCtx } from '../server/request-context';
@@ -486,9 +486,7 @@ export function anonimizarIp(ip: string | null | undefined): string | null {
 // ---- Gravação ---------------------------------------------------------------
 
 /** Timestamp UTC no mesmo formato do default `datetime('now')` do SQLite. */
-function agoraUtc(): string {
-	return new Date().toISOString().slice(0, 19).replace('T', ' ');
-}
+const agoraUtc = () => timestampSqlite();
 
 function comoJson(v: Record<string, unknown> | null | undefined): string | null {
 	if (v == null) return null;
@@ -857,9 +855,8 @@ export interface ResumoAuditoria {
 /** Indicadores para o cabeçalho do console de auditoria (KPIs). */
 export async function resumoAuditoria(db: Database): Promise<ResumoAuditoria> {
 	const agora = Date.now();
-	const fmt = (ms: number) => new Date(ms).toISOString().slice(0, 19).replace('T', ' ');
-	const h24 = fmt(agora - 24 * 3_600_000);
-	const d7 = fmt(agora - 7 * 86_400_000);
+	const h24 = timestampSqlite(agora - 24 * 3_600_000);
+	const d7 = timestampSqlite(agora - 7 * 86_400_000);
 
 	const [tot, fl, cr, ult] = await Promise.all([
 		db.select({ n: sql<number>`count(*)` }).from(auditLog),

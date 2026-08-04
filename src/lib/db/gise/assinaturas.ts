@@ -130,20 +130,40 @@ export async function salvarAssinaturaRelatorioGise(
 
 	// A trinca do conflito fica de fora do payload: identifica a linha, não é
 	// conteúdo a reescrever.
-	const { gise_id, seccional_id, tipo, ...resto } = data;
-	// Mesmos campos no INSERT e no UPDATE — montados uma vez para não divergirem
-	// (a lista tem 24 colunas e cresce a cada campo novo de CAdES).
+	const { gise_id, seccional_id, tipo } = data;
+	// Mesmos campos no INSERT e no UPDATE — montados uma vez para não divergirem.
+	//
+	// Todo campo opcional vira `null` EXPLÍCITO, e a lista é escrita por extenso
+	// justamente por isso: com `...resto`, um campo que o chamador não envia não
+	// existe como chave, o drizzle o omite do `.set()` e o valor da assinatura
+	// ANTERIOR sobrevive à reassinatura. Era assim que um relatório reassinado
+	// como `simples` seguia carregando o certificado ICP-Brasil, o carimbo de
+	// tempo e a selfie da assinatura qualificada que ele substituiu.
 	const dados = {
-		...resto,
+		assinante_nome: data.assinante_nome,
+		tipo_assinatura: data.tipo_assinatura,
 		assinante_id: data.assinante_id ?? null,
 		assinante_cpf: cpfArmazenado,
 		assinante_email: data.assinante_email ?? null,
-		ip_address: ipAnonimizado,
-		user_agent: uaResumido,
-		user_agent_raw: uaRaw,
-		latitude: lat2,
-		longitude: lng2,
-		tipo_carimbo_tempo: data.tipo_carimbo_tempo || 'servidor'
+		rubrica: data.rubrica ?? null,
+		verification_hash: data.verification_hash ?? null,
+		selfie_key: data.selfie_key ?? null,
+		arquivo_hash: data.arquivo_hash ?? null,
+		r2_key: data.r2_key ?? null,
+		ip_address: ipAnonimizado ?? null,
+		user_agent: uaResumido ?? null,
+		user_agent_raw: uaRaw ?? null,
+		latitude: lat2 ?? null,
+		longitude: lng2 ?? null,
+		tipo_carimbo_tempo: data.tipo_carimbo_tempo || 'servidor',
+		cert_issuer: data.cert_issuer ?? null,
+		cert_serial: data.cert_serial ?? null,
+		cert_valido_de: data.cert_valido_de ?? null,
+		cert_valido_ate: data.cert_valido_ate ?? null,
+		cms_sha256: data.cms_sha256 ?? null,
+		ocsp_response_b64: data.ocsp_response_b64 ?? null,
+		ocsp_consultado_em: data.ocsp_consultado_em ?? null,
+		tst_token_b64: data.tst_token_b64 ?? null
 	};
 
 	return db

@@ -190,6 +190,22 @@ export function formatarMesAno(dateStr: string): string {
 	return `${MESES_PT[Number(month) - 1].toUpperCase()}/${year}`;
 }
 
+/**
+ * Cabeçalho "DELEGACIA: <unidade>" dos três formatos.
+ *
+ * O campo é `lotacao` (o NOME da unidade — "1ª DELEGACIA DE JUAZEIRO"), nunca
+ * `cidade` (o município — "JUAZEIRO DO NORTE"): são colunas distintas de
+ * `escalas`, e o rótulo pede a delegacia.
+ *
+ * Existe como função porque as duas versões já divergiram: o plantão em DOCX e
+ * em XLSX imprimia `cidade` enquanto o PDF imprimia `lotacao`, e o servidor que
+ * recebia a planilha lia o nome do município no lugar do da sua delegacia.
+ * Nenhum teste pegava — só o PDF tem golden.
+ */
+export function cabecalhoDelegacia(escala: Pick<Escala, 'lotacao'>): string {
+	return `DELEGACIA: ${escala.lotacao.toUpperCase()}`;
+}
+
 export const COLS_PLANTAO = [
 	'NOME',
 	'MATRÍCULA',

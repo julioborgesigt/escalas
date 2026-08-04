@@ -30,7 +30,7 @@ import {
 	auditLog,
 	appLog
 } from '../server/schema';
-import type { Database } from './core';
+import { timestampSqlite, type Database } from './core';
 import {
 	buscarConfiguracao,
 	LGPD_RETENCAO_SESSOES_DIAS,
@@ -67,8 +67,26 @@ interface ResultadoLimpeza {
 	appLog: number;
 }
 
+/**
+ * O limite de corte, nos DOIS formatos que as colunas de data usam — e é
+ * obrigatório casar o formato com o da coluna, senão o corte erra em até 24h
+ * (ver `timestampSqlite` em `core.ts`).
+ *
+ * `cutoffISO` serve às colunas gravadas pelo APP com `toISOString()`:
+ * `sessoes.expires_at`, `dois_fatores_tokens.expires_at`,
+ * `reset_senha_tokens.expires_at`.
+ *
+ * `cutoffSqlite` serve às colunas com default `datetime('now')`:
+ * `login_attempts.attempted_at`, `recovery_attempts.attempted_at`,
+ * `webhook_nonces.received_at`, `audit_log.created_at`, `app_log.created_at`.
+ * Ambas as convenções são UTC; a diferença é só de grafia.
+ */
 function cutoffISO(dias: number): string {
 	return new Date(Date.now() - dias * 86_400_000).toISOString();
+}
+
+function cutoffSqlite(dias: number): string {
+	return timestampSqlite(Date.now() - dias * 86_400_000);
 }
 
 /**
@@ -140,7 +158,7 @@ export async function executarLimpezaRetencao(
 			db.delete(sessoes).where(lt(sessoes.expires_at, cutoffISO(config.sessoesDias))),
 			db
 				.delete(loginAttempts)
-				.where(lt(loginAttempts.attempted_at, cutoffISO(config.loginAttemptsDias))),
+				.where(lt(loginAttempts.attempted_at, cutoffSqlite(config.loginAttemptsDias))),
 			db
 				.delete(doisFatoresTokens)
 				.where(lt(doisFatoresTokens.expires_at, cutoffISO(config.doisFatoresDias))),
@@ -149,12 +167,12 @@ export async function executarLimpezaRetencao(
 				.where(lt(resetSenhaTokens.expires_at, cutoffISO(config.resetTokensDias))),
 			db
 				.delete(recoveryAttempts)
-				.where(lt(recoveryAttempts.attempted_at, cutoffISO(config.recoveryAttemptsDias))),
+				.where(lt(recoveryAttempts.attempted_at, cutoffSqlite(config.recoveryAttemptsDias))),
 			db
 				.delete(webhookNonces)
-				.where(lt(webhookNonces.received_at, cutoffISO(config.webhookNoncesDias))),
-			db.delete(auditLog).where(lt(auditLog.created_at, cutoffISO(auditLogDias))),
-			db.delete(appLog).where(lt(appLog.created_at, cutoffISO(config.appLogDias)))
+				.where(lt(webhookNonces.received_at, cutoffSqlite(config.webhookNoncesDias))),
+			db.delete(auditLog).where(lt(auditLog.created_at, cutoffSqlite(auditLogDias))),
+			db.delete(appLog).where(lt(appLog.created_at, cutoffSqlite(config.appLogDias)))
 		]);
 
 	return {

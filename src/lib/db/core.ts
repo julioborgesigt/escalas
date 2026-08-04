@@ -46,6 +46,26 @@ export async function batchNonEmpty(db: Database, stmts: BatchItem<'sqlite'>[]):
 }
 
 /**
+ * Timestamp UTC no formato que as colunas de data TEXT deste projeto guardam:
+ * `"YYYY-MM-DD HH:MM:SS"` — o mesmo que o default `datetime('now')` do SQLite
+ * produz. Sem argumento, é "agora".
+ *
+ * Fonte ÚNICA desse formato, e a razão é um bug real: comparar uma dessas
+ * colunas com um `toISOString()` (`"...T...Z"`) não dá erro nenhum, porque em
+ * SQLite a comparação de TEXT é lexicográfica — e como `' '` (0x20) vem antes
+ * de `'T'` (0x54), toda linha do MESMO DIA do limite parece anterior a ele,
+ * qualquer que seja a hora. Era assim que a expurga de retenção apagava até 24h
+ * a mais de dado pessoal a cada execução, sem falhar teste nenhum.
+ *
+ * As colunas gravadas pelo APP com `toISOString()` (`sessoes.expires_at` e os
+ * `expires_at` dos tokens) são a outra convenção e NÃO usam este formato —
+ * misturar as duas é justamente o que se quer evitar.
+ */
+export function timestampSqlite(ms: number = Date.now()): string {
+	return new Date(ms).toISOString().slice(0, 19).replace('T', ' ');
+}
+
+/**
  * Retorna o binding do bucket R2 para armazenamento de documentos.
  */
 export function getR2(platform: PlatformLike | undefined): _R2Bucket {

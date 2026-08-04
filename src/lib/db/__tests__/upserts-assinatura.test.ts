@@ -113,6 +113,80 @@ describe('salvarAssinaturaRelatorioGise (upsert)', () => {
 	});
 });
 
+/**
+ * Reassinar tem que APAGAR o que a assinatura anterior deixou.
+ *
+ * O drizzle omite do `.set()` toda chave cujo valor é `undefined` — a coluna
+ * simplesmente não entra no UPDATE e o valor ANTERIOR sobrevive. Numa
+ * reassinatura isso é grave: um relatório assinado com certificado ICP-Brasil e
+ * depois reassinado como `simples` (certificado vencido, por exemplo) ficava com
+ * `tipo_assinatura = 'simples'` mas continuava carregando `cert_issuer`,
+ * `cms_sha256`, `tst_token_b64` — e a selfie e o GPS — da assinatura que ele
+ * substituiu. Prova de uma assinatura colada num registro de outra.
+ *
+ * Por isso todo campo opcional precisa chegar ao `set` como `null` EXPLÍCITO.
+ * O teste de "INSERT igual a UPDATE" acima não pega isso: as duas listas vêm do
+ * mesmo objeto, então concordam justamente na chave que falta nas duas.
+ */
+const LIMPAVEIS_COMUNS = [
+	'assinante_email',
+	'selfie_key',
+	'arquivo_hash',
+	'ip_address',
+	'user_agent',
+	'user_agent_raw',
+	'latitude',
+	'longitude',
+	'cert_issuer',
+	'cert_serial',
+	'cert_valido_de',
+	'cert_valido_ate',
+	'cms_sha256',
+	'ocsp_response_b64',
+	'ocsp_consultado_em',
+	'tst_token_b64'
+];
+
+/** Toda coluna listada tem de estar presente no UPDATE, valendo `null`. */
+function esperaLimpaveis(set: Record<string, unknown> | undefined, colunas: string[]) {
+	for (const c of colunas) {
+		expect(set, `coluna ${c} ausente do UPDATE — valor anterior sobreviveria`).toHaveProperty(c);
+		expect(set?.[c], `coluna ${c} deveria ser null`).toBeNull();
+	}
+}
+
+describe('reassinatura limpa o que a assinatura anterior deixou', () => {
+	it('salvarAssinaturaRelatorioGise: downgrade para `simples` zera CAdES, selfie e GPS', async () => {
+		const { db, capturado } = dbEspiao();
+		// Exatamente o payload do endpoint de assinatura simples: sem nenhum campo
+		// CAdES, sem selfie, sem GPS.
+		await salvarAssinaturaRelatorioGise(db, {
+			gise_id: 3,
+			seccional_id: 9,
+			tipo: 'extraordinario',
+			assinante_nome: 'BELTRANA',
+			tipo_assinatura: 'simples'
+		});
+
+		esperaLimpaveis(capturado.set, [...LIMPAVEIS_COMUNS, 'rubrica', 'verification_hash', 'r2_key']);
+		expect(capturado.set?.tipo_assinatura).toBe('simples');
+	});
+
+	it('salvarGiseDocumento: reassinatura sem certificado zera CAdES, selfie e GPS', async () => {
+		const { db, capturado } = dbEspiao();
+		await salvarGiseDocumento(db, 7, 'gise/7/escala.pdf', 42, 'FULANO', '12345678901', 'hash-v');
+
+		esperaLimpaveis(capturado.set, [...LIMPAVEIS_COMUNS, 'rubrica']);
+	});
+
+	it('salvarDocumentoEscala: idem para a escala regular', async () => {
+		const { db, capturado } = dbEspiao();
+		await salvarDocumentoEscala(db, 5, 'escalas/5/plantao.pdf', 'CICRANO');
+
+		esperaLimpaveis(capturado.set, [...LIMPAVEIS_COMUNS, 'verificacao_hash']);
+	});
+});
+
 describe('salvarDocumentoEscala (upsert)', () => {
 	it('grava os mesmos campos no INSERT e no UPDATE', async () => {
 		const { db, capturado } = dbEspiao();

@@ -1,6 +1,9 @@
 # Achados — comentários, duplicação e compreensibilidade (03/ago/2026)
 
-**Status:** diagnóstico concluído para o escopo abaixo. As correções de comentário/docstring de baixíssimo risco (zero mudança de comportamento) foram aplicadas no mesmo commit — ver seções 2 e 4, e o diff em `d533633`. Bugs de comportamento (seção 1) e duplicações (seção 3) **não foram tocados**, aguardam teste de regressão e decisão.
+**Status:** diagnóstico concluído para o escopo abaixo, e **todos os bugs ativos da seção 1
+corrigidos** (ver §9), assim como os achados de duplicação 3.23/3.24 (§8) e as correções de
+comentário/docstring (§2 e §4, commit `d533633`). Seguem abertas as duplicações restantes da
+seção 3 — dívida de manutenção, sem bug conhecido.
 **Executor:** 6 auditorias paralelas (agentes) + verificações diretas do orquestrador.
 **Referência de método e taxonomia:** [`PLANO_REVISAO_COMPREENSIBILIDADE_2026-08-02.md`](./PLANO_REVISAO_COMPREENSIBILIDADE_2026-08-02.md) (lotes 1, 2, 3, 7 — parcialmente combinados/reorganizados por domínio nesta execução) e [`PLANO_AUDITORIA_FLUXOS_INTEGRIDADE_2026-08-02.md`](./PLANO_AUDITORIA_FLUXOS_INTEGRIDADE_2026-08-02.md) (achados FLW-\* citados por referência, não reinvestigados).
 
@@ -256,6 +259,88 @@ justamente essa distinção entre `error` (rede → convite a repetir) e `failur
 `npm run test` 746/746 verde (13 testes novos). `fallow dupes` com a config versionada:
 **158 → 135 instâncias** de duplicação, com os dois grupos atacados desaparecendo por
 completo do relatório.
+
+## 9. Correção aplicada — bugs ativos da seção 1 (+ 2.3)
+
+Todos com teste de regressão escrito ANTES da correção, e confirmado falhando contra o código
+antigo — nenhum foi "corrigido no escuro". Nenhum golden de PDF ou e-mail foi regravado.
+
+### 1.1 — retenção LGPD apagava até 24h a mais (P0)
+
+`cutoffISO()` era usado para as oito tabelas, mas cinco delas (`login_attempts`,
+`recovery_attempts`, `webhook_nonces`, `audit_log`, `app_log`) guardam data no formato
+`datetime('now')` do SQLite (`"2026-07-02 12:00:00"`), não em ISO. Como a comparação de TEXT
+em SQLite é lexicográfica e `' '` (0x20) vem antes de `'T'` (0x54), **toda linha do dia do
+corte era tratada como anterior a ele, qualquer que fosse a hora**.
+
+Agora há dois cortes explícitos, `cutoffISO` e `cutoffSqlite`, com a lista de quais tabelas
+usam qual documentada no próprio ponto. A formatação virou `timestampSqlite()` em
+`$lib/db/core.ts` — **fonte única**, que também absorveu as três reimplementações do achado
+3.10 (`audit.ts` ×2, `app-logs.ts`). Era justamente a peça faltante: o formato existia
+copiado em três lugares e em nenhum deles disponível para quem escreveu o corte.
+
+**Teste:** `lgpd-retencao-expurgo.test.ts` (8 casos, SQLite real, tempo congelado). Cada
+tabela tem um caso "no dia do corte, porém depois dele" — o único que distingue o corte certo
+do errado. As três tabelas em formato ISO entram como controle, provando que não houve
+regressão nelas.
+
+### 1.3 — reassinatura mantinha metadado da assinatura anterior (P0/P1)
+
+O drizzle omite do `.set()` toda chave `undefined`, então a coluna simplesmente não entrava no
+UPDATE e o valor anterior sobrevivia. Um relatório assinado com certificado ICP-Brasil e
+depois reassinado como `simples` ficava com `tipo_assinatura = 'simples'` **carregando
+`cert_issuer`, `cms_sha256`, `tst_token_b64` — e a selfie e o GPS — da assinatura que ele
+substituiu**: prova de uma assinatura colada no registro de outra.
+
+O defeito estava nos **três** upserts de assinatura, não só no apontado pela auditoria:
+`gise/assinaturas.ts` (campos CAdES, rubrica, hash, r2_key e PII), `gise/documentos.ts` e
+`documentos.ts` (PII: selfie, IP, user-agent, GPS). Corrigir só um seria repetir o padrão que
+o `CLAUDE.md` cataloga. Todos passaram a normalizar `undefined → null` explicitamente.
+
+**Teste:** 3 casos novos em `upserts-assinatura.test.ts`. O teste que já existia ali não pegava
+o bug — ele compara INSERT com UPDATE, e as duas listas vêm do mesmo objeto, então concordavam
+justamente na chave que faltava nas duas.
+
+### 1.4 — DOCX/XLSX do plantão mostravam o município no lugar da delegacia (P1)
+
+Decisão do operador (03/ago): o rótulo deve trazer o **nome da unidade** (`lotacao`), alinhando
+DOCX e XLSX ao PDF — que já estava correto e portanto **não mudou** (goldens intactos).
+
+Em vez de corrigir os dois pontos, o rótulo virou `cabecalhoDelegacia()` em `export/shared.ts`,
+que é o módulo cujo propósito declarado é garantir que os três formatos descrevam a mesma
+escala. Os seis pontos (PDF, DOCX e XLSX × plantão e expediente) passam por ele. Nos dois do
+PDF a troca é refactor puro — os 7 goldens continuam passando byte a byte, o que prova isso.
+
+**Teste:** `export/__tests__/cabecalho-delegacia.test.ts`. O XLSX é gerado de verdade e relido
+com `exceljs`, não inspecionado por leitura de código. A fixture usa uma unidade cujo nome
+CONTÉM o município ("1ª Delegacia de Juazeiro do Norte" / "Juazeiro do Norte") — sem isso, um
+teste de `toContain` passaria por engano.
+
+### 2.3 — alerta de credencial root disparava com senha errada (P1)
+
+No bloco `ADMIN_GERAL`, `alertarLoginBootstrap` (log + Sentry) era chamado ANTES de
+`verificarSenhaBootstrap`; no bloco irmão `SUPER_ADMIN`, depois. Bastava acertar o LOGIN — nome
+previsível — para disparar à vontade um alerta de segurança dizendo que a conta root tinha sido
+usada. Alerta que grita sem motivo é alerta que o operador aprende a desligar.
+
+O alerta foi movido para depois da senha conferida **e** do desvio para 2FA, espelhando
+exatamente o `SUPER_ADMIN`. Isso corrige de quebra um segundo falso positivo: com
+`ADMIN_GERAL_EMAIL` configurado o alerta disparava mesmo dizendo "para encerrar este caminho
+sem 2FA", quando o caminho já exigia 2FA.
+
+**Teste:** 3 casos em `auth-flow.test.ts` (senha errada não alerta; senha certa alerta uma vez;
+com 2FA configurado não alerta).
+
+### Verificação
+
+`npm run lint`, `npm run check`, `npx prettier --check src/` e `npm run knip` limpos;
+`npm run test` **764/764 verde** (31 testes novos no total desta sessão). Os 7 goldens de PDF e
+os goldens de e-mail passam sem regravação.
+
+### O que segue aberto da seção 1
+
+Nada. Os quatro itens da seção 1 estão corrigidos. A seção 3 (duplicações) mantém os itens não
+citados em §8/§9 — dívida de manutenção sem bug conhecido, boa carga para um lote dedicado.
 
 ## Próximo domínio sugerido
 

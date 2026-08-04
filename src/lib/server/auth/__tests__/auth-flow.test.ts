@@ -10,7 +10,7 @@
  * inserts (tentativa / sessão / desafio 2FA). O `fakeDb` responde por tabela;
  * o envio de e-mail (fire-and-forget) é mockado para não tocar a rede.
  */
-import { describe, it, expect, vi, beforeAll } from 'vitest';
+import { describe, it, expect, vi, beforeAll, beforeEach } from 'vitest';
 import { administradores, policiais } from '$lib/server/schema';
 import { hashSenha } from '$lib/auth';
 import type { Database } from '$lib/db';
@@ -20,6 +20,13 @@ vi.mock('$lib/server/email', async (importOriginal) => {
 	const actual = await importOriginal<typeof import('$lib/server/email')>();
 	return { ...actual, enviarCodigo2FA: vi.fn().mockResolvedValue(undefined) };
 });
+
+// O alerta de credencial root vai para o Sentry; capturamos para checar QUANDO
+// ele dispara (ver o describe de bootstrap no fim do arquivo).
+const captureMessage = vi.fn();
+vi.mock('@sentry/cloudflare', () => ({
+	captureMessage: (...a: unknown[]) => captureMessage(...a)
+}));
 
 import { tentarLogin } from '../auth-flow';
 
@@ -222,5 +229,70 @@ describe('tentarLogin — credenciais (sanity, sem mascarar o A1)', () => {
 		});
 		expect(r.sucesso).toBe(false);
 		expect(r.statusCode).toBe(401);
+	});
+});
+
+/**
+ * O alerta de "credencial de bootstrap usada" (log + Sentry) só pode disparar
+ * quando alguém REALMENTE entrou por esse caminho.
+ *
+ * Os dois blocos de bootstrap — SUPER_ADMIN e ADMIN_GERAL — são cópias da mesma
+ * lógica, e divergiram: no ADMIN_GERAL o alerta saía ANTES da conferência da
+ * senha. Bastava adivinhar o LOGIN (que costuma ser previsível) para disparar à
+ * vontade um alerta de segurança dizendo que a conta root tinha sido usada.
+ * Alerta que grita sem motivo é alerta que o operador aprende a ignorar — e o
+ * dia em que a credencial for mesmo usada, ninguém olha.
+ */
+describe('tentarLogin — alerta de credencial de bootstrap', () => {
+	const envBootstrap = {
+		env: { ADMIN_GERAL_LOGIN: 'root', ADMIN_GERAL_SENHA: SENHA }
+	} as unknown as App.Platform;
+
+	beforeEach(() => captureMessage.mockReset());
+
+	it('senha ERRADA não dispara o alerta (só o login certo não basta)', async () => {
+		const db = fakeDb({});
+		const r = await tentarLogin({
+			db,
+			ip: '1.2.3.4',
+			matricula: 'root',
+			senha: 'SenhaErrada9',
+			tipo: 'admin',
+			platform: envBootstrap
+		});
+		expect(r.sucesso).toBe(false);
+		expect(r.statusCode).toBe(401);
+		expect(captureMessage).not.toHaveBeenCalled();
+	});
+
+	it('senha CERTA dispara o alerta uma vez', async () => {
+		const db = fakeDb({ admin: baseAdmin({ login: 'root', email: null }) });
+		const r = await tentarLogin({
+			db,
+			ip: '1.2.3.4',
+			matricula: 'root',
+			senha: SENHA,
+			tipo: 'admin',
+			platform: envBootstrap
+		});
+		expect(r.sucesso).toBe(true);
+		expect(captureMessage).toHaveBeenCalledTimes(1);
+		expect(String(captureMessage.mock.calls[0][0])).toContain('ADMIN_GERAL');
+	});
+
+	it('com 2FA configurado o login para no 2º fator e não alerta "sem 2FA"', async () => {
+		const db = fakeDb({ admin: baseAdmin({ login: 'root', email: null }) });
+		const r = await tentarLogin({
+			db,
+			ip: '1.2.3.4',
+			matricula: 'root',
+			senha: SENHA,
+			tipo: 'admin',
+			platform: {
+				env: { ...envBootstrap.env, ADMIN_GERAL_EMAIL: 'root@pc.ce.gov.br' }
+			} as unknown as App.Platform
+		});
+		expect('pendente2FA' in r).toBe(true);
+		expect(captureMessage).not.toHaveBeenCalled();
 	});
 });
