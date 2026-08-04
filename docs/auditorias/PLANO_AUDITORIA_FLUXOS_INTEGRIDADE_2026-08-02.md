@@ -38,16 +38,16 @@ Qualquer mudança será consequência de um achado confirmado.
 
 ### 2.1 Fluxos obrigatórios
 
-| ID | Fluxo | Risco principal |
-| --- | --- | --- |
-| FLX-01 | autenticação, sessão, 2FA, certificado, troca/redefinição de senha | acesso indevido ou sessão inválida |
-| FLX-02 | criação, edição, finalização, exclusão e assinatura de escala | estado ilegal, documento inválido |
-| FLX-03 | solicitação, preparação, assinatura e finalização de documento | assinatura fora de ordem ou perda de evidência |
-| FLX-04 | GISE: criação, equipes, seccionais, presença, relatórios e fechamento | status divergente e dados incompletos |
-| FLX-05 | cadastro, lotação, papéis administrativos e desativação de policial/unidade | RBAC e referência quebrada |
-| FLX-06 | exportação, validação pública, download e recebimento de documento | vazamento, autorização ou artefato inconsistente |
-| FLX-07 | webhooks e sincronizações externas | replay, parcialidade e origem não confiável |
-| FLX-08 | auditoria, LGPD, retenção e R2 | evidência ausente, retenção incorreta ou órfão |
+| ID     | Fluxo                                                                       | Risco principal                                  |
+| ------ | --------------------------------------------------------------------------- | ------------------------------------------------ |
+| FLX-01 | autenticação, sessão, 2FA, certificado, troca/redefinição de senha          | acesso indevido ou sessão inválida               |
+| FLX-02 | criação, edição, finalização, exclusão e assinatura de escala               | estado ilegal, documento inválido                |
+| FLX-03 | solicitação, preparação, assinatura e finalização de documento              | assinatura fora de ordem ou perda de evidência   |
+| FLX-04 | GISE: criação, equipes, seccionais, presença, relatórios e fechamento       | status divergente e dados incompletos            |
+| FLX-05 | cadastro, lotação, papéis administrativos e desativação de policial/unidade | RBAC e referência quebrada                       |
+| FLX-06 | exportação, validação pública, download e recebimento de documento          | vazamento, autorização ou artefato inconsistente |
+| FLX-07 | webhooks e sincronizações externas                                          | replay, parcialidade e origem não confiável      |
+| FLX-08 | auditoria, LGPD, retenção e R2                                              | evidência ausente, retenção incorreta ou órfão   |
 
 ### 2.2 Código prioritário
 
@@ -121,19 +121,22 @@ máquina de estados a partir dos rótulos de UI.
 ## FLX-<NN> — nome do fluxo
 
 ### Estados persistidos observados
-| Estado/campo | Onde é gravado | Onde é lido | Significado comprovado |
-| --- | --- | --- | --- |
-| ... | schema/query | rota/serviço | evidência |
+
+| Estado/campo | Onde é gravado | Onde é lido  | Significado comprovado |
+| ------------ | -------------- | ------------ | ---------------------- |
+| ...          | schema/query   | rota/serviço | evidência              |
 
 ### Transições
-| De | Evento/ação | Quem pode | Pré-condições | Efeitos | Para | Teste |
-| --- | --- | --- | --- | --- | --- | --- |
-| ... | ... | ... | ... | DB/audit/R2/e-mail | ... | ... |
+
+| De  | Evento/ação | Quem pode | Pré-condições | Efeitos            | Para | Teste |
+| --- | ----------- | --------- | ------------- | ------------------ | ---- | ----- |
+| ... | ...         | ...       | ...           | DB/audit/R2/e-mail | ...  | ...   |
 
 ### Estados e transições proibidos
-| Regra | Onde deve bloquear | Evidência atual | Cobertura |
-| --- | --- | --- | --- |
-| ... | API/ação/DB | ... | teste/manual |
+
+| Regra | Onde deve bloquear | Evidência atual | Cobertura    |
+| ----- | ------------------ | --------------- | ------------ |
+| ...   | API/ação/DB        | ...             | teste/manual |
 ```
 
 Um estado é considerado protegido apenas quando o bloqueio está no servidor ou
@@ -147,9 +150,9 @@ sistema, e não nomes usados informalmente em comentários.
 ```md
 ## RBAC-<recurso>
 
-| Papel efetivo | Ação | Recurso/escopo | Rota/ação/API | Gate servidor | Gate UI | Resultado esperado |
-| --- | --- | --- | --- | --- | --- | --- |
-| ... | editar | escala da própria unidade | ... | helper/regra | flag da página | permitido/negado |
+| Papel efetivo | Ação   | Recurso/escopo            | Rota/ação/API | Gate servidor | Gate UI        | Resultado esperado |
+| ------------- | ------ | ------------------------- | ------------- | ------------- | -------------- | ------------------ |
+| ...           | editar | escala da própria unidade | ...           | helper/regra  | flag da página | permitido/negado   |
 ```
 
 Para cada linha negativa, conferir que:
@@ -221,18 +224,18 @@ Para cada fluxo com e-mail, PDF, R2, TSA, OCSP, webhook ou SERPRO:
 
 ## 5. Lotes de execução
 
-| Lote | Foco | Saídas mínimas | Risco |
-| --- | --- | --- | --- |
-| F0 | baseline e inventário | mapa de arquivos, convenções, comandos e lacunas de testes | P1 |
-| F1 | autenticação e sessão | FLX-01 + matriz de RBAC transversal | P0 |
-| F2 | escala e permissões | FLX-02 + invariantes de escala | P0 |
-| F3 | assinatura e documentos | FLX-03 e FLX-06 + ciclo PDF/R2 | P0 |
-| F4 | GISE | FLX-04 + status, presença e relatórios | P0/P1 |
-| F5 | cadastros e escopos | FLX-05 + referências e desativação | P1 |
-| F6 | webhooks e integrações | FLX-07 + idempotência e falhas parciais | P0/P1 |
-| F7 | auditoria, LGPD e retenção | FLX-08 + trilha e descarte | P0/P1 |
-| F8 | concorrência e testes negativos | cenários multiaba/API direta por fluxo | P0/P1 |
-| F9 | consolidação | registro final, regressão e aceitação de dívida | P0–P3 |
+| Lote | Foco                            | Saídas mínimas                                             | Risco |
+| ---- | ------------------------------- | ---------------------------------------------------------- | ----- |
+| F0   | baseline e inventário           | mapa de arquivos, convenções, comandos e lacunas de testes | P1    |
+| F1   | autenticação e sessão           | FLX-01 + matriz de RBAC transversal                        | P0    |
+| F2   | escala e permissões             | FLX-02 + invariantes de escala                             | P0    |
+| F3   | assinatura e documentos         | FLX-03 e FLX-06 + ciclo PDF/R2                             | P0    |
+| F4   | GISE                            | FLX-04 + status, presença e relatórios                     | P0/P1 |
+| F5   | cadastros e escopos             | FLX-05 + referências e desativação                         | P1    |
+| F6   | webhooks e integrações          | FLX-07 + idempotência e falhas parciais                    | P0/P1 |
+| F7   | auditoria, LGPD e retenção      | FLX-08 + trilha e descarte                                 | P0/P1 |
+| F8   | concorrência e testes negativos | cenários multiaba/API direta por fluxo                     | P0/P1 |
+| F9   | consolidação                    | registro final, regressão e aceitação de dívida            | P0–P3 |
 
 F1–F4 devem preceder refactors abrangentes. F5–F7 podem rodar em paralelo se
 não editarem os mesmos módulos. F8 só começa depois de haver mapas de estado
@@ -244,16 +247,16 @@ para os fluxos testados.
 
 ### 6.1 Testes necessários por achado
 
-| Tipo de falha | Teste mínimo |
-| --- | --- |
-| transição proibida | teste de ação/API que tenta a transição diretamente |
+| Tipo de falha        | Teste mínimo                                             |
+| -------------------- | -------------------------------------------------------- |
+| transição proibida   | teste de ação/API que tenta a transição diretamente      |
 | permissão divergente | teste permitido e teste negado para cada papel relevante |
-| invariante de banco | unitário/integrado contra a query ou constraint |
-| concorrência | duas operações com estado inicial idêntico |
-| atualização otimista | falha de rede/servidor e confirmação de rollback |
-| webhook | assinatura/origem, replay, payload inválido e repetição |
-| R2/e-mail/documento | falha externa, limpeza/compensação e auditoria |
-| PDF/e-mail | golden antes e depois de mudança intencional |
+| invariante de banco  | unitário/integrado contra a query ou constraint          |
+| concorrência         | duas operações com estado inicial idêntico               |
+| atualização otimista | falha de rede/servidor e confirmação de rollback         |
+| webhook              | assinatura/origem, replay, payload inválido e repetição  |
+| R2/e-mail/documento  | falha externa, limpeza/compensação e auditoria           |
+| PDF/e-mail           | golden antes e depois de mudança intencional             |
 
 Todo `*.test.ts` novo deve estar em `__tests__/` ao lado do código testado.
 E2E pertence a `e2e/`. Não criar fixture que dependa de PII real.
@@ -300,21 +303,27 @@ Para PDF e e-mail, seguir o procedimento de golden existente. Não usar
 **Arquivos/evidências:** caminho:linha, teste, log ou reprodução
 
 ### Regra esperada
+
 ...
 
 ### Comportamento observado
+
 ...
 
 ### Impacto
+
 ...
 
 ### Correção proposta
+
 ...
 
 ### Teste de regressão
+
 ...
 
 ### Decisão
+
 Responsável, data, PR/commit ou justificativa de aceitação.
 ```
 
@@ -513,7 +522,7 @@ sem regravar um documento juridicamente relevante. Após a correção,
 **Estado:** confirmado
 
 As actions de finalizar seccional e de incluir/remover membros só restringem o
-usuário quando ele *já é* `admin_seccional`
+usuário quando ele _já é_ `admin_seccional`
 (`src/routes/gise/[id]/_actions/actions-seccional.ts:124-143` e
 `actions-membros.ts:36-82,86-139`). Para um policial autenticado comum, esse
 predicado é falso e não há uma negação posterior. As actions aceitam POST
@@ -626,7 +635,7 @@ preservar a capacidade/associação única.
 
 **Severidade:** P1  
 **Fluxo:** FLX-04  
-**Estado:** confirmado
+**Estado:** aceito
 
 O código procura uma GISE ativa, mas criação paralela não é serializada e o
 schema não impõe unicidade para status ativo
@@ -650,6 +659,8 @@ para `em_preenchimento`. A finalização indevida de `em_andamento` é
 FLW-GISE-005.
 
 ## Resultado parcial — F6: webhooks e integrações
+
+> **ACEITO** — A regra não existe: uma GISE é de um DIA e o formulário cria uma por data selecionada. A constraint proposta quebraria a criação em lote. Removida a `buscarGiseAtiva`, que escolhia a mais recente e escondia as demais — e cujo resultado a página nem lia.
 
 ### FLW-WEBHOOK-001 — reset operacional não é atômico
 
@@ -720,8 +731,7 @@ mantém opcional.
 **Correção proposta:** exigir a flag em produção e expor sua ausência em
 health/deploy; remover o modo legado depois de período de migração explícito.
 
-**Teste de regressão:** Bearer válido sem timestamp/nonce em produção retorna
-401.
+**Teste de regressão:** Bearer válido sem timestamp/nonce em produção retorna 401.
 
 ## Resultado parcial — F1: autenticação e sessão
 
@@ -766,6 +776,7 @@ qualquer rota administrativa para `/alterar-senha`.
 ### FLW-AUTH-004 — segredos de uso único podem ser consumidos duas vezes
 
 **Severidade:** P1  
+**Estado:** corrigido  
 OTP, desafio de certificado e token de reset são lidos antes de serem marcados
 como usados, sem update condicional atômico
 (`src/lib/auth.ts:541-545,574-607`,
@@ -775,6 +786,8 @@ como usados, sem update condicional atômico
 **Ação/teste:** consumir com `UPDATE ... WHERE usado = 0 AND expires_at >
 now`, verificando exatamente uma linha alterada. Duas confirmações paralelas
 do mesmo segredo devem ter um único sucesso.
+
+> **CORRIGIDO** — Os três segredos de uso único passaram a ser consumidos por `UPDATE ... WHERE usado = 0 RETURNING` (`consumirTokenRedefinicao`, `consumirDesafio2FA`), e o contador de tentativas virou incremento no SQL. Ver §14 do relatório de comentários/duplicação.
 
 Os testes focados de autenticação passaram (60); hooks, tokens hasheados, 2FA,
 certificado e gates Admin/Super Admin possuem garantias existentes, mas não
@@ -795,9 +808,19 @@ UI de assinatura administrativa.
 servidor. OIP sem papel na própria lotação deve receber 403 para mutar,
 assinar, finalizar e revogar.
 
+> **ABERTO — pende decisão do operador.** Verificado em 04/ago/2026: o
+> preâmbulo `carregarEscalaComPermissao` exige apenas Admin Geral OU mesma
+> lotação, sem checar papel. A UI já exige papel — `podeEditar` no
+> `+page.svelte` faz `podeEditarEscala && (podeOIPSolicitar || papel admin
+DPC)` —, mas manda a flag LARGA (`podeEditarEscala`) para seis dos sete
+> componentes de edição. Alinhar o servidor à regra estrita tira de policiais
+> sem papel a capacidade de montar a escala da própria unidade; é decisão de
+> produto, não de código, e por isso não foi feita junto com ESC-002/003.
+
 ### FLW-ESC-002 — membro de outra escala pode ser editado ou removido por ID
 
 **Severidade:** P0  
+**Estado:** corrigido  
 Actions de editar/remover e edição agrupada usam o ID de
 `escala_policiais` sem sempre combiná-lo com a escala da URL
 (`src/routes/escalas/[id]/+page.server.ts:529-560,574-584,709-724`).
@@ -806,9 +829,12 @@ Actions de editar/remover e edição agrupada usam o ID de
 `escala_policiais.escala_id = escalaId`. Item da escala B enviado para a rota
 da escala A deve retornar 404/403 e permanecer intacto.
 
+> **CORRIGIDO** — Toda consulta a `escala_policiais` nas actions passa a combinar `id` com `escala_id`, e item de outra escala responde 404. Regressão em `e2e/escala-imutabilidade.spec.ts` (4 casos, incluindo o de sanidade que prova que a própria escala continua editável).
+
 ### FLW-ESC-003 — documento assinado/finalizado não é imutável no servidor
 
 **Severidade:** P0  
+**Estado:** corrigido  
 Os controles são ocultados na UI, mas actions de composição e exclusão não
 verificam documento assinado ou `finalizada_em`
 (`src/routes/escalas/[id]/+page.server.ts:200-766,998-1038` e
@@ -817,6 +843,8 @@ verificam documento assinado ou `finalizada_em`
 **Ação/teste:** centralizar guard de estado; só revogação/reabertura explícita
 e auditada pode liberar mutação/exclusão. Após assinatura, cada action
 material deve retornar 409 e preservar PDF, hash e membros.
+
+> **CORRIGIDO** — Guard de estado centralizado no preâmbulo `carregarEscalaComPermissao`, com a operação (`'conteudo'` | `'ciclo'`) como parâmetro obrigatório. Escala assinada ou finalizada recusa as dez actions de conteúdo com 409; revogar a assinatura ou reabrir o FDS destrava, e o spec cobre a volta.
 
 ### FLW-DOC-001 — PDF preparado não está vinculado ao alvo, ator ou uso único
 
@@ -996,35 +1024,35 @@ rodar em paralelo com suites que compartilham esses recursos.
 
 ### P0 — suites obrigatórias antes de corrigir
 
-| Achados | Local sugerido | Cenário e asserção mínima |
-| --- | --- | --- |
-| FLW-AUDIT-001 | `routes/api/gise/[id]/finalizar/__tests__/finalizar-audit.test.ts` | falha de auditoria e duas finalizações concorrentes: rollback total **ou** pendência durável, sem perda na cadeia |
-| FLW-LGPD-002 | `lib/server/__tests__/email-logging.test.ts` | resposta de e-mail com destinatário/corpo: logger e erro não podem conter PII/conteúdo |
-| FLW-GISE-004 | `e2e/gise-acoes-autorizacao.spec.ts` | POST direto por policial comum/admin fora do escopo: 403 e nenhum estado/documento/audit alterado |
-| FLW-GISE-005 | `e2e/gise-finalizacao-negativa.spec.ts` | finalizar `em_andamento` por action e API: 409 e status/documento/integração intactos |
-| FLW-GISE-006 | `e2e/gise-reabertura-guard.spec.ts` | alterar vagas em GISE finalizada: 409, slots/hash/R2/auditoria preservados |
-| FLW-WEBHOOK-001 | `routes/api/webhook/reset-policiais/__tests__/atomicidade.test.ts` | falha na segunda deleção: nenhuma tabela alterada e tentativa registrada |
-| FLW-AUTH-001 | `server/auth/__tests__/session-cache.test.ts` + `e2e/sessao-revogacao.spec.ts` | aquecer cache e revogar/resetar/desativar: próximo request retorna 401 |
-| FLW-AUTH-002 | `e2e/reset-admin-vinculado.spec.ts` | reset de admin vinculado: senha antiga falha nos dois modos, nova funciona e ambos cookies são revogados |
-| FLW-ESC-001 | `e2e/escalas-acoes-autorizacao.spec.ts` | OIP sem papel na mesma lotação chama mutar/assinar/finalizar/revogar: 403 em todas |
-| FLW-ESC-002 | `e2e/escalas-ids-cruzados.spec.ts` | item de escala B enviado à rota A: 404/403 e A/B intactas |
-| FLW-ESC-003 | `e2e/escalas-imutabilidade.spec.ts` | cada action material/exclusão em escala assinada: 409, PDF/hash/membros preservados |
-| FLW-DOC-001 | `routes/api/**/finalizar-assinatura/__tests__/intencao.test.ts` + `e2e/assinatura-intencao.spec.ts` | preparar A/finalizar B; ator/tipo/status divergentes e reutilização: falha sem D1/R2/audit alterados |
-| FLW-ACL-002 | `e2e/validar-download-autorizacao.spec.ts` | usuário autenticado de outra lotação baixa por hash: 403 sem bytes; autorizado recebe somente cópia permitida |
-| FLW-RBAC-001 | `e2e/policial-desativacao-sessoes.spec.ts` | desativar policial-admin com sessão e 2FA pendente: ambos os caminhos retornam 401 |
-| FLW-POLICIAL-002 | `e2e/policiais-exclusao-historico.spec.ts` | excluir policial com grafo histórico: operação recusada e referências/R2 continuam recuperáveis |
+| Achados          | Local sugerido                                                                                      | Cenário e asserção mínima                                                                                         |
+| ---------------- | --------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| FLW-AUDIT-001    | `routes/api/gise/[id]/finalizar/__tests__/finalizar-audit.test.ts`                                  | falha de auditoria e duas finalizações concorrentes: rollback total **ou** pendência durável, sem perda na cadeia |
+| FLW-LGPD-002     | `lib/server/__tests__/email-logging.test.ts`                                                        | resposta de e-mail com destinatário/corpo: logger e erro não podem conter PII/conteúdo                            |
+| FLW-GISE-004     | `e2e/gise-acoes-autorizacao.spec.ts`                                                                | POST direto por policial comum/admin fora do escopo: 403 e nenhum estado/documento/audit alterado                 |
+| FLW-GISE-005     | `e2e/gise-finalizacao-negativa.spec.ts`                                                             | finalizar `em_andamento` por action e API: 409 e status/documento/integração intactos                             |
+| FLW-GISE-006     | `e2e/gise-reabertura-guard.spec.ts`                                                                 | alterar vagas em GISE finalizada: 409, slots/hash/R2/auditoria preservados                                        |
+| FLW-WEBHOOK-001  | `routes/api/webhook/reset-policiais/__tests__/atomicidade.test.ts`                                  | falha na segunda deleção: nenhuma tabela alterada e tentativa registrada                                          |
+| FLW-AUTH-001     | `server/auth/__tests__/session-cache.test.ts` + `e2e/sessao-revogacao.spec.ts`                      | aquecer cache e revogar/resetar/desativar: próximo request retorna 401                                            |
+| FLW-AUTH-002     | `e2e/reset-admin-vinculado.spec.ts`                                                                 | reset de admin vinculado: senha antiga falha nos dois modos, nova funciona e ambos cookies são revogados          |
+| FLW-ESC-001      | `e2e/escalas-acoes-autorizacao.spec.ts`                                                             | OIP sem papel na mesma lotação chama mutar/assinar/finalizar/revogar: 403 em todas                                |
+| FLW-ESC-002      | `e2e/escalas-ids-cruzados.spec.ts`                                                                  | item de escala B enviado à rota A: 404/403 e A/B intactas                                                         |
+| FLW-ESC-003      | `e2e/escalas-imutabilidade.spec.ts`                                                                 | cada action material/exclusão em escala assinada: 409, PDF/hash/membros preservados                               |
+| FLW-DOC-001      | `routes/api/**/finalizar-assinatura/__tests__/intencao.test.ts` + `e2e/assinatura-intencao.spec.ts` | preparar A/finalizar B; ator/tipo/status divergentes e reutilização: falha sem D1/R2/audit alterados              |
+| FLW-ACL-002      | `e2e/validar-download-autorizacao.spec.ts`                                                          | usuário autenticado de outra lotação baixa por hash: 403 sem bytes; autorizado recebe somente cópia permitida     |
+| FLW-RBAC-001     | `e2e/policial-desativacao-sessoes.spec.ts`                                                          | desativar policial-admin com sessão e 2FA pendente: ambos os caminhos retornam 401                                |
+| FLW-POLICIAL-002 | `e2e/policiais-exclusao-historico.spec.ts`                                                          | excluir policial com grafo histórico: operação recusada e referências/R2 continuam recuperáveis                   |
 
 ### P1 — agrupamentos de teste
 
-| Grupo | Achados | Testes necessários |
-| --- | --- | --- |
-| Auditoria, LGPD e R2 | FLW-GISE-003, FLW-R2-004, FLW-AUDIT-005, FLW-DOC-003 | evento único por mutação; falha parcial de delete cria pendência recuperável; corte de cadeia sem checkpoint falha; hash/artefato antigo deixa de resolver após revogação |
-| Estado e concorrência GISE | FLW-GISE-007…010 | IDs cruzados retornam 404; saída sem entrada não cria termo; duas requisições disputando vaga têm um vencedor; criação concorrente obedece política formal de GISE ativa |
-| Sincronizações | FLW-WEBHOOK-002…004 | lote incompleto tem contrato de falha; outbox da Base_Equipe suporta timeout após aplicação/retry/payload antigo; webhook sem timestamp/nonce em produção retorna 401 |
-| Tokens e primeiro acesso | FLW-AUTH-003…004 | admin novo é redirecionado para troca de senha; duas confirmações de OTP/CMS/reset têm um sucesso e um rejeitado |
-| Escalas e entrega | FLW-ESC-005…007 | data fora do período/colisão/concorrência não persiste; e-mail FDS falho fica pendente; cada mutação material registra um evento |
-| Documento e storage | FLW-R2-003, FLW-TEST-005 | R2 ausente, `put` falho e D1 posterior falho não deixam documento sem blob nem objeto sem destino; handlers recebem testes negativos |
-| Cadastro/RBAC | FLW-RBAC-003, FLW-UNIDADE-004, FLW-RBAC-005, FLW-TEST-006 | unidade inválida/incompatível e transferência pós-papel; duas renomeações conflitam; falhas de histórico/auditoria não deixam estado parcial |
+| Grupo                      | Achados                                                   | Testes necessários                                                                                                                                                        |
+| -------------------------- | --------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Auditoria, LGPD e R2       | FLW-GISE-003, FLW-R2-004, FLW-AUDIT-005, FLW-DOC-003      | evento único por mutação; falha parcial de delete cria pendência recuperável; corte de cadeia sem checkpoint falha; hash/artefato antigo deixa de resolver após revogação |
+| Estado e concorrência GISE | FLW-GISE-007…010                                          | IDs cruzados retornam 404; saída sem entrada não cria termo; duas requisições disputando vaga têm um vencedor; criação concorrente obedece política formal de GISE ativa  |
+| Sincronizações             | FLW-WEBHOOK-002…004                                       | lote incompleto tem contrato de falha; outbox da Base_Equipe suporta timeout após aplicação/retry/payload antigo; webhook sem timestamp/nonce em produção retorna 401     |
+| Tokens e primeiro acesso   | FLW-AUTH-003…004                                          | admin novo é redirecionado para troca de senha; duas confirmações de OTP/CMS/reset têm um sucesso e um rejeitado                                                          |
+| Escalas e entrega          | FLW-ESC-005…007                                           | data fora do período/colisão/concorrência não persiste; e-mail FDS falho fica pendente; cada mutação material registra um evento                                          |
+| Documento e storage        | FLW-R2-003, FLW-TEST-005                                  | R2 ausente, `put` falho e D1 posterior falho não deixam documento sem blob nem objeto sem destino; handlers recebem testes negativos                                      |
+| Cadastro/RBAC              | FLW-RBAC-003, FLW-UNIDADE-004, FLW-RBAC-005, FLW-TEST-006 | unidade inválida/incompatível e transferência pós-papel; duas renomeações conflitam; falhas de histórico/auditoria não deixam estado parcial                              |
 
 ### Isolamento e ordem de execução
 
@@ -1047,11 +1075,11 @@ R2 e evento de auditoria aplicáveis.
 
 ### Resumo do ciclo estático
 
-| Severidade | Quantidade | Decisão necessária |
-| --- | --- | --- |
-| P0 | 15 | triagem e plano de contenção antes de liberar fluxos relacionados |
-| P1 | 19 | correção priorizada por domínio, acompanhada da matriz F8 |
-| P2 | 3 | planejar junto das correções do domínio correspondente |
+| Severidade | Quantidade | Decisão necessária                                                |
+| ---------- | ---------- | ----------------------------------------------------------------- |
+| P0         | 15         | triagem e plano de contenção antes de liberar fluxos relacionados |
+| P1         | 19         | correção priorizada por domínio, acompanhada da matriz F8         |
+| P2         | 3          | planejar junto das correções do domínio correspondente            |
 
 O número resume achados confirmados neste documento, não vulnerabilidades
 independentes: alguns compartilham a mesma causa arquitetural, como
@@ -1094,7 +1122,7 @@ O plano pode ser encerrado somente quando:
 - [ ] ações críticas possuem matriz de permissão com testes negativos;
 - [ ] invariantes P0/P1 têm proteção servidor/banco e teste de regressão;
 - [ ] fluxos com efeitos externos têm comportamento de falha e reexecução
-  documentado;
+      documentado;
 - [ ] documentos assinados foram verificados contra os goldens ao serem tocados;
 - [ ] cada atualização otimista crítica foi testada em falha e concorrência;
 - [ ] achados abertos possuem dono, severidade e decisão explícita;
@@ -1105,18 +1133,18 @@ O plano pode ser encerrado somente quando:
 
 ## 9. Registro de execução
 
-| Lote | Responsável | Estado | Início | Fim | Achados/PRs |
-| --- | --- | --- | --- | --- | --- |
-| F0 | coordenação | concluído | 02/ago/2026 | 02/ago/2026 | inventário FLX-01…08; TZ UTC fixado no harness, 680/680 testes verdes |
-| F1 | auditoria paralela | concluído | 02/ago/2026 | 02/ago/2026 | FLW-AUTH-001…004 |
-| F2 | auditoria paralela | concluído | 02/ago/2026 | 02/ago/2026 | FLW-ESC-001…007 e FLW-DOC-001 |
-| F3 | auditoria paralela | concluído | 02/ago/2026 | 02/ago/2026 | FLW-ACL-002, FLW-R2-003, FLW-DOC-003, FLW-TEST-005 |
-| F4 | auditoria paralela | concluído | 02/ago/2026 | 02/ago/2026 | FLW-GISE-004…010; FLW-GISE-003 relacionado |
-| F5 | auditoria paralela | concluído | 02/ago/2026 | 02/ago/2026 | FLW-RBAC-001, FLW-POLICIAL-002… FLW-TEST-006 |
-| F6 | auditoria paralela | concluído | 02/ago/2026 | 02/ago/2026 | FLW-WEBHOOK-001…004 |
-| F7 | auditoria paralela | concluído | 02/ago/2026 | 02/ago/2026 | FLW-AUDIT-001, FLW-LGPD-002, FLW-GISE-003, FLW-R2-004, FLW-AUDIT-005 |
-| F8 | auditoria paralela | concluído | 02/ago/2026 | 02/ago/2026 | matriz P0/P1 de testes, concorrência e falha externa |
-| F9 | coordenação | concluído (diagnóstico) | 02/ago/2026 | 02/ago/2026 | 15 P0, 19 P1, 3 P2; remediação e F8 pendentes |
+| Lote | Responsável        | Estado                  | Início      | Fim         | Achados/PRs                                                           |
+| ---- | ------------------ | ----------------------- | ----------- | ----------- | --------------------------------------------------------------------- |
+| F0   | coordenação        | concluído               | 02/ago/2026 | 02/ago/2026 | inventário FLX-01…08; TZ UTC fixado no harness, 680/680 testes verdes |
+| F1   | auditoria paralela | concluído               | 02/ago/2026 | 02/ago/2026 | FLW-AUTH-001…004                                                      |
+| F2   | auditoria paralela | concluído               | 02/ago/2026 | 02/ago/2026 | FLW-ESC-001…007 e FLW-DOC-001                                         |
+| F3   | auditoria paralela | concluído               | 02/ago/2026 | 02/ago/2026 | FLW-ACL-002, FLW-R2-003, FLW-DOC-003, FLW-TEST-005                    |
+| F4   | auditoria paralela | concluído               | 02/ago/2026 | 02/ago/2026 | FLW-GISE-004…010; FLW-GISE-003 relacionado                            |
+| F5   | auditoria paralela | concluído               | 02/ago/2026 | 02/ago/2026 | FLW-RBAC-001, FLW-POLICIAL-002… FLW-TEST-006                          |
+| F6   | auditoria paralela | concluído               | 02/ago/2026 | 02/ago/2026 | FLW-WEBHOOK-001…004                                                   |
+| F7   | auditoria paralela | concluído               | 02/ago/2026 | 02/ago/2026 | FLW-AUDIT-001, FLW-LGPD-002, FLW-GISE-003, FLW-R2-004, FLW-AUDIT-005  |
+| F8   | auditoria paralela | concluído               | 02/ago/2026 | 02/ago/2026 | matriz P0/P1 de testes, concorrência e falha externa                  |
+| F9   | coordenação        | concluído (diagnóstico) | 02/ago/2026 | 02/ago/2026 | 15 P0, 19 P1, 3 P2; remediação e F8 pendentes                         |
 
 ---
 
