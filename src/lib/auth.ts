@@ -30,7 +30,7 @@
  * o TIPO `UsuarioLogado` (import type, apagado no build). Qualquer import de
  * VALOR daqui no cliente arrasta `node:crypto` e o schema para o bundle.
  */
-import { eq, and, gt, inArray, desc } from 'drizzle-orm';
+import { eq, and, gt, inArray, desc, sql } from 'drizzle-orm';
 import {
 	sessoes,
 	administradores,
@@ -568,6 +568,29 @@ export async function consumirTokenRedefinicao(
 }
 
 /**
+ * CONSOME um desafio de dois fatores: marca `usado = 1` e diz se ESTA chamada
+ * foi a que conseguiu.
+ *
+ * `false` significa que outra requisição chegou primeiro — o desafio é de uso
+ * único e já foi gasto. Quem recebe `false` tem de recusar o acesso, não
+ * seguir em frente.
+ *
+ * Sem o `WHERE usado = 0` (como era nos três call sites até ago/2026) o UPDATE
+ * é incondicional e duas submissões paralelas do MESMO código válido criam duas
+ * sessões: o código de 6 dígitos que o usuário recebeu por e-mail vira
+ * reutilizável dentro da janela entre a leitura e a marcação. É a mesma
+ * causa-raiz do FLW-AUTH-004 no token de redefinição.
+ */
+export async function consumirDesafio2FA(db: Database, desafioId: number): Promise<boolean> {
+	const linhas = await db
+		.update(doisFatoresTokens)
+		.set({ usado: 1 })
+		.where(and(eq(doisFatoresTokens.id, desafioId), eq(doisFatoresTokens.usado, 0)))
+		.returning({ id: doisFatoresTokens.id });
+	return linhas.length === 1;
+}
+
+/**
  * Verifica um desafio 2FA.
  *
  * `expectedTipos` é OBRIGATÓRIO e funciona como defense-in-depth: o canal
@@ -609,21 +632,20 @@ export async function verificarDesafio2FA(
 	// fluxos legados que não usam binding.
 	const hashedInput = await hashCodigo2FA(String(codigoInput), bindExtra);
 	if (!comparacaoTimingSafe(desafio.codigo, hashedInput)) {
+		// Incremento no SQL, e não `desafio.tentativas + 1`: cinco palpites
+		// paralelos com o valor lido antes de qualquer um gravar registrariam
+		// UMA tentativa, e o teto de 5 nunca seria alcançado.
 		await db
 			.update(doisFatoresTokens)
-			.set({ tentativas: desafio.tentativas + 1 })
+			.set({ tentativas: sql`${doisFatoresTokens.tentativas} + 1` })
 			.where(eq(doisFatoresTokens.id, desafio.id));
 		return null;
 	}
 
 	// Em lote (`markUsed: false`) o desafio permanece válido até expirar, para
 	// autorizar várias assinaturas na mesma sessão sem novo código a cada uma.
-	if (markUsed) {
-		await db
-			.update(doisFatoresTokens)
-			.set({ usado: 1 })
-			.where(eq(doisFatoresTokens.id, desafio.id));
-	}
+	// Fora do lote, perder a corrida do consumo é recusa: o código já foi gasto.
+	if (markUsed && !(await consumirDesafio2FA(db, desafio.id))) return null;
 
 	return { tipo: desafio.tipo as TipoDesafio2FA, usuarioId: desafio.usuario_id };
 }
