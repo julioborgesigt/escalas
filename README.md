@@ -200,6 +200,7 @@ O projeto usa **Cloudflare D1** (SQLite serverless) via **Drizzle ORM**. O schem
 | `escalas`                        | Escalas de plantão, expediente e FDS                                                                                |
 | `escala_policiais`               | Associação policial ↔ escala (data, horário, equipe)                                                                |
 | `escala_documentos`              | PDFs assinados com metadados CAdES-LT (OCSP, TST, selfie, GPS, IP)                                                  |
+| `assinatura_intencoes`           | Amarra cada PDF preparado ao documento, ao assinante e a um único uso (15 min)                                      |
 | `escala_solicitacoes_assinatura` | Solicitações de assinatura por unidade/respondência                                                                 |
 | `unidades`                       | Hierarquia: departamento → seccional → delegacia. Ligada por **nome** (ver abaixo)                                  |
 | `gise_escalas`                   | GISE operacionais (status, supervisor, assessor, configuração)                                                      |
@@ -777,7 +778,7 @@ npm run test          # Executa uma vez
 npm run test:watch    # Watch mode (recomendado durante desenvolvimento)
 ```
 
-Arquivos de teste ficam em `src/` com o padrão `*.test.ts`, **sempre** em pastas `__tests__/` junto do código testado (81 arquivos, 840 testes) — convenção verificada no CI. Os principais grupos:
+Arquivos de teste ficam em `src/` com o padrão `*.test.ts`, **sempre** em pastas `__tests__/` junto do código testado (82 arquivos, 856 testes) — convenção verificada no CI. Os principais grupos:
 
 - `src/lib/__tests__/` — autenticação (PBKDF2/pepper, sessões, 2FA), CSRF, headers de segurança, utilitários
 - `src/lib/schemas/__tests__/` — schemas Zod (LGPD, formulários GISE)

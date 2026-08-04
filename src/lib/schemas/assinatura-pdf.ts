@@ -41,6 +41,14 @@ const dataUrlImagemSchema = optionalNullable(
 		.regex(/^data:image\/(png|jpe?g|webp);base64,/, 'Imagem deve ser data URL base64')
 );
 
+/**
+ * Token OPACO da preparação de assinatura (FLW-DOC-001). 64 hex de
+ * `gerarTokenOpaco`; o servidor confere contra o hash guardado. Obrigatório:
+ * sem ele o finalizar não tem como saber para qual documento o PDF foi
+ * preparado.
+ */
+const intencaoSchema = z.string().regex(/^[0-9a-f]{64}$/, 'Preparação de assinatura inválida');
+
 /** PDF em base64 puro (sem prefixo data URL). Limite 10 MB → ~7.5 MB binário. */
 const pdfBase64Schema = z
 	.string()
@@ -53,12 +61,6 @@ const hashHexSchema = z
 	.regex(/^[0-9a-fA-F]+$/, 'Hash deve ser hexadecimal')
 	.min(8)
 	.max(128);
-
-/** Código de verificação gerado por gerarCodigoValidacao(): formato "XXXX-XXXX". */
-const codigoVerificacaoSchema = z
-	.string()
-	.regex(/^[A-Z0-9]{4}-[A-Z0-9]{4}$/, 'Código de verificação inválido')
-	.max(9);
 
 /** ISO 8601 timestamp string. */
 const isoTimestampSchema = z
@@ -106,6 +108,7 @@ export const prepararPresencaSchema = z.object({
 });
 
 export const finalizarPresencaSchema = z.object({
+	intencao: intencaoSchema,
 	preparedPdf: pdfBase64Schema,
 	serproCms: optionalNullable(base64Schema),
 	serproResponse: optionalNullable(z.record(z.string(), z.unknown())),
@@ -113,7 +116,6 @@ export const finalizarPresencaSchema = z.object({
 	signingTimeISO: optionalNullable(isoTimestampSchema),
 	signerName: nomeAssinanteSchema,
 	signerCpf: cpfAssinanteSchema,
-	verificationHash: codigoVerificacaoSchema,
 	documentHash: optionalNullable(hashHexSchema),
 	assinanteEmail: emailAssinanteSchema,
 	latitude: latitudeSchema,
@@ -126,11 +128,11 @@ export const finalizarPresencaSchema = z.object({
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const finalizarAssinaturaEscalasSchema = z.object({
+	intencao: intencaoSchema,
 	preparedPdf: pdfBase64Schema,
 	serproCms: optionalNullable(base64Schema),
 	/** SERPRO devolve um JSON arbitrário; só guardamos para tipo de carimbo de tempo. */
 	serproResponse: optionalNullable(z.record(z.string(), z.unknown())),
-	verificationHash: codigoVerificacaoSchema,
 	signingTimeISO: optionalNullable(isoTimestampSchema),
 	messageDigestHex: optionalNullable(hashHexSchema),
 	documentHash: optionalNullable(hashHexSchema),
@@ -146,6 +148,7 @@ export const finalizarAssinaturaEscalasSchema = z.object({
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const finalizarAssinaturaGiseSchema = z.object({
+	intencao: intencaoSchema,
 	preparedPdf: pdfBase64Schema,
 	serproCms: optionalNullable(base64Schema),
 	serproResponse: optionalNullable(z.record(z.string(), z.unknown())),
@@ -153,7 +156,6 @@ export const finalizarAssinaturaGiseSchema = z.object({
 	signingTimeISO: optionalNullable(isoTimestampSchema),
 	signerName: nomeAssinanteSchema,
 	signerCpf: cpfAssinanteSchema,
-	verificationHash: codigoVerificacaoSchema,
 	documentHash: optionalNullable(hashHexSchema),
 	assinanteEmail: emailAssinanteSchema,
 	rubrica: dataUrlImagemSchema,

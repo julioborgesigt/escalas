@@ -695,6 +695,45 @@ export const resetSenhaTokens = sqliteTable(
 	]
 );
 
+/**
+ * Intenção de assinatura — amarra o PDF preparado ao RECURSO, ao ATOR e a um
+ * único uso (FLW-DOC-001).
+ *
+ * `preparar-assinatura` devolvia o PDF ao cliente e `finalizar-assinatura`
+ * aceitava de volta qualquer `preparedPdf`, gravando-o no recurso da URL. A
+ * assinatura era criptograficamente válida e o CPF conferia — só o DOCUMENTO
+ * podia ser outro. Preparar na escala A e finalizar na B guardava o PDF de A
+ * como documento assinado de B.
+ *
+ * `token` guarda o `sha256:` do valor entregue ao cliente, como `sessoes` e
+ * `reset_senha_tokens`.
+ */
+export const assinaturaIntencoes = sqliteTable(
+	'assinatura_intencoes',
+	{
+		id: integer('id').primaryKey({ autoIncrement: true }),
+		token: text('token').notNull().unique(),
+		recurso: text('recurso', {
+			enum: ['escala', 'gise', 'gise_presenca', 'gise_relatorio']
+		}).notNull(),
+		recurso_id: integer('recurso_id').notNull(),
+		/** Segundo eixo do alvo (a seccional do relatório); NULL nos de eixo único. */
+		escopo_id: integer('escopo_id'),
+		usuario_id: integer('usuario_id').notNull(),
+		usuario_tipo: text('usuario_tipo', { enum: ['policial', 'admin'] }).notNull(),
+		/** SHA-256 do `preparedPdf` gerado pelo servidor. */
+		documento_hash: text('documento_hash').notNull(),
+		/** Código público de validação — decidido pelo servidor, não pelo cliente. */
+		verificacao_hash: text('verificacao_hash').notNull(),
+		usado: integer('usado').notNull().default(0),
+		expires_at: text('expires_at').notNull(),
+		created_at: text('created_at')
+			.notNull()
+			.default(sql`(datetime('now', '-3 hours'))`)
+	},
+	(table) => [index('idx_assinatura_intencoes_expires').on(table.expires_at)]
+);
+
 // ---- Configurações do Sistema ----
 
 export const configuracoes = sqliteTable('configuracoes', {

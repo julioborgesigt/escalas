@@ -3,6 +3,11 @@
  * preparar (gera o PDF e o digest no servidor) → assinar (provider externo,
  * ex.: Assinador SERPRO) → finalizar (embute o CMS no PDF).
  *
+ * O `intencao` que o preparar devolve tem de voltar no finalizar: é o que
+ * amarra o PDF ao documento, ao assinante e a um único uso. O
+ * `verificationHash` deixou de ser enviado de volta — o servidor usa o seu,
+ * porque era o cliente que escolhia a chave no R2 e o código do /validar.
+ *
  * Centraliza a orquestração que era duplicada entre PainelAssinaturaToken,
  * useAssinaturaEscala e a assinatura em lote dos relatórios de extra da GISE
  * — correções de robustez entravam num lugar e não nos outros.
@@ -11,10 +16,15 @@ import { apiFetch, apiFetchResponse } from '$lib/api-fetch';
 
 /** Campos comuns devolvidos pelos endpoints de preparar-assinatura. */
 export interface PreparacaoAssinatura {
+	/**
+	 * Token OPACO da preparação. Volta ao servidor no finalizar e é o que amarra
+	 * este PDF a este documento, a este usuário e a um único uso (FLW-DOC-001).
+	 * Sem ele o finalizar recusa.
+	 */
+	intencao: string;
 	preparedPdf: string;
 	messageDigest: string;
 	signingTimeISO: string;
-	verificationHash: string;
 	/** Presentes apenas em alguns endpoints; repassados ao finalizar quando existirem. */
 	signedAttrsHashHex?: string;
 	documentHash?: string;
@@ -69,11 +79,11 @@ export async function executarFluxoAssinaturaToken(opts: {
 	return apiFetchResponse(opts.finalizarUrl, {
 		method: 'POST',
 		body: JSON.stringify({
+			intencao: prep.intencao,
 			preparedPdf: prep.preparedPdf,
 			...assinatura,
 			messageDigest: prep.messageDigest,
 			signingTimeISO: prep.signingTimeISO,
-			verificationHash: prep.verificationHash,
 			documentHash: prep.documentHash,
 			assinanteEmail: prep.assinanteEmail,
 			...opts.payloadFinalizar

@@ -86,6 +86,8 @@ O `scripts/GoogleAppsScript_Sync.gs` já envia ambos os headers em todas as cham
 
 A limpeza periódica de `webhook_nonces` (e das demais tabelas de retenção) é automatizada por `executarLimpezaRetencao`, disparada pelo cron `cleanup-retencao.yml` (GitHub Actions) — ver [Failsafe da limpeza de retenção](#failsafe-da-limpeza-de-retenção).
 
+Entre as tabelas varridas está `assinatura_intencoes` (migração `0040`), que amarra cada PDF preparado ao documento, ao assinante e a um único uso. Cada linha vive 15 minutos e some junto com os tokens de redefinição — é o mesmo tipo de dado: segredo de curta duração atrelado a uma pessoa. Nenhuma variável de ambiente nova.
+
 ### Failsafe da limpeza de retenção
 
 O Cloudflare Pages não tem cron nativo, então a limpeza depende do agendador externo (`cleanup-retencao.yml`, diário). Se ele parar de disparar (workflow desabilitado, segredo rotacionado, repositório arquivado), as tabelas de retenção crescem **silenciosamente** e consomem cota do D1.
@@ -112,7 +114,7 @@ Há quatro níveis. O **Super Admin é um Admin Geral com poderes extras** (é `
 | **Gerenciar policiais** (cadastrar/editar/excluir/upload CSV)       |     ✅      |     ❌      |       ❌        |        ❌        |
 | **Gerenciar unidades/seccionais** (CRUD)                            |     ✅      |     ❌      |       ❌        |        ❌        |
 | **Configurar política de assinatura** (foto/GPS/código/smartphone)  |     ✅      |     ❌      |       ❌        |        ❌        |
-| **Baixar PDF forense íntegro** (`?manifesto=true` nos downloads)    |     ✅      |     ✅      |       ❌        |    ❌ (¹)       |
+| **Baixar PDF forense íntegro** (`?manifesto=true` nos downloads)    |     ✅      |     ✅      |       ❌        |      ❌ (¹)      |
 | **Baixar o forense pelo portal `/validar`** (rota semi-pública)     |     ✅      |     ❌      |       ❌        |        ❌        |
 | Escalas — **escopo**                                                |   global    |   global    |  sua seccional  |   sua unidade    |
 | GISE (finalizar/reabrir/exportar histórico)                         |     ✅      |     ✅      |       ❌        |        ❌        |

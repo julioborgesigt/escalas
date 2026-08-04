@@ -798,6 +798,7 @@ cobrem os cenários acima.
 ### FLW-ESC-001 — usuário da própria lotação pode mutar e assinar por rota direta
 
 **Severidade:** P0  
+**Estado:** aberto  
 As actions de escala só exigem mesma lotação
 (`src/routes/escalas/[id]/+page.server.ts:81-101`), e
 `verificarPermissaoEscala` permite a mesma lotação para leitura/assinatura
@@ -849,6 +850,7 @@ material deve retornar 409 e preservar PDF, hash e membros.
 ### FLW-DOC-001 — PDF preparado não está vinculado ao alvo, ator ou uso único
 
 **Severidade:** P0  
+**Estado:** corrigido  
 Preparações de escala, GISE, relatório e presença devolvem PDF/hash ao cliente
 sem intenção persistida. Os finalizadores aceitam `preparedPdf` e hash enviados
 pelo cliente e persistem no recurso da URL. Na escala, isso ocorre em
@@ -860,6 +862,22 @@ finalizadores GISE.
 atomicamente, vinculando hash do PDF, recurso, ator, seccional/tipo, versão e
 estado esperado. Preparar A e finalizar B, ou reutilizar a mesma intenção,
 deve falhar sem D1/R2/auditoria alterados.
+
+> **CORRIGIDO** — `assinatura_intencoes` (migração `0040`) +
+> `lib/server/assinatura/intencao.ts`. O `preparar` grava a intenção e devolve
+> um token opaco (o banco guarda só o `sha256:`); o `finalizar` a consome com
+> `UPDATE ... WHERE usado = 0 AND expires_at > agora RETURNING` e confere
+> recurso, escopo, ator e o SHA-256 do `preparedPdf` recebido. Vale para os
+> QUATRO pares (escala, GISE, presença e relatório por seccional).
+>
+> De quebra, o `verificacao_hash` deixou de vir do cliente: era ele que
+> escolhia a chave no R2 e o código público do `/validar`.
+>
+> Cobertura: 15 casos de unidade em `intencao.test.ts` e 3 em
+> `assinatura-qualificada-a3.spec.ts` — estes com assinatura VÁLIDA e CPF
+> correto, que é o que a verificação criptográfica não distingue sozinha.
+> "Preparar em uma escala e finalizar em outra" e "a mesma preparação duas
+> vezes" reprovam o código anterior.
 
 ### FLW-ESC-005 — datas, duplicidade e capacidade não têm proteção autoritativa
 
@@ -1024,23 +1042,23 @@ rodar em paralelo com suites que compartilham esses recursos.
 
 ### P0 — suites obrigatórias antes de corrigir
 
-| Achados          | Local sugerido                                                                                      | Cenário e asserção mínima                                                                                         |
-| ---------------- | --------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
-| FLW-AUDIT-001    | `routes/api/gise/[id]/finalizar/__tests__/finalizar-audit.test.ts`                                  | falha de auditoria e duas finalizações concorrentes: rollback total **ou** pendência durável, sem perda na cadeia |
-| FLW-LGPD-002     | `lib/server/__tests__/email-logging.test.ts`                                                        | resposta de e-mail com destinatário/corpo: logger e erro não podem conter PII/conteúdo                            |
-| FLW-GISE-004     | `e2e/gise-acoes-autorizacao.spec.ts`                                                                | POST direto por policial comum/admin fora do escopo: 403 e nenhum estado/documento/audit alterado                 |
-| FLW-GISE-005     | `e2e/gise-finalizacao-negativa.spec.ts`                                                             | finalizar `em_andamento` por action e API: 409 e status/documento/integração intactos                             |
-| FLW-GISE-006     | `e2e/gise-reabertura-guard.spec.ts`                                                                 | alterar vagas em GISE finalizada: 409, slots/hash/R2/auditoria preservados                                        |
-| FLW-WEBHOOK-001  | `routes/api/webhook/reset-policiais/__tests__/atomicidade.test.ts`                                  | falha na segunda deleção: nenhuma tabela alterada e tentativa registrada                                          |
-| FLW-AUTH-001     | `server/auth/__tests__/session-cache.test.ts` + `e2e/sessao-revogacao.spec.ts`                      | aquecer cache e revogar/resetar/desativar: próximo request retorna 401                                            |
-| FLW-AUTH-002     | `e2e/reset-admin-vinculado.spec.ts`                                                                 | reset de admin vinculado: senha antiga falha nos dois modos, nova funciona e ambos cookies são revogados          |
-| FLW-ESC-001      | `e2e/escalas-acoes-autorizacao.spec.ts`                                                             | OIP sem papel na mesma lotação chama mutar/assinar/finalizar/revogar: 403 em todas                                |
-| FLW-ESC-002      | `e2e/escalas-ids-cruzados.spec.ts`                                                                  | item de escala B enviado à rota A: 404/403 e A/B intactas                                                         |
-| FLW-ESC-003      | `e2e/escalas-imutabilidade.spec.ts`                                                                 | cada action material/exclusão em escala assinada: 409, PDF/hash/membros preservados                               |
-| FLW-DOC-001      | `routes/api/**/finalizar-assinatura/__tests__/intencao.test.ts` + `e2e/assinatura-intencao.spec.ts` | preparar A/finalizar B; ator/tipo/status divergentes e reutilização: falha sem D1/R2/audit alterados              |
-| FLW-ACL-002      | `e2e/validar-download-autorizacao.spec.ts`                                                          | usuário autenticado de outra lotação baixa por hash: 403 sem bytes; autorizado recebe somente cópia permitida     |
-| FLW-RBAC-001     | `e2e/policial-desativacao-sessoes.spec.ts`                                                          | desativar policial-admin com sessão e 2FA pendente: ambos os caminhos retornam 401                                |
-| FLW-POLICIAL-002 | `e2e/policiais-exclusao-historico.spec.ts`                                                          | excluir policial com grafo histórico: operação recusada e referências/R2 continuam recuperáveis                   |
+| Achados          | Local sugerido                                                                                  | Cenário e asserção mínima                                                                                         |
+| ---------------- | ----------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| FLW-AUDIT-001    | `routes/api/gise/[id]/finalizar/__tests__/finalizar-audit.test.ts`                              | falha de auditoria e duas finalizações concorrentes: rollback total **ou** pendência durável, sem perda na cadeia |
+| FLW-LGPD-002     | `lib/server/__tests__/email-logging.test.ts`                                                    | resposta de e-mail com destinatário/corpo: logger e erro não podem conter PII/conteúdo                            |
+| FLW-GISE-004     | `e2e/gise-acoes-autorizacao.spec.ts`                                                            | POST direto por policial comum/admin fora do escopo: 403 e nenhum estado/documento/audit alterado                 |
+| FLW-GISE-005     | `e2e/gise-finalizacao-negativa.spec.ts`                                                         | finalizar `em_andamento` por action e API: 409 e status/documento/integração intactos                             |
+| FLW-GISE-006     | `e2e/gise-reabertura-guard.spec.ts`                                                             | alterar vagas em GISE finalizada: 409, slots/hash/R2/auditoria preservados                                        |
+| FLW-WEBHOOK-001  | `routes/api/webhook/reset-policiais/__tests__/atomicidade.test.ts`                              | falha na segunda deleção: nenhuma tabela alterada e tentativa registrada                                          |
+| FLW-AUTH-001     | `server/auth/__tests__/session-cache.test.ts` + `e2e/sessao-revogacao.spec.ts`                  | aquecer cache e revogar/resetar/desativar: próximo request retorna 401                                            |
+| FLW-AUTH-002     | `e2e/reset-admin-vinculado.spec.ts`                                                             | reset de admin vinculado: senha antiga falha nos dois modos, nova funciona e ambos cookies são revogados          |
+| FLW-ESC-001      | `e2e/escalas-acoes-autorizacao.spec.ts`                                                         | OIP sem papel na mesma lotação chama mutar/assinar/finalizar/revogar: 403 em todas                                |
+| FLW-ESC-002      | `e2e/escalas-ids-cruzados.spec.ts`                                                              | item de escala B enviado à rota A: 404/403 e A/B intactas                                                         |
+| FLW-ESC-003      | `e2e/escalas-imutabilidade.spec.ts`                                                             | cada action material/exclusão em escala assinada: 409, PDF/hash/membros preservados                               |
+| FLW-DOC-001      | ✅ `lib/server/assinatura/__tests__/intencao.test.ts` + `e2e/assinatura-qualificada-a3.spec.ts` | preparar A/finalizar B; ator/tipo divergentes e reutilização: falha sem D1/R2/audit alterados                     |
+| FLW-ACL-002      | `e2e/validar-download-autorizacao.spec.ts`                                                      | usuário autenticado de outra lotação baixa por hash: 403 sem bytes; autorizado recebe somente cópia permitida     |
+| FLW-RBAC-001     | `e2e/policial-desativacao-sessoes.spec.ts`                                                      | desativar policial-admin com sessão e 2FA pendente: ambos os caminhos retornam 401                                |
+| FLW-POLICIAL-002 | `e2e/policiais-exclusao-historico.spec.ts`                                                      | excluir policial com grafo histórico: operação recusada e referências/R2 continuam recuperáveis                   |
 
 ### P1 — agrupamentos de teste
 

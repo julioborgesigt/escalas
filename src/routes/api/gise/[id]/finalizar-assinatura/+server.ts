@@ -28,6 +28,10 @@ import {
 	serverError,
 	validateBody
 } from '$lib/server/api';
+import {
+	consumirIntencaoAssinatura,
+	mensagemRecusaIntencao
+} from '$lib/server/assinatura/intencao';
 
 export const POST: RequestHandler = async (event) => {
 	const { platform, params, locals, request, getClientAddress } = event;
@@ -45,15 +49,28 @@ export const POST: RequestHandler = async (event) => {
 	const validated = await validateBody(request, finalizarAssinaturaGiseSchema);
 	if (!validated.ok) return validated.response;
 	const {
+		intencao,
 		preparedPdf,
 		serproCms,
 		messageDigest,
 		signingTimeISO,
-		verificationHash,
 		latitude,
 		longitude,
 		assinanteEmail
 	} = validated.data;
+
+	// Consome a preparação: prova que ESTE pdf foi preparado por ESTE usuário
+	// para ESTE alvo, uma vez só (FLW-DOC-001). O código público de validação
+	// vem daqui, não do corpo da requisição.
+	const consumo = await consumirIntencaoAssinatura(
+		db,
+		intencao,
+		{ recurso: 'gise', recursoId: id },
+		{ id: u.id, tipo: u.tipo },
+		Uint8Array.from(Buffer.from(preparedPdf, 'base64'))
+	);
+	if (!consumo.ok) return badRequest(mensagemRecusaIntencao());
+	const { verificacaoHash: verificationHash } = consumo;
 
 	try {
 		const gise = await buscarGiseEscala(db, id);

@@ -41,6 +41,7 @@ async function assinarEscala(request: APIRequestContext): Promise<string> {
 	});
 	expect(prep.status(), await prep.text().catch(() => '')).toBe(200);
 	const p = (await prep.json()) as {
+		intencao: string;
 		preparedPdf: string;
 		messageDigest: string;
 		signingTimeISO: string;
@@ -50,9 +51,9 @@ async function assinarEscala(request: APIRequestContext): Promise<string> {
 	const fin = await request.post(`/api/escalas/${ESCALA}/finalizar-assinatura`, {
 		headers: headersDeSessaoMutacao(token!),
 		data: {
+			intencao: p.intencao,
 			preparedPdf: p.preparedPdf,
 			serproCms,
-			verificationHash: p.verificationHash,
 			signingTimeISO: p.signingTimeISO,
 			messageDigestHex: p.messageDigest
 		}

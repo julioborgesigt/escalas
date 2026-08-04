@@ -44,6 +44,7 @@ const prepararUrl = (sec: number) => `/api/gise/${GISE}/relatorios/${sec}/prepar
 const finalizarUrl = (sec: number) => `/api/gise/${GISE}/relatorios/${sec}/finalizar-assinatura`;
 
 type Prep = {
+	intencao: string;
 	preparedPdf: string;
 	messageDigest: string;
 	signingTimeISO: string;
@@ -61,11 +62,11 @@ async function preparar(request: import('@playwright/test').APIRequestContext) {
 
 function finalizarData(prep: Prep, serproCms: string) {
 	return {
+		intencao: prep.intencao,
 		preparedPdf: prep.preparedPdf,
 		serproCms,
 		messageDigest: prep.messageDigest,
-		signingTimeISO: prep.signingTimeISO,
-		verificationHash: prep.verificationHash
+		signingTimeISO: prep.signingTimeISO
 	};
 }
 

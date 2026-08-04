@@ -107,6 +107,7 @@ describe('executarFluxoAssinaturaToken', () => {
 		const fetchMock = vi.fn(async (url: string, _init?: RequestInit) => {
 			if (String(url).includes('preparar')) {
 				return jsonResponse({
+					intencao: 'int-abc',
 					preparedPdf: 'PDFB64',
 					messageDigest: '48656c6c6f',
 					signingTimeISO: '2026-07-14T12:00:00Z',
@@ -139,16 +140,20 @@ describe('executarFluxoAssinaturaToken', () => {
 		const finalizarInit = fetchMock.mock.calls[1][1] as RequestInit;
 		const body = JSON.parse(String(finalizarInit.body));
 		expect(body).toMatchObject({
+			// A intenção do preparo VOLTA no finalizar — é o que amarra o PDF ao
+			// documento, ao assinante e a um único uso (FLW-DOC-001).
+			intencao: 'int-abc',
 			preparedPdf: 'PDFB64',
 			serproCms: 'CMS',
 			messageDigest: '48656c6c6f',
 			signingTimeISO: '2026-07-14T12:00:00Z',
-			verificationHash: 'vhash',
 			documentHash: 'dhash',
 			assinanteEmail: 'a@b.c',
 			signerName: 'Ana',
 			signerCpf: '123'
 		});
+		// Não volta mais: era o cliente escolhendo a chave R2 e o código público.
+		expect(body).not.toHaveProperty('verificationHash');
 	});
 
 	it('interrompe sem assinar quando o preparar falha', async () => {

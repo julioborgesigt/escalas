@@ -37,6 +37,7 @@ import { logger } from '$lib/server/logger';
 import { PDFDocument } from 'pdf-lib';
 import { gerarCodigoValidacao } from '$lib/utils/formato';
 import { tryGetR2 } from '$lib/db';
+import { criarIntencaoAssinatura } from '$lib/server/assinatura/intencao';
 
 export const POST: RequestHandler = async ({
 	platform,
@@ -189,7 +190,17 @@ export const POST: RequestHandler = async ({
 		}
 	}
 
+	// Amarra ESTE pdf a ESTE alvo, a ESTE usuário e a um único uso (FLW-DOC-001).
+	const intencao = await criarIntencaoAssinatura(
+		db,
+		{ recurso: 'gise', recursoId: id },
+		{ id: u.id, tipo: u.tipo },
+		preparedPdf,
+		verificationHash
+	);
+
 	return json({
+		intencao,
 		signedAttrsHashHex,
 		preparedPdf: preparedPdfBase64,
 		messageDigest,
