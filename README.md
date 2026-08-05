@@ -529,6 +529,32 @@ O logger estruturado ([`src/lib/logger.ts`](src/lib/logger.ts)) continua emitind
 
 ## 9. Autenticação e Autorização
 
+### Uma senha, duas identidades (Admin Geral vinculado)
+
+O Admin Geral **vinculado** é uma pessoa com DUAS linhas: uma em `policiais` e
+uma em `administradores` com `policial_id` apontando para ela. A linha admin não
+tem senha própria — recebe um placeholder aleatório que ninguém lê. O login de
+administrador autentica contra `policiais.senha`, a mesma senha do modo usuário.
+
+Daí saem duas perguntas que todo fluxo de credencial precisa responder, e que
+são fáceis de responder pela metade. As duas têm resposta única em
+[`server/auth/credencial.ts`](src/lib/server/auth/credencial.ts):
+
+| pergunta                  | resposta                                             |
+| ------------------------- | ---------------------------------------------------- |
+| onde gravar a senha nova? | `resolverCredencial().dono` — a linha que o login LÊ |
+| quais sessões derrubar?   | `revogarSessoesDaCredencial()` — as DUAS identidades |
+
+Gravar na linha errada não muda nada: a senha nova não passa a valer e a antiga
+continua valendo. Derrubar só o cookie do modo atual deixa vivo o outro,
+destravado pela mesma senha. Desativar o policial fecha os dois modos —
+`buscarAdminAtivo` confere o vínculo, e a desativação revoga as sessões abertas.
+
+Sessão em cache não vale para quem MUTA: `ttlCacheSessaoParaMetodo` devolve 0
+em `POST`/`PUT`/`PATCH`/`DELETE`. Leitura pode estar até um TTL atrasada; ação,
+não — o Cache API é por colo, e nenhuma invalidação local alcança outro data
+center.
+
 ### Fluxo de login
 
 1. Usuário informa matrícula + senha
@@ -818,7 +844,7 @@ npm run test          # Executa uma vez
 npm run test:watch    # Watch mode (recomendado durante desenvolvimento)
 ```
 
-Arquivos de teste ficam em `src/` com o padrão `*.test.ts`, **sempre** em pastas `__tests__/` junto do código testado (83 arquivos, 865 testes) — convenção verificada no CI. Os principais grupos:
+Arquivos de teste ficam em `src/` com o padrão `*.test.ts`, **sempre** em pastas `__tests__/` junto do código testado (85 arquivos, 892 testes) — convenção verificada no CI. Os principais grupos:
 
 - `src/lib/__tests__/` — autenticação (PBKDF2/pepper, sessões, 2FA), CSRF, headers de segurança, utilitários
 - `src/lib/schemas/__tests__/` — schemas Zod (LGPD, formulários GISE)

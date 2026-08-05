@@ -42,8 +42,17 @@ export function bancoMigrado(): DatabaseSync {
  * Embrulha o `DatabaseSync` no `Database` que o código de produção espera.
  *
  * `sqlite-proxy` adapta qualquer driver: recebe SQL + params e devolve linhas
- * como array de arrays. O `rowsAffected` importa — sem ele, `.returning()` e
- * as contagens de expurgo leem zero e o teste passa de verde por engano.
+ * como array de arrays. Dois detalhes do contrato do driver decidem se o teste
+ * mede o que promete:
+ *
+ * - **`rowsAffected`** — sem ele, `.returning()` e as contagens de expurgo leem
+ *   zero e o teste passa de verde por engano.
+ * - **`rows` de um `get` sem resultado tem de ser `undefined`, não `[]`.** O
+ *   `mapGetResult` do drizzle decide "não achou" por FALSY (`if (!row) return
+ *   undefined`). Devolvendo `[]`, que é truthy, ele mapeia a linha vazia e
+ *   entrega `{ id: undefined, ... }` — um objeto. Todo `if (!row) return
+ *   notFound()` do código de produção tomava o caminho ERRADO só nos testes, e
+ *   em silêncio: o D1 real devolve `undefined`.
  */
 export function drizzleSobre(sqlite: DatabaseSync): Database {
 	return drizzle(async (sql, params, method) => {
@@ -54,6 +63,6 @@ export function drizzleSobre(sqlite: DatabaseSync): Database {
 		}
 		const linhas = stmt.all(...(params as never[])) as Record<string, unknown>[];
 		const arrays = linhas.map((l) => Object.values(l));
-		return { rows: method === 'get' ? (arrays[0] ?? []) : arrays };
+		return { rows: method === 'get' ? (arrays[0] as never) : arrays };
 	}) as unknown as Database;
 }

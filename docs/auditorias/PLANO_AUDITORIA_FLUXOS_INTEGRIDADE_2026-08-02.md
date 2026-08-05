@@ -762,6 +762,7 @@ health/deploy; remover o modo legado depois de período de migração explícito
 ### FLW-AUTH-001 — cache aceita sessão revogada durante a janela de TTL
 
 **Severidade:** P0  
+**Estado:** corrigido  
 `src/lib/server/auth/session-cache.ts:10-17,38-47` documenta que token
 revogado ou usuário desativado pode continuar válido por até 60 segundos,
 inclusive em outro colo do Cache API. Isso afeta reset de senha, desativação e
@@ -771,9 +772,27 @@ remoção de Admin Geral.
 consultada antes do cache; cachear, revogar e exigir rejeição na requisição
 seguinte para reset, desativação e revogação de papel.
 
+> **CORRIGIDO (04/ago/2026) — garantia estreitada, não removida.** O cache
+> continua existindo e continua tendo janela: o Cache API é por colo, e nenhuma
+> invalidação local alcança outro data center. O que mudou é que a janela deixou
+> de valer para quem MUTA. `ttlCacheSessaoParaMetodo` devolve 0 em
+> `POST`/`PUT`/`PATCH`/`DELETE`, então toda operação material revalida no D1.
+>
+> Leitura pode estar até um TTL atrasada; ação, não. Revalidar custa um batch, e
+> quem está mutando já paga vários — o ganho do cache estava no caminho de
+> leitura, que é onde está o volume. `SESSION_CACHE_TTL_SECONDS=0` continua
+> desligando tudo, para quem quiser revogação imediata também na leitura.
+>
+> Cobertura: `server/auth/__tests__/session-cache.test.ts` (13 casos, 5 reprovam
+> a versão anterior). **Não** há teste de ponta a ponta, e isso é decisão
+> registrada: o Cache API não funciona no preview local, então o spec que
+> escrevi passava com a regra ligada E desligada. Teste que não distingue os
+> dois casos é pior que teste nenhum, porque parece cobertura.
+
 ### FLW-AUTH-002 — reset de Admin Geral vinculado altera a credencial errada
 
 **Severidade:** P0  
+**Estado:** corrigido  
 O login de Admin Geral vinculado valida `policiais.senha`, mas o reset grava o
 placeholder em `administradores.senha`
 (`src/lib/server/auth/auth-flow.ts:566-585`,
@@ -784,6 +803,27 @@ placeholder em `administradores.senha`
 e revogar sessões das identidades admin/policial na mesma unidade de trabalho.
 Após reset, senha antiga deve falhar nos dois modos e cookies anteriores devem
 ser inválidos.
+
+> **CORRIGIDO (04/ago/2026).** Não era só falha de segurança: era um reset de
+> senha que **não funcionava**. O login do Admin Geral vinculado autentica
+> contra `policiais.senha`; `redefinir-senha` gravava em
+> `administradores.senha`, que é um placeholder aleatório que ninguém lê. A
+> senha nova não passava a valer e a ANTIGA continuava valendo — no fluxo que
+> existe justamente para tirar de circulação uma senha comprometida.
+>
+> A regra "onde mora a credencial" já estava escrita, certa e comentada, em
+> `alterar-senha` e em `email-pessoal-guard`. Não protegeu o `redefinir-senha`,
+> que nasceu sem ela: comentário protege quem lê AQUELE arquivo. Virou
+> `server/auth/credencial.ts` — `resolverCredencial` diz onde gravar,
+> `revogarSessoesDaCredencial` derruba as DUAS identidades. As três cópias
+> passaram a chamá-la.
+>
+> A revogação em par também é correção: uma senha destrava dois cookies, e
+> `alterar-senha` apagava só os do modo atual. O cookie do outro modo sobrevivia
+> à rotação que existia para matá-lo.
+>
+> Cobertura: 14 casos de unidade em `credencial.test.ts` e o caso ponta a ponta
+> em `e2e/revogacao-credencial.spec.ts`, que reprova o código anterior.
 
 ### FLW-AUTH-003 — Admin Geral vinculado contorna primeiro acesso
 
@@ -994,6 +1034,7 @@ mascara PII; e a assinatura valida certificado contra a sessão.
 ### FLW-RBAC-001 — desativação não revoga Admin Geral e 2FA pendente
 
 **Severidade:** P0  
+**Estado:** corrigido  
 Desativar policial apenas grava `ativo: 0`; sessão admin é validada contra
 `administradores` sem conferir o policial vinculado, e 2FA pode criar nova
 sessão sem revalidação (`src/routes/policiais/[id]/+page.server.ts:575`,
@@ -1002,6 +1043,25 @@ sessão sem revalidação (`src/routes/policiais/[id]/+page.server.ts:575`,
 **Ação/teste:** revogar vínculo, sessões e desafios em unidade atômica; validar
 `policiais.ativo = 1` em sessão admin e confirmação 2FA. Cobrir sessão
 existente e 2FA pendente após desativação.
+
+> **CORRIGIDO (04/ago/2026).** Três buracos, o mesmo enunciado:
+>
+> 1. `validarSessao` e `validarSessaoComAceite` liam a linha `administradores`
+>    sem olhar o vínculo — desativar o policial fechava o modo usuário e deixava
+>    de pé o modo administrador, que é o mais poderoso dos dois. O ramo de
+>    policial sempre exigiu `ativo = 1`; faltava no de admin. Resolvido por
+>    `queryAdminDaSessao` + `adminDaSessao`, um `leftJoin` na mesma query (a
+>    versão em batch não podia pagar round-trip a mais).
+> 2. `verificar-2fa` emitia sessão sem repetir a checagem — um 2FA pendente
+>    virava sessão de administrador depois da desativação. Passou a usar
+>    `buscarAdminAtivo`, a mesma regra.
+> 3. A desativação não derrubava sessão nenhuma: só impedia o próximo login, e
+>    a sessão aberta seguia por até 8h. `registrarDesvinculacao` agora chama
+>    `revogarSessoesDaCredencial`.
+>
+> Cobertura: dois casos em `e2e/revogacao-credencial.spec.ts` — um para a
+> validação da sessão, outro para a action —, ambos reprovando o código
+> anterior.
 
 ### FLW-POLICIAL-002 — exclusão física apaga histórico e pode deixar R2 órfão
 
@@ -1074,14 +1134,14 @@ rodar em paralelo com suites que compartilham esses recursos.
 | FLW-GISE-005     | `e2e/gise-finalizacao-negativa.spec.ts`                                                         | finalizar `em_andamento` por action e API: 409 e status/documento/integração intactos                             |
 | FLW-GISE-006     | `e2e/gise-reabertura-guard.spec.ts`                                                             | alterar vagas em GISE finalizada: 409, slots/hash/R2/auditoria preservados                                        |
 | FLW-WEBHOOK-001  | `routes/api/webhook/reset-policiais/__tests__/atomicidade.test.ts`                              | falha na segunda deleção: nenhuma tabela alterada e tentativa registrada                                          |
-| FLW-AUTH-001     | `server/auth/__tests__/session-cache.test.ts` + `e2e/sessao-revogacao.spec.ts`                  | aquecer cache e revogar/resetar/desativar: próximo request retorna 401                                            |
-| FLW-AUTH-002     | `e2e/reset-admin-vinculado.spec.ts`                                                             | reset de admin vinculado: senha antiga falha nos dois modos, nova funciona e ambos cookies são revogados          |
+| FLW-AUTH-001     | ✅ `server/auth/__tests__/session-cache.test.ts` (sem e2e — ver o achado)                       | aquecer cache e revogar/resetar/desativar: próximo request retorna 401                                            |
+| FLW-AUTH-002     | ✅ `e2e/revogacao-credencial.spec.ts` + `auth/__tests__/credencial.test.ts`                     | reset de admin vinculado: senha antiga falha nos dois modos, nova funciona e ambos cookies são revogados          |
 | FLW-ESC-001      | `e2e/escalas-acoes-autorizacao.spec.ts`                                                         | OIP sem papel na mesma lotação chama mutar/assinar/finalizar/revogar: 403 em todas                                |
 | FLW-ESC-002      | `e2e/escalas-ids-cruzados.spec.ts`                                                              | item de escala B enviado à rota A: 404/403 e A/B intactas                                                         |
 | FLW-ESC-003      | `e2e/escalas-imutabilidade.spec.ts`                                                             | cada action material/exclusão em escala assinada: 409, PDF/hash/membros preservados                               |
 | FLW-DOC-001      | ✅ `lib/server/assinatura/__tests__/intencao.test.ts` + `e2e/assinatura-qualificada-a3.spec.ts` | preparar A/finalizar B; ator/tipo divergentes e reutilização: falha sem D1/R2/audit alterados                     |
 | FLW-ACL-002      | `e2e/validar-download-autorizacao.spec.ts`                                                      | usuário autenticado de outra lotação baixa por hash: 403 sem bytes; autorizado recebe somente cópia permitida     |
-| FLW-RBAC-001     | `e2e/policial-desativacao-sessoes.spec.ts`                                                      | desativar policial-admin com sessão e 2FA pendente: ambos os caminhos retornam 401                                |
+| FLW-RBAC-001     | ✅ `e2e/revogacao-credencial.spec.ts`                                                           | desativar policial-admin com sessão e 2FA pendente: ambos os caminhos retornam 401                                |
 | FLW-POLICIAL-002 | `e2e/policiais-exclusao-historico.spec.ts`                                                      | excluir policial com grafo histórico: operação recusada e referências/R2 continuam recuperáveis                   |
 
 ### P1 — agrupamentos de teste

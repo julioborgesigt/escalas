@@ -66,6 +66,7 @@ import {
 import { isAdminGeral, isAdminSeccional, isAdminUnidade } from '$lib/auth';
 import { lotacoesAdministradas, lotacaoNoEscopo } from '$lib/server/policial-permissao';
 import { decifrarCpfDoDB } from '$lib/crypto/cpf-cripto';
+import { resolverCredencial, revogarSessoesDaCredencial } from '$lib/server/auth/credencial';
 import { getNowBR } from '$lib/utils/datas';
 import type { RequestEvent } from './$types';
 
@@ -576,6 +577,12 @@ export const actions: Actions = {
 		}
 
 		await atualizarPolicial(db, id, { ativo: 0 });
+
+		// Desativar tem de tirar a pessoa de DENTRO, não só impedir o próximo
+		// login: sessão aberta continuaria funcionando até expirar (8h). Cobre as
+		// duas identidades — quem tem Admin Geral vinculado tem dois cookies
+		// possíveis, e o de administrador é o mais poderoso (FLW-RBAC-001).
+		await revogarSessoesDaCredencial(db, await resolverCredencial(db, 'policial', id));
 		await registrarHistorico(db, {
 			policial_id: id,
 			tipo: 'desvinculacao',

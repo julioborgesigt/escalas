@@ -57,6 +57,32 @@ export function resolverTtlCacheSessao(platform: App.Platform | undefined): numb
 	return Math.max(0, Math.min(SESSION_CACHE_TTL_MAX, Math.floor(n)));
 }
 
+/**
+ * TTL efetivo do cache PARA ESTE request. Zero — cache desligado — quando o
+ * método muta estado.
+ *
+ * Leitura pode estar até um TTL atrasada; **ação, não**. Dentro da janela — e o
+ * Cache API é por colo, então um token usado em outro data center tem a janela
+ * inteira — uma sessão revogada, uma senha trocada ou um policial desativado
+ * continuavam ALTERANDO estado (FLW-AUTH-001). Revalidar custa um batch no D1,
+ * e quem está mutando já paga vários; o ganho do cache está no caminho de
+ * leitura, que é onde está o volume.
+ *
+ * A regra mora aqui, e não embutida no `hooks.server.ts`, porque é ELA que
+ * produz a garantia — e o Cache API não funciona no preview local, então
+ * nenhum teste de ponta a ponta consegue observar a diferença. O que dá para
+ * fixar é a decisão.
+ */
+export function ttlCacheSessaoParaMetodo(
+	platform: App.Platform | undefined,
+	metodo: string
+): number {
+	return METODOS_QUE_MUTAM.has(metodo.toUpperCase()) ? 0 : resolverTtlCacheSessao(platform);
+}
+
+/** Métodos HTTP que mudam estado — os mesmos do guard de CSRF. */
+const METODOS_QUE_MUTAM = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
+
 async function chaveCache(token: string): Promise<Request> {
 	const hex = await sha256Hex(token);
 	return new Request(`https://internal.escalas.local/sessao/v1/${hex}`, { method: 'GET' });

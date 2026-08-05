@@ -283,6 +283,56 @@ async function mapearPolicial(
 }
 
 /**
+ * Consulta a linha admin de uma sessão JUNTO com o `ativo` do policial
+ * vinculado — as duas informações de que a validação precisa, numa query só
+ * (a versão em batch não pode pagar um round-trip a mais).
+ */
+function queryAdminDaSessao(db: Database, adminId: number) {
+	return db
+		.select({ admin: administradores, policial_ativo: policiais.ativo })
+		.from(administradores)
+		.leftJoin(policiais, eq(administradores.policial_id, policiais.id))
+		.where(eq(administradores.id, adminId))
+		.limit(1);
+}
+
+/**
+ * A conta admin ainda autentica? `null` quando não.
+ *
+ * O Admin Geral VINCULADO é o próprio policial: desativá-lo tem de derrubar os
+ * DOIS modos. Até ago/2026 a sessão admin era validada só contra
+ * `administradores`, sem olhar o vínculo — desativar o policial tirava o modo
+ * usuário e deixava o modo administrador de pé, que é o mais poderoso dos dois
+ * (FLW-RBAC-001). O ramo de policial sempre exigiu `ativo = 1`; faltava aqui.
+ *
+ * Admin STANDALONE (bootstrap por env, `policial_id` nulo) não tem vínculo a
+ * conferir e segue valendo.
+ */
+function adminDaSessao(
+	linha: { admin: typeof administradores.$inferSelect; policial_ativo: number | null } | undefined
+): typeof administradores.$inferSelect | null {
+	if (!linha) return null;
+	if (linha.admin.policial_id != null && linha.policial_ativo !== 1) return null;
+	return linha.admin;
+}
+
+/**
+ * A linha admin, se a conta ainda pode autenticar. `null` quando o policial
+ * vinculado foi desativado.
+ *
+ * Ponto único da regra: a validação de sessão e a conclusão do 2FA precisam da
+ * MESMA resposta. Quando cada uma respondia por conta própria, a do 2FA
+ * esquecia o vínculo e emitia sessão de administrador para um policial
+ * desativado (FLW-RBAC-001).
+ */
+export async function buscarAdminAtivo(
+	db: Database,
+	adminId: number
+): Promise<typeof administradores.$inferSelect | null> {
+	return adminDaSessao((await queryAdminDaSessao(db, adminId))[0]);
+}
+
+/**
  * Token → usuário logado, ou `null` para sessão inexistente, expirada ou de
  * conta que não serve mais.
  *
@@ -308,11 +358,7 @@ export async function validarSessao(
 	if (slidingUpdate) await slidingUpdate;
 
 	if (sessao.tipo === 'admin') {
-		const admin = await db
-			.select()
-			.from(administradores)
-			.where(eq(administradores.id, sessao.usuario_id))
-			.get();
+		const admin = await buscarAdminAtivo(db, sessao.usuario_id);
 		return admin ? mapearAdmin(admin, platform) : null;
 	}
 
@@ -367,15 +413,12 @@ export async function validarSessaoComAceite(
 	let ultimoAceite: { versao_termo: string; hash_termo: string } | undefined;
 
 	if (sessao.tipo === 'admin') {
-		const userQuery = db
-			.select()
-			.from(administradores)
-			.where(eq(administradores.id, sessao.usuario_id))
-			.limit(1);
-		const [admins, aceites] = slidingUpdate
+		const userQuery = queryAdminDaSessao(db, sessao.usuario_id);
+		const [linhas, aceites] = slidingUpdate
 			? await db.batch([userQuery, aceiteQuery, slidingUpdate])
 			: await db.batch([userQuery, aceiteQuery]);
-		usuario = admins[0] ? mapearAdmin(admins[0], platform) : null;
+		const admin = adminDaSessao(linhas[0]);
+		usuario = admin ? mapearAdmin(admin, platform) : null;
 		ultimoAceite = aceites[0];
 	} else {
 		const userQuery = db

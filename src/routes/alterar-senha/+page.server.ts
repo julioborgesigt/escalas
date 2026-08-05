@@ -1,10 +1,15 @@
 import { fail } from '@sveltejs/kit';
-import { eq, and } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 import { getDB, auditar, contextoDeEvento } from '$lib/db';
 import { hashSenha, verificarSenha, criarSessao } from '$lib/auth';
-import { administradores, policiais, sessoes } from '$lib/server/schema';
+import { administradores, policiais } from '$lib/server/schema';
 import { alterarSenhaSchema } from '$lib/schemas';
 import { cookieOptions } from '$lib/server/auth/auth-flow';
+import {
+	credencialDoUsuario,
+	resolverCredencial,
+	revogarSessoesDaCredencial
+} from '$lib/server/auth/credencial';
 import { invalidarSessaoCache } from '$lib/server/auth/session-cache';
 import {
 	contarRecoveryAttempts,
@@ -46,11 +51,13 @@ export const actions = {
 			return fail(400, { error: parsed.error.issues[0].message });
 		}
 
-		// Admin Geral VINCULADO: a credencial vive na linha de `policiais`. Em modo
-		// admin, operações de senha miram o policial vinculado (adminPolicialId),
-		// não a linha admin (que tem só um placeholder).
-		const alvoEhPolicial = usuario.tipo === 'policial' || usuario.adminPolicialId != null;
-		const alvoId = usuario.adminPolicialId ?? usuario.id;
+		// Onde a senha realmente mora — no Admin Geral VINCULADO é a linha do
+		// policial, não a linha admin (que tem só um placeholder). Regra única em
+		// `credencialDoUsuario`; escrita à mão aqui, ela não protegia o
+		// `redefinir-senha`, que nasceu sem ela.
+		const alvo = credencialDoUsuario(usuario);
+		const alvoEhPolicial = alvo.tipo === 'policial';
+		const alvoId = alvo.id;
 
 		if (usuario.primeiro_acesso) {
 			const registroEmail = alvoEhPolicial
@@ -128,9 +135,12 @@ export const actions = {
 		// Rotação completa: invalida TODAS as sessões (inclusive a atual) e cria
 		// uma nova. Se um atacante tinha o cookie roubado, o `Set-Cookie` novo
 		// só vai para o navegador legítimo desta resposta — atacante perde acesso.
-		await db
-			.delete(sessoes)
-			.where(and(eq(sessoes.tipo, usuario.tipo), eq(sessoes.usuario_id, usuario.id)));
+		//
+		// "Todas" inclui as DUAS identidades do Admin Geral vinculado. Apagar só
+		// as do modo atual deixava vivo o cookie do outro modo, destravado pela
+		// MESMA senha — exatamente o cookie roubado que esta rotação existe para
+		// matar (FLW-AUTH-002).
+		await revogarSessoesDaCredencial(db, await resolverCredencial(db, usuario.tipo, usuario.id));
 
 		// Higiene do cache edge de sessão: o token antigo ainda valeria por até
 		// 60s no colo local. O token NOVO é cache-miss natural (chave diferente),

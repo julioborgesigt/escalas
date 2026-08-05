@@ -1,5 +1,5 @@
 import { fail, redirect } from '@sveltejs/kit';
-import { eq, and } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 import { getDB, registrarAuditComContexto } from '$lib/db';
 import {
 	verificarTokenRedefinicao,
@@ -7,9 +7,10 @@ import {
 	hashSenha,
 	criarSessao
 } from '$lib/auth';
-import { administradores, policiais, sessoes } from '$lib/server/schema';
+import { administradores, policiais } from '$lib/server/schema';
 import { alterarSenhaSchema } from '$lib/schemas';
 import { cookieOptions } from '$lib/server/auth/auth-flow';
+import { resolverCredencial, revogarSessoesDaCredencial } from '$lib/server/auth/credencial';
 import type { PageServerLoad, Actions } from './$types';
 
 /**
@@ -152,37 +153,47 @@ export const actions: Actions = {
 		const pepper = (platform?.env as Env | undefined)?.PASSWORD_PEPPER?.trim() || undefined;
 		const novaSenhaHash = await hashSenha(parsed.data.nova_senha, pepper);
 
+		// A senha vai para a linha que o LOGIN lê, não para a do token. São
+		// diferentes no Admin Geral VINCULADO: a linha `administradores` dele tem
+		// só um placeholder, e o login autentica contra `policiais.senha`. Gravar
+		// no lugar errado não muda nada — a senha nova não passa a valer e a
+		// ANTIGA continua valendo, justamente no fluxo que existe para trocar uma
+		// senha comprometida (FLW-AUTH-002).
+		const cred = await resolverCredencial(db, tipo, usuarioId);
+
 		// Buscar nome para auditoria
 		let nome = 'Usuário';
 
-		if (tipo === 'admin') {
+		if (cred.dono.tipo === 'admin') {
 			const admin = await db
 				.select({ nome: administradores.nome })
 				.from(administradores)
-				.where(eq(administradores.id, usuarioId))
+				.where(eq(administradores.id, cred.dono.id))
 				.get();
 			nome = admin?.nome ?? nome;
 
 			await db
 				.update(administradores)
 				.set({ senha: novaSenhaHash, primeiro_acesso: 0 })
-				.where(eq(administradores.id, usuarioId));
+				.where(eq(administradores.id, cred.dono.id));
 		} else {
 			const policial = await db
 				.select({ nome: policiais.nome })
 				.from(policiais)
-				.where(eq(policiais.id, usuarioId))
+				.where(eq(policiais.id, cred.dono.id))
 				.get();
 			nome = policial?.nome ?? nome;
 
 			await db
 				.update(policiais)
 				.set({ senha: novaSenhaHash, primeiro_acesso: 0 })
-				.where(eq(policiais.id, usuarioId));
+				.where(eq(policiais.id, cred.dono.id));
 		}
 
-		// Invalidar todas as sessões do usuário
-		await db.delete(sessoes).where(and(eq(sessoes.tipo, tipo), eq(sessoes.usuario_id, usuarioId)));
+		// Derruba as sessões das DUAS identidades quando são a mesma pessoa: uma
+		// senha destrava dois cookies, e deixar um vivo é deixar de fora o cookie
+		// roubado que motivou o reset.
+		await revogarSessoesDaCredencial(db, cred);
 
 		// Auditoria
 		await registrarAuditComContexto(db, {
