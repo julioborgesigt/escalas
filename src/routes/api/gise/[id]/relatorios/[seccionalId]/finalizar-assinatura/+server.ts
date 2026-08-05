@@ -20,6 +20,7 @@ import {
 	respostaPdfAssinado
 } from '$lib/server/assinatura/signature-service';
 import { tryGetR2 } from '$lib/db';
+import { bucketParaAssinatura, guardarPdfAssinado } from '$lib/server/assinatura/blob-assinado';
 import {
 	requireAuth,
 	badRequest,
@@ -77,6 +78,12 @@ export const POST: RequestHandler = async (event) => {
 	// Consome a preparação: prova que ESTE pdf foi preparado por ESTE usuário
 	// para ESTE alvo, uma vez só (FLW-DOC-001). O código público de validação
 	// vem daqui, não do corpo da requisição.
+	// ANTES de consumir o token: sem onde guardar o PDF, a assinatura é
+	// recusada em vez de virar linha apontando para o vazio (FLW-R2-003).
+	const bucketOk = bucketParaAssinatura(tryGetR2(p));
+	if (!bucketOk.ok) return bucketOk.resposta;
+	const bucket = bucketOk.r2;
+
 	const consumo = await consumirIntencaoAssinatura(
 		db,
 		intencao,
@@ -107,10 +114,8 @@ export const POST: RequestHandler = async (event) => {
 		const r2Key = `${folder}/gise_rel_${id}_sec_${secIdNum}_${verificationHash}_assinada.pdf`;
 		const filename = `relatorio_extraordinario_gise_${id}_sec_${secIdNum}.pdf`;
 
-		const r2 = tryGetR2(p);
-		if (r2) {
-			await r2.put(r2Key, result.pdfFinal, { httpMetadata: { contentType: 'application/pdf' } });
-		}
+		const guardado = await guardarPdfAssinado(bucket, r2Key, result.pdfFinal, 'gise-relatorio');
+		if (!guardado.ok) return guardado.resposta;
 
 		await salvarAssinaturaRelatorioGise(
 			db,

@@ -11,6 +11,7 @@ import { fail } from '@sveltejs/kit';
 import type { RequestEvent } from '@sveltejs/kit';
 import {
 	getDB,
+	tryGetR2,
 	buscarGiseEscala,
 	atualizarGiseEscala,
 	atualizarGiseSeccional,
@@ -35,6 +36,7 @@ import {
 import { eq, and, asc, inArray } from 'drizzle-orm';
 import { getInt, saiuDaFaseDeEdicao, podePreencherSeccional } from './shared';
 import { concluirMudancaGise, invalidarAssinaturasDaSeccional } from './desfecho';
+import { coletarChavesR2DaRevogacaoSeccional, deletarChavesR2 } from '$lib/server/r2-cleanup';
 
 type Event = RequestEvent<{ id: string }>;
 
@@ -109,6 +111,7 @@ export const actionsSeccional = {
 		if (isNaN(giseId) || isNaN(secId)) return fail(400, { error: 'IDs inválidos' });
 
 		const db = getDB(platform);
+		const r2 = tryGetR2(platform) ?? null;
 		const gise = await buscarGiseEscala(db, giseId);
 		if (!gise) return fail(404, { error: 'GISE não encontrada' });
 
@@ -128,6 +131,18 @@ export const actionsSeccional = {
 			.innerJoin(giseEquipes, eq(giseMembros.equipe_id, giseEquipes.id))
 			.where(eq(giseEquipes.gise_seccional_id, secId))
 			.all();
+
+		// R2 antes do D1: o `excluirGiseSeccional` leva equipes, membros e — em
+		// cascata — presenças e relatórios da seccional. Depois disso não há linha
+		// que diga quais objetos existiam (FLW-DOC-003).
+		if (r2) {
+			await deletarChavesR2(
+				db,
+				r2,
+				await coletarChavesR2DaRevogacaoSeccional(db, giseId, secId),
+				'remocao-seccional'
+			);
+		}
 
 		await excluirGiseSeccional(db, secId);
 		await db.delete(giseDocumentos).where(eq(giseDocumentos.gise_id, giseId));
@@ -351,6 +366,7 @@ export const actionsSeccional = {
 		const horaSaida = formData.get('hora_saida') as string | null;
 
 		const db = getDB(platform);
+		const r2 = tryGetR2(platform) ?? null;
 		const gise = await buscarGiseEscala(db, giseId);
 		if (!gise) return fail(404, { error: 'GISE não encontrada' });
 
@@ -372,7 +388,7 @@ export const actionsSeccional = {
 
 		// Horário sai impresso no relatório de extra: mudou, as assinaturas desta
 		// seccional caem.
-		const invalidacao = await invalidarAssinaturasDaSeccional(db, giseId, secId, gise.status);
+		const invalidacao = await invalidarAssinaturasDaSeccional(db, r2, giseId, secId, gise.status);
 
 		await concluirMudancaGise(event, {
 			db,

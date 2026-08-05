@@ -47,6 +47,7 @@ import {
 import { montarSignersPresencaExtra } from '$lib/server/gise/relatorio-manifesto';
 import { selarPdfInstitucional, tipoCarimboPrevisto } from '$lib/server/assinatura/server-seal';
 import { tryGetR2 } from '$lib/db';
+import { bucketParaAssinatura, guardarPdfAssinado } from '$lib/server/assinatura/blob-assinado';
 import { chaveConferencia } from '$lib/server/assinatura/copia-conferencia';
 import { logger } from '$lib/server/logger';
 import { uploadSelfieDataUri } from '$lib/server/assinatura/selfie-upload';
@@ -264,7 +265,12 @@ export const POST: RequestHandler = async (event) => {
 		const arquivo_hash = bytesToHex(new Uint8Array(hashBuffer));
 
 		const p = platform as Record<string, unknown> | undefined;
-		const r2 = tryGetR2(p);
+		// Ver FLW-R2-003: sem bucket a assinatura é recusada, não gravada com a
+		// chave apontando para nada.
+		const bucketOk = bucketParaAssinatura(tryGetR2(p));
+		if (!bucketOk.ok) return bucketOk.resposta;
+		const r2 = bucketOk.r2;
+
 		const [yyyy, mm, dd] = gise.data_inicio.split('-');
 		const mesAno = `${yyyy}-${mm}`;
 		const folder = `gise/${mesAno}/${dd}/${id}/relatorios_extra`;
@@ -272,10 +278,14 @@ export const POST: RequestHandler = async (event) => {
 
 		let selfieKey: string | undefined = undefined;
 
-		if (r2) {
-			await r2.put(`${prefixBase}_assinada.pdf`, pdfParaSalvar, {
-				httpMetadata: { contentType: 'application/pdf' }
-			});
+		{
+			const guardado = await guardarPdfAssinado(
+				r2,
+				`${prefixBase}_assinada.pdf`,
+				pdfParaSalvar,
+				'gise-relatorio-simples'
+			);
+			if (!guardado.ok) return guardado.resposta;
 
 			// Cópia de conferência (mesmos bytes, sem a folha de manifesto). Sem ela o
 			// download "sem manifesto" regenerava o relatório na hora a partir dos dados

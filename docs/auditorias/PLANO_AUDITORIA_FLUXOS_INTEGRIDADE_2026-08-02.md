@@ -491,7 +491,7 @@ simular sucesso.
 
 **Severidade:** P1  
 **Fluxo:** FLX-06 / FLX-08  
-**Estado:** confirmado
+**Estado:** corrigido
 
 `deletarChavesR2()` usa `Promise.allSettled`, registra a rejeição e retorna a
 quantidade de chaves tentadas, não removidas
@@ -510,6 +510,30 @@ como pendência operacional.
 
 **Teste de regressão:** falha parcial de R2 mantém uma pendência identificável
 e reprocessável; a limpeza bem-sucedida a encerra.
+
+> **CORRIGIDO (05/ago/2026).** O best-effort continua — a linha no D1 é a fonte
+> da verdade de `/validar` e não pode ficar refém do storage. O que mudou foi o
+> PREÇO. `deletarChavesR2` devolvia quantas chaves foram TENTADAS e tratava a
+> rejeição como `logger.warn`; o chamador então apagava a linha que guardava o
+> `r2_key`, e depois disso o objeto existe no bucket sem nada no sistema saber
+> que ele existe. Não é lixo neutro: é PDF com manifesto forense (CPF, IP, GPS)
+> e selfie biométrica (LGPD art. 11), retidos sem base e sem responsável.
+>
+> **A política é a mesma já decidida para a trilha (FLW-AUDIT-001): pendência
+> durável e segue.** A chave que resistiu vai para `r2_pendencias` ANTES de a
+> linha sumir — é o ponto, depois seria tarde —, e `reprocessarPendenciasR2`
+> tenta de novo no mesmo cron de retenção. O retorno passou a distinguir
+> `removidas` de `pendentes`, porque "tentadas" não responde a pergunta que se
+> faz a uma limpeza. A chave que sai do bucket é retirada da fila, para uma
+> falha transitória não virar pendência eterna.
+>
+> A resposta do cron e a da exclusão de GISE passaram a expor os restantes: é o
+> número que diz se o bucket está limpo, e crescendo entre execuções há objeto
+> que o R2 não deixa apagar.
+>
+> Cobertura: 8 casos novos em `src/lib/server/__tests__/r2-cleanup.test.ts`, com
+> banco real. Três mutações verificadas — voltar ao log silencioso, voltar a
+> contar as tentadas, e não esquecer a pendência resolvida.
 
 ### FLW-AUDIT-005 — retenção remove prefixo sem âncora verificável
 
@@ -1318,6 +1342,7 @@ recebendo a cópia permitida.
 ### FLW-R2-003 — assinatura GISE pode persistir sem blob R2
 
 **Severidade:** P1  
+**Estado:** corrigido  
 Finalizadores de GISE, relatório e presença tratam R2 como opcional e podem
 persistir documento/hash mesmo sem blob
 (`api/gise/[id]/finalizar-assinatura/+server.ts:84-113` e finalizadores
@@ -1327,9 +1352,39 @@ equivalentes de relatório/presença).
 pendente/outbox e compensar blob se D1/auditoria falhar. Testar R2 ausente,
 `put` falho e falha posterior de D1.
 
+> **CORRIGIDO (05/ago/2026).** Os seis finalizadores escreviam
+> `if (r2) await r2.put(...)` e gravavam a linha em seguida, com ou sem bucket.
+> Sem R2, o certificado era consumido, o hash de verificação era emitido e
+> IMPRESSO no documento, e `/validar` passava a resolver esse hash para um
+> arquivo que não existe — do lado de quem confere, indistinguível de um
+> documento adulterado.
+>
+> A regra passou a ser a inversa, em `assinatura/blob-assinado.ts`: **sem onde
+> guardar, não assina.** A assimetria é a razão — recusar antes é reversível (a
+> pessoa tenta de novo em dez minutos); assinar e não guardar não é. O guard
+> (`bucketParaAssinatura`) roda ANTES de consumir o token de intenção, para a
+> recusa não custar o ato; devolve 503 + `upstream`, que o front trata como
+> "tente de novo", e a mensagem afirma explicitamente que a assinatura NÃO foi
+> realizada.
+>
+> `guardarPdfAssinado` fecha a segunda ponta: com o binding presente, o `put`
+> ainda pode falhar (rede, quota), e a exceção subia para o catch genérico do
+> endpoint — que em alguns caminhos já tinha gravado a linha. Agora vira recusa.
+> `compensarBlobAssinado` cobre a terceira: falhando o D1 depois do `put`, o
+> blob órfão é removido, e o que resistir cai na pendência durável de
+> FLW-R2-004.
+>
+> Os dois finalizadores de escala mensal já usavam `getR2` (que lança), e por
+> isso não tinham o furo; ficam como estão.
+>
+> Cobertura: `assinatura/__tests__/blob-assinado.test.ts`, 7 casos — os três
+> cenários pedidos pelo achado (R2 ausente, `put` falho, falha posterior de D1).
+> Duas mutações verificadas.
+
 ### FLW-DOC-003 — revogação/reassinatura GISE deixa artefatos antigos
 
 **Severidade:** P1  
+**Estado:** corrigido  
 Caminhos alternativos removem apenas D1, e upserts de documento/assinatura
 não garantem remoção dos PDFs, conferências e selfies anteriores
 (`actions-equipe.ts:53-56,135-139`, `actions-seccional.ts:97-113`,
@@ -1339,6 +1394,35 @@ não garantem remoção dos PDFs, conferências e selfies anteriores
 **Ação/teste:** centralizar revogação/reassinatura com limpeza R2 prévia,
 preservação de chaves novas e auditoria. Hash antigo não deve resolver após
 alterar, reabrir ou reassinar.
+
+> **CORRIGIDO (05/ago/2026).** Os endpoints de reabrir/revogar já chamavam
+> `limparR2DaGise`; o buraco estava nos caminhos por FORM ACTION, que apagavam
+> `gise_documentos` (e, via `revogarAssinaturasSeccional`, relatórios e
+> presenças) sem tocar no bucket.
+>
+> A limpeza entrou no DESFECHO, que é por onde as treze actions passam desde
+> FLW-GISE-003 — `invalidarDocumentoDaEscala` e `invalidarAssinaturasDaSeccional`
+> agora recebem o bucket e apagam os bytes ANTES das linhas. A ordem é o ponto:
+> é a linha que diz quais objetos existem.
+>
+> Duas coletas novas em `r2-cleanup.ts`, e são deliberadamente ESTREITAS:
+> `coletarChavesR2DoDocumentoGise` (só o consolidado) e
+> `coletarChavesR2DaRevogacaoSeccional` (consolidado + relatórios da seccional +
+> selfies de presença dos seus membros). Usar `coletarChavesR2DaGise`, que varre
+> a GISE inteira, apagaria blobs de documentos que a invalidação NÃO derruba.
+> A segunda espelha passo a passo o que `revogarAssinaturasSeccional` apaga, e
+> recebe o id da PARTICIPAÇÃO pelo mesmo motivo que ela — ver FLW-GISE-011.
+>
+> Fechados também os dois caminhos fora do desfecho: `removerSeccional` (cujo
+> `excluirGiseSeccional` leva equipes, membros e, em cascata, presenças e
+> relatórios) e a edição de data/horário da escala.
+>
+> Isto encerra o "fica em aberto" registrado em FLW-GISE-006.
+>
+> Cobertura: 3 casos em `gise/[id]/_actions/__tests__/desfecho.test.ts`,
+> incluindo a selfie de presença e a cópia de conferência (prefixo PLANO, que
+> escapa da varredura por prefixo). Mutação verificada: removida a limpeza,
+> dois casos reprovam.
 
 ### FLW-TEST-005 — contratos de segurança de assinatura não têm teste de rota
 

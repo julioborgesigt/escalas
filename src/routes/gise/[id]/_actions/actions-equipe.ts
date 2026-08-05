@@ -1,6 +1,6 @@
 import { fail } from '@sveltejs/kit';
 import type { RequestEvent } from '@sveltejs/kit';
-import { getDB, atualizarGiseEquipe, excluirGiseEquipe, criarGiseEquipe } from '$lib/db';
+import { getDB, tryGetR2, atualizarGiseEquipe, excluirGiseEquipe, criarGiseEquipe } from '$lib/db';
 import { isAdminGeral } from '$lib/auth';
 import { giseMembros } from '$lib/server/schema';
 import { eq } from 'drizzle-orm';
@@ -44,6 +44,7 @@ export const actionsEquipe = {
 		if (isNaN(slotsDpc) || isNaN(slotsOip)) return fail(400, { error: 'Dados inválidos' });
 
 		const db = getDB(platform);
+		const r2 = tryGetR2(platform) ?? null;
 		// ANTES de mutar. A versão anterior gravava as vagas e só então olhava o
 		// status — numa escala finalizada, a alteração já tinha acontecido quando
 		// alguém fosse decidir se podia.
@@ -54,7 +55,7 @@ export const actionsEquipe = {
 
 		// Mudar vagas altera o corpo da escala inteira: o PDF gerado deixa de valer
 		// e a GISE volta para preenchimento.
-		const invalidacao = await invalidarDocumentoDaEscala(db, giseId, carga.gise.status);
+		const invalidacao = await invalidarDocumentoDaEscala(db, r2, giseId, carga.gise.status);
 
 		await concluirMudancaGise(event, {
 			db,
@@ -87,6 +88,7 @@ export const actionsEquipe = {
 		const horaSaida = formData.get('hora_saida') as string | null;
 
 		const db = getDB(platform);
+		const r2 = tryGetR2(platform) ?? null;
 		const carga = await carregarEquipeDaGise(db, giseId, eqId);
 		if ('erro' in carga) return carga.erro;
 
@@ -99,6 +101,7 @@ export const actionsEquipe = {
 		// dela e as presenças dos seus membros, além do documento consolidado.
 		const invalidacao = await invalidarAssinaturasDaSeccional(
 			db,
+			r2,
 			giseId,
 			carga.equipe.gise_seccional_id,
 			carga.gise.status
@@ -146,6 +149,7 @@ export const actionsEquipe = {
 		const unidadeId = unidadeIdRaw ? parseInt(unidadeIdRaw) : null;
 
 		const db = getDB(platform);
+		const r2 = tryGetR2(platform) ?? null;
 		const carga = await carregarSeccionalDaGise(db, giseId, secId);
 		if ('erro' in carga) return carga.erro;
 
@@ -154,7 +158,7 @@ export const actionsEquipe = {
 		const novaEquipeId = await criarGiseEquipe(db, secId, tipo, dpc, oip, unidadeId);
 
 		// Equipe nova = escala diferente da que foi para assinatura.
-		const invalidacao = await invalidarDocumentoDaEscala(db, giseId, carga.gise.status);
+		const invalidacao = await invalidarDocumentoDaEscala(db, r2, giseId, carga.gise.status);
 
 		await concluirMudancaGise(event, {
 			db,
@@ -183,6 +187,7 @@ export const actionsEquipe = {
 		if (isNaN(giseId) || isNaN(equipeId)) return fail(400, { error: 'IDs inválidos' });
 
 		const db = getDB(platform);
+		const r2 = tryGetR2(platform) ?? null;
 		// O preâmbulo já traz a seccional — antes ela era lida numa query própria,
 		// ANTES do delete, porque depois a linha não existiria mais.
 		const carga = await carregarEquipeDaGise(db, giseId, equipeId);
@@ -200,6 +205,7 @@ export const actionsEquipe = {
 
 		const invalidacao = await invalidarAssinaturasDaSeccional(
 			db,
+			r2,
 			giseId,
 			carga.equipe.gise_seccional_id,
 			carga.gise.status

@@ -26,6 +26,7 @@ import {
 	respostaPdfAssinado
 } from '$lib/server/assinatura/signature-service';
 import { tryGetR2 } from '$lib/db';
+import { bucketParaAssinatura, guardarPdfAssinado } from '$lib/server/assinatura/blob-assinado';
 import {
 	requireAuth,
 	badRequest,
@@ -78,6 +79,12 @@ export const POST: RequestHandler = async (event) => {
 	// DEPOIS da permissão, como na escala: o consumo QUEIMA a intenção, e quem
 	// saiu da GISE no meio do caminho perderia junto a preparação — teria de
 	// refazer a assinatura só para ouvir o 403 que já cabia aqui.
+	// ANTES de consumir o token: sem onde guardar o PDF, a assinatura é
+	// recusada em vez de virar linha apontando para o vazio (FLW-R2-003).
+	const bucketOk = bucketParaAssinatura(tryGetR2(p));
+	if (!bucketOk.ok) return bucketOk.resposta;
+	const bucket = bucketOk.r2;
+
 	const consumo = await consumirIntencaoAssinatura(
 		db,
 		intencao,
@@ -113,10 +120,8 @@ export const POST: RequestHandler = async (event) => {
 		const r2Key = `${folder}/termo_${tipo}_pol_${u.id}_${verificationHash}.pdf`;
 		const filename = `termo_presenca_${tipo}_gise_${giseId}.pdf`;
 
-		const r2 = tryGetR2(p);
-		if (r2) {
-			await r2.put(r2Key, result.pdfFinal, { httpMetadata: { contentType: 'application/pdf' } });
-		}
+		const guardado = await guardarPdfAssinado(bucket, r2Key, result.pdfFinal, 'gise-presenca');
+		if (!guardado.ok) return guardado.resposta;
 
 		// Persiste a presença com a rubrica cadastrada (sem selfie/GPS obrigatórios:
 		// a identidade vem do certificado A3).

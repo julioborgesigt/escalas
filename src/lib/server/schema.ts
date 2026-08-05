@@ -862,6 +862,38 @@ export const auditPendencias = sqliteTable(
 	(table) => [index('idx_audit_pendencias_created').on(table.created_at)]
 );
 
+/**
+ * Objeto do R2 que NÃO conseguiu ser apagado (FLW-R2-004).
+ *
+ * `deletarChavesR2` é best-effort de propósito — a linha no D1 é a fonte da
+ * verdade de `/validar` e não pode ficar refém do storage. O preço era o
+ * objeto sumir do radar: a função devolvia quantas chaves foram TENTADAS, e o
+ * chamador em seguida apagava a linha que guardava o `r2_key`. Depois disso o
+ * objeto existe no bucket e nada no sistema sabe que ele existe.
+ *
+ * E o que sobra não é lixo neutro: PDF com manifesto forense (CPF, IP, GPS) e
+ * selfie biométrica (LGPD art. 11). A chave é capturada AQUI antes de a linha
+ * sumir; `reprocessarPendenciasR2` tenta de novo no cron de retenção.
+ */
+export const r2Pendencias = sqliteTable(
+	'r2_pendencias',
+	{
+		id: integer('id').primaryKey({ autoIncrement: true }),
+		/** Única: a mesma chave falhando duas vezes é a mesma pendência. */
+		chave: text('chave').notNull().unique(),
+		/** De onde veio, para triagem sem consultar outra tabela. */
+		origem: text('origem').notNull(),
+		/** Por que o delete falhou — separa transitório de permanente. */
+		motivo: text('motivo').notNull(),
+		tentativas: integer('tentativas').notNull().default(0),
+		ultima_tentativa_em: text('ultima_tentativa_em'),
+		created_at: text('created_at')
+			.notNull()
+			.default(sql`(datetime('now'))`)
+	},
+	(table) => [index('idx_r2_pendencias_created').on(table.created_at)]
+);
+
 export const auditLog = sqliteTable(
 	'audit_log',
 	{

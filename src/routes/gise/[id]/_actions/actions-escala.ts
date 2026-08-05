@@ -24,7 +24,12 @@ import {
 	type BaseEquipeEnv
 } from '$lib/server/gise/base-equipe-sync';
 import { policiais, giseDocumentos, giseEscalas } from '$lib/server/schema';
-import { limparR2DaGise } from '$lib/server/r2-cleanup';
+import {
+	coletarChavesR2DoDocumentoGise,
+	deletarChavesR2,
+	limparR2DaGise,
+	LIMPEZA_R2_VAZIA
+} from '$lib/server/r2-cleanup';
 import { eq } from 'drizzle-orm';
 import { saiuDaFaseDeEdicao } from './shared';
 
@@ -264,6 +269,17 @@ export const actionsEscala = {
 
 		let deveResetarStatus = false;
 		if (saiuDaFaseDeEdicao(gise.status)) {
+			// R2 antes do D1 — mudar data/horário da escala invalida o PDF assinado,
+			// e a linha é a única coisa que sabe onde ele está (FLW-DOC-003).
+			const r2Doc = getR2(platform);
+			if (r2Doc) {
+				await deletarChavesR2(
+					db,
+					r2Doc,
+					await coletarChavesR2DoDocumentoGise(db, giseId),
+					'edicao-escala-gise'
+				);
+			}
 			await db.delete(giseDocumentos).where(eq(giseDocumentos.gise_id, giseId));
 			updateData.status = 'em_preenchimento';
 			deveResetarStatus = true;
@@ -444,10 +460,14 @@ export const actionsEscala = {
 		// em que as cópias de conferência (`conferencia/<hash>.pdf`, prefixo PLANO)
 		// escapavam da varredura por prefixo `gise/...` e ficavam órfãs.
 		const r2 = getR2(platform);
-		const filesDeleted = r2 ? await limparR2DaGise(db, r2, gise) : 0;
+		const limpeza = r2
+			? await limparR2DaGise(db, r2, gise, 'exclusao-gise')
+			: { ...LIMPEZA_R2_VAZIA };
 
 		await db.delete(giseEscalas).where(eq(giseEscalas.id, giseId));
 		await invalidarPapelGiseMultiplos(afetados);
-		return { success: true, files_deleted: filesDeleted };
+		// `pendentes` sai na resposta: o operador que acabou de apagar uma GISE
+		// precisa saber se algum PDF assinado resistiu e ficou no bucket.
+		return { success: true, files_deleted: limpeza.removidas, r2_pendentes: limpeza.pendentes };
 	}
 };

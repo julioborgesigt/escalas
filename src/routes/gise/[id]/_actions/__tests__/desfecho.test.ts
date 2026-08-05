@@ -15,11 +15,25 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import type { RequestEvent } from '@sveltejs/kit';
 import type { Database } from '$lib/db';
 import { bancoMigrado, drizzleSobre } from '$lib/db/__tests__/sqlite-migrado';
+import { vi } from 'vitest';
+import type { R2CleanupBucket } from '$lib/server/r2-cleanup';
 import {
 	concluirMudancaGise,
 	invalidarAssinaturasDaSeccional,
 	invalidarDocumentoDaEscala
 } from '../desfecho';
+
+/** Bucket que registra o que foi apagado, na ordem. */
+function bucketEspiao() {
+	const apagadas: string[] = [];
+	const bucket: R2CleanupBucket = {
+		delete: vi.fn(async (k) => {
+			apagadas.push(k as string);
+		}),
+		list: vi.fn(async () => ({ objects: [], truncated: false }))
+	};
+	return { bucket, apagadas };
+}
 
 let db: Database;
 let sqlite: ReturnType<typeof bancoMigrado>;
@@ -103,9 +117,9 @@ describe('invalidação: o que a mudança derruba depende da fase', () => {
 		// não existiria. O ponto é que a função não o toca — decide pela FASE, não
 		// pela presença do arquivo.
 		return Promise.all([
-			expect(invalidarDocumentoDaEscala(db, GISE, 'em_preenchimento')).resolves.toBe('nada'),
+			expect(invalidarDocumentoDaEscala(db, null, GISE, 'em_preenchimento')).resolves.toBe('nada'),
 			expect(
-				invalidarAssinaturasDaSeccional(db, GISE, SECCIONAL_GISE, 'em_definicao_supervisor')
+				invalidarAssinaturasDaSeccional(db, null, GISE, SECCIONAL_GISE, 'em_definicao_supervisor')
 			).resolves.toBe('nada')
 		]).then(() => {
 			expect(documentos()).toBe(1);
@@ -115,7 +129,7 @@ describe('invalidação: o que a mudança derruba depende da fase', () => {
 
 	it('fora do rascunho, o documento da escala é descartado e a GISE volta a preencher', async () => {
 		semear('aguardando_assinatura');
-		await expect(invalidarDocumentoDaEscala(db, GISE, 'aguardando_assinatura')).resolves.toBe(
+		await expect(invalidarDocumentoDaEscala(db, null, GISE, 'aguardando_assinatura')).resolves.toBe(
 			'documento_da_escala'
 		);
 		expect(documentos()).toBe(0);
@@ -128,10 +142,67 @@ describe('invalidação: o que a mudança derruba depende da fase', () => {
 		// documento consolidado contém a seccional alterada, então ele cai junto.
 		semear('em_andamento');
 		await expect(
-			invalidarAssinaturasDaSeccional(db, GISE, SECCIONAL_GISE, 'em_andamento')
+			invalidarAssinaturasDaSeccional(db, null, GISE, SECCIONAL_GISE, 'em_andamento')
 		).resolves.toBe('documento_e_assinaturas_da_seccional');
 		expect(documentos()).toBe(0);
 		expect(statusDaGise()).toBe('em_preenchimento');
+	});
+});
+
+describe('os BYTES saem junto com as LINHAS — FLW-DOC-003', () => {
+	it('o PDF da escala e sua cópia de conferência saem do bucket', async () => {
+		// O caminho por form action apagava só a linha. Depois disso o blob fica
+		// no bucket sem nenhuma referência: não aparece na tela, não é alcançado
+		// pelo expurgo de retenção, e é PDF com manifesto forense.
+		semear('aguardando_assinatura');
+		const { bucket, apagadas } = bucketEspiao();
+
+		await invalidarDocumentoDaEscala(db, bucket, GISE, 'aguardando_assinatura');
+
+		expect(apagadas).toContain(`gise/${GISE}.pdf`);
+		expect(
+			apagadas.some((k) => k.startsWith('conferencia/')),
+			'a conferência tem prefixo PLANO e escapa da varredura por prefixo'
+		).toBe(true);
+		expect(documentos(), 'e a linha some depois').toBe(0);
+	});
+
+	it('a revogação seccional leva relatório assinado e selfie de presença', async () => {
+		semear('em_andamento');
+		sqlite.exec(`
+			INSERT INTO policiais (id, matricula, nome, cargo, lotacao, senha)
+			VALUES (61501, 'M61501', 'Membro', 'OIP', 'SECCIONAL TESTE', 'h');
+
+			INSERT INTO gise_equipes (id, gise_seccional_id, tipo)
+			VALUES (61601, ${SECCIONAL_GISE}, 'operacional');
+
+			INSERT INTO gise_membros (equipe_id, policial_id) VALUES (61601, 61501);
+
+			INSERT INTO gise_presencas (gise_id, policial_id, entrada_selfie_key, saida_selfie_key)
+			VALUES (${GISE}, 61501, 'selfies/entrada.jpg', 'selfies/saida.jpg');
+
+			INSERT INTO gise_assinaturas_relatorios
+				(gise_id, seccional_id, tipo, tipo_assinatura, assinante_nome, verification_hash, r2_key, selfie_key)
+			VALUES (${GISE}, ${UNIDADE}, 'extraordinario', 'simples', 'Supervisor', 'HR', 'relat.pdf', 'selfies/rel.jpg');
+		`);
+		const { bucket, apagadas } = bucketEspiao();
+
+		await invalidarAssinaturasDaSeccional(db, bucket, GISE, SECCIONAL_GISE, 'em_andamento');
+
+		// Biometria (LGPD art. 11): é o que não pode sobreviver à linha.
+		expect(apagadas).toContain('selfies/entrada.jpg');
+		expect(apagadas).toContain('selfies/saida.jpg');
+		expect(apagadas).toContain('selfies/rel.jpg');
+		expect(apagadas).toContain('relat.pdf');
+		// E o documento consolidado, que a revogação seccional também derruba.
+		expect(apagadas).toContain(`gise/${GISE}.pdf`);
+	});
+
+	it('em rascunho não apaga byte nenhum', async () => {
+		semear('em_preenchimento');
+		const { bucket, apagadas } = bucketEspiao();
+		await invalidarDocumentoDaEscala(db, bucket, GISE, 'em_preenchimento');
+		expect(apagadas).toEqual([]);
 	});
 });
 

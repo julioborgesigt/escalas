@@ -25,6 +25,12 @@ import type { RequestEvent } from '@sveltejs/kit';
 import { atualizarGiseEscala, revogarAssinaturasSeccional } from '$lib/db';
 import type { Database } from '$lib/db';
 import { auditarDoEvento, type AcaoAudit } from '$lib/db/audit';
+import {
+	coletarChavesR2DaRevogacaoSeccional,
+	coletarChavesR2DoDocumentoGise,
+	deletarChavesR2,
+	type R2CleanupBucket
+} from '$lib/server/r2-cleanup';
 import { giseDocumentos } from '$lib/server/schema';
 import { saiuDaFaseDeEdicao } from './shared';
 
@@ -49,10 +55,24 @@ export type Invalidacao = 'nada' | 'documento_da_escala' | 'documento_e_assinatu
  */
 export async function invalidarDocumentoDaEscala(
 	db: Database,
+	r2: R2CleanupBucket | null,
 	giseId: number,
 	status: string
 ): Promise<Invalidacao> {
 	if (!saiuDaFaseDeEdicao(status)) return 'nada';
+
+	// R2 ANTES do D1, e a ordem é o ponto: é a LINHA que diz quais objetos
+	// existem. Apagando-a primeiro, o PDF assinado e sua cópia de conferência
+	// ficam no bucket sem nenhuma referência — irrastreáveis (FLW-DOC-003).
+	if (r2) {
+		await deletarChavesR2(
+			db,
+			r2,
+			await coletarChavesR2DoDocumentoGise(db, giseId),
+			'invalidacao-documento-gise'
+		);
+	}
+
 	await db.delete(giseDocumentos).where(eq(giseDocumentos.gise_id, giseId));
 	await atualizarGiseEscala(db, giseId, { status: 'em_preenchimento' });
 	return 'documento_da_escala';
@@ -68,11 +88,26 @@ export async function invalidarDocumentoDaEscala(
  */
 export async function invalidarAssinaturasDaSeccional(
 	db: Database,
+	r2: R2CleanupBucket | null,
 	giseId: number,
 	giseSeccionalId: number,
 	status: string
 ): Promise<Invalidacao> {
 	if (!saiuDaFaseDeEdicao(status)) return 'nada';
+
+	// Mesma ordem, mesmo motivo. O conjunto aqui é maior: além do documento
+	// consolidado, saem os relatórios de extra assinados pela seccional e as
+	// selfies de presença dos seus membros — biometria (LGPD art. 11), que não
+	// pode ficar no bucket depois que a linha some.
+	if (r2) {
+		await deletarChavesR2(
+			db,
+			r2,
+			await coletarChavesR2DaRevogacaoSeccional(db, giseId, giseSeccionalId),
+			'revogacao-seccional'
+		);
+	}
+
 	await revogarAssinaturasSeccional(db, giseId, giseSeccionalId);
 	return 'documento_e_assinaturas_da_seccional';
 }

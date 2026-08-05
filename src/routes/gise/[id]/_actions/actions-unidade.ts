@@ -2,6 +2,7 @@ import { fail } from '@sveltejs/kit';
 import type { RequestEvent } from '@sveltejs/kit';
 import {
 	getDB,
+	tryGetR2,
 	atualizarGiseSeccionalUnidade,
 	adicionarGiseSeccionalUnidade,
 	removerGiseSeccionalUnidade
@@ -56,6 +57,7 @@ export const actionsUnidade = {
 			return fail(400, { error: 'IDs inválidos' });
 
 		const db = getDB(platform);
+		const r2 = tryGetR2(platform) ?? null;
 
 		const slotInfo = await db
 			.select({
@@ -84,6 +86,7 @@ export const actionsUnidade = {
 		// trocá-la depois da assinatura derruba as assinaturas dela.
 		const invalidacao = await invalidarAssinaturasDaSeccional(
 			db,
+			r2,
 			giseId,
 			slotInfo.gise_seccional_id,
 			carga.gise.status
@@ -125,6 +128,7 @@ export const actionsUnidade = {
 		const unidadeId = unidadeIdRaw ? parseInt(unidadeIdRaw) : null;
 
 		const db = getDB(platform);
+		const r2 = tryGetR2(platform) ?? null;
 		const carga = await carregarSeccionalDaGise(db, giseId, secId);
 		if ('erro' in carga) return carga.erro;
 
@@ -135,7 +139,7 @@ export const actionsUnidade = {
 		const invalidacao =
 			unidadeId == null
 				? 'nada'
-				: await invalidarAssinaturasDaSeccional(db, giseId, secId, carga.gise.status);
+				: await invalidarAssinaturasDaSeccional(db, r2, giseId, secId, carga.gise.status);
 
 		await concluirMudancaGise(event, {
 			db,
@@ -166,6 +170,7 @@ export const actionsUnidade = {
 			return fail(400, { error: 'IDs inválidos' });
 
 		const db = getDB(platform);
+		const r2 = tryGetR2(platform) ?? null;
 		const carga = await carregarSeccionalDaGise(db, giseId, secId);
 		if ('erro' in carga) return carga.erro;
 
@@ -197,7 +202,13 @@ export const actionsUnidade = {
 			await removerGiseSeccionalUnidade(db, linkId);
 		}
 
-		const invalidacao = await invalidarAssinaturasDaSeccional(db, giseId, secId, carga.gise.status);
+		const invalidacao = await invalidarAssinaturasDaSeccional(
+			db,
+			r2,
+			giseId,
+			secId,
+			carga.gise.status
+		);
 
 		await concluirMudancaGise(event, {
 			db,

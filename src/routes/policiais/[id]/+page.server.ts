@@ -102,7 +102,7 @@ async function abortarComLimpezaR2(
 		error: erro instanceof Error ? erro.message : String(erro)
 	});
 	if (doc && hasR2(event.platform)) {
-		await deletarChavesR2(getR2(event.platform), [doc.key]);
+		await deletarChavesR2(getDB(event.platform), getR2(event.platform), [doc.key], 'anexo-policial');
 	}
 	return fail(500, { error: 'Não foi possível registrar a operação. Tente novamente.' });
 }

@@ -129,7 +129,10 @@ export const POST: RequestHandler = async ({
 
 		// R2-4: remove os objetos do documento anterior que a re-assinatura tornou
 		// obsoletos (blob/conferência/selfie de hash antigo). No-op se era 1ª assinatura.
-		await limparR2ObsoletoEscala(bucket, docAntigo, [r2Key, chaveConferencia(verificationHash)]);
+		await limparR2ObsoletoEscala(db, bucket, docAntigo, [
+			r2Key,
+			chaveConferencia(verificationHash)
+		]);
 
 		await registrarAuditComContexto(db, {
 			usuario: u,

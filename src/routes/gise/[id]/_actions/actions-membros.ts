@@ -2,6 +2,7 @@ import { fail } from '@sveltejs/kit';
 import type { RequestEvent } from '@sveltejs/kit';
 import {
 	getDB,
+	tryGetR2,
 	buscarGiseEscala,
 	adicionarGiseMembro,
 	removerGiseMembro,
@@ -48,6 +49,7 @@ export const actionsMembros = {
 		if (isNaN(equipeId) || isNaN(policialId)) return fail(400, { error: 'Dados inválidos' });
 
 		const db = getDB(platform);
+		const r2 = tryGetR2(platform) ?? null;
 		const sec = await db.select().from(giseSeccionais).where(eq(giseSeccionais.id, secId)).get();
 		if (!sec || sec.gise_id !== giseId) return fail(404, { error: 'Seccional não encontrada' });
 
@@ -76,7 +78,7 @@ export const actionsMembros = {
 
 		const gise = await buscarGiseEscala(db, giseId);
 		const invalidacao = gise
-			? await invalidarAssinaturasDaSeccional(db, giseId, secId, gise.status)
+			? await invalidarAssinaturasDaSeccional(db, r2, giseId, secId, gise.status)
 			: 'nada';
 
 		const pol = await db
@@ -111,6 +113,7 @@ export const actionsMembros = {
 		if (isNaN(giseId) || isNaN(memId)) return fail(400, { error: 'IDs inválidos' });
 
 		const db = getDB(platform);
+		const r2 = tryGetR2(platform) ?? null;
 		const gise = await buscarGiseEscala(db, giseId);
 		if (!gise) return fail(404, { error: 'GISE não encontrada' });
 
@@ -156,6 +159,7 @@ export const actionsMembros = {
 
 		const invalidacao = await invalidarAssinaturasDaSeccional(
 			db,
+			r2,
 			giseId,
 			membroInfo.gise_seccional_id,
 			gise.status

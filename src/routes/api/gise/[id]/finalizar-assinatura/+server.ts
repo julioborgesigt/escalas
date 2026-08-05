@@ -20,6 +20,7 @@ import {
 	respostaPdfAssinado
 } from '$lib/server/assinatura/signature-service';
 import { tryGetR2 } from '$lib/db';
+import { bucketParaAssinatura, guardarPdfAssinado } from '$lib/server/assinatura/blob-assinado';
 import {
 	requireAuth,
 	badRequest,
@@ -76,6 +77,12 @@ export const POST: RequestHandler = async (event) => {
 	// DEPOIS da permissão, como na escala: o consumo QUEIMA a intenção, e quem
 	// perdeu a permissão no meio do caminho perderia junto a preparação — teria
 	// de refazer a assinatura só para ouvir o 403 que já cabia aqui.
+	// ANTES de consumir o token: sem onde guardar o PDF, a assinatura é
+	// recusada em vez de virar linha apontando para o vazio (FLW-R2-003).
+	const bucketOk = bucketParaAssinatura(tryGetR2(p));
+	if (!bucketOk.ok) return bucketOk.resposta;
+	const bucket = bucketOk.r2;
+
 	const consumo = await consumirIntencaoAssinatura(
 		db,
 		intencao,
@@ -103,12 +110,8 @@ export const POST: RequestHandler = async (event) => {
 		const folder = `gise/${mesAno}/${dd_escala}/${id}/escala`;
 
 		const documentKey = `${folder}/gise_${id}_${verificationHash}_assinada.pdf`;
-		const r2 = tryGetR2(p);
-		if (r2) {
-			await r2.put(documentKey, result.pdfFinal, {
-				httpMetadata: { contentType: 'application/pdf' }
-			});
-		}
+		const guardado = await guardarPdfAssinado(bucket, documentKey, result.pdfFinal, 'gise-escala');
+		if (!guardado.ok) return guardado.resposta;
 
 		await salvarGiseDocumento(
 			db,
