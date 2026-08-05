@@ -53,6 +53,55 @@ describe('cobertura da varredura', () => {
 	});
 });
 
+/**
+ * As actions que recebem DATA do cliente — FLW-ESC-005.
+ *
+ * O calendário do modal é markup; quem limita de verdade é o servidor. Uma
+ * action nova que aceite data e esqueça a validação repõe o buraco, e é por
+ * isso que a lista está aqui em vez de espalhada em cinco testes.
+ */
+const RECEBEM_DATA = [
+	'adicionar',
+	'adicionarPlantao',
+	'repetir',
+	'editar',
+	'editarPlantaoAgrupado'
+];
+
+describe('datas do cliente são validadas no servidor', () => {
+	it.each(RECEBEM_DATA)('%s confere o período da escala', (nome) => {
+		expect(NOMES, 'a action existe').toContain(nome);
+		expect(corpo(nome)).toContain('erroDeDatasForaDoPeriodo(');
+	});
+});
+
+describe('no FDS, a ENTREGA vem antes da finalização — FLW-ESC-006', () => {
+	const corpoFinalizar = corpo('finalizar');
+
+	it('o envio do e-mail acontece antes de gravar `finalizada_em`', () => {
+		// A ordem É a correção. No FDS não há assinatura digital: o marco de
+		// conclusão é a entrega. Gravar `finalizada_em` primeiro invertia isso — a
+		// falha virava um `logger.warn`, a resposta dizia sucesso, e a escala
+		// ficava fechada para edição sem que o e-mail tivesse saído.
+		const posEnvio = corpoFinalizar.indexOf('enviarEscalaFDSPorEmail(');
+		const posFinaliza = corpoFinalizar.indexOf('finalizarEscalaFDS(');
+		expect(posEnvio, 'a action envia o e-mail').toBeGreaterThan(-1);
+		expect(posFinaliza, 'a action finaliza').toBeGreaterThan(-1);
+		expect(posEnvio).toBeLessThan(posFinaliza);
+	});
+
+	it('falha de envio devolve erro, não sucesso', () => {
+		expect(corpoFinalizar).toContain('fail(502');
+	});
+
+	it('escala já finalizada é recusada em vez de refinalizada', () => {
+		// Refinalizar gravaria um novo `finalizada_em` por cima do primeiro: a data
+		// de conclusão do documento passaria a ser a da segunda tentativa.
+		expect(corpoFinalizar).toContain('escala.finalizada_em');
+		expect(corpoFinalizar).toContain('fail(409');
+	});
+});
+
 describe('cada action material deixa trilha', () => {
 	it.each(NOMES.filter((n) => !AUDITAM_POR_CONTA_PROPRIA.has(n)))(
 		'%s chama registrarMudancaEscala',

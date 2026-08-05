@@ -628,7 +628,14 @@ export const gisePresencaTermos = sqliteTable(
 		tst_token_b64: text('tst_token_b64'),
 		created_at: text('created_at').default(sql`(datetime('now', '-3 hours'))`)
 	},
-	(table) => [index('idx_gise_presenca_termos_gise').on(table.gise_id)]
+	(table) => [
+		index('idx_gise_presenca_termos_gise').on(table.gise_id),
+		// Um termo por ato (FLW-GISE-008): repetir a finalização gravava outro
+		// termo, com outro `verification_hash`, para a MESMA entrada — e os dois
+		// resolvem em `/validar`. Dois documentos assinados atestando o mesmo ato
+		// é prova que se contradiz sozinha.
+		uniqueIndex('uq_gise_presenca_termos_ato').on(table.gise_id, table.policial_id, table.tipo)
+	]
 );
 
 // ---- Aceites do Termo de Uso e Política de Privacidade ----

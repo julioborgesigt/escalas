@@ -80,6 +80,7 @@ import {
 } from '$lib/rotacao';
 import { verificarPermissaoEscala, podeMexerNaEscala } from '$lib/server/escalas/permissao';
 import { registrarMudancaEscala, nomeDoPolicial } from './_actions/desfecho';
+import { erroDeDatasForaDoPeriodo } from '$lib/server/escalas/periodo';
 
 /**
  * O que a action vai fazer com a escala. **Parâmetro obrigatório de
@@ -263,7 +264,7 @@ export const actions: Actions = {
 		const { request, locals, platform, params } = event;
 		const ctx = await carregarEscalaComPermissao(platform, locals.usuario, params.id, 'conteudo');
 		if ('erro' in ctx) return ctx.erro;
-		const { db, escalaId, usuario: u } = ctx;
+		const { db, escala, escalaId, usuario: u } = ctx;
 
 		const data = await request.formData();
 		const policial_id = Number(data.get('policial_id'));
@@ -279,6 +280,10 @@ export const actions: Actions = {
 		if (isNaN(policial_id) || !data_plantao) {
 			return fail(400, { error: 'Dados inválidos' });
 		}
+
+		// A data vem do cliente e o calendário é markup (FLW-ESC-005).
+		const foraDoPeriodo = erroDeDatasForaDoPeriodo(escala, [data_plantao]);
+		if (foraDoPeriodo) return fail(400, { error: foraDoPeriodo });
 
 		const horaEnt = `${hora_entrada}:${minuto_entrada}`;
 		const horaSai = `${hora_saida}:${minuto_saida}`;
@@ -343,7 +348,7 @@ export const actions: Actions = {
 		const { request, locals, platform, params } = event;
 		const ctx = await carregarEscalaComPermissao(platform, locals.usuario, params.id, 'conteudo');
 		if ('erro' in ctx) return ctx.erro;
-		const { db, escalaId, usuario: u } = ctx;
+		const { db, escala, escalaId, usuario: u } = ctx;
 
 		const data = await request.formData();
 		const policial_id = Number(data.get('policial_id'));
@@ -365,6 +370,12 @@ export const actions: Actions = {
 		if (isNaN(policial_id) || datas.length === 0) {
 			return fail(400, { error: 'Selecione pelo menos uma data' });
 		}
+
+		const foraDoPeriodo = erroDeDatasForaDoPeriodo(
+			escala,
+			datas.map((d) => d.data_plantao)
+		);
+		if (foraDoPeriodo) return fail(400, { error: foraDoPeriodo });
 
 		const he = `${hora_entrada}:${minuto_entrada}`;
 		const hs = `${hora_saida}:${minuto_saida}`;
@@ -623,7 +634,7 @@ export const actions: Actions = {
 		const { request, locals, platform, params } = event;
 		const ctx = await carregarEscalaComPermissao(platform, locals.usuario, params.id, 'conteudo');
 		if ('erro' in ctx) return ctx.erro;
-		const { db, escalaId, usuario: u } = ctx;
+		const { db, escala, escalaId, usuario: u } = ctx;
 
 		const data = await request.formData();
 		const item_id = Number(data.get('item_id'));
@@ -634,6 +645,11 @@ export const actions: Actions = {
 		const observacoes = data.get('observacoes')?.toString() || '';
 
 		if (isNaN(item_id)) return fail(400, { error: 'ID inválido' });
+
+		if (data_plantao) {
+			const foraDoPeriodo = erroDeDatasForaDoPeriodo(escala, [data_plantao]);
+			if (foraDoPeriodo) return fail(400, { error: foraDoPeriodo });
+		}
 
 		// Busca policial_id do registro para validar conflito
 		const registro = await db
@@ -780,7 +796,7 @@ export const actions: Actions = {
 		const { request, locals, platform, params } = event;
 		const ctx = await carregarEscalaComPermissao(platform, locals.usuario, params.id, 'conteudo');
 		if ('erro' in ctx) return ctx.erro;
-		const { db, escalaId, usuario: u } = ctx;
+		const { db, escala, escalaId, usuario: u } = ctx;
 
 		const data = await request.formData();
 		const policial_id = Number(data.get('policial_id'));
@@ -799,6 +815,9 @@ export const actions: Actions = {
 		if (isNaN(policial_id) || datasStr.length === 0) {
 			return fail(400, { error: 'Selecione pelo menos uma data' });
 		}
+
+		const foraDoPeriodo = erroDeDatasForaDoPeriodo(escala, datasStr);
+		if (foraDoPeriodo) return fail(400, { error: foraDoPeriodo });
 
 		const todos = await db
 			.select({
@@ -884,7 +903,7 @@ export const actions: Actions = {
 		const { request, locals, platform, params } = event;
 		const ctx = await carregarEscalaComPermissao(platform, locals.usuario, params.id, 'conteudo');
 		if ('erro' in ctx) return ctx.erro;
-		const { db, escalaId, usuario: u } = ctx;
+		const { db, escala, escalaId, usuario: u } = ctx;
 
 		const data = await request.formData();
 		const idsJson = data.get('ids')?.toString() || '[]';
@@ -904,6 +923,9 @@ export const actions: Actions = {
 
 		if (ids.length === 0) return fail(400, { error: 'IDs de origem não fornecidos' });
 		if (datasStr.length === 0) return fail(400, { error: 'Selecione pelo menos uma data' });
+
+		const foraDoPeriodo = erroDeDatasForaDoPeriodo(escala, datasStr);
+		if (foraDoPeriodo) return fail(400, { error: foraDoPeriodo });
 
 		const origin = await db
 			.select({ policial_id: escalaPoliciais.policial_id, equipe: escalaPoliciais.equipe })
@@ -1112,13 +1134,32 @@ export const actions: Actions = {
 			return fail(400, { error: 'E-mail de destino inválido' });
 		}
 
+		// Finalizar duas vezes gravaria um novo `finalizada_em` por cima do
+		// primeiro — a data de conclusão do documento passaria a ser a da segunda
+		// tentativa. Para reenviar existe a action própria.
+		if (escala.finalizada_em) {
+			return fail(409, {
+				error: 'Escala já finalizada. Use "Reenviar e-mail" para mandar de novo.'
+			});
+		}
+
 		try {
 			const policiais = await listarPoliciaisEscala(db, escalaId);
 			const nomeArquivo = `${escala.titulo.replace(/[/\\?%*:|"<>]/g, '-')}.docx`;
 
-			await finalizarEscalaFDS(db, escalaId, emailDestino);
-
-			let emailEnviado = false;
+			// A ENTREGA VEM PRIMEIRO, e a ordem é a correção (FLW-ESC-006).
+			//
+			// No FDS não há assinatura digital: o marco de conclusão É a entrega por
+			// e-mail. Gravar `finalizada_em` antes de enviar invertia isso — a
+			// falha virava um `logger.warn`, a resposta dizia sucesso e a trilha
+			// registrava "finalizada e enviada para X" para um e-mail que não saiu.
+			// A escala ficava fechada para edição, com destinatário nenhum
+			// informado, e ninguém sabia.
+			//
+			// Falhando o envio, nada é gravado: a escala continua editável e o
+			// operador tenta de novo. O risco invertido — timeout que na verdade
+			// entregou, e o reenvio manda duas vezes — é aceitável: e-mail
+			// duplicado se resolve lendo; escala fechada sem entrega, não.
 			try {
 				await Promise.race([
 					(async () => {
@@ -1136,14 +1177,38 @@ export const actions: Actions = {
 						setTimeout(() => reject(new Error('Timeout (25s)')), 25_000)
 					)
 				]);
-				emailEnviado = true;
 			} catch (emailErr) {
-				logger.warn('[escalas/finalizar] Falha ao enviar e-mail (finalização prossegue)', {
+				const msg = emailErr instanceof Error ? emailErr.message : String(emailErr);
+				logger.error('[escalas/finalizar] Envio falhou — escala NÃO foi finalizada', {
 					escalaId,
 					emailDestino,
-					error: emailErr instanceof Error ? emailErr.message : String(emailErr)
+					error: msg
+				});
+
+				const { contexto, env } = contextoDeEvento(event);
+				await registrarAuditComContexto(db, {
+					usuario: u,
+					acao: 'finalizar_escala_fds',
+					entidade: 'escala',
+					entidade_id: escalaId,
+					alvo_tipo: 'escala',
+					alvo_id: escalaId,
+					// `resultado: 'falha'` é o que separa a tentativa do ato na trilha.
+					resultado: 'falha',
+					detalhes: `Falha ao entregar a escala de FDS em ${emailDestino}: ${msg}`,
+					metadados: { emailDestino, emailEnviado: false },
+					...contexto,
+					env
+				});
+
+				return fail(502, {
+					error:
+						'Não foi possível enviar a escala por e-mail. Ela continua aberta — ' +
+						'confira o endereço e tente novamente.'
 				});
 			}
+
+			await finalizarEscalaFDS(db, escalaId, emailDestino);
 
 			const { contexto, env } = contextoDeEvento(event);
 			await registrarAuditComContexto(db, {
@@ -1154,11 +1219,11 @@ export const actions: Actions = {
 				alvo_tipo: 'escala',
 				alvo_id: escalaId,
 				detalhes: `Escala de FDS finalizada e enviada para ${emailDestino}: ${escala.titulo}`,
-				metadados: { emailDestino, emailEnviado },
+				metadados: { emailDestino, emailEnviado: true },
 				...contexto,
 				env
 			});
-			return { success: true, emailDestino, emailEnviado };
+			return { success: true, emailDestino, emailEnviado: true };
 		} catch {
 			return fail(500, { error: 'Erro ao finalizar escala' });
 		}

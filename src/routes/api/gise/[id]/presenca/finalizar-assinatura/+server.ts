@@ -26,10 +26,16 @@ import {
 	respostaPdfAssinado
 } from '$lib/server/assinatura/signature-service';
 import { tryGetR2 } from '$lib/db';
-import { bucketParaAssinatura, guardarPdfAssinado } from '$lib/server/assinatura/blob-assinado';
+import { gateDePresenca } from '$lib/server/gise/presenca-gate';
+import {
+	bucketParaAssinatura,
+	compensarBlobAssinado,
+	guardarPdfAssinado
+} from '$lib/server/assinatura/blob-assinado';
 import {
 	requireAuth,
 	badRequest,
+	conflict,
 	notFound,
 	forbidden,
 	serverError,
@@ -71,6 +77,14 @@ export const POST: RequestHandler = async (event) => {
 	// Revalida vínculo (defesa em profundidade — `preparar` já checou).
 	const part = await resolverParticipacaoGisePolicial(db, giseId, u.id);
 	if (!part.participa) return forbidden('Você não participa desta escala GISE.');
+
+	// Janela de horário e, para saída, entrada já registrada — a MESMA função do
+	// `preparar`. O finalizador revalidava só a participação, então quem
+	// guardasse um `preparedPdf` assinava saída sem entrada e recebia termo e
+	// auditoria de sucesso (FLW-GISE-008). Antes de consumir o token e de gravar
+	// byte nenhum: recusar cedo não custa nada.
+	const gate = await gateDePresenca(db, part, giseId, u.id, tipo);
+	if (!gate.ok) return gate.resposta;
 
 	// Consome a preparação: prova que ESTE pdf foi preparado por ESTE usuário
 	// para ESTE alvo, uma vez só (FLW-DOC-001). O código público de validação
@@ -138,7 +152,7 @@ export const POST: RequestHandler = async (event) => {
 				undefined
 			);
 		} else {
-			await salvarSaidaGise(
+			const saida = await salvarSaidaGise(
 				db,
 				giseId,
 				u.id,
@@ -149,6 +163,16 @@ export const POST: RequestHandler = async (event) => {
 				longitude ?? undefined,
 				undefined
 			);
+			// A gravação é quem decide: entre o gate e aqui cabe uma requisição, e
+			// `salvarSaidaGise` exige a entrada no próprio `WHERE`. Zero linhas =
+			// não houve saída, e o termo não pode ser emitido. O blob já está no
+			// bucket, então é compensado.
+			if (!saida.registrada) {
+				await compensarBlobAssinado(db, bucket, [r2Key], 'gise-presenca');
+				return conflict(
+					'Não há confirmação de ENTRADA registrada — a saída não pode ser assinada.'
+				);
+			}
 		}
 
 		// Registra o termo qualificado para /validar.

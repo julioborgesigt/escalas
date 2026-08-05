@@ -836,7 +836,7 @@ equipe → seccional → GISE com `gise_id = params.id` e repetir essa condiçã
 
 **Severidade:** P1  
 **Fluxo:** FLX-04 / FLX-03  
-**Estado:** confirmado
+**Estado:** corrigido
 
 O finalizador de assinatura qualificada de presença revalida a participação,
 mas não a presença/hora. No fluxo de saída, o update de presença não cria
@@ -850,6 +850,31 @@ unicidade por `(gise_id, policial_id, tipo)` para termos de presença.
 
 **Teste de regressão:** saída qualificada sem entrada não cria presença, termo
 nem evento de sucesso.
+
+> **CORRIGIDO (05/ago/2026).** Três camadas, e cada uma responde a uma coisa:
+>
+> 1. **`gateDePresenca`** (`server/gise/presenca-gate.ts`) — janela de horário e,
+>    para saída, entrada já registrada. Roda no `preparar` E no `finalizar`, e é
+>    esse o ponto: a janela existia SÓ no preparar, que é o passo barato, então
+>    quem guardasse um `preparedPdf` e chamasse o finalizador depois passava por
+>    cima dela. Extraída porque os dois precisam da mesma resposta.
+> 2. **`salvarSaidaGise` exige a entrada no próprio `WHERE`** e devolve
+>    `{ registrada }`. Antes o UPDATE não achava linha, o resultado era ignorado,
+>    e o endpoint gravava termo assinado e auditoria de SUCESSO para um ato que
+>    não aconteceu. É a gravação que decide: entre o gate e ela cabe uma
+>    requisição. Falhando depois do `put`, o blob é compensado.
+> 3. **Índice único `(gise_id, policial_id, tipo)`** em `gise_presenca_termos`
+>    (migração 0046). Repetir a finalização gravava outro termo, com outro
+>    `verification_hash`, para o MESMO ato — e os dois resolvem em `/validar`.
+>    Dois documentos assinados atestando a mesma entrada é prova que se
+>    contradiz sozinha.
+>
+> O caminho de assinatura SIMPLES (`res-gise`) tinha o mesmo furo na saída e
+> ganhou a mesma recusa.
+>
+> Cobertura: `server/gise/__tests__/presenca-gate.test.ts`, 10 casos — incluindo
+> a linha de presença que EXISTE sem `entrada_timestamp`, que o filtro antigo
+> por `(gise, policial)` aceitava. Duas mutações verificadas.
 
 ### FLW-GISE-009 — vagas e exclusividade de membro não são atômicas
 
@@ -1345,6 +1370,7 @@ deve falhar sem D1/R2/auditoria alterados.
 ### FLW-ESC-005 — datas, duplicidade e capacidade não têm proteção autoritativa
 
 **Severidade:** P1  
+**Estado:** corrigido  
 Datas livres do cliente e checagens pré-insert não são protegidas por
 constraint/transação (`src/routes/escalas/[id]/+page.server.ts:207-310,535-544`
 e `src/lib/server/schema.ts:114-138`).
@@ -1353,9 +1379,32 @@ e `src/lib/server/schema.ts:114-138`).
 apropriado e usar transação. Cobrir data fora do período, colisão na edição e
 duas requisições concorrentes.
 
+> **CORRIGIDO (05/ago/2026).** Duas metades:
+>
+> **Intervalo** — `server/escalas/periodo.ts`, puro, usado pelas CINCO actions
+> que recebem data do cliente. O calendário do modal era a única coisa que
+> limitava, e ele é markup. Um POST direto com um dia de outro mês não dava erro
+> visível: a linha entrava, sumia da grade (que só desenha o mês) e reaparecia no
+> PDF, que lista o que o banco tem — uma escala de setembro assinada com um
+> plantão de agosto. A comparação é lexicográfica de `YYYY-MM-DD`, não `Date`:
+> `new Date('2026-09-01')` é meia-noite UTC, que em UTC-3 é 31/08, e essa
+> conversão já custou dois bugs neste projeto.
+>
+> **Duplicidade** — índice único `(escala_id, policial_id, data_plantao)`
+> (migração 0047). A regra existia como consulta pré-insert, e o `repetir`
+> chegava a montar um `Set` em memória para filtrar — proteção que vale só
+> dentro daquela chamada. Duplicata aqui não é registro repetido inofensivo: a
+> escala vai para assinatura, e a pessoa aparece duas vezes no mesmo dia.
+>
+> Cobertura: `server/escalas/__tests__/periodo.test.ts` (11 casos) para a regra,
+> e um guard estrutural em `_actions/__tests__/actions-auditadas.test.ts` que lê
+> o `+page.server.ts` e exige a validação nas cinco — uma action nova que aceite
+> data e esqueça repõe o buraco. Duas mutações verificadas.
+
 ### FLW-ESC-006 — FDS pode ficar finalizada/enviada quando o e-mail falha
 
 **Severidade:** P1  
+**Estado:** corrigido  
 `finalizada_em` é gravado antes do envio; a falha é capturada, mas a resposta e
 auditoria seguem como finalização/envio
 (`src/routes/escalas/[id]/+page.server.ts:876-922`).
@@ -1363,6 +1412,35 @@ auditoria seguem como finalização/envio
 **Ação/teste:** representar entrega pendente/falha e usar job idempotente;
 auditar resultado real. Timeout do provedor deve deixar estado recuperável,
 não “enviado”.
+
+> **CORRIGIDO (05/ago/2026) INVERTENDO A ORDEM, e a escolha é a decisão.**
+>
+> O achado propõe "representar entrega pendente/falha e usar job idempotente" —
+> uma máquina de estados nova. Não foi o caminho, e o motivo está no próprio
+> fluxo: no FDS não há assinatura digital, o marco de conclusão É a entrega. Se
+> a entrega não aconteceu, não houve conclusão; não existe um terceiro estado a
+> representar. Enviar ANTES de gravar `finalizada_em` diz isso no código.
+>
+> O que a ordem antiga produzia: a falha virava `logger.warn`, a resposta dizia
+> `success: true`, e a trilha registrava "finalizada e enviada para X" — o
+> `metadados` guardava `emailEnviado: false`, mas o texto que o operador lê na
+> listagem afirmava o contrário. A escala ficava fechada para edição com o
+> destinatário sem nada.
+>
+> Agora a falha devolve **502**, não grava nada, e registra evento com
+> `resultado: 'falha'`. A escala continua aberta e o operador tenta de novo.
+>
+> **O risco invertido é aceito conscientemente:** um timeout que na verdade
+> entregou faz o operador reenviar, e chegam dois e-mails. E-mail duplicado se
+> resolve lendo; escala fechada sem entrega, não.
+>
+> De quebra, refinalizar passou a ser recusado com 409 — gravaria um novo
+> `finalizada_em` por cima do primeiro, e a data de conclusão do documento
+> viraria a da segunda tentativa. Para reenviar existe a action própria.
+>
+> Cobertura: guard estrutural em `_actions/__tests__/actions-auditadas.test.ts`
+> — a ORDEM é a propriedade, e é o que uma edição futura quebraria. Mutação
+> verificada: voltando a finalizar antes de enviar, o teste reprova.
 
 ### FLW-ESC-007 — ações materiais de escala não produzem trilha forense
 

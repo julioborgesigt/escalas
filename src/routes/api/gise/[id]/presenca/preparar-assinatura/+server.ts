@@ -9,12 +9,8 @@
 
 import type { RequestHandler } from './$types';
 import { eq } from 'drizzle-orm';
-import {
-	getDB,
-	buscarGiseEscala,
-	resolverParticipacaoGisePolicial,
-	horarioGiseLiberado
-} from '$lib/db';
+import { getDB, buscarGiseEscala, resolverParticipacaoGisePolicial } from '$lib/db';
+import { gateDePresenca } from '$lib/server/gise/presenca-gate';
 import { policiais } from '$lib/server/schema';
 import { prepararPresencaSchema } from '$lib/schemas';
 import {
@@ -22,7 +18,6 @@ import {
 	badRequest,
 	notFound,
 	forbidden,
-	conflict,
 	validateBody
 } from '$lib/server/api';
 import { gerarTermoPresencaPdf } from '$lib/server/gise/termo-presenca';
@@ -68,15 +63,11 @@ export const POST: RequestHandler = async ({
 	const part = await resolverParticipacaoGisePolicial(db, giseId, u.id);
 	if (!part.participa) return forbidden('Você não participa desta escala GISE.');
 
-	// Horário liberado (server-side).
-	if (part.horarioPrevisto && part.dataInicio) {
-		const hora = tipo === 'entrada' ? part.horarioPrevisto.inicio : part.horarioPrevisto.fim;
-		if (!horarioGiseLiberado(part.dataInicio, hora)) {
-			return conflict(
-				`A confirmação de ${tipo === 'entrada' ? 'entrada' : 'saída'} ainda não está liberada (a partir das ${hora}).`
-			);
-		}
-	}
+	// Janela de horário e, para saída, entrada já registrada. A mesma função
+	// roda no finalizador — antes a janela existia só aqui, e quem guardasse um
+	// `preparedPdf` passava por cima dela (FLW-GISE-008).
+	const gate = await gateDePresenca(db, part, giseId, u.id, tipo);
+	if (!gate.ok) return gate.resposta;
 
 	// Rubrica cadastrada — obrigatória no fluxo desktop.
 	const row = await db
