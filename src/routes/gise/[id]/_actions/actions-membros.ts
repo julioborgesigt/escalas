@@ -11,9 +11,9 @@ import {
 	verificarConflitoHorarioPolicial
 } from '$lib/db';
 import { invalidarPapelGise } from '$lib/server/gise/papel-cache';
-import { giseMembros, giseEquipes, giseSeccionais, policiais } from '$lib/server/schema';
+import { giseEquipes, giseSeccionais, policiais } from '$lib/server/schema';
 import { eq } from 'drizzle-orm';
-import { getInt, podePreencherSeccional } from './shared';
+import { getInt, podePreencherSeccional, carregarMembroDaGise } from './shared';
 import { concluirMudancaGise, invalidarAssinaturasDaSeccional } from './desfecho';
 
 /**
@@ -145,29 +145,13 @@ export const actionsMembros = {
 
 		const db = getDB(platform);
 		const r2 = tryGetR2(platform) ?? null;
-		const gise = await buscarGiseEscala(db, giseId);
-		if (!gise) return fail(404, { error: 'GISE não encontrada' });
 
-		// Uma consulta só resolve as quatro perguntas: qual equipe, qual seccional
-		// (para revogar assinaturas), de quem é o cache de papel a invalidar e o
-		// nome que vai para a trilha. O nome PRECISA sair daqui: depois do delete
-		// não haveria mais linha para saber quem foi desalocado.
-		const membroInfo = await db
-			.select({
-				equipe_id: giseMembros.equipe_id,
-				policial_id: giseMembros.policial_id,
-				policial_nome: policiais.nome,
-				gise_seccional_id: giseEquipes.gise_seccional_id,
-				seccional_id: giseSeccionais.seccional_id
-			})
-			.from(giseMembros)
-			.innerJoin(giseEquipes, eq(giseMembros.equipe_id, giseEquipes.id))
-			.innerJoin(giseSeccionais, eq(giseEquipes.gise_seccional_id, giseSeccionais.id))
-			.innerJoin(policiais, eq(giseMembros.policial_id, policiais.id))
-			.where(eq(giseMembros.id, memId))
-			.get();
-
-		if (!membroInfo) return fail(404, { error: 'Membro não encontrado' });
+		// O preâmbulo amarra o `memId` à GISE da URL (FLW-GISE-007) e traz de uma
+		// vez o que a action precisa DEPOIS do delete: nome do policial, equipe e
+		// seccional — que a linha apagada não responderia mais.
+		const carga = await carregarMembroDaGise(db, giseId, memId);
+		if ('erro' in carga) return carga.erro;
+		const { gise, membro: membroInfo } = carga;
 
 		if (!podePreencherSeccional(u, membroInfo.seccional_id)) {
 			return fail(403, { error: 'Sem permissão para montar equipes desta seccional' });

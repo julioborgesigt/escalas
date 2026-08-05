@@ -800,7 +800,7 @@ vagas, status, documento, R2 e trilha de auditoria.
 
 **Severidade:** P1  
 **Fluxo:** FLX-04  
-**Estado:** confirmado
+**Estado:** corrigido
 
 Actions de equipe/unidade recebem `equipeId` ou `linkId`, mas atualizam ou
 excluem o filho antes de provar, por JOIN, que ele pertence à seccional e GISE
@@ -829,8 +829,34 @@ equipe → seccional → GISE com `gise_id = params.id` e repetir essa condiçã
 > nenhuma das três olhava o STATUS (dava para trocar a unidade de uma escala
 > `finalizada`, que é FLW-GISE-006 neste arquivo), e `selecionarUnidade` não
 > invalidava nada — a unidade sai impressa no relatório de extra, e trocá-la
-> depois da assinatura deixava o PDF descrevendo outra unidade. Restam presença,
-> relatório e resposta de formulário.
+> depois da assinatura deixava o PDF descrevendo outra unidade.
+>
+> **FECHADO (05/ago/2026).** A varredura dos ids filhos restantes mostrou que
+> "presença, relatório e resposta de formulário continuam abertos" — escrito na
+> nota parcial acima — **estava errado**. Conferido um a um:
+>
+> - **presença**: o alvo é sempre `u.id`, o usuário logado. Não há id de fora a
+>   amarrar;
+> - **relatório**: `giseAutorizaSeccionalRelatorioExtra` já filtra por
+>   `gise_id` + `seccional_id`. Amarrado desde antes;
+> - **resposta de formulário**: `resolverAlvoRelatorio` resolve a equipe por
+>   join exigindo `giseEscalas.id = giseId` E `giseMembros.policial_id = u.id`;
+>   o `equipeId` da query string entra como filtro ADICIONAL dentro dessa
+>   condição, e um id de outra GISE simplesmente não casa.
+>
+> O que **de fato** faltava era outro, e não estava citado no achado:
+> `removerMembro` filtrava por `giseMembros.id` sozinho. O join subia até
+> `gise_seccionais` para descobrir a seccional, mas nada exigia que ela fosse
+> desta GISE — um `memId` de outra escala era removido enquanto a invalidação de
+> documento e o gate de status caíam na GISE da URL. Virou
+> `carregarMembroDaGise`, terceiro preâmbulo da mesma família em `shared.ts`.
+>
+> Registro a divergência porque ela é o padrão desta auditoria: o enunciado
+> aponta a forma do defeito corretamente e erra os lugares. Ler o código antes
+> de corrigir continua sendo o passo que não dá para pular.
+>
+> Cobertura: `_actions/__tests__/escopo-ids-filhos.test.ts`, 8 casos — os três
+> preâmbulos com id da escala vizinha. Mutação verificada.
 
 ### FLW-GISE-008 — presença qualificada pode emitir termo de saída sem entrada
 
@@ -1700,6 +1726,7 @@ policial com escala, GISE, presença e histórico.
 ### FLW-RBAC-003 — escopo de papel não é validado nem usado consistentemente
 
 **Severidade:** P1  
+**Estado:** corrigido  
 `papel_unidade_id` é exigido, mas não possui FK/validação de tipo e
 `admin_unidade` recebe escopo da lotação atual, ignorando o ID persistido
 (`src/lib/db/policiais.ts:455-476`,
@@ -1709,6 +1736,34 @@ policial com escala, GISE, presença e histórico.
 **Ação/teste:** validar existência/tipo da unidade e usar o ID no helper, ou
 revogar/requerer reassinatura ao transferir lotação. Cobrir ID inexistente,
 tipo incompatível e transferência posterior.
+
+> **CORRIGIDO (05/ago/2026).** As duas metades:
+>
+> **O escopo vem do PAPEL.** `admin_unidade` recebia `new Set([u.lotacao])`,
+> ignorando o `papel_unidade_id` que a concessão exige e persiste. O papel então
+> SEGUIA a pessoa: quem foi nomeado administrador da DP 1 e depois transferido
+> para a DP 5 passava a administrar a DP 5 — uma autoridade que ninguém
+> concedeu, e que aparece sozinha numa movimentação de rotina. Sem
+> `papel_unidade_id`, o escopo é VAZIO: cair na lotação é exatamente o defeito.
+>
+> **A concessão passou a validar.** `motivoParaRecusarPapel` recusa unidade
+> inexistente — que produzia escopo vazio SILENCIOSO, com o admin nomeado, a
+> tela mostrando o papel e ele sem administrar nada — e recusa DELEGACIA para
+> `admin_seccional`, porque delegacia não tem subordinadas e o papel não teria o
+> alcance que o nome promete. A regra de tipo é mínima de propósito:
+> departamento e sub-departamento são aceitos, porque a hierarquia os coloca
+> acima da seccional e há corporação que organiza assim.
+>
+> **Não foi feito** o caminho alternativo do achado ("revogar/requerer
+> reassinatura ao transferir lotação"): com o escopo preso ao papel, transferir
+> deixou de mexer no alcance, e revogar seria punir uma movimentação que não tem
+> relação com a nomeação.
+>
+> Cobertura: `server/__tests__/policial-permissao.test.ts`, 15 casos — os três
+> cenários pedidos (id inexistente, tipo incompatível, transferência posterior).
+> O teste que documentava o comportamento antigo foi reescrito: ele já citava o
+> achado pelo número, tinha sido escrito para REGISTRAR o defeito. Duas mutações
+> verificadas.
 
 ### FLW-UNIDADE-004 — renomeação concorrente quebra lotação denormalizada
 

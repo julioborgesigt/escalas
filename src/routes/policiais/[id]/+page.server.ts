@@ -66,7 +66,11 @@ import {
 	LABEL_SUBTIPO_AFASTAMENTO
 } from '$lib/schemas/policial-historico';
 import { isAdminGeral, isAdminSeccional, isAdminUnidade } from '$lib/auth';
-import { lotacoesAdministradas, lotacaoNoEscopo } from '$lib/server/policial-permissao';
+import {
+	lotacoesAdministradas,
+	lotacaoNoEscopo,
+	motivoParaRecusarPapel
+} from '$lib/server/policial-permissao';
 import { decifrarCpfDoDB } from '$lib/crypto/cpf-cripto';
 import { resolverCredencial, revogarSessoesDaCredencial } from '$lib/server/auth/credencial';
 import { getNowBR } from '$lib/utils/datas';
@@ -102,7 +106,12 @@ async function abortarComLimpezaR2(
 		error: erro instanceof Error ? erro.message : String(erro)
 	});
 	if (doc && hasR2(event.platform)) {
-		await deletarChavesR2(getDB(event.platform), getR2(event.platform), [doc.key], 'anexo-policial');
+		await deletarChavesR2(
+			getDB(event.platform),
+			getR2(event.platform),
+			[doc.key],
+			'anexo-policial'
+		);
 	}
 	return fail(500, { error: 'Não foi possível registrar a operação. Tente novamente.' });
 }
@@ -375,6 +384,16 @@ export const actions: Actions = {
 		}
 
 		const db = getDB(platform);
+
+		// A unidade de responsabilidade existe e serve para o papel? Era exigida
+		// mas nunca validada: id inexistente produzia escopo vazio silencioso — o
+		// admin é nomeado, a tela mostra o papel, e ele não administra nada
+		// (FLW-RBAC-003).
+		if (papel && papelUnidadeId != null) {
+			const recusa = await motivoParaRecusarPapel(db, papel, papelUnidadeId);
+			if (recusa) return fail(400, { error: recusa });
+		}
+
 		const alvo = await buscarPolicial(db, id);
 
 		// Papel e registro na mesma transação: um RBAC concedido sem linha no

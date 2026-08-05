@@ -12,7 +12,7 @@ import { fail } from '@sveltejs/kit';
 import { and, eq } from 'drizzle-orm';
 import { buscarGiseEscala } from '$lib/db';
 import type { Database } from '$lib/db';
-import { giseEquipes, giseSeccionais } from '$lib/server/schema';
+import { giseEquipes, giseMembros, giseSeccionais, policiais } from '$lib/server/schema';
 import { isAdminGeral, isAdminSeccional } from '$lib/auth';
 
 /**
@@ -142,4 +142,39 @@ export async function carregarSeccionalDaGise(db: Database, giseId: number, secI
 
 	if (!sec) return { erro: fail(404, { error: 'Seccional não encontrada nesta escala' }) } as const;
 	return { gise: carga.gise, sec } as const;
+}
+
+/**
+ * Idem para o MEMBRO, a partir do id da linha `gise_membros`.
+ *
+ * `removerMembro` filtrava só por `giseMembros.id` — o join subia até
+ * `gise_seccionais` para descobrir a seccional, mas nada exigia que ela fosse
+ * de ESTA GISE. Um `memId` de outra escala era removido enquanto a invalidação
+ * de documento e o gate de status caíam na GISE da URL: duas escalas erradas de
+ * uma vez, que é a assinatura de FLW-GISE-007.
+ *
+ * Traz de uma vez o que a action precisa depois do DELETE — nome do policial,
+ * equipe e seccional —, porque depois dele a linha não existe mais.
+ */
+export async function carregarMembroDaGise(db: Database, giseId: number, memId: number) {
+	const carga = await carregarGiseEditavel(db, giseId);
+	if ('erro' in carga) return { erro: carga.erro } as const;
+
+	const membro = await db
+		.select({
+			equipe_id: giseMembros.equipe_id,
+			policial_id: giseMembros.policial_id,
+			policial_nome: policiais.nome,
+			gise_seccional_id: giseEquipes.gise_seccional_id,
+			seccional_id: giseSeccionais.seccional_id
+		})
+		.from(giseMembros)
+		.innerJoin(giseEquipes, eq(giseMembros.equipe_id, giseEquipes.id))
+		.innerJoin(giseSeccionais, eq(giseEquipes.gise_seccional_id, giseSeccionais.id))
+		.innerJoin(policiais, eq(giseMembros.policial_id, policiais.id))
+		.where(and(eq(giseMembros.id, memId), eq(giseSeccionais.gise_id, giseId)))
+		.get();
+
+	if (!membro) return { erro: fail(404, { error: 'Membro não encontrado nesta escala' }) } as const;
+	return { gise: carga.gise, membro } as const;
 }

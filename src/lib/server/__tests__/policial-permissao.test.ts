@@ -18,7 +18,12 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import type { DatabaseSync } from 'node:sqlite';
 import type { Database } from '$lib/db';
-import { lotacoesAdministradas, lotacaoNoEscopo, lotacoesDaSeccional } from '../policial-permissao';
+import {
+	lotacoesAdministradas,
+	lotacaoNoEscopo,
+	lotacoesDaSeccional,
+	motivoParaRecusarPapel
+} from '../policial-permissao';
 import { bancoMigrado, drizzleSobre } from '$lib/db/__tests__/sqlite-migrado';
 
 let sqlite: DatabaseSync;
@@ -97,15 +102,52 @@ describe('lotacoesAdministradas', () => {
 		expect(lotacaoNoEscopo(escopo, 'SECCIONAL NORTE')).toBe(false);
 	});
 
-	it('admin_unidade administra apenas a própria lotação', async () => {
+	it('admin_unidade administra a unidade do PAPEL, não a lotação', async () => {
+		// Até ago/2026 o escopo vinha de `u.lotacao`, e o `papel_unidade_id` — que
+		// a concessão exige e persiste — era ignorado (FLW-RBAC-003).
 		const escopo = await lotacoesAdministradas(
 			db,
-			usuario({ papel: 'admin_unidade', lotacao: 'DP PRIMEIRA', papel_unidade_id: 9100 })
+			usuario({ papel: 'admin_unidade', lotacao: 'DP SEGUNDA', papel_unidade_id: 9101 })
 		);
-		// Repare: o escopo vem da LOTAÇÃO, não do `papel_unidade_id` — mesmo com o
-		// id da seccional preenchido, ele não expande (achado FLW-RBAC-003).
 		expect(escopo).toEqual(new Set(['DP PRIMEIRA']));
-		expect(lotacaoNoEscopo(escopo, 'DP SEGUNDA')).toBe(false);
+		expect(lotacaoNoEscopo(escopo, 'DP SEGUNDA'), 'a lotação atual não dá escopo').toBe(false);
+	});
+
+	it('TRANSFERIR o admin não move o escopo junto', async () => {
+		// O caso que o achado descreve: nomeado administrador da DP PRIMEIRA e
+		// depois transferido para a DP TERCEIRA. Com o escopo vindo da lotação, ele
+		// passava a administrar a DP TERCEIRA — autoridade que ninguém concedeu, e
+		// que aparece sozinha numa movimentação de rotina.
+		const antes = usuario({
+			papel: 'admin_unidade',
+			lotacao: 'DP PRIMEIRA',
+			papel_unidade_id: 9101
+		});
+		const depoisDaTransferencia = { ...antes, lotacao: 'DP TERCEIRA' };
+
+		expect(await lotacoesAdministradas(db, antes)).toEqual(new Set(['DP PRIMEIRA']));
+		expect(await lotacoesAdministradas(db, depoisDaTransferencia)).toEqual(
+			new Set(['DP PRIMEIRA'])
+		);
+	});
+
+	it('admin_unidade SEM papel_unidade_id não administra nada', async () => {
+		// Cair na lotação aqui é exatamente o defeito — papel sem unidade é papel
+		// sem alcance, e a concessão já recusa criá-lo assim.
+		const escopo = await lotacoesAdministradas(
+			db,
+			usuario({ papel: 'admin_unidade', lotacao: 'DP PRIMEIRA', papel_unidade_id: null })
+		);
+		expect(escopo).toEqual(new Set());
+	});
+
+	it('papel_unidade_id INEXISTENTE dá escopo vazio, não escopo largo', async () => {
+		const escopo = await lotacoesAdministradas(
+			db,
+			usuario({ papel: 'admin_unidade', lotacao: 'DP PRIMEIRA', papel_unidade_id: 999999 })
+		);
+		expect(escopo).toEqual(new Set());
+		expect(lotacaoNoEscopo(escopo, 'DP PRIMEIRA')).toBe(false);
 	});
 
 	it('policial sem papel administrativo não administra nada', async () => {
@@ -115,5 +157,35 @@ describe('lotacoesAdministradas', () => {
 		);
 		expect(escopo).toEqual(new Set());
 		expect(lotacaoNoEscopo(escopo, 'DP PRIMEIRA')).toBe(false);
+	});
+});
+
+/**
+ * A validação da concessão — FLW-RBAC-003, segunda metade.
+ *
+ * `papel_unidade_id` era exigido pela tela mas nunca validado. Um id
+ * inexistente produzia escopo vazio SILENCIOSO: o admin é nomeado, a tela
+ * mostra o papel, e ele não administra nada — e ninguém liga uma coisa à outra.
+ */
+describe('motivoParaRecusarPapel', () => {
+	it('aceita seccional para admin_seccional', async () => {
+		expect(await motivoParaRecusarPapel(db, 'admin_seccional', 9100)).toBeNull();
+	});
+
+	it('aceita delegacia para admin_unidade', async () => {
+		expect(await motivoParaRecusarPapel(db, 'admin_unidade', 9101)).toBeNull();
+	});
+
+	it('recusa unidade inexistente', async () => {
+		const r = await motivoParaRecusarPapel(db, 'admin_unidade', 999999);
+		expect(r).toContain('não existe');
+	});
+
+	it('recusa DELEGACIA para admin_seccional', async () => {
+		// Delegacia não tem unidades subordinadas: o papel não teria o alcance que
+		// o nome promete, e o escopo resultante seria o de `admin_unidade`.
+		const r = await motivoParaRecusarPapel(db, 'admin_seccional', 9101);
+		expect(r).toContain('DP PRIMEIRA');
+		expect(r).toContain('Admin de Unidade');
 	});
 });
