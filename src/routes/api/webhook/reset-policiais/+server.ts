@@ -158,36 +158,65 @@ export const POST: RequestHandler = async (event) => {
 		return serverError(`[reset-policiais] Falha ao gerar snapshot (ip=${ip})`, err);
 	}
 
+	const { contexto, env: cryptoEnv } = contextoDeEvento(event);
+
+	// A TENTATIVA é registrada ANTES de apagar qualquer coisa. Antes, a auditoria
+	// só era tentada depois de as catorze deleções passarem: uma falha no meio
+	// deixava o banco pela metade E sem registro nenhum de que alguém tinha
+	// mandado apagar (FLW-WEBHOOK-001). A trilha não pode depender do sucesso da
+	// operação que ela existe para documentar.
+	await auditar(
+		db,
+		{
+			acao: 'reset_policiais',
+			usuario: null,
+			actor_tipo: 'webhook',
+			entidade: 'sistema',
+			severidade: 'critico',
+			resultado: 'sucesso',
+			detalhes: 'Reset completo solicitado — deleção em lote a seguir',
+			metadados: { fase: 'tentativa', snapshot },
+			...contexto
+		},
+		{ env: cryptoEnv }
+	);
+
 	try {
-		// IMPORTANTE: Limpeza profunda em ordem reversa de dependência
-		// 1. Tabelas de transação e logs
-		await db.delete(gisePresencas);
-		await db.delete(giseRespostasFormulario);
-		await db.delete(giseAssinaturasRelatorios);
-		await db.delete(giseDocumentos);
-		await db.delete(escalaDocumentos);
+		// UM `batch` — no D1 é uma transação. Antes eram catorze `await` em
+		// sequência, e uma falha na oitava deixava sete tabelas vazias e sete
+		// cheias, num estado que nenhuma tela do sistema sabe representar.
+		//
+		// A ordem continua sendo a reversa de dependência: dentro da transação as
+		// FKs ainda são verificadas statement a statement.
+		await db.batch([
+			// 1. Tabelas de transação e logs
+			db.delete(gisePresencas),
+			db.delete(giseRespostasFormulario),
+			db.delete(giseAssinaturasRelatorios),
+			db.delete(giseDocumentos),
+			db.delete(escalaDocumentos),
 
-		// 2. Hierarquia GISE
-		await db.delete(giseMembros);
-		await db.delete(giseEquipes);
-		await db.delete(giseSeccionalUnidades);
-		await db.delete(giseSeccionais);
-		await db.delete(giseEscalas);
+			// 2. Hierarquia GISE
+			db.delete(giseMembros),
+			db.delete(giseEquipes),
+			db.delete(giseSeccionalUnidades),
+			db.delete(giseSeccionais),
+			db.delete(giseEscalas),
 
-		// 3. Escalas antigas
-		await db.delete(escalaPoliciais);
-		await db.delete(escalas);
+			// 3. Escalas antigas
+			db.delete(escalaPoliciais),
+			db.delete(escalas),
 
-		// 4. Tabelas base (Unidades e Policiais)
-		await db.delete(policiais);
-		await db.delete(unidades);
+			// 4. Tabelas base (Unidades e Policiais)
+			db.delete(policiais),
+			db.delete(unidades)
+		]);
 
 		logger.warn('[reset-policiais] reset concluído', { ip, snapshot });
 
-		// A trilha de auditoria (audit_log) NÃO está na lista de deleção acima, então
-		// este registro sobrevive ao reset e preserva o snapshot pré-deleção como
-		// prova forense da operação destrutiva.
-		const { contexto, env: cryptoEnv } = contextoDeEvento(event);
+		// A trilha de auditoria (audit_log) NÃO está na lista de deleção acima,
+		// então estes registros sobrevivem ao reset e preservam o snapshot
+		// pré-deleção como prova forense da operação destrutiva.
 		await auditar(
 			db,
 			{
@@ -197,7 +226,7 @@ export const POST: RequestHandler = async (event) => {
 				entidade: 'sistema',
 				severidade: 'critico',
 				detalhes: 'Reset completo do banco operacional (policiais, unidades, escalas e GISE)',
-				metadados: { snapshot },
+				metadados: { fase: 'concluido', snapshot },
 				...contexto
 			},
 			{ env: cryptoEnv }
@@ -210,6 +239,28 @@ export const POST: RequestHandler = async (event) => {
 			snapshot
 		});
 	} catch (err) {
+		// Terceiro estado. Com o `batch`, a falha significa que NADA foi apagado —
+		// mas quem lê a trilha depois precisa saber que a tentativa existiu e não
+		// passou, senão o par "tentativa sem conclusão" fica sem explicação.
+		await auditar(
+			db,
+			{
+				acao: 'reset_policiais',
+				usuario: null,
+				actor_tipo: 'webhook',
+				entidade: 'sistema',
+				severidade: 'critico',
+				resultado: 'falha',
+				detalhes: 'Reset completo FALHOU — a transação foi revertida, nada foi apagado',
+				metadados: {
+					fase: 'falha',
+					snapshot,
+					erro: err instanceof Error ? err.message : String(err)
+				},
+				...contexto
+			},
+			{ env: cryptoEnv }
+		);
 		return serverError(`[reset-policiais] Falha durante deleção (ip=${ip})`, err);
 	}
 };

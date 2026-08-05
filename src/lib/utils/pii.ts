@@ -72,3 +72,26 @@ export function mascararEmail(email: string): string {
 	const maskedDomain = dotIdx > 0 ? '***' + domain.slice(dotIdx) : '***';
 	return masked + '@' + maskedDomain;
 }
+
+/**
+ * Substitui todo endereço de e-mail dentro de um TEXTO LIVRE pela versão
+ * mascarada. Para logs, não para tela.
+ *
+ * Resposta de erro de provedor, stack trace e mensagem de exceção carregam o
+ * destinatário no meio da frase — e é assim que uma máscara aplicada com
+ * cuidado no ponto de log é desfeita. Em `email.ts` o wrapper já registrava
+ * `mascararEmail(destinatario)`, mas o corpo cru da resposta do Cloudflare ia
+ * junto na mensagem do `Error`, e o endereço voltava em claro por dentro dela
+ * (FLW-LGPD-002).
+ *
+ * O que sobra continua servindo para diagnosticar: o motivo do erro fica, só o
+ * "para quem" some. Preserva o texto ao redor e é idempotente — mascarar duas
+ * vezes não corrói mais nada, porque o resultado da máscara não casa com o
+ * padrão de e-mail.
+ */
+export function redigirEmails(texto: string | undefined | null): string {
+	if (!texto) return '';
+	// Deliberadamente ganancioso no local-part e restrito no domínio: é melhor
+	// mascarar demais num log do que deixar um endereço passar.
+	return texto.replace(/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g, (m) => mascararEmail(m));
+}

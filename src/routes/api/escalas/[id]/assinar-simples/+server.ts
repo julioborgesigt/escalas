@@ -242,7 +242,7 @@ export const POST: RequestHandler = async ({
 
 		// R2-4: apaga os objetos R2 obsoletos do documento anterior (re-assinatura).
 		// Novas chaves referenciadas: blob + conferência (hash atual) + selfie atual.
-		await limparR2ObsoletoEscala(bucket, docAntigo, [
+		await limparR2ObsoletoEscala(db, bucket, docAntigo, [
 			r2Key,
 			chaveConferencia(verificationHash),
 			...(selfieKey ? [selfieKey] : [])

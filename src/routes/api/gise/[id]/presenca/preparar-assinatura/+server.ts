@@ -9,22 +9,11 @@
 
 import type { RequestHandler } from './$types';
 import { eq } from 'drizzle-orm';
-import {
-	getDB,
-	buscarGiseEscala,
-	resolverParticipacaoGisePolicial,
-	horarioGiseLiberado
-} from '$lib/db';
+import { getDB, buscarGiseEscala, resolverParticipacaoGisePolicial } from '$lib/db';
+import { gateDePresenca } from '$lib/server/gise/presenca-gate';
 import { policiais } from '$lib/server/schema';
 import { prepararPresencaSchema } from '$lib/schemas';
-import {
-	requireAuth,
-	badRequest,
-	notFound,
-	forbidden,
-	conflict,
-	validateBody
-} from '$lib/server/api';
+import { requireAuth, badRequest, notFound, forbidden, validateBody } from '$lib/server/api';
 import { gerarTermoPresencaPdf } from '$lib/server/gise/termo-presenca';
 import {
 	prepararPdfParaAssinatura,
@@ -39,6 +28,7 @@ import { calcularHashBuffer } from '$lib/server/assinatura/document-utils';
 import { tryGetR2 } from '$lib/db';
 import { logger } from '$lib/server/logger';
 import { json } from '@sveltejs/kit';
+import { criarIntencaoAssinatura } from '$lib/server/assinatura/intencao';
 
 export const POST: RequestHandler = async ({
 	platform,
@@ -67,15 +57,11 @@ export const POST: RequestHandler = async ({
 	const part = await resolverParticipacaoGisePolicial(db, giseId, u.id);
 	if (!part.participa) return forbidden('Você não participa desta escala GISE.');
 
-	// Horário liberado (server-side).
-	if (part.horarioPrevisto && part.dataInicio) {
-		const hora = tipo === 'entrada' ? part.horarioPrevisto.inicio : part.horarioPrevisto.fim;
-		if (!horarioGiseLiberado(part.dataInicio, hora)) {
-			return conflict(
-				`A confirmação de ${tipo === 'entrada' ? 'entrada' : 'saída'} ainda não está liberada (a partir das ${hora}).`
-			);
-		}
-	}
+	// Janela de horário e, para saída, entrada já registrada. A mesma função
+	// roda no finalizador — antes a janela existia só aqui, e quem guardasse um
+	// `preparedPdf` passava por cima dela (FLW-GISE-008).
+	const gate = await gateDePresenca(db, part, giseId, u.id, tipo);
+	if (!gate.ok) return gate.resposta;
 
 	// Rubrica cadastrada — obrigatória no fluxo desktop.
 	const row = await db
@@ -188,7 +174,17 @@ export const POST: RequestHandler = async ({
 		}
 	}
 
+	// Amarra ESTE pdf a ESTE alvo, a ESTE usuário e a um único uso (FLW-DOC-001).
+	const intencao = await criarIntencaoAssinatura(
+		db,
+		{ recurso: 'gise_presenca', recursoId: giseId },
+		{ id: u.id, tipo: u.tipo },
+		preparedPdf,
+		verificationHash
+	);
+
 	return json({
+		intencao,
 		signedAttrsHashHex,
 		preparedPdf: Buffer.from(preparedPdf).toString('base64'),
 		messageDigest,

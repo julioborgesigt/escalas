@@ -35,6 +35,7 @@ import { policialSchema } from '$lib/schemas/policial';
 import { isAdminGeral } from '$lib/auth';
 import { lotacoesAdministradas, lotacaoNoEscopo } from '$lib/server/policial-permissao';
 import { decifrarCpfDoDB } from '$lib/crypto/cpf-cripto';
+import { impedimentoParaExcluirPolicial } from '$lib/db/policial-exclusao';
 
 export const load: PageServerLoad = async ({ locals, platform, url, depends }) => {
 	depends('app:policiais');
@@ -266,6 +267,13 @@ export const actions: Actions = {
 		if (!lotacaoNoEscopo(escopo, policial.lotacao)) {
 			return fail(403, { error: 'Sem permissão para excluir este policial' });
 		}
+
+		// A regra não é "nunca apagar": é nunca apagar o que um documento assinado
+		// referencia. O PDF continua existindo no R2 depois do DELETE, e passaria
+		// a citar uma pessoa e fatos que o banco não tem mais (FLW-POLICIAL-002).
+		// Quem já tem documento é DESVINCULADO, não excluído.
+		const impedimento = await impedimentoParaExcluirPolicial(db, policialId);
+		if (impedimento) return fail(409, { error: impedimento });
 
 		// Remove também a conta Admin Geral vinculada (se houver), evitando um
 		// login admin órfão apontando para um policial inexistente.

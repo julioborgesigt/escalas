@@ -1,7 +1,9 @@
 import { eq, desc } from 'drizzle-orm';
-import { policialHistorico } from '../server/schema';
+import { policiais, policialHistorico } from '../server/schema';
 import type { PolicialHistorico } from '../server/schema';
 import type { Database } from './core';
+import { camposDeAtualizacao, type CamposDoPolicial } from './policiais';
+import type { CpfCriptoEnv } from '../crypto/cpf-cripto';
 
 type TipoHistorico = 'movimentacao' | 'afastamento' | 'desvinculacao' | 'edicao' | 'papel';
 
@@ -35,34 +37,71 @@ function comoJson(v: Record<string, unknown> | null | undefined): string | null 
 	}
 }
 
+/** O INSERT do evento, ainda NÃO executado — para compor num `db.batch`. */
+function inserirHistoricoQuery(db: Database, evento: NovoEventoHistorico) {
+	return db.insert(policialHistorico).values({
+		policial_id: evento.policial_id,
+		tipo: evento.tipo,
+		subtipo: evento.subtipo ?? null,
+		descricao: evento.descricao ?? null,
+		unidade_origem: evento.unidade_origem ?? null,
+		unidade_destino: evento.unidade_destino ?? null,
+		data_evento: evento.data_evento ?? null,
+		data_inicio: evento.data_inicio ?? null,
+		data_fim: evento.data_fim ?? null,
+		qtd_dias: evento.qtd_dias ?? null,
+		nup: evento.nup ?? null,
+		documento_r2_key: evento.documento_r2_key ?? null,
+		documento_nome: evento.documento_nome ?? null,
+		dados_antes: comoJson(evento.dados_antes),
+		dados_depois: comoJson(evento.dados_depois),
+		registrado_por_id: evento.registrado_por_id ?? null,
+		registrado_por_nome: evento.registrado_por_nome ?? null
+	});
+}
+
 /** Insere um evento imutável na linha do tempo do policial e devolve o id gerado. */
 export async function registrarHistorico(
 	db: Database,
 	evento: NovoEventoHistorico
 ): Promise<number> {
-	const row = await db
-		.insert(policialHistorico)
-		.values({
-			policial_id: evento.policial_id,
-			tipo: evento.tipo,
-			subtipo: evento.subtipo ?? null,
-			descricao: evento.descricao ?? null,
-			unidade_origem: evento.unidade_origem ?? null,
-			unidade_destino: evento.unidade_destino ?? null,
-			data_evento: evento.data_evento ?? null,
-			data_inicio: evento.data_inicio ?? null,
-			data_fim: evento.data_fim ?? null,
-			qtd_dias: evento.qtd_dias ?? null,
-			nup: evento.nup ?? null,
-			documento_r2_key: evento.documento_r2_key ?? null,
-			documento_nome: evento.documento_nome ?? null,
-			dados_antes: comoJson(evento.dados_antes),
-			dados_depois: comoJson(evento.dados_depois),
-			registrado_por_id: evento.registrado_por_id ?? null,
-			registrado_por_nome: evento.registrado_por_nome ?? null
-		})
-		.returning({ id: policialHistorico.id });
+	const row = await inserirHistoricoQuery(db, evento).returning({ id: policialHistorico.id });
 	return row[0]?.id;
+}
+
+/**
+ * Muda o cadastro E grava o evento na linha do tempo, NA MESMA TRANSAÇÃO.
+ *
+ * Movimentação, mudança de papel e desvinculação faziam as duas escritas em
+ * chamadas independentes (FLW-RBAC-005). Uma falha entre elas deixava o estado
+ * que a ficha do policial não sabe explicar: a lotação trocada sem a portaria
+ * na linha do tempo, ou — na desvinculação — o cadastro inativado sem registro
+ * de quem o inativou, de quando e com base em qual NUP.
+ *
+ * `db.batch` é transação no D1: as duas entram ou nenhuma entra. É por isso que
+ * o UPDATE precisa vir como query builder e não como `await` — ver
+ * `camposDeAtualizacao`.
+ *
+ * A AUDITORIA fica de fora do batch de propósito, e isso não é esquecimento:
+ * `auditar()` nunca lança e resolve a própria falha por pendência durável
+ * (FLW-AUDIT-001). Metê-la aqui trocaria uma garantia que já existe pela
+ * possibilidade de a mutação do usuário ser desfeita por causa da trilha —
+ * exatamente a política que o operador recusou.
+ */
+export async function atualizarPolicialComHistorico(
+	db: Database,
+	policialId: number,
+	mudanca: CamposDoPolicial,
+	evento: NovoEventoHistorico,
+	env?: CpfCriptoEnv
+): Promise<void> {
+	await db.batch([
+		db
+			.update(policiais)
+			.set(await camposDeAtualizacao(mudanca, env))
+			.where(eq(policiais.id, policialId)),
+		inserirHistoricoQuery(db, evento)
+	]);
 }
 
 /** Lista o histórico de um policial, do mais recente para o mais antigo. */

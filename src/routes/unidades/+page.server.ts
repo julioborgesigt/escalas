@@ -37,6 +37,7 @@ import { unidadeSchema } from '$lib/schemas';
 import { eq } from 'drizzle-orm';
 import { unidades, type Unidade } from '$lib/server/schema';
 import { ehViolacaoUnique, mensagemComCausas } from '$lib/server/db-errors';
+import { ConflitoDeRenomeacaoUnidade } from '$lib/db/unidades';
 import { logger } from '$lib/server/logger';
 
 /**
@@ -67,6 +68,11 @@ function lerUnidadeDoForm(data: FormData) {
 function falhaDeGravacao(e: unknown, acao: string) {
 	if (ehViolacaoUnique(e)) {
 		return fail(409, { error: 'Já existe uma unidade com este nome' });
+	}
+	// Renomeação concorrente: 409 com a mensagem da própria exceção, que já
+	// explica o que aconteceu e o que fazer (FLW-UNIDADE-004).
+	if (e instanceof ConflitoDeRenomeacaoUnidade) {
+		return fail(409, { error: e.message });
 	}
 	logger.error(`[unidades/${acao}]`, { error: mensagemComCausas(e) });
 	return fail(500, { error: 'Erro ao salvar a unidade. Tente novamente.' });

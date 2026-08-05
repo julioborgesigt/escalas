@@ -17,18 +17,36 @@
  *   - selfie(s) biométrica(s) (`selfie_key`, e nas presenças
  *     `entrada_selfie_key`/`saida_selfie_key`).
  *
- * Todas as funções são best-effort: falha ao deletar um objeto é logada e NUNCA
- * lança — a remoção da linha no banco (fonte da verdade para /validar) não pode
- * ficar refém do storage.
+ * Todas as funções são best-effort: falha ao deletar um objeto NUNCA lança — a
+ * remoção da linha no banco (fonte da verdade para /validar) não pode ficar
+ * refém do storage.
+ *
+ * O que mudou em ago/2026 (FLW-R2-004) foi o PREÇO desse best-effort. A falha
+ * era um `logger.warn` e o retorno dizia quantas chaves foram TENTADAS; o
+ * chamador então apagava a linha que guardava o `r2_key`. Depois disso o objeto
+ * existe no bucket e nada no sistema sabe que ele existe — irrastreável por
+ * definição, porque a única referência acabou de ser apagada. E não é lixo
+ * neutro: é PDF com manifesto forense (CPF, IP, GPS) e selfie biométrica (LGPD
+ * art. 11).
+ *
+ * A política é a MESMA já decidida para a trilha de auditoria (FLW-AUDIT-001):
+ * **pendência durável e segue**. A chave que resistiu vai para `r2_pendencias`
+ * ANTES de a linha sumir, e `reprocessarPendenciasR2` tenta de novo no cron de
+ * retenção. Por isso o retorno passou a distinguir `removidas` de `pendentes`:
+ * "tentadas" é um número que não responde a pergunta que se faz a uma limpeza.
  */
 
-import { eq } from 'drizzle-orm';
+import { and, asc, eq, inArray, sql } from 'drizzle-orm';
 import {
 	escalaDocumentos,
 	giseDocumentos,
+	giseEquipes,
+	giseMembros,
 	gisePresencas,
 	giseAssinaturasRelatorios,
-	gisePresencaTermos
+	gisePresencaTermos,
+	giseSeccionais,
+	r2Pendencias
 } from './schema';
 import { chaveConferencia } from './assinatura/copia-conferencia';
 import { logger } from './logger';
@@ -46,26 +64,157 @@ export interface R2CleanupBucket {
 	}): Promise<{ objects: { key: string }[]; truncated: boolean; cursor?: string }>;
 }
 
+/** O que a limpeza conseguiu, e o que ficou devendo. */
+export interface ResultadoLimpezaR2 {
+	/** Objetos que saíram do bucket. */
+	removidas: number;
+	/** Objetos que resistiram e viraram pendência durável, para nova tentativa. */
+	pendentes: number;
+}
+
+const LIMITE_MOTIVO_R2 = 500;
+const LOTE_REPROCESSAMENTO_R2 = 200;
+
+/** `{ removidas: 0, pendentes: 0 }` — o resultado de não ter nada a fazer. */
+export const LIMPEZA_R2_VAZIA: ResultadoLimpezaR2 = { removidas: 0, pendentes: 0 };
+
 /**
- * Deleta um conjunto de chaves do R2 (best-effort). Ignora vazias/duplicadas.
- * Nunca lança. Retorna quantas chaves distintas foram tentadas.
+ * Deleta um conjunto de chaves do R2. Ignora vazias/duplicadas. Nunca lança.
+ *
+ * O que não sair vira linha em `r2_pendencias`, com o motivo. `origem` é texto
+ * livre de triagem ("exclusao-gise", "reassinatura-escala") e serve para o
+ * operador saber de onde veio a chave que insiste em não sumir — a linha que
+ * daria essa resposta costuma já ter sido apagada quando ele for olhar.
  */
 export async function deletarChavesR2(
+	db: Database,
 	r2: R2CleanupBucket,
-	chaves: Iterable<string | null | undefined>
-): Promise<number> {
+	chaves: Iterable<string | null | undefined>,
+	origem = 'nao-informada'
+): Promise<ResultadoLimpezaR2> {
 	const lista = [...new Set([...chaves].filter((k): k is string => !!k))];
-	if (lista.length === 0) return 0;
+	if (lista.length === 0) return { ...LIMPEZA_R2_VAZIA };
+
 	const resultados = await Promise.allSettled(lista.map((k) => r2.delete(k)));
+
+	const falhas: { chave: string; motivo: string }[] = [];
 	resultados.forEach((r, i) => {
 		if (r.status === 'rejected') {
-			logger.warn('[r2-cleanup] Falha ao deletar objeto do R2', {
+			const motivo = r.reason instanceof Error ? r.reason.message : String(r.reason);
+			logger.warn('[r2-cleanup] Falha ao deletar objeto do R2 — vira pendência', {
 				key: lista[i],
-				error: r.reason instanceof Error ? r.reason.message : String(r.reason)
+				origem,
+				error: motivo
 			});
+			falhas.push({ chave: lista[i], motivo });
 		}
 	});
-	return lista.length;
+
+	if (falhas.length > 0) await registrarPendenciasR2(db, falhas, origem);
+
+	// A chave que saiu do bucket não pode continuar pendente de uma tentativa
+	// anterior: sem isto, uma falha transitória deixaria a pendência para sempre.
+	const removidas = lista.filter((_, i) => resultados[i].status === 'fulfilled');
+	if (removidas.length > 0) await esquecerPendenciasR2(db, removidas);
+
+	return { removidas: removidas.length, pendentes: falhas.length };
+}
+
+/**
+ * Grava as chaves que resistiram. NUNCA lança: se nem a pendência consegue
+ * gravar, o objeto se perde de vez e só resta o log — limite honesto, igual ao
+ * de `registrarPendenciaAudit`.
+ */
+async function registrarPendenciasR2(
+	db: Database,
+	falhas: { chave: string; motivo: string }[],
+	origem: string
+): Promise<void> {
+	try {
+		await db
+			.insert(r2Pendencias)
+			.values(
+				falhas.map((f) => ({ chave: f.chave, origem, motivo: f.motivo.slice(0, LIMITE_MOTIVO_R2) }))
+			)
+			.onConflictDoUpdate({
+				target: r2Pendencias.chave,
+				set: {
+					motivo: sql`excluded.motivo`,
+					tentativas: sql`${r2Pendencias.tentativas} + 1`,
+					ultima_tentativa_em: sql`datetime('now')`
+				}
+			});
+	} catch (err) {
+		logger.error('[r2-cleanup] Falha ao registrar PENDÊNCIA — objeto R2 perdido de vista', {
+			chaves: falhas.map((f) => f.chave),
+			error: err instanceof Error ? err.message : String(err)
+		});
+	}
+}
+
+/** Tira da fila as chaves que já saíram do bucket. Também não lança. */
+async function esquecerPendenciasR2(db: Database, chaves: string[]): Promise<void> {
+	try {
+		await db.delete(r2Pendencias).where(inArray(r2Pendencias.chave, chaves));
+	} catch (err) {
+		logger.warn('[r2-cleanup] Falha ao limpar pendências já resolvidas', {
+			error: err instanceof Error ? err.message : String(err)
+		});
+	}
+}
+
+/**
+ * Tenta de novo apagar o que ficou pendente. Roda no cron de retenção, junto
+ * com `reprocessarPendenciasAudit` — pelo mesmo motivo: pendência é rara e
+ * assíncrona, e um agendador só para ela ficaria anos sem trabalho e seria o
+ * primeiro a ser desligado sem ninguém notar.
+ *
+ * Não remove a pendência que falhou de novo: o `tentativas` crescendo é o sinal
+ * de que aquela chave não é transitória e alguém precisa olhar.
+ */
+export async function reprocessarPendenciasR2(
+	db: Database,
+	r2: R2CleanupBucket | null
+): Promise<ResultadoLimpezaR2> {
+	if (!r2) return { ...LIMPEZA_R2_VAZIA };
+
+	const pendentes = await db
+		.select({ id: r2Pendencias.id, chave: r2Pendencias.chave, tentativas: r2Pendencias.tentativas })
+		.from(r2Pendencias)
+		.orderBy(asc(r2Pendencias.created_at), asc(r2Pendencias.id))
+		.limit(LOTE_REPROCESSAMENTO_R2);
+
+	let removidas = 0;
+	let persistentes = 0;
+
+	for (const linha of pendentes) {
+		try {
+			await r2.delete(linha.chave);
+			await db.delete(r2Pendencias).where(eq(r2Pendencias.id, linha.id));
+			removidas++;
+		} catch (err) {
+			persistentes++;
+			await db
+				.update(r2Pendencias)
+				.set({
+					tentativas: linha.tentativas + 1,
+					ultima_tentativa_em: sql`datetime('now')`,
+					motivo: (err instanceof Error ? err.message : String(err)).slice(0, LIMITE_MOTIVO_R2)
+				})
+				.where(eq(r2Pendencias.id, linha.id));
+		}
+	}
+
+	if (persistentes > 0) {
+		logger.error('[r2-cleanup] Objetos que resistiram de novo', { persistentes });
+	}
+	return { removidas, pendentes: persistentes };
+}
+
+/** Quantos objetos seguem no bucket sem referência. Zero é o estado saudável. */
+export async function contarPendenciasR2(db: Database): Promise<number> {
+	const [r] = await db.select({ n: sql<number>`count(*)` }).from(r2Pendencias);
+	return Number(r?.n ?? 0);
 }
 
 /** Documento com os campos R2 mínimos de uma assinatura de escala. */
@@ -92,13 +241,12 @@ export function chavesR2DoDocumentoEscala(doc: DocR2Escala): Set<string> {
  * (blob + conferência + selfie). Use ANTES de excluir a escala/linha — depois
  * do cascade da FK o `r2_key` some e o órfão fica irrastreável (R2-1/R2-3).
  *
- * Retorna o número de objetos tentados (0 se não havia documento).
  */
 export async function limparR2DocumentoEscala(
 	db: Database,
 	r2: R2CleanupBucket,
 	escalaId: number
-): Promise<number> {
+): Promise<ResultadoLimpezaR2> {
 	const doc = await db
 		.select({
 			r2_key: escalaDocumentos.r2_key,
@@ -108,8 +256,8 @@ export async function limparR2DocumentoEscala(
 		.from(escalaDocumentos)
 		.where(eq(escalaDocumentos.escala_id, escalaId))
 		.get();
-	if (!doc) return 0;
-	return deletarChavesR2(r2, chavesR2DoDocumentoEscala(doc));
+	if (!doc) return { ...LIMPEZA_R2_VAZIA };
+	return deletarChavesR2(db, r2, chavesR2DoDocumentoEscala(doc), 'documento-escala');
 }
 
 /**
@@ -122,14 +270,116 @@ export async function limparR2DocumentoEscala(
  * @param chavesNovas chaves R2 que o novo documento passou a referenciar.
  */
 export async function limparR2ObsoletoEscala(
+	db: Database,
 	r2: R2CleanupBucket,
 	docAntigo: DocR2Escala | null | undefined,
 	chavesNovas: Iterable<string | null | undefined>
-): Promise<number> {
-	if (!docAntigo) return 0;
+): Promise<ResultadoLimpezaR2> {
+	if (!docAntigo) return { ...LIMPEZA_R2_VAZIA };
 	const obsoletas = chavesR2DoDocumentoEscala(docAntigo);
 	for (const nova of chavesNovas) if (nova) obsoletas.delete(nova);
-	return deletarChavesR2(r2, obsoletas);
+	return deletarChavesR2(db, r2, obsoletas, 'reassinatura-escala');
+}
+
+/**
+ * Chaves do documento CONSOLIDADO de uma GISE — o PDF da escala, sua cópia de
+ * conferência e a selfie de quem assinou.
+ *
+ * É o conjunto que some quando alguém mexe na composição de uma escala já
+ * assinada. Existe separado de `coletarChavesR2DaGise` porque aquele varre a
+ * GISE inteira (relatórios, termos, presenças): usá-lo aqui apagaria blobs de
+ * documentos que a invalidação NÃO derruba.
+ */
+export async function coletarChavesR2DoDocumentoGise(
+	db: Database,
+	giseId: number
+): Promise<Set<string>> {
+	const docs = await db
+		.select({
+			r2: giseDocumentos.r2_key,
+			selfie: giseDocumentos.selfie_key,
+			hash: giseDocumentos.verificacao_hash
+		})
+		.from(giseDocumentos)
+		.where(eq(giseDocumentos.gise_id, giseId))
+		.all();
+
+	const chaves = new Set<string>();
+	docs.forEach((d) => {
+		if (d.r2) chaves.add(d.r2);
+		if (d.selfie) chaves.add(d.selfie);
+		if (d.hash) chaves.add(chaveConferencia(d.hash));
+	});
+	return chaves;
+}
+
+/**
+ * Chaves de tudo que `revogarAssinaturasSeccional` vai deixar sem linha:
+ * relatórios de extra assinados pela seccional, selfies de presença dos seus
+ * membros e o documento consolidado da escala.
+ *
+ * Espelha PASSO A PASSO o que aquela função apaga, e é por isso que recebe o id
+ * da PARTICIPAÇÃO (`gise_seccionais.id`) e não o da unidade — a mesma distinção
+ * que custou FLW-GISE-011. Se as duas divergirem, ou sobra órfão no bucket ou
+ * some blob de documento que continua valendo.
+ *
+ * Chame ANTES da revogação: depois, as linhas que dizem quais objetos existem
+ * já foram apagadas.
+ */
+export async function coletarChavesR2DaRevogacaoSeccional(
+	db: Database,
+	giseId: number,
+	giseSeccionalId: number
+): Promise<Set<string>> {
+	const chaves = await coletarChavesR2DoDocumentoGise(db, giseId);
+
+	const participacao = await db
+		.select({ seccional_id: giseSeccionais.seccional_id })
+		.from(giseSeccionais)
+		.where(and(eq(giseSeccionais.id, giseSeccionalId), eq(giseSeccionais.gise_id, giseId)))
+		.get();
+	if (!participacao) return chaves;
+
+	const [relatorios, presencas] = await Promise.all([
+		db
+			.select({
+				r2: giseAssinaturasRelatorios.r2_key,
+				selfie: giseAssinaturasRelatorios.selfie_key,
+				hash: giseAssinaturasRelatorios.verification_hash
+			})
+			.from(giseAssinaturasRelatorios)
+			.where(
+				and(
+					eq(giseAssinaturasRelatorios.gise_id, giseId),
+					eq(giseAssinaturasRelatorios.seccional_id, participacao.seccional_id)
+				)
+			)
+			.all(),
+		db
+			.select({
+				entrada: gisePresencas.entrada_selfie_key,
+				saida: gisePresencas.saida_selfie_key
+			})
+			.from(gisePresencas)
+			.innerJoin(giseMembros, eq(gisePresencas.policial_id, giseMembros.policial_id))
+			.innerJoin(giseEquipes, eq(giseMembros.equipe_id, giseEquipes.id))
+			.where(
+				and(eq(gisePresencas.gise_id, giseId), eq(giseEquipes.gise_seccional_id, giseSeccionalId))
+			)
+			.all()
+	]);
+
+	relatorios.forEach((r) => {
+		if (r.r2) chaves.add(r.r2);
+		if (r.selfie) chaves.add(r.selfie);
+		if (r.hash) chaves.add(chaveConferencia(r.hash));
+	});
+	presencas.forEach((p) => {
+		if (p.entrada) chaves.add(p.entrada);
+		if (p.saida) chaves.add(p.saida);
+	});
+
+	return chaves;
 }
 
 /** GISE mínima para derivar o prefixo de storage. */
@@ -303,14 +553,16 @@ export async function contarImpactoExclusaoGise(
 
 /**
  * Remove do R2 todos os objetos de uma GISE (blobs + conferências + selfies).
- * Use na EXCLUSÃO total e também ao REABRIR (R2-2/R2-3), antes/depois de apagar
- * as linhas do banco. Retorna quantos objetos foram tentados.
+ * Use na EXCLUSÃO total e também ao REABRIR (R2-2/R2-3), ANTES de apagar as
+ * linhas do banco — depois delas, o que resistir não teria como ser encontrado
+ * de novo, e é exatamente esse o caso em que a pendência salva a chave.
  */
 export async function limparR2DaGise(
 	db: Database,
 	r2: R2CleanupBucket,
-	gise: GiseParaLimpeza
-): Promise<number> {
+	gise: GiseParaLimpeza,
+	origem = 'gise'
+): Promise<ResultadoLimpezaR2> {
 	const chaves = await coletarChavesR2DaGise(db, r2, gise);
-	return deletarChavesR2(r2, chaves);
+	return deletarChavesR2(db, r2, chaves, origem);
 }

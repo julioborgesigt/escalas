@@ -46,16 +46,18 @@ import {
 	atualizarPolicial,
 	listarLotacoes,
 	listarUnidades,
-	promoverPolicial,
 	vincularAdminGeral,
 	desvincularAdminGeral,
 	ehAdminGeralVinculado,
 	registrarHistorico,
+	atualizarPolicialComHistorico,
 	listarHistoricoPolicial,
 	afastamentoVigente,
 	auditar,
 	contextoDeEvento
 } from '$lib/db';
+import { deletarChavesR2 } from '$lib/server/r2-cleanup';
+import { logger } from '$lib/server/logger';
 import { policialUpdateSchema } from '$lib/schemas/policial';
 import {
 	movimentacaoSchema,
@@ -64,8 +66,13 @@ import {
 	LABEL_SUBTIPO_AFASTAMENTO
 } from '$lib/schemas/policial-historico';
 import { isAdminGeral, isAdminSeccional, isAdminUnidade } from '$lib/auth';
-import { lotacoesAdministradas, lotacaoNoEscopo } from '$lib/server/policial-permissao';
+import {
+	lotacoesAdministradas,
+	lotacaoNoEscopo,
+	motivoParaRecusarPapel
+} from '$lib/server/policial-permissao';
 import { decifrarCpfDoDB } from '$lib/crypto/cpf-cripto';
+import { resolverCredencial, revogarSessoesDaCredencial } from '$lib/server/auth/credencial';
 import { getNowBR } from '$lib/utils/datas';
 import type { RequestEvent } from './$types';
 
@@ -75,6 +82,39 @@ function hojeBrasilISO(): string {
 }
 
 const TAMANHO_MAX_PDF = 10 * 1024 * 1024; // 10 MB
+
+/**
+ * A persistência falhou depois do upload: apaga o anexo órfão e devolve 500.
+ *
+ * O PDF sobe ANTES da mutação de propósito (ver o cabeçalho), e é isso que
+ * abria a outra ponta: falhando a gravação, o objeto ficava no bucket sem
+ * nenhuma linha apontando para ele — invisível para a tela, invisível para o
+ * expurgo de retenção, e contando como dado pessoal armazenado sem base
+ * (FLW-RBAC-005).
+ *
+ * A limpeza é best-effort: `deletarChavesR2` não lança, e o erro que importa
+ * para o usuário é o da gravação, não o da faxina.
+ */
+async function abortarComLimpezaR2(
+	event: RequestEvent,
+	doc: { key: string; nome: string } | null,
+	erro: unknown,
+	contexto: string
+) {
+	logger.error(`[policiais/${contexto}] Falha ao persistir; anexo será removido do R2`, {
+		r2_key: doc?.key ?? null,
+		error: erro instanceof Error ? erro.message : String(erro)
+	});
+	if (doc && hasR2(event.platform)) {
+		await deletarChavesR2(
+			getDB(event.platform),
+			getR2(event.platform),
+			[doc.key],
+			'anexo-policial'
+		);
+	}
+	return fail(500, { error: 'Não foi possível registrar a operação. Tente novamente.' });
+}
 
 /**
  * Faz upload best-effort de um PDF anexo (Portaria/Documento) para o R2 e
@@ -264,28 +304,33 @@ export const actions: Actions = {
 		}
 
 		try {
-			await atualizarPolicial(
-				db,
-				id,
-				{ ...parsed.data, email: data.email ?? undefined },
-				platform?.env
-			);
+			const mudanca = { ...parsed.data, email: data.email ?? undefined };
 			const antes = semCamposSensiveis(alvo);
-			const depois = semCamposSensiveis({ ...parsed.data, email: data.email ?? undefined });
+			const depois = semCamposSensiveis(mudanca);
 
 			// Registra no histórico funcional apenas os campos que de fato mudaram,
 			// para a linha do tempo não poluir com "edições" sem alteração real.
 			const diff = camposAlterados(antes, depois);
 			if (Object.keys(diff.antes).length > 0) {
-				await registrarHistorico(db, {
-					policial_id: id,
-					tipo: 'edicao',
-					descricao: `Cadastro editado: ${Object.keys(diff.depois).join(', ')}`,
-					dados_antes: diff.antes,
-					dados_depois: diff.depois,
-					registrado_por_id: u.id,
-					registrado_por_nome: u.nome
-				});
+				await atualizarPolicialComHistorico(
+					db,
+					id,
+					mudanca,
+					{
+						policial_id: id,
+						tipo: 'edicao',
+						descricao: `Cadastro editado: ${Object.keys(diff.depois).join(', ')}`,
+						dados_antes: diff.antes,
+						dados_depois: diff.depois,
+						registrado_por_id: u.id,
+						registrado_por_nome: u.nome
+					},
+					platform?.env
+				);
+			} else {
+				// Nada mudou de fato: grava só o cadastro (o UPDATE é idempotente) e
+				// não suja a linha do tempo com uma "edição" vazia.
+				await atualizarPolicial(db, id, mudanca, platform?.env);
 			}
 
 			const { contexto, env } = contextoDeEvento(event);
@@ -339,11 +384,25 @@ export const actions: Actions = {
 		}
 
 		const db = getDB(platform);
-		const alvo = await buscarPolicial(db, id);
-		await promoverPolicial(db, id, papel, papelUnidadeId);
 
-		if (u) {
-			await registrarHistorico(db, {
+		// A unidade de responsabilidade existe e serve para o papel? Era exigida
+		// mas nunca validada: id inexistente produzia escopo vazio silencioso — o
+		// admin é nomeado, a tela mostra o papel, e ele não administra nada
+		// (FLW-RBAC-003).
+		if (papel && papelUnidadeId != null) {
+			const recusa = await motivoParaRecusarPapel(db, papel, papelUnidadeId);
+			if (recusa) return fail(400, { error: recusa });
+		}
+
+		const alvo = await buscarPolicial(db, id);
+
+		// Papel e registro na mesma transação: um RBAC concedido sem linha no
+		// histórico é uma permissão que ninguém consegue explicar depois.
+		await atualizarPolicialComHistorico(
+			db,
+			id,
+			{ papel, papel_unidade_id: papelUnidadeId },
+			{
 				policial_id: id,
 				tipo: 'papel',
 				descricao: `Papel administrativo alterado para ${papel ?? 'nenhum'}`,
@@ -354,8 +413,8 @@ export const actions: Actions = {
 				dados_depois: { papel, papel_unidade_id: papelUnidadeId },
 				registrado_por_id: u.id,
 				registrado_por_nome: u.nome
-			});
-		}
+			}
+		);
 
 		const { contexto, env } = contextoDeEvento(event);
 		await auditar(
@@ -459,19 +518,27 @@ export const actions: Actions = {
 		if (parsed.data.unidade_destino === origem) {
 			return fail(400, { error: 'A unidade de destino é igual à unidade atual.' });
 		}
-		await atualizarPolicial(db, id, { lotacao: parsed.data.unidade_destino });
-		await registrarHistorico(db, {
-			policial_id: id,
-			tipo: 'movimentacao',
-			unidade_origem: origem,
-			unidade_destino: parsed.data.unidade_destino,
-			data_evento: parsed.data.data_evento,
-			nup: parsed.data.nup || null,
-			documento_r2_key: doc?.key ?? null,
-			documento_nome: doc?.nome ?? null,
-			registrado_por_id: u.id,
-			registrado_por_nome: u.nome
-		});
+		try {
+			await atualizarPolicialComHistorico(
+				db,
+				id,
+				{ lotacao: parsed.data.unidade_destino },
+				{
+					policial_id: id,
+					tipo: 'movimentacao',
+					unidade_origem: origem,
+					unidade_destino: parsed.data.unidade_destino,
+					data_evento: parsed.data.data_evento,
+					nup: parsed.data.nup || null,
+					documento_r2_key: doc?.key ?? null,
+					documento_nome: doc?.nome ?? null,
+					registrado_por_id: u.id,
+					registrado_por_nome: u.nome
+				}
+			);
+		} catch (e) {
+			return await abortarComLimpezaR2(event, doc, e, 'movimentacao');
+		}
 		const { contexto, env } = contextoDeEvento(event);
 		await auditar(
 			db,
@@ -520,20 +587,26 @@ export const actions: Actions = {
 			return fail(400, { error: e instanceof Error ? e.message : 'Falha no upload do documento' });
 		}
 
-		await registrarHistorico(db, {
-			policial_id: id,
-			tipo: 'afastamento',
-			subtipo: parsed.data.subtipo,
-			descricao: parsed.data.descricao || null,
-			data_inicio: parsed.data.data_inicio,
-			data_fim: parsed.data.data_fim,
-			qtd_dias: parsed.data.qtd_dias ?? null,
-			nup: parsed.data.nup || null,
-			documento_r2_key: doc?.key ?? null,
-			documento_nome: doc?.nome ?? null,
-			registrado_por_id: u.id,
-			registrado_por_nome: u.nome
-		});
+		// Não altera cadastro: só a linha do tempo. Nada a transacionar, mas a
+		// compensação do anexo vale igual — o PDF já está no bucket.
+		try {
+			await registrarHistorico(db, {
+				policial_id: id,
+				tipo: 'afastamento',
+				subtipo: parsed.data.subtipo,
+				descricao: parsed.data.descricao || null,
+				data_inicio: parsed.data.data_inicio,
+				data_fim: parsed.data.data_fim,
+				qtd_dias: parsed.data.qtd_dias ?? null,
+				nup: parsed.data.nup || null,
+				documento_r2_key: doc?.key ?? null,
+				documento_nome: doc?.nome ?? null,
+				registrado_por_id: u.id,
+				registrado_por_nome: u.nome
+			});
+		} catch (e) {
+			return await abortarComLimpezaR2(event, doc, e, 'afastamento');
+		}
 		const { contexto, env } = contextoDeEvento(event);
 		await auditar(
 			db,
@@ -575,20 +648,36 @@ export const actions: Actions = {
 			return fail(400, { error: e instanceof Error ? e.message : 'Falha no upload do documento' });
 		}
 
-		await atualizarPolicial(db, id, { ativo: 0 });
-		await registrarHistorico(db, {
-			policial_id: id,
-			tipo: 'desvinculacao',
-			descricao: parsed.data.destino,
-			unidade_origem: alvo.lotacao || '',
-			unidade_destino: parsed.data.destino,
-			data_evento: parsed.data.data_evento,
-			nup: parsed.data.nup || null,
-			documento_r2_key: doc?.key ?? null,
-			documento_nome: doc?.nome ?? null,
-			registrado_por_id: u.id,
-			registrado_por_nome: u.nome
-		});
+		try {
+			await atualizarPolicialComHistorico(
+				db,
+				id,
+				{ ativo: 0 },
+				{
+					policial_id: id,
+					tipo: 'desvinculacao',
+					descricao: parsed.data.destino,
+					unidade_origem: alvo.lotacao || '',
+					unidade_destino: parsed.data.destino,
+					data_evento: parsed.data.data_evento,
+					nup: parsed.data.nup || null,
+					documento_r2_key: doc?.key ?? null,
+					documento_nome: doc?.nome ?? null,
+					registrado_por_id: u.id,
+					registrado_por_nome: u.nome
+				}
+			);
+		} catch (e) {
+			return await abortarComLimpezaR2(event, doc, e, 'desvinculacao');
+		}
+
+		// DEPOIS da baixa persistida: desativar tem de tirar a pessoa de DENTRO,
+		// não só impedir o próximo login — sessão aberta continuaria funcionando
+		// até expirar (8h). Cobre as duas identidades: quem tem Admin Geral
+		// vinculado tem dois cookies possíveis, e o de administrador é o mais
+		// poderoso (FLW-RBAC-001). Fora da transação porque revogar sessão de um
+		// cadastro que voltou a ser ativo é inofensivo; o contrário, não.
+		await revogarSessoesDaCredencial(db, await resolverCredencial(db, 'policial', id));
 		const { contexto, env } = contextoDeEvento(event);
 		await auditar(
 			db,

@@ -7,22 +7,15 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { getDB, auditar, contextoDeEvento } from '$lib/db';
-import { criarSessao, verificarDesafio2FA } from '$lib/auth';
-import { policiais, administradores } from '$lib/server/schema';
+import { buscarAdminAtivo, criarSessao, verificarDesafio2FA } from '$lib/auth';
+import { policiais } from '$lib/server/schema';
 import { eq } from 'drizzle-orm';
 import { cookieOptions } from '$lib/server/auth/auth-flow';
 import {
 	contarRecoveryAttempts,
 	registrarRecoveryAttempt
 } from '$lib/server/auth/recovery-rate-limit';
-import {
-	apiError,
-	ErrorCode,
-	notFound,
-	forbidden,
-	rateLimited,
-	validateBody
-} from '$lib/server/api';
+import { apiError, ErrorCode, forbidden, rateLimited, validateBody } from '$lib/server/api';
 import { verificar2faSchema } from '$lib/schemas';
 import { logger } from '$lib/server/logger';
 
@@ -105,16 +98,18 @@ export const POST: RequestHandler = async (event) => {
 
 	const { tipo, usuarioId } = resultado;
 
-	// Verificar se o usuário ainda está ativo e buscar primeiro_acesso
+	// Verificar se o usuário ainda está ativo e buscar primeiro_acesso.
+	//
+	// Para admin, "ativo" inclui o VÍNCULO: o Admin Geral vinculado é o próprio
+	// policial, e desativá-lo tem de fechar os dois modos. Esta checagem olhava
+	// só a linha `administradores` — um 2FA pendente virava sessão de
+	// administrador depois da desativação (FLW-RBAC-001). `buscarAdminAtivo` é a
+	// mesma regra que a validação de sessão aplica.
 	let primeiroAcesso: boolean;
 	let nomeUsuario: string;
 	if (tipo === 'admin') {
-		const admin = await db
-			.select()
-			.from(administradores)
-			.where(eq(administradores.id, usuarioId))
-			.get();
-		if (!admin) return notFound('Usuário');
+		const admin = await buscarAdminAtivo(db, usuarioId);
+		if (!admin) return forbidden('Usuário inativo');
 		primeiroAcesso = admin.primeiro_acesso === 1;
 		nomeUsuario = admin.nome;
 	} else {

@@ -26,14 +26,25 @@ import {
 	respostaPdfAssinado
 } from '$lib/server/assinatura/signature-service';
 import { tryGetR2 } from '$lib/db';
+import { gateDePresenca } from '$lib/server/gise/presenca-gate';
+import {
+	bucketParaAssinatura,
+	compensarBlobAssinado,
+	guardarPdfAssinado
+} from '$lib/server/assinatura/blob-assinado';
 import {
 	requireAuth,
 	badRequest,
+	conflict,
 	notFound,
 	forbidden,
 	serverError,
 	validateBody
 } from '$lib/server/api';
+import {
+	consumirIntencaoAssinatura,
+	mensagemRecusaIntencao
+} from '$lib/server/assinatura/intencao';
 
 export const POST: RequestHandler = async (event) => {
 	const { platform, params, locals, request, getClientAddress } = event;
@@ -49,11 +60,11 @@ export const POST: RequestHandler = async (event) => {
 	const validated = await validateBody(request, finalizarPresencaSchema);
 	if (!validated.ok) return validated.response;
 	const {
+		intencao,
 		preparedPdf,
 		serproCms,
 		messageDigest,
 		signingTimeISO,
-		verificationHash,
 		latitude,
 		longitude,
 		assinanteEmail,
@@ -66,6 +77,37 @@ export const POST: RequestHandler = async (event) => {
 	// Revalida vínculo (defesa em profundidade — `preparar` já checou).
 	const part = await resolverParticipacaoGisePolicial(db, giseId, u.id);
 	if (!part.participa) return forbidden('Você não participa desta escala GISE.');
+
+	// Janela de horário e, para saída, entrada já registrada — a MESMA função do
+	// `preparar`. O finalizador revalidava só a participação, então quem
+	// guardasse um `preparedPdf` assinava saída sem entrada e recebia termo e
+	// auditoria de sucesso (FLW-GISE-008). Antes de consumir o token e de gravar
+	// byte nenhum: recusar cedo não custa nada.
+	const gate = await gateDePresenca(db, part, giseId, u.id, tipo);
+	if (!gate.ok) return gate.resposta;
+
+	// Consome a preparação: prova que ESTE pdf foi preparado por ESTE usuário
+	// para ESTE alvo, uma vez só (FLW-DOC-001). O código público de validação
+	// vem daqui, não do corpo da requisição.
+	//
+	// DEPOIS da permissão, como na escala: o consumo QUEIMA a intenção, e quem
+	// saiu da GISE no meio do caminho perderia junto a preparação — teria de
+	// refazer a assinatura só para ouvir o 403 que já cabia aqui.
+	// ANTES de consumir o token: sem onde guardar o PDF, a assinatura é
+	// recusada em vez de virar linha apontando para o vazio (FLW-R2-003).
+	const bucketOk = bucketParaAssinatura(tryGetR2(p));
+	if (!bucketOk.ok) return bucketOk.resposta;
+	const bucket = bucketOk.r2;
+
+	const consumo = await consumirIntencaoAssinatura(
+		db,
+		intencao,
+		{ recurso: 'gise_presenca', recursoId: giseId },
+		{ id: u.id, tipo: u.tipo },
+		Uint8Array.from(Buffer.from(preparedPdf, 'base64'))
+	);
+	if (!consumo.ok) return badRequest(mensagemRecusaIntencao());
+	const { verificacaoHash: verificationHash } = consumo;
 
 	const ip = getClientAddress();
 	const ua = request.headers.get('user-agent') || '';
@@ -92,10 +134,8 @@ export const POST: RequestHandler = async (event) => {
 		const r2Key = `${folder}/termo_${tipo}_pol_${u.id}_${verificationHash}.pdf`;
 		const filename = `termo_presenca_${tipo}_gise_${giseId}.pdf`;
 
-		const r2 = tryGetR2(p);
-		if (r2) {
-			await r2.put(r2Key, result.pdfFinal, { httpMetadata: { contentType: 'application/pdf' } });
-		}
+		const guardado = await guardarPdfAssinado(bucket, r2Key, result.pdfFinal, 'gise-presenca');
+		if (!guardado.ok) return guardado.resposta;
 
 		// Persiste a presença com a rubrica cadastrada (sem selfie/GPS obrigatórios:
 		// a identidade vem do certificado A3).
@@ -112,7 +152,7 @@ export const POST: RequestHandler = async (event) => {
 				undefined
 			);
 		} else {
-			await salvarSaidaGise(
+			const saida = await salvarSaidaGise(
 				db,
 				giseId,
 				u.id,
@@ -123,6 +163,16 @@ export const POST: RequestHandler = async (event) => {
 				longitude ?? undefined,
 				undefined
 			);
+			// A gravação é quem decide: entre o gate e aqui cabe uma requisição, e
+			// `salvarSaidaGise` exige a entrada no próprio `WHERE`. Zero linhas =
+			// não houve saída, e o termo não pode ser emitido. O blob já está no
+			// bucket, então é compensado.
+			if (!saida.registrada) {
+				await compensarBlobAssinado(db, bucket, [r2Key], 'gise-presenca');
+				return conflict(
+					'Não há confirmação de ENTRADA registrada — a saída não pode ser assinada.'
+				);
+			}
 		}
 
 		// Registra o termo qualificado para /validar.

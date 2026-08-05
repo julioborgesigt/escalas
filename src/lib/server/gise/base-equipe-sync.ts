@@ -20,11 +20,17 @@
  *   — Refinalizar: o POST manda gise_id; o Apps Script apaga linhas antigas desse ID e grava de novo.
  */
 
+import { asc, eq, sql } from 'drizzle-orm';
 import { env as envPrivate } from '$env/dynamic/private';
 import { atualizarGiseEscala } from '$lib/db';
+import { auditar } from '$lib/db/audit';
+import { baseEquipePendencias } from '$lib/server/schema';
 import { montarLinhasBaseEquipeGise } from '$lib/db/gise/planilha-base-equipe-dados';
 import type { Database } from '$lib/db/core';
 import { logger } from '$lib/server/logger';
+
+const LIMITE_MOTIVO_SYNC = 500;
+const LOTE_REPROCESSAMENTO_SYNC = 50;
 
 /** Mensagem retornada à UI quando URL ou secret não existem em nenhuma fonte. */
 const ERRO_BASE_EQUIPE_ENV_AUSENTE =
@@ -125,6 +131,18 @@ function detalheSeRespostaNaoEhPlanilha(
 	return null;
 }
 
+/**
+ * Chave de idempotência do envio: ESTÁVEL por GISE.
+ *
+ * Reenviar a mesma escala manda a mesma chave, e é isso que permite ao destino
+ * reconhecer a repetição em vez de duplicar linhas. O Apps Script de hoje ainda
+ * ignora o campo — corrigi-lo é do lado de lá —, mas mandá-lo é a precondição
+ * para a correção, e não custa nada (FLW-WEBHOOK-003).
+ */
+export function chaveIdempotenciaBaseEquipe(giseId: number): string {
+	return `gise-base-equipe-${giseId}`;
+}
+
 async function postLinhasParaPlanilha(
 	url: string,
 	secret: string,
@@ -134,7 +152,12 @@ async function postLinhasParaPlanilha(
 	const res = await fetch(url, {
 		method: 'POST',
 		headers: { 'Content-Type': 'application/json' },
-		body: JSON.stringify({ secret, gise_id: giseId, rows }),
+		body: JSON.stringify({
+			secret,
+			gise_id: giseId,
+			idempotency_key: chaveIdempotenciaBaseEquipe(giseId),
+			rows
+		}),
 		signal: AbortSignal.timeout(25_000)
 	});
 	const text = await res.text();
@@ -203,6 +226,97 @@ export async function executarSyncBaseEquipeGiseComResultado(
 	}
 }
 
+/**
+ * Registra que o envio não chegou. NUNCA lança: a GISE já está finalizada e não
+ * é desfeita por causa da planilha — mesma política das outras pendências.
+ */
+async function registrarPendenciaBaseEquipe(
+	db: Database,
+	giseId: number,
+	motivo: string
+): Promise<void> {
+	try {
+		await db
+			.insert(baseEquipePendencias)
+			.values({
+				gise_id: giseId,
+				chave_idempotencia: chaveIdempotenciaBaseEquipe(giseId),
+				motivo: motivo.slice(0, LIMITE_MOTIVO_SYNC)
+			})
+			.onConflictDoUpdate({
+				target: baseEquipePendencias.gise_id,
+				set: {
+					motivo: sql`excluded.motivo`,
+					tentativas: sql`${baseEquipePendencias.tentativas} + 1`,
+					ultima_tentativa_em: sql`datetime('now')`
+				}
+			});
+	} catch (e) {
+		logger.error('[GISE Base_Equipe] Falha ao registrar PENDÊNCIA — envio perdido de vista', {
+			giseId,
+			error: e instanceof Error ? e.message : String(e)
+		});
+	}
+}
+
+/** Tira a GISE da fila: o envio chegou. */
+async function esquecerPendenciaBaseEquipe(db: Database, giseId: number): Promise<void> {
+	try {
+		await db.delete(baseEquipePendencias).where(eq(baseEquipePendencias.gise_id, giseId));
+	} catch {
+		// Pendência resolvida que sobra vira uma tentativa a mais no próximo cron —
+		// inofensivo, porque o reenvio é idempotente.
+	}
+}
+
+/**
+ * Tenta de novo os envios que ficaram pendentes. Roda no cron de retenção,
+ * junto com as pendências de trilha e de R2.
+ *
+ * O reenvio remonta as linhas do banco a cada tentativa: o que vai para a
+ * planilha é sempre o estado ATUAL da GISE, não um payload congelado que
+ * poderia estar desatualizado — a escala pode ter sido reaberta e corrigida
+ * entre a falha e a retentativa.
+ */
+export async function reprocessarPendenciasBaseEquipe(
+	env: BaseEquipeEnv | undefined,
+	db: Database
+): Promise<{ reenviadas: number; persistentes: number }> {
+	const pendentes = await db
+		.select({ gise_id: baseEquipePendencias.gise_id })
+		.from(baseEquipePendencias)
+		.orderBy(asc(baseEquipePendencias.created_at), asc(baseEquipePendencias.id))
+		.limit(LOTE_REPROCESSAMENTO_SYNC);
+
+	let reenviadas = 0;
+	let persistentes = 0;
+
+	for (const p of pendentes) {
+		const r = await executarSyncBaseEquipeGiseComResultado(env, db, p.gise_id);
+		if (r.ok) {
+			await esquecerPendenciaBaseEquipe(db, p.gise_id);
+			await atualizarGiseEscala(db, p.gise_id, {
+				planilha_base_equipe_alimentada_em: new Date().toISOString()
+			});
+			reenviadas++;
+		} else {
+			persistentes++;
+			await registrarPendenciaBaseEquipe(db, p.gise_id, r.error ?? 'falha sem detalhe');
+		}
+	}
+
+	if (persistentes > 0) {
+		logger.error('[GISE Base_Equipe] Envios que falharam de novo', { persistentes });
+	}
+	return { reenviadas, persistentes };
+}
+
+/** Quantas GISEs finalizadas ainda não chegaram à planilha. Zero é o saudável. */
+export async function contarPendenciasBaseEquipe(db: Database): Promise<number> {
+	const [r] = await db.select({ n: sql<number>`count(*)` }).from(baseEquipePendencias);
+	return Number(r?.n ?? 0);
+}
+
 async function syncGiseBaseEquipeAposFinalizar(
 	env: BaseEquipeEnv | undefined,
 	db: Database,
@@ -214,9 +328,24 @@ async function syncGiseBaseEquipeAposFinalizar(
 			logger.warn('[GISE Base_Equipe] Sync desativado (URL ou secret ausente)', { giseId });
 			return;
 		}
+		// PENDÊNCIA DURÁVEL, não só log: a escala está finalizada no sistema e
+		// ausente da planilha que paga o extraordinário. O cron de retenção
+		// reenvia (FLW-WEBHOOK-003).
 		logger.error('[GISE Base_Equipe] Falha no sync pós-finalizar', { giseId, error: r.error });
+		await registrarPendenciaBaseEquipe(db, giseId, r.error ?? 'falha sem detalhe');
+		await auditar(db, {
+			acao: 'sync_base_equipe_pendente',
+			usuario: null,
+			actor_tipo: 'sistema',
+			entidade: 'gise',
+			entidade_id: giseId,
+			resultado: 'falha',
+			detalhes: `Envio da Base_Equipe falhou e ficou pendente: ${r.error ?? 'sem detalhe'}`
+		});
 		return;
 	}
+
+	await esquecerPendenciaBaseEquipe(db, giseId);
 	try {
 		await atualizarGiseEscala(db, giseId, {
 			planilha_base_equipe_alimentada_em: new Date().toISOString()

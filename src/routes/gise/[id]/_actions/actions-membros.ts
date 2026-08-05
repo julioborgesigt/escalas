@@ -2,19 +2,45 @@ import { fail } from '@sveltejs/kit';
 import type { RequestEvent } from '@sveltejs/kit';
 import {
 	getDB,
+	tryGetR2,
 	buscarGiseEscala,
 	adicionarGiseMembro,
 	removerGiseMembro,
 	verificarSlotEquipe,
 	verificarConflitoMembroGise,
-	verificarConflitoHorarioPolicial,
-	revogarAssinaturasSeccional
+	verificarConflitoHorarioPolicial
 } from '$lib/db';
-import { isAdminSeccional } from '$lib/auth';
 import { invalidarPapelGise } from '$lib/server/gise/papel-cache';
-import { giseMembros, giseEquipes, giseSeccionais } from '$lib/server/schema';
+import { giseEquipes, giseSeccionais, policiais } from '$lib/server/schema';
 import { eq } from 'drizzle-orm';
-import { getInt, saiuDaFaseDeEdicao } from './shared';
+import { getInt, podePreencherSeccional, carregarMembroDaGise } from './shared';
+import { concluirMudancaGise, invalidarAssinaturasDaSeccional } from './desfecho';
+
+/**
+ * Traduz a recusa da gravação atômica na frase que o usuário lê.
+ *
+ * A escrita devolve só o MOTIVO estrutural; as consultas de diagnóstico é que
+ * sabem dizer "vagas de DPC esgotadas (limite: 2)" ou "já escalado na seccional
+ * Centro". Elas rodam APÓS a recusa, e só nela: no caminho feliz não custam
+ * nada, e no caminho infeliz não decidem nada.
+ */
+async function explicarRecusaDeVaga(
+	db: ReturnType<typeof getDB>,
+	giseId: number,
+	equipeId: number,
+	policialId: number,
+	motivo: 'equipe_inexistente' | 'sem_vaga' | 'ja_escalado'
+): Promise<string> {
+	if (motivo === 'equipe_inexistente') return 'Equipe não encontrada';
+
+	if (motivo === 'ja_escalado') {
+		const conflito = await verificarConflitoMembroGise(db, giseId, policialId);
+		return conflito.motivo ?? 'Policial já escalado nesta GISE';
+	}
+
+	const slot = await verificarSlotEquipe(db, equipeId, policialId);
+	return slot.motivo ?? 'Vagas esgotadas nesta equipe';
+}
 
 /**
  * Form actions dos MEMBROS (policiais alocados às vagas das equipes) em
@@ -33,7 +59,8 @@ export const actionsMembros = {
 	 * camada de dados: vaga livre no tipo certo (DPC/OIP), policial ainda não
 	 * escalado nesta GISE e sem conflito de horário com outra escala.
 	 */
-	adicionarMembro: async ({ request, locals, platform, params }: Event) => {
+	adicionarMembro: async (event: Event) => {
+		const { request, locals, platform, params } = event;
 		const u = locals.usuario;
 		if (!u) return fail(401, { error: 'Não autorizado' });
 
@@ -48,42 +75,66 @@ export const actionsMembros = {
 		if (isNaN(equipeId) || isNaN(policialId)) return fail(400, { error: 'Dados inválidos' });
 
 		const db = getDB(platform);
+		const r2 = tryGetR2(platform) ?? null;
 		const sec = await db.select().from(giseSeccionais).where(eq(giseSeccionais.id, secId)).get();
 		if (!sec || sec.gise_id !== giseId) return fail(404, { error: 'Seccional não encontrada' });
 
-		if (isAdminSeccional(u) && u.papel_unidade_id !== sec.seccional_id) {
-			return fail(403, { error: 'Sem permissão' });
+		if (!podePreencherSeccional(u, sec.seccional_id)) {
+			return fail(403, { error: 'Sem permissão para montar equipes desta seccional' });
 		}
 
 		const equipe = await db.select().from(giseEquipes).where(eq(giseEquipes.id, equipeId)).get();
 		if (!equipe || equipe.gise_seccional_id !== secId)
 			return fail(404, { error: 'Equipe não encontrada' });
 
-		const slotCheck = await verificarSlotEquipe(db, equipeId, policialId);
-		if (!slotCheck.ok) return fail(400, { error: slotCheck.motivo });
-
-		const conflitoCheck = await verificarConflitoMembroGise(db, giseId, policialId);
-		if (!conflitoCheck.ok) return fail(400, { error: conflitoCheck.motivo });
-
+		// Choque com OUTRA escala (GISE ou comum) continua sendo pré-checagem: é
+		// conflito entre escalas, não disputa pela mesma vaga, e não cabe na mesma
+		// escrita.
 		const horarioCheck = await verificarConflitoHorarioPolicial(db, equipeId, policialId);
 		if (!horarioCheck.ok) return fail(400, { error: horarioCheck.motivo });
 
-		await adicionarGiseMembro(db, equipeId, policialId);
+		// A gravação é quem decide vaga e exclusividade — atomicamente
+		// (FLW-GISE-009). As checagens abaixo só EXPLICAM a recusa: até ago/2026
+		// elas decidiam, e entre a decisão e o INSERT cabia outra requisição.
+		const alocado = await adicionarGiseMembro(db, equipeId, policialId);
+		if (!alocado.ok) {
+			return fail(409, {
+				error: await explicarRecusaDeVaga(db, giseId, equipeId, policialId, alocado.motivo)
+			});
+		}
 
 		// O papel GISE do policial é cacheado (usado no guard de `/res-gise`);
 		// sem invalidar, ele só enxergaria a escala nova quando o cache expirasse.
 		await invalidarPapelGise(policialId);
 
 		const gise = await buscarGiseEscala(db, giseId);
-		if (gise && saiuDaFaseDeEdicao(gise.status)) {
-			await revogarAssinaturasSeccional(db, giseId, secId);
-		}
+		const invalidacao = gise
+			? await invalidarAssinaturasDaSeccional(db, r2, giseId, secId, gise.status)
+			: 'nada';
+
+		const pol = await db
+			.select({ nome: policiais.nome })
+			.from(policiais)
+			.where(eq(policiais.id, policialId))
+			.get();
+
+		await concluirMudancaGise(event, {
+			db,
+			giseId,
+			usuario: u,
+			acao: 'gise_membro_adicionado',
+			alvo: { tipo: 'policial', id: policialId, nome: pol?.nome ?? null },
+			detalhes: `${pol?.nome ?? `Policial ${policialId}`} alocado na equipe ${equipeId}`,
+			invalidacao,
+			metadados: { equipe_id: equipeId, gise_seccional_id: secId }
+		});
 
 		return { success: true };
 	},
 
 	/** Desaloca um policial. Bloqueado quando a GISE já entrou em operação. */
-	removerMembro: async ({ request, locals, platform, params }: Event) => {
+	removerMembro: async (event: Event) => {
+		const { request, locals, platform, params } = event;
 		const u = locals.usuario;
 		if (!u) return fail(401, { error: 'Não autorizado' });
 
@@ -93,8 +144,18 @@ export const actionsMembros = {
 		if (isNaN(giseId) || isNaN(memId)) return fail(400, { error: 'IDs inválidos' });
 
 		const db = getDB(platform);
-		const gise = await buscarGiseEscala(db, giseId);
-		if (!gise) return fail(404, { error: 'GISE não encontrada' });
+		const r2 = tryGetR2(platform) ?? null;
+
+		// O preâmbulo amarra o `memId` à GISE da URL (FLW-GISE-007) e traz de uma
+		// vez o que a action precisa DEPOIS do delete: nome do policial, equipe e
+		// seccional — que a linha apagada não responderia mais.
+		const carga = await carregarMembroDaGise(db, giseId, memId);
+		if ('erro' in carga) return carga.erro;
+		const { gise, membro: membroInfo } = carga;
+
+		if (!podePreencherSeccional(u, membroInfo.seccional_id)) {
+			return fail(403, { error: 'Sem permissão para montar equipes desta seccional' });
+		}
 
 		// Janela maior que a de edição livre: dá para corrigir a composição
 		// enquanto a escala aguarda a assinatura do supervisor, mas não depois que
@@ -107,34 +168,32 @@ export const actionsMembros = {
 			return fail(400, { error: 'Escala fechada para edição' });
 		}
 
-		// Uma consulta só resolve as três perguntas: qual equipe, qual seccional
-		// (para revogar assinaturas) e de quem é o cache de papel a invalidar.
-		const membroInfo = await db
-			.select({
-				equipe_id: giseMembros.equipe_id,
-				policial_id: giseMembros.policial_id,
-				gise_seccional_id: giseEquipes.gise_seccional_id,
-				seccional_id: giseSeccionais.seccional_id
-			})
-			.from(giseMembros)
-			.innerJoin(giseEquipes, eq(giseMembros.equipe_id, giseEquipes.id))
-			.innerJoin(giseSeccionais, eq(giseEquipes.gise_seccional_id, giseSeccionais.id))
-			.where(eq(giseMembros.id, memId))
-			.get();
-
-		if (!membroInfo) return fail(404, { error: 'Membro não encontrado' });
-
-		if (isAdminSeccional(u) && membroInfo.seccional_id !== u.papel_unidade_id) {
-			return fail(403, { error: 'Sem permissão' });
-		}
-
 		await removerGiseMembro(db, memId);
 
 		await invalidarPapelGise(membroInfo.policial_id);
 
-		if (saiuDaFaseDeEdicao(gise.status)) {
-			await revogarAssinaturasSeccional(db, giseId, membroInfo.gise_seccional_id);
-		}
+		const invalidacao = await invalidarAssinaturasDaSeccional(
+			db,
+			r2,
+			giseId,
+			membroInfo.gise_seccional_id,
+			gise.status
+		);
+
+		await concluirMudancaGise(event, {
+			db,
+			giseId,
+			usuario: u,
+			acao: 'gise_membro_removido',
+			alvo: { tipo: 'policial', id: membroInfo.policial_id, nome: membroInfo.policial_nome },
+			detalhes: `${membroInfo.policial_nome} desalocado da equipe ${membroInfo.equipe_id}`,
+			invalidacao,
+			metadados: {
+				equipe_id: membroInfo.equipe_id,
+				gise_seccional_id: membroInfo.gise_seccional_id,
+				status_da_gise: gise.status
+			}
+		});
 
 		return { success: true };
 	}

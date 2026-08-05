@@ -95,22 +95,23 @@
 	const isFDS = $derived(escala?.tipo === 'fds');
 	const isExpediente = $derived(escala?.tipo === 'expediente');
 
-	// Permissão de EDIÇÃO da escala (mutar servidores/finalizar), vinda do load.
-	// Admin Geral em qualquer escala, ou o dono da lotação. Um admin_seccional que
-	// apenas VISUALIZA a escala de uma unidade não vê os controles de edição — mas
-	// continua podendo ASSINAR (o painel de assinatura tem regra própria).
+	// Permissão de EDIÇÃO da escala (mutar servidores/finalizar), vinda do load —
+	// e é a MESMA que as actions aplicam (`podeMexerNaEscala`). Admin Geral em
+	// qualquer escala, ou o policial COM papel administrativo na sua lotação. Um
+	// admin_seccional que apenas VISUALIZA a escala de uma unidade não vê os
+	// controles de edição — mas continua podendo ASSINAR (o painel de assinatura
+	// tem regra própria).
+	//
+	// Havia aqui um segundo `podeEditar`, mais estrito, que recalculava a regra e
+	// era usado em UM dos sete pontos de edição; os outros seis recebiam a flag
+	// larga. A regra estava certa e escrita — o que faltava era ser a mesma nos
+	// sete lugares e no servidor (FLW-ESC-001). Agora desce pronta do load, e não
+	// há segunda versão para divergir.
 	const podeEditarEscala = $derived(data.podeEditarEscala);
 
 	// Viewers (sem permissão de edição) começam fora do modo de edição.
 	// Captura só o valor inicial do load (o toggle é mutável a partir daí).
 	let modoEdicao = $state(untrack(() => data.podeEditarEscala));
-	const podeEditar = $derived(
-		podeEditarEscala &&
-			(data.podeOIPSolicitar ||
-				((page.data.usuario?.papel === 'admin_seccional' ||
-					page.data.usuario?.papel === 'admin_unidade') &&
-					page.data.usuario?.cargo === 'DPC'))
-	);
 
 	// diasEscalaLocal para FormAdicionarServidores (non-FDS pages — sem ModalEditarDias)
 	const diasEscalaLocal = $derived.by(() => {
@@ -251,7 +252,7 @@
 		{escala}
 		{isFDS}
 		{isExpediente}
-		{podeEditar}
+		podeEditar={podeEditarEscala}
 		documentoAssinadoExiste={documentoAssinadoInfo?.existe ?? false}
 		{finalizadaEm}
 		{solicitacaoAtual}

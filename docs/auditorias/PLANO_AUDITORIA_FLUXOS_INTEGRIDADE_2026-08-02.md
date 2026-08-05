@@ -342,7 +342,7 @@ possuem cobertura que comprove o comportamento esperado.
 
 **Severidade:** P0  
 **Fluxo:** FLX-08  
-**Estado:** confirmado
+**Estado:** corrigido
 
 `auditar()` declara que nunca lança e captura toda falha de persistência
 (`src/lib/db/audit.ts:16,591-683`). Uma mutação crítica pode ocorrer antes da
@@ -364,11 +364,35 @@ podem legitimamente priorizar disponibilidade.
 GISE e exigir rollback ou registro pendente recuperável; testar concorrência
 do encadeamento.
 
+> **CORRIGIDO (04/ago/2026) — política decidida pelo operador: registrar
+> pendência durável e seguir.** A mutação do usuário NÃO é desfeita por falha de
+> trilha; o que deixou de acontecer é o evento sumir.
+>
+> `auditar()` continua sem lançar. O append encadeado saiu para `anexar`, que
+> lança, e os dois chamadores tratam a MESMA falha de formas diferentes: o fluxo
+> normal engole e grava em `audit_pendencias`; `reprocessarPendenciasAudit` — no
+> cron diário de retenção — sabe se deu certo e escolhe entre apagar a pendência
+> e incrementar `tentativas`.
+>
+> A tabela de pendência é deliberadamente BURRA: sem `seq`, sem hash encadeado,
+> sem índice único, payload num TEXT. É o que lhe dá chance de gravar quando o
+> append encadeado não conseguiu — a maioria das falhas é específica da cadeia
+> (corrida de `seq`, chave de hash, coluna recusando valor). Com o D1 inteiro
+> fora, os dois caminhos falham e resta o log: é um limite honesto, e está
+> escrito no código.
+>
+> `pendenciasRestantes` sai na resposta do cron e no log. É o número que diz se
+> a trilha está íntegra — crescendo entre execuções, há evento que a cadeia
+> recusa de forma permanente, e o `tentativas` de cada linha separa isso da
+> corrida que some na primeira retentativa.
+>
+> Cobertura: 8 casos contra SQLite real, 3 dos quais reprovam a versão anterior.
+
 ### FLW-LGPD-002 — resposta integral de e-mail expõe destinatários nos logs
 
 **Severidade:** P0  
 **Fluxo:** FLX-08  
-**Estado:** confirmado
+**Estado:** corrigido
 
 O cliente Cloudflare registra a resposta completa de sucesso em
 `src/lib/server/email.ts:138-143`; o tipo inclui `result.delivered: string[]`.
@@ -386,11 +410,35 @@ reintroduza o corpo remoto em outro logger.
 **Teste de regressão:** respostas de sucesso e erro simuladas não podem
 produzir log ou erro contendo e-mail, conteúdo ou anexo.
 
+> **CORRIGIDO (04/ago/2026).** Dois pontos no sucesso e na falha, e um terceiro
+> que o achado não menciona:
+>
+> - o log de sucesso registrava a resposta inteira, e `result.delivered` é a
+>   lista de DESTINATÁRIOS. Passou a registrar `success` e a CONTAGEM;
+> - o corpo de erro do provedor ecoa a requisição. Ia cru para o log e para a
+>   mensagem do `Error`, que sobe até `enviarERegistrar` e é registrada lá —
+>   **desfazendo por dentro a máscara que aquele wrapper já aplicava no
+>   destinatário**. Cobertura no ponto de log não é cobertura do caminho;
+> - o provedor de FALLBACK (Resend) tinha o mesmo `errorText` cru. Corrigir só o
+>   Cloudflare deixaria o vazamento inteiro de pé exatamente em quem assume
+>   quando o primeiro falha. Os dois passaram a usar `corpoDeErroSeguro`.
+>
+> `redigirEmails` (em `$lib/utils/pii`) substitui endereços dentro de texto
+> livre pela máscara já usada na exibição. O motivo do erro continua legível:
+> some o "para quem", não o "o quê".
+>
+> Cobertura: 8 casos sobre a redação e 3 sobre o CONTRATO em
+> `server/__tests__/email-logging.test.ts` — estes varrem tudo que foi logado
+> procurando o endereço em claro, e os três reprovam o código anterior. O caso
+> dos dois provedores falhando existe porque a primeira versão dele passava com
+> o código furado: falhando só o Cloudflare, o `Error` que chega ao chamador vem
+> do Resend.
+
 ### FLW-GISE-003 — mutações relevantes de GISE não geram evento de auditoria
 
 **Severidade:** P1  
 **Fluxo:** FLX-04 / FLX-08  
-**Estado:** confirmado
+**Estado:** corrigido
 
 As actions de membros, equipes, unidades e seccionais modificam a composição
 da escala e podem revogar documentos/assinaturas, mas não chamam
@@ -412,11 +460,38 @@ e informação sobre revogação.
 produzir exatamente um evento com ator e alvo; falhas/negações não podem
 simular sucesso.
 
+> **CORRIGIDO (05/ago/2026).** As treze actions passaram a fechar em
+> `concluirMudancaGise` (`_actions/desfecho.ts`), que é o par do preâmbulo de
+> `shared.ts`: um arquivo para o que roda ANTES de mutar, outro para o que roda
+> DEPOIS. Doze ações novas no `CATALOGO_ACOES`, nomeadas por entidade e verbo
+> (`gise_membro_removido`, `gise_equipe_alterada`, …), porque é assim que o
+> operador procura — "quem tirou gente da escala".
+>
+> O achado pede "informação sobre revogação" no evento, e é daí que vem o
+> formato: `invalidar*` APLICA a invalidação e devolve o que derrubou;
+> `concluirMudancaGise` EXIGE esse valor. Registro e revogação saem da mesma
+> chamada, então o evento não tem como afirmar uma revogação que não houve nem
+> omitir a que houve. A severidade também é derivada ali: mudança que derrubou
+> documento ou assinatura entra como `aviso`, o resto como `info`.
+>
+> Cobertura em dois níveis, e a divisão é deliberada:
+> `__tests__/desfecho.test.ts` (7 casos, banco real) prova que o registro está
+> CERTO; `__tests__/actions-auditadas.test.ts` (28 casos) lê os quatro arquivos
+> e prova que ele EXISTE nas treze. O segundo é o que impede a volta do achado,
+> porque o achado nunca foi uma action instrumentada errado — eram treze sem
+> instrumentação nenhuma, e testar as treze uma a uma reproduziria a duplicação
+> que abriu o buraco. Verificado por mutação: apagar a chamada de uma action
+> reprova.
+>
+> **Achado novo, aberto como FLW-GISE-011**, encontrado ao escrever o teste do
+> desfecho: `revogarAssinaturasSeccional` recebia o id errado nas sete chamadas
+> e não revogava nada. Ver a seção própria.
+
 ### FLW-R2-004 — exclusão R2 confirma tentativa, não remoção
 
 **Severidade:** P1  
 **Fluxo:** FLX-06 / FLX-08  
-**Estado:** confirmado
+**Estado:** corrigido
 
 `deletarChavesR2()` usa `Promise.allSettled`, registra a rejeição e retorna a
 quantidade de chaves tentadas, não removidas
@@ -436,11 +511,35 @@ como pendência operacional.
 **Teste de regressão:** falha parcial de R2 mantém uma pendência identificável
 e reprocessável; a limpeza bem-sucedida a encerra.
 
+> **CORRIGIDO (05/ago/2026).** O best-effort continua — a linha no D1 é a fonte
+> da verdade de `/validar` e não pode ficar refém do storage. O que mudou foi o
+> PREÇO. `deletarChavesR2` devolvia quantas chaves foram TENTADAS e tratava a
+> rejeição como `logger.warn`; o chamador então apagava a linha que guardava o
+> `r2_key`, e depois disso o objeto existe no bucket sem nada no sistema saber
+> que ele existe. Não é lixo neutro: é PDF com manifesto forense (CPF, IP, GPS)
+> e selfie biométrica (LGPD art. 11), retidos sem base e sem responsável.
+>
+> **A política é a mesma já decidida para a trilha (FLW-AUDIT-001): pendência
+> durável e segue.** A chave que resistiu vai para `r2_pendencias` ANTES de a
+> linha sumir — é o ponto, depois seria tarde —, e `reprocessarPendenciasR2`
+> tenta de novo no mesmo cron de retenção. O retorno passou a distinguir
+> `removidas` de `pendentes`, porque "tentadas" não responde a pergunta que se
+> faz a uma limpeza. A chave que sai do bucket é retirada da fila, para uma
+> falha transitória não virar pendência eterna.
+>
+> A resposta do cron e a da exclusão de GISE passaram a expor os restantes: é o
+> número que diz se o bucket está limpo, e crescendo entre execuções há objeto
+> que o R2 não deixa apagar.
+>
+> Cobertura: 8 casos novos em `src/lib/server/__tests__/r2-cleanup.test.ts`, com
+> banco real. Três mutações verificadas — voltar ao log silencioso, voltar a
+> contar as tentadas, e não esquecer a pendência resolvida.
+
 ### FLW-AUDIT-005 — retenção remove prefixo sem âncora verificável
 
 **Severidade:** P1  
 **Fluxo:** FLX-08  
-**Estado:** confirmado
+**Estado:** corrigido
 
 A retenção exclui diretamente entradas antigas de `audit_log`
 (`src/lib/db/lgpd-retencao.ts:156-157`). A verificação de cadeia aceita a
@@ -458,6 +557,38 @@ checkpoint válido.
 
 **Teste de regressão:** remover prefixo sem checkpoint precisa falhar; remoção
 com checkpoint válido deve continuar verificável.
+
+> **CORRIGIDO (05/ago/2026).** Tabela `audit_checkpoints`, gravada na MESMA
+> transação do DELETE de retenção (`cortarTrilhaComAncora`). Ela guarda até onde
+> o corte foi (`seq_ate`) e qual era o `hash_registro` da última linha removida
+> (`hash_ate`) — que é exatamente o `hash_anterior` que a primeira sobrevivente
+> carrega.
+>
+> `verificarIntegridadeAudit` deixou de pular a checagem na primeira linha
+> sobrevivente. Ela agora tem de ser uma de duas coisas: o começo da cadeia
+> (`seq 1` apontando para GENESIS) ou um corte com checkpoint casando nos DOIS
+> campos. Forjar a âncora não ajuda quem apagou: o hash exigido é o da linha que
+> sumiu.
+>
+> Fora da transação, uma falha entre o DELETE e o INSERT recriaria exatamente o
+> estado do achado — por isso `db.batch`, e por isso o corte da trilha saiu do
+> `Promise.all` das outras oito tabelas.
+>
+> **O caso decisivo do teste é o que PASSAVA antes**: apagar as três primeiras
+> linhas deixa o resto da cadeia com elos corretos, então tudo que se verificava
+> continuava batendo e a página de integridade dizia `ok`. Um teste que cobrisse
+> só cadeia íntegra e elo adulterado nunca acharia isso.
+>
+> Cobertura: `src/lib/db/__tests__/audit-checkpoint-retencao.test.ts`, 8 casos,
+> incluindo checkpoint com hash forjado, checkpoint no `seq` errado e o buraco
+> no MEIO da cadeia — que já reprovava e tinha de continuar reprovando. Duas
+> mutações verificadas.
+>
+> **Efeito em base existente:** um corte de retenção anterior a esta migração
+> não tem checkpoint, e a verificação passa a acusá-lo. Isso é o comportamento
+> correto — o verificador realmente não consegue distinguir aquele buraco de uma
+> remoção deliberada —, mas quem já rodou a retenção em produção precisa saber
+> que o primeiro `ok: false` pode ser esse, e não um incidente.
 
 ---
 
@@ -519,7 +650,7 @@ sem regravar um documento juridicamente relevante. Após a correção,
 
 **Severidade:** P0  
 **Fluxo:** FLX-04  
-**Estado:** confirmado
+**Estado:** corrigido
 
 As actions de finalizar seccional e de incluir/remover membros só restringem o
 usuário quando ele _já é_ `admin_seccional`
@@ -535,11 +666,35 @@ com `papel_unidade_id` igual à seccional do recurso, em cada action mutável.
 seccional e admin de unidade fora do escopo deve retornar 403 e não alterar
 nenhuma linha.
 
+> **CORRIGIDO (04/ago/2026)** — a regra virou UMA função,
+> `podePreencherSeccional` em `gise/[id]/_actions/shared.ts`: Admin Geral em
+> qualquer seccional, admin de seccional só na sua. As QUATRO actions
+> (`adicionarMembro`, `removerMembro`, `finalizarSeccional`,
+> `salvarHorariosSec`) passaram a chamá-la.
+>
+> Eram quatro cópias da mesma META-regra, e nenhuma errada sozinha — o erro
+> estava no que faltava nas quatro. Comentar cada uma não teria ajudado: quem
+> escreve a quinta não lê as outras quatro. Extraída, não há como escrever só
+> a metade.
+>
+> Confirmado por execução, não por leitura. Com a meia-regra restaurada,
+> `e2e/autorizacao-negativa.spec.ts` reporta `success` — literal — para
+> `adicionarMembro`, `removerMembro` e `salvarHorariosSec` chamadas por um
+> policial de OUTRA unidade, sem papel algum, numa GISE com que não tem
+> relação. Com a correção, os três dão 403.
+>
+> Duas correções de ORDEM saíram junto, achadas pelo mesmo spec:
+> `removerMembro` conferia o estado da escala ("fechada para edição", 400)
+> antes da permissão, e as duas rotas de finalizar assinatura da GISE
+> consumiam a intenção antes dela. Gate de estado que dispara primeiro esconde
+> a ausência do gate de permissão — foi exatamente assim que a primeira versão
+> do spec passou com o servidor furado.
+
 ### FLW-GISE-005 — finalização aceita estado anterior aos relatórios exigidos
 
 **Severidade:** P0  
 **Fluxo:** FLX-04  
-**Estado:** confirmado
+**Estado:** corrigido
 
 Os dois caminhos de finalização aceitam `em_andamento`, além de
 `pronta_para_finalizar`
@@ -557,11 +712,51 @@ se existir política formal que defina um fluxo alternativo completo.
 **Teste de regressão:** action e API devem recusar `em_andamento` sem alterar
 status, caches, documentos ou Base_Equipe.
 
+> **ABERTO — pende decisão do operador.** Verificado em 04/ago/2026: a
+> capacidade está EM USO e é oferecida pela tela. `podeFinalizar` em
+> `gise/[id]/+page.svelte:441` habilita o botão para o Admin Geral tanto em
+> `pronta_para_finalizar` quanto em `em_andamento`, e o modal de confirmação
+> não menciona relatório nenhum. Recusar `em_andamento` no servidor tira do
+> Admin Geral a finalização de uma GISE que nunca vai completar o conjunto
+> documental — é a "política formal" que a própria correção proposta
+> condiciona, e é decisão de produto, não de código.
+>
+> A favor de ser bug, não escape hatch: a mensagem de erro da API descreve a
+> regra ESTRITA ("precisa estar com todos os relatórios de extra assinados")
+> e mesmo assim aceita `em_andamento` — a condição contradiz o texto que a
+> acompanha.
+>
+> Se a resposta for "sim, existe o caminho forçado", o mínimo é torná-lo
+> visível: o modal precisa dizer o que está sendo pulado, e a auditoria
+> distinguir finalização normal de antecipada. Hoje `status_anterior` vai nos
+> metadados, mas a operação parece idêntica às demais.
+
+> **CORRIGIDO (05/ago/2026) — decisão do operador: manter a saída, tornando-a
+> explícita.** A finalização antecipada existe por um motivo real (GISE cujos
+> relatórios nunca chegam) e continua existindo. O defeito não era ela existir:
+> era ser SILENCIOSA.
+>
+> `modoDeFinalizacao` (`$lib/gise/finalizacao.ts`) classifica em normal,
+> antecipada ou bloqueado. As DUAS rotas de finalização e o modal usam a mesma
+> função — módulo puro e client-safe de propósito, porque quem decide e quem
+> avisa precisam da mesma resposta.
+>
+> O modal passou a enumerar o que fica para trás; a trilha registra `modo:
+'antecipada'` com severidade `aviso` e diz, no texto, o que foi pulado. E a
+> action de finalização, que não auditava NADA — a rota de API equivalente
+> auditava —, passou a auditar.
+>
+> Status desconhecido entra como bloqueado, não como antecipado: um estado novo
+> na escada não pode abrir a finalização por omissão.
+>
+> Cobertura: 10 casos em `gise/__tests__/finalizacao.test.ts`; reprova a versão
+> que não distinguia.
+
 ### FLW-GISE-006 — alteração de vagas contorna a reabertura formal
 
 **Severidade:** P0  
 **Fluxo:** FLX-04 / FLX-06 / FLX-08  
-**Estado:** confirmado
+**Estado:** corrigido
 
 `salvarSlotsEquipe` altera a equipe antes de verificar o status e não bloqueia
 GISE finalizada (`actions-equipe.ts:33-58`). Para estados que saíram da fase
@@ -576,11 +771,36 @@ qualquer alteração.
 **Teste de regressão:** POST direto contra GISE finalizada deve preservar
 vagas, status, documento, R2 e trilha de auditoria.
 
+> **CORRIGIDO (04/ago/2026).** Três defeitos, e o arquivo continha a versão
+> certa de todos eles trinta linhas abaixo: `salvarHorariosEquipe` carrega a
+> GISE, recusa `finalizada` e só então muta. `salvarSlotsEquipe` era a única
+> das quatro actions de equipe sem essa recusa — e mutava ANTES de olhar o
+> status, então numa escala finalizada a alteração já tinha acontecido quando
+> alguém fosse decidir se podia. Em seguida apagava `gise_documentos` e
+> devolvia a escala a `em_preenchimento`, contornando a reabertura auditada.
+>
+> O terceiro defeito não está no enunciado do achado: `atualizarGiseEquipe` e
+> `excluirGiseEquipe` filtram só por `equipes.id`. Um `equipeId` de OUTRA GISE
+> no corpo do formulário era aceito, e a mutação caía na equipe alheia
+> enquanto a invalidação de documento caía na GISE da URL — duas escalas
+> erradas de uma vez. É FLW-GISE-007 nestas quatro actions.
+>
+> Os três viraram um preâmbulo único em `_actions/shared.ts`
+> (`carregarGiseEditavel`, `carregarEquipeDaGise`, `carregarSeccionalDaGise`),
+> que as quatro actions passaram a usar. Escrito à mão, faltava numa das
+> quatro; extraído, não há como esquecer.
+>
+> **Fica em aberto** a limpeza do R2: descartar o documento continua deixando
+> o PDF órfão no bucket. É o escopo de FLW-R2-004, e há
+> `limparR2DaGise`/`coletarChavesR2DaGise` prontos para isso — mas a política
+> de quando apagar bytes de documento assinado é decisão daquele achado, não
+> deste.
+
 ### FLW-GISE-007 — IDs filhos não são sempre vinculados à GISE da rota
 
 **Severidade:** P1  
 **Fluxo:** FLX-04  
-**Estado:** confirmado
+**Estado:** corrigido
 
 Actions de equipe/unidade recebem `equipeId` ou `linkId`, mas atualizam ou
 excluem o filho antes de provar, por JOIN, que ele pertence à seccional e GISE
@@ -595,11 +815,54 @@ equipe → seccional → GISE com `gise_id = params.id` e repetir essa condiçã
 **Teste de regressão:** IDs da GISE B enviados para rota da GISE A retornam
 404 e não alteram registro, status ou documento de nenhuma das duas.
 
+> **PARCIAL (04/ago/2026).** As quatro actions de EQUIPE passaram a amarrar o
+> id filho à GISE da URL (`carregarEquipeDaGise`/`carregarSeccionalDaGise` em
+> `_actions/shared.ts`), fechado junto com FLW-GISE-006 e coberto por
+> `e2e/gise-imutabilidade.spec.ts`. Os demais ids filhos — presença,
+> relatório, resposta de formulário — continuam abertos.
+>
+> **`actions-unidade.ts` fechado (05/ago/2026)**, junto com a instrumentação de
+> FLW-GISE-003. As três actions passaram a usar o mesmo preâmbulo, e o `linkId`
+> de `removerUnidade` — o outro caminho citado no enunciado — agora é resolvido
+> com `gise_seccional_id = secId` no `WHERE`, devolvendo 404 quando o slot é de
+> outra seccional. Duas coisas apareceram no caminho e não estavam no achado:
+> nenhuma das três olhava o STATUS (dava para trocar a unidade de uma escala
+> `finalizada`, que é FLW-GISE-006 neste arquivo), e `selecionarUnidade` não
+> invalidava nada — a unidade sai impressa no relatório de extra, e trocá-la
+> depois da assinatura deixava o PDF descrevendo outra unidade.
+>
+> **FECHADO (05/ago/2026).** A varredura dos ids filhos restantes mostrou que
+> "presença, relatório e resposta de formulário continuam abertos" — escrito na
+> nota parcial acima — **estava errado**. Conferido um a um:
+>
+> - **presença**: o alvo é sempre `u.id`, o usuário logado. Não há id de fora a
+>   amarrar;
+> - **relatório**: `giseAutorizaSeccionalRelatorioExtra` já filtra por
+>   `gise_id` + `seccional_id`. Amarrado desde antes;
+> - **resposta de formulário**: `resolverAlvoRelatorio` resolve a equipe por
+>   join exigindo `giseEscalas.id = giseId` E `giseMembros.policial_id = u.id`;
+>   o `equipeId` da query string entra como filtro ADICIONAL dentro dessa
+>   condição, e um id de outra GISE simplesmente não casa.
+>
+> O que **de fato** faltava era outro, e não estava citado no achado:
+> `removerMembro` filtrava por `giseMembros.id` sozinho. O join subia até
+> `gise_seccionais` para descobrir a seccional, mas nada exigia que ela fosse
+> desta GISE — um `memId` de outra escala era removido enquanto a invalidação de
+> documento e o gate de status caíam na GISE da URL. Virou
+> `carregarMembroDaGise`, terceiro preâmbulo da mesma família em `shared.ts`.
+>
+> Registro a divergência porque ela é o padrão desta auditoria: o enunciado
+> aponta a forma do defeito corretamente e erra os lugares. Ler o código antes
+> de corrigir continua sendo o passo que não dá para pular.
+>
+> Cobertura: `_actions/__tests__/escopo-ids-filhos.test.ts`, 8 casos — os três
+> preâmbulos com id da escala vizinha. Mutação verificada.
+
 ### FLW-GISE-008 — presença qualificada pode emitir termo de saída sem entrada
 
 **Severidade:** P1  
 **Fluxo:** FLX-04 / FLX-03  
-**Estado:** confirmado
+**Estado:** corrigido
 
 O finalizador de assinatura qualificada de presença revalida a participação,
 mas não a presença/hora. No fluxo de saída, o update de presença não cria
@@ -614,11 +877,36 @@ unicidade por `(gise_id, policial_id, tipo)` para termos de presença.
 **Teste de regressão:** saída qualificada sem entrada não cria presença, termo
 nem evento de sucesso.
 
+> **CORRIGIDO (05/ago/2026).** Três camadas, e cada uma responde a uma coisa:
+>
+> 1. **`gateDePresenca`** (`server/gise/presenca-gate.ts`) — janela de horário e,
+>    para saída, entrada já registrada. Roda no `preparar` E no `finalizar`, e é
+>    esse o ponto: a janela existia SÓ no preparar, que é o passo barato, então
+>    quem guardasse um `preparedPdf` e chamasse o finalizador depois passava por
+>    cima dela. Extraída porque os dois precisam da mesma resposta.
+> 2. **`salvarSaidaGise` exige a entrada no próprio `WHERE`** e devolve
+>    `{ registrada }`. Antes o UPDATE não achava linha, o resultado era ignorado,
+>    e o endpoint gravava termo assinado e auditoria de SUCESSO para um ato que
+>    não aconteceu. É a gravação que decide: entre o gate e ela cabe uma
+>    requisição. Falhando depois do `put`, o blob é compensado.
+> 3. **Índice único `(gise_id, policial_id, tipo)`** em `gise_presenca_termos`
+>    (migração 0046). Repetir a finalização gravava outro termo, com outro
+>    `verification_hash`, para o MESMO ato — e os dois resolvem em `/validar`.
+>    Dois documentos assinados atestando a mesma entrada é prova que se
+>    contradiz sozinha.
+>
+> O caminho de assinatura SIMPLES (`res-gise`) tinha o mesmo furo na saída e
+> ganhou a mesma recusa.
+>
+> Cobertura: `server/gise/__tests__/presenca-gate.test.ts`, 10 casos — incluindo
+> a linha de presença que EXISTE sem `entrada_timestamp`, que o filtro antigo
+> por `(gise, policial)` aceitava. Duas mutações verificadas.
+
 ### FLW-GISE-009 — vagas e exclusividade de membro não são atômicas
 
 **Severidade:** P1  
 **Fluxo:** FLX-04  
-**Estado:** confirmado
+**Estado:** corrigido
 
 Vaga livre, duplicidade na GISE e conflito de horário são consultados antes do
 insert de membro (`actions-membros.ts:62-71`); não há transação, versão ou
@@ -630,6 +918,32 @@ modelo que imponha exclusividade por GISE.
 
 **Teste de regressão:** duas chamadas paralelas devem aceitar apenas uma e
 preservar a capacidade/associação única.
+
+> **CORRIGIDO (05/ago/2026).** A decisão passou para dentro da gravação, e as
+> duas regras que a corrida quebrava têm agora mecanismos diferentes porque são
+> problemas diferentes:
+>
+> - **exclusividade por GISE** virou índice único `(gise_id, policial_id)`
+>   (migração 0044). `gise_id` é denormalizado porque o SQLite não indexa através
+>   de join — mas é DERIVADO da própria equipe no INSERT, e equipe não muda de
+>   GISE, então não há janela em que possa divergir;
+> - **capacidade da equipe** virou `INSERT ... SELECT ... WHERE ocupados <
+limite`. Não pode ser constraint: compara uma contagem com um limite guardado
+>   em outra tabela.
+>
+> **As `verificarConflito*` mudaram de papel, não sumiram.** Viraram
+> DIAGNÓSTICO — rodam APÓS a recusa, só para dizer ao usuário qual regra barrou,
+> já que `rowsAffected = 0` não conta. É a inversão que importa: se alguma delas
+> divergir da SQL, o pior caso passou a ser uma mensagem confusa, nunca uma
+> escrita errada. `verificarConflitoHorarioPolicial` continua sendo pré-checagem
+> de verdade — é choque entre escalas, não disputa pela mesma vaga.
+>
+> A migração remove duplicatas pré-existentes mantendo a mais antiga, senão o
+> índice não seria criado.
+>
+> Cobertura: `src/lib/db/gise/__tests__/membro-alocacao-atomica.test.ts`, 8
+> casos. Não usam threads: reproduzem o que a corrida PRODUZ — duas gravações a
+> partir do mesmo estado observado. Sob mutação para o INSERT cru, 6 reprovam.
 
 ### FLW-GISE-010 — política de “uma GISE não finalizada” não é protegida
 
@@ -658,6 +972,89 @@ FLW-GISE-003 já registra a ausência de auditoria nas mesmas form actions.
 para `em_preenchimento`. A finalização indevida de `em_andamento` é
 FLW-GISE-005.
 
+### FLW-GISE-011 — a revogação de assinaturas atingia a seccional errada
+
+**Severidade:** P0  
+**Fluxo:** FLX-04 / FLX-06  
+**Estado:** corrigido  
+**Origem:** não estava no plano; apareceu ao escrever o teste de FLW-GISE-003.
+
+`revogarAssinaturasSeccional(db, giseId, seccionalId)` usava o terceiro
+parâmetro como `unidades.id` — é o que `gise_assinaturas_relatorios.seccional_id`
+referencia, e é por ele que `buscarGiseSeccionalMembros` filtra. As **sete**
+chamadas passavam o id da linha `gise_seccionais`: a participação daquela
+seccional NAQUELA escala. Dois inteiros, o mesmo nome, dois autoincrements
+sobre a mesma faixa de números.
+
+Consequência: mudou-se a composição de uma seccional depois de assinada, e
+
+- o **relatório de extra continuou assinado** com o conteúdo antigo;
+- as **presenças** dos membros dela continuaram registradas;
+- se algum `unidades.id` coincidisse com o id da participação — o que acontece
+  sozinho, pelos dois autoincrements —, caíam as assinaturas de **outra**
+  seccional, que ninguém tinha alterado.
+
+**Por que atravessou a auditoria inteira sem ser visto:** os passos 4 e 5 da
+função não usam o parâmetro. Apagar o documento consolidado e devolver a escala
+a `em_preenchimento` sempre funcionaram — e é esse o efeito que aparece na tela.
+A tela dizia "a escala voltou para preenchimento", que é exatamente o que se
+espera ver, enquanto o relatório assinado seguia intacto no banco.
+
+**Correção:** a função passou a receber o id da PARTICIPAÇÃO — que é o que todas
+as chamadas naturalmente têm — e resolve a unidade por dentro, com
+`gise_id` no `WHERE`. Não há mais como um chamador escolher o inteiro errado.
+
+**Regressão:** `src/lib/db/gise/__tests__/revogacao-seccional.test.ts`, 7 casos.
+Os dois primeiros são os que SEMPRE passaram (documento e status) e estão lá
+nomeados como a camuflagem que foram; sob mutação para o código anterior eles
+seguem verdes e os três seguintes reprovam — inclusive o que prova a revogação
+da seccional alheia.
+
+### FLW-TEST-007 — o harness inventava `rowsAffected`, e quatro correções liam o campo errado
+
+**Severidade:** P0  
+**Fluxo:** transversal (FLX-03 / FLX-05 / FLX-07)  
+**Estado:** corrigido  
+**Origem:** não estava no plano; apareceu no e2e do CI, com a suíte unitária
+inteira verde (1126/1126).
+
+O D1 responde `D1Result` a toda escrita: `{ success, results, meta: { changes } }`.
+**Não existe `rowsAffected`** — esse é o nome do `better-sqlite3`/libsql. O
+drizzle repassa o objeto do driver sem tocar (`mapRunResult` é a identidade nos
+dois drivers), então ler o campo errado dá `undefined`, e o `?? 0` idiomático o
+transforma em "nenhuma linha afetada". Sem erro, sem log.
+
+Quatro correções desta auditoria decidiam por esse campo. Em produção:
+
+| chamador                | o que fazia de fato                                                |
+| ----------------------- | ------------------------------------------------------------------ |
+| `salvarSaidaGise`       | `registrada: false` SEMPRE — a saída era gravada e o usuário via 409 |
+| `adicionarGiseMembro`   | respondia `sem_vaga` DEPOIS de inserir o membro                     |
+| `atualizarUnidade`      | lançava `ConflitoDeRenomeacaoUnidade` em toda edição de unidade     |
+| `executarLimpezaRetencao` | relatava 0 removidos em todas as tabelas (o DELETE acontecia)     |
+
+**Por que nenhum teste pegou:** `drizzleSobre` — o harness — SINTETIZAVA um
+`rowsAffected` a partir de `changes` do `node:sqlite`. Os testes mediam a
+invenção do harness, não o contrato do banco. Não havia teste possível que
+pegasse isso, porque todos partiam do mesmo campo falso. Quem denunciou foi o
+e2e, que roda sobre D1 de verdade.
+
+É o QUARTO defeito de fidelidade do harness nesta auditoria, e o mais caro: os
+três anteriores faziam um teste acusar bug inexistente; este fazia o teste
+APROVAR código quebrado.
+
+**Correção:** `linhasAfetadas(resultado)` em `db/core.ts` — uma função, um
+campo (`meta.changes`), usada pelos quatro chamadores. Sem `?? rowsAffected` de
+reserva, de propósito: com a reserva, o harness poderia voltar a mentir. E o
+harness passou a devolver `{ rows: [], meta: { changes } }`, o formato do banco
+real.
+
+**Regressão:** quatro casos em
+`src/lib/db/__tests__/harness-fidelidade.test.ts` (contagem direta, contagem
+zero, contagem dentro do `batch`, e a asserção de que `rowsAffected` NÃO
+existe). Sob mutação para `rowsAffected`, 7 casos de três suítes de domínio
+reprovam — os mesmos que antes passavam contra o mesmo código.
+
 ## Resultado parcial — F6: webhooks e integrações
 
 > **ACEITO** — A regra não existe: uma GISE é de um DIA e o formulário cria uma por data selecionada. A constraint proposta quebraria a criação em lote. Removida a `buscarGiseAtiva`, que escolhia a mais recente e escondia as demais — e cujo resultado a página nem lia.
@@ -666,7 +1063,7 @@ FLW-GISE-005.
 
 **Severidade:** P0  
 **Fluxo:** FLX-07  
-**Estado:** confirmado
+**Estado:** corrigido
 
 O reset apaga tabelas em chamadas sequenciais
 (`src/routes/api/webhook/reset-policiais/+server.ts:161-183`). Uma falha
@@ -680,11 +1077,31 @@ falha de forma durável.
 **Teste de regressão:** simular erro no meio da limpeza e provar que nenhuma
 tabela mudou e que a tentativa foi registrada.
 
+> **CORRIGIDO (04/ago/2026).** As catorze deleções viraram UM `db.batch`, que no
+> D1 é uma transação. Falha na oitava deixava sete tabelas vazias e sete cheias
+> — um estado que nenhuma tela do sistema sabe representar, num banco que acabou
+> de perder metade do cadastro.
+>
+> A TENTATIVA passou a ser auditada ANTES de apagar qualquer coisa, e a falha
+> depois. Antes, a auditoria só era tentada depois das catorze deleções
+> passarem: a falha no meio não deixava registro nenhum de que alguém tinha
+> mandado apagar. A trilha não pode depender do sucesso da operação que ela
+> existe para documentar.
+>
+> Precisou de uma correção no harness de teste: o `batch` do
+> `sqlite-migrado.ts` não existia, e sem ele um teste de atomicidade mediria uma
+> sequência disfarçada de transação — passaria com o código NÃO atômico. Agora
+> roda dentro de `BEGIN`/`COMMIT`/`ROLLBACK` reais, e é isso que faz o caso
+> "falha no meio não apaga nada" ter valor.
+>
+> Cobertura: 3 casos em `db/__tests__/reset-atomicidade.test.ts`; o central
+> reprova o harness sem transação.
+
 ### FLW-WEBHOOK-002 — sincronização parcial é reportada como sucesso
 
 **Severidade:** P1  
 **Fluxo:** FLX-07  
-**Estado:** confirmado
+**Estado:** corrigido
 
 `sync-policiais` pula silenciosamente linhas sem matrícula/nome
 (`sync-policiais/+server.ts:93-99`); `sync-unidades` também descarta itens
@@ -698,11 +1115,34 @@ contrato de falha único e fazer o remetente exibir/registrar a falha.
 **Teste de regressão:** payload com linha incompleta precisa falhar no
 endpoint e sinalizar erro ao remetente.
 
+> **CORRIGIDO (05/ago/2026), com um limite declarado.** Duas decisões, em
+> `src/lib/server/sync/resultado.ts`:
+>
+> 1. **Linha vazia é ignorável; linha incompleta é ERRO.** Planilha do Google
+>    manda linhas em branco no fim da faixa o tempo todo — recusar o lote por
+>    causa delas seria inútil. Mas linha com ALGUM dado e sem o obrigatório é
+>    registro que alguém digitou esperando ver importado. As vazias passaram a
+>    ter contador próprio (`skippedEmpty`), e todo o resto vira erro com a linha
+>    identificada. Em `sync-unidades` isso alcança também o `else` final da
+>    classificação, onde a linha sem `nivel` e sem seccional sumia.
+>
+> 2. **Sucesso parcial responde 422, não 200.** O achado observa que o Apps
+>    Script lê `error`/`details` e ignora `errors` — e ele não vive neste
+>    repositório. O que dá para fazer daqui é parar de dizer "200 OK" quando
+>    metade do lote não entrou: um cliente que ignore o corpo ainda vê o status.
+>    Reenviar é seguro, as duas rotas fazem upsert.
+>
+> **Fica em aberto** a outra metade: fazer o Apps Script exibir a falha. É
+> mudança no script da planilha, fora deste repositório, e sem ela o operador
+> depende de olhar a resposta HTTP.
+>
+> Cobertura: `src/lib/server/sync/__tests__/resultado.test.ts`, 6 casos.
+
 ### FLW-WEBHOOK-003 — envio Base_Equipe não tem entrega recuperável
 
 **Severidade:** P1  
 **Fluxo:** FLX-04 / FLX-07  
-**Estado:** confirmado
+**Estado:** corrigido (metade daqui; a do destino fica em aberto)
 
 A GISE é finalizada antes de agendar o envio externo. Em falha, o job só
 registra logs, sem pendência, correlação, tentativa persistida ou auditoria
@@ -716,6 +1156,36 @@ retries e auditoria; no destino, versão monotônica e staging antes da troca.
 **Teste de regressão:** timeout após aplicação, falha durante escrita,
 repetição e payload antigo devem ser recuperáveis e não produzir planilha
 parcial.
+
+> **CORRIGIDO NA METADE QUE É DAQUI (05/ago/2026).** O achado tem dois lados, e
+> só um está neste repositório.
+>
+> **Deste lado:** a falha virou PENDÊNCIA DURÁVEL (`base_equipe_pendencias`,
+> migração 0045) mais evento de auditoria `sync_base_equipe_pendente`, e o cron
+> de retenção reenvia. Antes sobrava um `logger.error` — a escala ficava fechada
+> no sistema e ausente da planilha que a corporação usa para pagar o
+> extraordinário, e a tela mostrava tudo normal, porque o efeito é fora daqui.
+> Por isso a severidade da ação é `critico`.
+>
+> O reenvio REMONTA as linhas do banco a cada tentativa, em vez de guardar um
+> payload congelado: a escala pode ter sido reaberta e corrigida entre a falha e
+> a retentativa, e o que deve chegar à planilha é o estado atual.
+> `chaveIdempotenciaBaseEquipe` é estável por GISE e viaja no payload
+> (`idempotency_key`).
+>
+> **Terceira tabela de pendência da auditoria**, e a forma é deliberadamente a
+> mesma das outras duas. Não viraram uma tabela com discriminador porque o que
+> muda em cada uma é a AÇÃO de reprocessamento — uma tabela genérica precisaria
+> de payload em JSON e de um switch no drenador, o que é mais código e não menos.
+>
+> **Fica em aberto, e é fora deste repositório:** "no destino, versão monotônica
+> e staging antes da troca". O Apps Script apaga linhas antes de inserir e hoje
+> ignora a `idempotency_key`. Mandá-la é a precondição para a correção de lá;
+> enquanto ela não vier, um reenvio ainda pode duplicar linhas na planilha.
+>
+> Cobertura: `src/lib/server/gise/__tests__/base-equipe-pendencia.test.ts`, 6
+> casos — incluindo o de que desativar o webhook NÃO apaga a dívida. Duas
+> mutações verificadas.
 
 ### FLW-WEBHOOK-004 — defesa contra replay ainda depende de flag opcional
 
@@ -738,6 +1208,7 @@ health/deploy; remover o modo legado depois de período de migração explícito
 ### FLW-AUTH-001 — cache aceita sessão revogada durante a janela de TTL
 
 **Severidade:** P0  
+**Estado:** corrigido  
 `src/lib/server/auth/session-cache.ts:10-17,38-47` documenta que token
 revogado ou usuário desativado pode continuar válido por até 60 segundos,
 inclusive em outro colo do Cache API. Isso afeta reset de senha, desativação e
@@ -747,9 +1218,27 @@ remoção de Admin Geral.
 consultada antes do cache; cachear, revogar e exigir rejeição na requisição
 seguinte para reset, desativação e revogação de papel.
 
+> **CORRIGIDO (04/ago/2026) — garantia estreitada, não removida.** O cache
+> continua existindo e continua tendo janela: o Cache API é por colo, e nenhuma
+> invalidação local alcança outro data center. O que mudou é que a janela deixou
+> de valer para quem MUTA. `ttlCacheSessaoParaMetodo` devolve 0 em
+> `POST`/`PUT`/`PATCH`/`DELETE`, então toda operação material revalida no D1.
+>
+> Leitura pode estar até um TTL atrasada; ação, não. Revalidar custa um batch, e
+> quem está mutando já paga vários — o ganho do cache estava no caminho de
+> leitura, que é onde está o volume. `SESSION_CACHE_TTL_SECONDS=0` continua
+> desligando tudo, para quem quiser revogação imediata também na leitura.
+>
+> Cobertura: `server/auth/__tests__/session-cache.test.ts` (13 casos, 5 reprovam
+> a versão anterior). **Não** há teste de ponta a ponta, e isso é decisão
+> registrada: o Cache API não funciona no preview local, então o spec que
+> escrevi passava com a regra ligada E desligada. Teste que não distingue os
+> dois casos é pior que teste nenhum, porque parece cobertura.
+
 ### FLW-AUTH-002 — reset de Admin Geral vinculado altera a credencial errada
 
 **Severidade:** P0  
+**Estado:** corrigido  
 O login de Admin Geral vinculado valida `policiais.senha`, mas o reset grava o
 placeholder em `administradores.senha`
 (`src/lib/server/auth/auth-flow.ts:566-585`,
@@ -761,9 +1250,31 @@ e revogar sessões das identidades admin/policial na mesma unidade de trabalho.
 Após reset, senha antiga deve falhar nos dois modos e cookies anteriores devem
 ser inválidos.
 
+> **CORRIGIDO (04/ago/2026).** Não era só falha de segurança: era um reset de
+> senha que **não funcionava**. O login do Admin Geral vinculado autentica
+> contra `policiais.senha`; `redefinir-senha` gravava em
+> `administradores.senha`, que é um placeholder aleatório que ninguém lê. A
+> senha nova não passava a valer e a ANTIGA continuava valendo — no fluxo que
+> existe justamente para tirar de circulação uma senha comprometida.
+>
+> A regra "onde mora a credencial" já estava escrita, certa e comentada, em
+> `alterar-senha` e em `email-pessoal-guard`. Não protegeu o `redefinir-senha`,
+> que nasceu sem ela: comentário protege quem lê AQUELE arquivo. Virou
+> `server/auth/credencial.ts` — `resolverCredencial` diz onde gravar,
+> `revogarSessoesDaCredencial` derruba as DUAS identidades. As três cópias
+> passaram a chamá-la.
+>
+> A revogação em par também é correção: uma senha destrava dois cookies, e
+> `alterar-senha` apagava só os do modo atual. O cookie do outro modo sobrevivia
+> à rotação que existia para matá-lo.
+>
+> Cobertura: 14 casos de unidade em `credencial.test.ts` e o caso ponta a ponta
+> em `e2e/revogacao-credencial.spec.ts`, que reprova o código anterior.
+
 ### FLW-AUTH-003 — Admin Geral vinculado contorna primeiro acesso
 
 **Severidade:** P1  
+**Estado:** corrigido  
 O policial novo nasce com `primeiro_acesso=1`, mas a conta administrativa
 vinculada nasce com `0`; a sessão admin atravessa o hook sem exigir troca de
 senha/e-mail pessoal (`src/lib/db/policiais.ts:260-280`,
@@ -772,6 +1283,35 @@ senha/e-mail pessoal (`src/lib/db/policiais.ts:260-280`,
 **Ação/teste:** derivar o flag do policial vinculado ou mantê-lo sincronizado
 atomicamente. Login por certificado como admin recém-criado deve redirecionar
 qualquer rota administrativa para `/alterar-senha`.
+
+> **CORRIGIDO** — Derivado, não sincronizado: sincronizar dois campos deixa a
+> janela em que eles discordam, e é justamente essa janela que o achado
+> descreve. `queryAdminDaSessao` passou a trazer `policiais.primeiro_acesso` no
+> mesmo `leftJoin` que já buscava `policiais.ativo`, e `adminDaSessao` devolve
+> o valor do POLICIAL para conta vinculada — a linha `administradores` de um
+> vinculado é feita de placeholders (senha aleatória, `primeiro_acesso = 0`
+> gravado por `vincularAdminGeral`), e placeholder não decide autorização.
+>
+> O achado escapava porque o LOGIN lia o valor certo (via `credPol`, em
+> `auth-flow`) e só a SESSÃO carregava o zero. Quem entra é mandado para
+> `/alterar-senha`; quem já está dentro navega. E é a sessão que o
+> `hooks.server.ts` consulta a cada request — um teste de login não pegaria.
+>
+> Cobertura: `src/lib/__tests__/admin-vinculado-sessao.test.ts` (7 casos,
+> cobrindo também FLW-RBAC-001, que é o mesmo esquecimento no campo `ativo`).
+> Cada um dos dois campos foi reprovado por mutação, separadamente.
+>
+> **Achado de tabela:** o teste falhava COM a correção aplicada, e a causa era o
+> harness. `node:sqlite` devolve linha como objeto chaveado por nome de coluna,
+> e o join seleciona `primeiro_acesso` das DUAS tabelas: as chaves colapsavam e
+> `Object.values` entregava 10 colunas para um `SELECT` de 11, deslocando o
+> mapeamento do drizzle. Terceiro defeito do harness nesta auditoria (depois do
+> `get` que devolvia `[]` e do `batch` que não era transação), e os três têm a
+> mesma forma: o harness erra em silêncio e a investigação vai parar no código
+> de produção, que está certo. Corrigido com `setReturnArrays`, que remove a
+> etapa chaveada por nome; os três agora têm regressão em
+> `src/lib/db/__tests__/harness-fidelidade.test.ts`, cada um reprovado por
+> mutação.
 
 ### FLW-AUTH-004 — segredos de uso único podem ser consumidos duas vezes
 
@@ -798,6 +1338,7 @@ cobrem os cenários acima.
 ### FLW-ESC-001 — usuário da própria lotação pode mutar e assinar por rota direta
 
 **Severidade:** P0  
+**Estado:** corrigido  
 As actions de escala só exigem mesma lotação
 (`src/routes/escalas/[id]/+page.server.ts:81-101`), e
 `verificarPermissaoEscala` permite a mesma lotação para leitura/assinatura
@@ -816,6 +1357,25 @@ DPC)` —, mas manda a flag LARGA (`podeEditarEscala`) para seis dos sete
 > componentes de edição. Alinhar o servidor à regra estrita tira de policiais
 > sem papel a capacidade de montar a escala da própria unidade; é decisão de
 > produto, não de código, e por isso não foi feita junto com ESC-002/003.
+
+> **CORRIGIDO (05/ago/2026) — decisão do operador: exigir papel.**
+> `podeMexerNaEscala` (`lib/server/escalas/permissao.ts`): Admin Geral em
+> qualquer escala, ou policial COM papel administrativo na sua lotação.
+>
+> A regra não é nova. A tela já a calculava — `podeEditarEscala &&
+(podeOIPSolicitar || papel administrativo com cargo DPC)` — e a usava em UM
+> dos sete pontos de edição; os outros seis recebiam a flag larga. Expandindo os
+> dois ramos, o conjunto é exatamente `isAnyAdmin`. O que faltava não era a
+> regra: era ela ser a MESMA nos sete lugares e no servidor.
+>
+> Por isso agora é calculada no servidor e desce pronta para a tela, em vez de
+> recalculada lá. Não há segunda versão para divergir.
+>
+> Cobertura: `e2e/escala-papel.spec.ts`. O spec de autorização negativa não
+> cobria isto — lá o ator é de OUTRA unidade, e a recusa vem do gate de lotação,
+> que sempre existiu. Aqui a lotação CONFERE. O segundo caso verifica que o
+> admin de unidade continua editando: sem ele, "recusa todo mundo" passaria.
+> Reprova o código anterior.
 
 ### FLW-ESC-002 — membro de outra escala pode ser editado ou removido por ID
 
@@ -849,6 +1409,7 @@ material deve retornar 409 e preservar PDF, hash e membros.
 ### FLW-DOC-001 — PDF preparado não está vinculado ao alvo, ator ou uso único
 
 **Severidade:** P0  
+**Estado:** corrigido  
 Preparações de escala, GISE, relatório e presença devolvem PDF/hash ao cliente
 sem intenção persistida. Os finalizadores aceitam `preparedPdf` e hash enviados
 pelo cliente e persistem no recurso da URL. Na escala, isso ocorre em
@@ -861,9 +1422,26 @@ atomicamente, vinculando hash do PDF, recurso, ator, seccional/tipo, versão e
 estado esperado. Preparar A e finalizar B, ou reutilizar a mesma intenção,
 deve falhar sem D1/R2/auditoria alterados.
 
+> **CORRIGIDO** — `assinatura_intencoes` (migração `0040`) +
+> `lib/server/assinatura/intencao.ts`. O `preparar` grava a intenção e devolve
+> um token opaco (o banco guarda só o `sha256:`); o `finalizar` a consome com
+> `UPDATE ... WHERE usado = 0 AND expires_at > agora RETURNING` e confere
+> recurso, escopo, ator e o SHA-256 do `preparedPdf` recebido. Vale para os
+> QUATRO pares (escala, GISE, presença e relatório por seccional).
+>
+> De quebra, o `verificacao_hash` deixou de vir do cliente: era ele que
+> escolhia a chave no R2 e o código público do `/validar`.
+>
+> Cobertura: 15 casos de unidade em `intencao.test.ts` e 3 em
+> `assinatura-qualificada-a3.spec.ts` — estes com assinatura VÁLIDA e CPF
+> correto, que é o que a verificação criptográfica não distingue sozinha.
+> "Preparar em uma escala e finalizar em outra" e "a mesma preparação duas
+> vezes" reprovam o código anterior.
+
 ### FLW-ESC-005 — datas, duplicidade e capacidade não têm proteção autoritativa
 
 **Severidade:** P1  
+**Estado:** corrigido  
 Datas livres do cliente e checagens pré-insert não são protegidas por
 constraint/transação (`src/routes/escalas/[id]/+page.server.ts:207-310,535-544`
 e `src/lib/server/schema.ts:114-138`).
@@ -872,9 +1450,32 @@ e `src/lib/server/schema.ts:114-138`).
 apropriado e usar transação. Cobrir data fora do período, colisão na edição e
 duas requisições concorrentes.
 
+> **CORRIGIDO (05/ago/2026).** Duas metades:
+>
+> **Intervalo** — `server/escalas/periodo.ts`, puro, usado pelas CINCO actions
+> que recebem data do cliente. O calendário do modal era a única coisa que
+> limitava, e ele é markup. Um POST direto com um dia de outro mês não dava erro
+> visível: a linha entrava, sumia da grade (que só desenha o mês) e reaparecia no
+> PDF, que lista o que o banco tem — uma escala de setembro assinada com um
+> plantão de agosto. A comparação é lexicográfica de `YYYY-MM-DD`, não `Date`:
+> `new Date('2026-09-01')` é meia-noite UTC, que em UTC-3 é 31/08, e essa
+> conversão já custou dois bugs neste projeto.
+>
+> **Duplicidade** — índice único `(escala_id, policial_id, data_plantao)`
+> (migração 0047). A regra existia como consulta pré-insert, e o `repetir`
+> chegava a montar um `Set` em memória para filtrar — proteção que vale só
+> dentro daquela chamada. Duplicata aqui não é registro repetido inofensivo: a
+> escala vai para assinatura, e a pessoa aparece duas vezes no mesmo dia.
+>
+> Cobertura: `server/escalas/__tests__/periodo.test.ts` (11 casos) para a regra,
+> e um guard estrutural em `_actions/__tests__/actions-auditadas.test.ts` que lê
+> o `+page.server.ts` e exige a validação nas cinco — uma action nova que aceite
+> data e esqueça repõe o buraco. Duas mutações verificadas.
+
 ### FLW-ESC-006 — FDS pode ficar finalizada/enviada quando o e-mail falha
 
 **Severidade:** P1  
+**Estado:** corrigido  
 `finalizada_em` é gravado antes do envio; a falha é capturada, mas a resposta e
 auditoria seguem como finalização/envio
 (`src/routes/escalas/[id]/+page.server.ts:876-922`).
@@ -883,9 +1484,39 @@ auditoria seguem como finalização/envio
 auditar resultado real. Timeout do provedor deve deixar estado recuperável,
 não “enviado”.
 
+> **CORRIGIDO (05/ago/2026) INVERTENDO A ORDEM, e a escolha é a decisão.**
+>
+> O achado propõe "representar entrega pendente/falha e usar job idempotente" —
+> uma máquina de estados nova. Não foi o caminho, e o motivo está no próprio
+> fluxo: no FDS não há assinatura digital, o marco de conclusão É a entrega. Se
+> a entrega não aconteceu, não houve conclusão; não existe um terceiro estado a
+> representar. Enviar ANTES de gravar `finalizada_em` diz isso no código.
+>
+> O que a ordem antiga produzia: a falha virava `logger.warn`, a resposta dizia
+> `success: true`, e a trilha registrava "finalizada e enviada para X" — o
+> `metadados` guardava `emailEnviado: false`, mas o texto que o operador lê na
+> listagem afirmava o contrário. A escala ficava fechada para edição com o
+> destinatário sem nada.
+>
+> Agora a falha devolve **502**, não grava nada, e registra evento com
+> `resultado: 'falha'`. A escala continua aberta e o operador tenta de novo.
+>
+> **O risco invertido é aceito conscientemente:** um timeout que na verdade
+> entregou faz o operador reenviar, e chegam dois e-mails. E-mail duplicado se
+> resolve lendo; escala fechada sem entrega, não.
+>
+> De quebra, refinalizar passou a ser recusado com 409 — gravaria um novo
+> `finalizada_em` por cima do primeiro, e a data de conclusão do documento
+> viraria a da segunda tentativa. Para reenviar existe a action própria.
+>
+> Cobertura: guard estrutural em `_actions/__tests__/actions-auditadas.test.ts`
+> — a ORDEM é a propriedade, e é o que uma edição futura quebraria. Mutação
+> verificada: voltando a finalizar antes de enviar, o teste reprova.
+
 ### FLW-ESC-007 — ações materiais de escala não produzem trilha forense
 
 **Severidade:** P1  
+**Estado:** corrigido  
 Inserções, edições, remoções, reenvio e reabertura não registram o catálogo de
 eventos disponível (`src/routes/escalas/[id]/+page.server.ts:240-250,582-584,724-764,947-1006`
 e `src/lib/db/audit.ts:147-155`).
@@ -893,11 +1524,50 @@ e `src/lib/db/audit.ts:147-155`).
 **Ação/teste:** append transacional/por outbox com ator, escala, itens e
 antes/depois; cada action material bem-sucedida deve criar uma entrada.
 
+> **CORRIGIDO (05/ago/2026).** Doze das catorze actions não deixavam rastro
+> nenhum. Todas passaram a fechar em `registrarMudancaEscala`
+> (`_actions/desfecho.ts`), par do preâmbulo `carregarEscalaComPermissao` que já
+> vivia no `+page.server.ts` — mesma divisão adotada na GISE: um lado para o que
+> roda antes de mutar, outro para o que roda depois.
+>
+> O campo `itens` é OBRIGATÓRIO no contrato, e é a parte do achado que mais
+> importa: a mesma action serve para uma linha e para trinta —
+> `removerSelecionados` esvazia meio mês com um clique —, e "removeu policial da
+> escala" sem o número não distingue a correção de um horário do desmonte do
+> plantão inteiro. As actions em lote leem o alvo ANTES do `DELETE`, pelo mesmo
+> motivo: depois não há de onde tirar quem saiu.
+>
+> Duas ações novas no catálogo. A escala de FDS não é assinada — o marco é a
+> ENTREGA por e-mail —, então `reenviar_escala_fds` e `reabrir_escala_fds` são,
+> nesse fluxo, o que revogar e reabrir são no fluxo assinado. Reabrir é
+> `critico`: desfaz um documento que já circulou na caixa de entrada de alguém e
+> que vai divergir da escala a partir da próxima edição.
+>
+> **Não é append transacional nem outbox**, e é decisão registrada: `auditar()`
+> já resolve a falha de trilha por PENDÊNCIA DURÁVEL (FLW-AUDIT-001) — a mutação
+> vale, o evento espera, o cron reinsere. Envolver as catorze actions numa
+> transação com o append daria a mesma garantia a um custo muito maior, e
+> quebraria a política já decidida pelo operador de que falha de trilha não
+> derruba a operação.
+>
+> `finalizar` e `gerarProximoMes` continuam auditando por conta própria e estão
+> DECLARADAS como exceção no guard: a primeira carrega o resultado do envio de
+> e-mail, a segunda tem como entidade a escala NOVA, não a da URL. Nenhuma cabe
+> no contrato de `registrarMudancaEscala`, que fixa `entidade_id` na escala da
+> rota — declarar é o que separa "audita de outro jeito" de "não audita".
+>
+> Cobertura: `_actions/__tests__/desfecho.test.ts` (8, banco real) para o
+> conteúdo do evento; `_actions/__tests__/actions-auditadas.test.ts` (30) lê o
+> `+page.server.ts` e prova que as catorze registram. Verificados por mutação:
+> apagar a chamada de uma action, remover `itens` do evento e voltar uma action
+> a desestruturar em vez de receber o `event` reprovam, cada um no seu caso.
+
 ## Resultado parcial — F3: assinatura, exportação e validação
 
 ### FLW-ACL-002 — download por hash não reaplica autorização do recurso
 
-**Severidade:** P0  
+**Severidade:** P2 (era P0 — reclassificado)  
+**Estado:** aceito com reclassificação  
 A rota requer uma sessão, mas depois resolve o hash sem chamar os gates de
 escala/GISE/seccional (`src/routes/api/validar/[hash]/download/+server.ts:60-179,240-351`).
 Usuário autenticado fora do escopo pode receber cópia de conferência de outra
@@ -908,9 +1578,31 @@ remover o download por hash para não privilegiados. Sessão de outra lotação
 deve receber 403 sem bytes de PDF; participante autorizado deve continuar
 recebendo a cópia permitida.
 
+> **RECLASSIFICADO PARA P2 (05/ago/2026), com o enunciado corrigido.** O achado
+> diz que "usuário autenticado fora do escopo pode receber cópia de conferência
+> de outra unidade". Verificado em `api/validar/[hash]/download/+server.ts:112`,
+> o que o código faz é outra coisa:
+>
+> - o **blob forense** — manifesto com CPF, IP, GPS e selfie — passa por
+>   `podeBaixarForense`, que é `isSuperAdmin === true`. **Está protegido**, e é
+>   ele que carrega o dado sensível;
+> - a **cópia de conferência** — sem manifesto — vai para qualquer sessão
+>   autenticada que apresente o hash.
+>
+> E o hash é o código de validação IMPRESSO no próprio documento, com
+> rate-limit por IP na rota. Quem tem o código já tem o documento. O problema de
+> escopo é real — a rota não reaplica o gate do recurso —, mas a exposição não é
+> a de um P0: exige possuir o identificador do documento e não alcança o
+> forense.
+>
+> Fica no lote do módulo de validação, junto com os demais achados de `/validar`.
+> Registrado aqui porque a diferença entre o enunciado e o código é a própria
+> razão de o plano de auditoria não ser executado sem conferência.
+
 ### FLW-R2-003 — assinatura GISE pode persistir sem blob R2
 
 **Severidade:** P1  
+**Estado:** corrigido  
 Finalizadores de GISE, relatório e presença tratam R2 como opcional e podem
 persistir documento/hash mesmo sem blob
 (`api/gise/[id]/finalizar-assinatura/+server.ts:84-113` e finalizadores
@@ -920,9 +1612,39 @@ equivalentes de relatório/presença).
 pendente/outbox e compensar blob se D1/auditoria falhar. Testar R2 ausente,
 `put` falho e falha posterior de D1.
 
+> **CORRIGIDO (05/ago/2026).** Os seis finalizadores escreviam
+> `if (r2) await r2.put(...)` e gravavam a linha em seguida, com ou sem bucket.
+> Sem R2, o certificado era consumido, o hash de verificação era emitido e
+> IMPRESSO no documento, e `/validar` passava a resolver esse hash para um
+> arquivo que não existe — do lado de quem confere, indistinguível de um
+> documento adulterado.
+>
+> A regra passou a ser a inversa, em `assinatura/blob-assinado.ts`: **sem onde
+> guardar, não assina.** A assimetria é a razão — recusar antes é reversível (a
+> pessoa tenta de novo em dez minutos); assinar e não guardar não é. O guard
+> (`bucketParaAssinatura`) roda ANTES de consumir o token de intenção, para a
+> recusa não custar o ato; devolve 503 + `upstream`, que o front trata como
+> "tente de novo", e a mensagem afirma explicitamente que a assinatura NÃO foi
+> realizada.
+>
+> `guardarPdfAssinado` fecha a segunda ponta: com o binding presente, o `put`
+> ainda pode falhar (rede, quota), e a exceção subia para o catch genérico do
+> endpoint — que em alguns caminhos já tinha gravado a linha. Agora vira recusa.
+> `compensarBlobAssinado` cobre a terceira: falhando o D1 depois do `put`, o
+> blob órfão é removido, e o que resistir cai na pendência durável de
+> FLW-R2-004.
+>
+> Os dois finalizadores de escala mensal já usavam `getR2` (que lança), e por
+> isso não tinham o furo; ficam como estão.
+>
+> Cobertura: `assinatura/__tests__/blob-assinado.test.ts`, 7 casos — os três
+> cenários pedidos pelo achado (R2 ausente, `put` falho, falha posterior de D1).
+> Duas mutações verificadas.
+
 ### FLW-DOC-003 — revogação/reassinatura GISE deixa artefatos antigos
 
 **Severidade:** P1  
+**Estado:** corrigido  
 Caminhos alternativos removem apenas D1, e upserts de documento/assinatura
 não garantem remoção dos PDFs, conferências e selfies anteriores
 (`actions-equipe.ts:53-56,135-139`, `actions-seccional.ts:97-113`,
@@ -932,6 +1654,35 @@ não garantem remoção dos PDFs, conferências e selfies anteriores
 **Ação/teste:** centralizar revogação/reassinatura com limpeza R2 prévia,
 preservação de chaves novas e auditoria. Hash antigo não deve resolver após
 alterar, reabrir ou reassinar.
+
+> **CORRIGIDO (05/ago/2026).** Os endpoints de reabrir/revogar já chamavam
+> `limparR2DaGise`; o buraco estava nos caminhos por FORM ACTION, que apagavam
+> `gise_documentos` (e, via `revogarAssinaturasSeccional`, relatórios e
+> presenças) sem tocar no bucket.
+>
+> A limpeza entrou no DESFECHO, que é por onde as treze actions passam desde
+> FLW-GISE-003 — `invalidarDocumentoDaEscala` e `invalidarAssinaturasDaSeccional`
+> agora recebem o bucket e apagam os bytes ANTES das linhas. A ordem é o ponto:
+> é a linha que diz quais objetos existem.
+>
+> Duas coletas novas em `r2-cleanup.ts`, e são deliberadamente ESTREITAS:
+> `coletarChavesR2DoDocumentoGise` (só o consolidado) e
+> `coletarChavesR2DaRevogacaoSeccional` (consolidado + relatórios da seccional +
+> selfies de presença dos seus membros). Usar `coletarChavesR2DaGise`, que varre
+> a GISE inteira, apagaria blobs de documentos que a invalidação NÃO derruba.
+> A segunda espelha passo a passo o que `revogarAssinaturasSeccional` apaga, e
+> recebe o id da PARTICIPAÇÃO pelo mesmo motivo que ela — ver FLW-GISE-011.
+>
+> Fechados também os dois caminhos fora do desfecho: `removerSeccional` (cujo
+> `excluirGiseSeccional` leva equipes, membros e, em cascata, presenças e
+> relatórios) e a edição de data/horário da escala.
+>
+> Isto encerra o "fica em aberto" registrado em FLW-GISE-006.
+>
+> Cobertura: 3 casos em `gise/[id]/_actions/__tests__/desfecho.test.ts`,
+> incluindo a selfie de presença e a cópia de conferência (prefixo PLANO, que
+> escapa da varredura por prefixo). Mutação verificada: removida a limpeza,
+> dois casos reprovam.
 
 ### FLW-TEST-005 — contratos de segurança de assinatura não têm teste de rota
 
@@ -952,6 +1703,7 @@ mascara PII; e a assinatura valida certificado contra a sessão.
 ### FLW-RBAC-001 — desativação não revoga Admin Geral e 2FA pendente
 
 **Severidade:** P0  
+**Estado:** corrigido  
 Desativar policial apenas grava `ativo: 0`; sessão admin é validada contra
 `administradores` sem conferir o policial vinculado, e 2FA pode criar nova
 sessão sem revalidação (`src/routes/policiais/[id]/+page.server.ts:575`,
@@ -961,9 +1713,29 @@ sessão sem revalidação (`src/routes/policiais/[id]/+page.server.ts:575`,
 `policiais.ativo = 1` em sessão admin e confirmação 2FA. Cobrir sessão
 existente e 2FA pendente após desativação.
 
+> **CORRIGIDO (04/ago/2026).** Três buracos, o mesmo enunciado:
+>
+> 1. `validarSessao` e `validarSessaoComAceite` liam a linha `administradores`
+>    sem olhar o vínculo — desativar o policial fechava o modo usuário e deixava
+>    de pé o modo administrador, que é o mais poderoso dos dois. O ramo de
+>    policial sempre exigiu `ativo = 1`; faltava no de admin. Resolvido por
+>    `queryAdminDaSessao` + `adminDaSessao`, um `leftJoin` na mesma query (a
+>    versão em batch não podia pagar round-trip a mais).
+> 2. `verificar-2fa` emitia sessão sem repetir a checagem — um 2FA pendente
+>    virava sessão de administrador depois da desativação. Passou a usar
+>    `buscarAdminAtivo`, a mesma regra.
+> 3. A desativação não derrubava sessão nenhuma: só impedia o próximo login, e
+>    a sessão aberta seguia por até 8h. `registrarDesvinculacao` agora chama
+>    `revogarSessoesDaCredencial`.
+>
+> Cobertura: dois casos em `e2e/revogacao-credencial.spec.ts` — um para a
+> validação da sessão, outro para a action —, ambos reprovando o código
+> anterior.
+
 ### FLW-POLICIAL-002 — exclusão física apaga histórico e pode deixar R2 órfão
 
 **Severidade:** P0  
+**Estado:** corrigido  
 A action executa `excluirPolicial` sem análise de impacto
 (`src/routes/policiais/+page.server.ts:268-271`), e o DB executa DELETE físico
 (`src/lib/db/policiais.ts:431-439`). Cascades removem escala, GISE, presença,
@@ -973,9 +1745,33 @@ respostas e histórico, enquanto documentos R2 podem perder referência.
 desativação; aplicar `RESTRICT` a vínculos históricos indispensáveis. Testar
 policial com escala, GISE, presença e histórico.
 
+> **CORRIGIDO (05/ago/2026) — decisão do operador: recusar quando há documento
+> assinado; desativar em vez de apagar.** A regra não é "nunca apagar": é nunca
+> apagar o que um documento assinado referencia. Cadastro digitado errado
+> continua podendo sumir.
+>
+> `impedimentoParaExcluirPolicial` (`lib/db/policial-exclusao.ts`) responde por
+> quatro caminhos, em duas naturezas: por AUTORIA (termo de presença dele,
+> relatório de extra que ele assinou) e por MENÇÃO (escala assinada em que está
+> escalado, GISE assinada de que é membro). As duas contam — um PDF que LISTA
+> alguém inexistente é tão inconsistente quanto um assinado por alguém
+> inexistente, e a menção é o caso mais comum: o policial escalado que nunca
+> assinou nada.
+>
+> A mensagem nomeia os vínculos e aponta a desvinculação. Quem lê precisa
+> escolher entre apagar e desativar, e "não pode" sem dizer o que está
+> preservando não sustenta essa escolha.
+>
+> Cobertura: 8 casos contra SQLite real; os de MENÇÃO reprovam uma versão que
+> só olhasse autoria.
+>
+> **Fica em aberto** a limpeza de R2 na exclusão permitida (cadastro sem
+> documento pode ter anexo de histórico). É escopo de FLW-R2-004.
+
 ### FLW-RBAC-003 — escopo de papel não é validado nem usado consistentemente
 
 **Severidade:** P1  
+**Estado:** corrigido  
 `papel_unidade_id` é exigido, mas não possui FK/validação de tipo e
 `admin_unidade` recebe escopo da lotação atual, ignorando o ID persistido
 (`src/lib/db/policiais.ts:455-476`,
@@ -986,9 +1782,38 @@ policial com escala, GISE, presença e histórico.
 revogar/requerer reassinatura ao transferir lotação. Cobrir ID inexistente,
 tipo incompatível e transferência posterior.
 
+> **CORRIGIDO (05/ago/2026).** As duas metades:
+>
+> **O escopo vem do PAPEL.** `admin_unidade` recebia `new Set([u.lotacao])`,
+> ignorando o `papel_unidade_id` que a concessão exige e persiste. O papel então
+> SEGUIA a pessoa: quem foi nomeado administrador da DP 1 e depois transferido
+> para a DP 5 passava a administrar a DP 5 — uma autoridade que ninguém
+> concedeu, e que aparece sozinha numa movimentação de rotina. Sem
+> `papel_unidade_id`, o escopo é VAZIO: cair na lotação é exatamente o defeito.
+>
+> **A concessão passou a validar.** `motivoParaRecusarPapel` recusa unidade
+> inexistente — que produzia escopo vazio SILENCIOSO, com o admin nomeado, a
+> tela mostrando o papel e ele sem administrar nada — e recusa DELEGACIA para
+> `admin_seccional`, porque delegacia não tem subordinadas e o papel não teria o
+> alcance que o nome promete. A regra de tipo é mínima de propósito:
+> departamento e sub-departamento são aceitos, porque a hierarquia os coloca
+> acima da seccional e há corporação que organiza assim.
+>
+> **Não foi feito** o caminho alternativo do achado ("revogar/requerer
+> reassinatura ao transferir lotação"): com o escopo preso ao papel, transferir
+> deixou de mexer no alcance, e revogar seria punir uma movimentação que não tem
+> relação com a nomeação.
+>
+> Cobertura: `server/__tests__/policial-permissao.test.ts`, 15 casos — os três
+> cenários pedidos (id inexistente, tipo incompatível, transferência posterior).
+> O teste que documentava o comportamento antigo foi reescrito: ele já citava o
+> achado pelo número, tinha sido escrito para REGISTRAR o defeito. Duas mutações
+> verificadas.
+
 ### FLW-UNIDADE-004 — renomeação concorrente quebra lotação denormalizada
 
 **Severidade:** P1  
+**Estado:** corrigido  
 `atualizarUnidade` lê, atualiza e propaga o nome em comandos separados sem
 transação/versão (`src/lib/db/unidades.ts:80-110`).
 
@@ -996,14 +1821,78 @@ transação/versão (`src/lib/db/unidades.ts:80-110`).
 auditoria; duas renomeações do mesmo estado inicial devem produzir conflito,
 não lotações órfãs.
 
+> **CORRIGIDO (05/ago/2026).** O `UPDATE` da unidade passou a ser condicionado
+> ao nome que acabou de ser lido (`WHERE id = ? AND nome = ?`), e ele mais as
+> duas cascatas vão num `db.batch`.
+>
+> O desfecho que isso evita é específico: T1 leva "A" para "B" e propaga; T2,
+> que também leu "A", grava "C" e propaga `WHERE lotacao = 'A'`, que já não acha
+> ninguém. Sobra uma unidade chamada "C" e um efetivo inteiro lotado em "B" —
+> uma unidade que não existe. Ninguém percebe até alguém montar uma escala.
+>
+> A perdedora vira um no-op de três statements (as três condições são o mesmo
+> nome antigo) e o `rowsAffected` do primeiro a denuncia:
+> `ConflitoDeRenomeacaoUnidade`, que a rota mapeia para 409 com a mensagem da
+> própria exceção. A edição SEM troca de nome também é condicionada — senão
+> gravaria tipo e cidade por cima de um nome que não viu.
+>
+> Cobertura: `src/lib/db/__tests__/unidade-renomeacao-concorrente.test.ts`, 6
+> casos. A corrida é dirigida por um `Database` que interfere entre a leitura e
+> a gravação; o gancho é `update` e não `batch` porque os dois caminhos da função
+> passam por ele — ancorar no `batch` deixava o caminho sem-troca-de-nome sem
+> janela, e foi o que aconteceu na primeira versão do teste.
+
 ### FLW-RBAC-005 — mudança, histórico e auditoria podem divergir
 
 **Severidade:** P1  
+**Estado:** corrigido  
 Movimentação, desvinculação e papel persistem cadastro, histórico e auditoria
 em etapas independentes (`src/routes/policiais/[id]/+page.server.ts:339-377,459-488,575-606`).
 
 **Ação/teste:** transacionar registros ou usar outbox; compensar upload R2 se
 persistência falhar. Injetar falha em histórico/auditoria.
+
+> **CORRIGIDO (05/ago/2026).** Cadastro e linha do tempo passaram a entrar
+> juntos, por `atualizarPolicialComHistorico` — um `db.batch`, que no D1 é
+> transação. Vale para as quatro actions que mudam cadastro: `salvar`,
+> `salvarPapel`, `registrarMovimentacao` e `registrarDesvinculacao`.
+>
+> O que a janela deixava não é abstrato: lotação trocada sem a portaria na linha
+> do tempo, papel administrativo concedido sem registro de quem concedeu, e —
+> o pior — cadastro INATIVADO sem data, sem NUP e sem responsável, uma baixa
+> funcional sem ato que a fundamente. Ninguém percebia porque cada tela lê uma
+> das metades.
+>
+> Para compor o `UPDATE` num batch foi preciso separá-lo da cifragem do CPF, que
+> é assíncrona: `camposDeAtualizacao` devolve o `SET` pronto e `atualizarPolicial`
+> passou a ser a casca. `await atualizarPolicial(...)` não servia como
+> ingrediente — o builder do drizzle é thenable, então o `await` o EXECUTA.
+>
+> **A AUDITORIA ficou de fora do batch, e é decisão registrada.** `auditar()`
+> nunca lança e resolve a própria falha por pendência durável (FLW-AUDIT-001).
+> Metê-la na transação trocaria uma garantia que já existe pela possibilidade de
+> a mutação do usuário ser desfeita por causa da trilha — exatamente a política
+> que o operador recusou ao decidir "pendência durável e segue".
+>
+> **Compensação de R2** (`abortarComLimpezaR2`): o PDF sobe ANTES da mutação de
+> propósito — anexo inválido aborta com 400 sem ter mexido no cadastro —, e era
+> isso que abria a outra ponta. Falhando a gravação, o objeto ficava no bucket
+> sem nenhuma linha apontando para ele: invisível para a tela, invisível para o
+> expurgo de retenção, e contando como dado pessoal armazenado sem base. As três
+> ações com anexo agora apagam a chave e devolvem 500 — incluindo
+> `registrarAfastamento`, que não muda cadastro e portanto não tinha o que
+> transacionar, mas tem o mesmo anexo.
+>
+> Efeito colateral corrigido de quebra: em `registrarDesvinculacao` a revogação
+> de sessões acontecia ANTES do histórico. Passou para depois da baixa
+> persistida — revogar sessão de um cadastro que voltou a ser ativo é
+> inofensivo; o contrário, não.
+>
+> Cobertura: `src/lib/db/__tests__/policial-mudanca-atomica.test.ts`, 6 casos —
+> os três caminhos felizes e as três falhas, incluindo a falha no sentido
+> inverso (o `UPDATE` é que morre, e o histórico não pode afirmar uma
+> movimentação que não aconteceu). Verificado por mutação: com as duas escritas
+> em sequência, dois casos reprovam.
 
 ### FLW-TEST-006 — cadastros e RBAC não têm cobertura negativa de actions
 
@@ -1024,23 +1913,23 @@ rodar em paralelo com suites que compartilham esses recursos.
 
 ### P0 — suites obrigatórias antes de corrigir
 
-| Achados          | Local sugerido                                                                                      | Cenário e asserção mínima                                                                                         |
-| ---------------- | --------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
-| FLW-AUDIT-001    | `routes/api/gise/[id]/finalizar/__tests__/finalizar-audit.test.ts`                                  | falha de auditoria e duas finalizações concorrentes: rollback total **ou** pendência durável, sem perda na cadeia |
-| FLW-LGPD-002     | `lib/server/__tests__/email-logging.test.ts`                                                        | resposta de e-mail com destinatário/corpo: logger e erro não podem conter PII/conteúdo                            |
-| FLW-GISE-004     | `e2e/gise-acoes-autorizacao.spec.ts`                                                                | POST direto por policial comum/admin fora do escopo: 403 e nenhum estado/documento/audit alterado                 |
-| FLW-GISE-005     | `e2e/gise-finalizacao-negativa.spec.ts`                                                             | finalizar `em_andamento` por action e API: 409 e status/documento/integração intactos                             |
-| FLW-GISE-006     | `e2e/gise-reabertura-guard.spec.ts`                                                                 | alterar vagas em GISE finalizada: 409, slots/hash/R2/auditoria preservados                                        |
-| FLW-WEBHOOK-001  | `routes/api/webhook/reset-policiais/__tests__/atomicidade.test.ts`                                  | falha na segunda deleção: nenhuma tabela alterada e tentativa registrada                                          |
-| FLW-AUTH-001     | `server/auth/__tests__/session-cache.test.ts` + `e2e/sessao-revogacao.spec.ts`                      | aquecer cache e revogar/resetar/desativar: próximo request retorna 401                                            |
-| FLW-AUTH-002     | `e2e/reset-admin-vinculado.spec.ts`                                                                 | reset de admin vinculado: senha antiga falha nos dois modos, nova funciona e ambos cookies são revogados          |
-| FLW-ESC-001      | `e2e/escalas-acoes-autorizacao.spec.ts`                                                             | OIP sem papel na mesma lotação chama mutar/assinar/finalizar/revogar: 403 em todas                                |
-| FLW-ESC-002      | `e2e/escalas-ids-cruzados.spec.ts`                                                                  | item de escala B enviado à rota A: 404/403 e A/B intactas                                                         |
-| FLW-ESC-003      | `e2e/escalas-imutabilidade.spec.ts`                                                                 | cada action material/exclusão em escala assinada: 409, PDF/hash/membros preservados                               |
-| FLW-DOC-001      | `routes/api/**/finalizar-assinatura/__tests__/intencao.test.ts` + `e2e/assinatura-intencao.spec.ts` | preparar A/finalizar B; ator/tipo/status divergentes e reutilização: falha sem D1/R2/audit alterados              |
-| FLW-ACL-002      | `e2e/validar-download-autorizacao.spec.ts`                                                          | usuário autenticado de outra lotação baixa por hash: 403 sem bytes; autorizado recebe somente cópia permitida     |
-| FLW-RBAC-001     | `e2e/policial-desativacao-sessoes.spec.ts`                                                          | desativar policial-admin com sessão e 2FA pendente: ambos os caminhos retornam 401                                |
-| FLW-POLICIAL-002 | `e2e/policiais-exclusao-historico.spec.ts`                                                          | excluir policial com grafo histórico: operação recusada e referências/R2 continuam recuperáveis                   |
+| Achados          | Local sugerido                                                                                  | Cenário e asserção mínima                                                                                         |
+| ---------------- | ----------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| FLW-AUDIT-001    | ✅ `lib/db/__tests__/audit-pendencia.test.ts`                                                   | falha de auditoria e duas finalizações concorrentes: rollback total **ou** pendência durável, sem perda na cadeia |
+| FLW-LGPD-002     | ✅ `lib/server/__tests__/email-logging.test.ts`                                                 | resposta de e-mail com destinatário/corpo: logger e erro não podem conter PII/conteúdo                            |
+| FLW-GISE-004     | ✅ `e2e/autorizacao-negativa.spec.ts`                                                           | POST direto por policial comum/admin fora do escopo: 403 e nenhum estado/documento/audit alterado                 |
+| FLW-GISE-005     | ✅ `lib/gise/__tests__/finalizacao.test.ts`                                                     | finalizar `em_andamento` por action e API: 409 e status/documento/integração intactos                             |
+| FLW-GISE-006     | ✅ `e2e/gise-imutabilidade.spec.ts`                                                             | alterar vagas em GISE finalizada: 409, slots/hash/R2/auditoria preservados                                        |
+| FLW-WEBHOOK-001  | ✅ `lib/db/__tests__/reset-atomicidade.test.ts`                                                 | falha na segunda deleção: nenhuma tabela alterada e tentativa registrada                                          |
+| FLW-AUTH-001     | ✅ `server/auth/__tests__/session-cache.test.ts` (sem e2e — ver o achado)                       | aquecer cache e revogar/resetar/desativar: próximo request retorna 401                                            |
+| FLW-AUTH-002     | ✅ `e2e/revogacao-credencial.spec.ts` + `auth/__tests__/credencial.test.ts`                     | reset de admin vinculado: senha antiga falha nos dois modos, nova funciona e ambos cookies são revogados          |
+| FLW-ESC-001      | ✅ `e2e/escala-papel.spec.ts`                                                                   | OIP sem papel na mesma lotação chama mutar/assinar/finalizar/revogar: 403 em todas                                |
+| FLW-ESC-002      | `e2e/escalas-ids-cruzados.spec.ts`                                                              | item de escala B enviado à rota A: 404/403 e A/B intactas                                                         |
+| FLW-ESC-003      | `e2e/escalas-imutabilidade.spec.ts`                                                             | cada action material/exclusão em escala assinada: 409, PDF/hash/membros preservados                               |
+| FLW-DOC-001      | ✅ `lib/server/assinatura/__tests__/intencao.test.ts` + `e2e/assinatura-qualificada-a3.spec.ts` | preparar A/finalizar B; ator/tipo divergentes e reutilização: falha sem D1/R2/audit alterados                     |
+| FLW-ACL-002      | ⤵ reclassificado P2 — ver o achado                                                              | usuário autenticado de outra lotação baixa por hash: 403 sem bytes; autorizado recebe somente cópia permitida     |
+| FLW-RBAC-001     | ✅ `e2e/revogacao-credencial.spec.ts`                                                           | desativar policial-admin com sessão e 2FA pendente: ambos os caminhos retornam 401                                |
+| FLW-POLICIAL-002 | ✅ `lib/db/__tests__/policial-exclusao.test.ts`                                                 | excluir policial com grafo histórico: operação recusada e referências/R2 continuam recuperáveis                   |
 
 ### P1 — agrupamentos de teste
 
@@ -1103,6 +1992,71 @@ vínculo de intenção.
 5. **Fechar cobertura e dívida aceita:** executar F8, registrar evidência de
    cada teste e aceitar formalmente apenas itens que tenham risco, dono e
    prazo definidos.
+
+### Controle estrutural — varredura de autorização (04/ago/2026)
+
+Antes de atacar a onda 1 achado a achado, o inventário completo das operações
+materiais foi levantado e virou guard de CI (`npm run guard:autorizacao`,
+`scripts/guard-autorizacao.mjs`).
+
+| operações materiais              | 114 |
+| -------------------------------- | --- |
+| recusam por permissão (403)      | 94  |
+| dispensadas com motivo declarado | 20  |
+| **sem decisão e sem motivo**     | 0   |
+
+As 20 dispensas são pré-autenticação (10 — login, primeiro acesso, redefinição
+por token), autosserviço sobre a própria conta (5), webhook autenticado por
+segredo compartilhado (4) e um endpoint aposentado que responde 410.
+
+**O que isso fecha e o que NÃO fecha.** Fecha a pergunta "existe operação
+material sem gate?" — não existe. Não fecha "o gate está certo": FLW-ESC-001,
+GISE-004…006, ACL-002 e RBAC-001 são gates que decidem a coisa ERRADA, e nível
+2 não distingue isso. É por essa razão que a matriz F8 continua sendo o gate de
+liberação, e não este guard.
+
+Duas escolhas do guard merecem registro, porque a alternativa óbvia é pior:
+
+- **Olha o resultado (403 × 401), não o nome do helper.** A autorização é
+  decidida de treze formas — `requireAdmin`, `verificarPermissaoEscala`,
+  `resolverParticipacaoGisePolicial`, comparação de lotação escrita à mão, além
+  de preâmbulos locais a um arquivo só (`autorizarAcao`,
+  `carregarEscalaComPermissao`). Uma lista de nomes nunca estaria completa, e
+  deixaria passar justamente o handler novo com resolvedor novo.
+- **Não foi criado um `autorizar()` único.** A regra difere por domínio de
+  verdade; unificar produziria um switch maior e menos legível que os
+  resolvedores atuais — o corolário de CLAUDE.md → "Duplicação: extrair antes de
+  comentar". O que foi unificado é o VOCABULÁRIO da recusa, não a decisão.
+
+O guard reprova também quando o parser lê menos handlers do que o arquivo
+declara. Sem isso ele daria verde sobre rota que não enxerga, e silêncio
+pareceria aprovação.
+
+### Controle executável — cobertura negativa (04/ago/2026)
+
+O guard LÊ o código. Duas perguntas ficam fora do alcance dele, e as duas
+importam: **a decisão acontece antes do trabalho?** e **o gate olha o RECURSO
+ou só o usuário?** As duas exigem requisição, e são as de
+`e2e/autorizacao-negativa.spec.ts`, que varre `src/routes/**` em tempo de teste
+— rota nova entra sozinha, sem alguém lembrar de acrescentá-la — e exerce as
+113 operações materiais em dois cenários: anônimo, e policial de outra unidade
+contra recurso REAL da unidade A.
+
+Achou FLW-GISE-004 no primeiro tiro. Ver o registro do achado.
+
+Três armadilhas que este spec custou a acertar, e valem para o próximo:
+
+1. **Alvo protegido por outro motivo não testa este.** A primeira versão
+   apontava para `escalaA`, que tem documento assinado: as actions paravam no
+   409 de imutabilidade, e o spec passava com a checagem de lotação REMOVIDA do
+   servidor. Trocado por `escalaAssinavel`, que está editável.
+2. **Recusa por corpo inválido não prova permissão.** Onze operações validavam
+   o `FormData`/Zod antes de autorizar e respondiam 400 ao corpo vazio.
+   Aceitar 400 como "recusou" mascarava o buraco do GISE-004. Hoje só 401, 403
+   e 404 contam; as que precisavam têm corpo mínimo declarado no spec.
+3. **Form action não usa o status HTTP.** Com `x-sveltekit-action`, o
+   `ActionResult` viaja em JSON sob HTTP 200 — inclusive o da action que
+   EXECUTOU. Um spec que lesse `res.status()` passaria em todas as 70.
 
 ### Limites desta auditoria
 

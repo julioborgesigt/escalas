@@ -355,24 +355,47 @@ export async function upsertPolicial(db: Database, data: DadosPolicial, env?: Cp
 export async function atualizarPolicial(
 	db: Database,
 	id: number,
-	data: Partial<{
-		nome: string;
-		matricula: string;
-		cargo: string;
-		cpf: string | null;
-		telefone: string;
-		lotacao: string;
-		ativo: number;
-		regime: string;
-		classe: string;
-		papel: 'admin_seccional' | 'admin_unidade' | null;
-		papel_unidade_id: number | null;
-		email: string | null;
-		email_pessoal: string | null;
-		email_pessoal_verificado: number;
-	}>,
+	data: CamposDoPolicial,
 	env?: CpfCriptoEnv
 ) {
+	return db
+		.update(policiais)
+		.set(await camposDeAtualizacao(data, env))
+		.where(eq(policiais.id, id));
+}
+
+/** Os campos que uma atualização de policial aceita. */
+export type CamposDoPolicial = Partial<{
+	nome: string;
+	matricula: string;
+	cargo: string;
+	cpf: string | null;
+	telefone: string;
+	lotacao: string;
+	ativo: number;
+	regime: string;
+	classe: string;
+	papel: 'admin_seccional' | 'admin_unidade' | null;
+	papel_unidade_id: number | null;
+	email: string | null;
+	email_pessoal: string | null;
+	email_pessoal_verificado: number;
+}>;
+
+/**
+ * Os campos prontos para o `SET`, com a cifragem do CPF já resolvida.
+ *
+ * Existe separada de `atualizarPolicial` porque a cifragem é ASSÍNCRONA e um
+ * `db.batch` precisa de query builders PRONTOS. `await atualizarPolicial(...)`
+ * não serve para compor: o builder do drizzle é thenable, então o `await` o
+ * EXECUTA — que é justamente o que a mudança cadastral atômica não pode fazer
+ * (FLW-RBAC-005). Quem precisa do par cadastro+histórico usa
+ * `atualizarPolicialComHistorico`.
+ */
+export async function camposDeAtualizacao(
+	data: CamposDoPolicial,
+	env?: CpfCriptoEnv
+): Promise<Record<string, unknown>> {
 	const updateData: Record<string, unknown> = {};
 
 	if (data.nome !== undefined) updateData.nome = data.nome;
@@ -398,7 +421,7 @@ export async function atualizarPolicial(
 
 	updateData.updated_at = sql`datetime('now', '-3 hours')`;
 
-	return db.update(policiais).set(updateData).where(eq(policiais.id, id));
+	return updateData;
 }
 
 /**

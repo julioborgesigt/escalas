@@ -32,7 +32,7 @@ import { getDB } from '$lib/db';
 import {
 	lerSessaoCache,
 	gravarSessaoCache,
-	resolverTtlCacheSessao
+	ttlCacheSessaoParaMetodo
 } from '$lib/server/auth/session-cache';
 import { VERSAO as TERMO_VERSAO, calcularHashTermo } from '$lib/server/termo/termo-vigente';
 import { logger } from '$lib/server/logger';
@@ -211,7 +211,10 @@ const handleAuth: Handle = async ({ event, resolve }) => {
 			// query de autenticação. Trade-offs documentados em session-cache.ts.
 			// A checagem de aceite roda SEMPRE no mesmo batch (custo zero de
 			// round-trip) — em rotasLivresTermo ela simplesmente não é imposta abaixo.
-			const cacheTtl = resolverTtlCacheSessao(event.platform);
+			//
+			// **Quem MUTA não usa o cache** (FLW-AUTH-001) — a regra e o porquê estão
+			// em `ttlCacheSessaoParaMetodo`.
+			const cacheTtl = ttlCacheSessaoParaMetodo(event.platform, event.request.method);
 			const cacheado = await lerSessaoCache(token, cacheTtl);
 			if (cacheado) {
 				usuario = cacheado.usuario;

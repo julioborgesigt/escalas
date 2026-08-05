@@ -24,7 +24,15 @@
  * continuarem válidas depois que o cadastro do policial some. Um CASCADE ali
  * apagaria a evidência.
  */
-import { sqliteTable, text, integer, real, index, unique } from 'drizzle-orm/sqlite-core';
+import {
+	sqliteTable,
+	text,
+	integer,
+	real,
+	index,
+	uniqueIndex,
+	unique
+} from 'drizzle-orm/sqlite-core';
 import { sql } from 'drizzle-orm';
 
 // ---- Policiais ----
@@ -386,11 +394,21 @@ export const giseMembros = sqliteTable(
 			.references(() => giseEquipes.id, { onDelete: 'cascade' }),
 		policial_id: integer('policial_id')
 			.notNull()
-			.references(() => policiais.id, { onDelete: 'cascade' })
+			.references(() => policiais.id, { onDelete: 'cascade' }),
+		/**
+		 * Denormalizado para o índice único de exclusividade (FLW-GISE-009) — o
+		 * SQLite não indexa através de join, e a regra é "um policial por GISE".
+		 *
+		 * Não é segunda fonte de verdade: sai derivado da própria equipe no INSERT
+		 * (`adicionarGiseMembro`), e equipe não muda de GISE. Nullable só por causa
+		 * das linhas anteriores à migração 0044.
+		 */
+		gise_id: integer('gise_id')
 	},
 	(table) => [
 		index('idx_gise_membros_equipe').on(table.equipe_id),
-		index('idx_gise_membros_policial').on(table.policial_id)
+		index('idx_gise_membros_policial').on(table.policial_id),
+		uniqueIndex('uq_gise_membros_gise_policial').on(table.gise_id, table.policial_id)
 	]
 );
 
@@ -610,7 +628,14 @@ export const gisePresencaTermos = sqliteTable(
 		tst_token_b64: text('tst_token_b64'),
 		created_at: text('created_at').default(sql`(datetime('now', '-3 hours'))`)
 	},
-	(table) => [index('idx_gise_presenca_termos_gise').on(table.gise_id)]
+	(table) => [
+		index('idx_gise_presenca_termos_gise').on(table.gise_id),
+		// Um termo por ato (FLW-GISE-008): repetir a finalização gravava outro
+		// termo, com outro `verification_hash`, para a MESMA entrada — e os dois
+		// resolvem em `/validar`. Dois documentos assinados atestando o mesmo ato
+		// é prova que se contradiz sozinha.
+		uniqueIndex('uq_gise_presenca_termos_ato').on(table.gise_id, table.policial_id, table.tipo)
+	]
 );
 
 // ---- Aceites do Termo de Uso e Política de Privacidade ----
@@ -693,6 +718,45 @@ export const resetSenhaTokens = sqliteTable(
 		index('idx_reset_senha_token').on(table.token),
 		index('idx_reset_senha_usuario').on(table.tipo_usuario, table.usuario_id, table.created_at)
 	]
+);
+
+/**
+ * Intenção de assinatura — amarra o PDF preparado ao RECURSO, ao ATOR e a um
+ * único uso (FLW-DOC-001).
+ *
+ * `preparar-assinatura` devolvia o PDF ao cliente e `finalizar-assinatura`
+ * aceitava de volta qualquer `preparedPdf`, gravando-o no recurso da URL. A
+ * assinatura era criptograficamente válida e o CPF conferia — só o DOCUMENTO
+ * podia ser outro. Preparar na escala A e finalizar na B guardava o PDF de A
+ * como documento assinado de B.
+ *
+ * `token` guarda o `sha256:` do valor entregue ao cliente, como `sessoes` e
+ * `reset_senha_tokens`.
+ */
+export const assinaturaIntencoes = sqliteTable(
+	'assinatura_intencoes',
+	{
+		id: integer('id').primaryKey({ autoIncrement: true }),
+		token: text('token').notNull().unique(),
+		recurso: text('recurso', {
+			enum: ['escala', 'gise', 'gise_presenca', 'gise_relatorio']
+		}).notNull(),
+		recurso_id: integer('recurso_id').notNull(),
+		/** Segundo eixo do alvo (a seccional do relatório); NULL nos de eixo único. */
+		escopo_id: integer('escopo_id'),
+		usuario_id: integer('usuario_id').notNull(),
+		usuario_tipo: text('usuario_tipo', { enum: ['policial', 'admin'] }).notNull(),
+		/** SHA-256 do `preparedPdf` gerado pelo servidor. */
+		documento_hash: text('documento_hash').notNull(),
+		/** Código público de validação — decidido pelo servidor, não pelo cliente. */
+		verificacao_hash: text('verificacao_hash').notNull(),
+		usado: integer('usado').notNull().default(0),
+		expires_at: text('expires_at').notNull(),
+		created_at: text('created_at')
+			.notNull()
+			.default(sql`(datetime('now', '-3 hours'))`)
+	},
+	(table) => [index('idx_assinatura_intencoes_expires').on(table.expires_at)]
 );
 
 // ---- Configurações do Sistema ----
@@ -791,6 +855,129 @@ export const webhookNonces = sqliteTable(
 // `auditar` e `verificarIntegridadeAudit` em `src/lib/db/audit.ts`. Colunas além
 // das do log original (migração 0000) entraram nullable na migração 0033 — as
 // linhas antigas e as ~25 chamadas legadas continuam válidas.
+
+/**
+ * Evento de auditoria que NÃO conseguiu entrar na cadeia (FLW-AUDIT-001).
+ *
+ * `auditar()` nunca lança — falha de trilha não pode derrubar a operação do
+ * usuário. O preço era o evento sumir: a mutação persistia, a resposta era
+ * sucesso, e sobrava só uma linha de log fora do banco. A política é registrar
+ * pendência durável e seguir; `reprocessarPendenciasAudit` reinsere na cadeia.
+ *
+ * Deliberadamente BURRA — sem `seq`, sem hash encadeado, sem índice único. É o
+ * que lhe dá chance de gravar quando o append encadeado não conseguiu.
+ */
+export const auditPendencias = sqliteTable(
+	'audit_pendencias',
+	{
+		id: integer('id').primaryKey({ autoIncrement: true }),
+		/** Evento serializado como chegou a `auditar()`, pronto para retentativa. */
+		evento: text('evento').notNull(),
+		/** Fora do JSON: dão triagem sem desserializar. */
+		acao: text('acao').notNull(),
+		entidade: text('entidade'),
+		/** Por que a cadeia recusou — separa corrida de defeito. */
+		motivo: text('motivo').notNull(),
+		tentativas: integer('tentativas').notNull().default(0),
+		ultima_tentativa_em: text('ultima_tentativa_em'),
+		created_at: text('created_at')
+			.notNull()
+			.default(sql`(datetime('now'))`)
+	},
+	(table) => [index('idx_audit_pendencias_created').on(table.created_at)]
+);
+
+/**
+ * Objeto do R2 que NÃO conseguiu ser apagado (FLW-R2-004).
+ *
+ * `deletarChavesR2` é best-effort de propósito — a linha no D1 é a fonte da
+ * verdade de `/validar` e não pode ficar refém do storage. O preço era o
+ * objeto sumir do radar: a função devolvia quantas chaves foram TENTADAS, e o
+ * chamador em seguida apagava a linha que guardava o `r2_key`. Depois disso o
+ * objeto existe no bucket e nada no sistema sabe que ele existe.
+ *
+ * E o que sobra não é lixo neutro: PDF com manifesto forense (CPF, IP, GPS) e
+ * selfie biométrica (LGPD art. 11). A chave é capturada AQUI antes de a linha
+ * sumir; `reprocessarPendenciasR2` tenta de novo no cron de retenção.
+ */
+export const r2Pendencias = sqliteTable(
+	'r2_pendencias',
+	{
+		id: integer('id').primaryKey({ autoIncrement: true }),
+		/** Única: a mesma chave falhando duas vezes é a mesma pendência. */
+		chave: text('chave').notNull().unique(),
+		/** De onde veio, para triagem sem consultar outra tabela. */
+		origem: text('origem').notNull(),
+		/** Por que o delete falhou — separa transitório de permanente. */
+		motivo: text('motivo').notNull(),
+		tentativas: integer('tentativas').notNull().default(0),
+		ultima_tentativa_em: text('ultima_tentativa_em'),
+		created_at: text('created_at')
+			.notNull()
+			.default(sql`(datetime('now'))`)
+	},
+	(table) => [index('idx_r2_pendencias_created').on(table.created_at)]
+);
+
+/**
+ * Envio da Base_Equipe que não chegou ao destino (FLW-WEBHOOK-003).
+ *
+ * A GISE é finalizada e só então o envio é agendado, fora da resposta ao
+ * cliente. Falhando, sobrava um `logger.error` — a escala fechada no sistema e
+ * ausente da planilha que a corporação usa para pagar o extraordinário, sem
+ * ninguém ser avisado.
+ *
+ * Mesma forma de `audit_pendencias` e `r2_pendencias`; o que muda é a AÇÃO de
+ * reprocessamento. `chave_idempotencia` viaja no payload para o destino poder
+ * deduplicar o reenvio.
+ */
+export const baseEquipePendencias = sqliteTable(
+	'base_equipe_pendencias',
+	{
+		id: integer('id').primaryKey({ autoIncrement: true }),
+		/** Único: a mesma escala falhando de novo é a mesma pendência. */
+		gise_id: integer('gise_id')
+			.notNull()
+			.unique()
+			.references(() => giseEscalas.id, { onDelete: 'cascade' }),
+		/** Estável por GISE — reenviar manda a mesma chave. */
+		chave_idempotencia: text('chave_idempotencia').notNull(),
+		motivo: text('motivo').notNull(),
+		tentativas: integer('tentativas').notNull().default(0),
+		ultima_tentativa_em: text('ultima_tentativa_em'),
+		created_at: text('created_at')
+			.notNull()
+			.default(sql`(datetime('now'))`)
+	},
+	(table) => [index('idx_base_equipe_pendencias_created').on(table.created_at)]
+);
+
+/**
+ * Âncora de um corte de retenção na trilha (FLW-AUDIT-005).
+ *
+ * A retenção apaga o PREFIXO de `audit_log` além do prazo, e isso é legítimo.
+ * O verificador, porém, aceitava a primeira linha sobrevivente como início
+ * válido sem perguntar de onde ela veio — então apagar as primeiras N linhas
+ * para sumir com um evento produzia uma cadeia que continuava verificando `ok`.
+ *
+ * O checkpoint guarda ONDE o corte parou e QUAL era o `hash_registro` da última
+ * linha removida, que é o `hash_anterior` da primeira sobrevivente. Sem
+ * checkpoint casando nos dois campos, o buraco volta a ser o que sempre foi:
+ * uma remoção não explicada.
+ */
+export const auditCheckpoints = sqliteTable('audit_checkpoints', {
+	id: integer('id').primaryKey({ autoIncrement: true }),
+	/** Último `seq` removido. A primeira sobrevivente tem de ser `seq_ate + 1`. */
+	seq_ate: integer('seq_ate').notNull().unique(),
+	/** `hash_registro` daquela linha — o elo que a sobrevivente aponta. */
+	hash_ate: text('hash_ate').notNull(),
+	removidos: integer('removidos').notNull(),
+	/** Política aplicada, em texto (ex.: `retencao:5anos`). */
+	politica: text('politica').notNull(),
+	created_at: text('created_at')
+		.notNull()
+		.default(sql`(datetime('now'))`)
+});
 
 export const auditLog = sqliteTable(
 	'audit_log',

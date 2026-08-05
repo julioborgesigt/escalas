@@ -46,6 +46,37 @@ export async function batchNonEmpty(db: Database, stmts: BatchItem<'sqlite'>[]):
 }
 
 /**
+ * O que uma ESCRITA devolve. O D1 responde `D1Result` a todo `INSERT`/`UPDATE`/
+ * `DELETE`, e a contagem de linhas mora em `meta.changes`.
+ */
+export interface ResultadoDeEscrita {
+	meta?: { changes?: number };
+}
+
+/**
+ * Quantas linhas a escrita afetou.
+ *
+ * **`rowsAffected` não existe no D1.** Esse é o nome do `better-sqlite3` e do
+ * libsql; o D1 devolve `{ success, results, meta: { changes, ... } }`, e o
+ * drizzle repassa o objeto do driver sem tocar (`mapRunResult` é a identidade
+ * nos dois drivers). Ler o campo errado dá `undefined`, que o `?? 0` idiomático
+ * transforma em "nenhuma linha" — sem erro, sem log, sem teste vermelho.
+ *
+ * Custou caro justamente porque o campo era plausível: quatro chamadores
+ * decidiam por ele, e o harness de testes SINTETIZAVA um `rowsAffected` que o
+ * banco real nunca produz. Todos os testes passavam contra a invenção enquanto
+ * em produção a saída da presença GISE nunca se registrava, a alocação de
+ * membro respondia "sem vaga" depois de gravar, e renomear unidade lançava
+ * conflito sempre. Foi o e2e — que roda sobre D1 de verdade — que denunciou.
+ *
+ * Por isso é UMA função e ela lê UM campo: com um `?? rowsAffected` de reserva,
+ * o harness poderia voltar a mentir e ninguém veria.
+ */
+export function linhasAfetadas(resultado: ResultadoDeEscrita): number {
+	return resultado.meta?.changes ?? 0;
+}
+
+/**
  * Timestamp no formato que as colunas de data TEXT deste projeto guardam:
  * `"YYYY-MM-DD HH:MM:SS"`, o mesmo que o default `datetime(...)` do SQLite
  * produz. Sem argumento, é "agora".

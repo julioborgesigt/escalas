@@ -18,7 +18,7 @@
 
 import { desc, asc, eq, and, gte, lte, isNotNull, sql } from 'drizzle-orm';
 import { ehViolacaoUnique, mensagemComCausas } from '$lib/server/db-errors';
-import { auditLog } from '../server/schema';
+import { auditCheckpoints, auditLog, auditPendencias } from '../server/schema';
 import { timestampSqliteUtc, paginarComContagem, type Database } from './core';
 import type { AuditLog } from '../server/schema';
 import { logger } from '../server/logger';
@@ -169,6 +169,20 @@ export const CATALOGO_ACOES = {
 		categoria: 'escala',
 		severidade: 'info'
 	},
+	// A escala de FDS não é assinada: o marco é a ENTREGA por e-mail. Reenviar e
+	// reabrir são, nesse fluxo, o que revogar e reabrir são no fluxo assinado —
+	// por isso têm ação própria, e reabrir é `critico`: desfaz um documento que
+	// já circulou fora do sistema.
+	reenviar_escala_fds: {
+		label: 'Reenvio da escala de fim de semana por e-mail',
+		categoria: 'escala',
+		severidade: 'aviso'
+	},
+	reabrir_escala_fds: {
+		label: 'Reabertura de escala de fim de semana já enviada',
+		categoria: 'escala',
+		severidade: 'critico'
+	},
 	solicitar_assinatura_escala: {
 		label: 'Solicitação de assinatura de escala',
 		categoria: 'escala',
@@ -222,6 +236,68 @@ export const CATALOGO_ACOES = {
 		categoria: 'policial',
 		severidade: 'info'
 	},
+	// Composição da GISE — quem está de serviço, e sob qual escopo. Separadas por
+	// entidade e verbo (e não agrupadas num `alterar_composicao_gise`) porque é
+	// assim que o operador procura: "quem tirou gente da escala", "quem removeu a
+	// seccional". A severidade real é decidida no desfecho da mudança, que sabe se
+	// ela derrubou documento ou assinatura (`_actions/desfecho.ts`).
+	gise_membro_adicionado: {
+		label: 'Policial alocado em equipe da GISE',
+		categoria: 'gise',
+		severidade: 'info'
+	},
+	gise_membro_removido: {
+		label: 'Policial desalocado de equipe da GISE',
+		categoria: 'gise',
+		severidade: 'info'
+	},
+	gise_equipe_criada: { label: 'Equipe criada na GISE', categoria: 'gise', severidade: 'info' },
+	gise_equipe_alterada: {
+		label: 'Equipe da GISE alterada (vagas/horário)',
+		categoria: 'gise',
+		severidade: 'info'
+	},
+	gise_equipe_removida: {
+		label: 'Equipe removida da GISE',
+		categoria: 'gise',
+		severidade: 'aviso'
+	},
+	gise_seccional_adicionada: {
+		label: 'Seccional incluída na GISE',
+		categoria: 'gise',
+		severidade: 'info'
+	},
+	gise_seccional_removida: {
+		label: 'Seccional removida da GISE',
+		categoria: 'gise',
+		severidade: 'aviso'
+	},
+	gise_seccional_preenchida: {
+		label: 'Seccional declarou preenchimento concluído',
+		categoria: 'gise',
+		severidade: 'info'
+	},
+	gise_seccional_alterada: {
+		label: 'Horários da seccional alterados',
+		categoria: 'gise',
+		severidade: 'info'
+	},
+	gise_unidade_slot_criado: {
+		label: 'Slot de unidade criado na seccional',
+		categoria: 'gise',
+		severidade: 'info'
+	},
+	gise_unidade_slot_removido: {
+		label: 'Slot de unidade removido da seccional',
+		categoria: 'gise',
+		severidade: 'aviso'
+	},
+	gise_unidade_selecionada: {
+		label: 'Unidade escolhida para um slot da seccional',
+		categoria: 'gise',
+		severidade: 'info'
+	},
+
 	exportar_gise: { label: 'Exportação de GISE', categoria: 'gise', severidade: 'info' },
 	salvar_config_gise: {
 		label: 'Alteração de configuração do GISE',
@@ -290,6 +366,14 @@ export const CATALOGO_ACOES = {
 		label: 'Sincronização de unidades (webhook)',
 		categoria: 'sistema',
 		severidade: 'aviso'
+	},
+	// A GISE fecha no sistema mas não chega à planilha que paga o
+	// extraordinário. `critico` porque o efeito é FORA do sistema e ninguém aqui
+	// dentro percebe: a tela mostra a escala finalizada normalmente.
+	sync_base_equipe_pendente: {
+		label: 'Envio da Base_Equipe pendente (planilha não recebeu)',
+		categoria: 'sistema',
+		severidade: 'critico'
 	},
 	reset_policiais: {
 		label: 'Reset de policiais (webhook)',
@@ -583,18 +667,39 @@ function ehViolacaoSeq(err: unknown): boolean {
 }
 
 /**
- * Registra um evento na trilha de auditoria. NUNCA lança — falhas são logadas.
+ * Registra um evento na trilha de auditoria. NUNCA lança.
  *
- * Faz, por gravação: cifra o IP completo (se houver chave), lê o topo da cadeia,
- * calcula o `hash_registro` encadeado e insere com `seq` único. Em corrida de
- * `seq` (dois appends simultâneos), relê o topo e refaz — até algumas tentativas.
+ * Falha na cadeia vira PENDÊNCIA DURÁVEL (`audit_pendencias`) e o fluxo segue:
+ * a mutação do usuário já aconteceu e não é desfeita aqui, mas o evento também
+ * não some — `reprocessarPendenciasAudit` o reinsere depois (FLW-AUDIT-001).
  */
 export async function auditar(
 	db: Database,
 	evento: AuditEvento,
+	ctx?: { env?: unknown }
+): Promise<void> {
+	return anexar(db, evento, ctx, 'pendencia');
+}
+
+/**
+ * O append encadeado.
+ *
+ * Faz, por gravação: cifra o IP completo (se houver chave), lê o topo da cadeia,
+ * calcula o `hash_registro` encadeado e insere com `seq` único. Em corrida de
+ * `seq` (dois appends simultâneos), relê o topo e refaz — até algumas tentativas.
+ *
+ * `naFalha` existe porque os dois chamadores precisam de respostas DIFERENTES
+ * para a mesma falha: o fluxo normal engole e vira pendência — auditoria não
+ * derruba a operação do usuário —, enquanto o reprocessamento precisa saber se
+ * deu certo, para escolher entre apagar a pendência e incrementar as tentativas.
+ */
+async function anexar(
+	db: Database,
+	evento: AuditEvento,
 	// `env` é `unknown` para aceitar o `App.Platform['env']` real (tipo `Env`
 	// completo do Cloudflare) sem cast nos call sites; convertido internamente.
-	ctx?: { env?: unknown }
+	ctx: { env?: unknown } | undefined,
+	naFalha: 'pendencia' | 'lancar'
 ): Promise<void> {
 	try {
 		const meta = metaDaAcao(evento.acao);
@@ -669,12 +774,142 @@ export async function auditar(
 			}
 		}
 	} catch (err) {
+		if (naFalha === 'lancar') throw err;
+		const motivo = err instanceof Error ? err.message : String(err);
 		logger.error('[audit] Falha ao registrar evento', {
 			acao: evento.acao,
 			entidade: evento.entidade,
+			error: motivo
+		});
+		await registrarPendenciaAudit(db, evento, motivo);
+	}
+}
+
+/** Teto do texto de motivo: mensagem de driver pode vir com o SQL inteiro. */
+const LIMITE_MOTIVO = 500;
+
+/** Quantas pendências uma passada do reprocessamento tenta drenar. */
+const LOTE_REPROCESSAMENTO = 100;
+
+/**
+ * Guarda o evento que a cadeia recusou, para reprocessamento posterior.
+ *
+ * Também não lança: é o ÚLTIMO recurso, e uma exceção aqui derrubaria
+ * exatamente a operação que `auditar` existe para não derrubar. Quando nem isto
+ * grava — D1 fora do ar —, o log é tudo o que resta, e o `logger.error` acima
+ * já saiu. É um limite honesto: a tabela de pendência é deliberadamente burra
+ * (sem `seq`, sem hash, sem índice único) porque a maioria das falhas é
+ * específica da CADEIA, e é aí que ela tem chance de gravar.
+ */
+async function registrarPendenciaAudit(
+	db: Database,
+	evento: AuditEvento,
+	motivo: string
+): Promise<void> {
+	try {
+		await db.insert(auditPendencias).values({
+			evento: JSON.stringify(evento),
+			acao: String(evento.acao),
+			entidade: evento.entidade ?? null,
+			motivo: motivo.slice(0, LIMITE_MOTIVO)
+		});
+	} catch (err) {
+		logger.error('[audit] Falha ao registrar PENDÊNCIA — evento perdido', {
+			acao: evento.acao,
 			error: err instanceof Error ? err.message : String(err)
 		});
 	}
+}
+
+/**
+ * Reinsere na cadeia os eventos que ficaram pendentes.
+ *
+ * Roda junto da limpeza de retenção (cron diário). A ORDEM de chegada é
+ * preservada — `created_at` crescente — porque a trilha é lida como linha do
+ * tempo, e reprocessar fora de ordem produziria um `seq` que não corresponde à
+ * sequência dos fatos.
+ *
+ * Falhou de novo? A pendência FICA, com `tentativas` incrementado. Uma
+ * pendência cujo contador só cresce é o sinal de defeito PERMANENTE — payload
+ * inválido, coluna recusando o valor — em oposição à corrida de `seq`, que some
+ * na primeira retentativa.
+ */
+export async function reprocessarPendenciasAudit(
+	db: Database,
+	ctx?: { env?: unknown }
+): Promise<{ reprocessadas: number; persistentes: number }> {
+	const pendentes = await db
+		.select()
+		.from(auditPendencias)
+		.orderBy(asc(auditPendencias.created_at), asc(auditPendencias.id))
+		.limit(LOTE_REPROCESSAMENTO);
+
+	let reprocessadas = 0;
+	let persistentes = 0;
+
+	for (const linha of pendentes) {
+		let evento: AuditEvento;
+		try {
+			evento = JSON.parse(linha.evento) as AuditEvento;
+		} catch {
+			// JSON corrompido nunca vai voltar. Sai da fila para não mascarar as
+			// pendências reais com um item que falha para sempre.
+			logger.error('[audit] Pendência com JSON inválido — descartada', { id: linha.id });
+			await db.delete(auditPendencias).where(eq(auditPendencias.id, linha.id));
+			continue;
+		}
+
+		try {
+			await anexar(db, evento, ctx, 'lancar');
+			await db.delete(auditPendencias).where(eq(auditPendencias.id, linha.id));
+			reprocessadas++;
+		} catch (err) {
+			persistentes++;
+			await db
+				.update(auditPendencias)
+				.set({
+					tentativas: linha.tentativas + 1,
+					ultima_tentativa_em: timestampSqliteUtc(),
+					motivo: (err instanceof Error ? err.message : String(err)).slice(0, LIMITE_MOTIVO)
+				})
+				.where(eq(auditPendencias.id, linha.id));
+		}
+	}
+
+	if (persistentes > 0) {
+		logger.error('[audit] Pendências que falharam de novo', { persistentes });
+	}
+	return { reprocessadas, persistentes };
+}
+
+/** Quantos eventos estão à espera de entrar na cadeia. */
+export async function contarPendenciasAudit(db: Database): Promise<number> {
+	const [r] = await db.select({ n: sql<number>`count(*)` }).from(auditPendencias);
+	return Number(r?.n ?? 0);
+}
+
+/** Um evento sem o contexto de request — o handler não precisa preenchê-lo. */
+export type EventoSemContexto = Omit<
+	AuditEvento,
+	'ip' | 'user_agent' | 'request_id' | 'rota' | 'metodo'
+>;
+
+/**
+ * `auditar` com IP, user-agent, request_id, rota, método e `env` já extraídos
+ * do RequestEvent.
+ *
+ * Encurta a instrumentação de um handler de três linhas para uma, e é o que as
+ * form actions de `/gise/[id]` e `/escalas/[id]` usam. O ganho não é o
+ * tamanho: é que esquecer o `...contexto` deixava o evento sem IP e sem rota
+ * — silenciosamente, porque todos os cinco campos são opcionais.
+ */
+export async function auditarDoEvento(
+	event: EventoRequestLike,
+	db: Database,
+	evento: EventoSemContexto
+): Promise<void> {
+	const { contexto, env } = contextoDeEvento(event);
+	return auditar(db, { ...evento, ...contexto }, { env });
 }
 
 /**
@@ -960,6 +1195,13 @@ export async function verificarIntegridadeAudit(
 		.where(isNotNull(auditLog.seq))
 		.orderBy(asc(auditLog.seq));
 
+	// Âncoras dos cortes de retenção. Sem elas, a primeira linha sobrevivente
+	// seria aceita como início válido venha de onde vier (FLW-AUDIT-005).
+	const checkpoints = await db
+		.select({ seq_ate: auditCheckpoints.seq_ate, hash_ate: auditCheckpoints.hash_ate })
+		.from(auditCheckpoints);
+	const ancoraPorSeq = new Map(checkpoints.map((c) => [c.seq_ate, c.hash_ate]));
+
 	let anterior: { seq: number; hash_registro: string } | null = null;
 
 	for (const r of rows) {
@@ -968,8 +1210,42 @@ export async function verificarIntegridadeAudit(
 		const hashRegistro = r.hash_registro ?? '';
 
 		// (a) Elo: o hash_anterior deve casar com o hash_registro do antecessor.
-		// Na primeira linha sobrevivente (anterior === null) pulamos a checagem de
-		// elo: aceitamos GENESIS ou um corte de retenção como ponto de partida.
+		if (!anterior) {
+			// PRIMEIRA linha sobrevivente. Duas origens são legítimas, e distinguir
+			// uma da outra é exatamente o que faltava (FLW-AUDIT-005):
+			//
+			//  - o começo da cadeia (`seq 1`, apontando para GENESIS);
+			//  - um corte de retenção — e aí tem de existir CHECKPOINT dizendo até
+			//    onde o corte foi e qual era o hash da última linha removida.
+			//
+			// Sem isso, apagar as primeiras N linhas para sumir com um evento
+			// deixava o resto da cadeia íntegro e a verificação devolvia `ok`.
+			const ehGenesis = seq === 1 && hashAnterior === GENESIS;
+			if (!ehGenesis) {
+				const ancora = ancoraPorSeq.get(seq - 1);
+				if (!ancora) {
+					return {
+						ok: false,
+						verificados: rows.length,
+						primeiroProblemaSeq: seq,
+						problema:
+							`A cadeia começa em seq ${seq} sem checkpoint de retenção para o corte ` +
+							`até seq ${seq - 1}. Prefixo removido fora da política de retenção.`
+					};
+				}
+				if (ancora !== hashAnterior) {
+					return {
+						ok: false,
+						verificados: rows.length,
+						primeiroProblemaSeq: seq,
+						problema:
+							`Checkpoint de retenção em seq ${seq - 1} não casa com o hash_anterior ` +
+							`de seq ${seq}: o corte registrado não é o que aconteceu.`
+					};
+				}
+			}
+		}
+
 		if (anterior) {
 			if (seq !== anterior.seq + 1) {
 				return {

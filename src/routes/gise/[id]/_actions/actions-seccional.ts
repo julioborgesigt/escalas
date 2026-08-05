@@ -2,23 +2,24 @@
  * Form actions das SECCIONAIS de uma GISE em `/gise/[id]`.
  *
  * Montagem (adicionar/remover) é do Admin Geral; o preenchimento
- * (`finalizarSeccional`, horários) é do admin da própria seccional — daí os
- * guards mistos de `isAdminGeral` × `isAdminSeccional` + `papel_unidade_id`.
+ * (`finalizarSeccional`, horários) é do Admin Geral OU do admin da própria
+ * seccional — regra em `podePreencherSeccional` (shared.ts), não escrita à mão
+ * aqui: quando era, faltava a metade que barra quem não tem papel nenhum.
  */
 
 import { fail } from '@sveltejs/kit';
 import type { RequestEvent } from '@sveltejs/kit';
 import {
 	getDB,
+	tryGetR2,
 	buscarGiseEscala,
 	atualizarGiseEscala,
 	atualizarGiseSeccional,
 	excluirGiseSeccional,
 	verificarGiseCompleta,
-	revogarAssinaturasSeccional,
 	adicionarGiseSeccionalUnidade
 } from '$lib/db';
-import { isAdminGeral, isAdminSeccional } from '$lib/auth';
+import { isAdminGeral } from '$lib/auth';
 import { logger } from '$lib/server/logger';
 import { enviarNotificacaoAssessorGisePreenchimentoSeccional } from '$lib/server/email';
 import { montarTextoNotificacaoAssessorGise } from '$lib/server/gise/assessor-notificacao-text';
@@ -33,13 +34,16 @@ import {
 	giseDocumentos
 } from '$lib/server/schema';
 import { eq, and, asc, inArray } from 'drizzle-orm';
-import { getInt, saiuDaFaseDeEdicao } from './shared';
+import { getInt, saiuDaFaseDeEdicao, podePreencherSeccional } from './shared';
+import { concluirMudancaGise, invalidarAssinaturasDaSeccional } from './desfecho';
+import { coletarChavesR2DaRevogacaoSeccional, deletarChavesR2 } from '$lib/server/r2-cleanup';
 
 type Event = RequestEvent<{ id: string }>;
 
 export const actionsSeccional = {
 	/** Inclui uma seccional na GISE, já com um slot de unidade em branco. */
-	adicionarSeccional: async ({ request, locals, platform, params }: Event) => {
+	adicionarSeccional: async (event: Event) => {
+		const { request, locals, platform, params } = event;
 		const u = locals.usuario;
 		if (!u || !isAdminGeral(u)) return fail(403, { error: 'Apenas Admin Geral' });
 
@@ -69,6 +73,25 @@ export const actionsSeccional = {
 			await adicionarGiseSeccionalUnidade(db, novaSec.id, null);
 		}
 
+		const nome = await db
+			.select({ nome: unidades.nome })
+			.from(unidades)
+			.where(eq(unidades.id, seccionalId))
+			.get();
+
+		await concluirMudancaGise(event, {
+			db,
+			giseId,
+			usuario: u,
+			acao: 'gise_seccional_adicionada',
+			alvo: { tipo: 'unidade', id: seccionalId, nome: nome?.nome ?? null },
+			detalhes: `Seccional ${nome?.nome ?? seccionalId} incluída na escala`,
+			// Seccional nova entra vazia: não há assinatura dela para derrubar, e o
+			// documento da escala é regerado quando ela for preenchida.
+			invalidacao: 'nada',
+			metadados: { gise_seccional_id: novaSec?.id ?? null, status_da_gise: gise.status }
+		});
+
 		return { success: true };
 	},
 
@@ -77,7 +100,8 @@ export const actionsSeccional = {
 	 * do documento, então o PDF gerado é descartado; se as seccionais restantes
 	 * já estiverem todas preenchidas, a escala volta direto para assinatura.
 	 */
-	removerSeccional: async ({ request, locals, platform, params }: Event) => {
+	removerSeccional: async (event: Event) => {
+		const { request, locals, platform, params } = event;
 		const u = locals.usuario;
 		if (!u || !isAdminGeral(u)) return fail(403, { error: 'Apenas Admin Geral' });
 
@@ -87,12 +111,38 @@ export const actionsSeccional = {
 		if (isNaN(giseId) || isNaN(secId)) return fail(400, { error: 'IDs inválidos' });
 
 		const db = getDB(platform);
+		const r2 = tryGetR2(platform) ?? null;
+		const gise = await buscarGiseEscala(db, giseId);
+		if (!gise) return fail(404, { error: 'GISE não encontrada' });
+
+		// Nome e efetivo ANTES do delete em cascata: depois não há mais linha de
+		// onde tirar quem foi retirado da escala.
 		const sec = await db
-			.select({ id: giseSeccionais.id })
+			.select({ id: giseSeccionais.id, nome: unidades.nome })
 			.from(giseSeccionais)
+			.innerJoin(unidades, eq(giseSeccionais.seccional_id, unidades.id))
 			.where(and(eq(giseSeccionais.id, secId), eq(giseSeccionais.gise_id, giseId)))
 			.get();
 		if (!sec) return fail(404, { error: 'Seccional não encontrada' });
+
+		const membrosQueSaem = await db
+			.select({ policial_id: giseMembros.policial_id })
+			.from(giseMembros)
+			.innerJoin(giseEquipes, eq(giseMembros.equipe_id, giseEquipes.id))
+			.where(eq(giseEquipes.gise_seccional_id, secId))
+			.all();
+
+		// R2 antes do D1: o `excluirGiseSeccional` leva equipes, membros e — em
+		// cascata — presenças e relatórios da seccional. Depois disso não há linha
+		// que diga quais objetos existiam (FLW-DOC-003).
+		if (r2) {
+			await deletarChavesR2(
+				db,
+				r2,
+				await coletarChavesR2DaRevogacaoSeccional(db, giseId, secId),
+				'remocao-seccional'
+			);
+		}
 
 		await excluirGiseSeccional(db, secId);
 		await db.delete(giseDocumentos).where(eq(giseDocumentos.gise_id, giseId));
@@ -110,6 +160,28 @@ export const actionsSeccional = {
 		}
 
 		await atualizarGiseEscala(db, giseId, { status: novoStatus });
+
+		// Invalidação própria, e por isso não usa `invalidarDocumentoDaEscala`:
+		// esta action recalcula o status em vez de forçar `em_preenchimento` — com
+		// as seccionais restantes já preenchidas, a escala volta direto para
+		// assinatura. O que se declara à trilha é o efeito real: o documento só
+		// tinha o que descartar se a escala já havia saído do rascunho.
+		await concluirMudancaGise(event, {
+			db,
+			giseId,
+			usuario: u,
+			acao: 'gise_seccional_removida',
+			alvo: { tipo: 'unidade', id: secId, nome: sec.nome },
+			detalhes: `Seccional ${sec.nome} removida, com ${membrosQueSaem.length} policial(is) escalado(s)`,
+			invalidacao: saiuDaFaseDeEdicao(gise.status) ? 'documento_da_escala' : 'nada',
+			metadados: {
+				gise_seccional_id: secId,
+				policiais_desalocados: membrosQueSaem.map((m) => m.policial_id),
+				status_anterior: gise.status,
+				status_novo: novoStatus
+			}
+		});
+
 		return { success: true, gise_status: novoStatus };
 	},
 
@@ -121,7 +193,8 @@ export const actionsSeccional = {
 	 * seccional pode ter várias abas abertas. Quando a última seccional finaliza,
 	 * a GISE inteira vai para `aguardando_assinatura`.
 	 */
-	finalizarSeccional: async ({ request, locals, platform, params }: Event) => {
+	finalizarSeccional: async (event: Event) => {
+		const { request, locals, platform, params } = event;
 		const u = locals.usuario;
 		if (!u) return fail(401, { error: 'Não autorizado' });
 
@@ -138,8 +211,8 @@ export const actionsSeccional = {
 			.get();
 		if (!sec) return fail(404, { error: 'Seccional não encontrada' });
 
-		if (isAdminSeccional(u) && u.papel_unidade_id !== sec.seccional_id) {
-			return fail(403, { error: 'Sem permissão' });
+		if (!podePreencherSeccional(u, sec.seccional_id)) {
+			return fail(403, { error: 'Sem permissão para preencher esta seccional' });
 		}
 
 		const slots = await db
@@ -180,6 +253,29 @@ export const actionsSeccional = {
 			await atualizarGiseEscala(db, giseId, { status: 'aguardando_assinatura' });
 		}
 
+		const secComNome = await db
+			.select({ nome: unidades.nome })
+			.from(giseSeccionais)
+			.innerJoin(unidades, eq(giseSeccionais.seccional_id, unidades.id))
+			.where(eq(giseSeccionais.id, secId))
+			.get();
+
+		// Declaração de preenchimento: não muda composição, então não derruba
+		// documento nem assinatura. Vai para a trilha porque é o carimbo de que a
+		// seccional assumiu o que montou — e é o gatilho da notificação abaixo.
+		await concluirMudancaGise(event, {
+			db,
+			giseId,
+			usuario: u,
+			acao: 'gise_seccional_preenchida',
+			alvo: { tipo: 'unidade', id: sec.seccional_id, nome: secComNome?.nome ?? null },
+			detalhes: `Seccional ${secComNome?.nome ?? sec.seccional_id} declarou preenchimento concluído`,
+			invalidacao: 'nada',
+			metadados: { gise_seccional_id: secId, gise_status: giseStatus },
+			dados_antes: { status: sec.status },
+			dados_depois: { status: novoStatus }
+		});
+
 		const giseRow = await db
 			.select({
 				data_inicio: giseEscalas.data_inicio,
@@ -188,13 +284,6 @@ export const actionsSeccional = {
 			})
 			.from(giseEscalas)
 			.where(eq(giseEscalas.id, giseId))
-			.get();
-
-		const secComNome = await db
-			.select({ nome: unidades.nome })
-			.from(giseSeccionais)
-			.innerJoin(unidades, eq(giseSeccionais.seccional_id, unidades.id))
-			.where(eq(giseSeccionais.id, secId))
 			.get();
 
 		const todasSecs = await db
@@ -263,7 +352,8 @@ export const actionsSeccional = {
 	},
 
 	/** Horário padrão da seccional (as equipes podem sobrepor o seu). */
-	salvarHorariosSec: async ({ request, locals, platform, params }: Event) => {
+	salvarHorariosSec: async (event: Event) => {
+		const { request, locals, platform, params } = event;
 		const u = locals.usuario;
 		if (!u) return fail(401, { error: 'Não autorizado' });
 
@@ -276,6 +366,7 @@ export const actionsSeccional = {
 		const horaSaida = formData.get('hora_saida') as string | null;
 
 		const db = getDB(platform);
+		const r2 = tryGetR2(platform) ?? null;
 		const gise = await buscarGiseEscala(db, giseId);
 		if (!gise) return fail(404, { error: 'GISE não encontrada' });
 
@@ -286,8 +377,8 @@ export const actionsSeccional = {
 			.get();
 		if (!sec) return fail(404, { error: 'Seccional não encontrada' });
 
-		if (isAdminSeccional(u) && u.papel_unidade_id !== sec.seccional_id) {
-			return fail(403, { error: 'Sem permissão' });
+		if (!podePreencherSeccional(u, sec.seccional_id)) {
+			return fail(403, { error: 'Sem permissão para preencher esta seccional' });
 		}
 
 		await atualizarGiseSeccional(db, secId, {
@@ -297,9 +388,20 @@ export const actionsSeccional = {
 
 		// Horário sai impresso no relatório de extra: mudou, as assinaturas desta
 		// seccional caem.
-		if (gise && saiuDaFaseDeEdicao(gise.status)) {
-			await revogarAssinaturasSeccional(db, giseId, secId);
-		}
+		const invalidacao = await invalidarAssinaturasDaSeccional(db, r2, giseId, secId, gise.status);
+
+		await concluirMudancaGise(event, {
+			db,
+			giseId,
+			usuario: u,
+			acao: 'gise_seccional_alterada',
+			alvo: { tipo: 'unidade', id: sec.seccional_id, nome: null },
+			detalhes: `Horário da seccional ${secId}: ${horaEntrada || '—'} às ${horaSaida || '—'}`,
+			invalidacao,
+			metadados: { gise_seccional_id: secId },
+			dados_antes: { hora_entrada: sec.hora_entrada, hora_saida: sec.hora_saida },
+			dados_depois: { hora_entrada: horaEntrada || null, hora_saida: horaSaida || null }
+		});
 
 		return { success: true };
 	}

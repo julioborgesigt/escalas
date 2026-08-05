@@ -41,6 +41,7 @@ async function preparar(request: import('@playwright/test').APIRequestContext) {
 	});
 	expect(res.status(), await res.text().catch(() => '')).toBe(200);
 	return (await res.json()) as {
+		intencao: string;
 		preparedPdf: string;
 		messageDigest: string;
 		signingTimeISO: string;
@@ -50,9 +51,11 @@ async function preparar(request: import('@playwright/test').APIRequestContext) {
 
 function payloadFinalizar(prep: Awaited<ReturnType<typeof preparar>>, serproCms: string) {
 	return {
+		// A intenção do preparo volta no finalizar; o `verificationHash` não é
+		// mais enviado — o servidor usa o que gravou (FLW-DOC-001).
+		intencao: prep.intencao,
 		preparedPdf: prep.preparedPdf,
 		serproCms,
-		verificationHash: prep.verificationHash,
 		signingTimeISO: prep.signingTimeISO,
 		messageDigestHex: prep.messageDigest
 	};
@@ -135,5 +138,64 @@ test.describe('Assinatura qualificada por Token A3 (CA de teste)', () => {
 		});
 		expect(fin.status()).toBe(422);
 		expect((await fin.json()).error).toMatch(/messageDigest|não confere/i);
+	});
+	/**
+	 * FLW-DOC-001 — a preparação passa pelo CLIENTE entre os dois tempos do
+	 * fluxo, e até ago/2026 nada amarrava o PDF que voltava ao documento que o
+	 * servidor tinha preparado. Os três casos abaixo têm assinatura VÁLIDA e CPF
+	 * correto: é exatamente o que a verificação criptográfica não consegue
+	 * distinguir sozinha.
+	 */
+	test('preparar em UMA escala e finalizar em OUTRA → recusado', async ({ request }) => {
+		const prep = await preparar(request);
+		const serproCms = assinarComoSerpro(prep.preparedPdf, 'leaf');
+
+		// Mesma pessoa, mesma lotação, permissão em cheque nas duas escalas.
+		const fin = await request.post(
+			`/api/escalas/${FIXTURE.escalaAssinavel.id}/finalizar-assinatura`,
+			{ headers: headersDeSessaoMutacao(token!), data: payloadFinalizar(prep, serproCms) }
+		);
+		expect(fin.status()).toBe(400);
+		expect((await fin.json()).error).toMatch(/Prepara..o de assinatura/i);
+
+		// E nada foi persistido na escala alheia.
+		const doc = await request.get(`/api/escalas/${FIXTURE.escalaAssinavel.id}/documento-assinado`, {
+			headers: cookieDeSessao(token!)
+		});
+		expect(doc.status()).toBe(404);
+	});
+
+	test('a MESMA preparação não finaliza duas vezes', async ({ request }) => {
+		const prep = await preparar(request);
+		const serproCms = assinarComoSerpro(prep.preparedPdf, 'leaf');
+		const corpo = payloadFinalizar(prep, serproCms);
+
+		const primeira = await request.post(`/api/escalas/${ESCALA}/finalizar-assinatura`, {
+			headers: headersDeSessaoMutacao(token!),
+			data: corpo
+		});
+		expect(primeira.status()).toBe(200);
+
+		const segunda = await request.post(`/api/escalas/${ESCALA}/finalizar-assinatura`, {
+			headers: headersDeSessaoMutacao(token!),
+			data: corpo
+		});
+		expect(segunda.status()).toBe(400);
+		expect((await segunda.json()).error).toMatch(/Prepara..o de assinatura/i);
+	});
+
+	test('finalizar sem a intenção → recusado antes de qualquer persistência', async ({
+		request
+	}) => {
+		const prep = await preparar(request);
+		const serproCms = assinarComoSerpro(prep.preparedPdf, 'leaf');
+		const { intencao, ...semIntencao } = payloadFinalizar(prep, serproCms);
+		expect(intencao).toBeTruthy(); // o preparo emitiu — o teste é omiti-la
+
+		const fin = await request.post(`/api/escalas/${ESCALA}/finalizar-assinatura`, {
+			headers: headersDeSessaoMutacao(token!),
+			data: semIntencao
+		});
+		expect(fin.status()).toBe(400);
 	});
 });

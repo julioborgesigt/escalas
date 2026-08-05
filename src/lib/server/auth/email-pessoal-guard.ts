@@ -25,6 +25,7 @@ import { verificarSenha, type UsuarioLogado } from '$lib/auth';
 import { administradores, policiais } from '../schema';
 import { contarRecoveryAttempts, registrarRecoveryAttempt } from './recovery-rate-limit';
 import type { Database } from '$lib/db';
+import { credencialDoUsuario } from './credencial';
 
 const SENHA_ATUAL_MAX_TENTATIVAS = 5;
 export const SENHA_ATUAL_JANELA_MIN = 15;
@@ -80,9 +81,12 @@ export async function exigirSenhaParaTrocaEmailPessoal(
 	);
 	if (blocked) return { ok: false, erro: 'bloqueado' };
 
-	// Credencial: espelha /alterar-senha (admin vinculado → policial vinculado).
-	const credencialEhPolicial = u.tipo === 'policial' || u.adminPolicialId != null;
-	const credencialId = u.adminPolicialId ?? u.id;
+	// Onde a senha mora — regra única em `credencialDoUsuario`. Antes esta era a
+	// segunda de três cópias, e a quarta (o `redefinir-senha`) simplesmente não
+	// existia.
+	const credencial = credencialDoUsuario(u);
+	const credencialEhPolicial = credencial.tipo === 'policial';
+	const credencialId = credencial.id;
 	const registro = credencialEhPolicial
 		? await db
 				.select({ senha: policiais.senha })

@@ -20,8 +20,8 @@
  * O upsert é por MATRÍCULA e preserva o que a fonte externa não é dona:
  * senha, `primeiro_acesso` e contatos já cadastrados (ver `upsertPolicial`).
  */
-import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
+import { linhaVazia, respostaDeSync } from '$lib/server/sync/resultado';
 import { getDB, auditar, contextoDeEvento } from '$lib/db';
 import { upsertPolicial, buscarPolicialPorMatricula } from '$lib/db/policiais';
 import { eq } from 'drizzle-orm';
@@ -88,14 +88,27 @@ export const POST: RequestHandler = async (event) => {
 		// O payload pode ser um objeto (linha única) ou um array (bulk)
 		const data = Array.isArray(payload) ? payload : [payload];
 		let successCount = 0;
+		let vazias = 0;
 		const errors: string[] = [];
 
 		for (const item of data) {
 			const rowId = item.matricula || item.nome || 'Linha desconhecida';
 			try {
-				// Validações básicas antes do banco
-				if (!item.matricula || String(item.matricula).trim() === '') continue; // Pula linha vazia silenciosamente
-				if (!item.nome || String(item.nome).trim() === '') continue;
+				// Linha em branco no fim da faixa da planilha: descarte legítimo, e o
+				// contador a expõe. Linha com ALGUM dado e sem matrícula/nome é outra
+				// coisa — alguém digitou ali esperando ver o registro importado, e o
+				// `continue` silencioso fazia a sincronização "dar certo" sem ele
+				// (FLW-WEBHOOK-002).
+				if (linhaVazia(item as Record<string, unknown>)) {
+					vazias++;
+					continue;
+				}
+				if (!item.matricula || String(item.matricula).trim() === '') {
+					throw new Error('Linha sem matrícula');
+				}
+				if (!item.nome || String(item.nome).trim() === '') {
+					throw new Error('Linha sem nome');
+				}
 
 				const cargo = String(item.cargo || '')
 					.toUpperCase()
@@ -214,6 +227,7 @@ export const POST: RequestHandler = async (event) => {
 				metadados: {
 					processed: data.length,
 					imported: successCount,
+					skippedEmpty: vazias,
 					failed: errors.length,
 					papelLiberado
 				},
@@ -222,12 +236,11 @@ export const POST: RequestHandler = async (event) => {
 			{ env: cryptoEnv }
 		);
 
-		return json({
-			success: errors.length === 0,
-			processed: data.length,
-			imported: successCount,
-			failed: errors.length,
-			errorDetails: errors.length > 0 ? errors : undefined
+		return respostaDeSync({
+			processadas: data.length,
+			importadas: successCount,
+			vazias,
+			erros: errors
 		});
 	} catch (err: unknown) {
 		// 400 (não 500): payload do webhook é input inválido do caller, não bug

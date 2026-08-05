@@ -4,9 +4,9 @@
  * Cada confirmação guarda rubrica, foto (prova de vida), IP e GPS — é o que
  * sustenta o termo de presença e, depois, o relatório de extra.
  */
-import { eq, and, sql } from 'drizzle-orm';
+import { eq, and, isNotNull, sql } from 'drizzle-orm';
 import { gisePresencas, policiais } from '../../server/schema';
-import type { Database } from '../core';
+import { linhasAfetadas, type Database } from '../core';
 import { anonimizarIp } from '../audit';
 import { parseUserAgent, reduzirPrecisaoGps } from '../../server/assinatura/document-utils';
 import { decifrarCpfDoDB, type CpfCriptoEnv } from '../../crypto/cpf-cripto';
@@ -67,7 +67,7 @@ export async function salvarSaidaGise(
 	longitude?: number,
 	selfieKey?: string
 ) {
-	return db
+	const r = await db
 		.update(gisePresencas)
 		.set({
 			saida_timestamp: new Date().toISOString(), // UTC real (ver salvarEntradaGise)
@@ -79,7 +79,18 @@ export async function salvarSaidaGise(
 			longitude: reduzirPrecisaoGps(longitude),
 			updated_at: sql`datetime('now', '-3 hours')`
 		})
-		.where(and(eq(gisePresencas.gise_id, giseId), eq(gisePresencas.policial_id, policialId)));
+		.where(
+			and(
+				eq(gisePresencas.gise_id, giseId),
+				eq(gisePresencas.policial_id, policialId),
+				// A saída EXIGE a entrada. Sem isto o UPDATE não achava linha, o
+				// resultado era ignorado, e o endpoint gravava termo e auditoria de
+				// sucesso para uma saída que não existe (FLW-GISE-008).
+				isNotNull(gisePresencas.entrada_timestamp)
+			)
+		);
+
+	return { registrada: linhasAfetadas(r) > 0 };
 }
 
 /** Presenças da GISE com os dados do policial (para o painel e os relatórios). */

@@ -16,6 +16,7 @@ import { logger } from '$lib/server/logger';
 import { PDFDocument } from 'pdf-lib';
 import { gerarCodigoValidacao } from '$lib/utils/formato';
 import { verificarPermissaoEscala } from '$lib/server/escalas/permissao';
+import { criarIntencaoAssinatura } from '$lib/server/assinatura/intencao';
 
 export const POST: RequestHandler = async ({
 	platform,
@@ -174,7 +175,18 @@ export const POST: RequestHandler = async ({
 		}
 	}
 
+	// Amarra ESTE pdf a ESTA escala, a ESTE usuário e a um único uso: o
+	// finalizar não aceita mais um `preparedPdf` qualquer (FLW-DOC-001).
+	const intencao = await criarIntencaoAssinatura(
+		db,
+		{ recurso: 'escala', recursoId: id },
+		{ id: u.id, tipo: u.tipo },
+		preparedPdf,
+		verificationHash
+	);
+
 	return json({
+		intencao,
 		signedAttrsHashHex,
 		preparedPdf: preparedPdfBase64,
 		messageDigest,

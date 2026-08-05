@@ -120,6 +120,16 @@ jobs:
           check_imports src/routes/api/gise/\[id\]/documento-assinado/info/+server.ts verificarPermissaoGise
           check_imports src/routes/api/gise/\[id\]/download/+server.ts verificarPermissaoGise
 
+      # Guard de autorização: toda operação material (handler de mutação de API
+      # ou form action) tem de recusar alguém. Olha o RESULTADO — 403 vs só 401
+      # — porque o vocabulário de autorização aqui é aberto: cada domínio tem o
+      # seu resolvedor, e procurar nomes de helper deixaria passar justamente o
+      # handler novo com resolvedor novo. As dispensas legítimas (login, troca
+      # da própria senha, webhook por segredo) ficam declaradas COM MOTIVO no
+      # próprio script. Ver README → "Autorização das operações materiais".
+      - name: Guard — autorização das operações materiais
+        run: node scripts/guard-autorizacao.mjs
+
       # Guard de documentação: arquivo NOVO em src/lib/db/ tem de nascer com
       # cabeçalho de módulo e JSDoc nos exports. Só arquivos ADICIONADOS no
       # diff — o legado é pago em levas, medido por `npm run docs:inventario`

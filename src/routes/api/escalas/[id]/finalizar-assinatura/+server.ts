@@ -22,6 +22,10 @@ import { finalizarQualificadaDoPayload } from '$lib/server/assinatura/signature-
 import { verificarPermissaoEscala } from '$lib/server/escalas/permissao';
 import { limparR2ObsoletoEscala } from '$lib/server/r2-cleanup';
 import { chaveConferencia } from '$lib/server/assinatura/copia-conferencia';
+import {
+	consumirIntencaoAssinatura,
+	mensagemRecusaIntencao
+} from '$lib/server/assinatura/intencao';
 
 export const POST: RequestHandler = async ({
 	platform,
@@ -39,9 +43,9 @@ export const POST: RequestHandler = async ({
 	const validated = await validateBody(request, finalizarAssinaturaEscalasSchema);
 	if (!validated.ok) return validated.response;
 	const {
+		intencao,
 		preparedPdf,
 		serproCms,
-		verificationHash,
 		signingTimeISO,
 		messageDigestHex,
 		assinanteEmail,
@@ -59,6 +63,20 @@ export const POST: RequestHandler = async ({
 	// Permissão de negócio: admin geral, dono da lotação ou DPC admin com solicitação direcionada.
 	const perm = await verificarPermissaoEscala(db, id, escala.lotacao, u);
 	if (!perm.permitido) return forbidden(perm.motivo ?? 'Sem permissão para assinar esta escala');
+
+	// Consome a preparação: prova que ESTE pdf foi preparado por ESTE usuário
+	// para ESTA escala, uma vez só (FLW-DOC-001). O `verificationHash` vem
+	// daqui, não do corpo — era o cliente que escolhia a chave R2 e o código
+	// público do /validar.
+	const consumo = await consumirIntencaoAssinatura(
+		db,
+		intencao,
+		{ recurso: 'escala', recursoId: id },
+		{ id: u.id, tipo: u.tipo },
+		Uint8Array.from(Buffer.from(preparedPdf, 'base64'))
+	);
+	if (!consumo.ok) return badRequest(mensagemRecusaIntencao());
+	const { verificacaoHash: verificationHash } = consumo;
 
 	try {
 		// Delega TODO o fluxo criptográfico ao serviço unificado: validação de
@@ -111,7 +129,10 @@ export const POST: RequestHandler = async ({
 
 		// R2-4: remove os objetos do documento anterior que a re-assinatura tornou
 		// obsoletos (blob/conferência/selfie de hash antigo). No-op se era 1ª assinatura.
-		await limparR2ObsoletoEscala(bucket, docAntigo, [r2Key, chaveConferencia(verificationHash)]);
+		await limparR2ObsoletoEscala(db, bucket, docAntigo, [
+			r2Key,
+			chaveConferencia(verificationHash)
+		]);
 
 		await registrarAuditComContexto(db, {
 			usuario: u,

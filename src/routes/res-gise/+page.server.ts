@@ -577,7 +577,26 @@ export const actions: Actions = {
 			if (r.ok) selfieKey = r.key;
 		}
 
-		await salvarSaidaGise(db, giseId, u.id, rubrica, ip, ua, latitude, longitude, selfieKey);
+		// A gravação exige a entrada no próprio `WHERE`: sem ela o UPDATE não
+		// achava linha, o resultado era ignorado e a auditoria registrava uma
+		// saída que nunca existiu (FLW-GISE-008).
+		const saida = await salvarSaidaGise(
+			db,
+			giseId,
+			u.id,
+			rubrica,
+			ip,
+			ua,
+			latitude,
+			longitude,
+			selfieKey
+		);
+		if (!saida.registrada) {
+			return fail(409, {
+				error: 'Não há confirmação de ENTRADA registrada — a saída não pode ser confirmada.',
+				giseId
+			});
+		}
 
 		await sincronizarStatusGiseAposPresencaRelatorios(db, giseId);
 

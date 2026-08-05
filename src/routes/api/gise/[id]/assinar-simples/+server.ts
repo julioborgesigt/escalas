@@ -44,6 +44,7 @@ import {
 import { selarPdfInstitucional, tipoCarimboPrevisto } from '$lib/server/assinatura/server-seal';
 import { gerarCodigoValidacao } from '$lib/utils/formato';
 import { tryGetR2 } from '$lib/db';
+import { bucketParaAssinatura, guardarPdfAssinado } from '$lib/server/assinatura/blob-assinado';
 import { uploadSelfieDataUri } from '$lib/server/assinatura/selfie-upload';
 import { chaveConferencia } from '$lib/server/assinatura/copia-conferencia';
 import { logger } from '$lib/server/logger';
@@ -173,7 +174,13 @@ export const POST: RequestHandler = async (event) => {
 		const hashBuffer = await crypto.subtle.digest('SHA-256', pdfParaSalvar.slice());
 		const arquivo_hash = bytesToHex(new Uint8Array(hashBuffer));
 
-		const r2 = tryGetR2(platform);
+		// Sem onde guardar, a assinatura é RECUSADA: gravar a linha com uma
+		// `r2_key` apontando para nada faz `/validar` resolver o hash impresso no
+		// documento para um arquivo que não existe (FLW-R2-003).
+		const bucketOk = bucketParaAssinatura(tryGetR2(platform));
+		if (!bucketOk.ok) return bucketOk.resposta;
+		const r2 = bucketOk.r2;
+
 		const [yyyy, mm, dd] = gise.data_inicio.split('-');
 		const mesAno = `${yyyy}-${mm}`;
 		const folder = `gise/${mesAno}/${dd}/${id}/escala`;
@@ -182,10 +189,9 @@ export const POST: RequestHandler = async (event) => {
 		const documentKey = `${prefixBase}_assinada.pdf`;
 		let selfieKey: string | undefined = undefined;
 
-		if (r2) {
-			await r2.put(documentKey, pdfParaSalvar, {
-				httpMetadata: { contentType: 'application/pdf' }
-			});
+		{
+			const guardado = await guardarPdfAssinado(r2, documentKey, pdfParaSalvar, 'gise-simples');
+			if (!guardado.ok) return guardado.resposta;
 
 			// Cópia de conferência: os MESMOS bytes do documento assinado ANTES da
 			// folha de manifesto (`pdfComRodape` = escala + rodapé/QR + rubrica).

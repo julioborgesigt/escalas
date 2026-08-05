@@ -200,6 +200,8 @@ O projeto usa **Cloudflare D1** (SQLite serverless) via **Drizzle ORM**. O schem
 | `escalas`                        | Escalas de plantão, expediente e FDS                                                                                |
 | `escala_policiais`               | Associação policial ↔ escala (data, horário, equipe)                                                                |
 | `escala_documentos`              | PDFs assinados com metadados CAdES-LT (OCSP, TST, selfie, GPS, IP)                                                  |
+| `audit_pendencias`               | Evento de auditoria que a cadeia recusou — reprocessado pelo cron de retenção                                       |
+| `assinatura_intencoes`           | Amarra cada PDF preparado ao documento, ao assinante e a um único uso (15 min)                                      |
 | `escala_solicitacoes_assinatura` | Solicitações de assinatura por unidade/respondência                                                                 |
 | `unidades`                       | Hierarquia: departamento → seccional → delegacia. Ligada por **nome** (ver abaixo)                                  |
 | `gise_escalas`                   | GISE operacionais (status, supervisor, assessor, configuração)                                                      |
@@ -292,6 +294,7 @@ npm run format:check       # Prettier sem alterar (só verifica)
 npm run knip               # Detecção de código/exports mortos
 npm run docs:inventario    # Inventário de documentação (cabeçalhos, contratos, opacos)
 npm run docs:guard         # Falha se arquivo NOVO em lib/db vier sem doc (roda no CI)
+npm run guard:autorizacao  # Falha se operação material não recusar ninguém (roda no CI)
 
 # Testes
 npm run test               # Vitest (run once)
@@ -527,6 +530,32 @@ O logger estruturado ([`src/lib/logger.ts`](src/lib/logger.ts)) continua emitind
 
 ## 9. Autenticação e Autorização
 
+### Uma senha, duas identidades (Admin Geral vinculado)
+
+O Admin Geral **vinculado** é uma pessoa com DUAS linhas: uma em `policiais` e
+uma em `administradores` com `policial_id` apontando para ela. A linha admin não
+tem senha própria — recebe um placeholder aleatório que ninguém lê. O login de
+administrador autentica contra `policiais.senha`, a mesma senha do modo usuário.
+
+Daí saem duas perguntas que todo fluxo de credencial precisa responder, e que
+são fáceis de responder pela metade. As duas têm resposta única em
+[`server/auth/credencial.ts`](src/lib/server/auth/credencial.ts):
+
+| pergunta                  | resposta                                             |
+| ------------------------- | ---------------------------------------------------- |
+| onde gravar a senha nova? | `resolverCredencial().dono` — a linha que o login LÊ |
+| quais sessões derrubar?   | `revogarSessoesDaCredencial()` — as DUAS identidades |
+
+Gravar na linha errada não muda nada: a senha nova não passa a valer e a antiga
+continua valendo. Derrubar só o cookie do modo atual deixa vivo o outro,
+destravado pela mesma senha. Desativar o policial fecha os dois modos —
+`buscarAdminAtivo` confere o vínculo, e a desativação revoga as sessões abertas.
+
+Sessão em cache não vale para quem MUTA: `ttlCacheSessaoParaMetodo` devolve 0
+em `POST`/`PUT`/`PATCH`/`DELETE`. Leitura pode estar até um TTL atrasada; ação,
+não — o Cache API é por colo, e nenhuma invalidação local alcança outro data
+center.
+
 ### Fluxo de login
 
 1. Usuário informa matrícula + senha
@@ -560,6 +589,45 @@ O aceite do termo de uso é obrigatório a cada nova versão. Qualquer mudança 
 | `policial`               | —                 | Acessa apenas suas próprias escalas e GISE                                                                                                              |
 
 A matriz completa de capacidades por papel está em [`DEPLOY.md`](DEPLOY.md#papéis-e-privilégios-de-administrador). Membros de GISE têm papéis adicionais (`supervisor`, `assessor/SEINT`, `membro`) calculados dinamicamente a partir da tabela `gise_membros`.
+
+### Autorização das operações materiais
+
+Esconder o botão na tela não é autorização: o POST direto tem de morrer no
+servidor. São **114 operações materiais** — handlers de mutação de API
+(`POST`/`PUT`/`PATCH`/`DELETE`) e form actions do SvelteKit —, e
+`npm run guard:autorizacao` (rodado no CI) verifica que cada uma recusa alguém.
+
+O guard não procura o nome de um helper, e isso é deliberado. A decisão de
+autorização é tomada de treze formas diferentes, porque ela genuinamente difere
+por domínio: escala vai por lotação mais solicitação de assinatura
+(`verificarPermissaoEscala`), GISE vai por participação da seccional, quadro de
+supervisão ou vínculo de equipe (`verificarPermissaoGise`,
+`resolverParticipacaoGisePolicial`), policial vai por escopo administrado
+(`lotacoesAdministradas`), e várias rotas resolvem no preâmbulo local do próprio
+arquivo (`autorizarAcao`, `carregarEscalaComPermissao`). Uma lista de nomes
+nunca estaria completa — e deixaria passar justamente o handler novo com o
+resolvedor novo, que é o caso perigoso.
+
+O que o guard olha é o RESULTADO, que é fechado:
+
+| nível | o que a operação faz     | como aparece                                                    |
+| ----- | ------------------------ | --------------------------------------------------------------- |
+| 2     | recusa por **permissão** | `fail(403)`, `forbidden()`, `requireAdmin`, `requireSuperAdmin` |
+| 1     | só exige **sessão**      | `fail(401)`, `unauthorized()`, `requireAuth`                    |
+| 0     | não recusa ninguém       | —                                                               |
+
+Nível 0 e 1 existem legitimamente: login não tem sessão para exigir, trocar a
+própria senha não tem segundo sujeito para autorizar, e webhook se autentica por
+segredo compartilhado. As 20 dispensas ficam declaradas **com motivo** em
+`scripts/guard-autorizacao.mjs` — a diferença entre "público de propósito" e
+"esqueceram o guard" não está no código, só na cabeça de quem escreveu; ali ela
+fica escrita. Encolher aquela lista é progresso.
+
+O guard reprova em quatro situações, e a última é a que impede falso verde:
+operação nova em nível 0/1 sem declaração; dispensa que virou nível 2 (lista
+mentindo); dispensa que aponta para operação inexistente; e **handler declarado
+que o parser não conseguiu ler** — rota que o guard não enxerga é rota que ele
+não protege.
 
 ### Proteção CSRF
 
@@ -777,7 +845,7 @@ npm run test          # Executa uma vez
 npm run test:watch    # Watch mode (recomendado durante desenvolvimento)
 ```
 
-Arquivos de teste ficam em `src/` com o padrão `*.test.ts`, **sempre** em pastas `__tests__/` junto do código testado (81 arquivos, 840 testes) — convenção verificada no CI. Os principais grupos:
+Arquivos de teste ficam em `src/` com o padrão `*.test.ts`, **sempre** em pastas `__tests__/` junto do código testado (91 arquivos, 933 testes) — convenção verificada no CI. Os principais grupos:
 
 - `src/lib/__tests__/` — autenticação (PBKDF2/pepper, sessões, 2FA), CSRF, headers de segurança, utilitários
 - `src/lib/schemas/__tests__/` — schemas Zod (LGPD, formulários GISE)
@@ -818,6 +886,20 @@ npm run test:e2e -- --project=chromium     # só desktop (pula o projeto mobile)
 > por dado alheio, é bug do spec, não do seu banco.
 
 Os testes E2E fazem build + preview automático antes de rodar (via `e2e/servidor-e2e.ts`), e o `global-setup` aplica as migrations pendentes no D1 local e semeia os fixtures — não é preciso preparar o banco manualmente. Configure credenciais de teste em `e2e/global-setup.ts`. Além do projeto `chromium`, um projeto `mobile` (Pixel 7 emulado) reexecuta os specs de UI em viewport de celular.
+
+**Cobertura negativa automática:** `autorizacao-negativa.spec.ts` varre
+`src/routes/**` em tempo de teste e exerce **todas** as operações materiais em
+dois cenários — anônimo, e policial de outra unidade contra um recurso real —
+exigindo 401/403/404 e nenhum documento criado ou apagado. A tabela não é
+escrita à mão: rota nova entra sozinha, sem depender de alguém lembrar. É o
+complemento executável do `guard:autorizacao`, que só lê o código: o guard vê
+_se_ existe gate, o spec vê se ele **vem antes do trabalho** e se olha o
+**recurso**, não só o usuário. Foi ele que achou o FLW-GISE-004.
+
+Duas armadilhas ao mexer nele: alvo protegido por outro motivo (escala já
+assinada, GISE fechada) não testa permissão — o 409 chega primeiro e esconde a
+falta do 403; e form action **não** usa o status HTTP, porque o `ActionResult`
+viaja em JSON sob 200 mesmo quando a action executou.
 
 **Fluxo A3 qualificado em CI:** o build de E2E injeta uma **CA de teste** no trust store ICP-Brasil (`E2E_TEST_CA=1` no build → `define` do Vite → `trust-store.ts`; chaves regeneradas a cada execução em `e2e/ca-teste/artefatos/`, gitignored). O spec `assinatura-qualificada-a3.spec.ts` faz o papel do Assinador SERPRO no runner (CMS CAdES assinado com o "e-CPF" de teste) e percorre preparar → finalizar → download → `/validar` contra a verificação real do servidor — incluindo os negativos de CA desconhecida, CPF divergente e digest adulterado. Em build normal a constante não existe e o ramo é código morto: **não há env de runtime capaz de ligar a CA de teste em produção**.
 

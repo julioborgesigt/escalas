@@ -1,6 +1,7 @@
 import { temSolicitacaoParaDpcAdmin } from '$lib/db';
 import { lotacoesAdministradas } from '$lib/server/policial-permissao';
 import type { Database } from '$lib/db';
+import { isAnyAdmin } from '$lib/auth';
 
 /**
  * Verifica se o usuário tem permissão de leitura/assinatura sobre a escala.
@@ -55,4 +56,29 @@ export async function verificarPermissaoEscala(
 	}
 
 	return { permitido: false, motivo: 'Sem permissão para acessar esta escala.' };
+}
+
+/**
+ * Quem pode ALTERAR a escala de uma lotação: o Admin Geral, em qualquer uma, e
+ * o policial COM papel administrativo, na sua.
+ *
+ * Até ago/2026 o servidor exigia só a lotação — qualquer policial lotado na
+ * unidade, sem papel algum, montava e assinava a escala dela por POST direto
+ * (FLW-ESC-001).
+ *
+ * A tela já calculava esta regra, e é dela que ela vem: `podeEditarEscala &&
+ * (podeOIPSolicitar || papel administrativo com cargo DPC)`. Só que a usava em
+ * UM dos sete componentes de edição e passava a flag larga para os outros seis.
+ * A regra estava certa e escrita; o que faltava era ser a mesma nos sete
+ * lugares e no servidor — por isso agora ela é calculada AQUI e desce pronta
+ * para a tela, em vez de recalculada lá.
+ *
+ * Expandindo os dois ramos: `tipo === 'admin'` ou papel em
+ * {admin_seccional, admin_unidade} com cargo em {DPC, OIP}. Como `cargo` só tem
+ * esses dois valores, o conjunto é exatamente `isAnyAdmin`.
+ */
+export function podeMexerNaEscala(u: App.Locals['usuario'], lotacaoDaEscala: string): boolean {
+	if (!u) return false;
+	if (u.tipo === 'admin') return true;
+	return u.lotacao === lotacaoDaEscala && isAnyAdmin(u);
 }

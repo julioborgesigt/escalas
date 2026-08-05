@@ -16,6 +16,7 @@ import {
 	contextoDeEvento
 } from '$lib/db';
 import { isAdminGeral } from '$lib/auth';
+import { modoDeFinalizacao, PENDENCIAS_DA_ANTECIPADA } from '$lib/gise/finalizacao';
 import { invalidarPapelGiseMultiplos, coletarAfetadosGise } from '$lib/server/gise/papel-cache';
 import {
 	agendarSyncBaseEquipeAposFinalizar,
@@ -23,7 +24,12 @@ import {
 	type BaseEquipeEnv
 } from '$lib/server/gise/base-equipe-sync';
 import { policiais, giseDocumentos, giseEscalas } from '$lib/server/schema';
-import { limparR2DaGise } from '$lib/server/r2-cleanup';
+import {
+	coletarChavesR2DoDocumentoGise,
+	deletarChavesR2,
+	limparR2DaGise,
+	LIMPEZA_R2_VAZIA
+} from '$lib/server/r2-cleanup';
 import { eq } from 'drizzle-orm';
 import { saiuDaFaseDeEdicao } from './shared';
 
@@ -263,6 +269,17 @@ export const actionsEscala = {
 
 		let deveResetarStatus = false;
 		if (saiuDaFaseDeEdicao(gise.status)) {
+			// R2 antes do D1 — mudar data/horário da escala invalida o PDF assinado,
+			// e a linha é a única coisa que sabe onde ele está (FLW-DOC-003).
+			const r2Doc = getR2(platform);
+			if (r2Doc) {
+				await deletarChavesR2(
+					db,
+					r2Doc,
+					await coletarChavesR2DoDocumentoGise(db, giseId),
+					'edicao-escala-gise'
+				);
+			}
 			await db.delete(giseDocumentos).where(eq(giseDocumentos.gise_id, giseId));
 			updateData.status = 'em_preenchimento';
 			deveResetarStatus = true;
@@ -307,7 +324,8 @@ export const actionsEscala = {
 	 * Encerra a GISE. Dispara, sem bloquear a resposta, o envio da base de equipe
 	 * para a planilha institucional (`agendarSyncBaseEquipeAposFinalizar`).
 	 */
-	finalizarGise: async ({ locals, platform, params }: Event) => {
+	finalizarGise: async (event: Event) => {
+		const { locals, platform, params } = event;
 		const u = locals.usuario;
 		if (!u || !isAdminGeral(u)) return fail(403, { error: 'Apenas Admin Geral' });
 
@@ -319,8 +337,9 @@ export const actionsEscala = {
 		if (!gise) return fail(404, { error: 'GISE não encontrada' });
 		if (gise.status === 'finalizada') return fail(400, { error: 'Já finalizada' });
 
-		if (!['pronta_para_finalizar', 'em_andamento'].includes(gise.status)) {
-			return fail(400, { error: 'Status não permite finalizar' });
+		const modo = modoDeFinalizacao(gise.status);
+		if (modo === 'bloqueado') {
+			return fail(409, { error: 'Status não permite finalizar' });
 		}
 
 		// Coleta os policiais ANTES de mexer no status: é a lista de caches de papel
@@ -330,6 +349,32 @@ export const actionsEscala = {
 		await invalidarPapelGiseMultiplos(afetados);
 
 		agendarSyncBaseEquipeAposFinalizar(platform, db, giseId);
+
+		// Esta action não auditava NADA — a rota de API equivalente auditava, e as
+		// duas fazem a mesma coisa. Além de fechar essa lacuna, o evento distingue
+		// a finalização ANTECIPADA da normal: as duas encerram a escala, mas só
+		// uma delas deixa relatórios e confirmações de saída para trás
+		// (FLW-GISE-005).
+		const { contexto, env } = contextoDeEvento(event);
+		await auditar(
+			db,
+			{
+				acao: 'finalizar_gise',
+				usuario: u,
+				entidade: 'gise',
+				entidade_id: giseId,
+				alvo_tipo: 'gise',
+				alvo_id: giseId,
+				severidade: modo === 'antecipada' ? 'aviso' : 'info',
+				detalhes:
+					modo === 'antecipada'
+						? `GISE ${giseId} finalizada ANTECIPADAMENTE, sem ${PENDENCIAS_DA_ANTECIPADA.join(', ')}`
+						: `GISE ${giseId} finalizada`,
+				metadados: { modo, status_anterior: gise.status },
+				...contexto
+			},
+			{ env }
+		);
 
 		return { success: true };
 	},
@@ -415,10 +460,14 @@ export const actionsEscala = {
 		// em que as cópias de conferência (`conferencia/<hash>.pdf`, prefixo PLANO)
 		// escapavam da varredura por prefixo `gise/...` e ficavam órfãs.
 		const r2 = getR2(platform);
-		const filesDeleted = r2 ? await limparR2DaGise(db, r2, gise) : 0;
+		const limpeza = r2
+			? await limparR2DaGise(db, r2, gise, 'exclusao-gise')
+			: { ...LIMPEZA_R2_VAZIA };
 
 		await db.delete(giseEscalas).where(eq(giseEscalas.id, giseId));
 		await invalidarPapelGiseMultiplos(afetados);
-		return { success: true, files_deleted: filesDeleted };
+		// `pendentes` sai na resposta: o operador que acabou de apagar uma GISE
+		// precisa saber se algum PDF assinado resistiu e ficou no bucket.
+		return { success: true, files_deleted: limpeza.removidas, r2_pendentes: limpeza.pendentes };
 	}
 };

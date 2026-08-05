@@ -17,7 +17,7 @@
  * reexportados aqui não tinham um único consumidor pelo barrel e saíram.
  */
 
-export { getDB, getR2, tryGetR2, hasR2, batchNonEmpty } from './db/core';
+export { getDB, getR2, tryGetR2, hasR2, batchNonEmpty, linhasAfetadas } from './db/core';
 export type { Database } from './db/core';
 
 export {
@@ -79,6 +79,7 @@ export type { CampoSolicitacao } from './db/cadastro-solicitacoes';
 
 export {
 	registrarHistorico,
+	atualizarPolicialComHistorico,
 	listarHistoricoPolicial,
 	buscarEventoHistorico,
 	afastamentoVigente

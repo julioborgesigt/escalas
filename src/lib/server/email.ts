@@ -17,6 +17,7 @@
 
 import { montarHtmlEmailNotificacaoAssessorGise } from './gise/assessor-notificacao-text';
 import { logger } from './logger';
+import { redigirEmails } from '$lib/utils/pii';
 import { CORPORACAO_PROSA } from '$lib/institucional';
 import { mascararEmail } from '$lib/utils/pii';
 import { getDB, buscarProvedorEmailPadrao, type EmailProvedor } from '$lib/db';
@@ -47,6 +48,30 @@ interface EmailOptions {
 }
 
 // ─── Cloudflare Email Sending ────────────────────────────────────────────────
+
+/**
+ * Teto do corpo de erro que entra em log e em mensagem de exceção. O provedor
+ * pode devolver o payload inteiro de volta; guardar tudo aumenta a superfície
+ * sem melhorar o diagnóstico, que está nas primeiras linhas.
+ */
+const LIMITE_TEXTO_ERRO = 500;
+
+/**
+ * Corpo de erro do provedor, pronto para log e para mensagem de exceção.
+ *
+ * O corpo ECOA a requisição — inclusive o destinatário —, e a mensagem do
+ * `Error` sobe até o `enviarERegistrar`, que a registra. Sem redigir na origem,
+ * a máscara que aquele wrapper aplica no destinatário é desfeita por dentro da
+ * própria mensagem (FLW-LGPD-002). O motivo do erro continua legível: some o
+ * "para quem", não o "o quê".
+ *
+ * Vale para os DOIS provedores. Cloudflare e Resend têm o mesmo trecho de
+ * tratamento de erro, e corrigir um só deixaria o vazamento inteiro de pé no
+ * outro — que é justamente o que assume quando o primeiro falha.
+ */
+async function corpoDeErroSeguro(response: Response): Promise<string> {
+	return redigirEmails(await response.text()).slice(0, LIMITE_TEXTO_ERRO);
+}
 
 async function dispararEmailCloudflare(
 	platform: App.Platform | undefined,
@@ -125,7 +150,7 @@ async function dispararEmailCloudflare(
 	);
 
 	if (!response.ok) {
-		const errorText = await response.text();
+		const errorText = await corpoDeErroSeguro(response);
 		logger.error('[email/cloudflare] REST API error response', {
 			status: response.status,
 			statusText: response.statusText,
@@ -141,7 +166,14 @@ async function dispararEmailCloudflare(
 		result: { delivered: string[] } | null;
 	};
 
-	logger.info('[email/cloudflare] REST API success response', { data });
+	// `data.result.delivered` é a lista de DESTINATÁRIOS. Registrar a resposta
+	// inteira jogava endereços em claro no Cloudflare Logs, fora do perímetro de
+	// retenção do sistema (FLW-LGPD-002). Para operar basta saber que entregou e
+	// para quantos.
+	logger.info('[email/cloudflare] REST API success response', {
+		success: data.success,
+		entregues: data.result?.delivered?.length ?? 0
+	});
 
 	if (!data.success) {
 		throw new Error('Falha na resposta do Cloudflare REST API');
@@ -179,7 +211,7 @@ async function dispararEmailResend(
 	});
 
 	if (!response.ok) {
-		const errorText = await response.text();
+		const errorText = await corpoDeErroSeguro(response);
 		throw new Error(
 			`Falha ao enviar e-mail via Resend API (HTTP ${response.status}): ${errorText}`
 		);

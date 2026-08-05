@@ -2,16 +2,16 @@ import { fail } from '@sveltejs/kit';
 import type { RequestEvent } from '@sveltejs/kit';
 import {
 	getDB,
-	buscarGiseEscala,
+	tryGetR2,
 	atualizarGiseSeccionalUnidade,
 	adicionarGiseSeccionalUnidade,
-	removerGiseSeccionalUnidade,
-	revogarAssinaturasSeccional
+	removerGiseSeccionalUnidade
 } from '$lib/db';
 import { isAdminGeral, isAdminSeccional } from '$lib/auth';
-import { giseSeccionalUnidades, giseSeccionais, giseEquipes } from '$lib/server/schema';
+import { giseSeccionalUnidades, giseEquipes, unidades } from '$lib/server/schema';
 import { eq, and, isNull } from 'drizzle-orm';
-import { getInt, saiuDaFaseDeEdicao } from './shared';
+import { getInt, carregarSeccionalDaGise } from './shared';
+import { concluirMudancaGise, invalidarAssinaturasDaSeccional } from './desfecho';
 
 /**
  * Form actions dos SLOTS DE UNIDADE de cada seccional em `/gise/[id]`.
@@ -20,13 +20,32 @@ import { getInt, saiuDaFaseDeEdicao } from './shared';
  * unidade dentro da seccional; ele nasce vazio e depois recebe a unidade.
  * Criar/remover slot é do Admin Geral; escolher qual unidade ocupa o slot
  * também cabe ao admin da seccional.
+ *
+ * As três passaram a usar o preâmbulo comum (`carregarSeccionalDaGise`), que é
+ * o que recusa GISE `finalizada` e amarra o `secId` do formulário à GISE da
+ * URL. Este arquivo era o que restava de FLW-GISE-007 depois que as actions de
+ * equipe foram fechadas — aqui a seccional era conferida contra a GISE, mas o
+ * SLOT não era conferido contra a seccional, e nenhuma das três olhava o
+ * status: dava para trocar a unidade de uma escala já finalizada.
  */
 
 type Event = RequestEvent<{ id: string }>;
 
+/** Nome da unidade para a trilha; `null` quando o slot está sendo esvaziado. */
+async function nomeDaUnidade(db: ReturnType<typeof getDB>, unidadeId: number | null) {
+	if (unidadeId == null) return null;
+	const u = await db
+		.select({ nome: unidades.nome })
+		.from(unidades)
+		.where(eq(unidades.id, unidadeId))
+		.get();
+	return u?.nome ?? null;
+}
+
 export const actionsUnidade = {
 	/** Preenche (ou troca) a unidade de um slot já existente. */
-	selecionarUnidade: async ({ request, locals, platform, params }: Event) => {
+	selecionarUnidade: async (event: Event) => {
+		const { request, locals, platform, params } = event;
 		const u = locals.usuario;
 		if (!u) return fail(401, { error: 'Não autorizado' });
 
@@ -38,37 +57,65 @@ export const actionsUnidade = {
 			return fail(400, { error: 'IDs inválidos' });
 
 		const db = getDB(platform);
+		const r2 = tryGetR2(platform) ?? null;
 
 		const slotInfo = await db
-			.select({ gise_seccional_id: giseSeccionalUnidades.gise_seccional_id })
+			.select({
+				gise_seccional_id: giseSeccionalUnidades.gise_seccional_id,
+				unidade_id: giseSeccionalUnidades.unidade_id
+			})
 			.from(giseSeccionalUnidades)
 			.where(eq(giseSeccionalUnidades.id, slotId))
 			.get();
 		if (!slotInfo) return fail(404, { error: 'Slot não encontrado' });
 
-		const sec = await db
-			.select()
-			.from(giseSeccionais)
-			.where(
-				and(eq(giseSeccionais.id, slotInfo.gise_seccional_id), eq(giseSeccionais.gise_id, giseId))
-			)
-			.get();
-		if (!sec) return fail(404, { error: 'Seccional não encontrada' });
+		const carga = await carregarSeccionalDaGise(db, giseId, slotInfo.gise_seccional_id);
+		if ('erro' in carga) return carga.erro;
 
 		if (!isAdminGeral(u) && !isAdminSeccional(u)) {
 			return fail(403, { error: 'Sem permissão' });
 		}
 
-		if (isAdminSeccional(u) && u.papel_unidade_id !== sec.seccional_id) {
+		if (isAdminSeccional(u) && u.papel_unidade_id !== carga.sec.seccional_id) {
 			return fail(403, { error: 'Sem permissão' });
 		}
 
 		await atualizarGiseSeccionalUnidade(db, slotId, unidadeId);
+
+		// A unidade escolhida sai impressa no relatório de extra da seccional:
+		// trocá-la depois da assinatura derruba as assinaturas dela.
+		const invalidacao = await invalidarAssinaturasDaSeccional(
+			db,
+			r2,
+			giseId,
+			slotInfo.gise_seccional_id,
+			carga.gise.status
+		);
+
+		const [antes, depois] = await Promise.all([
+			nomeDaUnidade(db, slotInfo.unidade_id),
+			nomeDaUnidade(db, unidadeId)
+		]);
+
+		await concluirMudancaGise(event, {
+			db,
+			giseId,
+			usuario: u,
+			acao: 'gise_unidade_selecionada',
+			alvo: { tipo: 'unidade', id: unidadeId, nome: depois },
+			detalhes: `Slot ${slotId} da seccional: ${antes ?? 'vazio'} → ${depois ?? 'vazio'}`,
+			invalidacao,
+			metadados: { slot_id: slotId, gise_seccional_id: slotInfo.gise_seccional_id },
+			dados_antes: { unidade_id: slotInfo.unidade_id },
+			dados_depois: { unidade_id: unidadeId }
+		});
+
 		return { success: true };
 	},
 
 	/** Cria mais um slot vazio na seccional. */
-	adicionarUnidade: async ({ request, locals, platform, params }: Event) => {
+	adicionarUnidade: async (event: Event) => {
+		const { request, locals, platform, params } = event;
 		const u = locals.usuario;
 		if (!u || !isAdminGeral(u)) return fail(403, { error: 'Apenas Admin Geral' });
 
@@ -81,19 +128,37 @@ export const actionsUnidade = {
 		const unidadeId = unidadeIdRaw ? parseInt(unidadeIdRaw) : null;
 
 		const db = getDB(platform);
-		const sec = await db
-			.select()
-			.from(giseSeccionais)
-			.where(and(eq(giseSeccionais.id, secId), eq(giseSeccionais.gise_id, giseId)))
-			.get();
-		if (!sec) return fail(404, { error: 'Seccional não encontrada' });
+		const r2 = tryGetR2(platform) ?? null;
+		const carga = await carregarSeccionalDaGise(db, giseId, secId);
+		if ('erro' in carga) return carga.erro;
 
 		await adicionarGiseSeccionalUnidade(db, secId, unidadeId);
+
+		// Slot novo só muda a escala quando já vem com unidade — vazio, ele apenas
+		// abre uma linha em branco na tela.
+		const invalidacao =
+			unidadeId == null
+				? 'nada'
+				: await invalidarAssinaturasDaSeccional(db, r2, giseId, secId, carga.gise.status);
+
+		await concluirMudancaGise(event, {
+			db,
+			giseId,
+			usuario: u,
+			acao: 'gise_unidade_slot_criado',
+			alvo: { tipo: 'unidade', id: unidadeId, nome: await nomeDaUnidade(db, unidadeId) },
+			detalhes: `Slot de unidade criado na seccional ${secId}`,
+			invalidacao,
+			metadados: { gise_seccional_id: secId },
+			dados_depois: { unidade_id: unidadeId }
+		});
+
 		return { success: true };
 	},
 
 	/** Remove um slot — e, com ele, as equipes penduradas nesse slot. */
-	removerUnidade: async ({ request, locals, platform, params }: Event) => {
+	removerUnidade: async (event: Event) => {
+		const { request, locals, platform, params } = event;
 		const u = locals.usuario;
 		if (!u || !isAdminGeral(u)) return fail(403, { error: 'Apenas Admin Geral' });
 
@@ -105,28 +170,64 @@ export const actionsUnidade = {
 			return fail(400, { error: 'IDs inválidos' });
 
 		const db = getDB(platform);
-		const sec = await db
-			.select()
-			.from(giseSeccionais)
-			.where(and(eq(giseSeccionais.id, secId), eq(giseSeccionais.gise_id, giseId)))
-			.get();
-		if (!sec) return fail(404, { error: 'Seccional não encontrada' });
+		const r2 = tryGetR2(platform) ?? null;
+		const carga = await carregarSeccionalDaGise(db, giseId, secId);
+		if ('erro' in carga) return carga.erro;
 
 		// `linkId === 0` é o pseudo-slot legado das equipes criadas antes dos slots
 		// existirem (`gise_unidade_id` nulo): não há linha para apagar, então a
 		// remoção recai sobre as próprias equipes órfãs da seccional.
+		let unidadeRemovida: number | null = null;
 		if (linkId === 0) {
 			await db
 				.delete(giseEquipes)
 				.where(and(eq(giseEquipes.gise_seccional_id, secId), isNull(giseEquipes.gise_unidade_id)));
 		} else {
+			// Amarra o slot à seccional já provada: sem isso, um `linkId` de outra
+			// seccional (ou de outra GISE) era apagado enquanto a invalidação caía
+			// na seccional da URL — FLW-GISE-007 nesta action.
+			const slot = await db
+				.select({ unidade_id: giseSeccionalUnidades.unidade_id })
+				.from(giseSeccionalUnidades)
+				.where(
+					and(
+						eq(giseSeccionalUnidades.id, linkId),
+						eq(giseSeccionalUnidades.gise_seccional_id, secId)
+					)
+				)
+				.get();
+			if (!slot) return fail(404, { error: 'Slot não encontrado nesta seccional' });
+
+			unidadeRemovida = slot.unidade_id;
 			await removerGiseSeccionalUnidade(db, linkId);
 		}
 
-		const gise = await buscarGiseEscala(db, giseId);
-		if (gise && saiuDaFaseDeEdicao(gise.status)) {
-			await revogarAssinaturasSeccional(db, giseId, secId);
-		}
+		const invalidacao = await invalidarAssinaturasDaSeccional(
+			db,
+			r2,
+			giseId,
+			secId,
+			carga.gise.status
+		);
+
+		await concluirMudancaGise(event, {
+			db,
+			giseId,
+			usuario: u,
+			acao: 'gise_unidade_slot_removido',
+			alvo: {
+				tipo: 'unidade',
+				id: unidadeRemovida,
+				nome: await nomeDaUnidade(db, unidadeRemovida)
+			},
+			detalhes:
+				linkId === 0
+					? `Equipes legadas sem slot removidas da seccional ${secId}`
+					: `Slot ${linkId} removido da seccional ${secId}`,
+			invalidacao,
+			metadados: { gise_seccional_id: secId, link_id: linkId, legado: linkId === 0 },
+			dados_antes: { unidade_id: unidadeRemovida }
+		});
 
 		return { success: true };
 	}
