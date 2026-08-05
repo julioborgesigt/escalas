@@ -587,7 +587,7 @@ nenhuma linha.
 
 **Severidade:** P0  
 **Fluxo:** FLX-04  
-**Estado:** confirmado
+**Estado:** aberto
 
 Os dois caminhos de finalização aceitam `em_andamento`, além de
 `pronta_para_finalizar`
@@ -605,11 +605,30 @@ se existir política formal que defina um fluxo alternativo completo.
 **Teste de regressão:** action e API devem recusar `em_andamento` sem alterar
 status, caches, documentos ou Base_Equipe.
 
+> **ABERTO — pende decisão do operador.** Verificado em 04/ago/2026: a
+> capacidade está EM USO e é oferecida pela tela. `podeFinalizar` em
+> `gise/[id]/+page.svelte:441` habilita o botão para o Admin Geral tanto em
+> `pronta_para_finalizar` quanto em `em_andamento`, e o modal de confirmação
+> não menciona relatório nenhum. Recusar `em_andamento` no servidor tira do
+> Admin Geral a finalização de uma GISE que nunca vai completar o conjunto
+> documental — é a "política formal" que a própria correção proposta
+> condiciona, e é decisão de produto, não de código.
+>
+> A favor de ser bug, não escape hatch: a mensagem de erro da API descreve a
+> regra ESTRITA ("precisa estar com todos os relatórios de extra assinados")
+> e mesmo assim aceita `em_andamento` — a condição contradiz o texto que a
+> acompanha.
+>
+> Se a resposta for "sim, existe o caminho forçado", o mínimo é torná-lo
+> visível: o modal precisa dizer o que está sendo pulado, e a auditoria
+> distinguir finalização normal de antecipada. Hoje `status_anterior` vai nos
+> metadados, mas a operação parece idêntica às demais.
+
 ### FLW-GISE-006 — alteração de vagas contorna a reabertura formal
 
 **Severidade:** P0  
 **Fluxo:** FLX-04 / FLX-06 / FLX-08  
-**Estado:** confirmado
+**Estado:** corrigido
 
 `salvarSlotsEquipe` altera a equipe antes de verificar o status e não bloqueia
 GISE finalizada (`actions-equipe.ts:33-58`). Para estados que saíram da fase
@@ -623,6 +642,31 @@ qualquer alteração.
 
 **Teste de regressão:** POST direto contra GISE finalizada deve preservar
 vagas, status, documento, R2 e trilha de auditoria.
+
+> **CORRIGIDO (04/ago/2026).** Três defeitos, e o arquivo continha a versão
+> certa de todos eles trinta linhas abaixo: `salvarHorariosEquipe` carrega a
+> GISE, recusa `finalizada` e só então muta. `salvarSlotsEquipe` era a única
+> das quatro actions de equipe sem essa recusa — e mutava ANTES de olhar o
+> status, então numa escala finalizada a alteração já tinha acontecido quando
+> alguém fosse decidir se podia. Em seguida apagava `gise_documentos` e
+> devolvia a escala a `em_preenchimento`, contornando a reabertura auditada.
+>
+> O terceiro defeito não está no enunciado do achado: `atualizarGiseEquipe` e
+> `excluirGiseEquipe` filtram só por `equipes.id`. Um `equipeId` de OUTRA GISE
+> no corpo do formulário era aceito, e a mutação caía na equipe alheia
+> enquanto a invalidação de documento caía na GISE da URL — duas escalas
+> erradas de uma vez. É FLW-GISE-007 nestas quatro actions.
+>
+> Os três viraram um preâmbulo único em `_actions/shared.ts`
+> (`carregarGiseEditavel`, `carregarEquipeDaGise`, `carregarSeccionalDaGise`),
+> que as quatro actions passaram a usar. Escrito à mão, faltava numa das
+> quatro; extraído, não há como esquecer.
+>
+> **Fica em aberto** a limpeza do R2: descartar o documento continua deixando
+> o PDF órfão no bucket. É o escopo de FLW-R2-004, e há
+> `limparR2DaGise`/`coletarChavesR2DaGise` prontos para isso — mas a política
+> de quando apagar bytes de documento assinado é decisão daquele achado, não
+> deste.
 
 ### FLW-GISE-007 — IDs filhos não são sempre vinculados à GISE da rota
 
@@ -642,6 +686,12 @@ equipe → seccional → GISE com `gise_id = params.id` e repetir essa condiçã
 
 **Teste de regressão:** IDs da GISE B enviados para rota da GISE A retornam
 404 e não alteram registro, status ou documento de nenhuma das duas.
+
+> **PARCIAL (04/ago/2026).** As quatro actions de EQUIPE passaram a amarrar o
+> id filho à GISE da URL (`carregarEquipeDaGise`/`carregarSeccionalDaGise` em
+> `_actions/shared.ts`), fechado junto com FLW-GISE-006 e coberto por
+> `e2e/gise-imutabilidade.spec.ts`. Os demais ids filhos — presença,
+> relatório, resposta de formulário — continuam abertos.
 
 ### FLW-GISE-008 — presença qualificada pode emitir termo de saída sem entrada
 
@@ -1155,8 +1205,8 @@ rodar em paralelo com suites que compartilham esses recursos.
 | FLW-AUDIT-001    | `routes/api/gise/[id]/finalizar/__tests__/finalizar-audit.test.ts`                              | falha de auditoria e duas finalizações concorrentes: rollback total **ou** pendência durável, sem perda na cadeia |
 | FLW-LGPD-002     | ✅ `lib/server/__tests__/email-logging.test.ts`                                                 | resposta de e-mail com destinatário/corpo: logger e erro não podem conter PII/conteúdo                            |
 | FLW-GISE-004     | ✅ `e2e/autorizacao-negativa.spec.ts`                                                           | POST direto por policial comum/admin fora do escopo: 403 e nenhum estado/documento/audit alterado                 |
-| FLW-GISE-005     | `e2e/gise-finalizacao-negativa.spec.ts`                                                         | finalizar `em_andamento` por action e API: 409 e status/documento/integração intactos                             |
-| FLW-GISE-006     | `e2e/gise-reabertura-guard.spec.ts`                                                             | alterar vagas em GISE finalizada: 409, slots/hash/R2/auditoria preservados                                        |
+| FLW-GISE-005     | ⏸ pende decisão — ver o achado                                                                  | finalizar `em_andamento` por action e API: 409 e status/documento/integração intactos                             |
+| FLW-GISE-006     | ✅ `e2e/gise-imutabilidade.spec.ts`                                                             | alterar vagas em GISE finalizada: 409, slots/hash/R2/auditoria preservados                                        |
 | FLW-WEBHOOK-001  | `routes/api/webhook/reset-policiais/__tests__/atomicidade.test.ts`                              | falha na segunda deleção: nenhuma tabela alterada e tentativa registrada                                          |
 | FLW-AUTH-001     | ✅ `server/auth/__tests__/session-cache.test.ts` (sem e2e — ver o achado)                       | aquecer cache e revogar/resetar/desativar: próximo request retorna 401                                            |
 | FLW-AUTH-002     | ✅ `e2e/revogacao-credencial.spec.ts` + `auth/__tests__/credencial.test.ts`                     | reset de admin vinculado: senha antiga falha nos dois modos, nova funciona e ambos cookies são revogados          |

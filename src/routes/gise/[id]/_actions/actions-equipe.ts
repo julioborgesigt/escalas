@@ -2,7 +2,6 @@ import { fail } from '@sveltejs/kit';
 import type { RequestEvent } from '@sveltejs/kit';
 import {
 	getDB,
-	buscarGiseEscala,
 	atualizarGiseEscala,
 	atualizarGiseEquipe,
 	excluirGiseEquipe,
@@ -10,9 +9,14 @@ import {
 	revogarAssinaturasSeccional
 } from '$lib/db';
 import { isAdminGeral } from '$lib/auth';
-import { giseDocumentos, giseEquipes } from '$lib/server/schema';
+import { giseDocumentos } from '$lib/server/schema';
 import { eq } from 'drizzle-orm';
-import { getInt, saiuDaFaseDeEdicao } from './shared';
+import {
+	getInt,
+	saiuDaFaseDeEdicao,
+	carregarEquipeDaGise,
+	carregarSeccionalDaGise
+} from './shared';
 
 /**
  * Form actions das EQUIPES da GISE (bloco de cada seccional em `/gise/[id]`).
@@ -23,7 +27,9 @@ import { getInt, saiuDaFaseDeEdicao } from './shared';
  *
  * Depois que a GISE sai do rascunho, cada action invalida o que a mudança
  * atinge — documento inteiro ou assinaturas da seccional (ver
- * `saiuDaFaseDeEdicao`).
+ * `saiuDaFaseDeEdicao`). Antes disso, o preâmbulo (`carregar*DaGise`) recusa
+ * escala finalizada e amarra o id filho à GISE da URL; escrito à mão, faltava
+ * numa das quatro (FLW-GISE-006) e nas quatro (FLW-GISE-007).
  */
 
 type Event = RequestEvent<{ id: string }>;
@@ -41,16 +47,20 @@ export const actionsEquipe = {
 
 		const slotsDpc = parseInt(formData.get('slots_dpc') as string);
 		const slotsOip = parseInt(formData.get('slots_oip') as string);
-
 		if (isNaN(slotsDpc) || isNaN(slotsOip)) return fail(400, { error: 'Dados inválidos' });
 
 		const db = getDB(platform);
+		// ANTES de mutar. A versão anterior gravava as vagas e só então olhava o
+		// status — numa escala finalizada, a alteração já tinha acontecido quando
+		// alguém fosse decidir se podia.
+		const carga = await carregarEquipeDaGise(db, giseId, equipeId);
+		if ('erro' in carga) return carga.erro;
+
 		await atualizarGiseEquipe(db, equipeId, slotsDpc, slotsOip);
 
-		const gise = await buscarGiseEscala(db, giseId);
 		// Mudar vagas altera o corpo da escala inteira: o PDF gerado deixa de valer
 		// e a GISE volta para preenchimento.
-		if (gise && saiuDaFaseDeEdicao(gise.status)) {
+		if (saiuDaFaseDeEdicao(carga.gise.status)) {
 			await db.delete(giseDocumentos).where(eq(giseDocumentos.gise_id, giseId));
 			await atualizarGiseEscala(db, giseId, { status: 'em_preenchimento' });
 		}
@@ -72,9 +82,8 @@ export const actionsEquipe = {
 		const horaSaida = formData.get('hora_saida') as string | null;
 
 		const db = getDB(platform);
-		const gise = await buscarGiseEscala(db, giseId);
-		if (!gise) return fail(404, { error: 'GISE não encontrada' });
-		if (gise.status === 'finalizada') return fail(400, { error: 'Escala finalizada' });
+		const carga = await carregarEquipeDaGise(db, giseId, eqId);
+		if ('erro' in carga) return carga.erro;
 
 		await atualizarGiseEquipe(db, eqId, undefined, undefined, {
 			hora_entrada: horaEntrada,
@@ -83,15 +92,8 @@ export const actionsEquipe = {
 
 		// Horário entra no relatório de extra da seccional — revoga só as
 		// assinaturas dela, sem derrubar o resto da escala.
-		if (saiuDaFaseDeEdicao(gise.status)) {
-			const equipe = await db
-				.select({ gise_seccional_id: giseEquipes.gise_seccional_id })
-				.from(giseEquipes)
-				.where(eq(giseEquipes.id, eqId))
-				.get();
-			if (equipe) {
-				await revogarAssinaturasSeccional(db, giseId, equipe.gise_seccional_id);
-			}
+		if (saiuDaFaseDeEdicao(carga.gise.status)) {
+			await revogarAssinaturasSeccional(db, giseId, carga.equipe.gise_seccional_id);
 		}
 
 		return { success: true };
@@ -119,9 +121,8 @@ export const actionsEquipe = {
 		const unidadeId = unidadeIdRaw ? parseInt(unidadeIdRaw) : null;
 
 		const db = getDB(platform);
-		const gise = await buscarGiseEscala(db, giseId);
-		if (!gise) return fail(404, { error: 'GISE não encontrada' });
-		if (gise.status === 'finalizada') return fail(400, { error: 'Escala finalizada' });
+		const carga = await carregarSeccionalDaGise(db, giseId, secId);
+		if ('erro' in carga) return carga.erro;
 
 		await criarGiseEquipe(
 			db,
@@ -133,7 +134,7 @@ export const actionsEquipe = {
 		);
 
 		// Equipe nova = escala diferente da que foi para assinatura.
-		if (saiuDaFaseDeEdicao(gise.status)) {
+		if (saiuDaFaseDeEdicao(carga.gise.status)) {
 			await db.delete(giseDocumentos).where(eq(giseDocumentos.gise_id, giseId));
 			await atualizarGiseEscala(db, giseId, { status: 'em_preenchimento' });
 		}
@@ -152,22 +153,15 @@ export const actionsEquipe = {
 		if (isNaN(giseId) || isNaN(equipeId)) return fail(400, { error: 'IDs inválidos' });
 
 		const db = getDB(platform);
-		const gise = await buscarGiseEscala(db, giseId);
-		if (!gise) return fail(404, { error: 'GISE não encontrada' });
-		if (gise.status === 'finalizada') return fail(400, { error: 'Escala finalizada' });
-
-		// Lê a seccional ANTES de excluir — depois a linha não existe mais e não
-		// haveria como saber quais assinaturas revogar.
-		const equipe = await db
-			.select({ gise_seccional_id: giseEquipes.gise_seccional_id })
-			.from(giseEquipes)
-			.where(eq(giseEquipes.id, equipeId))
-			.get();
+		// O preâmbulo já traz a seccional — antes ela era lida numa query própria,
+		// ANTES do delete, porque depois a linha não existiria mais.
+		const carga = await carregarEquipeDaGise(db, giseId, equipeId);
+		if ('erro' in carga) return carga.erro;
 
 		await excluirGiseEquipe(db, equipeId);
 
-		if (equipe && saiuDaFaseDeEdicao(gise.status)) {
-			await revogarAssinaturasSeccional(db, giseId, equipe.gise_seccional_id);
+		if (saiuDaFaseDeEdicao(carga.gise.status)) {
+			await revogarAssinaturasSeccional(db, giseId, carga.equipe.gise_seccional_id);
 		}
 
 		return { success: true };
