@@ -79,6 +79,7 @@ import {
 	MESES_PT
 } from '$lib/rotacao';
 import { verificarPermissaoEscala, podeMexerNaEscala } from '$lib/server/escalas/permissao';
+import { registrarMudancaEscala, nomeDoPolicial } from './_actions/desfecho';
 
 /**
  * O que a action vai fazer com a escala. **Parâmetro obrigatório de
@@ -258,10 +259,11 @@ export const load: PageServerLoad = async ({ locals, platform, params, depends }
 
 export const actions: Actions = {
 	/** Inclui UM policial num dia (plantão avulso ou expediente). */
-	adicionar: async ({ request, locals, platform, params }) => {
+	adicionar: async (event) => {
+		const { request, locals, platform, params } = event;
 		const ctx = await carregarEscalaComPermissao(platform, locals.usuario, params.id, 'conteudo');
 		if ('erro' in ctx) return ctx.erro;
-		const { db, escalaId } = ctx;
+		const { db, escalaId, usuario: u } = ctx;
 
 		const data = await request.formData();
 		const policial_id = Number(data.get('policial_id'));
@@ -308,6 +310,25 @@ export const actions: Actions = {
 				}),
 				listarPoliciaisEscalaQuery(db, escalaId)
 			]);
+
+			await registrarMudancaEscala(event, {
+				db,
+				escalaId,
+				usuario: u,
+				acao: 'adicionar_policial_escala',
+				alvo: { tipo: 'policial', id: policial_id, nome: await nomeDoPolicial(db, policial_id) },
+				detalhes: `Escalado em ${data_plantao}, ${horaEnt} às ${horaSai}`,
+				itens: 1,
+				dados_depois: {
+					data_plantao,
+					data_saida: dataSaida,
+					hora_entrada: horaEnt,
+					hora_saida: horaSai,
+					equipe,
+					observacoes
+				}
+			});
+
 			return { success: true, policiais };
 		} catch {
 			return fail(500, { error: 'Erro ao adicionar policial' });
@@ -318,10 +339,11 @@ export const actions: Actions = {
 	 * Inclui um policial em VÁRIOS dias de uma vez (as datas vêm do calendário
 	 * do modal, num campo oculto JSON).
 	 */
-	adicionarPlantao: async ({ request, locals, platform, params }) => {
+	adicionarPlantao: async (event) => {
+		const { request, locals, platform, params } = event;
 		const ctx = await carregarEscalaComPermissao(platform, locals.usuario, params.id, 'conteudo');
 		if ('erro' in ctx) return ctx.erro;
-		const { db, escalaId } = ctx;
+		const { db, escalaId, usuario: u } = ctx;
 
 		const data = await request.formData();
 		const policial_id = Number(data.get('policial_id'));
@@ -367,6 +389,21 @@ export const actions: Actions = {
 		try {
 			await adicionarMultiplasDatasPlantao(db, escalaId, policial_id, datasLimpas, he, hs, equipe);
 			const policiais = await listarPoliciaisEscala(db, escalaId);
+
+			await registrarMudancaEscala(event, {
+				db,
+				escalaId,
+				usuario: u,
+				acao: 'adicionar_policial_escala',
+				alvo: { tipo: 'policial', id: policial_id, nome: await nomeDoPolicial(db, policial_id) },
+				detalhes: `Escalado em ${datasLimpas.length} dia(s) de plantão, ${he} às ${hs}`,
+				itens: datasLimpas.length,
+				// As datas RECUSADAS entram no evento: a tela avisa o operador e o
+				// aviso some no reload; a trilha é onde ele volta a existir.
+				metadados: { equipe, recusadas_por_conflito: conflitantes },
+				dados_depois: { datas: datasLimpas.map((d) => d.data_plantao) }
+			});
+
 			return { success: true, policiais, conflitantes };
 		} catch {
 			return fail(500, { error: 'Erro ao adicionar policial à escala de plantão' });
@@ -377,10 +414,11 @@ export const actions: Actions = {
 	 * Preenche a escala com todos os policiais da lotação, no horário padrão da
 	 * própria escala. Atalho do início do mês, antes dos ajustes individuais.
 	 */
-	adicionarTodos: async ({ locals, platform, params }) => {
+	adicionarTodos: async (event) => {
+		const { locals, platform, params } = event;
 		const ctx = await carregarEscalaComPermissao(platform, locals.usuario, params.id, 'conteudo');
 		if ('erro' in ctx) return ctx.erro;
-		const { db, escala, escalaId } = ctx;
+		const { db, escala, escalaId, usuario: u } = ctx;
 
 		if (escala.tipo !== 'plantao' && escala.tipo !== 'expediente') {
 			return fail(400, { error: 'Operação inválida para este tipo de escala' });
@@ -405,6 +443,18 @@ export const actions: Actions = {
 				hs
 			);
 			const policiais = await listarPoliciaisEscala(db, escalaId);
+
+			await registrarMudancaEscala(event, {
+				db,
+				escalaId,
+				usuario: u,
+				acao: 'adicionar_policial_escala',
+				alvo: { tipo: 'escala', id: escalaId, nome: escala.titulo },
+				detalhes: `${quantidade} servidor(es) da lotação ${escala.lotacao} incluídos de uma vez`,
+				itens: quantidade,
+				metadados: { lotacao: escala.lotacao, hora_entrada: he, hora_saida: hs }
+			});
+
 			return { success: true, quantidade, policiais };
 		} catch (err) {
 			logger.error('[escalas/adicionarTodos] Erro ao adicionar servidores', {
@@ -569,10 +619,11 @@ export const actions: Actions = {
 	},
 
 	/** Edita uma linha (dia/horário/equipe/observações) de um policial. */
-	editar: async ({ request, locals, platform, params }) => {
+	editar: async (event) => {
+		const { request, locals, platform, params } = event;
 		const ctx = await carregarEscalaComPermissao(platform, locals.usuario, params.id, 'conteudo');
 		if ('erro' in ctx) return ctx.erro;
-		const { db, escalaId } = ctx;
+		const { db, escalaId, usuario: u } = ctx;
 
 		const data = await request.formData();
 		const item_id = Number(data.get('item_id'));
@@ -586,7 +637,14 @@ export const actions: Actions = {
 
 		// Busca policial_id do registro para validar conflito
 		const registro = await db
-			.select({ policial_id: escalaPoliciais.policial_id })
+			.select({
+				policial_id: escalaPoliciais.policial_id,
+				data_plantao: escalaPoliciais.data_plantao,
+				data_saida: escalaPoliciais.data_saida,
+				hora_entrada: escalaPoliciais.hora_entrada,
+				hora_saida: escalaPoliciais.hora_saida,
+				observacoes: escalaPoliciais.observacoes
+			})
 			.from(escalaPoliciais)
 			// `escala_id` junto do `id`: sem isso, um `item_id` de OUTRA escala é
 			// aceito por quem só tem permissão nesta (FLW-ESC-002).
@@ -624,6 +682,30 @@ export const actions: Actions = {
 					.where(and(eq(escalaPoliciais.escala_id, escalaId), eq(escalaPoliciais.id, item_id))),
 				listarPoliciaisEscalaQuery(db, escalaId)
 			]);
+
+			await registrarMudancaEscala(event, {
+				db,
+				escalaId,
+				usuario: u,
+				acao: 'editar_escala',
+				alvo: {
+					tipo: 'policial',
+					id: registro.policial_id,
+					nome: await nomeDoPolicial(db, registro.policial_id)
+				},
+				detalhes: `Plantão de ${registro.data_plantao} alterado para ${data_plantao}, ${hora_entrada} às ${hora_saida}`,
+				itens: 1,
+				metadados: { item_id },
+				dados_antes: {
+					data_plantao: registro.data_plantao,
+					data_saida: registro.data_saida,
+					hora_entrada: registro.hora_entrada,
+					hora_saida: registro.hora_saida,
+					observacoes: registro.observacoes
+				},
+				dados_depois: { data_plantao, data_saida, hora_entrada, hora_saida, observacoes }
+			});
+
 			return { success: true, policiais };
 		} catch {
 			return fail(500, { error: 'Erro ao salvar alterações' });
@@ -631,22 +713,33 @@ export const actions: Actions = {
 	},
 
 	/** Remove uma linha e devolve a listagem já atualizada, em um round-trip. */
-	remover: async ({ request, locals, platform, params }) => {
+	remover: async (event) => {
+		const { request, locals, platform, params } = event;
 		const ctx = await carregarEscalaComPermissao(platform, locals.usuario, params.id, 'conteudo');
 		if ('erro' in ctx) return ctx.erro;
-		const { db, escalaId } = ctx;
+		const { db, escalaId, usuario: u } = ctx;
 
 		const data = await request.formData();
 		const item_id = Number(data.get('item_id'));
 
 		if (isNaN(item_id)) return fail(400, { error: 'ID inválido' });
 
+		// Estado ANTERIOR completo: depois do delete não há de onde tirar quem foi
+		// desescalado nem de que dia.
 		const alvo = await db
-			.select({ id: escalaPoliciais.id })
+			.select({
+				id: escalaPoliciais.id,
+				policial_id: escalaPoliciais.policial_id,
+				data_plantao: escalaPoliciais.data_plantao,
+				hora_entrada: escalaPoliciais.hora_entrada,
+				hora_saida: escalaPoliciais.hora_saida
+			})
 			.from(escalaPoliciais)
 			.where(and(eq(escalaPoliciais.escala_id, escalaId), eq(escalaPoliciais.id, item_id)))
 			.get();
 		if (!alvo) return fail(404, { error: 'Item não encontrado nesta escala' });
+
+		const nomeAlvo = await nomeDoPolicial(db, alvo.policial_id);
 
 		try {
 			// D1 batch: delete + listagem em 1 round-trip
@@ -656,6 +749,23 @@ export const actions: Actions = {
 					.where(and(eq(escalaPoliciais.escala_id, escalaId), eq(escalaPoliciais.id, item_id))),
 				listarPoliciaisEscalaQuery(db, escalaId)
 			]);
+
+			await registrarMudancaEscala(event, {
+				db,
+				escalaId,
+				usuario: u,
+				acao: 'remover_policial_escala',
+				alvo: { tipo: 'policial', id: alvo.policial_id, nome: nomeAlvo },
+				detalhes: `Retirado do plantão de ${alvo.data_plantao}`,
+				itens: 1,
+				metadados: { item_id },
+				dados_antes: {
+					data_plantao: alvo.data_plantao,
+					hora_entrada: alvo.hora_entrada,
+					hora_saida: alvo.hora_saida
+				}
+			});
+
 			return { success: true, policiais };
 		} catch {
 			return fail(500, { error: 'Erro ao remover policial' });
@@ -666,10 +776,11 @@ export const actions: Actions = {
 	 * Repete um policial já escalado em novas datas, herdando horário e equipe da
 	 * linha de origem — evita redigitar o que já está na escala.
 	 */
-	repetir: async ({ request, locals, platform, params }) => {
+	repetir: async (event) => {
+		const { request, locals, platform, params } = event;
 		const ctx = await carregarEscalaComPermissao(platform, locals.usuario, params.id, 'conteudo');
 		if ('erro' in ctx) return ctx.erro;
-		const { db, escalaId } = ctx;
+		const { db, escalaId, usuario: u } = ctx;
 
 		const data = await request.formData();
 		const policial_id = Number(data.get('policial_id'));
@@ -744,6 +855,19 @@ export const actions: Actions = {
 				equipe
 			);
 			const policiais = await listarPoliciaisEscala(db, escalaId);
+
+			await registrarMudancaEscala(event, {
+				db,
+				escalaId,
+				usuario: u,
+				acao: 'adicionar_policial_escala',
+				alvo: { tipo: 'policial', id: policial_id, nome: await nomeDoPolicial(db, policial_id) },
+				detalhes: `Repetido em ${novas.length} dia(s), ${hora_entrada} às ${hora_saida}`,
+				itens: novas.length,
+				metadados: { equipe, recusadas_por_conflito: conflitantes },
+				dados_depois: { datas: novas.map((d) => d.data_plantao) }
+			});
+
 			return { success: true, policiais, conflitantes };
 		} catch {
 			return fail(500, { error: 'Erro ao repetir servidor na escala' });
@@ -756,10 +880,11 @@ export const actions: Actions = {
 	 * reconciliar o conjunto — os dias que saíram são apagados e os que entraram,
 	 * inseridos.
 	 */
-	editarPlantaoAgrupado: async ({ request, locals, platform, params }) => {
+	editarPlantaoAgrupado: async (event) => {
+		const { request, locals, platform, params } = event;
 		const ctx = await carregarEscalaComPermissao(platform, locals.usuario, params.id, 'conteudo');
 		if ('erro' in ctx) return ctx.erro;
-		const { db, escalaId } = ctx;
+		const { db, escalaId, usuario: u } = ctx;
 
 		const data = await request.formData();
 		const idsJson = data.get('ids')?.toString() || '[]';
@@ -834,6 +959,22 @@ export const actions: Actions = {
 			}));
 			await db.insert(escalaPoliciais).values(linhasParaInserir);
 			const policiais = await listarPoliciaisEscala(db, escalaId);
+
+			await registrarMudancaEscala(event, {
+				db,
+				escalaId,
+				usuario: u,
+				acao: 'editar_escala',
+				alvo: { tipo: 'policial', id: policial_id, nome: await nomeDoPolicial(db, policial_id) },
+				detalhes: `Plantão do mês reconciliado: ${oldRows.length} dia(s) → ${datasLimpas.length} dia(s)`,
+				itens: datasLimpas.length,
+				metadados: { equipe, recusadas_por_conflito: conflitantes },
+				// A action APAGA as linhas antigas e insere as novas; sem o antes, a
+				// trilha registra a inserção e some com o que estava lá.
+				dados_antes: { datas: oldRows.map((r) => r.data_plantao) },
+				dados_depois: { datas: datasLimpas, hora_entrada, hora_saida, observacoes }
+			});
+
 			return { success: true, policiais, conflitantes };
 		} catch {
 			await db.insert(escalaPoliciais).values(oldRows);
@@ -846,10 +987,11 @@ export const actions: Actions = {
 	 * dia). Só antes de finalizar: depois do envio por e-mail, o documento já
 	 * circulou.
 	 */
-	editarDiasEscala: async ({ request, locals, platform, params }) => {
+	editarDiasEscala: async (event) => {
+		const { request, locals, platform, params } = event;
 		const ctx = await carregarEscalaComPermissao(platform, locals.usuario, params.id, 'conteudo');
 		if ('erro' in ctx) return ctx.erro;
-		const { db, escala, escalaId } = ctx;
+		const { db, escala, escalaId, usuario: u } = ctx;
 
 		if (escala.tipo !== 'fds')
 			return fail(400, { error: 'Operação válida apenas para escalas de FDS' });
@@ -919,6 +1061,27 @@ export const actions: Actions = {
 			.where(eq(escalasTable.id, escalaId));
 
 		const policiais = await listarPoliciaisEscala(db, escalaId);
+
+		await registrarMudancaEscala(event, {
+			db,
+			escalaId,
+			usuario: u,
+			acao: 'editar_escala',
+			alvo: { tipo: 'escala', id: escalaId, nome: novoTitulo },
+			detalhes: `Dias do FDS: ${escala.data_inicio}–${escala.data_fim} → ${novaDataInicio}–${novaDataFim}`,
+			itens: policiais.length,
+			dados_antes: {
+				data_inicio: escala.data_inicio,
+				data_fim: escala.data_fim,
+				titulo: escala.titulo
+			},
+			dados_depois: {
+				data_inicio: novaDataInicio,
+				data_fim: novaDataFim,
+				titulo: novoTitulo
+			}
+		});
+
 		return {
 			success: true,
 			data_inicio: novaDataInicio,
@@ -1002,7 +1165,8 @@ export const actions: Actions = {
 	},
 
 	/** Reenvia o PDF da escala de FDS já finalizada (endereço errado, caixa cheia). */
-	reenviarEmail: async ({ request, locals, platform, params }) => {
+	reenviarEmail: async (event) => {
+		const { request, locals, platform, params } = event;
 		const ctx = await carregarEscalaComPermissao(platform, locals.usuario, params.id, 'ciclo');
 		if ('erro' in ctx) return ctx.erro;
 		const { db, escala, escalaId, usuario: u } = ctx;
@@ -1044,6 +1208,21 @@ export const actions: Actions = {
 					setTimeout(() => reject(new Error('Timeout (25s)')), 25_000)
 				)
 			]);
+
+			// Entrega de documento a um endereço externo: é o mesmo ato que
+			// `finalizar` audita, repetido — e o motivo de repeti-lo (endereço
+			// errado, caixa cheia) é exatamente o que se quer poder reconstituir.
+			await registrarMudancaEscala(event, {
+				db,
+				escalaId,
+				usuario: u,
+				acao: 'reenviar_escala_fds',
+				alvo: { tipo: 'escala', id: escalaId, nome: escala.titulo },
+				detalhes: `Escala de FDS reenviada para ${emailDestino}`,
+				itens: policiais.length,
+				metadados: { emailDestino, email_anterior: escala.email_envio }
+			});
+
 			return { success: true, emailDestino };
 		} catch (err) {
 			const msg =
@@ -1055,16 +1234,33 @@ export const actions: Actions = {
 	},
 
 	/** Reabre a escala de FDS para correção, limpando `finalizada_em`. */
-	desfinalizar: async ({ locals, platform, params }) => {
+	desfinalizar: async (event) => {
+		const { locals, platform, params } = event;
 		const ctx = await carregarEscalaComPermissao(platform, locals.usuario, params.id, 'ciclo');
 		if ('erro' in ctx) return ctx.erro;
-		const { db, escala, escalaId } = ctx;
+		const { db, escala, escalaId, usuario: u } = ctx;
 
 		if (escala.tipo !== 'fds')
 			return fail(400, { error: 'Operação válida apenas para escalas de FDS' });
 
 		try {
 			await desfinalizarEscalaFDS(db, escalaId);
+
+			// Reabrir desfaz um documento que JÁ CIRCULOU fora do sistema: o PDF
+			// está na caixa de entrada de alguém e vai divergir da escala a partir
+			// da próxima edição. É `critico` no catálogo por isso.
+			await registrarMudancaEscala(event, {
+				db,
+				escalaId,
+				usuario: u,
+				acao: 'reabrir_escala_fds',
+				alvo: { tipo: 'escala', id: escalaId, nome: escala.titulo },
+				detalhes: `Escala de FDS reaberta para correção (havia sido enviada para ${escala.email_envio ?? 'destino não registrado'})`,
+				itens: 0,
+				dados_antes: { finalizada_em: escala.finalizada_em, email_envio: escala.email_envio },
+				dados_depois: { finalizada_em: null }
+			});
+
 			return { success: true };
 		} catch {
 			return fail(500, { error: 'Erro ao reabrir escala' });
@@ -1072,13 +1268,29 @@ export const actions: Actions = {
 	},
 
 	/** Esvazia a escala (recomeçar o mês do zero). */
-	removerTodos: async ({ locals, platform, params }) => {
+	removerTodos: async (event) => {
+		const { locals, platform, params } = event;
 		const ctx = await carregarEscalaComPermissao(platform, locals.usuario, params.id, 'conteudo');
 		if ('erro' in ctx) return ctx.erro;
-		const { db, escalaId } = ctx;
+		const { db, escala, escalaId, usuario: u } = ctx;
 
 		try {
+			// Contado ANTES: depois do delete não há como saber quantos saíram, e
+			// "esvaziou a escala" sem o número não distingue uma linha de trinta.
+			const antes = await listarPoliciaisEscala(db, escalaId);
 			await db.delete(escalaPoliciais).where(eq(escalaPoliciais.escala_id, escalaId));
+
+			await registrarMudancaEscala(event, {
+				db,
+				escalaId,
+				usuario: u,
+				acao: 'remover_policial_escala',
+				alvo: { tipo: 'escala', id: escalaId, nome: escala.titulo },
+				detalhes: `Escala esvaziada: ${antes.length} servidor(es) retirados de uma vez`,
+				itens: antes.length,
+				dados_antes: { policiais: antes.map((p) => p.policial_id) }
+			});
+
 			return { success: true, policiais: [] };
 		} catch {
 			return fail(500, { error: 'Erro ao remover todos os servidores' });
@@ -1086,10 +1298,11 @@ export const actions: Actions = {
 	},
 
 	/** Remove em lote as linhas marcadas na tabela. */
-	removerSelecionados: async ({ request, locals, platform, params }) => {
+	removerSelecionados: async (event) => {
+		const { request, locals, platform, params } = event;
 		const ctx = await carregarEscalaComPermissao(platform, locals.usuario, params.id, 'conteudo');
 		if ('erro' in ctx) return ctx.erro;
-		const { db, escalaId } = ctx;
+		const { db, escala, escalaId, usuario: u } = ctx;
 
 		const data = await request.formData();
 		const idsJson = data.get('ids')?.toString() || '[]';
@@ -1101,6 +1314,18 @@ export const actions: Actions = {
 			return fail(400, { error: 'IDs inválidos' });
 		}
 
+		// Lidos ANTES do delete: `ids` é o que o cliente PEDIU para remover, e o
+		// que a trilha precisa dizer é o que realmente saiu — um id de outra escala
+		// no corpo do formulário não conta, e o `WHERE` já o descarta.
+		const alvos = await db
+			.select({
+				policial_id: escalaPoliciais.policial_id,
+				data_plantao: escalaPoliciais.data_plantao
+			})
+			.from(escalaPoliciais)
+			.where(and(eq(escalaPoliciais.escala_id, escalaId), inArray(escalaPoliciais.id, ids)))
+			.all();
+
 		try {
 			const [, policiais] = await db.batch([
 				db
@@ -1108,6 +1333,24 @@ export const actions: Actions = {
 					.where(and(eq(escalaPoliciais.escala_id, escalaId), inArray(escalaPoliciais.id, ids))),
 				listarPoliciaisEscalaQuery(db, escalaId)
 			]);
+
+			await registrarMudancaEscala(event, {
+				db,
+				escalaId,
+				usuario: u,
+				acao: 'remover_policial_escala',
+				alvo: { tipo: 'escala', id: escalaId, nome: escala.titulo },
+				detalhes: `${alvos.length} linha(s) removidas em lote`,
+				itens: alvos.length,
+				metadados: { ids_pedidos: ids.length },
+				dados_antes: {
+					removidos: alvos.map((a) => ({
+						policial_id: a.policial_id,
+						data_plantao: a.data_plantao
+					}))
+				}
+			});
+
 			return { success: true, policiais, removidos: ids.length };
 		} catch {
 			return fail(500, { error: 'Erro ao remover servidores selecionados' });

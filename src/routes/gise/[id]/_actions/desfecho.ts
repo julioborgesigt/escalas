@@ -24,7 +24,7 @@ import { eq } from 'drizzle-orm';
 import type { RequestEvent } from '@sveltejs/kit';
 import { atualizarGiseEscala, revogarAssinaturasSeccional } from '$lib/db';
 import type { Database } from '$lib/db';
-import { auditar, contextoDeEvento, type AcaoAudit } from '$lib/db/audit';
+import { auditarDoEvento, type AcaoAudit } from '$lib/db/audit';
 import { giseDocumentos } from '$lib/server/schema';
 import { saiuDaFaseDeEdicao } from './shared';
 
@@ -108,25 +108,19 @@ export async function concluirMudancaGise(
 	event: RequestEvent,
 	m: MudancaGise
 ): Promise<Invalidacao> {
-	const { contexto, env } = contextoDeEvento(event);
-	await auditar(
-		m.db,
-		{
-			acao: m.acao,
-			usuario: m.usuario,
-			entidade: 'gise',
-			entidade_id: m.giseId,
-			alvo_tipo: m.alvo.tipo,
-			alvo_id: m.alvo.id,
-			alvo_nome: m.alvo.nome ?? null,
-			severidade: m.invalidacao === 'nada' ? 'info' : 'aviso',
-			detalhes: m.detalhes,
-			metadados: { ...(m.metadados ?? {}), invalidacao: m.invalidacao },
-			dados_antes: m.dados_antes ?? null,
-			dados_depois: m.dados_depois ?? null,
-			...contexto
-		},
-		{ env }
-	);
+	await auditarDoEvento(event, m.db, {
+		acao: m.acao,
+		usuario: m.usuario,
+		entidade: 'gise',
+		entidade_id: m.giseId,
+		alvo_tipo: m.alvo.tipo,
+		alvo_id: m.alvo.id,
+		alvo_nome: m.alvo.nome ?? null,
+		severidade: m.invalidacao === 'nada' ? 'info' : 'aviso',
+		detalhes: m.detalhes,
+		metadados: { ...(m.metadados ?? {}), invalidacao: m.invalidacao },
+		dados_antes: m.dados_antes ?? null,
+		dados_depois: m.dados_depois ?? null
+	});
 	return m.invalidacao;
 }

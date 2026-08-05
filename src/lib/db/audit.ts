@@ -169,6 +169,20 @@ export const CATALOGO_ACOES = {
 		categoria: 'escala',
 		severidade: 'info'
 	},
+	// A escala de FDS não é assinada: o marco é a ENTREGA por e-mail. Reenviar e
+	// reabrir são, nesse fluxo, o que revogar e reabrir são no fluxo assinado —
+	// por isso têm ação própria, e reabrir é `critico`: desfaz um documento que
+	// já circulou fora do sistema.
+	reenviar_escala_fds: {
+		label: 'Reenvio da escala de fim de semana por e-mail',
+		categoria: 'escala',
+		severidade: 'aviso'
+	},
+	reabrir_escala_fds: {
+		label: 'Reabertura de escala de fim de semana já enviada',
+		categoria: 'escala',
+		severidade: 'critico'
+	},
 	solicitar_assinatura_escala: {
 		label: 'Solicitação de assinatura de escala',
 		categoria: 'escala',
@@ -864,6 +878,30 @@ export async function reprocessarPendenciasAudit(
 export async function contarPendenciasAudit(db: Database): Promise<number> {
 	const [r] = await db.select({ n: sql<number>`count(*)` }).from(auditPendencias);
 	return Number(r?.n ?? 0);
+}
+
+/** Um evento sem o contexto de request — o handler não precisa preenchê-lo. */
+export type EventoSemContexto = Omit<
+	AuditEvento,
+	'ip' | 'user_agent' | 'request_id' | 'rota' | 'metodo'
+>;
+
+/**
+ * `auditar` com IP, user-agent, request_id, rota, método e `env` já extraídos
+ * do RequestEvent.
+ *
+ * Encurta a instrumentação de um handler de três linhas para uma, e é o que as
+ * form actions de `/gise/[id]` e `/escalas/[id]` usam. O ganho não é o
+ * tamanho: é que esquecer o `...contexto` deixava o evento sem IP e sem rota
+ * — silenciosamente, porque todos os cinco campos são opcionais.
+ */
+export async function auditarDoEvento(
+	event: EventoRequestLike,
+	db: Database,
+	evento: EventoSemContexto
+): Promise<void> {
+	const { contexto, env } = contextoDeEvento(event);
+	return auditar(db, { ...evento, ...contexto }, { env });
 }
 
 /**

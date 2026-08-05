@@ -1232,12 +1232,51 @@ não “enviado”.
 ### FLW-ESC-007 — ações materiais de escala não produzem trilha forense
 
 **Severidade:** P1  
+**Estado:** corrigido  
 Inserções, edições, remoções, reenvio e reabertura não registram o catálogo de
 eventos disponível (`src/routes/escalas/[id]/+page.server.ts:240-250,582-584,724-764,947-1006`
 e `src/lib/db/audit.ts:147-155`).
 
 **Ação/teste:** append transacional/por outbox com ator, escala, itens e
 antes/depois; cada action material bem-sucedida deve criar uma entrada.
+
+> **CORRIGIDO (05/ago/2026).** Doze das catorze actions não deixavam rastro
+> nenhum. Todas passaram a fechar em `registrarMudancaEscala`
+> (`_actions/desfecho.ts`), par do preâmbulo `carregarEscalaComPermissao` que já
+> vivia no `+page.server.ts` — mesma divisão adotada na GISE: um lado para o que
+> roda antes de mutar, outro para o que roda depois.
+>
+> O campo `itens` é OBRIGATÓRIO no contrato, e é a parte do achado que mais
+> importa: a mesma action serve para uma linha e para trinta —
+> `removerSelecionados` esvazia meio mês com um clique —, e "removeu policial da
+> escala" sem o número não distingue a correção de um horário do desmonte do
+> plantão inteiro. As actions em lote leem o alvo ANTES do `DELETE`, pelo mesmo
+> motivo: depois não há de onde tirar quem saiu.
+>
+> Duas ações novas no catálogo. A escala de FDS não é assinada — o marco é a
+> ENTREGA por e-mail —, então `reenviar_escala_fds` e `reabrir_escala_fds` são,
+> nesse fluxo, o que revogar e reabrir são no fluxo assinado. Reabrir é
+> `critico`: desfaz um documento que já circulou na caixa de entrada de alguém e
+> que vai divergir da escala a partir da próxima edição.
+>
+> **Não é append transacional nem outbox**, e é decisão registrada: `auditar()`
+> já resolve a falha de trilha por PENDÊNCIA DURÁVEL (FLW-AUDIT-001) — a mutação
+> vale, o evento espera, o cron reinsere. Envolver as catorze actions numa
+> transação com o append daria a mesma garantia a um custo muito maior, e
+> quebraria a política já decidida pelo operador de que falha de trilha não
+> derruba a operação.
+>
+> `finalizar` e `gerarProximoMes` continuam auditando por conta própria e estão
+> DECLARADAS como exceção no guard: a primeira carrega o resultado do envio de
+> e-mail, a segunda tem como entidade a escala NOVA, não a da URL. Nenhuma cabe
+> no contrato de `registrarMudancaEscala`, que fixa `entidade_id` na escala da
+> rota — declarar é o que separa "audita de outro jeito" de "não audita".
+>
+> Cobertura: `_actions/__tests__/desfecho.test.ts` (8, banco real) para o
+> conteúdo do evento; `_actions/__tests__/actions-auditadas.test.ts` (30) lê o
+> `+page.server.ts` e prova que as catorze registram. Verificados por mutação:
+> apagar a chamada de uma action, remover `itens` do evento e voltar uma action
+> a desestruturar em vez de receber o `event` reprovam, cada um no seu caso.
 
 ## Resultado parcial — F3: assinatura, exportação e validação
 
