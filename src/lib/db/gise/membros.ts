@@ -19,7 +19,7 @@
  *
  * As funções `verificarConflito*` continuam existindo, e a mudança é de papel:
  * viraram DIAGNÓSTICO. Elas não decidem mais nada — servem para dizer ao
- * usuário POR QUE a gravação foi recusada, já que um `rowsAffected = 0` não
+ * usuário POR QUE a gravação foi recusada, já que "zero linhas afetadas" não
  * conta qual das duas regras barrou. Se alguma delas divergir da SQL, o pior
  * caso passou a ser uma mensagem confusa, nunca uma escrita errada.
  *
@@ -43,7 +43,7 @@ import {
 	giseMembros,
 	unidades
 } from '../../server/schema';
-import type { Database } from '../core';
+import { linhasAfetadas, type Database } from '../core';
 import { seOverlapam } from '../../gise/horarios';
 
 /** Por que a alocação não entrou. `ok` = entrou. */
@@ -63,7 +63,7 @@ export type ResultadoAlocacao =
  *   `(gise_id, policial_id)` recusa o segundo insert do mesmo policial na mesma
  *   GISE. Deriva-lo aqui é o que impede a coluna denormalizada de divergir.
  *
- * `rowsAffected = 0` significa "a condição não valia mais" — sem vaga, ou equipe
+ * Zero linhas afetadas significa "a condição não valia mais" — sem vaga, ou equipe
  * inexistente. A violação do índice único vira `ja_escalado`. Nenhum dos dois é
  * exceção para o chamador: são respostas.
  */
@@ -94,7 +94,7 @@ export async function adicionarGiseMembro(
 			  )
 		`);
 
-		if ((r.rowsAffected ?? 0) > 0) return { ok: true };
+		if (linhasAfetadas(r) > 0) return { ok: true };
 
 		// Zero linhas: ou a equipe não existe, ou a vaga acabou entre a tela e o
 		// POST. Distinguir importa — "equipe não encontrada" e "vagas esgotadas"

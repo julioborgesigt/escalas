@@ -17,7 +17,7 @@
 import { and, eq, asc } from 'drizzle-orm';
 import { unidades, policiais, escalas, giseSeccionais } from '../server/schema';
 import type * as schema from '../server/schema';
-import type { Database } from './core';
+import { linhasAfetadas, type Database } from './core';
 
 /** Campos editáveis de uma unidade (mesmo shape em criar e atualizar). */
 type DadosUnidade = {
@@ -132,21 +132,21 @@ export async function atualizarUnidade(
 		// outra requisição renomeou no meio, esta edição escreveria os demais
 		// campos por cima de um nome que ela não viu.
 		const r = await alterarUnidade;
-		if ((r.rowsAffected ?? 0) === 0) throw new ConflitoDeRenomeacaoUnidade(nomeAntigo);
+		if (linhasAfetadas(r) === 0) throw new ConflitoDeRenomeacaoUnidade(nomeAntigo);
 		return { nomeAntigo };
 	}
 
 	// Cascata manual (não há FK): tudo que apontava para o nome antigo passa a
 	// apontar para o novo. As duas cascatas são condicionadas ao MESMO nome
 	// antigo, então a requisição perdedora vira um no-op de três statements —
-	// e é o `rowsAffected` do primeiro que a denuncia.
+	// e é a contagem de linhas do primeiro que a denuncia.
 	const [resUnidade] = await db.batch([
 		alterarUnidade,
 		db.update(policiais).set({ lotacao: nomeTrimmed }).where(eq(policiais.lotacao, nomeAntigo)),
 		db.update(escalas).set({ lotacao: nomeTrimmed }).where(eq(escalas.lotacao, nomeAntigo))
 	]);
 
-	if ((resUnidade.rowsAffected ?? 0) === 0) throw new ConflitoDeRenomeacaoUnidade(nomeAntigo);
+	if (linhasAfetadas(resUnidade) === 0) throw new ConflitoDeRenomeacaoUnidade(nomeAntigo);
 
 	return { nomeAntigo };
 }

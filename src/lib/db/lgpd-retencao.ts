@@ -32,7 +32,7 @@ import {
 	auditCheckpoints,
 	appLog
 } from '../server/schema';
-import { timestampSqliteUtc, type Database } from './core';
+import { linhasAfetadas, timestampSqliteUtc, type Database } from './core';
 import {
 	buscarConfiguracao,
 	LGPD_RETENCAO_SESSOES_DIAS,
@@ -187,7 +187,7 @@ async function cortarTrilhaComAncora(
 	// participa da cadeia e não deixa buraco verificável: sai sem âncora.
 	if (!ultima?.seq || !ultima.hash_registro) {
 		const r = await db.delete(auditLog).where(lt(auditLog.created_at, cutoff));
-		return r.rowsAffected ?? removidos;
+		return linhasAfetadas(r) || removidos;
 	}
 
 	await db.batch([
@@ -253,15 +253,15 @@ export async function executarLimpezaRetencao(
 	);
 
 	return {
-		sessoes: resSessoes.rowsAffected ?? 0,
-		loginAttempts: resLogin.rowsAffected ?? 0,
-		doisFatores: res2FA.rowsAffected ?? 0,
-		resetTokens: resReset.rowsAffected ?? 0,
-		assinaturaIntencoes: resIntencoes.rowsAffected ?? 0,
-		recoveryAttempts: resRecovery.rowsAffected ?? 0,
-		webhookNonces: resNonces.rowsAffected ?? 0,
+		sessoes: linhasAfetadas(resSessoes),
+		loginAttempts: linhasAfetadas(resLogin),
+		doisFatores: linhasAfetadas(res2FA),
+		resetTokens: linhasAfetadas(resReset),
+		assinaturaIntencoes: linhasAfetadas(resIntencoes),
+		recoveryAttempts: linhasAfetadas(resRecovery),
+		webhookNonces: linhasAfetadas(resNonces),
 		auditLog: auditRemovidos,
-		appLog: resAppLog.rowsAffected ?? 0
+		appLog: linhasAfetadas(resAppLog)
 	};
 }
 

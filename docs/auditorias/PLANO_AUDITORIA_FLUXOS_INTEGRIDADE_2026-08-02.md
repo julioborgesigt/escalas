@@ -1010,6 +1010,51 @@ nomeados como a camuflagem que foram; sob mutação para o código anterior eles
 seguem verdes e os três seguintes reprovam — inclusive o que prova a revogação
 da seccional alheia.
 
+### FLW-TEST-007 — o harness inventava `rowsAffected`, e quatro correções liam o campo errado
+
+**Severidade:** P0  
+**Fluxo:** transversal (FLX-03 / FLX-05 / FLX-07)  
+**Estado:** corrigido  
+**Origem:** não estava no plano; apareceu no e2e do CI, com a suíte unitária
+inteira verde (1126/1126).
+
+O D1 responde `D1Result` a toda escrita: `{ success, results, meta: { changes } }`.
+**Não existe `rowsAffected`** — esse é o nome do `better-sqlite3`/libsql. O
+drizzle repassa o objeto do driver sem tocar (`mapRunResult` é a identidade nos
+dois drivers), então ler o campo errado dá `undefined`, e o `?? 0` idiomático o
+transforma em "nenhuma linha afetada". Sem erro, sem log.
+
+Quatro correções desta auditoria decidiam por esse campo. Em produção:
+
+| chamador                | o que fazia de fato                                                |
+| ----------------------- | ------------------------------------------------------------------ |
+| `salvarSaidaGise`       | `registrada: false` SEMPRE — a saída era gravada e o usuário via 409 |
+| `adicionarGiseMembro`   | respondia `sem_vaga` DEPOIS de inserir o membro                     |
+| `atualizarUnidade`      | lançava `ConflitoDeRenomeacaoUnidade` em toda edição de unidade     |
+| `executarLimpezaRetencao` | relatava 0 removidos em todas as tabelas (o DELETE acontecia)     |
+
+**Por que nenhum teste pegou:** `drizzleSobre` — o harness — SINTETIZAVA um
+`rowsAffected` a partir de `changes` do `node:sqlite`. Os testes mediam a
+invenção do harness, não o contrato do banco. Não havia teste possível que
+pegasse isso, porque todos partiam do mesmo campo falso. Quem denunciou foi o
+e2e, que roda sobre D1 de verdade.
+
+É o QUARTO defeito de fidelidade do harness nesta auditoria, e o mais caro: os
+três anteriores faziam um teste acusar bug inexistente; este fazia o teste
+APROVAR código quebrado.
+
+**Correção:** `linhasAfetadas(resultado)` em `db/core.ts` — uma função, um
+campo (`meta.changes`), usada pelos quatro chamadores. Sem `?? rowsAffected` de
+reserva, de propósito: com a reserva, o harness poderia voltar a mentir. E o
+harness passou a devolver `{ rows: [], meta: { changes } }`, o formato do banco
+real.
+
+**Regressão:** quatro casos em
+`src/lib/db/__tests__/harness-fidelidade.test.ts` (contagem direta, contagem
+zero, contagem dentro do `batch`, e a asserção de que `rowsAffected` NÃO
+existe). Sob mutação para `rowsAffected`, 7 casos de três suítes de domínio
+reprovam — os mesmos que antes passavam contra o mesmo código.
+
 ## Resultado parcial — F6: webhooks e integrações
 
 > **ACEITO** — A regra não existe: uma GISE é de um DIA e o formulário cria uma por data selecionada. A constraint proposta quebraria a criação em lote. Removida a `buscarGiseAtiva`, que escolhia a mais recente e escondia as demais — e cujo resultado a página nem lia.

@@ -22,6 +22,7 @@ const SYNC = tokenWebhookE2E();
 const MAT = 'WEBHOOKE2E01';
 const MAT_ADMIN = 'WEBHOOKE2E02';
 const MAT_BAD = 'WEBHOOKE2E03';
+const MAT_LOTE_OK = 'WEBHOOKE2E04';
 const SECCIONAL = 'SECCIONAL WEBHOOK E2E';
 
 const bearer = (t: string) => ({
@@ -34,7 +35,7 @@ test.describe('Webhook sync — contrato + segurança', () => {
 
 	test.afterAll(() => {
 		execD1Local(
-			`DELETE FROM policiais WHERE matricula IN ('${MAT}', '${MAT_ADMIN}', '${MAT_BAD}'); ` +
+			`DELETE FROM policiais WHERE matricula IN ('${MAT}', '${MAT_ADMIN}', '${MAT_BAD}', '${MAT_LOTE_OK}'); ` +
 				`DELETE FROM unidades WHERE nome = '${SECCIONAL}';`
 		);
 	});
@@ -97,18 +98,51 @@ test.describe('Webhook sync — contrato + segurança', () => {
 		expect(depois?.[0]?.cargo).toBe('DPC');
 	});
 
-	test('cargo inválido → linha falha (não importa), sem derrubar o lote', async ({ request }) => {
+	test('cargo inválido → a linha falha, o lote NÃO cai, e a resposta é 422', async ({ request }) => {
+		// Lote MISTO, que é o que o nome do teste promete: a linha boa entra, a
+		// ruim não, e nenhuma das duas derruba a outra.
 		const res = await request.post('/api/webhook/sync-policiais', {
 			headers: bearer(SYNC!),
-			data: { matricula: MAT_BAD, nome: 'Cargo Ruim', cargo: 'GENERAL', lotacao: 'X' }
+			data: [
+				{
+					matricula: MAT_LOTE_OK,
+					nome: 'Linha Boa',
+					cargo: 'OIP',
+					lotacao: 'DELEGACIA E2E FIXTURE A'
+				},
+				{ matricula: MAT_BAD, nome: 'Cargo Ruim', cargo: 'GENERAL', lotacao: 'X' }
+			]
+		});
+
+		// 422, não 200 (FLW-WEBHOOK-002): o Apps Script lê `error`/`details` e
+		// ignora `errors`, então um sucesso PARCIAL respondido como 200 chegava do
+		// outro lado como "sincronizou" — e o policial simplesmente não estava lá.
+		// Não dá para corrigir o script daqui; dá para parar de dizer OK.
+		expect(res.status()).toBe(422);
+		const j = await res.json();
+		expect(j.imported).toBe(1);
+		expect(j.failed).toBe(1);
+		expect(j.errors?.length).toBe(1);
+
+		// A boa entrou...
+		expect(
+			queryD1Local(`SELECT id FROM policiais WHERE matricula='${MAT_LOTE_OK}'`)?.length
+		).toBe(1);
+		// ...e a ruim não.
+		expect(queryD1Local(`SELECT id FROM policiais WHERE matricula='${MAT_BAD}'`)?.length).toBe(0);
+	});
+
+	test('lote inteiro válido → 200', async ({ request }) => {
+		// O par do teste acima: sem falha nenhuma o status volta a ser 200, senão
+		// o 422 viraria ruído permanente e o operador aprenderia a ignorá-lo.
+		const res = await request.post('/api/webhook/sync-policiais', {
+			headers: bearer(SYNC!),
+			data: [
+				{ matricula: MAT_LOTE_OK, nome: 'Linha Boa', cargo: 'OIP', lotacao: 'DELEGACIA E2E FIXTURE A' }
+			]
 		});
 		expect(res.status()).toBe(200);
-		const j = await res.json();
-		expect(j.imported).toBe(0);
-		expect(j.failed).toBe(1);
-		// Nada foi gravado para essa matrícula.
-		const rows = queryD1Local(`SELECT id FROM policiais WHERE matricula='${MAT_BAD}'`);
-		expect(rows?.length).toBe(0);
+		expect(await res.json()).toMatchObject({ imported: 1, failed: 0 });
 	});
 
 	test('M-4: payload NÃO promove a admin (WEBHOOK_ALLOW_PAPEL_CHANGES desligado)', async ({

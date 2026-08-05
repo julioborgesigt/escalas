@@ -6,7 +6,7 @@
  */
 import { eq, and, isNotNull, sql } from 'drizzle-orm';
 import { gisePresencas, policiais } from '../../server/schema';
-import type { Database } from '../core';
+import { linhasAfetadas, type Database } from '../core';
 import { anonimizarIp } from '../audit';
 import { parseUserAgent, reduzirPrecisaoGps } from '../../server/assinatura/document-utils';
 import { decifrarCpfDoDB, type CpfCriptoEnv } from '../../crypto/cpf-cripto';
@@ -90,7 +90,7 @@ export async function salvarSaidaGise(
 			)
 		);
 
-	return { registrada: (r.rowsAffected ?? 0) > 0 };
+	return { registrada: linhasAfetadas(r) > 0 };
 }
 
 /** Presenças da GISE com os dados do policial (para o painel e os relatórios). */

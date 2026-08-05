@@ -1,18 +1,23 @@
 /**
- * O harness de banco mente? — as três formas em que ele já mentiu.
+ * O harness de banco mente? — as quatro formas em que ele já mentiu.
  *
  * `drizzleSobre` é a peça mais perigosa da suíte: quando ela erra, o teste
  * acusa um bug que não existe (ou, pior, aprova um que existe) e a investigação
- * vai parar no código de produção, que está certo. As três falhas abaixo
+ * vai parar no código de produção, que está certo. As falhas abaixo
  * aconteceram de verdade neste projeto, nesta ordem, e cada uma custou uma
  * rodada inteira de depuração no arquivo errado.
+ *
+ * A quarta é a mais cara e diz por que este arquivo existe: o harness
+ * INVENTAVA um campo (`rowsAffected`) que o D1 não tem. Não havia teste
+ * possível que a pegasse — todos mediam a invenção. Quem denunciou foi o e2e,
+ * que roda sobre D1 de verdade, e só depois de a suíte inteira estar verde.
  *
  * Elas ficam aqui — e não no teste que as descobriu — porque não pertencem a
  * nenhum domínio: são o contrato do driver falso com o drizzle.
  */
 import { describe, it, expect, beforeEach } from 'vitest';
 import { sql } from 'drizzle-orm';
-import type { Database } from '../core';
+import { linhasAfetadas, type Database } from '../core';
 import { bancoMigrado, drizzleSobre } from './sqlite-migrado';
 import { administradores, policiais } from '../../server/schema';
 import { eq } from 'drizzle-orm';
@@ -95,5 +100,44 @@ describe('join com nome de coluna repetido não colapsa', () => {
 		expect(linha.admin.primeiro_acesso, 'o valor da linha admin').toBe(0);
 		expect(linha.policial_primeiro_acesso, 'o valor da linha do policial').toBe(1);
 		expect(linha.admin.login, 'nenhuma coluna deslocou').toBe('M81003');
+	});
+});
+
+describe('a contagem de linhas vem em `meta.changes`, como no D1', () => {
+	beforeEach(() => {
+		sqlite.exec(`
+			INSERT INTO policiais (id, matricula, nome, cargo, lotacao, senha) VALUES
+				(81004, 'M81004', 'Um', 'DPC', 'DEL A', 'h'),
+				(81005, 'M81005', 'Dois', 'DPC', 'DEL A', 'h');
+		`);
+	});
+
+	it('UPDATE que casa devolve a contagem em meta.changes', async () => {
+		const r = await db.update(policiais).set({ nome: 'Trocado' }).where(eq(policiais.id, 81004));
+		expect(r.meta?.changes).toBe(1);
+		expect(linhasAfetadas(r)).toBe(1);
+	});
+
+	it('UPDATE que não casa devolve zero — é assim que o código distingue', async () => {
+		const r = await db.update(policiais).set({ nome: 'X' }).where(eq(policiais.id, 999999));
+		expect(linhasAfetadas(r)).toBe(0);
+	});
+
+	it('dentro do batch a contagem também chega', async () => {
+		// `unidades.ts` decide a renomeação concorrente pela contagem do PRIMEIRO
+		// statement do batch — se ela sumisse aqui, o conflito seria permanente.
+		const [primeiro] = await db.batch([
+			db.update(policiais).set({ lotacao: 'DEL B' }).where(eq(policiais.cargo, 'DPC')),
+			db.update(policiais).set({ nome: 'Z' }).where(eq(policiais.id, 81005))
+		]);
+		expect(linhasAfetadas(primeiro)).toBe(2);
+	});
+
+	it('NÃO existe `rowsAffected` — o campo do better-sqlite3 não é o do D1', async () => {
+		// Este é o teste que faltava. Enquanto o harness fabricava `rowsAffected`,
+		// os quatro chamadores liam o campo errado, passavam nos testes e devolviam
+		// `undefined` em produção. O harness só pode falar a língua do banco real.
+		const r = await db.update(policiais).set({ nome: 'Y' }).where(eq(policiais.id, 81004));
+		expect((r as Record<string, unknown>).rowsAffected).toBeUndefined();
 	});
 });

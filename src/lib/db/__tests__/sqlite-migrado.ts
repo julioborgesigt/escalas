@@ -80,8 +80,12 @@ export function bancoMigrado(): DatabaseSync {
  * como array de arrays. Dois detalhes do contrato do driver decidem se o teste
  * mede o que promete:
  *
- * - **`rowsAffected`** — sem ele, `.returning()` e as contagens de expurgo leem
- *   zero e o teste passa de verde por engano.
+ * - **`meta.changes`** — a contagem de linhas afetadas, no MESMO lugar em que o
+ *   D1 a devolve. Este harness já sintetizou um `rowsAffected` aqui, que é o
+ *   nome do better-sqlite3 e que o D1 nunca produz: os quatro chamadores que
+ *   decidiam por esse campo liam `undefined` em produção e todos os testes
+ *   passavam. Ver `linhasAfetadas` em `db/core.ts`. O campo tem de se chamar
+ *   como o do banco real, senão o teste mede o harness.
  * - **`rows` de um `get` sem resultado tem de ser `undefined`, não `[]`.** O
  *   `mapGetResult` do drizzle decide "não achou" por FALSY (`if (!row) return
  *   undefined`). Devolvendo `[]`, que é truthy, ele mapeia a linha vazia e
@@ -106,7 +110,10 @@ export function drizzleSobre(sqlite: DatabaseSync): Database {
 		const stmt = sqlite.prepare(sql);
 		if (method === 'run') {
 			const r = stmt.run(...(params as never[]));
-			return { rows: [], rowsAffected: Number(r.changes ?? 0) };
+			// `meta.changes` — o formato do D1. NÃO acrescente `rowsAffected`: foi
+			// exatamente esse apelido inventado que deixou quatro chamadores lerem
+			// `undefined` em produção com os testes verdes.
+			return { rows: [], meta: { changes: Number(r.changes ?? 0) } };
 		}
 		const arrays = linhasComoArrays(stmt, params);
 		return { rows: method === 'get' ? (arrays[0] as never) : arrays };
