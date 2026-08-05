@@ -1450,11 +1450,54 @@ não lotações órfãs.
 ### FLW-RBAC-005 — mudança, histórico e auditoria podem divergir
 
 **Severidade:** P1  
+**Estado:** corrigido  
 Movimentação, desvinculação e papel persistem cadastro, histórico e auditoria
 em etapas independentes (`src/routes/policiais/[id]/+page.server.ts:339-377,459-488,575-606`).
 
 **Ação/teste:** transacionar registros ou usar outbox; compensar upload R2 se
 persistência falhar. Injetar falha em histórico/auditoria.
+
+> **CORRIGIDO (05/ago/2026).** Cadastro e linha do tempo passaram a entrar
+> juntos, por `atualizarPolicialComHistorico` — um `db.batch`, que no D1 é
+> transação. Vale para as quatro actions que mudam cadastro: `salvar`,
+> `salvarPapel`, `registrarMovimentacao` e `registrarDesvinculacao`.
+>
+> O que a janela deixava não é abstrato: lotação trocada sem a portaria na linha
+> do tempo, papel administrativo concedido sem registro de quem concedeu, e —
+> o pior — cadastro INATIVADO sem data, sem NUP e sem responsável, uma baixa
+> funcional sem ato que a fundamente. Ninguém percebia porque cada tela lê uma
+> das metades.
+>
+> Para compor o `UPDATE` num batch foi preciso separá-lo da cifragem do CPF, que
+> é assíncrona: `camposDeAtualizacao` devolve o `SET` pronto e `atualizarPolicial`
+> passou a ser a casca. `await atualizarPolicial(...)` não servia como
+> ingrediente — o builder do drizzle é thenable, então o `await` o EXECUTA.
+>
+> **A AUDITORIA ficou de fora do batch, e é decisão registrada.** `auditar()`
+> nunca lança e resolve a própria falha por pendência durável (FLW-AUDIT-001).
+> Metê-la na transação trocaria uma garantia que já existe pela possibilidade de
+> a mutação do usuário ser desfeita por causa da trilha — exatamente a política
+> que o operador recusou ao decidir "pendência durável e segue".
+>
+> **Compensação de R2** (`abortarComLimpezaR2`): o PDF sobe ANTES da mutação de
+> propósito — anexo inválido aborta com 400 sem ter mexido no cadastro —, e era
+> isso que abria a outra ponta. Falhando a gravação, o objeto ficava no bucket
+> sem nenhuma linha apontando para ele: invisível para a tela, invisível para o
+> expurgo de retenção, e contando como dado pessoal armazenado sem base. As três
+> ações com anexo agora apagam a chave e devolvem 500 — incluindo
+> `registrarAfastamento`, que não muda cadastro e portanto não tinha o que
+> transacionar, mas tem o mesmo anexo.
+>
+> Efeito colateral corrigido de quebra: em `registrarDesvinculacao` a revogação
+> de sessões acontecia ANTES do histórico. Passou para depois da baixa
+> persistida — revogar sessão de um cadastro que voltou a ser ativo é
+> inofensivo; o contrário, não.
+>
+> Cobertura: `src/lib/db/__tests__/policial-mudanca-atomica.test.ts`, 6 casos —
+> os três caminhos felizes e as três falhas, incluindo a falha no sentido
+> inverso (o `UPDATE` é que morre, e o histórico não pode afirmar uma
+> movimentação que não aconteceu). Verificado por mutação: com as duas escritas
+> em sequência, dois casos reprovam.
 
 ### FLW-TEST-006 — cadastros e RBAC não têm cobertura negativa de actions
 

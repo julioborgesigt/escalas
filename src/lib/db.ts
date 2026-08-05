@@ -79,6 +79,7 @@ export type { CampoSolicitacao } from './db/cadastro-solicitacoes';
 
 export {
 	registrarHistorico,
+	atualizarPolicialComHistorico,
 	listarHistoricoPolicial,
 	buscarEventoHistorico,
 	afastamentoVigente
