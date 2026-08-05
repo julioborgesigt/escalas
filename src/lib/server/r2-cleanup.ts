@@ -364,10 +364,7 @@ export async function coletarChavesR2DaRevogacaoSeccional(
 			.innerJoin(giseMembros, eq(gisePresencas.policial_id, giseMembros.policial_id))
 			.innerJoin(giseEquipes, eq(giseMembros.equipe_id, giseEquipes.id))
 			.where(
-				and(
-					eq(gisePresencas.gise_id, giseId),
-					eq(giseEquipes.gise_seccional_id, giseSeccionalId)
-				)
+				and(eq(gisePresencas.gise_id, giseId), eq(giseEquipes.gise_seccional_id, giseSeccionalId))
 			)
 			.all()
 	]);

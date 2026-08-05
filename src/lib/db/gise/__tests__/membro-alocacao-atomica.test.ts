@@ -33,9 +33,11 @@ const DPC2 = 95402;
 const OIP = 95403;
 
 const membros = () =>
-	sqlite
-		.prepare('SELECT equipe_id, policial_id, gise_id FROM gise_membros ORDER BY id')
-		.all() as { equipe_id: number; policial_id: number; gise_id: number | null }[];
+	sqlite.prepare('SELECT equipe_id, policial_id, gise_id FROM gise_membros ORDER BY id').all() as {
+		equipe_id: number;
+		policial_id: number;
+		gise_id: number | null;
+	}[];
 
 beforeEach(() => {
 	sqlite = bancoMigrado();

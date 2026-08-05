@@ -134,9 +134,7 @@ describe('a gravação é quem decide', () => {
 	it('linha de presença SEM entrada_timestamp também é recusada', async () => {
 		// Estado possível por caminhos antigos: existe a linha, falta o carimbo.
 		// Filtrar só por (gise, policial) aceitaria — e é o que fazia.
-		sqlite.exec(
-			`INSERT INTO gise_presencas (gise_id, policial_id) VALUES (${GISE}, ${POL})`
-		);
+		sqlite.exec(`INSERT INTO gise_presencas (gise_id, policial_id) VALUES (${GISE}, ${POL})`);
 		const r = await salvarSaidaGise(db, GISE, POL, 'rubrica');
 		expect(r.registrada).toBe(false);
 		expect(presenca()?.saida).toBeNull();

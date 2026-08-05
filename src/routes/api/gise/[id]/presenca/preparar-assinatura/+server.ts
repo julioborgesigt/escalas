@@ -13,13 +13,7 @@ import { getDB, buscarGiseEscala, resolverParticipacaoGisePolicial } from '$lib/
 import { gateDePresenca } from '$lib/server/gise/presenca-gate';
 import { policiais } from '$lib/server/schema';
 import { prepararPresencaSchema } from '$lib/schemas';
-import {
-	requireAuth,
-	badRequest,
-	notFound,
-	forbidden,
-	validateBody
-} from '$lib/server/api';
+import { requireAuth, badRequest, notFound, forbidden, validateBody } from '$lib/server/api';
 import { gerarTermoPresencaPdf } from '$lib/server/gise/termo-presenca';
 import {
 	prepararPdfParaAssinatura,

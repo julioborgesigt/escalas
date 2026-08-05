@@ -13,11 +13,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import type { Database } from '$lib/db';
 import { bancoMigrado, drizzleSobre } from '$lib/db/__tests__/sqlite-migrado';
-import {
-	carregarEquipeDaGise,
-	carregarMembroDaGise,
-	carregarSeccionalDaGise
-} from '../shared';
+import { carregarEquipeDaGise, carregarMembroDaGise, carregarSeccionalDaGise } from '../shared';
 
 let db: Database;
 let sqlite: ReturnType<typeof bancoMigrado>;

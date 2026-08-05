@@ -49,9 +49,7 @@ const checkpoints = () =>
 
 /** Envelhece as N primeiras linhas para além do prazo de retenção. */
 function envelhecer(ate: number) {
-	sqlite.exec(
-		`UPDATE audit_log SET created_at = '2000-01-01 00:00:00' WHERE seq <= ${ate}`
-	);
+	sqlite.exec(`UPDATE audit_log SET created_at = '2000-01-01 00:00:00' WHERE seq <= ${ate}`);
 }
 
 const CONFIG = {

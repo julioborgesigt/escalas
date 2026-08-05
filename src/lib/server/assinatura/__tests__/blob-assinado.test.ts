@@ -57,9 +57,7 @@ describe('bucketParaAssinatura', () => {
 		// 503 + `upstream` diz ao cliente que é infra e vale tentar de novo —
 		// diferente de 500, que o front trata como erro definitivo.
 		expect(corpo.errorType).toBe('upstream');
-		expect(corpo.error, 'a mensagem tem de afirmar que NÃO assinou').toContain(
-			'não foi realizada'
-		);
+		expect(corpo.error, 'a mensagem tem de afirmar que NÃO assinou').toContain('não foi realizada');
 	});
 
 	it('com bucket, devolve o bucket', () => {
