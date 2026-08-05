@@ -539,7 +539,7 @@ e reprocessável; a limpeza bem-sucedida a encerra.
 
 **Severidade:** P1  
 **Fluxo:** FLX-08  
-**Estado:** confirmado
+**Estado:** corrigido
 
 A retenção exclui diretamente entradas antigas de `audit_log`
 (`src/lib/db/lgpd-retencao.ts:156-157`). A verificação de cadeia aceita a
@@ -557,6 +557,38 @@ checkpoint válido.
 
 **Teste de regressão:** remover prefixo sem checkpoint precisa falhar; remoção
 com checkpoint válido deve continuar verificável.
+
+> **CORRIGIDO (05/ago/2026).** Tabela `audit_checkpoints`, gravada na MESMA
+> transação do DELETE de retenção (`cortarTrilhaComAncora`). Ela guarda até onde
+> o corte foi (`seq_ate`) e qual era o `hash_registro` da última linha removida
+> (`hash_ate`) — que é exatamente o `hash_anterior` que a primeira sobrevivente
+> carrega.
+>
+> `verificarIntegridadeAudit` deixou de pular a checagem na primeira linha
+> sobrevivente. Ela agora tem de ser uma de duas coisas: o começo da cadeia
+> (`seq 1` apontando para GENESIS) ou um corte com checkpoint casando nos DOIS
+> campos. Forjar a âncora não ajuda quem apagou: o hash exigido é o da linha que
+> sumiu.
+>
+> Fora da transação, uma falha entre o DELETE e o INSERT recriaria exatamente o
+> estado do achado — por isso `db.batch`, e por isso o corte da trilha saiu do
+> `Promise.all` das outras oito tabelas.
+>
+> **O caso decisivo do teste é o que PASSAVA antes**: apagar as três primeiras
+> linhas deixa o resto da cadeia com elos corretos, então tudo que se verificava
+> continuava batendo e a página de integridade dizia `ok`. Um teste que cobrisse
+> só cadeia íntegra e elo adulterado nunca acharia isso.
+>
+> Cobertura: `src/lib/db/__tests__/audit-checkpoint-retencao.test.ts`, 8 casos,
+> incluindo checkpoint com hash forjado, checkpoint no `seq` errado e o buraco
+> no MEIO da cadeia — que já reprovava e tinha de continuar reprovando. Duas
+> mutações verificadas.
+>
+> **Efeito em base existente:** um corte de retenção anterior a esta migração
+> não tem checkpoint, e a verificação passa a acusá-lo. Isso é o comportamento
+> correto — o verificador realmente não consegue distinguir aquele buraco de uma
+> remoção deliberada —, mas quem já rodou a retenção em produção precisa saber
+> que o primeiro `ok: false` pode ser esse, e não um incidente.
 
 ---
 

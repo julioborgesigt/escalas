@@ -894,6 +894,33 @@ export const r2Pendencias = sqliteTable(
 	(table) => [index('idx_r2_pendencias_created').on(table.created_at)]
 );
 
+/**
+ * Âncora de um corte de retenção na trilha (FLW-AUDIT-005).
+ *
+ * A retenção apaga o PREFIXO de `audit_log` além do prazo, e isso é legítimo.
+ * O verificador, porém, aceitava a primeira linha sobrevivente como início
+ * válido sem perguntar de onde ela veio — então apagar as primeiras N linhas
+ * para sumir com um evento produzia uma cadeia que continuava verificando `ok`.
+ *
+ * O checkpoint guarda ONDE o corte parou e QUAL era o `hash_registro` da última
+ * linha removida, que é o `hash_anterior` da primeira sobrevivente. Sem
+ * checkpoint casando nos dois campos, o buraco volta a ser o que sempre foi:
+ * uma remoção não explicada.
+ */
+export const auditCheckpoints = sqliteTable('audit_checkpoints', {
+	id: integer('id').primaryKey({ autoIncrement: true }),
+	/** Último `seq` removido. A primeira sobrevivente tem de ser `seq_ate + 1`. */
+	seq_ate: integer('seq_ate').notNull().unique(),
+	/** `hash_registro` daquela linha — o elo que a sobrevivente aponta. */
+	hash_ate: text('hash_ate').notNull(),
+	removidos: integer('removidos').notNull(),
+	/** Política aplicada, em texto (ex.: `retencao:5anos`). */
+	politica: text('politica').notNull(),
+	created_at: text('created_at')
+		.notNull()
+		.default(sql`(datetime('now'))`)
+});
+
 export const auditLog = sqliteTable(
 	'audit_log',
 	{

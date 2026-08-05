@@ -19,7 +19,7 @@
  * expõe o atraso no health detail. `avaliarSaudeLimpeza` é a parte pura, para
  * ser testável sem banco.
  */
-import { lt, eq, desc } from 'drizzle-orm';
+import { and, lt, eq, desc, isNotNull, sql } from 'drizzle-orm';
 import {
 	sessoes,
 	loginAttempts,
@@ -29,6 +29,7 @@ import {
 	recoveryAttempts,
 	webhookNonces,
 	auditLog,
+	auditCheckpoints,
 	appLog
 } from '../server/schema';
 import { timestampSqliteUtc, type Database } from './core';
@@ -141,6 +142,67 @@ export async function carregarConfigRetencao(db: Database): Promise<RetencaoConf
 }
 
 /**
+ * Corta o prefixo da trilha DEIXANDO ÂNCORA — FLW-AUDIT-005.
+ *
+ * A retenção sempre pôde apagar `audit_log` além do prazo; o que faltava era o
+ * verificador conseguir distinguir esse corte de uma remoção para sumir com um
+ * evento. Ele aceitava a primeira linha sobrevivente como início válido e
+ * devolvia `ok: true` para as duas situações.
+ *
+ * O checkpoint fecha isso: guarda o último `seq` removido e o `hash_registro`
+ * dele — que é exatamente o `hash_anterior` da primeira sobrevivente. Sem
+ * checkpoint casando nos dois campos, o buraco volta a ser uma remoção não
+ * explicada, e é o que `verificarIntegridadeAudit` passou a exigir.
+ *
+ * DELETE e checkpoint vão no MESMO `db.batch` (transação no D1). Fora dela,
+ * uma falha entre os dois recria precisamente o estado do achado.
+ *
+ * Devolve quantas linhas saíram. Zero = nada a cortar, e nenhum checkpoint é
+ * criado: checkpoint de corte vazio seria ruído numa tabela cuja utilidade é
+ * ter exatamente uma linha por buraco.
+ */
+async function cortarTrilhaComAncora(
+	db: Database,
+	cutoff: string,
+	politica: string
+): Promise<number> {
+	// A última linha que o corte vai levar. É dela que sai a âncora, então
+	// precisa ser lida ANTES — depois do DELETE não existe mais.
+	const ultima = await db
+		.select({ seq: auditLog.seq, hash_registro: auditLog.hash_registro })
+		.from(auditLog)
+		.where(and(lt(auditLog.created_at, cutoff), isNotNull(auditLog.seq)))
+		.orderBy(desc(auditLog.seq))
+		.limit(1)
+		.get();
+
+	const [contagem] = await db
+		.select({ n: sql<number>`count(*)` })
+		.from(auditLog)
+		.where(lt(auditLog.created_at, cutoff));
+	const removidos = Number(contagem?.n ?? 0);
+	if (removidos === 0) return 0;
+
+	// Linha sem `seq` (as ~25 chamadas legadas anteriores ao encadeamento) não
+	// participa da cadeia e não deixa buraco verificável: sai sem âncora.
+	if (!ultima?.seq || !ultima.hash_registro) {
+		const r = await db.delete(auditLog).where(lt(auditLog.created_at, cutoff));
+		return r.rowsAffected ?? removidos;
+	}
+
+	await db.batch([
+		db.delete(auditLog).where(lt(auditLog.created_at, cutoff)),
+		db.insert(auditCheckpoints).values({
+			seq_ate: ultima.seq,
+			hash_ate: ultima.hash_registro,
+			removidos,
+			politica
+		})
+	]);
+	return removidos;
+}
+
+/**
  * Remove registros expirados.
  *
  * Tabelas temporárias (sessões, tokens, tentativas) saem por TTL curto.
@@ -155,42 +217,40 @@ export async function executarLimpezaRetencao(
 	config: RetencaoConfig
 ): Promise<ResultadoLimpeza> {
 	const auditLogDias = config.auditLogAnos * 365;
-	const [
-		resSessoes,
-		resLogin,
-		res2FA,
-		resReset,
-		resIntencoes,
-		resRecovery,
-		resNonces,
-		resAudit,
-		resAppLog
-	] = await Promise.all([
-		db.delete(sessoes).where(lt(sessoes.expires_at, cutoffISO(config.sessoesDias))),
-		db
-			.delete(loginAttempts)
-			.where(lt(loginAttempts.attempted_at, cutoffSqlite(config.loginAttemptsDias))),
-		db
-			.delete(doisFatoresTokens)
-			.where(lt(doisFatoresTokens.expires_at, cutoffISO(config.doisFatoresDias))),
-		db
-			.delete(resetSenhaTokens)
-			.where(lt(resetSenhaTokens.expires_at, cutoffISO(config.resetTokensDias))),
-		// Intenção de assinatura vive 15 min; some junto com os tokens de
-		// reset porque é o mesmo tipo de dado — segredo de curta duração
-		// atrelado a uma pessoa.
-		db
-			.delete(assinaturaIntencoes)
-			.where(lt(assinaturaIntencoes.expires_at, cutoffISO(config.resetTokensDias))),
-		db
-			.delete(recoveryAttempts)
-			.where(lt(recoveryAttempts.attempted_at, cutoffSqlite(config.recoveryAttemptsDias))),
-		db
-			.delete(webhookNonces)
-			.where(lt(webhookNonces.received_at, cutoffSqlite(config.webhookNoncesDias))),
-		db.delete(auditLog).where(lt(auditLog.created_at, cutoffSqlite(auditLogDias))),
-		db.delete(appLog).where(lt(appLog.created_at, cutoffSqlite(config.appLogDias)))
-	]);
+	const [resSessoes, resLogin, res2FA, resReset, resIntencoes, resRecovery, resNonces, resAppLog] =
+		await Promise.all([
+			db.delete(sessoes).where(lt(sessoes.expires_at, cutoffISO(config.sessoesDias))),
+			db
+				.delete(loginAttempts)
+				.where(lt(loginAttempts.attempted_at, cutoffSqlite(config.loginAttemptsDias))),
+			db
+				.delete(doisFatoresTokens)
+				.where(lt(doisFatoresTokens.expires_at, cutoffISO(config.doisFatoresDias))),
+			db
+				.delete(resetSenhaTokens)
+				.where(lt(resetSenhaTokens.expires_at, cutoffISO(config.resetTokensDias))),
+			// Intenção de assinatura vive 15 min; some junto com os tokens de
+			// reset porque é o mesmo tipo de dado — segredo de curta duração
+			// atrelado a uma pessoa.
+			db
+				.delete(assinaturaIntencoes)
+				.where(lt(assinaturaIntencoes.expires_at, cutoffISO(config.resetTokensDias))),
+			db
+				.delete(recoveryAttempts)
+				.where(lt(recoveryAttempts.attempted_at, cutoffSqlite(config.recoveryAttemptsDias))),
+			db
+				.delete(webhookNonces)
+				.where(lt(webhookNonces.received_at, cutoffSqlite(config.webhookNoncesDias))),
+			db.delete(appLog).where(lt(appLog.created_at, cutoffSqlite(config.appLogDias)))
+		]);
+
+	// A trilha sai por último e SOZINHA: apagar o prefixo dela precisa deixar
+	// âncora, e âncora e DELETE têm de cair juntos (ver `cortarTrilhaComAncora`).
+	const auditRemovidos = await cortarTrilhaComAncora(
+		db,
+		cutoffSqlite(auditLogDias),
+		`retencao:${config.auditLogAnos}anos`
+	);
 
 	return {
 		sessoes: resSessoes.rowsAffected ?? 0,
@@ -200,7 +260,7 @@ export async function executarLimpezaRetencao(
 		assinaturaIntencoes: resIntencoes.rowsAffected ?? 0,
 		recoveryAttempts: resRecovery.rowsAffected ?? 0,
 		webhookNonces: resNonces.rowsAffected ?? 0,
-		auditLog: resAudit.rowsAffected ?? 0,
+		auditLog: auditRemovidos,
 		appLog: resAppLog.rowsAffected ?? 0
 	};
 }

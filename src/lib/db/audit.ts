@@ -18,7 +18,7 @@
 
 import { desc, asc, eq, and, gte, lte, isNotNull, sql } from 'drizzle-orm';
 import { ehViolacaoUnique, mensagemComCausas } from '$lib/server/db-errors';
-import { auditLog, auditPendencias } from '../server/schema';
+import { auditCheckpoints, auditLog, auditPendencias } from '../server/schema';
 import { timestampSqliteUtc, paginarComContagem, type Database } from './core';
 import type { AuditLog } from '../server/schema';
 import { logger } from '../server/logger';
@@ -1187,6 +1187,13 @@ export async function verificarIntegridadeAudit(
 		.where(isNotNull(auditLog.seq))
 		.orderBy(asc(auditLog.seq));
 
+	// Âncoras dos cortes de retenção. Sem elas, a primeira linha sobrevivente
+	// seria aceita como início válido venha de onde vier (FLW-AUDIT-005).
+	const checkpoints = await db
+		.select({ seq_ate: auditCheckpoints.seq_ate, hash_ate: auditCheckpoints.hash_ate })
+		.from(auditCheckpoints);
+	const ancoraPorSeq = new Map(checkpoints.map((c) => [c.seq_ate, c.hash_ate]));
+
 	let anterior: { seq: number; hash_registro: string } | null = null;
 
 	for (const r of rows) {
@@ -1195,8 +1202,42 @@ export async function verificarIntegridadeAudit(
 		const hashRegistro = r.hash_registro ?? '';
 
 		// (a) Elo: o hash_anterior deve casar com o hash_registro do antecessor.
-		// Na primeira linha sobrevivente (anterior === null) pulamos a checagem de
-		// elo: aceitamos GENESIS ou um corte de retenção como ponto de partida.
+		if (!anterior) {
+			// PRIMEIRA linha sobrevivente. Duas origens são legítimas, e distinguir
+			// uma da outra é exatamente o que faltava (FLW-AUDIT-005):
+			//
+			//  - o começo da cadeia (`seq 1`, apontando para GENESIS);
+			//  - um corte de retenção — e aí tem de existir CHECKPOINT dizendo até
+			//    onde o corte foi e qual era o hash da última linha removida.
+			//
+			// Sem isso, apagar as primeiras N linhas para sumir com um evento
+			// deixava o resto da cadeia íntegro e a verificação devolvia `ok`.
+			const ehGenesis = seq === 1 && hashAnterior === GENESIS;
+			if (!ehGenesis) {
+				const ancora = ancoraPorSeq.get(seq - 1);
+				if (!ancora) {
+					return {
+						ok: false,
+						verificados: rows.length,
+						primeiroProblemaSeq: seq,
+						problema:
+							`A cadeia começa em seq ${seq} sem checkpoint de retenção para o corte ` +
+							`até seq ${seq - 1}. Prefixo removido fora da política de retenção.`
+					};
+				}
+				if (ancora !== hashAnterior) {
+					return {
+						ok: false,
+						verificados: rows.length,
+						primeiroProblemaSeq: seq,
+						problema:
+							`Checkpoint de retenção em seq ${seq - 1} não casa com o hash_anterior ` +
+							`de seq ${seq}: o corte registrado não é o que aconteceu.`
+					};
+				}
+			}
+		}
+
 		if (anterior) {
 			if (seq !== anterior.seq + 1) {
 				return {
