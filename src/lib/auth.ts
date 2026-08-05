@@ -289,7 +289,11 @@ async function mapearPolicial(
  */
 function queryAdminDaSessao(db: Database, adminId: number) {
 	return db
-		.select({ admin: administradores, policial_ativo: policiais.ativo })
+		.select({
+			admin: administradores,
+			policial_ativo: policiais.ativo,
+			policial_primeiro_acesso: policiais.primeiro_acesso
+		})
 		.from(administradores)
 		.leftJoin(policiais, eq(administradores.policial_id, policiais.id))
 		.where(eq(administradores.id, adminId))
@@ -309,11 +313,26 @@ function queryAdminDaSessao(db: Database, adminId: number) {
  * conferir e segue valendo.
  */
 function adminDaSessao(
-	linha: { admin: typeof administradores.$inferSelect; policial_ativo: number | null } | undefined
+	linha:
+		| {
+				admin: typeof administradores.$inferSelect;
+				policial_ativo: number | null;
+				policial_primeiro_acesso: number | null;
+		  }
+		| undefined
 ): typeof administradores.$inferSelect | null {
 	if (!linha) return null;
 	if (linha.admin.policial_id != null && linha.policial_ativo !== 1) return null;
-	return linha.admin;
+	if (linha.admin.policial_id == null) return linha.admin;
+
+	// VINCULADO: quem manda é a linha do policial, também no primeiro acesso.
+	// `vincularAdminGeral` grava `primeiro_acesso = 0` na linha admin — um
+	// placeholder, como a senha. O LOGIN já lia o valor certo (via `credPol` em
+	// `auth-flow`), mas a SESSÃO carregava o zero, e é a sessão que o
+	// `hooks.server.ts` consulta a cada request. Resultado: o policial novo era
+	// mandado para `/alterar-senha` no login e podia navegar para qualquer outra
+	// rota administrativa sem nunca concluir a troca (FLW-AUTH-003).
+	return { ...linha.admin, primeiro_acesso: linha.policial_primeiro_acesso ?? 0 };
 }
 
 /**

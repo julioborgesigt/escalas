@@ -967,6 +967,7 @@ ser inválidos.
 ### FLW-AUTH-003 — Admin Geral vinculado contorna primeiro acesso
 
 **Severidade:** P1  
+**Estado:** corrigido  
 O policial novo nasce com `primeiro_acesso=1`, mas a conta administrativa
 vinculada nasce com `0`; a sessão admin atravessa o hook sem exigir troca de
 senha/e-mail pessoal (`src/lib/db/policiais.ts:260-280`,
@@ -975,6 +976,35 @@ senha/e-mail pessoal (`src/lib/db/policiais.ts:260-280`,
 **Ação/teste:** derivar o flag do policial vinculado ou mantê-lo sincronizado
 atomicamente. Login por certificado como admin recém-criado deve redirecionar
 qualquer rota administrativa para `/alterar-senha`.
+
+> **CORRIGIDO** — Derivado, não sincronizado: sincronizar dois campos deixa a
+> janela em que eles discordam, e é justamente essa janela que o achado
+> descreve. `queryAdminDaSessao` passou a trazer `policiais.primeiro_acesso` no
+> mesmo `leftJoin` que já buscava `policiais.ativo`, e `adminDaSessao` devolve
+> o valor do POLICIAL para conta vinculada — a linha `administradores` de um
+> vinculado é feita de placeholders (senha aleatória, `primeiro_acesso = 0`
+> gravado por `vincularAdminGeral`), e placeholder não decide autorização.
+>
+> O achado escapava porque o LOGIN lia o valor certo (via `credPol`, em
+> `auth-flow`) e só a SESSÃO carregava o zero. Quem entra é mandado para
+> `/alterar-senha`; quem já está dentro navega. E é a sessão que o
+> `hooks.server.ts` consulta a cada request — um teste de login não pegaria.
+>
+> Cobertura: `src/lib/__tests__/admin-vinculado-sessao.test.ts` (7 casos,
+> cobrindo também FLW-RBAC-001, que é o mesmo esquecimento no campo `ativo`).
+> Cada um dos dois campos foi reprovado por mutação, separadamente.
+>
+> **Achado de tabela:** o teste falhava COM a correção aplicada, e a causa era o
+> harness. `node:sqlite` devolve linha como objeto chaveado por nome de coluna,
+> e o join seleciona `primeiro_acesso` das DUAS tabelas: as chaves colapsavam e
+> `Object.values` entregava 10 colunas para um `SELECT` de 11, deslocando o
+> mapeamento do drizzle. Terceiro defeito do harness nesta auditoria (depois do
+> `get` que devolvia `[]` e do `batch` que não era transação), e os três têm a
+> mesma forma: o harness erra em silêncio e a investigação vai parar no código
+> de produção, que está certo. Corrigido com `setReturnArrays`, que remove a
+> etapa chaveada por nome; os três agora têm regressão em
+> `src/lib/db/__tests__/harness-fidelidade.test.ts`, cada um reprovado por
+> mutação.
 
 ### FLW-AUTH-004 — segredos de uso único podem ser consumidos duas vezes
 
