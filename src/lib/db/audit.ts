@@ -222,6 +222,68 @@ export const CATALOGO_ACOES = {
 		categoria: 'policial',
 		severidade: 'info'
 	},
+	// Composição da GISE — quem está de serviço, e sob qual escopo. Separadas por
+	// entidade e verbo (e não agrupadas num `alterar_composicao_gise`) porque é
+	// assim que o operador procura: "quem tirou gente da escala", "quem removeu a
+	// seccional". A severidade real é decidida no desfecho da mudança, que sabe se
+	// ela derrubou documento ou assinatura (`_actions/desfecho.ts`).
+	gise_membro_adicionado: {
+		label: 'Policial alocado em equipe da GISE',
+		categoria: 'gise',
+		severidade: 'info'
+	},
+	gise_membro_removido: {
+		label: 'Policial desalocado de equipe da GISE',
+		categoria: 'gise',
+		severidade: 'info'
+	},
+	gise_equipe_criada: { label: 'Equipe criada na GISE', categoria: 'gise', severidade: 'info' },
+	gise_equipe_alterada: {
+		label: 'Equipe da GISE alterada (vagas/horário)',
+		categoria: 'gise',
+		severidade: 'info'
+	},
+	gise_equipe_removida: {
+		label: 'Equipe removida da GISE',
+		categoria: 'gise',
+		severidade: 'aviso'
+	},
+	gise_seccional_adicionada: {
+		label: 'Seccional incluída na GISE',
+		categoria: 'gise',
+		severidade: 'info'
+	},
+	gise_seccional_removida: {
+		label: 'Seccional removida da GISE',
+		categoria: 'gise',
+		severidade: 'aviso'
+	},
+	gise_seccional_preenchida: {
+		label: 'Seccional declarou preenchimento concluído',
+		categoria: 'gise',
+		severidade: 'info'
+	},
+	gise_seccional_alterada: {
+		label: 'Horários da seccional alterados',
+		categoria: 'gise',
+		severidade: 'info'
+	},
+	gise_unidade_slot_criado: {
+		label: 'Slot de unidade criado na seccional',
+		categoria: 'gise',
+		severidade: 'info'
+	},
+	gise_unidade_slot_removido: {
+		label: 'Slot de unidade removido da seccional',
+		categoria: 'gise',
+		severidade: 'aviso'
+	},
+	gise_unidade_selecionada: {
+		label: 'Unidade escolhida para um slot da seccional',
+		categoria: 'gise',
+		severidade: 'info'
+	},
+
 	exportar_gise: { label: 'Exportação de GISE', categoria: 'gise', severidade: 'info' },
 	salvar_config_gise: {
 		label: 'Alteração de configuração do GISE',

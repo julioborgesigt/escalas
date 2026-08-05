@@ -208,25 +208,48 @@ export async function buscarGiseSeccionalMembros(
  * deliberado do admin, não efeito colateral de uma edição.
  *
  * Só apaga LINHAS: os blobs no R2 precisam ser limpos pelo chamador.
+ *
+ * **Recebe o id da LINHA `gise_seccionais`** — a participação daquela seccional
+ * NAQUELA escala — e resolve a unidade por dentro. Até ago/2026 o parâmetro se
+ * chamava `seccionalId` e era usado direto como `unidades.id`, enquanto as sete
+ * chamadas passavam o id da linha de participação. Dois inteiros, mesmo nome,
+ * espaços de id que se sobrepõem: os passos 1 e 3 não achavam nada (ou achavam
+ * a seccional ERRADA, se algum `unidades.id` coincidisse), e os relatórios
+ * assinados sobreviviam à mudança de composição que os invalidava. Ninguém
+ * notou porque os passos 4 e 5 não usam o parâmetro — o efeito visível na tela,
+ * "a escala voltou para preenchimento", acontecia de qualquer jeito
+ * (FLW-GISE-011).
  */
 export async function revogarAssinaturasSeccional(
 	db: Database,
 	giseId: number,
-	seccionalId: number
+	giseSeccionalId: number
 ) {
-	// 1. Limpar as assinaturas dos relatórios de extra/produtividade do supervisor desta seccional
-	await db
-		.delete(giseAssinaturasRelatorios)
-		.where(
-			and(
-				eq(giseAssinaturasRelatorios.gise_id, giseId),
-				eq(giseAssinaturasRelatorios.seccional_id, seccionalId)
-			)
-		);
+	// A unidade por trás da participação. Sem ela não há o que revogar: as duas
+	// tabelas de assinatura apontam para `unidades`, não para `gise_seccionais`.
+	const participacao = await db
+		.select({ seccional_id: giseSeccionais.seccional_id })
+		.from(giseSeccionais)
+		.where(and(eq(giseSeccionais.id, giseSeccionalId), eq(giseSeccionais.gise_id, giseId)))
+		.get();
+	const seccionalId = participacao?.seccional_id;
+
+	if (seccionalId != null) {
+		// 1. Limpar as assinaturas dos relatórios de extra/produtividade do supervisor desta seccional
+		await db
+			.delete(giseAssinaturasRelatorios)
+			.where(
+				and(
+					eq(giseAssinaturasRelatorios.gise_id, giseId),
+					eq(giseAssinaturasRelatorios.seccional_id, seccionalId)
+				)
+			);
+	}
 
 	// 2. Localizar todos os policiais vinculados a esta seccional na GISE
 	// env undefined: aqui só usamos policial_id (não o CPF), sem decifrar.
-	const membros = await buscarGiseSeccionalMembros(db, giseId, seccionalId, undefined);
+	const membros =
+		seccionalId == null ? [] : await buscarGiseSeccionalMembros(db, giseId, seccionalId, undefined);
 	const policialIds = membros.map((m) => m.policial_id);
 
 	if (policialIds.length > 0) {

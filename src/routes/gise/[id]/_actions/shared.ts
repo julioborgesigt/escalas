@@ -60,13 +60,10 @@ const STATUS_FASE_EDICAO = ['em_definicao_supervisor', 'em_preenchimento'];
  * A GISE já passou da fase de rascunho?
  *
  * Depois disso o PDF da escala pode ter sido gerado e assinado, então qualquer
- * mudança de composição precisa invalidar o que ficou para trás. Há duas
- * estratégias, conforme o alcance da mudança:
- *
- * - mexeu na escala inteira (slots, nova equipe, remoção de seccional) → apaga
- *   `gise_documentos` e devolve o status para `em_preenchimento`;
- * - mexeu só numa seccional (horários, membros, remoção de equipe/unidade) →
- *   `revogarAssinaturasSeccional`, preservando o restante.
+ * mudança de composição precisa invalidar o que ficou para trás. O alcance da
+ * mudança decide quanto cai — ver `Invalidacao`, em `desfecho.ts`, que é onde
+ * as duas formas moram. As duas descartam o documento consolidado; a de
+ * alcance seccional descarta também os relatórios e as presenças dela.
  */
 export function saiuDaFaseDeEdicao(status: string): boolean {
 	return !STATUS_FASE_EDICAO.includes(status);
@@ -111,8 +108,18 @@ export async function carregarEquipeDaGise(db: Database, giseId: number, equipeI
 	// duas vezes para chegar na seccional.
 	if ('erro' in carga) return { erro: carga.erro } as const;
 
+	// Traz também o estado ATUAL da equipe: é o `dados_antes` da trilha, e
+	// depois do UPDATE (ou do DELETE) não haveria mais de onde tirá-lo.
 	const equipe = await db
-		.select({ id: giseEquipes.id, gise_seccional_id: giseEquipes.gise_seccional_id })
+		.select({
+			id: giseEquipes.id,
+			gise_seccional_id: giseEquipes.gise_seccional_id,
+			tipo: giseEquipes.tipo,
+			slots_dpc: giseEquipes.slots_dpc,
+			slots_oip: giseEquipes.slots_oip,
+			hora_entrada: giseEquipes.hora_entrada,
+			hora_saida: giseEquipes.hora_saida
+		})
 		.from(giseEquipes)
 		.innerJoin(giseSeccionais, eq(giseEquipes.gise_seccional_id, giseSeccionais.id))
 		.where(and(eq(giseEquipes.id, equipeId), eq(giseSeccionais.gise_id, giseId)))

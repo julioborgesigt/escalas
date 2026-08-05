@@ -1,22 +1,15 @@
 import { fail } from '@sveltejs/kit';
 import type { RequestEvent } from '@sveltejs/kit';
-import {
-	getDB,
-	atualizarGiseEscala,
-	atualizarGiseEquipe,
-	excluirGiseEquipe,
-	criarGiseEquipe,
-	revogarAssinaturasSeccional
-} from '$lib/db';
+import { getDB, atualizarGiseEquipe, excluirGiseEquipe, criarGiseEquipe } from '$lib/db';
 import { isAdminGeral } from '$lib/auth';
-import { giseDocumentos } from '$lib/server/schema';
+import { giseMembros } from '$lib/server/schema';
 import { eq } from 'drizzle-orm';
+import { getInt, carregarEquipeDaGise, carregarSeccionalDaGise } from './shared';
 import {
-	getInt,
-	saiuDaFaseDeEdicao,
-	carregarEquipeDaGise,
-	carregarSeccionalDaGise
-} from './shared';
+	concluirMudancaGise,
+	invalidarAssinaturasDaSeccional,
+	invalidarDocumentoDaEscala
+} from './desfecho';
 
 /**
  * Form actions das EQUIPES da GISE (bloco de cada seccional em `/gise/[id]`).
@@ -36,7 +29,8 @@ type Event = RequestEvent<{ id: string }>;
 
 export const actionsEquipe = {
 	/** Muda o número de vagas (DPC/OIP) de uma equipe já existente. */
-	salvarSlotsEquipe: async ({ request, locals, platform, params }: Event) => {
+	salvarSlotsEquipe: async (event: Event) => {
+		const { request, locals, platform, params } = event;
 		const u = locals.usuario;
 		if (!u || !isAdminGeral(u)) return fail(403, { error: 'Apenas Admin Geral' });
 
@@ -60,16 +54,27 @@ export const actionsEquipe = {
 
 		// Mudar vagas altera o corpo da escala inteira: o PDF gerado deixa de valer
 		// e a GISE volta para preenchimento.
-		if (saiuDaFaseDeEdicao(carga.gise.status)) {
-			await db.delete(giseDocumentos).where(eq(giseDocumentos.gise_id, giseId));
-			await atualizarGiseEscala(db, giseId, { status: 'em_preenchimento' });
-		}
+		const invalidacao = await invalidarDocumentoDaEscala(db, giseId, carga.gise.status);
+
+		await concluirMudancaGise(event, {
+			db,
+			giseId,
+			usuario: u,
+			acao: 'gise_equipe_alterada',
+			alvo: { tipo: 'gise_equipe', id: equipeId },
+			detalhes: `Vagas da equipe ${equipeId}: ${carga.equipe.slots_dpc}/${carga.equipe.slots_oip} → ${slotsDpc}/${slotsOip} (DPC/OIP)`,
+			invalidacao,
+			metadados: { gise_seccional_id: carga.equipe.gise_seccional_id },
+			dados_antes: { slots_dpc: carga.equipe.slots_dpc, slots_oip: carga.equipe.slots_oip },
+			dados_depois: { slots_dpc: slotsDpc, slots_oip: slotsOip }
+		});
 
 		return { success: true };
 	},
 
 	/** Horário próprio da equipe (sobrepõe o da seccional e o da escala). */
-	salvarHorariosEquipe: async ({ request, locals, platform, params }: Event) => {
+	salvarHorariosEquipe: async (event: Event) => {
+		const { request, locals, platform, params } = event;
 		const u = locals.usuario;
 		if (!u || !isAdminGeral(u)) return fail(403, { error: 'Apenas Admin Geral' });
 
@@ -90,17 +95,37 @@ export const actionsEquipe = {
 			hora_saida: horaSaida
 		});
 
-		// Horário entra no relatório de extra da seccional — revoga só as
-		// assinaturas dela, sem derrubar o resto da escala.
-		if (saiuDaFaseDeEdicao(carga.gise.status)) {
-			await revogarAssinaturasSeccional(db, giseId, carga.equipe.gise_seccional_id);
-		}
+		// Horário entra no relatório de extra da seccional — caem as assinaturas
+		// dela e as presenças dos seus membros, além do documento consolidado.
+		const invalidacao = await invalidarAssinaturasDaSeccional(
+			db,
+			giseId,
+			carga.equipe.gise_seccional_id,
+			carga.gise.status
+		);
+
+		await concluirMudancaGise(event, {
+			db,
+			giseId,
+			usuario: u,
+			acao: 'gise_equipe_alterada',
+			alvo: { tipo: 'gise_equipe', id: eqId },
+			detalhes: `Horário da equipe ${eqId}: ${horaEntrada ?? '—'} às ${horaSaida ?? '—'}`,
+			invalidacao,
+			metadados: { gise_seccional_id: carga.equipe.gise_seccional_id },
+			dados_antes: {
+				hora_entrada: carga.equipe.hora_entrada,
+				hora_saida: carga.equipe.hora_saida
+			},
+			dados_depois: { hora_entrada: horaEntrada, hora_saida: horaSaida }
+		});
 
 		return { success: true };
 	},
 
 	/** Cria uma equipe (operacional ou SEINT) dentro de uma seccional. */
-	adicionarEquipe: async ({ request, locals, platform, params }: Event) => {
+	adicionarEquipe: async (event: Event) => {
+		const { request, locals, platform, params } = event;
 		const u = locals.usuario;
 		if (!u || !isAdminGeral(u)) return fail(403, { error: 'Apenas Admin Geral' });
 
@@ -124,26 +149,31 @@ export const actionsEquipe = {
 		const carga = await carregarSeccionalDaGise(db, giseId, secId);
 		if ('erro' in carga) return carga.erro;
 
-		await criarGiseEquipe(
-			db,
-			secId,
-			tipo,
-			isNaN(slotsDpc) ? 0 : slotsDpc,
-			isNaN(slotsOip) ? 0 : slotsOip,
-			unidadeId
-		);
+		const dpc = isNaN(slotsDpc) ? 0 : slotsDpc;
+		const oip = isNaN(slotsOip) ? 0 : slotsOip;
+		const novaEquipeId = await criarGiseEquipe(db, secId, tipo, dpc, oip, unidadeId);
 
 		// Equipe nova = escala diferente da que foi para assinatura.
-		if (saiuDaFaseDeEdicao(carga.gise.status)) {
-			await db.delete(giseDocumentos).where(eq(giseDocumentos.gise_id, giseId));
-			await atualizarGiseEscala(db, giseId, { status: 'em_preenchimento' });
-		}
+		const invalidacao = await invalidarDocumentoDaEscala(db, giseId, carga.gise.status);
+
+		await concluirMudancaGise(event, {
+			db,
+			giseId,
+			usuario: u,
+			acao: 'gise_equipe_criada',
+			alvo: { tipo: 'gise_equipe', id: novaEquipeId },
+			detalhes: `Equipe ${tipo} criada na seccional ${secId} com ${dpc} DPC e ${oip} OIP`,
+			invalidacao,
+			metadados: { gise_seccional_id: secId, gise_unidade_id: unidadeId },
+			dados_depois: { tipo, slots_dpc: dpc, slots_oip: oip, gise_unidade_id: unidadeId }
+		});
 
 		return { success: true };
 	},
 
 	/** Remove a equipe (e, em cascata, seus membros). */
-	removerEquipe: async ({ request, locals, platform, params }: Event) => {
+	removerEquipe: async (event: Event) => {
+		const { request, locals, platform, params } = event;
 		const u = locals.usuario;
 		if (!u || !isAdminGeral(u)) return fail(403, { error: 'Apenas Admin Geral' });
 
@@ -158,11 +188,41 @@ export const actionsEquipe = {
 		const carga = await carregarEquipeDaGise(db, giseId, equipeId);
 		if ('erro' in carga) return carga.erro;
 
+		// Quem sai junto: a exclusão leva os membros em cascata, e depois do DELETE
+		// não há como saber quantas pessoas deixaram a escala nesta ação.
+		const membrosQueSaem = await db
+			.select({ policial_id: giseMembros.policial_id })
+			.from(giseMembros)
+			.where(eq(giseMembros.equipe_id, equipeId))
+			.all();
+
 		await excluirGiseEquipe(db, equipeId);
 
-		if (saiuDaFaseDeEdicao(carga.gise.status)) {
-			await revogarAssinaturasSeccional(db, giseId, carga.equipe.gise_seccional_id);
-		}
+		const invalidacao = await invalidarAssinaturasDaSeccional(
+			db,
+			giseId,
+			carga.equipe.gise_seccional_id,
+			carga.gise.status
+		);
+
+		await concluirMudancaGise(event, {
+			db,
+			giseId,
+			usuario: u,
+			acao: 'gise_equipe_removida',
+			alvo: { tipo: 'gise_equipe', id: equipeId },
+			detalhes: `Equipe ${equipeId} removida, com ${membrosQueSaem.length} policial(is) alocado(s)`,
+			invalidacao,
+			metadados: {
+				gise_seccional_id: carga.equipe.gise_seccional_id,
+				policiais_desalocados: membrosQueSaem.map((m) => m.policial_id)
+			},
+			dados_antes: {
+				tipo: carga.equipe.tipo,
+				slots_dpc: carga.equipe.slots_dpc,
+				slots_oip: carga.equipe.slots_oip
+			}
+		});
 
 		return { success: true };
 	}

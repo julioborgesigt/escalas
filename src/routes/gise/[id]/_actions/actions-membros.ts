@@ -7,13 +7,13 @@ import {
 	removerGiseMembro,
 	verificarSlotEquipe,
 	verificarConflitoMembroGise,
-	verificarConflitoHorarioPolicial,
-	revogarAssinaturasSeccional
+	verificarConflitoHorarioPolicial
 } from '$lib/db';
 import { invalidarPapelGise } from '$lib/server/gise/papel-cache';
-import { giseMembros, giseEquipes, giseSeccionais } from '$lib/server/schema';
+import { giseMembros, giseEquipes, giseSeccionais, policiais } from '$lib/server/schema';
 import { eq } from 'drizzle-orm';
-import { getInt, saiuDaFaseDeEdicao, podePreencherSeccional } from './shared';
+import { getInt, podePreencherSeccional } from './shared';
+import { concluirMudancaGise, invalidarAssinaturasDaSeccional } from './desfecho';
 
 /**
  * Form actions dos MEMBROS (policiais alocados às vagas das equipes) em
@@ -32,7 +32,8 @@ export const actionsMembros = {
 	 * camada de dados: vaga livre no tipo certo (DPC/OIP), policial ainda não
 	 * escalado nesta GISE e sem conflito de horário com outra escala.
 	 */
-	adicionarMembro: async ({ request, locals, platform, params }: Event) => {
+	adicionarMembro: async (event: Event) => {
+		const { request, locals, platform, params } = event;
 		const u = locals.usuario;
 		if (!u) return fail(401, { error: 'Não autorizado' });
 
@@ -74,15 +75,33 @@ export const actionsMembros = {
 		await invalidarPapelGise(policialId);
 
 		const gise = await buscarGiseEscala(db, giseId);
-		if (gise && saiuDaFaseDeEdicao(gise.status)) {
-			await revogarAssinaturasSeccional(db, giseId, secId);
-		}
+		const invalidacao = gise
+			? await invalidarAssinaturasDaSeccional(db, giseId, secId, gise.status)
+			: 'nada';
+
+		const pol = await db
+			.select({ nome: policiais.nome })
+			.from(policiais)
+			.where(eq(policiais.id, policialId))
+			.get();
+
+		await concluirMudancaGise(event, {
+			db,
+			giseId,
+			usuario: u,
+			acao: 'gise_membro_adicionado',
+			alvo: { tipo: 'policial', id: policialId, nome: pol?.nome ?? null },
+			detalhes: `${pol?.nome ?? `Policial ${policialId}`} alocado na equipe ${equipeId}`,
+			invalidacao,
+			metadados: { equipe_id: equipeId, gise_seccional_id: secId }
+		});
 
 		return { success: true };
 	},
 
 	/** Desaloca um policial. Bloqueado quando a GISE já entrou em operação. */
-	removerMembro: async ({ request, locals, platform, params }: Event) => {
+	removerMembro: async (event: Event) => {
+		const { request, locals, platform, params } = event;
 		const u = locals.usuario;
 		if (!u) return fail(401, { error: 'Não autorizado' });
 
@@ -95,18 +114,22 @@ export const actionsMembros = {
 		const gise = await buscarGiseEscala(db, giseId);
 		if (!gise) return fail(404, { error: 'GISE não encontrada' });
 
-		// Uma consulta só resolve as três perguntas: qual equipe, qual seccional
-		// (para revogar assinaturas) e de quem é o cache de papel a invalidar.
+		// Uma consulta só resolve as quatro perguntas: qual equipe, qual seccional
+		// (para revogar assinaturas), de quem é o cache de papel a invalidar e o
+		// nome que vai para a trilha. O nome PRECISA sair daqui: depois do delete
+		// não haveria mais linha para saber quem foi desalocado.
 		const membroInfo = await db
 			.select({
 				equipe_id: giseMembros.equipe_id,
 				policial_id: giseMembros.policial_id,
+				policial_nome: policiais.nome,
 				gise_seccional_id: giseEquipes.gise_seccional_id,
 				seccional_id: giseSeccionais.seccional_id
 			})
 			.from(giseMembros)
 			.innerJoin(giseEquipes, eq(giseMembros.equipe_id, giseEquipes.id))
 			.innerJoin(giseSeccionais, eq(giseEquipes.gise_seccional_id, giseSeccionais.id))
+			.innerJoin(policiais, eq(giseMembros.policial_id, policiais.id))
 			.where(eq(giseMembros.id, memId))
 			.get();
 
@@ -131,9 +154,27 @@ export const actionsMembros = {
 
 		await invalidarPapelGise(membroInfo.policial_id);
 
-		if (saiuDaFaseDeEdicao(gise.status)) {
-			await revogarAssinaturasSeccional(db, giseId, membroInfo.gise_seccional_id);
-		}
+		const invalidacao = await invalidarAssinaturasDaSeccional(
+			db,
+			giseId,
+			membroInfo.gise_seccional_id,
+			gise.status
+		);
+
+		await concluirMudancaGise(event, {
+			db,
+			giseId,
+			usuario: u,
+			acao: 'gise_membro_removido',
+			alvo: { tipo: 'policial', id: membroInfo.policial_id, nome: membroInfo.policial_nome },
+			detalhes: `${membroInfo.policial_nome} desalocado da equipe ${membroInfo.equipe_id}`,
+			invalidacao,
+			metadados: {
+				equipe_id: membroInfo.equipe_id,
+				gise_seccional_id: membroInfo.gise_seccional_id,
+				status_da_gise: gise.status
+			}
+		});
 
 		return { success: true };
 	}

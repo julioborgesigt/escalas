@@ -438,7 +438,7 @@ produzir log ou erro contendo e-mail, conteúdo ou anexo.
 
 **Severidade:** P1  
 **Fluxo:** FLX-04 / FLX-08  
-**Estado:** confirmado
+**Estado:** corrigido
 
 As actions de membros, equipes, unidades e seccionais modificam a composição
 da escala e podem revogar documentos/assinaturas, mas não chamam
@@ -459,6 +459,33 @@ e informação sobre revogação.
 **Teste de regressão:** chamada direta de cada action bem-sucedida deve
 produzir exatamente um evento com ator e alvo; falhas/negações não podem
 simular sucesso.
+
+> **CORRIGIDO (05/ago/2026).** As treze actions passaram a fechar em
+> `concluirMudancaGise` (`_actions/desfecho.ts`), que é o par do preâmbulo de
+> `shared.ts`: um arquivo para o que roda ANTES de mutar, outro para o que roda
+> DEPOIS. Doze ações novas no `CATALOGO_ACOES`, nomeadas por entidade e verbo
+> (`gise_membro_removido`, `gise_equipe_alterada`, …), porque é assim que o
+> operador procura — "quem tirou gente da escala".
+>
+> O achado pede "informação sobre revogação" no evento, e é daí que vem o
+> formato: `invalidar*` APLICA a invalidação e devolve o que derrubou;
+> `concluirMudancaGise` EXIGE esse valor. Registro e revogação saem da mesma
+> chamada, então o evento não tem como afirmar uma revogação que não houve nem
+> omitir a que houve. A severidade também é derivada ali: mudança que derrubou
+> documento ou assinatura entra como `aviso`, o resto como `info`.
+>
+> Cobertura em dois níveis, e a divisão é deliberada:
+> `__tests__/desfecho.test.ts` (7 casos, banco real) prova que o registro está
+> CERTO; `__tests__/actions-auditadas.test.ts` (28 casos) lê os quatro arquivos
+> e prova que ele EXISTE nas treze. O segundo é o que impede a volta do achado,
+> porque o achado nunca foi uma action instrumentada errado — eram treze sem
+> instrumentação nenhuma, e testar as treze uma a uma reproduziria a duplicação
+> que abriu o buraco. Verificado por mutação: apagar a chamada de uma action
+> reprova.
+>
+> **Achado novo, aberto como FLW-GISE-011**, encontrado ao escrever o teste do
+> desfecho: `revogarAssinaturasSeccional` recebia o id errado nas sete chamadas
+> e não revogava nada. Ver a seção própria.
 
 ### FLW-R2-004 — exclusão R2 confirma tentativa, não remoção
 
@@ -737,6 +764,17 @@ equipe → seccional → GISE com `gise_id = params.id` e repetir essa condiçã
 > `_actions/shared.ts`), fechado junto com FLW-GISE-006 e coberto por
 > `e2e/gise-imutabilidade.spec.ts`. Os demais ids filhos — presença,
 > relatório, resposta de formulário — continuam abertos.
+>
+> **`actions-unidade.ts` fechado (05/ago/2026)**, junto com a instrumentação de
+> FLW-GISE-003. As três actions passaram a usar o mesmo preâmbulo, e o `linkId`
+> de `removerUnidade` — o outro caminho citado no enunciado — agora é resolvido
+> com `gise_seccional_id = secId` no `WHERE`, devolvendo 404 quando o slot é de
+> outra seccional. Duas coisas apareceram no caminho e não estavam no achado:
+> nenhuma das três olhava o STATUS (dava para trocar a unidade de uma escala
+> `finalizada`, que é FLW-GISE-006 neste arquivo), e `selecionarUnidade` não
+> invalidava nada — a unidade sai impressa no relatório de extra, e trocá-la
+> depois da assinatura deixava o PDF descrevendo outra unidade. Restam presença,
+> relatório e resposta de formulário.
 
 ### FLW-GISE-008 — presença qualificada pode emitir termo de saída sem entrada
 
@@ -800,6 +838,44 @@ FLW-GISE-003 já registra a ausência de auditoria nas mesmas form actions.
 `pronta_para_finalizar` → `finalizada`; reabertura retorna estados posteriores
 para `em_preenchimento`. A finalização indevida de `em_andamento` é
 FLW-GISE-005.
+
+### FLW-GISE-011 — a revogação de assinaturas atingia a seccional errada
+
+**Severidade:** P0  
+**Fluxo:** FLX-04 / FLX-06  
+**Estado:** corrigido  
+**Origem:** não estava no plano; apareceu ao escrever o teste de FLW-GISE-003.
+
+`revogarAssinaturasSeccional(db, giseId, seccionalId)` usava o terceiro
+parâmetro como `unidades.id` — é o que `gise_assinaturas_relatorios.seccional_id`
+referencia, e é por ele que `buscarGiseSeccionalMembros` filtra. As **sete**
+chamadas passavam o id da linha `gise_seccionais`: a participação daquela
+seccional NAQUELA escala. Dois inteiros, o mesmo nome, dois autoincrements
+sobre a mesma faixa de números.
+
+Consequência: mudou-se a composição de uma seccional depois de assinada, e
+
+- o **relatório de extra continuou assinado** com o conteúdo antigo;
+- as **presenças** dos membros dela continuaram registradas;
+- se algum `unidades.id` coincidisse com o id da participação — o que acontece
+  sozinho, pelos dois autoincrements —, caíam as assinaturas de **outra**
+  seccional, que ninguém tinha alterado.
+
+**Por que atravessou a auditoria inteira sem ser visto:** os passos 4 e 5 da
+função não usam o parâmetro. Apagar o documento consolidado e devolver a escala
+a `em_preenchimento` sempre funcionaram — e é esse o efeito que aparece na tela.
+A tela dizia "a escala voltou para preenchimento", que é exatamente o que se
+espera ver, enquanto o relatório assinado seguia intacto no banco.
+
+**Correção:** a função passou a receber o id da PARTICIPAÇÃO — que é o que todas
+as chamadas naturalmente têm — e resolve a unidade por dentro, com
+`gise_id` no `WHERE`. Não há mais como um chamador escolher o inteiro errado.
+
+**Regressão:** `src/lib/db/gise/__tests__/revogacao-seccional.test.ts`, 7 casos.
+Os dois primeiros são os que SEMPRE passaram (documento e status) e estão lá
+nomeados como a camuflagem que foram; sob mutação para o código anterior eles
+seguem verdes e os três seguintes reprovam — inclusive o que prova a revogação
+da seccional alheia.
 
 ## Resultado parcial — F6: webhooks e integrações
 
