@@ -16,6 +16,7 @@ import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { getDB, registrarAuditComContexto } from '$lib/db';
 import { carregarConfigRetencao, executarLimpezaRetencao } from '$lib/db/lgpd-retencao';
+import { contarPendenciasAudit, reprocessarPendenciasAudit } from '$lib/db/audit';
 import {
 	validarWebhookSync,
 	validarReplayProtection,
@@ -54,13 +55,23 @@ export const POST: RequestHandler = async ({ request, platform, getClientAddress
 	const config = await carregarConfigRetencao(db);
 	const resultado = await executarLimpezaRetencao(db, config);
 
+	// Mesmo cron, segunda tarefa: reinserir na cadeia os eventos que ficaram
+	// pendentes (FLW-AUDIT-001). Vai junto porque a pendência é, por natureza,
+	// rara e assíncrona — um agendador só para ela ficaria anos sem trabalho e
+	// seria o primeiro a ser desligado sem ninguém notar.
+	const auditoria = await reprocessarPendenciasAudit(db, { env });
+	const pendenciasRestantes = await contarPendenciasAudit(db);
+
 	await registrarAuditComContexto(db, {
 		usuario: null,
 		acao: 'limpeza_retencao',
 		entidade: 'lgpd',
-		detalhes: JSON.stringify({ origem: 'cron', resultado })
+		detalhes: JSON.stringify({ origem: 'cron', resultado, auditoria })
 	});
 
-	logger.info('[limpeza-retencao] concluída', { resultado });
-	return json({ ok: true, resultado });
+	// `pendenciasRestantes` sai na resposta e no log de propósito: é o número que
+	// diz se a trilha está íntegra. Crescendo entre execuções, há evento de
+	// auditoria que a cadeia recusa de forma permanente.
+	logger.info('[limpeza-retencao] concluída', { resultado, auditoria, pendenciasRestantes });
+	return json({ ok: true, resultado, auditoria, pendenciasRestantes });
 };

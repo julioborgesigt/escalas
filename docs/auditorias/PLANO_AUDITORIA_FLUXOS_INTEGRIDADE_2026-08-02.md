@@ -342,7 +342,7 @@ possuem cobertura que comprove o comportamento esperado.
 
 **Severidade:** P0  
 **Fluxo:** FLX-08  
-**Estado:** confirmado
+**Estado:** corrigido
 
 `auditar()` declara que nunca lança e captura toda falha de persistência
 (`src/lib/db/audit.ts:16,591-683`). Uma mutação crítica pode ocorrer antes da
@@ -363,6 +363,30 @@ podem legitimamente priorizar disponibilidade.
 **Teste de regressão:** simular falha do insert de auditoria ao finalizar uma
 GISE e exigir rollback ou registro pendente recuperável; testar concorrência
 do encadeamento.
+
+> **CORRIGIDO (04/ago/2026) — política decidida pelo operador: registrar
+> pendência durável e seguir.** A mutação do usuário NÃO é desfeita por falha de
+> trilha; o que deixou de acontecer é o evento sumir.
+>
+> `auditar()` continua sem lançar. O append encadeado saiu para `anexar`, que
+> lança, e os dois chamadores tratam a MESMA falha de formas diferentes: o fluxo
+> normal engole e grava em `audit_pendencias`; `reprocessarPendenciasAudit` — no
+> cron diário de retenção — sabe se deu certo e escolhe entre apagar a pendência
+> e incrementar `tentativas`.
+>
+> A tabela de pendência é deliberadamente BURRA: sem `seq`, sem hash encadeado,
+> sem índice único, payload num TEXT. É o que lhe dá chance de gravar quando o
+> append encadeado não conseguiu — a maioria das falhas é específica da cadeia
+> (corrida de `seq`, chave de hash, coluna recusando valor). Com o D1 inteiro
+> fora, os dois caminhos falham e resta o log: é um limite honesto, e está
+> escrito no código.
+>
+> `pendenciasRestantes` sai na resposta do cron e no log. É o número que diz se
+> a trilha está íntegra — crescendo entre execuções, há evento que a cadeia
+> recusa de forma permanente, e o `tentativas` de cada linha separa isso da
+> corrida que some na primeira retentativa.
+>
+> Cobertura: 8 casos contra SQLite real, 3 dos quais reprovam a versão anterior.
 
 ### FLW-LGPD-002 — resposta integral de e-mail expõe destinatários nos logs
 
@@ -764,7 +788,7 @@ FLW-GISE-005.
 
 **Severidade:** P0  
 **Fluxo:** FLX-07  
-**Estado:** confirmado
+**Estado:** corrigido
 
 O reset apaga tabelas em chamadas sequenciais
 (`src/routes/api/webhook/reset-policiais/+server.ts:161-183`). Uma falha
@@ -777,6 +801,26 @@ falha de forma durável.
 
 **Teste de regressão:** simular erro no meio da limpeza e provar que nenhuma
 tabela mudou e que a tentativa foi registrada.
+
+> **CORRIGIDO (04/ago/2026).** As catorze deleções viraram UM `db.batch`, que no
+> D1 é uma transação. Falha na oitava deixava sete tabelas vazias e sete cheias
+> — um estado que nenhuma tela do sistema sabe representar, num banco que acabou
+> de perder metade do cadastro.
+>
+> A TENTATIVA passou a ser auditada ANTES de apagar qualquer coisa, e a falha
+> depois. Antes, a auditoria só era tentada depois das catorze deleções
+> passarem: a falha no meio não deixava registro nenhum de que alguém tinha
+> mandado apagar. A trilha não pode depender do sucesso da operação que ela
+> existe para documentar.
+>
+> Precisou de uma correção no harness de teste: o `batch` do
+> `sqlite-migrado.ts` não existia, e sem ele um teste de atomicidade mediria uma
+> sequência disfarçada de transação — passaria com o código NÃO atômico. Agora
+> roda dentro de `BEGIN`/`COMMIT`/`ROLLBACK` reais, e é isso que faz o caso
+> "falha no meio não apaga nada" ter valor.
+>
+> Cobertura: 3 casos em `db/__tests__/reset-atomicidade.test.ts`; o central
+> reprova o harness sem transação.
 
 ### FLW-WEBHOOK-002 — sincronização parcial é reportada como sucesso
 
@@ -1202,12 +1246,12 @@ rodar em paralelo com suites que compartilham esses recursos.
 
 | Achados          | Local sugerido                                                                                  | Cenário e asserção mínima                                                                                         |
 | ---------------- | ----------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
-| FLW-AUDIT-001    | `routes/api/gise/[id]/finalizar/__tests__/finalizar-audit.test.ts`                              | falha de auditoria e duas finalizações concorrentes: rollback total **ou** pendência durável, sem perda na cadeia |
+| FLW-AUDIT-001    | ✅ `lib/db/__tests__/audit-pendencia.test.ts`                                                   | falha de auditoria e duas finalizações concorrentes: rollback total **ou** pendência durável, sem perda na cadeia |
 | FLW-LGPD-002     | ✅ `lib/server/__tests__/email-logging.test.ts`                                                 | resposta de e-mail com destinatário/corpo: logger e erro não podem conter PII/conteúdo                            |
 | FLW-GISE-004     | ✅ `e2e/autorizacao-negativa.spec.ts`                                                           | POST direto por policial comum/admin fora do escopo: 403 e nenhum estado/documento/audit alterado                 |
 | FLW-GISE-005     | ⏸ pende decisão — ver o achado                                                                  | finalizar `em_andamento` por action e API: 409 e status/documento/integração intactos                             |
 | FLW-GISE-006     | ✅ `e2e/gise-imutabilidade.spec.ts`                                                             | alterar vagas em GISE finalizada: 409, slots/hash/R2/auditoria preservados                                        |
-| FLW-WEBHOOK-001  | `routes/api/webhook/reset-policiais/__tests__/atomicidade.test.ts`                              | falha na segunda deleção: nenhuma tabela alterada e tentativa registrada                                          |
+| FLW-WEBHOOK-001  | ✅ `lib/db/__tests__/reset-atomicidade.test.ts`                                                 | falha na segunda deleção: nenhuma tabela alterada e tentativa registrada                                          |
 | FLW-AUTH-001     | ✅ `server/auth/__tests__/session-cache.test.ts` (sem e2e — ver o achado)                       | aquecer cache e revogar/resetar/desativar: próximo request retorna 401                                            |
 | FLW-AUTH-002     | ✅ `e2e/revogacao-credencial.spec.ts` + `auth/__tests__/credencial.test.ts`                     | reset de admin vinculado: senha antiga falha nos dois modos, nova funciona e ambos cookies são revogados          |
 | FLW-ESC-001      | `e2e/escalas-acoes-autorizacao.spec.ts`                                                         | OIP sem papel na mesma lotação chama mutar/assinar/finalizar/revogar: 403 em todas                                |

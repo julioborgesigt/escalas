@@ -53,16 +53,36 @@ export function bancoMigrado(): DatabaseSync {
  *   entrega `{ id: undefined, ... }` — um objeto. Todo `if (!row) return
  *   notFound()` do código de produção tomava o caminho ERRADO só nos testes, e
  *   em silêncio: o D1 real devolve `undefined`.
+ *
+ * O `batch` roda dentro de uma TRANSAÇÃO do SQLite — é o que o D1 faz, e é a
+ * propriedade que o código de produção usa quando escolhe `batch` em vez de
+ * chamadas em sequência. Sem isso, um teste de atomicidade mediria uma
+ * sequência disfarçada de transação e passaria com o código não atômico.
  */
 export function drizzleSobre(sqlite: DatabaseSync): Database {
-	return drizzle(async (sql, params, method) => {
+	const executar = (sql: string, params: unknown[], method: string) => {
 		const stmt = sqlite.prepare(sql);
 		if (method === 'run') {
 			const r = stmt.run(...(params as never[]));
-			return { rows: [], rowsAffected: Number(r.changes ?? 0) } as never;
+			return { rows: [], rowsAffected: Number(r.changes ?? 0) };
 		}
 		const linhas = stmt.all(...(params as never[])) as Record<string, unknown>[];
 		const arrays = linhas.map((l) => Object.values(l));
 		return { rows: method === 'get' ? (arrays[0] as never) : arrays };
-	}) as unknown as Database;
+	};
+
+	return drizzle(
+		async (sql, params, method) => executar(sql, params, method) as never,
+		async (queries) => {
+			sqlite.exec('BEGIN');
+			try {
+				const r = queries.map((q) => executar(q.sql, q.params, q.method));
+				sqlite.exec('COMMIT');
+				return r as never;
+			} catch (err) {
+				sqlite.exec('ROLLBACK');
+				throw err;
+			}
+		}
+	) as unknown as Database;
 }

@@ -18,7 +18,7 @@
 
 import { desc, asc, eq, and, gte, lte, isNotNull, sql } from 'drizzle-orm';
 import { ehViolacaoUnique, mensagemComCausas } from '$lib/server/db-errors';
-import { auditLog } from '../server/schema';
+import { auditLog, auditPendencias } from '../server/schema';
 import { timestampSqliteUtc, paginarComContagem, type Database } from './core';
 import type { AuditLog } from '../server/schema';
 import { logger } from '../server/logger';
@@ -583,18 +583,39 @@ function ehViolacaoSeq(err: unknown): boolean {
 }
 
 /**
- * Registra um evento na trilha de auditoria. NUNCA lança — falhas são logadas.
+ * Registra um evento na trilha de auditoria. NUNCA lança.
  *
- * Faz, por gravação: cifra o IP completo (se houver chave), lê o topo da cadeia,
- * calcula o `hash_registro` encadeado e insere com `seq` único. Em corrida de
- * `seq` (dois appends simultâneos), relê o topo e refaz — até algumas tentativas.
+ * Falha na cadeia vira PENDÊNCIA DURÁVEL (`audit_pendencias`) e o fluxo segue:
+ * a mutação do usuário já aconteceu e não é desfeita aqui, mas o evento também
+ * não some — `reprocessarPendenciasAudit` o reinsere depois (FLW-AUDIT-001).
  */
 export async function auditar(
 	db: Database,
 	evento: AuditEvento,
+	ctx?: { env?: unknown }
+): Promise<void> {
+	return anexar(db, evento, ctx, 'pendencia');
+}
+
+/**
+ * O append encadeado.
+ *
+ * Faz, por gravação: cifra o IP completo (se houver chave), lê o topo da cadeia,
+ * calcula o `hash_registro` encadeado e insere com `seq` único. Em corrida de
+ * `seq` (dois appends simultâneos), relê o topo e refaz — até algumas tentativas.
+ *
+ * `naFalha` existe porque os dois chamadores precisam de respostas DIFERENTES
+ * para a mesma falha: o fluxo normal engole e vira pendência — auditoria não
+ * derruba a operação do usuário —, enquanto o reprocessamento precisa saber se
+ * deu certo, para escolher entre apagar a pendência e incrementar as tentativas.
+ */
+async function anexar(
+	db: Database,
+	evento: AuditEvento,
 	// `env` é `unknown` para aceitar o `App.Platform['env']` real (tipo `Env`
 	// completo do Cloudflare) sem cast nos call sites; convertido internamente.
-	ctx?: { env?: unknown }
+	ctx: { env?: unknown } | undefined,
+	naFalha: 'pendencia' | 'lancar'
 ): Promise<void> {
 	try {
 		const meta = metaDaAcao(evento.acao);
@@ -669,12 +690,118 @@ export async function auditar(
 			}
 		}
 	} catch (err) {
+		if (naFalha === 'lancar') throw err;
+		const motivo = err instanceof Error ? err.message : String(err);
 		logger.error('[audit] Falha ao registrar evento', {
 			acao: evento.acao,
 			entidade: evento.entidade,
+			error: motivo
+		});
+		await registrarPendenciaAudit(db, evento, motivo);
+	}
+}
+
+/** Teto do texto de motivo: mensagem de driver pode vir com o SQL inteiro. */
+const LIMITE_MOTIVO = 500;
+
+/** Quantas pendências uma passada do reprocessamento tenta drenar. */
+const LOTE_REPROCESSAMENTO = 100;
+
+/**
+ * Guarda o evento que a cadeia recusou, para reprocessamento posterior.
+ *
+ * Também não lança: é o ÚLTIMO recurso, e uma exceção aqui derrubaria
+ * exatamente a operação que `auditar` existe para não derrubar. Quando nem isto
+ * grava — D1 fora do ar —, o log é tudo o que resta, e o `logger.error` acima
+ * já saiu. É um limite honesto: a tabela de pendência é deliberadamente burra
+ * (sem `seq`, sem hash, sem índice único) porque a maioria das falhas é
+ * específica da CADEIA, e é aí que ela tem chance de gravar.
+ */
+async function registrarPendenciaAudit(
+	db: Database,
+	evento: AuditEvento,
+	motivo: string
+): Promise<void> {
+	try {
+		await db.insert(auditPendencias).values({
+			evento: JSON.stringify(evento),
+			acao: String(evento.acao),
+			entidade: evento.entidade ?? null,
+			motivo: motivo.slice(0, LIMITE_MOTIVO)
+		});
+	} catch (err) {
+		logger.error('[audit] Falha ao registrar PENDÊNCIA — evento perdido', {
+			acao: evento.acao,
 			error: err instanceof Error ? err.message : String(err)
 		});
 	}
+}
+
+/**
+ * Reinsere na cadeia os eventos que ficaram pendentes.
+ *
+ * Roda junto da limpeza de retenção (cron diário). A ORDEM de chegada é
+ * preservada — `created_at` crescente — porque a trilha é lida como linha do
+ * tempo, e reprocessar fora de ordem produziria um `seq` que não corresponde à
+ * sequência dos fatos.
+ *
+ * Falhou de novo? A pendência FICA, com `tentativas` incrementado. Uma
+ * pendência cujo contador só cresce é o sinal de defeito PERMANENTE — payload
+ * inválido, coluna recusando o valor — em oposição à corrida de `seq`, que some
+ * na primeira retentativa.
+ */
+export async function reprocessarPendenciasAudit(
+	db: Database,
+	ctx?: { env?: unknown }
+): Promise<{ reprocessadas: number; persistentes: number }> {
+	const pendentes = await db
+		.select()
+		.from(auditPendencias)
+		.orderBy(asc(auditPendencias.created_at), asc(auditPendencias.id))
+		.limit(LOTE_REPROCESSAMENTO);
+
+	let reprocessadas = 0;
+	let persistentes = 0;
+
+	for (const linha of pendentes) {
+		let evento: AuditEvento;
+		try {
+			evento = JSON.parse(linha.evento) as AuditEvento;
+		} catch {
+			// JSON corrompido nunca vai voltar. Sai da fila para não mascarar as
+			// pendências reais com um item que falha para sempre.
+			logger.error('[audit] Pendência com JSON inválido — descartada', { id: linha.id });
+			await db.delete(auditPendencias).where(eq(auditPendencias.id, linha.id));
+			continue;
+		}
+
+		try {
+			await anexar(db, evento, ctx, 'lancar');
+			await db.delete(auditPendencias).where(eq(auditPendencias.id, linha.id));
+			reprocessadas++;
+		} catch (err) {
+			persistentes++;
+			await db
+				.update(auditPendencias)
+				.set({
+					tentativas: linha.tentativas + 1,
+					ultima_tentativa_em: timestampSqliteUtc(),
+					motivo: (err instanceof Error ? err.message : String(err)).slice(0, LIMITE_MOTIVO)
+				})
+				.where(eq(auditPendencias.id, linha.id));
+		}
+	}
+
+	if (persistentes > 0) {
+		logger.error('[audit] Pendências que falharam de novo', { persistentes });
+	}
+	return { reprocessadas, persistentes };
+}
+
+/** Quantos eventos estão à espera de entrar na cadeia. */
+export async function contarPendenciasAudit(db: Database): Promise<number> {
+	const [r] = await db.select({ n: sql<number>`count(*)` }).from(auditPendencias);
+	return Number(r?.n ?? 0);
 }
 
 /**

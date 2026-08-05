@@ -88,6 +88,26 @@ A limpeza periódica de `webhook_nonces` (e das demais tabelas de retenção) é
 
 Entre as tabelas varridas está `assinatura_intencoes` (migração `0040`), que amarra cada PDF preparado ao documento, ao assinante e a um único uso. Cada linha vive 15 minutos e some junto com os tokens de redefinição — é o mesmo tipo de dado: segredo de curta duração atrelado a uma pessoa. Nenhuma variável de ambiente nova.
 
+### Pendências de auditoria
+
+O mesmo cron da limpeza de retenção reprocessa `audit_pendencias`: eventos que
+não conseguiram entrar na cadeia de auditoria. A política é **registrar
+pendência durável e seguir** — falha de trilha não desfaz a operação do
+usuário, mas o evento não some.
+
+A resposta do webhook traz `pendenciasRestantes`. **É o número a monitorar.**
+Zero é o normal. Crescendo entre execuções, há evento que a cadeia recusa de
+forma permanente — o campo `tentativas` de cada linha separa isso da corrida de
+`seq`, que some na primeira retentativa:
+
+```sql
+SELECT acao, entidade, motivo, tentativas, created_at
+FROM audit_pendencias ORDER BY tentativas DESC, created_at;
+```
+
+Um `tentativas` alto com o mesmo `motivo` é defeito, não ruído: o evento nunca
+vai entrar sozinho, e a trilha está incompleta até alguém agir.
+
 ### Failsafe da limpeza de retenção
 
 O Cloudflare Pages não tem cron nativo, então a limpeza depende do agendador externo (`cleanup-retencao.yml`, diário). Se ele parar de disparar (workflow desabilitado, segredo rotacionado, repositório arquivado), as tabelas de retenção crescem **silenciosamente** e consomem cota do D1.

@@ -831,6 +831,37 @@ export const webhookNonces = sqliteTable(
 // das do log original (migração 0000) entraram nullable na migração 0033 — as
 // linhas antigas e as ~25 chamadas legadas continuam válidas.
 
+/**
+ * Evento de auditoria que NÃO conseguiu entrar na cadeia (FLW-AUDIT-001).
+ *
+ * `auditar()` nunca lança — falha de trilha não pode derrubar a operação do
+ * usuário. O preço era o evento sumir: a mutação persistia, a resposta era
+ * sucesso, e sobrava só uma linha de log fora do banco. A política é registrar
+ * pendência durável e seguir; `reprocessarPendenciasAudit` reinsere na cadeia.
+ *
+ * Deliberadamente BURRA — sem `seq`, sem hash encadeado, sem índice único. É o
+ * que lhe dá chance de gravar quando o append encadeado não conseguiu.
+ */
+export const auditPendencias = sqliteTable(
+	'audit_pendencias',
+	{
+		id: integer('id').primaryKey({ autoIncrement: true }),
+		/** Evento serializado como chegou a `auditar()`, pronto para retentativa. */
+		evento: text('evento').notNull(),
+		/** Fora do JSON: dão triagem sem desserializar. */
+		acao: text('acao').notNull(),
+		entidade: text('entidade'),
+		/** Por que a cadeia recusou — separa corrida de defeito. */
+		motivo: text('motivo').notNull(),
+		tentativas: integer('tentativas').notNull().default(0),
+		ultima_tentativa_em: text('ultima_tentativa_em'),
+		created_at: text('created_at')
+			.notNull()
+			.default(sql`(datetime('now'))`)
+	},
+	(table) => [index('idx_audit_pendencias_created').on(table.created_at)]
+);
+
 export const auditLog = sqliteTable(
 	'audit_log',
 	{
