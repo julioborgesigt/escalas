@@ -368,7 +368,7 @@ do encadeamento.
 
 **Severidade:** P0  
 **Fluxo:** FLX-08  
-**Estado:** confirmado
+**Estado:** corrigido
 
 O cliente Cloudflare registra a resposta completa de sucesso em
 `src/lib/server/email.ts:138-143`; o tipo inclui `result.delivered: string[]`.
@@ -385,6 +385,30 @@ reintroduza o corpo remoto em outro logger.
 
 **Teste de regressão:** respostas de sucesso e erro simuladas não podem
 produzir log ou erro contendo e-mail, conteúdo ou anexo.
+
+> **CORRIGIDO (04/ago/2026).** Dois pontos no sucesso e na falha, e um terceiro
+> que o achado não menciona:
+>
+> - o log de sucesso registrava a resposta inteira, e `result.delivered` é a
+>   lista de DESTINATÁRIOS. Passou a registrar `success` e a CONTAGEM;
+> - o corpo de erro do provedor ecoa a requisição. Ia cru para o log e para a
+>   mensagem do `Error`, que sobe até `enviarERegistrar` e é registrada lá —
+>   **desfazendo por dentro a máscara que aquele wrapper já aplicava no
+>   destinatário**. Cobertura no ponto de log não é cobertura do caminho;
+> - o provedor de FALLBACK (Resend) tinha o mesmo `errorText` cru. Corrigir só o
+>   Cloudflare deixaria o vazamento inteiro de pé exatamente em quem assume
+>   quando o primeiro falha. Os dois passaram a usar `corpoDeErroSeguro`.
+>
+> `redigirEmails` (em `$lib/utils/pii`) substitui endereços dentro de texto
+> livre pela máscara já usada na exibição. O motivo do erro continua legível:
+> some o "para quem", não o "o quê".
+>
+> Cobertura: 8 casos sobre a redação e 3 sobre o CONTRATO em
+> `server/__tests__/email-logging.test.ts` — estes varrem tudo que foi logado
+> procurando o endereço em claro, e os três reprovam o código anterior. O caso
+> dos dois provedores falhando existe porque a primeira versão dele passava com
+> o código furado: falhando só o Cloudflare, o `Error` que chega ao chamador vem
+> do Resend.
 
 ### FLW-GISE-003 — mutações relevantes de GISE não geram evento de auditoria
 
@@ -1129,7 +1153,7 @@ rodar em paralelo com suites que compartilham esses recursos.
 | Achados          | Local sugerido                                                                                  | Cenário e asserção mínima                                                                                         |
 | ---------------- | ----------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
 | FLW-AUDIT-001    | `routes/api/gise/[id]/finalizar/__tests__/finalizar-audit.test.ts`                              | falha de auditoria e duas finalizações concorrentes: rollback total **ou** pendência durável, sem perda na cadeia |
-| FLW-LGPD-002     | `lib/server/__tests__/email-logging.test.ts`                                                    | resposta de e-mail com destinatário/corpo: logger e erro não podem conter PII/conteúdo                            |
+| FLW-LGPD-002     | ✅ `lib/server/__tests__/email-logging.test.ts`                                                 | resposta de e-mail com destinatário/corpo: logger e erro não podem conter PII/conteúdo                            |
 | FLW-GISE-004     | ✅ `e2e/autorizacao-negativa.spec.ts`                                                           | POST direto por policial comum/admin fora do escopo: 403 e nenhum estado/documento/audit alterado                 |
 | FLW-GISE-005     | `e2e/gise-finalizacao-negativa.spec.ts`                                                         | finalizar `em_andamento` por action e API: 409 e status/documento/integração intactos                             |
 | FLW-GISE-006     | `e2e/gise-reabertura-guard.spec.ts`                                                             | alterar vagas em GISE finalizada: 409, slots/hash/R2/auditoria preservados                                        |
