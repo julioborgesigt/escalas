@@ -13,6 +13,7 @@ import { coletarAfetadosGise, invalidarPapelGiseMultiplos } from '$lib/server/gi
 import { agendarSyncBaseEquipeAposFinalizar } from '$lib/server/gise/base-equipe-sync';
 import { giseIdParamSchema } from '$lib/schemas';
 import { requireAdmin, badRequest, notFound, conflict } from '$lib/server/api';
+import { modoDeFinalizacao, PENDENCIAS_DA_ANTECIPADA } from '$lib/gise/finalizacao';
 
 export const POST: RequestHandler = async (event) => {
 	const { locals, params, platform } = event;
@@ -30,10 +31,13 @@ export const POST: RequestHandler = async (event) => {
 
 	if (gise.status === 'finalizada') return conflict('Escala já finalizada');
 
-	if (gise.status !== 'pronta_para_finalizar' && gise.status !== 'em_andamento') {
-		return badRequest(
-			'A escala precisa estar com todos os relatórios de extra assinados antes de ser finalizada'
-		);
+	// A condição contradizia a mensagem: dizia "precisa estar com todos os
+	// relatórios assinados" e aceitava `em_andamento`, que não tem nenhum. A
+	// saída antecipada continua existindo — o que muda é ela ficar NOMEADA, aqui
+	// e na trilha (FLW-GISE-005).
+	const modo = modoDeFinalizacao(gise.status);
+	if (modo === 'bloqueado') {
+		return conflict('O status atual da escala não permite finalizar');
 	}
 
 	// Cache invalidation: supervisor + membros perdem papel ativo após finalizar.
@@ -53,8 +57,12 @@ export const POST: RequestHandler = async (event) => {
 			entidade_id: id,
 			alvo_tipo: 'gise',
 			alvo_id: id,
-			detalhes: `GISE ${id} finalizada (status anterior: ${gise.status})`,
-			metadados: { status_anterior: gise.status, data_inicio: gise.data_inicio },
+			severidade: modo === 'antecipada' ? 'aviso' : 'info',
+			detalhes:
+				modo === 'antecipada'
+					? `GISE ${id} finalizada ANTECIPADAMENTE, sem ${PENDENCIAS_DA_ANTECIPADA.join(', ')}`
+					: `GISE ${id} finalizada`,
+			metadados: { modo, status_anterior: gise.status, data_inicio: gise.data_inicio },
 			...contexto
 		},
 		{ env }

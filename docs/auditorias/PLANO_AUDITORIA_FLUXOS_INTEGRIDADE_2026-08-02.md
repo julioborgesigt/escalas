@@ -611,7 +611,7 @@ nenhuma linha.
 
 **Severidade:** P0  
 **Fluxo:** FLX-04  
-**Estado:** aberto
+**Estado:** corrigido
 
 Os dois caminhos de finalização aceitam `em_andamento`, além de
 `pronta_para_finalizar`
@@ -647,6 +647,27 @@ status, caches, documentos ou Base_Equipe.
 > visível: o modal precisa dizer o que está sendo pulado, e a auditoria
 > distinguir finalização normal de antecipada. Hoje `status_anterior` vai nos
 > metadados, mas a operação parece idêntica às demais.
+
+> **CORRIGIDO (05/ago/2026) — decisão do operador: manter a saída, tornando-a
+> explícita.** A finalização antecipada existe por um motivo real (GISE cujos
+> relatórios nunca chegam) e continua existindo. O defeito não era ela existir:
+> era ser SILENCIOSA.
+>
+> `modoDeFinalizacao` (`$lib/gise/finalizacao.ts`) classifica em normal,
+> antecipada ou bloqueado. As DUAS rotas de finalização e o modal usam a mesma
+> função — módulo puro e client-safe de propósito, porque quem decide e quem
+> avisa precisam da mesma resposta.
+>
+> O modal passou a enumerar o que fica para trás; a trilha registra `modo:
+'antecipada'` com severidade `aviso` e diz, no texto, o que foi pulado. E a
+> action de finalização, que não auditava NADA — a rota de API equivalente
+> auditava —, passou a auditar.
+>
+> Status desconhecido entra como bloqueado, não como antecipado: um estado novo
+> na escada não pode abrir a finalização por omissão.
+>
+> Cobertura: 10 casos em `gise/__tests__/finalizacao.test.ts`; reprova a versão
+> que não distinguia.
 
 ### FLW-GISE-006 — alteração de vagas contorna a reabertura formal
 
@@ -980,7 +1001,7 @@ cobrem os cenários acima.
 ### FLW-ESC-001 — usuário da própria lotação pode mutar e assinar por rota direta
 
 **Severidade:** P0  
-**Estado:** aberto  
+**Estado:** corrigido  
 As actions de escala só exigem mesma lotação
 (`src/routes/escalas/[id]/+page.server.ts:81-101`), e
 `verificarPermissaoEscala` permite a mesma lotação para leitura/assinatura
@@ -999,6 +1020,25 @@ DPC)` —, mas manda a flag LARGA (`podeEditarEscala`) para seis dos sete
 > componentes de edição. Alinhar o servidor à regra estrita tira de policiais
 > sem papel a capacidade de montar a escala da própria unidade; é decisão de
 > produto, não de código, e por isso não foi feita junto com ESC-002/003.
+
+> **CORRIGIDO (05/ago/2026) — decisão do operador: exigir papel.**
+> `podeMexerNaEscala` (`lib/server/escalas/permissao.ts`): Admin Geral em
+> qualquer escala, ou policial COM papel administrativo na sua lotação.
+>
+> A regra não é nova. A tela já a calculava — `podeEditarEscala &&
+(podeOIPSolicitar || papel administrativo com cargo DPC)` — e a usava em UM
+> dos sete pontos de edição; os outros seis recebiam a flag larga. Expandindo os
+> dois ramos, o conjunto é exatamente `isAnyAdmin`. O que faltava não era a
+> regra: era ela ser a MESMA nos sete lugares e no servidor.
+>
+> Por isso agora é calculada no servidor e desce pronta para a tela, em vez de
+> recalculada lá. Não há segunda versão para divergir.
+>
+> Cobertura: `e2e/escala-papel.spec.ts`. O spec de autorização negativa não
+> cobria isto — lá o ator é de OUTRA unidade, e a recusa vem do gate de lotação,
+> que sempre existiu. Aqui a lotação CONFERE. O segundo caso verifica que o
+> admin de unidade continua editando: sem ele, "recusa todo mundo" passaria.
+> Reprova o código anterior.
 
 ### FLW-ESC-002 — membro de outra escala pode ser editado ou removido por ID
 
@@ -1097,7 +1137,8 @@ antes/depois; cada action material bem-sucedida deve criar uma entrada.
 
 ### FLW-ACL-002 — download por hash não reaplica autorização do recurso
 
-**Severidade:** P0  
+**Severidade:** P2 (era P0 — reclassificado)  
+**Estado:** aceito com reclassificação  
 A rota requer uma sessão, mas depois resolve o hash sem chamar os gates de
 escala/GISE/seccional (`src/routes/api/validar/[hash]/download/+server.ts:60-179,240-351`).
 Usuário autenticado fora do escopo pode receber cópia de conferência de outra
@@ -1107,6 +1148,27 @@ unidade.
 remover o download por hash para não privilegiados. Sessão de outra lotação
 deve receber 403 sem bytes de PDF; participante autorizado deve continuar
 recebendo a cópia permitida.
+
+> **RECLASSIFICADO PARA P2 (05/ago/2026), com o enunciado corrigido.** O achado
+> diz que "usuário autenticado fora do escopo pode receber cópia de conferência
+> de outra unidade". Verificado em `api/validar/[hash]/download/+server.ts:112`,
+> o que o código faz é outra coisa:
+>
+> - o **blob forense** — manifesto com CPF, IP, GPS e selfie — passa por
+>   `podeBaixarForense`, que é `isSuperAdmin === true`. **Está protegido**, e é
+>   ele que carrega o dado sensível;
+> - a **cópia de conferência** — sem manifesto — vai para qualquer sessão
+>   autenticada que apresente o hash.
+>
+> E o hash é o código de validação IMPRESSO no próprio documento, com
+> rate-limit por IP na rota. Quem tem o código já tem o documento. O problema de
+> escopo é real — a rota não reaplica o gate do recurso —, mas a exposição não é
+> a de um P0: exige possuir o identificador do documento e não alcança o
+> forense.
+>
+> Fica no lote do módulo de validação, junto com os demais achados de `/validar`.
+> Registrado aqui porque a diferença entre o enunciado e o código é a própria
+> razão de o plano de auditoria não ser executado sem conferência.
 
 ### FLW-R2-003 — assinatura GISE pode persistir sem blob R2
 
@@ -1184,6 +1246,7 @@ existente e 2FA pendente após desativação.
 ### FLW-POLICIAL-002 — exclusão física apaga histórico e pode deixar R2 órfão
 
 **Severidade:** P0  
+**Estado:** corrigido  
 A action executa `excluirPolicial` sem análise de impacto
 (`src/routes/policiais/+page.server.ts:268-271`), e o DB executa DELETE físico
 (`src/lib/db/policiais.ts:431-439`). Cascades removem escala, GISE, presença,
@@ -1192,6 +1255,29 @@ respostas e histórico, enquanto documentos R2 podem perder referência.
 **Ação/teste:** recusar exclusão enquanto houver dependência ou adotar somente
 desativação; aplicar `RESTRICT` a vínculos históricos indispensáveis. Testar
 policial com escala, GISE, presença e histórico.
+
+> **CORRIGIDO (05/ago/2026) — decisão do operador: recusar quando há documento
+> assinado; desativar em vez de apagar.** A regra não é "nunca apagar": é nunca
+> apagar o que um documento assinado referencia. Cadastro digitado errado
+> continua podendo sumir.
+>
+> `impedimentoParaExcluirPolicial` (`lib/db/policial-exclusao.ts`) responde por
+> quatro caminhos, em duas naturezas: por AUTORIA (termo de presença dele,
+> relatório de extra que ele assinou) e por MENÇÃO (escala assinada em que está
+> escalado, GISE assinada de que é membro). As duas contam — um PDF que LISTA
+> alguém inexistente é tão inconsistente quanto um assinado por alguém
+> inexistente, e a menção é o caso mais comum: o policial escalado que nunca
+> assinou nada.
+>
+> A mensagem nomeia os vínculos e aponta a desvinculação. Quem lê precisa
+> escolher entre apagar e desativar, e "não pode" sem dizer o que está
+> preservando não sustenta essa escolha.
+>
+> Cobertura: 8 casos contra SQLite real; os de MENÇÃO reprovam uma versão que
+> só olhasse autoria.
+>
+> **Fica em aberto** a limpeza de R2 na exclusão permitida (cadastro sem
+> documento pode ter anexo de histórico). É escopo de FLW-R2-004.
 
 ### FLW-RBAC-003 — escopo de papel não é validado nem usado consistentemente
 
@@ -1249,18 +1335,18 @@ rodar em paralelo com suites que compartilham esses recursos.
 | FLW-AUDIT-001    | ✅ `lib/db/__tests__/audit-pendencia.test.ts`                                                   | falha de auditoria e duas finalizações concorrentes: rollback total **ou** pendência durável, sem perda na cadeia |
 | FLW-LGPD-002     | ✅ `lib/server/__tests__/email-logging.test.ts`                                                 | resposta de e-mail com destinatário/corpo: logger e erro não podem conter PII/conteúdo                            |
 | FLW-GISE-004     | ✅ `e2e/autorizacao-negativa.spec.ts`                                                           | POST direto por policial comum/admin fora do escopo: 403 e nenhum estado/documento/audit alterado                 |
-| FLW-GISE-005     | ⏸ pende decisão — ver o achado                                                                  | finalizar `em_andamento` por action e API: 409 e status/documento/integração intactos                             |
+| FLW-GISE-005     | ✅ `lib/gise/__tests__/finalizacao.test.ts`                                                     | finalizar `em_andamento` por action e API: 409 e status/documento/integração intactos                             |
 | FLW-GISE-006     | ✅ `e2e/gise-imutabilidade.spec.ts`                                                             | alterar vagas em GISE finalizada: 409, slots/hash/R2/auditoria preservados                                        |
 | FLW-WEBHOOK-001  | ✅ `lib/db/__tests__/reset-atomicidade.test.ts`                                                 | falha na segunda deleção: nenhuma tabela alterada e tentativa registrada                                          |
 | FLW-AUTH-001     | ✅ `server/auth/__tests__/session-cache.test.ts` (sem e2e — ver o achado)                       | aquecer cache e revogar/resetar/desativar: próximo request retorna 401                                            |
 | FLW-AUTH-002     | ✅ `e2e/revogacao-credencial.spec.ts` + `auth/__tests__/credencial.test.ts`                     | reset de admin vinculado: senha antiga falha nos dois modos, nova funciona e ambos cookies são revogados          |
-| FLW-ESC-001      | `e2e/escalas-acoes-autorizacao.spec.ts`                                                         | OIP sem papel na mesma lotação chama mutar/assinar/finalizar/revogar: 403 em todas                                |
+| FLW-ESC-001      | ✅ `e2e/escala-papel.spec.ts`                                                                   | OIP sem papel na mesma lotação chama mutar/assinar/finalizar/revogar: 403 em todas                                |
 | FLW-ESC-002      | `e2e/escalas-ids-cruzados.spec.ts`                                                              | item de escala B enviado à rota A: 404/403 e A/B intactas                                                         |
 | FLW-ESC-003      | `e2e/escalas-imutabilidade.spec.ts`                                                             | cada action material/exclusão em escala assinada: 409, PDF/hash/membros preservados                               |
 | FLW-DOC-001      | ✅ `lib/server/assinatura/__tests__/intencao.test.ts` + `e2e/assinatura-qualificada-a3.spec.ts` | preparar A/finalizar B; ator/tipo divergentes e reutilização: falha sem D1/R2/audit alterados                     |
-| FLW-ACL-002      | `e2e/validar-download-autorizacao.spec.ts`                                                      | usuário autenticado de outra lotação baixa por hash: 403 sem bytes; autorizado recebe somente cópia permitida     |
+| FLW-ACL-002      | ⤵ reclassificado P2 — ver o achado                                                              | usuário autenticado de outra lotação baixa por hash: 403 sem bytes; autorizado recebe somente cópia permitida     |
 | FLW-RBAC-001     | ✅ `e2e/revogacao-credencial.spec.ts`                                                           | desativar policial-admin com sessão e 2FA pendente: ambos os caminhos retornam 401                                |
-| FLW-POLICIAL-002 | `e2e/policiais-exclusao-historico.spec.ts`                                                      | excluir policial com grafo histórico: operação recusada e referências/R2 continuam recuperáveis                   |
+| FLW-POLICIAL-002 | ✅ `lib/db/__tests__/policial-exclusao.test.ts`                                                 | excluir policial com grafo histórico: operação recusada e referências/R2 continuam recuperáveis                   |
 
 ### P1 — agrupamentos de teste
 

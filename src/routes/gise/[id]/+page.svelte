@@ -811,6 +811,7 @@
 <ModalFinalizar
 	open={showFinalizarConfirm}
 	{pendingCrud}
+	status={gise?.status ?? ''}
 	onClose={() => (showFinalizarConfirm = false)}
 	onSubmit={handleFinalizarGise}
 />

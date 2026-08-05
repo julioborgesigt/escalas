@@ -845,7 +845,7 @@ npm run test          # Executa uma vez
 npm run test:watch    # Watch mode (recomendado durante desenvolvimento)
 ```
 
-Arquivos de teste ficam em `src/` com o padrão `*.test.ts`, **sempre** em pastas `__tests__/` junto do código testado (89 arquivos, 915 testes) — convenção verificada no CI. Os principais grupos:
+Arquivos de teste ficam em `src/` com o padrão `*.test.ts`, **sempre** em pastas `__tests__/` junto do código testado (91 arquivos, 933 testes) — convenção verificada no CI. Os principais grupos:
 
 - `src/lib/__tests__/` — autenticação (PBKDF2/pepper, sessões, 2FA), CSRF, headers de segurança, utilitários
 - `src/lib/schemas/__tests__/` — schemas Zod (LGPD, formulários GISE)

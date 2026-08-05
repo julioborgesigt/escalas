@@ -78,7 +78,7 @@ import {
 	agruparDiasPorPolicial,
 	MESES_PT
 } from '$lib/rotacao';
-import { verificarPermissaoEscala } from '$lib/server/escalas/permissao';
+import { verificarPermissaoEscala, podeMexerNaEscala } from '$lib/server/escalas/permissao';
 
 /**
  * O que a action vai fazer com a escala. **Parâmetro obrigatório de
@@ -133,7 +133,7 @@ async function carregarEscalaComPermissao(
 	if (!escala) {
 		return { erro: fail(404, { error: 'Escala não encontrada' }) } as const;
 	}
-	if (usuario.tipo !== 'admin' && usuario.lotacao !== escala.lotacao) {
+	if (!podeMexerNaEscala(usuario, escala.lotacao)) {
 		return { erro: fail(403, { error: 'Sem permissão para alterar esta escala' }) } as const;
 	}
 
@@ -222,11 +222,12 @@ export const load: PageServerLoad = async ({ locals, platform, params, depends }
 		if (!perm.permitido) redirect(302, '/escalas');
 	}
 
-	// Permissão de EDIÇÃO (mutar servidores/finalizar). Espelha exatamente o guard
-	// das actions (`carregarEscalaComPermissao`): Admin Geral em qualquer escala, ou
-	// dono da lotação. Um admin_seccional que apenas VÊ a escala de uma unidade sob
-	// seu escopo NÃO edita — mas continua podendo ASSINAR (fluxo próprio, cross-unidade).
-	const podeEditarEscala = u.tipo === 'admin' || escala.lotacao === u.lotacao;
+	// Permissão de EDIÇÃO (mutar servidores/finalizar). É a MESMA função que as
+	// actions usam — não uma cópia que espelha o guard, como era antes: a tela
+	// recalculava a regra e a aplicava em um dos sete componentes de edição.
+	// Um admin_seccional que apenas VÊ a escala de uma unidade sob seu escopo NÃO
+	// edita — mas continua podendo ASSINAR (fluxo próprio, cross-unidade).
+	const podeEditarEscala = podeMexerNaEscala(u, escala.lotacao);
 
 	const oipPodeSolicitar = podeOIPSolicitar(u);
 	const jaAssinada = docInfo.existe;

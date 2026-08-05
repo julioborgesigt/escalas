@@ -81,7 +81,7 @@ export function saiuDaFaseDeEdicao(status: string): boolean {
  * `gise_documentos` da escala assinada e devolvê-la a `em_preenchimento`, sem
  * auditoria e deixando o PDF órfão no R2 (FLW-GISE-006).
  */
-export async function carregarGiseEditavel(db: Database, giseId: number) {
+async function carregarGiseEditavel(db: Database, giseId: number) {
 	const gise = await buscarGiseEscala(db, giseId);
 	if (!gise) return { erro: fail(404, { error: 'GISE não encontrada' }) } as const;
 	if (gise.status === 'finalizada') {

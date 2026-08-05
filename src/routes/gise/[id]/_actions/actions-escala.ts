@@ -16,6 +16,7 @@ import {
 	contextoDeEvento
 } from '$lib/db';
 import { isAdminGeral } from '$lib/auth';
+import { modoDeFinalizacao, PENDENCIAS_DA_ANTECIPADA } from '$lib/gise/finalizacao';
 import { invalidarPapelGiseMultiplos, coletarAfetadosGise } from '$lib/server/gise/papel-cache';
 import {
 	agendarSyncBaseEquipeAposFinalizar,
@@ -307,7 +308,8 @@ export const actionsEscala = {
 	 * Encerra a GISE. Dispara, sem bloquear a resposta, o envio da base de equipe
 	 * para a planilha institucional (`agendarSyncBaseEquipeAposFinalizar`).
 	 */
-	finalizarGise: async ({ locals, platform, params }: Event) => {
+	finalizarGise: async (event: Event) => {
+		const { locals, platform, params } = event;
 		const u = locals.usuario;
 		if (!u || !isAdminGeral(u)) return fail(403, { error: 'Apenas Admin Geral' });
 
@@ -319,8 +321,9 @@ export const actionsEscala = {
 		if (!gise) return fail(404, { error: 'GISE não encontrada' });
 		if (gise.status === 'finalizada') return fail(400, { error: 'Já finalizada' });
 
-		if (!['pronta_para_finalizar', 'em_andamento'].includes(gise.status)) {
-			return fail(400, { error: 'Status não permite finalizar' });
+		const modo = modoDeFinalizacao(gise.status);
+		if (modo === 'bloqueado') {
+			return fail(409, { error: 'Status não permite finalizar' });
 		}
 
 		// Coleta os policiais ANTES de mexer no status: é a lista de caches de papel
@@ -330,6 +333,32 @@ export const actionsEscala = {
 		await invalidarPapelGiseMultiplos(afetados);
 
 		agendarSyncBaseEquipeAposFinalizar(platform, db, giseId);
+
+		// Esta action não auditava NADA — a rota de API equivalente auditava, e as
+		// duas fazem a mesma coisa. Além de fechar essa lacuna, o evento distingue
+		// a finalização ANTECIPADA da normal: as duas encerram a escala, mas só
+		// uma delas deixa relatórios e confirmações de saída para trás
+		// (FLW-GISE-005).
+		const { contexto, env } = contextoDeEvento(event);
+		await auditar(
+			db,
+			{
+				acao: 'finalizar_gise',
+				usuario: u,
+				entidade: 'gise',
+				entidade_id: giseId,
+				alvo_tipo: 'gise',
+				alvo_id: giseId,
+				severidade: modo === 'antecipada' ? 'aviso' : 'info',
+				detalhes:
+					modo === 'antecipada'
+						? `GISE ${giseId} finalizada ANTECIPADAMENTE, sem ${PENDENCIAS_DA_ANTECIPADA.join(', ')}`
+						: `GISE ${giseId} finalizada`,
+				metadados: { modo, status_anterior: gise.status },
+				...contexto
+			},
+			{ env }
+		);
 
 		return { success: true };
 	},
