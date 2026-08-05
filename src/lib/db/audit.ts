@@ -367,6 +367,14 @@ export const CATALOGO_ACOES = {
 		categoria: 'sistema',
 		severidade: 'aviso'
 	},
+	// A GISE fecha no sistema mas não chega à planilha que paga o
+	// extraordinário. `critico` porque o efeito é FORA do sistema e ninguém aqui
+	// dentro percebe: a tela mostra a escala finalizada normalmente.
+	sync_base_equipe_pendente: {
+		label: 'Envio da Base_Equipe pendente (planilha não recebeu)',
+		categoria: 'sistema',
+		severidade: 'critico'
+	},
 	reset_policiais: {
 		label: 'Reset de policiais (webhook)',
 		categoria: 'sistema',

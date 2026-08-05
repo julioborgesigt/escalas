@@ -14,7 +14,7 @@
  *   quebraria evidência de assinatura ou deixaria RBAC falhando em silêncio.
  *   Ver `definirUnidadeAtiva` para o raciocínio completo.
  */
-import { eq, asc } from 'drizzle-orm';
+import { and, eq, asc } from 'drizzle-orm';
 import { unidades, policiais, escalas, giseSeccionais } from '../server/schema';
 import type * as schema from '../server/schema';
 import type { Database } from './core';
@@ -73,6 +73,30 @@ export async function criarUnidade(db: Database, data: DadosUnidade) {
  * e `escalas.lotacao` — sem isso os vínculos por nome se perderiam em silêncio.
  * Devolve o nome anterior para o diff da auditoria.
  */
+/**
+ * Outra requisição renomeou a unidade entre a leitura e a gravação desta.
+ *
+ * `unidades.nome` é DENORMALIZADO em `policiais.lotacao` e `escalas.lotacao` —
+ * não há FK, a propagação é manual. Duas renomeações partindo do mesmo estado
+ * produziam o pior desfecho possível (FLW-UNIDADE-004): a primeira levava a
+ * unidade de "A" para "B" e propagava; a segunda gravava "C" na unidade e
+ * propagava `WHERE lotacao = 'A'`, que já não achava ninguém. Resultado:
+ * unidade chamada "C" e um efetivo inteiro lotado em "B", uma unidade que não
+ * existe. Ninguém percebe até alguém montar uma escala.
+ *
+ * Recusar a segunda é a resposta certa — a pessoa relê a tela e decide de novo,
+ * sabendo que o nome mudou.
+ */
+export class ConflitoDeRenomeacaoUnidade extends Error {
+	constructor(nomeEsperado: string) {
+		super(
+			`A unidade foi renomeada por outra pessoa enquanto esta edição estava aberta ` +
+				`(o nome deixou de ser "${nomeEsperado}"). Recarregue a página e tente de novo.`
+		);
+		this.name = 'ConflitoDeRenomeacaoUnidade';
+	}
+}
+
 export async function atualizarUnidade(
 	db: Database,
 	id: number,
@@ -87,7 +111,10 @@ export async function atualizarUnidade(
 	const nomeAntigo = unidade.nome;
 	const nomeTrimmed = data.nome.trim();
 
-	await db
+	// A gravação é CONDICIONADA ao nome que acabou de ser lido, e as três
+	// escritas vão na MESMA transação. Ver `ConflitoDeRenomeacaoUnidade`: sem
+	// isso, duas renomeações a partir do mesmo estado deixavam lotação órfã.
+	const alterarUnidade = db
 		.update(unidades)
 		.set({
 			nome: nomeTrimmed,
@@ -98,17 +125,28 @@ export async function atualizarUnidade(
 			tem_fds: data.tem_fds,
 			cidade: data.cidade || ''
 		})
-		.where(eq(unidades.id, id));
+		.where(and(eq(unidades.id, id), eq(unidades.nome, nomeAntigo)));
+
+	if (nomeTrimmed === nomeAntigo) {
+		// Sem troca de nome não há cascata a fazer, mas a condição continua: se
+		// outra requisição renomeou no meio, esta edição escreveria os demais
+		// campos por cima de um nome que ela não viu.
+		const r = await alterarUnidade;
+		if ((r.rowsAffected ?? 0) === 0) throw new ConflitoDeRenomeacaoUnidade(nomeAntigo);
+		return { nomeAntigo };
+	}
 
 	// Cascata manual (não há FK): tudo que apontava para o nome antigo passa a
-	// apontar para o novo.
-	if (nomeTrimmed !== nomeAntigo) {
-		await db
-			.update(policiais)
-			.set({ lotacao: nomeTrimmed })
-			.where(eq(policiais.lotacao, nomeAntigo));
-		await db.update(escalas).set({ lotacao: nomeTrimmed }).where(eq(escalas.lotacao, nomeAntigo));
-	}
+	// apontar para o novo. As duas cascatas são condicionadas ao MESMO nome
+	// antigo, então a requisição perdedora vira um no-op de três statements —
+	// e é o `rowsAffected` do primeiro que a denuncia.
+	const [resUnidade] = await db.batch([
+		alterarUnidade,
+		db.update(policiais).set({ lotacao: nomeTrimmed }).where(eq(policiais.lotacao, nomeAntigo)),
+		db.update(escalas).set({ lotacao: nomeTrimmed }).where(eq(escalas.lotacao, nomeAntigo))
+	]);
+
+	if ((resUnidade.rowsAffected ?? 0) === 0) throw new ConflitoDeRenomeacaoUnidade(nomeAntigo);
 
 	return { nomeAntigo };
 }

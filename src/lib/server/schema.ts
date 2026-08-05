@@ -24,7 +24,15 @@
  * continuarem válidas depois que o cadastro do policial some. Um CASCADE ali
  * apagaria a evidência.
  */
-import { sqliteTable, text, integer, real, index, unique } from 'drizzle-orm/sqlite-core';
+import {
+	sqliteTable,
+	text,
+	integer,
+	real,
+	index,
+	uniqueIndex,
+	unique
+} from 'drizzle-orm/sqlite-core';
 import { sql } from 'drizzle-orm';
 
 // ---- Policiais ----
@@ -386,11 +394,21 @@ export const giseMembros = sqliteTable(
 			.references(() => giseEquipes.id, { onDelete: 'cascade' }),
 		policial_id: integer('policial_id')
 			.notNull()
-			.references(() => policiais.id, { onDelete: 'cascade' })
+			.references(() => policiais.id, { onDelete: 'cascade' }),
+		/**
+		 * Denormalizado para o índice único de exclusividade (FLW-GISE-009) — o
+		 * SQLite não indexa através de join, e a regra é "um policial por GISE".
+		 *
+		 * Não é segunda fonte de verdade: sai derivado da própria equipe no INSERT
+		 * (`adicionarGiseMembro`), e equipe não muda de GISE. Nullable só por causa
+		 * das linhas anteriores à migração 0044.
+		 */
+		gise_id: integer('gise_id')
 	},
 	(table) => [
 		index('idx_gise_membros_equipe').on(table.equipe_id),
-		index('idx_gise_membros_policial').on(table.policial_id)
+		index('idx_gise_membros_policial').on(table.policial_id),
+		uniqueIndex('uq_gise_membros_gise_policial').on(table.gise_id, table.policial_id)
 	]
 );
 
@@ -892,6 +910,39 @@ export const r2Pendencias = sqliteTable(
 			.default(sql`(datetime('now'))`)
 	},
 	(table) => [index('idx_r2_pendencias_created').on(table.created_at)]
+);
+
+/**
+ * Envio da Base_Equipe que não chegou ao destino (FLW-WEBHOOK-003).
+ *
+ * A GISE é finalizada e só então o envio é agendado, fora da resposta ao
+ * cliente. Falhando, sobrava um `logger.error` — a escala fechada no sistema e
+ * ausente da planilha que a corporação usa para pagar o extraordinário, sem
+ * ninguém ser avisado.
+ *
+ * Mesma forma de `audit_pendencias` e `r2_pendencias`; o que muda é a AÇÃO de
+ * reprocessamento. `chave_idempotencia` viaja no payload para o destino poder
+ * deduplicar o reenvio.
+ */
+export const baseEquipePendencias = sqliteTable(
+	'base_equipe_pendencias',
+	{
+		id: integer('id').primaryKey({ autoIncrement: true }),
+		/** Único: a mesma escala falhando de novo é a mesma pendência. */
+		gise_id: integer('gise_id')
+			.notNull()
+			.unique()
+			.references(() => giseEscalas.id, { onDelete: 'cascade' }),
+		/** Estável por GISE — reenviar manda a mesma chave. */
+		chave_idempotencia: text('chave_idempotencia').notNull(),
+		motivo: text('motivo').notNull(),
+		tentativas: integer('tentativas').notNull().default(0),
+		ultima_tentativa_em: text('ultima_tentativa_em'),
+		created_at: text('created_at')
+			.notNull()
+			.default(sql`(datetime('now'))`)
+	},
+	(table) => [index('idx_base_equipe_pendencias_created').on(table.created_at)]
 );
 
 /**

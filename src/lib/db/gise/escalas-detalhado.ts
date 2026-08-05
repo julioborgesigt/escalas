@@ -420,6 +420,7 @@ export async function buscarGiseDetalhado(db: Database, id: number): Promise<Gis
 				id: giseMembros.id,
 				equipe_id: giseMembros.equipe_id,
 				policial_id: giseMembros.policial_id,
+				gise_id: giseMembros.gise_id,
 				policial_nome: policiais.nome,
 				policial_cargo: policiais.cargo,
 				policial_matricula: policiais.matricula,

@@ -855,7 +855,7 @@ nem evento de sucesso.
 
 **Severidade:** P1  
 **Fluxo:** FLX-04  
-**Estado:** confirmado
+**Estado:** corrigido
 
 Vaga livre, duplicidade na GISE e conflito de horário são consultados antes do
 insert de membro (`actions-membros.ts:62-71`); não há transação, versão ou
@@ -867,6 +867,32 @@ modelo que imponha exclusividade por GISE.
 
 **Teste de regressão:** duas chamadas paralelas devem aceitar apenas uma e
 preservar a capacidade/associação única.
+
+> **CORRIGIDO (05/ago/2026).** A decisão passou para dentro da gravação, e as
+> duas regras que a corrida quebrava têm agora mecanismos diferentes porque são
+> problemas diferentes:
+>
+> - **exclusividade por GISE** virou índice único `(gise_id, policial_id)`
+>   (migração 0044). `gise_id` é denormalizado porque o SQLite não indexa através
+>   de join — mas é DERIVADO da própria equipe no INSERT, e equipe não muda de
+>   GISE, então não há janela em que possa divergir;
+> - **capacidade da equipe** virou `INSERT ... SELECT ... WHERE ocupados <
+limite`. Não pode ser constraint: compara uma contagem com um limite guardado
+>   em outra tabela.
+>
+> **As `verificarConflito*` mudaram de papel, não sumiram.** Viraram
+> DIAGNÓSTICO — rodam APÓS a recusa, só para dizer ao usuário qual regra barrou,
+> já que `rowsAffected = 0` não conta. É a inversão que importa: se alguma delas
+> divergir da SQL, o pior caso passou a ser uma mensagem confusa, nunca uma
+> escrita errada. `verificarConflitoHorarioPolicial` continua sendo pré-checagem
+> de verdade — é choque entre escalas, não disputa pela mesma vaga.
+>
+> A migração remove duplicatas pré-existentes mantendo a mais antiga, senão o
+> índice não seria criado.
+>
+> Cobertura: `src/lib/db/gise/__tests__/membro-alocacao-atomica.test.ts`, 8
+> casos. Não usam threads: reproduzem o que a corrida PRODUZ — duas gravações a
+> partir do mesmo estado observado. Sob mutação para o INSERT cru, 6 reprovam.
 
 ### FLW-GISE-010 — política de “uma GISE não finalizada” não é protegida
 
@@ -979,7 +1005,7 @@ tabela mudou e que a tentativa foi registrada.
 
 **Severidade:** P1  
 **Fluxo:** FLX-07  
-**Estado:** confirmado
+**Estado:** corrigido
 
 `sync-policiais` pula silenciosamente linhas sem matrícula/nome
 (`sync-policiais/+server.ts:93-99`); `sync-unidades` também descarta itens
@@ -993,11 +1019,34 @@ contrato de falha único e fazer o remetente exibir/registrar a falha.
 **Teste de regressão:** payload com linha incompleta precisa falhar no
 endpoint e sinalizar erro ao remetente.
 
+> **CORRIGIDO (05/ago/2026), com um limite declarado.** Duas decisões, em
+> `src/lib/server/sync/resultado.ts`:
+>
+> 1. **Linha vazia é ignorável; linha incompleta é ERRO.** Planilha do Google
+>    manda linhas em branco no fim da faixa o tempo todo — recusar o lote por
+>    causa delas seria inútil. Mas linha com ALGUM dado e sem o obrigatório é
+>    registro que alguém digitou esperando ver importado. As vazias passaram a
+>    ter contador próprio (`skippedEmpty`), e todo o resto vira erro com a linha
+>    identificada. Em `sync-unidades` isso alcança também o `else` final da
+>    classificação, onde a linha sem `nivel` e sem seccional sumia.
+>
+> 2. **Sucesso parcial responde 422, não 200.** O achado observa que o Apps
+>    Script lê `error`/`details` e ignora `errors` — e ele não vive neste
+>    repositório. O que dá para fazer daqui é parar de dizer "200 OK" quando
+>    metade do lote não entrou: um cliente que ignore o corpo ainda vê o status.
+>    Reenviar é seguro, as duas rotas fazem upsert.
+>
+> **Fica em aberto** a outra metade: fazer o Apps Script exibir a falha. É
+> mudança no script da planilha, fora deste repositório, e sem ela o operador
+> depende de olhar a resposta HTTP.
+>
+> Cobertura: `src/lib/server/sync/__tests__/resultado.test.ts`, 6 casos.
+
 ### FLW-WEBHOOK-003 — envio Base_Equipe não tem entrega recuperável
 
 **Severidade:** P1  
 **Fluxo:** FLX-04 / FLX-07  
-**Estado:** confirmado
+**Estado:** corrigido (metade daqui; a do destino fica em aberto)
 
 A GISE é finalizada antes de agendar o envio externo. Em falha, o job só
 registra logs, sem pendência, correlação, tentativa persistida ou auditoria
@@ -1011,6 +1060,36 @@ retries e auditoria; no destino, versão monotônica e staging antes da troca.
 **Teste de regressão:** timeout após aplicação, falha durante escrita,
 repetição e payload antigo devem ser recuperáveis e não produzir planilha
 parcial.
+
+> **CORRIGIDO NA METADE QUE É DAQUI (05/ago/2026).** O achado tem dois lados, e
+> só um está neste repositório.
+>
+> **Deste lado:** a falha virou PENDÊNCIA DURÁVEL (`base_equipe_pendencias`,
+> migração 0045) mais evento de auditoria `sync_base_equipe_pendente`, e o cron
+> de retenção reenvia. Antes sobrava um `logger.error` — a escala ficava fechada
+> no sistema e ausente da planilha que a corporação usa para pagar o
+> extraordinário, e a tela mostrava tudo normal, porque o efeito é fora daqui.
+> Por isso a severidade da ação é `critico`.
+>
+> O reenvio REMONTA as linhas do banco a cada tentativa, em vez de guardar um
+> payload congelado: a escala pode ter sido reaberta e corrigida entre a falha e
+> a retentativa, e o que deve chegar à planilha é o estado atual.
+> `chaveIdempotenciaBaseEquipe` é estável por GISE e viaja no payload
+> (`idempotency_key`).
+>
+> **Terceira tabela de pendência da auditoria**, e a forma é deliberadamente a
+> mesma das outras duas. Não viraram uma tabela com discriminador porque o que
+> muda em cada uma é a AÇÃO de reprocessamento — uma tabela genérica precisaria
+> de payload em JSON e de um switch no drenador, o que é mais código e não menos.
+>
+> **Fica em aberto, e é fora deste repositório:** "no destino, versão monotônica
+> e staging antes da troca". O Apps Script apaga linhas antes de inserir e hoje
+> ignora a `idempotency_key`. Mandá-la é a precondição para a correção de lá;
+> enquanto ela não vier, um reenvio ainda pode duplicar linhas na planilha.
+>
+> Cobertura: `src/lib/server/gise/__tests__/base-equipe-pendencia.test.ts`, 6
+> casos — incluindo o de que desativar o webhook NÃO apaga a dívida. Duas
+> mutações verificadas.
 
 ### FLW-WEBHOOK-004 — defesa contra replay ainda depende de flag opcional
 
@@ -1556,12 +1635,34 @@ tipo incompatível e transferência posterior.
 ### FLW-UNIDADE-004 — renomeação concorrente quebra lotação denormalizada
 
 **Severidade:** P1  
+**Estado:** corrigido  
 `atualizarUnidade` lê, atualiza e propaga o nome em comandos separados sem
 transação/versão (`src/lib/db/unidades.ts:80-110`).
 
 **Ação/teste:** atualização condicional e transação para unidade, cascatas e
 auditoria; duas renomeações do mesmo estado inicial devem produzir conflito,
 não lotações órfãs.
+
+> **CORRIGIDO (05/ago/2026).** O `UPDATE` da unidade passou a ser condicionado
+> ao nome que acabou de ser lido (`WHERE id = ? AND nome = ?`), e ele mais as
+> duas cascatas vão num `db.batch`.
+>
+> O desfecho que isso evita é específico: T1 leva "A" para "B" e propaga; T2,
+> que também leu "A", grava "C" e propaga `WHERE lotacao = 'A'`, que já não acha
+> ninguém. Sobra uma unidade chamada "C" e um efetivo inteiro lotado em "B" —
+> uma unidade que não existe. Ninguém percebe até alguém montar uma escala.
+>
+> A perdedora vira um no-op de três statements (as três condições são o mesmo
+> nome antigo) e o `rowsAffected` do primeiro a denuncia:
+> `ConflitoDeRenomeacaoUnidade`, que a rota mapeia para 409 com a mensagem da
+> própria exceção. A edição SEM troca de nome também é condicionada — senão
+> gravaria tipo e cidade por cima de um nome que não viu.
+>
+> Cobertura: `src/lib/db/__tests__/unidade-renomeacao-concorrente.test.ts`, 6
+> casos. A corrida é dirigida por um `Database` que interfere entre a leitura e
+> a gravação; o gancho é `update` e não `batch` porque os dois caminhos da função
+> passam por ele — ancorar no `batch` deixava o caminho sem-troca-de-nome sem
+> janela, e foi o que aconteceu na primeira versão do teste.
 
 ### FLW-RBAC-005 — mudança, histórico e auditoria podem divergir
 

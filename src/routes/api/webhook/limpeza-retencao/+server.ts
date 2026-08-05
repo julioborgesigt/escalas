@@ -19,6 +19,10 @@ import { carregarConfigRetencao, executarLimpezaRetencao } from '$lib/db/lgpd-re
 import { contarPendenciasAudit, reprocessarPendenciasAudit } from '$lib/db/audit';
 import { contarPendenciasR2, reprocessarPendenciasR2 } from '$lib/server/r2-cleanup';
 import {
+	contarPendenciasBaseEquipe,
+	reprocessarPendenciasBaseEquipe
+} from '$lib/server/gise/base-equipe-sync';
+import {
 	validarWebhookSync,
 	validarReplayProtection,
 	replayEnforceLigado,
@@ -69,11 +73,17 @@ export const POST: RequestHandler = async ({ request, platform, getClientAddress
 	const r2 = await reprocessarPendenciasR2(db, tryGetR2(platform) ?? null);
 	const r2Restantes = await contarPendenciasR2(db);
 
+	// Quarta tarefa: a GISE finalizada que não chegou à planilha da corporação
+	// (FLW-WEBHOOK-003). Reenviar remonta as linhas do banco, então o que vai é
+	// sempre o estado atual da escala.
+	const baseEquipe = await reprocessarPendenciasBaseEquipe(env, db);
+	const baseEquipeRestantes = await contarPendenciasBaseEquipe(db);
+
 	await registrarAuditComContexto(db, {
 		usuario: null,
 		acao: 'limpeza_retencao',
 		entidade: 'lgpd',
-		detalhes: JSON.stringify({ origem: 'cron', resultado, auditoria, r2 })
+		detalhes: JSON.stringify({ origem: 'cron', resultado, auditoria, r2, baseEquipe })
 	});
 
 	// Os dois contadores de restantes saem na resposta e no log de propósito: são
@@ -85,7 +95,18 @@ export const POST: RequestHandler = async ({ request, platform, getClientAddress
 		auditoria,
 		pendenciasRestantes,
 		r2,
-		r2Restantes
+		r2Restantes,
+		baseEquipe,
+		baseEquipeRestantes
 	});
-	return json({ ok: true, resultado, auditoria, pendenciasRestantes, r2, r2Restantes });
+	return json({
+		ok: true,
+		resultado,
+		auditoria,
+		pendenciasRestantes,
+		r2,
+		r2Restantes,
+		baseEquipe,
+		baseEquipeRestantes
+	});
 };

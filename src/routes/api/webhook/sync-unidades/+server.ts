@@ -19,8 +19,8 @@
  * delegacia) porque cada um referencia o anterior como pai.
  */
 
-import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
+import { linhaVazia, respostaDeSync } from '$lib/server/sync/resultado';
 import { getDB, auditar, contextoDeEvento } from '$lib/db';
 import { upsertUnidade, buscarUnidadePorNome } from '$lib/db/unidades';
 import {
@@ -86,6 +86,11 @@ export const POST: RequestHandler = async (event) => {
 
 		const data = (Array.isArray(payload) ? payload : [payload]) as Record<string, unknown>[];
 
+		// Declarados antes da classificação: o que não se classifica também é erro,
+		// e a contagem de vazias sai do mesmo laço.
+		const errors: string[] = [];
+		let vazias = 0;
+
 		const departamentos: Record<string, unknown>[] = [];
 		const subDepartamentos: Record<string, unknown>[] = [];
 		const seccionais: Record<string, unknown>[] = [];
@@ -98,18 +103,36 @@ export const POST: RequestHandler = async (event) => {
 			const colUnidade = trimCol(item, 'unidade');
 			const colSeccional = trimCol(item, 'seccional');
 
+			// Linha em branco no fim da faixa da planilha: descarte legítimo. Tudo
+			// que tem ALGUM dado e não se classifica vira ERRO, porque alguém
+			// digitou ali esperando ver a unidade importada (FLW-WEBHOOK-002).
+			if (linhaVazia(item as Record<string, unknown>)) {
+				vazias++;
+				continue;
+			}
+			const rotulo = colUnidade || colSeccional || 'linha sem nome';
+
 			if (nivel === 'DEPARTAMENTO') {
-				if (!colSeccional) continue;
+				if (!colSeccional) {
+					errors.push(`Departamento "${rotulo}": falta o nome (coluna seccional)`);
+					continue;
+				}
 				departamentos.push(item);
 				continue;
 			}
 			if (nivel === 'SUB_DEPARTAMENTO') {
-				if (!colUnidade || !colSeccional) continue;
+				if (!colUnidade || !colSeccional) {
+					errors.push(`Subdepartamento "${rotulo}": falta o nome ou o departamento pai`);
+					continue;
+				}
 				subDepartamentos.push(item);
 				continue;
 			}
 			if (nivel === 'SECCIONAL') {
-				if (!colSeccional) continue;
+				if (!colSeccional) {
+					errors.push(`Seccional "${rotulo}": falta o nome (coluna seccional)`);
+					continue;
+				}
 				// Raiz: A vazio, B = nome da seccional (igual ao legado)
 				if (!colUnidade) {
 					seccionais.push({ ...item, __legacyRaiz: true });
@@ -119,7 +142,10 @@ export const POST: RequestHandler = async (event) => {
 				continue;
 			}
 			if (nivel === 'DELEGACIA') {
-				if (!colUnidade || !colSeccional) continue;
+				if (!colUnidade || !colSeccional) {
+					errors.push(`Delegacia "${rotulo}": falta o nome ou a seccional pai`);
+					continue;
+				}
 				delegacias.push(item);
 				continue;
 			}
@@ -129,11 +155,16 @@ export const POST: RequestHandler = async (event) => {
 				seccionais.push({ ...item, seccional: colSeccional, unidade: '', __legacyRaiz: true });
 			} else if (colUnidade && colSeccional) {
 				delegacias.push(item);
+			} else {
+				// Sem `nivel` e sem seccional não há como saber onde a unidade entra na
+				// hierarquia. Antes caía aqui e sumia.
+				errors.push(
+					`"${rotulo}": não foi possível classificar (informe a coluna "nivel" ou a seccional)`
+				);
 			}
 		}
 
 		let successCount = 0;
-		const errors: string[] = [];
 
 		// 1) Departamentos (raiz)
 		for (const item of departamentos) {
@@ -247,17 +278,22 @@ export const POST: RequestHandler = async (event) => {
 				entidade: 'unidade',
 				resultado: errors.length === 0 ? 'sucesso' : 'falha',
 				detalhes: `Sync de unidades: ${successCount}/${data.length} importadas, ${errors.length} falha(s)`,
-				metadados: { processed: data.length, imported: successCount, failed: errors.length },
+				metadados: {
+					processed: data.length,
+					imported: successCount,
+					skippedEmpty: vazias,
+					failed: errors.length
+				},
 				...contexto
 			},
 			{ env: cryptoEnv }
 		);
 
-		return json({
-			success: true,
-			processed: data.length,
-			imported: successCount,
-			errors: errors.length > 0 ? errors : undefined
+		return respostaDeSync({
+			processadas: data.length,
+			importadas: successCount,
+			vazias,
+			erros: errors
 		});
 	} catch (err: unknown) {
 		// 400 (não 500): payload do webhook é input do caller, não bug interno.

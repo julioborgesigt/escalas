@@ -1,26 +1,40 @@
 /**
- * Escalar e desescalar policial em equipe de GISE — mais as três checagens de
+ * Escalar e desescalar policial em equipe de GISE — mais as checagens de
  * conflito que impedem escalar a mesma pessoa duas vezes.
  *
- * O insert é CRU: `adicionarGiseMembro` não valida nada, e não há constraint
- * que o cubra (a unicidade que importaria é `(gise_id, policial_id)`, que
- * atravessa três tabelas e não cabe num UNIQUE). Toda a proteção é de
- * aplicação, e é responsabilidade de QUEM CHAMA rodar antes:
- *   - `verificarConflitoMembroGise` — um policial serve em UMA equipe por GISE;
- *   - `verificarConflitoHorarioPolicial` — choque de horário ao entrar em
- *     equipe, contra outras GISEs E contra escala comum
- *     (`verificarConflitoEscalasNaoGise`, de `server/escalas/conflict`);
- *   - `verificarConflitoHorarioPorGise` — o mesmo para quem entra como
- *     supervisor/assessor/SEINT, que não é membro de equipe.
- * Pular a checagem não dá erro: gera silenciosamente um policial em dois
- * lugares ao mesmo tempo.
+ * **Quem decide é a gravação; as checagens explicam.** Até ago/2026 era o
+ * contrário: `adicionarGiseMembro` era um INSERT cru e a proteção inteira vinha
+ * de consultas feitas ANTES dele. Entre a consulta e a gravação cabe outra
+ * requisição — dois admins de seccionais diferentes alocavam o mesmo policial
+ * ao mesmo tempo e os dois viam vaga livre (FLW-GISE-009). O resultado é uma
+ * pessoa escalada em dois lugares no mesmo dia, que o termo de presença e o
+ * relatório de extra depois atestam.
+ *
+ * Agora as duas regras que a corrida quebrava estão na própria escrita:
+ *   - **exclusividade por GISE** — índice único `(gise_id, policial_id)`, com o
+ *     `gise_id` derivado da equipe no próprio INSERT (migração 0044);
+ *   - **capacidade da equipe** — `INSERT ... SELECT ... WHERE ocupados < limite`,
+ *     que não pode ser constraint porque compara uma contagem com um limite
+ *     guardado em OUTRA tabela.
+ *
+ * As funções `verificarConflito*` continuam existindo, e a mudança é de papel:
+ * viraram DIAGNÓSTICO. Elas não decidem mais nada — servem para dizer ao
+ * usuário POR QUE a gravação foi recusada, já que um `rowsAffected = 0` não
+ * conta qual das duas regras barrou. Se alguma delas divergir da SQL, o pior
+ * caso passou a ser uma mensagem confusa, nunca uma escrita errada.
+ *
+ * A exceção é `verificarConflitoHorarioPolicial` (choque com OUTRA escala, GISE
+ * ou comum): essa continua sendo pré-checagem de verdade, porque a sobreposição
+ * de horário entre escalas não cabe na mesma escrita — e é conflito entre
+ * escalas, não disputa pela mesma vaga.
  *
  * O horário efetivo é uma CASCATA de três níveis — equipe → seccional → GISE,
  * com o primeiro não-nulo vencendo. Comparar direto `giseEscalas.hora_entrada`
  * ignora a equipe que tem horário próprio, que é exatamente o caso em que o
  * conflito aparece.
  */
-import { eq, and, or, ne } from 'drizzle-orm';
+import { eq, and, or, ne, sql } from 'drizzle-orm';
+import { ehViolacaoUnique } from '../../server/db-errors';
 import { verificarConflitoEscalasNaoGise } from '../../server/escalas/conflict';
 import {
 	giseEscalas,
@@ -32,14 +46,71 @@ import {
 import type { Database } from '../core';
 import { seOverlapam } from '../../gise/horarios';
 
+/** Por que a alocação não entrou. `ok` = entrou. */
+export type ResultadoAlocacao =
+	{ ok: true } | { ok: false; motivo: 'equipe_inexistente' | 'sem_vaga' | 'ja_escalado' };
+
 /**
- * Escala o policial na equipe. INSERT cru, sem validação: as duas checagens que
- * importam — já estar nesta GISE (`verificarConflitoMembroGise`) e choque de
- * horário (`verificarConflitoHorarioPolicial`) — são responsabilidade do
- * chamador, e não há constraint no banco que as substitua.
+ * Escala o policial na equipe — ou não escala, ATOMICAMENTE.
+ *
+ * Uma escrita só decide as duas coisas que a corrida quebrava:
+ *
+ * - o `WHERE` compara a ocupação ATUAL da equipe (no cargo do policial) com o
+ *   limite da própria equipe. Duas requisições simultâneas não podem os dois ver
+ *   vaga: o SQLite serializa as escritas, e a segunda reavalia a contagem já com
+ *   a linha da primeira;
+ * - o `gise_id` sai derivado do join `equipe → seccional`, e o índice único
+ *   `(gise_id, policial_id)` recusa o segundo insert do mesmo policial na mesma
+ *   GISE. Deriva-lo aqui é o que impede a coluna denormalizada de divergir.
+ *
+ * `rowsAffected = 0` significa "a condição não valia mais" — sem vaga, ou equipe
+ * inexistente. A violação do índice único vira `ja_escalado`. Nenhum dos dois é
+ * exceção para o chamador: são respostas.
  */
-export async function adicionarGiseMembro(db: Database, equipeId: number, policialId: number) {
-	return db.insert(giseMembros).values({ equipe_id: equipeId, policial_id: policialId });
+export async function adicionarGiseMembro(
+	db: Database,
+	equipeId: number,
+	policialId: number
+): Promise<ResultadoAlocacao> {
+	try {
+		const r = await db.run(sql`
+			INSERT INTO gise_membros (equipe_id, policial_id, gise_id)
+			SELECT ${equipeId}, ${policialId}, s.gise_id
+			FROM gise_equipes e
+			JOIN gise_seccionais s ON e.gise_seccional_id = s.id
+			WHERE e.id = ${equipeId}
+			  AND (
+				SELECT COUNT(*)
+				FROM gise_membros m
+				JOIN policiais p ON m.policial_id = p.id
+				WHERE m.equipe_id = e.id
+				  AND p.cargo = (SELECT cargo FROM policiais WHERE id = ${policialId})
+			  ) < (
+				CASE
+					WHEN (SELECT cargo FROM policiais WHERE id = ${policialId}) = 'DPC'
+					THEN e.slots_dpc
+					ELSE e.slots_oip
+				END
+			  )
+		`);
+
+		if ((r.rowsAffected ?? 0) > 0) return { ok: true };
+
+		// Zero linhas: ou a equipe não existe, ou a vaga acabou entre a tela e o
+		// POST. Distinguir importa — "equipe não encontrada" e "vagas esgotadas"
+		// levam o usuário a ações diferentes.
+		const equipe = await db
+			.select({ id: giseEquipes.id })
+			.from(giseEquipes)
+			.where(eq(giseEquipes.id, equipeId))
+			.get();
+		return { ok: false, motivo: equipe ? 'sem_vaga' : 'equipe_inexistente' };
+	} catch (err) {
+		// O índice único `(gise_id, policial_id)` — o policial já ocupa uma vaga
+		// nesta GISE. É resposta esperada, não falha.
+		if (ehViolacaoUnique(err)) return { ok: false, motivo: 'ja_escalado' };
+		throw err;
+	}
 }
 
 /**

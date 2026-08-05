@@ -17,6 +17,32 @@ import { getInt, podePreencherSeccional } from './shared';
 import { concluirMudancaGise, invalidarAssinaturasDaSeccional } from './desfecho';
 
 /**
+ * Traduz a recusa da gravação atômica na frase que o usuário lê.
+ *
+ * A escrita devolve só o MOTIVO estrutural; as consultas de diagnóstico é que
+ * sabem dizer "vagas de DPC esgotadas (limite: 2)" ou "já escalado na seccional
+ * Centro". Elas rodam APÓS a recusa, e só nela: no caminho feliz não custam
+ * nada, e no caminho infeliz não decidem nada.
+ */
+async function explicarRecusaDeVaga(
+	db: ReturnType<typeof getDB>,
+	giseId: number,
+	equipeId: number,
+	policialId: number,
+	motivo: 'equipe_inexistente' | 'sem_vaga' | 'ja_escalado'
+): Promise<string> {
+	if (motivo === 'equipe_inexistente') return 'Equipe não encontrada';
+
+	if (motivo === 'ja_escalado') {
+		const conflito = await verificarConflitoMembroGise(db, giseId, policialId);
+		return conflito.motivo ?? 'Policial já escalado nesta GISE';
+	}
+
+	const slot = await verificarSlotEquipe(db, equipeId, policialId);
+	return slot.motivo ?? 'Vagas esgotadas nesta equipe';
+}
+
+/**
  * Form actions dos MEMBROS (policiais alocados às vagas das equipes) em
  * `/gise/[id]`.
  *
@@ -61,16 +87,21 @@ export const actionsMembros = {
 		if (!equipe || equipe.gise_seccional_id !== secId)
 			return fail(404, { error: 'Equipe não encontrada' });
 
-		const slotCheck = await verificarSlotEquipe(db, equipeId, policialId);
-		if (!slotCheck.ok) return fail(400, { error: slotCheck.motivo });
-
-		const conflitoCheck = await verificarConflitoMembroGise(db, giseId, policialId);
-		if (!conflitoCheck.ok) return fail(400, { error: conflitoCheck.motivo });
-
+		// Choque com OUTRA escala (GISE ou comum) continua sendo pré-checagem: é
+		// conflito entre escalas, não disputa pela mesma vaga, e não cabe na mesma
+		// escrita.
 		const horarioCheck = await verificarConflitoHorarioPolicial(db, equipeId, policialId);
 		if (!horarioCheck.ok) return fail(400, { error: horarioCheck.motivo });
 
-		await adicionarGiseMembro(db, equipeId, policialId);
+		// A gravação é quem decide vaga e exclusividade — atomicamente
+		// (FLW-GISE-009). As checagens abaixo só EXPLICAM a recusa: até ago/2026
+		// elas decidiam, e entre a decisão e o INSERT cabia outra requisição.
+		const alocado = await adicionarGiseMembro(db, equipeId, policialId);
+		if (!alocado.ok) {
+			return fail(409, {
+				error: await explicarRecusaDeVaga(db, giseId, equipeId, policialId, alocado.motivo)
+			});
+		}
 
 		// O papel GISE do policial é cacheado (usado no guard de `/res-gise`);
 		// sem invalidar, ele só enxergaria a escala nova quando o cache expirasse.
