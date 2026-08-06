@@ -117,7 +117,7 @@ npm run dev
 
 Acesse **http://localhost:5173**. O SvelteKit roda integrado ao Cloudflare adapter, simulando todas as _bindings_ (D1, R2) configuradas no `wrangler.toml`.
 
-### 3.5 (Opcional) Instalar modelos de reconhecimento facial
+### 3.5 Modelos de reconhecimento facial
 
 Os modelos do face-api já estão em `static/face-api/` e são servidos diretamente. Nenhuma ação adicional é necessária — o download é feito sob demanda pelo navegador.
 
@@ -268,9 +268,9 @@ npm run db:migrate:prod -- --yes
 
 ### Histórico de migrações
 
-O histórico completo está na própria pasta [`migrations/`](migrations/) — os nomes dos arquivos são autoexplicativos (`0000_initial_schema.sql` … `0038_gise_assinaturas_fk_restrict.sql`). Para entender uma migração específica, leia o SQL dela e o trecho correspondente do [`src/lib/server/schema.ts`](src/lib/server/schema.ts).
+O histórico completo está na própria pasta [`migrations/`](migrations/) — os nomes dos arquivos são autoexplicativos (`0000_initial_schema.sql` … `0047_escala_policial_dia_unico.sql`). Para entender uma migração específica, leia o SQL dela e o trecho correspondente do [`src/lib/server/schema.ts`](src/lib/server/schema.ts).
 
-O que já rodou em cada ambiente é rastreado pela tabela `_migrations_aplicadas`, gravada pelo runner [`scripts/migrate.ts`](scripts/migrate.ts). (O `migrations/meta/` do `drizzle-kit` foi removido em jul/2026: ficou parado em 2 entradas para 41 arquivos e só induzia a erro.)
+O que já rodou em cada ambiente é rastreado pela tabela `_migrations_aplicadas`, gravada pelo runner [`scripts/migrate.ts`](scripts/migrate.ts). (O `migrations/meta/` do `drizzle-kit` foi removido em jul/2026: ficou parado em 2 entradas para dezenas de arquivos e só induzia a erro.)
 
 ---
 
@@ -289,8 +289,8 @@ npm run lint               # ESLint
 npm run lint:strict        # ESLint falhando com qualquer warning
 npm run lint:ci            # ESLint com o teto de warnings usado no CI (ratchet)
 npm run lint:fix           # ESLint com auto-fix
-npm run format             # Prettier (formata todos os arquivos)
-npm run format:check       # Prettier sem alterar (só verifica)
+npm run format             # Prettier em src/ (escreve)
+npm run format:check       # Prettier em src/ sem alterar (só verifica)
 npm run knip               # Detecção de código/exports mortos
 npm run docs:inventario    # Inventário de documentação (cabeçalhos, contratos, opacos)
 npm run docs:guard         # Falha se arquivo NOVO em lib/db vier sem doc (roda no CI)
@@ -299,6 +299,10 @@ npm run guard:autorizacao  # Falha se operação material não recusar ninguém 
 # Testes
 npm run test               # Vitest (run once)
 npm run test:watch         # Vitest (watch mode)
+npm run test:coverage      # Vitest com cobertura
+npm run test:e2e           # Playwright (build + preview automáticos)
+npm run test:e2e:ui        # Playwright com UI de debug
+npm run test:e2e:report    # Abre o relatório da última execução E2E
 
 # Banco de dados
 npm run db:migrate               # Aplica migrações localmente
@@ -311,6 +315,8 @@ npm run users:set-default-password:prod     # Idem, em produção
 npm run users:clear-passwords-non-admins    # Limpa senhas de não-admins (local)
 npm run users:clear-passwords-non-admins:prod  # Idem, em produção
 ```
+
+> **Duplicação / código morto:** além do `knip`, o repositório versiona [`.fallowrc.json`](.fallowrc.json) para o [`fallow`](https://github.com/fallow-rs/fallow) (`fallow dupes`) — sinal de investigação nas auditorias de compreensibilidade, não gate de CI.
 
 ### Revisão de PR grande: `npm run docs:inventario`
 
@@ -411,6 +417,7 @@ escalas/
 │   │   │   ├── escalas/            # Regras de escala: conflito, exclusão, permissão
 │   │   │   ├── gise/               # Regras GISE: permissão, papéis, termo de presença
 │   │   │   ├── export/             # Geração de PDF/XLSX/DOCX
+│   │   │   ├── sync/               # Contrato de resposta dos webhooks de sincronização
 │   │   │   ├── termo/              # Conteúdo e hash do termo de uso vigente
 │   │   │   └── ...
 │   │   ├── db/                     # Camada de acesso ao banco (queries tipadas)
@@ -447,16 +454,21 @@ escalas/
 │   ├── app.css                     # Estilos globais
 │   ├── app.html                    # HTML raiz
 │   └── theme.css                   # Variáveis CSS do tema
-├── migrations/                     # Migrações SQL geradas pelo Drizzle
+├── migrations/                     # Migrações SQL versionadas (escritas à mão)
 ├── scripts/                        # Scripts utilitários Node.js
 │   ├── migrate.ts                  # Runner de migrações
+│   ├── guard-autorizacao.mjs       # Gate CI: operação material precisa recusar alguém
+│   ├── guard-docs-novos.mjs        # Gate CI: arquivo novo em lib/db com cabeçalho/JSDoc
+│   ├── inventario-docs.mjs         # Inventário de documentação (`docs:inventario`)
 │   ├── set-default-password-all-users.ts
 │   ├── clear-passwords-non-admins.ts
+│   ├── gerar-selo-institucional.mjs
 │   └── GoogleAppsScript_Sync.gs   # Google Apps Script (sync planilha)
 ├── e2e/                            # Testes E2E Playwright
 ├── docs/                           # Documentação complementar (ver docs/README.md)
 │   ├── QA_ASSINATURA_A3_DESKTOP.md # Roteiro de QA manual do fluxo Token A3
-│   └── HISTORICO.md                # Catálogo das auditorias/decisões arquivadas (preservadas no Git)
+│   ├── HISTORICO.md                # Catálogo das auditorias/decisões arquivadas (preservadas no Git)
+│   └── auditorias/                 # Auditorias em tratamento (depois vão para o HISTORICO)
 ├── static/
 │   └── face-api/                   # Modelos ML do face-api (servidos localmente)
 ├── wrangler.toml                   # Config Cloudflare (D1, R2, adapter)
@@ -593,9 +605,9 @@ A matriz completa de capacidades por papel está em [`DEPLOY.md`](DEPLOY.md#pap�
 ### Autorização das operações materiais
 
 Esconder o botão na tela não é autorização: o POST direto tem de morrer no
-servidor. São **114 operações materiais** — handlers de mutação de API
-(`POST`/`PUT`/`PATCH`/`DELETE`) e form actions do SvelteKit —, e
-`npm run guard:autorizacao` (rodado no CI) verifica que cada uma recusa alguém.
+servidor. Toda mutação de API (`POST`/`PUT`/`PATCH`/`DELETE`) e form action do
+SvelteKit é **operação material**, e `npm run guard:autorizacao` (rodado no CI)
+verifica que cada uma recusa alguém — o próprio comando imprime o total atual.
 
 O guard não procura o nome de um helper, e isso é deliberado. A decisão de
 autorização é tomada de treze formas diferentes, porque ela genuinamente difere
@@ -618,7 +630,7 @@ O que o guard olha é o RESULTADO, que é fechado:
 
 Nível 0 e 1 existem legitimamente: login não tem sessão para exigir, trocar a
 própria senha não tem segundo sujeito para autorizar, e webhook se autentica por
-segredo compartilhado. As 20 dispensas ficam declaradas **com motivo** em
+segredo compartilhado. As dispensas ficam declaradas **com motivo** em
 `scripts/guard-autorizacao.mjs` — a diferença entre "público de propósito" e
 "esqueceram o guard" não está no código, só na cabeça de quem escreveu; ali ela
 fica escrita. Encolher aquela lista é progresso.
@@ -641,7 +653,8 @@ O projeto usa o padrão _double-submit cookie_:
 
 ## 10. Padrões de Código
 
-> Leia também o [`CLAUDE.md`](CLAUDE.md) para diretrizes detalhadas.
+> Diretrizes obrigatórias de API, pastas `server/`, `api-fetch`, autorização e
+> goldens jurídicos: [`CLAUDE.md`](CLAUDE.md). Abaixo: runes, Server-first e UI.
 
 ### Svelte 5 — Runes obrigatórias
 
@@ -845,7 +858,7 @@ npm run test          # Executa uma vez
 npm run test:watch    # Watch mode (recomendado durante desenvolvimento)
 ```
 
-Arquivos de teste ficam em `src/` com o padrão `*.test.ts`, **sempre** em pastas `__tests__/` junto do código testado (91 arquivos, 933 testes) — convenção verificada no CI. Os principais grupos:
+Arquivos de teste ficam em `src/` com o padrão `*.test.ts`, **sempre** em pastas `__tests__/` junto do código testado (convenção verificada no CI; rode `npm run test` para o total atual). Os principais grupos:
 
 - `src/lib/__tests__/` — autenticação (PBKDF2/pepper, sessões, 2FA), CSRF, headers de segurança, utilitários
 - `src/lib/schemas/__tests__/` — schemas Zod (LGPD, formulários GISE)
