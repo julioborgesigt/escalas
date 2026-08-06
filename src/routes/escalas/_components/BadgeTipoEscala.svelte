@@ -7,7 +7,8 @@
 		tipo,
 		tamanho = 'xs'
 	}: {
-		tipo: string;
+		/** Schema permite null; null cai no fallback Plantão. */
+		tipo: string | null;
 		tamanho?: 'xs' | '3xs';
 	} = $props();
 

@@ -14,7 +14,8 @@
 		tamanho = 'xs'
 	}: {
 		isAssinada: boolean;
-		tipo: string;
+		/** Schema permite null; null cai no fallback "Em preenchimento". */
+		tipo: string | null;
 		finalizadaEm: string | null | undefined;
 		assPendente: boolean;
 		tamanho?: 'xs' | '3xs';

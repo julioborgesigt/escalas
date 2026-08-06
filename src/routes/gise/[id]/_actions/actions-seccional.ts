@@ -56,6 +56,7 @@ export const actionsSeccional = {
 		const db = getDB(platform);
 		const carga = await carregarGiseEditavel(db, giseId);
 		if ('erro' in carga) return carga.erro;
+		const { gise } = carga;
 
 		const [novaSec] = await db
 			.insert(giseSeccionais)
