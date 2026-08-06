@@ -5,6 +5,7 @@ import { VERSAO as TERMO_VERSAO, calcularHashTermo } from '../src/lib/server/ter
 // Mesma função de hash do app (módulo PURO) — sem cópia local que divergiria
 // do formato real (item C6 da auditoria). Sem pepper → emite v2.
 import { hashSenha } from '../src/lib/crypto/password-hash';
+import { execD1LocalComErro } from './d1-local';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -53,26 +54,16 @@ export const FIXTURE = {
 } as const;
 
 function execSqlSafe(sql: string, rotulo = 'seed'): boolean {
-	try {
-		// `--command` aceita múltiplos statements separados por `;`. Aspas duplas
-		// dentro do SQL precisam ser escapadas no shell.
-		execSync(`npx wrangler d1 execute escalas-db --local --command "${sql.replace(/"/g, '\\"')}"`, {
-			cwd: ROOT,
-			stdio: 'pipe'
-		});
-		return true;
-	} catch (err) {
+	// Via `--file` (e2e/d1-local.ts): `--command` multilinha/hash quebra no Windows.
+	const r = execD1LocalComErro(sql);
+	if (!r.ok) {
 		// O motivo IMPORTA. Este catch mudo escondeu por semanas uma violação de
 		// FK que derrubava o seed GISE inteiro a partir da 2ª execução local: o
 		// operador via só "specs vão pular" e os specs rodavam sobre o estado do
 		// run anterior. Reportar aqui é o que torna a próxima falha diagnosticável.
-		const bruto = String(
-			(err as { stderr?: Buffer }).stderr ?? (err as Error).message ?? ''
-		).replace(/\u001b\[[0-9;]*m/g, '');
-		const linha = bruto.split('\n').find((l) => l.includes('ERROR')) ?? bruto.slice(0, 200);
-		console.warn(`[global-setup] SQL de ${rotulo} falhou: ${linha.trim()}`);
-		return false;
+		console.warn(`[global-setup] SQL de ${rotulo} falhou: ${r.erro ?? '(sem detalhe)'}`);
 	}
+	return r.ok;
 }
 
 /**

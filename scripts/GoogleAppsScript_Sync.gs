@@ -577,9 +577,8 @@ function sendToAPI(endpoint, payload, extraHeaders) {
   // Replay protection (P1.3 da auditoria): X-Webhook-Timestamp em segundos
   // Unix + X-Webhook-Nonce único por requisição. O servidor rejeita reenvio
   // do mesmo nonce (UNIQUE em webhook_nonces) e qualquer timestamp fora da
-  // janela de 5min. Sem essas headers o servidor aceita por padrão (modo
-  // rollout), mas loga warning; ative `WEBHOOK_REPLAY_ENFORCE=1` no
-  // Cloudflare para tornar obrigatório.
+  // janela de 5min. Em PRODUÇÃO, WEBHOOK_REPLAY_ENFORCE=1 — sem estes headers
+  // a chamada devolve 401 (obrigatório desde 06/ago).
   const replayHeaders = {
     'X-Webhook-Timestamp': String(Math.floor(Date.now() / 1000)),
     'X-Webhook-Nonce': Utilities.getUuid() + '-' + Date.now()
