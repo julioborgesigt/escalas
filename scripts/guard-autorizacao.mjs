@@ -142,6 +142,33 @@ export const PUBLICAS = [
 	'src/routes/redefinir-senha/+page.server.ts'
 ];
 
+/**
+ * Além do "há um 403", estes arquivos TÊM de citar o helper certo (FLW-AUT-001 /
+ * FLW-AUT-010). O guard de nível só pega "recusa alguém"; esta lista pega
+ * "recusa com a regra errada" quando alguém troca `podeAssinarEscala` por um
+ * `requireAuth` solto.
+ *
+ * Chave = caminho do arquivo. Valor = nomes aceitos (basta UM aparecer no
+ * fonte). Em membros, os wrappers (`carregarMembroDaGise` etc.) já invocam
+ * `carregarGiseEditavel` — listar os wrappers evita falso vermelho.
+ *
+ * Lista FECHADA das regressões conhecidas: crescer só com achado novo.
+ */
+export const HELPERS_OBRIGATORIOS = {
+	'src/routes/api/escalas/[id]/assinar-simples/+server.ts': ['podeAssinarEscala'],
+	'src/routes/api/escalas/[id]/preparar-assinatura/+server.ts': ['podeAssinarEscala'],
+	'src/routes/api/escalas/[id]/finalizar-assinatura/+server.ts': ['podeAssinarEscala'],
+	'src/routes/api/escalas/[id]/documento-assinado/+server.ts': ['podeAssinarEscala'],
+	'src/routes/gise/[id]/_actions/actions-escala.ts': ['carregarGiseEditavel'],
+	'src/routes/gise/[id]/_actions/actions-seccional.ts': ['carregarGiseEditavel'],
+	'src/routes/gise/[id]/_actions/actions-membros.ts': [
+		'carregarGiseEditavel',
+		'carregarMembroDaGise',
+		'carregarSeccionalDaGise',
+		'carregarEquipeDaGise'
+	]
+};
+
 const RE_403 = /fail\(403|forbidden\(|status:\s*403|error\(403|requireAdmin\(|requireSuperAdmin\(/;
 const RE_401 = /fail\(401|unauthorized\(|requireAuth\(|error\(401/;
 
@@ -269,6 +296,26 @@ function principal() {
 		}
 	}
 
+	// Helper certo (não só "tem 403"): regressões FLW-AUT-001 / FLW-AUT-010.
+	for (const [arquivo, nomes] of Object.entries(HELPERS_OBRIGATORIOS)) {
+		if (!arquivos.includes(arquivo)) {
+			problemas.push({
+				arquivo,
+				msg: `HELPERS_OBRIGATORIOS obsoleto: "${arquivo}" não existe mais`
+			});
+			continue;
+		}
+		const src = readFileSync(arquivo, 'utf8');
+		if (!nomes.some((n) => src.includes(n))) {
+			problemas.push({
+				arquivo,
+				msg:
+					`falta helper obrigatório — espere um de [${nomes.join(', ')}] ` +
+					'(ACL larga com 403 genérico não basta)'
+			});
+		}
+	}
+
 	if (problemas.length > 0) {
 		console.error('\n[guard-autorizacao] operação material sem decisão de autorização:\n');
 		for (const { arquivo, msg } of problemas) {
@@ -285,7 +332,8 @@ function principal() {
 	console.log(
 		`[guard-autorizacao] ${operacoes.length} operações materiais — ` +
 			`${operacoes.length - vistas.size} recusam por permissão, ` +
-			`${vistas.size} dispensadas com motivo declarado.`
+			`${vistas.size} dispensadas com motivo declarado; ` +
+			`${Object.keys(HELPERS_OBRIGATORIOS).length} arquivos com helper obrigatório.`
 	);
 }
 

@@ -409,7 +409,7 @@ o working tree após a remediação.
 | 7 | `useProdutividade` | P1 | **FEITO 06/ago** | `useProdutividade.svelte.ts` + seções ranking/gráficos; page ~310 ln |
 | 8a | recebidos + `useFiltrosPaginados` | P1 | **FEITO 06/ago** | URL + debounce unidade + restore 1ª visita preservados |
 | 8b | painel + `useFiltrosPaginados` | P2 | **BAIXADO** | Filtro cliente + streaming; confirm → ModalShell feito |
-| 9 | painel/recebidos `_components` | P1 | **PARCIAL** | Confirms no ModalShell; split de tabelas ainda aberto |
+| 9 | painel/recebidos `_components` | P1 | **PARCIAL / 4B** | Confirms no ModalShell; split de tabelas **não** seguir (decisão 06/ago) |
 | 10 | `BotaoLimparFiltros` | P2 | **FEITO 06/ago** | 6 sites + SecaoHistorico |
 | 10b | `EstadoVazio` | P3 | **FEITO 06/ago** | `$lib/components/EstadoVazio.svelte` + 6 call sites |
 | 11 | `ToggleSwitch` em `conf-ass` | P2 | **FEITO 06/ago** | `cor="primary"` no componente + 4 switches |

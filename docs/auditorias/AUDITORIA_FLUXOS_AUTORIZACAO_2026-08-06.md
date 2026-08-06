@@ -1,8 +1,8 @@
 # Auditoria profunda — fluxos, autorização e integridade (06/ago/2026)
 
-**Status:** remediação Sprints A–C (código) **feita** (06/ago); abertos
-operacionais/decisão: `WEBHOOK_REPLAY_ENFORCE` em produção (AUT-017), AUT-015
-(ACL hash), extensão do guard para “helper certo”.  
+**Status:** remediação Sprints A–C (código) **feita** (06/ago); AUT-015
+**aceito** (2A); AUT-017 **enforce em produção** (1A). Aberto residual: só
+expansão futura de `HELPERS_OBRIGATORIOS` no guard conforme novos achados.  
 **Tipo:** autorização ponta a ponta (IDOR), operações materiais, máquinas de
 estado, webhooks/RBAC/documentos — execução do plano
 [`PLANO_AUDITORIA_FLUXOS_INTEGRIDADE_2026-08-02.md`](./PLANO_AUDITORIA_FLUXOS_INTEGRIDADE_2026-08-02.md).  
@@ -250,12 +250,15 @@ FLW-AUT-003; privilégio Admin Geral já existe em `/recebidos`, mas o painel de
 
 ---
 
-### FLW-AUT-015 — P2 — FLW-ACL-002 residual (aceito historicamente)
+### FLW-AUT-015 — P2 — FLW-ACL-002 residual — **ACEITO 06/ago (decisão 2A)**
 
 `validar/[hash]/download`: cópia de conferência para **qualquer** autenticado
 com o hash; forense só Super Admin. Sem `verificarPermissaoEscala`/GISE.
 
-**Decisão de produto** ainda necessária: manter aceito ou reaportar ACL.
+**Decisão de produto (06/ago):** manter. O hash impresso no QR/rodapé é o
+segredo de circulação do documento; amarrar à lotação quebraria “recebeu o PDF
+→ valida”. Rate-limit fail-closed (AUT-016) + manifesto só privilegiado
+permanecem como defense-in-depth.
 
 ---
 
@@ -266,11 +269,12 @@ Defense-in-depth.
 
 ---
 
-### FLW-AUT-017 — P2 — FLW-WEBHOOK-004 ainda aberto
+### FLW-AUT-017 — P2 — FLW-WEBHOOK-004 — **FEITO 06/ago (ops 1A)**
 
-`WEBHOOK_REPLAY_ENFORCE` opt-in; `.env.example` default vazio. Quatro webhooks
-aceitam ausência de timestamp/nonce quando enforce off. Produção: passo 3 do
-`DEPLOY.md` ainda não é fail-closed no código.
+`WEBHOOK_REPLAY_ENFORCE=1` setado em produção (Pages secret do projeto
+`escalas`) via `wrangler pages secret put`. Chamadas sem
+`X-Webhook-Timestamp` + `X-Webhook-Nonce` passam a 401. Preview/local
+continuam opt-in (secret só em production).
 
 ---
 
@@ -318,7 +322,7 @@ Cliente pode redirecionar errado; próximo request deriva do DB corretamente.
 | FLW-ESC-006 | **FIXED** | E-mail antes de `finalizarEscalaFDS`; 502 se falha |
 | FLW-ESC-007 | **FIXED** | Trilha nas 14 actions de `[id]` |
 | FLW-DOC-001 | **FIXED** | Intenção amarra ator/alvo/hash; consumo atômico |
-| FLW-ACL-002 | **ACCEPTED P2** | Conferência por hash; forense Super Admin — AUT-015 |
+| FLW-ACL-002 | **ACCEPTED** | Conferência por hash; forense Super Admin — AUT-015 aceito 06/ago (2A) |
 
 ### 2.3 GISE
 
@@ -444,10 +448,9 @@ Cliente pode redirecionar errado; próximo request deriva do DB corretamente.
 ### Sprint C — higiene e operação
 
 9. ~~**FLW-AUT-011 / 012 / 013** — FDS e `podeOIPSolicitar` único~~ **FEITO 06/ago**: 011 (`reenviarEmail` exige `finalizada_em`); 012 (FDS bloqueado em assinar/preparar/finalizar); 013 (`podeOIPSolicitarAssinatura`)
-10. **FLW-WEBHOOK-004 / AUT-017** — enforce replay em produção (operacional: `DEPLOY.md` passo 3; código continua opt-in)
-11. ~~**AUT-014**~~ **FEITO** via AUT-003 (409 no painel se há documento); ~~**AUT-016**~~ **FEITO 06/ago** (fail-closed no rate-limit de `/validar/.../download`); ~~**AUT-018**~~ **FEITO** (ramo morto CSV removido); ~~**AUT-019**~~ **FEITO** (primeiro_acesso só logout em `/api/auth`); ~~**AUT-020**~~ **FEITO** (`alternar-acesso` herda flag + redirect). **AUT-015** = decisão de produto (ACL hash).
-12. Estender `guard:autorizacao` (ou teste estrutural) para **padrão de helper**
-    (`podeAssinarEscala`, `carregarGiseEditavel`) — não só presença de `403`
+10. ~~**FLW-WEBHOOK-004 / AUT-017**~~ **FEITO 06/ago (ops 1A)** — `WEBHOOK_REPLAY_ENFORCE=1` no Pages production
+11. ~~**AUT-014**~~ **FEITO** via AUT-003; ~~**AUT-016**~~ **FEITO**; ~~**AUT-018…020**~~ **FEITO**; ~~**AUT-015**~~ **ACEITO 06/ago (2A)** (conferência por hash)
+12. ~~Estender `guard:autorizacao` para helper~~ **FEITO 06/ago (3A)** — `HELPERS_OBRIGATORIOS` (`podeAssinarEscala`, `carregarGiseEditavel` / wrappers)
 
 Cada fix: teste negativo **antes** ou no mesmo PR; artefato jurídico (PDF)
 exige golden verde se o fluxo de assinatura mudar.
