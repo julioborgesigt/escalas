@@ -73,7 +73,7 @@ export const GET: RequestHandler = async ({ platform, params, url, cookies, getC
 		return unauthorized('Faça login para baixar o documento assinado na íntegra.');
 	}
 
-	// Mesmo autenticado, limita varredura do hash por IP. Fail-open em erro.
+	// Mesmo autenticado, limita varredura do hash por IP. Fail-closed em erro (AUT-016).
 	const ip = getClientAddress();
 	try {
 		const { blocked } = await contarRecoveryAttempts(
@@ -89,10 +89,12 @@ export const GET: RequestHandler = async ({ platform, params, url, cookies, getC
 		}
 		await registrarRecoveryAttempt(db, ip, 'validar_download');
 	} catch (err) {
-		logger.error('[validar/download] Falha no rate-limit (fail-open)', {
+		logger.error('[validar/download] Falha no rate-limit (fail-closed)', {
 			hash,
 			error: err instanceof Error ? err.message : String(err)
 		});
+		// FLW-AUT-016: D1 fora = não liberar enumeração do hash.
+		return serverError('[validar/download] Rate-limit indisponível', err);
 	}
 
 	logger.info('[validar/download] Iniciando', { hash });

@@ -36,6 +36,7 @@
 	import PaginationControls from '$lib/components/PaginationControls.svelte';
 	import { SegmentedControl } from '@skeletonlabs/skeleton-svelte';
 	import BotaoLimparFiltros from '$lib/components/BotaoLimparFiltros.svelte';
+	import EstadoVazio from '$lib/components/EstadoVazio.svelte';
 	import ModalShell from '$lib/components/ModalShell.svelte';
 	import ModalCadastrarPolicial from './_components/ModalCadastrarPolicial.svelte';
 	import {
@@ -348,7 +349,7 @@
 	{/if}
 
 	{#if policiais.length === 0}
-		<div class="text-center py-12 text-surface-600 dark:text-surface-400">
+		<EstadoVazio>
 			<p class="mb-4">
 				{filtroCargo
 					? `Nenhum policial com cargo ${filtroCargo} encontrado.`
@@ -364,7 +365,7 @@
 					}}>Cadastrar Policial</a
 				>
 			{/if}
-		</div>
+		</EstadoVazio>
 	{:else}
 		<!-- Desktop table -->
 		<div class="hidden md:block table-wrap">

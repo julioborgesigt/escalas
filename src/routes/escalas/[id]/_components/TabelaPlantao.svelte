@@ -19,6 +19,7 @@
 	import type { Escala } from '$lib/server/schema';
 	import type { EscalaPolicialComDados } from '$lib/types';
 	import IconTooltip from '$lib/components/IconTooltip.svelte';
+	import EstadoVazio from '$lib/components/EstadoVazio.svelte';
 	import ModalEditarPlantao from './ModalEditarPlantao.svelte';
 	import FormInlineAdicionarOip from './FormInlineAdicionarOip.svelte';
 	import { PenLine } from '@lucide/svelte';
@@ -138,9 +139,7 @@
 </script>
 
 {#if policiaisEscalaLocal.length === 0}
-	<div class="text-center py-12 text-surface-600 dark:text-surface-400">
-		<p>Nenhum policial nesta escala ainda.</p>
-	</div>
+	<EstadoVazio mensagem="Nenhum policial nesta escala ainda." />
 {:else}
 	<div class="space-y-8">
 		{#each equipesAgrupadas as [equipe, items] (equipe)}

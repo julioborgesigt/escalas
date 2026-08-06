@@ -1,8 +1,8 @@
 # Auditoria profunda — fluxos, autorização e integridade (06/ago/2026)
 
-**Status:** remediação Sprints A–B e higiene Windows **feita** (06/ago); abertos
-operacionais: `WEBHOOK_REPLAY_ENFORCE` em produção (DEPLOY passo 3), AUT-014…020
-(decisões/P2–P3), extensão do guard para “helper certo”.  
+**Status:** remediação Sprints A–C (código) **feita** (06/ago); abertos
+operacionais/decisão: `WEBHOOK_REPLAY_ENFORCE` em produção (AUT-017), AUT-015
+(ACL hash), extensão do guard para “helper certo”.  
 **Tipo:** autorização ponta a ponta (IDOR), operações materiais, máquinas de
 estado, webhooks/RBAC/documentos — execução do plano
 [`PLANO_AUDITORIA_FLUXOS_INTEGRIDADE_2026-08-02.md`](./PLANO_AUDITORIA_FLUXOS_INTEGRIDADE_2026-08-02.md).  
@@ -445,7 +445,7 @@ Cliente pode redirecionar errado; próximo request deriva do DB corretamente.
 
 9. ~~**FLW-AUT-011 / 012 / 013** — FDS e `podeOIPSolicitar` único~~ **FEITO 06/ago**: 011 (`reenviarEmail` exige `finalizada_em`); 012 (FDS bloqueado em assinar/preparar/finalizar); 013 (`podeOIPSolicitarAssinatura`)
 10. **FLW-WEBHOOK-004 / AUT-017** — enforce replay em produção (operacional: `DEPLOY.md` passo 3; código continua opt-in)
-11. **AUT-014…020** — painel, ACL-002 (decisão), fail-open RL; ~~Windows guard~~ **FEITO 06/ago** (`guard-autorizacao.mjs` lista arquivos via `readdirSync`, sem `find` Unix)
+11. ~~**AUT-014**~~ **FEITO** via AUT-003 (409 no painel se há documento); ~~**AUT-016**~~ **FEITO 06/ago** (fail-closed no rate-limit de `/validar/.../download`); ~~**AUT-018**~~ **FEITO** (ramo morto CSV removido); ~~**AUT-019**~~ **FEITO** (primeiro_acesso só logout em `/api/auth`); ~~**AUT-020**~~ **FEITO** (`alternar-acesso` herda flag + redirect). **AUT-015** = decisão de produto (ACL hash).
 12. Estender `guard:autorizacao` (ou teste estrutural) para **padrão de helper**
     (`podeAssinarEscala`, `carregarGiseEditavel`) — não só presença de `403`
 

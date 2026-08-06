@@ -71,7 +71,11 @@ export const POST: RequestHandler = async (event) => {
 			{ env }
 		);
 
-		return json({ success: true, redirect: obterRotaBemVindo(destino) });
+		return json({
+			success: true,
+			redirect: destino.primeiro_acesso ? '/alterar-senha' : obterRotaBemVindo(destino),
+			primeiro_acesso: destino.primeiro_acesso
+		});
 	}
 
 	// ---- Usuário → ADM Geral (só se vinculado) ----
@@ -94,7 +98,10 @@ export const POST: RequestHandler = async (event) => {
 		id: admin.id,
 		tipo: 'admin',
 		nome: admin.nome,
-		primeiro_acesso: false,
+		// Herda o flag da sessão policial atual (vínculo). Hardcode `false`
+		// mandava o cliente a bem-vindo enquanto o próximo request ainda
+		// exigia /alterar-senha (FLW-AUT-020).
+		primeiro_acesso: u.primeiro_acesso,
 		adminPolicialId: u.id
 	};
 
@@ -115,5 +122,12 @@ export const POST: RequestHandler = async (event) => {
 		{ env }
 	);
 
-	return json({ success: true, redirect: obterRotaBemVindo(destino, modulo) });
+	const redirectTo = destino.primeiro_acesso
+		? '/alterar-senha'
+		: obterRotaBemVindo(destino, modulo);
+	return json({
+		success: true,
+		redirect: redirectTo,
+		primeiro_acesso: destino.primeiro_acesso
+	});
 };

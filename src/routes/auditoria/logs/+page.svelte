@@ -14,6 +14,7 @@
 	 */
 	import type { PageProps } from './$types';
 	import { ChevronDown, ChevronUp, ArrowLeft } from '@lucide/svelte';
+	import KpiCard from '../_components/KpiCard.svelte';
 
 	const { data }: PageProps = $props();
 
@@ -96,27 +97,10 @@
 
 	<!-- KPIs -->
 	<div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
-		{#snippet kpi(rotulo: string, valor: string | number, destaque = false)}
-			<div
-				class="rounded-xl border border-surface-200 dark:border-white/10 bg-surface-50 dark:bg-surface-900 p-4 flex flex-col justify-between min-h-[90px]"
-			>
-				<div class="text-xs uppercase tracking-wide text-surface-600 dark:text-surface-400">
-					{rotulo}
-				</div>
-				<div
-					class="mt-1 text-lg sm:text-2xl font-bold truncate {destaque && Number(valor) > 0
-						? 'text-error-600 dark:text-error-400'
-						: 'text-surface-900 dark:text-white'}"
-					title={String(valor)}
-				>
-					{valor}
-				</div>
-			</div>
-		{/snippet}
-		{@render kpi('Total de registros', data.resumo.total.toLocaleString('pt-BR'))}
-		{@render kpi('Erros (24h)', data.resumo.erros24h, true)}
-		{@render kpi('Avisos (24h)', data.resumo.avisos24h)}
-		{@render kpi('Último registro', fmtData(data.resumo.ultimoRegistro))}
+		<KpiCard rotulo="Total de registros" valor={data.resumo.total.toLocaleString('pt-BR')} />
+		<KpiCard rotulo="Erros (24h)" valor={data.resumo.erros24h} destaque />
+		<KpiCard rotulo="Avisos (24h)" valor={data.resumo.avisos24h} />
+		<KpiCard rotulo="Último registro" valor={fmtData(data.resumo.ultimoRegistro)} />
 	</div>
 
 	<!-- Filtros (GET → URL) -->

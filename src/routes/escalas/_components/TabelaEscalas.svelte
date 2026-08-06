@@ -23,11 +23,14 @@
 	import { formatarData, MESES_PT } from '$lib/utils/datas';
 	import SkeletonCards from '$lib/components/SkeletonCards.svelte';
 	import SkeletonTableRows from '$lib/components/SkeletonTableRows.svelte';
+	import EstadoVazio from '$lib/components/EstadoVazio.svelte';
 	import { useSamePathNavigating } from '$lib/composables';
 	import PaginationControls from '$lib/components/PaginationControls.svelte';
 	import IconTooltip from '$lib/components/IconTooltip.svelte';
 	import { podeBaixarComManifesto } from '$lib/manifesto';
-	import { Clock, Download, SquarePen } from '@lucide/svelte';
+	import { Download } from '@lucide/svelte';
+	import BadgeTipoEscala from './BadgeTipoEscala.svelte';
+	import BadgeStatusEscala from './BadgeStatusEscala.svelte';
 
 	type SolicitacaoInfo = {
 		tipo: 'unidade' | 'respondencia';
@@ -73,14 +76,14 @@
 </script>
 
 {#if escalas.length === 0}
-	<div class="text-center py-12 text-surface-600 dark:text-surface-400">
+	<EstadoVazio>
 		<p class="mb-4">Nenhuma escala criada para os filtros selecionados.</p>
 		<button
 			type="button"
 			class="btn preset-filled-primary-500 transition-all"
 			onclick={onNovaEscala}>Criar Escala</button
 		>
-	</div>
+	</EstadoVazio>
 {:else}
 	<div class="hidden lg:block table-wrap">
 		<table class="table">
@@ -113,22 +116,7 @@
 						<tr>
 							<td>
 								<div class="flex flex-col gap-0.5">
-									{#if esc.tipo === 'expediente'}
-										<span
-											class="badge preset-outlined-secondary-500 font-bold text-xs px-2 py-0.5 w-fit"
-											>Expediente</span
-										>
-									{:else if esc.tipo === 'fds'}
-										<span
-											class="badge preset-outlined-tertiary-500 font-bold text-xs px-2 py-0.5 w-fit"
-											>FDS</span
-										>
-									{:else}
-										<span
-											class="badge preset-outlined-primary-500 font-bold text-xs px-2 py-0.5 w-fit"
-											>Plantão</span
-										>
-									{/if}
+									<BadgeTipoEscala tipo={esc.tipo} tamanho="xs" />
 									<a href="/escalas/{esc.id}" class="anchor text-sm font-semibold">
 										{esc.tipo !== 'fds'
 											? `${MESES_PT[dRow.getMonth()]} ${dRow.getFullYear()}`
@@ -148,49 +136,13 @@
 								</div>
 							</td>
 							<td>
-								{#if esc.is_assinada}
-									<span
-										class="badge preset-filled-success-500 font-bold px-2 py-1 flex items-center gap-1 w-max shadow-sm"
-									>
-										<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"
-											><path
-												stroke-linecap="round"
-												stroke-linejoin="round"
-												stroke-width="2"
-												d="M5 13l4 4L19 7"
-											/></svg
-										>
-										Assinada
-									</span>
-								{:else if esc.tipo === 'fds' && esc.finalizada_em}
-									<span
-										class="badge preset-filled-success-500 font-bold px-2 py-1 flex items-center gap-1 w-max shadow-sm"
-									>
-										<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"
-											><path
-												stroke-linecap="round"
-												stroke-linejoin="round"
-												stroke-width="2"
-												d="M5 13l4 4L19 7"
-											/></svg
-										>
-										Enviada
-									</span>
-								{:else if (esc.tipo === 'plantao' || esc.tipo === 'expediente') && solicitacoesMap[esc.id]}
-									<span
-										class="badge preset-tonal-warning font-bold px-2 py-1 flex items-center gap-1 w-max shadow-sm"
-									>
-										<Clock class="w-4 h-4" aria-hidden="true" />
-										Ass. Pendente
-									</span>
-								{:else}
-									<span
-										class="badge preset-tonal-surface font-bold px-2 py-1 flex items-center gap-1 w-max shadow-sm"
-									>
-										<SquarePen class="w-4 h-4" aria-hidden="true" />
-										{esc.tipo === 'fds' ? 'Pendente' : 'Em preenchimento'}
-									</span>
-								{/if}
+								<BadgeStatusEscala
+									isAssinada={esc.is_assinada}
+									tipo={esc.tipo}
+									finalizadaEm={esc.finalizada_em}
+									assPendente={!!solicitacoesMap[esc.id]}
+									tamanho="xs"
+								/>
 							</td>
 							<td>
 								<div class="flex gap-2 justify-end">
@@ -321,22 +273,7 @@
 				>
 					<div class="flex justify-between items-start mb-3 gap-2">
 						<div class="min-w-0 flex-1">
-							{#if esc.tipo === 'expediente'}
-								<span
-									class="badge preset-outlined-secondary-500 font-bold text-3xs px-2 py-0.5 mb-0.5 inline-block"
-									>Expediente</span
-								>
-							{:else if esc.tipo === 'fds'}
-								<span
-									class="badge preset-outlined-tertiary-500 font-bold text-3xs px-2 py-0.5 mb-0.5 inline-block"
-									>FDS</span
-								>
-							{:else}
-								<span
-									class="badge preset-outlined-primary-500 font-bold text-3xs px-2 py-0.5 mb-0.5 inline-block"
-									>Plantão</span
-								>
-							{/if}
+							<BadgeTipoEscala tipo={esc.tipo} tamanho="3xs" />
 							<a
 								href="/escalas/{esc.id}"
 								class="font-bold text-sm text-surface-900 dark:text-surface-50 no-underline hover:text-primary-500 dark:hover:text-primary-400 leading-tight block"
@@ -347,49 +284,13 @@
 							</a>
 							<p class="text-xs text-surface-600 dark:text-surface-400 truncate">{esc.lotacao}</p>
 						</div>
-						{#if esc.is_assinada}
-							<span
-								class="badge preset-filled-success-500 font-bold px-1.5 py-0.5 text-3xs rounded-full flex items-center gap-1 shadow-sm"
-							>
-								<svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"
-									><path
-										stroke-linecap="round"
-										stroke-linejoin="round"
-										stroke-width="2"
-										d="M5 13l4 4L19 7"
-									/></svg
-								>
-								Assinada
-							</span>
-						{:else if esc.tipo === 'fds' && esc.finalizada_em}
-							<span
-								class="badge preset-filled-success-500 font-bold px-1.5 py-0.5 text-3xs rounded-full flex items-center gap-1 shadow-sm"
-							>
-								<svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"
-									><path
-										stroke-linecap="round"
-										stroke-linejoin="round"
-										stroke-width="2"
-										d="M5 13l4 4L19 7"
-									/></svg
-								>
-								Enviada
-							</span>
-						{:else if (esc.tipo === 'plantao' || esc.tipo === 'expediente') && solicitacoesMap[esc.id]}
-							<span
-								class="badge preset-tonal-warning font-bold px-1.5 py-0.5 text-3xs rounded-full flex items-center gap-1 shadow-sm"
-							>
-								<Clock class="w-3 h-3" aria-hidden="true" />
-								Ass. Pendente
-							</span>
-						{:else}
-							<span
-								class="badge preset-tonal-surface font-bold px-1.5 py-0.5 text-3xs rounded-full flex items-center gap-1 shadow-sm"
-							>
-								<SquarePen class="w-3 h-3" aria-hidden="true" />
-								{esc.tipo === 'fds' ? 'Pendente' : 'Em preenchimento'}
-							</span>
-						{/if}
+						<BadgeStatusEscala
+							isAssinada={esc.is_assinada}
+							tipo={esc.tipo}
+							finalizadaEm={esc.finalizada_em}
+							assPendente={!!solicitacoesMap[esc.id]}
+							tamanho="3xs"
+						/>
 					</div>
 					<div class="space-y-1 mb-3 text-sm">
 						<div class="flex justify-between">

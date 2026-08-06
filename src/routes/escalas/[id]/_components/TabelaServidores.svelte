@@ -22,6 +22,7 @@
 	import type { Escala } from '$lib/server/schema';
 	import type { EscalaPolicialComDados } from '$lib/types';
 	import IconTooltip from '$lib/components/IconTooltip.svelte';
+	import EstadoVazio from '$lib/components/EstadoVazio.svelte';
 	import Paginador from '$lib/components/Paginador.svelte';
 	import SeletorHoraMinuto from '$lib/components/SeletorHoraMinuto.svelte';
 	import { criarHelpersHorario, diaSemanaLabel } from './escala-horarios';
@@ -95,7 +96,7 @@
 </script>
 
 {#if policiaisEscalaLocal.length === 0}
-	<div class="text-center py-12 text-surface-500"><p>Nenhum policial nesta escala ainda.</p></div>
+	<EstadoVazio tom="muted" mensagem="Nenhum policial nesta escala ainda." />
 {:else}
 	<!-- Agrupado por data (plantao/expediente) -->
 	<div class="space-y-12">

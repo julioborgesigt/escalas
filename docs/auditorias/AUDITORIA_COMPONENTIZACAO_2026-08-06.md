@@ -1,8 +1,7 @@
 # Auditoria — componentização e reuso de UI (06/ago/2026)
 
-**Status:** remediação P1/P2 do lote principal **feita** (06/ago); restam P3
-cosméticos (`EstadoVazio`, `KpiCard`, badges) e split opcional painel/recebidos
-tabelas.  
+**Status:** remediação do lote principal **e** P3 cosméticos **feita** (06/ago);
+restam só C-MANTER explícitos e split opcional de tabelas painel/recebidos.  
 **Objetivo:** facilitar manutenção e compreensão — maximizar componentes comuns
 onde o ROI é alto, e **não** unificar o que explode props ou mistura
 semânticas de domínio.  
@@ -412,10 +411,10 @@ o working tree após a remediação.
 | 8b | painel + `useFiltrosPaginados` | P2 | **BAIXADO** | Filtro cliente + streaming; confirm → ModalShell feito |
 | 9 | painel/recebidos `_components` | P1 | **PARCIAL** | Confirms no ModalShell; split de tabelas ainda aberto |
 | 10 | `BotaoLimparFiltros` | P2 | **FEITO 06/ago** | 6 sites + SecaoHistorico |
-| 10b | `EstadoVazio` | P3 | **MANTIDO** | 5 sites; cosmética |
+| 10b | `EstadoVazio` | P3 | **FEITO 06/ago** | `$lib/components/EstadoVazio.svelte` + 6 call sites |
 | 11 | `ToggleSwitch` em `conf-ass` | P2 | **FEITO 06/ago** | `cor="primary"` no componente + 4 switches |
-| 12 | `KpiCard` auditoria/logs | P3 | **CONFIRMADO** | Snippets ~L249 / ~L99 ainda iguais |
-| 13 | Badges `TabelaEscalas` | P2 | **CONFIRMADO** | Desktop `text-xs` ↔ mobile `text-3xs` duplicados |
+| 12 | `KpiCard` auditoria/logs | P3 | **FEITO 06/ago** | `auditoria/_components/KpiCard.svelte` |
+| 13 | Badges `TabelaEscalas` | P2 | **FEITO 06/ago** | `BadgeTipoEscala` / `BadgeStatusEscala` com `tamanho` |
 | 14 | Mover modal e-mail perfil | P3 | **FEITO 06/ago** | `perfil/_components/ModalAlterarEmailPessoal.svelte` |
 | 15 | Unificar ActionButton | P3 | **REJEITADO → C-MANTER** | Documentado nos cabeçalhos de `GiseActionButton` e `BotoesAcao` |
 | — | Banner erro auth | P3 | **ADIADO** | 3 sites; aproveitar se login for fatiado |
