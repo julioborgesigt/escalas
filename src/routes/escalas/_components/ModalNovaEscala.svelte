@@ -26,9 +26,7 @@
 	import { toaster } from '$lib/toast';
 	import type { Unidade } from '$lib/types';
 	import type { ActionResult } from '@sveltejs/kit';
-
-	const horas = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'));
-	const minutos = Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0'));
+	import SeletorHoraMinuto from '$lib/components/SeletorHoraMinuto.svelte';
 
 	let {
 		open = $bindable(false),
@@ -511,12 +509,11 @@
 									>Hora entrada</span
 								>
 								<div class="flex gap-1">
-									<select class="select text-xs flex-1" bind:value={fdsHoraEntrada}>
-										{#each horas as h (h)}<option value={h}>{h}h</option>{/each}
-									</select>
-									<select class="select text-xs flex-1" bind:value={fdsMinutoEntrada}>
-										{#each minutos as m (m)}<option value={m}>{m}m</option>{/each}
-									</select>
+									<SeletorHoraMinuto
+										bind:hora={fdsHoraEntrada}
+										bind:minuto={fdsMinutoEntrada}
+										selectClass="select text-xs flex-1"
+									/>
 								</div>
 							</div>
 							<div>
@@ -524,12 +521,11 @@
 									>Hora saída</span
 								>
 								<div class="flex gap-1">
-									<select class="select text-xs flex-1" bind:value={fdsHoraSaida}>
-										{#each horas as h (h)}<option value={h}>{h}h</option>{/each}
-									</select>
-									<select class="select text-xs flex-1" bind:value={fdsMinutoSaida}>
-										{#each minutos as m (m)}<option value={m}>{m}m</option>{/each}
-									</select>
+									<SeletorHoraMinuto
+										bind:hora={fdsHoraSaida}
+										bind:minuto={fdsMinutoSaida}
+										selectClass="select text-xs flex-1"
+									/>
 								</div>
 							</div>
 						</div>

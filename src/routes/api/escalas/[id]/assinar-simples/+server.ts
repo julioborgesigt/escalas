@@ -36,6 +36,7 @@ import {
 	badRequest,
 	notFound,
 	forbidden,
+	conflict,
 	serverError,
 	validateBody
 } from '$lib/server/api';
@@ -49,7 +50,7 @@ import {
 import { calcularHashBuffer } from '$lib/server/assinatura/document-utils';
 import { selarPdfInstitucional, tipoCarimboPrevisto } from '$lib/server/assinatura/server-seal';
 import { gerarCodigoValidacao } from '$lib/utils/formato';
-import { verificarPermissaoEscala } from '$lib/server/escalas/permissao';
+import { verificarPermissaoEscala, podeAssinarEscala } from '$lib/server/escalas/permissao';
 
 export const POST: RequestHandler = async ({
 	platform,
@@ -84,9 +85,23 @@ export const POST: RequestHandler = async ({
 	const escala = await buscarEscala(db, id);
 	if (!escala) return notFound('Escala');
 
-	// Permissão de negócio: admin, dono da lotação ou DPC admin com solicitação direcionada.
+	// Leitura (lotação/escopo/solicitação) + assinatura (Admin Geral ou DPC admin) — FLW-AUT-001.
 	const perm = await verificarPermissaoEscala(db, id, escala.lotacao, u);
 	if (!perm.permitido) return forbidden(perm.motivo ?? 'Sem permissão para assinar esta escala');
+	if (!podeAssinarEscala(u)) {
+		return forbidden('Apenas Admin Geral ou DPC com papel administrativo pode assinar esta escala');
+	}
+
+	// FLW-AUT-012: FDS encerra por e-mail, não por assinatura digital.
+	if (escala.tipo === 'fds') {
+		return badRequest('Escala de fim de semana não admite assinatura digital — use o fluxo por e-mail');
+	}
+
+	// FLW-AUT-004: reassinatura exige revogar antes (DELETE documento-assinado).
+	const docExistente = await buscarDocumentoEscala(db, id);
+	if (docExistente) {
+		return conflict('Revogue a assinatura existente antes de assinar novamente');
+	}
 
 	const policiais = await listarPoliciaisEscala(db, id);
 	if (!policiais || policiais.length === 0) {

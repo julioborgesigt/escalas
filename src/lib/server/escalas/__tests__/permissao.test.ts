@@ -11,7 +11,7 @@ vi.mock('$lib/server/policial-permissao', () => ({
 }));
 
 // Import depois do mock para garantir bind correto.
-import { verificarPermissaoEscala } from '../permissao';
+import { verificarPermissaoEscala, podeAssinarEscala, podeMexerNaEscala, podeOIPSolicitarAssinatura } from '../permissao';
 import { temSolicitacaoParaDpcAdmin } from '$lib/db';
 import { lotacoesAdministradas } from '$lib/server/policial-permissao';
 
@@ -170,5 +170,67 @@ describe('verificarPermissaoEscala', () => {
 		const r = await verificarPermissaoEscala(fakeDb, 1, 'DELEGACIA A', u);
 		expect(r.permitido).toBe(true);
 		expect(temSolicitacaoParaDpcAdmin).not.toHaveBeenCalled();
+	});
+});
+
+describe('podeAssinarEscala (FLW-AUT-001)', () => {
+	it('Admin Geral pode assinar', () => {
+		expect(podeAssinarEscala(user({ tipo: 'admin', lotacao: undefined, papel: undefined }))).toBe(
+			true
+		);
+	});
+
+	it('admin_unidade DPC pode assinar', () => {
+		expect(
+			podeAssinarEscala(user({ papel: 'admin_unidade', cargo: 'DPC', lotacao: 'DELEGACIA A' }))
+		).toBe(true);
+	});
+
+	it('admin_seccional DPC pode assinar', () => {
+		expect(
+			podeAssinarEscala(user({ papel: 'admin_seccional', cargo: 'DPC', lotacao: 'SECCIONAL A' }))
+		).toBe(true);
+	});
+
+	it('admin OIP NÃO assina (solicita)', () => {
+		expect(
+			podeAssinarEscala(user({ papel: 'admin_unidade', cargo: 'OIP', lotacao: 'DELEGACIA A' }))
+		).toBe(false);
+	});
+
+	it('policial sem papel NÃO assina mesmo na lotação', () => {
+		expect(podeAssinarEscala(user({ papel: null, cargo: 'DPC', lotacao: 'DELEGACIA A' }))).toBe(
+			false
+		);
+	});
+
+	it('podeMexerNaEscala permite OIP admin na lotação (editar ≠ assinar)', () => {
+		const u = user({ papel: 'admin_unidade', cargo: 'OIP', lotacao: 'DELEGACIA A' });
+		expect(podeMexerNaEscala(u, 'DELEGACIA A')).toBe(true);
+		expect(podeAssinarEscala(u)).toBe(false);
+	});
+});
+
+describe('podeOIPSolicitarAssinatura (FLW-AUT-013)', () => {
+	it('Admin Geral pode solicitar', () => {
+		expect(
+			podeOIPSolicitarAssinatura(user({ tipo: 'admin', lotacao: undefined, papel: undefined }))
+		).toBe(true);
+	});
+
+	it('OIP admin pode solicitar', () => {
+		expect(
+			podeOIPSolicitarAssinatura(
+				user({ papel: 'admin_unidade', cargo: 'OIP', lotacao: 'DELEGACIA A' })
+			)
+		).toBe(true);
+	});
+
+	it('DPC admin NÃO solicita (assina)', () => {
+		expect(
+			podeOIPSolicitarAssinatura(
+				user({ papel: 'admin_unidade', cargo: 'DPC', lotacao: 'DELEGACIA A' })
+			)
+		).toBe(false);
 	});
 });

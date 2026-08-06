@@ -1,0 +1,120 @@
+<script lang="ts">
+	/**
+	 * Card de ranking por seccional (prisões / drogas / armas) no painel
+	 * de produtividade — selecionável para export PNG/PDF.
+	 */
+	import type { Snippet } from 'svelte';
+	import type { RankingItem } from '$lib/export-charts';
+
+	let {
+		id,
+		title,
+		ranking,
+		color,
+		icon,
+		labelUnit,
+		selected,
+		onToggle
+	}: {
+		id: string;
+		title: string;
+		ranking: RankingItem[];
+		color: string;
+		icon: Snippet<[string]>;
+		labelUnit: string;
+		selected: boolean;
+		onToggle: (id: string) => void;
+	} = $props();
+</script>
+
+<div
+	class="card relative p-4 sm:p-6 bg-white dark:bg-surface-950 text-surface-900 dark:text-white border-2 transition-all {selected
+		? 'selected-for-export border-primary-500 shadow-xl shadow-primary-500/10'
+		: 'border-surface-200 dark:border-surface-800 shadow-xl'} rounded-3xl flex flex-col h-full"
+>
+	<button
+		type="button"
+		onclick={() => onToggle(id)}
+		class="absolute top-2 right-2 md:top-3 md:right-3 w-6 h-6 md:w-8 md:h-8 rounded-lg md:rounded-xl flex items-center justify-center transition-all {selected
+			? 'bg-primary-500 text-white scale-110 shadow-lg'
+			: 'bg-surface-100 dark:bg-surface-800 text-surface-500 hover:scale-105'}"
+	>
+		{#if selected}
+			<svg class="w-4 h-4 md:w-6 md:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+				><path
+					stroke-linecap="round"
+					stroke-linejoin="round"
+					stroke-width="4"
+					d="M5 13l4 4L19 7"
+				/></svg
+			>
+		{:else}
+			<svg
+				class="w-3 h-3 md:w-5 md:h-5 opacity-40"
+				fill="none"
+				stroke="currentColor"
+				viewBox="0 0 24 24"
+				><path
+					stroke-linecap="round"
+					stroke-linejoin="round"
+					stroke-width="3"
+					d="M12 6v6m0 0v6m0-6h6m-6 0H6"
+				/></svg
+			>
+		{/if}
+	</button>
+
+	<div class="flex items-center gap-3 mb-6">
+		<div class="p-2 rounded-lg" style="background: {color}20">
+			{@render icon(color)}
+		</div>
+		<h3 class="text-lg font-black uppercase tracking-tighter">
+			{title}
+		</h3>
+	</div>
+	<div class="space-y-2 overflow-y-auto pr-2 custom-scrollbar flex-1">
+		{#each ranking as item, idx (item.nome)}
+			<div
+				class="flex items-center gap-4 p-3 rounded-2xl bg-surface-50 dark:bg-white/5 border border-surface-100 dark:border-white/10 group transition-all hover:bg-surface-100 dark:hover:bg-white/10"
+			>
+				<span class="text-lg font-black text-surface-400 dark:text-surface-500 w-6 italic"
+					>#{idx + 1}</span
+				>
+				<div class="flex-1">
+					<p
+						class="text-3xs font-black uppercase text-surface-600 dark:text-surface-400 leading-none mb-1"
+					>
+						Seccional
+					</p>
+					<p class="text-xs font-bold leading-tight line-clamp-1">
+						{item.nome.split(' do ')[0]}
+					</p>
+				</div>
+				<div class="text-right">
+					<p class="text-xl font-black" style="color: {color}">
+						{labelUnit === 'kg' ? (item.total / 1000).toFixed(1) : item.total}<span
+							class="text-3xs ml-0.5 opacity-50">{labelUnit}</span
+						>
+					</p>
+					<p class="text-3xs font-bold uppercase opacity-50">Produção</p>
+				</div>
+			</div>
+		{/each}
+	</div>
+</div>
+
+<style>
+	.custom-scrollbar::-webkit-scrollbar {
+		width: 4px;
+	}
+	.custom-scrollbar::-webkit-scrollbar-track {
+		background: transparent;
+	}
+	.custom-scrollbar::-webkit-scrollbar-thumb {
+		background: #64748b30;
+		border-radius: 10px;
+	}
+	.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+		background: #64748b60;
+	}
+</style>

@@ -4,8 +4,11 @@
 
 	/**
 	 * Chave liga/desliga estilizada sobre o `Switch` (headless) do Skeleton v4.
-	 * Centraliza o estilo do toggle (trilho + thumb, verde quando ligado) para
-	 * não repetir as classes de `data-[state=...]` em cada call site.
+	 * Centraliza o estilo do toggle (trilho + thumb) para não repetir as
+	 * classes de `data-[state=...]` em cada call site.
+	 *
+	 * `cor` default `success` (policiais / concessões). `primary` é o trilho
+	 * da política de assinatura em tela (`conf-ass`).
 	 */
 	interface Props {
 		checked: boolean;
@@ -15,9 +18,24 @@
 		children?: Snippet;
 		/** Rótulo à ESQUERDA e a chave à direita, ocupando a largura toda. */
 		reverse?: boolean;
+		/** Cor do trilho quando ligado. Default `success`. */
+		cor?: 'success' | 'primary';
 	}
 
-	const { checked, disabled = false, onCheckedChange, children, reverse = false }: Props = $props();
+	const {
+		checked,
+		disabled = false,
+		onCheckedChange,
+		children,
+		reverse = false,
+		cor = 'success'
+	}: Props = $props();
+
+	const corChecked = $derived(
+		cor === 'primary'
+			? 'data-[state=checked]:bg-primary-500'
+			: 'data-[state=checked]:bg-success-500'
+	);
 </script>
 
 <Switch
@@ -29,7 +47,7 @@
 		: ''} {disabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}"
 >
 	<Switch.Control
-		class="inline-flex h-6 w-11 shrink-0 items-center rounded-full p-0.5 transition-colors bg-surface-300 dark:bg-surface-600 data-[state=checked]:bg-success-500"
+		class="inline-flex h-6 w-11 shrink-0 items-center rounded-full p-0.5 transition-colors bg-surface-300 dark:bg-surface-600 {corChecked}"
 	>
 		<Switch.Thumb
 			class="h-5 w-5 rounded-full bg-white shadow-sm transition-transform data-[state=checked]:translate-x-5"

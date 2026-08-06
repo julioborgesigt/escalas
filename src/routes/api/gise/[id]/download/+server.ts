@@ -222,11 +222,17 @@ export const GET: RequestHandler = async ({ locals, params, platform, url }) => 
 			}
 		}
 
-		// 2. Se NÃO existir assinatura, permitir apenas para admins/supervisores como RASCUNHO.
-		// Note: mais restritivo que verificarPermissaoGise — não libera para
-		// membros nem quadro de apoio (assessor/seint), só supervisor da GISE.
+		// 2. Se NÃO existir assinatura, permitir apenas como RASCUNHO para:
+		//    Admin Geral, supervisor da GISE, ou admin seccional DAquela seccional.
+		//    verificarPermissaoGise só prova participação na GISE — sem o filtro
+		//    por seccionalId, admin seccional A baixaria PII/presença da B
+		//    (FLW-AUT-008).
 		const isSupervisor = u.tipo === 'policial' && gise.supervisor_id === u.id;
-		if (!isAdminGeral(u) && !isAdminSeccional(u) && !isSupervisor) {
+		if (isAdminGeral(u) || isSupervisor) {
+			// ok
+		} else if (isAdminSeccional(u) && u.papel_unidade_id === seccionalId) {
+			// ok — só a própria seccional
+		} else {
 			return forbidden('Este relatório ainda não foi assinado.');
 		}
 

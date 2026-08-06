@@ -63,6 +63,7 @@ import {
 	policiais
 } from '$lib/server/schema';
 import { eq, and, inArray, desc, like, sql } from 'drizzle-orm';
+import { gateDePresenca } from '$lib/server/gise/presenca-gate';
 interface GiseEscalaItem {
 	id: number;
 	data_inicio: string;
@@ -474,6 +475,22 @@ export const actions: Actions = {
 		if (!part.participa)
 			return fail(403, { error: 'Você não participa desta escala GISE.', giseId });
 
+		// FLW-AUT-006 / 007: mesma janela e imutabilidade do canal A3.
+		const gateEntrada = await gateDePresenca(
+			db,
+			{ ...part, statusGise: gise.status },
+			giseId,
+			u.id,
+			'entrada'
+		);
+		if (!gateEntrada.ok) {
+			const body = (await gateEntrada.resposta.clone().json()) as { error?: string };
+			return fail(gateEntrada.resposta.status, {
+				error: body.error ?? 'Presença não liberada',
+				giseId
+			});
+		}
+
 		let selfieKey: string | undefined = undefined;
 		if (hasR2(platform) && selfieBase64) {
 			const r2 = getR2(platform);
@@ -567,6 +584,21 @@ export const actions: Actions = {
 		const part = await resolverParticipacaoGisePolicial(db, giseId, u.id);
 		if (!part.participa)
 			return fail(403, { error: 'Você não participa desta escala GISE.', giseId });
+
+		const gateSaida = await gateDePresenca(
+			db,
+			{ ...part, statusGise: giseOrig.status },
+			giseId,
+			u.id,
+			'saida'
+		);
+		if (!gateSaida.ok) {
+			const body = (await gateSaida.resposta.clone().json()) as { error?: string };
+			return fail(gateSaida.resposta.status, {
+				error: body.error ?? 'Presença não liberada',
+				giseId
+			});
+		}
 
 		let selfieKey: string | undefined = undefined;
 		if (hasR2(platform) && selfieBase64) {

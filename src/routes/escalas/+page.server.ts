@@ -40,9 +40,10 @@ import {
 import { escalaSchema } from '$lib/schemas';
 import { registrarAuditComContexto, contextoDeEvento, batchNonEmpty } from '$lib/db';
 import { excluirEscalaCompleta } from '$lib/server/escalas/exclusao';
+import { podeOIPSolicitarAssinatura } from '$lib/server/escalas/permissao';
 import { logger } from '$lib/server/logger';
 import { eq, or, and, inArray, sql, desc, type SQL } from 'drizzle-orm';
-import { lotacoesDaSeccional } from '$lib/server/policial-permissao';
+import { lotacoesDaSeccional, lotacoesAdministradas, lotacaoNoEscopo } from '$lib/server/policial-permissao';
 import {
 	escalas as escalasTable,
 	escalaPoliciais,
@@ -131,9 +132,8 @@ export const load: PageServerLoad = async ({ locals, platform, url, depends }) =
 		minhaRubrica = rubRow?.rubrica ?? null;
 	}
 
-	// OIP admin pode solicitar assinatura (mas não assinar diretamente)
-	const podeOIPSolicitar =
-		(u.papel === 'admin_seccional' || u.papel === 'admin_unidade') && u.cargo === 'OIP';
+	// OIP admin (ou Admin Geral) pode solicitar assinatura — FLW-AUT-013.
+	const podeOIPSolicitar = podeOIPSolicitarAssinatura(u);
 
 	// Query das escalas pendentes de assinatura. Montada numa função para que o
 	// tipo das linhas seja INFERIDO da própria cadeia do drizzle — um `let`
@@ -386,17 +386,32 @@ export const actions: Actions = {
 		const db = getDB(platform);
 
 		if (u.tipo === 'policial') {
-			const { buscarEscala } = await import('$lib/db');
+			const { buscarEscala, buscarDocumentoEscala } = await import('$lib/db');
 			const escala = await buscarEscala(db, escalaId);
 			if (!escala) return fail(404, { error: 'Escala não encontrada' });
 
-			if (u.papel === 'admin_seccional' && u.papel_unidade_id) {
-				const permitidas = await lotacoesDaSeccional(db, u.papel_unidade_id);
-				if (!permitidas.includes(escala.lotacao)) {
-					return fail(403, { error: 'Sem permissão' });
-				}
-			} else if (escala.lotacao !== u.lotacao) {
+			// FLW-AUT-009: escopo do papel (não `u.lotacao` solta) — admin_unidade
+			// transferido continua administrando a unidade do papel.
+			const escopo = await lotacoesAdministradas(db, u);
+			if (!lotacaoNoEscopo(escopo, escala.lotacao)) {
 				return fail(403, { error: 'Sem permissão' });
+			}
+
+			// FLW-AUT-003: escala assinada só sai após revogar o documento.
+			const doc = await buscarDocumentoEscala(db, escalaId);
+			if (doc) {
+				return fail(409, {
+					error: 'Revogue a assinatura digital antes de excluir esta escala.'
+				});
+			}
+		} else {
+			// Admin Geral: mesmo gate — documento jurídico não some sem revogar.
+			const { buscarDocumentoEscala } = await import('$lib/db');
+			const doc = await buscarDocumentoEscala(db, escalaId);
+			if (doc) {
+				return fail(409, {
+					error: 'Revogue a assinatura digital antes de excluir esta escala.'
+				});
 			}
 		}
 
@@ -440,10 +455,17 @@ export const actions: Actions = {
 			return fail(400, { error: 'Dados inválidos' });
 		}
 
+		const db = getDB(platform);
+
+		// FLW-AUT-002: lotação do FormData precisa estar no escopo administrado
+		// (Admin Geral = escopo null = livre; seccional/unidade = só as suas).
+		const escopo = await lotacoesAdministradas(db, u);
+		if (!lotacaoNoEscopo(escopo, lotacao)) {
+			return fail(403, { error: 'Sem permissão para criar escala nesta lotação' });
+		}
+
 		const mesPrev = mes === 1 ? 12 : mes - 1;
 		const anoPrev = mes === 1 ? ano - 1 : ano;
-
-		const db = getDB(platform);
 
 		const escalaPrev = await verificarEscalaExistente(
 			db,

@@ -106,9 +106,10 @@ export const actions: Actions = {
 
 		const db = getDB(platform);
 
-		// Deleta documento do R2 (blob + conferência + selfie) e do banco.
-		// R2-1/R2-3: antes apagava só o blob principal, deixando a cópia de
-		// conferência e a selfie biométrica órfãs. O helper cobre todos.
+		// FLW-AUT-003 exceção documentada: `/recebidos` é a caixa do Admin Geral
+		// para purgar escalas já assinadas que chegaram à sede. Revogar antes
+		// exigiria um passo extra na inbox; a exclusão aqui é deliberada e
+		// auditada (`excluir_escala` com detalhe de cx. de entrada).
 		await excluirEscalaCompleta(db, platform, escalaId);
 
 		const { contexto, env } = contextoDeEvento(event);

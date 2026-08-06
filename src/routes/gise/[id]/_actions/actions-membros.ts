@@ -3,7 +3,6 @@ import type { RequestEvent } from '@sveltejs/kit';
 import {
 	getDB,
 	tryGetR2,
-	buscarGiseEscala,
 	adicionarGiseMembro,
 	removerGiseMembro,
 	verificarSlotEquipe,
@@ -11,9 +10,9 @@ import {
 	verificarConflitoHorarioPolicial
 } from '$lib/db';
 import { invalidarPapelGise } from '$lib/server/gise/papel-cache';
-import { giseEquipes, giseSeccionais, policiais } from '$lib/server/schema';
+import { giseEquipes, policiais } from '$lib/server/schema';
 import { eq } from 'drizzle-orm';
-import { getInt, podePreencherSeccional, carregarMembroDaGise } from './shared';
+import { getInt, podePreencherSeccional, carregarMembroDaGise, carregarSeccionalDaGise } from './shared';
 import { concluirMudancaGise, invalidarAssinaturasDaSeccional } from './desfecho';
 
 /**
@@ -76,8 +75,9 @@ export const actionsMembros = {
 
 		const db = getDB(platform);
 		const r2 = tryGetR2(platform) ?? null;
-		const sec = await db.select().from(giseSeccionais).where(eq(giseSeccionais.id, secId)).get();
-		if (!sec || sec.gise_id !== giseId) return fail(404, { error: 'Seccional não encontrada' });
+		const carga = await carregarSeccionalDaGise(db, giseId, secId);
+		if ('erro' in carga) return carga.erro;
+		const { gise, sec } = carga;
 
 		if (!podePreencherSeccional(u, sec.seccional_id)) {
 			return fail(403, { error: 'Sem permissão para montar equipes desta seccional' });
@@ -107,11 +107,7 @@ export const actionsMembros = {
 		// sem invalidar, ele só enxergaria a escala nova quando o cache expirasse.
 		await invalidarPapelGise(policialId);
 
-		const gise = await buscarGiseEscala(db, giseId);
-		const invalidacao = gise
-			? await invalidarAssinaturasDaSeccional(db, r2, giseId, secId, gise.status)
-			: 'nada';
-
+		const invalidacao = await invalidarAssinaturasDaSeccional(db, r2, giseId, secId, gise.status);
 		const pol = await db
 			.select({ nome: policiais.nome })
 			.from(policiais)

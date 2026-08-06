@@ -48,9 +48,6 @@
 
 	const { data }: PageProps = $props();
 
-	const horas = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'));
-	const minutos = Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0'));
-
 	const confirmDialog = useConfirmationDialog<{ itemId: number | number[]; nome: string }>();
 
 	const escala = $derived(data.escala);
@@ -425,8 +422,6 @@
 			{modoSelecao}
 			bind:selecionados
 			{escala}
-			{horas}
-			{minutos}
 			onToggleSelecionar={toggleSelecionar}
 			onSolicitarRemocao={solicitarRemocao}
 		/>
@@ -443,8 +438,6 @@
 			{modoSelecao}
 			bind:selecionados
 			{escala}
-			{horas}
-			{minutos}
 			onSolicitarRemocao={solicitarRemocao}
 		/>
 	{:else}
@@ -458,8 +451,6 @@
 			{modoSelecao}
 			bind:selecionados
 			{escala}
-			{horas}
-			{minutos}
 			onSolicitarRemocao={solicitarRemocao}
 			onToggleSelecionar={toggleSelecionar}
 		/>

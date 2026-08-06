@@ -33,10 +33,39 @@
  *
  * Uso: node scripts/guard-autorizacao.mjs
  */
-import { readFileSync } from 'node:fs';
-import { execSync } from 'node:child_process';
-import { resolve } from 'node:path';
+import { readFileSync, readdirSync } from 'node:fs';
+import { join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+
+/**
+ * Lista rotas de mutação sem `find` Unix — no Windows o `FIND.EXE` nativo
+ * interpreta a mesma linha e quebra o guard (FLW-AUT nota operacional).
+ */
+function listarArquivosMutacao(raizRoutes) {
+	const saida = [];
+	function andar(dir) {
+		for (const ent of readdirSync(dir, { withFileTypes: true })) {
+			const full = join(dir, ent.name);
+			if (ent.isDirectory()) {
+				if (ent.name === '_actions') {
+					for (const f of readdirSync(full, { withFileTypes: true })) {
+						if (f.isFile() && f.name.endsWith('.ts')) {
+							saida.push(relative('.', join(full, f.name)).replaceAll('\\', '/'));
+						}
+					}
+				} else {
+					andar(full);
+				}
+				continue;
+			}
+			if (ent.name === '+server.ts' || ent.name === '+page.server.ts') {
+				saida.push(relative('.', full).replaceAll('\\', '/'));
+			}
+		}
+	}
+	andar(raizRoutes);
+	return saida.sort();
+}
 
 /**
  * Operações que legitimamente NÃO recusam por permissão, com o motivo.
@@ -136,13 +165,7 @@ function blocoBalanceado(src, iAbre) {
  * erro aparecendo como falha do teste errado.
  */
 function principal() {
-	const arquivos = execSync(
-		"find src/routes -name '+server.ts' -o -name '+page.server.ts' -o -path '*_actions/*.ts'",
-		{ encoding: 'utf8' }
-	)
-		.split('\n')
-		.filter(Boolean)
-		.sort();
+	const arquivos = listarArquivosMutacao(resolve('src/routes'));
 
 	const operacoes = [];
 	/** Contagem frouxa das DECLARAÇÕES, para conferir contra o que foi lido. */

@@ -13,23 +13,18 @@ import {
 import { z } from 'zod';
 import { requireAuth, badRequest, forbidden, notFound, validateBody } from '$lib/server/api';
 import { lotacoesAdministradas, lotacaoNoEscopo } from '$lib/server/policial-permissao';
+import { podeOIPSolicitarAssinatura } from '$lib/server/escalas/permissao';
 
 const solicitarSchema = z.object({
 	tipo: z.enum(['unidade', 'respondencia']),
 	destinatario_id: z.number().int().positive().optional()
 });
 
-function podeOIPSolicitar(u: App.Locals['usuario']) {
-	if (!u) return false;
-	if (u.tipo === 'admin') return true;
-	return (u.papel === 'admin_seccional' || u.papel === 'admin_unidade') && u.cargo === 'OIP';
-}
-
 export const POST: RequestHandler = async (event) => {
 	const { params, locals, platform, request } = event;
 	const u = requireAuth(locals);
 	if (u instanceof Response) return u;
-	if (!podeOIPSolicitar(u)) return forbidden('Sem permissão');
+	if (!podeOIPSolicitarAssinatura(u)) return forbidden('Sem permissão');
 
 	const id = Number(params.id);
 	if (isNaN(id)) return badRequest('ID inválido');

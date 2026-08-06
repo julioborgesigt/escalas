@@ -31,8 +31,6 @@
 		modoSelecao: boolean;
 		selecionados: Set<number>;
 		escala: Escala;
-		horas: string[];
-		minutos: string[];
 		onSolicitarRemocao: (ids: number | number[], nome: string) => void;
 	}
 
@@ -44,8 +42,6 @@
 		modoSelecao,
 		selecionados = $bindable(),
 		escala,
-		horas,
-		minutos,
 		onSolicitarRemocao
 	}: Props = $props();
 
@@ -331,8 +327,6 @@
 	horaEntradaInicial={editHoraEntradaInicial}
 	horaSaidaInicial={editHoraSaidaInicial}
 	observacoesIniciais={editObservacoesIniciais}
-	{horas}
-	{minutos}
 	onsalvo={(policiais) => {
 		policiaisEscalaLocal = policiais;
 	}}

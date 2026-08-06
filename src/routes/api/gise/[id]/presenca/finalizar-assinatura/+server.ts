@@ -83,7 +83,13 @@ export const POST: RequestHandler = async (event) => {
 	// guardasse um `preparedPdf` assinava saída sem entrada e recebia termo e
 	// auditoria de sucesso (FLW-GISE-008). Antes de consumir o token e de gravar
 	// byte nenhum: recusar cedo não custa nada.
-	const gate = await gateDePresenca(db, part, giseId, u.id, tipo);
+	const gate = await gateDePresenca(
+		db,
+		{ ...part, statusGise: gise.status },
+		giseId,
+		u.id,
+		tipo
+	);
 	if (!gate.ok) return gate.resposta;
 
 	// Consome a preparação: prova que ESTE pdf foi preparado por ESTE usuário

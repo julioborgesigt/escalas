@@ -25,7 +25,8 @@
 	import { mostrarErroDeResultado } from '$lib/enhance-handler';
 	import { apiFetch } from '$lib/api-fetch';
 	import ModalCadastrarRubrica from '$lib/components/ModalCadastrarRubrica.svelte';
-	import ModalAlterarEmailPessoal from './ModalAlterarEmailPessoal.svelte';
+	import ModalShell from '$lib/components/ModalShell.svelte';
+	import ModalAlterarEmailPessoal from './_components/ModalAlterarEmailPessoal.svelte';
 	import SearchableSelect from '$lib/components/SearchableSelect.svelte';
 	import { ROTULO_CAMPO } from '$lib/perfil-campos';
 	import { formatarData } from '$lib/utils/datas';
@@ -83,18 +84,14 @@
 	let cadastrandoRubrica = $state(false);
 	let minhaRubrica = $state(untrack(() => data.perfil.rubrica ?? null));
 	let excluindoRubrica = $state(false);
+	let confirmarExcluirRubrica = $state(false);
 
 	async function excluirRubrica() {
-		if (
-			!confirm(
-				'Excluir sua rubrica cadastrada? Você precisará cadastrá-la novamente para assinar pelo computador.'
-			)
-		)
-			return;
 		excluindoRubrica = true;
 		try {
 			await apiFetch('/api/perfil/rubrica', { method: 'DELETE' });
 			minhaRubrica = null;
+			confirmarExcluirRubrica = false;
 			toaster.create({ title: 'Rubrica excluída', type: 'info' });
 		} catch (e: unknown) {
 			toaster.create({
@@ -259,7 +256,7 @@
 						<button
 							type="button"
 							class="btn btn-sm preset-outlined-error-500 flex-1"
-							onclick={excluirRubrica}
+							onclick={() => (confirmarExcluirRubrica = true)}
 							disabled={excluindoRubrica}
 						>
 							{excluindoRubrica ? 'Excluindo…' : 'Excluir'}
@@ -409,6 +406,30 @@
 	rubricaAtual={minhaRubrica}
 	onSaved={(nova) => (minhaRubrica = nova)}
 />
+
+<ModalShell
+	bind:open={confirmarExcluirRubrica}
+	title="Excluir rubrica?"
+	largura="sm"
+	pending={excluindoRubrica}
+	cancelLabel="Cancelar"
+>
+	{#snippet description()}
+		Excluir sua rubrica cadastrada? Você precisará cadastrá-la novamente para assinar pelo
+		computador.
+	{/snippet}
+
+	{#snippet footer()}
+		<button
+			type="button"
+			class="btn preset-filled-error-500"
+			onclick={excluirRubrica}
+			disabled={excluindoRubrica}
+		>
+			{excluindoRubrica ? 'Excluindo…' : 'Excluir'}
+		</button>
+	{/snippet}
+</ModalShell>
 
 <ModalAlterarEmailPessoal
 	bind:open={alterandoEmail}

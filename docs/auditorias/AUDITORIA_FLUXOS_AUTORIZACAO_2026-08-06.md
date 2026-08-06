@@ -1,6 +1,8 @@
 # Auditoria profunda — fluxos, autorização e integridade (06/ago/2026)
 
-**Status:** diagnóstico concluído — achados abertos, sem remediação nesta sessão.  
+**Status:** remediação Sprints A–B e higiene Windows **feita** (06/ago); abertos
+operacionais: `WEBHOOK_REPLAY_ENFORCE` em produção (DEPLOY passo 3), AUT-014…020
+(decisões/P2–P3), extensão do guard para “helper certo”.  
 **Tipo:** autorização ponta a ponta (IDOR), operações materiais, máquinas de
 estado, webhooks/RBAC/documentos — execução do plano
 [`PLANO_AUDITORIA_FLUXOS_INTEGRIDADE_2026-08-02.md`](./PLANO_AUDITORIA_FLUXOS_INTEGRIDADE_2026-08-02.md).  
@@ -402,10 +404,9 @@ Cliente pode redirecionar errado; próximo request deriva do DB corretamente.
 
 ### Nota operacional — Windows
 
-`npm run guard:autorizacao` chama `find` Unix (`guard-autorizacao.mjs:139`) e
-**falha no Windows** (`FIND: formato de parâmetro incorreto`). O CI Linux
-continua válido; o gate local em Windows está cego. Remediação sugerida:
-`fast-glob` / `fs.walk` em Node, sem shell `find`.
+`npm run guard:autorizacao` lista rotas com `readdirSync` recursivo
+(`guard-autorizacao.mjs`) — **FEITO 06/ago** (antes: `find` Unix quebrava no
+`FIND.EXE` do Windows). CI Linux e gate local Windows passam no mesmo caminho.
 
 ---
 
@@ -428,23 +429,23 @@ continua válido; o gate local em Windows está cego. Remediação sugerida:
 
 ### Sprint A — conter documento e tenant (antes de qualquer outra refatoração)
 
-1. **FLW-AUT-001** — `podeAssinarEscala` nos 4 handlers + e2e  
-2. **FLW-AUT-010** — `carregarGiseEditavel` em **todas** as mutações materiais GISE + e2e  
-3. **FLW-AUT-002** — escopo de lotação em `criarComBase`  
-4. **FLW-AUT-003 / 004** — 409 em excluir/reassinar documento existente  
+1. ~~**FLW-AUT-001** — `podeAssinarEscala` nos 4 handlers + e2e~~ **FEITO 06/ago** (`permissao.ts`, assinar/preparar/finalizar/DELETE + `assinatura-simples.spec.ts`)
+2. ~~**FLW-AUT-010** — `carregarGiseEditavel` em **todas** as mutações materiais GISE + e2e~~ **FEITO 06/ago** (export + escala/seccional/membros; `gise-imutabilidade.spec.ts` ampliado)
+3. ~~**FLW-AUT-002** — escopo de lotação em `criarComBase`~~ **FEITO 06/ago** (`lotacaoNoEscopo`)
+4. ~~**FLW-AUT-003 / 004** — 409 em excluir/reassinar documento existente~~ **FEITO 06/ago** (escalas + painel; `/recebidos` = exceção documentada; conflict em assinar/preparar/finalizar)  
 
 ### Sprint B — estado e identidade
 
-5. **FLW-AUT-005** — sync não reativa `ativo` sem política  
-6. **FLW-AUT-006 / 007** — gate de presença unificado (horário + finalizada)  
-7. **FLW-AUT-009** — `excluir` via `lotacoesAdministradas`  
-8. **FLW-AUT-008** — rascunho download escopado à seccional  
+5. ~~**FLW-AUT-005** — sync não reativa `ativo` sem política~~ **FEITO 06/ago** (preserva `ativo` no upsert; só novos → `ativo: 1`)
+6. ~~**FLW-AUT-006 / 007** — gate de presença unificado (horário + finalizada)~~ **FEITO 06/ago** (`gateDePresenca` + `res-gise` entrada/saída + A3)
+7. ~~**FLW-AUT-009** — `excluir` via `lotacoesAdministradas`~~ **FEITO 06/ago**
+8. ~~**FLW-AUT-008** — rascunho download escopado à seccional~~ **FEITO 06/ago** (`download/+server.ts`: Admin Geral / supervisor / admin seccional só da própria `seccionalId`)  
 
 ### Sprint C — higiene e operação
 
-9. **FLW-AUT-011 / 012 / 013** — FDS e `podeOIPSolicitar` único  
-10. **FLW-WEBHOOK-004 / AUT-017** — enforce replay em produção  
-11. **AUT-014…020** — painel, ACL-002 (decisão), fail-open RL, Windows guard  
+9. ~~**FLW-AUT-011 / 012 / 013** — FDS e `podeOIPSolicitar` único~~ **FEITO 06/ago**: 011 (`reenviarEmail` exige `finalizada_em`); 012 (FDS bloqueado em assinar/preparar/finalizar); 013 (`podeOIPSolicitarAssinatura`)
+10. **FLW-WEBHOOK-004 / AUT-017** — enforce replay em produção (operacional: `DEPLOY.md` passo 3; código continua opt-in)
+11. **AUT-014…020** — painel, ACL-002 (decisão), fail-open RL; ~~Windows guard~~ **FEITO 06/ago** (`guard-autorizacao.mjs` lista arquivos via `readdirSync`, sem `find` Unix)
 12. Estender `guard:autorizacao` (ou teste estrutural) para **padrão de helper**
     (`podeAssinarEscala`, `carregarGiseEditavel`) — não só presença de `403`
 

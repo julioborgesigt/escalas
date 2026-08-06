@@ -2,6 +2,7 @@
 	import { enhance } from '$app/forms';
 	import { invalidateShared } from '$lib/cross-tab-invalidate';
 	import ModalShell from '$lib/components/ModalShell.svelte';
+	import SeletorHoraMinuto from '$lib/components/SeletorHoraMinuto.svelte';
 	import { toaster } from '$lib/toast';
 	import { mostrarErroDeResultado } from '$lib/enhance-handler';
 	import CalendarioSelecaoDias from './CalendarioSelecaoDias.svelte';
@@ -16,8 +17,6 @@
 		horaEntradaInicial,
 		horaSaidaInicial,
 		observacoesIniciais,
-		horas,
-		minutos,
 		onsalvo
 	}: {
 		open: boolean;
@@ -27,8 +26,6 @@
 		horaEntradaInicial: string;
 		horaSaidaInicial: string;
 		observacoesIniciais: string;
-		horas: string[];
-		minutos: string[];
 		onsalvo: (policiais: EscalaPolicialComDados[]) => void;
 	} = $props();
 
@@ -113,37 +110,19 @@
 			<div class="flex gap-4">
 				<label class="flex-1 min-w-0">
 					<span class="label-text text-2xs mb-1 block">Entrada</span>
-					<div class="flex gap-1">
-						<select
-							class="select text-xs h-8 py-0 rounded-lg px-1 flex-1"
-							bind:value={editHoraEntrada}
-						>
-							{#each horas as h (h)}<option value={h}>{h}h</option>{/each}
-						</select>
-						<select
-							class="select text-xs h-8 py-0 rounded-lg px-1 flex-1"
-							bind:value={editMinutoEntrada}
-						>
-							{#each minutos as m (m)}<option value={m}>{m}m</option>{/each}
-						</select>
-					</div>
+					<SeletorHoraMinuto
+						bind:hora={editHoraEntrada}
+						bind:minuto={editMinutoEntrada}
+						selectClass="select text-xs h-8 py-0 rounded-lg px-1 flex-1"
+					/>
 				</label>
 				<label class="flex-1 min-w-0">
 					<span class="label-text text-2xs mb-1 block">Saída</span>
-					<div class="flex gap-1">
-						<select
-							class="select text-xs h-8 py-0 rounded-lg px-1 flex-1"
-							bind:value={editHoraSaida}
-						>
-							{#each horas as h (h)}<option value={h}>{h}h</option>{/each}
-						</select>
-						<select
-							class="select text-xs h-8 py-0 rounded-lg px-1 flex-1"
-							bind:value={editMinutoSaida}
-						>
-							{#each minutos as m (m)}<option value={m}>{m}m</option>{/each}
-						</select>
-					</div>
+					<SeletorHoraMinuto
+						bind:hora={editHoraSaida}
+						bind:minuto={editMinutoSaida}
+						selectClass="select text-xs h-8 py-0 rounded-lg px-1 flex-1"
+					/>
 				</label>
 			</div>
 			<label class="block">

@@ -57,6 +57,7 @@
 	import DialogSolicitarAssinatura from '$lib/components/DialogSolicitarAssinatura.svelte';
 	import SearchableSelect from '$lib/components/SearchableSelect.svelte';
 	import BotaoVoltar from '$lib/components/BotaoVoltar.svelte';
+	import BotaoLimparFiltros from '$lib/components/BotaoLimparFiltros.svelte';
 	import ModalShell from '$lib/components/ModalShell.svelte';
 
 	const { data }: PageProps = $props();
@@ -543,16 +544,7 @@
 		<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
 			<h1 class="h1 text-2xl font-bold">Arquivo</h1>
 			<div class="flex gap-2 justify-end w-full sm:w-auto">
-				<button
-					type="button"
-					class="btn btn-sm {temFiltros
-						? 'preset-filled-warning-500'
-						: 'preset-outlined-primary-500 opacity-40'}"
-					onclick={limparFiltros}
-					disabled={!temFiltros}
-				>
-					Limpar filtros
-				</button>
+				<BotaoLimparFiltros {temFiltros} onclick={limparFiltros} />
 			</div>
 		</div>
 	</div>

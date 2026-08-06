@@ -257,7 +257,7 @@ Confirmado ainda limpo nesta verificação:
 
 ### Lote A — risco primeiro (1–2 PRs)
 
-1. **1.1** `calcularDatasPlantao` → `isoData`/`adicionarDias` + teste de fuso  
+1. ~~**1.1** `calcularDatasPlantao` → `isoData`/`adicionarDias` + teste de fuso~~ **FEITO 06/ago**
 2. **1.2** unificar `podeOIPSolicitar` (com decisão Admin Geral) + teste  
 3. **1.3** extrair projeção de mês + insert em lotes nas duas actions  
 
