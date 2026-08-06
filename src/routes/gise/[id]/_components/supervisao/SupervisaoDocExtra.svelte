@@ -31,7 +31,7 @@
 		onAssinarExtraSupervisaoDigital?: () => void;
 	}
 
-	let {
+	const {
 		gise,
 		policiais,
 		presencasGise,

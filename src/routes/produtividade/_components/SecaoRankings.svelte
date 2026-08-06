@@ -7,7 +7,7 @@
 	import RankingCard from './RankingCard.svelte';
 	import DetailCard from './DetailCard.svelte';
 
-	let {
+	const {
 		rankingPrisoes,
 		rankingDrogasPeso,
 		rankingArmas,

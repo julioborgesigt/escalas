@@ -64,7 +64,9 @@ export function useProdutividade(getData: () => PageData) {
 	let filterInicio = $state('');
 	let filterFim = $state('');
 
-	// Year filter — defaults to current year; 'personalizado' shows date pickers
+	// Year filter — defaults to current year; 'personalizado' shows date pickers.
+	// Leitura pontual (não fica em estado reativo) — SvelteDate não agrega nada aqui.
+	// eslint-disable-next-line svelte/prefer-svelte-reactivity -- getFullYear() one-shot
 	const currentYear = new Date().getFullYear();
 	const anos = Array.from({ length: 4 }, (_, i) => currentYear - i);
 	let filterAno = $state(String(currentYear));
@@ -174,6 +176,8 @@ export function useProdutividade(getData: () => PageData) {
 
 	// Destroy all stale chart instances when question set changes
 	$effect(() => {
+		// Set efêmero passado a destroyStaleCharts (API tipada em Set) — não vive em $state.
+		// eslint-disable-next-line svelte/prefer-svelte-reactivity -- argumento pontual
 		const currentIds = new Set(QUESTIONS.map((q) => q.id));
 		charts.destroyStaleCharts(currentIds);
 	});

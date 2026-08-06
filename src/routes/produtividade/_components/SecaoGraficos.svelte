@@ -7,7 +7,7 @@
 	import type { Question } from '$lib/produtividade';
 	import type { ProdutividadeParsedRow } from './useProdutividade.svelte';
 
-	let {
+	const {
 		questions,
 		stats,
 		parsedData,

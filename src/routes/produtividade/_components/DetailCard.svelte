@@ -3,7 +3,7 @@
 	 * Card de detalhamento (breakdown) ao lado do ranking — selecionável
 	 * para export PNG/PDF.
 	 */
-	let {
+	const {
 		id,
 		title,
 		details,

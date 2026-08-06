@@ -6,7 +6,7 @@
 	import type { Snippet } from 'svelte';
 	import type { RankingItem } from '$lib/export-charts';
 
-	let {
+	const {
 		id,
 		title,
 		ranking,
