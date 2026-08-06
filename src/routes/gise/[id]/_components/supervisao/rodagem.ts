@@ -29,12 +29,7 @@ export function marcadorRodagem(
 	presencasGise: PresencaGiseLinha[] | null | undefined,
 	seintRelatorioSet: Set<number>
 ) {
-	return estadoMarcadorRodagemSupervisao(
-		papel,
-		policialId,
-		presencasGise ?? [],
-		seintRelatorioSet
-	);
+	return estadoMarcadorRodagemSupervisao(papel, policialId, presencasGise ?? [], seintRelatorioSet);
 }
 
 /** Mapa id→nome do quadro (+ fallback da lista de policiais) para faltantes de rubrica. */

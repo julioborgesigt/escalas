@@ -12,7 +12,12 @@ import {
 import { invalidarPapelGise } from '$lib/server/gise/papel-cache';
 import { giseEquipes, policiais } from '$lib/server/schema';
 import { eq } from 'drizzle-orm';
-import { getInt, podePreencherSeccional, carregarMembroDaGise, carregarSeccionalDaGise } from './shared';
+import {
+	getInt,
+	podePreencherSeccional,
+	carregarMembroDaGise,
+	carregarSeccionalDaGise
+} from './shared';
 import { concluirMudancaGise, invalidarAssinaturasDaSeccional } from './desfecho';
 
 /**

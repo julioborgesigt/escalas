@@ -541,11 +541,16 @@
 		cancelLabel="Cancelar"
 	>
 		{#snippet description()}
-			Tem certeza que deseja excluir esta escala de <strong>{itemParaExcluir?.unidade_nome}</strong>?
-			O status voltará a ser "Não Criada".
+			Tem certeza que deseja excluir esta escala de <strong>{itemParaExcluir?.unidade_nome}</strong
+			>? O status voltará a ser "Não Criada".
 		{/snippet}
 		{#snippet footer()}
-			<form method="POST" action="?/excluirEscala" use:enhance={handleExcluirEscala} class="contents">
+			<form
+				method="POST"
+				action="?/excluirEscala"
+				use:enhance={handleExcluirEscala}
+				class="contents"
+			>
 				<input type="hidden" name="escala_id" value={itemParaExcluir?.escala_id} />
 				<button
 					type="submit"

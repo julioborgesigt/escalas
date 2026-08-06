@@ -39,7 +39,13 @@
 </script>
 
 <div class="flex gap-1 items-center min-w-0">
-	<select class={selectClass} bind:value={hora} {disabled} name={nameHora} aria-label={ariaLabelHora}>
+	<select
+		class={selectClass}
+		bind:value={hora}
+		{disabled}
+		name={nameHora}
+		aria-label={ariaLabelHora}
+	>
 		{#each HORAS as h (h)}
 			<option value={h}>{sufixoHora ? `${h}${sufixoHora}` : h}</option>
 		{/each}

@@ -1,6 +1,14 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { getDB, getR2, hasR2, buscarEscala, listarPoliciaisEscala, buscarPolicial, buscarDocumentoEscala } from '$lib/db';
+import {
+	getDB,
+	getR2,
+	hasR2,
+	buscarEscala,
+	listarPoliciaisEscala,
+	buscarPolicial,
+	buscarDocumentoEscala
+} from '$lib/db';
 import { prepararAssinaturaSchema } from '$lib/schemas';
 import {
 	requireAuth,
@@ -58,7 +66,9 @@ export const POST: RequestHandler = async ({
 		return forbidden('Apenas Admin Geral ou DPC com papel administrativo pode assinar esta escala');
 	}
 	if (escala.tipo === 'fds') {
-		return badRequest('Escala de fim de semana não admite assinatura digital — use o fluxo por e-mail');
+		return badRequest(
+			'Escala de fim de semana não admite assinatura digital — use o fluxo por e-mail'
+		);
 	}
 	const docExistente = await buscarDocumentoEscala(db, id);
 	if (docExistente) {

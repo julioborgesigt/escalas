@@ -11,9 +11,7 @@
 	 * cartão dentro de cartão.
 	 */
 	import { Clock } from '@lucide/svelte';
-	import {
-		quadroSupervisaoExtraExigeRelatorio
-	} from '$lib/gise/supervisao-extra';
+	import { quadroSupervisaoExtraExigeRelatorio } from '$lib/gise/supervisao-extra';
 	import SupervisaoDesignacao from './supervisao/SupervisaoDesignacao.svelte';
 	import SupervisaoDocumentos from './supervisao/SupervisaoDocumentos.svelte';
 	import type { GiseSupervisaoProps } from './supervisao/types';

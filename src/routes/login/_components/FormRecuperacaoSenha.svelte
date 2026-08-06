@@ -64,8 +64,8 @@
 		/>
 		<p class="font-semibold mb-1">Recuperar senha</p>
 		<p class="text-sm text-surface-600 dark:text-surface-400">
-			Informe {tipo === 'policial' ? 'sua matrícula' : 'seu login'} para receber um código de
-			validação por e-mail.
+			Informe {tipo === 'policial' ? 'sua matrícula' : 'seu login'} para receber um código de validação
+			por e-mail.
 		</p>
 	</div>
 
@@ -114,9 +114,7 @@
 			{loadingService.active ? 'Enviando...' : 'Enviar código de validação'}
 		</button>
 
-		<button type="button" class="btn preset-outlined w-full" onclick={onVoltar}>
-			← Voltar
-		</button>
+		<button type="button" class="btn preset-outlined w-full" onclick={onVoltar}> ← Voltar </button>
 	</div>
 {:else if recuperacaoEtapa === 'codigo'}
 	<div class="text-center mb-6">
@@ -168,8 +166,8 @@
 		</p>
 		<p class="text-sm text-surface-600 dark:text-surface-400 mb-6">
 			{#if recuperacaoResultado === 'link'}
-				Dentro de instantes você receberá em seu e-mail funcional um link de redefinição de
-				senha. Verifique também sua caixa de spam.
+				Dentro de instantes você receberá em seu e-mail funcional um link de redefinição de senha.
+				Verifique também sua caixa de spam.
 			{:else}
 				Você receberá um código de validação em instantes.
 			{/if}

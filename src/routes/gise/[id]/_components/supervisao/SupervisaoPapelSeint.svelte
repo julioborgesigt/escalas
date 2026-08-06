@@ -70,8 +70,7 @@
 			<!-- Rótulo + indicador de presença na MESMA linha: fica fora do espaço do
 			     nome do escalado (que abaixo pode truncar). -->
 			<div class="flex flex-wrap items-center gap-x-2 gap-y-0.5">
-				<span
-					class="text-3xs uppercase font-bold text-secondary-500/80 dark:text-secondary-400/80"
+				<span class="text-3xs uppercase font-bold text-secondary-500/80 dark:text-secondary-400/80"
 					>NUIP OIP</span
 				>
 				{#if idPersistido}
@@ -79,8 +78,12 @@
 					<MarcadorPresenca
 						entrada={pr.entrada}
 						saida={pr.saida}
-						faltaRelatorio={marcadorRodagem('seint', idPersistido, presencasGise, seintRelatorioSet) ===
-							'falta_relatorio'}
+						faltaRelatorio={marcadorRodagem(
+							'seint',
+							idPersistido,
+							presencasGise,
+							seintRelatorioSet
+						) === 'falta_relatorio'}
 					/>
 				{/if}
 			</div>

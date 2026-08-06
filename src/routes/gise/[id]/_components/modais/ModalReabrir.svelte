@@ -25,8 +25,7 @@
 	cancelLabel="Cancelar"
 >
 	{#snippet description()}
-		A assinatura digital será <strong>revogada</strong> e será necessário que o supervisor assine
-		novamente.
+		A assinatura digital será <strong>revogada</strong> e será necessário que o supervisor assine novamente.
 	{/snippet}
 
 	{#snippet footer()}

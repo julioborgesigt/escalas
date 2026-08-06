@@ -94,7 +94,9 @@ export const POST: RequestHandler = async ({
 
 	// FLW-AUT-012: FDS encerra por e-mail, não por assinatura digital.
 	if (escala.tipo === 'fds') {
-		return badRequest('Escala de fim de semana não admite assinatura digital — use o fluxo por e-mail');
+		return badRequest(
+			'Escala de fim de semana não admite assinatura digital — use o fluxo por e-mail'
+		);
 	}
 
 	// FLW-AUT-004: reassinatura exige revogar antes (DELETE documento-assinado).

@@ -43,7 +43,11 @@ import { excluirEscalaCompleta } from '$lib/server/escalas/exclusao';
 import { podeOIPSolicitarAssinatura } from '$lib/server/escalas/permissao';
 import { logger } from '$lib/server/logger';
 import { eq, or, and, inArray, sql, desc, type SQL } from 'drizzle-orm';
-import { lotacoesDaSeccional, lotacoesAdministradas, lotacaoNoEscopo } from '$lib/server/policial-permissao';
+import {
+	lotacoesDaSeccional,
+	lotacoesAdministradas,
+	lotacaoNoEscopo
+} from '$lib/server/policial-permissao';
 import {
 	escalas as escalasTable,
 	escalaPoliciais,

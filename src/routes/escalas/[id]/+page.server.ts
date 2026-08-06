@@ -78,7 +78,11 @@ import {
 	agruparDiasPorPolicial,
 	MESES_PT
 } from '$lib/rotacao';
-import { verificarPermissaoEscala, podeMexerNaEscala, podeOIPSolicitarAssinatura } from '$lib/server/escalas/permissao';
+import {
+	verificarPermissaoEscala,
+	podeMexerNaEscala,
+	podeOIPSolicitarAssinatura
+} from '$lib/server/escalas/permissao';
 import { registrarMudancaEscala, nomeDoPolicial } from './_actions/desfecho';
 import { erroDeDatasForaDoPeriodo } from '$lib/server/escalas/periodo';
 

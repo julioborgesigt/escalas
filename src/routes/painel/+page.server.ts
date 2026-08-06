@@ -18,7 +18,13 @@
  */
 import { redirect, fail } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
-import { getDB, listarUnidades, registrarAuditComContexto, contextoDeEvento, buscarDocumentoEscala } from '$lib/db';
+import {
+	getDB,
+	listarUnidades,
+	registrarAuditComContexto,
+	contextoDeEvento,
+	buscarDocumentoEscala
+} from '$lib/db';
 import { excluirEscalaCompleta } from '$lib/server/escalas/exclusao';
 import type { Database } from '$lib/db';
 import { getNowBR, MESES_PT, isoData, diasNoMes } from '$lib/utils/datas';

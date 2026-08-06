@@ -194,9 +194,7 @@
 <div class="flex flex-col gap-1.5 w-full animate-fade">
 	{#if !extraSupervisaoConfigurado}
 		{#if isMobile}
-			<p
-				class="text-3xs font-bold uppercase tracking-wider text-surface-400 dark:text-surface-500"
-			>
+			<p class="text-3xs font-bold uppercase tracking-wider text-surface-400 dark:text-surface-500">
 				Relatório de extra (Supervisão e apoio)
 			</p>
 		{/if}
@@ -217,11 +215,7 @@
 			tituloMobile="Relatório de extra — supervisão e apoio"
 			tituloDesktop={assRelSup ? 'Relatório de extra' : 'Relatório de extra (supervisão)'}
 			badgeEstado={assRelSup ? 'sucesso' : rubSupOk ? 'alerta' : 'neutro'}
-			badgeLabel={assRelSup
-				? 'Assinado'
-				: rubSupOk
-					? 'pronto para assinar'
-					: 'Aguardando rubricas'}
+			badgeLabel={assRelSup ? 'Assinado' : rubSupOk ? 'pronto para assinar' : 'Aguardando rubricas'}
 			bind:expandido={expandirExtra}
 			detalhes={detalhesExtra}
 			acoes={acoesExtra}

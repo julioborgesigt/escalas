@@ -370,11 +370,7 @@
 	<input type="hidden" name="seint1_id" value={seint1Id ?? ''} />
 	<input type="hidden" name="seint2_id" value={seint2Id ?? ''} />
 	{#if editandoPapel !== 'assessor'}
-		<input
-			type="hidden"
-			name="assessor_email_notificacao"
-			value={assessorEmailNotificacao ?? ''}
-		/>
+		<input type="hidden" name="assessor_email_notificacao" value={assessorEmailNotificacao ?? ''} />
 		{#if assessorId != null}
 			<input type="hidden" name="confirmar_email_assessor" value="1" />
 		{/if}

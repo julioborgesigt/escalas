@@ -77,9 +77,7 @@
 				/></svg
 			>
 		</div>
-		<h3
-			class="text-lg font-black uppercase tracking-tighter text-surface-900 dark:text-surface-50"
-		>
+		<h3 class="text-lg font-black uppercase tracking-tighter text-surface-900 dark:text-surface-50">
 			{title}
 		</h3>
 	</div>

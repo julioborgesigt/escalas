@@ -20,9 +20,7 @@
 				? 'preset-outlined-tertiary-500'
 				: 'preset-outlined-primary-500'
 	);
-	const label = $derived(
-		tipo === 'expediente' ? 'Expediente' : tipo === 'fds' ? 'FDS' : 'Plantão'
-	);
+	const label = $derived(tipo === 'expediente' ? 'Expediente' : tipo === 'fds' ? 'FDS' : 'Plantão');
 </script>
 
 <span class="badge {preset} font-bold {sizeCls} px-2 py-0.5 {layoutCls}">{label}</span>

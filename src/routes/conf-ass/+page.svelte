@@ -218,11 +218,7 @@
 					não será solicitada.
 				</p>
 			</div>
-			<ToggleSwitch
-				cor="primary"
-				checked={exigirFoto}
-				onCheckedChange={(v) => (exigirFoto = v)}
-			/>
+			<ToggleSwitch cor="primary" checked={exigirFoto} onCheckedChange={(v) => (exigirFoto = v)} />
 		</div>
 
 		<div class="border-t border-surface-200 dark:border-white/10"></div>
@@ -236,11 +232,7 @@
 					assinatura em tela. Desativando, nenhuma localização é solicitada ao dispositivo.
 				</p>
 			</div>
-			<ToggleSwitch
-				cor="primary"
-				checked={exigirGps}
-				onCheckedChange={(v) => (exigirGps = v)}
-			/>
+			<ToggleSwitch cor="primary" checked={exigirGps} onCheckedChange={(v) => (exigirGps = v)} />
 		</div>
 
 		<div class="border-t border-surface-200 dark:border-white/10"></div>

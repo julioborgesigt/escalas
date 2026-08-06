@@ -45,12 +45,8 @@
 			apenas "não poderá ser desfeita", e quem clicava não tinha como
 			saber que estava encerrando sem os relatórios.
 		-->
-		<div
-			class="rounded-xl border border-warning-500/40 bg-warning-500/10 p-4 text-left space-y-2"
-		>
-			<p class="text-sm font-bold text-warning-700 dark:text-warning-300">
-				Finalização antecipada
-			</p>
+		<div class="rounded-xl border border-warning-500/40 bg-warning-500/10 p-4 text-left space-y-2">
+			<p class="text-sm font-bold text-warning-700 dark:text-warning-300">Finalização antecipada</p>
 			<p class="text-sm text-surface-700 dark:text-surface-300">
 				Esta escala ainda não percorreu o fluxo completo. Finalizar agora encerra sem:
 			</p>

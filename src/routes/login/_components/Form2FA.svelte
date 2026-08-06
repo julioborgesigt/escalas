@@ -26,10 +26,7 @@
 </script>
 
 <div class="text-center mb-6">
-	<Mail
-		class="w-12 h-12 mx-auto mb-3 text-surface-600 dark:text-surface-400"
-		aria-hidden="true"
-	/>
+	<Mail class="w-12 h-12 mx-auto mb-3 text-surface-600 dark:text-surface-400" aria-hidden="true" />
 	<p class="font-semibold mb-1">Verificação em dois fatores</p>
 </div>
 
@@ -65,7 +62,5 @@
 		{loadingService.active ? 'Verificando...' : 'Confirmar'}
 	</button>
 
-	<button type="button" class="btn preset-outlined w-full" onclick={onVoltar}>
-		← Voltar
-	</button>
+	<button type="button" class="btn preset-outlined w-full" onclick={onVoltar}> ← Voltar </button>
 </form>

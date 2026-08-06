@@ -33,11 +33,7 @@
 </script>
 
 <div class="mb-8">
-	<Tabs
-		value={tipo}
-		onValueChange={(e) => (tipo = e.value as 'policial' | 'admin')}
-		class="w-full"
-	>
+	<Tabs value={tipo} onValueChange={(e) => (tipo = e.value as 'policial' | 'admin')} class="w-full">
 		<Tabs.List
 			class="flex items-center rounded-xl border border-surface-200 dark:border-surface-700 bg-surface-100 dark:bg-surface-800 p-1 gap-1 w-full"
 		>
@@ -55,12 +51,7 @@
 	</Tabs>
 </div>
 
-<form
-	method="POST"
-	action="?/login"
-	use:enhance={handleLogin}
-	class="flex flex-col gap-4 sm:gap-6"
->
+<form method="POST" action="?/login" use:enhance={handleLogin} class="flex flex-col gap-4 sm:gap-6">
 	<input type="hidden" name="tipo" value={tipo} />
 	{#if tipo === 'admin'}
 		<input type="hidden" name="adminModulo" value={adminModulo} />
@@ -98,9 +89,7 @@
 			type="text"
 			name="matricula"
 			bind:value={matricula}
-			placeholder={tipo === 'admin'
-				? 'Digite seu login'
-				: 'Digite sua matrícula (8 caracteres)'}
+			placeholder={tipo === 'admin' ? 'Digite seu login' : 'Digite sua matrícula (8 caracteres)'}
 			maxlength={tipo === 'admin' ? undefined : 8}
 			autocomplete="username"
 			inputmode={tipo === 'policial' ? 'numeric' : 'text'}

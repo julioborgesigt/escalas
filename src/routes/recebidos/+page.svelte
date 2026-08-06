@@ -758,8 +758,8 @@
 	cancelLabel="Cancelar"
 >
 	{#snippet description()}
-		Tem certeza que deseja excluir esta escala de <strong>{escalaParaExcluir?.lotacao}</strong>? Esta
-		ação não pode ser desfeita e removerá permanentemente o registro e o arquivo assinado.
+		Tem certeza que deseja excluir esta escala de <strong>{escalaParaExcluir?.lotacao}</strong>?
+		Esta ação não pode ser desfeita e removerá permanentemente o registro e o arquivo assinado.
 	{/snippet}
 	{#snippet footer()}
 		<form method="POST" action="?/excluir" use:enhance={handleExcluir} class="contents">

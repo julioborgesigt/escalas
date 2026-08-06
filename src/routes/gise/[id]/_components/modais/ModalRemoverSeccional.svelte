@@ -13,7 +13,7 @@
 
 <ModalShell
 	{open}
-	onOpenChange={onOpenChange}
+	{onOpenChange}
 	title="Remover seccional?"
 	familia="gise"
 	largura="sm"
@@ -25,7 +25,12 @@
 	{/snippet}
 
 	{#snippet footer()}
-		<button type="button" class="btn preset-filled-error-500" onclick={onConfirm} disabled={pending}>
+		<button
+			type="button"
+			class="btn preset-filled-error-500"
+			onclick={onConfirm}
+			disabled={pending}
+		>
 			{pending ? 'Removendo...' : 'Remover'}
 		</button>
 	{/snippet}

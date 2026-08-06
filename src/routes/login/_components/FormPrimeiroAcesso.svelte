@@ -57,9 +57,7 @@
 		>
 			{loadingService.active ? 'Enviando...' : 'Enviar senha provisória'}
 		</button>
-		<button type="button" class="btn preset-outlined w-full" onclick={onVoltar}>
-			← Voltar
-		</button>
+		<button type="button" class="btn preset-outlined w-full" onclick={onVoltar}> ← Voltar </button>
 	</form>
 {:else}
 	<div class="text-center">
@@ -69,8 +67,8 @@
 		/>
 		<p class="font-semibold mb-2">E-mail enviado!</p>
 		<p class="text-sm text-surface-600 dark:text-surface-400 mb-6">
-			Se a matrícula estiver cadastrada com e-mail, você receberá a senha provisória em
-			instantes. Verifique também sua caixa de spam.
+			Se a matrícula estiver cadastrada com e-mail, você receberá a senha provisória em instantes.
+			Verifique também sua caixa de spam.
 		</p>
 		<button type="button" class="btn preset-filled-primary-500 w-full" onclick={onVoltar}>
 			Ir para o login

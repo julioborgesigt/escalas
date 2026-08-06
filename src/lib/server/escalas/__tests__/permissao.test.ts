@@ -11,7 +11,12 @@ vi.mock('$lib/server/policial-permissao', () => ({
 }));
 
 // Import depois do mock para garantir bind correto.
-import { verificarPermissaoEscala, podeAssinarEscala, podeMexerNaEscala, podeOIPSolicitarAssinatura } from '../permissao';
+import {
+	verificarPermissaoEscala,
+	podeAssinarEscala,
+	podeMexerNaEscala,
+	podeOIPSolicitarAssinatura
+} from '../permissao';
 import { temSolicitacaoParaDpcAdmin } from '$lib/db';
 import { lotacoesAdministradas } from '$lib/server/policial-permissao';
 

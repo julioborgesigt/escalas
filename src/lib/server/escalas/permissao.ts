@@ -100,9 +100,7 @@ export function podeMexerNaEscala(u: App.Locals['usuario'], lotacaoDaEscala: str
 export function podeAssinarEscala(u: App.Locals['usuario']): boolean {
 	if (!u) return false;
 	if (u.tipo === 'admin') return true;
-	return (
-		(u.papel === 'admin_seccional' || u.papel === 'admin_unidade') && u.cargo === 'DPC'
-	);
+	return (u.papel === 'admin_seccional' || u.papel === 'admin_unidade') && u.cargo === 'DPC';
 }
 
 /**

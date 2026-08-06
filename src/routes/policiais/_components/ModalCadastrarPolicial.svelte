@@ -145,13 +145,7 @@
 		>
 			<Dialog.Title class="h3 font-bold mb-5">Cadastrar Novo Policial</Dialog.Title>
 
-			<form
-				id={formId}
-				method="POST"
-				action="?/criar"
-				use:enhance={handleSalvar}
-				class="space-y-3"
-			>
+			<form id={formId} method="POST" action="?/criar" use:enhance={handleSalvar} class="space-y-3">
 				<!-- Campos hidden -->
 				<input type="hidden" name="cpf" value={limparCPF(cpf)} />
 				<input type="hidden" name="telefone" value={telefone} />
