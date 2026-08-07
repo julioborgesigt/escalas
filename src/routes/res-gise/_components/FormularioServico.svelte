@@ -28,6 +28,7 @@
 	import Spinner from '$lib/components/Spinner.svelte';
 	import { loading } from '$lib/loading.svelte';
 	import { toaster } from '$lib/toast';
+	import type { Snippet } from 'svelte';
 	import type { useResGise } from './useResGise.svelte';
 
 	type ResGise = ReturnType<typeof useResGise>;
@@ -133,21 +134,46 @@
 	}
 </script>
 
-{#snippet btnBaixarComprovante(tipo: 'entrada' | 'saida')}
+{#snippet btnDownloadEtapa(rotulo: string, aoClicar: () => void, carregando: boolean)}
 	<button
 		type="button"
-		class="btn btn-sm preset-tonal-surface-500 rounded-lg text-3xs font-bold uppercase flex items-center gap-1.5 shrink-0 ml-auto"
-		title="Baixar comprovante de {tipo === 'entrada' ? 'entrada' : 'saída'}"
-		onclick={() => resGise.baixarTermoPresenca(tipo)}
-		disabled={loading.active || resGise.baixandoTermo === tipo}
+		class="btn btn-sm flex w-full items-center justify-center gap-1.5 rounded-xl preset-tonal-surface-500 py-2 text-3xs font-bold tracking-wide uppercase"
+		onclick={aoClicar}
+		disabled={loading.active || carregando}
 	>
-		{#if resGise.baixandoTermo === tipo}
+		{#if carregando}
 			<Spinner size="sm" />
 		{:else}
 			{@render btnIcon('M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4')}
 		{/if}
-		<span class="hidden sm:inline">Comprovante</span>
+		{rotulo}
 	</button>
+{/snippet}
+
+<!-- Downloads de cada etapa, no rodapé do card correspondente: comprovante
+     (termo de presença) da entrada/saída e o PDF do relatório de produtividade. -->
+{#snippet comprovanteEntrada()}
+	{@render btnDownloadEtapa(
+		'Baixar comprovante',
+		() => resGise.baixarTermoPresenca('entrada'),
+		resGise.baixandoTermo === 'entrada'
+	)}
+{/snippet}
+{#snippet comprovanteSaida()}
+	{@render btnDownloadEtapa(
+		'Baixar comprovante',
+		() => resGise.baixarTermoPresenca('saida'),
+		resGise.baixandoTermo === 'saida'
+	)}
+{/snippet}
+{#snippet baixarProdutividade()}
+	{#if esc && relatorioOk && esc.seccional_id !== 0}
+		{@render btnDownloadEtapa(
+			'Baixar relatório',
+			() => esc && resGise.baixarRelatorio(esc),
+			resGise.baixandoProdutividade === esc.id
+		)}
+	{/if}
 {/snippet}
 
 {#snippet blocoRestritoDesktop(tipo: 'entrada' | 'saida')}
@@ -250,95 +276,93 @@
 	</div>
 {/if}
 
-{#snippet passo(
+<!--
+	Card de UMA etapa. Funde o que antes eram dois blocos separados que diziam a
+	mesma coisa — a barra de progresso (marcador + rótulo + botão) e o quadro de
+	resultado (marcador + status + download). Agora cada passo é UM card, na
+	ordem de execução, com tudo dele: marcador de estado no topo, rótulo, a linha
+	de status/pendência e o rodapé de ações (a ação primária do passo mais os
+	downloads via `extras`).
+
+	Marcador (README §10): ✓ em círculo `success` cumprido, número em `primary`
+	quando é o passo ATIVO (o que fazer agora), número `surface` esmaecido quando
+	ainda depende de um passo anterior. O relógio `warning` da linha de status é
+	que carrega o "pendente" — o mesmo par Check/Clock dos quadros antigos.
+-->
+{#snippet etapaCard(
 	indice: number,
 	rotulo: string,
 	concluido: boolean,
 	ativo: boolean,
-	acao: { label: string; onclick: () => void; disabled: boolean; titulo?: string } | null
+	statusTexto: string,
+	primaria: { label: string; onclick: () => void; disabled: boolean; titulo?: string } | null,
+	extras?: Snippet
 )}
-	<!-- `relative`: posicionado, então pinta ACIMA da linha conectora (que é
-	     `absolute` e vem antes no DOM). -->
-	<div class="relative flex flex-col items-center gap-1.5 text-center">
+	<div
+		class="relative flex h-full flex-col items-center gap-2 rounded-2xl border p-4 text-center transition-colors {concluido
+			? 'border-success-500/30 bg-success-500/10'
+			: ativo
+				? 'border-primary-500/40 bg-primary-500/5'
+				: 'border-surface-200 bg-surface-50 dark:border-surface-800 dark:bg-surface-950/40'}"
+	>
 		<div
-			class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold {concluido
+			class="flex h-9 w-9 items-center justify-center rounded-full text-sm font-bold transition-colors {concluido
 				? 'bg-success-500 text-white'
 				: ativo
 					? 'bg-primary-500 text-white shadow-lg shadow-primary-500/30'
 					: 'bg-surface-200 text-surface-600 dark:bg-surface-800 dark:text-surface-400'}"
 		>
-			{#if concluido}✓{:else}{indice}{/if}
-		</div>
-		<span
-			class="text-3xs font-bold uppercase tracking-wider {concluido
-				? 'text-success-600 dark:text-success-500'
-				: ativo
-					? 'text-primary-600 dark:text-primary-400'
-					: 'text-surface-600 dark:text-surface-400'}">{rotulo}</span
-		>
-		{#if acao}
-			<button
-				type="button"
-				class="btn btn-sm mt-1 w-full max-w-[11rem] rounded-xl text-3xs font-black uppercase tracking-wide whitespace-normal {acao.disabled
-					? 'preset-outlined-surface-500 opacity-45 cursor-not-allowed'
-					: concluido
-						? 'preset-outlined-primary-500'
-						: 'preset-filled-primary-500 shadow-md shadow-primary-500/20'}"
-				disabled={acao.disabled || loading.active}
-				title={acao.titulo}
-				onclick={acao.onclick}
-			>
-				{acao.label}
-			</button>
-		{/if}
-	</div>
-{/snippet}
-
-<!--
-	Cabeçalho do quadro de resultado: marcador + rótulo + linha de detalhe. O
-	texto muda conforme a tarefa esteja cumprida (`detalhe`) ou não
-	(`pendencia`) — é o mesmo conteúdo dos avisos antigos, em coluna.
-
-	O marcador é o estado da tarefa, no MESMO lugar nos dois casos: ✓ verde
-	cumprida, relógio laranja pendente. Antes o pendente era um ponto cinza —
-	que lido de relance é "desligado", não "falta fazer". Os três quadros usam
-	o mesmo par: a saída já foi `surface` (cinza) quando cumprida e destoava
-	dos outros dois na mesma linha, sem que nada distinguisse a tarefa.
--->
-{#snippet cabecalhoQuadro(rotulo: string, concluido: boolean, detalhe: string, pendencia: string)}
-	<div class="flex items-start gap-2">
-		<div
-			class="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full {concluido
-				? 'bg-success-500'
-				: 'bg-warning-500'}"
-		>
 			{#if concluido}
-				<Check class="h-3.5 w-3.5 text-white" strokeWidth={3} aria-hidden="true" />
+				<Check class="h-4 w-4" strokeWidth={3} aria-hidden="true" />
 			{:else}
-				<Clock class="h-3.5 w-3.5 text-white" strokeWidth={2.5} aria-hidden="true" />
+				{indice}
 			{/if}
 		</div>
-		<div class="min-w-0">
-			<p
-				class="text-3xs font-bold uppercase tracking-wider {concluido
-					? 'text-success-700 dark:text-success-400'
-					: 'text-warning-700 dark:text-warning-400'}"
-			>
-				{rotulo}
-			</p>
-			<p class="text-3xs tabular-nums text-surface-600 dark:text-surface-400">
-				{concluido ? detalhe : pendencia}
+		<p
+			class="text-sm font-bold {concluido
+				? 'text-success-700 dark:text-success-400'
+				: ativo
+					? 'text-primary-700 dark:text-primary-400'
+					: 'text-surface-700 dark:text-surface-200'}"
+		>
+			{rotulo}
+		</p>
+		<div class="flex min-h-8 items-start justify-center gap-1.5">
+			{#if concluido}
+				<Check class="mt-0.5 h-3.5 w-3.5 shrink-0 text-success-500" strokeWidth={3} aria-hidden="true" />
+			{:else}
+				<Clock class="mt-0.5 h-3.5 w-3.5 shrink-0 text-warning-500" strokeWidth={2.5} aria-hidden="true" />
+			{/if}
+			<p class="text-3xs leading-tight tabular-nums text-surface-600 dark:text-surface-400">
+				{statusTexto}
 			</p>
 		</div>
+		{#if primaria || extras}
+			<div class="mt-auto flex w-full flex-col gap-2 pt-1">
+				{#if primaria}
+					<button
+						type="button"
+						class="btn btn-sm w-full rounded-xl py-2 text-3xs font-black tracking-wide whitespace-normal uppercase {primaria.disabled
+							? 'preset-outlined-surface-500 cursor-not-allowed opacity-45'
+							: concluido
+								? 'preset-outlined-primary-500'
+								: 'preset-filled-primary-500 shadow-md shadow-primary-500/20'}"
+						disabled={primaria.disabled || loading.active}
+						title={primaria.titulo}
+						onclick={primaria.onclick}
+					>
+						{primaria.label}
+					</button>
+				{/if}
+				{@render extras?.()}
+			</div>
+		{/if}
 	</div>
 {/snippet}
 
 {#if resGise.escalaSelecionada}
 	{@const escala = resGise.escalaSelecionada}
 	{@const passoAtivo = !entradaOk ? 1 : temProdutividade && !relatorioOk ? 2 : !saidaOk ? 3 : 0}
-	{@const molduraQuadro = 'flex h-full flex-col gap-2 rounded-2xl border p-3 transition-colors'}
-	{@const molduraPendente =
-		'border-surface-200 bg-surface-50 dark:border-surface-800 dark:bg-surface-950/40'}
 
 	<div class="space-y-6">
 		<div class="border-b border-surface-200 dark:border-surface-800 pb-4">
@@ -349,26 +373,26 @@
 		</div>
 
 		<!--
-			Barra de progresso: os passos ficam FIXOS na tela e cada um leva ao seu
-			modal. Antes as três tarefas eram seções empilhadas dentro do card, o que
-			no desktop virava ~1050px de faixa com o conteúdo perdido no meio.
-
-			Grade de N colunas com a linha conectora `absolute` entre os centros das
-			colunas extremas: assim o botão de cada passo cai exatamente sob o seu
-			círculo — o que o `justify-between` do layout antigo não permitia.
+			Etapas do serviço em cards, na ordem de execução (entrada → produtividade
+			→ saída). Cada card É o passo inteiro: marcador de estado, rótulo, a linha
+			de status/pendência e o rodapé de ações (a ação primária do passo mais os
+			downloads). Antes isso eram DOIS blocos — a barra de progresso e um quadro
+			de resultado por tarefa — que repetiam marcador e rótulo; aqui viram um só.
+			No celular os cards empilham; no desktop ficam lado a lado (2 ou 3 colunas).
 		-->
-		<div class="relative grid gap-2 {temProdutividade ? 'grid-cols-3' : 'grid-cols-2'}">
-			<div
-				class="pointer-events-none absolute top-4 h-px bg-surface-200 dark:bg-surface-700 {temProdutividade
-					? 'left-[16.667%] right-[16.667%]'
-					: 'left-1/4 right-1/4'}"
-			></div>
-
-			{@render passo(
+		<div class="grid grid-cols-1 gap-3 {temProdutividade ? 'sm:grid-cols-3' : 'sm:grid-cols-2'}">
+			{@render etapaCard(
 				1,
 				'Entrada',
 				entradaOk,
 				passoAtivo === 1,
+				entradaOk && escala.presenca?.entrada_timestamp
+					? new Date(escala.presenca.entrada_timestamp).toLocaleString('pt-BR', {
+							timeZone: 'America/Sao_Paulo'
+						})
+					: horarioEntradaLiberado
+						? 'Aguardando confirmação'
+						: `Disponível às ${escala.horarioPrevisto?.inicio ?? '—'}`,
 				entradaOk
 					? null
 					: {
@@ -378,23 +402,51 @@
 							titulo: horarioEntradaLiberado
 								? undefined
 								: `Liberado às ${escala.horarioPrevisto?.inicio ?? '—'}`
-						}
+						},
+				entradaOk ? comprovanteEntrada : undefined
 			)}
 
 			{#if temProdutividade}
-				{@render passo(2, 'Produtividade', relatorioOk, passoAtivo === 2, {
-					label: relatorioOk ? 'Retificar dados' : 'Preencher relatório',
-					onclick: () => goto(urlRelatorio),
-					disabled: !entradaOk,
-					titulo: entradaOk ? undefined : 'Confirme a entrada primeiro'
-				})}
+				{@render etapaCard(
+					2,
+					'Produtividade',
+					relatorioOk,
+					passoAtivo === 2,
+					relatorioOk
+						? resGise.respostaEnviadaEm
+							? `Enviado em ${fmtDataHora(resGise.respostaEnviadaEm)}${
+									houveRetificacao
+										? ` · retificado em ${fmtDataHora(resGise.respostaAtualizadaEm)}`
+										: ''
+								}`
+							: 'Registrado'
+						: entradaOk
+							? 'Aguardando envio'
+							: 'Confirme a entrada primeiro',
+					{
+						label: relatorioOk ? 'Retificar dados' : 'Preencher relatório',
+						onclick: () => goto(urlRelatorio),
+						disabled: !entradaOk,
+						titulo: entradaOk ? undefined : 'Confirme a entrada primeiro'
+					},
+					baixarProdutividade
+				)}
 			{/if}
 
-			{@render passo(
+			{@render etapaCard(
 				temProdutividade ? 3 : 2,
 				'Saída',
 				saidaOk,
 				passoAtivo === 3,
+				saidaOk && escala.presenca?.saida_timestamp
+					? new Date(escala.presenca.saida_timestamp).toLocaleString('pt-BR', {
+							timeZone: 'America/Sao_Paulo'
+						})
+					: !horarioSaidaLiberado
+						? `Disponível às ${escala.horarioPrevisto?.fim ?? '—'}`
+						: !relatorioOk
+							? 'Depende do relatório'
+							: 'Aguardando confirmação',
 				saidaOk
 					? null
 					: {
@@ -410,98 +462,9 @@
 								: !relatorioOk
 									? 'Envie o relatório de produtividade antes'
 									: undefined
-						}
+						},
+				saidaOk ? comprovanteSaida : undefined
 			)}
-		</div>
-
-		<!-- Resultados: um quadro por tarefa, lado a lado, na ordem de execução. -->
-		<div class="grid grid-cols-1 gap-3 {temProdutividade ? 'sm:grid-cols-3' : 'sm:grid-cols-2'}">
-			<div
-				class="{molduraQuadro} {entradaOk
-					? 'border-success-500/25 bg-success-500/10'
-					: molduraPendente}"
-			>
-				{@render cabecalhoQuadro(
-					'Entrada confirmada',
-					entradaOk,
-					entradaOk && escala.presenca?.entrada_timestamp
-						? new Date(escala.presenca.entrada_timestamp).toLocaleString('pt-BR', {
-								timeZone: 'America/Sao_Paulo'
-							})
-						: '',
-					horarioEntradaLiberado
-						? 'Aguardando confirmação'
-						: `Disponível às ${escala.horarioPrevisto?.inicio ?? '—'}`
-				)}
-				{#if entradaOk}
-					<div class="mt-auto flex pt-1">{@render btnBaixarComprovante('entrada')}</div>
-				{/if}
-			</div>
-
-			{#if temProdutividade}
-				<div
-					class="{molduraQuadro} {relatorioOk
-						? 'border-success-500/25 bg-success-500/10'
-						: molduraPendente}"
-				>
-					{@render cabecalhoQuadro(
-						'Relatório entregue',
-						relatorioOk,
-						resGise.respostaEnviadaEm
-							? `Enviado em ${fmtDataHora(resGise.respostaEnviadaEm)}${
-									houveRetificacao
-										? ` · retificado em ${fmtDataHora(resGise.respostaAtualizadaEm)}`
-										: ''
-								}`
-							: 'Registrado',
-						entradaOk ? 'Aguardando envio' : 'Confirme a entrada primeiro'
-					)}
-					{#if relatorioOk && escala.seccional_id !== 0}
-						<div class="mt-auto flex pt-1">
-							<button
-								type="button"
-								class="btn btn-sm preset-tonal-surface-500 rounded-lg text-3xs font-bold uppercase flex items-center gap-1.5 shrink-0 ml-auto"
-								title="Baixar relatório de produtividade em PDF"
-								onclick={() => resGise.baixarRelatorio(escala)}
-								disabled={loading.active || resGise.baixandoProdutividade === escala.id}
-							>
-								{#if resGise.baixandoProdutividade === escala.id}
-									<Spinner size="sm" />
-								{:else}
-									{@render btnIcon(
-										'M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4'
-									)}
-								{/if}
-								<span class="hidden sm:inline">Relatório</span>
-							</button>
-						</div>
-					{/if}
-				</div>
-			{/if}
-
-			<div
-				class="{molduraQuadro} {saidaOk
-					? 'border-success-500/25 bg-success-500/10'
-					: molduraPendente}"
-			>
-				{@render cabecalhoQuadro(
-					'Saída confirmada',
-					saidaOk,
-					saidaOk && escala.presenca?.saida_timestamp
-						? new Date(escala.presenca.saida_timestamp).toLocaleString('pt-BR', {
-								timeZone: 'America/Sao_Paulo'
-							})
-						: '',
-					!horarioSaidaLiberado
-						? `Disponível às ${escala.horarioPrevisto?.fim ?? '—'}`
-						: !relatorioOk
-							? 'Depende do relatório'
-							: 'Aguardando confirmação'
-				)}
-				{#if saidaOk}
-					<div class="mt-auto flex pt-1">{@render btnBaixarComprovante('saida')}</div>
-				{/if}
-			</div>
 		</div>
 
 		<div class="pt-2">
