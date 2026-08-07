@@ -33,17 +33,6 @@ function erroDaAction(result: ActionResult, fallback: string): string {
 	return fallback;
 }
 
-/** Filtro de escalas na URL (`?status=ativas|finalizadas`); admin não usa mais lista nesta rota. */
-function resolveStatusFilterFromUrl(
-	usuario: { tipo?: string } | null | undefined,
-	url: URL
-): string {
-	const q = url.searchParams.get('status');
-	if (q === 'ativas' || q === 'finalizadas') return q;
-	if (usuario?.tipo === 'admin') return '';
-	return '';
-}
-
 export function useResGise(getData: () => ResGisePageData) {
 	// --- Derived do Objeto de Dados (Reactive Root) ---
 	const data = $derived(getData());
@@ -56,9 +45,16 @@ export function useResGise(getData: () => ResGisePageData) {
 	let capturandoRubrica = $state(false);
 
 	// --- Filtros ---
-	let statusFilterUrl = $state(resolveStatusFilterFromUrl(page.data.usuario, page.url));
-	let mesFilterUrl = $state(page.url.searchParams.get('mes') || '');
-	let dataFilterUrl = $state(page.url.searchParams.get('data') || '');
+	// Espelham a URL (fonte única). São as duas abas da sidebar que trocam o
+	// `?status`: sem ele é "ativas", com `finalizadas` é o histórico. Derivados
+	// (não `$state`) porque quem manda é a URL — a aba "Presença GISE" navega
+	// para `/res-gise` SEM `status`, e um `$state` sincronizado só quando o
+	// parâmetro existe ficaria preso em "finalizadas" ao voltar do histórico.
+	const statusFilterUrl = $derived(
+		page.url.searchParams.get('status') === 'finalizadas' ? 'finalizadas' : 'ativas'
+	);
+	const mesFilterUrl = $derived(page.url.searchParams.get('mes') || '');
+	const dataFilterUrl = $derived(page.url.searchParams.get('data') || '');
 
 	let idProdutividadeBaixando = $state<number | null>(null);
 	let idExtraBaixando = $state<number | null>(null);
@@ -81,14 +77,6 @@ export function useResGise(getData: () => ResGisePageData) {
 		perguntasConfig = structuredClone(source);
 	});
 
-	/** Sincroniza com a URL quando `?status=` está presente (evita sobrescrever antes do `goto`). */
-	$effect(() => {
-		const q = page.url.searchParams.get('status');
-		if (q === 'ativas' || q === 'finalizadas') {
-			if (q !== statusFilterUrl) statusFilterUrl = q;
-		}
-	});
-
 	// --- Derived ---
 	const configJson = $derived(JSON.stringify(perguntasConfig));
 
@@ -103,23 +91,19 @@ export function useResGise(getData: () => ResGisePageData) {
 		goto(navUrl.pathname + navUrl.search, { keepFocus: true, noScroll: true });
 	}
 
+	// Mês e data são mutuamente exclusivos. Só navega — `mesFilterUrl`/
+	// `dataFilterUrl` são derivados da URL e se reajustam sozinhos depois do
+	// `goto`. O `?status` corrente é preservado por `navigateWithFilters`, então
+	// filtrar por data não tira o usuário do histórico.
 	function changeDateFilter(type: 'mes' | 'data', value: string) {
-		if (type === 'mes') {
-			mesFilterUrl = value;
-			dataFilterUrl = '';
-			navigateWithFilters({ mes: value, data: null });
-		} else {
-			dataFilterUrl = value;
-			mesFilterUrl = '';
-			navigateWithFilters({ data: value, mes: null });
-		}
+		if (type === 'mes') navigateWithFilters({ mes: value, data: null });
+		else navigateWithFilters({ data: value, mes: null });
 	}
 
+	// Limpa só os filtros de data — mantém a aba (o `status` da URL). Antes zerava
+	// `status` também, o que jogava o usuário do Histórico de volta para Ativas.
 	function limparFiltros() {
-		statusFilterUrl = '';
-		mesFilterUrl = '';
-		dataFilterUrl = '';
-		navigateWithFilters({ status: null, mes: null, data: null });
+		navigateWithFilters({ mes: null, data: null });
 	}
 
 	// --- Funções do Configurador ---
