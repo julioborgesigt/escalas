@@ -21,6 +21,7 @@
 	 */
 	import { goto } from '$app/navigation';
 	import SkeletonCards from '$lib/components/SkeletonCards.svelte';
+	import BotaoLimparFiltros from '$lib/components/BotaoLimparFiltros.svelte';
 	import { useSamePathNavigating } from '$lib/composables';
 	import { apiFetchResponse } from '$lib/api-fetch';
 	import { baixarBlob, nomeArquivoContentDisposition } from '$lib/utils/download';
@@ -109,6 +110,13 @@
 	const historicoFiltroMesAtivo = $derived(!!filtroMesAno);
 	const historicoFiltroCicloAtivo = $derived(filtroAnoCiclo !== '' && filtroNumeroCiclo !== '');
 	const historicoFiltroDataAtivo = $derived(!!filtroData);
+	const temFiltros = $derived(
+		filtroSeccional !== '' ||
+			!!filtroMesAno ||
+			filtroAnoCiclo !== '' ||
+			filtroNumeroCiclo !== '' ||
+			!!filtroData
+	);
 
 	const historicoExportSlug = $derived(
 		filtroMesAno
@@ -232,7 +240,7 @@
 					/>
 				</svg>
 				Filtros
-				{#if filtroSeccional !== '' || filtroMesAno || filtroAnoCiclo !== '' || filtroNumeroCiclo !== '' || filtroData}
+				{#if temFiltros}
 					<span class="h-1.5 w-1.5 rounded-full bg-primary-500"></span>
 				{/if}
 			</button>
@@ -417,15 +425,7 @@
 								</Portal>
 							</Popover>
 						{/if}
-						{#if filtroSeccional !== '' || filtroMesAno || filtroAnoCiclo !== '' || filtroNumeroCiclo !== '' || filtroData}
-							<button
-								type="button"
-								class="text-xs font-semibold text-primary-600 underline-offset-2 hover:underline dark:text-primary-400"
-								onclick={limparFiltrosHistorico}
-							>
-								Limpar filtros
-							</button>
-						{/if}
+						<BotaoLimparFiltros {temFiltros} onclick={limparFiltrosHistorico} />
 					</div>
 				</div>
 			</div>
@@ -464,14 +464,14 @@
 						Não encontramos escalas para os filtros aplicados. Tente alterar o mês, ano ou
 						seccional.
 					</p>
-					{#if filtroSeccional !== '' || filtroMesAno || filtroAnoCiclo !== '' || filtroNumeroCiclo !== '' || filtroData}
-						<button
-							type="button"
-							class="mt-2 text-xs font-semibold text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300 hover:underline transition-colors"
-							onclick={limparFiltrosHistorico}
-						>
-							Limpar todos os filtros
-						</button>
+					{#if temFiltros}
+						<div class="mt-2">
+							<BotaoLimparFiltros
+								{temFiltros}
+								onclick={limparFiltrosHistorico}
+								label="Limpar todos os filtros"
+							/>
+						</div>
 					{/if}
 				</div>
 			{:else}

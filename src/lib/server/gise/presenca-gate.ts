@@ -33,6 +33,8 @@ export type TipoPresenca = 'entrada' | 'saida';
 export interface ParticipacaoParaGate {
 	horarioPrevisto?: { inicio: string; fim: string } | null;
 	dataInicio?: string | null;
+	/** Status da GISE — quando `finalizada`, presença é recusada (FLW-AUT-007). */
+	statusGise?: string | null;
 }
 
 const RECUSADO = (resposta: Response) => ({ ok: false as const, resposta });
@@ -77,6 +79,12 @@ export async function gateDePresenca(
 	policialId: number,
 	tipo: TipoPresenca
 ): Promise<ResultadoGate> {
+	if (part.statusGise === 'finalizada') {
+		return RECUSADO(
+			conflict('Escala finalizada. Não é possível registrar presença — reabra a GISE antes.')
+		);
+	}
+
 	const janela = janelaDePresencaLiberada(part, tipo);
 	if (!janela.ok) return janela;
 

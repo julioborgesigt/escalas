@@ -247,11 +247,16 @@ const handleAuth: Handle = async ({ event, resolve }) => {
 	if (reqCtx) reqCtx.userId = String(usuario.id);
 	setUser({ id: String(usuario.id), username: usuario.nome });
 
-	// Fluxo de Primeiro Acesso
+	// Fluxo de Primeiro Acesso — só senha (/alterar-senha) e logout.
+	// Isentar todo `/api/auth/*` liberava solicitar-codigo-assinatura,
+	// alternar-acesso etc. antes da troca de senha (FLW-AUT-019).
+	const authLivreEmPrimeiroAcesso =
+		pathname === '/api/auth/logout' || pathname.startsWith('/api/auth/logout/');
+
 	if (
 		usuario.primeiro_acesso &&
 		!pathname.startsWith('/alterar-senha') &&
-		!pathname.startsWith('/api/auth/')
+		!authLivreEmPrimeiroAcesso
 	) {
 		if (pathname.startsWith('/api/')) {
 			return apiError('Altere sua senha antes de continuar', 403, ErrorCode.FORBIDDEN);

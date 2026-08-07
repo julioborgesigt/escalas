@@ -33,11 +33,12 @@
 	import { untrack } from 'svelte';
 	import { enhance } from '$app/forms';
 	import { toaster } from '$lib/toast';
-	import { apiFetch } from '$lib/api-fetch';
 	import PaginationControls from '$lib/components/PaginationControls.svelte';
-	import { Dialog, SegmentedControl } from '@skeletonlabs/skeleton-svelte';
-	import ToggleSwitch from '$lib/components/ToggleSwitch.svelte';
-	import { formatarTelefone, formatarCPF, limparCPF } from '$lib/utils/formato';
+	import { SegmentedControl } from '@skeletonlabs/skeleton-svelte';
+	import BotaoLimparFiltros from '$lib/components/BotaoLimparFiltros.svelte';
+	import EstadoVazio from '$lib/components/EstadoVazio.svelte';
+	import ModalShell from '$lib/components/ModalShell.svelte';
+	import ModalCadastrarPolicial from './_components/ModalCadastrarPolicial.svelte';
 	import {
 		useAutorizacao,
 		getSavedFilters,
@@ -46,29 +47,9 @@
 		useSamePathNavigating
 	} from '$lib/composables';
 	import type { Policial, Unidade } from '$lib/types';
-	import SearchableSelect from '$lib/components/SearchableSelect.svelte';
 	import type { ActionResult } from '@sveltejs/kit';
 
 	const { data }: PageProps = $props();
-
-	function handleSalvarPolicial() {
-		pendingCadastro = true;
-		return async ({ result }: { result: ActionResult }) => {
-			pendingCadastro = false;
-			if (result.type === 'success') {
-				await invalidateShared('app:policiais');
-				toaster.create({ title: 'Policial cadastrado com sucesso!', type: 'success' });
-				resetForm();
-				cadastroOpen = false;
-			} else {
-				const d =
-					result.type === 'failure'
-						? (result.data as Record<string, unknown> | undefined)
-						: undefined;
-				if (d?.error) toaster.create({ title: String(d.error), type: 'error' });
-			}
-		};
-	}
 
 	const auth = useAutorizacao();
 	const isAdmin = $derived(auth.isAdmin);
@@ -149,85 +130,7 @@
 
 	// Cadastro
 	let cadastroOpen = $state(false);
-	let nome = $state('');
-	let matricula = $state('');
-	let cargo = $state<'DPC' | 'OIP'>('OIP');
-	let cpf = $state('');
-	let telefone = $state('');
-	let classe = $state('');
-	let regime = $state<'plantao' | 'expediente'>('plantao');
-	let lotacaoInput = $state('');
-	let email = $state('');
-
-	// Papel administrativo no cadastro
-	let papel = $state<string | null>(null);
-	let papelUnidadeId = $state<number | null>(null);
-	// Chave "Conceder Admin Geral" no cadastro (submetida via input hidden).
-	let concederAdminGeral = $state(false);
 	let excluindo = $state(false);
-	let pendingCadastro = $state(false);
-
-	const seccionaisParaPapel = $derived(unidades.filter((u) => u.tipo === 'seccional'));
-	const unidadesParaAdmin = $derived(unidades.filter((u) => u.tipo !== 'seccional'));
-
-	// Papel administrativo exige a unidade/seccional de responsabilidade.
-	const papelPrecisaUnidade = $derived(!!papel && !(isAdminUnidade && papel === 'admin_unidade'));
-	const papelSemUnidade = $derived(papelPrecisaUnidade && papelUnidadeId == null);
-
-	$effect(() => {
-		// Aplica a lotação padrão ao abrir o cadastro.
-		if (cadastroOpen) {
-			lotacaoInput = isAdmin ? '' : (data.lotacaoUsuario ?? '');
-		}
-	});
-
-	const classesDisponiveis = $derived(
-		cargo === 'DPC' ? ['1ª', '2ª', '3ª', 'ESPECIAL'] : ['A', 'B', 'C', 'D']
-	);
-	const lotacaoSelectedOption = $derived(
-		lotacaoInput ? { value: lotacaoInput, label: lotacaoInput } : null
-	);
-
-	function resetForm() {
-		nome = '';
-		matricula = '';
-		cargo = 'OIP';
-		cpf = '';
-		telefone = '';
-		classe = '';
-		regime = 'plantao';
-		lotacaoInput = isAdmin ? '' : (data.lotacaoUsuario ?? '');
-		email = '';
-		papel = null;
-		papelUnidadeId = null;
-		concederAdminGeral = false;
-	}
-
-	function openCreateModal() {
-		resetForm();
-		cadastroOpen = true;
-	}
-
-	async function loadLotacoes(query: string, signal: AbortSignal) {
-		// Lotação inclui delegacias (unidades operacionais) E seccionais,
-		// pois as seccionais têm efetivo próprio.
-		// eslint-disable-next-line svelte/prefer-svelte-reactivity
-		const params = new URLSearchParams({
-			tipo: 'delegacia,seccional',
-			limit: '30'
-		});
-		if (query.trim()) params.set('q', query.trim());
-
-		const dataRes = await apiFetch<{ items?: { nome: string }[] }>(
-			`/api/unidades/search?${params.toString()}`,
-			{ signal }
-		);
-		const baseOptions = (dataRes.items || []).map((u: { nome: string }) => ({
-			value: u.nome,
-			label: u.nome
-		}));
-		return [{ value: '', label: '— Sem lotação —' }, ...baseOptions];
-	}
 
 	$effect(() => {
 		// Resetar para página 1 ao filtrar
@@ -301,16 +204,7 @@
 <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
 	<h1 class="h1 text-2xl font-bold">Gerenciar Policiais</h1>
 	<div class="flex flex-wrap justify-end gap-2">
-		<button
-			type="button"
-			class="btn btn-sm {temFiltros
-				? 'preset-filled-warning-500'
-				: 'preset-outlined-primary-500 opacity-40'}"
-			onclick={limparFiltros}
-			disabled={!temFiltros}
-		>
-			Limpar filtros
-		</button>
+		<BotaoLimparFiltros {temFiltros} onclick={limparFiltros} />
 		{#if isAdmin}
 			<a
 				href="/policiais/upload"
@@ -320,286 +214,45 @@
 		<button
 			type="button"
 			class="btn btn-sm preset-filled-primary-500 transition-all"
-			onclick={openCreateModal}>Novo Policial</button
+			onclick={() => (cadastroOpen = true)}>Novo Policial</button
 		>
 	</div>
 </div>
 
-<Dialog
-	open={cadastroOpen}
-	onOpenChange={(e) => {
-		cadastroOpen = e.open;
-		if (!e.open) resetForm();
-	}}
+<ModalCadastrarPolicial
+	bind:open={cadastroOpen}
+	{unidades}
+	{isAdmin}
+	{isAdminOrSeccional}
+	{isAdminUnidade}
+	lotacaoUsuario={data.lotacaoUsuario}
+/>
+
+<ModalShell
+	bind:open={confirmDialog.isOpen}
+	title="Excluir Policial?"
+	largura="sm"
+	pending={excluindo}
+	cancelLabel="Cancelar"
 >
-	<Dialog.Content
-		class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-sm overflow-y-auto"
-	>
-		<div
-			class="cadastro-policial-modal card p-4 sm:p-5 max-w-2xl w-full max-h-[calc(100dvh-2rem)] overflow-y-auto card-elevated shadow-2xl rounded-2xl"
-		>
-			<Dialog.Title class="h3 font-bold mb-5">Cadastrar Novo Policial</Dialog.Title>
+	{#snippet description()}
+		Tem certeza que deseja excluir o policial "{confirmDialog.currentItem?.nome}" do sistema de
+		cadastro?
+	{/snippet}
 
-			<form
-				id="policialForm"
-				method="POST"
-				action="?/criar"
-				use:enhance={handleSalvarPolicial}
-				class="space-y-3"
+	{#snippet footer()}
+		<form method="POST" action="?/excluir" use:enhance={handleExcluir} class="contents">
+			<input type="hidden" name="policial_id" value={confirmDialog.currentItem?.id} />
+			<button
+				type="submit"
+				class="btn btn-sm preset-filled-error-500 flex items-center gap-2 transition-all"
+				disabled={excluindo}
 			>
-				<!-- Campos hidden -->
-				<input type="hidden" name="cpf" value={limparCPF(cpf)} />
-				<input type="hidden" name="telefone" value={telefone} />
-				<input type="hidden" name="lotacao" value={lotacaoInput} />
-				<input type="hidden" name="regime" value={regime} />
-				<input type="hidden" name="papel" value={papel ?? ''} />
-				<input type="hidden" name="papel_unidade_id" value={papelUnidadeId ?? ''} />
-
-				<!-- Linha 1: Nome (7), Matrícula (2), Cargo (3) -->
-				<div class="grid grid-cols-1 sm:grid-cols-12 gap-2">
-					<label class="label sm:col-span-7">
-						<span class="label-text text-2xs font-bold uppercase opacity-70 ml-1"
-							>Nome completo (Conforme Certificado Digital)</span
-						>
-						<input
-							class="input py-1 px-3 text-sm"
-							type="text"
-							name="nome"
-							bind:value={nome}
-							required
-						/>
-					</label>
-					<label class="label sm:col-span-2">
-						<span class="label-text text-2xs font-bold uppercase opacity-70 ml-1">Matrícula</span>
-						<input
-							class="input py-1 px-3 text-sm"
-							type="text"
-							name="matricula"
-							bind:value={matricula}
-							maxlength="10"
-							required
-						/>
-					</label>
-					<label class="label sm:col-span-3">
-						<span class="label-text text-2xs font-bold uppercase opacity-70 ml-1">Cargo</span>
-						<select class="select py-1 px-3 text-sm" name="cargo" bind:value={cargo}>
-							<option value="DPC">DPC - Delegado</option>
-							<option value="OIP">OIP - Investigador</option>
-						</select>
-					</label>
-				</div>
-
-				<!-- Linha 2: CPF (4), E-mail funcional (8). O e-mail pessoal é cadastrado
-					 pelo próprio policial (recuperação de senha) — não vai no cadastro. -->
-				<div class="grid grid-cols-1 sm:grid-cols-12 gap-2">
-					<label class="label sm:col-span-4">
-						<span class="label-text text-2xs font-bold uppercase opacity-70 ml-1"
-							>CPF (Obrigatório para Token)</span
-						>
-						<input
-							class="input py-1 px-3 text-sm"
-							type="text"
-							value={cpf}
-							oninput={(e) => (cpf = formatarCPF(e.currentTarget.value))}
-							placeholder="000.000.000-00"
-							maxlength="14"
-						/>
-					</label>
-					<label class="label sm:col-span-8">
-						<span class="label-text text-2xs font-bold uppercase opacity-70 ml-1"
-							>E-mail funcional (para 2FA)</span
-						>
-						<input
-							class="input py-1 px-3 text-sm"
-							type="email"
-							name="email"
-							bind:value={email}
-							placeholder="exemplo@gmail.com"
-						/>
-					</label>
-				</div>
-
-				<!-- Linha 3: Telefone (3), Classe (2), Regime (3), Lotação (4) -->
-				<div class="grid grid-cols-1 sm:grid-cols-12 gap-2">
-					<label class="label sm:col-span-3">
-						<span class="label-text text-2xs font-bold uppercase opacity-70 ml-1">Telefone</span>
-						<input
-							class="input py-1 px-3 text-sm"
-							type="text"
-							value={telefone}
-							oninput={(e) => (telefone = formatarTelefone(e.currentTarget.value))}
-							placeholder="(88) 9.0000-0000"
-							maxlength="16"
-						/>
-					</label>
-					<label class="label sm:col-span-2">
-						<span class="label-text text-2xs font-bold uppercase opacity-70 ml-1">Classe</span>
-						<select class="select py-1 px-3 text-sm" name="classe" bind:value={classe} required>
-							<option value="" disabled>-</option>
-							{#each classesDisponiveis as c (c)}
-								<option value={c}>{c}</option>
-							{/each}
-						</select>
-					</label>
-					<label class="label sm:col-span-3">
-						<span class="label-text text-2xs font-bold uppercase opacity-70 ml-1"
-							>Regime de Trabalho</span
-						>
-						<select class="select py-1 px-3 text-sm" bind:value={regime}>
-							<option value="plantao">Plantão</option>
-							<option value="expediente">Expediente</option>
-						</select>
-					</label>
-					<label class="label sm:col-span-4">
-						<span class="label-text text-2xs font-bold uppercase opacity-70 ml-1">Lotação</span>
-						{#if isAdmin}
-							<SearchableSelect
-								bind:value={lotacaoInput}
-								loadOptions={loadLotacoes}
-								selectedOption={lotacaoSelectedOption}
-								class="lotacao-searchable"
-								debounceMs={250}
-								minSearchChars={0}
-								placeholder="Buscar lotação..."
-							/>
-						{:else}
-							<input
-								class="input py-1 px-3 text-sm bg-surface-200 dark:bg-surface-800 cursor-not-allowed opacity-75"
-								type="text"
-								value={lotacaoInput}
-								readonly
-							/>
-						{/if}
-					</label>
-				</div>
-
-				<div class="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-1 items-stretch">
-					{#if isAdminOrSeccional || isAdminUnidade}
-						<div
-							class="p-3 rounded-xl bg-surface-500/5 border border-surface-500/10 space-y-2 flex flex-col"
-						>
-							<h4 class="text-2xs font-bold uppercase opacity-50">
-								Papel Administrativo (Opcional)
-							</h4>
-							<p class="text-xs text-surface-600 dark:text-surface-400 leading-snug">
-								Papel de gestão restrito a uma seccional ou unidade: gerencia escalas e policiais
-								apenas do próprio escopo. Diferente do Admin Geral, não concede acesso global.
-							</p>
-							<label class="label">
-								<span class="label-text text-2xs font-bold opacity-70 ml-1">Papel</span>
-								<select class="select py-1 px-3 text-sm" bind:value={papel}>
-									<option value={null}>Servidor (sem papel)</option>
-									{#if isAdminOrSeccional}
-										<option value="admin_seccional">Admin Seccional</option>
-									{/if}
-									<option value="admin_unidade">Admin Unidade</option>
-								</select>
-							</label>
-							{#if papel && !(isAdminUnidade && papel === 'admin_unidade')}
-								<label class="label">
-									<span class="label-text text-2xs font-bold opacity-70 ml-1">
-										{papel === 'admin_seccional' ? 'Seccional de resp.' : 'Unidade de resp.'}
-									</span>
-									<select class="select py-1 px-3 text-sm" bind:value={papelUnidadeId}>
-										<option value={null}>Selecionar...</option>
-										{#each papel === 'admin_seccional' ? seccionaisParaPapel : unidadesParaAdmin as u (u.id)}
-											<option value={u.id}>{u.nome}</option>
-										{/each}
-									</select>
-									{#if papelSemUnidade}
-										<span class="text-3xs text-error-600 dark:text-error-400 ml-1 mt-0.5">
-											Obrigatório para o papel escolhido.
-										</span>
-									{/if}
-								</label>
-							{:else if papel === 'admin_unidade' && isAdminUnidade}
-								<p class="text-3xs text-surface-600 dark:text-surface-400 ml-1 italic">
-									Será nomeado para a sua própria unidade.
-								</p>
-							{/if}
-						</div>
-					{/if}
-
-					{#if isAdmin}
-						<div class="p-3 rounded-xl bg-surface-500/5 border border-surface-500/10 flex flex-col">
-							<h4 class="text-2xs font-bold uppercase opacity-50">Admin Geral (Opcional)</h4>
-							<p class="text-xs text-surface-600 dark:text-surface-400 leading-snug mt-2">
-								Cria a conta de Administrador Geral vinculada. A pessoa loga com a mesma
-								matrícula/senha escolhendo "Administrador". Cumulativo com o papel.
-							</p>
-							<input
-								type="hidden"
-								name="conceder_admin_geral"
-								value={concederAdminGeral ? '1' : '0'}
-								form="policialForm"
-							/>
-							<div class="mt-auto pt-3">
-								<ToggleSwitch
-									reverse
-									checked={concederAdminGeral}
-									onCheckedChange={(v) => (concederAdminGeral = v)}
-								>
-									<span
-										class="text-xs font-semibold {concederAdminGeral
-											? 'text-success-700 dark:text-success-400'
-											: 'text-surface-600 dark:text-surface-400'}"
-									>
-										{concederAdminGeral ? 'Conceder Admin Geral' : 'Não conceder'}
-									</span>
-								</ToggleSwitch>
-							</div>
-						</div>
-					{/if}
-				</div>
-			</form>
-
-			<div class="flex justify-end gap-2 pt-4 mt-3 border-t border-surface-200 dark:border-white/5">
-				<Dialog.CloseTrigger class="btn btn-sm preset-outlined-surface-500"
-					>Cancelar</Dialog.CloseTrigger
-				>
-				<button
-					type="submit"
-					form="policialForm"
-					class="btn btn-sm sm:btn-md preset-filled-primary-500 w-full flex items-center justify-center gap-2"
-					disabled={pendingCadastro || papelSemUnidade}
-				>
-					{pendingCadastro ? 'Cadastrando...' : 'Cadastrar Policial'}
-				</button>
-			</div>
-		</div>
-	</Dialog.Content>
-</Dialog>
-
-<Dialog open={confirmDialog.isOpen} onOpenChange={(e) => (confirmDialog.isOpen = e.open)}>
-	<Dialog.Content
-		class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-sm overflow-y-auto"
-	>
-		<div
-			class="card p-4 sm:p-6 max-w-sm w-full max-h-[calc(100dvh-2rem)] overflow-y-auto card-elevated shadow-2xl rounded-2xl"
-		>
-			<Dialog.Title class="h3 font-bold mb-2">Excluir Policial?</Dialog.Title>
-			<Dialog.Description class="text-surface-600 dark:text-surface-400 mb-6">
-				Tem certeza que deseja excluir o policial "{confirmDialog.currentItem?.nome}" do sistema de
-				cadastro?
-			</Dialog.Description>
-			<div class="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 sm:gap-3">
-				<Dialog.CloseTrigger class="btn preset-outlined-surface-500" disabled={excluindo}
-					>Cancelar</Dialog.CloseTrigger
-				>
-				<form method="POST" action="?/excluir" use:enhance={handleExcluir} class="contents">
-					<input type="hidden" name="policial_id" value={confirmDialog.currentItem?.id} />
-					<button
-						type="submit"
-						class="btn btn-sm preset-filled-error-500 flex items-center gap-2 transition-all"
-						disabled={excluindo}
-					>
-						{excluindo ? 'Excluindo...' : 'Remover Policial'}
-					</button>
-				</form>
-			</div>
-		</div>
-	</Dialog.Content>
-</Dialog>
+				{excluindo ? 'Excluindo...' : 'Remover Policial'}
+			</button>
+		</form>
+	{/snippet}
+</ModalShell>
 
 <div class="card-glass p-4 sm:p-6 rounded-3xl overflow-hidden mt-6">
 	<div
@@ -696,7 +349,7 @@
 	{/if}
 
 	{#if policiais.length === 0}
-		<div class="text-center py-12 text-surface-600 dark:text-surface-400">
+		<EstadoVazio>
 			<p class="mb-4">
 				{filtroCargo
 					? `Nenhum policial com cargo ${filtroCargo} encontrado.`
@@ -708,12 +361,11 @@
 					class="btn preset-filled-primary-500 transition-all"
 					onclick={(e) => {
 						e.preventDefault();
-						resetForm();
 						cadastroOpen = true;
 					}}>Cadastrar Policial</a
 				>
 			{/if}
-		</div>
+		</EstadoVazio>
 	{:else}
 		<!-- Desktop table -->
 		<div class="hidden md:block table-wrap">
@@ -844,19 +496,3 @@
 		/>
 	{/if}
 </div>
-
-<style>
-	:global(.cadastro-policial-modal .input),
-	:global(.cadastro-policial-modal .select),
-	:global(.cadastro-policial-modal .lotacao-searchable input),
-	:global(.cadastro-policial-modal .lotacao-searchable button) {
-		background-color: var(--color-surface-50);
-	}
-
-	:global(.dark .cadastro-policial-modal .input),
-	:global(.dark .cadastro-policial-modal .select),
-	:global(.dark .cadastro-policial-modal .lotacao-searchable input),
-	:global(.dark .cadastro-policial-modal .lotacao-searchable button) {
-		background-color: var(--color-surface-800);
-	}
-</style>

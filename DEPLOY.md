@@ -82,7 +82,8 @@ O `scripts/GoogleAppsScript_Sync.gs` já envia ambos os headers em todas as cham
 
 1. **Deploy do código (esta versão)**: servidor passa a aceitar e validar os headers quando presentes, mas **não exige**. Sem headers, vai um `info` no log dizendo "sem headers de replay protection — rollout".
 2. **Republicar a Apps Script**: passa a enviar os headers. Confirmar nos logs do Worker que toda chamada agora vem com timestamp+nonce.
-3. **Setar `WEBHOOK_REPLAY_ENFORCE=1`** no Cloudflare (Settings → Environment variables): qualquer chamada sem os headers passa a devolver 401. A partir daqui, replay protection está **obrigatório**.
+3. **~~Setar `WEBHOOK_REPLAY_ENFORCE=1`~~** — **FEITO 06/ago** (Pages production secret
+   do projeto `escalas`). Qualquer chamada sem os headers devolve 401.
 
 A limpeza periódica de `webhook_nonces` (e das demais tabelas de retenção) é automatizada por `executarLimpezaRetencao`, disparada pelo cron `cleanup-retencao.yml` (GitHub Actions) — ver [Failsafe da limpeza de retenção](#failsafe-da-limpeza-de-retenção).
 

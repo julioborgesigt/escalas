@@ -76,9 +76,12 @@ export function saiuDaFaseDeEdicao(status: string): boolean {
  * atrás tem um caminho próprio e auditado (`reabrirEscala`). Mutar direto
  * contornava esse caminho — e `salvarSlotsEquipe` chegava a APAGAR o
  * `gise_documentos` da escala assinada e devolvê-la a `em_preenchimento`, sem
- * auditoria e deixando o PDF órfão no R2 (FLW-GISE-006).
+ * auditoria e deixando o PDF órfão no R2 (FLW-GISE-006 / FLW-AUT-010).
+ *
+ * Exportada para actions de escala/seccional/membro que antes só faziam
+ * `buscarGiseEscala` e mutavam `finalizada`.
  */
-async function carregarGiseEditavel(db: Database, giseId: number) {
+export async function carregarGiseEditavel(db: Database, giseId: number) {
 	const gise = await buscarGiseEscala(db, giseId);
 	if (!gise) return { erro: fail(404, { error: 'GISE não encontrada' }) } as const;
 	if (gise.status === 'finalizada') {

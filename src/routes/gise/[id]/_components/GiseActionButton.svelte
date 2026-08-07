@@ -7,6 +7,11 @@
 	 * sub-componentes (relatórios, slots, equipes) sem prop-drilling do snippet.
 	 * Mantém a assinatura do snippet original: `type` é o preset visual
 	 * (outlined/filled/tonal) e `btnType` o atributo HTML do botão.
+	 *
+	 * C-MANTER (auditoria componentização 06/ago): NÃO unificar com
+	 * `res-gise/_components/BotoesAcao.svelte`. Os dois clusters já divergem
+	 * visualmente (href/loading/pendingCrud vs snippet module); fundir seria
+	 * forçar uma API comum pior que a duplicação deliberada.
 	 */
 	const {
 		label,

@@ -82,3 +82,35 @@ export function podeMexerNaEscala(u: App.Locals['usuario'], lotacaoDaEscala: str
 	if (u.tipo === 'admin') return true;
 	return u.lotacao === lotacaoDaEscala && isAnyAdmin(u);
 }
+
+/**
+ * Quem pode ASSINAR / preparar / finalizar / revogar o PDF da escala.
+ *
+ * `verificarPermissaoEscala` é ACL de LEITURA (mesma lotação, escopo admin,
+ * solicitação a DPC). Assinar é mais estrito e espelha a UI
+ * (`PainelAssinaturaDigital.podeAssinar`): Admin Geral, ou
+ * `(admin_seccional|admin_unidade) && cargo === 'DPC'`.
+ *
+ * Sem este gate, policial sem papel na lotação da escala assinava por POST
+ * direto (FLW-AUT-001). OIP admin continua podendo solicitar, não assinar.
+ *
+ * Usar **depois** de `verificarPermissaoEscala`: quem assina ainda precisa
+ * enxergar a escala (escopo / solicitação).
+ */
+export function podeAssinarEscala(u: App.Locals['usuario']): boolean {
+	if (!u) return false;
+	if (u.tipo === 'admin') return true;
+	return (u.papel === 'admin_seccional' || u.papel === 'admin_unidade') && u.cargo === 'DPC';
+}
+
+/**
+ * Quem pode SOLICITAR assinatura de escala (OIP admin ou Admin Geral).
+ *
+ * Espelha detalhe `/escalas/[id]` e a API `solicitar-assinatura`. A listagem
+ * `/escalas` omitia Admin Geral — unificado aqui (FLW-AUT-013).
+ */
+export function podeOIPSolicitarAssinatura(u: App.Locals['usuario']): boolean {
+	if (!u) return false;
+	if (u.tipo === 'admin') return true;
+	return (u.papel === 'admin_seccional' || u.papel === 'admin_unidade') && u.cargo === 'OIP';
+}

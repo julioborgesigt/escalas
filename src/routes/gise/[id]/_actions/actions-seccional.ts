@@ -12,7 +12,6 @@ import type { RequestEvent } from '@sveltejs/kit';
 import {
 	getDB,
 	tryGetR2,
-	buscarGiseEscala,
 	atualizarGiseEscala,
 	atualizarGiseSeccional,
 	excluirGiseSeccional,
@@ -34,7 +33,7 @@ import {
 	giseDocumentos
 } from '$lib/server/schema';
 import { eq, and, asc, inArray } from 'drizzle-orm';
-import { getInt, saiuDaFaseDeEdicao, podePreencherSeccional } from './shared';
+import { getInt, saiuDaFaseDeEdicao, podePreencherSeccional, carregarGiseEditavel } from './shared';
 import { concluirMudancaGise, invalidarAssinaturasDaSeccional } from './desfecho';
 import { coletarChavesR2DaRevogacaoSeccional, deletarChavesR2 } from '$lib/server/r2-cleanup';
 
@@ -55,8 +54,9 @@ export const actionsSeccional = {
 		if (isNaN(seccionalId)) return fail(400, { error: 'seccionalId inválido' });
 
 		const db = getDB(platform);
-		const gise = await buscarGiseEscala(db, giseId);
-		if (!gise) return fail(404, { error: 'GISE não encontrada' });
+		const carga = await carregarGiseEditavel(db, giseId);
+		if ('erro' in carga) return carga.erro;
+		const { gise } = carga;
 
 		const [novaSec] = await db
 			.insert(giseSeccionais)
@@ -112,8 +112,9 @@ export const actionsSeccional = {
 
 		const db = getDB(platform);
 		const r2 = tryGetR2(platform) ?? null;
-		const gise = await buscarGiseEscala(db, giseId);
-		if (!gise) return fail(404, { error: 'GISE não encontrada' });
+		const carga = await carregarGiseEditavel(db, giseId);
+		if ('erro' in carga) return carga.erro;
+		const { gise } = carga;
 
 		// Nome e efetivo ANTES do delete em cascata: depois não há mais linha de
 		// onde tirar quem foi retirado da escala.
@@ -204,6 +205,9 @@ export const actionsSeccional = {
 		if (isNaN(giseId) || isNaN(secId)) return fail(400, { error: 'IDs inválidos' });
 
 		const db = getDB(platform);
+		const carga = await carregarGiseEditavel(db, giseId);
+		if ('erro' in carga) return carga.erro;
+
 		const sec = await db
 			.select()
 			.from(giseSeccionais)
@@ -367,8 +371,9 @@ export const actionsSeccional = {
 
 		const db = getDB(platform);
 		const r2 = tryGetR2(platform) ?? null;
-		const gise = await buscarGiseEscala(db, giseId);
-		if (!gise) return fail(404, { error: 'GISE não encontrada' });
+		const carga = await carregarGiseEditavel(db, giseId);
+		if ('erro' in carga) return carga.erro;
+		const { gise } = carga;
 
 		const sec = await db
 			.select()

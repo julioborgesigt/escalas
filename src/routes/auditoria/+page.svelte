@@ -23,6 +23,7 @@
 	import { baixarBlob, nomeArquivoContentDisposition } from '$lib/utils/download';
 	import { toaster } from '$lib/toast';
 	import { ChevronDown, ChevronUp, CheckCircle2, AlertTriangle } from '@lucide/svelte';
+	import KpiCard from './_components/KpiCard.svelte';
 
 	const { data, form }: PageProps = $props();
 
@@ -246,27 +247,10 @@
 
 	<!-- KPIs -->
 	<div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
-		{#snippet kpi(rotulo: string, valor: string | number, destaque = false)}
-			<div
-				class="rounded-xl border border-surface-200 dark:border-white/10 bg-surface-50 dark:bg-surface-900 p-4 flex flex-col justify-between min-h-[90px]"
-			>
-				<div class="text-xs uppercase tracking-wide text-surface-600 dark:text-surface-400">
-					{rotulo}
-				</div>
-				<div
-					class="mt-1 text-lg sm:text-2xl font-bold truncate {destaque && Number(valor) > 0
-						? 'text-error-600 dark:text-error-400'
-						: 'text-surface-900 dark:text-white'}"
-					title={String(valor)}
-				>
-					{valor}
-				</div>
-			</div>
-		{/snippet}
-		{@render kpi('Total de eventos', data.resumo.total.toLocaleString('pt-BR'))}
-		{@render kpi('Falhas de login (24h)', data.resumo.falhasLogin24h, true)}
-		{@render kpi('Eventos críticos (7d)', data.resumo.criticos7d, true)}
-		{@render kpi('Último evento', fmtData(data.resumo.ultimoEvento))}
+		<KpiCard rotulo="Total de eventos" valor={data.resumo.total.toLocaleString('pt-BR')} />
+		<KpiCard rotulo="Falhas de login (24h)" valor={data.resumo.falhasLogin24h} destaque />
+		<KpiCard rotulo="Eventos críticos (7d)" valor={data.resumo.criticos7d} destaque />
+		<KpiCard rotulo="Último evento" valor={fmtData(data.resumo.ultimoEvento)} />
 	</div>
 
 	<!-- Destaques de segurança -->

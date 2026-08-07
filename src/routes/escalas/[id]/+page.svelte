@@ -36,6 +36,7 @@
 	import type { ActionResult } from '@sveltejs/kit';
 	import type { EscalaPolicialComDados } from '$lib/types';
 	import PainelAssinaturaEscala from '$lib/components/PainelAssinaturaEscala.svelte';
+	import EstadoVazio from '$lib/components/EstadoVazio.svelte';
 	import { useConfirmationDialog, useInvalidateOnFocus } from '$lib/composables';
 	import { fetchSyncEstado } from '$lib/sync-estado';
 	import ModalConfirmar from './_components/ModalConfirmar.svelte';
@@ -47,9 +48,6 @@
 	import TabelaPlantao from './_components/TabelaPlantao.svelte';
 
 	const { data }: PageProps = $props();
-
-	const horas = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'));
-	const minutos = Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0'));
 
 	const confirmDialog = useConfirmationDialog<{ itemId: number | number[]; nome: string }>();
 
@@ -244,9 +242,7 @@
 </svelte:head>
 
 {#if !escala}
-	<div class="text-center py-12 text-surface-600 dark:text-surface-400">
-		<p>Escala não encontrada.</p>
-	</div>
+	<EstadoVazio mensagem="Escala não encontrada." />
 {:else}
 	<EscalaCabecalho
 		{escala}
@@ -425,15 +421,11 @@
 			{modoSelecao}
 			bind:selecionados
 			{escala}
-			{horas}
-			{minutos}
 			onToggleSelecionar={toggleSelecionar}
 			onSolicitarRemocao={solicitarRemocao}
 		/>
 	{:else if policiaisEscalaLocal.length === 0}
-		<div class="text-center py-12 text-surface-600 dark:text-surface-400">
-			<p>Nenhum policial nesta escala ainda.</p>
-		</div>
+		<EstadoVazio mensagem="Nenhum policial nesta escala ainda." />
 	{:else if !isExpediente && !isFDS}
 		<TabelaPlantao
 			bind:policiaisEscalaLocal
@@ -443,8 +435,6 @@
 			{modoSelecao}
 			bind:selecionados
 			{escala}
-			{horas}
-			{minutos}
 			onSolicitarRemocao={solicitarRemocao}
 		/>
 	{:else}
@@ -458,8 +448,6 @@
 			{modoSelecao}
 			bind:selecionados
 			{escala}
-			{horas}
-			{minutos}
 			onSolicitarRemocao={solicitarRemocao}
 			onToggleSelecionar={toggleSelecionar}
 		/>

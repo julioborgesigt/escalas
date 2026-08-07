@@ -25,6 +25,7 @@
 	import { apiFetch } from '$lib/api-fetch';
 	import { invalidateShared } from '$lib/cross-tab-invalidate';
 	import { loading } from '$lib/loading.svelte';
+	import ToggleSwitch from '$lib/components/ToggleSwitch.svelte';
 
 	let exigirFoto = $state(page.data.exigirFoto as boolean);
 	let exigirGps = $state(page.data.exigirGps as boolean);
@@ -217,20 +218,7 @@
 					não será solicitada.
 				</p>
 			</div>
-			<button
-				type="button"
-				role="switch"
-				aria-label="Ativar ou desativar exigência de foto na assinatura"
-				aria-checked={exigirFoto}
-				class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 focus-visible:ring-offset-surface-50 dark:focus-visible:ring-offset-surface-900
-					{exigirFoto ? 'bg-primary-500' : 'bg-surface-300 dark:bg-surface-600'}"
-				onclick={() => (exigirFoto = !exigirFoto)}
-			>
-				<span
-					class="pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow transform ring-0 transition duration-200
-						{exigirFoto ? 'translate-x-5' : 'translate-x-0'}"
-				></span>
-			</button>
+			<ToggleSwitch cor="primary" checked={exigirFoto} onCheckedChange={(v) => (exigirFoto = v)} />
 		</div>
 
 		<div class="border-t border-surface-200 dark:border-white/10"></div>
@@ -244,20 +232,7 @@
 					assinatura em tela. Desativando, nenhuma localização é solicitada ao dispositivo.
 				</p>
 			</div>
-			<button
-				type="button"
-				role="switch"
-				aria-label="Ativar ou desativar exigência de GPS na assinatura"
-				aria-checked={exigirGps}
-				class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 focus-visible:ring-offset-surface-50 dark:focus-visible:ring-offset-surface-900
-					{exigirGps ? 'bg-primary-500' : 'bg-surface-300 dark:bg-surface-600'}"
-				onclick={() => (exigirGps = !exigirGps)}
-			>
-				<span
-					class="pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow transform ring-0 transition duration-200
-						{exigirGps ? 'translate-x-5' : 'translate-x-0'}"
-				></span>
-			</button>
+			<ToggleSwitch cor="primary" checked={exigirGps} onCheckedChange={(v) => (exigirGps = v)} />
 		</div>
 
 		<div class="border-t border-surface-200 dark:border-white/10"></div>
@@ -287,19 +262,7 @@
 					>
 				</p>
 			</div>
-			<button
-				type="button"
-				role="switch"
-				aria-label="Bloqueado por requisito legal (Lei 14.063/2020 art. 4º II)"
-				aria-checked={true}
-				disabled
-				class="relative inline-flex h-6 w-11 shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none bg-primary-500 cursor-not-allowed"
-				title="Bloqueado por requisito legal"
-			>
-				<span
-					class="pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow transform ring-0 transition duration-200 translate-x-5"
-				></span>
-			</button>
+			<ToggleSwitch cor="primary" checked={true} disabled />
 		</div>
 
 		<div class="border-t border-surface-200 dark:border-white/10"></div>
@@ -316,20 +279,11 @@
 					>
 				</p>
 			</div>
-			<button
-				type="button"
-				role="switch"
-				aria-label="Ativar ou desativar restrição de smartphone"
-				aria-checked={restringirSmartphone}
-				class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 focus-visible:ring-offset-surface-50 dark:focus-visible:ring-offset-surface-900
-					{restringirSmartphone ? 'bg-primary-500' : 'bg-surface-300 dark:bg-surface-600'}"
-				onclick={() => (restringirSmartphone = !restringirSmartphone)}
-			>
-				<span
-					class="pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow transform ring-0 transition duration-200
-						{restringirSmartphone ? 'translate-x-5' : 'translate-x-0'}"
-				></span>
-			</button>
+			<ToggleSwitch
+				cor="primary"
+				checked={restringirSmartphone}
+				onCheckedChange={(v) => (restringirSmartphone = v)}
+			/>
 		</div>
 
 		<div

@@ -1,8 +1,23 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { getDB, getR2, hasR2, buscarEscala, listarPoliciaisEscala, buscarPolicial } from '$lib/db';
+import {
+	getDB,
+	getR2,
+	hasR2,
+	buscarEscala,
+	listarPoliciaisEscala,
+	buscarPolicial,
+	buscarDocumentoEscala
+} from '$lib/db';
 import { prepararAssinaturaSchema } from '$lib/schemas';
-import { requireAuth, badRequest, notFound, forbidden, validateBody } from '$lib/server/api';
+import {
+	requireAuth,
+	badRequest,
+	notFound,
+	forbidden,
+	conflict,
+	validateBody
+} from '$lib/server/api';
 import { gerarPdf, gerarPdfPlantao, gerarPdfExpediente } from '$lib/server/export';
 import {
 	prepararPdfParaAssinatura,
@@ -15,7 +30,7 @@ import { calcularHashBuffer } from '$lib/server/assinatura/document-utils';
 import { logger } from '$lib/server/logger';
 import { PDFDocument } from 'pdf-lib';
 import { gerarCodigoValidacao } from '$lib/utils/formato';
-import { verificarPermissaoEscala } from '$lib/server/escalas/permissao';
+import { verificarPermissaoEscala, podeAssinarEscala } from '$lib/server/escalas/permissao';
 import { criarIntencaoAssinatura } from '$lib/server/assinatura/intencao';
 
 export const POST: RequestHandler = async ({
@@ -44,9 +59,21 @@ export const POST: RequestHandler = async ({
 	const escala = await buscarEscala(db, id);
 	if (!escala) return notFound('Escala');
 
-	// Somente admin, dono da lotação, ou DPC admin com solicitação direcionada pode preparar assinatura
+	// Leitura + quem pode assinar (FLW-AUT-001); documento existente bloqueia novo ciclo (FLW-AUT-004).
 	const perm = await verificarPermissaoEscala(db, id, escala.lotacao, u);
 	if (!perm.permitido) return forbidden(perm.motivo ?? 'Sem permissão para assinar esta escala');
+	if (!podeAssinarEscala(u)) {
+		return forbidden('Apenas Admin Geral ou DPC com papel administrativo pode assinar esta escala');
+	}
+	if (escala.tipo === 'fds') {
+		return badRequest(
+			'Escala de fim de semana não admite assinatura digital — use o fluxo por e-mail'
+		);
+	}
+	const docExistente = await buscarDocumentoEscala(db, id);
+	if (docExistente) {
+		return conflict('Revogue a assinatura existente antes de preparar nova assinatura');
+	}
 
 	const policiais = await listarPoliciaisEscala(db, id);
 	if (!policiais || policiais.length === 0) {

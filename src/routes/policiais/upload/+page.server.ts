@@ -210,16 +210,9 @@ export const actions = {
 				lotacaoFinal = encontrarUnidade(lotacaoRaw.trim(), unidades);
 			}
 
-			if (locals.usuario?.tipo === 'policial') {
-				if (lotacaoFinal !== locals.usuario.lotacao) {
-					errors.push({
-						row: rowNum,
-						nome,
-						message: `Lotação "${lotacaoRaw}" diferente da sua. Você só pode importar policiais da sua lotação.`
-					});
-					continue;
-				}
-			}
+			// Só Admin Geral chega aqui (gate no topo). O ramo "policial só a
+			// própria lotação" era morto e convidava a afrouxar o gate sem
+			// perceber a armadilha (FLW-AUT-018).
 
 			const matriculaLimpa = limparMatricula(matriculaRaw.trim());
 

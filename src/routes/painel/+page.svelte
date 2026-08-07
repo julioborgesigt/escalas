@@ -39,9 +39,10 @@
 	import SkeletonCard from '$lib/components/SkeletonCard.svelte';
 	import SkeletonCards from '$lib/components/SkeletonCards.svelte';
 	import SkeletonTableRows from '$lib/components/SkeletonTableRows.svelte';
+	import ModalShell from '$lib/components/ModalShell.svelte';
 	import { browser } from '$app/environment';
-	import { Dialog } from '@skeletonlabs/skeleton-svelte';
 	import SearchableSelect from '$lib/components/SearchableSelect.svelte';
+	import BotaoLimparFiltros from '$lib/components/BotaoLimparFiltros.svelte';
 	import { toaster } from '$lib/toast';
 	import type { ItemCompliance } from '$lib/types';
 	import {
@@ -384,16 +385,11 @@
 			</p>
 		</div>
 		<div class="flex gap-2 justify-end w-full sm:w-auto">
-			<button
-				type="button"
-				class="btn btn-sm {temFiltros
-					? 'preset-filled-warning-500'
-					: 'preset-outlined-primary-500 opacity-40'}"
+			<BotaoLimparFiltros
+				{temFiltros}
 				onclick={limparFiltros}
-				disabled={!temFiltros && !loadingService.active}
-			>
-				Limpar filtros
-			</button>
+				disabledExtra={loadingService.active}
+			/>
 			<button
 				type="button"
 				class="btn preset-outlined-primary-500 btn-sm"
@@ -537,43 +533,35 @@
 		</div>
 	{/if}
 
-	<Dialog open={escalaExcluirOpen} onOpenChange={(e) => (escalaExcluirOpen = e.open)}>
-		<Dialog.Content
-			class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-sm overflow-y-auto"
-		>
-			<div
-				class="card p-4 sm:p-6 max-w-sm w-full max-h-[calc(100dvh-2rem)] overflow-y-auto card-elevated shadow-2xl rounded-2xl"
+	<ModalShell
+		bind:open={escalaExcluirOpen}
+		title="Excluir Escala?"
+		largura="sm"
+		pending={loadingService.active}
+		cancelLabel="Cancelar"
+	>
+		{#snippet description()}
+			Tem certeza que deseja excluir esta escala de <strong>{itemParaExcluir?.unidade_nome}</strong
+			>? O status voltará a ser "Não Criada".
+		{/snippet}
+		{#snippet footer()}
+			<form
+				method="POST"
+				action="?/excluirEscala"
+				use:enhance={handleExcluirEscala}
+				class="contents"
 			>
-				<Dialog.Title class="h3 font-bold mb-2">Excluir Escala?</Dialog.Title>
-				<Dialog.Description class="text-surface-600 dark:text-surface-400 mb-6">
-					Tem certeza que deseja excluir esta escala de <strong
-						>{itemParaExcluir?.unidade_nome}</strong
-					>? O status voltará a ser "Não Criada".
-				</Dialog.Description>
-				<div class="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 sm:gap-3">
-					<Dialog.CloseTrigger
-						class="btn preset-outlined-surface-500"
-						disabled={loadingService.active}>Cancelar</Dialog.CloseTrigger
-					>
-					<form
-						method="POST"
-						action="?/excluirEscala"
-						use:enhance={handleExcluirEscala}
-						class="contents"
-					>
-						<input type="hidden" name="escala_id" value={itemParaExcluir?.escala_id} />
-						<button
-							type="submit"
-							class="btn preset-filled-error-500 flex items-center gap-2 transition-all"
-							disabled={loadingService.active}
-						>
-							{loadingService.active ? 'Excluindo...' : 'Confirmar Exclusão'}
-						</button>
-					</form>
-				</div>
-			</div>
-		</Dialog.Content>
-	</Dialog>
+				<input type="hidden" name="escala_id" value={itemParaExcluir?.escala_id} />
+				<button
+					type="submit"
+					class="btn preset-filled-error-500 flex items-center gap-2 transition-all"
+					disabled={loadingService.active}
+				>
+					{loadingService.active ? 'Excluindo...' : 'Confirmar Exclusão'}
+				</button>
+			</form>
+		{/snippet}
+	</ModalShell>
 
 	<!-- Tabela -->
 	<div class="rounded-3xl card-glass p-4 sm:p-5">

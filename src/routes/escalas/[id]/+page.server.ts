@@ -78,7 +78,11 @@ import {
 	agruparDiasPorPolicial,
 	MESES_PT
 } from '$lib/rotacao';
-import { verificarPermissaoEscala, podeMexerNaEscala } from '$lib/server/escalas/permissao';
+import {
+	verificarPermissaoEscala,
+	podeMexerNaEscala,
+	podeOIPSolicitarAssinatura
+} from '$lib/server/escalas/permissao';
 import { registrarMudancaEscala, nomeDoPolicial } from './_actions/desfecho';
 import { erroDeDatasForaDoPeriodo } from '$lib/server/escalas/periodo';
 
@@ -159,12 +163,6 @@ async function carregarEscalaComPermissao(
 	return { db, escala, escalaId, usuario } as const;
 }
 
-function podeOIPSolicitar(u: App.Locals['usuario']): boolean {
-	if (!u) return false;
-	if (u.tipo === 'admin') return true;
-	return (u.papel === 'admin_seccional' || u.papel === 'admin_unidade') && u.cargo === 'OIP';
-}
-
 /**
  * Tela de uma escala (`/escalas/[id]`) — o núcleo do módulo de escalas.
  *
@@ -231,7 +229,7 @@ export const load: PageServerLoad = async ({ locals, platform, params, depends }
 	// edita — mas continua podendo ASSINAR (fluxo próprio, cross-unidade).
 	const podeEditarEscala = podeMexerNaEscala(u, escala.lotacao);
 
-	const oipPodeSolicitar = podeOIPSolicitar(u);
+	const oipPodeSolicitar = podeOIPSolicitarAssinatura(u);
 	const jaAssinada = docInfo.existe;
 	const solicitacaoAtual =
 		oipPodeSolicitar && (escala.tipo === 'plantao' || escala.tipo === 'expediente') && !jaAssinada
@@ -1238,6 +1236,14 @@ export const actions: Actions = {
 
 		if (escala.tipo !== 'fds')
 			return fail(400, { error: 'Operação válida apenas para escalas de FDS' });
+
+		// Reenvio é do documento já entregue — sem finalizada_em seria exportar
+		// rascunho aberto por e-mail (FLW-AUT-011).
+		if (!escala.finalizada_em) {
+			return fail(409, {
+				error: 'Só é possível reenviar e-mail de escala de FDS já finalizada.'
+			});
+		}
 
 		const formData = await request.formData();
 		const emailDestino = (formData.get('email_destino') as string | null)?.trim() ?? '';

@@ -1,9 +1,12 @@
-import { execSync } from 'node:child_process';
 import { createHash, randomBytes } from 'node:crypto';
 import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import type { Page } from '@playwright/test';
+import { execD1Local } from './d1-local';
+import { FIXTURE } from './global-setup';
+
+export { execD1Local, queryD1Local } from './d1-local';
 
 /**
  * Sessões SEMEADAS para os testes E2E.
@@ -25,37 +28,6 @@ import type { Page } from '@playwright/test';
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 export const BASE_URL = 'http://localhost:4173';
 
-/** Executa SQL no D1 local; `false` quando o wrangler não está disponível. */
-export function execD1Local(sql: string): boolean {
-	try {
-		execSync(`npx wrangler d1 execute escalas-db --local --command "${sql.replace(/"/g, '\\"')}"`, {
-			cwd: ROOT,
-			stdio: 'pipe'
-		});
-		return true;
-	} catch {
-		return false;
-	}
-}
-
-/**
- * Consulta o D1 local e devolve as linhas (`--json`). `null` quando o wrangler
- * falha. Usado para verificar efeitos de escrita que não têm endpoint de leitura
- * conveniente (ex.: upsert do webhook de sync).
- */
-export function queryD1Local<T = Record<string, unknown>>(sql: string): T[] | null {
-	try {
-		const out = execSync(
-			`npx wrangler d1 execute escalas-db --local --json --command "${sql.replace(/"/g, '\\"')}"`,
-			{ cwd: ROOT, stdio: ['pipe', 'pipe', 'pipe'] }
-		).toString();
-		const parsed = JSON.parse(out) as Array<{ results?: T[] }>;
-		return parsed?.[0]?.results ?? [];
-	} catch {
-		return null;
-	}
-}
-
 /**
  * SYNC_TOKEN de teste dos webhooks. O bootstrap do servidor E2E
  * (e2e/servidor-e2e.ts) grava este valor em `.dev.vars` (não-destrutivo) para
@@ -73,6 +45,23 @@ export function tokenWebhookE2E(): string | null {
 }
 
 /**
+ * Headers que o Apps Script manda em `sendToAPI` (Bearer + replay).
+ * Com `WEBHOOK_REPLAY_ENFORCE=1` (e2e e produção), Bearer sozinho → 401.
+ */
+export function headersWebhookE2E(
+	token: string,
+	extra: Record<string, string> = {}
+): Record<string, string> {
+	return {
+		Authorization: `Bearer ${token}`,
+		'content-type': 'application/json',
+		'X-Webhook-Timestamp': String(Math.floor(Date.now() / 1000)),
+		'X-Webhook-Nonce': `${randomBytes(16).toString('hex')}-${Date.now()}`,
+		...extra
+	};
+}
+
+/**
  * Insere uma sessão de 8h para o usuário no D1 local e devolve o token.
  * `null` quando o wrangler/D1 local não está disponível (caller deve pular).
  */
@@ -81,15 +70,29 @@ export function seedSession(usuarioId: number, tipo: 'policial' | 'admin' = 'pol
 	const sql =
 		`INSERT INTO sessoes (token, tipo, usuario_id, expires_at) ` +
 		`VALUES ('${token}', '${tipo}', ${usuarioId}, strftime('%Y-%m-%dT%H:%M:%S', 'now', '+8 hours') || '.000Z');`;
-	try {
-		execSync(`npx wrangler d1 execute escalas-db --local --command "${sql}"`, {
-			cwd: ROOT,
-			stdio: 'pipe'
-		});
-		return token;
-	} catch {
-		return null;
-	}
+	return execD1Local(sql) ? token : null;
+}
+
+/**
+ * Promove o Policial Fixture A a DPC + admin_unidade (FLW-AUT-001).
+ *
+ * O e-CPF de teste (TITULAR_TESTE) é emitido no CPF/nome do policial A — quem
+ * assina por Token A3 precisa ser ele. Outros specs (escala-papel, 403 de
+ * assinar-simples) dependem de A sem papel; por isso a promoção é temporária
+ * e deve ser desfeita com `restaurarPolicialASemPapel` no afterAll.
+ */
+export function promoverPolicialAAssinante(): boolean {
+	return execD1Local(
+		`UPDATE policiais SET cargo='DPC', papel='admin_unidade', papel_unidade_id=${FIXTURE.unidadeA.id} ` +
+			`WHERE id=${FIXTURE.policialA.id};`
+	);
+}
+
+/** Devolve policial A ao estado default do fixture (OIP, sem papel). */
+export function restaurarPolicialASemPapel(): boolean {
+	return execD1Local(
+		`UPDATE policiais SET cargo='OIP', papel=NULL, papel_unidade_id=NULL WHERE id=${FIXTURE.policialA.id};`
+	);
 }
 
 /** Header `cookie` para chamadas via APIRequestContext (`request.get(...)`). */

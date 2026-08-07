@@ -94,7 +94,26 @@ test.describe('GISE finalizada é imutável', () => {
 			'adicionarEquipe',
 			{ secId: String(SEC_FINALIZADA), tipo: 'operacional', slots_dpc: '1', slots_oip: '1' }
 		],
-		['removerEquipe', { equipeId: String(EQ_FINALIZADA) }]
+		['removerEquipe', { equipeId: String(EQ_FINALIZADA) }],
+		['solicitarAssinatura', {}],
+		[
+			'salvarDatasHorarios',
+			{ data_inicio: '2026-07-15', hora_entrada: '09:00', hora_saida: '17:00', feriado: 'false' }
+		],
+		[
+			'adicionarMembro',
+			{
+				secId: String(SEC_FINALIZADA),
+				equipe_id: String(EQ_FINALIZADA),
+				policial_id: String(FIXTURE.policialA.id)
+			}
+		],
+		['adicionarSeccional', { seccionalId: String(FIXTURE.seccional.id) }],
+		['removerSeccional', { secId: String(SEC_FINALIZADA) }],
+		[
+			'salvarHorariosSec',
+			{ secId: String(SEC_FINALIZADA), hora_entrada: '07:00', hora_saida: '19:00' }
+		]
 	] as const;
 
 	for (const [acao, campos] of acoes) {

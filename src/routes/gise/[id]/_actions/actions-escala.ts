@@ -31,7 +31,7 @@ import {
 	LIMPEZA_R2_VAZIA
 } from '$lib/server/r2-cleanup';
 import { eq } from 'drizzle-orm';
-import { saiuDaFaseDeEdicao } from './shared';
+import { saiuDaFaseDeEdicao, carregarGiseEditavel } from './shared';
 
 type Event = RequestEvent<{ id: string }>;
 
@@ -64,8 +64,9 @@ export const actionsEscala = {
 		const seint2Id = seint2IdStr ? parseInt(seint2IdStr) : null;
 
 		const db = getDB(platform);
-		const gise = await buscarGiseEscala(db, giseId);
-		if (!gise) return fail(404, { error: 'GISE não encontrada' });
+		const carga = await carregarGiseEditavel(db, giseId);
+		if ('erro' in carga) return carga.erro;
+		const { gise } = carga;
 
 		if (supervisorId !== null) {
 			const p = await db
@@ -216,8 +217,8 @@ export const actionsEscala = {
 			(formData.get('breve_relatorio_texto_supervisao') as string | null)?.trim() ?? '';
 
 		const db = getDB(platform);
-		const gise = await buscarGiseEscala(db, giseId);
-		if (!gise) return fail(404, { error: 'GISE não encontrada' });
+		const carga = await carregarGiseEditavel(db, giseId);
+		if ('erro' in carga) return carga.erro;
 
 		await atualizarGiseEscala(db, giseId, {
 			breve_relatorio_titulo: titulo ? titulo : null,
@@ -251,9 +252,9 @@ export const actionsEscala = {
 		}
 
 		const db = getDB(platform);
-		const gise = await buscarGiseEscala(db, giseId);
-		if (!gise) return fail(404, { error: 'GISE não encontrada' });
-
+		const carga = await carregarGiseEditavel(db, giseId);
+		if ('erro' in carga) return carga.erro;
+		const { gise } = carga;
 		const updateData: {
 			data_inicio: string;
 			hora_entrada: string;
@@ -298,6 +299,8 @@ export const actionsEscala = {
 		if (isNaN(giseId)) return fail(400, { error: 'ID inválido' });
 
 		const db = getDB(platform);
+		const carga = await carregarGiseEditavel(db, giseId);
+		if ('erro' in carga) return carga.erro;
 		await atualizarGiseEscala(db, giseId, { status: 'aguardando_assinatura' });
 		return { success: true };
 	},
@@ -311,8 +314,9 @@ export const actionsEscala = {
 		if (isNaN(giseId)) return fail(400, { error: 'ID inválido' });
 
 		const db = getDB(platform);
-		const gise = await buscarGiseEscala(db, giseId);
-		if (!gise) return fail(404, { error: 'GISE não encontrada' });
+		const carga = await carregarGiseEditavel(db, giseId);
+		if ('erro' in carga) return carga.erro;
+		const { gise } = carga;
 		if (gise.status !== 'aguardando_assinatura')
 			return fail(400, { error: 'Escala não está aguardando assinatura' });
 
@@ -333,9 +337,9 @@ export const actionsEscala = {
 		if (isNaN(giseId)) return fail(400, { error: 'ID inválido' });
 
 		const db = getDB(platform);
-		const gise = await buscarGiseEscala(db, giseId);
-		if (!gise) return fail(404, { error: 'GISE não encontrada' });
-		if (gise.status === 'finalizada') return fail(400, { error: 'Já finalizada' });
+		const carga = await carregarGiseEditavel(db, giseId);
+		if ('erro' in carga) return carga.erro;
+		const { gise } = carga;
 
 		const modo = modoDeFinalizacao(gise.status);
 		if (modo === 'bloqueado') {

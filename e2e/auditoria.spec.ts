@@ -1,6 +1,6 @@
 import { test, expect, request as pwRequest } from '@playwright/test';
 import { FIXTURE } from './global-setup';
-import { seedSession, cookieDeSessao, tokenWebhookE2E, execD1Local, BASE_URL } from './session';
+import { seedSession, cookieDeSessao, tokenWebhookE2E, execD1Local, BASE_URL, headersWebhookE2E } from './session';
 
 /**
  * Console de auditoria (Super Admin). Os NEGATIVOS de RBAC (anônimo 401,
@@ -61,7 +61,7 @@ test.describe('Console de auditoria (Super Admin)', () => {
 
 		// Dispara uma ação auditável (o webhook audita `sync_policiais`).
 		const sync = await request.post('/api/webhook/sync-policiais', {
-			headers: { Authorization: `Bearer ${SYNC}`, 'content-type': 'application/json' },
+			headers: headersWebhookE2E(SYNC!),
 			data: {
 				matricula: MAT_AUDIT,
 				nome: 'Auditoria Webhook',

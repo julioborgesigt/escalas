@@ -127,8 +127,11 @@ export const POST: RequestHandler = async (event) => {
 					telefoneMap = telefoneMap.substring(0, 15).trim();
 				}
 
-				// Ignorando a coluna H (status) a pedido do usuário: todos ficam ativos = 1
-				const statusMap = 1;
+				// FLW-AUT-005: NÃO forçar ativo=1 em todo sync — desativação
+				// disciplinar no UI durava só até a próxima folha. Novos ficam
+				// ativos; existentes preservam o `ativo` já gravado (omitido no
+				// upsert = coluna intocada).
+				const existente = await buscarPolicialPorMatricula(db, String(item.matricula).trim());
 				const regimeMap = item.regime?.toLowerCase() === 'expediente' ? 'expediente' : 'plantao';
 
 				let papelMap: string | null = null;
@@ -198,7 +201,7 @@ export const POST: RequestHandler = async (event) => {
 						cpf: String(item.cpf || '').trim(),
 						classe: String(item.classe || '').trim(),
 						lotacao: lotacaoMap,
-						ativo: statusMap,
+						...(existente ? {} : { ativo: 1 }),
 						email: String(item.email || '')
 							.toLowerCase()
 							.trim(),

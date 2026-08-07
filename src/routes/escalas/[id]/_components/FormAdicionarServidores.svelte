@@ -24,6 +24,7 @@
 	import { formatarData } from '$lib/utils/datas';
 	import { buscarPoliciaisOptions } from '$lib/busca-policiais';
 	import SearchableSelect from '$lib/components/SearchableSelect.svelte';
+	import SeletorHoraMinuto from '$lib/components/SeletorHoraMinuto.svelte';
 	import {
 		ultimoDiaMes,
 		mesAnoFormatado,
@@ -59,9 +60,6 @@
 		policiaisEscalaLocal: EscalaPolicialComDados[];
 		onPoliciaisAtualizados: (policiais: EscalaPolicialComDados[]) => void;
 	} = $props();
-
-	const horas = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'));
-	const minutos = Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0'));
 
 	let cargoBusca = $state<'DPC' | 'OIP' | ''>('');
 	let policialId = $state('');
@@ -414,37 +412,23 @@
 					</label>
 					<div class="sm:col-span-2">
 						<span class="label-text text-xs">Entrada</span>
-						<div class="flex gap-1">
-							<select
-								class="select flex-1 h-9 py-0 px-1"
-								name="hora_entrada"
-								bind:value={addHoraEntrada}
-								>{#each horas as h (h)}<option value={h}>{h}h</option>{/each}</select
-							>
-							<select
-								class="select flex-1 h-9 py-0 px-1"
-								name="minuto_entrada"
-								bind:value={addMinutoEntrada}
-								>{#each minutos as m (m)}<option value={m}>{m}m</option>{/each}</select
-							>
-						</div>
+						<SeletorHoraMinuto
+							bind:hora={addHoraEntrada}
+							bind:minuto={addMinutoEntrada}
+							nameHora="hora_entrada"
+							nameMinuto="minuto_entrada"
+							selectClass="select flex-1 h-9 py-0 px-1"
+						/>
 					</div>
 					<div class="sm:col-span-2">
 						<span class="label-text text-xs">Saída</span>
-						<div class="flex gap-1">
-							<select
-								class="select flex-1 h-9 py-0 px-1"
-								name="hora_saida"
-								bind:value={addHoraSaida}
-								>{#each horas as h (h)}<option value={h}>{h}h</option>{/each}</select
-							>
-							<select
-								class="select flex-1 h-9 py-0 px-1"
-								name="minuto_saida"
-								bind:value={addMinutoSaida}
-								>{#each minutos as m (m)}<option value={m}>{m}m</option>{/each}</select
-							>
-						</div>
+						<SeletorHoraMinuto
+							bind:hora={addHoraSaida}
+							bind:minuto={addMinutoSaida}
+							nameHora="hora_saida"
+							nameMinuto="minuto_saida"
+							selectClass="select flex-1 h-9 py-0 px-1"
+						/>
 					</div>
 					<input type="hidden" name="equipe" value="1" />
 					<div class="sm:col-span-2">

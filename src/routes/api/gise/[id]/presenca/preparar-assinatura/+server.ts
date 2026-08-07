@@ -60,7 +60,7 @@ export const POST: RequestHandler = async ({
 	// Janela de horário e, para saída, entrada já registrada. A mesma função
 	// roda no finalizador — antes a janela existia só aqui, e quem guardasse um
 	// `preparedPdf` passava por cima dela (FLW-GISE-008).
-	const gate = await gateDePresenca(db, part, giseId, u.id, tipo);
+	const gate = await gateDePresenca(db, { ...part, statusGise: gise.status }, giseId, u.id, tipo);
 	if (!gate.ok) return gate.resposta;
 
 	// Rubrica cadastrada — obrigatória no fluxo desktop.

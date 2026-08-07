@@ -1,6 +1,6 @@
 import { toaster } from '$lib/toast';
 import { mostrarErroDeResultado } from '$lib/enhance-handler';
-import { calcularDataSaida } from '$lib/utils/datas';
+import { calcularDataSaida, adicionarDias } from '$lib/utils/datas';
 import type { ActionResult } from '@sveltejs/kit';
 import type { EscalaPolicialComDados } from '$lib/types';
 
@@ -35,6 +35,10 @@ export function primeiroPlantaoDoDia(dataInicio: string, dia: string | number): 
  * Projeta as datas de plantão dentro do período da escala a partir do 1º
  * plantão: `1x3` trabalha 1 dia e folga 3 (passo 4); `2x6` trabalha 2 dias
  * seguidos e folga 6 (passo 8).
+ *
+ * Usa `adicionarDias` (UTC-safe) — nunca `toISOString().split('T')` em Date
+ * local, que em UTC-3 marca o dia seguinte das 21h à meia-noite (e o inverso
+ * em fuso positivo). Ver CLAUDE.md / auditoria de duplicação 06/ago §1.1.
  */
 export function calcularDatasPlantao(
 	escala: { data_inicio: string; data_fim: string },
@@ -43,22 +47,17 @@ export function calcularDatasPlantao(
 ): string[] {
 	if (!primeiroPlantao) return [];
 	const datas: string[] = [];
-	const inicio = new Date(escala.data_inicio + 'T00:00:00');
-	const fim = new Date(escala.data_fim + 'T00:00:00');
-	const d = new Date(primeiroPlantao + 'T00:00:00');
-	if (tipo === '1x3') {
-		while (d <= fim) {
-			if (d >= inicio) datas.push(d.toISOString().split('T')[0]);
-			d.setDate(d.getDate() + 4);
+	const { data_inicio: inicio, data_fim: fim } = escala;
+	let cursor = primeiroPlantao;
+	const passo = tipo === '1x3' ? 4 : 8;
+
+	while (cursor <= fim) {
+		if (cursor >= inicio) datas.push(cursor);
+		if (tipo === '2x6') {
+			const segundo = adicionarDias(cursor, 1);
+			if (segundo <= fim && segundo >= inicio) datas.push(segundo);
 		}
-	} else {
-		while (d <= fim) {
-			if (d >= inicio) datas.push(d.toISOString().split('T')[0]);
-			const d2 = new Date(d);
-			d2.setDate(d2.getDate() + 1);
-			if (d2 <= fim && d2 >= inicio) datas.push(d2.toISOString().split('T')[0]);
-			d.setDate(d.getDate() + 8);
-		}
+		cursor = adicionarDias(cursor, passo);
 	}
 	return datas;
 }

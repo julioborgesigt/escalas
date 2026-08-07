@@ -28,23 +28,24 @@
 	import SkeletonCards from '$lib/components/SkeletonCards.svelte';
 	import SkeletonTableRows from '$lib/components/SkeletonTableRows.svelte';
 	import Spinner from '$lib/components/Spinner.svelte';
-	import { goto } from '$app/navigation';
 	import { invalidateShared } from '$lib/cross-tab-invalidate';
 	import { enhance } from '$app/forms';
 	import { toaster } from '$lib/toast';
-	import { browser } from '$app/environment';
-	import { Popover, Portal, Dialog } from '@skeletonlabs/skeleton-svelte';
+	import { Popover, Portal } from '@skeletonlabs/skeleton-svelte';
 	import type { EscalaListagem, Unidade } from '$lib/types';
 	import PaginationControls from '$lib/components/PaginationControls.svelte';
+	import BotaoLimparFiltros from '$lib/components/BotaoLimparFiltros.svelte';
 	import {
 		useAutorizacao,
 		getSavedFilters,
+		useFiltrosPaginados,
 		useInvalidateOnFocus,
 		useSamePathNavigating
 	} from '$lib/composables';
 	import type { ActionResult } from '@sveltejs/kit';
 	import { loading as loadingService } from '$lib/loading.svelte';
 	import SearchableSelect from '$lib/components/SearchableSelect.svelte';
+	import ModalShell from '$lib/components/ModalShell.svelte';
 	import { fetchSyncEstado } from '$lib/sync-estado';
 
 	const { data }: PageProps = $props();
@@ -96,19 +97,81 @@
 		}
 	});
 
-	// Salvar a cada mudança
+	function buildQueryParams(p: number) {
+		// eslint-disable-next-line svelte/prefer-svelte-reactivity
+		const params = new URLSearchParams();
+		if (filtroSeccional !== '' && filtroSeccional !== null) {
+			params.set('seccional', String(filtroSeccional));
+		}
+		if (filtroUnidade.trim()) params.set('unidade', filtroUnidade.trim());
+		if (filtroAno) params.set('ano', String(filtroAno));
+		if (filtroMes) params.set('mes', String(filtroMes));
+		if (!mostrarApenasNaoVistos) params.set('vistos', 'todos');
+		if (p > 1) params.set('page', String(p));
+		return params;
+	}
+
+	// Persistência (localStorage) + navegação server-side + auto-nav.
+	// Assinatura: [seccional, unidade, ano, mes, naoLidos] — debounce 350ms
+	// só quando a unidade (índice 1) muda sozinha.
+	const filtros = useFiltrosPaginados({
+		chave: KEY,
+		snapshot: () => ({
+			seccional: filtroSeccional,
+			unidade: filtroUnidade,
+			naoLidos: mostrarApenasNaoVistos,
+			ano: filtroAno,
+			mes: filtroMes
+		}),
+		query: buildQueryParams,
+		auto: {
+			assinatura: () => [
+				filtroSeccional ?? '',
+				filtroUnidade,
+				filtroAno ?? 0,
+				filtroMes ?? 0,
+				mostrarApenasNaoVistos
+			],
+			debounce: (anterior, atual) => {
+				const unidadeMudou = anterior[1] !== atual[1];
+				const outrosMudaram =
+					anterior[0] !== atual[0] ||
+					anterior[2] !== atual[2] ||
+					anterior[3] !== atual[3] ||
+					anterior[4] !== atual[4];
+				return unidadeMudou && !outrosMudaram ? 350 : 0;
+			}
+		}
+	});
+
+	// Normaliza null vindo do clear do SearchableSelect.
 	$effect(() => {
-		if (browser) {
-			localStorage.setItem(
-				KEY,
-				JSON.stringify({
-					seccional: filtroSeccional,
-					unidade: filtroUnidade,
-					naoLidos: mostrarApenasNaoVistos,
-					ano: filtroAno,
-					mes: filtroMes
-				})
-			);
+		if (filtroAno === null) filtroAno = 0;
+		if (filtroMes === null) filtroMes = 0;
+		if (filtroSeccional === null) filtroSeccional = '';
+	});
+
+	// Primeira visita sem parâmetros: reaplica os filtros persistidos
+	// (comportamento da versão client-side), trocando a URL in-place.
+	// O composable não cobre este restore — só persiste e auto-navega.
+	let restaurouSalvos = false;
+	$effect(() => {
+		if (restaurouSalvos) return;
+		restaurouSalvos = true;
+		const savedSeccional = Number(saved.seccional) || '';
+		const savedTemFiltros =
+			savedSeccional !== '' ||
+			saved.unidade !== '' ||
+			saved.ano !== 0 ||
+			saved.mes !== 0 ||
+			saved.naoLidos !== true;
+		if (page.url.search === '' && savedTemFiltros) {
+			filtroSeccional = savedSeccional;
+			filtroUnidade = saved.unidade;
+			filtroAno = saved.ano;
+			filtroMes = saved.mes;
+			mostrarApenasNaoVistos = saved.naoLidos;
+			untrack(() => filtros.navegar(1, { replace: true }));
 		}
 	});
 
@@ -123,99 +186,6 @@
 	const anosOptions = $derived(
 		anos.map((ano) => ({ value: ano, label: ano === 0 ? 'Todos' : String(ano) }))
 	);
-
-	function buildQueryParams(p: number) {
-		// eslint-disable-next-line svelte/prefer-svelte-reactivity
-		const params = new URLSearchParams();
-		if (filtroSeccional !== '' && filtroSeccional !== null) {
-			params.set('seccional', String(filtroSeccional));
-		}
-		if (filtroUnidade.trim()) params.set('unidade', filtroUnidade.trim());
-		if (filtroAno) params.set('ano', String(filtroAno));
-		if (filtroMes) params.set('mes', String(filtroMes));
-		if (!mostrarApenasNaoVistos) params.set('vistos', 'todos');
-		if (p > 1) params.set('page', String(p));
-		return params.toString();
-	}
-
-	function navegarComFiltros(p = 1, opts: { replace?: boolean } = {}) {
-		const qs = buildQueryParams(p);
-		goto(qs ? `?${qs}` : page.url.pathname, {
-			keepFocus: true,
-			noScroll: true,
-			replaceState: opts.replace ?? false
-		});
-	}
-
-	let mounted = false;
-	// svelte-ignore state_referenced_locally
-	let prevSeccional = $state(filtroSeccional);
-	// svelte-ignore state_referenced_locally
-	let prevUnidade = $state(filtroUnidade);
-	// svelte-ignore state_referenced_locally
-	let prevAno = $state(filtroAno);
-	// svelte-ignore state_referenced_locally
-	let prevMes = $state(filtroMes);
-	// svelte-ignore state_referenced_locally
-	let prevNaoVistos = $state(mostrarApenasNaoVistos);
-	let unidadeDebounce: ReturnType<typeof setTimeout> | undefined;
-
-	function sincronizarPrev() {
-		prevSeccional = filtroSeccional;
-		prevUnidade = filtroUnidade;
-		prevAno = filtroAno;
-		prevMes = filtroMes;
-		prevNaoVistos = mostrarApenasNaoVistos;
-	}
-
-	$effect(() => {
-		// Normaliza null vindo do clear do SearchableSelect
-		if (filtroAno === null) filtroAno = 0;
-		if (filtroMes === null) filtroMes = 0;
-		if (filtroSeccional === null) filtroSeccional = '';
-
-		if (!mounted) {
-			mounted = true;
-			// Primeira visita sem parâmetros: reaplica os filtros persistidos
-			// (comportamento da versão client-side), trocando a URL in-place.
-			const savedSeccional = Number(saved.seccional) || '';
-			const savedTemFiltros =
-				savedSeccional !== '' ||
-				saved.unidade !== '' ||
-				saved.ano !== 0 ||
-				saved.mes !== 0 ||
-				saved.naoLidos !== true;
-			if (page.url.search === '' && savedTemFiltros) {
-				filtroSeccional = savedSeccional;
-				filtroUnidade = saved.unidade;
-				filtroAno = saved.ano;
-				filtroMes = saved.mes;
-				mostrarApenasNaoVistos = saved.naoLidos;
-				sincronizarPrev();
-				untrack(() => navegarComFiltros(1, { replace: true }));
-				return;
-			}
-			sincronizarPrev();
-			return;
-		}
-
-		const unidadeMudou = filtroUnidade !== prevUnidade;
-		const outrosMudaram =
-			filtroSeccional !== prevSeccional ||
-			filtroAno !== prevAno ||
-			filtroMes !== prevMes ||
-			mostrarApenasNaoVistos !== prevNaoVistos;
-		if (!unidadeMudou && !outrosMudaram) return;
-
-		sincronizarPrev();
-		clearTimeout(unidadeDebounce);
-		if (unidadeMudou && !outrosMudaram) {
-			// Texto livre: espera o usuário parar de digitar antes de ir ao servidor
-			unidadeDebounce = setTimeout(() => untrack(() => navegarComFiltros(1)), 350);
-		} else {
-			untrack(() => navegarComFiltros(1));
-		}
-	});
 
 	async function recarregar() {
 		loadingService.show('Atualizando caixa de entrada...');
@@ -286,7 +256,7 @@
 		filtroAno = 0;
 		filtroMes = 0;
 		mostrarApenasNaoVistos = true;
-		// O $effect de filtros detecta a mudança e navega para a URL limpa.
+		// O auto-nav do composable detecta a mudança e navega para a URL limpa.
 	}
 
 	const temFiltros = $derived(
@@ -335,16 +305,7 @@
 			</p>
 		</div>
 		<div class="flex gap-2 justify-end w-full sm:w-auto">
-			<button
-				type="button"
-				class="btn btn-sm {temFiltros
-					? 'preset-filled-warning-500'
-					: 'preset-outlined-primary-500 opacity-40'}"
-				onclick={limparFiltros}
-				disabled={!temFiltros}
-			>
-				Limpar filtros
-			</button>
+			<BotaoLimparFiltros {temFiltros} onclick={limparFiltros} />
 			<button
 				type="button"
 				class="btn preset-outlined-primary-500 btn-sm flex items-center gap-1.5"
@@ -783,43 +744,36 @@
 				itensPorPagina={data.limit}
 				labelSingular="escala recebida"
 				labelPlural="escala(s) recebida(s)"
-				onPageChange={(p) => navegarComFiltros(p)}
+				onPageChange={filtros.irParaPagina}
 			/>
 		{/if}
 	</div>
 {/if}
 
-<Dialog open={dialogOpen} onOpenChange={(e) => (dialogOpen = e.open)}>
-	<Dialog.Content
-		class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-sm overflow-y-auto"
-	>
-		<div
-			class="card p-4 sm:p-6 max-w-sm w-full max-h-[calc(100dvh-2rem)] overflow-y-auto card-elevated shadow-2xl rounded-2xl"
-		>
-			<Dialog.Title class="h3 font-bold mb-2">Excluir Escala?</Dialog.Title>
-			<Dialog.Description class="text-surface-600 dark:text-surface-400 mb-6">
-				Tem certeza que deseja excluir esta escala de <strong>{escalaParaExcluir?.lotacao}</strong>?
-				Esta ação não pode ser desfeita e removerá permanentemente o registro e o arquivo assinado.
-			</Dialog.Description>
-			<div class="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 sm:gap-3">
-				<Dialog.CloseTrigger
-					class="btn preset-outlined-surface-500"
-					disabled={loadingService.active}>Cancelar</Dialog.CloseTrigger
-				>
-				<form method="POST" action="?/excluir" use:enhance={handleExcluir} class="contents">
-					<input type="hidden" name="escala_id" value={escalaParaExcluir?.id} />
-					<button
-						type="submit"
-						class="btn preset-filled-error-500 flex items-center gap-2 transition-all"
-						disabled={loadingService.active}
-					>
-						{loadingService.active ? 'Excluindo...' : 'Excluir'}
-					</button>
-				</form>
-			</div>
-		</div>
-	</Dialog.Content>
-</Dialog>
+<ModalShell
+	bind:open={dialogOpen}
+	title="Excluir Escala?"
+	largura="sm"
+	pending={loadingService.active}
+	cancelLabel="Cancelar"
+>
+	{#snippet description()}
+		Tem certeza que deseja excluir esta escala de <strong>{escalaParaExcluir?.lotacao}</strong>?
+		Esta ação não pode ser desfeita e removerá permanentemente o registro e o arquivo assinado.
+	{/snippet}
+	{#snippet footer()}
+		<form method="POST" action="?/excluir" use:enhance={handleExcluir} class="contents">
+			<input type="hidden" name="escala_id" value={escalaParaExcluir?.id} />
+			<button
+				type="submit"
+				class="btn preset-filled-error-500 flex items-center gap-2 transition-all"
+				disabled={loadingService.active}
+			>
+				{loadingService.active ? 'Excluindo...' : 'Excluir'}
+			</button>
+		</form>
+	{/snippet}
+</ModalShell>
 
 <style>
 	/* Hide scrollbar for Chrome, Safari and Opera */

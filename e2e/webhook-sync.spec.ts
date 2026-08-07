@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { execD1Local, queryD1Local, tokenWebhookE2E } from './session';
+import { execD1Local, queryD1Local, tokenWebhookE2E, headersWebhookE2E } from './session';
 
 /**
  * Contract tests dos webhooks de sync (`/api/webhook/*`) — o ponto onde código
@@ -14,7 +14,8 @@ import { execD1Local, queryD1Local, tokenWebhookE2E } from './session';
  *
  * O SYNC_TOKEN de teste é injetado em `.dev.vars` pelo servidor-e2e (o adapter
  * Cloudflare o expõe em platform.env); a spec lê o valor efetivo do arquivo
- * publicado.
+ * publicado. Com `WEBHOOK_REPLAY_ENFORCE=1` (forçado no e2e como em produção),
+ * as chamadas autenticadas levam timestamp+nonce — igual ao `sendToAPI` do GAS.
  */
 
 const SYNC = tokenWebhookE2E();
@@ -25,10 +26,7 @@ const MAT_BAD = 'WEBHOOKE2E03';
 const MAT_LOTE_OK = 'WEBHOOKE2E04';
 const SECCIONAL = 'SECCIONAL WEBHOOK E2E';
 
-const bearer = (t: string) => ({
-	Authorization: `Bearer ${t}`,
-	'content-type': 'application/json'
-});
+const hdr = (t: string, extra?: Record<string, string>) => headersWebhookE2E(t, extra);
 
 test.describe('Webhook sync — contrato + segurança', () => {
 	test.skip(() => !SYNC, 'SYNC_TOKEN/D1 local indisponível');
@@ -50,16 +48,50 @@ test.describe('Webhook sync — contrato + segurança', () => {
 
 	test('Bearer inválido → 401', async ({ request }) => {
 		const res = await request.post('/api/webhook/sync-policiais', {
-			headers: bearer('token-errado-que-nao-bate-com-nada-1234'),
+			headers: hdr('token-errado-que-nao-bate-com-nada-1234'),
 			data: { matricula: MAT, nome: 'X', cargo: 'OIP' }
 		});
 		expect(res.status()).toBe(401);
 	});
 
+	test('Bearer válido sem timestamp/nonce → 401 (WEBHOOK_REPLAY_ENFORCE)', async ({
+		request
+	}) => {
+		const res = await request.post('/api/webhook/sync-policiais', {
+			headers: {
+				Authorization: `Bearer ${SYNC!}`,
+				'content-type': 'application/json'
+			},
+			data: { matricula: MAT, nome: 'X', cargo: 'OIP' }
+		});
+		expect(res.status()).toBe(401);
+	});
+
+	test('mesmo nonce duas vezes → 401 (replay)', async ({ request }) => {
+		const nonce = `e2e-replay-${Date.now()}`;
+		const ts = String(Math.floor(Date.now() / 1000));
+		const headers = {
+			Authorization: `Bearer ${SYNC!}`,
+			'content-type': 'application/json',
+			'X-Webhook-Timestamp': ts,
+			'X-Webhook-Nonce': nonce
+		};
+		const data = {
+			matricula: MAT,
+			nome: 'Replay Probe',
+			cargo: 'OIP',
+			lotacao: 'DELEGACIA E2E FIXTURE A'
+		};
+		const a = await request.post('/api/webhook/sync-policiais', { headers, data });
+		expect(a.status()).toBe(200);
+		const b = await request.post('/api/webhook/sync-policiais', { headers, data });
+		expect(b.status()).toBe(401);
+	});
+
 	test('payload do Apps Script cria e depois atualiza o policial (upsert)', async ({ request }) => {
 		// CREATE
 		const criar = await request.post('/api/webhook/sync-policiais', {
-			headers: bearer(SYNC!),
+			headers: hdr(SYNC!),
 			data: {
 				matricula: MAT,
 				nome: 'Fulano Webhook',
@@ -81,7 +113,7 @@ test.describe('Webhook sync — contrato + segurança', () => {
 
 		// UPDATE (mesma matrícula, nome e cargo novos)
 		const atualizar = await request.post('/api/webhook/sync-policiais', {
-			headers: bearer(SYNC!),
+			headers: hdr(SYNC!),
 			data: {
 				matricula: MAT,
 				nome: 'Fulano Atualizado',
@@ -102,7 +134,7 @@ test.describe('Webhook sync — contrato + segurança', () => {
 		// Lote MISTO, que é o que o nome do teste promete: a linha boa entra, a
 		// ruim não, e nenhuma das duas derruba a outra.
 		const res = await request.post('/api/webhook/sync-policiais', {
-			headers: bearer(SYNC!),
+			headers: hdr(SYNC!),
 			data: [
 				{
 					matricula: MAT_LOTE_OK,
@@ -136,7 +168,7 @@ test.describe('Webhook sync — contrato + segurança', () => {
 		// O par do teste acima: sem falha nenhuma o status volta a ser 200, senão
 		// o 422 viraria ruído permanente e o operador aprenderia a ignorá-lo.
 		const res = await request.post('/api/webhook/sync-policiais', {
-			headers: bearer(SYNC!),
+			headers: hdr(SYNC!),
 			data: [
 				{ matricula: MAT_LOTE_OK, nome: 'Linha Boa', cargo: 'OIP', lotacao: 'DELEGACIA E2E FIXTURE A' }
 			]
@@ -149,7 +181,7 @@ test.describe('Webhook sync — contrato + segurança', () => {
 		request
 	}) => {
 		const res = await request.post('/api/webhook/sync-policiais', {
-			headers: bearer(SYNC!),
+			headers: hdr(SYNC!),
 			data: {
 				matricula: MAT_ADMIN,
 				nome: 'Tentativa Escalada',
@@ -172,7 +204,7 @@ test.describe('Webhook sync — contrato + segurança', () => {
 
 	test('sync-unidades cria a seccional (upsert)', async ({ request }) => {
 		const res = await request.post('/api/webhook/sync-unidades', {
-			headers: bearer(SYNC!),
+			headers: hdr(SYNC!),
 			data: { nivel: 'SECCIONAL', seccional: SECCIONAL, cidade: 'Fortaleza' }
 		});
 		expect(res.status(), await res.text().catch(() => '')).toBe(200);
@@ -193,13 +225,12 @@ test.describe('Webhook sync — contrato + segurança', () => {
 		expect(totalAntes).toBeGreaterThan(0);
 
 		const res = await request.post('/api/webhook/reset-policiais', {
-			headers: {
-				...bearer(SYNC!),
+			headers: hdr(SYNC!, {
 				'X-Reset-Token': 'nao-e-o-reset-token-correto-000000000000',
 				// Data UTC corrente (a 3ª credencial) — irrelevante para o 401 deste
 				// caso (RESET_TOKEN ausente/errado falha antes), mas mantida realista.
 				'X-Confirm-Reset': new Date().toISOString().slice(0, 10)
-			},
+			}),
 			data: {}
 		});
 		expect(res.status()).toBe(401);

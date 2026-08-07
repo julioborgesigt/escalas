@@ -32,6 +32,7 @@
 	import { useEdicaoInlineServidor } from './useEdicaoInlineServidor.svelte';
 	import type { ActionResult } from '@sveltejs/kit';
 	import SearchableSelect from '$lib/components/SearchableSelect.svelte';
+	import SeletorHoraMinuto from '$lib/components/SeletorHoraMinuto.svelte';
 	import IconTooltip from '$lib/components/IconTooltip.svelte';
 	import ModalEditarDias from './ModalEditarDias.svelte';
 	import type { Escala } from '$lib/server/schema';
@@ -48,8 +49,6 @@
 		modoSelecao,
 		selecionados = $bindable(),
 		escala,
-		horas,
-		minutos,
 		onToggleSelecionar,
 		onSolicitarRemocao,
 		onDatasAtualizadas
@@ -63,8 +62,6 @@
 		modoSelecao: boolean;
 		selecionados: Set<number>;
 		escala: Escala;
-		horas: string[];
-		minutos: string[];
 		onToggleSelecionar: (id: number) => void;
 		onSolicitarRemocao: (id: number, nome: string) => void;
 		onDatasAtualizadas?: () => void;
@@ -387,37 +384,19 @@
 									</div>
 									<div class="shrink-0">
 										<span class="label-text text-3xs block mb-0.5">Entrada</span>
-										<div class="flex gap-1">
-											<select
-												class="select text-xs h-8 py-0 rounded-lg px-1 w-12"
-												bind:value={edicao.horaEntrada}
-											>
-												{#each horas as h (h)}<option value={h}>{h}h</option>{/each}
-											</select>
-											<select
-												class="select text-xs h-8 py-0 rounded-lg px-1 w-12"
-												bind:value={edicao.minutoEntrada}
-											>
-												{#each minutos as m (m)}<option value={m}>{m}m</option>{/each}
-											</select>
-										</div>
+										<SeletorHoraMinuto
+											bind:hora={edicao.horaEntrada}
+											bind:minuto={edicao.minutoEntrada}
+											selectClass="select text-xs h-8 py-0 rounded-lg px-1 w-12"
+										/>
 									</div>
 									<div class="shrink-0">
 										<span class="label-text text-3xs block mb-0.5">Saída hr</span>
-										<div class="flex gap-1">
-											<select
-												class="select text-xs h-8 py-0 rounded-lg px-1 w-12"
-												bind:value={edicao.horaSaida}
-											>
-												{#each horas as h (h)}<option value={h}>{h}h</option>{/each}
-											</select>
-											<select
-												class="select text-xs h-8 py-0 rounded-lg px-1 w-12"
-												bind:value={edicao.minutoSaida}
-											>
-												{#each minutos as m (m)}<option value={m}>{m}m</option>{/each}
-											</select>
-										</div>
+										<SeletorHoraMinuto
+											bind:hora={edicao.horaSaida}
+											bind:minuto={edicao.minutoSaida}
+											selectClass="select text-xs h-8 py-0 rounded-lg px-1 w-12"
+										/>
 									</div>
 									<div class="flex gap-1 ml-auto shrink-0">
 										<button
@@ -661,41 +640,23 @@
 							</div>
 							<div class="shrink-0">
 								<span class="label-text text-3xs block mb-0.5">Entrada</span>
-								<div class="flex gap-1">
-									<select
-										class="select text-xs h-9 py-0 px-2"
-										name="hora_entrada"
-										bind:value={fdsAddHoraEntrada}
-									>
-										{#each horas as h (h)}<option value={h}>{h}h</option>{/each}
-									</select>
-									<select
-										class="select text-xs h-9 py-0 px-2"
-										name="minuto_entrada"
-										bind:value={fdsAddMinutoEntrada}
-									>
-										{#each minutos as m (m)}<option value={m}>{m}m</option>{/each}
-									</select>
-								</div>
+								<SeletorHoraMinuto
+									bind:hora={fdsAddHoraEntrada}
+									bind:minuto={fdsAddMinutoEntrada}
+									nameHora="hora_entrada"
+									nameMinuto="minuto_entrada"
+									selectClass="select text-xs h-9 py-0 px-2"
+								/>
 							</div>
 							<div class="shrink-0">
 								<span class="label-text text-3xs block mb-0.5">Saída</span>
-								<div class="flex gap-1">
-									<select
-										class="select text-xs h-9 py-0 px-2"
-										name="hora_saida"
-										bind:value={fdsAddHoraSaida}
-									>
-										{#each horas as h (h)}<option value={h}>{h}h</option>{/each}
-									</select>
-									<select
-										class="select text-xs h-9 py-0 px-2"
-										name="minuto_saida"
-										bind:value={fdsAddMinutoSaida}
-									>
-										{#each minutos as m (m)}<option value={m}>{m}m</option>{/each}
-									</select>
-								</div>
+								<SeletorHoraMinuto
+									bind:hora={fdsAddHoraSaida}
+									bind:minuto={fdsAddMinutoSaida}
+									nameHora="hora_saida"
+									nameMinuto="minuto_saida"
+									selectClass="select text-xs h-9 py-0 px-2"
+								/>
 							</div>
 							<div class="flex gap-1.5 shrink-0">
 								<button

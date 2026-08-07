@@ -19,7 +19,7 @@ import {
 	forbidden,
 	serverError
 } from '$lib/server/api';
-import { verificarPermissaoEscala } from '$lib/server/escalas/permissao';
+import { verificarPermissaoEscala, podeAssinarEscala } from '$lib/server/escalas/permissao';
 import {
 	podeBaixarComManifesto,
 	gerarCopiaConferencia,
@@ -121,11 +121,11 @@ export const DELETE: RequestHandler = async ({ platform, params, locals }) => {
 	const escala = await buscarEscala(db, id);
 	if (!escala) return notFound('Escala');
 
-	// Somente admin, dono da lotação ou DPC admin com solicitação pode revogar.
-	// Mensagem genérica para não vazar quem TEM permissão (anti-enumeração).
+	// Somente quem pode assinar pode revogar (FLW-AUT-001). Mensagem genérica.
 	const perm = await verificarPermissaoEscala(db, id, escala.lotacao, u);
-	if (!perm.permitido) return forbidden('Sem permissão para esta ação.');
-
+	if (!perm.permitido || !podeAssinarEscala(u)) {
+		return forbidden('Sem permissão para esta ação.');
+	}
 	const documento = await buscarDocumentoEscala(db, id);
 	if (!documento) return notFound('Assinatura');
 

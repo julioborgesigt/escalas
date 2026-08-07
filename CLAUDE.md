@@ -21,6 +21,9 @@ Antes de implementar qualquer solução envolvendo Svelte ou SvelteKit, **consul
 
 ## Padrões Obrigatórios
 
+Padrões visuais (cores, tipografia, modais, botões, z-index, tabelas) vivem no
+[`README.md`](README.md) §10 — não reinventar tokens nem classes à mão.
+
 Este projeto usa **Svelte 5** com runes. Sempre priorize:
 
 - `$state()` — estado reativo (nunca `writable()` de stores)
@@ -116,7 +119,7 @@ aceita o que é usado por vários domínios sem pertencer a nenhum: `api.ts`,
 `policial-permissao.ts`.
 
 Todo o resto vai para o domínio correspondente — `assinatura/`, `auth/`,
-`escalas/`, `gise/`, `export/`, `termo/` — junto com seu `__tests__/`.
+`escalas/`, `gise/`, `export/`, `sync/`, `termo/` — junto com seu `__tests__/`.
 
 Arquivo novo cujo nome só faz sentido com prefixo de domínio (`gise-*`,
 `escala-*`, `pdf-*`) é sinal de que ele pertence a uma subpasta, não à raiz.

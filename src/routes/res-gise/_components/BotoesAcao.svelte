@@ -8,6 +8,10 @@
 	 * podem ser exportados pelo `<script module>` desde que não referenciem
 	 * nada do `<script>` de instância — por isso o `loading` é importado aqui.
 	 * https://svelte.dev/docs/svelte/snippet
+	 *
+	 * C-MANTER (auditoria componentização 06/ago): NÃO unificar com
+	 * `gise/[id]/_components/GiseActionButton.svelte` — domínio e API
+	 * diferentes; ver cabeçalho daquele arquivo.
 	 */
 	import { loading } from '$lib/loading.svelte';
 

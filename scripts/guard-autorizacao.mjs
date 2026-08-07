@@ -33,10 +33,39 @@
  *
  * Uso: node scripts/guard-autorizacao.mjs
  */
-import { readFileSync } from 'node:fs';
-import { execSync } from 'node:child_process';
-import { resolve } from 'node:path';
+import { readFileSync, readdirSync } from 'node:fs';
+import { join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+
+/**
+ * Lista rotas de mutação sem `find` Unix — no Windows o `FIND.EXE` nativo
+ * interpreta a mesma linha e quebra o guard (FLW-AUT nota operacional).
+ */
+function listarArquivosMutacao(raizRoutes) {
+	const saida = [];
+	function andar(dir) {
+		for (const ent of readdirSync(dir, { withFileTypes: true })) {
+			const full = join(dir, ent.name);
+			if (ent.isDirectory()) {
+				if (ent.name === '_actions') {
+					for (const f of readdirSync(full, { withFileTypes: true })) {
+						if (f.isFile() && f.name.endsWith('.ts')) {
+							saida.push(relative('.', join(full, f.name)).replaceAll('\\', '/'));
+						}
+					}
+				} else {
+					andar(full);
+				}
+				continue;
+			}
+			if (ent.name === '+server.ts' || ent.name === '+page.server.ts') {
+				saida.push(relative('.', full).replaceAll('\\', '/'));
+			}
+		}
+	}
+	andar(raizRoutes);
+	return saida.sort();
+}
 
 /**
  * Operações que legitimamente NÃO recusam por permissão, com o motivo.
@@ -113,6 +142,33 @@ export const PUBLICAS = [
 	'src/routes/redefinir-senha/+page.server.ts'
 ];
 
+/**
+ * Além do "há um 403", estes arquivos TÊM de citar o helper certo (FLW-AUT-001 /
+ * FLW-AUT-010). O guard de nível só pega "recusa alguém"; esta lista pega
+ * "recusa com a regra errada" quando alguém troca `podeAssinarEscala` por um
+ * `requireAuth` solto.
+ *
+ * Chave = caminho do arquivo. Valor = nomes aceitos (basta UM aparecer no
+ * fonte). Em membros, os wrappers (`carregarMembroDaGise` etc.) já invocam
+ * `carregarGiseEditavel` — listar os wrappers evita falso vermelho.
+ *
+ * Lista FECHADA das regressões conhecidas: crescer só com achado novo.
+ */
+export const HELPERS_OBRIGATORIOS = {
+	'src/routes/api/escalas/[id]/assinar-simples/+server.ts': ['podeAssinarEscala'],
+	'src/routes/api/escalas/[id]/preparar-assinatura/+server.ts': ['podeAssinarEscala'],
+	'src/routes/api/escalas/[id]/finalizar-assinatura/+server.ts': ['podeAssinarEscala'],
+	'src/routes/api/escalas/[id]/documento-assinado/+server.ts': ['podeAssinarEscala'],
+	'src/routes/gise/[id]/_actions/actions-escala.ts': ['carregarGiseEditavel'],
+	'src/routes/gise/[id]/_actions/actions-seccional.ts': ['carregarGiseEditavel'],
+	'src/routes/gise/[id]/_actions/actions-membros.ts': [
+		'carregarGiseEditavel',
+		'carregarMembroDaGise',
+		'carregarSeccionalDaGise',
+		'carregarEquipeDaGise'
+	]
+};
+
 const RE_403 = /fail\(403|forbidden\(|status:\s*403|error\(403|requireAdmin\(|requireSuperAdmin\(/;
 const RE_401 = /fail\(401|unauthorized\(|requireAuth\(|error\(401/;
 
@@ -136,13 +192,7 @@ function blocoBalanceado(src, iAbre) {
  * erro aparecendo como falha do teste errado.
  */
 function principal() {
-	const arquivos = execSync(
-		"find src/routes -name '+server.ts' -o -name '+page.server.ts' -o -path '*_actions/*.ts'",
-		{ encoding: 'utf8' }
-	)
-		.split('\n')
-		.filter(Boolean)
-		.sort();
+	const arquivos = listarArquivosMutacao(resolve('src/routes'));
 
 	const operacoes = [];
 	/** Contagem frouxa das DECLARAÇÕES, para conferir contra o que foi lido. */
@@ -246,6 +296,26 @@ function principal() {
 		}
 	}
 
+	// Helper certo (não só "tem 403"): regressões FLW-AUT-001 / FLW-AUT-010.
+	for (const [arquivo, nomes] of Object.entries(HELPERS_OBRIGATORIOS)) {
+		if (!arquivos.includes(arquivo)) {
+			problemas.push({
+				arquivo,
+				msg: `HELPERS_OBRIGATORIOS obsoleto: "${arquivo}" não existe mais`
+			});
+			continue;
+		}
+		const src = readFileSync(arquivo, 'utf8');
+		if (!nomes.some((n) => src.includes(n))) {
+			problemas.push({
+				arquivo,
+				msg:
+					`falta helper obrigatório — espere um de [${nomes.join(', ')}] ` +
+					'(ACL larga com 403 genérico não basta)'
+			});
+		}
+	}
+
 	if (problemas.length > 0) {
 		console.error('\n[guard-autorizacao] operação material sem decisão de autorização:\n');
 		for (const { arquivo, msg } of problemas) {
@@ -262,7 +332,8 @@ function principal() {
 	console.log(
 		`[guard-autorizacao] ${operacoes.length} operações materiais — ` +
 			`${operacoes.length - vistas.size} recusam por permissão, ` +
-			`${vistas.size} dispensadas com motivo declarado.`
+			`${vistas.size} dispensadas com motivo declarado; ` +
+			`${Object.keys(HELPERS_OBRIGATORIOS).length} arquivos com helper obrigatório.`
 	);
 }
 
