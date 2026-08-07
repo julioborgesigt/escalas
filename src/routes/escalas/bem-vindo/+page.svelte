@@ -20,7 +20,6 @@
 	 * resolvidos pelo servidor — a página não decide permissão, só apresentação.
 	 */
 	import type { PageProps } from './$types';
-	import { ICONE } from '$lib/constants/icones';
 	import BemVindoPagina from '$lib/components/bem-vindo/BemVindoPagina.svelte';
 	import BemVindoCabecalho from '$lib/components/bem-vindo/BemVindoCabecalho.svelte';
 	import BemVindoCardAcao from '$lib/components/bem-vindo/BemVindoCardAcao.svelte';
@@ -69,7 +68,6 @@
 		if (usuario?.tipo === 'admin') {
 			return [
 				{
-					icone: ICONE.painel,
 					titulo: 'Painel de Compliance',
 					descricao:
 						'Acompanhe o envio e assinatura das escalas por delegacia, monitorando o cumprimento dos prazos e identificando pendências.',
@@ -77,7 +75,6 @@
 					cta: 'Acessar painel'
 				},
 				{
-					icone: ICONE.caixaEntrada,
 					titulo: 'Caixa de Entrada',
 					descricao:
 						'Visualize e gerencie os envios e assinaturas de escalas em tempo real, além de realizar exportações (Word, Excel, PDF).',
@@ -85,14 +82,12 @@
 					cta: 'Acessar caixa de entrada'
 				},
 				{
-					icone: ICONE.pessoas,
 					titulo: 'Policiais',
 					descricao: 'Consulte e gerencie o cadastro de policiais e seus dados.',
 					href: '/policiais',
 					cta: 'Gerenciar policiais'
 				},
 				{
-					icone: ICONE.checkLista,
 					titulo: 'Solicitações',
 					descricao:
 						'Analise e aprove ou rejeite as solicitações de alteração de dados enviadas pelos policiais.',
@@ -107,7 +102,6 @@
 			usuario?.papel === 'admin_seccional' ? 'de sua seccional' : 'de sua unidade administrativa';
 		const cardOrdinaria = isDpc
 			? {
-					icone: ICONE.calendario,
 					titulo: 'Conferência e Assinatura',
 					descricao: `Confira e assine as escalas ordinárias (mensal) de plantão e expediente ${ondeDesc}.`,
 					href: '/escalas',
@@ -115,7 +109,6 @@
 				}
 			: usuario?.papel === 'admin_seccional'
 				? {
-						icone: ICONE.calendario,
 						titulo: 'Escalas Ordinárias',
 						descricao:
 							'Envie e gerencie as escalas ordinárias de sua seccional, incluindo plantão (mensal), expediente e a escala de final de semana.',
@@ -123,7 +116,6 @@
 						cta: 'Acessar escalas'
 					}
 				: {
-						icone: ICONE.calendario,
 						titulo: 'Gestão de Escalas',
 						descricao:
 							'Crie e gerencie as escalas ordinárias (mensal) de plantão e expediente e a escala de final de semana de sua unidade administrativa.',
@@ -132,7 +124,6 @@
 					};
 
 		const cardGiseEscalas = {
-			icone: ICONE.pranchetaLista,
 			titulo: 'Escalas GISE',
 			descricao:
 				usuario?.papel === 'admin_seccional'
@@ -143,7 +134,6 @@
 		};
 
 		const cardPresencaGise = {
-			icone: ICONE.documento,
 			titulo: 'Presença GISE',
 			descricao:
 				'Confirme sua presença nas escalas GISE ativas onde você foi alocado e assine a folha de presença correspondente.',
@@ -152,7 +142,6 @@
 		};
 
 		const cardHistoricoGise = {
-			icone: ICONE.historico,
 			titulo: 'Histórico GISE',
 			descricao:
 				'Consulte suas escalas GISE já encerradas: comprovantes de presença e relatórios das operações anteriores.',
@@ -162,7 +151,6 @@
 
 		// Todo policial (incl. sub-admins) tem "Meu perfil" na sidebar — espelhado aqui.
 		const cardMeuPerfil = {
-			icone: ICONE.perfil,
 			titulo: 'Meu perfil',
 			descricao:
 				'Atualize seus dados cadastrais, gerencie sua rubrica e ajuste as preferências da conta.',
@@ -189,7 +177,6 @@
 		}
 		const lista = [
 			{
-				icone: ICONE.calendario,
 				titulo: 'Painel de Escalas',
 				descricao:
 					'Acesse o painel para criar, enviar e acompanhar as escalas ordinárias de sua unidade.',
@@ -209,7 +196,6 @@
 
 <BemVindoPagina>
 	<BemVindoCabecalho
-		icone={ICONE.casa}
 		modulo="Módulo de Escalas"
 		{usuario}
 		{descricao}

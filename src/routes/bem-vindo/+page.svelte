@@ -1,11 +1,9 @@
 <script lang="ts">
 	import type { PageProps } from './$types';
 	import { page } from '$app/state';
-	import { ICONE } from '$lib/constants/icones';
 	import BemVindoPagina from '$lib/components/bem-vindo/BemVindoPagina.svelte';
 	import BemVindoCabecalho from '$lib/components/bem-vindo/BemVindoCabecalho.svelte';
 	import BemVindoCardAcao from '$lib/components/bem-vindo/BemVindoCardAcao.svelte';
-	import IconeSvg from '$lib/components/bem-vindo/IconeSvg.svelte';
 
 	const { data }: PageProps = $props();
 	const usuario = $derived(data.usuario);
@@ -22,7 +20,6 @@
 		const lista = [];
 		if (isSupervisorGise) {
 			lista.push({
-				icone: ICONE.pranchetaLista,
 				titulo: 'Supervisão GISE',
 				descricao:
 					'Acompanhe e supervisione o planejamento e a execução das escalas GISE sob sua responsabilidade.',
@@ -32,7 +29,6 @@
 		}
 		if (isMembroGise || isSupervisaoGise) {
 			lista.push({
-				icone: ICONE.documento,
 				titulo: 'Presença GISE',
 				descricao:
 					'Confirme sua presença nas escalas GISE em que foi alocado e assine a folha correspondente.',
@@ -48,7 +44,6 @@
 	// Card do histórico: só quando há GISE encerrada. Fica FORA de `giseCards`
 	// (que alimenta `semConvocacao`) porque histórico não é convocação ativa.
 	const cardHistoricoGise = {
-		icone: ICONE.historico,
 		titulo: 'Histórico GISE',
 		descricao:
 			'Consulte suas escalas GISE já encerradas: comprovantes de presença e relatórios das operações anteriores.',
@@ -61,7 +56,6 @@
 		...giseCards,
 		...(temGiseHistorico ? [cardHistoricoGise] : []),
 		{
-			icone: ICONE.perfil,
 			titulo: 'Meu perfil',
 			descricao:
 				'Atualize seus dados cadastrais, gerencie sua rubrica e ajuste as preferências da conta.',
@@ -77,7 +71,6 @@
 
 <BemVindoPagina>
 	<BemVindoCabecalho
-		icone={ICONE.casa}
 		modulo="Portal de Escalas"
 		{usuario}
 		descricao="Acompanhe seus plantões de serviço ativo, registre suas presenças e preencha seus relatórios de produtividade operacional."
@@ -91,17 +84,14 @@
 			Acesso rápido
 		</h2>
 		{#if semConvocacao}
-			<div class="card-elevated mb-4 flex items-start gap-3 rounded-xl p-5">
-				<IconeSvg paths={ICONE.info} class="mt-0.5 h-4 w-4 shrink-0 text-surface-400" />
-				<div>
-					<p class="text-sm font-semibold text-surface-900 dark:text-surface-50">
-						Nenhuma convocação ativa
-					</p>
-					<p class="mt-1 text-xs leading-relaxed text-surface-600 dark:text-surface-400">
-						No momento você não possui nenhuma convocação para escala GISE ativa. Em caso de dúvida,
-						verifique com a chefia de sua unidade.
-					</p>
-				</div>
+			<div class="card-elevated mb-4 rounded-xl p-5">
+				<p class="text-sm font-semibold text-surface-900 dark:text-surface-50">
+					Nenhuma convocação ativa
+				</p>
+				<p class="mt-1 text-xs leading-relaxed text-surface-600 dark:text-surface-400">
+					No momento você não possui nenhuma convocação para escala GISE ativa. Em caso de dúvida,
+					verifique com a chefia de sua unidade.
+				</p>
 			</div>
 		{/if}
 		<div class="grid grid-cols-1 gap-4 {acoes.length > 1 ? 'sm:grid-cols-2 lg:grid-cols-3' : ''}">

@@ -1,15 +1,15 @@
-<!-- Casca comum das telas de boas-vindas (redesign institucional): conteúdo
-     apoiado direto no fundo da página, sem o antigo container translúcido.
-     Alinhado ao topo, como as demais telas — o espaçamento superior vem do
-     wrapper do layout (pt-20 mobile / pt-8 desktop); um min-height + centro
-     vertical aqui criava um gap no topo que fugia do padrão. -->
+<!-- Casca comum das telas de boas-vindas: conteúdo apoiado direto no fundo da
+     página. Não re-restringe a largura nem re-aplica padding horizontal — o
+     container do layout já dá `max-w-6xl mx-auto px-2 sm:px-4`, então isto fica
+     `w-full` para casar com a largura das demais páginas (antes um `max-w-5xl`
+     deixava as boas-vindas mais estreitas que o resto). -->
 <script lang="ts">
 	import type { Snippet } from 'svelte';
 
 	const { children }: { children: Snippet } = $props();
 </script>
 
-<div class="animate-fade-in mx-auto w-full max-w-5xl px-4 pb-10 sm:px-6">
+<div class="animate-fade-in w-full">
 	{@render children()}
 </div>
 
