@@ -179,14 +179,12 @@
 
 {#snippet blocoRestritoDesktop(tipo: 'entrada' | 'saida')}
 	{@const rotulo = tipo === 'entrada' ? 'entrada' : 'saída'}
-	<div class="flex flex-col gap-3 max-w-md mx-auto">
+	<div class="flex flex-col gap-3 max-w-sm mx-auto">
 		<div class="bg-tertiary-500/5 border border-tertiary-500/25 p-4 rounded-2xl space-y-3">
 			<div class="flex items-center gap-2">
 				<ShieldCheck class="w-5 h-5 text-tertiary-500 shrink-0" aria-hidden="true" />
 				<p class="text-sm font-bold text-surface-700 dark:text-surface-200 leading-tight">
-					Assinar pelo computador <span class="text-3xs font-black text-tertiary-500 uppercase"
-						>Certificado Digital · ICP-Brasil</span
-					>
+					Assinar com Certificado Digital
 				</p>
 			</div>
 
@@ -219,9 +217,8 @@
 						/>
 					</svg>
 					<p class="text-xs text-surface-600 dark:text-surface-300 leading-snug">
-						Você ainda <strong>não cadastrou sua rubrica</strong>. Para confirmar a {rotulo} pelo computador
-						com seu <strong>certificado digital</strong>, é necessário cadastrar primeiro a sua
-						rubrica — ela será usada como sua assinatura gráfica.
+						Você ainda <strong>não cadastrou sua rubrica</strong>. Para confirmar a {rotulo} é
+						necessário cadastrar primeiro a sua rubrica — ela será usada como sua assinatura gráfica.
 					</p>
 				</div>
 				<button
@@ -233,7 +230,7 @@
 				</button>
 			{/if}
 			<p class="text-3xs text-surface-600 dark:text-surface-400 italic leading-snug">
-				Pelo celular, a confirmação continua disponível com foto (prova de vida) e GPS.
+				Caso não possua TOKEN, você pode confirmar acessando pelo celular.
 			</p>
 		</div>
 	</div>
@@ -527,8 +524,8 @@
 	<ModalShell
 		open={modalPresenca === 'entrada'}
 		title="Confirmação de Entrada"
-		description="Confirme sua entrada no serviço com uma rubrica para liberar o formulário de produtividade."
-		largura="md"
+		description="Confirme sua entrada para liberar o formulário de produtividade."
+		largura="sm"
 		camada="base"
 		familia="gise"
 		portal={true}
@@ -570,7 +567,7 @@
 		open={modalPresenca === 'saida'}
 		title="Término do Plantão"
 		description="Confirme sua saída do serviço com uma rubrica."
-		largura="md"
+		largura="sm"
 		camada="base"
 		familia="gise"
 		portal={true}
