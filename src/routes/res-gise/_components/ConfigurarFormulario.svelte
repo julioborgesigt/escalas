@@ -174,7 +174,9 @@
 
 	<!-- Prévia das etapas: o policial responde uma por tela, nesta ordem. -->
 	<section class="card-elevated rounded-2xl p-4 sm:p-5 shadow-sm space-y-3">
-		<p class="text-3xs font-semibold text-surface-600 dark:text-surface-400 uppercase tracking-widest">
+		<p
+			class="text-3xs font-semibold text-surface-600 dark:text-surface-400 uppercase tracking-widest"
+		>
 			Etapas do formulário ({etapas.length})
 		</p>
 		<div class="flex flex-wrap items-center gap-2">
