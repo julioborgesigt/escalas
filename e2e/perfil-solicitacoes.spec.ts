@@ -6,10 +6,15 @@ import { autenticarPagina, execD1Local } from './session';
  * "Meu perfil" + aba "Solicitações" do Admin Geral: o policial solicita a
  * alteração de telefone, o admin aprova com um clique e o valor é aplicado
  * no cadastro.
+ *
+ * Telefone no formulário é só dígitos (máx. 11) — preencher máscara antiga
+ * `(85) …` com `maxlength=11` truncava antes do limpar e a action recusava
+ * (TELEFONE_RE pede ≥8 chars).
  */
 
 const ADMIN_TMP = 99003;
-const NOVO_TELEFONE = '(85) 99999-0000';
+/** DDD + número, só dígitos — contrato do input de /perfil. */
+const NOVO_TELEFONE = '85999990000';
 
 test.describe.configure({ mode: 'serial' });
 
