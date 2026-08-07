@@ -54,173 +54,171 @@
 			};
 		}}
 	>
-		<div
-			class="card p-4 sm:p-6 md:p-8 bg-white dark:bg-surface-900 border border-surface-200 dark:border-surface-800 rounded-3xl shadow-xl space-y-6"
-		>
-			<div class="grid md:grid-cols-[auto_1fr] gap-6 md:gap-8 items-start">
-				<!-- Vagas padrão por unidade -->
-				<div class="space-y-3 md:border-r md:border-surface-200 md:dark:border-surface-700 md:pr-8">
+		<div class="grid gap-6 lg:grid-cols-2 lg:items-start">
+			<!-- Card 1: Vagas padrão por unidade -->
+			<section class="card-elevated rounded-2xl p-5 sm:p-6 shadow-sm space-y-4">
+				<div>
 					<h2 class="text-base font-semibold">Vagas padrão por unidade</h2>
+					<p class="text-sm text-surface-600 dark:text-surface-400 mt-1">
+						Preset para equipes criadas depois — não redimensiona GISE em andamento.
+					</p>
+				</div>
 
-					<div class="space-y-3">
-						<div
-							class="rounded-xl border border-surface-200 dark:border-surface-700 p-4 space-y-3 bg-surface-50 dark:bg-surface-800/30"
-						>
-							<p class="text-sm font-semibold">Equipe operacional</p>
-							<div class="flex items-center gap-4">
-								<div class="flex items-center gap-2">
-									<label class="text-sm text-surface-600 dark:text-surface-400 w-8" for="op_dpc"
-										>DPC</label
-									>
-									<input
-										id="op_dpc"
-										name="op_dpc"
-										type="number"
-										min="0"
-										max="999"
-										class="w-20 px-2 py-1.5 rounded-lg border border-surface-300 dark:border-surface-600 bg-white dark:bg-surface-900 text-sm"
-										value={vagas.operacional.dpc}
-									/>
-								</div>
-								<div class="flex items-center gap-2">
-									<label class="text-sm text-surface-600 dark:text-surface-400 w-8" for="op_oip"
-										>OIP</label
-									>
-									<input
-										id="op_oip"
-										name="op_oip"
-										type="number"
-										min="0"
-										max="999"
-										class="w-20 px-2 py-1.5 rounded-lg border border-surface-300 dark:border-surface-600 bg-white dark:bg-surface-900 text-sm"
-										value={vagas.operacional.oip}
-									/>
-								</div>
-							</div>
+				<div class="card-elevated-2 rounded-xl p-4 space-y-3">
+					<p class="text-sm font-semibold">Equipe operacional</p>
+					<div class="flex items-center gap-4">
+						<div class="flex items-center gap-2">
+							<label class="text-sm text-surface-600 dark:text-surface-400 w-8" for="op_dpc"
+								>DPC</label
+							>
+							<input
+								id="op_dpc"
+								name="op_dpc"
+								type="number"
+								min="0"
+								max="999"
+								class="w-20 px-2 py-1.5 rounded-lg border border-surface-300 dark:border-surface-600 bg-white dark:bg-surface-900 text-sm"
+								value={vagas.operacional.dpc}
+							/>
 						</div>
-
-						<div
-							class="rounded-xl border border-surface-200 dark:border-surface-700 p-4 space-y-3 bg-surface-50 dark:bg-surface-800/30"
-						>
-							<p class="text-sm font-semibold">Equipe SEINT</p>
-							<div class="flex items-center gap-4">
-								<div class="flex items-center gap-2">
-									<label class="text-sm text-surface-600 dark:text-surface-400 w-8" for="seint_dpc"
-										>DPC</label
-									>
-									<input
-										id="seint_dpc"
-										name="seint_dpc"
-										type="number"
-										min="0"
-										max="999"
-										class="w-20 px-2 py-1.5 rounded-lg border border-surface-300 dark:border-surface-600 bg-white dark:bg-surface-900 text-sm"
-										value={vagas.seint.dpc}
-									/>
-								</div>
-								<div class="flex items-center gap-2">
-									<label class="text-sm text-surface-600 dark:text-surface-400 w-8" for="seint_oip"
-										>OIP</label
-									>
-									<input
-										id="seint_oip"
-										name="seint_oip"
-										type="number"
-										min="0"
-										max="999"
-										class="w-20 px-2 py-1.5 rounded-lg border border-surface-300 dark:border-surface-600 bg-white dark:bg-surface-900 text-sm"
-										value={vagas.seint.oip}
-									/>
-								</div>
-							</div>
-						</div>
-
-						<div
-							class="rounded-xl border border-surface-200 dark:border-surface-700 p-4 space-y-3 bg-surface-50 dark:bg-surface-800/30"
-						>
-							<p class="text-sm font-semibold">Horário padrão da GISE</p>
-							<div class="flex items-center gap-4">
-								<div class="flex items-center gap-2">
-									<label
-										class="text-sm text-surface-600 dark:text-surface-400 w-16"
-										for="default_hora_entrada">Entrada</label
-									>
-									<input
-										id="default_hora_entrada"
-										name="default_hora_entrada"
-										type="text"
-										placeholder="08:00"
-										class="w-20 px-2 py-1.5 rounded-lg border border-surface-300 dark:border-surface-600 bg-white dark:bg-surface-900 text-sm"
-										value={data.defaultHoraEntrada}
-									/>
-								</div>
-								<div class="flex items-center gap-2">
-									<label
-										class="text-sm text-surface-600 dark:text-surface-400 w-12"
-										for="default_hora_saida">Saída</label
-									>
-									<input
-										id="default_hora_saida"
-										name="default_hora_saida"
-										type="text"
-										placeholder="16:00"
-										class="w-20 px-2 py-1.5 rounded-lg border border-surface-300 dark:border-surface-600 bg-white dark:bg-surface-900 text-sm"
-										value={data.defaultHoraSaida}
-									/>
-								</div>
-							</div>
+						<div class="flex items-center gap-2">
+							<label class="text-sm text-surface-600 dark:text-surface-400 w-8" for="op_oip"
+								>OIP</label
+							>
+							<input
+								id="op_oip"
+								name="op_oip"
+								type="number"
+								min="0"
+								max="999"
+								class="w-20 px-2 py-1.5 rounded-lg border border-surface-300 dark:border-surface-600 bg-white dark:bg-surface-900 text-sm"
+								value={vagas.operacional.oip}
+							/>
 						</div>
 					</div>
 				</div>
 
-				<!-- Texto Breve relatório -->
-				<div class="space-y-4 min-w-0">
+				<div class="card-elevated-2 rounded-xl p-4 space-y-3">
+					<p class="text-sm font-semibold">Equipe SEINT</p>
+					<div class="flex items-center gap-4">
+						<div class="flex items-center gap-2">
+							<label class="text-sm text-surface-600 dark:text-surface-400 w-8" for="seint_dpc"
+								>DPC</label
+							>
+							<input
+								id="seint_dpc"
+								name="seint_dpc"
+								type="number"
+								min="0"
+								max="999"
+								class="w-20 px-2 py-1.5 rounded-lg border border-surface-300 dark:border-surface-600 bg-white dark:bg-surface-900 text-sm"
+								value={vagas.seint.dpc}
+							/>
+						</div>
+						<div class="flex items-center gap-2">
+							<label class="text-sm text-surface-600 dark:text-surface-400 w-8" for="seint_oip"
+								>OIP</label
+							>
+							<input
+								id="seint_oip"
+								name="seint_oip"
+								type="number"
+								min="0"
+								max="999"
+								class="w-20 px-2 py-1.5 rounded-lg border border-surface-300 dark:border-surface-600 bg-white dark:bg-surface-900 text-sm"
+								value={vagas.seint.oip}
+							/>
+						</div>
+					</div>
+				</div>
+
+				<div class="card-elevated-2 rounded-xl p-4 space-y-3">
+					<p class="text-sm font-semibold">Horário padrão da GISE</p>
+					<div class="flex items-center gap-4">
+						<div class="flex items-center gap-2">
+							<label
+								class="text-sm text-surface-600 dark:text-surface-400 w-16"
+								for="default_hora_entrada">Entrada</label
+							>
+							<input
+								id="default_hora_entrada"
+								name="default_hora_entrada"
+								type="text"
+								placeholder="08:00"
+								class="w-20 px-2 py-1.5 rounded-lg border border-surface-300 dark:border-surface-600 bg-white dark:bg-surface-900 text-sm"
+								value={data.defaultHoraEntrada}
+							/>
+						</div>
+						<div class="flex items-center gap-2">
+							<label
+								class="text-sm text-surface-600 dark:text-surface-400 w-12"
+								for="default_hora_saida">Saída</label
+							>
+							<input
+								id="default_hora_saida"
+								name="default_hora_saida"
+								type="text"
+								placeholder="16:00"
+								class="w-20 px-2 py-1.5 rounded-lg border border-surface-300 dark:border-surface-600 bg-white dark:bg-surface-900 text-sm"
+								value={data.defaultHoraSaida}
+							/>
+						</div>
+					</div>
+				</div>
+			</section>
+
+			<!-- Card 2: Texto Breve relatório -->
+			<section class="card-elevated rounded-2xl p-5 sm:p-6 shadow-sm space-y-4 min-w-0">
+				<div>
 					<h2 class="text-base font-semibold">Texto "Breve relatório"</h2>
-
-					<div>
-						<label for="breve_tit" class="block text-sm font-medium mb-1">Título (rótulo)</label>
-						<input
-							id="breve_tit"
-							name="breve_titulo"
-							type="text"
-							class="w-full px-3 py-2 rounded-xl border border-surface-300 dark:border-surface-600 bg-white dark:bg-surface-900 text-sm"
-							value={data.breveForm.titulo}
-						/>
-					</div>
-					<div>
-						<label for="breve_sec" class="block text-sm font-medium mb-1"
-							>Parágrafo – extra por <strong>seccional</strong></label
-						>
-						<textarea
-							id="breve_sec"
-							name="breve_texto_seccional"
-							rows="4"
-							class="w-full px-3 py-2 rounded-xl border border-surface-300 dark:border-surface-600 bg-white dark:bg-surface-900 text-sm min-h-[110px] resize-y"
-							value={data.breveForm.textoSeccional}></textarea>
-					</div>
-					<div>
-						<label for="breve_sup" class="block text-sm font-medium mb-1"
-							>Parágrafo – extra de <strong>supervisão</strong></label
-						>
-						<textarea
-							id="breve_sup"
-							name="breve_texto_supervisao"
-							rows="4"
-							class="w-full px-3 py-2 rounded-xl border border-surface-300 dark:border-surface-600 bg-white dark:bg-surface-900 text-sm min-h-[110px] resize-y"
-							value={data.breveForm.textoSupervisao}></textarea>
-					</div>
+					<p class="text-sm text-surface-600 dark:text-surface-400 mt-1">
+						Textos usados nos PDFs de extra.
+					</p>
 				</div>
-			</div>
 
-			<div class="flex justify-end border-t border-surface-200 dark:border-surface-800 pt-6">
-				<button
-					type="submit"
-					class="btn preset-filled-primary-500 px-6 py-2 rounded-xl font-semibold"
-					disabled={loading.active}
-				>
-					{loading.active ? 'A gravar…' : 'Guardar'}
-				</button>
-			</div>
+				<div>
+					<label for="breve_tit" class="block text-sm font-medium mb-1">Título (rótulo)</label>
+					<input
+						id="breve_tit"
+						name="breve_titulo"
+						type="text"
+						class="w-full px-3 py-2 rounded-xl border border-surface-300 dark:border-surface-600 bg-white dark:bg-surface-900 text-sm"
+						value={data.breveForm.titulo}
+					/>
+				</div>
+				<div>
+					<label for="breve_sec" class="block text-sm font-medium mb-1"
+						>Parágrafo – extra por <strong>seccional</strong></label
+					>
+					<textarea
+						id="breve_sec"
+						name="breve_texto_seccional"
+						rows="4"
+						class="w-full px-3 py-2 rounded-xl border border-surface-300 dark:border-surface-600 bg-white dark:bg-surface-900 text-sm min-h-[110px] resize-y"
+						value={data.breveForm.textoSeccional}></textarea>
+				</div>
+				<div>
+					<label for="breve_sup" class="block text-sm font-medium mb-1"
+						>Parágrafo – extra de <strong>supervisão</strong></label
+					>
+					<textarea
+						id="breve_sup"
+						name="breve_texto_supervisao"
+						rows="4"
+						class="w-full px-3 py-2 rounded-xl border border-surface-300 dark:border-surface-600 bg-white dark:bg-surface-900 text-sm min-h-[110px] resize-y"
+						value={data.breveForm.textoSupervisao}></textarea>
+				</div>
+			</section>
+		</div>
+
+		<div class="flex justify-end border-t border-surface-200 dark:border-white/10 pt-4 mt-6">
+			<button
+				type="submit"
+				class="btn preset-filled-primary-500 px-6 py-2 rounded-xl font-semibold"
+				disabled={loading.active}
+			>
+				{loading.active ? 'A gravar…' : 'Guardar'}
+			</button>
 		</div>
 	</form>
 </div>

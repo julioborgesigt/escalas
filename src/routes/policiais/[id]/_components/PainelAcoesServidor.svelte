@@ -99,7 +99,7 @@
 	}
 </script>
 
-<div class="card-glass p-3 sm:p-4 rounded-xl mt-4">
+<div class="card-elevated rounded-2xl shadow-sm p-4 sm:p-6 mt-4">
 	<h2 class="text-base font-bold mb-1 text-surface-700 dark:text-surface-300">
 		Afastar / Movimentar Servidor
 	</h2>

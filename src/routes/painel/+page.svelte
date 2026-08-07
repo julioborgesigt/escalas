@@ -635,7 +635,7 @@
 									<tr class="bg-surface-200/50 dark:bg-surface-800/50 shadow-inner">
 										<td
 											colspan="5"
-											class="py-1.5 px-4 text-3xs font-extrabold uppercase tracking-widest text-primary-600 dark:text-primary-400"
+											class="py-1.5 px-4 text-3xs font-semibold uppercase tracking-widest text-primary-600 dark:text-primary-400"
 										>
 											{grupo.titulo}
 										</td>
@@ -799,7 +799,7 @@
 													</a>
 													<button
 														type="button"
-														class="text-error-500 font-black px-1.5 py-0.5 bg-error-500/10 rounded"
+														class="text-error-500 font-bold px-1.5 py-0.5 bg-error-500/10 rounded"
 														onclick={(e) => {
 															e.preventDefault();
 															itemParaExcluir = item;

@@ -155,7 +155,7 @@
 
 <div class="space-y-6">
 	<div>
-		<h1 class="h2 font-bold">Meu perfil</h1>
+		<h1 class="h1 text-2xl font-bold">Meu perfil</h1>
 		<p class="text-sm text-surface-600 dark:text-surface-400 mt-1">
 			Dados do seu cadastro. Alterações de telefone, classe, regime e lotação passam pela aprovação
 			do administrador.

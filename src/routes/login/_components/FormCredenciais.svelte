@@ -147,26 +147,25 @@
 	disabled={loadingService.active}
 	onclick={() => fazerLoginComCertificado(tipo === 'admin')}
 >
+	<!-- Token A3 / pendrive USB — Lucide não tem flash-drive; silhueta lateral. -->
 	<svg
 		class="w-4 h-4 shrink-0"
-		fill="none"
 		viewBox="0 0 24 24"
+		fill="none"
 		stroke="currentColor"
 		stroke-width="2"
+		stroke-linecap="round"
+		stroke-linejoin="round"
+		aria-hidden="true"
 	>
-		<path
-			stroke-linecap="round"
-			stroke-linejoin="round"
-			d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"
-		/>
+		<!-- Conector USB-A -->
+		<path d="M2 9h5v6H2z" />
+		<path d="M4 11v2M6 11v2" />
+		<!-- Corpo do token -->
+		<rect x="7" y="7" width="15" height="10" rx="2" />
 	</svg>
-	Entrar com Certificado Digital (SERPRO)
+	Certificado Digital (SERPRO)
 </button>
-{#if tipo === 'admin'}
-	<p class="mt-2 text-2xs text-surface-600 dark:text-surface-400 text-center">
-		Requer certificado A3 de um policial com acesso de Administrador Geral.
-	</p>
-{/if}
 
 <div
 	class="mt-4 flex flex-wrap items-center justify-center gap-x-2 gap-y-1.5 text-xs text-surface-600 dark:text-surface-400 text-center"

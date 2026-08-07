@@ -439,7 +439,7 @@
 							<div class="relative">
 								<PenLine class="w-10 h-10 text-tertiary-500" aria-hidden="true" />
 								<span
-									class="absolute -top-2 -right-4 min-w-[1.4rem] h-[1.4rem] flex items-center justify-center rounded-full bg-tertiary-500 text-white text-xs font-black px-1 shadow"
+									class="absolute -top-2 -right-4 min-w-[1.4rem] h-[1.4rem] flex items-center justify-center rounded-full bg-tertiary-500 text-white text-xs font-bold px-1 shadow"
 									>{escalasParaAssinar.length}</span
 								>
 							</div>
@@ -517,7 +517,7 @@
 							<div class="relative">
 								<PenLine class="w-10 h-10 text-tertiary-500" aria-hidden="true" />
 								<span
-									class="absolute -top-2 -right-4 min-w-[1.4rem] h-[1.4rem] flex items-center justify-center rounded-full bg-tertiary-500 text-white text-xs font-black px-1 shadow"
+									class="absolute -top-2 -right-4 min-w-[1.4rem] h-[1.4rem] flex items-center justify-center rounded-full bg-tertiary-500 text-white text-xs font-bold px-1 shadow"
 									>{escalasParaAssinar.length}</span
 								>
 							</div>
