@@ -101,9 +101,12 @@ test.describe('Wizard do relatório de produtividade', () => {
 		await expect(page.getByText('Etapa 4 de 4')).toBeVisible();
 		await page.getByRole('button', { name: 'Finalizar entrega' }).click();
 
-		// Volta para a escala SELECIONADA, com o quadro do passo já atualizado.
+		// Volta para a escala SELECIONADA, com o card do passo já atualizado: a
+		// Produtividade entra em estado "concluído" (carimbo de envio + botão de
+		// retificar), agora dentro do card único da etapa.
 		await expect(page).toHaveURL(/\/res-gise\?giseId=/);
-		await expect(page.getByText('Relatório entregue')).toBeVisible();
+		await expect(page.getByText(/Enviado em/)).toBeVisible();
+		await expect(page.getByRole('button', { name: 'Retificar dados' })).toBeVisible();
 	});
 
 	test('desktop: coluna de leitura, sem estouro horizontal', async ({ page }) => {
