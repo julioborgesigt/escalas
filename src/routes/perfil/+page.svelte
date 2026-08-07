@@ -36,8 +36,14 @@
 
 	const perfil = $derived(data.perfil);
 
+	/** Só os dígitos — o telefone é normalizado para no máximo 11 dígitos. */
+	const soDigitos = (s: string | null | undefined) => (s ?? '').replace(/\D/g, '');
+
 	// --- Solicitação de alteração cadastral ---
-	let telefone = $state(untrack(() => data.perfil.telefone ?? ''));
+	// Telefone é sempre dígitos (máx. 11), na exibição e no envio. O valor do banco
+	// pode vir formatado (espaço/traço); normalizamos na entrada e comparamos por
+	// dígitos, para uma diferença só de formatação não virar "solicitação".
+	let telefone = $state(untrack(() => soDigitos(data.perfil.telefone).slice(0, 11)));
 	let classe = $state(untrack(() => data.perfil.classe ?? ''));
 	let regime = $state(untrack(() => data.perfil.regime ?? 'plantao'));
 	let lotacao = $state(untrack(() => data.perfil.lotacao ?? ''));
@@ -50,7 +56,7 @@
 	const lotacaoSelectedOption = $derived(lotacao ? { value: lotacao, label: lotacao } : null);
 
 	const houveMudanca = $derived(
-		telefone.trim() !== (perfil.telefone ?? '') ||
+		telefone !== soDigitos(perfil.telefone).slice(0, 11) ||
 			(classe && classe !== perfil.classe) ||
 			(regime && regime !== perfil.regime) ||
 			(lotacao && lotacao !== perfil.lotacao)
@@ -300,11 +306,13 @@
 					<span class="label-text">Telefone</span>
 					<input
 						type="text"
+						inputmode="numeric"
 						name="telefone"
 						class="input"
-						bind:value={telefone}
-						placeholder="(85) 9 9999-9999"
-						maxlength="20"
+						value={telefone}
+						oninput={(e) => (telefone = soDigitos(e.currentTarget.value).slice(0, 11))}
+						placeholder="Somente números (DDD + número)"
+						maxlength="11"
 					/>
 				</label>
 				<label class="label lg:w-32 lg:shrink-0">
