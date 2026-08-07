@@ -40,9 +40,9 @@
 	--default-divide-width: 1px;
 	--default-ring-width: 1px;
 
-	/* Ambiente = branco suave (page-canvas), um degrau abaixo dos cards
-	 * (`bg-white`). Evita o cinza de surface-100 sem competir com os cards. */
-	--body-background-color: var(--color-page-canvas);
+	/* Ambiente: branco puro no teste visual (body/folha). Token page-canvas
+	 * permanece disponível se voltarmos ao degrau abaixo dos cards. */
+	--body-background-color: #fff;
 	--body-background-color-dark: var(--color-surface-950);
 
 	/* ============================================ */

@@ -437,7 +437,7 @@
 	<!-- Barra do topo (todas as larguras): menu + marca + alternar modo (direita).
 	     É o que abre a gaveta de navegação, que agora fica oculta por padrão também no desktop. -->
 	<div
-		class="fixed top-0 left-0 right-0 z-40 h-14 bg-page-canvas/90 dark:bg-surface-950/90 backdrop-blur-lg border-b border-surface-200 dark:border-white/10 flex items-center px-4"
+		class="fixed top-0 left-0 right-0 z-40 h-14 bg-white/90 dark:bg-surface-950/90 backdrop-blur-lg border-b border-surface-200 dark:border-white/10 flex items-center px-4"
 		inert={sidebarIsModal}
 	>
 		<button
@@ -852,8 +852,8 @@
 	</Dialog>
 
 	<!-- Conteúdo principal: gaveta é overlay (não empurra). `pt-20` reserva a
-	     topbar fixa. Em xl+ o wrapper vira "folha" (borda só, page-canvas,
-	     sem cantos arredondados) — branco suave um degrau abaixo dos cards. -->
+	     topbar fixa. Em xl+ o wrapper vira "folha" (borda + bg-white +
+	     rounded-2xl — teste visual 07/ago/2026). -->
 	<main
 		id="conteudo-principal"
 		class="min-h-screen relative"
@@ -867,7 +867,7 @@
 				: ''}"
 		>
 			<div
-				class="min-w-0 xl:border xl:border-surface-200/80 dark:xl:border-white/10 xl:bg-page-canvas dark:xl:bg-surface-900 xl:px-6 xl:py-6"
+				class="min-w-0 xl:border xl:border-surface-200/80 dark:xl:border-white/10 xl:bg-white dark:xl:bg-surface-900 xl:rounded-2xl xl:px-6 xl:py-6"
 			>
 				{@render children()}
 			</div>
