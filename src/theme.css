@@ -1,4 +1,4 @@
-/* Tema High-Tech Command Center - Escalas de Plantão Policial */
+/* Tema institucional Escalas PCCE — superfície ops, não “command center neon”. */
 
 [data-theme='policial'] {
 	--text-scaling: 1;
@@ -40,8 +40,9 @@
 	--default-divide-width: 1px;
 	--default-ring-width: 1px;
 
-	/* Fundo do body - não é estritamente necessário se colocarmos no app.html/app.css */
-	--body-background-color: var(--color-surface-50);
+	/* Ambiente: branco puro no teste visual (body/folha). Token page-canvas
+	 * permanece disponível se voltarmos ao degrau abaixo dos cards. */
+	--body-background-color: #fff;
 	--body-background-color-dark: var(--color-surface-950);
 
 	/* ============================================ */
@@ -226,6 +227,9 @@
 	--color-surface-800: oklch(26% 0.03 255deg);
 	--color-surface-900: oklch(17% 0.025 255deg); /* Fundo dos cards escuro */
 	--color-surface-950: oklch(13% 0.02 255deg); /* Fundo da página escuro */
+	/* Canvas da app (body + folha): branco suave, um degrau abaixo de `bg-white`
+	 * dos cards — menos “cinza mesa”, sem competir com card-elevated. */
+	--color-page-canvas: oklch(99% 0.002 255deg);
 	--color-surface-contrast-dark: var(--color-surface-950);
 	--color-surface-contrast-light: var(--color-surface-50);
 	--color-surface-contrast-50: var(--color-surface-contrast-dark);

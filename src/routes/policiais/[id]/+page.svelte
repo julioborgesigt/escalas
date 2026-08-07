@@ -141,7 +141,7 @@
 	<h1 class="h1 text-2xl font-bold">Editar Policial</h1>
 </div>
 
-<div class="card-glass p-3 sm:p-4 rounded-xl">
+<div class="card-elevated rounded-2xl shadow-sm p-4 sm:p-6">
 	<form method="POST" action="?/salvar" use:enhance={handleSalvar} class="space-y-2">
 		<!-- Linha 1 -->
 		<div class="grid grid-cols-1 sm:grid-cols-12 gap-2">
@@ -280,7 +280,7 @@
 
 <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-4 items-stretch">
 	{#if isAdminOrSeccional || isAdminUnidade}
-		<div class="card-glass p-3 sm:p-4 rounded-xl flex flex-col">
+		<div class="card-elevated rounded-2xl shadow-sm p-4 sm:p-6 flex flex-col">
 			<h2 class="text-base font-bold mb-1 text-surface-700 dark:text-surface-300">
 				Papel Administrativo
 			</h2>
@@ -352,7 +352,7 @@
 	{/if}
 
 	{#if isAdmin}
-		<div class="card-glass p-3 sm:p-4 rounded-xl flex flex-col">
+		<div class="card-elevated rounded-2xl shadow-sm p-4 sm:p-6 flex flex-col">
 			<h2 class="text-base font-bold mb-1 text-surface-700 dark:text-surface-300">Admin Geral</h2>
 			<p class="text-xs text-surface-600 dark:text-surface-400 mb-3">
 				Concede acesso de Administrador Geral. A pessoa loga com a <b>mesma matrícula e senha</b>,

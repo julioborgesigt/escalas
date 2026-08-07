@@ -161,7 +161,7 @@
 	}
 </script>
 
-<div class="card-glass p-3 sm:p-4 rounded-xl mt-4">
+<div class="card-elevated rounded-2xl shadow-sm p-4 sm:p-6 mt-4">
 	<h2
 		class="text-base font-bold mb-3 text-surface-700 dark:text-surface-300 flex items-center gap-2"
 	>
@@ -179,11 +179,9 @@
 				{@const Icone = m.icon}
 				<li class="ms-5">
 					<span
-						class="absolute -start-[7px] mt-1.5 h-3 w-3 rounded-full ring-4 ring-surface-50 dark:ring-surface-900 {m.ponto}"
+						class="absolute -start-[7px] mt-1.5 h-3 w-3 rounded-full ring-4 ring-white dark:ring-surface-900 {m.ponto}"
 					></span>
-					<div
-						class="rounded-xl bg-surface-100/50 dark:bg-surface-800/40 border border-surface-200 dark:border-white/10 p-3"
-					>
+					<div class="card-elevated-2 rounded-xl p-3">
 						<div class="flex items-start justify-between gap-2 flex-wrap">
 							<div class="flex items-center gap-2 font-semibold text-sm {m.cor}">
 								<Icone size={16} />

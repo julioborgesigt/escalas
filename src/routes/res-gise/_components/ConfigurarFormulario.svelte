@@ -106,79 +106,77 @@
 	}
 </script>
 
-<section
-	class="card p-4 sm:p-6 md:p-8 bg-white dark:bg-surface-900 border border-surface-200 dark:border-surface-800 rounded-3xl shadow-xl space-y-6 sm:space-y-8 animate-in fade-in zoom-in-95 duration-500"
->
-	<div
-		class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-surface-200 dark:border-surface-800 pb-6"
-	>
-		<div class="w-full sm:w-auto">
-			<h2 class="text-xl sm:text-2xl font-black uppercase tracking-tight">Configurar Formulário</h2>
-			<p class="text-sm text-surface-600 dark:text-surface-400 mt-1">
-				Defina os textos e campos do relatório de produtividade oficial.
-			</p>
+<div class="space-y-6">
+	<section class="card-elevated rounded-2xl p-5 sm:p-6 shadow-sm space-y-4">
+		<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+			<div class="w-full sm:w-auto">
+				<h2 class="text-xl sm:text-2xl font-bold tracking-tight">Configurar Formulário</h2>
+				<p class="text-sm text-surface-600 dark:text-surface-400 mt-1">
+					Defina os textos e campos do relatório de produtividade oficial.
+				</p>
 
-			<div
-				class="flex gap-2 mt-4 bg-surface-100 dark:bg-surface-800 p-1 rounded-xl w-full sm:w-fit"
-			>
-				<button
-					type="button"
-					class="flex-1 sm:flex-none px-4 py-2 rounded-lg text-xs font-bold transition-all {resGise.configTipo ===
-					'operacional'
-						? 'bg-white dark:bg-surface-700 shadow text-primary-600'
-						: 'text-surface-600 dark:text-surface-400'}"
-					onclick={() => (resGise.configTipo = 'operacional')}>Operacional</button
+				<div
+					class="flex gap-2 mt-4 bg-surface-100 dark:bg-surface-800 p-1 rounded-xl w-full sm:w-fit"
 				>
-				<button
-					type="button"
-					class="flex-1 sm:flex-none px-4 py-2 rounded-lg text-xs font-bold transition-all {resGise.configTipo ===
-					'seint'
-						? 'bg-white dark:bg-surface-700 shadow text-primary-600'
-						: 'text-surface-600 dark:text-surface-400'}"
-					onclick={() => (resGise.configTipo = 'seint')}>SEINT (Inteligência)</button
+					<button
+						type="button"
+						class="flex-1 sm:flex-none px-4 py-2 rounded-lg text-xs font-bold transition-colors {resGise.configTipo ===
+						'operacional'
+							? 'bg-white dark:bg-surface-700 shadow text-primary-600'
+							: 'text-surface-600 dark:text-surface-400'}"
+						onclick={() => (resGise.configTipo = 'operacional')}>Operacional</button
+					>
+					<button
+						type="button"
+						class="flex-1 sm:flex-none px-4 py-2 rounded-lg text-xs font-bold transition-colors {resGise.configTipo ===
+						'seint'
+							? 'bg-white dark:bg-surface-700 shadow text-primary-600'
+							: 'text-surface-600 dark:text-surface-400'}"
+						onclick={() => (resGise.configTipo = 'seint')}>SEINT (Inteligência)</button
+					>
+				</div>
+			</div>
+			<div class="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+				<!-- Desabilitado enquanto não existe versão anterior (primeira gravação
+				     do tipo, ou JSON corrompido) — o `title` explica, senão o botão
+				     apagado vira mistério. -->
+				<span
+					class="w-full sm:w-auto"
+					title={modeloAnterior
+						? 'Carrega no editor a versão salva antes da última alteração'
+						: 'Ainda não há versão anterior deste modelo'}
 				>
+					{@render actionButton(
+						'Restaurar Anterior',
+						'M3 10h10a4 4 0 110 8h-1m-9-8l4-4m-4 4l4 4',
+						'surface',
+						'outlined',
+						solicitarRestaurarAnterior,
+						!modeloAnterior,
+						false,
+						'w-full sm:w-auto sm:flex-none px-4 py-2.5 text-xs'
+					)}
+				</span>
+
+				{@render actionButton(
+					'Nova Pergunta',
+					'M12 4v16m8-8H4',
+					'primary',
+					'filled',
+					resGise.adicionarPergunta,
+					false,
+					false,
+					'w-full sm:w-auto sm:flex-none px-4 py-2.5 text-xs shadow-lg shadow-primary-500/30'
+				)}
 			</div>
 		</div>
-		<div class="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-			<!-- Desabilitado enquanto não existe versão anterior (primeira gravação
-			     do tipo, ou JSON corrompido) — o `title` explica, senão o botão
-			     apagado vira mistério. -->
-			<span
-				class="w-full sm:w-auto"
-				title={modeloAnterior
-					? 'Carrega no editor a versão salva antes da última alteração'
-					: 'Ainda não há versão anterior deste modelo'}
-			>
-				{@render actionButton(
-					'Restaurar Anterior',
-					'M3 10h10a4 4 0 110 8h-1m-9-8l4-4m-4 4l4 4',
-					'surface',
-					'outlined',
-					solicitarRestaurarAnterior,
-					!modeloAnterior,
-					false,
-					'w-full sm:w-auto sm:flex-none px-4 py-2.5 text-xs'
-				)}
-			</span>
-
-			{@render actionButton(
-				'Nova Pergunta',
-				'M12 4v16m8-8H4',
-				'primary',
-				'filled',
-				resGise.adicionarPergunta,
-				false,
-				false,
-				'w-full sm:w-auto sm:flex-none px-4 py-2.5 text-xs shadow-lg shadow-primary-500/30'
-			)}
-		</div>
-	</div>
+	</section>
 
 	<!-- Prévia das etapas: o policial responde uma por tela, nesta ordem. -->
-	<div
-		class="p-4 bg-surface-50 dark:bg-surface-950/40 rounded-2xl border border-surface-200 dark:border-surface-800 space-y-3"
-	>
-		<p class="text-3xs font-black text-surface-600 dark:text-surface-400 uppercase tracking-widest">
+	<section class="card-elevated rounded-2xl p-4 sm:p-5 shadow-sm space-y-3">
+		<p
+			class="text-3xs font-semibold text-surface-600 dark:text-surface-400 uppercase tracking-widest"
+		>
 			Etapas do formulário ({etapas.length})
 		</p>
 		<div class="flex flex-wrap items-center gap-2">
@@ -189,7 +187,7 @@
 				<span
 					class="badge {etapa.chave
 						? 'preset-filled-primary-500'
-						: 'preset-outlined-surface-500'} text-3xs font-black uppercase"
+						: 'preset-outlined-surface-500'} text-3xs font-bold uppercase"
 				>
 					{etapa.titulo}
 					<span class="opacity-70">· {etapa.perguntas.length}</span>
@@ -201,7 +199,7 @@
 			<strong>primeira pergunta</strong> de cada etapa, então mover a pergunta move a etapa. Perguntas
 			sem etapa ficam juntas num grupo próprio; se nenhuma tiver etapa, o formulário vira página única.
 		</p>
-	</div>
+	</section>
 
 	<!-- Autocompletar do campo "Etapa": só nomes já em uso, para não multiplicar
 	     etapas por variação de digitação. Não restringe — o admin pode criar uma
@@ -222,9 +220,9 @@
 			{@const arrastando = indiceArrastando === indice && indice >= 0}
 			{@const alvo = indiceAlvo === indice && indiceArrastando !== null && !arrastando}
 			<div
-				class="group p-3 sm:p-5 bg-surface-50 dark:bg-surface-950/40 rounded-2xl border transition-all hover:border-primary-500/50 hover:shadow-lg {alvo
+				class="group card-elevated rounded-2xl shadow-sm p-3 sm:p-5 transition-colors hover:border-primary-500/50 {alvo
 					? 'border-primary-500 ring-2 ring-primary-500/40'
-					: 'border-surface-200 dark:border-surface-800'} {arrastando ? 'opacity-40' : ''}"
+					: 'border-surface-200 dark:border-white/10'} {arrastando ? 'opacity-40' : ''}"
 				style="margin-left: clamp(0px, {level * 1.5}vw, {level * 2}rem)"
 				role="listitem"
 				draggable={idArrastavel === p.id}
@@ -282,7 +280,7 @@
 						</div>
 						<label
 							for="p-et-{p.id}"
-							class="text-3xs font-black text-surface-600 dark:text-surface-400 uppercase tracking-widest"
+							class="text-3xs font-semibold text-surface-600 dark:text-surface-400 uppercase tracking-widest"
 							>Etapa</label
 						>
 						<input
@@ -298,7 +296,7 @@
 
 				<div class="flex flex-col md:flex-row gap-3 sm:gap-5 items-start">
 					<div
-						class="w-8 h-8 flex items-center justify-center rounded-lg bg-surface-200 dark:bg-surface-800 text-3xs font-black text-surface-600 dark:text-surface-400 shrink-0"
+						class="w-8 h-8 flex items-center justify-center rounded-lg bg-surface-200 dark:bg-surface-800 text-3xs font-bold text-surface-600 dark:text-surface-400 shrink-0"
 					>
 						{#if level > 0}↳{:else}{resGise.perguntasConfig.indexOf(p) + 1}{/if}
 					</div>
@@ -307,17 +305,17 @@
 						<div class="flex items-center justify-between pl-1 gap-2 flex-wrap mb-1">
 							<label
 								for="qtxt-{p.id}"
-								class="text-3xs font-black text-surface-600 dark:text-surface-400 uppercase tracking-widest"
+								class="text-3xs font-semibold text-surface-600 dark:text-surface-400 uppercase tracking-widest"
 								>Texto da Pergunta</label
 							>
 							{#if p.key?.startsWith('extra_')}
 								<span
-									class="badge preset-filled-secondary-500 text-3xs font-black uppercase whitespace-nowrap"
+									class="badge preset-filled-secondary-500 text-3xs font-bold uppercase whitespace-nowrap"
 									>CAMPO ADICIONAL</span
 								>
 							{:else}
 								<span
-									class="bg-surface-100 dark:bg-surface-800 text-3xs font-black px-2 py-0.5 rounded-full text-surface-600 dark:text-surface-400 uppercase border border-surface-200 dark:border-surface-700 whitespace-nowrap"
+									class="bg-surface-100 dark:bg-surface-800 text-3xs font-bold px-2 py-0.5 rounded-full text-surface-600 dark:text-surface-400 uppercase border border-surface-200 dark:border-surface-700 whitespace-nowrap"
 									>Campo Sistema</span
 								>
 							{/if}
@@ -333,13 +331,13 @@
 					<div class="w-full md:w-56 space-y-1.5 md:shrink-0">
 						<label
 							for="p-tp-{p.id}"
-							class="text-3xs font-black text-surface-600 dark:text-surface-400 uppercase tracking-widest"
+							class="text-3xs font-semibold text-surface-600 dark:text-surface-400 uppercase tracking-widest"
 							>Tipo do Campo</label
 						>
 						<select
 							id="p-tp-{p.id}"
 							bind:value={p.tipo}
-							class="w-full px-4 py-3 rounded-xl border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-900 text-sm font-bold focus:ring-2 focus:ring-primary-500 transition-all shadow-sm"
+							class="w-full px-4 py-3 rounded-xl border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-900 text-sm font-bold focus:ring-2 focus:ring-primary-500 transition-colors shadow-sm"
 						>
 							<optgroup label="Campos Básicos">
 								<option value="texto">Texto Curto</option>
@@ -377,7 +375,7 @@
 							     de MOVER, uma seta para baixo virava "descer a pergunta". -->
 							<button
 								type="button"
-								class="p-3 text-primary-500 hover:bg-primary-500/10 rounded-xl transition-all"
+								class="p-3 text-primary-500 hover:bg-primary-500/10 rounded-xl transition-colors"
 								onclick={() => resGise.adicionarSubPergunta(p)}
 								title="Adicionar Sub-pergunta (se SIM)"
 							>
@@ -386,7 +384,7 @@
 						{/if}
 						<button
 							type="button"
-							class="p-3 text-error-500 hover:bg-error-500/10 rounded-xl transition-all"
+							class="p-3 text-error-500 hover:bg-error-500/10 rounded-xl transition-colors"
 							onclick={() => resGise.removerPergunta(p.id)}
 							aria-label="Remover Pergunta"
 						>
@@ -410,7 +408,7 @@
 						<div class="flex items-center gap-2 mb-2">
 							<SquarePen class="w-4 h-4 text-primary-500" aria-hidden="true" />
 							<span
-								class="text-3xs font-black text-primary-600 dark:text-primary-400 uppercase tracking-widest"
+								class="text-3xs font-semibold text-primary-600 dark:text-primary-400 uppercase tracking-widest"
 								>Personalizar Rótulos do Campo Inteligente</span
 							>
 						</div>
@@ -524,7 +522,7 @@
 	</div>
 
 	<div
-		class="w-full p-4 sm:p-6 bg-surface-50 dark:bg-surface-950/40 rounded-b-3xl border-t border-surface-200 dark:border-surface-800"
+		class="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 border-t border-surface-200 dark:border-white/10 pt-4 mt-2"
 	>
 		<form
 			method="POST"
@@ -535,9 +533,7 @@
 			<input type="hidden" name="config" value={resGise.configJson} />
 			<input type="hidden" name="tipo" value={resGise.configTipo} />
 
-			<div
-				class="flex-grow p-4 bg-surface-100 dark:bg-surface-800 rounded-2xl border border-surface-200 dark:border-surface-700"
-			>
+			<div class="flex-grow card-elevated-2 rounded-xl p-4">
 				<p
 					class="text-xs font-bold text-surface-600 dark:text-surface-400 uppercase tracking-widest mb-1"
 				>
@@ -574,7 +570,7 @@
 			)}
 		</form>
 	</div>
-</section>
+</div>
 
 <!-- Diálogo de confirmação para restaurar a versão anterior -->
 <Dialog open={dialogRestaurarAberto} onOpenChange={(e) => (dialogRestaurarAberto = e.open)}>

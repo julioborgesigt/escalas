@@ -581,7 +581,7 @@ Alternativa: **login por certificado digital A3** (e-CPF ICP-Brasil) via `/api/a
 
 ### Alternância de acesso (ADM Geral ↔ Usuário)
 
-Quem tem **Admin Geral vinculado** (linha em `administradores` ligada ao seu policial) pode alternar entre o modo Administrador e o modo Usuário **sem sair e logar de novo**, por um botão na sidebar (`/api/auth/alternar-acesso`). A troca só recria a sessão apontando para a outra identidade da **mesma pessoa** — **não concede privilégio novo**: quem não tem a conta vinculada não vê o botão e o endpoint responde 403. Como a pessoa já passou pelo 2FA no login (o admin vinculado usa o mesmo e-mail/2FA), a troca é imediata, análoga ao swap de módulo GISE/Escalas. Cada alternância é auditada (`alternar_acesso`).
+Quem tem **Admin Geral vinculado** (linha em `administradores` ligada ao seu policial) pode alternar entre o modo Administrador e o modo Usuário **sem sair e logar de novo**, por um botão na barra superior à direita (`/api/auth/alternar-acesso`). A troca só recria a sessão apontando para a outra identidade da **mesma pessoa** — **não concede privilégio novo**: quem não tem a conta vinculada não vê o botão e o endpoint responde 403. Como a pessoa já passou pelo 2FA no login (o admin vinculado usa o mesmo e-mail/2FA), a troca é imediata, análoga ao swap de módulo GISE/Escalas. Cada alternância é auditada (`alternar_acesso`).
 
 ### Primeiro acesso
 
@@ -795,7 +795,7 @@ estados `disabled`/inativos.
 
 **Foco de teclado** — nunca `outline-none`/`focus:outline-none` sem substituto visível (`focus-visible:ring-2 focus-visible:ring-primary-500 …` ou `focus-within:ring` no container).
 
-**Superfícies elevadas** — `card-elevated` (fundo canônico de modal/card sobre a página) e `card-elevated-2` (sub-card aninhado); translúcidas: `card-glass` / `card-glass-auth`. Não montar pares `bg-* dark:bg-*` à mão.
+**Superfícies elevadas** — `card-elevated` (fundo canônico de modal/card sobre a página) e `card-elevated-2` (sub-card aninhado); translúcidas: `card-glass` / `card-glass-auth`. Hierarquia: glass/blur só na chrome (sidebar/topbar); conteúdo da página preferir `card-elevated` opaco — evita empilhar translucidez com a folha xl. Não montar pares `bg-* dark:bg-*` à mão.
 
 **Modais** — código novo usa `$lib/components/ModalShell.svelte`, que mantém
 o `Dialog` do Skeleton por dentro e centraliza backdrop, painel, rodapé,
@@ -820,7 +820,9 @@ interação ou regra de domínio.
 
 **Breakpoints** — `xs:` (400 px, definido no `@theme`) para telefones estreitos; demais são os padrões do Tailwind. Exceção documentada: o corte da sidebar no `+layout.svelte` é `min-[900px]` (deliberado — não migrar para `lg:`).
 
-**Largura de conteúdo** — páginas usam o container do layout (`max-w-6xl`); telas de detalhe não travam largura. Quando uma página precisa ser mais estreita, a trava envolve **a página toda, `<header>` incluído** (`config-geral` = `max-w-3xl`, `solicitacoes` = `max-w-5xl`) — travar só um bloco do meio desalinha o card do título. Dentro de um card largo, o certo é o inverso: o conteúdo que ganha com a largura (formulário, tabela) fica solto, e só os elementos intrinsecamente estreitos — stepper, CTA, estado vazio, selo de status — recebem teto.
+**Largura de conteúdo** — páginas usam o container do layout (`max-w-6xl`); telas de detalhe não travam largura. Ambiente e folha xl usam `bg-white` / `surface-900` (teste visual). A folha em `xl` acrescenta borda e `rounded-2xl` (sem blur/ring). Glass/blur ficam na chrome (sidebar/topbar), não no canvas. As regras de `max-w` continuam as mesmas. Quando uma página precisa ser mais estreita, a trava envolve **a página toda, `<header>` incluído** (`config-geral` = `max-w-3xl`, `solicitacoes` = `max-w-5xl`) — travar só um bloco do meio desalinha o card do título. Dentro de um card largo, o certo é o inverso: o conteúdo que ganha com a largura (formulário, tabela) fica solto, e só os elementos intrinsecamente estreitos — stepper, CTA, estado vazio, selo de status — recebem teto.
+
+**Tipografia (ênfase)** — corpo Inter; títulos/wordmark Outfit (`font-heading` ou `.h1`/`.h2`). Régua de peso: page title = `font-bold`; labels e cabeçalhos de coluna = `font-semibold`/`font-bold`; wordmark da chrome = `font-bold` sólido (sem `bg-clip-text`/gradient). Evitar `font-extrabold`/`font-black` em código novo — reservar `font-black` só para KPI numérico isolado que precise gritar. O legado migra oportunisticamente ao tocar no arquivo.
 
 **Container queries** — quando o layout de um bloco depende do espaço que sobra **para ele** (e não do tamanho da tela), use `@container` no ancestral e as variantes `@2xl:`/`@4xl:` nos filhos, em vez de `sm:`/`lg:`. Cuidado: `container-type: inline-size` implica `contain: layout`, ou seja o elemento passa a ser containing block de descendentes `position: fixed` — nunca colocar `@container` acima de um `Dialog`/overlay, ou o modal fica preso dentro do card.
 

@@ -434,10 +434,10 @@
 </a>
 
 {#if showSidebar && usuario}
-	<!-- Barra do topo (todas as larguras): botão de menu + marca. É o que abre a
-	     gaveta de navegação, que agora fica oculta por padrão também no desktop. -->
+	<!-- Barra do topo (todas as larguras): menu + marca + alternar modo (direita).
+	     É o que abre a gaveta de navegação, que agora fica oculta por padrão também no desktop. -->
 	<div
-		class="fixed top-0 left-0 right-0 z-40 h-14 bg-surface-50/90 dark:bg-surface-950/90 backdrop-blur-lg border-b border-surface-200 dark:border-white/10 flex items-center px-4"
+		class="fixed top-0 left-0 right-0 z-40 h-14 bg-white/90 dark:bg-surface-950/90 backdrop-blur-lg border-b border-surface-200 dark:border-white/10 flex items-center px-4"
 		inert={sidebarIsModal}
 	>
 		<button
@@ -460,10 +460,23 @@
 		</button>
 		<div class="ml-3 flex items-center gap-2">
 			<span
-				class="font-extrabold text-lg bg-clip-text text-transparent bg-gradient-to-r from-surface-900 to-surface-500 dark:from-surface-50 dark:to-surface-300"
+				class="font-heading font-bold text-lg text-surface-900 dark:text-surface-50 tracking-tight"
 				>DPI SUL</span
 			>
 		</div>
+		{#if podeAlternarParaUsuario || podeAlternarParaAdmin}
+			<button
+				type="button"
+				class="ml-auto shrink-0 truncate max-w-[11rem] sm:max-w-none rounded-lg border border-primary-500/40 bg-primary-500/5 px-2.5 sm:px-3 py-1.5 text-2xs sm:text-xs font-semibold text-primary-700 transition-colors hover:bg-primary-500/15 disabled:opacity-50 dark:text-primary-300"
+				onclick={alternarAcesso}
+				title={podeAlternarParaUsuario
+					? 'Entrar como usuário (mesma conta)'
+					: 'Assumir acesso de Administrador Geral (mesma conta)'}
+				disabled={switchingAcesso}
+			>
+				{podeAlternarParaUsuario ? 'Ir p/ modo usuário' : 'Ir p/ modo admin'}
+			</button>
+		{/if}
 	</div>
 
 	<!-- Backdrop da gaveta (todas as larguras): clicar fora fecha. -->
@@ -497,7 +510,7 @@
 		>
 			<div class="flex items-center gap-2 group">
 				<span
-					class="font-extrabold text-xl bg-clip-text text-transparent bg-gradient-to-r from-surface-900 to-surface-500 dark:from-surface-50 dark:to-surface-300"
+					class="font-heading font-bold text-xl text-surface-900 dark:text-surface-50 tracking-tight"
 					>DPI SUL</span
 				>
 			</div>
@@ -709,7 +722,7 @@
 						</p>
 					{/if}
 
-					<!-- Papéis / status (sempre acima do botão de alternar modo) -->
+					<!-- Papéis / status -->
 					{#if usuario?.tipo === 'admin' || usuario?.papel === 'admin_seccional' || usuario?.papel === 'admin_unidade' || isSupervisorGise}
 						<div class="mt-2 flex flex-wrap items-center gap-1.5">
 							{#if usuario?.tipo === 'admin'}
@@ -763,21 +776,6 @@
 								>
 							{/if}
 						</div>
-					{/if}
-
-					<!-- Alternar modo (identidade) — abaixo dos papéis -->
-					{#if podeAlternarParaUsuario || podeAlternarParaAdmin}
-						<button
-							type="button"
-							class="mt-2.5 flex w-full items-center justify-center rounded-lg border border-primary-500/40 bg-primary-500/5 px-3 py-1.5 text-2xs font-semibold text-primary-700 transition-colors hover:bg-primary-500/15 disabled:opacity-50 dark:text-primary-300"
-							onclick={alternarAcesso}
-							title={podeAlternarParaUsuario
-								? 'Entrar como usuário (mesma conta)'
-								: 'Assumir acesso de Administrador Geral (mesma conta)'}
-							disabled={switchingAcesso}
-						>
-							{podeAlternarParaUsuario ? 'Ir p/ modo usuário' : 'Ir p/ modo admin'}
-						</button>
 					{/if}
 				</div>
 			{/if}
@@ -853,8 +851,9 @@
 		</Dialog.Content>
 	</Dialog>
 
-	<!-- Conteúdo principal: largura cheia (a gaveta de navegação é overlay, não
-	     empurra o conteúdo). `pt-20` reserva a barra do topo fixa. -->
+	<!-- Conteúdo principal: gaveta é overlay (não empurra). `pt-20` reserva a
+	     topbar fixa. Em xl+ o wrapper vira "folha" (borda + bg-white +
+	     rounded-2xl — teste visual 07/ago/2026). -->
 	<main
 		id="conteudo-principal"
 		class="min-h-screen relative"
@@ -862,12 +861,16 @@
 		aria-hidden={sidebarIsModal}
 	>
 		<div
-			class="max-w-6xl mx-auto min-w-0 px-2 sm:px-4 pt-20 pb-12 transition-opacity duration-200 {navigating?.to &&
+			class="max-w-6xl mx-auto min-w-0 px-4 sm:px-6 lg:px-8 pt-20 pb-12 transition-opacity duration-200 {navigating?.to &&
 			navigating.to.url.pathname !== page.url.pathname
 				? 'opacity-40 pointer-events-none'
 				: ''}"
 		>
-			{@render children()}
+			<div
+				class="min-w-0 xl:border xl:border-surface-200/80 dark:xl:border-white/10 xl:bg-white dark:xl:bg-surface-900 xl:rounded-2xl xl:px-6 xl:py-6"
+			>
+				{@render children()}
+			</div>
 		</div>
 	</main>
 {:else}

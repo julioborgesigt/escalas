@@ -213,7 +213,7 @@
 		{/if}
 		<button
 			type="button"
-			class="btn btn-sm preset-filled-primary-500 transition-all"
+			class="btn btn-sm preset-filled-primary-500 transition-colors"
 			onclick={() => (cadastroOpen = true)}>Novo Policial</button
 		>
 	</div>
@@ -245,7 +245,7 @@
 			<input type="hidden" name="policial_id" value={confirmDialog.currentItem?.id} />
 			<button
 				type="submit"
-				class="btn btn-sm preset-filled-error-500 flex items-center gap-2 transition-all"
+				class="btn btn-sm preset-filled-error-500 flex items-center gap-2 transition-colors"
 				disabled={excluindo}
 			>
 				{excluindo ? 'Excluindo...' : 'Remover Policial'}
@@ -254,245 +254,249 @@
 	{/snippet}
 </ModalShell>
 
-<div class="card-glass p-4 sm:p-6 rounded-3xl overflow-hidden mt-6">
-	<div
-		class="flex flex-col md:flex-row md:flex-wrap xl:flex-nowrap items-stretch md:items-end gap-4 mb-8 p-4 sm:p-6 rounded-2xl bg-surface-100/30 dark:bg-surface-800/20 border border-surface-200 dark:border-white/10"
-	>
-		{#if isAdmin}
-			<label class="label flex-1 min-w-[220px] lg:max-w-xs">
-				<span class="label-text font-semibold mb-1 ml-0.5">Seccional</span>
-				<select
-					class="select w-full"
-					bind:value={filtroSeccional}
-					onchange={() => {
-						filtroLotacao = '';
+<div class="space-y-6 mt-2">
+	<section class="card-elevated rounded-2xl shadow-sm p-4 sm:p-6 space-y-4">
+		<div
+			class="flex flex-col md:flex-row md:flex-wrap xl:flex-nowrap items-stretch md:items-end gap-4"
+		>
+			{#if isAdmin}
+				<label class="label flex-1 min-w-[220px] lg:max-w-xs">
+					<span class="label-text font-semibold mb-1 ml-0.5">Seccional</span>
+					<select
+						class="select w-full"
+						bind:value={filtroSeccional}
+						onchange={() => {
+							filtroLotacao = '';
+							navegarComFiltros();
+						}}
+					>
+						<option value="todas">Todas as Seccionais</option>
+						{#each seccionais as sec (sec.id)}
+							<option value={sec.id}>{sec.nome}</option>
+						{/each}
+					</select>
+				</label>
+				<label class="label flex-1 min-w-[240px] lg:max-w-xs">
+					<span class="label-text font-semibold mb-1 ml-0.5">Unidade de Lotação</span>
+					<select class="select w-full" bind:value={filtroLotacao} onchange={navegarComFiltros}>
+						<option value="">Selecione uma unidade...</option>
+						<option value={TODAS_UNIDADES}>Todas as unidades</option>
+						{#each delegaciasDropdown as del (del.id)}
+							<option value={del.nome}>{del.nome}</option>
+						{/each}
+						<option value={SEM_LOTACAO}>— Sem lotação —</option>
+					</select>
+				</label>
+			{/if}
+			<div class="flex flex-col gap-1.5 flex-1 min-w-[220px] lg:max-w-xs">
+				<span class="label-text font-semibold ml-0.5">Cargo</span>
+				<SegmentedControl
+					value={filtroCargo || ''}
+					onValueChange={(e) => {
+						filtroCargo = e.value ?? '';
 						navegarComFiltros();
 					}}
+					class="w-full"
 				>
-					<option value="todas">Todas as Seccionais</option>
-					{#each seccionais as sec (sec.id)}
-						<option value={sec.id}>{sec.nome}</option>
-					{/each}
-				</select>
-			</label>
-			<label class="label flex-1 min-w-[240px] lg:max-w-xs">
-				<span class="label-text font-semibold mb-1 ml-0.5">Unidade de Lotação</span>
-				<select class="select w-full" bind:value={filtroLotacao} onchange={navegarComFiltros}>
-					<option value="">Selecione uma unidade...</option>
-					<option value={TODAS_UNIDADES}>Todas as unidades</option>
-					{#each delegaciasDropdown as del (del.id)}
-						<option value={del.nome}>{del.nome}</option>
-					{/each}
-					<option value={SEM_LOTACAO}>— Sem lotação —</option>
-				</select>
-			</label>
-		{/if}
-		<div class="flex flex-col gap-1.5 flex-1 min-w-[220px] lg:max-w-xs">
-			<span class="label-text font-semibold ml-0.5">Cargo</span>
-			<SegmentedControl
-				value={filtroCargo || ''}
-				onValueChange={(e) => {
-					filtroCargo = e.value ?? '';
-					navegarComFiltros();
-				}}
-				class="w-full"
-			>
-				<SegmentedControl.Control
-					class="flex items-center w-full rounded-xl border border-surface-200 dark:border-surface-700 bg-surface-100 dark:bg-surface-800 p-1 gap-1"
-				>
-					{#each [['', 'Todos'], ['DPC', 'DPC'], ['OIP', 'OIP']] as [val, label] (val)}
-						<SegmentedControl.Item
-							value={val}
-							class="flex-1 px-3 py-1.5 text-center text-sm font-semibold rounded-lg cursor-pointer select-none transition-all duration-200 text-surface-600 dark:text-surface-400 data-[state=checked]:bg-primary-500 data-[state=checked]:text-white data-[state=checked]:shadow-md data-[state=checked]:shadow-primary-500/25 hover:text-surface-700 dark:hover:text-surface-200"
-						>
-							<SegmentedControl.ItemText>{label}</SegmentedControl.ItemText>
-							<SegmentedControl.ItemHiddenInput />
-						</SegmentedControl.Item>
-					{/each}
-				</SegmentedControl.Control>
-			</SegmentedControl>
-		</div>
-
-		<label class="label flex-1 min-w-[220px]">
-			<span class="label-text font-semibold mb-1 ml-0.5">Buscar por Nome ou Matrícula</span>
-			<div class="relative w-full">
-				<input
-					type="text"
-					class="input pl-10 pr-4 w-full"
-					bind:value={filtroBusca}
-					placeholder="Nome ou matrícula..."
-					oninput={handleBuscaInput}
-					onkeydown={(e) => {
-						if (e.key === 'Enter') {
-							if (searchDebounceTimer) clearTimeout(searchDebounceTimer);
-							navegarComFiltros();
-						}
-					}}
-				/>
-				<div class="absolute inset-y-0 left-3 flex items-center pointer-events-none opacity-50">
-					<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"
-						><path
-							stroke-linecap="round"
-							stroke-linejoin="round"
-							stroke-width="2"
-							d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-						/></svg
+					<SegmentedControl.Control
+						class="flex items-center w-full rounded-xl border border-surface-200 dark:border-surface-700 bg-surface-100 dark:bg-surface-800 p-1 gap-1"
 					>
-				</div>
-			</div>
-		</label>
-	</div>
-	{#if isAdmin && !filtroLotacao && !filtroBusca}
-		<p class="text-xs text-surface-600 dark:text-surface-400 -mt-5 mb-4 italic px-1">
-			Selecione uma unidade ou pesquise por nome/matrícula para visualizar os policiais.
-		</p>
-	{/if}
-
-	{#if policiais.length === 0}
-		<EstadoVazio>
-			<p class="mb-4">
-				{filtroCargo
-					? `Nenhum policial com cargo ${filtroCargo} encontrado.`
-					: 'Nenhum policial cadastrado.'}
-			</p>
-			{#if !filtroCargo}
-				<a
-					href="/policiais"
-					class="btn preset-filled-primary-500 transition-all"
-					onclick={(e) => {
-						e.preventDefault();
-						cadastroOpen = true;
-					}}>Cadastrar Policial</a
-				>
-			{/if}
-		</EstadoVazio>
-	{:else}
-		<!-- Desktop table -->
-		<div class="hidden md:block table-wrap">
-			<table class="table">
-				<thead>
-					<tr>
-						<th>Nome</th>
-						<th>Matrícula</th>
-						<th>Cargo</th>
-						<th>Telefone</th>
-						<th>Lotação</th>
-						<th>Ações</th>
-					</tr>
-				</thead>
-				<tbody>
-					{#if samePathNav.current}
-						<SkeletonTableRows
-							cols={[
-								'h-4 w-40',
-								'h-4 w-20',
-								'h-6 w-16 rounded-full',
-								'h-4 w-28',
-								'h-4 w-32',
-								'h-8 w-32 rounded-lg'
-							]}
-						/>
-					{:else}
-						{#each policiais as p (p.id)}
-							<tr>
-								<td>{p.nome}</td>
-								<td class="font-mono tabular-nums">{p.matricula}</td>
-								<td>
-									<span
-										class="badge text-xs {p.cargo === 'DPC'
-											? 'preset-filled-primary-500'
-											: 'preset-filled-warning-500'}">{p.cargo}</span
-									>
-								</td>
-								<td class="font-mono tabular-nums">{p.telefone}</td>
-								<td>{p.lotacao}</td>
-								<td>
-									<div class="flex gap-2">
-										<a
-											href="/policiais/{p.id}"
-											class="btn btn-sm preset-outlined-primary-500"
-											title="Gerenciar cadastro, movimentações e histórico">Gerenciar</a
-										>
-										<button
-											type="button"
-											class="btn btn-sm preset-filled-error-500 transition-all"
-											onclick={() => solicitarExclusao(p.id, p.nome)}>Excluir</button
-										>
-									</div>
-								</td>
-							</tr>
+						{#each [['', 'Todos'], ['DPC', 'DPC'], ['OIP', 'OIP']] as [val, label] (val)}
+							<SegmentedControl.Item
+								value={val}
+								class="flex-1 px-3 py-1.5 text-center text-sm font-semibold rounded-lg cursor-pointer select-none transition-colors duration-200 text-surface-600 dark:text-surface-400 data-[state=checked]:bg-primary-500 data-[state=checked]:text-white data-[state=checked]:shadow-md data-[state=checked]:shadow-primary-500/25 hover:text-surface-700 dark:hover:text-surface-200"
+							>
+								<SegmentedControl.ItemText>{label}</SegmentedControl.ItemText>
+								<SegmentedControl.ItemHiddenInput />
+							</SegmentedControl.Item>
 						{/each}
-					{/if}
-				</tbody>
-			</table>
-		</div>
+					</SegmentedControl.Control>
+				</SegmentedControl>
+			</div>
 
-		<!-- Mobile cards -->
-		<div class="md:hidden space-y-3">
-			{#if samePathNav.current}
-				<SkeletonCards />
-			{:else}
-				{#each policiais as p, i (p.id)}
-					<div
-						transition:fly={{ y: 8, delay: i * 30, duration: 200 }}
-						class="p-4 rounded-2xl bg-surface-100/50 dark:bg-surface-800/50 border border-surface-200 dark:border-white/10 hover:border-primary-500/30 transition-colors"
-					>
-						<div class="flex items-center justify-between mb-2">
-							<span class="font-semibold text-sm">{p.nome}</span>
-							<span
-								class="badge text-xs {p.cargo === 'DPC'
-									? 'preset-filled-primary-500'
-									: 'preset-filled-warning-500'}">{p.cargo}</span
-							>
-						</div>
-						<div class="space-y-1 text-sm mb-3">
-							<div class="flex justify-between">
-								<span class="text-surface-600 dark:text-surface-400">Matrícula</span>
-								<span class="text-surface-900 dark:text-surface-100 font-mono tabular-nums"
-									>{p.matricula}</span
-								>
-							</div>
-							<div class="flex justify-between">
-								<span class="text-surface-600 dark:text-surface-400">Telefone</span>
-								<span class="text-surface-900 dark:text-surface-100 font-mono tabular-nums"
-									>{p.telefone}</span
-								>
-							</div>
-							<div class="flex justify-between">
-								<span class="text-surface-600 dark:text-surface-400">Lotação</span>
-								<span class="text-right text-surface-900 dark:text-surface-100">{p.lotacao}</span>
-							</div>
-						</div>
-						<div class="flex gap-2 pt-3 border-t border-surface-200 dark:border-white/5">
-							<a
-								href="/policiais/{p.id}"
-								class="btn btn-sm preset-outlined-primary-500 hover:bg-primary-500/10 transition-all flex-1 text-center"
-								title="Gerenciar cadastro, movimentações e histórico">Gerenciar</a
-							>
-							<button
-								type="button"
-								class="btn btn-sm preset-filled-error-500 transition-all flex-1"
-								onclick={() => solicitarExclusao(p.id, p.nome)}>Excluir</button
-							>
-						</div>
+			<label class="label flex-1 min-w-[220px]">
+				<span class="label-text font-semibold mb-1 ml-0.5">Buscar por Nome ou Matrícula</span>
+				<div class="relative w-full">
+					<input
+						type="text"
+						class="input pl-10 pr-4 w-full"
+						bind:value={filtroBusca}
+						placeholder="Nome ou matrícula..."
+						oninput={handleBuscaInput}
+						onkeydown={(e) => {
+							if (e.key === 'Enter') {
+								if (searchDebounceTimer) clearTimeout(searchDebounceTimer);
+								navegarComFiltros();
+							}
+						}}
+					/>
+					<div class="absolute inset-y-0 left-3 flex items-center pointer-events-none opacity-50">
+						<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"
+							><path
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								stroke-width="2"
+								d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+							/></svg
+						>
 					</div>
-				{/each}
-			{/if}
+				</div>
+			</label>
 		</div>
+		{#if isAdmin && !filtroLotacao && !filtroBusca}
+			<p class="text-xs text-surface-600 dark:text-surface-400 italic px-1">
+				Selecione uma unidade ou pesquise por nome/matrícula para visualizar os policiais.
+			</p>
+		{/if}
+	</section>
 
-		<PaginationControls
-			{paginaAtual}
-			{totalPaginas}
-			totalItens={data.pagination.total}
-			itensPorPagina={ITEMS_POR_PAGINA}
-			labelSingular="policial"
-			labelPlural="policial(is)"
-			onPageChange={(p: number) => {
-				paginaAtual = p;
-				const params = new URLSearchParams(window.location.search);
-				params.set('page', p.toString());
-				goto(`?${params.toString()}`, { keepFocus: true, noScroll: true });
-			}}
-		/>
-	{/if}
+	<section class="card-elevated rounded-2xl shadow-sm p-4 sm:p-6 overflow-hidden">
+		{#if policiais.length === 0}
+			<EstadoVazio>
+				<p class="mb-4">
+					{filtroCargo
+						? `Nenhum policial com cargo ${filtroCargo} encontrado.`
+						: 'Nenhum policial cadastrado.'}
+				</p>
+				{#if !filtroCargo}
+					<a
+						href="/policiais"
+						class="btn preset-filled-primary-500 transition-colors"
+						onclick={(e) => {
+							e.preventDefault();
+							cadastroOpen = true;
+						}}>Cadastrar Policial</a
+					>
+				{/if}
+			</EstadoVazio>
+		{:else}
+			<!-- Desktop table -->
+			<div class="hidden md:block table-wrap">
+				<table class="table">
+					<thead>
+						<tr>
+							<th>Nome</th>
+							<th>Matrícula</th>
+							<th>Cargo</th>
+							<th>Telefone</th>
+							<th>Lotação</th>
+							<th>Ações</th>
+						</tr>
+					</thead>
+					<tbody>
+						{#if samePathNav.current}
+							<SkeletonTableRows
+								cols={[
+									'h-4 w-40',
+									'h-4 w-20',
+									'h-6 w-16 rounded-full',
+									'h-4 w-28',
+									'h-4 w-32',
+									'h-8 w-32 rounded-lg'
+								]}
+							/>
+						{:else}
+							{#each policiais as p (p.id)}
+								<tr>
+									<td>{p.nome}</td>
+									<td class="font-mono tabular-nums">{p.matricula}</td>
+									<td>
+										<span
+											class="badge text-xs {p.cargo === 'DPC'
+												? 'preset-filled-primary-500'
+												: 'preset-filled-warning-500'}">{p.cargo}</span
+										>
+									</td>
+									<td class="font-mono tabular-nums">{p.telefone}</td>
+									<td>{p.lotacao}</td>
+									<td>
+										<div class="flex gap-2">
+											<a
+												href="/policiais/{p.id}"
+												class="btn btn-sm preset-outlined-primary-500"
+												title="Gerenciar cadastro, movimentações e histórico">Gerenciar</a
+											>
+											<button
+												type="button"
+												class="btn btn-sm preset-filled-error-500 transition-colors"
+												onclick={() => solicitarExclusao(p.id, p.nome)}>Excluir</button
+											>
+										</div>
+									</td>
+								</tr>
+							{/each}
+						{/if}
+					</tbody>
+				</table>
+			</div>
+
+			<!-- Mobile cards -->
+			<div class="md:hidden space-y-3">
+				{#if samePathNav.current}
+					<SkeletonCards />
+				{:else}
+					{#each policiais as p, i (p.id)}
+						<div
+							transition:fly={{ y: 8, delay: i * 30, duration: 200 }}
+							class="p-4 rounded-2xl card-elevated-2 hover:border-primary-500/30 transition-colors"
+						>
+							<div class="flex items-center justify-between mb-2">
+								<span class="font-semibold text-sm">{p.nome}</span>
+								<span
+									class="badge text-xs {p.cargo === 'DPC'
+										? 'preset-filled-primary-500'
+										: 'preset-filled-warning-500'}">{p.cargo}</span
+								>
+							</div>
+							<div class="space-y-1 text-sm mb-3">
+								<div class="flex justify-between">
+									<span class="text-surface-600 dark:text-surface-400">Matrícula</span>
+									<span class="text-surface-900 dark:text-surface-100 font-mono tabular-nums"
+										>{p.matricula}</span
+									>
+								</div>
+								<div class="flex justify-between">
+									<span class="text-surface-600 dark:text-surface-400">Telefone</span>
+									<span class="text-surface-900 dark:text-surface-100 font-mono tabular-nums"
+										>{p.telefone}</span
+									>
+								</div>
+								<div class="flex justify-between">
+									<span class="text-surface-600 dark:text-surface-400">Lotação</span>
+									<span class="text-right text-surface-900 dark:text-surface-100">{p.lotacao}</span>
+								</div>
+							</div>
+							<div class="flex gap-2 pt-3 border-t border-surface-200 dark:border-white/5">
+								<a
+									href="/policiais/{p.id}"
+									class="btn btn-sm preset-outlined-primary-500 hover:bg-primary-500/10 transition-colors flex-1 text-center"
+									title="Gerenciar cadastro, movimentações e histórico">Gerenciar</a
+								>
+								<button
+									type="button"
+									class="btn btn-sm preset-filled-error-500 transition-colors flex-1"
+									onclick={() => solicitarExclusao(p.id, p.nome)}>Excluir</button
+								>
+							</div>
+						</div>
+					{/each}
+				{/if}
+			</div>
+
+			<PaginationControls
+				{paginaAtual}
+				{totalPaginas}
+				totalItens={data.pagination.total}
+				itensPorPagina={ITEMS_POR_PAGINA}
+				labelSingular="policial"
+				labelPlural="policial(is)"
+				onPageChange={(p: number) => {
+					paginaAtual = p;
+					const params = new URLSearchParams(window.location.search);
+					params.set('page', p.toString());
+					goto(`?${params.toString()}`, { keepFocus: true, noScroll: true });
+				}}
+			/>
+		{/if}
+	</section>
 </div>

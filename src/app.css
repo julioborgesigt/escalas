@@ -4,9 +4,9 @@
 /* Fontes self-hosted: Inter (corpo) e Outfit (títulos), subset `latin` apenas
  * (app PT-BR). Evita round-trip para o Google (preconnect + TLS + CSS + WOFF2),
  * cacheia no edge da Cloudflare e simplifica a CSP. Pesos refletem o uso real:
- *  - Inter 400 (default body), 500/600/700 (Tailwind medium/semibold/bold),
- *    900 (font-black, usado em ~90 lugares)
- *  - Outfit 500/700/800 (títulos, theme.css usa 700 default e 800 inline) */
+ *  - Inter 400 (default body), 500/600/700 (Tailwind medium/semibold/bold);
+ *    900 (font-black) só em KPI isolado — ver README §10 Tipografia
+ *  - Outfit 500/700/800 (títulos; default do tema = 700) */
 @import '@fontsource/inter/latin-400.css';
 @import '@fontsource/inter/latin-500.css';
 @import '@fontsource/inter/latin-600.css';
@@ -33,6 +33,12 @@
 @theme {
 	--text-2xs: 0.7rem;
 	--text-3xs: 0.625rem;
+
+	/* Wordmark / spans que precisam de Outfit sem a classe `.h1` do Skeleton. */
+	--font-heading: var(--heading-font-family);
+
+	/* Fundo da página (body + folha xl) — espelha theme.css; gera `bg-page-canvas`. */
+	--color-page-canvas: oklch(99% 0.002 255deg);
 
 	/* Breakpoint extra abaixo de `sm` para telefones estreitos (UX-10).
 	 * Use `xs:` em vez de `min-[400px]:`. O `min-[900px]:` do +layout.svelte
