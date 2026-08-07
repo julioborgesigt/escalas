@@ -81,12 +81,7 @@ export async function temGiseHistorico(db: Database, policialId: number): Promis
 	const comSaida = await db
 		.select({ id: gisePresencas.id })
 		.from(gisePresencas)
-		.where(
-			and(
-				eq(gisePresencas.policial_id, policialId),
-				isNotNull(gisePresencas.saida_timestamp)
-			)
-		)
+		.where(and(eq(gisePresencas.policial_id, policialId), isNotNull(gisePresencas.saida_timestamp)))
 		.limit(1)
 		.get();
 	if (comSaida) return true;

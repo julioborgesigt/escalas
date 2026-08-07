@@ -16,14 +16,7 @@
 		horizontal?: boolean;
 	}
 
-	const {
-		titulo,
-		descricao,
-		href,
-		cta,
-		accent = 'primary',
-		horizontal = false
-	}: Props = $props();
+	const { titulo, descricao, href, cta, accent = 'primary', horizontal = false }: Props = $props();
 
 	const estilos = {
 		primary: {

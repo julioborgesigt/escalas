@@ -82,12 +82,7 @@
 </svelte:head>
 
 <BemVindoPagina>
-	<BemVindoCabecalho
-		modulo="Módulo GISE"
-		{usuario}
-		{descricao}
-		accent="secondary"
-	/>
+	<BemVindoCabecalho modulo="Módulo GISE" {usuario} {descricao} accent="secondary" />
 
 	<section class="mt-6 sm:mt-8">
 		<h2

@@ -217,8 +217,8 @@
 						/>
 					</svg>
 					<p class="text-xs text-surface-600 dark:text-surface-300 leading-snug">
-						Você ainda <strong>não cadastrou sua rubrica</strong>. Para confirmar a {rotulo} é
-						necessário cadastrar primeiro a sua rubrica — ela será usada como sua assinatura gráfica.
+						Você ainda <strong>não cadastrou sua rubrica</strong>. Para confirmar a {rotulo} é necessário
+						cadastrar primeiro a sua rubrica — ela será usada como sua assinatura gráfica.
 					</p>
 				</div>
 				<button
@@ -327,9 +327,17 @@
 		</p>
 		<div class="flex min-h-8 items-start justify-center gap-1.5">
 			{#if concluido}
-				<Check class="mt-0.5 h-3.5 w-3.5 shrink-0 text-success-500" strokeWidth={3} aria-hidden="true" />
+				<Check
+					class="mt-0.5 h-3.5 w-3.5 shrink-0 text-success-500"
+					strokeWidth={3}
+					aria-hidden="true"
+				/>
 			{:else}
-				<Clock class="mt-0.5 h-3.5 w-3.5 shrink-0 text-warning-500" strokeWidth={2.5} aria-hidden="true" />
+				<Clock
+					class="mt-0.5 h-3.5 w-3.5 shrink-0 text-warning-500"
+					strokeWidth={2.5}
+					aria-hidden="true"
+				/>
 			{/if}
 			<p class="text-3xs leading-tight tabular-nums text-surface-600 dark:text-surface-400">
 				{statusTexto}

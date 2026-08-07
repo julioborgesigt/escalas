@@ -624,7 +624,12 @@
 						{@render itemMenu('/res-gise', 'Conf. Form.', ICONE.documento)}
 					{:else}
 						{#if temPresencaGiseAtiva}
-							{@render itemMenu('/res-gise', 'Presença GISE', ICONE.documento, resGisePresencaAtivo)}
+							{@render itemMenu(
+								'/res-gise',
+								'Presença GISE',
+								ICONE.documento,
+								resGisePresencaAtivo
+							)}
 						{/if}
 						{#if temGiseHistorico}
 							{@render itemMenu(

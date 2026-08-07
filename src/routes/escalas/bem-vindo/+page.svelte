@@ -195,12 +195,7 @@
 </svelte:head>
 
 <BemVindoPagina>
-	<BemVindoCabecalho
-		modulo="Módulo de Escalas"
-		{usuario}
-		{descricao}
-		accent="primary"
-	/>
+	<BemVindoCabecalho modulo="Módulo de Escalas" {usuario} {descricao} accent="primary" />
 
 	<section class="mt-6 sm:mt-8">
 		<h2
