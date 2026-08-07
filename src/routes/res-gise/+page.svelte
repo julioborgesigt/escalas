@@ -24,7 +24,6 @@
 	import Spinner from '$lib/components/Spinner.svelte';
 	import { useAutorizacao, useMobile, useInvalidateOnFocus } from '$lib/composables';
 	import { fetchSyncEstado } from '$lib/sync-estado';
-	import { Tabs } from '@skeletonlabs/skeleton-svelte';
 	import SignaturePad from '$lib/components/SignaturePad.svelte';
 	import ModalCadastrarRubrica from '$lib/components/ModalCadastrarRubrica.svelte';
 	import ModalShell from '$lib/components/ModalShell.svelte';
@@ -40,6 +39,11 @@
 	const resGise = useResGise(() => data);
 	const mobileState = useMobile();
 	const isMobile = $derived(mobileState.isMobile);
+	// Modo da tela: "Histórico GISE" (?status=finalizadas) x "Presença GISE"
+	// (ativas). São duas abas da sidebar apontando para a mesma rota; a lista já
+	// vem filtrada pelo servidor, então aqui o modo só ajusta título, texto de
+	// vazio e a exibição da busca por data (só no histórico).
+	const ehHistorico = $derived(resGise.statusFilterUrl === 'finalizadas');
 
 	// Presença/relatório de outra sessão: foco + broadcast + poll (quente se há
 	// serviço ativo sem saída).
@@ -167,37 +171,21 @@
 				<!-- Panel 1: Lista de Escalas -->
 				<div class="min-w-0 space-y-4" style="width: 50%;">
 					<div class="px-2 space-y-3">
-						<!-- Título + Abas com layout responsivo -->
-						<div
-							class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4"
-						>
-							<h2 class="text-lg font-bold">Minhas Escalas GISE</h2>
-
-							<!-- Escolha entre Ativas e Histórico -->
-							<Tabs
-								value={resGise.statusFilterUrl || 'ativas'}
-								onValueChange={(e) => resGise.changeStatusFilter(e.value ?? '')}
-								class="w-full sm:w-auto"
-							>
-								<Tabs.List
-									class="flex items-center rounded-xl border border-surface-200 dark:border-surface-700 bg-surface-100 dark:bg-surface-800 p-1 gap-1 w-full sm:w-auto"
-								>
-									<Tabs.Trigger
-										value="ativas"
-										class="px-3 py-2 text-sm font-semibold rounded-lg flex-1 sm:flex-none text-center cursor-pointer select-none transition-all duration-200 text-surface-600 dark:text-surface-400 data-[selected]:bg-primary-500 data-[selected]:text-white data-[selected]:shadow-md data-[selected]:shadow-primary-500/25 hover:text-surface-700 dark:hover:text-surface-200"
-										>Ativas</Tabs.Trigger
-									>
-									<Tabs.Trigger
-										value="finalizadas"
-										class="px-3 py-2 text-sm font-semibold rounded-lg flex-1 sm:flex-none text-center cursor-pointer select-none transition-all duration-200 text-surface-600 dark:text-surface-400 data-[selected]:bg-primary-500 data-[selected]:text-white data-[selected]:shadow-md data-[selected]:shadow-primary-500/25 hover:text-surface-700 dark:hover:text-surface-200"
-										>Histórico</Tabs.Trigger
-									>
-								</Tabs.List>
-							</Tabs>
+						<!-- Título da aba atual (a troca Presença × Histórico é feita pela
+						     sidebar, não mais por abas internas). -->
+						<div class="flex flex-col gap-0.5">
+							<h2 class="text-lg font-bold">
+								{ehHistorico ? 'Histórico GISE' : 'Minhas Escalas GISE'}
+							</h2>
+							<p class="text-2xs text-surface-600 dark:text-surface-400 font-medium">
+								{ehHistorico
+									? 'Escalas GISE já encerradas em que você participou.'
+									: 'Escalas GISE ativas em que você está escalado.'}
+							</p>
 						</div>
 
 						<!-- Busca Detalhada (Apenas no Histórico) -->
-						{#if resGise.statusFilterUrl === 'finalizadas'}
+						{#if ehHistorico}
 							<div
 								class="space-y-2 pt-3 border-t border-surface-200 dark:border-surface-800 animate-in fade-in slide-in-from-top-2 duration-300"
 							>
@@ -367,7 +355,9 @@
 								</div>
 							{:else}
 								<p class="text-sm text-surface-600 dark:text-surface-400 italic col-span-full px-2">
-									Nenhuma escala gise encontrada para o seu perfil ou você já enviou o relatório.
+									{ehHistorico
+										? 'Nenhuma escala GISE encerrada no seu histórico.'
+										: 'Nenhuma escala GISE ativa no momento.'}
 								</p>
 							{/each}
 						</div>

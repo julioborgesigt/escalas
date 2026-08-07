@@ -7,8 +7,14 @@
  * plantão, o acesso se fecha sozinho — não há revogação a fazer, e é por isso que
  * essas permissões não moram em `policiais.papel`.
  */
-import { eq, and, ne, or } from 'drizzle-orm';
-import { giseEscalas, giseSeccionais, giseEquipes, giseMembros } from '../../server/schema';
+import { eq, and, ne, or, isNotNull } from 'drizzle-orm';
+import {
+	giseEscalas,
+	giseSeccionais,
+	giseEquipes,
+	giseMembros,
+	gisePresencas
+} from '../../server/schema';
 import type { Database } from '../core';
 
 /** Supervisor (DPC) de alguma GISE não finalizada. */
@@ -57,4 +63,60 @@ export async function isSupervisaoGiseAtiva(db: Database, policialId: number): P
 		.limit(1)
 		.get();
 	return !!result;
+}
+
+/**
+ * O policial tem HISTÓRICO GISE — ao menos uma participação já ENCERRADA para
+ * ele. É o complemento dos predicados "ativa" acima: enquanto eles liberam a aba
+ * "Presença GISE" (serviço em curso), este libera a aba "Histórico GISE".
+ *
+ * "Encerrada para ele" é a mesma condição que a lista de `/res-gise` usa para
+ * separar ativas de finalizadas (`isFinished`): ou o policial já bateu a SAÍDA
+ * (mesmo que a GISE siga aberta para os demais), ou a GISE inteira foi
+ * `finalizada`. As três consultas cobrem, nesta ordem: saída registrada
+ * (qualquer papel), membro de equipe em GISE finalizada e quadro de supervisão
+ * (supervisor/assessor/SEINT) em GISE finalizada. Sai no primeiro `true`.
+ */
+export async function temGiseHistorico(db: Database, policialId: number): Promise<boolean> {
+	const comSaida = await db
+		.select({ id: gisePresencas.id })
+		.from(gisePresencas)
+		.where(
+			and(
+				eq(gisePresencas.policial_id, policialId),
+				isNotNull(gisePresencas.saida_timestamp)
+			)
+		)
+		.limit(1)
+		.get();
+	if (comSaida) return true;
+
+	const membroFinalizada = await db
+		.select({ id: giseMembros.id })
+		.from(giseMembros)
+		.innerJoin(giseEquipes, eq(giseMembros.equipe_id, giseEquipes.id))
+		.innerJoin(giseSeccionais, eq(giseEquipes.gise_seccional_id, giseSeccionais.id))
+		.innerJoin(giseEscalas, eq(giseSeccionais.gise_id, giseEscalas.id))
+		.where(and(eq(giseMembros.policial_id, policialId), eq(giseEscalas.status, 'finalizada')))
+		.limit(1)
+		.get();
+	if (membroFinalizada) return true;
+
+	const quadroFinalizada = await db
+		.select({ id: giseEscalas.id })
+		.from(giseEscalas)
+		.where(
+			and(
+				eq(giseEscalas.status, 'finalizada'),
+				or(
+					eq(giseEscalas.supervisor_id, policialId),
+					eq(giseEscalas.assessor_id, policialId),
+					eq(giseEscalas.seint1_id, policialId),
+					eq(giseEscalas.seint2_id, policialId)
+				)
+			)
+		)
+		.limit(1)
+		.get();
+	return !!quadroFinalizada;
 }

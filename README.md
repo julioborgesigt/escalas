@@ -373,7 +373,7 @@ escalas/
 │   │   ├── painel/                 # Dashboard admin
 │   │   ├── recebidos/              # Caixa de entrada de escalas recebidas
 │   │   ├── gise/                   # GISE (lista, detalhe, config de questões)
-│   │   ├── res-gise/               # Presença e relatórios GISE (visão do membro)
+│   │   ├── res-gise/               # GISE do membro: "Presença GISE" (ativas) e "Histórico GISE" (?status=finalizadas) — duas abas da sidebar, mesma rota
 │   │   ├── policiais/              # Gestão de policiais (lista, detalhe, upload CSV)
 │   │   ├── unidades/               # Gestão de unidades
 │   │   ├── produtividade/          # Dashboard de produtividade
@@ -503,6 +503,7 @@ Gestão do ciclo de vida de escalas de plantão, expediente e finais de semana (
 Gerenciamento completo de operações GISE:
 
 - Criação e configuração pelo supervisor (seccionais, equipes, questões)
+- Visão do membro em duas abas da sidebar: **Presença GISE** (só aparece com escala ativa — confirmar entrada, relatório e saída) e **Histórico GISE** (participações já encerradas). Ambas usam a rota `/res-gise`; o histórico é `?status=finalizadas`
 - Registro de presença (entrada/saída com GPS, selfie e rubrica) — em desktop, confirmação por Token A3
 - Comprovante de presença baixável nos dois fluxos: Token A3 serve o termo qualificado do R2; presença em tela gera o comprovante avançado sob demanda
 - Preenchimento de formulários operacionais e SEINT por membros

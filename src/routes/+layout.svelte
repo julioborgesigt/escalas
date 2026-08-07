@@ -92,10 +92,15 @@
 		usuario?.tipo === 'admin' || usuario?.papel === 'admin_seccional' || isSupervisorGise
 	);
 
-	// Rel. Gise: escalados (membro), quadro de supervisão (assessor/SEINT) e supervisor DPC ativo
-	const showResGise = $derived(
-		usuario?.tipo === 'admin' || isMembroGise || isSupervisaoGise || isSupervisorGise
-	);
+	// Presença GISE (aba de serviço ATIVO): escalado (membro), quadro de
+	// supervisão (assessor/SEINT) ou supervisor DPC — todos em GISE não
+	// finalizada. O Admin Geral não presta serviço: para ele o item /res-gise é o
+	// editor "Conf. Form.", tratado à parte no bloco do menu.
+	const temPresencaGiseAtiva = $derived(isMembroGise || isSupervisaoGise || isSupervisorGise);
+	// Histórico GISE: ao menos uma participação já encerrada para o policial (vem
+	// do servidor junto do papel). Independe de haver serviço ativo, e é o que
+	// mantém a aba acessível depois que todas as GISEs do policial finalizaram.
+	const temGiseHistorico = $derived(page.data.temGiseHistorico ?? false);
 
 	// For admins: control menu group visibility based on chosen module
 	const showGrupo1 = $derived(
@@ -269,6 +274,19 @@
 				!rotaPath.startsWith('/gise/bem-vindo'))
 	);
 	const giseConfigPathAtivo = $derived(rotaPath.startsWith('/gise/config'));
+
+	// As duas abas de /res-gise dividem a MESMA rota por query string: sem
+	// `?status=finalizadas` é a "Presença GISE" (ativas), com ele é o "Histórico
+	// GISE". O realce do menu segue essa distinção — por isso o `ativo` vai
+	// explícito aos dois itens (o `isActive` padrão, só por pathname, acenderia
+	// os dois ao mesmo tempo). Inclui `/res-gise/relatorio/[giseId]`, cujo link
+	// carrega o mesmo `status` de ida e volta.
+	const naRotaResGise = $derived(rotaPath === '/res-gise' || rotaPath.startsWith('/res-gise/'));
+	const resGiseHistoricoSelecionado = $derived(
+		page.url.searchParams.get('status') === 'finalizadas'
+	);
+	const resGisePresencaAtivo = $derived(naRotaResGise && !resGiseHistoricoSelecionado);
+	const resGiseHistoricoAtivo = $derived(naRotaResGise && resGiseHistoricoSelecionado);
 
 	onNavigate((navigation) => {
 		if (!isDesktop && sidebarOpen) {
@@ -602,12 +620,20 @@
 							)}
 						{/if}
 					{/if}
-					{#if showResGise}
-						{@render itemMenu(
-							'/res-gise',
-							usuario?.tipo === 'admin' ? 'Conf. Form.' : 'Presença GISE',
-							ICONE.documento
-						)}
+					{#if usuario?.tipo === 'admin'}
+						{@render itemMenu('/res-gise', 'Conf. Form.', ICONE.documento)}
+					{:else}
+						{#if temPresencaGiseAtiva}
+							{@render itemMenu('/res-gise', 'Presença GISE', ICONE.documento, resGisePresencaAtivo)}
+						{/if}
+						{#if temGiseHistorico}
+							{@render itemMenu(
+								'/res-gise?status=finalizadas',
+								'Histórico GISE',
+								ICONE.historico,
+								resGiseHistoricoAtivo
+							)}
+						{/if}
 					{/if}
 				{/if}
 				<!-- end showGrupo2 -->

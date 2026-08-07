@@ -103,11 +103,6 @@ export function useResGise(getData: () => ResGisePageData) {
 		goto(navUrl.pathname + navUrl.search, { keepFocus: true, noScroll: true });
 	}
 
-	function changeStatusFilter(status: string) {
-		statusFilterUrl = status;
-		navigateWithFilters({ status });
-	}
-
 	function changeDateFilter(type: 'mes' | 'data', value: string) {
 		if (type === 'mes') {
 			mesFilterUrl = value;
@@ -491,7 +486,6 @@ export function useResGise(getData: () => ResGisePageData) {
 		},
 
 		// Actions
-		changeStatusFilter,
 		changeDateFilter,
 		limparFiltros,
 		adicionarPergunta,

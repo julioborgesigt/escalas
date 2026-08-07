@@ -62,7 +62,7 @@ import {
 	giseRespostasFormulario,
 	policiais
 } from '$lib/server/schema';
-import { eq, and, inArray, desc, like, sql } from 'drizzle-orm';
+import { eq, and, inArray, desc, like, sql, or } from 'drizzle-orm';
 import { gateDePresenca } from '$lib/server/gise/presenca-gate';
 interface GiseEscalaItem {
 	id: number;
@@ -102,15 +102,36 @@ export const load: PageServerLoad = async ({ locals, platform, url, depends }) =
 	const isSupervisorGise = u.tipo === 'policial' ? await isSupervisorGiseAtiva(db, u.id) : false;
 	const isSupervisaoGise = u.tipo === 'policial' ? await isSupervisaoGiseAtiva(db, u.id) : false;
 
-	// Admin geral, membros de equipe, supervisor DPC ativo na GISE ou quadro de supervisão (assessor/SEINT)
+	// Quem pode abrir esta rota (as duas abas — Presença e Histórico — moram nela):
+	// qualquer policial que JÁ tenha participado de uma GISE, ativa ou encerrada.
+	// Por isso o vínculo é checado sem filtro de status: membro de equipe (em
+	// qualquer GISE) OU quadro de supervisão (supervisor/assessor/SEINT de
+	// qualquer GISE). Sem isso, um policial cujo histórico é só de quadro (nunca
+	// foi membro de equipe) e sem GISE ativa era barrado na própria aba de
+	// histórico. Admin Geral entra sempre (usa a rota como editor do formulário).
 	if (u.tipo !== 'admin') {
-		const result = await db
-			.select({ id: giseMembros.id })
-			.from(giseMembros)
-			.where(eq(giseMembros.policial_id, u.id))
-			.limit(1)
-			.get();
-		if (!result && !isSupervisorGise && !isSupervisaoGise) redirect(302, '/');
+		const [membroEver, quadroEver] = await Promise.all([
+			db
+				.select({ id: giseMembros.id })
+				.from(giseMembros)
+				.where(eq(giseMembros.policial_id, u.id))
+				.limit(1)
+				.get(),
+			db
+				.select({ id: giseEscalas.id })
+				.from(giseEscalas)
+				.where(
+					or(
+						eq(giseEscalas.supervisor_id, u.id),
+						eq(giseEscalas.assessor_id, u.id),
+						eq(giseEscalas.seint1_id, u.id),
+						eq(giseEscalas.seint2_id, u.id)
+					)
+				)
+				.limit(1)
+				.get()
+		]);
+		if (!membroEver && !quadroEver) redirect(302, '/');
 	}
 
 	const minhasEscalas: ResGiseMinhaEscalaLinha[] = [];
