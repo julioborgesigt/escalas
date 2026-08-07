@@ -34,7 +34,6 @@
 	import inter400Url from '@fontsource/inter/files/inter-latin-400-normal.woff2?url';
 	import outfit700Url from '@fontsource/outfit/files/outfit-latin-700-normal.woff2?url';
 	import { tick } from 'svelte';
-	import { MediaQuery } from 'svelte/reactivity';
 	import { page, navigating, updated } from '$app/state';
 	import { goto, onNavigate, afterNavigate, beforeNavigate } from '$app/navigation';
 	import { Toast, Dialog } from '@skeletonlabs/skeleton-svelte';
@@ -118,9 +117,11 @@
 	const ROTAS_SEM_SIDEBAR = ['/login', '/alterar-senha', '/aceitar-termo'];
 	const showSidebar = $derived(!ROTAS_SEM_SIDEBAR.includes(page.url.pathname));
 
+	// A navegação lateral é uma GAVETA (overlay) OCULTA POR PADRÃO em todas as
+	// larguras — inclusive no desktop. Abre pelo botão de menu do topo e fecha ao
+	// navegar, clicar fora ou apertar Esc. `sidebarOpen` é a fonte única do estado;
+	// não há mais o modo "sempre aberta" que o desktop tinha.
 	let sidebarOpen = $state(false);
-	const desktopViewport = new MediaQuery('(min-width: 900px)', false);
-	const isDesktop = $derived(desktopViewport.current);
 	let isDark = $state(
 		typeof document !== 'undefined' ? document.documentElement.classList.contains('dark') : true
 	);
@@ -128,8 +129,10 @@
 	let isLoggingOut = $state(false);
 	let restoreMenuFocusAfterNavigation = false;
 
-	const sidebarIsModal = $derived(!isDesktop && sidebarOpen);
-	const sidebarIsInert = $derived(!isDesktop && !sidebarOpen);
+	// Enquanto aberta, a gaveta é modal: trava o scroll do fundo e torna o
+	// conteúdo inerte. Fechada, a própria gaveta fica inerte (fora da tela).
+	const sidebarIsModal = $derived(sidebarOpen);
+	const sidebarIsInert = $derived(!sidebarOpen);
 
 	useScrollLock(() => sidebarIsModal);
 
@@ -141,7 +144,6 @@
 	}
 
 	async function openSidebar() {
-		if (isDesktop) return;
 		sidebarOpen = true;
 		await tick();
 		document.getElementById('navegacao-principal')?.focus();
@@ -154,7 +156,7 @@
 		if (!sidebarOpen) return;
 		sidebarOpen = false;
 
-		if (!restoreFocus || isDesktop) return;
+		if (!restoreFocus) return;
 		if (afterNavigation) {
 			restoreMenuFocusAfterNavigation = true;
 			return;
@@ -289,7 +291,7 @@
 	const resGiseHistoricoAtivo = $derived(naRotaResGise && resGiseHistoricoSelecionado);
 
 	onNavigate((navigation) => {
-		if (!isDesktop && sidebarOpen) {
+		if (sidebarOpen) {
 			void closeSidebar({ afterNavigation: true });
 		}
 		if (!document.startViewTransition) return;
@@ -375,11 +377,9 @@
 {/if}
 
 <!-- Global Loading Overlay — only for API operations (signing, saving). Page navigation uses the top progress bar + inline skeletons. -->
-<LoadingOverlay
-	active={loading.active}
-	message={loading.message}
-	offsetSidebar={showSidebar && !!usuario}
-/>
+<!-- offsetSidebar=false: a gaveta é overlay (não reserva espaço), então o overlay
+     de carregamento centraliza na viewport inteira. -->
+<LoadingOverlay active={loading.active} message={loading.message} offsetSidebar={false} />
 
 <!-- Aviso pós-login: policial com assinatura pendente e sem rubrica cadastrada -->
 {#if page.data.precisaCadastrarRubrica}
@@ -434,9 +434,10 @@
 </a>
 
 {#if showSidebar && usuario}
-	<!-- Mobile: hamburger top bar -->
+	<!-- Barra do topo (todas as larguras): botão de menu + marca. É o que abre a
+	     gaveta de navegação, que agora fica oculta por padrão também no desktop. -->
 	<div
-		class="min-[900px]:hidden fixed top-0 left-0 right-0 z-40 h-14 bg-surface-50/90 dark:bg-surface-950/90 backdrop-blur-lg border-b border-surface-200 dark:border-white/10 flex items-center px-4"
+		class="fixed top-0 left-0 right-0 z-40 h-14 bg-surface-50/90 dark:bg-surface-950/90 backdrop-blur-lg border-b border-surface-200 dark:border-white/10 flex items-center px-4"
 		inert={sidebarIsModal}
 	>
 		<button
@@ -465,11 +466,11 @@
 		</div>
 	</div>
 
-	<!-- Mobile: overlay backdrop -->
+	<!-- Backdrop da gaveta (todas as larguras): clicar fora fecha. -->
 	{#if sidebarOpen}
 		<button
 			type="button"
-			class="min-[900px]:hidden fixed inset-0 z-40 bg-black/50 backdrop-blur-sm"
+			class="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm"
 			onclick={() => void closeSidebar()}
 			aria-label="Fechar menu"
 		></button>
@@ -484,7 +485,6 @@
 			shadow-xl shadow-black/5 dark:shadow-black/30
 			flex flex-col
 			transition-transform duration-300 ease-in-out
-			min-[900px]:translate-x-0
 			{sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
 		"
 		style="width: var(--sidebar-width, 240px);"
@@ -501,10 +501,10 @@
 					>DPI SUL</span
 				>
 			</div>
-			<!-- Mobile close button -->
+			<!-- Botão de fechar a gaveta -->
 			<button
 				type="button"
-				class="min-[900px]:hidden ml-auto p-1 text-surface-400 hover:text-surface-600 dark:hover:text-surface-200 transition-colors"
+				class="ml-auto p-1 text-surface-400 hover:text-surface-600 dark:hover:text-surface-200 transition-colors"
 				onclick={() => void closeSidebar()}
 				aria-label="Fechar menu"
 			>
@@ -848,16 +848,16 @@
 		</Dialog.Content>
 	</Dialog>
 
-	<!-- Main content with sidebar offset -->
+	<!-- Conteúdo principal: largura cheia (a gaveta de navegação é overlay, não
+	     empurra o conteúdo). `pt-20` reserva a barra do topo fixa. -->
 	<main
 		id="conteudo-principal"
-		class="min-h-screen relative transition-[margin] duration-300"
-		style="margin-left: {usuario ? 'var(--desktop-sidebar-offset)' : '0'};"
+		class="min-h-screen relative"
 		inert={sidebarIsModal}
 		aria-hidden={sidebarIsModal}
 	>
 		<div
-			class="max-w-6xl mx-auto min-w-0 px-2 sm:px-4 pt-20 min-[900px]:pt-8 pb-12 transition-opacity duration-200 {navigating?.to &&
+			class="max-w-6xl mx-auto min-w-0 px-2 sm:px-4 pt-20 pb-12 transition-opacity duration-200 {navigating?.to &&
 			navigating.to.url.pathname !== page.url.pathname
 				? 'opacity-40 pointer-events-none'
 				: ''}"
@@ -874,17 +874,8 @@
 
 <style>
 	:root {
-		/* No mobile (overlay), usamos largura fixa para legibilidade */
+		/* Gaveta de navegação (overlay em qualquer viewport): largura fixa e legível. */
 		--sidebar-width: 240px;
-		--desktop-sidebar-offset: 0px;
-	}
-
-	@media (min-width: 900px) {
-		:root {
-			/* No desktop, a largura é fluida: min 168px (70% de 240), ideal 18vw, max 240px */
-			--sidebar-width: clamp(168px, 18vw, 240px);
-			--desktop-sidebar-offset: var(--sidebar-width);
-		}
 	}
 
 	@media (prefers-reduced-motion: no-preference) {
