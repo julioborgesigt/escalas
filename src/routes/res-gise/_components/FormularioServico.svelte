@@ -137,7 +137,7 @@
 {#snippet btnDownloadEtapa(rotulo: string, aoClicar: () => void, carregando: boolean)}
 	<button
 		type="button"
-		class="btn btn-sm flex w-full items-center justify-center gap-1.5 rounded-xl preset-tonal-surface-500 py-2 text-3xs font-bold tracking-wide uppercase"
+		class="btn btn-sm inline-flex items-center gap-1.5 rounded-lg preset-tonal-surface-500 px-3 py-1.5 text-3xs font-bold tracking-wide uppercase"
 		onclick={aoClicar}
 		disabled={loading.active || carregando}
 	>
@@ -150,18 +150,19 @@
 	</button>
 {/snippet}
 
-<!-- Downloads de cada etapa, no rodapé do card correspondente: comprovante
-     (termo de presença) da entrada/saída e o PDF do relatório de produtividade. -->
+<!-- Downloads de cada etapa (rótulo curto — só o ícone + "Comprovante"/"Relatório"):
+     comprovante (termo de presença) da entrada/saída e o PDF do relatório. São
+     compactos e o rodapé do card os alinha à direita. -->
 {#snippet comprovanteEntrada()}
 	{@render btnDownloadEtapa(
-		'Baixar comprovante',
+		'Comprovante',
 		() => resGise.baixarTermoPresenca('entrada'),
 		resGise.baixandoTermo === 'entrada'
 	)}
 {/snippet}
 {#snippet comprovanteSaida()}
 	{@render btnDownloadEtapa(
-		'Baixar comprovante',
+		'Comprovante',
 		() => resGise.baixarTermoPresenca('saida'),
 		resGise.baixandoTermo === 'saida'
 	)}
@@ -169,7 +170,7 @@
 {#snippet baixarProdutividade()}
 	{#if esc && relatorioOk && esc.seccional_id !== 0}
 		{@render btnDownloadEtapa(
-			'Baixar relatório',
+			'Relatório',
 			() => esc && resGise.baixarRelatorio(esc),
 			resGise.baixandoProdutividade === esc.id
 		)}
@@ -337,24 +338,41 @@
 				{statusTexto}
 			</p>
 		</div>
-		{#if primaria || extras}
-			<div class="mt-auto flex w-full flex-col gap-2 pt-1">
-				{#if primaria}
-					<button
-						type="button"
-						class="btn btn-sm w-full rounded-xl py-2 text-3xs font-black tracking-wide whitespace-normal uppercase {primaria.disabled
-							? 'preset-outlined-surface-500 cursor-not-allowed opacity-45'
-							: concluido
-								? 'preset-outlined-primary-500'
-								: 'preset-filled-primary-500 shadow-md shadow-primary-500/20'}"
-						disabled={primaria.disabled || loading.active}
-						title={primaria.titulo}
-						onclick={primaria.onclick}
-					>
-						{primaria.label}
-					</button>
-				{/if}
-				{@render extras?.()}
+		{#if concluido}
+			{#if primaria || extras}
+				<!-- Concluído: ações numa linha só — a ação (Retificar dados) à
+				     ESQUERDA e o download à DIREITA — para o card não ganhar altura. -->
+				<div class="mt-auto flex w-full items-center justify-end gap-2 pt-1">
+					{#if primaria}
+						<button
+							type="button"
+							class="btn btn-sm mr-auto rounded-lg px-3 py-1.5 text-3xs font-black tracking-wide uppercase {primaria.disabled
+								? 'preset-outlined-surface-500 cursor-not-allowed opacity-45'
+								: 'preset-outlined-primary-500'}"
+							disabled={primaria.disabled || loading.active}
+							title={primaria.titulo}
+							onclick={primaria.onclick}
+						>
+							{primaria.label}
+						</button>
+					{/if}
+					{@render extras?.()}
+				</div>
+			{/if}
+		{:else if primaria}
+			<!-- Pendente: CTA principal do passo, em largura cheia. -->
+			<div class="mt-auto w-full pt-1">
+				<button
+					type="button"
+					class="btn btn-sm w-full rounded-xl py-2 text-3xs font-black tracking-wide whitespace-normal uppercase {primaria.disabled
+						? 'preset-outlined-surface-500 cursor-not-allowed opacity-45'
+						: 'preset-filled-primary-500 shadow-md shadow-primary-500/20'}"
+					disabled={primaria.disabled || loading.active}
+					title={primaria.titulo}
+					onclick={primaria.onclick}
+				>
+					{primaria.label}
+				</button>
 			</div>
 		{/if}
 	</div>
