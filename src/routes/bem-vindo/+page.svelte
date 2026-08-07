@@ -13,6 +13,9 @@
 	const isSupervisorGise = $derived(page.data.isSupervisorGise ?? false);
 	const isMembroGise = $derived(page.data.isMembroGise ?? false);
 	const isSupervisaoGise = $derived(page.data.isSupervisaoGise ?? false);
+	// Histórico GISE: participou de alguma GISE já encerrada (independe de
+	// convocação ativa). Espelha a aba "Histórico GISE" da sidebar.
+	const temGiseHistorico = $derived(page.data.temGiseHistorico ?? false);
 
 	// Cards de convocação GISE (só quando há vínculo ativo).
 	const giseCards = $derived.by(() => {
@@ -42,9 +45,21 @@
 
 	const semConvocacao = $derived(giseCards.length === 0);
 
+	// Card do histórico: só quando há GISE encerrada. Fica FORA de `giseCards`
+	// (que alimenta `semConvocacao`) porque histórico não é convocação ativa.
+	const cardHistoricoGise = {
+		icone: ICONE.historico,
+		titulo: 'Histórico GISE',
+		descricao:
+			'Consulte suas escalas GISE já encerradas: comprovantes de presença e relatórios das operações anteriores.',
+		href: '/res-gise?status=finalizadas',
+		cta: 'Ver histórico GISE'
+	};
+
 	// "Meu perfil" está na sidebar de todo policial — espelhado no acesso rápido.
 	const acoes = $derived([
 		...giseCards,
+		...(temGiseHistorico ? [cardHistoricoGise] : []),
 		{
 			icone: ICONE.perfil,
 			titulo: 'Meu perfil',

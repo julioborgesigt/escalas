@@ -34,6 +34,9 @@
 	const showResGise = $derived(
 		!!(data.isMembroGise || data.isSupervisorGise || data.isSupervisaoGise)
 	);
+	// Histórico GISE: participou de alguma GISE já encerrada (independe de vínculo
+	// ativo). Espelha a aba "Histórico GISE" da sidebar.
+	const temGiseHistorico = $derived(!!data.temGiseHistorico);
 
 	const isSubAdmin = $derived(
 		usuario?.papel === 'admin_seccional' || usuario?.papel === 'admin_unidade'
@@ -148,6 +151,15 @@
 			cta: 'Acessar presença GISE'
 		};
 
+		const cardHistoricoGise = {
+			icone: ICONE.historico,
+			titulo: 'Histórico GISE',
+			descricao:
+				'Consulte suas escalas GISE já encerradas: comprovantes de presença e relatórios das operações anteriores.',
+			href: '/res-gise?status=finalizadas',
+			cta: 'Ver histórico GISE'
+		};
+
 		// Todo policial (incl. sub-admins) tem "Meu perfil" na sidebar — espelhado aqui.
 		const cardMeuPerfil = {
 			icone: ICONE.perfil,
@@ -162,6 +174,7 @@
 			// Admin seccional sempre tem acesso ao módulo GISE (espelha a sidebar).
 			const lista = [cardOrdinaria, cardGiseEscalas];
 			if (showResGise) lista.push(cardPresencaGise);
+			if (temGiseHistorico) lista.push(cardHistoricoGise);
 			lista.push(cardMeuPerfil);
 			return lista;
 		}
@@ -170,10 +183,11 @@
 			// GISE só quando supervisor (admin_unidade só supervisiona se DPC).
 			if (isSupervisorGise) lista.push(cardGiseEscalas);
 			if (showResGise) lista.push(cardPresencaGise);
+			if (temGiseHistorico) lista.push(cardHistoricoGise);
 			lista.push(cardMeuPerfil);
 			return lista;
 		}
-		return [
+		const lista = [
 			{
 				icone: ICONE.calendario,
 				titulo: 'Painel de Escalas',
@@ -181,9 +195,11 @@
 					'Acesse o painel para criar, enviar e acompanhar as escalas ordinárias de sua unidade.',
 				href: '/escalas',
 				cta: 'Entrar no painel'
-			},
-			cardMeuPerfil
+			}
 		];
+		if (temGiseHistorico) lista.push(cardHistoricoGise);
+		lista.push(cardMeuPerfil);
+		return lista;
 	});
 </script>
 
