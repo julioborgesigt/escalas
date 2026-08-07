@@ -27,7 +27,8 @@ export {
 	tentarPromoverGiseProntaParaFinalizar,
 	isSupervisorGiseAtiva,
 	isMembroGiseAtiva,
-	isSupervisaoGiseAtiva
+	isSupervisaoGiseAtiva,
+	temGiseHistorico
 } from './escalas';
 
 export {

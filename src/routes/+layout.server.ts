@@ -12,6 +12,7 @@ export const load: LayoutServerLoad = async ({ locals, platform, cookies, depend
 	let isSupervisorGise = false;
 	let isMembroGise = false;
 	let isSupervisaoGise = false;
+	let temGiseHistorico = false;
 	let exigirFotoAssinatura = true;
 	let exigirGpsAssinatura = true;
 	let exigirCodigoEmailAssinatura = false;
@@ -58,6 +59,7 @@ export const load: LayoutServerLoad = async ({ locals, platform, cookies, depend
 				isSupervisorGise = papel.isSupervisor;
 				isMembroGise = papel.isMembro;
 				isSupervisaoGise = papel.isSupervisao;
+				temGiseHistorico = papel.temHistorico;
 			}
 
 			// Aviso "cadastre sua rubrica": só para policial SEM rubrica com
@@ -87,6 +89,7 @@ export const load: LayoutServerLoad = async ({ locals, platform, cookies, depend
 		isSupervisorGise,
 		isMembroGise,
 		isSupervisaoGise,
+		temGiseHistorico,
 		exigirFotoAssinatura,
 		exigirGpsAssinatura,
 		exigirCodigoEmailAssinatura,

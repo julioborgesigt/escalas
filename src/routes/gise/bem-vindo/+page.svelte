@@ -1,6 +1,5 @@
 <script lang="ts">
 	import type { PageProps } from './$types';
-	import { ICONE } from '$lib/constants/icones';
 	import BemVindoPagina from '$lib/components/bem-vindo/BemVindoPagina.svelte';
 	import BemVindoCabecalho from '$lib/components/bem-vindo/BemVindoCabecalho.svelte';
 	import BemVindoCardAcao from '$lib/components/bem-vindo/BemVindoCardAcao.svelte';
@@ -23,7 +22,6 @@
 		if (usuario?.tipo === 'admin') {
 			return [
 				{
-					icone: ICONE.pranchetaLista,
 					titulo: 'Escalas GISE',
 					descricao:
 						'Planeje, gerencie e valide a alocação de equipes operacionais e equipes de inteligência em serviço extraordinário.',
@@ -31,7 +29,6 @@
 					cta: 'Acessar escalas GISE'
 				},
 				{
-					icone: ICONE.barras,
 					titulo: 'Produtividade',
 					descricao:
 						'Acompanhe relatórios de apreensões de armas e drogas, analise os índices de prisões e exporte gráficos consolidados.',
@@ -39,7 +36,6 @@
 					cta: 'Acessar produtividade'
 				},
 				{
-					icone: ICONE.engrenagem,
 					titulo: 'Configurações GISE',
 					descricao:
 						'Configure parâmetros globais do módulo GISE, como valores limite de cotas financeiras e horas extras permitidas.',
@@ -47,7 +43,6 @@
 					cta: 'Abrir configurações'
 				},
 				{
-					icone: ICONE.documento,
 					titulo: 'Configuração de Formulários',
 					descricao:
 						'Crie e gerencie os modelos de formulário (operacional e SEINT) do relatório de produtividade preenchido pelas equipes GISE.',
@@ -55,14 +50,12 @@
 					cta: 'Configurar formulários'
 				},
 				{
-					icone: ICONE.pessoas,
 					titulo: 'Policiais',
 					descricao: 'Consulte e gerencie o cadastro de policiais e seus dados.',
 					href: '/policiais',
 					cta: 'Gerenciar policiais'
 				},
 				{
-					icone: ICONE.checkLista,
 					titulo: 'Solicitações',
 					descricao:
 						'Analise e aprove ou rejeite as solicitações de alteração de dados enviadas pelos policiais.',
@@ -74,7 +67,6 @@
 		// Fallback defensivo — o `load` impede que não-admins cheguem aqui.
 		return [
 			{
-				icone: ICONE.pranchetaLista,
 				titulo: 'Painel GISE',
 				descricao:
 					'Acesse o painel para gerenciar a alocação de equipes e acompanhar o serviço extraordinário.',
@@ -90,13 +82,7 @@
 </svelte:head>
 
 <BemVindoPagina>
-	<BemVindoCabecalho
-		icone={ICONE.casa}
-		modulo="Módulo GISE"
-		{usuario}
-		{descricao}
-		accent="secondary"
-	/>
+	<BemVindoCabecalho modulo="Módulo GISE" {usuario} {descricao} accent="secondary" />
 
 	<section class="mt-6 sm:mt-8">
 		<h2

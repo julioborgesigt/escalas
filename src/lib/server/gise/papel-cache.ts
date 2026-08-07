@@ -19,6 +19,7 @@ import {
 	isSupervisorGiseAtiva,
 	isMembroGiseAtiva,
 	isSupervisaoGiseAtiva,
+	temGiseHistorico,
 	type Database
 } from '$lib/db';
 import { giseEscalas, giseEquipes, giseMembros, giseSeccionais } from '$lib/server/schema';
@@ -28,6 +29,8 @@ interface PapelGise {
 	isMembro: boolean;
 	/** Assessor ou SEINT no quadro de supervisão (GISE ativa). */
 	isSupervisao: boolean;
+	/** Tem ao menos uma participação GISE já encerrada — libera a aba "Histórico GISE". */
+	temHistorico: boolean;
 }
 
 const TTL_SECONDS = 60;
@@ -62,13 +65,14 @@ export async function lerPapelGise(db: Database, policialId: number): Promise<Pa
 		}
 	}
 
-	const [isSupervisor, isMembro, isSupervisao] = await Promise.all([
+	const [isSupervisor, isMembro, isSupervisao, temHistorico] = await Promise.all([
 		isSupervisorGiseAtiva(db, policialId),
 		isMembroGiseAtiva(db, policialId),
-		isSupervisaoGiseAtiva(db, policialId)
+		isSupervisaoGiseAtiva(db, policialId),
+		temGiseHistorico(db, policialId)
 	]);
 
-	const papel: PapelGise = { isSupervisor, isMembro, isSupervisao };
+	const papel: PapelGise = { isSupervisor, isMembro, isSupervisao, temHistorico };
 
 	if (cache) {
 		try {

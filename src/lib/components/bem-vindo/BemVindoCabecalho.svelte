@@ -1,12 +1,11 @@
-<!-- Cabeçalho institucional das telas de boas-vindas: identificação do módulo,
-     saudação, data corrente e metadados do usuário (perfil, matrícula, lotação). -->
+<!-- Cabeçalho das telas de boas-vindas: identificação do módulo, saudação, data
+     corrente e metadados do usuário (perfil, matrícula, lotação). O título usa a
+     MESMA classe `.h1` das demais páginas (fonte Outfit, cor e tracking do tema),
+     para não destoar. Sem ícone ilustrativo. -->
 <script lang="ts">
 	import type { UsuarioLogado } from '$lib/auth';
-	import IconeSvg from './IconeSvg.svelte';
 
 	interface Props {
-		/** Paths SVG do ícone (`ICONE.*` de `$lib/constants/icones`). */
-		icone: string[];
 		/** Rótulo do módulo exibido acima da saudação (ex.: "Módulo de Escalas"). */
 		modulo: string;
 		usuario: UsuarioLogado | null | undefined;
@@ -14,20 +13,11 @@
 		accent?: 'primary' | 'secondary';
 	}
 
-	const { icone, modulo, usuario, descricao, accent = 'primary' }: Props = $props();
+	const { modulo, usuario, descricao, accent = 'primary' }: Props = $props();
 
 	const estilos = {
-		primary: {
-			icone: 'border-primary-500/25 bg-primary-500/10 text-primary-600 dark:text-primary-400',
-			eyebrow: 'text-primary-700 dark:text-primary-400',
-			ponto: 'bg-primary-500'
-		},
-		secondary: {
-			icone:
-				'border-secondary-500/25 bg-secondary-500/10 text-secondary-600 dark:text-secondary-400',
-			eyebrow: 'text-secondary-600 dark:text-secondary-400',
-			ponto: 'bg-secondary-500'
-		}
+		primary: { eyebrow: 'text-primary-700 dark:text-primary-400', ponto: 'bg-primary-500' },
+		secondary: { eyebrow: 'text-secondary-600 dark:text-secondary-400', ponto: 'bg-secondary-500' }
 	} as const;
 	const e = $derived(estilos[accent]);
 
@@ -64,18 +54,9 @@
 
 <header>
 	<div class="flex items-start justify-between gap-4">
-		<div class="flex items-center gap-3 sm:gap-4">
-			<div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border {e.icone}">
-				<IconeSvg paths={icone} class="h-5 w-5" />
-			</div>
-			<div class="min-w-0">
-				<p class="text-2xs font-semibold tracking-[0.18em] uppercase {e.eyebrow}">{modulo}</p>
-				<h1
-					class="mt-0.5 text-xl font-bold tracking-tight text-surface-900 sm:text-2xl dark:text-surface-50"
-				>
-					Bem-vindo(a), {primeiroNome}
-				</h1>
-			</div>
+		<div class="min-w-0">
+			<p class="text-2xs font-semibold tracking-[0.18em] uppercase {e.eyebrow}">{modulo}</p>
+			<h1 class="h1 mt-0.5 text-2xl font-bold">Bem-vindo(a), {primeiroNome}</h1>
 		</div>
 		{#if dataAtual}
 			<p class="hidden shrink-0 pt-1 text-xs text-surface-600 md:block dark:text-surface-400">
@@ -84,7 +65,7 @@
 		{/if}
 	</div>
 
-	<p class="mt-4 max-w-3xl text-sm leading-relaxed text-surface-600 dark:text-surface-300">
+	<p class="mt-4 max-w-3xl text-sm leading-relaxed text-surface-600 dark:text-surface-400">
 		{descricao}
 	</p>
 
