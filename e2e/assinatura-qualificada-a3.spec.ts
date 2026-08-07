@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { FIXTURE } from './global-setup';
-import { seedSession, headersDeSessaoMutacao, cookieDeSessao } from './session';
+import { seedSession, headersDeSessaoMutacao, cookieDeSessao, promoverPolicialAAssinante, restaurarPolicialASemPapel, execD1Local } from './session';
 import { assinarComoSerpro } from './ca-teste/assinador';
 
 /**
@@ -16,6 +16,9 @@ import { assinarComoSerpro } from './ca-teste/assinador';
  * RSA dos SignedAttributes, política criptográfica, CADEIA de certificação,
  * OCSP (sem AIA → 'unknown', aceito) e vínculo CPF token × sessão.
  *
+ * Quem assina: policial A (titular do e-CPF de teste), promovido a DPC +
+ * admin_unidade só nesta suíte — FLW-AUT-001 exige papel administrativo.
+ *
  * O que fica de fora (segue no roteiro manual): o Assinador SERPRO em si
  * (WebSocket/PIN/token físico) e o carimbo ACT-ICP real.
  *
@@ -29,7 +32,20 @@ const ESCALA = FIXTURE.escalaAssinavelA3.id;
 let token: string | null = null;
 
 test.beforeAll(() => {
+	promoverPolicialAAssinante();
 	token = seedSession(FIXTURE.policialA.id);
+});
+
+test.afterAll(() => {
+	restaurarPolicialASemPapel();
+});
+
+test.beforeEach(() => {
+	// Cada caso precisa de escala sem documento — o feliz e o "finaliza 2×"
+	// deixam assinatura; FLW-AUT-004 bloqueia novo preparar (409).
+	execD1Local(
+		`DELETE FROM escala_documentos WHERE escala_id IN (${ESCALA}, ${FIXTURE.escalaAssinavel.id});`
+	);
 });
 
 /** Executa o preparar e devolve o JSON (cada teste precisa do seu — o
@@ -180,8 +196,10 @@ test.describe('Assinatura qualificada por Token A3 (CA de teste)', () => {
 			headers: headersDeSessaoMutacao(token!),
 			data: corpo
 		});
-		expect(segunda.status()).toBe(400);
-		expect((await segunda.json()).error).toMatch(/Prepara..o de assinatura/i);
+		// Após a 1ª finalização há documento: FLW-AUT-004 recusa novo ciclo (409)
+		// antes mesmo de reavaliar a intenção consumida.
+		expect(segunda.status()).toBe(409);
+		expect((await segunda.json()).error).toMatch(/revogue/i);
 	});
 
 	test('finalizar sem a intenção → recusado antes de qualquer persistência', async ({

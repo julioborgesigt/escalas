@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 import type { APIRequestContext } from '@playwright/test';
 import { FIXTURE } from './global-setup';
-import { seedSession, headersDeSessaoMutacao, cookieDeSessao, execD1Local } from './session';
+import { seedSession, headersDeSessaoMutacao, cookieDeSessao, execD1Local, promoverPolicialAAssinante, restaurarPolicialASemPapel } from './session';
 import { assinarComoSerpro } from './ca-teste/assinador';
 
 /**
@@ -13,7 +13,8 @@ import { assinarComoSerpro } from './ca-teste/assinador';
  * A correção da limpeza de R2 em si (quais objetos apagar) é coberta no
  * unitário r2-cleanup.test.ts; aqui garantimos o comportamento OBSERVÁVEL do
  * ciclo (documento some do banco e do /validar; reassinatura funciona) e as
- * guardas de permissão. Assina via CA de teste (policial A tem o e-CPF 'leaf').
+ * guardas de permissão (FLW-AUT-001/004). Assina via CA de teste (policial A
+ * tem o e-CPF 'leaf'), promovido a DPC + admin_unidade só nesta suíte.
  */
 
 const ESCALA = 99004; // dedicada deste spec (plantão, unidade A)
@@ -66,6 +67,7 @@ const baixarDoc = (request: APIRequestContext) =>
 	request.get(`/api/escalas/${ESCALA}/documento-assinado`, { headers: cookieDeSessao(token!) });
 
 test.beforeAll(() => {
+	promoverPolicialAAssinante();
 	token = seedSession(FIXTURE.policialA.id);
 	tokenForasteiro = seedSession(FIXTURE.policialB.id);
 	seedEscalaAssinavel();
@@ -73,6 +75,7 @@ test.beforeAll(() => {
 
 test.afterAll(() => {
 	if (token) execD1Local(`DELETE FROM escalas WHERE id = ${ESCALA};`);
+	restaurarPolicialASemPapel();
 });
 
 test.describe('Escala — ciclo assinar/revogar/reassinar', () => {
@@ -116,17 +119,21 @@ test.describe('Escala — ciclo assinar/revogar/reassinar', () => {
 		expect(await val.text()).not.toContain(NAO_ENCONTRADO);
 	});
 
-	test('re-assinatura sem revogar (overwrite R2-4) → substitui o documento', async ({
-		request
-	}) => {
-		const hashAntigo = hashAtual;
-		const novoHash = await assinarEscala(request);
-		expect(novoHash).not.toBe(hashAntigo);
+	test('re-assinatura sem revogar → 409 (FLW-AUT-004)', async ({ request }) => {
+		// Documento ainda existe do teste anterior (serial). Preparar/finalizar
+		// sem DELETE prévio deve morrer no conflict — overwrite silencioso (R2-4
+		// antigo) não é mais caminho legítimo.
+		const prep = await request.post(`/api/escalas/${ESCALA}/preparar-assinatura`, {
+			headers: headersDeSessaoMutacao(token!),
+			data: { signerName: FIXTURE.policialA.nome, signerCpf: FIXTURE.policialA.cpf }
+		});
+		expect(prep.status()).toBe(409);
+		expect((await prep.json()).error).toMatch(/revogue/i);
 
-		// O documento atual é o novo; o hash antigo não resolve mais.
 		expect((await baixarDoc(request)).status()).toBe(200);
-		expect(await (await request.get(`/validar/${novoHash}`)).text()).not.toContain(NAO_ENCONTRADO);
-		expect(await (await request.get(`/validar/${hashAntigo}`)).text()).toContain(NAO_ENCONTRADO);
+		expect(await (await request.get(`/validar/${hashAtual}`)).text()).not.toContain(
+			NAO_ENCONTRADO
+		);
 	});
 
 	test('policial de outra lotação não revoga → 403', async ({ request }) => {

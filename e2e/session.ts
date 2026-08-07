@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import type { Page } from '@playwright/test';
 import { execD1Local } from './d1-local';
+import { FIXTURE } from './global-setup';
 
 export { execD1Local, queryD1Local } from './d1-local';
 
@@ -70,6 +71,28 @@ export function seedSession(usuarioId: number, tipo: 'policial' | 'admin' = 'pol
 		`INSERT INTO sessoes (token, tipo, usuario_id, expires_at) ` +
 		`VALUES ('${token}', '${tipo}', ${usuarioId}, strftime('%Y-%m-%dT%H:%M:%S', 'now', '+8 hours') || '.000Z');`;
 	return execD1Local(sql) ? token : null;
+}
+
+/**
+ * Promove o Policial Fixture A a DPC + admin_unidade (FLW-AUT-001).
+ *
+ * O e-CPF de teste (TITULAR_TESTE) é emitido no CPF/nome do policial A — quem
+ * assina por Token A3 precisa ser ele. Outros specs (escala-papel, 403 de
+ * assinar-simples) dependem de A sem papel; por isso a promoção é temporária
+ * e deve ser desfeita com `restaurarPolicialASemPapel` no afterAll.
+ */
+export function promoverPolicialAAssinante(): boolean {
+	return execD1Local(
+		`UPDATE policiais SET cargo='DPC', papel='admin_unidade', papel_unidade_id=${FIXTURE.unidadeA.id} ` +
+			`WHERE id=${FIXTURE.policialA.id};`
+	);
+}
+
+/** Devolve policial A ao estado default do fixture (OIP, sem papel). */
+export function restaurarPolicialASemPapel(): boolean {
+	return execD1Local(
+		`UPDATE policiais SET cargo='OIP', papel=NULL, papel_unidade_id=NULL WHERE id=${FIXTURE.policialA.id};`
+	);
 }
 
 /** Header `cookie` para chamadas via APIRequestContext (`request.get(...)`). */
