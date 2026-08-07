@@ -255,7 +255,7 @@
 										.escalaSelecionada?.id === escala.id &&
 									resGise.escalaSelecionada?.equipe_id === escala.equipe_id
 										? 'border-primary-500 bg-primary-500/10'
-										: 'border-surface-200 dark:border-surface-800 bg-surface-50 dark:bg-surface-900 hover:border-primary-500/50'} {estaCarregando
+										: 'border-surface-200 dark:border-white/10 bg-white dark:bg-surface-900 hover:border-primary-500/50'} {estaCarregando
 										? 'opacity-60'
 										: ''}"
 									onclick={() => resGise.selecionarEscala(escala)}
