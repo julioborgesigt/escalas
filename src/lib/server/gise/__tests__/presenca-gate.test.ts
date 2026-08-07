@@ -28,10 +28,17 @@ let sqlite: ReturnType<typeof bancoMigrado>;
 const GISE = 98001;
 const POL = 98101;
 
+/** Calendário civil em Brasília — `toISOString().slice(0,10)` é UTC e, das 21h
+ *  às 00h BRT, "hoje" já é amanhã (mesmo defeito documentado em `hojeLocalISO`). */
+function diaBrasiliaISO(offsetDias = 0): string {
+	const ms = Date.now() + offsetDias * 86_400_000;
+	return new Date(ms).toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
+}
+
 /** Data no passado: a janela de qualquer horário já abriu. */
-const ONTEM = new Date(Date.now() - 86_400_000).toISOString().slice(0, 10);
+const ONTEM = () => diaBrasiliaISO(-1);
 /** Data no futuro: nenhuma janela abriu. */
-const AMANHA = new Date(Date.now() + 86_400_000).toISOString().slice(0, 10);
+const AMANHA = () => diaBrasiliaISO(1);
 
 const presenca = () =>
 	sqlite
@@ -49,14 +56,14 @@ beforeEach(() => {
 		VALUES (${POL}, 'M98101', 'Escalado', 'OIP', 'DEL A', 'h');
 
 		INSERT INTO gise_escalas (id, data_inicio, status)
-		VALUES (${GISE}, '${ONTEM}', 'em_andamento');
+		VALUES (${GISE}, '${ONTEM()}', 'em_andamento');
 	`);
 });
 
 describe('janela de horário', () => {
 	it('libera quando o horário previsto já passou', () => {
 		const r = janelaDePresencaLiberada(
-			{ dataInicio: ONTEM, horarioPrevisto: { inicio: '08:00', fim: '18:00' } },
+			{ dataInicio: ONTEM(), horarioPrevisto: { inicio: '08:00', fim: '18:00' } },
 			'entrada'
 		);
 		expect(r.ok).toBe(true);
@@ -64,7 +71,7 @@ describe('janela de horário', () => {
 
 	it('recusa com 409 antes do horário', async () => {
 		const r = janelaDePresencaLiberada(
-			{ dataInicio: AMANHA, horarioPrevisto: { inicio: '08:00', fim: '18:00' } },
+			{ dataInicio: AMANHA(), horarioPrevisto: { inicio: '08:00', fim: '18:00' } },
 			'entrada'
 		);
 		expect(r.ok).toBe(false);
@@ -75,7 +82,7 @@ describe('janela de horário', () => {
 
 	it('a saída olha o horário de FIM, não o de início', async () => {
 		// Entrada liberada e saída ainda não é o estado normal do meio do plantão.
-		const dataInicio = new Date().toISOString().slice(0, 10);
+		const dataInicio = diaBrasiliaISO();
 		const entrada = janelaDePresencaLiberada(
 			{ dataInicio, horarioPrevisto: { inicio: '00:01', fim: '23:59' } },
 			'entrada'
@@ -90,15 +97,18 @@ describe('janela de horário', () => {
 
 	it('sem horário previsto não há janela a impor', () => {
 		expect(janelaDePresencaLiberada({}, 'saida').ok).toBe(true);
-		expect(janelaDePresencaLiberada({ dataInicio: AMANHA }, 'saida').ok).toBe(true);
+		expect(janelaDePresencaLiberada({ dataInicio: AMANHA() }, 'saida').ok).toBe(true);
 	});
 });
 
 describe('gate: saída exige entrada', () => {
-	const PART = { dataInicio: ONTEM, horarioPrevisto: { inicio: '08:00', fim: '18:00' } };
+	const part = () => ({
+		dataInicio: ONTEM(),
+		horarioPrevisto: { inicio: '08:00', fim: '18:00' }
+	});
 
 	it('sem entrada, a saída é recusada com 409', async () => {
-		const r = await gateDePresenca(db, PART, GISE, POL, 'saida');
+		const r = await gateDePresenca(db, part(), GISE, POL, 'saida');
 		expect(r.ok).toBe(false);
 		if (r.ok) throw new Error('inalcançável');
 		expect(r.resposta.status).toBe(409);
@@ -107,11 +117,11 @@ describe('gate: saída exige entrada', () => {
 
 	it('com entrada registrada, a saída é liberada', async () => {
 		await salvarEntradaGise(db, GISE, POL, 'rubrica');
-		expect((await gateDePresenca(db, PART, GISE, POL, 'saida')).ok).toBe(true);
+		expect((await gateDePresenca(db, part(), GISE, POL, 'saida')).ok).toBe(true);
 	});
 
 	it('a ENTRADA nunca depende de entrada anterior', async () => {
-		expect((await gateDePresenca(db, PART, GISE, POL, 'entrada')).ok).toBe(true);
+		expect((await gateDePresenca(db, part(), GISE, POL, 'entrada')).ok).toBe(true);
 	});
 });
 
