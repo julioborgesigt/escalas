@@ -3,7 +3,7 @@
  * servidor E cliente (sem import de `$lib/server`, sem acesso a banco, sem
  * estado).
  *
- * As máscaras (`formatarTelefone`, `formatarCPF`, `formatarNUP`) são aplicadas
+ * As máscaras (`formatarCPF`, `formatarNUP`) são aplicadas
  * A CADA TECLA, então precisam tratar a string parcialmente digitada — um
  * formatador que só aceitasse o valor completo faria o campo "pular" ao
  * terminar de digitar.
@@ -51,40 +51,15 @@ export function gerarCodigoValidacao(): string {
 	const out = Array.from(bytes, (b) => chars[b % chars.length]).join('');
 	return `${out.slice(0, 4)}-${out.slice(4, 8)}`;
 }
+
 /**
- * Máscara de telefone aplicada A CADA TECLA, por isso trata a string
- * parcialmente digitada: com 1 dígito devolve `(8`, com 5 devolve `(88) 9.8`.
- * Um formatador que só aceitasse o número completo faria o campo "pular" ao
- * terminar de digitar.
- *
- * Celular é detectado pelo 3º dígito `9` (primeiro do número, depois do DDD) e
- * ganha o ponto de separação — `(88) 9.8888-8888`. Corta em 11 dígitos.
+ * Normaliza um telefone para SÓ dígitos, no máximo 11 (DDD + 9). É o formato
+ * PADRÃO dos campos de telefone do projeto: aplique na entrada (a cada tecla) e
+ * ao comparar/gravar, para que uma diferença só de formatação (espaço, traço)
+ * não conte como mudança.
  */
-export function formatarTelefone(v: string): string {
-	if (!v) return '';
-	v = v.replace(/\D/g, ''); // Remove tudo o que não é dígito
-
-	if (v.length > 11) v = v.slice(0, 11);
-
-	if (v.length > 10) {
-		// (88) 9.8888-8888
-		return v.replace(/(\d{2})(\d{1})(\d{4})(\d{4})/, '($1) $2.$3-$4');
-	} else if (v.length > 6) {
-		// (88) 98888-8888 ou (88) 8888-8888
-		// Se o terceiro dígito for 9, tratamos como celular para o formato (88) 9.8888-...
-		if (v.length > 2 && v[2] === '9') {
-			return v.replace(/(\d{2})(\d{1})(\d{4})(\d{0,4})/, '($1) $2.$3-$4');
-		}
-		return v.replace(/(\d{2})(\d{4})(\d{0,4})/, '($1) $2-$3');
-	} else if (v.length > 2) {
-		if (v.length > 2 && v[2] === '9') {
-			return v.replace(/(\d{2})(\d{1})(\d{0,4})/, '($1) $2.$3');
-		}
-		return v.replace(/(\d{2})(\d{0,5})/, '($1) $2');
-	} else if (v.length > 0) {
-		return v.replace(/(\d{0,2})/, '($1');
-	}
-	return v;
+export function limparTelefone(v: string | null | undefined): string {
+	return (v ?? '').replace(/\D/g, '').slice(0, 11);
 }
 
 /**

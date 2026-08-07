@@ -29,6 +29,7 @@
 	import ModalAlterarEmailPessoal from './_components/ModalAlterarEmailPessoal.svelte';
 	import SearchableSelect from '$lib/components/SearchableSelect.svelte';
 	import { ROTULO_CAMPO } from '$lib/perfil-campos';
+	import { limparTelefone } from '$lib/utils/formato';
 	import { formatarData } from '$lib/utils/datas';
 	import type { ActionResult } from '@sveltejs/kit';
 
@@ -36,14 +37,12 @@
 
 	const perfil = $derived(data.perfil);
 
-	/** Só os dígitos — o telefone é normalizado para no máximo 11 dígitos. */
-	const soDigitos = (s: string | null | undefined) => (s ?? '').replace(/\D/g, '');
-
 	// --- Solicitação de alteração cadastral ---
-	// Telefone é sempre dígitos (máx. 11), na exibição e no envio. O valor do banco
-	// pode vir formatado (espaço/traço); normalizamos na entrada e comparamos por
-	// dígitos, para uma diferença só de formatação não virar "solicitação".
-	let telefone = $state(untrack(() => soDigitos(data.perfil.telefone).slice(0, 11)));
+	// Telefone é sempre dígitos (máx. 11), na exibição e no envio (`limparTelefone`,
+	// o padrão do projeto). O valor do banco pode vir formatado (espaço/traço);
+	// normalizamos na entrada e comparamos por dígitos, para uma diferença só de
+	// formatação não virar "solicitação".
+	let telefone = $state(untrack(() => limparTelefone(data.perfil.telefone)));
 	let classe = $state(untrack(() => data.perfil.classe ?? ''));
 	let regime = $state(untrack(() => data.perfil.regime ?? 'plantao'));
 	let lotacao = $state(untrack(() => data.perfil.lotacao ?? ''));
@@ -56,7 +55,7 @@
 	const lotacaoSelectedOption = $derived(lotacao ? { value: lotacao, label: lotacao } : null);
 
 	const houveMudanca = $derived(
-		telefone !== soDigitos(perfil.telefone).slice(0, 11) ||
+		telefone !== limparTelefone(perfil.telefone) ||
 			(classe && classe !== perfil.classe) ||
 			(regime && regime !== perfil.regime) ||
 			(lotacao && lotacao !== perfil.lotacao)
@@ -310,7 +309,7 @@
 						name="telefone"
 						class="input"
 						value={telefone}
-						oninput={(e) => (telefone = soDigitos(e.currentTarget.value).slice(0, 11))}
+						oninput={(e) => (telefone = limparTelefone(e.currentTarget.value))}
 						placeholder="Somente números (DDD + número)"
 						maxlength="11"
 					/>
