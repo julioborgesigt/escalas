@@ -26,7 +26,7 @@
 	import { invalidateShared } from '$lib/cross-tab-invalidate';
 	import { enhance } from '$app/forms';
 	import { toaster } from '$lib/toast';
-	import { formatarTelefone, formatarCPF } from '$lib/utils/formato';
+	import { limparTelefone, formatarCPF } from '$lib/utils/formato';
 	import { loading } from '$lib/loading.svelte';
 	import type { ActionResult } from '@sveltejs/kit';
 	import ToggleSwitch from '$lib/components/ToggleSwitch.svelte';
@@ -67,7 +67,7 @@
 			matricula = data.policial.matricula;
 			cargo = data.policial.cargo;
 			cpf = formatarCPF(data.policial.cpf || '');
-			telefone = data.policial.telefone || '';
+			telefone = limparTelefone(data.policial.telefone || '');
 			classe = ((data.policial as Record<string, unknown>).classe as string) || '';
 			regime = data.policial.regime || 'plantao';
 			lotacao = data.policial.lotacao;
@@ -173,10 +173,12 @@
 				<input
 					class="input py-1 px-3 text-sm"
 					type="text"
+					inputmode="numeric"
 					name="telefone"
 					value={telefone}
-					oninput={(e) => (telefone = formatarTelefone(e.currentTarget.value))}
-					placeholder="(00) 0.0000-0000"
+					oninput={(e) => (telefone = limparTelefone(e.currentTarget.value))}
+					placeholder="Somente números (DDD + número)"
+					maxlength="11"
 				/>
 			</label>
 			<label class="label sm:col-span-3">

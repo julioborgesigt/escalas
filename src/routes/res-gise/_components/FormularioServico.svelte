@@ -197,7 +197,7 @@
 					disabled={loading.active}
 					onclick={() => confirmarPresencaA3(tipo)}
 				>
-					Confirmar {rotulo} com Certificado Digital
+					Confirmar {rotulo}
 				</button>
 			{:else}
 				<div

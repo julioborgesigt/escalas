@@ -18,7 +18,7 @@
 	import { apiFetch } from '$lib/api-fetch';
 	import ToggleSwitch from '$lib/components/ToggleSwitch.svelte';
 	import SearchableSelect from '$lib/components/SearchableSelect.svelte';
-	import { formatarTelefone, formatarCPF, limparCPF } from '$lib/utils/formato';
+	import { limparTelefone, formatarCPF, limparCPF } from '$lib/utils/formato';
 	import type { Unidade } from '$lib/types';
 	import type { ActionResult } from '@sveltejs/kit';
 
@@ -225,10 +225,11 @@
 						<input
 							class="input py-1 px-3 text-sm"
 							type="text"
+							inputmode="numeric"
 							value={telefone}
-							oninput={(e) => (telefone = formatarTelefone(e.currentTarget.value))}
-							placeholder="(88) 9.0000-0000"
-							maxlength="16"
+							oninput={(e) => (telefone = limparTelefone(e.currentTarget.value))}
+							placeholder="Somente números (DDD + número)"
+							maxlength="11"
 						/>
 					</label>
 					<label class="label sm:col-span-2">

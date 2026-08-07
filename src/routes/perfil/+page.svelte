@@ -29,6 +29,7 @@
 	import ModalAlterarEmailPessoal from './_components/ModalAlterarEmailPessoal.svelte';
 	import SearchableSelect from '$lib/components/SearchableSelect.svelte';
 	import { ROTULO_CAMPO } from '$lib/perfil-campos';
+	import { limparTelefone } from '$lib/utils/formato';
 	import { formatarData } from '$lib/utils/datas';
 	import type { ActionResult } from '@sveltejs/kit';
 
@@ -37,7 +38,11 @@
 	const perfil = $derived(data.perfil);
 
 	// --- Solicitação de alteração cadastral ---
-	let telefone = $state(untrack(() => data.perfil.telefone ?? ''));
+	// Telefone é sempre dígitos (máx. 11), na exibição e no envio (`limparTelefone`,
+	// o padrão do projeto). O valor do banco pode vir formatado (espaço/traço);
+	// normalizamos na entrada e comparamos por dígitos, para uma diferença só de
+	// formatação não virar "solicitação".
+	let telefone = $state(untrack(() => limparTelefone(data.perfil.telefone)));
 	let classe = $state(untrack(() => data.perfil.classe ?? ''));
 	let regime = $state(untrack(() => data.perfil.regime ?? 'plantao'));
 	let lotacao = $state(untrack(() => data.perfil.lotacao ?? ''));
@@ -50,7 +55,7 @@
 	const lotacaoSelectedOption = $derived(lotacao ? { value: lotacao, label: lotacao } : null);
 
 	const houveMudanca = $derived(
-		telefone.trim() !== (perfil.telefone ?? '') ||
+		telefone !== limparTelefone(perfil.telefone) ||
 			(classe && classe !== perfil.classe) ||
 			(regime && regime !== perfil.regime) ||
 			(lotacao && lotacao !== perfil.lotacao)
@@ -242,8 +247,7 @@
 						/>
 					</div>
 					<p class="text-xs text-surface-600 dark:text-surface-400">
-						Usada como assinatura gráfica nos documentos assinados digitalmente e na assinatura por
-						certificado digital (Token A3) no computador.
+						Usada como assinatura gráfica(visual) nos documentos assinados digitalmente.
 					</p>
 					<div class="flex gap-2">
 						<button
@@ -291,20 +295,26 @@
 			aprovação do administrador.
 		</p>
 
+		<!-- Uma linha só no desktop: campos curtos (telefone/classe/regime) com
+		     largura fixa proporcional ao conteúdo, Lotação ocupando o resto
+		     (`flex-1`) e o botão no fim, alinhado à base dos campos (`items-end`).
+		     No mobile empilha. -->
 		<form method="POST" action="?/solicitar" use:enhance={handleSolicitar}>
-			<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-				<label class="label">
+			<div class="flex flex-col gap-4 lg:flex-row lg:flex-wrap lg:items-end lg:gap-3">
+				<label class="label lg:w-36 lg:shrink-0">
 					<span class="label-text">Telefone</span>
 					<input
 						type="text"
+						inputmode="numeric"
 						name="telefone"
 						class="input"
-						bind:value={telefone}
-						placeholder="(85) 9 9999-9999"
-						maxlength="20"
+						value={telefone}
+						oninput={(e) => (telefone = limparTelefone(e.currentTarget.value))}
+						placeholder="Somente números (DDD + número)"
+						maxlength="11"
 					/>
 				</label>
-				<label class="label">
+				<label class="label lg:w-32 lg:shrink-0">
 					<span class="label-text">Classe</span>
 					<select class="select" name="classe" bind:value={classe}>
 						{#each data.classes as c (c)}
@@ -312,14 +322,14 @@
 						{/each}
 					</select>
 				</label>
-				<label class="label">
+				<label class="label lg:w-36 lg:shrink-0">
 					<span class="label-text">Regime de trabalho</span>
 					<select class="select" name="regime" bind:value={regime}>
 						<option value="plantao">Plantão</option>
 						<option value="expediente">Expediente</option>
 					</select>
 				</label>
-				<label class="label">
+				<label class="label lg:min-w-56 lg:flex-1">
 					<span class="label-text">Lotação</span>
 					<SearchableSelect
 						name="lotacao"
@@ -330,11 +340,9 @@
 						class="w-full"
 					/>
 				</label>
-			</div>
-			<div class="flex justify-end">
 				<button
 					type="submit"
-					class="btn preset-filled-primary-500 font-bold disabled:opacity-40"
+					class="btn preset-filled-primary-500 font-bold disabled:opacity-40 lg:w-auto lg:shrink-0"
 					disabled={pendingSolicitar || !houveMudanca}
 				>
 					{pendingSolicitar ? 'Enviando…' : 'Solicitar alteração'}

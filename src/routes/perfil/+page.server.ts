@@ -12,6 +12,7 @@ import {
 } from '$lib/db';
 import { policiais } from '$lib/server/schema';
 import { classesDoCargo, TELEFONE_RE } from '$lib/perfil-campos';
+import { limparTelefone } from '$lib/utils/formato';
 
 /**
  * "Meu perfil" (`/perfil`) — visão do próprio servidor.
@@ -112,7 +113,11 @@ export const actions: Actions = {
 			valorAtual: string | null;
 			valorNovo: string;
 		}> = [];
-		if (telefone && telefone !== (atual.telefone ?? '')) {
+		// Compara por DÍGITOS (`limparTelefone`): o formulário envia o telefone só
+		// com números (máx. 11), enquanto o valor no banco pode estar formatado
+		// (espaço/traço). Sem isto, mudar só a classe geraria também uma
+		// "solicitação de telefone" que na prática é o mesmo número, sem formatação.
+		if (telefone && limparTelefone(telefone) !== limparTelefone(atual.telefone)) {
 			mudancas.push({ campo: 'telefone', valorAtual: atual.telefone, valorNovo: telefone });
 		}
 		if (classe && classe !== atual.classe) {
