@@ -115,13 +115,9 @@ export async function listarEscalas(
 	} else if (status === 'assinada') {
 		conditions.push(sql`${escalaDocumentos.escala_id} IS NOT NULL`);
 	} else if (status === 'aguardando') {
-		conditions.push(
-			sql`${escalaDocumentos.escala_id} IS NULL AND NOT ${fdsArquivada}` as SQL
-		);
+		conditions.push(sql`${escalaDocumentos.escala_id} IS NULL AND NOT ${fdsArquivada}` as SQL);
 	} else if (status === 'arquivada') {
-		conditions.push(
-			sql`(${escalaDocumentos.escala_id} IS NOT NULL OR ${fdsArquivada})` as SQL
-		);
+		conditions.push(sql`(${escalaDocumentos.escala_id} IS NOT NULL OR ${fdsArquivada})` as SQL);
 	}
 
 	const whereClause = conditions.length > 0 ? and(...conditions) : undefined;

@@ -65,7 +65,9 @@
 					</p>
 				</div>
 
-				<div class="rounded-xl border border-surface-200/70 bg-surface-50 dark:border-white/10 dark:bg-surface-800/40 p-4 space-y-3">
+				<div
+					class="rounded-xl border border-surface-200/70 bg-surface-50 dark:border-white/10 dark:bg-surface-800/40 p-4 space-y-3"
+				>
 					<p class="text-sm font-semibold">Equipe operacional</p>
 					<div class="flex flex-wrap items-center gap-3 sm:gap-4">
 						<div class="flex items-center gap-2">
@@ -99,7 +101,9 @@
 					</div>
 				</div>
 
-				<div class="rounded-xl border border-surface-200/70 bg-surface-50 dark:border-white/10 dark:bg-surface-800/40 p-4 space-y-3">
+				<div
+					class="rounded-xl border border-surface-200/70 bg-surface-50 dark:border-white/10 dark:bg-surface-800/40 p-4 space-y-3"
+				>
 					<p class="text-sm font-semibold">Equipe SEINT</p>
 					<div class="flex flex-wrap items-center gap-3 sm:gap-4">
 						<div class="flex items-center gap-2">
@@ -133,7 +137,9 @@
 					</div>
 				</div>
 
-				<div class="rounded-xl border border-surface-200/70 bg-surface-50 dark:border-white/10 dark:bg-surface-800/40 p-4 space-y-3">
+				<div
+					class="rounded-xl border border-surface-200/70 bg-surface-50 dark:border-white/10 dark:bg-surface-800/40 p-4 space-y-3"
+				>
 					<p class="text-sm font-semibold">Horário padrão da GISE</p>
 					<div class="flex flex-wrap items-center gap-3 sm:gap-4">
 						<div class="flex min-w-0 items-center gap-2">

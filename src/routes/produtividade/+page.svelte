@@ -158,9 +158,7 @@
 						>
 							1. Tipo de equipe
 						</p>
-						<div
-							class="inline-flex w-full rounded-xl bg-surface-100 dark:bg-surface-800 p-1"
-						>
+						<div class="inline-flex w-full rounded-xl bg-surface-100 dark:bg-surface-800 p-1">
 							<button
 								type="button"
 								class="flex-1 rounded-lg py-1.5 text-xs font-bold transition-colors {p.filterTipo ===

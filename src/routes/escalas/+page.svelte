@@ -473,7 +473,9 @@
 							}}
 							class="card-elevated rounded-2xl p-5 sm:p-6 flex flex-col items-start gap-1.5 text-left cursor-pointer transition-colors hover:border-primary-500/40 group"
 						>
-							<span class="inline-flex items-center gap-2 text-base font-semibold text-surface-900 dark:text-surface-50 group-hover:text-tertiary-600 dark:group-hover:text-tertiary-400 transition-colors">
+							<span
+								class="inline-flex items-center gap-2 text-base font-semibold text-surface-900 dark:text-surface-50 group-hover:text-tertiary-600 dark:group-hover:text-tertiary-400 transition-colors"
+							>
 								Assinaturas Pendentes
 								<span
 									class="min-w-[1.4rem] h-[1.4rem] flex items-center justify-center rounded-full bg-tertiary-500 text-white text-xs font-bold px-1"
@@ -553,9 +555,7 @@
 							/>
 							Escalas criadas (arquivo)
 						</span>
-						<span class="text-sm text-surface-600 dark:text-surface-400"
-							>Assinadas e enviadas</span
-						>
+						<span class="text-sm text-surface-600 dark:text-surface-400">Assinadas e enviadas</span>
 					</button>
 					{#if podeAssinar && escalasParaAssinar.length > 0}
 						<button
@@ -566,7 +566,9 @@
 							}}
 							class="card-elevated rounded-2xl p-5 sm:p-6 flex flex-col items-start gap-1.5 text-left cursor-pointer transition-colors hover:border-primary-500/40 group"
 						>
-							<span class="inline-flex items-center gap-2 text-base font-semibold text-surface-900 dark:text-surface-50 group-hover:text-tertiary-600 dark:group-hover:text-tertiary-400 transition-colors">
+							<span
+								class="inline-flex items-center gap-2 text-base font-semibold text-surface-900 dark:text-surface-50 group-hover:text-tertiary-600 dark:group-hover:text-tertiary-400 transition-colors"
+							>
 								Assinaturas Pendentes
 								<span
 									class="min-w-[1.4rem] h-[1.4rem] flex items-center justify-center rounded-full bg-tertiary-500 text-white text-xs font-bold px-1"
