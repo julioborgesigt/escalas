@@ -2,7 +2,7 @@
 	/**
 	 * Fluxo 1 (passo 2): verificação 2FA por e-mail após login com senha.
 	 */
-	import { Mail } from '@lucide/svelte';
+	import Mail from '@lucide/svelte/icons/mail';
 	import { enhance } from '$app/forms';
 	import { loading as loadingService } from '$lib/loading.svelte';
 	import CodigoTimer from '$lib/components/CodigoTimer.svelte';

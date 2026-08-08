@@ -31,7 +31,7 @@
 	import GiseActionButton from './GiseActionButton.svelte';
 	import SeccionalRelatoriosDownloads from './SeccionalRelatoriosDownloads.svelte';
 	import GiseSlotUnidade from './GiseSlotUnidade.svelte';
-	import { PenLine } from '@lucide/svelte';
+	import PenLine from '@lucide/svelte/icons/pen-line';
 
 	type Seccional = GiseDetalhado['seccionais'][number];
 

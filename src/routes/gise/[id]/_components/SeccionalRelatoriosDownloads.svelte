@@ -15,7 +15,8 @@
 		tiposEquipeNaSeccional
 	} from '$lib/gise/page-helpers';
 	import GiseActionButton from './GiseActionButton.svelte';
-	import { Download, PenLine } from '@lucide/svelte';
+	import Download from '@lucide/svelte/icons/download';
+	import PenLine from '@lucide/svelte/icons/pen-line';
 
 	type Seccional = GiseDetalhado['seccionais'][number];
 

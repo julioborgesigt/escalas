@@ -3,7 +3,8 @@
 	 * Grade de gráficos Chart.js + totais por pergunta do modelo.
 	 * Canvas bound via `canvasElements` do composable `useCharts`.
 	 */
-	import { Check, Plus } from '@lucide/svelte';
+	import Check from '@lucide/svelte/icons/check';
+	import Plus from '@lucide/svelte/icons/plus';
 	import type { Question } from '$lib/produtividade';
 	import type { ProdutividadeParsedRow } from './useProdutividade.svelte';
 

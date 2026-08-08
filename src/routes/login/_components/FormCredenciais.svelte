@@ -3,7 +3,9 @@
 	 * Fluxo 1+2 da tela de login: formulário de senha (→ 2FA no orquestrador)
 	 * e entrada por certificado digital SERPRO (dispensa 2FA).
 	 */
-	import { AlertCircle, Calendar, Shield } from '@lucide/svelte';
+	import AlertCircle from '@lucide/svelte/icons/alert-circle';
+	import Calendar from '@lucide/svelte/icons/calendar';
+	import Shield from '@lucide/svelte/icons/shield';
 	import { enhance } from '$app/forms';
 	import { loading as loadingService } from '$lib/loading.svelte';
 	import { Tabs } from '@skeletonlabs/skeleton-svelte';

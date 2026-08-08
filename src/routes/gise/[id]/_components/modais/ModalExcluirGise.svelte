@@ -22,7 +22,7 @@
 	import { enhance } from '$app/forms';
 	import type { SubmitFunction } from '@sveltejs/kit';
 	import { Dialog } from '@skeletonlabs/skeleton-svelte';
-	import { AlertTriangle } from '@lucide/svelte';
+	import AlertTriangle from '@lucide/svelte/icons/alert-triangle';
 	import { apiFetch } from '$lib/api-fetch';
 
 	interface Props {

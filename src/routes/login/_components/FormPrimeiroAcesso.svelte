@@ -3,7 +3,8 @@
 	 * Fluxo 3: primeiro acesso — pede o link/senha provisória por matrícula.
 	 * Respostas genéricas: a tela só repete o que o servidor devolve.
 	 */
-	import { Inbox, KeyRound } from '@lucide/svelte';
+	import Inbox from '@lucide/svelte/icons/inbox';
+	import KeyRound from '@lucide/svelte/icons/key-round';
 	import { enhance } from '$app/forms';
 	import { loading as loadingService } from '$lib/loading.svelte';
 	import type { SubmitFunction } from '@sveltejs/kit';

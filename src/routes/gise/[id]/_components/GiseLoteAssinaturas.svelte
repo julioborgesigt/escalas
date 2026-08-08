@@ -24,7 +24,9 @@
 	 */
 	import { slide } from 'svelte/transition';
 	import { page } from '$app/state';
-	import { FileDown, PenLine, SquarePen } from '@lucide/svelte';
+	import FileDown from '@lucide/svelte/icons/file-down';
+	import PenLine from '@lucide/svelte/icons/pen-line';
+	import SquarePen from '@lucide/svelte/icons/square-pen';
 	import ModalShell from '$lib/components/ModalShell.svelte';
 	import { loading } from '$lib/loading.svelte';
 	import { getMembrosFromSec, checkAllSigned } from '$lib/gise/page-helpers';

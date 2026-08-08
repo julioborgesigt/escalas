@@ -22,7 +22,8 @@
 	import { formatarData, MESES_PT } from '$lib/utils/datas';
 	import { podeBaixarComManifesto } from '$lib/manifesto';
 	import BotaoVoltar from '$lib/components/BotaoVoltar.svelte';
-	import { CheckCircle2, PenLine } from '@lucide/svelte';
+	import CheckCircle2 from '@lucide/svelte/icons/check-circle-2';
+	import PenLine from '@lucide/svelte/icons/pen-line';
 
 	const {
 		escalasParaAssinar,

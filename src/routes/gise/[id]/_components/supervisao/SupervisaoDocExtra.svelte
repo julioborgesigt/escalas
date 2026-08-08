@@ -5,7 +5,8 @@
 	 */
 	import { page } from '$app/state';
 	import SupervisaoDocumentoCard from '../SupervisaoDocumentoCard.svelte';
-	import { FileDown, PenLine } from '@lucide/svelte';
+	import FileDown from '@lucide/svelte/icons/file-down';
+	import PenLine from '@lucide/svelte/icons/pen-line';
 	import {
 		supervisaoExtraRubricasCompletas,
 		faltantesSupervisaoExtra,

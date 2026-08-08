@@ -5,7 +5,11 @@
 	 * seccional — e libera o download apenas dos que já foram assinados.
 	 */
 	import { Dialog } from '@skeletonlabs/skeleton-svelte';
-	import { Download, FileText, CheckCircle2, Clock, X } from '@lucide/svelte';
+	import Download from '@lucide/svelte/icons/download';
+	import FileText from '@lucide/svelte/icons/file-text';
+	import CheckCircle2 from '@lucide/svelte/icons/check-circle-2';
+	import Clock from '@lucide/svelte/icons/clock';
+	import X from '@lucide/svelte/icons/x';
 
 	type GiseEscala = {
 		id: number;

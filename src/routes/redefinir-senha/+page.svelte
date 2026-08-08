@@ -5,7 +5,7 @@
 	import CamposNovaSenha, { validarForcaSenha } from '$lib/components/CamposNovaSenha.svelte';
 	import type { PageProps } from './$types';
 	import type { ActionResult } from '@sveltejs/kit';
-	import { AlertCircle } from '@lucide/svelte';
+	import AlertCircle from '@lucide/svelte/icons/alert-circle';
 
 	const { data }: PageProps = $props();
 

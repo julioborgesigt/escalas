@@ -22,7 +22,7 @@
 	import EstadoVazio from '$lib/components/EstadoVazio.svelte';
 	import ModalEditarPlantao from './ModalEditarPlantao.svelte';
 	import FormInlineAdicionarOip from './FormInlineAdicionarOip.svelte';
-	import { PenLine } from '@lucide/svelte';
+	import PenLine from '@lucide/svelte/icons/pen-line';
 
 	interface Props {
 		policiaisEscalaLocal: EscalaPolicialComDados[];

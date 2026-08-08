@@ -6,7 +6,8 @@
 	import { page } from '$app/state';
 	import PainelAssinaturaToken from '$lib/components/PainelAssinaturaToken.svelte';
 	import SupervisaoDocumentoCard from '../SupervisaoDocumentoCard.svelte';
-	import { FileDown, PenLine } from '@lucide/svelte';
+	import FileDown from '@lucide/svelte/icons/file-down';
+	import PenLine from '@lucide/svelte/icons/pen-line';
 	import { podeBaixarComManifesto } from '$lib/manifesto';
 	import type { DocumentoAssinadoInfo, GiseSupervisaoGise } from './types';
 

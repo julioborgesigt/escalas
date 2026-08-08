@@ -13,7 +13,9 @@
 	 * filtros vêm da query string via `load`.
 	 */
 	import type { PageProps } from './$types';
-	import { ChevronDown, ChevronUp, ArrowLeft } from '@lucide/svelte';
+	import ChevronDown from '@lucide/svelte/icons/chevron-down';
+	import ChevronUp from '@lucide/svelte/icons/chevron-up';
+	import ArrowLeft from '@lucide/svelte/icons/arrow-left';
 	import KpiCard from '../_components/KpiCard.svelte';
 
 	const { data }: PageProps = $props();

@@ -46,7 +46,8 @@
 	import { useScrollLock, useInvalidateOnFocus } from '$lib/composables';
 	import { fetchSyncEstado } from '$lib/sync-estado';
 	import { ICONE } from '$lib/constants/icones';
-	import { AlertCircle, CheckCircle2 } from '@lucide/svelte';
+	import AlertCircle from '@lucide/svelte/icons/alert-circle';
+	import CheckCircle2 from '@lucide/svelte/icons/check-circle-2';
 
 	const { children }: LayoutProps = $props();
 

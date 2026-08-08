@@ -10,7 +10,7 @@
 	 * Sem "card" externo: o quadro é uma SEÇÃO da página (título + blocos), não um
 	 * cartão dentro de cartão.
 	 */
-	import { Clock } from '@lucide/svelte';
+	import Clock from '@lucide/svelte/icons/clock';
 	import { quadroSupervisaoExtraExigeRelatorio } from '$lib/gise/supervisao-extra';
 	import SupervisaoDesignacao from './supervisao/SupervisaoDesignacao.svelte';
 	import SupervisaoDocumentos from './supervisao/SupervisaoDocumentos.svelte';

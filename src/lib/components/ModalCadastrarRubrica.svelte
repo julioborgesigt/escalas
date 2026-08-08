@@ -15,7 +15,8 @@
 	 * minimizado, é enviado ao servidor. Um aceite explícito de consentimento é
 	 * exigido antes de salvar (nova finalidade, Art. 8º).
 	 */
-	import { PenLine, Image as ImageIcon } from '@lucide/svelte';
+	import PenLine from '@lucide/svelte/icons/pen-line';
+	import ImageIcon from '@lucide/svelte/icons/image';
 	import { Tabs } from '@skeletonlabs/skeleton-svelte';
 	import { apiFetch } from '$lib/api-fetch';
 	import { toaster } from '$lib/toast';

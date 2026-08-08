@@ -10,7 +10,7 @@
 	import type { GiseSeccionalActions } from '$lib/composables/gise/useGiseSeccionalActions.svelte';
 	import type { GiseSeccionalEstado } from './gise-seccional-estado.svelte';
 	import GiseEquipeCard from './GiseEquipeCard.svelte';
-	import { PenLine } from '@lucide/svelte';
+	import PenLine from '@lucide/svelte/icons/pen-line';
 
 	type Seccional = GiseDetalhado['seccionais'][number];
 

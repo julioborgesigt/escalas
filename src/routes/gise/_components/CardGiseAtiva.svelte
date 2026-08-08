@@ -9,8 +9,14 @@
 	 */
 	import { goto } from '$app/navigation';
 	import { slide } from 'svelte/transition';
-	import { statusLabel, statusColor, fmtDate, diaSemana } from '$lib/gise/formatters';
-	import { PenLine } from '@lucide/svelte';
+	import {
+		statusLabel,
+		statusColor,
+		statusStrip,
+		fmtDate,
+		diaSemana
+	} from '$lib/gise/formatters';
+	import PenLine from '@lucide/svelte/icons/pen-line';
 
 	const {
 		ativa,
@@ -49,22 +55,8 @@
 		onToggleMenu: () => void;
 	} = $props();
 
-	/** Faixa de 4 px no topo do card: cor por status (leitura periférica). */
-	const statusStrip = $derived(
-		ativa.status === 'aguardando_assinatura'
-			? 'bg-primary-500'
-			: ativa.status === 'em_preenchimento'
-				? 'bg-warning-500'
-				: ativa.status === 'em_andamento'
-					? 'bg-success-500'
-					: ativa.status === 'aguardando_relatorios'
-						? 'bg-info-500'
-						: ativa.status === 'aguardando_assinatura_relat'
-							? 'bg-secondary-500'
-							: ativa.status === 'pronta_para_finalizar'
-								? 'bg-success-600'
-								: 'bg-surface-400'
-	);
+	/** Faixa de 4 px no topo: mesmo canal do chip (`statusStrip` em formatters). */
+	const faixaStatus = $derived(statusStrip(ativa.status));
 
 	// O quadro de supervisão (supervisor/assessor/SEINT) rende um relatório de
 	// extra próprio, somado ao de cada seccional — daí o "+1" no total esperado.
@@ -94,7 +86,7 @@
 <div
 	class="flex flex-col rounded-2xl bg-white/80 dark:bg-surface-900/60 backdrop-blur-md border border-surface-200 dark:border-white/5 shadow-sm overflow-hidden hover:shadow-md hover:border-primary-500/40 dark:hover:border-primary-400/20 transition-all duration-200 group"
 >
-	<div class="h-1 {statusStrip}"></div>
+	<div class="h-1 {faixaStatus}"></div>
 
 	<div class="flex flex-col gap-3 p-4 sm:p-5 flex-1">
 		<div class="flex items-center gap-2 flex-wrap">

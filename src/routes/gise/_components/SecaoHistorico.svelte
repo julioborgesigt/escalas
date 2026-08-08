@@ -33,7 +33,7 @@
 	import { statusLabel, statusColor, fmtDate, diaSemana } from '$lib/gise/formatters';
 	import { SvelteURLSearchParams } from 'svelte/reactivity';
 	import { CICLOS, getCicloRange } from '$lib/gise/ciclos';
-	import { Download } from '@lucide/svelte';
+	import Download from '@lucide/svelte/icons/download';
 
 	/**
 	 * Bloco "Histórico" da lista `/gise`: escalas finalizadas, com filtros

@@ -37,7 +37,7 @@
 	import ModalEditarDias from './ModalEditarDias.svelte';
 	import type { Escala } from '$lib/server/schema';
 	import type { EscalaPolicialComDados } from '$lib/types';
-	import { PenLine } from '@lucide/svelte';
+	import PenLine from '@lucide/svelte/icons/pen-line';
 
 	let {
 		policiaisEscalaLocal = $bindable(),
