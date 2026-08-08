@@ -9,13 +9,7 @@
 	 */
 	import { goto } from '$app/navigation';
 	import { slide } from 'svelte/transition';
-	import {
-		statusLabel,
-		statusColor,
-		statusStrip,
-		fmtDate,
-		diaSemana
-	} from '$lib/gise/formatters';
+	import { statusLabel, statusColor, statusStrip, fmtDate, diaSemana } from '$lib/gise/formatters';
 	import PenLine from '@lucide/svelte/icons/pen-line';
 
 	const {
