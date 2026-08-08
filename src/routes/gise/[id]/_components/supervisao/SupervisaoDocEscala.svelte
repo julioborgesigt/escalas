@@ -65,7 +65,7 @@
 	<PenLine class="h-2.5 w-2.5 shrink-0" aria-hidden="true" />
 {/snippet}
 
-{#snippet detalhesEscala(mobile: boolean)}
+{#snippet detalhesEscala(_mobile: boolean)}
 	{#if documentoAssinadoInfo?.existe}
 		<p class="text-xs font-bold text-surface-800 dark:text-surface-100 break-words">
 			{documentoAssinadoInfo.assinante_nome}
