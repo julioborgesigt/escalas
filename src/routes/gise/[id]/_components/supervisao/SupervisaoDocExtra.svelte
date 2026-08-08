@@ -92,33 +92,19 @@
 		<p class="text-xs font-bold text-surface-800 dark:text-surface-100 break-words">
 			{assRelSup.assinante_nome}
 		</p>
+	{:else if !rubSupOk}
+		<p class="text-2xs leading-snug text-surface-600 dark:text-surface-400">
+			{#if faltSup?.startsWith(FALTANTE_RUBRICA_SUPER_PREFIX)}
+				<span class="text-error-600 dark:text-error-400 font-medium">Faltando rúbrica de:</span
+				>{faltSup.slice(FALTANTE_RUBRICA_SUPER_PREFIX.length)}
+			{:else}
+				{faltSup ?? 'Aguardando rúbricas do quadro de supervisão.'}
+			{/if}
+		</p>
 	{:else}
 		<p class="text-2xs leading-snug text-surface-600 dark:text-surface-400">
-			O supervisor poderá assinar o relatório de extra do quadro de supervisão quando todos os
-			integrantes confirmarem sua saída.
+			Disponível para conferência. Aguardando assinatura.
 		</p>
-		{#if !rubSupOk}
-			<p
-				class="text-2xs leading-snug text-surface-600 dark:text-surface-400 {mobile
-					? ''
-					: 'mt-0.5'}"
-			>
-				{#if faltSup?.startsWith(FALTANTE_RUBRICA_SUPER_PREFIX)}
-					<span class="text-error-600 dark:text-error-400 font-medium">Faltando rúbrica de:</span
-					>{faltSup.slice(FALTANTE_RUBRICA_SUPER_PREFIX.length)}
-				{:else}
-					{faltSup ?? 'Aguardando rúbricas do quadro de supervisão.'}
-				{/if}
-			</p>
-		{:else}
-			<p
-				class="text-2xs leading-snug text-surface-600 dark:text-surface-400 {mobile
-					? ''
-					: 'mt-0.5'}"
-			>
-				Disponível para conferência. Aguardando assinatura.
-			</p>
-		{/if}
 	{/if}
 {/snippet}
 
@@ -194,11 +180,9 @@
 
 <div class="flex flex-col gap-1.5 w-full animate-fade">
 	{#if !extraSupervisaoConfigurado}
-		{#if isMobile}
-			<p class="text-3xs font-bold uppercase tracking-wider text-surface-400 dark:text-surface-500">
-				Relatório de extra (Supervisão e apoio)
-			</p>
-		{/if}
+		<p class="text-3xs font-bold uppercase tracking-wider text-surface-400 dark:text-surface-500">
+			Relatório de extra (supervisão)
+		</p>
 		<div
 			class="rounded-xl border border-surface-200 dark:border-surface-800 bg-white dark:bg-surface-900 overflow-hidden shadow-sm hover:shadow-md transition-shadow duration-300 p-3.5"
 		>
@@ -212,9 +196,8 @@
 	{:else}
 		<SupervisaoDocumentoCard
 			{isMobile}
-			tituloExternoMobile="Relatório de extra (Supervisão e apoio)"
-			tituloMobile="Relatório de extra — supervisão e apoio"
-			tituloDesktop={assRelSup ? 'Relatório de extra' : 'Relatório de extra (supervisão)'}
+			titulo="Relatório de extra (supervisão)"
+			textoInfo="O supervisor poderá assinar o relatório de extra do quadro de supervisão quando todos os integrantes confirmarem sua saída."
 			badgeEstado={assRelSup ? 'sucesso' : rubSupOk ? 'alerta' : 'neutro'}
 			badgeLabel={assRelSup ? 'Assinado' : rubSupOk ? 'pronto para assinar' : 'Aguardando rubricas'}
 			bind:expandido={expandirExtra}

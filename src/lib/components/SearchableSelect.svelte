@@ -14,6 +14,11 @@
 	 *
 	 * O menu vai num `Portal` para escapar do `overflow` das tabelas e modais
 	 * onde o componente costuma viver.
+	 *
+	 * Contorno e clear: o CSS do Skeleton (`[data-scope=combobox]`) aplica
+	 * `@apply input` no Input e `btn preset-tonal` (+ hover error) no
+	 * ClearTrigger SEM ícone. Sem neutralizar, o Control + Input geram borda
+	 * dupla e o clear vira bolinha vermelha vazia.
 	 */
 	import {
 		Combobox,
@@ -21,6 +26,7 @@
 		useListCollection,
 		type ComboboxRootProps
 	} from '@skeletonlabs/skeleton-svelte';
+	import X from '@lucide/svelte/icons/x';
 	import { useBuscaDebounce } from '$lib/composables/useBuscaDebounce.svelte';
 	import Spinner from './Spinner.svelte';
 
@@ -150,16 +156,19 @@
 			<Combobox.Input
 				id={id || undefined}
 				aria-label={ariaLabel || undefined}
-				class="flex-1 min-w-0 pl-3 pr-1 py-1.5 text-sm bg-transparent text-surface-900 dark:text-surface-50 placeholder:text-surface-400 dark:placeholder:text-surface-500 focus:outline-none disabled:cursor-not-allowed"
+				class="flex-1 min-w-0 !m-0 !min-h-0 !rounded-none !border-0 !bg-transparent !px-3 !py-1.5 !shadow-none !ring-0 text-sm text-surface-900 dark:text-surface-50 placeholder:text-surface-400 dark:placeholder:text-surface-500 focus:!outline-none focus:!ring-0 disabled:cursor-not-allowed"
 			/>
 			{#if !isValueEmpty(value)}
 				<Combobox.ClearTrigger
-					class="flex items-center justify-center w-5 h-5 text-surface-400 hover:text-surface-600 dark:hover:text-surface-300 transition-colors [&_svg]:w-3 [&_svg]:h-3 flex-shrink-0"
-				/>
+					aria-label="Limpar seleção"
+					class="mr-1.5 flex !h-6 !w-6 !min-h-0 !min-w-0 shrink-0 items-center justify-center !rounded-full !border-0 !bg-transparent !p-0 !shadow-none text-surface-400 transition-colors hover:!bg-error-500/15 hover:!text-error-600 dark:hover:!text-error-400"
+				>
+					<X class="h-3.5 w-3.5" aria-hidden="true" />
+				</Combobox.ClearTrigger>
 			{/if}
 			{#if showTrigger}
 				<Combobox.Trigger
-					class="flex items-center justify-center w-6 h-6 mr-1 text-surface-400 hover:text-surface-600 dark:hover:text-surface-300 transition-colors [&_svg]:w-3.5 [&_svg]:h-3.5 flex-shrink-0"
+					class="!static !inset-auto !translate-y-0 mr-1 flex !h-6 !w-6 !min-h-0 !min-w-0 shrink-0 items-center justify-center !rounded-md !border-0 !bg-transparent !p-0 !shadow-none text-surface-400 transition-colors hover:text-surface-600 dark:hover:text-surface-300 [&_svg]:h-3.5 [&_svg]:w-3.5"
 				/>
 			{/if}
 		</Combobox.Control>

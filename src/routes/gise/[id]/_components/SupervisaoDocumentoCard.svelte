@@ -1,25 +1,31 @@
 <script lang="ts">
 	import { slide } from 'svelte/transition';
 	import type { Snippet } from 'svelte';
-	import ShieldCheck from '@lucide/svelte/icons/shield-check';
 	import CheckCircle2 from '@lucide/svelte/icons/check-circle-2';
 	import Clock from '@lucide/svelte/icons/clock';
+	import Info from '@lucide/svelte/icons/info';
+	import { Popover, Portal } from '@skeletonlabs/skeleton-svelte';
 
 	/**
 	 * Moldura dos cards de documento do quadro de supervisão (escala GISE e
 	 * relatório de extra). Unifica as quatro variantes que se repetiam no
-	 * template de GiseSupervisao: mobile (card expansível com título externo)
-	 * × desktop (linha horizontal em três partes), para cada documento.
+	 * template de GiseSupervisao: mobile (card expansível) × desktop (linha
+	 * horizontal em três partes), para cada documento.
+	 *
+	 * O título fica FORA do card (como em Assinaturas em lote); dentro só o
+	 * badge de status — evita repetir o mesmo rótulo. Texto orientativo vai em
+	 * `textoInfo` (ícone i + popover), não no corpo do card.
 	 *
 	 * O conteúdo específico entra pelos snippets `detalhes` e `acoes`, que
-	 * recebem `mobile: boolean` para as diferenças pontuais entre variantes
-	 * (classes `mt-0.5`/hover e o par de botões Tela × Token).
+	 * recebem `mobile: boolean` para as diferenças pontuais entre variantes.
+	 *
+	 * O ícone à esquerda espelha o card de lote: check verde quando assinado
+	 * (`badgeEstado === 'sucesso'`).
 	 */
 	let {
 		isMobile,
-		tituloExternoMobile,
-		tituloMobile,
-		tituloDesktop,
+		titulo,
+		textoInfo = '',
 		badgeEstado,
 		badgeLabel,
 		expandido = $bindable(false),
@@ -27,10 +33,10 @@
 		acoes
 	}: {
 		isMobile: boolean;
-		/** Rótulo (<p>) acima do card, só no mobile. */
-		tituloExternoMobile: string;
-		tituloMobile: string;
-		tituloDesktop: string;
+		/** Rótulo acima do card (mobile e desktop). */
+		titulo: string;
+		/** Texto do popover do ícone de informação (opcional). */
+		textoInfo?: string;
 		badgeEstado: 'sucesso' | 'alerta' | 'neutro';
 		badgeLabel: string;
 		/** Corpo expandido/recolhido do card mobile (bindable). */
@@ -38,6 +44,22 @@
 		detalhes: Snippet<[boolean]>;
 		acoes: Snippet<[boolean]>;
 	} = $props();
+
+	const iconeBoxClass = $derived(
+		badgeEstado === 'sucesso'
+			? 'bg-success-100 dark:bg-success-900/30'
+			: badgeEstado === 'alerta'
+				? 'bg-warning-100 dark:bg-warning-900/30'
+				: 'bg-surface-100 dark:bg-surface-800'
+	);
+
+	const iconeStrokeClass = $derived(
+		badgeEstado === 'sucesso'
+			? 'text-success-600 dark:text-success-400'
+			: badgeEstado === 'alerta'
+				? 'text-warning-600 dark:text-warning-400'
+				: 'text-surface-400 dark:text-surface-500'
+	);
 </script>
 
 {#snippet badge()}
@@ -62,91 +84,136 @@
 	{/if}
 {/snippet}
 
-{#if isMobile}
-	<!-- Mobile: card normal com título externo -->
-	<p class="text-3xs font-bold uppercase tracking-wider text-surface-400 dark:text-surface-500">
-		{tituloExternoMobile}
-	</p>
-	<div
-		class="rounded-xl border border-surface-200 dark:border-surface-800 bg-white dark:bg-surface-900 overflow-hidden flex flex-col shadow-sm hover:shadow-md transition-shadow duration-300"
-	>
-		<!-- Header: sempre visível, clicável no mobile -->
-		<button
-			type="button"
-			class="flex w-full items-center gap-2 p-3 text-left cursor-pointer active:bg-surface-100/60 dark:active:bg-surface-700/40"
-			onclick={() => {
-				expandido = !expandido;
-			}}
+{#snippet iconeStatus(tamanho: 'sm' | 'md')}
+	{@const box = tamanho === 'sm' ? 'h-7 w-7' : 'h-8 w-8'}
+	<div class="{box} shrink-0 flex items-center justify-center rounded-lg {iconeBoxClass}">
+		<svg
+			class="w-3.5 h-3.5 {iconeStrokeClass}"
+			fill="none"
+			stroke="currentColor"
+			viewBox="0 0 24 24"
 		>
-			<div
-				class="h-7 w-7 shrink-0 flex items-center justify-center rounded-lg bg-surface-100 dark:bg-surface-700"
-			>
-				<ShieldCheck size={14} />
-			</div>
-			<div class="min-w-0 flex-1">
-				{@render badge()}
-				<p class="text-xs font-semibold text-surface-700 dark:text-surface-200 mt-0.5">
-					{tituloMobile}
-				</p>
-			</div>
-			<svg
-				class="h-4 w-4 shrink-0 text-surface-400 transition-transform duration-200 {expandido
-					? 'rotate-180'
-					: ''}"
-				fill="none"
-				stroke="currentColor"
-				viewBox="0 0 24 24"
-			>
-				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-			</svg>
-		</button>
-		<!-- Body: expansível no mobile -->
-		{#if expandido}
-			<div
-				transition:slide={{ duration: 200 }}
-				class="px-3 pb-3 pt-2.5 border-t border-surface-200/50 dark:border-surface-700/50 flex-1 flex flex-col justify-between gap-2.5"
-			>
-				<div class="space-y-2">
-					{@render detalhes(true)}
-				</div>
-				<div class="flex items-center gap-1.5 flex-wrap justify-end">
-					{@render acoes(true)}
-				</div>
-			</div>
+			{#if badgeEstado === 'sucesso'}
+				<path
+					stroke-linecap="round"
+					stroke-linejoin="round"
+					stroke-width="2"
+					d="M5 13l4 4L19 7"
+				/>
+			{:else if badgeEstado === 'alerta'}
+				<path
+					stroke-linecap="round"
+					stroke-linejoin="round"
+					stroke-width="2"
+					d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"
+				/>
+			{:else}
+				<path
+					stroke-linecap="round"
+					stroke-linejoin="round"
+					stroke-width="2"
+					d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 012-2h2a2 2 0 012 2"
+				/>
+			{/if}
+		</svg>
+	</div>
+{/snippet}
+
+<div class="flex flex-col gap-1.5 w-full">
+	<div class="flex items-center gap-1.5">
+		<p class="text-3xs font-bold uppercase tracking-wider text-surface-400 dark:text-surface-500">
+			{titulo}
+		</p>
+		{#if textoInfo}
+			<Popover positioning={{ placement: 'bottom-start' }}>
+				<Popover.Trigger
+					type="button"
+					class="inline-flex items-center justify-center rounded-full p-0.5 text-surface-400 transition-colors hover:bg-surface-100 hover:text-primary-600 dark:hover:bg-surface-800 dark:hover:text-primary-400"
+					aria-label="Informações sobre {titulo}"
+					title="Informações"
+				>
+					<Info class="h-3.5 w-3.5" aria-hidden="true" />
+				</Popover.Trigger>
+				<Portal>
+					<Popover.Positioner>
+						<Popover.Content
+							class="z-50 max-w-xs rounded-xl border border-surface-200 bg-white p-3 text-2xs leading-snug text-surface-600 shadow-xl dark:border-surface-600 dark:bg-surface-800 dark:text-surface-300"
+						>
+							{textoInfo}
+						</Popover.Content>
+					</Popover.Positioner>
+				</Portal>
+			</Popover>
 		{/if}
 	</div>
-{:else}
-	<!-- Desktop: Premium horizontal row layout -->
-	<div
-		class="rounded-xl border border-surface-200 dark:border-surface-800 bg-white dark:bg-surface-900 overflow-hidden shadow-sm hover:shadow-md transition-shadow duration-300 flex items-center justify-between gap-4 p-3.5 px-4"
-	>
-		<!-- Parte 1: Status e Título -->
-		<div class="flex items-center gap-3 min-w-[250px] shrink-0">
-			<div
-				class="h-8 w-8 shrink-0 flex items-center justify-center rounded-lg bg-surface-100 dark:bg-surface-700"
+
+	{#if isMobile}
+		<div
+			class="rounded-xl border border-surface-200 dark:border-surface-800 bg-white dark:bg-surface-900 overflow-hidden flex flex-col shadow-sm hover:shadow-md transition-shadow duration-300"
+		>
+			<button
+				type="button"
+				class="flex w-full items-center gap-2 p-3 text-left cursor-pointer active:bg-surface-100/60 dark:active:bg-surface-700/40"
+				onclick={() => {
+					expandido = !expandido;
+				}}
 			>
-				<ShieldCheck size={14} />
-			</div>
-			<div class="min-w-0">
-				{@render badge()}
-				<p class="text-xs font-semibold text-surface-700 dark:text-surface-200 mt-0.5">
-					{tituloDesktop}
-				</p>
-			</div>
+				{@render iconeStatus('sm')}
+				<div class="min-w-0 flex-1">
+					{@render badge()}
+				</div>
+				<svg
+					class="h-4 w-4 shrink-0 text-surface-400 transition-transform duration-200 {expandido
+						? 'rotate-180'
+						: ''}"
+					fill="none"
+					stroke="currentColor"
+					viewBox="0 0 24 24"
+				>
+					<path
+						stroke-linecap="round"
+						stroke-linejoin="round"
+						stroke-width="2"
+						d="M19 9l-7 7-7-7"
+					/>
+				</svg>
+			</button>
+			{#if expandido}
+				<div
+					transition:slide={{ duration: 200 }}
+					class="px-3 pb-3 pt-2.5 border-t border-surface-200/50 dark:border-surface-700/50 flex-1 flex flex-col justify-between gap-2.5"
+				>
+					<div class="space-y-2">
+						{@render detalhes(true)}
+					</div>
+					<div class="flex items-center gap-1.5 flex-wrap justify-end">
+						{@render acoes(true)}
+					</div>
+				</div>
+			{/if}
 		</div>
-
-		<!-- Parte 2: Informações/Detalhes -->
+	{:else}
 		<div
-			class="flex-1 min-w-0 text-left border-l border-surface-200/40 dark:border-surface-800/80 pl-4 py-0.5"
+			class="rounded-xl border border-surface-200 dark:border-surface-800 bg-white dark:bg-surface-900 overflow-hidden shadow-sm hover:shadow-md transition-shadow duration-300 flex items-center justify-between gap-4 p-3.5 px-4"
 		>
-			{@render detalhes(false)}
-		</div>
+			<div class="flex items-center gap-3 min-w-[180px] shrink-0">
+				{@render iconeStatus('md')}
+				<div class="min-w-0">
+					{@render badge()}
+				</div>
+			</div>
 
-		<!-- Parte 3: Ações -->
-		<div
-			class="flex items-center gap-1.5 shrink-0 justify-end border-l border-surface-200/40 dark:border-surface-800/80 pl-4 py-0.5"
-		>
-			{@render acoes(false)}
+			<div
+				class="flex-1 min-w-0 text-left border-l border-surface-200/40 dark:border-surface-800/80 pl-4 py-0.5"
+			>
+				{@render detalhes(false)}
+			</div>
+
+			<div
+				class="flex items-center gap-1.5 shrink-0 justify-end border-l border-surface-200/40 dark:border-surface-800/80 pl-4 py-0.5"
+			>
+				{@render acoes(false)}
+			</div>
 		</div>
-	</div>
-{/if}
+	{/if}
+</div>
