@@ -179,7 +179,7 @@
 
 {#if visivel && isExpediente}
 	<div
-		class="p-4 sm:p-5 mb-4 rounded-3xl bg-primary-500/8 border border-primary-500/25 backdrop-blur-md shadow-xl shadow-black/5 dark:shadow-black/20"
+		class="p-4 sm:p-5 mb-4 rounded-3xl bg-primary-500/8 border border-primary-500/25 backdrop-blur-md"
 	>
 		<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
 			<div>

@@ -259,6 +259,31 @@
 		<div
 			class="flex flex-col md:flex-row md:flex-wrap xl:flex-nowrap items-stretch md:items-end gap-4"
 		>
+			<div class="flex flex-col gap-1.5 flex-1 min-w-[220px] lg:max-w-xs">
+				<span class="label-text font-semibold ml-0.5">Cargo</span>
+				<SegmentedControl
+					value={filtroCargo || ''}
+					onValueChange={(e) => {
+						filtroCargo = e.value ?? '';
+						navegarComFiltros();
+					}}
+					class="w-full"
+				>
+					<SegmentedControl.Control
+						class="flex items-center w-full rounded-xl border border-surface-200 dark:border-surface-700 bg-surface-100 dark:bg-surface-800 p-1 gap-1"
+					>
+						{#each [['', 'Todos'], ['DPC', 'DPC'], ['OIP', 'OIP']] as [val, label] (val)}
+							<SegmentedControl.Item
+								value={val}
+								class="flex-1 px-3 py-1.5 text-center text-sm font-semibold rounded-lg cursor-pointer select-none transition-colors duration-200 text-surface-600 dark:text-surface-400 data-[state=checked]:bg-primary-500 data-[state=checked]:text-white data-[state=checked]:shadow-md data-[state=checked]:shadow-primary-500/25 hover:text-surface-700 dark:hover:text-surface-200"
+							>
+								<SegmentedControl.ItemText>{label}</SegmentedControl.ItemText>
+								<SegmentedControl.ItemHiddenInput />
+							</SegmentedControl.Item>
+						{/each}
+					</SegmentedControl.Control>
+				</SegmentedControl>
+			</div>
 			{#if isAdmin}
 				<label class="label flex-1 min-w-[220px] lg:max-w-xs">
 					<span class="label-text font-semibold mb-1 ml-0.5">Seccional</span>
@@ -288,31 +313,6 @@
 					</select>
 				</label>
 			{/if}
-			<div class="flex flex-col gap-1.5 flex-1 min-w-[220px] lg:max-w-xs">
-				<span class="label-text font-semibold ml-0.5">Cargo</span>
-				<SegmentedControl
-					value={filtroCargo || ''}
-					onValueChange={(e) => {
-						filtroCargo = e.value ?? '';
-						navegarComFiltros();
-					}}
-					class="w-full"
-				>
-					<SegmentedControl.Control
-						class="flex items-center w-full rounded-xl border border-surface-200 dark:border-surface-700 bg-surface-100 dark:bg-surface-800 p-1 gap-1"
-					>
-						{#each [['', 'Todos'], ['DPC', 'DPC'], ['OIP', 'OIP']] as [val, label] (val)}
-							<SegmentedControl.Item
-								value={val}
-								class="flex-1 px-3 py-1.5 text-center text-sm font-semibold rounded-lg cursor-pointer select-none transition-colors duration-200 text-surface-600 dark:text-surface-400 data-[state=checked]:bg-primary-500 data-[state=checked]:text-white data-[state=checked]:shadow-md data-[state=checked]:shadow-primary-500/25 hover:text-surface-700 dark:hover:text-surface-200"
-							>
-								<SegmentedControl.ItemText>{label}</SegmentedControl.ItemText>
-								<SegmentedControl.ItemHiddenInput />
-							</SegmentedControl.Item>
-						{/each}
-					</SegmentedControl.Control>
-				</SegmentedControl>
-			</div>
 
 			<label class="label flex-1 min-w-[220px]">
 				<span class="label-text font-semibold mb-1 ml-0.5">Buscar por Nome ou Matrícula</span>
@@ -375,11 +375,11 @@
 				<table class="table">
 					<thead>
 						<tr>
-							<th>Nome</th>
-							<th>Matrícula</th>
-							<th>Cargo</th>
-							<th>Telefone</th>
-							<th>Lotação</th>
+							<th class="w-[24%]">Nome</th>
+							<th class="w-[12%] whitespace-nowrap px-4">Matrícula</th>
+							<th class="w-[9%] whitespace-nowrap px-4">Cargo</th>
+							<th class="w-[14%] whitespace-nowrap px-4">Telefone</th>
+							<th class="w-[20%]">Lotação</th>
 							<th>Ações</th>
 						</tr>
 					</thead>
@@ -390,25 +390,25 @@
 									'h-4 w-40',
 									'h-4 w-20',
 									'h-6 w-16 rounded-full',
-									'h-4 w-28',
 									'h-4 w-32',
+									'h-4 w-28',
 									'h-8 w-32 rounded-lg'
 								]}
 							/>
 						{:else}
 							{#each policiais as p (p.id)}
 								<tr>
-									<td>{p.nome}</td>
-									<td class="font-mono tabular-nums">{p.matricula}</td>
-									<td>
+									<td class="w-[24%]">{p.nome}</td>
+									<td class="font-mono tabular-nums whitespace-nowrap px-4">{p.matricula}</td>
+									<td class="px-4">
 										<span
 											class="badge text-xs {p.cargo === 'DPC'
 												? 'preset-filled-primary-500'
 												: 'preset-filled-warning-500'}">{p.cargo}</span
 										>
 									</td>
-									<td class="font-mono tabular-nums">{p.telefone}</td>
-									<td>{p.lotacao}</td>
+									<td class="font-mono tabular-nums whitespace-nowrap px-4">{p.telefone}</td>
+									<td class="w-[20%]">{p.lotacao}</td>
 									<td>
 										<div class="flex gap-2">
 											<a

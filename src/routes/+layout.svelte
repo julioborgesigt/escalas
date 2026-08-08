@@ -142,6 +142,10 @@
 	}
 
 	async function openSidebar() {
+		// Evita aria-hidden na topbar/main com o botão de menu ainda focado.
+		const focused = document.activeElement;
+		if (focused instanceof HTMLElement) focused.blur();
+
 		sidebarOpen = true;
 		await tick();
 		document.getElementById('navegacao-principal')?.focus();
@@ -152,6 +156,16 @@
 		afterNavigation = false
 	}: { restoreFocus?: boolean; afterNavigation?: boolean } = {}) {
 		if (!sidebarOpen) return;
+
+		// Chrome: "Blocked aria-hidden on an element because its descendant
+		// retained focus." O clique no item deixa o <a> focado; fechar a gaveta
+		// aplica aria-hidden/inert com esse foco ainda dentro. Blur antes.
+		const focused = document.activeElement;
+		const drawer = document.getElementById('navegacao-principal')?.closest('aside');
+		if (focused instanceof HTMLElement && drawer?.contains(focused)) {
+			focused.blur();
+		}
+
 		sidebarOpen = false;
 
 		if (!restoreFocus) return;
