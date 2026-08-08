@@ -222,8 +222,13 @@
 	const supervisorSomente = $derived(isSupervisor && !isAdminGeral && !isSeccional);
 	const exibirQuadroSeccionais = $derived(!supervisorSomente || supervisorExpandiuQuadroSeccionais);
 
-	function toggleRecolherSeccional(id: number) {
-		seccionaisRecolhidas[id] = !seccionaisRecolhidas[id];
+	function seccionalIniciaRecolhida(status: string) {
+		return status === 'preenchida' || status === 'preenchida_retificada';
+	}
+
+	function toggleRecolherSeccional(id: number, status: string) {
+		const atual = seccionaisRecolhidas[id] ?? seccionalIniciaRecolhida(status);
+		seccionaisRecolhidas[id] = !atual;
 	}
 
 	// Gerenciamento de seccionais (Admin Geral) — derivado dos dados já carregados
@@ -611,7 +616,6 @@
 				{#snippet loteSection()}
 					{#if isSupervisor || isAdminGeral}
 						<GiseLoteAssinaturas
-							giseId={gise?.id ?? 0}
 							quantidadePendentes={pendentesExtra.length}
 							assinandoLote={assinatura.assinandoLote}
 							etapaAssinatura={assinatura.etapaAssinatura}
@@ -643,24 +647,20 @@
 		<!-- Seccionais -->
 		<div>
 			{#if !isSeccional}
-				<div
-					class="mb-3 rounded-xl border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-900 p-3 shadow-sm"
-				>
-					<div class="flex items-center justify-between gap-2">
-						<h2 class="font-semibold text-surface-900 dark:text-surface-50">
-							Seccionais ({gise.seccionais?.length ?? 0})
-						</h2>
-						{#if supervisorSomente}
-							<button
-								type="button"
-								class="btn btn-sm preset-filled-primary-500 text-xs px-3 py-1.5 rounded-lg font-bold shadow-sm transition-all"
-								onclick={() =>
-									(supervisorExpandiuQuadroSeccionais = !supervisorExpandiuQuadroSeccionais)}
-							>
-								{exibirQuadroSeccionais ? 'Ocultar participantes' : 'Exibir participantes'}
-							</button>
-						{/if}
-					</div>
+				<div class="mb-3 flex items-center justify-between gap-2">
+					<h2 class="font-semibold text-surface-900 dark:text-surface-50">
+						Seccionais ({gise.seccionais?.length ?? 0})
+					</h2>
+					{#if supervisorSomente}
+						<button
+							type="button"
+							class="btn btn-sm preset-filled-primary-500 text-xs px-3 py-1.5 rounded-lg font-bold shadow-sm transition-all"
+							onclick={() =>
+								(supervisorExpandiuQuadroSeccionais = !supervisorExpandiuQuadroSeccionais)}
+						>
+							{exibirQuadroSeccionais ? 'Ocultar participantes' : 'Exibir participantes'}
+						</button>
+					{/if}
 				</div>
 			{/if}
 
@@ -681,9 +681,8 @@
 							{modoEdicaoGeral}
 							assinaturasRelatorios={data.assinaturasRelatorios}
 							restringirSmartphone={data.restringirSmartphone}
-							recolhida={seccionaisRecolhidas[sec.id] ??
-								(sec.status === 'preenchida' || sec.status === 'preenchida_retificada')}
-							onToggleRecolher={() => toggleRecolherSeccional(sec.id)}
+							recolhida={seccionaisRecolhidas[sec.id] ?? seccionalIniciaRecolhida(sec.status)}
+							onToggleRecolher={() => toggleRecolherSeccional(sec.id, sec.status)}
 							onAssinarRelatorioManual={(seccionalId) =>
 								assinatura.abrirAssinaturaRelatorio(seccionalId, 'extraordinario')}
 							onAssinarRelatorioDigital={(seccionalId, tipo, nome) =>

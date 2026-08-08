@@ -13,6 +13,7 @@
 	import type { GiseSeccionalActions } from '$lib/composables/gise/useGiseSeccionalActions.svelte';
 	import type { GiseSeccionalEstado } from './gise-seccional-estado.svelte';
 	import PenLine from '@lucide/svelte/icons/pen-line';
+	import { getSeccionalColorClass } from '$lib/gise/page-helpers';
 
 	type Seccional = GiseDetalhado['seccionais'][number];
 
@@ -57,9 +58,12 @@
 </script>
 
 <div
-	class="flex-1 rounded-xl border border-surface-200 dark:border-surface-700/60 p-3 sm:p-4 bg-white dark:bg-surface-900 shadow-sm hover:shadow-md transition-shadow duration-200"
+	class="flex-1 rounded-xl border border-surface-200 dark:border-surface-700/60 border-l-[6px] p-3 sm:p-4 bg-white dark:bg-surface-900 shadow-sm hover:shadow-md transition-shadow duration-200 {getSeccionalColorClass(
+		sec.seccional_id,
+		'suave'
+	)}"
 >
-	<div class="mb-3 flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between lg:gap-4">
+	<div class="mb-3 flex items-start justify-between gap-3">
 		{#if isAdminGeral && podeEditar && modoEdicaoGeral}
 			<form
 				id="remover-equipe-form-{equipe.id}"
@@ -73,202 +77,195 @@
 			</form>
 		{/if}
 
-		<div class="flex min-w-0 items-center justify-between gap-2 lg:contents">
+		<div class="min-w-0 flex-1 space-y-1.5">
 			<span
-				class="min-w-0 shrink text-sm font-semibold capitalize text-surface-900 dark:text-surface-100 lg:shrink-0"
+				class="block min-w-0 text-sm font-semibold capitalize text-surface-900 dark:text-surface-100"
 			>
 				Equipe {equipe.tipo === 'operacional' ? 'Operacional' : 'SEINT'}
 			</span>
-			{#if isAdminGeral && podeEditar && modoEdicaoGeral}
-				<button
-					type="submit"
-					form="remover-equipe-form-{equipe.id}"
-					class="btn btn-sm preset-outlined-error-500 inline-flex shrink-0 items-center justify-center gap-1 whitespace-nowrap px-2 py-1 text-xs lg:hidden"
-					disabled={actions.pendingCrud}
-				>
-					{actions.pendingRemoverEquipe ? 'Removendo...' : 'Remover equipe'}
-				</button>
-			{/if}
-		</div>
 
-		<div
-			class="flex min-w-0 flex-1 gap-2 lg:flex-row lg:flex-wrap lg:items-center lg:justify-end lg:gap-x-3 lg:gap-y-2 {estado.editandoEquipe ===
-				equipe.id || estado.editandoHorariosEquipeId === equipe.id
-				? 'flex-col'
-				: 'flex-row flex-wrap items-center'}"
-		>
-			{#if estado.editandoEquipe === equipe.id}
-				<div class="flex flex-wrap items-center gap-1.5">
-					<label for="edit-dpc-{equipe.id}" class="text-sm text-surface-600 dark:text-surface-400"
-						>DPC:</label
-					>
-					<input
-						id="edit-dpc-{equipe.id}"
-						type="number"
-						min="0"
-						max="20"
-						bind:value={estado.editSlotsDpc}
-						class="w-14 px-2 py-1 rounded-xl border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-sm text-center"
-					/>
-					<label for="edit-oip-{equipe.id}" class="text-sm text-surface-600 dark:text-surface-400"
-						>OIP:</label
-					>
-					<input
-						id="edit-oip-{equipe.id}"
-						type="number"
-						min="0"
-						max="20"
-						bind:value={estado.editSlotsOip}
-						class="w-14 px-2 py-1 rounded-xl border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-sm text-center"
-					/>
-					<div class="flex items-center gap-2 shrink-0">
-						<form
-							method="POST"
-							action="?/salvarSlotsEquipe"
-							use:enhance={actions.handleSalvarSlotsEquipe}
-							class="contents"
+			<div
+				class="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1.5 {estado.editandoEquipe ===
+					equipe.id || estado.editandoHorariosEquipeId === equipe.id
+					? 'flex-col items-start'
+					: ''}"
+			>
+				{#if estado.editandoEquipe === equipe.id}
+					<div class="flex flex-wrap items-center gap-1.5">
+						<label for="edit-dpc-{equipe.id}" class="text-sm text-surface-600 dark:text-surface-400"
+							>DPC:</label
 						>
-							<input type="hidden" name="equipeId" value={equipe.id} />
-							<input type="hidden" name="slots_dpc" value={estado.editSlotsDpc} />
-							<input type="hidden" name="slots_oip" value={estado.editSlotsOip} />
+						<input
+							id="edit-dpc-{equipe.id}"
+							type="number"
+							min="0"
+							max="20"
+							bind:value={estado.editSlotsDpc}
+							class="w-14 px-2 py-1 rounded-xl border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-sm text-center"
+						/>
+						<label for="edit-oip-{equipe.id}" class="text-sm text-surface-600 dark:text-surface-400"
+							>OIP:</label
+						>
+						<input
+							id="edit-oip-{equipe.id}"
+							type="number"
+							min="0"
+							max="20"
+							bind:value={estado.editSlotsOip}
+							class="w-14 px-2 py-1 rounded-xl border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-sm text-center"
+						/>
+						<div class="flex items-center gap-2 shrink-0">
+							<form
+								method="POST"
+								action="?/salvarSlotsEquipe"
+								use:enhance={actions.handleSalvarSlotsEquipe}
+								class="contents"
+							>
+								<input type="hidden" name="equipeId" value={equipe.id} />
+								<input type="hidden" name="slots_dpc" value={estado.editSlotsDpc} />
+								<input type="hidden" name="slots_oip" value={estado.editSlotsOip} />
+								<button
+									type="submit"
+									class="btn btn-sm preset-filled-primary-500 text-sm py-1 px-2 rounded transition-all"
+									disabled={actions.pendingCrud}
+									aria-label="Salvar vagas"
+									title="Confirmar">{actions.pendingSalvarSlotsEquipe ? '…' : '✓'}</button
+								>
+							</form>
 							<button
-								type="submit"
-								class="btn btn-sm preset-filled-primary-500 text-sm py-1 px-2 rounded transition-all"
-								disabled={actions.pendingCrud}
-								aria-label="Salvar vagas"
-								title="Confirmar">{actions.pendingSalvarSlotsEquipe ? '…' : '✓'}</button
+								type="button"
+								class="btn btn-sm preset-outlined-primary-500 text-sm py-1 px-2 rounded"
+								onclick={() => (estado.editandoEquipe = null)}
+								aria-label="Cancelar edição de vagas"
+								title="Cancelar">×</button
 							>
-						</form>
-						<button
-							type="button"
-							class="btn btn-sm preset-outlined-primary-500 text-sm py-1 px-2 rounded"
-							onclick={() => (estado.editandoEquipe = null)}
-							aria-label="Cancelar edição de vagas"
-							title="Cancelar">×</button
-						>
+						</div>
 					</div>
-				</div>
-			{:else}
-				<div class="flex flex-wrap items-center gap-2 min-w-0">
-					<span class="text-sm text-surface-600 dark:text-surface-400"
-						>{equipe.slots_dpc} DPC + {equipe.slots_oip} OIP</span
-					>
-					{#if isAdminGeral && podeEditar && modoEdicaoGeral}
-						<button
-							type="button"
-							class="btn btn-xs preset-filled-surface-500 rounded p-1 shrink-0"
-							onclick={() => {
-								estado.editandoEquipe = equipe.id;
-								estado.editSlotsDpc = equipe.slots_dpc;
-								estado.editSlotsOip = equipe.slots_oip;
-							}}
-							title="Editar vagas da equipe"
+				{:else}
+					<div class="flex flex-wrap items-center gap-2 min-w-0">
+						<span class="text-sm text-surface-600 dark:text-surface-400"
+							>{equipe.slots_dpc} DPC + {equipe.slots_oip} OIP</span
 						>
-							<PenLine class="w-3 h-3" aria-hidden="true" />
-						</button>
-					{/if}
-				</div>
-			{/if}
-
-			{#if estado.editandoHorariosEquipeId === equipe.id}
-				<div class="flex flex-wrap items-center gap-2">
-					<input
-						type="text"
-						placeholder="08:00"
-						class="w-16 px-2 py-1 text-sm rounded border bg-white dark:bg-surface-900 {estado.editEqHoraEnt &&
-						!validarHora(estado.editEqHoraEnt)
-							? 'border-error-500'
-							: 'border-surface-300 dark:border-surface-600'}"
-						bind:value={estado.editEqHoraEnt}
-					/>
-					<span class="opacity-30">-</span>
-					<input
-						type="text"
-						placeholder="16:00"
-						class="w-16 px-2 py-1 text-sm rounded border bg-white dark:bg-surface-900 {estado.editEqHoraSai &&
-						!validarHora(estado.editEqHoraSai)
-							? 'border-error-500'
-							: 'border-surface-300 dark:border-surface-600'}"
-						bind:value={estado.editEqHoraSai}
-					/>
-					<div class="flex items-center gap-2 shrink-0">
-						<form
-							method="POST"
-							action="?/salvarHorariosEquipe"
-							use:enhance={actions.handleSalvarHorariosEquipe}
-							class="contents"
-						>
-							<input type="hidden" name="eqId" value={equipe.id} />
-							<input
-								type="hidden"
-								name="hora_entrada"
-								value={normalizarHora(estado.editEqHoraEnt) ?? ''}
-							/>
-							<input
-								type="hidden"
-								name="hora_saida"
-								value={normalizarHora(estado.editEqHoraSai) ?? ''}
-							/>
+						{#if isAdminGeral && podeEditar && modoEdicaoGeral}
 							<button
-								type="submit"
-								class="btn btn-sm preset-filled-primary-500 text-sm py-1 px-2 rounded transition-all"
-								disabled={actions.pendingCrud}
-								title="Confirmar">{actions.pendingSalvarHorariosEquipe ? '…' : '✓'}</button
+								type="button"
+								class="btn btn-xs preset-filled-surface-500 rounded p-1 shrink-0"
+								onclick={() => {
+									estado.editandoEquipe = equipe.id;
+									estado.editSlotsDpc = equipe.slots_dpc;
+									estado.editSlotsOip = equipe.slots_oip;
+								}}
+								title="Editar vagas da equipe"
 							>
-						</form>
-						<button
-							type="button"
-							class="btn btn-sm preset-outlined-primary-500 text-sm py-1 px-2 rounded"
-							onclick={() => (estado.editandoHorariosEquipeId = null)}>×</button
-						>
-					</div>
-				</div>
-			{:else}
-				<div class="flex flex-wrap items-center gap-2 min-w-0">
-					<div
-						class="flex flex-wrap items-center gap-1.5 text-sm text-surface-600 dark:text-surface-400 font-medium min-w-0"
-					>
-						<span
-							>{equipe.hora_entrada ?? sec.hora_entrada ?? gise.hora_entrada}h-{equipe.hora_saida ??
-								sec.hora_saida ??
-								gise.hora_saida}h</span
-						>
-						{#if equipe.hora_entrada || equipe.hora_saida}
-							<span
-								class="px-1 rounded bg-warning-500/10 text-warning-600 dark:text-warning-400 font-bold border border-warning-500/20 uppercase"
-								>H. Personalizado</span
-							>
+								<PenLine class="w-3 h-3" aria-hidden="true" />
+							</button>
 						{/if}
 					</div>
-					{#if isAdminGeral && podeEditar && modoEdicaoGeral}
-						<button
-							type="button"
-							class="btn btn-xs preset-filled-surface-500 rounded p-1 shrink-0"
-							onclick={() => {
-								estado.editandoHorariosEquipeId = equipe.id;
-								estado.editEqHoraEnt =
-									equipe.hora_entrada ?? sec.hora_entrada ?? gise.hora_entrada ?? '';
-								estado.editEqHoraSai = equipe.hora_saida ?? sec.hora_saida ?? gise.hora_saida ?? '';
-							}}
-							title="Editar horários da equipe"
-						>
-							<PenLine class="w-3 h-3" aria-hidden="true" />
-						</button>
-					{/if}
-				</div>
-			{/if}
+				{/if}
 
-			{#if isAdminGeral && podeEditar && modoEdicaoGeral}
-				<button
-					type="submit"
-					form="remover-equipe-form-{equipe.id}"
-					class="btn btn-sm preset-outlined-error-500 hidden w-full items-center justify-center gap-1 whitespace-nowrap lg:inline-flex lg:w-auto"
-					disabled={actions.pendingCrud}
-				>
-					{actions.pendingRemoverEquipe ? 'Removendo...' : 'Remover equipe'}
-				</button>
-			{/if}
+				{#if estado.editandoHorariosEquipeId === equipe.id}
+					<div class="flex flex-wrap items-center gap-2">
+						<input
+							type="text"
+							placeholder="08:00"
+							class="w-16 px-2 py-1 text-sm rounded border bg-white dark:bg-surface-900 {estado.editEqHoraEnt &&
+							!validarHora(estado.editEqHoraEnt)
+								? 'border-error-500'
+								: 'border-surface-300 dark:border-surface-600'}"
+							bind:value={estado.editEqHoraEnt}
+						/>
+						<span class="opacity-30">-</span>
+						<input
+							type="text"
+							placeholder="16:00"
+							class="w-16 px-2 py-1 text-sm rounded border bg-white dark:bg-surface-900 {estado.editEqHoraSai &&
+							!validarHora(estado.editEqHoraSai)
+								? 'border-error-500'
+								: 'border-surface-300 dark:border-surface-600'}"
+							bind:value={estado.editEqHoraSai}
+						/>
+						<div class="flex items-center gap-2 shrink-0">
+							<form
+								method="POST"
+								action="?/salvarHorariosEquipe"
+								use:enhance={actions.handleSalvarHorariosEquipe}
+								class="contents"
+							>
+								<input type="hidden" name="eqId" value={equipe.id} />
+								<input
+									type="hidden"
+									name="hora_entrada"
+									value={normalizarHora(estado.editEqHoraEnt) ?? ''}
+								/>
+								<input
+									type="hidden"
+									name="hora_saida"
+									value={normalizarHora(estado.editEqHoraSai) ?? ''}
+								/>
+								<button
+									type="submit"
+									class="btn btn-sm preset-filled-primary-500 text-sm py-1 px-2 rounded transition-all"
+									disabled={actions.pendingCrud}
+									title="Confirmar">{actions.pendingSalvarHorariosEquipe ? '…' : '✓'}</button
+								>
+							</form>
+							<button
+								type="button"
+								class="btn btn-sm preset-outlined-primary-500 text-sm py-1 px-2 rounded"
+								onclick={() => (estado.editandoHorariosEquipeId = null)}>×</button
+							>
+						</div>
+					</div>
+				{:else}
+					<div class="flex flex-wrap items-center gap-2 min-w-0">
+						<div
+							class="flex flex-wrap items-center gap-1.5 text-sm text-surface-600 dark:text-surface-400 font-medium min-w-0"
+						>
+							<span
+								>{equipe.hora_entrada ??
+									sec.hora_entrada ??
+									gise.hora_entrada}h-{equipe.hora_saida ??
+									sec.hora_saida ??
+									gise.hora_saida}h</span
+							>
+							{#if equipe.hora_entrada || equipe.hora_saida}
+								<span
+									class="px-1 rounded bg-warning-500/10 text-warning-600 dark:text-warning-400 font-bold border border-warning-500/20 uppercase"
+									>H. Personalizado</span
+								>
+							{/if}
+						</div>
+						{#if isAdminGeral && podeEditar && modoEdicaoGeral}
+							<button
+								type="button"
+								class="btn btn-xs preset-filled-surface-500 rounded p-1 shrink-0"
+								onclick={() => {
+									estado.editandoHorariosEquipeId = equipe.id;
+									estado.editEqHoraEnt =
+										equipe.hora_entrada ?? sec.hora_entrada ?? gise.hora_entrada ?? '';
+									estado.editEqHoraSai =
+										equipe.hora_saida ?? sec.hora_saida ?? gise.hora_saida ?? '';
+								}}
+								title="Editar horários da equipe"
+							>
+								<PenLine class="w-3 h-3" aria-hidden="true" />
+							</button>
+						{/if}
+					</div>
+				{/if}
+			</div>
 		</div>
+
+		{#if isAdminGeral && podeEditar && modoEdicaoGeral}
+			<button
+				type="submit"
+				form="remover-equipe-form-{equipe.id}"
+				class="btn btn-sm preset-outlined-error-500 inline-flex shrink-0 items-center justify-center gap-1 whitespace-nowrap px-2 py-1 text-xs"
+				disabled={actions.pendingCrud}
+			>
+				{actions.pendingRemoverEquipe ? 'Removendo...' : 'Remover equipe'}
+			</button>
+		{/if}
 	</div>
 
 	<!-- Membros -->

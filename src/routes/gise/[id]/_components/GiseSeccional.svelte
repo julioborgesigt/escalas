@@ -175,8 +175,9 @@
 {/snippet}
 
 <div
-	class="rounded-2xl border-2 border-surface-300 dark:border-surface-700 border-l-[6px] mb-4 overflow-hidden {getSeccionalColorClass(
-		sec.seccional_id
+	class="rounded-2xl border-2 border-surface-300 dark:border-surface-700 border-l-[6px] mb-4 overflow-hidden bg-white dark:bg-surface-900 {getSeccionalColorClass(
+		sec.seccional_id,
+		'forte'
 	)} shadow-sm hover:shadow-md transition-shadow duration-300"
 >
 	<!-- Cabeçalho da seccional -->
@@ -446,7 +447,7 @@
 
 		<!-- Ações Seccional & Downloads -->
 		<div
-			class="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-3 lg:gap-4 px-4 sm:px-5 pb-3 border-b border-surface-200 dark:border-surface-700"
+			class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 lg:gap-4 px-4 sm:px-5 py-3 border-b border-surface-200 dark:border-surface-700"
 		>
 			{#if podeDownload}
 				<div class="max-sm:hidden w-full min-w-0">
@@ -607,24 +608,26 @@
 						</div>
 					</div>
 				{:else}
-					<button
-						type="button"
-						class="btn preset-outlined-primary-500 text-sm px-3 py-1.5 rounded-xl border-dashed flex items-center gap-2 max-sm:hidden"
-						onclick={() => {
-							estado.adicionandoSlot = true;
-							estado.novoSlotUnidadeId = '';
-						}}
-					>
-						<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"
-							><path
-								stroke-linecap="round"
-								stroke-linejoin="round"
-								stroke-width="2"
-								d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-2 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
-							/></svg
+					<div class="flex justify-end">
+						<button
+							type="button"
+							class="btn preset-outlined-primary-500 text-sm px-3 py-1.5 rounded-xl border-dashed flex items-center gap-2 max-sm:hidden"
+							onclick={() => {
+								estado.adicionandoSlot = true;
+								estado.novoSlotUnidadeId = '';
+							}}
 						>
-						+ Adicionar + DP(s) nesta Seccional
-					</button>
+							<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+								><path
+									stroke-linecap="round"
+									stroke-linejoin="round"
+									stroke-width="2"
+									d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-2 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
+								/></svg
+							>
+							+ Adicionar + DP(s) nesta Seccional
+						</button>
+					</div>
 				{/if}
 			{/if}
 		</div>

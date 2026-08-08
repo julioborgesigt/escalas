@@ -629,7 +629,7 @@
 		{#if isAdminGeral}
 			<button
 				type="button"
-				class="btn w-full shrink-0 preset-filled-tertiary-500 border-2 border-tertiary-600/30 hover:border-tertiary-600 px-4 py-2.5 text-sm font-medium transition-all sm:w-auto sm:py-2 rounded-xl"
+				class="btn w-full shrink-0 preset-filled-tertiary-500 text-white border-2 border-tertiary-600/30 hover:border-tertiary-600 px-4 py-2.5 text-sm font-medium transition-all sm:w-auto sm:py-2 rounded-xl"
 				onclick={() => (showCriarModal = true)}
 			>
 				+ Nova Escala GISE
