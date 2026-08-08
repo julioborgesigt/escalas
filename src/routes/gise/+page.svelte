@@ -607,7 +607,7 @@
 				{/if}
 				{#if isUnidade}
 					<span
-						class="text-xs font-bold px-2 py-0.5 rounded-full bg-info-500/10 text-info-700 dark:text-info-400"
+						class="text-xs font-bold px-2 py-0.5 rounded-full bg-tertiary-500/10 text-tertiary-700 dark:text-tertiary-400"
 						>Adm Unidade</span
 					>
 				{/if}

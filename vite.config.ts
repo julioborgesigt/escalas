@@ -47,7 +47,7 @@ export default defineConfig({
 						// (Retornar undefined ≠ cair no 'vendor' abaixo — por isso o
 						// early-return explícito.)
 						if (id.includes('@skeletonlabs') || id.includes('@zag-js')) return undefined;
-						if (id.includes('lucide-svelte') || id.includes('lucide')) return 'lucide';
+						if (id.includes('@lucide/svelte') || id.includes('lucide')) return 'lucide';
 						// Chunk próprio: o SDK é carregado via import() dinâmico no idle
 						// (hooks.client.ts). Sem esta linha ele cairia no 'vendor', que é
 						// importado estaticamente por todas as rotas — anulando o lazy-load.

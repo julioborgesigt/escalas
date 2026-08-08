@@ -17,10 +17,9 @@
 @import '@fontsource/outfit/latin-800.css';
 
 @import '@skeletonlabs/skeleton';
+/* Skeleton v4: estilos dos componentes Svelte via @import (substitui @source nos dist). */
+@import '@skeletonlabs/skeleton-svelte';
 @import './theme.css';
-
-@source '../node_modules/@skeletonlabs/skeleton-svelte/dist';
-@source '../node_modules/@skeletonlabs/skeleton/dist';
 
 /* Tokens de texto pequeno (auditoria 2026-07-11, UX-3). Antes havia 12
  * tamanhos arbitrários (text-[0.55rem]…text-[11px]) espalhados por 400+

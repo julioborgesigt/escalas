@@ -22,16 +22,14 @@
 	 */
 	import type { PageProps } from './$types';
 	import { opcoesMeses } from '$lib/utils/datas';
-	import {
-		Lock,
-		Check,
-		CheckCircle2,
-		Clock,
-		XCircle,
-		BellOff,
-		Search,
-		PartyPopper
-	} from '@lucide/svelte';
+	import Lock from '@lucide/svelte/icons/lock';
+	import Check from '@lucide/svelte/icons/check';
+	import CheckCircle2 from '@lucide/svelte/icons/check-circle-2';
+	import Clock from '@lucide/svelte/icons/clock';
+	import XCircle from '@lucide/svelte/icons/x-circle';
+	import BellOff from '@lucide/svelte/icons/bell-off';
+	import Search from '@lucide/svelte/icons/search';
+	import PartyPopper from '@lucide/svelte/icons/party-popper';
 	import { goto } from '$app/navigation';
 	import { enhance } from '$app/forms';
 	import { page } from '$app/state';
@@ -502,7 +500,7 @@
 			<div class="pt-1 border-t border-surface-100 dark:border-white/5">
 				<button
 					type="button"
-					class="btn btn-sm variant-soft-surface text-xs font-bold"
+					class="btn btn-sm preset-soft-surface text-xs font-bold"
 					onclick={() => {
 						mostrarIgnorados = false;
 						filtroPendentes = true;

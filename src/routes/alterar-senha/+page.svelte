@@ -23,7 +23,7 @@
 	import type { ActionResult } from '@sveltejs/kit';
 	import { enhance } from '$app/forms';
 	import CamposNovaSenha, { validarForcaSenha } from '$lib/components/CamposNovaSenha.svelte';
-	import { AlertCircle } from '@lucide/svelte';
+	import AlertCircle from '@lucide/svelte/icons/alert-circle';
 
 	let senhaAtual = $state('');
 	let novaSenha = $state('');

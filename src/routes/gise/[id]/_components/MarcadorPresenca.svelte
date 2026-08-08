@@ -11,7 +11,9 @@
 	 * Compartilhado pelo quadro de supervisão (ao lado do rótulo do papel, para não
 	 * disputar espaço com o nome) e pelos cards de membro das equipes.
 	 */
-	import { Check, Clock, FileText } from '@lucide/svelte';
+	import Check from '@lucide/svelte/icons/check';
+	import Clock from '@lucide/svelte/icons/clock';
+	import FileText from '@lucide/svelte/icons/file-text';
 
 	const {
 		entrada,

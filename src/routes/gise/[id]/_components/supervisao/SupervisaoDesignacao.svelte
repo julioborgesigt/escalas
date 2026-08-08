@@ -12,7 +12,9 @@
 	import { tick } from 'svelte';
 	import SearchableSelect from '$lib/components/SearchableSelect.svelte';
 	import MarcadorPresenca from '../MarcadorPresenca.svelte';
-	import { PenLine, Trash2, UserRound } from '@lucide/svelte';
+	import PenLine from '@lucide/svelte/icons/pen-line';
+	import Trash2 from '@lucide/svelte/icons/trash-2';
+	import UserRound from '@lucide/svelte/icons/user-round';
 	import Spinner from '$lib/components/Spinner.svelte';
 	import ModalShell from '$lib/components/ModalShell.svelte';
 	import SupervisaoPapelAssessor from './SupervisaoPapelAssessor.svelte';

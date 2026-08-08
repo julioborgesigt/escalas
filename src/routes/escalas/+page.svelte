@@ -26,7 +26,10 @@
 	 */
 	import type { PageProps } from './$types';
 	import { opcoesMeses } from '$lib/utils/datas';
-	import { PenLine, Clock, Archive, Plus } from '@lucide/svelte';
+	import PenLine from '@lucide/svelte/icons/pen-line';
+	import Clock from '@lucide/svelte/icons/clock';
+	import Archive from '@lucide/svelte/icons/archive';
+	import Plus from '@lucide/svelte/icons/plus';
 	import { goto } from '$app/navigation';
 	import { invalidateShared } from '$lib/cross-tab-invalidate';
 	import { untrack } from 'svelte';

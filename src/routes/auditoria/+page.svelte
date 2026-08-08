@@ -22,7 +22,10 @@
 	import { apiFetchResponse } from '$lib/api-fetch';
 	import { baixarBlob, nomeArquivoContentDisposition } from '$lib/utils/download';
 	import { toaster } from '$lib/toast';
-	import { ChevronDown, ChevronUp, CheckCircle2, AlertTriangle } from '@lucide/svelte';
+	import ChevronDown from '@lucide/svelte/icons/chevron-down';
+	import ChevronUp from '@lucide/svelte/icons/chevron-up';
+	import CheckCircle2 from '@lucide/svelte/icons/check-circle-2';
+	import AlertTriangle from '@lucide/svelte/icons/alert-triangle';
 	import KpiCard from './_components/KpiCard.svelte';
 
 	const { data, form }: PageProps = $props();

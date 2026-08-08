@@ -21,7 +21,7 @@
 	import { baixarBlob, nomeArquivoContentDisposition } from '$lib/utils/download';
 	import { conectarSerpro, SerproSignerClient } from '$lib/serpro';
 	import { digestHexParaBase64, executarFluxoAssinaturaToken } from '$lib/assinatura-token';
-	import { SquarePen } from '@lucide/svelte';
+	import SquarePen from '@lucide/svelte/icons/square-pen';
 
 	let {
 		prepararUrl,

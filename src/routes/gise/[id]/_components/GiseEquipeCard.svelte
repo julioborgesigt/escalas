@@ -12,7 +12,7 @@
 	import { validarHora, normalizarHora } from '$lib/gise/horarios';
 	import type { GiseSeccionalActions } from '$lib/composables/gise/useGiseSeccionalActions.svelte';
 	import type { GiseSeccionalEstado } from './gise-seccional-estado.svelte';
-	import { PenLine } from '@lucide/svelte';
+	import PenLine from '@lucide/svelte/icons/pen-line';
 
 	type Seccional = GiseDetalhado['seccionais'][number];
 

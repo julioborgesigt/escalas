@@ -22,7 +22,9 @@
 	import { loading } from '$lib/loading.svelte';
 	import { adicionarDias, diffDiasInclusivo } from '$lib/utils/datas';
 	import { formatarNUP } from '$lib/utils/formato';
-	import { ArrowRightLeft, CalendarOff, UserMinus } from '@lucide/svelte';
+	import ArrowRightLeft from '@lucide/svelte/icons/arrow-right-left';
+	import CalendarOff from '@lucide/svelte/icons/calendar-off';
+	import UserMinus from '@lucide/svelte/icons/user-minus';
 	import type { ActionResult } from '@sveltejs/kit';
 
 	interface Props {

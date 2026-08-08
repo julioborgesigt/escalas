@@ -32,7 +32,7 @@
 	 *   sintética de supervisão extra), e por isso aparece nas mesmas listas de
 	 *   pendência e assinatura das seccionais de verdade.
 	 */
-	import { PenLine } from '@lucide/svelte';
+	import PenLine from '@lucide/svelte/icons/pen-line';
 	import { goto, replaceState } from '$app/navigation';
 	import { invalidateShared } from '$lib/cross-tab-invalidate';
 	import type { PageProps } from './$types';

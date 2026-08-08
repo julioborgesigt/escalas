@@ -25,7 +25,11 @@
 	import { loading } from '$lib/loading.svelte';
 	import { agruparPorEtapa } from '$lib/gise/etapas-formulario';
 	import { TIPOS_COM_FILHOS, TIPOS_COM_LISTA } from '$lib/gise/tipos-pergunta';
-	import { ChevronDown, ChevronUp, CornerDownRight, GripVertical, SquarePen } from '@lucide/svelte';
+	import ChevronDown from '@lucide/svelte/icons/chevron-down';
+	import ChevronUp from '@lucide/svelte/icons/chevron-up';
+	import CornerDownRight from '@lucide/svelte/icons/corner-down-right';
+	import GripVertical from '@lucide/svelte/icons/grip-vertical';
+	import SquarePen from '@lucide/svelte/icons/square-pen';
 	import type { useResGise } from './useResGise.svelte';
 	import type { GiseModeloPerguntaConfig } from '$lib/types';
 

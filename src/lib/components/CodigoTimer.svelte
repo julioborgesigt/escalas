@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
-	import { Clock } from '@lucide/svelte';
+	import Clock from '@lucide/svelte/icons/clock';
 
 	const {
 		emailMascarado = '',

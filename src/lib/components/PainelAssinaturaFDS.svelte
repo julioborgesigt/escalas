@@ -28,7 +28,7 @@
 	import type { ActionResult } from '@sveltejs/kit';
 	import { toaster } from '$lib/toast';
 	import { postFormAction } from '$lib/post-form-action';
-	import { CheckCircle2 } from '@lucide/svelte';
+	import CheckCircle2 from '@lucide/svelte/icons/check-circle-2';
 
 	let {
 		escalaId,

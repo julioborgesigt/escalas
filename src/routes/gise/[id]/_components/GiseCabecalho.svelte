@@ -21,7 +21,7 @@
 	import { loading } from '$lib/loading.svelte';
 	import IconTooltip from '$lib/components/IconTooltip.svelte';
 	import BotaoVoltar from '$lib/components/BotaoVoltar.svelte';
-	import { PenLine } from '@lucide/svelte';
+	import PenLine from '@lucide/svelte/icons/pen-line';
 
 	interface Gise {
 		id: number;
