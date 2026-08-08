@@ -3,7 +3,9 @@
 	 * Tela de ESCALAS — três visões em uma rota, alternadas por `visao`:
 	 *
 	 * - `home`: atalhos e pendências (o que o usuário vê ao entrar);
-	 * - `lista`: a tabela filtrável de escalas, paginada no servidor;
+	 * - `lista`: a tabela filtrável de escalas, paginada no servidor —
+	 *   `?status=aguardando` (criadas, ainda não arquivadas) ou
+	 *   `?status=arquivada` (assinadas / FDS enviadas);
 	 * - `assinaturas`: as escalas que dependem da assinatura deste usuário.
 	 *
 	 * A visão inicial vem do servidor (`data.initialView`, derivada do `?v=`):
@@ -24,7 +26,7 @@
 	 */
 	import type { PageProps } from './$types';
 	import { opcoesMeses } from '$lib/utils/datas';
-	import { PenLine, CheckCircle2, ClipboardList, Archive } from '@lucide/svelte';
+	import { PenLine, Clock, Archive, Plus } from '@lucide/svelte';
 	import { goto } from '$app/navigation';
 	import { invalidateShared } from '$lib/cross-tab-invalidate';
 	import { untrack } from 'svelte';
@@ -77,7 +79,8 @@
 		ano: new Date().getFullYear(),
 		tipo: 'todos',
 		seccional: 'todas',
-		busca: ''
+		busca: '',
+		status: ''
 	});
 
 	const unidades = $derived(data.unidades);
@@ -91,6 +94,12 @@
 		(savedFilters.seccional as unknown as number) || 'todas'
 	);
 	let filtroBusca = $state(untrack(() => data.filtros.busca || savedFilters.busca));
+	let filtroStatus = $state<'aguardando' | 'arquivada' | ''>(
+		untrack(() => {
+			const s = data.filtros.status || savedFilters.status;
+			return s === 'aguardando' || s === 'arquivada' ? s : '';
+		})
+	);
 
 	// Persistência (localStorage) + navegação server-side + auto-nav ao mudar
 	// qualquer filtro exceto a busca (que navega via seu próprio handler).
@@ -104,7 +113,8 @@
 			ano: filtroAno,
 			tipo: filtroTipo,
 			seccional: filtroSeccional,
-			busca: filtroBusca
+			busca: filtroBusca,
+			status: filtroStatus
 		}),
 		query: buildQueryParamsComFiltros,
 		auto: {
@@ -113,7 +123,8 @@
 				filtroLotacao ?? '',
 				filtroTipo ?? 'todos',
 				filtroMes ?? 0,
-				filtroAno ?? 0
+				filtroAno ?? 0,
+				filtroStatus ?? ''
 			]
 		}
 	});
@@ -192,6 +203,9 @@
 		if (filtroAno) params.set('ano', String(filtroAno));
 		if (filtroTipo && filtroTipo !== 'todos') params.set('tipo', filtroTipo);
 		if (filtroBusca) params.set('busca', filtroBusca);
+		if (filtroStatus === 'aguardando' || filtroStatus === 'arquivada') {
+			params.set('status', filtroStatus);
+		}
 		params.set('page', String(p));
 		return params;
 	}
@@ -203,6 +217,7 @@
 		filtroAno = new Date().getFullYear();
 		filtroTipo = 'todos';
 		filtroBusca = '';
+		// Mantém `filtroStatus`: limpar filtros não troca a pasta (aguardando/arquivada).
 
 		filtros.navegar(1);
 	}
@@ -293,6 +308,16 @@
 		})
 	);
 
+	function abrirLista(status: 'aguardando' | 'arquivada') {
+		filtroStatus = status;
+		visao = 'lista';
+		goto(`?${buildQueryParamsComFiltros(1)}`, {
+			replaceState: true,
+			noScroll: true,
+			keepFocus: true
+		});
+	}
+
 	$effect(() => {
 		const iv = data.initialView;
 		if (iv === 'home' || iv === 'assinaturas') {
@@ -300,7 +325,19 @@
 		}
 	});
 
-	let abriuDoHome = $state(false);
+	$effect(() => {
+		const s = data.filtros.status;
+		if (s === 'aguardando' || s === 'arquivada') filtroStatus = s;
+		else if (data.initialView === 'home') filtroStatus = '';
+	});
+
+	const tituloLista = $derived(
+		filtroStatus === 'arquivada'
+			? 'Escalas criadas (arquivo)'
+			: filtroStatus === 'aguardando'
+				? 'Escalas aguardando ass'
+				: 'Arquivo'
+	);
 
 	const podeAssinar = $derived(data.podeAssinar);
 	const escalasParaAssinar = $derived(data.escalasParaAssinar);
@@ -421,8 +458,8 @@
 </svelte:head>
 
 {#if visao === 'home'}
-	<div class="space-y-6">
-		<h1 class="h1 text-2xl font-bold">Escalas</h1>
+	<div class="space-y-8 sm:space-y-10">
+		<h1 class="h1 text-2xl font-bold">Escalas ordinárias</h1>
 
 		<div class="flex flex-col items-center gap-4 sm:gap-6">
 			{#if isAdminDPC}
@@ -434,28 +471,26 @@
 								visao = 'assinaturas';
 								goto('/escalas?v=assinaturas', { replaceState: true, noScroll: true });
 							}}
-							class="card p-6 sm:p-8 flex flex-col items-center gap-4 cursor-pointer hover:shadow-xl transition-shadow border-2 border-tertiary-500 bg-surface-50 dark:bg-surface-900 rounded-2xl group"
+							class="card-elevated rounded-2xl p-5 sm:p-6 flex flex-col items-start gap-1.5 text-left cursor-pointer transition-colors hover:border-primary-500/40 group"
 						>
-							<div class="relative">
-								<PenLine class="w-10 h-10 text-tertiary-500" aria-hidden="true" />
+							<span class="inline-flex items-center gap-2 text-base font-semibold text-surface-900 dark:text-surface-50 group-hover:text-tertiary-600 dark:group-hover:text-tertiary-400 transition-colors">
+								Assinaturas Pendentes
 								<span
-									class="absolute -top-2 -right-4 min-w-[1.4rem] h-[1.4rem] flex items-center justify-center rounded-full bg-tertiary-500 text-white text-xs font-bold px-1 shadow"
+									class="min-w-[1.4rem] h-[1.4rem] flex items-center justify-center rounded-full bg-tertiary-500 text-white text-xs font-bold px-1"
 									>{escalasParaAssinar.length}</span
 								>
-							</div>
-							<span class="text-xl font-bold group-hover:text-tertiary-500 transition-colors"
-								>Assinaturas Pendentes</span
-							>
-							<span class="text-sm text-surface-600 dark:text-surface-400 text-center"
+							</span>
+							<span class="text-sm text-surface-600 dark:text-surface-400"
 								>Escalas prontas para assinar com sua assinatura digital</span
 							>
 						</button>
 					{:else}
 						<div
-							class="card p-6 sm:p-8 flex flex-col items-center gap-3 border-2 border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-900 rounded-2xl text-center"
+							class="card-elevated rounded-2xl p-5 sm:p-6 flex flex-col items-start gap-1.5 text-left"
 						>
-							<CheckCircle2 class="w-10 h-10 text-success-500" aria-hidden="true" />
-							<span class="text-xl font-bold">Nenhuma pendência</span>
+							<span class="text-base font-semibold text-surface-900 dark:text-surface-50"
+								>Nenhuma pendência</span
+							>
 							<span class="text-sm text-surface-600 dark:text-surface-400"
 								>Não há escalas aguardando sua assinatura no momento.</span
 							>
@@ -465,44 +500,61 @@
 			{:else}
 				<div
 					class="grid grid-cols-1 gap-6 w-full {podeAssinar && escalasParaAssinar.length > 0
-						? 'sm:grid-cols-3 max-w-4xl'
-						: 'sm:grid-cols-2 max-w-xl'}"
+						? 'sm:grid-cols-2 lg:grid-cols-4 max-w-5xl'
+						: 'sm:grid-cols-2 lg:grid-cols-3 max-w-4xl'}"
 				>
 					<button
 						type="button"
-						onclick={() => {
-							abriuDoHome = true;
-							visao = 'lista';
-							dialogNovaEscalaAberto = true;
-						}}
-						class="card p-6 sm:p-8 flex flex-col items-center gap-4 cursor-pointer hover:shadow-xl transition-shadow border-2 border-primary-500 bg-surface-50 dark:bg-surface-900 rounded-2xl group"
+						onclick={() => (dialogNovaEscalaAberto = true)}
+						class="card-elevated rounded-2xl p-5 sm:p-6 flex flex-col items-start gap-1.5 text-left cursor-pointer transition-colors border-primary-500 hover:border-primary-500/40 group"
 					>
-						<ClipboardList class="w-10 h-10 text-primary-500" aria-hidden="true" />
-						<span class="text-xl font-bold group-hover:text-primary-500 transition-colors"
-							>Nova Escala</span
+						<span
+							class="inline-flex items-center gap-2 text-base font-semibold text-surface-900 dark:text-surface-50 group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors"
 						>
-						<span class="text-sm text-surface-600 dark:text-surface-400 text-center"
+							<Plus
+								class="h-5 w-5 shrink-0 text-primary-600 dark:text-primary-400"
+								aria-hidden="true"
+							/>
+							Nova Escala
+						</span>
+						<span class="text-sm text-surface-600 dark:text-surface-400"
 							>Criar uma nova escala de plantão, expediente ou final de semana</span
 						>
 					</button>
 					<button
 						type="button"
-						onclick={() => {
-							visao = 'lista';
-							goto(`?${buildQueryParamsComFiltros(1)}`, {
-								replaceState: true,
-								noScroll: true,
-								keepFocus: true
-							});
-						}}
-						class="card p-6 sm:p-8 flex flex-col items-center gap-4 cursor-pointer hover:shadow-xl transition-shadow border-2 border-surface-300 dark:border-surface-600 bg-surface-50 dark:bg-surface-900 rounded-2xl group"
+						onclick={() => abrirLista('aguardando')}
+						class="card-elevated rounded-2xl p-5 sm:p-6 flex flex-col items-start gap-1.5 text-left cursor-pointer transition-colors hover:border-primary-500/40 group"
 					>
-						<Archive class="w-10 h-10 text-surface-600 dark:text-surface-400" aria-hidden="true" />
-						<span class="text-xl font-bold group-hover:text-primary-500 transition-colors"
-							>Escalas criadas/Arquivo</span
+						<span
+							class="inline-flex items-center gap-2 text-base font-semibold text-surface-900 dark:text-surface-50 group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors"
 						>
-						<span class="text-sm text-surface-600 dark:text-surface-400 text-center"
-							>Consultar e gerenciar as escalas já cadastradas</span
+							<Clock
+								class="h-5 w-5 shrink-0 text-warning-600 dark:text-warning-400"
+								aria-hidden="true"
+							/>
+							Escalas aguardando ass
+						</span>
+						<span class="text-sm text-surface-600 dark:text-surface-400"
+							>Em preenchimento ou com assinatura pendente</span
+						>
+					</button>
+					<button
+						type="button"
+						onclick={() => abrirLista('arquivada')}
+						class="card-elevated rounded-2xl p-5 sm:p-6 flex flex-col items-start gap-1.5 text-left cursor-pointer transition-colors hover:border-primary-500/40 group"
+					>
+						<span
+							class="inline-flex items-center gap-2 text-base font-semibold text-surface-900 dark:text-surface-50 group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors"
+						>
+							<Archive
+								class="h-5 w-5 shrink-0 text-surface-600 dark:text-surface-400"
+								aria-hidden="true"
+							/>
+							Escalas criadas (arquivo)
+						</span>
+						<span class="text-sm text-surface-600 dark:text-surface-400"
+							>Assinadas e enviadas</span
 						>
 					</button>
 					{#if podeAssinar && escalasParaAssinar.length > 0}
@@ -512,19 +564,16 @@
 								visao = 'assinaturas';
 								goto('/escalas?v=assinaturas', { replaceState: true, noScroll: true });
 							}}
-							class="card p-6 sm:p-8 flex flex-col items-center gap-4 cursor-pointer hover:shadow-xl transition-shadow border-2 border-tertiary-500 bg-surface-50 dark:bg-surface-900 rounded-2xl group"
+							class="card-elevated rounded-2xl p-5 sm:p-6 flex flex-col items-start gap-1.5 text-left cursor-pointer transition-colors hover:border-primary-500/40 group"
 						>
-							<div class="relative">
-								<PenLine class="w-10 h-10 text-tertiary-500" aria-hidden="true" />
+							<span class="inline-flex items-center gap-2 text-base font-semibold text-surface-900 dark:text-surface-50 group-hover:text-tertiary-600 dark:group-hover:text-tertiary-400 transition-colors">
+								Assinaturas Pendentes
 								<span
-									class="absolute -top-2 -right-4 min-w-[1.4rem] h-[1.4rem] flex items-center justify-center rounded-full bg-tertiary-500 text-white text-xs font-bold px-1 shadow"
+									class="min-w-[1.4rem] h-[1.4rem] flex items-center justify-center rounded-full bg-tertiary-500 text-white text-xs font-bold px-1"
 									>{escalasParaAssinar.length}</span
 								>
-							</div>
-							<span class="text-xl font-bold group-hover:text-tertiary-500 transition-colors"
-								>Assinaturas Pendentes</span
-							>
-							<span class="text-sm text-surface-600 dark:text-surface-400 text-center"
+							</span>
+							<span class="text-sm text-surface-600 dark:text-surface-400"
 								>Escalas prontas para assinar com sua assinatura digital</span
 							>
 						</button>
@@ -537,12 +586,13 @@
 	<div class="mb-6 space-y-3">
 		<BotaoVoltar
 			onclick={() => {
+				filtroStatus = '';
 				visao = 'home';
 				goto('/escalas', { replaceState: true, noScroll: true });
 			}}
 		/>
 		<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-			<h1 class="h1 text-2xl font-bold">Arquivo</h1>
+			<h1 class="h1 text-2xl font-bold">{tituloLista}</h1>
 			<div class="flex gap-2 justify-end w-full sm:w-auto">
 				<BotaoLimparFiltros {temFiltros} onclick={limparFiltros} />
 			</div>
@@ -608,25 +658,6 @@
 			</button>
 		{/snippet}
 	</ModalShell>
-
-	<ModalNovaEscala
-		bind:open={dialogNovaEscalaAberto}
-		{isAdmin}
-		{lotacaoUsuario}
-		{unidades}
-		escalasExistentes={data.escalasExistentes}
-		oncriado={(id) => {
-			if (abriuDoHome) abriuDoHome = false;
-			goto(`/escalas/${id}`);
-		}}
-		onfechar={() => {
-			if (abriuDoHome) {
-				abriuDoHome = false;
-				visao = 'home';
-				goto('/escalas', { replaceState: true, noScroll: true });
-			}
-		}}
-	/>
 
 	<div class="card-glass p-4 rounded-3xl overflow-hidden mt-4">
 		<div
@@ -863,6 +894,16 @@
 	bind:open={cadastrandoRubrica}
 	rubricaAtual={minhaRubrica}
 	onSaved={(nova) => (minhaRubrica = rubricaValida(nova))}
+/>
+
+<ModalNovaEscala
+	bind:open={dialogNovaEscalaAberto}
+	{isAdmin}
+	{lotacaoUsuario}
+	{unidades}
+	escalasExistentes={data.escalasExistentes}
+	oncriado={(id) => goto(`/escalas/${id}`)}
+	onfechar={() => {}}
 />
 
 <FloatingRefresh chaves="app:escalas" />

@@ -52,8 +52,6 @@
 
 	const usuario = $derived(page.data.usuario);
 	const isSupervisorGise = $derived(page.data.isSupervisorGise ?? false);
-	const isMembroGise = $derived(page.data.isMembroGise ?? false);
-	const isSupervisaoGise = $derived(page.data.isSupervisaoGise ?? false);
 	const adminModulo = $derived((page.data.adminModulo as 'ambas' | 'gise' | 'escalas') ?? 'ambas');
 	const recebidosNaoVistos = $derived(Number(page.data.recebidosNaoVistos ?? 0));
 
@@ -91,11 +89,11 @@
 		usuario?.tipo === 'admin' || usuario?.papel === 'admin_seccional' || isSupervisorGise
 	);
 
-	// Presença GISE (aba de serviço ATIVO): escalado (membro), quadro de
-	// supervisão (assessor/SEINT) ou supervisor DPC — todos em GISE não
-	// finalizada. O Admin Geral não presta serviço: para ele o item /res-gise é o
-	// editor "Conf. Form.", tratado à parte no bloco do menu.
-	const temPresencaGiseAtiva = $derived(isMembroGise || isSupervisaoGise || isSupervisorGise);
+	// Presença GISE: só com escala GISE ativa E confirmação de entrada/saída
+	// ainda pendente. Só "estar escalado" não basta — quem já bateu a saída
+	// cai no Histórico. O Admin Geral não presta serviço: para ele o item
+	// /res-gise é o editor "Conf. Form.", tratado à parte no bloco do menu.
+	const temPresencaGiseAtiva = $derived(page.data.temPresencaGisePendente ?? false);
 	// Histórico GISE: ao menos uma participação já encerrada para o policial (vem
 	// do servidor junto do papel). Independe de haver serviço ativo, e é o que
 	// mantém a aba acessível depois que todas as GISEs do policial finalizaram.
@@ -597,7 +595,7 @@
 						{@render itemMenu('/escalas/bem-vindo', 'Boas-vindas', ICONE.casa)}
 						{@render itemMenu(
 							'/escalas',
-							usuario?.tipo === 'admin' ? 'Arquivo' : 'Escalas',
+							usuario?.tipo === 'admin' ? 'Arquivo' : 'Escalas ordinárias',
 							ICONE.calendario,
 							isActive('/escalas') && !page.url.pathname.startsWith('/escalas/bem-vindo')
 						)}

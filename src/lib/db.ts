@@ -153,6 +153,7 @@ export {
 	isMembroGiseAtiva,
 	isSupervisaoGiseAtiva,
 	temGiseHistorico,
+	temPresencaGisePendente,
 	buscarGiseModeloFormulario,
 	salvarGiseModeloFormulario,
 	buscarRespostaGise,

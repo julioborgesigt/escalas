@@ -28,7 +28,8 @@ export {
 	isSupervisorGiseAtiva,
 	isMembroGiseAtiva,
 	isSupervisaoGiseAtiva,
-	temGiseHistorico
+	temGiseHistorico,
+	temPresencaGisePendente
 } from './escalas';
 
 export {

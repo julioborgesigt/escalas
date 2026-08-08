@@ -91,6 +91,9 @@ export const load: PageServerLoad = async ({ locals, platform, url, depends }) =
 	const tipo = url.searchParams.get('tipo') || undefined;
 	const busca = url.searchParams.get('busca') || undefined;
 	const page = url.searchParams.get('page') ? Number(url.searchParams.get('page')) : undefined;
+	const statusParam = url.searchParams.get('status');
+	const statusLista =
+		statusParam === 'aguardando' || statusParam === 'arquivada' ? statusParam : undefined;
 
 	// Escopo por papel: admin_unidade vê só sua unidade; admin_seccional vê sua seccional
 	let lotacoesPermitidas: string[] | undefined = undefined;
@@ -205,7 +208,7 @@ export const load: PageServerLoad = async ({ locals, platform, url, depends }) =
 		: Promise.resolve([]);
 
 	const [resultado, unidades, escalasExistentes, escalasParaAssinarRaw] = await Promise.all([
-		listarEscalas(db, lotacaoParam, undefined, mes, ano, tipo, undefined, undefined, {
+		listarEscalas(db, lotacaoParam, statusLista, mes, ano, tipo, undefined, undefined, {
 			busca,
 			page,
 			limit: 20,
@@ -264,7 +267,8 @@ export const load: PageServerLoad = async ({ locals, platform, url, depends }) =
 			mes: mes ?? 0,
 			ano: ano ?? 0,
 			tipo: tipo ?? 'todos',
-			busca: busca ?? ''
+			busca: busca ?? '',
+			status: statusLista ?? ''
 		},
 		papelUnidadeId: u.papel_unidade_id ?? null,
 		escalasExistentes,

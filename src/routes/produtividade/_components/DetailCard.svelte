@@ -25,16 +25,16 @@
 </script>
 
 <div
-	class="card relative p-4 sm:p-6 bg-white dark:bg-surface-900 border-2 transition-all {selected
-		? 'selected-for-export border-primary-500 shadow-xl shadow-primary-500/10'
-		: 'border-surface-200 dark:border-surface-800 shadow-sm'} rounded-3xl flex flex-col h-full"
+	class="card relative p-4 sm:p-6 bg-white dark:bg-surface-900 border-2 transition-colors {selected
+		? 'selected-for-export border-primary-500'
+		: 'border-surface-200 dark:border-surface-800'} rounded-3xl flex flex-col h-full"
 >
 	<button
 		type="button"
 		onclick={() => onToggle(id)}
-		class="absolute top-2 right-2 md:top-3 md:right-3 w-6 h-6 md:w-8 md:h-8 rounded-lg md:rounded-xl flex items-center justify-center transition-all {selected
-			? 'bg-primary-500 text-white scale-110 shadow-lg'
-			: 'bg-surface-100 dark:bg-surface-800 text-surface-500 hover:scale-105'}"
+		class="absolute top-2 right-2 md:top-3 md:right-3 w-6 h-6 md:w-8 md:h-8 rounded-lg md:rounded-xl flex items-center justify-center transition-colors {selected
+			? 'bg-primary-500 text-white'
+			: 'bg-surface-100 dark:bg-surface-800 text-surface-500'}"
 	>
 		{#if selected}
 			<svg class="w-4 h-4 md:w-6 md:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"
