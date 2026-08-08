@@ -78,7 +78,9 @@
 		{/if}
 
 		<div class="min-w-0 flex-1 space-y-1.5">
-			<span class="block min-w-0 text-sm font-semibold capitalize text-surface-900 dark:text-surface-100">
+			<span
+				class="block min-w-0 text-sm font-semibold capitalize text-surface-900 dark:text-surface-100"
+			>
 				Equipe {equipe.tipo === 'operacional' ? 'Operacional' : 'SEINT'}
 			</span>
 
@@ -220,7 +222,9 @@
 							class="flex flex-wrap items-center gap-1.5 text-sm text-surface-600 dark:text-surface-400 font-medium min-w-0"
 						>
 							<span
-								>{equipe.hora_entrada ?? sec.hora_entrada ?? gise.hora_entrada}h-{equipe.hora_saida ??
+								>{equipe.hora_entrada ??
+									sec.hora_entrada ??
+									gise.hora_entrada}h-{equipe.hora_saida ??
 									sec.hora_saida ??
 									gise.hora_saida}h</span
 							>
@@ -239,7 +243,8 @@
 									estado.editandoHorariosEquipeId = equipe.id;
 									estado.editEqHoraEnt =
 										equipe.hora_entrada ?? sec.hora_entrada ?? gise.hora_entrada ?? '';
-									estado.editEqHoraSai = equipe.hora_saida ?? sec.hora_saida ?? gise.hora_saida ?? '';
+									estado.editEqHoraSai =
+										equipe.hora_saida ?? sec.hora_saida ?? gise.hora_saida ?? '';
 								}}
 								title="Editar horários da equipe"
 							>
