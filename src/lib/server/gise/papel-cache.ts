@@ -20,6 +20,7 @@ import {
 	isMembroGiseAtiva,
 	isSupervisaoGiseAtiva,
 	temGiseHistorico,
+	temPresencaGisePendente,
 	type Database
 } from '$lib/db';
 import { giseEscalas, giseEquipes, giseMembros, giseSeccionais } from '$lib/server/schema';
@@ -31,12 +32,19 @@ interface PapelGise {
 	isSupervisao: boolean;
 	/** Tem ao menos uma participação GISE já encerrada — libera a aba "Histórico GISE". */
 	temHistorico: boolean;
+	/**
+	 * Escalado em GISE ativa com entrada/saída ainda pendente — libera a aba
+	 * "Presença GISE". Distinto de `isMembro`/`isSupervisao`/`isSupervisor`,
+	 * que só dizem "está em escala ativa", não se ainda deve confirmar presença.
+	 */
+	temPresencaPendente: boolean;
 }
 
 const TTL_SECONDS = 60;
 
 function makeRequest(policialId: number): Request {
-	return new Request(`https://internal.escalas.local/gise-papel/v1/${policialId}`, {
+	// v2: inclui `temPresencaPendente` — bump evita servir JSON antigo sem o campo.
+	return new Request(`https://internal.escalas.local/gise-papel/v2/${policialId}`, {
 		method: 'GET'
 	});
 }
@@ -65,14 +73,22 @@ export async function lerPapelGise(db: Database, policialId: number): Promise<Pa
 		}
 	}
 
-	const [isSupervisor, isMembro, isSupervisao, temHistorico] = await Promise.all([
-		isSupervisorGiseAtiva(db, policialId),
-		isMembroGiseAtiva(db, policialId),
-		isSupervisaoGiseAtiva(db, policialId),
-		temGiseHistorico(db, policialId)
-	]);
+	const [isSupervisor, isMembro, isSupervisao, temHistorico, temPresencaPendente] =
+		await Promise.all([
+			isSupervisorGiseAtiva(db, policialId),
+			isMembroGiseAtiva(db, policialId),
+			isSupervisaoGiseAtiva(db, policialId),
+			temGiseHistorico(db, policialId),
+			temPresencaGisePendente(db, policialId)
+		]);
 
-	const papel: PapelGise = { isSupervisor, isMembro, isSupervisao, temHistorico };
+	const papel: PapelGise = {
+		isSupervisor,
+		isMembro,
+		isSupervisao,
+		temHistorico,
+		temPresencaPendente
+	};
 
 	if (cache) {
 		try {

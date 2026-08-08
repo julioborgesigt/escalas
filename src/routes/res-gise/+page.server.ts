@@ -45,6 +45,7 @@ import {
 	DEFAULT_SEINT_QUESTIONS,
 	DEFAULT_QUESTIONS_FORM_OPERACIONAL
 } from '$lib/db';
+import { invalidarPapelGise } from '$lib/server/gise/papel-cache';
 import { buscarUnidadeIdSupervisaoExtra } from '$lib/server/gise/supervisao-extra';
 import { lerFlagsAssinatura } from '$lib/server/assinatura/cfg-ass-cache';
 import { verificarDesafio2FA } from '$lib/auth';
@@ -525,6 +526,7 @@ export const actions: Actions = {
 
 		await salvarEntradaGise(db, giseId, u.id, rubrica, ip, ua, latitude, longitude, selfieKey);
 		await sincronizarStatusGiseAposPresencaRelatorios(db, giseId);
+		await invalidarPapelGise(u.id);
 
 		const { contexto, env } = contextoDeEvento(event);
 		await auditar(
@@ -652,6 +654,7 @@ export const actions: Actions = {
 		}
 
 		await sincronizarStatusGiseAposPresencaRelatorios(db, giseId);
+		await invalidarPapelGise(u.id);
 
 		const { contexto, env } = contextoDeEvento(event);
 		await auditar(

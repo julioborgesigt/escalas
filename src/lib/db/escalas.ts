@@ -45,7 +45,12 @@ function escapeLike(str: string): string {
 export async function listarEscalas(
 	db: Database,
 	lotacao?: string,
-	status?: 'pendente' | 'assinada',
+	/**
+	 * - `pendente` / `assinada`: presença de documento assinado (caixa de entrada).
+	 * - `aguardando` / `arquivada`: arquivo operacional — FDS enviada
+	 *   (`finalizada_em`) conta como arquivada, mesmo sem PDF assinado.
+	 */
+	status?: 'pendente' | 'assinada' | 'aguardando' | 'arquivada',
 	mes?: number,
 	ano?: number,
 	tipo?: string,
@@ -101,11 +106,18 @@ export async function listarEscalas(
 		conditions.push(like(escalas.data_inicio, `%${escapeLike(opts.dataBusca.trim())}%`));
 	}
 
-	// Filtro de status via IS NULL / IS NOT NULL sobre o LEFT JOIN abaixo
+	// Filtro de status via IS NULL / IS NOT NULL sobre o LEFT JOIN abaixo.
+	// `arquivada`/`aguardando` espelham o badge da listagem: plantão/expediente
+	// pelo PDF; FDS pela finalização do envio.
+	const fdsArquivada = sql`(${escalas.tipo} = 'fds' AND ${escalas.finalizada_em} IS NOT NULL)`;
 	if (status === 'pendente') {
 		conditions.push(sql`${escalaDocumentos.escala_id} IS NULL`);
 	} else if (status === 'assinada') {
 		conditions.push(sql`${escalaDocumentos.escala_id} IS NOT NULL`);
+	} else if (status === 'aguardando') {
+		conditions.push(sql`${escalaDocumentos.escala_id} IS NULL AND NOT ${fdsArquivada}` as SQL);
+	} else if (status === 'arquivada') {
+		conditions.push(sql`(${escalaDocumentos.escala_id} IS NOT NULL OR ${fdsArquivada})` as SQL);
 	}
 
 	const whereClause = conditions.length > 0 ? and(...conditions) : undefined;

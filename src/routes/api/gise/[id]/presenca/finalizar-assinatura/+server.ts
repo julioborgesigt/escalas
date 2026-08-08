@@ -27,6 +27,7 @@ import {
 } from '$lib/server/assinatura/signature-service';
 import { tryGetR2 } from '$lib/db';
 import { gateDePresenca } from '$lib/server/gise/presenca-gate';
+import { invalidarPapelGise } from '$lib/server/gise/papel-cache';
 import {
 	bucketParaAssinatura,
 	compensarBlobAssinado,
@@ -206,6 +207,7 @@ export const POST: RequestHandler = async (event) => {
 		);
 
 		await sincronizarStatusGiseAposPresencaRelatorios(db, giseId);
+		await invalidarPapelGise(u.id);
 
 		const { contexto, env } = contextoDeEvento(event);
 		await auditar(

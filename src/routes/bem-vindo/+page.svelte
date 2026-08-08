@@ -9,8 +9,8 @@
 	const usuario = $derived(data.usuario);
 
 	const isSupervisorGise = $derived(page.data.isSupervisorGise ?? false);
-	const isMembroGise = $derived(page.data.isMembroGise ?? false);
-	const isSupervisaoGise = $derived(page.data.isSupervisaoGise ?? false);
+	// Espelha a aba "Presença GISE" da sidebar: escala ativa + entrada/saída pendente.
+	const temPresencaGisePendente = $derived(page.data.temPresencaGisePendente ?? false);
 	// Histórico GISE: participou de alguma GISE já encerrada (independe de
 	// convocação ativa). Espelha a aba "Histórico GISE" da sidebar.
 	const temGiseHistorico = $derived(page.data.temGiseHistorico ?? false);
@@ -27,7 +27,7 @@
 				cta: 'Acessar supervisão'
 			});
 		}
-		if (isMembroGise || isSupervisaoGise) {
+		if (temPresencaGisePendente) {
 			lista.push({
 				titulo: 'Presença GISE',
 				descricao:

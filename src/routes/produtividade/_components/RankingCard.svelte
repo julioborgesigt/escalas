@@ -28,16 +28,16 @@
 </script>
 
 <div
-	class="card relative p-4 sm:p-6 bg-white dark:bg-surface-950 text-surface-900 dark:text-white border-2 transition-all {selected
-		? 'selected-for-export border-primary-500 shadow-xl shadow-primary-500/10'
-		: 'border-surface-200 dark:border-surface-800 shadow-xl'} rounded-3xl flex flex-col h-full"
+	class="card relative p-4 sm:p-6 bg-white dark:bg-surface-900 text-surface-900 dark:text-white border-2 transition-colors {selected
+		? 'selected-for-export border-primary-500'
+		: 'border-surface-200 dark:border-surface-800'} rounded-3xl flex flex-col h-full"
 >
 	<button
 		type="button"
 		onclick={() => onToggle(id)}
-		class="absolute top-2 right-2 md:top-3 md:right-3 w-6 h-6 md:w-8 md:h-8 rounded-lg md:rounded-xl flex items-center justify-center transition-all {selected
-			? 'bg-primary-500 text-white scale-110 shadow-lg'
-			: 'bg-surface-100 dark:bg-surface-800 text-surface-500 hover:scale-105'}"
+		class="absolute top-2 right-2 md:top-3 md:right-3 w-6 h-6 md:w-8 md:h-8 rounded-lg md:rounded-xl flex items-center justify-center transition-colors {selected
+			? 'bg-primary-500 text-white'
+			: 'bg-surface-100 dark:bg-surface-800 text-surface-500'}"
 	>
 		{#if selected}
 			<svg class="w-4 h-4 md:w-6 md:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"
@@ -72,10 +72,10 @@
 			{title}
 		</h3>
 	</div>
-	<div class="space-y-2 overflow-y-auto pr-2 custom-scrollbar flex-1">
+	<div class="overflow-y-auto pr-2 custom-scrollbar flex-1">
 		{#each ranking as item, idx (item.nome)}
 			<div
-				class="flex items-center gap-4 p-3 rounded-2xl bg-surface-50 dark:bg-white/5 border border-surface-100 dark:border-white/10 group transition-all hover:bg-surface-100 dark:hover:bg-white/10"
+				class="flex items-center gap-4 py-2.5 px-1 border-b border-surface-200/60 dark:border-white/5 last:border-0"
 			>
 				<span class="text-lg font-black text-surface-400 dark:text-surface-500 w-6 italic"
 					>#{idx + 1}</span

@@ -71,7 +71,7 @@ export function useProdutividade(getData: () => PageData) {
 	const anos = Array.from({ length: 4 }, (_, i) => currentYear - i);
 	let filterAno = $state(String(currentYear));
 
-	let mostrarFiltros = $state(false);
+	let mostrarFiltros = $state(true);
 	const filtrosAtivos = $derived(
 		filterSeccional !== '' ||
 			filterInicio !== '' ||

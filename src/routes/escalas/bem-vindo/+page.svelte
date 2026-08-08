@@ -10,14 +10,16 @@
 	 * - DPC (seccional ou unidade) → CONFERE e ASSINA; não cria;
 	 * - OIP admin de unidade → CRIA e gerencia as escalas da sua unidade;
 	 * - admin de seccional (não-DPC) → envia e gerencia, mais o módulo GISE;
-	 * - qualquer um com vínculo GISE ativo → ganha também o acesso à `/res-gise`.
+	 * - quem tem presença GISE pendente (escala ativa + entrada/saída a
+	 *   confirmar) → ganha também o acesso à `/res-gise`.
 	 *
 	 * `descricao` e `acoes` são derivados dessas condições e ficam neste arquivo,
 	 * juntos, de propósito: espalhar as regras pelos componentes de card faria
 	 * cada mudança de política ter de ser caçada em cinco lugares.
 	 *
-	 * Os flags (`isSupervisorGise`, `isMembroGise`, `isSupervisaoGise`) chegam
-	 * resolvidos pelo servidor — a página não decide permissão, só apresentação.
+	 * Os flags (`isSupervisorGise`, `temPresencaGisePendente`, `temGiseHistorico`)
+	 * chegam resolvidos pelo servidor — a página não decide permissão, só
+	 * apresentação.
 	 */
 	import type { PageProps } from './$types';
 	import BemVindoPagina from '$lib/components/bem-vindo/BemVindoPagina.svelte';
@@ -30,9 +32,8 @@
 	const isDpc = $derived(usuario?.cargo === 'DPC');
 	// admin_unidade só supervisiona GISE se for DPC — o flag já reflete isso.
 	const isSupervisorGise = $derived(!!data.isSupervisorGise);
-	const showResGise = $derived(
-		!!(data.isMembroGise || data.isSupervisorGise || data.isSupervisaoGise)
-	);
+	// Espelha a aba "Presença GISE" da sidebar (ativa + pendente).
+	const showResGise = $derived(!!data.temPresencaGisePendente);
 	// Histórico GISE: participou de alguma GISE já encerrada (independe de vínculo
 	// ativo). Espelha a aba "Histórico GISE" da sidebar.
 	const temGiseHistorico = $derived(!!data.temGiseHistorico);
@@ -109,7 +110,7 @@
 				}
 			: usuario?.papel === 'admin_seccional'
 				? {
-						titulo: 'Escalas Ordinárias',
+						titulo: 'Escalas ordinárias',
 						descricao:
 							'Envie e gerencie as escalas ordinárias de sua seccional, incluindo plantão (mensal), expediente e a escala de final de semana.',
 						href: '/escalas',
