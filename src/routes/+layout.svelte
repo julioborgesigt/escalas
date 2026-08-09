@@ -90,6 +90,22 @@
 		usuario?.tipo === 'admin' || usuario?.papel === 'admin_seccional' || isSupervisorGise
 	);
 
+	/**
+	 * Produtividade e Dados base: os DOIS papéis de unidade entram, inclusive
+	 * `admin_unidade`, que `showGise` não cobre.
+	 *
+	 * É deliberado e é o ponto da mudança: são eles que informam a linha de base
+	 * dos indicadores, e quem alimenta o denominador de uma meta precisa poder ver
+	 * o resultado dela. O recorte por unidade é feito no SERVIDOR
+	 * (`unidadesLinhaBaseAdministradas`), não por este `if` — esconder o item de
+	 * menu nunca foi autorização.
+	 */
+	const showIndicadores = $derived(
+		usuario?.tipo === 'admin' ||
+			usuario?.papel === 'admin_seccional' ||
+			usuario?.papel === 'admin_unidade'
+	);
+
 	// Presença GISE: só com escala GISE ativa E confirmação de entrada/saída
 	// ainda pendente. Só "estar escalado" não basta — quem já bateu a saída
 	// cai no Histórico. O Admin Geral não presta serviço: para ele o item
@@ -281,14 +297,19 @@
 	}
 
 	const rotaPath = $derived(page.url.pathname);
-	/** Rota GISE: lista/escala, excl. `/gise/config` (entrada separada "Config. GISE"). */
+	/**
+	 * Rota da escala extra: lista/escala, excluindo as que têm entrada própria no
+	 * menu (`/gise/config` → "Conf. GISE", `/gise/operacoes` → "Operações").
+	 */
 	const giseListaOuEscalaPath = $derived(
 		rotaPath === '/gise' ||
 			(rotaPath.startsWith('/gise/') &&
 				!rotaPath.startsWith('/gise/config') &&
+				!rotaPath.startsWith('/gise/operacoes') &&
 				!rotaPath.startsWith('/gise/bem-vindo'))
 	);
 	const giseConfigPathAtivo = $derived(rotaPath.startsWith('/gise/config'));
+	const giseOperacoesPathAtivo = $derived(rotaPath.startsWith('/gise/operacoes'));
 
 	// As duas abas de /res-gise dividem a MESMA rota por query string: sem
 	// `?status=finalizadas` é a "Presença GISE" (ativas), com ele é o "Histórico
@@ -633,11 +654,17 @@
 						{#if usuario?.tipo === 'admin' && adminModulo === 'gise'}
 							{@render itemMenu('/gise/bem-vindo', 'Boas-vindas', ICONE.casa)}
 						{/if}
-						{@render itemMenu('/gise', 'Escalas GISE', ICONE.pranchetaLista, giseListaOuEscalaPath)}
+						<!-- "Escala extra", e não "Escalas GISE": a GISE virou UMA operação
+						     entre várias (CRAJUBAR, EDGE…), e a aba lista todas com filtro
+						     por operação na própria página, sem aba por operação. -->
+						{@render itemMenu('/gise', 'Escala extra', ICONE.pranchetaLista, giseListaOuEscalaPath)}
 						{#if usuario?.tipo === 'admin'}
-							{@render itemMenu('/produtividade', 'Produtividade', ICONE.barras)}
-						{/if}
-						{#if usuario?.tipo === 'admin'}
+							{@render itemMenu(
+								'/gise/operacoes',
+								'Operações',
+								ICONE.pranchetaLista,
+								giseOperacoesPathAtivo
+							)}
 							{@render itemMenu(
 								'/gise/config',
 								'Conf. GISE',
@@ -645,6 +672,12 @@
 								giseConfigPathAtivo
 							)}
 						{/if}
+					{/if}
+					<!-- Fora do `showGise`: `admin_unidade` não é coberto por ele e
+					     precisa destes dois — é quem informa a linha de base. -->
+					{#if showIndicadores}
+						{@render itemMenu('/produtividade', 'Produtividade', ICONE.barras)}
+						{@render itemMenu('/dados-base', 'Dados base', ICONE.checkLista)}
 					{/if}
 					{#if usuario?.tipo === 'admin'}
 						{@render itemMenu('/res-gise', 'Conf. Form.', ICONE.documento)}
