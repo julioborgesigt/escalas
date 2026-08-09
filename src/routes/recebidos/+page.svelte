@@ -22,7 +22,9 @@
 	 */
 	import type { PageProps } from './$types';
 	import { opcoesMeses } from '$lib/utils/datas';
-	import { Download, Inbox, Lock } from '@lucide/svelte';
+	import Download from '@lucide/svelte/icons/download';
+	import Inbox from '@lucide/svelte/icons/inbox';
+	import Lock from '@lucide/svelte/icons/lock';
 	import { untrack } from 'svelte';
 	import { page } from '$app/state';
 	import SkeletonCards from '$lib/components/SkeletonCards.svelte';

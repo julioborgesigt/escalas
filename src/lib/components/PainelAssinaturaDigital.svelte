@@ -31,7 +31,11 @@
 	import { loading } from '$lib/loading.svelte';
 	import { useAssinaturaEscala, useMobile } from '$lib/composables';
 	import { podeBaixarComManifesto } from '$lib/manifesto';
-	import { CheckCircle2, Clock, Download, PenLine, ShieldCheck } from '@lucide/svelte';
+	import CheckCircle2 from '@lucide/svelte/icons/check-circle-2';
+	import Clock from '@lucide/svelte/icons/clock';
+	import Download from '@lucide/svelte/icons/download';
+	import PenLine from '@lucide/svelte/icons/pen-line';
+	import ShieldCheck from '@lucide/svelte/icons/shield-check';
 
 	interface DocumentoAssinadoInfo {
 		existe: boolean;

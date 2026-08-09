@@ -4,7 +4,8 @@
 	 * Pendente / Em preenchimento. Desktop e mobile compartilham a lógica; o
 	 * `tamanho` ajusta tipografia, padding e ícones.
 	 */
-	import { Clock, SquarePen } from '@lucide/svelte';
+	import Clock from '@lucide/svelte/icons/clock';
+	import SquarePen from '@lucide/svelte/icons/square-pen';
 
 	const {
 		isAssinada,

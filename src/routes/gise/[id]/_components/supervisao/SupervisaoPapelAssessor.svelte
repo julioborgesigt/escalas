@@ -5,7 +5,9 @@
 	 */
 	import SearchableSelect from '$lib/components/SearchableSelect.svelte';
 	import MarcadorPresenca from '../MarcadorPresenca.svelte';
-	import { PenLine, Trash2, Users } from '@lucide/svelte';
+	import PenLine from '@lucide/svelte/icons/pen-line';
+	import Trash2 from '@lucide/svelte/icons/trash-2';
+	import Users from '@lucide/svelte/icons/users';
 	import Spinner from '$lib/components/Spinner.svelte';
 	import { presencaDe } from './rodagem';
 	import type {

@@ -175,7 +175,7 @@ export function useResGise(getData: () => ResGisePageData) {
 			loading.hide();
 			if (result.type === 'success') {
 				toaster.success({ title: `Modelo ${configTipo} salvo com sucesso` });
-				await invalidateShared('app:res-gise');
+				await invalidateShared('app:res-gise', 'app:papel-gise');
 				reaplicarEscalaSelecionada();
 			} else if (result.type === 'failure') {
 				const d = result.data as Record<string, unknown> | undefined;
@@ -237,7 +237,7 @@ export function useResGise(getData: () => ResGisePageData) {
 	 */
 	async function sincronizarPresencaAtual(tipo: 'entrada' | 'saida') {
 		if (!escalaSelecionada) return;
-		await invalidateShared('app:res-gise');
+		await invalidateShared('app:res-gise', 'app:papel-gise');
 		reaplicarEscalaSelecionada(tipo);
 	}
 
@@ -270,7 +270,7 @@ export function useResGise(getData: () => ResGisePageData) {
 
 			toaster.success({ title: 'Entrada confirmada com sucesso' });
 			capturandoRubrica = false;
-			await invalidateShared('app:res-gise');
+			await invalidateShared('app:res-gise', 'app:papel-gise');
 			reaplicarEscalaSelecionada('entrada');
 		} catch (e: unknown) {
 			toaster.error({ title: 'Erro', description: messageFromUnknown(e) });
@@ -335,7 +335,7 @@ export function useResGise(getData: () => ResGisePageData) {
 
 			toaster.success({ title: 'Saída confirmada com sucesso' });
 			capturandoRubrica = false;
-			await invalidateShared('app:res-gise');
+			await invalidateShared('app:res-gise', 'app:papel-gise');
 			// Saída costuma tirar a escala de `minhasEscalas`; o helper carimba
 			// o timestamp local quando a linha some da lista.
 			reaplicarEscalaSelecionada('saida');

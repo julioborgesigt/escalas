@@ -165,7 +165,7 @@
 	<!-- Identificação + Rubrica lado a lado (rubrica verticalizada à direita) -->
 	<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
 		<!-- Identificação (somente leitura) -->
-		<section class="card-glass p-4 sm:p-6 rounded-3xl lg:col-span-2">
+		<section class="card-elevated rounded-2xl p-4 sm:p-6 lg:col-span-2">
 			<h2
 				class="font-semibold text-sm uppercase tracking-wider text-surface-600 dark:text-surface-400 mb-4"
 			>
@@ -227,7 +227,7 @@
 		</section>
 
 		<!-- Rubrica (verticalizada) -->
-		<section class="card-glass p-4 sm:p-6 rounded-3xl lg:col-span-1">
+		<section class="card-elevated rounded-2xl p-4 sm:p-6 lg:col-span-1">
 			<h2
 				class="font-semibold text-sm uppercase tracking-wider text-surface-600 dark:text-surface-400 mb-4"
 			>
@@ -284,7 +284,7 @@
 	</div>
 
 	<!-- Dados alteráveis via solicitação -->
-	<section class="card-glass p-4 sm:p-6 rounded-3xl">
+	<section class="card-elevated rounded-2xl p-4 sm:p-6">
 		<h2
 			class="font-semibold text-sm uppercase tracking-wider text-surface-600 dark:text-surface-400 mb-1"
 		>
@@ -353,7 +353,7 @@
 
 	<!-- Histórico de solicitações -->
 	{#if solicitacoes.length > 0}
-		<section class="card-glass p-4 sm:p-6 rounded-3xl">
+		<section class="card-elevated rounded-2xl p-4 sm:p-6">
 			<h2
 				class="font-semibold text-sm uppercase tracking-wider text-surface-600 dark:text-surface-400 mb-4"
 			>

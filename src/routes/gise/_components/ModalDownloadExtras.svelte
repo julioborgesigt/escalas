@@ -2,10 +2,16 @@
 	/**
 	 * Modal "Relatórios de Extra (GISE)": lista um item por relatório —
 	 * o do quadro de supervisão (quando há supervisor/assessor/SEINT) e um por
-	 * seccional — e libera o download apenas dos que já foram assinados.
+	 * seccional. Assinados liberam download (s/c manifesto); pendentes liberam
+	 * a via de conferência (rascunho). O lote "Todos" só habilita quando todos
+	 * os itens da lista estão assinados.
 	 */
 	import { Dialog } from '@skeletonlabs/skeleton-svelte';
-	import { Download, FileText, CheckCircle2, Clock, X } from '@lucide/svelte';
+	import Download from '@lucide/svelte/icons/download';
+	import FileText from '@lucide/svelte/icons/file-text';
+	import CheckCircle2 from '@lucide/svelte/icons/check-circle-2';
+	import Clock from '@lucide/svelte/icons/clock';
+	import X from '@lucide/svelte/icons/x';
 
 	type GiseEscala = {
 		id: number;
@@ -75,10 +81,12 @@
 			}
 		}
 
-		return list;
+		return list.sort((a, b) => Number(a.disponivel) - Number(b.disponivel));
 	});
 
 	const disponiveis = $derived(items.filter((i) => i.disponivel));
+	/** Lote "Todos" só libera quando cada item da lista já tem assinatura. */
+	const todosAssinados = $derived(items.length > 0 && disponiveis.length === items.length);
 
 	function baixarItem(id: number, comManifesto = false) {
 		if (!gise) return;
@@ -91,7 +99,7 @@
 	 * navegador bloqueia downloads em rajada disparados no mesmo tick.
 	 */
 	async function baixarTodos(comManifesto = false) {
-		if (!gise || disponiveis.length === 0) return;
+		if (!gise || !todosAssinados) return;
 		for (const item of disponiveis) {
 			const a = document.createElement('a');
 			a.href = `/api/gise/${gise.id}/download?format=extraordinario&seccionalId=${item.id}${comManifesto ? '&manifesto=true' : ''}`;
@@ -104,8 +112,8 @@
 
 <!--
 	Exceção deliberada ao ModalShell: a lista de downloads controla o próprio
-	header e scroll (`max-h-[85vh]`) e não permite scroll no backdrop, para não
-	deslocar a relação entre seccional e ações de arquivo.
+	scroll. O card cresce até ~92vh; só a lista rola quando o conteúdo estoura
+	esse teto (header/footer fixos).
 -->
 <Dialog
 	{open}
@@ -117,10 +125,10 @@
 		class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-sm"
 	>
 		<div
-			class="card-elevated rounded-2xl shadow-2xl w-full max-w-md p-5 space-y-4 max-h-[85vh] overflow-y-auto flex flex-col"
+			class="card-elevated rounded-2xl shadow-2xl w-full max-w-md p-5 space-y-4 max-h-[92vh] overflow-hidden flex flex-col"
 		>
 			<div
-				class="flex items-center justify-between border-b border-surface-200 dark:border-surface-800 pb-3"
+				class="flex items-center justify-between border-b border-surface-200 dark:border-surface-800 pb-3 shrink-0"
 			>
 				<div class="min-w-0">
 					<Dialog.Title class="text-lg font-bold text-surface-900 dark:text-surface-50">
@@ -139,7 +147,7 @@
 				</button>
 			</div>
 
-			<div class="flex-1 overflow-y-auto space-y-2 pr-1 max-h-[50vh]">
+			<div class="flex-1 min-h-0 overflow-y-auto space-y-2 pr-1">
 				{#if items.length === 0}
 					<div class="text-center py-6 text-sm text-surface-600 dark:text-surface-400">
 						Nenhum relatório de extra configurado para esta escala.
@@ -213,11 +221,11 @@
 							{:else}
 								<button
 									type="button"
-									class="btn btn-sm rounded-lg p-1.5 transition-all shrink-0 bg-surface-100 dark:bg-surface-800 text-surface-300 dark:text-surface-700 cursor-not-allowed"
-									disabled
-									title="Aguardando assinatura"
+									class="btn btn-sm rounded-lg px-2 py-1.5 transition-all shrink-0 bg-warning-500/10 hover:bg-warning-500 text-warning-700 hover:text-white dark:text-warning-400 text-3xs font-bold leading-tight"
+									onclick={() => baixarItem(item.id, false)}
+									title="Baixar via de conferência (rascunho sem assinatura)"
 								>
-									<Download size={16} />
+									<Download size={13} class="shrink-0" />
 								</button>
 							{/if}
 						</div>
@@ -226,44 +234,59 @@
 			</div>
 
 			<div
-				class="border-t border-surface-200 dark:border-surface-800 pt-3 flex flex-col sm:flex-row items-center gap-3"
+				class="border-t border-surface-200 dark:border-surface-800 pt-3 flex flex-col sm:flex-row items-center gap-3 shrink-0"
 			>
 				<div
 					class="text-2xs text-surface-600 dark:text-surface-400 font-medium text-center sm:text-left flex-1"
 				>
 					{disponiveis.length} de {items.length} relatórios disponíveis
 				</div>
-				<div class="flex flex-wrap justify-end gap-2 w-full sm:w-auto">
-					<button
-						type="button"
-						class="btn preset-outlined-surface-500 text-xs px-4 py-2 rounded-xl w-full sm:w-auto font-semibold"
-						onclick={() => (open = false)}
+				<div class="flex flex-row flex-nowrap justify-end gap-2 w-full sm:w-auto">
+					<span
+						class="inline-flex"
+						title={todosAssinados
+							? undefined
+							: 'Disponível após a assinatura de todos os relatórios'}
 					>
-						Fechar
-					</button>
-					<button
-						type="button"
-						class="btn preset-filled-primary-500 text-xs px-3 py-2 rounded-xl font-bold flex items-center justify-center gap-1.5 transition-all disabled:preset-filled-surface-200 disabled:dark:preset-filled-surface-800 disabled:text-surface-400 disabled:cursor-not-allowed"
-						disabled={disponiveis.length === 0}
-						onclick={() => baixarTodos(false)}
-						title={podeManifesto
-							? 'Baixar todos sem manifesto (para impressão)'
-							: 'Baixar todos os relatórios assinados'}
-					>
-						<Download size={14} />
-						{podeManifesto ? 'Todos s/ manifesto' : 'Baixar todos'}
-					</button>
-					{#if podeManifesto}
 						<button
 							type="button"
-							class="btn preset-filled-tertiary-500 text-xs px-3 py-2 rounded-xl font-bold flex items-center justify-center gap-1.5 transition-all disabled:preset-filled-surface-200 disabled:dark:preset-filled-surface-800 disabled:text-surface-400 disabled:cursor-not-allowed"
-							disabled={disponiveis.length === 0}
-							onclick={() => baixarTodos(true)}
-							title="Baixar todos com manifesto (folha de auditoria)"
+							class="btn text-xs px-3 py-2 rounded-xl font-bold flex items-center justify-center gap-1.5 transition-all {todosAssinados
+								? 'preset-filled-primary-500 text-white'
+								: 'bg-surface-200 text-surface-700 dark:bg-surface-700 dark:text-surface-200 cursor-not-allowed'}"
+							disabled={!todosAssinados}
+							onclick={() => baixarTodos(false)}
+							title={todosAssinados
+								? podeManifesto
+									? 'Baixar todos sem manifesto (para impressão)'
+									: 'Baixar todos os relatórios assinados'
+								: undefined}
 						>
 							<Download size={14} />
-							Todos c/ manifesto
+							{podeManifesto ? 'Todos s/ manifesto' : 'Baixar todos'}
 						</button>
+					</span>
+					{#if podeManifesto}
+						<span
+							class="inline-flex"
+							title={todosAssinados
+								? undefined
+								: 'Disponível após a assinatura de todos os relatórios'}
+						>
+							<button
+								type="button"
+								class="btn text-xs px-3 py-2 rounded-xl font-bold flex items-center justify-center gap-1.5 transition-all {todosAssinados
+									? 'preset-filled-tertiary-500 text-white'
+									: 'bg-surface-200 text-surface-700 dark:bg-surface-700 dark:text-surface-200 cursor-not-allowed'}"
+								disabled={!todosAssinados}
+								onclick={() => baixarTodos(true)}
+								title={todosAssinados
+									? 'Baixar todos com manifesto (folha de auditoria)'
+									: undefined}
+							>
+								<Download size={14} />
+								Todos c/ manifesto
+							</button>
+						</span>
 					{/if}
 				</div>
 			</div>

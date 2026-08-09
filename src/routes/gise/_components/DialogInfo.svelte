@@ -9,7 +9,7 @@
 	 * convite (ícone de lápis, tertiary); sem ação, um alerta (warning).
 	 */
 	import { Dialog } from '@skeletonlabs/skeleton-svelte';
-	import { SquarePen } from '@lucide/svelte';
+	import SquarePen from '@lucide/svelte/icons/square-pen';
 
 	type AcaoDialog = { label: string; fn: () => void };
 

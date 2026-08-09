@@ -17,15 +17,13 @@
 	 * O botão de baixar o PDF íntegro aparece só para autenticado, mas isso é
 	 * cosmético: a permissão real é do endpoint `/api/validar/[hash]/download`.
 	 */
-	import {
-		AlertCircle,
-		AlertTriangle,
-		Check,
-		Download,
-		HelpCircle,
-		ShieldCheck,
-		X
-	} from '@lucide/svelte';
+	import AlertCircle from '@lucide/svelte/icons/alert-circle';
+	import AlertTriangle from '@lucide/svelte/icons/alert-triangle';
+	import Check from '@lucide/svelte/icons/check';
+	import Download from '@lucide/svelte/icons/download';
+	import HelpCircle from '@lucide/svelte/icons/help-circle';
+	import ShieldCheck from '@lucide/svelte/icons/shield-check';
+	import X from '@lucide/svelte/icons/x';
 	import { formatarData } from '$lib/utils/datas';
 	import { baixarBlob } from '$lib/utils/download';
 	import { apiFetchResponse } from '$lib/api-fetch';

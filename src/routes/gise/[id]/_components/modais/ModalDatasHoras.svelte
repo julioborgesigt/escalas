@@ -18,7 +18,7 @@
 	 * modal permanece montado entre aberturas, e sem isso ele mostraria os
 	 * valores da GISE anterior.
 	 */
-	import { AlertTriangle } from '@lucide/svelte';
+	import AlertTriangle from '@lucide/svelte/icons/alert-triangle';
 	import { MESES_PT, DIAS_SEMANA_CURTO, isoData, hojeLocalISO } from '$lib/utils/datas';
 	import { enhance } from '$app/forms';
 	import type { SubmitFunction } from '@sveltejs/kit';

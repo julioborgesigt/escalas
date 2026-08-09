@@ -3,7 +3,8 @@
 	 * Grade de gráficos Chart.js + totais por pergunta do modelo.
 	 * Canvas bound via `canvasElements` do composable `useCharts`.
 	 */
-	import { Check, Plus } from '@lucide/svelte';
+	import Check from '@lucide/svelte/icons/check';
+	import Plus from '@lucide/svelte/icons/plus';
 	import type { Question } from '$lib/produtividade';
 	import type { ProdutividadeParsedRow } from './useProdutividade.svelte';
 
@@ -31,11 +32,11 @@
 <section class="space-y-8">
 	{#each questions as q (q.id)}
 		<div
-			class="card relative p-4 sm:p-6 lg:p-8 bg-white dark:bg-surface-900 border-2 transition-all {selectedCharts.includes(
+			class="card relative p-4 sm:p-6 lg:p-8 bg-white dark:bg-surface-900 border-2 transition-colors {selectedCharts.includes(
 				q.id
 			)
-				? 'selected-for-export border-primary-500 shadow-xl shadow-primary-500/10'
-				: 'border-surface-100 dark:border-surface-800 shadow-sm'} rounded-3xl overflow-hidden flex flex-col md:flex-row gap-4"
+				? 'selected-for-export border-primary-500'
+				: 'border-surface-200 dark:border-surface-800'} rounded-3xl overflow-hidden flex flex-col md:flex-row gap-4"
 		>
 			<button
 				type="button"
@@ -44,11 +45,11 @@
 				aria-label={selectedCharts.includes(q.id)
 					? 'Remover gráfico da seleção de exportação'
 					: 'Selecionar gráfico para exportação'}
-				class="absolute top-2 right-2 md:top-3 md:right-3 w-6 h-6 md:w-8 md:h-8 rounded-lg md:rounded-xl flex items-center justify-center transition-all {selectedCharts.includes(
+				class="absolute top-2 right-2 md:top-3 md:right-3 w-6 h-6 md:w-8 md:h-8 rounded-lg md:rounded-xl flex items-center justify-center transition-colors {selectedCharts.includes(
 					q.id
 				)
-					? 'bg-primary-500 text-white scale-110 shadow-lg'
-					: 'bg-surface-100 dark:bg-surface-800 text-surface-500 hover:scale-105'}"
+					? 'bg-primary-500 text-white'
+					: 'bg-surface-100 dark:bg-surface-800 text-surface-500'}"
 			>
 				{#if selectedCharts.includes(q.id)}
 					<Check class="w-4 h-4 md:w-6 md:h-6" strokeWidth={4} aria-hidden="true" />

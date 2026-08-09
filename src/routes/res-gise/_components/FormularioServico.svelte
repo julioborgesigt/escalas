@@ -19,7 +19,9 @@
 	 * rolagem infinita. Lá o formulário é um wizard por etapas, com rascunho
 	 * automático; entrada e saída continuam aqui porque são um botão cada.
 	 */
-	import { Check, Clock, ShieldCheck } from '@lucide/svelte';
+	import Check from '@lucide/svelte/icons/check';
+	import Clock from '@lucide/svelte/icons/clock';
+	import ShieldCheck from '@lucide/svelte/icons/shield-check';
 	import { actionButton, btnIcon } from './BotoesAcao.svelte';
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';

@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { loading } from '$lib/loading.svelte';
-	import { ShieldCheck } from '@lucide/svelte';
+	import ShieldCheck from '@lucide/svelte/icons/shield-check';
 
 	let hash = $state('');
 

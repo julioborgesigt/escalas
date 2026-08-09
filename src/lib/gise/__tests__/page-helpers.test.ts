@@ -37,9 +37,11 @@ describe('page-helpers', () => {
 		expect(filtrarDelegacias(todas).map((d) => d.id)).toEqual([10]);
 	});
 
-	it('getSeccionalColorClass é estável por id', () => {
-		expect(getSeccionalColorClass(0)).toBe(getSeccionalColorClass(0));
+	it('getSeccionalColorClass é estável por id e varia a intensidade', () => {
+		expect(getSeccionalColorClass(0)).toBe(getSeccionalColorClass(0, 'forte'));
 		expect(getSeccionalColorClass(5)).not.toBe('');
+		expect(getSeccionalColorClass(5, 'forte')).not.toBe(getSeccionalColorClass(5, 'media'));
+		expect(getSeccionalColorClass(5, 'media')).not.toBe(getSeccionalColorClass(5, 'suave'));
 	});
 
 	it('tiposEquipeNaSeccional lê unidades[].equipes (não só sec.equipes)', () => {

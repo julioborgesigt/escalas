@@ -27,7 +27,7 @@
 	import SeletorHoraMinuto from '$lib/components/SeletorHoraMinuto.svelte';
 	import { criarHelpersHorario, diaSemanaLabel } from './escala-horarios';
 	import { useEdicaoInlineServidor } from './useEdicaoInlineServidor.svelte';
-	import { PenLine } from '@lucide/svelte';
+	import PenLine from '@lucide/svelte/icons/pen-line';
 
 	interface Props {
 		policiaisEscalaLocal: EscalaPolicialComDados[];

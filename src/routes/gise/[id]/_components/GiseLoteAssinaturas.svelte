@@ -1,7 +1,7 @@
 <script lang="ts">
 	/**
 	 * Painel do SUPERVISOR para assinar de uma vez os relatórios de
-	 * extraordinário de todas as seccionais, e baixá-los em lote.
+	 * extraordinário de todas as seccionais.
 	 *
 	 * O valor do card está em separar as pendências por CAUSA, porque o
 	 * bloqueio não é o mesmo:
@@ -15,24 +15,24 @@
 	 * (ModalRelatorioDigital) sempre o exibiu, e o lote assinava sem ele — o
 	 * mesmo ato com duas cerimônias diferentes. Ao mexer num, mexa no outro.
 	 *
-	 * "C/ manifesto" só aparece quando o usuário receberia o blob forense de
-	 * TODOS os relatórios (`podeBaixarComManifesto` para cada assinante); do
-	 * contrário o servidor entregaria cópia de conferência e o rótulo mentiria.
-	 *
-	 * O download em lote usa âncora + intervalo de 250ms de propósito: disparar
-	 * as abas em sequência imediata esbarra no bloqueio de pop-ups.
+	 * Downloads ficam no modal (`Conferência/Downloads`): o card cobre todas as
+	 * equipes, então não há atalho S/C manifesto aqui — o modal deixa escolher
+	 * por seccional ou em lote.
 	 */
 	import { slide } from 'svelte/transition';
-	import { page } from '$app/state';
-	import { FileDown, PenLine, SquarePen } from '@lucide/svelte';
+	import PenLine from '@lucide/svelte/icons/pen-line';
+	import SquarePen from '@lucide/svelte/icons/square-pen';
+	import Info from '@lucide/svelte/icons/info';
+	import { Popover, Portal } from '@skeletonlabs/skeleton-svelte';
 	import ModalShell from '$lib/components/ModalShell.svelte';
 	import { loading } from '$lib/loading.svelte';
 	import { getMembrosFromSec, checkAllSigned } from '$lib/gise/page-helpers';
-	import { podeBaixarComManifesto } from '$lib/manifesto';
 	import { toaster } from '$lib/toast';
 
+	const TEXTO_INFO_LOTE =
+		'Neste quadro, o supervisor poderá conferir e em seguida assinar os relatórios de extra de todas as equipes. A assinatura também pode ocorrer de forma individual, através do quadro de cada seccional.';
+
 	interface Props {
-		giseId: number;
 		quantidadePendentes: number;
 		assinandoLote: boolean;
 		etapaAssinatura: string;
@@ -64,7 +64,6 @@
 	}
 
 	const {
-		giseId,
 		quantidadePendentes,
 		assinandoLote,
 		etapaAssinatura,
@@ -184,14 +183,6 @@
 		[...new Set(concluidosExtra.map((a) => a.assinante_nome?.trim()).filter(Boolean))].join(', ')
 	);
 
-	/** "C/ manifesto" do lote só aparece se o usuário receberia o blob forense de
-	    TODOS os relatórios (Admin Geral/Super, ou DPC assinante de todos) — para
-	    os demais o servidor entregaria a cópia de conferência de qualquer forma. */
-	const podeManifestoLote = $derived(
-		concluidosExtra.length > 0 &&
-			concluidosExtra.every((a) => podeBaixarComManifesto(page.data.usuario, a.assinante_id))
-	);
-
 	/** Diálogo de ciência jurídica antes da assinatura em lote por Token —
 	    espelha o aviso do fluxo individual (ModalRelatorioDigital →
 	    PainelAssinaturaToken), que o lote não exibia. */
@@ -201,80 +192,55 @@
 		confirmandoLote = false;
 		void onAssinarDigitalLote();
 	}
-
-	/**
-	 * Baixa, em lote, todos os relatórios de extra assinados das equipes — um por
-	 * seccional. Mesma estratégia do `ModalDownloadExtras` (âncora + intervalo para
-	 * não esbarrar no bloqueio de pop-ups do navegador).
-	 */
-	async function baixarTodosRelatorios(comManifesto = false) {
-		if (concluidosExtra.length === 0) return;
-		for (const rel of concluidosExtra) {
-			const a = document.createElement('a');
-			a.href = `/api/gise/${giseId}/download?format=extraordinario&seccionalId=${rel.seccional_id}${comManifesto ? '&manifesto=true' : ''}`;
-			a.target = '_blank';
-			a.rel = 'noopener';
-			a.click();
-			await new Promise((resolve) => setTimeout(resolve, 250));
-		}
-	}
 </script>
 
 <!-- Situação das seccionais em 3 linhas (saída pendente / pronta p/ assinar /
      assinada). Snippet único: as variantes mobile e desktop do card renderizam
      exatamente o mesmo conteúdo, mudando só o espaçamento. -->
-{#snippet linhasSituacao(mobile: boolean)}
-	{@const espaco = mobile ? '' : 'mt-0.5'}
-	<p class="text-2xs leading-snug text-surface-500 dark:text-surface-400 {espaco}">
+{#snippet linhasSituacao(_mobile: boolean)}
+	<p class="text-2xs leading-snug text-surface-500 dark:text-surface-400">
 		<span class="text-warning-600 dark:text-warning-400 font-medium">Faltando saída de:</span>
 		{naoIniciou ? 'Aguardando início' : nomesDe(seccionaisSemSaida)}
 	</p>
-	<p class="text-2xs leading-snug text-surface-500 dark:text-surface-400 {espaco}">
-		<span class="text-error-600 dark:text-error-400 font-medium">Faltando assinar de:</span>
+	<p class="mt-0.5 text-2xs leading-snug text-surface-500 dark:text-surface-400">
+		<span class="text-error-600 dark:text-error-400 font-medium">Pronto para assinar:</span>
 		{naoIniciou ? 'Aguardando início' : nomesDe(seccionaisAAssinar)}
 	</p>
-	<p class="text-2xs leading-snug text-surface-500 dark:text-surface-400 {espaco}">
+	<p class="mt-0.5 text-2xs leading-snug text-surface-500 dark:text-surface-400">
 		<span class="text-success-600 dark:text-success-400 font-medium">Assinado de:</span>
 		{naoIniciou ? 'Aguardando início' : nomesDe(seccionaisAssinadas)}
 	</p>
 {/snippet}
 
-<!-- Par S/ manifesto + C/ manifesto — espelha o padrão dos cards de escala e de
-     relatório de extra (GiseSupervisao). Para o lote, cada botão baixa TODOS os
-     relatórios assinados das equipes de uma vez. -->
-{#snippet botoesDownloadLote(mobile: boolean)}
-	<button
-		type="button"
-		class="btn btn-xs preset-filled-primary-500 px-2.5 py-1.5 text-3xs font-bold rounded-lg flex items-center gap-1 {mobile
-			? ''
-			: 'hover:scale-[1.02] transition-all'}"
-		onclick={() => baixarTodosRelatorios(false)}
-		title={podeManifestoLote
-			? 'Baixar todos sem manifesto (para impressão)'
-			: 'Baixar todos os relatórios assinados'}
-	>
-		<FileDown size={13} class="shrink-0" />
-		{podeManifestoLote ? 'S/ manifesto' : 'Baixar todos'}
-	</button>
-	{#if podeManifestoLote}
-		<button
-			type="button"
-			class="btn btn-xs preset-outlined-primary-500 px-2.5 py-1.5 text-3xs font-bold rounded-lg flex items-center gap-1 {mobile
-				? ''
-				: 'hover:scale-[1.02] transition-all'}"
-			onclick={() => baixarTodosRelatorios(true)}
-			title="Baixar todos com manifesto (folha de auditoria)"
-		>
-			<FileDown size={13} class="shrink-0" />
-			C/ manifesto
-		</button>
-	{/if}
+{#snippet tituloComInfo()}
+	<div class="flex items-center gap-1.5">
+		<p class="text-3xs font-bold uppercase tracking-wider text-surface-400 dark:text-surface-500">
+			Assinaturas em lote (equipes)
+		</p>
+		<Popover positioning={{ placement: 'bottom-start' }}>
+			<Popover.Trigger
+				type="button"
+				class="inline-flex items-center justify-center rounded-full p-0.5 text-surface-400 transition-colors hover:bg-surface-100 hover:text-primary-600 dark:hover:bg-surface-800 dark:hover:text-primary-400"
+				aria-label="Informações sobre assinaturas em lote"
+				title="Informações"
+			>
+				<Info class="h-3.5 w-3.5" aria-hidden="true" />
+			</Popover.Trigger>
+			<Portal>
+				<Popover.Positioner>
+					<Popover.Content
+						class="z-50 max-w-xs rounded-xl border border-surface-200 bg-white p-3 text-2xs leading-snug text-surface-600 shadow-xl dark:border-surface-600 dark:bg-surface-800 dark:text-surface-300"
+					>
+						{TEXTO_INFO_LOTE}
+					</Popover.Content>
+				</Popover.Positioner>
+			</Portal>
+		</Popover>
+	</div>
 {/snippet}
 
 <div class="flex flex-col gap-1.5 w-full animate-fade">
-	<p class="text-3xs font-bold uppercase tracking-wider text-surface-400 dark:text-surface-500">
-		Assinaturas em lote (equipes)
-	</p>
+	{@render tituloComInfo()}
 	<div
 		class="rounded-xl border border-surface-200 dark:border-surface-800 bg-white dark:bg-surface-900 overflow-hidden shadow-sm hover:shadow-md transition-all duration-300"
 	>
@@ -320,7 +286,7 @@
 								stroke-linecap="round"
 								stroke-linejoin="round"
 								stroke-width="2"
-								d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"
+								d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
 							/>
 						{:else}
 							<path
@@ -338,9 +304,6 @@
 					>
 						{statusLoteInfo.text}
 					</span>
-					<p class="text-xs font-semibold text-surface-700 dark:text-surface-200 mt-0.5">
-						Relatórios de extra — Equipes
-					</p>
 				</div>
 				<svg
 					class="h-4 w-4 shrink-0 text-surface-400 transition-transform duration-200 {expandido
@@ -371,10 +334,6 @@
 								{nomesAssinantes || 'Assinado'}
 							</p>
 						{:else}
-							<p class="text-2xs leading-snug text-surface-500 dark:text-surface-400">
-								O supervisor poderá assinar os Relatórios de extra das equipes em lote (todos de uma
-								vez), ou individualmente, através do quadro de cada seccional.
-							</p>
 							{@render linhasSituacao(true)}
 						{/if}
 
@@ -402,28 +361,24 @@
 
 					{#if !assinandoLote}
 						<div class="flex items-center gap-1.5 flex-wrap justify-end">
-							{#if todosAssinados}
-								{@render botoesDownloadLote(true)}
-							{:else}
+							<button
+								type="button"
+								class="btn btn-xs preset-tonal-primary border border-primary-500/30 hover:border-primary-500 px-2.5 py-1.5 text-3xs font-bold rounded-lg flex items-center gap-1"
+								onclick={onConferencia || mostrarOrientaConferencia}
+							>
+								<PenLine class="h-2.5 w-2.5 shrink-0" aria-hidden="true" />
+								Conferência/Downloads
+							</button>
+							{#if !todosAssinados && podeAssinar}
 								<button
 									type="button"
-									class="btn btn-xs preset-tonal-primary border border-primary-500/30 hover:border-primary-500 px-2.5 py-1.5 text-3xs font-bold rounded-lg flex items-center gap-1"
-									onclick={onConferencia || mostrarOrientaConferencia}
+									class="btn btn-xs preset-filled-warning-500 border border-warning-600/30 px-2.5 py-1.5 text-3xs font-bold rounded-lg hover:border-warning-600 disabled:opacity-40 flex items-center gap-1"
+									disabled={loading.active || quantidadePendentes === 0}
+									onclick={onAssinarManualLote}
 								>
 									<PenLine class="h-2.5 w-2.5 shrink-0" aria-hidden="true" />
-									Conferência
+									Tela
 								</button>
-								{#if podeAssinar}
-									<button
-										type="button"
-										class="btn btn-xs preset-filled-warning-500 border border-warning-600/30 px-2.5 py-1.5 text-3xs font-bold rounded-lg hover:border-warning-600 disabled:opacity-40 flex items-center gap-1"
-										disabled={loading.active || quantidadePendentes === 0}
-										onclick={onAssinarManualLote}
-									>
-										<PenLine class="h-2.5 w-2.5 shrink-0" aria-hidden="true" />
-										Tela
-									</button>
-								{/if}
 							{/if}
 						</div>
 					{/if}
@@ -491,7 +446,7 @@
 									stroke-linecap="round"
 									stroke-linejoin="round"
 									stroke-width="2"
-									d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"
+									d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
 								/>
 							{:else}
 								<path
@@ -509,9 +464,6 @@
 						>
 							{statusLoteInfo.text}
 						</span>
-						<p class="text-xs font-semibold text-surface-700 dark:text-surface-200 mt-0.5">
-							Relatórios em lote
-						</p>
 					</div>
 				</div>
 
@@ -524,10 +476,6 @@
 							{nomesAssinantes || 'Assinado'}
 						</p>
 					{:else}
-						<p class="text-2xs leading-snug text-surface-500 dark:text-surface-400">
-							O supervisor poderá assinar os Relatórios de extra das equipes em lote (todos de uma
-							vez), ou individualmente, através do quadro de cada seccional.
-						</p>
 						{@render linhasSituacao(false)}
 					{/if}
 
@@ -581,28 +529,24 @@
 				<div
 					class="flex items-center gap-1.5 shrink-0 justify-end border-l border-surface-200/40 dark:border-surface-800/80 pl-4 py-0.5"
 				>
-					{#if todosAssinados}
-						{@render botoesDownloadLote(false)}
-					{:else}
+					<button
+						type="button"
+						class="btn btn-xs preset-tonal-primary border border-primary-500/30 hover:border-primary-500 px-2.5 py-1.5 text-3xs font-bold rounded-lg flex items-center gap-1 hover:scale-[1.02] transition-all"
+						onclick={onConferencia || mostrarOrientaConferencia}
+					>
+						<PenLine class="h-2.5 w-2.5 shrink-0" aria-hidden="true" />
+						Conferência/Downloads
+					</button>
+					{#if !todosAssinados && podeAssinar && !assinandoLote}
 						<button
 							type="button"
-							class="btn btn-xs preset-tonal-primary border border-primary-500/30 hover:border-primary-500 px-2.5 py-1.5 text-3xs font-bold rounded-lg flex items-center gap-1 hover:scale-[1.02] transition-all"
-							onclick={onConferencia || mostrarOrientaConferencia}
+							class="btn btn-xs preset-filled-tertiary-500 border border-tertiary-600/30 px-2.5 py-1.5 text-3xs font-bold rounded-lg hover:border-tertiary-600 disabled:opacity-40 flex items-center gap-1 hover:scale-[1.02] transition-all"
+							disabled={loading.active || quantidadePendentes === 0}
+							onclick={() => (confirmandoLote = true)}
 						>
 							<PenLine class="h-2.5 w-2.5 shrink-0" aria-hidden="true" />
-							Conferência
+							Token
 						</button>
-						{#if podeAssinar && !assinandoLote}
-							<button
-								type="button"
-								class="btn btn-xs preset-filled-tertiary-500 border border-tertiary-600/30 px-2.5 py-1.5 text-3xs font-bold rounded-lg hover:border-tertiary-600 disabled:opacity-40 flex items-center gap-1 hover:scale-[1.02] transition-all"
-								disabled={loading.active || quantidadePendentes === 0}
-								onclick={() => (confirmandoLote = true)}
-							>
-								<PenLine class="h-2.5 w-2.5 shrink-0" aria-hidden="true" />
-								Token
-							</button>
-						{/if}
 					{/if}
 				</div>
 			</div>

@@ -28,7 +28,7 @@
 	import PaginationControls from '$lib/components/PaginationControls.svelte';
 	import IconTooltip from '$lib/components/IconTooltip.svelte';
 	import { podeBaixarComManifesto } from '$lib/manifesto';
-	import { Download } from '@lucide/svelte';
+	import Download from '@lucide/svelte/icons/download';
 	import BadgeTipoEscala from './BadgeTipoEscala.svelte';
 	import BadgeStatusEscala from './BadgeStatusEscala.svelte';
 

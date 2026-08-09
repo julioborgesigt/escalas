@@ -2,7 +2,7 @@
 	import ModalShell from './ModalShell.svelte';
 	import { toaster } from '$lib/toast';
 	import ModalCadastrarRubrica from './ModalCadastrarRubrica.svelte';
-	import { PenLine } from '@lucide/svelte';
+	import PenLine from '@lucide/svelte/icons/pen-line';
 
 	/**
 	 * Aviso pós-login "Cadastre sua rubrica", exibido pelo layout para o

@@ -19,7 +19,8 @@
 	 *
 	 * Documento já assinado não é afetado: a política vale para os próximos.
 	 */
-	import { Check, Lock } from '@lucide/svelte';
+	import Check from '@lucide/svelte/icons/check';
+	import Lock from '@lucide/svelte/icons/lock';
 	import { page } from '$app/state';
 	import { toaster } from '$lib/toast';
 	import { apiFetch } from '$lib/api-fetch';

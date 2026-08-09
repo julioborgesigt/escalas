@@ -33,7 +33,7 @@
 	import { statusLabel, statusColor, fmtDate, diaSemana } from '$lib/gise/formatters';
 	import { SvelteURLSearchParams } from 'svelte/reactivity';
 	import { CICLOS, getCicloRange } from '$lib/gise/ciclos';
-	import { Download } from '@lucide/svelte';
+	import Download from '@lucide/svelte/icons/download';
 
 	/**
 	 * Bloco "Histórico" da lista `/gise`: escalas finalizadas, com filtros
@@ -258,22 +258,22 @@
 					</p>
 				</div>
 
-				<div class="grid grid-cols-1 gap-3 p-4 sm:grid-cols-3 sm:p-5">
+				<div class="grid grid-cols-1 gap-2 p-3 sm:grid-cols-2 lg:grid-cols-4 lg:gap-2 sm:p-4">
 					<div
-						class="flex min-h-0 flex-col gap-2 rounded-xl border p-3.5 shadow-sm transition-all sm:p-4 {filtroSeccional !==
+						class="flex min-h-0 min-w-0 flex-col gap-1.5 rounded-lg border p-2.5 shadow-sm transition-all {filtroSeccional !==
 						''
 							? 'border-primary-500/45 bg-primary-500/[0.07] ring-1 ring-primary-500/20 dark:bg-primary-500/10'
 							: 'border-surface-200/90 bg-white/90 dark:border-surface-700 dark:bg-surface-900/50'}"
 					>
 						<label
 							for="filtro-seccional"
-							class="text-xs font-bold uppercase tracking-wide text-surface-600 dark:text-surface-300"
+							class="text-3xs font-bold uppercase tracking-wide text-surface-600 dark:text-surface-300"
 							>Seccional</label
 						>
 						<select
 							id="filtro-seccional"
 							bind:value={filtroSeccional}
-							class="min-h-[2.75rem] w-full cursor-pointer rounded-xl border border-surface-300 bg-white px-2.5 py-2 text-sm font-medium text-surface-800 shadow-sm transition-colors hover:border-primary-400/55 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/25 dark:border-surface-600 dark:bg-surface-800 dark:text-surface-100"
+							class="min-h-[2.25rem] w-full min-w-0 cursor-pointer rounded-lg border border-surface-300 bg-white px-2 py-1.5 text-xs font-medium text-surface-800 shadow-sm transition-colors hover:border-primary-400/55 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/25 dark:border-surface-600 dark:bg-surface-800 dark:text-surface-100"
 						>
 							<option value="">Todas</option>
 							{#each seccionaisList as sec (sec.id)}
@@ -283,13 +283,13 @@
 					</div>
 
 					<div
-						class="flex min-h-0 flex-col gap-2 rounded-xl border p-3.5 shadow-sm transition-all sm:p-4 {historicoFiltroMesAtivo
+						class="flex min-h-0 min-w-0 flex-col gap-1.5 rounded-lg border p-2.5 shadow-sm transition-all {historicoFiltroMesAtivo
 							? 'border-primary-500/45 bg-primary-500/[0.07] ring-1 ring-primary-500/20 dark:bg-primary-500/10'
 							: 'border-surface-200/90 bg-white/90 dark:border-surface-700 dark:bg-surface-900/50'}"
 					>
 						<label
 							for="filtro-mes-ano"
-							class="text-xs font-bold uppercase tracking-wide text-surface-600 dark:text-surface-300"
+							class="text-3xs font-bold uppercase tracking-wide text-surface-600 dark:text-surface-300"
 							>Mês / ano</label
 						>
 						<input
@@ -297,25 +297,25 @@
 							type="month"
 							value={filtroMesAno}
 							oninput={onMesAnoHistoricoInput}
-							class="w-full min-h-[2.75rem] cursor-pointer rounded-xl border border-surface-300 bg-white px-3 py-2.5 text-sm font-medium text-surface-800 transition-colors hover:border-primary-400/55 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/25 dark:border-surface-600 dark:bg-surface-800 dark:text-surface-100"
+							class="w-full min-h-[2.25rem] min-w-0 cursor-pointer rounded-lg border border-surface-300 bg-white px-2 py-1.5 text-xs font-medium text-surface-800 transition-colors hover:border-primary-400/55 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/25 dark:border-surface-600 dark:bg-surface-800 dark:text-surface-100"
 						/>
 					</div>
 
 					<div
-						class="flex min-h-0 min-w-0 flex-col gap-2 rounded-xl border p-3.5 shadow-sm transition-all sm:p-4 {historicoFiltroCicloAtivo
+						class="flex min-h-0 min-w-0 flex-col gap-1.5 rounded-lg border p-2.5 shadow-sm transition-all {historicoFiltroCicloAtivo
 							? 'border-primary-500/45 bg-primary-500/[0.07] ring-1 ring-primary-500/20 dark:bg-primary-500/10'
 							: 'border-surface-200/90 bg-white/90 dark:border-surface-700 dark:bg-surface-900/50'}"
 					>
 						<span
-							class="text-xs font-bold uppercase tracking-wide text-surface-600 dark:text-surface-300"
+							class="text-3xs font-bold uppercase tracking-wide text-surface-600 dark:text-surface-300"
 							>Ano / ciclo</span
 						>
-						<div class="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-[5.5rem_1fr]">
+						<div class="grid min-w-0 grid-cols-[4.5rem_1fr] gap-1.5">
 							<select
 								id="filtro-ano-ciclo"
 								bind:value={filtroAnoCiclo}
 								onchange={onAnoCicloHistoricoMudou}
-								class="min-h-[2.75rem] w-full cursor-pointer rounded-xl border border-surface-300 bg-white px-2.5 py-2 text-sm font-medium text-surface-800 shadow-sm transition-colors hover:border-primary-400/55 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/25 dark:border-surface-600 dark:bg-surface-800 dark:text-surface-100 sm:w-[5.5rem]"
+								class="min-h-[2.25rem] w-full cursor-pointer rounded-lg border border-surface-300 bg-white px-1.5 py-1.5 text-xs font-medium text-surface-800 shadow-sm transition-colors hover:border-primary-400/55 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/25 dark:border-surface-600 dark:bg-surface-800 dark:text-surface-100"
 							>
 								<option value="">Ano</option>
 								{#each anosDisponiveisHistorico as ano (ano)}
@@ -326,7 +326,7 @@
 								bind:value={filtroNumeroCiclo}
 								disabled={filtroAnoCiclo === ''}
 								onchange={onAnoCicloHistoricoMudou}
-								class="min-h-[2.75rem] min-w-0 w-full cursor-pointer rounded-xl border border-surface-300 bg-white px-2.5 py-2 text-sm font-medium text-surface-800 shadow-sm transition-colors hover:border-primary-400/55 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/25 disabled:cursor-not-allowed disabled:opacity-45 dark:border-surface-600 dark:bg-surface-800 dark:text-surface-100"
+								class="min-h-[2.25rem] min-w-0 w-full cursor-pointer rounded-lg border border-surface-300 bg-white px-1.5 py-1.5 text-xs font-medium text-surface-800 shadow-sm transition-colors hover:border-primary-400/55 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/25 disabled:cursor-not-allowed disabled:opacity-45 dark:border-surface-600 dark:bg-surface-800 dark:text-surface-100"
 							>
 								<option value="">Ciclo</option>
 								{#each CICLOS as c (c.n)}
@@ -337,13 +337,13 @@
 					</div>
 
 					<div
-						class="flex min-h-0 flex-col gap-2 rounded-xl border p-3.5 shadow-sm transition-all sm:p-4 {historicoFiltroDataAtivo
+						class="flex min-h-0 min-w-0 flex-col gap-1.5 rounded-lg border p-2.5 shadow-sm transition-all {historicoFiltroDataAtivo
 							? 'border-primary-500/45 bg-primary-500/[0.07] ring-1 ring-primary-500/20 dark:bg-primary-500/10'
 							: 'border-surface-200/90 bg-white/90 dark:border-surface-700 dark:bg-surface-900/50'}"
 					>
 						<label
 							for="filtro-data-especifica"
-							class="text-xs font-bold uppercase tracking-wide text-surface-600 dark:text-surface-300"
+							class="text-3xs font-bold uppercase tracking-wide text-surface-600 dark:text-surface-300"
 							>Data específica</label
 						>
 						<input
@@ -351,7 +351,7 @@
 							type="date"
 							value={filtroData}
 							oninput={onDataEspecificaHistoricoInput}
-							class="w-full min-h-[2.75rem] cursor-pointer rounded-xl border border-surface-300 bg-white px-3 py-2.5 text-sm font-medium text-surface-800 transition-colors hover:border-primary-400/55 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/25 dark:border-surface-600 dark:bg-surface-800 dark:text-surface-100"
+							class="w-full min-h-[2.25rem] min-w-0 cursor-pointer rounded-lg border border-surface-300 bg-white px-2 py-1.5 text-xs font-medium text-surface-800 transition-colors hover:border-primary-400/55 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/25 dark:border-surface-600 dark:bg-surface-800 dark:text-surface-100"
 						/>
 					</div>
 				</div>

@@ -21,7 +21,9 @@
 	 */
 	import { Dialog } from '@skeletonlabs/skeleton-svelte';
 	import { MESES_PT, DIAS_SEMANA_CURTO, isoData, diasNoMes } from '$lib/utils/datas';
-	import { Moon, Sun, Calendar } from '@lucide/svelte';
+	import Moon from '@lucide/svelte/icons/moon';
+	import Sun from '@lucide/svelte/icons/sun';
+	import Calendar from '@lucide/svelte/icons/calendar';
 	import { enhance } from '$app/forms';
 	import { toaster } from '$lib/toast';
 	import type { Unidade } from '$lib/types';

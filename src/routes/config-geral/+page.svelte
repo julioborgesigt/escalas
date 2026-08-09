@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { PageProps } from './$types';
-	import { AlertTriangle } from '@lucide/svelte';
+	import AlertTriangle from '@lucide/svelte/icons/alert-triangle';
 	import { enhance } from '$app/forms';
 	import { toaster } from '$lib/toast';
 

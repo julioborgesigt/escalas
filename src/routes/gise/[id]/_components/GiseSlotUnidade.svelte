@@ -10,7 +10,8 @@
 	import type { GiseSeccionalActions } from '$lib/composables/gise/useGiseSeccionalActions.svelte';
 	import type { GiseSeccionalEstado } from './gise-seccional-estado.svelte';
 	import GiseEquipeCard from './GiseEquipeCard.svelte';
-	import { PenLine } from '@lucide/svelte';
+	import PenLine from '@lucide/svelte/icons/pen-line';
+	import { getSeccionalColorClass } from '$lib/gise/page-helpers';
 
 	type Seccional = GiseDetalhado['seccionais'][number];
 
@@ -49,7 +50,10 @@
 </script>
 
 <div
-	class="rounded-xl border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-950 overflow-visible shadow-[inset_0_1px_3px_rgba(0,0,0,0.02)]"
+	class="rounded-xl border border-surface-300 dark:border-surface-700 border-l-[6px] bg-white dark:bg-surface-950 overflow-visible shadow-[inset_0_1px_3px_rgba(0,0,0,0.02)] {getSeccionalColorClass(
+		sec.seccional_id,
+		'media'
+	)}"
 >
 	<!-- Cabeçalho do slot -->
 	<div class="flex flex-col gap-2 px-4 py-3 border-b border-surface-200 dark:border-surface-800">
@@ -249,7 +253,7 @@
 
 	<!-- Admin Geral: adicionar equipe a este slot -->
 	{#if isAdminGeral && podeEditar && modoEdicaoGeral}
-		<div class="px-3 pb-3 flex justify-start">
+		<div class="px-3 pb-3 flex justify-end">
 			{#if estado.adicionandoEquipe && estado.adicionandoEquipeSlotId === slot.id}
 				<div
 					class="flex flex-wrap gap-2 items-end p-3 rounded-xl border border-dashed border-surface-300 dark:border-surface-600 w-full sm:w-auto"

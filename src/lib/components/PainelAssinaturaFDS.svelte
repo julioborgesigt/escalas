@@ -28,7 +28,7 @@
 	import type { ActionResult } from '@sveltejs/kit';
 	import { toaster } from '$lib/toast';
 	import { postFormAction } from '$lib/post-form-action';
-	import { CheckCircle2 } from '@lucide/svelte';
+	import CheckCircle2 from '@lucide/svelte/icons/check-circle-2';
 
 	let {
 		escalaId,
@@ -248,7 +248,7 @@
 {:else if podeEditar}
 	<!-- Painel: FDS não enviada -->
 	<div
-		class="mb-6 p-4 sm:p-5 bg-white/80 dark:bg-surface-900/60 backdrop-blur-md border border-surface-200 dark:border-white/5 rounded-2xl shadow-xl shadow-black/5 dark:shadow-black/20 flex flex-col sm:flex-row items-center justify-between gap-4"
+		class="mb-6 p-4 sm:p-5 card-glass rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-4"
 	>
 		<div>
 			<h3 class="font-semibold text-base text-surface-700 dark:text-surface-200">

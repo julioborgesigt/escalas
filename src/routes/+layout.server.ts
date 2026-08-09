@@ -13,6 +13,7 @@ export const load: LayoutServerLoad = async ({ locals, platform, cookies, depend
 	let isMembroGise = false;
 	let isSupervisaoGise = false;
 	let temGiseHistorico = false;
+	let temPresencaGisePendente = false;
 	let exigirFotoAssinatura = true;
 	let exigirGpsAssinatura = true;
 	let exigirCodigoEmailAssinatura = false;
@@ -42,6 +43,7 @@ export const load: LayoutServerLoad = async ({ locals, platform, cookies, depend
 			// segmentadas para não invalidar o layout inteiro à toa.
 			if (u.tipo === 'admin') depends('app:recebidos-badge');
 			depends('app:assinatura-flags');
+			if (u.tipo === 'policial') depends('app:papel-gise');
 			const [flags, papel, vinculadoAdmin, recebidos] = await Promise.all([
 				lerFlagsAssinatura(platform),
 				u.tipo === 'policial' ? lerPapelGise(db, u.id) : Promise.resolve(null),
@@ -60,6 +62,7 @@ export const load: LayoutServerLoad = async ({ locals, platform, cookies, depend
 				isMembroGise = papel.isMembro;
 				isSupervisaoGise = papel.isSupervisao;
 				temGiseHistorico = papel.temHistorico;
+				temPresencaGisePendente = papel.temPresencaPendente;
 			}
 
 			// Aviso "cadastre sua rubrica": só para policial SEM rubrica com
@@ -90,6 +93,7 @@ export const load: LayoutServerLoad = async ({ locals, platform, cookies, depend
 		isMembroGise,
 		isSupervisaoGise,
 		temGiseHistorico,
+		temPresencaGisePendente,
 		exigirFotoAssinatura,
 		exigirGpsAssinatura,
 		exigirCodigoEmailAssinatura,

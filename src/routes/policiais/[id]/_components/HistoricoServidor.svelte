@@ -19,18 +19,16 @@
 	import type { PolicialHistorico } from '$lib/types';
 	import { formatarData } from '$lib/utils/datas';
 	import { LABEL_SUBTIPO_AFASTAMENTO } from '$lib/schemas/policial-historico';
-	import {
-		ArrowRightLeft,
-		CalendarOff,
-		UserMinus,
-		Pencil,
-		ShieldCheck,
-		FileText,
-		History,
-		CircleDot,
-		ChevronLeft,
-		ChevronRight
-	} from '@lucide/svelte';
+	import ArrowRightLeft from '@lucide/svelte/icons/arrow-right-left';
+	import CalendarOff from '@lucide/svelte/icons/calendar-off';
+	import UserMinus from '@lucide/svelte/icons/user-minus';
+	import Pencil from '@lucide/svelte/icons/pencil';
+	import ShieldCheck from '@lucide/svelte/icons/shield-check';
+	import FileText from '@lucide/svelte/icons/file-text';
+	import History from '@lucide/svelte/icons/history';
+	import CircleDot from '@lucide/svelte/icons/circle-dot';
+	import ChevronLeft from '@lucide/svelte/icons/chevron-left';
+	import ChevronRight from '@lucide/svelte/icons/chevron-right';
 
 	interface Props {
 		historico: PolicialHistorico[];

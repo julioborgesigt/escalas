@@ -22,7 +22,8 @@
 	 * abertura do modal, basta o valor inicial.
 	 */
 	import { untrack } from 'svelte';
-	import { Camera, Check } from '@lucide/svelte';
+	import Camera from '@lucide/svelte/icons/camera';
+	import Check from '@lucide/svelte/icons/check';
 	import type {
 		SignaturePadLivenessResultado,
 		SignaturePadConfirmPayload

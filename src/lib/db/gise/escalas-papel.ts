@@ -7,7 +7,7 @@
  * plantão, o acesso se fecha sozinho — não há revogação a fazer, e é por isso que
  * essas permissões não moram em `policiais.papel`.
  */
-import { eq, and, ne, or, isNotNull } from 'drizzle-orm';
+import { eq, and, ne, or, isNotNull, isNull } from 'drizzle-orm';
 import {
 	giseEscalas,
 	giseSeccionais,
@@ -66,9 +66,63 @@ export async function isSupervisaoGiseAtiva(db: Database, policialId: number): P
 }
 
 /**
+ * O policial tem presença PENDENTE em GISE ativa: está escalado (membro,
+ * supervisor ou quadro) em alguma GISE não finalizada e ainda não registrou a
+ * SAÍDA. É a mesma régua de "ativas" em `/res-gise` (`isFinished` = saída ou
+ * GISE finalizada) — libera a aba "Presença GISE" só enquanto há entrada ou
+ * saída a confirmar.
+ */
+export async function temPresencaGisePendente(db: Database, policialId: number): Promise<boolean> {
+	const membroPendente = await db
+		.select({ id: giseMembros.id })
+		.from(giseMembros)
+		.innerJoin(giseEquipes, eq(giseMembros.equipe_id, giseEquipes.id))
+		.innerJoin(giseSeccionais, eq(giseEquipes.gise_seccional_id, giseSeccionais.id))
+		.innerJoin(giseEscalas, eq(giseSeccionais.gise_id, giseEscalas.id))
+		.leftJoin(
+			gisePresencas,
+			and(eq(gisePresencas.gise_id, giseEscalas.id), eq(gisePresencas.policial_id, policialId))
+		)
+		.where(
+			and(
+				eq(giseMembros.policial_id, policialId),
+				ne(giseEscalas.status, 'finalizada'),
+				isNull(gisePresencas.saida_timestamp)
+			)
+		)
+		.limit(1)
+		.get();
+	if (membroPendente) return true;
+
+	const quadroPendente = await db
+		.select({ id: giseEscalas.id })
+		.from(giseEscalas)
+		.leftJoin(
+			gisePresencas,
+			and(eq(gisePresencas.gise_id, giseEscalas.id), eq(gisePresencas.policial_id, policialId))
+		)
+		.where(
+			and(
+				ne(giseEscalas.status, 'finalizada'),
+				or(
+					eq(giseEscalas.supervisor_id, policialId),
+					eq(giseEscalas.assessor_id, policialId),
+					eq(giseEscalas.seint1_id, policialId),
+					eq(giseEscalas.seint2_id, policialId)
+				),
+				isNull(gisePresencas.saida_timestamp)
+			)
+		)
+		.limit(1)
+		.get();
+	return !!quadroPendente;
+}
+
+/**
  * O policial tem HISTÓRICO GISE — ao menos uma participação já ENCERRADA para
- * ele. É o complemento dos predicados "ativa" acima: enquanto eles liberam a aba
- * "Presença GISE" (serviço em curso), este libera a aba "Histórico GISE".
+ * ele. É o complemento dos predicados "ativa" acima: enquanto
+ * `temPresencaGisePendente` libera a aba "Presença GISE" (serviço em curso),
+ * este libera a aba "Histórico GISE".
  *
  * "Encerrada para ele" é a mesma condição que a lista de `/res-gise` usa para
  * separar ativas de finalizadas (`isFinished`): ou o policial já bateu a SAÍDA

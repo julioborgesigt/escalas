@@ -49,70 +49,70 @@
 					: '(P4-P19)'}
 			</p>
 		</div>
-		<div class="flex flex-wrap items-center gap-3">
-			{#if p.allChartsCount > 0}
+		<div class="flex flex-col items-start gap-2">
+			<span
+				class="text-xs font-bold uppercase tracking-widest text-surface-400 dark:text-surface-500"
+				>Baixar gráficos</span
+			>
+			<div class="flex flex-wrap items-center gap-3">
+				{#if p.allChartsCount > 0}
+					<button
+						type="button"
+						class="btn text-3xs font-black uppercase tracking-widest px-4 py-2 rounded-xl transition-colors {p
+							.selectedCharts.length >= p.allChartsCount
+							? 'bg-surface-900 dark:bg-surface-50 text-white dark:text-surface-950'
+							: 'bg-surface-200/60 dark:bg-surface-800/60 text-surface-600 dark:text-surface-300 hover:bg-surface-200 dark:hover:bg-surface-700'}"
+						onclick={p.selectAllCharts}
+					>
+						{p.selectedCharts.length >= p.allChartsCount
+							? 'Desmarcar Todos'
+							: `Selecionar Todos (${p.allChartsCount})`}
+					</button>
+				{/if}
+
 				<button
 					type="button"
-					class="btn text-3xs font-black uppercase tracking-widest px-4 py-2 rounded-xl transition-colors {p
-						.selectedCharts.length >= p.allChartsCount
-						? 'bg-surface-900 dark:bg-surface-50 text-white dark:text-surface-950 shadow-lg'
-						: 'bg-surface-200/60 dark:bg-surface-800/60 text-surface-600 dark:text-surface-300 hover:bg-surface-200 dark:hover:bg-surface-700'}"
-					onclick={p.selectAllCharts}
+					class="btn {p.selectedCharts.length > 0
+						? 'bg-error-600 hover:bg-error-700 text-white'
+						: 'bg-surface-200/80 dark:bg-surface-800/80 text-surface-500 dark:text-surface-400 cursor-not-allowed'} text-3xs font-black uppercase py-2 px-6 rounded-xl transition-colors flex items-center gap-2"
+					onclick={p.exportChartsAsImages}
+					disabled={p.selectedCharts.length === 0 || p.exporting}
 				>
-					{p.selectedCharts.length >= p.allChartsCount
-						? 'Desmarcar Todos'
-						: `Selecionar Todos (${p.allChartsCount})`}
+					{#if p.exporting}
+						<Spinner size="sm" />
+						Exportando...
+					{:else}
+						<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+							><path
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								stroke-width="3"
+								d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+							/></svg
+						>
+						Baixar (imagem){p.selectedCharts.length > 0 ? ` (${p.selectedCharts.length})` : ''}
+					{/if}
 				</button>
-			{/if}
 
-			<button
-				type="button"
-				class="btn {p.selectedCharts.length > 0
-					? 'bg-error-600 hover:bg-error-700 shadow-error-500/20 text-white'
-					: 'bg-surface-200/80 dark:bg-surface-800/80 text-surface-500 dark:text-surface-400 cursor-not-allowed'} shadow-xl text-3xs font-black uppercase py-2 px-6 rounded-xl transition-all {p
-					.selectedCharts.length > 0
-					? 'hover:scale-105 active:scale-95'
-					: ''} flex items-center gap-2"
-				onclick={p.exportChartsAsImages}
-				disabled={p.selectedCharts.length === 0 || p.exporting}
-			>
-				{#if p.exporting}
-					<Spinner size="sm" />
-					Exportando...
-				{:else}
+				<button
+					type="button"
+					class="export-btn btn {p.selectedCharts.length > 0
+						? 'bg-secondary-600 hover:bg-secondary-700 text-white'
+						: 'bg-surface-200/80 dark:bg-surface-800/80 text-surface-500 dark:text-surface-400 cursor-not-allowed'} text-3xs font-black uppercase py-2 px-6 rounded-xl transition-colors flex items-center gap-2"
+					onclick={() => window.print()}
+					disabled={p.selectedCharts.length === 0}
+				>
 					<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"
 						><path
 							stroke-linecap="round"
 							stroke-linejoin="round"
 							stroke-width="3"
-							d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+							d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
 						/></svg
 					>
-					Baixar PNGs {p.selectedCharts.length > 0 ? `(${p.selectedCharts.length})` : ''}
-				{/if}
-			</button>
-
-			<button
-				type="button"
-				class="export-btn btn {p.selectedCharts.length > 0
-					? 'bg-secondary-600 hover:bg-secondary-700 shadow-secondary-500/20 text-white'
-					: 'bg-surface-200/80 dark:bg-surface-800/80 text-surface-500 dark:text-surface-400 cursor-not-allowed'} shadow-xl text-3xs font-black uppercase py-2 px-6 rounded-xl transition-all {p
-					.selectedCharts.length > 0
-					? 'hover:scale-105 active:scale-95'
-					: ''} flex items-center gap-2"
-				onclick={() => window.print()}
-				disabled={p.selectedCharts.length === 0}
-			>
-				<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"
-					><path
-						stroke-linecap="round"
-						stroke-linejoin="round"
-						stroke-width="3"
-						d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-					/></svg
-				>
-				Exportar PDF {p.selectedCharts.length > 0 ? `(${p.selectedCharts.length})` : ''}
-			</button>
+					Baixar (PDF){p.selectedCharts.length > 0 ? ` (${p.selectedCharts.length})` : ''}
+				</button>
+			</div>
 		</div>
 	</header>
 
@@ -124,7 +124,7 @@
 			>
 			<button
 				type="button"
-				class="inline-flex items-center gap-1.5 rounded-xl border border-surface-300/80 bg-white px-3 py-1.5 text-xs font-semibold text-surface-700 shadow-sm transition-all hover:border-primary-400/50 hover:bg-primary-500/5 dark:border-surface-600/80 dark:bg-surface-800 dark:text-surface-200 dark:hover:bg-surface-700/80 {p.mostrarFiltros
+				class="inline-flex items-center gap-1.5 rounded-xl border border-surface-300/80 bg-white px-3 py-1.5 text-xs font-semibold text-surface-700 transition-colors hover:border-primary-400/50 hover:bg-primary-500/5 dark:border-surface-600/80 dark:bg-surface-800 dark:text-surface-200 dark:hover:bg-surface-700/80 {p.mostrarFiltros
 					? 'border-primary-500/50 bg-primary-500/5 dark:border-primary-500/40 dark:bg-primary-500/10'
 					: ''}"
 				onclick={() => (p.mostrarFiltros = !p.mostrarFiltros)}
@@ -138,7 +138,7 @@
 						d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"
 					/>
 				</svg>
-				Filtros
+				{p.mostrarFiltros ? 'Ocultar filtros' : 'Filtros'}
 				{#if p.filtrosAtivos}
 					<span class="h-1.5 w-1.5 rounded-full bg-primary-500"></span>
 				{/if}
@@ -147,7 +147,7 @@
 
 		{#if p.mostrarFiltros}
 			<section
-				class="overflow-hidden rounded-3xl border border-surface-200 bg-white shadow-sm dark:border-surface-800 dark:bg-surface-900"
+				class="overflow-hidden rounded-3xl border border-surface-200 bg-white dark:border-surface-800 dark:bg-surface-900"
 				transition:slide={{ duration: 250 }}
 			>
 				<div class="grid grid-cols-1 gap-4 p-4 sm:p-5 lg:grid-cols-12 items-end">
@@ -158,23 +158,21 @@
 						>
 							1. Tipo de equipe
 						</p>
-						<div
-							class="inline-flex w-full rounded-xl border border-surface-200 bg-surface-100 p-0.5 dark:border-surface-700 dark:bg-surface-800/80"
-						>
+						<div class="inline-flex w-full rounded-xl bg-surface-100 dark:bg-surface-800 p-1">
 							<button
 								type="button"
-								class="flex-1 rounded-lg py-1.5 text-xs font-bold transition-all {p.filterTipo ===
+								class="flex-1 rounded-lg py-1.5 text-xs font-bold transition-colors {p.filterTipo ===
 								'operacional'
-									? 'bg-warning-500 text-white shadow-sm'
-									: 'text-surface-600 dark:text-surface-400 hover:text-surface-700 dark:hover:text-surface-200'}"
+									? 'bg-white dark:bg-surface-700 shadow text-primary-600'
+									: 'text-surface-600 dark:text-surface-400'}"
 								onclick={() => (p.filterTipo = 'operacional')}>Operacional</button
 							>
 							<button
 								type="button"
-								class="flex-1 rounded-lg py-1.5 text-xs font-bold transition-all {p.filterTipo ===
+								class="flex-1 rounded-lg py-1.5 text-xs font-bold transition-colors {p.filterTipo ===
 								'seint'
-									? 'bg-tertiary-500 text-white shadow-sm'
-									: 'text-surface-600 dark:text-surface-400 hover:text-surface-700 dark:hover:text-surface-200'}"
+									? 'bg-white dark:bg-surface-700 shadow text-primary-600'
+									: 'text-surface-600 dark:text-surface-400'}"
 								onclick={() => (p.filterTipo = 'seint')}>Inteligência</button
 							>
 						</div>

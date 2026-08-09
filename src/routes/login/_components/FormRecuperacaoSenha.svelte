@@ -3,7 +3,9 @@
 	 * Fluxo 4: recuperação de senha em três passos (`recuperacaoEtapa`).
 	 * Respostas genéricas — não revela se a matrícula/login existe.
 	 */
-	import { Inbox, Lock, Mail } from '@lucide/svelte';
+	import Inbox from '@lucide/svelte/icons/inbox';
+	import Lock from '@lucide/svelte/icons/lock';
+	import Mail from '@lucide/svelte/icons/mail';
 	import { loading as loadingService } from '$lib/loading.svelte';
 	import CodigoTimer from '$lib/components/CodigoTimer.svelte';
 	import { Steps, Tabs } from '@skeletonlabs/skeleton-svelte';

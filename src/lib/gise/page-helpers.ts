@@ -88,28 +88,73 @@ export function getFaltandoRubrica(sec: GiseSecComMembros): string {
 	return 'Faltando rubrica de: ' + faltantes.map((m) => m.policial_nome.split(' ')[0]).join(', ');
 }
 
-const SECCIONAL_BG_CLASSES: readonly string[] = [
-	'border-l-blue-600 bg-white dark:bg-surface-900',
-	'border-l-emerald-600 bg-white dark:bg-surface-900',
-	'border-l-indigo-600 bg-white dark:bg-surface-900',
-	'border-l-violet-600 bg-white dark:bg-surface-900',
-	'border-l-amber-600 bg-white dark:bg-surface-900',
-	'border-l-rose-600 bg-white dark:bg-surface-900',
-	'border-l-cyan-600 bg-white dark:bg-surface-900',
-	'border-l-teal-600 bg-white dark:bg-surface-900',
-	'border-l-sky-600 bg-white dark:bg-surface-900',
-	'border-l-slate-600 bg-white dark:bg-surface-900'
+const SECCIONAL_TARJA_FORTE: readonly string[] = [
+	'border-l-blue-700',
+	'border-l-emerald-700',
+	'border-l-indigo-700',
+	'border-l-violet-700',
+	'border-l-amber-700',
+	'border-l-rose-700',
+	'border-l-cyan-700',
+	'border-l-teal-700',
+	'border-l-sky-700',
+	'border-l-slate-700'
 ];
+
+const SECCIONAL_TARJA_MEDIA: readonly string[] = [
+	'border-l-blue-500',
+	'border-l-emerald-500',
+	'border-l-indigo-500',
+	'border-l-violet-500',
+	'border-l-amber-500',
+	'border-l-rose-500',
+	'border-l-cyan-500',
+	'border-l-teal-500',
+	'border-l-sky-500',
+	'border-l-slate-500'
+];
+
+const SECCIONAL_TARJA_SUAVE: readonly string[] = [
+	'border-l-blue-300',
+	'border-l-emerald-300',
+	'border-l-indigo-300',
+	'border-l-violet-300',
+	'border-l-amber-300',
+	'border-l-rose-300',
+	'border-l-cyan-300',
+	'border-l-teal-300',
+	'border-l-sky-300',
+	'border-l-slate-300'
+];
+
+const SECCIONAL_TARJA_POR_INTENSIDADE = {
+	forte: SECCIONAL_TARJA_FORTE,
+	media: SECCIONAL_TARJA_MEDIA,
+	suave: SECCIONAL_TARJA_SUAVE
+} as const;
+
+/** Intensidade da tarja lateral: seccional (forte) → slot DP (média) → equipe (suave). */
+export type SeccionalTarjaIntensidade = keyof typeof SECCIONAL_TARJA_POR_INTENSIDADE;
 
 /**
  * Cor de borda estável para a seccional — o mesmo id sempre recebe a mesma cor,
  * em qualquer GISE, o que ajuda a reconhecer a seccional de relance.
  *
+ * `intensidade` diferencia o aninhamento visual (quadro externo mais saturado,
+ * interiores mais leves) sem mudar o matiz por id.
+ *
  * As classes são LITERAIS completas, não montadas por interpolação: o Tailwind
  * varre o código-fonte, e `border-l-${cor}-600` não geraria CSS nenhum.
+ *
+ * O fundo (`bg-white` / dark) fica no call site — a tarja só pinta a borda
+ * esquerda, para não sobrescrever o fundo de slots/equipes.
  */
-export function getSeccionalColorClass(seccionalId: number): string {
-	return SECCIONAL_BG_CLASSES[seccionalId % SECCIONAL_BG_CLASSES.length];
+export function getSeccionalColorClass(
+	seccionalId: number,
+	intensidade: SeccionalTarjaIntensidade = 'forte'
+): string {
+	const cores = SECCIONAL_TARJA_POR_INTENSIDADE[intensidade];
+	return cores[seccionalId % cores.length];
 }
 
 /**

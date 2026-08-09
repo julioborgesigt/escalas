@@ -3,7 +3,9 @@
 	 * Fluxo 1+2 da tela de login: formulário de senha (→ 2FA no orquestrador)
 	 * e entrada por certificado digital SERPRO (dispensa 2FA).
 	 */
-	import { AlertCircle, Calendar, Shield } from '@lucide/svelte';
+	import AlertCircle from '@lucide/svelte/icons/alert-circle';
+	import Calendar from '@lucide/svelte/icons/calendar';
+	import Shield from '@lucide/svelte/icons/shield';
 	import { enhance } from '$app/forms';
 	import { loading as loadingService } from '$lib/loading.svelte';
 	import { Tabs } from '@skeletonlabs/skeleton-svelte';
@@ -61,7 +63,7 @@
 				>Módulo de Acesso</span
 			>
 			<div class="flex gap-2 mt-1">
-				{#each [{ value: 'escalas', label: 'Escalas' }, { value: 'gise', label: 'GISE' }] as opt (opt.value)}
+				{#each [{ value: 'escalas', label: 'Escalas ordinárias' }, { value: 'gise', label: 'GISE' }] as opt (opt.value)}
 					<button
 						type="button"
 						class="flex-1 flex flex-col items-center gap-1 py-2 px-1 rounded-xl border text-xs font-medium transition-all
