@@ -23,6 +23,7 @@ import { eq, and, desc, sql, type SQL } from 'drizzle-orm';
 import {
 	giseEscalas,
 	giseSeccionais,
+	giseSeccionalUnidades,
 	giseEquipes,
 	giseMembros,
 	giseModeloFormulario,
@@ -600,8 +601,13 @@ export async function buscarRespostasProdutividadeSeccional(
 }
 
 /**
- * Modelo customizado do tipo, ou `undefined` se nunca foi salvo (o chamador cai
- * no DEFAULT correspondente).
+ * Modelo customizado de UMA operação, no tipo de equipe pedido — ou `undefined`
+ * se nunca foi salvo (o chamador cai no DEFAULT correspondente).
+ *
+ * `operacaoId` é obrigatório e sem valor padrão de propósito. Um default
+ * silencioso aqui faria uma tela nova ler "o modelo global" por esquecimento, e
+ * o sintoma seria o formulário da CRAJUBAR aparecendo com as perguntas do GISE —
+ * sem erro nenhum.
  *
  * Devolve `null` em caso de FALHA de query em vez de propagar: o modelo é
  * enfeite comparado ao resto da página — quebrar o `load` inteiro porque a
@@ -609,19 +615,31 @@ export async function buscarRespostasProdutividadeSeccional(
  */
 export async function buscarGiseModeloFormulario(
 	db: Database,
+	operacaoId: number,
 	tipo: 'operacional' | 'seint' = 'operacional'
 ) {
 	try {
-		return db.select().from(giseModeloFormulario).where(eq(giseModeloFormulario.tipo, tipo)).get();
+		return db
+			.select()
+			.from(giseModeloFormulario)
+			.where(
+				and(eq(giseModeloFormulario.operacao_id, operacaoId), eq(giseModeloFormulario.tipo, tipo))
+			)
+			.get();
 	} catch (err) {
-		logger.error('[buscarGiseModeloFormulario] falha na query', { tipo, err: String(err) });
+		logger.error('[buscarGiseModeloFormulario] falha na query', {
+			operacaoId,
+			tipo,
+			err: String(err)
+		});
 		return null;
 	}
 }
 
 /**
- * Grava o modelo do tipo (upsert manual: uma linha por `tipo`). `config` é o
- * JSON da árvore de perguntas, já validado pelo chamador.
+ * Grava o modelo de uma operação (upsert manual: uma linha por `operação` ×
+ * `tipo`, imposta pelo índice `uq_gise_modelo_operacao_tipo`). `config` é o JSON
+ * da árvore de perguntas, já validado pelo chamador.
  *
  * Substitui o modelo INTEIRO: as respostas antigas continuam no banco com as
  * `key` velhas e simplesmente deixam de aparecer no relatório se a `key` sumir
@@ -632,16 +650,21 @@ export async function buscarGiseModeloFormulario(
  * `config_anterior` antes de ser sobrescrito, alimentando o "Restaurar
  * anterior" do editor. Gravar o MESMO conteúdo não mexe no anterior — senão
  * salvar duas vezes seguidas sem editar nada destruiria o ponto de retorno.
+ * O par vigente/anterior é POR OPERAÇÃO: editar a CRAJUBAR não consome o
+ * desfazer do GISE.
  */
 export async function salvarGiseModeloFormulario(
 	db: Database,
+	operacaoId: number,
 	tipo: 'operacional' | 'seint',
 	config: string
 ) {
 	const existente = await db
 		.select({ id: giseModeloFormulario.id, config: giseModeloFormulario.config })
 		.from(giseModeloFormulario)
-		.where(eq(giseModeloFormulario.tipo, tipo))
+		.where(
+			and(eq(giseModeloFormulario.operacao_id, operacaoId), eq(giseModeloFormulario.tipo, tipo))
+		)
 		.get();
 
 	if (existente) {
@@ -656,9 +679,12 @@ export async function salvarGiseModeloFormulario(
 			.where(eq(giseModeloFormulario.id, existente.id));
 	}
 
-	return db
-		.insert(giseModeloFormulario)
-		.values({ tipo, config, updated_at: sql`datetime('now', '-3 hours')` });
+	return db.insert(giseModeloFormulario).values({
+		operacao_id: operacaoId,
+		tipo,
+		config,
+		updated_at: sql`datetime('now', '-3 hours')`
+	});
 }
 
 // ---- Respostas ----
@@ -769,11 +795,23 @@ export async function salvarRespostaGise(
  *   `updated_at` da resposta: o que interessa é o período do serviço, não
  *   quando alguém preencheu;
  * - `limit` é limitado a 500 por página. O painel pagina em laço até esgotar,
- *   então mudar esse teto muda o número de idas ao banco, não o resultado.
+ *   então mudar esse teto muda o número de idas ao banco, não o resultado;
+ * - `operacaoId` recorta à operação (os indicadores e as metas são dela);
+ * - `unidadeIds` é o ESCOPO do admin de unidade/seccional, e é filtro de
+ *   SERVIDOR. Lista vazia significa "nenhuma unidade" e devolve zero linhas —
+ *   nunca "sem filtro". Casa pela mesma cadeia de precedência que resolve a
+ *   unidade de uma equipe: slot → unidade operacional → seccional.
  */
 export async function listarTodasRespostasGise(
 	db: Database,
-	opts?: { page?: number; limit?: number; mes?: number; ano?: number }
+	opts?: {
+		page?: number;
+		limit?: number;
+		mes?: number;
+		ano?: number;
+		operacaoId?: number;
+		unidadeIds?: number[];
+	}
 ): Promise<{
 	respostas: Array<{
 		id: number;
@@ -786,6 +824,8 @@ export async function listarTodasRespostasGise(
 		seccional_nome: string;
 		equipe_id: number;
 		equipe_tipo: string;
+		operacao_id: number | null;
+		unidade_id: number | null;
 	}>;
 	total: number;
 	page: number;
@@ -796,6 +836,15 @@ export async function listarTodasRespostasGise(
 	const limit = Math.min(500, Math.max(1, opts?.limit ?? 200));
 	const offset = (page - 1) * limit;
 
+	// A unidade da equipe, na mesma precedência de toda a aplicação: o slot é o
+	// nível mais específico (é ele que distingue Crato de Barbalha dentro da 2ª
+	// Seccional), depois a unidade operacional, e por fim a própria seccional.
+	const unidadeDaEquipe = sql<number>`COALESCE(
+		${giseSeccionalUnidades.unidade_id},
+		${giseSeccionais.unidade_operacional_id},
+		${giseSeccionais.seccional_id}
+	)`;
+
 	// Build dynamic conditions
 	const conditions: SQL[] = [];
 	if (opts?.mes) {
@@ -805,6 +854,26 @@ export async function listarTodasRespostasGise(
 	if (opts?.ano) {
 		conditions.push(sql`strftime('%Y', ${giseEscalas.data_inicio}) = ${opts.ano.toString()}`);
 	}
+	if (opts?.operacaoId != null) {
+		conditions.push(sql`${giseEscalas.operacao_id} = ${opts.operacaoId}`);
+	}
+	if (opts?.unidadeIds) {
+		// Lista vazia = nenhuma unidade permitida. `IN ()` é inválido, então o
+		// recorte vira um predicado sempre falso — devolver tudo seria o contrário
+		// do que "escopo vazio" significa.
+		conditions.push(
+			opts.unidadeIds.length === 0
+				? sql`1 = 0`
+				: sql`${unidadeDaEquipe} IN ${
+						opts.unidadeIds.length === 1
+							? sql`(${opts.unidadeIds[0]})`
+							: sql`(${sql.join(
+									opts.unidadeIds.map((id) => sql`${id}`),
+									sql`, `
+								)})`
+					}`
+		);
+	}
 	const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
 
 	// Count total
@@ -813,6 +882,10 @@ export async function listarTodasRespostasGise(
 		.from(giseRespostasFormulario)
 		.innerJoin(giseEquipes, eq(giseRespostasFormulario.equipe_id, giseEquipes.id))
 		.innerJoin(giseSeccionais, eq(giseEquipes.gise_seccional_id, giseSeccionais.id))
+		// LEFT: equipe legada pode não ter slot. O join precisa estar aqui também,
+		// e não só no SELECT, porque `unidadeDaEquipe` participa do WHERE — sem ele
+		// a contagem e a página divergiriam e a paginação perderia linhas.
+		.leftJoin(giseSeccionalUnidades, eq(giseEquipes.gise_unidade_id, giseSeccionalUnidades.id))
 		.innerJoin(giseEscalas, eq(giseSeccionais.gise_id, giseEscalas.id))
 		.where(whereClause)
 		.get();
@@ -830,11 +903,14 @@ export async function listarTodasRespostasGise(
 			seccional_id: giseSeccionais.seccional_id,
 			seccional_nome: unidades.nome,
 			equipe_id: giseEquipes.id,
-			equipe_tipo: giseEquipes.tipo
+			equipe_tipo: giseEquipes.tipo,
+			operacao_id: giseEscalas.operacao_id,
+			unidade_id: unidadeDaEquipe
 		})
 		.from(giseRespostasFormulario)
 		.innerJoin(giseEquipes, eq(giseRespostasFormulario.equipe_id, giseEquipes.id))
 		.innerJoin(giseSeccionais, eq(giseEquipes.gise_seccional_id, giseSeccionais.id))
+		.leftJoin(giseSeccionalUnidades, eq(giseEquipes.gise_unidade_id, giseSeccionalUnidades.id))
 		.innerJoin(unidades, eq(giseSeccionais.seccional_id, unidades.id))
 		.innerJoin(giseEscalas, eq(giseSeccionais.gise_id, giseEscalas.id))
 		.where(whereClause)
