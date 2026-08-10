@@ -40,7 +40,7 @@ import {
 	DEFAULT_SEINT_QUESTIONS,
 	DEFAULT_QUESTIONS_FORM_OPERACIONAL
 } from '$lib/db';
-import { extrairIndicadores, exigeLinhaBase } from '$lib/gise/indicadores';
+import { extrairIndicadores, indicadoresComLinhaBase } from '$lib/gise/indicadores';
 import { logger } from '$lib/server/logger';
 import {
 	parseRespostasFormularioJsonLoose,
@@ -214,11 +214,7 @@ async function gravarLinhasBaseDoFormulario(
 	if (!modeloRow?.config) return;
 	const modelo = JSON.parse(modeloRow.config) as GiseModeloPerguntaConfig[];
 
-	const permitidas = new Set(
-		extrairIndicadores(modelo)
-			.filter((i) => exigeLinhaBase(i.config))
-			.map((i) => i.key)
-	);
+	const permitidas = new Set(indicadoresComLinhaBase(extrairIndicadores(modelo)).map((i) => i.key));
 	if (permitidas.size === 0) return;
 
 	const jaInformadas = await mapaLinhaBaseDaUnidade(db, destino.operacaoId, destino.unidadeId);
@@ -295,7 +291,7 @@ export const load: PageServerLoad = async ({ params, url, locals, platform }) =>
 	// Só indicador PERCENTUAL entra: meta absoluta não tem base a informar.
 	const basesPendentes: Array<{ key: string; texto: string; rotulo: string; unidade: string }> = [];
 	if (alvo.operacaoId != null && alvo.unidadeId != null) {
-		const indicadores = extrairIndicadores(modelo).filter((i) => exigeLinhaBase(i.config));
+		const indicadores = indicadoresComLinhaBase(extrairIndicadores(modelo));
 		if (indicadores.length > 0) {
 			const jaInformadas = await mapaLinhaBaseDaUnidade(db, alvo.operacaoId, alvo.unidadeId);
 			for (const ind of indicadores) {

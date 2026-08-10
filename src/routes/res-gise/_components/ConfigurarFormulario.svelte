@@ -25,7 +25,7 @@
 	import { loading } from '$lib/loading.svelte';
 	import { agruparPorEtapa } from '$lib/gise/etapas-formulario';
 	import { TIPOS_COM_FILHOS, TIPOS_COM_LISTA } from '$lib/gise/tipos-pergunta';
-	import { podeSerIndicador } from '$lib/gise/indicadores';
+	import { podeSerIndicador, ehProporcao } from '$lib/gise/indicadores';
 	import Target from '@lucide/svelte/icons/target';
 	import ChevronDown from '@lucide/svelte/icons/chevron-down';
 	import ChevronUp from '@lucide/svelte/icons/chevron-up';
@@ -376,6 +376,10 @@
 								<option value="numero">Número</option>
 								<option value="sim_nao">Sim / Não (Condicional)</option>
 								<option value="select_99">Quantitativo (0-99)</option>
+								<!-- Dois campos numa pergunta só (total e parte). É o que
+								     permite meta de COBERTURA: "atender 100% das ocorrências"
+								     não se mede com um número solto. -->
+								<option value="proporcao">Cobertura (total e atendidas)</option>
 							</optgroup>
 							<optgroup label="Campos Inteligentes (Sistemáticos)">
 								<!-- Primeiro da lista por ser o ÚNICO que pode se repetir no
@@ -462,22 +466,29 @@
 						</label>
 
 						{#if p.indicador}
+							{@const meta = p.indicador}
 							<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-								<div>
-									<label
-										for="ind-obj-{p.id}"
-										class="block text-3xs font-semibold text-surface-600 dark:text-surface-400 uppercase tracking-widest mb-1"
-										>Objetivo</label
-									>
-									<select
-										id="ind-obj-{p.id}"
-										bind:value={p.indicador.objetivo}
-										class="w-full px-3 py-2 rounded-xl border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-900 text-sm"
-									>
-										<option value="diminuir">Diminuir (reduzir o número)</option>
-										<option value="aumentar">Aumentar (elevar o número)</option>
-									</select>
-								</div>
+								<!-- Proporção não tem objetivo: cobrir 100% de um total não é
+								     aumentar nem diminuir um número. O campo SOME em vez de ficar
+								     desabilitado — desabilitado ainda afirma que existe uma
+								     direção a escolher. -->
+								{#if meta.metaTipo !== 'proporcao'}
+									<div>
+										<label
+											for="ind-obj-{p.id}"
+											class="block text-3xs font-semibold text-surface-600 dark:text-surface-400 uppercase tracking-widest mb-1"
+											>Objetivo</label
+										>
+										<select
+											id="ind-obj-{p.id}"
+											bind:value={meta.objetivo}
+											class="w-full px-3 py-2 rounded-xl border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-900 text-sm"
+										>
+											<option value="diminuir">Diminuir (reduzir o número)</option>
+											<option value="aumentar">Aumentar (elevar o número)</option>
+										</select>
+									</div>
+								{/if}
 
 								<div>
 									<label
@@ -485,14 +496,26 @@
 										class="block text-3xs font-semibold text-surface-600 dark:text-surface-400 uppercase tracking-widest mb-1"
 										>Tipo de meta</label
 									>
+									<!-- `onchange` e não `bind:value`: trocar o tipo RECONSTRÓI o
+									     objeto, porque cada variante tem campos diferentes. -->
 									<select
 										id="ind-tipo-{p.id}"
-										bind:value={p.indicador.metaTipo}
+										value={meta.metaTipo}
+										onchange={(e) => resGise.definirMetaTipoIndicador(p, e.currentTarget.value)}
 										class="w-full px-3 py-2 rounded-xl border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-900 text-sm"
 									>
 										<option value="percentual">Percentual sobre o valor inicial</option>
 										<option value="absoluto">Número fixo (sem valor inicial)</option>
+										<option value="proporcao" disabled={!ehProporcao(p.tipo)}>
+											Cobertura — % do total atendido
+										</option>
 									</select>
+									{#if !ehProporcao(p.tipo)}
+										<p class="mt-1 text-3xs text-surface-500 dark:text-surface-500">
+											Cobertura exige o tipo de campo <strong>Cobertura (total e atendidas)</strong
+											>.
+										</p>
+									{/if}
 								</div>
 
 								<div>
@@ -500,14 +523,14 @@
 										for="ind-meta-{p.id}"
 										class="block text-3xs font-semibold text-surface-600 dark:text-surface-400 uppercase tracking-widest mb-1"
 									>
-										{p.indicador.metaTipo === 'percentual' ? 'Meta (%)' : 'Meta (valor)'}
+										{meta.metaTipo === 'absoluto' ? 'Meta (valor)' : 'Meta (%)'}
 									</label>
 									<input
 										id="ind-meta-{p.id}"
 										type="number"
 										min="0"
 										step="any"
-										bind:value={p.indicador.metaValor}
+										bind:value={meta.metaValor}
 										class="w-full px-3 py-2 rounded-xl border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-900 text-sm"
 									/>
 								</div>
@@ -522,12 +545,12 @@
 										id="ind-un-{p.id}"
 										type="text"
 										placeholder="procedimentos, dias, ocorrências…"
-										bind:value={p.indicador.unidadeMedida}
+										bind:value={meta.unidadeMedida}
 										class="w-full px-3 py-2 rounded-xl border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-900 text-sm"
 									/>
 								</div>
 
-								{#if p.indicador.metaTipo === 'percentual'}
+								{#if meta.metaTipo === 'percentual'}
 									<div class="sm:col-span-2">
 										<label
 											for="ind-base-{p.id}"
@@ -538,7 +561,7 @@
 											id="ind-base-{p.id}"
 											type="text"
 											placeholder="Como pedir o valor inicial à unidade (usa o texto da pergunta se vazio)"
-											bind:value={p.indicador.rotuloBase}
+											bind:value={meta.rotuloBase}
 											class="w-full px-3 py-2 rounded-xl border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-900 text-sm"
 										/>
 									</div>
@@ -546,14 +569,65 @@
 							</div>
 
 							<p class="text-2xs text-surface-600 dark:text-surface-400">
-								{#if p.indicador.metaTipo === 'percentual'}
+								{#if meta.metaTipo === 'percentual'}
 									A unidade informa o valor inicial em <strong>Dados base</strong>. Se não informar,
 									ele é pedido dentro do próprio formulário de produtividade.
+								{:else if meta.metaTipo === 'proporcao'}
+									O total e a parte atendida vêm da própria pergunta, a cada relatório — nada é
+									pedido em <strong>Dados base</strong>.
 								{:else}
 									Meta de número fixo não usa valor inicial — nada é pedido à unidade.
 								{/if}
 							</p>
 						{/if}
+					</div>
+				{/if}
+
+				<!-- Rótulos dos dois campos da COBERTURA. Ficam aqui, e não em
+				     `TIPOS_COM_ROTULOS`, porque aquele bloco fala de quantidade e
+				     listagem — vocabulário dos tipos de auto-listagem, que a cobertura
+				     não tem. -->
+				{#if ehProporcao(p.tipo)}
+					<div
+						class="mt-4 p-4 bg-primary-500/5 dark:bg-primary-500/10 rounded-2xl border border-dashed border-primary-500/30 space-y-3"
+					>
+						<div class="flex items-center gap-2">
+							<SquarePen class="w-4 h-4 text-primary-500" aria-hidden="true" />
+							<span
+								class="text-3xs font-semibold text-primary-600 dark:text-primary-400 uppercase tracking-widest"
+								>Rótulos dos dois campos</span
+							>
+						</div>
+						<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+							<div>
+								<label
+									for="p-total-{p.id}"
+									class="block text-3xs font-semibold text-surface-600 dark:text-surface-400 uppercase tracking-widest mb-1"
+									>Total existente</label
+								>
+								<input
+									id="p-total-{p.id}"
+									type="text"
+									placeholder="Ocorrências no período"
+									bind:value={p.subtexto_total}
+									class="w-full px-3 py-2 rounded-xl border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-900 text-sm"
+								/>
+							</div>
+							<div>
+								<label
+									for="p-parte-{p.id}"
+									class="block text-3xs font-semibold text-surface-600 dark:text-surface-400 uppercase tracking-widest mb-1"
+									>Parte atendida</label
+								>
+								<input
+									id="p-parte-{p.id}"
+									type="text"
+									placeholder="Ocorrências atendidas"
+									bind:value={p.subtexto_parte}
+									class="w-full px-3 py-2 rounded-xl border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-900 text-sm"
+								/>
+							</div>
+						</div>
 					</div>
 				{/if}
 

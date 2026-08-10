@@ -225,6 +225,8 @@ Verificar cada transição de status:
 - [ ] Numa pergunta do tipo Número, marcar "usar como indicador de meta",
       escolher **diminuir**, meta **20%**, unidade "procedimentos" e salvar
 - [ ] O bloco de indicador **não** aparece em pergunta de texto livre
+- [ ] Em pergunta que não seja de cobertura, a opção "Cobertura — % do total
+      atendido" do **Tipo de meta** aparece desabilitada, com a explicação abaixo
 
 **Informar a base** (`/dados-base`, admin de unidade/seccional):
 
@@ -242,9 +244,33 @@ Verificar cada transição de status:
 - [ ] Com a base já informada pela aba, o campo **não** aparece — e retificar o
       relatório não sobrescreve o valor oficial da unidade
 
+**Meta de cobertura** (o tipo `proporcao`):
+
+- [ ] No editor, criar pergunta do tipo **Cobertura (total e atendidas)**,
+      nomear os dois rótulos e marcá-la como indicador → o **Objetivo** some do
+      bloco e o tipo de meta já vem em "Cobertura", com 100%
+- [ ] Trocar o tipo de meta para "Percentual" e voltar para "Cobertura" → o
+      `objetivo` não fica pendurado (confira o JSON salvo: a meta de cobertura só
+      tem `metaTipo`, `metaValor` e `unidadeMedida`)
+- [ ] No formulário do policial, preencher **12** e **9** → a tela mostra
+      "Cobertura: 75% (9 de 12)"
+- [ ] Preencher a parte MAIOR que o total → aparece o aviso de conferir os dois
+      números (e o valor continua gravável — o aviso não bloqueia)
+- [ ] Total **0** → nenhuma porcentagem é mostrada, e sim "sem ocorrências no
+      período"
+- [ ] No PDF do relatório de produtividade, a pergunta sai como "9 de 12 (75%)"
+      numa linha só
+- [ ] Em `/dados-base`, o indicador de cobertura **não** aparece — ele não pede
+      valor inicial a ninguém
+
 **Gráficos** (`/produtividade`):
 
 - [ ] O filtro de operação troca os indicadores mostrados
+- [ ] O card de um indicador de cobertura mostra UMA série em porcentagem, com o
+      tique da meta no mesmo lugar em todas as unidades; a tabela dele traz
+      Total, Atendidas e Cobertura (e não "Linha de base")
+- [ ] Unidade sem nenhuma ocorrência no período aparece como "sem ocorrências", e
+      **não** entra no contador "N/M unidades na meta" — não havia o que atender
 - [ ] Cada card mostra base, realizado e a marca da meta por unidade, e o
       contador "N/M unidades na meta"
 - [ ] Unidade sem base aparece no aviso de pendência, e a barra dela fica sem a
@@ -530,6 +556,18 @@ Verificar cada transição de status:
 - [ ] Duas perguntas do tipo, ambas preenchidas → **baixar o PDF de produtividade** e conferir que cada uma lista os SEUS itens
 - [ ] Mesma conferência com um tipo original (ex.: "Prisões Maiores") junto na tela — as listas não podem se cruzar
 - [ ] Trocar o tipo de uma pergunta já respondida → o detalhe antigo some do relatório (é esperado: a chave mudou)
+
+### 13.4 Tipo "Cobertura (total e atendidas)" (`proporcao`)
+
+> Escrita, rótulos e a reconstrução da meta ao trocar de tipo têm cobertura
+> automatizada (`e2e/cobertura.spec.ts` + `gise/__tests__/indicadores` +
+> `produtividade/__tests__/metas`). Manual: o PDF e o gráfico.
+
+- [ ] Preencher a cobertura e **baixar o PDF de produtividade** → a pergunta sai numa linha só, no formato "9 de 12 (75%)"
+- [ ] Duas perguntas de cobertura no mesmo formulário → cada uma com o seu par de números no PDF
+- [ ] Em `/produtividade`, o card do indicador de cobertura mostra UMA série em porcentagem e o tique da meta no mesmo ponto em todas as unidades
+- [ ] Unidade sem ocorrência no período → "sem ocorrências" na tabela, e fora do contador "N/M unidades na meta"
+- [ ] Trocar uma pergunta de cobertura já respondida para outro tipo → os dois números somem do relatório (é esperado: as chaves mudaram)
 
 ---
 

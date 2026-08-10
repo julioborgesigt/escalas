@@ -35,7 +35,7 @@ import type { Database } from '../core';
 import { logger } from '../../server/logger';
 
 import { parseRespostasFormularioJsonLoose } from '../../schemas/gise-respostas-form';
-import { TIPO_LISTA_REUTILIZAVEL, chavesLista } from '../../gise/tipos-pergunta';
+import { TIPO_LISTA_REUTILIZAVEL, chavesLista, chavesProporcao } from '../../gise/tipos-pergunta';
 
 /** Pergunta de um modelo de formulário GISE (operacional ou SEINT). */
 interface PerguntaModelo {
@@ -422,6 +422,29 @@ export async function buscarRespostasProdutividadeSeccional(
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any -- resps is a dynamic untyped JSON blob; narrowing every access would change logic
 	const processarPerguntas = (listaPerguntas: PerguntaModelo[], resps: any, eqId: number) => {
 		for (const p of listaPerguntas) {
+			// Cobertura grava em DUAS chaves derivadas e nada em `p.key`, então o
+			// lookup padrão abaixo não a encontraria — a pergunta simplesmente sumiria
+			// do relatório assinado, sem erro nenhum. Vira uma linha só, com a razão
+			// já resolvida: é assim que ela se lê no papel.
+			const chavesP = chavesProporcao(p);
+			if (chavesP) {
+				const total = Number(resps[chavesP.total]);
+				const parte = Number(resps[chavesP.parte]);
+				if (Number.isFinite(total) && Number.isFinite(parte)) {
+					const cobertura =
+						total > 0
+							? ` (${((parte / total) * 100).toLocaleString('pt-BR', { maximumFractionDigits: 1 })}%)`
+							: '';
+					allResults.push({
+						equipe_id: eqId,
+						pergunta: p.texto,
+						resposta: `${parte} de ${total}${cobertura}`
+					});
+				}
+				if (p.filhos?.length) processarPerguntas(p.filhos, resps, eqId);
+				continue;
+			}
+
 			// Três tentativas de lookup por compatibilidade: blobs antigos indexavam
 			// a resposta pelo ID da pergunta (como string ou como número); os atuais
 			// usam a `key`. Ler pelas três mantém legível o histórico já gravado.

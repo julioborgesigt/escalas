@@ -32,7 +32,7 @@ import {
 } from '$lib/db';
 import { isAnyAdmin } from '$lib/auth';
 import { unidadesLinhaBaseAdministradas } from '$lib/server/operacoes/permissao';
-import { extrairIndicadoresDeModelos, exigeLinhaBase } from '$lib/gise/indicadores';
+import { extrairIndicadoresDeModelos, indicadoresComLinhaBase } from '$lib/gise/indicadores';
 import { logger } from '$lib/server/logger';
 import type { GiseModeloPerguntaConfig } from '$lib/types';
 
@@ -94,19 +94,19 @@ export const load: PageServerLoad = async ({ locals, platform, url, depends }) =
 	// Só indicador PERCENTUAL aparece: meta absoluta ("mínimo de 1 por
 	// unidade/mês") não tem base a informar, e listá-la aqui pediria à delegacia
 	// um número que nada usaria.
-	const indicadores = extrairIndicadoresDeModelos([
-		parseModelo(modeloOp?.config, 'operacional'),
-		parseModelo(modeloSeint?.config, 'seint')
-	])
-		.filter((i) => exigeLinhaBase(i.config))
-		.map((i) => ({
-			key: i.key,
-			texto: i.texto,
-			rotulo: i.config.rotuloBase?.trim() || i.texto,
-			unidadeMedida: i.config.unidadeMedida ?? '',
-			objetivo: i.config.objetivo,
-			metaValor: i.config.metaValor
-		}));
+	const indicadores = indicadoresComLinhaBase(
+		extrairIndicadoresDeModelos([
+			parseModelo(modeloOp?.config, 'operacional'),
+			parseModelo(modeloSeint?.config, 'seint')
+		])
+	).map((i) => ({
+		key: i.key,
+		texto: i.texto,
+		rotulo: i.config.rotuloBase?.trim() || i.texto,
+		unidadeMedida: i.config.unidadeMedida ?? '',
+		objetivo: i.config.objetivo,
+		metaValor: i.config.metaValor
+	}));
 
 	const unidadesEditaveis = participantes.filter((p) => permitidas.has(p.id));
 	const linhas = await listarLinhaBase(
@@ -178,12 +178,12 @@ export const actions: Actions = {
 			buscarGiseModeloFormulario(db, operacaoId, 'seint')
 		]);
 		const chavesValidas = new Set(
-			extrairIndicadoresDeModelos([
-				parseModelo(modeloOp?.config, 'operacional'),
-				parseModelo(modeloSeint?.config, 'seint')
-			])
-				.filter((i) => exigeLinhaBase(i.config))
-				.map((i) => i.key)
+			indicadoresComLinhaBase(
+				extrairIndicadoresDeModelos([
+					parseModelo(modeloOp?.config, 'operacional'),
+					parseModelo(modeloSeint?.config, 'seint')
+				])
+			).map((i) => i.key)
 		);
 
 		// Campos vêm como `valor__<key>` e `obs__<key>`. Prefixo em vez de um JSON

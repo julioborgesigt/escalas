@@ -133,6 +133,68 @@ describe('seed das migrações', () => {
 			metaValor: 20
 		});
 	});
+
+	it('a migração 0052 converte os atendimentos de fim de semana em COBERTURA', () => {
+		// A 0050 semeou "no mínimo 1 atendimento" como proxy de "100% de cobertura
+		// programada", porque não existia tipo capaz de guardar o denominador. A
+		// 0052 troca as duas coisas — tipo de campo E tipo de meta — nos DOIS
+		// modelos, senão a equipe SEINT continuaria medindo volume.
+		const linhas = sqlite
+			.prepare(
+				`SELECT tipo, config FROM gise_modelo_formulario
+				 WHERE operacao_id = (SELECT id FROM operacoes WHERE nome = 'OPERAÇÃO CRAJUBAR')`
+			)
+			.all() as Array<{ tipo: string; config: string }>;
+
+		expect(linhas).toHaveLength(2);
+		for (const l of linhas) {
+			const fds = (
+				JSON.parse(l.config) as Array<{
+					key: string;
+					tipo: string;
+					subtexto_total?: string;
+					subtexto_parte?: string;
+					indicador?: Record<string, unknown>;
+				}>
+			).find((q) => q.key === 'crajubar_atendimentos_fds');
+
+			expect(fds?.tipo).toBe('proporcao');
+			expect(fds?.indicador).toEqual({
+				metaTipo: 'proporcao',
+				metaValor: 100,
+				unidadeMedida: 'ocorrências'
+			});
+			// `objetivo` tem de SUMIR: cobrir 100% não é aumentar nem diminuir, e o
+			// campo pendurado no JSON viraria intenção na próxima leitura.
+			expect(fds?.indicador).not.toHaveProperty('objetivo');
+			expect(fds?.subtexto_total).toBeTruthy();
+			expect(fds?.subtexto_parte).toBeTruthy();
+		}
+	});
+
+	it('a 0052 não mexe nos outros quatro indicadores', () => {
+		const config = (
+			sqlite
+				.prepare(
+					`SELECT config FROM gise_modelo_formulario
+					 WHERE tipo = 'operacional'
+					   AND operacao_id = (SELECT id FROM operacoes WHERE nome = 'OPERAÇÃO CRAJUBAR')`
+				)
+				.get() as { config: string }
+		).config;
+		const perguntas = JSON.parse(config) as Array<{ key: string; tipo: string }>;
+
+		// `json_replace` num índice errado trocaria a pergunta vizinha em silêncio:
+		// esta asserção é o que prova que o índice veio do `json_each` certo.
+		for (const key of [
+			'crajubar_acervo_pendentes',
+			'crajubar_cvli_concluidos',
+			'crajubar_tempo_medio_conclusao',
+			'crajubar_orcrim_drco'
+		]) {
+			expect(perguntas.find((q) => q.key === key)?.tipo).toBe('numero');
+		}
+	});
 });
 
 describe('helpers de tipo de equipe', () => {

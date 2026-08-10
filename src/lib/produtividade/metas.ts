@@ -18,7 +18,8 @@ import {
 	metaAbsoluta,
 	percentualAtingimento,
 	metaAtingida,
-	somarIndicador,
+	percentualCobertura,
+	somarChave,
 	exigeLinhaBase,
 	type Indicador
 } from '$lib/gise/indicadores';
@@ -41,7 +42,15 @@ interface LinhaIndicadorUnidade {
 	unidadeNome: string;
 	/** `null` = a unidade ainda não informou (indicador percentual sem denominador). */
 	base: number | null;
+	/** O numerador: o valor somado no período. Na proporção, a PARTE atendida. */
 	realizado: number;
+	/**
+	 * O denominador do período num indicador de proporção — o total existente.
+	 * `null` nos demais tipos, onde não há totalizador nenhum a somar.
+	 */
+	total: number | null;
+	/** `realizado / total` em %, só na proporção. `null` quando o total é 0 ou ausente. */
+	cobertura: number | null;
 	/** `null` quando falta base num indicador percentual — não há meta a desenhar. */
 	meta: number | null;
 	/** 0–100+, ou `null` quando não há como calcular. */
@@ -96,19 +105,31 @@ export function montarPainelIndicadores(
 		const precisaBase = exigeLinhaBase(indicador.config);
 
 		const linhas: LinhaIndicadorUnidade[] = unidades.map((u) => {
+			const blobs = (porUnidade.get(u.id) ?? []).map((r) => r.respostasParsed);
 			const base = bases.get(`${u.id}|${indicador.key}`) ?? null;
-			const realizado = somarIndicador(
-				(porUnidade.get(u.id) ?? []).map((r) => r.respostasParsed),
-				indicador
-			);
+			const realizado = somarChave(blobs, indicador.chaveResposta);
+			// O total só existe onde a pergunta tem denominador (tipo `proporcao`).
+			const total = indicador.chaveTotal ? somarChave(blobs, indicador.chaveTotal) : null;
+
+			// A referência sai do TIPO DA META, não da existência do denominador. Os
+			// dois podem discordar: trocar o tipo do campo no editor não reescreve a
+			// meta já configurada, então existe pergunta de cobertura com meta
+			// percentual (e vice-versa). Ler o total como se fosse linha de base
+			// mediria "reduzir 20% do total do período" — número plausível e errado.
+			// Quando eles discordam a conta não fecha, e `null` propaga até a tela
+			// como "—", que é a leitura honesta.
+			const referencia = indicador.config.metaTipo === 'proporcao' ? total : base;
+
 			return {
 				unidadeId: u.id,
 				unidadeNome: u.nome,
 				base,
 				realizado,
-				meta: metaAbsoluta(base, indicador.config),
-				atingimento: percentualAtingimento(base, realizado, indicador.config),
-				atingida: metaAtingida(base, realizado, indicador.config),
+				total,
+				cobertura: indicador.chaveTotal ? percentualCobertura(realizado, total) : null,
+				meta: metaAbsoluta(referencia, indicador.config),
+				atingimento: percentualAtingimento(referencia, realizado, indicador.config),
+				atingida: metaAtingida(referencia, realizado, indicador.config),
 				basePendente: precisaBase && base == null
 			};
 		});
@@ -135,4 +156,16 @@ export function montarPainelIndicadores(
 export function formatarValorIndicador(v: number | null): string {
 	if (v == null || !Number.isFinite(v)) return '—';
 	return v.toLocaleString('pt-BR', { maximumFractionDigits: 1 });
+}
+
+/**
+ * Porcentagem no formato pt-BR, com o símbolo.
+ *
+ * Uma casa decimal porque cobertura é razão de dois inteiros pequenos: com 7
+ * ocorrências e 5 atendidas, arredondar para inteiro daria 71% e esconderia que
+ * a conta é 71,4 — e a meta de 100% se lê pela distância até ela.
+ */
+export function formatarPercentual(v: number | null): string {
+	if (v == null || !Number.isFinite(v)) return '—';
+	return `${v.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}%`;
 }

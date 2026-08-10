@@ -32,6 +32,20 @@
  */
 export const TIPO_LISTA_REUTILIZAVEL = 'lista_detalhada';
 
+/**
+ * Tipo de COBERTURA: dois números na mesma pergunta — o total existente e a
+ * parte atendida —, cuja razão é a resposta que interessa.
+ *
+ * Existe porque "atender 100% das ocorrências" não se mede com um número só: 12
+ * atendimentos são ótimos se houve 12 ocorrências e ruins se houve 40. Duas
+ * perguntas separadas resolveriam a coleta e não o resto — o par ficaria
+ * implícito, e nenhum gráfico saberia que uma é denominador da outra.
+ *
+ * Chaves DERIVADAS da `key` (como `lista_detalhada`), então é reutilizável:
+ * quantas perguntas de cobertura o admin quiser, sem uma sobrescrever a outra.
+ */
+export const TIPO_PROPORCAO = 'proporcao';
+
 /** Onde cada tipo ORIGINAL grava quantidade e lista. Chaves fixas, de propósito. */
 const CHAVES_FIXAS: Record<string, { qtd: string; lista: string }> = {
 	mandados_maiores: { qtd: 'mandados_qtd', lista: 'mandados_lista' },
@@ -100,6 +114,20 @@ export function chavesLista(p: PerguntaChaveavel): { qtd: string; lista: string 
  */
 export function chavesListaComFallback(p: PerguntaChaveavel): { qtd: string; lista: string } {
 	return chavesLista(p) ?? CHAVES_FIXAS.operacoes_seint_pura;
+}
+
+/**
+ * As duas chaves de uma pergunta de COBERTURA (`total` e `parte`), ou `null` se
+ * o tipo não for esse.
+ *
+ * Fonte única — quem escreve (o formulário), quem lê no relatório assinado e
+ * quem soma no painel de indicadores resolvem as chaves por aqui. É a mesma
+ * armadilha do cabeçalho: dois literais iguais em arquivos diferentes não
+ * quebram nada visível quando divergem, só param de bater.
+ */
+export function chavesProporcao(p: PerguntaChaveavel): { total: string; parte: string } | null {
+	if (p.tipo !== TIPO_PROPORCAO) return null;
+	return { total: `${p.key}__total`, parte: `${p.key}__parte` };
 }
 
 /** Forma de um item vazio da lista, por tipo. */

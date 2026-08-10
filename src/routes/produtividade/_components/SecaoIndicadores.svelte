@@ -35,11 +35,12 @@
 	 * ícone e palavra, não só o verde.
 	 */
 	import type { PainelIndicador } from '$lib/produtividade/metas';
-	import { formatarValorIndicador } from '$lib/produtividade/metas';
+	import { formatarValorIndicador, formatarPercentual } from '$lib/produtividade/metas';
 	import Check from '@lucide/svelte/icons/check';
 	import Clock from '@lucide/svelte/icons/clock';
 	import TrendingDown from '@lucide/svelte/icons/trending-down';
 	import TrendingUp from '@lucide/svelte/icons/trending-up';
+	import PieChart from '@lucide/svelte/icons/pie-chart';
 	import Table from '@lucide/svelte/icons/table';
 	import type { Chart as ChartJs, TooltipItem } from 'chart.js';
 
@@ -121,52 +122,85 @@
 
 			const rotulos = painel.linhas.map((l) => l.unidadeNome);
 			const unidadeMedida = painel.indicador.config.unidadeMedida ?? '';
+			const cobertura = painel.indicador.config.metaTipo === 'proporcao';
+			const alvo = painel.indicador.config.metaValor;
+
+			// Em cobertura tudo no eixo é porcentagem; nos demais, a unidade de
+			// medida do indicador. É a mesma escala em cada gráfico — o que muda
+			// entre os dois é O QUE está sendo medido, não quantos eixos há.
+			const formatar = cobertura ? formatarPercentual : formatarValorIndicador;
+			const sufixo = cobertura ? '' : unidadeMedida ? ` ${unidadeMedida}` : '';
+
+			const datasets = cobertura
+				? [
+						{
+							label: 'Cobertura',
+							data: painel.linhas.map((l) => l.cobertura),
+							backgroundColor: paleta.realizado,
+							borderRadius: 4,
+							barPercentage: 0.86,
+							categoryPercentage: 0.66
+						},
+						{
+							// Limiar CONSTANTE: a mesma meta para todas as unidades. Repetir o
+							// tique em cada linha é o que o mantém legível sem plugin de
+							// anotação — e ele some onde não há cobertura a comparar.
+							type: 'line' as const,
+							label: `Meta (${alvo}%)`,
+							data: painel.linhas.map((l) => (l.cobertura == null ? null : alvo)),
+							showLine: false,
+							pointStyle: 'line' as const,
+							pointRotation: 90,
+							pointRadius: 16,
+							pointBorderWidth: 2,
+							pointBorderColor: paleta.meta,
+							pointBackgroundColor: paleta.meta
+						}
+					]
+				: [
+						{
+							label: 'Linha de base',
+							data: painel.linhas.map((l) => l.base),
+							backgroundColor: paleta.base,
+							borderRadius: 4,
+							// Barras finas com folga entre elas: o respiro é o separador,
+							// no lugar de uma borda desenhada em volta de cada marca.
+							barPercentage: 0.86,
+							categoryPercentage: 0.66
+						},
+						{
+							label: 'Realizado',
+							data: painel.linhas.map((l) => l.realizado),
+							backgroundColor: paleta.realizado,
+							borderRadius: 4,
+							barPercentage: 0.86,
+							categoryPercentage: 0.66
+						},
+						{
+							// A meta é LIMIAR, não medição: entra como marca de referência
+							// (um traço vertical na posição do alvo), sem linha ligando os
+							// pontos e sem preenchimento.
+							type: 'line' as const,
+							label: `Meta${unidadeMedida ? ` (${unidadeMedida})` : ''}`,
+							data: painel.linhas.map((l) => l.meta),
+							showLine: false,
+							// `pointRotation`, e não `rotation`: num dataset de linha o
+							// giro do marcador é propriedade do PONTO. O traço de
+							// `pointStyle: 'line'` nasce horizontal; 90° o põe de pé,
+							// virando um tique vertical sobre a posição do alvo.
+							pointStyle: 'line' as const,
+							pointRotation: 90,
+							pointRadius: 16,
+							pointBorderWidth: 2,
+							pointBorderColor: paleta.meta,
+							pointBackgroundColor: paleta.meta
+						}
+					];
 
 			instancias.push(
 				new ctor(canvas, {
 					type: 'bar',
-					data: {
-						labels: rotulos,
-						datasets: [
-							{
-								label: 'Linha de base',
-								data: painel.linhas.map((l) => l.base),
-								backgroundColor: paleta.base,
-								borderRadius: 4,
-								// Barras finas com folga entre elas: o respiro é o separador,
-								// no lugar de uma borda desenhada em volta de cada marca.
-								barPercentage: 0.86,
-								categoryPercentage: 0.66
-							},
-							{
-								label: 'Realizado',
-								data: painel.linhas.map((l) => l.realizado),
-								backgroundColor: paleta.realizado,
-								borderRadius: 4,
-								barPercentage: 0.86,
-								categoryPercentage: 0.66
-							},
-							{
-								// A meta é LIMIAR, não medição: entra como marca de referência
-								// (um traço vertical na posição do alvo), sem linha ligando os
-								// pontos e sem preenchimento.
-								type: 'line',
-								label: `Meta${unidadeMedida ? ` (${unidadeMedida})` : ''}`,
-								data: painel.linhas.map((l) => l.meta),
-								showLine: false,
-								// `pointRotation`, e não `rotation`: num dataset de linha o
-								// giro do marcador é propriedade do PONTO. O traço de
-								// `pointStyle: 'line'` nasce horizontal; 90° o põe de pé,
-								// virando um tique vertical sobre a posição do alvo.
-								pointStyle: 'line',
-								pointRotation: 90,
-								pointRadius: 16,
-								pointBorderWidth: 2,
-								pointBorderColor: paleta.meta,
-								pointBackgroundColor: paleta.meta
-							}
-						]
-					},
+					data: { labels: rotulos, datasets },
 					options: {
 						indexAxis: 'y',
 						responsive: true,
@@ -188,15 +222,16 @@
 							tooltip: {
 								callbacks: {
 									label: (ctx: TooltipItem<'bar' | 'line'>) =>
-										`${ctx.dataset.label}: ${formatarValorIndicador(ctx.parsed.x)}${
-											unidadeMedida ? ` ${unidadeMedida}` : ''
-										}`
+										`${ctx.dataset.label}: ${formatar(ctx.parsed.x)}${sufixo}`
 								}
 							}
 						},
 						scales: {
 							x: {
 								beginAtZero: true,
+								// Sem isto, um painel em que todo mundo cobriu 40% desenharia o
+								// eixo até 40 e a meta de 100% ficaria fora do gráfico.
+								suggestedMax: cobertura ? Math.max(100, alvo) : undefined,
 								// Hairline sólida: tracejado lê como projeção ou limiar, e aqui
 								// é só grade.
 								grid: { color: paleta.grade },
@@ -206,7 +241,7 @@
 									font: { size: 11 },
 									// Sem isto o eixo sai com o separador de milhar do inglês
 									// ("1,000") num sistema inteiramente em português.
-									callback: (v: string | number) => formatarValorIndicador(Number(v))
+									callback: (v: string | number) => formatar(Number(v))
 								}
 							},
 							y: {
@@ -228,10 +263,20 @@
 	/** Sinal do objetivo, em texto — o selo não depende de cor nem de seta sozinha. */
 	function rotuloMeta(p: PainelIndicador): string {
 		const c = p.indicador.config;
+		// Cobertura não tem direção: "aumentar 100%" seria falso, o alvo é cobrir o
+		// total, não elevar um número.
+		if (c.metaTipo === 'proporcao') {
+			return `cobrir ${c.metaValor}% do total${c.unidadeMedida ? ` de ${c.unidadeMedida}` : ''}`;
+		}
 		const direcao = c.objetivo === 'diminuir' ? 'reduzir' : 'aumentar';
 		return c.metaTipo === 'percentual'
 			? `${direcao} ${c.metaValor}%`
 			: `${direcao} para ${c.metaValor}${c.unidadeMedida ? ` ${c.unidadeMedida}` : ''}`;
+	}
+
+	/** O indicador mede cobertura? Decide a forma do gráfico E as colunas da tabela. */
+	function ehCobertura(p: PainelIndicador): boolean {
+		return p.indicador.config.metaTipo === 'proporcao';
 	}
 
 	const tabelaAberta = $state<Record<string, boolean>>({});
@@ -256,7 +301,11 @@
 						<p
 							class="mt-1 inline-flex items-center gap-1.5 text-2xs font-semibold text-surface-600 dark:text-surface-400"
 						>
-							{#if painel.indicador.config.objetivo === 'diminuir'}
+							<!-- `metaTipo` inline, e não `ehCobertura()`: só a comparação
+							     direta estreita a união e libera `objetivo` no ramo de baixo. -->
+							{#if painel.indicador.config.metaTipo === 'proporcao'}
+								<PieChart class="h-3.5 w-3.5" aria-hidden="true" />
+							{:else if painel.indicador.config.objetivo === 'diminuir'}
 								<TrendingDown class="h-3.5 w-3.5" aria-hidden="true" />
 							{:else}
 								<TrendingUp class="h-3.5 w-3.5" aria-hidden="true" />
@@ -297,7 +346,9 @@
 				<div class="mt-4 w-full" style="height: {alturaDoGrafico(painel.linhas.length)}px">
 					<canvas
 						bind:this={canvases[painel.indicador.key]}
-						aria-label={`Linha de base, realizado e meta por unidade — ${painel.indicador.texto}`}
+						aria-label={ehCobertura(painel)
+							? `Cobertura e meta por unidade — ${painel.indicador.texto}`
+							: `Linha de base, realizado e meta por unidade — ${painel.indicador.texto}`}
 					></canvas>
 				</div>
 
@@ -319,9 +370,18 @@
 							<thead>
 								<tr>
 									<th class="text-left">Unidade</th>
-									<th class="text-right">Linha de base</th>
-									<th class="text-right">Realizado</th>
-									<th class="text-right">Meta</th>
+									{#if ehCobertura(painel)}
+										<!-- O total só aparece aqui: ele não cabe no eixo do gráfico
+										     (é contagem, não porcentagem), mas é o denominador que
+										     torna a cobertura conferível. -->
+										<th class="text-right">Total</th>
+										<th class="text-right">Atendidas</th>
+										<th class="text-right">Cobertura</th>
+									{:else}
+										<th class="text-right">Linha de base</th>
+										<th class="text-right">Realizado</th>
+										<th class="text-right">Meta</th>
+									{/if}
 									<th class="text-right">Atingimento</th>
 								</tr>
 							</thead>
@@ -329,17 +389,34 @@
 								{#each painel.linhas as linha (linha.unidadeId)}
 									<tr>
 										<td class="text-left">{linha.unidadeNome}</td>
-										<td class="text-right tabular-nums">
-											{#if linha.basePendente}
-												<span class="text-warning-700 dark:text-warning-400">não informada</span>
-											{:else}
-												{formatarValorIndicador(linha.base)}
-											{/if}
-										</td>
-										<td class="text-right tabular-nums">
-											{formatarValorIndicador(linha.realizado)}
-										</td>
-										<td class="text-right tabular-nums">{formatarValorIndicador(linha.meta)}</td>
+										{#if ehCobertura(painel)}
+											<td class="text-right tabular-nums">
+												{formatarValorIndicador(linha.total)}
+											</td>
+											<td class="text-right tabular-nums">
+												{formatarValorIndicador(linha.realizado)}
+											</td>
+											<td class="text-right tabular-nums">
+												{#if linha.cobertura == null}
+													<span class="text-surface-600 dark:text-surface-400">sem ocorrências</span
+													>
+												{:else}
+													{formatarPercentual(linha.cobertura)}
+												{/if}
+											</td>
+										{:else}
+											<td class="text-right tabular-nums">
+												{#if linha.basePendente}
+													<span class="text-warning-700 dark:text-warning-400">não informada</span>
+												{:else}
+													{formatarValorIndicador(linha.base)}
+												{/if}
+											</td>
+											<td class="text-right tabular-nums">
+												{formatarValorIndicador(linha.realizado)}
+											</td>
+											<td class="text-right tabular-nums">{formatarValorIndicador(linha.meta)}</td>
+										{/if}
 										<td class="text-right tabular-nums">
 											{#if linha.atingimento == null}
 												—
