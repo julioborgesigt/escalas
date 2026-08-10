@@ -180,11 +180,17 @@ export default async function globalSetup() {
 			cargo = excluded.cargo, lotacao = excluded.lotacao, senha = excluded.senha,
 			primeiro_acesso = excluded.primeiro_acesso, email = excluded.email,
 			ativo = excluded.ativo, cpf = excluded.cpf, rubrica = NULL;
-		INSERT INTO gise_escalas (id, data_inicio, status, hora_entrada, hora_saida, supervisor_id)
-		VALUES (${FIXTURE.gise.id}, '${FIXTURE.gise.dataInicio}', 'em_andamento', '08:00', '16:00', ${FIXTURE.supervisor.id})
+		-- \`operacao_id\` sai do nome, não de um id fixo: quem cria a operação GISE é
+		-- a migração 0048, e o id dela depende da ordem de inserção do banco. Sem
+		-- esta coluna a fixture ficaria como uma escala pré-migração, que é
+		-- justamente o estado que o backfill eliminou em produção — e o filtro por
+		-- operação de \`/produtividade\` a deixaria de fora.
+		INSERT INTO gise_escalas (id, data_inicio, status, hora_entrada, hora_saida, supervisor_id, operacao_id)
+		VALUES (${FIXTURE.gise.id}, '${FIXTURE.gise.dataInicio}', 'em_andamento', '08:00', '16:00', ${FIXTURE.supervisor.id},
+			(SELECT id FROM operacoes WHERE nome = 'GISE'))
 		ON CONFLICT(id) DO UPDATE SET data_inicio = excluded.data_inicio, status = excluded.status,
 			hora_entrada = excluded.hora_entrada, hora_saida = excluded.hora_saida,
-			supervisor_id = excluded.supervisor_id;
+			supervisor_id = excluded.supervisor_id, operacao_id = excluded.operacao_id;
 		INSERT INTO gise_seccionais (id, gise_id, seccional_id, status, hora_entrada, hora_saida)
 		VALUES (${FIXTURE.giseSeccional.id}, ${FIXTURE.gise.id}, ${FIXTURE.seccional.id}, 'preenchida', '08:00', '16:00')
 		ON CONFLICT(id) DO UPDATE SET gise_id = excluded.gise_id, seccional_id = excluded.seccional_id,

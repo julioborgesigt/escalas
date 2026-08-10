@@ -682,10 +682,14 @@
 					{#if usuario?.tipo === 'admin'}
 						{@render itemMenu('/res-gise', 'Conf. Form.', ICONE.documento)}
 					{:else}
+						<!-- Sem "GISE" no rótulo: as duas abas listam a participação do
+						     policial em escala extra de QUALQUER operação (CRAJUBAR, EDGE…),
+						     e nomeá-las GISE passou a ser informação errada. Ficam logo
+						     abaixo de "Escala extra", que é o que lhes dá contexto. -->
 						{#if temPresencaGiseAtiva}
 							{@render itemMenu(
 								'/res-gise',
-								'Presença GISE',
+								'Minha presença',
 								ICONE.documento,
 								resGisePresencaAtivo
 							)}
@@ -693,7 +697,7 @@
 						{#if temGiseHistorico}
 							{@render itemMenu(
 								'/res-gise?status=finalizadas',
-								'Histórico GISE',
+								'Meu histórico',
 								ICONE.historico,
 								resGiseHistoricoAtivo
 							)}

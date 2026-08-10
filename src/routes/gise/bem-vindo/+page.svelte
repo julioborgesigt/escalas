@@ -22,11 +22,11 @@
 		if (usuario?.tipo === 'admin') {
 			return [
 				{
-					titulo: 'Escalas GISE',
+					titulo: 'Escala extra',
 					descricao:
-						'Planeje, gerencie e valide a alocação de equipes operacionais e equipes de inteligência em serviço extraordinário.',
+						'Planeje, gerencie e valide a alocação de equipes operacionais e equipes de inteligência em serviço extraordinário, em todas as operações.',
 					href: '/gise',
-					cta: 'Acessar escalas GISE'
+					cta: 'Acessar escalas extras'
 				},
 				{
 					titulo: 'Produtividade',

@@ -620,7 +620,7 @@
 </script>
 
 <svelte:head>
-	<title>Escalas GISE - Portal de Escalas</title>
+	<title>Escala extra - Portal de Escalas</title>
 </svelte:head>
 
 <div class="min-w-0 space-y-6">

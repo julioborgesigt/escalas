@@ -175,12 +175,15 @@
 						     sidebar, não mais por abas internas). -->
 						<div class="flex flex-col gap-0.5">
 							<h2 class="text-lg font-bold">
-								{ehHistorico ? 'Histórico GISE' : 'Minhas Escalas GISE'}
+								{ehHistorico ? 'Histórico' : 'Minhas escalas extras'}
 							</h2>
 							<p class="text-2xs text-surface-600 dark:text-surface-400 font-medium">
+								<!-- "escalas extras", e não "GISE": esta lista passou a incluir as
+								     escalas de QUALQUER operação (CRAJUBAR, EDGE…), e chamá-las
+								     de GISE virou informação errada, não só rótulo velho. -->
 								{ehHistorico
-									? 'Escalas GISE já encerradas em que você participou.'
-									: 'Escalas GISE ativas em que você está escalado.'}
+									? 'Escalas extras já encerradas em que você participou.'
+									: 'Escalas extras ativas em que você está escalado.'}
 							</p>
 						</div>
 
