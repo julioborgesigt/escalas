@@ -25,6 +25,8 @@
 	import { loading } from '$lib/loading.svelte';
 	import { agruparPorEtapa } from '$lib/gise/etapas-formulario';
 	import { TIPOS_COM_FILHOS, TIPOS_COM_LISTA } from '$lib/gise/tipos-pergunta';
+	import { podeSerIndicador } from '$lib/gise/indicadores';
+	import Target from '@lucide/svelte/icons/target';
 	import ChevronDown from '@lucide/svelte/icons/chevron-down';
 	import ChevronUp from '@lucide/svelte/icons/chevron-up';
 	import CornerDownRight from '@lucide/svelte/icons/corner-down-right';
@@ -119,25 +121,50 @@
 					Defina os textos e campos do relatório de produtividade oficial.
 				</p>
 
-				<div
-					class="flex gap-2 mt-4 bg-surface-100 dark:bg-surface-800 p-1 rounded-xl w-full sm:w-fit"
-				>
-					<button
-						type="button"
-						class="flex-1 sm:flex-none px-4 py-2 rounded-lg text-xs font-bold transition-colors {resGise.configTipo ===
-						'operacional'
-							? 'bg-white dark:bg-surface-700 shadow text-primary-600'
-							: 'text-surface-600 dark:text-surface-400'}"
-						onclick={() => (resGise.configTipo = 'operacional')}>Operacional</button
-					>
-					<button
-						type="button"
-						class="flex-1 sm:flex-none px-4 py-2 rounded-lg text-xs font-bold transition-colors {resGise.configTipo ===
-						'seint'
-							? 'bg-white dark:bg-surface-700 shadow text-primary-600'
-							: 'text-surface-600 dark:text-surface-400'}"
-						onclick={() => (resGise.configTipo = 'seint')}>SEINT (Inteligência)</button
-					>
+				<!-- Operação primeiro, tipo depois: o formulário é POR OPERAÇÃO, e quais
+				     tipos de equipe aparecem depende de quais ela habilita. -->
+				<div class="mt-4 space-y-3">
+					<div class="w-full sm:max-w-xs">
+						<label
+							for="cfg-operacao"
+							class="block text-3xs font-semibold text-surface-600 dark:text-surface-400 uppercase tracking-widest mb-1"
+						>
+							Operação
+						</label>
+						<select
+							id="cfg-operacao"
+							class="w-full px-4 py-2.5 rounded-xl border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-900 text-sm font-bold"
+							value={resGise.operacaoSelecionadaId ?? ''}
+							onchange={(e) => resGise.trocarOperacao(Number(e.currentTarget.value))}
+						>
+							{#each resGise.operacoes as op (op.id)}
+								<option value={op.id}>{op.nome}</option>
+							{/each}
+						</select>
+					</div>
+
+					<div class="flex gap-2 bg-surface-100 dark:bg-surface-800 p-1 rounded-xl w-full sm:w-fit">
+						{#each resGise.tiposDisponiveis as tipo (tipo)}
+							<button
+								type="button"
+								class="flex-1 sm:flex-none px-4 py-2 rounded-lg text-xs font-bold transition-colors {resGise.configTipo ===
+								tipo
+									? 'bg-white dark:bg-surface-700 shadow text-primary-600'
+									: 'text-surface-600 dark:text-surface-400'}"
+								onclick={() => (resGise.configTipo = tipo)}
+							>
+								{tipo === 'operacional' ? 'Operacional' : 'SEINT (Inteligência)'}
+							</button>
+						{/each}
+					</div>
+					{#if resGise.tiposDisponiveis.length === 1}
+						<p class="text-2xs text-surface-600 dark:text-surface-400">
+							Esta operação usa apenas equipe {resGise.tiposDisponiveis[0] === 'seint'
+								? 'de inteligência'
+								: 'operacional'}. Para mudar isso, edite-a em
+							<a href="/gise/operacoes" class="anchor">Operações</a>.
+						</p>
+					{/if}
 				</div>
 			</div>
 			<div class="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
@@ -404,6 +431,132 @@
 					</div>
 				</div>
 
+				<!-- Indicador de meta: promove a pergunta de "campo do relatório" a série
+				     acompanhada em gráfico, com meta e linha de base.
+
+				     Só aparece em tipo CONTÁVEL (`TIPOS_INDICADORAVEIS`) — texto livre
+				     não agrega, e `sim_nao` responde proporção, não volume. -->
+				{#if podeSerIndicador(p.tipo)}
+					<div
+						class="mt-4 p-4 rounded-2xl border border-dashed space-y-3 {p.indicador
+							? 'bg-tertiary-500/5 dark:bg-tertiary-500/10 border-tertiary-500/40'
+							: 'bg-surface-100/60 dark:bg-surface-800/40 border-surface-300 dark:border-surface-700'}"
+					>
+						<label class="flex items-start gap-2 cursor-pointer">
+							<input
+								type="checkbox"
+								class="checkbox mt-0.5"
+								checked={!!p.indicador}
+								onchange={() => resGise.alternarIndicador(p)}
+							/>
+							<span class="min-w-0">
+								<span class="flex items-center gap-1.5 text-sm font-bold">
+									<Target class="w-4 h-4 text-tertiary-500" aria-hidden="true" />
+									Usar como indicador de meta
+								</span>
+								<span class="block text-2xs text-surface-600 dark:text-surface-400 mt-0.5">
+									A resposta vira série no painel de produtividade, comparada com a meta e com o
+									valor inicial informado pela unidade.
+								</span>
+							</span>
+						</label>
+
+						{#if p.indicador}
+							<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+								<div>
+									<label
+										for="ind-obj-{p.id}"
+										class="block text-3xs font-semibold text-surface-600 dark:text-surface-400 uppercase tracking-widest mb-1"
+										>Objetivo</label
+									>
+									<select
+										id="ind-obj-{p.id}"
+										bind:value={p.indicador.objetivo}
+										class="w-full px-3 py-2 rounded-xl border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-900 text-sm"
+									>
+										<option value="diminuir">Diminuir (reduzir o número)</option>
+										<option value="aumentar">Aumentar (elevar o número)</option>
+									</select>
+								</div>
+
+								<div>
+									<label
+										for="ind-tipo-{p.id}"
+										class="block text-3xs font-semibold text-surface-600 dark:text-surface-400 uppercase tracking-widest mb-1"
+										>Tipo de meta</label
+									>
+									<select
+										id="ind-tipo-{p.id}"
+										bind:value={p.indicador.metaTipo}
+										class="w-full px-3 py-2 rounded-xl border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-900 text-sm"
+									>
+										<option value="percentual">Percentual sobre o valor inicial</option>
+										<option value="absoluto">Número fixo (sem valor inicial)</option>
+									</select>
+								</div>
+
+								<div>
+									<label
+										for="ind-meta-{p.id}"
+										class="block text-3xs font-semibold text-surface-600 dark:text-surface-400 uppercase tracking-widest mb-1"
+									>
+										{p.indicador.metaTipo === 'percentual' ? 'Meta (%)' : 'Meta (valor)'}
+									</label>
+									<input
+										id="ind-meta-{p.id}"
+										type="number"
+										min="0"
+										step="any"
+										bind:value={p.indicador.metaValor}
+										class="w-full px-3 py-2 rounded-xl border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-900 text-sm"
+									/>
+								</div>
+
+								<div>
+									<label
+										for="ind-un-{p.id}"
+										class="block text-3xs font-semibold text-surface-600 dark:text-surface-400 uppercase tracking-widest mb-1"
+										>Unidade de medida</label
+									>
+									<input
+										id="ind-un-{p.id}"
+										type="text"
+										placeholder="procedimentos, dias, ocorrências…"
+										bind:value={p.indicador.unidadeMedida}
+										class="w-full px-3 py-2 rounded-xl border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-900 text-sm"
+									/>
+								</div>
+
+								{#if p.indicador.metaTipo === 'percentual'}
+									<div class="sm:col-span-2">
+										<label
+											for="ind-base-{p.id}"
+											class="block text-3xs font-semibold text-surface-600 dark:text-surface-400 uppercase tracking-widest mb-1"
+											>Rótulo do valor inicial</label
+										>
+										<input
+											id="ind-base-{p.id}"
+											type="text"
+											placeholder="Como pedir o valor inicial à unidade (usa o texto da pergunta se vazio)"
+											bind:value={p.indicador.rotuloBase}
+											class="w-full px-3 py-2 rounded-xl border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-900 text-sm"
+										/>
+									</div>
+								{/if}
+							</div>
+
+							<p class="text-2xs text-surface-600 dark:text-surface-400">
+								{#if p.indicador.metaTipo === 'percentual'}
+									A unidade informa o valor inicial em <strong>Dados base</strong>. Se não informar,
+									ele é pedido dentro do próprio formulário de produtividade.
+								{:else}
+									Meta de número fixo não usa valor inicial — nada é pedido à unidade.
+								{/if}
+							</p>
+						{/if}
+					</div>
+				{/if}
+
 				<!-- Novos controles de sub-textos para QUALQUER pergunta que use os tipos inteligentes -->
 				{#if TIPOS_COM_ROTULOS.includes(p.tipo)}
 					<div
@@ -536,6 +689,7 @@
 		>
 			<input type="hidden" name="config" value={resGise.configJson} />
 			<input type="hidden" name="tipo" value={resGise.configTipo} />
+			<input type="hidden" name="operacaoId" value={resGise.operacaoSelecionadaId ?? ''} />
 
 			<div class="flex-grow card-elevated-2 rounded-xl p-4">
 				<p

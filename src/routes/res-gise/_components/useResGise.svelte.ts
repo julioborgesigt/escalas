@@ -77,6 +77,60 @@ export function useResGise(getData: () => ResGisePageData) {
 		perguntasConfig = structuredClone(source);
 	});
 
+	/**
+	 * A operação em edição sai do SERVIDOR, não de um `$state` local: quem resolve
+	 * `?operacaoId=` (e o fallback quando ele é inválido) é o `load`, e duplicar
+	 * essa decisão aqui deixaria o editor mostrando uma operação e salvando em
+	 * outra.
+	 */
+	const operacaoSelecionada = $derived(
+		data.operacoes.find((o) => o.id === data.operacaoSelecionadaId) ?? null
+	);
+
+	/**
+	 * Tipos de equipe que ESTA operação usa. Uma operação só de inteligência não
+	 * mostra a aba "Operacional" — e a action recusa o POST correspondente, então
+	 * o que a tela esconde o servidor também nega.
+	 */
+	const tiposDisponiveis = $derived.by((): Array<'operacional' | 'seint'> => {
+		const op = operacaoSelecionada;
+		if (!op) return ['operacional', 'seint'];
+		const t: Array<'operacional' | 'seint'> = [];
+		if (op.usa_equipe_operacional) t.push('operacional');
+		if (op.usa_equipe_seint) t.push('seint');
+		return t.length > 0 ? t : ['operacional'];
+	});
+
+	// Trocar de operação pode deixar o tipo corrente indisponível (estava em
+	// "Operacional" e a nova operação é só SEINT). Cai no primeiro disponível em
+	// vez de manter uma aba que a operação não tem.
+	$effect(() => {
+		const disponiveis = tiposDisponiveis;
+		if (!disponiveis.includes(untrack(() => configTipo))) configTipo = disponiveis[0];
+	});
+
+	/** Troca a operação em edição pela URL — o `load` recarrega os modelos dela. */
+	function trocarOperacao(id: number) {
+		navigateWithFilters({ operacaoId: String(id) });
+	}
+
+	/**
+	 * Liga/desliga o indicador de meta de uma pergunta.
+	 *
+	 * Ao ligar, semeia o caso mais comum do pedido: meta PERCENTUAL de redução.
+	 * Ao desligar, remove a chave inteira em vez de deixar `indicador: undefined`
+	 * — o `config` vira JSON, e `undefined` sumiria de qualquer jeito na
+	 * serialização, mas um objeto meio-apagado confundiria quem lesse o blob.
+	 */
+	function alternarIndicador(p: GiseModeloPerguntaConfig) {
+		if (p.indicador) {
+			delete p.indicador;
+		} else {
+			p.indicador = { objetivo: 'diminuir', metaTipo: 'percentual', metaValor: 20 };
+		}
+		perguntasConfig = [...perguntasConfig];
+	}
+
 	// --- Derived ---
 	const configJson = $derived(JSON.stringify(perguntasConfig));
 
@@ -459,6 +513,19 @@ export function useResGise(getData: () => ResGisePageData) {
 		get configJson() {
 			return configJson;
 		},
+		/** Operações ativas, para o seletor do editor. */
+		get operacoes() {
+			return data.operacoes;
+		},
+		get operacaoSelecionada() {
+			return operacaoSelecionada;
+		},
+		get operacaoSelecionadaId() {
+			return data.operacaoSelecionadaId;
+		},
+		get tiposDisponiveis() {
+			return tiposDisponiveis;
+		},
 		get statusFilterUrl() {
 			return statusFilterUrl;
 		},
@@ -476,6 +543,8 @@ export function useResGise(getData: () => ResGisePageData) {
 		adicionarSubPergunta,
 		moverPergunta,
 		removerPergunta,
+		trocarOperacao,
+		alternarIndicador,
 		handleSalvarModelo,
 		selecionarEscala,
 		salvarEntrada,

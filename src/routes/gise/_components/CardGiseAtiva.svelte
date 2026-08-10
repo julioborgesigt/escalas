@@ -14,6 +14,7 @@
 
 	const {
 		ativa,
+		operacaoNome = '',
 		isSupervisor,
 		isDesktop,
 		usuario,
@@ -38,6 +39,8 @@
 			seint1_id?: number | null;
 			seint2_id?: number | null;
 		};
+		/** Sigla/nome da operação desta escala; vazio esconde o selo. */
+		operacaoNome?: string;
 		isSupervisor: boolean;
 		isDesktop: boolean;
 		usuario: { id?: number | null } | null;
@@ -89,6 +92,16 @@
 			>
 				Ativa #{ativa.id}
 			</span>
+			{#if operacaoNome}
+				<!-- Sem o selo, escalas de operações diferentes ficam visualmente
+				     idênticas na mesma lista — e elas têm formulários e metas
+				     diferentes. -->
+				<span
+					class="inline-flex items-center rounded-full bg-tertiary-500/15 px-2 py-0.5 text-3xs font-bold uppercase tracking-wide text-tertiary-700 dark:text-tertiary-300 border border-tertiary-500/20"
+				>
+					{operacaoNome}
+				</span>
+			{/if}
 			<span
 				class="inline-flex items-center rounded-full px-2 py-0.5 text-3xs font-bold uppercase tracking-wide {statusColor(
 					ativa.status

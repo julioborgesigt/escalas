@@ -18,6 +18,10 @@ import {
 	criarGiseEscala,
 	clonarGiseParaData,
 	upsertGiseSeccional,
+	listarOperacoes,
+	buscarOperacao,
+	buscarOperacaoPorNome,
+	NOME_OPERACAO_PADRAO,
 	auditar,
 	contextoDeEvento
 } from '$lib/db';
@@ -94,8 +98,15 @@ export const load: PageServerLoad = async ({ locals, platform, depends }) => {
 
 	const minhaSeccionalId = isSeccional || isUnidade ? u.papel_unidade_id : null;
 
+	// Filtro por operação: aplicado no CLIENTE, sobre a mesma lista que a tela já
+	// recebe inteira. Não vale uma ida ao servidor — a listagem já traz ativas e
+	// histórico juntos, e o filtro é de leitura, não de escopo (o escopo por
+	// participação continua no `listarGiseEscalas`).
+	const operacoes = await listarOperacoes(db);
+
 	return {
 		escalas,
+		operacoes,
 		isGeral,
 		isSeccional,
 		isUnidade,
@@ -176,6 +187,30 @@ export const actions: Actions = {
 			return fail(400, { error: 'Escolha a escala de origem para copiar' });
 		}
 
+		// A operação da escala nova. No modo CLONADA ela não vem do formulário: a
+		// cópia herda a do original (`clonarGiseParaData`), senão clonar uma escala
+		// da CRAJUBAR poderia produzir uma do GISE — com outro formulário e outros
+		// indicadores — sem ninguém ter pedido.
+		let operacaoId: number | null = null;
+		if (modo !== 'clonada') {
+			const bruto = Number(data.get('operacao_id'));
+			if (Number.isInteger(bruto) && bruto > 0) {
+				const operacao = await buscarOperacao(db, bruto);
+				if (!operacao) return fail(400, { error: 'Operação inválida' });
+				if (!operacao.ativo) {
+					return fail(400, {
+						error: `A operação ${operacao.nome} está desativada e não recebe escalas novas.`
+					});
+				}
+				operacaoId = operacao.id;
+			} else {
+				// Sem escolha explícita, a escala fica com a operação histórica — é o
+				// comportamento de antes de existirem operações, e o que mantém um POST
+				// de versão anterior do formulário funcionando durante o deploy.
+				operacaoId = (await buscarOperacaoPorNome(db, NOME_OPERACAO_PADRAO))?.id ?? null;
+			}
+		}
+
 		try {
 			let ids: number[];
 
@@ -189,7 +224,15 @@ export const actions: Actions = {
 			} else if (modo === 'branco') {
 				ids = await Promise.all(
 					parsed.dias.map(({ data: d, feriado }) =>
-						criarGiseEscala(db, d, hora_entrada, hora_saida, 'em_definicao_supervisor', feriado)
+						criarGiseEscala(
+							db,
+							d,
+							hora_entrada,
+							hora_saida,
+							'em_definicao_supervisor',
+							feriado,
+							operacaoId
+						)
 					)
 				);
 			} else {
@@ -208,7 +251,8 @@ export const actions: Actions = {
 							hora_entrada,
 							hora_saida,
 							'em_definicao_supervisor',
-							feriado
+							feriado,
+							operacaoId
 						);
 						await Promise.all(seccionais.map((sec) => upsertGiseSeccional(db, novaId, sec.id)));
 						return novaId;

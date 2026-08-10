@@ -4,10 +4,11 @@ import type {
 	EscalaPolicial,
 	Unidade,
 	GisePresenca,
+	Operacao,
 	PolicialHistorico
 } from './server/schema';
 
-export type { Policial, Escala, Unidade, PolicialHistorico };
+export type { Policial, Escala, Unidade, Operacao, PolicialHistorico };
 
 /**
  * Meta de um indicador, gravada JUNTO da pergunta no modelo do formulário.
@@ -131,6 +132,10 @@ export type ResGisePageData = {
 	restringirSmartphone: boolean;
 	/** Rubrica reutilizável cadastrada pelo policial (PNG dataURL) ou `null`. */
 	minhaRubrica?: string | null;
+	/** Operações ativas — o editor mostra um formulário por operação. */
+	operacoes: Operacao[];
+	/** A operação em edição (resolvida no servidor a partir de `?operacaoId=`). */
+	operacaoSelecionadaId: number | null;
 	modeloOperacional: GiseModeloPerguntaConfig[];
 	modeloSeint: GiseModeloPerguntaConfig[];
 	/** Versão salva ANTES da última alteração de cada modelo — alimenta o

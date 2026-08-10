@@ -39,6 +39,7 @@
 	import { rubricaValida, useInvalidateOnFocus } from '$lib/composables';
 	import { fetchSyncEstado } from '$lib/sync-estado';
 	import { MediaQuery } from 'svelte/reactivity';
+	import { untrack } from 'svelte';
 
 	type GiseEscala = {
 		id: number;
@@ -58,6 +59,8 @@
 		seint2_id?: number | null;
 		temSaidaConfirmada?: boolean;
 		seccionais?: { id: number; tipos?: string[]; nome?: string }[];
+		/** Operação da escala; `null` só em linha anterior à migração 0048. */
+		operacao_id?: number | null;
 	};
 
 	const { data }: PageProps = $props();
@@ -69,8 +72,29 @@
 	const isSupervisor = $derived(!!data.isSupervisor);
 	const isMembro = $derived(!!data.isMembro);
 
-	const ativas = $derived(escalas.filter((e) => e.status !== 'finalizada'));
-	const historico = $derived(isAdminGeral ? escalas.filter((e) => e.status === 'finalizada') : []);
+	/**
+	 * Filtro por OPERAÇÃO — a razão de a aba não ser mais "Escalas GISE".
+	 *
+	 * A GISE virou uma operação entre várias (CRAJUBAR, EDGE…), que podem estar
+	 * ativas ao mesmo tempo. Em vez de uma aba por operação, uma aba só com este
+	 * recorte: sem ele a lista mistura escalas de operações diferentes, com
+	 * formulários e metas diferentes, sem nada que as distinga.
+	 *
+	 * É filtro de LEITURA, aplicado no cliente sobre a lista que a tela já recebe
+	 * inteira. O escopo de quem vê o quê continua no servidor.
+	 */
+	const operacoes = $derived(data.operacoes ?? []);
+	let filtroOperacaoId = $state<number | null>(null);
+	const nomeDaOperacao = $derived(new Map(operacoes.map((o) => [o.id, o.sigla || o.nome])));
+
+	const escalasFiltradas = $derived(
+		filtroOperacaoId === null ? escalas : escalas.filter((e) => e.operacao_id === filtroOperacaoId)
+	);
+
+	const ativas = $derived(escalasFiltradas.filter((e) => e.status !== 'finalizada'));
+	const historico = $derived(
+		isAdminGeral ? escalasFiltradas.filter((e) => e.status === 'finalizada') : []
+	);
 
 	useInvalidateOnFocus('app:gise-list', {
 		isHot: () => ativas.length > 0,
@@ -110,6 +134,13 @@
 	const ativasPaginadas = $derived(
 		ativas.slice((paginaAtivas - 1) * ITEMS_ATIVAS, paginaAtivas * ITEMS_ATIVAS)
 	);
+
+	// Trocar o filtro de operação reinicia a paginação: manter a página 3 numa
+	// lista que encolheu para 4 itens mostra tela vazia com "página 3 de 1".
+	$effect(() => {
+		filtroOperacaoId;
+		untrack(() => (paginaAtivas = 1));
+	});
 
 	let menuExpandidoId = $state<number | null>(null);
 	let showCriarModal = $state(false);
@@ -662,6 +693,41 @@
 		</div>
 	{/if}
 
+	<!-- Filtro por operação: a aba lista TODAS as operações juntas, e este é o
+	     recorte para ver só uma. Só aparece com mais de uma operação — com uma
+	     só, o filtro seria um controle que não filtra nada. -->
+	{#if operacoes.length > 1}
+		<div class="mb-4 flex flex-wrap items-center gap-2">
+			<span
+				class="text-3xs font-semibold uppercase tracking-widest text-surface-600 dark:text-surface-400"
+			>
+				Operação
+			</span>
+			<button
+				type="button"
+				class="rounded-full px-3 py-1 text-2xs font-semibold transition-colors {filtroOperacaoId ===
+				null
+					? 'bg-primary-500 text-white'
+					: 'bg-surface-200 text-surface-700 dark:bg-surface-800 dark:text-surface-300'}"
+				onclick={() => (filtroOperacaoId = null)}
+			>
+				Todas
+			</button>
+			{#each operacoes as op (op.id)}
+				<button
+					type="button"
+					class="rounded-full px-3 py-1 text-2xs font-semibold transition-colors {filtroOperacaoId ===
+					op.id
+						? 'bg-primary-500 text-white'
+						: 'bg-surface-200 text-surface-700 dark:bg-surface-800 dark:text-surface-300'}"
+					onclick={() => (filtroOperacaoId = op.id)}
+				>
+					{op.sigla || op.nome}
+				</button>
+			{/each}
+		</div>
+	{/if}
+
 	{#if ativas.length > 0 && (isAdminGeral || isSeccional || isUnidade || isSupervisor || !isMembro)}
 		<h2 class="text-base font-semibold text-surface-700 dark:text-surface-300 mb-2">
 			Escalas Ativas
@@ -670,6 +736,7 @@
 			{#each ativasPaginadas as ativa (ativa.id)}
 				<CardGiseAtiva
 					{ativa}
+					operacaoNome={ativa.operacao_id ? (nomeDaOperacao.get(ativa.operacao_id) ?? '') : ''}
 					{isSupervisor}
 					{isDesktop}
 					usuario={data.usuario}
@@ -711,6 +778,7 @@
 <ModalCriarGise
 	bind:open={showCriarModal}
 	{escalas}
+	operacoes={operacoes.filter((o) => o.ativo)}
 	onSuccess={(count, firstId) => {
 		if (count === 1 && firstId) goto(`/gise/${firstId}?edit=true`);
 	}}
