@@ -48,9 +48,11 @@ test.describe('Res. GISE — visão do membro (/res-gise)', () => {
 		await page.goto('/res-gise');
 		await expect(page).toHaveURL(/\/res-gise/);
 
-		// A linha da GISE da fixture aparece na lista "Minhas Escalas GISE"
+		// A linha da GISE da fixture aparece na lista "Minhas escalas extras"
 		// (formato da linha: "01/06/2026 #99001 operacional ...").
-		await expect(page.getByText('Minhas Escalas GISE').first()).toBeVisible();
+		// O título perdeu o "GISE": a lista passou a incluir escalas de QUALQUER
+		// operação, e nomeá-las GISE virou informação errada.
+		await expect(page.getByText('Minhas escalas extras').first()).toBeVisible();
 		await expect(page.getByText(`#${FIXTURE.gise.id}`).first()).toBeVisible();
 	});
 
