@@ -315,6 +315,28 @@ export const operacoes = sqliteTable(
 		/** Ciclo operacional (a CRAJUBAR prevê 90 dias). Nulos na GISE, permanente. */
 		data_inicio: text('data_inicio'),
 		data_fim: text('data_fim'),
+		/**
+		 * Configuração de escala DESTA operação (migração 0051): vagas padrão das
+		 * equipes, horários e os textos do breve relatório dos PDFs de extra.
+		 *
+		 * **NULL = herda o padrão do sistema** (`configuracoes` → constante do
+		 * código). Não é o mesmo que zero nem que string vazia: 0 vaga de DPC é uma
+		 * escolha legítima, e "" é um texto deliberadamente em branco. Só o NULL
+		 * significa "não decidi, use o de cima".
+		 *
+		 * Eram globais até aqui, o que fazia sentido com uma operação só. Uma
+		 * força-tarefa monta equipe de outro tamanho e o texto que vai no PDF fala
+		 * do serviço dela.
+		 */
+		vagas_operacional_dpc: integer('vagas_operacional_dpc'),
+		vagas_operacional_oip: integer('vagas_operacional_oip'),
+		vagas_seint_dpc: integer('vagas_seint_dpc'),
+		vagas_seint_oip: integer('vagas_seint_oip'),
+		hora_entrada_padrao: text('hora_entrada_padrao'),
+		hora_saida_padrao: text('hora_saida_padrao'),
+		breve_relatorio_titulo: text('breve_relatorio_titulo'),
+		breve_relatorio_texto_seccional: text('breve_relatorio_texto_seccional'),
+		breve_relatorio_texto_supervisao: text('breve_relatorio_texto_supervisao'),
 		ativo: integer('ativo', { mode: 'boolean' }).notNull().default(true),
 		created_at: text('created_at')
 			.notNull()

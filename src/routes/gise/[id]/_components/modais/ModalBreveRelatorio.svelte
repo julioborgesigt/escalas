@@ -21,7 +21,7 @@
 	interface Props {
 		open: boolean;
 		gise: GiseBreve;
-		/** Texto global (Config. GISE) + com as colunas desta GISE = texto em PDF. */
+		/** Texto herdado (operação → global) + as colunas desta GISE = texto no PDF. */
 		global: BreveRelatorioEnv | null | undefined;
 		pendingCrud: boolean;
 		onClose: () => void;

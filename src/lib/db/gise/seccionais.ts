@@ -29,9 +29,23 @@ import { decifrarCpfDoDB, type CpfCriptoEnv } from '../../crypto/cpf-cripto';
 type VagasPadrao = Awaited<ReturnType<typeof buscarVagasPadraoEquipesGise>>;
 
 /**
+ * A operação da escala a que esta seccional pertence, ou `null` (escala anterior
+ * à migração 0048, ou seccional que não existe mais).
+ */
+async function operacaoDaSeccional(db: Database, giseSeccionalId: number): Promise<number | null> {
+	const row = await db
+		.select({ operacao_id: giseEscalas.operacao_id })
+		.from(giseSeccionais)
+		.innerJoin(giseEscalas, eq(giseSeccionais.gise_id, giseEscalas.id))
+		.where(eq(giseSeccionais.id, giseSeccionalId))
+		.get();
+	return row?.operacao_id ?? null;
+}
+
+/**
  * Cria um slot de unidade na seccional JÁ COM o par de equipes padrão
- * (operacional + SEINT, com as vagas configuradas em `/gise/config`) e devolve
- * o id do slot.
+ * (operacional + SEINT, com as vagas configuradas na OPERAÇÃO da escala) e
+ * devolve o id do slot.
  *
  * Slot e equipes nascem juntos de propósito: slot sem equipe não aparece para
  * preenchimento nenhum, então separar as duas escritas só criaria estados
@@ -39,8 +53,15 @@ type VagasPadrao = Awaited<ReturnType<typeof buscarVagasPadraoEquipesGise>>;
  * acrescentar unidade e clonar GISE — chamam esta função para que a composição
  * padrão seja definida em um lugar só.
  *
+ * A operação é DERIVADA da seccional (`gise_seccionais` → `gise_escalas`), e não
+ * recebida por parâmetro: dois dos três chamadores não a têm em mãos, e um
+ * parâmetro que eles teriam de buscar só para repassar é um parâmetro que uma
+ * hora vai chegar errado. Derivar aqui torna impossível montar a equipe com o
+ * tamanho padrão de outra operação.
+ *
  * `vagas` existe para quem cria vários slots em laço passar a configuração já
- * lida e não repetir a consulta a cada iteração.
+ * lida e não repetir a consulta a cada iteração — nesse caso a derivação é
+ * pulada, porque quem passou já resolveu a operação.
  */
 export async function criarSlotComEquipesPadrao(
 	db: Database,
@@ -48,7 +69,9 @@ export async function criarSlotComEquipesPadrao(
 	unidadeId: number | null = null,
 	vagas?: VagasPadrao
 ): Promise<number> {
-	const v = vagas ?? (await buscarVagasPadraoEquipesGise(db));
+	const v =
+		vagas ??
+		(await buscarVagasPadraoEquipesGise(db, await operacaoDaSeccional(db, giseSeccionalId)));
 
 	const [slot] = await db
 		.insert(giseSeccionalUnidades)

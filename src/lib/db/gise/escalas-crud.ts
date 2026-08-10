@@ -304,8 +304,9 @@ export async function clonarGiseParaData(
 			(id) => !slotsExistentes.some((s) => s.gise_seccional_id === id)
 		);
 
-		// Vagas lidas uma vez só: são as mesmas para todos os slots do laço.
-		const v = await buscarVagasPadraoEquipesGise(db);
+		// Vagas lidas uma vez só: são as mesmas para todos os slots do laço. Vêm da
+		// operação do ORIGINAL, que é a mesma da cópia (ver `criarGiseEscala` acima).
+		const v = await buscarVagasPadraoEquipesGise(db, gise.operacao_id);
 		for (const secId of secIdsSemSlot) {
 			await criarSlotComEquipesPadrao(db, secId, null, v);
 		}

@@ -159,6 +159,12 @@ export async function criarOperacao(db: Database, dados: OperacaoEntrada): Promi
  * daquele tipo continuam existindo, com seus membros e presenças. O flag só
  * governa o que pode ser criado daqui para frente; apagar retroativamente
  * destruiria escala assinada.
+ *
+ * Nos campos de configuração (vagas, horários, breve relatório) `null` é um
+ * valor com significado — "herda o padrão do sistema" — e não "não mexer".
+ * Passá-lo explicitamente APAGA a sobrescrita, que é o que a tela de
+ * configuração faz quando o admin esvazia um campo. Para não tocar num campo,
+ * omita a chave.
  */
 export async function atualizarOperacao(
 	db: Database,
@@ -172,6 +178,15 @@ export async function atualizarOperacao(
 		data_inicio: string | null;
 		data_fim: string | null;
 		ativo: boolean;
+		vagas_operacional_dpc: number | null;
+		vagas_operacional_oip: number | null;
+		vagas_seint_dpc: number | null;
+		vagas_seint_oip: number | null;
+		hora_entrada_padrao: string | null;
+		hora_saida_padrao: string | null;
+		breve_relatorio_titulo: string | null;
+		breve_relatorio_texto_seccional: string | null;
+		breve_relatorio_texto_supervisao: string | null;
 	}>
 ) {
 	return db.update(operacoes).set(dados).where(eq(operacoes.id, id));

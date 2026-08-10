@@ -544,7 +544,7 @@
 					})
 				});
 				baixarBlob(await r.blob(), tokenNomeArquivo);
-				toaster.success({ title: 'Escala GISE assinada com sucesso' });
+				toaster.success({ title: 'Escala extra assinada com sucesso' });
 				await invalidateShared('app:gise-list');
 			} else {
 				for (const seccionalId of gise.pendentesExtraIds) {
@@ -626,7 +626,7 @@
 <div class="min-w-0 space-y-6">
 	<div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between sm:gap-4">
 		<div class="min-w-0">
-			<h1 class="h1 text-2xl font-bold">Escala GISE</h1>
+			<h1 class="h1 text-2xl font-bold">Escala extra</h1>
 			<div class="mt-0.5 flex flex-wrap gap-x-2 gap-y-1 items-center">
 				{#if isAdminGeral}
 					<span
@@ -667,7 +667,7 @@
 				class="btn w-full shrink-0 preset-filled-tertiary-500 text-white border-2 border-tertiary-600/30 hover:border-tertiary-600 px-4 py-2.5 text-sm font-medium transition-all sm:w-auto sm:py-2 rounded-xl"
 				onclick={() => (showCriarModal = true)}
 			>
-				+ Nova Escala GISE
+				+ Nova escala extra
 			</button>
 		{/if}
 	</div>

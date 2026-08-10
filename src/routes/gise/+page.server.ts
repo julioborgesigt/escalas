@@ -157,7 +157,7 @@ export const actions: Actions = {
 	/**
 	 * Cria uma ou VÁRIAS escalas GISE de uma vez (uma por data do calendário).
 	 *
-	 * Dois modos: do zero, com os horários padrão de `/gise/config`, ou clonada de
+	 * Dois modos: do zero, com os horários padrão da operação, ou clonada de
 	 * uma escala existente — que copia a estrutura (seccionais, unidades, equipes
 	 * e vagas), mas não as pessoas nem as presenças. Datas repetidas na seleção
 	 * são descartadas antes de gravar.
@@ -172,12 +172,6 @@ export const actions: Actions = {
 		const datasJson = data.get('datas_json')?.toString();
 
 		const db = getDB(platform);
-		const defaultHoraEntrada =
-			(await buscarConfiguracao(db, 'gise_default_hora_entrada')) ?? '08:00';
-		const defaultHoraSaida = (await buscarConfiguracao(db, 'gise_default_hora_saida')) ?? '16:00';
-
-		const hora_entrada = data.get('hora_entrada')?.toString() || defaultHoraEntrada;
-		const hora_saida = data.get('hora_saida')?.toString() || defaultHoraSaida;
 		const modo = (data.get('modo')?.toString() || 'completa') as 'completa' | 'clonada' | 'branco';
 		const clonar_de = data.get('clonar_de') ? Number(data.get('clonar_de')) : undefined;
 
@@ -210,6 +204,23 @@ export const actions: Actions = {
 				operacaoId = (await buscarOperacaoPorNome(db, NOME_OPERACAO_PADRAO))?.id ?? null;
 			}
 		}
+
+		// Horário: o que o formulário mandou; na falta, o padrão DA OPERAÇÃO; na
+		// falta dele, o padrão do sistema. A ordem importa — desde a migração 0051 a
+		// operação pode fixar o próprio horário, e ignorá-lo aqui faria a escala
+		// nascer com o horário de outra operação.
+		const operacaoParaHorario = operacaoId != null ? await buscarOperacao(db, operacaoId) : null;
+		const defaultHoraEntrada =
+			operacaoParaHorario?.hora_entrada_padrao ??
+			(await buscarConfiguracao(db, 'gise_default_hora_entrada')) ??
+			'08:00';
+		const defaultHoraSaida =
+			operacaoParaHorario?.hora_saida_padrao ??
+			(await buscarConfiguracao(db, 'gise_default_hora_saida')) ??
+			'16:00';
+
+		const hora_entrada = data.get('hora_entrada')?.toString() || defaultHoraEntrada;
+		const hora_saida = data.get('hora_saida')?.toString() || defaultHoraSaida;
 
 		try {
 			let ids: number[];
