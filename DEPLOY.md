@@ -163,7 +163,7 @@ Há quatro níveis. O **Super Admin é um Admin Geral com poderes extras** (é `
 
 Após mudanças de schema, gerar migrações com Drizzle conforme o fluxo já usado no repositório; o CI as aplica no deploy seguinte (migrations devem ser retrocompatíveis com o código anterior — expand/contract).
 
-### Migrações 0048–0050 (operações) — o que elas SEMEIAM
+### Migrações 0048–0051 (operações) — o que elas SEMEIAM
 
 Estas três não só criam tabela: elas gravam dados de negócio. Vale saber o que
 esperar ao vê-las passar em staging e em produção.
@@ -187,8 +187,21 @@ esperar ao vê-las passar em staging e em produção.
   padrão vivem no código, e SQL não as alcança). Nos dois casos o Admin Geral
   ajusta pelo editor.
 
-Depois do deploy, confira em `/gise/operacoes` que as duas operações aparecem, e
-em `/gise` que as escalas antigas exibem o selo **GISE**.
+- **`0051_operacao_config.sql`** acrescenta a `operacoes` as colunas de
+  configuração de escala (vagas padrão, horários e textos do breve relatório).
+  Todas nascem **NULL**, que significa "herda o padrão do sistema" — as chaves em
+  `configuracoes` que a antiga `/gise/config` gravava continuam sendo lidas, e
+  nenhum PDF muda. A tela `/gise/config` sai do menu e passa a redirecionar
+  (308) para `/gise/operacoes`; o que ela editava vive agora no botão
+  **Configurações** de cada operação.
+
+  Consequência a comunicar ao Admin Geral: **não há mais um editor do valor
+  GLOBAL.** O que estava gravado continua valendo como herança, e a partir daqui
+  cada operação define o seu.
+
+Depois do deploy, confira em `/gise/operacoes` que as duas operações aparecem
+(cada uma com os botões Formulário · Configurações · Editar), e em `/gise` que as
+escalas antigas exibem o selo **GISE**.
 
 ## Armazenamento (R2)
 

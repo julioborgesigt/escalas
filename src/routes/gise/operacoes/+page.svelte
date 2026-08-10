@@ -21,6 +21,7 @@
 	import Power from '@lucide/svelte/icons/power';
 	import SquarePen from '@lucide/svelte/icons/square-pen';
 	import FileText from '@lucide/svelte/icons/file-text';
+	import Sliders from '@lucide/svelte/icons/sliders-horizontal';
 
 	const { data }: PageProps = $props();
 
@@ -246,6 +247,13 @@
 								>
 									<FileText class="w-4 h-4" />
 									Formulário
+								</a>
+								<a
+									href={`/gise/operacoes/${op.id}/config`}
+									class="btn preset-outlined-surface-500 px-3 py-1.5 rounded-xl text-sm"
+								>
+									<Sliders class="w-4 h-4" />
+									Configurações
 								</a>
 								<button
 									type="button"

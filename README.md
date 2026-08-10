@@ -204,7 +204,7 @@ O projeto usa **Cloudflare D1** (SQLite serverless) via **Drizzle ORM**. O schem
 | `assinatura_intencoes`           | Amarra cada PDF preparado ao documento, ao assinante e a um único uso (15 min)                                      |
 | `escala_solicitacoes_assinatura` | Solicitações de assinatura por unidade/respondência                                                                 |
 | `unidades`                       | Hierarquia: departamento → seccional → delegacia. Ligada por **nome** (ver abaixo)                                  |
-| `operacoes`                      | Operações extraordinárias (GISE, CRAJUBAR, EDGE): tipos de equipe usados, ciclo, `ativo`                            |
+| `operacoes`                      | Operações extraordinárias (GISE, CRAJUBAR, EDGE): tipos de equipe, ciclo, `ativo` e a config de escala da operação  |
 | `operacao_linha_base`            | Valor inicial de cada indicador por (operação, unidade) — o denominador das metas percentuais                       |
 | `gise_escalas`                   | Escalas extras (status, supervisor, assessor, configuração) — cada uma pertence a uma `operacao`                    |
 | `gise_seccionais`                | Seccionais dentro de uma GISE                                                                                       |
@@ -212,7 +212,7 @@ O projeto usa **Cloudflare D1** (SQLite serverless) via **Drizzle ORM**. O schem
 | `gise_membros`                   | Associação policial ↔ equipe GISE                                                                                   |
 | `gise_presencas`                 | Registros de entrada/saída (GPS, selfie, rubrica)                                                                   |
 | `gise_documentos`                | PDFs assinados de GISE                                                                                              |
-| `gise_modelo_formulario`         | Modelo do formulário de produtividade em JSON, um por (operação, tipo de equipe)                                     |
+| `gise_modelo_formulario`         | Modelo do formulário de produtividade em JSON, um por (operação, tipo de equipe)                                    |
 | `gise_respostas_formulario`      | Respostas de formulários (JSON) por policial/equipe                                                                 |
 | `gise_assinaturas_relatorios`    | Assinaturas de relatórios de extra/produtividade                                                                    |
 | `aceites_termos`                 | Histórico de aceite de termos de uso (versão, hash, IP, user-agent)                                                 |
@@ -271,7 +271,7 @@ npm run db:migrate:prod -- --yes
 
 ### Histórico de migrações
 
-O histórico completo está na própria pasta [`migrations/`](migrations/) — os nomes dos arquivos são autoexplicativos (`0000_initial_schema.sql` … `0050_seed_operacao_crajubar.sql`). Para entender uma migração específica, leia o SQL dela e o trecho correspondente do [`src/lib/server/schema.ts`](src/lib/server/schema.ts).
+O histórico completo está na própria pasta [`migrations/`](migrations/) — os nomes dos arquivos são autoexplicativos (`0000_initial_schema.sql` … `0051_operacao_config.sql`). Para entender uma migração específica, leia o SQL dela e o trecho correspondente do [`src/lib/server/schema.ts`](src/lib/server/schema.ts).
 
 O que já rodou em cada ambiente é rastreado pela tabela `_migrations_aplicadas`, gravada pelo runner [`scripts/migrate.ts`](scripts/migrate.ts). (O `migrations/meta/` do `drizzle-kit` foi removido em jul/2026: ficou parado em 2 entradas para dezenas de arquivos e só induzia a erro.)
 
@@ -513,6 +513,19 @@ inteligência, ou as duas. Cada operação é dona dos SEUS formulários de
 produtividade (um por tipo de equipe habilitado), e criar uma nova pede em qual
 operação basear o formulário, para não começar do zero. Operação não se exclui,
 desativa-se: escala histórica e PDF assinado continuam apontando para ela.
+
+Cada linha tem também **Configurações** (`/gise/operacoes/[id]/config`): vagas
+padrão das equipes, horário padrão e os textos do bloco "Breve relatório" dos
+PDFs de extra. Substituiu a antiga tela global `/gise/config` — global fazia
+sentido com uma operação só. **Campo vazio herda o padrão do sistema**, e é isso
+que torna a mudança inócua: nenhuma operação existente muda de comportamento.
+Zero não é vazio (`0` = "esta equipe não tem essa vaga").
+
+A precedência, do mais específico ao mais geral:
+
+```
+colunas de gise_escalas → colunas de operacoes → configuracoes → constante do código
+```
 
 **Indicadores e metas.** No editor do formulário (`/res-gise`), uma pergunta
 contável pode ser marcada como indicador: objetivo (aumentar/diminuir) e meta

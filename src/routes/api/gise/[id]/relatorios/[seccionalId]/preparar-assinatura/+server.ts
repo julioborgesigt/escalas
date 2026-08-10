@@ -109,7 +109,7 @@ export const POST: RequestHandler = async ({
 		);
 	}
 
-	const brEnv = await getBreveRelatorioEnvMergido(db);
+	const brEnv = await getBreveRelatorioEnvMergido(db, gise.operacao_id);
 	const { esq: logoEsq, dir: logoDir } = await carregarLogosGise(platform);
 	const result = isSupervisaoExtra
 		? await gerarRelatorioExtraordinarioSupervisaoPdf(

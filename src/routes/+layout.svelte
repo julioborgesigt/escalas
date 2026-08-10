@@ -298,17 +298,15 @@
 
 	const rotaPath = $derived(page.url.pathname);
 	/**
-	 * Rota da escala extra: lista/escala, excluindo as que têm entrada própria no
-	 * menu (`/gise/config` → "Conf. GISE", `/gise/operacoes` → "Operações").
+	 * Rota da escala extra: lista/escala, excluindo `/gise/operacoes`, que tem
+	 * entrada própria no menu.
 	 */
 	const giseListaOuEscalaPath = $derived(
 		rotaPath === '/gise' ||
 			(rotaPath.startsWith('/gise/') &&
-				!rotaPath.startsWith('/gise/config') &&
 				!rotaPath.startsWith('/gise/operacoes') &&
 				!rotaPath.startsWith('/gise/bem-vindo'))
 	);
-	const giseConfigPathAtivo = $derived(rotaPath.startsWith('/gise/config'));
 	const giseOperacoesPathAtivo = $derived(rotaPath.startsWith('/gise/operacoes'));
 
 	// As duas abas de /res-gise dividem a MESMA rota por query string: sem
@@ -659,17 +657,14 @@
 						     por operação na própria página, sem aba por operação. -->
 						{@render itemMenu('/gise', 'Escala extra', ICONE.pranchetaLista, giseListaOuEscalaPath)}
 						{#if usuario?.tipo === 'admin'}
+							<!-- "Conf. GISE" saiu do menu: o que ela editava (vagas padrão,
+							     horário e textos do breve relatório) virou configuração POR
+							     OPERAÇÃO, no botão "Configurações" de cada linha de /gise/operacoes. -->
 							{@render itemMenu(
 								'/gise/operacoes',
 								'Operações',
-								ICONE.pranchetaLista,
-								giseOperacoesPathAtivo
-							)}
-							{@render itemMenu(
-								'/gise/config',
-								'Conf. GISE',
 								ICONE.engrenagem,
-								giseConfigPathAtivo
+								giseOperacoesPathAtivo
 							)}
 						{/if}
 					{/if}

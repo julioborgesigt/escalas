@@ -52,7 +52,7 @@ export async function gerarRascunhoGisePdf(
 ): Promise<Uint8Array> {
 	const [{ esq: logoGise, dir: logoCeara }, brEnv] = await Promise.all([
 		carregarLogosGise(platform),
-		getBreveRelatorioEnvMergido(db)
+		getBreveRelatorioEnvMergido(db, gise.operacao_id)
 	]);
 	const result = await exportLib.gerarPdfGise(
 		exportLib.toGisePdfData(gise, brEnv),

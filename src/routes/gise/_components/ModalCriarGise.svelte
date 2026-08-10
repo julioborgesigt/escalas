@@ -35,8 +35,16 @@
 	}: {
 		open: boolean;
 		escalas: { id: number; data_inicio: string; status: string }[];
-		/** Operações ATIVAS que podem receber escalas novas. */
-		operacoes?: { id: number; nome: string }[];
+		/**
+		 * Operações ATIVAS que podem receber escalas novas, com o horário padrão de
+		 * cada uma — trocar de operação troca os horários sugeridos.
+		 */
+		operacoes?: {
+			id: number;
+			nome: string;
+			hora_entrada_padrao?: string | null;
+			hora_saida_padrao?: string | null;
+		}[];
 		onSuccess: (count: number, firstId?: number) => void;
 	} = $props();
 
@@ -87,11 +95,25 @@
 			calMes = m - 1;
 			modoCriacao = 'completa';
 			clonarDeId = escalas.length > 0 ? escalas[0].id : '';
-			novaHoraEntrada = (page.data.defaultHoraEntrada as string) ?? '08:00';
-			novaHoraSaida = (page.data.defaultHoraSaida as string) ?? '16:00';
+			operacaoId = operacoes[0]?.id ?? '';
+			aplicarHorarioDaOperacao(operacaoId);
 		}
 		prevOpen = open;
 	});
+
+	/**
+	 * Horário sugerido ao trocar de operação: o padrão DELA, senão o do sistema.
+	 *
+	 * Só reescreve os campos, sem travá-los — o admin continua podendo digitar
+	 * outro horário para esta escala. Sem isto, escolher a CRAJUBAR mantinha na
+	 * tela o horário do GISE e a escala nascia com ele.
+	 */
+	function aplicarHorarioDaOperacao(id: number | '') {
+		const op = operacoes.find((o) => o.id === id);
+		novaHoraEntrada =
+			op?.hora_entrada_padrao ?? (page.data.defaultHoraEntrada as string) ?? '08:00';
+		novaHoraSaida = op?.hora_saida_padrao ?? (page.data.defaultHoraSaida as string) ?? '16:00';
+	}
 
 	function calCicloDia(iso: string) {
 		const next = { ...diasModal };
@@ -193,7 +215,7 @@
 			<Dialog.Title
 				class="text-base sm:text-lg font-bold text-surface-900 dark:text-surface-50 leading-tight"
 			>
-				Nova Escala GISE
+				Nova escala extra
 			</Dialog.Title>
 			<p class="text-3xs sm:text-xs text-surface-600 dark:text-surface-400 leading-snug">
 				Uma escala por dia. No calendário: <span
@@ -387,6 +409,7 @@
 					<select
 						id="nova-operacao"
 						bind:value={operacaoId}
+						onchange={() => aplicarHorarioDaOperacao(operacaoId)}
 						class="w-full px-2.5 py-1.5 rounded-lg border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-sm"
 					>
 						{#each operacoes as op (op.id)}

@@ -2,11 +2,14 @@
  * Vagas padrão das equipes GISE (quantos DPC e OIP cada equipe nova recebe).
  *
  * Guardadas como JSON numa única chave de `configuracoes` em vez de colunas
- * próprias: são um preset de UI, editado em `/gise/config`, e não entram em
+ * próprias: são um preset de UI, editado por operação em
+ * `/gise/operacoes/[id]/config`, e não entram em
  * consulta nenhuma. Toda leitura passa pelo parser tolerante abaixo, porque o
  * valor pode ter sido gravado por uma versão anterior ou editado à mão.
  */
+import { eq } from 'drizzle-orm';
 import { buscarConfiguracao, salvarConfiguracao } from '../configuracoes';
+import { operacoes } from '../../server/schema';
 import type { Database } from '../core';
 
 /** Uma chave em `configuracoes` com JSON: `{"op":{"dpc":1,"oip":3},"seint":{"dpc":0,"oip":2}}` */
@@ -67,10 +70,47 @@ function parseVagasEquipesGiseJson(raw: string | null): {
 	}
 }
 
-/** Vagas configuradas, ou o fallback histórico — nunca lança, nunca devolve nulo. */
-export async function buscarVagasPadraoEquipesGise(db: Database) {
-	const raw = await buscarConfiguracao(db, GISE_EQUIPES_VAGAS_JSON_KEY);
-	return parseVagasEquipesGiseJson(raw);
+/**
+ * Vagas padrão a aplicar numa equipe nova — as da OPERAÇÃO quando ela definiu,
+ * senão as globais, senão o fallback histórico. Nunca lança, nunca devolve nulo.
+ *
+ * Cada um dos quatro campos cai por conta própria: uma operação pode fixar só as
+ * vagas de OIP da equipe operacional e herdar o resto. `null` na coluna é o que
+ * significa "herda"; `0` é uma escolha legítima (equipe sem DPC) e por isso não
+ * pode ser tratado como ausência.
+ *
+ * `operacaoId` é obrigatório, `null` inclusive — mesma razão do resolvedor do
+ * breve relatório: um default silencioso montaria a equipe com o tamanho de
+ * outra operação, e o erro só apareceria como vaga sobrando na escala.
+ */
+export async function buscarVagasPadraoEquipesGise(db: Database, operacaoId: number | null) {
+	const [raw, op] = await Promise.all([
+		buscarConfiguracao(db, GISE_EQUIPES_VAGAS_JSON_KEY),
+		operacaoId != null
+			? db
+					.select({
+						opDpc: operacoes.vagas_operacional_dpc,
+						opOip: operacoes.vagas_operacional_oip,
+						seDpc: operacoes.vagas_seint_dpc,
+						seOip: operacoes.vagas_seint_oip
+					})
+					.from(operacoes)
+					.where(eq(operacoes.id, operacaoId))
+					.get()
+			: Promise.resolve(undefined)
+	]);
+
+	const global = parseVagasEquipesGiseJson(raw);
+	return {
+		operacional: {
+			dpc: op?.opDpc ?? global.operacional.dpc,
+			oip: op?.opOip ?? global.operacional.oip
+		},
+		seint: {
+			dpc: op?.seDpc ?? global.seint.dpc,
+			oip: op?.seOip ?? global.seint.oip
+		}
+	};
 }
 
 /**

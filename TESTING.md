@@ -197,6 +197,24 @@ Verificar cada transição de status:
       criação de escala e dos filtros, mas ela continua aparecendo no cadastro
 - [ ] Policial comum abrindo `/gise/operacoes` → redirecionado
 
+### 4.11 Configurações da operação (`/gise/operacoes/[id]/config`)
+
+- [ ] O botão **Configurações** aparece em cada linha, entre "Formulário" e
+      "Editar", e abre a tela da operação correspondente
+- [ ] `/gise/config` (endereço antigo) redireciona para `/gise/operacoes`, e o
+      item "Conf. GISE" não está mais no menu
+- [ ] Todos os campos começam vazios, mostrando em cinza o valor herdado
+- [ ] Definir `0` em "DPC" da equipe operacional e salvar → o campo volta
+      mostrando `0`, **não** vazio (zero é uma escolha, não ausência)
+- [ ] Esvaziar um campo já preenchido e salvar → volta a mostrar o valor herdado
+      em cinza
+- [ ] Numa operação de um tipo de equipe só, aparece apenas o bloco daquele tipo
+- [ ] Horário fora do formato `HH:MM` → erro de validação; vazio é aceito (herda)
+- [ ] Criar escala nova pela operação configurada → nasce com o horário e as
+      vagas dela; trocar a operação no modal troca os horários sugeridos
+- [ ] Alterar o texto do breve relatório e gerar o PDF de extra de uma escala
+      daquela operação → o texto novo aparece; numa escala de OUTRA operação, não
+
 ### 4.10 Indicadores e linha de base
 
 **Configurar o indicador** (`/res-gise`, Admin Geral):

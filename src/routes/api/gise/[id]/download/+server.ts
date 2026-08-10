@@ -174,7 +174,7 @@ export const GET: RequestHandler = async ({ locals, params, platform, url }) => 
 				const isSupExtra = await secIdEhSupervisaoExtra(db, seccionalId);
 				const { gerarRelatorioExtraordinarioPdf, gerarRelatorioExtraordinarioSupervisaoPdf } =
 					await import('$lib/server/export');
-				const brEnv = await getBreveRelatorioEnvMergido(db);
+				const brEnv = await getBreveRelatorioEnvMergido(db, gise.operacao_id);
 				const result = isSupExtra
 					? await gerarRelatorioExtraordinarioSupervisaoPdf(
 							gise,
@@ -241,7 +241,7 @@ export const GET: RequestHandler = async ({ locals, params, platform, url }) => 
 			const isSupervisaoExtra = await secIdEhSupervisaoExtra(db, seccionalId);
 			const { gerarRelatorioExtraordinarioPdf, gerarRelatorioExtraordinarioSupervisaoPdf } =
 				await import('$lib/server/export');
-			const brEnv = await getBreveRelatorioEnvMergido(db);
+			const brEnv = await getBreveRelatorioEnvMergido(db, gise.operacao_id);
 			const result = isSupervisaoExtra
 				? await gerarRelatorioExtraordinarioSupervisaoPdf(
 						gise,
@@ -353,7 +353,7 @@ export const GET: RequestHandler = async ({ locals, params, platform, url }) => 
 		} else {
 			logger.warn('[gise/download] R2 binding indisponível');
 		}
-		const brForPdf = await getBreveRelatorioEnvMergido(db);
+		const brForPdf = await getBreveRelatorioEnvMergido(db, gise.operacao_id);
 		const result = await gerarPdfGise(toGisePdfData(gise, brForPdf), logoBytes, logoCearaBytes);
 
 		// Documento assinado → cópia de conferência por padrão
