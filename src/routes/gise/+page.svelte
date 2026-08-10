@@ -39,7 +39,6 @@
 	import { rubricaValida, useInvalidateOnFocus } from '$lib/composables';
 	import { fetchSyncEstado } from '$lib/sync-estado';
 	import { MediaQuery } from 'svelte/reactivity';
-	import { untrack } from 'svelte';
 
 	type GiseEscala = {
 		id: number;
@@ -135,12 +134,17 @@
 		ativas.slice((paginaAtivas - 1) * ITEMS_ATIVAS, paginaAtivas * ITEMS_ATIVAS)
 	);
 
-	// Trocar o filtro de operação reinicia a paginação: manter a página 3 numa
-	// lista que encolheu para 4 itens mostra tela vazia com "página 3 de 1".
-	$effect(() => {
-		filtroOperacaoId;
-		untrack(() => (paginaAtivas = 1));
-	});
+	/**
+	 * Troca o filtro e volta para a primeira página.
+	 *
+	 * As duas coisas juntas, e não num efeito: manter a página 3 numa lista que
+	 * encolheu para 4 itens mostra tela vazia com "página 3 de 1", e o reset
+	 * pertence à ação que causou o encolhimento.
+	 */
+	function filtrarPorOperacao(id: number | null) {
+		filtroOperacaoId = id;
+		paginaAtivas = 1;
+	}
 
 	let menuExpandidoId = $state<number | null>(null);
 	let showCriarModal = $state(false);
@@ -709,7 +713,7 @@
 				null
 					? 'bg-primary-500 text-white'
 					: 'bg-surface-200 text-surface-700 dark:bg-surface-800 dark:text-surface-300'}"
-				onclick={() => (filtroOperacaoId = null)}
+				onclick={() => filtrarPorOperacao(null)}
 			>
 				Todas
 			</button>
@@ -720,7 +724,7 @@
 					op.id
 						? 'bg-primary-500 text-white'
 						: 'bg-surface-200 text-surface-700 dark:bg-surface-800 dark:text-surface-300'}"
-					onclick={() => (filtroOperacaoId = op.id)}
+					onclick={() => filtrarPorOperacao(op.id)}
 				>
 					{op.sigla || op.nome}
 				</button>

@@ -79,15 +79,15 @@
 	 * indicador percentual fica sem denominador e a meta daquela unidade não pode
 	 * ser calculada.
 	 */
-	let linhasBase = $state<Record<string, string>>({});
+	const linhasBase = $state<Record<string, string>>({});
 	const linhasBaseJson = $derived(JSON.stringify(linhasBase));
 
 	/** Todas as `key` de uma etapa, filhos inclusive — o indicador pode ser um "se Sim, quantos?". */
-	function chavesDaEtapa(etapa: EtapaFormulario): Set<string> {
-		const chaves = new Set<string>();
+	function chavesDaEtapa(etapa: EtapaFormulario): string[] {
+		const chaves: string[] = [];
 		function andar(lista: typeof etapa.perguntas) {
 			for (const p of lista) {
-				chaves.add(p.key);
+				chaves.push(p.key);
 				if (p.filhos?.length) andar(p.filhos);
 			}
 		}
@@ -107,11 +107,11 @@
 		const etapa = etapas[Math.min(indiceEtapa, Math.max(0, etapas.length - 1))];
 		if (!etapa) return [];
 		const chaves = chavesDaEtapa(etapa);
-		const daEtapa = data.basesPendentes.filter((b) => chaves.has(b.key));
+		const daEtapa = data.basesPendentes.filter((b) => chaves.includes(b.key));
 		if (indiceEtapa < etapas.length - 1) return daEtapa;
 
-		const cobertas = new Set(etapas.flatMap((e) => [...chavesDaEtapa(e)]));
-		const orfas = data.basesPendentes.filter((b) => !cobertas.has(b.key));
+		const cobertas = etapas.flatMap((e) => chavesDaEtapa(e));
+		const orfas = data.basesPendentes.filter((b) => !cobertas.includes(b.key));
 		return [...daEtapa, ...orfas];
 	});
 	/** Clamp, e não índice cru: o modelo pode encolher entre navegações. */
