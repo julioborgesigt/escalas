@@ -23,11 +23,13 @@
 	 * filtros e a tabela antes de a biblioteca chegar.
 	 */
 	import type { PageProps } from './$types';
+	import { goto } from '$app/navigation';
 	import { slide } from 'svelte/transition';
 	import Spinner from '$lib/components/Spinner.svelte';
 	import { useProdutividade } from './_components/useProdutividade.svelte';
 	import SecaoRankings from './_components/SecaoRankings.svelte';
 	import SecaoGraficos from './_components/SecaoGraficos.svelte';
+	import SecaoIndicadores from './_components/SecaoIndicadores.svelte';
 
 	const { data }: PageProps = $props();
 	const p = useProdutividade(() => data);
@@ -178,6 +180,29 @@
 						</div>
 					</div>
 
+					<!-- Operação: navega (recarrega o `load`), porque trocar de operação
+					     troca os MODELOS e as linhas de base — não é um recorte da
+					     mesma lista, como os demais filtros desta linha. -->
+					{#if (p.data.operacoes ?? []).length > 1}
+						<div class="space-y-1.5 lg:col-span-3">
+							<label
+								for="f-op"
+								class="text-3xs font-black uppercase tracking-widest text-surface-400 dark:text-surface-500 pl-0.5 block"
+								>Operação</label
+							>
+							<select
+								id="f-op"
+								value={p.data.operacaoSelecionadaId ?? ''}
+								onchange={(e) => goto(`/produtividade?operacaoId=${e.currentTarget.value}`)}
+								class="w-full px-3 py-2.5 rounded-xl border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-950 text-xs font-bold"
+							>
+								{#each p.data.operacoes ?? [] as op (op.id)}
+									<option value={op.id}>{op.nome}</option>
+								{/each}
+							</select>
+						</div>
+					{/if}
+
 					<!-- 2. Seccional -->
 					<div class="space-y-1.5 lg:col-span-3">
 						<label
@@ -253,6 +278,11 @@
 			</section>
 		{/if}
 	</div>
+
+	<!-- Antes dos rankings e dos gráficos por pergunta: é a leitura que a
+	     operação existe para produzir ("chegamos onde prometemos?"), e o resto
+	     é o detalhamento dela. -->
+	<SecaoIndicadores paineis={p.paineisIndicadores} Chart={p.ChartCtor} />
 
 	{#if p.filterTipo === 'operacional'}
 		<SecaoRankings

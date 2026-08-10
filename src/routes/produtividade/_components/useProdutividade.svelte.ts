@@ -20,6 +20,8 @@ import {
 	calculateRanking,
 	type Question
 } from '$lib/produtividade';
+import { montarPainelIndicadores } from '$lib/produtividade/metas';
+import { extrairIndicadoresDeModelos } from '$lib/gise/indicadores';
 import {
 	VIRTUAL_CHARTS,
 	exportChartAsPng,
@@ -49,7 +51,12 @@ const TOP_IDS = [
 export function useProdutividade(getData: () => PageData) {
 	const data = $derived(getData());
 
-	let Chart: ChartJs | null = null;
+	/**
+	 * `$state`, e não um `let` cru: a seção de indicadores monta os próprios
+	 * gráficos e só pode fazê-lo depois que o construtor chega. Sem reatividade
+	 * aqui, ela ficaria em branco até algum outro filtro forçar um redesenho.
+	 */
+	let Chart = $state<ChartJs | null>(null);
 	let exporting = $state(false);
 
 	async function loadChart() {
@@ -129,8 +136,64 @@ export function useProdutividade(getData: () => PageData) {
 		}))
 	);
 
+	/**
+	 * As mesmas respostas do período e da seccional, SEM o recorte por tipo de
+	 * equipe — a base dos indicadores de meta.
+	 *
+	 * A meta é da UNIDADE e do indicador: o acervo de inquéritos da Delegacia do
+	 * Crato não é "o acervo da equipe operacional" mais "o acervo da equipe de
+	 * inteligência". Aplicar `filterTipo` aqui contaria metade do resultado da
+	 * unidade contra a meta inteira dela.
+	 */
+	const filteredSemTipo = $derived(
+		(data.lista || []).filter((item: ProdutividadeListaItem) => {
+			const date = item.data_inicio;
+			if (filterSeccional && item.seccional_id !== Number(filterSeccional)) return false;
+			if (date < effectiveStart) return false;
+			if (date > effectiveEnd) return false;
+			return true;
+		})
+	);
+
+	const parsedDataSemTipo = $derived(
+		filteredSemTipo.map((item: ProdutividadeListaItem) => ({
+			unidade_id: item.unidade_id ?? null,
+			respostasParsed: JSON.parse(item.respostas || '{}') as Record<string, unknown>
+		}))
+	);
+
 	// Stats via utilitário
 	const stats = $derived(calculateStats(parsedData, QUESTIONS, armasKey));
+
+	/**
+	 * Indicadores da operação, dos DOIS formulários dela (operacional e SEINT).
+	 *
+	 * Unificados por `key` porque a linha de base é da UNIDADE, não da equipe: o
+	 * mesmo indicador nos dois formulários é um indicador só.
+	 */
+	const indicadores = $derived(
+		extrairIndicadoresDeModelos([data.modeloOperacional, data.modeloSeint])
+	);
+
+	/**
+	 * O cruzamento base × realizado × meta.
+	 *
+	 * Consome `parsedData` — a MESMA lista já recortada pelos filtros da tela —,
+	 * e não a lista crua: um filtro reaplicado aqui dentro divergiria do que o
+	 * resto do painel mostra, sem ninguém perceber.
+	 *
+	 * Diferença deliberada em relação aos demais gráficos: o recorte por tipo de
+	 * equipe NÃO se aplica. A meta é da unidade e do indicador; separar por
+	 * operacional/SEINT contaria metade do resultado dela.
+	 */
+	const paineisIndicadores = $derived(
+		montarPainelIndicadores(
+			indicadores,
+			data.unidadesDaOperacao ?? [],
+			parsedDataSemTipo,
+			data.linhaBase ?? []
+		)
+	);
 
 	// Rankings via utilitário
 	const rankingPrisoes = $derived(
@@ -180,6 +243,13 @@ export function useProdutividade(getData: () => PageData) {
 		// eslint-disable-next-line svelte/prefer-svelte-reactivity -- argumento pontual
 		const currentIds = new Set(QUESTIONS.map((q) => q.id));
 		charts.destroyStaleCharts(currentIds);
+	});
+
+	// Uma operação pode ter indicadores e NENHUMA pergunta "gráficável" no modelo
+	// — nesse caso o efeito dos gráficos por pergunta nunca dispara, e a seção de
+	// indicadores ficaria esperando um Chart.js que ninguém pediu.
+	$effect(() => {
+		if (paineisIndicadores.length > 0 && !Chart) void loadChart();
 	});
 
 	async function updateChartsFn(list: ProdutividadeParsedRow[]) {
@@ -342,6 +412,14 @@ export function useProdutividade(getData: () => PageData) {
 		},
 		get QUESTIONS() {
 			return QUESTIONS;
+		},
+		/** Base × realizado × meta por unidade, para a seção "Indicadores e metas". */
+		get paineisIndicadores() {
+			return paineisIndicadores;
+		},
+		/** Chart.js já carregado (ou `null`): a seção de indicadores monta os próprios gráficos. */
+		get ChartCtor() {
+			return Chart;
 		},
 		get allChartsCount() {
 			return allChartsCount;
