@@ -91,20 +91,32 @@
 	);
 
 	/**
-	 * Produtividade e Dados base: os DOIS papéis de unidade entram, inclusive
-	 * `admin_unidade`, que `showGise` não cobre.
+	 * Produtividade: os DOIS papéis de unidade entram, inclusive `admin_unidade`,
+	 * que `showGise` não cobre.
 	 *
-	 * É deliberado e é o ponto da mudança: são eles que informam a linha de base
-	 * dos indicadores, e quem alimenta o denominador de uma meta precisa poder ver
-	 * o resultado dela. O recorte por unidade é feito no SERVIDOR
-	 * (`unidadesLinhaBaseAdministradas`), não por este `if` — esconder o item de
-	 * menu nunca foi autorização.
+	 * É deliberado: são eles que informam a linha de base dos indicadores, e quem
+	 * alimenta o denominador de uma meta precisa poder ver o resultado dela. O
+	 * recorte por unidade é feito no SERVIDOR, não por este `if` — esconder o item
+	 * de menu nunca foi autorização.
 	 */
 	const showIndicadores = $derived(
 		usuario?.tipo === 'admin' ||
 			usuario?.papel === 'admin_seccional' ||
 			usuario?.papel === 'admin_unidade'
 	);
+
+	/**
+	 * "Dados base" NÃO segue `showIndicadores`: ela só aparece para quem tem
+	 * efetivamente base a informar — admin de unidade/seccional cuja unidade está
+	 * escalada numa operação com indicador percentual. Antes aparecia para todo
+	 * admin de unidade, inclusive os de delegacias fora de qualquer operação, que
+	 * abriam uma tela vazia sem entender por quê. Quem responde é o servidor
+	 * (`temLinhaBaseAPreencher`), porque a pergunta depende de escala e de modelo.
+	 *
+	 * O Admin Geral não entra: para ele a conferência é por operação, e virou
+	 * botão dentro de `/gise/operacoes`.
+	 */
+	const showDadosBase = $derived(page.data.temLinhaBasePendente ?? false);
 
 	// Presença GISE: só com escala GISE ativa E confirmação de entrada/saída
 	// ainda pendente. Só "estar escalado" não basta — quem já bateu a saída
@@ -669,14 +681,19 @@
 						{/if}
 					{/if}
 					<!-- Fora do `showGise`: `admin_unidade` não é coberto por ele e
-					     precisa destes dois — é quem informa a linha de base. -->
+					     precisa destes — é quem informa a linha de base.
+
+					     "Conf. Form." saiu do menu do Admin Geral: o editor de formulário
+					     já é alcançado pelo botão "Formulário" de cada operação, em
+					     /gise/operacoes, que é onde ele tem contexto — formulário é DE uma
+					     operação, e o item solto obrigava a escolher a operação depois. -->
 					{#if showIndicadores}
 						{@render itemMenu('/produtividade', 'Produtividade', ICONE.barras)}
+					{/if}
+					{#if showDadosBase}
 						{@render itemMenu('/dados-base', 'Dados base', ICONE.checkLista)}
 					{/if}
-					{#if usuario?.tipo === 'admin'}
-						{@render itemMenu('/res-gise', 'Conf. Form.', ICONE.documento)}
-					{:else}
+					{#if usuario?.tipo !== 'admin'}
 						<!-- Sem "GISE" no rótulo: as duas abas listam a participação do
 						     policial em escala extra de QUALQUER operação (CRAJUBAR, EDGE…),
 						     e nomeá-las GISE passou a ser informação errada. Ficam logo

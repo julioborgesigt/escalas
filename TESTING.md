@@ -197,23 +197,55 @@ Verificar cada transição de status:
       criação de escala e dos filtros, mas ela continua aparecendo no cadastro
 - [ ] Policial comum abrindo `/gise/operacoes` → redirecionado
 
-### 4.11 Configurações da operação (`/gise/operacoes/[id]/config`)
+### 4.11 Formulário da operação (`/gise/operacoes`)
 
-- [ ] O botão **Configurações** aparece em cada linha, entre "Formulário" e
-      "Editar", e abre a tela da operação correspondente
-- [ ] `/gise/config` (endereço antigo) redireciona para `/gise/operacoes`, e o
-      item "Conf. GISE" não está mais no menu
-- [ ] Todos os campos começam vazios, mostrando em cinza o valor herdado
+> Criação, edição, redirecionamento do endereço antigo e a distinção `NULL` × `0`
+> têm cobertura automatizada (`e2e/operacoes-formulario.spec.ts`). Manual: o que
+> só se vê rolando a tela e gerando PDF.
+
+**O slider:**
+
+- [ ] "Nova operação" desliza a tela para a esquerda; a lista sai de vista e o
+      formulário ocupa a largura toda
+- [ ] "Editar" numa linha faz o mesmo deslize, com o formulário já preenchido
+- [ ] O "voltar" do NAVEGADOR fecha o painel e devolve a lista
+- [ ] Abrir uma operação, voltar e abrir outra → os campos são os da segunda (não
+      sobra texto da primeira)
+
+**Os campos:**
+
+- [ ] Criar pede identificação **e** configuração na mesma tela — vagas, horários
+      e textos do breve relatório
+- [ ] Todos os campos de configuração começam vazios, mostrando em cinza o valor
+      herdado
 - [ ] Definir `0` em "DPC" da equipe operacional e salvar → o campo volta
       mostrando `0`, **não** vazio (zero é uma escolha, não ausência)
 - [ ] Esvaziar um campo já preenchido e salvar → volta a mostrar o valor herdado
       em cinza
-- [ ] Numa operação de um tipo de equipe só, aparece apenas o bloco daquele tipo
+- [ ] Desmarcar um tipo de equipe → o bloco de vagas daquele tipo some na hora
+- [ ] "Basear o formulário em" aparece só na criação
 - [ ] Horário fora do formato `HH:MM` → erro de validação; vazio é aceito (herda)
+
+**Efeitos:**
+
 - [ ] Criar escala nova pela operação configurada → nasce com o horário e as
       vagas dela; trocar a operação no modal troca os horários sugeridos
 - [ ] Alterar o texto do breve relatório e gerar o PDF de extra de uma escala
       daquela operação → o texto novo aparece; numa escala de OUTRA operação, não
+- [ ] `/gise/config` redireciona para `/gise/operacoes`; `/gise/operacoes/<id>/config`
+      redireciona para o painel de edição daquela operação
+
+### 4.12 Navegação do módulo (barra lateral)
+
+- [ ] Admin Geral: **não** há mais "Conf. Form." nem "Dados base" no menu — o
+      formulário é o botão de cada operação e Dados base é botão em
+      `/gise/operacoes`
+- [ ] `/res-gise` (Admin Geral) mostra "VOLTAR ÀS OPERAÇÕES" acima do título
+- [ ] Admin de unidade escalada em operação com indicador percentual → **vê**
+      "Dados base"
+- [ ] Admin de unidade fora de qualquer escala → **não** vê "Dados base"
+- [ ] Desativar a operação → o item some do menu do admin daquela unidade em até
+      1 minuto (cache de 60s)
 
 ### 4.10 Indicadores e linha de base
 

@@ -17,10 +17,13 @@
  * SLOT de unidade: na CRAJUBAR são as delegacias do Crato e de Barbalha que
  * entram por slot, e ignorá-los deixaria de fora justamente quem o plano nomeia.
  */
-import { eq } from 'drizzle-orm';
-import { unidades } from '$lib/server/schema';
+import { eq, inArray } from 'drizzle-orm';
+import { unidades, giseModeloFormulario } from '$lib/server/schema';
 import { isAdminGeral, isAdminSeccional, isAdminUnidade } from '$lib/auth';
-import { unidadesParticipantesDaOperacao } from '$lib/db/operacoes';
+import { unidadesParticipantesDaOperacao, listarOperacoes } from '$lib/db/operacoes';
+import { extrairIndicadoresDeModelos, indicadoresComLinhaBase } from '$lib/gise/indicadores';
+import { logger } from '$lib/server/logger';
+import type { GiseModeloPerguntaConfig } from '$lib/types';
 import type { Database } from '$lib/db';
 
 /**
@@ -88,4 +91,83 @@ export async function podeInformarLinhaBase(
 ): Promise<boolean> {
 	const permitidas = await unidadesLinhaBaseAdministradas(db, u, operacaoId);
 	return permitidas.has(unidadeId);
+}
+
+/** `config` JSON em árvore de perguntas; `[]` quando ausente ou corrompido. */
+function parseModelo(raw: string | null | undefined): GiseModeloPerguntaConfig[] {
+	if (!raw) return [];
+	try {
+		const v = JSON.parse(raw);
+		return Array.isArray(v) ? v : [];
+	} catch (err) {
+		logger.warn('[operacoes/permissao] modelo JSON inválido', { err: String(err) });
+		return [];
+	}
+}
+
+/**
+ * Este admin de unidade/seccional tem alguma base a informar?
+ *
+ * É o que decide se a aba **Dados base** aparece na barra lateral. Duas
+ * condições, e as duas precisam valer ao mesmo tempo para a MESMA operação:
+ *
+ * 1. a operação tem ao menos um indicador de meta PERCENTUAL — só ele pede base;
+ * 2. o usuário administra ao menos uma unidade participante dela.
+ *
+ * Sem isso a aba aparecia para todo admin de unidade, inclusive os de delegacias
+ * fora de qualquer operação, que abriam uma tela vazia sem entender por quê.
+ *
+ * Só operações ATIVAS entram: base de operação encerrada não é trabalho pendente.
+ *
+ * Devolve `false` para o Admin Geral — não por falta de permissão, mas porque
+ * para ele a conferência é por operação e vive dentro de `/gise/operacoes`. Quem
+ * chama isto é o menu; a autorização de `/dados-base` continua sendo
+ * `unidadesLinhaBaseAdministradas`, no servidor, para todo mundo.
+ */
+export async function temLinhaBaseAPreencher(
+	db: Database,
+	u: App.Locals['usuario']
+): Promise<boolean> {
+	if (!u || isAdminGeral(u)) return false;
+	if (!isAdminSeccional(u) && !isAdminUnidade(u)) return false;
+	if (u.papel_unidade_id == null) return false;
+
+	const ativas = await listarOperacoes(db, { somenteAtivas: true });
+	if (ativas.length === 0) return false;
+
+	// Os modelos das duas equipes de TODAS as operações ativas numa consulta só —
+	// a alternativa era duas por operação, num `load` que roda a cada navegação.
+	const modelos = await db
+		.select({ operacao_id: giseModeloFormulario.operacao_id, config: giseModeloFormulario.config })
+		.from(giseModeloFormulario)
+		.where(
+			inArray(
+				giseModeloFormulario.operacao_id,
+				ativas.map((o) => o.id)
+			)
+		)
+		.all();
+
+	const porOperacao = new Map<number, string[]>();
+	for (const m of modelos) {
+		if (m.operacao_id == null) continue;
+		const lista = porOperacao.get(m.operacao_id);
+		if (lista) lista.push(m.config);
+		else porOperacao.set(m.operacao_id, [m.config]);
+	}
+
+	// Filtra ANTES de consultar participação: descartar por leitura de JSON já
+	// carregado é barato; a participação é um join de três tabelas por operação.
+	const comBase = ativas.filter((op) => {
+		const configs = porOperacao.get(op.id) ?? [];
+		return (
+			indicadoresComLinhaBase(extrairIndicadoresDeModelos(configs.map(parseModelo))).length > 0
+		);
+	});
+
+	for (const op of comBase) {
+		const permitidas = await unidadesLinhaBaseAdministradas(db, u, op.id);
+		if (permitidas.size > 0) return true;
+	}
+	return false;
 }
