@@ -15,7 +15,11 @@ import { bancoMigrado, drizzleSobre } from '$lib/db/__tests__/sqlite-migrado';
 import type { DatabaseSync } from 'node:sqlite';
 import type { UsuarioLogado } from '$lib/auth';
 import type { Database } from '$lib/db';
-import { unidadesLinhaBaseAdministradas, podeInformarLinhaBase } from '../permissao';
+import {
+	unidadesLinhaBaseAdministradas,
+	podeInformarLinhaBase,
+	temLinhaBaseAPreencher
+} from '../permissao';
 
 let sqlite: DatabaseSync;
 let db: Database;
@@ -181,5 +185,59 @@ describe('podeInformarLinhaBase', () => {
 
 	it('Admin Geral pode informar a base de participante', async () => {
 		expect(await podeInformarLinhaBase(db, admGeral, craId, crato)).toBe(true);
+	});
+});
+
+describe('temLinhaBaseAPreencher — quem vê a aba "Dados base"', () => {
+	// A aba só aparece com as DUAS condições valendo para a MESMA operação:
+	// a operação pede base (tem indicador percentual) E o admin administra alguma
+	// unidade participante dela. A CRAJUBAR já nasce com três indicadores
+	// percentuais pela migração 0050, e é ela que o cenário escala.
+
+	const doCrato = usuario({ papel: 'admin_unidade', papel_unidade_id: 0 });
+
+	it('admin da unidade escalada em operação com indicador percentual → vê', async () => {
+		expect(await temLinhaBaseAPreencher(db, { ...doCrato, papel_unidade_id: crato })).toBe(true);
+	});
+
+	it('admin seccional da seccional escalada → vê', async () => {
+		const u = usuario({ papel: 'admin_seccional', papel_unidade_id: seccional });
+		expect(await temLinhaBaseAPreencher(db, u)).toBe(true);
+	});
+
+	it('admin de unidade FORA de qualquer escala → não vê', async () => {
+		// Sobral é subordinada à mesma seccional, mas não entra em escala nenhuma.
+		// Era este o caso que abria uma tela vazia.
+		const u = usuario({ papel: 'admin_unidade', papel_unidade_id: foraDaOperacao });
+		expect(await temLinhaBaseAPreencher(db, u)).toBe(false);
+	});
+
+	it('admin escalado só em operação SEM indicador percentual → não vê', async () => {
+		// A GISE não tem indicador nenhum semeado; quem só participa dela não tem
+		// base a informar, mesmo estando escalado.
+		const u = usuario({ papel: 'admin_unidade', papel_unidade_id: deOutraSeccional });
+		expect(await temLinhaBaseAPreencher(db, u)).toBe(false);
+	});
+
+	it('operação desativada não conta como pendência', async () => {
+		sqlite.prepare('UPDATE operacoes SET ativo = 0 WHERE id = ?').run(craId);
+		const u = usuario({ papel: 'admin_unidade', papel_unidade_id: crato });
+		expect(await temLinhaBaseAPreencher(db, u)).toBe(false);
+	});
+
+	it('policial sem papel e sem sessão não veem', async () => {
+		expect(await temLinhaBaseAPreencher(db, null)).toBe(false);
+		expect(await temLinhaBaseAPreencher(db, usuario({ papel: null }))).toBe(false);
+	});
+
+	it('Admin Geral não vê — para ele a conferência é por operação', async () => {
+		// Não é falta de permissão: `/dados-base` continua aberta a ele, e o acesso
+		// é pelo botão dentro de /gise/operacoes.
+		expect(await temLinhaBaseAPreencher(db, admGeral)).toBe(false);
+	});
+
+	it('admin com papel mas sem papel_unidade_id não vê', async () => {
+		const u = usuario({ papel: 'admin_seccional', papel_unidade_id: null });
+		expect(await temLinhaBaseAPreencher(db, u)).toBe(false);
 	});
 });

@@ -2,9 +2,18 @@
 	/**
 	 * Cadastro das operações extraordinárias (Admin Geral).
 	 *
-	 * A tela tem duas metades: o formulário de criação (com o "basear o formulário
-	 * em", que é o ponto do pedido — não começar do zero) e a lista do que existe,
-	 * com edição em linha.
+	 * ## Duas telas, um slide
+	 *
+	 * A lista e o formulário são painéis do MESMO slider horizontal — o mesmo
+	 * desenho do fluxo de presença em `/res-gise`. Antes o formulário de criação
+	 * abria empurrando a lista para baixo, e o de edição abria dentro da linha:
+	 * três coisas competindo pela mesma tela, e um formulário longo espremido
+	 * entre elas.
+	 *
+	 * O painel aberto vive na URL (`?form=nova` ou `?form=<id>`), não num `$state`
+	 * local. É o que faz o botão "voltar" do navegador desfazer a abertura, o que
+	 * mantém o link de edição compartilhável e o que permite
+	 * `/gise/operacoes/[id]/config` redirecionar para o painel certo.
 	 *
 	 * Não há botão de excluir, e isso é a regra, não um esquecimento: operação com
 	 * escala histórica não pode sumir sem levar junto a origem de PDF já assinado.
@@ -13,27 +22,45 @@
 	 */
 	import type { PageProps } from './$types';
 	import { enhance } from '$app/forms';
+	import { page } from '$app/state';
+	import { goto, invalidate } from '$app/navigation';
 	import { loading } from '$lib/loading.svelte';
 	import { toaster } from '$lib/toast';
-	import { invalidate } from '$app/navigation';
 	import BotaoVoltar from '$lib/components/BotaoVoltar.svelte';
+	import FormularioOperacao from './_components/FormularioOperacao.svelte';
 	import Plus from '@lucide/svelte/icons/plus';
 	import Power from '@lucide/svelte/icons/power';
 	import SquarePen from '@lucide/svelte/icons/square-pen';
 	import FileText from '@lucide/svelte/icons/file-text';
-	import Sliders from '@lucide/svelte/icons/sliders-horizontal';
+	import ClipboardCheck from '@lucide/svelte/icons/clipboard-check';
 
 	const { data }: PageProps = $props();
 
-	/** Id em edição, ou `null` — só uma linha aberta por vez. */
-	let editando = $state<number | null>(null);
-	let criando = $state(false);
+	/**
+	 * Qual painel está aberto, lido da URL.
+	 *
+	 * `'nova'` cria; um número edita aquela operação; `null` mostra a lista. Um id
+	 * que não existe mais (operação removida noutra aba, link velho) cai em `null`
+	 * em vez de abrir um formulário vazio — a lista é o estado sempre válido.
+	 */
+	const paramForm = $derived(page.url.searchParams.get('form'));
+	const criando = $derived(paramForm === 'nova');
+	const emEdicao = $derived(
+		paramForm && paramForm !== 'nova'
+			? (data.operacoes.find((o) => o.id === Number(paramForm)) ?? null)
+			: null
+	);
+	const painelAberto = $derived(criando || emEdicao !== null);
 
-	/** Operações que podem servir de base para o formulário da nova. */
-	const baseaveis = $derived(data.operacoes);
+	function abrir(alvo: string) {
+		goto(`?form=${alvo}`, { keepFocus: true, noScroll: true });
+		window.scrollTo({ top: 0, behavior: 'smooth' });
+	}
 
-	const CLASSE_CAMPO =
-		'w-full min-w-0 px-3 py-2 rounded-xl border border-surface-300 dark:border-surface-600 bg-white dark:bg-surface-900 text-sm';
+	function voltarParaLista() {
+		goto(page.url.pathname, { keepFocus: true, noScroll: true });
+		window.scrollTo({ top: 0, behavior: 'smooth' });
+	}
 
 	/** Rótulo dos tipos de equipe da operação, para a coluna da lista. */
 	function rotuloTipos(op: { usa_equipe_operacional: boolean; usa_equipe_seint: boolean }): string {
@@ -51,8 +78,8 @@
 				loading.hide();
 				if (result.type === 'success') {
 					toaster.success({ title: mensagemOk });
-					aoConcluir?.();
 					await invalidate('app:operacoes');
+					aoConcluir?.();
 				} else if (result.type === 'failure') {
 					const err = (result.data as { error?: string } | undefined)?.error;
 					toaster.error({ title: err || 'Não foi possível gravar' });
@@ -66,337 +93,151 @@
 	<title>Operações | Escalas</title>
 </svelte:head>
 
-<div class="min-w-0 space-y-6">
-	<BotaoVoltar href="/gise" />
+<!-- Slide lateral: o container esconde o painel que está fora de tela. -->
+<div class="min-w-0 overflow-hidden">
+	<div
+		class="flex transition-transform duration-300 ease-in-out"
+		style="transform: translateX({painelAberto ? '-50%' : '0%'}); width: 200%;"
+	>
+		<!-- Painel 1: a lista -->
+		<div class="min-w-0 space-y-6 px-1" style="width: 50%;">
+			<BotaoVoltar href="/gise" />
 
-	<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-		<div class="min-w-0">
-			<h1 class="h1 text-2xl font-bold">Operações</h1>
-			<p class="text-sm text-surface-600 dark:text-surface-400 mt-0.5">
-				Cada operação tem o seu formulário de produtividade e os seus indicadores.
-			</p>
-		</div>
-		<button
-			type="button"
-			class="btn preset-filled-primary-500 px-4 py-2.5 rounded-xl font-semibold shrink-0"
-			onclick={() => (criando = !criando)}
-		>
-			<Plus class="w-4 h-4" />
-			Nova operação
-		</button>
-	</div>
-
-	{#if criando}
-		<section class="card-elevated min-w-0 rounded-2xl p-5 sm:p-6 space-y-4">
-			<h2 class="text-base font-semibold">Nova operação</h2>
-
-			<form
-				method="POST"
-				action="?/criar"
-				class="space-y-4"
-				use:enhance={enviar('Operação criada', () => (criando = false))}
-			>
-				<div class="grid gap-4 sm:grid-cols-2">
-					<div class="min-w-0">
-						<label for="novo_nome" class="block text-sm font-medium mb-1">Nome *</label>
-						<input
-							id="novo_nome"
-							name="nome"
-							type="text"
-							required
-							maxlength="120"
-							placeholder="OPERAÇÃO CRAJUBAR"
-							class={CLASSE_CAMPO}
-						/>
-					</div>
-					<div class="min-w-0">
-						<label for="novo_sigla" class="block text-sm font-medium mb-1">Sigla</label>
-						<input
-							id="novo_sigla"
-							name="sigla"
-							type="text"
-							maxlength="30"
-							placeholder="CRAJUBAR"
-							class={CLASSE_CAMPO}
-						/>
-						<p class="text-2xs text-surface-600 dark:text-surface-400 mt-1">
-							Aparece nos filtros e no selo das escalas.
-						</p>
-					</div>
-				</div>
-
+			<div class="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
 				<div class="min-w-0">
-					<label for="novo_desc" class="block text-sm font-medium mb-1">Descrição</label>
-					<input id="novo_desc" name="descricao" type="text" maxlength="500" class={CLASSE_CAMPO} />
-				</div>
-
-				<div class="grid gap-4 sm:grid-cols-2">
-					<div class="min-w-0">
-						<label for="novo_ini" class="block text-sm font-medium mb-1">Início do ciclo</label>
-						<input id="novo_ini" name="data_inicio" type="date" class={CLASSE_CAMPO} />
-					</div>
-					<div class="min-w-0">
-						<label for="novo_fim" class="block text-sm font-medium mb-1">Fim do ciclo</label>
-						<input id="novo_fim" name="data_fim" type="date" class={CLASSE_CAMPO} />
-					</div>
-				</div>
-
-				<fieldset
-					class="rounded-xl border border-surface-200/70 bg-surface-50 dark:border-white/10 dark:bg-surface-800/40 p-4 space-y-2"
-				>
-					<legend class="text-sm font-semibold px-1">Tipos de equipe</legend>
-					<p class="text-2xs text-surface-600 dark:text-surface-400">
-						A operação só oferece os tipos marcados, e terá um formulário para cada um.
-					</p>
-					<label class="flex items-center gap-2 text-sm">
-						<input type="checkbox" name="usa_operacional" checked class="checkbox" />
-						Operacional
-					</label>
-					<label class="flex items-center gap-2 text-sm">
-						<input type="checkbox" name="usa_seint" checked class="checkbox" />
-						Inteligência (SEINT)
-					</label>
-				</fieldset>
-
-				<div class="min-w-0">
-					<label for="novo_base" class="block text-sm font-medium mb-1">
-						Basear o formulário em
-					</label>
-					<select id="novo_base" name="basear_em" class={CLASSE_CAMPO}>
-						<option value="">Começar em branco (formulário padrão)</option>
-						{#each baseaveis as op (op.id)}
-							<option value={op.id}>{op.nome}</option>
-						{/each}
-					</select>
-					<p class="text-2xs text-surface-600 dark:text-surface-400 mt-1">
-						Copia as perguntas da operação escolhida para editar a partir delas, em vez de montar o
-						formulário do zero. Só os tipos de equipe marcados acima são copiados.
+					<h1 class="h1 text-2xl font-bold">Operações</h1>
+					<p class="text-sm text-surface-600 dark:text-surface-400 mt-0.5">
+						Cada operação tem o seu formulário de produtividade e os seus indicadores.
 					</p>
 				</div>
-
-				<div class="flex justify-end gap-2 pt-2">
+				<div class="flex flex-wrap items-center gap-2 shrink-0">
+					<!-- "Dados base" saiu da barra lateral do Admin Geral: para ele não é
+					     uma aba de trabalho, é a conferência do que as unidades informaram
+					     — e o que se confere é POR OPERAÇÃO, que é onde ela vive agora. -->
+					<a
+						href="/dados-base"
+						class="btn preset-outlined-surface-500 px-4 py-2.5 rounded-xl font-semibold"
+					>
+						<ClipboardCheck class="w-4 h-4" />
+						Dados base
+					</a>
 					<button
 						type="button"
-						class="btn preset-outlined-surface-500 px-4 py-2.5 rounded-xl"
-						onclick={() => (criando = false)}
+						class="btn preset-filled-primary-500 px-4 py-2.5 rounded-xl font-semibold"
+						onclick={() => abrir('nova')}
 					>
-						Cancelar
-					</button>
-					<button
-						type="submit"
-						class="btn preset-filled-primary-500 px-6 py-2.5 rounded-xl font-semibold"
-						disabled={loading.active}
-					>
-						Criar operação
+						<Plus class="w-4 h-4" />
+						Nova operação
 					</button>
 				</div>
-			</form>
-		</section>
-	{/if}
+			</div>
 
-	<section class="card-elevated min-w-0 rounded-2xl p-5 sm:p-6 space-y-3">
-		<h2 class="text-base font-semibold">Operações cadastradas</h2>
+			<section class="card-elevated min-w-0 rounded-2xl p-5 sm:p-6 space-y-3">
+				<h2 class="text-base font-semibold">Operações cadastradas</h2>
 
-		{#if data.operacoes.length === 0}
-			<p class="text-sm text-surface-600 dark:text-surface-400">Nenhuma operação cadastrada.</p>
-		{:else}
-			<ul class="space-y-3">
-				{#each data.operacoes as op (op.id)}
-					<li
-						class="rounded-xl border border-surface-200/70 dark:border-white/10 p-4 space-y-3"
-						class:opacity-60={!op.ativo}
-					>
-						<div class="flex flex-wrap items-start justify-between gap-3">
-							<div class="min-w-0">
-								<div class="flex flex-wrap items-center gap-2">
-									<span class="font-semibold">{op.nome}</span>
-									{#if op.sigla}
-										<span
-											class="rounded-full bg-primary-500/10 text-primary-700 dark:text-primary-300 px-2 py-0.5 text-2xs font-semibold"
-										>
-											{op.sigla}
-										</span>
-									{/if}
-									{#if !op.ativo}
-										<span
-											class="rounded-full bg-surface-500/15 px-2 py-0.5 text-2xs font-semibold text-surface-600 dark:text-surface-400"
-										>
-											Desativada
-										</span>
-									{/if}
-								</div>
-								<p class="text-2xs text-surface-600 dark:text-surface-400 mt-1">
-									{rotuloTipos(op)}
-									·
-									{op.escalas === 1 ? '1 escala' : `${op.escalas} escalas`}
-									{#if op.data_inicio || op.data_fim}
-										· ciclo {op.data_inicio ?? '…'} a {op.data_fim ?? '…'}
-									{/if}
-								</p>
-								{#if op.descricao}
-									<p class="text-2xs text-surface-600 dark:text-surface-400 mt-1">
-										{op.descricao}
-									</p>
-								{/if}
-							</div>
-
-							<div class="flex flex-wrap items-center gap-2 shrink-0">
-								<a
-									href={`/res-gise?operacaoId=${op.id}`}
-									class="btn preset-outlined-surface-500 px-3 py-1.5 rounded-xl text-sm"
-								>
-									<FileText class="w-4 h-4" />
-									Formulário
-								</a>
-								<a
-									href={`/gise/operacoes/${op.id}/config`}
-									class="btn preset-outlined-surface-500 px-3 py-1.5 rounded-xl text-sm"
-								>
-									<Sliders class="w-4 h-4" />
-									Configurações
-								</a>
-								<button
-									type="button"
-									class="btn preset-outlined-surface-500 px-3 py-1.5 rounded-xl text-sm"
-									onclick={() => (editando = editando === op.id ? null : op.id)}
-								>
-									<SquarePen class="w-4 h-4" />
-									Editar
-								</button>
-								<form
-									method="POST"
-									action="?/alternarAtivo"
-									use:enhance={enviar(op.ativo ? 'Operação desativada' : 'Operação reativada')}
-								>
-									<input type="hidden" name="id" value={op.id} />
-									<button
-										type="submit"
-										class="btn preset-outlined-surface-500 px-3 py-1.5 rounded-xl text-sm"
-										disabled={loading.active}
-									>
-										<Power class="w-4 h-4" />
-										{op.ativo ? 'Desativar' : 'Reativar'}
-									</button>
-								</form>
-							</div>
-						</div>
-
-						{#if editando === op.id}
-							<form
-								method="POST"
-								action="?/editar"
-								class="border-t border-surface-200 dark:border-white/10 pt-3 space-y-3"
-								use:enhance={enviar('Operação salva', () => (editando = null))}
+				{#if data.operacoes.length === 0}
+					<p class="text-sm text-surface-600 dark:text-surface-400">Nenhuma operação cadastrada.</p>
+				{:else}
+					<ul class="space-y-3">
+						{#each data.operacoes as op (op.id)}
+							<li
+								class="rounded-xl border border-surface-200/70 dark:border-white/10 p-4"
+								class:opacity-60={!op.ativo}
 							>
-								<input type="hidden" name="id" value={op.id} />
-								<div class="grid gap-3 sm:grid-cols-2">
+								<div class="flex flex-wrap items-start justify-between gap-3">
 									<div class="min-w-0">
-										<label for={`n_${op.id}`} class="block text-sm font-medium mb-1">Nome *</label>
-										<input
-											id={`n_${op.id}`}
-											name="nome"
-											type="text"
-											required
-											maxlength="120"
-											value={op.nome}
-											class={CLASSE_CAMPO}
-										/>
+										<div class="flex flex-wrap items-center gap-2">
+											<span class="font-semibold">{op.nome}</span>
+											{#if op.sigla}
+												<span
+													class="rounded-full bg-primary-500/10 text-primary-700 dark:text-primary-300 px-2 py-0.5 text-2xs font-semibold"
+												>
+													{op.sigla}
+												</span>
+											{/if}
+											{#if !op.ativo}
+												<span
+													class="rounded-full bg-surface-500/15 px-2 py-0.5 text-2xs font-semibold text-surface-600 dark:text-surface-400"
+												>
+													Desativada
+												</span>
+											{/if}
+										</div>
+										<p class="text-2xs text-surface-600 dark:text-surface-400 mt-1">
+											{rotuloTipos(op)}
+											·
+											{op.escalas === 1 ? '1 escala' : `${op.escalas} escalas`}
+											{#if op.data_inicio || op.data_fim}
+												· ciclo {op.data_inicio ?? '…'} a {op.data_fim ?? '…'}
+											{/if}
+										</p>
+										{#if op.descricao}
+											<p class="text-2xs text-surface-600 dark:text-surface-400 mt-1">
+												{op.descricao}
+											</p>
+										{/if}
 									</div>
-									<div class="min-w-0">
-										<label for={`s_${op.id}`} class="block text-sm font-medium mb-1">Sigla</label>
-										<input
-											id={`s_${op.id}`}
-											name="sigla"
-											type="text"
-											maxlength="30"
-											value={op.sigla}
-											class={CLASSE_CAMPO}
-										/>
+
+									<!-- Três botões, e não quatro: "Configurações" virou parte de
+									     "Editar" — as duas metades descrevem a mesma operação. -->
+									<div class="flex flex-wrap items-center gap-2 shrink-0">
+										<a
+											href={`/res-gise?operacaoId=${op.id}`}
+											class="btn preset-outlined-surface-500 px-3 py-1.5 rounded-xl text-sm"
+										>
+											<FileText class="w-4 h-4" />
+											Formulário
+										</a>
+										<button
+											type="button"
+											class="btn preset-outlined-surface-500 px-3 py-1.5 rounded-xl text-sm"
+											onclick={() => abrir(String(op.id))}
+										>
+											<SquarePen class="w-4 h-4" />
+											Editar
+										</button>
+										<form
+											method="POST"
+											action="?/alternarAtivo"
+											use:enhance={enviar(op.ativo ? 'Operação desativada' : 'Operação reativada')}
+										>
+											<input type="hidden" name="id" value={op.id} />
+											<button
+												type="submit"
+												class="btn preset-outlined-surface-500 px-3 py-1.5 rounded-xl text-sm"
+												disabled={loading.active}
+											>
+												<Power class="w-4 h-4" />
+												{op.ativo ? 'Desativar' : 'Reativar'}
+											</button>
+										</form>
 									</div>
 								</div>
-								<div class="min-w-0">
-									<label for={`d_${op.id}`} class="block text-sm font-medium mb-1">Descrição</label>
-									<input
-										id={`d_${op.id}`}
-										name="descricao"
-										type="text"
-										maxlength="500"
-										value={op.descricao}
-										class={CLASSE_CAMPO}
-									/>
-								</div>
-								<div class="grid gap-3 sm:grid-cols-2">
-									<div class="min-w-0">
-										<label for={`i_${op.id}`} class="block text-sm font-medium mb-1">
-											Início do ciclo
-										</label>
-										<input
-											id={`i_${op.id}`}
-											name="data_inicio"
-											type="date"
-											value={op.data_inicio ?? ''}
-											class={CLASSE_CAMPO}
-										/>
-									</div>
-									<div class="min-w-0">
-										<label for={`f_${op.id}`} class="block text-sm font-medium mb-1">
-											Fim do ciclo
-										</label>
-										<input
-											id={`f_${op.id}`}
-											name="data_fim"
-											type="date"
-											value={op.data_fim ?? ''}
-											class={CLASSE_CAMPO}
-										/>
-									</div>
-								</div>
-								<fieldset class="space-y-2">
-									<legend class="text-sm font-semibold">Tipos de equipe</legend>
-									<label class="flex items-center gap-2 text-sm">
-										<input
-											type="checkbox"
-											name="usa_operacional"
-											checked={op.usa_equipe_operacional}
-											class="checkbox"
-										/>
-										Operacional
-									</label>
-									<label class="flex items-center gap-2 text-sm">
-										<input
-											type="checkbox"
-											name="usa_seint"
-											checked={op.usa_equipe_seint}
-											class="checkbox"
-										/>
-										Inteligência (SEINT)
-									</label>
-									<p class="text-2xs text-surface-600 dark:text-surface-400">
-										Desmarcar um tipo não mexe nas escalas já montadas — só impede novas equipes
-										daquele tipo.
-									</p>
-								</fieldset>
-								<div class="flex justify-end gap-2">
-									<button
-										type="button"
-										class="btn preset-outlined-surface-500 px-4 py-2 rounded-xl text-sm"
-										onclick={() => (editando = null)}
-									>
-										Cancelar
-									</button>
-									<button
-										type="submit"
-										class="btn preset-filled-primary-500 px-4 py-2 rounded-xl text-sm font-semibold"
-										disabled={loading.active}
-									>
-										Salvar
-									</button>
-								</div>
-							</form>
-						{/if}
-					</li>
-				{/each}
-			</ul>
-		{/if}
-	</section>
+							</li>
+						{/each}
+					</ul>
+				{/if}
+			</section>
+		</div>
+
+		<!-- Painel 2: o formulário, sozinho na tela.
+
+		     `{#key}` remonta o componente ao trocar de operação: os campos são
+		     `value=` não-controlado (para o navegador poder restaurar o que o admin
+		     digitou), então sem a remontagem passar de uma linha a outra manteria o
+		     texto da anterior. -->
+		<div class="min-w-0 px-1" style="width: 50%;">
+			{#if painelAberto}
+				{#key paramForm}
+					<FormularioOperacao
+						operacao={emEdicao}
+						herdado={data.herdado}
+						baseaveis={data.operacoes}
+						aoVoltar={voltarParaLista}
+						{enviar}
+					/>
+				{/key}
+			{/if}
+		</div>
+	</div>
 </div>

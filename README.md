@@ -514,18 +514,39 @@ produtividade (um por tipo de equipe habilitado), e criar uma nova pede em qual
 operação basear o formulário, para não começar do zero. Operação não se exclui,
 desativa-se: escala histórica e PDF assinado continuam apontando para ela.
 
-Cada linha tem também **Configurações** (`/gise/operacoes/[id]/config`): vagas
-padrão das equipes, horário padrão e os textos do bloco "Breve relatório" dos
-PDFs de extra. Substituiu a antiga tela global `/gise/config` — global fazia
-sentido com uma operação só. **Campo vazio herda o padrão do sistema**, e é isso
-que torna a mudança inócua: nenhuma operação existente muda de comportamento.
-Zero não é vazio (`0` = "esta equipe não tem essa vaga").
+A tela é um **slider de dois painéis**, no mesmo desenho do fluxo de presença de
+`/res-gise`: a lista à esquerda, o formulário à direita. O painel aberto vive na
+URL (`?form=nova` ou `?form=<id>`), e não num estado local — é o que faz o
+"voltar" do navegador desfazer a abertura e o que permite ao endereço antigo
+`/gise/operacoes/[id]/config` redirecionar para o painel certo.
+
+**Identidade e configuração são o MESMO formulário**, na criação e na edição:
+nome, sigla, ciclo e tipos de equipe junto de vagas padrão, horário padrão e os
+textos do bloco "Breve relatório" dos PDFs de extra. Antes eram dois botões e
+duas telas, e quem criava uma operação saía com metade dela por preencher, sem
+nada indicando isso. **Campo vazio herda o padrão do sistema**, e é isso que
+torna a unificação inócua para o que já existe. Zero não é vazio (`0` = "esta
+equipe não tem essa vaga").
 
 A precedência, do mais específico ao mais geral:
 
 ```
 colunas de gise_escalas → colunas de operacoes → configuracoes → constante do código
 ```
+
+**Como se chega a cada coisa.** O editor do formulário de produtividade
+(`/res-gise`) saiu da barra lateral do Admin Geral: formulário é DE uma operação,
+e o item solto obrigava a escolher a operação depois de entrar. O caminho é o
+botão **Formulário** de cada linha, e a tela tem o "voltar às operações" acima do
+título.
+
+**`/dados-base` na barra lateral** aparece só para admin de unidade/seccional que
+tenha efetivamente base a informar — unidade escalada em operação ativa com
+indicador percentual (`temLinhaBaseAPreencher`). Antes aparecia para todo admin de
+unidade, inclusive os de delegacias fora de qualquer operação, que abriam uma
+tela vazia. Para o Admin Geral a conferência é por operação e virou botão dentro
+de `/gise/operacoes`. Nada disso é autorização: quem recusa continua sendo
+`unidadesLinhaBaseAdministradas`, no servidor.
 
 **Indicadores e metas.** No editor do formulário (`/res-gise`), uma pergunta
 contável pode ser marcada como indicador. São **três tipos de meta**, e é o

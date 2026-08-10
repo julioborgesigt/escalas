@@ -2,6 +2,7 @@ import type { LayoutServerLoad } from './$types';
 import { getDB, ehAdminGeralVinculado } from '$lib/db';
 import { lerFlagsAssinatura } from '$lib/server/assinatura/cfg-ass-cache';
 import { lerPapelGise } from '$lib/server/gise/papel-cache';
+import { lerTemLinhaBasePendente } from '$lib/server/operacoes/linha-base-cache';
 import { temAssinaturaEscalaPendente } from '$lib/server/escalas/rubrica-pendente';
 import { resumoRecebidosAdmin } from '$lib/server/escalas/sync-estado';
 import { logger } from '$lib/server/logger';
@@ -14,6 +15,8 @@ export const load: LayoutServerLoad = async ({ locals, platform, cookies, depend
 	let isSupervisaoGise = false;
 	let temGiseHistorico = false;
 	let temPresencaGisePendente = false;
+	/** Administra unidade participante de operação que pede linha de base — abre a aba "Dados base". */
+	let temLinhaBasePendente = false;
 	let exigirFotoAssinatura = true;
 	let exigirGpsAssinatura = true;
 	let exigirCodigoEmailAssinatura = false;
@@ -44,12 +47,16 @@ export const load: LayoutServerLoad = async ({ locals, platform, cookies, depend
 			if (u.tipo === 'admin') depends('app:recebidos-badge');
 			depends('app:assinatura-flags');
 			if (u.tipo === 'policial') depends('app:papel-gise');
-			const [flags, papel, vinculadoAdmin, recebidos] = await Promise.all([
+			const [flags, papel, vinculadoAdmin, recebidos, linhaBasePendente] = await Promise.all([
 				lerFlagsAssinatura(platform),
 				u.tipo === 'policial' ? lerPapelGise(db, u.id) : Promise.resolve(null),
 				u.tipo === 'policial' ? ehAdminGeralVinculado(db, u.id) : Promise.resolve(false),
-				u.tipo === 'admin' ? resumoRecebidosAdmin(db) : Promise.resolve(null)
+				u.tipo === 'admin' ? resumoRecebidosAdmin(db) : Promise.resolve(null),
+				// Cache próprio (TTL 60s): a resposta cruza operações ativas, modelos e
+				// participação — cara demais para o `load` que roda a cada navegação.
+				lerTemLinhaBasePendente(db, u)
 			]);
+			temLinhaBasePendente = linhaBasePendente;
 			podeAlternarParaAdmin = vinculadoAdmin;
 			exigirFotoAssinatura = flags.exigirFotoAssinatura;
 			exigirGpsAssinatura = flags.exigirGpsAssinatura;
@@ -94,6 +101,7 @@ export const load: LayoutServerLoad = async ({ locals, platform, cookies, depend
 		isSupervisaoGise,
 		temGiseHistorico,
 		temPresencaGisePendente,
+		temLinhaBasePendente,
 		exigirFotoAssinatura,
 		exigirGpsAssinatura,
 		exigirCodigoEmailAssinatura,

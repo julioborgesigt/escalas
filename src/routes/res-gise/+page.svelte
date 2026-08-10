@@ -27,6 +27,7 @@
 	import SignaturePad from '$lib/components/SignaturePad.svelte';
 	import ModalCadastrarRubrica from '$lib/components/ModalCadastrarRubrica.svelte';
 	import ModalShell from '$lib/components/ModalShell.svelte';
+	import BotaoVoltar from '$lib/components/BotaoVoltar.svelte';
 	import { useResGise } from './_components/useResGise.svelte';
 	import { loading } from '$lib/loading.svelte';
 	import ConfigurarFormulario from './_components/ConfigurarFormulario.svelte';
@@ -146,6 +147,14 @@
 </svelte:head>
 
 <div class="space-y-6">
+	<!-- Voltar ACIMA do título, como nas demais telas de detalhe: para o Admin
+	     Geral esta tela é o editor do formulário DE UMA OPERAÇÃO, alcançado pelo
+	     botão "Formulário" de /gise/operacoes — e desde que o item saiu da barra
+	     lateral, o caminho de volta precisa estar na própria página. -->
+	{#if isAdminGeral}
+		<BotaoVoltar href="/gise/operacoes" rotulo="Voltar às operações" />
+	{/if}
+
 	<header class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 sm:mb-8">
 		<div>
 			<h1 class="h1 text-2xl font-bold">Relatórios GISE</h1>
