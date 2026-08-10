@@ -19,7 +19,7 @@
  * tolerante (chave ausente = pergunta some do relatório, nunca quebra) e o
  * parse do blob usa a variante *loose* do schema.
  */
-import { eq, and, desc, sql, type SQL } from 'drizzle-orm';
+import { eq, and, desc, sql, inArray, type SQL } from 'drizzle-orm';
 import {
 	giseEscalas,
 	giseSeccionais,
@@ -858,20 +858,12 @@ export async function listarTodasRespostasGise(
 		conditions.push(sql`${giseEscalas.operacao_id} = ${opts.operacaoId}`);
 	}
 	if (opts?.unidadeIds) {
-		// Lista vazia = nenhuma unidade permitida. `IN ()` é inválido, então o
-		// recorte vira um predicado sempre falso — devolver tudo seria o contrário
-		// do que "escopo vazio" significa.
+		// Lista VAZIA = nenhuma unidade permitida, e o predicado tem de refletir
+		// isso. `IN ()` é SQL inválido, e omitir a condição devolveria TUDO — o
+		// oposto exato do que "escopo vazio" significa, num filtro que existe para
+		// impedir um admin de ver a produtividade de outra unidade.
 		conditions.push(
-			opts.unidadeIds.length === 0
-				? sql`1 = 0`
-				: sql`${unidadeDaEquipe} IN ${
-						opts.unidadeIds.length === 1
-							? sql`(${opts.unidadeIds[0]})`
-							: sql`(${sql.join(
-									opts.unidadeIds.map((id) => sql`${id}`),
-									sql`, `
-								)})`
-					}`
+			opts.unidadeIds.length === 0 ? sql`1 = 0` : inArray(unidadeDaEquipe, opts.unidadeIds)
 		);
 	}
 	const whereClause = conditions.length > 0 ? and(...conditions) : undefined;

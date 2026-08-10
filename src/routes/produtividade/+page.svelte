@@ -43,13 +43,20 @@
 	<header class="flex flex-col md:flex-row md:items-center justify-between gap-4 sm:gap-6">
 		<div class="space-y-1">
 			<h1 class="h1 text-2xl font-bold">
-				Produção {p.filterTipo === 'seint' ? 'Inteligência' : 'Operacional'} GISE
+				Produção {p.filterTipo === 'seint' ? 'Inteligência' : 'Operacional'}
 			</h1>
 			<p class="text-surface-600 dark:text-surface-400 font-medium">
 				Análise filtrada e segmentada dos resultados reais {p.filterTipo === 'seint'
 					? '(SEINT)'
 					: '(P4-P19)'}
 			</p>
+			{#if p.data.escopoRestrito}
+				<!-- O recorte é do SERVIDOR, e quem o vê precisa saber: sem este aviso,
+				     um total menor parece queda de produtividade em vez de recorte. -->
+				<p class="text-2xs text-surface-600 dark:text-surface-400 mt-1">
+					Exibindo apenas os dados das unidades que você administra nesta operação.
+				</p>
+			{/if}
 		</div>
 		<div class="flex flex-col items-start gap-2">
 			<span
