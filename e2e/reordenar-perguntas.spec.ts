@@ -43,10 +43,20 @@ test.describe.configure({ mode: 'serial' });
 
 test.beforeAll(() => {
 	execD1Local(
-		`INSERT OR REPLACE INTO gise_modelo_formulario (tipo, config) VALUES ('operacional', '${MODELO}');`
+		// O modelo é por (operação, tipo) desde a migração 0048 — sem `operacao_id`
+		// a linha entra (o índice único trata NULL como distinto) mas o editor não
+		// a encontra, e cai no modelo padrão do código.
+		`INSERT OR REPLACE INTO gise_modelo_formulario (operacao_id, tipo, config)
+		 VALUES ((SELECT id FROM operacoes WHERE nome = 'GISE'), 'operacional', '${MODELO}');`
 	);
 });
-test.afterAll(() => execD1Local(`DELETE FROM gise_modelo_formulario;`));
+// Só o modelo do GISE: um DELETE sem WHERE levaria junto o da CRAJUBAR, semeado
+// pela migração 0050 e usado por outros specs.
+test.afterAll(() =>
+	execD1Local(
+		`DELETE FROM gise_modelo_formulario WHERE operacao_id = (SELECT id FROM operacoes WHERE nome = 'GISE');`
+	)
+);
 
 /** Textos dos cards de nível 0, na ordem da tela. */
 async function ordem(page: import('@playwright/test').Page) {

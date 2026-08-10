@@ -205,7 +205,11 @@ export default async function globalSetup() {
 		VALUES (${FIXTURE.giseEquipe.id}, ${FIXTURE.membroGise.id});
 		DELETE FROM gise_presencas WHERE gise_id = ${FIXTURE.gise.id};
 		DELETE FROM gise_respostas_formulario WHERE gise_id = ${FIXTURE.gise.id};
-		DELETE FROM gise_modelo_formulario;
+		-- Zera o modelo DO GISE para que os specs caiam no
+		-- \`DEFAULT_QUESTIONS_FORM_OPERACIONAL\` do código. Escopado de propósito: sem
+		-- o WHERE, levava junto o modelo da CRAJUBAR semeado pela migração 0050.
+		DELETE FROM gise_modelo_formulario
+			WHERE operacao_id = (SELECT id FROM operacoes WHERE nome = 'GISE');
 	`;
 	const giseOk = execSqlSafe(giseSeed, 'fixture GISE');
 	if (!giseOk) {

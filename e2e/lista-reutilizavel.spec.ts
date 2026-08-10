@@ -51,7 +51,9 @@ test.describe.configure({ mode: 'serial' });
 test.beforeAll(() => {
 	execD1Local(`DELETE FROM gise_respostas_formulario WHERE gise_id = ${GISE};`);
 	execD1Local(
-		`INSERT OR REPLACE INTO gise_modelo_formulario (tipo, config) VALUES ('operacional', '${MODELO}');`
+		// Por (operação, tipo) desde a migração 0048; a escala da fixture é do GISE.
+		`INSERT OR REPLACE INTO gise_modelo_formulario (operacao_id, tipo, config)
+		 VALUES ((SELECT id FROM operacoes WHERE nome = 'GISE'), 'operacional', '${MODELO}');`
 	);
 	execD1Local(
 		`INSERT INTO gise_presencas (gise_id, policial_id, entrada_timestamp, entrada_rubrica) SELECT ${GISE}, ${FIXTURE.membroGise.id}, datetime('now','-3 hours'), 'x' WHERE NOT EXISTS (SELECT 1 FROM gise_presencas WHERE gise_id = ${GISE} AND policial_id = ${FIXTURE.membroGise.id});`
@@ -59,7 +61,10 @@ test.beforeAll(() => {
 });
 
 test.afterAll(() => {
-	execD1Local(`DELETE FROM gise_modelo_formulario;`);
+	// Escopado ao GISE: sem o WHERE, o modelo da CRAJUBAR (migração 0050) sumia.
+	execD1Local(
+		`DELETE FROM gise_modelo_formulario WHERE operacao_id = (SELECT id FROM operacoes WHERE nome = 'GISE');`
+	);
 });
 
 test('tipo reutilizável: quantidade + detalhamento, e duas perguntas não se misturam', async ({
@@ -117,7 +122,10 @@ test('editor: o novo tipo aparece e abre os campos de rótulo', async ({ page })
 	await page.goto('/res-gise');
 	await expect(page.getByRole('heading', { name: 'Configurar Formulário' })).toBeVisible();
 
-	const select = page.locator('select').first();
+	// Pelo id da pergunta, e não `select.first()`: o editor ganhou o seletor de
+	// OPERAÇÃO no topo, e o primeiro `<select>` da página deixou de ser o do tipo
+	// de campo. Locator posicional em tela que cresce é falha esperando acontecer.
+	const select = page.locator('#p-tp-1');
 	await expect(select).toHaveValue('lista_detalhada');
 	await expect(select.locator('option[value="lista_detalhada"]')).toHaveText(
 		/Quantidade \+ Lista Nome\/Procedimento/
