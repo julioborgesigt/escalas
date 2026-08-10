@@ -24,14 +24,12 @@ export {
 	definirAtivoOperacao,
 	contarEscalasPorOperacao,
 	clonarModelosFormulario,
-	type TipoEquipeOperacao,
-	type OperacaoEntrada
+	type TipoEquipeOperacao
 } from './crud';
 
 export {
 	listarLinhaBase,
 	mapaLinhaBaseDaUnidade,
 	upsertLinhaBase,
-	unidadesParticipantesDaOperacao,
-	type LinhaBaseEntrada
+	unidadesParticipantesDaOperacao
 } from './linha-base';

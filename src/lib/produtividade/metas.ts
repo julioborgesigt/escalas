@@ -29,8 +29,14 @@ export interface RespostaComUnidade {
 	respostasParsed: Record<string, unknown>;
 }
 
-/** O que uma unidade mostra para um indicador. */
-export interface LinhaIndicadorUnidade {
+/**
+ * O que uma unidade mostra para um indicador.
+ *
+ * Não exportado: só existe dentro de `PainelIndicador.linhas`, e a tela o
+ * alcança por ali. Exportar o que ninguém importa pelo nome vira uma segunda
+ * lista para manter em dia — é a mesma regra do barrel em `lib/db.ts`.
+ */
+interface LinhaIndicadorUnidade {
 	unidadeId: number;
 	unidadeNome: string;
 	/** `null` = a unidade ainda não informou (indicador percentual sem denominador). */

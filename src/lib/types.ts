@@ -8,7 +8,7 @@ import type {
 	PolicialHistorico
 } from './server/schema';
 
-export type { Policial, Escala, Unidade, Operacao, PolicialHistorico };
+export type { Policial, Escala, Unidade, PolicialHistorico };
 
 /**
  * Meta de um indicador, gravada JUNTO da pergunta no modelo do formulário.
