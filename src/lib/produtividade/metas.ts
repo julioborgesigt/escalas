@@ -108,10 +108,17 @@ export function montarPainelIndicadores(
 			const blobs = (porUnidade.get(u.id) ?? []).map((r) => r.respostasParsed);
 			const base = bases.get(`${u.id}|${indicador.key}`) ?? null;
 			const realizado = somarChave(blobs, indicador.chaveResposta);
-			// O total só existe na proporção — e é ELE, não a linha de base, o valor
-			// de referência contra o qual a meta daquele indicador se calcula.
+			// O total só existe onde a pergunta tem denominador (tipo `proporcao`).
 			const total = indicador.chaveTotal ? somarChave(blobs, indicador.chaveTotal) : null;
-			const referencia = indicador.chaveTotal ? total : base;
+
+			// A referência sai do TIPO DA META, não da existência do denominador. Os
+			// dois podem discordar: trocar o tipo do campo no editor não reescreve a
+			// meta já configurada, então existe pergunta de cobertura com meta
+			// percentual (e vice-versa). Ler o total como se fosse linha de base
+			// mediria "reduzir 20% do total do período" — número plausível e errado.
+			// Quando eles discordam a conta não fecha, e `null` propaga até a tela
+			// como "—", que é a leitura honesta.
+			const referencia = indicador.config.metaTipo === 'proporcao' ? total : base;
 
 			return {
 				unidadeId: u.id,

@@ -557,6 +557,18 @@ Verificar cada transição de status:
 - [ ] Mesma conferência com um tipo original (ex.: "Prisões Maiores") junto na tela — as listas não podem se cruzar
 - [ ] Trocar o tipo de uma pergunta já respondida → o detalhe antigo some do relatório (é esperado: a chave mudou)
 
+### 13.4 Tipo "Cobertura (total e atendidas)" (`proporcao`)
+
+> Escrita, rótulos e a reconstrução da meta ao trocar de tipo têm cobertura
+> automatizada (`e2e/cobertura.spec.ts` + `gise/__tests__/indicadores` +
+> `produtividade/__tests__/metas`). Manual: o PDF e o gráfico.
+
+- [ ] Preencher a cobertura e **baixar o PDF de produtividade** → a pergunta sai numa linha só, no formato "9 de 12 (75%)"
+- [ ] Duas perguntas de cobertura no mesmo formulário → cada uma com o seu par de números no PDF
+- [ ] Em `/produtividade`, o card do indicador de cobertura mostra UMA série em porcentagem e o tique da meta no mesmo ponto em todas as unidades
+- [ ] Unidade sem ocorrência no período → "sem ocorrências" na tabela, e fora do contador "N/M unidades na meta"
+- [ ] Trocar uma pergunta de cobertura já respondida para outro tipo → os dois números somem do relatório (é esperado: as chaves mudaram)
+
 ---
 
 ## 14. Documentos Recebidos (`/recebidos`)

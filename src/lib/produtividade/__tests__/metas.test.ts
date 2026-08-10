@@ -274,3 +274,55 @@ describe('formatarPercentual', () => {
 		expect(formatarPercentual(Number.NaN)).toBe('—');
 	});
 });
+
+describe('meta e tipo de campo em desacordo', () => {
+	// O editor não reescreve a meta quando o admin troca o tipo do campo, então
+	// estes dois estados existem no banco. A regra é: a referência sai do TIPO DA
+	// META. Quando ela falta, a linha aparece como "—" em vez de um número errado.
+
+	it('meta percentual em pergunta de cobertura usa a LINHA DE BASE, não o total', () => {
+		const misto: Indicador = {
+			key: 'misto',
+			chaveResposta: 'misto__parte',
+			chaveTotal: 'misto__total',
+			texto: 'Pergunta de cobertura com meta percentual',
+			tipo: 'proporcao',
+			config: { objetivo: 'diminuir', metaTipo: 'percentual', metaValor: 20 }
+		};
+		const painel = montarPainelIndicadores(
+			[misto],
+			[CRATO],
+			[{ unidade_id: 10, respostasParsed: { misto__total: 500, misto__parte: 80 } }],
+			[{ unidade_id: 10, indicador_key: 'misto', valor: 100 }]
+		);
+		const linha = painel[0].linhas[0];
+		// 100 − 20% = 80, e NÃO 500 − 20% = 400.
+		expect(linha.meta).toBe(80);
+		expect(linha.atingida).toBe(true);
+		// O total continua visível, porque a pergunta tem denominador.
+		expect(linha.total).toBe(500);
+	});
+
+	it('meta de cobertura em pergunta sem denominador não inventa referência', () => {
+		const misto: Indicador = {
+			key: 'orfa',
+			chaveResposta: 'orfa',
+			chaveTotal: null,
+			texto: 'Pergunta simples com meta de cobertura',
+			tipo: 'numero',
+			config: { metaTipo: 'proporcao', metaValor: 100 }
+		};
+		const painel = montarPainelIndicadores(
+			[misto],
+			[CRATO],
+			[{ unidade_id: 10, respostasParsed: { orfa: 9 } }],
+			[{ unidade_id: 10, indicador_key: 'orfa', valor: 12 }]
+		);
+		const linha = painel[0].linhas[0];
+		// A base 12 está lá, mas não é denominador de cobertura — não vira meta.
+		expect(linha.meta).toBeNull();
+		expect(linha.atingimento).toBeNull();
+		expect(linha.atingida).toBeNull();
+		expect(painel[0].unidadesComMeta).toBe(0);
+	});
+});
