@@ -38,6 +38,8 @@
 	interface Props {
 		sec: Seccional;
 		gise: GiseDetalhado;
+		/** Tipos de equipe que a operação desta escala usa; repassado ao slot. */
+		tiposEquipePermitidos: string[];
 		todasUnidades: Unidade[];
 		isAdminGeral: boolean;
 		isSeccional: boolean;
@@ -63,6 +65,7 @@
 	const {
 		sec,
 		gise,
+		tiposEquipePermitidos,
 		todasUnidades,
 		isAdminGeral,
 		isSeccional,
@@ -545,6 +548,7 @@
 					{slot}
 					{sec}
 					{gise}
+					{tiposEquipePermitidos}
 					{todasUnidades}
 					{isAdminGeral}
 					{isSeccional}

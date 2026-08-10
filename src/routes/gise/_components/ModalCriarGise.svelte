@@ -30,10 +30,13 @@
 	let {
 		open = $bindable(false),
 		escalas,
+		operacoes = [],
 		onSuccess
 	}: {
 		open: boolean;
 		escalas: { id: number; data_inicio: string; status: string }[];
+		/** Operações ATIVAS que podem receber escalas novas. */
+		operacoes?: { id: number; nome: string }[];
 		onSuccess: (count: number, firstId?: number) => void;
 	} = $props();
 
@@ -44,6 +47,13 @@
 	let novaHoraSaida = $state('16:00');
 	let modoCriacao = $state<'completa' | 'clonada' | 'branco'>('completa');
 	let clonarDeId = $state<number | ''>('');
+	/**
+	 * Operação da escala nova. Inicia na primeira ativa em vez de vazia: a escala
+	 * SEMPRE pertence a uma operação, e um seletor em branco convidaria a criar
+	 * escala sem operação — que é o estado legado que a migração 0048 eliminou.
+	 */
+	// svelte-ignore state_referenced_locally
+	let operacaoId = $state<number | ''>(operacoes[0]?.id ?? '');
 
 	const diasModalOrdenados = $derived(
 		Object.keys(diasModal)
@@ -362,6 +372,30 @@
 				</div>
 			</div>
 
+			<!-- Operação da escala: decide qual formulário de produtividade as
+			     equipes vão preencher e sob quais indicadores ela é medida.
+			     No modo "Copiar" não aparece — a cópia herda a operação do original,
+			     senão clonar uma escala da CRAJUBAR poderia produzir uma do GISE. -->
+			{#if operacoes.length > 0 && modoCriacao !== 'clonada'}
+				<div class="space-y-2">
+					<label
+						for="nova-operacao"
+						class="block text-3xs sm:text-xs font-semibold text-surface-600 dark:text-surface-400"
+					>
+						Operação
+					</label>
+					<select
+						id="nova-operacao"
+						bind:value={operacaoId}
+						class="w-full px-2.5 py-1.5 rounded-lg border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-sm"
+					>
+						{#each operacoes as op (op.id)}
+							<option value={op.id}>{op.nome}</option>
+						{/each}
+					</select>
+				</div>
+			{/if}
+
 			<!-- Tipo de Criação -->
 			<div class="space-y-2">
 				<p class="text-3xs sm:text-xs font-semibold text-surface-600 dark:text-surface-400">
@@ -445,6 +479,9 @@
 					<input type="hidden" name="hora_entrada" value={novaHoraEntrada} />
 					<input type="hidden" name="hora_saida" value={novaHoraSaida} />
 					<input type="hidden" name="modo" value={modoCriacao} />
+					{#if modoCriacao !== 'clonada' && operacaoId}
+						<input type="hidden" name="operacao_id" value={operacaoId} />
+					{/if}
 					{#if modoCriacao === 'clonada' && clonarDeId}
 						<input type="hidden" name="clonar_de" value={clonarDeId} />
 					{/if}

@@ -35,9 +35,12 @@ import {
 	buscarRespostaGise,
 	salvarRespostaGise,
 	sincronizarStatusGiseAposPresencaRelatorios,
+	mapaLinhaBaseDaUnidade,
+	upsertLinhaBase,
 	DEFAULT_SEINT_QUESTIONS,
 	DEFAULT_QUESTIONS_FORM_OPERACIONAL
 } from '$lib/db';
+import { extrairIndicadores, exigeLinhaBase } from '$lib/gise/indicadores';
 import { logger } from '$lib/server/logger';
 import {
 	parseRespostasFormularioJsonLoose,
@@ -48,6 +51,7 @@ import {
 	giseMembros,
 	giseEquipes,
 	giseSeccionais,
+	giseSeccionalUnidades,
 	gisePresencas,
 	unidades
 } from '$lib/server/schema';
@@ -61,6 +65,22 @@ type AlvoRelatorio = {
 	equipeTipo: 'operacional' | 'seint';
 	seccionalNome: string;
 	dataInicio: string;
+	/** A operação da escala. `null` só em linha anterior à migração 0048. */
+	operacaoId: number | null;
+	/**
+	 * A UNIDADE por cuja linha de base este relatório responde.
+	 *
+	 * Resolvida aqui, no servidor, pela mesma razão que a equipe: o valor decide
+	 * de quem é o número gravado em `operacao_linha_base`, e aceitá-lo do cliente
+	 * deixaria um policial escrever a base de outra delegacia.
+	 *
+	 * Precedência: unidade do SLOT da equipe → unidade operacional da seccional →
+	 * a própria seccional. É a mesma cadeia que a tela da escala usa para dizer
+	 * "de que unidade é esta equipe", e o slot vem primeiro porque é o nível mais
+	 * específico — na CRAJUBAR é ele que distingue Crato de Barbalha dentro da 2ª
+	 * Seccional.
+	 */
+	unidadeId: number | null;
 };
 
 /**
@@ -84,13 +104,20 @@ async function resolverAlvoRelatorio(
 			equipe_id: giseEquipes.id,
 			equipe_tipo: giseEquipes.tipo,
 			seccional_nome: unidades.nome,
-			data_inicio: giseEscalas.data_inicio
+			data_inicio: giseEscalas.data_inicio,
+			operacao_id: giseEscalas.operacao_id,
+			seccional_unidade_id: giseSeccionais.seccional_id,
+			unidade_operacional_id: giseSeccionais.unidade_operacional_id,
+			slot_unidade_id: giseSeccionalUnidades.unidade_id
 		})
 		.from(giseMembros)
 		.innerJoin(giseEquipes, eq(giseMembros.equipe_id, giseEquipes.id))
 		.innerJoin(giseSeccionais, eq(giseEquipes.gise_seccional_id, giseSeccionais.id))
 		.innerJoin(unidades, eq(giseSeccionais.seccional_id, unidades.id))
 		.innerJoin(giseEscalas, eq(giseSeccionais.gise_id, giseEscalas.id))
+		// LEFT: equipe legada pode não ter slot (`gise_unidade_id` nulo), e nesse
+		// caso a unidade cai nos níveis seguintes da precedência.
+		.leftJoin(giseSeccionalUnidades, eq(giseEquipes.gise_unidade_id, giseSeccionalUnidades.id))
 		.where(
 			and(
 				eq(giseMembros.policial_id, policialId),
@@ -106,7 +133,10 @@ async function resolverAlvoRelatorio(
 			equipeId: membro.equipe_id,
 			equipeTipo: membro.equipe_tipo,
 			seccionalNome: membro.seccional_nome,
-			dataInicio: membro.data_inicio
+			dataInicio: membro.data_inicio,
+			operacaoId: membro.operacao_id,
+			unidadeId:
+				membro.slot_unidade_id ?? membro.unidade_operacional_id ?? membro.seccional_unidade_id
 		};
 	}
 
@@ -114,7 +144,7 @@ async function resolverAlvoRelatorio(
 	// INDIVIDUAL (sem equipe) — daí `equipeId: null`. Assessor e supervisor DPC
 	// participam da GISE mas não devem relatório, e por isso não casam aqui.
 	const supervisao = await db
-		.select({ data_inicio: giseEscalas.data_inicio })
+		.select({ data_inicio: giseEscalas.data_inicio, operacao_id: giseEscalas.operacao_id })
 		.from(giseEscalas)
 		.where(
 			and(
@@ -129,7 +159,12 @@ async function resolverAlvoRelatorio(
 		equipeId: null,
 		equipeTipo: 'seint',
 		seccionalNome: 'Supervisão Geral',
-		dataInicio: supervisao.data_inicio
+		dataInicio: supervisao.data_inicio,
+		operacaoId: supervisao.operacao_id,
+		// O quadro de supervisão não responde por delegacia nenhuma — a linha de
+		// base é da UNIDADE, e ele não tem uma. Sem `unidadeId`, o formulário não
+		// mostra campo de base e nada é gravado.
+		unidadeId: null
 	};
 }
 
@@ -148,6 +183,61 @@ function lerEquipeIdFiltro(valor: string | null): number | null {
 	if (!valor) return null;
 	const n = Number(valor);
 	return Number.isInteger(n) && n > 0 ? n : null;
+}
+
+/**
+ * Grava as linhas de base que o policial informou dentro do formulário.
+ *
+ * Duas defesas, ambas necessárias porque o payload é do cliente:
+ *
+ * - a `key` recebida é confrontada com os indicadores do MODELO daquela
+ *   operação. Uma chave inventada não vira linha — senão o blob de base viraria
+ *   um depósito de chaves arbitrárias que nenhum gráfico leria;
+ * - só grava indicador que AINDA não tem base. Quem já informou pela aba é o
+ *   admin da unidade, e uma retificação de relatório não deve sobrescrever o
+ *   número oficial dela pelas costas.
+ */
+async function gravarLinhasBaseDoFormulario(
+	db: Database,
+	basesStr: string,
+	destino: {
+		operacaoId: number;
+		unidadeId: number;
+		equipeTipo: 'operacional' | 'seint';
+	},
+	u: { id: number; nome: string }
+) {
+	const bruto: unknown = JSON.parse(basesStr);
+	if (!bruto || typeof bruto !== 'object' || Array.isArray(bruto)) return;
+
+	const modeloRow = await buscarGiseModeloFormulario(db, destino.operacaoId, destino.equipeTipo);
+	if (!modeloRow?.config) return;
+	const modelo = JSON.parse(modeloRow.config) as GiseModeloPerguntaConfig[];
+
+	const permitidas = new Set(
+		extrairIndicadores(modelo)
+			.filter((i) => exigeLinhaBase(i.config))
+			.map((i) => i.key)
+	);
+	if (permitidas.size === 0) return;
+
+	const jaInformadas = await mapaLinhaBaseDaUnidade(db, destino.operacaoId, destino.unidadeId);
+
+	for (const [key, valorBruto] of Object.entries(bruto as Record<string, unknown>)) {
+		if (!permitidas.has(key) || jaInformadas.has(key)) continue;
+		const valor = typeof valorBruto === 'number' ? valorBruto : Number(valorBruto);
+		if (!Number.isFinite(valor) || valor < 0) continue;
+
+		await upsertLinhaBase(db, {
+			operacaoId: destino.operacaoId,
+			unidadeId: destino.unidadeId,
+			indicadorKey: key,
+			valor,
+			informadoPorId: u.id,
+			informadoPorNome: u.nome,
+			origem: 'formulario'
+		});
+	}
 }
 
 export const load: PageServerLoad = async ({ params, url, locals, platform }) => {
@@ -176,7 +266,9 @@ export const load: PageServerLoad = async ({ params, url, locals, platform }) =>
 	if (!(await entradaConfirmada(db, giseId, u.id))) redirect(302, voltarUrl);
 
 	const [modeloRow, respostaRow] = await Promise.all([
-		buscarGiseModeloFormulario(db, alvo.equipeTipo),
+		alvo.operacaoId != null
+			? buscarGiseModeloFormulario(db, alvo.operacaoId, alvo.equipeTipo)
+			: Promise.resolve(null),
 		buscarRespostaGise(db, giseId, u.id, alvo.equipeId ?? undefined)
 	]);
 
@@ -192,11 +284,38 @@ export const load: PageServerLoad = async ({ params, url, locals, platform }) =>
 		}
 	}
 
+	// Indicadores que ainda NÃO têm linha de base para a unidade desta equipe.
+	//
+	// É o caminho de escape do pedido: a base deveria vir da aba `/dados-base`,
+	// preenchida pelo admin da unidade. Quando não veio, é aqui que ela é
+	// pedida — no campo da própria pergunta, a quem está com o formulário aberto.
+	// Sem isso o indicador percentual fica sem denominador e o gráfico não tem o
+	// que mostrar.
+	//
+	// Só indicador PERCENTUAL entra: meta absoluta não tem base a informar.
+	const basesPendentes: Array<{ key: string; texto: string; rotulo: string; unidade: string }> = [];
+	if (alvo.operacaoId != null && alvo.unidadeId != null) {
+		const indicadores = extrairIndicadores(modelo).filter((i) => exigeLinhaBase(i.config));
+		if (indicadores.length > 0) {
+			const jaInformadas = await mapaLinhaBaseDaUnidade(db, alvo.operacaoId, alvo.unidadeId);
+			for (const ind of indicadores) {
+				if (jaInformadas.has(ind.key)) continue;
+				basesPendentes.push({
+					key: ind.key,
+					texto: ind.texto,
+					rotulo: ind.config.rotuloBase?.trim() || `${ind.texto} — valor antes da operação`,
+					unidade: ind.config.unidadeMedida ?? ''
+				});
+			}
+		}
+	}
+
 	return {
 		giseId,
 		...alvo,
 		voltarUrl,
 		modelo,
+		basesPendentes,
 		respostas: respostaRow?.respostas
 			? parseRespostasFormularioJsonLoose(respostaRow.respostas)
 			: {},
@@ -248,6 +367,39 @@ export const actions: Actions = {
 			JSON.stringify(parsed.data),
 			alvo.equipeId ?? undefined
 		);
+
+		// Linhas de base informadas dentro do formulário (o caminho de escape de
+		// quando a aba `/dados-base` não foi preenchida).
+		//
+		// A OPERAÇÃO e a UNIDADE vêm do `alvo`, resolvido no banco — o cliente manda
+		// apenas quais indicadores e com que valor. Aceitar `unidadeId` do corpo
+		// deixaria um policial gravar a base de outra delegacia, que é o parâmetro
+		// de um resultado divulgado.
+		//
+		// Grava DEPOIS da resposta e sem derrubar a requisição em caso de falha: o
+		// relatório é a entrega obrigatória do policial, e perdê-lo por causa de um
+		// número auxiliar seria a troca errada.
+		const operacaoId = alvo.operacaoId;
+		const unidadeId = alvo.unidadeId;
+		if (operacaoId != null && unidadeId != null) {
+			const basesStr = formData.get('linhasBase');
+			if (typeof basesStr === 'string' && basesStr.trim()) {
+				try {
+					await gravarLinhasBaseDoFormulario(
+						db,
+						basesStr,
+						{ operacaoId, unidadeId, equipeTipo: alvo.equipeTipo },
+						u
+					);
+				} catch (err) {
+					logger.warn('[res-gise/relatorio] falha ao gravar linha de base', {
+						giseId,
+						err: String(err)
+					});
+				}
+			}
+		}
+
 		await sincronizarStatusGiseAposPresencaRelatorios(db, giseId);
 
 		return { success: true, giseId, equipeId: alvo.equipeId };

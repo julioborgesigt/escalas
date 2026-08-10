@@ -35,6 +35,8 @@
 
 	interface Props {
 		gise: Gise;
+		/** Nome da operação desta escala; vazio/nulo esconde o selo. */
+		operacaoNome?: string | null;
 		statusLabel: (s: string) => string;
 		statusColor: (s: string) => string;
 		diaSemana: (s: string) => string;
@@ -67,6 +69,7 @@
 
 	const {
 		gise,
+		operacaoNome = null,
 		statusLabel,
 		statusColor,
 		diaSemana,
@@ -109,7 +112,7 @@
 		<h1
 			class="break-words font-bold leading-tight text-surface-900 dark:text-surface-50 text-xl sm:text-2xl xl:text-3xl"
 		>
-			<span class="block">Escala GISE #{gise.id}</span>
+			<span class="block">Escala extra #{gise.id}</span>
 			<span
 				class="mt-1 block font-semibold text-surface-700 dark:text-surface-200 text-base sm:text-lg xl:text-xl"
 			>
@@ -118,6 +121,16 @@
 		</h1>
 
 		<div class="flex flex-wrap items-center gap-x-2 gap-y-1.5">
+			{#if operacaoNome}
+				<!-- A escala pertence a uma operação, e é ela que define o formulário de
+				     produtividade e os indicadores — sem o selo, duas escalas de
+				     operações diferentes ficam idênticas nesta tela. -->
+				<span
+					class="max-w-full rounded-full bg-tertiary-500/15 px-2.5 py-0.5 text-sm font-semibold text-tertiary-700 dark:text-tertiary-300"
+				>
+					{operacaoNome}
+				</span>
+			{/if}
 			<span
 				class="max-w-full text-sm px-2.5 py-0.5 rounded-full font-semibold {statusColor(
 					gise.status

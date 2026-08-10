@@ -4,10 +4,40 @@ import type {
 	EscalaPolicial,
 	Unidade,
 	GisePresenca,
+	Operacao,
 	PolicialHistorico
 } from './server/schema';
 
 export type { Policial, Escala, Unidade, PolicialHistorico };
+
+/**
+ * Meta de um indicador, gravada JUNTO da pergunta no modelo do formulário.
+ *
+ * Fica aqui, e não em tabela própria, porque o indicador É a pergunta: separá-los
+ * criaria duas listas para manter em dia, e uma pergunta renomeada ou removida
+ * deixaria uma meta órfã apontando para uma `key` que não existe mais.
+ */
+export interface IndicadorConfig {
+	/** Para onde o número deve andar. Decide o sinal da meta e a leitura do gráfico. */
+	objetivo: 'aumentar' | 'diminuir';
+	/**
+	 * `percentual` = a meta é relativa à LINHA DE BASE informada pela unidade
+	 * ("redução mínima de 20% do acervo"). É o caso descrito no pedido e o padrão
+	 * do editor.
+	 *
+	 * `absoluto` = a meta é um número fixo, sem base ("mínimo de 1 operação por
+	 * unidade/mês"). Existe porque dois dos cinco indicadores do plano da CRAJUBAR
+	 * são assim — e é o que dispensa a unidade de informar base para eles: não há
+	 * valor anterior contra o que comparar.
+	 */
+	metaTipo: 'percentual' | 'absoluto';
+	/** 20 para "20%" quando `percentual`; o próprio alvo quando `absoluto`. */
+	metaValor: number;
+	/** Como o número é medido: 'procedimentos', 'dias', 'ocorrências atendidas'. */
+	unidadeMedida?: string;
+	/** Texto do campo na aba de dados base; cai no texto da pergunta se vazio. */
+	rotuloBase?: string;
+}
 
 /** Item do formulário GISE (modelo operacional / SEINT em JSON). */
 export interface GiseModeloPerguntaConfig {
@@ -27,6 +57,17 @@ export interface GiseModeloPerguntaConfig {
 	 * mantém a mudança retrocompatível com os modelos já salvos no banco.
 	 */
 	etapa?: string;
+	/**
+	 * Marca a pergunta como INDICADOR de meta da operação — o que a promove de
+	 * "campo do relatório" a série acompanhada em gráfico, com meta e linha de
+	 * base.
+	 *
+	 * Opcional de propósito: pergunta sem este campo continua sendo o que sempre
+	 * foi, e modelo antigo (todos, até ago/2026) segue válido sem migração de
+	 * dado. Só tipos contáveis aceitam — ver `TIPOS_INDICADORAVEIS` em
+	 * `$lib/gise/indicadores`, que é quem valida.
+	 */
+	indicador?: IndicadorConfig;
 	filhos?: GiseModeloPerguntaConfig[];
 	subtexto_qtd?: string;
 	subtexto_lista?: string;
@@ -91,6 +132,10 @@ export type ResGisePageData = {
 	restringirSmartphone: boolean;
 	/** Rubrica reutilizável cadastrada pelo policial (PNG dataURL) ou `null`. */
 	minhaRubrica?: string | null;
+	/** Operações ativas — o editor mostra um formulário por operação. */
+	operacoes: Operacao[];
+	/** A operação em edição (resolvida no servidor a partir de `?operacaoId=`). */
+	operacaoSelecionadaId: number | null;
 	modeloOperacional: GiseModeloPerguntaConfig[];
 	modeloSeint: GiseModeloPerguntaConfig[];
 	/** Versão salva ANTES da última alteração de cada modelo — alimenta o

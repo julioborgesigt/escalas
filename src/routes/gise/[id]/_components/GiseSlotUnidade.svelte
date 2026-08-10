@@ -19,6 +19,7 @@
 		slot,
 		sec,
 		gise,
+		tiposEquipePermitidos,
 		todasUnidades,
 		isAdminGeral,
 		isSeccional,
@@ -31,6 +32,8 @@
 		slot: GiseUnidadeSlot;
 		sec: Seccional;
 		gise: GiseDetalhado;
+		/** Tipos de equipe que a OPERAÇÃO desta escala usa — a EDGE pode ter só um. */
+		tiposEquipePermitidos: string[];
 		todasUnidades: Unidade[];
 		isAdminGeral: boolean;
 		isSeccional: boolean;
@@ -278,8 +281,15 @@
 							}}
 							class="px-2 py-1.5 rounded-xl border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-sm"
 						>
-							<option value="operacional">Operacional</option>
-							<option value="seint">SEINT</option>
+							<!-- Só os tipos que a operação usa. Não é a autorização — quem
+							     recusa o POST é `adicionarEquipe`; isto evita oferecer uma
+							     opção que daria erro. -->
+							{#if tiposEquipePermitidos.includes('operacional')}
+								<option value="operacional">Operacional</option>
+							{/if}
+							{#if tiposEquipePermitidos.includes('seint')}
+								<option value="seint">SEINT</option>
+							{/if}
 						</select>
 					</div>
 					<div>

@@ -47,7 +47,10 @@ test.describe('Wizard do relatório de produtividade', () => {
 	test.beforeAll(() => {
 		// Sem modelo salvo o load cai no DEFAULT_QUESTIONS_FORM_OPERACIONAL, que é
 		// justamente quem traz as 4 etapas.
-		execD1Local(`DELETE FROM gise_modelo_formulario;`);
+		// Só o do GISE: um DELETE sem WHERE levaria o modelo da CRAJUBAR junto.
+		execD1Local(
+			`DELETE FROM gise_modelo_formulario WHERE operacao_id = (SELECT id FROM operacoes WHERE nome = 'GISE');`
+		);
 		execD1Local(`DELETE FROM gise_respostas_formulario WHERE gise_id = ${GISE};`);
 	});
 

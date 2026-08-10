@@ -163,6 +163,33 @@ Há quatro níveis. O **Super Admin é um Admin Geral com poderes extras** (é `
 
 Após mudanças de schema, gerar migrações com Drizzle conforme o fluxo já usado no repositório; o CI as aplica no deploy seguinte (migrations devem ser retrocompatíveis com o código anterior — expand/contract).
 
+### Migrações 0048–0050 (operações) — o que elas SEMEIAM
+
+Estas três não só criam tabela: elas gravam dados de negócio. Vale saber o que
+esperar ao vê-las passar em staging e em produção.
+
+- **`0048_operacoes.sql`** cria a tabela `operacoes` e insere a operação
+  **`GISE`**. Em seguida acrescenta `operacao_id` a `gise_escalas` e a
+  `gise_modelo_formulario` e faz o **backfill de TODAS as linhas existentes para
+  essa operação** — ou seja, tudo que já estava no banco passa a ser "GISE", e
+  nada muda de comportamento. A migração também **remove duplicatas** de
+  `gise_modelo_formulario` antes de criar o índice único `(operacao_id, tipo)`:
+  nunca houve unicidade nessa tabela e a aplicação lia a PRIMEIRA linha do tipo,
+  então uma segunda linha já estava invisível — o `DELETE` só descarta o que
+  ninguém lia. Confira antes, se quiser o número:
+  `SELECT operacao_id, tipo, count(*) FROM gise_modelo_formulario GROUP BY 1,2 HAVING count(*) > 1;`
+- **`0049_operacao_linha_base.sql`** cria a tabela da linha de base. Vazia.
+- **`0050_seed_operacao_crajubar.sql`** insere a **OPERAÇÃO CRAJUBAR**, copia
+  para ela os formulários do GISE e acrescenta os cinco indicadores da tabela §9
+  do Plano Operacional Estratégico. Num banco em uso (produção) a CRAJUBAR nasce
+  com as perguntas do GISE **mais** os cinco indicadores; num banco novo, em que
+  o GISE ainda não tem modelo gravado, ela nasce só com os cinco (as perguntas
+  padrão vivem no código, e SQL não as alcança). Nos dois casos o Admin Geral
+  ajusta pelo editor.
+
+Depois do deploy, confira em `/gise/operacoes` que as duas operações aparecem, e
+em `/gise` que as escalas antigas exibem o selo **GISE**.
+
 ## Armazenamento (R2)
 
 - Binding `escalas_docs` em [`wrangler.toml`](wrangler.toml) — documentos e artefatos de assinatura dependem deste bucket.

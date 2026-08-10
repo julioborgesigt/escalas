@@ -204,12 +204,15 @@ O projeto usa **Cloudflare D1** (SQLite serverless) via **Drizzle ORM**. O schem
 | `assinatura_intencoes`           | Amarra cada PDF preparado ao documento, ao assinante e a um único uso (15 min)                                      |
 | `escala_solicitacoes_assinatura` | Solicitações de assinatura por unidade/respondência                                                                 |
 | `unidades`                       | Hierarquia: departamento → seccional → delegacia. Ligada por **nome** (ver abaixo)                                  |
-| `gise_escalas`                   | GISE operacionais (status, supervisor, assessor, configuração)                                                      |
+| `operacoes`                      | Operações extraordinárias (GISE, CRAJUBAR, EDGE): tipos de equipe usados, ciclo, `ativo`                            |
+| `operacao_linha_base`            | Valor inicial de cada indicador por (operação, unidade) — o denominador das metas percentuais                       |
+| `gise_escalas`                   | Escalas extras (status, supervisor, assessor, configuração) — cada uma pertence a uma `operacao`                    |
 | `gise_seccionais`                | Seccionais dentro de uma GISE                                                                                       |
 | `gise_equipes`                   | Equipes (operacional/SEINT) com slots DPC/OIP                                                                       |
 | `gise_membros`                   | Associação policial ↔ equipe GISE                                                                                   |
 | `gise_presencas`                 | Registros de entrada/saída (GPS, selfie, rubrica)                                                                   |
 | `gise_documentos`                | PDFs assinados de GISE                                                                                              |
+| `gise_modelo_formulario`         | Modelo do formulário de produtividade em JSON, um por (operação, tipo de equipe)                                     |
 | `gise_respostas_formulario`      | Respostas de formulários (JSON) por policial/equipe                                                                 |
 | `gise_assinaturas_relatorios`    | Assinaturas de relatórios de extra/produtividade                                                                    |
 | `aceites_termos`                 | Histórico de aceite de termos de uso (versão, hash, IP, user-agent)                                                 |
@@ -268,7 +271,7 @@ npm run db:migrate:prod -- --yes
 
 ### Histórico de migrações
 
-O histórico completo está na própria pasta [`migrations/`](migrations/) — os nomes dos arquivos são autoexplicativos (`0000_initial_schema.sql` … `0047_escala_policial_dia_unico.sql`). Para entender uma migração específica, leia o SQL dela e o trecho correspondente do [`src/lib/server/schema.ts`](src/lib/server/schema.ts).
+O histórico completo está na própria pasta [`migrations/`](migrations/) — os nomes dos arquivos são autoexplicativos (`0000_initial_schema.sql` … `0050_seed_operacao_crajubar.sql`). Para entender uma migração específica, leia o SQL dela e o trecho correspondente do [`src/lib/server/schema.ts`](src/lib/server/schema.ts).
 
 O que já rodou em cada ambiente é rastreado pela tabela `_migrations_aplicadas`, gravada pelo runner [`scripts/migrate.ts`](scripts/migrate.ts). (O `migrations/meta/` do `drizzle-kit` foi removido em jul/2026: ficou parado em 2 entradas para dezenas de arquivos e só induzia a erro.)
 
@@ -498,9 +501,31 @@ Gestão do ciclo de vida de escalas de plantão, expediente e finais de semana (
 - Assinatura digital com e-CPF (WebPKI ou SERPRO Desktop)
 - Validação pública de autenticidade via QR Code / hash
 
-### GISE
+### Escala extra (operações)
 
-Gerenciamento completo de operações GISE:
+Gerenciamento das escalas extraordinárias. A GISE deixou de ser a única: a aba
+`/gise` chama-se **Escala extra** e lista as escalas de TODAS as operações, com
+filtro por operação na própria página.
+
+**Operação** (`/gise/operacoes`, Admin Geral) é cadastro: nome, sigla, ciclo, e
+quais tipos de equipe usa — uma operação pode ter só equipe operacional, só de
+inteligência, ou as duas. Cada operação é dona dos SEUS formulários de
+produtividade (um por tipo de equipe habilitado), e criar uma nova pede em qual
+operação basear o formulário, para não começar do zero. Operação não se exclui,
+desativa-se: escala histórica e PDF assinado continuam apontando para ela.
+
+**Indicadores e metas.** No editor do formulário (`/res-gise`), uma pergunta
+contável pode ser marcada como indicador: objetivo (aumentar/diminuir) e meta
+percentual sobre o valor inicial ou número fixo. A meta percentual exige uma
+**linha de base** — o valor de partida da unidade —, informada pelo admin de
+unidade/seccional em **`/dados-base`**; se ela não foi informada, o valor é
+pedido dentro do próprio formulário de produtividade. `/produtividade` mostra
+base × realizado × meta por unidade, com filtro por operação.
+
+Os indicadores da OPERAÇÃO CRAJUBAR vêm semeados pela migração `0050` a partir
+da tabela §9 do Plano Operacional Estratégico.
+
+O resto do fluxo:
 
 - Criação e configuração pelo supervisor (seccionais, equipes, questões)
 - Visão do membro em duas abas da sidebar: **Presença GISE** (só aparece com escala ativa — confirmar entrada, relatório e saída) e **Histórico GISE** (participações já encerradas). Ambas usam a rota `/res-gise`; o histórico é `?status=finalizadas`
@@ -597,8 +622,8 @@ O aceite do termo de uso é obrigatório a cada nova versão. Qualquer mudança 
 | ------------------------ | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `admin` + `isSuperAdmin` | Super Admin       | Tudo do Admin Geral **mais**: promover admins, gerenciar policiais/unidades, configurar política de assinatura, baixar o forense pelo portal `/validar` |
 | `admin`                  | Admin Geral       | Operação global (escalas, GISE, LGPD/compliance) em todas as unidades — não remodela a base; consoles de auditoria são do Super Admin                   |
-| `policial`               | `admin_seccional` | Gerencia escalas e policiais da sua seccional                                                                                                           |
-| `policial`               | `admin_unidade`   | Gerencia escalas da sua unidade                                                                                                                         |
+| `policial`               | `admin_seccional` | Gerencia escalas e policiais da sua seccional; informa a linha de base dos indicadores das unidades dela (`/dados-base`) e vê `/produtividade` escopado |
+| `policial`               | `admin_unidade`   | Gerencia escalas da sua unidade; informa a linha de base dos indicadores dela e vê `/produtividade` escopado à unidade                                  |
 | `policial`               | —                 | Acessa apenas suas próprias escalas e GISE                                                                                                              |
 
 A matriz completa de capacidades por papel está em [`DEPLOY.md`](DEPLOY.md#papéis-e-privilégios-de-administrador). Membros de GISE têm papéis adicionais (`supervisor`, `assessor/SEINT`, `membro`) calculados dinamicamente a partir da tabela `gise_membros`.

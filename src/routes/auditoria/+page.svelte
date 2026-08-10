@@ -47,6 +47,7 @@
 		gise: 'GISE',
 		policial: 'Policial',
 		unidade: 'Unidade',
+		operacao: 'Operação',
 		configuracao: 'Configuração',
 		documento: 'Documento',
 		lgpd: 'LGPD',

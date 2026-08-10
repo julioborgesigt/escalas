@@ -111,24 +111,34 @@ Roteiro de regressão manual dos fluxos de negócio. **Papel deste arquivo: exce
 
 ---
 
-## 4. Gestão GISE (`/gise`)
+## 4. Escala extra (`/gise`)
 
-### 4.1 Listagem GISE
+### 4.1 Listagem
 
-- [ ] Admin vê todas as GISE
-- [ ] Supervisor vê apenas sua GISE
-- [ ] Membro vê GISE atribuída
-- [ ] GISE com diferentes status exibidas corretamente
+- [ ] A aba da sidebar chama-se **Escala extra** (não "Escalas GISE")
+- [ ] Admin vê todas as escalas
+- [ ] Supervisor vê apenas a sua
+- [ ] Membro vê a escala atribuída
+- [ ] Escalas com diferentes status exibidas corretamente
+- [ ] Com mais de uma operação cadastrada, os chips de filtro aparecem; clicar em
+      um deles deixa só as escalas daquela operação, e a paginação volta à
+      página 1
+- [ ] Cada card mostra o selo da operação (sigla, ou nome se não houver sigla)
 
-### 4.2 Criar GISE
+### 4.2 Criar escala extra
 
-- [ ] Criar GISE com data de início, hora entrada/saída e supervisor
+- [ ] Criar com data de início, hora entrada/saída e supervisor
 - [ ] Datas inválidas → validação
-- [ ] GISE criada → aparece com status `em_definicao_supervisor`
+- [ ] Criada → aparece com status `em_definicao_supervisor`
+- [ ] O modal pede a **operação**; a escala nasce com o selo dela
+- [ ] Operação desativada não aparece no seletor
 
-### 4.3 Clonar GISE
+### 4.3 Clonar escala extra
 
-- [ ] Clonar estrutura de GISE anterior → nova GISE com mesma estrutura de seccionais/equipes
+- [ ] Clonar estrutura de escala anterior → nova com mesma estrutura de seccionais/equipes
+- [ ] No modo "Copiar" o seletor de operação **não** aparece — a cópia herda a
+      operação do original (clonar uma escala da CRAJUBAR não pode gerar uma do
+      GISE)
 
 ### 4.4 Gerenciar Seccional (`/gise/[id]`)
 
@@ -173,6 +183,58 @@ Verificar cada transição de status:
 
 - [ ] Finalizar GISE no status correto → status `finalizada`
 - [ ] Tentar finalizar GISE em status incorreto → erro
+
+### 4.9 Operações (`/gise/operacoes`, Admin Geral)
+
+- [ ] A tela lista `GISE` e `OPERAÇÃO CRAJUBAR` (semeadas pelas migrações), com a
+      contagem de escalas de cada uma
+- [ ] Criar operação **EDGE** marcando só "Inteligência (SEINT)" e escolhendo
+      `GISE` em "basear o formulário em" → a EDGE nasce com o formulário SEINT
+      copiado e SEM o operacional
+- [ ] Nome repetido → erro 409 legível ("Já existe uma operação chamada…")
+- [ ] Desmarcar os dois tipos de equipe → erro de validação
+- [ ] Não existe botão de excluir; desativar tira a operação do seletor de
+      criação de escala e dos filtros, mas ela continua aparecendo no cadastro
+- [ ] Policial comum abrindo `/gise/operacoes` → redirecionado
+
+### 4.10 Indicadores e linha de base
+
+**Configurar o indicador** (`/res-gise`, Admin Geral):
+
+- [ ] O seletor de operação troca o formulário mostrado
+- [ ] Numa operação de um tipo só, o alternador Operacional/SEINT mostra apenas
+      o tipo habilitado
+- [ ] Numa pergunta do tipo Número, marcar "usar como indicador de meta",
+      escolher **diminuir**, meta **20%**, unidade "procedimentos" e salvar
+- [ ] O bloco de indicador **não** aparece em pergunta de texto livre
+
+**Informar a base** (`/dados-base`, admin de unidade/seccional):
+
+- [ ] O admin da unidade vê apenas as unidades que administra E que participam da
+      operação escolhida
+- [ ] O indicador criado acima aparece como pendente; informar o valor e salvar →
+      o card passa a "Todos informados"
+- [ ] Campo deixado em branco não grava nada (em branco é "ainda não sei", não zero)
+- [ ] Admin de outra unidade não vê a unidade alheia
+
+**Escape pelo formulário** (`/res-gise/relatorio/[giseId]`, policial):
+
+- [ ] Com a base NÃO informada, o campo "valor antes da operação" aparece na
+      etapa em que a pergunta está, e o valor é gravado ao enviar o relatório
+- [ ] Com a base já informada pela aba, o campo **não** aparece — e retificar o
+      relatório não sobrescreve o valor oficial da unidade
+
+**Gráficos** (`/produtividade`):
+
+- [ ] O filtro de operação troca os indicadores mostrados
+- [ ] Cada card mostra base, realizado e a marca da meta por unidade, e o
+      contador "N/M unidades na meta"
+- [ ] Unidade sem base aparece no aviso de pendência, e a barra dela fica sem a
+      marca de meta
+- [ ] "Ver como tabela" mostra os mesmos números em texto
+- [ ] Alternar tema claro/escuro redesenha o gráfico com a tinta certa
+- [ ] Eixo em pt-BR (`1.240`, não `1,240`)
+- [ ] Admin de unidade entra e vê **apenas** os dados da própria unidade
 
 ---
 

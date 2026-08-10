@@ -43,6 +43,7 @@ describe('catálogo de ações', () => {
 			'gise',
 			'policial',
 			'unidade',
+			'operacao',
 			'configuracao',
 			'documento',
 			'lgpd',
