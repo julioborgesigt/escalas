@@ -10,7 +10,10 @@ import {
 	metaAbsoluta,
 	percentualAtingimento,
 	metaAtingida,
-	somarIndicador
+	percentualCobertura,
+	indicadoresComLinhaBase,
+	ehProporcao,
+	somarChave
 } from '../indicadores';
 
 /** Meta de 20% de REDUÇÃO — a do acervo de inquéritos no plano da CRAJUBAR. */
@@ -229,21 +232,108 @@ describe('metaAtingida', () => {
 	});
 });
 
-describe('somarIndicador', () => {
-	const ind = { chaveResposta: 'acervo' };
-
+describe('somarChave', () => {
 	it('soma os números presentes', () => {
-		expect(somarIndicador([{ acervo: 10 }, { acervo: 5 }], ind)).toBe(15);
+		expect(somarChave([{ acervo: 10 }, { acervo: 5 }], 'acervo')).toBe(15);
 	});
 
 	it('trata ausente, null, vazio e texto como zero', () => {
 		// Pergunta acrescentada depois de já haver respostas é o caso NORMAL.
 		expect(
-			somarIndicador([{}, { acervo: null }, { acervo: '' }, { acervo: 'abc' }, { acervo: 7 }], ind)
+			somarChave([{}, { acervo: null }, { acervo: '' }, { acervo: 'abc' }, { acervo: 7 }], 'acervo')
 		).toBe(7);
 	});
 
 	it('aceita número em string, como o formulário grava', () => {
-		expect(somarIndicador([{ acervo: '12' }, { acervo: '3' }], ind)).toBe(15);
+		expect(somarChave([{ acervo: '12' }, { acervo: '3' }], 'acervo')).toBe(15);
+	});
+});
+
+/** "Atender 100% das ocorrências de fim de semana" — a meta de cobertura da CRAJUBAR. */
+const COBERTURA_100: IndicadorConfig = { metaTipo: 'proporcao', metaValor: 100 };
+/** Cobertura parcial, para provar que a conta não assume 100. */
+const COBERTURA_80: IndicadorConfig = { metaTipo: 'proporcao', metaValor: 80 };
+
+describe('proporção (meta de cobertura)', () => {
+	it('o tipo `proporcao` é indicadorável e reconhecido', () => {
+		expect(TIPOS_INDICADORAVEIS).toContain('proporcao');
+		expect(podeSerIndicador('proporcao')).toBe(true);
+		expect(ehProporcao('proporcao')).toBe(true);
+		expect(ehProporcao('numero')).toBe(false);
+	});
+
+	it('a resposta sai da chave da PARTE, e o denominador da chave do total', () => {
+		const p = { tipo: 'proporcao', key: 'fds' };
+		expect(chaveResposta(p)).toBe('fds__parte');
+
+		const ind = extrairIndicadores([
+			{ id: 1, texto: 'Atendimentos', tipo: 'proporcao', key: 'fds', indicador: COBERTURA_100 }
+		])[0];
+		expect(ind.chaveResposta).toBe('fds__parte');
+		expect(ind.chaveTotal).toBe('fds__total');
+	});
+
+	it('chaveTotal é null em indicador que não é de cobertura', () => {
+		const ind = extrairIndicadores([
+			{ id: 1, texto: 'Acervo', tipo: 'numero', key: 'acervo', indicador: REDUZIR_20 }
+		])[0];
+		expect(ind.chaveTotal).toBeNull();
+	});
+
+	it('NÃO pede linha de base — o denominador vem do próprio relatório', () => {
+		expect(exigeLinhaBase(COBERTURA_100)).toBe(false);
+	});
+
+	it('a meta absoluta é a fatia do total do período', () => {
+		expect(metaAbsoluta(40, COBERTURA_100)).toBe(40);
+		expect(metaAbsoluta(40, COBERTURA_80)).toBe(32);
+	});
+
+	it('total zero não vira meta zero — não houve o que atender', () => {
+		expect(metaAbsoluta(0, COBERTURA_100)).toBeNull();
+		expect(percentualAtingimento(0, 0, COBERTURA_100)).toBeNull();
+		expect(metaAtingida(0, 0, COBERTURA_100)).toBeNull();
+	});
+
+	it('atingimento é a parte sobre a meta, não a distância percorrida', () => {
+		// 35 de 40 com meta de 100% → 87,5% do prometido.
+		expect(percentualAtingimento(40, 35, COBERTURA_100)).toBeCloseTo(87.5, 5);
+		// Os mesmos 35 de 40 contra uma meta de 80% (=32) SUPERAM o alvo.
+		expect(percentualAtingimento(40, 35, COBERTURA_80)).toBeCloseTo(109.375, 5);
+	});
+
+	it('a meta se atinge por cima', () => {
+		expect(metaAtingida(40, 40, COBERTURA_100)).toBe(true);
+		expect(metaAtingida(40, 39, COBERTURA_100)).toBe(false);
+		expect(metaAtingida(40, 32, COBERTURA_80)).toBe(true);
+	});
+});
+
+describe('percentualCobertura', () => {
+	it('devolve a razão em porcentagem', () => {
+		expect(percentualCobertura(35, 40)).toBeCloseTo(87.5, 5);
+		expect(percentualCobertura(40, 40)).toBe(100);
+	});
+
+	it('total ausente ou zero é indefinido, não 0%', () => {
+		// Um período sem ocorrência nenhuma não é uma unidade omissa.
+		expect(percentualCobertura(0, 0)).toBeNull();
+		expect(percentualCobertura(0, null)).toBeNull();
+		expect(percentualCobertura(3, undefined)).toBeNull();
+	});
+
+	it('passa de 100% quando a parte excede o total (erro de digitação visível)', () => {
+		expect(percentualCobertura(45, 40)).toBeCloseTo(112.5, 5);
+	});
+});
+
+describe('indicadoresComLinhaBase', () => {
+	it('mantém só os percentuais — absoluto e cobertura ficam de fora', () => {
+		const inds = extrairIndicadores([
+			{ id: 1, texto: 'Acervo', tipo: 'numero', key: 'acervo', indicador: REDUZIR_20 },
+			{ id: 2, texto: 'ORCRIM', tipo: 'numero', key: 'orcrim', indicador: MINIMO_1 },
+			{ id: 3, texto: 'FDS', tipo: 'proporcao', key: 'fds', indicador: COBERTURA_100 }
+		]);
+		expect(indicadoresComLinhaBase(inds).map((i) => i.key)).toEqual(['acervo']);
 	});
 });

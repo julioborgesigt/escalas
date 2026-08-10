@@ -271,7 +271,7 @@ npm run db:migrate:prod -- --yes
 
 ### Histórico de migrações
 
-O histórico completo está na própria pasta [`migrations/`](migrations/) — os nomes dos arquivos são autoexplicativos (`0000_initial_schema.sql` … `0051_operacao_config.sql`). Para entender uma migração específica, leia o SQL dela e o trecho correspondente do [`src/lib/server/schema.ts`](src/lib/server/schema.ts).
+O histórico completo está na própria pasta [`migrations/`](migrations/) — os nomes dos arquivos são autoexplicativos (`0000_initial_schema.sql` … `0052_indicador_cobertura.sql`). Para entender uma migração específica, leia o SQL dela e o trecho correspondente do [`src/lib/server/schema.ts`](src/lib/server/schema.ts).
 
 O que já rodou em cada ambiente é rastreado pela tabela `_migrations_aplicadas`, gravada pelo runner [`scripts/migrate.ts`](scripts/migrate.ts). (O `migrations/meta/` do `drizzle-kit` foi removido em jul/2026: ficou parado em 2 entradas para dezenas de arquivos e só induzia a erro.)
 
@@ -528,15 +528,34 @@ colunas de gise_escalas → colunas de operacoes → configuracoes → constante
 ```
 
 **Indicadores e metas.** No editor do formulário (`/res-gise`), uma pergunta
-contável pode ser marcada como indicador: objetivo (aumentar/diminuir) e meta
-percentual sobre o valor inicial ou número fixo. A meta percentual exige uma
-**linha de base** — o valor de partida da unidade —, informada pelo admin de
-unidade/seccional em **`/dados-base`**; se ela não foi informada, o valor é
-pedido dentro do próprio formulário de produtividade. `/produtividade` mostra
-base × realizado × meta por unidade, com filtro por operação.
+contável pode ser marcada como indicador. São **três tipos de meta**, e é o
+`metaTipo` que discrimina a união `IndicadorConfig` (`src/lib/types.ts`):
+
+| `metaTipo`   | O que mede                            | Objetivo            | Linha de base |
+| ------------ | ------------------------------------- | ------------------- | ------------- |
+| `percentual` | variação sobre o valor inicial (−20%) | aumentar / diminuir | **exige**     |
+| `absoluto`   | alvo fixo (mínimo de 1 por unidade)   | aumentar / diminuir | não usa       |
+| `proporcao`  | cobertura: % do total atendido (100%) | **não tem**         | não usa       |
+
+A meta percentual exige uma **linha de base** — o valor de partida da unidade —,
+informada pelo admin de unidade/seccional em **`/dados-base`**; se ela não foi
+informada, o valor é pedido dentro do próprio formulário de produtividade.
+
+`proporcao` é o tipo de **cobertura**, e anda junto com o tipo de campo
+homônimo: uma pergunta só com dois números (o total existente e a parte
+atendida), gravados em `${key}__total` e `${key}__parte`. Existe porque "atender
+100% das ocorrências" não se mede com um número solto — 12 atendimentos são
+ótimos se houve 12 ocorrências e ruins se houve 40. Ela não tem `objetivo`
+(cobrir um todo não é aumentar nem diminuir) e não pede base: o denominador vem
+no mesmo relatório. Só o tipo de campo `proporcao` aceita esta meta.
+
+`/produtividade` mostra base × realizado × meta por unidade, com filtro por
+operação — e, nos indicadores de cobertura, a **porcentagem coberta** com a meta
+como limiar constante, porque contagem e porcentagem não compartilham eixo.
 
 Os indicadores da OPERAÇÃO CRAJUBAR vêm semeados pela migração `0050` a partir
-da tabela §9 do Plano Operacional Estratégico.
+da tabela §9 do Plano Operacional Estratégico; a `0052` converte o de
+atendimentos em fins de semana para cobertura de 100%, que é o que o plano pede.
 
 O resto do fluxo:
 

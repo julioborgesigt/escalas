@@ -3,6 +3,7 @@ import { apiFetchResponse } from '$lib/api-fetch';
 import { baixarBlob, nomeArquivoContentDisposition } from '$lib/utils/download';
 import { fmtDate } from '$lib/gise/formatters';
 import { renumerarPerguntas } from '$lib/gise/renumerar-perguntas';
+import { ehProporcao } from '$lib/gise/indicadores';
 import { loading } from '$lib/loading.svelte';
 import { page } from '$app/state';
 import { goto } from '$app/navigation';
@@ -117,16 +118,47 @@ export function useResGise(getData: () => ResGisePageData) {
 	/**
 	 * Liga/desliga o indicador de meta de uma pergunta.
 	 *
-	 * Ao ligar, semeia o caso mais comum do pedido: meta PERCENTUAL de redução.
-	 * Ao desligar, remove a chave inteira em vez de deixar `indicador: undefined`
-	 * — o `config` vira JSON, e `undefined` sumiria de qualquer jeito na
-	 * serialização, mas um objeto meio-apagado confundiria quem lesse o blob.
+	 * Ao ligar, semeia o caso que o tipo da pergunta já anuncia: cobertura de 100%
+	 * numa pergunta de proporção, redução de 20% nas demais (o caso mais comum do
+	 * pedido). Ao desligar, remove a chave inteira em vez de deixar
+	 * `indicador: undefined` — o `config` vira JSON, e `undefined` sumiria de
+	 * qualquer jeito na serialização, mas um objeto meio-apagado confundiria quem
+	 * lesse o blob.
 	 */
 	function alternarIndicador(p: GiseModeloPerguntaConfig) {
 		if (p.indicador) {
 			delete p.indicador;
+		} else if (ehProporcao(p.tipo)) {
+			p.indicador = { metaTipo: 'proporcao', metaValor: 100 };
 		} else {
 			p.indicador = { objetivo: 'diminuir', metaTipo: 'percentual', metaValor: 20 };
+		}
+		perguntasConfig = [...perguntasConfig];
+	}
+
+	/**
+	 * Troca o TIPO da meta, reconstruindo o objeto inteiro.
+	 *
+	 * Reconstrói, e não muta o campo: `proporcao` não tem `objetivo` nem
+	 * `rotuloBase`, e um `bind:value` deixaria os dois pendurados no JSON gravado
+	 * — campo morto que a próxima leitura interpreta como intenção. É a união
+	 * discriminada de `IndicadorConfig` cobrando o que ela promete.
+	 */
+	function definirMetaTipoIndicador(p: GiseModeloPerguntaConfig, metaTipo: string) {
+		const anterior = p.indicador;
+		if (!anterior) return;
+		const unidadeMedida = anterior.unidadeMedida;
+
+		if (metaTipo === 'proporcao') {
+			p.indicador = { metaTipo: 'proporcao', metaValor: 100, unidadeMedida };
+		} else {
+			p.indicador = {
+				objetivo: anterior.metaTipo === 'proporcao' ? 'aumentar' : anterior.objetivo,
+				metaTipo: metaTipo === 'absoluto' ? 'absoluto' : 'percentual',
+				metaValor: anterior.metaValor,
+				unidadeMedida,
+				rotuloBase: anterior.metaTipo === 'proporcao' ? '' : anterior.rotuloBase
+			};
 		}
 		perguntasConfig = [...perguntasConfig];
 	}
@@ -545,6 +577,7 @@ export function useResGise(getData: () => ResGisePageData) {
 		removerPergunta,
 		trocarOperacao,
 		alternarIndicador,
+		definirMetaTipoIndicador,
 		handleSalvarModelo,
 		selecionarEscala,
 		salvarEntrada,

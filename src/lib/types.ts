@@ -11,25 +11,16 @@ import type {
 export type { Policial, Escala, Unidade, PolicialHistorico };
 
 /**
- * Meta de um indicador, gravada JUNTO da pergunta no modelo do formulário.
+ * Meta que move um NÚMERO numa direção — a forma original do indicador.
  *
- * Fica aqui, e não em tabela própria, porque o indicador É a pergunta: separá-los
- * criaria duas listas para manter em dia, e uma pergunta renomeada ou removida
- * deixaria uma meta órfã apontando para uma `key` que não existe mais.
+ * `percentual` = relativa à LINHA DE BASE informada pela unidade ("redução
+ * mínima de 20% do acervo"); é o padrão do editor. `absoluto` = alvo fixo, sem
+ * base ("mínimo de 1 operação por unidade/mês") — não há valor anterior contra o
+ * que comparar, e por isso nada é pedido à delegacia.
  */
-export interface IndicadorConfig {
+export interface IndicadorMetaValor {
 	/** Para onde o número deve andar. Decide o sinal da meta e a leitura do gráfico. */
 	objetivo: 'aumentar' | 'diminuir';
-	/**
-	 * `percentual` = a meta é relativa à LINHA DE BASE informada pela unidade
-	 * ("redução mínima de 20% do acervo"). É o caso descrito no pedido e o padrão
-	 * do editor.
-	 *
-	 * `absoluto` = a meta é um número fixo, sem base ("mínimo de 1 operação por
-	 * unidade/mês"). Existe porque dois dos cinco indicadores do plano da CRAJUBAR
-	 * são assim — e é o que dispensa a unidade de informar base para eles: não há
-	 * valor anterior contra o que comparar.
-	 */
 	metaTipo: 'percentual' | 'absoluto';
 	/** 20 para "20%" quando `percentual`; o próprio alvo quando `absoluto`. */
 	metaValor: number;
@@ -38,6 +29,48 @@ export interface IndicadorConfig {
 	/** Texto do campo na aba de dados base; cai no texto da pergunta se vazio. */
 	rotuloBase?: string;
 }
+
+/**
+ * Meta de COBERTURA: que fatia de um total foi atendida.
+ *
+ * Existe porque "atender 100% das ocorrências" não é aumentar nem diminuir um
+ * número — é cobrir uma parte de um todo que varia a cada período. Escrevê-la
+ * como `aumentar` mentiria no rótulo ("aumentar 100%") e como `absoluto`
+ * perderia o denominador: 12 atendimentos são ótimos se houve 12 ocorrências e
+ * ruins se houve 40.
+ *
+ * O total e a parte vêm da MESMA pergunta (tipo `proporcao`, dois campos), então
+ * esta meta não pede linha de base à unidade — o denominador é informado junto
+ * do numerador, no próprio relatório.
+ *
+ * `objetivo` não existe aqui de propósito: não há direção a escolher, e um campo
+ * opcional ignorado convidaria a preenchê-lo com algo que ninguém lê.
+ *
+ * Não exportada: ninguém a nomeia fora daqui — quem consome usa `IndicadorConfig`
+ * e estreita por `metaTipo`. Exportar o que ninguém importa vira uma segunda
+ * lista para manter em dia.
+ */
+interface IndicadorMetaProporcao {
+	metaTipo: 'proporcao';
+	/** Cobertura perseguida, em % do total. 100 = atender tudo. */
+	metaValor: number;
+	/** O que está sendo contado: 'ocorrências', 'chamados', 'plantões'. */
+	unidadeMedida?: string;
+}
+
+/**
+ * Meta de um indicador, gravada JUNTO da pergunta no modelo do formulário.
+ *
+ * Fica aqui, e não em tabela própria, porque o indicador É a pergunta: separá-los
+ * criaria duas listas para manter em dia, e uma pergunta renomeada ou removida
+ * deixaria uma meta órfã apontando para uma `key` que não existe mais.
+ *
+ * União discriminada por `metaTipo`, e não uma interface só com campos
+ * opcionais: é ela que faz o compilador cobrar de cada tela o ramo da proporção
+ * em vez de deixá-la ler um `objetivo` que não existe e cair no ramo "aumentar"
+ * em silêncio.
+ */
+export type IndicadorConfig = IndicadorMetaValor | IndicadorMetaProporcao;
 
 /** Item do formulário GISE (modelo operacional / SEINT em JSON). */
 export interface GiseModeloPerguntaConfig {
@@ -73,6 +106,10 @@ export interface GiseModeloPerguntaConfig {
 	subtexto_lista?: string;
 	subtexto_tipo?: string;
 	subtexto_detalhe?: string;
+	/** Rótulo do campo DENOMINADOR no tipo `proporcao`; cai em "Total" se vazio. */
+	subtexto_total?: string;
+	/** Rótulo do campo NUMERADOR no tipo `proporcao`; cai em "Atendidas" se vazio. */
+	subtexto_parte?: string;
 }
 
 /** Linha da lista "minhas escalas" em `/res-gise` (+page.server). */

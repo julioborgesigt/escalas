@@ -30,9 +30,18 @@
 		TIPOS_COM_FILHOS,
 		TIPOS_COM_LISTA,
 		TIPO_LISTA_REUTILIZAVEL,
+		TIPO_PROPORCAO,
 		chavesLista,
-		chavesListaComFallback
+		chavesListaComFallback,
+		chavesProporcao
 	} from '$lib/gise/tipos-pergunta';
+
+	/** Número para exibição; `null` quando o campo está vazio ou não é numérico. */
+	function num(v: unknown): number | null {
+		if (v === '' || v == null) return null;
+		const n = Number(v);
+		return Number.isFinite(n) ? n : null;
+	}
 
 	let { respostas = $bindable(), modelo = [] } = $props<{
 		respostas: Record<string, unknown>;
@@ -173,6 +182,70 @@
 						class="input w-full md:w-48 text-sm font-bold"
 						bind:value={respostas[q.key]}
 					/>
+				{:else if q.tipo === TIPO_PROPORCAO}
+					<!-- Cobertura: dois números e a razão entre eles, calculada na tela.
+					     A porcentagem NÃO é gravada — ela é derivada, e guardar um
+					     derivado no blob criaria uma segunda verdade que envelhece
+					     assim que um dos dois campos for corrigido. -->
+					{@const chavesP = chavesProporcao(q)!}
+					{@const total = num(respostas[chavesP.total])}
+					{@const parte = num(respostas[chavesP.parte])}
+					<div class="space-y-3">
+						<div class="flex flex-wrap items-end gap-4">
+							<label class="block">
+								<span
+									class="text-3xs font-black text-surface-600 dark:text-surface-400 uppercase tracking-widest block"
+									>{q.subtexto_total || 'Total existente'}</span
+								>
+								<input
+									id="q-{q.id}"
+									type="number"
+									min="0"
+									placeholder="0"
+									class="input w-32 text-sm font-bold"
+									bind:value={respostas[chavesP.total]}
+								/>
+							</label>
+							<label class="block">
+								<span
+									class="text-3xs font-black text-surface-600 dark:text-surface-400 uppercase tracking-widest block"
+									>{q.subtexto_parte || 'Atendidas'}</span
+								>
+								<input
+									type="number"
+									min="0"
+									placeholder="0"
+									class="input w-32 text-sm font-bold"
+									bind:value={respostas[chavesP.parte]}
+								/>
+							</label>
+						</div>
+
+						{#if total != null && parte != null}
+							{#if total <= 0}
+								<p class="text-2xs text-surface-600 dark:text-surface-400">
+									Sem ocorrências no período — não há cobertura a calcular.
+								</p>
+							{:else}
+								<p class="text-sm font-bold">
+									Cobertura:
+									<span class="text-primary-600 dark:text-primary-400">
+										{((parte / total) * 100).toLocaleString('pt-BR', {
+											maximumFractionDigits: 1
+										})}%
+									</span>
+									<span class="font-normal text-surface-600 dark:text-surface-400">
+										({parte} de {total})
+									</span>
+								</p>
+								{#if parte > total}
+									<p class="text-2xs font-semibold text-warning-700 dark:text-warning-400">
+										A parte atendida está maior que o total — confira os dois números.
+									</p>
+								{/if}
+							{/if}
+						{/if}
+					</div>
 				{:else if q.tipo === 'select_99'}
 					<select
 						id="q-{q.id}"

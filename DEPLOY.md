@@ -163,7 +163,7 @@ Há quatro níveis. O **Super Admin é um Admin Geral com poderes extras** (é `
 
 Após mudanças de schema, gerar migrações com Drizzle conforme o fluxo já usado no repositório; o CI as aplica no deploy seguinte (migrations devem ser retrocompatíveis com o código anterior — expand/contract).
 
-### Migrações 0048–0051 (operações) — o que elas SEMEIAM
+### Migrações 0048–0052 (operações) — o que elas SEMEIAM
 
 Estas três não só criam tabela: elas gravam dados de negócio. Vale saber o que
 esperar ao vê-las passar em staging e em produção.
@@ -198,6 +198,23 @@ esperar ao vê-las passar em staging e em produção.
   Consequência a comunicar ao Admin Geral: **não há mais um editor do valor
   GLOBAL.** O que estava gravado continua valendo como herança, e a partir daqui
   cada operação define o seu.
+
+- **`0052_indicador_cobertura.sql`** converte o indicador "Atendimentos do GISE
+  em fins de semana" da CRAJUBAR de meta absoluta (mínimo de 1) para meta de
+  **cobertura de 100%**, no tipo de campo `proporcao` — dois números na mesma
+  pergunta, total e atendidas. É o que o plano pede ("100% de cobertura
+  programada"); a `0050` tinha semeado o proxy porque o tipo ainda não existia.
+
+  A chave da pergunta não muda, mas as chaves de RESPOSTA passam a ser
+  `crajubar_atendimentos_fds__total` e `__parte`. Relatório já entregue com o
+  campo antigo (se houver) fica sem denominador e aparece como "sem ocorrências"
+  no painel — a leitura honesta de um dado ao qual falta metade. Confira antes
+  do go-live se a CRAJUBAR já recebeu relatórios:
+
+  ```sql
+  SELECT COUNT(*) FROM gise_respostas_formulario
+  WHERE respostas LIKE '%crajubar_atendimentos_fds%';
+  ```
 
 Depois do deploy, confira em `/gise/operacoes` que as duas operações aparecem
 (cada uma com os botões Formulário · Configurações · Editar), e em `/gise` que as

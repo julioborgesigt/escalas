@@ -1,11 +1,12 @@
 import { describe, it, expect } from 'vitest';
-import { montarPainelIndicadores, formatarValorIndicador } from '../metas';
+import { montarPainelIndicadores, formatarValorIndicador, formatarPercentual } from '../metas';
 import type { Indicador } from '$lib/gise/indicadores';
 
 /** Acervo de inquéritos: reduzir 20% — o indicador principal do plano da CRAJUBAR. */
 const ACERVO: Indicador = {
 	key: 'acervo',
 	chaveResposta: 'acervo',
+	chaveTotal: null,
 	texto: 'Acervo de inquéritos pendentes',
 	tipo: 'numero',
 	config: { objetivo: 'diminuir', metaTipo: 'percentual', metaValor: 20 }
@@ -15,6 +16,7 @@ const ACERVO: Indicador = {
 const ORCRIM: Indicador = {
 	key: 'orcrim',
 	chaveResposta: 'orcrim',
+	chaveTotal: null,
 	texto: 'Investigações qualificadas de ORCRIM',
 	tipo: 'numero',
 	config: { objetivo: 'aumentar', metaTipo: 'absoluto', metaValor: 1 }
@@ -154,6 +156,7 @@ describe('montarPainelIndicadores', () => {
 		const lista: Indicador = {
 			key: 'extra_1',
 			chaveResposta: 'extra_1__qtd',
+			chaveTotal: null,
 			texto: 'Relatórios',
 			tipo: 'lista_detalhada',
 			config: { objetivo: 'aumentar', metaTipo: 'absoluto', metaValor: 3 }
@@ -186,5 +189,88 @@ describe('formatarValorIndicador', () => {
 	it('nulo e não-finito viram travessão', () => {
 		expect(formatarValorIndicador(null)).toBe('—');
 		expect(formatarValorIndicador(Number.NaN)).toBe('—');
+	});
+});
+
+/** "Atender 100% das ocorrências de fim de semana" — cobertura, com denominador no relatório. */
+const FDS: Indicador = {
+	key: 'fds',
+	chaveResposta: 'fds__parte',
+	chaveTotal: 'fds__total',
+	texto: 'Atendimentos do GISE em fins de semana',
+	tipo: 'proporcao',
+	config: { metaTipo: 'proporcao', metaValor: 100, unidadeMedida: 'ocorrências' }
+};
+
+describe('montarPainelIndicadores — cobertura', () => {
+	it('soma as duas chaves e calcula a cobertura da unidade', () => {
+		const painel = montarPainelIndicadores(
+			[FDS],
+			[CRATO],
+			[
+				{ unidade_id: 10, respostasParsed: { fds__total: 12, fds__parte: 9 } },
+				{ unidade_id: 10, respostasParsed: { fds__total: 8, fds__parte: 8 } }
+			],
+			[]
+		);
+
+		const linha = painel[0].linhas[0];
+		expect(linha.total).toBe(20);
+		expect(linha.realizado).toBe(17);
+		expect(linha.cobertura).toBeCloseTo(85, 5);
+		// Meta de 100% sobre 20 ocorrências = 20 atendimentos.
+		expect(linha.meta).toBe(20);
+		expect(linha.atingimento).toBeCloseTo(85, 5);
+		expect(linha.atingida).toBe(false);
+	});
+
+	it('cobertura total bate a meta', () => {
+		const painel = montarPainelIndicadores(
+			[FDS],
+			[CRATO],
+			[{ unidade_id: 10, respostasParsed: { fds__total: 6, fds__parte: 6 } }],
+			[]
+		);
+		const linha = painel[0].linhas[0];
+		expect(linha.cobertura).toBe(100);
+		expect(linha.atingida).toBe(true);
+		expect(painel[0].unidadesAtingiram).toBe(1);
+	});
+
+	it('unidade sem ocorrência no período fica indefinida, e não zerada', () => {
+		// Sem denominador não há cobertura: contá-la como 0% puniria quem não teve
+		// o que atender.
+		const painel = montarPainelIndicadores([FDS], [BARBALHA], [], []);
+		const linha = painel[0].linhas[0];
+		expect(linha.total).toBe(0);
+		expect(linha.cobertura).toBeNull();
+		expect(linha.meta).toBeNull();
+		expect(linha.atingimento).toBeNull();
+		expect(linha.atingida).toBeNull();
+		// E não conta como unidade avaliada.
+		expect(painel[0].unidadesComMeta).toBe(0);
+	});
+
+	it('cobertura NÃO gera pendência de linha de base', () => {
+		const painel = montarPainelIndicadores(
+			[FDS],
+			[CRATO, BARBALHA],
+			[{ unidade_id: 10, respostasParsed: { fds__total: 4, fds__parte: 4 } }],
+			[]
+		);
+		expect(painel[0].basesPendentes).toBe(0);
+		expect(painel[0].linhas.every((l) => l.basePendente === false)).toBe(true);
+	});
+});
+
+describe('formatarPercentual', () => {
+	it('usa vírgula decimal e o símbolo', () => {
+		expect(formatarPercentual(87.5)).toBe('87,5%');
+		expect(formatarPercentual(100)).toBe('100%');
+	});
+
+	it('ausente vira travessão', () => {
+		expect(formatarPercentual(null)).toBe('—');
+		expect(formatarPercentual(Number.NaN)).toBe('—');
 	});
 });
