@@ -511,14 +511,27 @@ filtro por operação na própria página.
 quais tipos de equipe usa — uma operação pode ter só equipe operacional, só de
 inteligência, ou as duas. Cada operação é dona dos SEUS formulários de
 produtividade (um por tipo de equipe habilitado), e criar uma nova pede em qual
-operação basear o formulário, para não começar do zero. Operação não se exclui,
-desativa-se: escala histórica e PDF assinado continuam apontando para ela.
+operação basear o formulário, para não começar do zero.
+
+**Operação COM escala não se exclui, desativa-se**: escala histórica e PDF
+assinado continuam apontando para ela, e apagá-la deixaria documento entregue sem
+origem. Operação que nunca recebeu escala nenhuma — a criada por engano, a de
+teste — não é história de nada e ganha **Excluir**, levando junto os formulários
+dela. Quem recusa é a action, recontando as escalas no servidor: a contagem que a
+tela mostrou pode ter envelhecido, e o botão escondido nunca foi autorização.
 
 A tela é um **slider de dois painéis**, no mesmo desenho do fluxo de presença de
 `/res-gise`: a lista à esquerda, o formulário à direita. O painel aberto vive na
 URL (`?form=nova` ou `?form=<id>`), e não num estado local — é o que faz o
 "voltar" do navegador desfazer a abertura e o que permite ao endereço antigo
 `/gise/operacoes/[id]/config` redirecionar para o painel certo.
+
+A LISTA não tem botão de voltar: Operações tem entrada própria na barra lateral,
+e botão de voltar é de tela de DETALHE, alcançada de dentro de outra. O único
+"Voltar às operações" da tela é o do painel do formulário, que fecha o painel. Os
+botões de cada linha usam a faixa de navegação do §10 (`py-1.5`) e ficam
+ancorados no topo à direita — o grupo quebra dentro de si, nunca em bloco, para
+que todas as linhas terminem na mesma margem.
 
 **Identidade e configuração são o MESMO formulário**, na criação e na edição:
 nome, sigla, ciclo e tipos de equipe junto de vagas padrão, horário padrão e os
@@ -558,6 +571,12 @@ digitado ali é o denominador de um percentual divulgado: gravá-lo sob a opera�
 errada muda o atingimento de uma unidade sem tocar em relatório nenhum. Com a
 operação no caminho não há controle a errar, e a escolha acontece antes de
 qualquer campo aparecer.
+
+O **destino do "Voltar"** dessa tela vem do `load`, não é fixo: Admin Geral volta
+a `/gise/operacoes`, que é a porta por onde ele entrou; admin de unidade volta ao
+índice **só quando há mais de uma** pendência. Com uma só não há botão — o índice
+redirecionaria de volta para a mesma tela, e um "Voltar" que não sai do lugar é
+pior que nenhum.
 
 Sobre a rota ser `/dados-base` e não `/gise/dados-base`: `/gise` é o prefixo
 LEGADO — a GISE virou uma operação entre várias, e aninhar telas novas sob ele

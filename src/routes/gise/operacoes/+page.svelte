@@ -21,10 +21,20 @@
 	 * preenchimento não tem seletor, e não há como digitar o acervo de uma
 	 * delegacia sob a operação errada.
 	 *
-	 * Não há botão de excluir, e isso é a regra, não um esquecimento: operação com
-	 * escala histórica não pode sumir sem levar junto a origem de PDF já assinado.
-	 * O que existe é desativar, e a contagem de escalas ao lado de cada operação é
-	 * o que torna isso compreensível na hora.
+	 * ## Excluir × desativar
+	 *
+	 * Operação COM escala não se exclui — escala histórica e PDF assinado
+	 * continuam apontando para ela. Para essas existe **Desativar**, e a contagem
+	 * de escalas ao lado do nome é o que torna a diferença compreensível na hora.
+	 * A operação que nunca recebeu escala nenhuma (a criada por engano, a de
+	 * teste) não é história de nada, e ganha **Excluir**. Quem recusa de verdade é
+	 * `excluirOperacao`, que reconta no servidor.
+	 *
+	 * ## Sem "voltar" no topo
+	 *
+	 * Operações tem entrada própria na barra lateral, e tela de aba não leva botão
+	 * de voltar — ele existe nas telas de DETALHE, alcançadas de dentro de outra.
+	 * O único voltar aqui é o do painel do formulário, que fecha o painel.
 	 */
 	import type { PageProps } from './$types';
 	import { enhance } from '$app/forms';
@@ -32,13 +42,15 @@
 	import { goto, invalidate } from '$app/navigation';
 	import { loading } from '$lib/loading.svelte';
 	import { toaster } from '$lib/toast';
-	import BotaoVoltar from '$lib/components/BotaoVoltar.svelte';
+	import ModalShell from '$lib/components/ModalShell.svelte';
+	import { useConfirmationDialog } from '$lib/composables';
 	import FormularioOperacao from './_components/FormularioOperacao.svelte';
 	import Plus from '@lucide/svelte/icons/plus';
 	import Power from '@lucide/svelte/icons/power';
 	import SquarePen from '@lucide/svelte/icons/square-pen';
 	import FileText from '@lucide/svelte/icons/file-text';
 	import ClipboardCheck from '@lucide/svelte/icons/clipboard-check';
+	import Trash2 from '@lucide/svelte/icons/trash-2';
 
 	const { data }: PageProps = $props();
 
@@ -76,7 +88,18 @@
 		return t.join(' · ');
 	}
 
-	/** `use:enhance` comum às três actions: toast do erro do servidor e revalidação. */
+	/**
+	 * Os botões da linha, na faixa de NAVEGAÇÃO do README §10 (`py-1.5`, ~34px).
+	 * Constante e não string repetida: cinco cópias divergem na primeira vez que
+	 * alguém ajusta uma delas, e é assim que a fileira deixa de ficar alinhada.
+	 */
+	const BOTAO_LINHA =
+		'btn btn-sm preset-outlined-surface-500 px-2.5 py-1.5 rounded-xl text-xs whitespace-nowrap';
+
+	/** A operação que o admin pediu para excluir — `null` com o modal fechado. */
+	const confirmExcluir = useConfirmationDialog<{ id: number; nome: string }>();
+
+	/** `use:enhance` comum às actions: toast do erro do servidor e revalidação. */
 	function enviar(mensagemOk: string, aoConcluir?: () => void) {
 		return () => {
 			loading.show('A gravar…');
@@ -107,8 +130,6 @@
 	>
 		<!-- Painel 1: a lista -->
 		<div class="min-w-0 space-y-6 px-1" style="width: 50%;">
-			<BotaoVoltar href="/gise" />
-
 			<div class="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
 				<div class="min-w-0">
 					<h1 class="h1 text-2xl font-bold">Operações</h1>
@@ -116,9 +137,11 @@
 						Cada operação tem o seu formulário de produtividade e os seus indicadores.
 					</p>
 				</div>
+				<!-- `py-2`, e não `py-2.5`: a faixa de CTA de modal/formulário do
+				     README §10 dá um bloco alto demais para um botão de cabeçalho. -->
 				<button
 					type="button"
-					class="btn preset-filled-primary-500 px-4 py-2.5 rounded-xl font-semibold shrink-0"
+					class="btn btn-sm preset-filled-primary-500 px-3.5 py-2 rounded-xl font-semibold shrink-0"
 					onclick={() => abrir('nova')}
 				>
 					<Plus class="w-4 h-4" />
@@ -138,8 +161,13 @@
 								class="rounded-xl border border-surface-200/70 dark:border-white/10 p-4"
 								class:opacity-60={!op.ativo}
 							>
-								<div class="flex flex-wrap items-start justify-between gap-3">
-									<div class="min-w-0">
+								<!-- Sem `flex-wrap` AQUI: quando o grupo de botões não cabia, o
+							     container quebrava e o grupo inteiro descia para baixo do texto —
+							     era por isso que a linha com 4 botões ficava diferente das de 3.
+							     Agora o texto encolhe (`min-w-0 flex-1`) e o grupo fica ancorado
+							     no topo à direita, quebrando DENTRO de si quando precisa. -->
+								<div class="flex items-start justify-between gap-3">
+									<div class="min-w-0 flex-1">
 										<div class="flex flex-wrap items-center gap-2">
 											<span class="font-semibold">{op.nome}</span>
 											{#if op.sigla}
@@ -172,14 +200,13 @@
 										{/if}
 									</div>
 
-									<!-- Três botões, e não quatro: "Configurações" virou parte de
-									     "Editar" — as duas metades descrevem a mesma operação. -->
-									<div class="flex flex-wrap items-center gap-2 shrink-0">
-										<a
-											href={`/res-gise?operacaoId=${op.id}`}
-											class="btn preset-outlined-surface-500 px-3 py-1.5 rounded-xl text-sm"
-										>
-											<FileText class="w-4 h-4" />
+									<!-- "Configurações" virou parte de "Editar" — as duas metades
+									     descrevem a mesma operação. `justify-end` mantém os botões
+									     terminando na mesma margem em todas as linhas, com ou sem
+									     "Dados base" e "Excluir". -->
+									<div class="flex flex-wrap items-center justify-end gap-2 shrink-0">
+										<a href={`/res-gise?operacaoId=${op.id}`} class={BOTAO_LINHA}>
+											<FileText class="w-3.5 h-3.5" />
 											Formulário
 										</a>
 										<!-- Só na operação que PEDE base: das três cadastradas, só a
@@ -187,34 +214,37 @@
 										     delegacias. Um botão no cabeçalho sugeria que era trabalho
 										     de todas. O link leva à operação, não à tela genérica. -->
 										{#if op.pedeLinhaBase}
-											<a
-												href={`/dados-base/${op.id}`}
-												class="btn preset-outlined-surface-500 px-3 py-1.5 rounded-xl text-sm"
-											>
-												<ClipboardCheck class="w-4 h-4" />
+											<a href={`/dados-base/${op.id}`} class={BOTAO_LINHA}>
+												<ClipboardCheck class="w-3.5 h-3.5" />
 												Dados base
 											</a>
 										{/if}
-										<button
-											type="button"
-											class="btn preset-outlined-surface-500 px-3 py-1.5 rounded-xl text-sm"
-											onclick={() => abrir(String(op.id))}
-										>
-											<SquarePen class="w-4 h-4" />
+										<button type="button" class={BOTAO_LINHA} onclick={() => abrir(String(op.id))}>
+											<SquarePen class="w-3.5 h-3.5" />
 											Editar
 										</button>
+										<!-- Excluir só existe sem escala nenhuma: com escala, o que
+										     resta é desativar (o histórico e o PDF assinado continuam
+										     apontando para a operação). Quem recusa de verdade é a
+										     action, que reconta no servidor. -->
+										{#if op.escalas === 0}
+											<button
+												type="button"
+												class="btn btn-sm preset-filled-error-500 px-2.5 py-1.5 rounded-xl text-xs whitespace-nowrap"
+												onclick={() => confirmExcluir.openDialog({ id: op.id, nome: op.nome })}
+											>
+												<Trash2 class="w-3.5 h-3.5" />
+												Excluir
+											</button>
+										{/if}
 										<form
 											method="POST"
 											action="?/alternarAtivo"
 											use:enhance={enviar(op.ativo ? 'Operação desativada' : 'Operação reativada')}
 										>
 											<input type="hidden" name="id" value={op.id} />
-											<button
-												type="submit"
-												class="btn preset-outlined-surface-500 px-3 py-1.5 rounded-xl text-sm"
-												disabled={loading.active}
-											>
-												<Power class="w-4 h-4" />
+											<button type="submit" class={BOTAO_LINHA} disabled={loading.active}>
+												<Power class="w-3.5 h-3.5" />
 												{op.ativo ? 'Desativar' : 'Reativar'}
 											</button>
 										</form>
@@ -248,3 +278,37 @@
 		</div>
 	</div>
 </div>
+
+<!-- Fora do slider: dentro dele o modal deslizaria junto com o painel. -->
+<ModalShell
+	bind:open={confirmExcluir.isOpen}
+	title="Excluir operação?"
+	largura="sm"
+	pending={loading.active}
+	cancelLabel="Cancelar"
+>
+	{#snippet description()}
+		A operação <strong>{confirmExcluir.currentItem?.nome}</strong> e o formulário de produtividade dela
+		serão apagados. Ela não tem escala nenhuma, então nenhum relatório ou PDF assinado aponta para ela
+		— mas o formulário, com as perguntas e os indicadores configurados, vai junto e não há como desfazer.
+	{/snippet}
+
+	{#snippet footer()}
+		<form
+			method="POST"
+			action="?/excluir"
+			use:enhance={enviar('Operação excluída', () => confirmExcluir.closeDialog())}
+			class="contents"
+		>
+			<input type="hidden" name="id" value={confirmExcluir.currentItem?.id} />
+			<button
+				type="submit"
+				class="btn btn-sm preset-filled-error-500 flex items-center gap-2"
+				disabled={loading.active}
+			>
+				<Trash2 class="w-4 h-4" />
+				Excluir operação
+			</button>
+		</form>
+	{/snippet}
+</ModalShell>

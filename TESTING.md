@@ -193,8 +193,10 @@ Verificar cada transição de status:
       copiado e SEM o operacional
 - [ ] Nome repetido → erro 409 legível ("Já existe uma operação chamada…")
 - [ ] Desmarcar os dois tipos de equipe → erro de validação
-- [ ] Não existe botão de excluir; desativar tira a operação do seletor de
-      criação de escala e dos filtros, mas ela continua aparecendo no cadastro
+- [ ] Desativar tira a operação do seletor de criação de escala e dos filtros,
+      mas ela continua aparecendo no cadastro
+- [ ] **Excluir** aparece só na operação sem escala nenhuma; na `GISE` e na
+      `CRAJUBAR` só há "Desativar"
 - [ ] Policial comum abrindo `/gise/operacoes` → redirecionado
 
 ### 4.11 Formulário da operação (`/gise/operacoes`)
@@ -211,6 +213,17 @@ Verificar cada transição de status:
 - [ ] O "voltar" do NAVEGADOR fecha o painel e devolve a lista
 - [ ] Abrir uma operação, voltar e abrir outra → os campos são os da segunda (não
       sobra texto da primeira)
+- [ ] A LISTA não tem botão de voltar — Operações tem entrada própria na barra
+      lateral; o "Voltar às operações" existe só dentro do painel do formulário
+
+**Os botões (§10 do README):**
+
+- [ ] Com as três linhas do cadastro lado a lado, os botões de todas terminam na
+      **mesma margem direita**, ancorados no topo — a linha com quatro botões não
+      pode descer inteira para baixo do texto
+- [ ] Faltando largura, o grupo quebra **dentro de si** (um botão desce), nunca
+      em bloco
+- [ ] "Nova operação" tem a altura de botão de navegação, não de CTA de modal
 
 **Os campos:**
 
@@ -234,6 +247,15 @@ Verificar cada transição de status:
       daquela operação → o texto novo aparece; numa escala de OUTRA operação, não
 - [ ] `/gise/config` redireciona para `/gise/operacoes`; `/gise/operacoes/<id>/config`
       redireciona para o painel de edição daquela operação
+
+**Excluir** (só na operação sem escala nenhuma):
+
+- [ ] Criar uma operação de teste baseando o formulário na CRAJUBAR, excluí-la e
+      conferir que ela some da lista **e** que os formulários dela foram junto
+      (`SELECT count(*) FROM gise_modelo_formulario WHERE operacao_id = <id>` → 0)
+- [ ] A confirmação diz o nome da operação e cita o formulário que se perde
+- [ ] Criar uma escala extra na operação de teste → o botão **Excluir** some da
+      linha dela
 
 ### 4.12 Navegação do módulo (barra lateral)
 
@@ -268,6 +290,9 @@ Verificar cada transição de status:
 - [ ] `/dados-base` com uma pendência só redireciona direto ao preenchimento;
       com mais de uma, mostra a lista para escolher (e nenhum campo)
 - [ ] `/dados-base/<id inexistente>` → 404, e **não** a tela de outra operação
+- [ ] O **Voltar** segue por onde se entrou: Admin Geral volta a
+      `/gise/operacoes`; admin de unidade com mais de uma pendência volta ao
+      índice; com **uma só**, não há botão — o índice o traria de volta para cá
 - [ ] Sem pendência nenhuma → texto explicando as duas condições (meta percentual
       **e** unidade escalada)
 

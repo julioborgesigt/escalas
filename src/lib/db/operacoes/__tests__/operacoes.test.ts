@@ -19,6 +19,7 @@ import {
 	criarOperacao,
 	atualizarOperacao,
 	definirAtivoOperacao,
+	excluirOperacao,
 	contarEscalasPorOperacao,
 	clonarModelosFormulario,
 	tiposEquipeDaOperacao,
@@ -275,6 +276,117 @@ describe('CRUD de operações', () => {
 		const op = await buscarOperacao(db, id);
 		expect(op?.sigla).toBe('XYZ');
 		expect(op?.nome).toBe('X');
+	});
+});
+
+describe('excluirOperacao', () => {
+	/** Quantos formulários a operação tem gravados — o que o DELETE tem de levar junto. */
+	function modelosDe(operacaoId: number): number {
+		return Number(
+			(
+				sqlite
+					.prepare('SELECT count(*) AS c FROM gise_modelo_formulario WHERE operacao_id = ?')
+					.get(operacaoId) as { c: number }
+			).c
+		);
+	}
+
+	/** Operação nova já com os dois formulários clonados da CRAJUBAR. */
+	async function operacaoComFormulario(nome: string): Promise<number> {
+		const cra = await buscarOperacaoPorNome(db, 'OPERAÇÃO CRAJUBAR');
+		const id = await criarOperacao(db, {
+			nome,
+			usaEquipeOperacional: true,
+			usaEquipeSeint: true
+		});
+		await clonarModelosFormulario(db, cra!.id, id, ['operacional', 'seint']);
+		return id;
+	}
+
+	it('apaga a operação E os formulários dela', async () => {
+		const id = await operacaoComFormulario('OPERAÇÃO TESTE');
+		expect(modelosDe(id)).toBe(2);
+
+		expect(await excluirOperacao(db, id)).toBe(true);
+
+		expect(await buscarOperacao(db, id)).toBeNull();
+		// Sem esta limpeza as linhas ficariam órfãs, ocupando o índice único
+		// `(operacao_id, tipo)` com um id que não existe mais.
+		expect(modelosDe(id)).toBe(0);
+	});
+
+	it('a linha de base cai junto, por cascade', async () => {
+		const id = await operacaoComFormulario('OPERAÇÃO COM BASE');
+		const unidade = novaUnidade('DELEGACIA DA OPERAÇÃO TESTE');
+		await upsertLinhaBase(db, {
+			operacaoId: id,
+			unidadeId: unidade,
+			indicadorKey: 'crajubar_acervo_pendentes',
+			valor: 900
+		});
+
+		expect(await excluirOperacao(db, id)).toBe(true);
+
+		const restantes = sqlite
+			.prepare('SELECT count(*) AS c FROM operacao_linha_base WHERE operacao_id = ?')
+			.get(id) as { c: number };
+		expect(Number(restantes.c)).toBe(0);
+		// A unidade não some: a FK dela é `restrict`, e a delegacia existe fora da
+		// operação.
+		expect(await buscarOperacao(db, id)).toBeNull();
+		expect(
+			Number(
+				(
+					sqlite.prepare('SELECT count(*) AS c FROM unidades WHERE id = ?').get(unidade) as {
+						c: number;
+					}
+				).c
+			)
+		).toBe(1);
+	});
+
+	it('recusa quando há escala, e não apaga NADA', async () => {
+		const id = await operacaoComFormulario('OPERAÇÃO COM ESCALA');
+		const sec = novaUnidade('SECCIONAL DA EXCLUSÃO', 'seccional');
+		novaEscala(id, sec);
+
+		expect(await excluirOperacao(db, id)).toBe(false);
+
+		// A recusa é total: nem a operação nem o formulário podem ter sido tocados,
+		// senão uma exclusão barrada deixaria a operação sem formulário.
+		expect((await buscarOperacao(db, id))?.nome).toBe('OPERAÇÃO COM ESCALA');
+		expect(modelosDe(id)).toBe(2);
+	});
+
+	it('a contagem é feita AQUI — chamador que erra não passa', async () => {
+		// A tela mostra o botão a partir de um número que pode ter envelhecido: se a
+		// recusa dependesse do chamador, uma escala criada no meio seria ignorada.
+		const gise = await buscarOperacaoPorNome(db, 'GISE');
+		const sec = novaUnidade('SECCIONAL DO GISE', 'seccional');
+		novaEscala(gise!.id, sec);
+
+		expect(await excluirOperacao(db, gise!.id)).toBe(false);
+		expect(await buscarOperacao(db, gise!.id)).not.toBeNull();
+	});
+
+	it('não encosta na operação vizinha', async () => {
+		const alvo = await operacaoComFormulario('OPERAÇÃO A EXCLUIR');
+		const vizinha = await operacaoComFormulario('OPERAÇÃO VIZINHA');
+		const unidade = novaUnidade('DELEGACIA DA VIZINHA');
+		await upsertLinhaBase(db, {
+			operacaoId: vizinha,
+			unidadeId: unidade,
+			indicadorKey: 'crajubar_acervo_pendentes',
+			valor: 42
+		});
+
+		expect(await excluirOperacao(db, alvo)).toBe(true);
+
+		expect((await buscarOperacao(db, vizinha))?.nome).toBe('OPERAÇÃO VIZINHA');
+		expect(modelosDe(vizinha)).toBe(2);
+		expect(
+			(await mapaLinhaBaseDaUnidade(db, vizinha, unidade)).get('crajubar_acervo_pendentes')
+		).toBe(42);
 	});
 });
 

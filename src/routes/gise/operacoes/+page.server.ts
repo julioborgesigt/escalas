@@ -8,9 +8,12 @@
  *   opção, não o padrão — o formulário de produtividade tem dezenas de perguntas
  *   e reescrevê-las a cada operação nova seria o caminho para operações
  *   incomparáveis entre si;
- * - **não existe excluir.** Só desativar. Escala histórica e PDF assinado
- *   continuam apontando para a operação, e apagá-la deixaria documento entregue
- *   sem origem. Mesma regra de `unidades`;
+ * - **excluir só o que nunca foi usado.** Operação COM escala não se exclui:
+ *   escala histórica e PDF assinado continuam apontando para ela, e apagá-la
+ *   deixaria documento entregue sem origem (mesma regra de `unidades`). O que
+ *   some é a operação sem escala nenhuma — a criada por engano, a de teste. A
+ *   contagem é refeita no SERVIDOR na hora de excluir: a que a tela mostrou pode
+ *   ter envelhecido;
  * - **o clone só acontece na CRIAÇÃO.** Editar uma operação existente não
  *   reclona: isso sobrescreveria em silêncio um formulário que já está em uso,
  *   e as respostas gravadas continuariam com as `key` antigas.
@@ -34,6 +37,7 @@ import {
 	criarOperacao,
 	atualizarOperacao,
 	definirAtivoOperacao,
+	excluirOperacao,
 	contarEscalasPorOperacao,
 	clonarModelosFormulario,
 	buscarVagasPadraoEquipesGise,
@@ -399,8 +403,65 @@ export const actions: Actions = {
 	},
 
 	/**
-	 * Ativa/desativa. É o substituto da exclusão: a operação some das listas de
-	 * escolha e continua resolvendo nome e id em todo o histórico.
+	 * Exclui de vez — só a operação que nunca recebeu escala.
+	 *
+	 * Quem decide é `excluirOperacao`, que reconta as escalas antes de apagar: o
+	 * botão só aparece na tela quando a contagem é zero, mas essa contagem veio do
+	 * `load` e pode ter envelhecido. Esconder o botão não é autorização, e uma
+	 * contagem de dez segundos atrás também não é.
+	 */
+	excluir: async (event) => {
+		const { request, locals, platform } = event;
+		if (!isAdminGeral(locals.usuario)) return fail(403, { error: 'Somente Administrador Geral' });
+
+		const fd = await request.formData();
+		const id = Number(fd.get('id'));
+		if (!Number.isInteger(id) || id <= 0) return fail(400, { error: 'Operação inválida' });
+
+		const db = getDB(platform);
+		const operacao = await buscarOperacao(db, id);
+		if (!operacao) return fail(404, { error: 'Operação não encontrada' });
+
+		let apagou: boolean;
+		try {
+			apagou = await excluirOperacao(db, id);
+		} catch (e) {
+			logger.error('[gise/operacoes] excluir', { error: String(e), id });
+			return fail(500, { error: 'Erro ao excluir a operação.' });
+		}
+
+		if (!apagou) {
+			return fail(409, {
+				error: `A operação "${operacao.nome}" já tem escalas e não pode ser excluída. Desative-a.`
+			});
+		}
+
+		const { contexto, env } = contextoDeEvento(event);
+		await auditar(
+			db,
+			{
+				acao: 'excluir_operacao',
+				usuario: locals.usuario,
+				entidade: 'operacao',
+				entidade_id: id,
+				detalhes: `Operação "${operacao.nome}" excluída (não tinha escalas)`,
+				dados_antes: {
+					nome: operacao.nome,
+					sigla: operacao.sigla,
+					usa_equipe_operacional: operacao.usa_equipe_operacional,
+					usa_equipe_seint: operacao.usa_equipe_seint
+				},
+				...contexto
+			},
+			{ env }
+		);
+
+		return { success: true, excluida: operacao.nome };
+	},
+
+	/**
+	 * Ativa/desativa. É o que resta para a operação que JÁ tem escala: ela some
+	 * das listas de escolha e continua resolvendo nome e id em todo o histórico.
 	 */
 	alternarAtivo: async (event) => {
 		const { request, locals, platform } = event;

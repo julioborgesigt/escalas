@@ -1,6 +1,12 @@
 import { test, expect } from '@playwright/test';
 import { FIXTURE } from './global-setup';
-import { autenticarPagina, execD1Local, queryD1Local } from './session';
+import {
+	autenticarPagina,
+	seedSession,
+	headersFormAction,
+	execD1Local,
+	queryD1Local
+} from './session';
 
 /**
  * O formulário único da operação e o slider de `/gise/operacoes`.
@@ -18,6 +24,10 @@ import { autenticarPagina, execD1Local, queryD1Local } from './session';
  * A distinção `NULL` × `0` também vive aqui, e é a que mais se perde numa
  * refatoração: vazio significa "herda o padrão do sistema" e zero significa
  * "esta equipe não tem essa vaga".
+ *
+ * A **exclusão** fecha o spec, e a asserção que importa é a negativa: a operação
+ * COM escala não pode sumir nem por POST direto. O botão escondido na tela não é
+ * autorização — quem recusa é a action, e é a contagem no servidor que decide.
  */
 
 const NOME = 'OPERACAO E2E FORMULARIO';
@@ -33,14 +43,34 @@ function operacaoGravada(): Record<string, unknown> | null {
 	return linhas?.[0] ?? null;
 }
 
+/** Quantos formulários a operação tem gravados. `-1` quando o wrangler falha. */
+function modelosDaOperacao(operacaoId: number): number {
+	const linhas = queryD1Local<{ c: number }>(
+		`SELECT count(*) AS c FROM gise_modelo_formulario WHERE operacao_id = ${operacaoId}`
+	);
+	return Number(linhas?.[0]?.c ?? -1);
+}
+
 test.describe.configure({ mode: 'serial' });
 
 test.beforeAll(() => {
-	execD1Local(`DELETE FROM operacoes WHERE nome = '${NOME}';`);
+	// O modelo sai junto: `gise_modelo_formulario.operacao_id` não tem FK, então
+	// uma corrida interrompida deixaria a linha órfã ocupando `(operacao_id, tipo)`.
+	execD1Local(`
+		DELETE FROM gise_modelo_formulario
+		 WHERE operacao_id IN (SELECT id FROM operacoes WHERE nome = '${NOME}');
+		DELETE FROM operacoes WHERE nome = '${NOME}';
+	`);
 });
 
 test.afterAll(() => {
-	execD1Local(`DELETE FROM operacoes WHERE nome = '${NOME}';`);
+	// O modelo sai junto: `gise_modelo_formulario.operacao_id` não tem FK, então
+	// uma corrida interrompida deixaria a linha órfã ocupando `(operacao_id, tipo)`.
+	execD1Local(`
+		DELETE FROM gise_modelo_formulario
+		 WHERE operacao_id IN (SELECT id FROM operacoes WHERE nome = '${NOME}');
+		DELETE FROM operacoes WHERE nome = '${NOME}';
+	`);
 });
 
 test('criar pede identificação E configuração no mesmo formulário, e grava as duas', async ({
@@ -155,4 +185,83 @@ test('o editor de formulário tem o voltar para as operações', async ({ page }
 	await expect(voltar).toBeVisible();
 	await voltar.click();
 	await expect(page).toHaveURL(/\/gise\/operacoes/);
+});
+
+/** A GISE do cenário compartilhado — é a operação COM escalas do teste negativo. */
+function operacaoComEscalas(): { id: number; escalas: number } | null {
+	const linhas = queryD1Local<{ id: number; escalas: number }>(
+		`SELECT o.id AS id, (SELECT count(*) FROM gise_escalas e WHERE e.operacao_id = o.id) AS escalas
+		 FROM operacoes o WHERE o.nome = 'GISE'`
+	);
+	return linhas?.[0] ?? null;
+}
+
+test('"Excluir" só na operação sem escala nenhuma', async ({ page }) => {
+	const ok = await autenticarPagina(page, FIXTURE.adminGeral.id, 'admin');
+	test.skip(!ok, 'D1 local indisponível');
+	const com = operacaoComEscalas();
+	test.skip(com == null || com.escalas === 0, 'a GISE do cenário está sem escalas');
+
+	await page.goto('/gise/operacoes');
+
+	// A criada por este spec nunca recebeu escala: some de vez.
+	const nova = page.locator('li').filter({ hasText: NOME });
+	await expect(nova.getByRole('button', { name: 'Excluir', exact: true })).toBeVisible();
+
+	// A GISE tem escala, e escala histórica é apontada por PDF assinado: só
+	// desativar. O botão nem existe.
+	const gise = page.locator('li').filter({ hasText: 'Grupo de Investigação' });
+	await expect(gise.getByRole('button', { name: 'Excluir', exact: true })).toHaveCount(0);
+	await expect(gise.getByRole('button', { name: 'Desativar' })).toBeVisible();
+});
+
+test('POST direto de exclusão numa operação COM escala é recusado', async ({ request }) => {
+	const token = seedSession(FIXTURE.adminGeral.id, 'admin');
+	test.skip(!token, 'D1 local indisponível');
+	const com = operacaoComEscalas();
+	test.skip(com == null || com.escalas === 0, 'a GISE do cenário está sem escalas');
+
+	// Esconder o botão não é autorização: quem recusa é a action, recontando as
+	// escalas no servidor. A contagem que a tela mostrou pode ter envelhecido.
+	const res = await request.post('/gise/operacoes?/excluir', {
+		headers: headersFormAction(token!),
+		form: { id: String(com!.id) }
+	});
+
+	const corpo = await res.text();
+	expect(corpo).toContain('não pode ser excluída');
+	// O efeito é o que importa: a operação continua lá, com as escalas dela.
+	expect(operacaoComEscalas()?.escalas).toBe(com!.escalas);
+});
+
+test('excluir apaga a operação e o formulário dela', async ({ page }) => {
+	const ok = await autenticarPagina(page, FIXTURE.adminGeral.id, 'admin');
+	test.skip(!ok, 'D1 local indisponível');
+	const op = operacaoGravada();
+	test.skip(op == null, 'operação do cenário não foi criada');
+
+	// O formulário é semeado aqui, e não pelo "basear em" da criação: o D1 local
+	// pode estar sem os modelos da CRAJUBAR, e um clone vazio tornaria a asserção
+	// de limpeza verdadeira sem provar nada.
+	execD1Local(
+		`INSERT INTO gise_modelo_formulario (operacao_id, tipo, config)
+		 VALUES (${op!.id}, 'operacional', '[]');`
+	);
+	expect(modelosDaOperacao(Number(op!.id))).toBe(1);
+
+	await page.goto('/gise/operacoes');
+	const linha = page.locator('li').filter({ hasText: NOME });
+	await linha.getByRole('button', { name: 'Excluir', exact: true }).click();
+
+	// Confirmação: o texto diz o que se perde junto, e o nome da operação.
+	const modal = page.getByRole('dialog');
+	await expect(modal).toContainText(NOME);
+	await modal.getByRole('button', { name: 'Excluir operação' }).click();
+
+	await expect(page.locator('li').filter({ hasText: NOME })).toHaveCount(0);
+	expect(operacaoGravada()).toBeNull();
+	// `gise_modelo_formulario.operacao_id` não tem FK (veio de `ALTER TABLE ADD
+	// COLUMN`), então a limpeza é explícita — sem ela sobrariam linhas órfãs
+	// ocupando o índice único `(operacao_id, tipo)` com um id que não existe mais.
+	expect(modelosDaOperacao(Number(op!.id))).toBe(0);
 });

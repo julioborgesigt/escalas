@@ -26,6 +26,13 @@
  * nenhum, e um seletor convivendo com os campos é exatamente o convite a esse
  * erro. Com a operação no caminho não há controle a errar — trocar de operação é
  * navegar, e o índice (`/dados-base`) é quem oferece a escolha, ANTES dos campos.
+ *
+ * ## O destino do "Voltar" vem do SERVIDOR
+ *
+ * Ele não pode ser fixo em `/dados-base`: o índice REDIRECIGE para cá quando há
+ * uma pendência só, então o Voltar fixo devolvia a pessoa à mesma tela. Quem
+ * calcula é o `load`, porque só ele sabe quantas pendências existem e por qual
+ * porta o usuário entrou — ver `destinoDeVolta`.
  */
 import { error, fail } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
@@ -40,8 +47,12 @@ import {
 	auditar,
 	contextoDeEvento
 } from '$lib/db';
-import { isAnyAdmin } from '$lib/auth';
-import { unidadesLinhaBaseAdministradas } from '$lib/server/operacoes/permissao';
+import type { Database } from '$lib/db';
+import { isAdminGeral, isAnyAdmin } from '$lib/auth';
+import {
+	unidadesLinhaBaseAdministradas,
+	operacoesComLinhaBasePendente
+} from '$lib/server/operacoes/permissao';
 import { extrairIndicadoresDeModelos, indicadoresComLinhaBase } from '$lib/gise/indicadores';
 import { logger } from '$lib/server/logger';
 import type { GiseModeloPerguntaConfig } from '$lib/types';
@@ -67,6 +78,35 @@ function parseModelo(raw: string | null | undefined, rotulo: string): GiseModelo
 	}
 }
 
+/**
+ * Para onde o "Voltar" desta tela leva — ou `null` quando não há para onde.
+ *
+ * O destino depende de por qual porta se entrou, e nenhuma das duas é
+ * `/dados-base` incondicionalmente:
+ *
+ * - **Admin Geral** chega pelo botão "Dados base" da linha da operação em
+ *   `/gise/operacoes`, e é para lá que ele volta. A aba lateral nem existe para
+ *   ele (`temLinhaBaseAPreencher` devolve `false`), então esta é a única porta;
+ * - **admin de unidade/seccional** chega pela aba lateral, que passa pelo índice
+ *   `/dados-base`. Só que o índice REDIRECIONA para cá quando há uma pendência
+ *   só — voltar para ele seria voltar para esta mesma tela. Com mais de uma
+ *   pendência o índice é uma tela de verdade e o botão faz sentido; com uma só,
+ *   `null`, e o caminho de volta é a barra lateral.
+ *
+ * Um "Voltar" que não sai do lugar é pior que nenhum: a pessoa clica, a tela
+ * pisca, e ela conclui que o botão está quebrado — que foi exatamente o que
+ * aconteceu quando o `href` era fixo.
+ */
+async function destinoDeVolta(
+	db: Database,
+	u: NonNullable<App.Locals['usuario']>
+): Promise<{ href: string; rotulo: string } | null> {
+	if (isAdminGeral(u)) return { href: '/gise/operacoes', rotulo: 'Voltar às operações' };
+
+	const pendentes = await operacoesComLinhaBasePendente(db, u);
+	return pendentes.length > 1 ? { href: '/dados-base', rotulo: 'Voltar' } : null;
+}
+
 export const load: PageServerLoad = async ({ locals, platform, params, depends }) => {
 	depends('app:dados-base');
 
@@ -85,11 +125,12 @@ export const load: PageServerLoad = async ({ locals, platform, params, depends }
 	const operacao = operacoesLista.find((o) => o.id === operacaoId);
 	if (!operacao) error(404, 'Operação não encontrada ou já encerrada');
 
-	const [permitidas, participantes, modeloOp, modeloSeint] = await Promise.all([
+	const [permitidas, participantes, modeloOp, modeloSeint, voltar] = await Promise.all([
 		unidadesLinhaBaseAdministradas(db, u, operacao.id),
 		unidadesParticipantesDaOperacao(db, operacao.id),
 		buscarGiseModeloFormulario(db, operacao.id, 'operacional'),
-		buscarGiseModeloFormulario(db, operacao.id, 'seint')
+		buscarGiseModeloFormulario(db, operacao.id, 'seint'),
+		destinoDeVolta(db, u)
 	]);
 
 	// Só indicador PERCENTUAL aparece: meta absoluta ("mínimo de 1 por
@@ -130,7 +171,8 @@ export const load: PageServerLoad = async ({ locals, platform, params, depends }
 		operacao: { id: operacao.id, nome: operacao.nome },
 		indicadores,
 		unidades: unidadesEditaveis,
-		valores
+		valores,
+		voltar
 	};
 };
 

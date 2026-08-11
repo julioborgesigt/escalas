@@ -4,9 +4,12 @@
  * A operação é o que dá identidade à escala extra e é dona dos formulários de
  * produtividade. Duas regras moram aqui e não nas rotas:
  *
- * - **operação não se exclui, desativa-se.** Não existe `excluirOperacao` neste
- *   módulo, e é deliberado: escala histórica e PDF assinado continuam apontando
- *   para ela. Mesmo desenho de `unidades.ativo`.
+ * - **operação COM escala não se exclui, desativa-se.** Escala histórica e PDF
+ *   assinado continuam apontando para ela, e apagá-la deixaria documento
+ *   entregue sem origem. Mesmo desenho de `unidades.ativo`. `excluirOperacao`
+ *   existe e é o caso complementar: operação que nunca recebeu escala nenhuma —
+ *   a criada por engano, a de teste — não é história de nada e some de vez. A
+ *   contagem é feita DENTRO da função, não confiada ao chamador.
  * - **toda operação tem ao menos um tipo de equipe.** O banco aceita (0,0); a
  *   aplicação não. Operação sem tipo de equipe não escala ninguém e não teria
  *   formulário nenhum — `normalizarTiposEquipe` é quem barra.
@@ -212,6 +215,40 @@ export async function contarEscalasPorOperacao(db: Database): Promise<Map<number
 		if (l.operacao_id != null) mapa.set(l.operacao_id, Number(l.total));
 	}
 	return mapa;
+}
+
+/**
+ * Exclui a operação — só quando ela não tem escala NENHUMA.
+ *
+ * Devolve `false` sem apagar nada quando há escala. A contagem acontece aqui, e
+ * não no chamador, porque é a regra de domínio: a tela mostra o botão a partir
+ * de um número que pode ter envelhecido (alguém criou uma escala no meio), e
+ * confiar nele deixaria a exclusão passar.
+ *
+ * ## A limpeza dos modelos é EXPLÍCITA, e precisa ser
+ *
+ * `gise_escalas.operacao_id` e `gise_modelo_formulario.operacao_id` foram
+ * acrescentadas por `ALTER TABLE ADD COLUMN` na migração 0048 e **não têm FK** —
+ * o SQLite não permite acrescentar constraint depois. Só
+ * `operacao_linha_base.operacao_id` tem `ON DELETE CASCADE` de verdade.
+ *
+ * Consequência prática: um `DELETE FROM operacoes` sozinho deixaria as linhas de
+ * `gise_modelo_formulario` órfãs, ocupando o índice único `(operacao_id, tipo)`
+ * com um id que não existe mais. Por isso o modelo é apagado primeiro, e nesta
+ * ordem: se a segunda etapa falhar, sobra uma operação sem formulário — estado
+ * recuperável pelo editor — em vez de um formulário sem dono.
+ */
+export async function excluirOperacao(db: Database, id: number): Promise<boolean> {
+	const usos = await db
+		.select({ total: sql<number>`count(*)` })
+		.from(giseEscalas)
+		.where(eq(giseEscalas.operacao_id, id))
+		.get();
+	if (Number(usos?.total ?? 0) > 0) return false;
+
+	await db.delete(giseModeloFormulario).where(eq(giseModeloFormulario.operacao_id, id));
+	await db.delete(operacoes).where(eq(operacoes.id, id));
+	return true;
 }
 
 /**
