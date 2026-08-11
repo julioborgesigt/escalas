@@ -4,6 +4,7 @@ import { baixarBlob, nomeArquivoContentDisposition } from '$lib/utils/download';
 import { fmtDate } from '$lib/gise/formatters';
 import { renumerarPerguntas } from '$lib/gise/renumerar-perguntas';
 import { ehProporcao } from '$lib/gise/indicadores';
+import { formasDaMarca, type FormaGrafico } from '$lib/produtividade';
 import { loading } from '$lib/loading.svelte';
 import { page } from '$app/state';
 import { goto } from '$app/navigation';
@@ -116,21 +117,33 @@ export function useResGise(getData: () => ResGisePageData) {
 	}
 
 	/**
-	 * Liga/desliga o GRÁFICO da pergunta no painel de produtividade.
+	 * Liga/desliga UMA FORMA do gráfico da pergunta no painel de produtividade.
 	 *
-	 * Remove a chave ao desligar, em vez de gravar `grafico: false`: a ausência já
-	 * é a resposta ("não entra"), e um `false` explícito no JSON convidaria a
-	 * próxima leitura a inventar um terceiro estado. Mesma escolha de
-	 * `alternarIndicador`, logo abaixo.
+	 * Três formas independentes (colunas, ranking, detalhamento), e a pergunta
+	 * pode ter quantas quiser: drogas e armas mostram ranking E detalhamento, que
+	 * é como o painel sempre as desenhou.
+	 *
+	 * Remove a chave inteira quando a última forma é desligada, em vez de deixar
+	 * `{}` pendurado: a ausência já é a resposta ("não aparece"), e um objeto vazio
+	 * no JSON convidaria a próxima leitura a inventar um terceiro estado. Mesma
+	 * escolha de `alternarIndicador`, logo abaixo.
+	 *
+	 * `formasDaMarca` normaliza a leitura porque o modelo pode trazer a marca
+	 * ANTIGA — o booleano anterior à migração 0054, ainda possível numa
+	 * sub-pergunta, que a migração não alcançou.
 	 *
 	 * Independente do indicador de propósito — são duas seções diferentes do
 	 * painel. Uma pergunta pode ser gráfico sem meta (volume que se acompanha sem
-	 * prometer número) e meta sem gráfico de barras (a de cobertura, que já tem a
-	 * própria leitura).
+	 * prometer número) e meta sem gráfico (a de cobertura, que já tem a própria
+	 * leitura).
 	 */
-	function alternarGrafico(p: GiseModeloPerguntaConfig) {
-		if (p.grafico) delete p.grafico;
-		else p.grafico = true;
+	function alternarFormaGrafico(p: GiseModeloPerguntaConfig, forma: FormaGrafico) {
+		const formas = formasDaMarca(p.grafico);
+		formas[forma] = !formas[forma];
+
+		if (!formas.colunas && !formas.ranking && !formas.detalhe) delete p.grafico;
+		else p.grafico = formas;
+
 		perguntasConfig = [...perguntasConfig];
 	}
 
@@ -595,7 +608,7 @@ export function useResGise(getData: () => ResGisePageData) {
 		moverPergunta,
 		removerPergunta,
 		trocarOperacao,
-		alternarGrafico,
+		alternarFormaGrafico,
 		alternarIndicador,
 		definirMetaTipoIndicador,
 		handleSalvarModelo,

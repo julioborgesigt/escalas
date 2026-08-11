@@ -20,14 +20,15 @@
 	 * estatística e cada ranking reparsearia os mesmos blobs.
 	 *
 	 * As PERGUNTAS não são fixas: vêm do modelo salvo em `gise_modelo_formulario`
-	 * e passam por `mapQuestions`, que só deixa passar as MARCADAS como gráfico no
-	 * editor. Um formulário editado pelo assessor muda os cards sem tocar esta
-	 * tela — e por isso nada aqui indexa resposta por posição.
+	 * e passam por `mapQuestions`, que só deixa passar as MARCADAS — e a marca diz
+	 * em QUE forma cada uma aparece (colunas, ranking, detalhamento por tipo). Um
+	 * formulário editado pelo assessor muda os cards sem tocar esta tela, e por
+	 * isso nada aqui indexa resposta por posição.
 	 *
-	 * A exceção são os três blocos de `SecaoRankings` (prisões, drogas, armas),
-	 * escritos no código porque o que interessa neles é o detalhe por tipo. Eles
-	 * também dependem do modelo, mas por PRESENÇA da pergunta e não por marca —
-	 * ver `blocosFixosDisponiveis`.
+	 * A única exceção é o bloco de PRISÕES, escrito no código porque o
+	 * detalhamento dele soma três perguntas diferentes e não cabe numa marca que
+	 * vive em uma só. Ele depende do modelo por PRESENÇA da pergunta — ver
+	 * `temBlocoPrisoes`.
 	 *
 	 * Chart.js entra por `import()` dinâmico (~200 KB): a página abre com os
 	 * filtros e a tabela antes de a biblioteca chegar.
@@ -353,30 +354,29 @@
 				indicador de meta configurado.
 			</p>
 			<p class="text-2xs text-surface-600 dark:text-surface-400">
-				No editor do formulário, marque <strong>"Mostrar como gráfico na produtividade"</strong> nas perguntas
-				que você quer acompanhar — as demais continuam sendo coletadas normalmente, apenas não viram card
-				aqui.
+				No editor do formulário, em <strong>Mostrar na produtividade</strong>, escolha a forma de
+				cada pergunta que você quer acompanhar: colunas por unidade, ranking, ou detalhamento por
+				tipo. As demais continuam sendo coletadas normalmente, apenas não viram card aqui.
 			</p>
 		</section>
 	{/if}
 
-	{#if p.filterTipo === 'operacional'}
-		<SecaoRankings
-			rankingPrisoes={p.rankingPrisoes}
-			rankingDrogasPeso={p.rankingDrogasPeso}
-			rankingArmas={p.rankingArmas}
-			blocos={p.blocosFixos}
-			stats={p.stats}
-			rotuloGrupo={p.modoVisualizacao === 'delegacias' ? 'Delegacia' : 'Seccional'}
-			selectedCharts={p.selectedCharts}
-			onToggle={p.toggleChartSelection}
-		/>
-	{/if}
+	<!-- Rankings e detalhamentos. O bloco de prisões só existe no operacional (as
+	     perguntas que o alimentam são de lá); os cards vindos do modelo valem para
+	     os dois tipos de equipe, porque saem do formulário em foco. -->
+	<SecaoRankings
+		temPrisoes={p.temPrisoes}
+		rankingPrisoes={p.rankingPrisoes}
+		cards={p.cardsListagem}
+		stats={p.stats}
+		rotuloGrupo={p.modoVisualizacao === 'delegacias' ? 'Delegacia' : 'Seccional'}
+		selectedCharts={p.selectedCharts}
+		onToggle={p.toggleChartSelection}
+	/>
 
 	<SecaoGraficos
 		questions={p.QUESTIONS}
 		stats={p.stats}
-		parsedData={p.parsedData}
 		canvasElements={p.canvasElements}
 		selectedCharts={p.selectedCharts}
 		modoVisualizacao={p.modoVisualizacao}

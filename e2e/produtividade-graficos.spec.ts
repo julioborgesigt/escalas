@@ -8,14 +8,16 @@ import { autenticarPagina, execD1Local, queryD1Local } from './session';
  * Dois bugs relatados em ago/2026, e os dois são da mesma família: a tela
  * afirmava coisas sobre perguntas que o formulário não tinha.
  *
- * 1. **Os três blocos fixos apareciam sempre.** Prisões, drogas e armas são
+ * 1. **Os três blocos fixos apareciam sempre.** Prisões, drogas e armas eram
  *    cards escritos no código, e renderizavam em qualquer operação operacional.
  *    Numa operação nova, cujo formulário nunca teve pergunta de droga, a tela
  *    exibia "Ranking de Drogas" zerado. Apagar o campo do formulário não
- *    resolvia, porque o card nunca dependeu do campo.
- * 2. **Toda pergunta contável virava gráfico.** A quilometragem inicial da
- *    viatura ocupava um card ao lado das prisões, e o único jeito de tirá-la era
- *    apagar o campo — o que apagaria a coleta.
+ *    resolvia, porque o card nunca dependeu do campo. Drogas e armas viraram
+ *    marcação da pergunta; prisões continua fixo, porque atravessa três.
+ * 2. **Toda pergunta contável virava gráfico, e só em barras.** A quilometragem
+ *    inicial da viatura ocupava um card ao lado das prisões, e o único jeito de
+ *    tirá-la era apagar o campo — o que apagaria a coleta. Agora a pergunta diz
+ *    em QUE forma aparece: colunas, ranking, detalhamento, ou nenhuma.
  *
  * O cenário é montado com DOIS modelos de propósito: um formulário "enxuto"
  * (sem droga, sem arma, com uma pergunta marcada e outra não) e um "completo".
@@ -49,7 +51,7 @@ const MODELO_ENXUTO = JSON.stringify([
 		texto: 'ATENDIMENTOS REALIZADOS',
 		tipo: 'numero',
 		key: 'e2e_atendimentos',
-		grafico: true,
+		grafico: { colunas: true },
 		filhos: []
 	},
 	{ id: 2, texto: 'KM INICIAL DA VIATURA', tipo: 'numero', key: 'e2e_km_inicial', filhos: [] }
@@ -69,6 +71,8 @@ const MODELO_COMPLETO = JSON.stringify([
 		texto: 'APREENSAO DE DROGAS',
 		tipo: 'drogas_complex',
 		key: 'apreensoes_drogas',
+		// O par que os blocos fixos desenhavam, agora dito pela pergunta.
+		grafico: { ranking: true, detalhe: true },
 		filhos: []
 	},
 	{
@@ -76,6 +80,7 @@ const MODELO_COMPLETO = JSON.stringify([
 		texto: 'HOUVE APREENSAO DE ARMAS?',
 		tipo: 'armas_complex',
 		key: 'apreensoes_armas_bool',
+		grafico: { ranking: true, detalhe: true },
 		filhos: []
 	}
 ]);
@@ -173,7 +178,7 @@ test('os blocos fixos SOMEM na operação cujo formulário não tem a pergunta',
 	await expect(page.getByText('Ranking de Prisões')).toHaveCount(0);
 	await expect(page.getByText('Ranking de Drogas')).toHaveCount(0);
 	await expect(page.getByText('Ranking de Armas')).toHaveCount(0);
-	await expect(page.getByText('Detalhamento de Substâncias')).toHaveCount(0);
+	await expect(page.getByText('Detalhamento de Drogas')).toHaveCount(0);
 });
 
 test('e APARECEM na operação cujo formulário tem', async ({ page }) => {
@@ -182,10 +187,66 @@ test('e APARECEM na operação cujo formulário tem', async ({ page }) => {
 	test.skip(!ok, 'D1 local indisponível');
 	test.skip(!(await abrirPainel(page, C.completa)), 'operação do cenário não foi criada');
 
-	// A contraprova: o bloco não sumiu por acidente de renderização.
+	// Prisões vem do bloco FIXO (presença da pergunta de flagrante)…
 	await expect(page.getByText('Ranking de Prisões')).toBeVisible();
+	// …e droga e arma vêm da MARCA, com as duas formas cada uma. É a conversão da
+	// migração 0054: os quatro cards que os blocos fixos desenhavam continuam ali,
+	// agora ditos pelo formulário.
 	await expect(page.getByText('Ranking de Drogas')).toBeVisible();
+	await expect(page.getByText('Detalhamento de Drogas')).toBeVisible();
 	await expect(page.getByText('Ranking de Armas')).toBeVisible();
+	await expect(page.getByText('Detalhamento de Armas')).toBeVisible();
+});
+
+test('desligar UMA forma tira só o card dela', async ({ page }) => {
+	test.skip(!cenarioOk, 'D1 local indisponível');
+	const ok = await autenticarPagina(page, FIXTURE.adminGeral.id, 'admin');
+	test.skip(!ok, 'D1 local indisponível');
+	const id = operacaoId(C.completa);
+	test.skip(id == null, 'operação do cenário não foi criada');
+
+	// É o controle que o pedido pede: escolher ENTRE ranking e detalhamento, e não
+	// levar os dois de pacote como os blocos fixos obrigavam.
+	execD1Local(
+		`UPDATE gise_modelo_formulario
+		 SET config = json_set(config, '$[1].grafico', json('{"detalhe":true}'))
+		 WHERE operacao_id = ${id} AND tipo = 'operacional';`
+	);
+
+	await abrirPainel(page, C.completa);
+	await expect(page.getByText('Detalhamento de Drogas')).toBeVisible();
+	await expect(page.getByText('Ranking de Drogas')).toHaveCount(0);
+	// A de armas, intocada, continua com as duas.
+	await expect(page.getByText('Ranking de Armas')).toBeVisible();
+
+	// Repõe para o spec poder rodar de novo sobre o mesmo banco local.
+	execD1Local(
+		`UPDATE gise_modelo_formulario
+		 SET config = json_set(config, '$[1].grafico', json('{"ranking":true,"detalhe":true}'))
+		 WHERE operacao_id = ${id} AND tipo = 'operacional';`
+	);
+});
+
+test('a caixa "Detalhamento" fica desabilitada onde não há quebra por tipo', async ({ page }) => {
+	test.skip(!cenarioOk, 'D1 local indisponível');
+	const ok = await autenticarPagina(page, FIXTURE.adminGeral.id, 'admin');
+	test.skip(!ok, 'D1 local indisponível');
+	const id = operacaoId(C.enxuta);
+	test.skip(id == null, 'operação do cenário não foi criada');
+
+	await page.goto(`/res-gise?operacaoId=${id}`);
+
+	// As duas perguntas do formulário enxuto são `numero`: um valor só, nada a
+	// quebrar. Desabilitada e não escondida — a caixa apagada é que diz por quê.
+	const detalhe = page.getByRole('checkbox', { name: /Detalhamento por tipo/ });
+	await expect(detalhe.first()).toBeDisabled();
+	await expect(
+		page.getByText(/Só em perguntas que guardam quebra por categoria/).first()
+	).toBeVisible();
+
+	// Colunas e ranking continuam disponíveis: são a mesma conta, outra leitura.
+	await expect(page.getByRole('checkbox', { name: /Colunas por unidade/ }).first()).toBeEnabled();
+	await expect(page.getByRole('checkbox', { name: /Ranking de unidades/ }).first()).toBeEnabled();
 });
 
 test('operação sem nada a mostrar explica o que fazer, em vez de ficar em branco', async ({
@@ -208,12 +269,12 @@ test('operação sem nada a mostrar explica o que fazer, em vez de ficar em bran
 	await page.goto(`/produtividade?operacaoId=${id}`);
 	await expect(page.getByText('Nada a mostrar nesta operação')).toBeVisible();
 	// O conserto não está nesta página, e a tela diz onde está.
-	await expect(page.getByText('Mostrar como gráfico na produtividade')).toBeVisible();
+	await expect(page.getByText('Mostrar na produtividade')).toBeVisible();
 
 	// Repõe a marca para não deixar o cenário sujo se o spec for reexecutado.
 	execD1Local(
 		`UPDATE gise_modelo_formulario
-		 SET config = json_set(config, '$[0].grafico', json('true'))
+		 SET config = json_set(config, '$[0].grafico', json('{"colunas":true}'))
 		 WHERE operacao_id = ${id} AND tipo = 'operacional';`
 	);
 });
@@ -228,7 +289,7 @@ test('o editor traz a caixinha, e ela reflete o que está gravado', async ({ pag
 	await page.goto(`/res-gise?operacaoId=${id}`);
 
 	// Uma caixinha por pergunta graficável — as duas são `numero`.
-	const caixas = page.getByRole('checkbox', { name: /Mostrar como gráfico/ });
+	const caixas = page.getByRole('checkbox', { name: /Colunas por unidade/ });
 	await expect(caixas).toHaveCount(2);
 	// A primeira é a marcada; a segunda, a quilometragem.
 	await expect(caixas.nth(0)).toBeChecked();
@@ -247,7 +308,7 @@ test('desmarcar no editor e salvar tira o card do painel', async ({ page }) => {
 	// sem efeito nenhum — a tela confirma, o gráfico volta no reload.
 	await page.goto(`/res-gise?operacaoId=${id}`);
 	await page
-		.getByRole('checkbox', { name: /Mostrar como gráfico/ })
+		.getByRole('checkbox', { name: /Colunas por unidade/ })
 		.nth(0)
 		.uncheck();
 	await page.getByRole('button', { name: /Salvar Modelo/ }).click();
@@ -260,7 +321,7 @@ test('desmarcar no editor e salvar tira o card do painel', async ({ page }) => {
 	);
 	const perguntas = JSON.parse(gravado?.[0]?.config ?? '[]') as Array<{
 		key: string;
-		grafico?: boolean;
+		grafico?: { colunas?: boolean };
 	}>;
 	// Ausente, e não `false`: a ausência já é a resposta.
 	expect(perguntas.find((q) => q.key === 'e2e_atendimentos')?.grafico).toBeUndefined();
@@ -271,7 +332,7 @@ test('desmarcar no editor e salvar tira o card do painel', async ({ page }) => {
 	// Repõe, para o spec poder rodar de novo sobre o mesmo banco local.
 	execD1Local(
 		`UPDATE gise_modelo_formulario
-		 SET config = json_set(config, '$[0].grafico', json('true'))
+		 SET config = json_set(config, '$[0].grafico', json('{"colunas":true}'))
 		 WHERE operacao_id = ${id} AND tipo = 'operacional';`
 	);
 });

@@ -151,15 +151,17 @@ export function chavesProporcao(p: PerguntaChaveavel): { total: string; parte: s
  *   listados em `KEY_MAP` — marcar um `proporcao` desenharia uma barra de zeros.
  *   Cobertura já tem lugar próprio: a seção de indicadores.
  *
- * `drogas_complex` e `armas_complex` também ficam de fora: o que interessa neles
- * é o DETALHE por tipo de droga e por arma, e é isso que os blocos de ranking e
- * detalhamento mostram — uma barra com a soma diria muito menos.
+ * `drogas_complex` e `armas_complex` entram, mas raramente como COLUNAS: o que
+ * interessa neles é a quebra por tipo de droga e por tipo de arma, e é por isso
+ * que são os dois únicos tipos que aceitam a forma `detalhe`.
  */
 const TIPOS_GRAFICAVEIS: readonly string[] = [
 	'numero',
 	'select_99',
 	'select_999',
 	'sim_nao',
+	'drogas_complex',
+	'armas_complex',
 	'celulares_complex',
 	'analise_complex',
 	'relatorios_seint_complex',
@@ -170,11 +172,36 @@ const TIPOS_GRAFICAVEIS: readonly string[] = [
 
 /**
  * O tipo aceita a marca de gráfico? Único lugar que responde — usado pelo editor
- * (para mostrar a caixinha) e por `mapQuestions` (para descartar marca herdada de
- * uma pergunta cujo tipo mudou depois).
+ * (para mostrar as caixinhas) e por `mapQuestions` (para descartar marca herdada
+ * de uma pergunta cujo tipo mudou depois).
  */
 export function podeSerGrafico(tipo: string): boolean {
 	return TIPOS_GRAFICAVEIS.includes(tipo);
+}
+
+/**
+ * Tipos cuja resposta guarda uma quebra por CATEGORIA, e que por isso admitem a
+ * forma `detalhe` no painel.
+ *
+ * São dois, e a lista é curta por um motivo estrutural e não por falta de
+ * vontade: só `drogas_complex` e `armas_complex` gravam um objeto
+ * `{ categoria: valor }` no blob (`drogas_detalhe`, `armas_detalhe`). Uma
+ * pergunta de número guarda um número — não há segundo eixo para quebrar, e um
+ * "detalhamento" dela seria um card de uma barra só.
+ *
+ * Os tipos de LISTA guardam array de objetos (`{nome, delegacia, situacao}`), e
+ * dariam para quebrar por um dos campos. Não dá para adivinhar QUAL, então
+ * ficam de fora até alguém pedir com o campo escolhido no editor.
+ */
+const TIPOS_COM_DETALHE: readonly string[] = ['drogas_complex', 'armas_complex'];
+
+/**
+ * A pergunta tem quebra por categoria para detalhar? Decide se a caixinha
+ * "Detalhamento" aparece habilitada no editor e se `mapQuestions` respeita a
+ * marca — mesmo par poder/dever de `podeSerGrafico`.
+ */
+export function podeDetalhar(tipo: string): boolean {
+	return TIPOS_COM_DETALHE.includes(tipo);
 }
 
 /** Forma de um item vazio da lista, por tipo. */

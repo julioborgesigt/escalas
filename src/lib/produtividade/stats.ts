@@ -2,13 +2,10 @@
  * Cálculo de estatísticas agregadas a partir das respostas de produtividade.
  */
 
+import { valorDaResposta } from './apresentacao';
 import type { Question } from './questions';
 
 interface StatsResult {
-	drogasGeral: number;
-	drogasPorTipo: Record<string, number>;
-	apreensoes_armas: number;
-	armasPorTipo: Record<string, number>;
 	prisaoFlagrante: number;
 	prisaoMandado: number;
 	prisoesTotal: number;
@@ -33,29 +30,21 @@ type FilteredDataItem = {
  * de blobs por mês e a alternativa (uma passada por pergunta) multiplicaria o
  * custo pelo número de perguntas do modelo.
  *
- * Duas formas de agregar, decididas pelo tipo da pergunta: `isBool` CONTA
- * ocorrências (cada `'Sim'` vale 1 evento) e o resto SOMA o valor numérico —
- * tratar um "sim" como número daria zero e a pergunta desapareceria do painel.
- * A leitura usa `mappedKey`, não `key`, porque nos tipos compostos a resposta
- * mora em outra chave do blob.
+ * Como se soma cada pergunta é decisão de `valorDaResposta`
+ * (`$lib/produtividade/apresentacao`), e não daqui: a mesma regra — contar
+ * ocorrências num `sim_nao`, normalizar peso de droga para gramas, respeitar o
+ * gate booleano de armas — vale para as colunas, para o ranking e para este
+ * total. Eram três cópias até ago/2026, e a de armas já divergia das outras
+ * duas.
  *
- * Drogas: os pesos são normalizados para GRAMAS (`kg` × 1000) antes de somar,
- * senão 2 kg e 2 g virariam o mesmo 2 no total.
- *
- * Armas: o detalhe por tipo só é contado quando a pergunta booleana (`armasKey`,
- * que vem do modelo porque o assessor pode ter renomeado) está `'Sim'` — mesma
- * regra do relatório, para que lista digitada e depois negada não conte.
+ * Os totais de PRISÕES continuam explícitos aqui porque o bloco deles atravessa
+ * três perguntas e não se reduz a nenhuma — ver `temBlocoPrisoes`.
  */
 export function calculateStats(
 	filteredData: FilteredDataItem[],
-	questions: Question[],
-	armasKey: string
+	questions: Question[]
 ): StatsResult {
 	const s: StatsResult = {
-		drogasGeral: 0,
-		drogasPorTipo: {},
-		apreensoes_armas: 0,
-		armasPorTipo: {},
 		prisaoFlagrante: 0,
 		prisaoMandado: 0,
 		prisoesTotal: 0
@@ -72,36 +61,9 @@ export function calculateStats(
 			unknown
 		>;
 
-		// Dynamic Aggregation for all Numeric/Boolean/Smart Questions
 		questions.forEach((q) => {
-			const val = res[q.mappedKey || q.key];
-			if (q.isBool) {
-				if (val === 'Sim') s[q.key] = ((s[q.key] as number) || 0) + 1;
-			} else {
-				s[q.key] = ((s[q.key] as number) || 0) + (Number(val) || 0);
-			}
+			s[q.key] = ((s[q.key] as number) || 0) + valorDaResposta(res, q);
 		});
-
-		// P10: Drugs
-		if (res.drogas_detalhe) {
-			Object.entries(res.drogas_detalhe as Record<string, unknown>).forEach(([tipo, peso]) => {
-				const drogas_unidade = res.drogas_unidade as Record<string, unknown> | undefined;
-				const unid = (drogas_unidade && drogas_unidade[tipo]) || 'g';
-				let pNorm = Number(peso) || 0;
-				if (unid === 'kg') pNorm *= 1000;
-				s.drogasPorTipo[tipo] = (s.drogasPorTipo[tipo] || 0) + pNorm;
-				s.drogasGeral += pNorm;
-			});
-		}
-
-		// P11: Weapons
-		if (res[armasKey] === 'Sim' && res.armas_detalhe) {
-			Object.entries(res.armas_detalhe as Record<string, unknown>).forEach(([tipo, qtd]) => {
-				const n = Number(qtd) || 0;
-				s.apreensoes_armas += n;
-				s.armasPorTipo[tipo] = (s.armasPorTipo[tipo] || 0) + n;
-			});
-		}
 
 		// P4 & P5: Prisons
 		if (res.procedimentos_flagrante_bool === 'Sim') {

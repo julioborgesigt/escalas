@@ -1,5 +1,5 @@
 /**
- * Quais perguntas do formulário viram GRÁFICO de barras no painel, e onde ler a
+ * Quais perguntas do formulário viram card no painel, em que FORMA, e onde ler a
  * resposta de cada uma.
  *
  * ## A marca manda, não o tipo
@@ -10,10 +10,12 @@
  * cards do painel, e não havia jeito de tirá-las a não ser apagando o campo do
  * formulário, o que também apagaria a coleta.
  *
- * Agora quem decide é `pergunta.grafico`, marcada no editor. O tipo continua
- * valendo, mas só como VETO: uma pergunta marcada cujo tipo deixou de ser
- * graficável (o admin trocou `numero` por `textarea` depois) é descartada aqui,
- * senão o painel tentaria somar prosa.
+ * Agora quem decide é `pergunta.grafico`, marcada no editor, e ela diz mais que
+ * sim ou não: diz QUAIS das três formas a pergunta gera (colunas, ranking,
+ * detalhamento). O tipo continua valendo, mas só como VETO — uma pergunta
+ * marcada cujo tipo deixou de ser graficável (o admin trocou `numero` por
+ * `textarea` depois) é descartada aqui, senão o painel tentaria somar prosa. O
+ * mesmo vale para `detalhe` num tipo sem quebra por categoria.
  *
  * ## `key` × `mappedKey`
  *
@@ -23,8 +25,9 @@
  * nenhum — o painel soma `undefined` e mostra barra vazia.
  */
 
-import { podeSerGrafico } from '$lib/gise/tipos-pergunta';
-import type { GiseModeloPerguntaConfig } from '$lib/types';
+import { podeSerGrafico, podeDetalhar } from '$lib/gise/tipos-pergunta';
+import { identidadeDaPergunta, temAlgumaForma, formasDaMarca } from './apresentacao';
+import type { GiseModeloPerguntaConfig, GraficoConfig } from '$lib/types';
 
 const palette = [
 	'#3b82f6',
@@ -53,28 +56,41 @@ const KEY_MAP: Record<string, string> = {
 	operacoes_seint_pura: 'operacoes_seint_qtd'
 };
 
+/** Uma pergunta do modelo já resolvida para o painel. */
 export interface Question {
 	id: number;
+	/** O texto da pergunta, como o admin o escreveu. */
 	label: string;
 	key: string;
 	mappedKey: string;
+	tipo: string;
 	color: string;
 	isBool: boolean;
-	specialStore: string | null;
+	/** Título do card: preserva "Drogas"/"Armas"; nas demais, é o próprio `label`. */
+	titulo: string;
+	/** `'g'` em drogas (mostrado em kg), vazio no resto. */
+	unidade: string;
+	/** Quais cards esta pergunta gera, já filtradas pelo que o tipo comporta. */
+	formas: Required<GraficoConfig>;
 }
 
 type ModeloQuestion = Pick<GiseModeloPerguntaConfig, 'id' | 'texto' | 'key' | 'tipo'> & {
-	grafico?: boolean;
+	/** `boolean` é a forma anterior à migração 0054 — ver `formasDaMarca`. */
+	grafico?: GraficoConfig | boolean;
 	filhos?: ModeloQuestion[];
 };
 
 /**
  * Converte o modelo cru nas perguntas que vão ao painel, na ordem do formulário.
  *
- * Duas condições, as duas necessárias: a pergunta está MARCADA como gráfico e o
- * tipo dela ainda comporta um (ver o cabeçalho). Cada uma recebe `mappedKey` e
- * uma cor fixa pela posição — a mesma pergunta mantém a mesma cor entre os
- * gráficos.
+ * Duas condições, as duas necessárias: a pergunta tem ao menos uma FORMA marcada
+ * e o tipo dela comporta gráfico (ver o cabeçalho). Cada uma recebe `mappedKey`,
+ * a identidade do card e uma cor fixa pela posição — a mesma pergunta mantém a
+ * mesma cor entre as três formas.
+ *
+ * `detalhe` é peneirada à parte: uma pergunta pode carregar a marca de um tipo
+ * que a comportava e ter mudado de tipo depois, e detalhar o que não tem quebra
+ * por categoria daria um card de uma barra só.
  *
  * Desce nos `filhos`: sub-pergunta é pergunta, com `key` própria e resposta
  * própria, e já podia ser indicador (`extrairIndicadores` sempre desceu). Não
@@ -90,63 +106,66 @@ export function mapQuestions(modelo: ModeloQuestion[] | undefined | null): Quest
 	const marcadas: ModeloQuestion[] = [];
 	function andar(lista: ModeloQuestion[]) {
 		for (const q of lista) {
-			if (q.grafico && podeSerGrafico(q.tipo)) marcadas.push(q);
+			if (temAlgumaForma(q.grafico) && podeSerGrafico(q.tipo)) marcadas.push(q);
 			if (q.filhos?.length) andar(q.filhos);
 		}
 	}
 	andar(modelo);
 
-	return marcadas.map((q, idx: number) => {
-		const mappedKey = KEY_MAP[q.tipo] ?? q.key;
-		return {
-			id: q.id,
-			label: q.texto,
-			key: q.key,
-			mappedKey,
-			color: palette[idx % palette.length],
-			isBool: q.tipo === 'sim_nao',
-			specialStore: q.key === 'apreensoes_drogas' ? 'drogasGeral' : null
-		};
-	});
+	return (
+		marcadas
+			.map((q, idx: number) => {
+				const cor = palette[idx % palette.length];
+				const identidade = identidadeDaPergunta(q.tipo, q.texto, cor);
+				const marcadas = formasDaMarca(q.grafico);
+				const formas = {
+					...marcadas,
+					detalhe: marcadas.detalhe && podeDetalhar(q.tipo)
+				};
+				return {
+					id: q.id,
+					label: q.texto,
+					key: q.key,
+					mappedKey: KEY_MAP[q.tipo] ?? q.key,
+					tipo: q.tipo,
+					color: identidade.cor,
+					isBool: q.tipo === 'sim_nao',
+					titulo: identidade.titulo,
+					unidade: identidade.unidade,
+					formas
+				};
+			})
+			// A peneira do `detalhe` pode ter zerado as formas de uma pergunta que só
+			// pedia detalhamento. Sem card nenhum, ela não é uma pergunta do painel.
+			.filter((q) => q.formas.colunas || q.formas.ranking || q.formas.detalhe)
+	);
 }
 
 /**
- * Retorna a chave de armas configurada no modelo.
- */
-export function getArmasKey(modeloOperacional: ModeloQuestion[] | undefined): string {
-	const q = (modeloOperacional || []).find((q) => q.tipo === 'armas_complex');
-	return q?.key ?? 'apreensoes_armas_bool';
-}
-
-/**
- * Quais dos três blocos FIXOS do painel operacional esta operação comporta.
+ * O bloco de PRISÕES aparece nesta operação?
  *
- * Prisões, drogas e armas não saem do modelo como os demais gráficos: são seis
- * cards escritos no código, que leem chaves cravadas do blob (`drogas_detalhe`,
- * `armas_detalhe`, `prisoes_qtd`, `mandados_qtd`). Existem assim porque o que
- * interessa neles é o DETALHE — peso por tipo de droga, quantidade por tipo de
- * arma —, e nenhum gráfico de barras genérico dá conta disso.
+ * Restou um só. Drogas e armas eram blocos escritos no código como este e viraram
+ * marcação da pergunta: peso por tipo de droga e quantidade por tipo de arma são
+ * quebras que a própria resposta guarda, então cabem na forma `detalhe` de
+ * qualquer pergunta daqueles tipos.
  *
- * O preço era aparecerem SEMPRE. Numa operação nova, cujo formulário nunca teve
- * pergunta de droga, os seis cards apareciam zerados; apagar o campo do
- * formulário não os removia, porque eles nunca dependeram do campo. Era a tela
- * afirmando "nenhuma apreensão" sobre uma pergunta que ninguém fez.
+ * Prisões não cabe, e é por isso que continua aqui: o detalhamento dele soma
+ * TRÊS perguntas diferentes — flagrantes (`prisoes_qtd`, da pergunta
+ * `prisoes_maiores`), mandados (`mandados_qtd`, de `mandados_maiores`) e o total
+ * de presos (`prisoes_apreensoes_flagrante`). Uma marca vive numa pergunta e não
+ * consegue descrever um card que atravessa três.
  *
  * A checagem é por TIPO e não por `key`: é o tipo que decide onde o formulário
- * grava (`RelatorioProdutividade` escreve `drogas_detalhe` para todo
- * `drogas_complex`), e a `key` pode ser outra em modelo clonado e renomeado.
+ * grava (`chavesLista` em `$lib/gise/tipos-pergunta`), e a `key` pode ser outra
+ * em modelo clonado e renomeado.
+ *
+ * Antes disto o bloco aparecia SEMPRE. Numa operação nova, cujo formulário nunca
+ * perguntou sobre flagrante, os dois cards apareciam zerados — a tela afirmando
+ * "nenhuma prisão" sobre uma pergunta que ninguém fez.
  */
-export function blocosFixosDisponiveis(modelo: ModeloQuestion[] | undefined | null): {
-	prisoes: boolean;
-	drogas: boolean;
-	armas: boolean;
-} {
+export function temBlocoPrisoes(modelo: ModeloQuestion[] | undefined | null): boolean {
 	const tipos = new Set((modelo ?? []).map((q) => q.tipo));
-	return {
-		// Duas fontes, e basta uma: o card soma flagrantes (`prisoes_maiores`) e
-		// mandados (`mandados_maiores`), e um formulário pode ter só um dos dois.
-		prisoes: tipos.has('prisoes_maiores') || tipos.has('mandados_maiores'),
-		drogas: tipos.has('drogas_complex'),
-		armas: tipos.has('armas_complex')
-	};
+	// Duas fontes, e basta uma: o card soma flagrantes e mandados, e um formulário
+	// pode ter só um dos dois.
+	return tipos.has('prisoes_maiores') || tipos.has('mandados_maiores');
 }

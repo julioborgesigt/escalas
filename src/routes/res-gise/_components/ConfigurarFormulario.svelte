@@ -24,8 +24,14 @@
 	import { Dialog } from '@skeletonlabs/skeleton-svelte';
 	import { loading } from '$lib/loading.svelte';
 	import { agruparPorEtapa } from '$lib/gise/etapas-formulario';
-	import { TIPOS_COM_FILHOS, TIPOS_COM_LISTA, podeSerGrafico } from '$lib/gise/tipos-pergunta';
+	import {
+		TIPOS_COM_FILHOS,
+		TIPOS_COM_LISTA,
+		podeSerGrafico,
+		podeDetalhar
+	} from '$lib/gise/tipos-pergunta';
 	import { podeSerIndicador, ehProporcao } from '$lib/gise/indicadores';
+	import { formasDaMarca } from '$lib/produtividade';
 	import Target from '@lucide/svelte/icons/target';
 	import ChartColumn from '@lucide/svelte/icons/chart-column';
 	import ChevronDown from '@lucide/svelte/icons/chevron-down';
@@ -436,36 +442,86 @@
 					</div>
 				</div>
 
-				<!-- Gráfico no painel: a pergunta vira uma barra por unidade em
-				     /produtividade.
+				<!-- As FORMAS no painel de produtividade. Acumulam: a pergunta de armas
+				     mostra ranking E detalhamento, que é como o painel sempre a
+				     desenhou.
 
 				     Existe porque antes NÃO existia: toda pergunta de tipo contável
-				     entrava sozinha, e a quilometragem da viatura ocupava um card ao
-				     lado das prisões. Desmarcar aqui tira do painel sem tirar do
+				     virava barra sozinha, e a quilometragem da viatura ocupava um card
+				     ao lado das prisões. Desmarcar aqui tira do painel sem tirar do
 				     formulário — a coleta continua, só a leitura sai. -->
 				{#if podeSerGrafico(p.tipo)}
-					<label
-						class="mt-4 flex items-start gap-2 cursor-pointer rounded-2xl border border-dashed p-4 {p.grafico
+					{@const formas = formasDaMarca(p.grafico)}
+					{@const alguma = formas.colunas || formas.ranking || formas.detalhe}
+					<div
+						class="mt-4 rounded-2xl border border-dashed p-4 space-y-3 {alguma
 							? 'bg-primary-500/5 dark:bg-primary-500/10 border-primary-500/40'
 							: 'bg-surface-100/60 dark:bg-surface-800/40 border-surface-300 dark:border-surface-700'}"
 					>
-						<input
-							type="checkbox"
-							class="checkbox mt-0.5"
-							checked={!!p.grafico}
-							onchange={() => resGise.alternarGrafico(p)}
-						/>
-						<span class="min-w-0">
-							<span class="flex items-center gap-1.5 text-sm font-bold">
-								<ChartColumn class="w-4 h-4 text-primary-500" aria-hidden="true" />
-								Mostrar como gráfico na produtividade
+						<p class="flex items-center gap-1.5 text-sm font-bold">
+							<ChartColumn class="w-4 h-4 text-primary-500" aria-hidden="true" />
+							Mostrar na produtividade
+						</p>
+
+						<label class="flex items-start gap-2 cursor-pointer">
+							<input
+								type="checkbox"
+								class="checkbox mt-0.5"
+								checked={formas.colunas}
+								onchange={() => resGise.alternarFormaGrafico(p, 'colunas')}
+							/>
+							<span class="min-w-0">
+								<span class="block text-sm font-semibold">Colunas por unidade</span>
+								<span class="block text-2xs text-surface-600 dark:text-surface-400">
+									Gráfico de barras comparando o total do período em cada unidade.
+								</span>
 							</span>
-							<span class="block text-2xs text-surface-600 dark:text-surface-400 mt-0.5">
-								Uma barra por unidade, comparando o total do período. Desmarcada, a pergunta
-								continua no formulário e some do painel.
+						</label>
+
+						<label class="flex items-start gap-2 cursor-pointer">
+							<input
+								type="checkbox"
+								class="checkbox mt-0.5"
+								checked={formas.ranking}
+								onchange={() => resGise.alternarFormaGrafico(p, 'ranking')}
+							/>
+							<span class="min-w-0">
+								<span class="block text-sm font-semibold">Ranking de unidades</span>
+								<span class="block text-2xs text-surface-600 dark:text-surface-400">
+									Os mesmos números em lista numerada, do primeiro ao último colocado.
+								</span>
 							</span>
-						</span>
-					</label>
+						</label>
+
+						<!-- Desabilitada, e não escondida: a caixa apagada diz que ESTE tipo
+						     de pergunta não guarda quebra por categoria. Escondê-la faria o
+						     bloco parecer diferente sem explicar por quê — mesma escolha do
+						     tipo de meta "Cobertura". -->
+						<label
+							class="flex items-start gap-2 {podeDetalhar(p.tipo)
+								? 'cursor-pointer'
+								: 'opacity-50 cursor-not-allowed'}"
+						>
+							<input
+								type="checkbox"
+								class="checkbox mt-0.5"
+								checked={formas.detalhe}
+								disabled={!podeDetalhar(p.tipo)}
+								onchange={() => resGise.alternarFormaGrafico(p, 'detalhe')}
+							/>
+							<span class="min-w-0">
+								<span class="block text-sm font-semibold">Detalhamento por tipo</span>
+								<span class="block text-2xs text-surface-600 dark:text-surface-400">
+									{#if podeDetalhar(p.tipo)}
+										Quebra a resposta por categoria — quanto de cada tipo, e não por unidade.
+									{:else}
+										Só em perguntas que guardam quebra por categoria (apreensão de drogas e de
+										armas). Uma pergunta de número tem um valor só, e não há o que quebrar.
+									{/if}
+								</span>
+							</span>
+						</label>
+					</div>
 				{/if}
 
 				<!-- Indicador de meta: promove a pergunta de "campo do relatório" a série

@@ -75,14 +75,14 @@ test.beforeAll(() => {
 			-- Sem slot: a produção dela resolve para a própria SECCIONAL.
 			(${C.equipeSemSlot}, ${C.giseSeccional}, NULL, 'operacional', 1, 3);
 
-		-- O modelo da operação. Sem ele o bloco de prisões nem apareceria: os três
-		-- blocos fixos do painel dependem de o formulário TER a pergunta que os
-		-- alimenta (ver \`blocosFixosDisponiveis\`).
+		-- O modelo da operação. Sem ele o bloco de prisões nem apareceria: ele
+		-- depende de o formulário TER a pergunta que o alimenta (\`temBlocoPrisoes\`),
+		-- e a P7 só vira gráfico porque está MARCADA.
 		DELETE FROM gise_modelo_formulario
 			WHERE operacao_id = (SELECT id FROM operacoes WHERE nome = '${C.operacao}');
 		INSERT INTO gise_modelo_formulario (operacao_id, tipo, config) VALUES
 			((SELECT id FROM operacoes WHERE nome = '${C.operacao}'), 'operacional',
-			 '[{"id":4,"texto":"4. FLAGRANTE","tipo":"prisoes_maiores","key":"procedimentos_flagrante_bool","filhos":[]},{"id":7,"texto":"7. PRISOES","tipo":"select_99","key":"prisoes_apreensoes_flagrante","grafico":true,"filhos":[]}]');
+			 '[{"id":4,"texto":"4. FLAGRANTE","tipo":"prisoes_maiores","key":"procedimentos_flagrante_bool","filhos":[]},{"id":7,"texto":"7. PRISOES","tipo":"select_99","key":"prisoes_apreensoes_flagrante","grafico":{"colunas":true},"filhos":[]}]');
 
 		-- Um policial POR equipe: há UNIQUE em (gise_id, policial_id), porque cada
 		-- pessoa entrega um relatório por escala.

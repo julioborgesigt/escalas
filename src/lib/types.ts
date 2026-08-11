@@ -72,6 +72,26 @@ interface IndicadorMetaProporcao {
  */
 export type IndicadorConfig = IndicadorMetaValor | IndicadorMetaProporcao;
 
+/**
+ * As formas que uma pergunta assume no painel de produtividade.
+ *
+ * Acumulam: a mesma pergunta pode render um ranking E um detalhamento, que é
+ * como o painel sempre mostrou drogas e armas. Cada forma vira um card próprio,
+ * exportável em PNG separadamente.
+ *
+ * - `colunas` — uma barra por unidade, no gráfico Chart.js;
+ * - `ranking` — as mesmas unidades numa lista ordenada e numerada. Mesma conta,
+ *   outra leitura: a barra compara silhuetas, a lista dá a posição;
+ * - `detalhe` — quebra por CATEGORIA dentro da resposta (por tipo de droga, por
+ *   tipo de arma), e não por unidade. Só existe onde a pergunta guarda essa
+ *   quebra — ver `podeDetalhar` em `$lib/gise/tipos-pergunta`.
+ */
+export interface GraficoConfig {
+	colunas?: boolean;
+	ranking?: boolean;
+	detalhe?: boolean;
+}
+
 /** Item do formulário GISE (modelo operacional / SEINT em JSON). */
 export interface GiseModeloPerguntaConfig {
 	id: number;
@@ -102,22 +122,26 @@ export interface GiseModeloPerguntaConfig {
 	 */
 	indicador?: IndicadorConfig;
 	/**
-	 * A pergunta entra como GRÁFICO de barras no painel de produtividade.
+	 * Como a pergunta aparece no painel de produtividade.
 	 *
-	 * Ausente ou `false` = não entra, e essa é a leitura para todo modelo daqui em
-	 * diante: o painel é uma escolha, não uma consequência do tipo do campo. Antes
-	 * da migração 0053 toda pergunta de tipo contável virava gráfico
-	 * automaticamente, e o resultado era a quilometragem inicial da viatura
-	 * ocupando um card ao lado das prisões.
+	 * Ausente, ou com as três formas desligadas, = não aparece. Essa é a leitura
+	 * para todo modelo daqui em diante: o painel é uma escolha, não uma
+	 * consequência do tipo do campo. Antes da migração 0053 toda pergunta de tipo
+	 * contável virava gráfico automaticamente, e o resultado era a quilometragem
+	 * inicial da viatura ocupando um card ao lado das prisões.
 	 *
-	 * A 0053 carimbou `true` no que já era gráfico, então nenhum painel mudou na
-	 * virada — o que mudou foi passar a existir um jeito de desmarcar.
+	 * Objeto e não booleano porque as formas ACUMULAM: a pergunta de armas produz
+	 * o ranking por unidade E o detalhamento por tipo de arma, que é como o painel
+	 * sempre a mostrou. A 0053 carimbou o booleano `true` e a 0054 o converteu
+	 * neste objeto, marcando de quebra as perguntas de droga e de arma com as
+	 * formas que os blocos fixos já desenhavam — as duas viradas foram invisíveis
+	 * na tela.
 	 *
 	 * Independente de `indicador`, e de propósito: indicador tem meta e linha de
-	 * base e vive na seção própria; gráfico é só a barra por unidade. Uma pergunta
-	 * pode ser um, outro, os dois ou nenhum.
+	 * base e vive na seção própria. Uma pergunta pode ser um, outro, os dois ou
+	 * nenhum.
 	 */
-	grafico?: boolean;
+	grafico?: GraficoConfig;
 	filhos?: GiseModeloPerguntaConfig[];
 	subtexto_qtd?: string;
 	subtexto_lista?: string;
