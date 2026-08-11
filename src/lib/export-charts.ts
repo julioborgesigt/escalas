@@ -12,6 +12,8 @@ interface ChartExportConfig {
 
 export interface RankingItem {
 	nome: string;
+	/** Nome encurtado para o rótulo do PNG; o completo fica em `nome`. */
+	curto?: string;
 	total: number;
 }
 

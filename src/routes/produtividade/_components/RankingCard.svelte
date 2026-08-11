@@ -1,7 +1,11 @@
 <script lang="ts">
 	/**
-	 * Card de ranking por seccional (prisões / drogas / armas) no painel
-	 * de produtividade — selecionável para export PNG/PDF.
+	 * Card de ranking por unidade (prisões / drogas / armas) no painel de
+	 * produtividade — selecionável para export PNG/PDF.
+	 *
+	 * O rótulo de cada linha vem de fora (`rotuloGrupo`) porque o card serve aos
+	 * dois eixos do painel: dizer "Seccional" acima do nome de uma delegacia é
+	 * informação errada, não rótulo velho.
 	 */
 	import type { Snippet } from 'svelte';
 	import type { RankingItem } from '$lib/export-charts';
@@ -13,6 +17,7 @@
 		color,
 		icon,
 		labelUnit,
+		rotuloGrupo,
 		selected,
 		onToggle
 	}: {
@@ -22,6 +27,8 @@
 		color: string;
 		icon: Snippet<[string]>;
 		labelUnit: string;
+		/** "Seccional" ou "Delegacia" — o que cada linha do ranking É. */
+		rotuloGrupo: string;
 		selected: boolean;
 		onToggle: (id: string) => void;
 	} = $props();
@@ -84,10 +91,12 @@
 					<p
 						class="text-3xs font-black uppercase text-surface-600 dark:text-surface-400 leading-none mb-1"
 					>
-						Seccional
+						{rotuloGrupo}
 					</p>
-					<p class="text-xs font-bold leading-tight line-clamp-1">
-						{item.nome.split(' do ')[0]}
+					<!-- `title` com o nome inteiro: o `line-clamp-1` corta duas delegacias
+					     do mesmo município no mesmo ponto. -->
+					<p class="text-xs font-bold leading-tight line-clamp-1" title={item.nome}>
+						{item.curto ?? item.nome}
 					</p>
 				</div>
 				<div class="text-right">
