@@ -14,7 +14,7 @@
 		parsedData,
 		canvasElements,
 		selectedCharts,
-		filterSeccional,
+		modoVisualizacao,
 		onToggle
 	}: {
 		questions: Question[];
@@ -24,7 +24,7 @@
 		parsedData: ProdutividadeParsedRow[];
 		canvasElements: Record<number, HTMLCanvasElement>;
 		selectedCharts: (number | string)[];
-		filterSeccional: string;
+		modoVisualizacao: 'delegacias' | 'seccionais';
 		onToggle: (id: string | number) => void;
 	} = $props();
 </script>
@@ -80,7 +80,9 @@
 					<span
 						class="text-3xs font-bold px-2 py-1 rounded uppercase bg-surface-100 dark:bg-surface-800 text-surface-600 dark:text-surface-400"
 					>
-						{filterSeccional ? 'Tendência' : 'Comparação Seccional'}
+						{modoVisualizacao === 'delegacias'
+							? 'Comparação por delegacia'
+							: 'Comparação por seccional'}
 					</span>
 				</div>
 			</div>

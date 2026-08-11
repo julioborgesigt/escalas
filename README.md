@@ -574,6 +574,45 @@ no mesmo relatório. Só o tipo de campo `proporcao` aceita esta meta.
 operação — e, nos indicadores de cobertura, a **porcentagem coberta** com a meta
 como limiar constante, porque contagem e porcentagem não compartilham eixo.
 
+### O eixo do painel: delegacias ou seccionais
+
+A barra de filtros de `/produtividade` tem **duas linhas**, e a divisão é
+semântica: em cima o que se COMPARA (operação, "Visualizar por", quantidade de
+unidades, ordem) e embaixo o que entra na CONTA (tipo de equipe, período). Só os
+de baixo recortam dado.
+
+"Visualizar por" é um EIXO, não um filtro: a mesma resposta pertence às duas
+chaves — `seccional_id` e `unidade_id` (este resolvido em
+`listarTodasRespostasGise` como `COALESCE(slot, unidade_operacional, seccional)`).
+Trocar de modo não recorta nada, só muda por qual delas a lista é somada, e é por
+isso que o total do painel não muda ao alternar. Padrão: **Seccionais**, que é o
+comportamento histórico.
+
+Quem responde por agrupar, ordenar e recortar é `$lib/produtividade/agrupamento`
+— fonte única dos três consumidores (cards de ranking, gráficos por pergunta e o
+cabeçalho do PNG exportado). Três decisões dele valem registro:
+
+- **equipe sem slot de delegacia** resolve `unidade_id` para a própria seccional,
+  e ela entra no modo Delegacias como linha própria. Sem isso a soma das linhas
+  ficaria menor que o total do painel, sem nada explicando a diferença;
+- **a ordem é semântica** ("melhores"/"piores", não "maior"/"menor"): quem chama
+  informa o valor pelo qual "melhor" se mede. Nos volumes é o total; nos
+  indicadores, o **% de atingimento** — num indicador de redução, ordenar pelo
+  número cru poria a pior unidade no topo de "melhores primeiro";
+- **valor não avaliável** (`null` — unidade sem linha de base, período sem
+  ocorrência) vai sempre para o fim, nos dois sentidos: não é a pior, é a que não
+  se sabe.
+
+A seção **Indicadores e metas** é a exceção deliberada: continua sempre por
+DELEGACIA, porque a linha de base é informada por ela (`operacao_linha_base` é
+por unidade) e agregá-la por seccional exigiria somar bases — o que funciona para
+o acervo de inquéritos e produz um número sem sentido no indicador de tempo
+MÉDIO. Ordem e Top-N valem nela; o eixo, não.
+
+O tipo de equipe indisponível na operação aparece **desabilitado**, não escondido:
+o botão apagado diz que a operação não usa aquele tipo (`tiposEquipeHabilitados`,
+em `$lib/gise/tipos-equipe`, compartilhado com o editor de formulário).
+
 Os indicadores da OPERAÇÃO CRAJUBAR vêm semeados pela migração `0050` a partir
 da tabela §9 do Plano Operacional Estratégico; a `0052` converte o de
 atendimentos em fins de semana para cobertura de 100%, que é o que o plano pede.

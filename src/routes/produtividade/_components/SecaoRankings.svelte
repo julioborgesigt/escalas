@@ -12,6 +12,7 @@
 		rankingDrogasPeso,
 		rankingArmas,
 		stats,
+		rotuloGrupo,
 		selectedCharts,
 		onToggle
 	}: {
@@ -27,6 +28,8 @@
 			apreensoes_armas: number;
 			[key: string]: unknown;
 		};
+		/** "Seccional" ou "Delegacia" — o que cada linha do ranking é, no eixo atual. */
+		rotuloGrupo: string;
 		selectedCharts: (number | string)[];
 		onToggle: (id: string | number) => void;
 	} = $props();
@@ -93,6 +96,7 @@
 			color={VIRTUAL_CHARTS['rank-prisoes'].color}
 			icon={iconPrison}
 			labelUnit=""
+			{rotuloGrupo}
 			selected={selectedCharts.includes('rank-prisoes')}
 			{onToggle}
 		/>
@@ -117,6 +121,7 @@
 			color={VIRTUAL_CHARTS['rank-drogas'].color}
 			icon={iconDrug}
 			labelUnit="kg"
+			{rotuloGrupo}
 			selected={selectedCharts.includes('rank-drogas')}
 			{onToggle}
 		/>
@@ -141,6 +146,7 @@
 			color={VIRTUAL_CHARTS['rank-armas'].color}
 			icon={iconWeapon}
 			labelUnit=""
+			{rotuloGrupo}
 			selected={selectedCharts.includes('rank-armas')}
 			{onToggle}
 		/>

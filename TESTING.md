@@ -523,13 +523,44 @@ Verificar cada transição de status:
 
 ## 11. Produtividade (`/produtividade`)
 
-> `[E2E: produtividade.spec.ts]` cobre o acesso: Admin Geral entra e vê o dashboard; policial → 403; anônimo → `/login`. A agregação (stats/rankings) tem cobertura unitária em `produtividade/stats`. Manual: gráficos/filtros com dados reais.
+> `[E2E: produtividade.spec.ts]` cobre o acesso: Admin Geral entra e vê o dashboard; policial → 403; anônimo → `/login`. `[E2E: produtividade-visualizacao.spec.ts]` cobre o eixo: os seis controles da barra, o total que não muda ao alternar delegacias × seccionais, a equipe sem slot como linha própria, ordem/Top-N e o tipo de equipe desabilitado. A agregação tem cobertura unitária em `produtividade/__tests__/{stats,agrupamento}`. Manual: gráficos com dados reais e o PNG exportado.
 
 - [ ] Carregar dados de produtividade das GISE finalizadas
 - [ ] Gráficos renderizados corretamente
-- [ ] Filtrar por período/seccional
+- [ ] Filtrar por período
 - [ ] Dados vazios → estado vazio com mensagem
 - [ ] Com mais de 200 respostas acumuladas → stats/rankings/gráficos contam o conjunto completo (o load pagina internamente em lotes de 500)
+
+**O eixo (`Visualizar por`):**
+
+- [ ] Abre em **Seccionais** — o comportamento de antes
+- [ ] Alternar para **Delegacias** reparte a mesma produção: a SOMA das barras
+      não muda, só a quebra
+- [ ] O rótulo de cada linha do ranking acompanha ("Seccional" → "Delegacia"), e
+      o nome curto mostra o MUNICÍPIO (não "Delegacia" repetido)
+- [ ] Passar o mouse sobre uma barra mostra o nome COMPLETO da unidade
+- [ ] Uma equipe escalada direto na seccional (sem slot) aparece como linha
+      própria no modo Delegacias
+
+**Quantidade e ordem:**
+
+- [ ] Top 5 / Top 10 cortam o ranking, os gráficos por pergunta e os cards de
+      indicador. Cada seção corta pela SUA métrica: o "top 5" de prisões pode ser
+      um conjunto diferente do "top 5" de drogas — é o que "as 5 que mais X"
+      significa
+- [ ] "Piores primeiro" inverte; num indicador de REDUÇÃO, "melhores primeiro"
+      traz quem mais reduziu (e não quem tem o maior número)
+- [ ] Unidade sem linha de base fica no FIM do ranking de indicadores nos dois
+      sentidos, e não no topo de "piores"
+- [ ] O PNG exportado traz no cabeçalho o recorte aplicado ("Top 5 delegacias —
+      piores primeiro"), e não só o nome da operação
+
+**Tipo de equipe:**
+
+- [ ] Numa operação só operacional, o botão "Inteligência" vem **desabilitado**
+      (visível e apagado, não escondido), com dica ao passar o mouse
+- [ ] Estando em "Inteligência" e trocando para uma operação que não a usa, o
+      filtro cai sozinho em "Operacional" — sem painel vazio inexplicado
 
 ---
 

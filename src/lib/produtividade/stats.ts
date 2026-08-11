@@ -20,7 +20,9 @@ interface StatsResult {
 type FilteredDataItem = {
 	respostasParsed?: Record<string, unknown>;
 	respostas?: string;
-	seccional_id?: number;
+	seccional_id?: number | null;
+	/** `COALESCE(slot, unidade_operacional, seccional)` — ver `listarTodasRespostasGise`. */
+	unidade_id?: number | null;
 };
 
 /**
@@ -111,39 +113,52 @@ export function calculateStats(
 
 interface RankingItem {
 	nome: string;
+	/** Nome encurtado para o rótulo; o completo fica em `nome`. */
+	curto?: string;
 	total: number;
 }
 
-/**
- * Calcula ranking genérico por seccional.
- */
-type SeccionalItem = { id: number; nome: string };
+/** Uma linha do ranking antes da soma — ver `gruposDaVisualizacao`. */
+type GrupoItem = { id: number; nome: string; curto?: string };
 
 /**
- * Ranking por seccional a partir de um extrator — quem chama decide O QUE está
- * sendo contado (`res => Number(res.mandados_cumpridos)`), esta função só soma e
- * ordena.
+ * Ranking a partir de um extrator — quem chama decide O QUE está sendo contado
+ * (`res => Number(res.mandados_cumpridos)`), esta função só soma.
  *
- * TODA seccional recebida entra no mapa antes da soma, então seccional sem
- * nenhuma resposta aparece com total 0 em vez de desaparecer do ranking: no
- * painel de produtividade, "não produziu" é informação, não ausência de dado.
+ * ## Os grupos vêm de fora, e a chave também
+ *
+ * Antes isto era fixo em seccional: recebia a lista de seccionais e somava por
+ * `item.seccional_id`. O painel passou a comparar também DELEGACIAS, e a
+ * alternativa a parametrizar era uma segunda função quase idêntica — a
+ * duplicação catalogada no `CLAUDE.md`. Quem monta `grupos` e `chave` é
+ * `$lib/produtividade/agrupamento`, o mesmo par usado pelos gráficos por
+ * pergunta, para que as duas seções nunca discordem sobre quem entra na conta.
+ *
+ * TODO grupo recebido entra no mapa antes da soma, então unidade sem nenhuma
+ * resposta aparece com total 0 em vez de desaparecer: no painel de
+ * produtividade, "não produziu" é informação, não ausência de dado.
+ *
+ * NÃO ordena. A ordem é decisão da tela (melhores ou piores primeiro) e mora em
+ * `ordenarERecortar` — ordenar aqui daria uma ordem que o chamador teria de
+ * desfazer.
  */
 export function calculateRanking(
-	seccionais: SeccionalItem[],
+	grupos: ReadonlyArray<GrupoItem>,
 	filteredData: FilteredDataItem[],
-	extractValue: (res: Record<string, unknown>) => number
+	extractValue: (res: Record<string, unknown>) => number,
+	chave: (item: FilteredDataItem) => number | null
 ): RankingItem[] {
 	const r = new Map<number, RankingItem>();
-	(seccionais ?? []).forEach((s) => r.set(s.id, { nome: s.nome, total: 0 }));
+	(grupos ?? []).forEach((g) => r.set(g.id, { nome: g.nome, curto: g.curto, total: 0 }));
 
 	filteredData.forEach((item) => {
 		const res = (item.respostasParsed ?? JSON.parse(item.respostas || '{}')) as Record<
 			string,
 			unknown
 		>;
-		const val = extractValue(res);
-		const entry = item.seccional_id !== undefined ? r.get(item.seccional_id) : undefined;
-		if (entry) entry.total += val;
+		const id = chave(item);
+		const entry = id != null ? r.get(id) : undefined;
+		if (entry) entry.total += extractValue(res);
 	});
-	return Array.from(r.values()).sort((a, b) => b.total - a.total);
+	return Array.from(r.values());
 }
