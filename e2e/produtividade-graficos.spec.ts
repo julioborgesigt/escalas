@@ -251,7 +251,9 @@ test('desmarcar no editor e salvar tira o card do painel', async ({ page }) => {
 		.nth(0)
 		.uncheck();
 	await page.getByRole('button', { name: /Salvar Modelo/ }).click();
-	await expect(page.getByText(/Nada é gravado ainda/)).toHaveCount(0);
+	// O toast é o sinal de que a action VOLTOU — ler o banco antes dele daria o
+	// config antigo e o teste passaria pelo motivo errado.
+	await expect(page.getByText(/Modelo operacional salvo com sucesso/)).toBeVisible();
 
 	const gravado = queryD1Local<{ config: string }>(
 		`SELECT config FROM gise_modelo_formulario WHERE operacao_id = ${id} AND tipo = 'operacional'`
