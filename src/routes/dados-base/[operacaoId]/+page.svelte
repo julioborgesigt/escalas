@@ -16,6 +16,10 @@
 	 * delegacia sob a operação errada — e este valor é o denominador de um
 	 * percentual divulgado. A escolha, quando existe, acontece no índice
 	 * (`/dados-base`), antes de qualquer campo.
+	 *
+	 * O destino do "Voltar" vem do `load` (`data.voltar`), e pode ser `null`. Não
+	 * é fixo porque o índice redireciona para cá quando há uma pendência só — o
+	 * `href="/dados-base"` que esta tela tinha devolvia a pessoa a ela mesma.
 	 */
 	import type { PageProps } from './$types';
 	import { enhance } from '$app/forms';
@@ -60,7 +64,9 @@
 </svelte:head>
 
 <div class="min-w-0 space-y-6">
-	<BotaoVoltar href="/dados-base" />
+	{#if data.voltar}
+		<BotaoVoltar href={data.voltar.href} rotulo={data.voltar.rotulo} />
+	{/if}
 
 	<div class="min-w-0">
 		<h1 class="h1 text-2xl font-bold">Dados base</h1>

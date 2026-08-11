@@ -196,6 +196,7 @@ export {
 	criarOperacao,
 	atualizarOperacao,
 	definirAtivoOperacao,
+	excluirOperacao,
 	contarEscalasPorOperacao,
 	clonarModelosFormulario,
 	listarLinhaBase,

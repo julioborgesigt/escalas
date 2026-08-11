@@ -153,6 +153,38 @@ test.describe('Dados base (linha de base dos indicadores)', () => {
 		await expect(page).toHaveURL(new RegExp(`/dados-base/${id}`));
 	});
 
+	test('com uma pendência só NÃO há botão de voltar', async ({ page }) => {
+		test.skip(!cenarioOk, 'D1 local indisponível');
+		const ok = await autenticarPagina(page, FIXTURE.adminUnidade.id);
+		test.skip(!ok, 'D1 local indisponível');
+		const id = operacaoId();
+		test.skip(id == null, 'operação do cenário não foi criada');
+
+		await page.goto(`/dados-base/${id}`);
+		// O índice redirecionaria de volta para cá: um "Voltar" que não sai do
+		// lugar é pior que nenhum. O caminho de volta é a barra lateral.
+		await expect(page.getByRole('link', { name: /^Voltar/ })).toHaveCount(0);
+	});
+
+	test('o voltar do Admin Geral leva às operações — a porta por onde ele entrou', async ({
+		page
+	}) => {
+		test.skip(!cenarioOk, 'D1 local indisponível');
+		const ok = await autenticarPagina(page, FIXTURE.adminGeral.id, 'admin');
+		test.skip(!ok, 'D1 local indisponível');
+		const id = operacaoId();
+		test.skip(id == null, 'operação do cenário não foi criada');
+
+		await page.goto(`/dados-base/${id}`);
+		const voltar = page.getByRole('link', { name: 'Voltar às operações' });
+		await expect(voltar).toBeVisible();
+		await voltar.click();
+
+		// E não de volta para esta mesma tela, que é o que o `href` fixo fazia.
+		await expect(page).toHaveURL(/\/gise\/operacoes/);
+		await expect(page).not.toHaveURL(/\/dados-base/);
+	});
+
 	test('grava a base da própria unidade', async ({ request }) => {
 		test.skip(!cenarioOk, 'D1 local indisponível');
 		const token = seedSession(FIXTURE.adminUnidade.id);
