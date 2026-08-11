@@ -15,6 +15,12 @@
 	 * mantém o link de edição compartilhável e o que permite
 	 * `/gise/operacoes/[id]/config` redirecionar para o painel certo.
 	 *
+	 * O botão **Dados base** aparece só na linha da operação que tem indicador
+	 * PERCENTUAL — é o único tipo de meta que pede um valor inicial à delegacia.
+	 * Ele leva a `/dados-base/<id>`, com a operação no caminho: a tela de
+	 * preenchimento não tem seletor, e não há como digitar o acervo de uma
+	 * delegacia sob a operação errada.
+	 *
 	 * Não há botão de excluir, e isso é a regra, não um esquecimento: operação com
 	 * escala histórica não pode sumir sem levar junto a origem de PDF já assinado.
 	 * O que existe é desativar, e a contagem de escalas ao lado de cada operação é
@@ -110,26 +116,14 @@
 						Cada operação tem o seu formulário de produtividade e os seus indicadores.
 					</p>
 				</div>
-				<div class="flex flex-wrap items-center gap-2 shrink-0">
-					<!-- "Dados base" saiu da barra lateral do Admin Geral: para ele não é
-					     uma aba de trabalho, é a conferência do que as unidades informaram
-					     — e o que se confere é POR OPERAÇÃO, que é onde ela vive agora. -->
-					<a
-						href="/dados-base"
-						class="btn preset-outlined-surface-500 px-4 py-2.5 rounded-xl font-semibold"
-					>
-						<ClipboardCheck class="w-4 h-4" />
-						Dados base
-					</a>
-					<button
-						type="button"
-						class="btn preset-filled-primary-500 px-4 py-2.5 rounded-xl font-semibold"
-						onclick={() => abrir('nova')}
-					>
-						<Plus class="w-4 h-4" />
-						Nova operação
-					</button>
-				</div>
+				<button
+					type="button"
+					class="btn preset-filled-primary-500 px-4 py-2.5 rounded-xl font-semibold shrink-0"
+					onclick={() => abrir('nova')}
+				>
+					<Plus class="w-4 h-4" />
+					Nova operação
+				</button>
 			</div>
 
 			<section class="card-elevated min-w-0 rounded-2xl p-5 sm:p-6 space-y-3">
@@ -188,6 +182,19 @@
 											<FileText class="w-4 h-4" />
 											Formulário
 										</a>
+										<!-- Só na operação que PEDE base: das três cadastradas, só a
+										     que tem indicador percentual tem o que perguntar às
+										     delegacias. Um botão no cabeçalho sugeria que era trabalho
+										     de todas. O link leva à operação, não à tela genérica. -->
+										{#if op.pedeLinhaBase}
+											<a
+												href={`/dados-base/${op.id}`}
+												class="btn preset-outlined-surface-500 px-3 py-1.5 rounded-xl text-sm"
+											>
+												<ClipboardCheck class="w-4 h-4" />
+												Dados base
+											</a>
+										{/if}
 										<button
 											type="button"
 											class="btn preset-outlined-surface-500 px-3 py-1.5 rounded-xl text-sm"

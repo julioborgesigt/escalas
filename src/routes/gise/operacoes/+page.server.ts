@@ -43,6 +43,7 @@ import {
 	contextoDeEvento
 } from '$lib/db';
 import { isAdminGeral } from '$lib/auth';
+import { operacoesComLinhaBase } from '$lib/server/operacoes/permissao';
 import { buscarConfiguracao } from '$lib/db/configuracoes';
 import { getBreveRelatorioEnvMergido } from '$lib/server/gise/breve-relatorio-env';
 import {
@@ -84,12 +85,19 @@ export const load: PageServerLoad = async ({ locals, platform, depends }) => {
 			buscarConfiguracao(db, 'gise_default_hora_saida')
 		]);
 
+	// Quais operações têm indicador PERCENTUAL — só elas pedem linha de base, e só
+	// nelas o botão "Dados base" faz sentido. O mesmo critério da flag do menu
+	// (`temLinhaBaseAPreencher`), por ser a mesma função: divergir aqui poria o
+	// botão numa operação em que a tela não tem o que pedir.
+	const pedemBase = await operacoesComLinhaBase(db, operacoes);
+
 	return {
 		operacoes: operacoes.map((o) => ({
 			...o,
 			// Quantas escalas já usam a operação — é o que explica ao admin por que
 			// desativar é a única saída disponível.
-			escalas: contagem.get(o.id) ?? 0
+			escalas: contagem.get(o.id) ?? 0,
+			pedeLinhaBase: pedemBase.has(o.id)
 		})),
 		/** O que vale quando o campo correspondente do formulário fica vazio. */
 		herdado: {

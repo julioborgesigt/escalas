@@ -114,7 +114,7 @@ test.describe('Dados base (linha de base dos indicadores)', () => {
 		const id = operacaoId();
 		test.skip(id == null, 'operação do cenário não foi criada');
 
-		const res = await page.goto(`/dados-base?operacaoId=${id}`);
+		const res = await page.goto(`/dados-base/${id}`);
 		expect(res?.status()).toBe(200);
 
 		await expect(page.getByRole('heading', { name: 'Dados base' })).toBeVisible();
@@ -124,6 +124,33 @@ test.describe('Dados base (linha de base dos indicadores)', () => {
 		await expect(page.getByRole('heading', { name: CENARIO.outraUnidade.nome })).toHaveCount(0);
 		// O rótulo vem do indicador configurado no formulário da operação.
 		await expect(page.getByText('Acervo atual antes da operação (E2E)')).toBeVisible();
+
+		// E NÃO há como trocar de operação daqui: ela vem do caminho. Um seletor ao
+		// lado dos campos é o convite a gravar o acervo sob a operação errada.
+		await expect(page.locator('#op')).toHaveCount(0);
+	});
+
+	test('id de operação inexistente → 404, e não a tela de outra operação', async ({ page }) => {
+		test.skip(!cenarioOk, 'D1 local indisponível');
+		const ok = await autenticarPagina(page, FIXTURE.adminUnidade.id);
+		test.skip(!ok, 'D1 local indisponível');
+
+		// Antes, um id inválido caía na PRIMEIRA operação ativa — mesma tela, outra
+		// operação, e o admin preencheria sem perceber a troca.
+		const res = await page.goto('/dados-base/99999999');
+		expect(res?.status()).toBe(404);
+	});
+
+	test('o índice leva direto ao preenchimento quando há uma pendência só', async ({ page }) => {
+		test.skip(!cenarioOk, 'D1 local indisponível');
+		const ok = await autenticarPagina(page, FIXTURE.adminUnidade.id);
+		test.skip(!ok, 'D1 local indisponível');
+		const id = operacaoId();
+		test.skip(id == null, 'operação do cenário não foi criada');
+
+		// Com uma só, a escolha não existe — e não se pergunta.
+		await page.goto('/dados-base');
+		await expect(page).toHaveURL(new RegExp(`/dados-base/${id}`));
 	});
 
 	test('grava a base da própria unidade', async ({ request }) => {
@@ -133,7 +160,7 @@ test.describe('Dados base (linha de base dos indicadores)', () => {
 		const id = operacaoId();
 		test.skip(id == null, 'operação do cenário não foi criada');
 
-		const res = await request.post('/dados-base?/salvar', {
+		const res = await request.post(`/dados-base/${id}?/salvar`, {
 			headers: headersFormAction(token!),
 			form: {
 				operacaoId: String(id),
@@ -154,12 +181,14 @@ test.describe('Dados base (linha de base dos indicadores)', () => {
 		const id = operacaoId();
 		test.skip(id == null, 'operação do cenário não foi criada');
 
-		const res = await request.post('/dados-base?/salvar', {
+		const res = await request.post(`/dados-base/${id}?/salvar`, {
 			headers: headersFormAction(token!),
 			form: {
 				operacaoId: String(id),
 				// A unidade participa da operação — só não é administrada por ele.
 				// Esconder o card na tela não impede este POST; quem impede é a action.
+				// A operação no CAMINHO também não impede: quem decide o que se grava
+				// é o corpo, e é ele que a action confronta com a permissão.
 				unidadeId: String(CENARIO.outraUnidade.id),
 				[`valor__${CENARIO.indicador}`]: '999'
 			}
@@ -198,6 +227,26 @@ test.describe('Cadastro de operações', () => {
 		// A migração 0048/0050 semeia as duas.
 		await expect(page.getByText('GISE', { exact: true }).first()).toBeVisible();
 		await expect(page.getByText('OPERAÇÃO CRAJUBAR').first()).toBeVisible();
+	});
+
+	test('"Dados base" só na linha da operação que pede base', async ({ page }) => {
+		test.skip(!cenarioOk, 'D1 local indisponível');
+		const ok = await autenticarPagina(page, FIXTURE.adminGeral.id, 'admin');
+		test.skip(!ok, 'D1 local indisponível');
+		const id = operacaoId();
+		test.skip(id == null, 'operação do cenário não foi criada');
+
+		await page.goto('/gise/operacoes');
+
+		// A do cenário tem indicador percentual → tem o botão, apontando para ELA.
+		const doCenario = page.locator('li').filter({ hasText: CENARIO.operacao.nome });
+		const botao = doCenario.getByRole('link', { name: 'Dados base' });
+		await expect(botao).toBeVisible();
+		await expect(botao).toHaveAttribute('href', `/dados-base/${id}`);
+
+		// A GISE não tem indicador nenhum → não tem o que perguntar às delegacias.
+		const gise = page.locator('li').filter({ hasText: 'Grupo de Investigação' });
+		await expect(gise.getByRole('link', { name: 'Dados base' })).toHaveCount(0);
 	});
 
 	test('policial comum é redirecionado', async ({ page }) => {
