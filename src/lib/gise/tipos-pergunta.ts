@@ -130,6 +130,53 @@ export function chavesProporcao(p: PerguntaChaveavel): { total: string; parte: s
 	return { total: `${p.key}__total`, parte: `${p.key}__parte` };
 }
 
+/**
+ * Tipos que PODEM virar gráfico de barras no painel de produtividade — os que
+ * produzem um número por relatório, mais o `sim_nao`, que vira contagem de
+ * ocorrências ("em quantos plantões houve").
+ *
+ * Poder e dever são coisas diferentes: quem decide se a pergunta ENTRA no painel
+ * é a marca `grafico` dela, não o tipo. Esta lista só diz onde a marca faz
+ * sentido — é ela que decide se a caixinha aparece no editor.
+ *
+ * Não é nem subconjunto nem superconjunto de `TIPOS_INDICADORAVEIS`
+ * (`$lib/gise/indicadores`), e as duas diferenças são deliberadas:
+ *
+ * - `sim_nao` entra AQUI e não lá: agrega como volume de eventos, mas não tem
+ *   meta nem linha de base a comparar. Um gráfico é uma leitura; um indicador é
+ *   uma promessa;
+ * - `proporcao` e os tipos de lista entram LÁ e não aqui: a resposta deles não
+ *   mora em `key`, e sim em `key__parte` / `key__qtd`. O gráfico de barras lê
+ *   por `mappedKey` (`$lib/produtividade/questions`), que só cobre os tipos
+ *   listados em `KEY_MAP` — marcar um `proporcao` desenharia uma barra de zeros.
+ *   Cobertura já tem lugar próprio: a seção de indicadores.
+ *
+ * `drogas_complex` e `armas_complex` também ficam de fora: o que interessa neles
+ * é o DETALHE por tipo de droga e por arma, e é isso que os blocos de ranking e
+ * detalhamento mostram — uma barra com a soma diria muito menos.
+ */
+const TIPOS_GRAFICAVEIS: readonly string[] = [
+	'numero',
+	'select_99',
+	'select_999',
+	'sim_nao',
+	'celulares_complex',
+	'analise_complex',
+	'relatorios_seint_complex',
+	'foragidos_complex',
+	'operacoes_seint_complex',
+	'operacoes_seint_pura'
+];
+
+/**
+ * O tipo aceita a marca de gráfico? Único lugar que responde — usado pelo editor
+ * (para mostrar a caixinha) e por `mapQuestions` (para descartar marca herdada de
+ * uma pergunta cujo tipo mudou depois).
+ */
+export function podeSerGrafico(tipo: string): boolean {
+	return TIPOS_GRAFICAVEIS.includes(tipo);
+}
+
 /** Forma de um item vazio da lista, por tipo. */
 export const ITEM_PADRAO: Record<string, Record<string, string>> = {
 	[TIPO_LISTA_REUTILIZAVEL]: { nome: '', mandado: '' },

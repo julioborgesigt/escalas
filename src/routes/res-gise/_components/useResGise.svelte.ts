@@ -116,6 +116,25 @@ export function useResGise(getData: () => ResGisePageData) {
 	}
 
 	/**
+	 * Liga/desliga o GRÁFICO da pergunta no painel de produtividade.
+	 *
+	 * Remove a chave ao desligar, em vez de gravar `grafico: false`: a ausência já
+	 * é a resposta ("não entra"), e um `false` explícito no JSON convidaria a
+	 * próxima leitura a inventar um terceiro estado. Mesma escolha de
+	 * `alternarIndicador`, logo abaixo.
+	 *
+	 * Independente do indicador de propósito — são duas seções diferentes do
+	 * painel. Uma pergunta pode ser gráfico sem meta (volume que se acompanha sem
+	 * prometer número) e meta sem gráfico de barras (a de cobertura, que já tem a
+	 * própria leitura).
+	 */
+	function alternarGrafico(p: GiseModeloPerguntaConfig) {
+		if (p.grafico) delete p.grafico;
+		else p.grafico = true;
+		perguntasConfig = [...perguntasConfig];
+	}
+
+	/**
 	 * Liga/desliga o indicador de meta de uma pergunta.
 	 *
 	 * Ao ligar, semeia o caso que o tipo da pergunta já anuncia: cobertura de 100%
@@ -576,6 +595,7 @@ export function useResGise(getData: () => ResGisePageData) {
 		moverPergunta,
 		removerPergunta,
 		trocarOperacao,
+		alternarGrafico,
 		alternarIndicador,
 		definirMetaTipoIndicador,
 		handleSalvarModelo,

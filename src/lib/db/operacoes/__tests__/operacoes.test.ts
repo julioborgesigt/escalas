@@ -196,6 +196,67 @@ describe('seed das migrações', () => {
 			expect(perguntas.find((q) => q.key === key)?.tipo).toBe('numero');
 		}
 	});
+
+	describe('0053 — carimbo da marca de gráfico', () => {
+		/** As perguntas de nível 0 de um modelo, pelo tipo de equipe. */
+		function perguntasDe(operacao: string, tipo: string) {
+			const linha = sqlite
+				.prepare(
+					`SELECT config FROM gise_modelo_formulario
+					 WHERE tipo = ? AND operacao_id = (SELECT id FROM operacoes WHERE nome = ?)`
+				)
+				.get(tipo, operacao) as { config: string } | undefined;
+			return JSON.parse(linha?.config ?? '[]') as Array<{
+				key: string;
+				tipo: string;
+				grafico?: boolean;
+				filhos?: Array<{ grafico?: boolean }>;
+			}>;
+		}
+
+		it('marca as perguntas que JÁ viravam gráfico — a virada é invisível', () => {
+			// A regra antiga era "tipo contável → vira gráfico". Sem o carimbo, o
+			// painel da CRAJUBAR ficaria vazio no deploy até alguém remarcar tudo.
+			const perguntas = perguntasDe('OPERAÇÃO CRAJUBAR', 'operacional');
+			const numericas = perguntas.filter((q) => q.tipo === 'numero');
+
+			expect(numericas.length).toBeGreaterThan(0);
+			for (const q of numericas) expect(q.grafico).toBe(true);
+		});
+
+		it('NÃO marca o que nunca virou gráfico', () => {
+			const perguntas = perguntasDe('OPERAÇÃO CRAJUBAR', 'operacional');
+
+			// `proporcao` é o caso que mais importa: a resposta dele mora em
+			// `key__total`/`key__parte`, então uma barra sairia zerada.
+			const cobertura = perguntas.find((q) => q.key === 'crajubar_atendimentos_fds');
+			expect(cobertura?.tipo).toBe('proporcao');
+			expect(cobertura?.grafico).toBeUndefined();
+		});
+
+		it('preserva o indicador da pergunta carimbada', () => {
+			// `json_set` sobre o objeto inteiro: perder o `indicador` aqui apagaria a
+			// meta do Plano Operacional sem erro nenhum.
+			const acervo = perguntasDe('OPERAÇÃO CRAJUBAR', 'operacional').find(
+				(q) => q.key === 'crajubar_acervo_pendentes'
+			) as { grafico?: boolean; indicador?: { metaValor: number } } | undefined;
+
+			expect(acervo?.grafico).toBe(true);
+			expect(acervo?.indicador?.metaValor).toBe(20);
+		});
+
+		it('o modelo continua sendo um ARRAY de objetos, não de strings', () => {
+			// O `json(CASE ... END)` da migração existe por isto: sem ele o CASE perde
+			// o subtipo JSON e `json_group_array` embute cada pergunta escapada como
+			// texto — o formulário abriria vazio, sem erro em lugar nenhum.
+			const perguntas = perguntasDe('OPERAÇÃO CRAJUBAR', 'seint');
+			expect(perguntas.length).toBeGreaterThan(0);
+			for (const q of perguntas) {
+				expect(typeof q).toBe('object');
+				expect(typeof q.key).toBe('string');
+			}
+		});
+	});
 });
 
 describe('helpers de tipo de equipe', () => {

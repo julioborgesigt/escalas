@@ -75,6 +75,15 @@ test.beforeAll(() => {
 			-- Sem slot: a produção dela resolve para a própria SECCIONAL.
 			(${C.equipeSemSlot}, ${C.giseSeccional}, NULL, 'operacional', 1, 3);
 
+		-- O modelo da operação. Sem ele o bloco de prisões nem apareceria: os três
+		-- blocos fixos do painel dependem de o formulário TER a pergunta que os
+		-- alimenta (ver \`blocosFixosDisponiveis\`).
+		DELETE FROM gise_modelo_formulario
+			WHERE operacao_id = (SELECT id FROM operacoes WHERE nome = '${C.operacao}');
+		INSERT INTO gise_modelo_formulario (operacao_id, tipo, config) VALUES
+			((SELECT id FROM operacoes WHERE nome = '${C.operacao}'), 'operacional',
+			 '[{"id":4,"texto":"4. FLAGRANTE","tipo":"prisoes_maiores","key":"procedimentos_flagrante_bool","filhos":[]},{"id":7,"texto":"7. PRISOES","tipo":"select_99","key":"prisoes_apreensoes_flagrante","grafico":true,"filhos":[]}]');
+
 		-- Um policial POR equipe: há UNIQUE em (gise_id, policial_id), porque cada
 		-- pessoa entrega um relatório por escala.
 		DELETE FROM gise_respostas_formulario WHERE gise_id = ${C.gise};
@@ -88,6 +97,8 @@ test.beforeAll(() => {
 test.afterAll(() => {
 	execD1Local(`
 		DELETE FROM gise_escalas WHERE id = ${C.gise};
+		DELETE FROM gise_modelo_formulario
+			WHERE operacao_id = (SELECT id FROM operacoes WHERE nome = '${C.operacao}');
 		DELETE FROM operacoes WHERE nome = '${C.operacao}';
 	`);
 });

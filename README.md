@@ -611,6 +611,44 @@ no mesmo relatório. Só o tipo de campo `proporcao` aceita esta meta.
 operação — e, nos indicadores de cobertura, a **porcentagem coberta** com a meta
 como limiar constante, porque contagem e porcentagem não compartilham eixo.
 
+### O que entra no painel
+
+Três coisas aparecem em `/produtividade`, e cada uma entra por um critério
+diferente. Confundi-los foi a origem dos dois bugs corrigidos em ago/2026.
+
+| Seção                    | Entra quando…                                            |
+| ------------------------ | -------------------------------------------------------- |
+| Indicadores e metas      | a pergunta está marcada como **indicador** (`indicador`) |
+| Gráficos por pergunta    | a pergunta está marcada como **gráfico** (`grafico`)     |
+| Prisões · Drogas · Armas | o formulário TEM a pergunta do tipo que alimenta o bloco |
+
+**A marca de gráfico é uma escolha, não uma consequência do tipo.** Até ago/2026
+toda pergunta de tipo contável virava card sozinha, e a quilometragem inicial da
+viatura ocupava espaço ao lado das prisões — sem jeito de tirá-la a não ser
+apagando o campo, o que apagaria a coleta. Agora a caixinha "Mostrar como gráfico
+na produtividade" fica no editor, ao lado da de indicador, e as duas marcas são
+independentes: gráfico é uma leitura, indicador é uma promessa com meta e linha
+de base. A migração `0053` carimbou `grafico: true` no que já era gráfico, então
+a virada não mudou painel nenhum — o que passou a existir foi o desmarcar.
+
+**Os três blocos fixos (prisões, drogas, armas) são a exceção que não vem do
+modelo**: são seis cards escritos no código, porque o que interessa neles é o
+detalhe (peso por tipo de droga, quantidade por tipo de arma) e nenhuma barra
+genérica dá conta. Eles dependem do modelo por PRESENÇA, não por marca —
+`blocosFixosDisponiveis` pergunta se existe pergunta de `drogas_complex`,
+`armas_complex`, `prisoes_maiores` ou `mandados_maiores`. Antes apareciam sempre:
+numa operação cujo formulário nunca perguntou sobre droga, a tela exibia "Ranking
+de Drogas" zerado, afirmando "nenhuma apreensão" sobre uma pergunta que ninguém
+fez.
+
+O total de presos (P7) é somado por chave fixa junto do bloco, e não pelo laço
+das perguntas marcadas: fosse pelo laço, desmarcar a P7 como gráfico zeraria o
+card do bloco — um número errado, que é pior que um card ausente.
+
+Operação sem indicador, sem bloco e sem pergunta marcada mostra um aviso
+dizendo onde é o conserto (o editor do formulário), em vez de uma página só com
+a barra de filtros.
+
 ### O eixo do painel: delegacias ou seccionais
 
 A barra de filtros de `/produtividade` tem **duas linhas**, e a divisão é

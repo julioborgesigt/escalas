@@ -101,6 +101,23 @@ export interface GiseModeloPerguntaConfig {
 	 * `$lib/gise/indicadores`, que é quem valida.
 	 */
 	indicador?: IndicadorConfig;
+	/**
+	 * A pergunta entra como GRÁFICO de barras no painel de produtividade.
+	 *
+	 * Ausente ou `false` = não entra, e essa é a leitura para todo modelo daqui em
+	 * diante: o painel é uma escolha, não uma consequência do tipo do campo. Antes
+	 * da migração 0053 toda pergunta de tipo contável virava gráfico
+	 * automaticamente, e o resultado era a quilometragem inicial da viatura
+	 * ocupando um card ao lado das prisões.
+	 *
+	 * A 0053 carimbou `true` no que já era gráfico, então nenhum painel mudou na
+	 * virada — o que mudou foi passar a existir um jeito de desmarcar.
+	 *
+	 * Independente de `indicador`, e de propósito: indicador tem meta e linha de
+	 * base e vive na seção própria; gráfico é só a barra por unidade. Uma pergunta
+	 * pode ser um, outro, os dois ou nenhum.
+	 */
+	grafico?: boolean;
 	filhos?: GiseModeloPerguntaConfig[];
 	subtexto_qtd?: string;
 	subtexto_lista?: string;
