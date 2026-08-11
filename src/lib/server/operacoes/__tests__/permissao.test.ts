@@ -18,7 +18,9 @@ import type { Database } from '$lib/db';
 import {
 	unidadesLinhaBaseAdministradas,
 	podeInformarLinhaBase,
-	temLinhaBaseAPreencher
+	temLinhaBaseAPreencher,
+	operacoesComLinhaBase,
+	operacoesComLinhaBasePendente
 } from '../permissao';
 
 let sqlite: DatabaseSync;
@@ -239,5 +241,100 @@ describe('temLinhaBaseAPreencher — quem vê a aba "Dados base"', () => {
 	it('admin com papel mas sem papel_unidade_id não vê', async () => {
 		const u = usuario({ papel: 'admin_seccional', papel_unidade_id: null });
 		expect(await temLinhaBaseAPreencher(db, u)).toBe(false);
+	});
+});
+
+describe('operacoesComLinhaBase — quais operações PEDEM base', () => {
+	// É o critério do botão "Dados base" na linha de cada operação, e o mesmo da
+	// flag do menu. Só meta PERCENTUAL pede base: absoluta já é o alvo e cobertura
+	// traz o próprio denominador no relatório.
+
+	function comModelo(nome: string, config: string): number {
+		sqlite.prepare(`INSERT INTO operacoes (nome) VALUES (?)`).run(nome);
+		const id = Number(
+			(sqlite.prepare('SELECT last_insert_rowid() AS id').get() as { id: number }).id
+		);
+		sqlite
+			.prepare(`INSERT INTO gise_modelo_formulario (operacao_id, tipo, config) VALUES (?, ?, ?)`)
+			.run(id, 'operacional', config);
+		return id;
+	}
+
+	it('a CRAJUBAR entra: a migração 0050 semeia três indicadores percentuais', async () => {
+		const comBase = await operacoesComLinhaBase(db, [{ id: craId }, { id: giseId }]);
+		expect(comBase.has(craId)).toBe(true);
+	});
+
+	it('a GISE não entra: não tem indicador nenhum', async () => {
+		const comBase = await operacoesComLinhaBase(db, [{ id: craId }, { id: giseId }]);
+		expect(comBase.has(giseId)).toBe(false);
+	});
+
+	it('operação só com meta ABSOLUTA não entra', async () => {
+		const id = comModelo(
+			'OP ABSOLUTA',
+			JSON.stringify([
+				{
+					id: 1,
+					texto: 'Operações com o DRCO',
+					tipo: 'numero',
+					key: 'abs',
+					indicador: { objetivo: 'aumentar', metaTipo: 'absoluto', metaValor: 1 }
+				}
+			])
+		);
+		expect((await operacoesComLinhaBase(db, [{ id }])).has(id)).toBe(false);
+	});
+
+	it('operação só com meta de COBERTURA não entra', async () => {
+		// O denominador vem no próprio relatório — não há o que pedir à delegacia.
+		const id = comModelo(
+			'OP COBERTURA',
+			JSON.stringify([
+				{
+					id: 1,
+					texto: 'Atendimentos de fim de semana',
+					tipo: 'proporcao',
+					key: 'cob',
+					indicador: { metaTipo: 'proporcao', metaValor: 100 }
+				}
+			])
+		);
+		expect((await operacoesComLinhaBase(db, [{ id }])).has(id)).toBe(false);
+	});
+
+	it('config corrompido não derruba a consulta — a operação só fica de fora', async () => {
+		const id = comModelo('OP JSON QUEBRADO', '{isso não é json');
+		expect((await operacoesComLinhaBase(db, [{ id }])).has(id)).toBe(false);
+	});
+
+	it('lista vazia devolve conjunto vazio sem consultar', async () => {
+		expect(await operacoesComLinhaBase(db, [])).toEqual(new Set());
+	});
+});
+
+describe('operacoesComLinhaBasePendente — o que o índice de /dados-base decide', () => {
+	it('admin da unidade escalada recebe a CRAJUBAR, e só ela', async () => {
+		const u = usuario({ papel: 'admin_unidade', papel_unidade_id: crato });
+		const pendentes = await operacoesComLinhaBasePendente(db, u);
+		expect(pendentes.map((o) => o.nome)).toEqual(['OPERAÇÃO CRAJUBAR']);
+	});
+
+	it('admin de unidade fora de qualquer escala não recebe nada', async () => {
+		const u = usuario({ papel: 'admin_unidade', papel_unidade_id: foraDaOperacao });
+		expect(await operacoesComLinhaBasePendente(db, u)).toEqual([]);
+	});
+
+	it('operação desativada sai da lista', async () => {
+		sqlite.prepare('UPDATE operacoes SET ativo = 0 WHERE id = ?').run(craId);
+		const u = usuario({ papel: 'admin_unidade', papel_unidade_id: crato });
+		expect(await operacoesComLinhaBasePendente(db, u)).toEqual([]);
+	});
+
+	it('Admin Geral recebe a lista — o índice é aberto a ele', async () => {
+		// `temLinhaBaseAPreencher` devolve false para ele (é sobre o MENU), mas a
+		// tela continua acessível pelo botão de cada operação.
+		const pendentes = await operacoesComLinhaBasePendente(db, admGeral);
+		expect(pendentes.map((o) => o.nome)).toContain('OPERAÇÃO CRAJUBAR');
 	});
 });

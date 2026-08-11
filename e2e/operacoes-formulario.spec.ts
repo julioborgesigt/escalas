@@ -129,18 +129,20 @@ test('o endereço antigo de configurações redireciona para o painel de ediçã
 	await expect(page.locator('#op_dpc')).toHaveValue('2');
 });
 
-test('a lista traz o botão de Dados base e NÃO traz mais "Configurações"', async ({ page }) => {
+test('a linha traz Formulário e Editar, e NÃO traz mais "Configurações"', async ({ page }) => {
 	const ok = await autenticarPagina(page, FIXTURE.adminGeral.id, 'admin');
 	test.skip(!ok, 'D1 local indisponível');
 
 	await page.goto('/gise/operacoes');
-	await expect(page.getByRole('link', { name: 'Dados base' })).toBeVisible();
 
 	const linha = page.locator('li').filter({ hasText: NOME });
 	await expect(linha.getByRole('link', { name: 'Formulário' })).toBeVisible();
 	await expect(linha.getByRole('button', { name: 'Editar' })).toBeVisible();
 	// Virou parte de "Editar".
 	await expect(linha.getByRole('link', { name: 'Configurações' })).toHaveCount(0);
+	// E "Dados base" não aparece: esta operação não tem indicador percentual.
+	// (a linha da que TEM está em `operacoes-linha-base.spec.ts`)
+	await expect(linha.getByRole('link', { name: 'Dados base' })).toHaveCount(0);
 });
 
 test('o editor de formulário tem o voltar para as operações', async ({ page }) => {

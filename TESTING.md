@@ -237,9 +237,10 @@ Verificar cada transição de status:
 
 ### 4.12 Navegação do módulo (barra lateral)
 
-- [ ] Admin Geral: **não** há mais "Conf. Form." nem "Dados base" no menu — o
-      formulário é o botão de cada operação e Dados base é botão em
-      `/gise/operacoes`
+- [ ] Admin Geral: **não** há mais "Conf. Form." nem "Dados base" no menu — os
+      dois são botões na linha de cada operação em `/gise/operacoes`
+- [ ] O botão **Dados base** aparece só na linha da operação que tem indicador de
+      meta PERCENTUAL (a CRAJUBAR sim; a GISE não)
 - [ ] `/res-gise` (Admin Geral) mostra "VOLTAR ÀS OPERAÇÕES" acima do título
 - [ ] Admin de unidade escalada em operação com indicador percentual → **vê**
       "Dados base"
@@ -260,7 +261,15 @@ Verificar cada transição de status:
 - [ ] Em pergunta que não seja de cobertura, a opção "Cobertura — % do total
       atendido" do **Tipo de meta** aparece desabilitada, com a explicação abaixo
 
-**Informar a base** (`/dados-base`, admin de unidade/seccional):
+**Informar a base** (`/dados-base/<operação>`, admin de unidade/seccional):
+
+- [ ] A tela **não** tem seletor de operação — ela vem do caminho, e o nome
+      aparece no subtítulo
+- [ ] `/dados-base` com uma pendência só redireciona direto ao preenchimento;
+      com mais de uma, mostra a lista para escolher (e nenhum campo)
+- [ ] `/dados-base/<id inexistente>` → 404, e **não** a tela de outra operação
+- [ ] Sem pendência nenhuma → texto explicando as duas condições (meta percentual
+      **e** unidade escalada)
 
 - [ ] O admin da unidade vê apenas as unidades que administra E que participam da
       operação escolhida

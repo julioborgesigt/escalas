@@ -544,9 +544,27 @@ título.
 tenha efetivamente base a informar — unidade escalada em operação ativa com
 indicador percentual (`temLinhaBaseAPreencher`). Antes aparecia para todo admin de
 unidade, inclusive os de delegacias fora de qualquer operação, que abriam uma
-tela vazia. Para o Admin Geral a conferência é por operação e virou botão dentro
-de `/gise/operacoes`. Nada disso é autorização: quem recusa continua sendo
-`unidadesLinhaBaseAdministradas`, no servidor.
+tela vazia. Para o Admin Geral, o acesso é o botão **Dados base** na linha da
+operação em `/gise/operacoes` — e ele só existe na operação que PEDE base
+(`operacoesComLinhaBase`, o mesmo critério da flag do menu). Nada disso é
+autorização: quem recusa continua sendo `unidadesLinhaBaseAdministradas`, no
+servidor.
+
+**A operação vai no CAMINHO, não num seletor.** O preenchimento vive em
+`/dados-base/[operacaoId]`; `/dados-base` é só o índice, que redireciona quando há
+uma pendência só e oferece a lista quando há mais. Até ago/2026 a operação vinha
+de `?operacaoId=` e a tela trazia um `<select>` ao lado dos campos — e o valor
+digitado ali é o denominador de um percentual divulgado: gravá-lo sob a operação
+errada muda o atingimento de uma unidade sem tocar em relatório nenhum. Com a
+operação no caminho não há controle a errar, e a escolha acontece antes de
+qualquer campo aparecer.
+
+Sobre a rota ser `/dados-base` e não `/gise/dados-base`: `/gise` é o prefixo
+LEGADO — a GISE virou uma operação entre várias, e aninhar telas novas sob ele
+espalharia um nome que o domínio já superou. Não há `+layout` compartilhado sob
+`/gise`, então o aninhamento também não compraria autorização nem dados comuns. Se
+um dia a coerência de prefixo for perseguida, o caminho é renomear o módulo
+inteiro, não estender o nome antigo.
 
 **Indicadores e metas.** No editor do formulário (`/res-gise`), uma pergunta
 contável pode ser marcada como indicador. São **três tipos de meta**, e é o

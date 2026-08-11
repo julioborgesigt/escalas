@@ -106,44 +106,35 @@ function parseModelo(raw: string | null | undefined): GiseModeloPerguntaConfig[]
 }
 
 /**
- * Este admin de unidade/seccional tem alguma base a informar?
+ * Quais destas operações PEDEM linha de base.
  *
- * É o que decide se a aba **Dados base** aparece na barra lateral. Duas
- * condições, e as duas precisam valer ao mesmo tempo para a MESMA operação:
+ * Uma operação pede base quando o formulário dela tem ao menos um indicador de
+ * meta PERCENTUAL — só ele é relativo a um valor anterior. Meta absoluta e meta
+ * de cobertura não pedem nada à delegacia, e uma operação sem indicador nenhum
+ * (o caso da GISE) também não.
  *
- * 1. a operação tem ao menos um indicador de meta PERCENTUAL — só ele pede base;
- * 2. o usuário administra ao menos uma unidade participante dela.
+ * Existe como função porque a resposta é precisa em dois lugares que não se
+ * conhecem: o BOTÃO "Dados base" na linha de cada operação em `/gise/operacoes`
+ * e a flag do menu (`temLinhaBaseAPreencher`, logo abaixo). Se os dois critérios
+ * divergissem, o botão apareceria numa operação em que a tela não tem o que
+ * pedir — ou sumiria de uma que tem.
  *
- * Sem isso a aba aparecia para todo admin de unidade, inclusive os de delegacias
- * fora de qualquer operação, que abriam uma tela vazia sem entender por quê.
- *
- * Só operações ATIVAS entram: base de operação encerrada não é trabalho pendente.
- *
- * Devolve `false` para o Admin Geral — não por falta de permissão, mas porque
- * para ele a conferência é por operação e vive dentro de `/gise/operacoes`. Quem
- * chama isto é o menu; a autorização de `/dados-base` continua sendo
- * `unidadesLinhaBaseAdministradas`, no servidor, para todo mundo.
+ * Uma consulta só para todos os modelos: a alternativa era duas por operação, e
+ * um dos chamadores roda a cada navegação.
  */
-export async function temLinhaBaseAPreencher(
+export async function operacoesComLinhaBase(
 	db: Database,
-	u: App.Locals['usuario']
-): Promise<boolean> {
-	if (!u || isAdminGeral(u)) return false;
-	if (!isAdminSeccional(u) && !isAdminUnidade(u)) return false;
-	if (u.papel_unidade_id == null) return false;
+	operacoes: ReadonlyArray<{ id: number }>
+): Promise<Set<number>> {
+	if (operacoes.length === 0) return new Set();
 
-	const ativas = await listarOperacoes(db, { somenteAtivas: true });
-	if (ativas.length === 0) return false;
-
-	// Os modelos das duas equipes de TODAS as operações ativas numa consulta só —
-	// a alternativa era duas por operação, num `load` que roda a cada navegação.
 	const modelos = await db
 		.select({ operacao_id: giseModeloFormulario.operacao_id, config: giseModeloFormulario.config })
 		.from(giseModeloFormulario)
 		.where(
 			inArray(
 				giseModeloFormulario.operacao_id,
-				ativas.map((o) => o.id)
+				operacoes.map((o) => o.id)
 			)
 		)
 		.all();
@@ -156,18 +147,72 @@ export async function temLinhaBaseAPreencher(
 		else porOperacao.set(m.operacao_id, [m.config]);
 	}
 
-	// Filtra ANTES de consultar participação: descartar por leitura de JSON já
-	// carregado é barato; a participação é um join de três tabelas por operação.
-	const comBase = ativas.filter((op) => {
+	const comBase = new Set<number>();
+	for (const op of operacoes) {
 		const configs = porOperacao.get(op.id) ?? [];
-		return (
-			indicadoresComLinhaBase(extrairIndicadoresDeModelos(configs.map(parseModelo))).length > 0
+		const indicadores = indicadoresComLinhaBase(
+			extrairIndicadoresDeModelos(configs.map(parseModelo))
 		);
-	});
-
-	for (const op of comBase) {
-		const permitidas = await unidadesLinhaBaseAdministradas(db, u, op.id);
-		if (permitidas.size > 0) return true;
+		if (indicadores.length > 0) comBase.add(op.id);
 	}
-	return false;
+	return comBase;
+}
+
+/**
+ * As operações ATIVAS em que este usuário tem base a informar.
+ *
+ * Duas condições, e as duas precisam valer ao mesmo tempo para a MESMA operação:
+ *
+ * 1. a operação pede base (`operacoesComLinhaBase`);
+ * 2. o usuário administra ao menos uma unidade participante dela.
+ *
+ * Sem a segunda, a lista incluiria operações de delegacias que o usuário não
+ * administra; sem a primeira, incluiria operações em que não há o que preencher.
+ * É a resposta que o índice de `/dados-base` usa para decidir entre redirecionar
+ * (uma só) e oferecer a escolha (mais de uma).
+ *
+ * Só ATIVAS: base de operação encerrada não é trabalho pendente.
+ */
+export async function operacoesComLinhaBasePendente(
+	db: Database,
+	u: App.Locals['usuario']
+): Promise<Array<{ id: number; nome: string }>> {
+	if (!u) return [];
+
+	const ativas = await listarOperacoes(db, { somenteAtivas: true });
+	if (ativas.length === 0) return [];
+
+	// Filtra por modelo ANTES de consultar participação: descartar por leitura de
+	// JSON já carregado é barato; a participação é um join de três tabelas por
+	// operação.
+	const comBase = await operacoesComLinhaBase(db, ativas);
+
+	const minhas: Array<{ id: number; nome: string }> = [];
+	for (const op of ativas) {
+		if (!comBase.has(op.id)) continue;
+		const permitidas = await unidadesLinhaBaseAdministradas(db, u, op.id);
+		if (permitidas.size > 0) minhas.push({ id: op.id, nome: op.nome });
+	}
+	return minhas;
+}
+
+/**
+ * Este admin de unidade/seccional tem alguma base a informar?
+ *
+ * É o que decide se a aba **Dados base** aparece na barra lateral.
+ *
+ * Devolve `false` para o Admin Geral — não por falta de permissão, mas porque
+ * para ele a conferência é por operação e vive no botão de cada linha de
+ * `/gise/operacoes`. Quem chama isto é o menu; a autorização de `/dados-base`
+ * continua sendo `unidadesLinhaBaseAdministradas`, no servidor, para todo mundo.
+ */
+export async function temLinhaBaseAPreencher(
+	db: Database,
+	u: App.Locals['usuario']
+): Promise<boolean> {
+	if (!u || isAdminGeral(u)) return false;
+	if (!isAdminSeccional(u) && !isAdminUnidade(u)) return false;
+	if (u.papel_unidade_id == null) return false;
+
+	return (await operacoesComLinhaBasePendente(db, u)).length > 0;
 }
