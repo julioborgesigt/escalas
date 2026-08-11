@@ -15,6 +15,7 @@ import { useMultiSelect, useCharts } from '$lib/composables';
 import {
 	mapQuestions,
 	getArmasKey,
+	blocosFixosDisponiveis,
 	calculateStats,
 	calculateRanking,
 	type Question
@@ -48,14 +49,19 @@ export type ProdutividadeParsedRow = ProdutividadeListaItem & {
 	respostasParsed: Record<string, unknown>;
 };
 
-const TOP_IDS = [
-	'rank-prisoes',
-	'detail-prisoes',
-	'rank-drogas',
-	'detail-drogas',
-	'rank-armas',
-	'detail-armas'
-] as const;
+/**
+ * Os cards de cada bloco fixo, na ordem em que a tela os mostra.
+ *
+ * Não é mais uma lista só: cada bloco entra ou não conforme o formulário da
+ * operação tenha a pergunta que o alimenta (`blocosFixosDisponiveis`). Contar os
+ * seis sempre fazia "Selecionar Todos (N)" prometer cards inexistentes e a
+ * exportação gerar PNG zerado de uma pergunta que ninguém fez.
+ */
+const IDS_POR_BLOCO = {
+	prisoes: ['rank-prisoes', 'detail-prisoes'],
+	drogas: ['rank-drogas', 'detail-drogas'],
+	armas: ['rank-armas', 'detail-armas']
+} as const;
 
 export function useProdutividade(getData: () => PageData) {
 	const data = $derived(getData());
@@ -143,19 +149,49 @@ export function useProdutividade(getData: () => PageData) {
 	});
 
 	function selectAllCharts() {
-		selection.selectAll([...QUESTIONS.map((q) => q.id), ...TOP_IDS]);
+		selection.selectAll(idsExportaveis);
 	}
-
-	// Alias para compatibilidade com template
-	const selectedCharts = $derived(selection.selected);
-	const toggleChartSelection = selection.toggle;
 
 	// Questions mapeadas via utilitário
 	const QUESTIONS = $derived(
 		mapQuestions(filterTipo === 'seint' ? data.modeloSeint : data.modeloOperacional)
 	);
 
-	const allChartsCount = $derived(QUESTIONS.length + TOP_IDS.length);
+	/**
+	 * Quais dos três blocos fixos esta operação comporta.
+	 *
+	 * Sempre do modelo OPERACIONAL: a seção inteira só aparece nesse tipo de
+	 * equipe, e é lá que moram as perguntas de droga, arma e flagrante.
+	 */
+	const blocosFixos = $derived(blocosFixosDisponiveis(data.modeloOperacional));
+
+	/** Os ids dos blocos fixos que estão na tela AGORA — nada mais é exportável. */
+	const idsFixosVisiveis = $derived(
+		filterTipo === 'operacional'
+			? (Object.keys(IDS_POR_BLOCO) as Array<keyof typeof IDS_POR_BLOCO>).flatMap((bloco) =>
+					blocosFixos[bloco] ? [...IDS_POR_BLOCO[bloco]] : []
+				)
+			: []
+	);
+
+	const idsExportaveis = $derived<Array<number | string>>([
+		...QUESTIONS.map((q) => q.id),
+		...idsFixosVisiveis
+	]);
+
+	/**
+	 * A seleção, recortada ao que está na tela.
+	 *
+	 * Trocar de operação ou de tipo de equipe NÃO limpa a seleção — a página não
+	 * remonta —, e um card marcado que sumiu continuaria contando no botão e
+	 * geraria um PNG vazio na exportação. Filtrar aqui resolve os três usos de uma
+	 * vez (o `includes` da UI, a contagem e o laço de exportação) sem um `$effect`
+	 * que apagasse escolha do usuário pelas costas.
+	 */
+	const selectedCharts = $derived(selection.selected.filter((id) => idsExportaveis.includes(id)));
+	const toggleChartSelection = selection.toggle;
+
+	const allChartsCount = $derived(idsExportaveis.length);
 
 	// Armas key via utilitário
 	const armasKey = $derived(getArmasKey(data.modeloOperacional));
@@ -425,13 +461,12 @@ export function useProdutividade(getData: () => PageData) {
 					let total = 0;
 					let unit = '';
 					if (id === 'detail-prisoes') {
-						const prisoesFlagrante = (stats['prisoes_apreensoes_flagrante'] as number) || 0;
 						details = [
 							{ label: 'Flagrantes (P4)', value: stats.prisaoFlagrante },
 							{ label: 'Mandados (P5)', value: stats.prisaoMandado },
-							{ label: 'Total de Presos (P7)', value: prisoesFlagrante }
+							{ label: 'Total de Presos (P7)', value: stats.prisoesTotal }
 						];
-						total = Math.max(prisoesFlagrante, stats.prisaoFlagrante, stats.prisaoMandado);
+						total = Math.max(stats.prisoesTotal, stats.prisaoFlagrante, stats.prisaoMandado);
 					} else if (id === 'detail-drogas') {
 						details = (Object.entries(stats.drogasPorTipo) as [string, number][])
 							.sort((a, b) => b[1] - a[1])
@@ -533,6 +568,19 @@ export function useProdutividade(getData: () => PageData) {
 		},
 		get QUESTIONS() {
 			return QUESTIONS;
+		},
+		/** Quais blocos fixos (prisões/drogas/armas) esta operação comporta. */
+		get blocosFixos() {
+			return blocosFixos;
+		},
+		/**
+		 * Não há o que mostrar: nem indicador, nem bloco fixo, nem pergunta marcada
+		 * como gráfico. A tela diz isso em vez de ficar só com a barra de filtros —
+		 * painel em branco parece defeito, e o conserto (marcar no formulário) não
+		 * está nesta página.
+		 */
+		get painelVazio() {
+			return paineisIndicadores.length === 0 && idsExportaveis.length === 0;
 		},
 		/** Base × realizado × meta por unidade, para a seção "Indicadores e metas". */
 		get paineisIndicadores() {

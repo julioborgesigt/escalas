@@ -346,6 +346,32 @@ Verificar cada transição de status:
 - [ ] Eixo em pt-BR (`1.240`, não `1,240`)
 - [ ] Admin de unidade entra e vê **apenas** os dados da própria unidade
 
+**O que entra no painel** (marca de gráfico e blocos fixos):
+
+> A regra tem cobertura automatizada em `e2e/produtividade-graficos.spec.ts` e em
+> `produtividade/__tests__/questions`. Manual: a virada sobre os dados REAIS, que
+> é o que a migração `0053` promete não mudar.
+
+- [ ] Depois do deploy, abrir `/produtividade` na GISE e na CRAJUBAR → os
+      gráficos são **exatamente** os de antes (o carimbo da 0053)
+- [ ] No editor do formulário, cada pergunta contável traz a caixinha "Mostrar
+      como gráfico na produtividade", já marcada
+- [ ] Desmarcar **KM INICIAL** e **KM FINAL**, salvar e recarregar
+      `/produtividade` → os dois cards somem, e os demais ficam
+- [ ] Reabrir o formulário do policial → os dois campos continuam lá e continuam
+      sendo preenchidos (a marca é de exibição, não de coleta)
+- [ ] Marcar uma sub-pergunta (nível 1) como gráfico → ela também vira card
+- [ ] Numa operação NOVA, com formulário próprio sem pergunta de droga/arma/
+      flagrante → **não** aparecem "Ranking de Prisões", "Ranking de Drogas" nem
+      "Ranking de Armas"
+- [ ] Na mesma operação, sem indicador e sem pergunta marcada → aparece "Nada a
+      mostrar nesta operação", com a instrução de marcar no formulário
+- [ ] Desmarcar a pergunta **7. PRISÕES/APREENSÕES FLAGRANTE** como gráfico → o
+      card "Total de Presos (P7)" do bloco de prisões **continua** com o número
+      certo (ele não depende da marca)
+- [ ] Com cards desmarcados, "Selecionar Todos (N)" conta só o que está na tela,
+      e a exportação em PNG não gera imagem de card ausente
+
 ---
 
 ## 5. Assinatura Digital — Escalas

@@ -11,6 +11,7 @@ interface StatsResult {
 	armasPorTipo: Record<string, number>;
 	prisaoFlagrante: number;
 	prisaoMandado: number;
+	prisoesTotal: number;
 	[key: string]: unknown;
 }
 
@@ -56,7 +57,8 @@ export function calculateStats(
 		apreensoes_armas: 0,
 		armasPorTipo: {},
 		prisaoFlagrante: 0,
-		prisaoMandado: 0
+		prisaoMandado: 0,
+		prisoesTotal: 0
 	};
 
 	// Initialize dynamic keys
@@ -106,6 +108,14 @@ export function calculateStats(
 			s.prisaoFlagrante += Number(res.prisoes_qtd) || 0;
 		}
 		s.prisaoMandado += Number(res.mandados_qtd) || 0;
+		// P7, somado AQUI e não pelo laço das perguntas acima.
+		//
+		// O laço só passa pelas perguntas MARCADAS como gráfico, e o total de presos
+		// é do bloco fixo de prisões — que existe mesmo quando ninguém marcou a P7
+		// para virar barra. Deixá-lo depender da marca fazia o card "Total de
+		// Presos" cair para zero assim que a pergunta saísse do painel: um número
+		// errado, não um card ausente.
+		s.prisoesTotal += Number(res.prisoes_apreensoes_flagrante) || 0;
 	});
 
 	return s;

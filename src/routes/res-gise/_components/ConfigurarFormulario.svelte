@@ -24,9 +24,10 @@
 	import { Dialog } from '@skeletonlabs/skeleton-svelte';
 	import { loading } from '$lib/loading.svelte';
 	import { agruparPorEtapa } from '$lib/gise/etapas-formulario';
-	import { TIPOS_COM_FILHOS, TIPOS_COM_LISTA } from '$lib/gise/tipos-pergunta';
+	import { TIPOS_COM_FILHOS, TIPOS_COM_LISTA, podeSerGrafico } from '$lib/gise/tipos-pergunta';
 	import { podeSerIndicador, ehProporcao } from '$lib/gise/indicadores';
 	import Target from '@lucide/svelte/icons/target';
+	import ChartColumn from '@lucide/svelte/icons/chart-column';
 	import ChevronDown from '@lucide/svelte/icons/chevron-down';
 	import ChevronUp from '@lucide/svelte/icons/chevron-up';
 	import CornerDownRight from '@lucide/svelte/icons/corner-down-right';
@@ -434,6 +435,38 @@
 						</button>
 					</div>
 				</div>
+
+				<!-- Gráfico no painel: a pergunta vira uma barra por unidade em
+				     /produtividade.
+
+				     Existe porque antes NÃO existia: toda pergunta de tipo contável
+				     entrava sozinha, e a quilometragem da viatura ocupava um card ao
+				     lado das prisões. Desmarcar aqui tira do painel sem tirar do
+				     formulário — a coleta continua, só a leitura sai. -->
+				{#if podeSerGrafico(p.tipo)}
+					<label
+						class="mt-4 flex items-start gap-2 cursor-pointer rounded-2xl border border-dashed p-4 {p.grafico
+							? 'bg-primary-500/5 dark:bg-primary-500/10 border-primary-500/40'
+							: 'bg-surface-100/60 dark:bg-surface-800/40 border-surface-300 dark:border-surface-700'}"
+					>
+						<input
+							type="checkbox"
+							class="checkbox mt-0.5"
+							checked={!!p.grafico}
+							onchange={() => resGise.alternarGrafico(p)}
+						/>
+						<span class="min-w-0">
+							<span class="flex items-center gap-1.5 text-sm font-bold">
+								<ChartColumn class="w-4 h-4 text-primary-500" aria-hidden="true" />
+								Mostrar como gráfico na produtividade
+							</span>
+							<span class="block text-2xs text-surface-600 dark:text-surface-400 mt-0.5">
+								Uma barra por unidade, comparando o total do período. Desmarcada, a pergunta
+								continua no formulário e some do painel.
+							</span>
+						</span>
+					</label>
+				{/if}
 
 				<!-- Indicador de meta: promove a pergunta de "campo do relatório" a série
 				     acompanhada em gráfico, com meta e linha de base.
