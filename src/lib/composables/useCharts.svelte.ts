@@ -30,6 +30,7 @@
 
 import type { Chart, TooltipItem } from 'chart.js';
 import { SvelteMap } from 'svelte/reactivity';
+import { valorDaResposta } from '$lib/produtividade/apresentacao';
 
 type ChartConstructor = typeof Chart;
 type ChartInstance = InstanceType<ChartConstructor>;
@@ -56,35 +57,11 @@ interface ChartQuestion {
 	label: string;
 	key: string;
 	mappedKey: string;
+	tipo: string;
 	color: string;
 	isBool: boolean;
-	specialStore: string | null;
-}
-
-/**
- * O valor de UMA resposta para UMA pergunta.
- *
- * Três formas, decididas pelo tipo: booleana CONTA ocorrências (cada `'Sim'`
- * vale 1), drogas somam PESO normalizado em gramas (`kg` × 1000 — senão 2 kg e
- * 2 g virariam o mesmo 2), e o resto soma o número. A leitura usa `mappedKey`,
- * não `key`, porque nos tipos compostos a resposta mora em outra chave do blob.
- */
-function valorDaResposta(res: Record<string, unknown>, q: ChartQuestion): number {
-	if (q.isBool) return res[q.key] === 'Sim' ? 1 : 0;
-	if (q.specialStore === 'drogasGeral') {
-		let total = 0;
-		if (res.drogas_detalhe && typeof res.drogas_detalhe === 'object') {
-			Object.entries(res.drogas_detalhe as Record<string, unknown>).forEach(([tipo, peso]) => {
-				const drogasUnidade = res.drogas_unidade as Record<string, string> | undefined;
-				const unidade = (drogasUnidade && drogasUnidade[tipo]) || 'g';
-				let pesoV = Number(peso) || 0;
-				if (unidade === 'kg') pesoV *= 1000;
-				total += pesoV;
-			});
-		}
-		return total;
-	}
-	return Number(res[q.mappedKey || q.key]) || 0;
+	/** `'g'` em drogas (o eixo mostra gramas), vazio no resto. */
+	unidade: string;
 }
 
 export function useCharts(getChart: () => ChartConstructor | null) {
@@ -178,8 +155,7 @@ export function useCharts(getChart: () => ChartConstructor | null) {
 									visiveis[itens[0]?.dataIndex ?? 0]?.nome ?? '',
 								label: (context: TooltipItem<'bar'>) => {
 									const val = context.parsed.y ?? 0;
-									if (q.specialStore === 'drogasGeral') return `${val.toLocaleString()}g`;
-									return val.toLocaleString();
+									return `${val.toLocaleString()}${q.unidade}`;
 								}
 							}
 						}

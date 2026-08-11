@@ -9,6 +9,8 @@
  * sem o contrato mudar.
  */
 import { describe, it, expect, beforeEach } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { bancoMigrado, drizzleSobre } from '$lib/db/__tests__/sqlite-migrado';
 import type { DatabaseSync } from 'node:sqlite';
 import {
@@ -197,7 +199,19 @@ describe('seed das migrações', () => {
 		}
 	});
 
-	describe('0053 — carimbo da marca de gráfico', () => {
+	/**
+	 * As duas migrações da marca de gráfico, medidas no ESTADO FINAL.
+	 *
+	 * A 0053 carimbou `grafico: true` no que já virava gráfico e a 0054 converteu
+	 * esse booleano em `{colunas: true}`, marcando de quebra droga e arma com as
+	 * formas que os blocos fixos desenhavam. As duas rodam em sequência e nenhum
+	 * banco fica no meio do caminho — testar o resultado das duas juntas é testar
+	 * o que existe.
+	 *
+	 * A promessa das duas é a mesma: NADA muda na tela. É isso que estas
+	 * asserções guardam.
+	 */
+	describe('0053 + 0054 — a marca de gráfico', () => {
 		/** As perguntas de nível 0 de um modelo, pelo tipo de equipe. */
 		function perguntasDe(operacao: string, tipo: string) {
 			const linha = sqlite
@@ -209,19 +223,63 @@ describe('seed das migrações', () => {
 			return JSON.parse(linha?.config ?? '[]') as Array<{
 				key: string;
 				tipo: string;
-				grafico?: boolean;
-				filhos?: Array<{ grafico?: boolean }>;
+				grafico?: { colunas?: boolean; ranking?: boolean; detalhe?: boolean };
+				indicador?: { metaValor: number };
 			}>;
 		}
 
-		it('marca as perguntas que JÁ viravam gráfico — a virada é invisível', () => {
+		it('as perguntas que JÁ viravam gráfico ficam com a forma COLUNAS', () => {
 			// A regra antiga era "tipo contável → vira gráfico". Sem o carimbo, o
-			// painel da CRAJUBAR ficaria vazio no deploy até alguém remarcar tudo.
-			const perguntas = perguntasDe('OPERAÇÃO CRAJUBAR', 'operacional');
-			const numericas = perguntas.filter((q) => q.tipo === 'numero');
+			// painel da CRAJUBAR ficaria vazio no deploy até alguém remarcar tudo — e
+			// `colunas` é o que o booleano da 0053 queria dizer.
+			const numericas = perguntasDe('OPERAÇÃO CRAJUBAR', 'operacional').filter(
+				(q) => q.tipo === 'numero'
+			);
 
 			expect(numericas.length).toBeGreaterThan(0);
-			for (const q of numericas) expect(q.grafico).toBe(true);
+			for (const q of numericas) expect(q.grafico).toEqual({ colunas: true });
+		});
+
+		it('não sobra booleano nenhum no nível 0', () => {
+			// O formato antigo tem de estar convertido: `formasDaMarca` ainda o aceita
+			// na leitura, mas isso é rede para os `filhos`, não licença para o banco
+			// ficar com dois formatos convivendo na raiz.
+			for (const tipo of ['operacional', 'seint']) {
+				for (const q of perguntasDe('OPERAÇÃO CRAJUBAR', tipo)) {
+					expect(typeof q.grafico).not.toBe('boolean');
+				}
+			}
+		});
+
+		it('droga e arma nascem com RANKING e DETALHAMENTO', () => {
+			// É o par que os blocos fixos desenhavam. Sem esta marca, aposentar os
+			// blocos tiraria os quatro cards da tela.
+			const modelo = [
+				{ id: 1, tipo: 'drogas_complex', key: 'apreensoes_drogas', texto: 'D', filhos: [] },
+				{ id: 2, tipo: 'armas_complex', key: 'apreensoes_armas_bool', texto: 'A', filhos: [] }
+			];
+			sqlite
+				.prepare(
+					`INSERT INTO gise_modelo_formulario (operacao_id, tipo, config)
+					 VALUES ((SELECT id FROM operacoes WHERE nome = 'GISE'), 'operacional', ?)`
+				)
+				.run(JSON.stringify(modelo));
+
+			// A migração já rodou; reaplicá-la é o jeito de medir o efeito dela sobre
+			// uma linha nova, e ela é idempotente por construção.
+			sqlite.exec(
+				readFileSync(join(process.cwd(), 'migrations', '0054_grafico_formas.sql'), 'utf8')
+			);
+
+			const perguntas = perguntasDe('GISE', 'operacional');
+			expect(perguntas.find((q) => q.tipo === 'drogas_complex')?.grafico).toEqual({
+				ranking: true,
+				detalhe: true
+			});
+			expect(perguntas.find((q) => q.tipo === 'armas_complex')?.grafico).toEqual({
+				ranking: true,
+				detalhe: true
+			});
 		});
 
 		it('NÃO marca o que nunca virou gráfico', () => {
@@ -235,20 +293,20 @@ describe('seed das migrações', () => {
 		});
 
 		it('preserva o indicador da pergunta carimbada', () => {
-			// `json_set` sobre o objeto inteiro: perder o `indicador` aqui apagaria a
-			// meta do Plano Operacional sem erro nenhum.
+			// `json_set` sobre o objeto inteiro, duas vezes seguidas: perder o
+			// `indicador` aqui apagaria a meta do Plano Operacional sem erro nenhum.
 			const acervo = perguntasDe('OPERAÇÃO CRAJUBAR', 'operacional').find(
 				(q) => q.key === 'crajubar_acervo_pendentes'
-			) as { grafico?: boolean; indicador?: { metaValor: number } } | undefined;
+			);
 
-			expect(acervo?.grafico).toBe(true);
+			expect(acervo?.grafico).toEqual({ colunas: true });
 			expect(acervo?.indicador?.metaValor).toBe(20);
 		});
 
 		it('o modelo continua sendo um ARRAY de objetos, não de strings', () => {
-			// O `json(CASE ... END)` da migração existe por isto: sem ele o CASE perde
-			// o subtipo JSON e `json_group_array` embute cada pergunta escapada como
-			// texto — o formulário abriria vazio, sem erro em lugar nenhum.
+			// O `json(CASE ... END)` das duas migrações existe por isto: sem ele o CASE
+			// perde o subtipo JSON e `json_group_array` embute cada pergunta escapada
+			// como texto — o formulário abriria vazio, sem erro em lugar nenhum.
 			const perguntas = perguntasDe('OPERAÇÃO CRAJUBAR', 'seint');
 			expect(perguntas.length).toBeGreaterThan(0);
 			for (const q of perguntas) {

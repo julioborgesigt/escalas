@@ -611,43 +611,58 @@ no mesmo relatório. Só o tipo de campo `proporcao` aceita esta meta.
 operação — e, nos indicadores de cobertura, a **porcentagem coberta** com a meta
 como limiar constante, porque contagem e porcentagem não compartilham eixo.
 
-### O que entra no painel
+### O que entra no painel, e em que forma
 
-Três coisas aparecem em `/produtividade`, e cada uma entra por um critério
-diferente. Confundi-los foi a origem dos dois bugs corrigidos em ago/2026.
+Tudo em `/produtividade` sai do MODELO do formulário, e cada seção entra por um
+critério diferente. Confundi-los foi a origem dos bugs corrigidos em ago/2026.
 
-| Seção                    | Entra quando…                                            |
-| ------------------------ | -------------------------------------------------------- |
-| Indicadores e metas      | a pergunta está marcada como **indicador** (`indicador`) |
-| Gráficos por pergunta    | a pergunta está marcada como **gráfico** (`grafico`)     |
-| Prisões · Drogas · Armas | o formulário TEM a pergunta do tipo que alimenta o bloco |
+| Seção                 | Entra quando…                                            |
+| --------------------- | -------------------------------------------------------- |
+| Indicadores e metas   | a pergunta tem `indicador`                               |
+| Colunas por unidade   | a pergunta tem `grafico.colunas`                         |
+| Ranking de unidades   | a pergunta tem `grafico.ranking`                         |
+| Detalhamento por tipo | a pergunta tem `grafico.detalhe` **e** comporta a quebra |
+| Prisões (bloco fixo)  | o formulário TEM `prisoes_maiores` ou `mandados_maiores` |
 
-**A marca de gráfico é uma escolha, não uma consequência do tipo.** Até ago/2026
-toda pergunta de tipo contável virava card sozinha, e a quilometragem inicial da
+**A marca é uma escolha, não uma consequência do tipo.** Até ago/2026 toda
+pergunta de tipo contável virava card sozinha, e a quilometragem inicial da
 viatura ocupava espaço ao lado das prisões — sem jeito de tirá-la a não ser
-apagando o campo, o que apagaria a coleta. Agora a caixinha "Mostrar como gráfico
-na produtividade" fica no editor, ao lado da de indicador, e as duas marcas são
-independentes: gráfico é uma leitura, indicador é uma promessa com meta e linha
-de base. A migração `0053` carimbou `grafico: true` no que já era gráfico, então
-a virada não mudou painel nenhum — o que passou a existir foi o desmarcar.
+apagando o campo, o que apagaria a coleta. Agora o bloco "Mostrar na
+produtividade" fica no editor, ao lado do de indicador, com uma caixinha por
+forma. Marca e indicador são independentes: gráfico é uma leitura, indicador é
+uma promessa com meta e linha de base.
 
-**Os três blocos fixos (prisões, drogas, armas) são a exceção que não vem do
-modelo**: são seis cards escritos no código, porque o que interessa neles é o
-detalhe (peso por tipo de droga, quantidade por tipo de arma) e nenhuma barra
-genérica dá conta. Eles dependem do modelo por PRESENÇA, não por marca —
-`blocosFixosDisponiveis` pergunta se existe pergunta de `drogas_complex`,
-`armas_complex`, `prisoes_maiores` ou `mandados_maiores`. Antes apareciam sempre:
-numa operação cujo formulário nunca perguntou sobre droga, a tela exibia "Ranking
-de Drogas" zerado, afirmando "nenhuma apreensão" sobre uma pergunta que ninguém
-fez.
+**As formas acumulam.** A pergunta de armas mostra ranking E detalhamento, que é
+como o painel sempre a desenhou — e agora dá para desligar um dos dois. Ranking e
+colunas são a MESMA conta em apresentações diferentes (valor por unidade); o
+detalhamento é outra pergunta: quebra por categoria DENTRO da resposta.
 
-O total de presos (P7) é somado por chave fixa junto do bloco, e não pelo laço
-das perguntas marcadas: fosse pelo laço, desmarcar a P7 como gráfico zeraria o
-card do bloco — um número errado, que é pior que um card ausente.
+**Detalhamento só onde existe a quebra.** Ela vive num objeto
+`{ categoria: valor }` do blob, e só `drogas_complex` (`drogas_detalhe`) e
+`armas_complex` (`armas_detalhe`) o gravam — `podeDetalhar` é quem responde. Nas
+demais a caixinha aparece **desabilitada com a explicação**, mesmo padrão do tipo
+de meta "Cobertura". Uma pergunta de número tem um valor só; o "detalhamento"
+dela seria um card de uma barra.
 
-Operação sem indicador, sem bloco e sem pergunta marcada mostra um aviso
-dizendo onde é o conserto (o editor do formulário), em vez de uma página só com
-a barra de filtros.
+**Como cada pergunta é somada** é decisão de `valorDaResposta`
+(`$lib/produtividade/apresentacao`), e vale igual para as três formas: `sim_nao`
+conta ocorrências, droga soma peso normalizado em gramas (mostrado em kg), arma
+soma as quantidades por tipo **e só com o booleano em "Sim"**. Eram três cópias
+dessa regra até ago/2026, e a de armas já divergia — somava sem o gate.
+
+**Prisões é o único bloco que continua escrito no código**, porque o detalhamento
+dele soma três perguntas (flagrantes, mandados e total de presos) e uma marca
+vive em uma pergunta só. O total de presos (P7) é somado por chave fixa junto do
+bloco, e não pelo laço das perguntas marcadas: fosse pelo laço, desmarcar a P7
+zeraria o card — um número errado, que é pior que um card ausente.
+
+Duas migrações fizeram a virada sem mudar a tela: a `0053` carimbou o que já era
+gráfico e a `0054` converteu esse carimbo em formas, marcando droga e arma com o
+par ranking + detalhamento que os blocos fixos desenhavam.
+
+Operação sem indicador, sem bloco e sem pergunta marcada mostra um aviso dizendo
+onde é o conserto (o editor do formulário), em vez de uma página só com a barra
+de filtros.
 
 ### O eixo do painel: delegacias ou seccionais
 

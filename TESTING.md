@@ -346,31 +346,44 @@ Verificar cada transição de status:
 - [ ] Eixo em pt-BR (`1.240`, não `1,240`)
 - [ ] Admin de unidade entra e vê **apenas** os dados da própria unidade
 
-**O que entra no painel** (marca de gráfico e blocos fixos):
+**O que entra no painel, e em que forma:**
 
 > A regra tem cobertura automatizada em `e2e/produtividade-graficos.spec.ts` e em
 > `produtividade/__tests__/questions`. Manual: a virada sobre os dados REAIS, que
-> é o que a migração `0053` promete não mudar.
+> é o que as migrações `0053` e `0054` prometem não mudar.
 
-- [ ] Depois do deploy, abrir `/produtividade` na GISE e na CRAJUBAR → os
-      gráficos são **exatamente** os de antes (o carimbo da 0053)
-- [ ] No editor do formulário, cada pergunta contável traz a caixinha "Mostrar
-      como gráfico na produtividade", já marcada
+- [ ] Depois do deploy, abrir `/produtividade` na GISE e na CRAJUBAR → os cards
+      são **os mesmos de antes**, na mesma ordem: prisões, drogas e armas com
+      ranking + detalhamento lado a lado, e as barras por pergunta abaixo
+- [ ] Os títulos de drogas e armas perderam o sufixo do número da pergunta
+      (`(P10)`, `(P11)`) e "Detalhamento de Substâncias" virou "Detalhamento de
+      Drogas" — é a única mudança visível esperada
+- [ ] No editor, cada pergunta contável traz o bloco **"Mostrar na
+      produtividade"** com três caixinhas; nas numéricas, "Colunas por unidade"
+      vem marcada
+- [ ] A pergunta de **drogas** e a de **armas** vêm com "Ranking de unidades" e
+      "Detalhamento por tipo" marcadas, e "Colunas" desmarcada
+- [ ] Em pergunta que não seja de droga ou arma, "Detalhamento por tipo" aparece
+      **desabilitada**, com a explicação abaixo
 - [ ] Desmarcar **KM INICIAL** e **KM FINAL**, salvar e recarregar
       `/produtividade` → os dois cards somem, e os demais ficam
-- [ ] Reabrir o formulário do policial → os dois campos continuam lá e continuam
+- [ ] Desmarcar só o "Ranking" da pergunta de drogas → o ranking some e o
+      detalhamento continua (e vice-versa)
+- [ ] Reabrir o formulário do policial → os campos continuam lá e continuam
       sendo preenchidos (a marca é de exibição, não de coleta)
-- [ ] Marcar uma sub-pergunta (nível 1) como gráfico → ela também vira card
+- [ ] Marcar uma sub-pergunta (nível 1) → ela também vira card
 - [ ] Numa operação NOVA, com formulário próprio sem pergunta de droga/arma/
       flagrante → **não** aparecem "Ranking de Prisões", "Ranking de Drogas" nem
       "Ranking de Armas"
 - [ ] Na mesma operação, sem indicador e sem pergunta marcada → aparece "Nada a
       mostrar nesta operação", com a instrução de marcar no formulário
-- [ ] Desmarcar a pergunta **7. PRISÕES/APREENSÕES FLAGRANTE** como gráfico → o
-      card "Total de Presos (P7)" do bloco de prisões **continua** com o número
-      certo (ele não depende da marca)
+- [ ] Desmarcar a pergunta **7. PRISÕES/APREENSÕES FLAGRANTE** → o card "Total de
+      Presos (P7)" do bloco de prisões **continua** com o número certo (ele não
+      depende da marca)
 - [ ] Com cards desmarcados, "Selecionar Todos (N)" conta só o que está na tela,
       e a exportação em PNG não gera imagem de card ausente
+- [ ] Exportar o PNG do ranking de drogas → o peso sai em **kg**; o do
+      detalhamento, em **g** (é a mesma conta em unidades diferentes)
 
 ---
 

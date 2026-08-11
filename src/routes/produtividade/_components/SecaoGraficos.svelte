@@ -1,27 +1,27 @@
 <script lang="ts">
 	/**
-	 * Grade de gráficos Chart.js + totais por pergunta do modelo.
-	 * Canvas bound via `canvasElements` do composable `useCharts`.
+	 * Grade de gráficos Chart.js + o total de cada pergunta marcada com a forma
+	 * COLUNAS. Canvas bound via `canvasElements` do composable `useCharts`.
+	 *
+	 * O número grande vem de `stats[q.key]`, e não de uma conta local: quem soma é
+	 * `valorDaResposta` (`$lib/produtividade/apresentacao`), o mesmo que desenha a
+	 * barra. Este componente já teve a sua própria soma — contando `'Sim'` para
+	 * booleanas e lendo `drogasGeral` para drogas — e era a quarta cópia da regra.
 	 */
 	import Check from '@lucide/svelte/icons/check';
 	import Plus from '@lucide/svelte/icons/plus';
 	import type { Question } from '$lib/produtividade';
-	import type { ProdutividadeParsedRow } from './useProdutividade.svelte';
 
 	const {
 		questions,
 		stats,
-		parsedData,
 		canvasElements,
 		selectedCharts,
 		modoVisualizacao,
 		onToggle
 	}: {
 		questions: Question[];
-		stats: Record<string, unknown> & {
-			drogasGeral: number;
-		};
-		parsedData: ProdutividadeParsedRow[];
+		stats: Record<string, unknown>;
 		canvasElements: Record<number, HTMLCanvasElement>;
 		selectedCharts: (number | string)[];
 		modoVisualizacao: 'delegacias' | 'seccionais';
@@ -31,6 +31,7 @@
 
 <section class="space-y-8">
 	{#each questions as q (q.id)}
+		{@const total = Number(stats[q.key]) || 0}
 		<div
 			class="card relative p-4 sm:p-6 lg:p-8 bg-white dark:bg-surface-900 border-2 transition-colors {selectedCharts.includes(
 				q.id
@@ -64,16 +65,12 @@
 					{q.label}
 				</p>
 				<h3 class="text-5xl font-black" style="color: {q.color}">
-					{#if q.specialStore === 'drogasGeral'}
-						{(stats.drogasGeral / 1000).toFixed(2)}<span class="text-sm ml-1 opacity-60">kg</span>
-					{:else if q.isBool}
-						{parsedData.filter((i) => i.respostasParsed[q.key] === 'Sim').length}
+					<!-- Peso é somado em gramas e lido em quilos — a unidade vem da
+					     pergunta, não do card. Ver `identidadeDaPergunta`. -->
+					{#if q.unidade === 'g'}
+						{(total / 1000).toFixed(2)}<span class="text-sm ml-1 opacity-60">kg</span>
 					{:else}
-						{stats[q.key] ??
-							parsedData.reduce(
-								(acc: number, i) => acc + (Number(i.respostasParsed[q.key]) || 0),
-								0
-							)}
+						{total.toLocaleString('pt-BR')}
 					{/if}
 				</h3>
 				<div class="mt-4 flex gap-2">
