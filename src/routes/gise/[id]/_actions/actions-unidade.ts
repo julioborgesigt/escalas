@@ -24,7 +24,12 @@ import {
 } from '$lib/db';
 import { giseSeccionalUnidades, giseEquipes, unidades } from '$lib/server/schema';
 import { eq, and, isNull } from 'drizzle-orm';
-import { getInt, carregarSeccionalDaGise, exigirAdminGeral, podePreencherSeccional } from './shared';
+import {
+	getInt,
+	carregarSeccionalDaGise,
+	exigirAdminGeral,
+	podePreencherSeccional
+} from './shared';
 import { concluirMudancaGise, invalidarAssinaturasDaSeccional } from './desfecho';
 
 type Event = RequestEvent<{ id: string }>;
