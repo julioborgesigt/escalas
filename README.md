@@ -555,6 +555,30 @@ e o item solto obrigava a escolher a operação depois de entrar. O caminho é o
 botão **Formulário** de cada linha, e a tela tem o "voltar às operações" acima do
 título.
 
+**A barra lateral tem DOIS NÍVEIS.** Tudo que é de escala extra — Escalas,
+Produtividade, Dados base, Minha presença, Meu histórico — vive sob o item
+**"Escala extra"**, que ao ser clicado SUBSTITUI o conteúdo da barra pelo
+submenu. Antes eram até cinco linhas soltas, e o admin seccional via oito itens
+de uma vez sem que nada dissesse que cinco eram do mesmo assunto — estavam só
+perto uns dos outros.
+
+Três decisões registradas:
+
+- **substitui, não expande.** Cinco itens indentados sob um pai devolveriam a
+  lista comprida que o agrupamento veio desfazer;
+- **o nível é decidido ao ABRIR, pela rota** (`openSidebar`). Abrir o menu em
+  `/produtividade` e cair na raiz esconderia justamente onde a pessoa está;
+- **`/gise/operacoes` fica na RAIZ.** É cadastro, não operação do dia a dia, e
+  acompanha os outros itens de gestão do Admin Geral.
+
+O filho que leva a `/gise` chama-se **"Escalas"**, e não "Escalas ativas": a
+página lista ativas **e** histórico, com o filtro dentro dela — o rótulo mentiria.
+
+Quem vê cada filho é `filhosExtra` (`+layout.svelte`), com as MESMAS condições de
+antes do agrupamento, uma por uma. O pai só aparece se a lista não estiver vazia,
+para nunca abrir num submenu vazio. E agrupar é apresentação: o recorte de verdade
+segue no servidor — esconder item de menu nunca foi autorização.
+
 **`/dados-base` na barra lateral** aparece só para admin de unidade/seccional que
 tenha efetivamente base a informar — unidade escalada em operação ativa com
 indicador percentual (`temLinhaBaseAPreencher`). Antes aparecia para todo admin de
