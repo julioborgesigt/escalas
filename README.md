@@ -294,6 +294,8 @@ npm run lint:ci            # ESLint com o teto de warnings usado no CI (ratchet)
 npm run lint:fix           # ESLint com auto-fix
 npm run format             # Prettier em src/ (escreve)
 npm run format:check       # Prettier em src/ sem alterar (só verifica)
+npm run format:e2e         # Prettier em e2e/ (escreve)
+npm run format:check:e2e   # Prettier em e2e/ sem alterar (gate próprio no CI)
 npm run knip               # Detecção de código/exports mortos
 npm run docs:inventario    # Inventário de documentação (cabeçalhos, contratos, opacos)
 npm run docs:guard         # Falha se arquivo NOVO em lib/db vier sem doc (roda no CI)
@@ -1157,7 +1159,7 @@ O arquivo [`TESTING.md`](TESTING.md) é o roteiro de **exceção**: cobre o que 
 
 Faça push ou abra PR para as branches `main` ou `staging`. O GitHub Actions (`.github/workflows/deploy.yml`) executa automaticamente:
 
-1. `npm run lint:ci` + `npm run format:check`
+1. `npm run lint:ci` + `npm run format:check` + `npm run format:check:e2e`
 2. `npx svelte-check --threshold error`
 3. `npx vitest run`
 4. `npm run build`
