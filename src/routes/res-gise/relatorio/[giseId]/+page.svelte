@@ -39,6 +39,7 @@
 	import { loading } from '$lib/loading.svelte';
 	import { toaster } from '$lib/toast';
 	import Spinner from '$lib/components/Spinner.svelte';
+	import RodapeAcoes from '$lib/components/RodapeAcoes.svelte';
 	import BotaoVoltar from '$lib/components/BotaoVoltar.svelte';
 	import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
 	import RelatorioProdutividade from '../../_components/RelatorioProdutividade.svelte';
@@ -459,65 +460,61 @@
 	Rodapé fixo: com o formulário fatiado, avançar/voltar é a ação mais frequente
 	da tela e não pode depender de rolar até o fim da etapa.
 -->
-<div
-	class="sticky bottom-0 z-20 -mx-2 mt-6 border-t border-surface-200 bg-surface-50/95 px-2 py-3 backdrop-blur sm:-mx-4 sm:px-4 dark:border-surface-800 dark:bg-surface-900/95"
->
-	<div class="flex flex-wrap items-center justify-between gap-3">
-		<p class="text-3xs text-surface-600 dark:text-surface-400" aria-live="polite">
-			{#if rascunhoSalvoEm}
-				Rascunho salvo às {rascunhoSalvoEm} neste aparelho
-			{:else}
-				O preenchimento é salvo neste aparelho enquanto você responde
-			{/if}
-		</p>
+<RodapeAcoes>
+	{#snippet status()}
+		{#if rascunhoSalvoEm}
+			Rascunho salvo às {rascunhoSalvoEm} neste aparelho
+		{:else}
+			O preenchimento é salvo neste aparelho enquanto você responde
+		{/if}
+	{/snippet}
 
-		<div class="flex flex-1 justify-end gap-2 sm:flex-none">
-			<!-- "Anterior", e não "Voltar": o `BotaoVoltar` do topo já é o Voltar
-			     desta tela, e dois botões com a mesma palavra fazendo coisas
-			     diferentes na mesma tela é troca garantida. -->
+	{#snippet acoes()}
+		<!-- "Anterior", e não "Voltar": o `BotaoVoltar` do topo já é o Voltar
+		     desta tela, e dois botões com a mesma palavra fazendo coisas
+		     diferentes na mesma tela é troca garantida. -->
+		<button
+			type="button"
+			class="btn btn-sm preset-outlined-surface-500"
+			disabled={indiceEtapa === 0 || enviando}
+			onclick={() => irPara(indiceEtapa - 1)}
+		>
+			Anterior
+		</button>
+
+		{#if !naUltima}
 			<button
 				type="button"
-				class="btn btn-sm preset-outlined-surface-500"
-				disabled={indiceEtapa === 0 || enviando}
-				onclick={() => irPara(indiceEtapa - 1)}
+				class="btn btn-sm preset-filled-primary-500 px-6"
+				onclick={() => irPara(indiceEtapa + 1)}
 			>
-				Anterior
+				Avançar
 			</button>
+		{/if}
 
-			{#if !naUltima}
-				<button
-					type="button"
-					class="btn btn-sm preset-filled-primary-500 px-6"
-					onclick={() => irPara(indiceEtapa + 1)}
-				>
-					Avançar
-				</button>
-			{/if}
-
-			<!-- Fora da última etapa o botão de gravar só aparece na RETIFICAÇÃO:
+		<!-- Fora da última etapa o botão de gravar só aparece na RETIFICAÇÃO:
 			     quem já entregou costuma vir corrigir um campo só, e obrigá-lo a
 			     percorrer o resto do formulário para achar o "salvar" seria uma
 			     armadilha. Na primeira entrega ele fecha o fluxo, no fim. -->
-			{#if naUltima || jaEntregue}
-				<form method="POST" action={acaoSalvar} use:enhance={handleEnviar} class="contents">
-					<input type="hidden" name="respostas" value={respostasJson} />
-					<!-- O servidor decide de QUAL unidade é esta base e ignora chave que não
+		{#if naUltima || jaEntregue}
+			<form method="POST" action={acaoSalvar} use:enhance={handleEnviar} class="contents">
+				<input type="hidden" name="respostas" value={respostasJson} />
+				<!-- O servidor decide de QUAL unidade é esta base e ignora chave que não
 				     seja indicador do modelo — aqui vai só o que foi digitado. -->
-					<input type="hidden" name="linhasBase" value={linhasBaseJson} />
-					<button
-						type="submit"
-						class="btn btn-sm px-6 {naUltima
-							? 'preset-filled-primary-500'
-							: 'preset-outlined-primary-500'}"
-						disabled={enviando}
-					>
-						{#if enviando}
-							<Spinner size="sm" />
-						{/if}
-						{jaEntregue ? 'Salvar alterações' : 'Finalizar entrega'}
-					</button>
-				</form>
-			{/if}
-		</div>
-	</div>
-</div>
+				<input type="hidden" name="linhasBase" value={linhasBaseJson} />
+				<button
+					type="submit"
+					class="btn btn-sm px-6 {naUltima
+						? 'preset-filled-primary-500'
+						: 'preset-outlined-primary-500'}"
+					disabled={enviando}
+				>
+					{#if enviando}
+						<Spinner size="sm" />
+					{/if}
+					{jaEntregue ? 'Salvar alterações' : 'Finalizar entrega'}
+				</button>
+			</form>
+		{/if}
+	{/snippet}
+</RodapeAcoes>

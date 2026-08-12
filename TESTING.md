@@ -385,6 +385,18 @@ Verificar cada transição de status:
 - [ ] Exportar o PNG do ranking de drogas → o peso sai em **kg**; o do
       detalhamento, em **g** (é a mesma conta em unidades diferentes)
 
+**Rodapé de salvar do editor** (`/res-gise`, Admin Geral):
+
+- [ ] Abrir o editor → o botão "Salvar Modelo" está visível **sem rolar**, no pé
+      da tela, e o status diz **"Tudo salvo"**
+- [ ] Rolar até o fim da lista de perguntas → o rodapé continua no pé, e o fim da
+      página não fica escondido atrás dele
+- [ ] Editar qualquer campo (texto, etapa, uma caixinha) → o status vira
+      **"Alterações não salvas"** com a bolinha amarela
+- [ ] Salvar → volta para "Tudo salvo" sozinho, sem recarregar a página
+- [ ] Trocar a aba Operacional/SEINT sem editar nada → "Tudo salvo" nas duas
+- [ ] No celular, o rodapé não cobre o último campo do formulário
+
 **Tipos de lista: o genérico e os aposentados:**
 
 - [ ] No seletor de tipo de uma pergunta NOVA, "Mandados Maiores", "Prisões

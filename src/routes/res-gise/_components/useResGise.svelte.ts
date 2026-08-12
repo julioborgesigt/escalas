@@ -198,6 +198,29 @@ export function useResGise(getData: () => ResGisePageData) {
 	// --- Derived ---
 	const configJson = $derived(JSON.stringify(perguntasConfig));
 
+	/**
+	 * O editor tem alteração que ainda não foi gravada?
+	 *
+	 * Compara o que está na tela com o modelo que o `load` trouxe. Depois de
+	 * salvar, `invalidateShared` recarrega o `load` e os dois voltam a bater
+	 * sozinhos — não há flag a limpar à mão.
+	 *
+	 * Existe porque o editor avisa que "nada é gravado até clicar em Salvar" e
+	 * nada na tela tornava isso concreto: a barra de status tinha dois estados,
+	 * "Salvando..." (que dura o tempo da requisição) e "Pronto para salvar", que
+	 * era o `else` — dizia a mesma coisa tendo-se mexido em algo ou não.
+	 *
+	 * Comparação por JSON, com um falso positivo conhecido: ligar e desligar a
+	 * mesma caixinha pode reordenar as chaves do objeto (`delete` + reatribuição
+	 * põem a chave no fim), e o texto muda sem o conteúdo mudar. Erra para o lado
+	 * de "salve" — que é o lado certo para errar num aviso — e um comparador
+	 * profundo custaria mais do que vale.
+	 */
+	const alteracoesNaoSalvas = $derived(
+		configJson !==
+			JSON.stringify(configTipo === 'seint' ? data.modeloSeint : data.modeloOperacional)
+	);
+
 	// --- Funções de Navegação e Filtro ---
 	function navigateWithFilters(params: Record<string, string | null>) {
 		// eslint-disable-next-line svelte/prefer-svelte-reactivity
@@ -576,6 +599,10 @@ export function useResGise(getData: () => ResGisePageData) {
 		// Derived
 		get configJson() {
 			return configJson;
+		},
+		/** Há edição na tela que ainda não foi gravada? Move o rodapé do editor. */
+		get alteracoesNaoSalvas() {
+			return alteracoesNaoSalvas;
 		},
 		/** Operações ativas, para o seletor do editor. */
 		get operacoes() {
