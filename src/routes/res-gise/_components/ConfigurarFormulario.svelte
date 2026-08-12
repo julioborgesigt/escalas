@@ -24,7 +24,20 @@
 	import ModalShell from '$lib/components/ModalShell.svelte';
 	import { loading } from '$lib/loading.svelte';
 	import { agruparPorEtapa } from '$lib/gise/etapas-formulario';
-	import { TIPOS_COM_FILHOS, TIPOS_COM_LISTA } from '$lib/gise/tipos-pergunta';
+	import {
+		TIPOS_COM_FILHOS,
+		TIPOS_COM_LISTA,
+		TIPOS_LISTA_APOSENTADOS,
+		TIPO_LISTA_REUTILIZAVEL,
+		podeSerGrafico,
+		podeDetalhar,
+		exigeSimParaContar
+	} from '$lib/gise/tipos-pergunta';
+	import { podeSerIndicador, ehProporcao } from '$lib/gise/indicadores';
+	import { formasDaMarca } from '$lib/produtividade';
+	import RodapeAcoes from '$lib/components/RodapeAcoes.svelte';
+	import Target from '@lucide/svelte/icons/target';
+	import ChartColumn from '@lucide/svelte/icons/chart-column';
 	import ChevronDown from '@lucide/svelte/icons/chevron-down';
 	import ChevronUp from '@lucide/svelte/icons/chevron-up';
 	import CornerDownRight from '@lucide/svelte/icons/corner-down-right';
@@ -61,11 +74,12 @@
 
 	/**
 	 * Tipos com rótulos personalizáveis: os de lista (Quantidade + Legenda) mais
-	 * drogas e armas (Lista de Tipos + Detalhamento). `operacoes_seint_pura` fica
-	 * de fora porque não tem par Sim/Não para rotular.
+	 * drogas e armas (Lista de Tipos + Detalhamento). O de lista PURA fica de fora
+	 * porque não tem par Sim/Não para rotular — `exigeSimParaContar` é quem sabe
+	 * disso, e ele já responde a mesma pergunta para o painel.
 	 */
 	const TIPOS_COM_ROTULOS = [
-		...TIPOS_COM_LISTA.filter((t) => t !== 'operacoes_seint_pura'),
+		...TIPOS_COM_LISTA.filter(exigeSimParaContar),
 		'drogas_complex',
 		'armas_complex'
 	];
@@ -119,25 +133,50 @@
 					Defina os textos e campos do relatório de produtividade oficial.
 				</p>
 
-				<div
-					class="flex gap-2 mt-4 bg-surface-100 dark:bg-surface-800 p-1 rounded-xl w-full sm:w-fit"
-				>
-					<button
-						type="button"
-						class="flex-1 sm:flex-none px-4 py-2 rounded-lg text-xs font-bold transition-colors {resGise.configTipo ===
-						'operacional'
-							? 'bg-white dark:bg-surface-700 shadow text-primary-600'
-							: 'text-surface-600 dark:text-surface-400'}"
-						onclick={() => (resGise.configTipo = 'operacional')}>Operacional</button
-					>
-					<button
-						type="button"
-						class="flex-1 sm:flex-none px-4 py-2 rounded-lg text-xs font-bold transition-colors {resGise.configTipo ===
-						'seint'
-							? 'bg-white dark:bg-surface-700 shadow text-primary-600'
-							: 'text-surface-600 dark:text-surface-400'}"
-						onclick={() => (resGise.configTipo = 'seint')}>SEINT (Inteligência)</button
-					>
+				<!-- Operação primeiro, tipo depois: o formulário é POR OPERAÇÃO, e quais
+				     tipos de equipe aparecem depende de quais ela habilita. -->
+				<div class="mt-4 space-y-3">
+					<div class="w-full sm:max-w-xs">
+						<label
+							for="cfg-operacao"
+							class="block text-3xs font-semibold text-surface-600 dark:text-surface-400 uppercase tracking-widest mb-1"
+						>
+							Operação
+						</label>
+						<select
+							id="cfg-operacao"
+							class="w-full px-4 py-2.5 rounded-xl border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-900 text-sm font-bold"
+							value={resGise.operacaoSelecionadaId ?? ''}
+							onchange={(e) => resGise.trocarOperacao(Number(e.currentTarget.value))}
+						>
+							{#each resGise.operacoes as op (op.id)}
+								<option value={op.id}>{op.nome}</option>
+							{/each}
+						</select>
+					</div>
+
+					<div class="flex gap-2 bg-surface-100 dark:bg-surface-800 p-1 rounded-xl w-full sm:w-fit">
+						{#each resGise.tiposDisponiveis as tipo (tipo)}
+							<button
+								type="button"
+								class="flex-1 sm:flex-none px-4 py-2 rounded-lg text-xs font-bold transition-colors {resGise.configTipo ===
+								tipo
+									? 'bg-white dark:bg-surface-700 shadow text-primary-600'
+									: 'text-surface-600 dark:text-surface-400'}"
+								onclick={() => (resGise.configTipo = tipo)}
+							>
+								{tipo === 'operacional' ? 'Operacional' : 'SEINT (Inteligência)'}
+							</button>
+						{/each}
+					</div>
+					{#if resGise.tiposDisponiveis.length === 1}
+						<p class="text-2xs text-surface-600 dark:text-surface-400">
+							Esta operação usa apenas equipe {resGise.tiposDisponiveis[0] === 'seint'
+								? 'de inteligência'
+								: 'operacional'}. Para mudar isso, edite-a em
+							<a href="/gise/operacoes" class="anchor">Operações</a>.
+						</p>
+					{/if}
 				</div>
 			</div>
 			<div class="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
@@ -349,6 +388,10 @@
 								<option value="numero">Número</option>
 								<option value="sim_nao">Sim / Não (Condicional)</option>
 								<option value="select_99">Quantitativo (0-99)</option>
+								<!-- Dois campos numa pergunta só (total e parte). É o que
+								     permite meta de COBERTURA: "atender 100% das ocorrências"
+								     não se mede com um número solto. -->
+								<option value="proporcao">Cobertura (total e atendidas)</option>
 							</optgroup>
 							<optgroup label="Campos Inteligentes (Sistemáticos)">
 								<!-- Primeiro da lista por ser o ÚNICO que pode se repetir no
@@ -358,9 +401,6 @@
 									>Quantidade + Lista Nome/Procedimento (reutilizável)</option
 								>
 								<option value="vtr_placa">VTR e Placa (Inteligente)</option>
-								<option value="mandados_maiores">Mandados Maiores (Auto-Listagem)</option>
-								<option value="prisoes_maiores">Prisões Maiores (Auto-Listagem)</option>
-								<option value="apreensoes_menores">Apreensões Menores (Auto-Listagem)</option>
 								<option value="drogas_complex">Drogas Detalhado (Auto-Listagem)</option>
 								<option value="armas_complex">Armas Detalhado (Auto-Listagem)</option>
 								<option value="celulares_complex">Extração Celular (Auto-Listagem)</option>
@@ -370,7 +410,30 @@
 								<option value="operacoes_seint_complex">Operações SEINT (Auto-Listagem)</option>
 								<option value="operacoes_seint_pura">Operações SEINT (Lista Pura)</option>
 							</optgroup>
+							<!-- APOSENTADOS: só aparecem na pergunta que JÁ está com um deles.
+							     Escondê-los sempre faria o `<select>` não achar o valor atual e
+							     cair na primeira opção — a pergunta trocaria de tipo sozinha ao
+							     ser salva, e trocar o tipo troca a chave da resposta.
+							     Fazem o mesmo que "Quantidade + Lista", só que em chave fixa,
+							     o que os limita a uma ocorrência por formulário. -->
+							{#if TIPOS_LISTA_APOSENTADOS.includes(p.tipo)}
+								<optgroup label="Aposentados — prefira Quantidade + Lista">
+									{#if p.tipo === 'mandados_maiores'}
+										<option value="mandados_maiores">Mandados Maiores (legado)</option>
+									{:else if p.tipo === 'prisoes_maiores'}
+										<option value="prisoes_maiores">Prisões Maiores (legado)</option>
+									{:else}
+										<option value="apreensoes_menores">Apreensões Menores (legado)</option>
+									{/if}
+								</optgroup>
+							{/if}
 						</select>
+						{#if TIPOS_LISTA_APOSENTADOS.includes(p.tipo)}
+							<p class="mt-1 text-3xs text-warning-700 dark:text-warning-400">
+								Tipo aposentado. <strong>Quantidade + Lista Nome/Procedimento</strong> faz o mesmo e pode
+								se repetir no formulário — mas trocar agora zera as respostas já gravadas nesta pergunta.
+							</p>
+						{/if}
 					</div>
 
 					<div class="flex gap-2 shrink-0 self-end md:self-start">
@@ -403,6 +466,284 @@
 						</button>
 					</div>
 				</div>
+
+				<!-- As FORMAS no painel de produtividade. Acumulam: a pergunta de armas
+				     mostra ranking E detalhamento, que é como o painel sempre a
+				     desenhou.
+
+				     Existe porque antes NÃO existia: toda pergunta de tipo contável
+				     virava barra sozinha, e a quilometragem da viatura ocupava um card
+				     ao lado das prisões. Desmarcar aqui tira do painel sem tirar do
+				     formulário — a coleta continua, só a leitura sai. -->
+				{#if podeSerGrafico(p.tipo)}
+					{@const formas = formasDaMarca(p.grafico)}
+					{@const alguma = formas.colunas || formas.ranking || formas.detalhe}
+					<div
+						class="mt-4 rounded-2xl border border-dashed p-4 space-y-3 {alguma
+							? 'bg-primary-500/5 dark:bg-primary-500/10 border-primary-500/40'
+							: 'bg-surface-100/60 dark:bg-surface-800/40 border-surface-300 dark:border-surface-700'}"
+					>
+						<p class="flex items-center gap-1.5 text-sm font-bold">
+							<ChartColumn class="w-4 h-4 text-primary-500" aria-hidden="true" />
+							Mostrar na produtividade
+						</p>
+
+						<label class="flex items-start gap-2 cursor-pointer">
+							<input
+								type="checkbox"
+								class="checkbox mt-0.5"
+								checked={formas.colunas}
+								onchange={() => resGise.alternarFormaGrafico(p, 'colunas')}
+							/>
+							<span class="min-w-0">
+								<span class="block text-sm font-semibold">Colunas por unidade</span>
+								<span class="block text-2xs text-surface-600 dark:text-surface-400">
+									Gráfico de barras comparando o total do período em cada unidade.
+								</span>
+							</span>
+						</label>
+
+						<label class="flex items-start gap-2 cursor-pointer">
+							<input
+								type="checkbox"
+								class="checkbox mt-0.5"
+								checked={formas.ranking}
+								onchange={() => resGise.alternarFormaGrafico(p, 'ranking')}
+							/>
+							<span class="min-w-0">
+								<span class="block text-sm font-semibold">Ranking de unidades</span>
+								<span class="block text-2xs text-surface-600 dark:text-surface-400">
+									Os mesmos números em lista numerada, do primeiro ao último colocado.
+								</span>
+							</span>
+						</label>
+
+						<!-- Desabilitada, e não escondida: a caixa apagada diz que ESTE tipo
+						     de pergunta não guarda quebra por categoria. Escondê-la faria o
+						     bloco parecer diferente sem explicar por quê — mesma escolha do
+						     tipo de meta "Cobertura". -->
+						<label
+							class="flex items-start gap-2 {podeDetalhar(p.tipo)
+								? 'cursor-pointer'
+								: 'opacity-50 cursor-not-allowed'}"
+						>
+							<input
+								type="checkbox"
+								class="checkbox mt-0.5"
+								checked={formas.detalhe}
+								disabled={!podeDetalhar(p.tipo)}
+								onchange={() => resGise.alternarFormaGrafico(p, 'detalhe')}
+							/>
+							<span class="min-w-0">
+								<span class="block text-sm font-semibold">Detalhamento por tipo</span>
+								<span class="block text-2xs text-surface-600 dark:text-surface-400">
+									{#if podeDetalhar(p.tipo)}
+										Quebra a resposta por categoria — quanto de cada tipo, e não por unidade.
+									{:else}
+										Só em perguntas que guardam quebra por categoria (apreensão de drogas e de
+										armas). Uma pergunta de número tem um valor só, e não há o que quebrar.
+									{/if}
+								</span>
+							</span>
+						</label>
+					</div>
+				{/if}
+
+				<!-- Indicador de meta: promove a pergunta de "campo do relatório" a série
+				     acompanhada em gráfico, com meta e linha de base.
+
+				     Só aparece em tipo CONTÁVEL (`TIPOS_INDICADORAVEIS`) — texto livre
+				     não agrega, e `sim_nao` responde proporção, não volume. -->
+				{#if podeSerIndicador(p.tipo)}
+					<div
+						class="mt-4 p-4 rounded-2xl border border-dashed space-y-3 {p.indicador
+							? 'bg-tertiary-500/5 dark:bg-tertiary-500/10 border-tertiary-500/40'
+							: 'bg-surface-100/60 dark:bg-surface-800/40 border-surface-300 dark:border-surface-700'}"
+					>
+						<label class="flex items-start gap-2 cursor-pointer">
+							<input
+								type="checkbox"
+								class="checkbox mt-0.5"
+								checked={!!p.indicador}
+								onchange={() => resGise.alternarIndicador(p)}
+							/>
+							<span class="min-w-0">
+								<span class="flex items-center gap-1.5 text-sm font-bold">
+									<Target class="w-4 h-4 text-tertiary-500" aria-hidden="true" />
+									Usar como indicador de meta
+								</span>
+								<span class="block text-2xs text-surface-600 dark:text-surface-400 mt-0.5">
+									A resposta vira série no painel de produtividade, comparada com a meta e com o
+									valor inicial informado pela unidade.
+								</span>
+							</span>
+						</label>
+
+						{#if p.indicador}
+							{@const meta = p.indicador}
+							<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+								<!-- Proporção não tem objetivo: cobrir 100% de um total não é
+								     aumentar nem diminuir um número. O campo SOME em vez de ficar
+								     desabilitado — desabilitado ainda afirma que existe uma
+								     direção a escolher. -->
+								{#if meta.metaTipo !== 'proporcao'}
+									<div>
+										<label
+											for="ind-obj-{p.id}"
+											class="block text-3xs font-semibold text-surface-600 dark:text-surface-400 uppercase tracking-widest mb-1"
+											>Objetivo</label
+										>
+										<select
+											id="ind-obj-{p.id}"
+											bind:value={meta.objetivo}
+											class="w-full px-3 py-2 rounded-xl border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-900 text-sm"
+										>
+											<option value="diminuir">Diminuir (reduzir o número)</option>
+											<option value="aumentar">Aumentar (elevar o número)</option>
+										</select>
+									</div>
+								{/if}
+
+								<div>
+									<label
+										for="ind-tipo-{p.id}"
+										class="block text-3xs font-semibold text-surface-600 dark:text-surface-400 uppercase tracking-widest mb-1"
+										>Tipo de meta</label
+									>
+									<!-- `onchange` e não `bind:value`: trocar o tipo RECONSTRÓI o
+									     objeto, porque cada variante tem campos diferentes. -->
+									<select
+										id="ind-tipo-{p.id}"
+										value={meta.metaTipo}
+										onchange={(e) => resGise.definirMetaTipoIndicador(p, e.currentTarget.value)}
+										class="w-full px-3 py-2 rounded-xl border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-900 text-sm"
+									>
+										<option value="percentual">Percentual sobre o valor inicial</option>
+										<option value="absoluto">Número fixo (sem valor inicial)</option>
+										<option value="proporcao" disabled={!ehProporcao(p.tipo)}>
+											Cobertura — % do total atendido
+										</option>
+									</select>
+									{#if !ehProporcao(p.tipo)}
+										<p class="mt-1 text-3xs text-surface-500 dark:text-surface-500">
+											Cobertura exige o tipo de campo <strong>Cobertura (total e atendidas)</strong
+											>.
+										</p>
+									{/if}
+								</div>
+
+								<div>
+									<label
+										for="ind-meta-{p.id}"
+										class="block text-3xs font-semibold text-surface-600 dark:text-surface-400 uppercase tracking-widest mb-1"
+									>
+										{meta.metaTipo === 'absoluto' ? 'Meta (valor)' : 'Meta (%)'}
+									</label>
+									<input
+										id="ind-meta-{p.id}"
+										type="number"
+										min="0"
+										step="any"
+										bind:value={meta.metaValor}
+										class="w-full px-3 py-2 rounded-xl border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-900 text-sm"
+									/>
+								</div>
+
+								<div>
+									<label
+										for="ind-un-{p.id}"
+										class="block text-3xs font-semibold text-surface-600 dark:text-surface-400 uppercase tracking-widest mb-1"
+										>Unidade de medida</label
+									>
+									<input
+										id="ind-un-{p.id}"
+										type="text"
+										placeholder="procedimentos, dias, ocorrências…"
+										bind:value={meta.unidadeMedida}
+										class="w-full px-3 py-2 rounded-xl border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-900 text-sm"
+									/>
+								</div>
+
+								{#if meta.metaTipo === 'percentual'}
+									<div class="sm:col-span-2">
+										<label
+											for="ind-base-{p.id}"
+											class="block text-3xs font-semibold text-surface-600 dark:text-surface-400 uppercase tracking-widest mb-1"
+											>Rótulo do valor inicial</label
+										>
+										<input
+											id="ind-base-{p.id}"
+											type="text"
+											placeholder="Como pedir o valor inicial à unidade (usa o texto da pergunta se vazio)"
+											bind:value={meta.rotuloBase}
+											class="w-full px-3 py-2 rounded-xl border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-900 text-sm"
+										/>
+									</div>
+								{/if}
+							</div>
+
+							<p class="text-2xs text-surface-600 dark:text-surface-400">
+								{#if meta.metaTipo === 'percentual'}
+									A unidade informa o valor inicial em <strong>Dados base</strong>. Se não informar,
+									ele é pedido dentro do próprio formulário de produtividade.
+								{:else if meta.metaTipo === 'proporcao'}
+									O total e a parte atendida vêm da própria pergunta, a cada relatório — nada é
+									pedido em <strong>Dados base</strong>.
+								{:else}
+									Meta de número fixo não usa valor inicial — nada é pedido à unidade.
+								{/if}
+							</p>
+						{/if}
+					</div>
+				{/if}
+
+				<!-- Rótulos dos dois campos da COBERTURA. Ficam aqui, e não em
+				     `TIPOS_COM_ROTULOS`, porque aquele bloco fala de quantidade e
+				     listagem — vocabulário dos tipos de auto-listagem, que a cobertura
+				     não tem. -->
+				{#if ehProporcao(p.tipo)}
+					<div
+						class="mt-4 p-4 bg-primary-500/5 dark:bg-primary-500/10 rounded-2xl border border-dashed border-primary-500/30 space-y-3"
+					>
+						<div class="flex items-center gap-2">
+							<SquarePen class="w-4 h-4 text-primary-500" aria-hidden="true" />
+							<span
+								class="text-3xs font-semibold text-primary-600 dark:text-primary-400 uppercase tracking-widest"
+								>Rótulos dos dois campos</span
+							>
+						</div>
+						<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+							<div>
+								<label
+									for="p-total-{p.id}"
+									class="block text-3xs font-semibold text-surface-600 dark:text-surface-400 uppercase tracking-widest mb-1"
+									>Total existente</label
+								>
+								<input
+									id="p-total-{p.id}"
+									type="text"
+									placeholder="Ocorrências no período"
+									bind:value={p.subtexto_total}
+									class="w-full px-3 py-2 rounded-xl border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-900 text-sm"
+								/>
+							</div>
+							<div>
+								<label
+									for="p-parte-{p.id}"
+									class="block text-3xs font-semibold text-surface-600 dark:text-surface-400 uppercase tracking-widest mb-1"
+									>Parte atendida</label
+								>
+								<input
+									id="p-parte-{p.id}"
+									type="text"
+									placeholder="Ocorrências atendidas"
+									bind:value={p.subtexto_parte}
+									class="w-full px-3 py-2 rounded-xl border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-900 text-sm"
+								/>
+							</div>
+						</div>
+					</div>
+				{/if}
 
 				<!-- Novos controles de sub-textos para QUALQUER pergunta que use os tipos inteligentes -->
 				{#if TIPOS_COM_ROTULOS.includes(p.tipo)}
@@ -447,6 +788,31 @@
 										class="w-full px-3 py-2 rounded-lg border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-900 text-xs font-bold"
 									/>
 								</div>
+								<!-- Só no reutilizável: os tipos de chave fixa trazem o nome do
+								     item embutido ("Mandado 1", "Procedimento 1"). É este campo
+								     que permite ao genérico substituí-los sem perder o nome no
+								     PDF assinado. -->
+								{#if p.tipo === TIPO_LISTA_REUTILIZAVEL}
+									<div class="space-y-1 md:col-span-2">
+										<label
+											for="subitem-{p.id}"
+											class="text-3xs font-bold text-surface-600 dark:text-surface-400 uppercase tracking-wider"
+											>Nome de cada item no relatório</label
+										>
+										<input
+											id="subitem-{p.id}"
+											type="text"
+											bind:value={p.subtexto_item}
+											placeholder="Item"
+											class="w-full px-3 py-2 rounded-lg border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-900 text-xs font-bold"
+										/>
+										<p class="text-3xs text-surface-500 dark:text-surface-500">
+											No PDF cada linha sai como <strong
+												>"↳ {p.subtexto_item?.trim() || 'Item'} 1"</strong
+											>. Ex.: Procedimento, Mandado, Apreensão.
+										</p>
+									</div>
+								{/if}
 							{:else if p.tipo === 'drogas_complex'}
 								<div class="space-y-1">
 									<label
@@ -525,55 +891,66 @@
 		{/each}
 	</div>
 
-	<div
-		class="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 border-t border-surface-200 dark:border-white/10 pt-4 mt-2"
+	<!-- Salvar vive no RODAPÉ FIXO: o modelo tem dezenove perguntas de nível 0
+	     mais os filhos, e antes disto gravar exigia rolar a página inteira toda
+	     vez. Mesmo desenho do wizard do relatório, pelo mesmo motivo. -->
+	<form
+		method="POST"
+		action="?/salvarModelo"
+		use:enhance={resGise.handleSalvarModelo}
+		class="contents"
 	>
-		<form
-			method="POST"
-			action="?/salvarModelo"
-			use:enhance={resGise.handleSalvarModelo}
-			class="w-full flex flex-col sm:flex-row items-stretch sm:items-center gap-4"
-		>
-			<input type="hidden" name="config" value={resGise.configJson} />
-			<input type="hidden" name="tipo" value={resGise.configTipo} />
+		<input type="hidden" name="config" value={resGise.configJson} />
+		<input type="hidden" name="tipo" value={resGise.configTipo} />
+		<input type="hidden" name="operacaoId" value={resGise.operacaoSelecionadaId ?? ''} />
 
-			<div class="flex-grow card-elevated-2 rounded-xl p-4">
-				<p
-					class="text-xs font-bold text-surface-600 dark:text-surface-400 uppercase tracking-widest mb-1"
-				>
-					Status da Configuração
-				</p>
-				<div class="flex items-center gap-2">
-					<div
-						class="w-2 h-2 rounded-full {loading.active
+		<RodapeAcoes>
+			{#snippet status()}
+				<span class="flex items-center gap-2">
+					<!-- Três estados, e o do meio é o que a barra existe para dizer.
+					     Até ago/2026 eram dois — "Salvando…", que dura o tempo da
+					     requisição, e "Pronto para salvar", que era o `else` e dizia a
+					     mesma coisa tendo-se mexido em algo ou não. -->
+					<span
+						class="w-2 h-2 rounded-full shrink-0 {loading.active
 							? 'bg-warning-500 animate-pulse'
-							: 'bg-success-500'}"
-					></div>
-					<p class="text-3xs font-bold text-surface-900 dark:text-surface-100">
-						{loading.active ? 'Salvando alterações...' : 'Pronto para salvar'}
-					</p>
-				</div>
-			</div>
+							: resGise.alteracoesNaoSalvas
+								? 'bg-warning-500'
+								: 'bg-success-500'}"
+					></span>
+					<span class="font-bold text-surface-900 dark:text-surface-100">
+						{#if loading.active}
+							Salvando alterações…
+						{:else if resGise.alteracoesNaoSalvas}
+							Alterações não salvas
+						{:else}
+							Tudo salvo
+						{/if}
+					</span>
+				</span>
+			{/snippet}
 
-			<!-- O 9º argumento (`btnType`) é obrigatório aqui: sem ele o
-			     `actionButton` cai no default `type="button"`, e um botão desse tipo
-			     dentro de um `<form>` NÃO submete. Como também não há `onclick`, o
-			     clique não fazia absolutamente nada — o modelo nunca era salvo. -->
-			{@render actionButton(
-				loading.active
-					? 'Salvando...'
-					: `Salvar Modelo ${resGise.configTipo === 'seint' ? 'SEINT' : 'Operacional'}`,
-				undefined,
-				'primary',
-				'filled',
-				undefined,
-				loading.active,
-				false,
-				'w-full sm:w-auto py-3.5 text-sm shadow-lg shadow-primary-500/20',
-				'submit'
-			)}
-		</form>
-	</div>
+			{#snippet acoes()}
+				<!-- O 9º argumento (`btnType`) é obrigatório aqui: sem ele o
+				     `actionButton` cai no default `type="button"`, e um botão desse tipo
+				     dentro de um `<form>` NÃO submete. Como também não há `onclick`, o
+				     clique não fazia absolutamente nada — o modelo nunca era salvo. -->
+				{@render actionButton(
+					loading.active
+						? 'Salvando...'
+						: `Salvar Modelo ${resGise.configTipo === 'seint' ? 'SEINT' : 'Operacional'}`,
+					undefined,
+					'primary',
+					'filled',
+					undefined,
+					loading.active,
+					false,
+					'w-full sm:w-auto py-2.5 text-sm shadow-lg shadow-primary-500/20',
+					'submit'
+				)}
+			{/snippet}
+		</RodapeAcoes>
+	</form>
 </div>
 
 <ModalShell

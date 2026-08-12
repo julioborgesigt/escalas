@@ -284,12 +284,140 @@ export const escalaSolicitacoesAssinatura = sqliteTable(
 	]
 );
 
+// ---- Operações extraordinárias ----
+
+/**
+ * As operações que existem: GISE, OPERAÇÃO CRAJUBAR, EDGE… Cada escala extra
+ * pertence a uma, e cada operação tem os SEUS formulários de produtividade.
+ *
+ * Não há exclusão — só `ativo = 0`, pela mesma razão de `unidades.ativo`:
+ * escala histórica e PDF assinado continuam apontando para a operação que os
+ * originou.
+ */
+export const operacoes = sqliteTable(
+	'operacoes',
+	{
+		id: integer('id').primaryKey({ autoIncrement: true }),
+		nome: text('nome').notNull().unique(),
+		/** Rótulo curto para chip de filtro e selo de card ('CRAJUBAR'). */
+		sigla: text('sigla').notNull().default(''),
+		descricao: text('descricao').notNull().default(''),
+		/**
+		 * Quais tipos de equipe a operação usa. A EDGE pode ser só operacional ou
+		 * só de inteligência; a combinação (false, false) não é impedida pelo banco
+		 * mas é recusada na aplicação — operação sem tipo de equipe não escala
+		 * ninguém e não teria formulário nenhum.
+		 */
+		usa_equipe_operacional: integer('usa_equipe_operacional', { mode: 'boolean' })
+			.notNull()
+			.default(true),
+		usa_equipe_seint: integer('usa_equipe_seint', { mode: 'boolean' }).notNull().default(true),
+		/** Ciclo operacional (a CRAJUBAR prevê 90 dias). Nulos na GISE, permanente. */
+		data_inicio: text('data_inicio'),
+		data_fim: text('data_fim'),
+		/**
+		 * Configuração de escala DESTA operação (migração 0051): vagas padrão das
+		 * equipes, horários e os textos do breve relatório dos PDFs de extra.
+		 *
+		 * **NULL = herda o padrão do sistema** (`configuracoes` → constante do
+		 * código). Não é o mesmo que zero nem que string vazia: 0 vaga de DPC é uma
+		 * escolha legítima, e "" é um texto deliberadamente em branco. Só o NULL
+		 * significa "não decidi, use o de cima".
+		 *
+		 * Eram globais até aqui, o que fazia sentido com uma operação só. Uma
+		 * força-tarefa monta equipe de outro tamanho e o texto que vai no PDF fala
+		 * do serviço dela.
+		 */
+		vagas_operacional_dpc: integer('vagas_operacional_dpc'),
+		vagas_operacional_oip: integer('vagas_operacional_oip'),
+		vagas_seint_dpc: integer('vagas_seint_dpc'),
+		vagas_seint_oip: integer('vagas_seint_oip'),
+		hora_entrada_padrao: text('hora_entrada_padrao'),
+		hora_saida_padrao: text('hora_saida_padrao'),
+		breve_relatorio_titulo: text('breve_relatorio_titulo'),
+		breve_relatorio_texto_seccional: text('breve_relatorio_texto_seccional'),
+		breve_relatorio_texto_supervisao: text('breve_relatorio_texto_supervisao'),
+		ativo: integer('ativo', { mode: 'boolean' }).notNull().default(true),
+		created_at: text('created_at')
+			.notNull()
+			.default(sql`(datetime('now', '-3 hours'))`)
+	},
+	(table) => [index('idx_operacoes_ativo').on(table.ativo)]
+);
+
+/**
+ * Linha de base de um indicador: o valor inicial contra o qual a meta é medida.
+ *
+ * "Redução mínima de 20% do acervo de inquéritos pendentes" precisa de um
+ * denominador que só a delegacia tem. O próprio Plano Operacional da CRAJUBAR
+ * lista a falta dele como risco ("ausência de linha de base consolidada").
+ *
+ * Um valor por (operação, unidade, indicador) — parâmetro FIXO do ciclo, não
+ * série temporal. O realizado vem das respostas de produtividade, que já são
+ * datadas.
+ */
+export const operacaoLinhaBase = sqliteTable(
+	'operacao_linha_base',
+	{
+		id: integer('id').primaryKey({ autoIncrement: true }),
+		operacao_id: integer('operacao_id')
+			.notNull()
+			.references(() => operacoes.id, { onDelete: 'cascade' }),
+		// onDelete: restrict — mesma razão de `gise_assinaturas_relatorios`: o valor
+		// é parâmetro de um resultado divulgado, e a aplicação nem exclui unidade.
+		unidade_id: integer('unidade_id')
+			.notNull()
+			.references(() => unidades.id, { onDelete: 'restrict' }),
+		/**
+		 * `pergunta.key` do modelo — gerada na criação e não editável na UI, que é o
+		 * que torna a referência estável. É a chave da PERGUNTA, não a da resposta:
+		 * nos tipos de lista a resposta mora em `${key}__qtd`, e a tradução é de
+		 * `chavesLista()` em `$lib/gise/tipos-pergunta`.
+		 */
+		indicador_key: text('indicador_key').notNull(),
+		/** real, não integer: "tempo médio de conclusão" é medido em dias com decimal. */
+		valor: real('valor').notNull(),
+		observacao: text('observacao').notNull().default(''),
+		informado_por_id: integer('informado_por_id'),
+		/** Copiado para a linha: precisa continuar dizendo quem informou depois que
+		 *  o cadastro do policial mudar ou sair. */
+		informado_por_nome: text('informado_por_nome').notNull().default(''),
+		/** 'aba' = /dados-base; 'formulario' = capturado no relatório de produtividade. */
+		origem: text('origem', { enum: ['aba', 'formulario'] })
+			.notNull()
+			.default('aba'),
+		created_at: text('created_at')
+			.notNull()
+			.default(sql`(datetime('now', '-3 hours'))`),
+		updated_at: text('updated_at')
+			.notNull()
+			.default(sql`(datetime('now', '-3 hours'))`)
+	},
+	(table) => [
+		uniqueIndex('uq_operacao_linha_base').on(
+			table.operacao_id,
+			table.unidade_id,
+			table.indicador_key
+		),
+		index('idx_operacao_linha_base_operacao').on(table.operacao_id)
+	]
+);
+
 // ---- GISE ----
 
 export const giseEscalas = sqliteTable(
 	'gise_escalas',
 	{
 		id: integer('id').primaryKey({ autoIncrement: true }),
+		/**
+		 * A operação desta escala (migração 0048).
+		 *
+		 * Nullable pelo mesmo motivo de `gise_membros.gise_id`: a coluna nasceu
+		 * depois das linhas. Não é segunda fonte de verdade — a aplicação a
+		 * preenche no INSERT e escala não muda de operação. Linha sem valor é
+		 * tratada como GISE, a operação que existia antes de haver operações.
+		 */
+		operacao_id: integer('operacao_id'),
 		data_inicio: text('data_inicio').notNull(),
 		feriado: integer('feriado').notNull().default(0),
 		hora_entrada: text('hora_entrada').notNull().default('08:00'),
@@ -331,7 +459,8 @@ export const giseEscalas = sqliteTable(
 		index('idx_gise_escalas_supervisor').on(table.supervisor_id),
 		index('idx_gise_escalas_assessor').on(table.assessor_id),
 		index('idx_gise_escalas_seint1').on(table.seint1_id),
-		index('idx_gise_escalas_seint2').on(table.seint2_id)
+		index('idx_gise_escalas_seint2').on(table.seint2_id),
+		index('idx_gise_escalas_operacao').on(table.operacao_id)
 	]
 );
 
@@ -468,6 +597,14 @@ export const giseModeloFormulario = sqliteTable(
 	'gise_modelo_formulario',
 	{
 		id: integer('id').primaryKey({ autoIncrement: true }),
+		/**
+		 * A operação dona deste modelo (migração 0048). Sem ela, editar o
+		 * formulário da CRAJUBAR reescreveria o do GISE.
+		 *
+		 * Nullable pelo mesmo motivo de `gise_escalas.operacao_id` — a coluna nasceu
+		 * depois das linhas, e o backfill da 0048 as atribuiu ao GISE.
+		 */
+		operacao_id: integer('operacao_id'),
 		tipo: text('tipo').notNull().default('operacional'),
 		config: text('config').notNull().default('[]'),
 		/** Versão anterior do `config` — um nível de desfazer para o editor do
@@ -478,7 +615,10 @@ export const giseModeloFormulario = sqliteTable(
 			.notNull()
 			.default(sql`(datetime('now', '-3 hours'))`)
 	},
-	(table) => [index('idx_gise_modelo_tipo').on(table.tipo)]
+	// Um modelo por (operação, tipo). Antes da 0048 não havia unicidade alguma e
+	// `buscarGiseModeloFormulario` lia a PRIMEIRA linha do tipo — uma segunda
+	// linha ficava invisível em vez de dar erro.
+	(table) => [uniqueIndex('uq_gise_modelo_operacao_tipo').on(table.operacao_id, table.tipo)]
 );
 
 export const giseRespostasFormulario = sqliteTable(
@@ -1247,6 +1387,8 @@ export type NovaEscala = typeof escalas.$inferInsert;
 export type EscalaPolicial = typeof escalaPoliciais.$inferSelect;
 export type Unidade = typeof unidades.$inferSelect;
 export type EscalaDocumento = typeof escalaDocumentos.$inferSelect;
+export type Operacao = typeof operacoes.$inferSelect;
+export type OperacaoLinhaBase = typeof operacaoLinhaBase.$inferSelect;
 export type GiseEscala = typeof giseEscalas.$inferSelect;
 export type GiseSeccional = typeof giseSeccionais.$inferSelect;
 export type GiseEquipe = typeof giseEquipes.$inferSelect;

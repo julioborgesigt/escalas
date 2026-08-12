@@ -125,29 +125,29 @@
 					};
 
 		const cardGiseEscalas = {
-			titulo: 'Escalas GISE',
+			titulo: 'Escala extra',
 			descricao:
 				usuario?.papel === 'admin_seccional'
-					? 'Preencha e gerencie a escalação dos policiais convocados para atuar nas operações extraordinárias do GISE.'
-					: 'Supervisione a alocação de equipes operacionais e de inteligência na escala GISE.',
+					? 'Preencha e gerencie a escalação dos policiais convocados para as operações extraordinárias.'
+					: 'Supervisione a alocação de equipes operacionais e de inteligência nas escalas extras.',
 			href: '/gise',
-			cta: 'Acessar escalas GISE'
+			cta: 'Acessar escalas extras'
 		};
 
 		const cardPresencaGise = {
-			titulo: 'Presença GISE',
+			titulo: 'Minha presença',
 			descricao:
-				'Confirme sua presença nas escalas GISE ativas onde você foi alocado e assine a folha de presença correspondente.',
+				'Confirme sua presença nas escalas extras ativas onde você foi alocado e assine a folha de presença correspondente.',
 			href: '/res-gise',
-			cta: 'Acessar presença GISE'
+			cta: 'Registrar presença'
 		};
 
 		const cardHistoricoGise = {
-			titulo: 'Histórico GISE',
+			titulo: 'Meu histórico',
 			descricao:
-				'Consulte suas escalas GISE já encerradas: comprovantes de presença e relatórios das operações anteriores.',
+				'Consulte suas escalas extras já encerradas: comprovantes de presença e relatórios das operações anteriores.',
 			href: '/res-gise?status=finalizadas',
-			cta: 'Ver histórico GISE'
+			cta: 'Ver histórico'
 		};
 
 		// Todo policial (incl. sub-admins) tem "Meu perfil" na sidebar — espelhado aqui.

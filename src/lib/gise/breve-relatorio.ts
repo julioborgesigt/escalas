@@ -1,8 +1,11 @@
 /**
  * Título e textos padrão do bloco "Breve relatório" nos PDFs de serviço extraordinário (GISE).
  *
- * Ordem: colunas `breve_relatorio_*` em `gise_escalas` (por escala) → chaves em `configuracoes` (**Config. GISE**)
- * → constantes abaixo.
+ * Ordem, do mais específico ao mais geral: colunas `breve_relatorio_*` em
+ * `gise_escalas` (por escala) → colunas homônimas em `operacoes` (por operação,
+ * migração 0051) → chaves em `configuracoes` (o global, hoje só de leitura) →
+ * constantes abaixo. Os dois níveis do meio chegam já resolvidos em
+ * `BreveRelatorioEnv`, por `getBreveRelatorioEnvMergido`.
  */
 
 import type { GiseEscala } from '$lib/server/schema';
@@ -15,7 +18,7 @@ export const DEFAULT_BREVE_RELATORIO_TEXTO_SECCIONAL =
 export const DEFAULT_BREVE_RELATORIO_TEXTO_SUPERVISAO =
 	'EM RAZÃO DE SERVIÇO EXTRAORDINÁRIO (GISE) OS SERVIDORES DO QUADRO DE SUPERVISÃO ABAIXO RELACIONADOS RECEBERÃO GRATIFICAÇÃO NA FORMA DE DIÁRIAS DE REFORÇO OPERACIONAL.';
 
-/** Valores globais (Config. GISE em `configuracoes`); o nome remete ao histórico, não a env vars. */
+/** Operação + global já mesclados por `getBreveRelatorioEnvMergido`; o nome remete ao histórico, não a env vars. */
 export type BreveRelatorioEnv = {
 	GISE_BREVE_RELATORIO_TITULO?: string;
 	GISE_BREVE_RELATORIO_TEXTO_SECCIONAL?: string;

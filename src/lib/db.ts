@@ -183,3 +183,26 @@ export {
 	DEFAULT_SEINT_QUESTIONS,
 	DEFAULT_QUESTIONS_FORM_OPERACIONAL
 } from './db/gise';
+
+export {
+	TIPOS_EQUIPE,
+	NOME_OPERACAO_PADRAO,
+	tiposEquipeDaOperacao,
+	operacaoAceitaTipoEquipe,
+	normalizarTiposEquipe,
+	listarOperacoes,
+	buscarOperacao,
+	buscarOperacaoPorNome,
+	buscarOperacaoDaEscala,
+	criarOperacao,
+	atualizarOperacao,
+	definirAtivoOperacao,
+	excluirOperacao,
+	contarEscalasPorOperacao,
+	clonarModelosFormulario,
+	listarLinhaBase,
+	mapaLinhaBaseDaUnidade,
+	upsertLinhaBase,
+	unidadesParticipantesDaOperacao
+} from './db/operacoes';
+export type { TipoEquipeOperacao } from './db/operacoes';

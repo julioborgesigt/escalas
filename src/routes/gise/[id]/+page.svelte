@@ -495,6 +495,7 @@
 	{#if gise}
 		<GiseCabecalho
 			{gise}
+			operacaoNome={data.operacaoNome}
 			{statusLabel}
 			{statusColor}
 			{diaSemana}
@@ -670,6 +671,7 @@
 						<GiseSeccional
 							{sec}
 							{gise}
+							tiposEquipePermitidos={data.tiposEquipePermitidos}
 							{todasUnidades}
 							{isAdminGeral}
 							{isSeccional}

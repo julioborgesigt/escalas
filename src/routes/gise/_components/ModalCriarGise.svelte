@@ -30,10 +30,21 @@
 	let {
 		open = $bindable(false),
 		escalas,
+		operacoes = [],
 		onSuccess
 	}: {
 		open: boolean;
 		escalas: { id: number; data_inicio: string; status: string }[];
+		/**
+		 * Operações ATIVAS que podem receber escalas novas, com o horário padrão de
+		 * cada uma — trocar de operação troca os horários sugeridos.
+		 */
+		operacoes?: {
+			id: number;
+			nome: string;
+			hora_entrada_padrao?: string | null;
+			hora_saida_padrao?: string | null;
+		}[];
 		onSuccess: (count: number, firstId?: number) => void;
 	} = $props();
 
@@ -44,6 +55,13 @@
 	let novaHoraSaida = $state('16:00');
 	let modoCriacao = $state<'completa' | 'clonada' | 'branco'>('completa');
 	let clonarDeId = $state<number | ''>('');
+	/**
+	 * Operação da escala nova. Inicia na primeira ativa em vez de vazia: a escala
+	 * SEMPRE pertence a uma operação, e um seletor em branco convidaria a criar
+	 * escala sem operação — que é o estado legado que a migração 0048 eliminou.
+	 */
+	// svelte-ignore state_referenced_locally
+	let operacaoId = $state<number | ''>(operacoes[0]?.id ?? '');
 
 	const diasModalOrdenados = $derived(
 		Object.keys(diasModal)
@@ -77,11 +95,25 @@
 			calMes = m - 1;
 			modoCriacao = 'completa';
 			clonarDeId = escalas.length > 0 ? escalas[0].id : '';
-			novaHoraEntrada = (page.data.defaultHoraEntrada as string) ?? '08:00';
-			novaHoraSaida = (page.data.defaultHoraSaida as string) ?? '16:00';
+			operacaoId = operacoes[0]?.id ?? '';
+			aplicarHorarioDaOperacao(operacaoId);
 		}
 		prevOpen = open;
 	});
+
+	/**
+	 * Horário sugerido ao trocar de operação: o padrão DELA, senão o do sistema.
+	 *
+	 * Só reescreve os campos, sem travá-los — o admin continua podendo digitar
+	 * outro horário para esta escala. Sem isto, escolher a CRAJUBAR mantinha na
+	 * tela o horário do GISE e a escala nascia com ele.
+	 */
+	function aplicarHorarioDaOperacao(id: number | '') {
+		const op = operacoes.find((o) => o.id === id);
+		novaHoraEntrada =
+			op?.hora_entrada_padrao ?? (page.data.defaultHoraEntrada as string) ?? '08:00';
+		novaHoraSaida = op?.hora_saida_padrao ?? (page.data.defaultHoraSaida as string) ?? '16:00';
+	}
 
 	function calCicloDia(iso: string) {
 		const next = { ...diasModal };
@@ -188,7 +220,7 @@
 			<Dialog.Title
 				class="text-base sm:text-lg font-bold text-surface-900 dark:text-surface-50 leading-tight"
 			>
-				Nova Escala GISE
+				Nova escala extra
 			</Dialog.Title>
 			<p class="text-3xs sm:text-xs text-surface-600 dark:text-surface-400 leading-snug">
 				Uma escala por dia. No calendário: <span
@@ -367,6 +399,31 @@
 				</div>
 			</div>
 
+			<!-- Operação da escala: decide qual formulário de produtividade as
+			     equipes vão preencher e sob quais indicadores ela é medida.
+			     No modo "Copiar" não aparece — a cópia herda a operação do original,
+			     senão clonar uma escala da CRAJUBAR poderia produzir uma do GISE. -->
+			{#if operacoes.length > 0 && modoCriacao !== 'clonada'}
+				<div class="space-y-2">
+					<label
+						for="nova-operacao"
+						class="block text-3xs sm:text-xs font-semibold text-surface-600 dark:text-surface-400"
+					>
+						Operação
+					</label>
+					<select
+						id="nova-operacao"
+						bind:value={operacaoId}
+						onchange={() => aplicarHorarioDaOperacao(operacaoId)}
+						class="w-full px-2.5 py-1.5 rounded-lg border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-sm"
+					>
+						{#each operacoes as op (op.id)}
+							<option value={op.id}>{op.nome}</option>
+						{/each}
+					</select>
+				</div>
+			{/if}
+
 			<!-- Tipo de Criação -->
 			<div class="space-y-2">
 				<p class="text-3xs sm:text-xs font-semibold text-surface-600 dark:text-surface-400">
@@ -450,6 +507,9 @@
 					<input type="hidden" name="hora_entrada" value={novaHoraEntrada} />
 					<input type="hidden" name="hora_saida" value={novaHoraSaida} />
 					<input type="hidden" name="modo" value={modoCriacao} />
+					{#if modoCriacao !== 'clonada' && operacaoId}
+						<input type="hidden" name="operacao_id" value={operacaoId} />
+					{/if}
 					{#if modoCriacao === 'clonada' && clonarDeId}
 						<input type="hidden" name="clonar_de" value={clonarDeId} />
 					{/if}

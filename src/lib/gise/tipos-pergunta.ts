@@ -32,6 +32,20 @@
  */
 export const TIPO_LISTA_REUTILIZAVEL = 'lista_detalhada';
 
+/**
+ * Tipo de COBERTURA: dois números na mesma pergunta — o total existente e a
+ * parte atendida —, cuja razão é a resposta que interessa.
+ *
+ * Existe porque "atender 100% das ocorrências" não se mede com um número só: 12
+ * atendimentos são ótimos se houve 12 ocorrências e ruins se houve 40. Duas
+ * perguntas separadas resolveriam a coleta e não o resto — o par ficaria
+ * implícito, e nenhum gráfico saberia que uma é denominador da outra.
+ *
+ * Chaves DERIVADAS da `key` (como `lista_detalhada`), então é reutilizável:
+ * quantas perguntas de cobertura o admin quiser, sem uma sobrescrever a outra.
+ */
+export const TIPO_PROPORCAO = 'proporcao';
+
 /** Onde cada tipo ORIGINAL grava quantidade e lista. Chaves fixas, de propósito. */
 const CHAVES_FIXAS: Record<string, { qtd: string; lista: string }> = {
 	mandados_maiores: { qtd: 'mandados_qtd', lista: 'mandados_lista' },
@@ -49,10 +63,19 @@ const CHAVES_FIXAS: Record<string, { qtd: string; lista: string }> = {
 type PerguntaChaveavel = { tipo: string; key: string };
 
 /**
+ * O único tipo de lista SEM o par Sim/Não: a listagem dele aparece de saída,
+ * sem depender de resposta anterior.
+ *
+ * Constante e não literal solto porque três lugares decidem por ele — o widget
+ * do formulário, a expansão do relatório e a soma do painel —, e nos três a
+ * pergunta é a mesma: "esta quantidade está atrás de um Sim?".
+ */
+const TIPO_LISTA_SEM_GATE = 'operacoes_seint_pura';
+
+/**
  * Tipos que abrem o bloco "quantidade + listagem detalhada".
  *
- * `operacoes_seint_pura` está aqui, mas é o único sem par Sim/Não: a lista dele
- * aparece sempre, sem depender de resposta anterior.
+ * `TIPO_LISTA_SEM_GATE` está aqui, mas é o único sem par Sim/Não.
  */
 export const TIPOS_COM_LISTA: readonly string[] = [
 	TIPO_LISTA_REUTILIZAVEL,
@@ -101,6 +124,131 @@ export function chavesLista(p: PerguntaChaveavel): { qtd: string; lista: string 
 export function chavesListaComFallback(p: PerguntaChaveavel): { qtd: string; lista: string } {
 	return chavesLista(p) ?? CHAVES_FIXAS.operacoes_seint_pura;
 }
+
+/**
+ * As duas chaves de uma pergunta de COBERTURA (`total` e `parte`), ou `null` se
+ * o tipo não for esse.
+ *
+ * Fonte única — quem escreve (o formulário), quem lê no relatório assinado e
+ * quem soma no painel de indicadores resolvem as chaves por aqui. É a mesma
+ * armadilha do cabeçalho: dois literais iguais em arquivos diferentes não
+ * quebram nada visível quando divergem, só param de bater.
+ */
+export function chavesProporcao(p: PerguntaChaveavel): { total: string; parte: string } | null {
+	if (p.tipo !== TIPO_PROPORCAO) return null;
+	return { total: `${p.key}__total`, parte: `${p.key}__parte` };
+}
+
+/**
+ * Tipos que PODEM virar gráfico de barras no painel de produtividade — os que
+ * produzem um número por relatório, mais o `sim_nao`, que vira contagem de
+ * ocorrências ("em quantos plantões houve").
+ *
+ * Poder e dever são coisas diferentes: quem decide se a pergunta ENTRA no painel
+ * é a marca `grafico` dela, não o tipo. Esta lista só diz onde a marca faz
+ * sentido — é ela que decide se a caixinha aparece no editor.
+ *
+ * Quase igual a `TIPOS_INDICADORAVEIS` (`$lib/gise/indicadores`), e as duas
+ * diferenças são deliberadas:
+ *
+ * - `sim_nao` entra AQUI e não lá: agrega como volume de eventos, mas não tem
+ *   meta nem linha de base a comparar. Um gráfico é uma leitura; um indicador é
+ *   uma promessa;
+ * - `proporcao` entra LÁ e não aqui: a resposta dele mora em `key__parte`, com o
+ *   denominador em `key__total`, e uma barra com o numerador solto diria a coisa
+ *   errada. Cobertura já tem lugar próprio — a seção de indicadores.
+ *
+ * `drogas_complex` e `armas_complex` entram, mas raramente como COLUNAS: o que
+ * interessa neles é a quebra por tipo de droga e por tipo de arma, e é por isso
+ * que são os dois únicos tipos que aceitam a forma `detalhe`.
+ *
+ * TODO tipo de lista entra, e a ausência deles já foi um bug: até ago/2026 o
+ * painel resolvia a chave da resposta por uma tabela própria, escrita à mão, que
+ * cobria só os tipos SEINT. Mandados, prisões e apreensões podiam virar
+ * indicador de meta e não podiam virar gráfico — o número estava gravado, e o
+ * indicador (que resolve por `chavesLista`) sempre soube lê-lo.
+ */
+const TIPOS_GRAFICAVEIS: readonly string[] = [
+	'numero',
+	'select_99',
+	'select_999',
+	'sim_nao',
+	'drogas_complex',
+	'armas_complex',
+	...TIPOS_COM_LISTA
+];
+
+/**
+ * O tipo aceita a marca de gráfico? Único lugar que responde — usado pelo editor
+ * (para mostrar as caixinhas) e por `mapQuestions` (para descartar marca herdada
+ * de uma pergunta cujo tipo mudou depois).
+ */
+export function podeSerGrafico(tipo: string): boolean {
+	return TIPOS_GRAFICAVEIS.includes(tipo);
+}
+
+/**
+ * Tipos cuja resposta guarda uma quebra por CATEGORIA, e que por isso admitem a
+ * forma `detalhe` no painel.
+ *
+ * São dois, e a lista é curta por um motivo estrutural e não por falta de
+ * vontade: só `drogas_complex` e `armas_complex` gravam um objeto
+ * `{ categoria: valor }` no blob (`drogas_detalhe`, `armas_detalhe`). Uma
+ * pergunta de número guarda um número — não há segundo eixo para quebrar, e um
+ * "detalhamento" dela seria um card de uma barra só.
+ *
+ * Os tipos de LISTA guardam array de objetos (`{nome, delegacia, situacao}`), e
+ * dariam para quebrar por um dos campos. Não dá para adivinhar QUAL, então
+ * ficam de fora até alguém pedir com o campo escolhido no editor.
+ */
+const TIPOS_COM_DETALHE: readonly string[] = ['drogas_complex', 'armas_complex'];
+
+/**
+ * A pergunta tem quebra por categoria para detalhar? Decide se a caixinha
+ * "Detalhamento" aparece habilitada no editor e se `mapQuestions` respeita a
+ * marca — mesmo par poder/dever de `podeSerGrafico`.
+ */
+export function podeDetalhar(tipo: string): boolean {
+	return TIPOS_COM_DETALHE.includes(tipo);
+}
+
+/**
+ * A quantidade desta pergunta só vale se a resposta for "Sim"?
+ *
+ * Vale para todo tipo de lista menos `TIPO_LISTA_SEM_GATE`, e para o de armas.
+ * A regra existe porque o blob GUARDA o que foi digitado: quem preenche a
+ * listagem, muda de ideia e responde "Não" deixa a quantidade lá. O relatório
+ * assinado já ignorava esse resto (só expande a lista sob um "Sim"); o painel
+ * não ignorava, e contava produção que o PDF não mostra.
+ *
+ * `drogas_complex` fica de fora de propósito: ali o gate é a própria seleção de
+ * substâncias, e o peso só existe para a droga escolhida.
+ */
+export function exigeSimParaContar(tipo: string): boolean {
+	if (tipo === 'armas_complex') return true;
+	return TIPOS_COM_LISTA.includes(tipo) && tipo !== TIPO_LISTA_SEM_GATE;
+}
+
+/**
+ * Os tipos APOSENTADOS: continuam funcionando em quem já os usa, mas não são
+ * mais oferecidos para pergunta nova.
+ *
+ * Os três fazem exatamente o que `lista_detalhada` faz — mesmo widget, mesma
+ * forma de item (`{nome, mandado}`), mesma expansão no relatório. A única
+ * diferença é gravarem em chave FIXA, e essa diferença só tira coisa: cada um
+ * funciona UMA VEZ por formulário, porque duas perguntas do mesmo tipo
+ * escreveriam uma por cima da outra.
+ *
+ * Não são removidos porque o modelo já salvo os referencia, e trocar o tipo de
+ * uma pergunta troca a chave da resposta — na prática, apaga o histórico dela.
+ * O editor mostra a opção legada apenas na pergunta que já está com ela; ver
+ * `ConfigurarFormulario`.
+ */
+export const TIPOS_LISTA_APOSENTADOS: readonly string[] = [
+	'mandados_maiores',
+	'prisoes_maiores',
+	'apreensoes_menores'
+];
 
 /** Forma de um item vazio da lista, por tipo. */
 export const ITEM_PADRAO: Record<string, Record<string, string>> = {

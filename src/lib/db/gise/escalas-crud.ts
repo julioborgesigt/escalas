@@ -64,7 +64,13 @@ export async function criarGiseEscala(
 	horaEntrada: string,
 	horaSaida: string,
 	statusInicial: 'em_definicao_supervisor' | 'em_preenchimento' = 'em_definicao_supervisor',
-	feriado = false
+	feriado = false,
+	/**
+	 * A operação da escala (GISE, CRAJUBAR, EDGE…). É o que decide qual
+	 * formulário de produtividade as equipes vão preencher e sob quais
+	 * indicadores a escala é medida.
+	 */
+	operacaoId?: number | null
 ): Promise<number> {
 	const result = await db
 		.insert(giseEscalas)
@@ -73,7 +79,8 @@ export async function criarGiseEscala(
 			feriado: feriado ? 1 : 0,
 			hora_entrada: horaEntrada,
 			hora_saida: horaSaida,
-			status: statusInicial
+			status: statusInicial,
+			operacao_id: operacaoId ?? null
 		})
 		.returning({ id: giseEscalas.id });
 	return result[0].id;
@@ -188,13 +195,17 @@ export async function clonarGiseParaData(
 	if (!gise) throw new Error('GISE não encontrada');
 
 	const feriadoNovo = feriado ?? !!gise.feriado;
+	// A cópia herda a OPERAÇÃO do original — clonar uma escala da CRAJUBAR não
+	// pode produzir uma escala do GISE, porque o formulário e os indicadores
+	// mudariam junto sem ninguém pedir.
 	const novoId = await criarGiseEscala(
 		db,
 		novaData,
 		horaEntrada ?? gise.hora_entrada,
 		horaSaida ?? gise.hora_saida,
 		'em_definicao_supervisor',
-		feriadoNovo
+		feriadoNovo,
+		gise.operacao_id
 	);
 
 	const secsParaClonar: { seccional_id: number; id?: number }[] =
@@ -293,8 +304,9 @@ export async function clonarGiseParaData(
 			(id) => !slotsExistentes.some((s) => s.gise_seccional_id === id)
 		);
 
-		// Vagas lidas uma vez só: são as mesmas para todos os slots do laço.
-		const v = await buscarVagasPadraoEquipesGise(db);
+		// Vagas lidas uma vez só: são as mesmas para todos os slots do laço. Vêm da
+		// operação do ORIGINAL, que é a mesma da cópia (ver `criarGiseEscala` acima).
+		const v = await buscarVagasPadraoEquipesGise(db, gise.operacao_id);
 		for (const secId of secIdsSemSlot) {
 			await criarSlotComEquipesPadrao(db, secId, null, v);
 		}

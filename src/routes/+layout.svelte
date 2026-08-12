@@ -90,6 +90,34 @@
 		usuario?.tipo === 'admin' || usuario?.papel === 'admin_seccional' || isSupervisorGise
 	);
 
+	/**
+	 * Produtividade: os DOIS papéis de unidade entram, inclusive `admin_unidade`,
+	 * que `showGise` não cobre.
+	 *
+	 * É deliberado: são eles que informam a linha de base dos indicadores, e quem
+	 * alimenta o denominador de uma meta precisa poder ver o resultado dela. O
+	 * recorte por unidade é feito no SERVIDOR, não por este `if` — esconder o item
+	 * de menu nunca foi autorização.
+	 */
+	const showIndicadores = $derived(
+		usuario?.tipo === 'admin' ||
+			usuario?.papel === 'admin_seccional' ||
+			usuario?.papel === 'admin_unidade'
+	);
+
+	/**
+	 * "Dados base" NÃO segue `showIndicadores`: ela só aparece para quem tem
+	 * efetivamente base a informar — admin de unidade/seccional cuja unidade está
+	 * escalada numa operação com indicador percentual. Antes aparecia para todo
+	 * admin de unidade, inclusive os de delegacias fora de qualquer operação, que
+	 * abriam uma tela vazia sem entender por quê. Quem responde é o servidor
+	 * (`temLinhaBaseAPreencher`), porque a pergunta depende de escala e de modelo.
+	 *
+	 * O Admin Geral não entra: para ele a conferência é por operação, e virou
+	 * botão dentro de `/gise/operacoes`.
+	 */
+	const showDadosBase = $derived(page.data.temLinhaBasePendente ?? false);
+
 	// Presença GISE: só com escala GISE ativa E confirmação de entrada/saída
 	// ainda pendente. Só "estar escalado" não basta — quem já bateu a saída
 	// cai no Histórico. O Admin Geral não presta serviço: para ele o item
@@ -146,6 +174,10 @@
 		// Evita aria-hidden na topbar/main com o botão de menu ainda focado.
 		const focused = document.activeElement;
 		if (focused instanceof HTMLElement) focused.blur();
+
+		// O nível é decidido pela ROTA a cada abertura: quem está em
+		// `/produtividade` abre já dentro de "Escala extra", com o item aceso.
+		nivelMenu = naRotaExtra ? 'extra' : 'raiz';
 
 		sidebarOpen = true;
 		await tick();
@@ -281,14 +313,17 @@
 	}
 
 	const rotaPath = $derived(page.url.pathname);
-	/** Rota GISE: lista/escala, excl. `/gise/config` (entrada separada "Config. GISE"). */
+	/**
+	 * Rota da escala extra: lista/escala, excluindo `/gise/operacoes`, que tem
+	 * entrada própria no menu.
+	 */
 	const giseListaOuEscalaPath = $derived(
 		rotaPath === '/gise' ||
 			(rotaPath.startsWith('/gise/') &&
-				!rotaPath.startsWith('/gise/config') &&
+				!rotaPath.startsWith('/gise/operacoes') &&
 				!rotaPath.startsWith('/gise/bem-vindo'))
 	);
-	const giseConfigPathAtivo = $derived(rotaPath.startsWith('/gise/config'));
+	const giseOperacoesPathAtivo = $derived(rotaPath.startsWith('/gise/operacoes'));
 
 	// As duas abas de /res-gise dividem a MESMA rota por query string: sem
 	// `?status=finalizadas` é a "Presença GISE" (ativas), com ele é o "Histórico
@@ -302,6 +337,104 @@
 	);
 	const resGisePresencaAtivo = $derived(naRotaResGise && !resGiseHistoricoSelecionado);
 	const resGiseHistoricoAtivo = $derived(naRotaResGise && resGiseHistoricoSelecionado);
+
+	/**
+	 * Os filhos do menu "Escala extra", já filtrados pelo que este usuário vê.
+	 *
+	 * Uma fonte só para as três perguntas que a barra faz: o pai aparece (a lista
+	 * não está vazia), o que o submenu desenha, e se a rota atual pertence a ele.
+	 * Separá-las deixaria o pai poder abrir num submenu vazio.
+	 *
+	 * As condições são as MESMAS de antes do agrupamento, uma por uma. Agrupar é
+	 * apresentação: nenhum item passou a aparecer para quem não o via, e o recorte
+	 * de verdade continua no servidor — esconder item de menu nunca foi
+	 * autorização.
+	 *
+	 * `/gise/operacoes` NÃO entra: é cadastro de operação, não a operação do dia a
+	 * dia, e fica na raiz ao lado de Policiais e Solicitações.
+	 *
+	 * `showGrupo2` entra aqui, e não só no markup, porque a lista também decide o
+	 * NÍVEL em que a gaveta abre: sem ele, o Admin Geral em módulo "escalas" que
+	 * caísse em `/produtividade` pela URL abriria o menu já dentro do submenu que a
+	 * escolha de módulo esconde dele.
+	 */
+	const filhosExtra = $derived.by(() => {
+		if (!showGrupo2) return [];
+		return [
+			// "Escalas", e não "Escalas ativas": a página lista ativas E histórico,
+			// com o filtro dentro dela. O pai já diz que a escala é a extra.
+			showGise && {
+				href: '/gise',
+				rotulo: 'Escalas',
+				icone: ICONE.pranchetaLista,
+				ativo: giseListaOuEscalaPath
+			},
+			showIndicadores && {
+				href: '/produtividade',
+				rotulo: 'Produtividade',
+				icone: ICONE.barras,
+				ativo: isActive('/produtividade')
+			},
+			showDadosBase && {
+				href: '/dados-base',
+				rotulo: 'Dados base',
+				icone: ICONE.checkLista,
+				ativo: isActive('/dados-base')
+			},
+			usuario?.tipo !== 'admin' &&
+				temPresencaGiseAtiva && {
+					href: '/res-gise',
+					rotulo: 'Minha presença',
+					icone: ICONE.documento,
+					ativo: resGisePresencaAtivo
+				},
+			usuario?.tipo !== 'admin' &&
+				temGiseHistorico && {
+					href: '/res-gise?status=finalizadas',
+					rotulo: 'Meu histórico',
+					icone: ICONE.historico,
+					ativo: resGiseHistoricoAtivo
+				}
+		].filter((x) => x !== false && x !== undefined);
+	});
+
+	/** A rota atual é de algum filho? Decide o nível em que a gaveta abre. */
+	const naRotaExtra = $derived(filhosExtra.some((f) => f.ativo));
+
+	/**
+	 * Em qual nível a gaveta está: a raiz ou dentro de "Escala extra".
+	 *
+	 * Fixado ao ABRIR, pela rota (`openSidebar`), e não mantido entre aberturas:
+	 * abrir o menu estando em `/produtividade` e cair na raiz esconderia justamente
+	 * onde a pessoa está.
+	 */
+	let nivelMenu = $state<'raiz' | 'extra'>('raiz');
+
+	/**
+	 * A métrica das linhas da barra, uma só para as três formas: item que navega,
+	 * pai que abre o submenu e voltar para a raiz. Divergir aqui faria o submenu
+	 * parecer outra tela em vez do mesmo menu.
+	 */
+	const CLASSE_ITEM =
+		'w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all no-underline border';
+	const CLASSE_ACESO =
+		'bg-primary-500/15 text-primary-700 dark:text-primary-400 border-primary-500/20';
+	const CLASSE_APAGADO =
+		'text-surface-600 dark:text-surface-300 hover:bg-surface-200/50 dark:hover:bg-surface-800/50 border-transparent';
+
+	/**
+	 * Troca de nível movendo o FOCO junto.
+	 *
+	 * O `<nav>` troca de conteúdo sem trocar de página, então nada anuncia a
+	 * mudança sozinho: mover o foco para o primeiro item do novo nível é o que faz
+	 * o leitor de tela ler o novo contexto. O `aria-label` da `<nav>` acompanha
+	 * pelo mesmo motivo.
+	 */
+	async function irParaNivel(destino: 'raiz' | 'extra') {
+		nivelMenu = destino;
+		await tick();
+		document.getElementById(destino === 'extra' ? 'menu-voltar' : 'menu-pai-extra')?.focus();
+	}
 
 	onNavigate((navigation) => {
 		if (sidebarOpen) {
@@ -546,7 +679,57 @@
 		</div>
 
 		<!-- Navigation -->
-		<nav id="navegacao-principal" class="flex-1 px-3 py-4 space-y-1 overflow-y-auto" tabindex="-1">
+		<nav
+			id="navegacao-principal"
+			class="flex-1 px-3 py-4 space-y-1 overflow-y-auto"
+			tabindex="-1"
+			aria-label={nivelMenu === 'extra' ? 'Escala extra' : 'Menu principal'}
+		>
+			{#snippet iconeItem(paths: string[])}
+				<svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+					{#each paths as d (d)}
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" {d} />
+					{/each}
+				</svg>
+			{/snippet}
+
+			<!--
+				O pai é `<button>` e não `<a>`: ele não leva a lugar nenhum, e um link
+				que não navega quebra "abrir em nova aba" e o clique do meio.
+
+				NÃO chama `handleSidebarNavigation`: entrar no submenu não é navegar, e
+				fechar a gaveta aqui desfaria o próprio clique.
+			-->
+			{#snippet itemPaiExtra(ativo: boolean)}
+				<button
+					id="menu-pai-extra"
+					type="button"
+					class="{CLASSE_ITEM} {ativo ? CLASSE_ACESO : CLASSE_APAGADO}"
+					onclick={() => void irParaNivel('extra')}
+				>
+					{@render iconeItem(ICONE.pranchetaLista)}
+					<span class="truncate flex-1 text-left">Escala extra</span>
+					{@render iconeItem(ICONE.chevronDireita)}
+				</button>
+			{/snippet}
+
+			<!--
+				Voltar do submenu. Não usa `BotaoVoltar`: aquele é de tela de detalhe,
+				acima do `<h1>` (README §10). Aqui é linha de menu, e tem de ter a
+				métrica das outras linhas.
+			-->
+			{#snippet itemVoltarMenu()}
+				<button
+					id="menu-voltar"
+					type="button"
+					class="{CLASSE_ITEM} {CLASSE_APAGADO}"
+					onclick={() => void irParaNivel('raiz')}
+				>
+					{@render iconeItem(ICONE.setaEsquerda)}
+					<span class="truncate flex-1 text-left font-bold">Escala extra</span>
+				</button>
+			{/snippet}
+
 			{#snippet itemMenu(
 				href: string,
 				rotulo: string,
@@ -557,17 +740,10 @@
 				<a
 					{href}
 					data-sveltekit-preload-data="hover"
-					class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all no-underline
-						{(ativo ?? isActive(href))
-						? 'bg-primary-500/15 text-primary-700 dark:text-primary-400 border border-primary-500/20'
-						: 'text-surface-600 dark:text-surface-300 hover:bg-surface-200/50 dark:hover:bg-surface-800/50 border border-transparent'}"
+					class="{CLASSE_ITEM} {(ativo ?? isActive(href)) ? CLASSE_ACESO : CLASSE_APAGADO}"
 					onclick={handleSidebarNavigation}
 				>
-					<svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-						{#each paths as d (d)}
-							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" {d} />
-						{/each}
-					</svg>
+					{@render iconeItem(paths)}
 					<span class="truncate flex-1 text-left">{rotulo}</span>
 					{#if badge && badge > 0}
 						<span
@@ -580,7 +756,21 @@
 				</a>
 			{/snippet}
 
-			{#if usuario?.isSuperAdmin}
+			{#if nivelMenu === 'extra'}
+				<!--
+					SUBMENU de "Escala extra". Substitui a barra inteira em vez de expandir
+					dentro dela: cinco itens indentados sob um pai devolveriam a lista
+					comprida que este agrupamento veio desfazer.
+
+					Sem `{#if}` por item — `filhosExtra` já vem filtrado pelas MESMAS
+					condições de antes, e é ele que decide se o pai chega a aparecer.
+				-->
+				{@render itemVoltarMenu()}
+				<hr class="!my-3 border-surface-200 dark:border-white/10" />
+				{#each filhosExtra as filho (filho.href)}
+					{@render itemMenu(filho.href, filho.rotulo, filho.icone, filho.ativo)}
+				{/each}
+			{:else if usuario?.isSuperAdmin}
 				<!-- Super Admin: menu exclusivo — apenas estas 6 abas, nesta ordem. -->
 				{@render itemMenu('/super-admin', 'Boas-vindas', ICONE.casa)}
 				{@render itemMenu('/unidades', 'Unidades', ICONE.predio)}
@@ -623,48 +813,45 @@
 					<hr class="!my-3 border-surface-200 dark:border-white/10" />
 				{/if}
 
-				<!-- Grupo 2: GISE · Produtividade (admin) · Config. GISE · Rel. GISE -->
+				<!--
+					Grupo 2: tudo o que é de ESCALA EXTRA, atrás de um pai.
+
+					Antes eram até cinco linhas soltas (Escala extra, Produtividade, Dados
+					base, Minha presença, Meu histórico), e o admin seccional via oito itens
+					na barra. Nada dizia que os cinco eram do mesmo assunto — estavam só
+					perto uns dos outros. O que cada um exige para aparecer continua
+					idêntico; a lista vive em `filhosExtra`.
+
+					"Operações" NÃO entra: é cadastro, e fica na raiz ao lado dos outros
+					itens de gestão do Admin Geral.
+				-->
 				{#if showGrupo2}
-					{#if showGise}
-						<!-- Só o Admin Geral em módulo GISE tem /gise/bem-vindo como home
-						     (obterRotaBemVindo); para os demais (admin_seccional,
-						     admin_unidade e supervisor GISE) a página redireciona e o item
-						     duplicaria o "Boas-vindas" do próprio grupo do usuário. -->
-						{#if usuario?.tipo === 'admin' && adminModulo === 'gise'}
-							{@render itemMenu('/gise/bem-vindo', 'Boas-vindas', ICONE.casa)}
-						{/if}
-						{@render itemMenu('/gise', 'Escalas GISE', ICONE.pranchetaLista, giseListaOuEscalaPath)}
-						{#if usuario?.tipo === 'admin'}
-							{@render itemMenu('/produtividade', 'Produtividade', ICONE.barras)}
-						{/if}
-						{#if usuario?.tipo === 'admin'}
-							{@render itemMenu(
-								'/gise/config',
-								'Conf. GISE',
-								ICONE.engrenagem,
-								giseConfigPathAtivo
-							)}
-						{/if}
+					<!-- Só o Admin Geral em módulo GISE tem /gise/bem-vindo como home
+					     (obterRotaBemVindo); para os demais (admin_seccional,
+					     admin_unidade e supervisor GISE) a página redireciona e o item
+					     duplicaria o "Boas-vindas" do próprio grupo do usuário. -->
+					{#if showGise && usuario?.tipo === 'admin' && adminModulo === 'gise'}
+						{@render itemMenu('/gise/bem-vindo', 'Boas-vindas', ICONE.casa)}
 					{/if}
-					{#if usuario?.tipo === 'admin'}
-						{@render itemMenu('/res-gise', 'Conf. Form.', ICONE.documento)}
-					{:else}
-						{#if temPresencaGiseAtiva}
-							{@render itemMenu(
-								'/res-gise',
-								'Presença GISE',
-								ICONE.documento,
-								resGisePresencaAtivo
-							)}
-						{/if}
-						{#if temGiseHistorico}
-							{@render itemMenu(
-								'/res-gise?status=finalizadas',
-								'Histórico GISE',
-								ICONE.historico,
-								resGiseHistoricoAtivo
-							)}
-						{/if}
+
+					{#if filhosExtra.length > 0}
+						{@render itemPaiExtra(naRotaExtra)}
+					{/if}
+
+					{#if showGise && usuario?.tipo === 'admin'}
+						<!-- "Conf. GISE" saiu do menu: o que ela editava (vagas padrão,
+						     horário e textos do breve relatório) virou configuração POR
+						     OPERAÇÃO, no botão "Configurações" de cada linha de /gise/operacoes.
+
+						     "Conf. Form." saiu pelo mesmo motivo: o editor de formulário é
+						     alcançado pelo botão "Formulário" de cada operação, que é onde
+						     ele tem contexto. -->
+						{@render itemMenu(
+							'/gise/operacoes',
+							'Operações',
+							ICONE.engrenagem,
+							giseOperacoesPathAtivo
+						)}
 					{/if}
 				{/if}
 				<!-- end showGrupo2 -->

@@ -1,0 +1,328 @@
+import { describe, it, expect } from 'vitest';
+import { montarPainelIndicadores, formatarValorIndicador, formatarPercentual } from '../metas';
+import type { Indicador } from '$lib/gise/indicadores';
+
+/** Acervo de inquéritos: reduzir 20% — o indicador principal do plano da CRAJUBAR. */
+const ACERVO: Indicador = {
+	key: 'acervo',
+	chaveResposta: 'acervo',
+	chaveTotal: null,
+	texto: 'Acervo de inquéritos pendentes',
+	tipo: 'numero',
+	config: { objetivo: 'diminuir', metaTipo: 'percentual', metaValor: 20 }
+};
+
+/** "Mínimo de 1 por unidade/mês" — meta absoluta, sem linha de base. */
+const ORCRIM: Indicador = {
+	key: 'orcrim',
+	chaveResposta: 'orcrim',
+	chaveTotal: null,
+	texto: 'Investigações qualificadas de ORCRIM',
+	tipo: 'numero',
+	config: { objetivo: 'aumentar', metaTipo: 'absoluto', metaValor: 1 }
+};
+
+const CRATO = { id: 10, nome: 'DELEGACIA DO CRATO' };
+const BARBALHA = { id: 20, nome: 'DELEGACIA DE BARBALHA' };
+
+describe('montarPainelIndicadores', () => {
+	it('cruza base, realizado e meta por unidade', () => {
+		const painel = montarPainelIndicadores(
+			[ACERVO],
+			[CRATO],
+			[{ unidade_id: 10, respostasParsed: { acervo: 1100 } }],
+			[{ unidade_id: 10, indicador_key: 'acervo', valor: 1240 }]
+		);
+
+		expect(painel).toHaveLength(1);
+		const linha = painel[0].linhas[0];
+		expect(linha.base).toBe(1240);
+		expect(linha.realizado).toBe(1100);
+		expect(linha.meta).toBe(992);
+		// (1240 − 1100) / (1240 − 992) = 140/248 ≈ 56,45%
+		expect(linha.atingimento).toBeCloseTo(56.45, 1);
+		expect(linha.atingida).toBe(false);
+	});
+
+	it('soma as respostas da MESMA unidade', () => {
+		const painel = montarPainelIndicadores(
+			[ACERVO],
+			[CRATO],
+			[
+				{ unidade_id: 10, respostasParsed: { acervo: 400 } },
+				{ unidade_id: 10, respostasParsed: { acervo: 300 } }
+			],
+			[{ unidade_id: 10, indicador_key: 'acervo', valor: 1000 }]
+		);
+		expect(painel[0].linhas[0].realizado).toBe(700);
+	});
+
+	it('não mistura unidades — cada uma tem a própria base e o próprio realizado', () => {
+		const painel = montarPainelIndicadores(
+			[ACERVO],
+			[CRATO, BARBALHA],
+			[
+				{ unidade_id: 10, respostasParsed: { acervo: 100 } },
+				{ unidade_id: 20, respostasParsed: { acervo: 900 } }
+			],
+			[
+				{ unidade_id: 10, indicador_key: 'acervo', valor: 200 },
+				{ unidade_id: 20, indicador_key: 'acervo', valor: 1000 }
+			]
+		);
+		const [crato, barbalha] = painel[0].linhas;
+		expect([crato.base, crato.realizado]).toEqual([200, 100]);
+		expect([barbalha.base, barbalha.realizado]).toEqual([1000, 900]);
+	});
+
+	it('unidade sem resposta nenhuma aparece com realizado 0, não some', () => {
+		// Sumir esconderia justamente quem não produziu.
+		const painel = montarPainelIndicadores(
+			[ACERVO],
+			[CRATO, BARBALHA],
+			[{ unidade_id: 10, respostasParsed: { acervo: 5 } }],
+			[]
+		);
+		expect(painel[0].linhas.map((l) => l.unidadeNome)).toEqual([
+			'DELEGACIA DO CRATO',
+			'DELEGACIA DE BARBALHA'
+		]);
+		expect(painel[0].linhas[1].realizado).toBe(0);
+	});
+
+	it('preserva a ordem das unidades recebidas', () => {
+		const painel = montarPainelIndicadores([ACERVO], [BARBALHA, CRATO], [], []);
+		expect(painel[0].linhas.map((l) => l.unidadeId)).toEqual([20, 10]);
+	});
+
+	it('sem base, o indicador percentual fica sem meta e marcado como pendente', () => {
+		const painel = montarPainelIndicadores(
+			[ACERVO],
+			[CRATO],
+			[{ unidade_id: 10, respostasParsed: { acervo: 500 } }],
+			[]
+		);
+		const linha = painel[0].linhas[0];
+		expect(linha.base).toBeNull();
+		expect(linha.meta).toBeNull();
+		expect(linha.atingimento).toBeNull();
+		expect(linha.basePendente).toBe(true);
+		expect(painel[0].basesPendentes).toBe(1);
+	});
+
+	it('meta absoluta não exige base e nunca fica pendente', () => {
+		const painel = montarPainelIndicadores(
+			[ORCRIM],
+			[CRATO],
+			[{ unidade_id: 10, respostasParsed: { orcrim: 2 } }],
+			[]
+		);
+		const linha = painel[0].linhas[0];
+		expect(linha.basePendente).toBe(false);
+		expect(linha.meta).toBe(1);
+		expect(linha.atingida).toBe(true);
+	});
+
+	it('resume quantas unidades bateram a meta, ignorando as sem meta calculável', () => {
+		const painel = montarPainelIndicadores(
+			[ACERVO],
+			[CRATO, BARBALHA],
+			[
+				{ unidade_id: 10, respostasParsed: { acervo: 700 } },
+				{ unidade_id: 20, respostasParsed: { acervo: 999 } }
+			],
+			// Só o Crato informou a base — Barbalha não entra na conta.
+			[{ unidade_id: 10, indicador_key: 'acervo', valor: 1000 }]
+		);
+		expect(painel[0].unidadesComMeta).toBe(1);
+		expect(painel[0].unidadesAtingiram).toBe(1);
+		expect(painel[0].basesPendentes).toBe(1);
+	});
+
+	it('resposta sem unidade (quadro de supervisão) não entra em unidade nenhuma', () => {
+		const painel = montarPainelIndicadores(
+			[ACERVO],
+			[CRATO],
+			[
+				{ unidade_id: null, respostasParsed: { acervo: 999 } },
+				{ unidade_id: 10, respostasParsed: { acervo: 5 } }
+			],
+			[]
+		);
+		expect(painel[0].linhas[0].realizado).toBe(5);
+	});
+
+	it('usa a chaveResposta, não a key, nos tipos de lista', () => {
+		const lista: Indicador = {
+			key: 'extra_1',
+			chaveResposta: 'extra_1__qtd',
+			chaveTotal: null,
+			texto: 'Relatórios',
+			tipo: 'lista_detalhada',
+			config: { objetivo: 'aumentar', metaTipo: 'absoluto', metaValor: 3 }
+		};
+		const painel = montarPainelIndicadores(
+			[lista],
+			[CRATO],
+			[{ unidade_id: 10, respostasParsed: { extra_1: 'ignorar', extra_1__qtd: 4 } }],
+			[]
+		);
+		expect(painel[0].linhas[0].realizado).toBe(4);
+		expect(painel[0].linhas[0].atingida).toBe(true);
+	});
+
+	it('sem indicadores, devolve lista vazia', () => {
+		expect(montarPainelIndicadores([], [CRATO], [], [])).toEqual([]);
+	});
+});
+
+describe('formatarValorIndicador', () => {
+	it('formata em pt-BR sem decimal desnecessário', () => {
+		expect(formatarValorIndicador(1240)).toBe('1.240');
+	});
+
+	it('preserva a casa decimal de uma média em dias', () => {
+		// 187,5 dias arredondado para 188 mudaria o resultado da meta de 15%.
+		expect(formatarValorIndicador(187.5)).toBe('187,5');
+	});
+
+	it('nulo e não-finito viram travessão', () => {
+		expect(formatarValorIndicador(null)).toBe('—');
+		expect(formatarValorIndicador(Number.NaN)).toBe('—');
+	});
+});
+
+/** "Atender 100% das ocorrências de fim de semana" — cobertura, com denominador no relatório. */
+const FDS: Indicador = {
+	key: 'fds',
+	chaveResposta: 'fds__parte',
+	chaveTotal: 'fds__total',
+	texto: 'Atendimentos do GISE em fins de semana',
+	tipo: 'proporcao',
+	config: { metaTipo: 'proporcao', metaValor: 100, unidadeMedida: 'ocorrências' }
+};
+
+describe('montarPainelIndicadores — cobertura', () => {
+	it('soma as duas chaves e calcula a cobertura da unidade', () => {
+		const painel = montarPainelIndicadores(
+			[FDS],
+			[CRATO],
+			[
+				{ unidade_id: 10, respostasParsed: { fds__total: 12, fds__parte: 9 } },
+				{ unidade_id: 10, respostasParsed: { fds__total: 8, fds__parte: 8 } }
+			],
+			[]
+		);
+
+		const linha = painel[0].linhas[0];
+		expect(linha.total).toBe(20);
+		expect(linha.realizado).toBe(17);
+		expect(linha.cobertura).toBeCloseTo(85, 5);
+		// Meta de 100% sobre 20 ocorrências = 20 atendimentos.
+		expect(linha.meta).toBe(20);
+		expect(linha.atingimento).toBeCloseTo(85, 5);
+		expect(linha.atingida).toBe(false);
+	});
+
+	it('cobertura total bate a meta', () => {
+		const painel = montarPainelIndicadores(
+			[FDS],
+			[CRATO],
+			[{ unidade_id: 10, respostasParsed: { fds__total: 6, fds__parte: 6 } }],
+			[]
+		);
+		const linha = painel[0].linhas[0];
+		expect(linha.cobertura).toBe(100);
+		expect(linha.atingida).toBe(true);
+		expect(painel[0].unidadesAtingiram).toBe(1);
+	});
+
+	it('unidade sem ocorrência no período fica indefinida, e não zerada', () => {
+		// Sem denominador não há cobertura: contá-la como 0% puniria quem não teve
+		// o que atender.
+		const painel = montarPainelIndicadores([FDS], [BARBALHA], [], []);
+		const linha = painel[0].linhas[0];
+		expect(linha.total).toBe(0);
+		expect(linha.cobertura).toBeNull();
+		expect(linha.meta).toBeNull();
+		expect(linha.atingimento).toBeNull();
+		expect(linha.atingida).toBeNull();
+		// E não conta como unidade avaliada.
+		expect(painel[0].unidadesComMeta).toBe(0);
+	});
+
+	it('cobertura NÃO gera pendência de linha de base', () => {
+		const painel = montarPainelIndicadores(
+			[FDS],
+			[CRATO, BARBALHA],
+			[{ unidade_id: 10, respostasParsed: { fds__total: 4, fds__parte: 4 } }],
+			[]
+		);
+		expect(painel[0].basesPendentes).toBe(0);
+		expect(painel[0].linhas.every((l) => l.basePendente === false)).toBe(true);
+	});
+});
+
+describe('formatarPercentual', () => {
+	it('usa vírgula decimal e o símbolo', () => {
+		expect(formatarPercentual(87.5)).toBe('87,5%');
+		expect(formatarPercentual(100)).toBe('100%');
+	});
+
+	it('ausente vira travessão', () => {
+		expect(formatarPercentual(null)).toBe('—');
+		expect(formatarPercentual(Number.NaN)).toBe('—');
+	});
+});
+
+describe('meta e tipo de campo em desacordo', () => {
+	// O editor não reescreve a meta quando o admin troca o tipo do campo, então
+	// estes dois estados existem no banco. A regra é: a referência sai do TIPO DA
+	// META. Quando ela falta, a linha aparece como "—" em vez de um número errado.
+
+	it('meta percentual em pergunta de cobertura usa a LINHA DE BASE, não o total', () => {
+		const misto: Indicador = {
+			key: 'misto',
+			chaveResposta: 'misto__parte',
+			chaveTotal: 'misto__total',
+			texto: 'Pergunta de cobertura com meta percentual',
+			tipo: 'proporcao',
+			config: { objetivo: 'diminuir', metaTipo: 'percentual', metaValor: 20 }
+		};
+		const painel = montarPainelIndicadores(
+			[misto],
+			[CRATO],
+			[{ unidade_id: 10, respostasParsed: { misto__total: 500, misto__parte: 80 } }],
+			[{ unidade_id: 10, indicador_key: 'misto', valor: 100 }]
+		);
+		const linha = painel[0].linhas[0];
+		// 100 − 20% = 80, e NÃO 500 − 20% = 400.
+		expect(linha.meta).toBe(80);
+		expect(linha.atingida).toBe(true);
+		// O total continua visível, porque a pergunta tem denominador.
+		expect(linha.total).toBe(500);
+	});
+
+	it('meta de cobertura em pergunta sem denominador não inventa referência', () => {
+		const misto: Indicador = {
+			key: 'orfa',
+			chaveResposta: 'orfa',
+			chaveTotal: null,
+			texto: 'Pergunta simples com meta de cobertura',
+			tipo: 'numero',
+			config: { metaTipo: 'proporcao', metaValor: 100 }
+		};
+		const painel = montarPainelIndicadores(
+			[misto],
+			[CRATO],
+			[{ unidade_id: 10, respostasParsed: { orfa: 9 } }],
+			[{ unidade_id: 10, indicador_key: 'orfa', valor: 12 }]
+		);
+		const linha = painel[0].linhas[0];
+		// A base 12 está lá, mas não é denominador de cobertura — não vira meta.
+		expect(linha.meta).toBeNull();
+		expect(linha.atingimento).toBeNull();
+		expect(linha.atingida).toBeNull();
+		expect(painel[0].unidadesComMeta).toBe(0);
+	});
+});

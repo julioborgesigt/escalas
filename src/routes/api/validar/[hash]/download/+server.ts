@@ -258,8 +258,6 @@ export const GET: RequestHandler = async ({ platform, params, url, cookies, getC
 			const { getBreveRelatorioEnvMergido } = await import('$lib/server/gise/breve-relatorio-env');
 			const { secIdEhSupervisaoExtra } = await import('$lib/server/gise/supervisao-extra');
 			const { adicionarRodapeSimples } = await import('$lib/server/assinatura/pdf-signing');
-			const brEnv = await getBreveRelatorioEnvMergido(db);
-
 			const gise = await buscarGiseDetalhado(db, documento.escala_id);
 			if (!gise) {
 				logger.error('[validar/download] GISE ausente para re-geração', {
@@ -268,6 +266,11 @@ export const GET: RequestHandler = async ({ platform, params, url, cookies, getC
 				});
 				return notFound('GISE');
 			}
+
+			// Depois da escala, e não antes: os textos do breve relatório dependem da
+			// OPERAÇÃO dela, e este PDF é uma re-geração de documento já validado —
+			// sair com o parágrafo de outra operação seria divergir do que foi assinado.
+			const brEnv = await getBreveRelatorioEnvMergido(db, gise.operacao_id);
 
 			const seccionalId = documento.seccional_id;
 			const relTipo = documento.rel_tipo;

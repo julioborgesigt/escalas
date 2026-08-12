@@ -22,11 +22,11 @@
 		if (usuario?.tipo === 'admin') {
 			return [
 				{
-					titulo: 'Escalas GISE',
+					titulo: 'Escala extra',
 					descricao:
-						'Planeje, gerencie e valide a alocação de equipes operacionais e equipes de inteligência em serviço extraordinário.',
+						'Planeje, gerencie e valide a alocação de equipes operacionais e equipes de inteligência em serviço extraordinário, em todas as operações.',
 					href: '/gise',
-					cta: 'Acessar escalas GISE'
+					cta: 'Acessar escalas extras'
 				},
 				{
 					titulo: 'Produtividade',
@@ -36,16 +36,16 @@
 					cta: 'Acessar produtividade'
 				},
 				{
-					titulo: 'Configurações GISE',
+					titulo: 'Operações',
 					descricao:
-						'Configure parâmetros globais do módulo GISE, como valores limite de cotas financeiras e horas extras permitidas.',
-					href: '/gise/config',
-					cta: 'Abrir configurações'
+						'Cadastre as operações extraordinárias (GISE, CRAJUBAR, EDGE…) e, em cada uma, as vagas padrão das equipes, os horários e os textos do breve relatório.',
+					href: '/gise/operacoes',
+					cta: 'Gerenciar operações'
 				},
 				{
 					titulo: 'Configuração de Formulários',
 					descricao:
-						'Crie e gerencie os modelos de formulário (operacional e SEINT) do relatório de produtividade preenchido pelas equipes GISE.',
+						'Crie e gerencie os modelos de formulário (operacional e SEINT) de cada operação, com os indicadores e metas do relatório de produtividade.',
 					href: '/res-gise',
 					cta: 'Configurar formulários'
 				},

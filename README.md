@@ -204,12 +204,15 @@ O projeto usa **Cloudflare D1** (SQLite serverless) via **Drizzle ORM**. O schem
 | `assinatura_intencoes`           | Amarra cada PDF preparado ao documento, ao assinante e a um único uso (15 min)                                      |
 | `escala_solicitacoes_assinatura` | Solicitações de assinatura por unidade/respondência                                                                 |
 | `unidades`                       | Hierarquia: departamento → seccional → delegacia. Ligada por **nome** (ver abaixo)                                  |
-| `gise_escalas`                   | GISE operacionais (status, supervisor, assessor, configuração)                                                      |
+| `operacoes`                      | Operações extraordinárias (GISE, CRAJUBAR, EDGE): tipos de equipe, ciclo, `ativo` e a config de escala da operação  |
+| `operacao_linha_base`            | Valor inicial de cada indicador por (operação, unidade) — o denominador das metas percentuais                       |
+| `gise_escalas`                   | Escalas extras (status, supervisor, assessor, configuração) — cada uma pertence a uma `operacao`                    |
 | `gise_seccionais`                | Seccionais dentro de uma GISE                                                                                       |
 | `gise_equipes`                   | Equipes (operacional/SEINT) com slots DPC/OIP                                                                       |
 | `gise_membros`                   | Associação policial ↔ equipe GISE                                                                                   |
 | `gise_presencas`                 | Registros de entrada/saída (GPS, selfie, rubrica)                                                                   |
 | `gise_documentos`                | PDFs assinados de GISE                                                                                              |
+| `gise_modelo_formulario`         | Modelo do formulário de produtividade em JSON, um por (operação, tipo de equipe)                                    |
 | `gise_respostas_formulario`      | Respostas de formulários (JSON) por policial/equipe                                                                 |
 | `gise_assinaturas_relatorios`    | Assinaturas de relatórios de extra/produtividade                                                                    |
 | `aceites_termos`                 | Histórico de aceite de termos de uso (versão, hash, IP, user-agent)                                                 |
@@ -268,7 +271,7 @@ npm run db:migrate:prod -- --yes
 
 ### Histórico de migrações
 
-O histórico completo está na própria pasta [`migrations/`](migrations/) — os nomes dos arquivos são autoexplicativos (`0000_initial_schema.sql` … `0047_escala_policial_dia_unico.sql`). Para entender uma migração específica, leia o SQL dela e o trecho correspondente do [`src/lib/server/schema.ts`](src/lib/server/schema.ts).
+O histórico completo está na própria pasta [`migrations/`](migrations/) — os nomes dos arquivos são autoexplicativos (`0000_initial_schema.sql` … `0052_indicador_cobertura.sql`). Para entender uma migração específica, leia o SQL dela e o trecho correspondente do [`src/lib/server/schema.ts`](src/lib/server/schema.ts).
 
 O que já rodou em cada ambiente é rastreado pela tabela `_migrations_aplicadas`, gravada pelo runner [`scripts/migrate.ts`](scripts/migrate.ts). (O `migrations/meta/` do `drizzle-kit` foi removido em jul/2026: ficou parado em 2 entradas para dezenas de arquivos e só induzia a erro.)
 
@@ -291,6 +294,8 @@ npm run lint:ci            # ESLint com o teto de warnings usado no CI (ratchet)
 npm run lint:fix           # ESLint com auto-fix
 npm run format             # Prettier em src/ (escreve)
 npm run format:check       # Prettier em src/ sem alterar (só verifica)
+npm run format:e2e         # Prettier em e2e/ (escreve)
+npm run format:check:e2e   # Prettier em e2e/ sem alterar (gate próprio no CI)
 npm run knip               # Detecção de código/exports mortos
 npm run docs:inventario    # Inventário de documentação (cabeçalhos, contratos, opacos)
 npm run docs:guard         # Falha se arquivo NOVO em lib/db vier sem doc (roda no CI)
@@ -498,9 +503,244 @@ Gestão do ciclo de vida de escalas de plantão, expediente e finais de semana (
 - Assinatura digital com e-CPF (WebPKI ou SERPRO Desktop)
 - Validação pública de autenticidade via QR Code / hash
 
-### GISE
+### Escala extra (operações)
 
-Gerenciamento completo de operações GISE:
+Gerenciamento das escalas extraordinárias. A GISE deixou de ser a única: a aba
+`/gise` chama-se **Escala extra** e lista as escalas de TODAS as operações, com
+filtro por operação na própria página.
+
+**Operação** (`/gise/operacoes`, Admin Geral) é cadastro: nome, sigla, ciclo, e
+quais tipos de equipe usa — uma operação pode ter só equipe operacional, só de
+inteligência, ou as duas. Cada operação é dona dos SEUS formulários de
+produtividade (um por tipo de equipe habilitado), e criar uma nova pede em qual
+operação basear o formulário, para não começar do zero.
+
+**Operação COM escala não se exclui, desativa-se**: escala histórica e PDF
+assinado continuam apontando para ela, e apagá-la deixaria documento entregue sem
+origem. Operação que nunca recebeu escala nenhuma — a criada por engano, a de
+teste — não é história de nada e ganha **Excluir**, levando junto os formulários
+dela. Quem recusa é a action, recontando as escalas no servidor: a contagem que a
+tela mostrou pode ter envelhecido, e o botão escondido nunca foi autorização.
+
+A tela é um **slider de dois painéis**, no mesmo desenho do fluxo de presença de
+`/res-gise`: a lista à esquerda, o formulário à direita. O painel aberto vive na
+URL (`?form=nova` ou `?form=<id>`), e não num estado local — é o que faz o
+"voltar" do navegador desfazer a abertura e o que permite ao endereço antigo
+`/gise/operacoes/[id]/config` redirecionar para o painel certo.
+
+A LISTA não tem botão de voltar: Operações tem entrada própria na barra lateral,
+e botão de voltar é de tela de DETALHE, alcançada de dentro de outra. O único
+"Voltar às operações" da tela é o do painel do formulário, que fecha o painel. Os
+botões de cada linha usam a faixa de navegação do §10 (`py-1.5`) e ficam
+ancorados no topo à direita — o grupo quebra dentro de si, nunca em bloco, para
+que todas as linhas terminem na mesma margem.
+
+**Identidade e configuração são o MESMO formulário**, na criação e na edição:
+nome, sigla, ciclo e tipos de equipe junto de vagas padrão, horário padrão e os
+textos do bloco "Breve relatório" dos PDFs de extra. Antes eram dois botões e
+duas telas, e quem criava uma operação saía com metade dela por preencher, sem
+nada indicando isso. **Campo vazio herda o padrão do sistema**, e é isso que
+torna a unificação inócua para o que já existe. Zero não é vazio (`0` = "esta
+equipe não tem essa vaga").
+
+A precedência, do mais específico ao mais geral:
+
+```
+colunas de gise_escalas → colunas de operacoes → configuracoes → constante do código
+```
+
+**Como se chega a cada coisa.** O editor do formulário de produtividade
+(`/res-gise`) saiu da barra lateral do Admin Geral: formulário é DE uma operação,
+e o item solto obrigava a escolher a operação depois de entrar. O caminho é o
+botão **Formulário** de cada linha, e a tela tem o "voltar às operações" acima do
+título.
+
+**A barra lateral tem DOIS NÍVEIS.** Tudo que é de escala extra — Escalas,
+Produtividade, Dados base, Minha presença, Meu histórico — vive sob o item
+**"Escala extra"**, que ao ser clicado SUBSTITUI o conteúdo da barra pelo
+submenu. Antes eram até cinco linhas soltas, e o admin seccional via oito itens
+de uma vez sem que nada dissesse que cinco eram do mesmo assunto — estavam só
+perto uns dos outros.
+
+Três decisões registradas:
+
+- **substitui, não expande.** Cinco itens indentados sob um pai devolveriam a
+  lista comprida que o agrupamento veio desfazer;
+- **o nível é decidido ao ABRIR, pela rota** (`openSidebar`). Abrir o menu em
+  `/produtividade` e cair na raiz esconderia justamente onde a pessoa está;
+- **`/gise/operacoes` fica na RAIZ.** É cadastro, não operação do dia a dia, e
+  acompanha os outros itens de gestão do Admin Geral.
+
+O filho que leva a `/gise` chama-se **"Escalas"**, e não "Escalas ativas": a
+página lista ativas **e** histórico, com o filtro dentro dela — o rótulo mentiria.
+
+Quem vê cada filho é `filhosExtra` (`+layout.svelte`), com as MESMAS condições de
+antes do agrupamento, uma por uma. O pai só aparece se a lista não estiver vazia,
+para nunca abrir num submenu vazio. E agrupar é apresentação: o recorte de verdade
+segue no servidor — esconder item de menu nunca foi autorização.
+
+**`/dados-base` na barra lateral** aparece só para admin de unidade/seccional que
+tenha efetivamente base a informar — unidade escalada em operação ativa com
+indicador percentual (`temLinhaBaseAPreencher`). Antes aparecia para todo admin de
+unidade, inclusive os de delegacias fora de qualquer operação, que abriam uma
+tela vazia. Para o Admin Geral, o acesso é o botão **Dados base** na linha da
+operação em `/gise/operacoes` — e ele só existe na operação que PEDE base
+(`operacoesComLinhaBase`, o mesmo critério da flag do menu). Nada disso é
+autorização: quem recusa continua sendo `unidadesLinhaBaseAdministradas`, no
+servidor.
+
+**A operação vai no CAMINHO, não num seletor.** O preenchimento vive em
+`/dados-base/[operacaoId]`; `/dados-base` é só o índice, que redireciona quando há
+uma pendência só e oferece a lista quando há mais. Até ago/2026 a operação vinha
+de `?operacaoId=` e a tela trazia um `<select>` ao lado dos campos — e o valor
+digitado ali é o denominador de um percentual divulgado: gravá-lo sob a operação
+errada muda o atingimento de uma unidade sem tocar em relatório nenhum. Com a
+operação no caminho não há controle a errar, e a escolha acontece antes de
+qualquer campo aparecer.
+
+O **destino do "Voltar"** dessa tela vem do `load`, não é fixo: Admin Geral volta
+a `/gise/operacoes`, que é a porta por onde ele entrou; admin de unidade volta ao
+índice **só quando há mais de uma** pendência. Com uma só não há botão — o índice
+redirecionaria de volta para a mesma tela, e um "Voltar" que não sai do lugar é
+pior que nenhum.
+
+Sobre a rota ser `/dados-base` e não `/gise/dados-base`: `/gise` é o prefixo
+LEGADO — a GISE virou uma operação entre várias, e aninhar telas novas sob ele
+espalharia um nome que o domínio já superou. Não há `+layout` compartilhado sob
+`/gise`, então o aninhamento também não compraria autorização nem dados comuns. Se
+um dia a coerência de prefixo for perseguida, o caminho é renomear o módulo
+inteiro, não estender o nome antigo.
+
+**Indicadores e metas.** No editor do formulário (`/res-gise`), uma pergunta
+contável pode ser marcada como indicador. São **três tipos de meta**, e é o
+`metaTipo` que discrimina a união `IndicadorConfig` (`src/lib/types.ts`):
+
+| `metaTipo`   | O que mede                            | Objetivo            | Linha de base |
+| ------------ | ------------------------------------- | ------------------- | ------------- |
+| `percentual` | variação sobre o valor inicial (−20%) | aumentar / diminuir | **exige**     |
+| `absoluto`   | alvo fixo (mínimo de 1 por unidade)   | aumentar / diminuir | não usa       |
+| `proporcao`  | cobertura: % do total atendido (100%) | **não tem**         | não usa       |
+
+A meta percentual exige uma **linha de base** — o valor de partida da unidade —,
+informada pelo admin de unidade/seccional em **`/dados-base`**; se ela não foi
+informada, o valor é pedido dentro do próprio formulário de produtividade.
+
+`proporcao` é o tipo de **cobertura**, e anda junto com o tipo de campo
+homônimo: uma pergunta só com dois números (o total existente e a parte
+atendida), gravados em `${key}__total` e `${key}__parte`. Existe porque "atender
+100% das ocorrências" não se mede com um número solto — 12 atendimentos são
+ótimos se houve 12 ocorrências e ruins se houve 40. Ela não tem `objetivo`
+(cobrir um todo não é aumentar nem diminuir) e não pede base: o denominador vem
+no mesmo relatório. Só o tipo de campo `proporcao` aceita esta meta.
+
+`/produtividade` mostra base × realizado × meta por unidade, com filtro por
+operação — e, nos indicadores de cobertura, a **porcentagem coberta** com a meta
+como limiar constante, porque contagem e porcentagem não compartilham eixo.
+
+### O que entra no painel, e em que forma
+
+Tudo em `/produtividade` sai do MODELO do formulário, e cada seção entra por um
+critério diferente. Confundi-los foi a origem dos bugs corrigidos em ago/2026.
+
+| Seção                 | Entra quando…                                            |
+| --------------------- | -------------------------------------------------------- |
+| Indicadores e metas   | a pergunta tem `indicador`                               |
+| Colunas por unidade   | a pergunta tem `grafico.colunas`                         |
+| Ranking de unidades   | a pergunta tem `grafico.ranking`                         |
+| Detalhamento por tipo | a pergunta tem `grafico.detalhe` **e** comporta a quebra |
+| Prisões (bloco fixo)  | o formulário TEM `prisoes_maiores` ou `mandados_maiores` |
+
+**A marca é uma escolha, não uma consequência do tipo.** Até ago/2026 toda
+pergunta de tipo contável virava card sozinha, e a quilometragem inicial da
+viatura ocupava espaço ao lado das prisões — sem jeito de tirá-la a não ser
+apagando o campo, o que apagaria a coleta. Agora o bloco "Mostrar na
+produtividade" fica no editor, ao lado do de indicador, com uma caixinha por
+forma. Marca e indicador são independentes: gráfico é uma leitura, indicador é
+uma promessa com meta e linha de base.
+
+**As formas acumulam.** A pergunta de armas mostra ranking E detalhamento, que é
+como o painel sempre a desenhou — e agora dá para desligar um dos dois. Ranking e
+colunas são a MESMA conta em apresentações diferentes (valor por unidade); o
+detalhamento é outra pergunta: quebra por categoria DENTRO da resposta.
+
+**Detalhamento só onde existe a quebra.** Ela vive num objeto
+`{ categoria: valor }` do blob, e só `drogas_complex` (`drogas_detalhe`) e
+`armas_complex` (`armas_detalhe`) o gravam — `podeDetalhar` é quem responde. Nas
+demais a caixinha aparece **desabilitada com a explicação**, mesmo padrão do tipo
+de meta "Cobertura". Uma pergunta de número tem um valor só; o "detalhamento"
+dela seria um card de uma barra.
+
+**Como cada pergunta é somada** é decisão de `valorDaResposta`
+(`$lib/produtividade/apresentacao`), e vale igual para as três formas: `sim_nao`
+conta ocorrências, droga soma peso normalizado em gramas (mostrado em kg), e os
+tipos de lista somam a chave de QUANTIDADE. Eram três cópias dessa regra até
+ago/2026, cada uma com a sua tabela de chaves.
+
+**O gate do "Sim".** Nos tipos que perguntam "houve X? → se sim, quantos", a
+quantidade só conta com a resposta em `'Sim'` (`exigeSimParaContar`). O blob
+guarda o que foi digitado: quem preenche a listagem, muda de ideia e responde
+"Não" deixa o número lá. O relatório assinado sempre ignorou esse resto — ele só
+expande a lista sob um "Sim" —, e o painel não ignorava. As duas leituras do
+mesmo dado discordavam, e a do painel contava produção que o PDF não mostra.
+
+**Prisões é o único bloco que continua escrito no código**, porque o detalhamento
+dele soma três perguntas (flagrantes, mandados e total de presos) e uma marca
+vive em uma pergunta só. O total de presos (P7) é somado por chave fixa junto do
+bloco, e não pelo laço das perguntas marcadas: fosse pelo laço, desmarcar a P7
+zeraria o card — um número errado, que é pior que um card ausente.
+
+Duas migrações fizeram a virada sem mudar a tela: a `0053` carimbou o que já era
+gráfico e a `0054` converteu esse carimbo em formas, marcando droga e arma com o
+par ranking + detalhamento que os blocos fixos desenhavam.
+
+Operação sem indicador, sem bloco e sem pergunta marcada mostra um aviso dizendo
+onde é o conserto (o editor do formulário), em vez de uma página só com a barra
+de filtros.
+
+### O eixo do painel: delegacias ou seccionais
+
+A barra de filtros de `/produtividade` tem **duas linhas**, e a divisão é
+semântica: em cima o que se COMPARA (operação, "Visualizar por", quantidade de
+unidades, ordem) e embaixo o que entra na CONTA (tipo de equipe, período). Só os
+de baixo recortam dado.
+
+"Visualizar por" é um EIXO, não um filtro: a mesma resposta pertence às duas
+chaves — `seccional_id` e `unidade_id` (este resolvido em
+`listarTodasRespostasGise` como `COALESCE(slot, unidade_operacional, seccional)`).
+Trocar de modo não recorta nada, só muda por qual delas a lista é somada, e é por
+isso que o total do painel não muda ao alternar. Padrão: **Seccionais**, que é o
+comportamento histórico.
+
+Quem responde por agrupar, ordenar e recortar é `$lib/produtividade/agrupamento`
+— fonte única dos três consumidores (cards de ranking, gráficos por pergunta e o
+cabeçalho do PNG exportado). Três decisões dele valem registro:
+
+- **equipe sem slot de delegacia** resolve `unidade_id` para a própria seccional,
+  e ela entra no modo Delegacias como linha própria. Sem isso a soma das linhas
+  ficaria menor que o total do painel, sem nada explicando a diferença;
+- **a ordem é semântica** ("melhores"/"piores", não "maior"/"menor"): quem chama
+  informa o valor pelo qual "melhor" se mede. Nos volumes é o total; nos
+  indicadores, o **% de atingimento** — num indicador de redução, ordenar pelo
+  número cru poria a pior unidade no topo de "melhores primeiro";
+- **valor não avaliável** (`null` — unidade sem linha de base, período sem
+  ocorrência) vai sempre para o fim, nos dois sentidos: não é a pior, é a que não
+  se sabe.
+
+A seção **Indicadores e metas** é a exceção deliberada: continua sempre por
+DELEGACIA, porque a linha de base é informada por ela (`operacao_linha_base` é
+por unidade) e agregá-la por seccional exigiria somar bases — o que funciona para
+o acervo de inquéritos e produz um número sem sentido no indicador de tempo
+MÉDIO. Ordem e Top-N valem nela; o eixo, não.
+
+O tipo de equipe indisponível na operação aparece **desabilitado**, não escondido:
+o botão apagado diz que a operação não usa aquele tipo (`tiposEquipeHabilitados`,
+em `$lib/gise/tipos-equipe`, compartilhado com o editor de formulário).
+
+Os indicadores da OPERAÇÃO CRAJUBAR vêm semeados pela migração `0050` a partir
+da tabela §9 do Plano Operacional Estratégico; a `0052` converte o de
+atendimentos em fins de semana para cobertura de 100%, que é o que o plano pede.
+
+O resto do fluxo:
 
 - Criação e configuração pelo supervisor (seccionais, equipes, questões)
 - Visão do membro em duas abas da sidebar: **Presença GISE** (só aparece com escala ativa — confirmar entrada, relatório e saída) e **Histórico GISE** (participações já encerradas). Ambas usam a rota `/res-gise`; o histórico é `?status=finalizadas`
@@ -597,8 +837,8 @@ O aceite do termo de uso é obrigatório a cada nova versão. Qualquer mudança 
 | ------------------------ | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `admin` + `isSuperAdmin` | Super Admin       | Tudo do Admin Geral **mais**: promover admins, gerenciar policiais/unidades, configurar política de assinatura, baixar o forense pelo portal `/validar` |
 | `admin`                  | Admin Geral       | Operação global (escalas, GISE, LGPD/compliance) em todas as unidades — não remodela a base; consoles de auditoria são do Super Admin                   |
-| `policial`               | `admin_seccional` | Gerencia escalas e policiais da sua seccional                                                                                                           |
-| `policial`               | `admin_unidade`   | Gerencia escalas da sua unidade                                                                                                                         |
+| `policial`               | `admin_seccional` | Gerencia escalas e policiais da sua seccional; informa a linha de base dos indicadores das unidades dela (`/dados-base`) e vê `/produtividade` escopado |
+| `policial`               | `admin_unidade`   | Gerencia escalas da sua unidade; informa a linha de base dos indicadores dela e vê `/produtividade` escopado à unidade                                  |
 | `policial`               | —                 | Acessa apenas suas próprias escalas e GISE                                                                                                              |
 
 A matriz completa de capacidades por papel está em [`DEPLOY.md`](DEPLOY.md#papéis-e-privilégios-de-administrador). Membros de GISE têm papéis adicionais (`supervisor`, `assessor/SEINT`, `membro`) calculados dinamicamente a partir da tabela `gise_membros`.
@@ -812,6 +1052,10 @@ interação ou regra de domínio.
 
 **Voltar** — usar `$lib/components/BotaoVoltar.svelte`, sempre **acima do `<h1>`**, nunca no rodapé. `href` para mudar de rota, `onclick` para desfazer estado local. Não repetir a palavra "Voltar" em outro controle da mesma tela (o passo anterior de um wizard é "Anterior") — duas coisas diferentes com o mesmo rótulo trocam de lugar na cabeça de quem usa.
 
+**Rodapé de ação em tela longa** — usar `$lib/components/RodapeAcoes.svelte`: status à esquerda, botões à direita, `sticky bottom-0`. É para a tela em que a ação principal é frequente e ficaria presa no fim do documento — o wizard do relatório e o editor do modelo, os dois com formulários de dezenas de campos. `sticky` e não `fixed`: `fixed` sai do fluxo, passa por cima do conteúdo e exige um `padding-bottom` de reserva que ninguém mantém quando a altura do rodapé muda. Não funciona dentro de ancestral com `overflow` — ele gruda no ancestral que ROLA, e um container `overflow-hidden` não rola.
+
+O status **tem de dizer algo que mude**. A barra do editor nasceu com dois estados — "Salvando…", que dura o tempo da requisição, e "Pronto para salvar", que era o `else` — e dizia a mesma frase tendo-se mexido em algo ou não. Hoje ela compara o que está na tela com o modelo carregado (`alteracoesNaoSalvas`), que é o que torna concreto o aviso de que nada é gravado até clicar em Salvar.
+
 **Estado de tarefa (marcador)** — o mesmo lugar mostra os dois estados: `Check` em círculo `bg-success-500` cumprida, `Clock` em círculo `bg-warning-500` pendente. Não usar ponto cinza para "falta fazer" (lê-se como "desligado"), e não variar a cor de concluído por tipo de tarefa — na mesma linha, um quadro verde e outro cinza parecem estados diferentes quando são o mesmo.
 
 **Border-radius** — o tema define `--radius-base` (= `rounded-xl`, botões/inputs) e `--radius-container` (= `rounded-2xl`, cards/modais); pills/chips usam `rounded-full`. Em código novo, não usar `rounded`/`rounded-md`; reservar `rounded-lg` para elementos ≤ 32 px de altura.
@@ -834,7 +1078,11 @@ O modal é para o passo que cabe em uma tela. Passando disso — o relatório de
 
 **Reordenar lista onde a posição é informação** — arraste (HTML5 DnD com alça: a alça liga o `draggable` no `mousedown`, senão não dá para selecionar texto nos campos do card) **mais** setas ↑/↓, que são o único caminho no toque e no teclado. Arraste sozinho é inacessível. E se a ordem aparece escrita no conteúdo (o "4." dentro do texto da pergunta), reordenar tem de reescrever esse conteúdo — ver `$lib/gise/renumerar-perguntas.ts`; um badge derivado de `indexOf` se acerta sozinho e esconde o problema.
 
-**Tipos de pergunta do formulário de produtividade** — a tabela é `$lib/gise/tipos-pergunta.ts`: quais tipos abrem listagem, quais aceitam sub-pergunta e **onde cada um grava no blob**. Mexer em tipo de pergunta começa por lá, nunca pelos componentes. Os tipos originais (`prisoes_maiores`, `mandados_maiores`…) gravam em **chave fixa** e por isso só funcionam **uma vez** no formulário — duas perguntas do mesmo tipo escrevem uma por cima da outra. Para um campo repetível existe `lista_detalhada`, que deriva as chaves da `key` da pergunta. Ao acrescentar um tipo, a expansão em `db/gise/respostas.ts` é obrigatória no mesmo passo: sem ela o policial preenche, o dado é gravado e **some do PDF assinado sem erro nenhum**.
+**Tipos de pergunta do formulário de produtividade** — a tabela é `$lib/gise/tipos-pergunta.ts`: quais tipos abrem listagem, quais aceitam sub-pergunta e **onde cada um grava no blob**. Mexer em tipo de pergunta começa por lá, nunca pelos componentes. `chavesLista` é a fonte ÚNICA da chave da resposta, e é ela que o indicador de meta, o gráfico e a expansão do relatório consultam — uma tabela paralela escrita à mão já custou aos tipos de lista o direito de virar gráfico, e ninguém notou porque o indicador continuava funcionando.
+
+Três tipos estão **aposentados** (`TIPOS_LISTA_APOSENTADOS`): `mandados_maiores`, `prisoes_maiores` e `apreensoes_menores`. Eles fazem exatamente o que `lista_detalhada` faz — mesmo widget, mesma forma de item, mesma expansão —, só que gravando em **chave fixa**, o que os limita a **uma ocorrência por formulário**. O genérico deriva as chaves da `key` da pergunta e por isso se repete; quem quer nomear a linha no PDF usa `subtexto_item` ("Procedimento 1" em vez de "Item 1"). Eles não foram removidos porque trocar o tipo de uma pergunta troca a chave da resposta — na prática, apaga o histórico dela —, e o editor os oferece apenas na pergunta que **já** está com um deles: escondê-los sempre faria o `<select>` cair na primeira opção e mudar o tipo sozinho ao salvar.
+
+Ao acrescentar um tipo, a expansão em `db/gise/respostas.ts` é obrigatória no mesmo passo: sem ela o policial preenche, o dado é gravado e **some do PDF assinado sem erro nenhum**.
 
 **A URL manda na seleção** — se uma tela escreve o item selecionado na query string (`?giseId=`), ela precisa **ler de volta**, senão recarregar ou voltar de outra rota cai na lista com a URL apontando para um item que não está na tela. O efeito que faz isso escreve o mesmo estado que lê: a guarda de igualdade é o que faz a segunda passada parar.
 
@@ -939,7 +1187,7 @@ O arquivo [`TESTING.md`](TESTING.md) é o roteiro de **exceção**: cobre o que 
 
 Faça push ou abra PR para as branches `main` ou `staging`. O GitHub Actions (`.github/workflows/deploy.yml`) executa automaticamente:
 
-1. `npm run lint:ci` + `npm run format:check`
+1. `npm run lint:ci` + `npm run format:check` + `npm run format:check:e2e`
 2. `npx svelte-check --threshold error`
 3. `npx vitest run`
 4. `npm run build`

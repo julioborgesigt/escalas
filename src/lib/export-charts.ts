@@ -12,6 +12,8 @@ interface ChartExportConfig {
 
 export interface RankingItem {
 	nome: string;
+	/** Nome encurtado para o rótulo do PNG; o completo fica em `nome`. */
+	curto?: string;
 	total: number;
 }
 
@@ -168,11 +170,7 @@ export const VIRTUAL_CHARTS: Record<
 	{ label: string; color: string; type: 'ranking' | 'detail' }
 > = {
 	'rank-prisoes': { label: 'Ranking de Prisões (P7)', color: '#f43f5e', type: 'ranking' },
-	'detail-prisoes': { label: 'Detalhamento de Prisões', color: '#f43f5e', type: 'detail' },
-	'rank-drogas': { label: 'Ranking de Drogas (P10)', color: '#ef4444', type: 'ranking' },
-	'detail-drogas': { label: 'Detalhamento de Substâncias', color: '#ef4444', type: 'detail' },
-	'rank-armas': { label: 'Ranking de Armas (P11)', color: '#6366f1', type: 'ranking' },
-	'detail-armas': { label: 'Detalhamento de Armas', color: '#6366f1', type: 'detail' }
+	'detail-prisoes': { label: 'Detalhamento de Prisões', color: '#f43f5e', type: 'detail' }
 };
 
 interface ExportPayload {

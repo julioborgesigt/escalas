@@ -35,6 +35,7 @@ type AuditCategoria =
 	| 'gise'
 	| 'policial'
 	| 'unidade'
+	| 'operacao'
 	| 'configuracao'
 	| 'documento'
 	| 'lgpd'
@@ -143,6 +144,23 @@ export const CATALOGO_ACOES = {
 	criar_unidade: { label: 'Criação de unidade', categoria: 'unidade', severidade: 'aviso' },
 	editar_unidade: { label: 'Edição de unidade', categoria: 'unidade', severidade: 'info' },
 	excluir_unidade: { label: 'Exclusão de unidade', categoria: 'unidade', severidade: 'critico' },
+
+	// Operações extraordinárias (GISE, CRAJUBAR, EDGE…)
+	criar_operacao: { label: 'Criação de operação', categoria: 'operacao', severidade: 'aviso' },
+	editar_operacao: { label: 'Edição de operação', categoria: 'operacao', severidade: 'aviso' },
+	ativar_operacao: { label: 'Reativação de operação', categoria: 'operacao', severidade: 'aviso' },
+	desativar_operacao: {
+		label: 'Desativação de operação',
+		categoria: 'operacao',
+		severidade: 'aviso'
+	},
+	// A linha de base é o denominador de uma meta divulgada — mudá-la muda o
+	// percentual de atingimento de uma unidade sem tocar em nenhum relatório.
+	informar_linha_base: {
+		label: 'Linha de base de indicador informada',
+		categoria: 'operacao',
+		severidade: 'aviso'
+	},
 
 	// Escalas
 	criar_escala: { label: 'Criação de escala', categoria: 'escala', severidade: 'info' },

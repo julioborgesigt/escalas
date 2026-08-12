@@ -18,6 +18,10 @@ import {
 	criarGiseEscala,
 	clonarGiseParaData,
 	upsertGiseSeccional,
+	listarOperacoes,
+	buscarOperacao,
+	buscarOperacaoPorNome,
+	NOME_OPERACAO_PADRAO,
 	auditar,
 	contextoDeEvento
 } from '$lib/db';
@@ -94,8 +98,15 @@ export const load: PageServerLoad = async ({ locals, platform, depends }) => {
 
 	const minhaSeccionalId = isSeccional || isUnidade ? u.papel_unidade_id : null;
 
+	// Filtro por operação: aplicado no CLIENTE, sobre a mesma lista que a tela já
+	// recebe inteira. Não vale uma ida ao servidor — a listagem já traz ativas e
+	// histórico juntos, e o filtro é de leitura, não de escopo (o escopo por
+	// participação continua no `listarGiseEscalas`).
+	const operacoes = await listarOperacoes(db);
+
 	return {
 		escalas,
+		operacoes,
 		isGeral,
 		isSeccional,
 		isUnidade,
@@ -146,7 +157,7 @@ export const actions: Actions = {
 	/**
 	 * Cria uma ou VÁRIAS escalas GISE de uma vez (uma por data do calendário).
 	 *
-	 * Dois modos: do zero, com os horários padrão de `/gise/config`, ou clonada de
+	 * Dois modos: do zero, com os horários padrão da operação, ou clonada de
 	 * uma escala existente — que copia a estrutura (seccionais, unidades, equipes
 	 * e vagas), mas não as pessoas nem as presenças. Datas repetidas na seleção
 	 * são descartadas antes de gravar.
@@ -161,12 +172,6 @@ export const actions: Actions = {
 		const datasJson = data.get('datas_json')?.toString();
 
 		const db = getDB(platform);
-		const defaultHoraEntrada =
-			(await buscarConfiguracao(db, 'gise_default_hora_entrada')) ?? '08:00';
-		const defaultHoraSaida = (await buscarConfiguracao(db, 'gise_default_hora_saida')) ?? '16:00';
-
-		const hora_entrada = data.get('hora_entrada')?.toString() || defaultHoraEntrada;
-		const hora_saida = data.get('hora_saida')?.toString() || defaultHoraSaida;
 		const modo = (data.get('modo')?.toString() || 'completa') as 'completa' | 'clonada' | 'branco';
 		const clonar_de = data.get('clonar_de') ? Number(data.get('clonar_de')) : undefined;
 
@@ -175,6 +180,47 @@ export const actions: Actions = {
 		if (modo === 'clonada' && !clonar_de) {
 			return fail(400, { error: 'Escolha a escala de origem para copiar' });
 		}
+
+		// A operação da escala nova. No modo CLONADA ela não vem do formulário: a
+		// cópia herda a do original (`clonarGiseParaData`), senão clonar uma escala
+		// da CRAJUBAR poderia produzir uma do GISE — com outro formulário e outros
+		// indicadores — sem ninguém ter pedido.
+		let operacaoId: number | null = null;
+		if (modo !== 'clonada') {
+			const bruto = Number(data.get('operacao_id'));
+			if (Number.isInteger(bruto) && bruto > 0) {
+				const operacao = await buscarOperacao(db, bruto);
+				if (!operacao) return fail(400, { error: 'Operação inválida' });
+				if (!operacao.ativo) {
+					return fail(400, {
+						error: `A operação ${operacao.nome} está desativada e não recebe escalas novas.`
+					});
+				}
+				operacaoId = operacao.id;
+			} else {
+				// Sem escolha explícita, a escala fica com a operação histórica — é o
+				// comportamento de antes de existirem operações, e o que mantém um POST
+				// de versão anterior do formulário funcionando durante o deploy.
+				operacaoId = (await buscarOperacaoPorNome(db, NOME_OPERACAO_PADRAO))?.id ?? null;
+			}
+		}
+
+		// Horário: o que o formulário mandou; na falta, o padrão DA OPERAÇÃO; na
+		// falta dele, o padrão do sistema. A ordem importa — desde a migração 0051 a
+		// operação pode fixar o próprio horário, e ignorá-lo aqui faria a escala
+		// nascer com o horário de outra operação.
+		const operacaoParaHorario = operacaoId != null ? await buscarOperacao(db, operacaoId) : null;
+		const defaultHoraEntrada =
+			operacaoParaHorario?.hora_entrada_padrao ??
+			(await buscarConfiguracao(db, 'gise_default_hora_entrada')) ??
+			'08:00';
+		const defaultHoraSaida =
+			operacaoParaHorario?.hora_saida_padrao ??
+			(await buscarConfiguracao(db, 'gise_default_hora_saida')) ??
+			'16:00';
+
+		const hora_entrada = data.get('hora_entrada')?.toString() || defaultHoraEntrada;
+		const hora_saida = data.get('hora_saida')?.toString() || defaultHoraSaida;
 
 		try {
 			let ids: number[];
@@ -189,7 +235,15 @@ export const actions: Actions = {
 			} else if (modo === 'branco') {
 				ids = await Promise.all(
 					parsed.dias.map(({ data: d, feriado }) =>
-						criarGiseEscala(db, d, hora_entrada, hora_saida, 'em_definicao_supervisor', feriado)
+						criarGiseEscala(
+							db,
+							d,
+							hora_entrada,
+							hora_saida,
+							'em_definicao_supervisor',
+							feriado,
+							operacaoId
+						)
 					)
 				);
 			} else {
@@ -208,7 +262,8 @@ export const actions: Actions = {
 							hora_entrada,
 							hora_saida,
 							'em_definicao_supervisor',
-							feriado
+							feriado,
+							operacaoId
 						);
 						await Promise.all(seccionais.map((sec) => upsertGiseSeccional(db, novaId, sec.id)));
 						return novaId;

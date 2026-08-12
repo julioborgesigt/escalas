@@ -12,6 +12,8 @@ import { apiFetchResponse } from '$lib/api-fetch';
 import { baixarBlob, nomeArquivoContentDisposition } from '$lib/utils/download';
 import { fmtDate } from '$lib/gise/formatters';
 import { renumerarPerguntas } from '$lib/gise/renumerar-perguntas';
+import { ehProporcao } from '$lib/gise/indicadores';
+import { formasDaMarca, type FormaGrafico } from '$lib/produtividade';
 import { loading } from '$lib/loading.svelte';
 import { page } from '$app/state';
 import { goto } from '$app/navigation';
@@ -87,8 +89,147 @@ export function useResGise(getData: () => ResGisePageData) {
 		perguntasConfig = structuredClone(source);
 	});
 
+	/**
+	 * A operação em edição sai do SERVIDOR, não de um `$state` local: quem resolve
+	 * `?operacaoId=` (e o fallback quando ele é inválido) é o `load`, e duplicar
+	 * essa decisão aqui deixaria o editor mostrando uma operação e salvando em
+	 * outra.
+	 */
+	const operacaoSelecionada = $derived(
+		data.operacoes.find((o) => o.id === data.operacaoSelecionadaId) ?? null
+	);
+
+	/**
+	 * Tipos de equipe que ESTA operação usa. Uma operação só de inteligência não
+	 * mostra a aba "Operacional" — e a action recusa o POST correspondente, então
+	 * o que a tela esconde o servidor também nega.
+	 */
+	const tiposDisponiveis = $derived.by((): Array<'operacional' | 'seint'> => {
+		const op = operacaoSelecionada;
+		if (!op) return ['operacional', 'seint'];
+		const t: Array<'operacional' | 'seint'> = [];
+		if (op.usa_equipe_operacional) t.push('operacional');
+		if (op.usa_equipe_seint) t.push('seint');
+		return t.length > 0 ? t : ['operacional'];
+	});
+
+	// Trocar de operação pode deixar o tipo corrente indisponível (estava em
+	// "Operacional" e a nova operação é só SEINT). Cai no primeiro disponível em
+	// vez de manter uma aba que a operação não tem.
+	$effect(() => {
+		const disponiveis = tiposDisponiveis;
+		if (!disponiveis.includes(untrack(() => configTipo))) configTipo = disponiveis[0];
+	});
+
+	/** Troca a operação em edição pela URL — o `load` recarrega os modelos dela. */
+	function trocarOperacao(id: number) {
+		navigateWithFilters({ operacaoId: String(id) });
+	}
+
+	/**
+	 * Liga/desliga UMA FORMA do gráfico da pergunta no painel de produtividade.
+	 *
+	 * Três formas independentes (colunas, ranking, detalhamento), e a pergunta
+	 * pode ter quantas quiser: drogas e armas mostram ranking E detalhamento, que
+	 * é como o painel sempre as desenhou.
+	 *
+	 * Remove a chave inteira quando a última forma é desligada, em vez de deixar
+	 * `{}` pendurado: a ausência já é a resposta ("não aparece"), e um objeto vazio
+	 * no JSON convidaria a próxima leitura a inventar um terceiro estado. Mesma
+	 * escolha de `alternarIndicador`, logo abaixo.
+	 *
+	 * `formasDaMarca` normaliza a leitura porque o modelo pode trazer a marca
+	 * ANTIGA — o booleano anterior à migração 0054, ainda possível numa
+	 * sub-pergunta, que a migração não alcançou.
+	 *
+	 * Independente do indicador de propósito — são duas seções diferentes do
+	 * painel. Uma pergunta pode ser gráfico sem meta (volume que se acompanha sem
+	 * prometer número) e meta sem gráfico (a de cobertura, que já tem a própria
+	 * leitura).
+	 */
+	function alternarFormaGrafico(p: GiseModeloPerguntaConfig, forma: FormaGrafico) {
+		const formas = formasDaMarca(p.grafico);
+		formas[forma] = !formas[forma];
+
+		if (!formas.colunas && !formas.ranking && !formas.detalhe) delete p.grafico;
+		else p.grafico = formas;
+
+		perguntasConfig = [...perguntasConfig];
+	}
+
+	/**
+	 * Liga/desliga o indicador de meta de uma pergunta.
+	 *
+	 * Ao ligar, semeia o caso que o tipo da pergunta já anuncia: cobertura de 100%
+	 * numa pergunta de proporção, redução de 20% nas demais (o caso mais comum do
+	 * pedido). Ao desligar, remove a chave inteira em vez de deixar
+	 * `indicador: undefined` — o `config` vira JSON, e `undefined` sumiria de
+	 * qualquer jeito na serialização, mas um objeto meio-apagado confundiria quem
+	 * lesse o blob.
+	 */
+	function alternarIndicador(p: GiseModeloPerguntaConfig) {
+		if (p.indicador) {
+			delete p.indicador;
+		} else if (ehProporcao(p.tipo)) {
+			p.indicador = { metaTipo: 'proporcao', metaValor: 100 };
+		} else {
+			p.indicador = { objetivo: 'diminuir', metaTipo: 'percentual', metaValor: 20 };
+		}
+		perguntasConfig = [...perguntasConfig];
+	}
+
+	/**
+	 * Troca o TIPO da meta, reconstruindo o objeto inteiro.
+	 *
+	 * Reconstrói, e não muta o campo: `proporcao` não tem `objetivo` nem
+	 * `rotuloBase`, e um `bind:value` deixaria os dois pendurados no JSON gravado
+	 * — campo morto que a próxima leitura interpreta como intenção. É a união
+	 * discriminada de `IndicadorConfig` cobrando o que ela promete.
+	 */
+	function definirMetaTipoIndicador(p: GiseModeloPerguntaConfig, metaTipo: string) {
+		const anterior = p.indicador;
+		if (!anterior) return;
+		const unidadeMedida = anterior.unidadeMedida;
+
+		if (metaTipo === 'proporcao') {
+			p.indicador = { metaTipo: 'proporcao', metaValor: 100, unidadeMedida };
+		} else {
+			p.indicador = {
+				objetivo: anterior.metaTipo === 'proporcao' ? 'aumentar' : anterior.objetivo,
+				metaTipo: metaTipo === 'absoluto' ? 'absoluto' : 'percentual',
+				metaValor: anterior.metaValor,
+				unidadeMedida,
+				rotuloBase: anterior.metaTipo === 'proporcao' ? '' : anterior.rotuloBase
+			};
+		}
+		perguntasConfig = [...perguntasConfig];
+	}
+
 	// --- Derived ---
 	const configJson = $derived(JSON.stringify(perguntasConfig));
+
+	/**
+	 * O editor tem alteração que ainda não foi gravada?
+	 *
+	 * Compara o que está na tela com o modelo que o `load` trouxe. Depois de
+	 * salvar, `invalidateShared` recarrega o `load` e os dois voltam a bater
+	 * sozinhos — não há flag a limpar à mão.
+	 *
+	 * Existe porque o editor avisa que "nada é gravado até clicar em Salvar" e
+	 * nada na tela tornava isso concreto: a barra de status tinha dois estados,
+	 * "Salvando..." (que dura o tempo da requisição) e "Pronto para salvar", que
+	 * era o `else` — dizia a mesma coisa tendo-se mexido em algo ou não.
+	 *
+	 * Comparação por JSON, com um falso positivo conhecido: ligar e desligar a
+	 * mesma caixinha pode reordenar as chaves do objeto (`delete` + reatribuição
+	 * põem a chave no fim), e o texto muda sem o conteúdo mudar. Erra para o lado
+	 * de "salve" — que é o lado certo para errar num aviso — e um comparador
+	 * profundo custaria mais do que vale.
+	 */
+	const alteracoesNaoSalvas = $derived(
+		configJson !==
+			JSON.stringify(configTipo === 'seint' ? data.modeloSeint : data.modeloOperacional)
+	);
 
 	// --- Funções de Navegação e Filtro ---
 	function navigateWithFilters(params: Record<string, string | null>) {
@@ -469,6 +610,23 @@ export function useResGise(getData: () => ResGisePageData) {
 		get configJson() {
 			return configJson;
 		},
+		/** Há edição na tela que ainda não foi gravada? Move o rodapé do editor. */
+		get alteracoesNaoSalvas() {
+			return alteracoesNaoSalvas;
+		},
+		/** Operações ativas, para o seletor do editor. */
+		get operacoes() {
+			return data.operacoes;
+		},
+		get operacaoSelecionada() {
+			return operacaoSelecionada;
+		},
+		get operacaoSelecionadaId() {
+			return data.operacaoSelecionadaId;
+		},
+		get tiposDisponiveis() {
+			return tiposDisponiveis;
+		},
 		get statusFilterUrl() {
 			return statusFilterUrl;
 		},
@@ -486,6 +644,10 @@ export function useResGise(getData: () => ResGisePageData) {
 		adicionarSubPergunta,
 		moverPergunta,
 		removerPergunta,
+		trocarOperacao,
+		alternarFormaGrafico,
+		alternarIndicador,
+		definirMetaTipoIndicador,
 		handleSalvarModelo,
 		selecionarEscala,
 		salvarEntrada,

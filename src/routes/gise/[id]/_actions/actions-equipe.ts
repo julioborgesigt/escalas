@@ -13,7 +13,15 @@
  */
 import { fail } from '@sveltejs/kit';
 import type { RequestEvent } from '@sveltejs/kit';
-import { getDB, tryGetR2, atualizarGiseEquipe, excluirGiseEquipe, criarGiseEquipe } from '$lib/db';
+import {
+	getDB,
+	tryGetR2,
+	atualizarGiseEquipe,
+	excluirGiseEquipe,
+	criarGiseEquipe,
+	buscarOperacaoDaEscala,
+	operacaoAceitaTipoEquipe
+} from '$lib/db';
 import { giseMembros } from '$lib/server/schema';
 import { eq } from 'drizzle-orm';
 import { getInt, carregarEquipeDaGise, carregarSeccionalDaGise, exigirAdminGeral } from './shared';
@@ -150,6 +158,19 @@ export const actionsEquipe = {
 		const r2 = tryGetR2(platform) ?? null;
 		const carga = await carregarSeccionalDaGise(db, giseId, secId);
 		if ('erro' in carga) return carga.erro;
+
+		// A operação decide quais tipos de equipe existem: a EDGE pode ser só de
+		// inteligência. A tela já esconde o tipo desabilitado, mas esconder não é
+		// autorização — o POST direto morre aqui. Operação nula (escala anterior à
+		// migração 0048) aceita os dois, que é como era antes de haver operações.
+		const operacao = await buscarOperacaoDaEscala(db, giseId);
+		if (operacao && !operacaoAceitaTipoEquipe(operacao, tipo)) {
+			return fail(400, {
+				error: `A operação ${operacao.nome} não usa equipe do tipo ${
+					tipo === 'seint' ? 'inteligência (SEINT)' : 'operacional'
+				}.`
+			});
+		}
 
 		const dpc = isNaN(slotsDpc) ? 0 : slotsDpc;
 		const oip = isNaN(slotsOip) ? 0 : slotsOip;

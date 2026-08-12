@@ -79,7 +79,7 @@ export const POST: RequestHandler = async ({
 
 	const { esq: logoJpgBytes, dir: logoCearaBytes } = await carregarLogosGise(platform);
 	const gisePdf = giseDetalhadoComMatriculaSupervisorSessao(giseDetalhado, u);
-	const brEnv = await getBreveRelatorioEnvMergido(db);
+	const brEnv = await getBreveRelatorioEnvMergido(db, giseDetalhado.operacao_id);
 	const result = await gerarPdfGise(toGisePdfData(gisePdf, brEnv), logoJpgBytes, logoCearaBytes);
 	const pdfBytes = result.pdf;
 	const sigY = result.finalY;

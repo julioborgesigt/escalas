@@ -42,6 +42,10 @@ import {
 	isSupervisorGiseAtiva,
 	auditar,
 	contextoDeEvento,
+	listarOperacoes,
+	buscarOperacao,
+	operacaoAceitaTipoEquipe,
+	NOME_OPERACAO_PADRAO,
 	DEFAULT_SEINT_QUESTIONS,
 	DEFAULT_QUESTIONS_FORM_OPERACIONAL
 } from '$lib/db';
@@ -352,12 +356,28 @@ export const load: PageServerLoad = async ({ locals, platform, url, depends }) =
 		? parseInt(url.searchParams.get('equipeId')!)
 		: null;
 
+	// Qual operação o editor está editando. O formulário é POR OPERAÇÃO desde a
+	// migração 0048, então a tela precisa de uma escolhida — `?operacaoId=` quando
+	// o admin trocou no seletor, a primeira ativa em ordem alfabética caso
+	// contrário. Um id que não existe cai no mesmo padrão em vez de dar 404: a
+	// aba é do editor, e derrubá-la por causa de um parâmetro velho na URL não
+	// ajuda ninguém.
+	const operacoesLista = await listarOperacoes(db, { somenteAtivas: true });
+	const operacaoIdParam = Number(url.searchParams.get('operacaoId'));
+	const operacaoSelecionada =
+		operacoesLista.find((o) => o.id === operacaoIdParam) ??
+		operacoesLista.find((o) => o.nome === NOME_OPERACAO_PADRAO) ??
+		operacoesLista[0] ??
+		null;
+
 	const [[modeloOp, modeloSeintRow], respostaRow, restringirSmartphone, rubricaRow] =
 		await Promise.all([
-			Promise.all([
-				buscarGiseModeloFormulario(db, 'operacional'),
-				buscarGiseModeloFormulario(db, 'seint')
-			]),
+			operacaoSelecionada
+				? Promise.all([
+						buscarGiseModeloFormulario(db, operacaoSelecionada.id, 'operacional'),
+						buscarGiseModeloFormulario(db, operacaoSelecionada.id, 'seint')
+					])
+				: Promise.resolve([null, null] as const),
 			giseIdSelected && !isNaN(giseIdSelected)
 				? buscarRespostaGise(
 						db,
@@ -423,6 +443,10 @@ export const load: PageServerLoad = async ({ locals, platform, url, depends }) =
 		respostaAtualizadaEm: respostaRow?.updated_at ?? null,
 		restringirSmartphone,
 		minhaRubrica: rubricaRow?.rubrica ?? null,
+		// Operações e a escolhida: o editor mostra um formulário por operação, e o
+		// seletor de TIPO só pode oferecer os tipos de equipe que ela habilita.
+		operacoes: operacoesLista,
+		operacaoSelecionadaId: operacaoSelecionada?.id ?? null,
 		modeloOperacional,
 		modeloSeint,
 		modeloAnteriorOperacional: parseAnterior(modeloOp?.config_anterior, 'operacional'),
@@ -679,7 +703,14 @@ export const actions: Actions = {
 
 	/**
 	 * Salva o MODELO do formulário de produtividade (perguntas), não as respostas.
-	 * Restrito ao Admin Geral: vale para todas as escalas seguintes.
+	 * Restrito ao Admin Geral: vale para todas as escalas seguintes DAQUELA
+	 * operação.
+	 *
+	 * O `operacaoId` vem do corpo do formulário, então é conferido aqui: precisa
+	 * existir e precisa habilitar o tipo de equipe que está sendo salvo. Sem a
+	 * segunda checagem, um POST direto gravaria o formulário operacional de uma
+	 * operação que só tem equipe de inteligência — um modelo que nenhuma tela
+	 * mostraria e que ninguém iria preencher.
 	 */
 	salvarModelo: async ({ request, locals, platform }) => {
 		const u = locals.usuario;
@@ -688,20 +719,37 @@ export const actions: Actions = {
 		const formData = await request.formData();
 		const configStr = formData.get('config') as string;
 		const tipo = formData.get('tipo') as 'operacional' | 'seint';
+		const operacaoId = Number(formData.get('operacaoId'));
 
 		if (!configStr || !tipo || !['operacional', 'seint'].includes(tipo)) {
 			return fail(400, { error: 'Dados inválidos' });
 		}
+		if (!Number.isInteger(operacaoId) || operacaoId <= 0) {
+			return fail(400, { error: 'Operação inválida' });
+		}
 
+		let perguntas: unknown;
 		try {
-			JSON.parse(configStr); // Validate JSON
+			perguntas = JSON.parse(configStr);
 		} catch (err) {
 			logger.warn('[res-gise] salvarModelo: JSON inválido', { err: String(err) });
 			return fail(400, { error: 'Configuração JSON inválida' });
 		}
+		if (!Array.isArray(perguntas)) {
+			return fail(400, { error: 'Configuração deve ser uma lista de perguntas' });
+		}
 
 		const db = getDB(platform);
-		await salvarGiseModeloFormulario(db, tipo, configStr);
+
+		const operacao = await buscarOperacao(db, operacaoId);
+		if (!operacao) return fail(404, { error: 'Operação não encontrada' });
+		if (!operacaoAceitaTipoEquipe(operacao, tipo)) {
+			return fail(400, {
+				error: `A operação ${operacao.nome} não usa equipe do tipo ${tipo === 'seint' ? 'inteligência (SEINT)' : 'operacional'}.`
+			});
+		}
+
+		await salvarGiseModeloFormulario(db, operacaoId, tipo, configStr);
 		return { success: true };
 	}
 };

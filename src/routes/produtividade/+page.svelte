@@ -1,12 +1,17 @@
 <script lang="ts">
 	/**
 	 * Painel de PRODUTIVIDADE: agrega as respostas dos formulários GISE em
-	 * gráficos, rankings por seccional e detalhamentos exportáveis em PNG.
+	 * gráficos, rankings por unidade e detalhamentos exportáveis em PNG.
 	 *
 	 * A página recebe do servidor a LISTA CRUA de respostas (blobs JSON) e faz
-	 * toda a agregação no cliente. É deliberado: os filtros — tipo de equipe,
-	 * seccional, ano ou intervalo — recombinam os mesmos dados, e refazer a
-	 * consulta a cada mexida de filtro seria uma ida ao servidor por clique.
+	 * toda a agregação no cliente. É deliberado: os filtros recombinam os mesmos
+	 * dados, e refazer a consulta a cada mexida de filtro seria uma ida ao
+	 * servidor por clique.
+	 *
+	 * A barra tem DUAS linhas, e a divisão é semântica: em cima o que se compara
+	 * (operação, eixo, quantas unidades, em que ordem) e embaixo o que entra na
+	 * conta (tipo de equipe, período). Só os de baixo recortam dado — trocar de
+	 * eixo não muda o total do painel, só a quebra.
 	 *
 	 * A cadeia de `$derived` mora em `_components/useProdutividade.svelte.ts`,
 	 * nesta ordem por causa de custo:
@@ -14,23 +19,44 @@
 	 * `parsedData` faz `JSON.parse` UMA vez por resposta; sem esse degrau, cada
 	 * estatística e cada ranking reparsearia os mesmos blobs.
 	 *
-	 * As PERGUNTAS não são fixas: vêm do modelo salvo em
-	 * `gise_modelo_formulario` e passam por `mapQuestions`, que descarta os tipos
-	 * não graficáveis. Um formulário editado pelo assessor muda os gráficos sem
-	 * tocar esta tela — e por isso nada aqui indexa resposta por posição.
+	 * As PERGUNTAS não são fixas: vêm do modelo salvo em `gise_modelo_formulario`
+	 * e passam por `mapQuestions`, que só deixa passar as MARCADAS — e a marca diz
+	 * em QUE forma cada uma aparece (colunas, ranking, detalhamento por tipo). Um
+	 * formulário editado pelo assessor muda os cards sem tocar esta tela, e por
+	 * isso nada aqui indexa resposta por posição.
+	 *
+	 * A única exceção é o bloco de PRISÕES, escrito no código porque o
+	 * detalhamento dele soma três perguntas diferentes e não cabe numa marca que
+	 * vive em uma só. Ele depende do modelo por PRESENÇA da pergunta — ver
+	 * `temBlocoPrisoes`.
 	 *
 	 * Chart.js entra por `import()` dinâmico (~200 KB): a página abre com os
 	 * filtros e a tabela antes de a biblioteca chegar.
 	 */
 	import type { PageProps } from './$types';
+	import { goto } from '$app/navigation';
 	import { slide } from 'svelte/transition';
 	import Spinner from '$lib/components/Spinner.svelte';
 	import { useProdutividade } from './_components/useProdutividade.svelte';
 	import SecaoRankings from './_components/SecaoRankings.svelte';
 	import SecaoGraficos from './_components/SecaoGraficos.svelte';
+	import SecaoIndicadores from './_components/SecaoIndicadores.svelte';
 
 	const { data }: PageProps = $props();
 	const p = useProdutividade(() => data);
+
+	// A barra tem sete controles com três formas repetidas (rótulo, campo,
+	// segmento). Constantes em vez de string repetida: era assim que o "Tipo de
+	// equipe" e a "Seccional" já divergiam em padding entre si.
+	const ROTULO =
+		'text-3xs font-black uppercase tracking-widest text-surface-400 dark:text-surface-500 pl-0.5 block';
+	const CAMPO =
+		'w-full px-3 py-2.5 rounded-xl border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-950 text-xs font-bold';
+	const SEGMENTO = 'flex-1 rounded-lg py-1.5 text-xs font-bold transition-colors';
+	const SEG_ON = 'bg-white dark:bg-surface-700 shadow text-primary-600';
+	const SEG_OFF = 'text-surface-600 dark:text-surface-400';
+	/** Tipo de equipe que a operação não usa: visível, apagado e sem clique. */
+	const SEG_OFF_DISABLED = 'opacity-40 cursor-not-allowed';
 </script>
 
 <svelte:head>
@@ -41,13 +67,20 @@
 	<header class="flex flex-col md:flex-row md:items-center justify-between gap-4 sm:gap-6">
 		<div class="space-y-1">
 			<h1 class="h1 text-2xl font-bold">
-				Produção {p.filterTipo === 'seint' ? 'Inteligência' : 'Operacional'} GISE
+				Produção {p.filterTipo === 'seint' ? 'Inteligência' : 'Operacional'}
 			</h1>
 			<p class="text-surface-600 dark:text-surface-400 font-medium">
 				Análise filtrada e segmentada dos resultados reais {p.filterTipo === 'seint'
 					? '(SEINT)'
 					: '(P4-P19)'}
 			</p>
+			{#if p.data.escopoRestrito}
+				<!-- O recorte é do SERVIDOR, e quem o vê precisa saber: sem este aviso,
+				     um total menor parece queda de produtividade em vez de recorte. -->
+				<p class="text-2xs text-surface-600 dark:text-surface-400 mt-1">
+					Exibindo apenas os dados das unidades que você administra nesta operação.
+				</p>
+			{/if}
 		</div>
 		<div class="flex flex-col items-start gap-2">
 			<span
@@ -150,103 +183,154 @@
 				class="overflow-hidden rounded-3xl border border-surface-200 bg-white dark:border-surface-800 dark:bg-surface-900"
 				transition:slide={{ duration: 250 }}
 			>
-				<div class="grid grid-cols-1 gap-4 p-4 sm:p-5 lg:grid-cols-12 items-end">
-					<!-- 1. Tipo de equipe -->
-					<div class="space-y-1.5 lg:col-span-3">
-						<p
-							class="text-3xs font-black uppercase tracking-widest text-surface-400 dark:text-surface-500 pl-0.5 block"
-						>
-							1. Tipo de equipe
-						</p>
-						<div class="inline-flex w-full rounded-xl bg-surface-100 dark:bg-surface-800 p-1">
-							<button
-								type="button"
-								class="flex-1 rounded-lg py-1.5 text-xs font-bold transition-colors {p.filterTipo ===
-								'operacional'
-									? 'bg-white dark:bg-surface-700 shadow text-primary-600'
-									: 'text-surface-600 dark:text-surface-400'}"
-								onclick={() => (p.filterTipo = 'operacional')}>Operacional</button
+				<div class="space-y-4 p-4 sm:p-5">
+					<!-- LINHA 1 — o que se compara: operação, eixo, quantas unidades e
+					     em que sentido. Os três últimos não recortam dado nenhum: só
+					     mudam a quebra e a ordem da MESMA lista. -->
+					<div class="grid grid-cols-1 gap-4 lg:grid-cols-12 items-end">
+						<!-- Operação: navega (recarrega o `load`), porque trocar de operação
+						     troca os MODELOS e as linhas de base — não é um recorte da
+						     mesma lista, como os demais controles desta barra. -->
+						{#if (p.data.operacoes ?? []).length > 1}
+							<div class="space-y-1.5 lg:col-span-3">
+								<label for="f-op" class={ROTULO}>Operação</label>
+								<select
+									id="f-op"
+									value={p.data.operacaoSelecionadaId ?? ''}
+									onchange={(e) => goto(`/produtividade?operacaoId=${e.currentTarget.value}`)}
+									class={CAMPO}
+								>
+									{#each p.data.operacoes ?? [] as op (op.id)}
+										<option value={op.id}>{op.nome}</option>
+									{/each}
+								</select>
+							</div>
+						{/if}
+
+						<div class="space-y-1.5 lg:col-span-3">
+							<p class={ROTULO}>Visualizar por</p>
+							<div class="inline-flex w-full rounded-xl bg-surface-100 dark:bg-surface-800 p-1">
+								<button
+									type="button"
+									class="{SEGMENTO} {p.modoVisualizacao === 'delegacias' ? SEG_ON : SEG_OFF}"
+									onclick={() => (p.modoVisualizacao = 'delegacias')}>Delegacias</button
+								>
+								<button
+									type="button"
+									class="{SEGMENTO} {p.modoVisualizacao === 'seccionais' ? SEG_ON : SEG_OFF}"
+									onclick={() => (p.modoVisualizacao = 'seccionais')}>Seccionais</button
+								>
+							</div>
+						</div>
+
+						<div class="space-y-1.5 lg:col-span-3">
+							<label for="f-qtd" class={ROTULO}>Quantidade de unidades</label>
+							<select
+								id="f-qtd"
+								value={String(p.quantidade)}
+								onchange={(e) =>
+									(p.quantidade =
+										e.currentTarget.value === 'todas'
+											? 'todas'
+											: (Number(e.currentTarget.value) as 5 | 10))}
+								class={CAMPO}
 							>
-							<button
-								type="button"
-								class="flex-1 rounded-lg py-1.5 text-xs font-bold transition-colors {p.filterTipo ===
-								'seint'
-									? 'bg-white dark:bg-surface-700 shadow text-primary-600'
-									: 'text-surface-600 dark:text-surface-400'}"
-								onclick={() => (p.filterTipo = 'seint')}>Inteligência</button
-							>
+								<option value="5">5 unidades</option>
+								<option value="10">10 unidades</option>
+								<option value="todas">Todas</option>
+							</select>
+						</div>
+
+						<div class="space-y-1.5 lg:col-span-3">
+							<label for="f-ordem" class={ROTULO}>Ordem</label>
+							<select id="f-ordem" bind:value={p.ordem} class={CAMPO}>
+								<option value="melhores">Melhores primeiro</option>
+								<option value="piores">Piores primeiro</option>
+							</select>
 						</div>
 					</div>
 
-					<!-- 2. Seccional -->
-					<div class="space-y-1.5 lg:col-span-3">
-						<label
-							for="f-sec"
-							class="text-3xs font-black uppercase tracking-widest text-surface-400 dark:text-surface-500 pl-0.5 block"
-							>2. Seccional</label
-						>
-						<select
-							id="f-sec"
-							bind:value={p.filterSeccional}
-							class="w-full px-3 py-2.5 rounded-xl border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-950 text-xs font-bold"
-						>
-							<option value="">Todas as Seccionais</option>
-							{#each p.data.seccionais ?? [] as sec (sec.id)}
-								<option value={sec.id}>{sec.nome}</option>
-							{/each}
-						</select>
-					</div>
+					<!-- LINHA 2 — o que entra na conta: recortes de verdade sobre os dados. -->
+					<div
+						class="grid grid-cols-1 gap-4 lg:grid-cols-12 items-end border-t border-surface-200/70 dark:border-white/10 pt-4"
+					>
+						<div class="space-y-1.5 lg:col-span-4">
+							<p class={ROTULO}>Tipo de equipe</p>
+							<div class="inline-flex w-full rounded-xl bg-surface-100 dark:bg-surface-800 p-1">
+								<!-- Desabilitado, e não escondido: o botão apagado diz que a
+								     operação NÃO tem aquele tipo de equipe. Escondê-lo faria a
+								     barra parecer diferente sem explicar por quê. -->
+								<button
+									type="button"
+									disabled={!p.tiposDisponiveis.includes('operacional')}
+									title={p.tiposDisponiveis.includes('operacional')
+										? undefined
+										: 'Esta operação não usa equipe operacional'}
+									class="{SEGMENTO} {p.filterTipo === 'operacional'
+										? SEG_ON
+										: SEG_OFF} {p.tiposDisponiveis.includes('operacional') ? '' : SEG_OFF_DISABLED}"
+									onclick={() => (p.filterTipo = 'operacional')}>Operacional</button
+								>
+								<button
+									type="button"
+									disabled={!p.tiposDisponiveis.includes('seint')}
+									title={p.tiposDisponiveis.includes('seint')
+										? undefined
+										: 'Esta operação não usa equipe de inteligência'}
+									class="{SEGMENTO} {p.filterTipo === 'seint'
+										? SEG_ON
+										: SEG_OFF} {p.tiposDisponiveis.includes('seint') ? '' : SEG_OFF_DISABLED}"
+									onclick={() => (p.filterTipo = 'seint')}>Inteligência</button
+								>
+							</div>
+						</div>
 
-					<!-- 3. Período -->
-					<div class="space-y-1.5 lg:col-span-6">
-						<label
-							for="f-ano"
-							class="text-3xs font-black uppercase tracking-widest text-surface-400 dark:text-surface-500 pl-0.5 block"
-							>3. Período</label
-						>
-						<div class="flex flex-wrap lg:flex-nowrap items-end gap-2">
-							<select
-								id="f-ano"
-								bind:value={p.filterAno}
-								class="w-full lg:w-auto min-w-[120px] px-3 py-2.5 rounded-xl border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-950 text-xs font-bold"
-							>
-								{#each p.anos as ano (ano)}
-									<option value={String(ano)}>{ano}</option>
-								{/each}
-								<option value="personalizado">Personalizado</option>
-							</select>
+						<div class="space-y-1.5 lg:col-span-8">
+							<label for="f-ano" class={ROTULO}>Período</label>
+							<div class="flex flex-wrap lg:flex-nowrap items-end gap-2">
+								<select
+									id="f-ano"
+									bind:value={p.filterAno}
+									class="w-full lg:w-auto min-w-[120px] px-3 py-2.5 rounded-xl border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-950 text-xs font-bold"
+								>
+									{#each p.anos as ano (ano)}
+										<option value={String(ano)}>{ano}</option>
+									{/each}
+									<option value="personalizado">Personalizado</option>
+								</select>
 
-							{#if p.filterAno === 'personalizado'}
-								<div class="flex items-end gap-2 w-full lg:w-auto">
-									<div class="space-y-0.5 flex-1 lg:flex-initial">
-										<label
-											for="f-ini"
-											class="text-3xs font-black text-surface-600 dark:text-surface-400 uppercase tracking-widest block pl-0.5"
-											>De</label
-										>
-										<input
-											id="f-ini"
-											type="date"
-											bind:value={p.filterInicio}
-											class="w-full px-3 py-2 rounded-xl border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-950 text-xs font-bold"
-										/>
+								{#if p.filterAno === 'personalizado'}
+									<div class="flex items-end gap-2 w-full lg:w-auto">
+										<div class="space-y-0.5 flex-1 lg:flex-initial">
+											<label
+												for="f-ini"
+												class="text-3xs font-black text-surface-600 dark:text-surface-400 uppercase tracking-widest block pl-0.5"
+												>De</label
+											>
+											<input
+												id="f-ini"
+												type="date"
+												bind:value={p.filterInicio}
+												class="w-full px-3 py-2 rounded-xl border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-950 text-xs font-bold"
+											/>
+										</div>
+										<span class="text-surface-400 pb-2">—</span>
+										<div class="space-y-0.5 flex-1 lg:flex-initial">
+											<label
+												for="f-fim"
+												class="text-3xs font-black text-surface-600 dark:text-surface-400 uppercase tracking-widest block pl-0.5"
+												>Até</label
+											>
+											<input
+												id="f-fim"
+												type="date"
+												bind:value={p.filterFim}
+												class="w-full px-3 py-2 rounded-xl border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-950 text-xs font-bold"
+											/>
+										</div>
 									</div>
-									<span class="text-surface-400 pb-2">—</span>
-									<div class="space-y-0.5 flex-1 lg:flex-initial">
-										<label
-											for="f-fim"
-											class="text-3xs font-black text-surface-600 dark:text-surface-400 uppercase tracking-widest block pl-0.5"
-											>Até</label
-										>
-										<input
-											id="f-fim"
-											type="date"
-											bind:value={p.filterFim}
-											class="w-full px-3 py-2 rounded-xl border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-950 text-xs font-bold"
-										/>
-									</div>
-								</div>
-							{/if}
+								{/if}
+							</div>
 						</div>
 					</div>
 				</div>
@@ -254,24 +338,48 @@
 		{/if}
 	</div>
 
-	{#if p.filterTipo === 'operacional'}
-		<SecaoRankings
-			rankingPrisoes={p.rankingPrisoes}
-			rankingDrogasPeso={p.rankingDrogasPeso}
-			rankingArmas={p.rankingArmas}
-			stats={p.stats}
-			selectedCharts={p.selectedCharts}
-			onToggle={p.toggleChartSelection}
-		/>
+	<!-- Antes dos rankings e dos gráficos por pergunta: é a leitura que a
+	     operação existe para produzir ("chegamos onde prometemos?"), e o resto
+	     é o detalhamento dela. -->
+	<SecaoIndicadores paineis={p.paineisIndicadores} Chart={p.ChartCtor} />
+
+	{#if p.painelVazio}
+		<!-- Nem indicador, nem bloco fixo, nem pergunta marcada. Sem este aviso a
+		     página fica só com a barra de filtros e parece defeito — e o conserto
+		     não está aqui, está no formulário da operação. -->
+		<section class="card-elevated rounded-2xl p-5 sm:p-6 space-y-2">
+			<h2 class="text-base font-semibold">Nada a mostrar nesta operação</h2>
+			<p class="text-sm text-surface-600 dark:text-surface-400">
+				Nenhuma pergunta do formulário está marcada para aparecer no painel, e a operação não tem
+				indicador de meta configurado.
+			</p>
+			<p class="text-2xs text-surface-600 dark:text-surface-400">
+				No editor do formulário, em <strong>Mostrar na produtividade</strong>, escolha a forma de
+				cada pergunta que você quer acompanhar: colunas por unidade, ranking, ou detalhamento por
+				tipo. As demais continuam sendo coletadas normalmente, apenas não viram card aqui.
+			</p>
+		</section>
 	{/if}
+
+	<!-- Rankings e detalhamentos. O bloco de prisões só existe no operacional (as
+	     perguntas que o alimentam são de lá); os cards vindos do modelo valem para
+	     os dois tipos de equipe, porque saem do formulário em foco. -->
+	<SecaoRankings
+		temPrisoes={p.temPrisoes}
+		rankingPrisoes={p.rankingPrisoes}
+		cards={p.cardsListagem}
+		stats={p.stats}
+		rotuloGrupo={p.modoVisualizacao === 'delegacias' ? 'Delegacia' : 'Seccional'}
+		selectedCharts={p.selectedCharts}
+		onToggle={p.toggleChartSelection}
+	/>
 
 	<SecaoGraficos
 		questions={p.QUESTIONS}
 		stats={p.stats}
-		parsedData={p.parsedData}
 		canvasElements={p.canvasElements}
 		selectedCharts={p.selectedCharts}
-		filterSeccional={p.filterSeccional}
+		modoVisualizacao={p.modoVisualizacao}
 		onToggle={p.toggleChartSelection}
 	/>
 </div>

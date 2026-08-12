@@ -163,6 +163,63 @@ Há quatro níveis. O **Super Admin é um Admin Geral com poderes extras** (é `
 
 Após mudanças de schema, gerar migrações com Drizzle conforme o fluxo já usado no repositório; o CI as aplica no deploy seguinte (migrations devem ser retrocompatíveis com o código anterior — expand/contract).
 
+### Migrações 0048–0052 (operações) — o que elas SEMEIAM
+
+Estas três não só criam tabela: elas gravam dados de negócio. Vale saber o que
+esperar ao vê-las passar em staging e em produção.
+
+- **`0048_operacoes.sql`** cria a tabela `operacoes` e insere a operação
+  **`GISE`**. Em seguida acrescenta `operacao_id` a `gise_escalas` e a
+  `gise_modelo_formulario` e faz o **backfill de TODAS as linhas existentes para
+  essa operação** — ou seja, tudo que já estava no banco passa a ser "GISE", e
+  nada muda de comportamento. A migração também **remove duplicatas** de
+  `gise_modelo_formulario` antes de criar o índice único `(operacao_id, tipo)`:
+  nunca houve unicidade nessa tabela e a aplicação lia a PRIMEIRA linha do tipo,
+  então uma segunda linha já estava invisível — o `DELETE` só descarta o que
+  ninguém lia. Confira antes, se quiser o número:
+  `SELECT operacao_id, tipo, count(*) FROM gise_modelo_formulario GROUP BY 1,2 HAVING count(*) > 1;`
+- **`0049_operacao_linha_base.sql`** cria a tabela da linha de base. Vazia.
+- **`0050_seed_operacao_crajubar.sql`** insere a **OPERAÇÃO CRAJUBAR**, copia
+  para ela os formulários do GISE e acrescenta os cinco indicadores da tabela §9
+  do Plano Operacional Estratégico. Num banco em uso (produção) a CRAJUBAR nasce
+  com as perguntas do GISE **mais** os cinco indicadores; num banco novo, em que
+  o GISE ainda não tem modelo gravado, ela nasce só com os cinco (as perguntas
+  padrão vivem no código, e SQL não as alcança). Nos dois casos o Admin Geral
+  ajusta pelo editor.
+
+- **`0051_operacao_config.sql`** acrescenta a `operacoes` as colunas de
+  configuração de escala (vagas padrão, horários e textos do breve relatório).
+  Todas nascem **NULL**, que significa "herda o padrão do sistema" — as chaves em
+  `configuracoes` que a antiga `/gise/config` gravava continuam sendo lidas, e
+  nenhum PDF muda. A tela `/gise/config` sai do menu e passa a redirecionar
+  (308) para `/gise/operacoes`; o que ela editava vive agora no botão
+  **Configurações** de cada operação.
+
+  Consequência a comunicar ao Admin Geral: **não há mais um editor do valor
+  GLOBAL.** O que estava gravado continua valendo como herança, e a partir daqui
+  cada operação define o seu.
+
+- **`0052_indicador_cobertura.sql`** converte o indicador "Atendimentos do GISE
+  em fins de semana" da CRAJUBAR de meta absoluta (mínimo de 1) para meta de
+  **cobertura de 100%**, no tipo de campo `proporcao` — dois números na mesma
+  pergunta, total e atendidas. É o que o plano pede ("100% de cobertura
+  programada"); a `0050` tinha semeado o proxy porque o tipo ainda não existia.
+
+  A chave da pergunta não muda, mas as chaves de RESPOSTA passam a ser
+  `crajubar_atendimentos_fds__total` e `__parte`. Relatório já entregue com o
+  campo antigo (se houver) fica sem denominador e aparece como "sem ocorrências"
+  no painel — a leitura honesta de um dado ao qual falta metade. Confira antes
+  do go-live se a CRAJUBAR já recebeu relatórios:
+
+  ```sql
+  SELECT COUNT(*) FROM gise_respostas_formulario
+  WHERE respostas LIKE '%crajubar_atendimentos_fds%';
+  ```
+
+Depois do deploy, confira em `/gise/operacoes` que as duas operações aparecem
+(cada uma com os botões Formulário · Configurações · Editar), e em `/gise` que as
+escalas antigas exibem o selo **GISE**.
+
 ## Armazenamento (R2)
 
 - Binding `escalas_docs` em [`wrangler.toml`](wrangler.toml) — documentos e artefatos de assinatura dependem deste bucket.
@@ -356,7 +413,7 @@ O job `test` executa, em ordem:
 
 - Vitest (`npx vitest run`)
 - `svelte-check`
-- ESLint e Prettier (`format:check`)
+- ESLint e Prettier (`format:check` em `src/`, `format:check:e2e` em `e2e/` — passos separados)
 - Playwright (`npx playwright install --with-deps chromium` + `npx playwright test`)
 
 Falhas bloqueiam staging e produção.

@@ -35,6 +35,8 @@
 		"lint:fix": "eslint --fix src/",
 		"format": "prettier --write src/",
 		"format:check": "prettier --check src/",
+		"format:e2e": "prettier --write e2e/",
+		"format:check:e2e": "prettier --check e2e/",
 		"knip": "knip",
 		"knip:fix": "knip --fix"
 	},

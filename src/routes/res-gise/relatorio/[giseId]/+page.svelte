@@ -39,7 +39,9 @@
 	import { loading } from '$lib/loading.svelte';
 	import { toaster } from '$lib/toast';
 	import Spinner from '$lib/components/Spinner.svelte';
+	import RodapeAcoes from '$lib/components/RodapeAcoes.svelte';
 	import BotaoVoltar from '$lib/components/BotaoVoltar.svelte';
+	import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
 	import RelatorioProdutividade from '../../_components/RelatorioProdutividade.svelte';
 	import type { PageProps } from './$types';
 	import type { ActionResult } from '@sveltejs/kit';
@@ -68,6 +70,51 @@
 
 	const etapas = $derived(agruparPorEtapa(data.modelo));
 	let indiceEtapa = $state(0);
+
+	/**
+	 * Valores iniciais que a UNIDADE ainda não informou (o servidor resolve quais
+	 * — ver `basesPendentes` no `load`).
+	 *
+	 * O caminho normal é a aba **Dados base**, preenchida pelo admin da unidade.
+	 * Este campo é o escape de quando isso não aconteceu: sem o valor inicial, o
+	 * indicador percentual fica sem denominador e a meta daquela unidade não pode
+	 * ser calculada.
+	 */
+	const linhasBase = $state<Record<string, string>>({});
+	const linhasBaseJson = $derived(JSON.stringify(linhasBase));
+
+	/** Todas as `key` de uma etapa, filhos inclusive — o indicador pode ser um "se Sim, quantos?". */
+	function chavesDaEtapa(etapa: EtapaFormulario): string[] {
+		const chaves: string[] = [];
+		function andar(lista: typeof etapa.perguntas) {
+			for (const p of lista) {
+				chaves.push(p.key);
+				if (p.filhos?.length) andar(p.filhos);
+			}
+		}
+		andar(etapa.perguntas);
+		return chaves;
+	}
+
+	/**
+	 * As bases pendentes que pertencem à etapa exibida — é o "no campo da
+	 * pergunta" do pedido, cada valor inicial junto da pergunta que o usa.
+	 *
+	 * As órfãs (indicador cuja pergunta não está em etapa nenhuma visível, caso de
+	 * modelo editado entre uma visita e outra) caem na ÚLTIMA etapa, para não
+	 * sumirem sem serem pedidas.
+	 */
+	const basesDaEtapa = $derived.by(() => {
+		const etapa = etapas[Math.min(indiceEtapa, Math.max(0, etapas.length - 1))];
+		if (!etapa) return [];
+		const chaves = chavesDaEtapa(etapa);
+		const daEtapa = data.basesPendentes.filter((b) => chaves.includes(b.key));
+		if (indiceEtapa < etapas.length - 1) return daEtapa;
+
+		const cobertas = etapas.flatMap((e) => chavesDaEtapa(e));
+		const orfas = data.basesPendentes.filter((b) => !cobertas.includes(b.key));
+		return [...daEtapa, ...orfas];
+	});
 	/** Clamp, e não índice cru: o modelo pode encolher entre navegações. */
 	const etapaAtual = $derived(etapas[Math.min(indiceEtapa, Math.max(0, etapas.length - 1))]);
 	const naUltima = $derived(indiceEtapa >= etapas.length - 1);
@@ -351,6 +398,55 @@
 				<div class="max-w-3xl">
 					<RelatorioProdutividade modelo={etapaAtual.perguntas} bind:respostas />
 				</div>
+
+				{#if basesDaEtapa.length > 0}
+					<!-- Valor inicial pedido AQUI porque a unidade não informou em Dados
+					     base. É o denominador da meta — sem ele o indicador não tem o que
+					     comparar. -->
+					<div
+						class="max-w-3xl mt-6 rounded-2xl border border-dashed border-warning-500/50 bg-warning-500/5 p-4 sm:p-5 space-y-4"
+					>
+						<div class="flex items-start gap-2">
+							<TriangleAlert
+								class="mt-0.5 h-4 w-4 shrink-0 text-warning-600 dark:text-warning-400"
+								aria-hidden="true"
+							/>
+							<div class="min-w-0">
+								<p class="text-sm font-bold">Valores iniciais para comparação de metas</p>
+								<p class="text-2xs text-surface-600 dark:text-surface-400 mt-0.5">
+									A sua unidade ainda não registrou o ponto de partida destes indicadores. Informe o
+									valor de ANTES da operação — é com ele que o resultado será comparado.
+								</p>
+							</div>
+						</div>
+
+						{#each basesDaEtapa as base (base.key)}
+							<div class="space-y-1">
+								<label for="base-{base.key}" class="block text-sm font-medium">
+									{base.rotulo}
+								</label>
+								<div class="flex items-center gap-2">
+									<input
+										id="base-{base.key}"
+										type="number"
+										min="0"
+										step="any"
+										inputmode="decimal"
+										bind:value={linhasBase[base.key]}
+										class="w-full min-w-0 rounded-xl border border-surface-300 bg-white px-3 py-2 text-sm dark:border-surface-600 dark:bg-surface-900"
+									/>
+									{#if base.unidade}
+										<span
+											class="shrink-0 whitespace-nowrap text-2xs text-surface-600 dark:text-surface-400"
+										>
+											{base.unidade}
+										</span>
+									{/if}
+								</div>
+							</div>
+						{/each}
+					</div>
+				{/if}
 			{:else}
 				<p class="text-sm text-surface-600 dark:text-surface-400">
 					Nenhuma pergunta configurada para este formulário.
@@ -364,62 +460,61 @@
 	Rodapé fixo: com o formulário fatiado, avançar/voltar é a ação mais frequente
 	da tela e não pode depender de rolar até o fim da etapa.
 -->
-<div
-	class="sticky bottom-0 z-20 -mx-2 mt-6 border-t border-surface-200 bg-surface-50/95 px-2 py-3 backdrop-blur sm:-mx-4 sm:px-4 dark:border-surface-800 dark:bg-surface-900/95"
->
-	<div class="flex flex-wrap items-center justify-between gap-3">
-		<p class="text-3xs text-surface-600 dark:text-surface-400" aria-live="polite">
-			{#if rascunhoSalvoEm}
-				Rascunho salvo às {rascunhoSalvoEm} neste aparelho
-			{:else}
-				O preenchimento é salvo neste aparelho enquanto você responde
-			{/if}
-		</p>
+<RodapeAcoes>
+	{#snippet status()}
+		{#if rascunhoSalvoEm}
+			Rascunho salvo às {rascunhoSalvoEm} neste aparelho
+		{:else}
+			O preenchimento é salvo neste aparelho enquanto você responde
+		{/if}
+	{/snippet}
 
-		<div class="flex flex-1 justify-end gap-2 sm:flex-none">
-			<!-- "Anterior", e não "Voltar": o `BotaoVoltar` do topo já é o Voltar
-			     desta tela, e dois botões com a mesma palavra fazendo coisas
-			     diferentes na mesma tela é troca garantida. -->
+	{#snippet acoes()}
+		<!-- "Anterior", e não "Voltar": o `BotaoVoltar` do topo já é o Voltar
+		     desta tela, e dois botões com a mesma palavra fazendo coisas
+		     diferentes na mesma tela é troca garantida. -->
+		<button
+			type="button"
+			class="btn btn-sm preset-outlined-surface-500"
+			disabled={indiceEtapa === 0 || enviando}
+			onclick={() => irPara(indiceEtapa - 1)}
+		>
+			Anterior
+		</button>
+
+		{#if !naUltima}
 			<button
 				type="button"
-				class="btn btn-sm preset-outlined-surface-500"
-				disabled={indiceEtapa === 0 || enviando}
-				onclick={() => irPara(indiceEtapa - 1)}
+				class="btn btn-sm preset-filled-primary-500 px-6"
+				onclick={() => irPara(indiceEtapa + 1)}
 			>
-				Anterior
+				Avançar
 			</button>
+		{/if}
 
-			{#if !naUltima}
-				<button
-					type="button"
-					class="btn btn-sm preset-filled-primary-500 px-6"
-					onclick={() => irPara(indiceEtapa + 1)}
-				>
-					Avançar
-				</button>
-			{/if}
-
-			<!-- Fora da última etapa o botão de gravar só aparece na RETIFICAÇÃO:
+		<!-- Fora da última etapa o botão de gravar só aparece na RETIFICAÇÃO:
 			     quem já entregou costuma vir corrigir um campo só, e obrigá-lo a
 			     percorrer o resto do formulário para achar o "salvar" seria uma
 			     armadilha. Na primeira entrega ele fecha o fluxo, no fim. -->
-			{#if naUltima || jaEntregue}
-				<form method="POST" action={acaoSalvar} use:enhance={handleEnviar} class="contents">
-					<input type="hidden" name="respostas" value={respostasJson} />
-					<button
-						type="submit"
-						class="btn btn-sm px-6 {naUltima
-							? 'preset-filled-primary-500'
-							: 'preset-outlined-primary-500'}"
-						disabled={enviando}
-					>
-						{#if enviando}
-							<Spinner size="sm" />
-						{/if}
-						{jaEntregue ? 'Salvar alterações' : 'Finalizar entrega'}
-					</button>
-				</form>
-			{/if}
-		</div>
-	</div>
-</div>
+		{#if naUltima || jaEntregue}
+			<form method="POST" action={acaoSalvar} use:enhance={handleEnviar} class="contents">
+				<input type="hidden" name="respostas" value={respostasJson} />
+				<!-- O servidor decide de QUAL unidade é esta base e ignora chave que não
+				     seja indicador do modelo — aqui vai só o que foi digitado. -->
+				<input type="hidden" name="linhasBase" value={linhasBaseJson} />
+				<button
+					type="submit"
+					class="btn btn-sm px-6 {naUltima
+						? 'preset-filled-primary-500'
+						: 'preset-outlined-primary-500'}"
+					disabled={enviando}
+				>
+					{#if enviando}
+						<Spinner size="sm" />
+					{/if}
+					{jaEntregue ? 'Salvar alterações' : 'Finalizar entrega'}
+				</button>
+			</form>
+		{/if}
+	{/snippet}
+</RodapeAcoes>

@@ -1,55 +1,75 @@
 <script lang="ts">
 	/**
-	 * Três linhas estratégicas [Ranking | Detailing] do painel operacional
-	 * (prisões, drogas, armas). Labels/cores vêm de VIRTUAL_CHARTS.
+	 * A faixa de cards de RANKING e DETALHAMENTO do painel operacional.
+	 *
+	 * Duas origens, e a diferença importa:
+	 *
+	 * - o bloco de **prisões** é escrito no código. Ele soma três perguntas
+	 *   (flagrantes, mandados e total de presos), e uma marca que vive numa
+	 *   pergunta não descreve um card que atravessa três. Só aparece se o
+	 *   formulário da operação tiver a pergunta que o alimenta — antes aparecia
+	 *   sempre, zerado, em operação que nunca perguntou sobre flagrante;
+	 * - os demais vêm do MODELO, um por pergunta marcada com a forma. Drogas e
+	 *   armas eram blocos fixos como o de prisões e viraram isto na migração 0054:
+	 *   a quebra por tipo de droga e por tipo de arma é da própria resposta, então
+	 *   cabe numa marca — e assim o assessor pode desligar o que não quer.
+	 *
+	 * Os cards fluem dois por linha. Ranking e detalhamento da mesma pergunta
+	 * ficam lado a lado porque são vizinhos no fluxo, que é como o painel sempre
+	 * mostrou drogas e armas.
 	 */
 	import { VIRTUAL_CHARTS, type RankingItem } from '$lib/export-charts';
 	import RankingCard from './RankingCard.svelte';
 	import DetailCard from './DetailCard.svelte';
+	import type { CardListagem } from './useProdutividade.svelte';
 
 	const {
+		temPrisoes,
 		rankingPrisoes,
-		rankingDrogasPeso,
-		rankingArmas,
+		cards,
 		stats,
+		rotuloGrupo,
 		selectedCharts,
 		onToggle
 	}: {
+		/** O bloco fixo de prisões cabe nesta operação? Ver `temBlocoPrisoes`. */
+		temPrisoes: boolean;
 		rankingPrisoes: RankingItem[];
-		rankingDrogasPeso: RankingItem[];
-		rankingArmas: RankingItem[];
+		/** Os cards vindos do modelo, já na ordem do formulário. */
+		cards: CardListagem[];
 		stats: {
 			prisaoFlagrante: number;
 			prisaoMandado: number;
-			drogasPorTipo: Record<string, number>;
-			drogasGeral: number;
-			armasPorTipo: Record<string, number>;
-			apreensoes_armas: number;
+			/** P7, agregado por chave fixa — não depende de a pergunta estar marcada. */
+			prisoesTotal: number;
 			[key: string]: unknown;
 		};
+		/** "Seccional" ou "Delegacia" — o que cada linha do ranking é, no eixo atual. */
+		rotuloGrupo: string;
 		selectedCharts: (number | string)[];
 		onToggle: (id: string | number) => void;
 	} = $props();
 
-	const prisoesFlagrante = $derived((stats['prisoes_apreensoes_flagrante'] as number) || 0);
 	const detalhesPrisoes = $derived<[string, number][]>([
 		['Flagrantes (P4)', stats.prisaoFlagrante],
 		['Mandados (P5)', stats.prisaoMandado],
-		['Total de Presos (P7)', prisoesFlagrante]
+		['Total de Presos (P7)', stats.prisoesTotal]
 	]);
 	const totalPrisoes = $derived(
-		Math.max(prisoesFlagrante, stats.prisaoFlagrante, stats.prisaoMandado)
+		Math.max(stats.prisoesTotal, stats.prisaoFlagrante, stats.prisaoMandado)
 	);
-	const detalhesDrogas = $derived(
-		(Object.entries(stats.drogasPorTipo) as [string, number][])
-			.sort((a, b) => b[1] - a[1])
-			.slice(0, 8)
-	);
-	const detalhesArmas = $derived(
-		(Object.entries(stats.armasPorTipo) as [string, number][])
-			.sort((a, b) => b[1] - a[1])
-			.slice(0, 8)
-	);
+
+	/**
+	 * Peso de droga é somado em GRAMAS e mostrado em QUILOS.
+	 *
+	 * O card converte pela unidade que recebe, e é por isso que o ranking pede
+	 * `kg` onde o detalhamento pede `g`: um lista totais de unidades (números
+	 * grandes, kg é a leitura), o outro lista tipos de droga dentro da barra
+	 * (gramas). A regra é do dado, não do card — vem de `identidadeDaPergunta`.
+	 */
+	function unidadeDoRanking(unidade: string): string {
+		return unidade === 'g' ? 'kg' : unidade;
+	}
 </script>
 
 {#snippet iconPrison(color: string)}
@@ -62,97 +82,72 @@
 		/></svg
 	>
 {/snippet}
-{#snippet iconDrug(color: string)}
+{#snippet iconGrafico(color: string)}
 	<svg class="w-5 h-5" style="color: {color}" fill="none" stroke="currentColor" viewBox="0 0 24 24"
 		><path
 			stroke-linecap="round"
 			stroke-linejoin="round"
 			stroke-width="2"
-			d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-		/></svg
-	>
-{/snippet}
-{#snippet iconWeapon(color: string)}
-	<svg class="w-5 h-5" style="color: {color}" fill="none" stroke="currentColor" viewBox="0 0 24 24"
-		><path
-			stroke-linecap="round"
-			stroke-linejoin="round"
-			stroke-width="2"
-			d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
+			d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
 		/></svg
 	>
 {/snippet}
 
 <div class="space-y-6 animate-in fade-in slide-in-from-top-4 duration-500">
-	<!-- ROW 1: PRISONS -->
-	<section class="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
-		<RankingCard
-			id="rank-prisoes"
-			title={VIRTUAL_CHARTS['rank-prisoes'].label}
-			ranking={rankingPrisoes}
-			color={VIRTUAL_CHARTS['rank-prisoes'].color}
-			icon={iconPrison}
-			labelUnit=""
-			selected={selectedCharts.includes('rank-prisoes')}
-			{onToggle}
-		/>
-		<DetailCard
-			id="detail-prisoes"
-			title={VIRTUAL_CHARTS['detail-prisoes'].label}
-			details={detalhesPrisoes}
-			total={totalPrisoes}
-			color={VIRTUAL_CHARTS['detail-prisoes'].color}
-			unit=""
-			selected={selectedCharts.includes('detail-prisoes')}
-			{onToggle}
-		/>
-	</section>
+	{#if temPrisoes}
+		<section class="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+			<RankingCard
+				id="rank-prisoes"
+				title={VIRTUAL_CHARTS['rank-prisoes'].label}
+				ranking={rankingPrisoes}
+				color={VIRTUAL_CHARTS['rank-prisoes'].color}
+				icon={iconPrison}
+				labelUnit=""
+				{rotuloGrupo}
+				selected={selectedCharts.includes('rank-prisoes')}
+				{onToggle}
+			/>
+			<DetailCard
+				id="detail-prisoes"
+				title={VIRTUAL_CHARTS['detail-prisoes'].label}
+				details={detalhesPrisoes}
+				total={totalPrisoes}
+				color={VIRTUAL_CHARTS['detail-prisoes'].color}
+				unit=""
+				selected={selectedCharts.includes('detail-prisoes')}
+				{onToggle}
+			/>
+		</section>
+	{/if}
 
-	<!-- ROW 2: DRUGS -->
-	<section class="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
-		<RankingCard
-			id="rank-drogas"
-			title={VIRTUAL_CHARTS['rank-drogas'].label}
-			ranking={rankingDrogasPeso}
-			color={VIRTUAL_CHARTS['rank-drogas'].color}
-			icon={iconDrug}
-			labelUnit="kg"
-			selected={selectedCharts.includes('rank-drogas')}
-			{onToggle}
-		/>
-		<DetailCard
-			id="detail-drogas"
-			title={VIRTUAL_CHARTS['detail-drogas'].label}
-			details={detalhesDrogas}
-			total={stats.drogasGeral}
-			color={VIRTUAL_CHARTS['detail-drogas'].color}
-			unit="g"
-			selected={selectedCharts.includes('detail-drogas')}
-			{onToggle}
-		/>
-	</section>
-
-	<!-- ROW 3: WEAPONS -->
-	<section class="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
-		<RankingCard
-			id="rank-armas"
-			title={VIRTUAL_CHARTS['rank-armas'].label}
-			ranking={rankingArmas}
-			color={VIRTUAL_CHARTS['rank-armas'].color}
-			icon={iconWeapon}
-			labelUnit=""
-			selected={selectedCharts.includes('rank-armas')}
-			{onToggle}
-		/>
-		<DetailCard
-			id="detail-armas"
-			title={VIRTUAL_CHARTS['detail-armas'].label}
-			details={detalhesArmas}
-			total={stats.apreensoes_armas}
-			color={VIRTUAL_CHARTS['detail-armas'].color}
-			unit=""
-			selected={selectedCharts.includes('detail-armas')}
-			{onToggle}
-		/>
-	</section>
+	{#if cards.length > 0}
+		<section class="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+			{#each cards as card (card.id)}
+				{#if card.forma === 'ranking'}
+					<RankingCard
+						id={card.id}
+						title="Ranking de {card.titulo}"
+						ranking={card.ranking}
+						color={card.cor}
+						icon={iconGrafico}
+						labelUnit={unidadeDoRanking(card.unidade)}
+						{rotuloGrupo}
+						selected={selectedCharts.includes(card.id)}
+						{onToggle}
+					/>
+				{:else}
+					<DetailCard
+						id={card.id}
+						title="Detalhamento de {card.titulo}"
+						details={card.linhas}
+						total={card.total}
+						color={card.cor}
+						unit={card.unidade}
+						selected={selectedCharts.includes(card.id)}
+						{onToggle}
+					/>
+				{/if}
+			{/each}
+		</section>
+	{/if}
 </div>

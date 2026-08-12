@@ -21,7 +21,10 @@ import {
 	buscarGiseDetalhado,
 	buscarPresencasGise,
 	buscarAssinaturasRelatoriosGise,
-	buscarRestringirSmartphone
+	buscarRestringirSmartphone,
+	buscarOperacao,
+	tiposEquipeDaOperacao,
+	TIPOS_EQUIPE
 } from '$lib/db';
 import { isAdminGeral, isAdminSeccional, isAdminUnidade } from '$lib/auth';
 import { decifrarCpfDoDB } from '$lib/crypto/cpf-cripto';
@@ -208,9 +211,21 @@ export const load: PageServerLoad = async ({ locals, params, platform, depends, 
 			)
 		];
 
+		// Tipos de equipe que a OPERAÇÃO desta escala habilita — a EDGE pode ser só
+		// de inteligência. Serve para a tela não OFERECER um tipo que a action vai
+		// recusar; quem recusa continua sendo a action (`adicionarEquipe`).
+		// Escala sem operação (anterior à migração 0048) aceita os dois, como antes.
+		const operacaoDaEscala =
+			gise.operacao_id != null ? await buscarOperacao(db, gise.operacao_id) : null;
+		const tiposEquipePermitidos = operacaoDaEscala
+			? tiposEquipeDaOperacao(operacaoDaEscala)
+			: [...TIPOS_EQUIPE];
+
 		return {
 			gise,
-			breveRelatorioEnv: await getBreveRelatorioEnvMergido(db),
+			operacaoNome: operacaoDaEscala?.nome ?? null,
+			tiposEquipePermitidos,
+			breveRelatorioEnv: await getBreveRelatorioEnvMergido(db, gise.operacao_id),
 			policiais: policiaisListResult,
 			assessorEmailSugerido,
 			todasUnidades,

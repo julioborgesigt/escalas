@@ -29,9 +29,9 @@
 		}
 		if (temPresencaGisePendente) {
 			lista.push({
-				titulo: 'Presença GISE',
+				titulo: 'Minha presença',
 				descricao:
-					'Confirme sua presença nas escalas GISE em que foi alocado e assine a folha correspondente.',
+					'Confirme sua presença nas escalas extras em que foi alocado e assine a folha correspondente.',
 				href: '/res-gise',
 				cta: 'Registrar presença'
 			});
@@ -44,11 +44,11 @@
 	// Card do histórico: só quando há GISE encerrada. Fica FORA de `giseCards`
 	// (que alimenta `semConvocacao`) porque histórico não é convocação ativa.
 	const cardHistoricoGise = {
-		titulo: 'Histórico GISE',
+		titulo: 'Meu histórico',
 		descricao:
-			'Consulte suas escalas GISE já encerradas: comprovantes de presença e relatórios das operações anteriores.',
+			'Consulte suas escalas extras já encerradas: comprovantes de presença e relatórios das operações anteriores.',
 		href: '/res-gise?status=finalizadas',
-		cta: 'Ver histórico GISE'
+		cta: 'Ver histórico'
 	};
 
 	// "Meu perfil" está na sidebar de todo policial — espelhado no acesso rápido.

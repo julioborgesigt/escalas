@@ -47,7 +47,10 @@ test.describe('Wizard do relatório de produtividade', () => {
 	test.beforeAll(() => {
 		// Sem modelo salvo o load cai no DEFAULT_QUESTIONS_FORM_OPERACIONAL, que é
 		// justamente quem traz as 4 etapas.
-		execD1Local(`DELETE FROM gise_modelo_formulario;`);
+		// Só o do GISE: um DELETE sem WHERE levaria o modelo da CRAJUBAR junto.
+		execD1Local(
+			`DELETE FROM gise_modelo_formulario WHERE operacao_id = (SELECT id FROM operacoes WHERE nome = 'GISE');`
+		);
 		execD1Local(`DELETE FROM gise_respostas_formulario WHERE gise_id = ${GISE};`);
 	});
 
@@ -188,5 +191,33 @@ test.describe('Wizard do relatório de produtividade', () => {
 
 		await campos.first().fill('Início');
 		await expect(page.getByText('Etapas do formulário (5)')).toBeVisible();
+	});
+
+	test('editor: o rodapé de salvar fica FIXO e diz se há alteração pendente', async ({ page }) => {
+		await silenciarAvisoRubrica(page);
+		const ok = await autenticarPagina(page, FIXTURE.adminGeral.id, 'admin');
+		test.skip(!ok, 'D1 local indisponível');
+		await page.goto('/res-gise');
+		await expect(page.getByRole('heading', { name: 'Configurar Formulário' })).toBeVisible();
+
+		const salvar = page.getByRole('button', { name: /Salvar Modelo/ });
+
+		// Recém-aberto: nada foi tocado. A barra dizia "Pronto para salvar" aqui,
+		// que era o `else` de um `if` sobre o estado de carregamento — a mesma frase
+		// tendo-se mexido em algo ou não.
+		await expect(page.getByText('Tudo salvo')).toBeVisible();
+
+		// E o botão está na tela SEM rolar: o modelo tem 19 perguntas de nível 0, e
+		// antes disto gravar exigia percorrer a página inteira.
+		await expect(salvar).toBeInViewport();
+
+		// Mexer numa pergunta muda o estado — é a função que a barra não tinha.
+		await page.locator('input[list="etapas-em-uso"]').first().fill('Início');
+		await expect(page.getByText('Alterações não salvas')).toBeVisible();
+
+		// Rolar até o fim não descola o rodapé: ele é `sticky`, então continua no pé
+		// da tela em vez de sair por cima do conteúdo ou ficar para trás.
+		await page.mouse.wheel(0, 20000);
+		await expect(salvar).toBeInViewport();
 	});
 });
