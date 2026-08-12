@@ -882,6 +882,11 @@ mentindo); dispensa que aponta para operação inexistente; e **handler declarad
 que o parser não conseguiu ler** — rota que o guard não enxerga é rota que ele
 não protege.
 
+Nas regressões já vistas (assinar com ACL de leitura, GISE `finalizada`,
+lotação fora do escopo, presença fora da janela), `HELPERS_OBRIGATORIOS` exige
+o helper **no corpo** do handler — import no arquivo ou 403 genérico não
+bastam. A lista cresce só com achado novo.
+
 ### Proteção CSRF
 
 O projeto usa o padrão _double-submit cookie_:

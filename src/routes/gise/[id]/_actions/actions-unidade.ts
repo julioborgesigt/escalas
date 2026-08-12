@@ -22,10 +22,9 @@ import {
 	adicionarGiseSeccionalUnidade,
 	removerGiseSeccionalUnidade
 } from '$lib/db';
-import { isAdminGeral, isAdminSeccional } from '$lib/auth';
 import { giseSeccionalUnidades, giseEquipes, unidades } from '$lib/server/schema';
 import { eq, and, isNull } from 'drizzle-orm';
-import { getInt, carregarSeccionalDaGise, exigirAdminGeral } from './shared';
+import { getInt, carregarSeccionalDaGise, exigirAdminGeral, podePreencherSeccional } from './shared';
 import { concluirMudancaGise, invalidarAssinaturasDaSeccional } from './desfecho';
 
 type Event = RequestEvent<{ id: string }>;
@@ -71,11 +70,7 @@ export const actionsUnidade = {
 		const carga = await carregarSeccionalDaGise(db, giseId, slotInfo.gise_seccional_id);
 		if ('erro' in carga) return carga.erro;
 
-		if (!isAdminGeral(u) && !isAdminSeccional(u)) {
-			return fail(403, { error: 'Sem permissão' });
-		}
-
-		if (isAdminSeccional(u) && u.papel_unidade_id !== carga.sec.seccional_id) {
+		if (!podePreencherSeccional(u, carga.sec.seccional_id)) {
 			return fail(403, { error: 'Sem permissão' });
 		}
 

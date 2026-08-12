@@ -1,8 +1,10 @@
 # Auditoria profunda — fluxos, autorização e integridade (06/ago/2026)
 
 **Status:** remediação Sprints A–C (código) **feita** (06/ago); AUT-015
-**aceito** (2A); AUT-017 **enforce em produção** (1A). Aberto residual: só
-expansão futura de `HELPERS_OBRIGATORIOS` no guard conforme novos achados.  
+**aceito** (2A); AUT-017 **enforce em produção** (1A); e2e dos gaps e o furo
+de AUT-005 **feitos** (12/ago); guard “403 certo” **feito** (12/ago) —
+`HELPERS_OBRIGATORIOS` exige o helper no **corpo** de cada operação, não só
+no arquivo. Residual: só crescer essa lista com achado novo.  
 **Tipo:** autorização ponta a ponta (IDOR), operações materiais, máquinas de
 estado, webhooks/RBAC/documentos — execução do plano
 [`PLANO_AUDITORIA_FLUXOS_INTEGRIDADE_2026-08-02.md`](./PLANO_AUDITORIA_FLUXOS_INTEGRIDADE_2026-08-02.md).  
@@ -24,8 +26,8 @@ GISE + actions de escalas — mutações e downloads sensíveis.
 A rodada de remediação de ago/2026 **fechou a maior parte** dos FLW-\* do plano
 (composição de escala, IDs cruzados de membros, intenção de assinatura,
 auditoria com pendência, sessões/tokens atômicos, exclusão física de policial,
-rename de unidade). O `guard:autorizacao` e o e2e negativo cobrem “há um 403”,
-não “é o 403 certo”.
+rename de unidade). O `guard:autorizacao` cobre “há um 403”; `HELPERS_OBRIGATORIOS`
+cobre o 403 **certo** nas regressões conhecidas (helper no corpo do handler).
 
 **O padrão que ainda quebra produção jurídica é o mesmo de sempre:** a tela
 calcula a regra estrita; o servidor usa a regra larga (leitura ≠ assinatura ≠
@@ -39,9 +41,8 @@ nas outras.
 | P2         |     7 |                               2 |
 | P3         |     3 |                               — |
 
-**Não implantar go-live de assinatura de escala mensal** sem fechar
-**FLW-AUT-001** (assinar com ACL de leitura). **Não tratar GISE `finalizada`
-como terminal** sem fechar **FLW-AUT-010**.
+**FLW-AUT-001** e **FLW-AUT-010** fecharam em 06/ago (código + e2e). O guard
+passa a recusar regressão do helper no corpo (12/ago).
 
 ---
 
@@ -404,7 +405,7 @@ Cliente pode redirecionar errado; próximo request deriva do DB corretamente.
 | Sem teste de sync preservando `ativo=0` | AUT-005 |
 | Sem negativo de presença antes do horário em `/res-gise` | AUT-006 |
 | Sem 409 em `excluir` com `escala_documentos` | AUT-003 |
-| `guard:autorizacao` conta “tem 403”, não “403 certo” | todos os ACL largos |
+| `guard:autorizacao` conta “tem 403”, não “403 certo” | todos os ACL largos — **FEITO 12/ago**: helper no corpo da operação (AUT-001/002/006/007/009/010) |
 
 **Fechados 12/ago (e2e + o furo que o gap de AUT-005 ainda escondia):**
 `criarComBase` cross-lotação (`escala-crud.spec.ts`); 409 em `excluir` com
@@ -413,8 +414,11 @@ documento (`escala-crud.spec.ts`); sync preserva `ativo=0` (`webhook-sync.spec.t
 `upsertPolicial` gravava `?? 1` no ON CONFLICT); presença antes do horário e
 após `finalizada` em `/res-gise` (`presenca-gise.spec.ts`). AUT-001 e AUT-010
 já tinham spec próprio (`assinatura-simples`, `gise-imutabilidade`). O gap do
-guard (“403 certo”) segue residual: conta presença de helper, não o 403 da
-regra de negócio.
+guard (“403 certo”) **fechou 12/ago**: `HELPERS_OBRIGATORIOS` passou a exigir o
+helper no corpo de cada handler (import no arquivo não basta; `reabrirEscala` /
+`excluirGise` / reenvio de planilha ficam de fora de `carregarGiseEditavel` de
+propósito). Lista fechada das regressões AUT-001/002/006/007/009/010 — crescer
+só com achado novo.
 
 ### Nota operacional — Windows
 
@@ -460,7 +464,7 @@ regra de negócio.
 9. ~~**FLW-AUT-011 / 012 / 013** — FDS e `podeOIPSolicitar` único~~ **FEITO 06/ago**: 011 (`reenviarEmail` exige `finalizada_em`); 012 (FDS bloqueado em assinar/preparar/finalizar); 013 (`podeOIPSolicitarAssinatura`)
 10. ~~**FLW-WEBHOOK-004 / AUT-017**~~ **FEITO 06/ago (ops 1A)** — `WEBHOOK_REPLAY_ENFORCE=1` no Pages production
 11. ~~**AUT-014**~~ **FEITO** via AUT-003; ~~**AUT-016**~~ **FEITO**; ~~**AUT-018…020**~~ **FEITO**; ~~**AUT-015**~~ **ACEITO 06/ago (2A)** (conferência por hash)
-12. ~~Estender `guard:autorizacao` para helper~~ **FEITO 06/ago (3A)** — `HELPERS_OBRIGATORIOS` (`podeAssinarEscala`, `carregarGiseEditavel` / wrappers)
+12. ~~Estender `guard:autorizacao` para helper~~ **FEITO 06/ago (3A)** arquivo; **12/ago** corpo da operação — `HELPERS_OBRIGATORIOS` (`podeAssinarEscala`, `carregarGiseEditavel` / wrappers, `lotacaoNoEscopo`, `gateDePresenca`)
 
 Cada fix: teste negativo **antes** ou no mesmo PR; artefato jurídico (PDF)
 exige golden verde se o fluxo de assinatura mudar.

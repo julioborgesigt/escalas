@@ -145,31 +145,64 @@ export const PUBLICAS = [
 ];
 
 /**
- * Além do "há um 403", estes arquivos TÊM de citar o helper certo (FLW-AUT-001 /
- * FLW-AUT-010). O guard de nível só pega "recusa alguém"; esta lista pega
- * "recusa com a regra errada" quando alguém troca `podeAssinarEscala` por um
- * `requireAuth` solto.
+ * Além do "há um 403", a operação TEM de citar o helper certo (FLW-AUT-001 /
+ * FLW-AUT-010 / 002 / 006 / 009). O guard de nível só pega "recusa alguém";
+ * esta lista pega "recusa com a regra errada" quando alguém troca
+ * `podeAssinarEscala` por `verificarPermissaoEscala` (ainda 403, ACL de leitura).
  *
- * Chave = caminho do arquivo. Valor = nomes aceitos (basta UM aparecer no
- * fonte). Em membros, os wrappers (`carregarMembroDaGise` etc.) já invocam
- * `carregarGiseEditavel` — listar os wrappers evita falso vermelho.
+ * Chave = caminho do arquivo → todas as operações daquele arquivo.
+ * Chave = `arquivo → nome` → só aquela operação (ganha da chave de arquivo).
+ * Valor = nomes aceitos (basta UM no CORPO do handler — import no preâmbulo
+ * não conta; era assim que o arquivo inteiro passava com o helper numa action
+ * só).
+ *
+ * Em membros/equipe, os wrappers já invocam `carregarGiseEditavel`.
  *
  * Lista FECHADA das regressões conhecidas: crescer só com achado novo.
  */
 export const HELPERS_OBRIGATORIOS = {
+	// FLW-AUT-001 — assinar escala é DPC admin, não "mesma lotação"
 	'src/routes/api/escalas/[id]/assinar-simples/+server.ts': ['podeAssinarEscala'],
 	'src/routes/api/escalas/[id]/preparar-assinatura/+server.ts': ['podeAssinarEscala'],
 	'src/routes/api/escalas/[id]/finalizar-assinatura/+server.ts': ['podeAssinarEscala'],
 	'src/routes/api/escalas/[id]/documento-assinado/+server.ts': ['podeAssinarEscala'],
+
+	// FLW-AUT-010 — GISE `finalizada` não muta pela porta dos fundos
 	'src/routes/gise/[id]/_actions/actions-escala.ts': ['carregarGiseEditavel'],
+	'src/routes/gise/[id]/_actions/actions-escala.ts → reabrirEscala': ['exigirAdminGeral'],
+	'src/routes/gise/[id]/_actions/actions-escala.ts → excluirGise': ['exigirAdminGeral'],
+	'src/routes/gise/[id]/_actions/actions-escala.ts → reenviarBaseEquipePlanilha': ['exigirAdminGeral'],
 	'src/routes/gise/[id]/_actions/actions-seccional.ts': ['carregarGiseEditavel'],
 	'src/routes/gise/[id]/_actions/actions-membros.ts': [
 		'carregarGiseEditavel',
 		'carregarMembroDaGise',
 		'carregarSeccionalDaGise',
 		'carregarEquipeDaGise'
-	]
+	],
+	'src/routes/gise/[id]/_actions/actions-equipe.ts': [
+		'carregarEquipeDaGise',
+		'carregarSeccionalDaGise'
+	],
+	'src/routes/gise/[id]/_actions/actions-unidade.ts': ['carregarSeccionalDaGise'],
+
+	// FLW-AUT-002 / 009 — lotação do FormData no escopo administrado
+	'src/routes/escalas/+page.server.ts → criarComBase': ['lotacaoNoEscopo'],
+	'src/routes/escalas/+page.server.ts → excluir': ['lotacaoNoEscopo'],
+
+	// FLW-AUT-006 / 007 — presença: janela de horário + GISE não finalizada
+	'src/routes/res-gise/+page.server.ts → salvarEntrada': ['gateDePresenca'],
+	'src/routes/res-gise/+page.server.ts → salvarSaida': ['gateDePresenca'],
+	'src/routes/api/gise/[id]/presenca/preparar-assinatura/+server.ts': ['gateDePresenca'],
+	'src/routes/api/gise/[id]/presenca/finalizar-assinatura/+server.ts': ['gateDePresenca']
 };
+
+/** Nomes aceitos para uma operação: chave específica ganha da chave de arquivo. */
+function helpersDaOperacao(arquivo, nome) {
+	const chaveOp = `${arquivo} → ${nome}`;
+	if (Object.hasOwn(HELPERS_OBRIGATORIOS, chaveOp)) return HELPERS_OBRIGATORIOS[chaveOp];
+	if (Object.hasOwn(HELPERS_OBRIGATORIOS, arquivo)) return HELPERS_OBRIGATORIOS[arquivo];
+	return null;
+}
 
 // `exigirAdminGeral` é o requireAdmin das form actions GISE: devolve
 // `fail(403)` no helper, não no corpo. Sem o nome aqui, extrair o 403
@@ -223,7 +256,12 @@ function principal() {
 
 		for (const m of src.matchAll(/export const (POST|PUT|PATCH|DELETE)[^=]*=\s*async\s*\(/g)) {
 			const iAbre = src.indexOf('{', src.indexOf('=>', m.index));
-			operacoes.push({ arquivo, nome: m[1], corpo: blocoBalanceado(src, iAbre) + preambulo });
+			operacoes.push({
+				arquivo,
+				nome: m[1],
+				corpo: blocoBalanceado(src, iAbre),
+				preambulo
+			});
 		}
 
 		const decl = src.match(/export const (?:actions\w*)[^=]*=\s*\{/);
@@ -238,7 +276,7 @@ function principal() {
 					if (nm) {
 						const iAbre = bloco.indexOf('{', bloco.indexOf('=>', i));
 						const corpo = blocoBalanceado(bloco, iAbre);
-						operacoes.push({ arquivo, nome: nm[1], corpo: corpo + preambulo });
+						operacoes.push({ arquivo, nome: nm[1], corpo, preambulo });
 						i = iAbre + corpo.length - 1;
 						profundidade = 1;
 					}
@@ -263,7 +301,8 @@ function principal() {
 	const vistas = new Set();
 	for (const op of operacoes) {
 		const chave = `${op.arquivo} → ${op.nome}`;
-		const nivel = RE_403.test(op.corpo) ? 2 : RE_401.test(op.corpo) ? 1 : 0;
+		const visivel = op.corpo + op.preambulo;
+		const nivel = RE_403.test(visivel) ? 2 : RE_401.test(visivel) ? 1 : 0;
 		if (nivel === 2) {
 			// (2) Promovida a nível 2 e ainda na lista: a lista mente.
 			if (chave in DECLARADAS) {
@@ -308,22 +347,36 @@ function principal() {
 		}
 	}
 
-	// Helper certo (não só "tem 403"): regressões FLW-AUT-001 / FLW-AUT-010.
-	for (const [arquivo, nomes] of Object.entries(HELPERS_OBRIGATORIOS)) {
-		if (!arquivos.includes(arquivo)) {
-			problemas.push({
-				arquivo,
-				msg: `HELPERS_OBRIGATORIOS obsoleto: "${arquivo}" não existe mais`
-			});
+	// Helper certo no CORPO (não só "tem 403" / não só import no arquivo).
+	const chavesOp = new Set(operacoes.map((o) => `${o.arquivo} → ${o.nome}`));
+	for (const chave of Object.keys(HELPERS_OBRIGATORIOS)) {
+		if (chave.includes(' → ')) {
+			if (!chavesOp.has(chave)) {
+				problemas.push({
+					arquivo: chave.split(' → ')[0],
+					msg: `HELPERS_OBRIGATORIOS obsoleto: "${chave}" não existe mais`
+				});
+			}
 			continue;
 		}
-		const src = readFileSync(arquivo, 'utf8');
-		if (!nomes.some((n) => src.includes(n))) {
+		if (!arquivos.includes(chave)) {
 			problemas.push({
-				arquivo,
+				arquivo: chave,
+				msg: `HELPERS_OBRIGATORIOS obsoleto: "${chave}" não existe mais`
+			});
+		}
+	}
+	let helpersChecados = 0;
+	for (const op of operacoes) {
+		const nomes = helpersDaOperacao(op.arquivo, op.nome);
+		if (!nomes) continue;
+		helpersChecados++;
+		if (!nomes.some((n) => op.corpo.includes(n))) {
+			problemas.push({
+				arquivo: op.arquivo,
 				msg:
-					`falta helper obrigatório — espere um de [${nomes.join(', ')}] ` +
-					'(ACL larga com 403 genérico não basta)'
+					`"${op.nome}" falta helper obrigatório — espere um de [${nomes.join(', ')}] ` +
+					'no corpo (ACL larga com 403 genérico / import sem chamada não basta)'
 			});
 		}
 	}
@@ -345,7 +398,7 @@ function principal() {
 		`[guard-autorizacao] ${operacoes.length} operações materiais — ` +
 			`${operacoes.length - vistas.size} recusam por permissão, ` +
 			`${vistas.size} dispensadas com motivo declarado; ` +
-			`${Object.keys(HELPERS_OBRIGATORIOS).length} arquivos com helper obrigatório.`
+			`${helpersChecados} operações com helper obrigatório no corpo.`
 	);
 }
 

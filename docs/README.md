@@ -25,6 +25,6 @@ Os relatórios de auditoria e as avaliações arquivadas **não vivem mais no wo
 - **Novas auditorias** podem ser commitadas em `docs/auditorias/` (data no nome ou no cabeçalho) enquanto seus achados estão sendo tratados; quando encerradas, o arquivo é removido e catalogado no [`HISTORICO.md`](HISTORICO.md) — o histórico do Git mantém a rastreabilidade dos achados (A1–A8, I-1…I-4, M-3/M-4, R2-1…R2-4, B-1…B-6…) citados em comentários do código.
 - Abertas (ver status no cabeçalho de cada arquivo):
   - [`auditorias/AUDITORIA_COMPONENTIZACAO_2026-08-06.md`](auditorias/AUDITORIA_COMPONENTIZACAO_2026-08-06.md) — componentização e reuso de UI (`$lib/components`, `_components`, páginas grandes);
-  - [`auditorias/AUDITORIA_FLUXOS_AUTORIZACAO_2026-08-06.md`](auditorias/AUDITORIA_FLUXOS_AUTORIZACAO_2026-08-06.md) — fluxos, autorização/IDOR e integridade (execução do plano de 02/ago);
+  - [`auditorias/AUDITORIA_FLUXOS_AUTORIZACAO_2026-08-06.md`](auditorias/AUDITORIA_FLUXOS_AUTORIZACAO_2026-08-06.md) — fluxos, autorização/IDOR e integridade; remediação e guard “403 certo” feitos, lista HELPERS fechada;
   - [`auditorias/AUDITORIA_VISUAL_2026-07-29.md`](auditorias/AUDITORIA_VISUAL_2026-07-29.md) — consistência visual; VIS-5 canônico fechado, restam amostragem e validação manual.
 - Documentos **vivos** que ficarem defasados devem ser corrigidos no mesmo PR que muda o comportamento correspondente.

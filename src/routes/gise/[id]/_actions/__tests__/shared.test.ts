@@ -1,9 +1,9 @@
 /**
  * A regra de quem preenche uma seccional da GISE — FLW-GISE-004.
  *
- * O e2e prova que as quatro actions chamam esta função; aqui fica a regra em
- * si, caso a caso. O que a versão anterior errava não era um caso: era a
- * ausência de um. Por isso os casos negativos abaixo cobrem cada perfil que
+ * O e2e prova que as actions de preenchimento chamam esta função; aqui fica a
+ * regra em si, caso a caso. O que a versão anterior errava não era um caso: era
+ * a ausência de um. Por isso os casos negativos abaixo cobrem cada perfil que
  * NÃO tem papel de seccional — é lá que o buraco estava.
  */
 import { describe, it, expect } from 'vitest';
