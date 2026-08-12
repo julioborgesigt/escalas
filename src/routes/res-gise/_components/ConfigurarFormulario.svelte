@@ -35,6 +35,7 @@
 	} from '$lib/gise/tipos-pergunta';
 	import { podeSerIndicador, ehProporcao } from '$lib/gise/indicadores';
 	import { formasDaMarca } from '$lib/produtividade';
+	import RodapeAcoes from '$lib/components/RodapeAcoes.svelte';
 	import Target from '@lucide/svelte/icons/target';
 	import ChartColumn from '@lucide/svelte/icons/chart-column';
 	import ChevronDown from '@lucide/svelte/icons/chevron-down';
@@ -890,56 +891,66 @@
 		{/each}
 	</div>
 
-	<div
-		class="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 border-t border-surface-200 dark:border-white/10 pt-4 mt-2"
+	<!-- Salvar vive no RODAPÉ FIXO: o modelo tem dezenove perguntas de nível 0
+	     mais os filhos, e antes disto gravar exigia rolar a página inteira toda
+	     vez. Mesmo desenho do wizard do relatório, pelo mesmo motivo. -->
+	<form
+		method="POST"
+		action="?/salvarModelo"
+		use:enhance={resGise.handleSalvarModelo}
+		class="contents"
 	>
-		<form
-			method="POST"
-			action="?/salvarModelo"
-			use:enhance={resGise.handleSalvarModelo}
-			class="w-full flex flex-col sm:flex-row items-stretch sm:items-center gap-4"
-		>
-			<input type="hidden" name="config" value={resGise.configJson} />
-			<input type="hidden" name="tipo" value={resGise.configTipo} />
-			<input type="hidden" name="operacaoId" value={resGise.operacaoSelecionadaId ?? ''} />
+		<input type="hidden" name="config" value={resGise.configJson} />
+		<input type="hidden" name="tipo" value={resGise.configTipo} />
+		<input type="hidden" name="operacaoId" value={resGise.operacaoSelecionadaId ?? ''} />
 
-			<div class="flex-grow card-elevated-2 rounded-xl p-4">
-				<p
-					class="text-xs font-bold text-surface-600 dark:text-surface-400 uppercase tracking-widest mb-1"
-				>
-					Status da Configuração
-				</p>
-				<div class="flex items-center gap-2">
-					<div
-						class="w-2 h-2 rounded-full {loading.active
+		<RodapeAcoes>
+			{#snippet status()}
+				<span class="flex items-center gap-2">
+					<!-- Três estados, e o do meio é o que a barra existe para dizer.
+					     Até ago/2026 eram dois — "Salvando…", que dura o tempo da
+					     requisição, e "Pronto para salvar", que era o `else` e dizia a
+					     mesma coisa tendo-se mexido em algo ou não. -->
+					<span
+						class="w-2 h-2 rounded-full shrink-0 {loading.active
 							? 'bg-warning-500 animate-pulse'
-							: 'bg-success-500'}"
-					></div>
-					<p class="text-3xs font-bold text-surface-900 dark:text-surface-100">
-						{loading.active ? 'Salvando alterações...' : 'Pronto para salvar'}
-					</p>
-				</div>
-			</div>
+							: resGise.alteracoesNaoSalvas
+								? 'bg-warning-500'
+								: 'bg-success-500'}"
+					></span>
+					<span class="font-bold text-surface-900 dark:text-surface-100">
+						{#if loading.active}
+							Salvando alterações…
+						{:else if resGise.alteracoesNaoSalvas}
+							Alterações não salvas
+						{:else}
+							Tudo salvo
+						{/if}
+					</span>
+				</span>
+			{/snippet}
 
-			<!-- O 9º argumento (`btnType`) é obrigatório aqui: sem ele o
-			     `actionButton` cai no default `type="button"`, e um botão desse tipo
-			     dentro de um `<form>` NÃO submete. Como também não há `onclick`, o
-			     clique não fazia absolutamente nada — o modelo nunca era salvo. -->
-			{@render actionButton(
-				loading.active
-					? 'Salvando...'
-					: `Salvar Modelo ${resGise.configTipo === 'seint' ? 'SEINT' : 'Operacional'}`,
-				undefined,
-				'primary',
-				'filled',
-				undefined,
-				loading.active,
-				false,
-				'w-full sm:w-auto py-3.5 text-sm shadow-lg shadow-primary-500/20',
-				'submit'
-			)}
-		</form>
-	</div>
+			{#snippet acoes()}
+				<!-- O 9º argumento (`btnType`) é obrigatório aqui: sem ele o
+				     `actionButton` cai no default `type="button"`, e um botão desse tipo
+				     dentro de um `<form>` NÃO submete. Como também não há `onclick`, o
+				     clique não fazia absolutamente nada — o modelo nunca era salvo. -->
+				{@render actionButton(
+					loading.active
+						? 'Salvando...'
+						: `Salvar Modelo ${resGise.configTipo === 'seint' ? 'SEINT' : 'Operacional'}`,
+					undefined,
+					'primary',
+					'filled',
+					undefined,
+					loading.active,
+					false,
+					'w-full sm:w-auto py-2.5 text-sm shadow-lg shadow-primary-500/20',
+					'submit'
+				)}
+			{/snippet}
+		</RodapeAcoes>
+	</form>
 </div>
 
 <!-- Diálogo de confirmação para restaurar a versão anterior -->

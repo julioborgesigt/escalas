@@ -1028,6 +1028,10 @@ interação ou regra de domínio.
 
 **Voltar** — usar `$lib/components/BotaoVoltar.svelte`, sempre **acima do `<h1>`**, nunca no rodapé. `href` para mudar de rota, `onclick` para desfazer estado local. Não repetir a palavra "Voltar" em outro controle da mesma tela (o passo anterior de um wizard é "Anterior") — duas coisas diferentes com o mesmo rótulo trocam de lugar na cabeça de quem usa.
 
+**Rodapé de ação em tela longa** — usar `$lib/components/RodapeAcoes.svelte`: status à esquerda, botões à direita, `sticky bottom-0`. É para a tela em que a ação principal é frequente e ficaria presa no fim do documento — o wizard do relatório e o editor do modelo, os dois com formulários de dezenas de campos. `sticky` e não `fixed`: `fixed` sai do fluxo, passa por cima do conteúdo e exige um `padding-bottom` de reserva que ninguém mantém quando a altura do rodapé muda. Não funciona dentro de ancestral com `overflow` — ele gruda no ancestral que ROLA, e um container `overflow-hidden` não rola.
+
+O status **tem de dizer algo que mude**. A barra do editor nasceu com dois estados — "Salvando…", que dura o tempo da requisição, e "Pronto para salvar", que era o `else` — e dizia a mesma frase tendo-se mexido em algo ou não. Hoje ela compara o que está na tela com o modelo carregado (`alteracoesNaoSalvas`), que é o que torna concreto o aviso de que nada é gravado até clicar em Salvar.
+
 **Estado de tarefa (marcador)** — o mesmo lugar mostra os dois estados: `Check` em círculo `bg-success-500` cumprida, `Clock` em círculo `bg-warning-500` pendente. Não usar ponto cinza para "falta fazer" (lê-se como "desligado"), e não variar a cor de concluído por tipo de tarefa — na mesma linha, um quadro verde e outro cinza parecem estados diferentes quando são o mesmo.
 
 **Border-radius** — o tema define `--radius-base` (= `rounded-xl`, botões/inputs) e `--radius-container` (= `rounded-2xl`, cards/modais); pills/chips usam `rounded-full`. Em código novo, não usar `rounded`/`rounded-md`; reservar `rounded-lg` para elementos ≤ 32 px de altura.
