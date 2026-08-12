@@ -2,9 +2,9 @@
  * Guard de CI: **toda operação material do servidor recusa alguém.**
  *
  * Operação material = handler de mutação de API (`POST`/`PUT`/`PATCH`/`DELETE`
- * em `+server.ts`) ou form action do SvelteKit. São 113 hoje, e a decisão de
+ * em `+server.ts`) ou form action do SvelteKit. São 117 hoje, e a decisão de
  * autorização é tomada de treze formas diferentes — `requireAdmin`,
- * `isAdminGeral`, `verificarPermissaoEscala`, `resolverParticipacaoGisePolicial`,
+ * `exigirAdminGeral`, `isAdminGeral`, `verificarPermissaoEscala`, `resolverParticipacaoGisePolicial`,
  * comparação de lotação escrita à mão, além de preâmbulos locais a um arquivo
  * só (`autorizarAcao`, `carregarEscalaComPermissao`).
  *
@@ -12,7 +12,7 @@
  * nunca está completa, e um handler novo com um resolvedor novo passaria batido
  * justamente por ser novo. Ele olha o RESULTADO observável, que é fechado:
  *
- *   nível 2 — recusa por PERMISSÃO (`fail(403)`, `forbidden()`, `requireAdmin`…)
+ *   nível 2 — recusa por PERMISSÃO (`fail(403)`, `forbidden()`, `requireAdmin`, `exigirAdminGeral`…)
  *   nível 1 — só exige SESSÃO (`fail(401)`, `unauthorized()`, `requireAuth`)
  *   nível 0 — não recusa ninguém
  *
@@ -49,7 +49,9 @@ function listarArquivosMutacao(raizRoutes) {
 			if (ent.isDirectory()) {
 				if (ent.name === '_actions') {
 					for (const f of readdirSync(full, { withFileTypes: true })) {
-						if (f.isFile() && f.name.endsWith('.ts')) {
+						// Só os módulos de form action. `shared.ts` / `desfecho.ts` não
+						// exportam mutação.
+						if (f.isFile() && f.name.startsWith('actions-') && f.name.endsWith('.ts')) {
 							saida.push(relative('.', join(full, f.name)).replaceAll('\\', '/'));
 						}
 					}
@@ -169,7 +171,12 @@ export const HELPERS_OBRIGATORIOS = {
 	]
 };
 
-const RE_403 = /fail\(403|forbidden\(|status:\s*403|error\(403|requireAdmin\(|requireSuperAdmin\(/;
+// `exigirAdminGeral` é o requireAdmin das form actions GISE: devolve
+// `fail(403)` no helper, não no corpo. Sem o nome aqui, extrair o 403
+// (achado 2.1) deixava o guard cego — "não recusa ninguém" com o POST
+// já morrendo no servidor.
+const RE_403 =
+	/fail\(403|forbidden\(|status:\s*403|error\(403|requireAdmin\(|requireSuperAdmin\(|exigirAdminGeral\(/;
 const RE_401 = /fail\(401|unauthorized\(|requireAuth\(|error\(401/;
 
 /** Do índice da chave `{`, devolve o bloco balanceado. */
@@ -201,12 +208,17 @@ function principal() {
 	for (const arquivo of arquivos) {
 		const src = readFileSync(arquivo, 'utf8');
 		declaradas += [...src.matchAll(/export const (?:POST|PUT|PATCH|DELETE)\b/g)].length;
-		declaradas += [...src.matchAll(/^\s+([a-zA-Z][\w]*): async/gm)].length;
+		// `: async` só é form action. Em `+server.ts` o mesmo padrão aparece em
+		// callback interno (`gerarRascunho: async () =>` em documento-assinado) e
+		// o parser não lê esses — contar inflava o total e disparava ponto cego.
+		if (/export const actions\w*\b/.test(src)) {
+			declaradas += [...src.matchAll(/^\s+([a-zA-Z][\w]*): async/gm)].length;
+		}
 
 		// O preâmbulo (helpers acima do primeiro handler) conta: é onde moram
 		// `autorizarAcao` e `carregarEscalaComPermissao`, cujo `fail(403)` vale para
-		// todas as actions que os chamam.
-		const iPrimeiro = src.search(/export const (?:actions|POST|PUT|PATCH|DELETE)\b/);
+		// todas as actions que os chamam. `actions\w*` pega `actionsEquipe` etc.
+		const iPrimeiro = src.search(/export const (?:actions\w*|POST|PUT|PATCH|DELETE)\b/);
 		const preambulo = iPrimeiro > 0 ? src.slice(0, iPrimeiro) : '';
 
 		for (const m of src.matchAll(/export const (POST|PUT|PATCH|DELETE)[^=]*=\s*async\s*\(/g)) {

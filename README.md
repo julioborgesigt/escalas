@@ -865,7 +865,7 @@ O que o guard olha é o RESULTADO, que é fechado:
 
 | nível | o que a operação faz     | como aparece                                                    |
 | ----- | ------------------------ | --------------------------------------------------------------- |
-| 2     | recusa por **permissão** | `fail(403)`, `forbidden()`, `requireAdmin`, `requireSuperAdmin` |
+| 2     | recusa por **permissão** | `fail(403)`, `forbidden()`, `requireAdmin`, `requireSuperAdmin`, `exigirAdminGeral` |
 | 1     | só exige **sessão**      | `fail(401)`, `unauthorized()`, `requireAuth`                    |
 | 0     | não recusa ninguém       | —                                                               |
 
