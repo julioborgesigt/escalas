@@ -30,7 +30,7 @@ import {
 } from '../server/schema';
 import type * as schema from '../server/schema';
 import type { EscalaPolicialComDados, EscalaListagem } from '../types';
-import { batchNonEmpty, paginarComContagem, type Database } from './core';
+import { batchNonEmpty, paginarComContagem, timestampSqliteBrasilia, type Database } from './core';
 
 /** Escapa caracteres especiais do LIKE para evitar wildcard injection */
 function escapeLike(str: string): string {
@@ -268,13 +268,9 @@ export async function finalizarEscalaFDS(
 	id: number,
 	emailEnvio: string
 ): Promise<void> {
-	const agora = new Date(Date.now() - 3 * 60 * 60 * 1000)
-		.toISOString()
-		.replace('T', ' ')
-		.substring(0, 19);
 	await db
 		.update(escalas)
-		.set({ finalizada_em: agora, email_envio: emailEnvio })
+		.set({ finalizada_em: timestampSqliteBrasilia(), email_envio: emailEnvio })
 		.where(eq(escalas.id, id));
 }
 
@@ -359,6 +355,28 @@ export async function adicionarTodosPoliciais(
 	await batchNonEmpty(db, insertsLote);
 
 	return novos.length;
+}
+
+const LOTE_INSERT_ESCALA = 50;
+
+/**
+ * Insere linhas em `escala_policiais` em lotes. O D1 limita ~100 statements
+ * por batch e ~999 params por statement; cada linha usa ~8 campos, então 50
+ * fica folgado. `criarComBase` já fatiava; `gerarProximoMes` mandava um
+ * `values(array)` só e estourava em escala grande.
+ */
+export async function inserirPoliciaisEscalaEmLotes(
+	db: Database,
+	linhas: (typeof escalaPoliciais.$inferInsert)[]
+): Promise<void> {
+	if (linhas.length === 0) return;
+	for (let i = 0; i < linhas.length; i += LOTE_INSERT_ESCALA) {
+		const chunk = linhas.slice(i, i + LOTE_INSERT_ESCALA);
+		await batchNonEmpty(
+			db,
+			chunk.map((row) => db.insert(escalaPoliciais).values(row))
+		);
+	}
 }
 
 /**

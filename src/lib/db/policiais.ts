@@ -266,15 +266,20 @@ async function colunasDoPolicial(data: DadosPolicial, env?: CpfCriptoEnv) {
 		regime: (data.regime as 'plantao' | 'expediente') || 'plantao',
 		classe: data.classe || '',
 		papel: (data.papel as 'admin_seccional' | 'admin_unidade' | null) || null,
-		papel_unidade_id: data.papel_unidade_id ?? null,
-		ativo: data.ativo ?? 1
+		papel_unidade_id: data.papel_unidade_id ?? null
 	};
 
+	// FLW-AUT-005: `ativo` omitido no UPDATE deixa a coluna intocada. `?? 1`
+	// aqui reativava todo mundo a cada sync — o webhook omite de propósito
+	// para existentes. INSERT (abaixo) continua nascendo ativo.
+	const daFolhaUpdate = data.ativo !== undefined ? { ...daFolha, ativo: data.ativo } : daFolha;
+
 	return {
-		daFolha,
+		daFolha: daFolhaUpdate,
 		/** Linha completa de INSERT: a folha mais o que só nasce uma vez. */
 		nova: {
 			...daFolha,
+			ativo: data.ativo ?? 1,
 			matricula: limparMatricula(data.matricula),
 			senha: await gerarSenhaAleatoriaHash(),
 			primeiro_acesso: 1,
@@ -309,6 +314,9 @@ export async function criarPolicial(db: Database, data: DadosPolicial, env?: Cpf
  * - **não mexe em `senha` nem em `primeiro_acesso`**: eles só existem no ramo
  *   de INSERT. Uma rodada de sync não pode derrubar o acesso de quem já usa o
  *   sistema;
+ * - **não reativa `ativo=0`**: `ativo` omitido fica de fora do SET (FLW-AUT-005).
+ *   Desativação disciplinar no UI durava só até a próxima folha enquanto o
+ *   default `?? 1` ia no ON CONFLICT;
  * - **não apaga contato**: `email`/`email_pessoal` vazios no payload viram
  *   `sql\`email\`` / `sql\`email_pessoal\``, isto é, mantêm o valor atual. A
  *   fonte externa costuma vir sem e-mail, e o e-mail pessoal foi cadastrado

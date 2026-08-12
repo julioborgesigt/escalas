@@ -1,18 +1,3 @@
-import { fail } from '@sveltejs/kit';
-import type { RequestEvent } from '@sveltejs/kit';
-import {
-	getDB,
-	tryGetR2,
-	atualizarGiseSeccionalUnidade,
-	adicionarGiseSeccionalUnidade,
-	removerGiseSeccionalUnidade
-} from '$lib/db';
-import { isAdminGeral, isAdminSeccional } from '$lib/auth';
-import { giseSeccionalUnidades, giseEquipes, unidades } from '$lib/server/schema';
-import { eq, and, isNull } from 'drizzle-orm';
-import { getInt, carregarSeccionalDaGise } from './shared';
-import { concluirMudancaGise, invalidarAssinaturasDaSeccional } from './desfecho';
-
 /**
  * Form actions dos SLOTS DE UNIDADE de cada seccional em `/gise/[id]`.
  *
@@ -28,6 +13,20 @@ import { concluirMudancaGise, invalidarAssinaturasDaSeccional } from './desfecho
  * SLOT não era conferido contra a seccional, e nenhuma das três olhava o
  * status: dava para trocar a unidade de uma escala já finalizada.
  */
+import { fail } from '@sveltejs/kit';
+import type { RequestEvent } from '@sveltejs/kit';
+import {
+	getDB,
+	tryGetR2,
+	atualizarGiseSeccionalUnidade,
+	adicionarGiseSeccionalUnidade,
+	removerGiseSeccionalUnidade
+} from '$lib/db';
+import { isAdminGeral, isAdminSeccional } from '$lib/auth';
+import { giseSeccionalUnidades, giseEquipes, unidades } from '$lib/server/schema';
+import { eq, and, isNull } from 'drizzle-orm';
+import { getInt, carregarSeccionalDaGise, exigirAdminGeral } from './shared';
+import { concluirMudancaGise, invalidarAssinaturasDaSeccional } from './desfecho';
 
 type Event = RequestEvent<{ id: string }>;
 
@@ -116,8 +115,8 @@ export const actionsUnidade = {
 	/** Cria mais um slot vazio na seccional. */
 	adicionarUnidade: async (event: Event) => {
 		const { request, locals, platform, params } = event;
-		const u = locals.usuario;
-		if (!u || !isAdminGeral(u)) return fail(403, { error: 'Apenas Admin Geral' });
+		const u = exigirAdminGeral(locals.usuario);
+		if (!('id' in u)) return u;
 
 		const giseId = parseInt(params.id);
 		const formData = await request.formData();
@@ -159,8 +158,8 @@ export const actionsUnidade = {
 	/** Remove um slot — e, com ele, as equipes penduradas nesse slot. */
 	removerUnidade: async (event: Event) => {
 		const { request, locals, platform, params } = event;
-		const u = locals.usuario;
-		if (!u || !isAdminGeral(u)) return fail(403, { error: 'Apenas Admin Geral' });
+		const u = exigirAdminGeral(locals.usuario);
+		if (!('id' in u)) return u;
 
 		const giseId = parseInt(params.id);
 		const formData = await request.formData();

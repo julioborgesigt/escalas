@@ -60,6 +60,10 @@ function fundivel(a: SyncEstadoOpts, b: SyncEstadoOpts): boolean {
 	return ok(a.giseId, b.giseId) && ok(a.escalaId, b.escalaId);
 }
 
+/**
+ * GET coalescido de `/api/sync/estado`. Pedidos do mesmo tick com parâmetros
+ * fundíveis viram uma requisição só (ver cabeçalho do módulo).
+ */
 export function fetchSyncEstado(opts?: SyncEstadoOpts): Promise<SyncEstado> {
 	const pedido: SyncEstadoOpts = {
 		...(opts?.giseId ? { giseId: opts.giseId } : {}),

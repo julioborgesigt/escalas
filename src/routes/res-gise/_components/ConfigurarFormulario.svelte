@@ -21,7 +21,7 @@
 	 */
 	import { enhance } from '$app/forms';
 	import { actionButton } from './BotoesAcao.svelte';
-	import { Dialog } from '@skeletonlabs/skeleton-svelte';
+	import ModalShell from '$lib/components/ModalShell.svelte';
 	import { loading } from '$lib/loading.svelte';
 	import { agruparPorEtapa } from '$lib/gise/etapas-formulario';
 	import { TIPOS_COM_FILHOS, TIPOS_COM_LISTA } from '$lib/gise/tipos-pergunta';
@@ -576,31 +576,26 @@
 	</div>
 </div>
 
-<!-- Diálogo de confirmação para restaurar a versão anterior -->
-<Dialog open={dialogRestaurarAberto} onOpenChange={(e) => (dialogRestaurarAberto = e.open)}>
-	<Dialog.Content
-		class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-sm overflow-y-auto"
-	>
-		<div
-			class="card p-4 sm:p-6 max-w-sm w-full max-h-[calc(100dvh-2rem)] overflow-y-auto card-elevated shadow-2xl rounded-2xl"
+<ModalShell
+	bind:open={dialogRestaurarAberto}
+	title="Restaurar versão anterior?"
+	largura="sm"
+	cancelLabel="Cancelar"
+>
+	{#snippet description()}
+		As perguntas do modelo <strong>{resGise.configTipo}</strong> voltam a ser as da versão salva
+		antes da última alteração. As edições que estiverem na tela agora são descartadas.
+		<br /><br />
+		Nada é gravado ainda: revise e clique em <strong>Salvar</strong> para efetivar.
+	{/snippet}
+
+	{#snippet footer()}
+		<button
+			type="button"
+			class="btn preset-filled-warning-500"
+			onclick={confirmarRestaurarAnterior}
 		>
-			<Dialog.Title class="text-lg font-bold mb-2">Restaurar versão anterior?</Dialog.Title>
-			<Dialog.Description class="text-sm text-surface-600 dark:text-surface-300 mb-6">
-				As perguntas do modelo <strong>{resGise.configTipo}</strong> voltam a ser as da versão salva
-				antes da última alteração. As edições que estiverem na tela agora são descartadas.
-				<br /><br />
-				Nada é gravado ainda: revise e clique em <strong>Salvar</strong> para efetivar.
-			</Dialog.Description>
-			<div class="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 sm:gap-3">
-				<Dialog.CloseTrigger class="btn preset-outlined-surface-500">Cancelar</Dialog.CloseTrigger>
-				<button
-					type="button"
-					class="btn preset-filled-warning-500"
-					onclick={confirmarRestaurarAnterior}
-				>
-					Restaurar
-				</button>
-			</div>
-		</div>
-	</Dialog.Content>
-</Dialog>
+			Restaurar
+		</button>
+	{/snippet}
+</ModalShell>

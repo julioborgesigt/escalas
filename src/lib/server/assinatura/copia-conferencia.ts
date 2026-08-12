@@ -15,6 +15,8 @@
  */
 
 import { type UsuarioLogado } from '$lib/auth';
+import { getR2, hasR2 } from '$lib/db';
+import { contentDisposition, notFound, serverError } from '../api';
 import { adicionarRodapeSimples } from './pdf-signing-visual';
 import { logger } from '../logger';
 
@@ -82,4 +84,76 @@ export async function gerarCopiaConferencia(opts: CopiaConferenciaOpts): Promise
 		verificationUrl,
 		rubricBase64
 	});
+}
+
+function pdfAssinadoResponse(body: BodyInit, filename: string): Response {
+	return new Response(body, {
+		headers: {
+			'Content-Type': 'application/pdf',
+			'Content-Disposition': contentDisposition(filename),
+			'Cache-Control': 'private, no-store'
+		}
+	});
+}
+
+/**
+ * GET de documento assinado: manifesto forense (se pedido e autorizado) →
+ * cópia de conferência no R2 → regeneração a partir do rascunho.
+ *
+ * Permissão e lookup do registro ficam no caller (escala e GISE divergem).
+ * O pipeline de bytes era idêntico nos dois `documento-assinado/+server.ts`.
+ */
+export async function responderPdfAssinado(opts: {
+	platform: App.Platform | undefined;
+	r2Key: string;
+	verificacaoHash: string | null;
+	assinanteNome: string;
+	querManifesto: boolean;
+	podeManifesto: boolean;
+	nomeManifesto: string;
+	nomeConferencia: string;
+	logContexto: string;
+	origin: string;
+	gerarRascunho: () => Promise<Uint8Array | Response>;
+}): Promise<Response> {
+	const {
+		platform,
+		r2Key,
+		verificacaoHash,
+		assinanteNome,
+		querManifesto,
+		podeManifesto,
+		nomeManifesto,
+		nomeConferencia,
+		logContexto,
+		origin,
+		gerarRascunho
+	} = opts;
+
+	if (querManifesto && podeManifesto) {
+		if (!hasR2(platform)) {
+			return serverError(`[${logContexto}] R2 não configurado`, new Error('R2_NOT_CONFIGURED'));
+		}
+		const object = await getR2(platform).get(r2Key);
+		if (!object) return notFound('Arquivo PDF no Storage');
+		return pdfAssinadoResponse(object.body as unknown as BodyInit, nomeManifesto);
+	}
+
+	if (hasR2(platform) && verificacaoHash) {
+		const confObj = await getR2(platform).get(chaveConferencia(verificacaoHash));
+		if (confObj) {
+			return pdfAssinadoResponse(confObj.body as unknown as BodyInit, nomeConferencia);
+		}
+	}
+
+	const rascunho = await gerarRascunho();
+	if (rascunho instanceof Response) return rascunho;
+	const hash = verificacaoHash ?? undefined;
+	const buffer = await gerarCopiaConferencia({
+		pdfRascunho: rascunho,
+		assinanteNome,
+		verificationHash: hash,
+		verificationUrl: hash ? `${origin}/validar/${hash}` : undefined
+	});
+	return pdfAssinadoResponse(buffer as unknown as BodyInit, nomeConferencia);
 }

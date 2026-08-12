@@ -1,10 +1,10 @@
-import { bytesToHex } from '$lib/crypto/hex';
 /**
  * Utilitários para segurança jurídica de documentos digitais.
  *
  * Funções reutilizáveis entre os endpoints de preparação e finalização
  * de assinatura, e pelo módulo de geração de PDF.
  */
+import { bytesToHex } from '$lib/crypto/hex';
 
 // ---------------------------------------------------------------------------
 // Hash SHA-256 do arquivo original
@@ -26,15 +26,8 @@ export async function calcularHashBuffer(bytes: Uint8Array): Promise<string> {
 }
 
 // ---------------------------------------------------------------------------
-// Parser de User-Agent
+// GPS (minimização LGPD)
 // ---------------------------------------------------------------------------
-
-interface UAResult {
-	browser: string;
-	browserVersion: string;
-	os: string;
-	device: 'Desktop' | 'Mobile' | 'Tablet' | 'Bot' | 'Desconhecido';
-}
 
 /**
  * Reduz a coordenada a 2 casas decimais (~1 km).
@@ -45,6 +38,17 @@ interface UAResult {
  */
 export function reduzirPrecisaoGps(v?: number): number | undefined {
 	return v !== undefined ? Math.round(v * 100) / 100 : undefined;
+}
+
+// ---------------------------------------------------------------------------
+// Parser de User-Agent
+// ---------------------------------------------------------------------------
+
+interface UAResult {
+	browser: string;
+	browserVersion: string;
+	os: string;
+	device: 'Desktop' | 'Mobile' | 'Tablet' | 'Bot' | 'Desconhecido';
 }
 
 /**

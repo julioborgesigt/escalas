@@ -1,3 +1,9 @@
+/**
+ * POST /api/escalas/[id]/solicitar-assinatura
+ *
+ * OIP (ou Admin Geral) pede ao DPC que assine a escala. Recusa quem está fora
+ * do escopo da lotação — o botão escondido não é autorização.
+ */
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import {

@@ -46,6 +46,20 @@ export function podePreencherSeccional(
 	return isAdminSeccional(u) && u.papel_unidade_id != null && u.papel_unidade_id === seccionalId;
 }
 
+/**
+ * Recusa a form action se quem chamou não é Admin Geral.
+ *
+ * Devolve o usuário (estreito) ou o `fail(403)`. Anônimo e demais papéis caem
+ * no mesmo 403 — a mensagem não distingue de propósito. Quem precisa de 401
+ * por sessão ausente confere `!u` ANTES.
+ *
+ * Uso: `const u = exigirAdminGeral(locals.usuario); if (!('id' in u)) return u;`
+ */
+export function exigirAdminGeral(u: App.Locals['usuario'], mensagem = 'Apenas Admin Geral') {
+	if (!u || !isAdminGeral(u)) return fail(403, { error: mensagem });
+	return u;
+}
+
 /** Lê um campo do FormData como inteiro; devolve `NaN` quando ausente/inválido. */
 export function getInt(fd: FormData, key: string): number {
 	const v = fd.get(key);

@@ -1,3 +1,9 @@
+/**
+ * `load` do layout raiz: flags de navegação (papel GISE, rubrica pendente,
+ * evidências de assinatura, alternância admin↔usuário) para a sessão inteira.
+ * Mutações invalidam chaves pontuais — este load não deve rodar a cada exclusão
+ * de escala.
+ */
 import type { LayoutServerLoad } from './$types';
 import { getDB, ehAdminGeralVinculado } from '$lib/db';
 import { lerFlagsAssinatura } from '$lib/server/assinatura/cfg-ass-cache';

@@ -21,6 +21,7 @@ import {
 	escalaPoliciais
 } from '$lib/server/schema';
 
+/** Contagem + stamp das escalas assinadas na caixa de entrada do Admin Geral. */
 export async function resumoRecebidosAdmin(db: Database): Promise<{
 	naoVistos: number;
 	stamp: string;

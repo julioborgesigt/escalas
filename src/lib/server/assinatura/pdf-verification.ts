@@ -18,6 +18,7 @@ import { binStringToBytes, bytesToBinString } from '$lib/crypto/bin';
 import { PDFDocument } from 'pdf-lib';
 import { logger } from '../logger';
 import { loadTrustStore, trustStoreRequerido } from './icp-brasil/trust-store';
+import { encontrarIssuerNoTrustStore } from './icp-brasil/cert-cn';
 import { statusDeSnapshot, type StatusOcsp } from './ocsp';
 import { mascararCPF } from '../../utils/pii';
 import { detectarDss } from './pades-lt';
@@ -1169,11 +1170,7 @@ export async function verificarAssinaturaCompleta(
 	if (options.ocspSnapshotB64) {
 		let issuerCert: forge.pki.Certificate | undefined;
 		try {
-			const ts = loadTrustStore();
-			const issuerCN = (cms.certificate.issuer.getField('CN')?.value as string) || '';
-			issuerCert = [...ts.intermediates, ...ts.roots].find(
-				(c) => (c.subject.getField('CN')?.value as string) === issuerCN
-			);
+			issuerCert = encontrarIssuerNoTrustStore(cms.certificate, loadTrustStore());
 		} catch {
 			/* sem issuer disponível — segue só com o status do snapshot */
 		}

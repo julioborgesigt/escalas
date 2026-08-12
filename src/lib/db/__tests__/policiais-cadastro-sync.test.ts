@@ -10,6 +10,7 @@
  * O que é deliberadamente diferente, e este arquivo trava junto:
  *   - o UPDATE do sync não toca `senha` nem `primeiro_acesso` — uma rodada de
  *     sincronização não pode derrubar o acesso de quem já usa o sistema;
+ *   - o UPDATE não reativa `ativo=0` quando o campo vem omitido (FLW-AUT-005);
  *   - o UPDATE não apaga contato: e-mail vazio no payload MANTÉM o valor atual,
  *     porque a folha de pessoal não é dona do e-mail pessoal;
  *   - e-mail pessoal NOVO zera `email_pessoal_verificado`.
@@ -146,6 +147,25 @@ describe('upsertPolicial — o que a rodada de sync NÃO pode fazer', () => {
 		await upsertPolicial(db, { ...BASE, email_pessoal: null });
 
 		expect(linha().email_pessoal_verificado).toBe(1);
+	});
+
+	it('omitir ativo no UPDATE preserva desativação (FLW-AUT-005)', async () => {
+		await upsertPolicial(db, BASE);
+		sqlite.exec('UPDATE policiais SET ativo = 0');
+
+		await upsertPolicial(db, { ...BASE, nome: 'FULANO ATUALIZADO' });
+
+		const l = linha();
+		expect(l.ativo).toBe(0);
+		expect(l.nome).toBe('FULANO ATUALIZADO');
+	});
+
+	it('ativo explícito no upsert prevalece', async () => {
+		await upsertPolicial(db, BASE);
+		sqlite.exec('UPDATE policiais SET ativo = 0');
+
+		await upsertPolicial(db, { ...BASE, ativo: 1 });
+		expect(linha().ativo).toBe(1);
 	});
 
 	it('grava papel COMO RECEBIDO — preservá-lo é do chamador (M-4)', async () => {

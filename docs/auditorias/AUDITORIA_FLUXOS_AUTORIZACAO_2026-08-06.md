@@ -406,6 +406,16 @@ Cliente pode redirecionar errado; próximo request deriva do DB corretamente.
 | Sem 409 em `excluir` com `escala_documentos` | AUT-003 |
 | `guard:autorizacao` conta “tem 403”, não “403 certo” | todos os ACL largos |
 
+**Fechados 12/ago (e2e + o furo que o gap de AUT-005 ainda escondia):**
+`criarComBase` cross-lotação (`escala-crud.spec.ts`); 409 em `excluir` com
+documento (`escala-crud.spec.ts`); sync preserva `ativo=0` (`webhook-sync.spec.ts`
++ unitário em `policiais-cadastro-sync.test.ts` — o webhook omitia o campo, mas
+`upsertPolicial` gravava `?? 1` no ON CONFLICT); presença antes do horário e
+após `finalizada` em `/res-gise` (`presenca-gise.spec.ts`). AUT-001 e AUT-010
+já tinham spec próprio (`assinatura-simples`, `gise-imutabilidade`). O gap do
+guard (“403 certo”) segue residual: conta presença de helper, não o 403 da
+regra de negócio.
+
 ### Nota operacional — Windows
 
 `npm run guard:autorizacao` lista rotas com `readdirSync` recursivo
@@ -476,7 +486,7 @@ atualização de goldens. Diagnóstico apenas.
 ## 8. Referências
 
 - Plano: [`PLANO_AUDITORIA_FLUXOS_INTEGRIDADE_2026-08-02.md`](./PLANO_AUDITORIA_FLUXOS_INTEGRIDADE_2026-08-02.md)  
-- Compreensibilidade/duplicação (mesmo dia): [`AUDITORIA_COMENTARIOS_DUPLICACAO_EXTRACAO_2026-08-06.md`](./AUDITORIA_COMENTARIOS_DUPLICACAO_EXTRACAO_2026-08-06.md)  
+- Compreensibilidade/duplicação (mesmo dia): `AUDITORIA_COMENTARIOS_DUPLICACAO_EXTRACAO_2026-08-06.md` (arquivada — [`docs/HISTORICO.md`](../HISTORICO.md))  
 - Diretrizes: [`CLAUDE.md`](../../CLAUDE.md) § operação material / autorização  
 - Guard: `scripts/guard-autorizacao.mjs` · e2e: `e2e/autorizacao-negativa.spec.ts`, `e2e/escala-papel.spec.ts`, `e2e/gise-imutabilidade.spec.ts`  
 - Helpers: `$lib/server/escalas/permissao.ts`, `$lib/server/gise/permissao.ts`, `gise/[id]/_actions/shared.ts`

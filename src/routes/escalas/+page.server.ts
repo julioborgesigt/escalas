@@ -21,9 +21,10 @@
  * As três actions:
  * - `criar` — recusa duplicata via `verificarEscalaExistente` (a UI já bloqueia
  *   no modal, mas o POST direto precisa morrer aqui);
- * - `excluir` — destrutiva, exige papel de administração. "Mesma lotação" vale
- *   para ler e assinar, não para apagar (achado B-2). Delega a
- *   `excluirEscalaCompleta`, que limpa o R2 ANTES do DELETE (R2-1);
+ * - `excluir` — destrutiva, exige papel de administração. "Mesma lotação" em
+ *   `verificarPermissaoEscala` vale só para leitura; assinar é
+ *   `podeAssinarEscala`. Delega a `excluirEscalaCompleta`, que limpa o R2
+ *   ANTES do DELETE (R2-1);
  * - `criarComBase` — copia a escala do mês anterior da mesma lotação/tipo.
  */
 import { redirect, fail } from '@sveltejs/kit';
@@ -38,7 +39,11 @@ import {
 	listarSolicitacoesEscalas
 } from '$lib/db';
 import { escalaSchema } from '$lib/schemas';
-import { registrarAuditComContexto, contextoDeEvento, batchNonEmpty } from '$lib/db';
+import {
+	registrarAuditComContexto,
+	contextoDeEvento,
+	inserirPoliciaisEscalaEmLotes
+} from '$lib/db';
 import { excluirEscalaCompleta } from '$lib/server/escalas/exclusao';
 import { podeOIPSolicitarAssinatura } from '$lib/server/escalas/permissao';
 import { logger } from '$lib/server/logger';
@@ -50,19 +55,12 @@ import {
 } from '$lib/server/policial-permissao';
 import {
 	escalas as escalasTable,
-	escalaPoliciais,
 	escalaDocumentos,
 	escalaSolicitacoesAssinatura,
 	policiais as policiaisTable
 } from '$lib/server/schema';
-import {
-	calcularProximoMesDias,
-	primeiroDiaDoMes,
-	ultimoDiaDoMes,
-	calcularDataSaida,
-	agruparDiasPorPolicial,
-	MESES_PT
-} from '$lib/rotacao';
+import { primeiroDiaDoMes, ultimoDiaDoMes, MESES_PT } from '$lib/rotacao';
+import { projetarLinhasMesSeguinte } from '$lib/server/escalas/projetar-mes';
 
 export const load: PageServerLoad = async ({ locals, platform, url, depends }) => {
 	// Chave de invalidação segmentada: mutações da listagem (excluir, solicitar/
@@ -381,8 +379,9 @@ export const actions: Actions = {
 		const u = locals.usuario;
 		if (!u) return fail(401, { error: 'Não autorizado' });
 		// Exclusão é destrutiva: exige papel de administração (mesmo guarda do
-		// load). "Mesma lotação" continua valendo apenas para leitura/assinatura
-		// (escalas/permissao.ts) — auditoria 2026-07-16, achado B-2.
+		// load). "Mesma lotação" em `verificarPermissaoEscala` vale só para
+		// LEITURA; assinar é `podeAssinarEscala` (DPC admin). Auditoria
+		// 2026-07-16, achado B-2.
 		if (u.tipo !== 'admin' && u.papel !== 'admin_seccional' && u.papel !== 'admin_unidade') {
 			return fail(403, { error: 'Sem permissão' });
 		}
@@ -508,70 +507,18 @@ export const actions: Actions = {
 			if (!novaEscalaId) return fail(500, { error: 'Erro ao criar escala' });
 
 			const policiaisAtuais = await listarPoliciaisEscala(db, escalaPrev.id);
-			let adicionados = 0;
-			const naoProcessados: Array<{ nome: string; motivo: string }> = [];
-			const linhasParaInserir: (typeof escalaPoliciais.$inferInsert)[] = [];
+			const { linhas, adicionados, naoProcessados } = projetarLinhasMesSeguinte({
+				tipo,
+				policiaisAtuais,
+				novaEscalaId,
+				ano,
+				mes,
+				dataInicioAlvo,
+				horaEntradaPadrao: escalaPrev.hora_entrada,
+				horaSaidaPadrao: escalaPrev.hora_saida
+			});
 
-			if (tipo === 'expediente') {
-				const vistos = new Set<number>();
-				const he = escalaPrev.hora_entrada || '00:00';
-				const hs = escalaPrev.hora_saida || '23:59';
-				for (const p of policiaisAtuais) {
-					if (vistos.has(p.policial_id)) continue;
-					vistos.add(p.policial_id);
-					const dsE = p.hora_entrada || he;
-					const dsS = p.hora_saida || hs;
-					linhasParaInserir.push({
-						escala_id: novaEscalaId,
-						policial_id: p.policial_id,
-						data_plantao: dataInicioAlvo,
-						data_saida: calcularDataSaida(dataInicioAlvo, dsE, dsS),
-						hora_entrada: dsE,
-						hora_saida: dsS
-					});
-					adicionados++;
-				}
-			} else {
-				const diasPorPolicial = agruparDiasPorPolicial(policiaisAtuais);
-				const he = escalaPrev.hora_entrada || '00:00';
-				const hs = escalaPrev.hora_saida || '23:59';
-				for (const [policialId, { nome, dias, equipe }] of diasPorPolicial) {
-					const { dias: novosDias, rotacao } = calcularProximoMesDias(dias, ano, mes);
-					if (novosDias.length === 0) {
-						naoProcessados.push({
-							nome,
-							motivo: rotacao === null ? 'Rotação não identificada' : 'Nenhum dia calculado'
-						});
-						continue;
-					}
-					for (const dia of novosDias) {
-						linhasParaInserir.push({
-							escala_id: novaEscalaId,
-							policial_id: policialId,
-							data_plantao: dia,
-							data_saida: calcularDataSaida(dia, he, hs),
-							hora_entrada: he,
-							hora_saida: hs,
-							equipe
-						});
-					}
-					adicionados++;
-				}
-			}
-
-			if (linhasParaInserir.length > 0) {
-				// D1 limita ~100 statements por batch e ~999 params por statement.
-				// Cada linha usa 8 campos → inserimos em lotes de 50 statements,
-				// bem abaixo do limite. db.batch() garante atomicidade por lote.
-				const BATCH_SIZE = 50;
-				for (let i = 0; i < linhasParaInserir.length; i += BATCH_SIZE) {
-					const chunk = linhasParaInserir.slice(i, i + BATCH_SIZE);
-					await batchNonEmpty(
-						db,
-						chunk.map((row) => db.insert(escalaPoliciais).values(row))
-					);
-				}
-			}
+			await inserirPoliciaisEscalaEmLotes(db, linhas);
 
 			return { success: true, id: novaEscalaId, adicionados, nao_processados: naoProcessados };
 		} catch (err) {

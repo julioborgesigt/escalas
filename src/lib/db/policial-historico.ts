@@ -1,3 +1,10 @@
+/**
+ * Linha do tempo funcional do policial (movimentação, afastamento, papel).
+ * APPEND-ONLY: a ficha explica o cadastro; a trilha forense de `/auditoria`
+ * é outro registro. Mutação de cadastro + evento entram no mesmo `db.batch`
+ * (`atualizarPolicialComHistorico`) para não deixar lotação trocada sem
+ * portaria (FLW-RBAC-005).
+ */
 import { eq, desc } from 'drizzle-orm';
 import { policiais, policialHistorico } from '../server/schema';
 import type { PolicialHistorico } from '../server/schema';

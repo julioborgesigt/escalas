@@ -1,4 +1,9 @@
 <script lang="ts">
+	/**
+	 * Cabeçalho da escala: tipo, período, lotação e o par Editar / Finalizar
+	 * edição. Quase só ternários de template — a decisão está em `podeEditar` e
+	 * no estado da assinatura, não em cada `if`.
+	 */
 	import { goto } from '$app/navigation';
 	import { formatarData } from '$lib/utils/datas';
 	import type { Escala } from '$lib/server/schema';

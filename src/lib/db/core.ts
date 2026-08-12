@@ -1,3 +1,12 @@
+/**
+ * Infra transversal da camada de dados: cliente D1, bindings R2, formato de
+ * timestamp SQLite (as duas convenções de fuso) e o epílogo de paginação.
+ *
+ * Nada aqui é de um domínio — escalas, GISE e auditoria consomem estes
+ * helpers. Timestamp errado (ISO contra TEXT SQLite, ou UTC contra Brasília)
+ * não lança: apaga dado ou desliga rate-limit em silêncio. Por isso as duas
+ * funções de corte têm o fuso no próprio nome.
+ */
 import { drizzle } from 'drizzle-orm/d1';
 import type { BatchItem } from 'drizzle-orm/batch';
 import * as schema from '../server/schema';

@@ -1,20 +1,23 @@
 # Histórico de auditorias e decisões arquivadas
 
 Os relatórios de auditoria e as avaliações arquivadas foram **removidos do
-working tree** em 2026-07-20 para enxugar o repositório — eles são registros
-históricos (fotografias de uma data específica, nunca atualizados) e continuam
-integralmente preservados no histórico do Git.
+working tree** para enxugar o repositório — eles são registros históricos
+(fotografias de uma data específica, **nunca atualizados**) e continuam
+integralmente preservados no Git. A primeira leva saiu em 2026-07-20; as
+posteriores, na data da linha da tabela.
 
 **Para ler qualquer um deles:**
 
 ```bash
-git show 4d8d2f7:docs/auditorias/<ARQUIVO>.md   # auditorias
+git show 4d8d2f7:docs/auditorias/<ARQUIVO>.md   # auditorias até jul/2026
 git show 4d8d2f7:docs/MIGRACAO-WORKERS.md        # avaliação Pages→Workers
 git show 864422c:docs/ARQUIVOS.md                # mapa arquivo-a-arquivo (revisão final)
+git show 0684c96d:docs/auditorias/ACHADOS_COMENTARIOS_DUPLICACAO_2026-08-03.md
+git show 0684c96d:docs/auditorias/AUDITORIA_COMENTARIOS_DUPLICACAO_EXTRACAO_2026-08-06.md
 ```
 
-(`4d8d2f7`/`864422c` são os últimos commits que contêm cada arquivo; qualquer
-commit anterior à respectiva remoção também serve.)
+O hash na tabela (ou nos exemplos acima) é o último commit que ainda contém o
+arquivo; qualquer commit anterior à respectiva remoção também serve.
 
 ## O que existia e por que importa
 
@@ -37,6 +40,8 @@ documentos:
 | `docs/MIGRACAO-WORKERS.md`                                                                | jun/2026                                    | Avaliação Pages→Workers, **arquivada**: o teto de 100k iterações PBKDF2 é do runtime (idêntico em Pages e Workers); o achado A3 foi resolvido pelo `PASSWORD_PEPPER`                                                                                                                                                                                                                                                                                                                                                                  |
 | `docs/ARQUIVOS.md`                                                                        | 2026-07-20 (revisão final em `864422c`)     | Mapa arquivo-a-arquivo do repositório. A revisão final não tem mais a seção de achados de código morto/duplicado (**D1/D2**, **M1–M5**, itens **11.3/11.4** citados em comentários do código) — para ela, use a versão de `4d8d2f7`                                                                                                                                                                                                                                                                                                   |
 | `docs/PLANO_DOCUMENTACAO.md`                                                              | 27–28/jul/2026 (última versão em `4fafd05`) | Varredura de documentação e código morto/duplicado, em 12 fases. Registra **oito defeitos achados por LEITURA, não por teste** — replay de webhook não detectado, cópias divergentes de helpers de data (duas quebrando em produção), gate de permissão documentado errado em 5 arquivos, exclusão de unidade sem validação, código morto e a própria régua medindo a coisa errada. Os princípios que sobreviveram viraram seções do `CLAUDE.md`; a régua (`docs:inventario`) e o guard de CI (`docs:guard`) continuam no repositório |
+| `ACHADOS_COMENTARIOS_DUPLICACAO_2026-08-03.md`                                            | 03/ago/2026 (última versão em `0684c96d`)   | Comentários/duplicação em `lib/server` + `lib/db` + `lib` raiz. Bugs de calendário/LGPD/unique; extrações (timing-safe, `sync-estado`, `institucional`); o resto **DUP-MANTER**. Lista fechada.                                                                                                                                                                                                                                                                                                                                      |
+| `AUDITORIA_COMENTARIOS_DUPLICACAO_EXTRACAO_2026-08-06.md`                                  | 06/ago/2026 (última versão em `0684c96d`)   | Rodada seguinte em `src/routes/**`. P0/P1 (`calcularDatasPlantao`, `podeOIPSolicitarAssinatura`, projeção de mês, `documento-assinado`, `exigirAdminGeral`) e extrações P2 (CN, `hojeBrasilISO`, `parseJson`, preparar-assinatura, `ChipNivel`, `Paginador`). DUP-MANTER permanece de propósito.                                                                                                                                                                                                                                    |
 
 ## Convenção para novas auditorias
 

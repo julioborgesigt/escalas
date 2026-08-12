@@ -97,6 +97,17 @@ export class ConflitoDeRenomeacaoUnidade extends Error {
 	}
 }
 
+/**
+ * Renomeia a unidade e propaga o nome novo para `policiais.lotacao` e
+ * `escalas.lotacao` na mesma transação.
+ *
+ * A gravação é condicionada ao nome lido (`WHERE nome = nomeAntigo`): duas
+ * renomeações a partir do mesmo estado — a perdedora vê 0 linhas e lança
+ * `ConflitoDeRenomeacaoUnidade`. Sem isso, a cascata da segunda gravava
+ * lotação órfã em cima da primeira.
+ *
+ * @returns o nome anterior, para o caller auditar a troca
+ */
 export async function atualizarUnidade(
 	db: Database,
 	id: number,

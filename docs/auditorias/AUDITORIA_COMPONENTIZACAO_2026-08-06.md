@@ -19,7 +19,7 @@ semânticas de domínio.
 | 3 | Contagem de linhas (`rg` + LiteralPath) nos maiores `.svelte` | Top: `GiseSupervisao` 1028 |
 | 4 | Grep de fingerprints (`Array.from length 24/60`, overlay `z-50`, `Limpar filtros`, `ModalShell`, `table-wrap`) | Clusters confirmados |
 | 5 | Leitura direta dos P1 (`ModalShell`, `ModalConfirmar`, painel×escalas, `BotoesAcao`×`GiseActionButton`, `conf-ass` switches) | Evidência de drift |
-| 6 | Cruzamento com README §10, CLAUDE.md e [`AUDITORIA_COMENTARIOS_DUPLICACAO_EXTRACAO_2026-08-06.md`](./AUDITORIA_COMENTARIOS_DUPLICACAO_EXTRACAO_2026-08-06.md) §4 | COMP-EXTRAIR / COMP-MANTER alinhados |
+| 6 | Cruzamento com README §10, CLAUDE.md e `AUDITORIA_COMENTARIOS_DUPLICACAO_EXTRACAO_2026-08-06.md` §4 (arquivada — [`docs/HISTORICO.md`](../HISTORICO.md)) | COMP-EXTRAIR / COMP-MANTER alinhados |
 
 **Não executado nesta rodada:** refatorações ou commits — só diagnóstico.  
 **2ª passagem (revisão de tarefas):** mesma data — re-grep + leitura dos call
@@ -370,7 +370,7 @@ rg --files -g "*.svelte" src | % { ... }
 
 | Documento | Sobreposição |
 | --------- | ------------ |
-| [`AUDITORIA_COMENTARIOS_DUPLICACAO_EXTRACAO_2026-08-06.md`](./AUDITORIA_COMENTARIOS_DUPLICACAO_EXTRACAO_2026-08-06.md) §4 | Mesmos COMP-EXTRAIR (hora, ModalShell, GiseSupervisao, …) — esta auditoria **aprofunda** inventário, métricas e C-MANTER de UI |
+| `AUDITORIA_COMENTARIOS_DUPLICACAO_EXTRACAO_2026-08-06.md` §4 (arquivada — [`docs/HISTORICO.md`](../HISTORICO.md)) | Mesmos COMP-EXTRAIR (hora, ModalShell, GiseSupervisao, …) — esta auditoria **aprofunda** inventário, métricas e C-MANTER de UI |
 | [`AUDITORIA_FLUXOS_AUTORIZACAO_2026-08-06.md`](./AUDITORIA_FLUXOS_AUTORIZACAO_2026-08-06.md) | Não misturar: fatiar UI não altera guards de servidor |
 | README §10 / CLAUDE.md | Fonte de verdade visual e regra “extrair antes de comentar” / calendários |
 
@@ -419,7 +419,7 @@ o working tree após a remediação.
 | 15 | Unificar ActionButton | P3 | **REJEITADO → C-MANTER** | Documentado nos cabeçalhos de `GiseActionButton` e `BotoesAcao` |
 | — | Banner erro auth | P3 | **ADIADO** | 3 sites; aproveitar se login for fatiado |
 | — | `HistoricoServidor` → Paginador | P3 | **REJEITADO** | Paginação client pequena; ROI baixo |
-| — | `ModalExcluirGise` → ModalShell | P2 | **ADIADO** | Pode usar shell com children; preservar fetch de impacto |
+| — | `ModalExcluirGise` → ModalShell | P2 | **FEITO 12/ago** | Shell com children; fetch de impacto preservado |
 | — | C-MANTER calendários / assinatura / DataTable / FilterBar | — | **CONFIRMADO** | Sem mudança |
 
 ### Checklist rápido pós-implementação (quando houver PR)

@@ -15,7 +15,6 @@ import {
 	auditar,
 	contextoDeEvento
 } from '$lib/db';
-import { isAdminGeral } from '$lib/auth';
 import { modoDeFinalizacao, PENDENCIAS_DA_ANTECIPADA } from '$lib/gise/finalizacao';
 import { invalidarPapelGiseMultiplos, coletarAfetadosGise } from '$lib/server/gise/papel-cache';
 import {
@@ -31,7 +30,7 @@ import {
 	LIMPEZA_R2_VAZIA
 } from '$lib/server/r2-cleanup';
 import { eq } from 'drizzle-orm';
-import { saiuDaFaseDeEdicao, carregarGiseEditavel } from './shared';
+import { saiuDaFaseDeEdicao, carregarGiseEditavel, exigirAdminGeral } from './shared';
 
 type Event = RequestEvent<{ id: string }>;
 
@@ -46,9 +45,9 @@ export const actionsEscala = {
 	 */
 	salvarSupervisores: async (event: Event) => {
 		const { request, locals, platform, params } = event;
-		const u = locals.usuario;
-		if (!u) return fail(401, { error: 'Não autorizado' });
-		if (!isAdminGeral(u)) return fail(403, { error: 'Apenas Admin Geral pode editar' });
+		if (!locals.usuario) return fail(401, { error: 'Não autorizado' });
+		const u = exigirAdminGeral(locals.usuario, 'Apenas Admin Geral pode editar');
+		if (!('id' in u)) return u;
 
 		const giseId = parseInt(params.id);
 		if (isNaN(giseId)) return fail(400, { error: 'ID inválido' });
@@ -202,9 +201,9 @@ export const actionsEscala = {
 	 * documento cair no texto padrão de `/gise/config`.
 	 */
 	salvarBreveRelatorio: async ({ request, locals, platform, params }: Event) => {
-		const u = locals.usuario;
-		if (!u) return fail(401, { error: 'Não autorizado' });
-		if (!isAdminGeral(u)) return fail(403, { error: 'Apenas Admin Geral' });
+		if (!locals.usuario) return fail(401, { error: 'Não autorizado' });
+		const u = exigirAdminGeral(locals.usuario);
+		if (!('id' in u)) return u;
 
 		const giseId = parseInt(params.id);
 		if (isNaN(giseId)) return fail(400, { error: 'ID inválido' });
@@ -235,8 +234,8 @@ export const actionsEscala = {
 	 * avisa a tela (`assinatura_revogada`) para o usuário entender o retrocesso.
 	 */
 	salvarDatasHorarios: async ({ request, locals, platform, params }: Event) => {
-		const u = locals.usuario;
-		if (!u || !isAdminGeral(u)) return fail(403, { error: 'Apenas Admin Geral' });
+		const u = exigirAdminGeral(locals.usuario);
+		if (!('id' in u)) return u;
 
 		const giseId = parseInt(params.id);
 		if (isNaN(giseId)) return fail(400, { error: 'ID inválido' });
@@ -292,8 +291,8 @@ export const actionsEscala = {
 
 	/** Envia a escala para a assinatura do supervisor. */
 	solicitarAssinatura: async ({ locals, platform, params }: Event) => {
-		const u = locals.usuario;
-		if (!u || !isAdminGeral(u)) return fail(403, { error: 'Apenas Admin Geral' });
+		const u = exigirAdminGeral(locals.usuario);
+		if (!('id' in u)) return u;
 
 		const giseId = parseInt(params.id);
 		if (isNaN(giseId)) return fail(400, { error: 'ID inválido' });
@@ -307,8 +306,8 @@ export const actionsEscala = {
 
 	/** Desfaz o pedido enquanto ninguém assinou (só vale em `aguardando_assinatura`). */
 	revogarPedidoAssinatura: async ({ locals, platform, params }: Event) => {
-		const u = locals.usuario;
-		if (!u || !isAdminGeral(u)) return fail(403, { error: 'Apenas Admin Geral' });
+		const u = exigirAdminGeral(locals.usuario);
+		if (!('id' in u)) return u;
 
 		const giseId = parseInt(params.id);
 		if (isNaN(giseId)) return fail(400, { error: 'ID inválido' });
@@ -330,8 +329,8 @@ export const actionsEscala = {
 	 */
 	finalizarGise: async (event: Event) => {
 		const { locals, platform, params } = event;
-		const u = locals.usuario;
-		if (!u || !isAdminGeral(u)) return fail(403, { error: 'Apenas Admin Geral' });
+		const u = exigirAdminGeral(locals.usuario);
+		if (!('id' in u)) return u;
 
 		const giseId = parseInt(params.id);
 		if (isNaN(giseId)) return fail(400, { error: 'ID inválido' });
@@ -385,8 +384,8 @@ export const actionsEscala = {
 
 	/** Reenvio manual da base de equipe, para quando o envio automático falhou. */
 	reenviarBaseEquipePlanilha: async ({ locals, platform, params }: Event) => {
-		const u = locals.usuario;
-		if (!u || !isAdminGeral(u)) return fail(403, { error: 'Apenas Admin Geral' });
+		const u = exigirAdminGeral(locals.usuario);
+		if (!('id' in u)) return u;
 
 		const giseId = parseInt(params.id);
 		if (isNaN(giseId)) return fail(400, { error: 'ID inválido' });
@@ -417,8 +416,8 @@ export const actionsEscala = {
 	 * `aguardando_assinatura` — nesse ponto o caminho é `revogarPedidoAssinatura`.
 	 */
 	reabrirEscala: async ({ locals, platform, params }: Event) => {
-		const u = locals.usuario;
-		if (!u || !isAdminGeral(u)) return fail(403, { error: 'Apenas Admin Geral' });
+		const u = exigirAdminGeral(locals.usuario);
+		if (!('id' in u)) return u;
 
 		const giseId = parseInt(params.id);
 		if (isNaN(giseId)) return fail(400, { error: 'ID inválido' });
@@ -447,8 +446,8 @@ export const actionsEscala = {
 
 	/** Exclui a GISE e tudo que ela gerou (linhas em cascata + arquivos no R2). */
 	excluirGise: async ({ locals, platform, params }: Event) => {
-		const u = locals.usuario;
-		if (!u || !isAdminGeral(u)) return fail(403, { error: 'Apenas Admin Geral' });
+		const u = exigirAdminGeral(locals.usuario);
+		if (!('id' in u)) return u;
 
 		const giseId = parseInt(params.id);
 		if (isNaN(giseId)) return fail(400, { error: 'ID inválido' });

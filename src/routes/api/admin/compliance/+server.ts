@@ -13,7 +13,7 @@ import { json } from '@sveltejs/kit';
 import { getDB } from '$lib/db';
 import { unidades, escalas, escalaDocumentos } from '$lib/server/schema';
 import { and, eq, gte, lte, inArray, sql } from 'drizzle-orm';
-import { getNowBR, MESES_PT, isoData, diasNoMes } from '$lib/utils/datas';
+import { getNowBR, MESES_PT, isoData, diasNoMes, labelFds } from '$lib/utils/datas';
 import type { ItemCompliance } from '$lib/types';
 import { requireAdmin } from '$lib/server/api';
 import type { RequestHandler } from './$types';
@@ -36,11 +36,9 @@ function fdsAtualSemana(hoje: Date): { inicio: string; fim: string; label: strin
 	const mesD = domingo.getMonth() + 1;
 	const diaD = domingo.getDate();
 
-	return {
-		inicio: isoData(anoS, mesS, diaS),
-		fim: isoData(anoD, mesD, diaD),
-		label: `FDS ${String(diaS).padStart(2, '0')}/${String(mesS).padStart(2, '0')}–${String(diaD).padStart(2, '0')}/${String(mesD).padStart(2, '0')}`
-	};
+	const inicio = isoData(anoS, mesS, diaS);
+	const fim = isoData(anoD, mesD, diaD);
+	return { inicio, fim, label: labelFds(inicio, fim) };
 }
 
 export const GET: RequestHandler = async ({ platform, locals, url }) => {

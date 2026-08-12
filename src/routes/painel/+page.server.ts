@@ -27,7 +27,7 @@ import {
 } from '$lib/db';
 import { excluirEscalaCompleta } from '$lib/server/escalas/exclusao';
 import type { Database } from '$lib/db';
-import { getNowBR, MESES_PT, isoData, diasNoMes } from '$lib/utils/datas';
+import { getNowBR, MESES_PT, isoData, diasNoMes, labelFds } from '$lib/utils/datas';
 import type { ItemCompliance } from '$lib/types';
 import { and, gte, lte, inArray } from 'drizzle-orm';
 import { escalas as escTable, escalaDocumentos as docTable } from '$lib/server/schema';
@@ -52,10 +52,12 @@ async function gerarCompliance(
 				// Saturday
 				const sab = new Date(y, m - 1, d);
 				const dom = new Date(y, m - 1, d + 1);
+				const inicio = isoData(sab.getFullYear(), sab.getMonth() + 1, sab.getDate());
+				const fim = isoData(dom.getFullYear(), dom.getMonth() + 1, dom.getDate());
 				list.push({
-					inicio: isoData(sab.getFullYear(), sab.getMonth() + 1, sab.getDate()),
-					fim: isoData(dom.getFullYear(), dom.getMonth() + 1, dom.getDate()),
-					label: `FDS ${String(sab.getDate()).padStart(2, '0')}/${String(sab.getMonth() + 1).padStart(2, '0')}–${String(dom.getDate()).padStart(2, '0')}/${String(dom.getMonth() + 1).padStart(2, '0')}`
+					inicio,
+					fim,
+					label: labelFds(inicio, fim)
 				});
 			}
 		}

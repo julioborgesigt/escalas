@@ -58,7 +58,8 @@ import {
 	contextoDeEvento,
 	finalizarEscalaFDS,
 	desfinalizarEscalaFDS,
-	buscarSolicitacaoAssinatura
+	buscarSolicitacaoAssinatura,
+	inserirPoliciaisEscalaEmLotes
 } from '$lib/db';
 import * as exportLib from '$lib/server/export';
 import { enviarEscalaFDSPorEmail } from '$lib/server/email';
@@ -70,14 +71,13 @@ import {
 	verificarConflitoGlobalBatch
 } from '$lib/server/escalas/conflict';
 import {
-	calcularProximoMesDias,
 	proximoMes,
 	primeiroDiaDoMes,
 	ultimoDiaDoMes,
 	calcularDataSaida,
-	agruparDiasPorPolicial,
 	MESES_PT
 } from '$lib/rotacao';
+import { projetarLinhasMesSeguinte } from '$lib/server/escalas/projetar-mes';
 import {
 	verificarPermissaoEscala,
 	podeMexerNaEscala,
@@ -541,67 +541,18 @@ export const actions: Actions = {
 
 			// Copiar policiais
 			const policiaisAtuais = await listarPoliciaisEscala(db, escalaId);
-			let adicionados = 0;
-			const naoProcessados: Array<{ nome: string; motivo: string }> = [];
-			const linhasParaInserir: (typeof escalaPoliciais.$inferInsert)[] = [];
+			const { linhas, adicionados, naoProcessados } = projetarLinhasMesSeguinte({
+				tipo: escalaAtual.tipo,
+				policiaisAtuais,
+				novaEscalaId,
+				ano: novoAno,
+				mes: novoMes,
+				dataInicioAlvo: novaDataInicio,
+				horaEntradaPadrao: escalaAtual.hora_entrada,
+				horaSaidaPadrao: escalaAtual.hora_saida
+			});
 
-			if (escalaAtual.tipo === 'expediente') {
-				const policialIdsVistos = new Set<number>();
-				const he = escalaAtual.hora_entrada || '00:00';
-				const hs = escalaAtual.hora_saida || '23:59';
-
-				for (const p of policiaisAtuais) {
-					if (policialIdsVistos.has(p.policial_id)) continue;
-					policialIdsVistos.add(p.policial_id);
-
-					const dsEntrada = p.hora_entrada || he;
-					const dsSaida = p.hora_saida || hs;
-					const dataSaida = calcularDataSaida(novaDataInicio, dsEntrada, dsSaida);
-
-					linhasParaInserir.push({
-						escala_id: novaEscalaId,
-						policial_id: p.policial_id,
-						data_plantao: novaDataInicio,
-						data_saida: dataSaida,
-						hora_entrada: dsEntrada,
-						hora_saida: dsSaida
-					});
-					adicionados++;
-				}
-			} else {
-				const diasPorPolicial = agruparDiasPorPolicial(policiaisAtuais);
-
-				const he = escalaAtual.hora_entrada || '00:00';
-				const hs = escalaAtual.hora_saida || '23:59';
-				for (const [policialId, { nome, dias, equipe }] of diasPorPolicial) {
-					const { dias: novosDias, rotacao } = calcularProximoMesDias(dias, novoAno, novoMes);
-					if (novosDias.length === 0) {
-						naoProcessados.push({
-							nome,
-							motivo: rotacao === null ? 'Rotação não identificada' : 'Nenhum dia calculado'
-						});
-						continue;
-					}
-					for (const dia of novosDias) {
-						const dataSaida = calcularDataSaida(dia, he, hs);
-						linhasParaInserir.push({
-							escala_id: novaEscalaId,
-							policial_id: policialId,
-							data_plantao: dia,
-							data_saida: dataSaida,
-							hora_entrada: he,
-							hora_saida: hs,
-							equipe
-						});
-					}
-					adicionados++;
-				}
-			}
-
-			// Batch único em vez de N INSERTs sequenciais
-			if (linhasParaInserir.length > 0) {
-				await db.insert(escalaPoliciais).values(linhasParaInserir);
-			}
+			await inserirPoliciaisEscalaEmLotes(db, linhas);
 
 			const { contexto, env } = contextoDeEvento(event);
 			await registrarAuditComContexto(db, {

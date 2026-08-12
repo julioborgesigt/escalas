@@ -48,6 +48,7 @@ export async function invalidateShared(...chaves: string[]) {
 	notifyInvalidate(...chaves);
 }
 
+/** Invalida o `load` desta aba e avisa as outras via BroadcastChannel. */
 export async function invalidateAllShared() {
 	await invalidateAll();
 	notifyInvalidateAll();

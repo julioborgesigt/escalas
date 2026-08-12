@@ -1,3 +1,8 @@
+/**
+ * Autorização do domínio GISE: participação (admin seccional/unidade), quadro
+ * de supervisão e vínculo de equipe. Não há `autorizar()` único — a regra
+ * deste domínio mora aqui.
+ */
 import { and, eq, or } from 'drizzle-orm';
 import { giseEquipes, giseMembros, giseSeccionais } from '../schema';
 import type { GiseEscala } from '../schema';

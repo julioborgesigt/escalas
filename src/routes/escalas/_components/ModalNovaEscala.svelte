@@ -20,7 +20,14 @@
 	 * cancelamento não pode trazer de volta o rascunho da tentativa anterior.
 	 */
 	import { Dialog } from '@skeletonlabs/skeleton-svelte';
-	import { MESES_PT, DIAS_SEMANA_CURTO, isoData, diasNoMes } from '$lib/utils/datas';
+	import {
+		MESES_PT,
+		DIAS_SEMANA_CURTO,
+		isoData,
+		diasNoMes,
+		labelFds,
+		adicionarDias
+	} from '$lib/utils/datas';
 	import Moon from '@lucide/svelte/icons/moon';
 	import Sun from '@lucide/svelte/icons/sun';
 	import Calendar from '@lucide/svelte/icons/calendar';
@@ -203,8 +210,7 @@
 	}
 	function tiposDisponiveis(u: Unidade) {
 		const sab = sabadoDaSemanaLocal();
-		const dS = String(sab.getDate()).padStart(2, '0');
-		const mS = String(sab.getMonth() + 1).padStart(2, '0');
+		const sabISO = isoData(sab.getFullYear(), sab.getMonth() + 1, sab.getDate());
 		const tipos: Array<{
 			tipo: 'plantao' | 'expediente' | 'fds';
 			label: string;
@@ -229,7 +235,7 @@
 			tipos.push({
 				tipo: 'fds',
 				label: 'Final de Semana',
-				desc: `FDS ${dS}/${mS}`,
+				desc: labelFds(sabISO, adicionarDias(sabISO, 1)),
 				icon: Calendar
 			});
 		return tipos;

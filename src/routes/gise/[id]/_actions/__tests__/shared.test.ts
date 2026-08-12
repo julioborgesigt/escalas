@@ -7,7 +7,7 @@
  * NÃO tem papel de seccional — é lá que o buraco estava.
  */
 import { describe, it, expect } from 'vitest';
-import { podePreencherSeccional } from '../shared';
+import { podePreencherSeccional, exigirAdminGeral } from '../shared';
 
 type Usuario = App.Locals['usuario'];
 
@@ -73,5 +73,32 @@ describe('podePreencherSeccional', () => {
 		expect(podePreencherSeccional(u, SECCIONAL)).toBe(false);
 		expect(podePreencherSeccional(u, null)).toBe(false);
 		expect(podePreencherSeccional(u, undefined)).toBe(false);
+	});
+});
+
+describe('exigirAdminGeral', () => {
+	it('recusa anônimo e policial', () => {
+		const anon = exigirAdminGeral(null);
+		expect('id' in anon).toBe(false);
+		if (!('id' in anon)) expect(anon.status).toBe(403);
+
+		const policialRecusa = exigirAdminGeral(policial());
+		expect('id' in policialRecusa).toBe(false);
+		if (!('id' in policialRecusa)) expect(policialRecusa.status).toBe(403);
+	});
+
+	it('devolve o usuário para Admin Geral', () => {
+		const admin = policial({ tipo: 'admin' });
+		const out = exigirAdminGeral(admin);
+		expect(out).toBe(admin);
+		expect('id' in out).toBe(true);
+	});
+
+	it('aceita mensagem customizada', () => {
+		const recusa = exigirAdminGeral(policial(), 'Apenas Admin Geral pode editar');
+		expect('id' in recusa).toBe(false);
+		if (!('id' in recusa)) {
+			expect(recusa.data).toEqual({ error: 'Apenas Admin Geral pode editar' });
+		}
 	});
 });

@@ -1,3 +1,9 @@
+/**
+ * POST /api/escalas/[id]/finalizar-assinatura
+ *
+ * Consome a intenção (FLW-DOC-001), embute o CMS no PDF preparado e grava o
+ * documento assinado. Permissão de leitura + `podeAssinarEscala`.
+ */
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import {

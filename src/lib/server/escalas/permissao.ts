@@ -1,10 +1,18 @@
+/**
+ * Autorização do domínio escalas ordinárias: leitura por lotação/solicitação
+ * (`verificarPermissaoEscala`) e quem pode assinar (`podeAssinarEscala`).
+ * Não há `autorizar()` único — a regra deste domínio mora aqui.
+ */
 import { temSolicitacaoParaDpcAdmin } from '$lib/db';
 import { lotacoesAdministradas } from '$lib/server/policial-permissao';
 import type { Database } from '$lib/db';
 import { isAnyAdmin } from '$lib/auth';
 
 /**
- * Verifica se o usuário tem permissão de leitura/assinatura sobre a escala.
+ * Verifica se o usuário tem permissão de LEITURA sobre a escala.
+ *
+ * Assinar / preparar / finalizar / revogar o PDF é outro gate:
+ * `podeAssinarEscala`, usado **depois** desta função.
  *
  * Regras, nesta ordem:
  * - Admin geral → sempre permitido

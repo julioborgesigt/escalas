@@ -1,3 +1,7 @@
+/**
+ * Chave/valor de `configuracoes`: retenção LGPD (art. 16), provedor de e-mail
+ * e flags de evidência da assinatura. Valores são TEXTO; quem lê converte.
+ */
 import { eq, sql } from 'drizzle-orm';
 import { configuracoes } from '../server/schema';
 import type { Database } from './core';

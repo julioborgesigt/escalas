@@ -73,13 +73,8 @@ import {
 } from '$lib/server/policial-permissao';
 import { decifrarCpfDoDB } from '$lib/crypto/cpf-cripto';
 import { resolverCredencial, revogarSessoesDaCredencial } from '$lib/server/auth/credencial';
-import { getNowBR } from '$lib/utils/datas';
+import { hojeBrasilISO } from '$lib/utils/datas';
 import type { RequestEvent } from './$types';
-
-/** Data de hoje no fuso de Brasília (UTC-3) no formato ISO YYYY-MM-DD. */
-function hojeBrasilISO(): string {
-	return getNowBR().toISOString().slice(0, 10);
-}
 
 const TAMANHO_MAX_PDF = 10 * 1024 * 1024; // 10 MB
 

@@ -17,28 +17,16 @@
 	import ChevronUp from '@lucide/svelte/icons/chevron-up';
 	import ArrowLeft from '@lucide/svelte/icons/arrow-left';
 	import KpiCard from '../_components/KpiCard.svelte';
+	import ChipNivel from '../_components/ChipNivel.svelte';
+	import { parseJson } from '../_components/parse-json';
 
 	const { data }: PageProps = $props();
-
-	// ---- Rótulos e cores ----
-	const NIVEL: Record<string, { label: string; cls: string }> = {
-		warn: { label: 'Aviso', cls: 'bg-warning-500/20 text-warning-700 dark:text-warning-300' },
-		error: { label: 'Erro', cls: 'bg-error-500/20 text-error-700 dark:text-error-300' }
-	};
 
 	// ---- Formatação ----
 	function fmtData(s: string | null): string {
 		if (!s) return '—';
 		const d = new Date(s.includes('T') ? s : s.replace(' ', 'T') + 'Z');
 		return Number.isNaN(d.getTime()) ? s : d.toLocaleString('pt-BR');
-	}
-	function parseJson(s: string | null): Record<string, unknown> | null {
-		if (!s) return null;
-		try {
-			return JSON.parse(s) as Record<string, unknown>;
-		} catch {
-			return null;
-		}
 	}
 
 	// ---- Query string para paginação preservando filtros ----
@@ -220,7 +208,6 @@
 				</thead>
 				<tbody>
 					{#each data.logs as log (log.id)}
-						{@const niv = NIVEL[log.level] ?? NIVEL.warn}
 						{@const ctx = parseJson(log.contexto)}
 						<tr
 							class="border-b border-surface-200/60 dark:border-white/5 hover:bg-surface-100/60 dark:hover:bg-surface-800/40 cursor-pointer"
@@ -230,9 +217,7 @@
 								{fmtData(log.created_at)}
 							</td>
 							<td class="px-3 py-2">
-								<span class="inline-block px-2 py-0.5 rounded-full text-xs font-medium {niv.cls}">
-									{niv.label}
-								</span>
+								<ChipNivel nivel={log.level} fallback="warn" />
 							</td>
 							<td class="px-3 py-2 font-medium text-surface-900 dark:text-white max-w-md truncate">
 								{log.message}
@@ -298,7 +283,6 @@
 		<!-- Lista de Cards (Mobile) -->
 		<div class="block md:hidden space-y-3">
 			{#each data.logs as log (log.id)}
-				{@const niv = NIVEL[log.level] ?? NIVEL.warn}
 				{@const ctx = parseJson(log.contexto)}
 
 				<div
@@ -315,9 +299,7 @@
 					}}
 				>
 					<div class="flex items-center justify-between gap-2">
-						<span class="inline-block px-2 py-0.5 rounded-full text-xs font-semibold {niv.cls}">
-							{niv.label}
-						</span>
+						<ChipNivel nivel={log.level} fallback="warn" />
 						<span class="text-xs text-surface-600 dark:text-surface-400"
 							>{fmtData(log.created_at)}</span
 						>

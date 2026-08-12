@@ -1,16 +1,3 @@
-import { fail } from '@sveltejs/kit';
-import type { RequestEvent } from '@sveltejs/kit';
-import { getDB, tryGetR2, atualizarGiseEquipe, excluirGiseEquipe, criarGiseEquipe } from '$lib/db';
-import { isAdminGeral } from '$lib/auth';
-import { giseMembros } from '$lib/server/schema';
-import { eq } from 'drizzle-orm';
-import { getInt, carregarEquipeDaGise, carregarSeccionalDaGise } from './shared';
-import {
-	concluirMudancaGise,
-	invalidarAssinaturasDaSeccional,
-	invalidarDocumentoDaEscala
-} from './desfecho';
-
 /**
  * Form actions das EQUIPES da GISE (bloco de cada seccional em `/gise/[id]`).
  *
@@ -24,6 +11,17 @@ import {
  * escala finalizada e amarra o id filho à GISE da URL; escrito à mão, faltava
  * numa das quatro (FLW-GISE-006) e nas quatro (FLW-GISE-007).
  */
+import { fail } from '@sveltejs/kit';
+import type { RequestEvent } from '@sveltejs/kit';
+import { getDB, tryGetR2, atualizarGiseEquipe, excluirGiseEquipe, criarGiseEquipe } from '$lib/db';
+import { giseMembros } from '$lib/server/schema';
+import { eq } from 'drizzle-orm';
+import { getInt, carregarEquipeDaGise, carregarSeccionalDaGise, exigirAdminGeral } from './shared';
+import {
+	concluirMudancaGise,
+	invalidarAssinaturasDaSeccional,
+	invalidarDocumentoDaEscala
+} from './desfecho';
 
 type Event = RequestEvent<{ id: string }>;
 
@@ -31,8 +29,8 @@ export const actionsEquipe = {
 	/** Muda o número de vagas (DPC/OIP) de uma equipe já existente. */
 	salvarSlotsEquipe: async (event: Event) => {
 		const { request, locals, platform, params } = event;
-		const u = locals.usuario;
-		if (!u || !isAdminGeral(u)) return fail(403, { error: 'Apenas Admin Geral' });
+		const u = exigirAdminGeral(locals.usuario);
+		if (!('id' in u)) return u;
 
 		const giseId = parseInt(params.id);
 		const formData = await request.formData();
@@ -76,8 +74,8 @@ export const actionsEquipe = {
 	/** Horário próprio da equipe (sobrepõe o da seccional e o da escala). */
 	salvarHorariosEquipe: async (event: Event) => {
 		const { request, locals, platform, params } = event;
-		const u = locals.usuario;
-		if (!u || !isAdminGeral(u)) return fail(403, { error: 'Apenas Admin Geral' });
+		const u = exigirAdminGeral(locals.usuario);
+		if (!('id' in u)) return u;
 
 		const giseId = parseInt(params.id);
 		const formData = await request.formData();
@@ -129,8 +127,8 @@ export const actionsEquipe = {
 	/** Cria uma equipe (operacional ou SEINT) dentro de uma seccional. */
 	adicionarEquipe: async (event: Event) => {
 		const { request, locals, platform, params } = event;
-		const u = locals.usuario;
-		if (!u || !isAdminGeral(u)) return fail(403, { error: 'Apenas Admin Geral' });
+		const u = exigirAdminGeral(locals.usuario);
+		if (!('id' in u)) return u;
 
 		const giseId = parseInt(params.id);
 		const formData = await request.formData();
@@ -178,8 +176,8 @@ export const actionsEquipe = {
 	/** Remove a equipe (e, em cascata, seus membros). */
 	removerEquipe: async (event: Event) => {
 		const { request, locals, platform, params } = event;
-		const u = locals.usuario;
-		if (!u || !isAdminGeral(u)) return fail(403, { error: 'Apenas Admin Geral' });
+		const u = exigirAdminGeral(locals.usuario);
+		if (!('id' in u)) return u;
 
 		const giseId = parseInt(params.id);
 		const formData = await request.formData();

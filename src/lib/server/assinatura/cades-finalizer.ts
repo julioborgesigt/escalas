@@ -27,6 +27,11 @@ import {
 } from './pdf-verification';
 import { consultarOcsp } from './ocsp';
 import { loadTrustStore, trustStoreRequerido } from './icp-brasil/trust-store';
+import {
+	cnDoCertificado,
+	encontrarCertPorCN,
+	encontrarIssuerNoTrustStore
+} from './icp-brasil/cert-cn';
 import { aplicarDss } from './pades-lt';
 import { anexarCarimboTempo, tstEmBase64 } from './tsa-embed';
 import { extrairDadosDoCertificado } from './pdf-signing-prepare';
@@ -380,10 +385,7 @@ export async function verificarECarimbarAssinatura(
 	let ocspDerParaDss: Uint8Array | null = null;
 	try {
 		const ts = loadTrustStore();
-		const issuerCN = (cms.certificate.issuer.getField('CN')?.value as string) || '';
-		const issuer = [...ts.intermediates, ...ts.roots].find(
-			(c) => (c.subject.getField('CN')?.value as string) === issuerCN
-		);
+		const issuer = encontrarIssuerNoTrustStore(cms.certificate, ts);
 		if (issuer) {
 			issuerCertParaDss = issuer;
 			const snap = await consultarOcsp(cms.certificate, issuer);
@@ -423,7 +425,7 @@ export async function verificarECarimbarAssinatura(
 			}
 		} else if (ts.disponivel) {
 			logger.warn('[CADES] Issuer não encontrado no trust store — OCSP pulado', {
-				issuerCN
+				issuerCN: cnDoCertificado(cms.certificate, 'issuer')
 			});
 		}
 	} catch (e) {
@@ -445,11 +447,11 @@ export async function verificarECarimbarAssinatura(
 	// A extração de nome/CPF é a de `pdf-signing-prepare`: `getField('serialNumber')`
 	// devolve null no node-forge (o atributo 2.5.4.5 não tem shortName na tabela
 	// OID), e a cópia local que existia aqui caía sempre no fallback do CN.
-	const cn = (cms.certificate.subject.getField('CN')?.value as string) || '';
+	const cn = cnDoCertificado(cms.certificate);
 	const { cpf } = extrairDadosDoCertificado(cms.certificate);
 
 	const metadata: AssinaturaCadesMetadata = {
-		cert_issuer: (cms.certificate.issuer.getField('CN')?.value as string) || undefined,
+		cert_issuer: cnDoCertificado(cms.certificate, 'issuer') || undefined,
 		cert_serial: cms.certificate.serialNumber,
 		cert_valido_de: cms.certificate.validity.notBefore.toISOString(),
 		cert_valido_ate: cms.certificate.validity.notAfter.toISOString(),
@@ -474,11 +476,7 @@ export async function verificarECarimbarAssinatura(
 		// Adiciona raiz se trust store disponível e o issuer não é raiz.
 		if (issuerCertParaDss) {
 			const ts = loadTrustStore();
-			const rootMatch = ts.roots.find(
-				(r) =>
-					(r.subject.getField('CN')?.value as string) ===
-					(issuerCertParaDss!.issuer.getField('CN')?.value as string)
-			);
+			const rootMatch = encontrarCertPorCN(ts.roots, cnDoCertificado(issuerCertParaDss, 'issuer'));
 			if (rootMatch && rootMatch !== issuerCertParaDss) {
 				const der = forge.asn1.toDer(forge.pki.certificateToAsn1(rootMatch)).getBytes();
 				certsDer.push(binStringToBytes(der));

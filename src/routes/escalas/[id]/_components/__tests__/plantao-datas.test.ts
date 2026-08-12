@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { calcularDatasPlantao } from '../plantao-datas';
+import { calcularDatasPlantao, ultimoDiaMes } from '../plantao-datas';
 
 describe('calcularDatasPlantao', () => {
 	const escala = { data_inicio: '2026-03-01', data_fim: '2026-03-31' };
@@ -49,5 +49,16 @@ describe('calcularDatasPlantao', () => {
 
 	it('primeiro plantão vazio → []', () => {
 		expect(calcularDatasPlantao(escala, '', '1x3')).toEqual([]);
+	});
+});
+
+describe('ultimoDiaMes', () => {
+	it('devolve o último dia do mês da data ISO', () => {
+		expect(ultimoDiaMes('2026-03-01')).toBe(31);
+		expect(ultimoDiaMes('2026-02-10')).toBe(28);
+		expect(ultimoDiaMes('2024-02-01')).toBe(29);
+	});
+	it('data vazia → 31 (teto do input)', () => {
+		expect(ultimoDiaMes('')).toBe(31);
 	});
 });

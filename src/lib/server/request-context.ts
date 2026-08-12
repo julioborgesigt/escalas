@@ -1,4 +1,5 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
+import { timestampSqliteUtc } from '$lib/db/core';
 
 /**
  * Entrada de log técnico capturada durante a request. `logger.warn`/`logger.error`
@@ -62,6 +63,6 @@ export function capturarLogPendente(
 		level,
 		message,
 		contexto: serializarContexto(contexto),
-		created_at: new Date().toISOString().slice(0, 19).replace('T', ' ')
+		created_at: timestampSqliteUtc()
 	});
 }

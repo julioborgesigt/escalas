@@ -1,3 +1,11 @@
+/**
+ * Form actions dos MEMBROS (policiais alocados às vagas das equipes) em
+ * `/gise/[id]`.
+ *
+ * Diferente das equipes, aqui o admin seccional também escreve — desde que a
+ * seccional seja a dele (`u.papel_unidade_id === sec.seccional_id`). É o passo
+ * que cada seccional executa antes de "finalizar" seu preenchimento.
+ */
 import { fail } from '@sveltejs/kit';
 import type { RequestEvent } from '@sveltejs/kit';
 import {
@@ -45,15 +53,6 @@ async function explicarRecusaDeVaga(
 	const slot = await verificarSlotEquipe(db, equipeId, policialId);
 	return slot.motivo ?? 'Vagas esgotadas nesta equipe';
 }
-
-/**
- * Form actions dos MEMBROS (policiais alocados às vagas das equipes) em
- * `/gise/[id]`.
- *
- * Diferente das equipes, aqui o admin seccional também escreve — desde que a
- * seccional seja a dele (`u.papel_unidade_id === sec.seccional_id`). É o passo
- * que cada seccional executa antes de "finalizar" seu preenchimento.
- */
 
 type Event = RequestEvent<{ id: string }>;
 

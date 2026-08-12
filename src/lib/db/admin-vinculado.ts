@@ -1,3 +1,7 @@
+/**
+ * Vínculo policial ↔ conta Admin Geral: a mesma pessoa loga nos dois papéis
+ * com a matrícula. A conta admin não tem senha própria.
+ */
 import { eq } from 'drizzle-orm';
 import { administradores, policiais } from '../server/schema';
 import { gerarSenhaAleatoriaHash } from '../auth';

@@ -59,6 +59,13 @@ interface MakeEnhanceHandlerOptions<D extends ResultData = ResultData> {
 	onError?: (data: ResultData | undefined) => void | Promise<void>;
 }
 
+/**
+ * Fábrica de `SubmitFunction` para o domínio GISE, onde ~30 actions seguem o
+ * mesmo roteiro (flag de progresso + invalidação + toast + callbacks).
+ *
+ * Não serve ao domínio de escalas: lá cada handler faz atualização otimista
+ * própria no sucesso. Para só o ramo de erro, use `mostrarErroDeResultado`.
+ */
 export function makeEnhanceHandler<D extends ResultData = ResultData>(
 	options: MakeEnhanceHandlerOptions<D>
 ): SubmitFunction {
