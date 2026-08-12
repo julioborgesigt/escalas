@@ -145,6 +145,18 @@ export interface GiseModeloPerguntaConfig {
 	filhos?: GiseModeloPerguntaConfig[];
 	subtexto_qtd?: string;
 	subtexto_lista?: string;
+	/**
+	 * Como cada linha da listagem é nomeada no relatório assinado — "Procedimento
+	 * 1", "Mandado 1", "Apreensão 1".
+	 *
+	 * Existe para o tipo reutilizável (`lista_detalhada`) poder substituir os
+	 * tipos de chave fixa sem perder o nome no PDF. Aqueles três traziam o rótulo
+	 * embutido no tipo; o genérico serve a qualquer pergunta e por isso pergunta.
+	 *
+	 * Vazio ou ausente cai em "Item", que é o que o genérico sempre usou — modelo
+	 * antigo continua saindo igual, sem migração.
+	 */
+	subtexto_item?: string;
 	subtexto_tipo?: string;
 	subtexto_detalhe?: string;
 	/** Rótulo do campo DENOMINADOR no tipo `proporcao`; cai em "Total" se vazio. */

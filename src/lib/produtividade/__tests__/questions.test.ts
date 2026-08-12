@@ -135,6 +135,35 @@ describe('mapQuestions', () => {
 		expect(q.mappedKey).toBe('celulares_qtd');
 	});
 
+	it('TODO tipo de lista pode virar card, com a chave resolvida', () => {
+		// Era o bug: o painel resolvia a chave por uma tabela própria que cobria só
+		// os tipos SEINT, então mandado, prisão e apreensão podiam virar indicador
+		// de meta e não podiam virar gráfico. Agora quem resolve é `chavesLista`, a
+		// mesma função do indicador.
+		const questoes = mapQuestions([
+			{ id: 1, texto: 'Mandados', tipo: 'mandados_maiores', key: 'm_bool', grafico: COLUNAS },
+			{ id: 2, texto: 'Prisões', tipo: 'prisoes_maiores', key: 'p_bool', grafico: COLUNAS },
+			{ id: 3, texto: 'Apreensões', tipo: 'apreensoes_menores', key: 'a_bool', grafico: COLUNAS }
+		]);
+
+		expect(questoes.map((q) => q.mappedKey)).toEqual([
+			'mandados_qtd',
+			'prisoes_qtd',
+			'apreensoes_qtd'
+		]);
+	});
+
+	it('o tipo REUTILIZÁVEL deriva a chave da pergunta, e por isso se repete', () => {
+		// É o que permite duas perguntas de lista no mesmo formulário sem uma
+		// sobrescrever a outra — e o que torna os três tipos acima dispensáveis.
+		const questoes = mapQuestions([
+			{ id: 1, texto: 'Mandados', tipo: 'lista_detalhada', key: 'extra_a', grafico: COLUNAS },
+			{ id: 2, texto: 'Prisões', tipo: 'lista_detalhada', key: 'extra_b', grafico: COLUNAS }
+		]);
+
+		expect(questoes.map((q) => q.mappedKey)).toEqual(['extra_a__qtd', 'extra_b__qtd']);
+	});
+
 	it('preserva a identidade de drogas e armas nos cards', () => {
 		// Sem isto, "Ranking de Drogas" viraria o texto cru da pergunta e o peso
 		// apareceria em gramas.

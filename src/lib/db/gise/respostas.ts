@@ -49,6 +49,8 @@ interface PerguntaModelo {
 	subtexto_qtd?: string;
 	subtexto_lista?: string;
 	subtexto_tipo?: string;
+	/** Nome de cada linha da listagem no relatório — ver `GiseModeloPerguntaConfig`. */
+	subtexto_item?: string;
 }
 
 // ---- Formulário de Produtividade ----
@@ -469,14 +471,22 @@ export async function buscarRespostasProdutividadeSeccional(
 					// Tipo REUTILIZÁVEL: a lista dele não tem chave fixa — sai da `key`
 					// da pergunta (`chavesLista`), que é o que permite haver várias no
 					// mesmo formulário sem uma sobrescrever a outra.
+					//
+					// O rótulo da linha vem da pergunta (`subtexto_item`) porque o tipo
+					// não sabe do que a lista é. Os tipos de chave fixa traziam o nome
+					// embutido ("Procedimento", "Mandado", "Apreensão"); o genérico serve
+					// a qualquer pergunta, e sem este campo ele não teria como substituir
+					// os três no PDF assinado. Vazio cai em "Item", que é o que ele
+					// sempre usou — relatório antigo sai idêntico.
 					if (p.tipo === TIPO_LISTA_REUTILIZAVEL) {
 						const lista = resps[chavesLista(p)!.lista];
+						const rotulo = p.subtexto_item?.trim() || 'Item';
 						if (Array.isArray(lista)) {
 							(lista as { nome?: string; mandado?: string }[]).forEach((item, idx) => {
 								if (item.nome || item.mandado) {
 									allResults.push({
 										equipe_id: eqId,
-										pergunta: `  ↳ Item ${idx + 1}`,
+										pergunta: `  ↳ ${rotulo} ${idx + 1}`,
 										resposta: `${item.nome} - ${item.mandado}`
 									});
 								}

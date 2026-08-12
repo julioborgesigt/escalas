@@ -54,7 +54,19 @@ const MODELO_ENXUTO = JSON.stringify([
 		grafico: { colunas: true },
 		filhos: []
 	},
-	{ id: 2, texto: 'KM INICIAL DA VIATURA', tipo: 'numero', key: 'e2e_km_inicial', filhos: [] }
+	{ id: 2, texto: 'KM INICIAL DA VIATURA', tipo: 'numero', key: 'e2e_km_inicial', filhos: [] },
+	// O tipo GENÉRICO no lugar de `prisoes_maiores`: mesma coleta, chave derivada
+	// da pergunta, e agora com ranking — que era o que faltava para ele poder
+	// substituir os tipos de chave fixa.
+	{
+		id: 3,
+		texto: 'HOUVE PROCEDIMENTO EM FLAGRANTE?',
+		tipo: 'lista_detalhada',
+		key: 'e2e_flagrante',
+		subtexto_item: 'Procedimento',
+		grafico: { ranking: true },
+		filhos: []
+	}
 ]);
 
 /** O formulário completo: tem as perguntas que alimentam os três blocos fixos. */
@@ -122,7 +134,11 @@ test.beforeAll(() => {
 		DELETE FROM gise_respostas_formulario WHERE gise_id IN (${C.giseEnxuta}, ${C.giseCompleta});
 		INSERT INTO gise_respostas_formulario (gise_id, policial_id, equipe_id, respostas) VALUES
 			(${C.giseEnxuta}, ${FIXTURE.membroGise.id}, ${C.equipeEnxuta},
-				'{"e2e_atendimentos":7,"e2e_km_inicial":12345}');
+				'{"e2e_atendimentos":7,"e2e_km_inicial":12345,"e2e_flagrante":"Sim","e2e_flagrante__qtd":4}'),
+			-- A MESMA pergunta respondida "Não", com a quantidade que sobrou no blob.
+			-- O relatório assinado ignora esse resto; o painel tem de ignorar também.
+			(${C.giseEnxuta}, ${FIXTURE.policialA.id}, ${C.equipeEnxuta},
+				'{"e2e_flagrante":"Não","e2e_flagrante__qtd":99}');
 	`);
 });
 
@@ -165,6 +181,24 @@ test('só a pergunta MARCADA vira gráfico', async ({ page }) => {
 	// (12345 no blob) e continua sendo coletado; só não vira card.
 	await expect(page.getByText('KM INICIAL DA VIATURA')).toHaveCount(0);
 	await expect(page.getByText('12345')).toHaveCount(0);
+});
+
+test('o tipo genérico de lista vira ranking, com o gate do "Sim"', async ({ page }) => {
+	test.skip(!cenarioOk, 'D1 local indisponível');
+	const ok = await autenticarPagina(page, FIXTURE.adminGeral.id, 'admin');
+	test.skip(!ok, 'D1 local indisponível');
+	test.skip(!(await abrirPainel(page, C.enxuta)), 'operação do cenário não foi criada');
+
+	// "Quantidade + Lista" no lugar de `prisoes_maiores`: mesma coleta, e agora
+	// com ranking — que é o que faltava para ele substituir os tipos de chave fixa.
+	const card = page.locator('.card').filter({ hasText: 'HOUVE PROCEDIMENTO EM FLAGRANTE?' });
+	await expect(card).toBeVisible();
+
+	// 4 do "Sim", e NÃO 103: os 99 do relatório respondido "Não" não contam. O
+	// número está no blob, e o PDF assinado já o ignorava.
+	await expect(card.getByText('4', { exact: true }).first()).toBeVisible();
+	await expect(card.getByText('103')).toHaveCount(0);
+	await expect(card.getByText('99')).toHaveCount(0);
 });
 
 test('os blocos fixos SOMEM na operação cujo formulário não tem a pergunta', async ({ page }) => {
@@ -258,11 +292,12 @@ test('operação sem nada a mostrar explica o que fazer, em vez de ficar em bran
 	const id = operacaoId(C.enxuta);
 	test.skip(id == null, 'operação do cenário não foi criada');
 
-	// Desmarca a última pergunta que restava: o painel fica sem indicador, sem
-	// bloco fixo e sem gráfico.
+	// Desmarca as DUAS perguntas marcadas: o painel fica sem indicador, sem bloco
+	// fixo e sem card nenhum. Basta uma sobrar para o aviso não aparecer — que é
+	// exatamente o que ele promete.
 	execD1Local(
 		`UPDATE gise_modelo_formulario
-		 SET config = json_remove(config, '$[0].grafico')
+		 SET config = json_remove(config, '$[2].grafico', '$[0].grafico')
 		 WHERE operacao_id = ${id} AND tipo = 'operacional';`
 	);
 
@@ -271,10 +306,12 @@ test('operação sem nada a mostrar explica o que fazer, em vez de ficar em bran
 	// O conserto não está nesta página, e a tela diz onde está.
 	await expect(page.getByText('Mostrar na produtividade')).toBeVisible();
 
-	// Repõe a marca para não deixar o cenário sujo se o spec for reexecutado.
+	// Repõe as marcas para não deixar o cenário sujo se o spec for reexecutado.
 	execD1Local(
 		`UPDATE gise_modelo_formulario
-		 SET config = json_set(config, '$[0].grafico', json('{"colunas":true}'))
+		 SET config = json_set(
+		   json_set(config, '$[0].grafico', json('{"colunas":true}')),
+		   '$[2].grafico', json('{"ranking":true}'))
 		 WHERE operacao_id = ${id} AND tipo = 'operacional';`
 	);
 });
@@ -288,12 +325,38 @@ test('o editor traz a caixinha, e ela reflete o que está gravado', async ({ pag
 
 	await page.goto(`/res-gise?operacaoId=${id}`);
 
-	// Uma caixinha por pergunta graficável — as duas são `numero`.
-	const caixas = page.getByRole('checkbox', { name: /Colunas por unidade/ });
-	await expect(caixas).toHaveCount(2);
-	// A primeira é a marcada; a segunda, a quilometragem.
-	await expect(caixas.nth(0)).toBeChecked();
-	await expect(caixas.nth(1)).not.toBeChecked();
+	// Uma caixinha por pergunta graficável: as duas `numero` e a de lista — que
+	// só passou a ter caixinha quando o painel deixou de resolver a chave por
+	// tabela própria.
+	const colunas = page.getByRole('checkbox', { name: /Colunas por unidade/ });
+	await expect(colunas).toHaveCount(3);
+	// Atendimentos marcada em colunas; quilometragem e flagrante, não.
+	await expect(colunas.nth(0)).toBeChecked();
+	await expect(colunas.nth(1)).not.toBeChecked();
+	await expect(colunas.nth(2)).not.toBeChecked();
+
+	// E o flagrante está marcado em RANKING, que é a forma dele.
+	const rankings = page.getByRole('checkbox', { name: /Ranking de unidades/ });
+	await expect(rankings.nth(0)).not.toBeChecked();
+	await expect(rankings.nth(2)).toBeChecked();
+});
+
+test('o tipo de lista APOSENTADO não é oferecido para pergunta nova', async ({ page }) => {
+	test.skip(!cenarioOk, 'D1 local indisponível');
+	const ok = await autenticarPagina(page, FIXTURE.adminGeral.id, 'admin');
+	test.skip(!ok, 'D1 local indisponível');
+	const id = operacaoId(C.enxuta);
+	test.skip(id == null, 'operação do cenário não foi criada');
+
+	await page.goto(`/res-gise?operacaoId=${id}`);
+
+	// Nenhuma pergunta deste formulário usa os três, então nenhum aparece. O
+	// genérico "Quantidade + Lista" faz o mesmo e ainda se repete.
+	const seletor = page.locator('select[id^="p-tp-"]').first();
+	await expect(seletor.locator('option[value="mandados_maiores"]')).toHaveCount(0);
+	await expect(seletor.locator('option[value="prisoes_maiores"]')).toHaveCount(0);
+	await expect(seletor.locator('option[value="apreensoes_menores"]')).toHaveCount(0);
+	await expect(seletor.locator('option[value="lista_detalhada"]')).toHaveCount(1);
 });
 
 test('desmarcar no editor e salvar tira o card do painel', async ({ page }) => {
