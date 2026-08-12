@@ -49,5 +49,13 @@ export const ICONE: Record<string, string[]> = {
 	],
 	historico: ['M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z'],
 	info: ['M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z'],
-	setaDireita: ['M17 8l4 4m0 0l-4 4m4-4H3']
+	setaDireita: ['M17 8l4 4m0 0l-4 4m4-4H3'],
+	/** Volta de um nível do menu para o anterior. */
+	setaEsquerda: ['M10 19l-7-7m0 0l7-7m-7 7h18'],
+	/**
+	 * Chevron, e não seta: no item de menu ele diz "isto ABRE um submenu", que é
+	 * diferente de "isto leva a outro lugar" (o que a seta diz). Os dois convivem
+	 * na mesma barra e precisam continuar dizendo coisas diferentes.
+	 */
+	chevronDireita: ['M9 5l7 7-7 7']
 };

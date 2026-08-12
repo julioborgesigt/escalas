@@ -259,8 +259,43 @@ Verificar cada transição de status:
 
 ### 4.12 Navegação do módulo (barra lateral)
 
-- [ ] Admin Geral: **não** há mais "Conf. Form." nem "Dados base" no menu — os
-      dois são botões na linha de cada operação em `/gise/operacoes`
+> O agrupamento em dois níveis tem cobertura automatizada em
+> `e2e/sidebar-escala-extra.spec.ts`. Manual: o que só se vê com o dado real de
+> cada papel, e o teclado.
+
+**O menu de dois níveis:**
+
+- [ ] A raiz traz **"Escala extra"** com o chevron à direita; os itens do assunto
+      (Escalas, Produtividade, Dados base, Minha presença, Meu histórico) **não**
+      estão na raiz
+- [ ] Clicar nele SUBSTITUI a barra pelo submenu — "Escalas ordinárias", "Meu
+      perfil" e os demais saem de vista, e não ficam indentados abaixo
+- [ ] A primeira linha do submenu é o voltar, com seta e o nome do pai; clicar
+      devolve a raiz exatamente como estava
+- [ ] Estando em `/produtividade` (ou qualquer rota do submenu), abrir o menu já
+      mostra o submenu, com o item aceso
+- [ ] Estando em `/escalas`, abrir o menu mostra a RAIZ
+- [ ] Só pelo teclado: Tab até "Escala extra", Enter, e o foco cai no voltar;
+      Enter de novo devolve o foco ao pai
+- [ ] Com leitor de tela, entrar e sair do submenu é anunciado (o `aria-label`
+      da navegação troca entre "Menu principal" e "Escala extra")
+
+**O que cada papel vê no submenu:**
+
+- [ ] Admin Geral: Escalas e Produtividade — **sem** "Minha presença" e "Meu
+      histórico" (ele não presta serviço)
+- [ ] Admin Geral: **"Operações" fica na RAIZ**, não no submenu
+- [ ] Admin de unidade: Produtividade e (com pendência) Dados base — **sem**
+      "Escalas", que exige papel de seccional ou supervisão
+- [ ] Admin seccional: os cinco itens
+- [ ] Policial comum com escala extra: Minha presença e Meu histórico
+- [ ] Policial sem nenhuma participação: **o pai não aparece** (submenu vazio não
+      ganha porta)
+
+**Herdado dos ciclos anteriores:**
+
+- [ ] Admin Geral: **não** há "Conf. Form." nem "Dados base" no menu — os dois
+      são botões na linha de cada operação em `/gise/operacoes`
 - [ ] O botão **Dados base** aparece só na linha da operação que tem indicador de
       meta PERCENTUAL (a CRAJUBAR sim; a GISE não)
 - [ ] `/res-gise` (Admin Geral) mostra "VOLTAR ÀS OPERAÇÕES" acima do título
