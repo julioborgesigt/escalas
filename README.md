@@ -294,6 +294,8 @@ npm run lint:ci            # ESLint com o teto de warnings usado no CI (ratchet)
 npm run lint:fix           # ESLint com auto-fix
 npm run format             # Prettier em src/ (escreve)
 npm run format:check       # Prettier em src/ sem alterar (só verifica)
+npm run format:e2e         # Prettier em e2e/ (escreve)
+npm run format:check:e2e   # Prettier em e2e/ sem alterar (gate próprio no CI)
 npm run knip               # Detecção de código/exports mortos
 npm run docs:inventario    # Inventário de documentação (cabeçalhos, contratos, opacos)
 npm run docs:guard         # Falha se arquivo NOVO em lib/db vier sem doc (roda no CI)
@@ -646,9 +648,16 @@ dela seria um card de uma barra.
 
 **Como cada pergunta é somada** é decisão de `valorDaResposta`
 (`$lib/produtividade/apresentacao`), e vale igual para as três formas: `sim_nao`
-conta ocorrências, droga soma peso normalizado em gramas (mostrado em kg), arma
-soma as quantidades por tipo **e só com o booleano em "Sim"**. Eram três cópias
-dessa regra até ago/2026, e a de armas já divergia — somava sem o gate.
+conta ocorrências, droga soma peso normalizado em gramas (mostrado em kg), e os
+tipos de lista somam a chave de QUANTIDADE. Eram três cópias dessa regra até
+ago/2026, cada uma com a sua tabela de chaves.
+
+**O gate do "Sim".** Nos tipos que perguntam "houve X? → se sim, quantos", a
+quantidade só conta com a resposta em `'Sim'` (`exigeSimParaContar`). O blob
+guarda o que foi digitado: quem preenche a listagem, muda de ideia e responde
+"Não" deixa o número lá. O relatório assinado sempre ignorou esse resto — ele só
+expande a lista sob um "Sim" —, e o painel não ignorava. As duas leituras do
+mesmo dado discordavam, e a do painel contava produção que o PDF não mostra.
 
 **Prisões é o único bloco que continua escrito no código**, porque o detalhamento
 dele soma três perguntas (flagrantes, mandados e total de presos) e uma marca
@@ -1041,7 +1050,11 @@ O modal é para o passo que cabe em uma tela. Passando disso — o relatório de
 
 **Reordenar lista onde a posição é informação** — arraste (HTML5 DnD com alça: a alça liga o `draggable` no `mousedown`, senão não dá para selecionar texto nos campos do card) **mais** setas ↑/↓, que são o único caminho no toque e no teclado. Arraste sozinho é inacessível. E se a ordem aparece escrita no conteúdo (o "4." dentro do texto da pergunta), reordenar tem de reescrever esse conteúdo — ver `$lib/gise/renumerar-perguntas.ts`; um badge derivado de `indexOf` se acerta sozinho e esconde o problema.
 
-**Tipos de pergunta do formulário de produtividade** — a tabela é `$lib/gise/tipos-pergunta.ts`: quais tipos abrem listagem, quais aceitam sub-pergunta e **onde cada um grava no blob**. Mexer em tipo de pergunta começa por lá, nunca pelos componentes. Os tipos originais (`prisoes_maiores`, `mandados_maiores`…) gravam em **chave fixa** e por isso só funcionam **uma vez** no formulário — duas perguntas do mesmo tipo escrevem uma por cima da outra. Para um campo repetível existe `lista_detalhada`, que deriva as chaves da `key` da pergunta. Ao acrescentar um tipo, a expansão em `db/gise/respostas.ts` é obrigatória no mesmo passo: sem ela o policial preenche, o dado é gravado e **some do PDF assinado sem erro nenhum**.
+**Tipos de pergunta do formulário de produtividade** — a tabela é `$lib/gise/tipos-pergunta.ts`: quais tipos abrem listagem, quais aceitam sub-pergunta e **onde cada um grava no blob**. Mexer em tipo de pergunta começa por lá, nunca pelos componentes. `chavesLista` é a fonte ÚNICA da chave da resposta, e é ela que o indicador de meta, o gráfico e a expansão do relatório consultam — uma tabela paralela escrita à mão já custou aos tipos de lista o direito de virar gráfico, e ninguém notou porque o indicador continuava funcionando.
+
+Três tipos estão **aposentados** (`TIPOS_LISTA_APOSENTADOS`): `mandados_maiores`, `prisoes_maiores` e `apreensoes_menores`. Eles fazem exatamente o que `lista_detalhada` faz — mesmo widget, mesma forma de item, mesma expansão —, só que gravando em **chave fixa**, o que os limita a **uma ocorrência por formulário**. O genérico deriva as chaves da `key` da pergunta e por isso se repete; quem quer nomear a linha no PDF usa `subtexto_item` ("Procedimento 1" em vez de "Item 1"). Eles não foram removidos porque trocar o tipo de uma pergunta troca a chave da resposta — na prática, apaga o histórico dela —, e o editor os oferece apenas na pergunta que **já** está com um deles: escondê-los sempre faria o `<select>` cair na primeira opção e mudar o tipo sozinho ao salvar.
+
+Ao acrescentar um tipo, a expansão em `db/gise/respostas.ts` é obrigatória no mesmo passo: sem ela o policial preenche, o dado é gravado e **some do PDF assinado sem erro nenhum**.
 
 **A URL manda na seleção** — se uma tela escreve o item selecionado na query string (`?giseId=`), ela precisa **ler de volta**, senão recarregar ou voltar de outra rota cai na lista com a URL apontando para um item que não está na tela. O efeito que faz isso escreve o mesmo estado que lê: a guarda de igualdade é o que faz a segunda passada parar.
 
@@ -1146,7 +1159,7 @@ O arquivo [`TESTING.md`](TESTING.md) é o roteiro de **exceção**: cobre o que 
 
 Faça push ou abra PR para as branches `main` ou `staging`. O GitHub Actions (`.github/workflows/deploy.yml`) executa automaticamente:
 
-1. `npm run lint:ci` + `npm run format:check`
+1. `npm run lint:ci` + `npm run format:check` + `npm run format:check:e2e`
 2. `npx svelte-check --threshold error`
 3. `npx vitest run`
 4. `npm run build`

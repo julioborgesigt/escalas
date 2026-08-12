@@ -413,7 +413,7 @@ O job `test` executa, em ordem:
 
 - Vitest (`npx vitest run`)
 - `svelte-check`
-- ESLint e Prettier (`format:check`)
+- ESLint e Prettier (`format:check` em `src/`, `format:check:e2e` em `e2e/` — passos separados)
 - Playwright (`npx playwright install --with-deps chromium` + `npx playwright test`)
 
 Falhas bloqueiam staging e produção.

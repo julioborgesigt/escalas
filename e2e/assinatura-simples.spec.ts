@@ -31,9 +31,7 @@ test.describe('Assinatura avançada em tela (assinar-simples)', () => {
 
 	test.beforeAll(() => {
 		// Garante escala limpa (sem documento) antes da suíte serial.
-		execD1Local(
-			`DELETE FROM escala_documentos WHERE escala_id=${FIXTURE.escalaAssinavel.id};`
-		);
+		execD1Local(`DELETE FROM escala_documentos WHERE escala_id=${FIXTURE.escalaAssinavel.id};`);
 	});
 
 	test('policial sem papel na lotação → 403 (FLW-AUT-001)', async ({ request }) => {

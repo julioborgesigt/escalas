@@ -27,8 +27,11 @@
 	import {
 		TIPOS_COM_FILHOS,
 		TIPOS_COM_LISTA,
+		TIPOS_LISTA_APOSENTADOS,
+		TIPO_LISTA_REUTILIZAVEL,
 		podeSerGrafico,
-		podeDetalhar
+		podeDetalhar,
+		exigeSimParaContar
 	} from '$lib/gise/tipos-pergunta';
 	import { podeSerIndicador, ehProporcao } from '$lib/gise/indicadores';
 	import { formasDaMarca } from '$lib/produtividade';
@@ -70,11 +73,12 @@
 
 	/**
 	 * Tipos com rótulos personalizáveis: os de lista (Quantidade + Legenda) mais
-	 * drogas e armas (Lista de Tipos + Detalhamento). `operacoes_seint_pura` fica
-	 * de fora porque não tem par Sim/Não para rotular.
+	 * drogas e armas (Lista de Tipos + Detalhamento). O de lista PURA fica de fora
+	 * porque não tem par Sim/Não para rotular — `exigeSimParaContar` é quem sabe
+	 * disso, e ele já responde a mesma pergunta para o painel.
 	 */
 	const TIPOS_COM_ROTULOS = [
-		...TIPOS_COM_LISTA.filter((t) => t !== 'operacoes_seint_pura'),
+		...TIPOS_COM_LISTA.filter(exigeSimParaContar),
 		'drogas_complex',
 		'armas_complex'
 	];
@@ -396,9 +400,6 @@
 									>Quantidade + Lista Nome/Procedimento (reutilizável)</option
 								>
 								<option value="vtr_placa">VTR e Placa (Inteligente)</option>
-								<option value="mandados_maiores">Mandados Maiores (Auto-Listagem)</option>
-								<option value="prisoes_maiores">Prisões Maiores (Auto-Listagem)</option>
-								<option value="apreensoes_menores">Apreensões Menores (Auto-Listagem)</option>
 								<option value="drogas_complex">Drogas Detalhado (Auto-Listagem)</option>
 								<option value="armas_complex">Armas Detalhado (Auto-Listagem)</option>
 								<option value="celulares_complex">Extração Celular (Auto-Listagem)</option>
@@ -408,7 +409,30 @@
 								<option value="operacoes_seint_complex">Operações SEINT (Auto-Listagem)</option>
 								<option value="operacoes_seint_pura">Operações SEINT (Lista Pura)</option>
 							</optgroup>
+							<!-- APOSENTADOS: só aparecem na pergunta que JÁ está com um deles.
+							     Escondê-los sempre faria o `<select>` não achar o valor atual e
+							     cair na primeira opção — a pergunta trocaria de tipo sozinha ao
+							     ser salva, e trocar o tipo troca a chave da resposta.
+							     Fazem o mesmo que "Quantidade + Lista", só que em chave fixa,
+							     o que os limita a uma ocorrência por formulário. -->
+							{#if TIPOS_LISTA_APOSENTADOS.includes(p.tipo)}
+								<optgroup label="Aposentados — prefira Quantidade + Lista">
+									{#if p.tipo === 'mandados_maiores'}
+										<option value="mandados_maiores">Mandados Maiores (legado)</option>
+									{:else if p.tipo === 'prisoes_maiores'}
+										<option value="prisoes_maiores">Prisões Maiores (legado)</option>
+									{:else}
+										<option value="apreensoes_menores">Apreensões Menores (legado)</option>
+									{/if}
+								</optgroup>
+							{/if}
 						</select>
+						{#if TIPOS_LISTA_APOSENTADOS.includes(p.tipo)}
+							<p class="mt-1 text-3xs text-warning-700 dark:text-warning-400">
+								Tipo aposentado. <strong>Quantidade + Lista Nome/Procedimento</strong> faz o mesmo e pode
+								se repetir no formulário — mas trocar agora zera as respostas já gravadas nesta pergunta.
+							</p>
+						{/if}
 					</div>
 
 					<div class="flex gap-2 shrink-0 self-end md:self-start">
@@ -763,6 +787,31 @@
 										class="w-full px-3 py-2 rounded-lg border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-900 text-xs font-bold"
 									/>
 								</div>
+								<!-- Só no reutilizável: os tipos de chave fixa trazem o nome do
+								     item embutido ("Mandado 1", "Procedimento 1"). É este campo
+								     que permite ao genérico substituí-los sem perder o nome no
+								     PDF assinado. -->
+								{#if p.tipo === TIPO_LISTA_REUTILIZAVEL}
+									<div class="space-y-1 md:col-span-2">
+										<label
+											for="subitem-{p.id}"
+											class="text-3xs font-bold text-surface-600 dark:text-surface-400 uppercase tracking-wider"
+											>Nome de cada item no relatório</label
+										>
+										<input
+											id="subitem-{p.id}"
+											type="text"
+											bind:value={p.subtexto_item}
+											placeholder="Item"
+											class="w-full px-3 py-2 rounded-lg border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-900 text-xs font-bold"
+										/>
+										<p class="text-3xs text-surface-500 dark:text-surface-500">
+											No PDF cada linha sai como <strong
+												>"↳ {p.subtexto_item?.trim() || 'Item'} 1"</strong
+											>. Ex.: Procedimento, Mandado, Apreensão.
+										</p>
+									</div>
+								{/if}
 							{:else if p.tipo === 'drogas_complex'}
 								<div class="space-y-1">
 									<label

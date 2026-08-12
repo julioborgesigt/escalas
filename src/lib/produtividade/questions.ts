@@ -19,13 +19,21 @@
  *
  * ## `key` × `mappedKey`
  *
- * `key` identifica a PERGUNTA; a RESPOSTA nem sempre mora nela. Nos tipos
- * compostos o número está numa chave fixa do blob (`celulares_qtd`), e é
- * `mappedKey` que faz a tradução. Confundir as duas dá gráfico zerado sem erro
- * nenhum — o painel soma `undefined` e mostra barra vazia.
+ * `key` identifica a PERGUNTA; a RESPOSTA nem sempre mora nela. Nos tipos de
+ * lista o número está na chave de QUANTIDADE — fixa no tipo (`celulares_qtd`)
+ * ou derivada da pergunta (`${key}__qtd`) —, e é `mappedKey` que faz a tradução.
+ * Confundir as duas dá gráfico zerado sem erro nenhum: o painel soma `undefined`
+ * e mostra barra vazia.
+ *
+ * Quem resolve é `chavesLista`, a MESMA função que o indicador de meta usa
+ * (`chaveResposta`, em `$lib/gise/indicadores`). Até ago/2026 havia aqui uma
+ * tabela `KEY_MAP` escrita à mão, cópia parcial de `CHAVES_FIXAS`, cobrindo só
+ * os seis tipos SEINT — e o efeito era exatamente o previsto pelo `CLAUDE.md`
+ * para lógica duplicada: mandados, prisões e apreensões podiam virar indicador
+ * de meta e não podiam virar gráfico, sem que nada explicasse a diferença.
  */
 
-import { podeSerGrafico, podeDetalhar } from '$lib/gise/tipos-pergunta';
+import { podeSerGrafico, podeDetalhar, chavesLista } from '$lib/gise/tipos-pergunta';
 import { identidadeDaPergunta, temAlgumaForma, formasDaMarca } from './apresentacao';
 import type { GiseModeloPerguntaConfig, GraficoConfig } from '$lib/types';
 
@@ -46,15 +54,6 @@ const palette = [
 	'#94a3b8',
 	'#a855f7'
 ];
-
-const KEY_MAP: Record<string, string> = {
-	celulares_complex: 'celulares_qtd',
-	analise_complex: 'analise_qtd',
-	relatorios_seint_complex: 'relatorios_seint_qtd',
-	foragidos_complex: 'foragidos_qtd',
-	operacoes_seint_complex: 'operacoes_seint_qtd',
-	operacoes_seint_pura: 'operacoes_seint_qtd'
-};
 
 /** Uma pergunta do modelo já resolvida para o painel. */
 export interface Question {
@@ -126,7 +125,7 @@ export function mapQuestions(modelo: ModeloQuestion[] | undefined | null): Quest
 					id: q.id,
 					label: q.texto,
 					key: q.key,
-					mappedKey: KEY_MAP[q.tipo] ?? q.key,
+					mappedKey: chavesLista(q)?.qtd ?? q.key,
 					tipo: q.tipo,
 					color: identidade.cor,
 					isBool: q.tipo === 'sim_nao',

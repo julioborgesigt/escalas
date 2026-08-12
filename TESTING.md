@@ -385,6 +385,27 @@ Verificar cada transição de status:
 - [ ] Exportar o PNG do ranking de drogas → o peso sai em **kg**; o do
       detalhamento, em **g** (é a mesma conta em unidades diferentes)
 
+**Tipos de lista: o genérico e os aposentados:**
+
+- [ ] No seletor de tipo de uma pergunta NOVA, "Mandados Maiores", "Prisões
+      Maiores" e "Apreensões Menores" **não aparecem** — só "Quantidade + Lista
+      Nome/Procedimento (reutilizável)"
+- [ ] Abrir a pergunta 4 da GISE (que já é `prisoes_maiores`) → o tipo aparece
+      no grupo **"Aposentados"**, selecionado, com o aviso abaixo. Salvar sem
+      mexer **não** troca o tipo dela
+- [ ] Criar duas perguntas do tipo genérico no mesmo formulário, preencher as
+      duas no relatório do policial → cada uma guarda a sua lista (era isso que
+      os tipos de chave fixa não permitiam)
+- [ ] Na pergunta genérica, preencher **"Nome de cada item no relatório"** com
+      `Procedimento` → no PDF as linhas saem como "↳ Procedimento 1"; em branco,
+      saem como "↳ Item 1"
+- [ ] Marcar "Ranking de unidades" numa pergunta de lista → o card aparece com a
+      **quantidade** somada (era o que não existia: elas podiam ser indicador de
+      meta e não podiam virar gráfico)
+- [ ] No relatório, responder **"Sim"**, preencher quantidade 3, e depois trocar
+      para **"Não"** e enviar → o painel conta **0** para aquela pergunta (o PDF
+      já não mostrava a lista; agora as duas leituras concordam)
+
 ---
 
 ## 5. Assinatura Digital — Escalas

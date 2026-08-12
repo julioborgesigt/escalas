@@ -46,6 +46,12 @@ jobs:
       # concluído). Se falharem: `npm run format` / remover o código morto
       # apontado pelo knip.
       - run: npm run format:check
+      # `e2e/` num passo À PARTE, e não somado ao de cima, para o log dizer QUAL
+      # superfície está fora do padrão. Ficou de fora do gate original e o preço
+      # apareceu: uma passada de prettier na pasta reformatou cinco specs sem
+      # relação nenhuma com a mudança em curso, e o ruído foi parar no diff.
+      # Se falhar: `npm run format:e2e`.
+      - run: npm run format:check:e2e
       - run: npm run knip
 
       # Gates HARD — qualquer falha aqui bloqueia merge:

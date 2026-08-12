@@ -23,6 +23,7 @@
  * estaria certo, só que na unidade errada, que é a forma mais silenciosa de
  * errar. Por isso a unidade vem daqui e não do call site.
  */
+import { exigeSimParaContar } from '$lib/gise/tipos-pergunta';
 import type { GraficoConfig } from '$lib/types';
 
 /** As três formas que uma pergunta pode assumir no painel. */
@@ -69,14 +70,22 @@ export function identidadeDaPergunta(
  *   a pergunta sumiria do painel;
  * - `drogas_complex` soma o PESO normalizado em gramas (`kg` × 1000 — senão 2 kg
  *   e 2 g virariam o mesmo 2);
- * - `armas_complex` soma as quantidades por tipo, e só quando a pergunta
- *   booleana está `'Sim'`: mesma regra do relatório, para que lista digitada e
- *   depois negada não conte;
- * - o resto soma o número em `mappedKey`, que nos tipos compostos é outra chave
- *   do blob.
+ * - `armas_complex` soma as quantidades por tipo;
+ * - o resto soma o número em `mappedKey`, que nos tipos de lista é a chave de
+ *   QUANTIDADE (`prisoes_qtd`, `${key}__qtd`) e não a `key` da pergunta.
+ *
+ * ## O gate do "Sim"
+ *
+ * Nos tipos que perguntam "houve X? → se sim, quantos", a quantidade só conta com
+ * a resposta em `'Sim'` (`exigeSimParaContar`). O blob GUARDA o que foi digitado:
+ * quem preenche a listagem, muda de ideia e responde "Não" deixa o número lá. O
+ * relatório assinado já ignorava esse resto — ele só expande a lista sob um
+ * "Sim" —, e o painel não ignorava. As duas leituras do mesmo dado discordavam,
+ * e a do painel contava produção que o PDF não mostra.
  */
 export function valorDaResposta(res: Record<string, unknown>, q: PerguntaLegivel): number {
 	if (q.tipo === 'sim_nao') return res[q.key] === 'Sim' ? 1 : 0;
+	if (exigeSimParaContar(q.tipo) && res[q.key] !== 'Sim') return 0;
 	if (q.tipo === 'drogas_complex' || q.tipo === 'armas_complex') {
 		return somarDetalhe(detalheDaResposta(res, q));
 	}
@@ -109,6 +118,9 @@ function detalheDaResposta(
 	}
 
 	if (q.tipo === 'armas_complex') {
+		// O gate do "Sim" também aqui: `valorDaResposta` já o aplica antes de
+		// chamar, mas o card de detalhamento entra por `detalhePorTipo`, que não
+		// passa por lá.
 		if (res[q.key] !== 'Sim') return {};
 		const bruto = res.armas_detalhe;
 		if (!bruto || typeof bruto !== 'object') return {};
