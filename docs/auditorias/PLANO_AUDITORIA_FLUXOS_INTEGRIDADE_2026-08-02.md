@@ -1,8 +1,9 @@
 # Plano operacional — auditoria de fluxos e integridade de dados
 
 **Data-base:** 02/ago/2026  
-**Status:** executado em 06/ago/2026 — ver
-[`AUDITORIA_FLUXOS_AUTORIZACAO_2026-08-06.md`](./AUDITORIA_FLUXOS_AUTORIZACAO_2026-08-06.md)
+**Status:** executado em 06/ago/2026 — relatório arquivado; ler com
+`git show fad06ea0:docs/auditorias/AUDITORIA_FLUXOS_AUTORIZACAO_2026-08-06.md`
+(catálogo em [`docs/HISTORICO.md`](../HISTORICO.md)).
 (revalidação dos FLW-\* + achados novos FLW-AUT-\*).  
 **Objetivo:** comprovar que as regras de negócio são aplicadas de forma
 consistente entre interface, ações SvelteKit, APIs, banco de dados, documentos
