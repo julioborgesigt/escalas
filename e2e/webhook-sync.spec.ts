@@ -54,9 +54,7 @@ test.describe('Webhook sync — contrato + segurança', () => {
 		expect(res.status()).toBe(401);
 	});
 
-	test('Bearer válido sem timestamp/nonce → 401 (WEBHOOK_REPLAY_ENFORCE)', async ({
-		request
-	}) => {
+	test('Bearer válido sem timestamp/nonce → 401 (WEBHOOK_REPLAY_ENFORCE)', async ({ request }) => {
 		const res = await request.post('/api/webhook/sync-policiais', {
 			headers: {
 				Authorization: `Bearer ${SYNC!}`,
@@ -130,7 +128,9 @@ test.describe('Webhook sync — contrato + segurança', () => {
 		expect(depois?.[0]?.cargo).toBe('DPC');
 	});
 
-	test('cargo inválido → a linha falha, o lote NÃO cai, e a resposta é 422', async ({ request }) => {
+	test('cargo inválido → a linha falha, o lote NÃO cai, e a resposta é 422', async ({
+		request
+	}) => {
 		// Lote MISTO, que é o que o nome do teste promete: a linha boa entra, a
 		// ruim não, e nenhuma das duas derruba a outra.
 		const res = await request.post('/api/webhook/sync-policiais', {
@@ -157,9 +157,9 @@ test.describe('Webhook sync — contrato + segurança', () => {
 		expect(j.errors?.length).toBe(1);
 
 		// A boa entrou...
-		expect(
-			queryD1Local(`SELECT id FROM policiais WHERE matricula='${MAT_LOTE_OK}'`)?.length
-		).toBe(1);
+		expect(queryD1Local(`SELECT id FROM policiais WHERE matricula='${MAT_LOTE_OK}'`)?.length).toBe(
+			1
+		);
 		// ...e a ruim não.
 		expect(queryD1Local(`SELECT id FROM policiais WHERE matricula='${MAT_BAD}'`)?.length).toBe(0);
 	});
@@ -170,7 +170,12 @@ test.describe('Webhook sync — contrato + segurança', () => {
 		const res = await request.post('/api/webhook/sync-policiais', {
 			headers: hdr(SYNC!),
 			data: [
-				{ matricula: MAT_LOTE_OK, nome: 'Linha Boa', cargo: 'OIP', lotacao: 'DELEGACIA E2E FIXTURE A' }
+				{
+					matricula: MAT_LOTE_OK,
+					nome: 'Linha Boa',
+					cargo: 'OIP',
+					lotacao: 'DELEGACIA E2E FIXTURE A'
+				}
 			]
 		});
 		expect(res.status()).toBe(200);

@@ -1,7 +1,14 @@
 import { test, expect } from '@playwright/test';
 import type { APIRequestContext } from '@playwright/test';
 import { FIXTURE } from './global-setup';
-import { seedSession, headersDeSessaoMutacao, cookieDeSessao, execD1Local, promoverPolicialAAssinante, restaurarPolicialASemPapel } from './session';
+import {
+	seedSession,
+	headersDeSessaoMutacao,
+	cookieDeSessao,
+	execD1Local,
+	promoverPolicialAAssinante,
+	restaurarPolicialASemPapel
+} from './session';
 import { assinarComoSerpro } from './ca-teste/assinador';
 
 /**
@@ -131,9 +138,7 @@ test.describe('Escala — ciclo assinar/revogar/reassinar', () => {
 		expect((await prep.json()).error).toMatch(/revogue/i);
 
 		expect((await baixarDoc(request)).status()).toBe(200);
-		expect(await (await request.get(`/validar/${hashAtual}`)).text()).not.toContain(
-			NAO_ENCONTRADO
-		);
+		expect(await (await request.get(`/validar/${hashAtual}`)).text()).not.toContain(NAO_ENCONTRADO);
 	});
 
 	test('policial de outra lotação não revoga → 403', async ({ request }) => {

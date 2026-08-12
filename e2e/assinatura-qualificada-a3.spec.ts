@@ -1,6 +1,13 @@
 import { test, expect } from '@playwright/test';
 import { FIXTURE } from './global-setup';
-import { seedSession, headersDeSessaoMutacao, cookieDeSessao, promoverPolicialAAssinante, restaurarPolicialASemPapel, execD1Local } from './session';
+import {
+	seedSession,
+	headersDeSessaoMutacao,
+	cookieDeSessao,
+	promoverPolicialAAssinante,
+	restaurarPolicialASemPapel,
+	execD1Local
+} from './session';
 import { assinarComoSerpro } from './ca-teste/assinador';
 
 /**
