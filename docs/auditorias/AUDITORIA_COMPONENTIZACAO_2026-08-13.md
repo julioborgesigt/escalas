@@ -1,7 +1,9 @@
 # Auditoria — componentização e manutenibilidade (13/ago/2026)
 
-**Status:** ABERTA — diagnóstico apenas, nenhuma remediação executada nesta
-rodada.
+**Status:** ABERTA — lotes A–C remediados (§10); restam **§3.1** (prop drilling
+de 38 props, o único P1 aberto — como retomar em §11) e o lote D de polimento.
+As §§1–9 abaixo descrevem o diagnóstico ORIGINAL, de antes da remediação; o
+estado atual está em §10.
 **Objetivo:** facilitar manutenção e compreensão. Maximizar reuso onde o ROI é
 alto e **não** unificar o que explode props ou mistura semânticas de domínio.
 **Escopo:** `src/**` — UI (`$lib/components`, `**/_components`, páginas),
@@ -643,3 +645,138 @@ pequenos, os dois são visíveis, e os dois são exatamente o que a tabela do
 
 Ao encerrar esta auditoria (achados resolvidos ou formalmente aceitos), remover
 o arquivo do working tree e catalogar em [`docs/HISTORICO.md`](../HISTORICO.md).
+**Ainda não é o caso** — ver §10.
+
+---
+
+## 10. Revisão da remediação (13/ago, mesma data)
+
+Os lotes A–C do §6 foram executados na sequência recomendada. Um commit por
+lote, todos no branch `claude/code-review-componentization-8mabu9`.
+
+| Achado | Estado | Commit |
+| ------ | ------ | ------ |
+| §3.2 `isMobile` com duas definições | ✅ remediado | `de5f5a4` |
+| §3.3 badge com o mapa de cor invertido | ✅ remediado | `de5f5a4` |
+| §3.11 `restringirSmartphone` sem enforcement | 📌 **aceito e registrado** | `de5f5a4` |
+| §3.4 `useResGise` com duas plateias | ✅ remediado | `a467813` |
+| §3.6 regra do menu dentro do `.svelte` | ✅ remediado | `a6f126c` |
+| §3.5 catorze actions num bloco só | ✅ remediado | `3adcdf4` |
+| §3.7 catálogo dentro do módulo de consulta | ✅ remediado | `ca8fc26` |
+| §3.8 `export/pdf.ts` | ✅ remediado — **escopo revisto**, ver 10.1 | `3c0f2cc` |
+| **§3.1 prop drilling de 38 props** | ⏭ **ABERTO** — ver §11 | — |
+| §3.9 `EstadoVazio` · §3.10 `CardNavegacao` · §3.12 testes · subpastas em `lib/db` | ⏭ **ABERTO** — lote D | — |
+
+### 10.1 — O corte do `pdf.ts` não foi um arquivo por gerador
+
+§3.8 recomendava separar os seis geradores. Ao executar, o argumento do próprio
+cabeçalho do arquivo — "todos aqui porque compartilham a mesma moldura e as
+mesmas medidas" — se confirmou **para as escalas**: elas dividem
+`finalizarEscalaComAssinatura`, `desenharRubricaSobreLinha` e a geometria de
+logo. Separá-las produziria um `pdf-comum.ts` que todas importam, ou seja,
+moveria o acoplamento sem reduzi-lo.
+
+O corte que se sustenta veio de contagem de call sites, não de estimativa: os
+quatro blocos do relatório extraordinário (`iniciarRelatorioExtra`,
+`colunasPresencaRelatorio`, `tabelaPresencasRelatorio`,
+`assinaturaRelatorioExtra` — 280 ln) têm **dois consumidores cada, ambos nas
+duas variantes do próprio relatório**. Nenhuma escala os toca. Resultado:
+1546 → 848 (`pdf.ts`) + 515 (`pdf-relatorio-extra.ts`) + 239 (`pdf-comum.ts`).
+
+Goldens: verdes antes, verdes depois, `pdf-goldens.json` com o mesmo sha256
+(`ab1eedd4…`) e ausente do diff. `UPDATE_PDF_GOLDENS` não foi usado.
+
+### 10.2 — O split das actions expôs um ponto cego do guard de autorização
+
+Achado NOVO, e o mais relevante desta remediação.
+
+Ao mover as catorze actions para `_actions/`, o `guard:autorizacao` reprovou
+todas. O motivo é correto e instrutivo: o guard lê o resultado (403) no corpo da
+operação **mais o preâmbulo do arquivo**, e o `fail(403)` mora dentro de
+`carregarEscalaComPermissao`. Enquanto tudo vivia num arquivo só, o 403 entrava
+pelo preâmbulo — o helper estava DEFINIDO acima das actions —, então **todas
+passavam mesmo que uma esquecesse de chamá-lo**.
+
+É exatamente a fraqueza que o próprio script descreve: *"import no preâmbulo não
+conta; era assim que o arquivo inteiro passava com o helper numa action só."*
+
+Corrigido pelo precedente já registrado ali para `exigirAdminGeral`: o nome
+entrou no `RE_403` e os quatro arquivos entraram em `HELPERS_OBRIGATORIOS`.
+Operações com helper verificado no corpo: **32 → 46**. Verificado removendo a
+chamada de uma action — o guard reprova.
+
+### 10.3 — Métricas, medidas
+
+| Métrica | 13/ago (inicial) | Pós lotes A–C | Alvo |
+| ------- | ---------------: | ------------: | ---: |
+| Maior contagem de props | 38 | **38** | ≤15 |
+| Definições de `isMobile` | 2 | **1** ✅ | 1 |
+| Cópias inline do badge | 5 | **0** ✅ | 0 |
+| API de `useResGise` | 41 membros | **18 + 24** ✅ | ≤25 cada |
+| `escalas/[id]/+page.server.ts` | 1381 ln | **161 ln** ✅ | ≤350 |
+| `db/audit.ts` | 1369 ln | **4 módulos, maior 480** ✅ | — |
+| `export/pdf.ts` | 1546 ln | **848 ln** ✅ | — |
+| Arquivos Svelte ≥900 ln | 3 | **3** | ≤2 |
+| Pastas de rota com `__tests__/` | 4 | **5** | ≥6 |
+| Empty states à mão | 4 | **4** | 0 |
+| Arquivos opacos | 1 | **1** | 0 |
+
+Duas leituras que a tabela sozinha esconde:
+
+- **"Svelte ≥900" continua 3, e a população mudou de novo.** `+layout.svelte`
+  caiu 1146 → 1041; `escalas/+page.svelte` está intacto (914 — é do lote D); e
+  `ConfigurarFormulario.svelte` **subiu** 978 → 1039. Vale separar as duas
+  causas: ~11 linhas vieram desta remediação (o componente passou a instanciar
+  o próprio composable, e em troca o editor deixou de ser carregado para o
+  policial); o resto veio do merge de `main` com a reorganização dos blocos do
+  card (PR #530), que é trabalho de produto, não de estrutura. A métrica não
+  distingue as duas coisas — por isso a leitura vai escrita aqui.
+- **A contagem de props segue 38**, e seguirá até §3.1 ser tratado. É o
+  achado-cabeça desta auditoria e o único P1 ainda aberto.
+
+---
+
+## 11. Como retomar §3.1 (o único P1 aberto)
+
+O prop drilling do quadro de supervisão GISE ficou para uma rodada dedicada: é
+o item de maior risco de regressão e o único que **introduz um padrão novo** no
+projeto.
+
+**A árvore, como está hoje:**
+
+```
+gise/[id]/+page.svelte:556-636          80 ln só de fiação, callbacks inline
+  └─ GiseSupervisao.svelte              38 props, 131 ln, 2 $derived de lógica
+       ├─ supervisao/SupervisaoDesignacao.svelte     20 props
+       └─ supervisao/SupervisaoDocumentos.svelte     22 props
+            ├─ supervisao/SupervisaoDocEscala.svelte      14 props
+            ├─ supervisao/SupervisaoDocExtra.svelte
+            └─ SupervisaoDocumentoCard.svelte
+  supervisao/types.ts                   105 ln, existe só para nomear o contrato
+```
+
+**Precedente interno a reusar:**
+`gise/[id]/_components/gise-seccional-estado.svelte.ts` — classe `$state` única,
+com cabeçalho explicando por que o estado não vive em cada folha. É o molde, e
+está no mesmo diretório.
+
+**O que a remediação já facilitou:** `isMobile` está unificado (§3.2), e ele é
+um dos props drilados por quatro níveis nessa árvore. Com `useMobile()` como
+fonte única, as folhas podem chamá-lo direto em vez de recebê-lo — são menos
+props antes mesmo de introduzir contexto.
+
+**O aviso que importa:** `setContext`/`getContext` tem **zero uso** nos 138
+componentes do projeto. Quem fizer isto introduz o padrão, então o cabeçalho da
+classe precisa justificar a escolha para quem vier depois — e o §8 desta
+auditoria é a razão: *fatiar arquivo sem mover o estado junto foi o que criou
+este problema*. `GiseSupervisao` encolheu 88% na rodada de 06/ago e ficou mais
+caro de mudar.
+
+**Verificação:** `e2e/gise.spec.ts`, `e2e/gise-imutabilidade.spec.ts`,
+`e2e/relatorio-extra-gise.spec.ts`.
+
+**Nota de ambiente:** os e2e de UI não sobem browser sem ajuste — o
+`@playwright/test` 1.62 do lockfile procura o build 1234 do Chromium e a máquina
+de CI remota tem o 1194 (`/opt/pw-browsers/chromium-1194/chrome-linux/chrome`).
+Apontar `launchOptions.executablePath` nos dois projetos (`chromium` e `mobile`)
+**só para rodar**, e restaurar o `playwright.config.ts` antes de commitar.
