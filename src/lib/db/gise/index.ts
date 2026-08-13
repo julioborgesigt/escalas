@@ -64,10 +64,14 @@ export {
 	salvarGiseModeloFormulario,
 	buscarRespostaGise,
 	salvarRespostaGise,
-	listarTodasRespostasGise,
+	listarTodasRespostasGise
+} from './respostas';
+
+// Os modelos PADRÃO são dados, e moram num arquivo à parte de quem os consulta.
+export {
 	DEFAULT_SEINT_QUESTIONS,
 	DEFAULT_QUESTIONS_FORM_OPERACIONAL
-} from './respostas';
+} from './respostas-modelo-padrao';
 
 export { salvarGiseDocumento, buscarGiseDocumento } from './documentos';
 
