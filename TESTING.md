@@ -420,6 +420,28 @@ Verificar cada transição de status:
 - [ ] Exportar o PNG do ranking de drogas → o peso sai em **kg**; o do
       detalhamento, em **g** (é a mesma conta em unidades diferentes)
 
+**O título do card (`rotulo_painel`):**
+
+- [ ] No card de uma pergunta do editor, a ordem é: texto e tipo → rótulos do
+      campo inteligente → as caixas de painel e de meta → **"Título no painel de
+      produtividade"**
+- [ ] O campo de título **não** aparece em pergunta sem marca nenhuma; marcar
+      qualquer caixa (ou "Usar como indicador de meta") faz o campo surgir
+- [ ] Com o campo vazio, o placeholder mostra o que vai sair — o texto da
+      pergunta, ou "Drogas"/"Armas" nas duas de identidade própria
+- [ ] Preencher, salvar e abrir `/produtividade` → o card usa o título curto, nas
+      **colunas, no ranking e no detalhamento** (era só o ranking que respeitava
+      "Drogas"; as colunas mostravam o enunciado inteiro)
+- [ ] Marcar a mesma pergunta como indicador → o card da seção "Indicadores e
+      metas" usa **o mesmo** título, sem um segundo campo para preencher
+- [ ] Escrever um título na pergunta de **drogas** → ele ganha de "Drogas", mas o
+      peso continua saindo em **kg** (o campo muda o nome, não a unidade)
+- [ ] Deixar só espaços no campo → o card volta ao padrão, sem cabeçalho em
+      branco
+- [ ] Baixar o PNG do card → a imagem sai com o título novo
+- [ ] Gerar o relatório assinado da escala → o PDF continua com o **enunciado**
+      da pergunta, não com o título do painel
+
 **Rodapé de salvar do editor** (`/res-gise`, Admin Geral):
 
 - [ ] Abrir o editor → o botão "Salvar Modelo" está visível **sem rolar**, no pé

@@ -142,6 +142,25 @@ export interface GiseModeloPerguntaConfig {
 	 * nenhum.
 	 */
 	grafico?: GraficoConfig;
+	/**
+	 * O título do card no painel de produtividade — gráfico, ranking,
+	 * detalhamento e indicador de meta.
+	 *
+	 * Existe porque o enunciado de uma pergunta e o título de um card não são a
+	 * mesma frase. A pergunta é escrita para quem PREENCHE ("10. HOUVE APREENSÃO
+	 * DE DROGAS?", numerada, em caixa alta, interrogativa); o card é lido por quem
+	 * ACOMPANHA, e ali o que serve é o substantivo — "Drogas". Antes disto o card
+	 * exibia o enunciado inteiro, numeração e ponto de interrogação incluídos.
+	 *
+	 * Vazio ou ausente cai no texto da pergunta (ou na identidade fixa de drogas e
+	 * armas) — ver `tituloNoPainel` em `$lib/produtividade/apresentacao`, que é
+	 * quem resolve. Nenhum modelo precisou de migração: não preencher devolve
+	 * exatamente o que a tela já mostrava.
+	 *
+	 * NÃO entra no relatório assinado: é rótulo de leitura, e o PDF continua
+	 * saindo com o enunciado que a pessoa respondeu.
+	 */
+	rotulo_painel?: string;
 	filhos?: GiseModeloPerguntaConfig[];
 	subtexto_qtd?: string;
 	subtexto_lista?: string;

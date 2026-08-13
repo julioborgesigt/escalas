@@ -18,6 +18,17 @@
 	 *   editor — nada é gravado até o admin clicar em Salvar, que é quando as
 	 *   duas versões trocam de lugar. O `structuredClone` evita que editar
 	 *   depois de restaurar mute o objeto vindo do `load`.
+	 *
+	 * ## A ordem dos blocos do card, que não é arbitrária
+	 *
+	 * Identidade da pergunta (etapa, texto, tipo) → rótulos dos campos → marcas de
+	 * painel → título do card. Do que a pergunta É para o que ela VIRA: os rótulos
+	 * ainda descrevem o formulário que o policial preenche, e as marcas já falam de
+	 * outra tela.
+	 *
+	 * As marcas estavam no MEIO, entre o tipo e os rótulos, e empurravam para baixo
+	 * o campo que quem monta o formulário usa toda vez, em favor de duas caixas que
+	 * se marcam uma vez e não se olha mais.
 	 */
 	import { enhance } from '$app/forms';
 	import { actionButton } from './BotoesAcao.svelte';
@@ -35,6 +46,7 @@
 	} from '$lib/gise/tipos-pergunta';
 	import { podeSerIndicador, ehProporcao } from '$lib/gise/indicadores';
 	import { formasDaMarca } from '$lib/produtividade';
+	import { temAlgumaForma, tituloNoPainel } from '$lib/produtividade/apresentacao';
 	import RodapeAcoes from '$lib/components/RodapeAcoes.svelte';
 	import Target from '@lucide/svelte/icons/target';
 	import ChartColumn from '@lucide/svelte/icons/chart-column';
@@ -467,6 +479,185 @@
 					</div>
 				</div>
 
+				<!-- Rótulos dos dois campos da COBERTURA. Ficam aqui, e não em
+				     `TIPOS_COM_ROTULOS`, porque aquele bloco fala de quantidade e
+				     listagem — vocabulário dos tipos de auto-listagem, que a cobertura
+				     não tem. -->
+				{#if ehProporcao(p.tipo)}
+					<div
+						class="mt-4 p-4 bg-primary-500/5 dark:bg-primary-500/10 rounded-2xl border border-dashed border-primary-500/30 space-y-3"
+					>
+						<div class="flex items-center gap-2">
+							<SquarePen class="w-4 h-4 text-primary-500" aria-hidden="true" />
+							<span
+								class="text-3xs font-semibold text-primary-600 dark:text-primary-400 uppercase tracking-widest"
+								>Rótulos dos dois campos</span
+							>
+						</div>
+						<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+							<div>
+								<label
+									for="p-total-{p.id}"
+									class="block text-3xs font-semibold text-surface-600 dark:text-surface-400 uppercase tracking-widest mb-1"
+									>Total existente</label
+								>
+								<input
+									id="p-total-{p.id}"
+									type="text"
+									placeholder="Ocorrências no período"
+									bind:value={p.subtexto_total}
+									class="w-full px-3 py-2 rounded-xl border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-900 text-sm"
+								/>
+							</div>
+							<div>
+								<label
+									for="p-parte-{p.id}"
+									class="block text-3xs font-semibold text-surface-600 dark:text-surface-400 uppercase tracking-widest mb-1"
+									>Parte atendida</label
+								>
+								<input
+									id="p-parte-{p.id}"
+									type="text"
+									placeholder="Ocorrências atendidas"
+									bind:value={p.subtexto_parte}
+									class="w-full px-3 py-2 rounded-xl border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-900 text-sm"
+								/>
+							</div>
+						</div>
+					</div>
+				{/if}
+
+				<!-- Novos controles de sub-textos para QUALQUER pergunta que use os tipos inteligentes -->
+				{#if TIPOS_COM_ROTULOS.includes(p.tipo)}
+					<div
+						class="mt-4 p-4 bg-primary-500/5 dark:bg-primary-500/10 rounded-2xl border border-dashed border-primary-500/30 space-y-4"
+					>
+						<div class="flex items-center gap-2 mb-2">
+							<SquarePen class="w-4 h-4 text-primary-500" aria-hidden="true" />
+							<span
+								class="text-3xs font-semibold text-primary-600 dark:text-primary-400 uppercase tracking-widest"
+								>Personalizar Rótulos do Campo Inteligente</span
+							>
+						</div>
+
+						<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+							{#if TIPOS_COM_LISTA.includes(p.tipo)}
+								<div class="space-y-1">
+									<label
+										for="subqtd-{p.id}"
+										class="text-3xs font-bold text-surface-600 dark:text-surface-400 uppercase"
+										>Quantidade:</label
+									>
+									<input
+										id="subqtd-{p.id}"
+										type="text"
+										bind:value={p.subtexto_qtd}
+										placeholder="Ex: 5.1 QUANTIDADE:"
+										class="w-full px-3 py-2 rounded-lg border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-900 text-xs font-bold"
+									/>
+								</div>
+								<div class="space-y-1 md:col-span-2">
+									<label
+										for="sublst-{p.id}"
+										class="text-3xs font-bold text-surface-600 dark:text-surface-400 uppercase tracking-wider"
+										>Legenda Lista (ex: 5.2)</label
+									>
+									<input
+										id="sublst-{p.id}"
+										type="text"
+										bind:value={p.subtexto_lista}
+										placeholder="Ex: 5.2 LISTAGEM:"
+										class="w-full px-3 py-2 rounded-lg border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-900 text-xs font-bold"
+									/>
+								</div>
+								<!-- Só no reutilizável: os tipos de chave fixa trazem o nome do
+								     item embutido ("Mandado 1", "Procedimento 1"). É este campo
+								     que permite ao genérico substituí-los sem perder o nome no
+								     PDF assinado. -->
+								{#if p.tipo === TIPO_LISTA_REUTILIZAVEL}
+									<div class="space-y-1 md:col-span-2">
+										<label
+											for="subitem-{p.id}"
+											class="text-3xs font-bold text-surface-600 dark:text-surface-400 uppercase tracking-wider"
+											>Nome de cada item no relatório</label
+										>
+										<input
+											id="subitem-{p.id}"
+											type="text"
+											bind:value={p.subtexto_item}
+											placeholder="Item"
+											class="w-full px-3 py-2 rounded-lg border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-900 text-xs font-bold"
+										/>
+										<p class="text-3xs text-surface-500 dark:text-surface-500">
+											No PDF cada linha sai como <strong
+												>"↳ {p.subtexto_item?.trim() || 'Item'} 1"</strong
+											>. Ex.: Procedimento, Mandado, Apreensão.
+										</p>
+									</div>
+								{/if}
+							{:else if p.tipo === 'drogas_complex'}
+								<div class="space-y-1">
+									<label
+										for="subtp-{p.id}"
+										class="text-3xs font-bold text-surface-600 dark:text-surface-400 uppercase"
+										>Lista de Tipos:</label
+									>
+									<input
+										id="subtp-{p.id}"
+										type="text"
+										bind:value={p.subtexto_tipo}
+										placeholder="Ex: 10.1 TIPO DE DROGA:"
+										class="w-full px-3 py-2 rounded-lg border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-900 text-xs font-bold"
+									/>
+								</div>
+								<div class="space-y-1">
+									<label
+										for="subdet-{p.id}"
+										class="text-3xs font-bold text-surface-600 dark:text-surface-400 uppercase"
+										>Detalhamento Pesos:</label
+									>
+									<input
+										id="subdet-{p.id}"
+										type="text"
+										bind:value={p.subtexto_detalhe}
+										placeholder="Ex: 10.1.1 PESOS:"
+										class="w-full px-3 py-2 rounded-lg border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-900 text-xs font-bold"
+									/>
+								</div>
+							{:else if p.tipo === 'armas_complex'}
+								<div class="space-y-1">
+									<label
+										for="subtp-{p.id}"
+										class="text-3xs font-bold text-surface-600 dark:text-surface-400 uppercase"
+										>Lista de Tipos:</label
+									>
+									<input
+										id="subtp-{p.id}"
+										type="text"
+										bind:value={p.subtexto_tipo}
+										placeholder="Ex: 11.1 TIPO DE ARMA:"
+										class="w-full px-3 py-2 rounded-lg border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-900 text-xs font-bold"
+									/>
+								</div>
+								<div class="space-y-1">
+									<label
+										for="subdet-{p.id}"
+										class="text-3xs font-bold text-surface-600 dark:text-surface-400 uppercase"
+										>Legenda Quantidade:</label
+									>
+									<input
+										id="subdet-{p.id}"
+										type="text"
+										bind:value={p.subtexto_detalhe}
+										placeholder="Ex: 11.1.1 QUANTIDADE:"
+										class="w-full px-3 py-2 rounded-lg border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-900 text-xs font-bold"
+									/>
+								</div>
+							{/if}
+						</div>
+					</div>
+				{/if}
+
 				<!-- As FORMAS no painel de produtividade. Acumulam: a pergunta de armas
 				     mostra ranking E detalhamento, que é como o painel sempre a
 				     desenhou.
@@ -697,182 +888,41 @@
 					</div>
 				{/if}
 
-				<!-- Rótulos dos dois campos da COBERTURA. Ficam aqui, e não em
-				     `TIPOS_COM_ROTULOS`, porque aquele bloco fala de quantidade e
-				     listagem — vocabulário dos tipos de auto-listagem, que a cobertura
-				     não tem. -->
-				{#if ehProporcao(p.tipo)}
-					<div
-						class="mt-4 p-4 bg-primary-500/5 dark:bg-primary-500/10 rounded-2xl border border-dashed border-primary-500/30 space-y-3"
-					>
-						<div class="flex items-center gap-2">
-							<SquarePen class="w-4 h-4 text-primary-500" aria-hidden="true" />
-							<span
-								class="text-3xs font-semibold text-primary-600 dark:text-primary-400 uppercase tracking-widest"
-								>Rótulos dos dois campos</span
-							>
-						</div>
-						<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-							<div>
-								<label
-									for="p-total-{p.id}"
-									class="block text-3xs font-semibold text-surface-600 dark:text-surface-400 uppercase tracking-widest mb-1"
-									>Total existente</label
-								>
-								<input
-									id="p-total-{p.id}"
-									type="text"
-									placeholder="Ocorrências no período"
-									bind:value={p.subtexto_total}
-									class="w-full px-3 py-2 rounded-xl border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-900 text-sm"
-								/>
-							</div>
-							<div>
-								<label
-									for="p-parte-{p.id}"
-									class="block text-3xs font-semibold text-surface-600 dark:text-surface-400 uppercase tracking-widest mb-1"
-									>Parte atendida</label
-								>
-								<input
-									id="p-parte-{p.id}"
-									type="text"
-									placeholder="Ocorrências atendidas"
-									bind:value={p.subtexto_parte}
-									class="w-full px-3 py-2 rounded-xl border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-900 text-sm"
-								/>
-							</div>
-						</div>
-					</div>
-				{/if}
+				<!-- O título do card no painel.
 
-				<!-- Novos controles de sub-textos para QUALQUER pergunta que use os tipos inteligentes -->
-				{#if TIPOS_COM_ROTULOS.includes(p.tipo)}
-					<div
-						class="mt-4 p-4 bg-primary-500/5 dark:bg-primary-500/10 rounded-2xl border border-dashed border-primary-500/30 space-y-4"
-					>
-						<div class="flex items-center gap-2 mb-2">
-							<SquarePen class="w-4 h-4 text-primary-500" aria-hidden="true" />
-							<span
-								class="text-3xs font-semibold text-primary-600 dark:text-primary-400 uppercase tracking-widest"
-								>Personalizar Rótulos do Campo Inteligente</span
-							>
-						</div>
+				     UM campo para as duas marcas, e não um em cada bloco: o valor é o
+				     mesmo `rotulo_painel`, e uma pergunta pode ser gráfico E indicador ao
+				     mesmo tempo. Dois campos editando um valor só é a duplicação do
+				     `CLAUDE.md` em forma de tela — quem preenchesse um veria o outro
+				     mudar sozinho.
 
-						<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-							{#if TIPOS_COM_LISTA.includes(p.tipo)}
-								<div class="space-y-1">
-									<label
-										for="subqtd-{p.id}"
-										class="text-3xs font-bold text-surface-600 dark:text-surface-400 uppercase"
-										>Quantidade:</label
-									>
-									<input
-										id="subqtd-{p.id}"
-										type="text"
-										bind:value={p.subtexto_qtd}
-										placeholder="Ex: 5.1 QUANTIDADE:"
-										class="w-full px-3 py-2 rounded-lg border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-900 text-xs font-bold"
-									/>
-								</div>
-								<div class="space-y-1 md:col-span-2">
-									<label
-										for="sublst-{p.id}"
-										class="text-3xs font-bold text-surface-600 dark:text-surface-400 uppercase tracking-wider"
-										>Legenda Lista (ex: 5.2)</label
-									>
-									<input
-										id="sublst-{p.id}"
-										type="text"
-										bind:value={p.subtexto_lista}
-										placeholder="Ex: 5.2 LISTAGEM:"
-										class="w-full px-3 py-2 rounded-lg border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-900 text-xs font-bold"
-									/>
-								</div>
-								<!-- Só no reutilizável: os tipos de chave fixa trazem o nome do
-								     item embutido ("Mandado 1", "Procedimento 1"). É este campo
-								     que permite ao genérico substituí-los sem perder o nome no
-								     PDF assinado. -->
-								{#if p.tipo === TIPO_LISTA_REUTILIZAVEL}
-									<div class="space-y-1 md:col-span-2">
-										<label
-											for="subitem-{p.id}"
-											class="text-3xs font-bold text-surface-600 dark:text-surface-400 uppercase tracking-wider"
-											>Nome de cada item no relatório</label
-										>
-										<input
-											id="subitem-{p.id}"
-											type="text"
-											bind:value={p.subtexto_item}
-											placeholder="Item"
-											class="w-full px-3 py-2 rounded-lg border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-900 text-xs font-bold"
-										/>
-										<p class="text-3xs text-surface-500 dark:text-surface-500">
-											No PDF cada linha sai como <strong
-												>"↳ {p.subtexto_item?.trim() || 'Item'} 1"</strong
-											>. Ex.: Procedimento, Mandado, Apreensão.
-										</p>
-									</div>
-								{/if}
-							{:else if p.tipo === 'drogas_complex'}
-								<div class="space-y-1">
-									<label
-										for="subtp-{p.id}"
-										class="text-3xs font-bold text-surface-600 dark:text-surface-400 uppercase"
-										>Lista de Tipos:</label
-									>
-									<input
-										id="subtp-{p.id}"
-										type="text"
-										bind:value={p.subtexto_tipo}
-										placeholder="Ex: 10.1 TIPO DE DROGA:"
-										class="w-full px-3 py-2 rounded-lg border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-900 text-xs font-bold"
-									/>
-								</div>
-								<div class="space-y-1">
-									<label
-										for="subdet-{p.id}"
-										class="text-3xs font-bold text-surface-600 dark:text-surface-400 uppercase"
-										>Detalhamento Pesos:</label
-									>
-									<input
-										id="subdet-{p.id}"
-										type="text"
-										bind:value={p.subtexto_detalhe}
-										placeholder="Ex: 10.1.1 PESOS:"
-										class="w-full px-3 py-2 rounded-lg border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-900 text-xs font-bold"
-									/>
-								</div>
-							{:else if p.tipo === 'armas_complex'}
-								<div class="space-y-1">
-									<label
-										for="subtp-{p.id}"
-										class="text-3xs font-bold text-surface-600 dark:text-surface-400 uppercase"
-										>Lista de Tipos:</label
-									>
-									<input
-										id="subtp-{p.id}"
-										type="text"
-										bind:value={p.subtexto_tipo}
-										placeholder="Ex: 11.1 TIPO DE ARMA:"
-										class="w-full px-3 py-2 rounded-lg border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-900 text-xs font-bold"
-									/>
-								</div>
-								<div class="space-y-1">
-									<label
-										for="subdet-{p.id}"
-										class="text-3xs font-bold text-surface-600 dark:text-surface-400 uppercase"
-										>Legenda Quantidade:</label
-									>
-									<input
-										id="subdet-{p.id}"
-										type="text"
-										bind:value={p.subtexto_detalhe}
-										placeholder="Ex: 11.1.1 QUANTIDADE:"
-										class="w-full px-3 py-2 rounded-lg border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-900 text-xs font-bold"
-									/>
-								</div>
-							{/if}
-						</div>
+				     Aparece só depois de marcada porque antes disso não há card nenhum
+				     para intitular. -->
+				{#if temAlgumaForma(p.grafico) || p.indicador}
+					<!-- Sem `rotulo_painel`: é o título que sairia se o campo ficasse em
+					     branco, e é ele que vira placeholder. -->
+					{@const padrao = tituloNoPainel({ tipo: p.tipo, texto: p.texto })}
+					<div
+						class="mt-4 p-4 bg-primary-500/5 dark:bg-primary-500/10 rounded-2xl border border-dashed border-primary-500/30 space-y-1"
+					>
+						<label
+							for="rot-painel-{p.id}"
+							class="flex items-center gap-2 text-3xs font-semibold text-primary-600 dark:text-primary-400 uppercase tracking-widest"
+						>
+							<SquarePen class="w-4 h-4 text-primary-500" aria-hidden="true" />
+							Título no painel de produtividade
+						</label>
+						<input
+							id="rot-painel-{p.id}"
+							type="text"
+							bind:value={p.rotulo_painel}
+							placeholder={padrao}
+							class="w-full px-3 py-2 rounded-xl border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-900 text-sm"
+						/>
+						<p class="text-3xs text-surface-500 dark:text-surface-500">
+							Curto, e substantivo: o card é lido por quem acompanha, não por quem preenche. Em
+							branco, sai como <strong>"{padrao}"</strong>. Não muda o relatório assinado.
+						</p>
 					</div>
 				{/if}
 

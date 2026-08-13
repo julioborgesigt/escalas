@@ -83,6 +83,18 @@ export interface Indicador {
 	chaveTotal: string | null;
 	/** O enunciado da pergunta, para rótulo de gráfico e de campo. */
 	texto: string;
+	/**
+	 * O título que o admin deu ao card no painel, CRU — sem o padrão aplicado.
+	 *
+	 * Passa por aqui em vez de já resolvido porque quem sabe resolver é
+	 * `tituloNoPainel` (`$lib/produtividade/apresentacao`), e é ele que os cards
+	 * de gráfico usam. Resolver aqui também seria a mesma precedência escrita
+	 * duas vezes, uma em cada seção do painel.
+	 *
+	 * Não afeta `/dados-base`: lá o rótulo do campo é `config.rotuloBase`, que
+	 * pergunta outra coisa ("como pedir o valor inicial à unidade").
+	 */
+	rotulo_painel?: string;
 	tipo: string;
 	config: IndicadorConfig;
 }
@@ -184,6 +196,7 @@ export function extrairIndicadores(
 					chaveResposta: chaveResposta(p),
 					chaveTotal: chavesProporcao(p)?.total ?? null,
 					texto: p.texto,
+					rotulo_painel: p.rotulo_painel,
 					tipo: p.tipo,
 					config: p.indicador
 				});
