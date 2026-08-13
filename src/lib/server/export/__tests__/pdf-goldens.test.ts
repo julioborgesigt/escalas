@@ -28,10 +28,12 @@ import {
 	gerarPdfPlantao,
 	gerarPdfGise,
 	gerarRelatorioProdutividadeGisePdf,
-	gerarRelatorioExtraordinarioPdf,
-	gerarRelatorioExtraordinarioSupervisaoPdf,
 	toGisePdfData
 } from '../pdf';
+import {
+	gerarRelatorioExtraordinarioPdf,
+	gerarRelatorioExtraordinarioSupervisaoPdf
+} from '../pdf-relatorio-extra';
 import type { Escala, EscalaPolicialComDados } from '../../../types';
 import type { GiseDetalhado } from '$lib/db';
 

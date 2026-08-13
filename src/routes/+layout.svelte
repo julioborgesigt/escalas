@@ -46,6 +46,7 @@
 	import { useScrollLock, useInvalidateOnFocus } from '$lib/composables';
 	import { fetchSyncEstado } from '$lib/sync-estado';
 	import { ICONE } from '$lib/constants/icones';
+	import { visibilidadeDoMenu, itensExtraDoMenu, rotaAtiva } from './_components/menu-visibilidade';
 	import AlertCircle from '@lucide/svelte/icons/alert-circle';
 	import CheckCircle2 from '@lucide/svelte/icons/check-circle-2';
 
@@ -75,67 +76,35 @@
 	const podeAlternarParaUsuario = $derived(page.data.podeAlternarParaUsuario ?? false);
 	const podeAlternarParaAdmin = $derived(page.data.podeAlternarParaAdmin ?? false);
 
-	// Admin Geral = sessão de admin (tipo 'admin'): bootstrap por env OU policial
-	// promovido (linha vinculada em `administradores`, logado como Administrador).
-	const isAdmGeral = $derived(usuario?.tipo === 'admin');
-
-	// Mostra aba Escalas para: admin_seccional, admin_unidade (admin geral não tem mais acesso à aba Arquivo)
-	const showEscalasPoliciais = $derived(
-		usuario?.papel === 'admin_seccional' || usuario?.papel === 'admin_unidade'
-	);
-
-	// Mostra aba GISE para: admin, admin_seccional ou supervisor ativo
-	// (admin_unidade só vê se também for supervisor, coberto por isSupervisorGise)
-	const showGise = $derived(
-		usuario?.tipo === 'admin' || usuario?.papel === 'admin_seccional' || isSupervisorGise
-	);
-
 	/**
-	 * Produtividade: os DOIS papéis de unidade entram, inclusive `admin_unidade`,
-	 * que `showGise` não cobre.
+	 * Quem vê o quê no menu — a regra mora em `_components/menu-visibilidade.ts`,
+	 * com testes. Aqui ficam só os apelidos que o markup usa.
 	 *
-	 * É deliberado: são eles que informam a linha de base dos indicadores, e quem
-	 * alimenta o denominador de uma meta precisa poder ver o resultado dela. O
-	 * recorte por unidade é feito no SERVIDOR, não por este `if` — esconder o item
-	 * de menu nunca foi autorização.
+	 * Ela saiu daqui porque era prosa não verificada: o cabeçalho deste arquivo
+	 * explicava os dois eixos e os casos deliberados (`showIndicadores` cobrindo
+	 * `admin_unidade` que `showGise` não cobre, `showDadosBase` NÃO seguindo
+	 * `showIndicadores`), e nada reprovava quem "consertasse a inconsistência".
 	 */
-	const showIndicadores = $derived(
-		usuario?.tipo === 'admin' ||
-			usuario?.papel === 'admin_seccional' ||
-			usuario?.papel === 'admin_unidade'
+	const flagsMenu = $derived(
+		visibilidadeDoMenu({
+			usuario,
+			adminModulo,
+			isSupervisorGise,
+			temLinhaBasePendente: page.data.temLinhaBasePendente ?? false,
+			temPresencaGisePendente: page.data.temPresencaGisePendente ?? false,
+			temGiseHistorico: page.data.temGiseHistorico ?? false
+		})
 	);
 
-	/**
-	 * "Dados base" NÃO segue `showIndicadores`: ela só aparece para quem tem
-	 * efetivamente base a informar — admin de unidade/seccional cuja unidade está
-	 * escalada numa operação com indicador percentual. Antes aparecia para todo
-	 * admin de unidade, inclusive os de delegacias fora de qualquer operação, que
-	 * abriam uma tela vazia sem entender por quê. Quem responde é o servidor
-	 * (`temLinhaBaseAPreencher`), porque a pergunta depende de escala e de modelo.
-	 *
-	 * O Admin Geral não entra: para ele a conferência é por operação, e virou
-	 * botão dentro de `/gise/operacoes`.
-	 */
-	const showDadosBase = $derived(page.data.temLinhaBasePendente ?? false);
-
-	// Presença GISE: só com escala GISE ativa E confirmação de entrada/saída
-	// ainda pendente. Só "estar escalado" não basta — quem já bateu a saída
-	// cai no Histórico. O Admin Geral não presta serviço: para ele o item
-	// /res-gise é o editor "Conf. Form.", tratado à parte no bloco do menu.
-	const temPresencaGiseAtiva = $derived(page.data.temPresencaGisePendente ?? false);
-	// Histórico GISE: ao menos uma participação já encerrada para o policial (vem
-	// do servidor junto do papel). Independe de haver serviço ativo, e é o que
-	// mantém a aba acessível depois que todas as GISEs do policial finalizaram.
-	const temGiseHistorico = $derived(page.data.temGiseHistorico ?? false);
-
-	// For admins: control menu group visibility based on chosen module
-	const showGrupo1 = $derived(
-		usuario?.tipo !== 'admin' || adminModulo === 'ambas' || adminModulo === 'escalas'
-	);
-	const showGrupo2 = $derived(
-		usuario?.tipo !== 'admin' || adminModulo === 'ambas' || adminModulo === 'gise'
-	);
-	const showGrupo2Separator = $derived(usuario?.tipo === 'admin' && showGrupo1 && showGrupo2);
+	// Só as que o MARKUP daqui usa. `showIndicadores`, `showDadosBase`,
+	// `temPresencaGiseAtiva` e `temGiseHistorico` saíram junto: existiam apenas
+	// para montar o submenu, e agora quem as consome é `itensExtraDoMenu`.
+	const isAdmGeral = $derived(flagsMenu.isAdmGeral);
+	const showEscalasPoliciais = $derived(flagsMenu.showEscalasPoliciais);
+	const showGise = $derived(flagsMenu.showGise);
+	const showGrupo1 = $derived(flagsMenu.showGrupo1);
+	const showGrupo2 = $derived(flagsMenu.showGrupo2);
+	const showGrupo2Separator = $derived(flagsMenu.showGrupo2Separator);
 
 	// Telas de "portão" (pré-entrada no sistema) são exibidas isoladas, sem a
 	// navegação lateral: login, troca de senha obrigatória e aceite do termo.
@@ -309,94 +278,20 @@
 	}
 
 	function isActive(path: string): boolean {
-		return page.url.pathname === path || page.url.pathname.startsWith(path + '/');
+		return rotaAtiva(page.url.pathname, path);
 	}
 
 	const rotaPath = $derived(page.url.pathname);
-	/**
-	 * Rota da escala extra: lista/escala, excluindo `/gise/operacoes`, que tem
-	 * entrada própria no menu.
-	 */
-	const giseListaOuEscalaPath = $derived(
-		rotaPath === '/gise' ||
-			(rotaPath.startsWith('/gise/') &&
-				!rotaPath.startsWith('/gise/operacoes') &&
-				!rotaPath.startsWith('/gise/bem-vindo'))
-	);
 	const giseOperacoesPathAtivo = $derived(rotaPath.startsWith('/gise/operacoes'));
-
-	// As duas abas de /res-gise dividem a MESMA rota por query string: sem
-	// `?status=finalizadas` é a "Presença GISE" (ativas), com ele é o "Histórico
-	// GISE". O realce do menu segue essa distinção — por isso o `ativo` vai
-	// explícito aos dois itens (o `isActive` padrão, só por pathname, acenderia
-	// os dois ao mesmo tempo). Inclui `/res-gise/relatorio/[giseId]`, cujo link
-	// carrega o mesmo `status` de ida e volta.
-	const naRotaResGise = $derived(rotaPath === '/res-gise' || rotaPath.startsWith('/res-gise/'));
-	const resGiseHistoricoSelecionado = $derived(
-		page.url.searchParams.get('status') === 'finalizadas'
-	);
-	const resGisePresencaAtivo = $derived(naRotaResGise && !resGiseHistoricoSelecionado);
-	const resGiseHistoricoAtivo = $derived(naRotaResGise && resGiseHistoricoSelecionado);
 
 	/**
 	 * Os filhos do menu "Escala extra", já filtrados pelo que este usuário vê.
 	 *
-	 * Uma fonte só para as três perguntas que a barra faz: o pai aparece (a lista
-	 * não está vazia), o que o submenu desenha, e se a rota atual pertence a ele.
-	 * Separá-las deixaria o pai poder abrir num submenu vazio.
-	 *
-	 * As condições são as MESMAS de antes do agrupamento, uma por uma. Agrupar é
-	 * apresentação: nenhum item passou a aparecer para quem não o via, e o recorte
-	 * de verdade continua no servidor — esconder item de menu nunca foi
-	 * autorização.
-	 *
-	 * `/gise/operacoes` NÃO entra: é cadastro de operação, não a operação do dia a
-	 * dia, e fica na raiz ao lado de Policiais e Solicitações.
-	 *
-	 * `showGrupo2` entra aqui, e não só no markup, porque a lista também decide o
-	 * NÍVEL em que a gaveta abre: sem ele, o Admin Geral em módulo "escalas" que
-	 * caísse em `/produtividade` pela URL abriria o menu já dentro do submenu que a
-	 * escolha de módulo esconde dele.
+	 * A montagem mora em `_components/menu-visibilidade.ts`, com testes — inclusive
+	 * o realce das duas abas de `/res-gise`, que dividem a MESMA rota e se
+	 * distinguem só pelo `?status=finalizadas`.
 	 */
-	const filhosExtra = $derived.by(() => {
-		if (!showGrupo2) return [];
-		return [
-			// "Escalas", e não "Escalas ativas": a página lista ativas E histórico,
-			// com o filtro dentro dela. O pai já diz que a escala é a extra.
-			showGise && {
-				href: '/gise',
-				rotulo: 'Escalas',
-				icone: ICONE.pranchetaLista,
-				ativo: giseListaOuEscalaPath
-			},
-			showIndicadores && {
-				href: '/produtividade',
-				rotulo: 'Produtividade',
-				icone: ICONE.barras,
-				ativo: isActive('/produtividade')
-			},
-			showDadosBase && {
-				href: '/dados-base',
-				rotulo: 'Dados base',
-				icone: ICONE.checkLista,
-				ativo: isActive('/dados-base')
-			},
-			usuario?.tipo !== 'admin' &&
-				temPresencaGiseAtiva && {
-					href: '/res-gise',
-					rotulo: 'Minha presença',
-					icone: ICONE.documento,
-					ativo: resGisePresencaAtivo
-				},
-			usuario?.tipo !== 'admin' &&
-				temGiseHistorico && {
-					href: '/res-gise?status=finalizadas',
-					rotulo: 'Meu histórico',
-					icone: ICONE.historico,
-					ativo: resGiseHistoricoAtivo
-				}
-		].filter((x) => x !== false && x !== undefined);
-	});
+	const filhosExtra = $derived(itensExtraDoMenu(flagsMenu, page.url));
 
 	/** A rota atual é de algum filho? Decide o nível em que a gaveta abre. */
 	const naRotaExtra = $derived(filhosExtra.some((f) => f.ativo));

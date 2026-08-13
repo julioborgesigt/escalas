@@ -29,7 +29,7 @@
 	import IconTooltip from '$lib/components/IconTooltip.svelte';
 	import { podeBaixarComManifesto } from '$lib/manifesto';
 	import Download from '@lucide/svelte/icons/download';
-	import BadgeTipoEscala from './BadgeTipoEscala.svelte';
+	import BadgeTipoEscala from '$lib/components/BadgeTipoEscala.svelte';
 	import BadgeStatusEscala from './BadgeStatusEscala.svelte';
 
 	type SolicitacaoInfo = {
@@ -116,7 +116,7 @@
 						<tr>
 							<td>
 								<div class="flex flex-col gap-0.5">
-									<BadgeTipoEscala tipo={esc.tipo} tamanho="xs" />
+									<BadgeTipoEscala tipo={esc.tipo} tamanho="xs" class="w-fit" />
 									<a href="/escalas/{esc.id}" class="anchor text-sm font-semibold">
 										{esc.tipo !== 'fds'
 											? `${MESES_PT[dRow.getMonth()]} ${dRow.getFullYear()}`
@@ -273,7 +273,7 @@
 				>
 					<div class="flex justify-between items-start mb-3 gap-2">
 						<div class="min-w-0 flex-1">
-							<BadgeTipoEscala tipo={esc.tipo} tamanho="3xs" />
+							<BadgeTipoEscala tipo={esc.tipo} tamanho="3xs" class="mb-0.5 inline-block" />
 							<a
 								href="/escalas/{esc.id}"
 								class="font-bold text-sm text-surface-900 dark:text-surface-50 no-underline hover:text-primary-500 dark:hover:text-primary-400 leading-tight block"

@@ -8,9 +8,10 @@
 	 * - o ADMIN GERAL não tem serviço nenhum aqui — para ele a tela é a
 	 *   `ConfigurarFormulario`, o editor do modelo de perguntas.
 	 *
-	 * O estado e as chamadas ficam em `useResGise`; este arquivo escolhe o que
-	 * mostrar e hospeda os modais compartilhados (pad de assinatura e cadastro de
-	 * rubrica).
+	 * O estado e as chamadas ficam em DOIS composables, um por audiência —
+	 * `usePresencaGise` e `useEditorModelo`. Este arquivo escolhe o que mostrar e
+	 * hospeda os modais compartilhados (pad de assinatura e cadastro de rubrica).
+	 * O editor só é instanciado para o Admin Geral: o policial não paga por ele.
 	 *
 	 * `minhaRubrica` espelha o dado do `load` mas é estado local: salvar ou
 	 * excluir a rubrica precisa refletir na hora, sem recarregar a página inteira
@@ -28,7 +29,8 @@
 	import ModalCadastrarRubrica from '$lib/components/ModalCadastrarRubrica.svelte';
 	import ModalShell from '$lib/components/ModalShell.svelte';
 	import BotaoVoltar from '$lib/components/BotaoVoltar.svelte';
-	import { useResGise } from './_components/useResGise.svelte';
+	import { usePresencaGise } from './_components/usePresencaGise.svelte';
+	import { fmtDate } from '$lib/gise/formatters';
 	import { loading } from '$lib/loading.svelte';
 	import ConfigurarFormulario from './_components/ConfigurarFormulario.svelte';
 	import FormularioServico from './_components/FormularioServico.svelte';
@@ -37,14 +39,14 @@
 	const { data }: PageProps = $props();
 	const auth = useAutorizacao();
 	const isAdminGeral = $derived(auth.isAdmin);
-	const resGise = useResGise(() => data);
+	const presenca = usePresencaGise(() => data);
 	const mobileState = useMobile();
 	const isMobile = $derived(mobileState.isMobile);
 	// Modo da tela: "Histórico GISE" (?status=finalizadas) x "Presença GISE"
 	// (ativas). São duas abas da sidebar apontando para a mesma rota; a lista já
 	// vem filtrada pelo servidor, então aqui o modo só ajusta título, texto de
 	// vazio e a exibição da busca por data (só no histórico).
-	const ehHistorico = $derived(resGise.statusFilterUrl === 'finalizadas');
+	const ehHistorico = $derived(presenca.statusFilterUrl === 'finalizadas');
 
 	// Presença/relatório de outra sessão: foco + broadcast + poll (quente se há
 	// serviço ativo sem saída).
@@ -52,10 +54,10 @@
 		isHot: () =>
 			!isAdminGeral &&
 			Boolean(
-				resGise.escalaSelecionada &&
+				presenca.escalaSelecionada &&
 				!(
-					'presenca' in resGise.escalaSelecionada &&
-					resGise.escalaSelecionada.presenca?.saida_timestamp
+					'presenca' in presenca.escalaSelecionada &&
+					presenca.escalaSelecionada.presenca?.saida_timestamp
 				)
 			),
 		probe: async () => {
@@ -70,7 +72,7 @@
 
 	let signatureStep = $state<'signature' | 'camera' | 'email_code'>('signature');
 	$effect(() => {
-		if (resGise.capturandoRubrica) {
+		if (presenca.capturandoRubrica) {
 			signatureStep = 'signature';
 		}
 	});
@@ -103,16 +105,16 @@
 	$effect(() => {
 		const idUrl = Number(page.url.searchParams.get('giseId')) || 0;
 		if (!idUrl) {
-			if (resGise.escalaSelecionada) resGise.escalaSelecionada = null;
+			if (presenca.escalaSelecionada) presenca.escalaSelecionada = null;
 			return;
 		}
 		const equipeUrl = Number(page.url.searchParams.get('equipeId')) || 0;
-		const atual = resGise.escalaSelecionada;
+		const atual = presenca.escalaSelecionada;
 		if (atual?.id === idUrl && (!equipeUrl || atual.equipe_id === equipeUrl)) return;
 		const alvo = data.minhasEscalas?.find(
 			(e) => e.id === idUrl && (!equipeUrl || e.equipe_id === equipeUrl)
 		);
-		if (alvo) resGise.escalaSelecionada = alvo;
+		if (alvo) presenca.escalaSelecionada = alvo;
 	});
 
 	function voltarParaLista() {
@@ -127,7 +129,7 @@
 	}
 
 	$effect(() => {
-		if (resGise.escalaSelecionada) window.scrollTo({ top: 0, behavior: 'smooth' });
+		if (presenca.escalaSelecionada) window.scrollTo({ top: 0, behavior: 'smooth' });
 	});
 
 	const navegandoParaEscala = $derived(
@@ -165,8 +167,14 @@
 	</header>
 
 	{#if isAdminGeral}
+		<!-- `getData` e não o composable pronto: o editor se instancia DENTRO do
+		     componente, que só é renderizado para o Admin Geral. O policial não
+		     paga pelos efeitos do editor. `aoSalvar` religa as duas metades —
+		     gravar o modelo invalida o load, e quem tiver escala selecionada
+		     precisa reapontar para a linha nova. -->
 		<ConfigurarFormulario
-			{resGise}
+			getData={() => data}
+			aoSalvar={() => presenca.reaplicarEscalaSelecionada()}
 			modeloAnteriorOperacional={data.modeloAnteriorOperacional}
 			modeloAnteriorSeint={data.modeloAnteriorSeint}
 		/>
@@ -175,7 +183,7 @@
 		<div class="overflow-hidden">
 			<div
 				class="flex transition-transform duration-300 ease-in-out"
-				style="transform: translateX({resGise.escalaSelecionada ? '-50%' : '0%'}); width: 200%;"
+				style="transform: translateX({presenca.escalaSelecionada ? '-50%' : '0%'}); width: 200%;"
 			>
 				<!-- Panel 1: Lista de Escalas -->
 				<div class="min-w-0 space-y-4" style="width: 50%;">
@@ -206,11 +214,11 @@
 										class="text-3xs font-black text-surface-600 dark:text-surface-400 uppercase tracking-widest"
 										>Busca Detalhada</span
 									>
-									{#if resGise.mesFilterUrl || resGise.dataFilterUrl}
+									{#if presenca.mesFilterUrl || presenca.dataFilterUrl}
 										<button
 											type="button"
 											class="text-3xs font-bold text-error-500 hover:underline px-2 py-0.5 bg-error-500/10 rounded-md transition-all"
-											onclick={resGise.limparFiltros}>Limpar</button
+											onclick={presenca.limparFiltros}>Limpar</button
 										>
 									{/if}
 								</div>
@@ -227,8 +235,8 @@
 											id="mesMember"
 											type="month"
 											class="block w-full px-3 py-2 text-xs rounded-lg border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-900 focus:ring-2 focus:ring-primary-500 transition-all font-bold shadow-sm"
-											value={resGise.mesFilterUrl}
-											onchange={(e) => resGise.changeDateFilter('mes', e.currentTarget.value)}
+											value={presenca.mesFilterUrl}
+											onchange={(e) => presenca.changeDateFilter('mes', e.currentTarget.value)}
 										/>
 									</div>
 									<div class="space-y-1">
@@ -240,8 +248,8 @@
 											id="dataMember"
 											type="date"
 											class="block w-full px-3 py-2 text-xs rounded-lg border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-900 focus:ring-2 focus:ring-primary-500 transition-all font-bold shadow-sm"
-											value={resGise.dataFilterUrl}
-											onchange={(e) => resGise.changeDateFilter('data', e.currentTarget.value)}
+											value={presenca.dataFilterUrl}
+											onchange={(e) => presenca.changeDateFilter('data', e.currentTarget.value)}
 										/>
 									</div>
 								</div>
@@ -263,19 +271,19 @@
 								<div
 									role="button"
 									tabindex="0"
-									class="w-full text-left p-4 rounded-2xl border transition-all cursor-pointer {resGise
+									class="w-full text-left p-4 rounded-2xl border transition-all cursor-pointer {presenca
 										.escalaSelecionada?.id === escala.id &&
-									resGise.escalaSelecionada?.equipe_id === escala.equipe_id
+									presenca.escalaSelecionada?.equipe_id === escala.equipe_id
 										? 'border-primary-500 bg-primary-500/10'
 										: 'border-surface-200 dark:border-white/10 bg-white dark:bg-surface-900 hover:border-primary-500/50'} {estaCarregando
 										? 'opacity-60'
 										: ''}"
-									onclick={() => resGise.selecionarEscala(escala)}
-									onkeydown={(e) => e.key === 'Enter' && resGise.selecionarEscala(escala)}
+									onclick={() => presenca.selecionarEscala(escala)}
+									onkeydown={(e) => e.key === 'Enter' && presenca.selecionarEscala(escala)}
 								>
 									<div class="flex items-center justify-between">
 										<p class="text-sm font-bold text-surface-900 dark:text-surface-100">
-											{resGise.fmtDate(escala.data_inicio)}
+											{fmtDate(escala.data_inicio)}
 											<span class="ml-1 opacity-50 font-normal">#{escala.id}</span>
 										</p>
 										{#if estaCarregando}
@@ -315,10 +323,10 @@
 														'filled',
 														(e: MouseEvent) => {
 															e.stopPropagation();
-															resGise.baixarRelatorio(escala);
+															presenca.baixarRelatorio(escala);
 														},
 														false,
-														resGise.baixandoProdutividade === escala.id,
+														presenca.baixandoProdutividade === escala.id,
 														'flex-1 sm:flex-none w-full sm:w-auto text-3xs px-3 py-1.5',
 														'button',
 														'sm'
@@ -332,10 +340,10 @@
 														'filled',
 														(e: MouseEvent) => {
 															e.stopPropagation();
-															resGise.baixarRelatorioExtra(escala);
+															presenca.baixarRelatorioExtra(escala);
 														},
 														false,
-														resGise.baixandoExtra === escala.id,
+														presenca.baixandoExtra === escala.id,
 														'flex-1 sm:flex-none w-full sm:w-auto text-3xs px-3 py-1.5',
 														'button',
 														'sm'
@@ -400,12 +408,12 @@
 							</svg>
 							Voltar
 						</button>
-						{#if resGise.escalaSelecionada}
+						{#if presenca.escalaSelecionada}
 							<section
 								class="card p-4 sm:p-6 bg-white dark:bg-surface-900 border border-surface-200 dark:border-surface-800 rounded-3xl shadow-sm"
 							>
 								<FormularioServico
-									{resGise}
+									{presenca}
 									{isAdminGeral}
 									{isMobile}
 									restringirSmartphone={data.restringirSmartphone}
@@ -424,14 +432,14 @@
 
 <svelte:window
 	onkeydown={(e) => {
-		if (resGise.escalaSelecionada && e.key === 'Escape' && !resGise.capturandoRubrica)
+		if (presenca.escalaSelecionada && e.key === 'Escape' && !presenca.capturandoRubrica)
 			voltarParaLista();
 	}}
 />
 
 <!-- Modal de Rubrica — Confirmação de Entrada / Saída do Policial -->
-{#if resGise.escalaSelecionada}
-	{@const tipoPresenca = !resGise.escalaSelecionada.presenca?.entrada_timestamp
+{#if presenca.escalaSelecionada}
+	{@const tipoPresenca = !presenca.escalaSelecionada.presenca?.entrada_timestamp
 		? 'entrada'
 		: 'saida'}
 	{@const titulo =
@@ -451,7 +459,7 @@
 					? 'Registre sua rubrica para confirmar a entrada no serviço.'
 					: 'Registre sua rubrica para confirmar a saída do serviço.'}
 	<ModalShell
-		open={resGise.capturandoRubrica}
+		open={presenca.capturandoRubrica}
 		title={titulo}
 		description={descricao}
 		largura="2xl"
@@ -459,7 +467,7 @@
 		familia="assinatura"
 		pending={loading.active}
 		onOpenChange={(novoOpen) => {
-			if (!novoOpen && !loading.active) resGise.capturandoRubrica = false;
+			if (!novoOpen && !loading.active) presenca.capturandoRubrica = false;
 		}}
 	>
 		{#if loading.active}
@@ -471,10 +479,10 @@
 					{tipoPresenca === 'entrada' ? 'Registrando entrada...' : 'Registrando saída...'}
 				</p>
 			</div>
-		{:else if resGise.capturandoRubrica}
+		{:else if presenca.capturandoRubrica}
 			<SignaturePad
-				onConfirm={tipoPresenca === 'entrada' ? resGise.salvarEntrada : resGise.salvarSaida}
-				onCancel={() => (resGise.capturandoRubrica = false)}
+				onConfirm={tipoPresenca === 'entrada' ? presenca.salvarEntrada : presenca.salvarSaida}
+				onCancel={() => (presenca.capturandoRubrica = false)}
 				exigirFoto={page.data.exigirFotoAssinatura ?? true}
 				exigirGps={page.data.exigirGpsAssinatura ?? true}
 				exigirCodigoEmail={page.data.exigirCodigoEmailAssinatura ?? false}
