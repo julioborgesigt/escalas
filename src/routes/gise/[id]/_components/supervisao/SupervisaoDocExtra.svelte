@@ -2,9 +2,18 @@
 	/**
 	 * Card do relatório de extra do quadro de supervisão (unidade sintética) —
 	 * downloads, conferência e botões Tela/Token do supervisor.
+	 *
+	 * Sem props: tudo vem do contexto do quadro.
+	 *
+	 * Os três predicados abaixo NÃO são o mesmo: `downloadExtraSupHabilitado`
+	 * exige rubricas completas e permissão de baixar (é o PDF assinado);
+	 * `downloadExtraSupConferenciaHabilitado` é a via de conferência, aberta a
+	 * Admin Geral e supervisor mesmo sem rubricas; `assinaturaExtraHabilitada`
+	 * é o gate dos botões Tela/Token. Estados de rubrica diferentes precisam
+	 * habilitar coisas diferentes.
 	 */
 	import { page } from '$app/state';
-	import SupervisaoDocumentoCard from '../SupervisaoDocumentoCard.svelte';
+	import SupervisaoDocumentoCard from './SupervisaoDocumentoCard.svelte';
 	import FileDown from '@lucide/svelte/icons/file-down';
 	import PenLine from '@lucide/svelte/icons/pen-line';
 	import {
@@ -12,64 +21,38 @@
 		faltantesSupervisaoExtra,
 		FALTANTE_RUBRICA_SUPER_PREFIX
 	} from '$lib/gise/supervisao-extra';
-	import type { GiseAssinaturaRelatorio } from '$lib/server/schema';
 	import { podeBaixarComManifesto } from '$lib/manifesto';
 	import { montarNomesSupervisao } from './rodagem';
-	import type { GiseSupervisaoGise, PolicialOpcao, PresencaGiseLinha } from './types';
+	import { quadroSupervisao } from './quadro-supervisao-estado.svelte';
 
-	interface Props {
-		gise: GiseSupervisaoGise;
-		policiais: PolicialOpcao[];
-		presencasGise: PresencaGiseLinha[] | null;
-		supervisaoExtraUnidadeId: number | null;
-		assinaturasRelatorios: GiseAssinaturaRelatorio[] | null;
-		isAdminGeral: boolean;
-		isSeccional: boolean;
-		isSupervisor: boolean;
-		isMobile: boolean;
-		podeDownload: boolean;
-		onAssinarExtraSupervisaoManual?: () => void;
-		onAssinarExtraSupervisaoDigital?: () => void;
-	}
+	const quadro = quadroSupervisao();
 
-	const {
-		gise,
-		policiais,
-		presencasGise,
-		supervisaoExtraUnidadeId,
-		assinaturasRelatorios,
-		isAdminGeral,
-		isSeccional,
-		isSupervisor,
-		isMobile,
-		podeDownload,
-		onAssinarExtraSupervisaoManual,
-		onAssinarExtraSupervisaoDigital
-	}: Props = $props();
+	const gise = $derived(quadro.gise);
+	const supervisaoExtraUnidadeId = $derived(quadro.supervisaoExtraUnidadeId);
 
-	const nomesSupervisaoPorId = $derived(montarNomesSupervisao(gise, policiais));
+	const nomesSupervisaoPorId = $derived(montarNomesSupervisao(gise, quadro.policiais));
 	const extraSupervisaoConfigurado = $derived(supervisaoExtraUnidadeId != null);
 
 	const assRelSup = $derived(
 		supervisaoExtraUnidadeId == null
 			? undefined
-			: assinaturasRelatorios?.find(
+			: quadro.assinaturasRelatorios?.find(
 					(a) => a.seccional_id === supervisaoExtraUnidadeId && a.tipo === 'extraordinario'
 				)
 	);
-	const rubSupOk = $derived(supervisaoExtraRubricasCompletas(gise, presencasGise ?? []));
+	const rubSupOk = $derived(supervisaoExtraRubricasCompletas(gise, quadro.presencasGise ?? []));
 	const faltSup = $derived(
-		faltantesSupervisaoExtra(gise, presencasGise ?? [], nomesSupervisaoPorId)
+		faltantesSupervisaoExtra(gise, quadro.presencasGise ?? [], nomesSupervisaoPorId)
 	);
 
 	const downloadExtraSupHabilitado = $derived(
 		extraSupervisaoConfigurado &&
-			!!podeDownload &&
+			!!quadro.podeDownload &&
 			rubSupOk &&
-			(assRelSup || isAdminGeral || isSeccional || isSupervisor)
+			(assRelSup || quadro.isAdminGeral || quadro.isSeccional || quadro.isSupervisor)
 	);
 	const downloadExtraSupConferenciaHabilitado = $derived(
-		extraSupervisaoConfigurado && (isAdminGeral || isSupervisor)
+		extraSupervisaoConfigurado && (quadro.isAdminGeral || quadro.isSupervisor)
 	);
 	const assinaturaExtraHabilitada = $derived(!!rubSupOk && !!extraSupervisaoConfigurado);
 
@@ -152,13 +135,13 @@
 			{@render iconeCaneta()}
 			Conferência
 		</a>
-		{#if isSupervisor && extraSupervisaoConfigurado}
+		{#if quadro.isSupervisor && extraSupervisaoConfigurado}
 			{#if mobile}
 				<button
 					type="button"
 					class="btn btn-xs preset-filled-warning-500 border border-warning-600/30 px-2.5 py-1.5 text-3xs font-bold rounded-lg hover:border-warning-600 disabled:opacity-40 flex items-center gap-1"
 					disabled={!assinaturaExtraHabilitada}
-					onclick={() => onAssinarExtraSupervisaoManual?.()}
+					onclick={() => quadro.assinarExtraManual()}
 				>
 					{@render iconeCaneta()}
 					Tela
@@ -168,7 +151,7 @@
 					type="button"
 					class="btn btn-xs preset-filled-tertiary-500 border border-tertiary-600/30 px-2.5 py-1.5 text-3xs font-bold rounded-lg hover:border-tertiary-600 disabled:opacity-40 flex items-center gap-1 hover:scale-[1.02] transition-all"
 					disabled={!assinaturaExtraHabilitada}
-					onclick={() => onAssinarExtraSupervisaoDigital?.()}
+					onclick={() => quadro.assinarExtraDigital()}
 				>
 					{@render iconeCaneta()}
 					Token
@@ -195,7 +178,6 @@
 		</div>
 	{:else}
 		<SupervisaoDocumentoCard
-			{isMobile}
 			titulo="Relatório de extra (supervisão)"
 			textoInfo="O supervisor poderá assinar o relatório de extra do quadro de supervisão quando todos os integrantes confirmarem sua saída."
 			badgeEstado={assRelSup ? 'sucesso' : rubSupOk ? 'alerta' : 'neutro'}

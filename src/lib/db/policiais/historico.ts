@@ -6,11 +6,11 @@
  * portaria (FLW-RBAC-005).
  */
 import { eq, desc } from 'drizzle-orm';
-import { policiais, policialHistorico } from '../server/schema';
-import type { PolicialHistorico } from '../server/schema';
-import type { Database } from './core';
-import { camposDeAtualizacao, type CamposDoPolicial } from './policiais';
-import type { CpfCriptoEnv } from '../crypto/cpf-cripto';
+import { policiais, policialHistorico } from '../../server/schema';
+import type { PolicialHistorico } from '../../server/schema';
+import type { Database } from '../core';
+import { camposDeAtualizacao, type CamposDoPolicial } from './cadastro';
+import type { CpfCriptoEnv } from '../../crypto/cpf-cripto';
 
 type TipoHistorico = 'movimentacao' | 'afastamento' | 'desvinculacao' | 'edicao' | 'papel';
 

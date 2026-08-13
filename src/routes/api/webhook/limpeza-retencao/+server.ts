@@ -15,7 +15,7 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { getDB, tryGetR2, registrarAuditComContexto } from '$lib/db';
-import { carregarConfigRetencao, executarLimpezaRetencao } from '$lib/db/lgpd-retencao';
+import { carregarConfigRetencao, executarLimpezaRetencao } from '$lib/db/lgpd';
 import { contarPendenciasAudit, reprocessarPendenciasAudit } from '$lib/db/audit';
 import { contarPendenciasR2, reprocessarPendenciasR2 } from '$lib/server/r2-cleanup';
 import {

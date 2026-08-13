@@ -1,11 +1,4 @@
 <script lang="ts">
-	import { slide } from 'svelte/transition';
-	import type { Snippet } from 'svelte';
-	import CheckCircle2 from '@lucide/svelte/icons/check-circle-2';
-	import Clock from '@lucide/svelte/icons/clock';
-	import Info from '@lucide/svelte/icons/info';
-	import { Popover, Portal } from '@skeletonlabs/skeleton-svelte';
-
 	/**
 	 * Moldura dos cards de documento do quadro de supervisão (escala GISE e
 	 * relatório de extra). Unifica as quatro variantes que se repetiam no
@@ -21,9 +14,22 @@
 	 *
 	 * O ícone à esquerda espelha o card de lote: check verde quando assinado
 	 * (`badgeEstado === 'sucesso'`).
+	 *
+	 * Este é o ÚNICO ponto do quadro que ramifica por dispositivo, então lê
+	 * `useMobile()` direto (fonte única desde ago/2026) em vez de receber o
+	 * valor — que antes descia quatro níveis por prop até aqui.
 	 */
+	import { slide } from 'svelte/transition';
+	import type { Snippet } from 'svelte';
+	import CheckCircle2 from '@lucide/svelte/icons/check-circle-2';
+	import Clock from '@lucide/svelte/icons/clock';
+	import Info from '@lucide/svelte/icons/info';
+	import { Popover, Portal } from '@skeletonlabs/skeleton-svelte';
+	import { useMobile } from '$lib/composables';
+
+	const mobileState = useMobile();
+
 	let {
-		isMobile,
 		titulo,
 		textoInfo = '',
 		badgeEstado,
@@ -32,7 +38,6 @@
 		detalhes,
 		acoes
 	}: {
-		isMobile: boolean;
 		/** Rótulo acima do card (mobile e desktop). */
 		titulo: string;
 		/** Texto do popover do ícone de informação (opcional). */
@@ -44,6 +49,8 @@
 		detalhes: Snippet<[boolean]>;
 		acoes: Snippet<[boolean]>;
 	} = $props();
+
+	const isMobile = $derived(mobileState.isMobile);
 
 	const iconeBoxClass = $derived(
 		badgeEstado === 'sucesso'

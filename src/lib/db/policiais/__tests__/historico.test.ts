@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { afastamentoVigente } from '../policial-historico';
-import type { PolicialHistorico } from '../../server/schema';
+import { afastamentoVigente } from '../historico';
+import type { PolicialHistorico } from '../../../server/schema';
 
 /** Cria um evento de histórico mínimo para os testes (só os campos usados). */
 function ev(p: Partial<PolicialHistorico>): PolicialHistorico {

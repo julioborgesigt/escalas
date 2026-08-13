@@ -2,6 +2,8 @@
 	/**
 	 * Slot Assessor do quadro de supervisão — designação + e-mail de avisos GISE
 	 * (com checkbox de confirmação) e marcador de rodagem.
+	 *
+	 * Sem props: tudo vem do contexto do quadro.
 	 */
 	import SearchableSelect from '$lib/components/SearchableSelect.svelte';
 	import MarcadorPresenca from '../MarcadorPresenca.svelte';
@@ -10,61 +12,22 @@
 	import Users from '@lucide/svelte/icons/users';
 	import Spinner from '$lib/components/Spinner.svelte';
 	import { presencaDe } from './rodagem';
-	import type {
-		GiseSupervisaoGise,
-		LoadOptionsFn,
-		PapelSupervisao,
-		PolicialOpcao,
-		PresencaGiseLinha,
-		SelectedOption
-	} from './types';
+	import { quadroSupervisao } from './quadro-supervisao-estado.svelte';
 
-	interface Props {
-		gise: GiseSupervisaoGise;
-		assessorId: number | null;
-		assessorEmailNotificacao: string;
-		editandoPapel: PapelSupervisao | null;
-		removendoPapel: PapelSupervisao | null;
-		policiais: PolicialOpcao[];
-		presencasGise: PresencaGiseLinha[] | null;
-		isAdminGeral: boolean;
-		podeEditar: boolean;
-		modoEdicaoGeral: boolean;
-		pendingCrud: boolean;
-		buscarOips: LoadOptionsFn;
-		selectedFromPoliciais: (id: number | null) => SelectedOption;
-		onIniciarEdicao: (papel: PapelSupervisao) => void;
-		onSolicitarRemocao: (papel: PapelSupervisao) => void;
-		onCancelarEdicao: () => void;
-	}
+	const quadro = quadroSupervisao();
 
-	let {
-		gise,
-		assessorId = $bindable(),
-		assessorEmailNotificacao = $bindable(''),
-		editandoPapel,
-		removendoPapel,
-		policiais,
-		presencasGise,
-		isAdminGeral,
-		podeEditar,
-		modoEdicaoGeral,
-		pendingCrud,
-		buscarOips,
-		selectedFromPoliciais,
-		onIniciarEdicao,
-		onSolicitarRemocao,
-		onCancelarEdicao
-	}: Props = $props();
+	const emEdicao = $derived(quadro.editandoPapel === 'assessor');
+	const podeGerenciar = $derived(
+		quadro.isAdminGeral && quadro.podeEditar && quadro.modoEdicaoGeral
+	);
 </script>
 
 <div
-	class="flex flex-col gap-2 p-2.5 px-3 rounded-xl bg-white dark:bg-surface-900 border border-surface-200 dark:border-surface-800 shadow-sm hover:shadow transition-all duration-200 {editandoPapel ===
-	'assessor'
+	class="flex flex-col gap-2 p-2.5 px-3 rounded-xl bg-white dark:bg-surface-900 border border-surface-200 dark:border-surface-800 shadow-sm hover:shadow transition-all duration-200 {emEdicao
 		? 'col-span-full'
 		: ''}"
 >
-	{#if editandoPapel === 'assessor'}
+	{#if emEdicao}
 		<div class="flex flex-col gap-1.5 w-full">
 			<div class="flex items-center gap-2">
 				<div class="text-surface-400 dark:text-surface-500 shrink-0">
@@ -81,10 +44,10 @@
 					</span>
 					<SearchableSelect
 						id="assessorId"
-						bind:value={assessorId}
-						loadOptions={buscarOips}
+						bind:value={quadro.ids.assessor}
+						loadOptions={quadro.buscarOips}
 						ariaLabel="Selecionar assessor"
-						selectedOption={selectedFromPoliciais(assessorId)}
+						selectedOption={quadro.opcaoSelecionada(quadro.ids.assessor)}
 						placeholder="Pesquisar Assessor..."
 						minSearchChars={2}
 						showTrigger={false}
@@ -92,7 +55,7 @@
 					/>
 				</div>
 
-				{#if assessorId != null}
+				{#if quadro.ids.assessor != null}
 					<div class="flex-1 min-w-[200px]">
 						<label
 							for="assessorEmailNotif"
@@ -105,7 +68,7 @@
 							type="email"
 							name="assessor_email_notificacao"
 							autocomplete="email"
-							bind:value={assessorEmailNotificacao}
+							bind:value={quadro.assessorEmailNotificacao}
 							class="w-full px-3 py-1.5 rounded-xl border border-surface-300 dark:border-surface-600 bg-white dark:bg-surface-800 text-sm focus:border-primary-400 focus:ring-1 focus:ring-primary-400/30 focus:outline-none transition-colors text-surface-900 dark:text-surface-50 placeholder:text-surface-400 dark:placeholder:text-surface-500 h-[38px]"
 							placeholder="nome@provedor.com"
 						/>
@@ -133,9 +96,9 @@
 					<button
 						type="submit"
 						class="btn preset-filled-primary-500 text-sm px-3 py-1.5 rounded-lg w-full sm:w-auto transition-all"
-						disabled={pendingCrud}
+						disabled={quadro.pendingCrud}
 					>
-						{#if pendingCrud && editandoPapel === 'assessor'}
+						{#if quadro.pendingCrud}
 							<Spinner size="sm" />
 						{:else}
 							Adicionar
@@ -144,8 +107,8 @@
 					<button
 						type="button"
 						class="btn preset-outlined-primary-500 text-sm px-3 py-1.5 rounded-lg w-full sm:w-auto"
-						onclick={onCancelarEdicao}
-						disabled={pendingCrud}
+						onclick={() => quadro.cancelarEdicao()}
+						disabled={quadro.pendingCrud}
 					>
 						Fechar
 					</button>
@@ -163,38 +126,38 @@
 						<span class="text-3xs uppercase font-bold text-surface-400 dark:text-surface-500"
 							>Assessor</span
 						>
-						{#if gise.assessor_id}
-							{@const pr = presencaDe(presencasGise, gise.assessor_id)}
+						{#if quadro.gise.assessor_id}
+							{@const pr = presencaDe(quadro.presencasGise, quadro.gise.assessor_id)}
 							<MarcadorPresenca entrada={pr.entrada} saida={pr.saida} />
 						{/if}
 					</div>
 					<div class="flex items-center gap-2">
 						<p class="text-sm font-semibold text-surface-700 dark:text-surface-200 truncate">
-							{gise.assessor_id
-								? (policiais.find((p) => p.id === gise.assessor_id)?.nome ?? 'Carregando...')
+							{quadro.gise.assessor_id
+								? (quadro.nomeDe(quadro.gise.assessor_id) ?? 'Carregando...')
 								: 'Não definido'}
 						</p>
-						{#if isAdminGeral && podeEditar && modoEdicaoGeral}
+						{#if podeGerenciar}
 							<div class="flex items-center gap-1 shrink-0">
 								<button
 									type="button"
 									class="btn btn-xs preset-filled-surface-500 rounded p-1"
 									title="Editar"
 									aria-label="Editar"
-									onclick={() => onIniciarEdicao('assessor')}
+									onclick={() => quadro.iniciarEdicao('assessor')}
 								>
 									<PenLine size={12} />
 								</button>
-								{#if gise.assessor_id}
+								{#if quadro.gise.assessor_id}
 									<button
 										type="button"
 										class="btn btn-xs preset-outlined-error-500 rounded p-1"
 										title="Remover"
 										aria-label="Remover"
-										onclick={() => onSolicitarRemocao('assessor')}
-										disabled={pendingCrud}
+										onclick={() => quadro.solicitarRemocao('assessor')}
+										disabled={quadro.pendingCrud}
 									>
-										{#if pendingCrud && removendoPapel === 'assessor'}
+										{#if quadro.pendingCrud && quadro.removendoPapel === 'assessor'}
 											<Spinner size="xs" />
 										{:else}
 											<Trash2 size={12} />
@@ -204,12 +167,12 @@
 							</div>
 						{/if}
 					</div>
-					{#if gise.assessor_email_notificacao}
+					{#if quadro.gise.assessor_email_notificacao}
 						<p
 							class="text-3xs text-surface-600 dark:text-surface-400 truncate mt-0.5"
 							title="E-mail para avisos de seccionais"
 						>
-							Avisos: {gise.assessor_email_notificacao}
+							Avisos: {quadro.gise.assessor_email_notificacao}
 						</p>
 					{/if}
 				</div>

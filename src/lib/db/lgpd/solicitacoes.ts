@@ -6,10 +6,10 @@
  * aqui é apagado — só muda de status.
  */
 import { desc, eq, and } from 'drizzle-orm';
-import { lgpdSolicitacoes } from '../server/schema';
-import type { Database } from './core';
-import type { LgpdSolicitacao } from '../server/schema';
-import { adicionarDias } from '../utils/datas';
+import { lgpdSolicitacoes } from '../../server/schema';
+import type { Database } from '../core';
+import type { LgpdSolicitacao } from '../../server/schema';
+import { adicionarDias } from '../../utils/datas';
 
 /** Direitos do art. 18 da LGPD que o formulário oferece. */
 type TipoDireitoLgpd =

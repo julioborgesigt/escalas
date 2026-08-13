@@ -39,7 +39,6 @@
 	import { page } from '$app/state';
 	import { untrack } from 'svelte';
 	import { toaster } from '$lib/toast';
-	import { apiFetch } from '$lib/api-fetch';
 	import { enhance } from '$app/forms';
 	import { useGiseEstado, useGiseAssinatura } from '$lib/composables/gise';
 	import { useOfertaRubrica, rubricaValida, useInvalidateOnFocus } from '$lib/composables';
@@ -53,9 +52,9 @@
 		supervisaoExtraRubricasCompletas
 	} from '$lib/gise/supervisao-extra';
 	import { makeEnhanceHandler } from '$lib/enhance-handler';
-	import { buscarPoliciaisOptions } from '$lib/busca-policiais';
 	import GiseCabecalho from './_components/GiseCabecalho.svelte';
 	import GiseSupervisao from './_components/GiseSupervisao.svelte';
+	import { publicarQuadroSupervisao } from './_components/supervisao/quadro-supervisao-estado.svelte';
 	import GiseLoteAssinaturas from './_components/GiseLoteAssinaturas.svelte';
 	import GiseStatusAvisos from './_components/GiseStatusAvisos.svelte';
 	import GiseSeccional from './_components/GiseSeccional.svelte';
@@ -151,14 +150,6 @@
 
 	// Estados locais (não extraídos)
 	let showFinalizarConfirm = $state(false);
-	let editandoSupervisores = $state(false);
-	let supervisorId = $state<number | null>(null);
-	let assessorId = $state<number | null>(null);
-	/** E-mail do assessor para avisos quando seccionais enviam a GISE (formulário de supervisão). */
-	let assessorEmailNotificacao = $state('');
-	let prevAssessorParaEmail = $state<number | null>(null);
-	let seint1Id = $state<number | null>(null);
-	let seint2Id = $state<number | null>(null);
 	let showDigitalModalRelatorio = $state(false);
 	let relatorioDigitalInfo = $state<{
 		seccionalId: number;
@@ -239,86 +230,6 @@
 	/** Último envio com sucesso à planilha Base_Equipe (persistido em `gise.planilha_base_equipe_alimentada_em`). */
 	const planilhaBaseEquipeAlimentadaOk = $derived(!!gise?.planilha_base_equipe_alimentada_em);
 
-	$effect(() => {
-		if (gise) {
-			supervisorId = gise.supervisor_id ?? null;
-			assessorId = gise.assessor_id ?? null;
-			seint1Id = gise.seint1_id ?? null;
-			seint2Id = gise.seint2_id ?? null;
-		}
-	});
-
-	function emailSugeridoAssessor(id: number | null): string {
-		if (id == null) return '';
-		const p = policiais.find((x: Policial) => x.id === id);
-		if (!p) return '';
-		return (p.email_pessoal?.trim() || p.email?.trim() || '') ?? '';
-	}
-
-	/**
-	 * Quem veio da busca (`/api/policiais/search`) não está na lista enxuta do load (sem e-mails).
-	 * Admin geral: busca e-mails via endpoint dedicado.
-	 */
-	async function preencherEmailAssessorSugerido(id: number | null) {
-		if (id == null) {
-			assessorEmailNotificacao = '';
-			return;
-		}
-		const local = emailSugeridoAssessor(id);
-		if (local) {
-			assessorEmailNotificacao = local;
-			return;
-		}
-		/** Vem do load: consulta direta ao assessor da GISE (evita lista só com `ativo=1` e dispensa fetch). */
-		const doLoad = id === gise?.assessor_id ? (data.assessorEmailSugerido?.trim() ?? '') : '';
-		if (doLoad) {
-			assessorEmailNotificacao = doLoad;
-			return;
-		}
-		try {
-			const d = await apiFetch<{ email_pessoal?: string | null; email?: string | null }>(
-				`/api/policiais/${id}/email-aviso`
-			);
-			if (assessorId !== id) return;
-			assessorEmailNotificacao = (d.email_pessoal?.trim() || d.email?.trim() || '') ?? '';
-		} catch {
-			/* preenchimento é best-effort — ignora falha de rede/servidor */
-		}
-	}
-
-	$effect(() => {
-		if (!editandoSupervisores) {
-			prevAssessorParaEmail = null;
-			return;
-		}
-		const cur = assessorId;
-		if (cur !== prevAssessorParaEmail) {
-			void preencherEmailAssessorSugerido(cur);
-		}
-		prevAssessorParaEmail = cur;
-	});
-
-	/**
-	 * `data.policiais` agora contém APENAS os supports já vinculados (≤ 4 registros)
-	 * para servir de label-resolver dos selects abaixo. A busca de novos nomes vai
-	 * para `/api/policiais/search` sob demanda. Antes: até 10 000 linhas no load.
-	 */
-	function selectedFromPoliciais(id: number | null) {
-		if (id == null) return null;
-		const p = (policiais as Policial[]).find((x) => x.id === id);
-		return p ? { value: p.id, label: `${p.nome} (${p.matricula})` } : null;
-	}
-
-	const buscarDpcs = buscarPoliciaisOptions({
-		cargo: 'DPC',
-		rotulo: 'matricula',
-		valorNumerico: true
-	});
-	const buscarOips = buscarPoliciaisOptions({
-		cargo: 'OIP',
-		rotulo: 'matricula',
-		valorNumerico: true
-	});
 	const setPending = (p: boolean) => (pendingCrud = p);
 
 	const handleSalvarSupervisores = makeEnhanceHandler({
@@ -326,7 +237,7 @@
 		successTitle: 'Supervisor salvo',
 		errorTitle: 'Erro ao salvar',
 		onSuccess: () => {
-			editandoSupervisores = false;
+			quadro.editandoPapel = null;
 		}
 	});
 
@@ -461,6 +372,89 @@
 				gise?.status === 'finalizada')
 	);
 
+	/**
+	 * Quadro de supervisão — publicado por contexto em vez de descido por props.
+	 * O cabeçalho de `quadro-supervisao-estado.svelte.ts` explica a escolha; aqui
+	 * fica só a ligação com o que é da PÁGINA (o `load` e os composables).
+	 */
+	const quadro = publicarQuadroSupervisao({
+		get gise() {
+			return gise ?? null;
+		},
+		get policiais() {
+			return policiais;
+		},
+		get isAdminGeral() {
+			return isAdminGeral;
+		},
+		get isSeccional() {
+			return isSeccional;
+		},
+		get isSupervisor() {
+			return isSupervisor;
+		},
+		get podeEditar() {
+			return podeEditar;
+		},
+		get podeDownload() {
+			return podeDownload;
+		},
+		get modoEdicaoGeral() {
+			return modoEdicaoGeral;
+		},
+		get pendingCrud() {
+			return pendingCrud;
+		},
+		get documentoAssinadoInfo() {
+			return documentoAssinadoInfo;
+		},
+		get presencasGise() {
+			return data.presencasGise ?? null;
+		},
+		get seintSupervisaoComRelatorio() {
+			return data.seintSupervisaoComRelatorio ?? [];
+		},
+		get supervisaoExtraUnidadeId() {
+			return data.supervisaoExtraUnidadeId ?? null;
+		},
+		get assinaturasRelatorios() {
+			return data.assinaturasRelatorios ?? null;
+		},
+		get mostrarPainelAssinaturaEscala() {
+			return podeAssinar;
+		},
+		get assinaturaEscalaSignerEmail() {
+			return data.usuarioAtual?.email ?? undefined;
+		},
+		get assessorEmailSugerido() {
+			return data.assessorEmailSugerido ?? undefined;
+		},
+		assinatura,
+		onSubmitDesignacao: handleSalvarSupervisores,
+		assinarExtraManual() {
+			const id = data.supervisaoExtraUnidadeId;
+			if (id) assinatura.abrirAssinaturaRelatorio(id, 'extraordinario');
+		},
+		assinarExtraDigital() {
+			const id = data.supervisaoExtraUnidadeId;
+			if (id) abrirAssinaturaRelatorioDigital(id, 'extraordinario', 'Supervisão GISE');
+		},
+		abrirAssinaturaEscalaManual() {
+			assinatura.abrirModalRubrica('simples');
+		},
+		async aoAssinarEscalaDigital() {
+			assinatura.rubricaCapturada = null;
+			await invalidateShared('gise:detail', 'app:gise-list');
+		}
+	});
+
+	$effect(() => {
+		quadro.sincronizarIdsComGise();
+	});
+	$effect(() => {
+		quadro.sincronizarEmailAssessor();
+	});
+
 	// --- Rubrica reutilizável (cadastro para assinatura por token, Lógica 2a) ---
 	let minhaRubrica = $state<string | null>(untrack(() => rubricaValida(data.minhaRubrica)));
 	let cadastrandoRubrica = $state(false);
@@ -553,67 +547,7 @@
 		{/if}
 
 		{#if !isSeccional || isSupervisor}
-			<GiseSupervisao
-				{gise}
-				{policiais}
-				{isAdminGeral}
-				{isSeccional}
-				{podeEditar}
-				{modoEdicaoGeral}
-				editando={editandoSupervisores}
-				{documentoAssinadoInfo}
-				{pendingCrud}
-				{buscarDpcs}
-				{buscarOips}
-				{selectedFromPoliciais}
-				presencasGise={data.presencasGise}
-				seintSupervisaoComRelatorio={data.seintSupervisaoComRelatorio ?? []}
-				bind:supervisorId
-				bind:assessorId
-				bind:assessorEmailNotificacao
-				bind:seint1Id
-				bind:seint2Id
-				onEditar={() => {
-					editandoSupervisores = true;
-					prevAssessorParaEmail = assessorId;
-					if (assessorId != null) {
-						const salvo = gise?.assessor_email_notificacao?.trim();
-						if (salvo) assessorEmailNotificacao = salvo;
-						else void preencherEmailAssessorSugerido(assessorId);
-					} else {
-						assessorEmailNotificacao = '';
-					}
-				}}
-				onCancelar={() => {
-					editandoSupervisores = false;
-					prevAssessorParaEmail = null;
-				}}
-				onSubmit={handleSalvarSupervisores}
-				supervisaoExtraUnidadeId={data.supervisaoExtraUnidadeId}
-				assinaturasRelatorios={data.assinaturasRelatorios}
-				{podeDownload}
-				{isSupervisor}
-				{isMobile}
-				onAssinarExtraSupervisaoManual={() => {
-					const id = data.supervisaoExtraUnidadeId;
-					if (id) assinatura.abrirAssinaturaRelatorio(id, 'extraordinario');
-				}}
-				onAssinarExtraSupervisaoDigital={() => {
-					const id = data.supervisaoExtraUnidadeId;
-					if (id) abrirAssinaturaRelatorioDigital(id, 'extraordinario', 'Supervisão GISE');
-				}}
-				mostrarPainelAssinaturaEscala={podeAssinar}
-				assinaturaEscalaSignerEmail={data.usuarioAtual?.email ?? undefined}
-				bind:rubricaCapturada={assinatura.rubricaCapturada}
-				bind:painelTokenGise={assinatura.painelTokenGise}
-				bind:serproSignerName={assinatura.serproSignerName}
-				bind:serproSignerCpf={assinatura.serproSignerCpf}
-				onAbrirAssinaturaEscalaManual={() => assinatura.abrirModalRubrica('simples')}
-				onAssinaturaEscalaDigitalSuccess={async () => {
-					assinatura.rubricaCapturada = null;
-					await invalidateShared('gise:detail', 'app:gise-list');
-				}}
-			>
+			<GiseSupervisao>
 				{#snippet loteSection()}
 					{#if isSupervisor || isAdminGeral}
 						<GiseLoteAssinaturas

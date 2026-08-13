@@ -20,8 +20,8 @@
 import { describe, it, expect, beforeEach, afterAll, vi } from 'vitest';
 import type { DatabaseSync } from 'node:sqlite';
 import type { Database } from '$lib/db';
-import { executarLimpezaRetencao } from '../lgpd-retencao';
-import { bancoMigrado, drizzleSobre } from './sqlite-migrado';
+import { executarLimpezaRetencao } from '../retencao';
+import { bancoMigrado, drizzleSobre } from '../../__tests__/sqlite-migrado';
 
 /** Instante congelado de referência; todos os casos são relativos a ele. */
 const AGORA = new Date('2026-08-01T12:00:00.000Z');

@@ -53,6 +53,7 @@
 	import { fetchSyncEstado } from '$lib/sync-estado';
 	import { loading as loadingService } from '$lib/loading.svelte';
 	import BadgeTipoEscala from '$lib/components/BadgeTipoEscala.svelte';
+	import EstadoVazio from '$lib/components/EstadoVazio.svelte';
 	import type { ActionResult } from '@sveltejs/kit';
 
 	const { data }: PageProps = $props();
@@ -571,12 +572,11 @@
 				<span class="text-sm">Carregando...</span>
 			</div>
 		{:else if !filtroSeccional}
-			<div class="text-center py-20">
-				<Search class="w-10 h-10 mx-auto mb-4 text-surface-400" aria-hidden="true" />
-				<p class="text-surface-600 dark:text-surface-400 text-lg font-semibold">
-					Escolha um opção nos filtros para exibir
-				</p>
-			</div>
+			<EstadoVazio class="py-20" mensagem="Escolha um opção nos filtros para exibir">
+				{#snippet icone()}
+					<Search class="w-10 h-10 text-surface-400" aria-hidden="true" />
+				{/snippet}
+			</EstadoVazio>
 		{:else if carregandoCompliance}
 			<!-- Compliance ainda resolvendo (streaming) — sem isto cairia no
 			     estado vazio "Nenhuma pendência" durante o cálculo -->
@@ -586,21 +586,21 @@
 				{/each}
 			</div>
 		{:else if dadosFiltrados.length === 0}
-			<div class="text-center py-20">
-				{#if mostrarIgnorados}
-					<BellOff class="w-10 h-10 mx-auto mb-4 text-surface-400" aria-hidden="true" />
-				{:else}
-					<PartyPopper class="w-10 h-10 mx-auto mb-4 text-success-500" aria-hidden="true" />
-				{/if}
-				<p class="text-surface-600 dark:text-surface-400 text-lg font-semibold">
-					{mostrarIgnorados ? 'Nenhum item ignorado' : 'Nenhuma pendência encontrada!'}
-				</p>
-				<p class="text-surface-600 dark:text-surface-400 text-sm mt-1">
-					{mostrarIgnorados
-						? 'Você não ignorou nenhuma pendência.'
-						: 'Todas as escalas estão em dia com os filtros selecionados.'}
-				</p>
-			</div>
+			<EstadoVazio
+				class="py-20"
+				mensagem={mostrarIgnorados ? 'Nenhum item ignorado' : 'Nenhuma pendência encontrada!'}
+				descricao={mostrarIgnorados
+					? 'Você não ignorou nenhuma pendência.'
+					: 'Todas as escalas estão em dia com os filtros selecionados.'}
+			>
+				{#snippet icone()}
+					{#if mostrarIgnorados}
+						<BellOff class="w-10 h-10 text-surface-400" aria-hidden="true" />
+					{:else}
+						<PartyPopper class="w-10 h-10 text-success-500" aria-hidden="true" />
+					{/if}
+				{/snippet}
+			</EstadoVazio>
 		{:else}
 			<!-- Desktop table -->
 			<!-- Sem `overflow-hidden` aqui (VIS-3): ele vence o `overflow:auto` do

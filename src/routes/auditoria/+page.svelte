@@ -26,6 +26,8 @@
 	import ChevronUp from '@lucide/svelte/icons/chevron-up';
 	import CheckCircle2 from '@lucide/svelte/icons/check-circle-2';
 	import AlertTriangle from '@lucide/svelte/icons/alert-triangle';
+	import SearchX from '@lucide/svelte/icons/search-x';
+	import EstadoVazio from '$lib/components/EstadoVazio.svelte';
 	import KpiCard from './_components/KpiCard.svelte';
 	import ChipNivel from './_components/ChipNivel.svelte';
 	import { parseJson } from './_components/parse-json';
@@ -745,11 +747,15 @@
 			{/each}
 		</div>
 	{:else}
-		<div
-			class="rounded-xl border border-surface-200 dark:border-white/10 p-10 text-center bg-surface-50 dark:bg-surface-900 text-surface-600 dark:text-surface-400 text-sm"
+		<EstadoVazio
+			class="py-20"
+			mensagem="Nenhum evento encontrado"
+			descricao="Tente ajustar os filtros acima para visualizar mais eventos."
 		>
-			Nenhum evento encontrado para os filtros atuais.
-		</div>
+			{#snippet icone()}
+				<SearchX class="w-10 h-10 text-surface-400" aria-hidden="true" />
+			{/snippet}
+		</EstadoVazio>
 	{/if}
 
 	<!-- Paginação -->

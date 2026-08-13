@@ -5,7 +5,7 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { getDB, registrarAuditComContexto } from '$lib/db';
-import { criarSolicitacao, listarSolicitacoesPorUsuario } from '$lib/db/lgpd-solicitacoes';
+import { criarSolicitacao, listarSolicitacoesPorUsuario } from '$lib/db/lgpd';
 import { requireAuth, validateBody } from '$lib/server/api';
 import { novaSolicitacaoTitularSchema } from '$lib/schemas';
 

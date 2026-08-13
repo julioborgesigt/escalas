@@ -49,6 +49,7 @@
 	import SearchableSelect from '$lib/components/SearchableSelect.svelte';
 	import ModalShell from '$lib/components/ModalShell.svelte';
 	import BadgeTipoEscala from '$lib/components/BadgeTipoEscala.svelte';
+	import EstadoVazio from '$lib/components/EstadoVazio.svelte';
 	import { fetchSyncEstado } from '$lib/sync-estado';
 
 	const { data }: PageProps = $props();
@@ -422,15 +423,15 @@
 	<!-- Tabela de Cx. de Entrada -->
 	<div class="rounded-3xl card-glass p-4 sm:p-5">
 		{#if escalas.length === 0}
-			<div class="text-center py-20 px-4">
-				<Inbox class="w-10 h-10 mx-auto mb-4 text-surface-400" aria-hidden="true" />
-				<p class="text-surface-600 dark:text-surface-400 text-lg font-semibold">
-					Nenhum recebimento encontrado
-				</p>
-				<p class="text-surface-600 dark:text-surface-400 text-sm mt-1">
-					Tente ajustar os filtros acima para visualizar mais escalas.
-				</p>
-			</div>
+			<EstadoVazio
+				class="py-20 px-4"
+				mensagem="Nenhum recebimento encontrado"
+				descricao="Tente ajustar os filtros acima para visualizar mais escalas."
+			>
+				{#snippet icone()}
+					<Inbox class="w-10 h-10 text-surface-400" aria-hidden="true" />
+				{/snippet}
+			</EstadoVazio>
 		{:else}
 			<!-- Desktop table -->
 			<!-- Sem `overflow-hidden` aqui (VIS-3): ele vence o `overflow:auto` do
