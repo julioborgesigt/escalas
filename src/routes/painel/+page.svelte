@@ -52,6 +52,7 @@
 	import { invalidateShared } from '$lib/cross-tab-invalidate';
 	import { fetchSyncEstado } from '$lib/sync-estado';
 	import { loading as loadingService } from '$lib/loading.svelte';
+	import BadgeTipoEscala from '$lib/components/BadgeTipoEscala.svelte';
 	import type { ActionResult } from '@sveltejs/kit';
 
 	const { data }: PageProps = $props();
@@ -643,22 +644,7 @@
 									<tr class={ignorados.has(chaveIgnorado(item)) ? 'opacity-50' : ''}>
 										<td class="font-medium max-w-[305px] truncate">{item.unidade_nome}</td>
 										<td>
-											{#if item.tipo_regime === 'plantao'}
-												<span
-													class="badge preset-filled-tertiary-500/20 text-tertiary-900 dark:text-tertiary-200 border border-tertiary-500/30 text-xs font-bold"
-													>Plantão</span
-												>
-											{:else if item.tipo_regime === 'expediente'}
-												<span
-													class="badge preset-filled-primary-500/20 text-primary-900 dark:text-primary-200 border border-primary-500/30 text-xs font-bold"
-													>Expediente</span
-												>
-											{:else}
-												<span
-													class="badge preset-filled-warning-500/20 text-warning-900 dark:text-warning-200 border border-warning-500/30 text-xs font-bold"
-													>FDS</span
-												>
-											{/if}
+											<BadgeTipoEscala tipo={item.tipo_regime} tamanho="xs" />
 										</td>
 										<td
 											class="text-sm text-surface-600 dark:text-surface-300 whitespace-nowrap font-mono tabular-nums"
@@ -757,22 +743,7 @@
 									<div class="min-w-0 flex-1">
 										<p class="font-bold text-sm truncate">{item.unidade_nome}</p>
 										<div class="flex items-center gap-2 mt-1.5 flex-wrap">
-											{#if item.tipo_regime === 'plantao'}
-												<span
-													class="badge preset-filled-tertiary-500/20 text-tertiary-900 dark:text-tertiary-200 border border-tertiary-500/30 text-3xs font-bold px-1.5 py-0 leading-tight"
-													>PLANTÃO</span
-												>
-											{:else if item.tipo_regime === 'expediente'}
-												<span
-													class="badge preset-filled-primary-500/20 text-primary-900 dark:text-primary-200 border border-primary-500/30 text-3xs font-bold px-1.5 py-0 leading-tight"
-													>EXPEDIENTE</span
-												>
-											{:else}
-												<span
-													class="badge preset-filled-warning-500/20 text-warning-900 dark:text-warning-200 border border-warning-500/30 text-3xs font-bold px-1.5 py-0 leading-tight"
-													>FDS</span
-												>
-											{/if}
+											<BadgeTipoEscala tipo={item.tipo_regime} tamanho="3xs" />
 											<span
 												class="text-xs text-surface-600 dark:text-surface-400 font-medium font-mono tabular-nums"
 												>{item.periodo}</span

@@ -10,7 +10,7 @@
 	 * por e-mail. A tela esconde o que não cabe, mas quem valida é o servidor —
 	 * cada action revalida participação e horário por conta própria.
 	 *
-	 * O estado e as chamadas vivem em `useResGise`; este componente é a
+	 * O estado e as chamadas vivem em `usePresencaGise`; este componente é a
 	 * apresentação de um item da lista.
 	 *
 	 * A produtividade é a exceção entre os três passos: em vez de abrir um modal,
@@ -31,12 +31,13 @@
 	import { loading } from '$lib/loading.svelte';
 	import { toaster } from '$lib/toast';
 	import type { Snippet } from 'svelte';
-	import type { useResGise } from './useResGise.svelte';
+	import { fmtDate } from '$lib/gise/formatters';
+	import type { usePresencaGise } from './usePresencaGise.svelte';
 
-	type ResGise = ReturnType<typeof useResGise>;
+	type PresencaGise = ReturnType<typeof usePresencaGise>;
 
 	const {
-		resGise,
+		presenca,
 		isAdminGeral,
 		isMobile,
 		restringirSmartphone,
@@ -44,7 +45,7 @@
 		abrirCadastroRubrica,
 		voltarParaLista
 	}: {
-		resGise: ResGise;
+		presenca: PresencaGise;
 		isAdminGeral: boolean;
 		isMobile: boolean;
 		restringirSmartphone: boolean;
@@ -54,8 +55,8 @@
 	} = $props();
 
 	const usuario = $derived(page.data.usuario);
-	const giseId = $derived(resGise.escalaSelecionada?.id ?? null);
-	const esc = $derived(resGise.escalaSelecionada);
+	const giseId = $derived(presenca.escalaSelecionada?.id ?? null);
+	const esc = $derived(presenca.escalaSelecionada);
 
 	/**
 	 * Rota do wizard do relatório. Dois parâmetros, ambos opcionais:
@@ -90,8 +91,8 @@
 	const entradaOk = $derived(!!esc?.presenca?.entrada_timestamp);
 	const relatorioOk = $derived(!!esc?.equipeRespondida);
 	const saidaOk = $derived(!!esc?.presenca?.saida_timestamp);
-	const horarioEntradaLiberado = $derived(!!esc && resGise.isHorarioLiberado(esc, isAdminGeral));
-	const horarioSaidaLiberado = $derived(!!esc && resGise.isSaidaLiberada(esc, isAdminGeral));
+	const horarioEntradaLiberado = $derived(!!esc && presenca.isHorarioLiberado(esc, isAdminGeral));
+	const horarioSaidaLiberado = $derived(!!esc && presenca.isSaidaLiberada(esc, isAdminGeral));
 
 	/** Qual modal de PRESENÇA está aberto (o relatório é rota, não modal). */
 	let modalPresenca = $state<'entrada' | 'saida' | null>(null);
@@ -113,9 +114,9 @@
 	}
 	// Só mostra "última atualização" quando difere do envio (houve retificação).
 	const houveRetificacao = $derived(
-		!!resGise.respostaAtualizadaEm &&
-			!!resGise.respostaEnviadaEm &&
-			resGise.respostaAtualizadaEm !== resGise.respostaEnviadaEm
+		!!presenca.respostaAtualizadaEm &&
+			!!presenca.respostaEnviadaEm &&
+			presenca.respostaAtualizadaEm !== presenca.respostaEnviadaEm
 	);
 
 	// Controles dos painéis ocultos de assinatura A3 (um por tipo de presença,
@@ -158,23 +159,23 @@
 {#snippet comprovanteEntrada()}
 	{@render btnDownloadEtapa(
 		'Comprovante',
-		() => resGise.baixarTermoPresenca('entrada'),
-		resGise.baixandoTermo === 'entrada'
+		() => presenca.baixarTermoPresenca('entrada'),
+		presenca.baixandoTermo === 'entrada'
 	)}
 {/snippet}
 {#snippet comprovanteSaida()}
 	{@render btnDownloadEtapa(
 		'Comprovante',
-		() => resGise.baixarTermoPresenca('saida'),
-		resGise.baixandoTermo === 'saida'
+		() => presenca.baixarTermoPresenca('saida'),
+		presenca.baixandoTermo === 'saida'
 	)}
 {/snippet}
 {#snippet baixarProdutividade()}
 	{#if esc && relatorioOk && esc.seccional_id !== 0}
 		{@render btnDownloadEtapa(
 			'Relatório',
-			() => esc && resGise.baixarRelatorio(esc),
-			resGise.baixandoProdutividade === esc.id
+			() => esc && presenca.baixarRelatorio(esc),
+			presenca.baixandoProdutividade === esc.id
 		)}
 	{/if}
 {/snippet}
@@ -254,7 +255,7 @@
 			baixarAutomatico={false}
 			tituloSucesso="Entrada confirmada com certificado digital."
 			onSuccess={async () => {
-				await resGise.sincronizarPresencaAtual('entrada');
+				await presenca.sincronizarPresencaAtual('entrada');
 			}}
 		/>
 		<PainelAssinaturaToken
@@ -270,7 +271,7 @@
 			baixarAutomatico={false}
 			tituloSucesso="Saída confirmada com certificado digital."
 			onSuccess={async () => {
-				await resGise.sincronizarPresencaAtual('saida');
+				await presenca.sincronizarPresencaAtual('saida');
 			}}
 		/>
 	</div>
@@ -385,15 +386,15 @@
 	</div>
 {/snippet}
 
-{#if resGise.escalaSelecionada}
-	{@const escala = resGise.escalaSelecionada}
+{#if presenca.escalaSelecionada}
+	{@const escala = presenca.escalaSelecionada}
 	{@const passoAtivo = !entradaOk ? 1 : temProdutividade && !relatorioOk ? 2 : !saidaOk ? 3 : 0}
 
 	<div class="space-y-6">
 		<div class="border-b border-surface-200 dark:border-surface-800 pb-4">
 			<h2 class="text-xl font-bold">Relatório de Serviço</h2>
 			<p class="text-xs text-primary-500 font-medium">
-				Data: {resGise.fmtDate(escala.data_inicio)}
+				Data: {fmtDate(escala.data_inicio)}
 			</p>
 		</div>
 
@@ -438,10 +439,10 @@
 					relatorioOk,
 					passoAtivo === 2,
 					relatorioOk
-						? resGise.respostaEnviadaEm
-							? `Enviado em ${fmtDataHora(resGise.respostaEnviadaEm)}${
+						? presenca.respostaEnviadaEm
+							? `Enviado em ${fmtDataHora(presenca.respostaEnviadaEm)}${
 									houveRetificacao
-										? ` · retificado em ${fmtDataHora(resGise.respostaAtualizadaEm)}`
+										? ` · retificado em ${fmtDataHora(presenca.respostaAtualizadaEm)}`
 										: ''
 								}`
 							: 'Registrado'
@@ -526,7 +527,7 @@
 		CIMA destes — empilhamento correto, já que a rubrica é o passo seguinte de
 		dentro da confirmação.
 
-		Não foram extraídos para componentes: os três dependem de `resGise`,
+		Não foram extraídos para componentes: os três dependem de `presenca`,
 		`isMobile`, `restringirSmartphone`, `minhaRubrica`, dos painéis A3 e do
 		snippet `blocoRestritoDesktop` — a extração custaria mais props do que
 		poupa marcação (corolário do CLAUDE.md sobre quando NÃO extrair).
@@ -550,7 +551,7 @@
 				undefined,
 				'primary',
 				'filled',
-				() => (resGise.capturandoRubrica = true),
+				() => (presenca.capturandoRubrica = true),
 				false,
 				false,
 				'w-full py-2.5 text-sm shadow-sm'
@@ -604,7 +605,7 @@
 				undefined,
 				'primary',
 				'filled',
-				() => (resGise.capturandoRubrica = true),
+				() => (presenca.capturandoRubrica = true),
 				false,
 				false,
 				'w-full py-2.5 text-sm shadow-sm'

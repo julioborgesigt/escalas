@@ -48,6 +48,7 @@
 	import { loading as loadingService } from '$lib/loading.svelte';
 	import SearchableSelect from '$lib/components/SearchableSelect.svelte';
 	import ModalShell from '$lib/components/ModalShell.svelte';
+	import BadgeTipoEscala from '$lib/components/BadgeTipoEscala.svelte';
 	import { fetchSyncEstado } from '$lib/sync-estado';
 
 	const { data }: PageProps = $props();
@@ -490,22 +491,7 @@
 										<span class="text-sm font-medium">{getMesExtenso(escala.data_inicio)}</span>
 									</td>
 									<td class="text-center">
-										{#if escala.tipo === 'plantao'}
-											<span
-												class="badge preset-filled-tertiary-500/20 text-tertiary-900 dark:text-tertiary-200 border border-tertiary-500/30 text-3xs font-bold"
-												>Plantão</span
-											>
-										{:else if escala.tipo === 'expediente'}
-											<span
-												class="badge preset-filled-primary-500/20 text-primary-900 dark:text-primary-200 border border-primary-500/30 text-3xs font-bold"
-												>Expediente</span
-											>
-										{:else if escala.tipo === 'fds'}
-											<span
-												class="badge preset-filled-warning-500/20 text-warning-900 dark:text-warning-200 border border-warning-500/30 text-3xs font-bold"
-												>FDS</span
-											>
-										{/if}
+										<BadgeTipoEscala tipo={escala.tipo} tamanho="3xs" />
 									</td>
 									<td
 										class="text-xs text-surface-600 dark:text-surface-400 whitespace-nowrap text-center font-mono tabular-nums"
@@ -653,22 +639,7 @@
 							</div>
 
 							<div class="flex items-center gap-2 mb-3">
-								{#if escala.tipo === 'plantao'}
-									<span
-										class="badge preset-filled-tertiary-500/20 text-tertiary-900 dark:text-tertiary-200 border border-tertiary-500/30 text-3xs font-bold px-1.5"
-										>Plantão</span
-									>
-								{:else if escala.tipo === 'expediente'}
-									<span
-										class="badge preset-filled-primary-500/20 text-primary-900 dark:text-primary-200 border border-primary-500/30 text-3xs font-bold px-1.5"
-										>Expediente</span
-									>
-								{:else if escala.tipo === 'fds'}
-									<span
-										class="badge preset-filled-warning-500/20 text-warning-900 dark:text-warning-200 border border-warning-500/30 text-3xs font-bold px-1.5"
-										>FDS</span
-									>
-								{/if}
+								<BadgeTipoEscala tipo={escala.tipo} tamanho="3xs" />
 								<span class="text-2xs text-surface-600 dark:text-surface-400"
 									>{formatRelativeTime(escala.created_at)}</span
 								>

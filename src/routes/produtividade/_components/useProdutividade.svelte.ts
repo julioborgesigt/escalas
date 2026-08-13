@@ -164,7 +164,7 @@ export function useProdutividade(getData: () => PageData) {
 
 	/**
 	 * Os tipos de equipe que a operação em foco usa — o outro botão do seletor sai
-	 * desabilitado. Mesma regra do editor de formulário (`useResGise`), e por isso
+	 * desabilitado. Mesma regra do editor de formulário (`useEditorModelo`), e por isso
 	 * extraída para `$lib/gise/tipos-equipe` em vez de reescrita aqui.
 	 */
 	const operacaoSelecionada = $derived(
