@@ -43,25 +43,36 @@
 	import CornerDownRight from '@lucide/svelte/icons/corner-down-right';
 	import GripVertical from '@lucide/svelte/icons/grip-vertical';
 	import SquarePen from '@lucide/svelte/icons/square-pen';
-	import type { useResGise } from './useResGise.svelte';
-	import type { GiseModeloPerguntaConfig } from '$lib/types';
-
-	type ResGise = ReturnType<typeof useResGise>;
+	import { useEditorModelo } from './useEditorModelo.svelte';
+	import type { GiseModeloPerguntaConfig, ResGisePageData } from '$lib/types';
 
 	const {
-		resGise,
+		getData,
+		aoSalvar,
 		modeloAnteriorOperacional,
 		modeloAnteriorSeint
 	}: {
-		resGise: ResGise;
+		getData: () => ResGisePageData;
+		aoSalvar?: () => void;
 		modeloAnteriorOperacional: GiseModeloPerguntaConfig[] | null;
 		modeloAnteriorSeint: GiseModeloPerguntaConfig[] | null;
 	} = $props();
 
+	// O composable vive AQUI, e não na página: este componente só é renderizado
+	// para o Admin Geral, então os efeitos do editor não rodam para o policial.
+	//
+	// As duas props entram embrulhadas em closure, e não por referência direta:
+	// `{ getData, aoSalvar }` capturaria o valor do primeiro render e a troca de
+	// prop não chegaria ao composable.
+	const editor = useEditorModelo({
+		getData: () => getData(),
+		aoSalvar: () => aoSalvar?.()
+	});
+
 	/** Versão anterior do tipo em edição — `null` enquanto só houve a primeira
 	 *  gravação, e é o que desabilita o botão. */
 	const modeloAnterior = $derived(
-		resGise.configTipo === 'seint' ? modeloAnteriorSeint : modeloAnteriorOperacional
+		editor.configTipo === 'seint' ? modeloAnteriorSeint : modeloAnteriorOperacional
 	);
 
 	/**
@@ -70,7 +81,7 @@
 	 * resumo no topo e de fonte do `datalist`, que é o que evita "Viatura" e
 	 * "viatura" virarem duas etapas por erro de digitação.
 	 */
-	const etapas = $derived(agruparPorEtapa(resGise.perguntasConfig));
+	const etapas = $derived(agruparPorEtapa(editor.perguntasConfig));
 
 	/**
 	 * Tipos com rótulos personalizáveis: os de lista (Quantidade + Legenda) mais
@@ -106,7 +117,7 @@
 	}
 
 	function soltarEm(indice: number) {
-		if (indiceArrastando !== null) resGise.moverPergunta(indiceArrastando, indice);
+		if (indiceArrastando !== null) editor.moverPergunta(indiceArrastando, indice);
 		limparArraste();
 	}
 
@@ -120,7 +131,7 @@
 	function confirmarRestaurarAnterior() {
 		dialogRestaurarAberto = false;
 		if (!modeloAnterior) return;
-		resGise.perguntasConfig = structuredClone(modeloAnterior);
+		editor.perguntasConfig = structuredClone(modeloAnterior);
 	}
 </script>
 
@@ -146,32 +157,32 @@
 						<select
 							id="cfg-operacao"
 							class="w-full px-4 py-2.5 rounded-xl border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-900 text-sm font-bold"
-							value={resGise.operacaoSelecionadaId ?? ''}
-							onchange={(e) => resGise.trocarOperacao(Number(e.currentTarget.value))}
+							value={editor.operacaoSelecionadaId ?? ''}
+							onchange={(e) => editor.trocarOperacao(Number(e.currentTarget.value))}
 						>
-							{#each resGise.operacoes as op (op.id)}
+							{#each editor.operacoes as op (op.id)}
 								<option value={op.id}>{op.nome}</option>
 							{/each}
 						</select>
 					</div>
 
 					<div class="flex gap-2 bg-surface-100 dark:bg-surface-800 p-1 rounded-xl w-full sm:w-fit">
-						{#each resGise.tiposDisponiveis as tipo (tipo)}
+						{#each editor.tiposDisponiveis as tipo (tipo)}
 							<button
 								type="button"
-								class="flex-1 sm:flex-none px-4 py-2 rounded-lg text-xs font-bold transition-colors {resGise.configTipo ===
+								class="flex-1 sm:flex-none px-4 py-2 rounded-lg text-xs font-bold transition-colors {editor.configTipo ===
 								tipo
 									? 'bg-white dark:bg-surface-700 shadow text-primary-600'
 									: 'text-surface-600 dark:text-surface-400'}"
-								onclick={() => (resGise.configTipo = tipo)}
+								onclick={() => (editor.configTipo = tipo)}
 							>
 								{tipo === 'operacional' ? 'Operacional' : 'SEINT (Inteligência)'}
 							</button>
 						{/each}
 					</div>
-					{#if resGise.tiposDisponiveis.length === 1}
+					{#if editor.tiposDisponiveis.length === 1}
 						<p class="text-2xs text-surface-600 dark:text-surface-400">
-							Esta operação usa apenas equipe {resGise.tiposDisponiveis[0] === 'seint'
+							Esta operação usa apenas equipe {editor.tiposDisponiveis[0] === 'seint'
 								? 'de inteligência'
 								: 'operacional'}. Para mudar isso, edite-a em
 							<a href="/gise/operacoes" class="anchor">Operações</a>.
@@ -206,7 +217,7 @@
 					'M12 4v16m8-8H4',
 					'primary',
 					'filled',
-					resGise.adicionarPergunta,
+					editor.adicionarPergunta,
 					false,
 					false,
 					'w-full sm:w-auto sm:flex-none px-4 py-2.5 text-xs shadow-lg shadow-primary-500/30'
@@ -306,7 +317,7 @@
 								title="Mover para cima"
 								aria-label="Mover a pergunta {indice + 1} para cima"
 								disabled={indice <= 0}
-								onclick={() => resGise.moverPergunta(indice, indice - 1)}
+								onclick={() => editor.moverPergunta(indice, indice - 1)}
 							>
 								<ChevronUp size={16} />
 							</button>
@@ -315,8 +326,8 @@
 								class="rounded-lg p-1 text-surface-400 transition-colors hover:bg-surface-200 disabled:opacity-30 dark:hover:bg-surface-800"
 								title="Mover para baixo"
 								aria-label="Mover a pergunta {indice + 1} para baixo"
-								disabled={indice < 0 || indice >= resGise.perguntasConfig.length - 1}
-								onclick={() => resGise.moverPergunta(indice, indice + 1)}
+								disabled={indice < 0 || indice >= editor.perguntasConfig.length - 1}
+								onclick={() => editor.moverPergunta(indice, indice + 1)}
 							>
 								<ChevronDown size={16} />
 							</button>
@@ -341,7 +352,7 @@
 					<div
 						class="w-8 h-8 flex items-center justify-center rounded-lg bg-surface-200 dark:bg-surface-800 text-3xs font-bold text-surface-600 dark:text-surface-400 shrink-0"
 					>
-						{#if level > 0}↳{:else}{resGise.perguntasConfig.indexOf(p) + 1}{/if}
+						{#if level > 0}↳{:else}{editor.perguntasConfig.indexOf(p) + 1}{/if}
 					</div>
 
 					<div class="space-y-1.5 flex-1 w-full min-w-0">
@@ -443,7 +454,7 @@
 							<button
 								type="button"
 								class="p-3 text-primary-500 hover:bg-primary-500/10 rounded-xl transition-colors"
-								onclick={() => resGise.adicionarSubPergunta(p)}
+								onclick={() => editor.adicionarSubPergunta(p)}
 								title="Adicionar Sub-pergunta (se SIM)"
 							>
 								<CornerDownRight class="w-5 h-5" />
@@ -452,7 +463,7 @@
 						<button
 							type="button"
 							class="p-3 text-error-500 hover:bg-error-500/10 rounded-xl transition-colors"
-							onclick={() => resGise.removerPergunta(p.id)}
+							onclick={() => editor.removerPergunta(p.id)}
 							aria-label="Remover Pergunta"
 						>
 							<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"
@@ -493,7 +504,7 @@
 								type="checkbox"
 								class="checkbox mt-0.5"
 								checked={formas.colunas}
-								onchange={() => resGise.alternarFormaGrafico(p, 'colunas')}
+								onchange={() => editor.alternarFormaGrafico(p, 'colunas')}
 							/>
 							<span class="min-w-0">
 								<span class="block text-sm font-semibold">Colunas por unidade</span>
@@ -508,7 +519,7 @@
 								type="checkbox"
 								class="checkbox mt-0.5"
 								checked={formas.ranking}
-								onchange={() => resGise.alternarFormaGrafico(p, 'ranking')}
+								onchange={() => editor.alternarFormaGrafico(p, 'ranking')}
 							/>
 							<span class="min-w-0">
 								<span class="block text-sm font-semibold">Ranking de unidades</span>
@@ -532,7 +543,7 @@
 								class="checkbox mt-0.5"
 								checked={formas.detalhe}
 								disabled={!podeDetalhar(p.tipo)}
-								onchange={() => resGise.alternarFormaGrafico(p, 'detalhe')}
+								onchange={() => editor.alternarFormaGrafico(p, 'detalhe')}
 							/>
 							<span class="min-w-0">
 								<span class="block text-sm font-semibold">Detalhamento por tipo</span>
@@ -565,7 +576,7 @@
 								type="checkbox"
 								class="checkbox mt-0.5"
 								checked={!!p.indicador}
-								onchange={() => resGise.alternarIndicador(p)}
+								onchange={() => editor.alternarIndicador(p)}
 							/>
 							<span class="min-w-0">
 								<span class="flex items-center gap-1.5 text-sm font-bold">
@@ -615,7 +626,7 @@
 									<select
 										id="ind-tipo-{p.id}"
 										value={meta.metaTipo}
-										onchange={(e) => resGise.definirMetaTipoIndicador(p, e.currentTarget.value)}
+										onchange={(e) => editor.definirMetaTipoIndicador(p, e.currentTarget.value)}
 										class="w-full px-3 py-2 rounded-xl border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-900 text-sm"
 									>
 										<option value="percentual">Percentual sobre o valor inicial</option>
@@ -886,7 +897,7 @@
 			</div>
 		{/snippet}
 
-		{#each resGise.perguntasConfig as p, i (p.id)}
+		{#each editor.perguntasConfig as p, i (p.id)}
 			{@render renderItem(p, 0, i)}
 		{/each}
 	</div>
@@ -897,12 +908,12 @@
 	<form
 		method="POST"
 		action="?/salvarModelo"
-		use:enhance={resGise.handleSalvarModelo}
+		use:enhance={editor.handleSalvarModelo}
 		class="contents"
 	>
-		<input type="hidden" name="config" value={resGise.configJson} />
-		<input type="hidden" name="tipo" value={resGise.configTipo} />
-		<input type="hidden" name="operacaoId" value={resGise.operacaoSelecionadaId ?? ''} />
+		<input type="hidden" name="config" value={editor.configJson} />
+		<input type="hidden" name="tipo" value={editor.configTipo} />
+		<input type="hidden" name="operacaoId" value={editor.operacaoSelecionadaId ?? ''} />
 
 		<RodapeAcoes>
 			{#snippet status()}
@@ -914,14 +925,14 @@
 					<span
 						class="w-2 h-2 rounded-full shrink-0 {loading.active
 							? 'bg-warning-500 animate-pulse'
-							: resGise.alteracoesNaoSalvas
+							: editor.alteracoesNaoSalvas
 								? 'bg-warning-500'
 								: 'bg-success-500'}"
 					></span>
 					<span class="font-bold text-surface-900 dark:text-surface-100">
 						{#if loading.active}
 							Salvando alterações…
-						{:else if resGise.alteracoesNaoSalvas}
+						{:else if editor.alteracoesNaoSalvas}
 							Alterações não salvas
 						{:else}
 							Tudo salvo
@@ -938,7 +949,7 @@
 				{@render actionButton(
 					loading.active
 						? 'Salvando...'
-						: `Salvar Modelo ${resGise.configTipo === 'seint' ? 'SEINT' : 'Operacional'}`,
+						: `Salvar Modelo ${editor.configTipo === 'seint' ? 'SEINT' : 'Operacional'}`,
 					undefined,
 					'primary',
 					'filled',
@@ -960,7 +971,7 @@
 	cancelLabel="Cancelar"
 >
 	{#snippet description()}
-		As perguntas do modelo <strong>{resGise.configTipo}</strong> voltam a ser as da versão salva
+		As perguntas do modelo <strong>{editor.configTipo}</strong> voltam a ser as da versão salva
 		antes da última alteração. As edições que estiverem na tela agora são descartadas.
 		<br /><br />
 		Nada é gravado ainda: revise e clique em <strong>Salvar</strong> para efetivar.
