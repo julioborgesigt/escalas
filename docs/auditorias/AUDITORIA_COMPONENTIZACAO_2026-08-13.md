@@ -1,9 +1,9 @@
 # Auditoria — componentização e manutenibilidade (13/ago/2026)
 
-**Status:** ABERTA — lotes A–C e **§3.1** remediados (§10); **sem P1 aberto**.
-Resta o lote D de polimento, itens 9/10/12 (como retomar em §11).
-As §§1–9 abaixo descrevem o diagnóstico ORIGINAL, de antes da remediação; o
-estado atual está em §10.
+**Status:** ENCERRADA — todos os achados remediados ou formalmente aceitos
+(§10). As §§1–9 abaixo descrevem o diagnóstico ORIGINAL, de antes da
+remediação; o resultado está em §10, e o que fica de recado para a próxima
+rodada, em §11.
 **Objetivo:** facilitar manutenção e compreensão. Maximizar reuso onde o ROI é
 alto e **não** unificar o que explode props ou mistura semânticas de domínio.
 **Escopo:** `src/**` — UI (`$lib/components`, `**/_components`, páginas),
@@ -666,7 +666,10 @@ lote, todos no branch `claude/code-review-componentization-8mabu9`.
 | §3.8 `export/pdf.ts` | ✅ remediado — **escopo revisto**, ver 10.1 | `3c0f2cc` |
 | **§3.1 prop drilling de 38 props** | ✅ remediado — ver 10.4 | `105217b` |
 | §5 cabeçalho de `SupervisaoDocExtra` (lote D, item 11) | ✅ remediado — junto de §3.1 | `105217b` |
-| §3.9 `EstadoVazio` · §3.10 `CardNavegacao` · §3.12 testes · subpastas em `lib/db` | ⏭ **ABERTO** — lote D, itens 9/10/12 | — |
+| §3.9 `EstadoVazio` nas 4 páginas | ✅ remediado | `5cf13d0` |
+| §3.10 `CardNavegacao` em escalas | ✅ remediado | `5cf13d0` |
+| §3.7 (bônus) subpastas `lgpd/` e `policiais/` em `lib/db` | ✅ remediado | `5cf13d0` |
+| §3.12 lacunas de teste por domínio | 📌 **aceito e registrado** — ver 10.5 | — |
 
 ### 10.1 — O corte do `pdf.ts` não foi um arquivo por gerador
 
@@ -708,20 +711,25 @@ chamada de uma action — o guard reprova.
 
 ### 10.3 — Métricas, medidas
 
-| Métrica | 13/ago (inicial) | Pós lotes A–C | Pós §3.1 | Alvo |
-| ------- | ---------------: | ------------: | -------: | ---: |
-| Maior contagem de props — árvore do quadro | 38 | 38 | **1** ✅ | ≤15 |
-| Maior contagem de props — repositório | 38 | 38 | **27** ⚠ ver abaixo | ≤15 |
-| Definições de `isMobile` | 2 | **1** ✅ | 1 | 1 |
-| Cópias inline do badge | 5 | **0** ✅ | 0 | 0 |
-| API de `useResGise` | 41 membros | **18 + 24** ✅ | — | ≤25 cada |
-| `escalas/[id]/+page.server.ts` | 1381 ln | **161 ln** ✅ | — | ≤350 |
-| `db/audit.ts` | 1369 ln | **4 módulos, maior 480** ✅ | — | — |
-| `export/pdf.ts` | 1546 ln | **848 ln** ✅ | — | — |
-| Arquivos Svelte ≥900 ln | 3 | 3 | **3** | ≤2 |
-| Pastas de rota com `__tests__/` | 4 | 5 | **5** | ≥6 |
-| Empty states à mão | 4 | 4 | **4** | 0 |
-| Arquivos opacos | 1 | 1 | **0** ✅ | 0 |
+| Métrica | 13/ago (inicial) | Pós A–C | Pós §3.1 | Pós lote D | Alvo |
+| ------- | ---------------: | ------: | -------: | ---------: | ---: |
+| Maior contagem de props — árvore do quadro | 38 | 38 | **1** ✅ | 1 | ≤15 |
+| Maior contagem de props — repositório | 38 | 38 | 27 | **27** ⚠ ver abaixo | ≤15 |
+| Definições de `isMobile` | 2 | **1** ✅ | 1 | 1 | 1 |
+| Cópias inline do badge | 5 | **0** ✅ | 0 | 0 | 0 |
+| API de `useResGise` | 41 membros | **18 + 24** ✅ | — | — | ≤25 cada |
+| `escalas/[id]/+page.server.ts` | 1381 ln | **161 ln** ✅ | — | — | ≤350 |
+| `db/audit.ts` | 1369 ln | **4 módulos, maior 480** ✅ | — | — | — |
+| `export/pdf.ts` | 1546 ln | **848 ln** ✅ | — | — | — |
+| Arquivos Svelte ≥900 ln | 3 | 3 | 3 | **2** ✅ | ≤2 |
+| Pastas de rota com `__tests__/` | 4 | 5 | 5 | **5** ⚠ | ≥6 |
+| Empty states à mão | 4 | 4 | 4 | **0** ✅ | 0 |
+| Arquivos opacos | 1 | 1 | **0** ✅ | 0 | 0 |
+| Domínios espalhados na raiz de `lib/db/` | 2 | 2 | 2 | **0** ✅ | 0 |
+
+Onze das treze linhas na meta. As duas que não fecharam estão explicadas: a
+contagem de props do repositório é `GiseCabecalho` (nota abaixo), e as pastas
+de rota com teste seguem em 5 — ver 10.5.
 
 Duas leituras que a tabela sozinha esconde:
 
@@ -749,6 +757,43 @@ callbacks de ação e quatro formatadores, todos consumidos no próprio markup.
 Não há repasse a esconder, então a resposta provável ali é reduzir o número de
 decisões que a página toma por ele, não contexto. Fica registrado para a
 próxima rodada.
+
+### 10.5 — §3.12 aceito: por que a meta de testes por pasta não foi perseguida
+
+`Pastas de rota com __tests__/` era a única métrica-alvo com número (≥6) que
+ficou para trás — parou em 5. Ficou de propósito, e o motivo vale registrar
+porque a métrica volta na próxima rodada.
+
+As cinco pastas que têm teste chegaram lá **como efeito de extração**: alguém
+tirou lógica de dentro de um `.svelte` ou de um bloco de actions, e o que saiu
+era testável sem renderizar nada. A auditoria observa isso na própria §3.12
+("não por acaso são as que passaram por extração"). Perseguir o número por si
+produziria o inverso — teste escrito para a pasta existir.
+
+O lote D não gerou lógica nova: `EstadoVazio` e `CardNavegacao` são markup
+parametrizado, e as subpastas de `lib/db/` são movimentação de arquivo. Nenhum
+dos três tinha o que testar em unidade que os testes existentes já não cubram.
+
+O candidato REAL apareceu em §3.1, e está anotado em 10.4: o roteiro de
+interação do quadro de supervisão (abrir edição por papel, cancelar restaurando
+o valor persistido, remover designação) foi escrito, rodou verde e não foi
+commitado. Ele é e2e, não Vitest, então não moveria esta métrica — mas é a
+lacuna de teste que de fato existe nesta área, e é mais valiosa que qualquer
+`__tests__/` criada para bater o alvo.
+
+### 10.6 — O lote D em uma frase cada
+
+- **§3.9** — `EstadoVazio` ganhou `icone` (snippet) e `descricao`, e as quatro
+  páginas que montavam o próprio passaram a usá-lo; `auditoria`, que era a mais
+  fora da curva (caixa com borda, sem ícone), converge para a forma das outras.
+- **§3.10** — `CardNavegacao` local em `escalas/_components/`; dos seis blocos,
+  **dois eram cópias literais** um do outro nos dois ramos do `{#if isAdminDPC}`.
+  `escalas/+page.svelte` caiu 914 → 872, e com isso a faixa "≥900" fechou em 2.
+- **§3.7 (bônus)** — `lib/db/lgpd/` e `lib/db/policiais/` com `index.ts` e
+  `__tests__/` próprios, na forma de `audit/`/`gise/`/`operacoes/`. Dentro da
+  pasta os nomes perdem o prefixo (`policiais/cadastro.ts`, `lgpd/retencao.ts`),
+  que é o ganho: `solicitacoes.ts` existe nas duas e significa coisas
+  diferentes, sem ambiguidade nenhuma no call site.
 
 ### 10.4 — §3.1: o estado foi junto, e foi isso que reduziu o contrato
 
@@ -814,25 +859,20 @@ não foi commitado; se virar spec permanente, é o item que faria
 ---
 
 
-## 11. Como retomar o lote D (o que resta)
+## 11. O que fica para a próxima rodada
 
-§3.1 foi fechado em `105217b` (ver 10.4). O item 11 do lote D — cabeçalho de
-`SupervisaoDocExtra.svelte` — saiu junto, porque o arquivo foi reescrito ali.
-Restam três, todos mecânicos e independentes entre si:
+Todos os achados foram remediados ou aceitos com registro (§10). O que esta
+auditoria deixa anotado, e que não é achado dela:
 
-| Item | Achado | Onde |
-| ---- | ------ | ---- |
-| 9 | `EstadoVazio` com `icone`/`descricao` | painel, recebidos, unidades, auditoria |
-| 10 | `CardNavegacao` extraído local | `escalas/_components/` |
-| 12 | Subpastas `lgpd/` e `policiais/` | `lib/db/` |
+| Item | Onde está escrito | Por quê |
+| ---- | ----------------- | ------- |
+| `GiseCabecalho.svelte`, 27 props | 10.3 | Maior contrato do repositório hoje; a §2.2 não o listou. NÃO é caso de contexto — é folha e consome o que recebe |
+| Roteiro e2e da edição do quadro de supervisão | 10.4, 10.5 | Escrito e verde durante §3.1, não commitado. É a lacuna de teste real da área |
+| `+layout.svelte` (1041) e `ConfigurarFormulario` (1039) | 1.1, 10.3 | Os dois arquivos ≥900 que sobraram; o primeiro é C-MANTER declarado e cresceu mesmo assim |
+| Pastas de rota com `__tests__/`: 5 de 6 | 10.5 | Deliberado — a métrica sobe por extração, não por teste escrito para bater alvo |
 
-Nenhum deles introduz padrão novo nem toca em artefato com valor jurídico.
-Feitos os três, a auditoria pode ser encerrada: removida do working tree e
-catalogada em [`docs/HISTORICO.md`](../HISTORICO.md), conforme §9.
-
-**Nota de ambiente (vale para qualquer e2e desta auditoria):** os specs de UI
-não sobem browser sem ajuste — o `@playwright/test` 1.62 do lockfile procura o
-build 1234 do Chromium e a máquina de CI remota tem o 1194. O
-`playwright.config.ts` já lê `PW_CHROMIUM_EXECUTABLE`, então **não é preciso
-editar o arquivo**: basta rodar com
-`PW_CHROMIUM_EXECUTABLE=/opt/pw-browsers/chromium-1194/chrome-linux/chrome`.
+**Nota de ambiente para os e2e:** os specs de UI não sobem browser sem ajuste —
+o `@playwright/test` 1.62 do lockfile procura o build 1234 do Chromium e a
+máquina de CI remota tem o 1194. O `playwright.config.ts` já lê
+`PW_CHROMIUM_EXECUTABLE`, então **não é preciso editar o arquivo**: basta rodar
+com `PW_CHROMIUM_EXECUTABLE=/opt/pw-browsers/chromium-1194/chrome-linux/chrome`.
