@@ -6,7 +6,8 @@
 import type { GiseDetalhado } from '$lib/db';
 import type { Unidade } from '$lib/types';
 import { statusLabel, statusColor } from '$lib/gise/formatters';
-import { MediaQuery, SvelteDate } from 'svelte/reactivity';
+import { SvelteDate } from 'svelte/reactivity';
+import { useMobile } from './useMobile.svelte';
 
 interface GiseData {
 	gise?: GiseDetalhado | null;
@@ -77,10 +78,12 @@ export function useGiseEstado({ getData }: GiseEstadoParams) {
 		return d.toLocaleDateString('pt-BR', { weekday: 'long' });
 	}
 
-	// Detecção de mobile via MediaQuery (svelte/reactivity): reativa a resize,
-	// sem addEventListener manual; fallback `false` = mobile-first no SSR.
-	const desktopQuery = new MediaQuery('(min-width: 768px)', false);
-	const isMobile = $derived(!desktopQuery.current);
+	// Delegado a `useMobile` — não reimplementar aqui. Este composable já teve um
+	// `MediaQuery('(min-width: 768px)')` próprio, que divergia do de `useMobile`
+	// em 768px e em desktop com toque; como o valor decide a aplicação de
+	// `restringirSmartphone`, a mesma restrição de assinatura valia diferente na
+	// tela de escalas e na de GISE. O cabeçalho de `useMobile` explica o critério.
+	const mobile = useMobile();
 
 	return {
 		get gise() {
@@ -126,7 +129,7 @@ export function useGiseEstado({ getData }: GiseEstadoParams) {
 			return podeEditar;
 		},
 		get isMobile() {
-			return isMobile;
+			return mobile.isMobile;
 		},
 		statusLabel,
 		statusColor,

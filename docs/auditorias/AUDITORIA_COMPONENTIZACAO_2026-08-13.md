@@ -421,7 +421,46 @@ não vai para `$lib` (as ocorrências em `dados-base/` usam a mesma classe como
 
 ---
 
-### 3.11 — P3 · Lacunas de teste por domínio
+### 3.11 — **P2** · `restringirSmartphone` não é recusado no servidor
+
+Achado que apareceu ao remediar §3.2, e que é a razão pela qual aquele achado
+não era cosmético.
+
+`restringirSmartphone` está catalogada em
+`server/assinatura/signature-level.ts:117-122` como reforço da assinatura:
+
+> `descricao`: 'Bloqueia assinatura em desktop/laptop (apenas smartphone)'
+> `valorProbatorio`: 'medio'
+> `notas`: 'Reduz risco de assinatura em terminal compartilhado/destravado por terceiro.'
+
+Ela participa da classificação avançada × simples. Mas o bloqueio é **só de
+tela**: quem aplica a regra é o `isMobile` do cliente, em
+`escalas/+page.svelte:404`, `SeccionalRelatoriosDownloads.svelte:189` e
+`FormularioServico.svelte:547,601`.
+
+No servidor, `api/escalas/[id]/assinar-simples/+server.ts:79` e
+`api/gise/[id]/assinar-simples/+server.ts:70` leem o `user-agent` — e o usam
+apenas como **evidência carimbada no PDF**, nunca como recusa. Um POST direto
+de desktop assina normalmente.
+
+**Não é recomendação automática de fechar.** User-agent é declarado pelo
+cliente: quem quer burlar troca o header, então enforcement no servidor é
+defesa em profundidade, não gate. O que o achado registra é a distância entre o
+que a classificação de nível **afirma** ("bloqueia") e o que o sistema **faz**
+(carimba). Fechar essa distância é escolha do responsável pelo sistema, e tem
+dois caminhos legítimos:
+
+1. recusar no servidor quando a flag estiver ativa — fecha o "POST direto" que o
+   `CLAUDE.md` cobra, ao custo de quebrar user-agent atípico (pede janela de
+   observação);
+2. ou ajustar a descrição em `signature-level.ts` para dizer o que de fato
+   ocorre: restrição de interface, com o dispositivo registrado na evidência.
+
+O que não se sustenta é a redação atual somada à ausência dos dois.
+
+---
+
+### 3.12 — P3 · Lacunas de teste por domínio
 
 | Pasta | fontes / testes |
 | ----- | --------------: |

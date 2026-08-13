@@ -41,6 +41,7 @@
 	import type { ActionResult } from '@sveltejs/kit';
 	import ModalCadastrarUnidade from './_components/ModalCadastrarUnidade.svelte';
 	import ModalDesativarUnidade from './_components/ModalDesativarUnidade.svelte';
+	import BadgeTipoEscala from '$lib/components/BadgeTipoEscala.svelte';
 
 	const { data }: PageProps = $props();
 
@@ -215,19 +216,14 @@
 	<title>Gerenciar Unidades - Portal de Escalas</title>
 </svelte:head>
 
+<!-- Os mesmos badges das listagens de escala, aqui dizendo quais REGIMES a
+     unidade tem habilitados — não o tipo de uma escala existente. Cor e rótulo
+     vêm do componente compartilhado de propósito: é o que faz "Plantão" ter a
+     mesma cara na unidade e na escala que ela gera. -->
 {#snippet badges(u: Unidade)}
-	{#if u.tem_plantao}<span
-			class="badge preset-filled-tertiary-500/20 text-tertiary-900 dark:text-tertiary-200 border border-tertiary-500/30 text-3xs px-1.5 py-0 font-bold"
-			>Plantão</span
-		>{/if}
-	{#if u.tem_expediente}<span
-			class="badge preset-filled-primary-500/20 text-primary-900 dark:text-primary-200 border border-primary-500/30 text-3xs px-1.5 py-0 font-bold"
-			>Expediente</span
-		>{/if}
-	{#if u.tem_fds}<span
-			class="badge preset-filled-warning-500/20 text-warning-900 dark:text-warning-200 border border-warning-500/30 text-3xs px-1.5 py-0 font-bold"
-			>FDS</span
-		>{/if}
+	{#if u.tem_plantao}<BadgeTipoEscala tipo="plantao" tamanho="3xs" />{/if}
+	{#if u.tem_expediente}<BadgeTipoEscala tipo="expediente" tamanho="3xs" />{/if}
+	{#if u.tem_fds}<BadgeTipoEscala tipo="fds" tamanho="3xs" />{/if}
 {/snippet}
 
 {#snippet editInputs()}
