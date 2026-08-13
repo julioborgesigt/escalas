@@ -658,6 +658,29 @@ produtividade" fica no editor, ao lado do de indicador, com uma caixinha por
 forma. Marca e indicador são independentes: gráfico é uma leitura, indicador é
 uma promessa com meta e linha de base.
 
+**O título do card não é o enunciado da pergunta.** São públicos diferentes: a
+pergunta é escrita para quem PREENCHE ("10. HOUVE APREENSÃO DE DROGAS?" —
+numerada, em caixa alta, interrogativa), e o card é lido por quem ACOMPANHA, onde
+serve o substantivo. O campo **"Título no painel de produtividade"** aparece no
+editor assim que a pergunta ganha qualquer marca — gráfico ou indicador — e grava
+em `rotulo_painel`. Um campo só para as duas marcas, porque o valor é um só e a
+pergunta pode ser as duas coisas.
+
+Quem resolve é `tituloNoPainel` (`$lib/produtividade/apresentacao`), em três
+degraus: **rótulo próprio** → **identidade do tipo** (`Drogas`, `Armas`) →
+**texto da pergunta**. O rótulo ganha até de `Drogas`, que é padrão de fábrica e
+não decisão de quem montou a operação. Uma função só porque as duas seções do
+painel fazem a mesma pergunta, e escrever a precedência duas vezes é o começo de
+"o gráfico respeita o rótulo e o indicador não". Cor e unidade **não** cedem ao
+campo: `'g'` diz onde o número foi somado, e trocá-la por digitação faria o card
+mostrar gramas chamando-as de outra coisa. Nada disso entra no relatório
+assinado — o PDF continua saindo com o enunciado que a pessoa respondeu.
+
+**A ordem dos blocos no card do editor** é identidade da pergunta (etapa, texto,
+tipo) → rótulos dos campos → marcas de painel → título do card: do que a pergunta
+É para o que ela VIRA. As marcas ficavam no MEIO e empurravam para baixo o campo
+que se usa toda vez, em favor de duas caixas que se marcam uma vez.
+
 **As formas acumulam.** A pergunta de armas mostra ranking E detalhamento, que é
 como o painel sempre a desenhou — e agora dá para desligar um dos dois. Ranking e
 colunas são a MESMA conta em apresentações diferentes (valor por unidade); o
@@ -863,11 +886,11 @@ resolvedor novo, que é o caso perigoso.
 
 O que o guard olha é o RESULTADO, que é fechado:
 
-| nível | o que a operação faz     | como aparece                                                    |
-| ----- | ------------------------ | --------------------------------------------------------------- |
+| nível | o que a operação faz     | como aparece                                                                        |
+| ----- | ------------------------ | ----------------------------------------------------------------------------------- |
 | 2     | recusa por **permissão** | `fail(403)`, `forbidden()`, `requireAdmin`, `requireSuperAdmin`, `exigirAdminGeral` |
-| 1     | só exige **sessão**      | `fail(401)`, `unauthorized()`, `requireAuth`                    |
-| 0     | não recusa ninguém       | —                                                               |
+| 1     | só exige **sessão**      | `fail(401)`, `unauthorized()`, `requireAuth`                                        |
+| 0     | não recusa ninguém       | —                                                                                   |
 
 Nível 0 e 1 existem legitimamente: login não tem sessão para exigir, trocar a
 própria senha não tem segundo sujeito para autorizar, e webhook se autentica por

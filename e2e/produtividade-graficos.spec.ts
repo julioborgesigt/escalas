@@ -399,3 +399,90 @@ test('desmarcar no editor e salvar tira o card do painel', async ({ page }) => {
 		 WHERE operacao_id = ${id} AND tipo = 'operacional';`
 	);
 });
+
+/**
+ * O TÍTULO do card, que não é o enunciado da pergunta.
+ *
+ * A pergunta é escrita para quem preenche — numerada, em caixa alta,
+ * interrogativa. O card é lido por quem acompanha, e ali serve o substantivo. Até
+ * ago/2026 o painel exibia o enunciado inteiro, e o mesmo gráfico se chamava
+ * "Drogas" no ranking e "10. HOUVE APREENSÃO DE DROGAS?" nas colunas.
+ */
+test('o campo de título só aparece na pergunta MARCADA', async ({ page }) => {
+	test.skip(!cenarioOk, 'D1 local indisponível');
+	const ok = await autenticarPagina(page, FIXTURE.adminGeral.id, 'admin');
+	test.skip(!ok, 'D1 local indisponível');
+	const id = operacaoId(C.enxuta);
+	test.skip(id == null, 'operação do cenário não foi criada');
+
+	await page.goto(`/res-gise?operacaoId=${id}`);
+
+	// Atendimentos (colunas) e flagrante (ranking) têm card no painel, logo têm o
+	// que intitular. A quilometragem não tem — pedir um título ali seria pedir o
+	// nome de uma coisa que não existe.
+	await expect(page.locator('#rot-painel-1')).toBeVisible();
+	await expect(page.locator('#rot-painel-3')).toBeVisible();
+	await expect(page.locator('#rot-painel-2')).toHaveCount(0);
+
+	// Vazio, com o padrão no placeholder: o campo diz o que sai se ninguém o
+	// preencher, em vez de deixar adivinhar.
+	await expect(page.locator('#rot-painel-1')).toHaveValue('');
+	await expect(page.locator('#rot-painel-1')).toHaveAttribute(
+		'placeholder',
+		'ATENDIMENTOS REALIZADOS'
+	);
+});
+
+test('as caixas de marcação vêm DEPOIS dos rótulos do campo', async ({ page }) => {
+	test.skip(!cenarioOk, 'D1 local indisponível');
+	const ok = await autenticarPagina(page, FIXTURE.adminGeral.id, 'admin');
+	test.skip(!ok, 'D1 local indisponível');
+	const id = operacaoId(C.enxuta);
+	test.skip(id == null, 'operação do cenário não foi criada');
+
+	await page.goto(`/res-gise?operacaoId=${id}`);
+
+	// A pergunta 3 é a única com os dois blocos: é de lista (tem rótulos de
+	// quantidade e listagem) e é graficável (tem as caixas).
+	const rotulos = await page.locator('#subqtd-3').boundingBox();
+	const marcas = await page
+		.locator('#rot-painel-3')
+		.locator('xpath=ancestor::div[1]')
+		.boundingBox();
+	const caixa = await page
+		.getByRole('checkbox', { name: /Ranking de unidades/ })
+		.nth(2)
+		.boundingBox();
+
+	// Rótulos primeiro, marcas depois, título por último. O que se edita toda vez
+	// não fica embaixo do que se marca uma vez só.
+	expect(rotulos!.y).toBeLessThan(caixa!.y);
+	expect(caixa!.y).toBeLessThan(marcas!.y);
+});
+
+test('o título gravado substitui o enunciado no card do painel', async ({ page }) => {
+	test.skip(!cenarioOk, 'D1 local indisponível');
+	const ok = await autenticarPagina(page, FIXTURE.adminGeral.id, 'admin');
+	test.skip(!ok, 'D1 local indisponível');
+	const id = operacaoId(C.enxuta);
+	test.skip(id == null, 'operação do cenário não foi criada');
+
+	// A ida e volta pelo BANCO, como no caso de desmarcar: um campo perdido na
+	// serialização faria a tela confirmar e o título voltar ao enunciado no reload.
+	await page.goto(`/res-gise?operacaoId=${id}`);
+	await page.locator('#rot-painel-1').fill('Atendimentos do dia');
+	await page.getByRole('button', { name: /Salvar Modelo/ }).click();
+	await expect(page.getByText(/Modelo operacional salvo com sucesso/)).toBeVisible();
+
+	await page.goto(`/produtividade?operacaoId=${id}`);
+	await page.locator('#f-ano').selectOption('2026');
+	await expect(page.getByText('Atendimentos do dia', { exact: true })).toBeVisible();
+	await expect(page.getByText('ATENDIMENTOS REALIZADOS')).toHaveCount(0);
+
+	// Repõe, para o spec poder rodar de novo sobre o mesmo banco local.
+	execD1Local(
+		`UPDATE gise_modelo_formulario
+		 SET config = json_remove(config, '$[0].rotulo_painel')
+		 WHERE operacao_id = ${id} AND tipo = 'operacional';`
+	);
+});
