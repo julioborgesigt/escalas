@@ -73,7 +73,10 @@ export interface Question {
 	formas: Required<GraficoConfig>;
 }
 
-type ModeloQuestion = Pick<GiseModeloPerguntaConfig, 'id' | 'texto' | 'key' | 'tipo'> & {
+type ModeloQuestion = Pick<
+	GiseModeloPerguntaConfig,
+	'id' | 'texto' | 'key' | 'tipo' | 'rotulo_painel'
+> & {
 	/** `boolean` é a forma anterior à migração 0054 — ver `formasDaMarca`. */
 	grafico?: GraficoConfig | boolean;
 	filhos?: ModeloQuestion[];
@@ -115,7 +118,7 @@ export function mapQuestions(modelo: ModeloQuestion[] | undefined | null): Quest
 		marcadas
 			.map((q, idx: number) => {
 				const cor = palette[idx % palette.length];
-				const identidade = identidadeDaPergunta(q.tipo, q.texto, cor);
+				const identidade = identidadeDaPergunta(q, cor);
 				const marcadas = formasDaMarca(q.grafico);
 				const formas = {
 					...marcadas,

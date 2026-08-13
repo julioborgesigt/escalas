@@ -62,7 +62,11 @@
 				<p
 					class="text-3xs font-black text-surface-600 dark:text-surface-400 uppercase tracking-widest mb-1"
 				>
-					{q.label}
+					<!-- `titulo` e não `label`: o card leva o título do painel, que é o
+					     rótulo do admin ou o padrão do tipo. Este ponto exibia o enunciado
+					     cru, então o mesmo gráfico se chamava "Drogas" no ranking e
+					     "10. HOUVE APREENSÃO DE DROGAS?" aqui. -->
+					{q.titulo}
 				</p>
 				<h3 class="text-5xl font-black" style="color: {q.color}">
 					<!-- Peso é somado em gramas e lido em quilos — a unidade vem da
