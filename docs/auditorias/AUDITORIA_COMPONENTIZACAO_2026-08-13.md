@@ -1,7 +1,7 @@
 # Auditoria — componentização e manutenibilidade (13/ago/2026)
 
-**Status:** ABERTA — lotes A–C remediados (§10); restam **§3.1** (prop drilling
-de 38 props, o único P1 aberto — como retomar em §11) e o lote D de polimento.
+**Status:** ABERTA — lotes A–C e **§3.1** remediados (§10); **sem P1 aberto**.
+Resta o lote D de polimento, itens 9/10/12 (como retomar em §11).
 As §§1–9 abaixo descrevem o diagnóstico ORIGINAL, de antes da remediação; o
 estado atual está em §10.
 **Objetivo:** facilitar manutenção e compreensão. Maximizar reuso onde o ROI é
@@ -664,8 +664,9 @@ lote, todos no branch `claude/code-review-componentization-8mabu9`.
 | §3.5 catorze actions num bloco só | ✅ remediado | `3adcdf4` |
 | §3.7 catálogo dentro do módulo de consulta | ✅ remediado | `ca8fc26` |
 | §3.8 `export/pdf.ts` | ✅ remediado — **escopo revisto**, ver 10.1 | `3c0f2cc` |
-| **§3.1 prop drilling de 38 props** | ⏭ **ABERTO** — ver §11 | — |
-| §3.9 `EstadoVazio` · §3.10 `CardNavegacao` · §3.12 testes · subpastas em `lib/db` | ⏭ **ABERTO** — lote D | — |
+| **§3.1 prop drilling de 38 props** | ✅ remediado — ver 10.4 | `105217b` |
+| §5 cabeçalho de `SupervisaoDocExtra` (lote D, item 11) | ✅ remediado — junto de §3.1 | `105217b` |
+| §3.9 `EstadoVazio` · §3.10 `CardNavegacao` · §3.12 testes · subpastas em `lib/db` | ⏭ **ABERTO** — lote D, itens 9/10/12 | — |
 
 ### 10.1 — O corte do `pdf.ts` não foi um arquivo por gerador
 
@@ -707,19 +708,20 @@ chamada de uma action — o guard reprova.
 
 ### 10.3 — Métricas, medidas
 
-| Métrica | 13/ago (inicial) | Pós lotes A–C | Alvo |
-| ------- | ---------------: | ------------: | ---: |
-| Maior contagem de props | 38 | **38** | ≤15 |
-| Definições de `isMobile` | 2 | **1** ✅ | 1 |
-| Cópias inline do badge | 5 | **0** ✅ | 0 |
-| API de `useResGise` | 41 membros | **18 + 24** ✅ | ≤25 cada |
-| `escalas/[id]/+page.server.ts` | 1381 ln | **161 ln** ✅ | ≤350 |
-| `db/audit.ts` | 1369 ln | **4 módulos, maior 480** ✅ | — |
-| `export/pdf.ts` | 1546 ln | **848 ln** ✅ | — |
-| Arquivos Svelte ≥900 ln | 3 | **3** | ≤2 |
-| Pastas de rota com `__tests__/` | 4 | **5** | ≥6 |
-| Empty states à mão | 4 | **4** | 0 |
-| Arquivos opacos | 1 | **1** | 0 |
+| Métrica | 13/ago (inicial) | Pós lotes A–C | Pós §3.1 | Alvo |
+| ------- | ---------------: | ------------: | -------: | ---: |
+| Maior contagem de props — árvore do quadro | 38 | 38 | **1** ✅ | ≤15 |
+| Maior contagem de props — repositório | 38 | 38 | **27** ⚠ ver abaixo | ≤15 |
+| Definições de `isMobile` | 2 | **1** ✅ | 1 | 1 |
+| Cópias inline do badge | 5 | **0** ✅ | 0 | 0 |
+| API de `useResGise` | 41 membros | **18 + 24** ✅ | — | ≤25 cada |
+| `escalas/[id]/+page.server.ts` | 1381 ln | **161 ln** ✅ | — | ≤350 |
+| `db/audit.ts` | 1369 ln | **4 módulos, maior 480** ✅ | — | — |
+| `export/pdf.ts` | 1546 ln | **848 ln** ✅ | — | — |
+| Arquivos Svelte ≥900 ln | 3 | 3 | **3** | ≤2 |
+| Pastas de rota com `__tests__/` | 4 | 5 | **5** | ≥6 |
+| Empty states à mão | 4 | 4 | **4** | 0 |
+| Arquivos opacos | 1 | 1 | **0** ✅ | 0 |
 
 Duas leituras que a tabela sozinha esconde:
 
@@ -731,52 +733,106 @@ Duas leituras que a tabela sozinha esconde:
   policial); o resto veio do merge de `main` com a reorganização dos blocos do
   card (PR #530), que é trabalho de produto, não de estrutura. A métrica não
   distingue as duas coisas — por isso a leitura vai escrita aqui.
-- **A contagem de props segue 38**, e seguirá até §3.1 ser tratado. É o
-  achado-cabeça desta auditoria e o único P1 ainda aberto.
+- **A contagem de props segue 38** — leitura da medição pós A–C —, e seguirá
+  até §3.1 ser tratado. É o achado-cabeça desta auditoria e o único P1 ainda
+  aberto. _(Fechado em `105217b`; ver 10.4 e a coluna "Pós §3.1".)_
+
+**Correção da §2.2 (feita ao medir a linha nova).** A tabela "props por
+componente (top 8)" estava incompleta: ela listou os cinco componentes da
+árvore do quadro mais duas primitivas, e **não listou `GiseCabecalho.svelte`,
+que tem 27 props** e não foi tocado nesta onda (último commit dele é anterior
+à auditoria). Com §3.1 fechado, é ele o maior contrato do repositório — o alvo
+"≤15" continua não atingido, por um componente que a auditoria não viu. Não é
+o mesmo caso de §3.1: `GiseCabecalho` é FOLHA (só monta `IconTooltip` e
+`BotaoVoltar`) e usa o que recebe — doze booleanos de estado/permissão, nove
+callbacks de ação e quatro formatadores, todos consumidos no próprio markup.
+Não há repasse a esconder, então a resposta provável ali é reduzir o número de
+decisões que a página toma por ele, não contexto. Fica registrado para a
+próxima rodada.
+
+### 10.4 — §3.1: o estado foi junto, e foi isso que reduziu o contrato
+
+`105217b`. `QuadroSupervisaoEstado` (classe `$state`) publicada com
+`setContext` em `+page.svelte` e lida pelas folhas com `getContext` — primeiro
+uso da API de contexto em 138 componentes, com a justificativa no cabeçalho da
+classe, como §11 exigia. Molde: `gise-seccional-estado.svelte.ts`.
+
+Props na árvore:
+
+| Componente | Antes | Depois |
+| ---------- | ----: | -----: |
+| `GiseSupervisao` | 38 | **1** (`loteSection`) |
+| `SupervisaoDocumentos` | 22 | **1** (`loteSection`) |
+| `SupervisaoDesignacao` | 20 | **0** |
+| `SupervisaoPapelSeint` | 17 | **1** (`papel`) |
+| `SupervisaoPapelAssessor` | 16 | **0** |
+| `SupervisaoDocEscala` | 14 | **0** |
+| `SupervisaoDocExtra` | 12 | **0** |
+| `SupervisaoDocumentoCard` | 8 | **7** |
+
+O que os três props restantes têm em comum: **nenhum é estado**. `loteSection`
+é um snippet — conteúdo que a página monta e o quadro só posiciona — e `papel`
+diz qual dos dois slots SEINT idênticos é aquele. Estado por contexto, conteúdo
+e identidade por prop.
+
+Três coisas que a contagem não mostra, e que são o ponto de §8:
+
+- **`supervisao/types.ts` (105 ln) deixou de existir.** Metade dele era
+  `GiseSupervisaoProps`, que não tem mais o que nomear; a outra metade (os tipos
+  de dado) mora agora no próprio módulo de estado. Acrescentar um campo ao
+  quadro passou de quatro arquivos para dois — a classe e a folha.
+- **Comportamento migrou junto com o estado, e simplificou.** A exclusividade da
+  edição por papel era um par de `$effect` sincronizando `editando` ↔
+  `editandoPapel` entre pai e filho, mais um objeto de accessors em
+  `SupervisaoDesignacao` cujo comentário explicava que "snippets não aceitam
+  props `$bindable`". Com os ids num `Record` indexado por papel dentro da
+  classe, `bind:value={quadro.ids[papel]}` resolve o caso e os dois `$effect`
+  saem. A sugestão de e-mail do assessor e o resolvedor de opções dos selects
+  também saíram da página.
+- **Havia duplicação que o corte de 06/ago tinha deixado passar.**
+  `mostrarBlocoExtraSupervisao` e `mostrarPainelAssinaturaEscalaReadonly` eram
+  calculadas em `GiseSupervisao` **e** em `SupervisaoDocumentos`, com as mesmas
+  expressões. Exatamente a tabela do `CLAUDE.md`: duas cópias, e o comentário
+  numa delas não protege a outra.
+
+`isMobile` sumiu da árvore inteira, e não por causa do contexto: quem ramifica
+por dispositivo é só `SupervisaoDocumentoCard`, que passou a ler `useMobile()`
+direto (a fonte única de `de5f5a4`). Era um prop descendo quatro níveis para um
+único consumidor.
+
+**Verificação.** `gise.spec.ts`, `gise-imutabilidade.spec.ts` e
+`relatorio-extra-gise.spec.ts` — 20 passed. Esses specs, porém, só RENDERIZAM o
+quadro; o risco desta mudança está na interação. Coberto por um roteiro
+descartável sobre a fixture, com a GISE em `em_preenchimento` e sessão de Admin
+Geral: abrir a edição do supervisor (o `SearchableSelect` aparece), fechar
+(volta à leitura com o nome persistido), abrir a do assessor (a do supervisor
+some — a exclusividade sobrevive ao contexto) e remover uma designação até o
+modal confirmar, o form submeter e `supervisor_id` zerar no banco. O roteiro
+não foi commitado; se virar spec permanente, é o item que faria
+`gise/[id]/_components` entrar na conta de "pastas de rota com `__tests__/`".
 
 ---
 
-## 11. Como retomar §3.1 (o único P1 aberto)
 
-O prop drilling do quadro de supervisão GISE ficou para uma rodada dedicada: é
-o item de maior risco de regressão e o único que **introduz um padrão novo** no
-projeto.
+## 11. Como retomar o lote D (o que resta)
 
-**A árvore, como está hoje:**
+§3.1 foi fechado em `105217b` (ver 10.4). O item 11 do lote D — cabeçalho de
+`SupervisaoDocExtra.svelte` — saiu junto, porque o arquivo foi reescrito ali.
+Restam três, todos mecânicos e independentes entre si:
 
-```
-gise/[id]/+page.svelte:556-636          80 ln só de fiação, callbacks inline
-  └─ GiseSupervisao.svelte              38 props, 131 ln, 2 $derived de lógica
-       ├─ supervisao/SupervisaoDesignacao.svelte     20 props
-       └─ supervisao/SupervisaoDocumentos.svelte     22 props
-            ├─ supervisao/SupervisaoDocEscala.svelte      14 props
-            ├─ supervisao/SupervisaoDocExtra.svelte
-            └─ SupervisaoDocumentoCard.svelte
-  supervisao/types.ts                   105 ln, existe só para nomear o contrato
-```
+| Item | Achado | Onde |
+| ---- | ------ | ---- |
+| 9 | `EstadoVazio` com `icone`/`descricao` | painel, recebidos, unidades, auditoria |
+| 10 | `CardNavegacao` extraído local | `escalas/_components/` |
+| 12 | Subpastas `lgpd/` e `policiais/` | `lib/db/` |
 
-**Precedente interno a reusar:**
-`gise/[id]/_components/gise-seccional-estado.svelte.ts` — classe `$state` única,
-com cabeçalho explicando por que o estado não vive em cada folha. É o molde, e
-está no mesmo diretório.
+Nenhum deles introduz padrão novo nem toca em artefato com valor jurídico.
+Feitos os três, a auditoria pode ser encerrada: removida do working tree e
+catalogada em [`docs/HISTORICO.md`](../HISTORICO.md), conforme §9.
 
-**O que a remediação já facilitou:** `isMobile` está unificado (§3.2), e ele é
-um dos props drilados por quatro níveis nessa árvore. Com `useMobile()` como
-fonte única, as folhas podem chamá-lo direto em vez de recebê-lo — são menos
-props antes mesmo de introduzir contexto.
-
-**O aviso que importa:** `setContext`/`getContext` tem **zero uso** nos 138
-componentes do projeto. Quem fizer isto introduz o padrão, então o cabeçalho da
-classe precisa justificar a escolha para quem vier depois — e o §8 desta
-auditoria é a razão: *fatiar arquivo sem mover o estado junto foi o que criou
-este problema*. `GiseSupervisao` encolheu 88% na rodada de 06/ago e ficou mais
-caro de mudar.
-
-**Verificação:** `e2e/gise.spec.ts`, `e2e/gise-imutabilidade.spec.ts`,
-`e2e/relatorio-extra-gise.spec.ts`.
-
-**Nota de ambiente:** os e2e de UI não sobem browser sem ajuste — o
-`@playwright/test` 1.62 do lockfile procura o build 1234 do Chromium e a máquina
-de CI remota tem o 1194 (`/opt/pw-browsers/chromium-1194/chrome-linux/chrome`).
-Apontar `launchOptions.executablePath` nos dois projetos (`chromium` e `mobile`)
-**só para rodar**, e restaurar o `playwright.config.ts` antes de commitar.
+**Nota de ambiente (vale para qualquer e2e desta auditoria):** os specs de UI
+não sobem browser sem ajuste — o `@playwright/test` 1.62 do lockfile procura o
+build 1234 do Chromium e a máquina de CI remota tem o 1194. O
+`playwright.config.ts` já lê `PW_CHROMIUM_EXECUTABLE`, então **não é preciso
+editar o arquivo**: basta rodar com
+`PW_CHROMIUM_EXECUTABLE=/opt/pw-browsers/chromium-1194/chrome-linux/chrome`.
