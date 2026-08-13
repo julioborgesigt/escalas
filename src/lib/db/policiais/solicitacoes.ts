@@ -8,7 +8,7 @@
  */
 
 import { and, eq, desc, inArray } from 'drizzle-orm';
-import type { Database } from './core';
+import type { Database } from '../core';
 import { cadastroSolicitacoes, policiais } from '$lib/server/schema';
 import type { CadastroSolicitacao } from '$lib/server/schema';
 import type { CampoSolicitacao } from '$lib/perfil-campos';

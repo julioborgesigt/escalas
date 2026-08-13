@@ -21,8 +21,8 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import type { DatabaseSync } from 'node:sqlite';
 import type { Database } from '$lib/db';
-import { criarPolicial, upsertPolicial, type DadosPolicial } from '../policiais';
-import { bancoMigrado, drizzleSobre } from './sqlite-migrado';
+import { criarPolicial, upsertPolicial, type DadosPolicial } from '../cadastro';
+import { bancoMigrado, drizzleSobre } from '../../__tests__/sqlite-migrado';
 
 let sqlite: DatabaseSync;
 let db: Database;

@@ -4,7 +4,7 @@
  */
 import { json } from '@sveltejs/kit';
 import { getDB, registrarAuditComContexto } from '$lib/db';
-import { carregarConfigRetencao, executarLimpezaRetencao } from '$lib/db/lgpd-retencao';
+import { carregarConfigRetencao, executarLimpezaRetencao } from '$lib/db/lgpd';
 import { requireAdmin } from '$lib/server/api';
 import type { RequestHandler } from './$types';
 

@@ -14,8 +14,8 @@
  */
 import { describe, it, expect, beforeEach } from 'vitest';
 import type { Database } from '$lib/db';
-import { bancoMigrado, drizzleSobre } from './sqlite-migrado';
-import { vinculosAssinadosDoPolicial, motivoParaNaoExcluir } from '../policial-exclusao';
+import { bancoMigrado, drizzleSobre } from '../../__tests__/sqlite-migrado';
+import { vinculosAssinadosDoPolicial, motivoParaNaoExcluir } from '../exclusao';
 
 let db: Database;
 let sqlite: ReturnType<typeof bancoMigrado>;

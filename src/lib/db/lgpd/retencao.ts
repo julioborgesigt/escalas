@@ -31,8 +31,8 @@ import {
 	auditLog,
 	auditCheckpoints,
 	appLog
-} from '../server/schema';
-import { linhasAfetadas, timestampSqliteUtc, type Database } from './core';
+} from '../../server/schema';
+import { linhasAfetadas, timestampSqliteUtc, type Database } from '../core';
 import {
 	buscarConfiguracao,
 	LGPD_RETENCAO_SESSOES_DIAS,
@@ -43,7 +43,7 @@ import {
 	LGPD_RETENCAO_WEBHOOK_NONCES_DIAS,
 	LGPD_RETENCAO_AUDIT_LOG_ANOS,
 	LGPD_RETENCAO_APP_LOG_DIAS
-} from './configuracoes';
+} from '../configuracoes';
 
 interface RetencaoConfig {
 	sessoesDias: number;

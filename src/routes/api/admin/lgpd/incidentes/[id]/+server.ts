@@ -5,7 +5,7 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { getDB, registrarAuditComContexto } from '$lib/db';
-import { buscarIncidente, atualizarIncidente } from '$lib/db/lgpd-incidentes';
+import { buscarIncidente, atualizarIncidente } from '$lib/db/lgpd';
 import { requireAdmin, badRequest, notFound, validateBody } from '$lib/server/api';
 import { atualizarIncidenteSchema } from '$lib/schemas';
 

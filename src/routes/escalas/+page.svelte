@@ -58,6 +58,7 @@
 	import ModalNovaEscala from './_components/ModalNovaEscala.svelte';
 	import TabelaEscalas from './_components/TabelaEscalas.svelte';
 	import SecaoAssinaturas from './_components/SecaoAssinaturas.svelte';
+	import CardNavegacao from './_components/CardNavegacao.svelte';
 	import ModalCadastrarRubrica from '$lib/components/ModalCadastrarRubrica.svelte';
 	import DialogSolicitarAssinatura from '$lib/components/DialogSolicitarAssinatura.svelte';
 	import SearchableSelect from '$lib/components/SearchableSelect.svelte';
@@ -468,38 +469,21 @@
 			{#if isAdminDPC}
 				<div class="grid grid-cols-1 gap-6 w-full max-w-xs">
 					{#if podeAssinar && escalasParaAssinar.length > 0}
-						<button
-							type="button"
+						<CardNavegacao
+							titulo="Assinaturas Pendentes"
+							descricao="Escalas prontas para assinar com sua assinatura digital"
+							contador={escalasParaAssinar.length}
+							realce="tertiary"
 							onclick={() => {
 								visao = 'assinaturas';
 								goto('/escalas?v=assinaturas', { replaceState: true, noScroll: true });
 							}}
-							class="card-elevated rounded-2xl p-5 sm:p-6 flex flex-col items-start gap-1.5 text-left cursor-pointer transition-colors hover:border-primary-500/40 group"
-						>
-							<span
-								class="inline-flex items-center gap-2 text-base font-semibold text-surface-900 dark:text-surface-50 group-hover:text-tertiary-600 dark:group-hover:text-tertiary-400 transition-colors"
-							>
-								Assinaturas Pendentes
-								<span
-									class="min-w-[1.4rem] h-[1.4rem] flex items-center justify-center rounded-full bg-tertiary-500 text-white text-xs font-bold px-1"
-									>{escalasParaAssinar.length}</span
-								>
-							</span>
-							<span class="text-sm text-surface-600 dark:text-surface-400"
-								>Escalas prontas para assinar com sua assinatura digital</span
-							>
-						</button>
+						/>
 					{:else}
-						<div
-							class="card-elevated rounded-2xl p-5 sm:p-6 flex flex-col items-start gap-1.5 text-left"
-						>
-							<span class="text-base font-semibold text-surface-900 dark:text-surface-50"
-								>Nenhuma pendência</span
-							>
-							<span class="text-sm text-surface-600 dark:text-surface-400"
-								>Não há escalas aguardando sua assinatura no momento.</span
-							>
-						</div>
+						<CardNavegacao
+							titulo="Nenhuma pendência"
+							descricao="Não há escalas aguardando sua assinatura no momento."
+						/>
 					{/if}
 				</div>
 			{:else}
@@ -508,80 +492,54 @@
 						? 'sm:grid-cols-2 lg:grid-cols-4 max-w-5xl'
 						: 'sm:grid-cols-2 lg:grid-cols-3 max-w-4xl'}"
 				>
-					<button
-						type="button"
+					<CardNavegacao
+						titulo="Nova Escala"
+						descricao="Criar uma nova escala de plantão, expediente ou final de semana"
+						destacado
 						onclick={() => (dialogNovaEscalaAberto = true)}
-						class="card-elevated rounded-2xl p-5 sm:p-6 flex flex-col items-start gap-1.5 text-left cursor-pointer transition-colors border-primary-500 hover:border-primary-500/40 group"
 					>
-						<span
-							class="inline-flex items-center gap-2 text-base font-semibold text-surface-900 dark:text-surface-50 group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors"
-						>
+						{#snippet icone()}
 							<Plus
 								class="h-5 w-5 shrink-0 text-primary-600 dark:text-primary-400"
 								aria-hidden="true"
 							/>
-							Nova Escala
-						</span>
-						<span class="text-sm text-surface-600 dark:text-surface-400"
-							>Criar uma nova escala de plantão, expediente ou final de semana</span
-						>
-					</button>
-					<button
-						type="button"
+						{/snippet}
+					</CardNavegacao>
+					<CardNavegacao
+						titulo="Escalas aguardando ass"
+						descricao="Em preenchimento ou com assinatura pendente"
 						onclick={() => abrirLista('aguardando')}
-						class="card-elevated rounded-2xl p-5 sm:p-6 flex flex-col items-start gap-1.5 text-left cursor-pointer transition-colors hover:border-primary-500/40 group"
 					>
-						<span
-							class="inline-flex items-center gap-2 text-base font-semibold text-surface-900 dark:text-surface-50 group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors"
-						>
+						{#snippet icone()}
 							<Clock
 								class="h-5 w-5 shrink-0 text-warning-600 dark:text-warning-400"
 								aria-hidden="true"
 							/>
-							Escalas aguardando ass
-						</span>
-						<span class="text-sm text-surface-600 dark:text-surface-400"
-							>Em preenchimento ou com assinatura pendente</span
-						>
-					</button>
-					<button
-						type="button"
+						{/snippet}
+					</CardNavegacao>
+					<CardNavegacao
+						titulo="Escalas criadas (arquivo)"
+						descricao="Assinadas e enviadas"
 						onclick={() => abrirLista('arquivada')}
-						class="card-elevated rounded-2xl p-5 sm:p-6 flex flex-col items-start gap-1.5 text-left cursor-pointer transition-colors hover:border-primary-500/40 group"
 					>
-						<span
-							class="inline-flex items-center gap-2 text-base font-semibold text-surface-900 dark:text-surface-50 group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors"
-						>
+						{#snippet icone()}
 							<Archive
 								class="h-5 w-5 shrink-0 text-surface-600 dark:text-surface-400"
 								aria-hidden="true"
 							/>
-							Escalas criadas (arquivo)
-						</span>
-						<span class="text-sm text-surface-600 dark:text-surface-400">Assinadas e enviadas</span>
-					</button>
+						{/snippet}
+					</CardNavegacao>
 					{#if podeAssinar && escalasParaAssinar.length > 0}
-						<button
-							type="button"
+						<CardNavegacao
+							titulo="Assinaturas Pendentes"
+							descricao="Escalas prontas para assinar com sua assinatura digital"
+							contador={escalasParaAssinar.length}
+							realce="tertiary"
 							onclick={() => {
 								visao = 'assinaturas';
 								goto('/escalas?v=assinaturas', { replaceState: true, noScroll: true });
 							}}
-							class="card-elevated rounded-2xl p-5 sm:p-6 flex flex-col items-start gap-1.5 text-left cursor-pointer transition-colors hover:border-primary-500/40 group"
-						>
-							<span
-								class="inline-flex items-center gap-2 text-base font-semibold text-surface-900 dark:text-surface-50 group-hover:text-tertiary-600 dark:group-hover:text-tertiary-400 transition-colors"
-							>
-								Assinaturas Pendentes
-								<span
-									class="min-w-[1.4rem] h-[1.4rem] flex items-center justify-center rounded-full bg-tertiary-500 text-white text-xs font-bold px-1"
-									>{escalasParaAssinar.length}</span
-								>
-							</span>
-							<span class="text-sm text-surface-600 dark:text-surface-400"
-								>Escalas prontas para assinar com sua assinatura digital</span
-							>
-						</button>
+						/>
 					{/if}
 				</div>
 			{/if}

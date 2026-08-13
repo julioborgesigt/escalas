@@ -15,7 +15,7 @@ import { tryGetR2 } from '$lib/db';
 import { sql } from 'drizzle-orm';
 import type { RequestHandler } from './$types';
 import { compararSegredoUtf8TimingSafe } from '$lib/auth';
-import { verificarSaudeLimpezaRetencao, type SaudeLimpezaRetencao } from '$lib/db/lgpd-retencao';
+import { verificarSaudeLimpezaRetencao, type SaudeLimpezaRetencao } from '$lib/db/lgpd';
 
 interface HealthEnv {
 	HEALTH_DETAIL_TOKEN?: string;

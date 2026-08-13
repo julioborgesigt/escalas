@@ -4,11 +4,13 @@
  *
  * Módulos internos (`src/lib/db/`):
  *  - `core.ts`       — `getDB`, bindings R2 e o tipo `Database`
- *  - `policiais.ts`  — cadastro e RBAC
  *  - `unidades.ts`   — unidades e a hierarquia entre elas
  *  - `escalas.ts`    — escalas e `escala_policiais`
  *  - `documentos.ts` — documentos assinados
+ *  - `policiais/`    — cadastro, RBAC, histórico funcional e exclusão
+ *  - `lgpd/`         — solicitações do titular, incidentes e retenção
  *  - `gise/`         — o módulo GISE inteiro
+ *  - `audit/`, `operacoes/` — trilha forense e operações extraordinárias
  *
  * **Regra do barrel:** aqui ficam as FUNÇÕES da camada de dados e só os TIPOS
  * que alguém realmente importa por este caminho. Tipo consumido por um módulo
@@ -66,24 +68,18 @@ export {
 	atualizarPolicial,
 	excluirPolicial,
 	listarLotacoes,
-	promoverPolicial
-} from './db/policiais';
-
-export {
+	promoverPolicial,
 	criarSolicitacoesCadastro,
 	listarMinhasSolicitacoesCadastro,
 	listarSolicitacoesCadastroPendentes,
-	decidirSolicitacaoCadastro
-} from './db/cadastro-solicitacoes';
-export type { CampoSolicitacao } from './db/cadastro-solicitacoes';
-
-export {
+	decidirSolicitacaoCadastro,
 	registrarHistorico,
 	atualizarPolicialComHistorico,
 	listarHistoricoPolicial,
 	buscarEventoHistorico,
 	afastamentoVigente
-} from './db/policial-historico';
+} from './db/policiais';
+export type { CampoSolicitacao } from './db/policiais';
 
 export {
 	listarUnidades,

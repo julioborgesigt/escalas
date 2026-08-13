@@ -35,7 +35,7 @@ import { policialSchema } from '$lib/schemas/policial';
 import { isAdminGeral } from '$lib/auth';
 import { lotacoesAdministradas, lotacaoNoEscopo } from '$lib/server/policial-permissao';
 import { decifrarCpfDoDB } from '$lib/crypto/cpf-cripto';
-import { impedimentoParaExcluirPolicial } from '$lib/db/policial-exclusao';
+import { impedimentoParaExcluirPolicial } from '$lib/db/policiais';
 
 export const load: PageServerLoad = async ({ locals, platform, url, depends }) => {
 	depends('app:policiais');

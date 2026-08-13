@@ -18,18 +18,18 @@
  * gravar horário de Brasília, igual ao resto do schema.
  */
 import { eq, and, or, isNull, asc, sql, like } from 'drizzle-orm';
-import { policiais, unidades } from '../server/schema';
-import type * as schema from '../server/schema';
-import { limparMatricula } from '../utils/formato';
-import { gerarSenhaAleatoriaHash } from '../auth';
+import { policiais, unidades } from '../../server/schema';
+import type * as schema from '../../server/schema';
+import { limparMatricula } from '../../utils/formato';
+import { gerarSenhaAleatoriaHash } from '../../auth';
 import {
 	prepararCpfParaDB,
 	decifrarCpfDoDB,
 	cpfKeys,
 	indiceCPF,
 	type CpfCriptoEnv
-} from '../crypto/cpf-cripto';
-import { paginarComContagem, type Database } from './core';
+} from '../../crypto/cpf-cripto';
+import { paginarComContagem, type Database } from '../core';
 
 /**
  * Busca a rubrica reutilizável do policial a partir do CPF CIFRADO gravado no

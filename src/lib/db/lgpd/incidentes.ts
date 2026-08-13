@@ -6,9 +6,9 @@
  * fluxo só avança de status (`aberto` → … → `encerrado`); nada é excluído.
  */
 import { desc, eq } from 'drizzle-orm';
-import { lgpdIncidentes } from '../server/schema';
-import type { Database } from './core';
-import type { LgpdIncidente } from '../server/schema';
+import { lgpdIncidentes } from '../../server/schema';
+import type { Database } from '../core';
+import type { LgpdIncidente } from '../../server/schema';
 
 type TipoIncidente =
 	'acesso_nao_autorizado' | 'vazamento' | 'uso_indevido' | 'perda' | 'alteracao' | 'outro';

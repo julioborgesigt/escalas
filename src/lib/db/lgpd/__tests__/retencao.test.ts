@@ -4,7 +4,7 @@
  * é um wrapper fino sobre uma única consulta indexada.
  */
 import { describe, it, expect } from 'vitest';
-import { avaliarSaudeLimpeza } from '../lgpd-retencao';
+import { avaliarSaudeLimpeza } from '../retencao';
 
 // Instante de referência fixo (UTC) para tornar os testes determinísticos.
 const AGORA = Date.parse('2026-06-13T12:00:00Z');

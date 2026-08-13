@@ -32,8 +32,8 @@ import {
 	giseMembros,
 	giseSeccionais,
 	gisePresencaTermos
-} from '../server/schema';
-import type { Database } from './core';
+} from '../../server/schema';
+import type { Database } from '../core';
 
 /** Onde o policial aparece em documento assinado. Zero em tudo = pode apagar. */
 export interface VinculosAssinados {

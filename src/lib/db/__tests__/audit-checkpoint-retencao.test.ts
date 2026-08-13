@@ -19,7 +19,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import type { Database } from '$lib/db';
 import { bancoMigrado, drizzleSobre } from './sqlite-migrado';
 import { auditar, verificarIntegridadeAudit } from '../audit';
-import { executarLimpezaRetencao } from '../lgpd-retencao';
+import { executarLimpezaRetencao } from '../lgpd/retencao';
 
 let db: Database;
 let sqlite: ReturnType<typeof bancoMigrado>;
