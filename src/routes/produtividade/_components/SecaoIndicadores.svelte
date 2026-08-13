@@ -36,6 +36,7 @@
 	 */
 	import type { PainelIndicador } from '$lib/produtividade/metas';
 	import { formatarValorIndicador, formatarPercentual } from '$lib/produtividade/metas';
+	import { tituloNoPainel } from '$lib/produtividade/apresentacao';
 	import Check from '@lucide/svelte/icons/check';
 	import Clock from '@lucide/svelte/icons/clock';
 	import TrendingDown from '@lucide/svelte/icons/trending-down';
@@ -297,7 +298,7 @@
 			>
 				<header class="flex flex-wrap items-start justify-between gap-3">
 					<div class="min-w-0">
-						<h3 class="text-base font-semibold">{painel.indicador.texto}</h3>
+						<h3 class="text-base font-semibold">{tituloNoPainel(painel.indicador)}</h3>
 						<p
 							class="mt-1 inline-flex items-center gap-1.5 text-2xs font-semibold text-surface-600 dark:text-surface-400"
 						>
@@ -347,8 +348,8 @@
 					<canvas
 						bind:this={canvases[painel.indicador.key]}
 						aria-label={ehCobertura(painel)
-							? `Cobertura e meta por unidade — ${painel.indicador.texto}`
-							: `Linha de base, realizado e meta por unidade — ${painel.indicador.texto}`}
+							? `Cobertura e meta por unidade — ${tituloNoPainel(painel.indicador)}`
+							: `Linha de base, realizado e meta por unidade — ${tituloNoPainel(painel.indicador)}`}
 					></canvas>
 				</div>
 

@@ -94,6 +94,26 @@ describe('extrairIndicadores', () => {
 		expect(extrairIndicadores(modelo).map((i) => i.key)).toEqual(['filho_qtd']);
 	});
 
+	it('leva o `rotulo_painel` junto, CRU', () => {
+		// Cru de propósito: quem aplica o padrão é `tituloNoPainel`, o mesmo que os
+		// cards de gráfico usam. Resolver aqui seria a precedência escrita duas
+		// vezes — uma em cada seção do painel, livres para divergir.
+		const modelo = [
+			pergunta({
+				key: 'atend',
+				tipo: 'numero',
+				rotulo_painel: 'Atendimentos',
+				indicador: AUMENTAR_15
+			})
+		];
+		expect(extrairIndicadores(modelo)[0].rotulo_painel).toBe('Atendimentos');
+	});
+
+	it('indicador sem rótulo de painel não inventa um', () => {
+		const modelo = [pergunta({ key: 'atend', tipo: 'numero', indicador: AUMENTAR_15 })];
+		expect(extrairIndicadores(modelo)[0].rotulo_painel).toBeUndefined();
+	});
+
 	it('ignora indicador marcado em tipo que não aceita meta', () => {
 		const modelo = [pergunta({ tipo: 'texto', key: 'livre', indicador: REDUZIR_20 })];
 		expect(extrairIndicadores(modelo)).toEqual([]);
