@@ -46,19 +46,59 @@ interface PerguntaLegivel {
  *
  * Quem não está aqui usa o texto da pergunta e a cor da paleta, que é o certo:
  * uma pergunta nova não tem identidade a preservar.
+ *
+ * É PADRÃO, não regra: o título daqui cede ao `rotulo_painel` que o admin
+ * escrever (ver `tituloNoPainel`). A cor e a unidade não cedem — a unidade
+ * porque `'g'` diz onde o número foi somado, e trocá-la por digitação faria o
+ * card mostrar gramas chamando-as de outra coisa.
  */
 const IDENTIDADE_POR_TIPO: Record<string, { titulo: string; cor: string; unidade: string }> = {
 	drogas_complex: { titulo: 'Drogas', cor: '#ef4444', unidade: 'g' },
 	armas_complex: { titulo: 'Armas', cor: '#6366f1', unidade: '' }
 };
 
+/** O mínimo de uma pergunta para se descobrir o título do card dela. */
+export interface PerguntaIntitulavel {
+	tipo: string;
+	texto: string;
+	/** O que o admin escreveu no editor; vazio ou ausente cai nos padrões. */
+	rotulo_painel?: string;
+}
+
+/**
+ * O título do card desta pergunta no painel, em três degraus.
+ *
+ * 1. o **rótulo próprio**, se o admin escreveu um. Escolha explícita ganha de
+ *    qualquer padrão — inclusive da identidade fixa de drogas e armas, que é
+ *    padrão de fábrica e não decisão de quem montou a operação;
+ * 2. a **identidade do tipo** (`Drogas`, `Armas`), que os cards escritos no
+ *    código já usavam antes de virarem pergunta marcada;
+ * 3. o **texto da pergunta**, que é o que sempre houve.
+ *
+ * Uma função só, e não a regra repetida nos dois lados, porque as duas seções do
+ * painel a fazem: os cards de gráfico/ranking/detalhamento (via
+ * `identidadeDaPergunta`) e os de indicador de meta. Escrever a precedência duas
+ * vezes é o começo de "o gráfico respeita o rótulo e o indicador não".
+ *
+ * O `trim()` não é detalhe: um campo de texto devolve `' '` com a mesma
+ * facilidade com que devolve `''`, e um título de um espaço em branco deixaria o
+ * card sem cabeçalho nenhum, sem erro em lugar algum.
+ */
+export function tituloNoPainel(p: PerguntaIntitulavel): string {
+	return p.rotulo_painel?.trim() || IDENTIDADE_POR_TIPO[p.tipo]?.titulo || p.texto;
+}
+
 /** Título e cor do card desta pergunta, preservando a identidade de drogas e armas. */
 export function identidadeDaPergunta(
-	tipo: string,
-	textoDaPergunta: string,
+	p: PerguntaIntitulavel,
 	corDaPaleta: string
 ): { titulo: string; cor: string; unidade: string } {
-	return IDENTIDADE_POR_TIPO[tipo] ?? { titulo: textoDaPergunta, cor: corDaPaleta, unidade: '' };
+	const identidade = IDENTIDADE_POR_TIPO[p.tipo];
+	return {
+		titulo: tituloNoPainel(p),
+		cor: identidade?.cor ?? corDaPaleta,
+		unidade: identidade?.unidade ?? ''
+	};
 }
 
 /**

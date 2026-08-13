@@ -12,7 +12,7 @@
  * e a do painel contava produção que o PDF não mostra.
  */
 import { describe, it, expect } from 'vitest';
-import { valorDaResposta, detalhePorTipo, formasDaMarca } from '../apresentacao';
+import { valorDaResposta, detalhePorTipo, formasDaMarca, tituloNoPainel } from '../apresentacao';
 
 /** Uma pergunta como `mapQuestions` a entrega — tipo, `key` e a chave da resposta. */
 function pergunta(tipo: string, key: string, mappedKey = key) {
@@ -164,5 +164,63 @@ describe('formasDaMarca', () => {
 			ranking: true,
 			detalhe: false
 		});
+	});
+});
+
+describe('tituloNoPainel', () => {
+	it('o rótulo do admin ganha do texto da pergunta', () => {
+		expect(
+			tituloNoPainel({
+				tipo: 'numero',
+				texto: '3. QUANTOS ATENDIMENTOS FORAM REALIZADOS?',
+				rotulo_painel: 'Atendimentos'
+			})
+		).toBe('Atendimentos');
+	});
+
+	it('o rótulo do admin ganha até da identidade fixa de drogas e armas', () => {
+		// "Drogas" é padrão de fábrica; quem monta a operação pode preferir
+		// "Entorpecentes". Escolha explícita vence padrão — se não vencesse, o campo
+		// simplesmente não teria efeito nessas duas perguntas, e nada na tela diria
+		// por quê.
+		expect(
+			tituloNoPainel({
+				tipo: 'drogas_complex',
+				texto: '10. HOUVE APREENSÃO DE DROGAS?',
+				rotulo_painel: 'Entorpecentes'
+			})
+		).toBe('Entorpecentes');
+	});
+
+	it('sem rótulo, drogas e armas mantêm a identidade dos cards antigos', () => {
+		expect(tituloNoPainel({ tipo: 'drogas_complex', texto: '10. HOUVE APREENSÃO?' })).toBe(
+			'Drogas'
+		);
+		expect(tituloNoPainel({ tipo: 'armas_complex', texto: '11. HOUVE APREENSÃO?' })).toBe('Armas');
+	});
+
+	it('sem rótulo e sem identidade, o texto da pergunta', () => {
+		expect(tituloNoPainel({ tipo: 'numero', texto: 'ATENDIMENTOS' })).toBe('ATENDIMENTOS');
+	});
+
+	it('rótulo em branco ou só espaços NÃO conta como escolha', () => {
+		// Um campo de texto devolve `' '` com a mesma facilidade com que devolve
+		// `''` — e um título de um espaço deixaria o card sem cabeçalho, sem erro
+		// em lugar nenhum.
+		expect(tituloNoPainel({ tipo: 'numero', texto: 'ATENDIMENTOS', rotulo_painel: '' })).toBe(
+			'ATENDIMENTOS'
+		);
+		expect(tituloNoPainel({ tipo: 'numero', texto: 'ATENDIMENTOS', rotulo_painel: '   ' })).toBe(
+			'ATENDIMENTOS'
+		);
+		expect(tituloNoPainel({ tipo: 'drogas_complex', texto: 'X', rotulo_painel: '  ' })).toBe(
+			'Drogas'
+		);
+	});
+
+	it('preserva os espaços internos do rótulo, aparando só as pontas', () => {
+		expect(tituloNoPainel({ tipo: 'numero', texto: 'X', rotulo_painel: '  Armas de fogo  ' })).toBe(
+			'Armas de fogo'
+		);
 	});
 });

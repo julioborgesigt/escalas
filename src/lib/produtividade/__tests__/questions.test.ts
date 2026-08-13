@@ -198,6 +198,49 @@ describe('mapQuestions', () => {
 		expect(q.unidade).toBe('');
 	});
 
+	it('o `rotulo_painel` vira o título do card, sem tocar no `label`', () => {
+		// As duas coisas coexistem de propósito: `titulo` é o cabeçalho do card e
+		// `label` continua sendo o enunciado. Fundir os dois faria o painel perder a
+		// única referência ao texto que o policial de fato respondeu.
+		const [q] = mapQuestions([
+			{
+				id: 1,
+				texto: '3. QUANTOS ATENDIMENTOS FORAM REALIZADOS?',
+				tipo: 'numero',
+				key: 'a',
+				rotulo_painel: 'Atendimentos',
+				grafico: COLUNAS
+			}
+		]);
+		expect(q.titulo).toBe('Atendimentos');
+		expect(q.label).toBe('3. QUANTOS ATENDIMENTOS FORAM REALIZADOS?');
+	});
+
+	it('sub-pergunta também aceita título próprio', () => {
+		// A caixa de marcação sempre esteve disponível no nível 1, e o campo de
+		// título acompanha a marca. Parar de descer aqui deixaria o campo sem efeito
+		// justamente onde ninguém iria conferir.
+		const [filho] = mapQuestions([
+			{
+				id: 1,
+				texto: 'HOUVE OCORRÊNCIA?',
+				tipo: 'sim_nao',
+				key: 'pai',
+				filhos: [
+					{
+						id: 2,
+						texto: 'Quantas?',
+						tipo: 'numero',
+						key: 'filho',
+						rotulo_painel: 'Ocorrências',
+						grafico: COLUNAS
+					}
+				]
+			}
+		]);
+		expect(filho.titulo).toBe('Ocorrências');
+	});
+
 	it('modelo vazio ou ausente devolve lista vazia', () => {
 		expect(mapQuestions([])).toEqual([]);
 		expect(mapQuestions(null)).toEqual([]);
