@@ -1,65 +1,33 @@
 <script lang="ts">
 	/**
-	 * Orquestrador fino do QUADRO DE SUPERVISÃO da GISE.
-	 *
-	 * Mantém a API pública estável para `+page.svelte` e compõe:
+	 * Cabeçalho da seção QUADRO DE SUPERVISÃO da GISE: título, o aviso de
+	 * assinatura pendente e a ordem dos dois blocos —
 	 *   1. `SupervisaoDesignacao` — designar papéis (Admin Geral);
-	 *   2. marcadores via `rodagem.ts` (dentro da designação);
-	 *   3. `SupervisaoDocumentos` — assinaturas de escala e extra do quadro.
+	 *   2. `SupervisaoDocumentos` — assinaturas de escala e extra do quadro.
 	 *
-	 * Sem "card" externo: o quadro é uma SEÇÃO da página (título + blocos), não um
-	 * cartão dentro de cartão.
+	 * Não repassa nada: o estado do quadro vem do contexto publicado pela página
+	 * (`supervisao/quadro-supervisao-estado.svelte.ts`, cujo cabeçalho explica
+	 * por que é contexto e não props). O único prop é o snippet `loteSection`,
+	 * que é conteúdo montado pela página.
+	 *
+	 * Sem "card" externo: o quadro é uma SEÇÃO da página (título + blocos), não
+	 * um cartão dentro de cartão.
 	 */
+	import type { Snippet } from 'svelte';
 	import Clock from '@lucide/svelte/icons/clock';
-	import { quadroSupervisaoExtraExigeRelatorio } from '$lib/gise/supervisao-extra';
 	import SupervisaoDesignacao from './supervisao/SupervisaoDesignacao.svelte';
 	import SupervisaoDocumentos from './supervisao/SupervisaoDocumentos.svelte';
-	import type { GiseSupervisaoProps } from './supervisao/types';
+	import { quadroSupervisao } from './supervisao/quadro-supervisao-estado.svelte';
 
-	let {
-		gise,
-		policiais,
-		isAdminGeral,
-		isSeccional,
-		podeEditar,
-		modoEdicaoGeral,
-		editando = $bindable(false),
-		documentoAssinadoInfo,
-		pendingCrud,
-		buscarDpcs,
-		buscarOips,
-		selectedFromPoliciais,
-		supervisorId = $bindable(),
-		assessorId = $bindable(),
-		assessorEmailNotificacao = $bindable(''),
-		seint1Id = $bindable(),
-		seint2Id = $bindable(),
-		presencasGise = null,
-		seintSupervisaoComRelatorio = [],
-		supervisaoExtraUnidadeId = null,
-		assinaturasRelatorios = null,
-		podeDownload = false,
-		isSupervisor = false,
-		isMobile = false,
-		onAssinarExtraSupervisaoManual,
-		onAssinarExtraSupervisaoDigital,
-		mostrarPainelAssinaturaEscala = false,
-		assinaturaEscalaSignerEmail = undefined,
-		rubricaCapturada = $bindable(null),
-		painelTokenGise = $bindable(null),
-		serproSignerName = $bindable(''),
-		serproSignerCpf = $bindable(''),
-		onAbrirAssinaturaEscalaManual,
-		onAssinaturaEscalaDigitalSuccess,
-		loteSection,
-		onEditar,
-		onCancelar,
-		onSubmit
-	}: GiseSupervisaoProps = $props();
+	const { loteSection }: { loteSection?: Snippet } = $props();
 
-	const mostrarBlocoExtraSupervisao = $derived(quadroSupervisaoExtraExigeRelatorio(gise));
-	const mostrarPainelAssinaturaEscalaReadonly = $derived(
-		isAdminGeral && !documentoAssinadoInfo?.existe
+	const quadro = quadroSupervisao();
+
+	const avisarEscalaPendente = $derived(
+		!quadro.editando &&
+			!quadro.documentoAssinadoInfo?.existe &&
+			quadro.exigeRelatorioExtra &&
+			!(quadro.mostrarPainelAssinaturaEscala || quadro.painelAssinaturaEscalaReadonly)
 	);
 </script>
 
@@ -70,7 +38,7 @@
 		</h2>
 
 		<div class="flex w-full sm:w-auto flex-wrap items-center justify-end gap-2 sm:gap-3">
-			{#if !editando && !documentoAssinadoInfo?.existe && mostrarBlocoExtraSupervisao && !(mostrarPainelAssinaturaEscala || mostrarPainelAssinaturaEscalaReadonly)}
+			{#if avisarEscalaPendente}
 				<span
 					class="inline-flex items-center gap-1.5 rounded-full bg-warning-500 px-3 py-1 text-xs font-bold uppercase tracking-wider text-white shadow-lg shadow-warning-500/20"
 				>
@@ -81,51 +49,7 @@
 		</div>
 	</div>
 
-	<SupervisaoDesignacao
-		{gise}
-		{policiais}
-		{isAdminGeral}
-		{podeEditar}
-		{modoEdicaoGeral}
-		bind:editando
-		{pendingCrud}
-		{buscarDpcs}
-		{buscarOips}
-		{selectedFromPoliciais}
-		bind:supervisorId
-		bind:assessorId
-		bind:assessorEmailNotificacao
-		bind:seint1Id
-		bind:seint2Id
-		{presencasGise}
-		{seintSupervisaoComRelatorio}
-		{onEditar}
-		{onCancelar}
-		{onSubmit}
-	/>
+	<SupervisaoDesignacao />
 
-	<SupervisaoDocumentos
-		{gise}
-		{policiais}
-		{isAdminGeral}
-		{isSeccional}
-		{documentoAssinadoInfo}
-		{presencasGise}
-		{supervisaoExtraUnidadeId}
-		{assinaturasRelatorios}
-		{podeDownload}
-		{isSupervisor}
-		{isMobile}
-		{onAssinarExtraSupervisaoManual}
-		{onAssinarExtraSupervisaoDigital}
-		{mostrarPainelAssinaturaEscala}
-		{assinaturaEscalaSignerEmail}
-		bind:rubricaCapturada
-		bind:painelTokenGise
-		bind:serproSignerName
-		bind:serproSignerCpf
-		{onAbrirAssinaturaEscalaManual}
-		{onAssinaturaEscalaDigitalSuccess}
-		{loteSection}
-	/>
+	<SupervisaoDocumentos {loteSection} />
 </section>

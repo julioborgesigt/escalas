@@ -8,7 +8,11 @@
 
 import { SvelteMap } from 'svelte/reactivity';
 import { estadoMarcadorRodagemSupervisao } from '$lib/gise/supervisao-extra';
-import type { GiseSupervisaoGise, PolicialOpcao, PresencaGiseLinha } from './types';
+import type {
+	GiseSupervisaoGise,
+	PolicialOpcao,
+	PresencaGiseLinha
+} from './quadro-supervisao-estado.svelte';
 
 /** Estado de entrada/saída do integrante para o `<MarcadorPresenca>`. */
 export function presencaDe(

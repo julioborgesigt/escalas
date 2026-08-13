@@ -3,6 +3,9 @@
 	 * Slot NUIP OIP (SEINT) do quadro de supervisão — um dos dois papéis
 	 * idênticos parametrizados por `papel`. Inclui marcador de rodagem e
 	 * edição inline (Admin Geral).
+	 *
+	 * `papel` é o único prop: diz QUAL das duas instâncias é esta. Todo o resto
+	 * vem do contexto do quadro.
 	 */
 	import SearchableSelect from '$lib/components/SearchableSelect.svelte';
 	import MarcadorPresenca from '../MarcadorPresenca.svelte';
@@ -11,54 +14,18 @@
 	import Users from '@lucide/svelte/icons/users';
 	import Spinner from '$lib/components/Spinner.svelte';
 	import { marcadorRodagem, presencaDe } from './rodagem';
-	import type {
-		LoadOptionsFn,
-		PapelSupervisao,
-		PolicialOpcao,
-		PresencaGiseLinha,
-		SelectedOption
-	} from './types';
+	import { quadroSupervisao } from './quadro-supervisao-estado.svelte';
 
-	interface Props {
-		papel: 'seint1' | 'seint2';
-		/** Valor persistido (nome/marcador). */
-		idPersistido: number | null;
-		value: number | null;
-		editandoPapel: PapelSupervisao | null;
-		removendoPapel: PapelSupervisao | null;
-		policiais: PolicialOpcao[];
-		presencasGise: PresencaGiseLinha[] | null;
-		seintRelatorioSet: Set<number>;
-		isAdminGeral: boolean;
-		podeEditar: boolean;
-		modoEdicaoGeral: boolean;
-		pendingCrud: boolean;
-		buscarOips: LoadOptionsFn;
-		selectedFromPoliciais: (id: number | null) => SelectedOption;
-		onIniciarEdicao: (papel: PapelSupervisao) => void;
-		onSolicitarRemocao: (papel: PapelSupervisao) => void;
-		onCancelarEdicao: () => void;
-	}
+	const { papel }: { papel: 'seint1' | 'seint2' } = $props();
 
-	let {
-		papel,
-		idPersistido,
-		value = $bindable(),
-		editandoPapel,
-		removendoPapel,
-		policiais,
-		presencasGise,
-		seintRelatorioSet,
-		isAdminGeral,
-		podeEditar,
-		modoEdicaoGeral,
-		pendingCrud,
-		buscarOips,
-		selectedFromPoliciais,
-		onIniciarEdicao,
-		onSolicitarRemocao,
-		onCancelarEdicao
-	}: Props = $props();
+	const quadro = quadroSupervisao();
+
+	/** Valor persistido (nome e marcador vêm da GISE salva, não do formulário). */
+	const idPersistido = $derived(papel === 'seint1' ? quadro.gise.seint1_id : quadro.gise.seint2_id);
+	const emEdicao = $derived(quadro.editandoPapel === papel);
+	const podeGerenciar = $derived(
+		quadro.isAdminGeral && quadro.podeEditar && quadro.modoEdicaoGeral
+	);
 </script>
 
 <div
@@ -76,28 +43,28 @@
 					>NUIP OIP</span
 				>
 				{#if idPersistido}
-					{@const pr = presencaDe(presencasGise, idPersistido)}
+					{@const pr = presencaDe(quadro.presencasGise, idPersistido)}
 					<MarcadorPresenca
 						entrada={pr.entrada}
 						saida={pr.saida}
 						faltaRelatorio={marcadorRodagem(
 							'seint',
 							idPersistido,
-							presencasGise,
-							seintRelatorioSet
+							quadro.presencasGise,
+							quadro.seintRelatorioSet
 						) === 'falta_relatorio'}
 					/>
 				{/if}
 			</div>
-			{#if editandoPapel === papel}
+			{#if emEdicao}
 				<div class="flex flex-col sm:flex-row sm:items-center gap-2 mt-1 w-full">
 					<div class="flex-1 min-w-0">
 						<SearchableSelect
 							id="{papel}Id"
-							bind:value
-							loadOptions={buscarOips}
+							bind:value={quadro.ids[papel]}
+							loadOptions={quadro.buscarOips}
 							ariaLabel="Selecionar NUIP OIP"
-							selectedOption={selectedFromPoliciais(value)}
+							selectedOption={quadro.opcaoSelecionada(quadro.ids[papel])}
 							placeholder="Pesquisar NUIP OIP..."
 							minSearchChars={2}
 							showTrigger={false}
@@ -108,9 +75,9 @@
 						<button
 							type="submit"
 							class="btn preset-filled-primary-500 text-sm px-3 py-1.5 rounded-lg w-full sm:w-auto transition-all"
-							disabled={pendingCrud}
+							disabled={quadro.pendingCrud}
 						>
-							{#if pendingCrud && editandoPapel === papel}
+							{#if quadro.pendingCrud}
 								<Spinner size="sm" />
 							{:else}
 								Adicionar
@@ -119,8 +86,8 @@
 						<button
 							type="button"
 							class="btn preset-outlined-primary-500 text-sm px-3 py-1.5 rounded-lg w-full sm:w-auto"
-							onclick={onCancelarEdicao}
-							disabled={pendingCrud}
+							onclick={() => quadro.cancelarEdicao()}
+							disabled={quadro.pendingCrud}
 						>
 							Fechar
 						</button>
@@ -129,18 +96,16 @@
 			{:else}
 				<div class="flex items-center gap-2">
 					<p class="text-sm font-semibold text-surface-700 dark:text-surface-200 truncate">
-						{idPersistido
-							? (policiais.find((p) => p.id === idPersistido)?.nome ?? 'Carregando...')
-							: 'Não definido'}
+						{idPersistido ? (quadro.nomeDe(idPersistido) ?? 'Carregando...') : 'Não definido'}
 					</p>
-					{#if isAdminGeral && podeEditar && modoEdicaoGeral}
+					{#if podeGerenciar}
 						<div class="flex items-center gap-1 shrink-0">
 							<button
 								type="button"
 								class="btn btn-xs preset-filled-surface-500 rounded p-1"
 								title="Editar"
 								aria-label="Editar"
-								onclick={() => onIniciarEdicao(papel)}
+								onclick={() => quadro.iniciarEdicao(papel)}
 							>
 								<PenLine size={12} />
 							</button>
@@ -150,10 +115,10 @@
 									class="btn btn-xs preset-outlined-error-500 rounded p-1"
 									title="Remover"
 									aria-label="Remover"
-									onclick={() => onSolicitarRemocao(papel)}
-									disabled={pendingCrud}
+									onclick={() => quadro.solicitarRemocao(papel)}
+									disabled={quadro.pendingCrud}
 								>
-									{#if pendingCrud && removendoPapel === papel}
+									{#if quadro.pendingCrud && quadro.removendoPapel === papel}
 										<Spinner size="xs" />
 									{:else}
 										<Trash2 size={12} />

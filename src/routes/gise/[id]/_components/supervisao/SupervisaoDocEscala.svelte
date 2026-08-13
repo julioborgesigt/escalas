@@ -2,50 +2,23 @@
 	/**
 	 * Card de documento da escala GISE (assinada / pendente) + painel token
 	 * sr-only para assinatura digital do supervisor.
+	 *
+	 * Sem props: tudo vem do contexto do quadro.
 	 */
 	import { page } from '$app/state';
 	import PainelAssinaturaToken from '$lib/components/PainelAssinaturaToken.svelte';
-	import SupervisaoDocumentoCard from '../SupervisaoDocumentoCard.svelte';
+	import SupervisaoDocumentoCard from './SupervisaoDocumentoCard.svelte';
 	import FileDown from '@lucide/svelte/icons/file-down';
 	import PenLine from '@lucide/svelte/icons/pen-line';
 	import { podeBaixarComManifesto } from '$lib/manifesto';
-	import type { DocumentoAssinadoInfo, GiseSupervisaoGise } from './types';
+	import { quadroSupervisao } from './quadro-supervisao-estado.svelte';
 
-	interface Props {
-		gise: GiseSupervisaoGise;
-		documentoAssinadoInfo: DocumentoAssinadoInfo | null;
-		isAdminGeral: boolean;
-		isSupervisor: boolean;
-		isMobile: boolean;
-		podeDownload: boolean;
-		mostrarPainelAssinaturaEscala: boolean;
-		assinaturaEscalaSignerEmail?: string;
-		rubricaCapturada?: string | null | undefined;
-		painelTokenGise?: { assinarComSerpro: () => Promise<void> } | null | undefined;
-		serproSignerName?: string | undefined;
-		serproSignerCpf?: string | undefined;
-		onAbrirAssinaturaEscalaManual: () => void;
-		onAssinaturaEscalaDigitalSuccess: () => Promise<void>;
-	}
+	const quadro = quadroSupervisao();
 
-	let {
-		gise,
-		documentoAssinadoInfo,
-		isAdminGeral,
-		isSupervisor,
-		isMobile,
-		podeDownload,
-		mostrarPainelAssinaturaEscala,
-		assinaturaEscalaSignerEmail = undefined,
-		rubricaCapturada = $bindable(null),
-		painelTokenGise = $bindable(null),
-		serproSignerName = $bindable(''),
-		serproSignerCpf = $bindable(''),
-		onAbrirAssinaturaEscalaManual,
-		onAssinaturaEscalaDigitalSuccess
-	}: Props = $props();
+	const gise = $derived(quadro.gise);
+	const documentoAssinadoInfo = $derived(quadro.documentoAssinadoInfo);
 
-	const assinaturaEscalaHabilitada = $derived(!!podeDownload);
+	const assinaturaEscalaHabilitada = $derived(!!quadro.podeDownload);
 	const seccionaisPendentes = $derived(
 		gise.seccionais?.filter(
 			(s) => s.status !== 'preenchida' && s.status !== 'preenchida_retificada'
@@ -115,7 +88,7 @@
 			</a>
 		{/if}
 	{:else}
-		{#if isSupervisor || isAdminGeral}
+		{#if quadro.isSupervisor || quadro.isAdminGeral}
 			<a
 				class="btn btn-xs text-3xs px-2.5 py-1.5 rounded-lg font-semibold no-underline flex items-center gap-1 {mobile
 					? ''
@@ -130,13 +103,13 @@
 				Conferência
 			</a>
 		{/if}
-		{#if isSupervisor}
+		{#if quadro.isSupervisor}
 			{#if mobile}
 				<button
 					type="button"
 					class="btn btn-xs preset-filled-warning-500 border border-warning-600/30 px-2.5 py-1.5 text-3xs font-bold rounded-lg hover:border-warning-600 disabled:opacity-40 flex items-center gap-1"
-					disabled={!mostrarPainelAssinaturaEscala}
-					onclick={() => onAbrirAssinaturaEscalaManual()}
+					disabled={!quadro.mostrarPainelAssinaturaEscala}
+					onclick={() => quadro.abrirAssinaturaEscalaManual()}
 				>
 					{@render iconeCaneta()}
 					Tela
@@ -145,8 +118,8 @@
 				<button
 					type="button"
 					class="btn btn-xs preset-filled-tertiary-500 border border-tertiary-600/30 px-2.5 py-1.5 text-3xs font-bold rounded-lg hover:border-tertiary-600 disabled:opacity-40 flex items-center gap-1 hover:scale-[1.02] transition-all"
-					disabled={!mostrarPainelAssinaturaEscala}
-					onclick={() => painelTokenGise?.assinarComSerpro()}
+					disabled={!quadro.mostrarPainelAssinaturaEscala}
+					onclick={() => quadro.assinatura.painelTokenGise?.assinarComSerpro()}
 				>
 					{@render iconeCaneta()}
 					Token
@@ -158,7 +131,6 @@
 
 <div class="flex flex-col gap-1.5 w-full animate-fade">
 	<SupervisaoDocumentoCard
-		{isMobile}
 		titulo={documentoAssinadoInfo?.existe ? 'Escala GISE' : 'Assinatura da escala GISE'}
 		textoInfo="O supervisor poderá assinar a escala quando todas as seccionais enviarem a escala."
 		badgeEstado={documentoAssinadoInfo?.existe
@@ -176,19 +148,19 @@
 		acoes={acoesEscala}
 	/>
 
-	{#if mostrarPainelAssinaturaEscala}
+	{#if quadro.mostrarPainelAssinaturaEscala}
 		<div class="sr-only" aria-hidden="true">
 			<PainelAssinaturaToken
-				bind:control={painelTokenGise}
-				bind:signerName={serproSignerName}
-				bind:signerCpf={serproSignerCpf}
-				signerEmail={assinaturaEscalaSignerEmail ?? ''}
+				bind:control={quadro.assinatura.painelTokenGise}
+				bind:signerName={quadro.assinatura.serproSignerName}
+				bind:signerCpf={quadro.assinatura.serproSignerCpf}
+				signerEmail={quadro.assinaturaEscalaSignerEmail ?? ''}
 				prepararUrl="/api/gise/{gise.id}/preparar-assinatura"
 				finalizarUrl="/api/gise/{gise.id}/finalizar-assinatura"
 				nomeArquivo="gise_{gise.data_inicio}_assinada.pdf"
-				extraPayload={{ rubrica: rubricaCapturada }}
+				extraPayload={{ rubrica: quadro.assinatura.rubricaCapturada }}
 				disabled={false}
-				onSuccess={onAssinaturaEscalaDigitalSuccess}
+				onSuccess={() => quadro.aoAssinarEscalaDigital()}
 			/>
 		</div>
 	{/if}
