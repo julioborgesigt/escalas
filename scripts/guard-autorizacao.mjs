@@ -189,6 +189,14 @@ export const HELPERS_OBRIGATORIOS = {
 	'src/routes/escalas/+page.server.ts → criarComBase': ['lotacaoNoEscopo'],
 	'src/routes/escalas/+page.server.ts → excluir': ['lotacaoNoEscopo'],
 
+	// FLW-ESC-003 — escala assinada/finalizada não muda de composição, e a
+	// restrição por lotação vale mesmo para o DPC que já pode LER e ASSINAR.
+	// As duas regras moram só em `carregarEscalaComPermissao`.
+	'src/routes/escalas/[id]/_actions/actions-composicao.ts': ['carregarEscalaComPermissao'],
+	'src/routes/escalas/[id]/_actions/actions-datas.ts': ['carregarEscalaComPermissao'],
+	'src/routes/escalas/[id]/_actions/actions-ciclo.ts': ['carregarEscalaComPermissao'],
+	'src/routes/escalas/[id]/_actions/actions-projecao.ts': ['carregarEscalaComPermissao'],
+
 	// FLW-AUT-006 / 007 — presença: janela de horário + GISE não finalizada
 	'src/routes/res-gise/+page.server.ts → salvarEntrada': ['gateDePresenca'],
 	'src/routes/res-gise/+page.server.ts → salvarSaida': ['gateDePresenca'],
@@ -208,8 +216,16 @@ function helpersDaOperacao(arquivo, nome) {
 // `fail(403)` no helper, não no corpo. Sem o nome aqui, extrair o 403
 // (achado 2.1) deixava o guard cego — "não recusa ninguém" com o POST
 // já morrendo no servidor.
+//
+// `carregarEscalaComPermissao` é o mesmo caso, em `/escalas/[id]`: devolve
+// `{ erro: fail(403) }` e a action só repassa. Enquanto as catorze viviam em
+// `+page.server.ts` o 403 entrava pelo PREÂMBULO — o helper estava definido
+// acima delas, no mesmo arquivo —, e por isso todas passavam mesmo que uma
+// esquecesse de chamá-lo. Com as actions em `_actions/`, o preâmbulo não
+// carrega mais o helper, e o par nome-aqui + HELPERS_OBRIGATORIOS abaixo passa
+// a exigir a chamada no corpo de CADA uma.
 const RE_403 =
-	/fail\(403|forbidden\(|status:\s*403|error\(403|requireAdmin\(|requireSuperAdmin\(|exigirAdminGeral\(/;
+	/fail\(403|forbidden\(|status:\s*403|error\(403|requireAdmin\(|requireSuperAdmin\(|exigirAdminGeral\(|carregarEscalaComPermissao\(/;
 const RE_401 = /fail\(401|unauthorized\(|requireAuth\(|error\(401/;
 
 /** Do índice da chave `{`, devolve o bloco balanceado. */

@@ -11,16 +11,27 @@
  * exigiria RequestEvent, FormData, sessão e D1 para cada uma das catorze, e o
  * que se mediria ao fim é o que está escrito aqui. O achado nunca foi uma
  * action instrumentada errado — eram doze sem instrumentação nenhuma.
+ *
+ * **A varredura ENUMERA o diretório** (`actions-*.ts`) em vez de listar os
+ * arquivos à mão. Quando as actions viviam todas em `+page.server.ts` bastava
+ * ler um arquivo; agora que estão agrupadas, fixar a lista faria um
+ * `actions-novo.ts` nascer fora do guard — e um guard que não vê o arquivo novo
+ * é pior que guard nenhum, porque parece verde.
  */
 import { describe, it, expect } from 'vitest';
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const ROTA = dirname(dirname(dirname(fileURLToPath(import.meta.url))));
-const FONTE = readFileSync(join(ROTA, '+page.server.ts'), 'utf8');
+const DIR_ACTIONS = dirname(dirname(fileURLToPath(import.meta.url)));
 
-/** As actions, pelo formato único do objeto `actions` deste arquivo. */
+const ARQUIVOS = readdirSync(DIR_ACTIONS)
+	.filter((f) => f.startsWith('actions-') && f.endsWith('.ts'))
+	.sort();
+
+const FONTE = ARQUIVOS.map((f) => readFileSync(join(DIR_ACTIONS, f), 'utf8')).join('\n');
+
+/** As actions, pelo formato único do objeto `actions` destes arquivos. */
 const NOMES = [...FONTE.matchAll(/^\t(\w+): async \(/gm)].map((m) => m[1]);
 
 /** O corpo de uma action, do cabeçalho dela até o da seguinte. */
@@ -42,10 +53,23 @@ function corpo(nome: string): string {
 const AUDITAM_POR_CONTA_PROPRIA = new Set(['finalizar', 'gerarProximoMes']);
 
 describe('cobertura da varredura', () => {
+	it('lê todos os grupos de action do diretório', () => {
+		// Se um grupo novo aparecer, ele entra sozinho — o que falha aqui é o
+		// diretório ficar VAZIO por um rename que a varredura não acompanhou.
+		expect(ARQUIVOS.length).toBeGreaterThanOrEqual(4);
+	});
+
 	it('catorze actions, nem mais nem menos', () => {
 		// Mudou o número? Instrumente a action nova — não ajuste o total para o
 		// teste voltar ao verde.
 		expect(NOMES).toHaveLength(14);
+	});
+
+	it('nenhuma action ficou para trás em `+page.server.ts`', () => {
+		// O arquivo da rota agora só compõe: `load` + spread dos grupos. Uma action
+		// escrita direto ali escaparia da varredura acima.
+		const rota = readFileSync(join(dirname(DIR_ACTIONS), '+page.server.ts'), 'utf8');
+		expect(rota).not.toMatch(/^\t\w+: async \(/m);
 	});
 
 	it('as duas exceções continuam existindo', () => {
@@ -119,6 +143,15 @@ describe('cada action material deixa trilha', () => {
 		// `locals`. Desestruturar só `{ request, locals, platform, params }` na
 		// assinatura deixaria o evento sem IP, rota e request_id — e, como os
 		// cinco campos são opcionais, sem erro nenhum.
-		expect(corpo(nome)).toMatch(/async \(event\) =>/);
+		expect(corpo(nome)).toMatch(/async \(event: Event\) =>/);
+	});
+});
+
+describe('o preâmbulo é o mesmo para todas — FLW-ESC-003', () => {
+	it.each(NOMES)('%s começa por carregarEscalaComPermissao', (nome) => {
+		// O guard de imutabilidade (assinada/finalizada não muda de composição) e a
+		// restrição por lotação moram lá dentro. Uma action que carregue a escala
+		// por conta própria repõe o buraco que a extração fechou.
+		expect(corpo(nome)).toContain('carregarEscalaComPermissao(');
 	});
 });
