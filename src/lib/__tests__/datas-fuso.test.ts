@@ -21,6 +21,7 @@ import {
 	diasNoMes,
 	diffDiasInclusivo,
 	hojeLocalISO,
+	hojeBrasilISO,
 	intervaloDeDatas
 } from '../utils/datas';
 import { ultimoDiaDoMes, primeiroDiaDoMes } from '../rotacao';
@@ -175,6 +176,33 @@ describe('hojeLocalISO — segue o fuso do aparelho, não o UTC', () => {
 		for (const tz of FUSOS) {
 			process.env.TZ = tz;
 			expect(hojeLocalISO(), `fuso ${tz}`).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+		}
+	});
+});
+
+describe('hojeBrasilISO — data civil de Brasília, independente do TZ do isolate', () => {
+	it('ainda é dia 28 em Brasília quando UTC já virou 29', () => {
+		vi.useFakeTimers();
+		vi.setSystemTime(new Date('2026-07-29T00:30:00Z'));
+		try {
+			for (const tz of FUSOS) {
+				process.env.TZ = tz;
+				expect(hojeBrasilISO(), `fuso ${tz}`).toBe('2026-07-28');
+			}
+		} finally {
+			vi.useRealTimers();
+		}
+	});
+
+	it('vira o dia à meia-noite de Brasília, não à de UTC', () => {
+		vi.useFakeTimers();
+		try {
+			vi.setSystemTime(new Date('2026-07-29T02:59:00Z'));
+			expect(hojeBrasilISO()).toBe('2026-07-28');
+			vi.setSystemTime(new Date('2026-07-29T03:00:00Z'));
+			expect(hojeBrasilISO()).toBe('2026-07-29');
+		} finally {
+			vi.useRealTimers();
 		}
 	});
 });

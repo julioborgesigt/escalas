@@ -19,9 +19,9 @@ import { isAdminGeral, isAdminSeccional } from '$lib/auth';
  * Quem pode PREENCHER uma seccional da GISE: o Admin Geral, em qualquer uma, e
  * o admin da própria seccional, só na dela.
  *
- * Até ago/2026 as quatro actions que preenchem seccional — `adicionarMembro`,
- * `removerMembro`, `finalizarSeccional` e `salvarHorariosSec` — escreviam cada
- * uma a METADE de baixo desta regra:
+ * Até ago/2026 as actions que preenchem seccional — `adicionarMembro`,
+ * `removerMembro`, `finalizarSeccional`, `salvarHorariosSec` e
+ * `selecionarUnidade` — escreviam cada uma a METADE de baixo desta regra:
  *
  *     if (isAdminSeccional(u) && u.papel_unidade_id !== sec.seccional_id)
  *         return fail(403, ...)
@@ -33,9 +33,9 @@ import { isAdminGeral, isAdminSeccional } from '$lib/auth';
  * `isAdminGeral || (isSeccional && a própria seccional)`, e é essa a regra
  * escrita aqui.
  *
- * Quatro cópias da mesma meia-regra, e nenhuma delas errada sozinha — o erro
- * estava no que faltava nas quatro. Por isso a regra virou UMA função: quem
- * ganhar a quinta action não tem como escrever só a metade.
+ * Cinco call sites da mesma regra. Até 12/ago `selecionarUnidade` ainda
+ * inlinava o predicado; as outras quatro já passavam por aqui. Quem ganhar a
+ * sexta action não tem como escrever só a metade.
  */
 export function podePreencherSeccional(
 	u: App.Locals['usuario'],
@@ -44,6 +44,20 @@ export function podePreencherSeccional(
 	if (!u) return false;
 	if (isAdminGeral(u)) return true;
 	return isAdminSeccional(u) && u.papel_unidade_id != null && u.papel_unidade_id === seccionalId;
+}
+
+/**
+ * Recusa a form action se quem chamou não é Admin Geral.
+ *
+ * Devolve o usuário (estreito) ou o `fail(403)`. Anônimo e demais papéis caem
+ * no mesmo 403 — a mensagem não distingue de propósito. Quem precisa de 401
+ * por sessão ausente confere `!u` ANTES.
+ *
+ * Uso: `const u = exigirAdminGeral(locals.usuario); if (!('id' in u)) return u;`
+ */
+export function exigirAdminGeral(u: App.Locals['usuario'], mensagem = 'Apenas Admin Geral') {
+	if (!u || !isAdminGeral(u)) return fail(403, { error: mensagem });
+	return u;
 }
 
 /** Lê um campo do FormData como inteiro; devolve `NaN` quando ausente/inválido. */

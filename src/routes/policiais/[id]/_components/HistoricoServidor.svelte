@@ -19,6 +19,7 @@
 	import type { PolicialHistorico } from '$lib/types';
 	import { formatarData } from '$lib/utils/datas';
 	import { LABEL_SUBTIPO_AFASTAMENTO } from '$lib/schemas/policial-historico';
+	import Paginador from '$lib/components/Paginador.svelte';
 	import ArrowRightLeft from '@lucide/svelte/icons/arrow-right-left';
 	import CalendarOff from '@lucide/svelte/icons/calendar-off';
 	import UserMinus from '@lucide/svelte/icons/user-minus';
@@ -27,8 +28,6 @@
 	import FileText from '@lucide/svelte/icons/file-text';
 	import History from '@lucide/svelte/icons/history';
 	import CircleDot from '@lucide/svelte/icons/circle-dot';
-	import ChevronLeft from '@lucide/svelte/icons/chevron-left';
-	import ChevronRight from '@lucide/svelte/icons/chevron-right';
 
 	interface Props {
 		historico: PolicialHistorico[];
@@ -274,26 +273,12 @@
 				<span class="text-xs text-surface-600 dark:text-surface-400">
 					Página {paginaAtual} de {totalPaginas} · {historico.length} registro(s)
 				</span>
-				<div class="flex gap-1">
-					<button
-						type="button"
-						class="btn btn-sm preset-outlined-surface-500"
-						disabled={paginaAtual <= 1}
-						onclick={() => (paginaAtual = Math.max(1, paginaAtual - 1))}
-						aria-label="Página anterior"
-					>
-						<ChevronLeft size={16} />
-					</button>
-					<button
-						type="button"
-						class="btn btn-sm preset-outlined-surface-500"
-						disabled={paginaAtual >= totalPaginas}
-						onclick={() => (paginaAtual = Math.min(totalPaginas, paginaAtual + 1))}
-						aria-label="Próxima página"
-					>
-						<ChevronRight size={16} />
-					</button>
-				</div>
+				<Paginador
+					count={historico.length}
+					pageSize={ITENS_POR_PAGINA}
+					page={paginaAtual}
+					onPageChange={(p) => (paginaAtual = p)}
+				/>
 			</div>
 		{/if}
 	{/if}

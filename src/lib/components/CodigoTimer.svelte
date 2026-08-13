@@ -1,4 +1,9 @@
 <script lang="ts">
+	/**
+	 * Contagem regressiva do código 2FA / verificação de e-mail. O intervalo vive
+	 * num `$effect` porque o timer é efeito colateral do `totalSeconds` — não é
+	 * estado derivado. `untrack` no tick evita recriar o interval a cada segundo.
+	 */
 	import { untrack } from 'svelte';
 	import Clock from '@lucide/svelte/icons/clock';
 

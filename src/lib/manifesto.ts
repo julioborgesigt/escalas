@@ -1,20 +1,14 @@
+/**
+ * Quem pode baixar o PDF assinado ÍNTEGRO (folha de manifesto forense) via
+ * `?manifesto=true`. Módulo client-safe: a UI esconde o botão com a MESMA
+ * regra que o servidor aplica nos downloads.
+ */
 import type { UsuarioLogado } from '$lib/auth';
 
 /**
- * Quem pode baixar o PDF assinado ÍNTEGRO (com a folha de manifesto forense:
- * CPF/IP/GPS/selfie) via `?manifesto=true`.
- *
- * Regras (basta uma):
- * - ADM Geral ou Super Admin (`tipo === 'admin'`).
- * - Policial com cargo DPC que seja o próprio assinante do documento
- *   (`assinanteId` é o `id` de quem assinou; `null`/`undefined` = identidade
- *   do assinante indisponível → esta regra nega, mas a anterior ainda vale).
- *
- * Fonte ÚNICA da regra: o servidor a aplica nos endpoints de download
- * (via re-export em `$lib/server/copia-conferencia`) e o cliente a usa para
- * decidir a visibilidade do botão "C/ manifesto" — quem não passa aqui
- * receberia do servidor apenas a cópia de conferência, então o botão nem
- * é exibido.
+ * Regras (basta uma): Admin Geral / Super Admin (`tipo === 'admin'`), ou DPC
+ * que é o próprio assinante. `assinanteId` nulo faz esta segunda regra negar
+ * — a primeira ainda vale.
  */
 export function podeBaixarComManifesto(
 	u: UsuarioLogado | null | undefined,

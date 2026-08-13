@@ -158,8 +158,8 @@ import {
 describe('MESES_PT', () => {
 	it('contém 12 meses em português', () => {
 		expect(MESES_PT).toHaveLength(12);
-		expect(MESES_PT[0]).toBe('JANEIRO');
-		expect(MESES_PT[11]).toBe('DEZEMBRO');
+		expect(MESES_PT[0]).toBe('Janeiro');
+		expect(MESES_PT[11]).toBe('Dezembro');
 	});
 });
 

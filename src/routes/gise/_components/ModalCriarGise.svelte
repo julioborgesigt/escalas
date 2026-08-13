@@ -200,6 +200,11 @@
 	}
 </script>
 
+<!--
+	Exceção deliberada ao ModalShell: wizard com calendário, três modos de
+	criação e ações por etapa — o mesmo motivo de `ModalNovaEscala`. Extrair
+	só a moldura adicionaria variantes sem reduzir as regras locais.
+-->
 <Dialog
 	{open}
 	onOpenChange={(e) => {

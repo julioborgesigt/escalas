@@ -1,8 +1,9 @@
-<!--
-	Primitive compartilhada para diálogos: concentra a composição acessível do Skeleton
-	e limita variações visuais a mapas explícitos observados nos domínios da aplicação.
--->
 <script lang="ts">
+	/**
+	 * Primitive compartilhada para diálogos: concentra a composição acessível do
+	 * Skeleton e limita variações visuais a mapas explícitos observados nos
+	 * domínios da aplicação.
+	 */
 	import { Dialog, Portal } from '@skeletonlabs/skeleton-svelte';
 	import type { Snippet } from 'svelte';
 

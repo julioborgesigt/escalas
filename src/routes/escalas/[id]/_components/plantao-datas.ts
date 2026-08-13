@@ -1,6 +1,6 @@
 import { toaster } from '$lib/toast';
 import { mostrarErroDeResultado } from '$lib/enhance-handler';
-import { calcularDataSaida, adicionarDias } from '$lib/utils/datas';
+import { calcularDataSaida, adicionarDias, diasNoMes } from '$lib/utils/datas';
 import type { ActionResult } from '@sveltejs/kit';
 import type { EscalaPolicialComDados } from '$lib/types';
 
@@ -14,7 +14,7 @@ import type { EscalaPolicialComDados } from '$lib/types';
 export function ultimoDiaMes(dataStr: string): number {
 	if (!dataStr) return 31;
 	const [ano, mes] = dataStr.split('-');
-	return new Date(Number(ano), Number(mes), 0).getDate();
+	return diasNoMes(Number(ano), Number(mes));
 }
 
 /** `MM/AAAA` de uma data ISO, para o sufixo do campo "1º dia". */

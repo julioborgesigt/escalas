@@ -27,15 +27,12 @@
 	import CheckCircle2 from '@lucide/svelte/icons/check-circle-2';
 	import AlertTriangle from '@lucide/svelte/icons/alert-triangle';
 	import KpiCard from './_components/KpiCard.svelte';
+	import ChipNivel from './_components/ChipNivel.svelte';
+	import { parseJson } from './_components/parse-json';
 
 	const { data, form }: PageProps = $props();
 
 	// ---- Rótulos e cores ----
-	const SEVERIDADE: Record<string, { label: string; cls: string }> = {
-		info: { label: 'Info', cls: 'bg-surface-300/40 text-surface-700 dark:text-surface-200' },
-		aviso: { label: 'Aviso', cls: 'bg-warning-500/20 text-warning-700 dark:text-warning-300' },
-		critico: { label: 'Crítico', cls: 'bg-error-500/20 text-error-700 dark:text-error-300' }
-	};
 	const RESULTADO: Record<string, { label: string; cls: string }> = {
 		sucesso: { label: 'Sucesso', cls: 'text-success-700 dark:text-success-400' },
 		falha: { label: 'Falha', cls: 'text-error-700 dark:text-error-400' },
@@ -72,14 +69,6 @@
 		if (!s) return '—';
 		const d = new Date(s.includes('T') ? s : s.replace(' ', 'T') + 'Z');
 		return Number.isNaN(d.getTime()) ? s : d.toLocaleString('pt-BR');
-	}
-	function parseJson(s: string | null): Record<string, unknown> | null {
-		if (!s) return null;
-		try {
-			return JSON.parse(s) as Record<string, unknown>;
-		} catch {
-			return null;
-		}
 	}
 	/** Campos alterados entre dois snapshots, para o diff. */
 	function diff(antes: string | null, depois: string | null) {
@@ -409,7 +398,6 @@
 				</thead>
 				<tbody>
 					{#each data.logs as log (log.id)}
-						{@const sev = SEVERIDADE[log.severidade ?? 'info'] ?? SEVERIDADE.info}
 						{@const res = RESULTADO[log.resultado ?? 'sucesso'] ?? RESULTADO.sucesso}
 						{@const mudancas = diff(log.dados_antes, log.dados_depois)}
 						<tr
@@ -420,9 +408,7 @@
 								{fmtData(log.created_at)}
 							</td>
 							<td class="px-3 py-2">
-								<span class="inline-block px-2 py-0.5 rounded-full text-xs font-medium {sev.cls}">
-									{sev.label}
-								</span>
+								<ChipNivel nivel={log.severidade ?? 'info'} />
 							</td>
 							<td class="px-3 py-2 text-surface-600 dark:text-surface-300">
 								{CATEGORIA[log.categoria ?? ''] ?? log.categoria ?? '—'}
@@ -556,7 +542,6 @@
 		<!-- Lista de Cards (Mobile) -->
 		<div class="block md:hidden space-y-3">
 			{#each data.logs as log (log.id)}
-				{@const sev = SEVERIDADE[log.severidade ?? 'info'] ?? SEVERIDADE.info}
 				{@const res = RESULTADO[log.resultado ?? 'sucesso'] ?? RESULTADO.sucesso}
 				{@const mudancas = diff(log.dados_antes, log.dados_depois)}
 
@@ -575,9 +560,7 @@
 				>
 					<div class="flex items-center justify-between gap-2">
 						<div class="flex items-center gap-1.5">
-							<span class="inline-block px-2 py-0.5 rounded-full text-xs font-semibold {sev.cls}">
-								{sev.label}
-							</span>
+							<ChipNivel nivel={log.severidade ?? 'info'} />
 							<span class="text-xs font-medium text-surface-600 dark:text-surface-400">
 								{CATEGORIA[log.categoria ?? ''] ?? log.categoria ?? '—'}
 							</span>

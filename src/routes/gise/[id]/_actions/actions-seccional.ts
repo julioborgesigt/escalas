@@ -18,7 +18,6 @@ import {
 	verificarGiseCompleta,
 	adicionarGiseSeccionalUnidade
 } from '$lib/db';
-import { isAdminGeral } from '$lib/auth';
 import { logger } from '$lib/server/logger';
 import { enviarNotificacaoAssessorGisePreenchimentoSeccional } from '$lib/server/email';
 import { montarTextoNotificacaoAssessorGise } from '$lib/server/gise/assessor-notificacao-text';
@@ -33,7 +32,13 @@ import {
 	giseDocumentos
 } from '$lib/server/schema';
 import { eq, and, asc, inArray } from 'drizzle-orm';
-import { getInt, saiuDaFaseDeEdicao, podePreencherSeccional, carregarGiseEditavel } from './shared';
+import {
+	getInt,
+	saiuDaFaseDeEdicao,
+	podePreencherSeccional,
+	carregarGiseEditavel,
+	exigirAdminGeral
+} from './shared';
 import { concluirMudancaGise, invalidarAssinaturasDaSeccional } from './desfecho';
 import { coletarChavesR2DaRevogacaoSeccional, deletarChavesR2 } from '$lib/server/r2-cleanup';
 
@@ -43,8 +48,8 @@ export const actionsSeccional = {
 	/** Inclui uma seccional na GISE, já com um slot de unidade em branco. */
 	adicionarSeccional: async (event: Event) => {
 		const { request, locals, platform, params } = event;
-		const u = locals.usuario;
-		if (!u || !isAdminGeral(u)) return fail(403, { error: 'Apenas Admin Geral' });
+		const u = exigirAdminGeral(locals.usuario);
+		if (!('id' in u)) return u;
 
 		const giseId = parseInt(params.id);
 		if (isNaN(giseId)) return fail(400, { error: 'ID inválido' });
@@ -102,8 +107,8 @@ export const actionsSeccional = {
 	 */
 	removerSeccional: async (event: Event) => {
 		const { request, locals, platform, params } = event;
-		const u = locals.usuario;
-		if (!u || !isAdminGeral(u)) return fail(403, { error: 'Apenas Admin Geral' });
+		const u = exigirAdminGeral(locals.usuario);
+		if (!('id' in u)) return u;
 
 		const giseId = parseInt(params.id);
 		const formData = await request.formData();

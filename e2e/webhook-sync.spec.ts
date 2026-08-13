@@ -24,6 +24,7 @@ const MAT = 'WEBHOOKE2E01';
 const MAT_ADMIN = 'WEBHOOKE2E02';
 const MAT_BAD = 'WEBHOOKE2E03';
 const MAT_LOTE_OK = 'WEBHOOKE2E04';
+const MAT_INATIVO = 'WEBHOOKE2E05';
 const SECCIONAL = 'SECCIONAL WEBHOOK E2E';
 
 const hdr = (t: string, extra?: Record<string, string>) => headersWebhookE2E(t, extra);
@@ -33,7 +34,7 @@ test.describe('Webhook sync — contrato + segurança', () => {
 
 	test.afterAll(() => {
 		execD1Local(
-			`DELETE FROM policiais WHERE matricula IN ('${MAT}', '${MAT_ADMIN}', '${MAT_BAD}', '${MAT_LOTE_OK}'); ` +
+			`DELETE FROM policiais WHERE matricula IN ('${MAT}', '${MAT_ADMIN}', '${MAT_BAD}', '${MAT_LOTE_OK}', '${MAT_INATIVO}'); ` +
 				`DELETE FROM unidades WHERE nome = '${SECCIONAL}';`
 		);
 	});
@@ -205,6 +206,39 @@ test.describe('Webhook sync — contrato + segurança', () => {
 			`SELECT papel FROM policiais WHERE matricula='${MAT_ADMIN}'`
 		);
 		expect(rows?.[0]?.papel).toBeNull();
+	});
+
+	test('sync de existente NÃO reativa ativo=0 (FLW-AUT-005)', async ({ request }) => {
+		const payload = {
+			matricula: MAT_INATIVO,
+			nome: 'Inativo Webhook',
+			cargo: 'OIP',
+			lotacao: 'DELEGACIA E2E FIXTURE A'
+		};
+		const criar = await request.post('/api/webhook/sync-policiais', {
+			headers: hdr(SYNC!),
+			data: payload
+		});
+		expect(criar.status(), await criar.text().catch(() => '')).toBe(200);
+
+		expect(execD1Local(`UPDATE policiais SET ativo=0 WHERE matricula='${MAT_INATIVO}'`)).toBe(true);
+		expect(
+			queryD1Local<{ ativo: number }>(
+				`SELECT ativo FROM policiais WHERE matricula='${MAT_INATIVO}'`
+			)?.[0]?.ativo
+		).toBe(0);
+
+		const deNovo = await request.post('/api/webhook/sync-policiais', {
+			headers: hdr(SYNC!),
+			data: { ...payload, nome: 'Inativo Atualizado' }
+		});
+		expect(deNovo.status()).toBe(200);
+
+		const depois = queryD1Local<{ ativo: number; nome: string }>(
+			`SELECT ativo, nome FROM policiais WHERE matricula='${MAT_INATIVO}'`
+		)?.[0];
+		expect(depois?.nome).toBe('Inativo Atualizado');
+		expect(depois?.ativo, 'desativação disciplinar não pode durar só até o próximo sync').toBe(0);
 	});
 
 	test('sync-unidades cria a seccional (upsert)', async ({ request }) => {

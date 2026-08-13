@@ -1,4 +1,9 @@
 <script lang="ts">
+	/**
+	 * Paginação com contador ("Mostrando X–Y de Z") + `Paginador`. Contrato
+	 * diferente do `Paginador` puro (só botões): listagens de página inteira
+	 * precisam do texto e do scroll ao topo. Não unificar os dois.
+	 */
 	import Paginador from './Paginador.svelte';
 
 	interface Props {

@@ -1,9 +1,14 @@
-import { json } from '@sveltejs/kit';
+/**
+ * POST /api/escalas/[id]/preparar-assinatura
+ *
+ * Prepara o PDF da escala ordinária (plantão/expediente) com placeholder de
+ * assinatura digital. Rubrica vem do cadastro, não do body. Recusa FDS (fluxo
+ * por e-mail) e documento já existente. Fecha com `fecharPreparacaoAssinatura`
+ * (intenção + cópia de conferência).
+ */
 import type { RequestHandler } from './$types';
 import {
 	getDB,
-	getR2,
-	hasR2,
 	buscarEscala,
 	listarPoliciaisEscala,
 	buscarPolicial,
@@ -22,16 +27,13 @@ import { gerarPdf, gerarPdfPlantao, gerarPdfExpediente } from '$lib/server/expor
 import {
 	prepararPdfParaAssinatura,
 	adicionarPaginaAuditoria,
-	adicionarRodapeUniversal,
-	estamparRubricaLimpa
+	adicionarRodapeUniversal
 } from '$lib/server/assinatura/pdf-signing';
-import { chaveConferencia } from '$lib/server/assinatura/copia-conferencia';
 import { calcularHashBuffer } from '$lib/server/assinatura/document-utils';
-import { logger } from '$lib/server/logger';
 import { PDFDocument } from 'pdf-lib';
 import { gerarCodigoValidacao } from '$lib/utils/formato';
 import { verificarPermissaoEscala, podeAssinarEscala } from '$lib/server/escalas/permissao';
-import { criarIntencaoAssinatura } from '$lib/server/assinatura/intencao';
+import { fecharPreparacaoAssinatura } from '$lib/server/assinatura/preparar-ciclo';
 
 export const POST: RequestHandler = async ({
 	platform,
@@ -175,52 +177,32 @@ export const POST: RequestHandler = async ({
 
 	const { preparedPdf, signedAttrsHashHex, messageDigest, signingTimeISO, dataToSignBase64 } =
 		prepResult;
-	const preparedPdfBase64 = Buffer.from(preparedPdf).toString('base64');
 
-	// 4. Cópia de conferência IDÊNTICA, gerada no MESMO momento a partir dos MESMOS
-	//    bytes do documento assinado: `pdfComRodape` (base + rodapé universal) +
-	//    `estamparRubricaLimpa` (mesma rubrica/geometria do campo assinado), SEM
-	//    manifesto forense e SEM placeholder de assinatura. Gravada no R2 sob a chave
-	//    plana `conferencia/<hash>.pdf`, que os downloads leem só com o verificationHash.
-	//    Best-effort: falha aqui nunca aborta a assinatura.
-	if (hasR2(platform)) {
-		try {
-			const conferenciaPdf = await estamparRubricaLimpa(pdfComRodape, {
+	return fecharPreparacaoAssinatura({
+		db,
+		platform,
+		alvo: { recurso: 'escala', recursoId: id },
+		ator: { id: u.id, tipo: u.tipo },
+		preparedPdf,
+		verificationHash,
+		campos: {
+			signedAttrsHashHex,
+			messageDigest,
+			signingTimeISO,
+			dataToSignBase64,
+			documentHash,
+			assinanteEmail
+		},
+		conferencia: {
+			pdfComRodape,
+			stamp: {
 				alignment: 'right',
 				customBoxY: boxY_pts,
 				rubricBase64: rubricaAssinatura,
 				targetPageIndex: contentPageIndex
-			});
-			await getR2(platform).put(chaveConferencia(verificationHash), conferenciaPdf, {
-				httpMetadata: { contentType: 'application/pdf' }
-			});
-		} catch (err) {
-			logger.warn('[escalas/preparar-assinatura] Falha ao gerar/gravar cópia de conferência', {
-				escala_id: id,
-				error: err instanceof Error ? err.message : String(err)
-			});
+			},
+			logTag: 'escalas/preparar-assinatura',
+			logFields: { escala_id: id }
 		}
-	}
-
-	// Amarra ESTE pdf a ESTA escala, a ESTE usuário e a um único uso: o
-	// finalizar não aceita mais um `preparedPdf` qualquer (FLW-DOC-001).
-	const intencao = await criarIntencaoAssinatura(
-		db,
-		{ recurso: 'escala', recursoId: id },
-		{ id: u.id, tipo: u.tipo },
-		preparedPdf,
-		verificationHash
-	);
-
-	return json({
-		intencao,
-		signedAttrsHashHex,
-		preparedPdf: preparedPdfBase64,
-		messageDigest,
-		signingTimeISO,
-		dataToSignBase64,
-		verificationHash,
-		documentHash,
-		assinanteEmail
 	});
 };

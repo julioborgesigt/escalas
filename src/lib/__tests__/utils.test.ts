@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { adicionarDias, diffDiasInclusivo } from '../utils/datas';
+import { adicionarDias, diffDiasInclusivo, labelFds } from '../utils/datas';
 import { limparMatricula, limparTelefone, formatarNUP } from '../utils/formato';
 
 describe('formatarNUP', () => {
@@ -44,6 +44,15 @@ describe('diffDiasInclusivo', () => {
 	it('retorna 0 quando fim < início ou datas inválidas', () => {
 		expect(diffDiasInclusivo('2026-01-10', '2026-01-01')).toBe(0);
 		expect(diffDiasInclusivo('', '2026-01-01')).toBe(0);
+	});
+});
+
+describe('labelFds', () => {
+	it('formata FDS DD/MM–DD/MM a partir das pontas ISO', () => {
+		expect(labelFds('2026-03-07', '2026-03-08')).toBe('FDS 07/03–08/03');
+	});
+	it('atravessa o mês', () => {
+		expect(labelFds('2026-01-31', '2026-02-01')).toBe('FDS 31/01–01/02');
 	});
 });
 

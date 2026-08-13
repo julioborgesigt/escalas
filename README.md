@@ -865,7 +865,7 @@ O que o guard olha é o RESULTADO, que é fechado:
 
 | nível | o que a operação faz     | como aparece                                                    |
 | ----- | ------------------------ | --------------------------------------------------------------- |
-| 2     | recusa por **permissão** | `fail(403)`, `forbidden()`, `requireAdmin`, `requireSuperAdmin` |
+| 2     | recusa por **permissão** | `fail(403)`, `forbidden()`, `requireAdmin`, `requireSuperAdmin`, `exigirAdminGeral` |
 | 1     | só exige **sessão**      | `fail(401)`, `unauthorized()`, `requireAuth`                    |
 | 0     | não recusa ninguém       | —                                                               |
 
@@ -881,6 +881,11 @@ operação nova em nível 0/1 sem declaração; dispensa que virou nível 2 (lis
 mentindo); dispensa que aponta para operação inexistente; e **handler declarado
 que o parser não conseguiu ler** — rota que o guard não enxerga é rota que ele
 não protege.
+
+Nas regressões já vistas (assinar com ACL de leitura, GISE `finalizada`,
+lotação fora do escopo, presença fora da janela), `HELPERS_OBRIGATORIOS` exige
+o helper **no corpo** do handler — import no arquivo ou 403 genérico não
+bastam. A lista cresce só com achado novo.
 
 ### Proteção CSRF
 

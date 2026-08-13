@@ -1,3 +1,12 @@
+/**
+ * Estado e ações da tela `/res-gise` (presença do policial na GISE).
+ *
+ * Um único composable porque a página tem um objeto de dados reativo
+ * (`getData()` lê `$page.data`) e dezenas de ações que disparam form action,
+ * baixam PDF e realinham a seleção depois de invalidate entre abas. Filtros de
+ * status/mês/data espelham a URL — não `$state` — para a aba "Presença GISE"
+ * resetar ao navegar sem query.
+ */
 import { toaster } from '$lib/toast';
 import { apiFetchResponse } from '$lib/api-fetch';
 import { baixarBlob, nomeArquivoContentDisposition } from '$lib/utils/download';
@@ -35,6 +44,7 @@ function erroDaAction(result: ActionResult, fallback: string): string {
 	return fallback;
 }
 
+/** Motor da página `/res-gise`: seleção de escala, presença, downloads e config. */
 export function useResGise(getData: () => ResGisePageData) {
 	// --- Derived do Objeto de Dados (Reactive Root) ---
 	const data = $derived(getData());

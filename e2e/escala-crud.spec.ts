@@ -1,7 +1,13 @@
 import { test, expect } from '@playwright/test';
 import type { APIRequestContext } from '@playwright/test';
 import { FIXTURE } from './global-setup';
-import { seedSession, headersFormAction, cookieDeSessao, execD1Local } from './session';
+import {
+	seedSession,
+	headersFormAction,
+	cookieDeSessao,
+	execD1Local,
+	queryD1Local
+} from './session';
 
 /**
  * CRUD de escala pelas FORM ACTIONS (o fluxo real da UI /escalas e
@@ -170,5 +176,72 @@ test.describe('Excluir escala (/escalas ?/excluir)', () => {
 			escala_id: String(ALVO)
 		});
 		expect(await res.text()).toContain('Sem permissão');
+	});
+
+	test('escala com documento assinado → 409 (FLW-AUT-003)', async ({ request }) => {
+		const id = 99063;
+		expect(seedEscala(id, '2026-08-01', '2026-08-31', 'Assinada')).toBe(true);
+		expect(
+			execD1Local(
+				`DELETE FROM escala_documentos WHERE escala_id=${id};` +
+					`INSERT INTO escala_documentos (escala_id, r2_key, assinante_nome, verificacao_hash) ` +
+					`VALUES (${id}, 'test/crud-${id}.pdf', 'Assinante E2E', 'hash-crud');`
+			)
+		).toBe(true);
+
+		const res = await postForm(request, '/escalas?/excluir', tokenAdmin!, {
+			escala_id: String(id)
+		});
+		const body = await res.text();
+		expect(body, `status=${res.status()} body=${body}`).toMatch(/Revogue a assinatura/i);
+
+		expect(
+			queryD1Local<{ n: number }>(`SELECT COUNT(*) AS n FROM escalas WHERE id=${id}`)?.[0]?.n
+		).toBe(1);
+		expect(
+			queryD1Local<{ n: number }>(
+				`SELECT COUNT(*) AS n FROM escala_documentos WHERE escala_id=${id}`
+			)?.[0]?.n
+		).toBe(1);
+
+		execD1Local(
+			`DELETE FROM escala_documentos WHERE escala_id=${id}; DELETE FROM escalas WHERE id=${id};`
+		);
+	});
+});
+
+test.describe('criarComBase — lotação fora do escopo (FLW-AUT-002)', () => {
+	test.skip(() => !tokenAdmin, 'D1 local indisponível');
+
+	test('admin da unidade A não clona escala da unidade B', async ({ request }) => {
+		const baseB = 99064;
+		expect(
+			execD1Local(
+				`INSERT OR REPLACE INTO escalas (id, titulo, cidade, tipo, lotacao, data_inicio, data_fim, hora_entrada, hora_saida) ` +
+					`VALUES (${baseB}, '${TITULO} Base B', 'Fortaleza', 'expediente', '${FIXTURE.unidadeB.nome}', '2026-04-01', '2026-04-30', '08', '08');`
+			)
+		).toBe(true);
+
+		const antes =
+			queryD1Local<{ n: number }>(
+				`SELECT COUNT(*) AS n FROM escalas WHERE lotacao='${FIXTURE.unidadeB.nome}'`
+			)?.[0]?.n ?? 0;
+
+		const res = await postForm(request, '/escalas?/criarComBase', tokenAdmin!, {
+			lotacao: FIXTURE.unidadeB.nome,
+			tipo: 'expediente',
+			mes: '5',
+			ano: '2026'
+		});
+		const body = await res.text();
+		expect(body, `status=${res.status()} body=${body}`).toMatch(/Sem permissão/i);
+
+		expect(
+			queryD1Local<{ n: number }>(
+				`SELECT COUNT(*) AS n FROM escalas WHERE lotacao='${FIXTURE.unidadeB.nome}'`
+			)?.[0]?.n
+		).toBe(antes);
+
+		execD1Local(`DELETE FROM escalas WHERE id=${baseB};`);
 	});
 });

@@ -19,16 +19,11 @@ import {
 	prepararPdfParaAssinatura,
 	adicionarPaginaAuditoria,
 	adicionarRodapeUniversal,
-	estamparRubricaLimpa,
 	type AuditTrailOptions
 } from '$lib/server/assinatura/pdf-signing';
-import { chaveConferencia } from '$lib/server/assinatura/copia-conferencia';
 import { gerarCodigoValidacao } from '$lib/utils/formato';
 import { calcularHashBuffer } from '$lib/server/assinatura/document-utils';
-import { tryGetR2 } from '$lib/db';
-import { logger } from '$lib/server/logger';
-import { json } from '@sveltejs/kit';
-import { criarIntencaoAssinatura } from '$lib/server/assinatura/intencao';
+import { fecharPreparacaoAssinatura } from '$lib/server/assinatura/preparar-ciclo';
 
 export const POST: RequestHandler = async ({
 	platform,
@@ -151,47 +146,31 @@ export const POST: RequestHandler = async ({
 
 	const { signedAttrsHashHex, preparedPdf, messageDigest, signingTimeISO, dataToSignBase64 } = prep;
 
-	// Cópia de conferência IDÊNTICA (mesmos bytes: pdfComRodape + estamparRubricaLimpa
-	// centrada sobre a linha, sem manifesto/placeholder), gravada no R2 sob a chave
-	// plana `conferencia/<hash>.pdf`. Best-effort: nunca aborta a assinatura.
-	const r2Conf = tryGetR2(platform);
-	if (r2Conf) {
-		try {
-			const conferenciaPdf = await estamparRubricaLimpa(pdfComRodape, {
+	return fecharPreparacaoAssinatura({
+		db,
+		platform,
+		alvo: { recurso: 'gise_presenca', recursoId: giseId },
+		ator: { id: u.id, tipo: u.tipo },
+		preparedPdf,
+		verificationHash,
+		campos: {
+			signedAttrsHashHex,
+			messageDigest,
+			signingTimeISO,
+			dataToSignBase64,
+			documentHash,
+			assinanteEmail: u.email
+		},
+		conferencia: {
+			pdfComRodape,
+			stamp: {
 				alignment: 'center',
 				customBoxY: boxY_pts,
 				rubricBase64: rubrica,
 				targetPageIndex: 0
-			});
-			await r2Conf.put(chaveConferencia(verificationHash), conferenciaPdf, {
-				httpMetadata: { contentType: 'application/pdf' }
-			});
-		} catch (err) {
-			logger.warn('[gise/presenca/preparar-assinatura] Falha ao gravar cópia de conferência', {
-				gise_id: giseId,
-				error: err instanceof Error ? err.message : String(err)
-			});
+			},
+			logTag: 'gise/presenca/preparar-assinatura',
+			logFields: { gise_id: giseId }
 		}
-	}
-
-	// Amarra ESTE pdf a ESTE alvo, a ESTE usuário e a um único uso (FLW-DOC-001).
-	const intencao = await criarIntencaoAssinatura(
-		db,
-		{ recurso: 'gise_presenca', recursoId: giseId },
-		{ id: u.id, tipo: u.tipo },
-		preparedPdf,
-		verificationHash
-	);
-
-	return json({
-		intencao,
-		signedAttrsHashHex,
-		preparedPdf: Buffer.from(preparedPdf).toString('base64'),
-		messageDigest,
-		signingTimeISO,
-		dataToSignBase64,
-		verificationHash,
-		documentHash,
-		assinanteEmail: u.email
 	});
 };

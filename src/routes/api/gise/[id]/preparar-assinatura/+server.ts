@@ -6,7 +6,6 @@
  * Permissão: Supervisor designado (DPC).
  */
 
-import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { carregarLogosGise } from '$lib/server/gise/logos';
 import { getDB, buscarGiseEscala, buscarGiseDetalhado, buscarPolicial } from '$lib/db';
@@ -28,16 +27,12 @@ import { getBreveRelatorioEnvMergido } from '$lib/server/gise/breve-relatorio-en
 import {
 	prepararPdfParaAssinatura,
 	adicionarPaginaAuditoria,
-	adicionarRodapeUniversal,
-	estamparRubricaLimpa
+	adicionarRodapeUniversal
 } from '$lib/server/assinatura/pdf-signing';
-import { chaveConferencia } from '$lib/server/assinatura/copia-conferencia';
 import { calcularHashBuffer } from '$lib/server/assinatura/document-utils';
-import { logger } from '$lib/server/logger';
 import { PDFDocument } from 'pdf-lib';
 import { gerarCodigoValidacao } from '$lib/utils/formato';
-import { tryGetR2 } from '$lib/db';
-import { criarIntencaoAssinatura } from '$lib/server/assinatura/intencao';
+import { fecharPreparacaoAssinatura } from '$lib/server/assinatura/preparar-ciclo';
 
 export const POST: RequestHandler = async ({
 	platform,
@@ -82,8 +77,6 @@ export const POST: RequestHandler = async ({
 		);
 	}
 
-	// `r2Logo` continua necessário adiante (grava a cópia de conferência no R2).
-	const r2Logo = tryGetR2(platform);
 	const { esq: logoJpgBytes, dir: logoCearaBytes } = await carregarLogosGise(platform);
 	const gisePdf = giseDetalhadoComMatriculaSupervisorSessao(giseDetalhado, u);
 	const brEnv = await getBreveRelatorioEnvMergido(db, giseDetalhado.operacao_id);
@@ -166,48 +159,32 @@ export const POST: RequestHandler = async ({
 
 	const { preparedPdf, signedAttrsHashHex, messageDigest, signingTimeISO, dataToSignBase64 } =
 		prepResult;
-	const preparedPdfBase64 = Buffer.from(preparedPdf).toString('base64');
 
-	// Cópia de conferência IDÊNTICA (mesmos bytes: pdfComRodape + estamparRubricaLimpa,
-	// sem manifesto/placeholder), gravada no R2 sob a chave plana `conferencia/<hash>.pdf`.
-	// Best-effort: falha aqui nunca aborta a assinatura.
-	if (r2Logo) {
-		try {
-			const conferenciaPdf = await estamparRubricaLimpa(pdfComRodape, {
+	return fecharPreparacaoAssinatura({
+		db,
+		platform,
+		alvo: { recurso: 'gise', recursoId: id },
+		ator: { id: u.id, tipo: u.tipo },
+		preparedPdf,
+		verificationHash,
+		campos: {
+			signedAttrsHashHex,
+			messageDigest,
+			signingTimeISO,
+			dataToSignBase64,
+			documentHash,
+			assinanteEmail
+		},
+		conferencia: {
+			pdfComRodape,
+			stamp: {
 				alignment: 'right',
 				customBoxY: boxY_pts,
 				rubricBase64: rubricaAssinatura,
 				targetPageIndex: contentPageIndex
-			});
-			await r2Logo.put(chaveConferencia(verificationHash), conferenciaPdf, {
-				httpMetadata: { contentType: 'application/pdf' }
-			});
-		} catch (err) {
-			logger.warn('[gise/preparar-assinatura] Falha ao gerar/gravar cópia de conferência', {
-				gise_id: id,
-				error: err instanceof Error ? err.message : String(err)
-			});
+			},
+			logTag: 'gise/preparar-assinatura',
+			logFields: { gise_id: id }
 		}
-	}
-
-	// Amarra ESTE pdf a ESTE alvo, a ESTE usuário e a um único uso (FLW-DOC-001).
-	const intencao = await criarIntencaoAssinatura(
-		db,
-		{ recurso: 'gise', recursoId: id },
-		{ id: u.id, tipo: u.tipo },
-		preparedPdf,
-		verificationHash
-	);
-
-	return json({
-		intencao,
-		signedAttrsHashHex,
-		preparedPdf: preparedPdfBase64,
-		messageDigest,
-		signingTimeISO,
-		dataToSignBase64,
-		verificationHash,
-		documentHash,
-		assinanteEmail
 	});
 };

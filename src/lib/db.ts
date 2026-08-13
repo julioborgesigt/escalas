@@ -106,6 +106,7 @@ export {
 	finalizarEscalaFDS,
 	desfinalizarEscalaFDS,
 	adicionarMultiplasDatasPlantao,
+	inserirPoliciaisEscalaEmLotes,
 	adicionarTodosPoliciais,
 	listarPoliciaisEscala,
 	listarPoliciaisEscalaQuery,

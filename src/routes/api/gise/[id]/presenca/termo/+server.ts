@@ -20,14 +20,21 @@ import {
 	resolverParticipacaoGisePolicial,
 	tryGetR2
 } from '$lib/db';
-import { requireAuth, badRequest, notFound, forbidden, serverError } from '$lib/server/api';
+import {
+	requireAuth,
+	badRequest,
+	notFound,
+	forbidden,
+	serverError,
+	contentDisposition
+} from '$lib/server/api';
 import { montarTermoPresencaAvancado } from '$lib/server/gise/termo-presenca';
 
 function respostaPdf(data: ArrayBuffer | Uint8Array, filename: string): Response {
 	return new Response(data as BodyInit, {
 		headers: {
 			'Content-Type': 'application/pdf',
-			'Content-Disposition': `attachment; filename="${filename}"`,
+			'Content-Disposition': contentDisposition(filename),
 			'Cache-Control': 'no-store'
 		}
 	});

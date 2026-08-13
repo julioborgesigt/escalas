@@ -1,18 +1,3 @@
-import { fail } from '@sveltejs/kit';
-import type { RequestEvent } from '@sveltejs/kit';
-import {
-	getDB,
-	tryGetR2,
-	atualizarGiseSeccionalUnidade,
-	adicionarGiseSeccionalUnidade,
-	removerGiseSeccionalUnidade
-} from '$lib/db';
-import { isAdminGeral, isAdminSeccional } from '$lib/auth';
-import { giseSeccionalUnidades, giseEquipes, unidades } from '$lib/server/schema';
-import { eq, and, isNull } from 'drizzle-orm';
-import { getInt, carregarSeccionalDaGise } from './shared';
-import { concluirMudancaGise, invalidarAssinaturasDaSeccional } from './desfecho';
-
 /**
  * Form actions dos SLOTS DE UNIDADE de cada seccional em `/gise/[id]`.
  *
@@ -28,6 +13,24 @@ import { concluirMudancaGise, invalidarAssinaturasDaSeccional } from './desfecho
  * SLOT não era conferido contra a seccional, e nenhuma das três olhava o
  * status: dava para trocar a unidade de uma escala já finalizada.
  */
+import { fail } from '@sveltejs/kit';
+import type { RequestEvent } from '@sveltejs/kit';
+import {
+	getDB,
+	tryGetR2,
+	atualizarGiseSeccionalUnidade,
+	adicionarGiseSeccionalUnidade,
+	removerGiseSeccionalUnidade
+} from '$lib/db';
+import { giseSeccionalUnidades, giseEquipes, unidades } from '$lib/server/schema';
+import { eq, and, isNull } from 'drizzle-orm';
+import {
+	getInt,
+	carregarSeccionalDaGise,
+	exigirAdminGeral,
+	podePreencherSeccional
+} from './shared';
+import { concluirMudancaGise, invalidarAssinaturasDaSeccional } from './desfecho';
 
 type Event = RequestEvent<{ id: string }>;
 
@@ -72,11 +75,7 @@ export const actionsUnidade = {
 		const carga = await carregarSeccionalDaGise(db, giseId, slotInfo.gise_seccional_id);
 		if ('erro' in carga) return carga.erro;
 
-		if (!isAdminGeral(u) && !isAdminSeccional(u)) {
-			return fail(403, { error: 'Sem permissão' });
-		}
-
-		if (isAdminSeccional(u) && u.papel_unidade_id !== carga.sec.seccional_id) {
+		if (!podePreencherSeccional(u, carga.sec.seccional_id)) {
 			return fail(403, { error: 'Sem permissão' });
 		}
 
@@ -116,8 +115,8 @@ export const actionsUnidade = {
 	/** Cria mais um slot vazio na seccional. */
 	adicionarUnidade: async (event: Event) => {
 		const { request, locals, platform, params } = event;
-		const u = locals.usuario;
-		if (!u || !isAdminGeral(u)) return fail(403, { error: 'Apenas Admin Geral' });
+		const u = exigirAdminGeral(locals.usuario);
+		if (!('id' in u)) return u;
 
 		const giseId = parseInt(params.id);
 		const formData = await request.formData();
@@ -159,8 +158,8 @@ export const actionsUnidade = {
 	/** Remove um slot — e, com ele, as equipes penduradas nesse slot. */
 	removerUnidade: async (event: Event) => {
 		const { request, locals, platform, params } = event;
-		const u = locals.usuario;
-		if (!u || !isAdminGeral(u)) return fail(403, { error: 'Apenas Admin Geral' });
+		const u = exigirAdminGeral(locals.usuario);
+		if (!('id' in u)) return u;
 
 		const giseId = parseInt(params.id);
 		const formData = await request.formData();

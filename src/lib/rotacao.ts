@@ -10,21 +10,6 @@
 
 import { adicionarDias, isoData, diasNoMes } from './utils/datas';
 
-export const MESES_PT = [
-	'JANEIRO',
-	'FEVEREIRO',
-	'MARÇO',
-	'ABRIL',
-	'MAIO',
-	'JUNHO',
-	'JULHO',
-	'AGOSTO',
-	'SETEMBRO',
-	'OUTUBRO',
-	'NOVEMBRO',
-	'DEZEMBRO'
-];
-
 type Rotacao = '1x3' | '2x6';
 
 /**
@@ -173,8 +158,9 @@ export function ultimoDiaDoMes(ano: number, mes: number): string {
 }
 
 // Implementação única em $lib/utils/datas (achado D1 do antigo ARQUIVOS.md — ver docs/HISTORICO.md); re-export
-// preserva os imports existentes `from '$lib/rotacao'`.
-export { calcularDataSaida } from './utils/datas';
+// preserva os imports existentes `from '$lib/rotacao'`. Títulos oficiais de
+// escala fazem `.toUpperCase()` no call site — a fonte é Title Case.
+export { calcularDataSaida, MESES_PT } from './utils/datas';
 
 /** Dias de plantão de um policial, agrupados para o cálculo de rotação. */
 interface DiasPorPolicial {

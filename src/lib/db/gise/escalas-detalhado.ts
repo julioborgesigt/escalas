@@ -33,7 +33,6 @@ import {
 	unidades
 } from '../../server/schema';
 import type { Database } from '../core';
-import { logger } from '../../server/logger';
 import type { GiseDetalhado, GiseUnidadeSlot } from './types';
 import { buscarUnidadeIdSupervisaoExtra } from '../../server/gise/supervisao-extra';
 
@@ -467,34 +466,18 @@ export async function buscarGiseDetalhado(db: Database, id: number): Promise<Gis
 	] = parallelResults;
 
 	// Carrega slots de unidade por seccional (LEFT JOIN: unidade_id pode ser null)
-	let todosSlotsUnidade: Array<{
-		id: number;
-		gise_seccional_id: number;
-		unidade_id: number | null;
-		nome: string | null;
-	}> = [];
-	try {
-		todosSlotsUnidade = await db
-			.select({
-				id: giseSeccionalUnidades.id,
-				gise_seccional_id: giseSeccionalUnidades.gise_seccional_id,
-				unidade_id: giseSeccionalUnidades.unidade_id,
-				nome: unidades.nome
-			})
-			.from(giseSeccionalUnidades)
-			.leftJoin(unidades, eq(giseSeccionalUnidades.unidade_id, unidades.id))
-			.innerJoin(giseSeccionais, eq(giseSeccionalUnidades.gise_seccional_id, giseSeccionais.id))
-			.where(eq(giseSeccionais.gise_id, id))
-			.orderBy(asc(giseSeccionalUnidades.id));
-	} catch (err) {
-		logger.warn(
-			'[buscarGiseDetalhado] slots/unidades — consulta falhou; GISE renderiza sem slots/unidades',
-			{
-				gise_id: id,
-				err: String(err)
-			}
-		);
-	}
+	const todosSlotsUnidade = await db
+		.select({
+			id: giseSeccionalUnidades.id,
+			gise_seccional_id: giseSeccionalUnidades.gise_seccional_id,
+			unidade_id: giseSeccionalUnidades.unidade_id,
+			nome: unidades.nome
+		})
+		.from(giseSeccionalUnidades)
+		.leftJoin(unidades, eq(giseSeccionalUnidades.unidade_id, unidades.id))
+		.innerJoin(giseSeccionais, eq(giseSeccionalUnidades.gise_seccional_id, giseSeccionais.id))
+		.where(eq(giseSeccionais.gise_id, id))
+		.orderBy(asc(giseSeccionalUnidades.id));
 
 	const temSaidaConfirmada = todasPresencas.some((p) => p.saida_timestamp !== null);
 

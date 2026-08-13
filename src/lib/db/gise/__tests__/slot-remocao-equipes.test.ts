@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
-import { removerGiseSeccionalUnidade } from '../gise/seccionais';
-import { giseEquipes, giseSeccionalUnidades } from '../../server/schema';
-import type { Database } from '../core';
+import { removerGiseSeccionalUnidade } from '../seccionais';
+import { giseEquipes, giseSeccionalUnidades } from '../../../server/schema';
+import type { Database } from '../../core';
 
 /**
  * `gise_equipes.gise_unidade_id` aponta para o slot mas NÃO tem foreign key —

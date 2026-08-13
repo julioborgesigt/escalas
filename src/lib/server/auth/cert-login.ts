@@ -31,6 +31,7 @@ import { extrairDadosDoCertificado } from '../assinatura/pdf-signing-prepare';
 import { compararSegredoUtf8TimingSafe } from '$lib/auth';
 import { consultarOcsp, type OcspSnapshot } from '../assinatura/ocsp';
 import { loadTrustStore, type TrustStore } from '../assinatura/icp-brasil/trust-store';
+import { cnDoCertificado, encontrarIssuerNoTrustStore } from '../assinatura/icp-brasil/cert-cn';
 import { logger } from '../logger';
 
 type MotivoFalhaCert = 'cms_invalido' | 'assinatura_invalida' | 'nonce_nao_confere';
@@ -161,15 +162,12 @@ export async function verificarRevogacaoParaLogin(
 	try {
 		const consultar = deps.consultar ?? consultarOcsp;
 		const ts = deps.trustStore ?? loadTrustStore();
-		const issuerCN = (certificado.issuer.getField('CN')?.value as string) || '';
-		const issuer = [...ts.intermediates, ...ts.roots].find(
-			(c) => (c.subject.getField('CN')?.value as string) === issuerCN
-		);
+		const issuer = encontrarIssuerNoTrustStore(certificado, ts);
 		if (!issuer) {
 			// Anômalo: a cadeia validou contra o caStore mas o CN não foi localizado
 			// (ex.: mismatch de encoding do DN). Soft-fail auditável, como 'unknown'.
 			logger.warn('[cert-login] Issuer não encontrado no trust store — OCSP pulado', {
-				issuerCN
+				issuerCN: cnDoCertificado(certificado, 'issuer')
 			});
 			return { permitido: true, ocsp: 'unknown', aviso: 'issuer não localizado no trust store' };
 		}

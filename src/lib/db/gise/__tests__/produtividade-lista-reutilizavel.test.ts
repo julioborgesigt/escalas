@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { buscarRespostasProdutividadeSeccional } from '../gise/respostas';
-import { TIPO_LISTA_REUTILIZAVEL } from '../../gise/tipos-pergunta';
-import type { Database } from '../core';
+import { buscarRespostasProdutividadeSeccional } from '../respostas';
+import { TIPO_LISTA_REUTILIZAVEL } from '../../../gise/tipos-pergunta';
+import type { Database } from '../../core';
 
 /**
  * A expansão do detalhe no relatório de produtividade — o caminho que termina

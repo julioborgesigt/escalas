@@ -617,7 +617,7 @@ as medições originais, que foram feitas em 29/jul.
 | --- | --- | --- |
 | VIS-1 | implementado; validação visual pendente | 523 usos do par AA para texto normal; as 42 referências residuais a `text-surface-500` são invertidas, placeholders, disabled ou ícones com contraste gráfico suficiente |
 | VIS-4 | implementado; validação visual pendente | os quatro canais 400/500 agora usam contraste escuro; build e testes verdes; inspecionar amostra dos 48 usos em claro/escuro |
-| VIS-5 | parcialmente implementado | 24/43 instâncias usam `ModalShell`; restam 19 explícitas, das quais 9 são exceções estruturais documentadas e 10 são candidatos a lotes posteriores por domínio |
+| VIS-5 | implementado no escopo canônico (12/ago) | confirmações e formulários restantes migrados (`ModalExcluirGise`, `ModalCadastrarPolicial`, confirm de restaurar em `ConfigurarFormulario`); restam só as exceções estruturais documentadas (as 9 originais + wizard `ModalCriarGise`) |
 | VIS-6 | implementado | `@lucide/svelte` 1.28.0 é a única dependência Lucide; 28 imports foram migrados e não há specifier antigo no fonte |
 | VIS-7 | implementado no escopo prioritário | as sete famílias repetidas não têm mais SVG estático inline; restam 125 `<svg>` de logos, gráficos, QR, ícones dinâmicos e demais legado fora do lote |
 | VIS-8 | implementado | brasão público com `width`/`height` 200×200; rubricas com proporção 2,5:1 (ou dimensões do recorte); preview do cadastro declara `width`/`height` + `aspect-ratio` |
@@ -625,20 +625,23 @@ as medições originais, que foram feitas em 29/jul.
 | VIS-10 | implementado | `auditoria` (+ nested de alterações), `auditoria/logs`, `solicitacoes` e `perfil` usam `table-wrap` + `class="table"` |
 | VIS-11 | implementado | bloco `<style>` com `will-change` em todo `div` removido de `LoadingOverlay.svelte`; o `backdrop-blur-sm` do overlay basta para promover a camada |
 
-As nove exceções estruturais de VIS-5 permanecem explícitas e registram a
+As exceções estruturais de VIS-5 permanecem explícitas e registram a
 decisão no próprio componente: logout global (`+layout`), `DialogInfo`, wizard
 `ModalNovaEscala`, calendário `ModalDatasHoras`, `ModalDownloadExtras`,
-`ModalBreveRelatorio` e os três diálogos da máquina de ações de RH em
-`PainelAcoesServidor`. Os dez candidatos restantes são confirmações e
-formulários dos domínios recebidos, painel, policiais e CRUD GISE; não exigem
-ampliar a API do primitive e podem ser migrados em lotes independentes.
+`ModalBreveRelatorio`, os três diálogos da máquina de ações de RH em
+`PainelAcoesServidor`, e o wizard de calendário `ModalCriarGise` (mesmo motivo
+de `ModalNovaEscala`). Os candidatos canônicos de confirmação/formulário
+(recebidos, painel, policiais, CRUD GISE, restaurar modelo em `/res-gise`)
+foram migrados até 12/ago; não exigiram ampliar a API do primitive.
 
 ### Ordem revisada
 
-1. **VIS-5** — migrar os 10 candidatos canônicos restantes por domínio,
-   mantendo explícitas as 9 exceções estruturais documentadas.
+1. **VIS-5** — **FEITO 12/ago.** Candidatos canônicos restantes migrados
+   (`ModalExcluirGise`, `ModalCadastrarPolicial`, confirm de restaurar em
+   `ConfigurarFormulario`); `ModalCriarGise` documentado como exceção de
+   wizard. As demais exceções estruturais seguem explícitas.
 
-VIS-1 a VIS-4, VIS-6, VIS-8 a VIS-12 e VIS-14 a VIS-17 não pertencem mais à
+VIS-1 a VIS-6, VIS-8 a VIS-12 e VIS-14 a VIS-17 não pertencem mais à
 fila de implementação. VIS-7 segue como higiene oportunística para o legado
 fora do escopo prioritário. VIS-1 e VIS-4 aguardam amostragem visual em
 claro/escuro; VIS-13, a validação manual de foco em viewport móvel.

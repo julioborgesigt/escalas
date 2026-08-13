@@ -5,6 +5,7 @@ import {
 	seedDesafioAssinatura,
 	cookieDeSessao,
 	execD1Local,
+	queryD1Local,
 	BASE_URL
 } from './session';
 
@@ -163,5 +164,99 @@ test.describe('Presença GISE em tela + comprovante', () => {
 			headers: cookieDeSessao(token!)
 		});
 		expect(tipoInvalido.status()).toBe(400);
+	});
+});
+
+/** Calendário civil em Brasília — o mesmo critério de `horarioGiseLiberado`. */
+function diaBrasiliaISO(offsetDias: number): string {
+	const ms = Date.now() + offsetDias * 86_400_000;
+	return new Date(ms).toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
+}
+
+function semearGisePresenca(id: number, dataInicio: string, status: string): boolean {
+	return execD1Local(
+		`DELETE FROM gise_presencas WHERE gise_id=${id};
+		 DELETE FROM gise_membros WHERE equipe_id=${id};
+		 DELETE FROM gise_equipes WHERE id=${id};
+		 DELETE FROM gise_seccionais WHERE id=${id};
+		 DELETE FROM gise_escalas WHERE id=${id};
+
+		 INSERT INTO gise_escalas (id, data_inicio, status, hora_entrada, hora_saida, supervisor_id)
+		 VALUES (${id}, '${dataInicio}', '${status}', '08:00', '16:00', ${FIXTURE.supervisor.id});
+
+		 INSERT INTO gise_seccionais (id, gise_id, seccional_id, status, hora_entrada, hora_saida)
+		 VALUES (${id}, ${id}, ${FIXTURE.seccional.id}, 'preenchida', '08:00', '16:00');
+
+		 INSERT INTO gise_equipes (id, gise_seccional_id, tipo, slots_dpc, slots_oip)
+		 VALUES (${id}, ${id}, 'operacional', 1, 1);
+
+		 INSERT INTO gise_membros (equipe_id, policial_id, gise_id)
+		 VALUES (${id}, ${FIXTURE.membroGise.id}, ${id});`
+	);
+}
+
+function limparGisePresenca(id: number): void {
+	execD1Local(
+		`DELETE FROM gise_presencas WHERE gise_id=${id};
+		 DELETE FROM gise_membros WHERE equipe_id=${id};
+		 DELETE FROM gise_equipes WHERE id=${id};
+		 DELETE FROM gise_seccionais WHERE id=${id};
+		 DELETE FROM gise_escalas WHERE id=${id};`
+	);
+}
+
+function presencasDa(giseId: number): number {
+	return Number(
+		queryD1Local<{ n: number }>(
+			`SELECT COUNT(*) AS n FROM gise_presencas WHERE gise_id=${giseId}`
+		)?.[0]?.n ?? -1
+	);
+}
+
+test.describe('FLW-AUT-006 / 007 — janela e GISE finalizada no /res-gise', () => {
+	const GISE_FUTURA = 99501;
+	const GISE_FECHADA = 99502;
+
+	test.afterAll(() => {
+		limparGisePresenca(GISE_FUTURA);
+		limparGisePresenca(GISE_FECHADA);
+	});
+
+	test('entrada antes do horário → 409 e nada gravado (FLW-AUT-006)', async ({ request }) => {
+		test.skip(!token, 'D1 local indisponível');
+		test.skip(!semearGisePresenca(GISE_FUTURA, diaBrasiliaISO(1), 'em_andamento'), 'seed falhou');
+
+		const desafioId = seedDesafioAssinatura(FIXTURE.membroGise.id, CODIGO);
+		test.skip(!desafioId, 'D1 local indisponível');
+
+		const res = await postAction(request, token!, 'salvarEntrada', {
+			giseId: String(GISE_FUTURA),
+			rubrica: RUBRICA_PNG,
+			codigoEmail: CODIGO,
+			desafioId: desafioId!
+		});
+		const body = await res.text();
+		expect(body, `status=${res.status()} body=${body}`).toMatch(/ainda não está liberada/i);
+		expect(body).not.toContain('"success":1');
+		expect(presencasDa(GISE_FUTURA)).toBe(0);
+	});
+
+	test('entrada em GISE finalizada → 409 e nada gravado (FLW-AUT-007)', async ({ request }) => {
+		test.skip(!token, 'D1 local indisponível');
+		test.skip(!semearGisePresenca(GISE_FECHADA, diaBrasiliaISO(-1), 'finalizada'), 'seed falhou');
+
+		const desafioId = seedDesafioAssinatura(FIXTURE.membroGise.id, CODIGO);
+		test.skip(!desafioId, 'D1 local indisponível');
+
+		const res = await postAction(request, token!, 'salvarEntrada', {
+			giseId: String(GISE_FECHADA),
+			rubrica: RUBRICA_PNG,
+			codigoEmail: CODIGO,
+			desafioId: desafioId!
+		});
+		const body = await res.text();
+		expect(body, `status=${res.status()} body=${body}`).toMatch(/finalizada/i);
+		expect(body).not.toContain('"success":1');
+		expect(presencasDa(GISE_FECHADA)).toBe(0);
 	});
 });

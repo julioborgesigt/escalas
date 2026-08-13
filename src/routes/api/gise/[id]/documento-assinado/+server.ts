@@ -16,20 +16,11 @@ import {
 	auditar,
 	contextoDeEvento
 } from '$lib/db';
-import {
-	contentDisposition,
-	requireAuth,
-	requireAdmin,
-	badRequest,
-	notFound,
-	forbidden,
-	serverError
-} from '$lib/server/api';
+import { requireAuth, requireAdmin, badRequest, notFound, forbidden } from '$lib/server/api';
 import { verificarPermissaoGise } from '$lib/server/gise/permissao';
 import {
 	podeBaixarComManifesto,
-	gerarCopiaConferencia,
-	chaveConferencia
+	responderPdfAssinado
 } from '$lib/server/assinatura/copia-conferencia';
 import { gerarRascunhoGisePdf } from '$lib/server/assinatura/conferencia-pdf';
 import { limparR2DaGise } from '$lib/server/r2-cleanup';
@@ -53,58 +44,21 @@ export const GET: RequestHandler = async ({ platform, params, locals, url }) => 
 	if (!documento) return notFound('Documento assinado');
 
 	const querManifesto = url.searchParams.get('manifesto') === 'true';
-
-	// Admin ou DPC-assinante com ?manifesto=true: blob forense íntegro do R2.
-	if (querManifesto && podeBaixarComManifesto(u, documento.assinante_id)) {
-		if (!hasR2(platform)) {
-			return serverError(
-				'[gise/documento-assinado] R2 não configurado',
-				new Error('R2_NOT_CONFIGURED')
-			);
-		}
-		const bucket = getR2(platform);
-		const object = await bucket.get(documento.r2_key);
-		if (!object) return notFound('Arquivo PDF no Storage');
-		return new Response(object.body as unknown as BodyInit, {
-			headers: {
-				'Content-Type': 'application/pdf',
-				'Content-Disposition': contentDisposition(`gise_${id}_assinada_manifesto.pdf`),
-				'Cache-Control': 'private, no-store'
-			}
-		});
-	}
-
-	// Padrão: cópia de conferência (sem manifesto forense). Preferimos a cópia
-	// IDÊNTICA já gravada no R2 na assinatura (mesmos bytes do documento assinado);
-	// só regeneramos (legado) quando ela não existe.
-	if (hasR2(platform) && documento.verificacao_hash) {
-		const confObj = await getR2(platform).get(chaveConferencia(documento.verificacao_hash));
-		if (confObj) {
-			return new Response(confObj.body as unknown as BodyInit, {
-				headers: {
-					'Content-Type': 'application/pdf',
-					'Content-Disposition': contentDisposition(`conferencia_gise_${id}.pdf`),
-					'Cache-Control': 'private, no-store'
-				}
-			});
-		}
-	}
-
-	const giseDetalhado = await buscarGiseDetalhado(db, id);
-	if (!giseDetalhado) return notFound('Escala GISE');
-	const rascunho = await gerarRascunhoGisePdf(db, giseDetalhado, platform);
-	const hash = documento.verificacao_hash ?? undefined;
-	const buffer = await gerarCopiaConferencia({
-		pdfRascunho: rascunho,
+	return responderPdfAssinado({
+		platform,
+		r2Key: documento.r2_key,
+		verificacaoHash: documento.verificacao_hash ?? null,
 		assinanteNome: documento.assinante_nome,
-		verificationHash: hash,
-		verificationUrl: hash ? `${url.origin}/validar/${hash}` : undefined
-	});
-	return new Response(buffer as unknown as BodyInit, {
-		headers: {
-			'Content-Type': 'application/pdf',
-			'Content-Disposition': contentDisposition(`conferencia_gise_${id}.pdf`),
-			'Cache-Control': 'private, no-store'
+		querManifesto,
+		podeManifesto: podeBaixarComManifesto(u, documento.assinante_id),
+		nomeManifesto: `gise_${id}_assinada_manifesto.pdf`,
+		nomeConferencia: `conferencia_gise_${id}.pdf`,
+		logContexto: 'gise/documento-assinado',
+		origin: url.origin,
+		gerarRascunho: async () => {
+			const giseDetalhado = await buscarGiseDetalhado(db, id);
+			if (!giseDetalhado) return notFound('Escala GISE');
+			return gerarRascunhoGisePdf(db, giseDetalhado, platform);
 		}
 	});
 };

@@ -91,6 +91,18 @@ export const MESES_PT = [
 ] as const;
 
 /**
+ * Rótulo de um fim de semana na listagem de compliance/painel:
+ * `FDS DD/MM–DD/MM`, a partir das pontas ISO (`YYYY-MM-DD`).
+ */
+export function labelFds(inicioISO: string, fimISO: string): string {
+	const ddmm = (iso: string) => {
+		const [, mes, dia] = iso.split('-');
+		return `${dia}/${mes}`;
+	};
+	return `FDS ${ddmm(inicioISO)}–${ddmm(fimISO)}`;
+}
+
+/**
  * Dias da semana abreviados, índice 0 = domingo (base de `Date.getDay()`).
  * Também estava redeclarado em 6 arquivos (calendários e formatadores).
  */
@@ -202,6 +214,17 @@ export function intervaloDeDatas(inicio: string, fim: string): string[] {
 export function hojeLocalISO(): string {
 	const d = new Date();
 	return isoData(d.getFullYear(), d.getMonth() + 1, d.getDate());
+}
+
+/**
+ * Hoje em `YYYY-MM-DD` no fuso de Brasília (UTC-3). Para uso no SERVIDOR.
+ *
+ * O Worker roda em UTC: `hojeLocalISO()` seguiria o relógio do isolate, não o
+ * da corporação. `getNowBR()` desloca 3h e o `toISOString().slice(0, 10)`
+ * daí é a data civil de Fortaleza — o par server de `hojeLocalISO`.
+ */
+export function hojeBrasilISO(): string {
+	return getNowBR().toISOString().slice(0, 10);
 }
 
 /**
