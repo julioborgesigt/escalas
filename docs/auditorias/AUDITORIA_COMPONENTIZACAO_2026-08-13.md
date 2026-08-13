@@ -725,9 +725,12 @@ Duas leituras que a tabela sozinha esconde:
 
 - **"Svelte ≥900" continua 3, e a população mudou de novo.** `+layout.svelte`
   caiu 1146 → 1041; `escalas/+page.svelte` está intacto (914 — é do lote D); e
-  `ConfigurarFormulario.svelte` **subiu** 978 → 989, porque passou a instanciar
-  o próprio composable. É crescimento com contrapartida — o editor deixou de ser
-  carregado para o policial —, mas é crescimento, e a métrica não o distingue.
+  `ConfigurarFormulario.svelte` **subiu** 978 → 1039. Vale separar as duas
+  causas: ~11 linhas vieram desta remediação (o componente passou a instanciar
+  o próprio composable, e em troca o editor deixou de ser carregado para o
+  policial); o resto veio do merge de `main` com a reorganização dos blocos do
+  card (PR #530), que é trabalho de produto, não de estrutura. A métrica não
+  distingue as duas coisas — por isso a leitura vai escrita aqui.
 - **A contagem de props segue 38**, e seguirá até §3.1 ser tratado. É o
   achado-cabeça desta auditoria e o único P1 ainda aberto.
 
