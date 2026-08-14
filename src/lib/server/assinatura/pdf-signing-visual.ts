@@ -216,6 +216,17 @@ export interface AuditTrailOptions {
 	 * a credibilidade das outras evidências do documento.
 	 */
 	restricaoMovelAplicada?: boolean;
+	/**
+	 * Passkey que assinou, quando o reforço estava ativo.
+	 *
+	 * `vinculo` vem de `descreverVinculoCredencial` e é a parte que impede o
+	 * documento de afirmar demais: iOS e Android sincronizam passkeys por
+	 * padrão, então na maioria dos casos a credencial prova a CONTA do titular,
+	 * não aquele aparelho. Sem atestação verificada, tampouco se afirma
+	 * hardware — o que se prova é posse da chave e verificação biométrica a
+	 * cada uso, que é o que a linha do manifesto diz.
+	 */
+	passkey?: { credentialId: string; vinculo: string } | null;
 	/** Resultado do liveness challenge (head_turn/smile) — registrado para auditoria. */
 	livenessChallenge?: {
 		tipo: 'blink' | 'smile' | 'head_turn';
@@ -223,6 +234,15 @@ export interface AuditTrailOptions {
 		tentativas: number;
 		duracaoMs: number;
 	} | null;
+}
+
+/**
+ * `credentialId` é base64url de 16 a 90+ caracteres — inteiro no manifesto, ele
+ * empurraria o resto da linha para fora do cartão. As pontas bastam para
+ * confrontar o documento com a credencial registrada, que é o uso real.
+ */
+function abreviarCredencial(id: string): string {
+	return id.length <= 20 ? id : `${id.slice(0, 8)}...${id.slice(-8)}`;
 }
 
 /**
@@ -400,16 +420,40 @@ export async function adicionarPaginaAuditoria(
 		for (let i = 0; i < group.signers.length; i++) {
 			const s = group.signers[i];
 			const isQualified = s.signatureLevel === 'qualificada';
-			// Política de dispositivo: só faz sentido na avançada (o Token A3 é
-			// desktop por projeto). Ocupa uma linha inteira do grid.
-			const politicaMovel = !isQualified && s.restricaoMovelAplicada === true;
+
+			// Linhas de largura total que só a AVANÇADA tem, e nem sempre. Montadas
+			// numa lista única porque três lugares dependem da CONTAGEM delas — a
+			// altura do cartão, a posição de cada uma e a régua que separa o bloco
+			// de evidências. Quando isso eram expressões separadas, acrescentar uma
+			// linha significava acertar as três e torcer.
+			const linhasExtras: Array<{ rotulo: string; valor: string }> = [];
+			if (!isQualified && s.restricaoMovelAplicada === true) {
+				linhasExtras.push({
+					rotulo: 'POLÍTICA DE DISPOSITIVO',
+					// A ressalva entre parênteses é o ponto da linha: verificou-se o
+					// user-agent DECLARADO, não o aparelho.
+					valor: 'Móvel exigido - verificado no servidor (user-agent declarado)'
+				});
+			}
+			if (!isQualified && s.passkey) {
+				linhasExtras.push({
+					rotulo: 'CHAVE DE ASSINATURA',
+					// "biometria/PIN" é o que de fato se verificou (flag UV). O vínculo
+					// vem de `descreverVinculoCredencial` e só diz "aparelho" quando a
+					// credencial NÃO é sincronizável — iOS e Android sincronizam por
+					// padrão, e afirmar aparelho sobre chave sincronizada seria o mesmo
+					// exagero que a política de dispositivo evita.
+					valor: `${abreviarCredencial(s.passkey.credentialId)} - biometria/PIN do titular; ${s.passkey.vinculo}`
+				});
+			}
+
 			// Qualificada não tem rúbrica/foto → cartão mais baixo. Grid 2×2 (2 linhas;
 			// +1 linha quando há e-mail). Avançada com e-mail ganha uma linha no grid.
 			const boxH = isQualified
 				? s.signerEmail
 					? 122
 					: 104
-				: (s.signerEmail ? 262 : 240) + (politicaMovel ? 18 : 0);
+				: (s.signerEmail ? 262 : 240) + linhasExtras.length * 18;
 
 			if (currY - boxH < 90) {
 				page = pdfDoc.addPage();
@@ -567,33 +611,31 @@ export async function adicionarPaginaAuditoria(
 					drawField('E-MAIL', s.signerEmail, colLeftX, gridTopY - rowGap * 3);
 				}
 
-				// Política de dispositivo, largura total. Rótulo e valor medidos em vez
-				// do `labelOffset` fixo de 78pt: este rótulo é largo e passaria por
-				// cima do valor. A ressalva entre parênteses é o ponto da linha —
-				// verificou-se o user-agent DECLARADO, não o aparelho.
-				if (politicaMovel) {
-					const politicaY = gridTopY - rowGap * (s.signerEmail ? 4 : 3);
-					const politicaLabel = 'POLÍTICA DE DISPOSITIVO';
-					page.drawText(politicaLabel, {
+				// Linhas de largura total. Rótulo e valor MEDIDOS, em vez do
+				// `labelOffset` fixo de 78pt: estes rótulos são largos e passariam
+				// por cima do valor.
+				linhasExtras.forEach((linha, idx) => {
+					const y = gridTopY - rowGap * ((s.signerEmail ? 4 : 3) + idx);
+					page.drawText(linha.rotulo, {
 						x: colLeftX,
-						y: politicaY,
+						y,
 						size: 6.5,
 						font: fontBold,
 						color: cGray
 					});
-					page.drawText('Móvel exigido - verificado no servidor (user-agent declarado)', {
-						x: colLeftX + fontBold.widthOfTextAtSize(politicaLabel, 6.5) + 8,
-						y: politicaY,
+					page.drawText(linha.valor, {
+						x: colLeftX + fontBold.widthOfTextAtSize(linha.rotulo, 6.5) + 8,
+						y,
 						size: 7.5,
 						font,
 						color: cText
 					});
-				}
+				});
 			}
 
 			// --- Bloco de evidências visuais (só assinaturas avançadas) ---
 			if (!isQualified) {
-				const sepY = gridTopY - rowGap * ((s.signerEmail ? 4 : 3) + (politicaMovel ? 1 : 0)) - 6;
+				const sepY = gridTopY - rowGap * ((s.signerEmail ? 4 : 3) + linhasExtras.length) - 6;
 				page.drawLine({
 					start: { x: boxX + 15, y: sepY },
 					end: { x: boxX + boxW - 15, y: sepY },

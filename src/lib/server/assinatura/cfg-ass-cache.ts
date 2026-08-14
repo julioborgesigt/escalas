@@ -21,7 +21,8 @@ import {
 	buscarExigirFotoAssinatura,
 	buscarExigirGpsAssinatura,
 	buscarExigirCodigoEmailAssinatura,
-	buscarRestringirSmartphone
+	buscarRestringirSmartphone,
+	buscarExigirPasskeyAssinatura
 } from '$lib/db';
 import { getDB } from '$lib/db';
 
@@ -30,9 +31,14 @@ export interface FlagsAssinatura {
 	exigirGpsAssinatura: boolean;
 	exigirCodigoEmailAssinatura: boolean;
 	restringirSmartphone: boolean;
+	exigirPasskeyAssinatura: boolean;
 }
 
-const CACHE_KEY = 'https://internal.escalas.local/cfg-ass/v1';
+// v2: o shape ganhou `exigirPasskeyAssinatura`. Sem trocar a chave, um hit da
+// v1 (até 5 min após o deploy) devolveria `undefined` na flag nova — que é
+// falsy, então o efeito seria "reforço desligado por 5 minutos" em vez de erro
+// visível. Bump de chave é mais barato que caçar isso depois.
+const CACHE_KEY = 'https://internal.escalas.local/cfg-ass/v2';
 const TTL_SECONDS = 300;
 
 function makeRequest(): Request {
@@ -65,11 +71,12 @@ export async function lerFlagsAssinatura(
 	}
 
 	const db = getDB(platform);
-	const [foto, gps, , smartphone] = await Promise.all([
+	const [foto, gps, , smartphone, passkey] = await Promise.all([
 		buscarExigirFotoAssinatura(db),
 		buscarExigirGpsAssinatura(db),
 		buscarExigirCodigoEmailAssinatura(db),
-		buscarRestringirSmartphone(db)
+		buscarRestringirSmartphone(db),
+		buscarExigirPasskeyAssinatura(db)
 	]);
 
 	const flags: FlagsAssinatura = {
@@ -81,7 +88,8 @@ export async function lerFlagsAssinatura(
 		// direto no banco — a UI bloqueia desligar e o endpoint PUT rejeita
 		// `false`. Documentado em signature-level.ts.
 		exigirCodigoEmailAssinatura: true,
-		restringirSmartphone: smartphone
+		restringirSmartphone: smartphone,
+		exigirPasskeyAssinatura: passkey
 	};
 
 	if (cache) {

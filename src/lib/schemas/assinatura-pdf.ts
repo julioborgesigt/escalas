@@ -219,3 +219,26 @@ export const assinarSimplesSchema = z.object({
 	),
 	livenessChallenge: livenessChallengeSchema
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Assinatura AVANÇADA em duas fases (passkey) — escalas
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Finalização da assinatura por passkey.
+ *
+ * O corpo devolve o MESMO `preparedPdf` que o `preparar` montou: é sobre o hash
+ * dele que a cerimônia biométrica aconteceu, e `consumirIntencaoAssinatura`
+ * confere byte a byte. Nada mais do documento vem do cliente — nem o código de
+ * validação, nem a chave da selfie no R2 (ambos viajam pela intenção).
+ */
+export const finalizarPasskeyEscalaSchema = z.object({
+	intencao: intencaoSchema,
+	preparedPdf: pdfBase64Schema,
+	assercao: z.object({
+		credentialId: z.string().min(1).max(1024),
+		clientDataJSON: z.string().min(1).max(8192),
+		authenticatorData: z.string().min(1).max(8192),
+		assinatura: z.string().min(1).max(2048)
+	})
+});

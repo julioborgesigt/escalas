@@ -13,6 +13,7 @@ export const GET: RequestHandler = async ({ platform }) => {
 		exigirGps: flags.exigirGpsAssinatura,
 		exigirCodigoEmail: flags.exigirCodigoEmailAssinatura,
 		restringirSmartphone: flags.restringirSmartphone,
+		exigirPasskey: flags.exigirPasskeyAssinatura,
 		// Metadados para a UI: requisitos legais que NÃO podem ser desligados.
 		bloqueados: REQUISITOS_OBRIGATORIOS_AVANCADA.map((r) => ({
 			flag: r.flag,
@@ -58,6 +59,10 @@ export const PUT: RequestHandler = async (event) => {
 		saves.push(
 			salvarConfiguracao(db, 'restringir_smartphone', data.restringirSmartphone ? '1' : '0')
 		);
+	}
+
+	if (data.exigirPasskey !== undefined) {
+		saves.push(salvarConfiguracao(db, 'exigir_passkey_assinatura', data.exigirPasskey ? '1' : '0'));
 	}
 
 	if (saves.length === 0) return badRequest('Nenhum campo válido para salvar');

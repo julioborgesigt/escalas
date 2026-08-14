@@ -121,6 +121,12 @@ interface ValidatedEvidence {
 	 * segunda leitura de flags (que poderia divergir da que de fato decidiu).
 	 */
 	politicaDispositivoMovel: boolean;
+	/**
+	 * `true` quando o reforço de passkey está ativo. Quem prepara usa para saber
+	 * que precisa da cerimônia biométrica antes de finalizar; devolver a flag
+	 * daqui evita uma segunda leitura, que poderia divergir da que decidiu.
+	 */
+	exigePasskey: boolean;
 	/** Resultado do challenge de liveness — null quando exigirFoto=false. */
 	livenessChallenge: LivenessResult | null;
 }
@@ -533,6 +539,7 @@ export async function validarEvidenciasAvancada(
 			selfieBase64: evidence.selfieBase64 ?? null,
 			doisFatorOk: !!flags.exigirCodigoEmailAssinatura,
 			politicaDispositivoMovel: flags.restringirSmartphone,
+			exigePasskey: flags.exigirPasskeyAssinatura,
 			livenessChallenge: evidence.livenessChallenge ?? null
 		}
 	};

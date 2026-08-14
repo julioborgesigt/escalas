@@ -967,6 +967,21 @@ export const assinaturaIntencoes = sqliteTable(
 		documento_hash: text('documento_hash').notNull(),
 		/** Código público de validação — decidido pelo servidor, não pelo cliente. */
 		verificacao_hash: text('verificacao_hash').notNull(),
+		/**
+		 * Estado que o `preparar` produziu e o `finalizar` precisa, carregado
+		 * por aqui e NUNCA pelo corpo da requisição.
+		 *
+		 * `selfie_key` aponta para um objeto do bucket: deixá-la voltar do
+		 * cliente permitiria apontar o documento para a foto de outra pessoa
+		 * (mesma classe do FLW-DOC-001). `latitude`/`longitude` já estão
+		 * desenhadas no PDF que a passkey assinou — recebê-las de novo deixaria
+		 * o banco dizer um lugar e o documento assinado dizer outro.
+		 *
+		 * NULL no fluxo por token e quando foto/GPS não são exigidos.
+		 */
+		selfie_key: text('selfie_key'),
+		latitude: real('latitude'),
+		longitude: real('longitude'),
 		usado: integer('usado').notNull().default(0),
 		expires_at: text('expires_at').notNull(),
 		created_at: text('created_at')

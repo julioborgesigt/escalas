@@ -1,17 +1,23 @@
 /**
- * Assinatura EM TELA da escala (avançada, sem certificado) — o caminho usado
- * pela maioria: rubrica desenhada, mais foto, GPS e código por e-mail conforme
- * as flags de configuração.
+ * FASE 1 da assinatura avançada por passkey da escala.
  *
- * Produz e persiste os dois artefatos da escala assinada:
- *   - o PDF com o rodapé e o QR de `/validar`, gravado no R2;
- *   - a CÓPIA DE CONFERÊNCIA, em chave própria (`chaveConferencia`), que é a
- *     versão que circula.
+ * Monta o PDF completo — inclusive a folha de manifesto, já nomeando a
+ * credencial que vai assinar — e devolve o hash dele como desafio da cerimônia
+ * biométrica. É esse hash que transforma "esta pessoa se autenticou" em "esta
+ * pessoa afirmou ESTE documento".
  *
- * Reassinar substitui o documento anterior, e `limparR2ObsoletoEscala` remove
- * os blobs da assinatura antiga — mantendo os recém-gravados na lista de
- * exceções. Sem isso, cada reassinatura deixaria PDF e selfie órfãos no R2, com
- * dado pessoal e sem nenhuma linha que os localize (R2-1).
+ * O manifesto sai COMPLETO aqui porque só existe uma credencial ativa por
+ * pessoa (ver `lib/db/webauthn.ts`): o servidor sabe de antemão qual vai
+ * assinar. Com N credenciais, ou a linha do manifesto ficaria vaga ou teria de
+ * ser escrita depois do hash já assinado — e aí a asserção não cobriria o
+ * documento final.
+ *
+ * Nada é persistido em `escala_documentos` nesta fase. Abandonar entre as duas
+ * fases deixa a intenção expirar em 15 min; o PDF preparado nunca chega a ser
+ * documento assinado. A selfie e a cópia de conferência VÃO ao R2 aqui (o
+ * `finalizar` não as tem mais), e a chave da selfie viaja pela INTENÇÃO, nunca
+ * pelo corpo do cliente — é chave de bucket, e deixá-la voltar do cliente
+ * permitiria apontar o documento para a foto de outra pessoa.
  */
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
@@ -20,7 +26,7 @@ import {
 	buscarEscala,
 	buscarDocumentoEscala,
 	listarPoliciaisEscala,
-	registrarAuditComContexto,
+	buscarCredencialAtiva,
 	getR2,
 	hasR2
 } from '$lib/db';
@@ -39,10 +45,15 @@ import { assinarSimplesSchema } from '$lib/schemas';
 import { validarEvidenciasAvancada } from '$lib/server/assinatura/signature-service';
 import {
 	montarPdfEscalaAssinada,
-	persistirEscalaAssinada,
-	subirSelfieEscala
+	subirSelfieEscala,
+	gravarCopiaConferencia
 } from '$lib/server/escalas/assinatura-escala';
+import { criarIntencaoAssinatura } from '$lib/server/assinatura/intencao';
+import { descreverVinculoCredencial } from '$lib/server/assinatura/webauthn/authenticator-data';
+import { credencialDoUsuario } from '$lib/server/auth/credencial';
 import { verificarPermissaoEscala, podeAssinarEscala } from '$lib/server/escalas/permissao';
+import { calcularHashBuffer } from '$lib/server/assinatura/document-utils';
+import { bytesToBase64 } from '$lib/crypto/bin';
 
 export const POST: RequestHandler = async ({
 	platform,
@@ -77,23 +88,20 @@ export const POST: RequestHandler = async ({
 	const escala = await buscarEscala(db, id);
 	if (!escala) return notFound('Escala');
 
-	// Leitura (lotação/escopo/solicitação) + assinatura (Admin Geral ou DPC admin) — FLW-AUT-001.
+	// Mesmas recusas do `assinar-simples`, e pela mesma razão: a preparação já
+	// monta o documento e sobe artefatos ao R2. Recusar só no finalizar deixaria
+	// lixo gravado por quem nunca poderia assinar.
 	const perm = await verificarPermissaoEscala(db, id, escala.lotacao, u);
 	if (!perm.permitido) return forbidden(perm.motivo ?? 'Sem permissão para assinar esta escala');
 	if (!podeAssinarEscala(u)) {
 		return forbidden('Apenas Admin Geral ou DPC com papel administrativo pode assinar esta escala');
 	}
-
-	// FLW-AUT-012: FDS encerra por e-mail, não por assinatura digital.
 	if (escala.tipo === 'fds') {
 		return badRequest(
 			'Escala de fim de semana não admite assinatura digital — use o fluxo por e-mail'
 		);
 	}
-
-	// FLW-AUT-004: reassinatura exige revogar antes (DELETE documento-assinado).
-	const docExistente = await buscarDocumentoEscala(db, id);
-	if (docExistente) {
+	if (await buscarDocumentoEscala(db, id)) {
 		return conflict('Revogue a assinatura existente antes de assinar novamente');
 	}
 
@@ -102,10 +110,14 @@ export const POST: RequestHandler = async ({
 		return badRequest('A escala está vazia e não pode ser assinada');
 	}
 
-	// Validação de evidências unificada: aplica TODAS as flags globais
-	// (foto/GPS/2FA) — antes da consolidação, este endpoint ignorava silenciosamente
-	// foto e 2FA, fazendo escala mensal cair para nível SIMPLES (Lei 14.063 art. 4º I)
-	// mesmo com flags ligadas no admin.
+	const credencial = await buscarCredencialAtiva(db, credencialDoUsuario(u));
+	if (!credencial) {
+		return badRequest(
+			'Você ainda não registrou uma chave de assinatura. ' +
+				'Cadastre-a em Meu Perfil, pelo seu celular, e repita a operação.'
+		);
+	}
+
 	const evid = await validarEvidenciasAvancada(
 		db,
 		u,
@@ -124,25 +136,8 @@ export const POST: RequestHandler = async ({
 	if (!evid.ok) return apiError(evid.error, evid.status, evid.code ?? ErrorCode.VALIDATION);
 	const validatedEv = evid.validated;
 
-	// Com o reforço de passkey ativo, ESTE caminho morre. Sem isto, exigir
-	// passkey seria contornável por um POST direto no endpoint antigo — a mesma
-	// forma da falha que a política de dispositivo tinha até ago/2026, quando a
-	// exigência vivia só na tela. O reforço que se contorna não é reforço, e o
-	// manifesto do documento assinado por aqui não teria a linha da credencial.
-	//
-	// Vale só para a ESCALA: GISE, relatório extraordinário e presença ainda não
-	// têm caminho de passkey, e recusá-los aqui deixaria a corporação sem
-	// assinar. O texto do /conf-ass diz isso ao Super Admin.
-	if (validatedEv.exigePasskey) {
-		return apiError(
-			'Esta escala exige assinatura com a chave do seu celular. ' +
-				'Use o fluxo de assinatura por chave (passkey).',
-			403,
-			ErrorCode.FORBIDDEN
-		);
-	}
-
 	try {
+		const vinculo = descreverVinculoCredencial(credencial);
 		const montado = await montarPdfEscalaAssinada({
 			escala,
 			policiais,
@@ -153,7 +148,8 @@ export const POST: RequestHandler = async ({
 				longitude: validatedEv.longitude,
 				selfieBase64: validatedEv.selfieBase64,
 				livenessChallenge: validatedEv.livenessChallenge,
-				politicaDispositivoMovel: validatedEv.politicaDispositivoMovel
+				politicaDispositivoMovel: validatedEv.politicaDispositivoMovel,
+				passkey: { credentialId: credencial.credentialId, vinculo }
 			},
 			ip: ip ?? undefined,
 			userAgent: ua || undefined,
@@ -162,36 +158,34 @@ export const POST: RequestHandler = async ({
 		});
 
 		if (!hasR2(platform)) {
-			return serverError('[assinar-simples] R2 não configurado', new Error('R2_NOT_CONFIGURED'));
+			return serverError(
+				'[preparar-assinatura-avancada] R2 não configurado',
+				new Error('R2_NOT_CONFIGURED')
+			);
 		}
 		const bucket = getR2(platform);
 
 		const selfieKey = await subirSelfieEscala(bucket, id, validatedEv.selfieBase64);
+		await gravarCopiaConferencia(bucket, montado.verificationHash, montado.pdfComRodape, id);
 
-		await persistirEscalaAssinada({
+		const intencao = await criarIntencaoAssinatura(
 			db,
-			bucket,
-			escalaId: id,
-			montado,
-			assinante: { nome: u.nome, cpf: u.cpf },
-			selfieKey,
-			ip: ip ?? undefined,
-			userAgent: ua || undefined,
-			latitude: validatedEv.latitude,
-			longitude: validatedEv.longitude,
-			env: platform?.env as unknown as Record<string, string | undefined> | undefined
-		});
+			{ recurso: 'escala', recursoId: id },
+			{ id: u.id, tipo: u.tipo },
+			montado.finalPdf,
+			montado.verificationHash,
+			{ selfieKey, latitude: validatedEv.latitude, longitude: validatedEv.longitude }
+		);
 
-		await registrarAuditComContexto(db, {
-			usuario: u,
-			acao: 'assinar_escala',
-			entidade: 'escala',
-			entidade_id: id,
-			detalhes: `Escala ${id} assinada via rubrica (avançada) por ${u.nome}`
+		return json({
+			intencao,
+			preparedPdf: bytesToBase64(montado.finalPdf),
+			// O desafio da cerimônia. É o MESMO valor que a intenção guardou como
+			// `documento_hash`, e é o que o finalizar reconfere.
+			documentHash: await calcularHashBuffer(montado.finalPdf),
+			credentialId: credencial.credentialId
 		});
-
-		return json({ success: true, message: 'Escala assinada manualmente com sucesso' });
 	} catch (err) {
-		return serverError(`[assinar-simples] Falha ao processar assinatura (escala_id=${id})`, err);
+		return serverError(`[preparar-assinatura-avancada] Falha ao preparar (escala_id=${id})`, err);
 	}
 };

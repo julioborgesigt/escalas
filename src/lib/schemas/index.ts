@@ -27,7 +27,8 @@ export {
 	finalizarAssinaturaGiseSchema,
 	prepararPresencaSchema,
 	finalizarPresencaSchema,
-	assinarSimplesSchema
+	assinarSimplesSchema,
+	finalizarPasskeyEscalaSchema
 } from './assinatura-pdf';
 export {
 	novoIncidenteSchema,

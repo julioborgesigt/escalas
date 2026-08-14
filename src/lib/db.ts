@@ -59,6 +59,7 @@ export {
 	buscarExigirGpsAssinatura,
 	buscarExigirCodigoEmailAssinatura,
 	buscarRestringirSmartphone,
+	buscarExigirPasskeyAssinatura,
 	buscarProvedorEmailPadrao,
 	EMAIL_PROVEDOR_PADRAO
 } from './db/configuracoes';
