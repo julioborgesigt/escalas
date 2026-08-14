@@ -737,6 +737,7 @@ Verificar cada transição de status:
 - [ ] Ligar/desligar `exigir_foto_assinatura` → refletido na próxima assinatura
 - [ ] Ligar/desligar `exigir_gps_assinatura` → refletido na próxima assinatura
 - [ ] Ligar/desligar `restringir_smartphone` → em desktop, fluxo A3 oferecido
+- [ ] Com `restringir_smartphone` ligado, POST direto de um desktop (curl/devtools) em `/api/escalas/<id>/assinar-simples` → **403** ("só pode ser feita pelo celular"); pelo celular, o manifesto do PDF traz a linha `POLÍTICA DE DISPOSITIVO`. O fluxo por Token A3 no desktop **continua funcionando** — ele é desktop por projeto
 - [ ] Tentar desligar `exigir_codigo_email_assinatura` → **bloqueado** (2FA por e-mail é requisito legal mínimo; o PUT rejeita `exigirCodigoEmail=false`)
 
 ---

@@ -273,11 +273,13 @@
 			<div class="flex-1">
 				<p class="font-semibold text-sm mb-0.5">Restringir assinatura em tela a Smartphone</p>
 				<p class="text-xs text-surface-600 dark:text-surface-400">
-					Quando ativado, o sistema bloqueia o desenho da assinatura e a captura de foto/GPS se
-					detectado que o usuário está em um computador/desktop.
+					Quando ativado, o desktop deixa de oferecer o desenho da assinatura (passa a oferecer o
+					Token A3) e o servidor <strong>recusa</strong> assinaturas cujo navegador não se
+					identifica como móvel — inclusive por POST direto.
 					<strong
-						>Recomendado para assinaturas que exigem geolocalização e prova de vida confiáveis.</strong
-					>
+						>Recomendado para assinaturas que exigem geolocalização e prova de vida confiáveis</strong
+					>: no celular o GPS é GNSS e a câmera está na mão de quem assina. A verificação é sobre o
+					user-agent <em>declarado</em> — é indício, e não vincula o aparelho ao assinante.
 				</p>
 			</div>
 			<ToggleSwitch
@@ -333,8 +335,8 @@
 							/></svg
 						>
 						<p class="text-3xs text-surface-600 dark:text-surface-400 leading-tight">
-							<strong>Antifraude Físico:</strong> Garante que a assinatura ocorra em um dispositivo móvel
-							pessoal.
+							<strong>Antifraude Físico:</strong> Recusa, no servidor, assinatura de navegador que não
+							se identifica como móvel. Não vincula o aparelho ao assinante.
 						</p>
 					</div>
 				{:else}

@@ -88,10 +88,19 @@ export const POST: RequestHandler = async (event) => {
 	const evid = await validarEvidenciasAvancada(
 		db,
 		u,
-		{ rubrica, latitude, longitude, selfieBase64, codigoValidação, desafioId, livenessChallenge },
+		{
+			rubrica,
+			latitude,
+			longitude,
+			selfieBase64,
+			codigoValidação,
+			desafioId,
+			livenessChallenge,
+			userAgent: ua
+		},
 		{ platform }
 	);
-	if (!evid.ok) return apiError(evid.error, evid.status, ErrorCode.VALIDATION);
+	if (!evid.ok) return apiError(evid.error, evid.status, evid.code ?? ErrorCode.VALIDATION);
 	const validatedEv = evid.validated;
 
 	try {
@@ -151,6 +160,7 @@ export const POST: RequestHandler = async (event) => {
 			token: crypto.randomUUID(),
 			documentName: `Escala de Serviço GISE - ${gise.data_inicio}`,
 			signatureLevel: 'avancada',
+			restricaoMovelAplicada: validatedEv.politicaDispositivoMovel,
 			tipoCarimoTempo: tipoCarimboPrevisto(
 				platform?.env as unknown as Record<string, string | undefined> | undefined
 			),

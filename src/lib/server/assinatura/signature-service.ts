@@ -27,6 +27,10 @@
  *   3. **Demais flags** (foto, GPS, restringir-smartphone) são reforços
  *      controlados pelo admin via /conf-ass; aplicam-se uniformemente aos
  *      3 fluxos (escala mensal, GISE diária, relatório extra).
+ *
+ *   4. **`restringirSmartphone` recusa no servidor**, não só na tela — vide
+ *      `recusadaPorPoliticaDispositivo`. Só no caminho AVANÇADO: o Token A3
+ *      é desktop por projeto.
  */
 
 import { logger } from '../logger';
@@ -42,7 +46,7 @@ import { lerFlagsAssinatura, type FlagsAssinatura } from './cfg-ass-cache';
 import { apiError, ErrorCode, contentDisposition } from '../api';
 import type { Database } from '../../db/core';
 import type { AssinaturaCadesMetadata } from '../../db/documentos';
-import { calcularHashBuffer, type TipoCarimoTempo } from './document-utils';
+import { calcularHashBuffer, ehDispositivoMovelUA, type TipoCarimoTempo } from './document-utils';
 
 // ---------------------------------------------------------------------------
 // Tipos canônicos
@@ -96,6 +100,8 @@ interface SimpleEvidence {
 	codigoValidação?: string | null;
 	desafioId?: string | null;
 	livenessChallenge?: LivenessResult | null;
+	/** `user-agent` da requisição — insumo da política `restringirSmartphone`. */
+	userAgent?: string | null;
 }
 
 /**
@@ -109,6 +115,12 @@ interface ValidatedEvidence {
 	selfieBase64: string | null;
 	/** `true` se 2FA foi validado nesta requisição (sempre exigido). */
 	doisFatorOk: boolean;
+	/**
+	 * `true` quando a política `restringirSmartphone` estava ativa e o UA passou
+	 * pelo gate. Devolvido aqui para o endpoint registrar no manifesto sem uma
+	 * segunda leitura de flags (que poderia divergir da que de fato decidiu).
+	 */
+	politicaDispositivoMovel: boolean;
 	/** Resultado do challenge de liveness — null quando exigirFoto=false. */
 	livenessChallenge: LivenessResult | null;
 }
@@ -117,6 +129,13 @@ type ServiceFailure = {
 	ok: false;
 	status: number;
 	error: string;
+	/**
+	 * Categoria do erro quando não é `VALIDATION`. Os call sites fazem
+	 * `apiError(evid.error, evid.status, evid.code ?? ErrorCode.VALIDATION)` —
+	 * sem isto, a recusa por política de dispositivo (403) chegaria ao cliente
+	 * rotulada como erro de validação de corpo.
+	 */
+	code?: ErrorCode;
 };
 
 // ---------------------------------------------------------------------------
@@ -316,6 +335,35 @@ export function respostaPdfAssinado(pdf: Uint8Array, filename: string): Response
 // ---------------------------------------------------------------------------
 
 /**
+ * Mensagem única da recusa por política de dispositivo. Fica aqui porque três
+ * chamadores a usam (este serviço e as duas actions de presença em
+ * `res-gise/+page.server.ts`) e porque o texto é lido pelo assinante em campo:
+ * precisa dizer o que fazer, não só que falhou.
+ */
+export const ERRO_POLITICA_DISPOSITIVO =
+	'Esta assinatura só pode ser feita pelo celular. Abra o sistema no seu ' +
+	'aparelho móvel e repita a operação. (No iPad, use o navegador em tela cheia.)';
+
+/**
+ * Aplica a política `restringirSmartphone` sobre o user-agent da requisição.
+ *
+ * Vale só para a assinatura AVANÇADA (em tela). O caminho QUALIFICADO (Token
+ * A3 ICP-Brasil) roda no desktop por projeto — é o que `SecaoAssinaturas` e
+ * `docs/QA_ASSINATURA_A3_DESKTOP.md` desenham: com a restrição ligada, o
+ * desktop deixa de oferecer a rubrica e passa a oferecer o token. Estender
+ * este gate aos endpoints `finalizar-assinatura` derrubaria o fluxo que a
+ * própria restrição existe para induzir. Não é inconsistência a "consertar".
+ *
+ * @returns `true` quando a assinatura deve ser recusada.
+ */
+export function recusadaPorPoliticaDispositivo(
+	flags: Pick<FlagsAssinatura, 'restringirSmartphone'>,
+	userAgent: string | null | undefined
+): boolean {
+	return flags.restringirSmartphone && !ehDispositivoMovelUA(userAgent ?? '');
+}
+
+/**
  * Valida as evidências enviadas pelo cliente contra as flags efetivas
  * (lidas server-side via Cache API). Aplica uniformemente em todos os
  * 3 fluxos (escala/GISE/relatório), eliminando o drift histórico.
@@ -333,6 +381,23 @@ export async function validarEvidenciasAvancada(
 	} = {}
 ): Promise<{ ok: true; validated: ValidatedEvidence } | ServiceFailure> {
 	const flags = options.flagsOverride ?? (await lerFlagsAssinatura(options.platform));
+
+	// 0. Política de dispositivo — a restrição a celular RECUSA aqui, não só na
+	//    tela. Até ago/2026 `restringirSmartphone` era a única flag de assinatura
+	//    decidida no cliente (as outras saíram de lá quando o cookie `cfg_ass`
+	//    editável no devtools desligava selfie/GPS/2FA — vide `cfg-ass-cache.ts`);
+	//    um POST direto de um desktop assinava normalmente enquanto o painel do
+	//    admin anunciava garantia de dispositivo móvel. Prometer no manifesto o
+	//    que não se verifica contamina, em perícia, a credibilidade das demais
+	//    evidências do documento.
+	if (recusadaPorPoliticaDispositivo(flags, evidence.userAgent)) {
+		return {
+			ok: false,
+			status: 403,
+			error: ERRO_POLITICA_DISPOSITIVO,
+			code: ErrorCode.FORBIDDEN
+		};
+	}
 
 	// 1. 2FA por e-mail — sempre obrigatório (requisito mínimo Lei 14.063 art. 4º II "b").
 	//    A flag `exigirCodigoEmailAssinatura` é forçada para `true` pelo
@@ -467,6 +532,7 @@ export async function validarEvidenciasAvancada(
 			longitude: typeof evidence.longitude === 'number' ? evidence.longitude : null,
 			selfieBase64: evidence.selfieBase64 ?? null,
 			doisFatorOk: !!flags.exigirCodigoEmailAssinatura,
+			politicaDispositivoMovel: flags.restringirSmartphone,
 			livenessChallenge: evidence.livenessChallenge ?? null
 		}
 	};

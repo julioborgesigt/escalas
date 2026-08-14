@@ -342,6 +342,10 @@ As flags `exigir_foto_assinatura`, `exigir_gps_assinatura`, `exigir_codigo_email
 
 > **Por que não cookie?** Antes essas flags eram cacheadas em um cookie do cliente (`cfg_ass`). Como o cookie não era assinado, um usuário podia editá-lo no devtools e desligar exigências de selfie/GPS/código antes de chamar os endpoints de assinatura. A migração para Cache API server-side fechou esse vetor.
 
+As quatro flags **recusam no servidor**, não apenas escondem controles na tela. `restringir_smartphone` foi a última a fechar (ago/2026): até então era só de interface, e um POST direto de um desktop assinava normalmente. O gate vive em [`recusadaPorPoliticaDispositivo`](src/lib/server/assinatura/signature-service.ts) e vale só para a assinatura **avançada** — o Token A3 roda no desktop por projeto.
+
+> **O que essa recusa prova, e o que não prova.** O user-agent é declaração do cliente: é indício, não prova, e não vincula o aparelho ao assinante. O valor probatório real da restrição é indireto — no celular o GPS é GNSS (e não geolocalização de IP) e a câmera está na mão de quem assina, o que torna confiáveis os outros dois reforços. O manifesto do PDF diz exatamente isso ("verificado no servidor (user-agent declarado)"); textos de UI ou de documento que prometam mais do que isso são regressão, não melhoria.
+
 ## Trust Store ICP-Brasil (assinatura qualificada)
 
 A verificação da cadeia ICP-Brasil em [`pdf-verification.ts`](src/lib/server/assinatura/pdf-verification.ts) depende dos arquivos [`src/lib/server/assinatura/icp-brasil/roots.pem`](src/lib/server/assinatura/icp-brasil/roots.pem) e [`intermediates.pem`](src/lib/server/assinatura/icp-brasil/intermediates.pem). Estes nascem vazios no repo — **antes do primeiro deploy em produção**, popule-os:

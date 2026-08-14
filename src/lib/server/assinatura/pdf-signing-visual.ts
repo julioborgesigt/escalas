@@ -204,6 +204,18 @@ export interface AuditTrailOptions {
 	/** Tipo do carimbo de tempo: 'servidor' (sistema), 'act_icp' (ACT ICP-Brasil)
 	 *  ou 'tsa_externa' (TSA RFC 3161 não-ICP, ex.: DigiCert). */
 	tipoCarimoTempo?: TipoCarimoTempo;
+	/**
+	 * `true` quando a política `restringirSmartphone` estava ativa e foi
+	 * verificada NO SERVIDOR para esta assinatura.
+	 *
+	 * O manifesto só imprime a linha quando isto é `true` — e imprime junto a
+	 * ressalva "user-agent declarado", porque é o que de fato se verificou.
+	 * Ausência da linha significa "não registrado", NÃO "política desligada":
+	 * as rubricas de presença que entram no manifesto misto foram gravadas sem
+	 * este campo. Afirmar mais do que se verificou é o que derruba, em perícia,
+	 * a credibilidade das outras evidências do documento.
+	 */
+	restricaoMovelAplicada?: boolean;
 	/** Resultado do liveness challenge (head_turn/smile) — registrado para auditoria. */
 	livenessChallenge?: {
 		tipo: 'blink' | 'smile' | 'head_turn';
@@ -388,9 +400,16 @@ export async function adicionarPaginaAuditoria(
 		for (let i = 0; i < group.signers.length; i++) {
 			const s = group.signers[i];
 			const isQualified = s.signatureLevel === 'qualificada';
+			// Política de dispositivo: só faz sentido na avançada (o Token A3 é
+			// desktop por projeto). Ocupa uma linha inteira do grid.
+			const politicaMovel = !isQualified && s.restricaoMovelAplicada === true;
 			// Qualificada não tem rúbrica/foto → cartão mais baixo. Grid 2×2 (2 linhas;
 			// +1 linha quando há e-mail). Avançada com e-mail ganha uma linha no grid.
-			const boxH = isQualified ? (s.signerEmail ? 122 : 104) : s.signerEmail ? 262 : 240;
+			const boxH = isQualified
+				? s.signerEmail
+					? 122
+					: 104
+				: (s.signerEmail ? 262 : 240) + (politicaMovel ? 18 : 0);
 
 			if (currY - boxH < 90) {
 				page = pdfDoc.addPage();
@@ -547,11 +566,34 @@ export async function adicionarPaginaAuditoria(
 				if (s.signerEmail) {
 					drawField('E-MAIL', s.signerEmail, colLeftX, gridTopY - rowGap * 3);
 				}
+
+				// Política de dispositivo, largura total. Rótulo e valor medidos em vez
+				// do `labelOffset` fixo de 78pt: este rótulo é largo e passaria por
+				// cima do valor. A ressalva entre parênteses é o ponto da linha —
+				// verificou-se o user-agent DECLARADO, não o aparelho.
+				if (politicaMovel) {
+					const politicaY = gridTopY - rowGap * (s.signerEmail ? 4 : 3);
+					const politicaLabel = 'POLÍTICA DE DISPOSITIVO';
+					page.drawText(politicaLabel, {
+						x: colLeftX,
+						y: politicaY,
+						size: 6.5,
+						font: fontBold,
+						color: cGray
+					});
+					page.drawText('Móvel exigido - verificado no servidor (user-agent declarado)', {
+						x: colLeftX + fontBold.widthOfTextAtSize(politicaLabel, 6.5) + 8,
+						y: politicaY,
+						size: 7.5,
+						font,
+						color: cText
+					});
+				}
 			}
 
 			// --- Bloco de evidências visuais (só assinaturas avançadas) ---
 			if (!isQualified) {
-				const sepY = gridTopY - rowGap * (s.signerEmail ? 4 : 3) - 6;
+				const sepY = gridTopY - rowGap * ((s.signerEmail ? 4 : 3) + (politicaMovel ? 1 : 0)) - 6;
 				page.drawLine({
 					start: { x: boxX + 15, y: sepY },
 					end: { x: boxX + boxW - 15, y: sepY },

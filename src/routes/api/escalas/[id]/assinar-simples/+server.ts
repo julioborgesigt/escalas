@@ -117,10 +117,19 @@ export const POST: RequestHandler = async ({
 	const evid = await validarEvidenciasAvancada(
 		db,
 		u,
-		{ rubrica, latitude, longitude, selfieBase64, codigoValidação, desafioId, livenessChallenge },
+		{
+			rubrica,
+			latitude,
+			longitude,
+			selfieBase64,
+			codigoValidação,
+			desafioId,
+			livenessChallenge,
+			userAgent: ua
+		},
 		{ platform }
 	);
-	if (!evid.ok) return apiError(evid.error, evid.status, ErrorCode.VALIDATION);
+	if (!evid.ok) return apiError(evid.error, evid.status, evid.code ?? ErrorCode.VALIDATION);
 	const validatedEv = evid.validated;
 
 	try {
@@ -173,6 +182,7 @@ export const POST: RequestHandler = async ({
 			token: crypto.randomUUID(),
 			documentName: `Escala de Serviço - ${escala.titulo}`,
 			signatureLevel: 'avancada',
+			restricaoMovelAplicada: validatedEv.politicaDispositivoMovel,
 			tipoCarimoTempo: tipoCarimboPrevisto(
 				platform?.env as unknown as Record<string, string | undefined> | undefined
 			),

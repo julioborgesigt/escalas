@@ -109,6 +109,33 @@ const carimbos: Record<string, () => Promise<Uint8Array>> = {
 			latitude: -7.21,
 			longitude: -39.31,
 			signatureLevel: 'qualificada'
+		}),
+	/**
+	 * O cartão AVANÇADO com a política de dispositivo aplicada — o único que
+	 * imprime a linha "POLÍTICA DE DISPOSITIVO", e o que cresce 18pt para
+	 * acomodá-la. O golden acima é `qualificada`, que não tem rúbrica, foto nem
+	 * política: sem este caso, o cartão da assinatura em tela (o caminho da
+	 * maioria) seguiria sem rede.
+	 *
+	 * A linha é a afirmação que o documento faz em juízo. Regravar este golden
+	 * sem ler o PDF muda, calado, o que um documento assinado declara ter
+	 * verificado.
+	 */
+	pagina_auditoria_avancada_politica: async () =>
+		adicionarPaginaAuditoria(await pdfBase(), {
+			signerName: 'FULANO DE TAL',
+			signerCpf: '12345678901',
+			signerEmail: 'fulano@exemplo.gov.br',
+			signingTime: new Date('2026-07-01T12:00:00.000Z'),
+			verificationHash: HASH,
+			verificationUrl: URL_VALIDACAO,
+			ip: '203.0.113.7',
+			userAgent:
+				'Mozilla/5.0 (Linux; Android 14; SM-S911B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Mobile Safari/537.36',
+			latitude: -7.21,
+			longitude: -39.31,
+			signatureLevel: 'avancada',
+			restricaoMovelAplicada: true
 		})
 };
 

@@ -1257,6 +1257,8 @@ wrangler pages deploy .svelte-kit/cloudflare --project-name=escalas
 
 As flags de assinatura (`exigir_foto`, `exigir_gps`, etc.) são cacheadas por 5 minutos em todos os PoPs Cloudflare. Quando um admin altera a configuração em `/conf-ass`, o cache é invalidado automaticamente via Cloudflare Cache API.
 
+Todas elas são aplicadas **no servidor** — inclusive `restringir_smartphone`, que recusa a assinatura avançada por user-agent não-móvel em vez de só esconder o painel. Ver [`DEPLOY.md`](DEPLOY.md#cache-edge-das-flags-de-assinatura) para o alcance probatório dessa recusa.
+
 ### Reset destrutivo (emergência)
 
 O endpoint `/api/webhook/reset-policiais` **apaga todas as tabelas operacionais**. Requer três camadas de autenticação simultâneas:

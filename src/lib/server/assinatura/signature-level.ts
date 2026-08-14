@@ -118,7 +118,16 @@ export const REFORCOS_OPCIONAIS = [
 		flag: 'restringirSmartphone',
 		descricao: 'Bloqueia assinatura em desktop/laptop (apenas smartphone)',
 		valorProbatorio: 'medio',
-		notas: 'Reduz risco de assinatura em terminal compartilhado/destravado por terceiro.'
+		// O valor deste reforço é INDIRETO e a nota precisa dizer isso: o
+		// dispositivo não é dado de criação da assinatura (art. 4º II "b" —
+		// aqui os dados de criação são login+senha+2FA), então a restrição não
+		// eleva o nível. O que ela faz é elevar a QUALIDADE das outras duas
+		// evidências (GPS de celular é GNSS, não geolocalização de IP; a câmera
+		// está na mão de quem assina) e afastar o terminal compartilhado.
+		notas:
+			'Recusado no servidor pelo user-agent DECLARADO — indício, não prova, ' +
+			'e não vincula o aparelho ao assinante. Reduz risco de assinatura em ' +
+			'terminal compartilhado/destravado e torna GPS e foto confiáveis.'
 	}
 ] as const;
 
