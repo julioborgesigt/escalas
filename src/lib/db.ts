@@ -133,6 +133,7 @@ export {
 	excluirDocumentoEscala,
 	buscarDocumentoPorHash
 } from './db/documentos';
+export type { AssinaturaPasskeyMetadata } from './db/documentos';
 
 export type { GiseDetalhado } from './db/gise';
 export {

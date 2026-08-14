@@ -742,6 +742,8 @@ Verificar cada transição de status:
 - [ ] Sem chave registrada em `/perfil`, com a flag ligada → 400 orientando a cadastrar
 - [ ] Manifesto do PDF assinado por passkey traz a linha `CHAVE DE ASSINATURA` com "biometria/PIN do titular" e o vínculo da credencial (sincronizada x deste aparelho)
 - [ ] Revogar a chave em `/perfil` e tentar assinar → recusado; recadastrar e assinar → funciona
+- [ ] Admin Geral em `/policiais/[id]` vê o cartão "Chave de assinatura" com a data e o vínculo; revogar por lá impede novas assinaturas e **não** afeta documentos já assinados
+- [ ] Após assinar com passkey, a linha de `escala_documentos` traz `webauthn_client_data`/`webauthn_assinatura` preenchidos (é o que permite reconferir a asserção depois)
 - [ ] Tentar desligar `exigir_codigo_email_assinatura` → **bloqueado** (2FA por e-mail é requisito legal mínimo; o PUT rejeita `exigirCodigoEmail=false`)
 
 ---

@@ -251,6 +251,16 @@ export const escalaDocumentos = sqliteTable('escala_documentos', {
 	ocsp_response_b64: text('ocsp_response_b64'),
 	ocsp_consultado_em: text('ocsp_consultado_em'),
 	tst_token_b64: text('tst_token_b64'),
+	// Asserção WebAuthn (migração 0058) — guardada para RECONFERÊNCIA, pelo mesmo
+	// motivo dos campos CAdES acima: o manifesto afirma que a chave verificada
+	// por biometria assinou, e a afirmação precisa de contraparte reverificável.
+	// O `webauthn_backup_ativo` é o estado do flag BS NAQUELE momento; a
+	// credencial pode passar a ser sincronizada depois.
+	webauthn_credential_id: text('webauthn_credential_id'),
+	webauthn_client_data: text('webauthn_client_data'),
+	webauthn_authenticator_data: text('webauthn_authenticator_data'),
+	webauthn_assinatura: text('webauthn_assinatura'),
+	webauthn_backup_ativo: integer('webauthn_backup_ativo'),
 	created_at: text('created_at').default(sql`(datetime('now', '-3 hours'))`)
 });
 

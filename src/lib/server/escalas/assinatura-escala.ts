@@ -22,7 +22,12 @@
  *      Adobe).
  */
 import { logger } from '../logger';
-import { salvarDocumentoEscala, buscarDocumentoEscala, type Database } from '$lib/db';
+import {
+	salvarDocumentoEscala,
+	buscarDocumentoEscala,
+	type Database,
+	type AssinaturaPasskeyMetadata
+} from '$lib/db';
 import { limparR2ObsoletoEscala } from '../r2-cleanup';
 import { chaveConferencia } from '../assinatura/copia-conferencia';
 import { adicionarRodapeSimples, adicionarPaginaAuditoria } from '../assinatura/pdf-signing';
@@ -171,6 +176,11 @@ export async function persistirEscalaAssinada(opts: {
 	latitude?: number | null;
 	longitude?: number | null;
 	env: Record<string, string | undefined> | undefined;
+	/**
+	 * Asserção WebAuthn a guardar, no fluxo de duas fases. Sem ela o documento
+	 * afirmaria no manifesto uma verificação sem contraparte reverificável.
+	 */
+	passkeyMeta?: AssinaturaPasskeyMetadata;
 }): Promise<{ arquivoHash: string }> {
 	const { db, bucket, escalaId, montado } = opts;
 
@@ -211,7 +221,8 @@ export async function persistirEscalaAssinada(opts: {
 		undefined, // assinanteEmail
 		undefined, // tipoCarimboTempo
 		undefined, // cadesMeta
-		opts.env
+		opts.env,
+		opts.passkeyMeta
 	);
 
 	await limparR2ObsoletoEscala(db, bucket, docAntigo, [

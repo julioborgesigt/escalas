@@ -18,7 +18,7 @@
 	 * a conta do titular, não aquele aparelho — e é isso que `vinculo` diz, com
 	 * a mesma frase que vai ao manifesto do PDF.
 	 */
-	import { onMount } from 'svelte';
+	import { onMount, untrack } from 'svelte';
 	import { toaster } from '$lib/toast';
 	import { loading } from '$lib/loading.svelte';
 	import { passkeyDisponivel, registrarPasskey, revogarPasskey } from '$lib/webauthn-cliente';
@@ -29,7 +29,11 @@
 		credencialAtual: { criadoEm: string; vinculo: string } | null;
 	} = $props();
 
-	let atual = $state(credencialAtual);
+	// Semente do `load`, depois vida própria: registrar e revogar atualizam o
+	// cartão sem recarregar a página. `untrack` é o mesmo padrão da rubrica em
+	// `perfil/+page.svelte` — sem ele, o Svelte avisa que a referência captura
+	// só o valor inicial, que é exatamente a intenção aqui.
+	let atual = $state(untrack(() => credencialAtual));
 	let disponivel = $state<boolean | null>(null);
 	let confirmarRevogacao = $state(false);
 

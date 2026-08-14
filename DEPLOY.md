@@ -358,7 +358,9 @@ A flag `exigir_passkey_assinatura` (`/conf-ass`, Super Admin) exige, na assinatu
 
 **Escopo atual: apenas a ESCALA DE SERVIÇO.** GISE, relatório extraordinário e presença seguem no fluxo de um tiro. Ligar a flag não os afeta.
 
-**Recuperação (perda de aparelho):** `DELETE /api/policiais/[id]/passkey`, restrito ao Admin Geral e auditado com severidade `aviso`. Revogar **não** registra a chave nova — cadastrar é sempre do titular, no aparelho dele. Um administrador que pudesse registrar pela pessoa esvaziaria a prova.
+**Recuperação (perda de aparelho):** cartão "Chave de assinatura" em `/policiais/[id]` (ou `DELETE /api/policiais/[id]/passkey`), restrito ao Admin Geral e auditado com severidade `aviso`. Revogar **não** registra a chave nova — cadastrar é sempre do titular, no aparelho dele. Um administrador que pudesse registrar pela pessoa esvaziaria a prova.
+
+**Reconferência.** A asserção fica gravada no documento (`webauthn_client_data`, `webauthn_authenticator_data`, `webauthn_assinatura`, migração 0058) — como o fluxo qualificado já faz com `cms_sha256`/`tst_token_b64`. `reconferirAssercaoDocumento` refaz a verificação a partir do banco, o que é o que sustenta, em perícia, a linha que o manifesto imprime. Revogação posterior **não** invalida: é ato futuro, e o resultado a reporta como informação.
 
 > **O que a passkey prova, e o que não prova.** Prova que a assinatura usou a chave cadastrada pelo titular, liberada pela verificação dele no aparelho, sobre **aquele** documento (o desafio é o hash do PDF). **Não** prova hardware: usamos `attestation: 'none'`, então "autenticador de plataforma" é declaração do cliente. **Não** prova o aparelho: iOS e Android sincronizam passkeys por padrão, e nesse caso a credencial prova a conta do titular — o manifesto imprime qual dos dois casos foi. E **não** é PAdES: a assinatura cobre a estrutura WebAuthn, não os bytes do PDF, então o documento não valida no Adobe por causa dela. Para não-repúdio pleno, o caminho continua sendo o Token A3.
 
