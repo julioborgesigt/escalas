@@ -36,5 +36,4 @@ export {
 	responderSolicitacaoSchema,
 	novaSolicitacaoTitularSchema
 } from './lgpd';
-export { webauthnRegistroSchema, webauthnAssercaoSchema } from './webauthn';
-export type { WebauthnAssercao } from './webauthn';
+export { webauthnRegistroSchema } from './webauthn';

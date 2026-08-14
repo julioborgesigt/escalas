@@ -13,6 +13,7 @@
  */
 
 import { z } from 'zod';
+import { webauthnAssercaoSchema } from './webauthn';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Building blocks reutilizáveis
@@ -235,10 +236,5 @@ export const assinarSimplesSchema = z.object({
 export const finalizarPasskeyEscalaSchema = z.object({
 	intencao: intencaoSchema,
 	preparedPdf: pdfBase64Schema,
-	assercao: z.object({
-		credentialId: z.string().min(1).max(1024),
-		clientDataJSON: z.string().min(1).max(8192),
-		authenticatorData: z.string().min(1).max(8192),
-		assinatura: z.string().min(1).max(2048)
-	})
+	assercao: webauthnAssercaoSchema
 });

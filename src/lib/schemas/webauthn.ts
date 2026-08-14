@@ -38,5 +38,3 @@ export const webauthnAssercaoSchema = z.object({
 	/** Assinatura ECDSA em ASN.1 DER. */
 	assinatura: base64Url(2048)
 });
-
-export type WebauthnAssercao = z.infer<typeof webauthnAssercaoSchema>;

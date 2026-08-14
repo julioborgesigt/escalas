@@ -56,7 +56,7 @@ type MotivoRecusa =
 	| 'usuario-nao-verificado'
 	| 'chave-invalida';
 
-export interface CredencialRegistrada {
+interface CredencialRegistrada {
 	publicKeySpki: Uint8Array;
 	contador: number;
 	aaguid: string | null;
