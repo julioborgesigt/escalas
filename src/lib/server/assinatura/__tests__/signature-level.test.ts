@@ -16,7 +16,8 @@ describe('signature-level', () => {
 					exigirFotoAssinatura: true,
 					exigirGpsAssinatura: true,
 					exigirCodigoEmailAssinatura: false,
-					restringirSmartphone: true
+					restringirSmartphone: true,
+					exigirPasskeyAssinatura: true
 				})
 			).toBe('simples');
 		});
@@ -27,7 +28,8 @@ describe('signature-level', () => {
 					exigirFotoAssinatura: false,
 					exigirGpsAssinatura: false,
 					exigirCodigoEmailAssinatura: true,
-					restringirSmartphone: false
+					restringirSmartphone: false,
+					exigirPasskeyAssinatura: false
 				})
 			).toBe('avancada');
 		});
@@ -39,7 +41,8 @@ describe('signature-level', () => {
 					exigirFotoAssinatura: true,
 					exigirGpsAssinatura: true,
 					exigirCodigoEmailAssinatura: false,
-					restringirSmartphone: true
+					restringirSmartphone: true,
+					exigirPasskeyAssinatura: true
 				})
 			).toBe('simples');
 		});
@@ -52,7 +55,8 @@ describe('signature-level', () => {
 					exigirFotoAssinatura: true,
 					exigirGpsAssinatura: true,
 					exigirCodigoEmailAssinatura: true, // não conta — é obrigatório
-					restringirSmartphone: false
+					restringirSmartphone: false,
+					exigirPasskeyAssinatura: false
 				})
 			).toBe(2);
 		});
@@ -63,7 +67,8 @@ describe('signature-level', () => {
 					exigirFotoAssinatura: false,
 					exigirGpsAssinatura: false,
 					exigirCodigoEmailAssinatura: true,
-					restringirSmartphone: false
+					restringirSmartphone: false,
+					exigirPasskeyAssinatura: false
 				})
 			).toBe(0);
 		});
@@ -73,7 +78,8 @@ describe('signature-level', () => {
 				exigirFotoAssinatura: true,
 				exigirGpsAssinatura: true,
 				exigirCodigoEmailAssinatura: true,
-				restringirSmartphone: true
+				restringirSmartphone: true,
+				exigirPasskeyAssinatura: true
 			});
 			expect(score).toBe(REFORCOS_OPCIONAIS.length);
 		});

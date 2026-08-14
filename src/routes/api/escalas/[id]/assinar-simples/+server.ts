@@ -119,28 +119,14 @@ export const POST: RequestHandler = async ({
 			livenessChallenge,
 			userAgent: ua
 		},
-		{ platform }
+		// Com o reforço ativo, ESTE caminho morre — antes até do 2FA. Vale só
+		// para a escala: GISE, relatório e presença ainda não têm caminho de
+		// passkey, e recusá-los deixaria a corporação sem assinar. O texto do
+		// /conf-ass diz isso ao Super Admin.
+		{ platform, recusarSePasskeyExigida: true }
 	);
 	if (!evid.ok) return apiError(evid.error, evid.status, evid.code ?? ErrorCode.VALIDATION);
 	const validatedEv = evid.validated;
-
-	// Com o reforço de passkey ativo, ESTE caminho morre. Sem isto, exigir
-	// passkey seria contornável por um POST direto no endpoint antigo — a mesma
-	// forma da falha que a política de dispositivo tinha até ago/2026, quando a
-	// exigência vivia só na tela. O reforço que se contorna não é reforço, e o
-	// manifesto do documento assinado por aqui não teria a linha da credencial.
-	//
-	// Vale só para a ESCALA: GISE, relatório extraordinário e presença ainda não
-	// têm caminho de passkey, e recusá-los aqui deixaria a corporação sem
-	// assinar. O texto do /conf-ass diz isso ao Super Admin.
-	if (validatedEv.exigePasskey) {
-		return apiError(
-			'Esta escala exige assinatura com a chave do seu celular. ' +
-				'Use o fluxo de assinatura por chave (passkey).',
-			403,
-			ErrorCode.FORBIDDEN
-		);
-	}
 
 	try {
 		const montado = await montarPdfEscalaAssinada({

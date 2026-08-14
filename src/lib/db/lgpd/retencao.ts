@@ -26,6 +26,7 @@ import {
 	doisFatoresTokens,
 	resetSenhaTokens,
 	assinaturaIntencoes,
+	webauthnDesafios,
 	recoveryAttempts,
 	webhookNonces,
 	auditLog,
@@ -64,6 +65,7 @@ interface ResultadoLimpeza {
 	doisFatores: number;
 	resetTokens: number;
 	assinaturaIntencoes: number;
+	webauthnDesafios: number;
 	recoveryAttempts: number;
 	webhookNonces: number;
 	auditLog: number;
@@ -217,32 +219,49 @@ export async function executarLimpezaRetencao(
 	config: RetencaoConfig
 ): Promise<ResultadoLimpeza> {
 	const auditLogDias = config.auditLogAnos * 365;
-	const [resSessoes, resLogin, res2FA, resReset, resIntencoes, resRecovery, resNonces, resAppLog] =
-		await Promise.all([
-			db.delete(sessoes).where(lt(sessoes.expires_at, cutoffISO(config.sessoesDias))),
-			db
-				.delete(loginAttempts)
-				.where(lt(loginAttempts.attempted_at, cutoffSqlite(config.loginAttemptsDias))),
-			db
-				.delete(doisFatoresTokens)
-				.where(lt(doisFatoresTokens.expires_at, cutoffISO(config.doisFatoresDias))),
-			db
-				.delete(resetSenhaTokens)
-				.where(lt(resetSenhaTokens.expires_at, cutoffISO(config.resetTokensDias))),
-			// Intenção de assinatura vive 15 min; some junto com os tokens de
-			// reset porque é o mesmo tipo de dado — segredo de curta duração
-			// atrelado a uma pessoa.
-			db
-				.delete(assinaturaIntencoes)
-				.where(lt(assinaturaIntencoes.expires_at, cutoffISO(config.resetTokensDias))),
-			db
-				.delete(recoveryAttempts)
-				.where(lt(recoveryAttempts.attempted_at, cutoffSqlite(config.recoveryAttemptsDias))),
-			db
-				.delete(webhookNonces)
-				.where(lt(webhookNonces.received_at, cutoffSqlite(config.webhookNoncesDias))),
-			db.delete(appLog).where(lt(appLog.created_at, cutoffSqlite(config.appLogDias)))
-		]);
+	const [
+		resSessoes,
+		resLogin,
+		res2FA,
+		resReset,
+		resIntencoes,
+		resDesafiosWebauthn,
+		resRecovery,
+		resNonces,
+		resAppLog
+	] = await Promise.all([
+		db.delete(sessoes).where(lt(sessoes.expires_at, cutoffISO(config.sessoesDias))),
+		db
+			.delete(loginAttempts)
+			.where(lt(loginAttempts.attempted_at, cutoffSqlite(config.loginAttemptsDias))),
+		db
+			.delete(doisFatoresTokens)
+			.where(lt(doisFatoresTokens.expires_at, cutoffISO(config.doisFatoresDias))),
+		db
+			.delete(resetSenhaTokens)
+			.where(lt(resetSenhaTokens.expires_at, cutoffISO(config.resetTokensDias))),
+		// Intenção de assinatura vive 15 min; some junto com os tokens de
+		// reset porque é o mesmo tipo de dado — segredo de curta duração
+		// atrelado a uma pessoa.
+		db
+			.delete(assinaturaIntencoes)
+			.where(lt(assinaturaIntencoes.expires_at, cutoffISO(config.resetTokensDias))),
+		// Desafio da cerimônia de registro de passkey: mesma natureza —
+		// segredo de 5 min atrelado a uma pessoa. A CREDENCIAL em si
+		// (`credenciais_webauthn`) NÃO sai por retenção: é a contraparte das
+		// assinaturas já dadas, e some junto com o titular na exclusão do
+		// policial, não por prazo.
+		db
+			.delete(webauthnDesafios)
+			.where(lt(webauthnDesafios.expires_at, cutoffISO(config.resetTokensDias))),
+		db
+			.delete(recoveryAttempts)
+			.where(lt(recoveryAttempts.attempted_at, cutoffSqlite(config.recoveryAttemptsDias))),
+		db
+			.delete(webhookNonces)
+			.where(lt(webhookNonces.received_at, cutoffSqlite(config.webhookNoncesDias))),
+		db.delete(appLog).where(lt(appLog.created_at, cutoffSqlite(config.appLogDias)))
+	]);
 
 	// A trilha sai por último e SOZINHA: apagar o prefixo dela precisa deixar
 	// âncora, e âncora e DELETE têm de cair juntos (ver `cortarTrilhaComAncora`).
@@ -258,6 +277,7 @@ export async function executarLimpezaRetencao(
 		doisFatores: linhasAfetadas(res2FA),
 		resetTokens: linhasAfetadas(resReset),
 		assinaturaIntencoes: linhasAfetadas(resIntencoes),
+		webauthnDesafios: linhasAfetadas(resDesafiosWebauthn),
 		recoveryAttempts: linhasAfetadas(resRecovery),
 		webhookNonces: linhasAfetadas(resNonces),
 		auditLog: auditRemovidos,

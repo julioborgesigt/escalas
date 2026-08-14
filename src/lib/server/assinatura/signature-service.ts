@@ -384,6 +384,16 @@ export async function validarEvidenciasAvancada(
 	options: {
 		platform?: App.Platform;
 		flagsOverride?: FlagsAssinatura;
+		/**
+		 * Recusar quando o reforço de passkey estiver ativo — para o endpoint de
+		 * UM TIRO, que não faz cerimônia biométrica.
+		 *
+		 * Não é padrão porque só a ESCALA tem caminho de passkey hoje: ligar para
+		 * GISE, relatório e presença deixaria a corporação sem assinar. E o
+		 * `preparar` da escala, que É o caminho da passkey, obviamente não passa
+		 * `true` aqui.
+		 */
+		recusarSePasskeyExigida?: boolean;
 	} = {}
 ): Promise<{ ok: true; validated: ValidatedEvidence } | ServiceFailure> {
 	const flags = options.flagsOverride ?? (await lerFlagsAssinatura(options.platform));
@@ -401,6 +411,22 @@ export async function validarEvidenciasAvancada(
 			ok: false,
 			status: 403,
 			error: ERRO_POLITICA_DISPOSITIVO,
+			code: ErrorCode.FORBIDDEN
+		};
+	}
+
+	// 0b. Reforço de passkey: o caminho de um tiro morre aqui, ANTES do 2FA —
+	//     recusar depois queimaria uma tentativa do código de quem ia ser
+	//     barrado de qualquer forma. Reforço contornável por POST direto no
+	//     endpoint antigo não é reforço; é a forma exata da falha que a política
+	//     de dispositivo tinha enquanto vivia só na tela.
+	if (options.recusarSePasskeyExigida && flags.exigirPasskeyAssinatura) {
+		return {
+			ok: false,
+			status: 403,
+			error:
+				'Esta escala exige assinatura com a chave do seu celular. ' +
+				'Use o fluxo de assinatura por chave (passkey).',
 			code: ErrorCode.FORBIDDEN
 		};
 	}

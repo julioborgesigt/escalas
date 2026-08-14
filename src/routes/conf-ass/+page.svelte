@@ -9,8 +9,11 @@
 	 *   - OBRIGATÓRIOS da avançada — o código por e-mail, fixo em `true`. Está
 	 *     como `const` e não `$state` de propósito: desligar rebaixaria a
 	 *     assinatura a simples, e isso não é escolha de tela;
-	 *   - REFORÇOS OPCIONAIS — foto, GPS e restrição a smartphone. Somam prova,
-	 *     mas NÃO mudam a classificação legal, e é isso que o "score" informa.
+	 *   - REFORÇOS OPCIONAIS — foto, GPS, restrição a smartphone e passkey.
+	 *     Somam prova, mas NÃO mudam a classificação legal, e é isso que o
+	 *     "score" informa. A passkey é o único que toca o inciso "b" do art. 4º
+	 *     II (controle exclusivo dos dados de criação) — e o único que hoje vale
+	 *     só para a escala de serviço, o que o texto do toggle precisa dizer.
 	 *
 	 * A classificação (`nivelEfetivo`) e a base legal vêm calculadas do
 	 * servidor (`signature-level`), nunca deduzidas aqui — o mesmo cálculo
@@ -34,12 +37,14 @@
 	// mantido como const local para o body do PUT (idempotente).
 	const exigirCodigoEmail = true;
 	let restringirSmartphone = $state(page.data.restringirSmartphone as boolean);
+	let exigirPasskey = $state(page.data.exigirPasskey as boolean);
 
 	// Após invalidate externo, realinha os toggles ao load (evita divergência).
 	$effect(() => {
 		exigirFoto = page.data.exigirFoto as boolean;
 		exigirGps = page.data.exigirGps as boolean;
 		restringirSmartphone = page.data.restringirSmartphone as boolean;
+		exigirPasskey = page.data.exigirPasskey as boolean;
 	});
 
 	// Metadados vindos do +page.server.ts — referência legal e classificação.
@@ -69,7 +74,13 @@
 		try {
 			await apiFetch('/api/configuracoes/assinatura', {
 				method: 'PUT',
-				body: JSON.stringify({ exigirFoto, exigirGps, exigirCodigoEmail, restringirSmartphone })
+				body: JSON.stringify({
+					exigirFoto,
+					exigirGps,
+					exigirCodigoEmail,
+					restringirSmartphone,
+					exigirPasskey
+				})
 			});
 			await invalidateShared('app:assinatura-flags');
 			toaster.create({ title: 'Configurações salvas com sucesso.', type: 'success' });
@@ -85,10 +96,13 @@
 
 	// Score de reforços opcionais (informativo — não altera a classificação legal).
 	const reforcoScore = $derived(
-		(exigirFoto ? 1 : 0) + (exigirGps ? 1 : 0) + (restringirSmartphone ? 1 : 0)
+		(exigirFoto ? 1 : 0) +
+			(exigirGps ? 1 : 0) +
+			(restringirSmartphone ? 1 : 0) +
+			(exigirPasskey ? 1 : 0)
 	);
 	const reforcoNivel = $derived(
-		reforcoScore >= 3
+		reforcoScore >= 4
 			? 'Máximo'
 			: reforcoScore >= 2
 				? 'Médio'
@@ -97,7 +111,7 @@
 					: 'Mínimo'
 	);
 	const reforcoCor = $derived(
-		reforcoScore >= 3
+		reforcoScore >= 4
 			? 'text-success-600 dark:text-success-400 bg-success-500/10'
 			: reforcoScore >= 1
 				? 'text-warning-600 dark:text-warning-400 bg-warning-500/10'
@@ -289,6 +303,35 @@
 			/>
 		</div>
 
+		<div class="border-t border-surface-200 dark:border-white/10"></div>
+
+		<!-- Exigir passkey -->
+		<div class="flex items-start justify-between gap-4">
+			<div class="flex-1">
+				<p class="font-semibold text-sm mb-0.5">Exigir chave de assinatura do celular (passkey)</p>
+				<p class="text-xs text-surface-600 dark:text-surface-400">
+					A assinatura passa a exigir uma chave guardada no celular do signatário, liberada por
+					biometria ou PIN a cada uso. É o único reforço que atende ao <strong
+						>controle exclusivo dos dados de criação</strong
+					>
+					(Lei 14.063/2020, art. 4º II "b").
+					<strong class="text-warning-600 dark:text-warning-400 block mt-1"
+						>Hoje vale apenas para a ESCALA DE SERVIÇO.</strong
+					>
+					GISE, relatório extraordinário e presença seguem no fluxo atual.
+					<strong class="text-error-500 block mt-1"
+						>Antes de ligar: quem não tiver registrado a chave em Meu Perfil não conseguirá assinar.
+						Exige celular com bloqueio de tela configurado.</strong
+					>
+				</p>
+			</div>
+			<ToggleSwitch
+				cor="primary"
+				checked={exigirPasskey}
+				onCheckedChange={(v) => (exigirPasskey = v)}
+			/>
+		</div>
+
 		<div
 			class="p-4 sm:p-5 border-t border-surface-200 dark:border-white/10 bg-surface-100/30 dark:bg-surface-800/20 rounded-b-2xl space-y-4"
 		>
@@ -300,7 +343,7 @@
 							>Reforços ativos:</span
 						>
 						<span class="badge {reforcoCor} font-black px-3 py-1 rounded-full text-3xs uppercase"
-							>{reforcoNivel} ({reforcoScore}/3)</span
+							>{reforcoNivel} ({reforcoScore}/4)</span
 						>
 					</div>
 					<span class="text-3xs text-surface-600 dark:text-surface-400 italic">

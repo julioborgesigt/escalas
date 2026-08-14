@@ -136,6 +136,38 @@ const carimbos: Record<string, () => Promise<Uint8Array>> = {
 			longitude: -39.31,
 			signatureLevel: 'avancada',
 			restricaoMovelAplicada: true
+		}),
+	/**
+	 * O cartão com as DUAS linhas extras — política de dispositivo e passkey.
+	 * É o caso de altura máxima: cada linha empurra o bloco de evidências 18pt
+	 * para baixo, e foi exatamente esse cálculo (repetido em três expressões
+	 * antes de virar `linhasExtras`) que este golden trava.
+	 *
+	 * O texto da linha da passkey é a afirmação que o documento faz em juízo:
+	 * "biometria/PIN" é o que se verificou (flag UV), e o vínculo diz
+	 * "sincronizada na conta do titular" em vez de "aparelho" — porque é o que
+	 * os flags BE/BS indicavam. Regravar sem ler o PDF muda, calado, o que um
+	 * documento assinado declara.
+	 */
+	pagina_auditoria_avancada_passkey: async () =>
+		adicionarPaginaAuditoria(await pdfBase(), {
+			signerName: 'FULANO DE TAL',
+			signerCpf: '12345678901',
+			signerEmail: 'fulano@exemplo.gov.br',
+			signingTime: new Date('2026-07-01T12:00:00.000Z'),
+			verificationHash: HASH,
+			verificationUrl: URL_VALIDACAO,
+			ip: '203.0.113.7',
+			userAgent:
+				'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1',
+			latitude: -7.21,
+			longitude: -39.31,
+			signatureLevel: 'avancada',
+			restricaoMovelAplicada: true,
+			passkey: {
+				credentialId: 'AQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHw',
+				vinculo: 'sincronizada na conta do titular (presente em outros aparelhos dele)'
+			}
 		})
 };
 

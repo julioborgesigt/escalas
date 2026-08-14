@@ -4,7 +4,8 @@ import {
 	getDB,
 	buscarExigirFotoAssinatura,
 	buscarExigirGpsAssinatura,
-	buscarRestringirSmartphone
+	buscarRestringirSmartphone,
+	buscarExigirPasskeyAssinatura
 } from '$lib/db';
 import {
 	REQUISITOS_SEMPRE_ATIVOS,
@@ -23,10 +24,11 @@ export const load: PageServerLoad = async ({ locals, platform, depends }) => {
 
 	// 2FA por e-mail é forçado para `true` no servidor (vide cfg-ass-cache.ts);
 	// não lemos mais essa flag do D1 nem do cookie. As outras 3 vêm do D1.
-	const [exigirFoto, exigirGps, restringirSmartphone] = await Promise.all([
+	const [exigirFoto, exigirGps, restringirSmartphone, exigirPasskey] = await Promise.all([
 		buscarExigirFotoAssinatura(db),
 		buscarExigirGpsAssinatura(db),
-		buscarRestringirSmartphone(db)
+		buscarRestringirSmartphone(db),
+		buscarExigirPasskeyAssinatura(db)
 	]);
 
 	const exigirCodigoEmail = true; // bloqueado por requisito legal
@@ -35,7 +37,8 @@ export const load: PageServerLoad = async ({ locals, platform, depends }) => {
 		exigirFotoAssinatura: exigirFoto,
 		exigirGpsAssinatura: exigirGps,
 		exigirCodigoEmailAssinatura: exigirCodigoEmail,
-		restringirSmartphone
+		restringirSmartphone,
+		exigirPasskeyAssinatura: exigirPasskey
 	});
 
 	return {
@@ -43,6 +46,7 @@ export const load: PageServerLoad = async ({ locals, platform, depends }) => {
 		exigirGps,
 		exigirCodigoEmail,
 		restringirSmartphone,
+		exigirPasskey,
 		// Metadados para a UI educar o admin sobre quais requisitos são
 		// fixos vs configuráveis, e qual o nível efetivo das assinaturas.
 		nivelEfetivo,

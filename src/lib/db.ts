@@ -47,6 +47,7 @@ export {
 	buscarCredencialPorId,
 	registrarCredencial,
 	revogarCredenciaisAtivas,
+	excluirCredenciaisDoDono,
 	registrarUsoCredencial,
 	criarDesafioWebauthn,
 	consumirDesafioWebauthn

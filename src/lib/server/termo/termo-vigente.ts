@@ -26,12 +26,21 @@
  * avançada como equivalente à manuscrita (Lei 14.063/2020 art. 4º, II). O
  * aceite passou a ser ÚNICO e implícito (um clique em "Li e aceito"), sem as
  * múltiplas caixas anteriores.
+ *
+ * v1.4 (2026-08): a assinatura avançada passou a admitir CHAVE DE ASSINATURA
+ * no aparelho (passkey/WebAuthn) — chave privada no enclave do celular,
+ * liberada por biometria ou PIN a cada uso. Muda o que o Usuário aceita como
+ * equivalente à assinatura manuscrita (cláusula 2), acrescenta um dado pessoal
+ * tratado (chave pública e identificador da credencial, cláusula 3) e cria um
+ * dever novo de guarda (cláusula 4). A cláusula 2.4 diz, com todas as letras,
+ * o que essa chave prova e o que NÃO prova: dizer menos no termo do que o
+ * manifesto do PDF afirma seria abrir a divergência que a defesa explora.
  */
 
 import { sha256Hex } from '$lib/crypto/digest';
 
-export const VERSAO = '1.3';
-export const VIGENTE_DESDE = '2026-07-11';
+export const VERSAO = '1.4';
+export const VIGENTE_DESDE = '2026-08-14';
 
 export const CONTEUDO_HTML = `
 <h2>Termo de Uso e Política de Privacidade</h2>
@@ -48,20 +57,23 @@ Versão ${VERSAO} — vigente desde ${VIGENTE_DESDE}</p>
 <p><strong>2.1.</strong> O Sistema gera assinaturas eletrônicas em duas modalidades, nos termos do art. 4º da Lei nº 14.063/2020:</p>
 <ul>
 	<li><strong>Qualificada</strong> — com certificado ICP-Brasil (e-CPF, token A1/A3). Goza da presunção de autenticidade do art. 10, §1º, da MP nº 2.200-2/2001.</li>
-	<li><strong>Avançada</strong> — assinatura em tela, vinculada ao signatário por login e senha, segundo fator por código enviado ao e-mail cadastrado, rubrica gráfica e, quando habilitadas, fotografia (selfie) e geolocalização, mais um <strong>selo criptográfico da PCCE</strong> que torna o documento verificável e detecta qualquer alteração posterior.</li>
+	<li><strong>Avançada</strong> — assinatura em tela, vinculada ao signatário por login e senha, segundo fator por código enviado ao e-mail cadastrado, rubrica gráfica e, quando habilitadas, fotografia (selfie), geolocalização e <strong>chave de assinatura do aparelho</strong> (cláusula 2.4), mais um <strong>selo criptográfico da PCCE</strong> que torna o documento verificável e detecta qualquer alteração posterior.</li>
 </ul>
 <p><strong>2.2.</strong> O selo institucional é gerado com certificado próprio da PCCE, <strong>não emitido pela ICP-Brasil</strong>; por isso a modalidade avançada não tem a presunção automática do art. 10, §1º, da MP nº 2.200-2/2001. Sua validade decorre da <strong>aceitação expressa</strong> do Usuário (art. 4º, II, da Lei nº 14.063/2020 e art. 10, §2º, da MP nº 2.200-2/2001).</p>
 <p><strong>2.3.</strong> O Usuário <strong>aceita expressamente</strong> a assinatura eletrônica avançada do Sistema como meio válido e suficiente de comprovação de autoria e integridade, <strong>equivalente à sua assinatura manuscrita</strong> para todos os fins no âmbito da PCCE, e compromete-se a não impugná-la apenas por ser eletrônica ou por não usar certificado ICP-Brasil. Fica ressalvado o direito de alegar fraude, coação ou adulteração comprovadas.</p>
 
+<p><strong>2.4.</strong> Quando a administração exigir <strong>chave de assinatura</strong> (passkey), o Usuário cadastra no próprio celular uma chave criptográfica que <strong>nunca sai do aparelho</strong> e só é usada após confirmação por biometria ou PIN. O Sistema guarda apenas a parte pública dessa chave. Para transparência, fica registrado o que esse mecanismo comprova e o que não comprova: ele comprova que a assinatura foi feita com a chave cadastrada pelo Usuário e liberada pela verificação dele no aparelho; <strong>não</strong> comprova qual aparelho físico foi usado (celulares sincronizam essa chave entre os dispositivos da mesma conta) nem substitui o certificado ICP-Brasil da modalidade qualificada. Perdido o celular, o Usuário solicita a revogação e cadastra nova chave — a revogação é registrada em auditoria e não afeta documentos já assinados.</p>
+
 <h3>3. Dados pessoais (LGPD)</h3>
 <p><strong>3.1.</strong> O tratamento de dados pelo Sistema tem por base o <strong>cumprimento de obrigação legal e o exercício regular de competências da PCCE</strong> (art. 7º, II e III, e art. 23 da Lei nº 13.709/2018 — LGPD), e não depende de consentimento, por se tratar de atividade funcional obrigatória.</p>
-<p><strong>3.2.</strong> Para gerir as escalas e comprovar as assinaturas, o Sistema trata: nome, matrícula e CPF; e-mail (funcional e, se informado, pessoal, usado apenas para acesso e recuperação de senha); endereço IP; dispositivo/navegador; rubrica e, quando exigidas, fotografia com prova de vida e geolocalização; além dos dados técnicos da assinatura (hash SHA-256, estrutura criptográfica, data/hora e carimbo de tempo).</p>
+<p><strong>3.2.</strong> Para gerir as escalas e comprovar as assinaturas, o Sistema trata: nome, matrícula e CPF; e-mail (funcional e, se informado, pessoal, usado apenas para acesso e recuperação de senha); endereço IP; dispositivo/navegador; rubrica e, quando exigidas, fotografia com prova de vida, geolocalização e a <strong>parte pública da chave de assinatura</strong> do aparelho com seu identificador (nunca a parte privada, que permanece no celular); além dos dados técnicos da assinatura (hash SHA-256, estrutura criptográfica, data/hora e carimbo de tempo).</p>
 <p><strong>3.3.</strong> A finalidade é exclusivamente administrativa e de auditoria. Os dados são retidos pelo prazo mínimo de 5 (cinco) anos a contar da assinatura (Decreto nº 10.278/2020 e art. 16 da LGPD) e não são compartilhados com terceiros nem usados para fins comerciais.</p>
 <p><strong>3.4.</strong> O Usuário pode exercer os direitos do art. 18 da LGPD junto ao <strong>Encarregado de Dados (DPO)</strong> da PCCE pelo e-mail <strong>dpis@pc.ce.gov.br</strong>. Detalhes em <a href="/termo/dpo">/termo/dpo</a>.</p>
 
 <h3>4. Deveres do Usuário</h3>
 <ul>
-	<li>Manter sob guarda exclusiva sua senha, token criptográfico e dispositivos de acesso;</li>
+	<li>Manter sob guarda exclusiva sua senha, token criptográfico, <strong>chave de assinatura do aparelho</strong> e dispositivos de acesso;</li>
+	<li>Manter bloqueio de tela com biometria ou PIN no celular em que cadastrar a chave de assinatura, e <strong>solicitar a revogação imediata</strong> em caso de perda, furto ou troca do aparelho;</li>
 	<li>Não compartilhar credenciais, sob pena de responder pessoalmente pelas assinaturas geradas com elas;</li>
 	<li>Comunicar de imediato à Corregedoria-Geral da PCCE qualquer suspeita de uso indevido de suas credenciais.</li>
 </ul>

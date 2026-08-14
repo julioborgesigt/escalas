@@ -163,6 +163,34 @@ export async function revogarCredenciaisAtivas(
 }
 
 /**
+ * APAGA as credenciais da pessoa — inclusive as revogadas.
+ *
+ * Diferente de `revogarCredenciaisAtivas`, que preserva a linha porque ela é a
+ * contraparte de assinaturas já dadas. Este DELETE só é legítimo quando a
+ * pessoa sai do sistema sem documento assinado: aí não há assinatura para
+ * conferir depois, e manter a chave pública seria guardar dado de um titular
+ * que não existe mais (LGPD art. 16).
+ *
+ * Quem tem documento assinado não é excluído — é desvinculado
+ * (FLW-POLICIAL-002), e a credencial continua onde está.
+ */
+export async function excluirCredenciaisDoDono(
+	db: Database,
+	dono: DonoCredencial
+): Promise<number> {
+	const linhas = await db
+		.delete(credenciaisWebauthn)
+		.where(
+			and(
+				eq(credenciaisWebauthn.usuario_tipo, dono.tipo),
+				eq(credenciaisWebauthn.usuario_id, dono.id)
+			)
+		)
+		.returning({ id: credenciaisWebauthn.id });
+	return linhas.length;
+}
+
+/**
  * Grava o contador da asserção e a data de uso.
  *
  * O contador só avança: `assercao.ts` já recusou regressão antes de chegar
