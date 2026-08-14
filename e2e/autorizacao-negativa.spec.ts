@@ -181,6 +181,16 @@ const CORPO_JSON: Record<string, Record<string, unknown>> = {
 		signerName: 'Fulano de Tal',
 		signerCpf: '39053344705'
 	},
+	'/api/escalas/[id]/finalizar-assinatura-avancada': {
+		intencao: 'a'.repeat(64),
+		preparedPdf: PDF_FALSO,
+		assercao: {
+			credentialId: 'AAAA',
+			clientDataJSON: 'AAAA',
+			authenticatorData: 'AAAA',
+			assinatura: 'AAAA'
+		}
+	},
 	'/api/gise/[id]/finalizar-assinatura': {
 		intencao: 'a'.repeat(64),
 		preparedPdf: PDF_FALSO,

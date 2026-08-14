@@ -142,6 +142,9 @@ export const POST: RequestHandler = async (event) => {
 		// Validação unificada de evidências (foto/GPS/2FA segundo flags globais).
 		// O fluxo SERPRO segue para o endpoint qualificado; aqui só passa
 		// assinatura em tela ("simples"/"avancada" segundo classificação).
+		// Só o caminho em tela passa pelo gate de dispositivo; no ramo SERPRO
+		// permanece `false` e o manifesto não imprime a linha de política.
+		let politicaMovelAplicada = false;
 		if (type !== 'serpro') {
 			const evid = await validarEvidenciasAvancada(
 				db,
@@ -153,11 +156,13 @@ export const POST: RequestHandler = async (event) => {
 					selfieBase64,
 					codigoValidação,
 					desafioId,
-					livenessChallenge
+					livenessChallenge,
+					userAgent: ua
 				},
 				{ platform }
 			);
-			if (!evid.ok) return apiError(evid.error, evid.status, ErrorCode.VALIDATION);
+			if (!evid.ok) return apiError(evid.error, evid.status, evid.code ?? ErrorCode.VALIDATION);
+			politicaMovelAplicada = evid.validated.politicaDispositivoMovel;
 		}
 
 		const presencas = await buscarPresencasGise(db, giseIdNum, platform?.env);
@@ -248,6 +253,7 @@ export const POST: RequestHandler = async (event) => {
 				token: crypto.randomUUID(),
 				documentName: `Relatório Extraordinário - GISE ${id}`,
 				signatureLevel: 'avancada',
+				restricaoMovelAplicada: politicaMovelAplicada,
 				tipoCarimoTempo: tipoCarimboPrevisto(
 					platform?.env as unknown as Record<string, string | undefined> | undefined
 				)

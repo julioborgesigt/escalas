@@ -114,11 +114,36 @@ export const REFORCOS_OPCIONAIS = [
 		notas: 'Coordenadas com 2 casas decimais; útil para correlacionar com escala de serviço.'
 	},
 	{
+		id: 'passkey',
+		flag: 'exigirPasskeyAssinatura',
+		descricao: 'Chave de assinatura no celular (passkey), liberada por biometria/PIN',
+		valorProbatorio: 'alto',
+		// É o único reforço que toca o inciso "b" do art. 4º II: a chave privada
+		// nasce no enclave do aparelho, não é exportável e só opera após
+		// verificação do titular. Mas as ressalvas são parte da nota, não
+		// rodapé — sem atestação verificada, "autenticador de plataforma" é
+		// declaração do cliente, e passkey sincronizada (o padrão em iOS e
+		// Android) prova a CONTA do titular, não aquele aparelho.
+		notas:
+			'Controle exclusivo dos dados de criação (art. 4º II "b"). Sem atestação ' +
+			'verificada não se afirma hardware; credencial sincronizada prova a conta ' +
+			'do titular, não o aparelho. Hoje aplica-se SÓ à escala de serviço.'
+	},
+	{
 		id: 'restricao_dispositivo',
 		flag: 'restringirSmartphone',
 		descricao: 'Bloqueia assinatura em desktop/laptop (apenas smartphone)',
 		valorProbatorio: 'medio',
-		notas: 'Reduz risco de assinatura em terminal compartilhado/destravado por terceiro.'
+		// O valor deste reforço é INDIRETO e a nota precisa dizer isso: o
+		// dispositivo não é dado de criação da assinatura (art. 4º II "b" —
+		// aqui os dados de criação são login+senha+2FA), então a restrição não
+		// eleva o nível. O que ela faz é elevar a QUALIDADE das outras duas
+		// evidências (GPS de celular é GNSS, não geolocalização de IP; a câmera
+		// está na mão de quem assina) e afastar o terminal compartilhado.
+		notas:
+			'Recusado no servidor pelo user-agent DECLARADO — indício, não prova, ' +
+			'e não vincula o aparelho ao assinante. Reduz risco de assinatura em ' +
+			'terminal compartilhado/destravado e torna GPS e foto confiáveis.'
 	}
 ] as const;
 
@@ -131,6 +156,7 @@ interface FlagsParaClassificacao {
 	exigirGpsAssinatura: boolean;
 	exigirCodigoEmailAssinatura: boolean;
 	restringirSmartphone: boolean;
+	exigirPasskeyAssinatura: boolean;
 }
 
 /**

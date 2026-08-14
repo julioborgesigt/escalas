@@ -25,6 +25,33 @@ import { parseUserAgent, reduzirPrecisaoGps } from '../server/assinatura/documen
  * Metadados criptográficos persistidos junto com a assinatura (CAdES-LT).
  * Campos opcionais; signatures avançadas/simples passam undefined.
  */
+/**
+ * Artefatos da asserção WebAuthn, guardados para RECONFERÊNCIA.
+ *
+ * Sem eles, o manifesto do PDF afirmaria "assinado com chave verificada por
+ * biometria" e o sistema não conservaria com o que provar isso depois — a
+ * mesma classe de problema que a política de dispositivo tinha ao prometer na
+ * tela o que o servidor não aplicava. O fluxo QUALIFICADO já guarda os seus
+ * artefatos (`cms_sha256`, `ocsp_response_b64`, `tst_token_b64`) exatamente
+ * por essa razão; este é o equivalente do caminho da passkey.
+ *
+ * Nada aqui é dado pessoal novo: `clientDataJSON` traz type/challenge/origin,
+ * `authenticatorData` traz hash do domínio, flags, contador e AAGUID (o MODELO
+ * do autenticador, não o aparelho), e a assinatura é opaca.
+ */
+export interface AssinaturaPasskeyMetadata {
+	/** Credencial que assinou, em base64url. */
+	credential_id: string;
+	/** `clientDataJSON` cru, base64url — contém o desafio (hash do PDF). */
+	client_data: string;
+	/** `authenticatorData` cru, base64url — flags UV/BE/BS e contador. */
+	authenticator_data: string;
+	/** Assinatura ECDSA em DER, base64url. */
+	assinatura: string;
+	/** Flag BS no momento da assinatura: a credencial estava sincronizada. */
+	backup_ativo: boolean;
+}
+
 export interface AssinaturaCadesMetadata {
 	cert_issuer?: string | null;
 	cert_serial?: string | null;
@@ -69,7 +96,12 @@ export async function salvarDocumentoEscala(
 	assinanteEmail?: string,
 	tipoCarimboTempo?: string,
 	cadesMeta?: AssinaturaCadesMetadata,
-	env?: CpfCriptoEnv
+	env?: CpfCriptoEnv,
+	// Depois de `env` de propósito: a lista posicional já está no limite, e
+	// inserir no meio faria todo chamador que passa `env` deslocar um argumento
+	// — num upsert de documento assinado, um deslocamento silencioso grava o
+	// campo errado. Quem usa passkey passa os dois últimos explicitamente.
+	passkeyMeta?: AssinaturaPasskeyMetadata
 ) {
 	const meta = cadesMeta ?? {};
 	// CPF cifrado em repouso (LGPD Fase 2).
@@ -103,7 +135,15 @@ export async function salvarDocumentoEscala(
 		cms_sha256: meta.cms_sha256 ?? null,
 		ocsp_response_b64: meta.ocsp_response_b64 ?? null,
 		ocsp_consultado_em: meta.ocsp_consultado_em ?? null,
-		tst_token_b64: meta.tst_token_b64 ?? null
+		tst_token_b64: meta.tst_token_b64 ?? null,
+		// `null` explícito, como todo o resto deste objeto: sem isso, a
+		// reassinatura por outro caminho deixaria a asserção da assinatura
+		// ANTERIOR colada no registro da nova.
+		webauthn_credential_id: passkeyMeta?.credential_id ?? null,
+		webauthn_client_data: passkeyMeta?.client_data ?? null,
+		webauthn_authenticator_data: passkeyMeta?.authenticator_data ?? null,
+		webauthn_assinatura: passkeyMeta?.assinatura ?? null,
+		webauthn_backup_ativo: passkeyMeta ? (passkeyMeta.backup_ativo ? 1 : 0) : null
 	};
 
 	return db

@@ -10,6 +10,8 @@ import type { UsuarioLogado } from '$lib/auth';
 import { loading } from '$lib/loading.svelte';
 import { apiFetch } from '$lib/api-fetch';
 import { digestHexParaBase64, executarFluxoAssinaturaToken } from '$lib/assinatura-token';
+import { assinarEscalaComPasskey } from '$lib/assinatura-passkey';
+import { page } from '$app/state';
 import { logger } from '$lib/logger';
 
 interface UseAssinaturaParams {
@@ -141,19 +143,31 @@ export function useAssinaturaEscala({ getParams, onDocumentoAssinado }: UseAssin
 				gpsCoords = await getCoordinates();
 			}
 
-			loading.show('Assinando...');
-			const info = await apiFetch<unknown>(`/api/escalas/${escalaId}/assinar-simples`, {
-				method: 'POST',
-				body: JSON.stringify({
-					rubrica,
-					selfieBase64: selfie,
-					latitude: gpsCoords?.lat,
-					longitude: gpsCoords?.lng,
-					codigoValidação,
-					desafioId,
-					livenessChallenge
-				})
-			});
+			const evidencias = {
+				rubrica,
+				selfieBase64: selfie,
+				latitude: gpsCoords?.lat,
+				longitude: gpsCoords?.lng,
+				codigoValidação,
+				desafioId,
+				livenessChallenge
+			};
+
+			// Com o reforço de passkey ligado, o caminho de um tiro nem é tentado:
+			// o servidor o recusa com 403, e cair nele só produziria um erro
+			// confuso depois de o usuário já ter desenhado a rubrica e tirado a
+			// foto. A flag vem do `load` do layout, que a lê do cache server-side.
+			const info = (page.data.exigirPasskeyAssinatura as boolean | undefined)
+				? await assinarEscalaComPasskey(Number(escalaId), evidencias, (rotulo) =>
+						loading.show(rotulo)
+					)
+				: await (async () => {
+						loading.show('Assinando...');
+						return apiFetch<unknown>(`/api/escalas/${escalaId}/assinar-simples`, {
+							method: 'POST',
+							body: JSON.stringify(evidencias)
+						});
+					})();
 
 			toaster.success({ title: 'Escala assinada com sucesso!' });
 			onDocumentoAssinado?.(info);

@@ -7,6 +7,7 @@
  *  - `unidades.ts`   — unidades e a hierarquia entre elas
  *  - `escalas.ts`    — escalas e `escala_policiais`
  *  - `documentos.ts` — documentos assinados
+ *  - `webauthn.ts`   — credenciais de passkey da assinatura avançada
  *  - `policiais/`    — cadastro, RBAC, histórico funcional e exclusão
  *  - `lgpd/`         — solicitações do titular, incidentes e retenção
  *  - `gise/`         — o módulo GISE inteiro
@@ -42,11 +43,24 @@ export { registrarAppLogs, listarAppLogs, resumoAppLogs } from './db/app-logs';
 export { registrarAceite } from './db/termos';
 
 export {
+	buscarCredencialAtiva,
+	buscarCredencialPorId,
+	registrarCredencial,
+	revogarCredenciaisAtivas,
+	excluirCredenciaisDoDono,
+	registrarUsoCredencial,
+	criarDesafioWebauthn,
+	consumirDesafioWebauthn
+} from './db/webauthn';
+export type { CredencialWebauthn, DonoCredencial } from './db/webauthn';
+
+export {
 	salvarConfiguracao,
 	buscarExigirFotoAssinatura,
 	buscarExigirGpsAssinatura,
 	buscarExigirCodigoEmailAssinatura,
 	buscarRestringirSmartphone,
+	buscarExigirPasskeyAssinatura,
 	buscarProvedorEmailPadrao,
 	EMAIL_PROVEDOR_PADRAO
 } from './db/configuracoes';
@@ -119,6 +133,7 @@ export {
 	excluirDocumentoEscala,
 	buscarDocumentoPorHash
 } from './db/documentos';
+export type { AssinaturaPasskeyMetadata } from './db/documentos';
 
 export type { GiseDetalhado } from './db/gise';
 export {

@@ -75,13 +75,20 @@ async function hashDoToken(token: string): Promise<string> {
  * guarda o hash.
  *
  * @param pdfPreparado bytes do PDF que o `preparar` acabou de montar.
+ * @param contexto estado que só o `preparar` conhece e que o `finalizar`
+ * precisa gravar. Vai por aqui, e não pelo corpo do finalizar, por dois
+ * motivos distintos: `selfieKey` é chave de bucket (deixá-la voltar do cliente
+ * permitiria apontar o documento para a foto de outra pessoa — mesma classe do
+ * FLW-DOC-001), e o GPS já está DESENHADO no PDF assinado, então recebê-lo de
+ * novo deixaria banco e documento discordando sem nada acusar.
  */
 export async function criarIntencaoAssinatura(
 	db: Database,
 	alvo: AlvoAssinatura,
 	ator: AtorAssinatura,
 	pdfPreparado: Uint8Array,
-	verificacaoHash: string
+	verificacaoHash: string,
+	contexto: ContextoPreparo = {}
 ): Promise<string> {
 	const token = gerarTokenOpaco();
 	await db.insert(assinaturaIntencoes).values({
@@ -93,6 +100,9 @@ export async function criarIntencaoAssinatura(
 		usuario_tipo: ator.tipo,
 		documento_hash: await sha256Hex(pdfPreparado),
 		verificacao_hash: verificacaoHash,
+		selfie_key: contexto.selfieKey ?? null,
+		latitude: contexto.latitude ?? null,
+		longitude: contexto.longitude ?? null,
 		expires_at: new Date(Date.now() + VALIDADE_MS).toISOString()
 	});
 	return token;
@@ -105,8 +115,24 @@ type RecusaIntencao =
 	| 'ator-divergente' // preparada por outra pessoa
 	| 'documento-divergente'; // o PDF do corpo não é o que foi preparado
 
+/**
+ * Estado que atravessa as duas fases pelo servidor. Ver `criarIntencaoAssinatura`
+ * para o porquê de não trafegar pelo cliente.
+ */
+export interface ContextoPreparo {
+	/** Objeto da selfie no R2, quando o `preparar` subiu uma. */
+	selfieKey?: string | null;
+	latitude?: number | null;
+	longitude?: number | null;
+}
+
 export type ResultadoIntencao =
-	{ ok: true; verificacaoHash: string } | { ok: false; motivo: RecusaIntencao };
+	| {
+			ok: true;
+			verificacaoHash: string;
+			contexto: Required<ContextoPreparo>;
+	  }
+	| { ok: false; motivo: RecusaIntencao };
 
 /**
  * CONSOME a intenção e confere que ela corresponde a este finalizar.
@@ -145,7 +171,10 @@ export async function consumirIntencaoAssinatura(
 			usuario_id: assinaturaIntencoes.usuario_id,
 			usuario_tipo: assinaturaIntencoes.usuario_tipo,
 			documento_hash: assinaturaIntencoes.documento_hash,
-			verificacao_hash: assinaturaIntencoes.verificacao_hash
+			verificacao_hash: assinaturaIntencoes.verificacao_hash,
+			selfie_key: assinaturaIntencoes.selfie_key,
+			latitude: assinaturaIntencoes.latitude,
+			longitude: assinaturaIntencoes.longitude
 		});
 
 	const intencao = linhas[0];
@@ -167,7 +196,15 @@ export async function consumirIntencaoAssinatura(
 		return { ok: false, motivo: 'documento-divergente' };
 	}
 
-	return { ok: true, verificacaoHash: intencao.verificacao_hash };
+	return {
+		ok: true,
+		verificacaoHash: intencao.verificacao_hash,
+		contexto: {
+			selfieKey: intencao.selfie_key ?? null,
+			latitude: intencao.latitude ?? null,
+			longitude: intencao.longitude ?? null
+		}
+	};
 }
 
 /**

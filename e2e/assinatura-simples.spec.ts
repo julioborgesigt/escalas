@@ -45,6 +45,146 @@ test.describe('Assinatura avançada em tela (assinar-simples)', () => {
 		expect(res.status()).toBe(403);
 	});
 
+	test('política de dispositivo: desktop → 403 mesmo por POST direto', async ({ request }) => {
+		const token = seedSession(assinante().id);
+		const tokenSuper = seedSession(FIXTURE.superAdmin.id, 'admin');
+		if (!token || !tokenSuper) test.skip(true, 'wrangler/D1 local indisponível');
+
+		// A restrição a celular já foi só de interface: escondia o painel e o POST
+		// direto de um desktop assinava normalmente. Este teste existe para que
+		// ela não volte a ser — a interface não participa daqui.
+		const antes = await request.get('/api/configuracoes/assinatura', {
+			headers: cookieDeSessao(tokenSuper!)
+		});
+		const original = ((await antes.json()) as { restringirSmartphone: boolean })
+			.restringirSmartphone;
+
+		const ligar = await request.put('/api/configuracoes/assinatura', {
+			headers: headersDeSessaoMutacao(tokenSuper!),
+			data: { restringirSmartphone: true }
+		});
+		test.skip(ligar.status() === 403, 'fixture não é Super Admin neste ambiente');
+		expect(ligar.status()).toBe(200);
+
+		try {
+			const desktop = await request.post(
+				`/api/escalas/${FIXTURE.escalaAssinavel.id}/assinar-simples`,
+				{
+					headers: {
+						...headersDeSessaoMutacao(token!),
+						'user-agent':
+							'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36'
+					},
+					data: { rubrica: RUBRICA_PNG }
+				}
+			);
+			expect(desktop.status()).toBe(403);
+			// A mensagem importa: 403 sozinho não distingue esta recusa da de
+			// permissão (FLW-AUT-001), que roda antes no mesmo endpoint.
+			expect((await desktop.json()).error).toMatch(/só pode ser feita pelo celular/i);
+
+			// Com UA de celular a política sai do caminho e a requisição volta a
+			// morrer no 2FA — prova que o 403 acima veio do dispositivo, não de
+			// permissão nem de corpo inválido.
+			const celular = await request.post(
+				`/api/escalas/${FIXTURE.escalaAssinavel.id}/assinar-simples`,
+				{
+					headers: {
+						...headersDeSessaoMutacao(token!),
+						'user-agent':
+							'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1'
+					},
+					data: { rubrica: RUBRICA_PNG }
+				}
+			);
+			expect(celular.status()).toBe(400);
+			expect((await celular.json()).error).toMatch(/código de verificação por e-mail/i);
+		} finally {
+			// Restaura o valor original: as demais specs desta suíte rodam com UA de
+			// runner, que não é móvel — deixar a flag ligada derrubaria o caminho
+			// feliz, e esta suíte é serial.
+			await request.put('/api/configuracoes/assinatura', {
+				headers: headersDeSessaoMutacao(tokenSuper!),
+				data: { restringirSmartphone: original }
+			});
+		}
+	});
+
+	test('passkey exigida: o caminho de um tiro morre com 403, e o preparar pede a chave', async ({
+		request
+	}) => {
+		const token = seedSession(assinante().id);
+		const tokenSuper = seedSession(FIXTURE.superAdmin.id, 'admin');
+		if (!token || !tokenSuper) test.skip(true, 'wrangler/D1 local indisponível');
+
+		const ligar = await request.put('/api/configuracoes/assinatura', {
+			headers: headersDeSessaoMutacao(tokenSuper!),
+			data: { exigirPasskey: true }
+		});
+		test.skip(ligar.status() === 403, 'fixture não é Super Admin neste ambiente');
+		expect(ligar.status()).toBe(200);
+
+		try {
+			// O ponto do teste: reforço que se contorna não é reforço. Com a flag
+			// ligada, o endpoint antigo tem de recusar — senão bastaria um POST
+			// direto para assinar sem a cerimônia biométrica, que foi exatamente a
+			// forma da falha que a política de dispositivo tinha antes.
+			const umTiro = await request.post(
+				`/api/escalas/${FIXTURE.escalaAssinavel.id}/assinar-simples`,
+				{
+					headers: headersDeSessaoMutacao(token!),
+					data: { rubrica: RUBRICA_PNG }
+				}
+			);
+			expect(umTiro.status()).toBe(403);
+			expect((await umTiro.json()).error).toMatch(/chave do seu celular|passkey/i);
+
+			// E o caminho novo recusa quem ainda não cadastrou a chave, com
+			// instrução do que fazer — a fixture não tem credencial registrada.
+			const preparar = await request.post(
+				`/api/escalas/${FIXTURE.escalaAssinavel.id}/preparar-assinatura-avancada`,
+				{
+					headers: headersDeSessaoMutacao(token!),
+					data: { rubrica: RUBRICA_PNG }
+				}
+			);
+			expect(preparar.status()).toBe(400);
+			expect((await preparar.json()).error).toMatch(/não registrou uma chave|Meu Perfil/i);
+		} finally {
+			await request.put('/api/configuracoes/assinatura', {
+				headers: headersDeSessaoMutacao(tokenSuper!),
+				data: { exigirPasskey: false }
+			});
+		}
+	});
+
+	test('finalizar sem preparação válida → recusado', async ({ request }) => {
+		const token = seedSession(assinante().id);
+		if (!token) test.skip(true, 'wrangler/D1 local indisponível');
+
+		// Intenção inexistente: nem chega a olhar a asserção. É a ordem que o
+		// endpoint fixa — verificar a asserção antes tornaria o PDF do corpo
+		// escolha do cliente.
+		const res = await request.post(
+			`/api/escalas/${FIXTURE.escalaAssinavel.id}/finalizar-assinatura-avancada`,
+			{
+				headers: headersDeSessaoMutacao(token!),
+				data: {
+					intencao: 'f'.repeat(64),
+					preparedPdf: 'JVBERi0xLjQK' + 'A'.repeat(200),
+					assercao: {
+						credentialId: 'AAAA',
+						clientDataJSON: 'AAAA',
+						authenticatorData: 'AAAA',
+						assinatura: 'AAAA'
+					}
+				}
+			}
+		);
+		expect(res.status()).toBe(400);
+		expect((await res.json()).error).toMatch(/inválida ou expirada/i);
+	});
+
 	test('sem código de e-mail → 400 (2FA é sempre obrigatório)', async ({ request }) => {
 		const token = seedSession(assinante().id);
 		if (!token) test.skip(true, 'wrangler/D1 local indisponível');

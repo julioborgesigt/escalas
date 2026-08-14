@@ -72,6 +72,19 @@ export async function buscarRestringirSmartphone(db: Database): Promise<boolean>
 	return val !== '0'; // Default = true (current system behavior)
 }
 
+/**
+ * Lê a flag booleana "exigir_passkey_assinatura" (padrão: **false**).
+ *
+ * Default falso de propósito, ao contrário de `restringir_smartphone`: exigir
+ * passkey depende de o aparelho ter bloqueio de tela configurado, e ligar por
+ * omissão deixaria sem assinar quem ainda não registrou a chave. Só o Super
+ * Admin liga, e só depois de medir a adesão.
+ */
+export async function buscarExigirPasskeyAssinatura(db: Database): Promise<boolean> {
+	const val = await buscarConfiguracao(db, 'exigir_passkey_assinatura');
+	return val === '1';
+}
+
 /** Provedor de e-mail padrão. Default 'cloudflare' (comportamento histórico). */
 export async function buscarProvedorEmailPadrao(db: Database): Promise<EmailProvedor> {
 	const val = await buscarConfiguracao(db, EMAIL_PROVEDOR_PADRAO);

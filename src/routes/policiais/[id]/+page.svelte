@@ -32,6 +32,7 @@
 	import ToggleSwitch from '$lib/components/ToggleSwitch.svelte';
 	import PainelAcoesServidor from './_components/PainelAcoesServidor.svelte';
 	import HistoricoServidor from './_components/HistoricoServidor.svelte';
+	import CartaoPasskeyServidor from './_components/CartaoPasskeyServidor.svelte';
 	import BotaoVoltar from '$lib/components/BotaoVoltar.svelte';
 
 	const { data }: PageProps = $props();
@@ -349,6 +350,14 @@
 				</div>
 			</form>
 		</div>
+	{/if}
+
+	{#if isAdmin}
+		<CartaoPasskeyServidor
+			policialId={data.policial.id}
+			nome={data.policial.nome}
+			passkey={data.passkey}
+		/>
 	{/if}
 
 	{#if isAdmin}

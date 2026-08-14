@@ -8,8 +8,11 @@ import {
 	listarMinhasSolicitacoesCadastro,
 	registrarAuditComContexto,
 	contextoDeEvento,
+	buscarCredencialAtiva,
 	type CampoSolicitacao
 } from '$lib/db';
+import { credencialDoUsuario } from '$lib/server/auth/credencial';
+import { descreverVinculoCredencial } from '$lib/server/assinatura/webauthn/authenticator-data';
 import { policiais } from '$lib/server/schema';
 import { classesDoCargo, TELEFONE_RE } from '$lib/perfil-campos';
 import { limparTelefone } from '$lib/utils/formato';
@@ -29,7 +32,7 @@ export const load: PageServerLoad = async ({ locals, platform }) => {
 	if (u.tipo !== 'policial') redirect(302, '/escalas/bem-vindo');
 
 	const db = getDB(platform);
-	const [row, unidades, solicitacoes] = await Promise.all([
+	const [row, unidades, solicitacoes, credencial] = await Promise.all([
 		db
 			.select({
 				nome: policiais.nome,
@@ -49,7 +52,8 @@ export const load: PageServerLoad = async ({ locals, platform }) => {
 			.where(eq(policiais.id, u.id))
 			.get(),
 		listarUnidades(db),
-		listarMinhasSolicitacoesCadastro(db, u.id)
+		listarMinhasSolicitacoesCadastro(db, u.id),
+		buscarCredencialAtiva(db, credencialDoUsuario(u))
 	]);
 
 	if (!row) redirect(302, '/login');
@@ -58,7 +62,12 @@ export const load: PageServerLoad = async ({ locals, platform }) => {
 		perfil: row,
 		classes: classesDoCargo(row.cargo),
 		lotacoes: unidades.map((un) => un.nome),
-		solicitacoes
+		solicitacoes,
+		// Só o que a tela precisa mostrar. `credential_id` e chave pública NÃO
+		// vão para o cliente: são dados da credencial, não da apresentação.
+		passkey: credencial
+			? { criadoEm: credencial.criadoEm, vinculo: descreverVinculoCredencial(credencial) }
+			: null
 	};
 };
 

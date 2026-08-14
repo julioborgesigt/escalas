@@ -18,10 +18,16 @@
  * justamente a restrição que a flag existe para impor. O ramo do user-agent
  * cobre o tablet largo, que é móvel sem ser estreito.
  *
+ * Isto decide o que a TELA MOSTRA. Quem RECUSA é `ehDispositivoMovelUA` em
+ * `server/assinatura/document-utils.ts`, sobre o header da requisição — as duas
+ * metades da mesma política, separadas porque os sinais são diferentes
+ * (`navigator` aqui, `user-agent` lá). Afrouxar só este lado não afrouxa nada:
+ * o POST direto continua morrendo no servidor.
+ *
  * Nenhum dos dois sinais é à prova de falsificação — quem controla o navegador
- * controla os dois. A restrição vale como reforço de boa-fé, não como gate: o
- * servidor registra o user-agent na evidência da assinatura, mas não recusa
- * por dispositivo.
+ * controla os dois. A restrição vale como reforço de boa-fé: eleva a qualidade
+ * do GPS e da selfie (celular tem GNSS e câmera na mão de quem assina) e afasta
+ * o terminal compartilhado destravado. NÃO vincula o aparelho ao assinante.
  *
  * Usa `MediaQuery` do Svelte em vez de listener manual de `resize`.
  */

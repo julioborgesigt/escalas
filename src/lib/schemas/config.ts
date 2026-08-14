@@ -5,5 +5,6 @@ export const assinaturaConfigSchema = z.object({
 	exigirFoto: z.boolean().optional(),
 	exigirGps: z.boolean().optional(),
 	exigirCodigoEmail: z.boolean().optional(),
-	restringirSmartphone: z.boolean().optional()
+	restringirSmartphone: z.boolean().optional(),
+	exigirPasskey: z.boolean().optional()
 });

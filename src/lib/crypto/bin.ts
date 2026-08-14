@@ -37,3 +37,23 @@ export function bytesToBase64(bytes: Uint8Array): string {
 export function base64ToBytes(b64: string): Uint8Array {
 	return binStringToBytes(atob(b64));
 }
+
+/**
+ * Bytes → base64url (RFC 4648 §5): `+/` viram `-_` e o `=` de preenchimento
+ * some. É o alfabeto do WebAuthn — `credentialId`, `challenge` e os campos do
+ * `clientDataJSON` chegam assim, e comparar contra base64 comum falha em ~1 de
+ * cada 4 valores, quando calha de aparecer um `+` ou `/`.
+ */
+export function bytesToBase64Url(bytes: Uint8Array): string {
+	return bytesToBase64(bytes).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+/**
+ * base64url → bytes. Aceita também base64 comum: o navegador é quem escolhe o
+ * alfabeto, e alguns campos trafegam recodificados por bibliotecas de terceiros.
+ */
+export function base64UrlToBytes(b64url: string): Uint8Array {
+	const b64 = b64url.replace(/-/g, '+').replace(/_/g, '/');
+	const pad = b64.length % 4 === 0 ? '' : '='.repeat(4 - (b64.length % 4));
+	return base64ToBytes(b64 + pad);
+}

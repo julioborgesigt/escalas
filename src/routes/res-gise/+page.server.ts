@@ -52,6 +52,10 @@ import {
 import { invalidarPapelGise } from '$lib/server/gise/papel-cache';
 import { buscarUnidadeIdSupervisaoExtra } from '$lib/server/gise/supervisao-extra';
 import { lerFlagsAssinatura } from '$lib/server/assinatura/cfg-ass-cache';
+import {
+	ERRO_POLITICA_DISPOSITIVO,
+	recusadaPorPoliticaDispositivo
+} from '$lib/server/assinatura/signature-service';
 import { verificarDesafio2FA } from '$lib/auth';
 import { logger } from '$lib/server/logger';
 import { uploadSelfieDataUri } from '$lib/server/assinatura/selfie-upload';
@@ -458,7 +462,8 @@ export const actions: Actions = {
 	/**
 	 * Confirma a ENTRADA em serviço (assinatura avançada).
 	 *
-	 * Ordem obrigatória: 2FA → existência da escala → participação → foto → grava.
+	 * Ordem obrigatória: política de dispositivo → 2FA → existência da escala →
+	 * participação → foto → grava.
 	 * Nada é persistido antes das três verificações, para que uma tentativa
 	 * recusada não deixe rastro de presença.
 	 */
@@ -494,7 +499,19 @@ export const actions: Actions = {
 		// requisito mínimo da assinatura avançada (Lei 14.063/2020 art. 4º II).
 		// A leitura crua do banco (default '0' num banco recém-instalado)
 		// deixava a presença pular o 2FA que a UI já coleta.
-		const exigirCodigoEmail = (await lerFlagsAssinatura(platform)).exigirCodigoEmailAssinatura;
+		const flagsAssinatura = await lerFlagsAssinatura(platform);
+
+		// Política de dispositivo antes do 2FA: recusar aqui não consome uma
+		// tentativa do código de quem vai ser barrado de qualquer forma. Estas
+		// actions não passam pelo `validarEvidenciasAvancada` (checam o 2FA à
+		// mão), então o gate precisa ser aplicado explicitamente — é o fluxo de
+		// maior volume do sistema, e sem ele a recusa por dispositivo cobriria
+		// só a minoria dos atos.
+		if (recusadaPorPoliticaDispositivo(flagsAssinatura, ua)) {
+			return fail(403, { error: ERRO_POLITICA_DISPOSITIVO, giseId });
+		}
+
+		const exigirCodigoEmail = flagsAssinatura.exigirCodigoEmailAssinatura;
 		if (exigirCodigoEmail) {
 			if (!codigoEmail || !desafioId) {
 				return fail(400, { error: 'Código de verificação por e-mail é obrigatório.', giseId });
@@ -609,7 +626,19 @@ export const actions: Actions = {
 		// requisito mínimo da assinatura avançada (Lei 14.063/2020 art. 4º II).
 		// A leitura crua do banco (default '0' num banco recém-instalado)
 		// deixava a presença pular o 2FA que a UI já coleta.
-		const exigirCodigoEmail = (await lerFlagsAssinatura(platform)).exigirCodigoEmailAssinatura;
+		const flagsAssinatura = await lerFlagsAssinatura(platform);
+
+		// Política de dispositivo antes do 2FA: recusar aqui não consome uma
+		// tentativa do código de quem vai ser barrado de qualquer forma. Estas
+		// actions não passam pelo `validarEvidenciasAvancada` (checam o 2FA à
+		// mão), então o gate precisa ser aplicado explicitamente — é o fluxo de
+		// maior volume do sistema, e sem ele a recusa por dispositivo cobriria
+		// só a minoria dos atos.
+		if (recusadaPorPoliticaDispositivo(flagsAssinatura, ua)) {
+			return fail(403, { error: ERRO_POLITICA_DISPOSITIVO, giseId });
+		}
+
+		const exigirCodigoEmail = flagsAssinatura.exigirCodigoEmailAssinatura;
 		if (exigirCodigoEmail) {
 			if (!codigoEmail || !desafioId) {
 				return fail(400, { error: 'Código de verificação por e-mail é obrigatório.', giseId });

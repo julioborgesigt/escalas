@@ -91,6 +91,42 @@ export function parseUserAgent(ua: string): string {
 	}
 }
 
+/**
+ * Decide se o user-agent declara um dispositivo móvel — o lado SERVIDOR da
+ * política `restringirSmartphone`.
+ *
+ * É a metade que RECUSA. A outra metade é `$lib/composables/useMobile`, que
+ * decide o que a tela mostra lendo `navigator`; esta lê o header da requisição.
+ * As duas não podem virar um arquivo só (fontes de sinal diferentes, bundles
+ * diferentes), mas a classificação de dispositivo é UMA — por isso reaproveita
+ * `parseUAInternal`, o mesmo classificador que imprime "DISPOSITIVO" no
+ * manifesto. Um segundo regex aqui é como `useMobile` e `useGiseEstado`
+ * divergiram em ago/2026, aplicando a MESMA restrição com critérios diferentes.
+ *
+ * `Tablet` conta como móvel, em paridade com o regex do cliente (que inclui
+ * `iPad`). Duas consequências assumidas:
+ *
+ *   - UA vazio/desconhecido NÃO é móvel: sem declaração, a política recusa.
+ *   - iPadOS 13+ manda UA de macOS por padrão e cai em `Desktop`. Em tela
+ *     cheia o cliente também bloqueia (largura > 768px), então há paridade;
+ *     em split view estreita o cliente libera e o servidor recusa. Recusar é o
+ *     lado seguro, e a mensagem de erro precisa ser legível para quem cair aí.
+ *
+ * O que isto prova é limitado e a mensagem ao usuário não deve exagerar: o UA
+ * é DECLARAÇÃO do cliente, não propriedade dele. Vale como reforço de boa-fé —
+ * quem controla o navegador controla o header.
+ */
+export function ehDispositivoMovelUA(ua: string): boolean {
+	if (!ua || ua === 'N/A') return false;
+
+	try {
+		const { device } = parseUAInternal(ua);
+		return device === 'Mobile' || device === 'Tablet';
+	} catch {
+		return false;
+	}
+}
+
 function parseUAInternal(ua: string): UAResult {
 	const result: UAResult = {
 		browser: 'Desconhecido',

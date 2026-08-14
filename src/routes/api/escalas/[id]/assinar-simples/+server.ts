@@ -20,17 +20,11 @@ import {
 	buscarEscala,
 	buscarDocumentoEscala,
 	listarPoliciaisEscala,
-	salvarDocumentoEscala,
 	registrarAuditComContexto,
 	getR2,
 	hasR2
 } from '$lib/db';
-import { limparR2ObsoletoEscala } from '$lib/server/r2-cleanup';
-import { chaveConferencia } from '$lib/server/assinatura/copia-conferencia';
-import { logger } from '$lib/server/logger';
-import { assinarSimplesSchema } from '$lib/schemas';
 import {
-	requireAuth,
 	apiError,
 	ErrorCode,
 	badRequest,
@@ -38,18 +32,16 @@ import {
 	forbidden,
 	conflict,
 	serverError,
+	requireAuth,
 	validateBody
 } from '$lib/server/api';
+import { assinarSimplesSchema } from '$lib/schemas';
 import { validarEvidenciasAvancada } from '$lib/server/assinatura/signature-service';
-import { uploadSelfieDataUri } from '$lib/server/assinatura/selfie-upload';
-import { gerarPdf, gerarPdfPlantao, gerarPdfExpediente } from '$lib/server/export';
 import {
-	adicionarRodapeSimples,
-	adicionarPaginaAuditoria
-} from '$lib/server/assinatura/pdf-signing';
-import { calcularHashBuffer } from '$lib/server/assinatura/document-utils';
-import { selarPdfInstitucional, tipoCarimboPrevisto } from '$lib/server/assinatura/server-seal';
-import { gerarCodigoValidacao } from '$lib/utils/formato';
+	montarPdfEscalaAssinada,
+	persistirEscalaAssinada,
+	subirSelfieEscala
+} from '$lib/server/escalas/assinatura-escala';
 import { verificarPermissaoEscala, podeAssinarEscala } from '$lib/server/escalas/permissao';
 
 export const POST: RequestHandler = async ({
@@ -117,160 +109,71 @@ export const POST: RequestHandler = async ({
 	const evid = await validarEvidenciasAvancada(
 		db,
 		u,
-		{ rubrica, latitude, longitude, selfieBase64, codigoValidação, desafioId, livenessChallenge },
-		{ platform }
+		{
+			rubrica,
+			latitude,
+			longitude,
+			selfieBase64,
+			codigoValidação,
+			desafioId,
+			livenessChallenge,
+			userAgent: ua
+		},
+		// Com o reforço ativo, ESTE caminho morre — antes até do 2FA. Vale só
+		// para a escala: GISE, relatório e presença ainda não têm caminho de
+		// passkey, e recusá-los deixaria a corporação sem assinar. O texto do
+		// /conf-ass diz isso ao Super Admin.
+		{ platform, recusarSePasskeyExigida: true }
 	);
-	if (!evid.ok) return apiError(evid.error, evid.status, ErrorCode.VALIDATION);
+	if (!evid.ok) return apiError(evid.error, evid.status, evid.code ?? ErrorCode.VALIDATION);
 	const validatedEv = evid.validated;
 
 	try {
-		let result;
-		if (escala.tipo === 'plantao')
-			result = await Promise.resolve(gerarPdfPlantao(escala, policiais));
-		else if (escala.tipo === 'expediente')
-			result = await Promise.resolve(gerarPdfExpediente(escala, policiais));
-		else result = await Promise.resolve(gerarPdf(escala, policiais));
-
-		const pdfBytes = result.pdf;
-
-		const verificationHash = gerarCodigoValidacao();
-		const verificationUrl = `${url.origin}/validar/${verificationHash}`;
-
-		const finalSignerName = u.nome;
-		const finalSignerCpf = u.cpf || '';
-
-		// Assinatura AVANÇADA (Lei 14.063/2020 art. 4º II): rodapé de confirmação
-		// eletrônica + manifesto. NÃO embute placeholder PKCS#7 nem selo "ICP-Brasil"
-		// — não há certificado nesta modalidade. Mesma abordagem honesta do fluxo GISE;
-		// rotular como qualificada/ICP aqui seria enganoso e frágil em perícia.
-		const pdfComRodape = await adicionarRodapeSimples(pdfBytes, finalSignerName, {
-			verificationHash,
-			verificationUrl,
-			rubricBase64: validatedEv.rubrica ?? undefined,
-			ip: ip ?? undefined,
-			latitude: validatedEv.latitude,
-			longitude: validatedEv.longitude
-		});
-
-		// Hash do documento (conteúdo + rodapé) exibido no manifesto.
-		const documentHash = await calcularHashBuffer(pdfComRodape);
-
-		// Folha de auditoria com nível AVANÇADA (Lei 14.063/2020 art. 4º II).
-		const finalPdf = await adicionarPaginaAuditoria(pdfComRodape, {
-			signerName: finalSignerName,
-			signerCpf: finalSignerCpf || undefined,
-			signerEmail: u.email ?? undefined,
-			signingTime: new Date(),
-			verificationHash,
-			verificationUrl,
+		const montado = await montarPdfEscalaAssinada({
+			escala,
+			policiais,
+			assinante: { nome: u.nome, cpf: u.cpf, email: u.email },
+			evidencias: {
+				rubrica: validatedEv.rubrica,
+				latitude: validatedEv.latitude,
+				longitude: validatedEv.longitude,
+				selfieBase64: validatedEv.selfieBase64,
+				livenessChallenge: validatedEv.livenessChallenge,
+				politicaDispositivoMovel: validatedEv.politicaDispositivoMovel
+			},
 			ip: ip ?? undefined,
 			userAgent: ua || undefined,
-			latitude: validatedEv.latitude ?? undefined,
-			longitude: validatedEv.longitude ?? undefined,
-			selfieBase64: validatedEv.selfieBase64 ?? undefined,
-			rubricBase64: validatedEv.rubrica ?? undefined,
-			documentHash,
-			token: crypto.randomUUID(),
-			documentName: `Escala de Serviço - ${escala.titulo}`,
-			signatureLevel: 'avancada',
-			tipoCarimoTempo: tipoCarimboPrevisto(
-				platform?.env as unknown as Record<string, string | undefined> | undefined
-			),
-			livenessChallenge: validatedEv.livenessChallenge
-				? {
-						tipo: validatedEv.livenessChallenge.tipo,
-						cumprido: validatedEv.livenessChallenge.cumprido,
-						tentativas: validatedEv.livenessChallenge.tentativas,
-						duracaoMs: validatedEv.livenessChallenge.duracaoMs
-					}
-				: null
-		});
-
-		// Selo institucional (avançada, Lei 14.063/2020 art. 4º II): assina o PDF com
-		// a chave da instituição + carimbo de tempo grátis. Sem a chave configurada
-		// (SELO_INSTITUCIONAL_PEM), degrada para o rodapé honesto (finalPdf como está).
-		const selado = await selarPdfInstitucional(finalPdf, finalSignerName, {
+			origin: url.origin,
 			env: platform?.env as unknown as Record<string, string | undefined> | undefined
 		});
-		const pdfParaSalvar = selado.ok ? selado.pdf : finalPdf;
-
-		// arquivo_hash do PDF FINAL (selado ou não) — é o que a /validar reconfere.
-		const arquivoHash = await calcularHashBuffer(pdfParaSalvar);
 
 		if (!hasR2(platform)) {
 			return serverError('[assinar-simples] R2 não configurado', new Error('R2_NOT_CONFIGURED'));
 		}
-
 		const bucket = getR2(platform);
-		// R2-4: captura o documento anterior (re-assinatura) para apagar seus
-		// objetos R2 obsoletos após a nova gravação (onConflict sobrescreve a linha).
-		const docAntigo = await buscarDocumentoEscala(db, id);
-		const r2Key = `escalas/${new Date().getFullYear()}/${id}_${verificationHash}.pdf`;
-		await bucket.put(r2Key, pdfParaSalvar, {
-			httpMetadata: { contentType: 'application/pdf' }
-		});
 
-		// Cópia de conferência: os MESMOS bytes do documento assinado ANTES da folha
-		// de manifesto (`pdfComRodape` = escala + rodapé/QR + rubrica). Sem isto o
-		// download "sem manifesto" caía na regeneração legada (PDF refeito na hora a
-		// partir dos dados ATUAIS). O fluxo por token já gravava esta cópia.
-		// Best-effort: falha não aborta a assinatura.
-		try {
-			await bucket.put(chaveConferencia(verificationHash), pdfComRodape, {
-				httpMetadata: { contentType: 'application/pdf' }
-			});
-		} catch (err) {
-			logger.warn('[escalas/assinar-simples] Falha ao gravar cópia de conferência', {
-				escala_id: id,
-				error: err instanceof Error ? err.message : String(err)
-			});
-		}
+		const selfieKey = await subirSelfieEscala(bucket, id, validatedEv.selfieBase64);
 
-		// Upload de selfie quando enviada (helper valida magic bytes + tamanho).
-		let selfieKey: string | undefined;
-		if (validatedEv.selfieBase64) {
-			const year = new Date().getFullYear();
-			const r = await uploadSelfieDataUri(
-				bucket,
-				`escalas/${year}/${id}/selfies`,
-				validatedEv.selfieBase64
-			);
-			if (r.ok) selfieKey = r.key;
-		}
-
-		await salvarDocumentoEscala(
+		await persistirEscalaAssinada({
 			db,
-			id,
-			r2Key,
-			finalSignerName,
-			finalSignerCpf || undefined,
-			verificationHash,
-			ip ?? undefined,
-			ua || undefined,
-			validatedEv.latitude ?? undefined,
-			validatedEv.longitude ?? undefined,
+			bucket,
+			escalaId: id,
+			montado,
+			assinante: { nome: u.nome, cpf: u.cpf },
 			selfieKey,
-			arquivoHash,
-			undefined, // assinanteEmail
-			undefined, // tipoCarimboTempo
-			undefined, // cadesMeta
-			platform?.env
-		);
-
-		// R2-4: apaga os objetos R2 obsoletos do documento anterior (re-assinatura).
-		// Novas chaves referenciadas: blob + conferência (hash atual) + selfie atual.
-		await limparR2ObsoletoEscala(db, bucket, docAntigo, [
-			r2Key,
-			chaveConferencia(verificationHash),
-			...(selfieKey ? [selfieKey] : [])
-		]);
+			ip: ip ?? undefined,
+			userAgent: ua || undefined,
+			latitude: validatedEv.latitude,
+			longitude: validatedEv.longitude,
+			env: platform?.env as unknown as Record<string, string | undefined> | undefined
+		});
 
 		await registrarAuditComContexto(db, {
 			usuario: u,
 			acao: 'assinar_escala',
 			entidade: 'escala',
 			entidade_id: id,
-			detalhes: `Escala ${id} assinada via rubrica (avançada) por ${finalSignerName}`
+			detalhes: `Escala ${id} assinada via rubrica (avançada) por ${u.nome}`
 		});
 
 		return json({ success: true, message: 'Escala assinada manualmente com sucesso' });

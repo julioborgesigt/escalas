@@ -54,8 +54,10 @@ import {
 	listarHistoricoPolicial,
 	afastamentoVigente,
 	auditar,
-	contextoDeEvento
+	contextoDeEvento,
+	buscarCredencialAtiva
 } from '$lib/db';
+import { descreverVinculoCredencial } from '$lib/server/assinatura/webauthn/authenticator-data';
 import { deletarChavesR2 } from '$lib/server/r2-cleanup';
 import { logger } from '$lib/server/logger';
 import { policialUpdateSchema } from '$lib/schemas/policial';
@@ -184,11 +186,14 @@ export const load: PageServerLoad = async ({ locals, params, platform, depends }
 	const isSeccional = isAdminSeccional(u);
 	const isUnidade = isAdminUnidade(u);
 
-	const [lotacoes, todasUnidades, ehAdminGeral, historico] = await Promise.all([
+	const [lotacoes, todasUnidades, ehAdminGeral, historico, credencialPasskey] = await Promise.all([
 		isAdm ? listarLotacoes(db) : Promise.resolve<string[]>([]),
 		isAdm || isSeccional || isUnidade ? listarUnidades(db) : Promise.resolve([]),
 		ehAdminGeralVinculado(db, id),
-		listarHistoricoPolicial(db, id)
+		listarHistoricoPolicial(db, id),
+		// A credencial pertence à PESSOA: quem tem conta admin vinculada tem duas
+		// linhas, e consultar pelo par cru mostraria "sem chave" para quem tem.
+		resolverCredencial(db, 'policial', id).then((c) => buscarCredencialAtiva(db, c.dono))
 	]);
 
 	// CPF é cifrado em repouso (LGPD) — decifra para o formulário de edição
@@ -211,7 +216,16 @@ export const load: PageServerLoad = async ({ locals, params, platform, depends }
 		isAdminUnidade: isUnidade,
 		ehAdminGeral,
 		historico,
-		afastamentoVigenteId: afastamentoAtual?.id ?? null
+		afastamentoVigenteId: afastamentoAtual?.id ?? null,
+		// Só o que a tela mostra. `credential_id` e chave pública não descem ao
+		// cliente: são dados da credencial, não da apresentação.
+		passkey: credencialPasskey
+			? {
+					criadoEm: credencialPasskey.criadoEm,
+					ultimoUso: credencialPasskey.ultimoUso,
+					vinculo: descreverVinculoCredencial(credencialPasskey)
+				}
+			: null
 	};
 };
 

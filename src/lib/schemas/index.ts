@@ -27,7 +27,8 @@ export {
 	finalizarAssinaturaGiseSchema,
 	prepararPresencaSchema,
 	finalizarPresencaSchema,
-	assinarSimplesSchema
+	assinarSimplesSchema,
+	finalizarPasskeyEscalaSchema
 } from './assinatura-pdf';
 export {
 	novoIncidenteSchema,
@@ -35,3 +36,4 @@ export {
 	responderSolicitacaoSchema,
 	novaSolicitacaoTitularSchema
 } from './lgpd';
+export { webauthnRegistroSchema } from './webauthn';

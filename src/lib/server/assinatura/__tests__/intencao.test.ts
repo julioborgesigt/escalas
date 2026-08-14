@@ -43,7 +43,10 @@ describe('caminho feliz', () => {
 		const token = await prepararEm(ESCALA_7);
 		await expect(consumirIntencaoAssinatura(db, token, ESCALA_7, ATOR, PDF)).resolves.toEqual({
 			ok: true,
-			verificacaoHash: HASH_PUBLICO
+			verificacaoHash: HASH_PUBLICO,
+			// Preparação por token não carrega contexto: selfie e GPS só existem
+			// quando o `preparar` da assinatura em tela os produziu.
+			contexto: { selfieKey: null, latitude: null, longitude: null }
 		});
 	});
 
@@ -95,7 +98,11 @@ describe('alvo — preparar em A, finalizar em B', () => {
 				ATOR,
 				PDF
 			)
-		).resolves.toEqual({ ok: true, verificacaoHash: HASH_PUBLICO });
+		).resolves.toEqual({
+			ok: true,
+			verificacaoHash: HASH_PUBLICO,
+			contexto: { selfieKey: null, latitude: null, longitude: null }
+		});
 	});
 });
 

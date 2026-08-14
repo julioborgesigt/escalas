@@ -27,6 +27,7 @@ export const load: LayoutServerLoad = async ({ locals, platform, cookies, depend
 	let exigirGpsAssinatura = true;
 	let exigirCodigoEmailAssinatura = false;
 	let restringirSmartphone = false;
+	let exigirPasskeyAssinatura = false;
 	let precisaCadastrarRubrica = false;
 	let recebidosNaoVistos = 0;
 	// Alternância de acesso (ADM Geral ↔ Usuário) para a MESMA pessoa vinculada.
@@ -68,6 +69,7 @@ export const load: LayoutServerLoad = async ({ locals, platform, cookies, depend
 			exigirGpsAssinatura = flags.exigirGpsAssinatura;
 			exigirCodigoEmailAssinatura = flags.exigirCodigoEmailAssinatura;
 			restringirSmartphone = flags.restringirSmartphone;
+			exigirPasskeyAssinatura = flags.exigirPasskeyAssinatura;
 			if (recebidos) recebidosNaoVistos = recebidos.naoVistos;
 
 			if (papel) {
@@ -112,6 +114,7 @@ export const load: LayoutServerLoad = async ({ locals, platform, cookies, depend
 		exigirGpsAssinatura,
 		exigirCodigoEmailAssinatura,
 		restringirSmartphone,
+		exigirPasskeyAssinatura,
 		precisaCadastrarRubrica,
 		recebidosNaoVistos,
 		adminModulo,

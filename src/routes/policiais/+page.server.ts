@@ -24,6 +24,7 @@ import {
 	buscarPolicialPorMatricula,
 	criarPolicial,
 	excluirPolicial,
+	excluirCredenciaisDoDono,
 	listarUnidades,
 	registrarAuditComContexto,
 	auditar,
@@ -278,6 +279,13 @@ export const actions: Actions = {
 		// Remove também a conta Admin Geral vinculada (se houver), evitando um
 		// login admin órfão apontando para um policial inexistente.
 		await desvincularAdminGeral(db, policialId);
+
+		// A passkey é dado pessoal e não tem FK que a leve junto. Só chegamos
+		// aqui quando a pessoa NÃO tem documento assinado (o impedimento acima
+		// barra quem tem), então não há assinatura órfã a conferir depois — e
+		// deixar a chave pública viva seria guardar dado de um titular que não
+		// existe mais no sistema (LGPD art. 16).
+		await excluirCredenciaisDoDono(db, { tipo: 'policial', id: policialId });
 		await excluirPolicial(db, policialId);
 
 		const { contexto, env } = contextoDeEvento(event);

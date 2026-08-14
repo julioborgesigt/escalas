@@ -224,6 +224,19 @@ export const CATALOGO_ACOES = {
 		categoria: 'policial',
 		severidade: 'aviso'
 	},
+	passkey_registrada: {
+		label: 'Registro de chave de assinatura (passkey)',
+		categoria: 'policial',
+		severidade: 'aviso'
+	},
+	// Aviso, e não info: revogar é o que permite registrar em OUTRO aparelho, e
+	// é por esse caminho que uma tomada de conta se disfarçaria de suporte. A
+	// linha da trilha é o que responde "quem autorizou este novo aparelho".
+	passkey_revogada: {
+		label: 'Revogação de chave de assinatura (passkey)',
+		categoria: 'policial',
+		severidade: 'aviso'
+	},
 	solicitar_alteracao_cadastro: {
 		label: 'Solicitação de alteração cadastral (Meu perfil)',
 		categoria: 'policial',
