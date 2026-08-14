@@ -166,8 +166,15 @@ function ecCurveFromSpki(spki: forge.asn1.Asn1): 'P-256' | 'P-384' | 'P-521' | n
  * (32 bytes para P-256, 48 para P-384, 66 para P-521). INTEGERs em DER podem
  * vir com byte 0x00 de padding (positivo) ou menores que o esperado — nós
  * normalizamos para o tamanho exato.
+ *
+ * Exportada porque a asserção WebAuthn (`webauthn/assercao.ts`) tem o mesmo
+ * problema: o autenticador devolve ECDSA em DER e a Web Crypto exige `r||s`.
+ * Era escrever a segunda cópia de uma normalização com dois casos de borda
+ * (byte de sinal, INTEGER curto) — o tipo de duplicação que o CLAUDE.md manda
+ * extrair. `signatureValue` é "binary string" do node-forge; quem tem bytes
+ * converte com `bytesToBinString` de `$lib/crypto/bin`.
  */
-function ecdsaAsn1ToP1363(signatureValue: string, coordLen: number): Uint8Array {
+export function ecdsaAsn1ToP1363(signatureValue: string, coordLen: number): Uint8Array {
 	const asn1 = forge.asn1.fromDer(signatureValue);
 	const [rAsn1, sAsn1] = asn1.value as forge.asn1.Asn1[];
 	const rBytes = binStringToUint8(rAsn1.value as string);

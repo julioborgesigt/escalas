@@ -809,6 +809,83 @@ export const aceitesTermos = sqliteTable(
 	]
 );
 
+// ---- Credenciais WebAuthn (passkey de assinatura) ----
+
+/**
+ * Chave pública da passkey usada na assinatura avançada.
+ *
+ * O dono é a PESSOA, não o par `(tipo, id)`: quem é Admin Geral vinculado tem
+ * duas linhas (`policiais` + `administradores`) e precisa assinar com a mesma
+ * credencial nos dois modos. `resolverCredencial` (`server/auth/credencial.ts`)
+ * é quem resolve isso — gravar o par cru aqui repetiria o FLW-AUTH-002, em que
+ * a senha ia para a linha que o login não lê.
+ *
+ * `revogado_em` em vez de DELETE: a credencial que assinou um documento precisa
+ * continuar consultável para conferir aquela assinatura depois de a pessoa
+ * trocar de aparelho. É registro probatório, não cadastro.
+ *
+ * `backup_elegivel` / `backup_ativo` vêm dos flags BE/BS do `authenticatorData`
+ * e são a diferença entre "chave deste aparelho" e "chave sincronizada no
+ * keychain do titular" — iOS e Android sincronizam por padrão. O manifesto
+ * imprime qual dos dois foi; sem estas colunas o documento afirmaria aparelho
+ * sem ter como saber.
+ */
+export const credenciaisWebauthn = sqliteTable(
+	'credenciais_webauthn',
+	{
+		id: integer('id').primaryKey({ autoIncrement: true }),
+		usuario_tipo: text('usuario_tipo', { enum: ['policial', 'admin'] }).notNull(),
+		usuario_id: integer('usuario_id').notNull(),
+		/** `credentialId` em base64url — identificador, não segredo. */
+		credential_id: text('credential_id').notNull().unique(),
+		/** Chave pública em SPKI, base64. */
+		public_key_spki: text('public_key_spki').notNull(),
+		/** Contador de assinaturas do autenticador; 0 quando não implementado. */
+		contador: integer('contador').notNull().default(0),
+		/** Modelo do autenticador, em hex. NULL quando a cerimônia não trouxe. */
+		aaguid: text('aaguid'),
+		backup_elegivel: integer('backup_elegivel').notNull().default(0),
+		backup_ativo: integer('backup_ativo').notNull().default(0),
+		apelido: text('apelido'),
+		criado_em: text('criado_em')
+			.notNull()
+			.default(sql`(datetime('now', '-3 hours'))`),
+		ultimo_uso: text('ultimo_uso'),
+		revogado_em: text('revogado_em')
+	},
+	(table) => [
+		index('idx_webauthn_credential').on(table.credential_id),
+		index('idx_webauthn_dono').on(table.usuario_tipo, table.usuario_id, table.revogado_em)
+	]
+);
+
+/**
+ * Desafio da cerimônia de REGISTRO de passkey (uso único, minutos de vida).
+ *
+ * Tabela própria em vez de mais um `tipo` em `dois_fatores_tokens`: aquela
+ * carrega um `CHECK(tipo IN (...))` no banco (migração 0010), então aceitar um
+ * tipo novo exige recriar a tabela — rebuild no caminho de autenticação para
+ * hospedar um nonce de cadastro. O desafio da ASSINATURA não passa por aqui: é
+ * o hash do PDF, e vive em `assinatura_intencoes`.
+ */
+export const webauthnDesafios = sqliteTable(
+	'webauthn_desafios',
+	{
+		id: integer('id').primaryKey({ autoIncrement: true }),
+		desafio_id: text('desafio_id').notNull().unique(),
+		usuario_tipo: text('usuario_tipo', { enum: ['policial', 'admin'] }).notNull(),
+		usuario_id: integer('usuario_id').notNull(),
+		/** Bytes do desafio, em base64url — o mesmo valor que o cliente devolve. */
+		desafio: text('desafio').notNull(),
+		usado: integer('usado').notNull().default(0),
+		expires_at: text('expires_at').notNull(),
+		created_at: text('created_at')
+			.notNull()
+			.default(sql`(datetime('now', '-3 hours'))`)
+	},
+	(table) => [index('idx_webauthn_desafio').on(table.desafio_id)]
+);
+
 // ---- Autenticação de Dois Fatores ----
 
 export const doisFatoresTokens = sqliteTable(

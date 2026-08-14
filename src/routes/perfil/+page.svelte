@@ -25,6 +25,7 @@
 	import { mostrarErroDeResultado } from '$lib/enhance-handler';
 	import { apiFetch } from '$lib/api-fetch';
 	import ModalCadastrarRubrica from '$lib/components/ModalCadastrarRubrica.svelte';
+	import CartaoPasskey from './_components/CartaoPasskey.svelte';
 	import ModalShell from '$lib/components/ModalShell.svelte';
 	import ModalAlterarEmailPessoal from './_components/ModalAlterarEmailPessoal.svelte';
 	import SearchableSelect from '$lib/components/SearchableSelect.svelte';
@@ -282,6 +283,11 @@
 			</div>
 		</section>
 	</div>
+
+	<!-- Chave de assinatura (passkey): vizinha da rubrica na intenção do usuário
+	     ("o que preciso ter cadastrado para assinar?"), mas em seção própria
+	     porque prova outra coisa — a rubrica é o desenho, a passkey é a chave. -->
+	<CartaoPasskey credencialAtual={data.passkey} />
 
 	<!-- Dados alteráveis via solicitação -->
 	<section class="card-elevated rounded-2xl p-4 sm:p-6">
