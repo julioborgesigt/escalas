@@ -11,6 +11,7 @@ import { describe, it, expect } from 'vitest';
 import { ehDispositivoMovelUA } from '../document-utils';
 import { validarEvidenciasAvancada, recusadaPorPoliticaDispositivo } from '../signature-service';
 import { ErrorCode } from '../../api';
+import type { FlagsAssinatura } from '../cfg-ass-cache';
 import type { Database } from '../../../db/core';
 
 const UA_IPHONE =
@@ -25,13 +26,14 @@ const UA_MAC =
 	'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Safari/605.1.15';
 const UA_CURL = 'curl/8.4.0';
 
-/** Flags mínimas: só a política sob teste; 2FA/foto/GPS fora do caminho. */
-function flags(restringirSmartphone: boolean) {
+/** Flags mínimas: só a política sob teste; 2FA/foto/GPS/passkey fora do caminho. */
+function flags(restringirSmartphone: boolean): FlagsAssinatura {
 	return {
 		exigirFotoAssinatura: false,
 		exigirGpsAssinatura: false,
 		exigirCodigoEmailAssinatura: false,
-		restringirSmartphone
+		restringirSmartphone,
+		exigirPasskeyAssinatura: false
 	};
 }
 

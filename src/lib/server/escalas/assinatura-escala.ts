@@ -42,11 +42,8 @@ interface R2Putable {
 	put(key: string, value: unknown, options?: Record<string, unknown>): Promise<unknown>;
 }
 
-interface DadosEscala {
-	id: number;
-	titulo: string;
-	tipo: string;
-}
+/** A linha inteira da escala: `gerarPdf*` lê lotação, datas e horários, não só o título. */
+type DadosEscala = Parameters<typeof gerarPdf>[0];
 
 export interface EvidenciasMontagem {
 	rubrica?: string | null;
