@@ -71,10 +71,6 @@ export const POST: RequestHandler = async ({
 	const u = requireAuth(locals);
 	if (u instanceof Response) return u;
 
-	const validated = await validateBody(request, finalizarPasskeyEscalaSchema);
-	if (!validated.ok) return validated.response;
-	const { intencao, preparedPdf, assercao } = validated.data;
-
 	const ip = getClientAddress();
 	const ua = request.headers.get('user-agent') || '';
 
@@ -93,6 +89,13 @@ export const POST: RequestHandler = async ({
 	if (await buscarDocumentoEscala(db, id)) {
 		return conflict('Revogue a assinatura existente antes de assinar novamente');
 	}
+
+	// Permissão ANTES do Zod: o corpo carrega o PDF preparado (até 10 MB). Ler
+	// isso de quem já seria recusado só para devolver 400 mascara o gate — e é
+	// exatamente o que `e2e/autorizacao-negativa` recusa (400 ≠ 401/403/404).
+	const validated = await validateBody(request, finalizarPasskeyEscalaSchema);
+	if (!validated.ok) return validated.response;
+	const { intencao, preparedPdf, assercao } = validated.data;
 
 	const pdfBytes = base64ToBytes(preparedPdf);
 

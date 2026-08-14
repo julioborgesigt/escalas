@@ -242,13 +242,20 @@ export default async function globalSetup() {
 	// Política de assinatura em estado conhecido. `restringir_smartphone` deixou
 	// de ser enfeite de interface e passou a RECUSAR no servidor: com ela ligada,
 	// todo spec que assina via API (UA de runner, que não é móvel) levaria 403.
-	// O valor é global e persiste entre execuções — sem este reset, um spec que
-	// a ligasse e morresse antes de restaurar envenenaria a suíte inteira, com
-	// falha em outro arquivo. Quem precisa dela ligada liga e restaura.
+	// O mesmo vale para `exigir_passkey_assinatura`: o caminho de um tiro
+	// (`assinar-simples`) morre com 403. Os dois valores são globais e
+	// persistem entre execuções — sem este reset, um spec que ligasse e
+	// morresse antes de restaurar envenenaria a suíte inteira, com falha em
+	// outro arquivo. Quem precisa delas ligadas liga e restaura.
 	execSqlSafe(
 		`INSERT INTO configuracoes (chave, valor) VALUES ('restringir_smartphone', '0')
 			ON CONFLICT(chave) DO UPDATE SET valor = '0';`,
-		'política de assinatura'
+		'política restringir_smartphone'
+	);
+	execSqlSafe(
+		`INSERT INTO configuracoes (chave, valor) VALUES ('exigir_passkey_assinatura', '0')
+			ON CONFLICT(chave) DO UPDATE SET valor = '0';`,
+		'política exigir_passkey'
 	);
 
 	execSqlSafe(aceitesSeed);

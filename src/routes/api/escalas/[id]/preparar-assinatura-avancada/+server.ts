@@ -66,18 +66,6 @@ export const POST: RequestHandler = async ({
 	const u = requireAuth(locals);
 	if (u instanceof Response) return u;
 
-	const validated = await validateBody(request, assinarSimplesSchema);
-	if (!validated.ok) return validated.response;
-	const {
-		rubrica,
-		latitude,
-		longitude,
-		selfieBase64,
-		codigoValidação,
-		desafioId,
-		livenessChallenge
-	} = validated.data;
-
 	const ip = getClientAddress();
 	const ua = request.headers.get('user-agent') || '';
 
@@ -117,6 +105,18 @@ export const POST: RequestHandler = async ({
 				'Cadastre-a em Meu Perfil, pelo seu celular, e repita a operação.'
 		);
 	}
+
+	const validated = await validateBody(request, assinarSimplesSchema);
+	if (!validated.ok) return validated.response;
+	const {
+		rubrica,
+		latitude,
+		longitude,
+		selfieBase64,
+		codigoValidação,
+		desafioId,
+		livenessChallenge
+	} = validated.data;
 
 	const evid = await validarEvidenciasAvancada(
 		db,

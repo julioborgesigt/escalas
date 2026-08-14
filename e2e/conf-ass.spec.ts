@@ -27,6 +27,7 @@ type Flags = {
 	exigirGps: boolean;
 	exigirCodigoEmail: boolean;
 	restringirSmartphone: boolean;
+	exigirPasskey: boolean;
 	bloqueados: Array<{ flag: string; motivo: string }>;
 };
 
