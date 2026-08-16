@@ -19,6 +19,7 @@ import {
 } from '../assinatura/pdf-signing';
 import { calcularHashBuffer } from '../assinatura/document-utils';
 import { selarPdfInstitucional, tipoCarimboPrevisto } from '../assinatura/server-seal';
+import { gerarCodigoValidacao } from '../../utils/formato';
 
 export interface TermoPresencaInput {
 	tipo: 'entrada' | 'saida';
@@ -215,7 +216,13 @@ export async function montarTermoPresencaAvancado(opts: {
 /** PDF com manifesto, sem selo — o que a passkey assina. */
 export async function prepararTermoPresencaAvancado(opts: {
 	tipo: 'entrada' | 'saida';
-	presencaId: number;
+	/**
+	 * `gise_presencas.id` — só quando a linha JÁ existe (comprovante sob demanda
+	 * do um-tiro). O `preparar` da passkey omite: a presença só nasce no
+	 * `finalizar`, depois da asserção, e o código público é o mesmo gerador do
+	 * Token A3 (`XXXX-XXXX`).
+	 */
+	presencaId?: number;
 	giseId: number;
 	dataInicio: string;
 	unidadeNome?: string | null;
@@ -249,7 +256,8 @@ export async function prepararTermoPresencaAvancado(opts: {
 
 	const documentHash = await calcularHashBuffer(pdf);
 	const sufixo = opts.tipo === 'entrada' ? 'E' : 'S';
-	const verificationHash = `PRES-${opts.presencaId}-${sufixo}`;
+	const verificationHash =
+		opts.presencaId != null ? `PRES-${opts.presencaId}-${sufixo}` : gerarCodigoValidacao();
 	const verificationUrl = `${opts.origin}/validar/${verificationHash}`;
 
 	// Rodapé universal (hash + base legal + identidade na página do campo). A base

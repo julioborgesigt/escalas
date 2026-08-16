@@ -1033,12 +1033,16 @@ export const assinaturaIntencoes = sqliteTable(
 		 * (mesma classe do FLW-DOC-001). `latitude`/`longitude` já estão
 		 * desenhadas no PDF que a passkey assinou — recebê-las de novo deixaria
 		 * o banco dizer um lugar e o documento assinado dizer outro.
+		 * `rubrica` é a mesma data URI estampada no termo de presença: o
+		 * `preparar` da passkey não grava `gise_presencas` (cancelar o Face ID
+		 * não marca o plantão), então o `finalizar` lê daqui.
 		 *
-		 * NULL no fluxo por token e quando foto/GPS não são exigidos.
+		 * NULL no fluxo por token e quando foto/GPS/rubrica de tela não são exigidos.
 		 */
 		selfie_key: text('selfie_key'),
 		latitude: real('latitude'),
 		longitude: real('longitude'),
+		rubrica: text('rubrica'),
 		usado: integer('usado').notNull().default(0),
 		expires_at: text('expires_at').notNull(),
 		created_at: text('created_at')

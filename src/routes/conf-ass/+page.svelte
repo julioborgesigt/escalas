@@ -12,8 +12,9 @@
 	 *   - REFORÇOS OPCIONAIS — foto, GPS, restrição a smartphone e passkey.
 	 *     Somam prova, mas NÃO mudam a classificação legal, e é isso que o
 	 *     "score" informa. A passkey é o único que toca o inciso "b" do art. 4º
-	 *     II (controle exclusivo dos dados de criação) — e o único que hoje vale
-	 *     só para a escala de serviço, o que o texto do toggle precisa dizer.
+	 *     II (controle exclusivo dos dados de criação). Vale para escala de
+	 *     serviço, GISE, relatório extraordinário e termo de presença; o Token
+	 *     A3 no desktop não entra nessa flag.
 	 *
 	 * A classificação (`nivelEfetivo`) e a base legal vêm calculadas do
 	 * servidor (`signature-level`), nunca deduzidas aqui — o mesmo cálculo
@@ -310,15 +311,13 @@
 			<div class="flex-1">
 				<p class="font-semibold text-sm mb-0.5">Exigir chave de assinatura do celular (passkey)</p>
 				<p class="text-xs text-surface-600 dark:text-surface-400">
-					A assinatura passa a exigir uma chave guardada no celular do signatário, liberada por
+					A assinatura avançada em tela — escala de serviço, GISE, relatório extraordinário e termo
+					de presença — passa a exigir uma chave guardada no celular do signatário, liberada por
 					biometria ou PIN a cada uso. É o único reforço que atende ao <strong
 						>controle exclusivo dos dados de criação</strong
 					>
-					(Lei 14.063/2020, art. 4º II "b").
-					<strong class="text-warning-600 dark:text-warning-400 block mt-1"
-						>Hoje vale apenas para a ESCALA DE SERVIÇO.</strong
-					>
-					GISE, relatório extraordinário e presença seguem no fluxo atual.
+					(Lei 14.063/2020, art. 4º II "b"). Sem chave em Meu Perfil, não é possível assinar em tela.
+					O Token A3 no desktop continua disponível.
 					<strong class="text-error-500 block mt-1"
 						>Antes de ligar: quem não tiver registrado a chave em Meu Perfil não conseguirá assinar.
 						Exige celular com bloqueio de tela configurado.</strong

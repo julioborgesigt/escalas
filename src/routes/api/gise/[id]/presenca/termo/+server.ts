@@ -4,11 +4,11 @@
  * Baixa o comprovante (Termo de Presença) da confirmação de entrada/saída do
  * PRÓPRIO policial autenticado. Dois caminhos, transparentes para o cliente:
  *
- *   - QUALIFICADA (Token A3): há termo assinado em `gise_presenca_termos` — o PDF
- *     já existe no R2 (não é reproduzível); servimos os bytes guardados.
- *   - AVANÇADA (tela/mobile): não há PDF salvo; geramos o termo SOB DEMANDA a
- *     partir das evidências em `gise_presencas` (rubrica + selfie + GPS/IP), com
- *     selo institucional. Nada é persistido.
+ *   - QUALIFICADA (Token A3) ou AVANÇADA por passkey: há termo assinado em
+ *     `gise_presenca_termos` — o PDF já existe no R2 (não é reproduzível);
+ *     servimos os bytes guardados.
+ *   - AVANÇADA um-tiro (flag de passkey desligada): não há PDF salvo; geramos
+ *     o termo SOB DEMANDA a partir das evidências em `gise_presencas`.
  */
 
 import type { RequestHandler } from './$types';
