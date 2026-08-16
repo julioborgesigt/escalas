@@ -78,13 +78,13 @@ export async function solicitarCodigosReposicao(): Promise<{
  * Na reposição, `reposicao` carrega os dois códigos. O servidor recusa se já
  * houver chave ativa e os códigos não vierem — a UI não pode "esquecer".
  *
- * @returns a descrição do vínculo ("deste aparelho" x "sincronizada"), que a
- * tela mostra ao titular — é a mesma frase que vai ao manifesto do PDF.
+ * @returns vínculo (a mesma frase do manifesto) e o recorte do identificador
+ * para o cartão do perfil mostrar na hora, sem recarregar.
  */
 export async function registrarPasskey(
 	apelido?: string | null,
 	reposicao?: CodigosReposicao
-): Promise<{ vinculo: string }> {
+): Promise<{ vinculo: string; identificador: string }> {
 	const opcoes = await apiFetch<OpcoesRegistro>('/api/webauthn/registro');
 
 	const credencial = (await navigator.credentials.create({
@@ -125,19 +125,22 @@ export async function registrarPasskey(
 		);
 	}
 
-	return apiFetch<{ success: true; vinculo: string }>('/api/webauthn/registro', {
-		method: 'POST',
-		body: JSON.stringify({
-			desafioId: opcoes.desafioId,
-			credentialId: credencial.id,
-			clientDataJSON: bytesToBase64Url(new Uint8Array(resposta.clientDataJSON)),
-			authenticatorData: bytesToBase64Url(new Uint8Array(resposta.getAuthenticatorData())),
-			publicKey: bytesToBase64Url(new Uint8Array(spki)),
-			algoritmo: resposta.getPublicKeyAlgorithm(),
-			apelido: apelido ?? null,
-			...(reposicao ?? {})
-		})
-	});
+	return apiFetch<{ success: true; vinculo: string; identificador: string }>(
+		'/api/webauthn/registro',
+		{
+			method: 'POST',
+			body: JSON.stringify({
+				desafioId: opcoes.desafioId,
+				credentialId: credencial.id,
+				clientDataJSON: bytesToBase64Url(new Uint8Array(resposta.clientDataJSON)),
+				authenticatorData: bytesToBase64Url(new Uint8Array(resposta.getAuthenticatorData())),
+				publicKey: bytesToBase64Url(new Uint8Array(spki)),
+				algoritmo: resposta.getPublicKeyAlgorithm(),
+				apelido: apelido ?? null,
+				...(reposicao ?? {})
+			})
+		}
+	);
 }
 
 /** Revoga a própria passkey (troca de aparelho). */

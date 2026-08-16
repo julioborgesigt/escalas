@@ -9,6 +9,10 @@
 	 * para provar. Depois da revogação, quem cadastra a nova é o titular, no
 	 * aparelho dele, em Meu Perfil.
 	 *
+	 * O recorte do identificador é o mesmo do manifesto (`CHAVE DE ASSINATURA`):
+	 * o operador confronta o papel com esta ficha sem abrir o banco. O id
+	 * completo e a chave pública não descem ao cliente.
+	 *
 	 * O texto tem de dizer as duas coisas que o operador precisa saber antes de
 	 * clicar — que documentos já assinados NÃO são afetados, e que revogar não
 	 * devolve o acesso sozinho. Sem isso, a dúvida vira ticket ou, pior, vira
@@ -19,15 +23,25 @@
 	import { apiFetch } from '$lib/api-fetch';
 	import { invalidateAll } from '$app/navigation';
 	import ModalShell from '$lib/components/ModalShell.svelte';
+	import { mensagemChaveNoCartaoAdmin } from '$lib/chave-assinatura-ui';
+
+	type ChaveAnterior = { identificador: string; criadoEm: string; revogadoEm: string };
 
 	const {
 		policialId,
 		nome,
-		passkey
+		passkey,
+		chavesAnteriores = []
 	}: {
 		policialId: number;
 		nome: string;
-		passkey: { criadoEm: string; ultimoUso: string | null; vinculo: string } | null;
+		passkey: {
+			identificador: string;
+			criadoEm: string;
+			ultimoUso: string | null;
+			vinculo: string;
+		} | null;
+		chavesAnteriores?: ChaveAnterior[];
 	} = $props();
 
 	let confirmando = $state(false);
@@ -40,7 +54,11 @@
 			await apiFetch(`/api/policiais/${policialId}/passkey`, { method: 'DELETE' });
 			confirmando = false;
 			await invalidateAll();
-			toaster.create({ title: 'Chave de assinatura revogada.', type: 'success' });
+			toaster.create({
+				title: 'Chave de assinatura revogada.',
+				description: 'Um aviso foi enviado ao e-mail funcional do servidor.',
+				type: 'success'
+			});
 		} catch (e: unknown) {
 			toaster.create({
 				title: e instanceof Error ? e.message : 'Erro ao revogar a chave.',
@@ -67,7 +85,7 @@
 		</span>
 		<span class="block mt-2">
 			A revogação <strong>não cadastra</strong> a chave nova: quem cadastra é o próprio servidor, em Meu
-			Perfil, pelo celular dele.
+			Perfil, pelo celular dele. Um aviso chega no e-mail funcional dele.
 		</span>
 	{/snippet}
 
@@ -88,14 +106,19 @@
 		Chave de assinatura
 	</h2>
 	<p class="text-xs text-surface-600 dark:text-surface-400 mb-3">
-		Chave guardada no celular do servidor, liberada por biometria ou PIN a cada assinatura. O
-		cadastro é sempre feito por ele, em Meu Perfil — aqui só é possível revogar.
+		{mensagemChaveNoCartaoAdmin()} O recorte abaixo é o mesmo da linha
+		<strong>CHAVE DE ASSINATURA</strong> no manifesto do PDF.
 	</p>
 
 	{#if passkey}
 		<div class="p-3 rounded-xl bg-success-500/5 border border-success-500/20 mb-3">
 			<p class="text-sm font-semibold text-surface-900 dark:text-white">
 				Registrada em {formatar(passkey.criadoEm)}
+			</p>
+			<p
+				class="mt-2 font-mono text-sm tracking-wide text-surface-900 dark:text-white break-all select-all"
+			>
+				{passkey.identificador}
 			</p>
 			<p class="text-xs text-surface-600 dark:text-surface-400 mt-0.5">
 				Credencial {passkey.vinculo}.
@@ -114,9 +137,36 @@
 			Revogar chave
 		</button>
 	{:else}
-		<p class="text-sm text-surface-600 dark:text-surface-400 mt-auto">
+		<p
+			class="text-sm text-surface-600 dark:text-surface-400 {chavesAnteriores.length
+				? 'mb-3'
+				: 'mt-auto'}"
+		>
 			Este servidor não tem chave de assinatura registrada. Se a exigência de chave estiver ativa,
 			ele não conseguirá assinar até cadastrar uma em Meu Perfil.
 		</p>
+	{/if}
+
+	{#if chavesAnteriores.length > 0}
+		<div class="mt-3 pt-3 border-t border-surface-200 dark:border-white/10">
+			<p
+				class="text-3xs font-bold text-surface-600 dark:text-surface-400 uppercase tracking-widest mb-2"
+			>
+				Chaves anteriores (revogadas)
+			</p>
+			<p class="text-xs text-surface-600 dark:text-surface-400 mb-2">
+				Documentos já assinados com elas continuam válidos. Compare o recorte do manifesto.
+			</p>
+			<ul class="space-y-2">
+				{#each chavesAnteriores as ant (`${ant.identificador}-${ant.revogadoEm}`)}
+					<li class="text-xs text-surface-700 dark:text-surface-300">
+						<p class="font-mono text-sm tracking-wide break-all select-all">{ant.identificador}</p>
+						<p class="text-surface-600 dark:text-surface-400">
+							Cadastrada em {formatar(ant.criadoEm)} · revogada em {formatar(ant.revogadoEm)}
+						</p>
+					</li>
+				{/each}
+			</ul>
+		</div>
 	{/if}
 </div>

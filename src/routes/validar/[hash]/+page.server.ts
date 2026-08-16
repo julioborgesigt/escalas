@@ -20,12 +20,15 @@
  * imutável, mas o STATUS não — um certificado revogado depois da assinatura
  * muda o resultado, e o snapshot OCSP revela isso na consulta seguinte.
  *
- * `autenticado` só liga o botão de baixar o PDF íntegro; a permissão de fato é
- * checada no endpoint de download.
+ * `autenticado` liga o download e, se o PDF foi assinado com chave, o recorte
+ * da credencial (o mesmo do manifesto) para confronto sem abrir o banco. A
+ * permissão de download é checada no endpoint; o recorte não desce ao visitante
+ * anônimo.
  */
 import {
 	getDB,
 	buscarDocumentoPorHash,
+	buscarCredencialPorId,
 	buscarEscala,
 	buscarGiseEscala,
 	buscarGiseDetalhado,
@@ -40,6 +43,11 @@ import { tryGetR2 } from '$lib/db';
 import { calcularHashBuffer } from '$lib/server/assinatura/document-utils';
 import { mascararNome } from '$lib/utils/pii';
 import { validarSessao } from '$lib/auth';
+import {
+	abreviarCredencial,
+	situacaoChaveNoCadastro,
+	type SituacaoChaveCadastro
+} from '$lib/chave-assinatura-ui';
 import {
 	verificarAssinaturaCompleta,
 	type VerificationResult
@@ -244,13 +252,20 @@ export const load: PageServerLoad = async ({ params, platform, setHeaders, cooki
 	// O documento (R2 blob) é imutável por hash, mas a PÁGINA de validação
 	// pode mudar de status — ex.: o certificado é revogado depois da assinatura,
 	// e o snapshot OCSP armazenado revela isso na próxima consulta. Por isso
-	// NÃO usamos `immutable` aqui (que diria ao browser para nunca revalidar):
-	//   - cache curto (60s) para evitar martelar D1 em F5 repetido
-	//   - revalidação obrigatória para refletir mudanças de status
-	//   - stale-while-revalidate de 5 min para latência baixa
-	setHeaders({
-		'Cache-Control': 'public, max-age=60, must-revalidate, stale-while-revalidate=300'
-	});
+	// NÃO usamos `immutable` aqui (que diria ao browser para nunca revalidar).
+	// Visitante autenticado recebe o recorte da chave: cache público vazaria
+	// esse dado a quem não tem sessão.
+	const autenticado = !!(await validarSessao(db, cookies.get('session_token'), platform).catch(
+		() => null
+	));
+
+	if (autenticado) {
+		setHeaders({ 'Cache-Control': 'private, no-store' });
+	} else {
+		setHeaders({
+			'Cache-Control': 'public, max-age=60, must-revalidate, stale-while-revalidate=300'
+		});
+	}
 
 	// Minimização antes de serializar ao cliente (LGPD art. 6º e 46).
 	// CPF: 3 primeiros + 2 últimos dígitos (ex: 123.***.***-01). Nome do
@@ -262,12 +277,20 @@ export const load: PageServerLoad = async ({ params, platform, setHeaders, cooki
 		? cpfClaroAssinante.replace(/^(\d{3})\d{5}(\d{2})$/, '$1.***.***-$2')
 		: null;
 
-	// Visitante autenticado? Só então a página mostra o botão de download do PDF
-	// íntegro (restrito). A permissão de fato é checada no endpoint de download;
-	// aqui é só para a UI.
-	const autenticado = !!(await validarSessao(db, cookies.get('session_token'), platform).catch(
-		() => null
-	));
+	const credIdBruto =
+		'webauthn_credential_id' in documento ? documento.webauthn_credential_id : null;
+	const credId = typeof credIdBruto === 'string' && credIdBruto.length > 0 ? credIdBruto : null;
+	let chaveAssinatura: {
+		identificador: string;
+		situacao: SituacaoChaveCadastro;
+	} | null = null;
+	if (autenticado && credId) {
+		const cadastro = await buscarCredencialPorId(db, credId);
+		chaveAssinatura = {
+			identificador: abreviarCredencial(credId),
+			situacao: situacaoChaveNoCadastro(cadastro)
+		};
+	}
 
 	return {
 		encontrado: true as const,
@@ -293,6 +316,7 @@ export const load: PageServerLoad = async ({ params, platform, setHeaders, cooki
 		},
 		equipeResumo,
 		autenticado,
+		chaveAssinatura,
 		hash
 	};
 };

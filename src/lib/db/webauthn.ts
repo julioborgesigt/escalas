@@ -25,7 +25,7 @@
  * consultável depois da troca de aparelho — sem isso, conferir aquela
  * assinatura ficaria sem contraparte. É registro probatório, não cadastro.
  */
-import { and, eq, gt, isNull } from 'drizzle-orm';
+import { and, desc, eq, gt, isNull } from 'drizzle-orm';
 import { credenciaisWebauthn, webauthnDesafios } from '../server/schema';
 import type { Database } from './core';
 import { bytesToBase64, base64ToBytes, bytesToBase64Url, base64UrlToBytes } from '$lib/crypto/bin';
@@ -84,6 +84,56 @@ export async function buscarCredencialAtiva(
 		.get();
 
 	return linha ? paraCredencial(linha) : null;
+}
+
+/** Credencial sem chave pública — o que a tela de confronto precisa. */
+export interface CredencialWebauthnResumo {
+	credentialId: string;
+	criadoEm: string;
+	ultimoUso: string | null;
+	revogadoEm: string | null;
+	backupElegivel: boolean;
+	backupAtivo: boolean;
+}
+
+/**
+ * Todas as credenciais da pessoa, ativas e revogadas.
+ *
+ * Revogar não apaga: a linha antiga é a contraparte do recorte impresso no
+ * manifesto. A ficha lista os recortes para o operador confrontar o PDF sem
+ * abrir o banco — a chave pública continua só no servidor.
+ */
+export async function listarCredenciaisDoDono(
+	db: Database,
+	dono: DonoCredencial
+): Promise<CredencialWebauthnResumo[]> {
+	const linhas = await db
+		.select({
+			credentialId: credenciaisWebauthn.credential_id,
+			criadoEm: credenciaisWebauthn.criado_em,
+			ultimoUso: credenciaisWebauthn.ultimo_uso,
+			revogadoEm: credenciaisWebauthn.revogado_em,
+			backupElegivel: credenciaisWebauthn.backup_elegivel,
+			backupAtivo: credenciaisWebauthn.backup_ativo
+		})
+		.from(credenciaisWebauthn)
+		.where(
+			and(
+				eq(credenciaisWebauthn.usuario_tipo, dono.tipo),
+				eq(credenciaisWebauthn.usuario_id, dono.id)
+			)
+		)
+		.orderBy(desc(credenciaisWebauthn.criado_em))
+		.all();
+
+	return linhas.map((l) => ({
+		credentialId: l.credentialId,
+		criadoEm: l.criadoEm,
+		ultimoUso: l.ultimoUso,
+		revogadoEm: l.revogadoEm,
+		backupElegivel: l.backupElegivel === 1,
+		backupAtivo: l.backupAtivo === 1
+	}));
 }
 
 /**

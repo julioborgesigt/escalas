@@ -272,7 +272,8 @@ export async function buscarDocumentoPorHash(db: Database, hash: string) {
 			cms_sha256: termo.cms_sha256,
 			ocsp_response_b64: termo.ocsp_response_b64,
 			ocsp_consultado_em: termo.ocsp_consultado_em,
-			tst_token_b64: termo.tst_token_b64
+			tst_token_b64: termo.tst_token_b64,
+			webauthn_credential_id: termo.webauthn_credential_id
 		};
 	}
 	if (rel) {
@@ -300,7 +301,8 @@ export async function buscarDocumentoPorHash(db: Database, hash: string) {
 			cms_sha256: rel.cms_sha256,
 			ocsp_response_b64: rel.ocsp_response_b64,
 			ocsp_consultado_em: rel.ocsp_consultado_em,
-			tst_token_b64: rel.tst_token_b64
+			tst_token_b64: rel.tst_token_b64,
+			webauthn_credential_id: rel.webauthn_credential_id
 		};
 	}
 

@@ -55,9 +55,10 @@ import {
 	afastamentoVigente,
 	auditar,
 	contextoDeEvento,
-	buscarCredencialAtiva
+	listarCredenciaisDoDono
 } from '$lib/db';
 import { descreverVinculoCredencial } from '$lib/server/assinatura/webauthn/authenticator-data';
+import { abreviarCredencial } from '$lib/chave-assinatura-ui';
 import { deletarChavesR2 } from '$lib/server/r2-cleanup';
 import { logger } from '$lib/server/logger';
 import { policialUpdateSchema } from '$lib/schemas/policial';
@@ -186,15 +187,17 @@ export const load: PageServerLoad = async ({ locals, params, platform, depends }
 	const isSeccional = isAdminSeccional(u);
 	const isUnidade = isAdminUnidade(u);
 
-	const [lotacoes, todasUnidades, ehAdminGeral, historico, credencialPasskey] = await Promise.all([
+	const [lotacoes, todasUnidades, ehAdminGeral, historico, credenciaisPasskey] = await Promise.all([
 		isAdm ? listarLotacoes(db) : Promise.resolve<string[]>([]),
 		isAdm || isSeccional || isUnidade ? listarUnidades(db) : Promise.resolve([]),
 		ehAdminGeralVinculado(db, id),
 		listarHistoricoPolicial(db, id),
 		// A credencial pertence à PESSOA: quem tem conta admin vinculada tem duas
 		// linhas, e consultar pelo par cru mostraria "sem chave" para quem tem.
-		resolverCredencial(db, 'policial', id).then((c) => buscarCredencialAtiva(db, c.dono))
+		resolverCredencial(db, 'policial', id).then((c) => listarCredenciaisDoDono(db, c.dono))
 	]);
+
+	const credencialPasskey = credenciaisPasskey.find((c) => c.revogadoEm == null) ?? null;
 
 	// CPF é cifrado em repouso (LGPD) — decifra para o formulário de edição
 	// (público restrito a Admin Geral).
@@ -217,15 +220,23 @@ export const load: PageServerLoad = async ({ locals, params, platform, depends }
 		ehAdminGeral,
 		historico,
 		afastamentoVigenteId: afastamentoAtual?.id ?? null,
-		// Só o que a tela mostra. `credential_id` e chave pública não descem ao
-		// cliente: são dados da credencial, não da apresentação.
+		// Recorte do manifesto, não o id completo nem a chave pública. Chaves
+		// revogadas entram em `chavesAnteriores` para confrontar PDF antigo.
 		passkey: credencialPasskey
 			? {
+					identificador: abreviarCredencial(credencialPasskey.credentialId),
 					criadoEm: credencialPasskey.criadoEm,
 					ultimoUso: credencialPasskey.ultimoUso,
 					vinculo: descreverVinculoCredencial(credencialPasskey)
 				}
-			: null
+			: null,
+		chavesAnteriores: credenciaisPasskey
+			.filter((c) => c.revogadoEm != null)
+			.map((c) => ({
+				identificador: abreviarCredencial(c.credentialId),
+				criadoEm: c.criadoEm,
+				revogadoEm: c.revogadoEm as string
+			}))
 	};
 };
 

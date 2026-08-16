@@ -575,9 +575,10 @@ Verificar cada transição de status:
 
 - [ ] Acessar URL pública com hash válido → exibir informações do documento
 - [ ] Hash inválido ou inexistente → página de erro adequada
-- [ ] Download do documento validado → PDF baixado corretamente
+- [ ] Download do documento validado → PDF baixado corretamente (só autenticado)
 - [ ] Verificar integridade: hash do arquivo bate com o registrado no banco
-- [ ] Exibir dados do assinante (nome, CPF parcial, data/hora, IP, coordenadas)
+- [ ] Exibir dados do assinante (nome mascarado, CPF parcial, data/hora) — IP/GPS/UA **não** saem na página pública
+- [ ] Assinatura por chave, visitante **autenticado**: recorte da credencial (o mesmo do manifesto) + situação (ativa/revogada/ausente). Anônimo **não** vê o recorte
 
 ---
 
@@ -740,9 +741,11 @@ Verificar cada transição de status:
 - [ ] Com `restringir_smartphone` ligado, POST direto de um desktop (curl/devtools) em `/api/escalas/<id>/assinar-simples` → **403** ("só pode ser feita pelo celular"); pelo celular, o manifesto do PDF traz a linha `POLÍTICA DE DISPOSITIVO`. O fluxo por Token A3 no desktop **continua funcionando** — ele é desktop por projeto
 - [ ] Ligar `exigir_passkey_assinatura` → em escala, GISE, extra e presença o fluxo passa a preparar → biometria → finalizar; POST direto no um-tiro (`assinar-simples` / `assinar` / form action de presença) → **403**
 - [ ] Sem chave registrada em `/perfil`, com a flag ligada → lê o documento (200) e o POST de avançada → **403** (no celular aponta Meu Perfil; no desktop, Token A3). Cadastro da chave só no celular; reposição pede os dois e-mails
+- [ ] Com chave já cadastrada, o perfil mostra o recorte (igual ao manifesto), o vínculo, o último uso e explica que o sistema **não** guarda o modelo do celular — a pessoa localiza a chave no gerenciador do iPhone/Google ou tentando assinar. Avisa: mesma conta Apple/Google → **não** cadastrar de novo (assinar); só repor se trocou/perdeu o aparelho
+- [ ] Cadastro, reposição e revogação (titular ou Admin Geral) disparam aviso no **e-mail funcional** (recorte da chave, sem IP). Falha de envio **não** desfaz o ato
 - [ ] Manifesto do PDF assinado por passkey traz a linha `CHAVE DE ASSINATURA` com "biometria/PIN do titular" e o vínculo da credencial (sincronizada x deste aparelho)
-- [ ] Revogar a chave em `/perfil` e tentar assinar → recusado; recadastrar e assinar → funciona
-- [ ] Admin Geral em `/policiais/[id]` vê o cartão "Chave de assinatura" com a data e o vínculo; revogar por lá impede novas assinaturas e **não** afeta documentos já assinados
+- [ ] Revogar a chave em `/perfil` e tentar assinar → recusado; recadastrar e assinar → funciona. Revogar dispara aviso no e-mail funcional
+- [ ] Admin Geral em `/policiais/[id]` vê o cartão "Chave de assinatura": chave única, cadastro só pelo próprio servidor em Meu Perfil, da função de administrador só é possível revogar. Recorte do identificador (igual ao manifesto), data e vínculo; chaves revogadas aparecem abaixo. Revogar por lá impede novas assinaturas e **não** afeta documentos já assinados
 - [ ] Após assinar com passkey, a linha de `escala_documentos` traz `webauthn_client_data`/`webauthn_assinatura` preenchidos (é o que permite reconferir a asserção depois)
 - [ ] Tentar desligar `exigir_codigo_email_assinatura` → **bloqueado** (2FA por e-mail é requisito legal mínimo; o PUT rejeita `exigirCodigoEmail=false`)
 

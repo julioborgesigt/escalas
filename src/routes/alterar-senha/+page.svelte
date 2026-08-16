@@ -27,6 +27,7 @@
 	import { useMobile } from '$lib/composables';
 	import { passkeyDisponivel, registrarPasskey } from '$lib/webauthn-cliente';
 	import { invalidateShared } from '$lib/cross-tab-invalidate';
+	import { mensagemOfertaChavePrimeiroAcesso } from '$lib/chave-assinatura-ui';
 
 	let senhaAtual = $state('');
 	let novaSenha = $state('');
@@ -137,8 +138,7 @@
 				<div class="text-center mb-6">
 					<h1 class="text-xl font-bold">Chave de assinatura</h1>
 					<p class="text-sm text-surface-600 dark:text-surface-400 mt-1">
-						Opcional agora. Sem ela você entra e lê; a assinatura avançada em tela fica para quando
-						cadastrar no celular.
+						{mensagemOfertaChavePrimeiroAcesso()}
 					</p>
 				</div>
 				{#if error}

@@ -19,7 +19,12 @@
 	 * a mesma frase que vai ao manifesto do PDF.
 	 *
 	 * Cadastro só no celular. Reposição (já há chave) pede os dois e-mails antes
-	 * da cerimônia. Primeiro cadastro não.
+	 * da cerimônia — e avisa que cadastrar de novo substitui, não soma aparelho.
+	 * Primeiro cadastro não pede os dois e-mails. Em ambos, um aviso chega no
+	 * e-mail funcional depois que o ato concluir.
+	 *
+	 * O recorte do identificador e a data do último uso são o que o titular tem
+	 * para reconhecer a chave: o sistema não guarda o modelo do celular.
 	 */
 	import { onMount, untrack } from 'svelte';
 	import { toaster } from '$lib/toast';
@@ -32,11 +37,23 @@
 		revogarPasskey,
 		solicitarCodigosReposicao
 	} from '$lib/webauthn-cliente';
+	import {
+		mensagemJaTemChaveNoPerfil,
+		mensagemReposicaoDoisEmails,
+		mensagemOndeEstaAChave
+	} from '$lib/chave-assinatura-ui';
+
+	type CredencialPerfil = {
+		criadoEm: string;
+		vinculo: string;
+		identificador: string;
+		ultimoUso: string | null;
+	};
 
 	const {
 		credencialAtual
 	}: {
-		credencialAtual: { criadoEm: string; vinculo: string } | null;
+		credencialAtual: CredencialPerfil | null;
 	} = $props();
 
 	// Semente do `load`, depois vida própria: registrar e revogar atualizam o
@@ -68,13 +85,16 @@
 		return e instanceof Error ? e.message : 'Erro ao registrar a chave.';
 	}
 
-	async function aposRegistrar(vinculo: string) {
-		atual = { criadoEm: new Date().toISOString(), vinculo };
+	async function aposRegistrar(vinculo: string, identificador: string) {
+		atual = { criadoEm: new Date().toISOString(), vinculo, identificador, ultimoUso: null };
 		etapa = 'idle';
 		codigoInstitucional = '';
 		codigoPessoal = '';
 		await invalidateShared('app:chave-assinatura');
-		toaster.create({ title: 'Chave de assinatura registrada.', type: 'success' });
+		toaster.create({
+			title: 'Chave de assinatura registrada. Um aviso foi enviado ao e-mail funcional.',
+			type: 'success'
+		});
 	}
 
 	async function iniciarCadastro() {
@@ -105,7 +125,7 @@
 		loading.show('Aguardando confirmação no aparelho...');
 		try {
 			const r = await registrarPasskey();
-			await aposRegistrar(r.vinculo);
+			await aposRegistrar(r.vinculo, r.identificador);
 		} catch (e: unknown) {
 			toaster.create({ title: mensagemErro(e), type: 'error' });
 		} finally {
@@ -122,7 +142,7 @@
 				desafioPessoal,
 				codigoPessoal
 			});
-			await aposRegistrar(r.vinculo);
+			await aposRegistrar(r.vinculo, r.identificador);
 		} catch (e: unknown) {
 			toaster.create({ title: mensagemErro(e), type: 'error' });
 		} finally {
@@ -138,7 +158,10 @@
 			confirmarRevogacao = false;
 			etapa = 'idle';
 			await invalidateShared('app:chave-assinatura');
-			toaster.create({ title: 'Chave de assinatura revogada.', type: 'info' });
+			toaster.create({
+				title: 'Chave de assinatura revogada. Um aviso foi enviado ao e-mail funcional.',
+				type: 'info'
+			});
 		} catch (e: unknown) {
 			toaster.create({
 				title: e instanceof Error ? e.message : 'Erro ao revogar.',
@@ -149,9 +172,32 @@
 		}
 	}
 
-	const dataFormatada = $derived(atual ? new Date(atual.criadoEm).toLocaleDateString('pt-BR') : '');
 	const reposicaoPronta = $derived(codigoInstitucional.length === 6 && codigoPessoal.length === 6);
 </script>
+
+{#snippet resumoChave(c: CredencialPerfil)}
+	<div class="p-3 rounded-xl bg-success-500/5 border border-success-500/20">
+		<p class="text-sm font-semibold text-surface-900 dark:text-white">
+			Chave registrada em {new Date(c.criadoEm).toLocaleDateString('pt-BR')}
+		</p>
+		<p
+			class="mt-2 font-mono text-sm tracking-wide text-surface-900 dark:text-white break-all select-all"
+		>
+			{c.identificador}
+		</p>
+		<p class="text-xs text-surface-600 dark:text-surface-400 mt-0.5">
+			Credencial {c.vinculo}.
+			{#if c.ultimoUso}
+				Último uso em {new Date(c.ultimoUso).toLocaleDateString('pt-BR')}.
+			{:else}
+				Ainda não usada para assinar.
+			{/if}
+		</p>
+		<p class="text-xs text-surface-600 dark:text-surface-400 mt-2">
+			{mensagemOndeEstaAChave()}
+		</p>
+	</div>
+{/snippet}
 
 <section class="card-elevated rounded-2xl p-4 sm:p-6">
 	<h2
@@ -172,13 +218,8 @@
 			</p>
 		</div>
 		{#if atual}
-			<div class="p-3 mt-3 rounded-xl bg-success-500/5 border border-success-500/20">
-				<p class="text-sm font-semibold text-surface-900 dark:text-white">
-					Chave registrada em {dataFormatada}
-				</p>
-				<p class="text-xs text-surface-600 dark:text-surface-400 mt-0.5">
-					Credencial {atual.vinculo}.
-				</p>
+			<div class="mt-3">
+				{@render resumoChave(atual)}
 			</div>
 			{#if confirmarRevogacao}
 				<div
@@ -223,10 +264,15 @@
 				> configurado.
 			</p>
 		</div>
+		{#if atual}
+			<div class="mt-3">
+				{@render resumoChave(atual)}
+			</div>
+		{/if}
 	{:else if etapa === 'reposicao'}
 		<div class="flex flex-col gap-3">
 			<p class="text-sm text-surface-600 dark:text-surface-400">
-				Registrar de novo substitui a chave atual. Confirme os códigos enviados aos dois e-mails.
+				{mensagemReposicaoDoisEmails()}
 			</p>
 			<label class="label">
 				<span class="label-text text-xs">Código do e-mail institucional ({emailInstMascarado})</span
@@ -274,14 +320,7 @@
 		</div>
 	{:else if atual}
 		<div class="flex flex-col gap-3">
-			<div class="p-3 rounded-xl bg-success-500/5 border border-success-500/20">
-				<p class="text-sm font-semibold text-surface-900 dark:text-white">
-					Chave registrada em {dataFormatada}
-				</p>
-				<p class="text-xs text-surface-600 dark:text-surface-400 mt-0.5">
-					Credencial {atual.vinculo}.
-				</p>
-			</div>
+			{@render resumoChave(atual)}
 			{#if confirmarRevogacao}
 				<div class="p-3 rounded-xl bg-error-500/5 border border-error-500/20 flex flex-col gap-2">
 					<p class="text-xs text-surface-700 dark:text-surface-300">
@@ -306,6 +345,9 @@
 					</div>
 				</div>
 			{:else}
+				<p class="text-xs text-surface-600 dark:text-surface-400">
+					{mensagemJaTemChaveNoPerfil()}
+				</p>
 				<div class="flex gap-2">
 					<button
 						type="button"
@@ -323,10 +365,6 @@
 						Revogar
 					</button>
 				</div>
-				<p class="text-3xs text-surface-600 dark:text-surface-400 italic">
-					Registrar de novo substitui a chave atual — é o caminho de quem trocou de celular. Os dois
-					e-mails confirmam a reposição.
-				</p>
 			{/if}
 		</div>
 	{:else}

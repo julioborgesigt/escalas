@@ -13,6 +13,7 @@ import {
 } from '$lib/db';
 import { credencialDoUsuario } from '$lib/server/auth/credencial';
 import { descreverVinculoCredencial } from '$lib/server/assinatura/webauthn/authenticator-data';
+import { abreviarCredencial } from '$lib/chave-assinatura-ui';
 import { policiais } from '$lib/server/schema';
 import { classesDoCargo, TELEFONE_RE } from '$lib/perfil-campos';
 import { limparTelefone } from '$lib/utils/formato';
@@ -63,10 +64,15 @@ export const load: PageServerLoad = async ({ locals, platform }) => {
 		classes: classesDoCargo(row.cargo),
 		lotacoes: unidades.map((un) => un.nome),
 		solicitacoes,
-		// Só o que a tela precisa mostrar. `credential_id` e chave pública NÃO
-		// vão para o cliente: são dados da credencial, não da apresentação.
+		// Recorte do identificador (o mesmo do manifesto) + último uso. O id
+		// completo e a chave pública NÃO vão para o cliente.
 		passkey: credencial
-			? { criadoEm: credencial.criadoEm, vinculo: descreverVinculoCredencial(credencial) }
+			? {
+					criadoEm: credencial.criadoEm,
+					ultimoUso: credencial.ultimoUso,
+					vinculo: descreverVinculoCredencial(credencial),
+					identificador: abreviarCredencial(credencial.credentialId)
+				}
 			: null
 	};
 };

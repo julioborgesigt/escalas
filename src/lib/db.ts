@@ -45,6 +45,7 @@ export { registrarAceite } from './db/termos';
 export {
 	buscarCredencialAtiva,
 	buscarCredencialPorId,
+	listarCredenciaisDoDono,
 	registrarCredencial,
 	revogarCredenciaisAtivas,
 	excluirCredenciaisDoDono,
@@ -52,7 +53,7 @@ export {
 	criarDesafioWebauthn,
 	consumirDesafioWebauthn
 } from './db/webauthn';
-export type { CredencialWebauthn, DonoCredencial } from './db/webauthn';
+export type { CredencialWebauthn, CredencialWebauthnResumo, DonoCredencial } from './db/webauthn';
 
 export {
 	salvarConfiguracao,

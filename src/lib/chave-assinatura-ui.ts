@@ -3,8 +3,31 @@
  * exige a chave. Sem chave, o titular lê; o botão não é oferecido.
  *
  * Puro de propósito: o layout já resolveu `temChaveAssinatura` no servidor.
- * A UI só decide se mostra o controle.
+ * A UI só decide se mostra o controle. O recorte do identificador também
+ * mora aqui para o manifesto e a tela confrontarem o MESMO texto.
  */
+
+/**
+ * `credentialId` é base64url de 16 a 90+ caracteres — inteiro no manifesto
+ * ou na ficha, empurra o cartão. As pontas bastam para confrontar o PDF com
+ * o cadastro. PDF e UI importam ESTA função: duas abreviações divergentes
+ * fariam o confronto "não bater" sem o dado ter mudado.
+ */
+export function abreviarCredencial(id: string): string {
+	return id.length <= 20 ? id : `${id.slice(0, 8)}...${id.slice(-8)}`;
+}
+
+/** A credencial deste PDF ainda está no cadastro, foi revogada, ou sumiu. */
+export type SituacaoChaveCadastro = 'ativa' | 'revogada' | 'ausente';
+
+/** Situação no cadastro — o recorte do PDF pode ser de uma chave já revogada. */
+export function situacaoChaveNoCadastro(
+	cadastro: { revogadaEm: string | null } | null
+): SituacaoChaveCadastro {
+	if (!cadastro) return 'ausente';
+	return cadastro.revogadaEm ? 'revogada' : 'ativa';
+}
+
 export function avancadaEmTelaDisponivel(exigirPasskey: boolean, temChave: boolean): boolean {
 	return !exigirPasskey || temChave;
 }
@@ -32,4 +55,60 @@ export function mensagemConviteChave(isMobile: boolean): string {
 		);
 	}
 	return 'A assinatura avançada em tela é no celular. Neste computador, use o Token A3.';
+}
+
+/**
+ * Já há chave: sync da conta Apple/Google NÃO é cadastro novo. Cadastrar de
+ * novo substitui — é só para troca ou perda de aparelho.
+ */
+export function mensagemJaTemChaveNoPerfil(): string {
+	return (
+		'Você já tem chave de assinatura. Se este celular usa a mesma conta Apple/Google, ' +
+		'não cadastre de novo — assine normalmente. Só registre aqui se trocou de aparelho ' +
+		'ou perdeu o anterior: a chave antiga deixa de valer para novas assinaturas. ' +
+		'Os documentos já assinados continuam válidos.'
+	);
+}
+
+/** Passo dos dois códigos, depois da confirmação de que vai substituir. */
+export function mensagemReposicaoDoisEmails(): string {
+	return (
+		'Registrar de novo substitui a chave atual. Confirme os códigos enviados aos dois e-mails. ' +
+		'Um aviso chega no e-mail funcional quando a troca concluir.'
+	);
+}
+
+/** Oferta pulável no primeiro acesso, só no celular. */
+export function mensagemOfertaChavePrimeiroAcesso(): string {
+	return (
+		'Opcional agora. Sem ela você entra e lê; a assinatura avançada em tela fica para quando ' +
+		'cadastrar no celular. Depois de cadastrar, um aviso chega no e-mail funcional.'
+	);
+}
+
+/**
+ * Cartão da ficha do policial, visão do Admin Geral. Cadastro é do titular;
+ * daqui só se revoga. "Chave única" é o contrato: uma ativa por pessoa.
+ */
+export function mensagemChaveNoCartaoAdmin(): string {
+	return (
+		'Chave única, guardada no celular do servidor, liberada por biometria ou PIN a cada assinatura. ' +
+		'O cadastro só pode ser feito pelo próprio servidor, em Meu Perfil. ' +
+		'Aqui na função de administrador, só é possível revogar.'
+	);
+}
+
+/**
+ * Titular perguntando "em qual celular cadastrei?". Não gravamos modelo,
+ * IMEI nem nome (`attestation: 'none'`). O vínculo (conta Apple/Google ×
+ * só aquele aparelho) e o recorte são o que dá para mostrar.
+ */
+export function mensagemOndeEstaAChave(): string {
+	return (
+		'O sistema não guarda o modelo do celular. A frase de vínculo acima diz se a chave está ' +
+		'na sua conta Apple/Google (vários aparelhos) ou só naquele que cadastrou. ' +
+		'Para localizar: no iPhone, Ajustes → Senhas → Chaves-de-acesso; no Android, ' +
+		'Gerenciador de senhas do Google. Ou tente assinar neste celular — o aparelho que ' +
+		'tiver a chave pede a biometria.'
+	);
 }

@@ -18,6 +18,7 @@ import { bancoMigrado, drizzleSobre } from './sqlite-migrado';
 import {
 	buscarCredencialAtiva,
 	buscarCredencialPorId,
+	listarCredenciaisDoDono,
 	registrarCredencial,
 	revogarCredenciaisAtivas,
 	excluirCredenciaisDoDono,
@@ -87,6 +88,21 @@ describe('uma credencial ativa por pessoa', () => {
 		expect(await buscarCredencialAtiva(db, OUTRO)).toBeNull();
 		// `policiais.id = 42` e `administradores.id = 42` são pessoas diferentes.
 		expect(await buscarCredencialAtiva(db, ADMIN_42)).toBeNull();
+	});
+});
+
+describe('listarCredenciaisDoDono', () => {
+	it('traz ativa e revogada, sem a chave pública, e não vaza para outra pessoa', async () => {
+		await registrarCredencial(db, POLICIAL, nova('cred-1'));
+		await registrarCredencial(db, POLICIAL, nova('cred-2'));
+		await registrarCredencial(db, OUTRO, nova('alheia'));
+
+		const lista = await listarCredenciaisDoDono(db, POLICIAL);
+		expect(lista.map((c) => c.credentialId).sort()).toEqual(['cred-1', 'cred-2']);
+		expect(lista.find((c) => c.credentialId === 'cred-2')?.revogadoEm).toBeNull();
+		expect(lista.find((c) => c.credentialId === 'cred-1')?.revogadoEm).not.toBeNull();
+		expect(lista[0]).not.toHaveProperty('publicKeySpki');
+		expect(await listarCredenciaisDoDono(db, ADMIN_42)).toEqual([]);
 	});
 });
 

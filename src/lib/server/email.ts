@@ -21,6 +21,7 @@ import { redigirEmails } from '$lib/utils/pii';
 import { CORPORACAO_PROSA } from '$lib/institucional';
 import { mascararEmail } from '$lib/utils/pii';
 import { getDB, buscarProvedorEmailPadrao, type EmailProvedor } from '$lib/db';
+import { abreviarCredencial } from '$lib/chave-assinatura-ui';
 
 function escapeHtml(value: string): string {
 	return value
@@ -506,6 +507,90 @@ export async function enviarAvisoTrocaEmailPessoal(
 		'aviso-troca-email-pessoal',
 		destinatarioFuncional,
 		'Aviso de segurança: e-mail pessoal alterado — Sistema de Escalas',
+		html,
+		'Aviso enviado'
+	);
+}
+
+/** Cadastro, substituição ou revogação da chave — o rastro visível ao titular. */
+export type EventoAvisoChaveAssinatura = 'cadastrada' | 'substituida' | 'revogada';
+
+const ASSUNTO_AVISO_CHAVE: Record<EventoAvisoChaveAssinatura, string> = {
+	cadastrada: 'Aviso de segurança: chave de assinatura cadastrada — Sistema de Escalas',
+	substituida: 'Aviso de segurança: chave de assinatura substituída — Sistema de Escalas',
+	revogada: 'Aviso de segurança: chave de assinatura revogada — Sistema de Escalas'
+};
+
+function corpoEventoChave(evento: EventoAvisoChaveAssinatura, quando: string): string {
+	if (evento === 'cadastrada') {
+		return `A <strong>chave de assinatura</strong> da sua conta acaba de ser <strong>cadastrada</strong> (${escapeHtml(quando)}).`;
+	}
+	if (evento === 'substituida') {
+		return (
+			`A <strong>chave de assinatura</strong> da sua conta acaba de ser <strong>substituída</strong> (${escapeHtml(quando)}). ` +
+			'A chave anterior deixa de valer para novas assinaturas.'
+		);
+	}
+	return `A <strong>chave de assinatura</strong> da sua conta acaba de ser <strong>revogada</strong> (${escapeHtml(quando)}).`;
+}
+
+function recadoSeNaoReconhece(evento: EventoAvisoChaveAssinatura): string {
+	if (evento === 'revogada') {
+		return (
+			'🔒 Se você <strong>não reconhece</strong> esta revogação, comunique o Admin Geral e ' +
+			'<strong>não cadastre</strong> uma chave nova até esclarecer. Documentos já assinados continuam válidos.'
+		);
+	}
+	return (
+		'🔒 Se você <strong>não reconhece</strong> esta alteração, revogue a chave em Meu Perfil ' +
+		'(pelo celular) ou peça ao Admin Geral. Documentos já assinados continuam válidos.'
+	);
+}
+
+/**
+ * Aviso informativo ao E-MAIL FUNCIONAL quando a chave de assinatura é
+ * cadastrada, substituída ou revogada. Rastro visível ao titular — o mesmo
+ * papel do aviso de troca de e-mail pessoal. Best-effort no caller: falha de
+ * envio não desfaz o ato.
+ *
+ * O identificador vai recortado (o mesmo do manifesto). Sem IP, user-agent
+ * nem o id completo.
+ *
+ * `quando` entra nos goldens: passe um instante fixo no teste; em produção
+ * o caller omite e usa a hora de Brasília.
+ */
+export async function enviarAvisoChaveAssinatura(
+	destinatarioFuncional: string,
+	nomeUsuario: string,
+	evento: EventoAvisoChaveAssinatura,
+	credentialId: string,
+	platform: App.Platform | undefined,
+	quando?: string
+): Promise<void> {
+	const instante = quando ?? new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+	const recorte = abreviarCredencial(credentialId);
+	const html =
+		layoutEmail(`            <p style="margin:0 0 8px;color:#333;font-size:15px;">Olá, <strong>${escapeHtml(nomeUsuario)}</strong>!</p>
+            <p style="margin:0 0 16px;color:#555;font-size:14px;">
+              ${corpoEventoChave(evento, instante)}
+            </p>
+            <p style="margin:0 0 16px;color:#555;font-size:14px;">
+              Identificador (como no manifesto):
+              <strong style="font-family:Consolas,Monaco,monospace;letter-spacing:0.04em;">${escapeHtml(recorte)}</strong>
+            </p>
+            <p style="margin:0 0 8px;color:#666;font-size:13px;">
+              ✅ Se você reconhece esta alteração, nenhuma ação é necessária.
+            </p>
+            <p style="margin:0;color:#666;font-size:13px;">
+              ${recadoSeNaoReconhece(evento)}
+            </p>
+`);
+
+	await enviarERegistrar(
+		platform,
+		'aviso-chave-assinatura',
+		destinatarioFuncional,
+		ASSUNTO_AVISO_CHAVE[evento],
 		html,
 		'Aviso enviado'
 	);

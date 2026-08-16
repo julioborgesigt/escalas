@@ -22,14 +22,22 @@
  *
  * Documentos já assinados não são afetados: a credencial revogada continua na
  * tabela (`revogado_em`), consultável para conferir aquelas assinaturas.
+ *
+ * Depois da revogação, um aviso vai ao e-mail funcional do titular (best-effort).
  */
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { eq } from 'drizzle-orm';
-import { getDB, revogarCredenciaisAtivas, registrarAuditComContexto } from '$lib/db';
+import {
+	getDB,
+	revogarCredenciaisAtivas,
+	registrarAuditComContexto,
+	buscarCredencialAtiva
+} from '$lib/db';
 import { policiais } from '$lib/server/schema';
 import { requireAdmin, badRequest, notFound } from '$lib/server/api';
 import { resolverCredencial } from '$lib/server/auth/credencial';
+import { avisarChaveNoEmailFuncional } from '$lib/server/assinatura/aviso-chave';
 
 export const DELETE: RequestHandler = async ({ locals, platform, params }) => {
 	const u = requireAdmin(locals);
@@ -40,7 +48,7 @@ export const DELETE: RequestHandler = async ({ locals, platform, params }) => {
 
 	const db = getDB(platform);
 	const alvo = await db
-		.select({ id: policiais.id, nome: policiais.nome })
+		.select({ id: policiais.id, nome: policiais.nome, email: policiais.email })
 		.from(policiais)
 		.where(eq(policiais.id, id))
 		.get();
@@ -50,6 +58,7 @@ export const DELETE: RequestHandler = async ({ locals, platform, params }) => {
 	// `policiais` e em `administradores`, e revogar pelo par cru deixaria a
 	// credencial viva no outro modo.
 	const credencial = await resolverCredencial(db, 'policial', id);
+	const ativa = await buscarCredencialAtiva(db, credencial.dono);
 	const quantas = await revogarCredenciaisAtivas(db, credencial.dono);
 
 	if (quantas > 0) {
@@ -59,6 +68,12 @@ export const DELETE: RequestHandler = async ({ locals, platform, params }) => {
 			entidade: 'policial',
 			entidade_id: id,
 			detalhes: `Passkey de ${alvo.nome} revogada pela administração`
+		});
+		await avisarChaveNoEmailFuncional(platform, {
+			email: alvo.email,
+			nome: alvo.nome,
+			evento: 'revogada',
+			credentialId: ativa?.credentialId ?? null
 		});
 	}
 
