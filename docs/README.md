@@ -16,6 +16,16 @@ Mapa de toda a documentação do projeto, separada em **documentos vivos** (mant
 | [`src/lib/server/assinatura/icp-brasil/README.md`](../src/lib/server/assinatura/icp-brasil/README.md) | Trust store ICP-Brasil: o que é, como atualizar (script Windows/Linux), frequência                                                          | Dev / operador                     |
 | [`static/face-api/README.md`](../static/face-api/README.md)                     | Modelos de reconhecimento facial servidos localmente e como atualizá-los                                                                    | Dev                                |
 
+## Planos de produto em aberto
+
+Decisões de produto ainda não executadas. Quando o comportamento correspondente
+entrar no código, o plano vira registro histórico ([`HISTORICO.md`](HISTORICO.md))
+e os documentos vivos (README/DEPLOY/TESTING/termo) atualizam no mesmo PR.
+
+| Documento | Conteúdo | Status |
+| --------- | -------- | ------ |
+| [`PLANO_CHAVE_ASSINATURA.md`](PLANO_CHAVE_ASSINATURA.md) | Chave de assinatura (passkey) em toda avançada; senha + 2FA + chave como piso; cadastro só no celular | 15/ago/2026 — fases 0–3 no código; fase 4 (trancar a flag) ainda não |
+
 ## Registros históricos e decisões arquivadas
 
 Os relatórios de auditoria e as avaliações arquivadas **não vivem mais no working tree** — foram removidos em 2026-07-20 para enxugar o repositório e continuam preservados no histórico do Git. O catálogo completo (o que cada um registra, quais achados vieram de cada um e o comando `git show` para lê-los) está em [`HISTORICO.md`](HISTORICO.md).

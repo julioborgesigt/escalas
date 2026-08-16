@@ -25,6 +25,7 @@ import { postPageAction } from '$lib/post-form-action';
 import type { ResGiseEscalaSelecionavel, ResGisePageData } from '$lib/types';
 import type { GisePresenca } from '$lib/server/schema';
 import type { SignaturePadConfirmPayload } from '$lib/components/SignaturePadTypes';
+import { assinarPresencaComPasskey } from '$lib/assinatura-passkey';
 import { navigateWithFilters } from './res-gise-navegacao.svelte';
 
 function messageFromUnknown(e: unknown): string {
@@ -154,7 +155,8 @@ export function usePresencaGise(getData: () => ResGisePageData) {
 			lng: longitude,
 			selfie: selfieBase64,
 			codigoEmail,
-			desafioId
+			desafioId,
+			reauthId
 		} = payload;
 		const fd = new FormData();
 		fd.set('giseId', String(giseId));
@@ -164,23 +166,52 @@ export function usePresencaGise(getData: () => ResGisePageData) {
 		if (selfieBase64) fd.set('selfieBase64', selfieBase64);
 		if (codigoEmail) fd.set('codigoEmail', codigoEmail);
 		if (desafioId) fd.set('desafioId', desafioId);
+		if (reauthId) fd.set('reauthId', reauthId);
 		return fd;
 	}
 
-	async function salvarEntrada(payload: SignaturePadConfirmPayload) {
+	function evidenciasPresenca(payload: SignaturePadConfirmPayload) {
+		return {
+			rubrica: payload.rubrica,
+			latitude: payload.lat,
+			longitude: payload.lng,
+			selfieBase64: payload.selfie,
+			codigoValidação: payload.codigoEmail,
+			desafioId: payload.desafioId,
+			livenessChallenge: payload.liveness,
+			reauthId: payload.reauthId
+		};
+	}
+
+	async function confirmarPresenca(tipo: 'entrada' | 'saida', payload: SignaturePadConfirmPayload) {
 		if (!escalaSelecionada) return;
 		const giseAlvoId = escalaSelecionada.id;
-		loading.show('Confirmando Entrada...');
+		loading.show(tipo === 'entrada' ? 'Confirmando Entrada...' : 'Confirmando Saída...');
 		try {
-			const result = await postPageAction('salvarEntrada', formDataPresenca(giseAlvoId, payload));
-			if (result.type !== 'success') {
-				throw new Error(erroDaAction(result, 'Erro ao salvar entrada'));
+			if (page.data.exigirPasskeyAssinatura) {
+				await assinarPresencaComPasskey(giseAlvoId, tipo, evidenciasPresenca(payload), (rotulo) =>
+					loading.show(rotulo)
+				);
+			} else {
+				const action = tipo === 'entrada' ? 'salvarEntrada' : 'salvarSaida';
+				const result = await postPageAction(action, formDataPresenca(giseAlvoId, payload));
+				if (result.type !== 'success') {
+					throw new Error(
+						erroDaAction(
+							result,
+							tipo === 'entrada' ? 'Erro ao salvar entrada' : 'Erro ao salvar saída'
+						)
+					);
+				}
 			}
 
-			toaster.success({ title: 'Entrada confirmada com sucesso' });
+			toaster.success({
+				title:
+					tipo === 'entrada' ? 'Entrada confirmada com sucesso' : 'Saída confirmada com sucesso'
+			});
 			capturandoRubrica = false;
 			await invalidateShared('app:res-gise', 'app:papel-gise');
-			reaplicarEscalaSelecionada('entrada');
+			reaplicarEscalaSelecionada(tipo);
 		} catch (e: unknown) {
 			toaster.error({ title: 'Erro', description: messageFromUnknown(e) });
 		} finally {
@@ -188,30 +219,12 @@ export function usePresencaGise(getData: () => ResGisePageData) {
 		}
 	}
 
-	async function salvarSaida(payload: SignaturePadConfirmPayload) {
-		if (!escalaSelecionada) return;
-		const giseAlvoIdSaida = escalaSelecionada.id;
-		loading.show('Confirmando Saída...');
-		try {
-			const result = await postPageAction(
-				'salvarSaida',
-				formDataPresenca(giseAlvoIdSaida, payload)
-			);
-			if (result.type !== 'success') {
-				throw new Error(erroDaAction(result, 'Erro ao salvar saída'));
-			}
+	async function salvarEntrada(payload: SignaturePadConfirmPayload) {
+		await confirmarPresenca('entrada', payload);
+	}
 
-			toaster.success({ title: 'Saída confirmada com sucesso' });
-			capturandoRubrica = false;
-			await invalidateShared('app:res-gise', 'app:papel-gise');
-			// Saída costuma tirar a escala de `minhasEscalas`; o helper carimba
-			// o timestamp local quando a linha some da lista.
-			reaplicarEscalaSelecionada('saida');
-		} catch (e: unknown) {
-			toaster.error({ title: 'Erro', description: messageFromUnknown(e) });
-		} finally {
-			loading.hide();
-		}
+	async function salvarSaida(payload: SignaturePadConfirmPayload) {
+		await confirmarPresenca('saida', payload);
 	}
 
 	const isHorarioLiberado = (escala: ResGiseEscalaSelecionavel, isAdminGeral: boolean) => {

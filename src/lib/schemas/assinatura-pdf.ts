@@ -218,7 +218,17 @@ export const assinarSimplesSchema = z.object({
 			.regex(/^[0-9a-fA-F]+$/, 'desafioId inválido')
 			.max(80)
 	),
-	livenessChallenge: livenessChallengeSchema
+	livenessChallenge: livenessChallengeSchema,
+	/**
+	 * Janela de reautenticação por senha. 64 hex de `gerarTokenOpaco`. Ausente
+	 * é recusado no serviço (403), não no Zod (400): a senha é piso da
+	 * cerimônia, não corpo malformado.
+	 */
+	reauthId: optionalNullable(z.string().regex(/^[0-9a-f]{64}$/, 'reauthId inválido'))
+});
+
+export const assinarPresencaAvancadaSchema = assinarSimplesSchema.extend({
+	tipo: z.enum(['entrada', 'saida'])
 });
 
 // ─────────────────────────────────────────────────────────────────────────────

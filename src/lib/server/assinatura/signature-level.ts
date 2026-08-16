@@ -50,6 +50,7 @@ type NivelAssinatura = 'simples' | 'avancada' | 'qualificada';
  *
  *   - **Hash SHA-256** do PDF original (atende art. 4º II "c");
  *   - **Sessão autenticada** com login+senha (atende art. 4º II "a" parcial);
+ *   - **Reinserção da senha** na cerimônia (a sessão sozinha não prova vontade atual);
  *   - **Registro de IP, User-Agent e timestamp** do servidor (auditoria).
  */
 export const REQUISITOS_SEMPRE_ATIVOS = [
@@ -62,6 +63,11 @@ export const REQUISITOS_SEMPRE_ATIVOS = [
 		id: 'sessao_autenticada',
 		descricao: 'Sessão autenticada (login + senha + RBAC)',
 		baseLegal: 'Lei 14.063/2020 art. 4º II "a" (vínculo unívoco)'
+	},
+	{
+		id: 'reauth_senha',
+		descricao: 'Reinserção da senha de acesso na cerimônia (janela de 10 min)',
+		baseLegal: 'Step-up: a sessão sozinha não prova vontade atual de assinar'
 	},
 	{
 		id: 'registro_auditoria',
@@ -127,7 +133,8 @@ export const REFORCOS_OPCIONAIS = [
 		notas:
 			'Controle exclusivo dos dados de criação (art. 4º II "b"). Sem atestação ' +
 			'verificada não se afirma hardware; credencial sincronizada prova a conta ' +
-			'do titular, não o aparelho. Hoje aplica-se SÓ à escala de serviço.'
+			'do titular, não o aparelho. Aplica-se à escala, GISE, extra e presença ' +
+			'quando a flag está ligada (caminho de duas fases).'
 	},
 	{
 		id: 'restricao_dispositivo',

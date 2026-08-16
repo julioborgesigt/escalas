@@ -1,5 +1,5 @@
 /**
- * Fluxo de assinatura da escala com passkey, em duas etapas:
+ * Fluxo de assinatura avançada com passkey, em duas etapas:
  * preparar (o servidor monta o PDF e devolve o hash) → cerimônia biométrica no
  * aparelho → finalizar (o servidor confere a asserção, sela e grava).
  *
@@ -32,6 +32,33 @@ export interface EvidenciasAssinatura {
 	codigoValidação?: string;
 	desafioId?: string;
 	livenessChallenge?: unknown;
+	reauthId?: string;
+}
+
+async function assinarComPasskeyDuasFases(
+	prepararUrl: string,
+	finalizarUrl: string,
+	evidencias: EvidenciasAssinatura & { tipo?: string },
+	onEtapa?: (rotulo: string) => void
+): Promise<unknown> {
+	onEtapa?.('Preparando o documento...');
+	const preparo = await apiFetch<PreparacaoPasskey>(prepararUrl, {
+		method: 'POST',
+		body: JSON.stringify(evidencias)
+	});
+
+	onEtapa?.('Confirme com sua biometria...');
+	const assercao = await assinarComPasskey(preparo.documentHash, preparo.credentialId);
+
+	onEtapa?.('Finalizando assinatura...');
+	return apiFetch<unknown>(finalizarUrl, {
+		method: 'POST',
+		body: JSON.stringify({
+			intencao: preparo.intencao,
+			preparedPdf: preparo.preparedPdf,
+			assercao
+		})
+	});
 }
 
 /**
@@ -46,35 +73,51 @@ export async function assinarEscalaComPasskey(
 	evidencias: EvidenciasAssinatura,
 	onEtapa?: (rotulo: string) => void
 ): Promise<unknown> {
-	onEtapa?.('Preparando o documento...');
-	const preparo = await apiFetch<PreparacaoPasskey>(
+	return assinarComPasskeyDuasFases(
 		`/api/escalas/${escalaId}/preparar-assinatura-avancada`,
-		{
-			method: 'POST',
-			body: JSON.stringify({
-				rubrica: evidencias.rubrica,
-				selfieBase64: evidencias.selfieBase64,
-				latitude: evidencias.latitude,
-				longitude: evidencias.longitude,
-				codigoValidação: evidencias.codigoValidação,
-				desafioId: evidencias.desafioId,
-				livenessChallenge: evidencias.livenessChallenge
-			})
-		}
+		`/api/escalas/${escalaId}/finalizar-assinatura-avancada`,
+		evidencias,
+		onEtapa
 	);
+}
 
-	onEtapa?.('Confirme com sua biometria...');
-	const assercao = await assinarComPasskey(preparo.documentHash, preparo.credentialId);
+export async function assinarGiseComPasskey(
+	giseId: number,
+	evidencias: EvidenciasAssinatura,
+	onEtapa?: (rotulo: string) => void
+): Promise<unknown> {
+	return assinarComPasskeyDuasFases(
+		`/api/gise/${giseId}/preparar-assinatura-avancada`,
+		`/api/gise/${giseId}/finalizar-assinatura-avancada`,
+		evidencias,
+		onEtapa
+	);
+}
 
-	onEtapa?.('Finalizando assinatura...');
-	return apiFetch<unknown>(`/api/escalas/${escalaId}/finalizar-assinatura-avancada`, {
-		method: 'POST',
-		body: JSON.stringify({
-			intencao: preparo.intencao,
-			// O MESMO PDF que o preparar devolveu. O servidor confere byte a byte
-			// contra o hash que a passkey assinou — devolver outro derruba tudo.
-			preparedPdf: preparo.preparedPdf,
-			assercao
-		})
-	});
+export async function assinarExtraComPasskey(
+	giseId: number,
+	seccionalId: number,
+	evidencias: EvidenciasAssinatura & { tipo?: string },
+	onEtapa?: (rotulo: string) => void
+): Promise<unknown> {
+	return assinarComPasskeyDuasFases(
+		`/api/gise/${giseId}/relatorios/${seccionalId}/preparar-assinatura-avancada`,
+		`/api/gise/${giseId}/relatorios/${seccionalId}/finalizar-assinatura-avancada`,
+		evidencias,
+		onEtapa
+	);
+}
+
+export async function assinarPresencaComPasskey(
+	giseId: number,
+	tipo: 'entrada' | 'saida',
+	evidencias: EvidenciasAssinatura,
+	onEtapa?: (rotulo: string) => void
+): Promise<unknown> {
+	return assinarComPasskeyDuasFases(
+		`/api/gise/${giseId}/presenca/preparar-assinatura-avancada`,
+		`/api/gise/${giseId}/presenca/finalizar-assinatura-avancada?tipo=${tipo}`,
+		{ ...evidencias, tipo },
+		onEtapa
+	);
 }

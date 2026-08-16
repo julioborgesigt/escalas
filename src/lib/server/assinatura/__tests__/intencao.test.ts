@@ -86,6 +86,21 @@ describe('alvo — preparar em A, finalizar em B', () => {
 		).resolves.toEqual({ ok: false, motivo: 'alvo-divergente' });
 	});
 
+	it('presença: entrada e saída são alvos distintos', async () => {
+		const entrada: AlvoAssinatura = { recurso: 'gise_presenca', recursoId: 12, escopoId: 1 };
+		const token = await prepararEm(entrada);
+
+		await expect(
+			consumirIntencaoAssinatura(
+				db,
+				token,
+				{ recurso: 'gise_presenca', recursoId: 12, escopoId: 2 },
+				ATOR,
+				PDF
+			)
+		).resolves.toEqual({ ok: false, motivo: 'alvo-divergente' });
+	});
+
 	it('escopo ausente e escopo nulo são o mesmo alvo', async () => {
 		// A escala não tem segundo eixo; `undefined` no preparar e `null` no
 		// finalizar não podem virar divergência por detalhe de tipagem.

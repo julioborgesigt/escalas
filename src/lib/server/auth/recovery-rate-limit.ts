@@ -7,6 +7,7 @@
 
 import { and, count, eq, gt } from 'drizzle-orm';
 import { sha256Hex } from '$lib/crypto/digest';
+import { timestampSqliteUtc } from '$lib/db/core';
 import { recoveryAttempts } from '../schema';
 import type { Database } from '$lib/db';
 import { anonimizarIp } from '$lib/db/audit';
@@ -21,7 +22,9 @@ type RecoveryPurpose =
 	| 'verificar_2fa' // brute-force do código 2FA no login
 	| 'reenviar_codigo' // reenvio de 2FA (reset do contador + e-mail bombing)
 	| 'solicitar_codigo_assinatura' // envio do código 2FA de assinatura (e-mail bombing / quota)
-	| 'alterar_senha'; // brute-force da senha atual com sessão roubada (chave por usuário, não IP)
+	| 'alterar_senha' // brute-force da senha atual com sessão roubada (chave por usuário, não IP)
+	| 'reauth_assinatura' // brute-force da senha na cerimônia de assinatura (chave por usuário)
+	| 'passkey_reposicao'; // e-mail bombing dos dois códigos de reposição da chave
 
 /**
  * Chave de rate-limit derivada do IP.
@@ -54,7 +57,10 @@ export async function contarRecoveryAttempts(
 	windowMinutes: number,
 	max: number
 ): Promise<{ blocked: boolean; count: number }> {
-	const since = new Date(Date.now() - windowMinutes * 60 * 1000).toISOString();
+	// `recovery_attempts.attempted_at` usa `datetime('now')`. Cortar com ISO
+	// (`T` e `Z`) faz toda linha parecer anterior ao corte — o rate-limit
+	// nunca dispara. Fonte única: `timestampSqliteUtc` em `$lib/db/core`.
+	const since = timestampSqliteUtc(Date.now() - windowMinutes * 60 * 1000);
 	const ipNormalized = await chaveRateLimitIp(ip);
 	const [row] = await db
 		.select({ n: count() })

@@ -11,6 +11,8 @@
 	import FileDown from '@lucide/svelte/icons/file-down';
 	import PenLine from '@lucide/svelte/icons/pen-line';
 	import { podeBaixarComManifesto } from '$lib/manifesto';
+	import { avancadaEmTelaDoLayout } from '$lib/chave-assinatura-ui';
+	import ConviteChaveAssinatura from '$lib/components/ConviteChaveAssinatura.svelte';
 	import { quadroSupervisao } from './quadro-supervisao-estado.svelte';
 
 	const quadro = quadroSupervisao();
@@ -30,6 +32,7 @@
 		`/api/gise/${gise.id}/documento-assinado?manifesto=true`
 	);
 	const urlDownloadPdf = $derived(`/api/gise/${gise.id}/download?format=pdf`);
+	const avancadaDisponivel = $derived(avancadaEmTelaDoLayout(page.data));
 
 	let expandirEscala = $state(false);
 </script>
@@ -105,15 +108,19 @@
 		{/if}
 		{#if quadro.isSupervisor}
 			{#if mobile}
-				<button
-					type="button"
-					class="btn btn-xs preset-filled-warning-500 border border-warning-600/30 px-2.5 py-1.5 text-3xs font-bold rounded-lg hover:border-warning-600 disabled:opacity-40 flex items-center gap-1"
-					disabled={!quadro.mostrarPainelAssinaturaEscala}
-					onclick={() => quadro.abrirAssinaturaEscalaManual()}
-				>
-					{@render iconeCaneta()}
-					Tela
-				</button>
+				{#if avancadaDisponivel}
+					<button
+						type="button"
+						class="btn btn-xs preset-filled-warning-500 border border-warning-600/30 px-2.5 py-1.5 text-3xs font-bold rounded-lg hover:border-warning-600 disabled:opacity-40 flex items-center gap-1"
+						disabled={!quadro.mostrarPainelAssinaturaEscala}
+						onclick={() => quadro.abrirAssinaturaEscalaManual()}
+					>
+						{@render iconeCaneta()}
+						Tela
+					</button>
+				{:else}
+					<ConviteChaveAssinatura isMobile={true} compact />
+				{/if}
 			{:else}
 				<button
 					type="button"

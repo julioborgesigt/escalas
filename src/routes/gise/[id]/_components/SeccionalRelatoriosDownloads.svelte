@@ -9,6 +9,8 @@
 	import type { GiseDetalhado } from '$lib/db/gise';
 	import type { GiseAssinaturaRelatorio } from '$lib/server/schema';
 	import { podeBaixarComManifesto } from '$lib/manifesto';
+	import { avancadaEmTelaDoLayout } from '$lib/chave-assinatura-ui';
+	import ConviteChaveAssinatura from '$lib/components/ConviteChaveAssinatura.svelte';
 	import {
 		checkAllSigned,
 		getFaltandoRubrica,
@@ -53,6 +55,8 @@
 			seccionalNome: string
 		) => void;
 	} = $props();
+
+	const avancadaDisponivel = $derived(avancadaEmTelaDoLayout(page.data));
 </script>
 
 {#if podeDownload}
@@ -186,7 +190,7 @@
 						? 'flex w-full flex-col gap-2'
 						: 'flex w-full xs:w-auto flex-col xs:flex-row items-stretch xs:items-center gap-2'}
 				>
-					{#if isMobile || !restringirSmartphone}
+					{#if (isMobile || !restringirSmartphone) && avancadaDisponivel}
 						<GiseActionButton
 							label="Ass. tela"
 							iconPath="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
@@ -199,6 +203,8 @@
 							size="xs"
 							{pendingCrud}
 						/>
+					{:else if (isMobile || !restringirSmartphone) && !avancadaDisponivel}
+						<ConviteChaveAssinatura {isMobile} compact />
 					{/if}
 
 					{#if !isMobile}

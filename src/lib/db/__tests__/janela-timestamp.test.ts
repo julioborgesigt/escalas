@@ -18,8 +18,10 @@
  *   - `/api/auth/confirmar-redefinicao` — nº de links de redefinição por usuário
  *   - `/api/auth/solicitar-redefinicao` — nº de códigos de reset por usuário
  *   - `/api/auth/solicitar-verificacao-email-pessoal` — nº de códigos de e-mail
+ *   - `contarRecoveryAttempts` — throttle de reauth da assinatura (e dos
+ *     demais purposes em `recovery_attempts`, cuja coluna é `datetime('now')`)
  *
- * Os três protegem contra inundar a caixa de entrada de um servidor e contra
+ * Os quatro protegem contra inundar a caixa de entrada de um servidor e contra
  * força bruta sobre código de 6 dígitos. Não falhavam: simplesmente não
  * contavam.
  *
@@ -36,9 +38,13 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import type { DatabaseSync } from 'node:sqlite';
 import { sql } from 'drizzle-orm';
 import type { Database } from '$lib/db';
-import { doisFatoresTokens } from '$lib/server/schema';
+import { doisFatoresTokens, recoveryAttempts } from '$lib/server/schema';
 import { timestampSqliteUtc, timestampSqliteBrasilia } from '../core';
 import { bancoMigrado, drizzleSobre } from './sqlite-migrado';
+import {
+	contarRecoveryAttempts,
+	registrarRecoveryAttempt
+} from '$lib/server/auth/recovery-rate-limit';
 
 const AGORA = Date.parse('2026-08-04T12:00:00.000Z');
 
@@ -134,5 +140,25 @@ describe('janela de rate limit sobre `dois_fatores_tokens.created_at`', () => {
 		inserirDesafios(2, AGORA - 60_000);
 		const isoOntem = new Date(AGORA - 26 * 3_600_000).toISOString();
 		await expect(contarDesde(isoOntem)).resolves.toBe(2);
+	});
+});
+
+describe('janela de rate limit sobre `recovery_attempts.attempted_at`', () => {
+	it('o DEFAULT entra na janela quando o corte é sqlite UTC', async () => {
+		await registrarRecoveryAttempt(db, '10.0.0.1', 'reauth_assinatura');
+		const r = await contarRecoveryAttempts(db, '10.0.0.1', 'reauth_assinatura', 15, 5);
+		expect(r.count).toBe(1);
+		expect(r.blocked).toBe(false);
+	});
+
+	it('com `toISOString()` o contador dá ZERO — o limite não dispararia', async () => {
+		await registrarRecoveryAttempt(db, '10.0.0.1', 'reauth_assinatura');
+		const [row] = await db
+			.select({ n: sql<number>`count(*)` })
+			.from(recoveryAttempts)
+			.where(
+				sql`${recoveryAttempts.attempted_at} > ${new Date(Date.now() - 15 * 60_000).toISOString()}`
+			);
+		expect(Number(row?.n ?? 0)).toBe(0);
 	});
 });

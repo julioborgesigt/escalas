@@ -131,7 +131,8 @@ export function useAssinaturaEscala({ getParams, onDocumentoAssinado }: UseAssin
 		// quando a flag exigirFotoAssinatura está ligada. Tipo intencionalmente
 		// `unknown` para não acoplar este composable ao formato exato; o
 		// servidor valida via Zod (livenessChallengeSchema).
-		livenessChallenge?: unknown
+		livenessChallenge?: unknown,
+		reauthId?: string
 	) {
 		loading.show('Assinando...');
 		try {
@@ -150,7 +151,8 @@ export function useAssinaturaEscala({ getParams, onDocumentoAssinado }: UseAssin
 				longitude: gpsCoords?.lng,
 				codigoValidação,
 				desafioId,
-				livenessChallenge
+				livenessChallenge,
+				reauthId
 			};
 
 			// Com o reforço de passkey ligado, o caminho de um tiro nem é tentado:

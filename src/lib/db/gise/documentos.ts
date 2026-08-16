@@ -14,7 +14,7 @@ import { parseUserAgent, reduzirPrecisaoGps } from '../../server/assinatura/docu
 import { cifrarCpfParaArmazenar, type CpfCriptoEnv } from '../../crypto/cpf-cripto';
 
 /** Tipo usado só localmente (a origem, `$lib/db/documentos`, é quem os outros módulos importam). */
-import type { AssinaturaCadesMetadata } from '../documentos';
+import type { AssinaturaCadesMetadata, AssinaturaPasskeyMetadata } from '../documentos';
 
 /** Insere o documento assinado ou substitui o anterior (upsert por `gise_id`). */
 export async function salvarGiseDocumento(
@@ -35,7 +35,10 @@ export async function salvarGiseDocumento(
 	assinanteEmail?: string,
 	tipoCarimboTempo?: string,
 	cadesMeta?: AssinaturaCadesMetadata,
-	env?: CpfCriptoEnv
+	env?: CpfCriptoEnv,
+	// Depois de `env`, como em `salvarDocumentoEscala`: a lista posicional já
+	// está no limite. Quem usa passkey passa os dois últimos explicitamente.
+	passkeyMeta?: AssinaturaPasskeyMetadata
 ) {
 	const meta = cadesMeta ?? {};
 	// CPF cifrado em repouso (LGPD Fase 2).
@@ -72,7 +75,12 @@ export async function salvarGiseDocumento(
 		cms_sha256: meta.cms_sha256 ?? null,
 		ocsp_response_b64: meta.ocsp_response_b64 ?? null,
 		ocsp_consultado_em: meta.ocsp_consultado_em ?? null,
-		tst_token_b64: meta.tst_token_b64 ?? null
+		tst_token_b64: meta.tst_token_b64 ?? null,
+		webauthn_credential_id: passkeyMeta?.credential_id ?? null,
+		webauthn_client_data: passkeyMeta?.client_data ?? null,
+		webauthn_authenticator_data: passkeyMeta?.authenticator_data ?? null,
+		webauthn_assinatura: passkeyMeta?.assinatura ?? null,
+		webauthn_backup_ativo: passkeyMeta ? (passkeyMeta.backup_ativo ? 1 : 0) : null
 	};
 
 	return db

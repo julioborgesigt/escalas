@@ -32,6 +32,8 @@
 	import { toaster } from '$lib/toast';
 	import type { Snippet } from 'svelte';
 	import { fmtDate } from '$lib/gise/formatters';
+	import { avancadaEmTelaDoLayout } from '$lib/chave-assinatura-ui';
+	import ConviteChaveAssinatura from '$lib/components/ConviteChaveAssinatura.svelte';
 	import type { usePresencaGise } from './usePresencaGise.svelte';
 
 	type PresencaGise = ReturnType<typeof usePresencaGise>;
@@ -57,6 +59,7 @@
 	const usuario = $derived(page.data.usuario);
 	const giseId = $derived(presenca.escalaSelecionada?.id ?? null);
 	const esc = $derived(presenca.escalaSelecionada);
+	const avancadaDisponivel = $derived(avancadaEmTelaDoLayout(page.data));
 
 	/**
 	 * Rota do wizard do relatório. Dois parâmetros, ambos opcionais:
@@ -545,7 +548,7 @@
 			if (!novoOpen && !loading.active) modalPresenca = null;
 		}}
 	>
-		{#if isMobile || !restringirSmartphone}
+		{#if avancadaDisponivel && (isMobile || !restringirSmartphone)}
 			{@render actionButton(
 				'Confirmar Entrada',
 				undefined,
@@ -556,6 +559,10 @@
 				false,
 				'w-full py-2.5 text-sm shadow-sm'
 			)}
+		{:else if !avancadaDisponivel}
+			<div class="p-3 rounded-xl bg-warning-500/5 border border-warning-500/20">
+				<ConviteChaveAssinatura {isMobile} />
+			</div>
 		{:else}
 			{@render blocoRestritoDesktop('entrada')}
 		{/if}
@@ -599,7 +606,7 @@
 					antes de confirmar a saída.
 				</p>
 			</div>
-		{:else if isMobile || !restringirSmartphone}
+		{:else if avancadaDisponivel && (isMobile || !restringirSmartphone)}
 			{@render actionButton(
 				'Confirmar Saída',
 				undefined,
@@ -610,6 +617,10 @@
 				false,
 				'w-full py-2.5 text-sm shadow-sm'
 			)}
+		{:else if !avancadaDisponivel}
+			<div class="p-3 rounded-xl bg-warning-500/5 border border-warning-500/20">
+				<ConviteChaveAssinatura {isMobile} />
+			</div>
 		{:else}
 			{@render blocoRestritoDesktop('saida')}
 		{/if}

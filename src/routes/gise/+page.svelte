@@ -37,6 +37,7 @@
 	import DialogInfo from './_components/DialogInfo.svelte';
 	import { fmtDate, diaSemana } from '$lib/gise/formatters';
 	import { rubricaValida, useInvalidateOnFocus } from '$lib/composables';
+	import { avancadaEmTelaDoLayout, mensagemConviteChave } from '$lib/chave-assinatura-ui';
 	import { fetchSyncEstado } from '$lib/sync-estado';
 	import { MediaQuery } from 'svelte/reactivity';
 
@@ -126,6 +127,7 @@
 	// fallback `true` = desktop-first no SSR, como o $state(true) anterior.
 	const desktopQuery = new MediaQuery('(min-width: 768px)', true);
 	const isDesktop = $derived(desktopQuery.current);
+	const avancadaDisponivel = $derived(avancadaEmTelaDoLayout(page.data));
 
 	const ITEMS_ATIVAS = 4;
 	let paginaAtivas = $state(1);
@@ -178,6 +180,14 @@
 	);
 
 	function iniciarAssinaturaEscala(ativa: (typeof ativas)[0]) {
+		if (!isDesktop && !avancadaDisponivel) {
+			dialogInfo = {
+				titulo: 'Chave de assinatura',
+				linhas: [mensagemConviteChave(true)],
+				acao: { label: 'Ir para Meu Perfil', fn: () => goto('/perfil') }
+			};
+			return;
+		}
 		giseParaAssinar = {
 			id: ativa.id,
 			dataInicio: ativa.data_inicio,
@@ -192,6 +202,14 @@
 	}
 
 	function iniciarAssinaturaExtra(ativa: (typeof ativas)[0]) {
+		if (!isDesktop && !avancadaDisponivel) {
+			dialogInfo = {
+				titulo: 'Chave de assinatura',
+				linhas: [mensagemConviteChave(true)],
+				acao: { label: 'Ir para Meu Perfil', fn: () => goto('/perfil') }
+			};
+			return;
+		}
 		giseParaAssinar = {
 			id: ativa.id,
 			dataInicio: ativa.data_inicio,

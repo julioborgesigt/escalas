@@ -10,6 +10,7 @@
 	 *
 	 *   `signature` → rubrica (desenhada ou a cadastrada)
 	 *   `camera`    → foto com prova de vida (`exigirFoto`)
+	 *   `password`  → reinserir a senha de acesso (piso da cerimônia)
 	 *   `email_code`→ código enviado por e-mail (`exigirCodigoEmail`)
 	 *
 	 * mais GPS (`exigirGps`), IP e user-agent, capturados pelo servidor no POST.
@@ -26,7 +27,8 @@
 	import Check from '@lucide/svelte/icons/check';
 	import type {
 		SignaturePadLivenessResultado,
-		SignaturePadConfirmPayload
+		SignaturePadConfirmPayload,
+		SignaturePadStep
 	} from './SignaturePadTypes';
 	import { apiFetch } from '$lib/api-fetch';
 	import { toaster } from '$lib/toast';
@@ -55,7 +57,7 @@
 		/** Rubrica já cadastrada pelo usuário (dataURL). Quando presente, o pad
 		    reutiliza-a por padrão — evita obrigar o desenho na tela a cada assinatura. */
 		rubricaSalva?: string | null;
-		step?: 'signature' | 'camera' | 'email_code';
+		step?: SignaturePadStep;
 	} = $props();
 
 	// Reutiliza a rubrica cadastrada por padrão quando ela existe; o usuário
@@ -99,7 +101,24 @@
 		lng: number | undefined;
 		selfieBase64: string | null;
 		liveness: SignaturePadLivenessResultado | null;
+		reauthId: string | null;
 	} | null>(null);
+
+	const REAUTH_STORAGE_KEY = 'assinatura_reauth_id';
+
+	function lerReauthGuardado(): string | null {
+		if (typeof sessionStorage === 'undefined') return null;
+		const v = sessionStorage.getItem(REAUTH_STORAGE_KEY);
+		return v && /^[0-9a-f]{64}$/.test(v) ? v : null;
+	}
+
+	function gravarReauth(id: string) {
+		sessionStorage.setItem(REAUTH_STORAGE_KEY, id);
+	}
+
+	let senhaInput = $state('');
+	let senhaError = $state<string | null>(null);
+	let confirmandoSenha = $state(false);
 
 	$effect(() => {
 		if (step === 'camera') {
@@ -160,13 +179,63 @@
 		// para 'email_code' dispara o $effect que zera o challenge, então
 		// recalcular depois devolve null.
 		const livenessResultado = liveness.montarLivenessResultado();
+		pendingSignature = {
+			dataUrl,
+			lat,
+			lng,
+			selfieBase64,
+			liveness: livenessResultado,
+			reauthId: lerReauthGuardado()
+		};
+		if (!pendingSignature.reauthId) {
+			step = 'password';
+			return;
+		}
+		await avancarAposSenha();
+	}
+
+	async function avancarAposSenha() {
 		if (exigirCodigoEmail) {
-			pendingSignature = { dataUrl, lat, lng, selfieBase64, liveness: livenessResultado };
 			const ok = await enviarOuReenviarCodigo();
 			if (ok) step = 'email_code';
 		} else {
-			onConfirm({ rubrica: dataUrl, lat, lng, selfie: selfieBase64, liveness: livenessResultado });
+			emitirConfirmacao();
 		}
+	}
+
+	async function confirmarSenha() {
+		if (!senhaInput) {
+			senhaError = 'Digite sua senha de acesso.';
+			return;
+		}
+		confirmandoSenha = true;
+		senhaError = null;
+		try {
+			const data = await apiFetch<{ reauthId: string }>('/api/auth/reautenticar-assinatura', {
+				method: 'POST',
+				body: JSON.stringify({ senha: senhaInput })
+			});
+			gravarReauth(data.reauthId);
+			if (pendingSignature) pendingSignature.reauthId = data.reauthId;
+			senhaInput = '';
+			await avancarAposSenha();
+		} catch (e: unknown) {
+			senhaError = e instanceof Error ? e.message : 'Senha incorreta';
+		} finally {
+			confirmandoSenha = false;
+		}
+	}
+
+	function emitirConfirmacao() {
+		if (!pendingSignature) return;
+		onConfirm({
+			rubrica: pendingSignature.dataUrl,
+			lat: pendingSignature.lat,
+			lng: pendingSignature.lng,
+			selfie: pendingSignature.selfieBase64,
+			liveness: pendingSignature.liveness,
+			reauthId: pendingSignature.reauthId ?? undefined
+		});
 	}
 
 	async function enviarOuReenviarCodigo() {
@@ -208,7 +277,8 @@
 				selfie: pendingSignature.selfieBase64,
 				codigoEmail: codigoInput,
 				desafioId,
-				liveness: pendingSignature.liveness
+				liveness: pendingSignature.liveness,
+				reauthId: pendingSignature.reauthId ?? undefined
 			});
 		}
 	}
@@ -495,6 +565,52 @@
 			</div>
 		{/if}
 
+		{#if step === 'password'}
+			<div
+				class="flex flex-col items-center justify-center p-6 bg-surface-100/50 dark:bg-surface-800/40 rounded-2xl border-2 border-primary-500/20 text-center min-h-[300px]"
+			>
+				<div class="w-16 h-16 rounded-full bg-primary-500/10 flex items-center justify-center mb-4">
+					<svg
+						class="w-8 h-8 text-primary-500"
+						fill="none"
+						viewBox="0 0 24 24"
+						stroke="currentColor"
+					>
+						<path
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							stroke-width="2"
+							d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z"
+						/>
+					</svg>
+				</div>
+				<h3 class="h3 font-bold mb-2">Confirme sua senha</h3>
+				<p class="text-sm text-surface-600 dark:text-surface-400 mb-4 max-w-xs">
+					A sessão sozinha não basta. Digite a senha de acesso para assinar — sem matrícula.
+				</p>
+
+				<div class="w-full max-w-xs space-y-4">
+					<input
+						type="password"
+						autocomplete="current-password"
+						placeholder="Senha de acesso"
+						aria-label="Senha de acesso"
+						bind:value={senhaInput}
+						onkeydown={(e) => {
+							if (e.key === 'Enter') confirmarSenha();
+						}}
+						class="input w-full h-12 rounded-2xl bg-white dark:bg-surface-900 border-2 {senhaError
+							? 'border-error-500'
+							: 'border-surface-300 dark:border-surface-600'} px-4"
+					/>
+
+					{#if senhaError}
+						<p class="text-xs font-bold text-error-500 uppercase tracking-wider">{senhaError}</p>
+					{/if}
+				</div>
+			</div>
+		{/if}
+
 		{#if step === 'email_code'}
 			<div
 				class="flex flex-col items-center justify-center p-6 bg-surface-100/50 dark:bg-surface-800/40 rounded-2xl border-2 border-primary-500/20 text-center min-h-[300px]"
@@ -642,6 +758,28 @@
 					Fotografando...
 				{:else}
 					Tirar Foto e Assinar
+				{/if}
+			</button>
+		{:else if step === 'password'}
+			<button
+				type="button"
+				class="btn preset-outlined-surface-500 rounded-xl text-xs font-bold uppercase px-4 py-2 hover:bg-surface-50 dark:hover:bg-surface-900 transition-colors"
+				onclick={() => (step = exigirFoto ? 'camera' : 'signature')}
+				disabled={confirmandoSenha}
+			>
+				Voltar
+			</button>
+
+			<button
+				type="button"
+				class="btn preset-filled-primary-500 rounded-xl text-sm font-bold uppercase px-6 py-3 shadow-lg shadow-primary-500/20 transition-all ml-auto"
+				onclick={confirmarSenha}
+				disabled={confirmandoSenha || !senhaInput}
+			>
+				{#if confirmandoSenha}
+					<Spinner size="sm" />
+				{:else}
+					Continuar
 				{/if}
 			</button>
 		{:else if step === 'email_code'}

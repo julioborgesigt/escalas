@@ -10,7 +10,8 @@ export {
 	confirmarRedefinicaoSchema,
 	solicitarVerificacaoEmailSchema,
 	confirmarVerificacaoEmailSchema,
-	certificadoVerificarSchema
+	certificadoVerificarSchema,
+	reautenticarAssinaturaSchema
 } from './auth';
 export { unidadeSchema } from './unidade';
 export {
@@ -28,6 +29,7 @@ export {
 	prepararPresencaSchema,
 	finalizarPresencaSchema,
 	assinarSimplesSchema,
+	assinarPresencaAvancadaSchema,
 	finalizarPasskeyEscalaSchema
 } from './assinatura-pdf';
 export {

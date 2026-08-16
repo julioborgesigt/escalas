@@ -5,6 +5,7 @@ import {
 	cookieDeSessao,
 	headersDeSessaoMutacao,
 	seedDesafioAssinatura,
+	seedReauthAssinatura,
 	execD1Local
 } from './session';
 import { RUBRICA_PNG, evidenciasReforco } from './evidencias';
@@ -85,7 +86,9 @@ test.describe('Assinatura avançada em tela (assinar-simples)', () => {
 
 			// Com UA de celular a política sai do caminho e a requisição volta a
 			// morrer no 2FA — prova que o 403 acima veio do dispositivo, não de
-			// permissão nem de corpo inválido.
+			// permissão nem de corpo inválido. A janela de senha vem ANTES do 2FA:
+			// sem ela o celular morreria em 403 de senha e o teste não distinguiria.
+			const reauthId = seedReauthAssinatura(assinante().id, token!);
 			const celular = await request.post(
 				`/api/escalas/${FIXTURE.escalaAssinavel.id}/assinar-simples`,
 				{
@@ -94,7 +97,7 @@ test.describe('Assinatura avançada em tela (assinar-simples)', () => {
 						'user-agent':
 							'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1'
 					},
-					data: { rubrica: RUBRICA_PNG }
+					data: { rubrica: RUBRICA_PNG, reauthId }
 				}
 			);
 			expect(celular.status()).toBe(400);
@@ -148,8 +151,8 @@ test.describe('Assinatura avançada em tela (assinar-simples)', () => {
 					data: { rubrica: RUBRICA_PNG }
 				}
 			);
-			expect(preparar.status()).toBe(400);
-			expect((await preparar.json()).error).toMatch(/não registrou uma chave|Meu Perfil/i);
+			expect(preparar.status()).toBe(403);
+			expect((await preparar.json()).error).toMatch(/Token A3|Meu Perfil|celular/i);
 		} finally {
 			await request.put('/api/configuracoes/assinatura', {
 				headers: headersDeSessaoMutacao(tokenSuper!),
@@ -185,13 +188,27 @@ test.describe('Assinatura avançada em tela (assinar-simples)', () => {
 		expect((await res.json()).error).toMatch(/inválida ou expirada/i);
 	});
 
-	test('sem código de e-mail → 400 (2FA é sempre obrigatório)', async ({ request }) => {
+	test('sem janela de senha → 403 (piso da cerimônia, não teatro)', async ({ request }) => {
 		const token = seedSession(assinante().id);
 		if (!token) test.skip(true, 'wrangler/D1 local indisponível');
 
 		const res = await request.post(`/api/escalas/${FIXTURE.escalaAssinavel.id}/assinar-simples`, {
 			headers: headersDeSessaoMutacao(token!),
 			data: { rubrica: RUBRICA_PNG }
+		});
+		expect(res.status()).toBe(403);
+		expect((await res.json()).error).toMatch(/senha de acesso|sessão sozinha/i);
+	});
+
+	test('sem código de e-mail → 400 (2FA é sempre obrigatório)', async ({ request }) => {
+		const token = seedSession(assinante().id);
+		if (!token) test.skip(true, 'wrangler/D1 local indisponível');
+		const reauthId = seedReauthAssinatura(assinante().id, token!);
+		test.skip(!reauthId, 'wrangler/D1 local indisponível');
+
+		const res = await request.post(`/api/escalas/${FIXTURE.escalaAssinavel.id}/assinar-simples`, {
+			headers: headersDeSessaoMutacao(token!),
+			data: { rubrica: RUBRICA_PNG, reauthId }
 		});
 		expect(res.status()).toBe(400);
 		expect((await res.json()).error).toMatch(/código de verificação por e-mail é obrigatório/i);
@@ -201,10 +218,12 @@ test.describe('Assinatura avançada em tela (assinar-simples)', () => {
 		const token = seedSession(assinante().id);
 		const desafioId = seedDesafioAssinatura(assinante().id, CODIGO_VALIDO);
 		if (!token || !desafioId) test.skip(true, 'wrangler/D1 local indisponível');
+		const reauthId = seedReauthAssinatura(assinante().id, token!);
+		test.skip(!reauthId, 'wrangler/D1 local indisponível');
 
 		const res = await request.post(`/api/escalas/${FIXTURE.escalaAssinavel.id}/assinar-simples`, {
 			headers: headersDeSessaoMutacao(token!),
-			data: { rubrica: RUBRICA_PNG, codigoValidação: '999999', desafioId }
+			data: { rubrica: RUBRICA_PNG, codigoValidação: '999999', desafioId, reauthId }
 		});
 		expect(res.status()).toBe(400);
 		expect((await res.json()).error).toMatch(/código de verificação inválido/i);
@@ -219,10 +238,12 @@ test.describe('Assinatura avançada em tela (assinar-simples)', () => {
 		const token = seedSession(assinante().id);
 		const desafioId = seedDesafioAssinatura(FIXTURE.policialB.id, CODIGO_VALIDO);
 		if (!token || !desafioId) test.skip(true, 'wrangler/D1 local indisponível');
+		const reauthId = seedReauthAssinatura(assinante().id, token!);
+		test.skip(!reauthId, 'wrangler/D1 local indisponível');
 
 		const res = await request.post(`/api/escalas/${FIXTURE.escalaAssinavel.id}/assinar-simples`, {
 			headers: headersDeSessaoMutacao(token!),
-			data: { rubrica: RUBRICA_PNG, codigoValidação: CODIGO_VALIDO, desafioId }
+			data: { rubrica: RUBRICA_PNG, codigoValidação: CODIGO_VALIDO, desafioId, reauthId }
 		});
 		expect(res.status()).toBe(403);
 		expect((await res.json()).error).toMatch(/não pertence ao usuário/i);
@@ -248,6 +269,8 @@ test.describe('Assinatura avançada em tela (assinar-simples)', () => {
 		const token = seedSession(assinante().id);
 		const desafioId = seedDesafioAssinatura(assinante().id, CODIGO_VALIDO);
 		if (!token || !desafioId) test.skip(true, 'wrangler/D1 local indisponível');
+		const reauthId = seedReauthAssinatura(assinante().id, token!);
+		test.skip(!reauthId, 'wrangler/D1 local indisponível');
 
 		const res = await request.post(`/api/escalas/${FIXTURE.escalaAssinavel.id}/assinar-simples`, {
 			headers: headersDeSessaoMutacao(token!),
@@ -255,6 +278,7 @@ test.describe('Assinatura avançada em tela (assinar-simples)', () => {
 				rubrica: RUBRICA_PNG,
 				codigoValidação: CODIGO_VALIDO,
 				desafioId,
+				reauthId,
 				...evidenciasReforco()
 			}
 		});
@@ -273,6 +297,8 @@ test.describe('Assinatura avançada em tela (assinar-simples)', () => {
 		const token = seedSession(assinante().id);
 		const desafioId = seedDesafioAssinatura(assinante().id, CODIGO_VALIDO);
 		if (!token || !desafioId) test.skip(true, 'wrangler/D1 local indisponível');
+		const reauthId = seedReauthAssinatura(assinante().id, token!);
+		test.skip(!reauthId, 'wrangler/D1 local indisponível');
 
 		const reassina = await request.post(
 			`/api/escalas/${FIXTURE.escalaAssinavel.id}/assinar-simples`,
@@ -282,6 +308,7 @@ test.describe('Assinatura avançada em tela (assinar-simples)', () => {
 					rubrica: RUBRICA_PNG,
 					codigoValidação: CODIGO_VALIDO,
 					desafioId,
+					reauthId,
 					...evidenciasReforco()
 				}
 			}

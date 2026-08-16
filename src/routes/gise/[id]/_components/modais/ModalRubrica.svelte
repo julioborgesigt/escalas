@@ -1,7 +1,10 @@
 <script lang="ts">
 	import ModalShell from '$lib/components/ModalShell.svelte';
 	import SignaturePad from '$lib/components/SignaturePad.svelte';
-	import type { SignaturePadConfirmPayload } from '$lib/components/SignaturePadTypes';
+	import type {
+		SignaturePadConfirmPayload,
+		SignaturePadStep
+	} from '$lib/components/SignaturePadTypes';
 
 	interface Props {
 		open: boolean;
@@ -24,7 +27,7 @@
 		onCancel
 	}: Props = $props();
 
-	let signatureStep = $state<'signature' | 'camera' | 'email_code'>('signature');
+	let signatureStep = $state<SignaturePadStep>('signature');
 
 	$effect(() => {
 		if (open) {
@@ -35,18 +38,22 @@
 	const signatureTitulo = $derived(
 		signatureStep === 'camera'
 			? 'Prova de Vida do Supervisor'
-			: signatureStep === 'email_code'
-				? 'Confirmação de Identidade'
-				: 'Rubrica do Supervisor'
+			: signatureStep === 'password'
+				? 'Confirme sua senha'
+				: signatureStep === 'email_code'
+					? 'Confirmação de Identidade'
+					: 'Rubrica do Supervisor'
 	);
 	const signatureDescricao = $derived(
 		signatureStep === 'camera'
 			? 'Cumpra o desafio de presença na tela para provar que você está ativo.'
-			: signatureStep === 'email_code'
-				? 'Por razões de segurança, insira o código enviado para o seu e-mail funcional.'
-				: rubricaSalva
-					? 'Confira sua rubrica cadastrada abaixo para assinar a escala ou desenhe uma nova.'
-					: 'Desenhe sua rubrica no quadro abaixo para assinar a escala.'
+			: signatureStep === 'password'
+				? 'A sessão sozinha não basta. Digite a senha de acesso para assinar.'
+				: signatureStep === 'email_code'
+					? 'Por razões de segurança, insira o código enviado para o seu e-mail funcional.'
+					: rubricaSalva
+						? 'Confira sua rubrica cadastrada abaixo para assinar a escala ou desenhe uma nova.'
+						: 'Desenhe sua rubrica no quadro abaixo para assinar a escala.'
 	);
 </script>
 

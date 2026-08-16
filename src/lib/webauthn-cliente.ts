@@ -31,6 +31,14 @@ interface OpcoesRegistro {
 	usuario: { id: string; nome: string };
 	algoritmos: number[];
 	credencialAtual: { criadoEm: string; apelido: string | null; vinculo: string } | null;
+	exigeReposicao: boolean;
+}
+
+export interface CodigosReposicao {
+	desafioInstitucional: string;
+	codigoInstitucional: string;
+	desafioPessoal: string;
+	codigoPessoal: string;
 }
 
 /**
@@ -52,12 +60,31 @@ export async function passkeyDisponivel(): Promise<boolean> {
 }
 
 /**
+ * Dispara os dois códigos da reposição (institucional e pessoal). Só quando
+ * já há chave ativa — o GET de registro diz `exigeReposicao`.
+ */
+export async function solicitarCodigosReposicao(): Promise<{
+	desafioInstitucional: string;
+	desafioPessoal: string;
+	emailInstitucionalMascarado: string;
+	emailPessoalMascarado: string;
+}> {
+	return apiFetch('/api/webauthn/solicitar-codigo-reposicao', { method: 'POST' });
+}
+
+/**
  * Registra a passkey deste aparelho, substituindo a credencial anterior.
+ *
+ * Na reposição, `reposicao` carrega os dois códigos. O servidor recusa se já
+ * houver chave ativa e os códigos não vierem — a UI não pode "esquecer".
  *
  * @returns a descrição do vínculo ("deste aparelho" x "sincronizada"), que a
  * tela mostra ao titular — é a mesma frase que vai ao manifesto do PDF.
  */
-export async function registrarPasskey(apelido?: string | null): Promise<{ vinculo: string }> {
+export async function registrarPasskey(
+	apelido?: string | null,
+	reposicao?: CodigosReposicao
+): Promise<{ vinculo: string }> {
 	const opcoes = await apiFetch<OpcoesRegistro>('/api/webauthn/registro');
 
 	const credencial = (await navigator.credentials.create({
@@ -107,7 +134,8 @@ export async function registrarPasskey(apelido?: string | null): Promise<{ vincu
 			authenticatorData: bytesToBase64Url(new Uint8Array(resposta.getAuthenticatorData())),
 			publicKey: bytesToBase64Url(new Uint8Array(spki)),
 			algoritmo: resposta.getPublicKeyAlgorithm(),
-			apelido: apelido ?? null
+			apelido: apelido ?? null,
+			...(reposicao ?? {})
 		})
 	});
 }

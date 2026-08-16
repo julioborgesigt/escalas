@@ -11,9 +11,12 @@
  * tratar como se fossem — documento sem passkey, e credencial revogada depois
  * da assinatura.
  */
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { reconferirAssercaoDocumento } from '../reconferencia';
 import { bytesToBase64Url } from '$lib/crypto/bin';
+import { salvarDocumentoEscala, buscarDocumentoEscala } from '$lib/db/documentos';
+import { bancoMigrado, drizzleSobre } from '$lib/db/__tests__/sqlite-migrado';
+import type { Database } from '$lib/db';
 
 const ORIGEM = 'https://escalas.pc.ce.gov.br';
 const RP_ID = 'escalas.pc.ce.gov.br';
@@ -168,5 +171,120 @@ describe('reconferirAssercaoDocumento', () => {
 		const { documento, credencial } = await documentoAssinado({ contadorNaAssinatura: 3 });
 		const r = await reconferirAssercaoDocumento(documento, credencial, HASH_DOC, ORIGEM);
 		expect(r.situacao).toBe('valida');
+	});
+});
+
+/**
+ * O furo da fase 0: `salvarDocumentoEscala` aceitava `passkeyMeta` e o
+ * `finalizar` não passava. Sem o roundtrip, a reconferência acima testa a
+ * função contra um objeto inventado — não contra o que o upsert realmente
+ * grava. Banco de verdade porque o que importa são as colunas, não o spy.
+ */
+describe('roundtrip salvarDocumentoEscala → reconferirAssercaoDocumento', () => {
+	let db: Database;
+	let sqlite: ReturnType<typeof bancoMigrado>;
+
+	beforeEach(() => {
+		sqlite = bancoMigrado();
+		db = drizzleSobre(sqlite);
+		sqlite.exec(
+			`INSERT INTO escalas (id, titulo, cidade, data_inicio, data_fim)
+			 VALUES (5, 'Plantão', 'Fortaleza', '2026-08-01', '2026-08-31');`
+		);
+	});
+
+	it('grava as colunas webauthn_* e a reconferência devolve valida', async () => {
+		const { documento, credencial } = await documentoAssinado();
+		await salvarDocumentoEscala(
+			db,
+			5,
+			'escalas/5/plantao.pdf',
+			'CICRANO',
+			undefined,
+			HASH_DOC,
+			undefined,
+			undefined,
+			undefined,
+			undefined,
+			undefined,
+			undefined,
+			undefined,
+			undefined,
+			undefined,
+			undefined,
+			{
+				credential_id: documento.webauthn_credential_id,
+				client_data: documento.webauthn_client_data,
+				authenticator_data: documento.webauthn_authenticator_data,
+				assinatura: documento.webauthn_assinatura,
+				backup_ativo: false
+			}
+		);
+
+		const row = await buscarDocumentoEscala(db, 5);
+		expect(row?.webauthn_credential_id).toBe(documento.webauthn_credential_id);
+		expect(row?.webauthn_client_data).toBe(documento.webauthn_client_data);
+
+		const r = await reconferirAssercaoDocumento(
+			{
+				webauthn_credential_id: row!.webauthn_credential_id,
+				webauthn_client_data: row!.webauthn_client_data,
+				webauthn_authenticator_data: row!.webauthn_authenticator_data,
+				webauthn_assinatura: row!.webauthn_assinatura
+			},
+			credencial,
+			HASH_DOC,
+			ORIGEM
+		);
+		expect(r.situacao).toBe('valida');
+	});
+
+	it('reassinatura sem passkey zera as colunas — a asserção anterior não cola', async () => {
+		const { documento } = await documentoAssinado();
+		await salvarDocumentoEscala(
+			db,
+			5,
+			'escalas/5/a.pdf',
+			'CICRANO',
+			undefined,
+			HASH_DOC,
+			undefined,
+			undefined,
+			undefined,
+			undefined,
+			undefined,
+			undefined,
+			undefined,
+			undefined,
+			undefined,
+			undefined,
+			{
+				credential_id: documento.webauthn_credential_id,
+				client_data: documento.webauthn_client_data,
+				authenticator_data: documento.webauthn_authenticator_data,
+				assinatura: documento.webauthn_assinatura,
+				backup_ativo: true
+			}
+		);
+		await salvarDocumentoEscala(db, 5, 'escalas/5/b.pdf', 'CICRANO');
+
+		const row = await buscarDocumentoEscala(db, 5);
+		expect(row?.webauthn_credential_id).toBeNull();
+		expect(row?.webauthn_client_data).toBeNull();
+		expect(row?.webauthn_assinatura).toBeNull();
+		expect(row?.webauthn_backup_ativo).toBeNull();
+
+		const r = await reconferirAssercaoDocumento(
+			{
+				webauthn_credential_id: row!.webauthn_credential_id,
+				webauthn_client_data: row!.webauthn_client_data,
+				webauthn_authenticator_data: row!.webauthn_authenticator_data,
+				webauthn_assinatura: row!.webauthn_assinatura
+			},
+			null,
+			HASH_DOC,
+			ORIGEM
+		);
+		expect(r.situacao).toBe('sem-passkey');
 	});
 });

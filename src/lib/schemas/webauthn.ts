@@ -27,7 +27,22 @@ export const webauthnRegistroSchema = z.object({
 	publicKey: base64Url(4096),
 	/** COSE alg de `getPublicKeyAlgorithm()`; só ES256 (-7) é aceito adiante. */
 	algoritmo: z.number().int(),
-	apelido: z.string().max(60).nullish()
+	apelido: z.string().max(60).nullish(),
+	/**
+	 * Reposição (já há chave ativa): os dois códigos, os dois. Ausência no
+	 * primeiro cadastro é o caminho feliz — o POST recusa no servidor se a
+	 * pessoa já tinha chave e veio sem os códigos.
+	 */
+	codigoInstitucional: z
+		.string()
+		.regex(/^\d{6}$/)
+		.optional(),
+	desafioInstitucional: z.string().min(1).max(128).optional(),
+	codigoPessoal: z
+		.string()
+		.regex(/^\d{6}$/)
+		.optional(),
+	desafioPessoal: z.string().min(1).max(128).optional()
 });
 
 /** Asserção da assinatura: o que `navigator.credentials.get()` produziu. */

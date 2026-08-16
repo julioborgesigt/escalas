@@ -26,7 +26,6 @@ import {
 	buscarEscala,
 	buscarDocumentoEscala,
 	listarPoliciaisEscala,
-	buscarCredencialAtiva,
 	getR2,
 	hasR2
 } from '$lib/db';
@@ -51,6 +50,7 @@ import {
 import { criarIntencaoAssinatura } from '$lib/server/assinatura/intencao';
 import { descreverVinculoCredencial } from '$lib/server/assinatura/webauthn/authenticator-data';
 import { credencialDoUsuario } from '$lib/server/auth/credencial';
+import { exigirChaveAtiva } from '$lib/server/assinatura/chave-assinatura';
 import { verificarPermissaoEscala, podeAssinarEscala } from '$lib/server/escalas/permissao';
 import { calcularHashBuffer } from '$lib/server/assinatura/document-utils';
 import { bytesToBase64 } from '$lib/crypto/bin';
@@ -61,6 +61,7 @@ export const POST: RequestHandler = async ({
 	locals,
 	url,
 	request,
+	cookies,
 	getClientAddress
 }) => {
 	const u = requireAuth(locals);
@@ -98,13 +99,9 @@ export const POST: RequestHandler = async ({
 		return badRequest('A escala está vazia e não pode ser assinada');
 	}
 
-	const credencial = await buscarCredencialAtiva(db, credencialDoUsuario(u));
-	if (!credencial) {
-		return badRequest(
-			'Você ainda não registrou uma chave de assinatura. ' +
-				'Cadastre-a em Meu Perfil, pelo seu celular, e repita a operação.'
-		);
-	}
+	const chave = await exigirChaveAtiva(db, credencialDoUsuario(u), ua);
+	if ('recusa' in chave) return chave.recusa;
+	const credencial = chave.credencial;
 
 	const validated = await validateBody(request, assinarSimplesSchema);
 	if (!validated.ok) return validated.response;
@@ -115,7 +112,8 @@ export const POST: RequestHandler = async ({
 		selfieBase64,
 		codigoValidação,
 		desafioId,
-		livenessChallenge
+		livenessChallenge,
+		reauthId
 	} = validated.data;
 
 	const evid = await validarEvidenciasAvancada(
@@ -129,9 +127,10 @@ export const POST: RequestHandler = async ({
 			codigoValidação,
 			desafioId,
 			livenessChallenge,
-			userAgent: ua
+			userAgent: ua,
+			reauthId
 		},
-		{ platform }
+		{ platform, sessaoToken: cookies.get('session_token') }
 	);
 	if (!evid.ok) return apiError(evid.error, evid.status, evid.code ?? ErrorCode.VALIDATION);
 	const validatedEv = evid.validated;

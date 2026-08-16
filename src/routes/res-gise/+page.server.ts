@@ -53,9 +53,11 @@ import { invalidarPapelGise } from '$lib/server/gise/papel-cache';
 import { buscarUnidadeIdSupervisaoExtra } from '$lib/server/gise/supervisao-extra';
 import { lerFlagsAssinatura } from '$lib/server/assinatura/cfg-ass-cache';
 import {
-	ERRO_POLITICA_DISPOSITIVO,
-	recusadaPorPoliticaDispositivo
+	recusadaPorPoliticaDispositivo,
+	ERRO_POLITICA_DISPOSITIVO
 } from '$lib/server/assinatura/signature-service';
+import { ERRO_PASSKEY_UM_TIRO } from '$lib/server/assinatura/chave-assinatura';
+import { exigirJanelaReauth } from '$lib/server/assinatura/reauth';
 import { verificarDesafio2FA } from '$lib/auth';
 import { logger } from '$lib/server/logger';
 import { uploadSelfieDataUri } from '$lib/server/assinatura/selfie-upload';
@@ -468,7 +470,7 @@ export const actions: Actions = {
 	 * recusada não deixe rastro de presença.
 	 */
 	salvarEntrada: async (event) => {
-		const { request, locals, platform, getClientAddress } = event;
+		const { request, locals, platform, cookies, getClientAddress } = event;
 		const u = locals.usuario;
 		if (!u) return fail(401, { error: 'Não autorizado' });
 
@@ -484,6 +486,7 @@ export const actions: Actions = {
 		const selfieBase64 = formData.get('selfieBase64') as string | null;
 		const codigoEmail = formData.get('codigoEmail') as string | null;
 		const desafioId = formData.get('desafioId') as string | null;
+		const reauthId = formData.get('reauthId') as string | null;
 
 		if (isNaN(giseId) || !rubrica) {
 			return fail(400, { error: 'Dados inválidos', giseId });
@@ -509,6 +512,15 @@ export const actions: Actions = {
 		// só a minoria dos atos.
 		if (recusadaPorPoliticaDispositivo(flagsAssinatura, ua)) {
 			return fail(403, { error: ERRO_POLITICA_DISPOSITIVO, giseId });
+		}
+
+		if (flagsAssinatura.exigirPasskeyAssinatura) {
+			return fail(403, { error: ERRO_PASSKEY_UM_TIRO, giseId });
+		}
+
+		const reauth = await exigirJanelaReauth(db, u, reauthId, cookies.get('session_token'));
+		if (!reauth.ok) {
+			return fail(reauth.status, { error: reauth.error, giseId });
 		}
 
 		const exigirCodigoEmail = flagsAssinatura.exigirCodigoEmailAssinatura;
@@ -595,7 +607,7 @@ export const actions: Actions = {
 	 * de extra da seccional.
 	 */
 	salvarSaida: async (event) => {
-		const { request, locals, platform, getClientAddress } = event;
+		const { request, locals, platform, cookies, getClientAddress } = event;
 		const u = locals.usuario;
 		if (!u) return fail(401, { error: 'Não autorizado' });
 
@@ -611,6 +623,7 @@ export const actions: Actions = {
 		const selfieBase64 = formData.get('selfieBase64') as string | null;
 		const codigoEmail = formData.get('codigoEmail') as string | null;
 		const desafioId = formData.get('desafioId') as string | null;
+		const reauthId = formData.get('reauthId') as string | null;
 
 		if (isNaN(giseId) || !rubrica) {
 			return fail(400, { error: 'Dados inválidos', giseId });
@@ -636,6 +649,15 @@ export const actions: Actions = {
 		// só a minoria dos atos.
 		if (recusadaPorPoliticaDispositivo(flagsAssinatura, ua)) {
 			return fail(403, { error: ERRO_POLITICA_DISPOSITIVO, giseId });
+		}
+
+		if (flagsAssinatura.exigirPasskeyAssinatura) {
+			return fail(403, { error: ERRO_PASSKEY_UM_TIRO, giseId });
+		}
+
+		const reauth = await exigirJanelaReauth(db, u, reauthId, cookies.get('session_token'));
+		if (!reauth.ok) {
+			return fail(reauth.status, { error: reauth.error, giseId });
 		}
 
 		const exigirCodigoEmail = flagsAssinatura.exigirCodigoEmailAssinatura;

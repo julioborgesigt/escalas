@@ -1,6 +1,12 @@
 import { test, expect } from '@playwright/test';
 import { FIXTURE } from './global-setup';
-import { seedSession, headersDeSessaoMutacao, seedDesafioAssinatura, execD1Local } from './session';
+import {
+	seedSession,
+	headersDeSessaoMutacao,
+	seedDesafioAssinatura,
+	seedReauthAssinatura,
+	execD1Local
+} from './session';
 import { RUBRICA_PNG, evidenciasReforco } from './evidencias';
 
 /**
@@ -67,9 +73,11 @@ test.describe('Relatório extraordinário GISE — assinatura avançada em tela'
 
 	test('saída completa mas sem código 2FA → 400 (2FA sempre obrigatório)', async ({ request }) => {
 		expect(seedPresencaMembro(true)).toBe(true);
+		const reauthId = seedReauthAssinatura(FIXTURE.supervisor.id, tokenSupervisor!);
+		test.skip(!reauthId, 'D1 local indisponível');
 		const res = await request.post(assinarUrl, {
 			headers: headersDeSessaoMutacao(tokenSupervisor!),
-			data: { rubrica: RUBRICA_PNG, type: 'simples', ...evidenciasReforco() }
+			data: { rubrica: RUBRICA_PNG, type: 'simples', reauthId, ...evidenciasReforco() }
 		});
 		expect(res.status()).toBe(400);
 		expect((await res.json()).error).toMatch(/código de verificação por e-mail/i);
@@ -77,7 +85,8 @@ test.describe('Relatório extraordinário GISE — assinatura avançada em tela'
 
 	test('supervisor assina em tela (rubrica + 2FA + reforço) → 200', async ({ request }) => {
 		const desafioId = seedDesafioAssinatura(FIXTURE.supervisor.id, CODIGO);
-		test.skip(!desafioId, 'D1 local indisponível');
+		const reauthId = seedReauthAssinatura(FIXTURE.supervisor.id, tokenSupervisor!);
+		test.skip(!desafioId || !reauthId, 'D1 local indisponível');
 
 		const res = await request.post(assinarUrl, {
 			headers: headersDeSessaoMutacao(tokenSupervisor!),
@@ -88,6 +97,7 @@ test.describe('Relatório extraordinário GISE — assinatura avançada em tela'
 				signerCpf: FIXTURE.supervisor.cpf,
 				codigoValidação: CODIGO,
 				desafioId,
+				reauthId,
 				...evidenciasReforco()
 			}
 		});

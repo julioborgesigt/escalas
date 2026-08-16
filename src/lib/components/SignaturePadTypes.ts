@@ -7,6 +7,8 @@ export type SignaturePadLivenessResultado = {
 	duracaoMs: number;
 };
 
+export type SignaturePadStep = 'signature' | 'camera' | 'password' | 'email_code';
+
 export type SignaturePadConfirmPayload = {
 	rubrica: string;
 	lat?: number;
@@ -15,4 +17,6 @@ export type SignaturePadConfirmPayload = {
 	codigoEmail?: string;
 	desafioId?: string;
 	liveness: SignaturePadLivenessResultado | null;
+	/** Janela de reautenticação por senha — o servidor recusa se faltar. */
+	reauthId?: string;
 };

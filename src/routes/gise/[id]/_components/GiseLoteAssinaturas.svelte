@@ -28,6 +28,9 @@
 	import { loading } from '$lib/loading.svelte';
 	import { getMembrosFromSec, checkAllSigned } from '$lib/gise/page-helpers';
 	import { toaster } from '$lib/toast';
+	import { page } from '$app/state';
+	import { avancadaEmTelaDoLayout } from '$lib/chave-assinatura-ui';
+	import ConviteChaveAssinatura from '$lib/components/ConviteChaveAssinatura.svelte';
 
 	const TEXTO_INFO_LOTE =
 		'Neste quadro, o supervisor poderá conferir e em seguida assinar os relatórios de extra de todas as equipes. A assinatura também pode ocorrer de forma individual, através do quadro de cada seccional.';
@@ -80,6 +83,7 @@
 	}: Props = $props();
 
 	let expandido = $state(false);
+	const avancadaDisponivel = $derived(avancadaEmTelaDoLayout(page.data));
 
 	const naoIniciou = $derived(
 		['em_definicao_supervisor', 'em_preenchimento', 'aguardando_assinatura'].includes(
@@ -370,15 +374,21 @@
 								Conferência/Downloads
 							</button>
 							{#if !todosAssinados && podeAssinar}
-								<button
-									type="button"
-									class="btn btn-xs preset-filled-warning-500 border border-warning-600/30 px-2.5 py-1.5 text-3xs font-bold rounded-lg hover:border-warning-600 disabled:opacity-40 flex items-center gap-1"
-									disabled={loading.active || quantidadePendentes === 0}
-									onclick={onAssinarManualLote}
-								>
-									<PenLine class="h-2.5 w-2.5 shrink-0" aria-hidden="true" />
-									Tela
-								</button>
+								{#if avancadaDisponivel}
+									<button
+										type="button"
+										class="btn btn-xs preset-filled-warning-500 border border-warning-600/30 px-2.5 py-1.5 text-3xs font-bold rounded-lg hover:border-warning-600 disabled:opacity-40 flex items-center gap-1"
+										disabled={loading.active || quantidadePendentes === 0}
+										onclick={onAssinarManualLote}
+									>
+										<PenLine class="h-2.5 w-2.5 shrink-0" aria-hidden="true" />
+										Tela
+									</button>
+								{:else}
+									<div class="max-w-[12rem]">
+										<ConviteChaveAssinatura isMobile={true} compact />
+									</div>
+								{/if}
 							{/if}
 						</div>
 					{/if}
