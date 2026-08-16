@@ -147,6 +147,15 @@ const LIMPAVEIS_COMUNS = [
 	'tst_token_b64'
 ];
 
+/** Asserção WebAuthn — escala, GISE, extra e termo de presença. */
+const LIMPAVEIS_WEBAUTHN = [
+	'webauthn_credential_id',
+	'webauthn_client_data',
+	'webauthn_authenticator_data',
+	'webauthn_assinatura',
+	'webauthn_backup_ativo'
+];
+
 /** Toda coluna listada tem de estar presente no UPDATE, valendo `null`. */
 function esperaLimpaveis(set: Record<string, unknown> | undefined, colunas: string[]) {
 	for (const c of colunas) {
@@ -168,7 +177,13 @@ describe('reassinatura limpa o que a assinatura anterior deixou', () => {
 			tipo_assinatura: 'simples'
 		});
 
-		esperaLimpaveis(capturado.set, [...LIMPAVEIS_COMUNS, 'rubrica', 'verification_hash', 'r2_key']);
+		esperaLimpaveis(capturado.set, [
+			...LIMPAVEIS_COMUNS,
+			'rubrica',
+			'verification_hash',
+			'r2_key',
+			...LIMPAVEIS_WEBAUTHN
+		]);
 		expect(capturado.set?.tipo_assinatura).toBe('simples');
 	});
 
@@ -176,14 +191,18 @@ describe('reassinatura limpa o que a assinatura anterior deixou', () => {
 		const { db, capturado } = dbEspiao();
 		await salvarGiseDocumento(db, 7, 'gise/7/escala.pdf', 42, 'FULANO', '12345678901', 'hash-v');
 
-		esperaLimpaveis(capturado.set, [...LIMPAVEIS_COMUNS, 'rubrica']);
+		esperaLimpaveis(capturado.set, [...LIMPAVEIS_COMUNS, 'rubrica', ...LIMPAVEIS_WEBAUTHN]);
 	});
 
 	it('salvarDocumentoEscala: idem para a escala regular', async () => {
 		const { db, capturado } = dbEspiao();
 		await salvarDocumentoEscala(db, 5, 'escalas/5/plantao.pdf', 'CICRANO');
 
-		esperaLimpaveis(capturado.set, [...LIMPAVEIS_COMUNS, 'verificacao_hash']);
+		esperaLimpaveis(capturado.set, [
+			...LIMPAVEIS_COMUNS,
+			'verificacao_hash',
+			...LIMPAVEIS_WEBAUTHN
+		]);
 	});
 });
 

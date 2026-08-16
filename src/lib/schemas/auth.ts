@@ -161,3 +161,8 @@ export const alterarSenhaSchema = z.object({
 		.refine((s) => /[0-9]/.test(s), 'A senha deve conter pelo menos um número')
 		.refine((s) => !SENHAS_COMUNS.has(s.toLowerCase()), 'Essa senha é muito comum. Escolha outra.')
 });
+
+/** Reautenticação por senha na cerimônia de assinatura avançada. Sem matrícula. */
+export const reautenticarAssinaturaSchema = z.object({
+	senha: z.string().min(1, 'Senha é obrigatória').max(128, 'Senha muito longa')
+});

@@ -1,14 +1,12 @@
 /**
  * POST /api/gise/[id]/assinar-simples
  *
- * Assinatura simples (confirmação administrativa) da escala GISE diária.
- * Gera PDF, salva no R2 e muda status para 'assinada'.
- * Permissão: Supervisor designado (DPC) com escala em 'aguardando_assinatura'.
+ * Assinatura avançada de UM TIRO da escala GISE. Com a flag de chave ligada,
+ * este caminho morre (403) — o titular usa preparar/finalizar. O miolo do PDF
+ * vive em `assinatura-gise.ts`, compartilhado com as duas fases.
  */
-
 import type { RequestHandler } from './$types';
 import { carregarLogosGise } from '$lib/server/gise/logos';
-import { bytesToHex } from '$lib/crypto/hex';
 import {
 	apiError,
 	ErrorCode,
@@ -24,33 +22,23 @@ import {
 	getDB,
 	buscarGiseEscala,
 	buscarGiseDetalhado,
-	salvarGiseDocumento,
-	atualizarGiseEscala,
 	auditar,
-	contextoDeEvento
+	contextoDeEvento,
+	tryGetR2
 } from '$lib/db';
 import { assinarSimplesSchema } from '$lib/schemas';
 import { validarEvidenciasAvancada } from '$lib/server/assinatura/signature-service';
-import {
-	gerarPdfGise,
-	toGisePdfData,
-	giseDetalhadoComMatriculaSupervisorSessao
-} from '$lib/server/export';
+import { giseDetalhadoComMatriculaSupervisorSessao } from '$lib/server/export';
 import { getBreveRelatorioEnvMergido } from '$lib/server/gise/breve-relatorio-env';
+import { bucketParaAssinatura } from '$lib/server/assinatura/blob-assinado';
 import {
-	adicionarRodapeSimples,
-	adicionarPaginaAuditoria
-} from '$lib/server/assinatura/pdf-signing';
-import { selarPdfInstitucional, tipoCarimboPrevisto } from '$lib/server/assinatura/server-seal';
-import { gerarCodigoValidacao } from '$lib/utils/formato';
-import { tryGetR2 } from '$lib/db';
-import { bucketParaAssinatura, guardarPdfAssinado } from '$lib/server/assinatura/blob-assinado';
-import { uploadSelfieDataUri } from '$lib/server/assinatura/selfie-upload';
-import { chaveConferencia } from '$lib/server/assinatura/copia-conferencia';
-import { logger } from '$lib/server/logger';
+	montarPdfGiseAssinado,
+	persistirGiseAssinada,
+	subirSelfieGise
+} from '$lib/server/gise/assinatura-gise';
 
 export const POST: RequestHandler = async (event) => {
-	const { platform, params, locals, url, request, getClientAddress } = event;
+	const { platform, params, locals, url, request, cookies, getClientAddress } = event;
 	const u = requireAuth(locals);
 	if (u instanceof Response) return u;
 
@@ -63,7 +51,8 @@ export const POST: RequestHandler = async (event) => {
 		selfieBase64,
 		codigoValidação,
 		desafioId,
-		livenessChallenge
+		livenessChallenge,
+		reauthId
 	} = validated.data;
 
 	const ip = getClientAddress();
@@ -84,7 +73,6 @@ export const POST: RequestHandler = async (event) => {
 		return forbidden('Apenas o supervisor designado ou administradores podem assinar');
 	}
 
-	// Validação unificada de evidências (mesma lógica de escalas e relatórios extra).
 	const evid = await validarEvidenciasAvancada(
 		db,
 		u,
@@ -96,9 +84,14 @@ export const POST: RequestHandler = async (event) => {
 			codigoValidação,
 			desafioId,
 			livenessChallenge,
-			userAgent: ua
+			userAgent: ua,
+			reauthId
 		},
-		{ platform }
+		{
+			platform,
+			sessaoToken: cookies.get('session_token'),
+			recusarSePasskeyExigida: true
+		}
 	);
 	if (!evid.ok) return apiError(evid.error, evid.status, evid.code ?? ErrorCode.VALIDATION);
 	const validatedEv = evid.validated;
@@ -112,144 +105,57 @@ export const POST: RequestHandler = async (event) => {
 			);
 		}
 
+		const bucketOk = bucketParaAssinatura(tryGetR2(platform));
+		if (!bucketOk.ok) return bucketOk.resposta;
+
 		const { esq: logoJpgBytes, dir: logoCearaBytes } = await carregarLogosGise(platform);
 		const gisePdf = giseDetalhadoComMatriculaSupervisorSessao(giseDetalhado, u);
 		const brEnv = await getBreveRelatorioEnvMergido(db, giseDetalhado.operacao_id);
-		const result = await gerarPdfGise(toGisePdfData(gisePdf, brEnv), logoJpgBytes, logoCearaBytes);
-		const pdfBytes = result.pdf;
-		const sigY = result.finalY;
+		const env = platform?.env as unknown as Record<string, string | undefined> | undefined;
 
-		const verificationHash = gerarCodigoValidacao();
-		const verificationUrl = `${url.origin}/validar/${verificationHash}`;
-
-		const rubW_pts = 130;
-		const rx_pts = 222.75 * 2.8346 - rubW_pts / 2;
-		const ry_pts = (210 - sigY + 2) * 2.8346;
-
-		const pdfComRodape = await adicionarRodapeSimples(pdfBytes, u.nome, {
-			verificationHash,
-			verificationUrl,
-			rubricBase64: validatedEv.rubrica ?? undefined,
-			customRubricX: rx_pts,
-			customRubricY: ry_pts,
-			ip,
-			latitude: validatedEv.latitude,
-			longitude: validatedEv.longitude
-		});
-
-		// Calcular Hash do original (Integridade)
-		const originalHashBuffer = await crypto.subtle.digest('SHA-256', pdfComRodape.slice());
-		const documentHash = bytesToHex(new Uint8Array(originalHashBuffer));
-
-		// Adicionar folha de auditoria (Manifesto) profissional
-		const pdfFinal = await adicionarPaginaAuditoria(pdfComRodape, {
-			signerName: u.nome,
-			signerCpf: u.cpf ?? undefined,
-			// new Date() (UTC real): o manifesto formata em America/Sao_Paulo. Usar
-			// getNowBR() (já −3h) faria o horário sair 3h a menos.
-			signingTime: new Date(),
-			verificationHash,
-			verificationUrl: `${url.origin}/validar/${verificationHash}`,
-			ip,
+		const montado = await montarPdfGiseAssinado({
+			gise: { id, data_inicio: gise.data_inicio },
+			gisePdf,
+			brEnv,
+			logos: { esq: logoJpgBytes, dir: logoCearaBytes },
+			assinante: { nome: u.nome, cpf: u.cpf, email: u.email },
+			evidencias: {
+				rubrica: validatedEv.rubrica,
+				latitude: validatedEv.latitude,
+				longitude: validatedEv.longitude,
+				selfieBase64: validatedEv.selfieBase64,
+				livenessChallenge: validatedEv.livenessChallenge,
+				politicaDispositivoMovel: validatedEv.politicaDispositivoMovel
+			},
+			ip: ip ?? undefined,
 			userAgent: ua,
-			latitude: validatedEv.latitude ?? undefined,
-			longitude: validatedEv.longitude ?? undefined,
-			selfieBase64: validatedEv.selfieBase64 ?? undefined,
-			rubricBase64: validatedEv.rubrica ?? undefined,
-			documentHash,
-			token: crypto.randomUUID(),
-			documentName: `Escala de Serviço GISE - ${gise.data_inicio}`,
-			signatureLevel: 'avancada',
-			restricaoMovelAplicada: validatedEv.politicaDispositivoMovel,
-			tipoCarimoTempo: tipoCarimboPrevisto(
-				platform?.env as unknown as Record<string, string | undefined> | undefined
-			),
-			livenessChallenge: validatedEv.livenessChallenge
-				? {
-						tipo: validatedEv.livenessChallenge.tipo,
-						cumprido: validatedEv.livenessChallenge.cumprido,
-						tentativas: validatedEv.livenessChallenge.tentativas,
-						duracaoMs: validatedEv.livenessChallenge.duracaoMs
-					}
-				: null
+			origin: url.origin,
+			env
 		});
 
-		// Selo institucional (avançada, Lei 14.063/2020 art. 4º II) + carimbo de tempo
-		// grátis. Sem SELO_INSTITUCIONAL_PEM, mantém o rodapé honesto (pdfFinal).
-		const selado = await selarPdfInstitucional(pdfFinal, u.nome, {
-			env: platform?.env as unknown as Record<string, string | undefined> | undefined
+		const selfieKey = await subirSelfieGise(
+			bucketOk.r2,
+			{ id, data_inicio: gise.data_inicio },
+			validatedEv.selfieBase64
+		);
+
+		const persistido = await persistirGiseAssinada({
+			db,
+			r2: bucketOk.r2,
+			gise: { id, data_inicio: gise.data_inicio },
+			assinante: { id: u.id, nome: u.nome },
+			montado,
+			rubrica: validatedEv.rubrica,
+			selfieKey,
+			ip: ip ?? undefined,
+			userAgent: ua,
+			latitude: validatedEv.latitude,
+			longitude: validatedEv.longitude,
+			env
 		});
-		const pdfParaSalvar = selado.ok ? selado.pdf : pdfFinal;
+		if (!persistido.ok) return persistido.resposta;
 
-		const hashBuffer = await crypto.subtle.digest('SHA-256', pdfParaSalvar.slice());
-		const arquivo_hash = bytesToHex(new Uint8Array(hashBuffer));
-
-		// Sem onde guardar, a assinatura é RECUSADA: gravar a linha com uma
-		// `r2_key` apontando para nada faz `/validar` resolver o hash impresso no
-		// documento para um arquivo que não existe (FLW-R2-003).
-		const bucketOk = bucketParaAssinatura(tryGetR2(platform));
-		if (!bucketOk.ok) return bucketOk.resposta;
-		const r2 = bucketOk.r2;
-
-		const [yyyy, mm, dd] = gise.data_inicio.split('-');
-		const mesAno = `${yyyy}-${mm}`;
-		const folder = `gise/${mesAno}/${dd}/${id}/escala`;
-		const prefixBase = `${folder}/gise_${id}_${verificationHash}`;
-
-		const documentKey = `${prefixBase}_assinada.pdf`;
-		let selfieKey: string | undefined = undefined;
-
-		{
-			const guardado = await guardarPdfAssinado(r2, documentKey, pdfParaSalvar, 'gise-simples');
-			if (!guardado.ok) return guardado.resposta;
-
-			// Cópia de conferência: os MESMOS bytes do documento assinado ANTES da
-			// folha de manifesto (`pdfComRodape` = escala + rodapé/QR + rubrica).
-			// Sem isto, o download "sem manifesto" caía na regeneração legada e
-			// devolvia um PDF refeito na hora a partir dos dados ATUAIS da GISE —
-			// não o arquivo assinado. O fluxo por token (preparar-assinatura) já
-			// gravava esta cópia; aqui faltava. Best-effort: falha não aborta a
-			// assinatura (o download volta ao fallback de regeneração).
-			try {
-				await r2.put(chaveConferencia(verificationHash), pdfComRodape, {
-					httpMetadata: { contentType: 'application/pdf' }
-				});
-			} catch (err) {
-				logger.warn('[gise/assinar-simples] Falha ao gravar cópia de conferência', {
-					gise_id: id,
-					error: err instanceof Error ? err.message : String(err)
-				});
-			}
-
-			if (validatedEv.selfieBase64) {
-				// Helper compartilhado: valida magic bytes, limita 5 MB e gera
-				// chave com UUID aleatório (não-enumerável).
-				const r = await uploadSelfieDataUri(r2, `${folder}/selfies`, validatedEv.selfieBase64);
-				if (r.ok) selfieKey = r.key;
-			}
-		}
-
-		await Promise.all([
-			salvarGiseDocumento(
-				db,
-				id,
-				documentKey,
-				u.id,
-				u.nome,
-				'',
-				verificationHash,
-				validatedEv.rubrica ?? undefined,
-				ip,
-				ua,
-				validatedEv.latitude ?? undefined,
-				validatedEv.longitude ?? undefined,
-				selfieKey,
-				arquivo_hash
-			),
-			atualizarGiseEscala(db, id, { status: 'em_andamento' })
-		]);
-
-		const { contexto, env } = contextoDeEvento(event);
+		const { contexto, env: envAudit } = contextoDeEvento(event);
 		await auditar(
 			db,
 			{
@@ -262,19 +168,17 @@ export const POST: RequestHandler = async (event) => {
 				detalhes: `GISE ${id} assinada (assinatura simples)`,
 				metadados: {
 					tipo: 'simples',
-					verificationHash,
+					verificationHash: montado.verificationHash,
 					data_inicio: gise.data_inicio,
-					arquivo_hash
+					arquivo_hash: persistido.arquivoHash
 				},
 				...contexto
 			},
-			{ env }
+			{ env: envAudit }
 		);
 
-		// Auto-download após assinar: cópia de conferência (sem manifesto forense).
-		// O PDF forense completo fica no R2 e pode ser baixado via ?manifesto=true.
 		const filename = `gise_${gise.data_inicio}_confirmada.pdf`;
-		return new Response(pdfComRodape as unknown as BodyInit, {
+		return new Response((persistido.pdfComRodape ?? montado.pdfComRodape) as unknown as BodyInit, {
 			headers: {
 				'Content-Type': 'application/pdf',
 				'Content-Disposition': contentDisposition(filename)

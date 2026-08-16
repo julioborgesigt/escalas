@@ -5,7 +5,8 @@
  * de escala.
  */
 import type { LayoutServerLoad } from './$types';
-import { getDB, ehAdminGeralVinculado } from '$lib/db';
+import { getDB, ehAdminGeralVinculado, buscarCredencialAtiva } from '$lib/db';
+import { credencialDoUsuario } from '$lib/server/auth/credencial';
 import { lerFlagsAssinatura } from '$lib/server/assinatura/cfg-ass-cache';
 import { lerPapelGise } from '$lib/server/gise/papel-cache';
 import { lerTemLinhaBasePendente } from '$lib/server/operacoes/linha-base-cache';
@@ -28,6 +29,7 @@ export const load: LayoutServerLoad = async ({ locals, platform, cookies, depend
 	let exigirCodigoEmailAssinatura = false;
 	let restringirSmartphone = false;
 	let exigirPasskeyAssinatura = false;
+	let temChaveAssinatura = false;
 	let precisaCadastrarRubrica = false;
 	let recebidosNaoVistos = 0;
 	// Alternância de acesso (ADM Geral ↔ Usuário) para a MESMA pessoa vinculada.
@@ -53,16 +55,19 @@ export const load: LayoutServerLoad = async ({ locals, platform, cookies, depend
 			// segmentadas para não invalidar o layout inteiro à toa.
 			if (u.tipo === 'admin') depends('app:recebidos-badge');
 			depends('app:assinatura-flags');
+			depends('app:chave-assinatura');
 			if (u.tipo === 'policial') depends('app:papel-gise');
-			const [flags, papel, vinculadoAdmin, recebidos, linhaBasePendente] = await Promise.all([
-				lerFlagsAssinatura(platform),
-				u.tipo === 'policial' ? lerPapelGise(db, u.id) : Promise.resolve(null),
-				u.tipo === 'policial' ? ehAdminGeralVinculado(db, u.id) : Promise.resolve(false),
-				u.tipo === 'admin' ? resumoRecebidosAdmin(db) : Promise.resolve(null),
-				// Cache próprio (TTL 60s): a resposta cruza operações ativas, modelos e
-				// participação — cara demais para o `load` que roda a cada navegação.
-				lerTemLinhaBasePendente(db, u)
-			]);
+			const [flags, papel, vinculadoAdmin, recebidos, linhaBasePendente, credencial] =
+				await Promise.all([
+					lerFlagsAssinatura(platform),
+					u.tipo === 'policial' ? lerPapelGise(db, u.id) : Promise.resolve(null),
+					u.tipo === 'policial' ? ehAdminGeralVinculado(db, u.id) : Promise.resolve(false),
+					u.tipo === 'admin' ? resumoRecebidosAdmin(db) : Promise.resolve(null),
+					// Cache próprio (TTL 60s): a resposta cruza operações ativas, modelos e
+					// participação — cara demais para o `load` que roda a cada navegação.
+					lerTemLinhaBasePendente(db, u),
+					buscarCredencialAtiva(db, credencialDoUsuario(u))
+				]);
 			temLinhaBasePendente = linhaBasePendente;
 			podeAlternarParaAdmin = vinculadoAdmin;
 			exigirFotoAssinatura = flags.exigirFotoAssinatura;
@@ -70,6 +75,7 @@ export const load: LayoutServerLoad = async ({ locals, platform, cookies, depend
 			exigirCodigoEmailAssinatura = flags.exigirCodigoEmailAssinatura;
 			restringirSmartphone = flags.restringirSmartphone;
 			exigirPasskeyAssinatura = flags.exigirPasskeyAssinatura;
+			temChaveAssinatura = credencial !== null;
 			if (recebidos) recebidosNaoVistos = recebidos.naoVistos;
 
 			if (papel) {
@@ -115,6 +121,7 @@ export const load: LayoutServerLoad = async ({ locals, platform, cookies, depend
 		exigirCodigoEmailAssinatura,
 		restringirSmartphone,
 		exigirPasskeyAssinatura,
+		temChaveAssinatura,
 		precisaCadastrarRubrica,
 		recebidosNaoVistos,
 		adminModulo,

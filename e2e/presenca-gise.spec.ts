@@ -3,6 +3,7 @@ import { FIXTURE } from './global-setup';
 import {
 	seedSession,
 	seedDesafioAssinatura,
+	seedReauthAssinatura,
 	cookieDeSessao,
 	execD1Local,
 	queryD1Local,
@@ -59,9 +60,12 @@ test.describe('Presença GISE em tela + comprovante', () => {
 	test.skip(() => !token, 'D1 local indisponível — seed de sessão falhou');
 
 	test('sem código 2FA → falha (é sempre obrigatório)', async ({ request }) => {
+		const reauthId = seedReauthAssinatura(FIXTURE.membroGise.id, token!);
+		test.skip(!reauthId, 'D1 local indisponível');
 		const res = await postAction(request, token!, 'salvarEntrada', {
 			giseId: String(GISE),
-			rubrica: RUBRICA_PNG
+			rubrica: RUBRICA_PNG,
+			reauthId: reauthId!
 		});
 		expect(await res.text()).toContain('obrigat');
 	});
@@ -77,7 +81,8 @@ test.describe('Presença GISE em tela + comprovante', () => {
 		request
 	}) => {
 		const desafioId = seedDesafioAssinatura(FIXTURE.membroGise.id, CODIGO);
-		test.skip(!desafioId, 'D1 local indisponível');
+		const reauthId = seedReauthAssinatura(FIXTURE.membroGise.id, token!);
+		test.skip(!desafioId || !reauthId, 'D1 local indisponível');
 
 		const res = await postAction(request, token!, 'salvarEntrada', {
 			giseId: String(GISE),
@@ -85,7 +90,8 @@ test.describe('Presença GISE em tela + comprovante', () => {
 			latitude: '-3.7319',
 			longitude: '-38.5267',
 			codigoEmail: CODIGO,
-			desafioId: desafioId!
+			desafioId: desafioId!,
+			reauthId: reauthId!
 		});
 		expect(res.status()).toBe(200);
 		expect(await res.text()).toContain('success');
@@ -108,13 +114,15 @@ test.describe('Presença GISE em tela + comprovante', () => {
 
 	test('saída com rubrica + 2FA → registrada, comprovante disponível', async ({ request }) => {
 		const desafioId = seedDesafioAssinatura(FIXTURE.membroGise.id, CODIGO);
-		test.skip(!desafioId, 'D1 local indisponível');
+		const reauthId = seedReauthAssinatura(FIXTURE.membroGise.id, token!);
+		test.skip(!desafioId || !reauthId, 'D1 local indisponível');
 
 		const res = await postAction(request, token!, 'salvarSaida', {
 			giseId: String(GISE),
 			rubrica: RUBRICA_PNG,
 			codigoEmail: CODIGO,
-			desafioId: desafioId!
+			desafioId: desafioId!,
+			reauthId: reauthId!
 		});
 		expect(res.status()).toBe(200);
 		expect(await res.text()).toContain('success');
@@ -134,13 +142,17 @@ test.describe('Presença GISE em tela + comprovante', () => {
 		// deve recusar por vínculo — antes desta guarda, gravava presença alheia.
 		const tokenForasteiro = seedSession(FIXTURE.policialA.id);
 		const desafioForasteiro = seedDesafioAssinatura(FIXTURE.policialA.id, CODIGO);
-		test.skip(!tokenForasteiro || !desafioForasteiro, 'D1 local indisponível');
+		const reauthForasteiro = tokenForasteiro
+			? seedReauthAssinatura(FIXTURE.policialA.id, tokenForasteiro)
+			: null;
+		test.skip(!tokenForasteiro || !desafioForasteiro || !reauthForasteiro, 'D1 local indisponível');
 
 		const res = await postAction(request, tokenForasteiro!, 'salvarEntrada', {
 			giseId: String(GISE),
 			rubrica: RUBRICA_PNG,
 			codigoEmail: CODIGO,
-			desafioId: desafioForasteiro!
+			desafioId: desafioForasteiro!,
+			reauthId: reauthForasteiro!
 		});
 		const body = await res.text();
 		expect(body).toContain('não participa');
@@ -227,13 +239,15 @@ test.describe('FLW-AUT-006 / 007 — janela e GISE finalizada no /res-gise', () 
 		test.skip(!semearGisePresenca(GISE_FUTURA, diaBrasiliaISO(1), 'em_andamento'), 'seed falhou');
 
 		const desafioId = seedDesafioAssinatura(FIXTURE.membroGise.id, CODIGO);
-		test.skip(!desafioId, 'D1 local indisponível');
+		const reauthId = seedReauthAssinatura(FIXTURE.membroGise.id, token!);
+		test.skip(!desafioId || !reauthId, 'D1 local indisponível');
 
 		const res = await postAction(request, token!, 'salvarEntrada', {
 			giseId: String(GISE_FUTURA),
 			rubrica: RUBRICA_PNG,
 			codigoEmail: CODIGO,
-			desafioId: desafioId!
+			desafioId: desafioId!,
+			reauthId: reauthId!
 		});
 		const body = await res.text();
 		expect(body, `status=${res.status()} body=${body}`).toMatch(/ainda não está liberada/i);
@@ -246,13 +260,15 @@ test.describe('FLW-AUT-006 / 007 — janela e GISE finalizada no /res-gise', () 
 		test.skip(!semearGisePresenca(GISE_FECHADA, diaBrasiliaISO(-1), 'finalizada'), 'seed falhou');
 
 		const desafioId = seedDesafioAssinatura(FIXTURE.membroGise.id, CODIGO);
-		test.skip(!desafioId, 'D1 local indisponível');
+		const reauthId = seedReauthAssinatura(FIXTURE.membroGise.id, token!);
+		test.skip(!desafioId || !reauthId, 'D1 local indisponível');
 
 		const res = await postAction(request, token!, 'salvarEntrada', {
 			giseId: String(GISE_FECHADA),
 			rubrica: RUBRICA_PNG,
 			codigoEmail: CODIGO,
-			desafioId: desafioId!
+			desafioId: desafioId!,
+			reauthId: reauthId!
 		});
 		const body = await res.text();
 		expect(body, `status=${res.status()} body=${body}`).toMatch(/finalizada/i);

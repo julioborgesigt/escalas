@@ -596,6 +596,12 @@ export const giseDocumentos = sqliteTable(
 		ocsp_response_b64: text('ocsp_response_b64'),
 		ocsp_consultado_em: text('ocsp_consultado_em'),
 		tst_token_b64: text('tst_token_b64'),
+		// Asserção WebAuthn (migração 0060) — contraparte forense, igual à escala.
+		webauthn_credential_id: text('webauthn_credential_id'),
+		webauthn_client_data: text('webauthn_client_data'),
+		webauthn_authenticator_data: text('webauthn_authenticator_data'),
+		webauthn_assinatura: text('webauthn_assinatura'),
+		webauthn_backup_ativo: integer('webauthn_backup_ativo'),
 		created_at: text('created_at').default(sql`(datetime('now', '-3 hours'))`)
 	},
 	(table) => [unique('uq_gise_documento').on(table.gise_id)]
@@ -734,6 +740,12 @@ export const giseAssinaturasRelatorios = sqliteTable(
 		ocsp_response_b64: text('ocsp_response_b64'),
 		ocsp_consultado_em: text('ocsp_consultado_em'),
 		tst_token_b64: text('tst_token_b64'),
+		// Asserção WebAuthn (migração 0060) — contraparte forense, igual à escala.
+		webauthn_credential_id: text('webauthn_credential_id'),
+		webauthn_client_data: text('webauthn_client_data'),
+		webauthn_authenticator_data: text('webauthn_authenticator_data'),
+		webauthn_assinatura: text('webauthn_assinatura'),
+		webauthn_backup_ativo: integer('webauthn_backup_ativo'),
 		created_at: text('created_at').default(sql`(datetime('now', '-3 hours'))`)
 	},
 	(table) => [
@@ -776,6 +788,12 @@ export const gisePresencaTermos = sqliteTable(
 		ocsp_response_b64: text('ocsp_response_b64'),
 		ocsp_consultado_em: text('ocsp_consultado_em'),
 		tst_token_b64: text('tst_token_b64'),
+		// Asserção WebAuthn (migração 0060) — contraparte forense, igual à escala.
+		webauthn_credential_id: text('webauthn_credential_id'),
+		webauthn_client_data: text('webauthn_client_data'),
+		webauthn_authenticator_data: text('webauthn_authenticator_data'),
+		webauthn_assinatura: text('webauthn_assinatura'),
+		webauthn_backup_ativo: integer('webauthn_backup_ativo'),
 		created_at: text('created_at').default(sql`(datetime('now', '-3 hours'))`)
 	},
 	(table) => [
@@ -896,6 +914,35 @@ export const webauthnDesafios = sqliteTable(
 	(table) => [index('idx_webauthn_desafio').on(table.desafio_id)]
 );
 
+/**
+ * 2FA da reposição da chave de assinatura (migração 0061).
+ *
+ * Dois canais — institucional e pessoal — só quando já há chave ativa.
+ * Tabela própria porque `dois_fatores_tokens` tem CHECK de `tipo` e rebuild
+ * seria caro. Expurga por `expires_at` (ISO), como a intenção.
+ */
+export const passkeyReposicao = sqliteTable(
+	'passkey_reposicao',
+	{
+		id: integer('id').primaryKey({ autoIncrement: true }),
+		desafio_id: text('desafio_id').notNull().unique(),
+		usuario_tipo: text('usuario_tipo', { enum: ['policial', 'admin'] }).notNull(),
+		usuario_id: integer('usuario_id').notNull(),
+		canal: text('canal', { enum: ['institucional', 'pessoal'] }).notNull(),
+		codigo_hash: text('codigo_hash').notNull(),
+		expires_at: text('expires_at').notNull(),
+		usado: integer('usado').notNull().default(0),
+		tentativas: integer('tentativas').notNull().default(0),
+		created_at: text('created_at')
+			.notNull()
+			.default(sql`(datetime('now', '-3 hours'))`)
+	},
+	(table) => [
+		index('idx_passkey_reposicao_usuario').on(table.usuario_tipo, table.usuario_id),
+		index('idx_passkey_reposicao_expires').on(table.expires_at)
+	]
+);
+
 // ---- Autenticação de Dois Fatores ----
 
 export const doisFatoresTokens = sqliteTable(
@@ -1001,6 +1048,33 @@ export const assinaturaIntencoes = sqliteTable(
 	(table) => [index('idx_assinatura_intencoes_expires').on(table.expires_at)]
 );
 
+/**
+ * Janela de reautenticação por senha da assinatura avançada (migração 0059).
+ *
+ * Irmã da intenção e do desafio 2FA de assinatura: token opaco de 64 hex,
+ * banco guarda `sha256:`, validade ~10 min, amarrada ao usuário E à sessão.
+ * Não se consome no POST de assinar — o lote reutiliza a janela.
+ */
+export const assinaturaReauth = sqliteTable(
+	'assinatura_reauth',
+	{
+		id: integer('id').primaryKey({ autoIncrement: true }),
+		token_hash: text('token_hash').notNull().unique(),
+		usuario_tipo: text('usuario_tipo', { enum: ['policial', 'admin'] }).notNull(),
+		usuario_id: integer('usuario_id').notNull(),
+		/** SHA-256 do cookie `session_token` — a janela morre se a sessão mudar. */
+		sessao_hash: text('sessao_hash').notNull(),
+		expires_at: text('expires_at').notNull(),
+		created_at: text('created_at')
+			.notNull()
+			.default(sql`(datetime('now', '-3 hours'))`)
+	},
+	(table) => [
+		index('idx_assinatura_reauth_expires').on(table.expires_at),
+		index('idx_assinatura_reauth_usuario').on(table.usuario_tipo, table.usuario_id)
+	]
+);
+
 // ---- Configurações do Sistema ----
 
 export const configuracoes = sqliteTable('configuracoes', {
@@ -1060,7 +1134,9 @@ export const recoveryAttempts = sqliteTable(
 				'verificar_2fa',
 				'reenviar_codigo',
 				'solicitar_codigo_assinatura',
-				'alterar_senha'
+				'alterar_senha',
+				'reauth_assinatura',
+				'passkey_reposicao'
 			]
 		}).notNull(),
 		attempted_at: text('attempted_at')

@@ -29,7 +29,8 @@ import {
 	registrarUsoCredencial,
 	registrarAuditComContexto,
 	getR2,
-	hasR2
+	hasR2,
+	passkeyMetaDeAssercao
 } from '$lib/db';
 import {
 	apiError,
@@ -172,7 +173,11 @@ export const POST: RequestHandler = async ({
 			userAgent: ua || undefined,
 			latitude: consumo.contexto.latitude,
 			longitude: consumo.contexto.longitude,
-			env: platform?.env as unknown as Record<string, string | undefined> | undefined
+			env: platform?.env as unknown as Record<string, string | undefined> | undefined,
+			// Contraparte forense: a asserção acabou de conferir ao vivo. Sem
+			// gravá-la, o manifesto afirmaria biometria e `reconferirAssercaoDocumento`
+			// não teria o que reconferir — o furo que a fase 0 deste plano fecha.
+			passkeyMeta: passkeyMetaDeAssercao(assercao, verificacao.dados.backupAtivo)
 		});
 
 		await registrarAuditComContexto(db, {

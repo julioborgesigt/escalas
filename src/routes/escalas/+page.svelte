@@ -51,9 +51,13 @@
 	} from '$lib/composables';
 	import { fetchSyncEstado } from '$lib/sync-estado';
 	import SignaturePad from '$lib/components/SignaturePad.svelte';
-	import type { SignaturePadConfirmPayload } from '$lib/components/SignaturePadTypes';
+	import type {
+		SignaturePadConfirmPayload,
+		SignaturePadStep
+	} from '$lib/components/SignaturePadTypes';
 	import PainelAssinaturaToken from '$lib/components/PainelAssinaturaToken.svelte';
 	import { page } from '$app/state';
+	import { avancadaEmTelaDoLayout } from '$lib/chave-assinatura-ui';
 	import FloatingRefresh from '$lib/components/FloatingRefresh.svelte';
 	import ModalNovaEscala from './_components/ModalNovaEscala.svelte';
 	import TabelaEscalas from './_components/TabelaEscalas.svelte';
@@ -403,6 +407,7 @@
 	const isMobile = $derived(mobileState.isMobile);
 	const restringirSmartphone = $derived((page.data.restringirSmartphone as boolean) ?? false);
 	const assinaturaTelaBloqueada = $derived(restringirSmartphone && !isMobile);
+	const avancadaDisponivel = $derived(avancadaEmTelaDoLayout(page.data));
 
 	let escalaAssinandoId = $state<number | null>(null);
 	let dialogAssinaturaTela = $state(false);
@@ -424,6 +429,7 @@
 	let painelTokenRapidoControl = $state<{ assinarComSerpro: () => Promise<void> } | null>(null);
 
 	function iniciarAssinaturaTela(id: number) {
+		if (!avancadaDisponivel) return;
 		escalaAssinandoId = id;
 		dialogAssinaturaTela = true;
 	}
@@ -434,7 +440,7 @@
 		await painelTokenRapidoControl?.assinarComSerpro();
 	}
 
-	let signatureStep = $state<'signature' | 'camera' | 'email_code'>('signature');
+	let signatureStep = $state<SignaturePadStep>('signature');
 	$effect(() => {
 		if (dialogAssinaturaTela) {
 			signatureStep = 'signature';
@@ -444,16 +450,20 @@
 	const signatureTitulo = $derived(
 		signatureStep === 'camera'
 			? 'Prova de Vida'
-			: signatureStep === 'email_code'
-				? 'Confirmação de Identidade'
-				: 'Assinatura Digital em Tela'
+			: signatureStep === 'password'
+				? 'Confirme sua senha'
+				: signatureStep === 'email_code'
+					? 'Confirmação de Identidade'
+					: 'Assinatura Digital em Tela'
 	);
 	const signatureDescricao = $derived(
 		signatureStep === 'camera'
 			? 'Cumpra o desafio de presença na tela para provar que você está ativo.'
-			: signatureStep === 'email_code'
-				? 'Por razões de segurança, insira o código enviado para o seu e-mail funcional.'
-				: 'Desenhe sua rubrica no quadro abaixo para assinar este documento.'
+			: signatureStep === 'password'
+				? 'A sessão sozinha não basta. Digite a senha de acesso para assinar.'
+				: signatureStep === 'email_code'
+					? 'Por razões de segurança, insira o código enviado para o seu e-mail funcional.'
+					: 'Desenhe sua rubrica no quadro abaixo para assinar este documento.'
 	);
 </script>
 
@@ -840,7 +850,8 @@
 					p.selfie,
 					p.codigoEmail,
 					p.desafioId,
-					p.liveness
+					p.liveness,
+					p.reauthId
 				);
 			}}
 			onCancel={() => (dialogAssinaturaTela = false)}

@@ -13,6 +13,8 @@ import { validarEvidenciasAvancada, recusadaPorPoliticaDispositivo } from '../si
 import { ErrorCode } from '../../api';
 import type { FlagsAssinatura } from '../cfg-ass-cache';
 import type { Database } from '../../../db/core';
+import { bancoMigrado, drizzleSobre } from '$lib/db/__tests__/sqlite-migrado';
+import { criarJanelaReauth } from '$lib/db/reauth';
 
 const UA_IPHONE =
 	'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1';
@@ -37,12 +39,19 @@ function flags(restringirSmartphone: boolean): FlagsAssinatura {
 	};
 }
 
-/** O gate roda antes de qualquer acesso a dados — nenhum teste toca no banco. */
+/** O gate de dispositivo roda ANTES da janela de senha — recusa de desktop
+ *  não precisa de banco. O caminho de sucesso precisa da janela real. */
 const dbNaoUsado = null as unknown as Database;
 const usuario = { id: 7, tipo: 'policial' as const, nome: 'Fulano', cpf: '12345678901' };
+const SESSAO = 'sessao-politica-dispositivo';
 
-function evidencias(userAgent: string) {
-	return { rubrica: 'data:image/png;base64,AAAA', userAgent };
+function evidencias(userAgent: string, reauthId?: string) {
+	return { rubrica: 'data:image/png;base64,AAAA', userAgent, reauthId };
+}
+
+async function evidenciasComJanela(db: Database, userAgent: string) {
+	const reauthId = await criarJanelaReauth(db, usuario, SESSAO);
+	return { evidencias: evidencias(userAgent, reauthId), sessaoToken: SESSAO };
 }
 
 describe('ehDispositivoMovelUA', () => {
@@ -112,8 +121,12 @@ describe('validarEvidenciasAvancada — gate de dispositivo', () => {
 	});
 
 	it('aceita celular com a política ligada e marca a política nas evidências', async () => {
-		const r = await validarEvidenciasAvancada(dbNaoUsado, usuario, evidencias(UA_ANDROID), {
-			flagsOverride: flags(true)
+		const sqlite = bancoMigrado();
+		const db = drizzleSobre(sqlite);
+		const { evidencias: ev, sessaoToken } = await evidenciasComJanela(db, UA_ANDROID);
+		const r = await validarEvidenciasAvancada(db, usuario, ev, {
+			flagsOverride: flags(true),
+			sessaoToken
 		});
 
 		expect(r.ok).toBe(true);
@@ -124,8 +137,12 @@ describe('validarEvidenciasAvancada — gate de dispositivo', () => {
 	});
 
 	it('aceita desktop com a política desligada, sem marcar nada no manifesto', async () => {
-		const r = await validarEvidenciasAvancada(dbNaoUsado, usuario, evidencias(UA_WINDOWS), {
-			flagsOverride: flags(false)
+		const sqlite = bancoMigrado();
+		const db = drizzleSobre(sqlite);
+		const { evidencias: ev, sessaoToken } = await evidenciasComJanela(db, UA_WINDOWS);
+		const r = await validarEvidenciasAvancada(db, usuario, ev, {
+			flagsOverride: flags(false),
+			sessaoToken
 		});
 
 		expect(r.ok).toBe(true);

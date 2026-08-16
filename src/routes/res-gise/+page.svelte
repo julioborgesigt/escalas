@@ -26,6 +26,7 @@
 	import { useAutorizacao, useMobile, useInvalidateOnFocus } from '$lib/composables';
 	import { fetchSyncEstado } from '$lib/sync-estado';
 	import SignaturePad from '$lib/components/SignaturePad.svelte';
+	import type { SignaturePadStep } from '$lib/components/SignaturePadTypes';
 	import ModalCadastrarRubrica from '$lib/components/ModalCadastrarRubrica.svelte';
 	import ModalShell from '$lib/components/ModalShell.svelte';
 	import BotaoVoltar from '$lib/components/BotaoVoltar.svelte';
@@ -70,7 +71,7 @@
 		}
 	});
 
-	let signatureStep = $state<'signature' | 'camera' | 'email_code'>('signature');
+	let signatureStep = $state<SignaturePadStep>('signature');
 	$effect(() => {
 		if (presenca.capturandoRubrica) {
 			signatureStep = 'signature';
@@ -445,19 +446,23 @@
 	{@const titulo =
 		signatureStep === 'camera'
 			? 'Prova de Vida'
-			: signatureStep === 'email_code'
-				? 'Confirmação de Identidade'
-				: tipoPresenca === 'entrada'
-					? 'Confirmação de Entrada'
-					: 'Confirmação de Saída'}
+			: signatureStep === 'password'
+				? 'Confirme sua senha'
+				: signatureStep === 'email_code'
+					? 'Confirmação de Identidade'
+					: tipoPresenca === 'entrada'
+						? 'Confirmação de Entrada'
+						: 'Confirmação de Saída'}
 	{@const descricao =
 		signatureStep === 'camera'
 			? 'Cumpra o desafio de presença na tela para provar que você está ativo.'
-			: signatureStep === 'email_code'
-				? 'Por razões de segurança, insira o código enviado para o seu e-mail funcional.'
-				: tipoPresenca === 'entrada'
-					? 'Registre sua rubrica para confirmar a entrada no serviço.'
-					: 'Registre sua rubrica para confirmar a saída do serviço.'}
+			: signatureStep === 'password'
+				? 'A sessão sozinha não basta. Digite a senha de acesso para assinar.'
+				: signatureStep === 'email_code'
+					? 'Por razões de segurança, insira o código enviado para o seu e-mail funcional.'
+					: tipoPresenca === 'entrada'
+						? 'Registre sua rubrica para confirmar a entrada no serviço.'
+						: 'Registre sua rubrica para confirmar a saída do serviço.'}
 	<ModalShell
 		open={presenca.capturandoRubrica}
 		title={titulo}

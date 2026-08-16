@@ -154,6 +154,28 @@ describe('executarLimpezaRetencao — colunas no formato ISO do app', () => {
 		expect(sobreviventes('dois_fatores_tokens')).toEqual([3, 4]);
 		expect(sobreviventes('reset_senha_tokens')).toEqual([3, 4]);
 	});
+
+	it('assinatura_reauth corta por expires_at no formato ISO', async () => {
+		for (const { id, ts } of CASOS_ISO) {
+			sqlite.exec(
+				`INSERT INTO assinatura_reauth (id, token_hash, usuario_tipo, usuario_id, sessao_hash, expires_at) VALUES (${id}, 'h${id}', 'policial', 1, 's${id}', '${ts}')`
+			);
+		}
+		const r = await executarLimpezaRetencao(db, config);
+		expect(sobreviventes('assinatura_reauth')).toEqual([3, 4]);
+		expect(r.assinaturaReauth).toBe(2);
+	});
+
+	it('passkey_reposicao corta por expires_at no formato ISO', async () => {
+		for (const { id, ts } of CASOS_ISO) {
+			sqlite.exec(
+				`INSERT INTO passkey_reposicao (id, desafio_id, usuario_tipo, usuario_id, canal, codigo_hash, expires_at) VALUES (${id}, 'd${id}', 'policial', 1, 'institucional', 'h${id}', '${ts}')`
+			);
+		}
+		const r = await executarLimpezaRetencao(db, config);
+		expect(sobreviventes('passkey_reposicao')).toEqual([3, 4]);
+		expect(r.passkeyReposicao).toBe(2);
+	});
 });
 
 describe('executarLimpezaRetencao — contagem devolvida', () => {

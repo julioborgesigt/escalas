@@ -104,6 +104,8 @@ export const DECLARADAS = {
 	'src/routes/api/lgpd/solicitar/+server.ts → POST': 'exerce direito LGPD sobre os próprios dados',
 	'src/routes/api/auth/solicitar-codigo-assinatura/+server.ts → POST':
 		'envia o código 2FA para o e-mail do próprio usuário logado',
+	'src/routes/api/auth/reautenticar-assinatura/+server.ts → POST':
+		'reinsere a própria senha para abrir a janela da cerimônia de assinatura; não aceita id de terceiro',
 	// A credencial é sempre a de `credencialDoUsuario(u)` — nunca um id vindo do
 	// corpo —, então não há segundo sujeito a autorizar. Registrar passkey PARA
 	// OUTRA PESSOA não é operação restrita: é operação que não existe, e não
@@ -114,6 +116,8 @@ export const DECLARADAS = {
 		'registra a passkey do próprio usuário logado; não aceita id de terceiro',
 	'src/routes/api/webauthn/registro/+server.ts → DELETE':
 		'revoga a própria passkey (troca de aparelho)',
+	'src/routes/api/webauthn/solicitar-codigo-reposicao/+server.ts → POST':
+		'envia os dois códigos de reposição da própria chave; não aceita id de terceiro',
 
 	// ---- Webhook: autenticado por segredo compartilhado + HMAC, não por sessão ----
 	'src/routes/api/webhook/limpeza-retencao/+server.ts → POST': 'segredo compartilhado (cron)',

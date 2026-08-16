@@ -17,7 +17,7 @@ import type { Database } from '../core';
 import { anonimizarIp } from '../audit';
 import { parseUserAgent, reduzirPrecisaoGps } from '../../server/assinatura/document-utils';
 import { cifrarCpfParaArmazenar, type CpfCriptoEnv } from '../../crypto/cpf-cripto';
-import type { AssinaturaCadesMetadata } from '../documentos';
+import type { AssinaturaCadesMetadata, AssinaturaPasskeyMetadata } from '../documentos';
 
 /** Todas as assinaturas de relatório da GISE, sem filtro de seccional ou tipo. */
 export async function buscarAssinaturasRelatoriosGise(db: Database, giseId: number) {
@@ -109,6 +109,7 @@ export async function salvarAssinaturaRelatorioGise(
 		r2_key?: string | null;
 		assinante_email?: string | null;
 		tipo_carimbo_tempo?: string;
+		passkeyMeta?: AssinaturaPasskeyMetadata;
 	} & AssinaturaCadesMetadata,
 	env?: CpfCriptoEnv
 ) {
@@ -155,7 +156,12 @@ export async function salvarAssinaturaRelatorioGise(
 		cms_sha256: data.cms_sha256 ?? null,
 		ocsp_response_b64: data.ocsp_response_b64 ?? null,
 		ocsp_consultado_em: data.ocsp_consultado_em ?? null,
-		tst_token_b64: data.tst_token_b64 ?? null
+		tst_token_b64: data.tst_token_b64 ?? null,
+		webauthn_credential_id: data.passkeyMeta?.credential_id ?? null,
+		webauthn_client_data: data.passkeyMeta?.client_data ?? null,
+		webauthn_authenticator_data: data.passkeyMeta?.authenticator_data ?? null,
+		webauthn_assinatura: data.passkeyMeta?.assinatura ?? null,
+		webauthn_backup_ativo: data.passkeyMeta ? (data.passkeyMeta.backup_ativo ? 1 : 0) : null
 	};
 
 	return db
@@ -195,10 +201,12 @@ export async function salvarTermoPresencaGise(
 		latitude?: number;
 		longitude?: number;
 		tipo_carimbo_tempo?: string;
+		passkeyMeta?: AssinaturaPasskeyMetadata;
 	} & AssinaturaCadesMetadata,
 	env?: CpfCriptoEnv
 ) {
 	const cpfArmazenado = (await cifrarCpfParaArmazenar(data.assinante_cpf, env)) ?? null;
+	const passkey = data.passkeyMeta;
 	return db.insert(gisePresencaTermos).values({
 		gise_id: data.gise_id,
 		policial_id: data.policial_id,
@@ -223,6 +231,11 @@ export async function salvarTermoPresencaGise(
 		ocsp_response_b64: data.ocsp_response_b64 ?? null,
 		ocsp_consultado_em: data.ocsp_consultado_em ?? null,
 		tst_token_b64: data.tst_token_b64 ?? null,
+		webauthn_credential_id: passkey?.credential_id ?? null,
+		webauthn_client_data: passkey?.client_data ?? null,
+		webauthn_authenticator_data: passkey?.authenticator_data ?? null,
+		webauthn_assinatura: passkey?.assinatura ?? null,
+		webauthn_backup_ativo: passkey ? (passkey.backup_ativo ? 1 : 0) : null,
 		created_at: sql`datetime('now', '-3 hours')`
 	});
 }

@@ -27,6 +27,8 @@ import {
 	resetSenhaTokens,
 	assinaturaIntencoes,
 	webauthnDesafios,
+	assinaturaReauth,
+	passkeyReposicao,
 	recoveryAttempts,
 	webhookNonces,
 	auditLog,
@@ -66,6 +68,8 @@ interface ResultadoLimpeza {
 	resetTokens: number;
 	assinaturaIntencoes: number;
 	webauthnDesafios: number;
+	assinaturaReauth: number;
+	passkeyReposicao: number;
 	recoveryAttempts: number;
 	webhookNonces: number;
 	auditLog: number;
@@ -226,6 +230,8 @@ export async function executarLimpezaRetencao(
 		resReset,
 		resIntencoes,
 		resDesafiosWebauthn,
+		resReauth,
+		resReposicao,
 		resRecovery,
 		resNonces,
 		resAppLog
@@ -254,6 +260,17 @@ export async function executarLimpezaRetencao(
 		db
 			.delete(webauthnDesafios)
 			.where(lt(webauthnDesafios.expires_at, cutoffISO(config.resetTokensDias))),
+		// Janela de senha da cerimônia: ~10 min, ISO como a intenção. Sem isto
+		// o token hasheado acumula depois de expirar — dado de autenticação
+		// sem utilidade após o lote.
+		db
+			.delete(assinaturaReauth)
+			.where(lt(assinaturaReauth.expires_at, cutoffISO(config.resetTokensDias))),
+		// 2FA da reposição da chave: dois códigos, 10 min, ISO. Sem isto o
+		// hash do código acumula depois de expirar.
+		db
+			.delete(passkeyReposicao)
+			.where(lt(passkeyReposicao.expires_at, cutoffISO(config.resetTokensDias))),
 		db
 			.delete(recoveryAttempts)
 			.where(lt(recoveryAttempts.attempted_at, cutoffSqlite(config.recoveryAttemptsDias))),
@@ -278,6 +295,8 @@ export async function executarLimpezaRetencao(
 		resetTokens: linhasAfetadas(resReset),
 		assinaturaIntencoes: linhasAfetadas(resIntencoes),
 		webauthnDesafios: linhasAfetadas(resDesafiosWebauthn),
+		assinaturaReauth: linhasAfetadas(resReauth),
+		passkeyReposicao: linhasAfetadas(resReposicao),
 		recoveryAttempts: linhasAfetadas(resRecovery),
 		webhookNonces: linhasAfetadas(resNonces),
 		auditLog: auditRemovidos,

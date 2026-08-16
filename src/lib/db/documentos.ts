@@ -52,6 +52,32 @@ export interface AssinaturaPasskeyMetadata {
 	backup_ativo: boolean;
 }
 
+/**
+ * Monta o dossiê a gravar a partir da asserção conferida ao vivo.
+ *
+ * Os quatro campos binários já vêm em base64url do cliente — é o mesmo
+ * alfabeto que `reconferirAssercaoDocumento` espera. Sem este helper, cada
+ * `finalizar` copiava o mapeamento à mão e um nome divergente (ex.:
+ * `client_data` vs `clientData`) nascia invisível até a reconferência falhar.
+ */
+export function passkeyMetaDeAssercao(
+	assercao: {
+		credentialId: string;
+		clientDataJSON: string;
+		authenticatorData: string;
+		assinatura: string;
+	},
+	backupAtivo: boolean
+): AssinaturaPasskeyMetadata {
+	return {
+		credential_id: assercao.credentialId,
+		client_data: assercao.clientDataJSON,
+		authenticator_data: assercao.authenticatorData,
+		assinatura: assercao.assinatura,
+		backup_ativo: backupAtivo
+	};
+}
+
 export interface AssinaturaCadesMetadata {
 	cert_issuer?: string | null;
 	cert_serial?: string | null;

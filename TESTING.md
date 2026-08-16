@@ -738,8 +738,8 @@ Verificar cada transição de status:
 - [ ] Ligar/desligar `exigir_gps_assinatura` → refletido na próxima assinatura
 - [ ] Ligar/desligar `restringir_smartphone` → em desktop, fluxo A3 oferecido
 - [ ] Com `restringir_smartphone` ligado, POST direto de um desktop (curl/devtools) em `/api/escalas/<id>/assinar-simples` → **403** ("só pode ser feita pelo celular"); pelo celular, o manifesto do PDF traz a linha `POLÍTICA DE DISPOSITIVO`. O fluxo por Token A3 no desktop **continua funcionando** — ele é desktop por projeto
-- [ ] Ligar `exigir_passkey_assinatura` → em escala de serviço, o fluxo passa a preparar → biometria → finalizar; POST direto em `assinar-simples` → **403**. GISE/relatório/presença NÃO são afetados
-- [ ] Sem chave registrada em `/perfil`, com a flag ligada → 400 orientando a cadastrar
+- [ ] Ligar `exigir_passkey_assinatura` → em escala, GISE, extra e presença o fluxo passa a preparar → biometria → finalizar; POST direto no um-tiro (`assinar-simples` / `assinar` / form action de presença) → **403**
+- [ ] Sem chave registrada em `/perfil`, com a flag ligada → lê o documento (200) e o POST de avançada → **403** (no celular aponta Meu Perfil; no desktop, Token A3). Cadastro da chave só no celular; reposição pede os dois e-mails
 - [ ] Manifesto do PDF assinado por passkey traz a linha `CHAVE DE ASSINATURA` com "biometria/PIN do titular" e o vínculo da credencial (sincronizada x deste aparelho)
 - [ ] Revogar a chave em `/perfil` e tentar assinar → recusado; recadastrar e assinar → funciona
 - [ ] Admin Geral em `/policiais/[id]` vê o cartão "Chave de assinatura" com a data e o vínculo; revogar por lá impede novas assinaturas e **não** afeta documentos já assinados

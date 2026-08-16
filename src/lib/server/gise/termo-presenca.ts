@@ -202,7 +202,37 @@ export async function montarTermoPresencaAvancado(opts: {
 	/** `url.origin` para montar os links de referência. */
 	origin: string;
 	env?: Record<string, string | undefined>;
+	passkey?: { credentialId: string; vinculo: string } | null;
+	/** Default true — o `preparar` da passkey passa false para assinar o hash antes do selo. */
+	sela?: boolean;
 }): Promise<Uint8Array> {
+	const { finalPdf } = await prepararTermoPresencaAvancado(opts);
+	if (opts.sela === false) return finalPdf;
+	const selado = await selarPdfInstitucional(finalPdf, opts.signerName, { env: opts.env });
+	return selado.ok ? selado.pdf : finalPdf;
+}
+
+/** PDF com manifesto, sem selo — o que a passkey assina. */
+export async function prepararTermoPresencaAvancado(opts: {
+	tipo: 'entrada' | 'saida';
+	presencaId: number;
+	giseId: number;
+	dataInicio: string;
+	unidadeNome?: string | null;
+	signerName: string;
+	signerCpf?: string | null;
+	matricula?: string | null;
+	timestampISO?: string | null;
+	rubricaBase64: string;
+	selfieBase64?: string;
+	ip?: string | null;
+	userAgent?: string | null;
+	latitude?: number | null;
+	longitude?: number | null;
+	origin: string;
+	env?: Record<string, string | undefined>;
+	passkey?: { credentialId: string; vinculo: string } | null;
+}): Promise<{ finalPdf: Uint8Array; verificationHash: string }> {
 	const timestampISO = opts.timestampISO ?? new Date().toISOString();
 
 	const { pdf, signatureLineY } = await gerarTermoPresencaPdf({
@@ -252,7 +282,8 @@ export async function montarTermoPresencaAvancado(opts: {
 			selfieBase64: opts.selfieBase64,
 			documentName: `Termo de Presença - GISE ${opts.giseId}`,
 			signatureLevel: 'avancada',
-			tipoCarimoTempo: tipoCarimboPrevisto(opts.env)
+			tipoCarimoTempo: tipoCarimboPrevisto(opts.env),
+			passkey: opts.passkey ?? null
 		}
 	];
 	const pdfComAuditoria = await adicionarPaginaAuditoria(pdfComRodape, signers);
@@ -265,8 +296,5 @@ export async function montarTermoPresencaAvancado(opts: {
 		targetPageIndex: 0
 	});
 
-	// Selo institucional (avançada) — torna o PDF autocontido e à prova de adulteração.
-	// Sem SELO_INSTITUCIONAL_PEM, degrada honestamente para o PDF com rodapé.
-	const selado = await selarPdfInstitucional(estampado, opts.signerName, { env: opts.env });
-	return selado.ok ? selado.pdf : estampado;
+	return { finalPdf: estampado, verificationHash };
 }

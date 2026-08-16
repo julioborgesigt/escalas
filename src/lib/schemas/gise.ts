@@ -45,7 +45,8 @@ export const giseSignatureSchema = z.object({
 				.nullable(),
 			duracaoMs: z.number().int().min(0).max(600_000)
 		})
-	)
+	),
+	reauthId: optionalNullable(z.string().regex(/^[0-9a-f]{64}$/, 'reauthId inválido'))
 });
 
 /**

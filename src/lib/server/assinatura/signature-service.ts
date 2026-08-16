@@ -47,6 +47,8 @@ import { apiError, ErrorCode, contentDisposition } from '../api';
 import type { Database } from '../../db/core';
 import type { AssinaturaCadesMetadata } from '../../db/documentos';
 import { calcularHashBuffer, ehDispositivoMovelUA, type TipoCarimoTempo } from './document-utils';
+import { exigirJanelaReauth } from './reauth';
+import { ERRO_PASSKEY_UM_TIRO } from './chave-assinatura';
 
 // ---------------------------------------------------------------------------
 // Tipos canônicos
@@ -102,6 +104,8 @@ interface SimpleEvidence {
 	livenessChallenge?: LivenessResult | null;
 	/** `user-agent` da requisição — insumo da política `restringirSmartphone`. */
 	userAgent?: string | null;
+	/** Token da janela de reautenticação por senha (64 hex). */
+	reauthId?: string | null;
 }
 
 /**
@@ -386,14 +390,16 @@ export async function validarEvidenciasAvancada(
 		flagsOverride?: FlagsAssinatura;
 		/**
 		 * Recusar quando o reforço de passkey estiver ativo — para o endpoint de
-		 * UM TIRO, que não faz cerimônia biométrica.
-		 *
-		 * Não é padrão porque só a ESCALA tem caminho de passkey hoje: ligar para
-		 * GISE, relatório e presença deixaria a corporação sem assinar. E o
-		 * `preparar` da escala, que É o caminho da passkey, obviamente não passa
-		 * `true` aqui.
+		 * UM TIRO, que não faz cerimônia biométrica. O `preparar` de cada recurso,
+		 * que É o caminho da passkey, não passa `true` aqui.
 		 */
 		recusarSePasskeyExigida?: boolean;
+		/**
+		 * Cookie `session_token` em claro — a janela de senha está amarrada a
+		 * esta sessão. Sem ele o gate recusa (ausente), nunca aceita um
+		 * `reauthId` órfão.
+		 */
+		sessaoToken?: string | null;
 	} = {}
 ): Promise<{ ok: true; validated: ValidatedEvidence } | ServiceFailure> {
 	const flags = options.flagsOverride ?? (await lerFlagsAssinatura(options.platform));
@@ -424,10 +430,21 @@ export async function validarEvidenciasAvancada(
 		return {
 			ok: false,
 			status: 403,
-			error:
-				'Esta escala exige assinatura com a chave do seu celular. ' +
-				'Use o fluxo de assinatura por chave (passkey).',
+			error: ERRO_PASSKEY_UM_TIRO,
 			code: ErrorCode.FORBIDDEN
+		};
+	}
+
+	// 0c. Senha na cerimônia — piso, sem flag para desligar. Depois do dispositivo
+	//     e do um-tiro da passkey (que já recusariam) e ANTES do 2FA, para não
+	//     queimar tentativa de código de quem ainda não reinseriu a senha.
+	const reauth = await exigirJanelaReauth(db, user, evidence.reauthId, options.sessaoToken);
+	if (!reauth.ok) {
+		return {
+			ok: false,
+			status: reauth.status,
+			error: reauth.error,
+			code: reauth.code ?? ErrorCode.FORBIDDEN
 		};
 	}
 

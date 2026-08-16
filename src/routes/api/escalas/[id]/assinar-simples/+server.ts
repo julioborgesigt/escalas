@@ -50,6 +50,7 @@ export const POST: RequestHandler = async ({
 	locals,
 	url,
 	request,
+	cookies,
 	getClientAddress
 }) => {
 	const u = requireAuth(locals);
@@ -64,7 +65,8 @@ export const POST: RequestHandler = async ({
 		selfieBase64,
 		codigoValidação,
 		desafioId,
-		livenessChallenge
+		livenessChallenge,
+		reauthId
 	} = validated.data;
 
 	const ip = getClientAddress();
@@ -117,13 +119,10 @@ export const POST: RequestHandler = async ({
 			codigoValidação,
 			desafioId,
 			livenessChallenge,
-			userAgent: ua
+			userAgent: ua,
+			reauthId
 		},
-		// Com o reforço ativo, ESTE caminho morre — antes até do 2FA. Vale só
-		// para a escala: GISE, relatório e presença ainda não têm caminho de
-		// passkey, e recusá-los deixaria a corporação sem assinar. O texto do
-		// /conf-ass diz isso ao Super Admin.
-		{ platform, recusarSePasskeyExigida: true }
+		{ platform, recusarSePasskeyExigida: true, sessaoToken: cookies.get('session_token') }
 	);
 	if (!evid.ok) return apiError(evid.error, evid.status, evid.code ?? ErrorCode.VALIDATION);
 	const validatedEv = evid.validated;

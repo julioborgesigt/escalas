@@ -21,6 +21,8 @@
 	import { page } from '$app/state';
 	import { formatarData, MESES_PT } from '$lib/utils/datas';
 	import { podeBaixarComManifesto } from '$lib/manifesto';
+	import { avancadaEmTelaDoLayout } from '$lib/chave-assinatura-ui';
+	import ConviteChaveAssinatura from '$lib/components/ConviteChaveAssinatura.svelte';
 	import BotaoVoltar from '$lib/components/BotaoVoltar.svelte';
 	import CheckCircle2 from '@lucide/svelte/icons/check-circle-2';
 	import PenLine from '@lucide/svelte/icons/pen-line';
@@ -54,6 +56,7 @@
 	} = $props();
 
 	let menuExpandidoId = $state<number | null>(null);
+	const avancadaDisponivel = $derived(avancadaEmTelaDoLayout(page.data));
 </script>
 
 <div class="flex flex-col gap-6">
@@ -138,7 +141,7 @@
 						<div
 							class="pt-3 border-t border-surface-100 dark:border-surface-700/50 flex flex-col gap-2"
 						>
-							{#if isMobile}
+							{#if isMobile && avancadaDisponivel}
 								<button
 									type="button"
 									class="btn btn-sm {esc.is_assinada
@@ -166,6 +169,10 @@
 									{/if}
 									{esc.is_assinada ? 'Assinado' : 'Assinar (Tela)'}
 								</button>
+							{:else if isMobile}
+								<div class="p-3 rounded-xl bg-warning-500/5 border border-warning-500/20">
+									<ConviteChaveAssinatura isMobile={true} />
+								</div>
 							{:else}
 								<button
 									type="button"

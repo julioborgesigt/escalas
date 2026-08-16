@@ -130,10 +130,11 @@ describe('signature-level', () => {
 			expect(flagNames).toContain('restringirSmartphone');
 		});
 
-		it('REQUISITOS_SEMPRE_ATIVOS lista hash, sessão e auditoria', () => {
+		it('REQUISITOS_SEMPRE_ATIVOS lista hash, sessão, senha na cerimônia e auditoria', () => {
 			const ids = REQUISITOS_SEMPRE_ATIVOS.map((r) => r.id);
 			expect(ids).toContain('hash_sha256');
 			expect(ids).toContain('sessao_autenticada');
+			expect(ids).toContain('reauth_senha');
 			expect(ids).toContain('registro_auditoria');
 		});
 	});

@@ -149,6 +149,26 @@ export function seedDesafioAssinatura(usuarioId: number, codigo: string): string
 }
 
 /**
+ * Semeia a janela de reautenticação por senha (migração 0059) amarrada à
+ * sessão já semeada. O POST de avançada recusa sem isto — a senha é piso,
+ * não teatro. Token 64 hex; o banco guarda `sha256:` + hash, como as intenções.
+ */
+export function seedReauthAssinatura(
+	usuarioId: number,
+	sessionToken: string,
+	tipo: 'policial' | 'admin' = 'policial'
+): string | null {
+	const token = randomBytes(32).toString('hex');
+	const tokenHash = 'sha256:' + createHash('sha256').update(token).digest('hex');
+	const sessaoHash = createHash('sha256').update(sessionToken).digest('hex');
+	const sql =
+		`INSERT INTO assinatura_reauth (token_hash, usuario_tipo, usuario_id, sessao_hash, expires_at) ` +
+		`VALUES ('${tokenHash}', '${tipo}', ${usuarioId}, '${sessaoHash}', ` +
+		`strftime('%Y-%m-%dT%H:%M:%S', 'now', '+10 minutes') || '.000Z');`;
+	return execD1Local(sql) ? token : null;
+}
+
+/**
  * Semeia a sessão e injeta o cookie no contexto da página.
  * Devolve `false` quando o D1 local está indisponível (caller deve pular).
  */

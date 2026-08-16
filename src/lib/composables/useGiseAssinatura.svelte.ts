@@ -17,6 +17,8 @@ import { baixarBlob } from '$lib/utils/download';
 import { loading } from '$lib/loading.svelte';
 import { apiFetch, apiFetchResponse } from '$lib/api-fetch';
 import { digestHexParaBase64, executarFluxoAssinaturaToken } from '$lib/assinatura-token';
+import { assinarGiseComPasskey, assinarExtraComPasskey } from '$lib/assinatura-passkey';
+import { page } from '$app/state';
 import { conectarSerpro, type SerproSignerClient } from '$lib/serpro';
 import type { SignaturePadConfirmPayload } from '$lib/components/SignaturePadTypes';
 
@@ -99,7 +101,8 @@ export function useGiseAssinatura({
 			selfie,
 			codigoEmail: codigoValidação,
 			desafioId,
-			liveness: livenessChallenge
+			liveness: livenessChallenge,
+			reauthId
 		} = payload;
 		rubricaCapturada = dataUrl;
 		selfieCapturada = selfie ?? null;
@@ -113,11 +116,19 @@ export function useGiseAssinatura({
 				selfie,
 				codigoValidação,
 				desafioId,
-				livenessChallenge
+				livenessChallenge,
+				reauthId
 			);
 			relatorioSendoAssinado = null;
 		} else if (tipoAssinaturaPendente === 'simples') {
-			await executarAssinarSimples(lat, lng, codigoValidação, desafioId, livenessChallenge);
+			await executarAssinarSimples(
+				lat,
+				lng,
+				codigoValidação,
+				desafioId,
+				livenessChallenge,
+				reauthId
+			);
 		} else if (tipoAssinaturaPendente === 'serpro') {
 			await executarAssinarComSerpro(lat, lng);
 		}
@@ -128,24 +139,32 @@ export function useGiseAssinatura({
 		longitude?: number,
 		codigoValidação?: string,
 		desafioId?: string,
-		livenessChallenge?: unknown
+		livenessChallenge?: unknown,
+		reauthId?: string
 	) {
-		loading.show('Assinando e gerando PDF...');
+		const giseId = getGiseId();
+		const evidencias = {
+			rubrica: rubricaCapturada ?? '',
+			latitude,
+			longitude,
+			selfieBase64: selfieCapturada,
+			codigoValidação,
+			desafioId,
+			livenessChallenge,
+			reauthId
+		};
 		try {
-			const giseId = getGiseId();
-			const r = await apiFetchResponse(`/api/gise/${giseId}/assinar-simples`, {
-				method: 'POST',
-				body: JSON.stringify({
-					rubrica: rubricaCapturada,
-					latitude,
-					longitude,
-					selfieBase64: selfieCapturada,
-					codigoValidação,
-					desafioId,
-					livenessChallenge
-				})
-			});
-			baixarBlob(await r.blob(), `gise_${getGiseDataInicio() ?? giseId}_confirmada.pdf`);
+			if (page.data.exigirPasskeyAssinatura) {
+				loading.show('Assinando com a chave...');
+				await assinarGiseComPasskey(giseId, evidencias, (rotulo) => loading.show(rotulo));
+			} else {
+				loading.show('Assinando e gerando PDF...');
+				const r = await apiFetchResponse(`/api/gise/${giseId}/assinar-simples`, {
+					method: 'POST',
+					body: JSON.stringify(evidencias)
+				});
+				baixarBlob(await r.blob(), `gise_${getGiseDataInicio() ?? giseId}_confirmada.pdf`);
+			}
 			toaster.success({ title: 'Escala confirmada com sucesso' });
 			await invalidateShared('gise:detail');
 		} catch (e: unknown) {
@@ -245,7 +264,8 @@ export function useGiseAssinatura({
 		selfieBase64?: string | null,
 		codigoValidação?: string,
 		desafioId?: string,
-		livenessChallenge?: unknown
+		livenessChallenge?: unknown,
+		reauthId?: string
 	) {
 		if (!relatorioSendoAssinado) return;
 		loading.show('Iniciando assinatura...');
@@ -260,19 +280,27 @@ export function useGiseAssinatura({
 					const item = lote[i];
 					progressoLote.atual = i + 1;
 					etapaAssinatura = `Assinando ${i + 1} de ${lote.length}...`;
-					await apiFetch(`/api/gise/${giseId}/relatorios/${item.seccionalId}/assinar`, {
-						method: 'POST',
-						body: JSON.stringify({
-							tipo: item.tipo,
-							rubrica,
-							latitude,
-							longitude,
-							selfieBase64,
-							codigoValidação,
-							desafioId,
-							livenessChallenge
-						})
-					});
+					const body = {
+						tipo: item.tipo,
+						rubrica,
+						latitude,
+						longitude,
+						selfieBase64,
+						codigoValidação,
+						desafioId,
+						livenessChallenge,
+						reauthId
+					};
+					if (page.data.exigirPasskeyAssinatura) {
+						await assinarExtraComPasskey(giseId, item.seccionalId, body, (rotulo) => {
+							etapaAssinatura = rotulo;
+						});
+					} else {
+						await apiFetch(`/api/gise/${giseId}/relatorios/${item.seccionalId}/assinar`, {
+							method: 'POST',
+							body: JSON.stringify(body)
+						});
+					}
 				}
 				toaster.success({ title: 'Lote assinado com sucesso!' });
 				relatorioSendoAssinado = null;
@@ -293,22 +321,30 @@ export function useGiseAssinatura({
 
 		try {
 			etapaAssinatura = 'Processando assinatura...';
-			await apiFetch(
-				`/api/gise/${giseId}/relatorios/${relatorioSendoAssinado.seccionalId}/assinar`,
-				{
-					method: 'POST',
-					body: JSON.stringify({
-						tipo: relatorioSendoAssinado.tipo,
-						rubrica,
-						latitude,
-						longitude,
-						selfieBase64,
-						codigoValidação,
-						desafioId,
-						livenessChallenge
-					})
+			const body = {
+				tipo: relatorioSendoAssinado.tipo,
+				rubrica,
+				latitude,
+				longitude,
+				selfieBase64,
+				codigoValidação,
+				desafioId,
+				livenessChallenge,
+				reauthId
+			};
+			if (page.data.exigirPasskeyAssinatura) {
+				const secId = relatorioSendoAssinado.seccionalId;
+				if (secId == null) {
+					toaster.error({ title: 'Erro ao assinar', description: 'Seccional não identificada.' });
+					return;
 				}
-			);
+				await assinarExtraComPasskey(giseId, secId, body, (rotulo) => (etapaAssinatura = rotulo));
+			} else {
+				await apiFetch(
+					`/api/gise/${giseId}/relatorios/${relatorioSendoAssinado.seccionalId}/assinar`,
+					{ method: 'POST', body: JSON.stringify(body) }
+				);
+			}
 			toaster.success({ title: 'Relatório assinado com sucesso!' });
 			relatorioSendoAssinado = null;
 			await invalidateShared('gise:detail');

@@ -36,11 +36,21 @@ import {
 	ALG_ES256
 } from '$lib/server/assinatura/webauthn/registro';
 import { descreverVinculoCredencial } from '$lib/server/assinatura/webauthn/authenticator-data';
+import { recusaCadastroChaveDesktop } from '$lib/server/assinatura/chave-assinatura';
+import {
+	buscarEmailsReposicao,
+	mensagemSemEmailReposicao,
+	exigirCodigosReposicao,
+	mensagemRecusaReposicao
+} from '$lib/server/assinatura/reposicao-passkey';
 import { base64UrlToBytes } from '$lib/crypto/bin';
 
-export const GET: RequestHandler = async ({ platform, locals, url }) => {
+export const GET: RequestHandler = async ({ platform, locals, url, request }) => {
 	const u = requireAuth(locals);
 	if (u instanceof Response) return u;
+
+	const recusaUa = recusaCadastroChaveDesktop(request.headers.get('user-agent') || '');
+	if (recusaUa) return recusaUa;
 
 	const db = getDB(platform);
 	const dono = credencialDoUsuario(u);
@@ -68,7 +78,9 @@ export const GET: RequestHandler = async ({ platform, locals, url }) => {
 					apelido: atual.apelido,
 					vinculo: descreverVinculoCredencial(atual)
 				}
-			: null
+			: null,
+		/** Segundo cadastro: os dois e-mails, os dois. Primeiro cadastro: não. */
+		exigeReposicao: atual !== null
 	});
 };
 
@@ -76,12 +88,30 @@ export const POST: RequestHandler = async ({ platform, locals, request, url }) =
 	const u = requireAuth(locals);
 	if (u instanceof Response) return u;
 
+	const recusaUa = recusaCadastroChaveDesktop(request.headers.get('user-agent') || '');
+	if (recusaUa) return recusaUa;
+
 	const v = await validateBody(request, webauthnRegistroSchema);
 	if (!v.ok) return v.response;
 	const dados = v.data;
 
 	const db = getDB(platform);
 	const dono = credencialDoUsuario(u);
+
+	// Reposição ANTES de consumir o desafio WebAuthn: códigos errados não
+	// queimam a cerimônia de 5 min. Primeiro cadastro (sem chave ativa) pula.
+	const atual = await buscarCredencialAtiva(db, dono);
+	if (atual) {
+		const emails = await buscarEmailsReposicao(db, u);
+		if (!emails.ok) return badRequest(mensagemSemEmailReposicao(emails.motivo));
+		const reposicao = await exigirCodigosReposicao(db, dono, emails, {
+			desafioInstitucional: dados.desafioInstitucional,
+			codigoInstitucional: dados.codigoInstitucional,
+			desafioPessoal: dados.desafioPessoal,
+			codigoPessoal: dados.codigoPessoal
+		});
+		if (!reposicao.ok) return badRequest(mensagemRecusaReposicao(reposicao.motivo));
+	}
 
 	// Consome ANTES de verificar: desafio é de uso único, e uma cerimônia
 	// recusada não deve deixar o desafio vivo para nova tentativa com outro

@@ -76,7 +76,7 @@ export function cookieOptions(url: URL) {
  *     lê o dashboard/wrangler não vê a senha em claro;
  *   - texto claro (legado) — comparação timing-safe, mantido por compat.
  */
-async function verificarSenhaBootstrap(
+export async function verificarSenhaBootstrap(
 	senha: string,
 	envValor: string,
 	pepper?: string

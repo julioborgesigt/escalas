@@ -22,7 +22,7 @@
 	import PainelAssinaturaToken from './PainelAssinaturaToken.svelte';
 	import SignaturePad from './SignaturePad.svelte';
 	import DialogSolicitarAssinatura from './DialogSolicitarAssinatura.svelte';
-	import type { SignaturePadConfirmPayload } from './SignaturePadTypes';
+	import type { SignaturePadConfirmPayload, SignaturePadStep } from './SignaturePadTypes';
 	import type { UsuarioLogado } from '$lib/auth';
 	import { page } from '$app/state';
 	import { invalidateShared } from '$lib/cross-tab-invalidate';
@@ -31,6 +31,8 @@
 	import { loading } from '$lib/loading.svelte';
 	import { useAssinaturaEscala, useMobile } from '$lib/composables';
 	import { podeBaixarComManifesto } from '$lib/manifesto';
+	import { avancadaEmTelaDoLayout } from '$lib/chave-assinatura-ui';
+	import ConviteChaveAssinatura from './ConviteChaveAssinatura.svelte';
 	import CheckCircle2 from '@lucide/svelte/icons/check-circle-2';
 	import Clock from '@lucide/svelte/icons/clock';
 	import Download from '@lucide/svelte/icons/download';
@@ -97,6 +99,7 @@
 
 	const mobileState = useMobile();
 	const isMobile = $derived(mobileState.isMobile);
+	const avancadaDisponivel = $derived(avancadaEmTelaDoLayout(page.data));
 
 	const assinatura = useAssinaturaEscala({
 		getParams: () => ({ escalaId, isFDS, policiaisCount, usuario }),
@@ -158,7 +161,8 @@
 			payload.selfie,
 			payload.codigoEmail,
 			payload.desafioId,
-			payload.liveness
+			payload.liveness,
+			payload.reauthId
 		);
 	}
 
@@ -175,7 +179,7 @@
 	// de conferência (sem manifesto), então o botão extra nem aparece para eles.
 	const podeManifesto = $derived(podeBaixarComManifesto(usuario));
 
-	let signatureStep = $state<'signature' | 'camera' | 'email_code'>('signature');
+	let signatureStep = $state<SignaturePadStep>('signature');
 	$effect(() => {
 		if (dialogSignOpen) {
 			signatureStep = 'signature';
@@ -185,16 +189,20 @@
 	const signatureTitulo = $derived(
 		signatureStep === 'camera'
 			? 'Prova de Vida'
-			: signatureStep === 'email_code'
-				? 'Confirmação de Identidade'
-				: 'Assinatura Digital em Tela'
+			: signatureStep === 'password'
+				? 'Confirme sua senha'
+				: signatureStep === 'email_code'
+					? 'Confirmação de Identidade'
+					: 'Assinatura Digital em Tela'
 	);
 	const signatureDescricao = $derived(
 		signatureStep === 'camera'
 			? 'Cumpra o desafio de presença na tela para provar que você está ativo.'
-			: signatureStep === 'email_code'
-				? 'Por razões de segurança, insira o código enviado para o seu e-mail funcional.'
-				: 'Desenhe sua rubrica no quadro abaixo para assinar este documento da escala com validade jurídica (nos moldes da assinatura eletrônica).'
+			: signatureStep === 'password'
+				? 'A sessão sozinha não basta. Digite a senha de acesso para assinar.'
+				: signatureStep === 'email_code'
+					? 'Por razões de segurança, insira o código enviado para o seu e-mail funcional.'
+					: 'Desenhe sua rubrica no quadro abaixo para assinar este documento da escala com validade jurídica (nos moldes da assinatura eletrônica).'
 	);
 </script>
 
@@ -343,13 +351,17 @@
 								</p>
 							</div>
 						</div>
-						{#if isMobile}
+						{#if isMobile && avancadaDisponivel}
 							<button
 								type="button"
 								class="btn btn-sm preset-filled-warning-500 font-bold text-xs px-3 shrink-0 transition-all"
 								disabled={loading.active}
 								onclick={abrirModalAssinatura}>Assinar</button
 							>
+						{:else if isMobile}
+							<div class="max-w-[14rem] text-right">
+								<ConviteChaveAssinatura isMobile={true} compact />
+							</div>
 						{:else}
 							<span
 								class="text-3xs font-bold uppercase text-surface-600 dark:text-surface-400 shrink-0"
