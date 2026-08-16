@@ -1,6 +1,7 @@
 /**
- * FASE 2 da presença avançada por passkey: confere a asserção, sela e grava o
- * termo em `gise_presenca_termos` (o GET do comprovante passa a servir o R2).
+ * FASE 2 da presença avançada por passkey: confere a asserção, persiste a
+ * entrada/saída, sela e grava o termo em `gise_presenca_termos` (o GET do
+ * comprovante passa a servir o R2).
  */
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
@@ -13,7 +14,10 @@ import {
 	registrarAuditComContexto,
 	tryGetR2,
 	passkeyMetaDeAssercao,
-	salvarTermoPresencaGise
+	salvarTermoPresencaGise,
+	salvarEntradaGise,
+	salvarSaidaGise,
+	sincronizarStatusGiseAposPresencaRelatorios
 } from '$lib/db';
 import {
 	apiError,
@@ -21,12 +25,14 @@ import {
 	badRequest,
 	notFound,
 	forbidden,
+	conflict,
 	serverError,
 	requireAuth,
 	validateBody
 } from '$lib/server/api';
 import { finalizarPasskeyEscalaSchema } from '$lib/schemas';
 import { gateDePresenca } from '$lib/server/gise/presenca-gate';
+import { invalidarPapelGise } from '$lib/server/gise/papel-cache';
 import {
 	consumirIntencaoAssinatura,
 	mensagemRecusaIntencao
@@ -38,7 +44,11 @@ import {
 import { descreverVinculoCredencial } from '$lib/server/assinatura/webauthn/authenticator-data';
 import { credencialDoUsuario } from '$lib/server/auth/credencial';
 import { resolverAppOrigin } from '$lib/server/app-origin';
-import { bucketParaAssinatura, guardarPdfAssinado } from '$lib/server/assinatura/blob-assinado';
+import {
+	bucketParaAssinatura,
+	compensarBlobAssinado,
+	guardarPdfAssinado
+} from '$lib/server/assinatura/blob-assinado';
 import { selarPdfInstitucional } from '$lib/server/assinatura/server-seal';
 import { calcularHashBuffer } from '$lib/server/assinatura/document-utils';
 import { base64ToBytes, base64UrlToBytes } from '$lib/crypto/bin';
@@ -138,6 +148,39 @@ export const POST: RequestHandler = async ({
 		const guardado = await guardarPdfAssinado(bucketOk.r2, r2Key, pdfParaSalvar, 'gise-presenca');
 		if (!guardado.ok) return guardado.resposta;
 
+		const rubrica = consumo.contexto.rubrica || '';
+		if (tipo === 'entrada') {
+			await salvarEntradaGise(
+				db,
+				giseId,
+				u.id,
+				rubrica,
+				ip,
+				ua,
+				consumo.contexto.latitude ?? undefined,
+				consumo.contexto.longitude ?? undefined,
+				consumo.contexto.selfieKey ?? undefined
+			);
+		} else {
+			const saida = await salvarSaidaGise(
+				db,
+				giseId,
+				u.id,
+				rubrica,
+				ip,
+				ua,
+				consumo.contexto.latitude ?? undefined,
+				consumo.contexto.longitude ?? undefined,
+				consumo.contexto.selfieKey ?? undefined
+			);
+			if (!saida.registrada) {
+				await compensarBlobAssinado(db, bucketOk.r2, [r2Key], 'gise-presenca');
+				return conflict(
+					'Não há confirmação de ENTRADA registrada — a saída não pode ser assinada.'
+				);
+			}
+		}
+
 		await salvarTermoPresencaGise(
 			db,
 			{
@@ -158,6 +201,9 @@ export const POST: RequestHandler = async ({
 			},
 			platform?.env
 		);
+
+		await sincronizarStatusGiseAposPresencaRelatorios(db, giseId);
+		await invalidarPapelGise(u.id);
 
 		await registrarAuditComContexto(db, {
 			usuario: u,

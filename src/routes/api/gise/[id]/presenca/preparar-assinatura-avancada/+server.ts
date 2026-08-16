@@ -1,30 +1,25 @@
 /**
- * FASE 1 da presença avançada por passkey: grava a entrada/saída (o um-tiro da
- * form action recusa quando a flag exige chave) e devolve o hash do termo
- * para a cerimônia.
+ * FASE 1 da presença avançada por passkey: monta o termo e a intenção.
+ * A entrada/saída só nasce no `finalizar`, depois da asserção — cancelar o
+ * Face ID não pode marcar o plantão (o um-tiro da form action continua
+ * gravando na hora, e recusa quando a flag exige chave).
  */
 import { json } from '@sveltejs/kit';
-import { and, eq } from 'drizzle-orm';
 import type { RequestHandler } from './$types';
 import {
 	getDB,
 	buscarGiseEscala,
 	resolverParticipacaoGisePolicial,
-	salvarEntradaGise,
-	salvarSaidaGise,
-	sincronizarStatusGiseAposPresencaRelatorios,
 	getR2,
 	hasR2,
 	tryGetR2
 } from '$lib/db';
-import { gisePresencas } from '$lib/server/schema';
 import {
 	apiError,
 	ErrorCode,
 	badRequest,
 	notFound,
 	forbidden,
-	conflict,
 	serverError,
 	requireAuth,
 	validateBody
@@ -32,7 +27,6 @@ import {
 import { assinarPresencaAvancadaSchema } from '$lib/schemas';
 import { validarEvidenciasAvancada } from '$lib/server/assinatura/signature-service';
 import { gateDePresenca } from '$lib/server/gise/presenca-gate';
-import { invalidarPapelGise } from '$lib/server/gise/papel-cache';
 import { criarIntencaoAssinatura } from '$lib/server/assinatura/intencao';
 import { descreverVinculoCredencial } from '$lib/server/assinatura/webauthn/authenticator-data';
 import { credencialDoUsuario } from '$lib/server/auth/credencial';
@@ -122,60 +116,18 @@ export const POST: RequestHandler = async ({
 			if (r.ok) selfieKey = r.key;
 		}
 
-		if (tipo === 'entrada') {
-			await salvarEntradaGise(
-				db,
-				giseId,
-				u.id,
-				evid.validated.rubrica || rubrica || '',
-				ip,
-				ua,
-				evid.validated.latitude ?? undefined,
-				evid.validated.longitude ?? undefined,
-				selfieKey
-			);
-		} else {
-			const saida = await salvarSaidaGise(
-				db,
-				giseId,
-				u.id,
-				evid.validated.rubrica || rubrica || '',
-				ip,
-				ua,
-				evid.validated.latitude ?? undefined,
-				evid.validated.longitude ?? undefined,
-				selfieKey
-			);
-			if (!saida.registrada) {
-				return conflict(
-					'Não há confirmação de ENTRADA registrada — a saída não pode ser assinada.'
-				);
-			}
-		}
-
-		await sincronizarStatusGiseAposPresencaRelatorios(db, giseId);
-		await invalidarPapelGise(u.id);
-
-		const linha = await db
-			.select({ id: gisePresencas.id })
-			.from(gisePresencas)
-			.where(and(eq(gisePresencas.gise_id, giseId), eq(gisePresencas.policial_id, u.id)))
-			.get();
-		if (!linha) {
-			return serverError('[presenca/preparar] linha de presença ausente após gravar', new Error());
-		}
-
+		const rubricaEstampada = evid.validated.rubrica || rubrica || '';
 		const env = platform?.env as unknown as Record<string, string | undefined> | undefined;
 		const { finalPdf, verificationHash } = await prepararTermoPresencaAvancado({
 			tipo,
-			presencaId: linha.id,
 			giseId,
 			dataInicio: gise.data_inicio,
 			unidadeNome: part.unidadeNome,
 			signerName: u.nome,
 			signerCpf: u.cpf,
 			matricula: u.matricula ?? null,
-			rubricaBase64: evid.validated.rubrica || rubrica || '',
+			timestampISO: new Date().toISOString(),
+			rubricaBase64: rubricaEstampada,
 			selfieBase64: evid.validated.selfieBase64 ?? undefined,
 			ip,
 			userAgent: ua,
@@ -202,7 +154,8 @@ export const POST: RequestHandler = async ({
 			{
 				selfieKey: selfieKey ?? null,
 				latitude: evid.validated.latitude,
-				longitude: evid.validated.longitude
+				longitude: evid.validated.longitude,
+				rubrica: rubricaEstampada
 			}
 		);
 

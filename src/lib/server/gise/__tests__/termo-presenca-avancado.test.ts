@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import zlib from 'node:zlib';
-import { montarTermoPresencaAvancado } from '../termo-presenca';
+import { montarTermoPresencaAvancado, prepararTermoPresencaAvancado } from '../termo-presenca';
 
 // JPEG 1×1 válido (selfie/prova de vida) e PNG 1×1 (rubrica).
 const JPEG_1X1 =
@@ -92,5 +92,20 @@ describe('montarTermoPresencaAvancado — comprovante de presença sob demanda',
 		const texto = extrairTexto(pdf);
 		expect(texto).toContain('BELTRANO');
 		expect(texto).not.toContain('FOTO DO ATO');
+	});
+});
+
+describe('prepararTermoPresencaAvancado — duas fases (passkey)', () => {
+	it('sem presencaId, o código público não depende de linha no banco', async () => {
+		const { verificationHash } = await prepararTermoPresencaAvancado({
+			tipo: 'entrada',
+			giseId: 7,
+			dataInicio: '2026-07-17',
+			signerName: 'FULANO DE TAL',
+			timestampISO: '2026-07-17T11:00:00Z',
+			rubricaBase64: RUBRICA_PNG,
+			origin: 'https://exemplo.test'
+		});
+		expect(verificationHash).toMatch(/^[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}$/);
 	});
 });

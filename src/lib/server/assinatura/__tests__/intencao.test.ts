@@ -46,7 +46,7 @@ describe('caminho feliz', () => {
 			verificacaoHash: HASH_PUBLICO,
 			// Preparação por token não carrega contexto: selfie e GPS só existem
 			// quando o `preparar` da assinatura em tela os produziu.
-			contexto: { selfieKey: null, latitude: null, longitude: null }
+			contexto: { selfieKey: null, latitude: null, longitude: null, rubrica: null }
 		});
 	});
 
@@ -116,7 +116,7 @@ describe('alvo — preparar em A, finalizar em B', () => {
 		).resolves.toEqual({
 			ok: true,
 			verificacaoHash: HASH_PUBLICO,
-			contexto: { selfieKey: null, latitude: null, longitude: null }
+			contexto: { selfieKey: null, latitude: null, longitude: null, rubrica: null }
 		});
 	});
 });
@@ -218,5 +218,26 @@ describe('validade', () => {
 		await expect(
 			consumirIntencaoAssinatura(db, 'f'.repeat(64), ESCALA_7, ATOR, PDF)
 		).resolves.toEqual({ ok: false, motivo: 'invalida' });
+	});
+});
+
+describe('contexto do preparo', () => {
+	it('devolve selfie, GPS e rubrica gravados pelo preparar', async () => {
+		const token = await criarIntencaoAssinatura(db, ESCALA_7, ATOR, PDF, HASH_PUBLICO, {
+			selfieKey: 'gise/2026-08/16/1/selfies/abc.jpg',
+			latitude: -3.7,
+			longitude: -38.5,
+			rubrica: 'data:image/png;base64,AAAA'
+		});
+		await expect(consumirIntencaoAssinatura(db, token, ESCALA_7, ATOR, PDF)).resolves.toEqual({
+			ok: true,
+			verificacaoHash: HASH_PUBLICO,
+			contexto: {
+				selfieKey: 'gise/2026-08/16/1/selfies/abc.jpg',
+				latitude: -3.7,
+				longitude: -38.5,
+				rubrica: 'data:image/png;base64,AAAA'
+			}
+		});
 	});
 });
