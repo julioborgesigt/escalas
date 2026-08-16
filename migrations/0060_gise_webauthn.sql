@@ -7,6 +7,10 @@
 --
 -- Tudo NULL para assinatura por token A3 e para a avançada em tela sem
 -- passkey. Nenhuma linha existente muda.
+--
+-- Estas colunas vêm DEPOIS do rebuild da 0038. Reexecutar a 0038 por cima
+-- dropa-as. O `migrate.ts` une `_migrations_aplicadas` com `d1_migrations`
+-- para o CI (`wrangler d1 migrations apply` + global-setup) não fazer isso.
 
 ALTER TABLE `gise_documentos` ADD COLUMN `webauthn_credential_id` text;
 --> statement-breakpoint

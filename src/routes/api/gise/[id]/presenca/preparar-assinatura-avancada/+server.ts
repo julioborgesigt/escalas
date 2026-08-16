@@ -62,6 +62,12 @@ export const POST: RequestHandler = async ({
 	if (isNaN(giseId)) return badRequest('ID inválido');
 
 	const db = getDB(platform);
+	const gise = await buscarGiseEscala(db, giseId);
+	if (!gise) return notFound('Escala GISE');
+
+	const part = await resolverParticipacaoGisePolicial(db, giseId, u.id);
+	if (!part.participa) return forbidden('Você não participa desta escala GISE.');
+
 	const chave = await exigirChaveAtiva(db, credencialDoUsuario(u), ua);
 	if ('recusa' in chave) return chave.recusa;
 	const credencial = chave.credencial;
@@ -97,12 +103,6 @@ export const POST: RequestHandler = async ({
 		{ platform, sessaoToken: cookies.get('session_token') }
 	);
 	if (!evid.ok) return apiError(evid.error, evid.status, evid.code ?? ErrorCode.VALIDATION);
-
-	const gise = await buscarGiseEscala(db, giseId);
-	if (!gise) return notFound('Escala GISE');
-
-	const part = await resolverParticipacaoGisePolicial(db, giseId, u.id);
-	if (!part.participa) return forbidden('Você não participa desta escala GISE.');
 
 	const gate = await gateDePresenca(db, { ...part, statusGise: gise.status }, giseId, u.id, tipo);
 	if (!gate.ok) return gate.resposta;

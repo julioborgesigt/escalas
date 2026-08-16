@@ -126,7 +126,14 @@ function comIdsDeFixture(padrao: string): string {
 
 function url(o: Operacao): string {
 	const base = comIdsDeFixture(o.padrao);
-	return o.tipo === 'api' ? base : `${base}?/${o.alvo}`;
+	// `finalizar-assinatura-avancada` da presença lê `?tipo=` na URL, não o
+	// corpo. Sem a query o handler recusava 400 ANTES da participação — o
+	// policial de outra unidade "passava" no gate errado.
+	const comQuery =
+		o.tipo === 'api' && o.padrao.includes('/presenca/finalizar-assinatura')
+			? `${base}?tipo=entrada`
+			: base;
+	return o.tipo === 'api' ? comQuery : `${base}?/${o.alvo}`;
 }
 
 /**
@@ -211,10 +218,24 @@ const CORPO_JSON: Record<string, Record<string, unknown>> = {
 		longitude: -38.52,
 		tipo: 'entrada'
 	},
+	'/api/gise/[id]/presenca/finalizar-assinatura-avancada': {
+		intencao: 'a'.repeat(64),
+		preparedPdf: PDF_FALSO,
+		assercao: {
+			credentialId: 'AAAA',
+			clientDataJSON: 'AAAA',
+			authenticatorData: 'AAAA',
+			assinatura: 'AAAA'
+		}
+	},
 	'/api/gise/[id]/presenca/preparar-assinatura': {
 		tipo: 'entrada',
 		signerName: 'Fulano de Tal',
 		signerCpf: '39053344705'
+	},
+	'/api/gise/[id]/presenca/preparar-assinatura-avancada': {
+		tipo: 'entrada',
+		rubrica: RUBRICA_FALSA
 	},
 	'/api/gise/[id]/relatorios/[seccionalId]/assinar': {
 		rubrica: 'data:image/png;base64,iVBORw0KGgo=',

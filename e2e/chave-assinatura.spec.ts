@@ -132,6 +132,14 @@ test.describe('Chave de assinatura — cadastro, reposição e recusas', () => {
 		});
 		expect(leitura.status()).toBe(200);
 
+		// `assinatura-simples` (arquivo anterior na ordem alfabética) já assinou
+		// esta escala. Sem apagar o documento o preparar morre em 409 de
+		// "já assinado" antes do 403 de chave — e o teste passaria com o gate
+		// errado, ou falharia quando a suíte rodasse completa.
+		expect(
+			execD1Local(`DELETE FROM escala_documentos WHERE escala_id = ${FIXTURE.escalaAssinavel.id};`)
+		).toBe(true);
+
 		const preparar = await request.post(
 			`/api/escalas/${FIXTURE.escalaAssinavel.id}/preparar-assinatura-avancada`,
 			{

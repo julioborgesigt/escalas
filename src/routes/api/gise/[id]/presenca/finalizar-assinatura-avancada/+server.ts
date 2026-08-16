@@ -61,16 +61,16 @@ export const POST: RequestHandler = async ({
 	const giseId = parseInt(params.id!);
 	if (isNaN(giseId)) return badRequest('ID inválido');
 
-	const tipoParam = url.searchParams.get('tipo');
-	const tipo = tipoParam === 'saida' ? 'saida' : tipoParam === 'entrada' ? 'entrada' : null;
-	if (!tipo) return badRequest('Informe ?tipo=entrada|saida');
-
 	const db = getDB(platform);
 	const gise = await buscarGiseEscala(db, giseId);
 	if (!gise) return notFound('Escala GISE');
 
 	const part = await resolverParticipacaoGisePolicial(db, giseId, u.id);
 	if (!part.participa) return forbidden('Você não participa desta escala GISE.');
+
+	const tipoParam = url.searchParams.get('tipo');
+	const tipo = tipoParam === 'saida' ? 'saida' : tipoParam === 'entrada' ? 'entrada' : null;
+	if (!tipo) return badRequest('Informe ?tipo=entrada|saida');
 
 	const gate = await gateDePresenca(db, { ...part, statusGise: gise.status }, giseId, u.id, tipo);
 	if (!gate.ok) return gate.resposta;

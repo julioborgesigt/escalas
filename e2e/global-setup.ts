@@ -72,7 +72,9 @@ function execSqlSafe(sql: string, rotulo = 'seed'): boolean {
  * seeds abaixo falham silenciosamente (execSqlSafe → false), specs
  * autenticados pulam e o login estoura 500 ("no such table: login_attempts")
  * em vez dos 401/403 que o auth.spec espera. Em máquina de dev já migrada é
- * um no-op rápido (controle em `_migrations_aplicadas`).
+ * um no-op rápido (controle em `_migrations_aplicadas`). No CI o passo
+ * `wrangler d1 migrations apply` grava em `d1_migrations`; o `migrate.ts`
+ * une as duas tabelas para não reexecutar a 0038 por cima da 0060.
  */
 function aplicarMigracoesLocais(): boolean {
 	try {

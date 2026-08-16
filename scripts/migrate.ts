@@ -7,6 +7,12 @@
  * idempotentes (ex.: rebuilds de tabela que recriam um CHECK mais estreito e
  * regrediriam o schema).
  *
+ * O CI também roda `wrangler d1 migrations apply`, que grava em `d1_migrations`
+ * — tabela OUTRA. Sem unir as duas, este script reexecuta a 0038 (rebuild de
+ * `gise_assinaturas_relatorios` sem as colunas da 0060); o `duplicate column`
+ * no `gise_documentos` marca a 0060 inteira como aplicada e as colunas do
+ * relatório extra nunca voltam. Sintoma no e2e: preparar 200, finalizar 500.
+ *
  * Uso:
  *   npm run db:migrate                      → executa localmente (--local)
  *   npm run db:migrate:staging              → STAGING (--remote --staging)
@@ -68,21 +74,42 @@ function ensureControlTable(): void {
 	);
 }
 
-/** Conjunto de migrations já registradas como aplicadas. */
-function getApplied(): Set<string> {
+/** Linhas de um SELECT avulso (`wrangler d1 execute --json`). */
+function rowsFromQuery(sql: string): Array<Record<string, unknown>> {
 	try {
-		const out = d1Command(`SELECT nome FROM ${CONTROL_TABLE}`, true);
+		const out = d1Command(sql, true);
 		const start = out.indexOf('[');
-		if (start < 0) return new Set();
+		if (start < 0) return [];
 		const parsed = JSON.parse(out.slice(start)) as Array<{
-			results?: Array<{ nome?: string }>;
+			results?: Array<Record<string, unknown>>;
 		}>;
-		const rows = parsed[0]?.results ?? [];
-		return new Set(rows.map((r) => r.nome).filter((n): n is string => typeof n === 'string'));
+		return parsed[0]?.results ?? [];
 	} catch {
-		// Sem tabela ainda ou falha de parse: trata como "nada aplicado".
-		return new Set();
+		return [];
 	}
+}
+
+/** Basename com `.sql` — wrangler grava o caminho relativo a `migrations_dir`. */
+function normalizarNomeMigracao(n: string): string {
+	const base = n.replace(/\\/g, '/').split('/').pop() ?? n;
+	return base.endsWith('.sql') ? base : `${base}.sql`;
+}
+
+/**
+ * União das duas tabelas de controle. `_migrations_aplicadas` é a deste
+ * script; `d1_migrations` é a do `wrangler d1 migrations apply` (passo do CI).
+ * Reexecutar a 0038 por cima da 0060 já aplicada pelo wrangler reconstrói
+ * `gise_assinaturas_relatorios` SEM `webauthn_*` e o INSERT do extra 500.
+ */
+function getApplied(): Set<string> {
+	const nomes = new Set<string>();
+	for (const r of rowsFromQuery(`SELECT nome FROM ${CONTROL_TABLE}`)) {
+		if (typeof r.nome === 'string') nomes.add(normalizarNomeMigracao(r.nome));
+	}
+	for (const r of rowsFromQuery('SELECT name FROM d1_migrations')) {
+		if (typeof r.name === 'string') nomes.add(normalizarNomeMigracao(r.name));
+	}
+	return nomes;
 }
 
 /** Registra (idempotente) uma migration como aplicada. */
@@ -118,7 +145,9 @@ if (BASELINE) {
 			novas++;
 		}
 	}
-	console.log(`\n📊 Baseline concluído: ${novas} registradas, ${files.length - novas} já existiam.\n`);
+	console.log(
+		`\n📊 Baseline concluído: ${novas} registradas, ${files.length - novas} já existiam.\n`
+	);
 	process.exit(0);
 }
 
@@ -126,6 +155,10 @@ console.log(`\n🚀 Executando migrations no D1 (${ALVO}) — banco ${DB_NAME}..
 
 ensureControlTable();
 const aplicadas = getApplied();
+if (aplicadas.size > 0) {
+	const values = [...aplicadas].map((n) => `('${n.replace(/'/g, "''")}')`).join(', ');
+	d1Command(`INSERT OR IGNORE INTO ${CONTROL_TABLE} (nome) VALUES ${values}`);
+}
 
 const pendentes = files.filter((f) => !aplicadas.has(f));
 console.log(
