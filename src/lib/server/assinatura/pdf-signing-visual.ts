@@ -33,6 +33,7 @@ import { parseUserAgent, descreverTipoCarimbo, type TipoCarimoTempo } from './do
 import { mascararCPF } from '../../utils/pii';
 import { logger } from '../logger';
 import { formatarDataHora } from './pdf-signing-prepare';
+import { abreviarCredencial } from '$lib/chave-assinatura-ui';
 
 // ---------------------------------------------------------------------------
 // Assinatura Simples: rodapé textual sem PKI (para escalas de FDS)
@@ -234,15 +235,6 @@ export interface AuditTrailOptions {
 		tentativas: number;
 		duracaoMs: number;
 	} | null;
-}
-
-/**
- * `credentialId` é base64url de 16 a 90+ caracteres — inteiro no manifesto, ele
- * empurraria o resto da linha para fora do cartão. As pontas bastam para
- * confrontar o documento com a credencial registrada, que é o uso real.
- */
-function abreviarCredencial(id: string): string {
-	return id.length <= 20 ? id : `${id.slice(0, 8)}...${id.slice(-8)}`;
 }
 
 /**

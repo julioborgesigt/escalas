@@ -22,6 +22,7 @@ import {
 	enviarCodigo2FA,
 	enviarCodigoEmailPessoal,
 	enviarAvisoTrocaEmailPessoal,
+	enviarAvisoChaveAssinatura,
 	enviarCodigoRedefinicaoSenha,
 	enviarLinkRedefinicaoSenha,
 	enviarLinkPrimeiroAcesso,
@@ -70,6 +71,42 @@ const REMETENTES: Array<[string, (p: App.Platform) => Promise<void>]> = [
 		'avisoTrocaEmailPessoal',
 		(p) =>
 			enviarAvisoTrocaEmailPessoal('antigo@pessoal.com', 'FULANO DE TAL', 'novo@pessoal.com', p)
+	],
+	[
+		'avisoChaveCadastrada',
+		(p) =>
+			enviarAvisoChaveAssinatura(
+				'fulano@pc.ce.gov.br',
+				'FULANO DE TAL',
+				'cadastrada',
+				'AQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHw',
+				p,
+				'16/08/2026, 16:50'
+			)
+	],
+	[
+		'avisoChaveSubstituida',
+		(p) =>
+			enviarAvisoChaveAssinatura(
+				'fulano@pc.ce.gov.br',
+				'FULANO DE TAL',
+				'substituida',
+				'AQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHw',
+				p,
+				'16/08/2026, 16:50'
+			)
+	],
+	[
+		'avisoChaveRevogada',
+		(p) =>
+			enviarAvisoChaveAssinatura(
+				'fulano@pc.ce.gov.br',
+				'FULANO DE TAL',
+				'revogada',
+				'AQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHw',
+				p,
+				'16/08/2026, 16:50'
+			)
 	],
 	[
 		'codigoRedefinicaoSenha',

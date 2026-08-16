@@ -358,7 +358,9 @@ A flag `exigir_passkey_assinatura` (`/conf-ass`, Super Admin) exige, na assinatu
 
 **Escopo atual: apenas a ESCALA DE SERVIÇO.** GISE, relatório extraordinário e presença seguem no fluxo de um tiro. Ligar a flag não os afeta.
 
-**Recuperação (perda de aparelho):** cartão "Chave de assinatura" em `/policiais/[id]` (ou `DELETE /api/policiais/[id]/passkey`), restrito ao Admin Geral e auditado com severidade `aviso`. Revogar **não** registra a chave nova — cadastrar é sempre do titular, no aparelho dele. Um administrador que pudesse registrar pela pessoa esvaziaria a prova.
+**Recuperação (perda de aparelho):** cartão "Chave de assinatura" em `/policiais/[id]` (ou `DELETE /api/policiais/[id]/passkey`), restrito ao Admin Geral e auditado com severidade `aviso`. O cartão mostra o recorte do identificador — o mesmo da linha `CHAVE DE ASSINATURA` no manifesto — para confronto com o PDF, sem abrir o banco. Revogar **não** registra a chave nova — cadastrar é sempre do titular, no aparelho dele. Um administrador que pudesse registrar pela pessoa esvaziaria a prova. Cadastro, substituição e revogação disparam um **aviso no e-mail funcional** do titular (best-effort: falha de envio não desfaz o ato).
+
+O titular vê o mesmo recorte e a data do último uso em Meu Perfil. O sistema **não** guarda o modelo do celular (sem atestação): para achar a chave no aparelho, a pessoa consulta as chaves-de-acesso do iPhone (Ajustes → Senhas) ou o Gerenciador de senhas do Google, ou tenta assinar — o aparelho que tiver a chave pede a biometria.
 
 **Reconferência.** A asserção fica gravada no documento (`webauthn_client_data`, `webauthn_authenticator_data`, `webauthn_assinatura`, migração 0058) — como o fluxo qualificado já faz com `cms_sha256`/`tst_token_b64`. `reconferirAssercaoDocumento` refaz a verificação a partir do banco, o que é o que sustenta, em perícia, a linha que o manifesto imprime. Revogação posterior **não** invalida: é ato futuro, e o resultado a reporta como informação.
 

@@ -14,8 +14,10 @@
 	 * titular do dado (LGPD art. 6º). Nada de novo deve ser exibido aqui sem que
 	 * o servidor tenha decidido, antes, que aquilo pode sair.
 	 *
-	 * O botão de baixar o PDF íntegro aparece só para autenticado, mas isso é
-	 * cosmético: a permissão real é do endpoint `/api/validar/[hash]/download`.
+	 * O botão de baixar o PDF íntegro e o recorte da chave de assinatura
+	 * aparecem só para autenticado, mas isso é cosmético: a permissão real do
+	 * download é do endpoint `/api/validar/[hash]/download`. O recorte não
+	 * desce ao anônimo (LGPD).
 	 */
 	import AlertCircle from '@lucide/svelte/icons/alert-circle';
 	import AlertTriangle from '@lucide/svelte/icons/alert-triangle';
@@ -40,6 +42,14 @@
 
 	const { data }: PageProps = $props();
 	const documento = $derived(data.documento as DocumentoComAuditoria);
+	const chaveAssinatura = $derived(data.encontrado ? data.chaveAssinatura : null);
+
+	const textoSituacaoChave: Record<'ativa' | 'revogada' | 'ausente', string> = {
+		ativa: 'Ainda cadastrada — o recorte bate com a chave ativa na ficha do servidor.',
+		revogada:
+			'Revogada depois desta assinatura. O documento continua válido; na ficha o recorte aparece em chaves anteriores.',
+		ausente: 'Não encontrada no cadastro (titular excluído, ou registro anterior à chave).'
+	};
 
 	function formatarDataHora(dateStr: string | null) {
 		if (!dateStr) return 'Não informada';
@@ -447,6 +457,19 @@
 									<span class="block text-xs text-surface-600 dark:text-surface-400 mt-1"
 										>CPF: {documento.assinante_cpf}</span
 									>
+								{/if}
+								{#if chaveAssinatura}
+									<span
+										class="block text-3xs uppercase font-bold text-surface-600 dark:text-surface-400 mt-3"
+										>Chave de assinatura (como no manifesto)</span
+									>
+									<span
+										class="block font-mono text-sm tracking-wide text-surface-900 dark:text-white break-all select-all mt-0.5"
+										>{chaveAssinatura.identificador}</span
+									>
+									<span class="block text-xs text-surface-600 dark:text-surface-400 mt-1">
+										{textoSituacaoChave[chaveAssinatura.situacao]}
+									</span>
 								{/if}
 							</div>
 						</div>

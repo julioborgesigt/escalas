@@ -13,7 +13,8 @@
  * revoga (`DELETE`), e a pessoa registra de novo do próprio aparelho.
  *
  * Registrar substitui a credencial anterior — ver `lib/db/webauthn.ts` para o
- * porquê de uma só credencial ativa por pessoa.
+ * porquê de uma só credencial ativa por pessoa. Cadastro e substituição
+ * disparam aviso no e-mail funcional (best-effort; falha não desfaz o ato).
  */
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
@@ -43,6 +44,8 @@ import {
 	exigirCodigosReposicao,
 	mensagemRecusaReposicao
 } from '$lib/server/assinatura/reposicao-passkey';
+import { avisarChaveNoEmailFuncional } from '$lib/server/assinatura/aviso-chave';
+import { abreviarCredencial } from '$lib/chave-assinatura-ui';
 import { base64UrlToBytes } from '$lib/crypto/bin';
 
 export const GET: RequestHandler = async ({ platform, locals, url, request }) => {
@@ -158,9 +161,17 @@ export const POST: RequestHandler = async ({ platform, locals, request, url }) =
 		detalhes: `Passkey registrada (${descreverVinculoCredencial(resultado.credencial)})`
 	});
 
+	await avisarChaveNoEmailFuncional(platform, {
+		email: u.email,
+		nome: u.nome,
+		evento: atual ? 'substituida' : 'cadastrada',
+		credentialId: dados.credentialId
+	});
+
 	return json({
 		success: true,
-		vinculo: descreverVinculoCredencial(resultado.credencial)
+		vinculo: descreverVinculoCredencial(resultado.credencial),
+		identificador: abreviarCredencial(dados.credentialId)
 	});
 };
 
@@ -174,6 +185,7 @@ export const DELETE: RequestHandler = async ({ platform, locals }) => {
 
 	const db = getDB(platform);
 	const dono = credencialDoUsuario(u);
+	const ativa = await buscarCredencialAtiva(db, dono);
 	const quantas = await revogarCredenciaisAtivas(db, dono);
 
 	if (quantas > 0) {
@@ -183,6 +195,12 @@ export const DELETE: RequestHandler = async ({ platform, locals }) => {
 			entidade: 'policial',
 			entidade_id: dono.id,
 			detalhes: 'Passkey revogada pelo próprio titular'
+		});
+		await avisarChaveNoEmailFuncional(platform, {
+			email: u.email,
+			nome: u.nome,
+			evento: 'revogada',
+			credentialId: ativa?.credentialId ?? null
 		});
 	}
 

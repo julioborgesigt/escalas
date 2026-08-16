@@ -14,6 +14,21 @@
 		"sha256": "4269e16bfe16eaed570caa254595ce6bfc044123012987e9100122247d0e2d18",
 		"tamanho": 1988
 	},
+	"avisoChaveCadastrada": {
+		"subject": "Aviso de segurança: chave de assinatura cadastrada — Sistema de Escalas",
+		"sha256": "f215c57ef25ed0a461442c45e7602c0558078f056376e929fc481a58e1b41180",
+		"tamanho": 2218
+	},
+	"avisoChaveSubstituida": {
+		"subject": "Aviso de segurança: chave de assinatura substituída — Sistema de Escalas",
+		"sha256": "6795ddced1d27861616adf862aba4f9b5a327f8f78987100b2223c3e7f5a1aab",
+		"tamanho": 2275
+	},
+	"avisoChaveRevogada": {
+		"subject": "Aviso de segurança: chave de assinatura revogada — Sistema de Escalas",
+		"sha256": "ac7a0ace5d27f9dd4b92377746a1e41a7ae0974f095471a3a1670cc3a00a84a7",
+		"tamanho": 2234
+	},
 	"codigoRedefinicaoSenha": {
 		"subject": "Código de Redefinição de Senha — Sistema de Escalas",
 		"sha256": "b5315773a266be6470e3cbcd1740b82e7a6b51c636bdd48e6bcc8b14ff98de16",

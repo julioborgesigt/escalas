@@ -357,6 +357,7 @@
 			policialId={data.policial.id}
 			nome={data.policial.nome}
 			passkey={data.passkey}
+			chavesAnteriores={data.chavesAnteriores}
 		/>
 	{/if}
 

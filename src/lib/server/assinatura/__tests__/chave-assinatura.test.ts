@@ -14,7 +14,14 @@ import {
 import {
 	avancadaEmTelaDisponivel,
 	avancadaEmTelaDoLayout,
-	mensagemConviteChave
+	mensagemConviteChave,
+	abreviarCredencial,
+	situacaoChaveNoCadastro,
+	mensagemJaTemChaveNoPerfil,
+	mensagemReposicaoDoisEmails,
+	mensagemOfertaChavePrimeiroAcesso,
+	mensagemChaveNoCartaoAdmin,
+	mensagemOndeEstaAChave
 } from '$lib/chave-assinatura-ui';
 
 const UA_DESKTOP =
@@ -69,5 +76,60 @@ describe('avancadaEmTelaDisponivel', () => {
 		expect(mensagemConviteChave(false)).toMatch(/Token A3/);
 		expect(mensagemConviteChave(true)).not.toMatch(/dispositivo registrado/i);
 		expect(mensagemConviteChave(false)).not.toMatch(/dispositivo registrado/i);
+	});
+});
+
+describe('abreviarCredencial', () => {
+	it('deixa id curto intacto', () => {
+		expect(abreviarCredencial('abc12xyz8901abcd')).toBe('abc12xyz8901abcd');
+		expect(abreviarCredencial('a'.repeat(20))).toBe('a'.repeat(20));
+	});
+
+	it('recorte 8...8 no id longo — o mesmo texto do manifesto', () => {
+		const id = 'AQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHw';
+		expect(abreviarCredencial(id)).toBe('AQIDBAUG...obHB0eHw');
+		expect(abreviarCredencial(id).length).toBe(19);
+	});
+});
+
+describe('situacaoChaveNoCadastro', () => {
+	it('distingue ativa, revogada e ausente', () => {
+		expect(situacaoChaveNoCadastro(null)).toBe('ausente');
+		expect(situacaoChaveNoCadastro({ revogadaEm: null })).toBe('ativa');
+		expect(situacaoChaveNoCadastro({ revogadaEm: '2026-08-01T12:00:00.000Z' })).toBe('revogada');
+	});
+});
+
+describe('copy da chave no perfil', () => {
+	it('distingue sync de reposição e não afirma aparelho cadastrado', () => {
+		const jaTem = mensagemJaTemChaveNoPerfil();
+		expect(jaTem).toMatch(/Apple\/Google/);
+		expect(jaTem).toMatch(/não cadastre de novo/);
+		expect(jaTem).toMatch(/documentos já assinados continuam válidos/i);
+		expect(jaTem).not.toMatch(/dispositivo registrado/i);
+
+		expect(mensagemReposicaoDoisEmails()).toMatch(/dois e-mails/);
+		expect(mensagemReposicaoDoisEmails()).toMatch(/e-mail funcional/);
+		expect(mensagemOfertaChavePrimeiroAcesso()).toMatch(/e-mail funcional/);
+		expect(mensagemOfertaChavePrimeiroAcesso()).not.toMatch(/dispositivo registrado/i);
+	});
+
+	it('cartão do Admin Geral: cadastro do titular, daqui só revoga', () => {
+		const admin = mensagemChaveNoCartaoAdmin();
+		expect(admin).toMatch(/Chave única/);
+		expect(admin).toMatch(/próprio servidor/);
+		expect(admin).toMatch(/Meu Perfil/);
+		expect(admin).toMatch(/função de administrador/);
+		expect(admin).toMatch(/revogar/);
+		expect(admin).not.toMatch(/dispositivo registrado/i);
+	});
+
+	it('não promete modelo do celular — aponta vínculo e o gerenciador do SO', () => {
+		const onde = mensagemOndeEstaAChave();
+		expect(onde).toMatch(/não guarda o modelo/i);
+		expect(onde).toMatch(/Apple\/Google/);
+		expect(onde).toMatch(/Chaves-de-acesso/);
+		expect(onde).toMatch(/Gerenciador de senhas do Google/);
+		expect(onde).not.toMatch(/dispositivo registrado/i);
 	});
 });
