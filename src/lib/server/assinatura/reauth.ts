@@ -21,15 +21,12 @@ import { contarRecoveryAttempts, registrarRecoveryAttempt } from '../auth/recove
 import { conferirJanelaReauth, criarJanelaReauth } from '$lib/db/reauth';
 import type { Database } from '$lib/db';
 import { ErrorCode } from '../api';
+import { ERRO_REAUTH_AUSENTE, ERRO_REAUTH_INVALIDA } from '$lib/assinatura-reauth';
+
+export { ERRO_REAUTH_AUSENTE, ERRO_REAUTH_INVALIDA };
 
 const SENHA_MAX_TENTATIVAS = 5;
 const SENHA_JANELA_MIN = 15;
-
-export const ERRO_REAUTH_AUSENTE =
-	'Confirme sua senha de acesso para assinar. A sessão sozinha não basta.';
-
-export const ERRO_REAUTH_INVALIDA =
-	'A confirmação de senha expirou ou não confere. Digite a senha novamente.';
 
 type UsuarioReauth = {
 	id: number;

@@ -33,11 +33,11 @@
 	 *   pendência e assinatura das seccionais de verdade.
 	 */
 	import PenLine from '@lucide/svelte/icons/pen-line';
-	import { goto, replaceState } from '$app/navigation';
+	import { goto, replaceState, afterNavigate } from '$app/navigation';
 	import { invalidateShared } from '$lib/cross-tab-invalidate';
 	import type { PageProps } from './$types';
 	import { page } from '$app/state';
-	import { untrack } from 'svelte';
+	import { untrack, tick } from 'svelte';
 	import { toaster } from '$lib/toast';
 	import { enhance } from '$app/forms';
 	import { useGiseEstado, useGiseAssinatura } from '$lib/composables/gise';
@@ -52,6 +52,7 @@
 		supervisaoExtraRubricasCompletas
 	} from '$lib/gise/supervisao-extra';
 	import { makeEnhanceHandler } from '$lib/enhance-handler';
+	import { avancadaEmTelaDoLayout } from '$lib/chave-assinatura-ui';
 	import GiseCabecalho from './_components/GiseCabecalho.svelte';
 	import GiseSupervisao from './_components/GiseSupervisao.svelte';
 	import { publicarQuadroSupervisao } from './_components/supervisao/quadro-supervisao-estado.svelte';
@@ -204,6 +205,41 @@
 			url.searchParams.delete('edit');
 			replaceState(url, {});
 		}
+	});
+
+	/**
+	 * Atalho dos cards em `/gise`: `?assinar=escala` ou `?assinar=extra` abre
+	 * o mesmo controle de dentro da escala (rubrica no celular, token no
+	 * computador). Consome o param para o F5 não disparar de novo.
+	 */
+	afterNavigate(() => {
+		const acao = page.url.searchParams.get('assinar');
+		if (acao !== 'escala' && acao !== 'extra') return;
+		const via = page.url.searchParams.get('via');
+		const url = new URL(page.url);
+		url.searchParams.delete('assinar');
+		url.searchParams.delete('via');
+		replaceState(url, {});
+		void (async () => {
+			await tick();
+			await new Promise((r) => setTimeout(r, 0));
+			const noCelular = via === 'tela' || (via !== 'token' && isMobile);
+			const avancada = avancadaEmTelaDoLayout(page.data);
+			if (acao === 'escala') {
+				if (noCelular) {
+					if (avancada) assinatura.abrirModalRubrica('simples');
+				} else {
+					await assinatura.painelTokenGise?.assinarComSerpro();
+				}
+				return;
+			}
+			if (pendentesExtra.length === 0) return;
+			if (noCelular) {
+				if (avancada) assinatura.abrirAssinaturaLote();
+			} else {
+				await assinatura.executarAssinarRelatorioLoteSERPRO();
+			}
+		})();
 	});
 	let showModalDataHoras = $state(false);
 	let showModalBreveRelatorio = $state(false);

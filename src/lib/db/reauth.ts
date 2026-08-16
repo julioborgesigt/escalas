@@ -17,11 +17,11 @@ import { assinaturaReauth } from '../server/schema';
 import type { Database } from './core';
 import { sha256Hex } from '../crypto/digest';
 import { gerarTokenOpaco } from '../crypto/token';
+import { REAUTH_VALIDADE_MS } from '$lib/assinatura-reauth';
+
+export { REAUTH_VALIDADE_MS };
 
 const PREFIXO_HASH = 'sha256:';
-
-/** Mesma janela do código 2FA de assinatura — o lote não pede senha a cada PDF. */
-export const REAUTH_VALIDADE_MS = 10 * 60 * 1000;
 
 async function hashDoToken(token: string): Promise<string> {
 	return `${PREFIXO_HASH}${await sha256Hex(token)}`;

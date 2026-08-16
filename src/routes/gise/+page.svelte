@@ -11,33 +11,21 @@
 	 * supervisor, membro, seccional participante) — esta tela não faz controle de
 	 * acesso, só de apresentação.
 	 *
-	 * Também é ponto de assinatura: o supervisor pode assinar daqui os relatórios
-	 * de extra pendentes sem abrir a escala, com rubrica ou token SERPRO. É por
-	 * isso que uma tela de listagem importa `PainelAssinaturaToken` e
-	 * `ModalRubrica`.
+	 * O botão Ass. Escala / Ass. Extra do card é atalho: abre a escala com
+	 * `?assinar=` e dispara o mesmo fluxo de dentro (rubrica no celular, token
+	 * no computador). Não há um segundo caminho de assinatura nesta tela.
 	 */
 	import type { PageProps } from './$types';
 	import Paginador from '$lib/components/Paginador.svelte';
 	import { goto } from '$app/navigation';
-	import { invalidateShared } from '$lib/cross-tab-invalidate';
 	import { page } from '$app/state';
-	import { toaster } from '$lib/toast';
-	import { loading } from '$lib/loading.svelte';
-	import { apiFetch, apiFetchResponse } from '$lib/api-fetch';
-	import { baixarBlob } from '$lib/utils/download';
-	import { digestHexParaBase64, executarFluxoAssinaturaToken } from '$lib/assinatura-token';
-	import { assinarExtraComPasskey, assinarGiseComPasskey } from '$lib/assinatura-passkey';
-	import { conectarSerpro } from '$lib/serpro';
-	import ModalRubrica from './[id]/_components/modais/ModalRubrica.svelte';
-	import type { SignaturePadConfirmPayload } from '$lib/components/SignaturePadTypes';
-	import PainelAssinaturaToken from '$lib/components/PainelAssinaturaToken.svelte';
 	import CardGiseAtiva from './_components/CardGiseAtiva.svelte';
 	import SecaoHistorico from './_components/SecaoHistorico.svelte';
 	import ModalCriarGise from './_components/ModalCriarGise.svelte';
 	import ModalDownloadExtras from './_components/ModalDownloadExtras.svelte';
 	import DialogInfo from './_components/DialogInfo.svelte';
 	import { fmtDate, diaSemana } from '$lib/gise/formatters';
-	import { rubricaValida, useInvalidateOnFocus } from '$lib/composables';
+	import { useInvalidateOnFocus } from '$lib/composables';
 	import { avancadaEmTelaDoLayout, mensagemConviteChave } from '$lib/chave-assinatura-ui';
 	import { fetchSyncEstado } from '$lib/sync-estado';
 	import { MediaQuery } from 'svelte/reactivity';
@@ -112,10 +100,6 @@
 	const seccionaisList = $derived(data.seccionaisList ?? []);
 	const minhaSeccionalId = $derived(data.minhaSeccionalId ?? null);
 	const supervisaoExtraUnidadeId = $derived(data.supervisaoExtraUnidadeId ?? null);
-	// Rubrica salva do supervisor — reutilizada no modal aberto pelos cards (o
-	// pad abria vazio porque a listagem não carregava a rubrica, só o detalhe).
-	const minhaRubrica = $derived(rubricaValida(data.minhaRubrica));
-
 	// A listagem não carrega o assinante de cada documento; aproxima a regra de
 	// `podeBaixarComManifesto` (escala GISE e rel. da supervisão são assinados
 	// pelo supervisor): Admin Geral/Super, ou supervisor DPC. O servidor segue
@@ -156,29 +140,14 @@
 	let showDownloadExtrasModal = $state(false);
 	let giseParaDownloadExtras = $state<GiseEscala | null>(null);
 
-	// --- Assinatura rápida inline ---
-	type GiseParaAssinar = {
-		id: number;
-		dataInicio: string;
-		tipo: 'escala' | 'extra';
-		pendentesExtraIds: number[];
+	// --- Dialog informativo ---
+	type DialogInfoType = {
+		titulo: string;
+		linhas: string[];
+		acao?: { label: string; fn: () => void };
+		acaoSecundaria?: { label: string; fn: () => void };
 	};
-
-	let giseParaAssinar = $state<GiseParaAssinar | null>(null);
-	let mostrarRubricaGise = $state(false);
-	let painelTokenGiseControl = $state<{ assinarComSerpro: () => Promise<void> } | null>(null);
-
-	const tokenPrepararUrl = $derived(
-		giseParaAssinar?.tipo === 'escala' ? `/api/gise/${giseParaAssinar.id}/preparar-assinatura` : ''
-	);
-	const tokenFinalizarUrl = $derived(
-		giseParaAssinar?.tipo === 'escala' ? `/api/gise/${giseParaAssinar.id}/finalizar-assinatura` : ''
-	);
-	const tokenNomeArquivo = $derived(
-		giseParaAssinar?.dataInicio
-			? `gise_${giseParaAssinar.dataInicio}_confirmada.pdf`
-			: 'gise_confirmada.pdf'
-	);
+	let dialogInfo = $state<DialogInfoType | null>(null);
 
 	function iniciarAssinaturaEscala(ativa: (typeof ativas)[0]) {
 		if (!isDesktop && !avancadaDisponivel) {
@@ -189,17 +158,7 @@
 			};
 			return;
 		}
-		giseParaAssinar = {
-			id: ativa.id,
-			dataInicio: ativa.data_inicio,
-			tipo: 'escala',
-			pendentesExtraIds: []
-		};
-		if (isDesktop) {
-			setTimeout(() => painelTokenGiseControl?.assinarComSerpro(), 0);
-		} else {
-			mostrarRubricaGise = true;
-		}
+		void goto(`/gise/${ativa.id}?assinar=escala&via=${isDesktop ? 'token' : 'tela'}`);
 	}
 
 	function iniciarAssinaturaExtra(ativa: (typeof ativas)[0]) {
@@ -211,35 +170,8 @@
 			};
 			return;
 		}
-		giseParaAssinar = {
-			id: ativa.id,
-			dataInicio: ativa.data_inicio,
-			tipo: 'extra',
-			pendentesExtraIds: ativa.extrasPendentesIds
-		};
-		if (isDesktop) {
-			// Desktop assina direto com o token SERPRO, espelhando o fluxo da
-			// escala. (Antes ligava um flag de modal que nenhum template consumia,
-			// então o clique não fazia nada.)
-			void assinarExtrasComSerpro();
-		} else {
-			mostrarRubricaGise = true;
-		}
+		void goto(`/gise/${ativa.id}?assinar=extra&via=${isDesktop ? 'token' : 'tela'}`);
 	}
-
-	function cancelarAssinatura() {
-		mostrarRubricaGise = false;
-		giseParaAssinar = null;
-	}
-
-	// --- Dialog informativo ---
-	type DialogInfoType = {
-		titulo: string;
-		linhas: string[];
-		acao?: { label: string; fn: () => void };
-		acaoSecundaria?: { label: string; fn: () => void };
-	};
-	let dialogInfo = $state<DialogInfoType | null>(null);
 
 	function clicarAssEscala(ativa: (typeof ativas)[0]) {
 		if (ativa.status === 'aguardando_assinatura') {
@@ -529,111 +461,6 @@
 			]
 		};
 	}
-
-	async function confirmarRubricaGise(payload: SignaturePadConfirmPayload) {
-		const evidencias = {
-			rubrica: payload.rubrica,
-			latitude: payload.lat,
-			longitude: payload.lng,
-			selfieBase64: payload.selfie,
-			codigoValidação: payload.codigoEmail,
-			desafioId: payload.desafioId,
-			livenessChallenge: payload.liveness,
-			reauthId: payload.reauthId
-		};
-		const gise = giseParaAssinar;
-		if (!gise) return;
-		mostrarRubricaGise = false;
-		loading.show('Assinando...');
-		try {
-			// A listagem já recusa abrir o pad sem chave (`avancadaDisponivel`).
-			// Sem este ramo, o POST ia no um-tiro (`assinar-simples` / `assinar`)
-			// e o servidor devolvia "use o fluxo de assinatura por chave" — a
-			// frase que o titular via depois de cadastrar a chave neste celular.
-			const exigePasskey = Boolean(page.data.exigirPasskeyAssinatura);
-			if (gise.tipo === 'escala') {
-				if (exigePasskey) {
-					await assinarGiseComPasskey(gise.id, evidencias, (rotulo) => loading.show(rotulo));
-				} else {
-					const r = await apiFetchResponse(`/api/gise/${gise.id}/assinar-simples`, {
-						method: 'POST',
-						body: JSON.stringify(evidencias)
-					});
-					baixarBlob(await r.blob(), tokenNomeArquivo);
-				}
-				toaster.success({ title: 'Escala extra assinada com sucesso' });
-				await invalidateShared('app:gise-list');
-			} else {
-				for (const seccionalId of gise.pendentesExtraIds) {
-					if (exigePasskey) {
-						await assinarExtraComPasskey(
-							gise.id,
-							seccionalId,
-							{ ...evidencias, tipo: 'extraordinario' },
-							(rotulo) => loading.show(rotulo)
-						);
-					} else {
-						await apiFetch(`/api/gise/${gise.id}/relatorios/${seccionalId}/assinar`, {
-							method: 'POST',
-							body: JSON.stringify({ tipo: 'extraordinario', ...evidencias })
-						});
-					}
-				}
-				toaster.success({
-					title: `${gise.pendentesExtraIds.length} relatório(s) de extra assinado(s)`
-				});
-				await invalidateShared('app:gise-list');
-			}
-		} catch (e: unknown) {
-			toaster.error({
-				title: 'Erro ao assinar',
-				description: e instanceof Error ? e.message : String(e)
-			});
-		} finally {
-			loading.hide();
-			giseParaAssinar = null;
-		}
-	}
-
-	async function assinarExtrasComSerpro() {
-		const gise = giseParaAssinar;
-		if (!gise || gise.pendentesExtraIds.length === 0) return;
-		try {
-			const client = await conectarSerpro();
-			loading.show('Conectando ao Assinador SERPRO...');
-			const signerName = data.usuario?.nome ?? '';
-			const signerCpf = data.usuario?.cpf ?? '';
-			for (let i = 0; i < gise.pendentesExtraIds.length; i++) {
-				const seccionalId = gise.pendentesExtraIds[i];
-				loading.show(`Preparando PDF ${i + 1} de ${gise.pendentesExtraIds.length}...`);
-				await executarFluxoAssinaturaToken({
-					prepararUrl: `/api/gise/${gise.id}/relatorios/${seccionalId}/preparar-assinatura`,
-					finalizarUrl: `/api/gise/${gise.id}/relatorios/${seccionalId}/finalizar-assinatura`,
-					payloadPreparar: { signerName, signerCpf, rubrica: null },
-					obterAssinatura: async (prep) => {
-						loading.show(`Assinando ${i + 1} de ${gise.pendentesExtraIds.length}...`);
-						const serproRes = await client.sign(digestHexParaBase64(prep.messageDigest));
-						return { serproCms: serproRes.rawSignature };
-					},
-					payloadFinalizar: { signerName, signerCpf },
-					onFinalizando: () =>
-						loading.show(`Finalizando ${i + 1} de ${gise.pendentesExtraIds.length}...`)
-				});
-			}
-			toaster.success({
-				title: `${gise.pendentesExtraIds.length} relatório(s) assinado(s) com token`
-			});
-			await invalidateShared('app:gise-list');
-		} catch (e: unknown) {
-			toaster.error({
-				title: 'Erro ao assinar com token',
-				description: e instanceof Error ? e.message : String(e)
-			});
-		} finally {
-			loading.hide();
-			giseParaAssinar = null;
-		}
-	}
 </script>
 
 <svelte:head>
@@ -811,30 +638,5 @@
 	supervisaoExtraUnidadeId={data.supervisaoExtraUnidadeId}
 	podeManifesto={podeManifestoProvavel}
 />
-
-<ModalRubrica
-	open={mostrarRubricaGise}
-	exigirFoto={page.data.exigirFotoAssinatura ?? true}
-	exigirGps={page.data.exigirGpsAssinatura ?? true}
-	exigirCodigoEmail={page.data.exigirCodigoEmailAssinatura ?? false}
-	rubricaSalva={minhaRubrica}
-	onConfirm={confirmarRubricaGise}
-	onCancel={cancelarAssinatura}
-/>
-
-<div class="sr-only" aria-hidden="true">
-	<PainelAssinaturaToken
-		prepararUrl={tokenPrepararUrl}
-		finalizarUrl={tokenFinalizarUrl}
-		nomeArquivo={tokenNomeArquivo}
-		signerName={data.usuario?.nome ?? ''}
-		signerCpf={data.usuario?.cpf ?? ''}
-		bind:control={painelTokenGiseControl}
-		onSuccess={async () => {
-			giseParaAssinar = null;
-			await invalidateShared('app:gise-list');
-		}}
-	/>
-</div>
 
 <DialogInfo {dialogInfo} onClose={() => (dialogInfo = null)} />

@@ -26,6 +26,7 @@ import type { ResGiseEscalaSelecionavel, ResGisePageData } from '$lib/types';
 import type { GisePresenca } from '$lib/server/schema';
 import type { SignaturePadConfirmPayload } from '$lib/components/SignaturePadTypes';
 import { assinarPresencaComPasskey } from '$lib/assinatura-passkey';
+import { ehErroReauthAssinatura } from '$lib/assinatura-reauth';
 import { navigateWithFilters } from './res-gise-navegacao.svelte';
 
 function messageFromUnknown(e: unknown): string {
@@ -213,6 +214,7 @@ export function usePresencaGise(getData: () => ResGisePageData) {
 			await invalidateShared('app:res-gise', 'app:papel-gise');
 			reaplicarEscalaSelecionada(tipo);
 		} catch (e: unknown) {
+			if (ehErroReauthAssinatura(e)) throw e;
 			toaster.error({ title: 'Erro', description: messageFromUnknown(e) });
 		} finally {
 			loading.hide();
