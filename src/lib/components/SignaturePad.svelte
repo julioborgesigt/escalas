@@ -32,6 +32,13 @@
 	} from './SignaturePadTypes';
 	import { apiFetch } from '$lib/api-fetch';
 	import { toaster } from '$lib/toast';
+	import {
+		apagarReauth,
+		ehErroReauthAssinatura,
+		ERRO_REAUTH_AUSENTE,
+		gravarReauth,
+		lerReauthGuardado
+	} from '$lib/assinatura-reauth';
 	import Spinner from './Spinner.svelte';
 	import IconTooltip from './IconTooltip.svelte';
 	import CodigoTimer from './CodigoTimer.svelte';
@@ -104,21 +111,10 @@
 		reauthId: string | null;
 	} | null>(null);
 
-	const REAUTH_STORAGE_KEY = 'assinatura_reauth_id';
-
-	function lerReauthGuardado(): string | null {
-		if (typeof sessionStorage === 'undefined') return null;
-		const v = sessionStorage.getItem(REAUTH_STORAGE_KEY);
-		return v && /^[0-9a-f]{64}$/.test(v) ? v : null;
-	}
-
-	function gravarReauth(id: string) {
-		sessionStorage.setItem(REAUTH_STORAGE_KEY, id);
-	}
-
 	let senhaInput = $state('');
 	let senhaError = $state<string | null>(null);
 	let confirmandoSenha = $state(false);
+	let emitindo = $state(false);
 
 	$effect(() => {
 		if (step === 'camera') {
@@ -196,10 +192,17 @@
 
 	async function avancarAposSenha() {
 		if (exigirCodigoEmail) {
+			// Recusa de senha no POST acontece ANTES de consumir o 2FA. Se o
+			// titular já digitou o código, reabre este passo em vez de queimar
+			// outro e-mail.
+			if (desafioId && codigoInput.length === 6) {
+				step = 'email_code';
+				return;
+			}
 			const ok = await enviarOuReenviarCodigo();
 			if (ok) step = 'email_code';
 		} else {
-			emitirConfirmacao();
+			await emitirConfirmacao();
 		}
 	}
 
@@ -226,16 +229,32 @@
 		}
 	}
 
-	function emitirConfirmacao() {
+	async function emitirConfirmacao(extras?: { codigoEmail?: string; desafioId?: string }) {
 		if (!pendingSignature) return;
-		onConfirm({
-			rubrica: pendingSignature.dataUrl,
-			lat: pendingSignature.lat,
-			lng: pendingSignature.lng,
-			selfie: pendingSignature.selfieBase64,
-			liveness: pendingSignature.liveness,
-			reauthId: pendingSignature.reauthId ?? undefined
-		});
+		emitindo = true;
+		try {
+			await onConfirm({
+				rubrica: pendingSignature.dataUrl,
+				lat: pendingSignature.lat,
+				lng: pendingSignature.lng,
+				selfie: pendingSignature.selfieBase64,
+				liveness: pendingSignature.liveness,
+				reauthId: pendingSignature.reauthId ?? undefined,
+				...extras
+			});
+		} catch (e: unknown) {
+			if (ehErroReauthAssinatura(e)) {
+				apagarReauth();
+				pendingSignature.reauthId = null;
+				senhaInput = '';
+				senhaError = e instanceof Error ? e.message : ERRO_REAUTH_AUSENTE;
+				step = 'password';
+				return;
+			}
+			codigoError = e instanceof Error ? e.message : String(e);
+		} finally {
+			emitindo = false;
+		}
 	}
 
 	async function enviarOuReenviarCodigo() {
@@ -264,22 +283,13 @@
 		}
 	}
 
-	function confirmarCodigo() {
+	async function confirmarCodigo() {
 		if (codigoInput.length !== 6) {
 			codigoError = 'O código deve conter 6 dígitos.';
 			return;
 		}
 		if (pendingSignature && desafioId) {
-			onConfirm({
-				rubrica: pendingSignature.dataUrl,
-				lat: pendingSignature.lat,
-				lng: pendingSignature.lng,
-				selfie: pendingSignature.selfieBase64,
-				codigoEmail: codigoInput,
-				desafioId,
-				liveness: pendingSignature.liveness,
-				reauthId: pendingSignature.reauthId ?? undefined
-			});
+			await emitirConfirmacao({ codigoEmail: codigoInput, desafioId });
 		}
 	}
 
@@ -787,7 +797,7 @@
 				type="button"
 				class="btn preset-outlined-surface-500 rounded-xl text-xs font-bold uppercase px-4 py-2 hover:bg-surface-50 dark:hover:bg-surface-900 transition-colors"
 				onclick={onCancel}
-				disabled={solicitandoCodigo}
+				disabled={solicitandoCodigo || emitindo}
 			>
 				Cancelar
 			</button>
@@ -796,9 +806,13 @@
 				type="button"
 				class="btn preset-filled-primary-500 rounded-xl text-sm font-bold uppercase px-6 py-3 shadow-lg shadow-primary-500/20 transition-all ml-auto"
 				onclick={confirmarCodigo}
-				disabled={solicitandoCodigo || codigoInput.length !== 6}
+				disabled={solicitandoCodigo || emitindo || codigoInput.length !== 6}
 			>
-				Assinar
+				{#if emitindo}
+					Assinando...
+				{:else}
+					Assinar
+				{/if}
 			</button>
 		{/if}
 	</div>

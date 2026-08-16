@@ -3,9 +3,9 @@
 	 * Card de uma GISE ativa na lista `/gise`.
 	 *
 	 * Concentra o "o que falta" da escala: a faixa colorida no topo dá o status
-	 * num relance e os dois botões (escala × extras) mudam de cor e de dica
-	 * conforme o supervisor ainda precise assinar, esteja no meio ou já tenha
-	 * terminado. Quem não é o supervisor da escala vê só os downloads.
+	 * num relance e os dois botões (escala × extras) são atalho do mesmo
+	 * controle de dentro da escala (`?assinar=` na URL). Quem não é o supervisor
+	 * da escala vê só os downloads.
 	 */
 	import { goto } from '$app/navigation';
 	import { slide } from 'svelte/transition';

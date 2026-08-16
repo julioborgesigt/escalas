@@ -11,6 +11,7 @@ import { loading } from '$lib/loading.svelte';
 import { apiFetch } from '$lib/api-fetch';
 import { digestHexParaBase64, executarFluxoAssinaturaToken } from '$lib/assinatura-token';
 import { assinarEscalaComPasskey } from '$lib/assinatura-passkey';
+import { ehErroReauthAssinatura } from '$lib/assinatura-reauth';
 import { page } from '$app/state';
 import { logger } from '$lib/logger';
 
@@ -176,6 +177,7 @@ export function useAssinaturaEscala({ getParams, onDocumentoAssinado }: UseAssin
 			rubricaCapturada = null;
 			selfieCapturada = null;
 		} catch (err: unknown) {
+			if (ehErroReauthAssinatura(err)) throw err;
 			toaster.error({
 				title: 'Erro ao assinar',
 				description: err instanceof Error ? err.message : 'Erro desconhecido'

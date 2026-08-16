@@ -18,6 +18,7 @@ import { loading } from '$lib/loading.svelte';
 import { apiFetch, apiFetchResponse } from '$lib/api-fetch';
 import { digestHexParaBase64, executarFluxoAssinaturaToken } from '$lib/assinatura-token';
 import { assinarGiseComPasskey, assinarExtraComPasskey } from '$lib/assinatura-passkey';
+import { ehErroReauthAssinatura } from '$lib/assinatura-reauth';
 import { page } from '$app/state';
 import { conectarSerpro, type SerproSignerClient } from '$lib/serpro';
 import type { SignaturePadConfirmPayload } from '$lib/components/SignaturePadTypes';
@@ -106,31 +107,37 @@ export function useGiseAssinatura({
 		} = payload;
 		rubricaCapturada = dataUrl;
 		selfieCapturada = selfie ?? null;
-		showRubricaModal = false;
 
-		if (relatorioSendoAssinado) {
-			await executarAssinarRelatorio(
-				dataUrl,
-				lat,
-				lng,
-				selfie,
-				codigoValidação,
-				desafioId,
-				livenessChallenge,
-				reauthId
-			);
-			relatorioSendoAssinado = null;
-		} else if (tipoAssinaturaPendente === 'simples') {
-			await executarAssinarSimples(
-				lat,
-				lng,
-				codigoValidação,
-				desafioId,
-				livenessChallenge,
-				reauthId
-			);
-		} else if (tipoAssinaturaPendente === 'serpro') {
-			await executarAssinarComSerpro(lat, lng);
+		try {
+			if (relatorioSendoAssinado) {
+				await executarAssinarRelatorio(
+					dataUrl,
+					lat,
+					lng,
+					selfie,
+					codigoValidação,
+					desafioId,
+					livenessChallenge,
+					reauthId
+				);
+				relatorioSendoAssinado = null;
+			} else if (tipoAssinaturaPendente === 'simples') {
+				await executarAssinarSimples(
+					lat,
+					lng,
+					codigoValidação,
+					desafioId,
+					livenessChallenge,
+					reauthId
+				);
+			} else if (tipoAssinaturaPendente === 'serpro') {
+				await executarAssinarComSerpro(lat, lng);
+			}
+			showRubricaModal = false;
+		} catch (e: unknown) {
+			if (ehErroReauthAssinatura(e)) throw e;
+			toaster.error({ title: 'Erro ao assinar', description: messageFromUnknown(e) });
+			showRubricaModal = false;
 		}
 	}
 
@@ -168,6 +175,7 @@ export function useGiseAssinatura({
 			toaster.success({ title: 'Escala confirmada com sucesso' });
 			await invalidateShared('gise:detail');
 		} catch (e: unknown) {
+			if (ehErroReauthAssinatura(e)) throw e;
 			toaster.error({ title: 'Erro ao assinar', description: messageFromUnknown(e) });
 		} finally {
 			loading.hide();
@@ -306,6 +314,7 @@ export function useGiseAssinatura({
 				relatorioSendoAssinado = null;
 				await invalidateShared('gise:detail');
 			} catch (e: unknown) {
+				if (ehErroReauthAssinatura(e)) throw e;
 				toaster.error({
 					title: 'Erro ao assinar lote',
 					description: messageFromUnknown(e)
@@ -349,6 +358,7 @@ export function useGiseAssinatura({
 			relatorioSendoAssinado = null;
 			await invalidateShared('gise:detail');
 		} catch (e: unknown) {
+			if (ehErroReauthAssinatura(e)) throw e;
 			toaster.error({
 				title: 'Erro ao assinar relatório',
 				description: messageFromUnknown(e)

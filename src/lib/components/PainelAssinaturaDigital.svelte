@@ -153,7 +153,6 @@
 	}
 
 	async function assinarSimples(payload: SignaturePadConfirmPayload) {
-		assinatura.dialogSignOpen = false;
 		await assinatura.assinarSimples(
 			payload.rubrica,
 			payload.lat,
@@ -164,6 +163,7 @@
 			payload.liveness,
 			payload.reauthId
 		);
+		assinatura.dialogSignOpen = false;
 	}
 
 	let painelTokenControl = $state<{ assinarComSerpro: () => Promise<void> } | null>(null);
