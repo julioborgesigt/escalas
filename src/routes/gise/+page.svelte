@@ -26,6 +26,7 @@
 	import { apiFetch, apiFetchResponse } from '$lib/api-fetch';
 	import { baixarBlob } from '$lib/utils/download';
 	import { digestHexParaBase64, executarFluxoAssinaturaToken } from '$lib/assinatura-token';
+	import { assinarExtraComPasskey, assinarGiseComPasskey } from '$lib/assinatura-passkey';
 	import { conectarSerpro } from '$lib/serpro';
 	import ModalRubrica from './[id]/_components/modais/ModalRubrica.svelte';
 	import type { SignaturePadConfirmPayload } from '$lib/components/SignaturePadTypes';
@@ -530,55 +531,53 @@
 	}
 
 	async function confirmarRubricaGise(payload: SignaturePadConfirmPayload) {
-		const {
-			rubrica,
-			lat,
-			lng,
-			selfie,
-			codigoEmail: codigo,
-			desafioId,
-			// Resultado do desafio ativo (head_turn/smile) capturado pelo SignaturePad.
-			// Quando a flag exigirFotoAssinatura esta ligada no servidor, este
-			// campo e OBRIGATORIO — sem ele o endpoint retorna 400 "Comprovacao
-			// de presenca ativa ausente (liveness challenge)".
-			liveness: livenessChallenge
-		} = payload;
+		const evidencias = {
+			rubrica: payload.rubrica,
+			latitude: payload.lat,
+			longitude: payload.lng,
+			selfieBase64: payload.selfie,
+			codigoValidação: payload.codigoEmail,
+			desafioId: payload.desafioId,
+			livenessChallenge: payload.liveness,
+			reauthId: payload.reauthId
+		};
 		const gise = giseParaAssinar;
 		if (!gise) return;
 		mostrarRubricaGise = false;
 		loading.show('Assinando...');
 		try {
+			// A listagem já recusa abrir o pad sem chave (`avancadaDisponivel`).
+			// Sem este ramo, o POST ia no um-tiro (`assinar-simples` / `assinar`)
+			// e o servidor devolvia "use o fluxo de assinatura por chave" — a
+			// frase que o titular via depois de cadastrar a chave neste celular.
+			const exigePasskey = Boolean(page.data.exigirPasskeyAssinatura);
 			if (gise.tipo === 'escala') {
-				const r = await apiFetchResponse(`/api/gise/${gise.id}/assinar-simples`, {
-					method: 'POST',
-					body: JSON.stringify({
-						rubrica,
-						latitude: lat,
-						longitude: lng,
-						selfieBase64: selfie,
-						codigoValidação: codigo,
-						desafioId,
-						livenessChallenge
-					})
-				});
-				baixarBlob(await r.blob(), tokenNomeArquivo);
+				if (exigePasskey) {
+					await assinarGiseComPasskey(gise.id, evidencias, (rotulo) => loading.show(rotulo));
+				} else {
+					const r = await apiFetchResponse(`/api/gise/${gise.id}/assinar-simples`, {
+						method: 'POST',
+						body: JSON.stringify(evidencias)
+					});
+					baixarBlob(await r.blob(), tokenNomeArquivo);
+				}
 				toaster.success({ title: 'Escala extra assinada com sucesso' });
 				await invalidateShared('app:gise-list');
 			} else {
 				for (const seccionalId of gise.pendentesExtraIds) {
-					await apiFetch(`/api/gise/${gise.id}/relatorios/${seccionalId}/assinar`, {
-						method: 'POST',
-						body: JSON.stringify({
-							tipo: 'extraordinario',
-							rubrica,
-							latitude: lat,
-							longitude: lng,
-							selfieBase64: selfie,
-							codigoValidação: codigo,
-							desafioId,
-							livenessChallenge
-						})
-					});
+					if (exigePasskey) {
+						await assinarExtraComPasskey(
+							gise.id,
+							seccionalId,
+							{ ...evidencias, tipo: 'extraordinario' },
+							(rotulo) => loading.show(rotulo)
+						);
+					} else {
+						await apiFetch(`/api/gise/${gise.id}/relatorios/${seccionalId}/assinar`, {
+							method: 'POST',
+							body: JSON.stringify({ tipo: 'extraordinario', ...evidencias })
+						});
+					}
 				}
 				toaster.success({
 					title: `${gise.pendentesExtraIds.length} relatório(s) de extra assinado(s)`
