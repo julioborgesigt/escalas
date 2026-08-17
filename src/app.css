@@ -108,6 +108,100 @@
 	}
 }
 
+/* ---------------------------------------------------------------------------
+ * Correções de base sobre o CSS do Skeleton (auditoria visual de ago/2026).
+ *
+ * As regras deste bloco ficam FORA de `@layer` de propósito: CSS sem camada
+ * vence qualquer `@layer` (inclusive `utilities`), que é o único jeito de
+ * ganhar do CSS de componente do Skeleton de forma determinística, sem espalhar
+ * `!important` por classe em cada call site. O preço é que elas vencem também
+ * os utilitários do call site — então só tocam propriedades que NINGUÉM
+ * sobrescreve. Mexer aqui em `border-*` de `.input`, por exemplo, quebraria o
+ * `border-2` de erro do SignaturePad.
+ * ------------------------------------------------------------------------- */
+
+/* `transform` do Skeleton × `translate` do Tailwind v4 — NÃO se substituem.
+ *
+ * Os utilitários `translate-*`/`scale-*`/`rotate-*` do Tailwind v4 escrevem as
+ * propriedades individuais (`translate`, `scale`, `rotate`); o Skeleton
+ * posiciona estas duas peças com a propriedade `transform`. Sendo propriedades
+ * DIFERENTES, o navegador aplica as duas e os deslocamentos se SOMAM — a classe
+ * parece sobrescrever e não sobrescreve.
+ *
+ * Era isto que produzia os dois "desalinhamentos" relatados:
+ *  - thumb do switch: nosso `translate-x-5` (20px, o curso certo do trilho de
+ *    44px) somava ao `translateX(16px)` do Skeleton = 36px, e a bolinha saía
+ *    14px FORA do trilho;
+ *  - gatilho do combobox: o `!translate-y-0` não cancelava o
+ *    `translateY(-50%)`, e o chevron subia 12px, vazando 7px acima do campo.
+ *
+ * Zerar `transform` aqui devolve a geometria a quem a define (o componente, via
+ * `translate`). Não use `translate-y-0` esperando anular um `transform` alheio. */
+[data-scope='switch'][data-part='thumb'],
+[data-scope='combobox'][data-part='trigger'] {
+	transform: none;
+}
+
+/* iOS não pinta `box-shadow` em campo de formulário com aparência nativa.
+ *
+ * `.input`/`.select`/`.textarea` do Skeleton desenham o contorno com
+ * `border-width: 0` + ring INSET (box-shadow). No iPhone o resultado é campo
+ * sem contorno NENHUM — foi o relato dos campos de login/senha, e valia para
+ * os ~50 arquivos que usam essas três classes.
+ *
+ * Em campo de texto, `appearance: none` não muda nada de visual nos outros
+ * navegadores (não há chrome nativo a remover) e devolve o desenho do contorno
+ * ao CSS.
+ *
+ * Sem `-webkit-appearance`: o alvo do build é Safari 16+ (padrão do Vite, sem
+ * `browserslist` no projeto), que aceita a forma sem prefixo — e a paleta oklch
+ * do tema já exige 15.4+, então não há iPhone que renderize as cores e precise
+ * do prefixo. Se o alvo um dia baixar, o Lightning CSS acrescenta o prefixo
+ * sozinho; escrevê-lo à mão só seria removido pelo minificador.
+ *
+ * O `:not(...)` protege os tipos que DEPENDEM da aparência nativa para existir
+ * na tela: em `range`, `color`, `checkbox` e `radio`, zerar a aparência apaga o
+ * controle (trilho, amostra, quadradinho). Hoje nenhum deles usa `.input`, mas
+ * `range` e `color` já têm regra própria dentro do `.input` do Skeleton, ou
+ * seja: a classe é feita para vesti-los, e a exclusão é o que impede a
+ * armadilha no dia em que alguém o fizer.
+ *
+ * `file` entra na lista por coerência, não por necessidade: existem quatro
+ * `input[type=file]` com `.input` (upload de policiais, painel do servidor) e
+ * MEDIMOS que neles o `appearance` computado já é `none` por padrão do
+ * navegador — o campo de arquivo não é controle de aparência nativa, é shadow
+ * DOM com `::file-selector-button`. Não há botão a perder ali. */
+.input:not([type='file'], [type='range'], [type='color'], [type='checkbox'], [type='radio']),
+.textarea {
+	appearance: none;
+}
+
+/* `<select>` recebe tratamento diferente: `appearance: none` levaria a seta
+ * nativa embora, e o próprio CSS do Skeleton avisa disso. Então aqui o contorno
+ * passa a ser uma BORDA de verdade (que o iOS pinta), com o ring de repouso
+ * neutralizado para não somar duas arestas de 1px. Os dois estados saem da mesma
+ * propriedade — no iOS o foco continua visível porque é a BORDA que muda.
+ *
+ * Os tokens são `surface-300`/`surface-600`, o mesmo par que o Control do
+ * SearchableSelect usa: é a borda de campo deste projeto, e deixa os dois tipos
+ * de seletor com a mesma aresta. Não usar os pares `*-200-800` do Skeleton aqui
+ * — eles são `light-dark()`, que segue `color-scheme`, e o tema escuro deste
+ * app é a CLASSE `.dark` (ver `@custom-variant` no topo); o par resolveria
+ * sempre para o valor claro. */
+select.select {
+	border-width: 1px;
+	border-color: var(--color-surface-300);
+	--tw-ring-shadow: 0 0 #0000;
+}
+
+.dark select.select {
+	border-color: var(--color-surface-600);
+}
+
+select.select:focus {
+	border-color: var(--color-primary-500);
+}
+
 /* Utilitários centralizados de Glass Card (V-6) */
 @utility card-glass {
 	@apply bg-white/80 dark:bg-surface-900/60 backdrop-blur-md

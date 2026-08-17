@@ -9,6 +9,12 @@
 	 *
 	 * `cor` default `success` (policiais / concessões). `primary` é o trilho
 	 * da política de assinatura em tela (`conf-ass`).
+	 *
+	 * A geometria é nossa: trilho de 44px (`w-11`) com thumb de 20px, o que dá
+	 * um curso de 20px (`translate-x-5`). O `transform: translateX(16px)` que o
+	 * Skeleton aplica ao thumb — calculado para o trilho de 40px DELE — é zerado
+	 * no `app.css`, porque `translate` e `transform` são propriedades diferentes
+	 * e se somam em vez de substituir. Ver o comentário lá.
 	 */
 	interface Props {
 		checked: boolean;
