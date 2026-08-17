@@ -161,12 +161,17 @@
 								class="rounded-xl border border-surface-200/70 dark:border-white/10 p-4"
 								class:opacity-60={!op.ativo}
 							>
-								<!-- Sem `flex-wrap` AQUI: quando o grupo de botões não cabia, o
-							     container quebrava e o grupo inteiro descia para baixo do texto —
-							     era por isso que a linha com 4 botões ficava diferente das de 3.
-							     Agora o texto encolhe (`min-w-0 flex-1`) e o grupo fica ancorado
-							     no topo à direita, quebrando DENTRO de si quando precisa. -->
-								<div class="flex items-start justify-between gap-3">
+								<!-- No celular a linha EMPILHA: texto em cima, fileira de botões
+							     embaixo. Lado a lado sobrava para o texto menos que uma palavra —
+							     o nome quebrava em "4a"/"Seccional" e o ciclo saía uma palavra por
+							     linha, enquanto o grupo de botões estourava a viewport e era
+							     CORTADO pelo `overflow-hidden` do slider (botão inalcançável).
+							     De `sm:` para cima vale a decisão original: o texto encolhe
+							     (`min-w-0 flex-1`) e o grupo fica ancorado no topo à direita, sem
+							     `flex-wrap` no CONTAINER — quando o grupo não cabia, o container
+							     quebrava e o grupo inteiro descia, e era por isso que a linha com
+							     4 botões ficava diferente das de 3. -->
+								<div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
 									<div class="min-w-0 flex-1">
 										<div class="flex flex-wrap items-center gap-2">
 											<span class="font-semibold">{op.nome}</span>
@@ -201,10 +206,15 @@
 									</div>
 
 									<!-- "Configurações" virou parte de "Editar" — as duas metades
-									     descrevem a mesma operação. `justify-end` mantém os botões
+									     descrevem a mesma operação. `sm:justify-end` mantém os botões
 									     terminando na mesma margem em todas as linhas, com ou sem
-									     "Dados base" e "Excluir". -->
-									<div class="flex flex-wrap items-center justify-end gap-2 shrink-0">
+									     "Dados base" e "Excluir"; no celular eles começam à esquerda,
+									     alinhados ao texto acima.
+									     Sem `shrink-0`: com `flex-wrap`, os dois juntos se
+									     contradiziam — o grupo nunca encolhia, então nunca quebrava, e
+									     em vez disso ESTOURAVA a largura (578px numa viewport de
+									     390px). Podendo encolher, ele quebra dentro de si. -->
+									<div class="flex flex-wrap items-center gap-2 sm:justify-end">
 										<a href={`/res-gise?operacaoId=${op.id}`} class={BOTAO_LINHA}>
 											<FileText class="w-3.5 h-3.5" />
 											Formulário

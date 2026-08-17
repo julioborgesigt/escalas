@@ -19,6 +19,12 @@
 	 * `@apply input` no Input e `btn preset-tonal` (+ hover error) no
 	 * ClearTrigger SEM ícone. Sem neutralizar, o Control + Input geram borda
 	 * dupla e o clear vira bolinha vermelha vazia.
+	 *
+	 * O gatilho (chevron) é tirado do `position: absolute` do Skeleton com
+	 * `!static !inset-auto` para entrar na fileira do Control. O `transform:
+	 * translateY(-50%)` que sobra com isso é zerado no `app.css` — e não aqui
+	 * com `translate-y-0`, que é propriedade diferente e só SOMA ao transform
+	 * (era a causa do chevron vazando acima do campo). Ver o comentário lá.
 	 */
 	import {
 		Combobox,
@@ -168,7 +174,7 @@
 			{/if}
 			{#if showTrigger}
 				<Combobox.Trigger
-					class="!static !inset-auto !translate-y-0 mr-1 flex !h-6 !w-6 !min-h-0 !min-w-0 shrink-0 items-center justify-center !rounded-md !border-0 !bg-transparent !p-0 !shadow-none text-surface-400 transition-colors hover:text-surface-600 dark:hover:text-surface-300 [&_svg]:h-3.5 [&_svg]:w-3.5"
+					class="!static !inset-auto mr-1 flex !h-6 !w-6 !min-h-0 !min-w-0 shrink-0 items-center justify-center !rounded-md !border-0 !bg-transparent !p-0 !shadow-none text-surface-400 transition-colors hover:text-surface-600 dark:hover:text-surface-300 [&_svg]:h-3.5 [&_svg]:w-3.5"
 				/>
 			{/if}
 		</Combobox.Control>

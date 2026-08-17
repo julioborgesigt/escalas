@@ -1063,6 +1063,16 @@ estados `disabled`/inativos.
 
 **Foco de teclado** — nunca `outline-none`/`focus:outline-none` sem substituto visível (`focus-visible:ring-2 focus-visible:ring-primary-500 …` ou `focus-within:ring` no container).
 
+**Estilizar componente do Skeleton — `transform` não se anula com `translate-*`** (auditoria visual de ago/2026). Os utilitários `translate-*`/`scale-*`/`rotate-*` do Tailwind v4 escrevem as **propriedades individuais** (`translate`, `scale`, `rotate`); o CSS de componente do Skeleton posiciona peças com a propriedade **`transform`**. São propriedades diferentes: o navegador aplica as duas e os deslocamentos **somam**. A classe parece sobrescrever e não sobrescreve — não gera erro, não gera aviso, só sai do lugar.
+
+Foi a causa única dos dois "desalinhamentos" relatados: o thumb do `ToggleSwitch` saía 14 px **fora** do trilho (`translate-x-5` + `translateX(16px)` = 36 px de curso num trilho que só tem 20 px) e o chevron do `SearchableSelect` subia 12 px, vazando 7 px acima do campo (`!translate-y-0` não cancelava `translateY(-50%)`).
+
+Para neutralizar um `transform` do Skeleton, zere **`transform`** — as duas ocorrências estão resolvidas de uma vez no `app.css`, por seletor `[data-scope=…][data-part=…]`, e não classe por classe. Dos componentes em uso, só combobox e switch aplicam `transform` (`tree-view` também, mas não é usado); ao adotar um componente novo do Skeleton, confira o `.css` dele em `@skeletonlabs/skeleton-common/src/components/` antes de posicionar peças por classe.
+
+**Contorno de campo e iOS** — `.input`/`.select`/`.textarea` do Skeleton desenham o contorno com `border-width: 0` **mais um ring inset (`box-shadow`)**. iOS não pinta `box-shadow` em campo de formulário com aparência nativa, então no iPhone os campos ficavam **sem contorno nenhum** — login e senha inclusive. O `app.css` corrige na raiz: `appearance: none` em `.input`/`.textarea` (devolve o desenho ao CSS, sem mexer no box model) e, em `select.select`, uma **borda de verdade** com o ring de repouso neutralizado — `<select>` fica sem `appearance: none` de propósito, que levaria a seta nativa embora. Não volte a depender de `box-shadow` para a aresta de um campo.
+
+Essas regras ficam **fora de `@layer`** no `app.css`: CSS sem camada vence qualquer `@layer` (inclusive `utilities`), que é o único jeito determinístico de ganhar do CSS de componente do Skeleton sem espalhar `!important`. O preço é que elas vencem também os utilitários do call site — por isso só tocam propriedades que ninguém sobrescreve. Não acrescente `border-*` de `.input` ali (quebraria o `border-2` de erro do `SignaturePad`), e não use os pares `--color-*-200-800` do Skeleton, que são `light-dark()` e seguem `color-scheme`: o tema escuro deste app é a **classe** `.dark`, então o par resolveria sempre para o valor claro.
+
 **Superfícies elevadas** — `card-elevated` (fundo canônico de modal/card sobre a página) e `card-elevated-2` (sub-card aninhado); translúcidas: `card-glass` / `card-glass-auth`. Hierarquia: glass/blur só na chrome (sidebar/topbar); conteúdo da página preferir `card-elevated` opaco — evita empilhar translucidez com a folha xl. Não montar pares `bg-* dark:bg-*` à mão.
 
 **Modais** — código novo usa `$lib/components/ModalShell.svelte`, que mantém
