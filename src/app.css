@@ -159,12 +159,18 @@
  * do prefixo. Se o alvo um dia baixar, o Lightning CSS acrescenta o prefixo
  * sozinho; escrevê-lo à mão só seria removido pelo minificador.
  *
- * O `:not(...)` não é decoração: `.input` também veste os tipos que DEPENDEM da
- * aparência nativa para existir na tela — e há quatro `input[type=file]` com
- * essa classe (upload de policiais, painel do servidor). Zerar a aparência
- * deles apagaria o botão de escolher arquivo. `file`/`range`/`color` já têm
- * regra própria no CSS do Skeleton; checkbox e radio ficam de fora por
- * princípio, para a lista não virar armadilha se alguém usar `.input` neles. */
+ * O `:not(...)` protege os tipos que DEPENDEM da aparência nativa para existir
+ * na tela: em `range`, `color`, `checkbox` e `radio`, zerar a aparência apaga o
+ * controle (trilho, amostra, quadradinho). Hoje nenhum deles usa `.input`, mas
+ * `range` e `color` já têm regra própria dentro do `.input` do Skeleton, ou
+ * seja: a classe é feita para vesti-los, e a exclusão é o que impede a
+ * armadilha no dia em que alguém o fizer.
+ *
+ * `file` entra na lista por coerência, não por necessidade: existem quatro
+ * `input[type=file]` com `.input` (upload de policiais, painel do servidor) e
+ * MEDIMOS que neles o `appearance` computado já é `none` por padrão do
+ * navegador — o campo de arquivo não é controle de aparência nativa, é shadow
+ * DOM com `::file-selector-button`. Não há botão a perder ali. */
 .input:not([type='file'], [type='range'], [type='color'], [type='checkbox'], [type='radio']),
 .textarea {
 	appearance: none;
