@@ -7,7 +7,17 @@ import { autenticarPagina } from './session';
  * rubrica com pendência concreta (membro/supervisor de GISE ativa ou DPC com
  * solicitação de assinatura), é adiável pela sessão e NÃO aparece para quem
  * não tem pendência.
+ *
+ * O alvo é o DIÁLOGO, por role e nome — nunca `getByText('Cadastre sua
+ * rubrica')`. Aquele locator é substring e case-insensitive, então passou a
+ * casar também com o card "Meu perfil" das boas-vindas, cuja descrição
+ * legitimamente diz "cadastre sua rubrica": duas correspondências, e o modo
+ * estrito derruba o teste sem que nada tenha quebrado na tela. É a mesma lição
+ * do rótulo da aba (02a3e32) — texto literal na tela não é identidade de
+ * componente.
  */
+const avisoRubrica = (page: import('@playwright/test').Page) =>
+	page.getByRole('dialog', { name: 'Cadastre sua rubrica' });
 
 test.describe('Aviso de cadastro de rubrica', () => {
 	test('membro de GISE ativa sem rubrica vê o aviso e pode adiar', async ({ page }) => {
@@ -15,14 +25,14 @@ test.describe('Aviso de cadastro de rubrica', () => {
 		if (!ok) test.skip(true, 'D1 indisponível');
 
 		await page.goto('/bem-vindo');
-		await expect(page.getByText('Cadastre sua rubrica')).toBeVisible();
+		await expect(avisoRubrica(page)).toBeVisible();
 
 		await page.getByRole('button', { name: 'Deixar para depois' }).click();
-		await expect(page.getByText('Cadastre sua rubrica')).not.toBeVisible();
+		await expect(avisoRubrica(page)).not.toBeVisible();
 
 		// Adiado: navegar não traz o aviso de volta na mesma sessão do navegador.
 		await page.goto('/res-gise');
-		await expect(page.getByText('Cadastre sua rubrica')).not.toBeVisible();
+		await expect(avisoRubrica(page)).not.toBeVisible();
 	});
 
 	test('botão "Cadastrar rubrica" abre o modal de cadastro', async ({ page }) => {
@@ -30,7 +40,7 @@ test.describe('Aviso de cadastro de rubrica', () => {
 		if (!ok) test.skip(true, 'D1 indisponível');
 
 		await page.goto('/bem-vindo');
-		await expect(page.getByText('Cadastre sua rubrica')).toBeVisible();
+		await expect(avisoRubrica(page)).toBeVisible();
 		await page.getByRole('button', { name: 'Cadastrar rubrica', exact: true }).click();
 		// Modal de cadastro (abas desenhar/foto) assume o lugar do aviso. Locators
 		// por role (não por texto literal): o rótulo da aba trocou de emoji para
@@ -55,6 +65,6 @@ test.describe('Aviso de cadastro de rubrica', () => {
 		// Sentinel de sessão no conteúdo principal — não usar "Sair": no mobile a
 		// sidebar começa fechada e `inert` (VIS-13), então o botão não é visível.
 		await expect(page.getByRole('heading', { name: /Bem-vindo/ })).toBeVisible();
-		await expect(page.getByText('Cadastre sua rubrica')).toHaveCount(0);
+		await expect(avisoRubrica(page)).toHaveCount(0);
 	});
 });
