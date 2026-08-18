@@ -32,7 +32,8 @@ import {
 } from '../pdf';
 import {
 	gerarRelatorioExtraordinarioPdf,
-	gerarRelatorioExtraordinarioSupervisaoPdf
+	gerarRelatorioExtraordinarioSupervisaoPdf,
+	gerarPdfRelatorioExtraordinario
 } from '../pdf-relatorio-extra';
 import type { Escala, EscalaPolicialComDados } from '../../../types';
 import type { GiseDetalhado } from '$lib/db';
@@ -429,5 +430,75 @@ describe('export/pdf — goldens de layout', () => {
 			writeFileSync(GOLDENS_PATH, JSON.stringify(atualizados, null, '\t') + '\n');
 			console.log(`[goldens] regravados em ${GOLDENS_PATH}`);
 		}
+	});
+});
+
+/**
+ * `gerarPdfRelatorioExtraordinario` decide entre as duas funções acima e
+ * NOMEIA os 9 parâmetros que elas tomam posicionalmente — exatamente onde uma
+ * ordem trocada não dá erro de tipo, só resultado errado. Comparar contra a
+ * chamada direta (com os mesmos valores, na ordem documentada) prova que a
+ * composição do helper é bit a bit idêntica, sem duplicar golden hash.
+ */
+describe('export/pdf-relatorio-extra — gerarPdfRelatorioExtraordinario', () => {
+	beforeAll(() => {
+		process.env.TZ = 'UTC';
+		vi.useFakeTimers({ toFake: ['Date'] });
+		vi.setSystemTime(new Date('2026-07-01T12:00:00.000Z'));
+	});
+	afterAll(() => {
+		vi.useRealTimers();
+		if (FUSO_ORIGINAL === undefined) delete process.env.TZ;
+		else process.env.TZ = FUSO_ORIGINAL;
+	});
+
+	it('ramo seccional (isSupExtra: false) encaminha os mesmos bytes que a chamada direta', async () => {
+		const direto = await gerarRelatorioExtraordinarioPdf(
+			toGisePdfData(giseDetalhadoFixture()),
+			presencasFixture(),
+			71,
+			'https://escalas.pages.dev',
+			reportSignatureFixture,
+			undefined,
+			false,
+			PNG_1PX_BYTES,
+			PNG_1PX_BYTES
+		);
+		const viaHelper = await gerarPdfRelatorioExtraordinario({
+			isSupExtra: false,
+			gise: giseDetalhadoFixture(),
+			presencas: presencasFixture(),
+			seccionalId: 71,
+			baseUrl: 'https://escalas.pages.dev',
+			reportSignature: reportSignatureFixture,
+			logoEsqBytes: PNG_1PX_BYTES,
+			logoDirBytes: PNG_1PX_BYTES
+		});
+		expect(sha256(viaHelper.pdf)).toBe(sha256(direto.pdf));
+	});
+
+	it('ramo supervisão (isSupExtra: true) encaminha os mesmos bytes que a chamada direta', async () => {
+		const direto = await gerarRelatorioExtraordinarioSupervisaoPdf(
+			giseDetalhadoFixture(),
+			presencasFixture(),
+			'https://escalas.pages.dev',
+			reportSignatureFixture,
+			undefined,
+			true,
+			undefined,
+			PNG_1PX_BYTES,
+			PNG_1PX_BYTES
+		);
+		const viaHelper = await gerarPdfRelatorioExtraordinario({
+			isSupExtra: true,
+			gise: giseDetalhadoFixture(),
+			presencas: presencasFixture(),
+			baseUrl: 'https://escalas.pages.dev',
+			reportSignature: reportSignatureFixture,
+			isPreparando: true,
+			logoEsqBytes: PNG_1PX_BYTES,
+			logoDirBytes: PNG_1PX_BYTES
+		});
+		expect(sha256(viaHelper.pdf)).toBe(sha256(direto.pdf));
 	});
 });

@@ -31,6 +31,7 @@ import {
 	type PdfExportResult,
 	type RelatorioAssinatura
 } from './pdf-comum';
+import { toGisePdfData } from './pdf';
 
 // ---- PDF Relatório Extraordinário GISE (Seccional) ----
 // ---- Blocos compartilhados dos relatórios de serviço extraordinário ----
@@ -512,4 +513,70 @@ export async function gerarRelatorioExtraordinarioSupervisaoPdf(
 		logoDirBytes
 	);
 	return { pdf: pdfFinal, finalY: sigY };
+}
+
+/**
+ * Escolhe entre `gerarRelatorioExtraordinarioSupervisaoPdf` e
+ * `gerarRelatorioExtraordinarioPdf` conforme `isSupExtra`, e NOMEIA os
+ * parâmetros que as duas funções tomam posicionalmente.
+ *
+ * Existe porque as três rotas de download (`gise/[id]/download`, duas vezes,
+ * e `validar/[hash]/download`) montavam esse `? :` de 9 argumentos cada —
+ * `undefined, false` ao lado um do outro, sem nome, é exatamente onde trocar
+ * a ordem não dá erro de tipo nenhum, só resultado errado. `qrCodeBase64`
+ * nunca variou nas três cópias (sempre `undefined` — o rodapé com QR é
+ * aplicado DEPOIS, por quem chama), por isso não virou parâmetro aqui.
+ *
+ * `presencas`, `brEnv` e `isSupExtra` continuam responsabilidade de quem
+ * chama: são leituras do D1 que o helper não deveria disparar por conta
+ * própria — a rota já as tem em mãos ao decidir gerar o PDF.
+ */
+export async function gerarPdfRelatorioExtraordinario(opts: {
+	isSupExtra: boolean;
+	gise: import('$lib/db').GiseDetalhado;
+	presencas: GisePresenca[];
+	seccionalId?: number;
+	baseUrl?: string;
+	brEnv?: BreveRelatorioEnv | null;
+	logoEsqBytes?: Uint8Array;
+	logoDirBytes?: Uint8Array;
+	reportSignature?: RelatorioAssinatura | null;
+	isPreparando?: boolean;
+}): Promise<PdfExportResult> {
+	const {
+		isSupExtra,
+		gise,
+		presencas,
+		seccionalId,
+		baseUrl,
+		brEnv,
+		logoEsqBytes,
+		logoDirBytes,
+		reportSignature,
+		isPreparando = false
+	} = opts;
+
+	return isSupExtra
+		? gerarRelatorioExtraordinarioSupervisaoPdf(
+				gise,
+				presencas,
+				baseUrl,
+				reportSignature,
+				undefined,
+				isPreparando,
+				brEnv,
+				logoEsqBytes,
+				logoDirBytes
+			)
+		: gerarRelatorioExtraordinarioPdf(
+				toGisePdfData(gise, brEnv),
+				presencas,
+				seccionalId,
+				baseUrl,
+				reportSignature,
+				undefined,
+				isPreparando,
+				logoEsqBytes,
+				logoDirBytes
+			);
 }
