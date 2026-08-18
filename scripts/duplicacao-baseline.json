@@ -127,6 +127,16 @@
 			"nota": ""
 		},
 		{
+			"id": "21954d687d54",
+			"arquivos": [
+				"src/routes/escalas/bem-vindo/+page.svelte",
+				"src/routes/gise/bem-vindo/+page.svelte"
+			],
+			"ocorrencias": 2,
+			"amostra": "<script lang=\"ts\">",
+			"nota": "DUP-MANTER: preâmbulo de página SvelteKit — `<script lang=\"ts\">`, os imports, `import type { PageProps } from './$types'` (que é POR ROTA e não pode subir) e o `$props()`, que só existe dentro do componente. Irredutível por construção. O markup que estas páginas de fato compartilhavam saiu para `BemVindoGradeAcoes` em ago/2026 — e note que o guard NUNCA apontou aquele markup: a lógica de `descricao`, que difere por página, fica entre o preâmbulo e a grade e quebra a janela. Achado por leitura."
+		},
+		{
 			"id": "224c5c7077df",
 			"arquivos": [
 				"src/routes/api/gise/[id]/presenca/finalizar-assinatura/+server.ts",
@@ -144,16 +154,6 @@
 			],
 			"ocorrencias": 2,
 			"amostra": "supervisor_matricula: string | null;",
-			"nota": ""
-		},
-		{
-			"id": "31995cbda5f6",
-			"arquivos": [
-				"src/routes/bem-vindo/+page.svelte",
-				"src/routes/super-admin/+page.svelte"
-			],
-			"ocorrencias": 2,
-			"amostra": "<script lang=\"ts\">",
 			"nota": ""
 		},
 		{
@@ -582,16 +582,6 @@
 			"nota": ""
 		},
 		{
-			"id": "c7724075f9c1",
-			"arquivos": [
-				"src/routes/escalas/bem-vindo/+page.svelte",
-				"src/routes/gise/bem-vindo/+page.svelte"
-			],
-			"ocorrencias": 2,
-			"amostra": "<script lang=\"ts\">",
-			"nota": ""
-		},
-		{
 			"id": "cb32fcd937b6",
 			"arquivos": [
 				"src/routes/policiais/+page.svelte",
@@ -651,6 +641,16 @@
 			"ocorrencias": 2,
 			"amostra": "const evid = await validarEvidenciasAvancada(",
 			"nota": ""
+		},
+		{
+			"id": "e2cf8c727a52",
+			"arquivos": [
+				"src/routes/bem-vindo/+page.svelte",
+				"src/routes/super-admin/+page.svelte"
+			],
+			"ocorrencias": 2,
+			"amostra": "<script lang=\"ts\">",
+			"nota": "DUP-MANTER: preâmbulo de página SvelteKit — `<script lang=\"ts\">`, os imports, `import type { PageProps } from './$types'` (que é POR ROTA e não pode subir) e o `$props()`, que só existe dentro do componente. Irredutível por construção. O markup que estas páginas de fato compartilhavam saiu para `BemVindoGradeAcoes` em ago/2026 — e note que o guard NUNCA apontou aquele markup: a lógica de `descricao`, que difere por página, fica entre o preâmbulo e a grade e quebra a janela. Achado por leitura."
 		},
 		{
 			"id": "e64f2b1a3054",
