@@ -19,8 +19,7 @@
  *   1. varre `src/**` (`.ts`/`.svelte`), ignorando `__tests__/`;
  *   2. normaliza cada arquivo — descarta linha vazia, comentário e linha com
  *      menos de 6 caracteres, que é onde moram `}`, `});` e `else {`;
- *   3. desliza uma janela de 12 linhas normalizadas (ver `JANELA`) e agrupa as
- *      idênticas
+ *   3. desliza a janela de `JANELA` linhas normalizadas e agrupa as idênticas
  *      que apareçam em ARQUIVOS DIFERENTES (repetição dentro de um arquivo é
  *      outro problema — geralmente um laço que faltou);
  *   4. compara a impressão digital de cada bloco com `duplicacao-baseline.json`.
