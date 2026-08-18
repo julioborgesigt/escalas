@@ -22,7 +22,10 @@ import {
 	adicionarPaginaAuditoria,
 	adicionarRodapeUniversal
 } from '$lib/server/assinatura/pdf-signing';
-import { calcularHashBuffer } from '$lib/server/assinatura/document-utils';
+import {
+	calcularHashBuffer,
+	resolverTipoCarimboTempo
+} from '$lib/server/assinatura/document-utils';
 import { PDFDocument } from 'pdf-lib';
 import { gerarCodigoValidacao } from '$lib/utils/formato';
 import { fecharPreparacaoAssinatura } from '$lib/server/assinatura/preparar-ciclo';
@@ -116,10 +119,7 @@ export const POST: RequestHandler = async ({
 		documentName: `Escala de Serviço GISE - ${gise.data_inicio}`,
 		signatureLevel: 'qualificada',
 		documentHash,
-		tipoCarimoTempo: (platform?.env as unknown as Record<string, string | undefined> | undefined)
-			?.TSA_URL
-			? 'tsa_externa'
-			: 'servidor'
+		tipoCarimoTempo: resolverTipoCarimboTempo(platform)
 	});
 
 	// contentPageIndex = índice da última página de conteúdo (para posicionar o carimbo PKI)

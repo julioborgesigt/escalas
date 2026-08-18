@@ -26,6 +26,16 @@
 			"nota": ""
 		},
 		{
+			"id": "056d6bbe209a",
+			"arquivos": [
+				"src/routes/api/gise/[id]/presenca/preparar-assinatura/+server.ts",
+				"src/routes/api/gise/[id]/relatorios/[seccionalId]/preparar-assinatura/+server.ts"
+			],
+			"ocorrencias": 2,
+			"amostra": "import { gerarCodigoValidacao } from '$lib/utils/formato';",
+			"nota": "DUP-MANTER: assinatura de handler SvelteKit + linha de import, não lógica. As rotas de assinatura GISE desestruturam o mesmo `{ platform, params, locals, url, request, getClientAddress }` e importam o mesmo portão — a lógica que compartilhavam saiu para `carregarGiseParaAssinatura` em ago/2026. Não há o que extrair de uma assinatura de handler."
+		},
+		{
 			"id": "0a643edce574",
 			"arquivos": [
 				"src/lib/components/ModalCadastrarRubrica.svelte",
@@ -583,16 +593,6 @@
 			"nota": "DUP-MANTER: preâmbulo de página SvelteKit — `<script lang=\"ts\">`, os imports, `import type { PageProps } from './$types'` (que é POR ROTA e não pode subir) e o `$props()`, que só existe dentro do componente. Irredutível por construção. O markup que estas páginas de fato compartilhavam saiu para `BemVindoGradeAcoes` em ago/2026 — e note que o guard NUNCA apontou aquele markup: a lógica de `descricao`, que difere por página, fica entre o preâmbulo e a grade e quebra a janela. Achado por leitura."
 		},
 		{
-			"id": "e64f2b1a3054",
-			"arquivos": [
-				"src/routes/api/gise/[id]/presenca/preparar-assinatura/+server.ts",
-				"src/routes/api/gise/[id]/relatorios/[seccionalId]/preparar-assinatura/+server.ts"
-			],
-			"ocorrencias": 2,
-			"amostra": "import { gerarCodigoValidacao } from '$lib/utils/formato';",
-			"nota": "DUP-MANTER: assinatura de handler SvelteKit + linha de import, não lógica. As rotas de assinatura GISE desestruturam o mesmo `{ platform, params, locals, url, request, getClientAddress }` e importam o mesmo portão — a lógica que compartilhavam saiu para `carregarGiseParaAssinatura` em ago/2026. Não há o que extrair de uma assinatura de handler."
-		},
-		{
 			"id": "e93eb744fe90",
 			"arquivos": [
 				"src/routes/api/escalas/[id]/finalizar-assinatura-avancada/+server.ts",
@@ -651,6 +651,16 @@
 			"ocorrencias": 2,
 			"amostra": "{ id: u.id, tipo: u.tipo },",
 			"nota": ""
+		},
+		{
+			"id": "f8c27a4dbc9f",
+			"arquivos": [
+				"src/routes/api/escalas/[id]/preparar-assinatura/+server.ts",
+				"src/routes/api/gise/[id]/preparar-assinatura/+server.ts"
+			],
+			"ocorrencias": 2,
+			"amostra": "prepararPdfParaAssinatura,",
+			"nota": "DUP-MANTER: linha de import (prepararPdfParaAssinatura/adicionarPaginaAuditoria/adicionarRodapeUniversal de pdf-signing), não lógica. A lógica de preparação que estas duas rotas compartilhavam de verdade (hash, rodapé, folha de auditoria, fecharPreparacaoAssinatura) diverge em pontos reais — geração do PDF base, resolução de rubrica/matrícula (escala aceita admin via adminPolicialId; GISE exige o policial-supervisor) — que tornariam um helper único mais complexo que as duas cópias."
 		},
 		{
 			"id": "f9a943df0961",

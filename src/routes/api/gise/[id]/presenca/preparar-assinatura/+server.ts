@@ -22,7 +22,10 @@ import {
 	type AuditTrailOptions
 } from '$lib/server/assinatura/pdf-signing';
 import { gerarCodigoValidacao } from '$lib/utils/formato';
-import { calcularHashBuffer } from '$lib/server/assinatura/document-utils';
+import {
+	calcularHashBuffer,
+	resolverTipoCarimboTempo
+} from '$lib/server/assinatura/document-utils';
 import { fecharPreparacaoAssinatura } from '$lib/server/assinatura/preparar-ciclo';
 
 export const POST: RequestHandler = async ({
@@ -117,10 +120,7 @@ export const POST: RequestHandler = async ({
 			token: crypto.randomUUID(),
 			documentName: `Termo de Presença - GISE ${giseId}`,
 			signatureLevel: 'qualificada',
-			tipoCarimoTempo: (platform?.env as unknown as Record<string, string | undefined> | undefined)
-				?.TSA_URL
-				? 'tsa_externa'
-				: 'servidor'
+			tipoCarimoTempo: resolverTipoCarimboTempo(platform)
 		}
 	];
 	const pdfWithAudit = await adicionarPaginaAuditoria(pdfComRodape, signers);

@@ -211,3 +211,15 @@ export function descreverTipoCarimbo(tipo: TipoCarimoTempo): string {
 			return 'Data/Hora do Sistema (Servidor)';
 	}
 }
+
+/**
+ * Tipo de carimbo a registrar na folha de auditoria de uma assinatura
+ * qualificada: `tsa_externa` quando o ambiente tem `TSA_URL` configurada,
+ * `servidor` caso contrário. Os quatro `preparar-assinatura` (escala, GISE,
+ * presença, relatório de seccional) decidiam isso com o mesmo ternário
+ * copiado — e o cast `as unknown as Record<...>` era desnecessário: `Env`
+ * já declara `TSA_URL?: string`.
+ */
+export function resolverTipoCarimboTempo(platform: App.Platform | undefined): TipoCarimoTempo {
+	return platform?.env?.TSA_URL ? 'tsa_externa' : 'servidor';
+}
