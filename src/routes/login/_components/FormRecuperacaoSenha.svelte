@@ -8,7 +8,8 @@
 	import Mail from '@lucide/svelte/icons/mail';
 	import { loading as loadingService } from '$lib/loading.svelte';
 	import CodigoTimer from '$lib/components/CodigoTimer.svelte';
-	import { Steps, Tabs } from '@skeletonlabs/skeleton-svelte';
+	import { Steps } from '@skeletonlabs/skeleton-svelte';
+	import SeletorPolicialAdmin from './SeletorPolicialAdmin.svelte';
 
 	let {
 		tipo = $bindable(),
@@ -72,29 +73,7 @@
 	</div>
 
 	<div class="flex flex-col gap-5">
-		<Tabs
-			value={tipo}
-			onValueChange={(e) => {
-				tipo = e.value as 'policial' | 'admin';
-				identificadorRec = '';
-			}}
-			class="w-full mb-4"
-		>
-			<Tabs.List
-				class="flex items-center rounded-xl border border-surface-200 dark:border-surface-700 bg-surface-100 dark:bg-surface-800 p-1 gap-1 w-full"
-			>
-				<Tabs.Trigger
-					value="policial"
-					class="px-3 py-2 text-sm font-semibold rounded-lg flex-1 text-center cursor-pointer select-none transition-all duration-200 text-surface-600 dark:text-surface-400 data-[selected]:bg-primary-500 data-[selected]:text-white data-[selected]:shadow-md data-[selected]:shadow-primary-500/25 hover:text-surface-700 dark:hover:text-surface-200"
-					>Policial</Tabs.Trigger
-				>
-				<Tabs.Trigger
-					value="admin"
-					class="px-3 py-2 text-sm font-semibold rounded-lg flex-1 text-center cursor-pointer select-none transition-all duration-200 text-surface-600 dark:text-surface-400 data-[selected]:bg-primary-500 data-[selected]:text-white data-[selected]:shadow-md data-[selected]:shadow-primary-500/25 hover:text-surface-700 dark:hover:text-surface-200"
-					>Administrador</Tabs.Trigger
-				>
-			</Tabs.List>
-		</Tabs>
+		<SeletorPolicialAdmin bind:tipo aoTrocar={() => (identificadorRec = '')} class="mb-4" />
 
 		<label class="label">
 			<span class="label-text">{tipo === 'policial' ? 'Matrícula' : 'Login'}</span>
