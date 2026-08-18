@@ -30,12 +30,13 @@ import {
 } from '../server/schema';
 import type * as schema from '../server/schema';
 import type { EscalaPolicialComDados, EscalaListagem } from '../types';
-import { batchNonEmpty, paginarComContagem, timestampSqliteBrasilia, type Database } from './core';
-
-/** Escapa caracteres especiais do LIKE para evitar wildcard injection */
-function escapeLike(str: string): string {
-	return str.replace(/[%_\\]/g, '\\$&');
-}
+import {
+	batchNonEmpty,
+	escapeLike,
+	paginarComContagem,
+	timestampSqliteBrasilia,
+	type Database
+} from './core';
 
 /**
  * Listagem paginada de escalas, com todos os filtros da UI (lotação, status,

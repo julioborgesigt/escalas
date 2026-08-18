@@ -24,6 +24,7 @@ import { mascararCPF } from '../../utils/pii';
 import { detectarDss } from './pades-lt';
 import { verificarAssinaturaCms, SIGNATURE_OIDS, DIGEST_OIDS } from './crypto-verify';
 import { OID_SIG_POLICY_ID, avaliarPoliticaAssinatura, type AvaliacaoPolitica } from './icp-policy';
+import { mensagemDeErro } from '$lib/utils/erro';
 
 // OIDs reaproveitados de pdf-signing.ts
 const OID_MESSAGE_DIGEST = '1.2.840.113549.1.9.4';
@@ -366,7 +367,7 @@ async function trailingEhDssLegitimo(
 	} catch (e) {
 		return {
 			ok: false,
-			motivo: `não foi possível analisar o incremental update (${e instanceof Error ? e.message : String(e)})`
+			motivo: `não foi possível analisar o incremental update (${mensagemDeErro(e)})`
 		};
 	}
 
@@ -652,7 +653,7 @@ export function parseCms(cmsDer: Uint8Array): CmsParsed | null {
 		};
 	} catch (e) {
 		logger.warn('[PDF-VERIFY] Falha ao parsear CMS', {
-			error: e instanceof Error ? e.message : String(e)
+			error: mensagemDeErro(e)
 		});
 		return null;
 	}
@@ -779,7 +780,7 @@ export function verificarCadeiaIcpBrasil(
 	} catch (e) {
 		logger.info('[PDF-VERIFY] Cadeia ICP-Brasil inválida', {
 			subject: cert.subject.getField('CN')?.value,
-			error: e instanceof Error ? e.message : String(e)
+			error: mensagemDeErro(e)
 		});
 		return false;
 	}
@@ -826,7 +827,7 @@ function verificarCadeiaTsa(
 	} catch (e) {
 		logger.info('[PDF-VERIFY] Cadeia TSA inválida', {
 			subject: cert.subject.getField('CN')?.value,
-			error: e instanceof Error ? e.message : String(e)
+			error: mensagemDeErro(e)
 		});
 		return false;
 	}
@@ -979,7 +980,7 @@ export async function verificarTimestampToken(
 		return { momento: genTimeISO, classe: cadeia === true ? 'icp' : 'externa' };
 	} catch (e) {
 		logger.warn('[PDF-VERIFY] Falha ao verificar TimeStampToken', {
-			error: e instanceof Error ? e.message : String(e)
+			error: mensagemDeErro(e)
 		});
 		return null;
 	}

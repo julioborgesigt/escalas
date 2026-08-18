@@ -33,6 +33,7 @@ import { consultarOcsp, type OcspSnapshot } from '../assinatura/ocsp';
 import { loadTrustStore, type TrustStore } from '../assinatura/icp-brasil/trust-store';
 import { cnDoCertificado, encontrarIssuerNoTrustStore } from '../assinatura/icp-brasil/cert-cn';
 import { logger } from '../logger';
+import { mensagemDeErro } from '$lib/utils/erro';
 
 type MotivoFalhaCert = 'cms_invalido' | 'assinatura_invalida' | 'nonce_nao_confere';
 
@@ -176,7 +177,7 @@ export async function verificarRevogacaoParaLogin(
 	} catch (e) {
 		// `consultarOcsp` não lança; exceção aqui é anômala (ex.: trust store
 		// corrompido). Mesmo soft-fail do 'unknown'.
-		const msg = e instanceof Error ? e.message : String(e);
+		const msg = mensagemDeErro(e);
 		logger.warn('[cert-login] Falha inesperada na checagem de revogação', { error: msg });
 		return { permitido: true, ocsp: 'unknown', aviso: msg };
 	}

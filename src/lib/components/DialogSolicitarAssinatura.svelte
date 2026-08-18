@@ -10,6 +10,7 @@
 	import { toaster } from '$lib/toast';
 	import { useBuscaDebounce } from '$lib/composables';
 	import Spinner from '$lib/components/Spinner.svelte';
+	import { mensagemDeErro } from '$lib/utils/erro';
 
 	let {
 		open = $bindable(false),
@@ -74,7 +75,7 @@
 			});
 		} catch (e: unknown) {
 			toaster.create({
-				title: e instanceof Error ? e.message : 'Erro ao enviar solicitação',
+				title: mensagemDeErro(e, 'Erro ao enviar solicitação'),
 				type: 'error'
 			});
 		} finally {

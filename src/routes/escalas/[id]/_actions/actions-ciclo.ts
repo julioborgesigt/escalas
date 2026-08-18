@@ -24,6 +24,7 @@ import { eq } from 'drizzle-orm';
 import { escalas as escalasTable } from '$lib/server/schema';
 import { carregarEscalaComPermissao } from './shared';
 import { registrarMudancaEscala } from './desfecho';
+import { mensagemDeErro } from '$lib/utils/erro';
 
 /** O `event` das actions desta rota: `params.id` é a escala. */
 type Event = RequestEvent<{ id: string }>;
@@ -94,7 +95,7 @@ export const actionsCiclo = {
 					)
 				]);
 			} catch (emailErr) {
-				const msg = emailErr instanceof Error ? emailErr.message : String(emailErr);
+				const msg = mensagemDeErro(emailErr);
 				logger.error('[escalas/finalizar] Envio falhou — escala NÃO foi finalizada', {
 					escalaId,
 					emailDestino,

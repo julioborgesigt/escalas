@@ -54,11 +54,12 @@ export function statusStrip(status: string): string {
 	return STATUS_STRIPS[status] ?? 'bg-surface-400';
 }
 
-export function fmtDate(iso: string): string {
-	if (!iso) return '';
-	const [y, m, d] = iso.split('-');
-	return `${d}/${m}/${y}`;
-}
+/**
+ * `dd/mm/aaaa` de uma data ISO. Reexportado, não reimplementado: era uma
+ * segunda cópia de `formatarData` com o mesmo resultado. O nome curto fica
+ * porque nove call sites GISE já o importam daqui.
+ */
+export { formatarData as fmtDate } from '$lib/utils/datas';
 
 export function diaSemana(iso: string): string {
 	if (!iso) return '';

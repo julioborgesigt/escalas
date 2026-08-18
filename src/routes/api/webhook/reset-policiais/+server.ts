@@ -45,6 +45,7 @@ import {
 	giseDocumentos,
 	escalaDocumentos
 } from '$lib/server/schema';
+import { mensagemDeErro } from '$lib/utils/erro';
 
 function bearerTokenValido(authHeader: string | null, expectedToken: string): boolean {
 	const expected = `Bearer ${expectedToken}`;
@@ -255,7 +256,7 @@ export const POST: RequestHandler = async (event) => {
 				metadados: {
 					fase: 'falha',
 					snapshot,
-					erro: err instanceof Error ? err.message : String(err)
+					erro: mensagemDeErro(err)
 				},
 				...contexto
 			},

@@ -29,6 +29,7 @@ import {
 import { badRequest, rateLimited, serverError, validateBody } from '$lib/server/api';
 import { reenviarCodigoSchema } from '$lib/schemas';
 import type { RequestHandler } from './$types';
+import { mensagemDeErro } from '$lib/utils/erro';
 
 // Teto por IP do reenvio de 2FA: cada reenvio envia e-mail e reseta o contador
 // de tentativas do código. 5/15min é folgado para problemas de entrega de e-mail.
@@ -51,7 +52,7 @@ export const POST: RequestHandler = async ({ request, platform, getClientAddress
 			if (blocked) return rateLimited('Muitos reenvios. Aguarde alguns minutos.');
 		} catch (err) {
 			logger.error('[reenviar-codigo] Falha no rate-limit (fail-open)', {
-				error: err instanceof Error ? err.message : String(err)
+				error: mensagemDeErro(err)
 			});
 		}
 
@@ -106,7 +107,7 @@ export const POST: RequestHandler = async ({ request, platform, getClientAddress
 			await registrarRecoveryAttempt(db, ip, 'reenviar_codigo');
 		} catch (err) {
 			logger.error('[reenviar-codigo] Falha ao registrar tentativa (fail-open)', {
-				error: err instanceof Error ? err.message : String(err)
+				error: mensagemDeErro(err)
 			});
 		}
 
@@ -122,7 +123,7 @@ export const POST: RequestHandler = async ({ request, platform, getClientAddress
 		// Envia e-mail em background — não bloqueia a resposta
 		const emailJob = enviarCodigo2FA(email, novoCodigo, nome, platform).catch((err) => {
 			logger.error('[reenviar-codigo] Falha ao reenviar e-mail', {
-				error: err instanceof Error ? err.message : String(err)
+				error: mensagemDeErro(err)
 			});
 		});
 		platform?.ctx?.waitUntil(emailJob);

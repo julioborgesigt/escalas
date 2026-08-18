@@ -29,7 +29,7 @@ import {
 	indiceCPF,
 	type CpfCriptoEnv
 } from '../../crypto/cpf-cripto';
-import { paginarComContagem, type Database } from '../core';
+import { paginarComContagem, escapeLike, type Database } from '../core';
 
 /**
  * Busca a rubrica reutilizável do policial a partir do CPF CIFRADO gravado no
@@ -58,11 +58,6 @@ export async function buscarRubricaAssinante(
 	} catch {
 		return undefined;
 	}
-}
-
-/** Escapa caracteres especiais do LIKE para evitar wildcard injection */
-function escapeLike(str: string): string {
-	return str.replace(/[%_\\]/g, '\\$&');
 }
 
 /**

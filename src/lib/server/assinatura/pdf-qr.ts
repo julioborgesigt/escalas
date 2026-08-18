@@ -27,6 +27,7 @@
 import type { PDFPage, Color } from 'pdf-lib';
 import * as QRCode from 'qrcode';
 import { logger } from '../logger';
+import { mensagemDeErro } from '$lib/utils/erro';
 
 export interface QrCodeOptions {
 	/** URL de validação codificada no código. */
@@ -93,7 +94,7 @@ export function desenharQrCode(page: PDFPage, opts: QrCodeOptions): void {
 	} catch (err: unknown) {
 		logger.error('Erro ao gerar QR Code de validação', {
 			contexto,
-			error: err instanceof Error ? err.message : String(err)
+			error: mensagemDeErro(err)
 		});
 	}
 }

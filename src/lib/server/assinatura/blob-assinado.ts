@@ -26,6 +26,7 @@ import { apiError, ErrorCode, serverError } from '../api';
 import { deletarChavesR2, type R2CleanupBucket } from '../r2-cleanup';
 import { logger } from '../logger';
 import type { Database } from '$lib/db';
+import { mensagemDeErro } from '$lib/utils/erro';
 
 /** Binding R2 mínimo para gravar um documento assinado. */
 export interface R2ParaAssinatura extends R2CleanupBucket {
@@ -79,7 +80,7 @@ export async function guardarPdfAssinado(
 		logger.error('[assinatura] Falha ao gravar PDF assinado no R2', {
 			contexto,
 			chave,
-			error: err instanceof Error ? err.message : String(err)
+			error: mensagemDeErro(err)
 		});
 		return { ok: false, resposta: serverError(`gravar PDF assinado (${contexto})`, err) };
 	}

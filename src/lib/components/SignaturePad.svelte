@@ -44,6 +44,7 @@
 	import CodigoTimer from './CodigoTimer.svelte';
 	import { useRubricaCanvas } from '$lib/composables/useRubricaCanvas.svelte';
 	import { useFaceLiveness } from '$lib/composables/useFaceLiveness.svelte';
+	import { mensagemDeErro } from '$lib/utils/erro';
 
 	let {
 		onConfirm,
@@ -223,7 +224,7 @@
 			senhaInput = '';
 			await avancarAposSenha();
 		} catch (e: unknown) {
-			senhaError = e instanceof Error ? e.message : 'Senha incorreta';
+			senhaError = mensagemDeErro(e, 'Senha incorreta');
 		} finally {
 			confirmandoSenha = false;
 		}
@@ -247,11 +248,11 @@
 				apagarReauth();
 				pendingSignature.reauthId = null;
 				senhaInput = '';
-				senhaError = e instanceof Error ? e.message : ERRO_REAUTH_AUSENTE;
+				senhaError = mensagemDeErro(e, ERRO_REAUTH_AUSENTE);
 				step = 'password';
 				return;
 			}
-			codigoError = e instanceof Error ? e.message : String(e);
+			codigoError = mensagemDeErro(e);
 		} finally {
 			emitindo = false;
 		}
@@ -270,7 +271,7 @@
 			desafioId = data.desafioId ?? null;
 			return true;
 		} catch (e: unknown) {
-			const msg = e instanceof Error ? e.message : 'Erro desconhecido';
+			const msg = mensagemDeErro(e, 'Erro desconhecido');
 			codigoError = msg;
 			// Se o erro for de login/sessão, avisar de forma mais incisiva (toast
 			// de erro no canto — bloqueia menos que alert() e respeita o tema).

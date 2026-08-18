@@ -19,3 +19,29 @@ export async function sha256Hex(entrada: string | Uint8Array): Promise<string> {
 	const buf = await crypto.subtle.digest('SHA-256', bytes as BufferSource);
 	return bytesToHex(new Uint8Array(buf));
 }
+
+/**
+ * Prefixo dos tokens persistidos como hash.
+ *
+ * O valor em claro tem 64 hex chars e o hash também, então sem prefixo as duas
+ * formas são indistinguíveis no banco. É ele que permite aceitar a linha legada
+ * em claro no fallback e migrá-la no primeiro uso.
+ */
+export const PREFIXO_TOKEN_HASH = 'sha256:';
+
+/**
+ * Forma ARMAZENÁVEL de um token opaco: `sha256:<hex>`.
+ *
+ * Usada por tudo que guarda credencial no D1 — `sessoes`, `reset_senha_tokens`,
+ * `assinatura_intencoes` e `assinatura_reauth`. O valor em claro existe uma vez
+ * só, na resposta ao cliente; o banco nunca o vê. Um dump ou acesso de operador
+ * não permite sequestrar sessão ativa, reset pendente nem intenção de assinatura.
+ *
+ * Estava reescrita em três módulos (`$lib/auth`, `assinatura/intencao`,
+ * `db/reauth`), cada um com sua constante de prefixo — três lugares para
+ * consertar se o algoritmo ou o prefixo mudar, num ponto onde divergir significa
+ * token que não confere mais.
+ */
+export async function hashTokenArmazenado(token: string): Promise<string> {
+	return `${PREFIXO_TOKEN_HASH}${await sha256Hex(token)}`;
+}

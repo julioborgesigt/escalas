@@ -21,21 +21,11 @@
  */
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import {
-	getDB,
-	buscarEscala,
-	buscarDocumentoEscala,
-	listarPoliciaisEscala,
-	getR2,
-	hasR2
-} from '$lib/db';
+import { getDB, listarPoliciaisEscala, getR2, hasR2 } from '$lib/db';
 import {
 	apiError,
 	ErrorCode,
 	badRequest,
-	notFound,
-	forbidden,
-	conflict,
 	serverError,
 	requireAuth,
 	validateBody
@@ -51,7 +41,7 @@ import { criarIntencaoAssinatura } from '$lib/server/assinatura/intencao';
 import { descreverVinculoCredencial } from '$lib/server/assinatura/webauthn/authenticator-data';
 import { credencialDoUsuario } from '$lib/server/auth/credencial';
 import { exigirChaveAtiva } from '$lib/server/assinatura/chave-assinatura';
-import { verificarPermissaoEscala, podeAssinarEscala } from '$lib/server/escalas/permissao';
+import { carregarEscalaParaAssinatura } from '$lib/server/escalas/permissao';
 import { calcularHashBuffer } from '$lib/server/assinatura/document-utils';
 import { bytesToBase64 } from '$lib/crypto/bin';
 
@@ -70,29 +60,18 @@ export const POST: RequestHandler = async ({
 	const ip = getClientAddress();
 	const ua = request.headers.get('user-agent') || '';
 
-	const id = parseInt(params.id!);
-	if (isNaN(id)) return badRequest('ID inválido');
-
-	const db = getDB(platform);
-	const escala = await buscarEscala(db, id);
-	if (!escala) return notFound('Escala');
-
 	// Mesmas recusas do `assinar-simples`, e pela mesma razão: a preparação já
 	// monta o documento e sobe artefatos ao R2. Recusar só no finalizar deixaria
 	// lixo gravado por quem nunca poderia assinar.
-	const perm = await verificarPermissaoEscala(db, id, escala.lotacao, u);
-	if (!perm.permitido) return forbidden(perm.motivo ?? 'Sem permissão para assinar esta escala');
-	if (!podeAssinarEscala(u)) {
-		return forbidden('Apenas Admin Geral ou DPC com papel administrativo pode assinar esta escala');
-	}
-	if (escala.tipo === 'fds') {
-		return badRequest(
-			'Escala de fim de semana não admite assinatura digital — use o fluxo por e-mail'
-		);
-	}
-	if (await buscarDocumentoEscala(db, id)) {
-		return conflict('Revogue a assinatura existente antes de assinar novamente');
-	}
+	const db = getDB(platform);
+	const portao = await carregarEscalaParaAssinatura(
+		db,
+		params.id,
+		u,
+		'Revogue a assinatura existente antes de assinar novamente'
+	);
+	if (portao.recusa) return portao.recusa;
+	const { escala, id } = portao;
 
 	const policiais = await listarPoliciaisEscala(db, id);
 	if (!policiais || policiais.length === 0) {

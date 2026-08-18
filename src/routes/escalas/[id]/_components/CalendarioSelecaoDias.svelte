@@ -5,7 +5,7 @@
 	 * e `ModalEditarPlantao` (modo 'avulso': dias independentes).
 	 * `cor` controla o tema do dia selecionado/chips (warning × primary).
 	 */
-	import { MESES_PT, DIAS_SEMANA_CURTO, isoData } from '$lib/utils/datas';
+	import { MESES_PT, DIAS_SEMANA_CURTO, isoData, formatarDiaMes } from '$lib/utils/datas';
 
 	let {
 		selecionados = $bindable<string[]>([]),
@@ -38,11 +38,6 @@
 		while (cells.length < 42) cells.push(null);
 		return cells;
 	});
-
-	function fmtDia(iso: string): string {
-		const [, m, d] = iso.split('-');
-		return `${d}/${m}`;
-	}
 
 	function getDaysInRange(start: string, end: string): string[] {
 		const days: string[] = [];
@@ -152,10 +147,10 @@
 						? 'border-warning-400/80 bg-warning-500/10 text-warning-900 dark:text-warning-100'
 						: 'border-primary-400/80 bg-primary-500/10 text-primary-900 dark:text-primary-100'}"
 				>
-					{fmtDia(iso)}
+					{formatarDiaMes(iso)}
 					<button
 						type="button"
-						aria-label="Remover dia {fmtDia(iso)}"
+						aria-label="Remover dia {formatarDiaMes(iso)}"
 						class="p-0.5 rounded text-surface-400 hover:text-error-600 dark:hover:text-error-400"
 						onclick={() => toggle(iso)}
 					>

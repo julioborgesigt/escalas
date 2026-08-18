@@ -51,6 +51,7 @@ import {
 import { chaveConferencia } from './assinatura/copia-conferencia';
 import { logger } from './logger';
 import type { Database } from '$lib/db';
+import { mensagemDeErro } from '$lib/utils/erro';
 
 /**
  * Subset estrutural mínimo do binding R2 usado aqui — evita acoplar ao tipo
@@ -100,7 +101,7 @@ export async function deletarChavesR2(
 	const falhas: { chave: string; motivo: string }[] = [];
 	resultados.forEach((r, i) => {
 		if (r.status === 'rejected') {
-			const motivo = r.reason instanceof Error ? r.reason.message : String(r.reason);
+			const motivo = mensagemDeErro(r.reason);
 			logger.warn('[r2-cleanup] Falha ao deletar objeto do R2 — vira pendência', {
 				key: lista[i],
 				origem,
@@ -147,7 +148,7 @@ async function registrarPendenciasR2(
 	} catch (err) {
 		logger.error('[r2-cleanup] Falha ao registrar PENDÊNCIA — objeto R2 perdido de vista', {
 			chaves: falhas.map((f) => f.chave),
-			error: err instanceof Error ? err.message : String(err)
+			error: mensagemDeErro(err)
 		});
 	}
 }
@@ -158,7 +159,7 @@ async function esquecerPendenciasR2(db: Database, chaves: string[]): Promise<voi
 		await db.delete(r2Pendencias).where(inArray(r2Pendencias.chave, chaves));
 	} catch (err) {
 		logger.warn('[r2-cleanup] Falha ao limpar pendências já resolvidas', {
-			error: err instanceof Error ? err.message : String(err)
+			error: mensagemDeErro(err)
 		});
 	}
 }
@@ -199,7 +200,7 @@ export async function reprocessarPendenciasR2(
 				.set({
 					tentativas: linha.tentativas + 1,
 					ultima_tentativa_em: sql`datetime('now')`,
-					motivo: (err instanceof Error ? err.message : String(err)).slice(0, LIMITE_MOTIVO_R2)
+					motivo: mensagemDeErro(err).slice(0, LIMITE_MOTIVO_R2)
 				})
 				.where(eq(r2Pendencias.id, linha.id));
 		}
@@ -483,7 +484,7 @@ export async function coletarChavesR2DaGise(
 	} catch (e) {
 		logger.warn('[r2-cleanup] Falha ao listar prefixo R2 da GISE', {
 			gise_id: gise.id,
-			error: e instanceof Error ? e.message : String(e)
+			error: mensagemDeErro(e)
 		});
 	}
 

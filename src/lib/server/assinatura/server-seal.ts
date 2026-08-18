@@ -38,6 +38,7 @@ import {
 } from './pdf-verification';
 import { anexarCarimboTempo } from './tsa-embed';
 import type { TipoCarimoTempo } from './document-utils';
+import { mensagemDeErro } from '$lib/utils/erro';
 
 interface SeloInstitucional {
 	key: forge.pki.rsa.PrivateKey;
@@ -68,7 +69,7 @@ function parseSeloBundle(raw: string): SeloInstitucional | null {
 	} catch (e) {
 		logger.error(
 			'[selo] Falha ao carregar SELO_INSTITUCIONAL_PEM — assinatura cairá para rodapé honesto',
-			{ error: e instanceof Error ? e.message : String(e) }
+			{ error: mensagemDeErro(e) }
 		);
 		return null;
 	}
@@ -184,7 +185,7 @@ export async function selarPdfInstitucional(
 		return { ok: true, pdf: signedPdf, tipoCarimboTempo, cn: selo.cn };
 	} catch (e) {
 		logger.error('[selo] Falha ao selar PDF — caindo para rodapé honesto', {
-			error: e instanceof Error ? e.message : String(e)
+			error: mensagemDeErro(e)
 		});
 		return { ok: false, motivo: 'erro' };
 	}

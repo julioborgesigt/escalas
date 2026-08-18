@@ -201,20 +201,27 @@ Verificar cada transição de status:
 
 ### 4.11 Formulário da operação (`/gise/operacoes`)
 
-> Criação, edição, redirecionamento do endereço antigo e a distinção `NULL` × `0`
-> têm cobertura automatizada (`e2e/operacoes-formulario.spec.ts`). Manual: o que
-> só se vê rolando a tela e gerando PDF.
+> `[E2E: operacoes-formulario.spec.ts]` prova o formulário único de criação e
+> edição (identidade + configuração gravadas juntas), o preenchimento na
+> reabertura, a distinção `NULL` × `0` das vagas, o placeholder do valor
+> herdado, `#f_base` só na criação, o redirecionamento do endereço antigo de
+> configurações, e a exclusão — inclusive que ela leva o formulário junto
+> (`gise_modelo_formulario` da operação → 0) e que o botão some assim que a
+> operação ganha uma escala.
+>
+> Manual: o que só se vê rolando a tela, com o histórico do navegador, ou
+> gerando PDF.
 
 **O slider:**
 
 - [ ] "Nova operação" desliza a tela para a esquerda; a lista sai de vista e o
       formulário ocupa a largura toda
-- [ ] "Editar" numa linha faz o mesmo deslize, com o formulário já preenchido
+- [ ] "Editar" numa linha faz o mesmo deslize
 - [ ] O "voltar" do NAVEGADOR fecha o painel e devolve a lista
 - [ ] Abrir uma operação, voltar e abrir outra → os campos são os da segunda (não
       sobra texto da primeira)
 - [ ] A LISTA não tem botão de voltar — Operações tem entrada própria na barra
-      lateral; o "Voltar às operações" existe só dentro do painel do formulário
+      lateral
 
 **Os botões (§10 do README):**
 
@@ -227,16 +234,9 @@ Verificar cada transição de status:
 
 **Os campos:**
 
-- [ ] Criar pede identificação **e** configuração na mesma tela — vagas, horários
-      e textos do breve relatório
-- [ ] Todos os campos de configuração começam vazios, mostrando em cinza o valor
-      herdado
-- [ ] Definir `0` em "DPC" da equipe operacional e salvar → o campo volta
-      mostrando `0`, **não** vazio (zero é uma escolha, não ausência)
 - [ ] Esvaziar um campo já preenchido e salvar → volta a mostrar o valor herdado
       em cinza
 - [ ] Desmarcar um tipo de equipe → o bloco de vagas daquele tipo some na hora
-- [ ] "Basear o formulário em" aparece só na criação
 - [ ] Horário fora do formato `HH:MM` → erro de validação; vazio é aceito (herda)
 
 **Efeitos:**
@@ -245,62 +245,38 @@ Verificar cada transição de status:
       vagas dela; trocar a operação no modal troca os horários sugeridos
 - [ ] Alterar o texto do breve relatório e gerar o PDF de extra de uma escala
       daquela operação → o texto novo aparece; numa escala de OUTRA operação, não
-- [ ] `/gise/config` redireciona para `/gise/operacoes`; `/gise/operacoes/<id>/config`
-      redireciona para o painel de edição daquela operação
-
-**Excluir** (só na operação sem escala nenhuma):
-
-- [ ] Criar uma operação de teste baseando o formulário na CRAJUBAR, excluí-la e
-      conferir que ela some da lista **e** que os formulários dela foram junto
-      (`SELECT count(*) FROM gise_modelo_formulario WHERE operacao_id = <id>` → 0)
-- [ ] A confirmação diz o nome da operação e cita o formulário que se perde
-- [ ] Criar uma escala extra na operação de teste → o botão **Excluir** some da
-      linha dela
+- [ ] A confirmação de exclusão cita o formulário que se perde, além do nome
 
 ### 4.12 Navegação do módulo (barra lateral)
 
-> O agrupamento em dois níveis tem cobertura automatizada em
-> `e2e/sidebar-escala-extra.spec.ts`. Manual: o que só se vê com o dado real de
-> cada papel, e o teclado.
+> `[E2E: sidebar-escala-extra.spec.ts]` prova o agrupamento em dois níveis: a
+> raiz encolhe, o submenu SUBSTITUI a barra (os itens da raiz somem em vez de
+> indentar), o voltar restaura, a gaveta abre já no submenu quando a rota é de
+> um filho e na raiz quando não é, o item da rota atual fica aceso, e o recorte
+> por papel de Admin Geral (Operações na RAIZ) e de policial comum.
+> `[E2E: operacoes-linha-base.spec.ts]` prova que "Dados base" só aparece na
+> linha da operação que pede base e para o admin da unidade que participa dela.
+>
+> Manual: teclado, leitor de tela, os papéis que as fixtures não cobrem e o
+> tempo de cache.
 
 **O menu de dois níveis:**
 
-- [ ] A raiz traz **"Escala extra"** com o chevron à direita; os itens do assunto
-      (Escalas, Produtividade, Dados base, Minha presença, Meu histórico) **não**
-      estão na raiz
-- [ ] Clicar nele SUBSTITUI a barra pelo submenu — "Escalas ordinárias", "Meu
-      perfil" e os demais saem de vista, e não ficam indentados abaixo
-- [ ] A primeira linha do submenu é o voltar, com seta e o nome do pai; clicar
-      devolve a raiz exatamente como estava
-- [ ] Estando em `/produtividade` (ou qualquer rota do submenu), abrir o menu já
-      mostra o submenu, com o item aceso
-- [ ] Estando em `/escalas`, abrir o menu mostra a RAIZ
 - [ ] Só pelo teclado: Tab até "Escala extra", Enter, e o foco cai no voltar;
       Enter de novo devolve o foco ao pai
 - [ ] Com leitor de tela, entrar e sair do submenu é anunciado (o `aria-label`
       da navegação troca entre "Menu principal" e "Escala extra")
+- [ ] O chevron do pai aponta para a direita e gira ao abrir
 
 **O que cada papel vê no submenu:**
 
-- [ ] Admin Geral: Escalas e Produtividade — **sem** "Minha presença" e "Meu
-      histórico" (ele não presta serviço)
-- [ ] Admin Geral: **"Operações" fica na RAIZ**, não no submenu
-- [ ] Admin de unidade: Produtividade e (com pendência) Dados base — **sem**
-      "Escalas", que exige papel de seccional ou supervisão
 - [ ] Admin seccional: os cinco itens
-- [ ] Policial comum com escala extra: Minha presença e Meu histórico
 - [ ] Policial sem nenhuma participação: **o pai não aparece** (submenu vazio não
       ganha porta)
 
 **Herdado dos ciclos anteriores:**
 
-- [ ] Admin Geral: **não** há "Conf. Form." nem "Dados base" no menu — os dois
-      são botões na linha de cada operação em `/gise/operacoes`
-- [ ] O botão **Dados base** aparece só na linha da operação que tem indicador de
-      meta PERCENTUAL (a CRAJUBAR sim; a GISE não)
 - [ ] `/res-gise` (Admin Geral) mostra "VOLTAR ÀS OPERAÇÕES" acima do título
-- [ ] Admin de unidade escalada em operação com indicador percentual → **vê**
-      "Dados base"
 - [ ] Admin de unidade fora de qualquer escala → **não** vê "Dados base"
 - [ ] Desativar a operação → o item some do menu do admin daquela unidade em até
       1 minuto (cache de 60s)
@@ -310,8 +286,6 @@ Verificar cada transição de status:
 **Configurar o indicador** (`/res-gise`, Admin Geral):
 
 - [ ] O seletor de operação troca o formulário mostrado
-- [ ] Numa operação de um tipo só, o alternador Operacional/SEINT mostra apenas
-      o tipo habilitado
 - [ ] Numa pergunta do tipo Número, marcar "usar como indicador de meta",
       escolher **diminuir**, meta **20%**, unidade "procedimentos" e salvar
 - [ ] O bloco de indicador **não** aparece em pergunta de texto livre
@@ -320,23 +294,18 @@ Verificar cada transição de status:
 
 **Informar a base** (`/dados-base/<operação>`, admin de unidade/seccional):
 
-- [ ] A tela **não** tem seletor de operação — ela vem do caminho, e o nome
-      aparece no subtítulo
-- [ ] `/dados-base` com uma pendência só redireciona direto ao preenchimento;
-      com mais de uma, mostra a lista para escolher (e nenhum campo)
-- [ ] `/dados-base/<id inexistente>` → 404, e **não** a tela de outra operação
-- [ ] O **Voltar** segue por onde se entrou: Admin Geral volta a
-      `/gise/operacoes`; admin de unidade com mais de uma pendência volta ao
-      índice; com **uma só**, não há botão — o índice o traria de volta para cá
+> `[E2E: operacoes-linha-base.spec.ts]` prova a tela sem seletor de operação, o
+> 404 de id inexistente, o redirecionamento direto quando há uma pendência só e
+> a ausência de "Voltar" nesse caso, o retorno do Admin Geral a `/gise/operacoes`,
+> o recorte às unidades administradas, a gravação da base própria e a recusa do
+> POST direto na base de outra unidade.
+
+- [ ] Com MAIS DE UMA pendência, `/dados-base` mostra a lista para escolher (e
+      nenhum campo)
 - [ ] Sem pendência nenhuma → texto explicando as duas condições (meta percentual
       **e** unidade escalada)
-
-- [ ] O admin da unidade vê apenas as unidades que administra E que participam da
-      operação escolhida
-- [ ] O indicador criado acima aparece como pendente; informar o valor e salvar →
-      o card passa a "Todos informados"
+- [ ] Informado o valor e salvo, o card passa a "Todos informados"
 - [ ] Campo deixado em branco não grava nada (em branco é "ainda não sei", não zero)
-- [ ] Admin de outra unidade não vê a unidade alheia
 
 **Escape pelo formulário** (`/res-gise/relatorio/[giseId]`, policial):
 
@@ -347,18 +316,12 @@ Verificar cada transição de status:
 
 **Meta de cobertura** (o tipo `proporcao`):
 
-- [ ] No editor, criar pergunta do tipo **Cobertura (total e atendidas)**,
-      nomear os dois rótulos e marcá-la como indicador → o **Objetivo** some do
-      bloco e o tipo de meta já vem em "Cobertura", com 100%
-- [ ] Trocar o tipo de meta para "Percentual" e voltar para "Cobertura" → o
-      `objetivo` não fica pendurado (confira o JSON salvo: a meta de cobertura só
-      tem `metaTipo`, `metaValor` e `unidadeMedida`)
-- [ ] No formulário do policial, preencher **12** e **9** → a tela mostra
-      "Cobertura: 75% (9 de 12)"
-- [ ] Preencher a parte MAIOR que o total → aparece o aviso de conferir os dois
-      números (e o valor continua gravável — o aviso não bloqueia)
-- [ ] Total **0** → nenhuma porcentagem é mostrada, e sim "sem ocorrências no
-      período"
+> `[E2E: cobertura.spec.ts]` prova os dois campos e os rótulos no editor, a meta
+> de cobertura sem "Objetivo" (100% por padrão), a reconstrução do objeto ao
+> trocar o tipo de meta (sem `objetivo` pendurado), a razão "75% (9 de 12)" na
+> tela, o aviso de parte maior que o total sem bloquear a gravação, e o "sem
+> ocorrências no período" com total zero.
+
 - [ ] No PDF do relatório de produtividade, a pergunta sai como "9 de 12 (75%)"
       numa linha só
 - [ ] Em `/dados-base`, o indicador de cobertura **não** aparece — ele não pede
@@ -370,8 +333,8 @@ Verificar cada transição de status:
 - [ ] O card de um indicador de cobertura mostra UMA série em porcentagem, com o
       tique da meta no mesmo lugar em todas as unidades; a tabela dele traz
       Total, Atendidas e Cobertura (e não "Linha de base")
-- [ ] Unidade sem nenhuma ocorrência no período aparece como "sem ocorrências", e
-      **não** entra no contador "N/M unidades na meta" — não havia o que atender
+- [ ] Unidade sem nenhuma ocorrência no período **não** entra no contador
+      "N/M unidades na meta" — não havia o que atender
 - [ ] Cada card mostra base, realizado e a marca da meta por unidade, e o
       contador "N/M unidades na meta"
 - [ ] Unidade sem base aparece no aviso de pendência, e a barra dela fica sem a
@@ -383,35 +346,24 @@ Verificar cada transição de status:
 
 **O que entra no painel, e em que forma:**
 
-> A regra tem cobertura automatizada em `e2e/produtividade-graficos.spec.ts` e em
-> `produtividade/__tests__/questions`. Manual: a virada sobre os dados REAIS, que
-> é o que as migrações `0053` e `0054` prometem não mudar.
+> `[E2E: produtividade-graficos.spec.ts]` + `produtividade/__tests__/questions`
+> provam que só a pergunta marcada vira gráfico, que desligar UMA forma tira só
+> o card dela, que os blocos fixos somem na operação cujo formulário não tem a
+> pergunta e aparecem na que tem, que a caixa "Detalhamento" fica desabilitada
+> onde não há quebra por tipo, que a operação sem nada a mostrar explica o que
+> fazer, e que o editor reflete o que está gravado.
+>
+> Manual: a virada sobre os dados REAIS. Os dois itens de conferência pós-deploy
+> das migrações `0053`/`0054` saíram daqui — eram verificação de UMA subida, já
+> feita, e o banco está em `0062`. Roteiro manual descreve o comportamento
+> permanente; conferência de migração específica vive no `DEPLOY.md`, junto da
+> migração.
 
-- [ ] Depois do deploy, abrir `/produtividade` na GISE e na CRAJUBAR → os cards
-      são **os mesmos de antes**, na mesma ordem: prisões, drogas e armas com
-      ranking + detalhamento lado a lado, e as barras por pergunta abaixo
-- [ ] Os títulos de drogas e armas perderam o sufixo do número da pergunta
-      (`(P10)`, `(P11)`) e "Detalhamento de Substâncias" virou "Detalhamento de
-      Drogas" — é a única mudança visível esperada
-- [ ] No editor, cada pergunta contável traz o bloco **"Mostrar na
-      produtividade"** com três caixinhas; nas numéricas, "Colunas por unidade"
-      vem marcada
 - [ ] A pergunta de **drogas** e a de **armas** vêm com "Ranking de unidades" e
       "Detalhamento por tipo" marcadas, e "Colunas" desmarcada
-- [ ] Em pergunta que não seja de droga ou arma, "Detalhamento por tipo" aparece
-      **desabilitada**, com a explicação abaixo
-- [ ] Desmarcar **KM INICIAL** e **KM FINAL**, salvar e recarregar
-      `/produtividade` → os dois cards somem, e os demais ficam
-- [ ] Desmarcar só o "Ranking" da pergunta de drogas → o ranking some e o
-      detalhamento continua (e vice-versa)
 - [ ] Reabrir o formulário do policial → os campos continuam lá e continuam
       sendo preenchidos (a marca é de exibição, não de coleta)
 - [ ] Marcar uma sub-pergunta (nível 1) → ela também vira card
-- [ ] Numa operação NOVA, com formulário próprio sem pergunta de droga/arma/
-      flagrante → **não** aparecem "Ranking de Prisões", "Ranking de Drogas" nem
-      "Ranking de Armas"
-- [ ] Na mesma operação, sem indicador e sem pergunta marcada → aparece "Nada a
-      mostrar nesta operação", com a instrução de marcar no formulário
 - [ ] Desmarcar a pergunta **7. PRISÕES/APREENSÕES FLAGRANTE** → o card "Total de
       Presos (P7)" do bloco de prisões **continua** com o número certo (ele não
       depende da marca)
@@ -425,8 +377,6 @@ Verificar cada transição de status:
 - [ ] No card de uma pergunta do editor, a ordem é: texto e tipo → rótulos do
       campo inteligente → as caixas de painel e de meta → **"Título no painel de
       produtividade"**
-- [ ] O campo de título **não** aparece em pergunta sem marca nenhuma; marcar
-      qualquer caixa (ou "Usar como indicador de meta") faz o campo surgir
 - [ ] Com o campo vazio, o placeholder mostra o que vai sair — o texto da
       pergunta, ou "Drogas"/"Armas" nas duas de identidade própria
 - [ ] Preencher, salvar e abrir `/produtividade` → o card usa o título curto, nas
@@ -456,24 +406,17 @@ Verificar cada transição de status:
 
 **Tipos de lista: o genérico e os aposentados:**
 
-- [ ] No seletor de tipo de uma pergunta NOVA, "Mandados Maiores", "Prisões
-      Maiores" e "Apreensões Menores" **não aparecem** — só "Quantidade + Lista
-      Nome/Procedimento (reutilizável)"
+> `[E2E: lista-reutilizavel.spec.ts]` + `produtividade-graficos.spec.ts` provam
+> que o tipo aposentado não é oferecido em pergunta nova, que duas perguntas do
+> tipo genérico não misturam suas listas, e que a pergunta de lista vira ranking
+> com o gate do "Sim" (responder "Não" zera a contagem do painel).
+
 - [ ] Abrir a pergunta 4 da GISE (que já é `prisoes_maiores`) → o tipo aparece
       no grupo **"Aposentados"**, selecionado, com o aviso abaixo. Salvar sem
       mexer **não** troca o tipo dela
-- [ ] Criar duas perguntas do tipo genérico no mesmo formulário, preencher as
-      duas no relatório do policial → cada uma guarda a sua lista (era isso que
-      os tipos de chave fixa não permitiam)
 - [ ] Na pergunta genérica, preencher **"Nome de cada item no relatório"** com
       `Procedimento` → no PDF as linhas saem como "↳ Procedimento 1"; em branco,
       saem como "↳ Item 1"
-- [ ] Marcar "Ranking de unidades" numa pergunta de lista → o card aparece com a
-      **quantidade** somada (era o que não existia: elas podiam ser indicador de
-      meta e não podiam virar gráfico)
-- [ ] No relatório, responder **"Sim"**, preencher quantidade 3, e depois trocar
-      para **"Não"** e enviar → o painel conta **0** para aquela pergunta (o PDF
-      já não mostrava a lista; agora as duas leituras concordam)
 
 ---
 
@@ -835,7 +778,33 @@ Verificar cada transição de status:
 
 ---
 
-## 16. Segurança
+## 16. Acessibilidade e visual (resíduo da auditoria VIS-1…VIS-17)
+
+Os dezessete achados da auditoria visual de 29/jul/2026 estão implementados e
+verificados por medição (contraste calculado de `theme.css`, CSS compilado,
+Playwright). O que sobrou é exatamente o que a automação não alcança — leitor
+de tela real e olho humano sobre a amostra. A auditoria foi arquivada
+(`git show f67345f:docs/auditorias/AUDITORIA_VISUAL_2026-07-29.md`, catálogo em
+[`docs/HISTORICO.md`](docs/HISTORICO.md)); estes itens ficam aqui porque são
+roteiro manual, não relatório.
+
+- [ ] **VIS-13** — viewport < 900px, com TECLADO e LEITOR DE TELA: abrir a
+      sidebar móvel; o foco entra na navegação; conteúdo principal, atalho de
+      salto e barra móvel ficam inertes; Escape, botão fechar, backdrop e
+      navegar devolvem o foco ao botão Menu
+- [ ] **VIS-1 / VIS-4** — amostragem visual nos dois modos: texto informativo
+      e presets `filled` de `tertiary`/`success` legíveis em claro E escuro
+- [ ] **VIS-5** — as exceções estruturais que NÃO usam `ModalShell` (logout do
+      `+layout`, `DialogInfo`, wizards `ModalNovaEscala`/`ModalCriarGise`,
+      `ModalDatasHoras`, `ModalDownloadExtras`, `ModalBreveRelatorio`, os três
+      diálogos de `PainelAcoesServidor`) continuam abrindo, fechando e
+      devolvendo o foco
+- [ ] **VIS-7** — ícones migrados para Lucide mantêm tamanho e alinhamento nas
+      telas de escala, GISE e painel
+
+---
+
+## 17. Segurança
 
 - [ ] Submeter formulário sem token CSRF → request bloqueada
 - [ ] Injeção de caracteres especiais em campos de busca → sem efeito (ORM parameterizado)
@@ -845,14 +814,14 @@ Verificar cada transição de status:
 
 ---
 
-## 17. Health Check
+## 18. Health Check
 
 - [ ] `GET /api/health` → retorna 200 com status OK
 - [ ] Conectividade com banco de dados refletida no health check
 
 ---
 
-## 18. Webhooks de Sincronização (operador / Apps Script)
+## 19. Webhooks de Sincronização (operador / Apps Script)
 
 > `[E2E: webhook-sync.spec.ts]` cobre o contrato ponta a ponta contra o D1: `sync-policiais` cria e atualiza (upsert) a partir do payload do Apps Script, cargo inválido conta como falha sem derrubar o lote, `sync-unidades` cria a seccional; **M-4** — um SYNC_TOKEN válido tentando `papel: seccional` NÃO promove (fica `null`); **reset destrutivo** fail-closed (SYNC válido mas sem a 2ª credencial → 401, nada apagado); auth negativa (sem/errado bearer → 401). A lógica de auth (Bearer/HMAC/replay) tem cobertura unitária em `webhook-auth.test.ts`.
 
@@ -861,7 +830,7 @@ Verificar cada transição de status:
 
 ---
 
-## 19. Direitos do Titular — LGPD art. 18
+## 20. Direitos do Titular — LGPD art. 18
 
 > `[E2E: lgpd-solicitacoes.spec.ts]` cobre o ciclo completo: o titular abre a solicitação (`/api/lgpd/solicitar` → 201) e a vê na sua lista; um policial não acessa a lista administrativa (403); o Admin Geral lista, detalha e responde (conclui); o titular vê o desfecho; reencerrar uma solicitação já concluída → 409.
 

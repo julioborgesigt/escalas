@@ -9,7 +9,6 @@ import {
 	getDB,
 	buscarGiseEscala,
 	resolverParticipacaoGisePolicial,
-	buscarCredencialPorId,
 	registrarUsoCredencial,
 	registrarAuditComContexto,
 	tryGetR2,
@@ -20,8 +19,6 @@ import {
 	sincronizarStatusGiseAposPresencaRelatorios
 } from '$lib/db';
 import {
-	apiError,
-	ErrorCode,
 	badRequest,
 	notFound,
 	forbidden,
@@ -33,17 +30,8 @@ import {
 import { finalizarPasskeyEscalaSchema } from '$lib/schemas';
 import { gateDePresenca } from '$lib/server/gise/presenca-gate';
 import { invalidarPapelGise } from '$lib/server/gise/papel-cache';
-import {
-	consumirIntencaoAssinatura,
-	mensagemRecusaIntencao
-} from '$lib/server/assinatura/intencao';
-import {
-	verificarAssercao,
-	mensagemRecusaAssercao
-} from '$lib/server/assinatura/webauthn/assercao';
 import { descreverVinculoCredencial } from '$lib/server/assinatura/webauthn/authenticator-data';
-import { credencialDoUsuario } from '$lib/server/auth/credencial';
-import { resolverAppOrigin } from '$lib/server/app-origin';
+import { conferirFinalizacaoPasskey } from '$lib/server/assinatura/webauthn/finalizar-avancada';
 import {
 	bucketParaAssinatura,
 	compensarBlobAssinado,
@@ -51,8 +39,6 @@ import {
 } from '$lib/server/assinatura/blob-assinado';
 import { selarPdfInstitucional } from '$lib/server/assinatura/server-seal';
 import { calcularHashBuffer } from '$lib/server/assinatura/document-utils';
-import { base64ToBytes, base64UrlToBytes } from '$lib/crypto/bin';
-import { hexToBytes } from '$lib/crypto/hex';
 
 export const POST: RequestHandler = async ({
 	platform,
@@ -87,54 +73,24 @@ export const POST: RequestHandler = async ({
 
 	const validated = await validateBody(request, finalizarPasskeyEscalaSchema);
 	if (!validated.ok) return validated.response;
-	const { intencao, preparedPdf, assercao } = validated.data;
-	const pdfBytes = base64ToBytes(preparedPdf);
 
-	const consumo = await consumirIntencaoAssinatura(
+	const prova = await conferirFinalizacaoPasskey({
 		db,
-		intencao,
-		{ recurso: 'gise_presenca', recursoId: giseId, escopoId: tipo === 'entrada' ? 1 : 2 },
-		{ id: u.id, tipo: u.tipo },
-		pdfBytes
-	);
-	if (!consumo.ok) return badRequest(mensagemRecusaIntencao());
-
-	const credencial = await buscarCredencialPorId(db, assercao.credentialId);
-	const dono = credencialDoUsuario(u);
-	if (
-		!credencial ||
-		credencial.revogadaEm ||
-		credencial.dono.tipo !== dono.tipo ||
-		credencial.dono.id !== dono.id
-	) {
-		return apiError(
-			'Chave de assinatura não reconhecida ou revogada. Registre-a novamente em Meu Perfil.',
-			403,
-			ErrorCode.FORBIDDEN
-		);
-	}
-
-	const desafio = hexToBytes(await calcularHashBuffer(pdfBytes));
-	if (!desafio) return serverError('[presenca/finalizar-passkey] hash inválido', new Error('HASH'));
-
-	const verificacao = await verificarAssercao({
-		clientDataJSON: base64UrlToBytes(assercao.clientDataJSON),
-		authenticatorData: base64UrlToBytes(assercao.authenticatorData),
-		assinatura: base64UrlToBytes(assercao.assinatura),
-		publicKeySpki: credencial.publicKeySpki,
-		desafioEsperado: desafio,
-		origemEsperada: resolverAppOrigin(url, platform),
-		contadorArmazenado: credencial.contador
+		alvo: { recurso: 'gise_presenca', recursoId: giseId, escopoId: tipo === 'entrada' ? 1 : 2 },
+		usuario: u,
+		corpo: validated.data,
+		url,
+		platform,
+		logTag: 'presenca/finalizar-passkey'
 	});
-	if (!verificacao.ok) {
-		return apiError(mensagemRecusaAssercao(), 403, ErrorCode.FORBIDDEN);
-	}
+	if (!prova.ok) return prova.recusa;
+	const { credencial, pdfBytes } = prova;
 
 	try {
 		const bucketOk = bucketParaAssinatura(tryGetR2(platform));
 		if (!bucketOk.ok) return bucketOk.resposta;
 
-		await registrarUsoCredencial(db, credencial.id, verificacao.dados.contador);
+		await registrarUsoCredencial(db, credencial.id, prova.dados.contador);
 
 		const env = platform?.env as unknown as Record<string, string | undefined> | undefined;
 		const selado = await selarPdfInstitucional(pdfBytes, u.nome, { env });
@@ -143,12 +99,12 @@ export const POST: RequestHandler = async ({
 
 		const [yyyy, mm, dd] = gise.data_inicio.split('-');
 		const folder = `gise/${yyyy}-${mm}/${dd}/${giseId}/presencas_termos`;
-		const r2Key = `${folder}/termo_${tipo}_pol_${u.id}_${consumo.verificacaoHash}.pdf`;
+		const r2Key = `${folder}/termo_${tipo}_pol_${u.id}_${prova.verificacaoHash}.pdf`;
 
 		const guardado = await guardarPdfAssinado(bucketOk.r2, r2Key, pdfParaSalvar, 'gise-presenca');
 		if (!guardado.ok) return guardado.resposta;
 
-		const rubrica = consumo.contexto.rubrica || '';
+		const rubrica = prova.contexto.rubrica || '';
 		if (tipo === 'entrada') {
 			await salvarEntradaGise(
 				db,
@@ -157,9 +113,9 @@ export const POST: RequestHandler = async ({
 				rubrica,
 				ip,
 				ua,
-				consumo.contexto.latitude ?? undefined,
-				consumo.contexto.longitude ?? undefined,
-				consumo.contexto.selfieKey ?? undefined
+				prova.contexto.latitude ?? undefined,
+				prova.contexto.longitude ?? undefined,
+				prova.contexto.selfieKey ?? undefined
 			);
 		} else {
 			const saida = await salvarSaidaGise(
@@ -169,9 +125,9 @@ export const POST: RequestHandler = async ({
 				rubrica,
 				ip,
 				ua,
-				consumo.contexto.latitude ?? undefined,
-				consumo.contexto.longitude ?? undefined,
-				consumo.contexto.selfieKey ?? undefined
+				prova.contexto.latitude ?? undefined,
+				prova.contexto.longitude ?? undefined,
+				prova.contexto.selfieKey ?? undefined
 			);
 			if (!saida.registrada) {
 				await compensarBlobAssinado(db, bucketOk.r2, [r2Key], 'gise-presenca');
@@ -190,14 +146,14 @@ export const POST: RequestHandler = async ({
 				assinante_nome: u.nome,
 				assinante_cpf: u.cpf,
 				assinante_email: u.email,
-				verification_hash: consumo.verificacaoHash,
+				verification_hash: prova.verificacaoHash,
 				r2_key: r2Key,
 				arquivo_hash: arquivoHash,
 				ip_address: ip,
 				user_agent: ua,
-				latitude: consumo.contexto.latitude ?? undefined,
-				longitude: consumo.contexto.longitude ?? undefined,
-				passkeyMeta: passkeyMetaDeAssercao(assercao, verificacao.dados.backupAtivo)
+				latitude: prova.contexto.latitude ?? undefined,
+				longitude: prova.contexto.longitude ?? undefined,
+				passkeyMeta: passkeyMetaDeAssercao(validated.data.assercao, prova.dados.backupAtivo)
 			},
 			platform?.env
 		);
@@ -212,7 +168,7 @@ export const POST: RequestHandler = async ({
 			entidade_id: giseId,
 			detalhes:
 				`Presença ${tipo} GISE ${giseId} com passkey — ` +
-				`credencial ${descreverVinculoCredencial(verificacao.dados)}`
+				`credencial ${descreverVinculoCredencial(prova.dados)}`
 		});
 
 		return json({ success: true });

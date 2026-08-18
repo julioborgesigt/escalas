@@ -29,6 +29,7 @@
 
 import type { UsuarioLogado } from '$lib/auth';
 import { sha256Hex } from '$lib/crypto/digest';
+import { chaveEdge, lerJsonEdge, gravarJsonEdge, invalidarEdge } from '../edge-cache';
 
 interface SessaoCacheada {
 	usuario: UsuarioLogado;
@@ -84,14 +85,7 @@ export function ttlCacheSessaoParaMetodo(
 const METODOS_QUE_MUTAM = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
 
 async function chaveCache(token: string): Promise<Request> {
-	const hex = await sha256Hex(token);
-	return new Request(`https://internal.escalas.local/sessao/v1/${hex}`, { method: 'GET' });
-}
-
-function safeCacheRef(): Cache | null {
-	if (typeof caches === 'undefined') return null;
-	const c = caches as unknown as { default?: Cache };
-	return c.default ?? null;
+	return chaveEdge(`sessao/v1/${await sha256Hex(token)}`);
 }
 
 /**
@@ -111,15 +105,7 @@ export async function lerSessaoCache(
 	ttlSeconds: number = SESSION_CACHE_TTL_DEFAULT
 ): Promise<SessaoCacheada | null> {
 	if (ttlSeconds <= 0) return null; // cache desligado por configuração (revogação imediata)
-	const cache = safeCacheRef();
-	if (!cache) return null;
-	try {
-		const hit = await cache.match(await chaveCache(token));
-		if (!hit) return null;
-		return (await hit.json()) as SessaoCacheada;
-	} catch {
-		return null; // segue para o DB
-	}
+	return lerJsonEdge<SessaoCacheada>(await chaveCache(token));
 }
 
 /** Grava apenas sessões VÁLIDAS — resultado negativo nunca é cacheado. */
@@ -129,19 +115,7 @@ export async function gravarSessaoCache(
 	ttlSeconds: number = SESSION_CACHE_TTL_DEFAULT
 ): Promise<void> {
 	if (ttlSeconds <= 0) return; // cache desligado por configuração
-	const cache = safeCacheRef();
-	if (!cache) return;
-	try {
-		const response = new Response(JSON.stringify(valor), {
-			headers: {
-				'Content-Type': 'application/json',
-				'Cache-Control': `max-age=${ttlSeconds}`
-			}
-		});
-		await cache.put(await chaveCache(token), response);
-	} catch {
-		// se falhar, o próximo request paga as queries e tenta de novo
-	}
+	await gravarJsonEdge(await chaveCache(token), valor, ttlSeconds);
 }
 
 /**
@@ -152,11 +126,5 @@ export async function gravarSessaoCache(
  */
 export async function invalidarSessaoCache(token: string | null | undefined): Promise<void> {
 	if (!token) return;
-	const cache = safeCacheRef();
-	if (!cache) return;
-	try {
-		await cache.delete(await chaveCache(token));
-	} catch {
-		// silently ignore — TTL natural cuidará disso em <= 60s
-	}
+	await invalidarEdge(await chaveCache(token));
 }

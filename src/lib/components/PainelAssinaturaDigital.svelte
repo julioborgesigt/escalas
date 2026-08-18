@@ -38,6 +38,7 @@
 	import Download from '@lucide/svelte/icons/download';
 	import PenLine from '@lucide/svelte/icons/pen-line';
 	import ShieldCheck from '@lucide/svelte/icons/shield-check';
+	import { mensagemDeErro } from '$lib/utils/erro';
 
 	interface DocumentoAssinadoInfo {
 		existe: boolean;
@@ -91,7 +92,7 @@
 			await invalidarAposAssinatura();
 		} catch (e: unknown) {
 			toaster.create({
-				title: e instanceof Error ? e.message : 'Erro ao cancelar solicitação',
+				title: mensagemDeErro(e, 'Erro ao cancelar solicitação'),
 				type: 'error'
 			});
 		}

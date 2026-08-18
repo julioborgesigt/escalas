@@ -31,6 +31,7 @@ import { buscarUnidadeIdSupervisaoExtra } from '$lib/server/gise/supervisao-extr
 import { eq, asc } from 'drizzle-orm';
 import { unidades, policiais } from '$lib/server/schema';
 import { buscarConfiguracao } from '$lib/db/configuracoes';
+import { mensagemDeErro } from '$lib/utils/erro';
 
 export const load: PageServerLoad = async ({ locals, platform, depends }) => {
 	depends('app:gise-list');
@@ -288,7 +289,7 @@ export const actions: Actions = {
 
 			return { success: true, count: ids.length, ids, datas: parsed.dias.map((d) => d.data) };
 		} catch (e: unknown) {
-			const msg = e instanceof Error ? e.message : String(e);
+			const msg = mensagemDeErro(e);
 			return fail(500, { error: msg });
 		}
 	}

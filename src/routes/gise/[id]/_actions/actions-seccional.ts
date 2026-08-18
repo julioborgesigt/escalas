@@ -41,6 +41,7 @@ import {
 } from './shared';
 import { concluirMudancaGise, invalidarAssinaturasDaSeccional } from './desfecho';
 import { coletarChavesR2DaRevogacaoSeccional, deletarChavesR2 } from '$lib/server/r2-cleanup';
+import { mensagemDeErro } from '$lib/utils/erro';
 
 type Event = RequestEvent<{ id: string }>;
 
@@ -343,7 +344,7 @@ export const actionsSeccional = {
 					logger.warn('[gise/finalizarSeccional] Falha ao notificar assessor (operação segue OK)', {
 						giseId,
 						secId,
-						error: e instanceof Error ? e.message : String(e)
+						error: mensagemDeErro(e)
 					});
 				}
 			} else {

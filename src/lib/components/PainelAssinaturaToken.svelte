@@ -22,6 +22,7 @@
 	import { conectarSerpro, SerproSignerClient } from '$lib/serpro';
 	import { digestHexParaBase64, executarFluxoAssinaturaToken } from '$lib/assinatura-token';
 	import SquarePen from '@lucide/svelte/icons/square-pen';
+	import { mensagemDeErro } from '$lib/utils/erro';
 
 	let {
 		prepararUrl,
@@ -134,7 +135,7 @@
 		} catch (err: unknown) {
 			toaster.error({
 				title: 'Erro na assinatura',
-				description: err instanceof Error ? err.message : 'Erro desconhecido'
+				description: mensagemDeErro(err, 'Erro desconhecido')
 			});
 		} finally {
 			loading.hide();
@@ -168,7 +169,7 @@
 		} catch (err: unknown) {
 			toaster.error({
 				title: 'Erro no Assinador SERPRO',
-				description: err instanceof Error ? err.message : 'Erro desconhecido'
+				description: mensagemDeErro(err, 'Erro desconhecido')
 			});
 			serproClient?.disconnect();
 			serproClient = null;

@@ -12,7 +12,7 @@
 import { desc, eq, and, gte, lte, sql } from 'drizzle-orm';
 import { appLog } from '../server/schema';
 import type { AppLog } from '../server/schema';
-import { timestampSqliteUtc, paginarComContagem, type Database } from './core';
+import { timestampSqliteUtc, paginarComContagem, escapeLike, type Database } from './core';
 
 type AppLogLevel = 'warn' | 'error';
 
@@ -35,11 +35,6 @@ export async function registrarAppLogs(db: Database, entradas: NovoAppLog[]): Pr
 	for (let i = 0; i < entradas.length; i += LOTE_INSERT) {
 		await db.insert(appLog).values(entradas.slice(i, i + LOTE_INSERT));
 	}
-}
-
-/** Escapa caracteres especiais do LIKE para evitar wildcard injection. */
-function escapeLike(str: string): string {
-	return str.replace(/[%_\\]/g, '\\$&');
 }
 
 export interface ListarAppLogsOpts {

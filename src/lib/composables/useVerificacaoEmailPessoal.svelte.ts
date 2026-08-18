@@ -8,6 +8,7 @@
  * (uma fazia trim() do e-mail, a outra não).
  */
 import { apiFetch } from '$lib/api-fetch';
+import { mensagemDeErro } from '$lib/utils/erro';
 
 interface SolicitarResponse {
 	desafioId?: string;
@@ -49,7 +50,7 @@ export function useVerificacaoEmailPessoal(opts?: {
 			emailMascarado = json.emailMascarado ?? '';
 			etapa = 'codigo';
 		} catch (e: unknown) {
-			erro = e instanceof Error ? e.message : 'Erro ao enviar o código. Tente novamente.';
+			erro = mensagemDeErro(e, 'Erro ao enviar o código. Tente novamente.');
 		} finally {
 			enviando = false;
 		}
@@ -70,7 +71,7 @@ export function useVerificacaoEmailPessoal(opts?: {
 			etapa = 'verificado';
 			opts?.onVerificado?.(email.trim().toLowerCase());
 		} catch (e: unknown) {
-			erro = e instanceof Error ? e.message : 'Código inválido. Tente novamente.';
+			erro = mensagemDeErro(e, 'Código inválido. Tente novamente.');
 		} finally {
 			enviando = false;
 		}

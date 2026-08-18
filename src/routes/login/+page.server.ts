@@ -36,6 +36,7 @@ import {
 import { administradores, policiais } from '$lib/server/schema';
 import { loginSchema } from '$lib/schemas';
 import { resolverAppOrigin } from '$lib/server/app-origin';
+import { mensagemDeErro } from '$lib/utils/erro';
 
 const PRIMEIRO_ACESSO_MAX_TENTATIVAS_IP = 5;
 const PRIMEIRO_ACESSO_JANELA_IP_MINUTOS = 15;
@@ -200,7 +201,7 @@ export const actions: Actions = {
 			}
 		} catch (err) {
 			logger.error('[login/verificar2FA] Falha no rate-limit (fail-open)', {
-				error: err instanceof Error ? err.message : String(err)
+				error: mensagemDeErro(err)
 			});
 		}
 
@@ -214,7 +215,7 @@ export const actions: Actions = {
 				await registrarRecoveryAttempt(db, ip, 'verificar_2fa');
 			} catch (err) {
 				logger.error('[login/verificar2FA] Falha ao registrar tentativa (fail-open)', {
-					error: err instanceof Error ? err.message : String(err)
+					error: mensagemDeErro(err)
 				});
 			}
 		}
@@ -363,7 +364,7 @@ export const actions: Actions = {
 		} catch (err) {
 			logger.error('[login/primeiro-acesso] Falha ao enviar e-mail', {
 				policial_id: policial.id,
-				error: err instanceof Error ? err.message : String(err)
+				error: mensagemDeErro(err)
 			});
 			return fail(500, { error: 'Falha ao enviar e-mail. Tente novamente.' });
 		}

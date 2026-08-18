@@ -33,6 +33,7 @@ import {
 	GENESIS,
 	type AuditCriptoEnv
 } from './cadeia';
+import { mensagemDeErro } from '$lib/utils/erro';
 
 // ---- Anonimização de IP (LGPD) ---------------------------------------------
 
@@ -225,7 +226,7 @@ async function anexar(
 				ip_cifrado = await cifrarTexto(ipCompleto, ipKey);
 			} catch (err) {
 				logger.warn('[audit] Falha ao cifrar IP', {
-					error: err instanceof Error ? err.message : String(err)
+					error: mensagemDeErro(err)
 				});
 			}
 		}
@@ -286,7 +287,7 @@ async function anexar(
 		}
 	} catch (err) {
 		if (naFalha === 'lancar') throw err;
-		const motivo = err instanceof Error ? err.message : String(err);
+		const motivo = mensagemDeErro(err);
 		logger.error('[audit] Falha ao registrar evento', {
 			acao: evento.acao,
 			entidade: evento.entidade,
@@ -327,7 +328,7 @@ async function registrarPendenciaAudit(
 	} catch (err) {
 		logger.error('[audit] Falha ao registrar PENDÊNCIA — evento perdido', {
 			acao: evento.acao,
-			error: err instanceof Error ? err.message : String(err)
+			error: mensagemDeErro(err)
 		});
 	}
 }
@@ -381,7 +382,7 @@ export async function reprocessarPendenciasAudit(
 				.set({
 					tentativas: linha.tentativas + 1,
 					ultima_tentativa_em: timestampSqliteUtc(),
-					motivo: (err instanceof Error ? err.message : String(err)).slice(0, LIMITE_MOTIVO)
+					motivo: mensagemDeErro(err).slice(0, LIMITE_MOTIVO)
 				})
 				.where(eq(auditPendencias.id, linha.id));
 		}

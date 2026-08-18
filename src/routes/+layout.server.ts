@@ -13,6 +13,7 @@ import { lerTemLinhaBasePendente } from '$lib/server/operacoes/linha-base-cache'
 import { temAssinaturaEscalaPendente } from '$lib/server/escalas/rubrica-pendente';
 import { resumoRecebidosAdmin } from '$lib/server/escalas/sync-estado';
 import { logger } from '$lib/server/logger';
+import { mensagemDeErro } from '$lib/utils/erro';
 
 export const load: LayoutServerLoad = async ({ locals, platform, cookies, depends }) => {
 	const u = locals.usuario;
@@ -98,7 +99,7 @@ export const load: LayoutServerLoad = async ({ locals, platform, cookies, depend
 		} catch (err) {
 			// DB/edge cache indisponível — mantém defaults seguros (exige tudo)
 			logger.warn('[layout] falha ao carregar flags/papel GISE', {
-				err: err instanceof Error ? err.message : String(err)
+				err: mensagemDeErro(err)
 			});
 		}
 	}

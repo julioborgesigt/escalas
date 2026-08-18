@@ -22,6 +22,7 @@ import { CORPORACAO_PROSA } from '$lib/institucional';
 import { mascararEmail } from '$lib/utils/pii';
 import { getDB, buscarProvedorEmailPadrao, type EmailProvedor } from '$lib/db';
 import { abreviarCredencial } from '$lib/chave-assinatura-ui';
+import { mensagemDeErro } from '$lib/utils/erro';
 
 function escapeHtml(value: string): string {
 	return value
@@ -253,7 +254,7 @@ async function dispararEmail(
 		logger.debug(`[email] Enviado via ${primNome} (provedor padrão)`);
 		return result;
 	} catch (errPrim) {
-		const motivo = errPrim instanceof Error ? errPrim.message : String(errPrim);
+		const motivo = mensagemDeErro(errPrim);
 		// Binding do CF ausente é silencioso (config esperada em alguns ambientes);
 		// qualquer outra falha — inclusive cota estourada — loga e cai no fallback.
 		if (motivo !== 'CF_EMAIL_BINDING_ABSENT') {
@@ -400,7 +401,7 @@ async function enviarERegistrar(
 	} catch (err) {
 		logger.error(`[email/${tag}] Erro ao enviar`, {
 			destinatario: mascararEmail(destinatario),
-			error: err instanceof Error ? err.message : String(err)
+			error: mensagemDeErro(err)
 		});
 		throw err;
 	}

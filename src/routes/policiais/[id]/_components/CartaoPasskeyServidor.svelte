@@ -24,6 +24,7 @@
 	import { invalidateAll } from '$app/navigation';
 	import ModalShell from '$lib/components/ModalShell.svelte';
 	import { mensagemChaveNoCartaoAdmin } from '$lib/chave-assinatura-ui';
+	import { mensagemDeErro } from '$lib/utils/erro';
 
 	type ChaveAnterior = { identificador: string; criadoEm: string; revogadoEm: string };
 
@@ -61,7 +62,7 @@
 			});
 		} catch (e: unknown) {
 			toaster.create({
-				title: e instanceof Error ? e.message : 'Erro ao revogar a chave.',
+				title: mensagemDeErro(e, 'Erro ao revogar a chave.'),
 				type: 'error'
 			});
 		} finally {

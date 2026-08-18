@@ -34,6 +34,7 @@ import {
 } from '$lib/server/auth/webhook-auth';
 import { logger } from '$lib/server/logger';
 import { apiError, ErrorCode, unauthorized } from '$lib/server/api';
+import { mensagemDeErro } from '$lib/utils/erro';
 
 /**
  * Safe-default contra escalada de privilégio via webhook (M-4 da auditoria):
@@ -213,7 +214,7 @@ export const POST: RequestHandler = async (event) => {
 				);
 				successCount++;
 			} catch (err: unknown) {
-				errors.push(`${rowId}: ${err instanceof Error ? err.message : String(err)}`);
+				errors.push(`${rowId}: ${mensagemDeErro(err)}`);
 			}
 		}
 
@@ -249,7 +250,7 @@ export const POST: RequestHandler = async (event) => {
 		// 400 (não 500): payload do webhook é input inválido do caller, não bug
 		// interno. Preserva o behavior anterior + adiciona errorType VALIDATION.
 		return apiError(
-			`Erro crítico no processamento: ${err instanceof Error ? err.message : String(err)}`,
+			`Erro crítico no processamento: ${mensagemDeErro(err)}`,
 			400,
 			ErrorCode.VALIDATION
 		);

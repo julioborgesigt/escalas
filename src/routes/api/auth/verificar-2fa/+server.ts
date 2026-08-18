@@ -18,6 +18,7 @@ import {
 import { apiError, ErrorCode, forbidden, rateLimited, validateBody } from '$lib/server/api';
 import { verificar2faSchema } from '$lib/schemas';
 import { logger } from '$lib/server/logger';
+import { mensagemDeErro } from '$lib/utils/erro';
 
 // Throttle por IP do brute-force do código 2FA. O contador de 5 tentativas por
 // desafio (em verificarDesafio2FA) é resetável via /reenviar-codigo (novo
@@ -44,7 +45,7 @@ export const POST: RequestHandler = async (event) => {
 		}
 	} catch (err) {
 		logger.error('[verificar-2fa] Falha no rate-limit (fail-open)', {
-			error: err instanceof Error ? err.message : String(err)
+			error: mensagemDeErro(err)
 		});
 	}
 
@@ -62,7 +63,7 @@ export const POST: RequestHandler = async (event) => {
 			await registrarRecoveryAttempt(db, ip, 'verificar_2fa');
 		} catch (err) {
 			logger.error('[verificar-2fa] Falha ao registrar tentativa (fail-open)', {
-				error: err instanceof Error ? err.message : String(err)
+				error: mensagemDeErro(err)
 			});
 		}
 	}

@@ -8,6 +8,7 @@
  * vazio". Usada pelo SearchableSelect e pela busca de destinatário do
  * DialogSolicitarAssinatura.
  */
+import { mensagemDeErro } from '$lib/utils/erro';
 export function useBuscaDebounce<T>(opts: {
 	/** Executa a busca em si (tipicamente via `apiFetch`, repassando o signal). */
 	buscar: (termo: string, signal: AbortSignal) => Promise<T[]>;
@@ -73,7 +74,7 @@ export function useBuscaDebounce<T>(opts: {
 					if (c.signal.aborted) return;
 					resultados = [];
 					buscou = true;
-					erro = e instanceof Error ? e.message : 'Erro na busca';
+					erro = mensagemDeErro(e, 'Erro na busca');
 				} finally {
 					if (!c.signal.aborted) buscando = false;
 				}

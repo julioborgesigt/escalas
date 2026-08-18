@@ -19,7 +19,13 @@
 	 * valores da GISE anterior.
 	 */
 	import AlertTriangle from '@lucide/svelte/icons/alert-triangle';
-	import { MESES_PT, DIAS_SEMANA_CURTO, isoData, hojeLocalISO } from '$lib/utils/datas';
+	import {
+		MESES_PT,
+		DIAS_SEMANA_CURTO,
+		isoData,
+		hojeLocalISO,
+		formatarData as fmtDate
+	} from '$lib/utils/datas';
 	import { enhance } from '$app/forms';
 	import type { SubmitFunction } from '@sveltejs/kit';
 	import { toaster } from '$lib/toast';
@@ -66,12 +72,6 @@
 	});
 
 	const hoje = hojeLocalISO;
-
-	function fmtDate(iso: string): string {
-		if (!iso) return '';
-		const [y, m, d] = iso.split('-');
-		return `${d}/${m}/${y}`;
-	}
 
 	function selecionarDia(iso: string) {
 		if (dataInicio === iso) {

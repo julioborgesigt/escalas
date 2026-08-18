@@ -54,6 +54,7 @@ import { cpfKeys, indiceCPF } from '$lib/crypto/cpf-cripto';
 import { logger } from '$lib/server/logger';
 import forge from 'node-forge';
 import type { RequestHandler } from './$types';
+import { mensagemDeErro } from '$lib/utils/erro';
 
 export const POST: RequestHandler = async (event) => {
 	const { platform, request, cookies, url, getClientAddress } = event;
@@ -148,7 +149,7 @@ export const POST: RequestHandler = async (event) => {
 		await recordAttempt(db, ip, false);
 		logger.warn('[cert-login] Cadeia ICP-Brasil inválida', {
 			cpf: cpfLimpo.slice(0, 3) + '***',
-			error: err instanceof Error ? err.message : String(err)
+			error: mensagemDeErro(err)
 		});
 		return apiError(
 			'Certificado não pertence a uma cadeia ICP-Brasil válida.',

@@ -22,6 +22,7 @@
 
 import { PDFDocument, PDFName, PDFArray, type PDFRef, type PDFDict, type PDFObject } from 'pdf-lib';
 import { logger } from '../logger';
+import { mensagemDeErro } from '$lib/utils/erro';
 
 interface DssData {
 	/** Certificados X.509 em DER (signatário, intermediárias, raiz). */
@@ -323,7 +324,7 @@ async function verificarIncremental(
 		const dss = await detectarDss(output);
 		if (!dss.presente) return { ok: false, motivo: 'DSS ausente após incremental update' };
 	} catch (e) {
-		return { ok: false, motivo: `reparse falhou: ${e instanceof Error ? e.message : String(e)}` };
+		return { ok: false, motivo: `reparse falhou: ${mensagemDeErro(e)}` };
 	}
 	return { ok: true };
 }
@@ -371,7 +372,7 @@ export async function detectarDss(pdfBytes: Uint8Array): Promise<{
 		};
 	} catch (e) {
 		logger.warn('[PAdES-LT] Falha ao detectar DSS', {
-			error: e instanceof Error ? e.message : String(e)
+			error: mensagemDeErro(e)
 		});
 		return { presente: false, certCount: 0, ocspCount: 0, crlCount: 0 };
 	}

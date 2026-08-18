@@ -30,6 +30,7 @@ import { chaveConferencia } from '$lib/server/assinatura/copia-conferencia';
 import { calcularHashBuffer } from '$lib/server/assinatura/document-utils';
 import { bytesToBase64 } from '$lib/crypto/bin';
 import { logger } from '$lib/server/logger';
+import { mensagemDeErro } from '$lib/utils/erro';
 
 export const POST: RequestHandler = async ({
 	platform,
@@ -162,7 +163,7 @@ export const POST: RequestHandler = async ({
 			});
 		} catch (err) {
 			logger.warn('[extra/preparar-assinatura-avancada] Falha na cópia de conferência', {
-				error: err instanceof Error ? err.message : String(err)
+				error: mensagemDeErro(err)
 			});
 		}
 

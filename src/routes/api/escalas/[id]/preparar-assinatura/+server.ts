@@ -7,22 +7,9 @@
  * (intenção + cópia de conferência).
  */
 import type { RequestHandler } from './$types';
-import {
-	getDB,
-	buscarEscala,
-	listarPoliciaisEscala,
-	buscarPolicial,
-	buscarDocumentoEscala
-} from '$lib/db';
+import { getDB, listarPoliciaisEscala, buscarPolicial } from '$lib/db';
 import { prepararAssinaturaSchema } from '$lib/schemas';
-import {
-	requireAuth,
-	badRequest,
-	notFound,
-	forbidden,
-	conflict,
-	validateBody
-} from '$lib/server/api';
+import { requireAuth, badRequest, validateBody } from '$lib/server/api';
 import { gerarPdf, gerarPdfPlantao, gerarPdfExpediente } from '$lib/server/export';
 import {
 	prepararPdfParaAssinatura,
@@ -32,7 +19,7 @@ import {
 import { calcularHashBuffer } from '$lib/server/assinatura/document-utils';
 import { PDFDocument } from 'pdf-lib';
 import { gerarCodigoValidacao } from '$lib/utils/formato';
-import { verificarPermissaoEscala, podeAssinarEscala } from '$lib/server/escalas/permissao';
+import { carregarEscalaParaAssinatura } from '$lib/server/escalas/permissao';
 import { fecharPreparacaoAssinatura } from '$lib/server/assinatura/preparar-ciclo';
 
 export const POST: RequestHandler = async ({
@@ -54,28 +41,15 @@ export const POST: RequestHandler = async ({
 	const ip = getClientAddress();
 	const ua = request.headers.get('user-agent') || '';
 
-	const id = parseInt(params.id!);
-	if (isNaN(id)) return badRequest('ID inválido');
-
 	const db = getDB(platform);
-	const escala = await buscarEscala(db, id);
-	if (!escala) return notFound('Escala');
-
-	// Leitura + quem pode assinar (FLW-AUT-001); documento existente bloqueia novo ciclo (FLW-AUT-004).
-	const perm = await verificarPermissaoEscala(db, id, escala.lotacao, u);
-	if (!perm.permitido) return forbidden(perm.motivo ?? 'Sem permissão para assinar esta escala');
-	if (!podeAssinarEscala(u)) {
-		return forbidden('Apenas Admin Geral ou DPC com papel administrativo pode assinar esta escala');
-	}
-	if (escala.tipo === 'fds') {
-		return badRequest(
-			'Escala de fim de semana não admite assinatura digital — use o fluxo por e-mail'
-		);
-	}
-	const docExistente = await buscarDocumentoEscala(db, id);
-	if (docExistente) {
-		return conflict('Revogue a assinatura existente antes de preparar nova assinatura');
-	}
+	const portao = await carregarEscalaParaAssinatura(
+		db,
+		params.id,
+		u,
+		'Revogue a assinatura existente antes de preparar nova assinatura'
+	);
+	if (portao.recusa) return portao.recusa;
+	const { escala, id } = portao;
 
 	const policiais = await listarPoliciaisEscala(db, id);
 	if (!policiais || policiais.length === 0) {

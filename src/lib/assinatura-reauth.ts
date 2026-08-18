@@ -7,6 +7,7 @@
  * passo. Era isso que fazia o titular cair no 2FA e o POST voltar "confirme
  * a senha" — a janela no servidor já tinha caído, o pad não pedia de novo.
  */
+import { mensagemDeErro } from '$lib/utils/erro';
 export const REAUTH_VALIDADE_MS = 10 * 60 * 1000;
 
 /** Folga para o relógio do aparelho não pular um passo que o servidor já recusaria. */
@@ -24,7 +25,7 @@ const ID_HEX = /^[0-9a-f]{64}$/;
 type Guardado = { v: 1; id: string; exp: number };
 
 export function ehErroReauthAssinatura(e: unknown): boolean {
-	const m = e instanceof Error ? e.message : String(e);
+	const m = mensagemDeErro(e);
 	return m.includes(ERRO_REAUTH_AUSENTE) || m.includes(ERRO_REAUTH_INVALIDA);
 }
 

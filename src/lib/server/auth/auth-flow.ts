@@ -22,6 +22,7 @@ import { administradores, policiais, loginAttempts } from '$lib/server/schema';
 import type { Database } from '$lib/db';
 import { chaveRateLimitIp } from '$lib/server/auth/recovery-rate-limit';
 import { mascararEmail } from '$lib/utils/pii';
+import { mensagemDeErro } from '$lib/utils/erro';
 
 export { mascararEmail };
 
@@ -354,7 +355,7 @@ export async function tentarLogin({
 				const emailJob = enviarCodigo2FA(superEmail, codigo, superAdmin.nome, platform).catch(
 					(err) => {
 						logger.error('[2FA] Falha ao enviar e-mail (super admin)', {
-							error: err instanceof Error ? err.message : String(err)
+							error: mensagemDeErro(err)
 						});
 					}
 				);
@@ -502,7 +503,7 @@ export async function tentarLogin({
 				const emailJob = enviarCodigo2FA(adminGeralEmail, codigo, envAdmin.nome, platform).catch(
 					(err) => {
 						logger.error('[2FA] Falha ao enviar e-mail (admin geral)', {
-							error: err instanceof Error ? err.message : String(err)
+							error: mensagemDeErro(err)
 						});
 					}
 				);
@@ -614,7 +615,7 @@ export async function tentarLogin({
 			const desafioId = await criarDesafio2FA(db, 'admin', admin.id, codigo);
 			const emailJob = enviarCodigo2FA(credEmail, codigo, admin.nome, platform).catch((err) => {
 				logger.error('[2FA] Falha ao enviar e-mail (admin)', {
-					error: err instanceof Error ? err.message : String(err)
+					error: mensagemDeErro(err)
 				});
 			});
 			platform?.ctx?.waitUntil(emailJob);
@@ -700,7 +701,7 @@ export async function tentarLogin({
 		const emailJob = enviarCodigo2FA(policial.email, codigo, policial.nome, platform).catch(
 			(err) => {
 				logger.error('[2FA] Falha ao enviar e-mail (policial)', {
-					error: err instanceof Error ? err.message : String(err)
+					error: mensagemDeErro(err)
 				});
 			}
 		);

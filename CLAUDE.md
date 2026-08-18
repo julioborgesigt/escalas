@@ -116,7 +116,7 @@ de propósito" e "esqueceram o guard" não está no código.
 aceita o que é usado por vários domínios sem pertencer a nenhum: `api.ts`,
 `schema.ts`, `logger.ts`, `sentry.ts`, `request-context.ts`, `csp.ts`,
 `app-origin.ts`, `db-errors.ts`, `email.ts`, `r2-cleanup.ts`,
-`policial-permissao.ts`.
+`policial-permissao.ts`, `edge-cache.ts`.
 
 Todo o resto vai para o domínio correspondente — `assinatura/`, `auth/`,
 `escalas/`, `gise/`, `export/`, `sync/`, `termo/` — junto com seu `__tests__/`.
@@ -215,9 +215,19 @@ de um comentário explicando a armadilha — que não protegeu ninguém:
 | `hoje()` com `toISOString()` (2 sites) | calendário marcava AMANHÃ das 21h à meia-noite, em UTC-3  |
 | laço "dias do intervalo" (3 sites)     | a mesma troca local↔UTC, latente em fuso positivo         |
 | "restrito ao Admin Geral" (5 arquivos) | o gate era Super Admin; o comentário convidava a afrouxar |
+| portão de assinar escala (5 rotas)     | uma das cinco não recusava escala FDS                     |
+| fallback de hora do plantão (3 sites)  | `'08:00'` numa tela, `'08'` (o default da coluna) nas outras |
 
-As três últimas linhas saíram da varredura de documentação — foram achadas por
-LEITURA, não por teste, e duas delas quebravam em produção.
+As três primeiras linhas depois de `toISO` saíram da varredura de documentação —
+foram achadas por LEITURA, não por teste, e duas delas quebravam em produção.
+
+As duas últimas são de ago/2026 e repetem a forma: o portão de assinatura rodava
+copiado em cinco `+server.ts`, e `finalizar-assinatura-avancada` era o único sem
+o gate de FDS (FLW-AUT-012). Não havia buraco explorável — a preparação já
+barrava pela intenção —, mas era a quinta cópia esperando que alguém removesse a
+recusa do lugar que ainda a tinha. Hoje as cinco entram por
+`carregarEscalaParaAssinatura`, e `HELPERS_OBRIGATORIOS` exige o nome do PORTÃO,
+não o de `podeAssinarEscala`: é isso que impede a rota de remontar o gate à mão.
 
 Comentário protege quem lê **aquele** arquivo. Extração protege quem não sabe
 que o arquivo existe — que é justamente quem quebra o sistema. E comentário
@@ -227,6 +237,18 @@ inconsistência" na direção da frase.
 Corolário prático: se a extração exigir tantos props que o componente comum
 fique pior que a duplicação, **registre a decisão no código** em vez de
 extrair (ver a grade dos três calendários e o barrel `lib/db.ts`).
+
+Desde ago/2026 isso é verificado no CI por `npm run guard:duplicacao`: bloco de
+10 linhas repetido entre arquivos reprova, a menos que já esteja em
+`scripts/duplicacao-baseline.json`. A baseline existe porque **não há meta de
+"0% duplicado"** — o corolário acima continua valendo, e as decisões de MANTER
+moram lá, cada uma com o motivo no campo `nota`. Só duplicação NOVA reprova.
+
+`--atualizar` regrava a baseline, e não é o jeito de fazer o guard passar:
+regravar sem extrair troca um achado por uma linha de JSON, que é a versão
+automatizada de "comentar em vez de extrair". O guard tem um limite conhecido —
+bloco menor que 10 linhas relevantes é invisível para ele, e o portão de
+assinatura GISE está nessa faixa. Ele reduz a classe do problema, não a elimina.
 
 ## Artefato com valor jurídico: golden antes de refatorar
 

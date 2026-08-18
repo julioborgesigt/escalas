@@ -8,6 +8,7 @@
  */
 import { logger } from '../logger';
 import { enviarAvisoChaveAssinatura, type EventoAvisoChaveAssinatura } from '../email';
+import { mensagemDeErro } from '$lib/utils/erro';
 
 /**
  * Best-effort. Sem e-mail ou sem identificador, não envia. Nunca relança.
@@ -45,7 +46,7 @@ export async function avisarChaveNoEmailFuncional(
 	} catch (err) {
 		logger.warn('[aviso-chave] Falha ao enviar aviso ao e-mail funcional', {
 			evento: opts.evento,
-			error: err instanceof Error ? err.message : String(err)
+			error: mensagemDeErro(err)
 		});
 	}
 }

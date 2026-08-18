@@ -25,6 +25,7 @@ import forge from 'node-forge';
 import { binStringToBytes, bytesToBinString } from '$lib/crypto/bin';
 import { logger } from '../logger';
 import { urlOcspPermitida } from './ocsp';
+import { mensagemDeErro } from '$lib/utils/erro';
 
 const OID_SHA256 = '2.16.840.1.101.3.4.2.1';
 
@@ -172,7 +173,7 @@ export async function solicitarCarimboTempo(
 	} catch (e) {
 		return {
 			ok: false,
-			error: `Falha ao montar TimeStampReq: ${e instanceof Error ? e.message : String(e)}`
+			error: `Falha ao montar TimeStampReq: ${mensagemDeErro(e)}`
 		};
 	}
 
@@ -203,7 +204,7 @@ export async function solicitarCarimboTempo(
 		const token = extrairTokenDaResposta(respBytes);
 		return { ok: true, tstDer: token.tstDer, tstAsn1: token.tstAsn1 };
 	} catch (e) {
-		const msg = e instanceof Error ? e.message : String(e);
+		const msg = mensagemDeErro(e);
 		logger.warn('[TSA] Falha ao solicitar carimbo de tempo', {
 			url: config.url,
 			error: msg

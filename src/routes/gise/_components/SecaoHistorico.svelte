@@ -34,6 +34,7 @@
 	import { SvelteURLSearchParams } from 'svelte/reactivity';
 	import { CICLOS, getCicloRange } from '$lib/gise/ciclos';
 	import Download from '@lucide/svelte/icons/download';
+	import { mensagemDeErro } from '$lib/utils/erro';
 
 	/**
 	 * Bloco "Histórico" da lista `/gise`: escalas finalizadas, com filtros
@@ -161,7 +162,7 @@
 		} catch (err) {
 			toaster.error({
 				title: 'Falha no download',
-				description: err instanceof Error ? err.message : String(err)
+				description: mensagemDeErro(err)
 			});
 		} finally {
 			loading.hide();

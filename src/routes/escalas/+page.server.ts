@@ -61,6 +61,7 @@ import {
 } from '$lib/server/schema';
 import { primeiroDiaDoMes, ultimoDiaDoMes, MESES_PT } from '$lib/rotacao';
 import { projetarLinhasMesSeguinte } from '$lib/server/escalas/projetar-mes';
+import { mensagemDeErro } from '$lib/utils/erro';
 
 export const load: PageServerLoad = async ({ locals, platform, url, depends }) => {
 	// Chave de invalidação segmentada: mutações da listagem (excluir, solicitar/
@@ -364,7 +365,7 @@ export const actions: Actions = {
 			logger.error('[escalas/criar] Erro interno ao criar escala', {
 				lotacao,
 				tipo,
-				error: err instanceof Error ? err.message : String(err),
+				error: mensagemDeErro(err),
 				stack: err instanceof Error ? err.stack : undefined
 			});
 			return fail(500, {
@@ -527,7 +528,7 @@ export const actions: Actions = {
 				tipo,
 				mes,
 				ano,
-				error: err instanceof Error ? err.message : String(err)
+				error: mensagemDeErro(err)
 			});
 			return fail(500, { error: 'Erro interno ao criar escala' });
 		}

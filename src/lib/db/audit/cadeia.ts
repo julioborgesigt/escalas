@@ -11,6 +11,7 @@
 import { bytesToHex, hexToBytes } from '../../crypto/hex';
 import { logger } from '../../server/logger';
 import { sha256Hex } from '../../crypto/digest';
+import { mensagemDeErro } from '$lib/utils/erro';
 
 // ---- Configuração de criptografia ------------------------------------------
 
@@ -130,7 +131,7 @@ export async function calcularHashRegistro(
 			return 'h:' + (await hmacHex(chainKey, material));
 		} catch (err) {
 			logger.warn('[audit] AUDIT_CHAIN_KEY inválida — usando SHA-256 neste registro', {
-				error: err instanceof Error ? err.message : String(err)
+				error: mensagemDeErro(err)
 			});
 		}
 	}

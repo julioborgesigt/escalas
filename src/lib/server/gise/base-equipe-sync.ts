@@ -28,6 +28,7 @@ import { baseEquipePendencias } from '$lib/server/schema';
 import { montarLinhasBaseEquipeGise } from '$lib/db/gise/planilha-base-equipe-dados';
 import type { Database } from '$lib/db/core';
 import { logger } from '$lib/server/logger';
+import { mensagemDeErro } from '$lib/utils/erro';
 
 const LIMITE_MOTIVO_SYNC = 500;
 const LOTE_REPROCESSAMENTO_SYNC = 50;
@@ -220,7 +221,7 @@ export async function executarSyncBaseEquipeGiseComResultado(
 		logger.info('[GISE Base_Equipe] Linhas sincronizadas', { giseId, count: rows.length });
 		return { ok: true, linhas: rows.length };
 	} catch (e) {
-		const msg = e instanceof Error ? e.message : String(e);
+		const msg = mensagemDeErro(e);
 		logger.error('[GISE Base_Equipe] Exceção no sync', { giseId, error: msg });
 		return { ok: false, error: msg };
 	}
@@ -254,7 +255,7 @@ async function registrarPendenciaBaseEquipe(
 	} catch (e) {
 		logger.error('[GISE Base_Equipe] Falha ao registrar PENDÊNCIA — envio perdido de vista', {
 			giseId,
-			error: e instanceof Error ? e.message : String(e)
+			error: mensagemDeErro(e)
 		});
 	}
 }
@@ -355,7 +356,7 @@ async function syncGiseBaseEquipeAposFinalizar(
 			'[GISE Base_Equipe] Sync OK mas falhou ao gravar planilha_base_equipe_alimentada_em',
 			{
 				giseId,
-				error: e instanceof Error ? e.message : String(e)
+				error: mensagemDeErro(e)
 			}
 		);
 	}
@@ -377,7 +378,7 @@ export function agendarSyncBaseEquipeAposFinalizar(
 		void job.catch((e) =>
 			logger.error('[GISE Base_Equipe] Sync (sem waitUntil) falhou', {
 				giseId,
-				error: e instanceof Error ? e.message : String(e)
+				error: mensagemDeErro(e)
 			})
 		);
 	}

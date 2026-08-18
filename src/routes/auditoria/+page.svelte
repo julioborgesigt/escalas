@@ -31,6 +31,7 @@
 	import KpiCard from './_components/KpiCard.svelte';
 	import ChipNivel from './_components/ChipNivel.svelte';
 	import { parseJson } from './_components/parse-json';
+	import { mensagemDeErro } from '$lib/utils/erro';
 
 	const { data, form }: PageProps = $props();
 
@@ -129,7 +130,7 @@
 		} catch (e: unknown) {
 			toaster.error({
 				title: 'Exportação',
-				description: e instanceof Error ? e.message : 'Não foi possível gerar o arquivo.'
+				description: mensagemDeErro(e, 'Não foi possível gerar o arquivo.')
 			});
 		} finally {
 			baixando = false;

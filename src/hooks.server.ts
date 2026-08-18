@@ -42,6 +42,7 @@ import { CSRF_COOKIE_NAME, CSRF_HEADER_NAME, generateCsrfToken } from '$lib/serv
 import { buildCSP } from '$lib/server/csp';
 import { withSentryRequest } from '$lib/server/sentry';
 import { apiError, ErrorCode } from '$lib/server/api';
+import { mensagemDeErro } from '$lib/utils/erro';
 
 const ROTAS_PUBLICAS = new Set([
 	'/login',
@@ -400,7 +401,7 @@ export const handleError: HandleServerError = ({ error, event }) => {
 		errorId,
 		path: event.url.pathname,
 		method: event.request.method,
-		message: error instanceof Error ? error.message : String(error),
+		message: mensagemDeErro(error),
 		...(isDevBuild && error instanceof Error && error.stack ? { stack: error.stack } : {})
 	});
 

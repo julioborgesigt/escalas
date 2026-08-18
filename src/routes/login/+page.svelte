@@ -36,6 +36,7 @@
 	import Form2FA from './_components/Form2FA.svelte';
 	import FormPrimeiroAcesso from './_components/FormPrimeiroAcesso.svelte';
 	import FormRecuperacaoSenha from './_components/FormRecuperacaoSenha.svelte';
+	import { mensagemDeErro } from '$lib/utils/erro';
 
 	type ActionData = Record<string, unknown> | undefined;
 	type FormResult = ActionResult<ActionData, ActionData>;
@@ -236,7 +237,7 @@
 			toaster.create({ title: 'Código reenviado com sucesso!', type: 'success' });
 		} catch (e: unknown) {
 			toaster.create({
-				title: e instanceof Error ? e.message : 'Erro ao reenviar código',
+				title: mensagemDeErro(e, 'Erro ao reenviar código'),
 				type: 'error'
 			});
 			// Repassa o erro para o CodigoTimer não reiniciar a contagem.
@@ -297,8 +298,7 @@
 			const dest = data.redirect ?? (data.primeiro_acesso ? '/alterar-senha' : '/escalas');
 			await navegarAposLogin(dest, true);
 		} catch (err: unknown) {
-			const msg =
-				err instanceof Error ? err.message : 'Erro ao autenticar com certificado digital.';
+			const msg = mensagemDeErro(err, 'Erro ao autenticar com certificado digital.');
 			loginError = msg;
 			toaster.create({ title: msg, type: 'error' });
 		} finally {
@@ -387,7 +387,7 @@
 			codigoRec = '';
 		} catch (e: unknown) {
 			toaster.create({
-				title: e instanceof Error ? e.message : 'Código inválido ou expirado.',
+				title: mensagemDeErro(e, 'Código inválido ou expirado.'),
 				type: 'error'
 			});
 		} finally {

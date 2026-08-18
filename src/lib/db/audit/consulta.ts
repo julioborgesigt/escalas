@@ -10,7 +10,7 @@
  */
 import { desc, asc, eq, and, gte, lte, isNotNull, sql } from 'drizzle-orm';
 import { auditCheckpoints, auditLog } from '../../server/schema';
-import { paginarComContagem, timestampSqliteUtc, type Database } from '../core';
+import { paginarComContagem, timestampSqliteUtc, escapeLike, type Database } from '../core';
 import type { AuditLog } from '../../server/schema';
 import { type AuditResultado, type AuditSeveridade, type AuditActorTipo } from './catalogo';
 import {
@@ -22,11 +22,6 @@ import {
 } from './cadeia';
 
 // ---- Consulta ---------------------------------------------------------------
-
-/** Escapa caracteres especiais do LIKE para evitar wildcard injection. */
-function escapeLike(str: string): string {
-	return str.replace(/[%_\\]/g, '\\$&');
-}
 
 export interface ListarAuditOpts {
 	usuario_id?: number;

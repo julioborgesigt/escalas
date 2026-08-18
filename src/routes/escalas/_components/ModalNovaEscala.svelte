@@ -26,7 +26,8 @@
 		isoData,
 		diasNoMes,
 		labelFds,
-		adicionarDias
+		adicionarDias,
+		formatarDiaMes
 	} from '$lib/utils/datas';
 	import Moon from '@lucide/svelte/icons/moon';
 	import Sun from '@lucide/svelte/icons/sun';
@@ -148,10 +149,6 @@
 	function nextAno(): number {
 		const h = new Date();
 		return h.getMonth() + 1 === 12 ? h.getFullYear() + 1 : h.getFullYear();
-	}
-	function fmtDia(iso: string): string {
-		const [, m, d] = iso.split('-');
-		return `${d}/${m}`;
 	}
 	function sabadoDaSemanaLocal(): Date {
 		const hoje = new Date();
@@ -483,11 +480,11 @@
 									<span
 										class="inline-flex items-center gap-0.5 pl-1.5 pr-0.5 py-0.5 rounded-md text-3xs font-medium border shrink-0 border-warning-400/80 bg-warning-500/10 text-warning-900 dark:text-warning-100"
 									>
-										{fmtDia(iso)}
+										{formatarDiaMes(iso)}
 										<button
 											type="button"
 											class="p-0.5 rounded text-surface-400 hover:text-error-600 dark:hover:text-error-400 shrink-0"
-											aria-label="Remover {fmtDia(iso)}"
+											aria-label="Remover {formatarDiaMes(iso)}"
 											onclick={() => (fdsDias = fdsDias.filter((d) => d !== iso))}
 										>
 											<svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"

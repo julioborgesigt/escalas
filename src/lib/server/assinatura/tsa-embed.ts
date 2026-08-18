@@ -33,6 +33,7 @@ import { logger } from '../logger';
 import { solicitarCarimboTempo } from './tsa';
 import { adicionarTimestampTokenAoCms } from './cms-tst';
 import { embedCmsBytesNoPlaceholder } from './pdf-signing-prepare';
+import { mensagemDeErro } from '$lib/utils/erro';
 
 export interface CarimboTempoAnexado {
 	/** PDF com o TST embutido — ou o de entrada, inalterado, se não houve carimbo. */
@@ -91,7 +92,7 @@ export async function anexarCarimboTempo(
 		};
 	} catch (e) {
 		logger.warn(`${contexto} Erro ao anexar carimbo de tempo — assinatura mantida sem TST`, {
-			error: e instanceof Error ? e.message : String(e)
+			error: mensagemDeErro(e)
 		});
 		return semCarimbo;
 	}

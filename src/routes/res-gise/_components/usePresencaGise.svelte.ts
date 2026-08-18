@@ -28,10 +28,7 @@ import type { SignaturePadConfirmPayload } from '$lib/components/SignaturePadTyp
 import { assinarPresencaComPasskey } from '$lib/assinatura-passkey';
 import { ehErroReauthAssinatura } from '$lib/assinatura-reauth';
 import { navigateWithFilters } from './res-gise-navegacao.svelte';
-
-function messageFromUnknown(e: unknown): string {
-	return e instanceof Error ? e.message : String(e);
-}
+import { mensagemDeErro } from '$lib/utils/erro';
 
 function erroDaAction(result: ActionResult, fallback: string): string {
 	if (result.type === 'failure') {
@@ -215,7 +212,7 @@ export function usePresencaGise(getData: () => ResGisePageData) {
 			reaplicarEscalaSelecionada(tipo);
 		} catch (e: unknown) {
 			if (ehErroReauthAssinatura(e)) throw e;
-			toaster.error({ title: 'Erro', description: messageFromUnknown(e) });
+			toaster.error({ title: 'Erro', description: mensagemDeErro(e) });
 		} finally {
 			loading.hide();
 		}
@@ -266,7 +263,7 @@ export function usePresencaGise(getData: () => ResGisePageData) {
 				`relatorio_produtividade_${escala.seccional_nome}_${escala.data_inicio}.pdf`
 			);
 		} catch (e: unknown) {
-			toaster.error({ title: 'Erro no Download', description: messageFromUnknown(e) });
+			toaster.error({ title: 'Erro no Download', description: mensagemDeErro(e) });
 		} finally {
 			loading.hide();
 			idProdutividadeBaixando = null;
@@ -288,7 +285,7 @@ export function usePresencaGise(getData: () => ResGisePageData) {
 				`relatorio_extraordinario_${escala.seccional_nome}_${escala.data_inicio}.pdf`
 			);
 		} catch (e: unknown) {
-			toaster.error({ title: 'Erro no Download', description: messageFromUnknown(e) });
+			toaster.error({ title: 'Erro no Download', description: mensagemDeErro(e) });
 		} finally {
 			loading.hide();
 			idExtraBaixando = null;
@@ -313,7 +310,7 @@ export function usePresencaGise(getData: () => ResGisePageData) {
 			);
 			baixarBlob(await res.blob(), nome);
 		} catch (e: unknown) {
-			toaster.error({ title: 'Erro no Download', description: messageFromUnknown(e) });
+			toaster.error({ title: 'Erro no Download', description: mensagemDeErro(e) });
 		} finally {
 			loading.hide();
 			termoBaixando = null;

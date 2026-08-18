@@ -41,7 +41,7 @@ import {
 } from './server/schema';
 import type { Database } from './db';
 import { aceiteEhVigente } from './db/termos';
-import { sha256Hex } from './crypto/digest';
+import { sha256Hex, hashTokenArmazenado, PREFIXO_TOKEN_HASH } from './crypto/digest';
 import { comparacaoTimingSafe } from './crypto/timing-safe';
 import { gerarTokenOpaco } from './crypto/token';
 import { decifrarCpfDoDB } from './crypto/cpf-cripto';
@@ -143,12 +143,6 @@ export const gerarToken = gerarTokenOpaco;
 // de operador) não permite sequestrar sessões ativas nem resets pendentes.
 // O prefixo distingue hash de token legado em claro (ambos têm 64 hex chars);
 // linhas legadas são aceitas em fallback e migradas para hash no primeiro uso.
-
-const TOKEN_HASH_PREFIX = 'sha256:';
-
-async function hashTokenArmazenado(token: string): Promise<string> {
-	return `${TOKEN_HASH_PREFIX}${await sha256Hex(token)}`;
-}
 
 /**
  * Compara dois segredos em texto (ex.: `ADMIN_GERAL_SENHA`) de forma timing-safe.
@@ -564,7 +558,7 @@ export async function verificarTokenRedefinicao(
 	// revelar se o token existe (timing oracle).
 	const SENTINEL = '0'.repeat(tokenHash.length);
 	const storedToken = row?.token ?? SENTINEL;
-	const esperado = storedToken.startsWith(TOKEN_HASH_PREFIX) ? tokenHash : tokenInput;
+	const esperado = storedToken.startsWith(PREFIXO_TOKEN_HASH) ? tokenHash : tokenInput;
 	const tokensConferem = comparacaoTimingSafe(storedToken, esperado);
 
 	if (!row || row.usado === 1 || !tokensConferem) {
