@@ -49,7 +49,6 @@ const ROTAS_PUBLICAS = new Set([
 	'/api/auth/login',
 	'/api/auth/verificar-2fa',
 	'/api/auth/reenviar-codigo',
-	'/api/auth/primeiro-acesso',
 	'/api/auth/solicitar-redefinicao',
 	'/api/auth/confirmar-redefinicao',
 	'/api/auth/certificado',

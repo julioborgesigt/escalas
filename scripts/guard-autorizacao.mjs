@@ -85,7 +85,6 @@ export const DECLARADAS = {
 	// ---- Pré-autenticação: não há sessão para exigir ----
 	'src/routes/api/auth/login/+server.ts → POST': 'login: cria a sessão',
 	'src/routes/api/auth/logout/+server.ts → POST': 'logout: destrói a própria sessão',
-	'src/routes/api/auth/primeiro-acesso/+server.ts → POST': 'primeiro acesso: antes da senha',
 	'src/routes/api/auth/reenviar-codigo/+server.ts → POST': 'reenvia o 2FA do login em curso',
 	'src/routes/api/auth/solicitar-redefinicao/+server.ts → POST': 'esqueci a senha: sem sessão',
 	'src/routes/api/auth/confirmar-redefinicao/+server.ts → POST':
@@ -145,7 +144,6 @@ export const DECLARADAS = {
 export const PUBLICAS = [
 	'src/routes/api/auth/login/+server.ts',
 	'src/routes/api/auth/logout/+server.ts',
-	'src/routes/api/auth/primeiro-acesso/+server.ts',
 	'src/routes/api/auth/reenviar-codigo/+server.ts',
 	'src/routes/api/auth/verificar-2fa/+server.ts',
 	'src/routes/api/auth/solicitar-redefinicao/+server.ts',

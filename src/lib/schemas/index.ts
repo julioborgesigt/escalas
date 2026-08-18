@@ -5,7 +5,6 @@ export {
 	alterarSenhaSchema,
 	verificar2faSchema,
 	reenviarCodigoSchema,
-	primeiroAcessoSchema,
 	solicitarRedefinicaoSchema,
 	confirmarRedefinicaoSchema,
 	solicitarVerificacaoEmailSchema,
