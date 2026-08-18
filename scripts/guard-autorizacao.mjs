@@ -192,6 +192,20 @@ export const HELPERS_OBRIGATORIOS = {
 	// Revogar não passa pelo portão (não há o que conflitar): gate direto.
 	'src/routes/api/escalas/[id]/documento-assinado/+server.ts': ['podeAssinarEscala'],
 
+	// FLW-AUT-010 — assinar GISE é supervisor designado ou Admin Geral, e só em
+	// status que admite assinatura. As cinco rotas entram pelo mesmo portão; a
+	// exceção de `preparar-assinatura` (que recusa admin) é PARÂMETRO nele, não
+	// uma sexta cópia. Exigir o nome do portão é o que impede remontá-lo à mão.
+	'src/routes/api/gise/[id]/assinar-simples/+server.ts': ['carregarGiseParaAssinatura'],
+	'src/routes/api/gise/[id]/preparar-assinatura/+server.ts': ['carregarGiseParaAssinatura'],
+	'src/routes/api/gise/[id]/finalizar-assinatura/+server.ts': ['carregarGiseParaAssinatura'],
+	'src/routes/api/gise/[id]/preparar-assinatura-avancada/+server.ts': [
+		'carregarGiseParaAssinatura'
+	],
+	'src/routes/api/gise/[id]/finalizar-assinatura-avancada/+server.ts': [
+		'carregarGiseParaAssinatura'
+	],
+
 	// FLW-AUT-010 — GISE `finalizada` não muta pela porta dos fundos
 	'src/routes/gise/[id]/_actions/actions-escala.ts': ['carregarGiseEditavel'],
 	'src/routes/gise/[id]/_actions/actions-escala.ts → reabrirEscala': ['exigirAdminGeral'],
@@ -250,7 +264,7 @@ function helpersDaOperacao(arquivo, nome) {
 // carrega mais o helper, e o par nome-aqui + HELPERS_OBRIGATORIOS abaixo passa
 // a exigir a chamada no corpo de CADA uma.
 const RE_403 =
-	/fail\(403|forbidden\(|status:\s*403|error\(403|requireAdmin\(|requireSuperAdmin\(|exigirAdminGeral\(|carregarEscalaComPermissao\(|carregarEscalaParaAssinatura\(/;
+	/fail\(403|forbidden\(|status:\s*403|error\(403|requireAdmin\(|requireSuperAdmin\(|exigirAdminGeral\(|carregarEscalaComPermissao\(|carregarEscalaParaAssinatura\(|carregarGiseParaAssinatura\(/;
 const RE_401 = /fail\(401|unauthorized\(|requireAuth\(|error\(401/;
 
 /** Do índice da chave `{`, devolve o bloco balanceado. */

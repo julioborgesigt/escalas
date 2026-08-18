@@ -7,17 +7,8 @@
  */
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { getDB, buscarGiseEscala, buscarGiseDetalhado, tryGetR2 } from '$lib/db';
-import {
-	apiError,
-	ErrorCode,
-	badRequest,
-	notFound,
-	forbidden,
-	serverError,
-	requireAuth,
-	validateBody
-} from '$lib/server/api';
+import { getDB, buscarGiseDetalhado, tryGetR2 } from '$lib/db';
+import { apiError, ErrorCode, serverError, requireAuth, validateBody } from '$lib/server/api';
 import { assinarSimplesSchema } from '$lib/schemas';
 import { validarEvidenciasAvancada } from '$lib/server/assinatura/signature-service';
 import { giseDetalhadoComMatriculaSupervisorSessao } from '$lib/server/export';
@@ -34,6 +25,7 @@ import { calcularHashBuffer } from '$lib/server/assinatura/document-utils';
 import { bytesToBase64 } from '$lib/crypto/bin';
 import { logger } from '$lib/server/logger';
 import { mensagemDeErro } from '$lib/utils/erro';
+import { carregarGiseParaAssinatura } from '$lib/server/gise/permissao';
 
 export const POST: RequestHandler = async ({
 	platform,
@@ -49,18 +41,10 @@ export const POST: RequestHandler = async ({
 
 	const ip = getClientAddress();
 	const ua = request.headers.get('user-agent') || '';
-	const id = parseInt(params.id!);
-	if (isNaN(id)) return badRequest('ID inválido');
-
 	const db = getDB(platform);
-	const gise = await buscarGiseEscala(db, id);
-	if (!gise) return notFound('Escala GISE');
-	if (gise.status !== 'aguardando_assinatura' && gise.status !== 'em_andamento') {
-		return badRequest('A escala não está pronta para assinatura');
-	}
-	if (u.tipo !== 'admin' && gise.supervisor_id !== u.id) {
-		return forbidden('Apenas o supervisor designado ou administradores podem assinar');
-	}
+	const portao = await carregarGiseParaAssinatura(db, params.id, u);
+	if (portao.recusa) return portao.recusa;
+	const { gise, id } = portao;
 
 	const chave = await exigirChaveAtiva(db, credencialDoUsuario(u), ua);
 	if ('recusa' in chave) return chave.recusa;

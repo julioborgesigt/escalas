@@ -7,21 +7,8 @@
  */
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import {
-	getDB,
-	buscarGiseEscala,
-	registrarUsoCredencial,
-	registrarAuditComContexto,
-	tryGetR2
-} from '$lib/db';
-import {
-	badRequest,
-	notFound,
-	forbidden,
-	serverError,
-	requireAuth,
-	validateBody
-} from '$lib/server/api';
+import { getDB, registrarUsoCredencial, registrarAuditComContexto, tryGetR2 } from '$lib/db';
+import { serverError, requireAuth, validateBody } from '$lib/server/api';
 import { finalizarPasskeyEscalaSchema } from '$lib/schemas';
 import { persistirGiseAssinada } from '$lib/server/gise/assinatura-gise';
 import { descreverVinculoCredencial } from '$lib/server/assinatura/webauthn/authenticator-data';
@@ -30,6 +17,7 @@ import {
 	evidenciasDaProva
 } from '$lib/server/assinatura/webauthn/finalizar-avancada';
 import { bucketParaAssinatura } from '$lib/server/assinatura/blob-assinado';
+import { carregarGiseParaAssinatura } from '$lib/server/gise/permissao';
 
 export const POST: RequestHandler = async ({
 	platform,
@@ -44,18 +32,10 @@ export const POST: RequestHandler = async ({
 
 	const ip = getClientAddress();
 	const ua = request.headers.get('user-agent') || '';
-	const id = parseInt(params.id!);
-	if (isNaN(id)) return badRequest('ID inválido');
-
 	const db = getDB(platform);
-	const gise = await buscarGiseEscala(db, id);
-	if (!gise) return notFound('Escala GISE');
-	if (gise.status !== 'aguardando_assinatura' && gise.status !== 'em_andamento') {
-		return badRequest('A escala não está pronta para assinatura');
-	}
-	if (u.tipo !== 'admin' && gise.supervisor_id !== u.id) {
-		return forbidden('Apenas o supervisor designado ou administradores podem assinar');
-	}
+	const portao = await carregarGiseParaAssinatura(db, params.id, u);
+	if (portao.recusa) return portao.recusa;
+	const { gise, id } = portao;
 
 	const validated = await validateBody(request, finalizarPasskeyEscalaSchema);
 	if (!validated.ok) return validated.response;

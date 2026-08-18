@@ -1,12 +1,14 @@
 /**
  * Autorização do domínio GISE: participação (admin seccional/unidade), quadro
- * de supervisão e vínculo de equipe. Não há `autorizar()` único — a regra
- * deste domínio mora aqui.
+ * de supervisão, vínculo de equipe e o portão das rotas de assinatura
+ * (`carregarGiseParaAssinatura`). Não há `autorizar()` único — a regra deste
+ * domínio mora aqui.
  */
 import { and, eq, or } from 'drizzle-orm';
 import { giseEquipes, giseMembros, giseSeccionais } from '../schema';
 import type { GiseEscala } from '../schema';
-import type { Database } from '$lib/db';
+import { buscarGiseEscala, type Database } from '$lib/db';
+import { badRequest, forbidden, notFound } from '$lib/server/api';
 
 /**
  * Um admin seccional/unidade PARTICIPA de uma GISE quando a unidade que ele
@@ -99,4 +101,65 @@ export async function verificarPermissaoGise(
 	}
 
 	return { permitido: false, motivo: 'Sem permissão para acessar esta GISE.' };
+}
+
+/**
+ * Portão das cinco rotas de assinatura da GISE (`assinar-simples`, os dois
+ * passos da avançada e os dois da qualificada): id válido → GISE existe →
+ * status admite assinatura → quem chama pode assinar.
+ *
+ * As cinco rodavam a mesma sequência copiada, e a cópia divergiu num ponto que
+ * a leitura lado a lado revela: **`preparar-assinatura` é a única que NÃO
+ * admite Admin Geral.** As outras quatro liberam `u.tipo === 'admin'`.
+ *
+ * A divergência é contraditória com ela mesma, e é por isso que ela está aqui
+ * como parâmetro NOMEADO em vez de resolvida em silêncio: `preparar-assinatura`
+ * emite a intenção que `finalizar-assinatura` consome, então um admin nunca
+ * obtém intenção para o fluxo qualificado — o que torna a permissão de admin
+ * do `finalizar` **inalcançável**. Uma das duas está errada:
+ *
+ *   - se assinar GISE com token A3 é ato pessoal do supervisor designado, o
+ *     `finalizar` é que deveria recusar admin (hoje aceita, sem efeito);
+ *   - se o Admin Geral pode assinar, o `preparar` é que perdeu a cláusula.
+ *
+ * Não é decisão de refatoração: mudar qualquer um dos lados MUDA quem assina um
+ * documento com valor jurídico. Até que alguém decida, o portão preserva o
+ * comportamento de cada rota, e `admitirAdmin: false` marca a exceção no lugar
+ * onde ela pode ser vista — em vez de numa quinta cópia onde ninguém a compara.
+ *
+ * Devolve `{ gise, id }` ou `{ recusa }` — a rota só repassa a `recusa`.
+ *
+ * @param admitirAdmin `true` (padrão) libera `u.tipo === 'admin'` além do
+ *   supervisor designado. `preparar-assinatura` passa `false`.
+ */
+export async function carregarGiseParaAssinatura(
+	db: Database,
+	idParam: string | undefined,
+	u: NonNullable<App.Locals['usuario']>,
+	opts: { admitirAdmin?: boolean } = {}
+): Promise<{ gise: GiseEscala; id: number; recusa?: never } | { recusa: Response; gise?: never }> {
+	const admitirAdmin = opts.admitirAdmin ?? true;
+
+	const id = parseInt(idParam!);
+	if (isNaN(id)) return { recusa: badRequest('ID inválido') };
+
+	const gise = await buscarGiseEscala(db, id);
+	if (!gise) return { recusa: notFound('Escala GISE') };
+
+	if (gise.status !== 'aguardando_assinatura' && gise.status !== 'em_andamento') {
+		return { recusa: badRequest('A escala não está pronta para assinatura') };
+	}
+
+	const ehAdminLiberado = admitirAdmin && u.tipo === 'admin';
+	if (!ehAdminLiberado && gise.supervisor_id !== u.id) {
+		return {
+			recusa: forbidden(
+				admitirAdmin
+					? 'Apenas o supervisor designado ou administradores podem assinar'
+					: 'Apenas o Supervisor designado pode assinar esta escala'
+			)
+		};
+	}
+
+	return { gise, id };
 }
