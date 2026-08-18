@@ -47,7 +47,7 @@
 	} from '$lib/composables';
 	import type { ActionResult } from '@sveltejs/kit';
 	import { loading as loadingService } from '$lib/loading.svelte';
-	import SearchableSelect from '$lib/components/SearchableSelect.svelte';
+	import CampoFiltroSelect from '$lib/components/CampoFiltroSelect.svelte';
 	import ModalShell from '$lib/components/ModalShell.svelte';
 	import BadgeTipoEscala from '$lib/components/BadgeTipoEscala.svelte';
 	import EstadoVazio from '$lib/components/EstadoVazio.svelte';
@@ -337,15 +337,14 @@
 	<!-- Filtros Rápidos -->
 	<div class="p-4 sm:p-5 mb-4 rounded-2xl card-glass flex flex-col gap-4">
 		<div class="flex flex-col lg:flex-row gap-3 items-stretch lg:items-end w-full">
-			<div class="flex flex-col gap-1 w-full lg:w-48">
-				<span class="label-text text-sm font-semibold">Seccional</span>
-				<SearchableSelect
-					options={seccionaisOptions}
-					bind:value={filtroSeccional}
-					ariaLabel="Filtrar por seccional"
-					placeholder="Todas"
-				/>
-			</div>
+			<CampoFiltroSelect
+				label="Seccional"
+				width="lg:w-48"
+				options={seccionaisOptions}
+				bind:value={filtroSeccional}
+				ariaLabel="Filtrar por seccional"
+				placeholder="Todas"
+			/>
 
 			<label class="label w-full lg:w-64">
 				<span class="label-text text-sm font-semibold mb-1">Unidade</span>
@@ -362,25 +361,23 @@
 				</div>
 			</label>
 
-			<div class="flex flex-col gap-1 w-full lg:w-28">
-				<span class="label-text text-sm font-semibold">Ano</span>
-				<SearchableSelect
-					options={anosOptions}
-					bind:value={filtroAno}
-					ariaLabel="Filtrar por ano"
-					placeholder="Todos"
-				/>
-			</div>
+			<CampoFiltroSelect
+				label="Ano"
+				width="lg:w-28"
+				options={anosOptions}
+				bind:value={filtroAno}
+				ariaLabel="Filtrar por ano"
+				placeholder="Todos"
+			/>
 
-			<div class="flex flex-col gap-1 w-full lg:w-36">
-				<span class="label-text text-sm font-semibold">Mês</span>
-				<SearchableSelect
-					options={mesesOptions}
-					bind:value={filtroMes}
-					ariaLabel="Filtrar por mês"
-					placeholder="Todos"
-				/>
-			</div>
+			<CampoFiltroSelect
+				label="Mês"
+				width="lg:w-36"
+				options={mesesOptions}
+				bind:value={filtroMes}
+				ariaLabel="Filtrar por mês"
+				placeholder="Todos"
+			/>
 
 			<div class="flex items-center justify-between sm:justify-start gap-4 pb-2 lg:pb-3 lg:pl-2">
 				<label class="flex items-center gap-2 cursor-pointer select-none">

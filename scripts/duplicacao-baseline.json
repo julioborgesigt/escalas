@@ -36,16 +36,6 @@
 			"nota": "DUP-MANTER: assinatura de handler SvelteKit + linha de import, não lógica. As rotas de assinatura GISE desestruturam o mesmo `{ platform, params, locals, url, request, getClientAddress }` e importam o mesmo portão — a lógica que compartilhavam saiu para `carregarGiseParaAssinatura` em ago/2026. Não há o que extrair de uma assinatura de handler."
 		},
 		{
-			"id": "0b645f61c0a6",
-			"arquivos": [
-				"src/routes/painel/+page.svelte",
-				"src/routes/recebidos/+page.svelte"
-			],
-			"ocorrencias": 2,
-			"amostra": "<div class=\"flex flex-col gap-1 w-full lg:w-28\">",
-			"nota": ""
-		},
-		{
 			"id": "0d6d35f7e34d",
 			"arquivos": [
 				"src/routes/gise/[id]/_components/modais/ModalDatasHoras.svelte",
@@ -73,7 +63,7 @@
 			],
 			"ocorrencias": 2,
 			"amostra": "{/snippet}",
-			"nota": ""
+			"nota": "DUP-MANTER: `{/snippet}` sozinho — fechamento de bloco Svelte, não lógica. Falso positivo do alinhamento de janela do guard."
 		},
 		{
 			"id": "17198409b384",
@@ -114,7 +104,7 @@
 			],
 			"ocorrencias": 2,
 			"amostra": "let calAno = $state(new Date().getFullYear());",
-			"nota": ""
+			"nota": "DUP-MANTER: inicialização de estado local do calendário embutido (ano/mês corrente) — cada modal tem seu próprio $effect de reset com gatilho e regras diferentes; não há lógica compartilhável além da linha de $state."
 		},
 		{
 			"id": "21954d687d54",
@@ -174,7 +164,7 @@
 			],
 			"ocorrencias": 2,
 			"amostra": "ultimoDiaMes,",
-			"nota": ""
+			"nota": "DUP-MANTER: fragmento da lista de import de `ultimoDiaMes` e vizinhos, função já compartilhada em lib/utils/datas — não há lógica duplicada."
 		},
 		{
 			"id": "491fdd453525",
@@ -214,7 +204,7 @@
 			],
 			"ocorrencias": 2,
 			"amostra": "<span class=\"label-text text-2xs font-bold uppercase opacity-70 ml-1\"",
-			"nota": ""
+			"nota": "DUP-MANTER: `<span class=\"label-text text-2xs font-bold uppercase opacity-70 ml-1\">` é o estilo padrão de rótulo de campo, repetido ~20x DENTRO de cada um dos dois formulários (edição vs cadastro de policial), que têm conjuntos de campos e layouts de grid diferentes. Um wrapper só para a `<span>` não reduziria complexidade real — é classe Tailwind, não lógica."
 		},
 		{
 			"id": "56c7783530b2",
@@ -254,7 +244,7 @@
 			],
 			"ocorrencias": 2,
 			"amostra": "class=\"rounded-xl border border-surface-200 dark:border-white/10 bg-surface-50 dark:bg-sur",
-			"nota": ""
+			"nota": "DUP-MANTER: classe do contêiner de card (borda/fundo arredondado), reaproveitada em vários pontos de cada página (painel de filtros já extraído para FiltrosToggle; aqui é o wrapper de linha/card da listagem, cujo CONTEÚDO diverge entre auditoria e logs técnicos)."
 		},
 		{
 			"id": "61416e81bda8",
@@ -297,6 +287,16 @@
 			"nota": "DUP-MANTER: assinatura de handler SvelteKit + linha de import, não lógica. As rotas de assinatura GISE desestruturam o mesmo `{ platform, params, locals, url, request, getClientAddress }` e importam o mesmo portão — a lógica que compartilhavam saiu para `carregarGiseParaAssinatura` em ago/2026. Não há o que extrair de uma assinatura de handler."
 		},
 		{
+			"id": "7091e6fc6e74",
+			"arquivos": [
+				"src/routes/painel/+page.svelte",
+				"src/routes/recebidos/+page.svelte"
+			],
+			"ocorrencias": 2,
+			"amostra": "options={anosOptions}",
+			"nota": "DUP-MANTER: chamada ao CampoFiltroSelect já compartilhado (ver lib/components/CampoFiltroSelect.svelte) — painel e recebidos passam `options={anosOptions}` porque os dois filtram por ano com a mesma variável, não porque a lógica esteja duplicada."
+		},
+		{
 			"id": "75665608a5c6",
 			"arquivos": [
 				"src/routes/escalas/_components/ModalNovaEscala.svelte",
@@ -308,16 +308,6 @@
 			"nota": "DUP-MANTER (CLAUDE.md, \"grade dos três calendários\"): extrair a grade exigiria tantos props que o componente comum ficaria pior que a repetição. Decisão registrada, não dívida."
 		},
 		{
-			"id": "78f193235399",
-			"arquivos": [
-				"src/routes/auditoria/+page.server.ts",
-				"src/routes/auditoria/logs/+page.server.ts"
-			],
-			"ocorrencias": 2,
-			"amostra": "const PER_PAGE = 25;",
-			"nota": ""
-		},
-		{
 			"id": "81d74a51dbaf",
 			"arquivos": [
 				"src/routes/auditoria/+page.svelte",
@@ -325,7 +315,7 @@
 			],
 			"ocorrencias": 2,
 			"amostra": "<ChevronUp class=\"w-3.5 h-3.5\" />",
-			"nota": ""
+			"nota": "DUP-MANTER: ícone de expandir/recolher linha da tabela — decorativo, sem lógica além do `{#if expandido}` que já é local a cada página."
 		},
 		{
 			"id": "966efa62e651",
@@ -335,7 +325,7 @@
 			],
 			"ocorrencias": 2,
 			"amostra": "{:else}",
-			"nota": ""
+			"nota": "DUP-MANTER: `{:else}` sozinho — fechamento de bloco condicional do Svelte, não lógica duplicada. Falso positivo do alinhamento de janela."
 		},
 		{
 			"id": "9754d8f086ae",
@@ -355,7 +345,7 @@
 			],
 			"ocorrencias": 2,
 			"amostra": "? 'selected-for-export border-primary-500'",
-			"nota": ""
+			"nota": "DUP-MANTER: classe condicional de seleção (`selected-for-export`), 2 linhas, dentro de cards com estrutura e conteúdo totalmente diferentes (detalhe individual vs ranking). Não há componente comum que valha a pena — o card em si não é compartilhável."
 		},
 		{
 			"id": "97fbb5de76e3",
@@ -468,7 +458,7 @@
 			],
 			"ocorrencias": 2,
 			"amostra": "? 'bg-error-500/5 dark:bg-error-500/8'",
-			"nota": ""
+			"nota": "DUP-MANTER: classe condicional de destaque de linha selecionada em modo de seleção, 3 linhas, dentro de tabela/lista com colunas e conteúdo diferentes entre ListaFds e TabelaServidores."
 		},
 		{
 			"id": "c69683f2945c",
@@ -481,16 +471,6 @@
 			"nota": "DUP-MANTER: assinatura de handler SvelteKit + linha de import, não lógica. As rotas de assinatura GISE desestruturam o mesmo `{ platform, params, locals, url, request, getClientAddress }` e importam o mesmo portão — a lógica que compartilhavam saiu para `carregarGiseParaAssinatura` em ago/2026. Não há o que extrair de uma assinatura de handler."
 		},
 		{
-			"id": "c6a0fca96e89",
-			"arquivos": [
-				"src/routes/alterar-senha/+page.svelte",
-				"src/routes/redefinir-senha/+page.svelte"
-			],
-			"ocorrencias": 2,
-			"amostra": "<div class=\"text-center mb-6\">",
-			"nota": ""
-		},
-		{
 			"id": "cb32fcd937b6",
 			"arquivos": [
 				"src/routes/policiais/+page.svelte",
@@ -499,17 +479,7 @@
 			],
 			"ocorrencias": 3,
 			"amostra": "</div>",
-			"nota": ""
-		},
-		{
-			"id": "ce37c762d2b9",
-			"arquivos": [
-				"src/routes/gise/[id]/_components/GiseLoteAssinaturas.svelte",
-				"src/routes/gise/[id]/_components/supervisao/SupervisaoDocumentoCard.svelte"
-			],
-			"ocorrencias": 2,
-			"amostra": "class=\"h-4 w-4 shrink-0 text-surface-400 transition-transform duration-200 {expandido",
-			"nota": ""
+			"nota": "DUP-MANTER: `</div>` sozinho — fechamento de tag, não lógica. Falso positivo do alinhamento de janela do guard entre três páginas de listagem com estruturas diferentes."
 		},
 		{
 			"id": "cf461b6c9c88",
@@ -619,7 +589,7 @@
 			],
 			"ocorrencias": 3,
 			"amostra": "type=\"hidden\"",
-			"nota": ""
+			"nota": "DUP-MANTER: `<input type=\"hidden\">` de formulário, campo isolado com nome/valor diferentes em cada arquivo — não há lógica aqui, só a palavra-chave do atributo coincidindo."
 		},
 		{
 			"id": "fe1a50fc1f5e",

@@ -23,6 +23,7 @@
 	import type { ActionResult } from '@sveltejs/kit';
 	import { enhance } from '$app/forms';
 	import CamposNovaSenha, { validarForcaSenha } from '$lib/components/CamposNovaSenha.svelte';
+	import CabecalhoAuth from '$lib/components/CabecalhoAuth.svelte';
 	import AlertCircle from '@lucide/svelte/icons/alert-circle';
 	import { useMobile } from '$lib/composables';
 	import { passkeyDisponivel, registrarPasskey } from '$lib/webauthn-cliente';
@@ -172,34 +173,12 @@
 					Pular e continuar
 				</button>
 			{:else}
-				<!-- Icon + Title -->
-				<div class="text-center mb-6">
-					<div
-						class="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-primary-500/10 border border-primary-500/20 mb-4"
-					>
-						<svg
-							class="w-7 h-7 text-primary-500"
-							fill="none"
-							viewBox="0 0 24 24"
-							stroke="currentColor"
-							stroke-width="1.8"
-						>
-							<path
-								stroke-linecap="round"
-								stroke-linejoin="round"
-								d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z"
-							/>
-						</svg>
-					</div>
-					<h1 class="text-xl font-bold">
-						{primeiroAcesso ? 'Defina sua nova senha' : 'Alterar Senha'}
-					</h1>
-					<p class="text-sm text-surface-600 dark:text-surface-400 mt-1">
-						{primeiroAcesso
-							? 'Confirme seu e-mail pessoal e escolha uma senha segura para continuar.'
-							: 'Preencha os campos abaixo para alterar sua senha.'}
-					</p>
-				</div>
+				<CabecalhoAuth
+					titulo={primeiroAcesso ? 'Defina sua nova senha' : 'Alterar Senha'}
+					descricao={primeiroAcesso
+						? 'Confirme seu e-mail pessoal e escolha uma senha segura para continuar.'
+						: 'Preencha os campos abaixo para alterar sua senha.'}
+				/>
 
 				<!-- First-access warning banner -->
 				{#if primeiroAcesso}
