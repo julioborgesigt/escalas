@@ -19,10 +19,6 @@ export const verificar2faSchema = z.object({ desafioId: desafioIdField, codigo: 
 
 export const reenviarCodigoSchema = z.object({ desafioId: desafioIdField });
 
-export const primeiroAcessoSchema = z.object({
-	matricula: z.string().trim().min(1, 'Matrícula inválida.').max(32, 'Matrícula inválida.')
-});
-
 export const solicitarRedefinicaoSchema = z.object({
 	identificador: z.string().trim().min(1).max(64),
 	tipo: z.enum(['policial', 'admin'])

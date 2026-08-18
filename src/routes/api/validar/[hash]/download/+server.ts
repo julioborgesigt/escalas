@@ -250,12 +250,8 @@ export const GET: RequestHandler = async ({ platform, params, url, cookies, getC
 				buscarRespostasProdutividadeSeccional,
 				buscarAssinaturaRelatorioGise
 			} = await import('$lib/db');
-			const {
-				gerarRelatorioExtraordinarioPdf,
-				gerarRelatorioExtraordinarioSupervisaoPdf,
-				gerarRelatorioProdutividadeGisePdf,
-				toGisePdfData
-			} = await import('$lib/server/export');
+			const { gerarPdfRelatorioExtraordinario, gerarRelatorioProdutividadeGisePdf } =
+				await import('$lib/server/export');
 			const { getBreveRelatorioEnvMergido } = await import('$lib/server/gise/breve-relatorio-env');
 			const { secIdEhSupervisaoExtra } = await import('$lib/server/gise/supervisao-extra');
 			const { adicionarRodapeSimples } = await import('$lib/server/assinatura/pdf-signing');
@@ -290,29 +286,17 @@ export const GET: RequestHandler = async ({ platform, params, url, cookies, getC
 				const presencas = await buscarPresencasGise(db, documento.escala_id, platform?.env);
 				const isSupExtra = await secIdEhSupervisaoExtra(db, seccionalId);
 				const { esq: logoEsq, dir: logoDir } = await carregarLogosGise(platform);
-				const result = isSupExtra
-					? await gerarRelatorioExtraordinarioSupervisaoPdf(
-							gise,
-							presencas,
-							url.origin,
-							reportSignature,
-							undefined,
-							false,
-							brEnv,
-							logoEsq,
-							logoDir
-						)
-					: await gerarRelatorioExtraordinarioPdf(
-							toGisePdfData(gise, brEnv),
-							presencas,
-							seccionalId,
-							url.origin,
-							reportSignature,
-							undefined,
-							false,
-							logoEsq,
-							logoDir
-						);
+				const result = await gerarPdfRelatorioExtraordinario({
+					isSupExtra,
+					gise,
+					presencas,
+					seccionalId,
+					baseUrl: url.origin,
+					brEnv,
+					logoEsqBytes: logoEsq,
+					logoDirBytes: logoDir,
+					reportSignature
+				});
 				finalPdf = result.pdf;
 			} else {
 				const seccional = gise.seccionais.find(

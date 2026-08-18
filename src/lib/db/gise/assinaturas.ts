@@ -14,10 +14,12 @@
 import { eq, and, desc, sql } from 'drizzle-orm';
 import { giseAssinaturasRelatorios, gisePresencaTermos, policiais } from '../../server/schema';
 import type { Database } from '../core';
-import { anonimizarIp } from '../audit';
-import { parseUserAgent, reduzirPrecisaoGps } from '../../server/assinatura/document-utils';
 import { cifrarCpfParaArmazenar, type CpfCriptoEnv } from '../../crypto/cpf-cripto';
-import type { AssinaturaCadesMetadata, AssinaturaPasskeyMetadata } from '../documentos';
+import {
+	montarCamposMinimizados,
+	type AssinaturaCadesMetadata,
+	type AssinaturaPasskeyMetadata
+} from '../documentos';
 
 /** Todas as assinaturas de relatório da GISE, sem filtro de seccional ou tipo. */
 export async function buscarAssinaturasRelatoriosGise(db: Database, giseId: number) {
@@ -113,11 +115,6 @@ export async function salvarAssinaturaRelatorioGise(
 	} & AssinaturaCadesMetadata,
 	env?: CpfCriptoEnv
 ) {
-	const ipAnonimizado = anonimizarIp(data.ip_address) ?? undefined;
-	const uaResumido = data.user_agent ? parseUserAgent(data.user_agent) : undefined;
-	const uaRaw = data.user_agent ? data.user_agent.slice(0, 1024) : undefined;
-	const lat2 = reduzirPrecisaoGps(data.latitude ?? undefined);
-	const lng2 = reduzirPrecisaoGps(data.longitude ?? undefined);
 	// CPF cifrado em repouso (LGPD Fase 2). Coluna NOT NULL → fallback ''.
 	const cpfArmazenado = (await cifrarCpfParaArmazenar(data.assinante_cpf, env)) ?? '';
 
@@ -125,13 +122,9 @@ export async function salvarAssinaturaRelatorioGise(
 	// conteúdo a reescrever.
 	const { gise_id, seccional_id, tipo } = data;
 	// Mesmos campos no INSERT e no UPDATE — montados uma vez para não divergirem.
-	//
-	// Todo campo opcional vira `null` EXPLÍCITO, e a lista é escrita por extenso
-	// justamente por isso: com `...resto`, um campo que o chamador não envia não
-	// existe como chave, o drizzle o omite do `.set()` e o valor da assinatura
-	// ANTERIOR sobrevive à reassinatura. Era assim que um relatório reassinado
-	// como `simples` seguia carregando o certificado ICP-Brasil, o carimbo de
-	// tempo e a selfie da assinatura qualificada que ele substituiu.
+	// Era um relatório reassinado como `simples` seguindo com o certificado
+	// ICP-Brasil, o carimbo de tempo e a selfie da assinatura qualificada que ele
+	// substituiu — ver `montarCamposMinimizados` para o porquê do `null` explícito.
 	const dados = {
 		assinante_nome: data.assinante_nome,
 		tipo_assinatura: data.tipo_assinatura,
@@ -143,25 +136,15 @@ export async function salvarAssinaturaRelatorioGise(
 		selfie_key: data.selfie_key ?? null,
 		arquivo_hash: data.arquivo_hash ?? null,
 		r2_key: data.r2_key ?? null,
-		ip_address: ipAnonimizado ?? null,
-		user_agent: uaResumido ?? null,
-		user_agent_raw: uaRaw ?? null,
-		latitude: lat2 ?? null,
-		longitude: lng2 ?? null,
-		tipo_carimbo_tempo: data.tipo_carimbo_tempo || 'servidor',
-		cert_issuer: data.cert_issuer ?? null,
-		cert_serial: data.cert_serial ?? null,
-		cert_valido_de: data.cert_valido_de ?? null,
-		cert_valido_ate: data.cert_valido_ate ?? null,
-		cms_sha256: data.cms_sha256 ?? null,
-		ocsp_response_b64: data.ocsp_response_b64 ?? null,
-		ocsp_consultado_em: data.ocsp_consultado_em ?? null,
-		tst_token_b64: data.tst_token_b64 ?? null,
-		webauthn_credential_id: data.passkeyMeta?.credential_id ?? null,
-		webauthn_client_data: data.passkeyMeta?.client_data ?? null,
-		webauthn_authenticator_data: data.passkeyMeta?.authenticator_data ?? null,
-		webauthn_assinatura: data.passkeyMeta?.assinatura ?? null,
-		webauthn_backup_ativo: data.passkeyMeta ? (data.passkeyMeta.backup_ativo ? 1 : 0) : null
+		...montarCamposMinimizados({
+			ipAddress: data.ip_address,
+			userAgent: data.user_agent,
+			latitude: data.latitude,
+			longitude: data.longitude,
+			tipoCarimboTempo: data.tipo_carimbo_tempo,
+			cadesMeta: data,
+			passkeyMeta: data.passkeyMeta
+		})
 	};
 
 	return db
@@ -206,7 +189,6 @@ export async function salvarTermoPresencaGise(
 	env?: CpfCriptoEnv
 ) {
 	const cpfArmazenado = (await cifrarCpfParaArmazenar(data.assinante_cpf, env)) ?? null;
-	const passkey = data.passkeyMeta;
 	return db.insert(gisePresencaTermos).values({
 		gise_id: data.gise_id,
 		policial_id: data.policial_id,
@@ -217,25 +199,15 @@ export async function salvarTermoPresencaGise(
 		verification_hash: data.verification_hash,
 		r2_key: data.r2_key ?? null,
 		arquivo_hash: data.arquivo_hash,
-		ip_address: anonimizarIp(data.ip_address) ?? undefined,
-		user_agent: data.user_agent ? parseUserAgent(data.user_agent) : undefined,
-		user_agent_raw: data.user_agent ? data.user_agent.slice(0, 1024) : undefined,
-		latitude: reduzirPrecisaoGps(data.latitude),
-		longitude: reduzirPrecisaoGps(data.longitude),
-		tipo_carimbo_tempo: data.tipo_carimbo_tempo || 'servidor',
-		cert_issuer: data.cert_issuer ?? null,
-		cert_serial: data.cert_serial ?? null,
-		cert_valido_de: data.cert_valido_de ?? null,
-		cert_valido_ate: data.cert_valido_ate ?? null,
-		cms_sha256: data.cms_sha256 ?? null,
-		ocsp_response_b64: data.ocsp_response_b64 ?? null,
-		ocsp_consultado_em: data.ocsp_consultado_em ?? null,
-		tst_token_b64: data.tst_token_b64 ?? null,
-		webauthn_credential_id: passkey?.credential_id ?? null,
-		webauthn_client_data: passkey?.client_data ?? null,
-		webauthn_authenticator_data: passkey?.authenticator_data ?? null,
-		webauthn_assinatura: passkey?.assinatura ?? null,
-		webauthn_backup_ativo: passkey ? (passkey.backup_ativo ? 1 : 0) : null,
+		...montarCamposMinimizados({
+			ipAddress: data.ip_address,
+			userAgent: data.user_agent,
+			latitude: data.latitude,
+			longitude: data.longitude,
+			tipoCarimboTempo: data.tipo_carimbo_tempo,
+			cadesMeta: data,
+			passkeyMeta: data.passkeyMeta
+		}),
 		created_at: sql`datetime('now', '-3 hours')`
 	});
 }
