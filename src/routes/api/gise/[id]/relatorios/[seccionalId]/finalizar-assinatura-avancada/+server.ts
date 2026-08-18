@@ -6,16 +6,12 @@ import type { RequestHandler } from './$types';
 import {
 	getDB,
 	buscarGiseDetalhado,
-	buscarCredencialPorId,
 	registrarUsoCredencial,
 	registrarAuditComContexto,
 	tryGetR2,
-	passkeyMetaDeAssercao,
 	verificarSaidaCompletaSeccional
 } from '$lib/db';
 import {
-	apiError,
-	ErrorCode,
 	badRequest,
 	notFound,
 	forbidden,
@@ -29,21 +25,12 @@ import {
 	giseAutorizaSeccionalRelatorioExtra,
 	secIdEhSupervisaoExtra
 } from '$lib/server/gise/supervisao-extra';
-import {
-	consumirIntencaoAssinatura,
-	mensagemRecusaIntencao
-} from '$lib/server/assinatura/intencao';
-import {
-	verificarAssercao,
-	mensagemRecusaAssercao
-} from '$lib/server/assinatura/webauthn/assercao';
 import { descreverVinculoCredencial } from '$lib/server/assinatura/webauthn/authenticator-data';
-import { credencialDoUsuario } from '$lib/server/auth/credencial';
-import { resolverAppOrigin } from '$lib/server/app-origin';
+import {
+	conferirFinalizacaoPasskey,
+	evidenciasDaProva
+} from '$lib/server/assinatura/webauthn/finalizar-avancada';
 import { bucketParaAssinatura } from '$lib/server/assinatura/blob-assinado';
-import { calcularHashBuffer } from '$lib/server/assinatura/document-utils';
-import { base64ToBytes, base64UrlToBytes } from '$lib/crypto/bin';
-import { hexToBytes } from '$lib/crypto/hex';
 
 export const POST: RequestHandler = async ({
 	platform,
@@ -85,54 +72,24 @@ export const POST: RequestHandler = async ({
 
 	const validated = await validateBody(request, finalizarPasskeyEscalaSchema);
 	if (!validated.ok) return validated.response;
-	const { intencao, preparedPdf, assercao } = validated.data;
-	const pdfBytes = base64ToBytes(preparedPdf);
 
-	const consumo = await consumirIntencaoAssinatura(
+	const prova = await conferirFinalizacaoPasskey({
 		db,
-		intencao,
-		{ recurso: 'gise_relatorio', recursoId: giseIdNum, escopoId: secIdNum },
-		{ id: u.id, tipo: u.tipo },
-		pdfBytes
-	);
-	if (!consumo.ok) return badRequest(mensagemRecusaIntencao());
-
-	const credencial = await buscarCredencialPorId(db, assercao.credentialId);
-	const dono = credencialDoUsuario(u);
-	if (
-		!credencial ||
-		credencial.revogadaEm ||
-		credencial.dono.tipo !== dono.tipo ||
-		credencial.dono.id !== dono.id
-	) {
-		return apiError(
-			'Chave de assinatura não reconhecida ou revogada. Registre-a novamente em Meu Perfil.',
-			403,
-			ErrorCode.FORBIDDEN
-		);
-	}
-
-	const desafio = hexToBytes(await calcularHashBuffer(pdfBytes));
-	if (!desafio) return serverError('[extra/finalizar-passkey] hash inválido', new Error('HASH'));
-
-	const verificacao = await verificarAssercao({
-		clientDataJSON: base64UrlToBytes(assercao.clientDataJSON),
-		authenticatorData: base64UrlToBytes(assercao.authenticatorData),
-		assinatura: base64UrlToBytes(assercao.assinatura),
-		publicKeySpki: credencial.publicKeySpki,
-		desafioEsperado: desafio,
-		origemEsperada: resolverAppOrigin(url, platform),
-		contadorArmazenado: credencial.contador
+		alvo: { recurso: 'gise_relatorio', recursoId: giseIdNum, escopoId: secIdNum },
+		usuario: u,
+		corpo: validated.data,
+		url,
+		platform,
+		logTag: 'extra/finalizar-passkey'
 	});
-	if (!verificacao.ok) {
-		return apiError(mensagemRecusaAssercao(), 403, ErrorCode.FORBIDDEN);
-	}
+	if (!prova.ok) return prova.recusa;
+	const { credencial, pdfBytes } = prova;
 
 	try {
 		const bucketOk = bucketParaAssinatura(tryGetR2(platform));
 		if (!bucketOk.ok) return bucketOk.resposta;
 
-		await registrarUsoCredencial(db, credencial.id, verificacao.dados.contador);
+		await registrarUsoCredencial(db, credencial.id, prova.dados.contador);
 
 		const persistido = await persistirExtraAssinado({
 			db,
@@ -146,20 +103,19 @@ export const POST: RequestHandler = async ({
 			},
 			montado: {
 				finalPdf: pdfBytes,
-				verificationHash: consumo.verificacaoHash,
+				verificationHash: prova.verificacaoHash,
 				documentKey: chaveDocumentoExtra(
 					{ id: giseIdNum, data_inicio: gise.data_inicio },
 					secIdNum,
-					consumo.verificacaoHash
+					prova.verificacaoHash
 				)
 			},
-			selfieKey: consumo.contexto.selfieKey,
-			ip: ip ?? undefined,
-			userAgent: ua,
-			latitude: consumo.contexto.latitude,
-			longitude: consumo.contexto.longitude,
-			env: platform?.env as unknown as Record<string, string | undefined> | undefined,
-			passkeyMeta: passkeyMetaDeAssercao(assercao, verificacao.dados.backupAtivo)
+			...evidenciasDaProva(prova, {
+				ip,
+				userAgent: ua,
+				platform,
+				assercao: validated.data.assercao
+			})
 		});
 		if (!persistido.ok) return persistido.resposta;
 
@@ -170,7 +126,7 @@ export const POST: RequestHandler = async ({
 			entidade_id: giseIdNum,
 			detalhes:
 				`Relatório extra GISE ${giseIdNum} seccional ${secIdNum} assinado com passkey — ` +
-				`credencial ${descreverVinculoCredencial(verificacao.dados)}`
+				`credencial ${descreverVinculoCredencial(prova.dados)}`
 		});
 
 		return json({ success: true });

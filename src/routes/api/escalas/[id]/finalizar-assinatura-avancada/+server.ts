@@ -21,40 +21,16 @@
  */
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import {
-	getDB,
-	buscarCredencialPorId,
-	registrarUsoCredencial,
-	registrarAuditComContexto,
-	getR2,
-	hasR2,
-	passkeyMetaDeAssercao
-} from '$lib/db';
-import {
-	apiError,
-	ErrorCode,
-	badRequest,
-	serverError,
-	requireAuth,
-	validateBody
-} from '$lib/server/api';
+import { getDB, registrarUsoCredencial, registrarAuditComContexto, getR2, hasR2 } from '$lib/db';
+import { serverError, requireAuth, validateBody } from '$lib/server/api';
 import { finalizarPasskeyEscalaSchema } from '$lib/schemas';
 import { persistirEscalaAssinada } from '$lib/server/escalas/assinatura-escala';
-import {
-	consumirIntencaoAssinatura,
-	mensagemRecusaIntencao
-} from '$lib/server/assinatura/intencao';
-import {
-	verificarAssercao,
-	mensagemRecusaAssercao
-} from '$lib/server/assinatura/webauthn/assercao';
 import { descreverVinculoCredencial } from '$lib/server/assinatura/webauthn/authenticator-data';
-import { credencialDoUsuario } from '$lib/server/auth/credencial';
-import { resolverAppOrigin } from '$lib/server/app-origin';
+import {
+	conferirFinalizacaoPasskey,
+	evidenciasDaProva
+} from '$lib/server/assinatura/webauthn/finalizar-avancada';
 import { carregarEscalaParaAssinatura } from '$lib/server/escalas/permissao';
-import { calcularHashBuffer } from '$lib/server/assinatura/document-utils';
-import { base64ToBytes, base64UrlToBytes } from '$lib/crypto/bin';
-import { hexToBytes } from '$lib/crypto/hex';
 
 export const POST: RequestHandler = async ({
 	platform,
@@ -85,54 +61,17 @@ export const POST: RequestHandler = async ({
 	// exatamente o que `e2e/autorizacao-negativa` recusa (400 ≠ 401/403/404).
 	const validated = await validateBody(request, finalizarPasskeyEscalaSchema);
 	if (!validated.ok) return validated.response;
-	const { intencao, preparedPdf, assercao } = validated.data;
-
-	const pdfBytes = base64ToBytes(preparedPdf);
-
-	const consumo = await consumirIntencaoAssinatura(
+	const prova = await conferirFinalizacaoPasskey({
 		db,
-		intencao,
-		{ recurso: 'escala', recursoId: id },
-		{ id: u.id, tipo: u.tipo },
-		pdfBytes
-	);
-	if (!consumo.ok) return badRequest(mensagemRecusaIntencao());
-
-	// A credencial precisa ser a do PRÓPRIO titular. Sem esta checagem, uma
-	// asserção válida feita por outra pessoa (com a chave dela, sobre o mesmo
-	// PDF público) seria aceita como assinatura desta.
-	const credencial = await buscarCredencialPorId(db, assercao.credentialId);
-	const dono = credencialDoUsuario(u);
-	if (
-		!credencial ||
-		credencial.revogadaEm ||
-		credencial.dono.tipo !== dono.tipo ||
-		credencial.dono.id !== dono.id
-	) {
-		return apiError(
-			'Chave de assinatura não reconhecida ou revogada. Registre-a novamente em Meu Perfil.',
-			403,
-			ErrorCode.FORBIDDEN
-		);
-	}
-
-	// O desafio é o hash do PDF preparado — o mesmo valor que a intenção guardou
-	// e que o passo anterior acabou de conferir contra estes bytes.
-	const desafio = hexToBytes(await calcularHashBuffer(pdfBytes));
-	if (!desafio) return serverError('[finalizar-passkey] hash do PDF inválido', new Error('HASH'));
-
-	const verificacao = await verificarAssercao({
-		clientDataJSON: base64UrlToBytes(assercao.clientDataJSON),
-		authenticatorData: base64UrlToBytes(assercao.authenticatorData),
-		assinatura: base64UrlToBytes(assercao.assinatura),
-		publicKeySpki: credencial.publicKeySpki,
-		desafioEsperado: desafio,
-		origemEsperada: resolverAppOrigin(url, platform),
-		contadorArmazenado: credencial.contador
+		alvo: { recurso: 'escala', recursoId: id },
+		usuario: u,
+		corpo: validated.data,
+		url,
+		platform,
+		logTag: 'finalizar-passkey'
 	});
-	if (!verificacao.ok) {
-		return apiError(mensagemRecusaAssercao(), 403, ErrorCode.FORBIDDEN);
-	}
+	if (!prova.ok) return prova.recusa;
+	const { credencial, pdfBytes } = prova;
 
 	try {
 		if (!hasR2(platform)) {
@@ -143,7 +82,7 @@ export const POST: RequestHandler = async ({
 		}
 		const bucket = getR2(platform);
 
-		await registrarUsoCredencial(db, credencial.id, verificacao.dados.contador);
+		await registrarUsoCredencial(db, credencial.id, prova.dados.contador);
 
 		await persistirEscalaAssinada({
 			db,
@@ -154,19 +93,15 @@ export const POST: RequestHandler = async ({
 				// `preparar`, que é quem tinha a versão sem manifesto. Regravar
 				// aqui trocaria a cópia de conferência pelo PDF COM manifesto.
 				finalPdf: pdfBytes,
-				verificationHash: consumo.verificacaoHash
+				verificationHash: prova.verificacaoHash
 			},
 			assinante: { nome: u.nome, cpf: u.cpf },
-			selfieKey: consumo.contexto.selfieKey,
-			ip: ip ?? undefined,
-			userAgent: ua || undefined,
-			latitude: consumo.contexto.latitude,
-			longitude: consumo.contexto.longitude,
-			env: platform?.env as unknown as Record<string, string | undefined> | undefined,
-			// Contraparte forense: a asserção acabou de conferir ao vivo. Sem
-			// gravá-la, o manifesto afirmaria biometria e `reconferirAssercaoDocumento`
-			// não teria o que reconferir — o furo que a fase 0 deste plano fecha.
-			passkeyMeta: passkeyMetaDeAssercao(assercao, verificacao.dados.backupAtivo)
+			...evidenciasDaProva(prova, {
+				ip,
+				userAgent: ua,
+				platform,
+				assercao: validated.data.assercao
+			})
 		});
 
 		await registrarAuditComContexto(db, {
@@ -176,7 +111,7 @@ export const POST: RequestHandler = async ({
 			entidade_id: id,
 			detalhes:
 				`Escala ${id} assinada com passkey (avançada) por ${u.nome} — ` +
-				`credencial ${descreverVinculoCredencial(verificacao.dados)}`
+				`credencial ${descreverVinculoCredencial(prova.dados)}`
 		});
 
 		return json({ success: true, message: 'Escala assinada com sucesso' });

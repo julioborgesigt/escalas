@@ -86,18 +86,6 @@
 			"nota": ""
 		},
 		{
-			"id": "15bc164cf972",
-			"arquivos": [
-				"src/routes/api/escalas/[id]/finalizar-assinatura-avancada/+server.ts",
-				"src/routes/api/gise/[id]/finalizar-assinatura-avancada/+server.ts",
-				"src/routes/api/gise/[id]/presenca/finalizar-assinatura-avancada/+server.ts",
-				"src/routes/api/gise/[id]/relatorios/[seccionalId]/finalizar-assinatura-avancada/+server.ts"
-			],
-			"ocorrencias": 4,
-			"amostra": "import { calcularHashBuffer } from '$lib/server/assinatura/document-utils';",
-			"nota": ""
-		},
-		{
 			"id": "17198409b384",
 			"arquivos": [
 				"src/lib/server/export/docx.ts",
@@ -167,16 +155,6 @@
 			],
 			"ocorrencias": 2,
 			"amostra": "supervisor_matricula: string | null;",
-			"nota": ""
-		},
-		{
-			"id": "2d9bef02ce7c",
-			"arquivos": [
-				"src/routes/api/gise/[id]/finalizar-assinatura-avancada/+server.ts",
-				"src/routes/api/gise/[id]/relatorios/[seccionalId]/finalizar-assinatura-avancada/+server.ts"
-			],
-			"ocorrencias": 2,
-			"amostra": "apiError,",
 			"nota": ""
 		},
 		{
@@ -290,18 +268,6 @@
 			"nota": ""
 		},
 		{
-			"id": "5d65357c5266",
-			"arquivos": [
-				"src/routes/api/escalas/[id]/finalizar-assinatura-avancada/+server.ts",
-				"src/routes/api/gise/[id]/finalizar-assinatura-avancada/+server.ts",
-				"src/routes/api/gise/[id]/presenca/finalizar-assinatura-avancada/+server.ts",
-				"src/routes/api/gise/[id]/relatorios/[seccionalId]/finalizar-assinatura-avancada/+server.ts"
-			],
-			"ocorrencias": 4,
-			"amostra": "const verificacao = await verificarAssercao({",
-			"nota": ""
-		},
-		{
 			"id": "5df61be8a979",
 			"arquivos": [
 				"src/routes/auditoria/+page.svelte",
@@ -404,6 +370,16 @@
 			"nota": ""
 		},
 		{
+			"id": "79629c4d098f",
+			"arquivos": [
+				"src/routes/api/gise/[id]/finalizar-assinatura-avancada/+server.ts",
+				"src/routes/api/gise/[id]/relatorios/[seccionalId]/finalizar-assinatura-avancada/+server.ts"
+			],
+			"ocorrencias": 2,
+			"amostra": "} from '$lib/db';",
+			"nota": "DUP-MANTER: bloco de IMPORTS, não de lógica. As duas rotas finalizam assinatura por passkey de documentos GISE irmãos e por isso importam o mesmo conjunto — a lógica que elas compartilhavam saiu para `webauthn/finalizar-avancada` (conferirFinalizacaoPasskey + evidenciasDaProva) em ago/2026. Sobrou a lista de imports, e não há o que extrair de uma lista de imports."
+		},
+		{
 			"id": "81d74a51dbaf",
 			"arquivos": [
 				"src/routes/auditoria/+page.svelte",
@@ -466,13 +442,11 @@
 		{
 			"id": "9c6e5f05dfc5",
 			"arquivos": [
-				"src/routes/api/gise/[id]/finalizar-assinatura-avancada/+server.ts",
 				"src/routes/api/gise/[id]/preparar-assinatura-avancada/+server.ts",
 				"src/routes/api/gise/[id]/presenca/preparar-assinatura-avancada/+server.ts",
-				"src/routes/api/gise/[id]/relatorios/[seccionalId]/finalizar-assinatura-avancada/+server.ts",
 				"src/routes/api/gise/[id]/relatorios/[seccionalId]/preparar-assinatura-avancada/+server.ts"
 			],
-			"ocorrencias": 5,
+			"ocorrencias": 3,
 			"amostra": "import {",
 			"nota": ""
 		},
@@ -519,27 +493,6 @@
 			"nota": ""
 		},
 		{
-			"id": "a480c8a1fa42",
-			"arquivos": [
-				"src/routes/api/gise/[id]/finalizar-assinatura-avancada/+server.ts",
-				"src/routes/api/gise/[id]/presenca/finalizar-assinatura-avancada/+server.ts",
-				"src/routes/api/gise/[id]/relatorios/[seccionalId]/finalizar-assinatura-avancada/+server.ts"
-			],
-			"ocorrencias": 3,
-			"amostra": "clientDataJSON: base64UrlToBytes(assercao.clientDataJSON),",
-			"nota": ""
-		},
-		{
-			"id": "a64a1bf35361",
-			"arquivos": [
-				"src/routes/api/gise/[id]/finalizar-assinatura-avancada/+server.ts",
-				"src/routes/api/gise/[id]/relatorios/[seccionalId]/finalizar-assinatura-avancada/+server.ts"
-			],
-			"ocorrencias": 2,
-			"amostra": "mensagemRecusaAssercao",
-			"nota": ""
-		},
-		{
 			"id": "a7a7cd3aa232",
 			"arquivos": [
 				"src/routes/api/gise/[id]/relatorios/[seccionalId]/assinar/+server.ts",
@@ -547,18 +500,6 @@
 			],
 			"ocorrencias": 2,
 			"amostra": "const bucketOk = bucketParaAssinatura(tryGetR2(platform));",
-			"nota": ""
-		},
-		{
-			"id": "a832064d4d28",
-			"arquivos": [
-				"src/routes/api/escalas/[id]/finalizar-assinatura-avancada/+server.ts",
-				"src/routes/api/gise/[id]/finalizar-assinatura-avancada/+server.ts",
-				"src/routes/api/gise/[id]/presenca/finalizar-assinatura-avancada/+server.ts",
-				"src/routes/api/gise/[id]/relatorios/[seccionalId]/finalizar-assinatura-avancada/+server.ts"
-			],
-			"ocorrencias": 4,
-			"amostra": "const credencial = await buscarCredencialPorId(db, assercao.credentialId);",
 			"nota": ""
 		},
 		{
@@ -696,6 +637,16 @@
 			"nota": ""
 		},
 		{
+			"id": "ccb9236e8465",
+			"arquivos": [
+				"src/routes/api/gise/[id]/finalizar-assinatura-avancada/+server.ts",
+				"src/routes/api/gise/[id]/relatorios/[seccionalId]/finalizar-assinatura-avancada/+server.ts"
+			],
+			"ocorrencias": 2,
+			"amostra": "import { descreverVinculoCredencial } from '$lib/server/assinatura/webauthn/authenticator-",
+			"nota": "DUP-MANTER: bloco de IMPORTS, não de lógica. As duas rotas finalizam assinatura por passkey de documentos GISE irmãos e por isso importam o mesmo conjunto — a lógica que elas compartilhavam saiu para `webauthn/finalizar-avancada` (conferirFinalizacaoPasskey + evidenciasDaProva) em ago/2026. Sobrou a lista de imports, e não há o que extrair de uma lista de imports."
+		},
+		{
 			"id": "cdc0c5b8a34b",
 			"arquivos": [
 				"src/lib/db/documentos.ts",
@@ -723,18 +674,6 @@
 			],
 			"ocorrencias": 2,
 			"amostra": "type=\"button\"",
-			"nota": ""
-		},
-		{
-			"id": "dbfbb53e2522",
-			"arquivos": [
-				"src/routes/api/escalas/[id]/finalizar-assinatura-avancada/+server.ts",
-				"src/routes/api/gise/[id]/finalizar-assinatura-avancada/+server.ts",
-				"src/routes/api/gise/[id]/presenca/finalizar-assinatura-avancada/+server.ts",
-				"src/routes/api/gise/[id]/relatorios/[seccionalId]/finalizar-assinatura-avancada/+server.ts"
-			],
-			"ocorrencias": 4,
-			"amostra": "consumirIntencaoAssinatura,",
 			"nota": ""
 		},
 		{
@@ -805,16 +744,6 @@
 			],
 			"ocorrencias": 2,
 			"amostra": "{ id: u.id, tipo: u.tipo },",
-			"nota": ""
-		},
-		{
-			"id": "f6fe7e308653",
-			"arquivos": [
-				"src/routes/api/gise/[id]/finalizar-assinatura-avancada/+server.ts",
-				"src/routes/api/gise/[id]/relatorios/[seccionalId]/finalizar-assinatura-avancada/+server.ts"
-			],
-			"ocorrencias": 2,
-			"amostra": "selfieKey: consumo.contexto.selfieKey,",
 			"nota": ""
 		},
 		{
