@@ -15,15 +15,14 @@
 	import { tick } from 'svelte';
 	import SearchableSelect from '$lib/components/SearchableSelect.svelte';
 	import MarcadorPresenca from '../MarcadorPresenca.svelte';
-	import PenLine from '@lucide/svelte/icons/pen-line';
-	import Trash2 from '@lucide/svelte/icons/trash-2';
 	import UserRound from '@lucide/svelte/icons/user-round';
-	import Spinner from '$lib/components/Spinner.svelte';
 	import ModalShell from '$lib/components/ModalShell.svelte';
 	import SupervisaoPapelAssessor from './SupervisaoPapelAssessor.svelte';
 	import SupervisaoPapelSeint from './SupervisaoPapelSeint.svelte';
+	import BotoesSalvarCancelar from './BotoesSalvarCancelar.svelte';
+	import BotoesEdicaoPapel from './BotoesEdicaoPapel.svelte';
 	import { presencaDe } from './rodagem';
-	import { quadroSupervisao, type PapelSupervisao } from './quadro-supervisao-estado.svelte';
+	import { quadroSupervisao } from './quadro-supervisao-estado.svelte';
 
 	const quadro = quadroSupervisao();
 
@@ -65,64 +64,6 @@
 		});
 	}
 </script>
-
-<!-- Par Adicionar/Fechar da edição inline (supervisor). -->
-{#snippet botoesSalvarCancelar()}
-	<div class="w-full grid grid-cols-2 gap-2 sm:flex sm:w-auto sm:shrink-0">
-		<button
-			type="submit"
-			class="btn preset-filled-primary-500 text-sm px-3 py-1.5 rounded-lg w-full sm:w-auto transition-all"
-			disabled={quadro.pendingCrud}
-		>
-			{#if quadro.pendingCrud}
-				<Spinner size="sm" />
-			{:else}
-				Adicionar
-			{/if}
-		</button>
-		<button
-			type="button"
-			class="btn preset-outlined-primary-500 text-sm px-3 py-1.5 rounded-lg w-full sm:w-auto"
-			onclick={() => quadro.cancelarEdicao()}
-			disabled={quadro.pendingCrud}
-		>
-			Fechar
-		</button>
-	</div>
-{/snippet}
-
-<!-- Par Editar/Remover (Admin Geral). `compacto=false` = ícones 14px no supervisor. -->
-{#snippet botoesEdicao(papel: PapelSupervisao, temId: boolean, compacto: boolean = true)}
-	{#if podeGerenciar}
-		<div class="flex items-center gap-1 shrink-0">
-			<button
-				type="button"
-				class="btn btn-xs preset-filled-surface-500 rounded p-1"
-				title="Editar"
-				aria-label="Editar"
-				onclick={() => quadro.iniciarEdicao(papel)}
-			>
-				<PenLine size={compacto ? 12 : 14} />
-			</button>
-			{#if temId}
-				<button
-					type="button"
-					class="btn btn-xs preset-outlined-error-500 rounded p-1"
-					title="Remover"
-					aria-label="Remover"
-					onclick={() => quadro.solicitarRemocao(papel)}
-					disabled={quadro.pendingCrud}
-				>
-					{#if quadro.pendingCrud && quadro.removendoPapel === papel}
-						<Spinner size="xs" />
-					{:else}
-						<Trash2 size={compacto ? 12 : 14} />
-					{/if}
-				</button>
-			{/if}
-		</div>
-	{/if}
-{/snippet}
 
 <form
 	bind:this={formEl}
@@ -167,7 +108,10 @@
 									class="w-full"
 								/>
 							</div>
-							{@render botoesSalvarCancelar()}
+							<BotoesSalvarCancelar
+								pending={quadro.pendingCrud}
+								onCancelar={() => quadro.cancelarEdicao()}
+							/>
 						</div>
 					{:else}
 						<div class="flex min-w-0 items-center gap-3">
@@ -177,7 +121,16 @@
 								{quadro.gise.supervisor_nome ?? 'Não definido'}
 							</p>
 
-							{@render botoesEdicao('supervisor', !!quadro.gise.supervisor_id, false)}
+							{#if podeGerenciar}
+								<BotoesEdicaoPapel
+									temId={!!quadro.gise.supervisor_id}
+									compacto={false}
+									removendo={quadro.removendoPapel === 'supervisor'}
+									pending={quadro.pendingCrud}
+									onEditar={() => quadro.iniciarEdicao('supervisor')}
+									onRemover={() => quadro.solicitarRemocao('supervisor')}
+								/>
+							{/if}
 						</div>
 					{/if}
 				</div>

@@ -94,7 +94,7 @@
 			],
 			"ocorrencias": 3,
 			"amostra": "sortExpediente,",
-			"nota": ""
+			"nota": "DUP-MANTER: linha de import + chamada a sortExpediente, função já compartilhada (definida uma vez, importada pelos três exportadores). Não há lógica duplicada aqui."
 		},
 		{
 			"id": "18b870732df9",
@@ -154,7 +154,7 @@
 			],
 			"ocorrencias": 2,
 			"amostra": "supervisor_matricula: string | null;",
-			"nota": ""
+			"nota": "DUP-MANTER: GiseDetalhado (lib/db/gise/types.ts) é a forma MONTADA que vem do banco; GisePdfData (server/export/pdf-comum.ts) é o DTO da camada de PDF, criado de propósito para pdf.ts/pdf-relatorio-extra.ts não importarem tipos internos da camada de banco (ver cabeçalho de pdf-comum.ts). Os nomes de campo coincidem porque um alimenta o outro via toGisePdfData(), não porque são o mesmo tipo — acoplar as duas camadas romperia a fronteira que pdf-comum.ts documenta."
 		},
 		{
 			"id": "3f968bac2073",
@@ -204,7 +204,7 @@
 			],
 			"ocorrencias": 2,
 			"amostra": "NOME_OPERACAO_PADRAO,",
-			"nota": ""
+			"nota": "DUP-MANTER: barrel documentado — lib/db.ts é a exceção deliberada (ver cabeçalho do próprio arquivo) que re-exporta lib/db/operacoes/index.ts, que por sua vez importa de operacoes/crud.ts (onde NOME_OPERACAO_PADRAO é definida uma única vez). As duas linhas são o mesmo nome passando por dois elos da cadeia de re-export, não a constante duplicada."
 		},
 		{
 			"id": "4bc05f0c71b5",
@@ -305,17 +305,6 @@
 			"ocorrencias": 2,
 			"amostra": "auditar,",
 			"nota": "DUP-MANTER: assinatura de handler SvelteKit + linha de import, não lógica. As rotas de assinatura GISE desestruturam o mesmo `{ platform, params, locals, url, request, getClientAddress }` e importam o mesmo portão — a lógica que compartilhavam saiu para `carregarGiseParaAssinatura` em ago/2026. Não há o que extrair de uma assinatura de handler."
-		},
-		{
-			"id": "6ef5fe07247c",
-			"arquivos": [
-				"src/routes/gise/[id]/_components/supervisao/SupervisaoDesignacao.svelte",
-				"src/routes/gise/[id]/_components/supervisao/SupervisaoPapelAssessor.svelte",
-				"src/routes/gise/[id]/_components/supervisao/SupervisaoPapelSeint.svelte"
-			],
-			"ocorrencias": 3,
-			"amostra": "class=\"btn preset-filled-primary-500 text-sm px-3 py-1.5 rounded-lg w-full sm:w-auto trans",
-			"nota": ""
 		},
 		{
 			"id": "75665608a5c6",
@@ -448,7 +437,7 @@
 			],
 			"ocorrencias": 2,
 			"amostra": "import type { Escala, EscalaPolicialComDados } from '../../types';",
-			"nota": ""
+			"nota": "DUP-MANTER: linha de import de tipos, não lógica."
 		},
 		{
 			"id": "aa9ec9e7a9c6",
@@ -489,16 +478,6 @@
 			],
 			"ocorrencias": 2,
 			"amostra": "? 'bg-error-500/5 dark:bg-error-500/8'",
-			"nota": ""
-		},
-		{
-			"id": "bf56cc512569",
-			"arquivos": [
-				"src/routes/policiais/+page.svelte",
-				"src/routes/unidades/+page.svelte"
-			],
-			"ocorrencias": 2,
-			"amostra": "<div class=\"absolute inset-y-0 left-3 flex items-center pointer-events-none opacity-50\">",
 			"nota": ""
 		},
 		{
@@ -651,16 +630,6 @@
 			"ocorrencias": 2,
 			"amostra": "prepararPdfParaAssinatura,",
 			"nota": "DUP-MANTER: linha de import (prepararPdfParaAssinatura/adicionarPaginaAuditoria/adicionarRodapeUniversal de pdf-signing), não lógica. A lógica de preparação que estas duas rotas compartilhavam de verdade (hash, rodapé, folha de auditoria, fecharPreparacaoAssinatura) diverge em pontos reais — geração do PDF base, resolução de rubrica/matrícula (escala aceita admin via adminPolicialId; GISE exige o policial-supervisor) — que tornariam um helper único mais complexo que as duas cópias."
-		},
-		{
-			"id": "f9a943df0961",
-			"arquivos": [
-				"src/routes/gise/[id]/_components/supervisao/SupervisaoDesignacao.svelte",
-				"src/routes/gise/[id]/_components/supervisao/SupervisaoPapelSeint.svelte"
-			],
-			"ocorrencias": 2,
-			"amostra": "<button",
-			"nota": ""
 		},
 		{
 			"id": "fd1e1506e86c",
