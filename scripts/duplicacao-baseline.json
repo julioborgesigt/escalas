@@ -147,16 +147,6 @@
 			"nota": ""
 		},
 		{
-			"id": "39f391d5c27d",
-			"arquivos": [
-				"src/lib/db/documentos.ts",
-				"src/lib/db/gise/documentos.ts"
-			],
-			"ocorrencias": 2,
-			"amostra": "cert_valido_ate: meta.cert_valido_ate ?? null,",
-			"nota": ""
-		},
-		{
 			"id": "3f968bac2073",
 			"arquivos": [
 				"src/routes/api/escalas/[id]/preparar-assinatura/+server.ts",
@@ -359,6 +349,16 @@
 			"nota": ""
 		},
 		{
+			"id": "9754d8f086ae",
+			"arquivos": [
+				"src/lib/db/documentos.ts",
+				"src/lib/db/gise/documentos.ts"
+			],
+			"ocorrencias": 2,
+			"amostra": "userAgent?: string,",
+			"nota": ""
+		},
+		{
 			"id": "97ab3da8655e",
 			"arquivos": [
 				"src/routes/produtividade/_components/DetailCard.svelte",
@@ -540,16 +540,6 @@
 			],
 			"ocorrencias": 3,
 			"amostra": "</div>",
-			"nota": ""
-		},
-		{
-			"id": "cdc0c5b8a34b",
-			"arquivos": [
-				"src/lib/db/documentos.ts",
-				"src/lib/db/gise/documentos.ts"
-			],
-			"ocorrencias": 2,
-			"amostra": "latitude?: number,",
 			"nota": ""
 		},
 		{
