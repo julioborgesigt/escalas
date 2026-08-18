@@ -384,15 +384,13 @@ Verificar cada transição de status:
 **O que entra no painel, e em que forma:**
 
 > A regra tem cobertura automatizada em `e2e/produtividade-graficos.spec.ts` e em
-> `produtividade/__tests__/questions`. Manual: a virada sobre os dados REAIS, que
-> é o que as migrações `0053` e `0054` prometem não mudar.
+> `produtividade/__tests__/questions`. Manual: a virada sobre os dados REAIS.
+>
+> Os dois itens de conferência pós-deploy das migrações `0053`/`0054` saíram
+> daqui — eram verificação de UMA subida, já feita, e o banco está em `0062`.
+> Roteiro manual descreve o comportamento permanente; conferência de migração
+> específica vive no `DEPLOY.md`, junto da migração.
 
-- [ ] Depois do deploy, abrir `/produtividade` na GISE e na CRAJUBAR → os cards
-      são **os mesmos de antes**, na mesma ordem: prisões, drogas e armas com
-      ranking + detalhamento lado a lado, e as barras por pergunta abaixo
-- [ ] Os títulos de drogas e armas perderam o sufixo do número da pergunta
-      (`(P10)`, `(P11)`) e "Detalhamento de Substâncias" virou "Detalhamento de
-      Drogas" — é a única mudança visível esperada
 - [ ] No editor, cada pergunta contável traz o bloco **"Mostrar na
       produtividade"** com três caixinhas; nas numéricas, "Colunas por unidade"
       vem marcada
@@ -835,7 +833,33 @@ Verificar cada transição de status:
 
 ---
 
-## 16. Segurança
+## 16. Acessibilidade e visual (resíduo da auditoria VIS-1…VIS-17)
+
+Os dezessete achados da auditoria visual de 29/jul/2026 estão implementados e
+verificados por medição (contraste calculado de `theme.css`, CSS compilado,
+Playwright). O que sobrou é exatamente o que a automação não alcança — leitor
+de tela real e olho humano sobre a amostra. A auditoria foi arquivada
+(`git show f67345f:docs/auditorias/AUDITORIA_VISUAL_2026-07-29.md`, catálogo em
+[`docs/HISTORICO.md`](docs/HISTORICO.md)); estes itens ficam aqui porque são
+roteiro manual, não relatório.
+
+- [ ] **VIS-13** — viewport < 900px, com TECLADO e LEITOR DE TELA: abrir a
+      sidebar móvel; o foco entra na navegação; conteúdo principal, atalho de
+      salto e barra móvel ficam inertes; Escape, botão fechar, backdrop e
+      navegar devolvem o foco ao botão Menu
+- [ ] **VIS-1 / VIS-4** — amostragem visual nos dois modos: texto informativo
+      e presets `filled` de `tertiary`/`success` legíveis em claro E escuro
+- [ ] **VIS-5** — as exceções estruturais que NÃO usam `ModalShell` (logout do
+      `+layout`, `DialogInfo`, wizards `ModalNovaEscala`/`ModalCriarGise`,
+      `ModalDatasHoras`, `ModalDownloadExtras`, `ModalBreveRelatorio`, os três
+      diálogos de `PainelAcoesServidor`) continuam abrindo, fechando e
+      devolvendo o foco
+- [ ] **VIS-7** — ícones migrados para Lucide mantêm tamanho e alinhamento nas
+      telas de escala, GISE e painel
+
+---
+
+## 17. Segurança
 
 - [ ] Submeter formulário sem token CSRF → request bloqueada
 - [ ] Injeção de caracteres especiais em campos de busca → sem efeito (ORM parameterizado)
@@ -845,14 +869,14 @@ Verificar cada transição de status:
 
 ---
 
-## 17. Health Check
+## 18. Health Check
 
 - [ ] `GET /api/health` → retorna 200 com status OK
 - [ ] Conectividade com banco de dados refletida no health check
 
 ---
 
-## 18. Webhooks de Sincronização (operador / Apps Script)
+## 19. Webhooks de Sincronização (operador / Apps Script)
 
 > `[E2E: webhook-sync.spec.ts]` cobre o contrato ponta a ponta contra o D1: `sync-policiais` cria e atualiza (upsert) a partir do payload do Apps Script, cargo inválido conta como falha sem derrubar o lote, `sync-unidades` cria a seccional; **M-4** — um SYNC_TOKEN válido tentando `papel: seccional` NÃO promove (fica `null`); **reset destrutivo** fail-closed (SYNC válido mas sem a 2ª credencial → 401, nada apagado); auth negativa (sem/errado bearer → 401). A lógica de auth (Bearer/HMAC/replay) tem cobertura unitária em `webhook-auth.test.ts`.
 
@@ -861,7 +885,7 @@ Verificar cada transição de status:
 
 ---
 
-## 19. Direitos do Titular — LGPD art. 18
+## 20. Direitos do Titular — LGPD art. 18
 
 > `[E2E: lgpd-solicitacoes.spec.ts]` cobre o ciclo completo: o titular abre a solicitação (`/api/lgpd/solicitar` → 201) e a vê na sua lista; um policial não acessa a lista administrativa (403); o Admin Geral lista, detalha e responde (conclui); o titular vê o desfecho; reencerrar uma solicitação já concluída → 409.
 

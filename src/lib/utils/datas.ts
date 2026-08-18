@@ -41,6 +41,17 @@ export function formatarData(dateStr: string): string {
  * relatório exibiriam três horas a menos — o horário em que nada aconteceu.
  * Estava reimplementado inline em quatro geradores de documento.
  */
+/**
+ * Dia e mês de uma data ISO `YYYY-MM-DD`, sem o ano (`05/08`).
+ *
+ * Rótulo curto de calendário e de tabela de plantão, onde o ano já está no
+ * cabeçalho. Estava copiada em três componentes de escala.
+ */
+export function formatarDiaMes(iso: string): string {
+	const [, mes, dia] = iso.split('-');
+	return `${dia}/${mes}`;
+}
+
 export function dataHoraBrasilia(entrada: string | Date): string {
 	const d = typeof entrada === 'string' ? new Date(entrada) : entrada;
 	if (Number.isNaN(d.getTime())) return '';

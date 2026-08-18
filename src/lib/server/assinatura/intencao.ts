@@ -37,11 +37,8 @@
 import { and, eq, gt } from 'drizzle-orm';
 import type { Database } from '$lib/db';
 import { assinaturaIntencoes } from '../schema';
-import { sha256Hex } from '$lib/crypto/digest';
+import { sha256Hex, hashTokenArmazenado } from '$lib/crypto/digest';
 import { gerarTokenOpaco } from '$lib/crypto/token';
-
-/** Prefixo do token armazenado — o mesmo de `sessoes` e `reset_senha_tokens`. */
-const PREFIXO_HASH = 'sha256:';
 
 /**
  * 15 minutos. O tempo entre preparar e finalizar é o de digitar o PIN do token
@@ -63,10 +60,6 @@ export interface AlvoAssinatura {
 export interface AtorAssinatura {
 	id: number;
 	tipo: 'policial' | 'admin';
-}
-
-async function hashDoToken(token: string): Promise<string> {
-	return `${PREFIXO_HASH}${await sha256Hex(token)}`;
 }
 
 /**
@@ -92,7 +85,7 @@ export async function criarIntencaoAssinatura(
 ): Promise<string> {
 	const token = gerarTokenOpaco();
 	await db.insert(assinaturaIntencoes).values({
-		token: await hashDoToken(token),
+		token: await hashTokenArmazenado(token),
 		recurso: alvo.recurso,
 		recurso_id: alvo.recursoId,
 		escopo_id: alvo.escopoId ?? null,
@@ -162,7 +155,7 @@ export async function consumirIntencaoAssinatura(
 		.set({ usado: 1 })
 		.where(
 			and(
-				eq(assinaturaIntencoes.token, await hashDoToken(token)),
+				eq(assinaturaIntencoes.token, await hashTokenArmazenado(token)),
 				eq(assinaturaIntencoes.usado, 0),
 				gt(assinaturaIntencoes.expires_at, new Date().toISOString())
 			)

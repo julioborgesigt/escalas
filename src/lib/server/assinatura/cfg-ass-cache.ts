@@ -25,6 +25,7 @@ import {
 	buscarExigirPasskeyAssinatura
 } from '$lib/db';
 import { getDB } from '$lib/db';
+import { chaveEdge, lerJsonEdge, gravarJsonEdge, invalidarEdge } from '../edge-cache';
 
 export interface FlagsAssinatura {
 	exigirFotoAssinatura: boolean;
@@ -38,37 +39,15 @@ export interface FlagsAssinatura {
 // v1 (até 5 min após o deploy) devolveria `undefined` na flag nova — que é
 // falsy, então o efeito seria "reforço desligado por 5 minutos" em vez de erro
 // visível. Bump de chave é mais barato que caçar isso depois.
-const CACHE_KEY = 'https://internal.escalas.local/cfg-ass/v2';
+const CHAVE = chaveEdge('cfg-ass/v2');
 const TTL_SECONDS = 300;
-
-function makeRequest(): Request {
-	return new Request(CACHE_KEY, { method: 'GET' });
-}
-
-function safeCacheRef(): Cache | null {
-	// `caches.default` é uma extensão do runtime Cloudflare Workers, ausente da
-	// lib DOM padrão. Em ambiente de teste/CI sem Workers, `caches` pode não
-	// existir — fallback para null.
-	if (typeof caches === 'undefined') return null;
-	const c = caches as unknown as { default?: Cache };
-	return c.default ?? null;
-}
 
 /** Lê as flags do cache edge; em miss, consulta o D1 e popula o cache. */
 export async function lerFlagsAssinatura(
 	platform: App.Platform | undefined
 ): Promise<FlagsAssinatura> {
-	const cache = safeCacheRef();
-	if (cache) {
-		try {
-			const hit = await cache.match(makeRequest());
-			if (hit) {
-				return (await hit.json()) as FlagsAssinatura;
-			}
-		} catch {
-			// cache miss ou inacessível — segue para o DB
-		}
-	}
+	const hit = await lerJsonEdge<FlagsAssinatura>(CHAVE);
+	if (hit) return hit;
 
 	const db = getDB(platform);
 	const [foto, gps, , smartphone, passkey] = await Promise.all([
@@ -92,30 +71,12 @@ export async function lerFlagsAssinatura(
 		exigirPasskeyAssinatura: passkey
 	};
 
-	if (cache) {
-		try {
-			const response = new Response(JSON.stringify(flags), {
-				headers: {
-					'Content-Type': 'application/json',
-					'Cache-Control': `max-age=${TTL_SECONDS}`
-				}
-			});
-			await cache.put(makeRequest(), response);
-		} catch {
-			// se cache.put falhar (workers env restrito), tudo bem — só perde o cache
-		}
-	}
+	await gravarJsonEdge(CHAVE, flags, TTL_SECONDS);
 
 	return flags;
 }
 
 /** Invalida o cache. Deve ser chamado após qualquer mutação em `/api/configuracoes/assinatura`. */
 export async function invalidarFlagsAssinatura(): Promise<void> {
-	const cache = safeCacheRef();
-	if (!cache) return;
-	try {
-		await cache.delete(makeRequest());
-	} catch {
-		// silently ignore — TTL natural cuidará disso em <= 5 min
-	}
+	await invalidarEdge(CHAVE);
 }

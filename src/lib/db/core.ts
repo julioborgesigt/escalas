@@ -15,6 +15,18 @@ import type { R2Bucket as _R2Bucket } from '@cloudflare/workers-types';
 export type Database = ReturnType<typeof getDB>;
 
 /**
+ * Escapa `%`, `_` e `\` para uso dentro de um `LIKE`, evitando que a busca
+ * livre da UI vire wildcard injection — quem digita `100%` procura o texto
+ * `100%`, não "tudo que começa com 100".
+ *
+ * Exige `ESCAPE '\\'` no SQL. Estava copiado em quatro listagens
+ * (escalas, policiais, audit, app-logs); nenhuma delas é dona da regra.
+ */
+export function escapeLike(str: string): string {
+	return str.replace(/[%_\\]/g, '\\$&');
+}
+
+/**
  * Formato aceito para `platform`: o `event.platform` do SvelteKit
  * (`{ env: Env }`) ou, como fallback, o próprio objeto de bindings
  * (scripts/testes que montam o env na mão). Os campos são opcionais porque

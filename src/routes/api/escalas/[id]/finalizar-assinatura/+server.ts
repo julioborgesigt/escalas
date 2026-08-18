@@ -6,27 +6,18 @@
  */
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import {
-	requireAuth,
-	badRequest,
-	notFound,
-	forbidden,
-	conflict,
-	serverError,
-	validateBody
-} from '$lib/server/api';
+import { requireAuth, badRequest, serverError, validateBody } from '$lib/server/api';
 import {
 	getDB,
 	getR2,
 	hasR2,
-	buscarEscala,
 	buscarDocumentoEscala,
 	salvarDocumentoEscala,
 	registrarAuditComContexto
 } from '$lib/db';
 import { finalizarAssinaturaEscalasSchema } from '$lib/schemas';
 import { finalizarQualificadaDoPayload } from '$lib/server/assinatura/signature-service';
-import { verificarPermissaoEscala, podeAssinarEscala } from '$lib/server/escalas/permissao';
+import { carregarEscalaParaAssinatura } from '$lib/server/escalas/permissao';
 import { limparR2ObsoletoEscala } from '$lib/server/r2-cleanup';
 import { chaveConferencia } from '$lib/server/assinatura/copia-conferencia';
 import {
@@ -60,28 +51,15 @@ export const POST: RequestHandler = async ({
 		longitude
 	} = validated.data;
 
-	const id = parseInt(params.id!);
-	if (isNaN(id)) return badRequest('ID inválido');
-
 	const db = getDB(platform);
-	const escala = await buscarEscala(db, id);
-	if (!escala) return notFound('Escala');
-
-	// Leitura + quem pode assinar (FLW-AUT-001); documento existente bloqueia (FLW-AUT-004).
-	const perm = await verificarPermissaoEscala(db, id, escala.lotacao, u);
-	if (!perm.permitido) return forbidden(perm.motivo ?? 'Sem permissão para assinar esta escala');
-	if (!podeAssinarEscala(u)) {
-		return forbidden('Apenas Admin Geral ou DPC com papel administrativo pode assinar esta escala');
-	}
-	if (escala.tipo === 'fds') {
-		return badRequest(
-			'Escala de fim de semana não admite assinatura digital — use o fluxo por e-mail'
-		);
-	}
-	const docExistente = await buscarDocumentoEscala(db, id);
-	if (docExistente) {
-		return conflict('Revogue a assinatura existente antes de finalizar nova assinatura');
-	}
+	const portao = await carregarEscalaParaAssinatura(
+		db,
+		params.id,
+		u,
+		'Revogue a assinatura existente antes de finalizar nova assinatura'
+	);
+	if (portao.recusa) return portao.recusa;
+	const { id } = portao;
 
 	// Consome a preparação: prova que ESTE pdf foi preparado por ESTE usuário
 	// para ESTA escala, uma vez só (FLW-DOC-001). O `verificationHash` vem

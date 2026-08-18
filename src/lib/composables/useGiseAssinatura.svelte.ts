@@ -22,6 +22,7 @@ import { ehErroReauthAssinatura } from '$lib/assinatura-reauth';
 import { page } from '$app/state';
 import { conectarSerpro, type SerproSignerClient } from '$lib/serpro';
 import type { SignaturePadConfirmPayload } from '$lib/components/SignaturePadTypes';
+import { mensagemDeErro } from '$lib/utils/erro';
 
 type PendenteExtra = {
 	seccionalId: number;
@@ -48,10 +49,6 @@ interface UseGiseAssinaturaParams {
 	initialSignerName?: string;
 	/** CPF inicial do signatário (usuário logado). */
 	initialSignerCpf?: string;
-}
-
-function messageFromUnknown(e: unknown): string {
-	return e instanceof Error ? e.message : String(e);
 }
 
 export function useGiseAssinatura({
@@ -136,7 +133,7 @@ export function useGiseAssinatura({
 			showRubricaModal = false;
 		} catch (e: unknown) {
 			if (ehErroReauthAssinatura(e)) throw e;
-			toaster.error({ title: 'Erro ao assinar', description: messageFromUnknown(e) });
+			toaster.error({ title: 'Erro ao assinar', description: mensagemDeErro(e) });
 			showRubricaModal = false;
 		}
 	}
@@ -176,7 +173,7 @@ export function useGiseAssinatura({
 			await invalidateShared('gise:detail');
 		} catch (e: unknown) {
 			if (ehErroReauthAssinatura(e)) throw e;
-			toaster.error({ title: 'Erro ao assinar', description: messageFromUnknown(e) });
+			toaster.error({ title: 'Erro ao assinar', description: mensagemDeErro(e) });
 		} finally {
 			loading.hide();
 			rubricaCapturada = null;
@@ -245,7 +242,7 @@ export function useGiseAssinatura({
 						}
 					});
 				} catch (e: unknown) {
-					throw new Error(`Falha no item ${item.seccionalId}: ${messageFromUnknown(e)}`, {
+					throw new Error(`Falha no item ${item.seccionalId}: ${mensagemDeErro(e)}`, {
 						cause: e
 					});
 				}
@@ -257,7 +254,7 @@ export function useGiseAssinatura({
 			});
 			await invalidateShared('gise:detail');
 		} catch (err: unknown) {
-			toaster.error({ title: 'Erro no lote', description: messageFromUnknown(err) });
+			toaster.error({ title: 'Erro no lote', description: mensagemDeErro(err) });
 		} finally {
 			assinandoLote = false;
 			etapaAssinatura = '';
@@ -317,7 +314,7 @@ export function useGiseAssinatura({
 				if (ehErroReauthAssinatura(e)) throw e;
 				toaster.error({
 					title: 'Erro ao assinar lote',
-					description: messageFromUnknown(e)
+					description: mensagemDeErro(e)
 				});
 			} finally {
 				loading.hide();
@@ -361,7 +358,7 @@ export function useGiseAssinatura({
 			if (ehErroReauthAssinatura(e)) throw e;
 			toaster.error({
 				title: 'Erro ao assinar relatório',
-				description: messageFromUnknown(e)
+				description: mensagemDeErro(e)
 			});
 		} finally {
 			loading.hide();

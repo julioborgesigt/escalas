@@ -16,21 +16,12 @@
  */
 
 import { temLinhaBaseAPreencher } from './permissao';
+import { chaveEdge, lerJsonEdge, gravarJsonEdge } from '../edge-cache';
 import type { Database } from '$lib/db';
 
 const TTL_SECONDS = 60;
 
-function makeRequest(policialId: number): Request {
-	return new Request(`https://internal.escalas.local/linha-base-pendente/v1/${policialId}`, {
-		method: 'GET'
-	});
-}
-
-function safeCacheRef(): Cache | null {
-	if (typeof caches === 'undefined') return null;
-	const c = caches as unknown as { default?: Cache };
-	return c.default ?? null;
-}
+const chave = (policialId: number) => chaveEdge(`linha-base-pendente/v1/${policialId}`);
 
 /**
  * Lê a flag do cache; em miss, calcula e popula.
@@ -44,33 +35,11 @@ export async function lerTemLinhaBasePendente(
 ): Promise<boolean> {
 	if (!u || u.tipo !== 'policial') return false;
 
-	const cache = safeCacheRef();
-	if (cache) {
-		try {
-			const hit = await cache.match(makeRequest(u.id));
-			if (hit) return ((await hit.json()) as { tem: boolean }).tem;
-		} catch {
-			// segue para o cálculo
-		}
-	}
+	const hit = await lerJsonEdge<{ tem: boolean }>(chave(u.id));
+	if (hit) return hit.tem;
 
 	const tem = await temLinhaBaseAPreencher(db, u);
-
-	if (cache) {
-		try {
-			await cache.put(
-				makeRequest(u.id),
-				new Response(JSON.stringify({ tem }), {
-					headers: {
-						'Content-Type': 'application/json',
-						'Cache-Control': `max-age=${TTL_SECONDS}`
-					}
-				})
-			);
-		} catch {
-			// se falhar, o próximo request paga a consulta e tenta de novo
-		}
-	}
+	await gravarJsonEdge(chave(u.id), { tem }, TTL_SECONDS);
 
 	return tem;
 }

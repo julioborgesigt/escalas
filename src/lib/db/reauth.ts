@@ -15,17 +15,11 @@
 import { and, eq, gt } from 'drizzle-orm';
 import { assinaturaReauth } from '../server/schema';
 import type { Database } from './core';
-import { sha256Hex } from '../crypto/digest';
+import { sha256Hex, hashTokenArmazenado } from '../crypto/digest';
 import { gerarTokenOpaco } from '../crypto/token';
 import { REAUTH_VALIDADE_MS } from '$lib/assinatura-reauth';
 
 export { REAUTH_VALIDADE_MS };
-
-const PREFIXO_HASH = 'sha256:';
-
-async function hashDoToken(token: string): Promise<string> {
-	return `${PREFIXO_HASH}${await sha256Hex(token)}`;
-}
 
 /** SHA-256 do cookie de sessão, sem prefixo — não há legado em claro aqui. */
 async function hashDaSessao(sessaoToken: string): Promise<string> {
@@ -43,7 +37,7 @@ export async function criarJanelaReauth(
 ): Promise<string> {
 	const token = gerarTokenOpaco();
 	await db.insert(assinaturaReauth).values({
-		token_hash: await hashDoToken(token),
+		token_hash: await hashTokenArmazenado(token),
 		usuario_tipo: usuario.tipo,
 		usuario_id: usuario.id,
 		sessao_hash: await hashDaSessao(sessaoToken),
@@ -75,7 +69,7 @@ export async function conferirJanelaReauth(
 		.from(assinaturaReauth)
 		.where(
 			and(
-				eq(assinaturaReauth.token_hash, await hashDoToken(token)),
+				eq(assinaturaReauth.token_hash, await hashTokenArmazenado(token)),
 				gt(assinaturaReauth.expires_at, new Date().toISOString())
 			)
 		)

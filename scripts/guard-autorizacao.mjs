@@ -175,10 +175,21 @@ export const PUBLICAS = [
  * Lista FECHADA das regressões conhecidas: crescer só com achado novo.
  */
 export const HELPERS_OBRIGATORIOS = {
-	// FLW-AUT-001 — assinar escala é DPC admin, não "mesma lotação"
-	'src/routes/api/escalas/[id]/assinar-simples/+server.ts': ['podeAssinarEscala'],
-	'src/routes/api/escalas/[id]/preparar-assinatura/+server.ts': ['podeAssinarEscala'],
-	'src/routes/api/escalas/[id]/finalizar-assinatura/+server.ts': ['podeAssinarEscala'],
+	// FLW-AUT-001 — assinar escala é DPC admin, não "mesma lotação".
+	// As cinco rotas de assinatura entram por `carregarEscalaParaAssinatura`, que
+	// encapsula ACL + `podeAssinarEscala` + FDS + documento já assinado. Exigir o
+	// nome do PORTÃO, e não o de `podeAssinarEscala`, é o que impede a rota de
+	// montar o gate à mão de novo — foi a cópia à mão que perdeu o FDS numa delas.
+	'src/routes/api/escalas/[id]/assinar-simples/+server.ts': ['carregarEscalaParaAssinatura'],
+	'src/routes/api/escalas/[id]/preparar-assinatura/+server.ts': ['carregarEscalaParaAssinatura'],
+	'src/routes/api/escalas/[id]/finalizar-assinatura/+server.ts': ['carregarEscalaParaAssinatura'],
+	'src/routes/api/escalas/[id]/preparar-assinatura-avancada/+server.ts': [
+		'carregarEscalaParaAssinatura'
+	],
+	'src/routes/api/escalas/[id]/finalizar-assinatura-avancada/+server.ts': [
+		'carregarEscalaParaAssinatura'
+	],
+	// Revogar não passa pelo portão (não há o que conflitar): gate direto.
 	'src/routes/api/escalas/[id]/documento-assinado/+server.ts': ['podeAssinarEscala'],
 
 	// FLW-AUT-010 — GISE `finalizada` não muta pela porta dos fundos
@@ -239,7 +250,7 @@ function helpersDaOperacao(arquivo, nome) {
 // carrega mais o helper, e o par nome-aqui + HELPERS_OBRIGATORIOS abaixo passa
 // a exigir a chamada no corpo de CADA uma.
 const RE_403 =
-	/fail\(403|forbidden\(|status:\s*403|error\(403|requireAdmin\(|requireSuperAdmin\(|exigirAdminGeral\(|carregarEscalaComPermissao\(/;
+	/fail\(403|forbidden\(|status:\s*403|error\(403|requireAdmin\(|requireSuperAdmin\(|exigirAdminGeral\(|carregarEscalaComPermissao\(|carregarEscalaParaAssinatura\(/;
 const RE_401 = /fail\(401|unauthorized\(|requireAuth\(|error\(401/;
 
 /** Do índice da chave `{`, devolve o bloco balanceado. */

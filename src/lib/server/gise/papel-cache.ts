@@ -16,6 +16,13 @@
 
 import { eq } from 'drizzle-orm';
 import {
+	chaveEdge,
+	lerJsonEdge,
+	gravarJsonEdge,
+	invalidarEdge,
+	invalidarEdgeMultiplos
+} from '../edge-cache';
+import {
 	isSupervisorGiseAtiva,
 	isMembroGiseAtiva,
 	isSupervisaoGiseAtiva,
@@ -42,36 +49,16 @@ interface PapelGise {
 
 const TTL_SECONDS = 60;
 
-function makeRequest(policialId: number): Request {
-	// v2: inclui `temPresencaPendente` — bump evita servir JSON antigo sem o campo.
-	return new Request(`https://internal.escalas.local/gise-papel/v2/${policialId}`, {
-		method: 'GET'
-	});
-}
-
-function safeCacheRef(): Cache | null {
-	if (typeof caches === 'undefined') return null;
-	const c = caches as unknown as { default?: Cache };
-	return c.default ?? null;
-}
+// v2: inclui `temPresencaPendente` — bump evita servir JSON antigo sem o campo.
+const chave = (policialId: number) => chaveEdge(`gise-papel/v2/${policialId}`);
 
 /**
  * Lê o papel GISE do policial. Em miss, consulta o D1 (2 queries em paralelo)
  * e popula o cache.
  */
 export async function lerPapelGise(db: Database, policialId: number): Promise<PapelGise> {
-	const cache = safeCacheRef();
-
-	if (cache) {
-		try {
-			const hit = await cache.match(makeRequest(policialId));
-			if (hit) {
-				return (await hit.json()) as PapelGise;
-			}
-		} catch {
-			// segue para o DB
-		}
-	}
+	const hit = await lerJsonEdge<PapelGise>(chave(policialId));
+	if (hit) return hit;
 
 	const [isSupervisor, isMembro, isSupervisao, temHistorico, temPresencaPendente] =
 		await Promise.all([
@@ -90,19 +77,7 @@ export async function lerPapelGise(db: Database, policialId: number): Promise<Pa
 		temPresencaPendente
 	};
 
-	if (cache) {
-		try {
-			const response = new Response(JSON.stringify(papel), {
-				headers: {
-					'Content-Type': 'application/json',
-					'Cache-Control': `max-age=${TTL_SECONDS}`
-				}
-			});
-			await cache.put(makeRequest(policialId), response);
-		} catch {
-			// se falhar, o próximo request paga a query e tenta de novo
-		}
-	}
+	await gravarJsonEdge(chave(policialId), papel, TTL_SECONDS);
 
 	return papel;
 }
@@ -116,24 +91,15 @@ export async function lerPapelGise(db: Database, policialId: number): Promise<Pa
  */
 export async function invalidarPapelGise(policialId: number | null | undefined): Promise<void> {
 	if (policialId == null) return;
-	const cache = safeCacheRef();
-	if (!cache) return;
-	try {
-		await cache.delete(makeRequest(policialId));
-	} catch {
-		// silently ignore — TTL natural cuidará disso em <= 60s
-	}
+	await invalidarEdge(chave(policialId));
 }
 
 /** Invalida o cache para vários policiais de uma vez (best-effort). */
 export async function invalidarPapelGiseMultiplos(
 	policialIds: ReadonlyArray<number | null | undefined>
 ): Promise<void> {
-	const cache = safeCacheRef();
-	if (!cache) return;
 	const ids = policialIds.filter((id): id is number => typeof id === 'number');
-	if (ids.length === 0) return;
-	await Promise.allSettled(ids.map((id) => cache.delete(makeRequest(id))));
+	await invalidarEdgeMultiplos(ids.map(chave));
 }
 
 /**

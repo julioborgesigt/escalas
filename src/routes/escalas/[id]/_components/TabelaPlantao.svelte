@@ -18,6 +18,8 @@
 	 */
 	import type { Escala } from '$lib/server/schema';
 	import type { EscalaPolicialComDados } from '$lib/types';
+	import { formatarDiaMes } from '$lib/utils/datas';
+	import { criarHelpersHorario } from './escala-horarios';
 	import IconTooltip from '$lib/components/IconTooltip.svelte';
 	import EstadoVazio from '$lib/components/EstadoVazio.svelte';
 	import ModalEditarPlantao from './ModalEditarPlantao.svelte';
@@ -69,12 +71,13 @@
 		ids: number[];
 	}
 
-	function getHoraEntrada(p: EscalaPolicialComDados): string {
-		return p.hora_entrada || escala?.hora_entrada || '08:00';
-	}
-	function getHoraSaida(p: EscalaPolicialComDados): string {
-		return p.hora_saida || escala?.hora_saida || '08:00';
-	}
+	// Terceira visão da mesma escala: usa o par de `escala-horarios`, como
+	// `ListaFds` e `TabelaServidores`. A cópia local que vivia aqui caía para
+	// `'08:00'`, e o default da coluna `escalas.hora_entrada` é `'08'` — hora
+	// cheia, sem minutos. Divergência latente: só aparecia com a escala sem
+	// horário definido, e aí esta tabela escrevia "08:00H A 08:00H" onde o PDF
+	// e as outras duas telas escreviam "08H A 08H".
+	const { getHoraEntrada, getHoraSaida } = criarHelpersHorario(() => escala);
 
 	const equipesAgrupadas = $derived.by(() => {
 		// eslint-disable-next-line svelte/prefer-svelte-reactivity
@@ -130,11 +133,6 @@
 		editHoraSaidaInicial = p.hora_saida;
 		editObservacoesIniciais = p.observacoes;
 		modalEditarOpen = true;
-	}
-
-	function fmtDia(iso: string): string {
-		const [, m, d] = iso.split('-');
-		return `${d}/${m}`;
 	}
 </script>
 
@@ -248,7 +246,7 @@
 											{#each p.dias as dia (dia)}
 												<span
 													class="badge bg-surface-200 dark:bg-surface-700 px-1.5 py-0.5 rounded text-3xs font-bold tracking-wider"
-													>{fmtDia(dia)}</span
+													>{formatarDiaMes(dia)}</span
 												>
 											{/each}
 										</div>

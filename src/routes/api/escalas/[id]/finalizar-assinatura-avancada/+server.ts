@@ -23,8 +23,6 @@ import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import {
 	getDB,
-	buscarEscala,
-	buscarDocumentoEscala,
 	buscarCredencialPorId,
 	registrarUsoCredencial,
 	registrarAuditComContexto,
@@ -36,9 +34,6 @@ import {
 	apiError,
 	ErrorCode,
 	badRequest,
-	notFound,
-	forbidden,
-	conflict,
 	serverError,
 	requireAuth,
 	validateBody
@@ -56,7 +51,7 @@ import {
 import { descreverVinculoCredencial } from '$lib/server/assinatura/webauthn/authenticator-data';
 import { credencialDoUsuario } from '$lib/server/auth/credencial';
 import { resolverAppOrigin } from '$lib/server/app-origin';
-import { verificarPermissaoEscala, podeAssinarEscala } from '$lib/server/escalas/permissao';
+import { carregarEscalaParaAssinatura } from '$lib/server/escalas/permissao';
 import { calcularHashBuffer } from '$lib/server/assinatura/document-utils';
 import { base64ToBytes, base64UrlToBytes } from '$lib/crypto/bin';
 import { hexToBytes } from '$lib/crypto/hex';
@@ -75,21 +70,15 @@ export const POST: RequestHandler = async ({
 	const ip = getClientAddress();
 	const ua = request.headers.get('user-agent') || '';
 
-	const id = parseInt(params.id!);
-	if (isNaN(id)) return badRequest('ID inválido');
-
 	const db = getDB(platform);
-	const escala = await buscarEscala(db, id);
-	if (!escala) return notFound('Escala');
-
-	const perm = await verificarPermissaoEscala(db, id, escala.lotacao, u);
-	if (!perm.permitido) return forbidden(perm.motivo ?? 'Sem permissão para assinar esta escala');
-	if (!podeAssinarEscala(u)) {
-		return forbidden('Apenas Admin Geral ou DPC com papel administrativo pode assinar esta escala');
-	}
-	if (await buscarDocumentoEscala(db, id)) {
-		return conflict('Revogue a assinatura existente antes de assinar novamente');
-	}
+	const portao = await carregarEscalaParaAssinatura(
+		db,
+		params.id,
+		u,
+		'Revogue a assinatura existente antes de assinar novamente'
+	);
+	if (portao.recusa) return portao.recusa;
+	const { id } = portao;
 
 	// Permissão ANTES do Zod: o corpo carrega o PDF preparado (até 10 MB). Ler
 	// isso de quem já seria recusado só para devolver 400 mascara o gate — e é

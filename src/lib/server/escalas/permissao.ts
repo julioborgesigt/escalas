@@ -1,11 +1,14 @@
 /**
  * Autorização do domínio escalas ordinárias: leitura por lotação/solicitação
- * (`verificarPermissaoEscala`) e quem pode assinar (`podeAssinarEscala`).
+ * (`verificarPermissaoEscala`), quem pode assinar (`podeAssinarEscala`) e o
+ * portão completo das rotas de assinatura (`carregarEscalaParaAssinatura`).
  * Não há `autorizar()` único — a regra deste domínio mora aqui.
  */
-import { temSolicitacaoParaDpcAdmin } from '$lib/db';
+import { temSolicitacaoParaDpcAdmin, buscarEscala, buscarDocumentoEscala } from '$lib/db';
 import { lotacoesAdministradas } from '$lib/server/policial-permissao';
 import type { Database } from '$lib/db';
+import type { Escala } from '$lib/server/schema';
+import { badRequest, conflict, forbidden, notFound } from '$lib/server/api';
 import { isAnyAdmin } from '$lib/auth';
 
 /**
@@ -109,6 +112,69 @@ export function podeAssinarEscala(u: App.Locals['usuario']): boolean {
 	if (!u) return false;
 	if (u.tipo === 'admin') return true;
 	return (u.papel === 'admin_seccional' || u.papel === 'admin_unidade') && u.cargo === 'DPC';
+}
+
+/**
+ * Portão COMPLETO das cinco rotas de assinatura de escala (`assinar-simples`,
+ * `preparar-assinatura`, `finalizar-assinatura` e os dois passos da avançada):
+ * id válido → escala existe → ACL de leitura → `podeAssinarEscala` → FDS →
+ * documento já assinado.
+ *
+ * As cinco recusas rodavam copiadas nas cinco rotas, e a cópia divergiu como
+ * sempre diverge: `finalizar-assinatura-avancada` era a única SEM o gate de
+ * FDS (FLW-AUT-012). Ali a preparação já barrava o fluxo pela intenção, então
+ * não havia buraco explorável — mas era a quinta cópia esperando alguém
+ * removê-lo do lugar que ainda o tinha. A ordem das recusas é a mesma das
+ * cópias, porque `e2e/autorizacao-negativa` distingue 400 de 403 e de 404.
+ *
+ * Devolve `{ escala, id }` ou `{ recusa }` — a rota só repassa a `recusa`.
+ * O nome deste helper está em `HELPERS_OBRIGATORIOS` (`guard:autorizacao`) e
+ * na `RE_403` do guard: extrair o 403 para cá sem registrar deixaria a
+ * varredura cega, exatamente como aconteceu com `carregarEscalaComPermissao`.
+ *
+ * @param conflitoDocumento mensagem do 409 quando já existe documento assinado.
+ *   `null` desliga a checagem (nenhuma rota usa hoje; o padrão é checar).
+ */
+export async function carregarEscalaParaAssinatura(
+	db: Database,
+	idParam: string | undefined,
+	u: NonNullable<App.Locals['usuario']>,
+	conflitoDocumento: string | null = 'Revogue a assinatura existente antes de assinar novamente'
+): Promise<{ escala: Escala; id: number; recusa?: never } | { recusa: Response; escala?: never }> {
+	const id = parseInt(idParam!);
+	if (isNaN(id)) return { recusa: badRequest('ID inválido') };
+
+	const escala = await buscarEscala(db, id);
+	if (!escala) return { recusa: notFound('Escala') };
+
+	// Leitura (lotação/escopo/solicitação) + assinatura (Admin Geral ou DPC admin) — FLW-AUT-001.
+	const perm = await verificarPermissaoEscala(db, id, escala.lotacao, u);
+	if (!perm.permitido) {
+		return { recusa: forbidden(perm.motivo ?? 'Sem permissão para assinar esta escala') };
+	}
+	if (!podeAssinarEscala(u)) {
+		return {
+			recusa: forbidden(
+				'Apenas Admin Geral ou DPC com papel administrativo pode assinar esta escala'
+			)
+		};
+	}
+
+	// FLW-AUT-012: FDS encerra por e-mail, não por assinatura digital.
+	if (escala.tipo === 'fds') {
+		return {
+			recusa: badRequest(
+				'Escala de fim de semana não admite assinatura digital — use o fluxo por e-mail'
+			)
+		};
+	}
+
+	// FLW-AUT-004: reassinatura exige revogar antes (DELETE documento-assinado).
+	if (conflitoDocumento !== null && (await buscarDocumentoEscala(db, id))) {
+		return { recusa: conflict(conflitoDocumento) };
+	}
+
+	return { escala, id };
 }
 
 /**

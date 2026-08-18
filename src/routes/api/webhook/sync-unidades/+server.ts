@@ -31,6 +31,7 @@ import {
 } from '$lib/server/auth/webhook-auth';
 import { logger } from '$lib/server/logger';
 import { apiError, ErrorCode, unauthorized } from '$lib/server/api';
+import { mensagemDeErro } from '$lib/utils/erro';
 
 type SyncNivel = 'DEPARTAMENTO' | 'SUB_DEPARTAMENTO' | 'SECCIONAL' | 'DELEGACIA';
 
@@ -179,7 +180,7 @@ export const POST: RequestHandler = async (event) => {
 				});
 				successCount++;
 			} catch (err: unknown) {
-				errors.push(`Departamento ${nome}: ${messageFromUnknown(err)}`);
+				errors.push(`Departamento ${nome}: ${mensagemDeErro(err)}`);
 			}
 		}
 
@@ -204,7 +205,7 @@ export const POST: RequestHandler = async (event) => {
 				});
 				successCount++;
 			} catch (err: unknown) {
-				errors.push(`Subdepartamento ${nome}: ${messageFromUnknown(err)}`);
+				errors.push(`Subdepartamento ${nome}: ${mensagemDeErro(err)}`);
 			}
 		}
 
@@ -237,7 +238,7 @@ export const POST: RequestHandler = async (event) => {
 				});
 				successCount++;
 			} catch (err: unknown) {
-				errors.push(`Seccional ${nomeSec}: ${messageFromUnknown(err)}`);
+				errors.push(`Seccional ${nomeSec}: ${mensagemDeErro(err)}`);
 			}
 		}
 
@@ -264,7 +265,7 @@ export const POST: RequestHandler = async (event) => {
 				});
 				successCount++;
 			} catch (err: unknown) {
-				errors.push(`Delegacia ${trimCol(item, 'unidade')}: ${messageFromUnknown(err)}`);
+				errors.push(`Delegacia ${trimCol(item, 'unidade')}: ${mensagemDeErro(err)}`);
 			}
 		}
 
@@ -297,14 +298,6 @@ export const POST: RequestHandler = async (event) => {
 		});
 	} catch (err: unknown) {
 		// 400 (não 500): payload do webhook é input do caller, não bug interno.
-		return apiError(
-			`Erro ao processar payload: ${messageFromUnknown(err)}`,
-			400,
-			ErrorCode.VALIDATION
-		);
+		return apiError(`Erro ao processar payload: ${mensagemDeErro(err)}`, 400, ErrorCode.VALIDATION);
 	}
 };
-
-function messageFromUnknown(e: unknown): string {
-	return e instanceof Error ? e.message : String(e);
-}
