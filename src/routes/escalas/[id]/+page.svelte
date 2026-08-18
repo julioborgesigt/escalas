@@ -46,6 +46,7 @@
 	import ListaFds from './_components/ListaFds.svelte';
 	import TabelaServidores from './_components/TabelaServidores.svelte';
 	import TabelaPlantao from './_components/TabelaPlantao.svelte';
+	import { mensagemDeErro } from '$lib/utils/erro';
 
 	const { data }: PageProps = $props();
 
@@ -164,7 +165,7 @@
 			await invalidateShared(`escala:${escalaIdPagina}`, 'app:escalas');
 		} catch (e: unknown) {
 			toaster.create({
-				title: e instanceof Error ? e.message : 'Erro ao solicitar assinatura',
+				title: mensagemDeErro(e, 'Erro ao solicitar assinatura'),
 				type: 'error'
 			});
 		} finally {

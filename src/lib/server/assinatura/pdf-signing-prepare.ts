@@ -43,6 +43,7 @@ import { bytesToHex } from '$lib/crypto/hex';
 // Identidade da política (OIDs, hash oficial, resolver) — fonte única
 // compartilhada com a verificação, sem deps pesadas.
 import { OID_SIG_POLICY_ID, OID_PA_AD_RB_V2_3, resolverHashPolitica } from './icp-policy';
+import { mensagemDeErro } from '$lib/utils/erro';
 
 /**
  * Tamanho do placeholder de /Contents, em CARACTERES HEX ⇒ capacidade real de
@@ -93,7 +94,7 @@ export function extrairDadosCertificado(cmsBase64: string): { nome: string; cpf:
 		return extrairDadosDoCertificado(cert);
 	} catch (e) {
 		logger.error('[PDF-SIGN] Erro ao extrair dados do certificado', {
-			error: e instanceof Error ? e.message : String(e)
+			error: mensagemDeErro(e)
 		});
 		throw new Error('Falha ao processar o certificado digital do Token.', { cause: e });
 	}
@@ -264,7 +265,7 @@ function berToDer(ber: Buffer): Buffer {
 		// abaixo aponta EXATAMENTE onde a conversão tropeçou — fundamental para
 		// estender o conversor a estruturas BER que ainda não cobrimos.
 		logger.warn('[PDF] Falha ao converter CMS BER→DER — usando original (Adobe pode rejeitar)', {
-			error: e instanceof Error ? e.message : String(e),
+			error: mensagemDeErro(e),
 			posFalha: pos,
 			berLen: ber.length,
 			contextoHex: ber.subarray(Math.max(0, pos - 8), Math.min(ber.length, pos + 8)).toString('hex')
@@ -610,7 +611,7 @@ async function desenharCampoRubricaLimpo(
 		page.drawImage(rubricImage, { x: rx, y: ry, width: rubW, height: rubH, opacity: 0.9 });
 	} catch (err) {
 		logger.error('Erro ao embutir rubrica no campo limpo', {
-			error: err instanceof Error ? err.message : String(err)
+			error: mensagemDeErro(err)
 		});
 	}
 }
@@ -786,7 +787,7 @@ export async function prepararPdfParaAssinatura(
 			});
 		} catch (err) {
 			logger.error('Erro ao embutir rubrica no prep', {
-				error: err instanceof Error ? err.message : String(err)
+				error: mensagemDeErro(err)
 			});
 		}
 	}

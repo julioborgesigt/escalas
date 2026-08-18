@@ -14,6 +14,7 @@ import { assinarEscalaComPasskey } from '$lib/assinatura-passkey';
 import { ehErroReauthAssinatura } from '$lib/assinatura-reauth';
 import { page } from '$app/state';
 import { logger } from '$lib/logger';
+import { mensagemDeErro } from '$lib/utils/erro';
 
 interface UseAssinaturaParams {
 	getParams: () => {
@@ -114,7 +115,7 @@ export function useAssinaturaEscala({ getParams, onDocumentoAssinado }: UseAssin
 		} catch (err: unknown) {
 			toaster.error({
 				title: 'Erro na assinatura',
-				description: err instanceof Error ? err.message : 'Erro desconhecido'
+				description: mensagemDeErro(err, 'Erro desconhecido')
 			});
 		} finally {
 			loading.hide();
@@ -180,7 +181,7 @@ export function useAssinaturaEscala({ getParams, onDocumentoAssinado }: UseAssin
 			if (ehErroReauthAssinatura(err)) throw err;
 			toaster.error({
 				title: 'Erro ao assinar',
-				description: err instanceof Error ? err.message : 'Erro desconhecido'
+				description: mensagemDeErro(err, 'Erro desconhecido')
 			});
 		} finally {
 			loading.hide();

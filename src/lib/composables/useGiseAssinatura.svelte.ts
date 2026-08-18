@@ -191,7 +191,7 @@ export function useGiseAssinatura({
 			}
 		} catch (err) {
 			toaster.error({
-				title: err instanceof Error ? err.message : 'Erro ao conectar ao SERPRO'
+				title: mensagemDeErro(err, 'Erro ao conectar ao SERPRO')
 			});
 		}
 	}

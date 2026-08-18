@@ -29,6 +29,7 @@ import { chaveConferencia } from '../assinatura/copia-conferencia';
 import { uploadSelfieDataUri } from '../assinatura/selfie-upload';
 import { guardarPdfAssinado, type R2ParaAssinatura } from '../assinatura/blob-assinado';
 import type { EvidenciasMontagem } from '../escalas/assinatura-escala';
+import { mensagemDeErro } from '$lib/utils/erro';
 
 export function chaveDocumentoExtra(
 	gise: { id: number; data_inicio: string },
@@ -199,7 +200,7 @@ export async function persistirExtraAssinado(opts: {
 			logger.warn('[assinatura-extra] Falha ao gravar cópia de conferência', {
 				gise_id: opts.giseId,
 				seccional_id: opts.secId,
-				error: err instanceof Error ? err.message : String(err)
+				error: mensagemDeErro(err)
 			});
 		}
 	}

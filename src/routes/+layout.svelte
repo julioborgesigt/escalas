@@ -49,6 +49,7 @@
 	import { visibilidadeDoMenu, itensExtraDoMenu, rotaAtiva } from './_components/menu-visibilidade';
 	import AlertCircle from '@lucide/svelte/icons/alert-circle';
 	import CheckCircle2 from '@lucide/svelte/icons/check-circle-2';
+	import { mensagemDeErro } from '$lib/utils/erro';
 
 	const { children }: LayoutProps = $props();
 
@@ -246,7 +247,7 @@
 			}
 		} catch (e: unknown) {
 			toaster.create({
-				title: e instanceof Error ? e.message : 'Erro ao alternar módulo',
+				title: mensagemDeErro(e, 'Erro ao alternar módulo'),
 				type: 'error'
 			});
 		} finally {
@@ -268,7 +269,7 @@
 			await goto(result.redirect || '/', { invalidateAll: true });
 		} catch (e: unknown) {
 			toaster.create({
-				title: e instanceof Error ? e.message : 'Erro ao alternar acesso',
+				title: mensagemDeErro(e, 'Erro ao alternar acesso'),
 				type: 'error'
 			});
 		} finally {

@@ -39,6 +39,7 @@ import { actionsSeccional } from './_actions/actions-seccional';
 import { actionsEquipe } from './_actions/actions-equipe';
 import { actionsMembros } from './_actions/actions-membros';
 import { actionsUnidade } from './_actions/actions-unidade';
+import { mensagemDeErro } from '$lib/utils/erro';
 
 export const load: PageServerLoad = async ({ locals, params, platform, depends, parent }) => {
 	depends('gise:detail');
@@ -255,7 +256,7 @@ export const load: PageServerLoad = async ({ locals, params, platform, depends, 
 		};
 	} catch (e) {
 		if (e && typeof e === 'object' && 'status' in e) throw e;
-		const msg = e instanceof Error ? e.message : String(e);
+		const msg = mensagemDeErro(e);
 		// errorId correlaciona a mensagem genérica ao log estruturado — a
 		// mensagem interna (Drizzle/D1) nunca vai para o cliente.
 		const errorId = crypto.randomUUID().replace(/-/g, '').slice(0, 8);

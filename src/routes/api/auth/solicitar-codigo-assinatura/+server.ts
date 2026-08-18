@@ -12,6 +12,7 @@ import {
 } from '$lib/server/auth/recovery-rate-limit';
 import { requireAuth, badRequest, rateLimited, serverError } from '$lib/server/api';
 import type { RequestHandler } from './$types';
+import { mensagemDeErro } from '$lib/utils/erro';
 
 // Teto por IP do envio do código 2FA de assinatura: cada chamada dispara um
 // e-mail e cria um desafio. Sem teto vira vetor de e-mail bombing e de exaustão
@@ -41,7 +42,7 @@ export const POST: RequestHandler = async ({ platform, locals, getClientAddress 
 			}
 		} catch (err) {
 			logger.error('[Assinatura 2FA] Falha no rate-limit (fail-open)', {
-				error: err instanceof Error ? err.message : String(err)
+				error: mensagemDeErro(err)
 			});
 		}
 
@@ -74,7 +75,7 @@ export const POST: RequestHandler = async ({ platform, locals, getClientAddress 
 			await registrarRecoveryAttempt(db, ip, 'solicitar_codigo_assinatura');
 		} catch (err) {
 			logger.error('[Assinatura 2FA] Falha ao registrar tentativa (fail-open)', {
-				error: err instanceof Error ? err.message : String(err)
+				error: mensagemDeErro(err)
 			});
 		}
 
@@ -83,7 +84,7 @@ export const POST: RequestHandler = async ({ platform, locals, getClientAddress 
 
 		const emailJob = enviarCodigo2FA(email, codigo, u.nome, platform).catch((err) => {
 			logger.error('[Assinatura 2FA] Falha ao enviar e-mail', {
-				error: err instanceof Error ? err.message : String(err)
+				error: mensagemDeErro(err)
 			});
 		});
 		platform?.ctx?.waitUntil(emailJob);

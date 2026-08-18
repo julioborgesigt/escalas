@@ -26,6 +26,7 @@ import {
 	mensagemSemEmailReposicao
 } from '$lib/server/assinatura/reposicao-passkey';
 import { criarDesafioReposicao } from '$lib/db/passkey-reposicao';
+import { mensagemDeErro } from '$lib/utils/erro';
 
 const MAX = 5;
 const JANELA_MIN = 15;
@@ -65,7 +66,7 @@ export const POST: RequestHandler = async ({ platform, locals, request, getClien
 			}
 		} catch (err) {
 			logger.error('[passkey-reposicao] Falha no rate-limit (fail-open)', {
-				error: err instanceof Error ? err.message : String(err)
+				error: mensagemDeErro(err)
 			});
 		}
 
@@ -73,7 +74,7 @@ export const POST: RequestHandler = async ({ platform, locals, request, getClien
 			await registrarRecoveryAttempt(db, ip, 'passkey_reposicao');
 		} catch (err) {
 			logger.error('[passkey-reposicao] Falha ao registrar tentativa (fail-open)', {
-				error: err instanceof Error ? err.message : String(err)
+				error: mensagemDeErro(err)
 			});
 		}
 
@@ -87,13 +88,13 @@ export const POST: RequestHandler = async ({ platform, locals, request, getClien
 		const jobInst = enviarCodigo2FA(emails.institucional, codigoInst, u.nome, platform).catch(
 			(err) => {
 				logger.error('[passkey-reposicao] Falha ao enviar e-mail institucional', {
-					error: err instanceof Error ? err.message : String(err)
+					error: mensagemDeErro(err)
 				});
 			}
 		);
 		const jobPess = enviarCodigo2FA(emails.pessoal, codigoPess, u.nome, platform).catch((err) => {
 			logger.error('[passkey-reposicao] Falha ao enviar e-mail pessoal', {
-				error: err instanceof Error ? err.message : String(err)
+				error: mensagemDeErro(err)
 			});
 		});
 		platform?.ctx?.waitUntil(Promise.all([jobInst, jobPess]));

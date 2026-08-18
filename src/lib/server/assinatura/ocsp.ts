@@ -12,6 +12,7 @@
 import forge from 'node-forge';
 import { binStringToBytes, bytesToBinString } from '$lib/crypto/bin';
 import { logger } from '../logger';
+import { mensagemDeErro } from '$lib/utils/erro';
 
 const OID_OCSP_AIA = '1.3.6.1.5.5.7.48.1';
 const OID_OCSP_NONCE = '1.3.6.1.5.5.7.48.1.2';
@@ -80,7 +81,7 @@ export function extrairUrlOcsp(cert: forge.pki.Certificate): string | null {
 		}
 	} catch (e) {
 		logger.warn('[OCSP] Falha ao parsear AIA', {
-			error: e instanceof Error ? e.message : String(e)
+			error: mensagemDeErro(e)
 		});
 	}
 	return null;
@@ -455,7 +456,7 @@ function extrairComponentesBasic(basicAsn1: forge.asn1.Asn1): {
 		};
 	} catch (e) {
 		logger.warn('[OCSP] Falha ao extrair componentes do BasicOCSPResponse', {
-			error: e instanceof Error ? e.message : String(e)
+			error: mensagemDeErro(e)
 		});
 		return null;
 	}
@@ -519,7 +520,7 @@ function verificarSignatureBasic(
 		}
 	} catch (e) {
 		logger.warn('[OCSP] Erro na verificação RSA do responder', {
-			error: e instanceof Error ? e.message : String(e)
+			error: mensagemDeErro(e)
 		});
 		return 'invalida';
 	}
@@ -668,7 +669,7 @@ function parseOcspStatus(responseDer: Uint8Array): {
 		return { status: 'unknown', basicAsn1 };
 	} catch (e) {
 		logger.warn('[OCSP] Falha ao parsear OCSPResponse', {
-			error: e instanceof Error ? e.message : String(e)
+			error: mensagemDeErro(e)
 		});
 		return { status: 'unknown' };
 	}
@@ -723,7 +724,7 @@ export async function consultarOcsp(
 			responseDerB64: '',
 			url,
 			consultadoEm,
-			erro: `Falha ao montar OCSPRequest: ${e instanceof Error ? e.message : String(e)}`
+			erro: `Falha ao montar OCSPRequest: ${mensagemDeErro(e)}`
 		};
 	}
 
@@ -790,7 +791,7 @@ export async function consultarOcsp(
 			responseDerB64: '',
 			url,
 			consultadoEm,
-			erro: e instanceof Error ? e.message : String(e)
+			erro: mensagemDeErro(e)
 		};
 	} finally {
 		clearTimeout(t);

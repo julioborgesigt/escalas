@@ -57,6 +57,7 @@ import {
 	createAppendGiseXlsxState
 } from '$lib/server/gise/xlsx-workbook-append';
 import ExcelJS from 'exceljs';
+import { mensagemDeErro } from '$lib/utils/erro';
 
 export const GET: RequestHandler = async ({ locals, params, platform, url }) => {
 	const u = requireAuth(locals);
@@ -305,7 +306,7 @@ export const GET: RequestHandler = async ({ locals, params, platform, url }) => 
 				} catch (e) {
 					logger.warn('[gise/download] Falha ao buscar PDF assinado do R2', {
 						gise_id: id,
-						error: e instanceof Error ? e.message : String(e)
+						error: mensagemDeErro(e)
 					});
 				}
 			}
@@ -347,7 +348,7 @@ export const GET: RequestHandler = async ({ locals, params, platform, url }) => 
 				if (cearaObj) logoCearaBytes = new Uint8Array(await cearaObj.arrayBuffer());
 			} catch (e) {
 				logger.error('[gise/download] Erro ao buscar logo do R2', {
-					error: e instanceof Error ? e.message : String(e)
+					error: mensagemDeErro(e)
 				});
 			}
 		} else {

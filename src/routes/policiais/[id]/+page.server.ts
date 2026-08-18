@@ -78,6 +78,7 @@ import { decifrarCpfDoDB } from '$lib/crypto/cpf-cripto';
 import { resolverCredencial, revogarSessoesDaCredencial } from '$lib/server/auth/credencial';
 import { hojeBrasilISO } from '$lib/utils/datas';
 import type { RequestEvent } from './$types';
+import { mensagemDeErro } from '$lib/utils/erro';
 
 const TAMANHO_MAX_PDF = 10 * 1024 * 1024; // 10 MB
 
@@ -101,7 +102,7 @@ async function abortarComLimpezaR2(
 ) {
 	logger.error(`[policiais/${contexto}] Falha ao persistir; anexo será removido do R2`, {
 		r2_key: doc?.key ?? null,
-		error: erro instanceof Error ? erro.message : String(erro)
+		error: mensagemDeErro(erro)
 	});
 	if (doc && hasR2(event.platform)) {
 		await deletarChavesR2(
@@ -531,7 +532,7 @@ export const actions: Actions = {
 		try {
 			doc = await uploadDocumento(event, formData, id);
 		} catch (e) {
-			return fail(400, { error: e instanceof Error ? e.message : 'Falha no upload do documento' });
+			return fail(400, { error: mensagemDeErro(e, 'Falha no upload do documento') });
 		}
 
 		const origem = alvo.lotacao || '';
@@ -604,7 +605,7 @@ export const actions: Actions = {
 		try {
 			doc = await uploadDocumento(event, formData, id);
 		} catch (e) {
-			return fail(400, { error: e instanceof Error ? e.message : 'Falha no upload do documento' });
+			return fail(400, { error: mensagemDeErro(e, 'Falha no upload do documento') });
 		}
 
 		// Não altera cadastro: só a linha do tempo. Nada a transacionar, mas a
@@ -665,7 +666,7 @@ export const actions: Actions = {
 		try {
 			doc = await uploadDocumento(event, formData, id);
 		} catch (e) {
-			return fail(400, { error: e instanceof Error ? e.message : 'Falha no upload do documento' });
+			return fail(400, { error: mensagemDeErro(e, 'Falha no upload do documento') });
 		}
 
 		try {

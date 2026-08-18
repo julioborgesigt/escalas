@@ -24,6 +24,7 @@ import { uploadSelfieDataUri } from '../assinatura/selfie-upload';
 import { gerarCodigoValidacao } from '$lib/utils/formato';
 import { guardarPdfAssinado, type R2ParaAssinatura } from '../assinatura/blob-assinado';
 import type { EvidenciasMontagem } from '../escalas/assinatura-escala';
+import { mensagemDeErro } from '$lib/utils/erro';
 
 export interface PdfGiseMontado {
 	pdfComRodape: Uint8Array;
@@ -140,7 +141,7 @@ export async function persistirGiseAssinada(opts: {
 		} catch (err) {
 			logger.warn('[assinatura-gise] Falha ao gravar cópia de conferência', {
 				gise_id: opts.gise.id,
-				error: err instanceof Error ? err.message : String(err)
+				error: mensagemDeErro(err)
 			});
 		}
 	}

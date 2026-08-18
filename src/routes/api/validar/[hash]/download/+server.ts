@@ -39,6 +39,7 @@ import {
 import { carregarLogosGise } from '$lib/server/gise/logos';
 import { logger } from '$lib/server/logger';
 import type { RequestHandler } from './$types';
+import { mensagemDeErro } from '$lib/utils/erro';
 
 // Rate-limit do download por IP — defesa em profundidade contra enumeração do
 // hash (~40 bits) por um usuário autenticado. Estado em D1 (serverless-safe).
@@ -91,7 +92,7 @@ export const GET: RequestHandler = async ({ platform, params, url, cookies, getC
 	} catch (err) {
 		logger.error('[validar/download] Falha no rate-limit (fail-closed)', {
 			hash,
-			error: err instanceof Error ? err.message : String(err)
+			error: mensagemDeErro(err)
 		});
 		// FLW-AUT-016: D1 fora = não liberar enumeração do hash.
 		return serverError('[validar/download] Rate-limit indisponível', err);
@@ -231,7 +232,7 @@ export const GET: RequestHandler = async ({ platform, params, url, cookies, getC
 				logger.error('[validar/download] Erro ao acessar R2', {
 					hash,
 					r2_key: documento.r2_key,
-					error: r2Err instanceof Error ? r2Err.message : String(r2Err)
+					error: mensagemDeErro(r2Err)
 				});
 			}
 		} else {

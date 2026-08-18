@@ -42,6 +42,7 @@
 		mensagemReposicaoDoisEmails,
 		mensagemOndeEstaAChave
 	} from '$lib/chave-assinatura-ui';
+	import { mensagemDeErro } from '$lib/utils/erro';
 
 	type CredencialPerfil = {
 		criadoEm: string;
@@ -82,7 +83,7 @@
 		if (e instanceof DOMException && e.name === 'NotAllowedError') {
 			return 'Cadastro cancelado ou tempo esgotado no aparelho.';
 		}
-		return e instanceof Error ? e.message : 'Erro ao registrar a chave.';
+		return mensagemDeErro(e, 'Erro ao registrar a chave.');
 	}
 
 	async function aposRegistrar(vinculo: string, identificador: string) {
@@ -164,7 +165,7 @@
 			});
 		} catch (e: unknown) {
 			toaster.create({
-				title: e instanceof Error ? e.message : 'Erro ao revogar.',
+				title: mensagemDeErro(e, 'Erro ao revogar.'),
 				type: 'error'
 			});
 		} finally {

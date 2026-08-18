@@ -49,6 +49,7 @@ import type { AssinaturaCadesMetadata } from '../../db/documentos';
 import { calcularHashBuffer, ehDispositivoMovelUA, type TipoCarimoTempo } from './document-utils';
 import { exigirJanelaReauth } from './reauth';
 import { ERRO_PASSKEY_UM_TIRO } from './chave-assinatura';
+import { mensagemDeErro } from '$lib/utils/erro';
 
 // ---------------------------------------------------------------------------
 // Tipos canônicos
@@ -163,7 +164,7 @@ function extrairDadosToken(input: QualifiedInput): { nome: string; cpf: string }
 		return null;
 	} catch (e) {
 		logger.warn('[signature-service] Falha ao extrair dados do token', {
-			error: e instanceof Error ? e.message : String(e)
+			error: mensagemDeErro(e)
 		});
 		return null;
 	}
@@ -258,7 +259,7 @@ async function finalizarAssinaturaQualificada(
 		signedPdf = await embedSerproCms(input.preparedPdf, input.serproCms);
 	} catch (e) {
 		logger.error('[signature-service] Falha ao embutir CMS SERPRO', {
-			error: e instanceof Error ? e.message : String(e)
+			error: mensagemDeErro(e)
 		});
 		return {
 			ok: false,

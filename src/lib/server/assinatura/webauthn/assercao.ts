@@ -35,6 +35,7 @@ import { ecdsaAsn1ToP1363 } from '../crypto-verify';
 import { bytesToBinString, bytesToBase64Url } from '$lib/crypto/bin';
 import { lerAuthenticatorData, type AuthenticatorData } from './authenticator-data';
 import { logger } from '../../logger';
+import { mensagemDeErro } from '$lib/utils/erro';
 
 /** Coordenada da P-256: 32 bytes para r e 32 para s. */
 const COORD_LEN_P256 = 32;
@@ -157,7 +158,7 @@ export async function verificarAssercao(entrada: EntradaAssercao): Promise<Resul
 		if (!valida) return recusar('assinatura-invalida');
 	} catch (err) {
 		logger.warn('[webauthn] falha ao verificar a asserção', {
-			error: err instanceof Error ? err.message : String(err)
+			error: mensagemDeErro(err)
 		});
 		return recusar('assinatura-invalida');
 	}

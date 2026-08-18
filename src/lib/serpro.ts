@@ -32,6 +32,7 @@
  * Se um dia for preciso listar certificados ou assinar por arquivo, recupere do
  * histórico em vez de reescrever: o protocolo foi levantado por sondagem.
  */
+import { mensagemDeErro } from '$lib/utils/erro';
 
 const dev = import.meta.env.DEV;
 
@@ -115,7 +116,7 @@ export class SerproSignerClient {
 				}
 				return;
 			} catch (err) {
-				const msg = err instanceof Error ? err.message : String(err);
+				const msg = mensagemDeErro(err);
 				erros.push(`${url} → ${msg}`);
 				if (!silent && dev) console.warn(`[SERPRO] ❌ Falhou: ${url} — ${msg}`);
 			}

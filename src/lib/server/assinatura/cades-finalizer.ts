@@ -37,6 +37,7 @@ import { anexarCarimboTempo, tstEmBase64 } from './tsa-embed';
 import { extrairDadosDoCertificado } from './pdf-signing-prepare';
 import type { AssinaturaCadesMetadata } from '$lib/db/documentos';
 import type { TipoCarimoTempo } from './document-utils';
+import { mensagemDeErro } from '$lib/utils/erro';
 
 /**
  * Lê a env `EXIGIR_TSA_QUALIFICADA` com semântica truthy (1/true/yes/on).
@@ -430,7 +431,7 @@ export async function verificarECarimbarAssinatura(
 		}
 	} catch (e) {
 		logger.warn('[CADES] Falha ao consultar OCSP', {
-			error: e instanceof Error ? e.message : String(e)
+			error: mensagemDeErro(e)
 		});
 	}
 
@@ -514,7 +515,7 @@ export async function verificarECarimbarAssinatura(
 		}
 	} catch (e) {
 		logger.warn('[CADES] Falha ao aplicar DSS — PDF salvo sem PAdES-LT', {
-			error: e instanceof Error ? e.message : String(e)
+			error: mensagemDeErro(e)
 		});
 		pdfFinal = pdfComTst;
 		padesLt = false;

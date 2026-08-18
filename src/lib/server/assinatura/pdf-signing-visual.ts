@@ -34,6 +34,7 @@ import { mascararCPF } from '../../utils/pii';
 import { logger } from '../logger';
 import { formatarDataHora } from './pdf-signing-prepare';
 import { abreviarCredencial } from '$lib/chave-assinatura-ui';
+import { mensagemDeErro } from '$lib/utils/erro';
 
 // ---------------------------------------------------------------------------
 // Assinatura Simples: rodapé textual sem PKI (para escalas de FDS)
@@ -172,7 +173,7 @@ export async function adicionarRodapeSimples(
 			});
 		} catch (err) {
 			logger.error('Erro ao embutir rubrica simples', {
-				error: err instanceof Error ? err.message : String(err)
+				error: mensagemDeErro(err)
 			});
 		}
 	}

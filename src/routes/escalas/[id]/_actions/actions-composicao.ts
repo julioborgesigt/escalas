@@ -30,6 +30,7 @@ import { calcularDataSaida } from '$lib/rotacao';
 import { erroDeDatasForaDoPeriodo } from '$lib/server/escalas/periodo';
 import { carregarEscalaComPermissao } from './shared';
 import { registrarMudancaEscala, nomeDoPolicial } from './desfecho';
+import { mensagemDeErro } from '$lib/utils/erro';
 
 /** O `event` das actions desta rota: `params.id` é a escala. */
 type Event = RequestEvent<{ id: string }>;
@@ -248,7 +249,7 @@ export const actionsComposicao = {
 				escalaId,
 				lotacao: escala.lotacao,
 				tipo: escala.tipo,
-				error: err instanceof Error ? err.message : String(err),
+				error: mensagemDeErro(err),
 				stack: err instanceof Error ? err.stack : undefined
 			});
 			return fail(500, { error: 'Erro ao adicionar servidores' });

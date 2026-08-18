@@ -69,6 +69,7 @@
 	import BotaoVoltar from '$lib/components/BotaoVoltar.svelte';
 	import BotaoLimparFiltros from '$lib/components/BotaoLimparFiltros.svelte';
 	import ModalShell from '$lib/components/ModalShell.svelte';
+	import { mensagemDeErro } from '$lib/utils/erro';
 
 	const { data }: PageProps = $props();
 
@@ -265,7 +266,7 @@
 			goto(`/escalas/${id}`);
 		} catch (e: unknown) {
 			toaster.create({
-				title: e instanceof Error ? e.message : 'Erro ao revogar assinatura',
+				title: mensagemDeErro(e, 'Erro ao revogar assinatura'),
 				type: 'error'
 			});
 		} finally {
@@ -394,7 +395,7 @@
 			toaster.create({ title: 'Solicitação cancelada', type: 'success' });
 		} catch (e: unknown) {
 			toaster.create({
-				title: e instanceof Error ? e.message : 'Erro ao cancelar solicitação',
+				title: mensagemDeErro(e, 'Erro ao cancelar solicitação'),
 				type: 'error'
 			});
 		} finally {

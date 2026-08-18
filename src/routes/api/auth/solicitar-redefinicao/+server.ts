@@ -29,6 +29,7 @@ import {
 } from '$lib/server/auth/recovery-rate-limit';
 import { solicitarRedefinicaoSchema } from '$lib/schemas';
 import type { RequestHandler } from './$types';
+import { mensagemDeErro } from '$lib/utils/erro';
 
 const RESPOSTA_GENERICA = 'Você receberá um código de validação em instantes.';
 const MAX_TENTATIVAS_IP = 5;
@@ -177,7 +178,7 @@ export const POST: RequestHandler = async ({ request, platform, getClientAddress
 			logger.error('[auth/redefinicao] falha ao enviar código', {
 				tipo,
 				usuario_id: usuario.id,
-				error: err instanceof Error ? err.message : String(err)
+				error: mensagemDeErro(err)
 			});
 		});
 		platform?.ctx?.waitUntil(emailJob);
@@ -190,7 +191,7 @@ export const POST: RequestHandler = async ({ request, platform, getClientAddress
 		});
 	} catch (err) {
 		logger.error('[auth/redefinicao] falha inesperada', {
-			error: err instanceof Error ? err.message : String(err)
+			error: mensagemDeErro(err)
 		});
 		return respostaDummy(emailDummyMascarado(identificador));
 	}

@@ -32,6 +32,7 @@
 	import { toaster } from '$lib/toast';
 	import Spinner from '$lib/components/Spinner.svelte';
 	import type { PageProps } from './$types';
+	import { mensagemDeErro } from '$lib/utils/erro';
 
 	interface DocumentoComAuditoria {
 		assinante_nome: string;
@@ -70,7 +71,7 @@
 		} catch (err) {
 			toaster.create({
 				title: 'Erro ao baixar o documento',
-				description: err instanceof Error ? err.message : 'Tente novamente em instantes.',
+				description: mensagemDeErro(err, 'Tente novamente em instantes.'),
 				type: 'error'
 			});
 		} finally {

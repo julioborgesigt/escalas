@@ -33,6 +33,7 @@
 	import { limparTelefone } from '$lib/utils/formato';
 	import { formatarData } from '$lib/utils/datas';
 	import type { ActionResult } from '@sveltejs/kit';
+	import { mensagemDeErro } from '$lib/utils/erro';
 
 	const { data }: PageProps = $props();
 
@@ -101,7 +102,7 @@
 			toaster.create({ title: 'Rubrica excluída', type: 'info' });
 		} catch (e: unknown) {
 			toaster.create({
-				title: e instanceof Error ? e.message : 'Erro ao excluir rubrica',
+				title: mensagemDeErro(e, 'Erro ao excluir rubrica'),
 				type: 'error'
 			});
 		} finally {

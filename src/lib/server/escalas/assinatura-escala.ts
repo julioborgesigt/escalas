@@ -36,6 +36,7 @@ import { selarPdfInstitucional, tipoCarimboPrevisto } from '../assinatura/server
 import { gerarPdf, gerarPdfPlantao, gerarPdfExpediente } from '../export';
 import { uploadSelfieDataUri } from '../assinatura/selfie-upload';
 import { gerarCodigoValidacao } from '$lib/utils/formato';
+import { mensagemDeErro } from '$lib/utils/erro';
 
 /** Subset do R2 usado aqui — `put` de bytes, como em `selfie-upload`. */
 interface R2Putable {
@@ -249,7 +250,7 @@ export async function gravarCopiaConferencia(
 	} catch (err) {
 		logger.warn('[assinatura-escala] Falha ao gravar cópia de conferência', {
 			escala_id: escalaId,
-			error: err instanceof Error ? err.message : String(err)
+			error: mensagemDeErro(err)
 		});
 	}
 }

@@ -33,13 +33,8 @@ Os relatórios de auditoria e as avaliações arquivadas **não vivem mais no wo
 ## Convenções
 
 - **Novas auditorias** podem ser commitadas em `docs/auditorias/` (data no nome ou no cabeçalho) enquanto seus achados estão sendo tratados; quando encerradas, o arquivo é removido e catalogado no [`HISTORICO.md`](HISTORICO.md) — o histórico do Git mantém a rastreabilidade dos achados (A1–A8, I-1…I-4, M-3/M-4, R2-1…R2-4, B-1…B-6…) citados em comentários do código.
-- Nenhum **relatório** de auditoria aberto no working tree. O último (visual,
+- `docs/auditorias/` está VAZIA — nenhuma auditoria ou plano aberto. O último (visual,
   VIS-1…VIS-17) foi encerrado e catalogado no [`HISTORICO.md`](HISTORICO.md); o
   resíduo dele é manual e passou para [`TESTING.md`](../TESTING.md) §16, que é
   onde mora roteiro que a automação não alcança.
-- Continua aberto o **plano** [`auditorias/PLANO_REVISAO_COMPREENSIBILIDADE_2026-08-02.md`](auditorias/PLANO_REVISAO_COMPREENSIBILIDADE_2026-08-02.md)
-  — lotes 0–3 e 7 executados em 03/ago; os lotes 4–6 e 8–11 (rotas/UI/composables)
-  foram cobertos na prática pelas rodadas de 06/ago e 13/ago, já arquivadas. Ver
-  se ele ainda descreve trabalho a fazer, ou se virou registro histórico, é
-  decisão pendente do dono da revisão.
 - Documentos **vivos** que ficarem defasados devem ser corrigidos no mesmo PR que muda o comportamento correspondente.

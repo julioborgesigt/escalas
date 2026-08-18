@@ -17,6 +17,7 @@ import { administradores, policiais } from '$lib/server/schema';
 import { requireAuth, badRequest, forbidden, rateLimited, validateBody } from '$lib/server/api';
 import { confirmarVerificacaoEmailSchema } from '$lib/schemas';
 import type { RequestHandler } from './$types';
+import { mensagemDeErro } from '$lib/utils/erro';
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -99,7 +100,7 @@ export const POST: RequestHandler = async (event) => {
 			await enviarAvisoTrocaEmailPessoal(u.email, u.nome, emailMascarado, platform);
 		} catch (err) {
 			logger.warn('[verificacao-email-pessoal] Falha ao enviar aviso ao e-mail funcional', {
-				error: err instanceof Error ? err.message : String(err)
+				error: mensagemDeErro(err)
 			});
 		}
 	}

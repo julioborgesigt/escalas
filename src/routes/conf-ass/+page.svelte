@@ -31,6 +31,7 @@
 	import { invalidateShared } from '$lib/cross-tab-invalidate';
 	import { loading } from '$lib/loading.svelte';
 	import ToggleSwitch from '$lib/components/ToggleSwitch.svelte';
+	import { mensagemDeErro } from '$lib/utils/erro';
 
 	let exigirFoto = $state(page.data.exigirFoto as boolean);
 	let exigirGps = $state(page.data.exigirGps as boolean);
@@ -87,7 +88,7 @@
 			toaster.create({ title: 'Configurações salvas com sucesso.', type: 'success' });
 		} catch (e: unknown) {
 			toaster.create({
-				title: e instanceof Error ? e.message : 'Erro ao salvar.',
+				title: mensagemDeErro(e, 'Erro ao salvar.'),
 				type: 'error'
 			});
 		} finally {

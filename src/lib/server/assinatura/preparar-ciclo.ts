@@ -15,6 +15,7 @@ import { logger } from '../logger';
 import { chaveConferencia } from './copia-conferencia';
 import { criarIntencaoAssinatura, type AlvoAssinatura, type AtorAssinatura } from './intencao';
 import { estamparRubricaLimpa } from './pdf-signing-prepare';
+import { mensagemDeErro } from '$lib/utils/erro';
 
 type StampConferencia = Parameters<typeof estamparRubricaLimpa>[1];
 
@@ -62,7 +63,7 @@ export async function fecharPreparacaoAssinatura(opts: {
 		} catch (err) {
 			logger.warn(`[${conferencia.logTag}] Falha ao gerar/gravar cópia de conferência`, {
 				...conferencia.logFields,
-				error: err instanceof Error ? err.message : String(err)
+				error: mensagemDeErro(err)
 			});
 		}
 	}

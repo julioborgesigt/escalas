@@ -16,6 +16,7 @@ import type { z } from 'zod';
 import type { UsuarioLogado } from '$lib/auth';
 import { isAdminGeral } from '$lib/auth';
 import { logger } from './logger';
+import { mensagemDeErro } from '$lib/utils/erro';
 
 // ---- ErrorCode tipado --------------------------------------------------
 //
@@ -190,7 +191,7 @@ export function serverError(contexto: string, err: unknown): Response {
 	const errorId = crypto.randomUUID().slice(0, 8);
 	logger.error(contexto, {
 		errorId,
-		error: err instanceof Error ? err.message : String(err),
+		error: mensagemDeErro(err),
 		stack: err instanceof Error ? err.stack : undefined
 	});
 	return apiError(

@@ -22,6 +22,7 @@
 	import { toaster } from '$lib/toast';
 	import RubricaCanvas, { type RubricaCanvasControl } from './RubricaCanvas.svelte';
 	import ModalShell from './ModalShell.svelte';
+	import { mensagemDeErro } from '$lib/utils/erro';
 
 	let {
 		open = $bindable(false),
@@ -288,7 +289,7 @@
 			onSaved?.(rubrica);
 			open = false;
 		} catch (e) {
-			toaster.error({ title: e instanceof Error ? e.message : 'Erro ao salvar rubrica.' });
+			toaster.error({ title: mensagemDeErro(e, 'Erro ao salvar rubrica.') });
 		} finally {
 			salvando = false;
 		}
@@ -302,7 +303,7 @@
 			onSaved?.(null);
 			open = false;
 		} catch (e) {
-			toaster.error({ title: e instanceof Error ? e.message : 'Erro ao excluir rubrica.' });
+			toaster.error({ title: mensagemDeErro(e, 'Erro ao excluir rubrica.') });
 		} finally {
 			salvando = false;
 		}

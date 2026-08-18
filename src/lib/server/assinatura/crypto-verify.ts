@@ -23,6 +23,7 @@
 import forge from 'node-forge';
 import { binStringToBytes } from '$lib/crypto/bin';
 import { logger } from '../logger';
+import { mensagemDeErro } from '$lib/utils/erro';
 
 // OIDs de algoritmos de assinatura (encontrados em SignerInfo.signatureAlgorithm).
 // rsaEncryption "puro": não embute o digest — o hash vem do digestAlgorithm do
@@ -292,7 +293,7 @@ export async function verificarAssinaturaCms(params: VerifyParams): Promise<bool
 		logger.warn('[CRYPTO-VERIFY] Falha na verificação', {
 			family,
 			hash,
-			error: e instanceof Error ? e.message : String(e)
+			error: mensagemDeErro(e)
 		});
 		return false;
 	}
