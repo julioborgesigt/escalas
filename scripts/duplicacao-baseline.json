@@ -1,0 +1,851 @@
+{
+	"_doc": "Duplicação cross-file ACEITA. Gerado por `node scripts/guard-duplicacao.mjs --atualizar`. Cada entrada é um bloco de 10 linhas repetido entre arquivos. Preencha `nota` com a DECISÃO (por que manter) — entrada sem nota é dívida ainda não avaliada, não duplicação aprovada.",
+	"_janela": 10,
+	"blocos": [
+		{
+			"id": "01b756af73e8",
+			"arquivos": [
+				"src/routes/api/escalas/[id]/assinar-simples/+server.ts",
+				"src/routes/api/escalas/[id]/preparar-assinatura-avancada/+server.ts",
+				"src/routes/api/gise/[id]/assinar-simples/+server.ts",
+				"src/routes/api/gise/[id]/preparar-assinatura-avancada/+server.ts",
+				"src/routes/api/gise/[id]/presenca/preparar-assinatura-avancada/+server.ts"
+			],
+			"ocorrencias": 5,
+			"amostra": "const evid = await validarEvidenciasAvancada(",
+			"nota": ""
+		},
+		{
+			"id": "043f86e37d97",
+			"arquivos": [
+				"src/routes/api/escalas/[id]/assinar-simples/+server.ts",
+				"src/routes/api/escalas/[id]/preparar-assinatura-avancada/+server.ts"
+			],
+			"ocorrencias": 2,
+			"amostra": "const ua = request.headers.get('user-agent') || '';",
+			"nota": ""
+		},
+		{
+			"id": "0591d5b3c377",
+			"arquivos": [
+				"src/routes/api/gise/[id]/preparar-assinatura-avancada/+server.ts",
+				"src/routes/api/gise/[id]/relatorios/[seccionalId]/preparar-assinatura-avancada/+server.ts"
+			],
+			"ocorrencias": 2,
+			"amostra": "import { chaveConferencia } from '$lib/server/assinatura/copia-conferencia';",
+			"nota": ""
+		},
+		{
+			"id": "0a643edce574",
+			"arquivos": [
+				"src/lib/components/ModalCadastrarRubrica.svelte",
+				"src/lib/components/RubricaCanvas.svelte"
+			],
+			"ocorrencias": 2,
+			"amostra": "const recW = maxX - minX + 1;",
+			"nota": ""
+		},
+		{
+			"id": "0b645f61c0a6",
+			"arquivos": [
+				"src/routes/painel/+page.svelte",
+				"src/routes/recebidos/+page.svelte"
+			],
+			"ocorrencias": 2,
+			"amostra": "<div class=\"flex flex-col gap-1 w-full lg:w-28\">",
+			"nota": ""
+		},
+		{
+			"id": "0d6d35f7e34d",
+			"arquivos": [
+				"src/routes/gise/[id]/_components/modais/ModalDatasHoras.svelte",
+				"src/routes/gise/_components/ModalCriarGise.svelte"
+			],
+			"ocorrencias": 2,
+			"amostra": "function calMesAnterior() {",
+			"nota": "DUP-MANTER (CLAUDE.md, \"grade dos três calendários\"): extrair a grade exigiria tantos props que o componente comum ficaria pior que a repetição. Decisão registrada, não dívida."
+		},
+		{
+			"id": "0f5af19b9b9f",
+			"arquivos": [
+				"src/routes/api/escalas/[id]/preparar-assinatura/+server.ts",
+				"src/routes/api/gise/[id]/preparar-assinatura/+server.ts"
+			],
+			"ocorrencias": 2,
+			"amostra": "verificationUrl,",
+			"nota": ""
+		},
+		{
+			"id": "12b7623bed2a",
+			"arquivos": [
+				"src/routes/painel/+page.svelte",
+				"src/routes/recebidos/+page.svelte"
+			],
+			"ocorrencias": 2,
+			"amostra": "{/snippet}",
+			"nota": ""
+		},
+		{
+			"id": "15bc164cf972",
+			"arquivos": [
+				"src/routes/api/escalas/[id]/finalizar-assinatura-avancada/+server.ts",
+				"src/routes/api/gise/[id]/finalizar-assinatura-avancada/+server.ts",
+				"src/routes/api/gise/[id]/presenca/finalizar-assinatura-avancada/+server.ts",
+				"src/routes/api/gise/[id]/relatorios/[seccionalId]/finalizar-assinatura-avancada/+server.ts"
+			],
+			"ocorrencias": 4,
+			"amostra": "import { calcularHashBuffer } from '$lib/server/assinatura/document-utils';",
+			"nota": ""
+		},
+		{
+			"id": "17198409b384",
+			"arquivos": [
+				"src/lib/server/export/docx.ts",
+				"src/lib/server/export/pdf.ts",
+				"src/lib/server/export/xlsx.ts"
+			],
+			"ocorrencias": 3,
+			"amostra": "sortExpediente,",
+			"nota": ""
+		},
+		{
+			"id": "18b870732df9",
+			"arquivos": [
+				"src/routes/api/gise/[id]/finalizar-assinatura/+server.ts",
+				"src/routes/api/gise/[id]/presenca/finalizar-assinatura/+server.ts",
+				"src/routes/api/gise/[id]/relatorios/[seccionalId]/finalizar-assinatura/+server.ts"
+			],
+			"ocorrencias": 3,
+			"amostra": "import {",
+			"nota": ""
+		},
+		{
+			"id": "1a2aa50e6df8",
+			"arquivos": [
+				"src/routes/auditoria/+page.svelte",
+				"src/routes/auditoria/logs/+page.svelte"
+			],
+			"ocorrencias": 2,
+			"amostra": "<!-- Filtros (GET → URL) -->",
+			"nota": ""
+		},
+		{
+			"id": "1b3cdf55f494",
+			"arquivos": [
+				"src/routes/escalas/_components/ModalNovaEscala.svelte",
+				"src/routes/gise/[id]/_components/modais/ModalDatasHoras.svelte"
+			],
+			"ocorrencias": 2,
+			"amostra": "stroke-width=\"2\"",
+			"nota": "DUP-MANTER (CLAUDE.md, \"grade dos três calendários\"): extrair a grade exigiria tantos props que o componente comum ficaria pior que a repetição. Decisão registrada, não dívida."
+		},
+		{
+			"id": "1f8d0969725a",
+			"arquivos": [
+				"src/routes/escalas/[id]/_components/ModalEditarDias.svelte",
+				"src/routes/escalas/[id]/_components/ModalEditarPlantao.svelte"
+			],
+			"ocorrencias": 2,
+			"amostra": "let calAno = $state(new Date().getFullYear());",
+			"nota": ""
+		},
+		{
+			"id": "224c5c7077df",
+			"arquivos": [
+				"src/routes/api/gise/[id]/presenca/finalizar-assinatura/+server.ts",
+				"src/routes/api/gise/[id]/relatorios/[seccionalId]/finalizar-assinatura/+server.ts"
+			],
+			"ocorrencias": 2,
+			"amostra": "tipo_carimbo_tempo: result.tipoCarimboTempo,",
+			"nota": ""
+		},
+		{
+			"id": "253d0873d7e6",
+			"arquivos": [
+				"src/lib/db/gise/types.ts",
+				"src/lib/server/export/pdf-comum.ts"
+			],
+			"ocorrencias": 2,
+			"amostra": "supervisor_matricula: string | null;",
+			"nota": ""
+		},
+		{
+			"id": "2d9bef02ce7c",
+			"arquivos": [
+				"src/routes/api/gise/[id]/finalizar-assinatura-avancada/+server.ts",
+				"src/routes/api/gise/[id]/relatorios/[seccionalId]/finalizar-assinatura-avancada/+server.ts"
+			],
+			"ocorrencias": 2,
+			"amostra": "apiError,",
+			"nota": ""
+		},
+		{
+			"id": "31995cbda5f6",
+			"arquivos": [
+				"src/routes/bem-vindo/+page.svelte",
+				"src/routes/super-admin/+page.svelte"
+			],
+			"ocorrencias": 2,
+			"amostra": "<script lang=\"ts\">",
+			"nota": ""
+		},
+		{
+			"id": "39f391d5c27d",
+			"arquivos": [
+				"src/lib/db/documentos.ts",
+				"src/lib/db/gise/documentos.ts"
+			],
+			"ocorrencias": 2,
+			"amostra": "cert_valido_ate: meta.cert_valido_ate ?? null,",
+			"nota": ""
+		},
+		{
+			"id": "3f968bac2073",
+			"arquivos": [
+				"src/routes/api/escalas/[id]/preparar-assinatura/+server.ts",
+				"src/routes/api/gise/[id]/preparar-assinatura/+server.ts"
+			],
+			"ocorrencias": 2,
+			"amostra": "const contentPageCount = origDoc.getPageCount();",
+			"nota": ""
+		},
+		{
+			"id": "3fff7ef13eec",
+			"arquivos": [
+				"src/routes/api/gise/[id]/presenca/preparar-assinatura/+server.ts",
+				"src/routes/api/gise/[id]/relatorios/[seccionalId]/preparar-assinatura/+server.ts"
+			],
+			"ocorrencias": 2,
+			"amostra": "signerCpf: finalSignerCpf || undefined,",
+			"nota": ""
+		},
+		{
+			"id": "4268be83663f",
+			"arquivos": [
+				"src/routes/escalas/[id]/_components/FormAdicionarServidores.svelte",
+				"src/routes/escalas/[id]/_components/FormInlineAdicionarOip.svelte"
+			],
+			"ocorrencias": 2,
+			"amostra": "ultimoDiaMes,",
+			"nota": ""
+		},
+		{
+			"id": "491fdd453525",
+			"arquivos": [
+				"src/routes/api/gise/[id]/presenca/finalizar-assinatura-avancada/+server.ts",
+				"src/routes/api/gise/[id]/presenca/preparar-assinatura-avancada/+server.ts"
+			],
+			"ocorrencias": 2,
+			"amostra": "if (u.tipo !== 'policial') return forbidden('Apenas policiais confirmam presença.');",
+			"nota": ""
+		},
+		{
+			"id": "4b1c1da8b64d",
+			"arquivos": [
+				"src/lib/db.ts",
+				"src/lib/db/operacoes/index.ts"
+			],
+			"ocorrencias": 2,
+			"amostra": "NOME_OPERACAO_PADRAO,",
+			"nota": ""
+		},
+		{
+			"id": "4bc05f0c71b5",
+			"arquivos": [
+				"src/routes/api/escalas/[id]/assinar-simples/+server.ts",
+				"src/routes/api/escalas/[id]/preparar-assinatura-avancada/+server.ts"
+			],
+			"ocorrencias": 2,
+			"amostra": "ErrorCode,",
+			"nota": ""
+		},
+		{
+			"id": "508e2ff6e53b",
+			"arquivos": [
+				"src/routes/policiais/[id]/+page.svelte",
+				"src/routes/policiais/_components/ModalCadastrarPolicial.svelte"
+			],
+			"ocorrencias": 2,
+			"amostra": "<span class=\"label-text text-2xs font-bold uppercase opacity-70 ml-1\"",
+			"nota": ""
+		},
+		{
+			"id": "56c7783530b2",
+			"arquivos": [
+				"src/routes/escalas/_components/ModalNovaEscala.svelte",
+				"src/routes/gise/_components/ModalCriarGise.svelte"
+			],
+			"ocorrencias": 2,
+			"amostra": "class=\"rounded-xl border border-surface-200 dark:border-surface-700 p-2 sm:p-2.5 space-y-1",
+			"nota": "DUP-MANTER (CLAUDE.md, \"grade dos três calendários\"): extrair a grade exigiria tantos props que o componente comum ficaria pior que a repetição. Decisão registrada, não dívida."
+		},
+		{
+			"id": "5a1a32aad891",
+			"arquivos": [
+				"src/routes/api/gise/[id]/assinar-simples/+server.ts",
+				"src/routes/api/gise/[id]/relatorios/[seccionalId]/assinar/+server.ts"
+			],
+			"ocorrencias": 2,
+			"amostra": "selfieBase64,",
+			"nota": ""
+		},
+		{
+			"id": "5d65357c5266",
+			"arquivos": [
+				"src/routes/api/escalas/[id]/finalizar-assinatura-avancada/+server.ts",
+				"src/routes/api/gise/[id]/finalizar-assinatura-avancada/+server.ts",
+				"src/routes/api/gise/[id]/presenca/finalizar-assinatura-avancada/+server.ts",
+				"src/routes/api/gise/[id]/relatorios/[seccionalId]/finalizar-assinatura-avancada/+server.ts"
+			],
+			"ocorrencias": 4,
+			"amostra": "const verificacao = await verificarAssercao({",
+			"nota": ""
+		},
+		{
+			"id": "5df61be8a979",
+			"arquivos": [
+				"src/routes/auditoria/+page.svelte",
+				"src/routes/auditoria/logs/+page.svelte"
+			],
+			"ocorrencias": 2,
+			"amostra": "class=\"rounded-xl border border-surface-200 dark:border-white/10 bg-surface-50 dark:bg-sur",
+			"nota": ""
+		},
+		{
+			"id": "61416e81bda8",
+			"arquivos": [
+				"src/routes/api/auth/confirmar-redefinicao/+server.ts",
+				"src/routes/api/auth/solicitar-redefinicao/+server.ts"
+			],
+			"ocorrencias": 2,
+			"amostra": "if (row) usuario = row;",
+			"nota": ""
+		},
+		{
+			"id": "67467775d608",
+			"arquivos": [
+				"src/routes/api/escalas/[id]/preparar-assinatura-avancada/+server.ts",
+				"src/routes/api/gise/[id]/preparar-assinatura-avancada/+server.ts"
+			],
+			"ocorrencias": 2,
+			"amostra": "const chave = await exigirChaveAtiva(db, credencialDoUsuario(u), ua);",
+			"nota": ""
+		},
+		{
+			"id": "6c84e408cc46",
+			"arquivos": [
+				"src/routes/api/escalas/[id]/assinar-simples/+server.ts",
+				"src/routes/api/escalas/[id]/preparar-assinatura-avancada/+server.ts"
+			],
+			"ocorrencias": 2,
+			"amostra": "const montado = await montarPdfEscalaAssinada({",
+			"nota": ""
+		},
+		{
+			"id": "6e44af73359f",
+			"arquivos": [
+				"src/routes/api/gise/[id]/finalizar-assinatura/+server.ts",
+				"src/routes/api/gise/[id]/relatorios/[seccionalId]/finalizar-assinatura/+server.ts"
+			],
+			"ocorrencias": 2,
+			"amostra": "auditar,",
+			"nota": ""
+		},
+		{
+			"id": "6ef5fe07247c",
+			"arquivos": [
+				"src/routes/gise/[id]/_components/supervisao/SupervisaoDesignacao.svelte",
+				"src/routes/gise/[id]/_components/supervisao/SupervisaoPapelAssessor.svelte",
+				"src/routes/gise/[id]/_components/supervisao/SupervisaoPapelSeint.svelte"
+			],
+			"ocorrencias": 3,
+			"amostra": "class=\"btn preset-filled-primary-500 text-sm px-3 py-1.5 rounded-lg w-full sm:w-auto trans",
+			"nota": ""
+		},
+		{
+			"id": "71d9800e8707",
+			"arquivos": [
+				"src/routes/api/escalas/[id]/preparar-assinatura-avancada/+server.ts",
+				"src/routes/api/gise/[id]/presenca/preparar-assinatura-avancada/+server.ts"
+			],
+			"ocorrencias": 2,
+			"amostra": "import { calcularHashBuffer } from '$lib/server/assinatura/document-utils';",
+			"nota": ""
+		},
+		{
+			"id": "75665608a5c6",
+			"arquivos": [
+				"src/routes/escalas/_components/ModalNovaEscala.svelte",
+				"src/routes/gise/[id]/_components/modais/ModalDatasHoras.svelte",
+				"src/routes/gise/_components/ModalCriarGise.svelte"
+			],
+			"ocorrencias": 3,
+			"amostra": "<svg class=\"w-3.5 h-3.5\" fill=\"none\" viewBox=\"0 0 24 24\" stroke=\"currentColor\"",
+			"nota": "DUP-MANTER (CLAUDE.md, \"grade dos três calendários\"): extrair a grade exigiria tantos props que o componente comum ficaria pior que a repetição. Decisão registrada, não dívida."
+		},
+		{
+			"id": "7686475bcea4",
+			"arquivos": [
+				"src/routes/api/auth/primeiro-acesso/+server.ts",
+				"src/routes/login/+page.server.ts"
+			],
+			"ocorrencias": 2,
+			"amostra": "if (limite.blocked) {",
+			"nota": ""
+		},
+		{
+			"id": "78f193235399",
+			"arquivos": [
+				"src/routes/auditoria/+page.server.ts",
+				"src/routes/auditoria/logs/+page.server.ts"
+			],
+			"ocorrencias": 2,
+			"amostra": "const PER_PAGE = 25;",
+			"nota": ""
+		},
+		{
+			"id": "81d74a51dbaf",
+			"arquivos": [
+				"src/routes/auditoria/+page.svelte",
+				"src/routes/auditoria/logs/+page.svelte"
+			],
+			"ocorrencias": 2,
+			"amostra": "<ChevronUp class=\"w-3.5 h-3.5\" />",
+			"nota": ""
+		},
+		{
+			"id": "8a5e6ec00188",
+			"arquivos": [
+				"src/routes/api/gise/[id]/download/+server.ts",
+				"src/routes/api/validar/[hash]/download/+server.ts"
+			],
+			"ocorrencias": 2,
+			"amostra": "? await gerarRelatorioExtraordinarioSupervisaoPdf(",
+			"nota": ""
+		},
+		{
+			"id": "966efa62e651",
+			"arquivos": [
+				"src/routes/produtividade/_components/DetailCard.svelte",
+				"src/routes/produtividade/_components/RankingCard.svelte"
+			],
+			"ocorrencias": 2,
+			"amostra": "{:else}",
+			"nota": ""
+		},
+		{
+			"id": "97ab3da8655e",
+			"arquivos": [
+				"src/routes/produtividade/_components/DetailCard.svelte",
+				"src/routes/produtividade/_components/RankingCard.svelte"
+			],
+			"ocorrencias": 2,
+			"amostra": "? 'selected-for-export border-primary-500'",
+			"nota": ""
+		},
+		{
+			"id": "97fbb5de76e3",
+			"arquivos": [
+				"src/routes/api/gise/[id]/finalizar-assinatura/+server.ts",
+				"src/routes/api/gise/[id]/relatorios/[seccionalId]/finalizar-assinatura/+server.ts"
+			],
+			"ocorrencias": 2,
+			"amostra": "const validated = await validateBody(request, finalizarAssinaturaGiseSchema);",
+			"nota": ""
+		},
+		{
+			"id": "9a7b93e9fd84",
+			"arquivos": [
+				"src/routes/api/escalas/[id]/preparar-assinatura/+server.ts",
+				"src/routes/api/gise/[id]/preparar-assinatura/+server.ts"
+			],
+			"ocorrencias": 2,
+			"amostra": "dataToSignBase64,",
+			"nota": ""
+		},
+		{
+			"id": "9c6e5f05dfc5",
+			"arquivos": [
+				"src/routes/api/gise/[id]/finalizar-assinatura-avancada/+server.ts",
+				"src/routes/api/gise/[id]/preparar-assinatura-avancada/+server.ts",
+				"src/routes/api/gise/[id]/presenca/preparar-assinatura-avancada/+server.ts",
+				"src/routes/api/gise/[id]/relatorios/[seccionalId]/finalizar-assinatura-avancada/+server.ts",
+				"src/routes/api/gise/[id]/relatorios/[seccionalId]/preparar-assinatura-avancada/+server.ts"
+			],
+			"ocorrencias": 5,
+			"amostra": "import {",
+			"nota": ""
+		},
+		{
+			"id": "9ef741624ab6",
+			"arquivos": [
+				"src/routes/escalas/_components/ModalNovaEscala.svelte",
+				"src/routes/gise/_components/ModalCriarGise.svelte"
+			],
+			"ocorrencias": 2,
+			"amostra": "<svg class=\"w-3 h-3\" fill=\"none\" viewBox=\"0 0 24 24\" stroke=\"currentColor\"",
+			"nota": "DUP-MANTER (CLAUDE.md, \"grade dos três calendários\"): extrair a grade exigiria tantos props que o componente comum ficaria pior que a repetição. Decisão registrada, não dívida."
+		},
+		{
+			"id": "9f111f5d5c9e",
+			"arquivos": [
+				"src/routes/api/escalas/[id]/preparar-assinatura-avancada/+server.ts",
+				"src/routes/api/gise/[id]/preparar-assinatura-avancada/+server.ts",
+				"src/routes/api/gise/[id]/presenca/preparar-assinatura-avancada/+server.ts"
+			],
+			"ocorrencias": 3,
+			"amostra": "latitude,",
+			"nota": ""
+		},
+		{
+			"id": "a101cfb9886f",
+			"arquivos": [
+				"src/routes/api/escalas/[id]/finalizar-assinatura-avancada/+server.ts",
+				"src/routes/api/escalas/[id]/finalizar-assinatura/+server.ts",
+				"src/routes/api/gise/[id]/finalizar-assinatura-avancada/+server.ts"
+			],
+			"ocorrencias": 3,
+			"amostra": "platform,",
+			"nota": ""
+		},
+		{
+			"id": "a46a451beb4e",
+			"arquivos": [
+				"src/lib/server/export/docx.ts",
+				"src/lib/server/export/xlsx.ts"
+			],
+			"ocorrencias": 2,
+			"amostra": "import type { Escala, EscalaPolicialComDados } from '../../types';",
+			"nota": ""
+		},
+		{
+			"id": "a480c8a1fa42",
+			"arquivos": [
+				"src/routes/api/gise/[id]/finalizar-assinatura-avancada/+server.ts",
+				"src/routes/api/gise/[id]/presenca/finalizar-assinatura-avancada/+server.ts",
+				"src/routes/api/gise/[id]/relatorios/[seccionalId]/finalizar-assinatura-avancada/+server.ts"
+			],
+			"ocorrencias": 3,
+			"amostra": "clientDataJSON: base64UrlToBytes(assercao.clientDataJSON),",
+			"nota": ""
+		},
+		{
+			"id": "a64a1bf35361",
+			"arquivos": [
+				"src/routes/api/gise/[id]/finalizar-assinatura-avancada/+server.ts",
+				"src/routes/api/gise/[id]/relatorios/[seccionalId]/finalizar-assinatura-avancada/+server.ts"
+			],
+			"ocorrencias": 2,
+			"amostra": "mensagemRecusaAssercao",
+			"nota": ""
+		},
+		{
+			"id": "a7a7cd3aa232",
+			"arquivos": [
+				"src/routes/api/gise/[id]/relatorios/[seccionalId]/assinar/+server.ts",
+				"src/routes/api/gise/[id]/relatorios/[seccionalId]/preparar-assinatura-avancada/+server.ts"
+			],
+			"ocorrencias": 2,
+			"amostra": "const bucketOk = bucketParaAssinatura(tryGetR2(platform));",
+			"nota": ""
+		},
+		{
+			"id": "a832064d4d28",
+			"arquivos": [
+				"src/routes/api/escalas/[id]/finalizar-assinatura-avancada/+server.ts",
+				"src/routes/api/gise/[id]/finalizar-assinatura-avancada/+server.ts",
+				"src/routes/api/gise/[id]/presenca/finalizar-assinatura-avancada/+server.ts",
+				"src/routes/api/gise/[id]/relatorios/[seccionalId]/finalizar-assinatura-avancada/+server.ts"
+			],
+			"ocorrencias": 4,
+			"amostra": "const credencial = await buscarCredencialPorId(db, assercao.credentialId);",
+			"nota": ""
+		},
+		{
+			"id": "aa3d91d5563b",
+			"arquivos": [
+				"src/routes/api/gise/[id]/assinar-simples/+server.ts",
+				"src/routes/api/gise/[id]/finalizar-assinatura-avancada/+server.ts",
+				"src/routes/api/gise/[id]/preparar-assinatura-avancada/+server.ts"
+			],
+			"ocorrencias": 3,
+			"amostra": "const ua = request.headers.get('user-agent') || '';",
+			"nota": ""
+		},
+		{
+			"id": "aa9ec9e7a9c6",
+			"arquivos": [
+				"src/routes/api/gise/[id]/relatorios/[seccionalId]/finalizar-assinatura-avancada/+server.ts",
+				"src/routes/api/gise/[id]/relatorios/[seccionalId]/preparar-assinatura-avancada/+server.ts"
+			],
+			"ocorrencias": 2,
+			"amostra": "if (u instanceof Response) return u;",
+			"nota": ""
+		},
+		{
+			"id": "b30e69685e40",
+			"arquivos": [
+				"src/routes/api/escalas/[id]/preparar-assinatura-avancada/+server.ts",
+				"src/routes/api/gise/[id]/preparar-assinatura-avancada/+server.ts"
+			],
+			"ocorrencias": 2,
+			"amostra": "longitude,",
+			"nota": ""
+		},
+		{
+			"id": "b5accb3b0996",
+			"arquivos": [
+				"src/routes/api/escalas/[id]/preparar-assinatura/+server.ts",
+				"src/routes/api/gise/[id]/preparar-assinatura/+server.ts",
+				"src/routes/api/gise/[id]/presenca/preparar-assinatura/+server.ts",
+				"src/routes/api/gise/[id]/relatorios/[seccionalId]/preparar-assinatura/+server.ts"
+			],
+			"ocorrencias": 4,
+			"amostra": "import { fecharPreparacaoAssinatura } from '$lib/server/assinatura/preparar-ciclo';",
+			"nota": ""
+		},
+		{
+			"id": "be0017fa1663",
+			"arquivos": [
+				"src/routes/escalas/[id]/_components/ListaFds.svelte",
+				"src/routes/escalas/[id]/_components/TabelaServidores.svelte"
+			],
+			"ocorrencias": 2,
+			"amostra": "? 'bg-error-500/5 dark:bg-error-500/8'",
+			"nota": ""
+		},
+		{
+			"id": "beae3c726c4a",
+			"arquivos": [
+				"src/routes/auditoria/+page.svelte",
+				"src/routes/auditoria/logs/+page.svelte"
+			],
+			"ocorrencias": 2,
+			"amostra": "<div class=\"flex items-center justify-center gap-2\">",
+			"nota": ""
+		},
+		{
+			"id": "bf56cc512569",
+			"arquivos": [
+				"src/routes/policiais/+page.svelte",
+				"src/routes/unidades/+page.svelte"
+			],
+			"ocorrencias": 2,
+			"amostra": "<div class=\"absolute inset-y-0 left-3 flex items-center pointer-events-none opacity-50\">",
+			"nota": ""
+		},
+		{
+			"id": "c204c8fc23ce",
+			"arquivos": [
+				"src/routes/login/_components/FormCredenciais.svelte",
+				"src/routes/login/_components/FormRecuperacaoSenha.svelte"
+			],
+			"ocorrencias": 2,
+			"amostra": "class=\"flex items-center rounded-xl border border-surface-200 dark:border-surface-700 bg-s",
+			"nota": ""
+		},
+		{
+			"id": "c3ff4f0f0f9b",
+			"arquivos": [
+				"src/lib/schemas/assinatura-pdf.ts",
+				"src/lib/schemas/gise.ts"
+			],
+			"ocorrencias": 2,
+			"amostra": "tipo: z.enum(['blink', 'smile', 'head_turn']),",
+			"nota": ""
+		},
+		{
+			"id": "c69683f2945c",
+			"arquivos": [
+				"src/routes/api/gise/[id]/relatorios/[seccionalId]/finalizar-assinatura-avancada/+server.ts",
+				"src/routes/api/gise/[id]/relatorios/[seccionalId]/preparar-assinatura-avancada/+server.ts"
+			],
+			"ocorrencias": 2,
+			"amostra": "if (!gise) return notFound('Escala');",
+			"nota": ""
+		},
+		{
+			"id": "c6a0fca96e89",
+			"arquivos": [
+				"src/routes/alterar-senha/+page.svelte",
+				"src/routes/redefinir-senha/+page.svelte"
+			],
+			"ocorrencias": 2,
+			"amostra": "<div class=\"text-center mb-6\">",
+			"nota": ""
+		},
+		{
+			"id": "c7724075f9c1",
+			"arquivos": [
+				"src/routes/escalas/bem-vindo/+page.svelte",
+				"src/routes/gise/bem-vindo/+page.svelte"
+			],
+			"ocorrencias": 2,
+			"amostra": "<script lang=\"ts\">",
+			"nota": ""
+		},
+		{
+			"id": "cb32fcd937b6",
+			"arquivos": [
+				"src/routes/policiais/+page.svelte",
+				"src/routes/recebidos/+page.svelte",
+				"src/routes/unidades/+page.svelte"
+			],
+			"ocorrencias": 3,
+			"amostra": "</div>",
+			"nota": ""
+		},
+		{
+			"id": "cdc0c5b8a34b",
+			"arquivos": [
+				"src/lib/db/documentos.ts",
+				"src/lib/db/gise/documentos.ts"
+			],
+			"ocorrencias": 2,
+			"amostra": "latitude?: number,",
+			"nota": ""
+		},
+		{
+			"id": "ce37c762d2b9",
+			"arquivos": [
+				"src/routes/gise/[id]/_components/GiseLoteAssinaturas.svelte",
+				"src/routes/gise/[id]/_components/supervisao/SupervisaoDocumentoCard.svelte"
+			],
+			"ocorrencias": 2,
+			"amostra": "class=\"h-4 w-4 shrink-0 text-surface-400 transition-transform duration-200 {expandido",
+			"nota": ""
+		},
+		{
+			"id": "d0016fac801f",
+			"arquivos": [
+				"src/routes/auditoria/+page.svelte",
+				"src/routes/auditoria/logs/+page.svelte"
+			],
+			"ocorrencias": 2,
+			"amostra": "type=\"button\"",
+			"nota": ""
+		},
+		{
+			"id": "dbfbb53e2522",
+			"arquivos": [
+				"src/routes/api/escalas/[id]/finalizar-assinatura-avancada/+server.ts",
+				"src/routes/api/gise/[id]/finalizar-assinatura-avancada/+server.ts",
+				"src/routes/api/gise/[id]/presenca/finalizar-assinatura-avancada/+server.ts",
+				"src/routes/api/gise/[id]/relatorios/[seccionalId]/finalizar-assinatura-avancada/+server.ts"
+			],
+			"ocorrencias": 4,
+			"amostra": "consumirIntencaoAssinatura,",
+			"nota": ""
+		},
+		{
+			"id": "e10be09c007b",
+			"arquivos": [
+				"src/routes/api/gise/[id]/relatorios/[seccionalId]/assinar/+server.ts",
+				"src/routes/api/gise/[id]/relatorios/[seccionalId]/preparar-assinatura-avancada/+server.ts"
+			],
+			"ocorrencias": 2,
+			"amostra": "const evid = await validarEvidenciasAvancada(",
+			"nota": ""
+		},
+		{
+			"id": "e64f2b1a3054",
+			"arquivos": [
+				"src/routes/api/gise/[id]/presenca/preparar-assinatura/+server.ts",
+				"src/routes/api/gise/[id]/relatorios/[seccionalId]/preparar-assinatura/+server.ts"
+			],
+			"ocorrencias": 2,
+			"amostra": "import { gerarCodigoValidacao } from '$lib/utils/formato';",
+			"nota": ""
+		},
+		{
+			"id": "e93eb744fe90",
+			"arquivos": [
+				"src/routes/api/escalas/[id]/finalizar-assinatura-avancada/+server.ts",
+				"src/routes/api/escalas/[id]/preparar-assinatura-avancada/+server.ts"
+			],
+			"ocorrencias": 2,
+			"amostra": "}) => {",
+			"nota": ""
+		},
+		{
+			"id": "ea37ce037d0b",
+			"arquivos": [
+				"src/routes/api/escalas/[id]/assinar-simples/+server.ts",
+				"src/routes/api/gise/[id]/assinar-simples/+server.ts"
+			],
+			"ocorrencias": 2,
+			"amostra": "const u = requireAuth(locals);",
+			"nota": ""
+		},
+		{
+			"id": "ed39dd045fcc",
+			"arquivos": [
+				"src/lib/components/PainelAssinaturaDigital.svelte",
+				"src/routes/escalas/+page.svelte"
+			],
+			"ocorrencias": 2,
+			"amostra": ": signatureStep === 'email_code'",
+			"nota": ""
+		},
+		{
+			"id": "f36d336a9e72",
+			"arquivos": [
+				"src/routes/api/gise/[id]/presenca/preparar-assinatura/+server.ts",
+				"src/routes/api/gise/[id]/relatorios/[seccionalId]/preparar-assinatura/+server.ts"
+			],
+			"ocorrencias": 2,
+			"amostra": "ator: { id: u.id, tipo: u.tipo },",
+			"nota": ""
+		},
+		{
+			"id": "f44347a4693c",
+			"arquivos": [
+				"src/routes/api/escalas/[id]/preparar-assinatura-avancada/+server.ts",
+				"src/routes/api/gise/[id]/preparar-assinatura-avancada/+server.ts"
+			],
+			"ocorrencias": 2,
+			"amostra": "{ id: u.id, tipo: u.tipo },",
+			"nota": ""
+		},
+		{
+			"id": "f6fe7e308653",
+			"arquivos": [
+				"src/routes/api/gise/[id]/finalizar-assinatura-avancada/+server.ts",
+				"src/routes/api/gise/[id]/relatorios/[seccionalId]/finalizar-assinatura-avancada/+server.ts"
+			],
+			"ocorrencias": 2,
+			"amostra": "selfieKey: consumo.contexto.selfieKey,",
+			"nota": ""
+		},
+		{
+			"id": "f9a943df0961",
+			"arquivos": [
+				"src/routes/gise/[id]/_components/supervisao/SupervisaoDesignacao.svelte",
+				"src/routes/gise/[id]/_components/supervisao/SupervisaoPapelSeint.svelte"
+			],
+			"ocorrencias": 2,
+			"amostra": "<button",
+			"nota": ""
+		},
+		{
+			"id": "fd1e1506e86c",
+			"arquivos": [
+				"src/routes/escalas/[id]/_components/ListaFds.svelte",
+				"src/routes/escalas/[id]/_components/TabelaServidores.svelte"
+			],
+			"ocorrencias": 3,
+			"amostra": "type=\"hidden\"",
+			"nota": ""
+		},
+		{
+			"id": "fe1a50fc1f5e",
+			"arquivos": [
+				"src/routes/api/gise/[id]/finalizar/+server.ts",
+				"src/routes/api/gise/[id]/reabrir/+server.ts"
+			],
+			"ocorrencias": 2,
+			"amostra": "export const POST: RequestHandler = async (event) => {",
+			"nota": ""
+		}
+	]
+}

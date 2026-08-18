@@ -238,6 +238,18 @@ Corolário prático: se a extração exigir tantos props que o componente comum
 fique pior que a duplicação, **registre a decisão no código** em vez de
 extrair (ver a grade dos três calendários e o barrel `lib/db.ts`).
 
+Desde ago/2026 isso é verificado no CI por `npm run guard:duplicacao`: bloco de
+10 linhas repetido entre arquivos reprova, a menos que já esteja em
+`scripts/duplicacao-baseline.json`. A baseline existe porque **não há meta de
+"0% duplicado"** — o corolário acima continua valendo, e as decisões de MANTER
+moram lá, cada uma com o motivo no campo `nota`. Só duplicação NOVA reprova.
+
+`--atualizar` regrava a baseline, e não é o jeito de fazer o guard passar:
+regravar sem extrair troca um achado por uma linha de JSON, que é a versão
+automatizada de "comentar em vez de extrair". O guard tem um limite conhecido —
+bloco menor que 10 linhas relevantes é invisível para ele, e o portão de
+assinatura GISE está nessa faixa. Ele reduz a classe do problema, não a elimina.
+
 ## Artefato com valor jurídico: golden antes de refatorar
 
 PDF assinado, e-mail transacional e termo de presença são **documentos**, não

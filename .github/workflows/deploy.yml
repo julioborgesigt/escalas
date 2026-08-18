@@ -136,6 +136,18 @@ jobs:
       - name: Guard — autorização das operações materiais
         run: node scripts/guard-autorizacao.mjs
 
+      # Guard de duplicação: bloco de 10 linhas copiado entre arquivos não cresce
+      # em silêncio. Trabalha contra `scripts/duplicacao-baseline.json` — o que
+      # já existe está aceito, só duplicação NOVA reprova, porque não há meta de
+      # "0% duplicado" (o CLAUDE.md registra os casos em que MANTER é a decisão
+      # certa). Duas linhas da tabela de bugs do CLAUDE.md — o portão de assinar
+      # escala sem o gate de FDS e o fallback de hora do plantão — saíram desta
+      # varredura, não de teste. Se reprovar: extraia, ou registre a decisão de
+      # manter com `node scripts/guard-duplicacao.mjs --atualizar` + o motivo no
+      # campo `nota` da entrada nova.
+      - name: Guard — duplicação entre arquivos
+        run: npm run guard:duplicacao
+
       # Guard de documentação: arquivo NOVO em src/lib/db/ tem de nascer com
       # cabeçalho de módulo e JSDoc nos exports. Só arquivos ADICIONADOS no
       # diff — o legado é pago em levas, medido por `npm run docs:inventario`

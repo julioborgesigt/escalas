@@ -300,6 +300,7 @@ npm run knip               # Detecção de código/exports mortos
 npm run docs:inventario    # Inventário de documentação (cabeçalhos, contratos, opacos)
 npm run docs:guard         # Falha se arquivo NOVO em lib/db vier sem doc (roda no CI)
 npm run guard:autorizacao  # Falha se operação material não recusar ninguém (roda no CI)
+npm run guard:duplicacao   # Falha em bloco de 10 linhas copiado entre arquivos (roda no CI)
 
 # Testes
 npm run test               # Vitest (run once)
