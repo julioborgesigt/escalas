@@ -10,7 +10,7 @@
 	import { page } from '$app/state';
 	import BemVindoPagina from '$lib/components/bem-vindo/BemVindoPagina.svelte';
 	import BemVindoCabecalho from '$lib/components/bem-vindo/BemVindoCabecalho.svelte';
-	import BemVindoCardAcao from '$lib/components/bem-vindo/BemVindoCardAcao.svelte';
+	import BemVindoGradeAcoes from '$lib/components/bem-vindo/BemVindoGradeAcoes.svelte';
 	import { cardsBemVindoDaPagina } from '../_components/bem-vindo-cards';
 
 	const { data }: PageProps = $props();
@@ -44,27 +44,19 @@
 <BemVindoPagina>
 	<BemVindoCabecalho modulo="Portal de Escalas" {usuario} {descricao} accent="secondary" />
 
-	<section class="mt-6 sm:mt-8">
-		<h2
-			class="mb-4 text-2xs font-semibold tracking-[0.18em] text-surface-600 uppercase dark:text-surface-400"
-		>
-			Acesso rápido
-		</h2>
-		{#if semConvocacao}
-			<div class="card-elevated mb-4 rounded-xl p-5">
-				<p class="text-sm font-semibold text-surface-900 dark:text-surface-50">
-					Nenhuma convocação ativa
-				</p>
-				<p class="mt-1 text-xs leading-relaxed text-surface-600 dark:text-surface-400">
-					No momento você não está convocado para nenhuma escala extra. Em caso de dúvida, procure a
-					chefia da sua unidade.
-				</p>
-			</div>
-		{/if}
-		<div class="grid grid-cols-1 gap-4 {acoes.length > 1 ? 'sm:grid-cols-2 lg:grid-cols-3' : ''}">
-			{#each acoes as acao (acao.href)}
-				<BemVindoCardAcao {...acao} accent="secondary" horizontal={acoes.length === 1} />
-			{/each}
-		</div>
-	</section>
+	<BemVindoGradeAcoes {acoes} accent="secondary">
+		{#snippet aviso()}
+			{#if semConvocacao}
+				<div class="card-elevated mb-4 rounded-xl p-5">
+					<p class="text-sm font-semibold text-surface-900 dark:text-surface-50">
+						Nenhuma convocação ativa
+					</p>
+					<p class="mt-1 text-xs leading-relaxed text-surface-600 dark:text-surface-400">
+						No momento você não está convocado para nenhuma escala extra. Em caso de dúvida, procure
+						a chefia da sua unidade.
+					</p>
+				</div>
+			{/if}
+		{/snippet}
+	</BemVindoGradeAcoes>
 </BemVindoPagina>

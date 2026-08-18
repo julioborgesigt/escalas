@@ -205,18 +205,19 @@ Os bugs corrigidos em jul/2026 têm todos a mesma forma: lógica copiada, uma
 cópia consertada, as outras não. E na maioria a cópia CORRETA vinha acompanhada
 de um comentário explicando a armadilha — que não protegeu ninguém:
 
-| bug                                    | o que a duplicação escondia                               |
-| -------------------------------------- | --------------------------------------------------------- |
-| `message.includes('UNIQUE')` (4 sites) | violação de unique virava 500 com SQL cru, não 409        |
-| `getField('serialNumber')`             | CPF vazio no `/validar` para e-CPF sem `:CPF` no CN       |
-| shades Tailwind inexistentes           | classes que não geravam CSS nenhum                        |
-| slot removido sem as equipes           | membros invisíveis na tela e ativos no gate de presença   |
-| `toISO` com duas convenções de mês     | data de um mês errado, sem erro nenhum                    |
-| `hoje()` com `toISOString()` (2 sites) | calendário marcava AMANHÃ das 21h à meia-noite, em UTC-3  |
-| laço "dias do intervalo" (3 sites)     | a mesma troca local↔UTC, latente em fuso positivo         |
-| "restrito ao Admin Geral" (5 arquivos) | o gate era Super Admin; o comentário convidava a afrouxar |
-| portão de assinar escala (5 rotas)     | uma das cinco não recusava escala FDS                     |
+| bug                                    | o que a duplicação escondia                                  |
+| -------------------------------------- | ------------------------------------------------------------ |
+| `message.includes('UNIQUE')` (4 sites) | violação de unique virava 500 com SQL cru, não 409           |
+| `getField('serialNumber')`             | CPF vazio no `/validar` para e-CPF sem `:CPF` no CN          |
+| shades Tailwind inexistentes           | classes que não geravam CSS nenhum                           |
+| slot removido sem as equipes           | membros invisíveis na tela e ativos no gate de presença      |
+| `toISO` com duas convenções de mês     | data de um mês errado, sem erro nenhum                       |
+| `hoje()` com `toISOString()` (2 sites) | calendário marcava AMANHÃ das 21h à meia-noite, em UTC-3     |
+| laço "dias do intervalo" (3 sites)     | a mesma troca local↔UTC, latente em fuso positivo            |
+| "restrito ao Admin Geral" (5 arquivos) | o gate era Super Admin; o comentário convidava a afrouxar    |
+| portão de assinar escala (5 rotas)     | uma das cinco não recusava escala FDS                        |
 | fallback de hora do plantão (3 sites)  | `'08:00'` numa tela, `'08'` (o default da coluna) nas outras |
+| portão de assinar GISE (5 rotas)       | uma não checava status; quatro admitiam admin sem UI         |
 
 As três primeiras linhas depois de `toISO` saíram da varredura de documentação —
 foram achadas por LEITURA, não por teste, e duas delas quebravam em produção.
@@ -228,6 +229,34 @@ barrava pela intenção —, mas era a quinta cópia esperando que alguém remov
 recusa do lugar que ainda a tinha. Hoje as cinco entram por
 `carregarEscalaParaAssinatura`, e `HELPERS_OBRIGATORIOS` exige o nome do PORTÃO,
 não o de `podeAssinarEscala`: é isso que impede a rota de remontar o gate à mão.
+
+O portão GISE, extraído na mesma leva, mostrou por que a varredura mecânica não
+substitui a leitura: as cinco rotas divergiam em DOIS eixos independentes, cada
+um numa cópia diferente. `finalizar-assinatura` era a única sem a checagem de
+status — fechado ao entrar no portão, sem custo, porque o `preparar` não mexe no
+status e o próprio `finalizar` grava `em_andamento`, que está no conjunto
+permitido. E **`preparar-assinatura` era a única que não admitia Admin Geral**,
+o que contradizia o `finalizar-assinatura`, que admitia: como o `preparar`
+emite a intenção que o `finalizar` consome, a permissão de admin no
+`finalizar` era **inalcançável** — sintoma de que ela nunca deveria ter
+existido. A extração não decidiu isso na hora: virou o parâmetro nomeado
+`admitirAdmin: false`, com a contradição escrita no JSDoc, em vez de ser
+"resolvida" por quem estava refatorando.
+
+A decisão veio depois, e não do código — veio da UI. `SupervisaoDocEscala`
+libera "Conferência" (baixar sem assinar) para `isSupervisor || isAdminGeral`,
+mas os botões que assinam de verdade — "Token" (A3) e "Tela" (avançada) — só
+aparecem para `isSupervisor`, e `mostrarPainelAssinaturaEscala` exige
+`gise.supervisor_id === usuarioAtual.id`. Não existe caminho na interface para
+um Admin Geral assinar a escala GISE. As quatro rotas que aceitavam
+`u.tipo === 'admin'` liberavam por POST direto exatamente o que a tela nunca
+ofereceu — o mesmo erro que "esconder o botão não é autorização" descreve
+acima. As cinco rotas agora exigem o supervisor designado; o parâmetro
+`admitirAdmin` saiu do portão.
+
+A lição não é "extraia e resolva na hora". É que a extração torna a pergunta
+FORMULÁVEL — enquanto eram cinco cópias, não havia o que comparar para notar a
+contradição.
 
 Comentário protege quem lê **aquele** arquivo. Extração protege quem não sabe
 que o arquivo existe — que é justamente quem quebra o sistema. E comentário

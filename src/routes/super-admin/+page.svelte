@@ -9,7 +9,7 @@
 	import { page } from '$app/state';
 	import BemVindoPagina from '$lib/components/bem-vindo/BemVindoPagina.svelte';
 	import BemVindoCabecalho from '$lib/components/bem-vindo/BemVindoCabecalho.svelte';
-	import BemVindoCardAcao from '$lib/components/bem-vindo/BemVindoCardAcao.svelte';
+	import BemVindoGradeAcoes from '$lib/components/bem-vindo/BemVindoGradeAcoes.svelte';
 	import { cardsBemVindoDaPagina } from '../_components/bem-vindo-cards';
 
 	const { data }: PageProps = $props();
@@ -30,16 +30,5 @@
 		accent="primary"
 	/>
 
-	<section class="mt-6 sm:mt-8">
-		<h2
-			class="mb-4 text-2xs font-semibold tracking-[0.18em] text-surface-600 uppercase dark:text-surface-400"
-		>
-			Áreas de gestão
-		</h2>
-		<div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-			{#each acoes as acao (acao.href)}
-				<BemVindoCardAcao {...acao} accent="primary" />
-			{/each}
-		</div>
-	</section>
+	<BemVindoGradeAcoes {acoes} accent="primary" titulo="Áreas de gestão" />
 </BemVindoPagina>

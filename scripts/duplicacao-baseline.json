@@ -26,16 +26,6 @@
 			"nota": ""
 		},
 		{
-			"id": "0591d5b3c377",
-			"arquivos": [
-				"src/routes/api/gise/[id]/preparar-assinatura-avancada/+server.ts",
-				"src/routes/api/gise/[id]/relatorios/[seccionalId]/preparar-assinatura-avancada/+server.ts"
-			],
-			"ocorrencias": 2,
-			"amostra": "import { chaveConferencia } from '$lib/server/assinatura/copia-conferencia';",
-			"nota": ""
-		},
-		{
 			"id": "0a643edce574",
 			"arquivos": [
 				"src/lib/components/ModalCadastrarRubrica.svelte",
@@ -99,13 +89,12 @@
 		{
 			"id": "18b870732df9",
 			"arquivos": [
-				"src/routes/api/gise/[id]/finalizar-assinatura/+server.ts",
 				"src/routes/api/gise/[id]/presenca/finalizar-assinatura/+server.ts",
 				"src/routes/api/gise/[id]/relatorios/[seccionalId]/finalizar-assinatura/+server.ts"
 			],
-			"ocorrencias": 3,
+			"ocorrencias": 2,
 			"amostra": "import {",
-			"nota": ""
+			"nota": "DUP-MANTER: assinatura de handler SvelteKit + linha de import, não lógica. As rotas de assinatura GISE desestruturam o mesmo `{ platform, params, locals, url, request, getClientAddress }` e importam o mesmo portão — a lógica que compartilhavam saiu para `carregarGiseParaAssinatura` em ago/2026. Não há o que extrair de uma assinatura de handler."
 		},
 		{
 			"id": "1a2aa50e6df8",
@@ -138,6 +127,16 @@
 			"nota": ""
 		},
 		{
+			"id": "21954d687d54",
+			"arquivos": [
+				"src/routes/escalas/bem-vindo/+page.svelte",
+				"src/routes/gise/bem-vindo/+page.svelte"
+			],
+			"ocorrencias": 2,
+			"amostra": "<script lang=\"ts\">",
+			"nota": "DUP-MANTER: preâmbulo de página SvelteKit — `<script lang=\"ts\">`, os imports, `import type { PageProps } from './$types'` (que é POR ROTA e não pode subir) e o `$props()`, que só existe dentro do componente. Irredutível por construção. O markup que estas páginas de fato compartilhavam saiu para `BemVindoGradeAcoes` em ago/2026 — e note que o guard NUNCA apontou aquele markup: a lógica de `descricao`, que difere por página, fica entre o preâmbulo e a grade e quebra a janela. Achado por leitura."
+		},
+		{
 			"id": "224c5c7077df",
 			"arquivos": [
 				"src/routes/api/gise/[id]/presenca/finalizar-assinatura/+server.ts",
@@ -145,7 +144,7 @@
 			],
 			"ocorrencias": 2,
 			"amostra": "tipo_carimbo_tempo: result.tipoCarimboTempo,",
-			"nota": ""
+			"nota": "DUP-MANTER: assinatura de handler SvelteKit + linha de import, não lógica. As rotas de assinatura GISE desestruturam o mesmo `{ platform, params, locals, url, request, getClientAddress }` e importam o mesmo portão — a lógica que compartilhavam saiu para `carregarGiseParaAssinatura` em ago/2026. Não há o que extrair de uma assinatura de handler."
 		},
 		{
 			"id": "253d0873d7e6",
@@ -155,16 +154,6 @@
 			],
 			"ocorrencias": 2,
 			"amostra": "supervisor_matricula: string | null;",
-			"nota": ""
-		},
-		{
-			"id": "31995cbda5f6",
-			"arquivos": [
-				"src/routes/bem-vindo/+page.svelte",
-				"src/routes/super-admin/+page.svelte"
-			],
-			"ocorrencias": 2,
-			"amostra": "<script lang=\"ts\">",
 			"nota": ""
 		},
 		{
@@ -195,7 +184,7 @@
 			],
 			"ocorrencias": 2,
 			"amostra": "signerCpf: finalSignerCpf || undefined,",
-			"nota": ""
+			"nota": "DUP-MANTER: assinatura de handler SvelteKit + linha de import, não lógica. As rotas de assinatura GISE desestruturam o mesmo `{ platform, params, locals, url, request, getClientAddress }` e importam o mesmo portão — a lógica que compartilhavam saiu para `carregarGiseParaAssinatura` em ago/2026. Não há o que extrair de uma assinatura de handler."
 		},
 		{
 			"id": "4268be83663f",
@@ -215,7 +204,7 @@
 			],
 			"ocorrencias": 2,
 			"amostra": "if (u.tipo !== 'policial') return forbidden('Apenas policiais confirmam presença.');",
-			"nota": ""
+			"nota": "DUP-MANTER: assinatura de handler SvelteKit + linha de import, não lógica. As rotas de assinatura GISE desestruturam o mesmo `{ platform, params, locals, url, request, getClientAddress }` e importam o mesmo portão — a lógica que compartilhavam saiu para `carregarGiseParaAssinatura` em ago/2026. Não há o que extrair de uma assinatura de handler."
 		},
 		{
 			"id": "4b1c1da8b64d",
@@ -315,7 +304,7 @@
 			],
 			"ocorrencias": 2,
 			"amostra": "auditar,",
-			"nota": ""
+			"nota": "DUP-MANTER: assinatura de handler SvelteKit + linha de import, não lógica. As rotas de assinatura GISE desestruturam o mesmo `{ platform, params, locals, url, request, getClientAddress }` e importam o mesmo portão — a lógica que compartilhavam saiu para `carregarGiseParaAssinatura` em ago/2026. Não há o que extrair de uma assinatura de handler."
 		},
 		{
 			"id": "6ef5fe07247c",
@@ -370,16 +359,6 @@
 			"nota": ""
 		},
 		{
-			"id": "79629c4d098f",
-			"arquivos": [
-				"src/routes/api/gise/[id]/finalizar-assinatura-avancada/+server.ts",
-				"src/routes/api/gise/[id]/relatorios/[seccionalId]/finalizar-assinatura-avancada/+server.ts"
-			],
-			"ocorrencias": 2,
-			"amostra": "} from '$lib/db';",
-			"nota": "DUP-MANTER: bloco de IMPORTS, não de lógica. As duas rotas finalizam assinatura por passkey de documentos GISE irmãos e por isso importam o mesmo conjunto — a lógica que elas compartilhavam saiu para `webauthn/finalizar-avancada` (conferirFinalizacaoPasskey + evidenciasDaProva) em ago/2026. Sobrou a lista de imports, e não há o que extrair de uma lista de imports."
-		},
-		{
 			"id": "81d74a51dbaf",
 			"arquivos": [
 				"src/routes/auditoria/+page.svelte",
@@ -427,7 +406,7 @@
 			],
 			"ocorrencias": 2,
 			"amostra": "const validated = await validateBody(request, finalizarAssinaturaGiseSchema);",
-			"nota": ""
+			"nota": "DUP-MANTER: assinatura de handler SvelteKit + linha de import, não lógica. As rotas de assinatura GISE desestruturam o mesmo `{ platform, params, locals, url, request, getClientAddress }` e importam o mesmo portão — a lógica que compartilhavam saiu para `carregarGiseParaAssinatura` em ago/2026. Não há o que extrair de uma assinatura de handler."
 		},
 		{
 			"id": "9a7b93e9fd84",
@@ -442,13 +421,12 @@
 		{
 			"id": "9c6e5f05dfc5",
 			"arquivos": [
-				"src/routes/api/gise/[id]/preparar-assinatura-avancada/+server.ts",
 				"src/routes/api/gise/[id]/presenca/preparar-assinatura-avancada/+server.ts",
 				"src/routes/api/gise/[id]/relatorios/[seccionalId]/preparar-assinatura-avancada/+server.ts"
 			],
-			"ocorrencias": 3,
+			"ocorrencias": 2,
 			"amostra": "import {",
-			"nota": ""
+			"nota": "DUP-MANTER: assinatura de handler SvelteKit + linha de import, não lógica. As rotas de assinatura GISE desestruturam o mesmo `{ platform, params, locals, url, request, getClientAddress }` e importam o mesmo portão — a lógica que compartilhavam saiu para `carregarGiseParaAssinatura` em ago/2026. Não há o que extrair de uma assinatura de handler."
 		},
 		{
 			"id": "9ef741624ab6",
@@ -503,17 +481,6 @@
 			"nota": ""
 		},
 		{
-			"id": "aa3d91d5563b",
-			"arquivos": [
-				"src/routes/api/gise/[id]/assinar-simples/+server.ts",
-				"src/routes/api/gise/[id]/finalizar-assinatura-avancada/+server.ts",
-				"src/routes/api/gise/[id]/preparar-assinatura-avancada/+server.ts"
-			],
-			"ocorrencias": 3,
-			"amostra": "const ua = request.headers.get('user-agent') || '';",
-			"nota": ""
-		},
-		{
 			"id": "aa9ec9e7a9c6",
 			"arquivos": [
 				"src/routes/api/gise/[id]/relatorios/[seccionalId]/finalizar-assinatura-avancada/+server.ts",
@@ -521,7 +488,7 @@
 			],
 			"ocorrencias": 2,
 			"amostra": "if (u instanceof Response) return u;",
-			"nota": ""
+			"nota": "DUP-MANTER: assinatura de handler SvelteKit + linha de import, não lógica. As rotas de assinatura GISE desestruturam o mesmo `{ platform, params, locals, url, request, getClientAddress }` e importam o mesmo portão — a lógica que compartilhavam saiu para `carregarGiseParaAssinatura` em ago/2026. Não há o que extrair de uma assinatura de handler."
 		},
 		{
 			"id": "b30e69685e40",
@@ -537,11 +504,10 @@
 			"id": "b5accb3b0996",
 			"arquivos": [
 				"src/routes/api/escalas/[id]/preparar-assinatura/+server.ts",
-				"src/routes/api/gise/[id]/preparar-assinatura/+server.ts",
 				"src/routes/api/gise/[id]/presenca/preparar-assinatura/+server.ts",
 				"src/routes/api/gise/[id]/relatorios/[seccionalId]/preparar-assinatura/+server.ts"
 			],
-			"ocorrencias": 4,
+			"ocorrencias": 3,
 			"amostra": "import { fecharPreparacaoAssinatura } from '$lib/server/assinatura/preparar-ciclo';",
 			"nota": ""
 		},
@@ -603,7 +569,7 @@
 			],
 			"ocorrencias": 2,
 			"amostra": "if (!gise) return notFound('Escala');",
-			"nota": ""
+			"nota": "DUP-MANTER: assinatura de handler SvelteKit + linha de import, não lógica. As rotas de assinatura GISE desestruturam o mesmo `{ platform, params, locals, url, request, getClientAddress }` e importam o mesmo portão — a lógica que compartilhavam saiu para `carregarGiseParaAssinatura` em ago/2026. Não há o que extrair de uma assinatura de handler."
 		},
 		{
 			"id": "c6a0fca96e89",
@@ -616,16 +582,6 @@
 			"nota": ""
 		},
 		{
-			"id": "c7724075f9c1",
-			"arquivos": [
-				"src/routes/escalas/bem-vindo/+page.svelte",
-				"src/routes/gise/bem-vindo/+page.svelte"
-			],
-			"ocorrencias": 2,
-			"amostra": "<script lang=\"ts\">",
-			"nota": ""
-		},
-		{
 			"id": "cb32fcd937b6",
 			"arquivos": [
 				"src/routes/policiais/+page.svelte",
@@ -635,16 +591,6 @@
 			"ocorrencias": 3,
 			"amostra": "</div>",
 			"nota": ""
-		},
-		{
-			"id": "ccb9236e8465",
-			"arquivos": [
-				"src/routes/api/gise/[id]/finalizar-assinatura-avancada/+server.ts",
-				"src/routes/api/gise/[id]/relatorios/[seccionalId]/finalizar-assinatura-avancada/+server.ts"
-			],
-			"ocorrencias": 2,
-			"amostra": "import { descreverVinculoCredencial } from '$lib/server/assinatura/webauthn/authenticator-",
-			"nota": "DUP-MANTER: bloco de IMPORTS, não de lógica. As duas rotas finalizam assinatura por passkey de documentos GISE irmãos e por isso importam o mesmo conjunto — a lógica que elas compartilhavam saiu para `webauthn/finalizar-avancada` (conferirFinalizacaoPasskey + evidenciasDaProva) em ago/2026. Sobrou a lista de imports, e não há o que extrair de uma lista de imports."
 		},
 		{
 			"id": "cdc0c5b8a34b",
@@ -667,6 +613,16 @@
 			"nota": ""
 		},
 		{
+			"id": "cf461b6c9c88",
+			"arquivos": [
+				"src/routes/api/gise/[id]/finalizar-assinatura-avancada/+server.ts",
+				"src/routes/api/gise/[id]/preparar-assinatura-avancada/+server.ts"
+			],
+			"ocorrencias": 2,
+			"amostra": "getClientAddress",
+			"nota": "DUP-MANTER: assinatura de handler SvelteKit + linha de import, não lógica. As rotas de assinatura GISE desestruturam o mesmo `{ platform, params, locals, url, request, getClientAddress }` e importam o mesmo portão — a lógica que compartilhavam saiu para `carregarGiseParaAssinatura` em ago/2026. Não há o que extrair de uma assinatura de handler."
+		},
+		{
 			"id": "d0016fac801f",
 			"arquivos": [
 				"src/routes/auditoria/+page.svelte",
@@ -687,6 +643,16 @@
 			"nota": ""
 		},
 		{
+			"id": "e2cf8c727a52",
+			"arquivos": [
+				"src/routes/bem-vindo/+page.svelte",
+				"src/routes/super-admin/+page.svelte"
+			],
+			"ocorrencias": 2,
+			"amostra": "<script lang=\"ts\">",
+			"nota": "DUP-MANTER: preâmbulo de página SvelteKit — `<script lang=\"ts\">`, os imports, `import type { PageProps } from './$types'` (que é POR ROTA e não pode subir) e o `$props()`, que só existe dentro do componente. Irredutível por construção. O markup que estas páginas de fato compartilhavam saiu para `BemVindoGradeAcoes` em ago/2026 — e note que o guard NUNCA apontou aquele markup: a lógica de `descricao`, que difere por página, fica entre o preâmbulo e a grade e quebra a janela. Achado por leitura."
+		},
+		{
 			"id": "e64f2b1a3054",
 			"arquivos": [
 				"src/routes/api/gise/[id]/presenca/preparar-assinatura/+server.ts",
@@ -694,7 +660,7 @@
 			],
 			"ocorrencias": 2,
 			"amostra": "import { gerarCodigoValidacao } from '$lib/utils/formato';",
-			"nota": ""
+			"nota": "DUP-MANTER: assinatura de handler SvelteKit + linha de import, não lógica. As rotas de assinatura GISE desestruturam o mesmo `{ platform, params, locals, url, request, getClientAddress }` e importam o mesmo portão — a lógica que compartilhavam saiu para `carregarGiseParaAssinatura` em ago/2026. Não há o que extrair de uma assinatura de handler."
 		},
 		{
 			"id": "e93eb744fe90",
@@ -734,7 +700,17 @@
 			],
 			"ocorrencias": 2,
 			"amostra": "ator: { id: u.id, tipo: u.tipo },",
-			"nota": ""
+			"nota": "DUP-MANTER: assinatura de handler SvelteKit + linha de import, não lógica. As rotas de assinatura GISE desestruturam o mesmo `{ platform, params, locals, url, request, getClientAddress }` e importam o mesmo portão — a lógica que compartilhavam saiu para `carregarGiseParaAssinatura` em ago/2026. Não há o que extrair de uma assinatura de handler."
+		},
+		{
+			"id": "f3ac90646bd8",
+			"arquivos": [
+				"src/routes/api/gise/[id]/finalizar-assinatura-avancada/+server.ts",
+				"src/routes/api/gise/[id]/preparar-assinatura/+server.ts"
+			],
+			"ocorrencias": 2,
+			"amostra": "import { carregarGiseParaAssinatura } from '$lib/server/gise/permissao';",
+			"nota": "DUP-MANTER: assinatura de handler SvelteKit + linha de import, não lógica. As rotas de assinatura GISE desestruturam o mesmo `{ platform, params, locals, url, request, getClientAddress }` e importam o mesmo portão — a lógica que compartilhavam saiu para `carregarGiseParaAssinatura` em ago/2026. Não há o que extrair de uma assinatura de handler."
 		},
 		{
 			"id": "f44347a4693c",
