@@ -8,11 +8,11 @@
  *   - `finalizar-assinatura` era a única SEM a checagem de status. Fechado ao
  *     entrar no portão, e é o que o teste "recusa GISE em status que não admite
  *     assinatura" trava para não voltar a abrir;
- *   - `preparar-assinatura` é a única que NÃO admite Admin Geral, e isso segue
- *     de propósito enquanto a contradição com `finalizar-assinatura` não for
- *     decidida (ver o JSDoc de `carregarGiseParaAssinatura`). O teste
- *     `admitirAdmin: false` fixa o comportamento ATUAL — se a decisão mudar, é
- *     este teste que tem de mudar junto, de propósito.
+ *   - `preparar-assinatura` era a única a recusar Admin Geral. A contradição foi
+ *     decidida pela UI, que nunca oferece assinatura da escala GISE a admin
+ *     (ver o JSDoc de `carregarGiseParaAssinatura`): as CINCO passaram a exigir
+ *     o supervisor designado, e o teste "RECUSA Admin Geral" é o que trava
+ *     isso. Se alguém reabrir a permissão, é este teste que reprova primeiro.
  *
  * Usa banco real porque o portão lê a GISE do D1 — um fake do query builder
  * testaria a forma da consulta, não o veredito.
@@ -48,15 +48,11 @@ describe('carregarGiseParaAssinatura', () => {
 		expect(r.id).toBe(giseId);
 	});
 
-	it('aceita Admin Geral por padrão', async () => {
+	it('RECUSA Admin Geral — a escala GISE é ato do supervisor designado', async () => {
+		// A UI nunca ofereceu isto: "Token" e "Tela" ficam atrás de `isSupervisor`,
+		// e só a "Conferência" (download sem assinatura) admite Admin Geral.
+		// Quatro das cinco rotas aceitavam admin por POST direto; não aceitam mais.
 		const r = await carregarGiseParaAssinatura(db, String(giseId), ADMIN);
-		expect(r.recusa).toBeUndefined();
-	});
-
-	it('RECUSA Admin Geral quando `admitirAdmin: false` (o caso de preparar-assinatura)', async () => {
-		const r = await carregarGiseParaAssinatura(db, String(giseId), ADMIN, {
-			admitirAdmin: false
-		});
 		expect(r.recusa?.status).toBe(403);
 	});
 
@@ -83,7 +79,8 @@ describe('carregarGiseParaAssinatura', () => {
 	});
 
 	it('404 para GISE inexistente e 400 para id não numérico', async () => {
-		expect((await carregarGiseParaAssinatura(db, '999999', ADMIN)).recusa?.status).toBe(404);
-		expect((await carregarGiseParaAssinatura(db, 'abc', ADMIN)).recusa?.status).toBe(400);
+		// Antes do 403: id e existência não dependem de quem chama.
+		expect((await carregarGiseParaAssinatura(db, '999999', SUPERVISOR)).recusa?.status).toBe(404);
+		expect((await carregarGiseParaAssinatura(db, 'abc', SUPERVISOR)).recusa?.status).toBe(400);
 	});
 });

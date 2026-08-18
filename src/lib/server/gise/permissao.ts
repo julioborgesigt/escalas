@@ -106,40 +106,35 @@ export async function verificarPermissaoGise(
 /**
  * Portão das cinco rotas de assinatura da GISE (`assinar-simples`, os dois
  * passos da avançada e os dois da qualificada): id válido → GISE existe →
- * status admite assinatura → quem chama pode assinar.
+ * status admite assinatura → **quem chama É o supervisor designado**.
  *
- * As cinco rodavam a mesma sequência copiada, e a cópia divergiu num ponto que
- * a leitura lado a lado revela: **`preparar-assinatura` é a única que NÃO
- * admite Admin Geral.** As outras quatro liberam `u.tipo === 'admin'`.
+ * Admin Geral NÃO assina a escala GISE, e isso é decisão registrada (ago/2026),
+ * não omissão. As cinco rotas divergiam em dois eixos — `finalizar-assinatura`
+ * era a única sem a checagem de status, e `preparar-assinatura` a única a
+ * recusar admin. A UI decidiu o segundo eixo:
  *
- * A divergência é contraditória com ela mesma, e é por isso que ela está aqui
- * como parâmetro NOMEADO em vez de resolvida em silêncio: `preparar-assinatura`
- * emite a intenção que `finalizar-assinatura` consome, então um admin nunca
- * obtém intenção para o fluxo qualificado — o que torna a permissão de admin
- * do `finalizar` **inalcançável**. Uma das duas está errada:
+ *   - `SupervisaoDocEscala` libera "Conferência" (download sem assinatura) para
+ *     `isSupervisor || isAdminGeral`, mas os botões **"Token"** (A3) e
+ *     **"Tela"** (avançada) só para `isSupervisor`;
+ *   - `mostrarPainelAssinaturaEscala` = `podeAssinar`, que exige
+ *     `gise.supervisor_id === usuarioAtual.id`;
+ *   - o texto do próprio card diz "O supervisor poderá assinar a escala…".
  *
- *   - se assinar GISE com token A3 é ato pessoal do supervisor designado, o
- *     `finalizar` é que deveria recusar admin (hoje aceita, sem efeito);
- *   - se o Admin Geral pode assinar, o `preparar` é que perdeu a cláusula.
+ * Ou seja: não existe caminho na interface em que um admin assine a escala
+ * GISE. As quatro rotas que aceitavam `u.tipo === 'admin'` permitiam por POST
+ * direto o que o produto nunca ofereceu — e esconder o botão não é autorização
+ * (ver "Operação material precisa recusar alguém" no `CLAUDE.md`).
  *
- * Não é decisão de refatoração: mudar qualquer um dos lados MUDA quem assina um
- * documento com valor jurídico. Até que alguém decida, o portão preserva o
- * comportamento de cada rota, e `admitirAdmin: false` marca a exceção no lugar
- * onde ela pode ser vista — em vez de numa quinta cópia onde ninguém a compara.
+ * O relatório por seccional é OUTRO documento, com outra regra: as rotas em
+ * `relatorios/[seccionalId]/` seguem admitindo admin, de propósito.
  *
  * Devolve `{ gise, id }` ou `{ recusa }` — a rota só repassa a `recusa`.
- *
- * @param admitirAdmin `true` (padrão) libera `u.tipo === 'admin'` além do
- *   supervisor designado. `preparar-assinatura` passa `false`.
  */
 export async function carregarGiseParaAssinatura(
 	db: Database,
 	idParam: string | undefined,
-	u: NonNullable<App.Locals['usuario']>,
-	opts: { admitirAdmin?: boolean } = {}
+	u: NonNullable<App.Locals['usuario']>
 ): Promise<{ gise: GiseEscala; id: number; recusa?: never } | { recusa: Response; gise?: never }> {
-	const admitirAdmin = opts.admitirAdmin ?? true;
-
 	const id = parseInt(idParam!);
 	if (isNaN(id)) return { recusa: badRequest('ID inválido') };
 
@@ -150,15 +145,8 @@ export async function carregarGiseParaAssinatura(
 		return { recusa: badRequest('A escala não está pronta para assinatura') };
 	}
 
-	const ehAdminLiberado = admitirAdmin && u.tipo === 'admin';
-	if (!ehAdminLiberado && gise.supervisor_id !== u.id) {
-		return {
-			recusa: forbidden(
-				admitirAdmin
-					? 'Apenas o supervisor designado ou administradores podem assinar'
-					: 'Apenas o Supervisor designado pode assinar esta escala'
-			)
-		};
+	if (gise.supervisor_id !== u.id) {
+		return { recusa: forbidden('Apenas o Supervisor designado pode assinar esta escala') };
 	}
 
 	return { gise, id };

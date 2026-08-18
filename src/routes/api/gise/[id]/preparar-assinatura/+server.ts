@@ -49,10 +49,7 @@ export const POST: RequestHandler = async ({
 	const ua = request.headers.get('user-agent') || '';
 
 	const db = getDB(platform);
-	// `admitirAdmin: false` NÃO é escolha desta extração: é o comportamento que
-	// esta rota já tinha, e ele contradiz o `finalizar-assinatura`, que aceita
-	// admin. Ver `carregarGiseParaAssinatura` — a decisão está pendente.
-	const portao = await carregarGiseParaAssinatura(db, params.id, u, { admitirAdmin: false });
+	const portao = await carregarGiseParaAssinatura(db, params.id, u);
 	if (portao.recusa) return portao.recusa;
 	const { gise, id } = portao;
 
