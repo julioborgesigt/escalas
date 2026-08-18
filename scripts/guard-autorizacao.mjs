@@ -234,9 +234,12 @@ export const HELPERS_OBRIGATORIOS = {
 	'src/routes/escalas/[id]/_actions/actions-ciclo.ts': ['carregarEscalaComPermissao'],
 	'src/routes/escalas/[id]/_actions/actions-projecao.ts': ['carregarEscalaComPermissao'],
 
-	// FLW-AUT-006 / 007 — presença: janela de horário + GISE não finalizada
-	'src/routes/res-gise/+page.server.ts → salvarEntrada': ['gateDePresenca'],
-	'src/routes/res-gise/+page.server.ts → salvarSaida': ['gateDePresenca'],
+	// FLW-AUT-006 / 007 — presença: janela de horário + GISE não finalizada.
+	// `gateDePresenca` mora dentro de `prepararConfirmacaoPresenca` (preparo
+	// comum extraído de salvarEntrada/salvarSaida em ago/2026) — o corpo das
+	// duas actions chama o preparo, não o gate direto.
+	'src/routes/res-gise/+page.server.ts → salvarEntrada': ['prepararConfirmacaoPresenca'],
+	'src/routes/res-gise/+page.server.ts → salvarSaida': ['prepararConfirmacaoPresenca'],
 	'src/routes/api/gise/[id]/presenca/preparar-assinatura/+server.ts': ['gateDePresenca'],
 	'src/routes/api/gise/[id]/presenca/finalizar-assinatura/+server.ts': ['gateDePresenca']
 };

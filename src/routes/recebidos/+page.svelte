@@ -349,9 +349,7 @@
 			<label class="label w-full lg:w-64">
 				<span class="label-text text-sm font-semibold mb-1">Unidade</span>
 				<div class="relative w-full">
-					<Search
-						class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-surface-400"
-					/>
+					<Search class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-surface-400" />
 					<input
 						type="text"
 						class="input pl-10 w-full"

@@ -46,7 +46,12 @@ import { lerFlagsAssinatura, type FlagsAssinatura } from './cfg-ass-cache';
 import { apiError, ErrorCode, contentDisposition } from '../api';
 import type { Database } from '../../db/core';
 import type { AssinaturaCadesMetadata } from '../../db/documentos';
-import { calcularHashBuffer, ehDispositivoMovelUA, envComoRegistro, type TipoCarimoTempo } from './document-utils';
+import {
+	calcularHashBuffer,
+	ehDispositivoMovelUA,
+	envComoRegistro,
+	type TipoCarimoTempo
+} from './document-utils';
 import { exigirJanelaReauth } from './reauth';
 import { ERRO_PASSKEY_UM_TIRO } from './chave-assinatura';
 import { mensagemDeErro } from '$lib/utils/erro';
