@@ -36,16 +36,6 @@
 			"nota": "DUP-MANTER: assinatura de handler SvelteKit + linha de import, não lógica. As rotas de assinatura GISE desestruturam o mesmo `{ platform, params, locals, url, request, getClientAddress }` e importam o mesmo portão — a lógica que compartilhavam saiu para `carregarGiseParaAssinatura` em ago/2026. Não há o que extrair de uma assinatura de handler."
 		},
 		{
-			"id": "0a643edce574",
-			"arquivos": [
-				"src/lib/components/ModalCadastrarRubrica.svelte",
-				"src/lib/components/RubricaCanvas.svelte"
-			],
-			"ocorrencias": 2,
-			"amostra": "const recW = maxX - minX + 1;",
-			"nota": ""
-		},
-		{
 			"id": "0b645f61c0a6",
 			"arquivos": [
 				"src/routes/painel/+page.svelte",
@@ -570,16 +560,6 @@
 			"ocorrencias": 2,
 			"amostra": "const u = requireAuth(locals);",
 			"nota": "DUP-MANTER: preâmbulo/assinatura de RequestHandler (requireAuth/requireAdmin, destructuring de params, `}) => {`), não lógica de negócio. A lógica que estas rotas de fato compartilhavam já saiu para helpers comuns (carregarEscalaParaAssinatura/carregarGiseParaAssinatura, montarPdfEscalaAssinada, fecharPreparacaoAssinatura, conferirFinalizacaoPasskey, coletarAfetadosGise/invalidarPapelGiseMultiplos). O que resta diverge de verdade entre escala e GISE (geração de PDF, resolução de rubrica/matrícula, geometria do carimbo, número de signatários) — um helper único ficaria mais complexo que as cópias. Lido em ago/2026 ao investigar o cluster de rotas de assinatura; ver histórico de commits para os dois achados reais dessa mesma leitura (resolverTipoCarimboTempo e envComoRegistro)."
-		},
-		{
-			"id": "ed39dd045fcc",
-			"arquivos": [
-				"src/lib/components/PainelAssinaturaDigital.svelte",
-				"src/routes/escalas/+page.svelte"
-			],
-			"ocorrencias": 2,
-			"amostra": ": signatureStep === 'email_code'",
-			"nota": ""
 		},
 		{
 			"id": "ef661bd7c107",

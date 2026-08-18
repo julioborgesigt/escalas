@@ -22,7 +22,11 @@
 	import PainelAssinaturaToken from './PainelAssinaturaToken.svelte';
 	import SignaturePad from './SignaturePad.svelte';
 	import DialogSolicitarAssinatura from './DialogSolicitarAssinatura.svelte';
-	import type { SignaturePadConfirmPayload, SignaturePadStep } from './SignaturePadTypes';
+	import {
+		textosEtapaAssinatura,
+		type SignaturePadConfirmPayload,
+		type SignaturePadStep
+	} from './SignaturePadTypes';
 	import type { UsuarioLogado } from '$lib/auth';
 	import { page } from '$app/state';
 	import { invalidateShared } from '$lib/cross-tab-invalidate';
@@ -187,24 +191,14 @@
 		}
 	});
 
-	const signatureTitulo = $derived(
-		signatureStep === 'camera'
-			? 'Prova de Vida'
-			: signatureStep === 'password'
-				? 'Confirme sua senha'
-				: signatureStep === 'email_code'
-					? 'Confirmação de Identidade'
-					: 'Assinatura Digital em Tela'
+	const textosEtapa = $derived(
+		textosEtapaAssinatura(
+			signatureStep,
+			'Desenhe sua rubrica no quadro abaixo para assinar este documento da escala com validade jurídica (nos moldes da assinatura eletrônica).'
+		)
 	);
-	const signatureDescricao = $derived(
-		signatureStep === 'camera'
-			? 'Cumpra o desafio de presença na tela para provar que você está ativo.'
-			: signatureStep === 'password'
-				? 'A sessão sozinha não basta. Digite a senha de acesso para assinar.'
-				: signatureStep === 'email_code'
-					? 'Por razões de segurança, insira o código enviado para o seu e-mail funcional.'
-					: 'Desenhe sua rubrica no quadro abaixo para assinar este documento da escala com validade jurídica (nos moldes da assinatura eletrônica).'
-	);
+	const signatureTitulo = $derived(textosEtapa.titulo);
+	const signatureDescricao = $derived(textosEtapa.descricao);
 </script>
 
 <!-- Diálogo de confirmação de revogação de assinatura -->
