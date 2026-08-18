@@ -18,6 +18,8 @@
 	import ArrowLeft from '@lucide/svelte/icons/arrow-left';
 	import KpiCard from '../_components/KpiCard.svelte';
 	import ChipNivel from '../_components/ChipNivel.svelte';
+	import FiltrosToggle from '../_components/FiltrosToggle.svelte';
+	import Paginacao from '../_components/Paginacao.svelte';
 	import { parseJson } from '../_components/parse-json';
 
 	const { data }: PageProps = $props();
@@ -97,30 +99,7 @@
 	<div
 		class="rounded-xl border border-surface-200 dark:border-white/10 bg-surface-50 dark:bg-surface-900 p-4 space-y-4"
 	>
-		<div class="flex items-center justify-between">
-			<div class="flex items-center gap-2">
-				<span class="font-semibold text-surface-900 dark:text-white">Filtros</span>
-				{#if filtrosAtivos > 0}
-					<span class="badge preset-filled-primary-500 text-xs">
-						{filtrosAtivos}
-						{filtrosAtivos === 1 ? 'ativo' : 'ativos'}
-					</span>
-				{/if}
-			</div>
-			<button
-				type="button"
-				onclick={() => (filtrosExpandidos = !filtrosExpandidos)}
-				class="btn btn-sm preset-outlined-surface-500 lg:hidden flex items-center gap-1 text-xs py-1 px-2.5"
-			>
-				{#if filtrosExpandidos}
-					Ocultar Filtros
-					<ChevronUp class="w-3.5 h-3.5" />
-				{:else}
-					Mostrar Filtros
-					<ChevronDown class="w-3.5 h-3.5" />
-				{/if}
-			</button>
-		</div>
+		<FiltrosToggle ativos={filtrosAtivos} bind:expandidos={filtrosExpandidos} />
 
 		<form
 			method="GET"
@@ -383,27 +362,9 @@
 	{/if}
 
 	<!-- Paginação -->
-	{#if data.totalPages > 1}
-		<div class="flex items-center justify-center gap-2">
-			{#if data.page > 1}
-				<a
-					href="?{queryString({ page: data.page - 1 })}"
-					class="btn preset-outlined-surface-500 text-sm"
-				>
-					Anterior
-				</a>
-			{/if}
-			<span class="text-sm text-surface-600 dark:text-surface-400">
-				Página {data.page} de {data.totalPages}
-			</span>
-			{#if data.page < data.totalPages}
-				<a
-					href="?{queryString({ page: data.page + 1 })}"
-					class="btn preset-outlined-surface-500 text-sm"
-				>
-					Próxima
-				</a>
-			{/if}
-		</div>
-	{/if}
+	<Paginacao
+		page={data.page}
+		totalPages={data.totalPages}
+		href={(p) => `?${queryString({ page: p })}`}
+	/>
 </div>

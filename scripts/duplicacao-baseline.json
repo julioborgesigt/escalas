@@ -97,16 +97,6 @@
 			"nota": "DUP-MANTER: assinatura de handler SvelteKit + linha de import, não lógica. As rotas de assinatura GISE desestruturam o mesmo `{ platform, params, locals, url, request, getClientAddress }` e importam o mesmo portão — a lógica que compartilhavam saiu para `carregarGiseParaAssinatura` em ago/2026. Não há o que extrair de uma assinatura de handler."
 		},
 		{
-			"id": "1a2aa50e6df8",
-			"arquivos": [
-				"src/routes/auditoria/+page.svelte",
-				"src/routes/auditoria/logs/+page.svelte"
-			],
-			"ocorrencias": 2,
-			"amostra": "<!-- Filtros (GET → URL) -->",
-			"nota": ""
-		},
-		{
 			"id": "1b3cdf55f494",
 			"arquivos": [
 				"src/routes/escalas/_components/ModalNovaEscala.svelte",
@@ -502,16 +492,6 @@
 			"nota": ""
 		},
 		{
-			"id": "beae3c726c4a",
-			"arquivos": [
-				"src/routes/auditoria/+page.svelte",
-				"src/routes/auditoria/logs/+page.svelte"
-			],
-			"ocorrencias": 2,
-			"amostra": "<div class=\"flex items-center justify-center gap-2\">",
-			"nota": ""
-		},
-		{
 			"id": "bf56cc512569",
 			"arquivos": [
 				"src/routes/policiais/+page.svelte",
@@ -591,16 +571,6 @@
 			"ocorrencias": 2,
 			"amostra": "getClientAddress",
 			"nota": "DUP-MANTER: assinatura de handler SvelteKit + linha de import, não lógica. As rotas de assinatura GISE desestruturam o mesmo `{ platform, params, locals, url, request, getClientAddress }` e importam o mesmo portão — a lógica que compartilhavam saiu para `carregarGiseParaAssinatura` em ago/2026. Não há o que extrair de uma assinatura de handler."
-		},
-		{
-			"id": "d0016fac801f",
-			"arquivos": [
-				"src/routes/auditoria/+page.svelte",
-				"src/routes/auditoria/logs/+page.svelte"
-			],
-			"ocorrencias": 2,
-			"amostra": "type=\"button\"",
-			"nota": ""
 		},
 		{
 			"id": "e10be09c007b",
