@@ -23,6 +23,7 @@
  */
 
 import { redirect, fail } from '@sveltejs/kit';
+import type { RequestEvent } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
 import type { ResGiseMinhaEscalaLinha, GiseModeloPerguntaConfig } from '$lib/types';
 import {
@@ -74,7 +75,7 @@ import {
 	policiais
 } from '$lib/server/schema';
 import { eq, and, inArray, desc, like, sql, or } from 'drizzle-orm';
-import { gateDePresenca } from '$lib/server/gise/presenca-gate';
+import { gateDePresenca, type TipoPresenca } from '$lib/server/gise/presenca-gate';
 interface GiseEscalaItem {
 	id: number;
 	data_inicio: string;
@@ -460,122 +461,162 @@ export const load: PageServerLoad = async ({ locals, platform, url, depends }) =
 	};
 };
 
+/**
+ * Preparo comum às duas confirmações de presença (entrada/saída): parse do
+ * form, política de dispositivo → 2FA → existência da escala → participação →
+ * gate de presença → foto. Nada é persistido antes de todas as verificações
+ * passarem, para que uma tentativa recusada não deixe rastro de presença.
+ *
+ * `tipo` só entra no gate — o RESTO é idêntico entre entrada e saída (FLW-AUT-
+ * 006/007 exigem a mesma janela e imutabilidade do canal A3 nos dois). Cada
+ * action ainda faz sua própria gravação (`salvarEntradaGise`/`salvarSaidaGise`
+ * — a saída também confere que há entrada registrada) e sua própria auditoria.
+ */
+async function prepararConfirmacaoPresenca(event: RequestEvent, tipo: TipoPresenca) {
+	const { request, locals, platform, cookies, getClientAddress } = event;
+	const u = locals.usuario;
+	if (!u) return { ok: false as const, resposta: fail(401, { error: 'Não autorizado' }) };
+
+	const formData = await request.formData();
+	const giseId = parseInt(formData.get('giseId') as string);
+	const rubrica = formData.get('rubrica') as string;
+	const latitude = formData.get('latitude')
+		? parseFloat(formData.get('latitude') as string)
+		: undefined;
+	const longitude = formData.get('longitude')
+		? parseFloat(formData.get('longitude') as string)
+		: undefined;
+	const selfieBase64 = formData.get('selfieBase64') as string | null;
+	const codigoEmail = formData.get('codigoEmail') as string | null;
+	const desafioId = formData.get('desafioId') as string | null;
+	const reauthId = formData.get('reauthId') as string | null;
+
+	if (isNaN(giseId) || !rubrica) {
+		return { ok: false as const, resposta: fail(400, { error: 'Dados inválidos', giseId }) };
+	}
+
+	const ip = getClientAddress();
+	const ua = request.headers.get('user-agent') || '';
+
+	const db = getDB(platform);
+
+	// Fonte ÚNICA das flags (mesma da UI e do signature-service): o cache
+	// força exigirCodigoEmail=true independentemente da linha no banco —
+	// requisito mínimo da assinatura avançada (Lei 14.063/2020 art. 4º II).
+	// A leitura crua do banco (default '0' num banco recém-instalado)
+	// deixava a presença pular o 2FA que a UI já coleta.
+	const flagsAssinatura = await lerFlagsAssinatura(platform);
+
+	// Política de dispositivo antes do 2FA: recusar aqui não consome uma
+	// tentativa do código de quem vai ser barrado de qualquer forma. Estas
+	// actions não passam pelo `validarEvidenciasAvancada` (checam o 2FA à
+	// mão), então o gate precisa ser aplicado explicitamente — é o fluxo de
+	// maior volume do sistema, e sem ele a recusa por dispositivo cobriria
+	// só a minoria dos atos.
+	if (recusadaPorPoliticaDispositivo(flagsAssinatura, ua)) {
+		return {
+			ok: false as const,
+			resposta: fail(403, { error: ERRO_POLITICA_DISPOSITIVO, giseId })
+		};
+	}
+
+	if (flagsAssinatura.exigirPasskeyAssinatura) {
+		return { ok: false as const, resposta: fail(403, { error: ERRO_PASSKEY_UM_TIRO, giseId }) };
+	}
+
+	const reauth = await exigirJanelaReauth(db, u, reauthId, cookies.get('session_token'));
+	if (!reauth.ok) {
+		return { ok: false as const, resposta: fail(reauth.status, { error: reauth.error, giseId }) };
+	}
+
+	if (flagsAssinatura.exigirCodigoEmailAssinatura) {
+		if (!codigoEmail || !desafioId) {
+			return {
+				ok: false as const,
+				resposta: fail(400, { error: 'Código de verificação por e-mail é obrigatório.', giseId })
+			};
+		}
+		const result2FA = await verificarDesafio2FA(db, desafioId, codigoEmail, ['assinatura']);
+		if (result2FA === 'expirado')
+			return {
+				ok: false as const,
+				resposta: fail(400, { error: 'O código de verificação expirou.', giseId })
+			};
+		if (result2FA === 'esgotado')
+			return {
+				ok: false as const,
+				resposta: fail(400, { error: 'Muitas tentativas. Solicite um novo código.', giseId })
+			};
+		if (!result2FA)
+			return {
+				ok: false as const,
+				resposta: fail(400, { error: 'Código de verificação inválido.', giseId })
+			};
+		if (result2FA.usuarioId !== u.id)
+			return {
+				ok: false as const,
+				resposta: fail(403, { error: 'Código não pertence ao usuário logado.', giseId })
+			};
+	}
+
+	const gise = await buscarGiseEscala(db, giseId);
+	if (!gise)
+		return { ok: false as const, resposta: fail(404, { error: 'Escala não encontrada', giseId }) };
+
+	// Vínculo: só quem participa da GISE (membro de equipe, assessor/SEINT ou
+	// supervisor DPC) registra a própria presença. A UI já esconde o botão de
+	// quem não participa, mas a action precisa recusar por conta própria —
+	// mesma regra que o endpoint do comprovante aplica. Sem isto, qualquer
+	// policial autenticado gravava presença em qualquer GISE via POST direto.
+	const part = await resolverParticipacaoGisePolicial(db, giseId, u.id);
+	if (!part.participa)
+		return {
+			ok: false as const,
+			resposta: fail(403, { error: 'Você não participa desta escala GISE.', giseId })
+		};
+
+	const gate = await gateDePresenca(db, { ...part, statusGise: gise.status }, giseId, u.id, tipo);
+	if (!gate.ok) {
+		const body = (await gate.resposta.clone().json()) as { error?: string };
+		return {
+			ok: false as const,
+			resposta: fail(gate.resposta.status, { error: body.error ?? 'Presença não liberada', giseId })
+		};
+	}
+
+	let selfieKey: string | undefined = undefined;
+	if (hasR2(platform) && selfieBase64) {
+		const r2 = getR2(platform);
+		const [yyyy, mm, dd] = gise.data_inicio.split('-');
+		const folder = `gise/${yyyy}-${mm}/${dd}/${giseId}/selfies`;
+		// Helper compartilhado: valida magic bytes, limita 5 MB e usa UUID
+		// na chave para esconder o `policial_id` da URL do R2.
+		const r = await uploadSelfieDataUri(r2, folder, selfieBase64);
+		if (r.ok) selfieKey = r.key;
+	}
+
+	return {
+		ok: true as const,
+		db,
+		u,
+		giseId,
+		rubrica,
+		ip,
+		ua,
+		latitude,
+		longitude,
+		selfieKey
+	};
+}
+
 export const actions: Actions = {
 	/**
 	 * Confirma a ENTRADA em serviço (assinatura avançada).
-	 *
-	 * Ordem obrigatória: política de dispositivo → 2FA → existência da escala →
-	 * participação → foto → grava.
-	 * Nada é persistido antes das três verificações, para que uma tentativa
-	 * recusada não deixe rastro de presença.
 	 */
 	salvarEntrada: async (event) => {
-		const { request, locals, platform, cookies, getClientAddress } = event;
-		const u = locals.usuario;
-		if (!u) return fail(401, { error: 'Não autorizado' });
-
-		const formData = await request.formData();
-		const giseId = parseInt(formData.get('giseId') as string);
-		const rubrica = formData.get('rubrica') as string;
-		const latitude = formData.get('latitude')
-			? parseFloat(formData.get('latitude') as string)
-			: undefined;
-		const longitude = formData.get('longitude')
-			? parseFloat(formData.get('longitude') as string)
-			: undefined;
-		const selfieBase64 = formData.get('selfieBase64') as string | null;
-		const codigoEmail = formData.get('codigoEmail') as string | null;
-		const desafioId = formData.get('desafioId') as string | null;
-		const reauthId = formData.get('reauthId') as string | null;
-
-		if (isNaN(giseId) || !rubrica) {
-			return fail(400, { error: 'Dados inválidos', giseId });
-		}
-
-		const ip = getClientAddress();
-		const ua = request.headers.get('user-agent') || '';
-
-		const db = getDB(platform);
-
-		// Fonte ÚNICA das flags (mesma da UI e do signature-service): o cache
-		// força exigirCodigoEmail=true independentemente da linha no banco —
-		// requisito mínimo da assinatura avançada (Lei 14.063/2020 art. 4º II).
-		// A leitura crua do banco (default '0' num banco recém-instalado)
-		// deixava a presença pular o 2FA que a UI já coleta.
-		const flagsAssinatura = await lerFlagsAssinatura(platform);
-
-		// Política de dispositivo antes do 2FA: recusar aqui não consome uma
-		// tentativa do código de quem vai ser barrado de qualquer forma. Estas
-		// actions não passam pelo `validarEvidenciasAvancada` (checam o 2FA à
-		// mão), então o gate precisa ser aplicado explicitamente — é o fluxo de
-		// maior volume do sistema, e sem ele a recusa por dispositivo cobriria
-		// só a minoria dos atos.
-		if (recusadaPorPoliticaDispositivo(flagsAssinatura, ua)) {
-			return fail(403, { error: ERRO_POLITICA_DISPOSITIVO, giseId });
-		}
-
-		if (flagsAssinatura.exigirPasskeyAssinatura) {
-			return fail(403, { error: ERRO_PASSKEY_UM_TIRO, giseId });
-		}
-
-		const reauth = await exigirJanelaReauth(db, u, reauthId, cookies.get('session_token'));
-		if (!reauth.ok) {
-			return fail(reauth.status, { error: reauth.error, giseId });
-		}
-
-		const exigirCodigoEmail = flagsAssinatura.exigirCodigoEmailAssinatura;
-		if (exigirCodigoEmail) {
-			if (!codigoEmail || !desafioId) {
-				return fail(400, { error: 'Código de verificação por e-mail é obrigatório.', giseId });
-			}
-			const result2FA = await verificarDesafio2FA(db, desafioId, codigoEmail, ['assinatura']);
-			if (result2FA === 'expirado')
-				return fail(400, { error: 'O código de verificação expirou.', giseId });
-			if (result2FA === 'esgotado')
-				return fail(400, { error: 'Muitas tentativas. Solicite um novo código.', giseId });
-			if (!result2FA) return fail(400, { error: 'Código de verificação inválido.', giseId });
-			if (result2FA.usuarioId !== u.id)
-				return fail(403, { error: 'Código não pertence ao usuário logado.', giseId });
-		}
-
-		const gise = await buscarGiseEscala(db, giseId);
-		if (!gise) return fail(404, { error: 'Escala não encontrada', giseId });
-
-		// Vínculo: só quem participa da GISE (membro de equipe, assessor/SEINT ou
-		// supervisor DPC) registra a própria presença. A UI já esconde o botão de
-		// quem não participa, mas a action precisa recusar por conta própria —
-		// mesma regra que o endpoint do comprovante aplica. Sem isto, qualquer
-		// policial autenticado gravava presença em qualquer GISE via POST direto.
-		const part = await resolverParticipacaoGisePolicial(db, giseId, u.id);
-		if (!part.participa)
-			return fail(403, { error: 'Você não participa desta escala GISE.', giseId });
-
-		// FLW-AUT-006 / 007: mesma janela e imutabilidade do canal A3.
-		const gateEntrada = await gateDePresenca(
-			db,
-			{ ...part, statusGise: gise.status },
-			giseId,
-			u.id,
-			'entrada'
-		);
-		if (!gateEntrada.ok) {
-			const body = (await gateEntrada.resposta.clone().json()) as { error?: string };
-			return fail(gateEntrada.resposta.status, {
-				error: body.error ?? 'Presença não liberada',
-				giseId
-			});
-		}
-
-		let selfieKey: string | undefined = undefined;
-		if (hasR2(platform) && selfieBase64) {
-			const r2 = getR2(platform);
-			const [yyyy, mm, dd] = gise.data_inicio.split('-');
-			const folder = `gise/${yyyy}-${mm}/${dd}/${giseId}/selfies`;
-			// Helper compartilhado: valida magic bytes, limita 5 MB e usa UUID
-			// na chave para esconder o `policial_id` da URL do R2.
-			const r = await uploadSelfieDataUri(r2, folder, selfieBase64);
-			if (r.ok) selfieKey = r.key;
-		}
+		const prep = await prepararConfirmacaoPresenca(event, 'entrada');
+		if (!prep.ok) return prep.resposta;
+		const { db, u, giseId, rubrica, ip, ua, latitude, longitude, selfieKey } = prep;
 
 		await salvarEntradaGise(db, giseId, u.id, rubrica, ip, ua, latitude, longitude, selfieKey);
 		await sincronizarStatusGiseAposPresencaRelatorios(db, giseId);
@@ -607,105 +648,9 @@ export const actions: Actions = {
 	 * de extra da seccional.
 	 */
 	salvarSaida: async (event) => {
-		const { request, locals, platform, cookies, getClientAddress } = event;
-		const u = locals.usuario;
-		if (!u) return fail(401, { error: 'Não autorizado' });
-
-		const formData = await request.formData();
-		const giseId = parseInt(formData.get('giseId') as string);
-		const rubrica = formData.get('rubrica') as string;
-		const latitude = formData.get('latitude')
-			? parseFloat(formData.get('latitude') as string)
-			: undefined;
-		const longitude = formData.get('longitude')
-			? parseFloat(formData.get('longitude') as string)
-			: undefined;
-		const selfieBase64 = formData.get('selfieBase64') as string | null;
-		const codigoEmail = formData.get('codigoEmail') as string | null;
-		const desafioId = formData.get('desafioId') as string | null;
-		const reauthId = formData.get('reauthId') as string | null;
-
-		if (isNaN(giseId) || !rubrica) {
-			return fail(400, { error: 'Dados inválidos', giseId });
-		}
-
-		const ip = getClientAddress();
-		const ua = request.headers.get('user-agent') || '';
-
-		const db = getDB(platform);
-
-		// Fonte ÚNICA das flags (mesma da UI e do signature-service): o cache
-		// força exigirCodigoEmail=true independentemente da linha no banco —
-		// requisito mínimo da assinatura avançada (Lei 14.063/2020 art. 4º II).
-		// A leitura crua do banco (default '0' num banco recém-instalado)
-		// deixava a presença pular o 2FA que a UI já coleta.
-		const flagsAssinatura = await lerFlagsAssinatura(platform);
-
-		// Política de dispositivo antes do 2FA: recusar aqui não consome uma
-		// tentativa do código de quem vai ser barrado de qualquer forma. Estas
-		// actions não passam pelo `validarEvidenciasAvancada` (checam o 2FA à
-		// mão), então o gate precisa ser aplicado explicitamente — é o fluxo de
-		// maior volume do sistema, e sem ele a recusa por dispositivo cobriria
-		// só a minoria dos atos.
-		if (recusadaPorPoliticaDispositivo(flagsAssinatura, ua)) {
-			return fail(403, { error: ERRO_POLITICA_DISPOSITIVO, giseId });
-		}
-
-		if (flagsAssinatura.exigirPasskeyAssinatura) {
-			return fail(403, { error: ERRO_PASSKEY_UM_TIRO, giseId });
-		}
-
-		const reauth = await exigirJanelaReauth(db, u, reauthId, cookies.get('session_token'));
-		if (!reauth.ok) {
-			return fail(reauth.status, { error: reauth.error, giseId });
-		}
-
-		const exigirCodigoEmail = flagsAssinatura.exigirCodigoEmailAssinatura;
-		if (exigirCodigoEmail) {
-			if (!codigoEmail || !desafioId) {
-				return fail(400, { error: 'Código de verificação por e-mail é obrigatório.', giseId });
-			}
-			const result2FA = await verificarDesafio2FA(db, desafioId, codigoEmail, ['assinatura']);
-			if (result2FA === 'expirado')
-				return fail(400, { error: 'O código de verificação expirou.', giseId });
-			if (result2FA === 'esgotado')
-				return fail(400, { error: 'Muitas tentativas. Solicite um novo código.', giseId });
-			if (!result2FA) return fail(400, { error: 'Código de verificação inválido.', giseId });
-			if (result2FA.usuarioId !== u.id)
-				return fail(403, { error: 'Código não pertence ao usuário logado.', giseId });
-		}
-
-		const giseOrig = await buscarGiseEscala(db, giseId);
-		if (!giseOrig) return fail(404, { error: 'Escala não encontrada', giseId });
-
-		// Vínculo: mesma regra da entrada (ver salvarEntrada).
-		const part = await resolverParticipacaoGisePolicial(db, giseId, u.id);
-		if (!part.participa)
-			return fail(403, { error: 'Você não participa desta escala GISE.', giseId });
-
-		const gateSaida = await gateDePresenca(
-			db,
-			{ ...part, statusGise: giseOrig.status },
-			giseId,
-			u.id,
-			'saida'
-		);
-		if (!gateSaida.ok) {
-			const body = (await gateSaida.resposta.clone().json()) as { error?: string };
-			return fail(gateSaida.resposta.status, {
-				error: body.error ?? 'Presença não liberada',
-				giseId
-			});
-		}
-
-		let selfieKey: string | undefined = undefined;
-		if (hasR2(platform) && selfieBase64) {
-			const r2 = getR2(platform);
-			const [yyyy, mm, dd] = giseOrig.data_inicio.split('-');
-			const folder = `gise/${yyyy}-${mm}/${dd}/${giseId}/selfies`;
-			const r = await uploadSelfieDataUri(r2, folder, selfieBase64);
-			if (r.ok) selfieKey = r.key;
-		}
+		const prep = await prepararConfirmacaoPresenca(event, 'saida');
+		if (!prep.ok) return prep.resposta;
+		const { db, u, giseId, rubrica, ip, ua, latitude, longitude, selfieKey } = prep;
 
 		// A gravação exige a entrada no próprio `WHERE`: sem ela o UPDATE não
 		// achava linha, o resultado era ignorado e a auditoria registrava uma

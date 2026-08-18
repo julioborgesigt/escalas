@@ -40,7 +40,7 @@ import { listarPoliciaisSupervisaoExtra } from '$lib/gise/supervisao-extra';
 import { secIdEhSupervisaoExtra } from '$lib/server/gise/supervisao-extra';
 import { logger } from '$lib/server/logger';
 import { tryGetR2 } from '$lib/db';
-import { calcularHashBuffer } from '$lib/server/assinatura/document-utils';
+import { calcularHashBuffer, envComoRegistro } from '$lib/server/assinatura/document-utils';
 import { mascararNome } from '$lib/utils/pii';
 import { validarSessao } from '$lib/auth';
 import {
@@ -221,7 +221,7 @@ export const load: PageServerLoad = async ({ params, platform, setHeaders, cooki
 			const obj = await r2.get(documento.r2_key);
 			if (obj) {
 				const buf = new Uint8Array(await obj.arrayBuffer());
-				const env = platform?.env as unknown as Record<string, string | undefined> | undefined;
+				const env = envComoRegistro(platform);
 				if (arquivoHashEsperado) {
 					const h = await calcularHashBuffer(buf);
 					hashConfere = h === arquivoHashEsperado;

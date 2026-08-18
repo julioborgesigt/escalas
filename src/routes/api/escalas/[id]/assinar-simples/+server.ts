@@ -32,6 +32,7 @@ import {
 	subirSelfieEscala
 } from '$lib/server/escalas/assinatura-escala';
 import { carregarEscalaParaAssinatura } from '$lib/server/escalas/permissao';
+import { envComoRegistro } from '$lib/server/assinatura/document-utils';
 
 export const POST: RequestHandler = async ({
 	platform,
@@ -115,7 +116,7 @@ export const POST: RequestHandler = async ({
 			ip: ip ?? undefined,
 			userAgent: ua || undefined,
 			origin: url.origin,
-			env: platform?.env as unknown as Record<string, string | undefined> | undefined
+			env: envComoRegistro(platform)
 		});
 
 		if (!hasR2(platform)) {
@@ -136,7 +137,7 @@ export const POST: RequestHandler = async ({
 			userAgent: ua || undefined,
 			latitude: validatedEv.latitude,
 			longitude: validatedEv.longitude,
-			env: platform?.env as unknown as Record<string, string | undefined> | undefined
+			env: envComoRegistro(platform)
 		});
 
 		await registrarAuditComContexto(db, {

@@ -34,7 +34,7 @@ import { exigirChaveAtiva } from '$lib/server/assinatura/chave-assinatura';
 import { bucketParaAssinatura } from '$lib/server/assinatura/blob-assinado';
 import { prepararTermoPresencaAvancado } from '$lib/server/gise/termo-presenca';
 import { uploadSelfieDataUri } from '$lib/server/assinatura/selfie-upload';
-import { calcularHashBuffer } from '$lib/server/assinatura/document-utils';
+import { calcularHashBuffer, envComoRegistro } from '$lib/server/assinatura/document-utils';
 import { bytesToBase64 } from '$lib/crypto/bin';
 
 export const POST: RequestHandler = async ({
@@ -117,7 +117,7 @@ export const POST: RequestHandler = async ({
 		}
 
 		const rubricaEstampada = evid.validated.rubrica || rubrica || '';
-		const env = platform?.env as unknown as Record<string, string | undefined> | undefined;
+		const env = envComoRegistro(platform);
 		const { finalPdf, verificationHash } = await prepararTermoPresencaAvancado({
 			tipo,
 			giseId,

@@ -38,7 +38,7 @@ import {
 	guardarPdfAssinado
 } from '$lib/server/assinatura/blob-assinado';
 import { selarPdfInstitucional } from '$lib/server/assinatura/server-seal';
-import { calcularHashBuffer } from '$lib/server/assinatura/document-utils';
+import { calcularHashBuffer, envComoRegistro } from '$lib/server/assinatura/document-utils';
 
 export const POST: RequestHandler = async ({
 	platform,
@@ -92,7 +92,7 @@ export const POST: RequestHandler = async ({
 
 		await registrarUsoCredencial(db, credencial.id, prova.dados.contador);
 
-		const env = platform?.env as unknown as Record<string, string | undefined> | undefined;
+		const env = envComoRegistro(platform);
 		const selado = await selarPdfInstitucional(pdfBytes, u.nome, { env });
 		const pdfParaSalvar = selado.ok ? selado.pdf : pdfBytes;
 		const arquivoHash = await calcularHashBuffer(pdfParaSalvar);

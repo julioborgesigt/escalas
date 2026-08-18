@@ -28,6 +28,7 @@ import {
 	serverError,
 	contentDisposition
 } from '$lib/server/api';
+import { envComoRegistro } from '$lib/server/assinatura/document-utils';
 import { montarTermoPresencaAvancado } from '$lib/server/gise/termo-presenca';
 
 function respostaPdf(data: ArrayBuffer | Uint8Array, filename: string): Response {
@@ -121,7 +122,7 @@ export const GET: RequestHandler = async ({ platform, params, locals, url }) => 
 			latitude: presenca.latitude,
 			longitude: presenca.longitude,
 			origin: url.origin,
-			env: p?.env as unknown as Record<string, string | undefined> | undefined
+			env: envComoRegistro(p)
 		});
 		return respostaPdf(pdf, filename);
 	} catch (e) {

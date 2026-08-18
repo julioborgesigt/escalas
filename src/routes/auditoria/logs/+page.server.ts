@@ -10,14 +10,7 @@
 import { redirect } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 import { getDB, listarAppLogs, resumoAppLogs } from '$lib/db';
-
-const PER_PAGE = 25;
-
-/** `ate` só com data (10 chars) vira fim do dia, para o intervalo ser inclusivo. */
-function fimDoDia(s: string | null): string | undefined {
-	if (!s) return undefined;
-	return s.length === 10 ? `${s} 23:59:59` : s;
-}
+import { PER_PAGE, fimDoDia } from '../_components/consulta';
 
 export const load: PageServerLoad = async ({ locals, platform, url }) => {
 	const u = locals.usuario;

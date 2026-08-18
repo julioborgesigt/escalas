@@ -24,6 +24,7 @@
 	import CheckCircle2 from '@lucide/svelte/icons/check-circle-2';
 	import Clock from '@lucide/svelte/icons/clock';
 	import Info from '@lucide/svelte/icons/info';
+	import ChevronDown from '@lucide/svelte/icons/chevron-down';
 	import { Popover, Portal } from '@skeletonlabs/skeleton-svelte';
 	import { useMobile } from '$lib/composables';
 
@@ -164,21 +165,11 @@
 				<div class="min-w-0 flex-1">
 					{@render badge()}
 				</div>
-				<svg
+				<ChevronDown
 					class="h-4 w-4 shrink-0 text-surface-400 transition-transform duration-200 {expandido
 						? 'rotate-180'
 						: ''}"
-					fill="none"
-					stroke="currentColor"
-					viewBox="0 0 24 24"
-				>
-					<path
-						stroke-linecap="round"
-						stroke-linejoin="round"
-						stroke-width="2"
-						d="M19 9l-7 7-7-7"
-					/>
-				</svg>
+				/>
 			</button>
 			{#if expandido}
 				<div

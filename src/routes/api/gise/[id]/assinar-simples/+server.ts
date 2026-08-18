@@ -27,6 +27,7 @@ import {
 	subirSelfieGise
 } from '$lib/server/gise/assinatura-gise';
 import { carregarGiseParaAssinatura } from '$lib/server/gise/permissao';
+import { envComoRegistro } from '$lib/server/assinatura/document-utils';
 
 export const POST: RequestHandler = async (event) => {
 	const { platform, params, locals, url, request, cookies, getClientAddress } = event;
@@ -92,7 +93,7 @@ export const POST: RequestHandler = async (event) => {
 		const { esq: logoJpgBytes, dir: logoCearaBytes } = await carregarLogosGise(platform);
 		const gisePdf = giseDetalhadoComMatriculaSupervisorSessao(giseDetalhado, u);
 		const brEnv = await getBreveRelatorioEnvMergido(db, giseDetalhado.operacao_id);
-		const env = platform?.env as unknown as Record<string, string | undefined> | undefined;
+		const env = envComoRegistro(platform);
 
 		const montado = await montarPdfGiseAssinado({
 			gise: { id, data_inicio: gise.data_inicio },

@@ -23,27 +23,17 @@
 			],
 			"ocorrencias": 2,
 			"amostra": "const ua = request.headers.get('user-agent') || '';",
-			"nota": ""
+			"nota": "DUP-MANTER: preâmbulo/assinatura de RequestHandler (requireAuth/requireAdmin, destructuring de params, `}) => {`), não lógica de negócio. A lógica que estas rotas de fato compartilhavam já saiu para helpers comuns (carregarEscalaParaAssinatura/carregarGiseParaAssinatura, montarPdfEscalaAssinada, fecharPreparacaoAssinatura, conferirFinalizacaoPasskey, coletarAfetadosGise/invalidarPapelGiseMultiplos). O que resta diverge de verdade entre escala e GISE (geração de PDF, resolução de rubrica/matrícula, geometria do carimbo, número de signatários) — um helper único ficaria mais complexo que as cópias. Lido em ago/2026 ao investigar o cluster de rotas de assinatura; ver histórico de commits para os dois achados reais dessa mesma leitura (resolverTipoCarimboTempo e envComoRegistro)."
 		},
 		{
-			"id": "0a643edce574",
+			"id": "056d6bbe209a",
 			"arquivos": [
-				"src/lib/components/ModalCadastrarRubrica.svelte",
-				"src/lib/components/RubricaCanvas.svelte"
+				"src/routes/api/gise/[id]/presenca/preparar-assinatura/+server.ts",
+				"src/routes/api/gise/[id]/relatorios/[seccionalId]/preparar-assinatura/+server.ts"
 			],
 			"ocorrencias": 2,
-			"amostra": "const recW = maxX - minX + 1;",
-			"nota": ""
-		},
-		{
-			"id": "0b645f61c0a6",
-			"arquivos": [
-				"src/routes/painel/+page.svelte",
-				"src/routes/recebidos/+page.svelte"
-			],
-			"ocorrencias": 2,
-			"amostra": "<div class=\"flex flex-col gap-1 w-full lg:w-28\">",
-			"nota": ""
+			"amostra": "import { gerarCodigoValidacao } from '$lib/utils/formato';",
+			"nota": "DUP-MANTER: assinatura de handler SvelteKit + linha de import, não lógica. As rotas de assinatura GISE desestruturam o mesmo `{ platform, params, locals, url, request, getClientAddress }` e importam o mesmo portão — a lógica que compartilhavam saiu para `carregarGiseParaAssinatura` em ago/2026. Não há o que extrair de uma assinatura de handler."
 		},
 		{
 			"id": "0d6d35f7e34d",
@@ -63,7 +53,7 @@
 			],
 			"ocorrencias": 2,
 			"amostra": "verificationUrl,",
-			"nota": ""
+			"nota": "DUP-MANTER: fragmento da CHAMADA a um helper já compartilhado (parâmetros posicionais/nomeados iguais porque o destino — montarPdfEscalaAssinada, adicionarPaginaAuditoria, prepararPdfParaAssinatura — é o mesmo), não lógica duplicada em si. Ver nota do cluster de rotas de assinatura."
 		},
 		{
 			"id": "12b7623bed2a",
@@ -73,7 +63,7 @@
 			],
 			"ocorrencias": 2,
 			"amostra": "{/snippet}",
-			"nota": ""
+			"nota": "DUP-MANTER: `{/snippet}` sozinho — fechamento de bloco Svelte, não lógica. Falso positivo do alinhamento de janela do guard."
 		},
 		{
 			"id": "17198409b384",
@@ -84,7 +74,7 @@
 			],
 			"ocorrencias": 3,
 			"amostra": "sortExpediente,",
-			"nota": ""
+			"nota": "DUP-MANTER: linha de import + chamada a sortExpediente, função já compartilhada (definida uma vez, importada pelos três exportadores). Não há lógica duplicada aqui."
 		},
 		{
 			"id": "18b870732df9",
@@ -114,7 +104,7 @@
 			],
 			"ocorrencias": 2,
 			"amostra": "let calAno = $state(new Date().getFullYear());",
-			"nota": ""
+			"nota": "DUP-MANTER: inicialização de estado local do calendário embutido (ano/mês corrente) — cada modal tem seu próprio $effect de reset com gatilho e regras diferentes; não há lógica compartilhável além da linha de $state."
 		},
 		{
 			"id": "21954d687d54",
@@ -144,7 +134,7 @@
 			],
 			"ocorrencias": 2,
 			"amostra": "supervisor_matricula: string | null;",
-			"nota": ""
+			"nota": "DUP-MANTER: GiseDetalhado (lib/db/gise/types.ts) é a forma MONTADA que vem do banco; GisePdfData (server/export/pdf-comum.ts) é o DTO da camada de PDF, criado de propósito para pdf.ts/pdf-relatorio-extra.ts não importarem tipos internos da camada de banco (ver cabeçalho de pdf-comum.ts). Os nomes de campo coincidem porque um alimenta o outro via toGisePdfData(), não porque são o mesmo tipo — acoplar as duas camadas romperia a fronteira que pdf-comum.ts documenta."
 		},
 		{
 			"id": "3f968bac2073",
@@ -154,7 +144,7 @@
 			],
 			"ocorrencias": 2,
 			"amostra": "const contentPageCount = origDoc.getPageCount();",
-			"nota": ""
+			"nota": "DUP-MANTER: fragmento da CHAMADA a um helper já compartilhado (parâmetros posicionais/nomeados iguais porque o destino — montarPdfEscalaAssinada, adicionarPaginaAuditoria, prepararPdfParaAssinatura — é o mesmo), não lógica duplicada em si. Ver nota do cluster de rotas de assinatura."
 		},
 		{
 			"id": "3fff7ef13eec",
@@ -174,7 +164,7 @@
 			],
 			"ocorrencias": 2,
 			"amostra": "ultimoDiaMes,",
-			"nota": ""
+			"nota": "DUP-MANTER: fragmento da lista de import de `ultimoDiaMes` e vizinhos, função já compartilhada em lib/utils/datas — não há lógica duplicada."
 		},
 		{
 			"id": "491fdd453525",
@@ -194,7 +184,7 @@
 			],
 			"ocorrencias": 2,
 			"amostra": "NOME_OPERACAO_PADRAO,",
-			"nota": ""
+			"nota": "DUP-MANTER: barrel documentado — lib/db.ts é a exceção deliberada (ver cabeçalho do próprio arquivo) que re-exporta lib/db/operacoes/index.ts, que por sua vez importa de operacoes/crud.ts (onde NOME_OPERACAO_PADRAO é definida uma única vez). As duas linhas são o mesmo nome passando por dois elos da cadeia de re-export, não a constante duplicada."
 		},
 		{
 			"id": "4bc05f0c71b5",
@@ -204,7 +194,7 @@
 			],
 			"ocorrencias": 2,
 			"amostra": "ErrorCode,",
-			"nota": ""
+			"nota": "DUP-MANTER: preâmbulo/assinatura de RequestHandler (requireAuth/requireAdmin, destructuring de params, `}) => {`), não lógica de negócio. A lógica que estas rotas de fato compartilhavam já saiu para helpers comuns (carregarEscalaParaAssinatura/carregarGiseParaAssinatura, montarPdfEscalaAssinada, fecharPreparacaoAssinatura, conferirFinalizacaoPasskey, coletarAfetadosGise/invalidarPapelGiseMultiplos). O que resta diverge de verdade entre escala e GISE (geração de PDF, resolução de rubrica/matrícula, geometria do carimbo, número de signatários) — um helper único ficaria mais complexo que as cópias. Lido em ago/2026 ao investigar o cluster de rotas de assinatura; ver histórico de commits para os dois achados reais dessa mesma leitura (resolverTipoCarimboTempo e envComoRegistro)."
 		},
 		{
 			"id": "508e2ff6e53b",
@@ -214,7 +204,7 @@
 			],
 			"ocorrencias": 2,
 			"amostra": "<span class=\"label-text text-2xs font-bold uppercase opacity-70 ml-1\"",
-			"nota": ""
+			"nota": "DUP-MANTER: `<span class=\"label-text text-2xs font-bold uppercase opacity-70 ml-1\">` é o estilo padrão de rótulo de campo, repetido ~20x DENTRO de cada um dos dois formulários (edição vs cadastro de policial), que têm conjuntos de campos e layouts de grid diferentes. Um wrapper só para a `<span>` não reduziria complexidade real — é classe Tailwind, não lógica."
 		},
 		{
 			"id": "56c7783530b2",
@@ -234,7 +224,17 @@
 			],
 			"ocorrencias": 2,
 			"amostra": "selfieBase64,",
-			"nota": ""
+			"nota": "DUP-MANTER: fragmento da CHAMADA a um helper já compartilhado (parâmetros posicionais/nomeados iguais porque o destino — montarPdfEscalaAssinada, adicionarPaginaAuditoria, prepararPdfParaAssinatura — é o mesmo), não lógica duplicada em si. Ver nota do cluster de rotas de assinatura."
+		},
+		{
+			"id": "5d66c25d2182",
+			"arquivos": [
+				"src/routes/api/escalas/[id]/preparar-assinatura-avancada/+server.ts",
+				"src/routes/api/gise/[id]/presenca/preparar-assinatura-avancada/+server.ts"
+			],
+			"ocorrencias": 2,
+			"amostra": "import { calcularHashBuffer, envComoRegistro } from '$lib/server/assinatura/document-utils",
+			"nota": "DUP-MANTER: fragmento da CHAMADA a um helper já compartilhado (parâmetros posicionais/nomeados iguais porque o destino — montarPdfEscalaAssinada, adicionarPaginaAuditoria, prepararPdfParaAssinatura — é o mesmo), não lógica duplicada em si. Ver nota do cluster de rotas de assinatura."
 		},
 		{
 			"id": "5df61be8a979",
@@ -244,7 +244,7 @@
 			],
 			"ocorrencias": 2,
 			"amostra": "class=\"rounded-xl border border-surface-200 dark:border-white/10 bg-surface-50 dark:bg-sur",
-			"nota": ""
+			"nota": "DUP-MANTER: classe do contêiner de card (borda/fundo arredondado), reaproveitada em vários pontos de cada página (painel de filtros já extraído para FiltrosToggle; aqui é o wrapper de linha/card da listagem, cujo CONTEÚDO diverge entre auditoria e logs técnicos)."
 		},
 		{
 			"id": "61416e81bda8",
@@ -274,7 +274,7 @@
 			],
 			"ocorrencias": 2,
 			"amostra": "const montado = await montarPdfEscalaAssinada({",
-			"nota": ""
+			"nota": "DUP-MANTER: preâmbulo/assinatura de RequestHandler (requireAuth/requireAdmin, destructuring de params, `}) => {`), não lógica de negócio. A lógica que estas rotas de fato compartilhavam já saiu para helpers comuns (carregarEscalaParaAssinatura/carregarGiseParaAssinatura, montarPdfEscalaAssinada, fecharPreparacaoAssinatura, conferirFinalizacaoPasskey, coletarAfetadosGise/invalidarPapelGiseMultiplos). O que resta diverge de verdade entre escala e GISE (geração de PDF, resolução de rubrica/matrícula, geometria do carimbo, número de signatários) — um helper único ficaria mais complexo que as cópias. Lido em ago/2026 ao investigar o cluster de rotas de assinatura; ver histórico de commits para os dois achados reais dessa mesma leitura (resolverTipoCarimboTempo e envComoRegistro)."
 		},
 		{
 			"id": "6e44af73359f",
@@ -287,25 +287,14 @@
 			"nota": "DUP-MANTER: assinatura de handler SvelteKit + linha de import, não lógica. As rotas de assinatura GISE desestruturam o mesmo `{ platform, params, locals, url, request, getClientAddress }` e importam o mesmo portão — a lógica que compartilhavam saiu para `carregarGiseParaAssinatura` em ago/2026. Não há o que extrair de uma assinatura de handler."
 		},
 		{
-			"id": "6ef5fe07247c",
+			"id": "7091e6fc6e74",
 			"arquivos": [
-				"src/routes/gise/[id]/_components/supervisao/SupervisaoDesignacao.svelte",
-				"src/routes/gise/[id]/_components/supervisao/SupervisaoPapelAssessor.svelte",
-				"src/routes/gise/[id]/_components/supervisao/SupervisaoPapelSeint.svelte"
-			],
-			"ocorrencias": 3,
-			"amostra": "class=\"btn preset-filled-primary-500 text-sm px-3 py-1.5 rounded-lg w-full sm:w-auto trans",
-			"nota": ""
-		},
-		{
-			"id": "71d9800e8707",
-			"arquivos": [
-				"src/routes/api/escalas/[id]/preparar-assinatura-avancada/+server.ts",
-				"src/routes/api/gise/[id]/presenca/preparar-assinatura-avancada/+server.ts"
+				"src/routes/painel/+page.svelte",
+				"src/routes/recebidos/+page.svelte"
 			],
 			"ocorrencias": 2,
-			"amostra": "import { calcularHashBuffer } from '$lib/server/assinatura/document-utils';",
-			"nota": ""
+			"amostra": "options={anosOptions}",
+			"nota": "DUP-MANTER: chamada ao CampoFiltroSelect já compartilhado (ver lib/components/CampoFiltroSelect.svelte) — painel e recebidos passam `options={anosOptions}` porque os dois filtram por ano com a mesma variável, não porque a lógica esteja duplicada."
 		},
 		{
 			"id": "75665608a5c6",
@@ -319,16 +308,6 @@
 			"nota": "DUP-MANTER (CLAUDE.md, \"grade dos três calendários\"): extrair a grade exigiria tantos props que o componente comum ficaria pior que a repetição. Decisão registrada, não dívida."
 		},
 		{
-			"id": "78f193235399",
-			"arquivos": [
-				"src/routes/auditoria/+page.server.ts",
-				"src/routes/auditoria/logs/+page.server.ts"
-			],
-			"ocorrencias": 2,
-			"amostra": "const PER_PAGE = 25;",
-			"nota": ""
-		},
-		{
 			"id": "81d74a51dbaf",
 			"arquivos": [
 				"src/routes/auditoria/+page.svelte",
@@ -336,7 +315,7 @@
 			],
 			"ocorrencias": 2,
 			"amostra": "<ChevronUp class=\"w-3.5 h-3.5\" />",
-			"nota": ""
+			"nota": "DUP-MANTER: ícone de expandir/recolher linha da tabela — decorativo, sem lógica além do `{#if expandido}` que já é local a cada página."
 		},
 		{
 			"id": "966efa62e651",
@@ -346,7 +325,7 @@
 			],
 			"ocorrencias": 2,
 			"amostra": "{:else}",
-			"nota": ""
+			"nota": "DUP-MANTER: `{:else}` sozinho — fechamento de bloco condicional do Svelte, não lógica duplicada. Falso positivo do alinhamento de janela."
 		},
 		{
 			"id": "9754d8f086ae",
@@ -366,7 +345,7 @@
 			],
 			"ocorrencias": 2,
 			"amostra": "? 'selected-for-export border-primary-500'",
-			"nota": ""
+			"nota": "DUP-MANTER: classe condicional de seleção (`selected-for-export`), 2 linhas, dentro de cards com estrutura e conteúdo totalmente diferentes (detalhe individual vs ranking). Não há componente comum que valha a pena — o card em si não é compartilhável."
 		},
 		{
 			"id": "97fbb5de76e3",
@@ -386,7 +365,7 @@
 			],
 			"ocorrencias": 2,
 			"amostra": "dataToSignBase64,",
-			"nota": ""
+			"nota": "DUP-MANTER: fragmento da CHAMADA a um helper já compartilhado (parâmetros posicionais/nomeados iguais porque o destino — montarPdfEscalaAssinada, adicionarPaginaAuditoria, prepararPdfParaAssinatura — é o mesmo), não lógica duplicada em si. Ver nota do cluster de rotas de assinatura."
 		},
 		{
 			"id": "9c6e5f05dfc5",
@@ -417,7 +396,7 @@
 			],
 			"ocorrencias": 3,
 			"amostra": "latitude,",
-			"nota": ""
+			"nota": "DUP-MANTER: fragmento da CHAMADA a um helper já compartilhado (parâmetros posicionais/nomeados iguais porque o destino — montarPdfEscalaAssinada, adicionarPaginaAuditoria, prepararPdfParaAssinatura — é o mesmo), não lógica duplicada em si. Ver nota do cluster de rotas de assinatura."
 		},
 		{
 			"id": "a101cfb9886f",
@@ -428,7 +407,7 @@
 			],
 			"ocorrencias": 3,
 			"amostra": "platform,",
-			"nota": ""
+			"nota": "DUP-MANTER: preâmbulo/assinatura de RequestHandler (requireAuth/requireAdmin, destructuring de params, `}) => {`), não lógica de negócio. A lógica que estas rotas de fato compartilhavam já saiu para helpers comuns (carregarEscalaParaAssinatura/carregarGiseParaAssinatura, montarPdfEscalaAssinada, fecharPreparacaoAssinatura, conferirFinalizacaoPasskey, coletarAfetadosGise/invalidarPapelGiseMultiplos). O que resta diverge de verdade entre escala e GISE (geração de PDF, resolução de rubrica/matrícula, geometria do carimbo, número de signatários) — um helper único ficaria mais complexo que as cópias. Lido em ago/2026 ao investigar o cluster de rotas de assinatura; ver histórico de commits para os dois achados reais dessa mesma leitura (resolverTipoCarimboTempo e envComoRegistro)."
 		},
 		{
 			"id": "a46a451beb4e",
@@ -438,17 +417,7 @@
 			],
 			"ocorrencias": 2,
 			"amostra": "import type { Escala, EscalaPolicialComDados } from '../../types';",
-			"nota": ""
-		},
-		{
-			"id": "a7a7cd3aa232",
-			"arquivos": [
-				"src/routes/api/gise/[id]/relatorios/[seccionalId]/assinar/+server.ts",
-				"src/routes/api/gise/[id]/relatorios/[seccionalId]/preparar-assinatura-avancada/+server.ts"
-			],
-			"ocorrencias": 2,
-			"amostra": "const bucketOk = bucketParaAssinatura(tryGetR2(platform));",
-			"nota": ""
+			"nota": "DUP-MANTER: linha de import de tipos, não lógica."
 		},
 		{
 			"id": "aa9ec9e7a9c6",
@@ -468,7 +437,7 @@
 			],
 			"ocorrencias": 2,
 			"amostra": "longitude,",
-			"nota": ""
+			"nota": "DUP-MANTER: fragmento da CHAMADA a um helper já compartilhado (parâmetros posicionais/nomeados iguais porque o destino — montarPdfEscalaAssinada, adicionarPaginaAuditoria, prepararPdfParaAssinatura — é o mesmo), não lógica duplicada em si. Ver nota do cluster de rotas de assinatura."
 		},
 		{
 			"id": "b5accb3b0996",
@@ -479,7 +448,7 @@
 			],
 			"ocorrencias": 3,
 			"amostra": "import { fecharPreparacaoAssinatura } from '$lib/server/assinatura/preparar-ciclo';",
-			"nota": ""
+			"nota": "DUP-MANTER: fragmento da CHAMADA a um helper já compartilhado (parâmetros posicionais/nomeados iguais porque o destino — montarPdfEscalaAssinada, adicionarPaginaAuditoria, prepararPdfParaAssinatura — é o mesmo), não lógica duplicada em si. Ver nota do cluster de rotas de assinatura."
 		},
 		{
 			"id": "be0017fa1663",
@@ -489,27 +458,7 @@
 			],
 			"ocorrencias": 2,
 			"amostra": "? 'bg-error-500/5 dark:bg-error-500/8'",
-			"nota": ""
-		},
-		{
-			"id": "bf56cc512569",
-			"arquivos": [
-				"src/routes/policiais/+page.svelte",
-				"src/routes/unidades/+page.svelte"
-			],
-			"ocorrencias": 2,
-			"amostra": "<div class=\"absolute inset-y-0 left-3 flex items-center pointer-events-none opacity-50\">",
-			"nota": ""
-		},
-		{
-			"id": "c3ff4f0f0f9b",
-			"arquivos": [
-				"src/lib/schemas/assinatura-pdf.ts",
-				"src/lib/schemas/gise.ts"
-			],
-			"ocorrencias": 2,
-			"amostra": "tipo: z.enum(['blink', 'smile', 'head_turn']),",
-			"nota": ""
+			"nota": "DUP-MANTER: classe condicional de destaque de linha selecionada em modo de seleção, 3 linhas, dentro de tabela/lista com colunas e conteúdo diferentes entre ListaFds e TabelaServidores."
 		},
 		{
 			"id": "c69683f2945c",
@@ -522,16 +471,6 @@
 			"nota": "DUP-MANTER: assinatura de handler SvelteKit + linha de import, não lógica. As rotas de assinatura GISE desestruturam o mesmo `{ platform, params, locals, url, request, getClientAddress }` e importam o mesmo portão — a lógica que compartilhavam saiu para `carregarGiseParaAssinatura` em ago/2026. Não há o que extrair de uma assinatura de handler."
 		},
 		{
-			"id": "c6a0fca96e89",
-			"arquivos": [
-				"src/routes/alterar-senha/+page.svelte",
-				"src/routes/redefinir-senha/+page.svelte"
-			],
-			"ocorrencias": 2,
-			"amostra": "<div class=\"text-center mb-6\">",
-			"nota": ""
-		},
-		{
 			"id": "cb32fcd937b6",
 			"arquivos": [
 				"src/routes/policiais/+page.svelte",
@@ -540,17 +479,7 @@
 			],
 			"ocorrencias": 3,
 			"amostra": "</div>",
-			"nota": ""
-		},
-		{
-			"id": "ce37c762d2b9",
-			"arquivos": [
-				"src/routes/gise/[id]/_components/GiseLoteAssinaturas.svelte",
-				"src/routes/gise/[id]/_components/supervisao/SupervisaoDocumentoCard.svelte"
-			],
-			"ocorrencias": 2,
-			"amostra": "class=\"h-4 w-4 shrink-0 text-surface-400 transition-transform duration-200 {expandido",
-			"nota": ""
+			"nota": "DUP-MANTER: `</div>` sozinho — fechamento de tag, não lógica. Falso positivo do alinhamento de janela do guard entre três páginas de listagem com estruturas diferentes."
 		},
 		{
 			"id": "cf461b6c9c88",
@@ -583,16 +512,6 @@
 			"nota": "DUP-MANTER: preâmbulo de página SvelteKit — `<script lang=\"ts\">`, os imports, `import type { PageProps } from './$types'` (que é POR ROTA e não pode subir) e o `$props()`, que só existe dentro do componente. Irredutível por construção. O markup que estas páginas de fato compartilhavam saiu para `BemVindoGradeAcoes` em ago/2026 — e note que o guard NUNCA apontou aquele markup: a lógica de `descricao`, que difere por página, fica entre o preâmbulo e a grade e quebra a janela. Achado por leitura."
 		},
 		{
-			"id": "e64f2b1a3054",
-			"arquivos": [
-				"src/routes/api/gise/[id]/presenca/preparar-assinatura/+server.ts",
-				"src/routes/api/gise/[id]/relatorios/[seccionalId]/preparar-assinatura/+server.ts"
-			],
-			"ocorrencias": 2,
-			"amostra": "import { gerarCodigoValidacao } from '$lib/utils/formato';",
-			"nota": "DUP-MANTER: assinatura de handler SvelteKit + linha de import, não lógica. As rotas de assinatura GISE desestruturam o mesmo `{ platform, params, locals, url, request, getClientAddress }` e importam o mesmo portão — a lógica que compartilhavam saiu para `carregarGiseParaAssinatura` em ago/2026. Não há o que extrair de uma assinatura de handler."
-		},
-		{
 			"id": "e93eb744fe90",
 			"arquivos": [
 				"src/routes/api/escalas/[id]/finalizar-assinatura-avancada/+server.ts",
@@ -600,7 +519,7 @@
 			],
 			"ocorrencias": 2,
 			"amostra": "}) => {",
-			"nota": ""
+			"nota": "DUP-MANTER: preâmbulo/assinatura de RequestHandler (requireAuth/requireAdmin, destructuring de params, `}) => {`), não lógica de negócio. A lógica que estas rotas de fato compartilhavam já saiu para helpers comuns (carregarEscalaParaAssinatura/carregarGiseParaAssinatura, montarPdfEscalaAssinada, fecharPreparacaoAssinatura, conferirFinalizacaoPasskey, coletarAfetadosGise/invalidarPapelGiseMultiplos). O que resta diverge de verdade entre escala e GISE (geração de PDF, resolução de rubrica/matrícula, geometria do carimbo, número de signatários) — um helper único ficaria mais complexo que as cópias. Lido em ago/2026 ao investigar o cluster de rotas de assinatura; ver histórico de commits para os dois achados reais dessa mesma leitura (resolverTipoCarimboTempo e envComoRegistro)."
 		},
 		{
 			"id": "ea37ce037d0b",
@@ -610,17 +529,17 @@
 			],
 			"ocorrencias": 2,
 			"amostra": "const u = requireAuth(locals);",
-			"nota": ""
+			"nota": "DUP-MANTER: preâmbulo/assinatura de RequestHandler (requireAuth/requireAdmin, destructuring de params, `}) => {`), não lógica de negócio. A lógica que estas rotas de fato compartilhavam já saiu para helpers comuns (carregarEscalaParaAssinatura/carregarGiseParaAssinatura, montarPdfEscalaAssinada, fecharPreparacaoAssinatura, conferirFinalizacaoPasskey, coletarAfetadosGise/invalidarPapelGiseMultiplos). O que resta diverge de verdade entre escala e GISE (geração de PDF, resolução de rubrica/matrícula, geometria do carimbo, número de signatários) — um helper único ficaria mais complexo que as cópias. Lido em ago/2026 ao investigar o cluster de rotas de assinatura; ver histórico de commits para os dois achados reais dessa mesma leitura (resolverTipoCarimboTempo e envComoRegistro)."
 		},
 		{
-			"id": "ed39dd045fcc",
+			"id": "ef661bd7c107",
 			"arquivos": [
-				"src/lib/components/PainelAssinaturaDigital.svelte",
-				"src/routes/escalas/+page.svelte"
+				"src/routes/api/gise/[id]/relatorios/[seccionalId]/assinar/+server.ts",
+				"src/routes/api/gise/[id]/relatorios/[seccionalId]/preparar-assinatura-avancada/+server.ts"
 			],
 			"ocorrencias": 2,
-			"amostra": ": signatureStep === 'email_code'",
-			"nota": ""
+			"amostra": "const bucketOk = bucketParaAssinatura(tryGetR2(platform));",
+			"nota": "DUP-MANTER: fragmento da CHAMADA a um helper já compartilhado (parâmetros posicionais/nomeados iguais porque o destino — montarPdfEscalaAssinada, adicionarPaginaAuditoria, prepararPdfParaAssinatura — é o mesmo), não lógica duplicada em si. Ver nota do cluster de rotas de assinatura."
 		},
 		{
 			"id": "f36d336a9e72",
@@ -650,17 +569,17 @@
 			],
 			"ocorrencias": 2,
 			"amostra": "{ id: u.id, tipo: u.tipo },",
-			"nota": ""
+			"nota": "DUP-MANTER: fragmento da CHAMADA a um helper já compartilhado (parâmetros posicionais/nomeados iguais porque o destino — montarPdfEscalaAssinada, adicionarPaginaAuditoria, prepararPdfParaAssinatura — é o mesmo), não lógica duplicada em si. Ver nota do cluster de rotas de assinatura."
 		},
 		{
-			"id": "f9a943df0961",
+			"id": "f8c27a4dbc9f",
 			"arquivos": [
-				"src/routes/gise/[id]/_components/supervisao/SupervisaoDesignacao.svelte",
-				"src/routes/gise/[id]/_components/supervisao/SupervisaoPapelSeint.svelte"
+				"src/routes/api/escalas/[id]/preparar-assinatura/+server.ts",
+				"src/routes/api/gise/[id]/preparar-assinatura/+server.ts"
 			],
 			"ocorrencias": 2,
-			"amostra": "<button",
-			"nota": ""
+			"amostra": "prepararPdfParaAssinatura,",
+			"nota": "DUP-MANTER: linha de import (prepararPdfParaAssinatura/adicionarPaginaAuditoria/adicionarRodapeUniversal de pdf-signing), não lógica. A lógica de preparação que estas duas rotas compartilhavam de verdade (hash, rodapé, folha de auditoria, fecharPreparacaoAssinatura) diverge em pontos reais — geração do PDF base, resolução de rubrica/matrícula (escala aceita admin via adminPolicialId; GISE exige o policial-supervisor) — que tornariam um helper único mais complexo que as duas cópias."
 		},
 		{
 			"id": "fd1e1506e86c",
@@ -670,7 +589,7 @@
 			],
 			"ocorrencias": 3,
 			"amostra": "type=\"hidden\"",
-			"nota": ""
+			"nota": "DUP-MANTER: `<input type=\"hidden\">` de formulário, campo isolado com nome/valor diferentes em cada arquivo — não há lógica aqui, só a palavra-chave do atributo coincidindo."
 		},
 		{
 			"id": "fe1a50fc1f5e",
@@ -680,7 +599,7 @@
 			],
 			"ocorrencias": 2,
 			"amostra": "export const POST: RequestHandler = async (event) => {",
-			"nota": ""
+			"nota": "DUP-MANTER: preâmbulo/assinatura de RequestHandler (requireAuth/requireAdmin, destructuring de params, `}) => {`), não lógica de negócio. A lógica que estas rotas de fato compartilhavam já saiu para helpers comuns (carregarEscalaParaAssinatura/carregarGiseParaAssinatura, montarPdfEscalaAssinada, fecharPreparacaoAssinatura, conferirFinalizacaoPasskey, coletarAfetadosGise/invalidarPapelGiseMultiplos). O que resta diverge de verdade entre escala e GISE (geração de PDF, resolução de rubrica/matrícula, geometria do carimbo, número de signatários) — um helper único ficaria mais complexo que as cópias. Lido em ago/2026 ao investigar o cluster de rotas de assinatura; ver histórico de commits para os dois achados reais dessa mesma leitura (resolverTipoCarimboTempo e envComoRegistro)."
 		}
 	]
 }
