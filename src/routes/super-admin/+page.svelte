@@ -1,49 +1,21 @@
 <script lang="ts">
+	/**
+	 * Console do Super Administrador. Os quadros vêm de `cardsBemVindoDaPagina`,
+	 * como nas demais telas de boas-vindas — aqui a lista é fixa (estrutura,
+	 * configurações e auditoria), e é o teste de paridade que garante que ela
+	 * continue igual às abas da navegação lateral.
+	 */
 	import type { PageProps } from './$types';
+	import { page } from '$app/state';
 	import BemVindoPagina from '$lib/components/bem-vindo/BemVindoPagina.svelte';
 	import BemVindoCabecalho from '$lib/components/bem-vindo/BemVindoCabecalho.svelte';
 	import BemVindoCardAcao from '$lib/components/bem-vindo/BemVindoCardAcao.svelte';
+	import { cardsBemVindoDaPagina } from '../_components/bem-vindo-cards';
 
 	const { data }: PageProps = $props();
 	const usuario = $derived(data.usuario);
 
-	const acoes = [
-		{
-			titulo: 'Unidades',
-			descricao:
-				'Cadastre e gerencie a estrutura organizacional: departamentos, seccionais e delegacias.',
-			href: '/unidades',
-			cta: 'Gerenciar unidades'
-		},
-		{
-			titulo: 'Policiais',
-			descricao:
-				'Gerencie o cadastro de policiais, papéis administrativos (RBAC) e a concessão de Admin Geral.',
-			href: '/policiais',
-			cta: 'Gerenciar policiais'
-		},
-		{
-			titulo: 'Configurações de Assinatura',
-			descricao:
-				'Defina os requisitos das assinaturas eletrônicas (foto, GPS e código por e-mail / 2FA).',
-			href: '/conf-ass',
-			cta: 'Abrir configurações'
-		},
-		{
-			titulo: 'Configurações Gerais',
-			descricao:
-				'Ajustes globais do sistema, como o provedor de e-mail padrão (Cloudflare / Resend) com fallback.',
-			href: '/config-geral',
-			cta: 'Abrir configurações'
-		},
-		{
-			titulo: 'Auditoria',
-			descricao:
-				'Trilha forense de ações do sistema: filtros, verificação de integridade e exportação (CSV/PDF).',
-			href: '/auditoria',
-			cta: 'Abrir auditoria'
-		}
-	];
+	const acoes = $derived(cardsBemVindoDaPagina(usuario, page.data));
 </script>
 
 <svelte:head>
@@ -54,7 +26,7 @@
 	<BemVindoCabecalho
 		modulo="Administração do Sistema"
 		{usuario}
-		descricao="Você está no console do Super Administrador. Aqui você gerencia a estrutura do sistema (unidades e policiais), as configurações globais e a auditoria/conformidade — sem as abas operacionais do dia a dia."
+		descricao="Você está no console do Super Administrador. Aqui ficam a estrutura do sistema (unidades e policiais), as configurações globais e a auditoria — sem as abas operacionais do dia a dia."
 		accent="primary"
 	/>
 
