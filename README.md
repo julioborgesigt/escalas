@@ -372,6 +372,9 @@ escalas/
 │   │   ├── alterar-senha/          # Troca de senha obrigatória (primeiro acesso)
 │   │   ├── redefinir-senha/        # Reset de senha via token
 │   │   ├── aceitar-termo/          # Aceite de termo de uso
+│   │   ├── _components/            # Regras de navegação compartilhadas pelas rotas:
+│   │   │                           #   menu-visibilidade.ts (sidebar) e
+│   │   │                           #   bem-vindo-cards.ts (quadros) — as duas do MESMO par de flags
 │   │   ├── bem-vindo/              # Boas-vindas pós-login (+ escalas/bem-vindo e gise/bem-vindo por módulo)
 │   │   ├── super-admin/            # Console de boas-vindas do Super Admin
 │   │   ├── escalas/                # Gestão de escalas (lista, nova, detalhe)

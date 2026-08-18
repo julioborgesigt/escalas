@@ -1,68 +1,40 @@
 <script lang="ts">
+	/**
+	 * Boas-vindas do policial sem papel administrativo.
+	 *
+	 * Os quadros vêm de `cardsBemVindoDaPagina` — as MESMAS flags que montam a
+	 * navegação lateral (ver `_components/bem-vindo-cards.ts`). Esta página
+	 * cuida só da apresentação: cabeçalho, aviso de convocação e grade.
+	 */
 	import type { PageProps } from './$types';
 	import { page } from '$app/state';
 	import BemVindoPagina from '$lib/components/bem-vindo/BemVindoPagina.svelte';
 	import BemVindoCabecalho from '$lib/components/bem-vindo/BemVindoCabecalho.svelte';
 	import BemVindoCardAcao from '$lib/components/bem-vindo/BemVindoCardAcao.svelte';
+	import { cardsBemVindoDaPagina } from '../_components/bem-vindo-cards';
 
 	const { data }: PageProps = $props();
 	const usuario = $derived(data.usuario);
 
-	const isSupervisorGise = $derived(page.data.isSupervisorGise ?? false);
-	// Espelha a aba "Presença GISE" da sidebar: escala ativa + entrada/saída pendente.
-	const temPresencaGisePendente = $derived(page.data.temPresencaGisePendente ?? false);
-	// Histórico GISE: participou de alguma GISE já encerrada (independe de
-	// convocação ativa). Espelha a aba "Histórico GISE" da sidebar.
-	const temGiseHistorico = $derived(page.data.temGiseHistorico ?? false);
+	const acoes = $derived(cardsBemVindoDaPagina(usuario, page.data));
 
-	// Cards de convocação GISE (só quando há vínculo ativo).
-	const giseCards = $derived.by(() => {
-		const lista = [];
-		if (isSupervisorGise) {
-			lista.push({
-				titulo: 'Supervisão GISE',
-				descricao:
-					'Acompanhe e supervisione o planejamento e a execução das escalas GISE sob sua responsabilidade.',
-				href: '/gise',
-				cta: 'Acessar supervisão'
-			});
-		}
-		if (temPresencaGisePendente) {
-			lista.push({
-				titulo: 'Minha presença',
-				descricao:
-					'Confirme sua presença nas escalas extras em que foi alocado e assine a folha correspondente.',
-				href: '/res-gise',
-				cta: 'Registrar presença'
-			});
-		}
-		return lista;
-	});
+	/**
+	 * "Nenhuma convocação ativa" fala de VÍNCULO com escala extra, não do total de
+	 * cards: "Meu perfil" existe para todo mundo e o histórico é de GISE já
+	 * encerrada — nenhum dos dois desmente o aviso.
+	 */
+	const semConvocacao = $derived(!acoes.some((a) => a.href === '/gise' || a.href === '/res-gise'));
 
-	const semConvocacao = $derived(giseCards.length === 0);
-
-	// Card do histórico: só quando há GISE encerrada. Fica FORA de `giseCards`
-	// (que alimenta `semConvocacao`) porque histórico não é convocação ativa.
-	const cardHistoricoGise = {
-		titulo: 'Meu histórico',
-		descricao:
-			'Consulte suas escalas extras já encerradas: comprovantes de presença e relatórios das operações anteriores.',
-		href: '/res-gise?status=finalizadas',
-		cta: 'Ver histórico'
-	};
-
-	// "Meu perfil" está na sidebar de todo policial — espelhado no acesso rápido.
-	const acoes = $derived([
-		...giseCards,
-		...(temGiseHistorico ? [cardHistoricoGise] : []),
-		{
-			titulo: 'Meu perfil',
-			descricao:
-				'Atualize seus dados cadastrais, gerencie sua rubrica e ajuste as preferências da conta.',
-			href: '/perfil',
-			cta: 'Abrir meu perfil'
-		}
-	]);
+	/**
+	 * O cabeçalho não pode prometer plantão, presença e relatório para quem só
+	 * tem "Meu perfil" na tela — era o texto anterior, e ele aparecia logo acima
+	 * do aviso de que não há convocação nenhuma.
+	 */
+	const descricao = $derived(
+		semConvocacao
+			? 'Este é o seu espaço no Portal de Escalas. Quando você for convocado para uma escala extra, ela aparece aqui com o que houver a fazer.'
+			: 'Acompanhe suas escalas extras, confirme sua presença e assine o que for da sua responsabilidade.'
+	);
 </script>
 
 <svelte:head>
@@ -70,12 +42,7 @@
 </svelte:head>
 
 <BemVindoPagina>
-	<BemVindoCabecalho
-		modulo="Portal de Escalas"
-		{usuario}
-		descricao="Acompanhe seus plantões de serviço ativo, registre suas presenças e preencha seus relatórios de produtividade operacional."
-		accent="secondary"
-	/>
+	<BemVindoCabecalho modulo="Portal de Escalas" {usuario} {descricao} accent="secondary" />
 
 	<section class="mt-6 sm:mt-8">
 		<h2
@@ -89,8 +56,8 @@
 					Nenhuma convocação ativa
 				</p>
 				<p class="mt-1 text-xs leading-relaxed text-surface-600 dark:text-surface-400">
-					No momento você não possui nenhuma convocação para escala GISE ativa. Em caso de dúvida,
-					verifique com a chefia de sua unidade.
+					No momento você não está convocado para nenhuma escala extra. Em caso de dúvida, procure a
+					chefia da sua unidade.
 				</p>
 			</div>
 		{/if}
