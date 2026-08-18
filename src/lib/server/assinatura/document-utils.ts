@@ -223,3 +223,16 @@ export function descreverTipoCarimbo(tipo: TipoCarimoTempo): string {
 export function resolverTipoCarimboTempo(platform: App.Platform | undefined): TipoCarimoTempo {
 	return platform?.env?.TSA_URL ? 'tsa_externa' : 'servidor';
 }
+
+/**
+ * `platform.env` como o `Record<string, string | undefined>` que as funções
+ * de assinatura esperam — elas ficam fora do domínio de bindings do Cloudflare
+ * (D1Database, R2Bucket) de propósito, para não acoplar lógica de PDF/CAdES a
+ * tipos de Workers. Doze rotas de preparar/assinar (escala e GISE) repetiam o
+ * mesmo `as unknown as Record<...>` no call site.
+ */
+export function envComoRegistro(
+	platform: App.Platform | undefined
+): Record<string, string | undefined> | undefined {
+	return platform?.env as unknown as Record<string, string | undefined> | undefined;
+}

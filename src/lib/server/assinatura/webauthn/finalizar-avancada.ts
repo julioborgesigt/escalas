@@ -41,7 +41,7 @@ import {
 	type AtorAssinatura,
 	type ContextoPreparo
 } from '../intencao';
-import { calcularHashBuffer } from '../document-utils';
+import { calcularHashBuffer, envComoRegistro } from '../document-utils';
 import { verificarAssercao, mensagemRecusaAssercao } from './assercao';
 import type { AuthenticatorData } from './authenticator-data';
 import { credencialDoUsuario } from '$lib/server/auth/credencial';
@@ -210,7 +210,7 @@ export function evidenciasDaProva(
 		userAgent: req.userAgent || undefined,
 		latitude: prova.contexto.latitude,
 		longitude: prova.contexto.longitude,
-		env: req.platform?.env as unknown as Record<string, string | undefined> | undefined,
+		env: envComoRegistro(req.platform),
 		passkeyMeta: passkeyMetaDeAssercao(req.assercao, prova.dados.backupAtivo)
 	};
 }

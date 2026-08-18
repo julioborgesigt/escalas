@@ -247,6 +247,16 @@
 			"nota": ""
 		},
 		{
+			"id": "5d66c25d2182",
+			"arquivos": [
+				"src/routes/api/escalas/[id]/preparar-assinatura-avancada/+server.ts",
+				"src/routes/api/gise/[id]/presenca/preparar-assinatura-avancada/+server.ts"
+			],
+			"ocorrencias": 2,
+			"amostra": "import { calcularHashBuffer, envComoRegistro } from '$lib/server/assinatura/document-utils",
+			"nota": ""
+		},
+		{
 			"id": "5df61be8a979",
 			"arquivos": [
 				"src/routes/auditoria/+page.svelte",
@@ -305,16 +315,6 @@
 			],
 			"ocorrencias": 3,
 			"amostra": "class=\"btn preset-filled-primary-500 text-sm px-3 py-1.5 rounded-lg w-full sm:w-auto trans",
-			"nota": ""
-		},
-		{
-			"id": "71d9800e8707",
-			"arquivos": [
-				"src/routes/api/escalas/[id]/preparar-assinatura-avancada/+server.ts",
-				"src/routes/api/gise/[id]/presenca/preparar-assinatura-avancada/+server.ts"
-			],
-			"ocorrencias": 2,
-			"amostra": "import { calcularHashBuffer } from '$lib/server/assinatura/document-utils';",
 			"nota": ""
 		},
 		{
@@ -448,16 +448,6 @@
 			],
 			"ocorrencias": 2,
 			"amostra": "import type { Escala, EscalaPolicialComDados } from '../../types';",
-			"nota": ""
-		},
-		{
-			"id": "a7a7cd3aa232",
-			"arquivos": [
-				"src/routes/api/gise/[id]/relatorios/[seccionalId]/assinar/+server.ts",
-				"src/routes/api/gise/[id]/relatorios/[seccionalId]/preparar-assinatura-avancada/+server.ts"
-			],
-			"ocorrencias": 2,
-			"amostra": "const bucketOk = bucketParaAssinatura(tryGetR2(platform));",
 			"nota": ""
 		},
 		{
@@ -620,6 +610,16 @@
 			],
 			"ocorrencias": 2,
 			"amostra": ": signatureStep === 'email_code'",
+			"nota": ""
+		},
+		{
+			"id": "ef661bd7c107",
+			"arquivos": [
+				"src/routes/api/gise/[id]/relatorios/[seccionalId]/assinar/+server.ts",
+				"src/routes/api/gise/[id]/relatorios/[seccionalId]/preparar-assinatura-avancada/+server.ts"
+			],
+			"ocorrencias": 2,
+			"amostra": "const bucketOk = bucketParaAssinatura(tryGetR2(platform));",
 			"nota": ""
 		},
 		{

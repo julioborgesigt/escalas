@@ -28,6 +28,7 @@ import {
 	subirSelfieExtra
 } from '$lib/server/gise/assinatura-extra';
 import type { EvidenciasMontagem } from '$lib/server/escalas/assinatura-escala';
+import { envComoRegistro } from '$lib/server/assinatura/document-utils';
 import {
 	apiError,
 	ErrorCode,
@@ -143,7 +144,7 @@ export const POST: RequestHandler = async (event) => {
 		const bucketOk = bucketParaAssinatura(tryGetR2(platform));
 		if (!bucketOk.ok) return bucketOk.resposta;
 
-		const env = platform?.env as unknown as Record<string, string | undefined> | undefined;
+		const env = envComoRegistro(platform);
 		const montado = await montarPdfExtraAssinado({
 			db,
 			gise,
