@@ -27,6 +27,7 @@ import {
 	buscarAssinaturaRelatorioGise
 } from '$lib/db';
 import { isAdminGeral, isAdminSeccional } from '$lib/auth';
+import { escalaGiseJaAssinada } from '$lib/gise/status-escala';
 import { verificarPermissaoGise } from '$lib/server/gise/permissao';
 import {
 	podeBaixarComManifesto,
@@ -406,13 +407,7 @@ export const GET: RequestHandler = async ({ locals, params, platform, url }) => 
 		});
 	}
 
-	if (
-		gise.status !== 'em_andamento' &&
-		gise.status !== 'aguardando_relatorios' &&
-		gise.status !== 'aguardando_assinatura_relat' &&
-		gise.status !== 'pronta_para_finalizar' &&
-		gise.status !== 'finalizada'
-	) {
+	if (!escalaGiseJaAssinada(gise.status)) {
 		return badRequest('Download só é liberado após a assinatura do Supervisor.');
 	}
 

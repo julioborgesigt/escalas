@@ -1,18 +1,26 @@
 <script lang="ts">
 	/**
-	 * Casca de toda página autenticada: sidebar, tema, overlay de carregamento e
-	 * as duas alternâncias de identidade. Nada aqui é gate de segurança — a
-	 * sidebar apenas ESCONDE o que o usuário não usa; quem barra é o `load` de
-	 * cada rota. Somar um item ao menu não dá acesso a nada, e removê-lo não
-	 * protege nada.
+	 * Casca de toda página autenticada — o que sobra depois que a navegação saiu.
 	 *
-	 * A visibilidade dos itens cruza dois eixos que não se implicam:
-	 *   - QUEM é (`tipo`/`papel` + os flags de participação na GISE, que vêm do
-	 *     `+layout.server.ts` porque dependem do banco);
-	 *   - QUAL MÓDULO o admin escolheu (`adminModulo`: ambas/gise/escalas), que
-	 *     é preferência de tela, não permissão.
-	 * Daí `showGrupo1`/`showGrupo2` responderem `true` para não-admin: o filtro
-	 * de módulo só existe para admin.
+	 * Este arquivo cuida só do CHROME global: barra de progresso de navegação,
+	 * banner de versão nova, overlay de carregamento, provedor de Toast, o
+	 * diálogo de logout e o `<main>`. As peças que ele monta:
+	 *
+	 *   - `_components/BarraTopo.svelte` — topo + alternância de acesso;
+	 *   - `_components/SidebarNavegacao.svelte` — a gaveta inteira;
+	 *   - `_components/navegacao-estado.svelte.ts` — estado da gaveta + modelo do
+	 *     menu, compartilhado pelos dois acima;
+	 *   - `_components/menu-visibilidade.ts` — QUEM vê cada item, com testes;
+	 *   - `_components/ToastProvider.svelte` — o `Toast.Group` estilizado.
+	 *
+	 * O corte levou o ESTADO junto com o markup, e não só o markup: a gaveta
+	 * inteira depende de ~18 valores, e descê-los por props teria produzido o
+	 * repassador que a auditoria de 13/ago/2026 catalogou em `GiseSupervisao`
+	 * (encolheu 88% e virou 38 props). `SidebarNavegacao` tem DUAS props porque
+	 * o resto ele lê de `page.data`, igual este arquivo lia.
+	 *
+	 * **Nada aqui é gate de segurança** — a sidebar apenas ESCONDE o que o
+	 * usuário não usa; quem barra é o `load` de cada rota.
 	 *
 	 * `ROTAS_SEM_SIDEBAR` são os PORTÕES — login, troca de senha obrigatória e
 	 * aceite do termo. `/aceitar-termo` é autenticado e por isso precisa estar
@@ -36,8 +44,7 @@
 	import { tick } from 'svelte';
 	import { page, navigating, updated } from '$app/state';
 	import { goto, onNavigate, afterNavigate, beforeNavigate } from '$app/navigation';
-	import { Toast, Dialog } from '@skeletonlabs/skeleton-svelte';
-	import { toaster } from '$lib/toast';
+	import { Dialog } from '@skeletonlabs/skeleton-svelte';
 	import { apiFetch } from '$lib/api-fetch';
 	import { loading } from '$lib/loading.svelte';
 	import LoadingOverlay from '$lib/components/LoadingOverlay.svelte';
@@ -45,18 +52,16 @@
 	import AvisoCadastroRubrica from '$lib/components/AvisoCadastroRubrica.svelte';
 	import { useScrollLock, useInvalidateOnFocus } from '$lib/composables';
 	import { fetchSyncEstado } from '$lib/sync-estado';
-	import { ICONE } from '$lib/constants/icones';
-	import { visibilidadeDoMenu, itensExtraDoMenu, rotaAtiva } from './_components/menu-visibilidade';
-	import AlertCircle from '@lucide/svelte/icons/alert-circle';
-	import CheckCircle2 from '@lucide/svelte/icons/check-circle-2';
-	import { mensagemDeErro } from '$lib/utils/erro';
+	import BarraTopo from './_components/BarraTopo.svelte';
+	import SidebarNavegacao from './_components/SidebarNavegacao.svelte';
+	import ToastProvider from './_components/ToastProvider.svelte';
+	import { criarNavegacaoEstado, ROTAS_SEM_SIDEBAR } from './_components/navegacao-estado.svelte';
 
 	const { children }: LayoutProps = $props();
 
 	const usuario = $derived(page.data.usuario);
-	const isSupervisorGise = $derived(page.data.isSupervisorGise ?? false);
-	const adminModulo = $derived((page.data.adminModulo as 'ambas' | 'gise' | 'escalas') ?? 'ambas');
-	const recebidosNaoVistos = $derived(Number(page.data.recebidosNaoVistos ?? 0));
+
+	const nav = criarNavegacaoEstado();
 
 	// Badge da Cx. de Entrada: poll frio em qualquer rota (admin). A inbox tem
 	// poll próprio quente/frio; as duas chaves ficam alinhadas via `also`.
@@ -73,130 +78,17 @@
 		}
 	});
 
-	// Alternância de acesso ADM Geral ↔ Usuário (mesma pessoa vinculada).
-	const podeAlternarParaUsuario = $derived(page.data.podeAlternarParaUsuario ?? false);
-	const podeAlternarParaAdmin = $derived(page.data.podeAlternarParaAdmin ?? false);
-
-	/**
-	 * Quem vê o quê no menu — a regra mora em `_components/menu-visibilidade.ts`,
-	 * com testes. Aqui ficam só os apelidos que o markup usa.
-	 *
-	 * Ela saiu daqui porque era prosa não verificada: o cabeçalho deste arquivo
-	 * explicava os dois eixos e os casos deliberados (`showIndicadores` cobrindo
-	 * `admin_unidade` que `showGise` não cobre, `showDadosBase` NÃO seguindo
-	 * `showIndicadores`), e nada reprovava quem "consertasse a inconsistência".
-	 */
-	const flagsMenu = $derived(
-		visibilidadeDoMenu({
-			usuario,
-			adminModulo,
-			isSupervisorGise,
-			temLinhaBasePendente: page.data.temLinhaBasePendente ?? false,
-			temPresencaGisePendente: page.data.temPresencaGisePendente ?? false,
-			temGiseHistorico: page.data.temGiseHistorico ?? false
-		})
-	);
-
-	// Só as que o MARKUP daqui usa. `showIndicadores`, `showDadosBase`,
-	// `temPresencaGiseAtiva` e `temGiseHistorico` saíram junto: existiam apenas
-	// para montar o submenu, e agora quem as consome é `itensExtraDoMenu`.
-	const isAdmGeral = $derived(flagsMenu.isAdmGeral);
-	const showEscalasPoliciais = $derived(flagsMenu.showEscalasPoliciais);
-	const showGise = $derived(flagsMenu.showGise);
-	const showGrupo1 = $derived(flagsMenu.showGrupo1);
-	const showGrupo2 = $derived(flagsMenu.showGrupo2);
-	const showGrupo2Separator = $derived(flagsMenu.showGrupo2Separator);
-
-	// Telas de "portão" (pré-entrada no sistema) são exibidas isoladas, sem a
-	// navegação lateral: login, troca de senha obrigatória e aceite do termo.
-	// O /aceitar-termo é autenticado (tem `usuario`), então precisa ser listado
-	// aqui explicitamente — senão a sidebar apareceria atrás do card de aceite.
-	const ROTAS_SEM_SIDEBAR = ['/login', '/alterar-senha', '/aceitar-termo'];
 	const showSidebar = $derived(!ROTAS_SEM_SIDEBAR.includes(page.url.pathname));
 
-	// A navegação lateral é uma GAVETA (overlay) OCULTA POR PADRÃO em todas as
-	// larguras — inclusive no desktop. Abre pelo botão de menu do topo e fecha ao
-	// navegar, clicar fora ou apertar Esc. `sidebarOpen` é a fonte única do estado;
-	// não há mais o modo "sempre aberta" que o desktop tinha.
-	let sidebarOpen = $state(false);
-	let isDark = $state(
-		typeof document !== 'undefined' ? document.documentElement.classList.contains('dark') : true
-	);
 	let showLogoutConfirm = $state(false);
 	let isLoggingOut = $state(false);
-	let restoreMenuFocusAfterNavigation = false;
 
-	// Enquanto aberta, a gaveta é modal: trava o scroll do fundo e torna o
-	// conteúdo inerte. Fechada, a própria gaveta fica inerte (fora da tela).
-	const sidebarIsModal = $derived(sidebarOpen);
-	const sidebarIsInert = $derived(!sidebarOpen);
-
-	useScrollLock(() => sidebarIsModal);
+	useScrollLock(() => nav.ehModal);
 
 	function closeOnEscape(event: KeyboardEvent) {
-		if (event.key === 'Escape' && sidebarIsModal) {
+		if (event.key === 'Escape' && nav.ehModal) {
 			event.preventDefault();
-			void closeSidebar();
-		}
-	}
-
-	async function openSidebar() {
-		// Evita aria-hidden na topbar/main com o botão de menu ainda focado.
-		const focused = document.activeElement;
-		if (focused instanceof HTMLElement) focused.blur();
-
-		// O nível é decidido pela ROTA a cada abertura: quem está em
-		// `/produtividade` abre já dentro de "Escala extra", com o item aceso.
-		nivelMenu = naRotaExtra ? 'extra' : 'raiz';
-
-		sidebarOpen = true;
-		await tick();
-		document.getElementById('navegacao-principal')?.focus();
-	}
-
-	async function closeSidebar({
-		restoreFocus = true,
-		afterNavigation = false
-	}: { restoreFocus?: boolean; afterNavigation?: boolean } = {}) {
-		if (!sidebarOpen) return;
-
-		// Chrome: "Blocked aria-hidden on an element because its descendant
-		// retained focus." O clique no item deixa o <a> focado; fechar a gaveta
-		// aplica aria-hidden/inert com esse foco ainda dentro. Blur antes.
-		const focused = document.activeElement;
-		const drawer = document.getElementById('navegacao-principal')?.closest('aside');
-		if (focused instanceof HTMLElement && drawer?.contains(focused)) {
-			focused.blur();
-		}
-
-		sidebarOpen = false;
-
-		if (!restoreFocus) return;
-		if (afterNavigation) {
-			restoreMenuFocusAfterNavigation = true;
-			return;
-		}
-
-		await tick();
-		document.getElementById('botao-menu-mobile')?.focus();
-	}
-
-	function toggleSidebar() {
-		return sidebarOpen ? closeSidebar() : openSidebar();
-	}
-
-	function handleSidebarNavigation() {
-		return closeSidebar({ afterNavigation: true });
-	}
-
-	function toggleTheme() {
-		isDark = !isDark;
-		if (isDark) {
-			document.documentElement.classList.add('dark');
-			localStorage.setItem('color-theme', 'dark');
-		} else {
-			document.documentElement.classList.remove('dark');
-			localStorage.setItem('color-theme', 'light');
+			void nav.fechar();
 		}
 	}
 
@@ -232,109 +124,9 @@
 		}
 	}
 
-	let switchingModule = $state(false);
-
-	async function alternarModulo() {
-		if (switchingModule) return;
-		switchingModule = true;
-		loading.show('Alternando módulo...');
-		try {
-			const result = await apiFetch<{ redirect?: string }>('/api/auth/alternar-modulo', {
-				method: 'POST'
-			});
-			if (result.redirect) {
-				await goto(result.redirect, { invalidateAll: true });
-			}
-		} catch (e: unknown) {
-			toaster.create({
-				title: mensagemDeErro(e, 'Erro ao alternar módulo'),
-				type: 'error'
-			});
-		} finally {
-			switchingModule = false;
-			loading.hide();
-		}
-	}
-
-	let switchingAcesso = $state(false);
-
-	async function alternarAcesso() {
-		if (switchingAcesso) return;
-		switchingAcesso = true;
-		loading.show('Alternando acesso...');
-		try {
-			const result = await apiFetch<{ redirect?: string }>('/api/auth/alternar-acesso', {
-				method: 'POST'
-			});
-			await goto(result.redirect || '/', { invalidateAll: true });
-		} catch (e: unknown) {
-			toaster.create({
-				title: mensagemDeErro(e, 'Erro ao alternar acesso'),
-				type: 'error'
-			});
-		} finally {
-			switchingAcesso = false;
-			loading.hide();
-		}
-	}
-
-	function isActive(path: string): boolean {
-		return rotaAtiva(page.url.pathname, path);
-	}
-
-	const rotaPath = $derived(page.url.pathname);
-	const giseOperacoesPathAtivo = $derived(rotaPath.startsWith('/gise/operacoes'));
-
-	/**
-	 * Os filhos do menu "Escala extra", já filtrados pelo que este usuário vê.
-	 *
-	 * A montagem mora em `_components/menu-visibilidade.ts`, com testes — inclusive
-	 * o realce das duas abas de `/res-gise`, que dividem a MESMA rota e se
-	 * distinguem só pelo `?status=finalizadas`.
-	 */
-	const filhosExtra = $derived(itensExtraDoMenu(flagsMenu, page.url));
-
-	/** A rota atual é de algum filho? Decide o nível em que a gaveta abre. */
-	const naRotaExtra = $derived(filhosExtra.some((f) => f.ativo));
-
-	/**
-	 * Em qual nível a gaveta está: a raiz ou dentro de "Escala extra".
-	 *
-	 * Fixado ao ABRIR, pela rota (`openSidebar`), e não mantido entre aberturas:
-	 * abrir o menu estando em `/produtividade` e cair na raiz esconderia justamente
-	 * onde a pessoa está.
-	 */
-	let nivelMenu = $state<'raiz' | 'extra'>('raiz');
-
-	/**
-	 * A métrica das linhas da barra, uma só para as três formas: item que navega,
-	 * pai que abre o submenu e voltar para a raiz. Divergir aqui faria o submenu
-	 * parecer outra tela em vez do mesmo menu.
-	 */
-	const CLASSE_ITEM =
-		'w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all no-underline border';
-	const CLASSE_ACESO =
-		'bg-primary-500/15 text-primary-700 dark:text-primary-400 border-primary-500/20';
-	const CLASSE_APAGADO =
-		'text-surface-600 dark:text-surface-300 hover:bg-surface-200/50 dark:hover:bg-surface-800/50 border-transparent';
-
-	/**
-	 * Troca de nível movendo o FOCO junto.
-	 *
-	 * O `<nav>` troca de conteúdo sem trocar de página, então nada anuncia a
-	 * mudança sozinho: mover o foco para o primeiro item do novo nível é o que faz
-	 * o leitor de tela ler o novo contexto. O `aria-label` da `<nav>` acompanha
-	 * pelo mesmo motivo.
-	 */
-	async function irParaNivel(destino: 'raiz' | 'extra') {
-		nivelMenu = destino;
-		await tick();
-		document.getElementById(destino === 'extra' ? 'menu-voltar' : 'menu-pai-extra')?.focus();
-	}
-
 	onNavigate((navigation) => {
-		if (sidebarOpen) {
-			void closeSidebar({ afterNavigation: true });
+		if (nav.aberta) {
+			void nav.fechar({ aposNavegacao: true });
 		}
 		if (!document.startViewTransition) return;
 		// await tick() flushes Svelte's pending DOM updates (e.g. nav-progress-visible)
@@ -358,10 +150,7 @@
 	// preso, exigindo refresh para ver o resultado já renderizado por baixo.
 	afterNavigate(() => {
 		loading.hide();
-		if (restoreMenuFocusAfterNavigation) {
-			restoreMenuFocusAfterNavigation = false;
-			void tick().then(() => document.getElementById('botao-menu-mobile')?.focus());
-		}
+		void nav.devolverFocoSePendente();
 	});
 
 	// Deploy novo detectado: força reload na próxima navegação (bundle fresco).
@@ -428,472 +217,19 @@
 	<AvisoCadastroRubrica />
 {/if}
 
-<!-- Global Toast Provider -->
-<!-- Posição/empilhamento vêm dos estilos inline do Zag (placement 'bottom-end' no
-     toast.ts); classes de posição aqui entrariam em conflito e desalinhariam. -->
-<Toast.Group {toaster}>
-	{#snippet children(toast)}
-		<Toast
-			{toast}
-			class="bg-surface-900 dark:bg-surface-100 text-surface-50 dark:text-surface-900 px-6 py-4 rounded-xl shadow-2xl pointer-events-auto border border-surface-700 dark:border-surface-300 w-[calc(100vw-2rem)] sm:w-auto sm:min-w-[320px] sm:max-w-md"
-		>
-			<div class="flex items-center gap-3">
-				{#if toast.type === 'success'}
-					<CheckCircle2 class="w-6 h-6 text-success-500" aria-hidden="true" />
-				{:else if toast.type === 'error'}
-					<AlertCircle class="w-6 h-6 text-error-500" aria-hidden="true" />
-				{/if}
-				<div class="flex-1">
-					<Toast.Title class="font-bold text-base">{toast.title}</Toast.Title>
-					{#if toast.description}
-						<Toast.Description class="text-sm opacity-75">{toast.description}</Toast.Description>
-					{/if}
-				</div>
-				<Toast.CloseTrigger
-					class="btn-icon btn-sm opacity-50 hover:opacity-100 transition-opacity"
-					aria-label="Fechar notificação"
-				>
-					<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"
-						><path
-							stroke-linecap="round"
-							stroke-linejoin="round"
-							stroke-width="2"
-							d="M6 18L18 6M6 6l12 12"
-						/></svg
-					>
-				</Toast.CloseTrigger>
-			</div>
-		</Toast>
-	{/snippet}
-</Toast.Group>
+<ToastProvider />
 
 <a
 	href="#conteudo-principal"
 	class="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-[10001] focus:rounded-lg focus:bg-primary-600 focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:text-white focus:shadow-lg"
-	inert={sidebarIsModal}
+	inert={nav.ehModal}
 >
 	Pular para o conteúdo
 </a>
 
 {#if showSidebar && usuario}
-	<!-- Barra do topo (todas as larguras): menu + marca + alternar modo (direita).
-	     É o que abre a gaveta de navegação, que agora fica oculta por padrão também no desktop. -->
-	<div
-		class="fixed top-0 left-0 right-0 z-40 h-14 bg-white/90 dark:bg-surface-950/90 backdrop-blur-lg border-b border-surface-200 dark:border-white/10 flex items-center px-4"
-		inert={sidebarIsModal}
-	>
-		<button
-			type="button"
-			class="p-2 -ml-2 text-surface-600 dark:text-surface-300 hover:text-primary-500 transition-colors"
-			onclick={toggleSidebar}
-			aria-label="Menu"
-			aria-expanded={sidebarOpen}
-			aria-controls="navegacao-principal"
-			id="botao-menu-mobile"
-		>
-			<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-				<path
-					stroke-linecap="round"
-					stroke-linejoin="round"
-					stroke-width="2"
-					d="M4 6h16M4 12h16M4 18h16"
-				/>
-			</svg>
-		</button>
-		<div class="ml-3 flex items-center gap-2">
-			<span
-				class="font-heading font-bold text-lg text-surface-900 dark:text-surface-50 tracking-tight"
-				>DPI SUL</span
-			>
-		</div>
-		{#if podeAlternarParaUsuario || podeAlternarParaAdmin}
-			<button
-				type="button"
-				class="ml-auto shrink-0 truncate max-w-[11rem] sm:max-w-none rounded-lg border border-primary-500/40 bg-primary-500/5 px-2.5 sm:px-3 py-1.5 text-2xs sm:text-xs font-semibold text-primary-700 transition-colors hover:bg-primary-500/15 disabled:opacity-50 dark:text-primary-300"
-				onclick={alternarAcesso}
-				title={podeAlternarParaUsuario
-					? 'Entrar como usuário (mesma conta)'
-					: 'Assumir acesso de Administrador Geral (mesma conta)'}
-				disabled={switchingAcesso}
-			>
-				{podeAlternarParaUsuario ? 'Ir p/ modo usuário' : 'Ir p/ modo admin'}
-			</button>
-		{/if}
-	</div>
-
-	<!-- Backdrop da gaveta (todas as larguras): clicar fora fecha. -->
-	{#if sidebarOpen}
-		<button
-			type="button"
-			class="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm"
-			onclick={() => void closeSidebar()}
-			aria-label="Fechar menu"
-		></button>
-	{/if}
-
-	<!-- Sidebar -->
-	<aside
-		class="
-			fixed top-0 left-0 z-50 h-full
-			bg-surface-50/95 dark:bg-surface-950/95 backdrop-blur-xl
-			border-r border-surface-200 dark:border-white/10
-			shadow-xl shadow-black/5 dark:shadow-black/30
-			flex flex-col
-			transition-transform duration-300 ease-in-out
-			{sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
-		"
-		style="width: var(--sidebar-width, 240px);"
-		inert={sidebarIsInert}
-		aria-hidden={sidebarIsInert}
-	>
-		<!-- Logo -->
-		<div
-			class="h-16 flex items-center px-5 border-b border-surface-200 dark:border-white/5 shrink-0"
-		>
-			<div class="flex items-center gap-2 group">
-				<span
-					class="font-heading font-bold text-xl text-surface-900 dark:text-surface-50 tracking-tight"
-					>DPI SUL</span
-				>
-			</div>
-			<!-- Botão de fechar a gaveta -->
-			<button
-				type="button"
-				class="ml-auto p-1 text-surface-400 hover:text-surface-600 dark:hover:text-surface-200 transition-colors"
-				onclick={() => void closeSidebar()}
-				aria-label="Fechar menu"
-			>
-				<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"
-					><path
-						stroke-linecap="round"
-						stroke-linejoin="round"
-						stroke-width="2"
-						d="M6 18L18 6M6 6l12 12"
-					/></svg
-				>
-			</button>
-		</div>
-
-		<!-- Navigation -->
-		<nav
-			id="navegacao-principal"
-			class="flex-1 px-3 py-4 space-y-1 overflow-y-auto"
-			tabindex="-1"
-			aria-label={nivelMenu === 'extra' ? 'Escala extra' : 'Menu principal'}
-		>
-			{#snippet iconeItem(paths: string[])}
-				<svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-					{#each paths as d (d)}
-						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" {d} />
-					{/each}
-				</svg>
-			{/snippet}
-
-			<!--
-				O pai é `<button>` e não `<a>`: ele não leva a lugar nenhum, e um link
-				que não navega quebra "abrir em nova aba" e o clique do meio.
-
-				NÃO chama `handleSidebarNavigation`: entrar no submenu não é navegar, e
-				fechar a gaveta aqui desfaria o próprio clique.
-			-->
-			{#snippet itemPaiExtra(ativo: boolean)}
-				<button
-					id="menu-pai-extra"
-					type="button"
-					class="{CLASSE_ITEM} {ativo ? CLASSE_ACESO : CLASSE_APAGADO}"
-					onclick={() => void irParaNivel('extra')}
-				>
-					{@render iconeItem(ICONE.pranchetaLista)}
-					<span class="truncate flex-1 text-left">Escala extra</span>
-					{@render iconeItem(ICONE.chevronDireita)}
-				</button>
-			{/snippet}
-
-			<!--
-				Voltar do submenu. Não usa `BotaoVoltar`: aquele é de tela de detalhe,
-				acima do `<h1>` (README §10). Aqui é linha de menu, e tem de ter a
-				métrica das outras linhas.
-			-->
-			{#snippet itemVoltarMenu()}
-				<button
-					id="menu-voltar"
-					type="button"
-					class="{CLASSE_ITEM} {CLASSE_APAGADO}"
-					onclick={() => void irParaNivel('raiz')}
-				>
-					{@render iconeItem(ICONE.setaEsquerda)}
-					<span class="truncate flex-1 text-left font-bold">Escala extra</span>
-				</button>
-			{/snippet}
-
-			{#snippet itemMenu(
-				href: string,
-				rotulo: string,
-				paths: string[],
-				ativo?: boolean,
-				badge?: number
-			)}
-				<a
-					{href}
-					data-sveltekit-preload-data="hover"
-					class="{CLASSE_ITEM} {(ativo ?? isActive(href)) ? CLASSE_ACESO : CLASSE_APAGADO}"
-					onclick={handleSidebarNavigation}
-				>
-					{@render iconeItem(paths)}
-					<span class="truncate flex-1 text-left">{rotulo}</span>
-					{#if badge && badge > 0}
-						<span
-							class="shrink-0 min-w-5 h-5 px-1.5 rounded-full bg-primary-500 text-white text-3xs font-bold tabular-nums flex items-center justify-center"
-							aria-label={`${badge} não lidos`}
-						>
-							{badge > 99 ? '99+' : badge}
-						</span>
-					{/if}
-				</a>
-			{/snippet}
-
-			{#if nivelMenu === 'extra'}
-				<!--
-					SUBMENU de "Escala extra". Substitui a barra inteira em vez de expandir
-					dentro dela: cinco itens indentados sob um pai devolveriam a lista
-					comprida que este agrupamento veio desfazer.
-
-					Sem `{#if}` por item — `filhosExtra` já vem filtrado pelas MESMAS
-					condições de antes, e é ele que decide se o pai chega a aparecer.
-				-->
-				{@render itemVoltarMenu()}
-				<hr class="!my-3 border-surface-200 dark:border-white/10" />
-				{#each filhosExtra as filho (filho.href)}
-					{@render itemMenu(filho.href, filho.rotulo, filho.icone, filho.ativo)}
-				{/each}
-			{:else if usuario?.isSuperAdmin}
-				<!-- Super Admin: menu exclusivo — apenas estas 6 abas, nesta ordem. -->
-				{@render itemMenu('/super-admin', 'Boas-vindas', ICONE.casa)}
-				{@render itemMenu('/unidades', 'Unidades', ICONE.predio)}
-				{@render itemMenu('/policiais', 'Policiais', ICONE.pessoas)}
-				{@render itemMenu('/conf-ass', 'Config. Ass.', ICONE.engrenagem)}
-				{@render itemMenu('/config-geral', 'Config. Geral', ICONE.sliders)}
-				{@render itemMenu('/auditoria', 'Auditoria', ICONE.documento)}
-			{:else}
-				{#if usuario?.tipo === 'policial' && !usuario.papel}
-					{@render itemMenu('/bem-vindo', 'Boas-vindas', ICONE.casa)}
-				{/if}
-
-				<!-- Grupo 1: Painel · Cx. de Entrada · Arquivo/Escalas -->
-				{#if showGrupo1}
-					{#if usuario?.tipo === 'admin'}
-						{@render itemMenu('/escalas/bem-vindo', 'Boas-vindas', ICONE.casa)}
-						{@render itemMenu('/painel', 'Painel', ICONE.painel)}
-						{@render itemMenu(
-							'/recebidos',
-							'Cx. de Entrada',
-							ICONE.caixaEntrada,
-							undefined,
-							recebidosNaoVistos
-						)}
-					{/if}
-					{#if showEscalasPoliciais}
-						{@render itemMenu('/escalas/bem-vindo', 'Boas-vindas', ICONE.casa)}
-						{@render itemMenu(
-							'/escalas',
-							usuario?.tipo === 'admin' ? 'Arquivo' : 'Escalas ordinárias',
-							ICONE.calendario,
-							isActive('/escalas') && !page.url.pathname.startsWith('/escalas/bem-vindo')
-						)}
-					{/if}
-				{/if}
-				<!-- end showGrupo1 -->
-
-				<!-- Separador 1 (só admin geral, entre grupos que ambos existem) -->
-				{#if showGrupo2Separator}
-					<hr class="!my-3 border-surface-200 dark:border-white/10" />
-				{/if}
-
-				<!--
-					Grupo 2: tudo o que é de ESCALA EXTRA, atrás de um pai.
-
-					Antes eram até cinco linhas soltas (Escala extra, Produtividade, Dados
-					base, Minha presença, Meu histórico), e o admin seccional via oito itens
-					na barra. Nada dizia que os cinco eram do mesmo assunto — estavam só
-					perto uns dos outros. O que cada um exige para aparecer continua
-					idêntico; a lista vive em `filhosExtra`.
-
-					"Operações" NÃO entra: é cadastro, e fica na raiz ao lado dos outros
-					itens de gestão do Admin Geral.
-				-->
-				{#if showGrupo2}
-					<!-- Só o Admin Geral em módulo GISE tem /gise/bem-vindo como home
-					     (obterRotaBemVindo); para os demais (admin_seccional,
-					     admin_unidade e supervisor GISE) a página redireciona e o item
-					     duplicaria o "Boas-vindas" do próprio grupo do usuário. -->
-					{#if showGise && usuario?.tipo === 'admin' && adminModulo === 'gise'}
-						{@render itemMenu('/gise/bem-vindo', 'Boas-vindas', ICONE.casa)}
-					{/if}
-
-					{#if filhosExtra.length > 0}
-						{@render itemPaiExtra(naRotaExtra)}
-					{/if}
-
-					{#if showGise && usuario?.tipo === 'admin'}
-						<!-- "Conf. GISE" saiu do menu: o que ela editava (vagas padrão,
-						     horário e textos do breve relatório) virou configuração POR
-						     OPERAÇÃO, no botão "Configurações" de cada linha de /gise/operacoes.
-
-						     "Conf. Form." saiu pelo mesmo motivo: o editor de formulário é
-						     alcançado pelo botão "Formulário" de cada operação, que é onde
-						     ele tem contexto. -->
-						{@render itemMenu(
-							'/gise/operacoes',
-							'Operações',
-							ICONE.engrenagem,
-							giseOperacoesPathAtivo
-						)}
-					{/if}
-				{/if}
-				<!-- end showGrupo2 -->
-
-				<!-- Separador 2 (Admin Geral: acesso à gestão de policiais) -->
-				{#if isAdmGeral}
-					<hr class="!my-3 border-surface-200 dark:border-white/10" />
-				{/if}
-
-				<!-- Grupo 3: Policiais + Solicitações (Admin Geral) · Unidades (exclusivo Super Admin) -->
-				{#if isAdmGeral}
-					{@render itemMenu('/policiais', 'Policiais', ICONE.pessoas)}
-					{@render itemMenu('/solicitacoes', 'Solicitações', ICONE.checkLista)}
-				{/if}
-
-				<!-- Grupo 4: Meu perfil (todo policial) -->
-				{#if usuario?.tipo === 'policial'}
-					<hr class="!my-3 border-surface-200 dark:border-white/10" />
-					{@render itemMenu('/perfil', 'Meu perfil', ICONE.perfil)}
-				{/if}
-			{/if}
-		</nav>
-
-		<!-- Bottom section: theme, user, logout -->
-		<div class="px-3 pb-4 space-y-3 border-t border-surface-200 dark:border-white/5 pt-4 shrink-0">
-			<!-- Theme toggle -->
-			<button
-				type="button"
-				class="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sm text-surface-600 dark:text-surface-400 hover:bg-surface-200/50 dark:hover:bg-surface-800/50 transition-colors"
-				onclick={toggleTheme}
-			>
-				{#if isDark}
-					<svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"
-						><path
-							stroke-linecap="round"
-							stroke-linejoin="round"
-							stroke-width="2"
-							d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"
-						/></svg
-					>
-					<span>Tema claro</span>
-				{:else}
-					<svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"
-						><path
-							stroke-linecap="round"
-							stroke-linejoin="round"
-							stroke-width="2"
-							d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"
-						/></svg
-					>
-					<span>Tema escuro</span>
-				{/if}
-			</button>
-
-			<!-- User info -->
-			{#if usuario?.nome}
-				<div
-					class="mx-1 mb-1 rounded-xl border border-surface-200/70 bg-surface-100/60 px-3 py-2.5 dark:border-white/5 dark:bg-surface-800/40"
-				>
-					<p
-						class="truncate text-xs font-semibold leading-tight text-surface-900 dark:text-surface-100"
-					>
-						{usuario.nome}
-					</p>
-					{#if !usuario?.papel && !isSupervisorGise && usuario?.lotacao}
-						<p class="mt-0.5 truncate text-3xs text-surface-600 dark:text-surface-400">
-							{usuario.lotacao}
-						</p>
-					{/if}
-
-					<!-- Papéis / status -->
-					{#if usuario?.tipo === 'admin' || usuario?.papel === 'admin_seccional' || usuario?.papel === 'admin_unidade' || isSupervisorGise}
-						<div class="mt-2 flex flex-wrap items-center gap-1.5">
-							{#if usuario?.tipo === 'admin'}
-								<span
-									class="badge preset-filled-primary-500 text-3xs font-semibold uppercase tracking-wider"
-								>
-									{usuario?.isSuperAdmin
-										? 'SUPER ADMIN'
-										: adminModulo === 'gise'
-											? 'ADMIN GISE'
-											: adminModulo === 'escalas'
-												? 'ADMIN ESCALAS'
-												: 'ADMIN GERAL'}
-								</span>
-								{#if !usuario?.isSuperAdmin}
-									<button
-										type="button"
-										class="btn-icon btn-sm preset-outlined-primary-500 flex cursor-pointer items-center justify-center rounded-md p-1 text-primary-600 transition-all hover:bg-primary-500/10 dark:text-primary-400"
-										onclick={alternarModulo}
-										title="Alternar módulo (GISE ↔ Escalas)"
-										aria-label="Alternar módulo"
-										disabled={switchingModule}
-									>
-										<svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-											<path
-												stroke-linecap="round"
-												stroke-linejoin="round"
-												stroke-width="2.5"
-												d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"
-											/>
-										</svg>
-									</button>
-								{/if}
-							{/if}
-							{#if usuario?.papel === 'admin_seccional'}
-								<span
-									class="badge preset-filled-warning-500 text-3xs font-semibold uppercase tracking-wider"
-									>ADM SECCIONAL</span
-								>
-							{/if}
-							{#if usuario?.papel === 'admin_unidade'}
-								<span
-									class="badge preset-filled-tertiary-500 text-3xs font-semibold uppercase tracking-wider"
-									>ADM UNIDADE</span
-								>
-							{/if}
-							{#if isSupervisorGise}
-								<span
-									class="badge preset-filled-success-500 text-3xs font-semibold uppercase tracking-wider"
-									>SUPERVISOR GISE</span
-								>
-							{/if}
-						</div>
-					{/if}
-				</div>
-			{/if}
-
-			<!-- Logout -->
-			<button
-				type="button"
-				class="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sm text-surface-600 dark:text-surface-400 hover:bg-error-500/10 hover:text-error-600 dark:hover:text-error-400 transition-colors"
-				onclick={() => (showLogoutConfirm = true)}
-			>
-				<svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"
-					><path
-						stroke-linecap="round"
-						stroke-linejoin="round"
-						stroke-width="2"
-						d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
-					/></svg
-				>
-				Sair
-			</button>
-		</div>
-	</aside>
+	<BarraTopo {nav} />
+	<SidebarNavegacao {nav} onSair={() => (showLogoutConfirm = true)} />
 
 	<!--
 		Exceção deliberada ao ModalShell: o logout é um diálogo global z-[100],
@@ -953,8 +289,8 @@
 	<main
 		id="conteudo-principal"
 		class="min-h-screen relative"
-		inert={sidebarIsModal}
-		aria-hidden={sidebarIsModal}
+		inert={nav.ehModal}
+		aria-hidden={nav.ehModal}
 	>
 		<div
 			class="max-w-6xl mx-auto min-w-0 px-4 sm:px-6 lg:px-8 pt-20 pb-12 transition-opacity duration-200 {navigating?.to &&

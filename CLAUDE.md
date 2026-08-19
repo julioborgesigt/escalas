@@ -138,6 +138,27 @@ Composable de uma rota só fica junto dela, em `_components/` — é o caso de
 `escalas/[id]/_components/useEdicaoInlineServidor.svelte.ts` e de
 `res-gise/_components/useResGise.svelte.ts`.
 
+**"Duas rotas" quer dizer duas rotas IRMÃS.** Quando as duas consumidoras são
+uma rota e a sub-rota dela, o `_components/` do diretório que contém as duas já
+é a pasta da FAMÍLIA, e a peça fica lá — subir para `$lib/components/` alegaria
+alcance de app inteiro para algo que só aquele par usa. É o caso de
+`auditoria/_components/`, consumido por `/auditoria` e por `/auditoria/logs`:
+seis arquivos, 156 linhas, todos com o cabeçalho nomeando as DUAS telas — e
+entre eles `consulta.ts`, que é config de query lida pelos dois
+`+page.server.ts` e não caberia em `$lib/components/` de jeito nenhum. Mover
+essa família fragmentaria 156 linhas coerentes em dois destinos para satisfazer
+a contagem de rotas.
+
+O que a família precisa é dizer isso no cabeçalho de cada arquivo, e é o que
+protege: quem abre `KpiCard.svelte` lê "console de auditoria / logs técnicos" e
+sabe que editar ali mexe em duas telas. Pasta de família SEM essa declaração é
+armadilha — parece privada e não é.
+
+Alcance de rota é outra coisa: peça de `res-gise/_components/` usada só por
+`res-gise/relatorio/[giseId]/` estava alta demais, não baixa — ela DESCE para o
+`_components/` da filha (foi o caso de `RelatorioProdutividade`, 709 linhas
+moradas no pai e consumidas só pela sub-rota).
+
 `src/routes/_components/` (na RAIZ das rotas) é a exceção deliberada: regra de
 navegação que várias rotas consultam, em `.ts` puro e com teste. Hoje são
 `menu-visibilidade.ts` (o que a sidebar mostra) e `bem-vindo-cards.ts` (os
@@ -173,6 +194,19 @@ Fixture lida por caminho (`import.meta.url`) fica em `__tests__/fixtures/` e
 acompanha o teste que a consome quando ele se mover.
 
 Teste de ponta a ponta é outra história: vai em `e2e/`, com Playwright.
+
+**Componente `.svelte` não tem teste unitário, e é decisão.** O vitest roda em
+`environment: 'node'`, sem DOM; quem exercita componente é o Playwright, com
+browser de verdade — que é o único lugar onde `inert`, foco, view transition e
+media query se comportam como em produção. Ligar render em jsdom custaria um
+segundo projeto vitest mais testing-library para cobrir o que o E2E já cobre.
+
+A consequência prática é a regra: **se uma regra precisa de teste, ela sai do
+`.svelte` para um `.ts` puro** — foi o que aconteceu com `menu-visibilidade.ts`
+(quem vê cada item do menu), `bem-vindo-cards.ts`, `status-escala.ts` (a escala
+GISE já foi assinada?) e `mensagens-download.ts` (o texto dos diálogos de
+download). Precisar montar componente para testar algo é o sinal de que esse
+algo está no arquivo errado.
 
 ## Fetch no cliente — padrão obrigatório
 

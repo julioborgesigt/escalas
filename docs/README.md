@@ -33,8 +33,16 @@ Os relatórios de auditoria e as avaliações arquivadas **não vivem mais no wo
 ## Convenções
 
 - **Novas auditorias** podem ser commitadas em `docs/auditorias/` (data no nome ou no cabeçalho) enquanto seus achados estão sendo tratados; quando encerradas, o arquivo é removido e catalogado no [`HISTORICO.md`](HISTORICO.md) — o histórico do Git mantém a rastreabilidade dos achados (A1–A8, I-1…I-4, M-3/M-4, R2-1…R2-4, B-1…B-6…) citados em comentários do código.
-- `docs/auditorias/` está VAZIA — nenhuma auditoria ou plano aberto. O último (visual,
-  VIS-1…VIS-17) foi encerrado e catalogado no [`HISTORICO.md`](HISTORICO.md); o
-  resíduo dele é manual e passou para [`TESTING.md`](../TESTING.md) §16, que é
-  onde mora roteiro que a automação não alcança.
+- `docs/auditorias/` está VAZIA — nenhuma auditoria aberta. A última (componentização,
+  13/ago) foi encerrada em 19/ago e catalogada no [`HISTORICO.md`](HISTORICO.md);
+  a visual (VIS-1…VIS-17) antes dela, com o resíduo manual em
+  [`TESTING.md`](../TESTING.md) §16, que é onde mora roteiro que a automação
+  não alcança.
+- **Auditoria não se arquiva pela data, e sim pelos achados.** Antes de remover
+  o arquivo, reverifique cada achado contra o código e escreva o resultado no
+  próprio documento; o que sobrar aberto continua no working tree. A de
+  componentização de 13/ago passou seis dias na RAIZ do repositório, como
+  `REVISAO-COMPONENTIZACAO.me` — fora da pasta, fora desta lista e com a
+  extensão errada —, enquanto esta seção afirmava que não havia auditoria
+  aberta. Auditoria fora de `docs/auditorias/` é auditoria que ninguém releva.
 - Documentos **vivos** que ficarem defasados devem ser corrigidos no mesmo PR que muda o comportamento correspondente.

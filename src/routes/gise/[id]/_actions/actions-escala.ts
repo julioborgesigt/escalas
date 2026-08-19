@@ -16,6 +16,7 @@ import {
 	contextoDeEvento
 } from '$lib/db';
 import { modoDeFinalizacao, PENDENCIAS_DA_ANTECIPADA } from '$lib/gise/finalizacao';
+import { escalaGiseJaAssinada } from '$lib/gise/status-escala';
 import { invalidarPapelGiseMultiplos, coletarAfetadosGise } from '$lib/server/gise/papel-cache';
 import {
 	agendarSyncBaseEquipeAposFinalizar,
@@ -426,14 +427,9 @@ export const actionsEscala = {
 		const gise = await buscarGiseEscala(db, giseId);
 		if (!gise) return fail(404, { error: 'GISE não encontrada' });
 
-		const statusValidos = [
-			'em_andamento',
-			'aguardando_relatorios',
-			'aguardando_assinatura_relat',
-			'pronta_para_finalizar',
-			'finalizada'
-		];
-		if (!statusValidos.includes(gise.status)) {
+		// Só se reabre o que já passou da assinatura do supervisor. Mesmo
+		// predicado que a tela usa para dizer "Escala assinada".
+		if (!escalaGiseJaAssinada(gise.status)) {
 			return fail(400, { error: 'Status não permite reabrir' });
 		}
 

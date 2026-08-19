@@ -67,9 +67,22 @@ export default defineConfig({
 	},
 	test: {
 		include: ['src/**/*.test.ts'],
+		// `node`, sem DOM, e isso é DECISÃO, não pendência: componente Svelte é
+		// exercitado pela suíte E2E (Playwright), não por render em jsdom. A
+		// revisão de componentização de 13/ago/2026 levantou "zero testes de
+		// componente" como achado; foi formalmente ACEITO em 19/ago pelo que
+		// custa o contrário — um segundo projeto vitest com jsdom/happy-dom mais
+		// testing-library, para cobrir o que o E2E já cobre com o browser de
+		// verdade (view transitions, `inert`, foco, media query).
+		//
+		// O que a revisão pedia de fato — tirar lógica de dentro do markup para
+		// que ela fique testável — foi feito, e por vitest: `menu-visibilidade`,
+		// `bem-vindo-cards`, `status-escala`, `mensagens-download`. Regra
+		// derivada: se uma regra precisa de teste, ela sai do `.svelte` para um
+		// `.ts` puro. Montar componente para testá-la é o sinal de que ela está
+		// no arquivo errado.
 		environment: 'node',
-		// Cobertura restrita a src/lib (lógica de negócio unit-testável);
-		// rotas e componentes Svelte são exercitados pela suíte E2E.
+		// Cobertura restrita a src/lib (lógica de negócio unit-testável).
 		// Informativa por ora — sem threshold; quando os números
 		// estabilizarem, trave um piso (mesma estratégia ratchet do lint).
 		coverage: {

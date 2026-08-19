@@ -55,6 +55,10 @@ export function useGiseEstado({ getData }: GiseEstadoParams) {
 				false)
 	);
 
+	// NÃO é `escalaGiseJaAssinada` (`$lib/gise/status-escala`): a edição trava um
+	// degrau ANTES, já em `aguardando_assinatura` — mexer no quadro enquanto o
+	// supervisor assina mudaria o documento debaixo da assinatura. O conjunto
+	// parecido é proposital; não unifique com o predicado de "já assinada".
 	const editaBloqueado = $derived(
 		gise?.status === 'aguardando_assinatura' ||
 			gise?.status === 'em_andamento' ||
@@ -83,6 +87,13 @@ export function useGiseEstado({ getData }: GiseEstadoParams) {
 	// em 768px e em desktop com toque; como o valor decide a aplicação de
 	// `restringirSmartphone`, a mesma restrição de assinatura valia diferente na
 	// tela de escalas e na de GISE. O cabeçalho de `useMobile` explica o critério.
+	//
+	// Havia uma TERCEIRA cópia, em `gise/+page.svelte`, que sobreviveu àquela
+	// unificação por não estar no escopo dela: a listagem emitia `?via=token`
+	// por largura enquanto `/gise/[id]` consumia o param caindo neste `isMobile`
+	// quando ele faltava. Resolvida em ago/2026 — a listagem passou a ler
+	// `useMobile()` para o fluxo e `useLarguraDesktop()` para o layout do card,
+	// que são perguntas diferentes.
 	const mobile = useMobile();
 
 	return {
