@@ -4,6 +4,11 @@
  *
  * Com a flag de chave ligada, este um-tiro morre (403); o titular usa o par
  * preparar/finalizar. O miolo do PDF vive em `assinatura-extra.ts`.
+ *
+ * O portão admite `u.tipo === 'admin'`, igual às duas rotas do par avançado —
+ * e a contradição com o que a TELA oferece está registrada por extenso no
+ * cabeçalho de `preparar-assinatura-avancada/+server.ts`. As três concordam
+ * entre si; mexer numa sem as outras é que seria drift.
  */
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';

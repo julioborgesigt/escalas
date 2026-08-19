@@ -1,5 +1,43 @@
 /**
  * FASE 1 da assinatura avançada por passkey do relatório extraordinário.
+ *
+ * Duas fases porque a asserção WebAuthn acontece NO NAVEGADOR, entre elas: esta
+ * monta o PDF e emite a INTENÇÃO, o `finalizar-assinatura-avancada` confere a
+ * asserção contra ela e sela. Nada é persistido como assinado aqui — cancelar o
+ * Face ID não pode deixar relatório meio-assinado no banco.
+ *
+ * A ordem dos portões é deliberada e vale a pena não mexer: papel → seccional
+ * pertence a esta GISE → **todos confirmaram a saída** → chave ativa → corpo →
+ * evidências. A checagem de saída completa vem ANTES da cerimônia porque é a
+ * mais provável de recusar, e recusar depois queimaria a asserção de quem já
+ * encostou o dedo no leitor.
+ *
+ * `verificarSaidaCompletaSeccional` recebe `isSupExtraGate` porque o quadro de
+ * supervisão é uma "seccional" sintética: quem conta ali são supervisor,
+ * assessor e SEINT, não os membros das equipes.
+ *
+ * A cópia de CONFERÊNCIA (sem manifesto) vai para o R2 já nesta fase, e a falha
+ * dela é `warn`, não erro: é a via que circula, não o documento com valor
+ * probatório. Perder a cópia não pode impedir a assinatura.
+ *
+ * **Contradição registrada, não resolvida aqui: `u.tipo === 'admin'` passa no
+ * portão, e a TELA nunca oferece isso.** O `load` de `gise/[id]` define
+ * `isSupervisor = u.tipo === 'policial' ? … : false`, então para um Admin Geral
+ * ele é sempre falso; e os dois pontos de entrada da assinatura do extra estão
+ * atrás dele — `SupervisaoDocExtra` (`{#if quadro.isSupervisor && …}`) e
+ * `SeccionalRelatoriosDownloads` (`{#if isSupervisor && !assRel && …}`). O lote
+ * (`GiseLoteAssinaturas`) chega a ser RENDERIZADO para o admin, mas recebe
+ * `podeAssinar={isSupervisor}` e esconde os botões de assinar. O que o admin
+ * alcança é "Conferência": baixar, não assinar.
+ *
+ * É a mesma forma que o portão da ESCALA GISE teve removida em ago/2026 — lá as
+ * quatro rotas que aceitavam admin "liberavam por POST direto exatamente o que a
+ * tela nunca ofereceu" (`CLAUDE.md`, §Duplicação). A família do relatório
+ * extraordinário não foi junto. As TRÊS rotas de extra concordam entre si
+ * (`assinar`, `preparar-…` e `finalizar-…`), então isto é decisão antiga, não
+ * drift: apertar é escolha do responsável, porque fecha uma válvula de
+ * operação que ninguém documentou e muda a mensagem que
+ * `relatorio-extra-gise.spec.ts` afirma.
  */
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';

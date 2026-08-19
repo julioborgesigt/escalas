@@ -122,6 +122,7 @@
 						</p>
 						{#if podeGerenciar}
 							<BotoesEdicaoPapel
+								rotulo="assessor"
 								temId={!!quadro.gise.assessor_id}
 								removendo={quadro.removendoPapel === 'assessor'}
 								pending={quadro.pendingCrud}

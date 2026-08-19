@@ -1,5 +1,35 @@
 /**
- * FASE 2 da assinatura avançada por passkey do relatório extraordinário.
+ * FASE 2 da assinatura avançada por passkey do relatório extraordinário:
+ * confere a asserção contra a intenção emitida na fase 1, sela e persiste.
+ *
+ * **Reconfere os portões da fase 1 em vez de confiar na intenção** — papel,
+ * seccional válida e saída completa de todos. A intenção prova QUE aquele PDF
+ * foi preparado por aquele usuário; não prova que o mundo continua o mesmo. Um
+ * participante que perdeu a rubrica entre as duas fases tem de reprovar aqui.
+ *
+ * `conferirFinalizacaoPasskey` é o portão criptográfico e mora em
+ * `webauthn/finalizar-avancada` porque os quatro fluxos avançados (escala,
+ * GISE, extra, presença) usam a MESMA prova — foi extraído justamente para não
+ * haver uma quarta cópia divergindo.
+ *
+ * **Contradição registrada, não resolvida aqui: `u.tipo === 'admin'` passa no
+ * portão, e a TELA nunca oferece isso.** O `load` de `gise/[id]` define
+ * `isSupervisor = u.tipo === 'policial' ? … : false`, então para um Admin Geral
+ * ele é sempre falso; e os dois pontos de entrada da assinatura do extra estão
+ * atrás dele — `SupervisaoDocExtra` (`{#if quadro.isSupervisor && …}`) e
+ * `SeccionalRelatoriosDownloads` (`{#if isSupervisor && !assRel && …}`). O lote
+ * (`GiseLoteAssinaturas`) chega a ser RENDERIZADO para o admin, mas recebe
+ * `podeAssinar={isSupervisor}` e esconde os botões de assinar. O que o admin
+ * alcança é "Conferência": baixar, não assinar.
+ *
+ * É a mesma forma que o portão da ESCALA GISE teve removida em ago/2026 — lá as
+ * quatro rotas que aceitavam admin "liberavam por POST direto exatamente o que a
+ * tela nunca ofereceu" (`CLAUDE.md`, §Duplicação). A família do relatório
+ * extraordinário não foi junto. As TRÊS rotas de extra concordam entre si
+ * (`assinar`, `preparar-…` e `finalizar-…`), então isto é decisão antiga, não
+ * drift: apertar é escolha do responsável, porque fecha uma válvula de
+ * operação que ninguém documentou e muda a mensagem que
+ * `relatorio-extra-gise.spec.ts` afirma.
  */
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
