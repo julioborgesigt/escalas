@@ -68,7 +68,7 @@
 	import ModalCadastrarRubrica from '$lib/components/ModalCadastrarRubrica.svelte';
 	import ModalRelatorioDigital from './_components/modais/ModalRelatorioDigital.svelte';
 	import ModalBreveRelatorio from './_components/modais/ModalBreveRelatorio.svelte';
-	import ModalDownloadExtras from '../_components/ModalDownloadExtras.svelte';
+	import ModalDownloadExtras from '$lib/components/ModalDownloadExtras.svelte';
 
 	const { data }: PageProps = $props();
 

@@ -42,7 +42,7 @@
 	import RodapeAcoes from '$lib/components/RodapeAcoes.svelte';
 	import BotaoVoltar from '$lib/components/BotaoVoltar.svelte';
 	import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
-	import RelatorioProdutividade from '../../_components/RelatorioProdutividade.svelte';
+	import RelatorioProdutividade from './_components/RelatorioProdutividade.svelte';
 	import type { PageProps } from './$types';
 	import type { ActionResult } from '@sveltejs/kit';
 

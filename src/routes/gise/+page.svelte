@@ -22,7 +22,7 @@
 	import CardGiseAtiva from './_components/CardGiseAtiva.svelte';
 	import SecaoHistorico from './_components/SecaoHistorico.svelte';
 	import ModalCriarGise from './_components/ModalCriarGise.svelte';
-	import ModalDownloadExtras from './_components/ModalDownloadExtras.svelte';
+	import ModalDownloadExtras from '$lib/components/ModalDownloadExtras.svelte';
 	import DialogInfo from './_components/DialogInfo.svelte';
 	import { fmtDate, diaSemana } from '$lib/gise/formatters';
 	import { escalaGiseJaAssinada } from '$lib/gise/status-escala';

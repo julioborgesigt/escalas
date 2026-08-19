@@ -5,12 +5,12 @@
 **Método:** leitura estrutural, medição de tamanho por arquivo, rastreamento de duplicação e de
 fronteiras de import. Sem execução de testes (`node_modules` ausente no ambiente de revisão).
 
-**Status:** ABERTA — reverificada em 19/ago/2026 e **Rodada 1 executada** na
-mesma data (ver §0). Quatro achados resolvidos (#2, #3, #5, #9), dois parciais
-(#4, #7), quatro abertos (#1, #6, #8, #10). **Não arquivar enquanto houver
-linha "aberto" abaixo** — a convenção de [`docs/HISTORICO.md`](../HISTORICO.md)
-só admite remover o arquivo quando os achados estão resolvidos ou formalmente
-aceitos.
+**Status:** ABERTA — reverificada em 19/ago/2026, com as **Rodadas 1 e 2
+executadas** na mesma data (ver §0). Seis achados resolvidos (#2, #3, #4, #5,
+#7, #9); quatro abertos e AGUARDANDO DECISÃO (#1, #6, #8, #10), com o custo de
+cada um medido em §0. **Não arquivar enquanto houver linha "aberto" abaixo** —
+a convenção de [`docs/HISTORICO.md`](../HISTORICO.md) só admite remover o
+arquivo quando os achados estão resolvidos ou formalmente aceitos.
 
 ---
 
@@ -29,10 +29,10 @@ mexeu, o que foi feito vem junto.
 | 1 | Tabela desktop × cards mobile em 6 telas | **Aberto** | `hidden md:block` + `md:hidden` nas seis telas; o drift citado continua literal — `recebidos/+page.svelte:431` diz "Visto" e `:605` diz "Lida"; o tooltip do manifesto tem "(… CPF, IP, GPS, selfie)" em `:525` e só "(evidências da assinatura)" em `:656` |
 | 2 | `escalas/[id]/+page.server.ts` com 14 actions inline | **Resolvido** | 1.381 → **161 linhas**; `_actions/` agora tem `actions-ciclo`, `actions-composicao`, `actions-datas`, `actions-projecao`, `desfecho`, `shared` + `__tests__/` |
 | 3 | Três definições de "é mobile?" | **Resolvido** (Rodada 1) | Não há mais `new MediaQuery` fora de `$lib/composables/`. A recomendação foi seguida com uma correção: as três definições não respondiam à MESMA pergunta, e unificar as três em `useMobile()` teria QUEBRADO o iPad — ver "O que a Rodada 1 mudou de rumo" abaixo |
-| 4 | `+layout.svelte` com 7 responsabilidades | **Parcial** | A parte de maior retorno saiu: as regras de visibilidade viraram `routes/_components/menu-visibilidade.ts` — `.ts` puro, com `__tests__/menu-visibilidade.test.ts`, exatamente o `menu-modelo.ts` recomendado. O cabeçalho dele cita as "1146 ln" deste documento. Faltam a gaveta, a barra do topo e o provedor de Toast; o arquivo está em **1.042 linhas** |
+| 4 | `+layout.svelte` com 7 responsabilidades | **Resolvido** (Rodada 2) | **1.042 → 378 linhas.** As regras de visibilidade já eram `menu-visibilidade.ts` (`.ts` puro, com testes). Saíram agora `BarraTopo.svelte` (88), `SidebarNavegacao.svelte` (448), `ToastProvider.svelte` (54) e — a peça que faz o corte não virar dívida — `navegacao-estado.svelte.ts` (189). O layout ficou com o chrome global: progresso, banner de versão, overlay, diálogo de logout e `<main>` |
 | 5 | Array dos 5 status "escala assinada" repetido 4× | **Resolvido** (Rodada 1) | Eram **sete** cópias, não quatro — três delas no servidor. `STATUS_ESCALA_ASSINADA` + `escalaGiseJaAssinada()` agora vivem em `$lib/gise/status-escala.ts`, com teste; os sete call sites chamam a mesma função |
 | 6 | 7 páginas grandes sem `_components/` | **Aberto** | Nenhuma das sete tem a pasta. Tamanhos hoje: `painel/` 819, `validar/[hash]/` 750, `recebidos/` 749, `res-gise/relatorio/[giseId]/` 520, `conf-ass/` 466, `auditoria/logs/` 370, `alterar-senha/` 354 |
-| 7 | 6 imports atravessando fronteira de rota | **Parcial** | O pior sumiu: `gise/+page.svelte` não alcança mais `[id]/_components/modais/ModalRubrica.svelte` (a listagem foi para o fluxo de chave e o modal ficou só em `gise/[id]/`). Permanecem `gise/[id]/+page.svelte:70` → `../_components/ModalDownloadExtras.svelte`, `res-gise/relatorio/[giseId]/+page.svelte:45` → `../../_components/RelatorioProdutividade.svelte` e os cinco de `auditoria/logs/` → `../_components/` (`KpiCard`, `ChipNivel`, `FiltrosToggle`, `Paginacao`, `parse-json`, `consulta`) |
+| 7 | 6 imports atravessando fronteira de rota | **Resolvido** (Rodada 2) | Três casos, três destinos — a recomendação de "subir tudo para `$lib/components/`" só valia para um deles. `ModalRubrica` já tinha saído pelo caminho. `ModalDownloadExtras` SOBE para `$lib/components/` (duas rotas irmãs). `RelatorioProdutividade` DESCE para `res-gise/relatorio/[giseId]/_components/` — estava alto demais, não baixo: 709 linhas no pai com um único consumidor, a sub-rota. `auditoria/_components/` FICA, com a decisão registrada no `CLAUDE.md` |
 | 8 | ~250 linhas de texto de diálogo em `gise/+page.svelte` | **Aberto** | 13 blocos `dialogInfo = {` no arquivo (642 linhas); não existe `lib/gise/mensagens-assinatura.ts`. O diálogo de manifesto continua montado duas vezes (`handleEscalaPdf` / `handleExtraPdf`) |
 | 9 | `getSavedFilters` vazando pelo barrel de composables | **Resolvido** (Rodada 1) | Linha removida; os cinco call sites importam de `$lib/utils/localStorage`. O barrel ganhou cabeçalho com o critério ("entra o que é `use*`") para o vazamento não voltar |
 | 10 | Zero testes de componente | **Aberto** | `*.svelte.test.ts`: **0**. `*.test.ts` em `src/`: 143 (eram 126). Specs Playwright: 38 (eram 36) |
@@ -97,6 +97,51 @@ antes, porque mexer no quadro enquanto o supervisor assina mudaria o documento
 debaixo da assinatura. Ficou com comentário dizendo que a semelhança é
 proposital, para ninguém "uniformizar" na direção errada.
 
+### O que a Rodada 2 mudou de rumo
+
+**#7 — "subir para `$lib/components/`" servia a um dos três casos.** A regra do
+`CLAUDE.md` ("componente usado por DUAS rotas sobe") pressupõe rotas IRMÃS.
+Nenhum dos três casos restantes era isso:
+
+- `ModalDownloadExtras` é o caso da regra (listagem GISE + detalhe GISE) e subiu.
+- `RelatorioProdutividade` **não tinha duas rotas**: 709 linhas em
+  `res-gise/_components/` com um consumidor só, a sub-rota
+  `relatorio/[giseId]/`. O import "atravessava fronteira" porque a peça estava
+  ALTA demais. Desceu para o `_components/` da filha, e o import virou `./`.
+- `auditoria/_components/` é consumido por `/auditoria` e `/auditoria/logs` —
+  uma rota e a sub-rota dela. Subir os seis arquivos fragmentaria 156 linhas
+  coerentes em dois destinos, porque `consulta.ts` é config de query lida pelos
+  dois `+page.server.ts` e não cabe em `$lib/components/`. **Ficou onde está**,
+  e a regra do `CLAUDE.md` ganhou o caso: `_components/` do diretório que contém
+  as duas é a pasta da FAMÍLIA. O que a família precisa é declarar isso no
+  cabeçalho de cada arquivo — e os seis já declaravam.
+
+**#4 — o corte teve de levar o ESTADO, não só o markup.** A recomendação
+listava quatro arquivos novos. Fatiar só o markup teria produzido exatamente o
+defeito que a auditoria irmã de 13/ago diagnosticou como central
+(`GiseSupervisao` encolheu 88% e virou um repassador de 38 props): a gaveta
+depende de ~18 valores.
+
+A saída foi a mesma que aquela auditoria usou — o estado sai junto — com uma
+diferença que barateia tudo: **quase nada precisava ser prop**. `usuario`,
+`adminModulo`, `isSupervisorGise`, `recebidosNaoVistos` e as flags do menu
+derivam de `page.data`, que qualquer componente lê sozinho; repassá-los seria
+prop-drilling sem ganho. O que de fato é COMPARTILHADO é só a gaveta (a barra
+abre, a lateral fecha, e o `inert` das duas sai do mesmo booleano), e isso virou
+`navegacao-estado.svelte.ts`.
+
+Resultado: `SidebarNavegacao` tem DUAS props (`nav` e `onSair`) e `BarraTopo`
+tem UMA. O `onSair` sobe porque o diálogo de logout é global e continua no
+layout.
+
+O que também mudou de casa por não ter leitor fora da gaveta: o tema
+(`localStorage` do `color-theme`) e a alternância de MÓDULO foram para
+`SidebarNavegacao`; a alternância de ACESSO foi para `BarraTopo`. O gerenciamento
+de FOCO — os três `blur()` que evitam o "Blocked aria-hidden" do Chrome e o
+foco que anuncia a troca de nível ao leitor de tela — foi para o módulo de
+estado, com o porquê de cada um no cabeçalho: é a parte mais fácil de perder
+numa refatoração e a única que nenhum teste unitário pega.
+
 ### Gate da Rodada 1
 
 `format:check`, `lint:ci` (0 warnings), `svelte-check` (0 erros), `npm test`
@@ -106,6 +151,14 @@ PDF ou e-mail: a rodada não toca em artefato com valor jurídico.
 
 O `svelte-check` pegou dois imports que faltavam nas rotas de API, antes de
 qualquer push.
+
+### Gate da Rodada 2
+
+O mesmo conjunto, mais o que importa aqui: **`npm run test:e2e`**. Layout e
+navegação não têm cobertura unitária — o gate real é o Playwright, e
+`sidebar-escala-extra.spec.ts` existe justamente para a gaveta de dois níveis.
+Os 6 casos dele passam, com `auth` e `boas-vindas-rbac` (28 no total) e a suíte
+completa em seguida.
 
 ---
 
