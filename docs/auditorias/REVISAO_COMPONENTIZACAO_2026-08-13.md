@@ -5,6 +5,48 @@
 **Método:** leitura estrutural, medição de tamanho por arquivo, rastreamento de duplicação e de
 fronteiras de import. Sem execução de testes (`node_modules` ausente no ambiente de revisão).
 
+**Status:** ABERTA — reverificada em 19/ago/2026 (ver §0). Um achado resolvido,
+três parciais, seis abertos. **Não arquivar enquanto houver linha "aberto"
+abaixo** — a convenção de [`docs/HISTORICO.md`](../HISTORICO.md) só admite
+remover o arquivo quando os achados estão resolvidos ou formalmente aceitos.
+
+---
+
+## 0. Reverificação — 19/ago/2026
+
+Conferência achado a achado contra o working tree de hoje (`main` em `68cb3fd`).
+A §0 é a ÚNICA seção atualizada; as §§1–10 permanecem como o diagnóstico
+original de 13/ago, para que a comparação continue possível.
+
+| # | Achado | Status hoje | Evidência |
+|---|--------|-------------|-----------|
+| 1 | Tabela desktop × cards mobile em 6 telas | **Aberto** | `hidden md:block` + `md:hidden` nas seis telas; o drift citado continua literal — `recebidos/+page.svelte:431` diz "Visto" e `:605` diz "Lida"; o tooltip do manifesto tem "(… CPF, IP, GPS, selfie)" em `:525` e só "(evidências da assinatura)" em `:656` |
+| 2 | `escalas/[id]/+page.server.ts` com 14 actions inline | **Resolvido** | 1.381 → **161 linhas**; `_actions/` agora tem `actions-ciclo`, `actions-composicao`, `actions-datas`, `actions-projecao`, `desfecho`, `shared` + `__tests__/` |
+| 3 | Três definições de "é mobile?" | **Parcial** | `useMobile` virou a fonte única e documentada (o cabeçalho registra a decisão) e `useGiseEstado` não tem mais `MediaQuery` próprio — mas `gise/+page.svelte:113` mantém `new MediaQuery('(min-width: 768px)', true)`. Sobrevivem os DOIS defeitos: sobreposição exata em 768px (`max-width: 768px` do outro lado, não `767.98px`) e fallback de SSR invertido (`true` aqui, `false` lá). E continua decidindo fluxo, não layout: `:153`–`:173` escolhem entre `via=token` e `via=tela` |
+| 4 | `+layout.svelte` com 7 responsabilidades | **Parcial** | A parte de maior retorno saiu: as regras de visibilidade viraram `routes/_components/menu-visibilidade.ts` — `.ts` puro, com `__tests__/menu-visibilidade.test.ts`, exatamente o `menu-modelo.ts` recomendado. O cabeçalho dele cita as "1146 ln" deste documento. Faltam a gaveta, a barra do topo e o provedor de Toast; o arquivo está em **1.042 linhas** |
+| 5 | Array dos 5 status "escala assinada" repetido 4× | **Aberto** | As quatro cópias intactas: `gise/+page.svelte:196` e `:272`, `gise/_components/CardGiseAtiva.svelte:69`, `gise/[id]/_actions/actions-escala.ts:431` (a do servidor, que autoriza reabrir). Não existe `STATUS_ESCALA_ASSINADA` no repositório |
+| 6 | 7 páginas grandes sem `_components/` | **Aberto** | Nenhuma das sete tem a pasta. Tamanhos hoje: `painel/` 819, `validar/[hash]/` 750, `recebidos/` 749, `res-gise/relatorio/[giseId]/` 520, `conf-ass/` 466, `auditoria/logs/` 370, `alterar-senha/` 354 |
+| 7 | 6 imports atravessando fronteira de rota | **Parcial** | O pior sumiu: `gise/+page.svelte` não alcança mais `[id]/_components/modais/ModalRubrica.svelte` (a listagem foi para o fluxo de chave e o modal ficou só em `gise/[id]/`). Permanecem `gise/[id]/+page.svelte:70` → `../_components/ModalDownloadExtras.svelte`, `res-gise/relatorio/[giseId]/+page.svelte:45` → `../../_components/RelatorioProdutividade.svelte` e os cinco de `auditoria/logs/` → `../_components/` (`KpiCard`, `ChipNivel`, `FiltrosToggle`, `Paginacao`, `parse-json`, `consulta`) |
+| 8 | ~250 linhas de texto de diálogo em `gise/+page.svelte` | **Aberto** | 13 blocos `dialogInfo = {` no arquivo (642 linhas); não existe `lib/gise/mensagens-assinatura.ts`. O diálogo de manifesto continua montado duas vezes (`handleEscalaPdf` / `handleExtraPdf`) |
+| 9 | `getSavedFilters` vazando pelo barrel de composables | **Aberto** | `lib/composables/index.ts:2` intacto; os cinco call sites (`escalas`, `policiais`, `painel`, `recebidos`, `unidades`) continuam importando de `$lib/composables` |
+| 10 | Zero testes de componente | **Aberto** | `*.svelte.test.ts`: **0**. `*.test.ts` em `src/`: 143 (eram 126). Specs Playwright: 38 (eram 36) |
+
+### Como ler o resultado
+
+O que foi remediado veio de outra frente: a rodada de encerramento da
+[`AUDITORIA_COMPONENTIZACAO_2026-08-13.md`](../HISTORICO.md) (arquivada —
+`git show e05a86d:docs/auditorias/AUDITORIA_COMPONENTIZACAO_2026-08-13.md`),
+escrita no MESMO dia que este documento e com sobreposição parcial de escopo.
+Ela entregou o corte de `escalas/[id]/_actions/` (#2) e a unificação de
+`isMobile` (#3) — mas contava **duas** definições de mobile, não três: o
+`MediaQuery` de `gise/+page.svelte` não estava no escopo dela e por isso
+atravessou a remediação inteira. É o resíduo mais barato e o único com
+consequência de comportamento desta lista.
+
+A "Rodada 1" da §"Sequência sugerida" continua sendo a recomendação: dela
+sobraram os itens 1 (mobile, **parcial**), 3 (`STATUS_ESCALA_ASSINADA`) e 4
+(barrel) — o item 2 dela (subir `ModalRubrica`) foi resolvido pelo caminho.
+
 ---
 
 ## Resumo executivo
