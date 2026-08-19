@@ -222,6 +222,51 @@ export const unidades = sqliteTable(
 
 // ---- Documentos de Escalas (R2) ----
 
+/**
+ * As mesmas 19 colunas de minimização LGPD + dossiê CAdES-LT/WebAuthn nas
+ * quatro tabelas de documento assinado (escala, GISE, relatório de
+ * seccional, termo de presença) — equivalente de schema do que
+ * `montarCamposMinimizados` (lib/db/documentos.ts) já unificou do lado JS.
+ *
+ * FÁBRICA, não objeto: reusar a MESMA instância de column builder em duas
+ * `sqliteTable()` é o erro clássico do Drizzle — o builder é finalizado na
+ * primeira tabela que o consome, e a segunda tabela herda metadado da
+ * primeira. Cada chamada aqui devolve builders novos.
+ *
+ * CAdES-LT (migração 0012): nullable para compatibilidade com registros
+ * antigos — assinatura simples não preenche.
+ *
+ * WebAuthn (migração 0058 na escala, 0060 nas três de GISE): guardado para
+ * RECONFERÊNCIA — o manifesto afirma que a chave verificada por biometria
+ * assinou, e a afirmação precisa de contraparte reverificável.
+ * `webauthn_backup_ativo` é o estado do flag BS NAQUELE momento; a
+ * credencial pode passar a ser sincronizada depois.
+ */
+function camposMinimizadosDocumento() {
+	return {
+		ip_address: text('ip_address'),
+		user_agent: text('user_agent'),
+		/** User-Agent BRUTO (não-parseado) — preservado para perícia forense. */
+		user_agent_raw: text('user_agent_raw'),
+		latitude: real('latitude'),
+		longitude: real('longitude'),
+		tipo_carimbo_tempo: text('tipo_carimbo_tempo').default('servidor'),
+		cert_issuer: text('cert_issuer'),
+		cert_serial: text('cert_serial'),
+		cert_valido_de: text('cert_valido_de'),
+		cert_valido_ate: text('cert_valido_ate'),
+		cms_sha256: text('cms_sha256'),
+		ocsp_response_b64: text('ocsp_response_b64'),
+		ocsp_consultado_em: text('ocsp_consultado_em'),
+		tst_token_b64: text('tst_token_b64'),
+		webauthn_credential_id: text('webauthn_credential_id'),
+		webauthn_client_data: text('webauthn_client_data'),
+		webauthn_authenticator_data: text('webauthn_authenticator_data'),
+		webauthn_assinatura: text('webauthn_assinatura'),
+		webauthn_backup_ativo: integer('webauthn_backup_ativo')
+	};
+}
+
 export const escalaDocumentos = sqliteTable('escala_documentos', {
 	id: integer('id').primaryKey({ autoIncrement: true }),
 	escala_id: integer('escala_id')
@@ -235,32 +280,7 @@ export const escalaDocumentos = sqliteTable('escala_documentos', {
 	verificacao_hash: text('verificacao_hash').unique(),
 	selfie_key: text('selfie_key'),
 	arquivo_hash: text('arquivo_hash'),
-	ip_address: text('ip_address'),
-	user_agent: text('user_agent'),
-	/** User-Agent BRUTO (não-parseado) — preservado para perícia forense. */
-	user_agent_raw: text('user_agent_raw'),
-	latitude: real('latitude'),
-	longitude: real('longitude'),
-	tipo_carimbo_tempo: text('tipo_carimbo_tempo').default('servidor'),
-	// Metadados CAdES-LT (migração 0012) — nullable para compatibilidade com registros antigos.
-	cert_issuer: text('cert_issuer'),
-	cert_serial: text('cert_serial'),
-	cert_valido_de: text('cert_valido_de'),
-	cert_valido_ate: text('cert_valido_ate'),
-	cms_sha256: text('cms_sha256'),
-	ocsp_response_b64: text('ocsp_response_b64'),
-	ocsp_consultado_em: text('ocsp_consultado_em'),
-	tst_token_b64: text('tst_token_b64'),
-	// Asserção WebAuthn (migração 0058) — guardada para RECONFERÊNCIA, pelo mesmo
-	// motivo dos campos CAdES acima: o manifesto afirma que a chave verificada
-	// por biometria assinou, e a afirmação precisa de contraparte reverificável.
-	// O `webauthn_backup_ativo` é o estado do flag BS NAQUELE momento; a
-	// credencial pode passar a ser sincronizada depois.
-	webauthn_credential_id: text('webauthn_credential_id'),
-	webauthn_client_data: text('webauthn_client_data'),
-	webauthn_authenticator_data: text('webauthn_authenticator_data'),
-	webauthn_assinatura: text('webauthn_assinatura'),
-	webauthn_backup_ativo: integer('webauthn_backup_ativo'),
+	...camposMinimizadosDocumento(),
 	created_at: text('created_at').default(sql`(datetime('now', '-3 hours'))`)
 });
 
@@ -580,28 +600,7 @@ export const giseDocumentos = sqliteTable(
 		selfie_key: text('selfie_key'),
 		arquivo_hash: text('arquivo_hash'),
 		rubrica: text('rubrica'),
-		ip_address: text('ip_address'),
-		user_agent: text('user_agent'),
-		/** User-Agent BRUTO (não-parseado) — preservado para perícia forense. */
-		user_agent_raw: text('user_agent_raw'),
-		latitude: real('latitude'),
-		longitude: real('longitude'),
-		tipo_carimbo_tempo: text('tipo_carimbo_tempo').default('servidor'),
-		// Metadados CAdES-LT (migração 0012)
-		cert_issuer: text('cert_issuer'),
-		cert_serial: text('cert_serial'),
-		cert_valido_de: text('cert_valido_de'),
-		cert_valido_ate: text('cert_valido_ate'),
-		cms_sha256: text('cms_sha256'),
-		ocsp_response_b64: text('ocsp_response_b64'),
-		ocsp_consultado_em: text('ocsp_consultado_em'),
-		tst_token_b64: text('tst_token_b64'),
-		// Asserção WebAuthn (migração 0060) — contraparte forense, igual à escala.
-		webauthn_credential_id: text('webauthn_credential_id'),
-		webauthn_client_data: text('webauthn_client_data'),
-		webauthn_authenticator_data: text('webauthn_authenticator_data'),
-		webauthn_assinatura: text('webauthn_assinatura'),
-		webauthn_backup_ativo: integer('webauthn_backup_ativo'),
+		...camposMinimizadosDocumento(),
 		created_at: text('created_at').default(sql`(datetime('now', '-3 hours'))`)
 	},
 	(table) => [unique('uq_gise_documento').on(table.gise_id)]
@@ -723,29 +722,8 @@ export const giseAssinaturasRelatorios = sqliteTable(
 		selfie_key: text('selfie_key'),
 		arquivo_hash: text('arquivo_hash'),
 		verification_hash: text('verification_hash').unique(),
-		ip_address: text('ip_address'),
-		user_agent: text('user_agent'),
-		/** User-Agent BRUTO (não-parseado) — preservado para perícia forense. */
-		user_agent_raw: text('user_agent_raw'),
-		latitude: real('latitude'),
-		longitude: real('longitude'),
 		r2_key: text('r2_key'),
-		tipo_carimbo_tempo: text('tipo_carimbo_tempo').default('servidor'),
-		// Metadados CAdES-LT (migração 0012)
-		cert_issuer: text('cert_issuer'),
-		cert_serial: text('cert_serial'),
-		cert_valido_de: text('cert_valido_de'),
-		cert_valido_ate: text('cert_valido_ate'),
-		cms_sha256: text('cms_sha256'),
-		ocsp_response_b64: text('ocsp_response_b64'),
-		ocsp_consultado_em: text('ocsp_consultado_em'),
-		tst_token_b64: text('tst_token_b64'),
-		// Asserção WebAuthn (migração 0060) — contraparte forense, igual à escala.
-		webauthn_credential_id: text('webauthn_credential_id'),
-		webauthn_client_data: text('webauthn_client_data'),
-		webauthn_authenticator_data: text('webauthn_authenticator_data'),
-		webauthn_assinatura: text('webauthn_assinatura'),
-		webauthn_backup_ativo: integer('webauthn_backup_ativo'),
+		...camposMinimizadosDocumento(),
 		created_at: text('created_at').default(sql`(datetime('now', '-3 hours'))`)
 	},
 	(table) => [
@@ -773,27 +751,7 @@ export const gisePresencaTermos = sqliteTable(
 		verification_hash: text('verification_hash').unique(),
 		r2_key: text('r2_key'),
 		arquivo_hash: text('arquivo_hash'),
-		ip_address: text('ip_address'),
-		user_agent: text('user_agent'),
-		/** User-Agent BRUTO (não-parseado) — preservado para perícia forense. */
-		user_agent_raw: text('user_agent_raw'),
-		latitude: real('latitude'),
-		longitude: real('longitude'),
-		tipo_carimbo_tempo: text('tipo_carimbo_tempo').default('servidor'),
-		cert_issuer: text('cert_issuer'),
-		cert_serial: text('cert_serial'),
-		cert_valido_de: text('cert_valido_de'),
-		cert_valido_ate: text('cert_valido_ate'),
-		cms_sha256: text('cms_sha256'),
-		ocsp_response_b64: text('ocsp_response_b64'),
-		ocsp_consultado_em: text('ocsp_consultado_em'),
-		tst_token_b64: text('tst_token_b64'),
-		// Asserção WebAuthn (migração 0060) — contraparte forense, igual à escala.
-		webauthn_credential_id: text('webauthn_credential_id'),
-		webauthn_client_data: text('webauthn_client_data'),
-		webauthn_authenticator_data: text('webauthn_authenticator_data'),
-		webauthn_assinatura: text('webauthn_assinatura'),
-		webauthn_backup_ativo: integer('webauthn_backup_ativo'),
+		...camposMinimizadosDocumento(),
 		created_at: text('created_at').default(sql`(datetime('now', '-3 hours'))`)
 	},
 	(table) => [

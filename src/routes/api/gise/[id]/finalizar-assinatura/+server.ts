@@ -8,7 +8,6 @@
 import type { RequestHandler } from './$types';
 import {
 	getDB,
-	buscarGiseEscala,
 	salvarGiseDocumento,
 	atualizarGiseEscala,
 	auditar,
@@ -21,18 +20,12 @@ import {
 } from '$lib/server/assinatura/signature-service';
 import { tryGetR2 } from '$lib/db';
 import { bucketParaAssinatura, guardarPdfAssinado } from '$lib/server/assinatura/blob-assinado';
-import {
-	requireAuth,
-	badRequest,
-	notFound,
-	forbidden,
-	serverError,
-	validateBody
-} from '$lib/server/api';
+import { requireAuth, badRequest, serverError, validateBody } from '$lib/server/api';
 import {
 	consumirIntencaoAssinatura,
 	mensagemRecusaIntencao
 } from '$lib/server/assinatura/intencao';
+import { carregarGiseParaAssinatura } from '$lib/server/gise/permissao';
 
 export const POST: RequestHandler = async (event) => {
 	const { platform, params, locals, request, getClientAddress } = event;
@@ -43,9 +36,6 @@ export const POST: RequestHandler = async (event) => {
 
 	const ip = getClientAddress();
 	const ua = request.headers.get('user-agent') || '';
-
-	const id = parseInt(params.id!);
-	if (isNaN(id)) return badRequest('ID inválido');
 
 	const validated = await validateBody(request, finalizarAssinaturaGiseSchema);
 	if (!validated.ok) return validated.response;
@@ -60,15 +50,14 @@ export const POST: RequestHandler = async (event) => {
 		assinanteEmail
 	} = validated.data;
 
-	const gise = await buscarGiseEscala(db, id);
-	if (!gise) return notFound('GISE');
-
-	// Permissão de negócio: apenas supervisor designado ou admin.
-	if (u.tipo !== 'admin' && gise.supervisor_id !== u.id) {
-		return forbidden(
-			'Apenas o supervisor designado ou administradores podem finalizar esta escala'
-		);
-	}
+	// Esta era a QUINTA cópia do portão, e a única sem a checagem de status —
+	// as outras quatro recusam GISE fora de `aguardando_assinatura`/`em_andamento`.
+	// Entrar pelo portão fecha a lacuna sem custo: o `preparar` não mexe no
+	// status, e este handler move para `em_andamento`, que está no conjunto
+	// permitido — então reassinar continua passando.
+	const portao = await carregarGiseParaAssinatura(db, params.id, u);
+	if (portao.recusa) return portao.recusa;
+	const { gise, id } = portao;
 
 	// Consome a preparação: prova que ESTE pdf foi preparado por ESTE usuário
 	// para ESTE alvo, uma vez só (FLW-DOC-001). O código público de validação

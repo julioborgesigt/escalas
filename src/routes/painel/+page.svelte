@@ -39,16 +39,12 @@
 	import SkeletonTableRows from '$lib/components/SkeletonTableRows.svelte';
 	import ModalShell from '$lib/components/ModalShell.svelte';
 	import { browser } from '$app/environment';
-	import SearchableSelect from '$lib/components/SearchableSelect.svelte';
+	import CampoFiltroSelect from '$lib/components/CampoFiltroSelect.svelte';
 	import BotaoLimparFiltros from '$lib/components/BotaoLimparFiltros.svelte';
 	import { toaster } from '$lib/toast';
 	import type { ItemCompliance } from '$lib/types';
-	import {
-		useAutorizacao,
-		getSavedFilters,
-		useInvalidateOnFocus,
-		useSamePathNavigating
-	} from '$lib/composables';
+	import { useAutorizacao, useInvalidateOnFocus, useSamePathNavigating } from '$lib/composables';
+	import { getSavedFilters } from '$lib/utils/localStorage';
 	import { invalidateShared } from '$lib/cross-tab-invalidate';
 	import { fetchSyncEstado } from '$lib/sync-estado';
 	import { loading as loadingService } from '$lib/loading.svelte';
@@ -457,45 +453,41 @@
 		class="p-4 sm:p-5 mb-6 rounded-2xl bg-white dark:bg-surface-900 border border-surface-200 dark:border-white/10 shadow-sm flex flex-col gap-4 sm:gap-5"
 	>
 		<div class="flex flex-col lg:flex-row flex-wrap gap-3 items-stretch lg:items-end w-full">
-			<div class="flex flex-col gap-1 w-full lg:w-48">
-				<span class="label-text text-sm font-semibold">Seccional</span>
-				<SearchableSelect
-					options={seccionaisOptions}
-					bind:value={filtroSeccional}
-					ariaLabel="Filtrar por seccional"
-					placeholder="Selecione"
-				/>
-			</div>
+			<CampoFiltroSelect
+				label="Seccional"
+				width="lg:w-48"
+				options={seccionaisOptions}
+				bind:value={filtroSeccional}
+				ariaLabel="Filtrar por seccional"
+				placeholder="Selecione"
+			/>
 
-			<div class="flex flex-col gap-1 w-full lg:w-48">
-				<span class="label-text text-sm font-semibold">Unidade</span>
-				<SearchableSelect
-					options={unidadesDropdownOptions}
-					bind:value={filtroUnidade}
-					ariaLabel="Filtrar por unidade"
-					placeholder="Todas as unidades"
-				/>
-			</div>
+			<CampoFiltroSelect
+				label="Unidade"
+				width="lg:w-48"
+				options={unidadesDropdownOptions}
+				bind:value={filtroUnidade}
+				ariaLabel="Filtrar por unidade"
+				placeholder="Todas as unidades"
+			/>
 
-			<div class="flex flex-col gap-1 w-full lg:w-28">
-				<span class="label-text text-sm font-semibold">Ano</span>
-				<SearchableSelect
-					options={anosOptions}
-					bind:value={filtroAno}
-					ariaLabel="Filtrar por ano"
-					placeholder="Todos"
-				/>
-			</div>
+			<CampoFiltroSelect
+				label="Ano"
+				width="lg:w-28"
+				options={anosOptions}
+				bind:value={filtroAno}
+				ariaLabel="Filtrar por ano"
+				placeholder="Todos"
+			/>
 
-			<div class="flex flex-col gap-1 w-full lg:w-36">
-				<span class="label-text text-sm font-semibold">Mês</span>
-				<SearchableSelect
-					options={mesesOptions}
-					bind:value={filtroMes}
-					ariaLabel="Filtrar por mês"
-					placeholder="Todos"
-				/>
-			</div>
+			<CampoFiltroSelect
+				label="Mês"
+				width="lg:w-36"
+				options={mesesOptions}
+				bind:value={filtroMes}
+				ariaLabel="Filtrar por mês"
+				placeholder="Todos"
+			/>
 		</div>
 
 		{#if mostrarIgnorados}

@@ -20,6 +20,7 @@
 
 <script lang="ts">
 	import { untrack } from 'svelte';
+	import { recortarCentralizarTraco } from '$lib/utils/rubrica-imagem';
 	/**
 	 * Primitivo de desenho de rubrica — partilhado entre o cadastro no desktop
 	 * (`ModalCadastrarRubrica`) e, futuramente, o fluxo em tela. Diferente do
@@ -127,26 +128,7 @@
 		}
 		if (maxX < minX || maxY < minY) return null; // nada desenhado
 
-		const margem = 24;
-		const recW = maxX - minX + 1;
-		const recH = maxY - minY + 1;
-
-		// Canvas de saída na proporção alvo, com o traçado centralizado.
-		const outW = 1000;
-		const outH = Math.round(outW / aspecto);
-		const out = document.createElement('canvas');
-		out.width = outW;
-		out.height = outH;
-		const octx = out.getContext('2d')!;
-
-		// Escala que cabe o recorte dentro de (outW-2margem, outH-2margem).
-		const escala = Math.min((outW - 2 * margem) / recW, (outH - 2 * margem) / recH);
-		const drawW = recW * escala;
-		const drawH = recH * escala;
-		const dx = (outW - drawW) / 2;
-		const dy = (outH - drawH) / 2;
-		octx.drawImage(canvas, minX, minY, recW, recH, dx, dy, drawW, drawH);
-		return out.toDataURL('image/png');
+		return recortarCentralizarTraco(canvas, { minX, minY, maxX, maxY }, aspecto);
 	}
 
 	$effect(() => {

@@ -188,7 +188,7 @@ export const finalizarAssinaturaGiseSchema = z.object({
  * `blink` é aceito por compatibilidade com assinaturas históricas (o desafio
  * foi aposentado no cliente por ser inviável de amostrar em celular).
  */
-const livenessChallengeSchema = optionalNullable(
+export const livenessChallengeSchema = optionalNullable(
 	z.object({
 		tipo: z.enum(['blink', 'smile', 'head_turn']),
 		cumprido: z.boolean(),

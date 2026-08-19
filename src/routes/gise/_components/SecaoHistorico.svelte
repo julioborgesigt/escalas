@@ -34,6 +34,7 @@
 	import { SvelteURLSearchParams } from 'svelte/reactivity';
 	import { CICLOS, getCicloRange } from '$lib/gise/ciclos';
 	import Download from '@lucide/svelte/icons/download';
+	import Search from '@lucide/svelte/icons/search';
 	import { mensagemDeErro } from '$lib/utils/erro';
 
 	/**
@@ -442,19 +443,7 @@
 					<div
 						class="w-12 h-12 rounded-full bg-surface-200/50 dark:bg-surface-800/50 flex items-center justify-center mb-1"
 					>
-						<svg
-							class="w-6 h-6 text-surface-400 dark:text-surface-500"
-							fill="none"
-							viewBox="0 0 24 24"
-							stroke="currentColor"
-						>
-							<path
-								stroke-linecap="round"
-								stroke-linejoin="round"
-								stroke-width="1.5"
-								d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-							/>
-						</svg>
+						<Search class="w-6 h-6 text-surface-400 dark:text-surface-500" stroke-width={1.5} />
 					</div>
 					<p class="text-sm font-semibold text-surface-700 dark:text-surface-300">
 						Nenhum resultado encontrado

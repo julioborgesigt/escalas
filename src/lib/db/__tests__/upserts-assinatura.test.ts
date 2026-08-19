@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { salvarGiseDocumento } from '../gise/documentos';
-import { salvarAssinaturaRelatorioGise } from '../gise/assinaturas';
+import { salvarAssinaturaRelatorioGise, salvarTermoPresencaGise } from '../gise/assinaturas';
 import { salvarDocumentoEscala } from '../documentos';
 import type { Database } from '../core';
 
@@ -201,6 +201,42 @@ describe('reassinatura limpa o que a assinatura anterior deixou', () => {
 		esperaLimpaveis(capturado.set, [
 			...LIMPAVEIS_COMUNS,
 			'verificacao_hash',
+			...LIMPAVEIS_WEBAUTHN
+		]);
+	});
+});
+
+describe('salvarTermoPresencaGise (insert)', () => {
+	it('grava IP anonimizado, GPS reduzido e os opcionais ausentes como null explícito', async () => {
+		const { db, capturado } = dbEspiao();
+		await salvarTermoPresencaGise(db, {
+			gise_id: 7,
+			policial_id: 42,
+			tipo: 'entrada',
+			assinante_nome: 'FULANO DE TAL',
+			ip_address: '203.0.113.42',
+			latitude: -3.7319,
+			longitude: -38.5267
+		});
+
+		expect(capturado.values?.ip_address).toBe('203.0.113.0');
+		expect(capturado.values?.latitude).toBe(-3.73);
+		expect(capturado.values?.longitude).toBe(-38.53);
+		// Sem certificado nem passkey: colunas do dossiê vêm null, não undefined —
+		// mesma normalização de `montarCamposMinimizados` usada pelos outros três
+		// pontos de gravação (este é o único que não faz upsert, mas divergir aqui
+		// vira armadilha no dia em que ganhar um `.onConflictDoUpdate()`).
+		esperaLimpaveis(capturado.values, [
+			'user_agent',
+			'user_agent_raw',
+			'cert_issuer',
+			'cert_serial',
+			'cert_valido_de',
+			'cert_valido_ate',
+			'cms_sha256',
+			'ocsp_response_b64',
+			'ocsp_consultado_em',
+			'tst_token_b64',
 			...LIMPAVEIS_WEBAUTHN
 		]);
 	});

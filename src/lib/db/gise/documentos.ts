@@ -9,12 +9,11 @@ import { eq, sql } from 'drizzle-orm';
 import { giseDocumentos } from '../../server/schema';
 import type * as schema from '../../server/schema';
 import type { Database } from '../core';
-import { anonimizarIp } from '../audit';
-import { parseUserAgent, reduzirPrecisaoGps } from '../../server/assinatura/document-utils';
 import { cifrarCpfParaArmazenar, type CpfCriptoEnv } from '../../crypto/cpf-cripto';
 
 /** Tipo usado só localmente (a origem, `$lib/db/documentos`, é quem os outros módulos importam). */
 import type { AssinaturaCadesMetadata, AssinaturaPasskeyMetadata } from '../documentos';
+import { montarCamposMinimizados } from '../documentos';
 
 /** Insere o documento assinado ou substitui o anterior (upsert por `gise_id`). */
 export async function salvarGiseDocumento(
@@ -40,18 +39,12 @@ export async function salvarGiseDocumento(
 	// está no limite. Quem usa passkey passa os dois últimos explicitamente.
 	passkeyMeta?: AssinaturaPasskeyMetadata
 ) {
-	const meta = cadesMeta ?? {};
 	// CPF cifrado em repouso (LGPD Fase 2).
 	const cpfArmazenado = await cifrarCpfParaArmazenar(assinanteCpf, env);
 
 	// Mesmos campos no INSERT e no UPDATE do upsert — montados uma vez só para
 	// não haver o risco clássico de acrescentar coluna em um lado e esquecer o
 	// outro. `gise_id` fica de fora: é o alvo do conflito.
-	//
-	// Campo opcional vira `null` EXPLÍCITO, nunca `undefined`: o drizzle omite
-	// chave `undefined` do `.set()`, e aí a coluna da assinatura ANTERIOR
-	// sobrevive à reassinatura (certificado, selfie e GPS de outra assinatura
-	// colados no registro da nova).
 	const dados = {
 		r2_key: r2Key,
 		assinante_id: assinanteId,
@@ -62,25 +55,15 @@ export async function salvarGiseDocumento(
 		selfie_key: selfieKey ?? null,
 		arquivo_hash: arquivoHash ?? null,
 		rubrica: rubrica || null,
-		ip_address: anonimizarIp(ipAddress) ?? null,
-		user_agent: userAgent ? parseUserAgent(userAgent) : null,
-		user_agent_raw: userAgent ? userAgent.slice(0, 1024) : null,
-		latitude: reduzirPrecisaoGps(latitude) ?? null,
-		longitude: reduzirPrecisaoGps(longitude) ?? null,
-		tipo_carimbo_tempo: tipoCarimboTempo || 'servidor',
-		cert_issuer: meta.cert_issuer ?? null,
-		cert_serial: meta.cert_serial ?? null,
-		cert_valido_de: meta.cert_valido_de ?? null,
-		cert_valido_ate: meta.cert_valido_ate ?? null,
-		cms_sha256: meta.cms_sha256 ?? null,
-		ocsp_response_b64: meta.ocsp_response_b64 ?? null,
-		ocsp_consultado_em: meta.ocsp_consultado_em ?? null,
-		tst_token_b64: meta.tst_token_b64 ?? null,
-		webauthn_credential_id: passkeyMeta?.credential_id ?? null,
-		webauthn_client_data: passkeyMeta?.client_data ?? null,
-		webauthn_authenticator_data: passkeyMeta?.authenticator_data ?? null,
-		webauthn_assinatura: passkeyMeta?.assinatura ?? null,
-		webauthn_backup_ativo: passkeyMeta ? (passkeyMeta.backup_ativo ? 1 : 0) : null
+		...montarCamposMinimizados({
+			ipAddress,
+			userAgent,
+			latitude,
+			longitude,
+			tipoCarimboTempo,
+			cadesMeta,
+			passkeyMeta
+		})
 	};
 
 	return db

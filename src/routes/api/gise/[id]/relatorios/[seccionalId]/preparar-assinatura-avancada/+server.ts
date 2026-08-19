@@ -27,7 +27,7 @@ import { exigirChaveAtiva } from '$lib/server/assinatura/chave-assinatura';
 import { bucketParaAssinatura } from '$lib/server/assinatura/blob-assinado';
 import { montarPdfExtraAssinado, subirSelfieExtra } from '$lib/server/gise/assinatura-extra';
 import { chaveConferencia } from '$lib/server/assinatura/copia-conferencia';
-import { calcularHashBuffer } from '$lib/server/assinatura/document-utils';
+import { calcularHashBuffer, envComoRegistro } from '$lib/server/assinatura/document-utils';
 import { bytesToBase64 } from '$lib/crypto/bin';
 import { logger } from '$lib/server/logger';
 import { mensagemDeErro } from '$lib/utils/erro';
@@ -118,7 +118,7 @@ export const POST: RequestHandler = async ({
 	try {
 		const bucketOk = bucketParaAssinatura(tryGetR2(platform));
 		if (!bucketOk.ok) return bucketOk.resposta;
-		const env = platform?.env as unknown as Record<string, string | undefined> | undefined;
+		const env = envComoRegistro(platform);
 
 		const montado = await montarPdfExtraAssinado({
 			db,

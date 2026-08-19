@@ -1,12 +1,14 @@
 /**
  * Autorização do domínio GISE: participação (admin seccional/unidade), quadro
- * de supervisão e vínculo de equipe. Não há `autorizar()` único — a regra
- * deste domínio mora aqui.
+ * de supervisão, vínculo de equipe e o portão das rotas de assinatura
+ * (`carregarGiseParaAssinatura`). Não há `autorizar()` único — a regra deste
+ * domínio mora aqui.
  */
 import { and, eq, or } from 'drizzle-orm';
 import { giseEquipes, giseMembros, giseSeccionais } from '../schema';
 import type { GiseEscala } from '../schema';
-import type { Database } from '$lib/db';
+import { buscarGiseEscala, type Database } from '$lib/db';
+import { badRequest, forbidden, notFound } from '$lib/server/api';
 
 /**
  * Um admin seccional/unidade PARTICIPA de uma GISE quando a unidade que ele
@@ -99,4 +101,53 @@ export async function verificarPermissaoGise(
 	}
 
 	return { permitido: false, motivo: 'Sem permissão para acessar esta GISE.' };
+}
+
+/**
+ * Portão das cinco rotas de assinatura da GISE (`assinar-simples`, os dois
+ * passos da avançada e os dois da qualificada): id válido → GISE existe →
+ * status admite assinatura → **quem chama É o supervisor designado**.
+ *
+ * Admin Geral NÃO assina a escala GISE, e isso é decisão registrada (ago/2026),
+ * não omissão. As cinco rotas divergiam em dois eixos — `finalizar-assinatura`
+ * era a única sem a checagem de status, e `preparar-assinatura` a única a
+ * recusar admin. A UI decidiu o segundo eixo:
+ *
+ *   - `SupervisaoDocEscala` libera "Conferência" (download sem assinatura) para
+ *     `isSupervisor || isAdminGeral`, mas os botões **"Token"** (A3) e
+ *     **"Tela"** (avançada) só para `isSupervisor`;
+ *   - `mostrarPainelAssinaturaEscala` = `podeAssinar`, que exige
+ *     `gise.supervisor_id === usuarioAtual.id`;
+ *   - o texto do próprio card diz "O supervisor poderá assinar a escala…".
+ *
+ * Ou seja: não existe caminho na interface em que um admin assine a escala
+ * GISE. As quatro rotas que aceitavam `u.tipo === 'admin'` permitiam por POST
+ * direto o que o produto nunca ofereceu — e esconder o botão não é autorização
+ * (ver "Operação material precisa recusar alguém" no `CLAUDE.md`).
+ *
+ * O relatório por seccional é OUTRO documento, com outra regra: as rotas em
+ * `relatorios/[seccionalId]/` seguem admitindo admin, de propósito.
+ *
+ * Devolve `{ gise, id }` ou `{ recusa }` — a rota só repassa a `recusa`.
+ */
+export async function carregarGiseParaAssinatura(
+	db: Database,
+	idParam: string | undefined,
+	u: NonNullable<App.Locals['usuario']>
+): Promise<{ gise: GiseEscala; id: number; recusa?: never } | { recusa: Response; gise?: never }> {
+	const id = parseInt(idParam!);
+	if (isNaN(id)) return { recusa: badRequest('ID inválido') };
+
+	const gise = await buscarGiseEscala(db, id);
+	if (!gise) return { recusa: notFound('Escala GISE') };
+
+	if (gise.status !== 'aguardando_assinatura' && gise.status !== 'em_andamento') {
+		return { recusa: badRequest('A escala não está pronta para assinatura') };
+	}
+
+	if (gise.supervisor_id !== u.id) {
+		return { recusa: forbidden('Apenas o Supervisor designado pode assinar esta escala') };
+	}
+
+	return { gise, id };
 }

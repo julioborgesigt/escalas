@@ -23,6 +23,7 @@
 	import PenLine from '@lucide/svelte/icons/pen-line';
 	import SquarePen from '@lucide/svelte/icons/square-pen';
 	import Info from '@lucide/svelte/icons/info';
+	import ChevronDown from '@lucide/svelte/icons/chevron-down';
 	import { Popover, Portal } from '@skeletonlabs/skeleton-svelte';
 	import ModalShell from '$lib/components/ModalShell.svelte';
 	import { loading } from '$lib/loading.svelte';
@@ -243,6 +244,82 @@
 	</div>
 {/snippet}
 
+<!-- Ícone + badge de status do lote — mesma marcação nos layouts mobile e
+     desktop, só o tamanho do container/ícone muda. -->
+{#snippet iconeStatusLote(tamanhoContainer: string)}
+	<div
+		class="{tamanhoContainer} shrink-0 flex items-center justify-center rounded-lg {statusLoteInfo.text ===
+			'Todos Assinados' || statusLoteInfo.text === 'Assinados (parcial)'
+			? 'bg-success-100 dark:bg-success-900/30'
+			: statusLoteInfo.text === 'Todos prontos para ass.' ||
+				  statusLoteInfo.text === 'pronto para ass. (parcial)'
+				? 'bg-warning-100 dark:bg-warning-900/30'
+				: 'bg-surface-100 dark:bg-surface-800'}"
+	>
+		<svg
+			class="w-3.5 h-3.5 {statusLoteInfo.text === 'Todos Assinados' ||
+			statusLoteInfo.text === 'Assinados (parcial)'
+				? 'text-success-600 dark:text-success-400'
+				: statusLoteInfo.text === 'Todos prontos para ass.' ||
+					  statusLoteInfo.text === 'pronto para ass. (parcial)'
+					? 'text-warning-600 dark:text-warning-400'
+					: 'text-surface-400 dark:text-surface-500'}"
+			fill="none"
+			stroke="currentColor"
+			viewBox="0 0 24 24"
+		>
+			{#if statusLoteInfo.text === 'Todos Assinados' || statusLoteInfo.text === 'Assinados (parcial)'}
+				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+			{:else if statusLoteInfo.text === 'Todos prontos para ass.' || statusLoteInfo.text === 'pronto para ass. (parcial)'}
+				<path
+					stroke-linecap="round"
+					stroke-linejoin="round"
+					stroke-width="2"
+					d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+				/>
+			{:else}
+				<path
+					stroke-linecap="round"
+					stroke-linejoin="round"
+					stroke-width="2"
+					d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
+				/>
+			{/if}
+		</svg>
+	</div>
+{/snippet}
+
+{#snippet badgeStatusLote()}
+	<span
+		class="inline-flex items-center gap-1 rounded-full {statusLoteInfo.class} px-1.5 py-0.5 text-3xs font-bold uppercase"
+	>
+		{statusLoteInfo.text}
+	</span>
+{/snippet}
+
+<!-- Barra de progresso "assinando em lote" — mesma marcação nos dois layouts,
+     só a classe do container externo muda. -->
+{#snippet barraProgressoLote(wrapperClass: string)}
+	{#if assinandoLote}
+		<div class={wrapperClass}>
+			<p
+				class="text-3xs font-bold uppercase tracking-widest text-warning-700 dark:text-warning-400 text-center"
+			>
+				{etapaAssinatura}
+			</p>
+			<div class="w-full bg-surface-200 dark:bg-surface-700 rounded-full h-2 overflow-hidden">
+				<div
+					class="bg-warning-500 h-full transition-all duration-500 ease-out"
+					style="width: {(progressoLote.atual / progressoLote.total) * 100}%"
+				></div>
+			</div>
+			<p class="text-3xs text-surface-500 dark:text-surface-400 text-center">
+				{progressoLote.atual} de {progressoLote.total}
+			</p>
+		</div>
+	{/if}
+{/snippet}
+
 <div class="flex flex-col gap-1.5 w-full animate-fade">
 	{@render tituloComInfo()}
 	<div
@@ -257,73 +334,15 @@
 					expandido = !expandido;
 				}}
 			>
-				<div
-					class="h-7 w-7 shrink-0 flex items-center justify-center rounded-lg {statusLoteInfo.text ===
-						'Todos Assinados' || statusLoteInfo.text === 'Assinados (parcial)'
-						? 'bg-success-100 dark:bg-success-900/30'
-						: statusLoteInfo.text === 'Todos prontos para ass.' ||
-							  statusLoteInfo.text === 'pronto para ass. (parcial)'
-							? 'bg-warning-100 dark:bg-warning-900/30'
-							: 'bg-surface-100 dark:bg-surface-800'}"
-				>
-					<svg
-						class="w-3.5 h-3.5 {statusLoteInfo.text === 'Todos Assinados' ||
-						statusLoteInfo.text === 'Assinados (parcial)'
-							? 'text-success-600 dark:text-success-400'
-							: statusLoteInfo.text === 'Todos prontos para ass.' ||
-								  statusLoteInfo.text === 'pronto para ass. (parcial)'
-								? 'text-warning-600 dark:text-warning-400'
-								: 'text-surface-400 dark:text-surface-500'}"
-						fill="none"
-						stroke="currentColor"
-						viewBox="0 0 24 24"
-					>
-						{#if statusLoteInfo.text === 'Todos Assinados' || statusLoteInfo.text === 'Assinados (parcial)'}
-							<path
-								stroke-linecap="round"
-								stroke-linejoin="round"
-								stroke-width="2"
-								d="M5 13l4 4L19 7"
-							/>
-						{:else if statusLoteInfo.text === 'Todos prontos para ass.' || statusLoteInfo.text === 'pronto para ass. (parcial)'}
-							<path
-								stroke-linecap="round"
-								stroke-linejoin="round"
-								stroke-width="2"
-								d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-							/>
-						{:else}
-							<path
-								stroke-linecap="round"
-								stroke-linejoin="round"
-								stroke-width="2"
-								d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
-							/>
-						{/if}
-					</svg>
-				</div>
+				{@render iconeStatusLote('h-7 w-7')}
 				<div class="min-w-0 flex-1">
-					<span
-						class="inline-flex items-center gap-1 rounded-full {statusLoteInfo.class} px-1.5 py-0.5 text-3xs font-bold uppercase"
-					>
-						{statusLoteInfo.text}
-					</span>
+					{@render badgeStatusLote()}
 				</div>
-				<svg
+				<ChevronDown
 					class="h-4 w-4 shrink-0 text-surface-400 transition-transform duration-200 {expandido
 						? 'rotate-180'
 						: ''}"
-					fill="none"
-					stroke="currentColor"
-					viewBox="0 0 24 24"
-				>
-					<path
-						stroke-linecap="round"
-						stroke-linejoin="round"
-						stroke-width="2"
-						d="M19 9l-7 7-7-7"
-					/>
-				</svg>
+				/>
 			</button>
 
 			<!-- Body -->
@@ -341,26 +360,7 @@
 							{@render linhasSituacao(true)}
 						{/if}
 
-						{#if assinandoLote}
-							<div class="flex flex-col gap-1.5">
-								<p
-									class="text-3xs font-bold uppercase tracking-widest text-warning-700 dark:text-warning-400 text-center"
-								>
-									{etapaAssinatura}
-								</p>
-								<div
-									class="w-full bg-surface-200 dark:bg-surface-700 rounded-full h-2 overflow-hidden"
-								>
-									<div
-										class="bg-warning-500 h-full transition-all duration-500 ease-out"
-										style="width: {(progressoLote.atual / progressoLote.total) * 100}%"
-									></div>
-								</div>
-								<p class="text-3xs text-surface-500 dark:text-surface-400 text-center">
-									{progressoLote.atual} de {progressoLote.total}
-								</p>
-							</div>
-						{/if}
+						{@render barraProgressoLote('flex flex-col gap-1.5')}
 					</div>
 
 					{#if !assinandoLote}
@@ -423,57 +423,9 @@
 			<div class="flex items-center justify-between gap-4 p-3.5 px-4">
 				<!-- Parte 1: Status e Título -->
 				<div class="flex items-center gap-3 min-w-[250px] shrink-0">
-					<div
-						class="h-8 w-8 shrink-0 flex items-center justify-center rounded-lg {statusLoteInfo.text ===
-							'Todos Assinados' || statusLoteInfo.text === 'Assinados (parcial)'
-							? 'bg-success-100 dark:bg-success-900/30'
-							: statusLoteInfo.text === 'Todos prontos para ass.' ||
-								  statusLoteInfo.text === 'pronto para ass. (parcial)'
-								? 'bg-warning-100 dark:bg-warning-900/30'
-								: 'bg-surface-100 dark:bg-surface-800'}"
-					>
-						<svg
-							class="w-3.5 h-3.5 {statusLoteInfo.text === 'Todos Assinados' ||
-							statusLoteInfo.text === 'Assinados (parcial)'
-								? 'text-success-600 dark:text-success-400'
-								: statusLoteInfo.text === 'Todos prontos para ass.' ||
-									  statusLoteInfo.text === 'pronto para ass. (parcial)'
-									? 'text-warning-600 dark:text-warning-400'
-									: 'text-surface-400 dark:text-surface-500'}"
-							fill="none"
-							stroke="currentColor"
-							viewBox="0 0 24 24"
-						>
-							{#if statusLoteInfo.text === 'Todos Assinados' || statusLoteInfo.text === 'Assinados (parcial)'}
-								<path
-									stroke-linecap="round"
-									stroke-linejoin="round"
-									stroke-width="2"
-									d="M5 13l4 4L19 7"
-								/>
-							{:else if statusLoteInfo.text === 'Todos prontos para ass.' || statusLoteInfo.text === 'pronto para ass. (parcial)'}
-								<path
-									stroke-linecap="round"
-									stroke-linejoin="round"
-									stroke-width="2"
-									d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-								/>
-							{:else}
-								<path
-									stroke-linecap="round"
-									stroke-linejoin="round"
-									stroke-width="2"
-									d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
-								/>
-							{/if}
-						</svg>
-					</div>
+					{@render iconeStatusLote('h-8 w-8')}
 					<div class="min-w-0">
-						<span
-							class="inline-flex items-center gap-1 rounded-full {statusLoteInfo.class} px-1.5 py-0.5 text-3xs font-bold uppercase"
-						>
-							{statusLoteInfo.text}
-						</span>
+						{@render badgeStatusLote()}
 					</div>
 				</div>
 
@@ -489,26 +441,7 @@
 						{@render linhasSituacao(false)}
 					{/if}
 
-					{#if assinandoLote}
-						<div class="flex flex-col gap-1.5 mt-2 max-w-md">
-							<p
-								class="text-3xs font-bold uppercase tracking-widest text-warning-700 dark:text-warning-400 text-center"
-							>
-								{etapaAssinatura}
-							</p>
-							<div
-								class="w-full bg-surface-200 dark:bg-surface-700 rounded-full h-2 overflow-hidden"
-							>
-								<div
-									class="bg-warning-500 h-full transition-all duration-500 ease-out"
-									style="width: {(progressoLote.atual / progressoLote.total) * 100}%"
-								></div>
-							</div>
-							<p class="text-3xs text-surface-500 dark:text-surface-400 text-center">
-								{progressoLote.atual} de {progressoLote.total}
-							</p>
-						</div>
-					{/if}
+					{@render barraProgressoLote('flex flex-col gap-1.5 mt-2 max-w-md')}
 
 					<!-- Listagem discreta de assinaturas concluídas -->
 					{#if concluidosExtra.length > 0}

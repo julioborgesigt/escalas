@@ -16,7 +16,10 @@ import {
 	adicionarPaginaAuditoria,
 	adicionarRodapeUniversal
 } from '$lib/server/assinatura/pdf-signing';
-import { calcularHashBuffer } from '$lib/server/assinatura/document-utils';
+import {
+	calcularHashBuffer,
+	resolverTipoCarimboTempo
+} from '$lib/server/assinatura/document-utils';
 import { PDFDocument } from 'pdf-lib';
 import { gerarCodigoValidacao } from '$lib/utils/formato';
 import { carregarEscalaParaAssinatura } from '$lib/server/escalas/permissao';
@@ -121,10 +124,7 @@ export const POST: RequestHandler = async ({
 		token: crypto.randomUUID(),
 		documentName: `Escala de Serviço - ${escala.titulo}`,
 		signatureLevel: 'qualificada',
-		tipoCarimoTempo: (platform?.env as unknown as Record<string, string | undefined> | undefined)
-			?.TSA_URL
-			? 'tsa_externa'
-			: 'servidor'
+		tipoCarimoTempo: resolverTipoCarimboTempo(platform)
 	});
 
 	// contentPageIndex = índice da última página de conteúdo (para posicionar o carimbo PKI)

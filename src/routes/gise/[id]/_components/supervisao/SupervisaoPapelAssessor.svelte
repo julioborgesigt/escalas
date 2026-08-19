@@ -7,10 +7,9 @@
 	 */
 	import SearchableSelect from '$lib/components/SearchableSelect.svelte';
 	import MarcadorPresenca from '../MarcadorPresenca.svelte';
-	import PenLine from '@lucide/svelte/icons/pen-line';
-	import Trash2 from '@lucide/svelte/icons/trash-2';
 	import Users from '@lucide/svelte/icons/users';
-	import Spinner from '$lib/components/Spinner.svelte';
+	import BotoesSalvarCancelar from './BotoesSalvarCancelar.svelte';
+	import BotoesEdicaoPapel from './BotoesEdicaoPapel.svelte';
 	import { presencaDe } from './rodagem';
 	import { quadroSupervisao } from './quadro-supervisao-estado.svelte';
 
@@ -92,27 +91,11 @@
 					</div>
 				{/if}
 
-				<div class="w-full grid grid-cols-2 gap-2 sm:flex sm:w-auto sm:shrink-0 h-[38px]">
-					<button
-						type="submit"
-						class="btn preset-filled-primary-500 text-sm px-3 py-1.5 rounded-lg w-full sm:w-auto transition-all"
-						disabled={quadro.pendingCrud}
-					>
-						{#if quadro.pendingCrud}
-							<Spinner size="sm" />
-						{:else}
-							Adicionar
-						{/if}
-					</button>
-					<button
-						type="button"
-						class="btn preset-outlined-primary-500 text-sm px-3 py-1.5 rounded-lg w-full sm:w-auto"
-						onclick={() => quadro.cancelarEdicao()}
-						disabled={quadro.pendingCrud}
-					>
-						Fechar
-					</button>
-				</div>
+				<BotoesSalvarCancelar
+					pending={quadro.pendingCrud}
+					onCancelar={() => quadro.cancelarEdicao()}
+					class="h-[38px]"
+				/>
 			</div>
 		</div>
 	{:else}
@@ -138,33 +121,13 @@
 								: 'Não definido'}
 						</p>
 						{#if podeGerenciar}
-							<div class="flex items-center gap-1 shrink-0">
-								<button
-									type="button"
-									class="btn btn-xs preset-filled-surface-500 rounded p-1"
-									title="Editar"
-									aria-label="Editar"
-									onclick={() => quadro.iniciarEdicao('assessor')}
-								>
-									<PenLine size={12} />
-								</button>
-								{#if quadro.gise.assessor_id}
-									<button
-										type="button"
-										class="btn btn-xs preset-outlined-error-500 rounded p-1"
-										title="Remover"
-										aria-label="Remover"
-										onclick={() => quadro.solicitarRemocao('assessor')}
-										disabled={quadro.pendingCrud}
-									>
-										{#if quadro.pendingCrud && quadro.removendoPapel === 'assessor'}
-											<Spinner size="xs" />
-										{:else}
-											<Trash2 size={12} />
-										{/if}
-									</button>
-								{/if}
-							</div>
+							<BotoesEdicaoPapel
+								temId={!!quadro.gise.assessor_id}
+								removendo={quadro.removendoPapel === 'assessor'}
+								pending={quadro.pendingCrud}
+								onEditar={() => quadro.iniciarEdicao('assessor')}
+								onRemover={() => quadro.solicitarRemocao('assessor')}
+							/>
 						{/if}
 					</div>
 					{#if quadro.gise.assessor_email_notificacao}

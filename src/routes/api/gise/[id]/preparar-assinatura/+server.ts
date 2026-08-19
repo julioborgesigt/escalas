@@ -8,16 +8,9 @@
 
 import type { RequestHandler } from './$types';
 import { carregarLogosGise } from '$lib/server/gise/logos';
-import { getDB, buscarGiseEscala, buscarGiseDetalhado, buscarPolicial } from '$lib/db';
+import { getDB, buscarGiseDetalhado, buscarPolicial } from '$lib/db';
 import { prepararAssinaturaSchema } from '$lib/schemas';
-import {
-	requireAuth,
-	badRequest,
-	notFound,
-	forbidden,
-	serverError,
-	validateBody
-} from '$lib/server/api';
+import { requireAuth, forbidden, serverError, validateBody } from '$lib/server/api';
 import {
 	gerarPdfGise,
 	toGisePdfData,
@@ -29,10 +22,14 @@ import {
 	adicionarPaginaAuditoria,
 	adicionarRodapeUniversal
 } from '$lib/server/assinatura/pdf-signing';
-import { calcularHashBuffer } from '$lib/server/assinatura/document-utils';
+import {
+	calcularHashBuffer,
+	resolverTipoCarimboTempo
+} from '$lib/server/assinatura/document-utils';
 import { PDFDocument } from 'pdf-lib';
 import { gerarCodigoValidacao } from '$lib/utils/formato';
 import { fecharPreparacaoAssinatura } from '$lib/server/assinatura/preparar-ciclo';
+import { carregarGiseParaAssinatura } from '$lib/server/gise/permissao';
 
 export const POST: RequestHandler = async ({
 	platform,
@@ -54,20 +51,10 @@ export const POST: RequestHandler = async ({
 	const ip = getClientAddress();
 	const ua = request.headers.get('user-agent') || '';
 
-	const id = parseInt(params.id!);
-	if (isNaN(id)) return badRequest('ID inválido');
-
 	const db = getDB(platform);
-	const gise = await buscarGiseEscala(db, id);
-	if (!gise) return notFound('Escala GISE');
-
-	if (gise.status !== 'aguardando_assinatura' && gise.status !== 'em_andamento') {
-		return badRequest('A escala não está pronta para assinatura');
-	}
-
-	if (gise.supervisor_id !== u.id) {
-		return forbidden('Apenas o Supervisor designado pode assinar esta escala');
-	}
+	const portao = await carregarGiseParaAssinatura(db, params.id, u);
+	if (portao.recusa) return portao.recusa;
+	const { gise, id } = portao;
 
 	const giseDetalhado = await buscarGiseDetalhado(db, id);
 	if (!giseDetalhado) {
@@ -132,10 +119,7 @@ export const POST: RequestHandler = async ({
 		documentName: `Escala de Serviço GISE - ${gise.data_inicio}`,
 		signatureLevel: 'qualificada',
 		documentHash,
-		tipoCarimoTempo: (platform?.env as unknown as Record<string, string | undefined> | undefined)
-			?.TSA_URL
-			? 'tsa_externa'
-			: 'servidor'
+		tipoCarimoTempo: resolverTipoCarimboTempo(platform)
 	});
 
 	// contentPageIndex = índice da última página de conteúdo (para posicionar o carimbo PKI)

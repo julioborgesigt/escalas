@@ -27,6 +27,7 @@ import {
 	buscarAssinaturaRelatorioGise
 } from '$lib/db';
 import { isAdminGeral, isAdminSeccional } from '$lib/auth';
+import { escalaGiseJaAssinada } from '$lib/gise/status-escala';
 import { verificarPermissaoGise } from '$lib/server/gise/permissao';
 import {
 	podeBaixarComManifesto,
@@ -173,32 +174,19 @@ export const GET: RequestHandler = async ({ locals, params, platform, url }) => 
 			try {
 				const presencas = await buscarPresencasGise(db, id, platform?.env);
 				const isSupExtra = await secIdEhSupervisaoExtra(db, seccionalId);
-				const { gerarRelatorioExtraordinarioPdf, gerarRelatorioExtraordinarioSupervisaoPdf } =
-					await import('$lib/server/export');
+				const { gerarPdfRelatorioExtraordinario } = await import('$lib/server/export');
 				const brEnv = await getBreveRelatorioEnvMergido(db, gise.operacao_id);
-				const result = isSupExtra
-					? await gerarRelatorioExtraordinarioSupervisaoPdf(
-							gise,
-							presencas,
-							url.origin,
-							reportSignature,
-							undefined,
-							false,
-							brEnv,
-							logoEsq,
-							logoDir
-						)
-					: await gerarRelatorioExtraordinarioPdf(
-							toGisePdfData(gise, brEnv),
-							presencas,
-							seccionalId,
-							url.origin,
-							reportSignature,
-							undefined,
-							false,
-							logoEsq,
-							logoDir
-						);
+				const result = await gerarPdfRelatorioExtraordinario({
+					isSupExtra,
+					gise,
+					presencas,
+					seccionalId,
+					baseUrl: url.origin,
+					brEnv,
+					logoEsqBytes: logoEsq,
+					logoDirBytes: logoDir,
+					reportSignature
+				});
 				const hash = reportSignature.verification_hash;
 				const buffer = await gerarCopiaConferencia({
 					pdfRascunho: result.pdf,
@@ -240,32 +228,26 @@ export const GET: RequestHandler = async ({ locals, params, platform, url }) => 
 		try {
 			const presencas = await buscarPresencasGise(db, id, platform?.env);
 			const isSupervisaoExtra = await secIdEhSupervisaoExtra(db, seccionalId);
-			const { gerarRelatorioExtraordinarioPdf, gerarRelatorioExtraordinarioSupervisaoPdf } =
-				await import('$lib/server/export');
+			const { gerarPdfRelatorioExtraordinario } = await import('$lib/server/export');
 			const brEnv = await getBreveRelatorioEnvMergido(db, gise.operacao_id);
-			const result = isSupervisaoExtra
-				? await gerarRelatorioExtraordinarioSupervisaoPdf(
-						gise,
-						presencas,
-						url.origin,
-						null,
-						undefined,
-						true,
-						brEnv,
-						logoEsq,
-						logoDir
-					)
-				: await gerarRelatorioExtraordinarioPdf(
-						toGisePdfData(gise, brEnv),
-						presencas,
-						seccionalId,
-						url.origin,
-						null,
-						undefined,
-						false,
-						logoEsq,
-						logoDir
-					);
+			// `isPreparando: isSupervisaoExtra` preserva EXATAMENTE o comportamento
+			// anterior (rascunho de supervisão omitia o placeholder "Aguardando
+			// Conferência", o de seccional mostrava). O rascunho não é assinado
+			// nenhum dos dois (`reportSignature: null`), então essa diferença entre
+			// os ramos não parece proposital — mas mudar a saída aqui muda um PDF
+			// protegido por golden, e não é decisão desta extração.
+			const result = await gerarPdfRelatorioExtraordinario({
+				isSupExtra: isSupervisaoExtra,
+				gise,
+				presencas,
+				seccionalId,
+				baseUrl: url.origin,
+				brEnv,
+				logoEsqBytes: logoEsq,
+				logoDirBytes: logoDir,
+				reportSignature: null,
+				isPreparando: isSupervisaoExtra
+			});
 			const filename = isSupervisaoExtra
 				? `RASCUNHO_extraordinario_supervisao_${gise.data_inicio}.pdf`
 				: `RASCUNHO_extraordinario_${gise.data_inicio}_sec_${seccionalId || 'geral'}.pdf`;
@@ -425,13 +407,7 @@ export const GET: RequestHandler = async ({ locals, params, platform, url }) => 
 		});
 	}
 
-	if (
-		gise.status !== 'em_andamento' &&
-		gise.status !== 'aguardando_relatorios' &&
-		gise.status !== 'aguardando_assinatura_relat' &&
-		gise.status !== 'pronta_para_finalizar' &&
-		gise.status !== 'finalizada'
-	) {
+	if (!escalaGiseJaAssinada(gise.status)) {
 		return badRequest('Download só é liberado após a assinatura do Supervisor.');
 	}
 

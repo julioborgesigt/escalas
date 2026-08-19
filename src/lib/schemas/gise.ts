@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { optionalNullable } from './assinatura-pdf';
+import { optionalNullable, livenessChallengeSchema } from './assinatura-pdf';
 
 /** Schema para validação de assinatura de relatórios GISE */
 export const giseSignatureSchema = z.object({
@@ -30,22 +30,7 @@ export const giseSignatureSchema = z.object({
 	latitude: z.number().min(-90).max(90).nullable().optional(),
 	longitude: z.number().min(-180).max(180).nullable().optional(),
 	/** Liveness challenge cumprido — exigido quando exigirFoto está ativo. */
-	livenessChallenge: optionalNullable(
-		z.object({
-			tipo: z.enum(['blink', 'smile', 'head_turn']),
-			cumprido: z.boolean(),
-			tentativas: z.number().int().min(1).max(20),
-			iniciadoEm: z
-				.string()
-				.regex(/^\d{4}-\d{2}-\d{2}T/)
-				.nullable(),
-			concluidoEm: z
-				.string()
-				.regex(/^\d{4}-\d{2}-\d{2}T/)
-				.nullable(),
-			duracaoMs: z.number().int().min(0).max(600_000)
-		})
-	),
+	livenessChallenge: livenessChallengeSchema,
 	reauthId: optionalNullable(z.string().regex(/^[0-9a-f]{64}$/, 'reauthId inválido'))
 });
 

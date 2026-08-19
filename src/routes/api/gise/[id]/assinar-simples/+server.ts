@@ -12,20 +12,10 @@ import {
 	ErrorCode,
 	contentDisposition,
 	requireAuth,
-	badRequest,
-	notFound,
-	forbidden,
 	serverError,
 	validateBody
 } from '$lib/server/api';
-import {
-	getDB,
-	buscarGiseEscala,
-	buscarGiseDetalhado,
-	auditar,
-	contextoDeEvento,
-	tryGetR2
-} from '$lib/db';
+import { getDB, buscarGiseDetalhado, auditar, contextoDeEvento, tryGetR2 } from '$lib/db';
 import { assinarSimplesSchema } from '$lib/schemas';
 import { validarEvidenciasAvancada } from '$lib/server/assinatura/signature-service';
 import { giseDetalhadoComMatriculaSupervisorSessao } from '$lib/server/export';
@@ -36,6 +26,8 @@ import {
 	persistirGiseAssinada,
 	subirSelfieGise
 } from '$lib/server/gise/assinatura-gise';
+import { carregarGiseParaAssinatura } from '$lib/server/gise/permissao';
+import { envComoRegistro } from '$lib/server/assinatura/document-utils';
 
 export const POST: RequestHandler = async (event) => {
 	const { platform, params, locals, url, request, cookies, getClientAddress } = event;
@@ -58,20 +50,10 @@ export const POST: RequestHandler = async (event) => {
 	const ip = getClientAddress();
 	const ua = request.headers.get('user-agent') || '';
 
-	const id = parseInt(params.id!);
-	if (isNaN(id)) return badRequest('ID inválido');
-
 	const db = getDB(platform);
-	const gise = await buscarGiseEscala(db, id);
-	if (!gise) return notFound('Escala GISE');
-
-	if (gise.status !== 'aguardando_assinatura' && gise.status !== 'em_andamento') {
-		return badRequest('A escala não está pronta para assinatura');
-	}
-
-	if (u.tipo !== 'admin' && gise.supervisor_id !== u.id) {
-		return forbidden('Apenas o supervisor designado ou administradores podem assinar');
-	}
+	const portao = await carregarGiseParaAssinatura(db, params.id, u);
+	if (portao.recusa) return portao.recusa;
+	const { gise, id } = portao;
 
 	const evid = await validarEvidenciasAvancada(
 		db,
@@ -111,7 +93,7 @@ export const POST: RequestHandler = async (event) => {
 		const { esq: logoJpgBytes, dir: logoCearaBytes } = await carregarLogosGise(platform);
 		const gisePdf = giseDetalhadoComMatriculaSupervisorSessao(giseDetalhado, u);
 		const brEnv = await getBreveRelatorioEnvMergido(db, giseDetalhado.operacao_id);
-		const env = platform?.env as unknown as Record<string, string | undefined> | undefined;
+		const env = envComoRegistro(platform);
 
 		const montado = await montarPdfGiseAssinado({
 			gise: { id, data_inicio: gise.data_inicio },

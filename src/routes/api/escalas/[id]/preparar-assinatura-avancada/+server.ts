@@ -42,7 +42,7 @@ import { descreverVinculoCredencial } from '$lib/server/assinatura/webauthn/auth
 import { credencialDoUsuario } from '$lib/server/auth/credencial';
 import { exigirChaveAtiva } from '$lib/server/assinatura/chave-assinatura';
 import { carregarEscalaParaAssinatura } from '$lib/server/escalas/permissao';
-import { calcularHashBuffer } from '$lib/server/assinatura/document-utils';
+import { calcularHashBuffer, envComoRegistro } from '$lib/server/assinatura/document-utils';
 import { bytesToBase64 } from '$lib/crypto/bin';
 
 export const POST: RequestHandler = async ({
@@ -132,7 +132,7 @@ export const POST: RequestHandler = async ({
 			ip: ip ?? undefined,
 			userAgent: ua || undefined,
 			origin: url.origin,
-			env: platform?.env as unknown as Record<string, string | undefined> | undefined
+			env: envComoRegistro(platform)
 		});
 
 		if (!hasR2(platform)) {

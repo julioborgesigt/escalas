@@ -324,8 +324,7 @@ export const actions: Actions = {
 
 		const respostaGenerica = { success: true, enviado: true };
 
-		// Rate limit em recovery_attempts (isolado de login_attempts, IP anonimizado)
-		// — mesma mecânica da rota /api/auth/primeiro-acesso.
+		// Rate limit em recovery_attempts (isolado de login_attempts, IP anonimizado).
 		const limite = await contarRecoveryAttempts(
 			db,
 			ip,

@@ -52,6 +52,38 @@
 	);
 </script>
 
+<!-- Form de remover a designação de unidade do slot — mesma marcação nos três
+     estados do cabeçalho (selecionando/nomeado/vazio), só a classe de layout
+     do form e do botão mudam. -->
+{#snippet formRemoverUnidade(classeForm: string, classeBotao: string)}
+	{#if isAdminGeral && podeEditar && modoEdicaoGeral}
+		<form
+			method="POST"
+			action="?/removerUnidade"
+			use:enhance={actions.handleRemoverUnidade}
+			class={classeForm}
+		>
+			<input type="hidden" name="secId" value={sec.id} />
+			<input type="hidden" name="linkId" value={slot.id} />
+			<button
+				type="submit"
+				class="btn btn-sm preset-outlined-error-500 {classeBotao} text-sm px-2 py-1 rounded-lg flex items-center justify-center gap-1 whitespace-nowrap"
+				disabled={actions.pendingCrud}
+			>
+				<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+					><path
+						stroke-linecap="round"
+						stroke-linejoin="round"
+						stroke-width="2"
+						d="M6 18L18 6M6 6l12 12"
+					/></svg
+				>
+				{actions.pendingRemoverUnidade ? 'Removendo...' : 'Remover DP'}
+			</button>
+		</form>
+	{/if}
+{/snippet}
+
 <div
 	class="rounded-xl border border-surface-300 dark:border-surface-700 border-l-[6px] bg-white dark:bg-surface-950 overflow-visible shadow-[inset_0_1px_3px_rgba(0,0,0,0.02)] {getSeccionalColorClass(
 		sec.seccional_id,
@@ -103,32 +135,10 @@
 						Cancelar
 					</button>
 				</div>
-				{#if isAdminGeral && podeEditar && modoEdicaoGeral}
-					<form
-						method="POST"
-						action="?/removerUnidade"
-						use:enhance={actions.handleRemoverUnidade}
-						class="w-full sm:ml-auto sm:w-auto sm:flex sm:justify-end"
-					>
-						<input type="hidden" name="secId" value={sec.id} />
-						<input type="hidden" name="linkId" value={slot.id} />
-						<button
-							type="submit"
-							class="btn btn-sm preset-outlined-error-500 w-full sm:w-auto text-sm px-2 py-1 rounded-lg flex items-center justify-center gap-1 whitespace-nowrap"
-							disabled={actions.pendingCrud}
-						>
-							<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"
-								><path
-									stroke-linecap="round"
-									stroke-linejoin="round"
-									stroke-width="2"
-									d="M6 18L18 6M6 6l12 12"
-								/></svg
-							>
-							{actions.pendingRemoverUnidade ? 'Removendo...' : 'Remover DP'}
-						</button>
-					</form>
-				{/if}
+				{@render formRemoverUnidade(
+					'w-full sm:ml-auto sm:w-auto sm:flex sm:justify-end',
+					'w-full sm:w-auto'
+				)}
 			</div>
 		{:else if slot.nome}
 			<div class="flex w-full min-w-0 flex-row items-center justify-between gap-3">
@@ -152,32 +162,7 @@
 						</button>
 					{/if}
 				</div>
-				{#if isAdminGeral && podeEditar && modoEdicaoGeral}
-					<form
-						method="POST"
-						action="?/removerUnidade"
-						use:enhance={actions.handleRemoverUnidade}
-						class="w-auto shrink-0 sm:self-start"
-					>
-						<input type="hidden" name="secId" value={sec.id} />
-						<input type="hidden" name="linkId" value={slot.id} />
-						<button
-							type="submit"
-							class="btn btn-sm preset-outlined-error-500 w-auto text-sm px-2 py-1 rounded-lg flex items-center justify-center gap-1 whitespace-nowrap"
-							disabled={actions.pendingCrud}
-						>
-							<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"
-								><path
-									stroke-linecap="round"
-									stroke-linejoin="round"
-									stroke-width="2"
-									d="M6 18L18 6M6 6l12 12"
-								/></svg
-							>
-							{actions.pendingRemoverUnidade ? 'Removendo...' : 'Remover DP'}
-						</button>
-					</form>
-				{/if}
+				{@render formRemoverUnidade('w-auto shrink-0 sm:self-start', 'w-auto')}
 			</div>
 		{:else if podeEditarCabecalhoUnidade}
 			<div class="flex flex-row items-center justify-between gap-2 w-full min-w-0">
@@ -199,32 +184,7 @@
 					>
 					Definir DP
 				</button>
-				{#if isAdminGeral && podeEditar && modoEdicaoGeral}
-					<form
-						method="POST"
-						action="?/removerUnidade"
-						use:enhance={actions.handleRemoverUnidade}
-						class="w-auto sm:min-w-0"
-					>
-						<input type="hidden" name="secId" value={sec.id} />
-						<input type="hidden" name="linkId" value={slot.id} />
-						<button
-							type="submit"
-							class="btn btn-sm preset-outlined-error-500 w-auto text-sm px-2 py-1 rounded-lg flex items-center justify-center gap-1 whitespace-nowrap"
-							disabled={actions.pendingCrud}
-						>
-							<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"
-								><path
-									stroke-linecap="round"
-									stroke-linejoin="round"
-									stroke-width="2"
-									d="M6 18L18 6M6 6l12 12"
-								/></svg
-							>
-							{actions.pendingRemoverUnidade ? 'Removendo...' : 'Remover DP'}
-						</button>
-					</form>
-				{/if}
+				{@render formRemoverUnidade('w-auto sm:min-w-0', 'w-auto')}
 			</div>
 		{:else}
 			<span class="text-sm text-surface-600 dark:text-surface-400 italic">Unidade não definida</span

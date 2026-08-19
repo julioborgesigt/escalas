@@ -85,7 +85,6 @@ export const DECLARADAS = {
 	// ---- Pré-autenticação: não há sessão para exigir ----
 	'src/routes/api/auth/login/+server.ts → POST': 'login: cria a sessão',
 	'src/routes/api/auth/logout/+server.ts → POST': 'logout: destrói a própria sessão',
-	'src/routes/api/auth/primeiro-acesso/+server.ts → POST': 'primeiro acesso: antes da senha',
 	'src/routes/api/auth/reenviar-codigo/+server.ts → POST': 'reenvia o 2FA do login em curso',
 	'src/routes/api/auth/solicitar-redefinicao/+server.ts → POST': 'esqueci a senha: sem sessão',
 	'src/routes/api/auth/confirmar-redefinicao/+server.ts → POST':
@@ -145,7 +144,6 @@ export const DECLARADAS = {
 export const PUBLICAS = [
 	'src/routes/api/auth/login/+server.ts',
 	'src/routes/api/auth/logout/+server.ts',
-	'src/routes/api/auth/primeiro-acesso/+server.ts',
 	'src/routes/api/auth/reenviar-codigo/+server.ts',
 	'src/routes/api/auth/verificar-2fa/+server.ts',
 	'src/routes/api/auth/solicitar-redefinicao/+server.ts',
@@ -192,6 +190,20 @@ export const HELPERS_OBRIGATORIOS = {
 	// Revogar não passa pelo portão (não há o que conflitar): gate direto.
 	'src/routes/api/escalas/[id]/documento-assinado/+server.ts': ['podeAssinarEscala'],
 
+	// FLW-AUT-010 — assinar GISE é supervisor designado ou Admin Geral, e só em
+	// status que admite assinatura. As cinco rotas entram pelo mesmo portão; a
+	// exceção de `preparar-assinatura` (que recusa admin) é PARÂMETRO nele, não
+	// uma sexta cópia. Exigir o nome do portão é o que impede remontá-lo à mão.
+	'src/routes/api/gise/[id]/assinar-simples/+server.ts': ['carregarGiseParaAssinatura'],
+	'src/routes/api/gise/[id]/preparar-assinatura/+server.ts': ['carregarGiseParaAssinatura'],
+	'src/routes/api/gise/[id]/finalizar-assinatura/+server.ts': ['carregarGiseParaAssinatura'],
+	'src/routes/api/gise/[id]/preparar-assinatura-avancada/+server.ts': [
+		'carregarGiseParaAssinatura'
+	],
+	'src/routes/api/gise/[id]/finalizar-assinatura-avancada/+server.ts': [
+		'carregarGiseParaAssinatura'
+	],
+
 	// FLW-AUT-010 — GISE `finalizada` não muta pela porta dos fundos
 	'src/routes/gise/[id]/_actions/actions-escala.ts': ['carregarGiseEditavel'],
 	'src/routes/gise/[id]/_actions/actions-escala.ts → reabrirEscala': ['exigirAdminGeral'],
@@ -222,9 +234,12 @@ export const HELPERS_OBRIGATORIOS = {
 	'src/routes/escalas/[id]/_actions/actions-ciclo.ts': ['carregarEscalaComPermissao'],
 	'src/routes/escalas/[id]/_actions/actions-projecao.ts': ['carregarEscalaComPermissao'],
 
-	// FLW-AUT-006 / 007 — presença: janela de horário + GISE não finalizada
-	'src/routes/res-gise/+page.server.ts → salvarEntrada': ['gateDePresenca'],
-	'src/routes/res-gise/+page.server.ts → salvarSaida': ['gateDePresenca'],
+	// FLW-AUT-006 / 007 — presença: janela de horário + GISE não finalizada.
+	// `gateDePresenca` mora dentro de `prepararConfirmacaoPresenca` (preparo
+	// comum extraído de salvarEntrada/salvarSaida em ago/2026) — o corpo das
+	// duas actions chama o preparo, não o gate direto.
+	'src/routes/res-gise/+page.server.ts → salvarEntrada': ['prepararConfirmacaoPresenca'],
+	'src/routes/res-gise/+page.server.ts → salvarSaida': ['prepararConfirmacaoPresenca'],
 	'src/routes/api/gise/[id]/presenca/preparar-assinatura/+server.ts': ['gateDePresenca'],
 	'src/routes/api/gise/[id]/presenca/finalizar-assinatura/+server.ts': ['gateDePresenca']
 };
@@ -250,7 +265,7 @@ function helpersDaOperacao(arquivo, nome) {
 // carrega mais o helper, e o par nome-aqui + HELPERS_OBRIGATORIOS abaixo passa
 // a exigir a chamada no corpo de CADA uma.
 const RE_403 =
-	/fail\(403|forbidden\(|status:\s*403|error\(403|requireAdmin\(|requireSuperAdmin\(|exigirAdminGeral\(|carregarEscalaComPermissao\(|carregarEscalaParaAssinatura\(/;
+	/fail\(403|forbidden\(|status:\s*403|error\(403|requireAdmin\(|requireSuperAdmin\(|exigirAdminGeral\(|carregarEscalaComPermissao\(|carregarEscalaParaAssinatura\(|carregarGiseParaAssinatura\(/;
 const RE_401 = /fail\(401|unauthorized\(|requireAuth\(|error\(401/;
 
 /** Do índice da chave `{`, devolve o bloco balanceado. */

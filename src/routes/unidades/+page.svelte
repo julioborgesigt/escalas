@@ -32,18 +32,15 @@
 	import { toaster } from '$lib/toast';
 	import type { Unidade } from '$lib/types';
 	import { CIDADES_CEARA } from '$lib/constants/cidades';
-	import {
-		useAutorizacao,
-		getSavedFilters,
-		useFiltrosPaginados,
-		useSamePathNavigating
-	} from '$lib/composables';
+	import { useAutorizacao, useFiltrosPaginados, useSamePathNavigating } from '$lib/composables';
+	import { getSavedFilters } from '$lib/utils/localStorage';
 	import type { ActionResult } from '@sveltejs/kit';
 	import ModalCadastrarUnidade from './_components/ModalCadastrarUnidade.svelte';
 	import ModalDesativarUnidade from './_components/ModalDesativarUnidade.svelte';
 	import BadgeTipoEscala from '$lib/components/BadgeTipoEscala.svelte';
 	import EstadoVazio from '$lib/components/EstadoVazio.svelte';
 	import Building2 from '@lucide/svelte/icons/building-2';
+	import Search from '@lucide/svelte/icons/search';
 
 	const { data }: PageProps = $props();
 
@@ -321,14 +318,7 @@
 					placeholder="Digite o nome da unidade..."
 				/>
 				<div class="absolute inset-y-0 left-3 flex items-center pointer-events-none opacity-50">
-					<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"
-						><path
-							stroke-linecap="round"
-							stroke-linejoin="round"
-							stroke-width="2"
-							d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-						/></svg
-					>
+					<Search class="w-4 h-4" />
 				</div>
 			</div>
 		</label>

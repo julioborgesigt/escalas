@@ -10,13 +10,15 @@
 	import { goto } from '$app/navigation';
 	import { slide } from 'svelte/transition';
 	import { statusLabel, statusColor, statusStrip, fmtDate, diaSemana } from '$lib/gise/formatters';
+	import { escalaGiseJaAssinada } from '$lib/gise/status-escala';
 	import PenLine from '@lucide/svelte/icons/pen-line';
 
 	const {
 		ativa,
 		operacaoNome = '',
 		isSupervisor,
-		isDesktop,
+		assinaViaToken,
+		larguraDesktop,
 		usuario,
 		menuExpandidoId,
 		onAssEscala,
@@ -42,7 +44,17 @@
 		/** Sigla/nome da operação desta escala; vazio esconde o selo. */
 		operacaoNome?: string;
 		isSupervisor: boolean;
-		isDesktop: boolean;
+		/**
+		 * O APARELHO assina por token A3 (computador) ou em tela (celular).
+		 * Só muda o texto do tooltip — quem dispara o fluxo é a página.
+		 */
+		assinaViaToken: boolean;
+		/**
+		 * A VIEWPORT chegou ao `md` do Tailwind. Tem de bater com as classes
+		 * `md:` deste arquivo, e por isso NÃO é o mesmo booleano acima: no iPad
+		 * em paisagem o aparelho é móvel e a largura é de desktop.
+		 */
+		larguraDesktop: boolean;
 		usuario: { id?: number | null } | null;
 		menuExpandidoId: number | null;
 		onAssEscala: () => void;
@@ -61,17 +73,7 @@
 		!!(ativa.supervisor_id || ativa.assessor_id || ativa.seint1_id || ativa.seint2_id)
 	);
 	const totalExtras = $derived(ativa.totalSeccionais + (temSupervisao ? 1 : 0));
-	// Status a partir dos quais a escala já foi assinada e seguiu adiante — todos
-	// contam como "assinada" para o botão, inclusive os posteriores.
-	const escalaConcluida = $derived(
-		[
-			'em_andamento',
-			'aguardando_relatorios',
-			'aguardando_assinatura_relat',
-			'pronta_para_finalizar',
-			'finalizada'
-		].includes(ativa.status)
-	);
+	const escalaConcluida = $derived(escalaGiseJaAssinada(ativa.status));
 	// Três estados do botão de extras: nenhum, alguns (tertiary) e todos (success).
 	// `>=` e não `===` porque uma seccional removida depois da assinatura deixaria
 	// o contador acima do total esperado.
@@ -142,7 +144,7 @@
 								: 'bg-surface-200/50 dark:bg-surface-800 text-surface-600 dark:text-surface-400 border border-surface-300/50 dark:border-surface-700'}"
 						onclick={onAssEscala}
 						title={ativa.status === 'aguardando_assinatura'
-							? isDesktop
+							? assinaViaToken
 								? 'Assinar via Token'
 								: 'Assinar em Tela'
 							: escalaConcluida
@@ -176,7 +178,7 @@
 									: 'bg-surface-200/50 dark:bg-surface-800 text-surface-600 dark:text-surface-400 border border-surface-300/50 dark:border-surface-700'}"
 						onclick={onAssExtra}
 						title={ativa.extrasPendentes > 0
-							? isDesktop
+							? assinaViaToken
 								? 'Assinar extras via Token'
 								: 'Assinar extras em Tela'
 							: extraConcluido
@@ -211,10 +213,16 @@
 				{menuExpandidoId === ativa.id ? 'Ocultar' : 'Opções'}
 			</button>
 
-			{#if isDesktop || menuExpandidoId === ativa.id}
+			<!--
+				`larguraDesktop`, e não o predicado de aparelho: o botão "Opções"
+				acima é `md:hidden`, então a partir de 768 px não existe nada na
+				tela capaz de abrir esta linha — ela precisa vir aberta na MESMA
+				largura em que aquele botão some.
+			-->
+			{#if larguraDesktop || menuExpandidoId === ativa.id}
 				<div
 					class="flex flex-row gap-2 mt-1 w-full"
-					transition:slide={{ duration: isDesktop ? 0 : 200 }}
+					transition:slide={{ duration: larguraDesktop ? 0 : 200 }}
 				>
 					<button
 						type="button"

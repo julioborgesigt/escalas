@@ -35,7 +35,10 @@ import {
 } from '$lib/server/assinatura/pdf-signing';
 import { PDFDocument } from 'pdf-lib';
 import { gerarCodigoValidacao } from '$lib/utils/formato';
-import { calcularHashBuffer } from '$lib/server/assinatura/document-utils';
+import {
+	calcularHashBuffer,
+	resolverTipoCarimboTempo
+} from '$lib/server/assinatura/document-utils';
 import { fecharPreparacaoAssinatura } from '$lib/server/assinatura/preparar-ciclo';
 
 export const POST: RequestHandler = async ({
@@ -185,10 +188,7 @@ export const POST: RequestHandler = async ({
 		token: crypto.randomUUID(),
 		documentName: `Relatório Extraordinário - GISE ${id}`,
 		signatureLevel: 'qualificada',
-		tipoCarimoTempo: (platform?.env as unknown as Record<string, string | undefined> | undefined)
-			?.TSA_URL
-			? 'tsa_externa'
-			: 'servidor'
+		tipoCarimoTempo: resolverTipoCarimboTempo(platform)
 	});
 
 	// Conta páginas do PDF de conteúdo antes de adicionar a folha de auditoria

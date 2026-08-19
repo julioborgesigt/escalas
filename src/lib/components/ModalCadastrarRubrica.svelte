@@ -23,6 +23,7 @@
 	import RubricaCanvas, { type RubricaCanvasControl } from './RubricaCanvas.svelte';
 	import ModalShell from './ModalShell.svelte';
 	import { mensagemDeErro } from '$lib/utils/erro';
+	import { recortarCentralizarTraco } from '$lib/utils/rubrica-imagem';
 
 	let {
 		open = $bindable(false),
@@ -167,31 +168,7 @@
 				return;
 			}
 
-			// Recorta à caixa do traço e re-escala para a proporção do campo do PDF.
-			const margem = 24;
-			const recW = maxX - minX + 1;
-			const recH = maxY - minY + 1;
-			const outW = 1000;
-			const outH = Math.round(outW / aspecto);
-			const out = document.createElement('canvas');
-			out.width = outW;
-			out.height = outH;
-			const octx = out.getContext('2d')!;
-			const escala = Math.min((outW - 2 * margem) / recW, (outH - 2 * margem) / recH);
-			const drawW = recW * escala;
-			const drawH = recH * escala;
-			octx.drawImage(
-				crop,
-				minX,
-				minY,
-				recW,
-				recH,
-				(outW - drawW) / 2,
-				(outH - drawH) / 2,
-				drawW,
-				drawH
-			);
-			previewUrl = out.toDataURL('image/png');
+			previewUrl = recortarCentralizarTraco(crop, { minX, minY, maxX, maxY }, aspecto);
 		};
 		img.src = srcDataUrl;
 	}

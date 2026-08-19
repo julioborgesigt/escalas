@@ -89,6 +89,72 @@ export interface AssinaturaCadesMetadata {
 	tst_token_b64?: string | null;
 }
 
+/** Colunas com nome IDÊNTICO nas quatro tabelas de documento assinado (escala,
+ *  GISE, relatório de seccional, termo de presença) — ver `montarCamposMinimizados`. */
+export interface CamposMinimizadosDocumento {
+	ip_address: string | null;
+	user_agent: string | null;
+	user_agent_raw: string | null;
+	latitude: number | null;
+	longitude: number | null;
+	tipo_carimbo_tempo: string;
+	cert_issuer: string | null;
+	cert_serial: string | null;
+	cert_valido_de: string | null;
+	cert_valido_ate: string | null;
+	cms_sha256: string | null;
+	ocsp_response_b64: string | null;
+	ocsp_consultado_em: string | null;
+	tst_token_b64: string | null;
+	webauthn_credential_id: string | null;
+	webauthn_client_data: string | null;
+	webauthn_authenticator_data: string | null;
+	webauthn_assinatura: string | null;
+	webauthn_backup_ativo: number | null;
+}
+
+/**
+ * Minimização LGPD + dossiê CAdES/WebAuthn comum aos quatro pontos que gravam
+ * documento assinado (`salvarDocumentoEscala`, `salvarGiseDocumento`,
+ * `salvarAssinaturaRelatorioGise`, `salvarTermoPresencaGise`). Cada campo
+ * opcional vira `null` EXPLÍCITO, nunca `undefined`: três dos quatro
+ * chamadores fazem UPSERT, e o drizzle omite chave `undefined` do `.set()` —
+ * a coluna da assinatura ANTERIOR sobreviveria à reassinatura (certificado,
+ * selfie e GPS de outra assinatura colados no registro da nova).
+ */
+export function montarCamposMinimizados(opts: {
+	ipAddress?: string;
+	userAgent?: string;
+	latitude?: number;
+	longitude?: number;
+	tipoCarimboTempo?: string;
+	cadesMeta?: AssinaturaCadesMetadata;
+	passkeyMeta?: AssinaturaPasskeyMetadata;
+}): CamposMinimizadosDocumento {
+	const meta = opts.cadesMeta ?? {};
+	return {
+		ip_address: anonimizarIp(opts.ipAddress) ?? null,
+		user_agent: opts.userAgent ? parseUserAgent(opts.userAgent) : null,
+		user_agent_raw: opts.userAgent ? opts.userAgent.slice(0, 1024) : null,
+		latitude: reduzirPrecisaoGps(opts.latitude) ?? null,
+		longitude: reduzirPrecisaoGps(opts.longitude) ?? null,
+		tipo_carimbo_tempo: opts.tipoCarimboTempo || 'servidor',
+		cert_issuer: meta.cert_issuer ?? null,
+		cert_serial: meta.cert_serial ?? null,
+		cert_valido_de: meta.cert_valido_de ?? null,
+		cert_valido_ate: meta.cert_valido_ate ?? null,
+		cms_sha256: meta.cms_sha256 ?? null,
+		ocsp_response_b64: meta.ocsp_response_b64 ?? null,
+		ocsp_consultado_em: meta.ocsp_consultado_em ?? null,
+		tst_token_b64: meta.tst_token_b64 ?? null,
+		webauthn_credential_id: opts.passkeyMeta?.credential_id ?? null,
+		webauthn_client_data: opts.passkeyMeta?.client_data ?? null,
+		webauthn_authenticator_data: opts.passkeyMeta?.authenticator_data ?? null,
+		webauthn_assinatura: opts.passkeyMeta?.assinatura ?? null,
+		webauthn_backup_ativo: opts.passkeyMeta ? (opts.passkeyMeta.backup_ativo ? 1 : 0) : null
+	};
+}
+
 /**
  * Registra (ou substitui) a assinatura da escala. Recebe os dados brutos e
  * aplica a minimização descrita no cabeçalho — nenhum chamador precisa lembrar
@@ -129,17 +195,11 @@ export async function salvarDocumentoEscala(
 	// campo errado. Quem usa passkey passa os dois últimos explicitamente.
 	passkeyMeta?: AssinaturaPasskeyMetadata
 ) {
-	const meta = cadesMeta ?? {};
 	// CPF cifrado em repouso (LGPD Fase 2).
 	const cpfArmazenado = (await cifrarCpfParaArmazenar(assinanteCpf, env)) ?? '';
 
 	// Mesmos campos no INSERT e no UPDATE do upsert — montados uma vez para não
 	// divergirem. `escala_id` fica de fora: é o alvo do conflito.
-	//
-	// Campo opcional vira `null` EXPLÍCITO, nunca `undefined`: o drizzle omite
-	// chave `undefined` do `.set()`, e aí a coluna da assinatura ANTERIOR
-	// sobrevive à reassinatura (certificado, selfie e GPS de outra assinatura
-	// colados no registro da nova).
 	const dados = {
 		r2_key: r2Key,
 		assinante_nome: assinanteNome,
@@ -147,29 +207,16 @@ export async function salvarDocumentoEscala(
 		verificacao_hash: verificacaoHash ?? null,
 		selfie_key: selfieKey ?? null,
 		arquivo_hash: arquivoHash ?? null,
-		ip_address: anonimizarIp(ipAddress) ?? null,
-		user_agent: userAgent ? parseUserAgent(userAgent) : null,
-		user_agent_raw: userAgent ? userAgent.slice(0, 1024) : null,
-		latitude: reduzirPrecisaoGps(latitude) ?? null,
-		longitude: reduzirPrecisaoGps(longitude) ?? null,
 		assinante_email: assinanteEmail ?? null,
-		tipo_carimbo_tempo: tipoCarimboTempo || 'servidor',
-		cert_issuer: meta.cert_issuer ?? null,
-		cert_serial: meta.cert_serial ?? null,
-		cert_valido_de: meta.cert_valido_de ?? null,
-		cert_valido_ate: meta.cert_valido_ate ?? null,
-		cms_sha256: meta.cms_sha256 ?? null,
-		ocsp_response_b64: meta.ocsp_response_b64 ?? null,
-		ocsp_consultado_em: meta.ocsp_consultado_em ?? null,
-		tst_token_b64: meta.tst_token_b64 ?? null,
-		// `null` explícito, como todo o resto deste objeto: sem isso, a
-		// reassinatura por outro caminho deixaria a asserção da assinatura
-		// ANTERIOR colada no registro da nova.
-		webauthn_credential_id: passkeyMeta?.credential_id ?? null,
-		webauthn_client_data: passkeyMeta?.client_data ?? null,
-		webauthn_authenticator_data: passkeyMeta?.authenticator_data ?? null,
-		webauthn_assinatura: passkeyMeta?.assinatura ?? null,
-		webauthn_backup_ativo: passkeyMeta ? (passkeyMeta.backup_ativo ? 1 : 0) : null
+		...montarCamposMinimizados({
+			ipAddress,
+			userAgent,
+			latitude,
+			longitude,
+			tipoCarimboTempo,
+			cadesMeta,
+			passkeyMeta
+		})
 	};
 
 	return db

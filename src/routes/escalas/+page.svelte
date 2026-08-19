@@ -41,7 +41,6 @@
 	import type { ActionResult } from '@sveltejs/kit';
 	import {
 		useAutorizacao,
-		getSavedFilters,
 		useAssinaturaEscala,
 		useMobile,
 		useFiltrosPaginados,
@@ -49,11 +48,13 @@
 		rubricaValida,
 		useInvalidateOnFocus
 	} from '$lib/composables';
+	import { getSavedFilters } from '$lib/utils/localStorage';
 	import { fetchSyncEstado } from '$lib/sync-estado';
 	import SignaturePad from '$lib/components/SignaturePad.svelte';
-	import type {
-		SignaturePadConfirmPayload,
-		SignaturePadStep
+	import {
+		textosEtapaAssinatura,
+		type SignaturePadConfirmPayload,
+		type SignaturePadStep
 	} from '$lib/components/SignaturePadTypes';
 	import PainelAssinaturaToken from '$lib/components/PainelAssinaturaToken.svelte';
 	import { page } from '$app/state';
@@ -448,24 +449,14 @@
 		}
 	});
 
-	const signatureTitulo = $derived(
-		signatureStep === 'camera'
-			? 'Prova de Vida'
-			: signatureStep === 'password'
-				? 'Confirme sua senha'
-				: signatureStep === 'email_code'
-					? 'Confirmação de Identidade'
-					: 'Assinatura Digital em Tela'
+	const textosEtapa = $derived(
+		textosEtapaAssinatura(
+			signatureStep,
+			'Desenhe sua rubrica no quadro abaixo para assinar este documento.'
+		)
 	);
-	const signatureDescricao = $derived(
-		signatureStep === 'camera'
-			? 'Cumpra o desafio de presença na tela para provar que você está ativo.'
-			: signatureStep === 'password'
-				? 'A sessão sozinha não basta. Digite a senha de acesso para assinar.'
-				: signatureStep === 'email_code'
-					? 'Por razões de segurança, insira o código enviado para o seu e-mail funcional.'
-					: 'Desenhe sua rubrica no quadro abaixo para assinar este documento.'
-	);
+	const signatureTitulo = $derived(textosEtapa.titulo);
+	const signatureDescricao = $derived(textosEtapa.descricao);
 </script>
 
 <svelte:head>
