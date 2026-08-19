@@ -40,11 +40,11 @@
 	import BotaoLimparFiltros from '$lib/components/BotaoLimparFiltros.svelte';
 	import {
 		useAutorizacao,
-		getSavedFilters,
 		useFiltrosPaginados,
 		useInvalidateOnFocus,
 		useSamePathNavigating
 	} from '$lib/composables';
+	import { getSavedFilters } from '$lib/utils/localStorage';
 	import type { ActionResult } from '@sveltejs/kit';
 	import { loading as loadingService } from '$lib/loading.svelte';
 	import CampoFiltroSelect from '$lib/components/CampoFiltroSelect.svelte';

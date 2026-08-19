@@ -43,12 +43,8 @@
 	import BotaoLimparFiltros from '$lib/components/BotaoLimparFiltros.svelte';
 	import { toaster } from '$lib/toast';
 	import type { ItemCompliance } from '$lib/types';
-	import {
-		useAutorizacao,
-		getSavedFilters,
-		useInvalidateOnFocus,
-		useSamePathNavigating
-	} from '$lib/composables';
+	import { useAutorizacao, useInvalidateOnFocus, useSamePathNavigating } from '$lib/composables';
+	import { getSavedFilters } from '$lib/utils/localStorage';
 	import { invalidateShared } from '$lib/cross-tab-invalidate';
 	import { fetchSyncEstado } from '$lib/sync-estado';
 	import { loading as loadingService } from '$lib/loading.svelte';

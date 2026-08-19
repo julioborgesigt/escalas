@@ -41,6 +41,7 @@
 	import { toaster } from '$lib/toast';
 	import { enhance } from '$app/forms';
 	import { useGiseEstado, useGiseAssinatura } from '$lib/composables/gise';
+	import { escalaGiseJaAssinada } from '$lib/gise/status-escala';
 	import { useOfertaRubrica, rubricaValida, useInvalidateOnFocus } from '$lib/composables';
 	import { fetchSyncEstado } from '$lib/sync-estado';
 	import { loading } from '$lib/loading.svelte';
@@ -399,14 +400,7 @@
 			gise?.supervisor_id === data.usuarioAtual?.id &&
 			!documentoAssinadoInfo?.existe
 	);
-	const podeReabrir = $derived(
-		isAdminGeral &&
-			(gise?.status === 'em_andamento' ||
-				gise?.status === 'aguardando_relatorios' ||
-				gise?.status === 'aguardando_assinatura_relat' ||
-				gise?.status === 'pronta_para_finalizar' ||
-				gise?.status === 'finalizada')
-	);
+	const podeReabrir = $derived(isAdminGeral && escalaGiseJaAssinada(gise?.status ?? ''));
 
 	/**
 	 * Quadro de supervisão — publicado por contexto em vez de descido por props.

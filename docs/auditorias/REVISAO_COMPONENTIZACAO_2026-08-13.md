@@ -5,30 +5,36 @@
 **Método:** leitura estrutural, medição de tamanho por arquivo, rastreamento de duplicação e de
 fronteiras de import. Sem execução de testes (`node_modules` ausente no ambiente de revisão).
 
-**Status:** ABERTA — reverificada em 19/ago/2026 (ver §0). Um achado resolvido,
-três parciais, seis abertos. **Não arquivar enquanto houver linha "aberto"
-abaixo** — a convenção de [`docs/HISTORICO.md`](../HISTORICO.md) só admite
-remover o arquivo quando os achados estão resolvidos ou formalmente aceitos.
+**Status:** ABERTA — reverificada em 19/ago/2026 e **Rodada 1 executada** na
+mesma data (ver §0). Quatro achados resolvidos (#2, #3, #5, #9), dois parciais
+(#4, #7), quatro abertos (#1, #6, #8, #10). **Não arquivar enquanto houver
+linha "aberto" abaixo** — a convenção de [`docs/HISTORICO.md`](../HISTORICO.md)
+só admite remover o arquivo quando os achados estão resolvidos ou formalmente
+aceitos.
 
 ---
 
 ## 0. Reverificação — 19/ago/2026
 
-Conferência achado a achado contra o working tree de hoje (`main` em `68cb3fd`).
-A §0 é a ÚNICA seção atualizada; as §§1–10 permanecem como o diagnóstico
-original de 13/ago, para que a comparação continue possível.
+Conferência achado a achado contra o working tree de hoje (`main` em `68cb3fd`),
+seguida da execução da **Rodada 1** da §"Sequência sugerida". A §0 é a ÚNICA
+seção atualizada; as §§1–10 permanecem como o diagnóstico original de 13/ago,
+para que a comparação continue possível.
+
+A coluna "status hoje" descreve o estado **depois** da Rodada 1; onde a rodada
+mexeu, o que foi feito vem junto.
 
 | # | Achado | Status hoje | Evidência |
 |---|--------|-------------|-----------|
 | 1 | Tabela desktop × cards mobile em 6 telas | **Aberto** | `hidden md:block` + `md:hidden` nas seis telas; o drift citado continua literal — `recebidos/+page.svelte:431` diz "Visto" e `:605` diz "Lida"; o tooltip do manifesto tem "(… CPF, IP, GPS, selfie)" em `:525` e só "(evidências da assinatura)" em `:656` |
 | 2 | `escalas/[id]/+page.server.ts` com 14 actions inline | **Resolvido** | 1.381 → **161 linhas**; `_actions/` agora tem `actions-ciclo`, `actions-composicao`, `actions-datas`, `actions-projecao`, `desfecho`, `shared` + `__tests__/` |
-| 3 | Três definições de "é mobile?" | **Parcial** | `useMobile` virou a fonte única e documentada (o cabeçalho registra a decisão) e `useGiseEstado` não tem mais `MediaQuery` próprio — mas `gise/+page.svelte:113` mantém `new MediaQuery('(min-width: 768px)', true)`. Sobrevivem os DOIS defeitos: sobreposição exata em 768px (`max-width: 768px` do outro lado, não `767.98px`) e fallback de SSR invertido (`true` aqui, `false` lá). E continua decidindo fluxo, não layout: `:153`–`:173` escolhem entre `via=token` e `via=tela` |
+| 3 | Três definições de "é mobile?" | **Resolvido** (Rodada 1) | Não há mais `new MediaQuery` fora de `$lib/composables/`. A recomendação foi seguida com uma correção: as três definições não respondiam à MESMA pergunta, e unificar as três em `useMobile()` teria QUEBRADO o iPad — ver "O que a Rodada 1 mudou de rumo" abaixo |
 | 4 | `+layout.svelte` com 7 responsabilidades | **Parcial** | A parte de maior retorno saiu: as regras de visibilidade viraram `routes/_components/menu-visibilidade.ts` — `.ts` puro, com `__tests__/menu-visibilidade.test.ts`, exatamente o `menu-modelo.ts` recomendado. O cabeçalho dele cita as "1146 ln" deste documento. Faltam a gaveta, a barra do topo e o provedor de Toast; o arquivo está em **1.042 linhas** |
-| 5 | Array dos 5 status "escala assinada" repetido 4× | **Aberto** | As quatro cópias intactas: `gise/+page.svelte:196` e `:272`, `gise/_components/CardGiseAtiva.svelte:69`, `gise/[id]/_actions/actions-escala.ts:431` (a do servidor, que autoriza reabrir). Não existe `STATUS_ESCALA_ASSINADA` no repositório |
+| 5 | Array dos 5 status "escala assinada" repetido 4× | **Resolvido** (Rodada 1) | Eram **sete** cópias, não quatro — três delas no servidor. `STATUS_ESCALA_ASSINADA` + `escalaGiseJaAssinada()` agora vivem em `$lib/gise/status-escala.ts`, com teste; os sete call sites chamam a mesma função |
 | 6 | 7 páginas grandes sem `_components/` | **Aberto** | Nenhuma das sete tem a pasta. Tamanhos hoje: `painel/` 819, `validar/[hash]/` 750, `recebidos/` 749, `res-gise/relatorio/[giseId]/` 520, `conf-ass/` 466, `auditoria/logs/` 370, `alterar-senha/` 354 |
 | 7 | 6 imports atravessando fronteira de rota | **Parcial** | O pior sumiu: `gise/+page.svelte` não alcança mais `[id]/_components/modais/ModalRubrica.svelte` (a listagem foi para o fluxo de chave e o modal ficou só em `gise/[id]/`). Permanecem `gise/[id]/+page.svelte:70` → `../_components/ModalDownloadExtras.svelte`, `res-gise/relatorio/[giseId]/+page.svelte:45` → `../../_components/RelatorioProdutividade.svelte` e os cinco de `auditoria/logs/` → `../_components/` (`KpiCard`, `ChipNivel`, `FiltrosToggle`, `Paginacao`, `parse-json`, `consulta`) |
 | 8 | ~250 linhas de texto de diálogo em `gise/+page.svelte` | **Aberto** | 13 blocos `dialogInfo = {` no arquivo (642 linhas); não existe `lib/gise/mensagens-assinatura.ts`. O diálogo de manifesto continua montado duas vezes (`handleEscalaPdf` / `handleExtraPdf`) |
-| 9 | `getSavedFilters` vazando pelo barrel de composables | **Aberto** | `lib/composables/index.ts:2` intacto; os cinco call sites (`escalas`, `policiais`, `painel`, `recebidos`, `unidades`) continuam importando de `$lib/composables` |
+| 9 | `getSavedFilters` vazando pelo barrel de composables | **Resolvido** (Rodada 1) | Linha removida; os cinco call sites importam de `$lib/utils/localStorage`. O barrel ganhou cabeçalho com o critério ("entra o que é `use*`") para o vazamento não voltar |
 | 10 | Zero testes de componente | **Aberto** | `*.svelte.test.ts`: **0**. `*.test.ts` em `src/`: 143 (eram 126). Specs Playwright: 38 (eram 36) |
 
 ### Como ler o resultado
@@ -43,9 +49,63 @@ Ela entregou o corte de `escalas/[id]/_actions/` (#2) e a unificação de
 atravessou a remediação inteira. É o resíduo mais barato e o único com
 consequência de comportamento desta lista.
 
-A "Rodada 1" da §"Sequência sugerida" continua sendo a recomendação: dela
-sobraram os itens 1 (mobile, **parcial**), 3 (`STATUS_ESCALA_ASSINADA`) e 4
-(barrel) — o item 2 dela (subir `ModalRubrica`) foi resolvido pelo caminho.
+A "Rodada 1" da §"Sequência sugerida" foi executada em 19/ago (o item 2 dela,
+subir `ModalRubrica`, já tinha sido resolvido pelo caminho). O que ela mudou
+está abaixo.
+
+### O que a Rodada 1 mudou de rumo
+
+Dois pontos em que executar a recomendação ao pé da letra teria piorado o
+código. Ficam registrados porque a recomendação continua escrita nas §§3 e 5
+como estava em 13/ago.
+
+**#3 — "eleger `useMobile()` como única fonte" quebraria o iPad.** As três
+definições não respondiam à mesma pergunta. Duas são sobre o APARELHO ("dá para
+assinar com token A3?", "vale `restringirSmartphone`?") e uma é sobre a
+VIEWPORT: em `CardGiseAtiva`, o `{#if isDesktop}` da linha de ações está pareado
+com o `md:hidden` do botão "Opções" logo acima. Trocar aquele `isDesktop` por
+`useMobile()` deixaria o iPad em paisagem — aparelho móvel, 1024 px de largura —
+com a linha fechada e **sem nada na tela capaz de abri-la**, porque o botão que
+a abre some a partir de 768 px.
+
+A separação é a correção real: `useMobile()` para o fluxo (`?via=token` ×
+`?via=tela`, tooltips) e `useLarguraDesktop()` — novo, no mesmo arquivo, `md` do
+Tailwind — para o layout. `CardGiseAtiva` recebe os dois como props distintas.
+O `max-width: 768px` de `useMobile` virou `767.98px`, o complemento exato de
+`min-width: 768px`, para que nenhuma largura satisfaça os dois predicados.
+
+**Consequência assumida:** um iPad em paisagem agora recebe `via=tela` onde
+antes recebia `via=token`. É a correção, não um efeito colateral — tablet não
+tem leitora de token, e a tela de destino (`/gise/[id]`) já classificava aquele
+mesmo aparelho como celular ao consumir o param. Eram os dois lados do mesmo
+atalho discordando.
+
+**#5 — eram sete cópias, não quatro.** A contagem original procurou pelo array
+literal. O mesmo conjunto de cinco status também estava escrito como cadeia de
+`||` (`podeReabrir`, em `gise/[id]/+page.svelte`) e como cadeia de `!==` (os
+portões de `api/gise/[id]/reabrir` e de `api/gise/[id]/download`). Três das sete
+eram servidor, e **duas guardavam a MESMA operação** — reabrir por form action e
+reabrir por API, escritas diferente, em arquivos que ninguém abre junto.
+
+Fica a lição de método: varrer por forma sintática subconta duplicação de
+predicado. O `guard:duplicacao` tem o mesmo ponto cego, e por outro motivo
+(bloco menor que 10 linhas).
+
+**O que NÃO foi unificado, de propósito:** `editaBloqueado` em `useGiseEstado`
+usa o mesmo conjunto MAIS `aguardando_assinatura` — a edição trava um degrau
+antes, porque mexer no quadro enquanto o supervisor assina mudaria o documento
+debaixo da assinatura. Ficou com comentário dizendo que a semelhança é
+proposital, para ninguém "uniformizar" na direção errada.
+
+### Gate da Rodada 1
+
+`format:check`, `lint:ci` (0 warnings), `svelte-check` (0 erros), `npm test`
+(144 arquivos, 1.640 testes), `guard:autorizacao`, `guard:duplicacao` (nenhum
+bloco novo), `docs:guard` e `knip` — todos verdes. Sem alteração em golden de
+PDF ou e-mail: a rodada não toca em artefato com valor jurídico.
+
+O `svelte-check` pegou dois imports que faltavam nas rotas de API, antes de
+qualquer push.
 
 ---
 

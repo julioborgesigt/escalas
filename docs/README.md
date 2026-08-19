@@ -25,7 +25,7 @@ conferência contra o código, não o que o documento original prometia.
 
 | Documento | Conteúdo | Status |
 | --------- | -------- | ------ |
-| [`auditorias/REVISAO_COMPONENTIZACAO_2026-08-13.md`](auditorias/REVISAO_COMPONENTIZACAO_2026-08-13.md) | Revisão estrutural de `src/` — 10 achados de componentização e manutenibilidade | Reverificada em 19/ago/2026 (§0 do próprio arquivo): #2 resolvido; #3, #4 e #7 parciais; #1, #5, #6, #8, #9 e #10 abertos |
+| [`auditorias/REVISAO_COMPONENTIZACAO_2026-08-13.md`](auditorias/REVISAO_COMPONENTIZACAO_2026-08-13.md) | Revisão estrutural de `src/` — 10 achados de componentização e manutenibilidade | Rodada 1 executada em 19/ago/2026 (§0 do próprio arquivo): #2, #3, #5 e #9 resolvidos; #4 e #7 parciais; #1, #6, #8 e #10 abertos |
 
 ## Planos de produto em aberto
 
