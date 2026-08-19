@@ -141,6 +141,23 @@
 	</div>
 {/snippet}
 
+<!-- Campo NUP — mesma marcação nos três modais (movimentação, afastamento,
+     desvinculação), ligado ao mesmo estado `nup`. -->
+{#snippet campoNup()}
+	<label class="label">
+		<span class="label-text text-2xs font-bold uppercase opacity-70 ml-1">NUP</span>
+		<input
+			class="input py-1 px-3 text-sm font-mono"
+			type="text"
+			name="nup"
+			value={nup}
+			oninput={(e) => (nup = formatarNUP(e.currentTarget.value))}
+			placeholder="00000.000000/0000-00"
+			maxlength="20"
+		/>
+	</label>
+{/snippet}
+
 <!--
 	Exceção deliberada ao ModalShell: os três diálogos formam uma única máquina
 	de ações de RH, com banners, formulários e rodapés distintos por operação.
@@ -207,18 +224,7 @@
 							required
 						/>
 					</label>
-					<label class="label">
-						<span class="label-text text-2xs font-bold uppercase opacity-70 ml-1">NUP</span>
-						<input
-							class="input py-1 px-3 text-sm font-mono"
-							type="text"
-							name="nup"
-							value={nup}
-							oninput={(e) => (nup = formatarNUP(e.currentTarget.value))}
-							placeholder="00000.000000/0000-00"
-							maxlength="20"
-						/>
-					</label>
+					{@render campoNup()}
 				</div>
 				<label class="label">
 					<span class="label-text text-2xs font-bold uppercase opacity-70 ml-1">Portaria (PDF)</span
@@ -329,18 +335,7 @@
 					</label>
 				</div>
 				<div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
-					<label class="label">
-						<span class="label-text text-2xs font-bold uppercase opacity-70 ml-1">NUP</span>
-						<input
-							class="input py-1 px-3 text-sm font-mono"
-							type="text"
-							name="nup"
-							value={nup}
-							oninput={(e) => (nup = formatarNUP(e.currentTarget.value))}
-							placeholder="00000.000000/0000-00"
-							maxlength="20"
-						/>
-					</label>
+					{@render campoNup()}
 					<label class="label">
 						<span class="label-text text-2xs font-bold uppercase opacity-70 ml-1"
 							>Documento (PDF)</span
@@ -422,18 +417,7 @@
 							required
 						/>
 					</label>
-					<label class="label">
-						<span class="label-text text-2xs font-bold uppercase opacity-70 ml-1">NUP</span>
-						<input
-							class="input py-1 px-3 text-sm font-mono"
-							type="text"
-							name="nup"
-							value={nup}
-							oninput={(e) => (nup = formatarNUP(e.currentTarget.value))}
-							placeholder="00000.000000/0000-00"
-							maxlength="20"
-						/>
-					</label>
+					{@render campoNup()}
 				</div>
 				<label class="label">
 					<span class="label-text text-2xs font-bold uppercase opacity-70 ml-1"
