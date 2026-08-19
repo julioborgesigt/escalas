@@ -20,10 +20,8 @@
 	 * desce ao anônimo (LGPD).
 	 */
 	import AlertCircle from '@lucide/svelte/icons/alert-circle';
-	import AlertTriangle from '@lucide/svelte/icons/alert-triangle';
 	import Check from '@lucide/svelte/icons/check';
 	import Download from '@lucide/svelte/icons/download';
-	import HelpCircle from '@lucide/svelte/icons/help-circle';
 	import ShieldCheck from '@lucide/svelte/icons/shield-check';
 	import X from '@lucide/svelte/icons/x';
 	import { formatarData } from '$lib/utils/datas';
@@ -31,6 +29,7 @@
 	import { apiFetchResponse } from '$lib/api-fetch';
 	import { toaster } from '$lib/toast';
 	import Spinner from '$lib/components/Spinner.svelte';
+	import LinhaVeredito from './_components/LinhaVeredito.svelte';
 	import type { PageProps } from './$types';
 	import { mensagemDeErro } from '$lib/utils/erro';
 
@@ -160,141 +159,93 @@
 					</div>
 					<div class="space-y-2 text-xs sm:text-sm">
 						<!-- Integridade do arquivo -->
-						<div class="flex items-start gap-2">
-							{#if data.hashConfere === true}
-								<Check class="w-4 h-4 shrink-0 mt-0.5 text-success-600" aria-hidden="true" />
-								<span class="text-surface-700 dark:text-surface-300"
-									><strong>Integridade do arquivo:</strong> hash do PDF confere com o registro original.</span
-								>
-							{:else if data.hashConfere === false}
-								<X class="w-4 h-4 shrink-0 mt-0.5 text-error-600" aria-hidden="true" />
-								<span class="text-error-700 dark:text-error-400 font-bold"
-									>O arquivo armazenado foi alterado após a assinatura.</span
-								>
-							{:else}
-								<HelpCircle class="w-4 h-4 shrink-0 mt-0.5 text-surface-400" aria-hidden="true" />
-								<span class="text-surface-600 dark:text-surface-400 italic"
-									>Verificação de integridade indisponível (registro antigo).</span
-								>
-							{/if}
-						</div>
+						{#if data.hashConfere === true}
+							<LinhaVeredito estado="ok">
+								<strong>Integridade do arquivo:</strong> hash do PDF confere com o registro original.
+							</LinhaVeredito>
+						{:else if data.hashConfere === false}
+							<LinhaVeredito estado="falha">
+								O arquivo armazenado foi alterado após a assinatura.
+							</LinhaVeredito>
+						{:else}
+							<LinhaVeredito estado="indisponivel">
+								Verificação de integridade indisponível (registro antigo).
+							</LinhaVeredito>
+						{/if}
 
 						{#if v}
 							<!-- Cadeia ICP-Brasil -->
-							<div class="flex items-start gap-2">
-								{#if v.checks.cadeiaIcpBrasil === true}
-									<Check class="w-4 h-4 shrink-0 mt-0.5 text-success-600" aria-hidden="true" />
-									<span class="text-surface-700 dark:text-surface-300"
-										><strong>Cadeia ICP-Brasil:</strong> certificado encadeia até uma AC Raiz reconhecida.</span
-									>
-								{:else if v.checks.cadeiaIcpBrasil === 'indisponivel'}
-									<AlertTriangle
-										class="w-4 h-4 shrink-0 mt-0.5 text-warning-600"
-										aria-hidden="true"
-									/>
-									<span class="text-surface-600 dark:text-surface-400 italic"
-										>Cadeia ICP-Brasil não validada (trust store ainda não populado).</span
-									>
-								{:else}
-									<X class="w-4 h-4 shrink-0 mt-0.5 text-error-600" aria-hidden="true" />
-									<span class="text-error-700 dark:text-error-400 font-bold"
-										>Cadeia ICP-Brasil inválida.</span
-									>
-								{/if}
-							</div>
+							{#if v.checks.cadeiaIcpBrasil === true}
+								<LinhaVeredito estado="ok">
+									<strong>Cadeia ICP-Brasil:</strong> certificado encadeia até uma AC Raiz reconhecida.
+								</LinhaVeredito>
+							{:else if v.checks.cadeiaIcpBrasil === 'indisponivel'}
+								<LinhaVeredito estado="indisponivel">
+									Cadeia ICP-Brasil não validada (trust store ainda não populado).
+								</LinhaVeredito>
+							{:else}
+								<LinhaVeredito estado="falha">Cadeia ICP-Brasil inválida.</LinhaVeredito>
+							{/if}
 							<!-- Assinatura RSA -->
-							<div class="flex items-start gap-2">
-								{#if v.checks.assinaturaRsa}
-									<Check class="w-4 h-4 shrink-0 mt-0.5 text-success-600" aria-hidden="true" />
-									<span class="text-surface-700 dark:text-surface-300"
-										><strong>Assinatura RSA:</strong> SignedAttributes íntegros e assinados pela chave
-										do certificado.</span
-									>
-								{:else}
-									<X class="w-4 h-4 shrink-0 mt-0.5 text-error-600" aria-hidden="true" />
-									<span class="text-error-700 dark:text-error-400 font-bold"
-										>Assinatura RSA inválida.</span
-									>
-								{/if}
-							</div>
+							{#if v.checks.assinaturaRsa}
+								<LinhaVeredito estado="ok">
+									<strong>Assinatura RSA:</strong> SignedAttributes íntegros e assinados pela chave do
+									certificado.
+								</LinhaVeredito>
+							{:else}
+								<LinhaVeredito estado="falha">Assinatura RSA inválida.</LinhaVeredito>
+							{/if}
 							<!-- Carimbo de tempo -->
-							<div class="flex items-start gap-2">
-								{#if v.checks.timestampQualificado}
-									<Check class="w-4 h-4 shrink-0 mt-0.5 text-success-600" aria-hidden="true" />
-									<span class="text-surface-700 dark:text-surface-300"
-										><strong>Carimbo de tempo qualificado:</strong> ACT/ICP-Brasil (RFC 3161){#if v.timestamp},
-											em {formatarDataHora(v.timestamp.momento)}{/if}.</span
-									>
-								{:else if v.timestamp?.tipo === 'tsa_externa'}
-									<AlertTriangle
-										class="w-4 h-4 shrink-0 mt-0.5 text-warning-600"
-										aria-hidden="true"
-									/>
-									<span class="text-surface-700 dark:text-surface-300"
-										><strong>Carimbo de tempo:</strong> TSA externa não-ICP (RFC 3161){#if v.timestamp},
-											em {formatarDataHora(v.timestamp.momento)}{/if}. Assinatura do carimbo
-										verificada, mas sem a presunção ICP-Brasil.</span
-									>
-								{:else}
-									<AlertTriangle
-										class="w-4 h-4 shrink-0 mt-0.5 text-warning-600"
-										aria-hidden="true"
-									/>
-									<span class="text-surface-600 dark:text-surface-400"
-										><strong>Carimbo de tempo:</strong> apenas hora do servidor (sem ACT/ICP).</span
-									>
-								{/if}
-							</div>
+							{#if v.checks.timestampQualificado}
+								<LinhaVeredito estado="ok">
+									<strong>Carimbo de tempo qualificado:</strong> ACT/ICP-Brasil (RFC 3161){#if v.timestamp},
+										em {formatarDataHora(v.timestamp.momento)}{/if}.
+								</LinhaVeredito>
+							{:else if v.timestamp?.tipo === 'tsa_externa'}
+								<LinhaVeredito estado="ressalva">
+									<strong>Carimbo de tempo:</strong> TSA externa não-ICP (RFC 3161){#if v.timestamp},
+										em {formatarDataHora(v.timestamp.momento)}{/if}. Assinatura do carimbo
+									verificada, mas sem a presunção ICP-Brasil.
+								</LinhaVeredito>
+							{:else}
+								<LinhaVeredito estado="ressalva">
+									<strong>Carimbo de tempo:</strong> apenas hora do servidor (sem ACT/ICP).
+								</LinhaVeredito>
+							{/if}
 							<!-- Política de assinatura -->
 							{#if v.politica}
-								<div class="flex items-start gap-2">
-									{#if v.politica.conforme}
-										<Check class="w-4 h-4 shrink-0 mt-0.5 text-success-600" aria-hidden="true" />
-										<span class="text-surface-700 dark:text-surface-300"
-											><strong>Política de assinatura:</strong>
-											{v.politica.nome} (ICP-Brasil).</span
-										>
-									{:else if v.politica.presente}
-										<AlertTriangle
-											class="w-4 h-4 shrink-0 mt-0.5 text-warning-600"
-											aria-hidden="true"
-										/>
-										<span class="text-surface-600 dark:text-surface-400"
-											><strong>Política de assinatura:</strong> declarada, mas o OID/hash não confere
-											com a PA-AD-RB v2.3.</span
-										>
-									{:else}
-										<AlertTriangle
-											class="w-4 h-4 shrink-0 mt-0.5 text-warning-600"
-											aria-hidden="true"
-										/>
-										<span class="text-surface-600 dark:text-surface-400"
-											><strong>Política de assinatura:</strong> não aplicada (sem id-aa-ets-sigPolicyId).</span
-										>
-									{/if}
-								</div>
+								{#if v.politica.conforme}
+									<LinhaVeredito estado="ok">
+										<strong>Política de assinatura:</strong>
+										{v.politica.nome} (ICP-Brasil).
+									</LinhaVeredito>
+								{:else if v.politica.presente}
+									<LinhaVeredito estado="ressalva">
+										<strong>Política de assinatura:</strong> declarada, mas o OID/hash não confere com
+										a PA-AD-RB v2.3.
+									</LinhaVeredito>
+								{:else}
+									<LinhaVeredito estado="ressalva">
+										<strong>Política de assinatura:</strong> não aplicada (sem id-aa-ets-sigPolicyId).
+									</LinhaVeredito>
+								{/if}
 							{/if}
 							<!-- Revogação -->
-							<div class="flex items-start gap-2">
-								{#if v.checks.revogacao === 'good'}
-									<Check class="w-4 h-4 shrink-0 mt-0.5 text-success-600" aria-hidden="true" />
-									<span class="text-surface-700 dark:text-surface-300"
-										><strong>Revogação:</strong> certificado válido (snapshot OCSP{#if data.documento.ocsp_consultado_em}
-											de {formatarDataHora(data.documento.ocsp_consultado_em)}{/if}).</span
-									>
-								{:else if v.checks.revogacao === 'revoked'}
-									<X class="w-4 h-4 shrink-0 mt-0.5 text-error-600" aria-hidden="true" />
-									<span class="text-error-700 dark:text-error-400 font-bold"
-										>Certificado REVOGADO pela Autoridade Certificadora.</span
-									>
-								{:else}
-									<HelpCircle class="w-4 h-4 shrink-0 mt-0.5 text-surface-400" aria-hidden="true" />
-									<span class="text-surface-600 dark:text-surface-400 italic"
-										>Verificação OCSP indisponível para este documento (assinado antes da migração
-										de auditoria).</span
-									>
-								{/if}
-							</div>
+							{#if v.checks.revogacao === 'good'}
+								<LinhaVeredito estado="ok">
+									<strong>Revogação:</strong> certificado válido (snapshot OCSP{#if data.documento.ocsp_consultado_em}
+										de {formatarDataHora(data.documento.ocsp_consultado_em)}{/if}).
+								</LinhaVeredito>
+							{:else if v.checks.revogacao === 'revoked'}
+								<LinhaVeredito estado="falha">
+									Certificado REVOGADO pela Autoridade Certificadora.
+								</LinhaVeredito>
+							{:else}
+								<LinhaVeredito estado="indisponivel">
+									Verificação OCSP indisponível para este documento (assinado antes da migração de
+									auditoria).
+								</LinhaVeredito>
+							{/if}
 							{#if v.certificado}
 								<div
 									class="pt-2 mt-2 border-t border-surface-200 dark:border-white/5 grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1 text-2xs text-surface-600 dark:text-surface-400"
@@ -350,28 +301,21 @@
 						{:else if !ehQualificada}
 							{#if data.selo?.presente}
 								<!-- Selo institucional (CMS autoassinado, não-ICP) -->
-								<div class="flex items-start gap-2">
-									{#if data.selo.integro}
-										<Check class="w-4 h-4 shrink-0 mt-0.5 text-success-600" aria-hidden="true" />
-										<span class="text-surface-700 dark:text-surface-300"
-											><strong>Selo institucional:</strong> documento íntegro e à prova de
-											adulteração{#if data.selo.autentico}, certificado confere com o selo oficial{/if}.</span
-										>
-									{:else}
-										<X class="w-4 h-4 shrink-0 mt-0.5 text-error-600" aria-hidden="true" />
-										<span class="text-error-700 dark:text-error-400 font-bold"
-											>Selo institucional inválido — documento adulterado após a assinatura.</span
-										>
-									{/if}
-								</div>
+								{#if data.selo.integro}
+									<LinhaVeredito estado="ok">
+										<strong>Selo institucional:</strong> documento íntegro e à prova de adulteração{#if data.selo.autentico},
+											certificado confere com o selo oficial{/if}.
+									</LinhaVeredito>
+								{:else}
+									<LinhaVeredito estado="falha">
+										Selo institucional inválido — documento adulterado após a assinatura.
+									</LinhaVeredito>
+								{/if}
 								{#if data.selo.tipoCarimboTempo && data.selo.tipoCarimboTempo !== 'servidor'}
-									<div class="flex items-start gap-2">
-										<Check class="w-4 h-4 shrink-0 mt-0.5 text-success-600" aria-hidden="true" />
-										<span class="text-surface-700 dark:text-surface-300"
-											><strong>Carimbo de tempo:</strong> RFC 3161 (TSA externa, não-ICP){#if data.selo.momento},
-												em {formatarDataHora(data.selo.momento)}{/if}.</span
-										>
-									</div>
+									<LinhaVeredito estado="ok">
+										<strong>Carimbo de tempo:</strong> RFC 3161 (TSA externa, não-ICP){#if data.selo.momento},
+											em {formatarDataHora(data.selo.momento)}{/if}.
+									</LinhaVeredito>
 								{/if}
 								<p class="text-2xs text-surface-600 dark:text-surface-400 italic pt-1">
 									Avançada (Lei 14.063/2020 art. 4º, II) com selo criptográfico da instituição. Não

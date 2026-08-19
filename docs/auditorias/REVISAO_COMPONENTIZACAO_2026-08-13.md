@@ -5,37 +5,36 @@
 **Método:** leitura estrutural, medição de tamanho por arquivo, rastreamento de duplicação e de
 fronteiras de import. Sem execução de testes (`node_modules` ausente no ambiente de revisão).
 
-**Status:** ABERTA — reverificada em 19/ago/2026, com as **Rodadas 1 e 2
-executadas** na mesma data (ver §0). Seis achados resolvidos (#2, #3, #4, #5,
-#7, #9); quatro abertos e AGUARDANDO DECISÃO (#1, #6, #8, #10), com o custo de
-cada um medido em §0. **Não arquivar enquanto houver linha "aberto" abaixo** —
-a convenção de [`docs/HISTORICO.md`](../HISTORICO.md) só admite remover o
-arquivo quando os achados estão resolvidos ou formalmente aceitos.
+**Status:** ENCERRADA em 19/ago/2026. Os dez achados foram reverificados e
+tratados em três rodadas: **sete resolvidos** (#2, #3, #4, #5, #7, #8, #9),
+**um resolvido em parte com o resto aceito** (#6) e **dois formalmente aceitos
+com o motivo registrado no código** (#1, #10). O diagnóstico original está nas
+§§1–10; o que de fato aconteceu, na §0.
 
 ---
 
 ## 0. Reverificação — 19/ago/2026
 
-Conferência achado a achado contra o working tree de hoje (`main` em `68cb3fd`),
-seguida da execução da **Rodada 1** da §"Sequência sugerida". A §0 é a ÚNICA
-seção atualizada; as §§1–10 permanecem como o diagnóstico original de 13/ago,
-para que a comparação continue possível.
+Conferência achado a achado contra o working tree de 19/ago (`main` em
+`68cb3fd`), seguida das três rodadas. A §0 é a ÚNICA seção atualizada; as
+§§1–10 permanecem como o diagnóstico original de 13/ago, para que a comparação
+continue possível.
 
-A coluna "status hoje" descreve o estado **depois** da Rodada 1; onde a rodada
-mexeu, o que foi feito vem junto.
+A coluna "status hoje" descreve o estado FINAL; onde uma rodada mexeu, o que foi
+feito vem junto.
 
 | # | Achado | Status hoje | Evidência |
 |---|--------|-------------|-----------|
-| 1 | Tabela desktop × cards mobile em 6 telas | **Aberto** | `hidden md:block` + `md:hidden` nas seis telas; o drift citado continua literal — `recebidos/+page.svelte:431` diz "Visto" e `:605` diz "Lida"; o tooltip do manifesto tem "(… CPF, IP, GPS, selfie)" em `:525` e só "(evidências da assinatura)" em `:656` |
+| 1 | Tabela desktop × cards mobile em 6 telas | **Aceito** (o `ListaResponsiva` não se faz) + **drift corrigido** | O drift REAL foi corrigido em `recebidos` e travado em constante compartilhada pelas duas cópias. O componente único fica registrado como decisão de NÃO fazer — a medição está em "Por que o `ListaResponsiva` não" abaixo. Dos três exemplos de drift do documento, dois eram reais; o terceiro (`"Excluir"` × `"Excluir Escala?"`) era leitura errada — o segundo é o título do modal de confirmação, não o tooltip do card |
 | 2 | `escalas/[id]/+page.server.ts` com 14 actions inline | **Resolvido** | 1.381 → **161 linhas**; `_actions/` agora tem `actions-ciclo`, `actions-composicao`, `actions-datas`, `actions-projecao`, `desfecho`, `shared` + `__tests__/` |
 | 3 | Três definições de "é mobile?" | **Resolvido** (Rodada 1) | Não há mais `new MediaQuery` fora de `$lib/composables/`. A recomendação foi seguida com uma correção: as três definições não respondiam à MESMA pergunta, e unificar as três em `useMobile()` teria QUEBRADO o iPad — ver "O que a Rodada 1 mudou de rumo" abaixo |
 | 4 | `+layout.svelte` com 7 responsabilidades | **Resolvido** (Rodada 2) | **1.042 → 378 linhas.** As regras de visibilidade já eram `menu-visibilidade.ts` (`.ts` puro, com testes). Saíram agora `BarraTopo.svelte` (88), `SidebarNavegacao.svelte` (448), `ToastProvider.svelte` (54) e — a peça que faz o corte não virar dívida — `navegacao-estado.svelte.ts` (189). O layout ficou com o chrome global: progresso, banner de versão, overlay, diálogo de logout e `<main>` |
 | 5 | Array dos 5 status "escala assinada" repetido 4× | **Resolvido** (Rodada 1) | Eram **sete** cópias, não quatro — três delas no servidor. `STATUS_ESCALA_ASSINADA` + `escalaGiseJaAssinada()` agora vivem em `$lib/gise/status-escala.ts`, com teste; os sete call sites chamam a mesma função |
-| 6 | 7 páginas grandes sem `_components/` | **Aberto** | Nenhuma das sete tem a pasta. Tamanhos hoje: `painel/` 819, `validar/[hash]/` 750, `recebidos/` 749, `res-gise/relatorio/[giseId]/` 520, `conf-ass/` 466, `auditoria/logs/` 370, `alterar-senha/` 354 |
+| 6 | 7 páginas grandes sem `_components/` | **Resolvido onde importava** (Rodada 3); o resto aceito | Feito o caso que o próprio documento elegeu como o mais claro: `validar/[hash]` ganhou `_components/LinhaVeredito.svelte`, e as nove linhas do laudo passaram a sair de um componente de quatro estados. **Achou drift real na tela pública** — ver abaixo. As outras seis rotas são só arquivos grandes, sem duplicação nem divergência: fatiá-las seria mover markup de lugar, e fica registrado como não feito |
 | 7 | 6 imports atravessando fronteira de rota | **Resolvido** (Rodada 2) | Três casos, três destinos — a recomendação de "subir tudo para `$lib/components/`" só valia para um deles. `ModalRubrica` já tinha saído pelo caminho. `ModalDownloadExtras` SOBE para `$lib/components/` (duas rotas irmãs). `RelatorioProdutividade` DESCE para `res-gise/relatorio/[giseId]/_components/` — estava alto demais, não baixo: 709 linhas no pai com um único consumidor, a sub-rota. `auditoria/_components/` FICA, com a decisão registrada no `CLAUDE.md` |
-| 8 | ~250 linhas de texto de diálogo em `gise/+page.svelte` | **Aberto** | 13 blocos `dialogInfo = {` no arquivo (642 linhas); não existe `lib/gise/mensagens-assinatura.ts`. O diálogo de manifesto continua montado duas vezes (`handleEscalaPdf` / `handleExtraPdf`) |
+| 8 | ~250 linhas de texto de diálogo em `gise/+page.svelte` | **Resolvido** (Rodada 3) | Eram **seis** construções de diálogo de download, não duas: três da via assinada e três da não assinada, com os dois últimos de cada trio idênticos exceto pelo id de seccional. Viraram duas funções puras em `$lib/gise/mensagens-download.ts`, com teste. Arquivo: 642 → 531 linhas |
 | 9 | `getSavedFilters` vazando pelo barrel de composables | **Resolvido** (Rodada 1) | Linha removida; os cinco call sites importam de `$lib/utils/localStorage`. O barrel ganhou cabeçalho com o critério ("entra o que é `use*`") para o vazamento não voltar |
-| 10 | Zero testes de componente | **Aberto** | `*.svelte.test.ts`: **0**. `*.test.ts` em `src/`: 143 (eram 126). Specs Playwright: 38 (eram 36) |
+| 10 | Zero testes de componente | **Aceito formalmente**, com o motivo em `vite.config.ts` e no `CLAUDE.md` | Não era descuido: o vitest roda em `environment: 'node'` e o comentário ao lado já dizia que componente é exercitado pelo E2E. Ligar render em jsdom custa um segundo projeto vitest + testing-library para cobrir o que o Playwright já cobre com browser de verdade. O que a revisão pedia de fato — tirar lógica do markup para que fique testável — foi feito por vitest nas três rodadas |
 
 ### Como ler o resultado
 
@@ -151,6 +150,70 @@ PDF ou e-mail: a rodada não toca em artefato com valor jurídico.
 
 O `svelte-check` pegou dois imports que faltavam nas rotas de API, antes de
 qualquer push.
+
+### O que a Rodada 3 achou
+
+**#6 — a extração achou drift na tela pública, como a revisão previu.** As nove
+linhas do laudo de `/validar/[hash]` já tinham divergido em dois pontos:
+
+- "Cadeia ICP-Brasil não validada (trust store não populado)" usava
+  `AlertTriangle` + itálico, enquanto "verificação de integridade indisponível"
+  e "OCSP indisponível" — o MESMO sentido, "não deu para verificar" — usavam
+  `HelpCircle` + itálico. O itálico já classificava as três como indisponíveis;
+  só o ícone discordava;
+- a ressalva de TSA externa vinha em `text-surface-700` e as demais ressalvas em
+  `text-surface-600`.
+
+`LinhaVeredito` tem quatro estados (`ok`, `ressalva`, `indisponivel`, `falha`) e
+os dois casos foram normalizados **de propósito**, com o porquê no cabeçalho.
+Num laudo que o cidadão lê para conferir documento assinado, dois símbolos para
+a mesma conclusão sugerem gravidades diferentes onde não há.
+
+**#8 — eram seis diálogos, não dois.** O documento contou as construções da via
+assinada e disse "duas vezes quase idêntico". São três (escala, supervisão
+extra, seccional) mais três da via não assinada. O que a duplicação escondia não
+era o texto: era o `podeManifesto`. As três da via assinada ramificavam na mesma
+aproximação de permissão, e apertar essa regra em uma delas deixaria as outras
+oferecendo a folha de auditoria a quem o servidor recusa — botão que promete o
+que não entrega.
+
+### Por que o `ListaResponsiva` (#1) não se faz
+
+A medição foi feita em `policiais`, a piloto que o próprio documento sugeriu por
+ser a menor das seis. O card mobile **não é a tabela remodelada**:
+
+| o que muda | tabela | card |
+| --- | --- | --- |
+| Nome e Cargo | duas colunas do corpo | promovidos a cabeçalho, ausentes do corpo |
+| botões de ação | `flex gap-2` | `flex-1 text-center` (largura cheia) |
+| esqueleto de carregamento | `SkeletonTableRows` com 6 specs de coluna | `SkeletonCards` |
+| entrada | nenhuma | `transition:fly` escalonado por índice |
+
+O `ColunaDef = { rotulo, valor, mobile }` proposto cobre a primeira linha. Com
+as outras três, o componente chega a ~7 props e dois slots de snippet — **na
+mais simples das seis**. As outras cinco somam toggle otimista com `use:enhance`,
+menu de exportação e dropdown por linha.
+
+É o corolário do `CLAUDE.md` aplicado: extração que exige tantos props que o
+componente comum fica pior que a duplicação vira decisão registrada, não código.
+
+E o risco que o documento nomeia — "a PRÓXIMA coluna não chega ao card" —
+continua sendo disciplina de revisão. Um componente com escape por tela em quatro
+eixos não o resolveria; só mudaria de lugar. O que se fez é proporcional: o texto
+que TEM de ser idêntico nas duas cópias saiu para constante no topo do arquivo,
+onde as duas o leem.
+
+### Gate da Rodada 3
+
+Todo o conjunto verde: `format:check`, `lint:ci` (0 warnings), `svelte-check`
+(0 erros), `npm test` (145 arquivos, 1.645 testes), `guard:autorizacao`,
+`guard:duplicacao` (nenhum bloco novo), `docs:guard`, `knip`. Mais o e2e das
+telas tocadas: `assinatura-validacao` (a própria `/validar/[hash]`), `gise`,
+`presenca-gise`, `relatorio-extra-gise`, `assinatura-simples` e
+`sidebar-escala-extra` — 38 specs.
+
+O `knip` pegou um `export` de tipo que ninguém consumia; o `lint` pegou dois
+imports de ícone que a extração deixou órfãos.
 
 ### Gate da Rodada 2
 

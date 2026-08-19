@@ -195,6 +195,19 @@ acompanha o teste que a consome quando ele se mover.
 
 Teste de ponta a ponta é outra história: vai em `e2e/`, com Playwright.
 
+**Componente `.svelte` não tem teste unitário, e é decisão.** O vitest roda em
+`environment: 'node'`, sem DOM; quem exercita componente é o Playwright, com
+browser de verdade — que é o único lugar onde `inert`, foco, view transition e
+media query se comportam como em produção. Ligar render em jsdom custaria um
+segundo projeto vitest mais testing-library para cobrir o que o E2E já cobre.
+
+A consequência prática é a regra: **se uma regra precisa de teste, ela sai do
+`.svelte` para um `.ts` puro** — foi o que aconteceu com `menu-visibilidade.ts`
+(quem vê cada item do menu), `bem-vindo-cards.ts`, `status-escala.ts` (a escala
+GISE já foi assinada?) e `mensagens-download.ts` (o texto dos diálogos de
+download). Precisar montar componente para testar algo é o sinal de que esse
+algo está no arquivo errado.
+
 ## Fetch no cliente — padrão obrigatório
 
 **Sempre use `$lib/api-fetch` para chamar a API interna do cliente.**

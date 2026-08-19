@@ -248,6 +248,25 @@
 	}
 
 	let dialogOpen = $state(false);
+	/**
+	 * Textos que a tabela do desktop e o card do celular mostram para o MESMO
+	 * dado. Ficam em constante porque já divergiram: a coluna de leitura era
+	 * "Visto" na tabela e "Lida" no card, e o tooltip do manifesto foi
+	 * enriquecido só do lado do desktop — alguém melhorou uma cópia e a outra
+	 * ficou para trás.
+	 *
+	 * Isto NÃO é o `ListaResponsiva` que a auditoria de 13/ago propôs, e não
+	 * pretende ser: card e tabela querem campos e ênfases diferentes de
+	 * propósito (ver a decisão registrada na §0 daquele documento). O que se
+	 * unifica aqui é só o que TEM de ser idêntico — o texto que nomeia a mesma
+	 * coisa.
+	 */
+	const ROTULO_VISTO = 'Visto';
+	const TITULO_MANIFESTO =
+		'PDF com folha de auditoria (evidências da assinatura: CPF, IP, GPS, selfie)';
+	const TITULO_SEM_MANIFESTO =
+		'PDF assinado sem folha de auditoria (para impressão e distribuição)';
+
 	let escalaParaExcluir = $state<{ id: number; lotacao: string } | null>(null);
 
 	function solicitarExclusao(id: number, lotacao: string) {
@@ -428,7 +447,7 @@
 				<table class="table">
 					<thead>
 						<tr>
-							<th class="w-10 !text-center">Visto</th>
+							<th class="w-10 !text-center">{ROTULO_VISTO}</th>
 							<th class="!text-center">Unidade</th>
 							<th class="!text-center">Mês</th>
 							<th class="!text-center">Tipo</th>
@@ -513,7 +532,7 @@
 													href="/api/escalas/{escala.id}/documento-assinado"
 													class="btn btn-sm preset-filled-success-500 text-xs font-bold transition-all"
 													target="_blank"
-													title="PDF assinado sem folha de auditoria (para impressão e distribuição)"
+													title={TITULO_SEM_MANIFESTO}
 												>
 													<Download class="w-4 h-4 mr-1" aria-hidden="true" />
 													S/ manifesto
@@ -522,7 +541,7 @@
 													href="/api/escalas/{escala.id}/documento-assinado?manifesto=true"
 													class="btn btn-sm preset-outlined-tertiary-500 text-xs font-bold transition-all"
 													target="_blank"
-													title="PDF com folha de auditoria (evidências da assinatura: CPF, IP, GPS, selfie)"
+													title={TITULO_MANIFESTO}
 												>
 													C/ manifesto
 												</a>
@@ -602,7 +621,7 @@
 								</div>
 								<label class="flex flex-col items-center gap-1 shrink-0">
 									<span class="text-3xs uppercase font-bold text-surface-600 dark:text-surface-400"
-										>Lida</span
+										>{ROTULO_VISTO}</span
 									>
 									<form
 										method="POST"
@@ -646,14 +665,13 @@
 										href="/api/escalas/{escala.id}/documento-assinado"
 										class="btn btn-sm preset-filled-success-500 flex-1 text-xs transition-all"
 										target="_blank"
-										title="PDF assinado sem folha de auditoria (para impressão e distribuição)"
-										>S/ manifesto</a
+										title={TITULO_SEM_MANIFESTO}>S/ manifesto</a
 									>
 									<a
 										href="/api/escalas/{escala.id}/documento-assinado?manifesto=true"
 										class="btn btn-sm preset-outlined-tertiary-500 flex-1 text-xs transition-all"
 										target="_blank"
-										title="PDF com folha de auditoria (evidências da assinatura)">C/ manifesto</a
+										title={TITULO_MANIFESTO}>C/ manifesto</a
 									>
 								{/if}
 

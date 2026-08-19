@@ -26,6 +26,11 @@
 	import DialogInfo from './_components/DialogInfo.svelte';
 	import { fmtDate, diaSemana } from '$lib/gise/formatters';
 	import { escalaGiseJaAssinada } from '$lib/gise/status-escala';
+	import {
+		dialogoDownloadAssinado,
+		dialogoDownloadNaoAssinado,
+		type DialogoDownload
+	} from '$lib/gise/mensagens-download';
 	import { useInvalidateOnFocus, useMobile, useLarguraDesktop } from '$lib/composables';
 	import { avancadaEmTelaDoLayout, mensagemConviteChave } from '$lib/chave-assinatura-ui';
 	import { fetchSyncEstado } from '$lib/sync-estado';
@@ -270,57 +275,38 @@
 		dialogInfo = { titulo: `Ass. Extra (0/${totalExtras})`, linhas };
 	}
 
-	function handleEscalaPdf(ativa: (typeof ativas)[0]) {
-		const escalaAssinada = escalaGiseJaAssinada(ativa.status);
+	/**
+	 * Veste o descritor de `$lib/gise/mensagens-download` com o estado desta
+	 * tela: fechar o diálogo e abrir a URL. O módulo é puro de propósito — só
+	 * aqui existe `dialogInfo` para zerar.
+	 */
+	function mostrarDialogoDownload(d: DialogoDownload) {
+		const abrir = (url: string) => () => {
+			dialogInfo = null;
+			window.open(url, '_blank');
+		};
+		dialogInfo = {
+			titulo: d.titulo,
+			linhas: d.linhas,
+			acao: { label: d.principal.label, fn: abrir(d.principal.url) },
+			...(d.secundaria
+				? { acaoSecundaria: { label: d.secundaria.label, fn: abrir(d.secundaria.url) } }
+				: {})
+		};
+	}
 
-		if (escalaAssinada) {
-			dialogInfo = {
-				titulo: 'Download de Escala Assinada',
-				linhas: podeManifestoProvavel
-					? [
-							'Esta escala já foi assinada digitalmente.',
-							'"Sem manifesto" gera o documento para impressão e distribuição.',
-							'"Com manifesto" inclui a folha de auditoria (evidências da assinatura).'
-						]
-					: [
-							'Esta escala já foi assinada digitalmente.',
-							'O download gera o documento assinado para impressão e distribuição.'
-						],
-				acao: {
-					label: podeManifestoProvavel ? 'Sem manifesto' : 'Baixar PDF',
-					fn: () => {
-						dialogInfo = null;
-						window.open(`/api/gise/${ativa.id}/download?format=pdf`, '_blank');
-					}
-				},
-				...(podeManifestoProvavel
-					? {
-							acaoSecundaria: {
-								label: 'Com manifesto',
-								fn: () => {
-									dialogInfo = null;
-									window.open(`/api/gise/${ativa.id}/download?format=pdf&manifesto=true`, '_blank');
-								}
-							}
-						}
-					: {})
-			};
-		} else {
-			dialogInfo = {
-				titulo: 'Download de Escala não Assinada',
-				linhas: [
-					'Esta escala ainda não foi assinada digitalmente pelo supervisor.',
-					'O download será de uma via preliminar (sem assinaturas).'
-				],
-				acao: {
-					label: 'Confirmar Download',
-					fn: () => {
-						dialogInfo = null;
-						window.open(`/api/gise/${ativa.id}/download?format=pdf`, '_blank');
-					}
-				}
-			};
-		}
+	function handleEscalaPdf(ativa: (typeof ativas)[0]) {
+		const url = `/api/gise/${ativa.id}/download?format=pdf`;
+		mostrarDialogoDownload(
+			escalaGiseJaAssinada(ativa.status)
+				? dialogoDownloadAssinado({
+						documento: 'escala',
+						url,
+						urlComManifesto: `${url}&manifesto=true`,
+						podeManifesto: podeManifestoProvavel
+					})
+				: dialogoDownloadNaoAssinado({ documento: 'escala', url })
+		);
 	}
 
 	function handleExtraPdf(ativa: GiseEscala) {
@@ -329,135 +315,40 @@
 			showDownloadExtrasModal = true;
 			return;
 		}
-		const giseId = ativa.id;
-		if (isSupervisor && supervisaoExtraUnidadeId) {
-			const isAssinado = !!ativa.assinaturasRelatorioExtraIds?.includes(supervisaoExtraUnidadeId);
-			if (isAssinado) {
-				dialogInfo = {
-					titulo: 'Download de Relatório de Extra Assinado',
-					linhas: podeManifestoProvavel
-						? [
-								'Este relatório de serviço extraordinário já foi assinado digitalmente.',
-								'"Sem manifesto" gera o documento para impressão e distribuição.',
-								'"Com manifesto" inclui a folha de auditoria (evidências da assinatura).'
-							]
-						: [
-								'Este relatório de serviço extraordinário já foi assinado digitalmente.',
-								'O download gera o documento assinado para impressão e distribuição.'
-							],
-					acao: {
-						label: podeManifestoProvavel ? 'Sem manifesto' : 'Baixar Rel. Extra',
-						fn: () => {
-							dialogInfo = null;
-							window.open(
-								`/api/gise/${giseId}/download?format=extraordinario&seccionalId=${supervisaoExtraUnidadeId}`,
-								'_blank'
-							);
-						}
-					},
-					...(podeManifestoProvavel
-						? {
-								acaoSecundaria: {
-									label: 'Com manifesto',
-									fn: () => {
-										dialogInfo = null;
-										window.open(
-											`/api/gise/${giseId}/download?format=extraordinario&seccionalId=${supervisaoExtraUnidadeId}&manifesto=true`,
-											'_blank'
-										);
-									}
-								}
-							}
-						: {})
-				};
-			} else {
-				dialogInfo = {
-					titulo: 'Download de Relatório de Extra não Assinado',
-					linhas: [
-						'Este relatório de serviço extraordinário ainda não foi assinado digitalmente.',
-						'O download será de uma via preliminar (sem assinaturas).'
-					],
-					acao: {
-						label: 'Confirmar Download',
-						fn: () => {
-							dialogInfo = null;
-							window.open(
-								`/api/gise/${giseId}/download?format=extraordinario&seccionalId=${supervisaoExtraUnidadeId}`,
-								'_blank'
-							);
-						}
-					}
-				};
-			}
+
+		// Supervisão extra e seccional são o MESMO diálogo com outro id na URL —
+		// eram duas cópias idênticas até ago/2026. O que muda é só de quem é o
+		// relatório que este usuário alcança daqui.
+		// `??` e não ternário aninhado: quem é supervisor E seccional, mas está sem
+		// `supervisaoExtraUnidadeId`, CAI para o relatório da seccional dele — era
+		// o encadeamento de `if`s do código anterior, e um ternário puro pelo
+		// primeiro papel devolveria "indisponível" a quem tem o que baixar.
+		const seccionalId =
+			(isSupervisor ? supervisaoExtraUnidadeId : null) ?? (isSeccional ? minhaSeccionalId : null);
+
+		if (seccionalId === null) {
+			dialogInfo = {
+				titulo: 'Extra PDF — Indisponível',
+				linhas: [
+					'Não foi possível determinar qual relatório baixar. Entre na escala para acessar os relatórios.'
+				]
+			};
 			return;
 		}
-		if (isSeccional && minhaSeccionalId) {
-			const isAssinado = !!ativa.assinaturasRelatorioExtraIds?.includes(minhaSeccionalId);
-			if (isAssinado) {
-				dialogInfo = {
-					titulo: 'Download de Relatório de Extra Assinado',
-					linhas: podeManifestoProvavel
-						? [
-								'Este relatório de serviço extraordinário já foi assinado digitalmente.',
-								'"Sem manifesto" gera o documento para impressão e distribuição.',
-								'"Com manifesto" inclui a folha de auditoria (evidências da assinatura).'
-							]
-						: [
-								'Este relatório de serviço extraordinário já foi assinado digitalmente.',
-								'O download gera o documento assinado para impressão e distribuição.'
-							],
-					acao: {
-						label: podeManifestoProvavel ? 'Sem manifesto' : 'Baixar Rel. Extra',
-						fn: () => {
-							dialogInfo = null;
-							window.open(
-								`/api/gise/${giseId}/download?format=extraordinario&seccionalId=${minhaSeccionalId}`,
-								'_blank'
-							);
-						}
-					},
-					...(podeManifestoProvavel
-						? {
-								acaoSecundaria: {
-									label: 'Com manifesto',
-									fn: () => {
-										dialogInfo = null;
-										window.open(
-											`/api/gise/${giseId}/download?format=extraordinario&seccionalId=${minhaSeccionalId}&manifesto=true`,
-											'_blank'
-										);
-									}
-								}
-							}
-						: {})
-				};
-			} else {
-				dialogInfo = {
-					titulo: 'Download de Relatório de Extra não Assinado',
-					linhas: [
-						'Este relatório de serviço extraordinário ainda não foi assinado digitalmente.',
-						'O download será de uma via preliminar (sem assinaturas).'
-					],
-					acao: {
-						label: 'Confirmar Download',
-						fn: () => {
-							dialogInfo = null;
-							window.open(
-								`/api/gise/${giseId}/download?format=extraordinario&seccionalId=${minhaSeccionalId}`,
-								'_blank'
-							);
-						}
-					}
-				};
-			}
-			return;
-		}
-		dialogInfo = {
-			titulo: 'Extra PDF — Indisponível',
-			linhas: [
-				'Não foi possível determinar qual relatório baixar. Entre na escala para acessar os relatórios.'
-			]
-		};
+
+		const url = `/api/gise/${ativa.id}/download?format=extraordinario&seccionalId=${seccionalId}`;
+		const assinado = !!ativa.assinaturasRelatorioExtraIds?.includes(seccionalId);
+
+		mostrarDialogoDownload(
+			assinado
+				? dialogoDownloadAssinado({
+						documento: 'relatorioExtra',
+						url,
+						urlComManifesto: `${url}&manifesto=true`,
+						podeManifesto: podeManifestoProvavel
+					})
+				: dialogoDownloadNaoAssinado({ documento: 'relatorioExtra', url })
+		);
 	}
 </script>
 
