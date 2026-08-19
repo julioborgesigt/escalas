@@ -16,17 +16,6 @@ Mapa de toda a documentação do projeto, separada em **documentos vivos** (mant
 | [`src/lib/server/assinatura/icp-brasil/README.md`](../src/lib/server/assinatura/icp-brasil/README.md) | Trust store ICP-Brasil: o que é, como atualizar (script Windows/Linux), frequência                                                          | Dev / operador                     |
 | [`static/face-api/README.md`](../static/face-api/README.md)                     | Modelos de reconhecimento facial servidos localmente e como atualizá-los                                                                    | Dev                                |
 
-## Auditorias em aberto
-
-Auditoria commitada em `docs/auditorias/` **enquanto seus achados estão sendo
-tratados**. Diferente de um registro histórico, ela é reverificada antes de
-qualquer decisão de arquivar — o status abaixo é o resultado da última
-conferência contra o código, não o que o documento original prometia.
-
-| Documento | Conteúdo | Status |
-| --------- | -------- | ------ |
-| [`auditorias/REVISAO_COMPONENTIZACAO_2026-08-13.md`](auditorias/REVISAO_COMPONENTIZACAO_2026-08-13.md) | Revisão estrutural de `src/` — 10 achados de componentização e manutenibilidade | Rodadas 1 e 2 executadas em 19/ago/2026 (§0 do próprio arquivo): #2, #3, #4, #5, #7 e #9 resolvidos; #1, #6, #8 e #10 abertos, aguardando decisão de escopo |
-
 ## Planos de produto em aberto
 
 Decisões de produto ainda não executadas. Quando o comportamento correspondente
@@ -44,11 +33,11 @@ Os relatórios de auditoria e as avaliações arquivadas **não vivem mais no wo
 ## Convenções
 
 - **Novas auditorias** podem ser commitadas em `docs/auditorias/` (data no nome ou no cabeçalho) enquanto seus achados estão sendo tratados; quando encerradas, o arquivo é removido e catalogado no [`HISTORICO.md`](HISTORICO.md) — o histórico do Git mantém a rastreabilidade dos achados (A1–A8, I-1…I-4, M-3/M-4, R2-1…R2-4, B-1…B-6…) citados em comentários do código.
-- `docs/auditorias/` tem HOJE uma auditoria aberta — a de componentização de
-  13/ago (tabela acima). A auditoria visual (VIS-1…VIS-17) foi encerrada e
-  catalogada no [`HISTORICO.md`](HISTORICO.md); o resíduo dela é manual e passou
-  para [`TESTING.md`](../TESTING.md) §16, que é onde mora roteiro que a
-  automação não alcança.
+- `docs/auditorias/` está VAZIA — nenhuma auditoria aberta. A última (componentização,
+  13/ago) foi encerrada em 19/ago e catalogada no [`HISTORICO.md`](HISTORICO.md);
+  a visual (VIS-1…VIS-17) antes dela, com o resíduo manual em
+  [`TESTING.md`](../TESTING.md) §16, que é onde mora roteiro que a automação
+  não alcança.
 - **Auditoria não se arquiva pela data, e sim pelos achados.** Antes de remover
   o arquivo, reverifique cada achado contra o código e escreva o resultado no
   próprio documento; o que sobrar aberto continua no working tree. A de
