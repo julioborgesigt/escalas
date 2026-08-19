@@ -178,16 +178,36 @@ jobs:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ steps.pw.outputs.versao }}
 
-      # No cache hit só faltam as libs de sistema (`--with-deps` instala via
-      # apt, fora de ~/.cache) — o `--only-shell` não serve porque a suíte usa
-      # o Chromium completo.
+      # No cache HIT este step nem roda, e é o ponto: o que restava dele era
+      # `install-deps`, que só existe para instalar libs de sistema via apt —
+      # e a imagem `ubuntu-latest` já traz Chrome/Chromium pré-instalados, ou
+      # seja, as mesmas libs. Rodá-lo pagava um `apt-get update` inteiro para
+      # concluir que não havia o que instalar.
+      #
+      # Em 19/ago/2026 esse update levou MINUTOS sem baixar um byte útil: o
+      # `azure.archive.ubuntu.com` estava inacessível e o apt reciclou os
+      # timeouts antes de cair no mirror de fallback — quatro blocos de `Ign:`
+      # seguidos no log, depois `Hit: archive.ubuntu.com`. Instabilidade do
+      # mirror da Azure nos runners hospedados, nada do repositório.
+      #
+      # Contrapartida assumida: se uma versão futura do Playwright passar a
+      # exigir uma lib que a imagem não tem, o erro aparece no step de e2e como
+      # falha ao LANÇAR o browser ("error while loading shared libraries: …"),
+      # não aqui. O conserto é tirar o `if:` desta linha.
       - name: Install Playwright (Chromium)
+        if: steps.cache-pw.outputs.cache-hit != 'true'
         run: |
-          if [ "${{ steps.cache-pw.outputs.cache-hit }}" = "true" ]; then
-            npx playwright install-deps chromium
-          else
-            npx playwright install --with-deps chromium
-          fi
+          # Cache miss: o browser vem de fora de qualquer jeito, então o
+          # `--with-deps` continua. O que muda é a espera quando o mirror da
+          # Azure está fora — sem isto o apt aguarda 120 s POR repositório
+          # antes de tentar o próximo. Vale para o apt que o Playwright
+          # dispara por dentro, que não aceita `-o` na linha de comando.
+          sudo tee /etc/apt/apt.conf.d/99-ci-timeout >/dev/null <<'CONF'
+          Acquire::http::Timeout "15";
+          Acquire::https::Timeout "15";
+          Acquire::Retries "1";
+          CONF
+          npx playwright install --with-deps chromium
 
       - name: End-to-end tests
         run: npx playwright test
