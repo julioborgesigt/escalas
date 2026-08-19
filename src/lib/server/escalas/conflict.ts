@@ -32,6 +32,26 @@ function horaComparavel(h: string | null | undefined): string {
 }
 
 /**
+ * Horário efetivo de um membro de equipe GISE: equipe → seccional → escala,
+ * o primeiro nível que define horário próprio vence. Mesma resolução usada
+ * pela checagem single-date e pela batch — perigo se um dia divergirem, pois
+ * decide o horário contra o qual `seOverlapam` compara.
+ */
+function horaEfetivaGiseMembro(g: {
+	gise_he: string | null;
+	gise_hs: string | null;
+	sec_he: string | null;
+	sec_hs: string | null;
+	eq_he: string | null;
+	eq_hs: string | null;
+}): { he: string | null; hs: string | null } {
+	return {
+		he: g.eq_he ?? g.sec_he ?? g.gise_he,
+		hs: g.eq_hs ?? g.sec_hs ?? g.gise_hs
+	};
+}
+
+/**
  * Verifica conflito apenas nas escalas não-GISE (`escala_policiais`).
  * Utilizado internamente pelas funções GISE para completar a checagem cruzada.
  */
@@ -147,8 +167,7 @@ export async function verificarConflitoGlobal(
 	]);
 
 	for (const g of membrosGise) {
-		const eHe = g.eq_he ?? g.sec_he ?? g.gise_he;
-		const eHs = g.eq_hs ?? g.sec_hs ?? g.gise_hs;
+		const { he: eHe, hs: eHs } = horaEfetivaGiseMembro(g);
 		if (eHe && eHs && seOverlapam(he, hs, eHe, eHs)) {
 			return {
 				ok: false,
@@ -246,8 +265,7 @@ export async function verificarConflitoGlobalBatch(
 
 	for (const g of existentesGiseMembros) {
 		if (conflitos.has(g.data_inicio)) continue;
-		const eHe = g.eq_he ?? g.sec_he ?? g.gise_he;
-		const eHs = g.eq_hs ?? g.sec_hs ?? g.gise_hs;
+		const { he: eHe, hs: eHs } = horaEfetivaGiseMembro(g);
 		if (eHe && eHs && seOverlapam(he, hs, eHe, eHs)) {
 			conflitos.set(
 				g.data_inicio,
