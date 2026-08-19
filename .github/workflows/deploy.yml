@@ -24,6 +24,20 @@ concurrency:
 jobs:
   test:
     runs-on: ubuntu-latest
+    # 16 min é a duração REAL deste job num run verde de `main` (`68cb3fd8`),
+    # dos quais ~13 min são só o e2e. 30 dá o dobro de folga.
+    #
+    # O número existe por causa de 19/ago/2026: o step do Playwright travou no
+    # `apt-get update` (mirror da Azure fora) e ficou `in_progress` por HORAS.
+    # Como o `concurrency` abaixo não cancela em push — e não deve, pelo motivo
+    # documentado lá —, tudo em `main` enfileirou atrás dele: o run seguinte foi
+    # CANCELADO ao ser expulso da vaga de pendente, o seguinte ficou pendente, e
+    # nenhum deploy saiu. Sem `timeout-minutes` o padrão do GitHub é 360.
+    #
+    # Matar este job é barato: ele não escreve em lugar nenhum. Se um dia
+    # estourar por crescimento honesto da suíte, o lugar de olhar é o passo
+    # "End-to-end tests" — suba o número, não remova.
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
 
@@ -217,6 +231,14 @@ jobs:
     needs: test
     if: github.event_name == 'push' && github.ref == 'refs/heads/staging'
     runs-on: ubuntu-latest
+    # Generoso DE PROPÓSITO: o job leva ~1min30 de verdade, então 20 só dispara
+    # em travamento real, nunca em migração lenta. A assimetria com o `test`
+    # (30 para 16 medidos) é deliberada — aqui um timeout tem o MESMO risco que
+    # o `cancel-in-progress` evita: `migrate.ts` grava em
+    # `_migrations_aplicadas` DEPOIS do `d1 execute`, e morrer nessa janela
+    # deixa a migração aplicada e não registrada. O número protege a fila sem
+    # chegar perto do tempo real de uma migração.
+    timeout-minutes: 20
     environment: staging
     steps:
       - uses: actions/checkout@v7
@@ -253,6 +275,14 @@ jobs:
     needs: test
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    # Generoso DE PROPÓSITO: o job leva ~1min30 de verdade, então 20 só dispara
+    # em travamento real, nunca em migração lenta. A assimetria com o `test`
+    # (30 para 16 medidos) é deliberada — aqui um timeout tem o MESMO risco que
+    # o `cancel-in-progress` evita: `migrate.ts` grava em
+    # `_migrations_aplicadas` DEPOIS do `d1 execute`, e morrer nessa janela
+    # deixa a migração aplicada e não registrada. O número protege a fila sem
+    # chegar perto do tempo real de uma migração.
+    timeout-minutes: 20
     environment: production
     steps:
       - uses: actions/checkout@v7
