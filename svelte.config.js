@@ -72,6 +72,12 @@ const config = {
 				// sem isto a CSP bloquearia silenciosamente o envio de erros.
 				'connect-src': /** @type {any[]} */ (['self', 'https://*.sentry.io', ...SERPRO_WS]),
 				'frame-src': ['none'],
+				// `frame-ancestors` é o mecanismo vigente contra clickjacking;
+				// `X-Frame-Options: DENY` (hooks.server.ts) é o legado e continua lá
+				// para navegadores antigos. Os dois dizem a mesma coisa de propósito —
+				// o header antigo não é configurável por CSP e a CSP não chega em
+				// navegador que só entende o header.
+				'frame-ancestors': ['none'],
 				'object-src': ['none'],
 				'base-uri': ['self'],
 				'form-action': ['self'],

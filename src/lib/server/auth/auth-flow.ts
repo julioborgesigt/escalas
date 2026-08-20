@@ -15,6 +15,7 @@ import {
 	compararSegredoUtf8TimingSafe,
 	SESSION_TTL_MS
 } from '$lib/auth';
+import { HASH_SENTINELA } from '$lib/crypto/password-hash';
 import { captureMessage } from '@sentry/cloudflare';
 import { enviarCodigo2FA } from '$lib/server/email';
 import { logger } from '$lib/server/logger';
@@ -582,11 +583,13 @@ export async function tentarLogin({
 		const credEmail = credPol ? credPol.email : admin?.email;
 		const credPrimeiroAcesso = credPol ? credPol.primeiro_acesso : admin?.primeiro_acesso;
 
-		if (
-			!admin ||
-			(vinculado && !credPol) ||
-			!(await verificarSenha(senha, credSenha ?? '', pepper))
-		) {
+		// Deriva SEMPRE, inclusive quando a conta não existe: sem o `HASH_SENTINELA`
+		// o `||` curto-circuita e o login vira oráculo de enumeração — matrícula
+		// inexistente responde na hora, existente paga 100 000 iterações de PBKDF2,
+		// e a diferença é medível de fora.
+		const senhaConfere = await verificarSenha(senha, credSenha ?? HASH_SENTINELA, pepper);
+
+		if (!admin || (vinculado && !credPol) || !senhaConfere) {
 			await recordAttempt(db, ip, false, identHash);
 			return {
 				sucesso: false,
@@ -678,7 +681,14 @@ export async function tentarLogin({
 		.where(and(eq(policiais.matricula, matricula), eq(policiais.ativo, 1)))
 		.get();
 
-	if (!policial || !(await verificarSenha(senha, policial.senha, pepper))) {
+	// Mesma derivação incondicional do ramo admin — ver `HASH_SENTINELA`.
+	const senhaPolicialConfere = await verificarSenha(
+		senha,
+		policial?.senha ?? HASH_SENTINELA,
+		pepper
+	);
+
+	if (!policial || !senhaPolicialConfere) {
 		await recordAttempt(db, ip, false, identHash);
 		return {
 			sucesso: false,

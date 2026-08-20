@@ -57,11 +57,14 @@ As senhas são hasheadas com **PBKDF2-HMAC-SHA256, 100 000 iterações** (format
 
 ### Endpoint destrutivo `/api/webhook/reset-policiais`
 
-Apaga TODAS as tabelas operacionais (policiais, unidades, escalas, GISE, documentos). Exige **3 camadas** de autenticação:
+Apaga TODAS as tabelas operacionais (policiais, unidades, escalas, GISE, documentos). Exige **4 camadas**:
 
 1. `Authorization: Bearer <SYNC_TOKEN>` — token padrão de webhooks.
 2. `X-Reset-Token: <RESET_TOKEN>` — segredo separado.
-3. `X-Confirm-Reset: <YYYY-MM-DD em UTC>` — janela de 24 h, evita replay.
+3. `X-Confirm-Reset: <YYYY-MM-DD em UTC>` — confirmação explícita do dia.
+4. `X-Webhook-Timestamp` + `X-Webhook-Nonce` — anti-replay, janela de 5 min.
+
+A camada 4 é **obrigatória neste endpoint** e não depende de `WEBHOOK_REPLAY_ENFORCE` (ago/2026). A flag existe para o rollout do emissor; este endpoint não entra nessa conta, porque a camada 3 sozinha deixa uma janela de 24 h — se `SYNC_TOKEN` e `RESET_TOKEN` vazarem juntos, uma requisição capturada é reproduzível por um dia inteiro. Chamada sem os headers devolve 401.
 
 Antes de deletar, o endpoint registra no logger estruturado um snapshot com a contagem de linhas por tabela. Esse snapshot é devolvido na resposta e pode ser consultado em Workers Logs / Sentry para recuperação forense.
 
@@ -69,7 +72,7 @@ Antes de deletar, o endpoint registra no logger estruturado um snapshot com a co
 
 ### Replay protection dos webhooks (P1.3)
 
-Além da autenticação HMAC/Bearer, todos os webhooks (`sync-policiais`, `sync-unidades`, `reset-policiais`) suportam dois headers extras para impedir reenvio de payload capturado:
+Além da autenticação HMAC/Bearer, todos os webhooks (`sync-policiais`, `sync-unidades`, `reset-policiais`) usam dois headers extras para impedir reenvio de payload capturado. Nos dois `sync-*` eles são exigidos conforme `WEBHOOK_REPLAY_ENFORCE`; no `reset-policiais` são **sempre** exigidos:
 
 | Header                | Valor                                                                                                                                   |
 | --------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
@@ -84,6 +87,10 @@ O `scripts/GoogleAppsScript_Sync.gs` já envia ambos os headers em todas as cham
 2. **Republicar a Apps Script**: passa a enviar os headers. Confirmar nos logs do Worker que toda chamada agora vem com timestamp+nonce.
 3. **~~Setar `WEBHOOK_REPLAY_ENFORCE=1`~~** — **FEITO 06/ago** (Pages production secret
    do projeto `escalas`). Qualquer chamada sem os headers devolve 401.
+
+O rollout terminou; a flag continua existindo para preview/local, onde o Apps
+Script de teste pode estar defasado. O `reset-policiais` saiu dela em ago/2026 e
+exige os headers em qualquer ambiente — ver a seção do endpoint acima.
 
 A limpeza periódica de `webhook_nonces` (e das demais tabelas de retenção) é automatizada por `executarLimpezaRetencao`, disparada pelo cron `cleanup-retencao.yml` (GitHub Actions) — ver [Failsafe da limpeza de retenção](#failsafe-da-limpeza-de-retenção).
 

@@ -39,6 +39,7 @@ import { registrarAuditComContexto } from '$lib/db/audit';
 import { tryGetR2 } from '$lib/db';
 import { giseDownloadSchema, giseIdParamSchema } from '$lib/schemas';
 import {
+	CACHE_PRIVADO,
 	contentDisposition,
 	requireAuth,
 	badRequest,
@@ -139,7 +140,7 @@ export const GET: RequestHandler = async ({ locals, params, platform, url }) => 
 							headers: {
 								'Content-Type': 'application/pdf',
 								'Content-Disposition': contentDisposition(filename),
-								'Cache-Control': 'no-cache'
+								'Cache-Control': CACHE_PRIVADO
 							}
 						});
 					} else {
@@ -164,7 +165,7 @@ export const GET: RequestHandler = async ({ locals, params, platform, url }) => 
 						headers: {
 							'Content-Type': 'application/pdf',
 							'Content-Disposition': contentDisposition(filename),
-							'Cache-Control': 'no-cache'
+							'Cache-Control': CACHE_PRIVADO
 						}
 					});
 				}
@@ -200,7 +201,7 @@ export const GET: RequestHandler = async ({ locals, params, platform, url }) => 
 					headers: {
 						'Content-Type': 'application/pdf',
 						'Content-Disposition': contentDisposition(filename),
-						'Cache-Control': 'no-cache'
+						'Cache-Control': CACHE_PRIVADO
 					}
 				});
 			} catch (err) {
@@ -256,7 +257,7 @@ export const GET: RequestHandler = async ({ locals, params, platform, url }) => 
 				headers: {
 					'Content-Type': 'application/pdf',
 					'Content-Disposition': contentDisposition(filename),
-					'Cache-Control': 'no-cache'
+					'Cache-Control': CACHE_PRIVADO
 				}
 			});
 		} catch (err) {
@@ -281,7 +282,7 @@ export const GET: RequestHandler = async ({ locals, params, platform, url }) => 
 								'Content-Disposition': contentDisposition(
 									`gise_${gise.data_inicio}_assinada_manifesto.pdf`
 								),
-								'Cache-Control': 'no-cache'
+								'Cache-Control': CACHE_PRIVADO
 							}
 						});
 					}
@@ -306,7 +307,7 @@ export const GET: RequestHandler = async ({ locals, params, platform, url }) => 
 						headers: {
 							'Content-Type': 'application/pdf',
 							'Content-Disposition': contentDisposition(`conferencia_gise_${gise.data_inicio}.pdf`),
-							'Cache-Control': 'no-cache'
+							'Cache-Control': CACHE_PRIVADO
 						}
 					});
 				}
@@ -353,7 +354,7 @@ export const GET: RequestHandler = async ({ locals, params, platform, url }) => 
 				headers: {
 					'Content-Type': 'application/pdf',
 					'Content-Disposition': contentDisposition(`conferencia_gise_${gise.data_inicio}.pdf`),
-					'Cache-Control': 'no-cache'
+					'Cache-Control': CACHE_PRIVADO
 				}
 			});
 		}
@@ -362,7 +363,7 @@ export const GET: RequestHandler = async ({ locals, params, platform, url }) => 
 			headers: {
 				'Content-Type': 'application/pdf',
 				'Content-Disposition': contentDisposition(`rascunho_${gise.data_inicio}.pdf`),
-				'Cache-Control': 'no-cache'
+				'Cache-Control': CACHE_PRIVADO
 			}
 		});
 	}
@@ -402,7 +403,7 @@ export const GET: RequestHandler = async ({ locals, params, platform, url }) => 
 			headers: {
 				'Content-Type': 'application/pdf',
 				'Content-Disposition': contentDisposition(filename),
-				'Cache-Control': 'no-cache'
+				'Cache-Control': CACHE_PRIVADO
 			}
 		});
 	}
@@ -425,7 +426,7 @@ export const GET: RequestHandler = async ({ locals, params, platform, url }) => 
 		headers: {
 			'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
 			'Content-Disposition': contentDisposition(filename),
-			'Cache-Control': 'no-cache'
+			'Cache-Control': CACHE_PRIVADO
 		}
 	});
 };

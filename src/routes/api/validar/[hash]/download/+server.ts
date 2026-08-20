@@ -19,6 +19,7 @@ import { getDB, buscarDocumentoPorHash } from '$lib/db';
 import { validarSessao } from '$lib/auth';
 import { tryGetR2 } from '$lib/db';
 import {
+	CACHE_PRIVADO,
 	contentDisposition,
 	badRequest,
 	notFound,
@@ -52,7 +53,7 @@ function pdfConferencia(buffer: Uint8Array, filename: string): Response {
 		headers: {
 			'Content-Type': 'application/pdf',
 			'Content-Disposition': contentDisposition(filename),
-			'Cache-Control': 'private, no-store'
+			'Cache-Control': CACHE_PRIVADO
 		}
 	});
 }
@@ -214,10 +215,9 @@ export const GET: RequestHandler = async ({ platform, params, url, cookies, getC
 					// PII sensível (nome/CPF/IP/GPS no manifesto): NUNCA cachear em
 					// CDN/edge nem em proxies compartilhados — isso espalharia o PDF a
 					// qualquer um E contornaria o rate-limit (hits servidos do cache não
-					// chegam à origem, logo não contam). `private, no-store` mantém o
-					// controle no servidor; o custo é reler do R2, aceitável no baixo
-					// volume de validação.
-					resHeaders.set('Cache-Control', 'private, no-store');
+					// chegam à origem, logo não contam). O custo é reler do R2, aceitável
+					// no baixo volume de validação. Ver `CACHE_PRIVADO`.
+					resHeaders.set('Cache-Control', CACHE_PRIVADO);
 					return new Response(arrayBuffer, {
 						headers: resHeaders,
 						status: 200
@@ -336,7 +336,7 @@ export const GET: RequestHandler = async ({ platform, params, url, cookies, getC
 					'Content-Type': 'application/pdf',
 					'Content-Disposition': contentDisposition(filename),
 					// PII no relatório: não cachear em CDN/proxies compartilhados.
-					'Cache-Control': 'private, no-store'
+					'Cache-Control': CACHE_PRIVADO
 				}
 			});
 		} catch (err) {

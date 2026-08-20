@@ -23,6 +23,7 @@ import {
 } from '$lib/db';
 import * as exportLib from '$lib/server/export';
 import {
+	CACHE_PRIVADO,
 	contentDisposition,
 	requireAuth,
 	badRequest,
@@ -94,7 +95,7 @@ export const GET: RequestHandler = async ({ params, platform, url, locals }) => 
 									'Content-Disposition': contentDisposition(
 										filename.replace('.pdf', '_manifesto.pdf')
 									),
-									'Cache-Control': 'no-cache'
+									'Cache-Control': CACHE_PRIVADO
 								}
 							});
 						}
@@ -118,7 +119,7 @@ export const GET: RequestHandler = async ({ params, platform, url, locals }) => 
 						headers: {
 							'Content-Type': 'application/pdf',
 							'Content-Disposition': contentDisposition(`conferencia_${filename}`),
-							'Cache-Control': 'no-cache'
+							'Cache-Control': CACHE_PRIVADO
 						}
 					});
 				}
@@ -143,7 +144,7 @@ export const GET: RequestHandler = async ({ params, platform, url, locals }) => 
 				headers: {
 					'Content-Type': 'application/pdf',
 					'Content-Disposition': contentDisposition(`conferencia_${filename}`),
-					'Cache-Control': 'no-cache'
+					'Cache-Control': CACHE_PRIVADO
 				}
 			});
 		}
@@ -175,7 +176,7 @@ export const GET: RequestHandler = async ({ params, platform, url, locals }) => 
 			headers: {
 				'Content-Type': contentType,
 				'Content-Disposition': contentDisposition(filename),
-				'Cache-Control': 'no-cache'
+				'Cache-Control': CACHE_PRIVADO
 			}
 		});
 	} catch (err) {

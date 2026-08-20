@@ -62,6 +62,7 @@ type MotivoRecusa =
 	| 'desafio-divergente'
 	| 'origem-divergente'
 	| 'rp-id-divergente'
+	| 'usuario-nao-presente'
 	| 'usuario-nao-verificado'
 	| 'contador-regredido'
 	| 'assinatura-invalida';
@@ -121,9 +122,19 @@ export async function verificarAssercao(entrada: EntradaAssercao): Promise<Resul
 	);
 	if (!bytesIguais(dados.rpIdHash, rpIdHashEsperado)) return recusar('rp-id-divergente');
 
-	// 5. Verificação do usuário. Sem UV a asserção prova posse de um aparelho
-	//    desbloqueado, não a biometria do titular — e é a biometria que sustenta
-	//    o "controle exclusivo" do art. 4º II "b".
+	// 5. Presença e verificação do usuário.
+	//
+	//    UP (presença) é exigido pela WebAuthn §7.2 passo 16 em toda asserção —
+	//    é o "alguém tocou neste autenticador agora". Na prática todo
+	//    autenticador que liga UV liga UP junto, então checá-lo não muda o
+	//    resultado hoje; o motivo de estar aqui é que a norma não promete isso, e
+	//    "na prática sempre vem junto" é o tipo de suposição que envelhece mal
+	//    num artefato com valor jurídico.
+	//
+	//    UV (verificação) é o que sustenta o "controle exclusivo" do art. 4º II
+	//    "b": sem ele a asserção prova posse de um aparelho desbloqueado, não a
+	//    biometria do titular.
+	if (!dados.usuarioPresente) return recusar('usuario-nao-presente');
 	if (!dados.usuarioVerificado) return recusar('usuario-nao-verificado');
 
 	// 6. Contador. Autenticador que não implementa manda 0 sempre; nesse caso

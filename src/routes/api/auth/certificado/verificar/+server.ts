@@ -48,13 +48,11 @@ import {
 	verificarRespostaDesafioCertificado,
 	verificarRevogacaoParaLogin
 } from '$lib/server/auth/cert-login';
-import { loadTrustStore } from '$lib/server/assinatura/icp-brasil/trust-store';
+import { verificarCadeiaIcpBrasil } from '$lib/server/assinatura/pdf-verification';
 import { limparCPF } from '$lib/utils/formato';
 import { cpfKeys, indiceCPF } from '$lib/crypto/cpf-cripto';
 import { logger } from '$lib/server/logger';
-import forge from 'node-forge';
 import type { RequestHandler } from './$types';
-import { mensagemDeErro } from '$lib/utils/erro';
 
 export const POST: RequestHandler = async (event) => {
 	const { platform, request, cookies, url, getClientAddress } = event;
@@ -93,14 +91,32 @@ export const POST: RequestHandler = async (event) => {
 	}
 
 	// Verificação criptográfica do desafio — fecha o bypass crítico. Confirma
-	// (1) que o CMS tem assinatura válida sobre os SignedAttributes (prova de
-	// posse da chave privada do Token A3) e (2) que o conteúdo assinado é o hash
-	// do nonce DESTE desafio. `desafio.codigo` guarda exatamente o messageDigest
-	// esperado (ver /iniciar). A identidade só é lida do certificado DEPOIS.
+	// (1) que o certificado e o algoritmo estão dentro da política criptográfica
+	// mínima, (2) que o CMS tem assinatura válida sobre os SignedAttributes
+	// (prova de posse da chave privada do Token A3) e (3) que o conteúdo assinado
+	// é o hash do nonce DESTE desafio. `desafio.codigo` guarda exatamente o
+	// messageDigest esperado (ver /iniciar). A identidade só é lida DEPOIS.
 	const verif = await verificarRespostaDesafioCertificado(cmsBase64, desafio.codigo);
 	if (!verif.ok) {
 		await recordAttempt(db, ip, false);
-		logger.warn('[cert-login] Verificação do desafio falhou', { motivo: verif.motivo });
+		logger.warn('[cert-login] Verificação do desafio falhou', {
+			motivo: verif.motivo,
+			detalhe: verif.detalhe
+		});
+		// A recusa por POLÍTICA merece mensagem própria. O caso real que ela pega
+		// não é ataque: é o titular escolhendo, no Assinador, o e-CPF de SIGILO
+		// (par "S") em vez do de ASSINATURA (par "A") — certificado legítimo, sem
+		// `keyUsage` de assinatura. "Não foi possível validar a assinatura" manda
+		// essa pessoa tentar de novo exatamente do mesmo jeito.
+		if (verif.motivo === 'politica_cripto') {
+			return apiError(
+				'O certificado apresentado não atende aos requisitos mínimos de assinatura ' +
+					'(deve ser um e-CPF de assinatura, com chave RSA de 2048 bits ou mais e SHA-256). ' +
+					'Se o seu token tem mais de um certificado, selecione o de ASSINATURA.',
+				422,
+				ErrorCode.VALIDATION
+			);
+		}
 		return apiError(
 			'Não foi possível validar a assinatura do certificado. Refaça o login com o seu certificado digital.',
 			401,
@@ -126,8 +142,16 @@ export const POST: RequestHandler = async (event) => {
 	// validar a identidade. Sem isto, um certificado autoassinado com o CPF da
 	// vítima (assinado com a chave do atacante) passaria pelos checks de
 	// assinatura e nonce. Por isso aqui NÃO há mais "modo permissivo".
-	const trustStore = loadTrustStore();
-	if (!trustStore.disponivel) {
+	//
+	// Valida o MESMO certificado cuja assinatura foi conferida — o que o `sid` do
+	// SignerInfo resolveu. Até ago/2026 esta checagem re-parseava o CMS por conta
+	// própria e passava `p7.certificates` inteiro ao forge: a ordem de um
+	// `SET OF` não é ordem de cadeia (para o forge, `chain[0]` é o PAI do
+	// anterior), então um CMS legítimo com a folha fora da primeira posição
+	// reprovava aqui. Era a terceira cópia da validação de cadeia; agora entra
+	// pelo `verificarCadeiaIcpBrasil`, o mesmo helper do `/validar`.
+	const cadeia = verificarCadeiaIcpBrasil(verif.certificado);
+	if (cadeia === 'indisponivel') {
 		await recordAttempt(db, ip, false);
 		logger.error(
 			'[cert-login] Trust store ICP-Brasil indisponível — login por certificado bloqueado'
@@ -138,18 +162,10 @@ export const POST: RequestHandler = async (event) => {
 			ErrorCode.UPSTREAM
 		);
 	}
-	try {
-		const der = forge.util.decode64(cmsBase64);
-		const asn1 = forge.asn1.fromDer(der);
-		const p7 = forge.pkcs7.messageFromAsn1(asn1);
-		const certs = (p7 as unknown as { certificates: forge.pki.Certificate[] }).certificates;
-		// Lança se a cadeia não terminar numa raiz/intermediária confiável.
-		forge.pki.verifyCertificateChain(trustStore.caStore, certs);
-	} catch (err) {
+	if (!cadeia) {
 		await recordAttempt(db, ip, false);
 		logger.warn('[cert-login] Cadeia ICP-Brasil inválida', {
-			cpf: cpfLimpo.slice(0, 3) + '***',
-			error: mensagemDeErro(err)
+			cpf: cpfLimpo.slice(0, 3) + '***'
 		});
 		return apiError(
 			'Certificado não pertence a uma cadeia ICP-Brasil válida.',

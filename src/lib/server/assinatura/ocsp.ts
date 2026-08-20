@@ -735,7 +735,13 @@ export async function consultarOcsp(
 			method: 'POST',
 			headers: { 'Content-Type': 'application/ocsp-request' },
 			body: requestDer as unknown as ArrayBuffer,
-			signal: ctrl.signal
+			signal: ctrl.signal,
+			// `manual` fecha o furo do guard SSRF: `urlOcspPermitida` valida só a URL
+			// INICIAL, e o default (`follow`) faria o Worker seguir um 302 para um
+			// destino que o guard recusaria. Um redirect vira status 0/opaque, cai no
+			// `!res.ok` abaixo e degrada para 'unknown' — que é o comportamento certo:
+			// responder OCSP legítimo responde direto, não redireciona.
+			redirect: 'manual'
 		});
 		if (!res.ok) {
 			return {

@@ -21,6 +21,16 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
+
+# Escopo do GITHUB_TOKEN — declarado em vez de herdado.
+#
+# Sem este bloco vale o default da organização, que pode ser `read-write` e pode
+# MUDAR sem que nada aqui acuse. Declarar torna o escopo uma propriedade do
+# workflow: se um step passar a precisar de mais, o erro aparece no CI em vez de
+# depender de uma configuração de org que ninguém revisa.
+permissions:
+  contents: read
+
 jobs:
   test:
     runs-on: ubuntu-latest
