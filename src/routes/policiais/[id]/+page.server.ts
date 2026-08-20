@@ -73,6 +73,7 @@ import {
 	listarCredenciaisDoDono
 } from '$lib/db';
 import { descreverVinculoCredencial } from '$lib/server/assinatura/webauthn/authenticator-data';
+import { nomeProvedorAaguid } from '$lib/server/assinatura/webauthn/aaguid-provedores';
 import { abreviarCredencial } from '$lib/chave-assinatura-ui';
 import { deletarChavesR2 } from '$lib/server/r2-cleanup';
 import { logger } from '$lib/server/logger';
@@ -243,7 +244,11 @@ export const load: PageServerLoad = async ({ locals, params, platform, depends }
 					identificador: abreviarCredencial(credencialPasskey.credentialId),
 					criadoEm: credencialPasskey.criadoEm,
 					ultimoUso: credencialPasskey.ultimoUso,
-					vinculo: descreverVinculoCredencial(credencialPasskey)
+					vinculo: descreverVinculoCredencial(credencialPasskey),
+					// Apelido e provedor: DECLARADOS pelo titular/aparelho no cadastro,
+					// não verificados — a mesma ressalva do manifesto do PDF.
+					apelido: credencialPasskey.apelido,
+					provedor: nomeProvedorAaguid(credencialPasskey.aaguid)
 				}
 			: null,
 		chavesAnteriores: credenciaisPasskey
@@ -251,7 +256,9 @@ export const load: PageServerLoad = async ({ locals, params, platform, depends }
 			.map((c) => ({
 				identificador: abreviarCredencial(c.credentialId),
 				criadoEm: c.criadoEm,
-				revogadoEm: c.revogadoEm as string
+				revogadoEm: c.revogadoEm as string,
+				apelido: c.apelido,
+				provedor: nomeProvedorAaguid(c.aaguid)
 			}))
 	};
 };

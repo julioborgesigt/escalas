@@ -37,6 +37,7 @@ import {
 	ALG_ES256
 } from '$lib/server/assinatura/webauthn/registro';
 import { descreverVinculoCredencial } from '$lib/server/assinatura/webauthn/authenticator-data';
+import { nomeProvedorAaguid } from '$lib/server/assinatura/webauthn/aaguid-provedores';
 import { recusaCadastroChaveDesktop } from '$lib/server/assinatura/chave-assinatura';
 import {
 	buscarEmailsReposicao,
@@ -171,7 +172,9 @@ export const POST: RequestHandler = async ({ platform, locals, request, url }) =
 	return json({
 		success: true,
 		vinculo: descreverVinculoCredencial(resultado.credencial),
-		identificador: abreviarCredencial(dados.credentialId)
+		identificador: abreviarCredencial(dados.credentialId),
+		apelido: dados.apelido ?? null,
+		provedor: nomeProvedorAaguid(resultado.credencial.aaguid)
 	});
 };
 

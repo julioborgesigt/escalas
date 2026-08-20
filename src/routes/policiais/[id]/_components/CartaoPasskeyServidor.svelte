@@ -23,10 +23,16 @@
 	import { apiFetch } from '$lib/api-fetch';
 	import { invalidateAll } from '$app/navigation';
 	import ModalShell from '$lib/components/ModalShell.svelte';
-	import { mensagemChaveNoCartaoAdmin } from '$lib/chave-assinatura-ui';
+	import { mensagemChaveNoCartaoAdmin, notaProvedorDeclarado } from '$lib/chave-assinatura-ui';
 	import { mensagemDeErro } from '$lib/utils/erro';
 
-	type ChaveAnterior = { identificador: string; criadoEm: string; revogadoEm: string };
+	type ChaveAnterior = {
+		identificador: string;
+		criadoEm: string;
+		revogadoEm: string;
+		apelido: string | null;
+		provedor: string | null;
+	};
 
 	const {
 		policialId,
@@ -41,6 +47,8 @@
 			criadoEm: string;
 			ultimoUso: string | null;
 			vinculo: string;
+			apelido: string | null;
+			provedor: string | null;
 		} | null;
 		chavesAnteriores?: ChaveAnterior[];
 	} = $props();
@@ -115,6 +123,9 @@
 		<div class="p-3 rounded-xl bg-success-500/5 border border-success-500/20 mb-3">
 			<p class="text-sm font-semibold text-surface-900 dark:text-white">
 				Registrada em {formatar(passkey.criadoEm)}
+				{#if passkey.apelido}
+					— {passkey.apelido}
+				{/if}
 			</p>
 			<p
 				class="mt-2 font-mono text-sm tracking-wide text-surface-900 dark:text-white break-all select-all"
@@ -129,6 +140,11 @@
 					Ainda não usada para assinar.
 				{/if}
 			</p>
+			{#if passkey.provedor}
+				<p class="text-xs text-surface-600 dark:text-surface-400 mt-0.5">
+					Provedor: {passkey.provedor}. {notaProvedorDeclarado()}
+				</p>
+			{/if}
 		</div>
 		<button
 			type="button"
@@ -161,9 +177,15 @@
 			<ul class="space-y-2">
 				{#each chavesAnteriores as ant (`${ant.identificador}-${ant.revogadoEm}`)}
 					<li class="text-xs text-surface-700 dark:text-surface-300">
-						<p class="font-mono text-sm tracking-wide break-all select-all">{ant.identificador}</p>
+						<p class="font-mono text-sm tracking-wide break-all select-all">
+							{ant.identificador}{#if ant.apelido}
+								— {ant.apelido}{/if}
+						</p>
 						<p class="text-surface-600 dark:text-surface-400">
 							Cadastrada em {formatar(ant.criadoEm)} · revogada em {formatar(ant.revogadoEm)}
+							{#if ant.provedor}
+								· {ant.provedor}
+							{/if}
 						</p>
 					</li>
 				{/each}

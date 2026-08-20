@@ -13,6 +13,7 @@ import {
 } from '$lib/db';
 import { credencialDoUsuario } from '$lib/server/auth/credencial';
 import { descreverVinculoCredencial } from '$lib/server/assinatura/webauthn/authenticator-data';
+import { nomeProvedorAaguid } from '$lib/server/assinatura/webauthn/aaguid-provedores';
 import { abreviarCredencial } from '$lib/chave-assinatura-ui';
 import { policiais } from '$lib/server/schema';
 import { classesDoCargo, TELEFONE_RE } from '$lib/perfil-campos';
@@ -71,7 +72,12 @@ export const load: PageServerLoad = async ({ locals, platform }) => {
 					criadoEm: credencial.criadoEm,
 					ultimoUso: credencial.ultimoUso,
 					vinculo: descreverVinculoCredencial(credencial),
-					identificador: abreviarCredencial(credencial.credentialId)
+					identificador: abreviarCredencial(credencial.credentialId),
+					// Apelido: rótulo que o titular escolheu no cadastro. Provedor: do
+					// AAGUID, os dois DECLARADOS pelo aparelho, nunca verificados — nem
+					// um nem outro entram no manifesto do PDF.
+					apelido: credencial.apelido,
+					provedor: nomeProvedorAaguid(credencial.aaguid)
 				}
 			: null
 	};
