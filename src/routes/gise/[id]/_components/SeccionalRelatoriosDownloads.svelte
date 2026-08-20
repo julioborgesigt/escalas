@@ -11,13 +11,13 @@
 	 * sozinho. Um Admin Geral vê "Rel. Extra (conferência)" e não vê "Ass. tela"
 	 * nem "Token".
 	 *
-	 * Isto é metade de uma contradição conhecida: as três rotas de servidor do
-	 * relatório extra ACEITAM `u.tipo === 'admin'`, ou seja, admitem por POST
-	 * direto o que esta tela nunca ofereceu. A outra metade — a evidência e o
-	 * porquê de não ter sido "consertado" na passagem — está no cabeçalho de
+	 * Isto NÃO é divergência: desde ago/2026 as cinco rotas de servidor do
+	 * relatório extra também exigem o supervisor designado. Antes elas aceitavam
+	 * `u.tipo === 'admin'` e admitiam por POST direto o que esta tela nunca
+	 * ofereceu; o porquê da remoção está no cabeçalho de
 	 * `api/gise/[id]/relatorios/[seccionalId]/preparar-assinatura-avancada`.
-	 * Quem afrouxar o `isSupervisor` daqui precisa saber que está mexendo no
-	 * lado VISÍVEL de um par que já diverge.
+	 * Quem afrouxar o `isSupervisor` daqui está afrouxando só a tela — o
+	 * servidor continua recusando.
 	 */
 	import { page } from '$app/state';
 	import type { GiseDetalhado } from '$lib/db/gise';

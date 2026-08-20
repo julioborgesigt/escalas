@@ -40,8 +40,8 @@ export const POST: RequestHandler = async (event) => {
 	const db = getDB(p);
 	const u = requireAuth(locals);
 	if (u instanceof Response) return u;
-	if (u.tipo !== 'policial' && u.tipo !== 'admin') {
-		return forbidden('Somente policiais supervisores ou administradores podem assinar');
+	if (u.tipo !== 'policial') {
+		return forbidden('Apenas o supervisor designado pode assinar este relatório.');
 	}
 
 	const ip = getClientAddress();
@@ -55,10 +55,8 @@ export const POST: RequestHandler = async (event) => {
 	// Permissão de negócio: admin geral ou supervisor designado.
 	const giseAuth = await buscarGiseEscala(db, id);
 	if (!giseAuth) return notFound('GISE');
-	if (u.tipo !== 'admin' && giseAuth.supervisor_id !== u.id) {
-		return forbidden(
-			'Apenas o supervisor designado ou administradores podem assinar este relatório'
-		);
+	if (giseAuth.supervisor_id !== u.id) {
+		return forbidden('Apenas o supervisor designado pode assinar este relatório');
 	}
 
 	const validated = await validateBody(request, finalizarAssinaturaGiseSchema);

@@ -28,6 +28,7 @@ const RUBRICA_PNG =
 
 let tokenSupervisor: string | null = null;
 let tokenMembro: string | null = null;
+let tokenAdminGeral: string | null = null;
 
 /** (Re)semeia a presença do membro: sempre com entrada; saída opcional. */
 function seedPresencaMembro(comSaida: boolean): boolean {
@@ -73,6 +74,7 @@ function finalizarData(prep: Prep, serproCms: string) {
 test.beforeAll(() => {
 	tokenSupervisor = seedSession(FIXTURE.supervisor.id);
 	tokenMembro = seedSession(FIXTURE.membroGise.id);
+	tokenAdminGeral = seedSession(FIXTURE.adminGeral.id, 'admin');
 	seedPresencaMembro(false); // estado inicial: entrada apenas (saída incompleta)
 });
 
@@ -83,15 +85,51 @@ test.afterAll(() => {
 
 test.describe('Relatório extraordinário GISE — assinatura qualificada', () => {
 	test.describe.configure({ mode: 'serial' });
-	test.skip(() => !tokenSupervisor || !tokenMembro, 'D1 local indisponível');
+	test.skip(() => !tokenSupervisor || !tokenMembro || !tokenAdminGeral, 'D1 local indisponível');
 
-	test('membro comum (não supervisor/admin) → 403', async ({ request }) => {
+	test('membro comum (não é o supervisor designado) → 403', async ({ request }) => {
 		const res = await request.post(prepararUrl(SECCIONAL), {
 			headers: headersDeSessaoMutacao(tokenMembro!),
 			data: { signerName: FIXTURE.membroGise.nome, signerCpf: '' }
 		});
 		expect(res.status()).toBe(403);
-		expect((await res.json()).error).toMatch(/supervisor designado|administradores/i);
+		expect((await res.json()).error).toMatch(/supervisor designado/i);
+	});
+
+	/**
+	 * O Admin Geral NÃO assina o relatório extraordinário — em nenhuma das cinco
+	 * rotas da família.
+	 *
+	 * Até ago/2026 as cinco aceitavam `u.tipo === 'admin'`, e nenhuma tela jamais
+	 * ofereceu isso: `isSupervisor` é `false` para admin já no `load`, e os dois
+	 * pontos de entrada da assinatura estão atrás dele. O que decidiu a remoção
+	 * não foi a tela e sim o documento: a sessão de admin não tem `cpf` nem
+	 * `matrícula` (`mapearAdmin`), então o relatório sairia com matrícula `null`
+	 * e com o CPF que o cliente mandasse — a única afirmação de identidade que
+	 * ninguém verificaria, num documento com valor jurídico.
+	 *
+	 * As CINCO juntas de propósito: apertar só algumas recria a divergência que
+	 * a extração do portão da escala GISE veio desfazer. Se uma voltar a aceitar
+	 * admin, é aqui que aparece.
+	 */
+	test('Admin Geral → 403 nas cinco rotas de assinatura do extra', async ({ request }) => {
+		const base = `/api/gise/${GISE}/relatorios/${SECCIONAL}`;
+		const rotas = [
+			`${base}/assinar`,
+			`${base}/preparar-assinatura`,
+			`${base}/finalizar-assinatura`,
+			`${base}/preparar-assinatura-avancada`,
+			`${base}/finalizar-assinatura-avancada`
+		];
+
+		for (const url of rotas) {
+			const res = await request.post(url, {
+				headers: headersDeSessaoMutacao(tokenAdminGeral!),
+				data: { rubrica: RUBRICA_PNG, signerName: 'Qualquer Nome', signerCpf: '11144477735' }
+			});
+			expect(res.status(), `${url} devia recusar Admin Geral`).toBe(403);
+			expect((await res.json()).error, url).toMatch(/supervisor designado/i);
+		}
 	});
 
 	test('seccional inexistente → 400', async ({ request }) => {

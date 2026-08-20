@@ -51,8 +51,8 @@ export const POST: RequestHandler = async ({
 }) => {
 	const u = requireAuth(locals);
 	if (u instanceof Response) return u;
-	if (u.tipo !== 'policial' && u.tipo !== 'admin') {
-		return forbidden('Somente policiais supervisores ou administradores podem assinar');
+	if (u.tipo !== 'policial') {
+		return forbidden('Apenas o supervisor designado pode assinar este relatório.');
 	}
 
 	const validated = await validateBody(request, prepararAssinaturaSchema);
@@ -74,11 +74,10 @@ export const POST: RequestHandler = async ({
 	const secOk = await giseAutorizaSeccionalRelatorioExtra(db, id, secIdNum);
 	if (!secOk) return badRequest('Seccional inválida para esta GISE.');
 
-	// Apenas o supervisor designado ou administradores podem assinar relatórios desta GISE
-	if (u.tipo !== 'admin' && gise.supervisor_id !== u.id) {
-		return forbidden(
-			'Apenas o supervisor designado ou administradores podem assinar este relatório.'
-		);
+	// Só o supervisor DESIGNADO. Admin Geral não entra: ver o cabeçalho de
+	// `preparar-assinatura-avancada`.
+	if (gise.supervisor_id !== u.id) {
+		return forbidden('Apenas o supervisor designado pode assinar este relatório.');
 	}
 
 	const presencas = await buscarPresencasGise(db, id, platform?.env);
