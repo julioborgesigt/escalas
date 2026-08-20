@@ -7,6 +7,11 @@
  * fora e ajustava o alvo do DDoS. O detalhe estruturado continua
  * disponível para o operador via `?detail=<HEALTH_DETAIL_TOKEN>`
  * (segredo opcional via env).
+ *
+ * O detalhe carrega DOIS failsafes de coisa que falha em silêncio: o cron de
+ * limpeza de retenção (que, parado, deixa as tabelas crescerem sem limite) e os
+ * segredos de proteção (que, ausentes, degradam cifragem e pseudonimização sem
+ * erro nenhum). Ver `SEGREDOS_DE_PROTECAO`.
  */
 
 import { json } from '@sveltejs/kit';
@@ -19,6 +24,43 @@ import { verificarSaudeLimpezaRetencao, type SaudeLimpezaRetencao } from '$lib/d
 
 interface HealthEnv {
 	HEALTH_DETAIL_TOKEN?: string;
+}
+
+/**
+ * Segredos cuja AUSÊNCIA degrada silenciosamente uma proteção — o operador não
+ * recebe erro nenhum, só perde a garantia.
+ *
+ * O caso que motivou: sem `CPF_ENCRYPTION_KEY`/`CPF_INDEX_KEY`,
+ * `prepararCpfParaDB` grava o CPF em TEXTO CLARO e `cpf_index = null`. O
+ * fail-open é deliberado (mantém o app de pé), mas nada avisava que a cifragem
+ * em repouso não estava acontecendo — dava para popular um banco inteiro assim
+ * e só descobrir num incidente.
+ *
+ * É o mesmo formato do failsafe do cron de retenção logo abaixo: um sinal que
+ * só o operador vê, sem derrubar a liveness pública.
+ */
+const SEGREDOS_DE_PROTECAO = [
+	['cpfCifrado', 'CPF_ENCRYPTION_KEY'],
+	['cpfIndice', 'CPF_INDEX_KEY'],
+	['senhaPepper', 'PASSWORD_PEPPER'],
+	['auditCadeia', 'AUDIT_CHAIN_KEY'],
+	['auditIp', 'AUDIT_IP_ENCRYPTION_KEY'],
+	['rateLimitIpSalt', 'RATE_LIMIT_IP_SALT']
+] as const;
+
+/** `{ nome: 'ok' | 'ausente' }` — nunca o valor do segredo, só a presença. */
+function conferirSegredosDeProtecao(env: Record<string, string | undefined>): {
+	protecoes: Record<string, 'ok' | 'ausente'>;
+	ausentes: string[];
+} {
+	const protecoes: Record<string, 'ok' | 'ausente'> = {};
+	const ausentes: string[] = [];
+	for (const [nome, envVar] of SEGREDOS_DE_PROTECAO) {
+		const presente = !!env[envVar]?.trim();
+		protecoes[nome] = presente ? 'ok' : 'ausente';
+		if (!presente) ausentes.push(envVar);
+	}
+	return { protecoes, ausentes };
 }
 
 export const GET: RequestHandler = async ({ platform, url }) => {
@@ -70,11 +112,19 @@ export const GET: RequestHandler = async ({ platform, url }) => {
 			retencao = { erro: true };
 		}
 		const stale = 'atrasada' in retencao && retencao.atrasada;
+
+		// Segredos ausentes NÃO derrubam a liveness (o app funciona sem eles, é o
+		// ponto do fail-open) mas entram como `degraded` para aparecer no monitor.
+		const { protecoes, ausentes } = conferirSegredosDeProtecao(
+			env as unknown as Record<string, string | undefined>
+		);
+
 		return json(
 			{
-				status: healthy ? (stale ? 'degraded' : 'healthy') : 'degraded',
-				checks: { ...checks, limpezaRetencao: stale ? 'stale' : 'ok' },
+				status: healthy ? (stale || ausentes.length > 0 ? 'degraded' : 'healthy') : 'degraded',
+				checks: { ...checks, limpezaRetencao: stale ? 'stale' : 'ok', ...protecoes },
 				retencao,
+				protecoesAusentes: ausentes,
 				timestamp: new Date().toISOString()
 			},
 			{ status: healthy ? 200 : 503 }

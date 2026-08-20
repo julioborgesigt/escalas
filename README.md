@@ -1275,11 +1275,12 @@ Todas elas são aplicadas **no servidor** — inclusive `restringir_smartphone`,
 
 ### Reset destrutivo (emergência)
 
-O endpoint `/api/webhook/reset-policiais` **apaga todas as tabelas operacionais**. Requer três camadas de autenticação simultâneas:
+O endpoint `/api/webhook/reset-policiais` **apaga todas as tabelas operacionais**. Requer quatro camadas simultâneas:
 
 1. `Authorization: Bearer <SYNC_TOKEN>`
 2. `X-Reset-Token: <RESET_TOKEN>`
-3. `X-Confirm-Reset: <YYYY-MM-DD em UTC>` (janela de 24 horas, previne replay attacks)
+3. `X-Confirm-Reset: <YYYY-MM-DD em UTC>` (confirmação explícita do dia)
+4. `X-Webhook-Timestamp` + `X-Webhook-Nonce` (anti-replay, 5 min) — **obrigatórios aqui**, independentemente de `WEBHOOK_REPLAY_ENFORCE`, porque a camada 3 sozinha deixaria 24 h de janela para reenvio
 
 > ⚠️ Use apenas via o menu da planilha Google Sheets, que exige confirmação dupla.
 

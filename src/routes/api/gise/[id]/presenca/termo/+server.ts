@@ -21,6 +21,7 @@ import {
 	tryGetR2
 } from '$lib/db';
 import {
+	CACHE_PRIVADO,
 	requireAuth,
 	badRequest,
 	notFound,
@@ -36,7 +37,7 @@ function respostaPdf(data: ArrayBuffer | Uint8Array, filename: string): Response
 		headers: {
 			'Content-Type': 'application/pdf',
 			'Content-Disposition': contentDisposition(filename),
-			'Cache-Control': 'no-store'
+			'Cache-Control': CACHE_PRIVADO
 		}
 	});
 }

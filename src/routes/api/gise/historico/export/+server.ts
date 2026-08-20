@@ -22,6 +22,7 @@ import { registrarAuditComContexto } from '$lib/db/audit';
 import { giseHistoricoExportQuerySchema } from '$lib/schemas';
 import { dataHoraBrasilia } from '$lib/utils/datas';
 import {
+	CACHE_PRIVADO,
 	contentDisposition,
 	requireAdmin,
 	badRequest,
@@ -274,7 +275,7 @@ export const GET: RequestHandler = async ({ locals, platform, url }) => {
 				headers: {
 					'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
 					'Content-Disposition': contentDisposition(filename),
-					'Cache-Control': 'no-cache'
+					'Cache-Control': CACHE_PRIVADO
 				}
 			});
 		} catch (e) {
@@ -288,7 +289,7 @@ export const GET: RequestHandler = async ({ locals, platform, url }) => {
 		headers: {
 			'Content-Type': 'application/pdf',
 			'Content-Disposition': contentDisposition(filenamePdf),
-			'Cache-Control': 'no-cache'
+			'Cache-Control': CACHE_PRIVADO
 		}
 	});
 };

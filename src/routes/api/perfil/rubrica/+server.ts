@@ -20,6 +20,7 @@ import { eq } from 'drizzle-orm';
 import { getDB, auditar, contextoDeEvento } from '$lib/db';
 import { policiais } from '$lib/server/schema';
 import { requireAuth, badRequest, forbidden, validateBody, serverError } from '$lib/server/api';
+import { detectarTipo } from '$lib/server/assinatura/selfie-upload';
 
 /** Teto do dataURL PNG (~600 KB) — rubricas legítimas ficam muito abaixo disso. */
 const MAX_RUBRICA_CHARS = 600 * 1024;
@@ -50,6 +51,14 @@ export const POST: RequestHandler = async (event) => {
 	const b64 = rubrica.slice('data:image/png;base64,'.length);
 	if (!/^[A-Za-z0-9+/]+={0,2}$/.test(b64) || b64.length < 100) {
 		return badRequest('Conteúdo da rubrica inválido.');
+	}
+
+	// O prefixo `data:image/png` é declaração do cliente; os magic bytes são a
+	// evidência. Mesma checagem que a selfie faz desde que o upload dela foi
+	// endurecido — aqui faltava, e bytes arbitrários eram persistidos e depois
+	// entregues ao carimbador de PDF.
+	if (detectarTipo(Buffer.from(b64, 'base64')) !== 'png') {
+		return badRequest('A rubrica deve ser um PNG transparente.');
 	}
 
 	const agora = new Date().toISOString();

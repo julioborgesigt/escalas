@@ -205,6 +205,32 @@ export function serverError(contexto: string, err: unknown): Response {
 // ---- Headers HTTP ----
 
 /**
+ * `Cache-Control` de resposta autenticada que carrega dado pessoal — PDF
+ * assinado, manifesto forense, planilha de pessoal, termo de presença.
+ *
+ * **`no-cache` NÃO serve, e essa é a armadilha.** Ele significa "revalide antes
+ * de usar" e não proíbe um cache COMPARTILHADO (edge da Cloudflare, proxy
+ * corporativo) de ARMAZENAR a resposta. Quem proíbe o armazenamento é
+ * `no-store`; quem restringe a cache privado é `private`. Os dois juntos são o
+ * único par que mantém um PDF com CPF, IP, GPS e selfie fora de qualquer cache
+ * que não seja o do próprio navegador do titular.
+ *
+ * Existe como constante porque o valor estava escrito à mão em dezesseis
+ * lugares, e a cópia divergiu exatamente como o CLAUDE.md descreve: a rota
+ * PÚBLICA `/api/validar/[hash]/download` usava `private, no-store` com cinco
+ * linhas de comentário explicando o risco, enquanto as rotas AUTENTICADAS de
+ * download — que servem o mesmo blob, com o mesmo manifesto — usavam
+ * `no-cache`.
+ *
+ * Há ainda um segundo efeito, menos visível: `handleSecurity`
+ * (`hooks.server.ts`) já preenche `private, no-store` em toda resposta
+ * autenticada que NÃO define `Cache-Control`. Ao definir qualquer valor, a rota
+ * sai do default seguro — então definir um valor mais fraco é pior do que não
+ * definir nada.
+ */
+export const CACHE_PRIVADO = 'private, no-store';
+
+/**
  * Gera um header Content-Disposition RFC 6266 compatível.
  * Usa filename* (UTF-8 percent-encoded) como valor principal e um fallback ASCII.
  *
