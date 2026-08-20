@@ -486,3 +486,63 @@ test('o título gravado substitui o enunciado no card do painel', async ({ page 
 		 WHERE operacao_id = ${id} AND tipo = 'operacional';`
 	);
 });
+
+/**
+ * O PDF do painel — que é `window.print()`, e por isso é CSS, não gerador.
+ *
+ * O bug relatado em ago/2026: gráfico partido no meio, com metade numa folha e
+ * metade na seguinte, e a barra de filtros ocupando a primeira página. As regras
+ * que evitariam isso existiam desde sempre no `<style>` da rota — só que
+ * escopadas: o Svelte compilava `.card` para `.card.svelte-hash`, e TODO card do
+ * painel é renderizado por um componente filho, com outro hash. As regras não
+ * casavam com card nenhum.
+ *
+ * É um caso que só o navegador prova, e só em `media: print` — na tela as mesmas
+ * regras não valem, e o CSS compilado "existe" mesmo quando não seleciona nada.
+ */
+test('em impressão, o card não quebra entre folhas e o cromo da tela some', async ({ page }) => {
+	test.skip(!cenarioOk, 'D1 local indisponível');
+	const ok = await autenticarPagina(page, FIXTURE.adminGeral.id, 'admin');
+	test.skip(!ok, 'D1 local indisponível');
+	test.skip(!(await abrirPainel(page, C.completa)), 'operação do cenário não foi criada');
+
+	const cards = page.locator('.card');
+	await expect(cards.first()).toBeVisible();
+
+	await page.emulateMedia({ media: 'print' });
+
+	// O pedido do relato: o card é indivisível. `avoid` é um PEDIDO ao paginador —
+	// quando o card não cabe inteiro numa A4 o navegador quebra assim mesmo, que é
+	// o comportamento desejado ("quebrar só se realmente não couber").
+	await expect(cards.first()).toHaveCSS('break-inside', 'avoid');
+
+	// Scroll interno vira CORTE no papel: o ranking rola na tela e precisa
+	// transbordar na folha.
+	await expect(cards.first()).toHaveCSS('overflow', 'visible');
+
+	// Filtros e botões de exportação são controles de tela.
+	await expect(page.locator('#f-ano')).toBeHidden();
+	await expect(page.getByRole('button', { name: /Baixar \(PDF\)/ })).toBeHidden();
+
+	await page.emulateMedia({ media: null });
+});
+
+test('com seleção, o PDF leva só os cards selecionados', async ({ page }) => {
+	test.skip(!cenarioOk, 'D1 local indisponível');
+	const ok = await autenticarPagina(page, FIXTURE.adminGeral.id, 'admin');
+	test.skip(!ok, 'D1 local indisponível');
+	test.skip(!(await abrirPainel(page, C.completa)), 'operação do cenário não foi criada');
+
+	const selecionado = page.locator('.card').filter({ hasText: 'Ranking de Drogas' });
+	const outro = page.locator('.card').filter({ hasText: 'Ranking de Armas' });
+	await expect(selecionado).toBeVisible();
+
+	await selecionado.getByRole('button').first().click();
+	await expect(selecionado).toHaveClass(/selected-for-export/);
+
+	await page.emulateMedia({ media: 'print' });
+	await expect(selecionado).toBeVisible();
+	// Sem isto o PDF sai com a tela inteira e a seleção só decora a borda na tela.
+	await expect(outro).toBeHidden();
+	await page.emulateMedia({ media: null });
+});

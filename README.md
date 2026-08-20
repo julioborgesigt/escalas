@@ -759,6 +759,37 @@ por unidade) e agregá-la por seccional exigiria somar bases — o que funciona 
 o acervo de inquéritos e produz um número sem sentido no indicador de tempo
 MÉDIO. Ordem e Top-N valem nela; o eixo, não.
 
+### Baixar os gráficos: PNG e PDF são dois caminhos diferentes
+
+**"Baixar (imagem)"** desenha cada card do zero num canvas próprio
+(`$lib/export-charts`) e salva um PNG por gráfico selecionado — com o recorte
+descrito no cabeçalho, porque o PNG circula sozinho.
+
+**"Baixar (PDF)"** é `window.print()`: quem pagina é o NAVEGADOR, e a folha é o
+que o `@media print` da rota descreve. As duas consequências que importam:
+
+- **quem controla a quebra é CSS**, não um gerador. O card é a unidade
+  indivisível (`break-inside: avoid`), então ele só parte quando não cabe inteiro
+  numa A4 — que é o que se quer. `overflow: visible` acompanha, porque scroll
+  interno (o ranking rola na tela) vira corte no papel, e o teto de largura no
+  `<canvas>` existe porque o Chart.js carrega para o papel a largura em px que o
+  gráfico tinha na TELA;
+- **os seletores são `:global()`, de propósito.** Todo card do painel vem de um
+  componente filho (`SecaoGraficos`, `SecaoRankings`, `SecaoIndicadores`), e o
+  CSS de componente do Svelte só alcança o markup do próprio arquivo. Escrito
+  sem `:global()`, o bloco compilava para `.card.svelte-hash` e não casava com
+  card nenhum: as regras existiam desde sempre e nunca valeram — era esse o
+  gráfico partido ao meio relatado em ago/2026. O prefixo
+  `.pagina-produtividade` devolve o limite que o escopo dava.
+
+O cromo da tela (barra do topo, gaveta, filtros e os próprios botões de baixar)
+sai por `print:hidden`, e com seleção ativa o papel leva só os cards
+selecionados. Cabeçalho e rodapé do PDF (data, URL, número da página) são do
+navegador, não da página: quem imprime tira em **Mais definições → Cabeçalhos e
+rodapés**. Coberto por `e2e/produtividade-graficos.spec.ts`, que roda as
+asserções em `media: print` — na tela as regras não valem, e CSS compilado
+"existe" mesmo quando não seleciona nada.
+
 O tipo de equipe indisponível na operação aparece **desabilitado**, não escondido:
 o botão apagado diz que a operação não usa aquele tipo (`tiposEquipeHabilitados`,
 em `$lib/gise/tipos-equipe`, compartilhado com o editor de formulário).

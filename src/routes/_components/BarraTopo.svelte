@@ -45,7 +45,7 @@
 </script>
 
 <div
-	class="fixed top-0 left-0 right-0 z-40 h-14 bg-white/90 dark:bg-surface-950/90 backdrop-blur-lg border-b border-surface-200 dark:border-white/10 flex items-center px-4"
+	class="fixed top-0 left-0 right-0 z-40 h-14 bg-white/90 dark:bg-surface-950/90 backdrop-blur-lg border-b border-surface-200 dark:border-white/10 flex items-center px-4 print:hidden"
 	inert={nav.ehModal}
 >
 	<button

@@ -638,6 +638,23 @@ Verificar cada transição de status:
 - [ ] Dados vazios → estado vazio com mensagem
 - [ ] Com mais de 200 respostas acumuladas → stats/rankings/gráficos contam o conjunto completo (o load pagina internamente em lotes de 500)
 
+**Baixar (PDF) — é o `window.print()` do navegador:**
+
+> `[E2E: produtividade-graficos.spec.ts]` prova em `media: print` que o card pede
+> `break-inside: avoid`, que ele transborda em vez de cortar, e que filtros,
+> botões e cards não selecionados somem. O que segue é o que só o diálogo de
+> impressão real mostra — paginação de verdade e fidelidade do canvas.
+
+- [ ] Selecionar alguns gráficos → **Baixar (PDF)** → nenhum card sai partido
+      entre duas folhas; o único que quebra é o que sozinho não cabe numa A4
+- [ ] Nenhum gráfico sai cortado na lateral, e o ranking mostra TODAS as linhas
+      (na tela ele rola; no papel tem de transbordar)
+- [ ] Com "Gráficos de plano de fundo" ligado no diálogo, as barras de
+      detalhamento saem preenchidas
+- [ ] Sem barra do topo, sem gaveta, sem barra de filtros e sem os botões de
+      baixar; a data/URL do alto e do pé são do NAVEGADOR (saem em
+      "Mais definições → Cabeçalhos e rodapés")
+
 **O eixo (`Visualizar por`):**
 
 - [ ] Abre em **Seccionais** — o comportamento de antes
