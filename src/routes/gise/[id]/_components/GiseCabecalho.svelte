@@ -11,9 +11,17 @@
 	 * `db/gise/escalas-status.ts`; aqui só se decide o que MOSTRAR, e esconder
 	 * um botão não impede nada — as actions revalidam no servidor.
 	 *
-	 * `statusLabel`/`statusColor` chegam por prop, vindos de
-	 * `$lib/gise/formatters`, para que o mesmo status tenha o mesmo rótulo
-	 * e a mesma cor no cabeçalho, na listagem e no histórico.
+	 * Os formatadores (`statusLabel`, `statusColor`, `diaSemana`, `fmtDate`) são
+	 * IMPORTADOS de `$lib/gise/formatters`, não recebidos por prop. A garantia
+	 * que interessa — mesmo status, mesmo rótulo e mesma cor no cabeçalho, na
+	 * listagem e no histórico — vem do módulo ser único, não da prop: até
+	 * ago/2026 as quatro funções viajavam `formatters` → `useGiseEstado` →
+	 * página → aqui, três saltos sem que nenhum intermediário as LESSE.
+	 *
+	 * `isMobile` saiu pelo mesmo motivo: `useMobile()` é a fonte única desde
+	 * ago/2026 e qualquer componente a lê direto — é o que
+	 * `SupervisaoDocumentoCard` já fazia. Cinco props a menos num contrato que
+	 * a auditoria de 13/ago apontou como o maior do repositório.
 	 */
 	import { goto } from '$app/navigation';
 	import { enhance } from '$app/forms';
@@ -22,6 +30,8 @@
 	import IconTooltip from '$lib/components/IconTooltip.svelte';
 	import BotaoVoltar from '$lib/components/BotaoVoltar.svelte';
 	import PenLine from '@lucide/svelte/icons/pen-line';
+	import { statusLabel, statusColor, diaSemana, fmtDate } from '$lib/gise/formatters';
+	import { useMobile } from '$lib/composables';
 
 	interface Gise {
 		id: number;
@@ -37,10 +47,6 @@
 		gise: Gise;
 		/** Nome da operação desta escala; vazio/nulo esconde o selo. */
 		operacaoNome?: string | null;
-		statusLabel: (s: string) => string;
-		statusColor: (s: string) => string;
-		diaSemana: (s: string) => string;
-		fmtDate: (s: string) => string;
 		isAdminGeral: boolean;
 		podeDownload: boolean;
 		podeEditar: boolean;
@@ -51,7 +57,6 @@
 		todasSeccionaisPreenchidas: boolean;
 		documentoAssinadoExiste: boolean;
 		pendingCrud: boolean;
-		isMobile?: boolean;
 		onToggleEdit: () => void;
 		onAbrirDataHoras: () => void;
 		onAbrirExcluir: () => void;
@@ -70,10 +75,6 @@
 	const {
 		gise,
 		operacaoNome = null,
-		statusLabel,
-		statusColor,
-		diaSemana,
-		fmtDate,
 		isAdminGeral,
 		podeDownload,
 		podeEditar,
@@ -84,7 +85,6 @@
 		todasSeccionaisPreenchidas,
 		documentoAssinadoExiste,
 		pendingCrud,
-		isMobile = false,
 		onToggleEdit,
 		onAbrirDataHoras,
 		onAbrirExcluir,
@@ -96,6 +96,9 @@
 		planilhaBaseEquipeAlimentadaOk = false,
 		onAbrirBreveRelatorio
 	}: Props = $props();
+
+	const mobile = useMobile();
+	const isMobile = $derived(mobile.isMobile);
 </script>
 
 <!--

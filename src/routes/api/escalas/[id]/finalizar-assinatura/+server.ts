@@ -105,24 +105,22 @@ export const POST: RequestHandler = async ({
 			httpMetadata: { contentType: 'application/pdf' }
 		});
 
-		await salvarDocumentoEscala(
-			db,
-			id,
+		await salvarDocumentoEscala(db, {
+			escalaId: id,
 			r2Key,
-			result.signerName,
-			result.signerCpf,
-			verificationHash,
-			ip ?? undefined,
-			ua || undefined,
-			latitude ?? undefined,
-			longitude ?? undefined,
-			undefined, // selfieKey
+			assinanteNome: result.signerName,
+			assinanteCpf: result.signerCpf,
+			verificacaoHash: verificationHash,
+			ipAddress: ip ?? undefined,
+			userAgent: ua || undefined,
+			latitude: latitude ?? undefined,
+			longitude: longitude ?? undefined,
 			arquivoHash,
-			assinanteEmail ?? undefined,
-			result.tipoCarimboTempo,
-			result.metadata,
-			platform?.env
-		);
+			assinanteEmail: assinanteEmail ?? undefined,
+			tipoCarimboTempo: result.tipoCarimboTempo,
+			cadesMeta: result.metadata,
+			env: platform?.env
+		});
 
 		// R2-4: remove os objetos do documento anterior que a re-assinatura tornou
 		// obsoletos (blob/conferência/selfie de hash antigo). No-op se era 1ª assinatura.

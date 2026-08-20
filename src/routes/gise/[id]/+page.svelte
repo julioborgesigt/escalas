@@ -84,7 +84,7 @@
 	const podeDownload = $derived(giseEstado.podeDownload);
 	const podeEditar = $derived(giseEstado.podeEditar);
 	const isMobile = $derived(giseEstado.isMobile);
-	const { statusLabel, statusColor, fmtDate, diaSemana } = giseEstado;
+	const { statusLabel, fmtDate, diaSemana } = giseEstado;
 
 	const gise = $derived(giseEstado.gise);
 
@@ -520,10 +520,6 @@
 		<GiseCabecalho
 			{gise}
 			operacaoNome={data.operacaoNome}
-			{statusLabel}
-			{statusColor}
-			{diaSemana}
-			{fmtDate}
 			{isAdminGeral}
 			{podeDownload}
 			{podeEditar}
@@ -534,7 +530,6 @@
 			{todasSeccionaisPreenchidas}
 			documentoAssinadoExiste={documentoAssinadoInfo?.existe ?? false}
 			{pendingCrud}
-			{isMobile}
 			onToggleEdit={() => (modoEdicaoGeral = !modoEdicaoGeral)}
 			onAbrirDataHoras={() => (showModalDataHoras = true)}
 			onAbrirExcluir={() => (showExcluirGiseConfirm = true)}

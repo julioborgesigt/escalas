@@ -7,8 +7,14 @@
 import { and, eq, or } from 'drizzle-orm';
 import { giseEquipes, giseMembros, giseSeccionais } from '../schema';
 import type { GiseEscala } from '../schema';
-import { buscarGiseEscala, type Database } from '$lib/db';
+import {
+	buscarGiseEscala,
+	buscarGiseDetalhado,
+	verificarSaidaCompletaSeccional,
+	type Database
+} from '$lib/db';
 import { badRequest, forbidden, notFound } from '$lib/server/api';
+import { giseAutorizaSeccionalRelatorioExtra, secIdEhSupervisaoExtra } from './supervisao-extra';
 
 /**
  * Um admin seccional/unidade PARTICIPA de uma GISE quando a unidade que ele
@@ -125,8 +131,10 @@ export async function verificarPermissaoGise(
  * direto o que o produto nunca ofereceu — e esconder o botão não é autorização
  * (ver "Operação material precisa recusar alguém" no `CLAUDE.md`).
  *
- * O relatório por seccional é OUTRO documento, com outra regra: as rotas em
- * `relatorios/[seccionalId]/` seguem admitindo admin, de propósito.
+ * O relatório por seccional é OUTRO documento, mas hoje segue a MESMA regra:
+ * desde ago/2026 as cinco rotas de `relatorios/[seccionalId]/` também exigem o
+ * supervisor designado — ver `carregarRelatorioExtraParaAssinatura` abaixo.
+ * (Esta frase já disse o contrário; era verdade até aquela remoção.)
  *
  * Devolve `{ gise, id }` ou `{ recusa }` — a rota só repassa a `recusa`.
  */
@@ -150,4 +158,77 @@ export async function carregarGiseParaAssinatura(
 	}
 
 	return { gise, id };
+}
+
+/**
+ * PORTÃO das rotas de assinatura AVANÇADA do relatório extraordinário.
+ *
+ * As três (`assinar`, `preparar-assinatura-avancada`,
+ * `finalizar-assinatura-avancada`) repetiam o mesmo preâmbulo palavra por
+ * palavra — o `guard:duplicacao` passou a reprovar quando as mensagens foram
+ * uniformizadas em ago/2026, e tinha razão: eram três cópias de um gate de
+ * autorização, a forma exata que o `CLAUDE.md` manda extrair.
+ *
+ * A ordem importa e é a mesma que as rotas tinham: papel → ids → GISE existe →
+ * supervisor DESIGNADO → seccional pertence a esta GISE → todos confirmaram a
+ * saída. A checagem de saída é a mais provável de recusar e vem antes da
+ * cerimônia de assinatura, para não queimar a asserção de quem já encostou o
+ * dedo no leitor.
+ *
+ * **Admin Geral não entra** — a regra e o porquê estão em
+ * `api/gise/[id]/relatorios/[seccionalId]/preparar-assinatura-avancada`.
+ *
+ * O par QUALIFICADO (`preparar-assinatura` / `finalizar-assinatura`) aplica a
+ * mesma regra de quem-assina, mas NÃO passa por aqui: usa `buscarGiseEscala`
+ * (mais leve, não monta o detalhado) e valida seccional/saída pela intenção,
+ * não por consulta. Fundir os dois exigiria parametrizar loader e checagens até
+ * o helper ficar pior que as duas formas. O que impede as cinco de divergirem
+ * é o teste que as nomeia junto, em `e2e/relatorio-extra-gise.spec.ts` — se
+ * alguma voltar a aceitar admin, ele reprova.
+ *
+ * `isSupExtraGate` existe porque o quadro de supervisão é uma "seccional"
+ * sintética: quem conta ali são supervisor, assessor e SEINT, não os membros
+ * das equipes.
+ */
+export async function carregarRelatorioExtraParaAssinatura(
+	db: Database,
+	params: { id?: string; seccionalId?: string },
+	u: NonNullable<App.Locals['usuario']>
+): Promise<
+	| {
+			gise: NonNullable<Awaited<ReturnType<typeof buscarGiseDetalhado>>>;
+			giseId: number;
+			secId: number;
+			recusa?: never;
+	  }
+	| { recusa: Response; gise?: never }
+> {
+	if (u.tipo !== 'policial') {
+		return { recusa: forbidden('Apenas o supervisor designado pode assinar este relatório.') };
+	}
+
+	const giseId = parseInt(params.id!);
+	const secId = parseInt(params.seccionalId!);
+	if (isNaN(giseId) || isNaN(secId)) return { recusa: badRequest('ID inválido') };
+
+	const gise = await buscarGiseDetalhado(db, giseId);
+	if (!gise) return { recusa: notFound('Escala') };
+	if (gise.supervisor_id !== u.id) {
+		return { recusa: forbidden('Apenas o supervisor designado pode assinar este relatório.') };
+	}
+
+	if (!(await giseAutorizaSeccionalRelatorioExtra(db, giseId, secId))) {
+		return { recusa: badRequest('Seccional inválida para esta GISE.') };
+	}
+
+	const isSupExtraGate = await secIdEhSupervisaoExtra(db, secId);
+	if (!(await verificarSaidaCompletaSeccional(db, giseId, secId, isSupExtraGate))) {
+		return {
+			recusa: badRequest(
+				'Todos os participantes precisam confirmar a saída (rubrica) antes de assinar o relatório.'
+			)
+		};
+	}
+
+	return { gise, giseId, secId };
 }

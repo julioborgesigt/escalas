@@ -203,25 +203,23 @@ export async function persistirEscalaAssinada(opts: {
 		await gravarCopiaConferencia(bucket, montado.verificationHash, montado.pdfComRodape, escalaId);
 	}
 
-	await salvarDocumentoEscala(
-		db,
+	await salvarDocumentoEscala(db, {
 		escalaId,
 		r2Key,
-		opts.assinante.nome,
-		opts.assinante.cpf || undefined,
-		montado.verificationHash,
-		opts.ip,
-		opts.userAgent,
-		opts.latitude ?? undefined,
-		opts.longitude ?? undefined,
-		opts.selfieKey ?? undefined,
+		assinanteNome: opts.assinante.nome,
+		assinanteCpf: opts.assinante.cpf || undefined,
+		verificacaoHash: montado.verificationHash,
+		ipAddress: opts.ip,
+		userAgent: opts.userAgent,
+		latitude: opts.latitude ?? undefined,
+		longitude: opts.longitude ?? undefined,
+		selfieKey: opts.selfieKey ?? undefined,
 		arquivoHash,
-		undefined, // assinanteEmail
-		undefined, // tipoCarimboTempo
-		undefined, // cadesMeta
-		opts.env,
-		opts.passkeyMeta
-	);
+		// Sem `assinanteEmail`, `tipoCarimboTempo` nem `cadesMeta`: este é o
+		// caminho AVANÇADO, sem certificado e sem carimbo qualificado.
+		env: opts.env,
+		passkeyMeta: opts.passkeyMeta
+	});
 
 	await limparR2ObsoletoEscala(db, bucket, docAntigo, [
 		r2Key,

@@ -195,31 +195,19 @@ describe('roundtrip salvarDocumentoEscala → reconferirAssercaoDocumento', () =
 
 	it('grava as colunas webauthn_* e a reconferência devolve valida', async () => {
 		const { documento, credencial } = await documentoAssinado();
-		await salvarDocumentoEscala(
-			db,
-			5,
-			'escalas/5/plantao.pdf',
-			'CICRANO',
-			undefined,
-			HASH_DOC,
-			undefined,
-			undefined,
-			undefined,
-			undefined,
-			undefined,
-			undefined,
-			undefined,
-			undefined,
-			undefined,
-			undefined,
-			{
+		await salvarDocumentoEscala(db, {
+			escalaId: 5,
+			r2Key: 'escalas/5/plantao.pdf',
+			assinanteNome: 'CICRANO',
+			verificacaoHash: HASH_DOC,
+			passkeyMeta: {
 				credential_id: documento.webauthn_credential_id,
 				client_data: documento.webauthn_client_data,
 				authenticator_data: documento.webauthn_authenticator_data,
 				assinatura: documento.webauthn_assinatura,
 				backup_ativo: false
 			}
-		);
+		});
 
 		const row = await buscarDocumentoEscala(db, 5);
 		expect(row?.webauthn_credential_id).toBe(documento.webauthn_credential_id);
@@ -241,32 +229,24 @@ describe('roundtrip salvarDocumentoEscala → reconferirAssercaoDocumento', () =
 
 	it('reassinatura sem passkey zera as colunas — a asserção anterior não cola', async () => {
 		const { documento } = await documentoAssinado();
-		await salvarDocumentoEscala(
-			db,
-			5,
-			'escalas/5/a.pdf',
-			'CICRANO',
-			undefined,
-			HASH_DOC,
-			undefined,
-			undefined,
-			undefined,
-			undefined,
-			undefined,
-			undefined,
-			undefined,
-			undefined,
-			undefined,
-			undefined,
-			{
+		await salvarDocumentoEscala(db, {
+			escalaId: 5,
+			r2Key: 'escalas/5/a.pdf',
+			assinanteNome: 'CICRANO',
+			verificacaoHash: HASH_DOC,
+			passkeyMeta: {
 				credential_id: documento.webauthn_credential_id,
 				client_data: documento.webauthn_client_data,
 				authenticator_data: documento.webauthn_authenticator_data,
 				assinatura: documento.webauthn_assinatura,
 				backup_ativo: true
 			}
-		);
-		await salvarDocumentoEscala(db, 5, 'escalas/5/b.pdf', 'CICRANO');
+		});
+		await salvarDocumentoEscala(db, {
+			escalaId: 5,
+			r2Key: 'escalas/5/b.pdf',
+			assinanteNome: 'CICRANO'
+		});
 
 		const row = await buscarDocumentoEscala(db, 5);
 		expect(row?.webauthn_credential_id).toBeNull();

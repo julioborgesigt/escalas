@@ -137,6 +137,16 @@
 			"nota": "DUP-MANTER: GiseDetalhado (lib/db/gise/types.ts) é a forma MONTADA que vem do banco; GisePdfData (server/export/pdf-comum.ts) é o DTO da camada de PDF, criado de propósito para pdf.ts/pdf-relatorio-extra.ts não importarem tipos internos da camada de banco (ver cabeçalho de pdf-comum.ts). Os nomes de campo coincidem porque um alimenta o outro via toGisePdfData(), não porque são o mesmo tipo — acoplar as duas camadas romperia a fronteira que pdf-comum.ts documenta."
 		},
 		{
+			"id": "3d2ad9db31c6",
+			"arquivos": [
+				"src/routes/api/gise/[id]/relatorios/[seccionalId]/assinar/+server.ts",
+				"src/routes/api/gise/[id]/relatorios/[seccionalId]/preparar-assinatura-avancada/+server.ts"
+			],
+			"ocorrencias": 2,
+			"amostra": "const bucketOk = bucketParaAssinatura(tryGetR2(platform));",
+			"nota": "DUP-MANTER: é o CALL SITE de `montarPdfExtraAssinado`, não lógica — a montagem do PDF já está extraída lá. O que se repete é montar o mesmo objeto de argumentos (db, gise, ids, assinante, evidências, ip, ua, origin, env, platform, hash). Um wrapper receberia os mesmos ~11 parâmetros e só repassaria, e as duas rotas divergem no que fazem DEPOIS: `assinar` persiste na hora, `preparar-assinatura-avancada` emite intenção e espera a asserção. Virou idêntico em ago/2026 quando a identidade do assinante passou a vir da SESSÃO nas duas (antes uma lia `signerName || u.nome` do corpo) — ou seja, a duplicação é sintoma de uma correção, não de cópia nova. O gate destas rotas ESSE sim foi extraído: `carregarRelatorioExtraParaAssinatura`."
+		},
+		{
 			"id": "3f968bac2073",
 			"arquivos": [
 				"src/routes/api/escalas/[id]/preparar-assinatura/+server.ts",
@@ -328,16 +338,6 @@
 			"nota": "DUP-MANTER: `{:else}` sozinho — fechamento de bloco condicional do Svelte, não lógica duplicada. Falso positivo do alinhamento de janela."
 		},
 		{
-			"id": "9754d8f086ae",
-			"arquivos": [
-				"src/lib/db/documentos.ts",
-				"src/lib/db/gise/documentos.ts"
-			],
-			"ocorrencias": 2,
-			"amostra": "userAgent?: string,",
-			"nota": ""
-		},
-		{
 			"id": "97ab3da8655e",
 			"arquivos": [
 				"src/routes/produtividade/_components/DetailCard.svelte",
@@ -366,16 +366,6 @@
 			"ocorrencias": 2,
 			"amostra": "dataToSignBase64,",
 			"nota": "DUP-MANTER: fragmento da CHAMADA a um helper já compartilhado (parâmetros posicionais/nomeados iguais porque o destino — montarPdfEscalaAssinada, adicionarPaginaAuditoria, prepararPdfParaAssinatura — é o mesmo), não lógica duplicada em si. Ver nota do cluster de rotas de assinatura."
-		},
-		{
-			"id": "9c6e5f05dfc5",
-			"arquivos": [
-				"src/routes/api/gise/[id]/presenca/preparar-assinatura-avancada/+server.ts",
-				"src/routes/api/gise/[id]/relatorios/[seccionalId]/preparar-assinatura-avancada/+server.ts"
-			],
-			"ocorrencias": 2,
-			"amostra": "import {",
-			"nota": "DUP-MANTER: assinatura de handler SvelteKit + linha de import, não lógica. As rotas de assinatura GISE desestruturam o mesmo `{ platform, params, locals, url, request, getClientAddress }` e importam o mesmo portão — a lógica que compartilhavam saiu para `carregarGiseParaAssinatura` em ago/2026. Não há o que extrair de uma assinatura de handler."
 		},
 		{
 			"id": "9ef741624ab6",
@@ -420,16 +410,6 @@
 			"nota": "DUP-MANTER: linha de import de tipos, não lógica."
 		},
 		{
-			"id": "aa9ec9e7a9c6",
-			"arquivos": [
-				"src/routes/api/gise/[id]/relatorios/[seccionalId]/finalizar-assinatura-avancada/+server.ts",
-				"src/routes/api/gise/[id]/relatorios/[seccionalId]/preparar-assinatura-avancada/+server.ts"
-			],
-			"ocorrencias": 2,
-			"amostra": "if (u instanceof Response) return u;",
-			"nota": "DUP-MANTER: assinatura de handler SvelteKit + linha de import, não lógica. As rotas de assinatura GISE desestruturam o mesmo `{ platform, params, locals, url, request, getClientAddress }` e importam o mesmo portão — a lógica que compartilhavam saiu para `carregarGiseParaAssinatura` em ago/2026. Não há o que extrair de uma assinatura de handler."
-		},
-		{
 			"id": "b30e69685e40",
 			"arquivos": [
 				"src/routes/api/escalas/[id]/preparar-assinatura-avancada/+server.ts",
@@ -459,16 +439,6 @@
 			"ocorrencias": 2,
 			"amostra": "? 'bg-error-500/5 dark:bg-error-500/8'",
 			"nota": "DUP-MANTER: classe condicional de destaque de linha selecionada em modo de seleção, 3 linhas, dentro de tabela/lista com colunas e conteúdo diferentes entre ListaFds e TabelaServidores."
-		},
-		{
-			"id": "c69683f2945c",
-			"arquivos": [
-				"src/routes/api/gise/[id]/relatorios/[seccionalId]/finalizar-assinatura-avancada/+server.ts",
-				"src/routes/api/gise/[id]/relatorios/[seccionalId]/preparar-assinatura-avancada/+server.ts"
-			],
-			"ocorrencias": 2,
-			"amostra": "if (!gise) return notFound('Escala');",
-			"nota": "DUP-MANTER: assinatura de handler SvelteKit + linha de import, não lógica. As rotas de assinatura GISE desestruturam o mesmo `{ platform, params, locals, url, request, getClientAddress }` e importam o mesmo portão — a lógica que compartilhavam saiu para `carregarGiseParaAssinatura` em ago/2026. Não há o que extrair de uma assinatura de handler."
 		},
 		{
 			"id": "cb32fcd937b6",
@@ -502,6 +472,16 @@
 			"nota": "DUP-MANTER: os campos passados a `validarEvidenciasAvancada` são idênticos nas 5 rotas (conferido campo a campo — a única variação, `latitude ?? undefined` em 2 delas, é cosmética de tipo, não de comportamento). `recusarSePasskeyExigida` diverge de propósito e já está documentado no JSDoc da própria função: só faz sentido no fluxo de \"um tiro\" (`assinar-simples`), que não usa passkey — os `preparar-*-avancada` JÁ são o caminho da passkey. Extrair um wrapper que só repassa 8 campos já tipados pelo TypeScript adicionaria indireção sem reduzir risco."
 		},
 		{
+			"id": "e19110f88e4c",
+			"arquivos": [
+				"src/routes/api/gise/[id]/relatorios/[seccionalId]/finalizar-assinatura-avancada/+server.ts",
+				"src/routes/api/gise/[id]/relatorios/[seccionalId]/preparar-assinatura-avancada/+server.ts"
+			],
+			"ocorrencias": 2,
+			"amostra": "getClientAddress",
+			"nota": "DUP-MANTER: assinatura de destructuring do `RequestHandler` (`{ platform, params, locals, url, request, cookies, getClientAddress }`), não lógica de negócio — mesma categoria da entrada `fe1a50fc1f5e`. As duas rotas são as duas fases do MESMO fluxo e por isso recebem o mesmo contexto do SvelteKit; o que elas de fato compartilhavam (papel, ids, supervisor designado, seccional válida, saída completa) saiu para `carregarRelatorioExtraParaAssinatura` em ago/2026."
+		},
+		{
 			"id": "e2cf8c727a52",
 			"arquivos": [
 				"src/routes/bem-vindo/+page.svelte",
@@ -530,16 +510,6 @@
 			"ocorrencias": 2,
 			"amostra": "const u = requireAuth(locals);",
 			"nota": "DUP-MANTER: preâmbulo/assinatura de RequestHandler (requireAuth/requireAdmin, destructuring de params, `}) => {`), não lógica de negócio. A lógica que estas rotas de fato compartilhavam já saiu para helpers comuns (carregarEscalaParaAssinatura/carregarGiseParaAssinatura, montarPdfEscalaAssinada, fecharPreparacaoAssinatura, conferirFinalizacaoPasskey, coletarAfetadosGise/invalidarPapelGiseMultiplos). O que resta diverge de verdade entre escala e GISE (geração de PDF, resolução de rubrica/matrícula, geometria do carimbo, número de signatários) — um helper único ficaria mais complexo que as cópias. Lido em ago/2026 ao investigar o cluster de rotas de assinatura; ver histórico de commits para os dois achados reais dessa mesma leitura (resolverTipoCarimboTempo e envComoRegistro)."
-		},
-		{
-			"id": "ef661bd7c107",
-			"arquivos": [
-				"src/routes/api/gise/[id]/relatorios/[seccionalId]/assinar/+server.ts",
-				"src/routes/api/gise/[id]/relatorios/[seccionalId]/preparar-assinatura-avancada/+server.ts"
-			],
-			"ocorrencias": 2,
-			"amostra": "const bucketOk = bucketParaAssinatura(tryGetR2(platform));",
-			"nota": "DUP-MANTER: fragmento da CHAMADA a um helper já compartilhado (parâmetros posicionais/nomeados iguais porque o destino — montarPdfEscalaAssinada, adicionarPaginaAuditoria, prepararPdfParaAssinatura — é o mesmo), não lógica duplicada em si. Ver nota do cluster de rotas de assinatura."
 		},
 		{
 			"id": "f36d336a9e72",

@@ -12,49 +12,17 @@
  * GISE, extra, presença) usam a MESMA prova — foi extraído justamente para não
  * haver uma quarta cópia divergindo.
  *
- * **Contradição registrada, não resolvida aqui: `u.tipo === 'admin'` passa no
- * portão, e a TELA nunca oferece isso.** O `load` de `gise/[id]` define
- * `isSupervisor = u.tipo === 'policial' ? … : false`, então para um Admin Geral
- * ele é sempre falso; e os dois pontos de entrada da assinatura do extra estão
- * atrás dele — `SupervisaoDocExtra` (`{#if quadro.isSupervisor && …}`) e
- * `SeccionalRelatoriosDownloads` (`{#if isSupervisor && !assRel && …}`). O lote
- * (`GiseLoteAssinaturas`) chega a ser RENDERIZADO para o admin, mas recebe
- * `podeAssinar={isSupervisor}` e esconde os botões de assinar. O que o admin
- * alcança é "Conferência": baixar, não assinar.
- *
- * É a mesma forma que o portão da ESCALA GISE teve removida em ago/2026 — lá as
- * quatro rotas que aceitavam admin "liberavam por POST direto exatamente o que a
- * tela nunca ofereceu" (`CLAUDE.md`, §Duplicação). A família do relatório
- * extraordinário não foi junto. As TRÊS rotas de extra concordam entre si
- * (`assinar`, `preparar-…` e `finalizar-…`), então isto é decisão antiga, não
- * drift: apertar é escolha do responsável, porque fecha uma válvula de
- * operação que ninguém documentou e muda a mensagem que
- * `relatorio-extra-gise.spec.ts` afirma.
+ * Só o supervisor DESIGNADO — o porquê da remoção do Admin Geral está por
+ * extenso no cabeçalho de `preparar-assinatura-avancada`, que é onde o
+ * documento é montado.
  */
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import {
-	getDB,
-	buscarGiseDetalhado,
-	registrarUsoCredencial,
-	registrarAuditComContexto,
-	tryGetR2,
-	verificarSaidaCompletaSeccional
-} from '$lib/db';
-import {
-	badRequest,
-	notFound,
-	forbidden,
-	serverError,
-	requireAuth,
-	validateBody
-} from '$lib/server/api';
+import { carregarRelatorioExtraParaAssinatura } from '$lib/server/gise/permissao';
+import { getDB, registrarUsoCredencial, registrarAuditComContexto, tryGetR2 } from '$lib/db';
+import { serverError, requireAuth, validateBody } from '$lib/server/api';
 import { finalizarPasskeyEscalaSchema } from '$lib/schemas';
 import { persistirExtraAssinado, chaveDocumentoExtra } from '$lib/server/gise/assinatura-extra';
-import {
-	giseAutorizaSeccionalRelatorioExtra,
-	secIdEhSupervisaoExtra
-} from '$lib/server/gise/supervisao-extra';
 import { descreverVinculoCredencial } from '$lib/server/assinatura/webauthn/authenticator-data';
 import {
 	conferirFinalizacaoPasskey,
@@ -72,33 +40,13 @@ export const POST: RequestHandler = async ({
 }) => {
 	const u = requireAuth(locals);
 	if (u instanceof Response) return u;
-	if (u.tipo !== 'policial' && u.tipo !== 'admin') {
-		return forbidden('Somente policiais supervisores ou administradores podem assinar');
-	}
 
 	const ua = request.headers.get('user-agent') || '';
 	const ip = getClientAddress();
-	const giseIdNum = parseInt(params.id!);
-	const secIdNum = parseInt(params.seccionalId!);
-	if (isNaN(giseIdNum) || isNaN(secIdNum)) return badRequest('ID inválido');
-
 	const db = getDB(platform);
-	const gise = await buscarGiseDetalhado(db, giseIdNum);
-	if (!gise) return notFound('Escala');
-	if (u.tipo !== 'admin' && gise.supervisor_id !== u.id) {
-		return forbidden(
-			'Apenas o supervisor designado ou administradores podem assinar este relatório.'
-		);
-	}
-	if (!(await giseAutorizaSeccionalRelatorioExtra(db, giseIdNum, secIdNum))) {
-		return badRequest('Seccional inválida para esta GISE.');
-	}
-	const isSupExtraGate = await secIdEhSupervisaoExtra(db, secIdNum);
-	if (!(await verificarSaidaCompletaSeccional(db, giseIdNum, secIdNum, isSupExtraGate))) {
-		return badRequest(
-			'Todos os participantes precisam confirmar a saída (rubrica) antes de assinar o relatório.'
-		);
-	}
+	const portao = await carregarRelatorioExtraParaAssinatura(db, params, u);
+	if (portao.recusa) return portao.recusa;
+	const { gise, giseId: giseIdNum, secId: secIdNum } = portao;
 
 	const validated = await validateBody(request, finalizarPasskeyEscalaSchema);
 	if (!validated.ok) return validated.response;
