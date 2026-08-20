@@ -1,16 +1,31 @@
 <script lang="ts">
 	/**
-	 * Slot de unidade (DP) dentro de uma seccional: cabeçalho com seleção/troca
-	 * da unidade, grid de equipes (GiseEquipeCard) e o fluxo do Admin Geral de
-	 * adicionar equipe. Estado de edição compartilhado via GiseSeccionalEstado.
+	 * O PAINEL de uma unidade (DP) — o conteúdo da aba aberta em
+	 * `GiseAbasUnidades`: nome da unidade, equipes (`GiseEquipeCard`) e o fluxo do
+	 * Admin Geral de adicionar equipe. Estado de edição compartilhado via
+	 * `GiseSeccionalEstado`.
+	 *
+	 * Até ago/2026 este componente era uma CAIXA empilhada com as demais unidades,
+	 * e o nome da delegacia vinha numa faixa própria com o "Remover DP" ao lado.
+	 * Eram três linhas de moldura por unidade, justamente no espaço dos quadros de
+	 * equipe. Hoje a moldura é o painel da aba, e ele já sabe de quem é: por isso
+	 * o botão de adicionar equipe é só **+ Equipes**, sem nomear alvo — tudo que
+	 * está visível pertence à unidade da aba.
+	 *
+	 * O "Remover DP" saiu da faixa e entrou no menu do lápis, junto de "Alterar
+	 * unidade": são as duas ações DA UNIDADE, e ficam onde se mexe na unidade.
 	 */
 	import { enhance } from '$app/forms';
+	import { Popover, Portal } from '@skeletonlabs/skeleton-svelte';
 	import type { GiseDetalhado, GiseUnidadeSlot } from '$lib/db/gise';
 	import type { Unidade } from '$lib/server/schema';
 	import type { GiseSeccionalActions } from '$lib/composables/gise/useGiseSeccionalActions.svelte';
 	import type { GiseSeccionalEstado } from './gise-seccional-estado.svelte';
 	import GiseEquipeCard from './GiseEquipeCard.svelte';
 	import PenLine from '@lucide/svelte/icons/pen-line';
+	import Building from '@lucide/svelte/icons/building';
+	import UserPlus from '@lucide/svelte/icons/user-plus';
+	import X from '@lucide/svelte/icons/x';
 	import { getSeccionalColorClass } from '$lib/gise/page-helpers';
 
 	type Seccional = GiseDetalhado['seccionais'][number];
@@ -50,54 +65,34 @@
 			(estado.modoEdicaoSeccional || sec.status === 'pendente' || sec.status === 'retificada')) ||
 			(isAdminGeral && podeEditar && modoEdicaoGeral)
 	);
+
+	/** Só o Admin Geral em modo edição remove a unidade do quadro. */
+	const podeRemoverUnidade = $derived(isAdminGeral && podeEditar && modoEdicaoGeral);
+
+	function abrirSelecaoUnidade() {
+		estado.selecionandoUnidadeSlotId = slot.id;
+		estado.slotUnidadeId = slot.unidade_id ?? '';
+	}
 </script>
 
-<!-- Form de remover a designação de unidade do slot — mesma marcação nos três
-     estados do cabeçalho (selecionando/nomeado/vazio), só a classe de layout
-     do form e do botão mudam. -->
-{#snippet formRemoverUnidade(classeForm: string, classeBotao: string)}
-	{#if isAdminGeral && podeEditar && modoEdicaoGeral}
-		<form
-			method="POST"
-			action="?/removerUnidade"
-			use:enhance={actions.handleRemoverUnidade}
-			class={classeForm}
-		>
-			<input type="hidden" name="secId" value={sec.id} />
-			<input type="hidden" name="linkId" value={slot.id} />
-			<button
-				type="submit"
-				class="btn btn-sm preset-outlined-error-500 {classeBotao} text-sm px-2 py-1 rounded-lg flex items-center justify-center gap-1 whitespace-nowrap"
-				disabled={actions.pendingCrud}
-			>
-				<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"
-					><path
-						stroke-linecap="round"
-						stroke-linejoin="round"
-						stroke-width="2"
-						d="M6 18L18 6M6 6l12 12"
-					/></svg
-				>
-				{actions.pendingRemoverUnidade ? 'Removendo...' : 'Remover DP'}
-			</button>
-		</form>
-	{/if}
-{/snippet}
-
 <div
-	class="rounded-xl border border-surface-300 dark:border-surface-700 border-l-[6px] bg-white dark:bg-surface-950 overflow-visible shadow-[inset_0_1px_3px_rgba(0,0,0,0.02)] {getSeccionalColorClass(
+	id="painel-un-{sec.id}-{slot.id}"
+	role="tabpanel"
+	aria-labelledby="aba-un-{sec.id}-{slot.id}"
+	tabindex="-1"
+	class="rounded-b-xl border border-t-0 border-l-[6px] border-surface-300 bg-white p-3 dark:border-surface-700 dark:bg-surface-950 sm:p-4 {getSeccionalColorClass(
 		sec.seccional_id,
 		'media'
 	)}"
 >
-	<!-- Cabeçalho do slot -->
-	<div class="flex flex-col gap-2 px-4 py-3 border-b border-surface-200 dark:border-surface-800">
+	<!-- Topo do painel: quem é esta unidade e o que se pode fazer com ela -->
+	<div class="mb-3 flex flex-col gap-2">
 		{#if podeEditarCabecalhoUnidade && estado.selecionandoUnidadeSlotId === slot.id}
-			<div class="flex flex-col sm:flex-row gap-2 w-full min-w-0 sm:items-center">
+			<div class="flex w-full min-w-0 flex-col gap-2 sm:flex-row sm:items-center">
 				<div class="w-full flex-1">
 					<select
 						bind:value={estado.slotUnidadeId}
-						class="w-full px-2 py-1.5 rounded-xl border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-sm font-medium"
+						class="w-full rounded-xl border border-surface-300 bg-white px-2 py-1.5 text-sm font-medium dark:border-surface-700 dark:bg-surface-800"
 					>
 						<option value=""
 							>{slot.nome ? 'Selecionar outra unidade...' : 'Selecionar unidade...'}</option
@@ -107,7 +102,7 @@
 						{/each}
 					</select>
 				</div>
-				<div class="w-full sm:w-auto flex gap-2 shrink-0">
+				<div class="flex w-full shrink-0 gap-2 sm:w-auto">
 					<form
 						method="POST"
 						action="?/selecionarUnidade"
@@ -118,7 +113,7 @@
 						<input type="hidden" name="unidadeId" value={estado.slotUnidadeId} />
 						<button
 							type="submit"
-							class="btn preset-filled-primary-500 text-sm px-4 py-1.5 rounded-xl w-full sm:w-auto sm:px-6 transition-all font-semibold"
+							class="btn w-full rounded-xl px-4 py-1.5 text-sm font-semibold transition-all preset-filled-primary-500 sm:w-auto sm:px-6"
 							disabled={!estado.slotUnidadeId || actions.pendingCrud}
 						>
 							{actions.pendingSelecionarUnidade ? 'Salvando...' : 'Confirmar'}
@@ -126,7 +121,7 @@
 					</form>
 					<button
 						type="button"
-						class="btn preset-outlined-primary-500 text-sm px-4 py-1.5 rounded-xl flex-1 sm:flex-initial sm:w-auto sm:px-6 font-semibold"
+						class="btn flex-1 rounded-xl px-4 py-1.5 text-sm font-semibold preset-outlined-primary-500 sm:w-auto sm:flex-initial sm:px-6"
 						onclick={() => {
 							estado.selecionandoUnidadeSlotId = null;
 							estado.slotUnidadeId = '';
@@ -135,69 +130,93 @@
 						Cancelar
 					</button>
 				</div>
-				{@render formRemoverUnidade(
-					'w-full sm:ml-auto sm:w-auto sm:flex sm:justify-end',
-					'w-full sm:w-auto'
-				)}
-			</div>
-		{:else if slot.nome}
-			<div class="flex w-full min-w-0 flex-row items-center justify-between gap-3">
-				<div class="flex min-w-0 items-center gap-2">
-					<span
-						class="min-w-0 truncate font-semibold text-sm text-surface-900 dark:text-surface-100"
-						>{slot.nome}</span
-					>
-					{#if podeEditarCabecalhoUnidade}
-						<button
-							type="button"
-							class="btn btn-xs shrink-0 preset-filled-surface-500 rounded p-1"
-							title="Alterar unidade"
-							aria-label="Alterar unidade"
-							onclick={() => {
-								estado.selecionandoUnidadeSlotId = slot.id;
-								estado.slotUnidadeId = slot.unidade_id ?? '';
-							}}
-						>
-							<PenLine class="w-3 h-3" aria-hidden="true" />
-						</button>
-					{/if}
-				</div>
-				{@render formRemoverUnidade('w-auto shrink-0 sm:self-start', 'w-auto')}
-			</div>
-		{:else if podeEditarCabecalhoUnidade}
-			<div class="flex flex-row items-center justify-between gap-2 w-full min-w-0">
-				<button
-					type="button"
-					class="btn preset-outlined-warning-500 w-auto shrink-0 text-sm px-3 py-1.5 rounded-xl flex items-center justify-center gap-1.5"
-					onclick={() => {
-						estado.selecionandoUnidadeSlotId = slot.id;
-						estado.slotUnidadeId = '';
-					}}
-				>
-					<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"
-						><path
-							stroke-linecap="round"
-							stroke-linejoin="round"
-							stroke-width="2"
-							d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-2 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
-						/></svg
-					>
-					Definir DP
-				</button>
-				{@render formRemoverUnidade('w-auto sm:min-w-0', 'w-auto')}
 			</div>
 		{:else}
-			<span class="text-sm text-surface-600 dark:text-surface-400 italic">Unidade não definida</span
-			>
+			<div class="flex w-full min-w-0 flex-row items-center gap-2">
+				{#if slot.nome}
+					<span
+						class="min-w-0 truncate text-sm font-semibold text-surface-900 dark:text-surface-100"
+						>{slot.nome}</span
+					>
+				{:else}
+					<span class="text-sm italic text-surface-600 dark:text-surface-400"
+						>Unidade não definida</span
+					>
+				{/if}
+
+				{#if podeEditarCabecalhoUnidade}
+					{#if podeRemoverUnidade}
+						<!-- As duas ações DA UNIDADE atrás do mesmo lápis. Sozinho na
+						     faixa, o "Remover DP" gastava uma linha inteira do quadro. -->
+						<Popover positioning={{ placement: 'bottom-start' }}>
+							<Popover.Trigger
+								class="btn btn-xs shrink-0 rounded p-1 preset-filled-surface-500"
+								title="Ações desta unidade"
+								aria-label="Ações desta unidade"
+							>
+								<PenLine class="h-3 w-3" aria-hidden="true" />
+							</Popover.Trigger>
+							<Portal>
+								<Popover.Positioner>
+									<Popover.Content
+										class="z-50 min-w-[12rem] overflow-hidden rounded-xl border border-surface-200 bg-white py-1 shadow-xl dark:border-surface-600 dark:bg-surface-800"
+									>
+										<button
+											type="button"
+											class="flex w-full items-center gap-2 px-3 py-2.5 text-left text-xs font-semibold text-surface-800 hover:bg-surface-100 dark:text-surface-100 dark:hover:bg-surface-700"
+											onclick={abrirSelecaoUnidade}
+										>
+											<PenLine class="h-3.5 w-3.5" aria-hidden="true" />
+											{slot.nome ? 'Alterar unidade' : 'Definir unidade'}
+										</button>
+										<form
+											method="POST"
+											action="?/removerUnidade"
+											use:enhance={actions.handleRemoverUnidade}
+											class="block"
+										>
+											<input type="hidden" name="secId" value={sec.id} />
+											<input type="hidden" name="linkId" value={slot.id} />
+											<button
+												type="submit"
+												class="flex w-full items-center gap-2 px-3 py-2.5 text-left text-xs font-semibold text-error-600 hover:bg-error-500/10 dark:text-error-400"
+												disabled={actions.pendingCrud}
+											>
+												<X class="h-3.5 w-3.5" aria-hidden="true" />
+												{actions.pendingRemoverUnidade ? 'Removendo...' : 'Remover DP do quadro'}
+											</button>
+										</form>
+									</Popover.Content>
+								</Popover.Positioner>
+							</Portal>
+						</Popover>
+					{:else if slot.nome}
+						<button
+							type="button"
+							class="btn btn-xs shrink-0 rounded p-1 preset-filled-surface-500"
+							title="Alterar unidade"
+							aria-label="Alterar unidade"
+							onclick={abrirSelecaoUnidade}
+						>
+							<PenLine class="h-3 w-3" aria-hidden="true" />
+						</button>
+					{:else}
+						<button
+							type="button"
+							class="btn flex w-auto shrink-0 items-center justify-center gap-1.5 rounded-xl px-3 py-1.5 text-sm preset-outlined-warning-500"
+							onclick={abrirSelecaoUnidade}
+						>
+							<Building class="h-3.5 w-3.5" aria-hidden="true" />
+							Definir DP
+						</button>
+					{/if}
+				{/if}
+			</div>
 		{/if}
 	</div>
 
-	<!-- Equipes do slot -->
-	<div
-		class="px-3 pt-3 grid grid-cols-1 {slot.equipes?.length > 1
-			? 'md:grid-cols-2'
-			: ''} gap-3 {isAdminGeral && podeEditar && modoEdicaoGeral ? 'pb-1' : 'pb-3'}"
-	>
+	<!-- Equipes da unidade desta aba -->
+	<div class="grid grid-cols-1 gap-3 {slot.equipes?.length > 1 ? 'md:grid-cols-2' : ''}">
 		{#each slot.equipes ?? [] as equipe (equipe.id)}
 			<GiseEquipeCard
 				{equipe}
@@ -214,17 +233,17 @@
 		{/each}
 	</div>
 
-	<!-- Admin Geral: adicionar equipe a este slot -->
+	<!-- Admin Geral: adicionar equipe a esta unidade -->
 	{#if isAdminGeral && podeEditar && modoEdicaoGeral}
-		<div class="px-3 pb-3 flex justify-end">
+		<div class="mt-3 flex justify-end">
 			{#if estado.adicionandoEquipe && estado.adicionandoEquipeSlotId === slot.id}
 				<div
-					class="flex flex-wrap gap-2 items-end p-3 rounded-xl border border-dashed border-surface-300 dark:border-surface-600 w-full sm:w-auto"
+					class="flex w-full flex-wrap items-end gap-2 rounded-xl border border-dashed border-surface-300 p-3 dark:border-surface-600 sm:w-auto"
 				>
 					<div>
 						<label
 							for="novaEquipeTipo-{slot.id}"
-							class="text-sm font-medium text-surface-600 dark:text-surface-400 block mb-1"
+							class="mb-1 block text-sm font-medium text-surface-600 dark:text-surface-400"
 							>Tipo</label
 						>
 						<select
@@ -239,7 +258,7 @@
 									estado.novaEquipeOip = 2;
 								}
 							}}
-							class="px-2 py-1.5 rounded-xl border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-sm"
+							class="rounded-xl border border-surface-300 bg-white px-2 py-1.5 text-sm dark:border-surface-700 dark:bg-surface-800"
 						>
 							<!-- Só os tipos que a operação usa. Não é a autorização — quem
 							     recusa o POST é `adicionarEquipe`; isto evita oferecer uma
@@ -255,7 +274,7 @@
 					<div>
 						<label
 							for="novaEquipeDpc-{slot.id}"
-							class="text-sm font-medium text-surface-600 dark:text-surface-400 block mb-1"
+							class="mb-1 block text-sm font-medium text-surface-600 dark:text-surface-400"
 							>DPC</label
 						>
 						<input
@@ -264,13 +283,13 @@
 							min="0"
 							max="20"
 							bind:value={estado.novaEquipeDpc}
-							class="w-14 px-2 py-1.5 rounded-xl border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-sm text-center"
+							class="w-14 rounded-xl border border-surface-300 bg-white px-2 py-1.5 text-center text-sm dark:border-surface-700 dark:bg-surface-800"
 						/>
 					</div>
 					<div>
 						<label
 							for="novaEquipeOip-{slot.id}"
-							class="text-sm font-medium text-surface-600 dark:text-surface-400 block mb-1"
+							class="mb-1 block text-sm font-medium text-surface-600 dark:text-surface-400"
 							>OIP</label
 						>
 						<input
@@ -279,12 +298,12 @@
 							min="0"
 							max="20"
 							bind:value={estado.novaEquipeOip}
-							class="w-14 px-2 py-1.5 rounded-xl border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-sm text-center"
+							class="w-14 rounded-xl border border-surface-300 bg-white px-2 py-1.5 text-center text-sm dark:border-surface-700 dark:bg-surface-800"
 						/>
 					</div>
 					<!-- No mobile os dois botões dividem UMA linha em partes iguais
 					     (`w-full` + `flex-1`); em sm+ voltam à largura natural. -->
-					<div class="w-full grid grid-cols-2 gap-2 sm:flex sm:w-auto">
+					<div class="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto">
 						<form
 							method="POST"
 							action="?/adicionarEquipe"
@@ -298,14 +317,14 @@
 							<input type="hidden" name="slots_oip" value={estado.novaEquipeOip} />
 							<button
 								type="submit"
-								class="btn preset-filled-primary-500 text-sm px-3 py-1.5 rounded-lg transition-all w-full sm:w-auto"
+								class="btn w-full rounded-lg px-3 py-1.5 text-sm transition-all preset-filled-primary-500 sm:w-auto"
 								disabled={actions.pendingCrud}
 								>{actions.pendingAdicionarEquipe ? 'Adicionando...' : 'Adicionar'}</button
 							>
 						</form>
 						<button
 							type="button"
-							class="btn preset-outlined-surface-500 text-sm px-2 py-1.5 rounded-lg w-full sm:w-auto"
+							class="btn w-full rounded-lg px-2 py-1.5 text-sm preset-outlined-surface-500 sm:w-auto"
 							onclick={() => {
 								estado.adicionandoEquipe = false;
 								estado.adicionandoEquipeSlotId = null;
@@ -316,7 +335,7 @@
 			{:else}
 				<button
 					type="button"
-					class="btn btn-sm preset-outlined-success-500 w-auto flex items-center justify-center gap-1 whitespace-nowrap mt-1"
+					class="btn btn-sm flex w-full items-center justify-center gap-1 whitespace-nowrap preset-outlined-success-500 sm:w-auto"
 					onclick={() => {
 						estado.adicionandoEquipe = true;
 						estado.adicionandoEquipeSlotId = slot.id;
@@ -325,15 +344,8 @@
 						estado.novaEquipeOip = 3;
 					}}
 				>
-					<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"
-						><path
-							stroke-linecap="round"
-							stroke-linejoin="round"
-							stroke-width="2"
-							d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"
-						/></svg
-					>
-					+ Adicionar + equipe(s)
+					<UserPlus class="h-3.5 w-3.5" aria-hidden="true" />
+					+ Equipes
 				</button>
 			{/if}
 		</div>

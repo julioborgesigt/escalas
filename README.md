@@ -798,6 +798,63 @@ Os indicadores da OPERAÇÃO CRAJUBAR vêm semeados pela migração `0050` a par
 da tabela §9 do Plano Operacional Estratégico; a `0052` converte o de
 atendimentos em fins de semana para cobertura de 100%, que é o que o plano pede.
 
+### O quadro da seccional: uma ABA por unidade participante
+
+Dentro do card de cada seccional em `/gise/[id]`, as delegacias participantes são
+**abas**: o painel abaixo mostra as equipes da aba aberta, e trocar de aba troca
+o painel inteiro. Até ago/2026 cada unidade era uma CAIXA empilhada — faixa com
+o nome e o "Remover DP", moldura, e as equipes espremidas dentro. Eram três
+linhas de moldura por delegacia, tiradas justamente do espaço dos quadros de
+equipe.
+
+A troca é real e está registrada aqui porque não é gratuita: **só uma unidade
+aparece por vez**. O que devolve a leitura de relance é o que a aba carrega —
+`resumoDoSlot` (`$lib/gise/page-helpers`) dá o contador de equipes e o ponto
+âmbar de "há vaga sem policial nesta unidade", para que "falta gente na Icó" não
+dependa de alguém clicar na Icó. O rótulo usa `rotuloCurtoUnidade` (o município,
+que é o que distingue); o nome completo fica no `title` e no topo do painel.
+
+Três decisões do desenho:
+
+- **`+ Unidades` é a última aba**, tracejada — é onde a próxima aba nasce. E a
+  aba recém-criada **abre selecionada**: criada e deixada fechada, a unidade
+  nasceria escondida atrás da anterior, e quem acabou de criá-la iria procurar o
+  slot que "não apareceu". Como o id do slot só chega no `load` seguinte, o que
+  se guarda é a intenção (`abrirUltimaAba`);
+- **`+ Equipes` fica no rodapé do painel** e não nomeia alvo nenhum: tudo que
+  está visível pertence à aba aberta. Era o problema que a versão empilhada
+  criava, com um botão por caixa;
+- **`Remover DP` saiu da faixa** e entrou no menu do lápis, junto de "Alterar
+  unidade" — são as duas ações DA unidade, e ficam onde se mexe na unidade.
+
+A barra rola na horizontal (`overflow-x-auto`) **e** trava o eixo vertical
+(`overflow-y-hidden`): sem o segundo, o navegador computa o eixo Y como `auto`
+por causa do primeiro e reserva uma barra de rolagem vertical dentro da faixa das
+abas. Coberto por `e2e/gise-abas-unidade.spec.ts`, que é onde mora o resto do
+comportamento — componente `.svelte` não tem teste unitário neste projeto.
+
+### Horário: só aparece o que foge do padrão
+
+O horário cai em cascata — `gise_escalas` → `gise_seccionais` → `gise_equipes` —
+e as duas últimas têm coluna **nulável**: nulo já quer dizer "o mesmo de cima".
+A tela resolvia a cascata e imprimia o resultado sempre, então `08:00h-16:00h`
+repetido no cabeçalho da seccional e em cada card de equipe dizia o horário da
+escala três vezes.
+
+Agora horário **herdado** vira um relógio (com o horário em vigor no rótulo
+acessível) mais o lápis; horário **próprio** aparece escrito, na tarja âmbar —
+que substitui o selo "H. Personalizado", porque num quadro onde todo o resto
+mostra só o relógio o horário escrito já é o destaque.
+
+"Próprio" é comparação de **valor**, não de preenchimento: o selo antigo olhava
+só se a coluna tinha algo, e quem salvasse 08:00 numa equipe cuja seccional já é
+08:00 ganhava um "personalizado" que não personaliza nada. Quem responde é
+`horarioEfetivo` / `temHorarioProprio` (`$lib/gise/horarios`), que também
+substituem a cascata `equipe ?? seccional ?? escala` antes copiada em quatro
+pontos entre `GiseEquipeCard` e `GiseSeccional`. A comparação normaliza antes —
+`'08'` e `'08:00'` são a mesma hora, e essa diferença exata já produziu bug neste
+projeto.
+
 O resto do fluxo:
 
 - Criação e configuração pelo supervisor (seccionais, equipes, questões)

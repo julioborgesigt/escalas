@@ -180,3 +180,51 @@ export function filtrarSeccionaisDisponiveis(
 export function filtrarDelegacias(todasUnidades: Unidade[]): Unidade[] {
 	return todasUnidades.filter((u) => u.tipo === 'delegacia');
 }
+
+/** O que a ABA de uma unidade mostra sem que ninguém precise abri-la. */
+export interface ResumoSlot {
+	/** Quantas equipes esta unidade tem no quadro. */
+	equipes: number;
+	/** Vagas (DPC + OIP) ainda sem policial, somadas as equipes da unidade. */
+	vagasAbertas: number;
+}
+
+/**
+ * O resumo que vai na aba da unidade — contador de equipes e vaga em aberto.
+ *
+ * Existe por causa da troca que as abas impõem: com uma unidade por vez na
+ * tela, "onde ainda falta gente" deixaria de ser visível de relance. O resumo é
+ * o que devolve essa leitura sem abrir aba por aba.
+ *
+ * A conta é por TOTAL de vagas, não por cargo: `gise_membros` não guarda cargo
+ * (ele vem do policial), então DPC × OIP aqui seria uma segunda interpretação do
+ * mesmo dado — e a aba só precisa responder "falta alguém?".
+ */
+export function resumoDoSlot(
+	slot: Pick<GiseUnidadeSlot, 'equipes'> | null | undefined
+): ResumoSlot {
+	const equipes = slot?.equipes ?? [];
+	const vagasAbertas = equipes.reduce((total, e) => {
+		const vagas = (e.slots_dpc ?? 0) + (e.slots_oip ?? 0);
+		return total + Math.max(0, vagas - (e.membros?.length ?? 0));
+	}, 0);
+	return { equipes: equipes.length, vagasAbertas };
+}
+
+/**
+ * Rótulo curto da unidade para a aba — "Delegacia de Polícia Civil de Iguatu"
+ * não cabe numa barra com seis delegacias.
+ *
+ * Corta o prefixo genérico e deixa o que distingue: o MUNICÍPIO. Nome que não
+ * começa com o prefixo volta inteiro — encurtar no escuro é como se perde a
+ * única parte que identifica a unidade. O nome completo continua no `title` da
+ * aba e no topo do painel.
+ */
+export function rotuloCurtoUnidade(nome: string | null | undefined): string {
+	if (!nome) return '';
+	const semPrefixo = nome.replace(
+		/^delegacia\s+(de\s+)?(pol[íi]cia\s+civil\s+)?(d[eoa]s?\s+)?/i,
+		''
+	);
+	return semPrefixo.trim() || nome;
+}

@@ -26,12 +26,19 @@
 	import ModalRemoverSeccional from './modais/ModalRemoverSeccional.svelte';
 	import { useGiseSeccionalActions } from '$lib/composables/gise';
 	import { getSeccionalColorClass } from '$lib/gise/page-helpers';
-	import { validarHora, normalizarHora } from '$lib/gise/horarios';
+	import {
+		validarHora,
+		normalizarHora,
+		horarioEfetivo,
+		temHorarioProprio
+	} from '$lib/gise/horarios';
 	import { GiseSeccionalEstado } from './gise-seccional-estado.svelte';
 	import GiseActionButton from './GiseActionButton.svelte';
 	import SeccionalRelatoriosDownloads from './SeccionalRelatoriosDownloads.svelte';
 	import GiseSlotUnidade from './GiseSlotUnidade.svelte';
+	import GiseAbasUnidades from './GiseAbasUnidades.svelte';
 	import PenLine from '@lucide/svelte/icons/pen-line';
+	import Clock from '@lucide/svelte/icons/clock';
 
 	type Seccional = GiseDetalhado['seccionais'][number];
 
@@ -121,6 +128,11 @@
 		onAdicionarUnidadeSuccess: () => {
 			estado.novoSlotUnidadeId = '';
 			estado.adicionandoSlot = false;
+			// A aba nova precisa ABRIR: criada e deixada fechada, a unidade nasceria
+			// escondida atrás da aba anterior — e quem acabou de criá-la iria
+			// procurar o slot que "não apareceu". Como o id só chega no próximo
+			// `load`, o pedido é "a última", resolvido em `abaAtiva`.
+			estado.abrirUltimaAba = true;
 		},
 		getHorariosEquipeFormulario: () => ({
 			entrada: estado.editEqHoraEnt,
@@ -131,6 +143,32 @@
 			saida: estado.editSecHoraSai
 		})
 	});
+
+	/**
+	 * A unidade ABERTA nas abas.
+	 *
+	 * Derivado, e não um `$state` cru, porque a lista de slots vem do servidor e
+	 * muda debaixo da tela: aba removida (ou escala recarregada) tem de cair para
+	 * uma que exista, senão o painel some sem nada explicando.
+	 */
+	const slots = $derived(sec.unidades ?? []);
+	const abaAtiva = $derived.by(() => {
+		if (estado.abrirUltimaAba && slots.length > 0) return slots[slots.length - 1].id;
+		const escolhida = slots.find((u) => u.id === estado.abaSlotId);
+		return escolhida?.id ?? slots[0]?.id ?? null;
+	});
+	const slotAberto = $derived(slots.find((u) => u.id === abaAtiva) ?? null);
+
+	/**
+	 * Horário da seccional: só é ESCRITO quando difere do da escala.
+	 *
+	 * `gise_seccionais.hora_*` é nulável, e nulo já quer dizer "o mesmo da
+	 * escala" — imprimir sempre a cascata resolvida repetia o horário da escala
+	 * em cada linha do quadro sem dizer nada. Quando é herdado, sobra o relógio
+	 * (com o horário em vigor no `title`) e o lápis.
+	 */
+	const horarioSec = $derived(horarioEfetivo(sec, gise));
+	const secTemHorarioProprio = $derived(temHorarioProprio(sec, gise));
 
 	const pendingCrud = $derived(actions.pendingCrud);
 	const pendingFinalizar = $derived(actions.pendingFinalizarSeccional);
@@ -277,12 +315,17 @@
 				<div
 					class="flex items-center gap-1.5 text-xs sm:text-sm text-surface-500 font-medium sm:ml-2"
 				>
-					<span>{sec.hora_entrada ?? gise.hora_entrada}h-{sec.hora_saida ?? gise.hora_saida}h</span>
-					{#if (sec.hora_entrada || sec.hora_saida) && !recolhida}
+					{#if secTemHorarioProprio}
 						<span
-							class="hidden sm:inline-block ml-1 px-1 rounded bg-warning-500/10 text-warning-600 dark:text-warning-400 font-bold border border-warning-500/20 text-3xs"
-							>H. Personalizado</span
+							class="rounded bg-warning-500/10 px-1.5 py-0.5 font-bold text-warning-600 dark:text-warning-400"
+							title="Horário próprio desta seccional"
+							>{horarioSec.entrada}h-{horarioSec.saida}h</span
 						>
+					{:else}
+						<Clock
+							class="h-3.5 w-3.5 shrink-0"
+							aria-label="Horário da escala: {horarioSec.entrada}h-{horarioSec.saida}h"
+						/>
 					{/if}
 
 					{#if podeEditar && ((isAdminGeral && modoEdicaoGeral) || (isSeccional && sec.seccional_id === minhaSeccionalId && (estado.modoEdicaoSeccional || sec.status === 'pendente' || sec.status === 'retificada')))}
@@ -292,8 +335,8 @@
 							onclick={(e) => {
 								e.stopPropagation();
 								estado.editandoHorariosSeccional = true;
-								estado.editSecHoraEnt = sec.hora_entrada ?? gise.hora_entrada ?? '';
-								estado.editSecHoraSai = sec.hora_saida ?? gise.hora_saida ?? '';
+								estado.editSecHoraEnt = horarioSec.entrada;
+								estado.editSecHoraSai = horarioSec.saida;
 							}}
 							title="Editar horários da seccional"
 						>
@@ -440,7 +483,7 @@
 										d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-2 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
 									/></svg
 								>
-								+ Adicionar + DP(s) nesta Seccional
+								+ Unidades
 							</button>
 						</Accordion.ItemContent>
 					</Accordion.Item>
@@ -542,23 +585,42 @@
 		</div>
 
 		<div class="p-3 sm:p-4 space-y-3">
-			<!-- Slots de Unidade -->
-			{#each sec.unidades ?? [] as slot (slot.id)}
-				<GiseSlotUnidade
-					{slot}
-					{sec}
-					{gise}
-					{tiposEquipePermitidos}
-					{todasUnidades}
-					{isAdminGeral}
-					{isSeccional}
-					{podeEditar}
-					{modoEdicaoGeral}
-					{minhaSeccionalId}
-					{estado}
-					{actions}
-				/>
-			{/each}
+			<!-- Unidades participantes: uma ABA cada, e o painel abaixo mostra as
+			     equipes da aba aberta. -->
+			{#if slots.length > 0}
+				<div>
+					<GiseAbasUnidades
+						{slots}
+						secId={sec.id}
+						{abaAtiva}
+						onSelecionar={(id) => {
+							estado.abaSlotId = id;
+							estado.abrirUltimaAba = false;
+						}}
+						podeAdicionar={isAdminGeral && podeEditar && modoEdicaoGeral && !estado.adicionandoSlot}
+						onAdicionar={() => {
+							estado.adicionandoSlot = true;
+							estado.novoSlotUnidadeId = '';
+						}}
+					/>
+					{#if slotAberto}
+						<GiseSlotUnidade
+							slot={slotAberto}
+							{sec}
+							{gise}
+							{tiposEquipePermitidos}
+							{todasUnidades}
+							{isAdminGeral}
+							{isSeccional}
+							{podeEditar}
+							{modoEdicaoGeral}
+							{minhaSeccionalId}
+							{estado}
+							{actions}
+						/>
+					{/if}
+				</div>
+			{/if}
 
 			<!-- Admin Geral: adicionar slot de unidade -->
 			{#if isAdminGeral && podeEditar && modoEdicaoGeral}
@@ -611,7 +673,9 @@
 							>
 						</div>
 					</div>
-				{:else}
+				{:else if slots.length === 0}
+					<!-- Sem nenhuma unidade não há barra de abas onde pendurar o "+", então
+					     o gatilho aparece aqui. Com abas, quem o oferece é a última delas. -->
 					<div class="flex justify-end">
 						<button
 							type="button"
@@ -629,7 +693,7 @@
 									d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-2 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
 								/></svg
 							>
-							+ Adicionar + DP(s) nesta Seccional
+							+ Unidades
 						</button>
 					</div>
 				{/if}
