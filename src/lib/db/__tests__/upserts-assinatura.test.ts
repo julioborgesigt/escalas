@@ -26,24 +26,23 @@ function dbEspiao() {
 }
 
 async function salvar(db: Database) {
-	return salvarGiseDocumento(
-		db,
-		7, // giseId
-		'gise/7/escala.pdf',
-		42,
-		'FULANO DE TAL',
-		'12345678901',
-		'hash-verificacao',
-		'data:image/png;base64,rubrica',
-		'203.0.113.42',
-		'Mozilla/5.0 (X11; Linux x86_64)',
-		-3.7319,
-		-38.5267,
-		'gise/7/selfie.jpg',
-		'sha256-do-arquivo',
-		'fulano@pc.ce.gov.br',
-		'servidor'
-	);
+	return salvarGiseDocumento(db, {
+		giseId: 7,
+		r2Key: 'gise/7/escala.pdf',
+		assinanteId: 42,
+		assinanteNome: 'FULANO DE TAL',
+		assinanteCpf: '12345678901',
+		verificacaoHash: 'hash-verificacao',
+		rubrica: 'data:image/png;base64,rubrica',
+		ipAddress: '203.0.113.42',
+		userAgent: 'Mozilla/5.0 (X11; Linux x86_64)',
+		latitude: -3.7319,
+		longitude: -38.5267,
+		selfieKey: 'gise/7/selfie.jpg',
+		arquivoHash: 'sha256-do-arquivo',
+		assinanteEmail: 'fulano@pc.ce.gov.br',
+		tipoCarimboTempo: 'servidor'
+	});
 }
 
 describe('salvarGiseDocumento (upsert)', () => {
@@ -189,14 +188,25 @@ describe('reassinatura limpa o que a assinatura anterior deixou', () => {
 
 	it('salvarGiseDocumento: reassinatura sem certificado zera CAdES, selfie e GPS', async () => {
 		const { db, capturado } = dbEspiao();
-		await salvarGiseDocumento(db, 7, 'gise/7/escala.pdf', 42, 'FULANO', '12345678901', 'hash-v');
+		await salvarGiseDocumento(db, {
+			giseId: 7,
+			r2Key: 'gise/7/escala.pdf',
+			assinanteId: 42,
+			assinanteNome: 'FULANO',
+			assinanteCpf: '12345678901',
+			verificacaoHash: 'hash-v'
+		});
 
 		esperaLimpaveis(capturado.set, [...LIMPAVEIS_COMUNS, 'rubrica', ...LIMPAVEIS_WEBAUTHN]);
 	});
 
 	it('salvarDocumentoEscala: idem para a escala regular', async () => {
 		const { db, capturado } = dbEspiao();
-		await salvarDocumentoEscala(db, 5, 'escalas/5/plantao.pdf', 'CICRANO');
+		await salvarDocumentoEscala(db, {
+			escalaId: 5,
+			r2Key: 'escalas/5/plantao.pdf',
+			assinanteNome: 'CICRANO'
+		});
 
 		esperaLimpaveis(capturado.set, [
 			...LIMPAVEIS_COMUNS,
@@ -245,18 +255,17 @@ describe('salvarTermoPresencaGise (insert)', () => {
 describe('salvarDocumentoEscala (upsert)', () => {
 	it('grava os mesmos campos no INSERT e no UPDATE', async () => {
 		const { db, capturado } = dbEspiao();
-		await salvarDocumentoEscala(
-			db,
-			5,
-			'escalas/5/plantao.pdf',
-			'CICRANO',
-			'11122233344',
-			'hash-verificacao',
-			'203.0.113.9',
-			'Mozilla/5.0',
-			-3.731944,
-			-38.526667
-		);
+		await salvarDocumentoEscala(db, {
+			escalaId: 5,
+			r2Key: 'escalas/5/plantao.pdf',
+			assinanteNome: 'CICRANO',
+			assinanteCpf: '11122233344',
+			verificacaoHash: 'hash-verificacao',
+			ipAddress: '203.0.113.9',
+			userAgent: 'Mozilla/5.0',
+			latitude: -3.731944,
+			longitude: -38.526667
+		});
 
 		const insert = { ...capturado.values };
 		const update = { ...capturado.set };

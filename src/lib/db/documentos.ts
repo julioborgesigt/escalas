@@ -122,15 +122,7 @@ export interface CamposMinimizadosDocumento {
  * a coluna da assinatura ANTERIOR sobreviveria à reassinatura (certificado,
  * selfie e GPS de outra assinatura colados no registro da nova).
  */
-export function montarCamposMinimizados(opts: {
-	ipAddress?: string;
-	userAgent?: string;
-	latitude?: number;
-	longitude?: number;
-	tipoCarimboTempo?: string;
-	cadesMeta?: AssinaturaCadesMetadata;
-	passkeyMeta?: AssinaturaPasskeyMetadata;
-}): CamposMinimizadosDocumento {
+export function montarCamposMinimizados(opts: CircunstanciaAssinatura): CamposMinimizadosDocumento {
 	const meta = opts.cadesMeta ?? {};
 	return {
 		ip_address: anonimizarIp(opts.ipAddress) ?? null,
@@ -172,31 +164,68 @@ export function montarCamposMinimizados(opts: {
  * Não escreve auditoria nem toca no R2: o blob já foi gravado quando esta função
  * é chamada, e é o `r2_key` daqui que o torna localizável.
  */
-export async function salvarDocumentoEscala(
-	db: Database,
-	escalaId: number,
-	r2Key: string,
-	assinanteNome: string,
-	assinanteCpf?: string,
-	verificacaoHash?: string,
-	ipAddress?: string,
-	userAgent?: string,
-	latitude?: number,
-	longitude?: number,
-	selfieKey?: string,
-	arquivoHash?: string,
-	assinanteEmail?: string,
-	tipoCarimboTempo?: string,
-	cadesMeta?: AssinaturaCadesMetadata,
-	env?: CpfCriptoEnv,
-	// Depois de `env` de propósito: a lista posicional já está no limite, e
-	// inserir no meio faria todo chamador que passa `env` deslocar um argumento
-	// — num upsert de documento assinado, um deslocamento silencioso grava o
-	// campo errado. Quem usa passkey passa os dois últimos explicitamente.
-	passkeyMeta?: AssinaturaPasskeyMetadata
-) {
+/**
+ * O que se grava numa assinatura de escala. NOMEADO, e isso é decisão.
+ *
+ * Eram 17 parâmetros posicionais, e o comentário que morava aqui avisava do
+ * risco sem removê-lo: inserir um campo no meio deslocaria todo chamador que
+ * passasse `env`, e "num upsert de documento assinado, um deslocamento
+ * silencioso grava o campo errado". Os call sites passavam `undefined` nu em
+ * posições que só se identificavam contando — um deles precisou de
+ * `// selfieKey` ao lado para ser legível.
+ *
+ * Com objeto nomeado o compilador confere cada campo, campo ausente é ausente
+ * (e não uma posição que alguém contou errado), e acrescentar coluna deixa de
+ * ter ordem. Mesma jogada de `nomeia os 9 parâmetros posicionais do relatório
+ * extraordinário`, pelo mesmo motivo.
+ */
+/**
+ * A CIRCUNSTÂNCIA da assinatura — o que o documento registra além de quem
+ * assinou: onde, em que aparelho, com qual prova e sob qual carimbo.
+ *
+ * É exatamente o conjunto que `montarCamposMinimizados` recebe (mais `env`,
+ * que é a chave de cifra do CPF), e por isso vive num tipo só: escala e GISE
+ * gravam em tabelas diferentes, com colunas de identidade diferentes, mas a
+ * circunstância é a MESMA — e é justamente a parte sujeita à minimização LGPD,
+ * onde divergir sai caro.
+ */
+export interface CircunstanciaAssinatura {
+	ipAddress?: string;
+	userAgent?: string;
+	latitude?: number;
+	longitude?: number;
+	selfieKey?: string;
+	arquivoHash?: string;
+	assinanteEmail?: string;
+	tipoCarimboTempo?: string;
+	cadesMeta?: AssinaturaCadesMetadata;
+	passkeyMeta?: AssinaturaPasskeyMetadata;
+	/** Chave de cifra do CPF (LGPD Fase 2); sem ela o valor vai como está. */
+	env?: CpfCriptoEnv;
+}
+
+export interface DocumentoEscalaEntrada extends CircunstanciaAssinatura {
+	escalaId: number;
+	r2Key: string;
+	assinanteNome: string;
+	assinanteCpf?: string;
+	verificacaoHash?: string;
+}
+
+export async function salvarDocumentoEscala(db: Database, entrada: DocumentoEscalaEntrada) {
+	const {
+		escalaId,
+		r2Key,
+		assinanteNome,
+		assinanteCpf,
+		verificacaoHash,
+		selfieKey,
+		arquivoHash,
+		assinanteEmail
+	} = entrada;
+
 	// CPF cifrado em repouso (LGPD Fase 2).
-	const cpfArmazenado = (await cifrarCpfParaArmazenar(assinanteCpf, env)) ?? '';
+	const cpfArmazenado = (await cifrarCpfParaArmazenar(assinanteCpf, entrada.env)) ?? '';
 
 	// Mesmos campos no INSERT e no UPDATE do upsert — montados uma vez para não
 	// divergirem. `escala_id` fica de fora: é o alvo do conflito.
@@ -208,15 +237,10 @@ export async function salvarDocumentoEscala(
 		selfie_key: selfieKey ?? null,
 		arquivo_hash: arquivoHash ?? null,
 		assinante_email: assinanteEmail ?? null,
-		...montarCamposMinimizados({
-			ipAddress,
-			userAgent,
-			latitude,
-			longitude,
-			tipoCarimboTempo,
-			cadesMeta,
-			passkeyMeta
-		})
+		// `entrada` já TEM a forma de `CircunstanciaAssinatura` — passar o objeto
+		// inteiro evita repetir a lista de campos, que é onde escala e GISE
+		// divergiriam em silêncio.
+		...montarCamposMinimizados(entrada)
 	};
 
 	return db
