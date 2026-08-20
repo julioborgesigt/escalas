@@ -121,18 +121,28 @@
 
 	{#if passkey}
 		<div class="p-3 rounded-xl bg-success-500/5 border border-success-500/20 mb-3">
-			<p class="text-sm font-semibold text-surface-900 dark:text-white">
-				Registrada em {formatar(passkey.criadoEm)}
-				{#if passkey.apelido}
-					— {passkey.apelido}
-				{/if}
-			</p>
+			{#if passkey.apelido}
+				<p class="text-base font-bold text-success-700 dark:text-success-400">{passkey.apelido}</p>
+				<p class="text-xs text-surface-600 dark:text-surface-400 mt-0.5">
+					Registrada em {formatar(passkey.criadoEm)}
+					{#if passkey.provedor}
+						· {passkey.provedor} ({notaProvedorDeclarado()})
+					{/if}
+				</p>
+			{:else}
+				<p class="text-sm font-semibold text-surface-900 dark:text-white">
+					Registrada em {formatar(passkey.criadoEm)}
+					{#if passkey.provedor}
+						· {passkey.provedor} ({notaProvedorDeclarado()})
+					{/if}
+				</p>
+			{/if}
 			<p
-				class="mt-2 font-mono text-sm tracking-wide text-surface-900 dark:text-white break-all select-all"
+				class="mt-2 font-mono text-xs tracking-wide text-surface-500 dark:text-surface-500 break-all select-all"
 			>
 				{passkey.identificador}
 			</p>
-			<p class="text-xs text-surface-600 dark:text-surface-400 mt-0.5">
+			<p class="text-xs text-surface-600 dark:text-surface-400 mt-2">
 				Credencial {passkey.vinculo}.
 				{#if formatar(passkey.ultimoUso)}
 					Último uso em {formatar(passkey.ultimoUso)}.
@@ -140,11 +150,6 @@
 					Ainda não usada para assinar.
 				{/if}
 			</p>
-			{#if passkey.provedor}
-				<p class="text-xs text-surface-600 dark:text-surface-400 mt-0.5">
-					Provedor: {passkey.provedor}. {notaProvedorDeclarado()}
-				</p>
-			{/if}
 		</div>
 		<button
 			type="button"
