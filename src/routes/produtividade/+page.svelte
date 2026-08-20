@@ -63,13 +63,15 @@
 	<title>Produtividade — Escalas PC-CE</title>
 </svelte:head>
 
-<div class="space-y-8 pb-12 {p.selectedCharts.length > 0 ? 'has-selections' : ''}">
+<div
+	class="pagina-produtividade space-y-8 pb-12 {p.selectedCharts.length > 0 ? 'has-selections' : ''}"
+>
 	<header class="flex flex-col md:flex-row md:items-center justify-between gap-4 sm:gap-6">
 		<div class="space-y-1">
 			<h1 class="h1 text-2xl font-bold">
 				Produção {p.filterTipo === 'seint' ? 'Inteligência' : 'Operacional'}
 			</h1>
-			<p class="text-surface-600 dark:text-surface-400 font-medium">
+			<p class="text-surface-600 dark:text-surface-400 font-medium print:hidden">
 				Análise filtrada e segmentada dos resultados reais {p.filterTipo === 'seint'
 					? '(SEINT)'
 					: '(P4-P19)'}
@@ -77,12 +79,14 @@
 			{#if p.data.escopoRestrito}
 				<!-- O recorte é do SERVIDOR, e quem o vê precisa saber: sem este aviso,
 				     um total menor parece queda de produtividade em vez de recorte. -->
-				<p class="text-2xs text-surface-600 dark:text-surface-400 mt-1">
+				<p class="text-2xs text-surface-600 dark:text-surface-400 mt-1 print:hidden">
 					Exibindo apenas os dados das unidades que você administra nesta operação.
 				</p>
 			{/if}
 		</div>
-		<div class="flex flex-col items-start gap-2">
+		<!-- Os controles de exportação não vão para o papel: quem lê o PDF não
+		     clica em "Baixar". -->
+		<div class="flex flex-col items-start gap-2 print:hidden">
 			<span
 				class="text-xs font-bold uppercase tracking-widest text-surface-400 dark:text-surface-500"
 				>Baixar gráficos</span
@@ -129,7 +133,7 @@
 
 				<button
 					type="button"
-					class="export-btn btn {p.selectedCharts.length > 0
+					class="btn {p.selectedCharts.length > 0
 						? 'bg-secondary-600 hover:bg-secondary-700 text-white'
 						: 'bg-surface-200/80 dark:bg-surface-800/80 text-surface-500 dark:text-surface-400 cursor-not-allowed'} text-3xs font-black uppercase py-2 px-6 rounded-xl transition-colors flex items-center gap-2"
 					onclick={() => window.print()}
@@ -149,7 +153,9 @@
 		</div>
 	</header>
 
-	<div class="space-y-3">
+	<!-- A barra de filtros é controle de tela: no PDF ela só ocuparia a primeira
+	     folha antes do primeiro gráfico. -->
+	<div class="space-y-3 print:hidden">
 		<div class="flex items-center justify-between gap-2">
 			<span
 				class="text-xs font-bold uppercase tracking-widest text-surface-400 dark:text-surface-500"
@@ -385,32 +391,94 @@
 </div>
 
 <style>
+	/**
+	 * IMPRESSÃO — o botão "Baixar (PDF)" é `window.print()`, então o PDF é a
+	 * folha que estas regras descrevem. Cada card é uma UNIDADE: quebra só
+	 * quando não cabe inteiro numa A4, que é o que `break-inside: avoid` pede ao
+	 * paginador (o navegador ignora o pedido quando ele é impossível de honrar,
+	 * e é exatamente o comportamento desejado).
+	 *
+	 * Os seletores são `:global()` DE PROPÓSITO. Os cards são renderizados por
+	 * `SecaoGraficos`/`SecaoRankings`/`SecaoIndicadores`, e o CSS de componente
+	 * do Svelte só alcança o markup DESTE arquivo: escrito sem `:global()`, o
+	 * bloco compilava para `.card.svelte-hash`, que não casa com card nenhum —
+	 * era por isso que os gráficos quebravam no meio, e também por que os cards
+	 * não selecionados e a barra de filtros iam junto para o papel.
+	 *
+	 * `.pagina-produtividade` no início de cada seletor devolve o limite que o
+	 * escopo dava: as regras valem para esta tela, não para o app inteiro.
+	 */
 	@media print {
-		.card {
-			break-inside: avoid !important;
-			page-break-inside: avoid !important;
-			box-shadow: none !important;
-			border-color: #e2e8f0 !important;
-		}
-
-		/* If selections exist, hide everything except selected cards */
-		:global(.has-selections) .card:not(.selected-for-export) {
-			display: none !important;
-		}
-
-		/* Also hide filters and extra texts if selection is active */
-		:global(.has-selections) section:first-of-type,
-		:global(.has-selections) header p {
-			display: none !important;
-		}
-
-		.export-btn,
-		header p {
-			display: none !important;
+		@page {
+			size: A4 portrait;
+			margin: 10mm;
 		}
 
 		:global(body) {
 			background: white !important;
+		}
+
+		/* A grade de pares vira fluxo: a largura útil da folha (190mm) já cai
+		 * abaixo do breakpoint `lg`, então a grade só tem uma coluna no papel —
+		 * e fragmentar dentro de um container `grid` é irregular no Chrome. Em
+		 * bloco, `gap` não vale mais; a margem recompõe o respiro entre cards. */
+		:global(.pagina-produtividade section.grid) {
+			display: block !important;
+		}
+
+		:global(.pagina-produtividade section.grid > * + *) {
+			margin-top: 6mm;
+		}
+
+		/* A unidade indivisível da paginação. `overflow: visible` porque scroll
+		 * interno (o ranking rola na tela) vira CORTE no papel, e
+		 * `print-color-adjust` porque as barras de detalhamento são preenchimento
+		 * de fundo — sem isso o Chrome imprime a barra vazia. */
+		:global(.pagina-produtividade .card),
+		:global(.pagina-produtividade .card-elevated) {
+			break-inside: avoid;
+			page-break-inside: avoid;
+			overflow: visible !important;
+			box-shadow: none !important;
+			print-color-adjust: exact;
+			-webkit-print-color-adjust: exact;
+		}
+
+		:global(.pagina-produtividade .card + .card),
+		:global(.pagina-produtividade .card-elevated + .card-elevated) {
+			margin-top: 6mm;
+		}
+
+		/* Controles que sobraram DENTRO do card: a caixa de seleção no canto e o
+		 * "ver tabela" do indicador. No papel são tinta sem função. */
+		:global(.pagina-produtividade .card button),
+		:global(.pagina-produtividade .card-elevated > button) {
+			display: none !important;
+		}
+
+		/* A borda azul é marca de SELEÇÃO na tela; no papel ela destacaria um card
+		 * que não tem nada de diferente dos outros. */
+		:global(.pagina-produtividade .card) {
+			border-color: #e2e8f0 !important;
+		}
+
+		/* O canvas do Chart.js carrega a largura em px que tinha na TELA; sem
+		 * este teto ele estoura a folha e o gráfico sai cortado na lateral.
+		 * `height: auto` mantém a proporção do próprio canvas. */
+		:global(.pagina-produtividade canvas) {
+			max-width: 100% !important;
+			height: auto !important;
+		}
+
+		/* Com seleção ativa, o papel leva só o que foi selecionado: os demais
+		 * cards saem, e a seção que não sobrou com nenhum selecionado sai
+		 * inteira (senão restam título e espaço em branco no meio do PDF). */
+		:global(.has-selections .card:not(.selected-for-export)) {
+			display: none !important;
+		}
+
+		:global(.has-selections section:not(:has(.selected-for-export))) {
+			display: none !important;
 		}
 	}
 </style>

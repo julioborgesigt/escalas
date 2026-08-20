@@ -759,6 +759,37 @@ por unidade) e agregá-la por seccional exigiria somar bases — o que funciona 
 o acervo de inquéritos e produz um número sem sentido no indicador de tempo
 MÉDIO. Ordem e Top-N valem nela; o eixo, não.
 
+### Baixar os gráficos: PNG e PDF são dois caminhos diferentes
+
+**"Baixar (imagem)"** desenha cada card do zero num canvas próprio
+(`$lib/export-charts`) e salva um PNG por gráfico selecionado — com o recorte
+descrito no cabeçalho, porque o PNG circula sozinho.
+
+**"Baixar (PDF)"** é `window.print()`: quem pagina é o NAVEGADOR, e a folha é o
+que o `@media print` da rota descreve. As duas consequências que importam:
+
+- **quem controla a quebra é CSS**, não um gerador. O card é a unidade
+  indivisível (`break-inside: avoid`), então ele só parte quando não cabe inteiro
+  numa A4 — que é o que se quer. `overflow: visible` acompanha, porque scroll
+  interno (o ranking rola na tela) vira corte no papel, e o teto de largura no
+  `<canvas>` existe porque o Chart.js carrega para o papel a largura em px que o
+  gráfico tinha na TELA;
+- **os seletores são `:global()`, de propósito.** Todo card do painel vem de um
+  componente filho (`SecaoGraficos`, `SecaoRankings`, `SecaoIndicadores`), e o
+  CSS de componente do Svelte só alcança o markup do próprio arquivo. Escrito
+  sem `:global()`, o bloco compilava para `.card.svelte-hash` e não casava com
+  card nenhum: as regras existiam desde sempre e nunca valeram — era esse o
+  gráfico partido ao meio relatado em ago/2026. O prefixo
+  `.pagina-produtividade` devolve o limite que o escopo dava.
+
+O cromo da tela (barra do topo, gaveta, filtros e os próprios botões de baixar)
+sai por `print:hidden`, e com seleção ativa o papel leva só os cards
+selecionados. Cabeçalho e rodapé do PDF (data, URL, número da página) são do
+navegador, não da página: quem imprime tira em **Mais definições → Cabeçalhos e
+rodapés**. Coberto por `e2e/produtividade-graficos.spec.ts`, que roda as
+asserções em `media: print` — na tela as regras não valem, e CSS compilado
+"existe" mesmo quando não seleciona nada.
+
 O tipo de equipe indisponível na operação aparece **desabilitado**, não escondido:
 o botão apagado diz que a operação não usa aquele tipo (`tiposEquipeHabilitados`,
 em `$lib/gise/tipos-equipe`, compartilhado com o editor de formulário).
@@ -766,6 +797,63 @@ em `$lib/gise/tipos-equipe`, compartilhado com o editor de formulário).
 Os indicadores da OPERAÇÃO CRAJUBAR vêm semeados pela migração `0050` a partir
 da tabela §9 do Plano Operacional Estratégico; a `0052` converte o de
 atendimentos em fins de semana para cobertura de 100%, que é o que o plano pede.
+
+### O quadro da seccional: uma ABA por unidade participante
+
+Dentro do card de cada seccional em `/gise/[id]`, as delegacias participantes são
+**abas**: o painel abaixo mostra as equipes da aba aberta, e trocar de aba troca
+o painel inteiro. Até ago/2026 cada unidade era uma CAIXA empilhada — faixa com
+o nome e o "Remover DP", moldura, e as equipes espremidas dentro. Eram três
+linhas de moldura por delegacia, tiradas justamente do espaço dos quadros de
+equipe.
+
+A troca é real e está registrada aqui porque não é gratuita: **só uma unidade
+aparece por vez**. O que devolve a leitura de relance é o que a aba carrega —
+`resumoDoSlot` (`$lib/gise/page-helpers`) dá o contador de equipes e o ponto
+âmbar de "há vaga sem policial nesta unidade", para que "falta gente na Icó" não
+dependa de alguém clicar na Icó. O rótulo usa `rotuloCurtoUnidade` (o município,
+que é o que distingue); o nome completo fica no `title` e no topo do painel.
+
+Três decisões do desenho:
+
+- **`+ Unidades` é a última aba**, tracejada — é onde a próxima aba nasce. E a
+  aba recém-criada **abre selecionada**: criada e deixada fechada, a unidade
+  nasceria escondida atrás da anterior, e quem acabou de criá-la iria procurar o
+  slot que "não apareceu". Como o id do slot só chega no `load` seguinte, o que
+  se guarda é a intenção (`abrirUltimaAba`);
+- **`+ Equipes` fica no rodapé do painel** e não nomeia alvo nenhum: tudo que
+  está visível pertence à aba aberta. Era o problema que a versão empilhada
+  criava, com um botão por caixa;
+- **`Remover DP` saiu da faixa** e entrou no menu do lápis, junto de "Alterar
+  unidade" — são as duas ações DA unidade, e ficam onde se mexe na unidade.
+
+A barra rola na horizontal (`overflow-x-auto`) **e** trava o eixo vertical
+(`overflow-y-hidden`): sem o segundo, o navegador computa o eixo Y como `auto`
+por causa do primeiro e reserva uma barra de rolagem vertical dentro da faixa das
+abas. Coberto por `e2e/gise-abas-unidade.spec.ts`, que é onde mora o resto do
+comportamento — componente `.svelte` não tem teste unitário neste projeto.
+
+### Horário: só aparece o que foge do padrão
+
+O horário cai em cascata — `gise_escalas` → `gise_seccionais` → `gise_equipes` —
+e as duas últimas têm coluna **nulável**: nulo já quer dizer "o mesmo de cima".
+A tela resolvia a cascata e imprimia o resultado sempre, então `08:00h-16:00h`
+repetido no cabeçalho da seccional e em cada card de equipe dizia o horário da
+escala três vezes.
+
+Agora horário **herdado** vira um relógio (com o horário em vigor no rótulo
+acessível) mais o lápis; horário **próprio** aparece escrito, na tarja âmbar —
+que substitui o selo "H. Personalizado", porque num quadro onde todo o resto
+mostra só o relógio o horário escrito já é o destaque.
+
+"Próprio" é comparação de **valor**, não de preenchimento: o selo antigo olhava
+só se a coluna tinha algo, e quem salvasse 08:00 numa equipe cuja seccional já é
+08:00 ganhava um "personalizado" que não personaliza nada. Quem responde é
+`horarioEfetivo` / `temHorarioProprio` (`$lib/gise/horarios`), que também
+substituem a cascata `equipe ?? seccional ?? escala` antes copiada em quatro
+pontos entre `GiseEquipeCard` e `GiseSeccional`. A comparação normaliza antes —
+`'08'` e `'08:00'` são a mesma hora, e essa diferença exata já produziu bug neste
+projeto.
 
 O resto do fluxo:
 

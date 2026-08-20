@@ -9,10 +9,16 @@
 	import type { GiseDetalhado, GiseEquipeComMembros } from '$lib/db/gise';
 	import SearchableSelect from '$lib/components/SearchableSelect.svelte';
 	import MarcadorPresenca from './MarcadorPresenca.svelte';
-	import { validarHora, normalizarHora } from '$lib/gise/horarios';
+	import {
+		validarHora,
+		normalizarHora,
+		horarioEfetivo,
+		temHorarioProprio
+	} from '$lib/gise/horarios';
 	import type { GiseSeccionalActions } from '$lib/composables/gise/useGiseSeccionalActions.svelte';
 	import type { GiseSeccionalEstado } from './gise-seccional-estado.svelte';
 	import PenLine from '@lucide/svelte/icons/pen-line';
+	import Clock from '@lucide/svelte/icons/clock';
 	import { getSeccionalColorClass } from '$lib/gise/page-helpers';
 
 	type Seccional = GiseDetalhado['seccionais'][number];
@@ -51,6 +57,21 @@
 					sec.seccional_id === minhaSeccionalId &&
 					(estado.modoEdicaoSeccional || sec.status === 'pendente' || sec.status === 'retificada')))
 	);
+
+	/**
+	 * O horário da equipe só é ESCRITO quando difere do que ela herdaria.
+	 *
+	 * A cascata equipe → seccional → escala é do banco (as duas primeiras têm
+	 * coluna nulável, e nulo quer dizer "o mesmo de cima"). Resolver e imprimir
+	 * sempre fazia o quadro repetir o horário da escala em cada card, sem dizer
+	 * nada; quando é herdado sobra o relógio, com o horário em vigor no rótulo.
+	 *
+	 * A comparação é de VALOR: o selo "H. Personalizado" que morava aqui olhava
+	 * só se a coluna tinha algo, então quem salvasse 08:00 numa equipe cuja
+	 * seccional já é 08:00 ganhava um "personalizado" que não personaliza nada.
+	 */
+	const horario = $derived(horarioEfetivo(equipe, sec, gise));
+	const equipeTemHorarioProprio = $derived(temHorarioProprio(equipe, sec, gise));
 
 	const buscarMembroAdicional = $derived(
 		estado.cargoParaAdicionar ? actions.buscarPorCargo(estado.cargoParaAdicionar) : undefined
@@ -221,18 +242,16 @@
 						<div
 							class="flex flex-wrap items-center gap-1.5 text-sm text-surface-600 dark:text-surface-400 font-medium min-w-0"
 						>
-							<span
-								>{equipe.hora_entrada ??
-									sec.hora_entrada ??
-									gise.hora_entrada}h-{equipe.hora_saida ??
-									sec.hora_saida ??
-									gise.hora_saida}h</span
-							>
-							{#if equipe.hora_entrada || equipe.hora_saida}
+							{#if equipeTemHorarioProprio}
 								<span
-									class="px-1 rounded bg-warning-500/10 text-warning-600 dark:text-warning-400 font-bold border border-warning-500/20 uppercase"
-									>H. Personalizado</span
+									class="rounded border border-warning-500/20 bg-warning-500/10 px-1.5 py-0.5 font-bold text-warning-600 dark:text-warning-400"
+									title="Horário próprio desta equipe">{horario.entrada}h-{horario.saida}h</span
 								>
+							{:else}
+								<Clock
+									class="h-3.5 w-3.5 shrink-0"
+									aria-label="Horário herdado: {horario.entrada}h-{horario.saida}h"
+								/>
 							{/if}
 						</div>
 						{#if isAdminGeral && podeEditar && modoEdicaoGeral}
@@ -241,10 +260,8 @@
 								class="btn btn-xs preset-filled-surface-500 rounded p-1 shrink-0"
 								onclick={() => {
 									estado.editandoHorariosEquipeId = equipe.id;
-									estado.editEqHoraEnt =
-										equipe.hora_entrada ?? sec.hora_entrada ?? gise.hora_entrada ?? '';
-									estado.editEqHoraSai =
-										equipe.hora_saida ?? sec.hora_saida ?? gise.hora_saida ?? '';
+									estado.editEqHoraEnt = horario.entrada;
+									estado.editEqHoraSai = horario.saida;
 								}}
 								title="Editar horários da equipe"
 							>
