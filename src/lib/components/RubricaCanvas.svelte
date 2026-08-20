@@ -28,15 +28,18 @@
 	 * o objetivo é só produzir um PNG **transparente** com o traçado, pronto para
 	 * ser carimbado sobre o PDF.
 	 *
-	 * A proporção alvo (2.5:1) acompanha o campo de rubrica dos documentos/
-	 * relatórios da GISE (largura ~130pt do `preparar-assinatura`), garantindo que
-	 * a rubrica não saia distorcida no carimbo.
+	 * A proporção alvo (2.0:1, era 2.5:1) acompanha o campo de rubrica dos
+	 * documentos/relatórios da GISE (largura ~130pt do `preparar-assinatura`),
+	 * com folga: os dois estilos de carimbo (`'rubrica'` e `'selo-icp'`, em
+	 * `pdf-signing-prepare.ts`) ajustam a rubrica ao campo por CONTAIN — nunca
+	 * distorcem, só usam menos altura do campo se a proporção não bater exato.
+	 * 2.0 dá mais espaço vertical para o traço sem arriscar estourar a caixa.
 	 */
 	let {
 		// eslint-disable-next-line no-useless-assignment
 		control = $bindable<RubricaCanvasControl | null>(null),
 		/** Proporção alvo largura/altura do PNG exportado (campo do PDF). */
-		aspecto = 2.5,
+		aspecto = 2.0,
 		/** Cor do traçado. */
 		cor = '#0f172a'
 	}: {

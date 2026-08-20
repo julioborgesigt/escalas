@@ -23,8 +23,10 @@
 	 * Primeiro cadastro não pede os dois e-mails. Em ambos, um aviso chega no
 	 * e-mail funcional depois que o ato concluir.
 	 *
-	 * O recorte do identificador e a data do último uso são o que o titular tem
-	 * para reconhecer a chave: o sistema não guarda o modelo do celular.
+	 * O apelido (rótulo que o titular escolhe) é o que ele usa no dia a dia para
+	 * reconhecer a chave — o recorte do identificador e a data do último uso
+	 * seguem disponíveis, mas em segundo plano: o sistema não guarda o modelo
+	 * do celular, então o apelido é o único texto livre que o titular controla.
 	 */
 	import { onMount, untrack } from 'svelte';
 	import { toaster } from '$lib/toast';
@@ -198,18 +200,28 @@
 
 {#snippet resumoChave(c: CredencialPerfil)}
 	<div class="p-3 rounded-xl bg-success-500/5 border border-success-500/20">
-		<p class="text-sm font-semibold text-surface-900 dark:text-white">
-			Chave registrada em {new Date(c.criadoEm).toLocaleDateString('pt-BR')}
-			{#if c.apelido}
-				— {c.apelido}
-			{/if}
-		</p>
+		{#if c.apelido}
+			<p class="text-base font-bold text-success-700 dark:text-success-400">{c.apelido}</p>
+			<p class="text-xs text-surface-600 dark:text-surface-400 mt-0.5">
+				Registrada em {new Date(c.criadoEm).toLocaleDateString('pt-BR')}
+				{#if c.provedor}
+					· {c.provedor} ({notaProvedorDeclarado()})
+				{/if}
+			</p>
+		{:else}
+			<p class="text-sm font-semibold text-surface-900 dark:text-white">
+				Registrada em {new Date(c.criadoEm).toLocaleDateString('pt-BR')}
+				{#if c.provedor}
+					· {c.provedor} ({notaProvedorDeclarado()})
+				{/if}
+			</p>
+		{/if}
 		<p
-			class="mt-2 font-mono text-sm tracking-wide text-surface-900 dark:text-white break-all select-all"
+			class="mt-2 font-mono text-xs tracking-wide text-surface-500 dark:text-surface-500 break-all select-all"
 		>
 			{c.identificador}
 		</p>
-		<p class="text-xs text-surface-600 dark:text-surface-400 mt-0.5">
+		<p class="text-xs text-surface-600 dark:text-surface-400 mt-2">
 			Credencial {c.vinculo}.
 			{#if c.ultimoUso}
 				Último uso em {new Date(c.ultimoUso).toLocaleDateString('pt-BR')}.
@@ -217,14 +229,10 @@
 				Ainda não usada para assinar.
 			{/if}
 		</p>
-		{#if c.provedor}
-			<p class="text-xs text-surface-600 dark:text-surface-400 mt-0.5">
-				Provedor: {c.provedor}. {notaProvedorDeclarado()}
-			</p>
-		{/if}
-		<p class="text-xs text-surface-600 dark:text-surface-400 mt-2">
-			{mensagemOndeEstaAChave()}
-		</p>
+		<details class="mt-2 text-xs text-surface-600 dark:text-surface-400">
+			<summary class="cursor-pointer font-semibold select-none">Onde está minha chave?</summary>
+			<p class="mt-1">{mensagemOndeEstaAChave()}</p>
+		</details>
 	</div>
 {/snippet}
 
@@ -252,9 +260,8 @@
 		Chave de assinatura
 	</h2>
 	<p class="text-xs text-surface-600 dark:text-surface-400 mb-4">
-		Chave criada e guardada pelo seu celular, liberada pela sua biometria ou PIN a cada assinatura.
-		Diferente da rubrica: a rubrica é o desenho que aparece no documento; a chave é o que prova que
-		foi você quem assinou.
+		A chave do seu celular que prova que foi você quem assinou — liberada por biometria ou PIN a
+		cada uso.
 	</p>
 
 	{#if !isMobile}
