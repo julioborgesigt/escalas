@@ -40,7 +40,8 @@
 	import {
 		mensagemJaTemChaveNoPerfil,
 		mensagemReposicaoDoisEmails,
-		mensagemOndeEstaAChave
+		mensagemOndeEstaAChave,
+		notaProvedorDeclarado
 	} from '$lib/chave-assinatura-ui';
 	import { mensagemDeErro } from '$lib/utils/erro';
 
@@ -49,6 +50,10 @@
 		vinculo: string;
 		identificador: string;
 		ultimoUso: string | null;
+		/** Rótulo que o titular deu à chave — declarado por ele, não verificado. */
+		apelido: string | null;
+		/** Nome do gerenciador de senhas, do AAGUID — declarado, não verificado. */
+		provedor: string | null;
 	};
 
 	const {
@@ -65,6 +70,9 @@
 	let disponivel = $state<boolean | null>(null);
 	let confirmarRevogacao = $state(false);
 	let etapa = $state<'idle' | 'reposicao'>('idle');
+	// Semeado com o apelido atual: quem está trocando de aparelho normalmente
+	// quer manter o mesmo rótulo, e reescrever do zero é atrito sem ganho.
+	let apelidoInput = $state(untrack(() => credencialAtual?.apelido ?? ''));
 	let codigoInstitucional = $state('');
 	let codigoPessoal = $state('');
 	let desafioInstitucional = $state('');
@@ -86,8 +94,20 @@
 		return mensagemDeErro(e, 'Erro ao registrar a chave.');
 	}
 
-	async function aposRegistrar(vinculo: string, identificador: string) {
-		atual = { criadoEm: new Date().toISOString(), vinculo, identificador, ultimoUso: null };
+	async function aposRegistrar(
+		vinculo: string,
+		identificador: string,
+		apelido: string | null,
+		provedor: string | null
+	) {
+		atual = {
+			criadoEm: new Date().toISOString(),
+			vinculo,
+			identificador,
+			ultimoUso: null,
+			apelido,
+			provedor
+		};
 		etapa = 'idle';
 		codigoInstitucional = '';
 		codigoPessoal = '';
@@ -125,8 +145,8 @@
 
 		loading.show('Aguardando confirmação no aparelho...');
 		try {
-			const r = await registrarPasskey();
-			await aposRegistrar(r.vinculo, r.identificador);
+			const r = await registrarPasskey(apelidoInput.trim() || null);
+			await aposRegistrar(r.vinculo, r.identificador, r.apelido, r.provedor);
 		} catch (e: unknown) {
 			toaster.create({ title: mensagemErro(e), type: 'error' });
 		} finally {
@@ -137,13 +157,13 @@
 	async function confirmarReposicao() {
 		loading.show('Aguardando confirmação no aparelho...');
 		try {
-			const r = await registrarPasskey(null, {
+			const r = await registrarPasskey(apelidoInput.trim() || null, {
 				desafioInstitucional,
 				codigoInstitucional,
 				desafioPessoal,
 				codigoPessoal
 			});
-			await aposRegistrar(r.vinculo, r.identificador);
+			await aposRegistrar(r.vinculo, r.identificador, r.apelido, r.provedor);
 		} catch (e: unknown) {
 			toaster.create({ title: mensagemErro(e), type: 'error' });
 		} finally {
@@ -180,6 +200,9 @@
 	<div class="p-3 rounded-xl bg-success-500/5 border border-success-500/20">
 		<p class="text-sm font-semibold text-surface-900 dark:text-white">
 			Chave registrada em {new Date(c.criadoEm).toLocaleDateString('pt-BR')}
+			{#if c.apelido}
+				— {c.apelido}
+			{/if}
 		</p>
 		<p
 			class="mt-2 font-mono text-sm tracking-wide text-surface-900 dark:text-white break-all select-all"
@@ -194,10 +217,32 @@
 				Ainda não usada para assinar.
 			{/if}
 		</p>
+		{#if c.provedor}
+			<p class="text-xs text-surface-600 dark:text-surface-400 mt-0.5">
+				Provedor: {c.provedor}. {notaProvedorDeclarado()}
+			</p>
+		{/if}
 		<p class="text-xs text-surface-600 dark:text-surface-400 mt-2">
 			{mensagemOndeEstaAChave()}
 		</p>
 	</div>
+{/snippet}
+
+{#snippet campoApelido()}
+	<label class="label">
+		<span class="label-text text-xs">Apelido da chave (opcional)</span>
+		<input
+			class="input text-sm"
+			type="text"
+			maxlength="60"
+			placeholder="Ex.: parte do seu e-mail, ou 'celular pessoal'"
+			bind:value={apelidoInput}
+		/>
+		<span class="text-3xs text-surface-500 dark:text-surface-500 mt-0.5 block">
+			Ajuda você a lembrar depois qual chave é esta. O sistema não confere o texto — é só um rótulo
+			seu.
+		</span>
+	</label>
 {/snippet}
 
 <section class="card-elevated rounded-2xl p-4 sm:p-6">
@@ -301,6 +346,7 @@
 					oninput={(e) => (codigoPessoal = e.currentTarget.value.replace(/\D/g, '').slice(0, 6))}
 				/>
 			</label>
+			{@render campoApelido()}
 			<div class="flex gap-2">
 				<button
 					type="button"
@@ -374,6 +420,7 @@
 				Você ainda não registrou uma chave de assinatura. Ela só é exigida quando a administração
 				ativa esse reforço; registrar antes evita ficar sem assinar no dia em que for exigida.
 			</p>
+			{@render campoApelido()}
 			<button
 				type="button"
 				class="btn btn-sm preset-filled-primary-500 font-bold w-full"

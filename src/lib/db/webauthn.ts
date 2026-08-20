@@ -94,6 +94,10 @@ export interface CredencialWebauthnResumo {
 	revogadoEm: string | null;
 	backupElegivel: boolean;
 	backupAtivo: boolean;
+	/** Rótulo que o titular deu à chave no cadastro — declarado, não verificado. */
+	apelido: string | null;
+	/** Modelo do autenticador, em hex — entrada de `nomeProvedorAaguid`. */
+	aaguid: string | null;
 }
 
 /**
@@ -114,7 +118,9 @@ export async function listarCredenciaisDoDono(
 			ultimoUso: credenciaisWebauthn.ultimo_uso,
 			revogadoEm: credenciaisWebauthn.revogado_em,
 			backupElegivel: credenciaisWebauthn.backup_elegivel,
-			backupAtivo: credenciaisWebauthn.backup_ativo
+			backupAtivo: credenciaisWebauthn.backup_ativo,
+			apelido: credenciaisWebauthn.apelido,
+			aaguid: credenciaisWebauthn.aaguid
 		})
 		.from(credenciaisWebauthn)
 		.where(
@@ -132,7 +138,9 @@ export async function listarCredenciaisDoDono(
 		ultimoUso: l.ultimoUso,
 		revogadoEm: l.revogadoEm,
 		backupElegivel: l.backupElegivel === 1,
-		backupAtivo: l.backupAtivo === 1
+		backupAtivo: l.backupAtivo === 1,
+		apelido: l.apelido,
+		aaguid: l.aaguid
 	}));
 }
 

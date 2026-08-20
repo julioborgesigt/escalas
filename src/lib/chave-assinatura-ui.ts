@@ -99,6 +99,18 @@ export function mensagemChaveNoCartaoAdmin(): string {
 }
 
 /**
+ * Nota junto do provedor (AAGUID) e do apelido: os dois são DECLARADOS na
+ * cerimônia de cadastro (o autenticador informa o AAGUID; o titular digita o
+ * apelido), nenhum dos dois é verificado pelo servidor — mesma ressalva do
+ * `attestation: 'none'` já documentada no resto do módulo `webauthn/`. Por
+ * isso nenhum dos dois entra no manifesto do PDF, só nas telas de perfil e
+ * da ficha do policial.
+ */
+export function notaProvedorDeclarado(): string {
+	return 'Informado pelo aparelho no cadastro; o sistema não verifica esse dado.';
+}
+
+/**
  * Titular perguntando "em qual celular cadastrei?". Não gravamos modelo,
  * IMEI nem nome (`attestation: 'none'`). O vínculo (conta Apple/Google ×
  * só aquele aparelho) e o recorte são o que dá para mostrar.

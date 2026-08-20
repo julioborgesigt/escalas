@@ -78,13 +78,19 @@ export async function solicitarCodigosReposicao(): Promise<{
  * Na reposição, `reposicao` carrega os dois códigos. O servidor recusa se já
  * houver chave ativa e os códigos não vierem — a UI não pode "esquecer".
  *
- * @returns vínculo (a mesma frase do manifesto) e o recorte do identificador
- * para o cartão do perfil mostrar na hora, sem recarregar.
+ * @returns vínculo (a mesma frase do manifesto), o recorte do identificador,
+ * e o apelido/provedor (declarados, não verificados) para o cartão do perfil
+ * mostrar na hora, sem recarregar.
  */
 export async function registrarPasskey(
 	apelido?: string | null,
 	reposicao?: CodigosReposicao
-): Promise<{ vinculo: string; identificador: string }> {
+): Promise<{
+	vinculo: string;
+	identificador: string;
+	apelido: string | null;
+	provedor: string | null;
+}> {
 	const opcoes = await apiFetch<OpcoesRegistro>('/api/webauthn/registro');
 
 	const credencial = (await navigator.credentials.create({
@@ -125,22 +131,25 @@ export async function registrarPasskey(
 		);
 	}
 
-	return apiFetch<{ success: true; vinculo: string; identificador: string }>(
-		'/api/webauthn/registro',
-		{
-			method: 'POST',
-			body: JSON.stringify({
-				desafioId: opcoes.desafioId,
-				credentialId: credencial.id,
-				clientDataJSON: bytesToBase64Url(new Uint8Array(resposta.clientDataJSON)),
-				authenticatorData: bytesToBase64Url(new Uint8Array(resposta.getAuthenticatorData())),
-				publicKey: bytesToBase64Url(new Uint8Array(spki)),
-				algoritmo: resposta.getPublicKeyAlgorithm(),
-				apelido: apelido ?? null,
-				...(reposicao ?? {})
-			})
-		}
-	);
+	return apiFetch<{
+		success: true;
+		vinculo: string;
+		identificador: string;
+		apelido: string | null;
+		provedor: string | null;
+	}>('/api/webauthn/registro', {
+		method: 'POST',
+		body: JSON.stringify({
+			desafioId: opcoes.desafioId,
+			credentialId: credencial.id,
+			clientDataJSON: bytesToBase64Url(new Uint8Array(resposta.clientDataJSON)),
+			authenticatorData: bytesToBase64Url(new Uint8Array(resposta.getAuthenticatorData())),
+			publicKey: bytesToBase64Url(new Uint8Array(spki)),
+			algoritmo: resposta.getPublicKeyAlgorithm(),
+			apelido: apelido ?? null,
+			...(reposicao ?? {})
+		})
+	});
 }
 
 /** Revoga a própria passkey (troca de aparelho). */
