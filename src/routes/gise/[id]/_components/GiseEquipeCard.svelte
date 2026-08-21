@@ -73,13 +73,24 @@
 	const horario = $derived(horarioEfetivo(equipe, sec, gise));
 	const equipeTemHorarioProprio = $derived(temHorarioProprio(equipe, sec, gise));
 
+	/**
+	 * O relógio do horário HERDADO só aparece ao lado do lápis, em modo edição.
+	 *
+	 * Ele não é informação: o horário herdado já está no cabeçalho da seccional e
+	 * na escala. O que ele faz é dizer ONDE se clica para personalizar — fora da
+	 * edição não há onde clicar, e ele vira enfeite repetido em cada card. O
+	 * horário PRÓPRIO continua visível sempre, porque aí sim é informação que só
+	 * existe neste card.
+	 */
+	const podeEditarHorario = $derived(isAdminGeral && podeEditar && modoEdicaoGeral);
+
 	const buscarMembroAdicional = $derived(
 		estado.cargoParaAdicionar ? actions.buscarPorCargo(estado.cargoParaAdicionar) : undefined
 	);
 </script>
 
 <div
-	class="flex-1 rounded-xl border border-surface-200 dark:border-surface-700/60 border-l-[6px] p-3 sm:p-4 bg-white dark:bg-surface-900 shadow-sm hover:shadow-md transition-shadow duration-200 {getSeccionalColorClass(
+	class="flex-1 rounded-xl border border-surface-200 dark:border-surface-700/60 border-l-[6px] p-2.5 sm:p-3 bg-white dark:bg-surface-900 shadow-sm hover:shadow-md transition-shadow duration-200 {getSeccionalColorClass(
 		sec.seccional_id,
 		'suave'
 	)}"
@@ -247,14 +258,14 @@
 									class="rounded border border-warning-500/20 bg-warning-500/10 px-1.5 py-0.5 font-bold text-warning-600 dark:text-warning-400"
 									title="Horário próprio desta equipe">{horario.entrada}h-{horario.saida}h</span
 								>
-							{:else}
+							{:else if podeEditarHorario}
 								<Clock
 									class="h-3.5 w-3.5 shrink-0"
 									aria-label="Horário herdado: {horario.entrada}h-{horario.saida}h"
 								/>
 							{/if}
 						</div>
-						{#if isAdminGeral && podeEditar && modoEdicaoGeral}
+						{#if podeEditarHorario}
 							<button
 								type="button"
 								class="btn btn-xs preset-filled-surface-500 rounded p-1 shrink-0"

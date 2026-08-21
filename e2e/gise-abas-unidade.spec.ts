@@ -21,8 +21,10 @@ import { autenticarPagina, execD1Local } from './session';
  *     computar o eixo Y como `auto` também, e a faixa das abas ganhava uma barra
  *     de rolagem vertical de 1px de conteúdo. É invisível numa asserção de
  *     markup e evidente na tela;
- *   - **horário herdado não é escrito.** A regra é de `$lib/gise/horarios` (com
- *     teste unitário); o que se prova aqui é que o card usa a regra.
+ *   - **horário herdado não é escrito, e fora da edição nem o relógio aparece.**
+ *     A regra de "tem horário próprio?" é de `$lib/gise/horarios` (com teste
+ *     unitário); o que se prova aqui é que o card usa a regra, e que o ícone
+ *     acompanha o lápis em vez de decorar o quadro inteiro.
  */
 
 /** Fora da faixa de produção e das ids usadas pelos demais specs. */
@@ -130,18 +132,28 @@ test('a barra de abas não ganha rolagem VERTICAL', async ({ page }) => {
 	expect(await barra.evaluate((el) => el.scrollHeight - el.clientHeight)).toBeLessThanOrEqual(0);
 });
 
-test('horário herdado sai como relógio; o próprio sai escrito', async ({ page }) => {
+test('o relógio do horário herdado só acompanha o lápis; o próprio sai sempre', async ({
+	page
+}) => {
 	test.skip(!cenarioOk, 'D1 local indisponível');
 	await abrirQuadro(page);
 
-	// ALFA herda da seccional, que herda da escala: nada escrito, só o relógio
-	// com o horário em vigor no rótulo acessível.
-	await expect(page.getByLabel('Horário herdado: 08:00h-16:00h')).toBeVisible();
+	// FORA da edição não há relógio nenhum: o horário herdado já está no
+	// cabeçalho da escala, e o ícone só dizia onde clicar para personalizar.
+	await expect(page.getByLabel(/Horário herdado/)).toHaveCount(0);
+	await expect(page.getByLabel(/Horário da escala/)).toHaveCount(0);
 	await expect(page.getByText('08:00h-16:00h')).toHaveCount(0);
 
-	// BETA tem horário próprio, e aí sim ele aparece.
+	// O horário PRÓPRIO é outra coisa: só existe naquele card, então aparece
+	// escrito mesmo com a edição concluída.
 	await page.getByRole('tab', { name: /ABAS BETA/ }).click();
 	await expect(page.getByText('07:00h-13:00h')).toBeVisible();
+
+	// Ligada a edição, o relógio volta — ao lado do lápis que ele anuncia.
+	await page.getByRole('button', { name: 'Editar escala' }).click();
+	await expect(page.getByRole('button', { name: 'Concluir Edição' })).toBeVisible();
+	await page.getByRole('tab', { name: /ABAS ALFA/ }).click();
+	await expect(page.getByLabel('Horário herdado: 08:00h-16:00h')).toBeVisible();
 });
 
 test('a unidade recém-adicionada abre na aba nova', async ({ page }) => {
