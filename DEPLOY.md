@@ -451,6 +451,10 @@ Provedores credenciados ICP-Brasil: Bry, Soluti, Certisign, AC Safeweb, ICP-EDU.
 
 > **Aviso:** sem `EXIGIR_TSA_QUALIFICADA=1`, o sistema aceita assinaturas com apenas o `signingTime` do servidor — sem oponibilidade a terceiros conforme DOC-ICP-15.
 
+> **Transporte (SEC-26).** O default do `wrangler.toml` é `http://timestamp.digicert.com` — **sem TLS, e isso foi medido, não suposto**: o endpoint RFC 3161 da DigiCert responde `200 application/timestamp-reply` em HTTP e **reseta a conexão em HTTPS** (o 443 daquele host serve o site, não o serviço de carimbo). Trocar o default para `https://` quebraria o carimbo de toda instalação que não configura `TSA_URL`, então ele fica como está.
+>
+> O risco aceito é limitado: o carimbo é **assinado pela TSA**, então um MITM não forja carimbo válido — consegue apenas **negar** o carimbo (a assinatura cai para o horário do servidor) ou observar o hash carimbado. Em produção isso não deveria importar, porque `TSA_URL` já precisa apontar para uma ACT ICP-Brasil, e todas publicam endpoint HTTPS. Quando a URL configurada é `http://`, o log `[CADES] TST anexado server-side via TSA` traz `textoClaro: true` — é como conferir em que transporte a produção está carimbando.
+
 > ⚠️ **Armadilha — não ligue `EXIGIR_TSA_QUALIFICADA=1` sem trocar a `TSA_URL`.** O default embarcado em `wrangler.toml` é a DigiCert (`timestamp.digicert.com`), que **não é ACT ICP-Brasil** → o carimbo é sempre `tsa_externa`, nunca `act_icp`. Com o flag ligado e a `TSA_URL` ainda na DigiCert, o [`cades-finalizer.ts`](src/lib/server/assinatura/cades-finalizer.ts) **rejeita 100% das assinaturas qualificadas com HTTP 422**. Ligue o flag **somente** depois de apontar `TSA_URL` para uma ACT credenciada. O `cades-finalizer` detecta essa combinação e emite `[CADES][CONFIG]` no log (configure alerta no Sentry).
 
 ## Sincronização Google Sheets

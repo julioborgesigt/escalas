@@ -110,11 +110,13 @@ async function dispararEmailCloudflare(
 	const apiToken = env?.CLOUDFLARE_API_TOKEN;
 	const accountId = env?.CLOUDFLARE_ACCOUNT_ID;
 
+	// `hasAccountId` é o que o diagnóstico precisa; o valor não (SEC-30). Não é
+	// credencial — o segredo é o CLOUDFLARE_API_TOKEN —, mas é identificador de
+	// conta em log, e log é lido por mais gente que o cofre.
 	logger.info('[email/cloudflare] REST API config state', {
 		hasApiToken: !!apiToken,
 		apiTokenLength: apiToken ? apiToken.length : 0,
-		hasAccountId: !!accountId,
-		accountId
+		hasAccountId: !!accountId
 	});
 
 	if (!apiToken || !accountId) {

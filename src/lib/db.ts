@@ -153,6 +153,7 @@ export {
 	criarGiseEscala,
 	buscarGiseDetalhado,
 	atualizarGiseEscala,
+	finalizarGiseEscala,
 	upsertGiseSeccional,
 	atualizarGiseSeccional,
 	excluirGiseSeccional,

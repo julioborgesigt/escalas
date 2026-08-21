@@ -26,7 +26,7 @@
  * dirigido por `escalas-status.ts`; aqui só se GRAVA o status que aquele módulo
  * decidiu.
  */
-import { eq, inArray } from 'drizzle-orm';
+import { and, eq, inArray } from 'drizzle-orm';
 import {
 	giseEscalas,
 	giseSeccionais,
@@ -38,7 +38,8 @@ import {
 	unidades
 } from '../../server/schema';
 import type * as schema from '../../server/schema';
-import type { Database } from '../core';
+import { linhasAfetadas, type Database } from '../core';
+import { STATUS_FINALIZAVEIS } from '$lib/gise/finalizacao';
 import { buscarVagasPadraoEquipesGise } from './vagas-padrao';
 import { criarSlotComEquipesPadrao } from './seccionais';
 
@@ -57,6 +58,19 @@ export async function buscarGiseEscala(
  *
  * `feriado` é `boolean` na API e `0|1` na coluna; a conversão fica aqui para
  * que nenhum chamador precise saber disso.
+ *
+ * **INSERT livre, sem unique em `(operacao_id, data_inicio)` — e isso é
+ * decisão, não esquecimento (SEC-38).** O produto admite duas escalas da mesma
+ * operação no mesmo dia: é para isso que existem `hora_entrada`/`hora_saida`
+ * como parâmetro, e é o que cobre dois turnos ou duas frentes na mesma data.
+ * Um unique ali recusaria operação legítima.
+ *
+ * A consequência assumida é que duplicata por duplo clique também passa. Quem
+ * cria pela UI vê a escala nova na lista e apaga a sobra; não há efeito
+ * colateral irreversível na criação (a árvore nasce vazia, sem documento nem
+ * presença). Se algum dia o produto passar a exigir uma por dia, o unique
+ * precisa de índice PARCIAL — `WHERE operacao_id IS NOT NULL` —, porque o
+ * SQLite trata cada `NULL` como distinto e GISE sem operação escaparia dele.
  */
 export async function criarGiseEscala(
 	db: Database,
@@ -122,6 +136,36 @@ export async function atualizarGiseEscala(
 	}>
 ) {
 	return db.update(giseEscalas).set(data).where(eq(giseEscalas.id, id));
+}
+
+/**
+ * Encerra a escala em UMA operação atômica: só grava `finalizada` se o status
+ * ainda for um dos finalizáveis.
+ *
+ * Existe separada de `atualizarGiseEscala` porque aquela é o patch GENÉRICO da
+ * linha — grava `supervisor_id`, `assessor_id`, `seint*` e datas —, e um
+ * `WHERE` de status dentro dela quebraria todos os outros usos.
+ *
+ * **Por que CAS e não "ler o status e depois gravar" (SEC-35):** as duas
+ * entradas de finalização (a rota `POST /api/gise/[id]/finalizar` e a action
+ * `finalizarGise`) liam o status, decidiam, e só então gravavam. O estado final
+ * é idempotente — `finalizada` duas vezes é `finalizada` —, mas os EFEITOS
+ * colaterais não são: duas requisições simultâneas gravavam dois eventos de
+ * auditoria e disparavam `agendarSyncBaseEquipeAposFinalizar` duas vezes, ou
+ * seja, dois envios da base de equipe para a planilha institucional.
+ *
+ * O chamador usa `{ finalizada }` para recusar a corrida perdida com 409
+ * **antes** de auditar e de agendar o sync.
+ */
+export async function finalizarGiseEscala(
+	db: Database,
+	id: number
+): Promise<{ finalizada: boolean }> {
+	const r = await db
+		.update(giseEscalas)
+		.set({ status: 'finalizada' })
+		.where(and(eq(giseEscalas.id, id), inArray(giseEscalas.status, STATUS_FINALIZAVEIS)));
+	return { finalizada: linhasAfetadas(r) > 0 };
 }
 
 /**
