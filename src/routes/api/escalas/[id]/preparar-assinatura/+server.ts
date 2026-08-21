@@ -23,6 +23,7 @@ import {
 import { PDFDocument } from 'pdf-lib';
 import { gerarCodigoValidacao } from '$lib/utils/formato';
 import { carregarEscalaParaAssinatura } from '$lib/server/escalas/permissao';
+import { identidadeVisualAssinante } from '$lib/server/assinatura/identidade-sessao';
 import { fecharPreparacaoAssinatura } from '$lib/server/assinatura/preparar-ciclo';
 
 export const POST: RequestHandler = async ({
@@ -40,7 +41,7 @@ export const POST: RequestHandler = async ({
 	if (!validated.ok) return validated.response;
 	// `rubrica` do body é ignorada de propósito: a rubrica vem do cadastro do
 	// perfil (server-side), não do cliente.
-	const { signerName, signerCpf, latitude, longitude } = validated.data;
+	const { latitude, longitude } = validated.data;
 	const ip = getClientAddress();
 	const ua = request.headers.get('user-agent') || '';
 
@@ -71,8 +72,7 @@ export const POST: RequestHandler = async ({
 	const verificationHash = gerarCodigoValidacao();
 	const verificationUrl = `${url.origin}/validar/${verificationHash}`;
 
-	const finalSignerName = signerName && signerName.trim() ? signerName : u.nome;
-	const finalSignerCpf = signerCpf && signerCpf.trim() ? signerCpf : u.cpf || '';
+	const { signerName: finalSignerName, signerCpf: finalSignerCpf } = identidadeVisualAssinante(u);
 	const assinanteEmail = u.email ?? undefined;
 
 	// Rubrica + matrícula do SIGNATÁRIO (o próprio usuário logado, cujo token
