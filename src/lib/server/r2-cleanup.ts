@@ -263,9 +263,10 @@ export async function limparR2DocumentoEscala(
 
 /**
  * Após uma RE-ASSINATURA (novo `verificationHash` → nova key), apaga os objetos
- * do documento ANTERIOR que não fazem parte do novo conjunto (R2-4). O `onConflict`
- * de `salvarDocumentoEscala` sobrescreve a linha, então sem isto o blob/conferência/
- * selfie antigos ficariam órfãos.
+ * do documento ANTERIOR que não fazem parte do novo conjunto (R2-4). Com o
+ * UNIQUE fail-closed (SEC-32) o segundo INSERT não sobrescreve; este helper
+ * cobre o caminho de revogar-e-assinar, se a linha antiga ainda estiver em
+ * memória no caller.
  *
  * @param docAntigo documento carregado ANTES de gravar o novo (ou null/undefined).
  * @param chavesNovas chaves R2 que o novo documento passou a referenciar.
