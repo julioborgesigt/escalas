@@ -9,10 +9,10 @@
  * cobrir o PDF que ainda vai ser selado.
  */
 import { logger } from '../logger';
-import { conflict } from '../api';
 import {
 	salvarGiseDocumento,
 	atualizarGiseEscala,
+	circunstanciaDePersistir,
 	type Database,
 	type AssinaturaPasskeyMetadata
 } from '$lib/db';
@@ -25,7 +25,7 @@ import { uploadSelfieDataUri } from '../assinatura/selfie-upload';
 import { gerarCodigoValidacao } from '$lib/utils/formato';
 import {
 	guardarPdfAssinado,
-	compensarBlobAssinado,
+	recusarPorDocumentoJaGravado,
 	type R2ParaAssinatura
 } from '../assinatura/blob-assinado';
 import type { EvidenciasMontagem } from '../escalas/assinatura-escala';
@@ -161,27 +161,18 @@ export async function persistirGiseAssinada(opts: {
 		assinanteCpf: '',
 		verificacaoHash: opts.montado.verificationHash,
 		rubrica: opts.rubrica ?? undefined,
-		ipAddress: opts.ip,
-		userAgent: opts.userAgent,
-		latitude: opts.latitude ?? undefined,
-		longitude: opts.longitude ?? undefined,
-		selfieKey: opts.selfieKey ?? undefined,
 		arquivoHash,
-		// Sem `assinanteEmail`, `tipoCarimboTempo` nem `cadesMeta` — eram três
-		// `undefined` seguidos e sem comentário na versão posicional.
-		env: opts.env,
-		passkeyMeta: opts.passkeyMeta
+		...circunstanciaDePersistir(opts)
 	});
 	if (!gravado) {
-		await compensarBlobAssinado(
-			opts.db,
-			opts.r2,
-			[documentKey, chaveConferencia(opts.montado.verificationHash), opts.selfieKey],
-			'gise-simples'
-		);
 		return {
 			ok: false,
-			resposta: conflict('Revogue a assinatura existente antes de assinar novamente')
+			resposta: await recusarPorDocumentoJaGravado(
+				opts.db,
+				opts.r2,
+				[documentKey, chaveConferencia(opts.montado.verificationHash), opts.selfieKey],
+				'gise-simples'
+			)
 		};
 	}
 	await atualizarGiseEscala(opts.db, opts.gise.id, { status: 'em_andamento' });

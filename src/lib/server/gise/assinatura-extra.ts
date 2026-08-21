@@ -6,7 +6,6 @@
  * para a passkey assinar o hash.
  */
 import { logger } from '../logger';
-import { conflict } from '../api';
 import {
 	salvarAssinaturaRelatorioGise,
 	tentarPromoverGiseProntaParaFinalizar,
@@ -30,7 +29,7 @@ import { chaveConferencia } from '../assinatura/copia-conferencia';
 import { uploadSelfieDataUri } from '../assinatura/selfie-upload';
 import {
 	guardarPdfAssinado,
-	compensarBlobAssinado,
+	recusarPorDocumentoJaGravado,
 	type R2ParaAssinatura
 } from '../assinatura/blob-assinado';
 import type { EvidenciasMontagem } from '../escalas/assinatura-escala';
@@ -234,15 +233,14 @@ export async function persistirExtraAssinado(opts: {
 		opts.env
 	);
 	if (!gravado) {
-		await compensarBlobAssinado(
-			opts.db,
-			opts.r2,
-			[opts.montado.documentKey, chaveConferencia(opts.montado.verificationHash), opts.selfieKey],
-			'gise-relatorio-simples'
-		);
 		return {
 			ok: false,
-			resposta: conflict('Revogue a assinatura existente antes de assinar novamente')
+			resposta: await recusarPorDocumentoJaGravado(
+				opts.db,
+				opts.r2,
+				[opts.montado.documentKey, chaveConferencia(opts.montado.verificationHash), opts.selfieKey],
+				'gise-relatorio-simples'
+			)
 		};
 	}
 	await tentarPromoverGiseProntaParaFinalizar(opts.db, opts.giseId);

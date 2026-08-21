@@ -22,15 +22,15 @@
  *      Adobe).
  */
 import { logger } from '../logger';
-import { conflict } from '../api';
 import {
 	salvarDocumentoEscala,
 	buscarDocumentoEscala,
+	circunstanciaDePersistir,
 	type Database,
 	type AssinaturaPasskeyMetadata
 } from '$lib/db';
 import { limparR2ObsoletoEscala } from '../r2-cleanup';
-import { compensarBlobAssinado, type R2ParaAssinatura } from '../assinatura/blob-assinado';
+import { recusarPorDocumentoJaGravado, type R2ParaAssinatura } from '../assinatura/blob-assinado';
 import { chaveConferencia } from '../assinatura/copia-conferencia';
 import { adicionarRodapeSimples, adicionarPaginaAuditoria } from '../assinatura/pdf-signing';
 import { calcularHashBuffer } from '../assinatura/document-utils';
@@ -211,26 +211,17 @@ export async function persistirEscalaAssinada(opts: {
 		assinanteNome: opts.assinante.nome,
 		assinanteCpf: opts.assinante.cpf || undefined,
 		verificacaoHash: montado.verificationHash,
-		ipAddress: opts.ip,
-		userAgent: opts.userAgent,
-		latitude: opts.latitude ?? undefined,
-		longitude: opts.longitude ?? undefined,
-		selfieKey: opts.selfieKey ?? undefined,
 		arquivoHash,
-		// Sem `assinanteEmail`, `tipoCarimboTempo` nem `cadesMeta`: este é o
-		// caminho AVANÇADO, sem certificado e sem carimbo qualificado.
-		env: opts.env,
-		passkeyMeta: opts.passkeyMeta
+		...circunstanciaDePersistir(opts)
 	});
 	if (!gravado) {
-		await compensarBlobAssinado(
-			db,
-			bucket,
-			[r2Key, chaveConferencia(montado.verificationHash), opts.selfieKey],
-			'escala-assinada'
-		);
 		return {
-			recusa: conflict('Revogue a assinatura existente antes de assinar novamente')
+			recusa: await recusarPorDocumentoJaGravado(
+				db,
+				bucket,
+				[r2Key, chaveConferencia(montado.verificationHash), opts.selfieKey],
+				'escala-assinada'
+			)
 		};
 	}
 

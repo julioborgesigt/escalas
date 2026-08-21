@@ -23,7 +23,7 @@ import { tryGetR2 } from '$lib/db';
 import {
 	bucketParaAssinatura,
 	guardarPdfAssinado,
-	compensarBlobAssinado
+	recusarPorDocumentoJaGravado
 } from '$lib/server/assinatura/blob-assinado';
 import {
 	requireAuth,
@@ -31,8 +31,7 @@ import {
 	notFound,
 	forbidden,
 	serverError,
-	validateBody,
-	conflict
+	validateBody
 } from '$lib/server/api';
 import {
 	consumirIntencaoAssinatura,
@@ -155,8 +154,7 @@ export const POST: RequestHandler = async (event) => {
 			platform?.env
 		);
 		if (!gravado) {
-			await compensarBlobAssinado(db, bucket, [r2Key], 'gise-relatorio');
-			return conflict('Revogue a assinatura existente antes de assinar novamente');
+			return recusarPorDocumentoJaGravado(db, bucket, [r2Key], 'gise-relatorio');
 		}
 
 		await tentarPromoverGiseProntaParaFinalizar(db, id);

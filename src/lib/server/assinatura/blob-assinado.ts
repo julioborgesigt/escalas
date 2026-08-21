@@ -22,7 +22,7 @@
  * blob órfão no bucket — e `compensarBlobAssinado` o remove, caindo na
  * pendência durável de `deletarChavesR2` se nem isso funcionar.
  */
-import { apiError, ErrorCode, serverError } from '../api';
+import { apiError, ErrorCode, serverError, conflict } from '../api';
 import { deletarChavesR2, type R2CleanupBucket } from '../r2-cleanup';
 import { logger } from '../logger';
 import type { Database } from '$lib/db';
@@ -104,4 +104,21 @@ export async function compensarBlobAssinado(
 		chaves: chaves.filter(Boolean)
 	});
 	await deletarChavesR2(db, r2, chaves, `compensacao-${contexto}`);
+}
+
+/** Mensagem única do 409 — a tranca é o UNIQUE, não "tente de novo". */
+export const MSG_REVOGAR_ASSINATURA_EXISTENTE =
+	'Revogue a assinatura existente antes de assinar novamente';
+
+/**
+ * Corrida perdida no INSERT: o blob novo não tem linha. Compensa e recusa.
+ */
+export async function recusarPorDocumentoJaGravado(
+	db: Database,
+	r2: R2ParaAssinatura,
+	chaves: (string | null | undefined)[],
+	contexto: string
+): Promise<Response> {
+	await compensarBlobAssinado(db, r2, chaves, contexto);
+	return conflict(MSG_REVOGAR_ASSINATURA_EXISTENTE);
 }

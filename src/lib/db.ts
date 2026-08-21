@@ -144,7 +144,7 @@ export {
 	buscarDocumentoPorHash
 } from './db/documentos';
 export type { AssinaturaPasskeyMetadata } from './db/documentos';
-export { passkeyMetaDeAssercao } from './db/documentos';
+export { passkeyMetaDeAssercao, circunstanciaDePersistir } from './db/documentos';
 
 export type { GiseDetalhado } from './db/gise';
 export {

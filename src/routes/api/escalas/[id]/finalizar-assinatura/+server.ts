@@ -6,7 +6,7 @@
  */
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { requireAuth, badRequest, serverError, validateBody, conflict } from '$lib/server/api';
+import { requireAuth, badRequest, serverError, validateBody } from '$lib/server/api';
 import {
 	getDB,
 	getR2,
@@ -20,7 +20,7 @@ import { finalizarQualificadaDoPayload } from '$lib/server/assinatura/signature-
 import { carregarEscalaParaAssinatura } from '$lib/server/escalas/permissao';
 import { limparR2ObsoletoEscala } from '$lib/server/r2-cleanup';
 import { chaveConferencia } from '$lib/server/assinatura/copia-conferencia';
-import { compensarBlobAssinado } from '$lib/server/assinatura/blob-assinado';
+import { recusarPorDocumentoJaGravado } from '$lib/server/assinatura/blob-assinado';
 import {
 	consumirIntencaoAssinatura,
 	mensagemRecusaIntencao
@@ -123,13 +123,12 @@ export const POST: RequestHandler = async ({
 			env: platform?.env
 		});
 		if (!gravado) {
-			await compensarBlobAssinado(
+			return recusarPorDocumentoJaGravado(
 				db,
 				bucket,
 				[r2Key, chaveConferencia(verificationHash)],
 				'escala-qualificada'
 			);
-			return conflict('Revogue a assinatura existente antes de assinar novamente');
 		}
 
 		// R2-4: remove os objetos do documento anterior que a re-assinatura tornou

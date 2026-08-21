@@ -200,6 +200,31 @@ export interface CircunstanciaAssinatura {
 	env?: CpfCriptoEnv;
 }
 
+/**
+ * Circunstância a partir dos opts de `persistirEscalaAssinada` /
+ * `persistirGiseAssinada`. Sem isto os dois copiavam ip/UA/GPS/selfie/env/passkey
+ * e o guard de duplicação acusava a janela de 10 linhas.
+ */
+export function circunstanciaDePersistir(opts: {
+	ip?: string;
+	userAgent?: string;
+	latitude?: number | null;
+	longitude?: number | null;
+	selfieKey?: string | null;
+	env?: CpfCriptoEnv;
+	passkeyMeta?: AssinaturaPasskeyMetadata;
+}): CircunstanciaAssinatura {
+	return {
+		ipAddress: opts.ip,
+		userAgent: opts.userAgent,
+		latitude: opts.latitude ?? undefined,
+		longitude: opts.longitude ?? undefined,
+		selfieKey: opts.selfieKey ?? undefined,
+		env: opts.env,
+		passkeyMeta: opts.passkeyMeta
+	};
+}
+
 export interface DocumentoEscalaEntrada extends CircunstanciaAssinatura {
 	escalaId: number;
 	r2Key: string;

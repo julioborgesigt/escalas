@@ -11,20 +11,20 @@ import {
 	salvarGiseDocumento,
 	atualizarGiseEscala,
 	auditar,
-	contextoDeEvento
+	contextoDeEvento,
+	tryGetR2
 } from '$lib/db';
 import { finalizarAssinaturaGiseSchema } from '$lib/schemas';
 import {
 	finalizarQualificadaDoPayload,
 	respostaPdfAssinado
 } from '$lib/server/assinatura/signature-service';
-import { tryGetR2 } from '$lib/db';
 import {
 	bucketParaAssinatura,
 	guardarPdfAssinado,
-	compensarBlobAssinado
+	recusarPorDocumentoJaGravado
 } from '$lib/server/assinatura/blob-assinado';
-import { requireAuth, badRequest, serverError, validateBody, conflict } from '$lib/server/api';
+import { requireAuth, badRequest, serverError, validateBody } from '$lib/server/api';
 import {
 	consumirIntencaoAssinatura,
 	mensagemRecusaIntencao
@@ -124,8 +124,7 @@ export const POST: RequestHandler = async (event) => {
 			env: platform?.env
 		});
 		if (!gravado) {
-			await compensarBlobAssinado(db, bucket, [documentKey], 'gise-escala');
-			return conflict('Revogue a assinatura existente antes de assinar novamente');
+			return recusarPorDocumentoJaGravado(db, bucket, [documentKey], 'gise-escala');
 		}
 
 		await atualizarGiseEscala(db, id, { status: 'em_andamento' });
