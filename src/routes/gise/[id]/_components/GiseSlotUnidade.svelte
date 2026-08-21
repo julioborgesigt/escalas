@@ -85,10 +85,10 @@
 	role="tabpanel"
 	aria-labelledby="aba-un-{sec.id}-{slot.id}"
 	tabindex="-1"
-	class="rounded-b-xl border border-t-0 border-surface-300 bg-white p-3 dark:border-surface-700 dark:bg-surface-950 sm:p-4"
+	class="rounded-b-xl border border-t-0 border-surface-300 bg-white p-2 dark:border-surface-700 dark:bg-surface-950 sm:p-3"
 >
 	<!-- Topo do painel: quem é esta unidade e o que se pode fazer com ela -->
-	<div class="mb-3 flex flex-col gap-2">
+	<div class="mb-2 flex flex-col gap-2">
 		{#if podeEditarCabecalhoUnidade && estado.selecionandoUnidadeSlotId === slot.id}
 			<div class="flex w-full min-w-0 flex-col gap-2 sm:flex-row sm:items-center">
 				<div class="w-full flex-1">
@@ -218,7 +218,7 @@
 	</div>
 
 	<!-- Equipes da unidade desta aba -->
-	<div class="grid grid-cols-1 gap-3 {slot.equipes?.length > 1 ? 'md:grid-cols-2' : ''}">
+	<div class="grid grid-cols-1 gap-2 sm:gap-3 {slot.equipes?.length > 1 ? 'md:grid-cols-2' : ''}">
 		{#each slot.equipes ?? [] as equipe (equipe.id)}
 			<GiseEquipeCard
 				{equipe}
@@ -237,7 +237,7 @@
 
 	<!-- Admin Geral: adicionar equipe a esta unidade -->
 	{#if isAdminGeral && podeEditar && modoEdicaoGeral}
-		<div class="mt-3 flex justify-end">
+		<div class="mt-2 flex justify-end">
 			{#if estado.adicionandoEquipe && estado.adicionandoEquipeSlotId === slot.id}
 				<div
 					class="flex w-full flex-wrap items-end gap-2 rounded-xl border border-dashed border-surface-300 p-3 dark:border-surface-600 sm:w-auto"

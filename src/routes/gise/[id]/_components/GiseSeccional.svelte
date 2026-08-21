@@ -170,6 +170,18 @@
 	const horarioSec = $derived(horarioEfetivo(sec, gise));
 	const secTemHorarioProprio = $derived(temHorarioProprio(sec, gise));
 
+	/**
+	 * Mesma regra dos cards de equipe: o relógio do horário HERDADO só acompanha
+	 * o lápis. Fora da edição ele não diz nada que a escala já não diga, e some.
+	 */
+	const podeEditarHorarioSec = $derived(
+		podeEditar &&
+			((isAdminGeral && modoEdicaoGeral) ||
+				(isSeccional &&
+					sec.seccional_id === minhaSeccionalId &&
+					(estado.modoEdicaoSeccional || sec.status === 'pendente' || sec.status === 'retificada')))
+	);
+
 	const pendingCrud = $derived(actions.pendingCrud);
 	const pendingFinalizar = $derived(actions.pendingFinalizarSeccional);
 	const pendingSalvarHorariosSec = $derived(actions.pendingSalvarHorariosSec);
@@ -321,14 +333,14 @@
 							title="Horário próprio desta seccional"
 							>{horarioSec.entrada}h-{horarioSec.saida}h</span
 						>
-					{:else}
+					{:else if podeEditarHorarioSec}
 						<Clock
 							class="h-3.5 w-3.5 shrink-0"
 							aria-label="Horário da escala: {horarioSec.entrada}h-{horarioSec.saida}h"
 						/>
 					{/if}
 
-					{#if podeEditar && ((isAdminGeral && modoEdicaoGeral) || (isSeccional && sec.seccional_id === minhaSeccionalId && (estado.modoEdicaoSeccional || sec.status === 'pendente' || sec.status === 'retificada')))}
+					{#if podeEditarHorarioSec}
 						<button
 							type="button"
 							class="btn btn-xs preset-filled-surface-500 rounded p-1 shrink-0 ml-1"
@@ -584,7 +596,7 @@
 			</div>
 		</div>
 
-		<div class="p-3 sm:p-4 space-y-3">
+		<div class="p-2 sm:p-3 space-y-2">
 			<!-- Unidades participantes: uma ABA cada, e o painel abaixo mostra as
 			     equipes da aba aberta. -->
 			{#if slots.length > 0}
