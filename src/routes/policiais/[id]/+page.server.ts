@@ -52,6 +52,7 @@
  */
 import { redirect, fail, error } from '@sveltejs/kit';
 import { ehViolacaoUnique } from '$lib/server/db-errors';
+import { ePdf } from '$lib/server/assinatura/selfie-upload';
 import type { PageServerLoad, Actions } from './$types';
 import {
 	getDB,
@@ -155,7 +156,10 @@ async function uploadDocumento(
 	}
 
 	const key = `policial-historico/${policialId}/${crypto.randomUUID()}.pdf`;
-	const bytes = await arquivo.arrayBuffer();
+	const bytes = new Uint8Array(await arquivo.arrayBuffer());
+	if (!ePdf(bytes)) {
+		throw new Error('O documento deve ser um PDF.');
+	}
 	await getR2(event.platform).put(key, bytes, {
 		httpMetadata: { contentType: 'application/pdf' }
 	});
