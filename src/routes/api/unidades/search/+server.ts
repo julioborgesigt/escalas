@@ -1,7 +1,7 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { asc, eq, like, and, inArray } from 'drizzle-orm';
-import { getDB } from '$lib/db';
+import { asc, eq, and, inArray } from 'drizzle-orm';
+import { getDB, likeContains } from '$lib/db';
 import { unidades } from '$lib/server/schema';
 import { requireAuth } from '$lib/server/api';
 
@@ -31,7 +31,7 @@ export const GET: RequestHandler = async ({ locals, platform, url }) => {
 	const conditions = [];
 
 	if (q) {
-		conditions.push(like(unidades.nome, `%${q}%`));
+		conditions.push(likeContains(unidades.nome, q));
 	}
 	if (tipos.length === 1) {
 		conditions.push(eq(unidades.tipo, tipos[0]));

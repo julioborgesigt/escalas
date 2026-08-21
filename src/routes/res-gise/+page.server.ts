@@ -48,7 +48,8 @@ import {
 	operacaoAceitaTipoEquipe,
 	NOME_OPERACAO_PADRAO,
 	DEFAULT_SEINT_QUESTIONS,
-	DEFAULT_QUESTIONS_FORM_OPERACIONAL
+	DEFAULT_QUESTIONS_FORM_OPERACIONAL,
+	likePrefix
 } from '$lib/db';
 import { invalidarPapelGise } from '$lib/server/gise/papel-cache';
 import { buscarUnidadeIdSupervisaoExtra } from '$lib/server/gise/supervisao-extra';
@@ -74,7 +75,7 @@ import {
 	giseRespostasFormulario,
 	policiais
 } from '$lib/server/schema';
-import { eq, and, inArray, desc, like, sql, or } from 'drizzle-orm';
+import { eq, and, inArray, desc, sql, or } from 'drizzle-orm';
 import { gateDePresenca, type TipoPresenca } from '$lib/server/gise/presenca-gate';
 interface GiseEscalaItem {
 	id: number;
@@ -103,8 +104,10 @@ export const load: PageServerLoad = async ({ locals, platform, url, depends }) =
 	// Filtros da tela. "Ativa × finalizada" NÃO é o status da escala: uma GISE em
 	// andamento já é "finalizada" para quem bateu a saída (ver `isFinished`).
 	const statusFilter = url.searchParams.get('status') || ''; // 'ativas' ou 'finalizadas'
-	const mesFilter = url.searchParams.get('mes') || ''; // YYYY-MM
-	const dataFilter = url.searchParams.get('data') || ''; // YYYY-MM-DD
+	const mesRaw = url.searchParams.get('mes') || '';
+	const dataRaw = url.searchParams.get('data') || '';
+	const mesFilter = /^\d{4}-\d{2}$/.test(mesRaw) ? mesRaw : '';
+	const dataFilter = /^\d{4}-\d{2}-\d{2}$/.test(dataRaw) ? dataRaw : '';
 
 	const db = getDB(platform);
 
@@ -176,7 +179,7 @@ export const load: PageServerLoad = async ({ locals, platform, url, depends }) =
 			.where(
 				and(
 					eq(giseMembros.policial_id, u.id),
-					mesFilter ? like(giseEscalas.data_inicio, `${mesFilter}%`) : sql`1=1`,
+					mesFilter ? likePrefix(giseEscalas.data_inicio, mesFilter) : sql`1=1`,
 					dataFilter ? eq(giseEscalas.data_inicio, dataFilter) : sql`1=1`
 				)
 			)
@@ -206,7 +209,7 @@ export const load: PageServerLoad = async ({ locals, platform, url, depends }) =
 			.where(
 				and(
 					sql`(${giseEscalas.assessor_id} = ${u.id} OR ${giseEscalas.seint1_id} = ${u.id} OR ${giseEscalas.seint2_id} = ${u.id})`,
-					mesFilter ? like(giseEscalas.data_inicio, `${mesFilter}%`) : sql`1=1`,
+					mesFilter ? likePrefix(giseEscalas.data_inicio, mesFilter) : sql`1=1`,
 					dataFilter ? eq(giseEscalas.data_inicio, dataFilter) : sql`1=1`
 				)
 			)
@@ -236,7 +239,7 @@ export const load: PageServerLoad = async ({ locals, platform, url, depends }) =
 				.where(
 					and(
 						eq(giseEscalas.supervisor_id, u.id),
-						mesFilter ? like(giseEscalas.data_inicio, `${mesFilter}%`) : sql`1=1`,
+						mesFilter ? likePrefix(giseEscalas.data_inicio, mesFilter) : sql`1=1`,
 						dataFilter ? eq(giseEscalas.data_inicio, dataFilter) : sql`1=1`
 					)
 				)
