@@ -621,7 +621,20 @@ export const actions: Actions = {
 		if (!prep.ok) return prep.resposta;
 		const { db, u, giseId, rubrica, ip, ua, latitude, longitude, selfieKey } = prep;
 
-		await salvarEntradaGise(db, giseId, u.id, rubrica, ip, ua, latitude, longitude, selfieKey);
+		const entrada = await salvarEntradaGise(
+			db,
+			giseId,
+			u.id,
+			rubrica,
+			ip,
+			ua,
+			latitude,
+			longitude,
+			selfieKey
+		);
+		if (!entrada.registrada) {
+			return fail(409, { error: 'A saída já foi confirmada — a entrada não pode ser refeita.' });
+		}
 		await sincronizarStatusGiseAposPresencaRelatorios(db, giseId);
 		await invalidarPapelGise(u.id);
 
@@ -671,7 +684,7 @@ export const actions: Actions = {
 		);
 		if (!saida.registrada) {
 			return fail(409, {
-				error: 'Não há confirmação de ENTRADA registrada — a saída não pode ser confirmada.',
+				error: 'A saída já foi confirmada, ou não há entrada registrada.',
 				giseId
 			});
 		}

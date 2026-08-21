@@ -21,7 +21,7 @@
  * segunda regra é o `WHERE entrada_timestamp IS NOT NULL` de `salvarSaidaGise`:
  * entre este gate e a gravação cabe uma requisição, e é a gravação que decide.
  */
-import { and, eq, isNotNull } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { conflict } from '../api';
 import { gisePresencas } from '../schema';
 import { horarioGiseLiberado } from '$lib/db';
@@ -88,23 +88,29 @@ export async function gateDePresenca(
 	const janela = janelaDePresencaLiberada(part, tipo);
 	if (!janela.ok) return janela;
 
-	if (tipo === 'saida') {
-		const entrada = await db
-			.select({ id: gisePresencas.id })
+	if (tipo === 'saida' || tipo === 'entrada') {
+		const row = await db
+			.select({
+				entrada: gisePresencas.entrada_timestamp,
+				saida: gisePresencas.saida_timestamp
+			})
 			.from(gisePresencas)
-			.where(
-				and(
-					eq(gisePresencas.gise_id, giseId),
-					eq(gisePresencas.policial_id, policialId),
-					isNotNull(gisePresencas.entrada_timestamp)
-				)
-			)
+			.where(and(eq(gisePresencas.gise_id, giseId), eq(gisePresencas.policial_id, policialId)))
 			.get();
 
-		if (!entrada) {
-			return RECUSADO(
-				conflict('Não há confirmação de ENTRADA registrada — a saída não pode ser assinada.')
-			);
+		if (tipo === 'entrada' && row?.saida) {
+			return RECUSADO(conflict('A saída já foi confirmada — a entrada não pode ser refeita.'));
+		}
+
+		if (tipo === 'saida') {
+			if (!row?.entrada) {
+				return RECUSADO(
+					conflict('Não há confirmação de ENTRADA registrada — a saída não pode ser assinada.')
+				);
+			}
+			if (row.saida) {
+				return RECUSADO(conflict('A saída já foi confirmada.'));
+			}
 		}
 	}
 
