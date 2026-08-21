@@ -59,3 +59,28 @@ Uma auditoria nova pode ser commitada em `docs/auditorias/` enquanto seus
 achados estão sendo tratados. Quando encerrada (achados resolvidos ou
 formalmente aceitos), remova o arquivo e acrescente uma linha na tabela acima
 com o commit em que ele pode ser lido.
+
+### Auditoria parcialmente fechada: arquive os achados, não o arquivo
+
+Auditoria com achado aberto **não** vira linha desta tabela — ela continua no
+working tree. O que se arquiva antes disso são os achados **fechados**: a prosa
+de cada um (evidência, remediação, raciocínio) sai do documento e vira uma linha
+de tabela apontando para o código que a prova, com o `git show` do commit em que
+o texto integral pode ser lido.
+
+O critério é o mesmo do arquivo inteiro, aplicado por achado: reverifique
+**contra o código**, não contra o texto da auditoria, e só então apague. Achado
+tratado tem prova viva — o teste, o helper, a coluna unique. Achado aceito tem
+uma decisão, e decisão que só existe dentro de um relatório de auditoria some
+quando o relatório sai: **antes de apagar um "aceito", confira se ele tem casa
+num documento vivo.** Foi o que aconteceu com
+`AUDITORIA_SEGURANCA_2026-08-21.md` em 21/ago — cinco dos quinze aceitos
+(SEC-11/12/13/23/25) eram requisitos de operação que o `DEPLOY.md` **não**
+cobria; apagar a auditoria sem movê-los teria perdido, entre outras coisas, que
+sem `CPF_ENCRYPTION_KEY` o CPF grava em texto sem avisar ninguém. Eles viraram a
+seção "Proteções que só existem se a variável existir" e linhas do checklist de
+release.
+
+| Auditoria                             | Fechados arquivados                     | Texto integral    |
+| ------------------------------------- | --------------------------------------- | ----------------- |
+| `AUDITORIA_SEGURANCA_2026-08-21.md`   | 30 de 37 (15 tratados + 15 aceitos)     | `git show 8645283:docs/auditorias/AUDITORIA_SEGURANCA_2026-08-21.md` |
