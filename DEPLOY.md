@@ -35,6 +35,41 @@ Configurar no projeto Pages (**Settings → Environment variables**) ou via `wra
 
 > **Importante:** `RESET_TOKEN` deve ser **estritamente diferente** de `SYNC_TOKEN`. O design separa os dois para que comprometer o token de webhook não baste para apagar o banco. Gere com `openssl rand -hex 32` e armazene apenas no Cloudflare + na planilha de operações.
 
+### Proteções que só existem se a variável existir
+
+Quatro secrets não são "recomendados": são o **único** motivo pelo qual a
+proteção correspondente existe. Sem cada uma, o sistema não falha nem avisa no
+uso normal — ele grava o dado em claro e segue. A lista completa e comentada
+está em [`.env.example`](.env.example); o que segue é a consequência de
+**deixar a variável vazia em produção**.
+
+| Vazia                     | O que passa a valer                                                                                                                                             |
+| ------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `PASSWORD_PEPPER`         | Hashes ficam em PBKDF2@100k (teto do workerd). Um dump do D1 permite **brute-force offline** do arquivo inteiro.                                                 |
+| `CPF_ENCRYPTION_KEY`      | O CPF é gravado em **texto** na coluna `policiais.cpf` (fallback silencioso). Definir DEPOIS de popular exige re-cifrar ou zerar + re-sincronizar.               |
+| `CPF_INDEX_KEY`           | Sem o índice cego HMAC (`cpf_index`), o login por certificado não acha o titular. Deve ser **distinta** da `CPF_ENCRYPTION_KEY`.                                 |
+| `AUDIT_CHAIN_KEY`         | A cadeia da trilha cai para SHA-256 puro: detecta adulteração acidental, mas **quem tem escrita no banco forja a cauda inteira**. Com a chave, é HMAC-SHA256.    |
+| `AUDIT_IP_ENCRYPTION_KEY` | O IP completo do evento não é preservado (só o anonimizado /24 ou /64) — a perícia autorizada perde o dado que a cifra guardaria em `audit_log.ip_cifrado`.      |
+
+As duas de CPF e as duas de auditoria são **load-bearing**: trocá-las ou
+perdê-las inutiliza o que já foi gravado com a anterior. Gere cada uma uma
+única vez com `openssl rand -hex 32` e guarde em cofre.
+
+`GET /api/health?detail=<HEALTH_DETAIL_TOKEN>` lista as que estão ausentes sem
+derrubar a liveness pública — é como conferir isso sem abrir o dashboard.
+
+**2FA do bootstrap.** `ADMIN_GERAL_EMAIL` e `SUPER_ADMIN_EMAIL` são opcionais no
+código e **obrigatórios na prática**: sem o e-mail, o login por credencial de
+bootstrap entra **direto, sem 2FA** — apenas com a senha da env. É o break-glass
+funcionando como projetado (ele não pode depender de e-mail), mas em produção o
+esperado é ter os dois definidos, o que devolve o segundo fator às duas contas
+mais poderosas do sistema. O login por bootstrap audita e emite `warning` no
+Sentry de qualquer forma.
+
+**R2.** O bucket `escalas_docs` guarda PDF assinado, cópia de conferência e
+selfie de assinatura. Ele **não pode** ter acesso público: o download legítimo
+passa por rota autenticada que lê o `r2_key` do banco.
+
 ### Hashing de senha e o `PASSWORD_PEPPER`
 
 As senhas são hasheadas com **PBKDF2-HMAC-SHA256, 100 000 iterações** (formato versionado em [`src/lib/crypto/password-hash.ts`](src/lib/crypto/password-hash.ts), re-exportado por `$lib/auth`):
@@ -492,6 +527,12 @@ Para esses, qualquer upgrade major precisa ser feito manualmente após testar o 
    - `SYNC_TOKEN` definido.
    - `RESET_TOKEN` definido **e diferente do SYNC_TOKEN** (ou intencionalmente vazio para desabilitar reset).
    - `RATE_LIMIT_IP_SALT` e (se aplicável) `ICP_BRASIL_TRUST_STORE_REQUIRED`, `TSA_*`.
+   - `CPF_ENCRYPTION_KEY`, `CPF_INDEX_KEY`, `AUDIT_CHAIN_KEY`, `AUDIT_IP_ENCRYPTION_KEY` — sem elas o CPF grava em texto e a cadeia de auditoria fica forjável ([detalhe](#proteções-que-só-existem-se-a-variável-existir)).
+   - `ADMIN_GERAL_EMAIL` e `SUPER_ADMIN_EMAIL` definidos: sem eles o login de bootstrap entra **sem 2FA**.
+   - `WEBHOOK_REPLAY_ENFORCE=1` e `WEBHOOK_ALLOW_PAPEL_CHANGES` **vazio**.
+   - `APP_ORIGIN` no domínio canônico (é o RP ID do WebAuthn).
+   - Senhas de bootstrap em hash `pbkdf2v2:`, não em texto claro.
+   - Bucket R2 `escalas_docs` **sem** acesso público.
 3. **Login real validado** (não só o bootstrap): logar → logout → logar de novo, confirmando a migração para `pbkdf2v3`.
 4. Smoke manual: rota protegida, `/api/health`, fluxo crítico de negócio (ex.: validação pública se aplicável).
 5. Conferir que o admin consegue alterar flags em `/api/configuracoes/assinatura` e que a próxima assinatura reflete a mudança em ≤ 5 min (TTL do cache edge).

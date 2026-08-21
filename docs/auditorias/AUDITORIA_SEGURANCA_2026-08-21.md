@@ -1,4 +1,4 @@
-# Auditoria de segurança — 21/ago/2026
+# Auditoria de segurança — 21/ago/2026 (aberta: 7 achados)
 
 Revisão **defensiva** da superfície de ataque do sistema de escalas/GISE
 (SvelteKit + Cloudflare Workers). Sem PoC, payload ou procedimento de
@@ -6,336 +6,280 @@ exploração — só achados, evidência no código e remediação.
 
 **Escopo:** rotas de API e form actions, hooks, auth/2FA/sessão, webhooks,
 assinatura digital, uploads, SQL, XSS/CSP, secrets no repositório, autorização
-(IDOR / papéis). **Fora:** pentest dinâmico contra produção, engenharia social,
-compromisso do token A3 físico, configuração live do Pages (só o que o código
-e o `DEPLOY.md` / `.env.example` declaram).
+(IDOR / papéis), e o complemento "banco sem tranca" (race/TOCTOU em D1, input
+sem schema, clássicos). **Fora:** pentest dinâmico contra produção, engenharia
+social, compromisso do token A3 físico, configuração live do Pages.
 
-**Método:** leitura das 70 `+server.ts` e 37 `+page.server.ts`, `hooks.server.ts`,
-helpers de permissão, guards de CI (`guard:autorizacao`), e conferência contra
-as auditorias anteriores (A1–A8, FLW-AUT, FLW-RBAC, L-_, M-4, R2-_).
-
-**Postura geral:** o sistema já é **maduro** em autenticação e autorização —
-sessão hashed, CSRF double-submit, HMAC de webhook, portões extraídos de
-assinatura, `requireAuth` ≠ autorização. Os achados abaixo são resíduos:
-cópia que divergiu, allowlist que apertou demais, escopo de papel incompleto
-num caminho, e identidade visual do PDF lida do cliente.
-
-Identificadores **SEC-01…** — não colidem com A/L/FLW/R2. O complemento
-“banco sem tranca” / input / clássicos do mesmo dia usa **SEC-32…**.
+**Identificadores SEC-01…SEC-38** — não colidem com A/L/FLW/R2. **SEC-03 não
+existe**: o número foi pulado na redação original, não é achado perdido.
 
 ---
 
-## O que já está sólido (não reabrir)
+## Estado — reverificação de 21/ago/2026
 
-| Controle                                                                         | Onde                                            |
-| -------------------------------------------------------------------------------- | ----------------------------------------------- |
-| Senha PBKDF2 + comparação timing-safe + sentinel anti-enum                       | `password-hash.ts`, `auth-flow.ts`              |
-| Sessão: 32 bytes CSPRNG, `sha256:` em repouso, cookie HttpOnly + SameSite=strict | `auth.ts`, `cookieOptions`                      |
-| CSRF double-submit + timing-safe; webhooks isentos com auth própria              | `hooks.server.ts`                               |
-| Mutação sem sessão recusada, salvo lista `DECLARADAS`/`PUBLICAS`                 | `guard:autorizacao` + e2e negativa              |
-| Assinar GISE = supervisor designado; Admin Geral 403                             | `carregarGiseParaAssinatura`                    |
-| Assinar escala = Admin Geral ou DPC admin + FDS recusado                         | `carregarEscalaParaAssinatura`                  |
-| IDOR de item de escala (FLW-ESC-002): `id` + `escala_id`                         | `_actions`                                      |
-| Child GISE amarrado à URL                                                        | `carregarEquipeDaGise` / `carregarMembroDaGise` |
-| Webhook: Bearer/HMAC timing-safe, min 32 chars; papel default-off (M-4)          | `webhook-auth.ts`                               |
-| Reset destrutivo: SYNC + RESET + data + replay **sempre**                        | `reset-policiais`                               |
-| SQL da app via Drizzle parametrizado; `{@html}` só no termo sanitizado           | `sanitize.ts`                                   |
-| Selfie: magic bytes + teto 5 MB + UUID na chave                                  | `selfie-upload.ts`                              |
-| PDF de histórico: magic bytes `%PDF`                                             | `ePdf()` + `uploadDocumento`                    |
-| Download forense de `/validar` exige sessão privilegiada                         | `copia-conferencia.ts`                          |
-| CSP HTML `script-src 'self'` sem unsafe-eval/inline; API `default-src none`      | `svelte.config.js`, `csp.ts`                    |
-| Sem secrets de produção no Git; PEMs são âncoras públicas ICP                    | `.gitignore`, `.env.example`                    |
-| `/api/health` público é binário; detalhe só com token                            | `health/+server.ts`                             |
+Cada um dos 37 achados foi reconferido **contra o código**, não contra o texto
+da auditoria. Gate da reverificação: `npm test` (154 arquivos, 1705 testes),
+`guard:autorizacao` (129 operações materiais, 107 recusam por permissão),
+`guard:duplicacao` (55 blocos, todos na baseline), `docs:guard`.
 
----
+| Situação               | Qtd   | Onde vive agora                                        |
+| ---------------------- | ----- | ------------------------------------------------------ |
+| Tratados e confirmados | 15    | tabela abaixo — o código é a prova                     |
+| Aceitos com registro   | 15    | tabela abaixo; os de operação foram para o `DEPLOY.md` |
+| **Abertos**            | **7** | **§ Abertos, com plano** — é o que mantém este arquivo |
 
-## Achados tratados neste PR
+O texto integral dos 30 fechados (prosa, evidência e remediação de cada um)
+saiu deste arquivo e continua no Git:
 
-### SEC-01 — P0 — Primeiro acesso bloqueava a verificação de e-mail pessoal
+```bash
+git show 8645283:docs/auditorias/AUDITORIA_SEGURANCA_2026-08-21.md
+```
 
-O gate FLW-AUT-019 recusava **todo** `/api/auth/*` durante `primeiro_acesso`,
-exceto logout. `/alterar-senha` **exige** `email_pessoal_verificado=1` antes de
-gravar a senha, e essa prova passa por
-`/api/auth/solicitar-verificacao-email-pessoal` e `…/confirmar-…`. Resultado:
-deadlock. Risco de o operador marcar o e-mail como verificado à mão e esvaziar
-o controle.
+### Tratados — confirmados no código em 21/ago
 
-**Remediação:** allowlist fechada em `onboarding-gates.ts` (senha + logout + as
-duas rotas de e-mail). Teste em `onboarding-gates.test.ts`.
+| ID     | Achado                                                              | Prova no código                                                                                              |
+| ------ | ------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| SEC-01 | Primeiro acesso travava a verificação do e-mail pessoal (deadlock)  | `server/auth/onboarding-gates.ts` `LIVRES_PRIMEIRO_ACESSO` + `__tests__/`                                    |
+| SEC-02 | Form de 2FA não usava `buscarAdminAtivo` (cookie órfão)             | `routes/login/+page.server.ts:244`                                                                           |
+| SEC-04 | Reenvio de 2FA do Admin Geral vinculado ia ao e-mail errado         | `server/auth/email-2fa.ts` + `api/auth/reenviar-codigo/+server.ts:82`                                        |
+| SEC-05 | `/api/auth/*` inteiro livre do Termo de Uso                         | `onboarding-gates.ts` `LIVRES_TERMO` + `hooks.server.ts:178`                                                 |
+| SEC-06 | FLW-RBAC-003 incompleto: editar/criar/listar escala por `u.lotacao` | `server/escalas/permissao.ts:88` (`podeMexerNaEscala` async + `lotacoesAdministradas`)                       |
+| SEC-07 | `signerName`/`signerCpf` do body iam para o PDF                     | `server/assinatura/identidade-sessao.ts`, nas 4 rotas de preparar                                            |
+| SEC-08 | `escapeLike` sem cláusula `ESCAPE` em nenhum call site              | `db/core.ts:35,41` (`likeContains`/`likePrefix`); `api/unidades/search` passou a usar                        |
+| SEC-09 | `alternar-acesso` não invalidava o cache de sessão                  | `api/auth/alternar-acesso/+server.ts:50,101`                                                                 |
+| SEC-10 | Comentário do guard dizia que Admin Geral assina GISE               | `scripts/guard-autorizacao.mjs:196-217`                                                                      |
+| SEC-17 | Upload de PDF do histórico confiava no `Content-Type`               | `server/assinatura/selfie-upload.ts:63` (`ePdf`) + `policiais/[id]/+page.server.ts:160`                      |
+| SEC-20 | Produtividade aceitava `seccionalId` de outra seccional da GISE     | `lib/gise/recorte-seccional.ts:37`                                                                           |
+| SEC-32 | Dupla assinatura por corrida: `onConflictDoUpdate` desfazia unique  | `db/documentos.ts:269`, `db/gise/{documentos,assinaturas}.ts` + portão 409 em `server/gise/permissao.ts:165` |
+| SEC-33 | Presença: reentrada e segunda saída sem CAS                         | `db/gise/presencas.ts:54` (`setWhere: saida IS NULL`)                                                        |
+| SEC-36 | TOCTOU na decisão de solicitação de cadastro                        | `db/policiais/solicitacoes.ts:120-130` (`UPDATE … WHERE status='pendente'`)                                  |
+| SEC-37 | Unique de plantão só no SQL, não no Drizzle (500 com SQL cru)       | `server/schema.ts:147` + `migrations/0047_escala_policial_dia_unico.sql`                                     |
 
-### SEC-02 — P1 — Form de 2FA não usava `buscarAdminAtivo`
+### Aceitos com registro — a decisão, não a pendência
 
-A rota JSON `/api/auth/verificar-2fa` aplica FLW-RBAC-001 (`buscarAdminAtivo`).
-A action do formulário de login lia só `administradores`. A sessão seguinte
-cairia no hook, mas o login **era auditado como sucesso** e um cookie órfão
-era emitido.
+Severidade **não** é "dá para explorar amanhã". É o impacto **se** as premissas
+de operação falharem. Os cinco de operação (SEC-11/12/13/23/25) deixaram de
+depender deste arquivo: viraram seção do `DEPLOY.md`
+("Proteções que só existem se a variável existir") e linhas do checklist de
+release, que é onde o operador olha.
 
-**Remediação:** a action chama `buscarAdminAtivo`, igual à JSON.
-
-### SEC-04 — P1 — Reenvio de 2FA do Admin Geral vinculado ia ao e-mail errado
-
-O login envia o código para `credPol.email`. O reenvio lia
-`administradores.email` (muitas vezes nulo ou outro endereço).
-
-**Remediação:** `emailInstitucionalDoDesafio` — a mesma regra nos dois
-caminhos. Policial inativo → sem reenvio.
-
-### SEC-05 — P1 — `/api/auth/*` inteiro livre do Termo de Uso
-
-Depois da senha, quem não aceitou o termo ainda chamava `alternar-acesso`,
-`solicitar-codigo-assinatura`, `reautenticar-assinatura`. As APIs de domínio
-já recusavam; as de auth não.
-
-**Remediação:** allowlist do termo = aceite + senha + consulta do termo +
-logout. Não o prefixo `/api/auth/`.
-
-### SEC-06 — P1 — FLW-RBAC-003 incompleto nas escalas (editar / criar / listar)
-
-`lotacoesAdministradas` já usa `papel_unidade_id`. `excluir` e `criarComBase`
-também. **Edição** (`podeMexerNaEscala`), **criação** e **listagem** /
-carimbo de pendentes ainda olhavam `u.lotacao`. Admin de unidade transferido
-administrava a unidade nova (ninguém concedeu) e perdia a do papel.
-
-**Remediação:** `podeMexerNaEscala` é async e consulta o escopo do papel;
-criar/listar/poll usam o mesmo conjunto.
-
-### SEC-07 — P1 — `signerName` / `signerCpf` do body iam para o PDF
-
-Nas rotas **qualificadas** de preparar, o servidor preferia o nome/CPF do
-cliente. Avançada de presença já carimbava `u.nome`/`u.cpf`. Um signatário
-legítimo podia estampar outra identidade visual no documento (o CMS, quando
-havia certificado, ainda atestava o token).
-
-**Remediação:** `identidadeVisualAssinante` — sempre a sessão. O schema ainda
-aceita os campos para não quebrar o cliente; o servidor ignora.
-
-### SEC-08 — P2 — `escapeLike` sem `ESCAPE` no SQL
-
-A função escapava `%`/`_`/`\` e documentava que o SQL precisava de
-`ESCAPE '\'`. Nenhum call site punha a cláusula. SQLite tratava `%` depois da
-barra como wildcard. `/api/unidades/search` nem chamava `escapeLike`.
-
-**Remediação:** `likeContains` / `likePrefix` com `ESCAPE`. Filtro `mes`/`data`
-em `/res-gise` valida `YYYY-MM` / `YYYY-MM-DD`.
-
-### SEC-09 — P2 — `alternar-acesso` não invalidava o cache de sessão
-
-O token antigo era apagado no D1; o cache de edge (até 60 s) podia servir GET
-como se a sessão velha ainda existisse. Logout já invalidava.
-
-**Remediação:** `invalidarSessaoCache` nos dois ramos da troca.
-
-### SEC-10 — Info — Comentário do guard dizia que Admin Geral assina GISE
-
-O código recusa. O comentário em `HELPERS_OBRIGATORIOS` convidava a
-"consertar" na direção errada (a lição do `CLAUDE.md` sobre comentário de
-gate). Texto alinhado ao portão.
-
-### SEC-17 — P2 — Upload de PDF no histórico confiava no `Content-Type`
-
-O anexo da ficha do policial (`uploadDocumento`) recusava só se
-`arquivo.type !== 'application/pdf'`. Bytes de imagem com tipo declarado PDF
-passavam. Admin-only; chave gerada no servidor.
-
-**Remediação:** `ePdf()` (`%PDF` nos primeiros bytes), o mesmo critério de
-`detectarTipo` das selfies. Tipo declarado continua como filtro barato.
-
-### SEC-20 — P2 — Produtividade por `seccionalId` de outra seccional da GISE
-
-`verificarPermissaoGise` prova participação na OPERAÇÃO. O download
-`?format=produtividade` aceitava o id de outra seccional da mesma GISE.
-O rascunho extra já rechecava dono (FLW-AUT-008).
-
-**Remediação:** `recorteSeccionalVisivel` — Admin Geral e quadro de supervisão
-vêem todas; admin/membro só a seccional (ou DP) deles. Extra **assinado**
-não apertou: é cópia de conferência do documento oficial, e quem já vê
-`/gise/[id]` vê as outras seccionais. O rascunho extra segue mais estreito
-de propósito.
-
-### SEC-32 — P1 — Dupla assinatura por corrida (upsert desfazia o unique)
-
-O unique em `escala_documentos` / `gise_documentos` /
-`gise_assinaturas_relatorios` existia, mas `onConflictDoUpdate` **substituía**
-o PDF vigente. Duas preparações distintas (intenções uso único) que
-finalizam em paralelo: ambas passavam o check, a segunda vencia. O portão
-GISE nem lia documento existente.
-
-**Remediação:** INSERT + `onConflictDoNothing` + `{ gravado }`. Portões
-`carregarGiseParaAssinatura` e `carregarRelatorioExtraParaAssinatura` 409 se
-já há linha. Reassinar exige revogar (DELETE). Corrida perdida compensa o
-blob órfão no R2.
-
-### SEC-33 — P1 — Presença: reentrada e segunda saída sem CAS
-
-`salvarEntradaGise` upsertia inclusive depois de `saida_timestamp`.
-`salvarSaidaGise` não exigia `saida IS NULL`.
-
-**Remediação:** entrada só com `setWhere: saida IS NULL`; saída só com
-`entrada IS NOT NULL AND saida IS NULL`; `{ registrada }` no caller (409).
-O gate recusa cedo os mesmos estados.
-
-### SEC-36 — P1 — Solicitação de cadastro: TOCTOU na decisão
-
-`decidirSolicitacaoCadastro` lia `pendente` e atualizava **sem**
-`WHERE status='pendente'`. Dois cliques paralelos reaplicavam o patch.
-
-**Remediação:** `UPDATE … WHERE id AND status='pendente'`; zero linhas →
-`null`, sem tocar no cadastro.
-
-### SEC-37 — P2 — Unique de plantão só no SQL, não no Drizzle
-
-A migração `0047_escala_policiais_dia_unico.sql` (FLW-ESC-005) já trava
-`(escala_id, policial_id, data_plantao)`. O schema Drizzle tinha só index
-não-único; o catch das actions virava 500 com SQL cru.
-
-**Remediação:** `uniqueIndex('uq_escala_policiais_dia')` no schema; corrida
-vira 409 visível.
+| ID     | Decisão registrada                                                                                                                                        |
+| ------ | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| SEC-11 | Bootstrap sem `*_EMAIL` entra só com senha. É o break-glass funcionando: ele não pode depender de e-mail. Audita e alerta. → `DEPLOY.md`                  |
+| SEC-12 | Sem `PASSWORD_PEPPER`, PBKDF2@100k é o teto do workerd — pepper é a resposta, não mais iterações. → `DEPLOY.md`                                           |
+| SEC-13 | Replay de webhook só obrigatório com `WEBHOOK_REPLAY_ENFORCE`; produção está em `1` desde 06/ago. `reset-policiais` exige **sempre**. → `DEPLOY.md`       |
+| SEC-15 | Rate-limit de 2FA é fail-open se o D1 cair; o teto de 5 tentativas **por desafio** não depende do D1. Download de `/validar` é fail-closed (FLW-AUT-016). |
+| SEC-16 | Cache de sessão (default 60 s) só em GET. Mutação nunca lê cache (FLW-AUTH-001). `SESSION_CACHE_TTL_SECONDS=0` desliga.                                   |
+| SEC-18 | GPS e selfie da avançada vêm do cliente. A Lei 14.063 não transforma o browser em sensor honesto — o manifesto registra o que o aparelho **declarou**.    |
+| SEC-19 | `/api/policiais/search` libera o diretório (sem e-mail) a todo admin **de propósito**: escalação cross-lotação depende disso. Policial comum é recortado. |
+| SEC-21 | `style-src 'unsafe-inline'` é trade-off do Tailwind/Skeleton. `script-src 'self'`, sem `unsafe-eval`/`unsafe-inline`.                                     |
+| SEC-22 | Login novo não derruba sessões anteriores. Troca e reset de senha revogam as duas identidades — que é o caso que importa.                                 |
+| SEC-23 | `ADMIN_GERAL_SENHA`/`SUPER_ADMIN_SENHA` ainda aceitam texto claro; `DEPLOY.md` pede hash `pbkdf2v2:`. → checklist de release                              |
+| SEC-24 | OCSP `unknown` / responder fora não impede login por certificado (fail-open documentado). `revoked` fecha.                                                |
+| SEC-25 | Sem `CPF_ENCRYPTION_KEY` o CPF grava em claro, silenciosamente. Health detalha a ausência. → `DEPLOY.md`                                                  |
+| SEC-27 | Código de `/validar` tem ~40 bits (8 chars, alfabeto 32), CSPRNG. Enumeração limitada por rate-limit; o download forense exige sessão privilegiada.       |
+| SEC-28 | `GET /api/configuracoes/assinatura` devolve flags de política a autenticado; PUT é Super Admin. O hook já exige sessão.                                   |
+| SEC-31 | `restringirSmartphone` olha User-Agent, que é spoofável. É política de UX/dispositivo, **não** autenticador — e está assim registrado desde 13/ago.       |
 
 ---
 
-## Achados abertos ou aceitos
+## Abertos, com plano
 
-Severidade **não** é "dá para explorar amanhã". É o impacto **se** as
-premissas de operação falharem (segredo ausente, flag de rollout, e-mail de
-bootstrap).
+Sete achados. Nenhum é P0: quatro são endurecimento de superfície já defendida
+por outra camada, três são corrida que exige duas requisições simultâneas com
+credencial válida. O que os mantém abertos é que cada um tem uma decisão de
+produto ou de operação embutida — não é refatoração mecânica.
 
-| ID     | Sev.        | Status | Resumo                                                                                                                                                                                                                            |
-| ------ | ----------- | ------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| SEC-11 | Alta (ops)  | Aceito | Bootstrap Super Admin / Admin Geral **sem** `*_EMAIL` entra só com senha. Break-glass documentado; audita e alerta. **Produção: definir os e-mails.**                                                                             |
-| SEC-12 | Alta (ops)  | Aceito | Sem `PASSWORD_PEPPER`, hashes são PBKDF2@100k (teto do workerd). Dump do D1 permite brute-force offline. Health já sinaliza ausência.                                                                                             |
-| SEC-13 | Média (ops) | Aceito | Replay de webhook só é obrigatório com `WEBHOOK_REPLAY_ENFORCE`. `DEPLOY.md` diz que produção já está em `1` (06/ago). Preview/local pode reproduzir payload capturado. `reset-policiais` **sempre** exige.                       |
-| SEC-14 | Baixa       | Aberto | Login isento de CSRF-token; Origin divergente é recusado, Origin **ausente** passa. Browsers modernos mandam Origin em POST cross-site.                                                                                           |
-| SEC-15 | Média       | Aceito | Rate-limit de 2FA/reenvio **fail-open** se o D1 falhar. O teto de 5 tentativas **por desafio** continua. Download de `/validar` é fail-closed (FLW-AUT-016).                                                                      |
-| SEC-16 | Baixa       | Aceito | Cache de sessão (default 60 s) em GET. Mutação não usa cache (FLW-AUTH-001).                                                                                                                                                      |
-| SEC-18 | Info        | Aceito | GPS e selfie da assinatura avançada vêm do cliente. A Lei 14.063 não transforma o browser em sensor honesto; o manifesto registra o que o aparelho declarou. Foto de foto / GPS forjado são limitações do canal, não bugs de ACL. |
-| SEC-19 | Baixa       | Aceito | `/api/policiais/search` libera o diretório (sem e-mail) a todo admin, de propósito, para escalação cross-lotação. Policial comum é recortado.                                                                                     |
-| SEC-21 | Residual    | Aceito | `style-src 'unsafe-inline'` na CSP HTML (trade-off do Tailwind/Skeleton). `script-src` está fechado.                                                                                                                              |
-| SEC-22 | Baixa       | Aceito | Login novo não derruba sessões anteriores. Troca/reset de senha revoga as duas identidades.                                                                                                                                       |
-| SEC-23 | Ops         | Aceito | `ADMIN_GERAL_SENHA` / `SUPER_ADMIN_SENHA` ainda aceitam texto claro. `DEPLOY.md` pede hash PBKDF2 v2.                                                                                                                             |
-| SEC-24 | Aceito      | Aceito | OCSP `unknown` / responder fora não impede login por certificado (fail-open documentado). `revoked` fecha.                                                                                                                        |
-| SEC-25 | Ops         | Aceito | Sem `CPF_ENCRYPTION_KEY` o CPF grava em claro. Health detalha ausência.                                                                                                                                                           |
-| SEC-26 | Baixa       | Aberto | `TSA_URL` default é `http://timestamp.digicert.com` (sem TLS). Guard de SSRF continua.                                                                                                                                            |
-| SEC-27 | Aceito      | Aceito | Código de `/validar` tem ~40 bits (8 chars de alfabeto 32), CSPRNG. Enumeração limitada por rate-limit; download forense exige sessão.                                                                                            |
-| SEC-28 | Info        | Aceito | `GET /api/configuracoes/assinatura` (autenticado) devolve flags de política. PUT é Super Admin. O hook já exige sessão.                                                                                                           |
-| SEC-29 | Média       | Aberto | Reset de senha aceita `email_pessoal` **não** verificado e, no confirmar, pode marcar como verificado. OTP prova controle da caixa, não que o titular a vinculou de propósito.                                                    |
-| SEC-30 | Baixa       | Aberto | `email.ts` loga `accountId` do Cloudflare (não é senha; ajuda targeting).                                                                                                                                                         |
-| SEC-31 | Aceito      | Aceito | `restringirSmartphone` olha User-Agent no servidor — UA é spoofável. É política de UX/dispositivo, não autenticador.                                                                                                              |
+### Ordem sugerida
+
+A ordem é por **razão custo/risco**, não por severidade: os dois primeiros são
+uma linha cada e fecham superfície sem decisão de produto; os três de corrida
+pedem migração; os dois últimos precisam de resposta do dono do produto antes
+de virar código.
+
+| #   | ID     | Sev.  | Esforço  | Depende de                       |
+| --- | ------ | ----- | -------- | -------------------------------- |
+| 1   | SEC-30 | Baixa | ~1 linha | —                                |
+| 2   | SEC-26 | Baixa | ~1 linha | confirmar que a TSA atende HTTPS |
+| 3   | SEC-14 | Baixa | pequeno  | —                                |
+| 4   | SEC-35 | Baixa | médio    | —                                |
+| 5   | SEC-34 | Média | médio    | regra FDS × mensal               |
+| 6   | SEC-38 | Baixa | pequeno  | **decisão de produto**           |
+| 7   | SEC-29 | Média | médio    | **decisão de produto**           |
 
 ---
 
-## Complemento — “banco sem tranca” / superfície clássica (mesmo dia)
+### SEC-30 — Baixa — `email.ts` loga o `accountId` do Cloudflare
 
-Varredura extra pedida no mesmo ciclo: race/TOCTOU em D1, segredos no
-cliente, input sem schema, e gaps clássicos. **Sem PoC.** Identificadores
-continuam **SEC-** (SEC-32…).
+`src/lib/server/email.ts:111-117` monta o log de diagnóstico com
+`hasAccountId: !!accountId` **e** `accountId` — o valor inteiro. Não é
+credencial (o `CLOUDFLARE_API_TOKEN` é que é), mas é identificador de conta em
+log, e `hasAccountId` ao lado dele já entrega tudo que o diagnóstico precisa.
 
-### O que já trava de verdade (não reabrir)
+**Plano:** remover o campo `accountId` do objeto de log, mantendo
+`hasAccountId`. Uma linha; sem teste novo (nenhum teste afirma o campo).
 
-| Controle                                                    | Onde                                                                                  | Como trava                             |
-| ----------------------------------------------------------- | ------------------------------------------------------------------------------------- | -------------------------------------- |
-| Intenção de assinatura uso único                            | `src/lib/server/assinatura/intencao.ts`                                               | `UPDATE … WHERE usado = 0 … RETURNING` |
-| 2FA / reset / WebAuthn / reposição passkey                  | `src/lib/auth.ts`, `src/lib/db/webauthn.ts`, `passkey-reposicao.ts`                   | mesmo padrão CAS                       |
-| Webhook replay (quando enforce)                             | `webhook-auth.ts` + `webhook_nonces` UNIQUE                                           | INSERT atômico                         |
-| Um documento assinado por escala / GISE / relatório / termo | unique + INSERT `onConflictDoNothing` (SEC-32)                                        | segundo INSERT não grava               |
-| Uma presença por (gise, policial)                           | `uq_gise_presenca_policial` + CAS `saida IS NULL` (SEC-33)                            | unique + upsert condicional            |
-| Cookie sessão                                               | `auth-flow.ts` `cookieOptions`                                                        | HttpOnly + SameSite=strict             |
-| Health público                                              | `api/health/+server.ts`                                                               | binário; detalhe só com token ≥16      |
-| `{@html}`                                                   | só termo, via `sanitizeTermoHtml`                                                     | allowlist                              |
-| Selfie upload                                               | `selfie-upload.ts`                                                                    | magic bytes + teto + UUID na chave     |
-| SSRF OCSP/TSA                                               | `ocsp.ts`, `tsa.ts`                                                                   | guard de URL                           |
-| SQL app                                                     | Drizzle parametrizado; `sql.raw` só com constantes (`LOGIN_WINDOW_MINUTES`, `ESCAPE`) | sem user data em `sql.raw`             |
-| CORS `*` / JWT / debug endpoints                            | —                                                                                     | ausentes                               |
-| Secrets de produção no Git                                  | `.gitignore`, `.env.example`                                                          | PEMs = âncoras ICP públicas            |
-| `PUBLIC_*` no bundle                                        | só `PUBLIC_SENTRY_DSN` / `PUBLIC_SENTRY_ENVIRONMENT`                                  | sem sync/reset                         |
+### SEC-26 — Baixa — `TSA_URL` default em HTTP
 
-### Achados novos (race / TOCTOU)
+O default é `http://timestamp.digicert.com` — sem TLS. O carimbo RFC 3161 é
+assinado pela TSA, então um MITM não forja carimbo válido; o que ele consegue é
+**negar** o carimbo (derrubando a resposta) ou observar o hash carimbado. O
+guard de SSRF continua valendo para a URL configurada.
 
-| ID     | Sev.  | Status      | Resumo                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
-| ------ | ----- | ----------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| SEC-32 | Média | **Tratada** | Dupla assinatura: `onConflictDoUpdate` desfazia o unique. INSERT + `onConflictDoNothing` + `{ gravado }`; portão GISE/extra 409.                                                                                                                                                                                                                                                                                                                                                                                                             |
-| SEC-33 | Média | **Tratada** | Presença: entrada com `setWhere: saida IS NULL`; saída com `saida IS NULL`; `{ registrada }`.                                                                                                                                                                                                                                                                                                                                                                                                                                                |
-| SEC-34 | Média | Aberto      | **Criar escala: check-then-act sem unique.** `verificarEscalaExistente` + `criarEscala`; índice `idx_escalas_lotacao_tipo_data` **não** é unique. Comentário em `criarEscala` admite duplicata se alguém não checar. Duas criações paralelas → duas escalas equivalentes. Arquivos: `src/lib/db/escalas.ts`, `src/routes/escalas/+page.server.ts`, `actions-projecao.ts`. Remédio: unique parcial/expressão alinhada à regra FDS vs mensal, ou INSERT que falhe no conflito. Unique simples quebraria FDS (overlap de intervalos).           |
-| SEC-35 | Baixa | Aberto      | **Finalizar / status GISE sem CAS.** `POST …/finalizar` e action `finalizarGise`: leem status, depois `atualizarGiseEscala({ status: 'finalizada' })` **sem** `WHERE status ≠ 'finalizada'`. Idempotente no estado final, mas side-effects (auditoria duplicada, `agendarSyncBaseEquipeAposFinalizar` duas vezes). Arquivos: `src/routes/api/gise/[id]/finalizar/+server.ts`, `src/routes/gise/[id]/_actions/actions-escala.ts`, `src/lib/db/gise/escalas-crud.ts`. Remédio: `UPDATE … SET status=? WHERE id=? AND status IN (…) RETURNING`. |
-| SEC-36 | Média | **Tratada** | Solicitação: `UPDATE … WHERE status='pendente'`; zero linhas → `null`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
-| SEC-37 | Baixa | **Tratada** | Unique `(escala_id, policial_id, data_plantao)` alinhado ao Drizzle (`0047`); actions devolvem 409.                                                                                                                                                                                                                                                                                                                                                                                                                                          |
-| SEC-38 | Baixa | Aberto      | **Criar GISE:** `criarGiseEscala` INSERT livre; sem unique em `(operacao_id, data_inicio)`. Duplicata de dia é possível por corrida/UI. Arquivo: `src/lib/db/gise/escalas-crud.ts`. Aceitável se produto permite várias no mesmo dia; senão unique.                                                                                                                                                                                                                                                                                          |
+**Plano:** trocar o default para `https://` e confirmar em `.env.example` +
+`DEPLOY.md` §"Carimbo de tempo qualificado". Conferir antes que o endpoint da
+TSA escolhida responde em HTTPS — algumas TSAs públicas servem RFC 3161 só em
+HTTP, e nesse caso o achado vira "aceito com registro" em vez de remediado.
+`avaliarConfiguracaoTsa` já tem teste que fixa `http://timestamp.digicert.com`
+(`__tests__/cades-finalizer.test.ts:71,80`); ele acompanha a mudança.
 
-### Achados B/C/D (segredos, input, clássicos) — cruzamento
+### SEC-14 — Baixa — Origin **ausente** passa no POST de login
 
-| Tema                          | Veredicto                                                                                       | ID conhecido / novo                                                                         |
-| ----------------------------- | ----------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
-| Bundle / `PUBLIC_*`           | Só Sentry público                                                                               | — (sólido)                                                                                  |
-| `.env` commitado              | Não; PEMs = trust store                                                                         | — (sólido)                                                                                  |
-| Health detalhe                | Token obrigatório                                                                               | — (sólido); ops SEC-12/25                                                                   |
-| Webhook replay opcional       | Preview/local                                                                                   | **SEC-13**                                                                                  |
-| SYNC_TOKEN leak em resposta   | `unauthorized()` uniforme; reason só em log                                                     | — (sólido)                                                                                  |
-| PDF histórico sem magic bytes | `%PDF` nos bytes (`ePdf`)                                                                       | **SEC-17** (tratada)                                                                        |
-| JSON.parse sem Zod            | Form actions de composição/datas; webhook sync (validação manual por campo); modelos GISE do DB | residual — risco baixo se origem é form autenticado / DB admin; webhook sync já autenticado |
-| `Number()` sem teto           | Vários `params.id` / FormData; search de unidades **tem** clamp 1–50                            | residual baixo (NaN → 400/redirect)                                                         |
-| Path traversal R2             | Chaves montadas no servidor (UUID / ids numéricos); download lê `r2_key` do DB                  | — (sólido para upload)                                                                      |
-| SSRF user URL                 | Não; TSA/OCSP com guard                                                                         | **SEC-26** (HTTP default)                                                                   |
-| XSS `{@html}`                 | Só termo sanitizado                                                                             | — (sólido)                                                                                  |
-| Open redirect                 | `goto`/`redirect` com paths fixos ou `obterRotaBemVindo`                                        | — (sólido)                                                                                  |
-| Mass assignment               | Schemas LGPD strip; comentários anti-MA                                                         | — (sólido pós-remendo)                                                                      |
-| Cookie HttpOnly               | Sim                                                                                             | —; **SEC-22** sessões concorrentes aceitas                                                  |
-| Origin ausente no login       | Passa                                                                                           | **SEC-14**                                                                                  |
-| SQL cru em erro HTTP          | `ehViolacaoUnique` + `serverError` genérico                                                     | — (sólido)                                                                                  |
-| Intenção / 2FA reuso          | Fechado (CAS); lote `markUsed:false` é contrato                                                 | — (sólido; ver JSDoc `verificarDesafio2FA`)                                                 |
-| Session fixation              | Token novo em `criarSessao`; Origin check em `/api/auth/*`; login não revoga sessões antigas    | **SEC-22**                                                                                  |
+`hooks.server.ts:157` recusa `origin !== null && origin !== event.url.origin`.
+Origem divergente morre; origem **ausente** passa. O login é isento de
+CSRF-token de propósito (o cookie ainda não existe), então o Origin é a única
+camada ali. Browsers modernos mandam `Origin` em todo POST cross-site — o
+buraco é teórico para browser atual, e real para cliente não-browser.
+
+**Plano:** exigir `Origin` presente **apenas** no POST de `/api/auth/login` e na
+form action de login, não no resto (webhooks legitimamente não mandam Origin, e
+já têm autenticação própria). Teste negativo: POST sem `Origin` → 403 `CSRF`.
+Verificar no e2e que o fluxo normal de login não regride.
+
+### SEC-35 — Baixa — Finalizar / transições de status GISE sem CAS
+
+`api/gise/[id]/finalizar/+server.ts:32-48` lê o status, checa
+`modoDeFinalizacao`, e só então chama `atualizarGiseEscala(db, id, {status:
+'finalizada'})` — **sem** `WHERE` de estado. A mesma forma está na action
+`finalizarGise` (`routes/gise/[id]/_actions/actions-escala.ts`). O estado final
+é idempotente, mas os **efeitos colaterais** não: duas requisições simultâneas
+geram auditoria duplicada e chamam `agendarSyncBaseEquipeAposFinalizar` duas
+vezes.
+
+**Plano:** dar a `atualizarGiseEscala` (ou a um `finalizarGiseEscala` novo em
+`db/gise/escalas-crud.ts`) a forma CAS que o resto do projeto já usa —
+`UPDATE … SET status=? WHERE id=? AND status IN (…) RETURNING` — e devolver
+`{finalizada: boolean}`. Zero linhas afetadas → `conflict('Escala já
+finalizada')`, **antes** de auditar e de agendar o sync. As duas entradas (API e
+action) passam pelo mesmo helper; hoje elas duplicam a sequência, e é a
+duplicação que deixou as duas sem CAS ao mesmo tempo.
+
+⚠️ O JSDoc de `atualizarGiseEscala` (`escalas-crud.ts:89-96`) diz explicitamente
+"Não valida a transição de status — quem decide é `escalas-status.ts`". Ela é o
+patch genérico da linha (também grava `supervisor_id`, `assessor_id`, `seint*`),
+então **não** dá para pôr o `WHERE` de status dentro dela sem quebrar os outros
+usos: o CAS vai num helper novo, específico da transição.
+
+### SEC-34 — Média — Criar escala: check-then-act sem unique no banco
+
+`verificarEscalaExistente` + `criarEscala` (`db/escalas.ts:178-183`) são duas
+operações separadas, e o índice `idx_escalas_lotacao_tipo_data`
+(`server/schema.ts:116`) **não é unique**. O próprio JSDoc de `criarEscala`
+admite: "Não checa duplicidade: chame `verificarEscalaExistente` antes, ou a
+mesma lotação ganha duas escalas para o mesmo período". Duas criações paralelas
+(duplo clique, retry) passam as duas pelo check e criam duas escalas
+equivalentes. Chamadores: `routes/escalas/+page.server.ts`,
+`_actions/actions-projecao.ts`.
+
+**Plano — e por que ele não é "põe um unique":** a regra de "equivalente" difere
+por tipo. Para **mensal**, `(lotacao, tipo, data_inicio)` basta. Para **fds**, o
+critério é **sobreposição de intervalo** — dois fins de semana distintos podem
+ter `data_inicio` diferente e ainda colidir, e um unique simples não expressa
+isso (SQLite não tem exclusion constraint).
+
+Caminho recomendado, em duas partes:
+
+1. **Unique parcial para o caso que ele cobre:**
+   `CREATE UNIQUE INDEX … ON escalas(lotacao, tipo, data_inicio) WHERE tipo='mensal'`.
+   Fecha a duplicata mensal no banco, que é a maioria do tráfego.
+2. **FDS continua no check**, mas o INSERT passa a ser fail-closed pelo mesmo
+   padrão do SEC-32: a action captura `ehViolacaoUnique` e devolve **409**
+   visível em vez de 500 com SQL cru — o mecanismo que o SEC-37 já instalou nas
+   actions de plantão.
+
+Antes de migrar: rodar a query de detecção de duplicatas mensais existentes em
+produção, porque `CREATE UNIQUE INDEX` falha se já houver colisão gravada.
+
+### SEC-38 — Baixa — Criar GISE sem unique em `(operacao_id, data_inicio)`
+
+`criarGiseEscala` (`db/gise/escalas-crud.ts:61`) é INSERT livre; não há unique
+nem check prévio. Duas GISE para a mesma operação no mesmo dia são possíveis por
+corrida **ou** simplesmente por dois cliques na UI.
+
+**Decisão de produto antes do código:** o produto permite duas escalas da mesma
+operação no mesmo dia (dois turnos, duas frentes)? `criarGiseEscala` já recebe
+`hora_entrada`/`hora_saida`, o que sugere que sim.
+
+- **Se não permite:** unique em `(operacao_id, data_inicio)` + `onConflictDoNothing`
+  - 409, atenção a `operacao_id` nullable (SQLite trata `NULL` como distinto, então
+    GISE sem operação escapa do unique — pode exigir índice parcial `WHERE operacao_id IS NOT NULL`).
+- **Se permite:** vira "aceito com registro", e o registro vai no JSDoc de
+  `criarGiseEscala` — porque hoje o silêncio ali é indistinguível de esquecimento,
+  que é exatamente o que o `CLAUDE.md` chama de armadilha.
+
+Vale conferir junto: `clonarGiseParaData` chama esta função, então a resposta
+precisa valer para o clone automático da próxima escala também.
+
+### SEC-29 — Média — Reset de senha aceita `email_pessoal` não verificado
+
+`api/auth/solicitar-redefinicao/+server.ts:131` só exige `usuario.email_pessoal`
+— não `email_pessoal_verificado`. Pior: `api/auth/confirmar-redefinicao/+server.ts:136-148`
+**marca** `email_pessoal_verificado = 1` quando o OTP é confirmado.
+
+O raciocínio implícito é que o OTP prova controle da caixa. Prova — mas prova
+apenas isso. Não prova que o **titular** vinculou aquele endereço de propósito:
+um e-mail pessoal errado (digitado errado no cadastro, ou gravado por quem
+administra a ficha) vira, no primeiro reset, um endereço **verificado** capaz de
+redefinir a senha daquele policial. O caminho legítimo de verificação existe e é
+outro: `/api/auth/solicitar-verificacao-email-pessoal` + `confirmar-…`, que é
+justamente o que o SEC-01 desbloqueou.
+
+**Decisão de produto antes do código** — a pergunta é o que acontece com quem
+hoje tem `email_pessoal` preenchido e não verificado:
+
+- **Opção A (fechada):** `solicitar-redefinicao` exige `email_pessoal_verificado=1`;
+  `confirmar-redefinicao` **para de marcar** verificado. Quem não verificou perde o
+  autoatendimento de reset até verificar — precisa da tela de verificação, que exige
+  estar logado, ou de um admin. Medir quantos usuários caem nisso antes de decidir.
+- **Opção B (transição):** manter o reset, mas parar de marcar `verificado=1` no
+  confirmar — o flag volta a significar "o titular vinculou", e o reset deixa de
+  fabricar essa prova. É a metade barata, e é reversível.
+
+Em qualquer opção, a remoção do `UPDATE … SET email_pessoal_verificado = 1` no
+`confirmar-redefinicao` é o núcleo do achado: é ele que transforma um endereço
+não confirmado em confirmado sem que o titular tenha feito o ato de vincular.
 
 ---
 
 ## Superfície por ator
 
 **Anônimo:** login (rate-limited), reset, 2FA, certificado, `/validar` (PII
-mascarada), logo institucional, health binário, webhooks (sem o segredo →
-401). Não baixa o PDF forense.
+mascarada), logo institucional, health binário, webhooks (sem o segredo → 401).
+Não baixa o PDF forense.
 
 **Policial comum:** própria lotação; presença só se participa; não assina
 escala/GISE por POST (portão). Busca de colegas só na lotação.
 
-**Admin de unidade/seccional:** escopo do **papel** (depois deste PR). Não
-promove Admin Geral. Diretório de policiais é global (SEC-19).
+**Admin de unidade/seccional:** escopo do **papel** (SEC-06). Não promove Admin
+Geral. Diretório de policiais é global (SEC-19).
 
-**Supervisor GISE:** assina a escala/relatório da operação em que foi
-designado. Não assina a de outro supervisor.
+**Supervisor GISE:** assina a escala/relatório da operação em que foi designado.
+Não assina a de outro supervisor.
 
-**Admin Geral:** escalas ordinárias (assinatura inclusive, de propósito);
-GISE lifecycle; **não** assina GISE. Pode promover outro Admin Geral
-(documentado).
+**Admin Geral:** escalas ordinárias (assinatura inclusive, de propósito); GISE
+lifecycle; **não** assina GISE. Pode promover outro Admin Geral (documentado).
 
-**Super Admin:** auditoria, config de assinatura, unidades. Break-glass por
-env.
+**Super Admin:** auditoria, config de assinatura, unidades. Break-glass por env.
 
-**Dono do `SYNC_TOKEN`:** upsert de folha (sem papel, salvo flag). Sem
-replay enforce, replay do payload. **Não** apaga o banco — isso pede
-`RESET_TOKEN` + data + nonce.
+**Dono do `SYNC_TOKEN`:** upsert de folha (sem papel, salvo flag). **Não** apaga
+o banco — isso pede `RESET_TOKEN` + data + nonce.
 
 ---
 
-## Checklist de produção (não é código)
+## Como esta auditoria se encerra
 
-Confira no Pages (Production), não só no `.env.example`:
-
-1. `PASSWORD_PEPPER`, `CPF_ENCRYPTION_KEY`, `CPF_INDEX_KEY`, `AUDIT_CHAIN_KEY`, `AUDIT_IP_ENCRYPTION_KEY`, `RATE_LIMIT_IP_SALT`
-2. `ADMIN_GERAL_EMAIL` e `SUPER_ADMIN_EMAIL` (2FA no bootstrap)
-3. Senhas de bootstrap em hash `pbkdf2v2:`, não texto claro
-4. `WEBHOOK_REPLAY_ENFORCE=1` e `WEBHOOK_ALLOW_PAPEL_CHANGES` **vazio**
-5. `APP_ORIGIN` no domínio canônico (WebAuthn RP ID)
-6. `ICP_BRASIL_TRUST_STORE_REQUIRED=1` se a política for fail-closed
-7. R2 `escalas_docs` **sem** acesso público
-
-O `GET /api/health?detail=<HEALTH_DETAIL_TOKEN>` lista proteções ausentes
-sem derrubar liveness.
-
----
-
-## Próximos remendos (não neste PR)
-
-1. Reset de senha só com `email_pessoal_verificado=1` (SEC-29) — produto
-2. Recusar Origin ausente no POST de `/api/auth/login` (SEC-14)
-3. TSA por HTTPS (SEC-26)
-4. Parar de logar `accountId` (SEC-30)
-5. Unique / expressão ao criar escala, alinhada a FDS vs mensal (SEC-34)
-6. Transições de status GISE com `WHERE` de estado (SEC-35)
-7. Unique GISE `(operacao_id, data_inicio)` se o produto não permitir duas no mesmo dia (SEC-38)
+Quando os sete acima forem remediados ou formalmente aceitos, este arquivo sai
+do working tree e ganha uma linha em [`docs/HISTORICO.md`](../HISTORICO.md) com
+o commit em que pode ser lido — a convenção descrita em
+[`docs/README.md`](../README.md). Enquanto houver achado aberto, ele fica aqui:
+auditoria fora de `docs/auditorias/` é auditoria que ninguém releva.

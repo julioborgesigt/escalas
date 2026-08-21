@@ -35,9 +35,15 @@ Os relatórios de auditoria e as avaliações arquivadas **não vivem mais no wo
 - **Novas auditorias** podem ser commitadas em `docs/auditorias/` (data no nome ou no cabeçalho) enquanto seus achados estão sendo tratados; quando encerradas, o arquivo é removido e catalogado no [`HISTORICO.md`](HISTORICO.md) — o histórico do Git mantém a rastreabilidade dos achados (A1–A8, I-1…I-4, M-3/M-4, R2-1…R2-4, B-1…B-6…) citados em comentários do código.
 - `docs/auditorias/` tem **uma auditoria aberta**:
   [`AUDITORIA_SEGURANCA_2026-08-21.md`](auditorias/AUDITORIA_SEGURANCA_2026-08-21.md)
-  (SEC-01…SEC-38). Os P0/P1 deste ciclo foram tratados no mesmo PR; o
-  complemento “banco sem tranca” (SEC-32…) e o que restou aberto ou aceito
-  estão nas tabelas do documento. A última encerrada
+  (SEC-01…SEC-38; o número SEC-03 foi pulado na redação, não é achado perdido).
+  Reverificada contra o código em 21/ago: **30 dos 37 fechados** — os 15
+  tratados viraram tabela apontando para o código que os prova, e os 15 aceitos
+  viraram tabela de decisões, com os cinco de operação promovidos ao
+  [`DEPLOY.md`](../DEPLOY.md). Os **7 abertos** (SEC-14/26/29/30/34/35/38)
+  seguem no documento, cada um com plano e ordem sugerida; dois deles esperam
+  decisão de produto. O texto integral dos fechados está em
+  `git show 8645283:docs/auditorias/AUDITORIA_SEGURANCA_2026-08-21.md`.
+  A última encerrada
   (componentização, 13/ago) foi catalogada no [`HISTORICO.md`](HISTORICO.md);
   a visual (VIS-1…VIS-17) antes dela, com o resíduo manual em
   [`TESTING.md`](../TESTING.md) §16, que é onde mora roteiro que a automação
