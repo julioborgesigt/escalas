@@ -124,7 +124,7 @@ export const load: PageServerLoad = async ({ locals, platform, params, depends }
 	// recalculava a regra e a aplicava em um dos sete componentes de edição.
 	// Um admin_seccional que apenas VÊ a escala de uma unidade sob seu escopo NÃO
 	// edita — mas continua podendo ASSINAR (fluxo próprio, cross-unidade).
-	const podeEditarEscala = podeMexerNaEscala(u, escala.lotacao);
+	const podeEditarEscala = await podeMexerNaEscala(db, u, escala.lotacao);
 
 	const oipPodeSolicitar = podeOIPSolicitarAssinatura(u);
 	const jaAssinada = docInfo.existe;

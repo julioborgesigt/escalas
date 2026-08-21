@@ -20,7 +20,7 @@
  * o `inArray` com lista vazia gera SQL inválido no D1; use `batchNonEmpty` ou
  * devolva cedo, como já fazem os call sites daqui.
  */
-import { eq, and, or, sql, desc, asc, inArray, like, type SQL } from 'drizzle-orm';
+import { eq, and, or, sql, desc, asc, inArray, type SQL } from 'drizzle-orm';
 import {
 	escalas,
 	escalaPoliciais,
@@ -32,7 +32,7 @@ import type * as schema from '../server/schema';
 import type { EscalaPolicialComDados, EscalaListagem } from '../types';
 import {
 	batchNonEmpty,
-	escapeLike,
+	likeContains,
 	paginarComContagem,
 	timestampSqliteBrasilia,
 	type Database
@@ -78,8 +78,11 @@ export async function listarEscalas(
 
 	if (lotacao) {
 		conditions.push(eq(escalas.lotacao, lotacao));
-	} else if (opts?.lotacoes && opts.lotacoes.length > 0) {
-		conditions.push(inArray(escalas.lotacao, opts.lotacoes));
+	} else if (opts?.lotacoes) {
+		// Array vazio = papel sem unidade (SEC-06): zero linhas, nunca "todas".
+		conditions.push(
+			opts.lotacoes.length > 0 ? inArray(escalas.lotacao, opts.lotacoes) : sql`1 = 0`
+		);
 	}
 	if (mes) {
 		const monthStr = mes.toString().padStart(2, '0');
@@ -93,18 +96,16 @@ export async function listarEscalas(
 
 	// Busca por título ou cidade
 	if (opts?.busca) {
-		const buscaEscapada = escapeLike(opts.busca.trim());
-		conditions.push(
-			or(like(escalas.titulo, `%${buscaEscapada}%`), like(escalas.cidade, `%${buscaEscapada}%`))!
-		);
+		const termo = opts.busca.trim();
+		conditions.push(or(likeContains(escalas.titulo, termo), likeContains(escalas.cidade, termo))!);
 	}
 
 	if (opts?.lotacaoBusca) {
-		conditions.push(like(escalas.lotacao, `%${escapeLike(opts.lotacaoBusca.trim())}%`));
+		conditions.push(likeContains(escalas.lotacao, opts.lotacaoBusca.trim()));
 	}
 
 	if (opts?.dataBusca) {
-		conditions.push(like(escalas.data_inicio, `%${escapeLike(opts.dataBusca.trim())}%`));
+		conditions.push(likeContains(escalas.data_inicio, opts.dataBusca.trim()));
 	}
 
 	// Filtro de status via IS NULL / IS NOT NULL sobre o LEFT JOIN abaixo.

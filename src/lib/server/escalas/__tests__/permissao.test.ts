@@ -7,7 +7,9 @@ vi.mock('$lib/db', () => ({
 	temSolicitacaoParaDpcAdmin: vi.fn()
 }));
 vi.mock('$lib/server/policial-permissao', () => ({
-	lotacoesAdministradas: vi.fn()
+	lotacoesAdministradas: vi.fn(),
+	lotacaoNoEscopo: (escopo: Set<string> | null, lotacao: string) =>
+		escopo === null || escopo.has(lotacao)
 }));
 
 // Import depois do mock para garantir bind correto.
@@ -209,10 +211,24 @@ describe('podeAssinarEscala (FLW-AUT-001)', () => {
 		);
 	});
 
-	it('podeMexerNaEscala permite OIP admin na lotação (editar ≠ assinar)', () => {
+	it('podeMexerNaEscala permite OIP admin na lotação do PAPEL (editar ≠ assinar)', async () => {
+		vi.mocked(lotacoesAdministradas).mockResolvedValueOnce(new Set(['DELEGACIA A']));
 		const u = user({ papel: 'admin_unidade', cargo: 'OIP', lotacao: 'DELEGACIA A' });
-		expect(podeMexerNaEscala(u, 'DELEGACIA A')).toBe(true);
+		expect(await podeMexerNaEscala(fakeDb, u, 'DELEGACIA A')).toBe(true);
 		expect(podeAssinarEscala(u)).toBe(false);
+	});
+
+	it('admin_unidade transferido mexe na unidade do papel, não na lotação nova (SEC-06)', async () => {
+		const u = user({
+			papel: 'admin_unidade',
+			cargo: 'OIP',
+			lotacao: 'DELEGACIA B',
+			papel_unidade_id: 1
+		});
+		vi.mocked(lotacoesAdministradas).mockResolvedValueOnce(new Set(['DELEGACIA A']));
+		expect(await podeMexerNaEscala(fakeDb, u, 'DELEGACIA A')).toBe(true);
+		vi.mocked(lotacoesAdministradas).mockResolvedValueOnce(new Set(['DELEGACIA A']));
+		expect(await podeMexerNaEscala(fakeDb, u, 'DELEGACIA B')).toBe(false);
 	});
 });
 
