@@ -107,7 +107,7 @@ export async function compensarBlobAssinado(
 }
 
 /** Mensagem única do 409 — a tranca é o UNIQUE, não "tente de novo". */
-export const MSG_REVOGAR_ASSINATURA_EXISTENTE =
+const MSG_REVOGAR_ASSINATURA_EXISTENTE =
 	'Revogue a assinatura existente antes de assinar novamente';
 
 /**
