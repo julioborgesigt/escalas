@@ -19,8 +19,9 @@
  * do topo deixaria erros sem `requestId` para o usuário reportar.
  *
  * `ROTAS_PUBLICAS` é a lista fechada do que dispensa sessão — login, validação
- * pública de documento, webhooks e health. O match respeita delimitador (ver
- * abaixo), senão `/termo` liberaria `/termos-secretos`.
+ * pública de documento, webhooks e health. O match respeita delimitador
+ * (`pathnameNoEscopo` em `onboarding-gates.ts`), senão `/termo` liberaria
+ * `/termos-secretos`.
  */
 import type { Handle, HandleServerError } from '@sveltejs/kit';
 import { sequence } from '@sveltejs/kit/hooks';
@@ -43,6 +44,11 @@ import { buildCSP } from '$lib/server/csp';
 import { withSentryRequest } from '$lib/server/sentry';
 import { apiError, ErrorCode } from '$lib/server/api';
 import { mensagemDeErro } from '$lib/utils/erro';
+import {
+	pathnameNoEscopo,
+	pathnameLivreEmPrimeiroAcesso,
+	pathnameLivreDoTermo
+} from '$lib/server/auth/onboarding-gates';
 
 const ROTAS_PUBLICAS = new Set([
 	'/login',
@@ -59,15 +65,6 @@ const ROTAS_PUBLICAS = new Set([
 	'/api/webhook',
 	'/termo'
 ]);
-
-/**
- * Match com delimitador: `/termo` cobre `/termo` e `/termo/...`, mas NÃO uma
- * rota futura `/termoXyz` — `startsWith` puro tornaria pública qualquer rota
- * que compartilhe o prefixo.
- */
-function pathnameNoEscopo(pathname: string, rota: string): boolean {
-	return pathname === rota || pathname.startsWith(rota + '/');
-}
 
 function isRotaPublica(pathname: string): boolean {
 	for (const rota of ROTAS_PUBLICAS) {
@@ -176,20 +173,9 @@ const handleAuth: Handle = async ({ event, resolve }) => {
 
 	const token = event.cookies.get('session_token');
 
-	// Rotas livres do bloqueio do termo: a própria /aceitar-termo, /termo/[versao]
-	// (consulta pública), /api/auth/logout (permitir sair) e a rota raiz pós-login.
-	// `/alterar-senha` também é livre: o primeiro acesso resolve a SENHA antes do
-	// termo (ordem documentada abaixo). Sem isto, um usuário em primeiro_acesso
-	// sem aceite entra em loop /alterar-senha ⇄ /aceitar-termo.
-	// Calculado ANTES da validação de sessão: quando o termo será exigido, a query
-	// de aceite entra no MESMO batch D1 da busca do usuário (1 round-trip a menos
-	// em todo request autenticado — ver validarSessaoComAceite).
-	const rotasLivresTermo =
-		pathname.startsWith('/aceitar-termo') ||
-		pathname.startsWith('/alterar-senha') ||
-		pathname.startsWith('/termo/') ||
-		pathname.startsWith('/api/termos/') ||
-		pathname.startsWith('/api/auth/');
+	// Allowlist FECHADA — não o prefixo `/api/auth/` inteiro (SEC-05). A lista
+	// e o porquê de cada rota estão em `onboarding-gates.ts`.
+	const rotasLivresTermo = pathnameLivreDoTermo(pathname);
 
 	let usuario = null;
 	let aceiteVigente = true;
@@ -237,17 +223,12 @@ const handleAuth: Handle = async ({ event, resolve }) => {
 	if (reqCtx) reqCtx.userId = String(usuario.id);
 	setUser({ id: String(usuario.id), username: usuario.nome });
 
-	// Fluxo de Primeiro Acesso — só senha (/alterar-senha) e logout.
-	// Isentar todo `/api/auth/*` liberava solicitar-codigo-assinatura,
-	// alternar-acesso etc. antes da troca de senha (FLW-AUT-019).
-	const authLivreEmPrimeiroAcesso =
-		pathname === '/api/auth/logout' || pathname.startsWith('/api/auth/logout/');
-
-	if (
-		usuario.primeiro_acesso &&
-		!pathname.startsWith('/alterar-senha') &&
-		!authLivreEmPrimeiroAcesso
-	) {
+	// Fluxo de Primeiro Acesso — senha, verificação de e-mail pessoal e logout.
+	// Isentar todo `/api/auth/*` liberava solicitar-codigo-assinatura e
+	// alternar-acesso antes da troca de senha (FLW-AUT-019). Recusar também as
+	// duas rotas de verificação de e-mail travava o onboarding (SEC-01): a
+	// tela pede o OTP e a API respondia 403.
+	if (usuario.primeiro_acesso && !pathnameLivreEmPrimeiroAcesso(pathname)) {
 		if (pathname.startsWith('/api/')) {
 			return apiError('Altere sua senha antes de continuar', 403, ErrorCode.FORBIDDEN);
 		}

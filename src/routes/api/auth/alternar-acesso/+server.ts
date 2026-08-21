@@ -9,6 +9,7 @@ import {
 } from '$lib/db';
 import { criarSessao, excluirSessao, obterRotaBemVindo, type UsuarioLogado } from '$lib/auth';
 import { cookieOptions } from '$lib/server/auth/auth-flow';
+import { invalidarSessaoCache } from '$lib/server/auth/session-cache';
 import { requireAuth, forbidden, conflict } from '$lib/server/api';
 
 /**
@@ -44,7 +45,10 @@ export const POST: RequestHandler = async (event) => {
 		cookies.set('session_token', novoToken, cookieOptions(url));
 		// Preserva o cookie `admin_modulo` (só surte efeito em sessão admin) para
 		// que, ao voltar ao modo admin, caia no último módulo usado.
-		if (tokenAtual) await excluirSessao(db, tokenAtual);
+		if (tokenAtual) {
+			await excluirSessao(db, tokenAtual);
+			await invalidarSessaoCache(tokenAtual);
+		}
 
 		const destino: UsuarioLogado = {
 			id: policial.id,
@@ -92,7 +96,10 @@ export const POST: RequestHandler = async (event) => {
 	const modulo: 'gise' | 'escalas' =
 		moduloSalvo === 'gise' || moduloSalvo === 'escalas' ? moduloSalvo : 'gise';
 	cookies.set('admin_modulo', modulo, cookieOptions(url));
-	if (tokenAtual) await excluirSessao(db, tokenAtual);
+	if (tokenAtual) {
+		await excluirSessao(db, tokenAtual);
+		await invalidarSessaoCache(tokenAtual);
+	}
 
 	const destino: UsuarioLogado = {
 		id: admin.id,
