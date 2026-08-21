@@ -142,7 +142,13 @@ export const escalaPoliciais = sqliteTable(
 		index('idx_escala_policiais_policial').on(table.policial_id),
 		index('idx_escala_policiais_escala_policial').on(table.escala_id, table.policial_id),
 		// Conflito de plantão filtra por (policial, data) — ver migration 0030
-		index('idx_escala_policiais_policial_data').on(table.policial_id, table.data_plantao)
+		index('idx_escala_policiais_policial_data').on(table.policial_id, table.data_plantao),
+		// A tranca é o UNIQUE — a consulta prévia não fecha a corrida (0047 / FLW-ESC-005).
+		uniqueIndex('uq_escala_policiais_dia').on(
+			table.escala_id,
+			table.policial_id,
+			table.data_plantao
+		)
 	]
 );
 
