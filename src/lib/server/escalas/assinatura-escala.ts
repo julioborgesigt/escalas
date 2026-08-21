@@ -25,10 +25,12 @@ import { logger } from '../logger';
 import {
 	salvarDocumentoEscala,
 	buscarDocumentoEscala,
+	circunstanciaDePersistir,
 	type Database,
 	type AssinaturaPasskeyMetadata
 } from '$lib/db';
 import { limparR2ObsoletoEscala } from '../r2-cleanup';
+import { recusarPorDocumentoJaGravado, type R2ParaAssinatura } from '../assinatura/blob-assinado';
 import { chaveConferencia } from '../assinatura/copia-conferencia';
 import { adicionarRodapeSimples, adicionarPaginaAuditoria } from '../assinatura/pdf-signing';
 import { calcularHashBuffer } from '../assinatura/document-utils';
@@ -152,7 +154,7 @@ export async function montarPdfEscalaAssinada(opts: {
  */
 export async function persistirEscalaAssinada(opts: {
 	db: Database;
-	bucket: R2Putable & Parameters<typeof limparR2ObsoletoEscala>[1];
+	bucket: R2ParaAssinatura;
 	escalaId: number;
 	montado: {
 		/**
@@ -179,7 +181,7 @@ export async function persistirEscalaAssinada(opts: {
 	 * afirmaria no manifesto uma verificação sem contraparte reverificável.
 	 */
 	passkeyMeta?: AssinaturaPasskeyMetadata;
-}): Promise<{ arquivoHash: string }> {
+}): Promise<{ arquivoHash: string } | { recusa: Response }> {
 	const { db, bucket, escalaId, montado } = opts;
 
 	const selado = await selarPdfInstitucional(montado.finalPdf, opts.assinante.nome, {
@@ -203,23 +205,25 @@ export async function persistirEscalaAssinada(opts: {
 		await gravarCopiaConferencia(bucket, montado.verificationHash, montado.pdfComRodape, escalaId);
 	}
 
-	await salvarDocumentoEscala(db, {
+	const { gravado } = await salvarDocumentoEscala(db, {
 		escalaId,
 		r2Key,
 		assinanteNome: opts.assinante.nome,
 		assinanteCpf: opts.assinante.cpf || undefined,
 		verificacaoHash: montado.verificationHash,
-		ipAddress: opts.ip,
-		userAgent: opts.userAgent,
-		latitude: opts.latitude ?? undefined,
-		longitude: opts.longitude ?? undefined,
-		selfieKey: opts.selfieKey ?? undefined,
 		arquivoHash,
-		// Sem `assinanteEmail`, `tipoCarimboTempo` nem `cadesMeta`: este é o
-		// caminho AVANÇADO, sem certificado e sem carimbo qualificado.
-		env: opts.env,
-		passkeyMeta: opts.passkeyMeta
+		...circunstanciaDePersistir(opts)
 	});
+	if (!gravado) {
+		return {
+			recusa: await recusarPorDocumentoJaGravado(
+				db,
+				bucket,
+				[r2Key, chaveConferencia(montado.verificationHash), opts.selfieKey],
+				'escala-assinada'
+			)
+		};
+	}
 
 	await limparR2ObsoletoEscala(db, bucket, docAntigo, [
 		r2Key,

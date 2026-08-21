@@ -9,6 +9,7 @@
 
 import { and, eq, desc, inArray } from 'drizzle-orm';
 import type { Database } from '../core';
+import { linhasAfetadas } from '../core';
 import { cadastroSolicitacoes, policiais } from '$lib/server/schema';
 import type { CadastroSolicitacao } from '$lib/server/schema';
 import type { CampoSolicitacao } from '$lib/perfil-campos';
@@ -97,7 +98,8 @@ export async function listarSolicitacoesCadastroPendentes(
 
 /**
  * Decide uma solicitação pendente. Aprovação APLICA o valor no cadastro do
- * policial no mesmo batch (D1) da mudança de status — ou tudo ou nada.
+ * policial depois de virar o status — o `WHERE status='pendente'` é a tranca
+ * (SEC-36): dois cliques simultâneos não reescrevem uma decisão já tomada.
  * Devolve a solicitação decidida ou `null` se não estava mais pendente.
  */
 export async function decidirSolicitacaoCadastro(
@@ -115,25 +117,25 @@ export async function decidirSolicitacaoCadastro(
 		.get();
 	if (!sol) return null;
 
-	const updateStatus = db
+	const r = await db
 		.update(cadastroSolicitacoes)
 		.set({
 			status: aprovar ? 'aprovada' : 'rejeitada',
 			decidido_por: adminId,
 			decidido_em: new Date().toISOString()
 		})
-		.where(eq(cadastroSolicitacoes.id, solicitacaoId));
+		.where(
+			and(eq(cadastroSolicitacoes.id, solicitacaoId), eq(cadastroSolicitacoes.status, 'pendente'))
+		);
+	if (linhasAfetadas(r) === 0) return null;
 
 	if (!aprovar) {
-		await updateStatus;
-		return sol;
+		return { ...sol, status: 'rejeitada' };
 	}
 
-	const aplicar = db
+	await db
 		.update(policiais)
 		.set({ [sol.campo]: sol.valor_novo, updated_at: new Date().toISOString() })
 		.where(eq(policiais.id, sol.policial_id));
-
-	await db.batch([updateStatus, aplicar]);
-	return sol;
+	return { ...sol, status: 'aprovada' };
 }

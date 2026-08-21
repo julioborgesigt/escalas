@@ -17,7 +17,7 @@
  * Convenção de horário: `updated_at` usa `datetime('now','-3 hours')` para
  * gravar horário de Brasília, igual ao resto do schema.
  */
-import { eq, and, or, isNull, asc, sql, like } from 'drizzle-orm';
+import { eq, and, or, isNull, asc, sql } from 'drizzle-orm';
 import { policiais, unidades } from '../../server/schema';
 import type * as schema from '../../server/schema';
 import { limparMatricula } from '../../utils/formato';
@@ -29,7 +29,7 @@ import {
 	indiceCPF,
 	type CpfCriptoEnv
 } from '../../crypto/cpf-cripto';
-import { paginarComContagem, escapeLike, type Database } from '../core';
+import { paginarComContagem, likeContains, type Database } from '../core';
 
 /**
  * Busca a rubrica reutilizável do policial a partir do CPF CIFRADO gravado no
@@ -123,12 +123,9 @@ export async function listarPoliciais(
 
 	// Busca por nome ou matrícula
 	if (opts?.busca) {
-		const buscaEscapada = escapeLike(opts.busca.trim());
+		const termo = opts.busca.trim();
 		baseConditions.push(
-			or(
-				like(policiais.nome, `%${buscaEscapada}%`),
-				like(policiais.matricula, `%${buscaEscapada}%`)
-			)!
+			or(likeContains(policiais.nome, termo), likeContains(policiais.matricula, termo))!
 		);
 	}
 

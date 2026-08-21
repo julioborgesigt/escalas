@@ -5,10 +5,11 @@
  * assinou, rubrica, prova de vida, GPS, metadados do certificado A3 e resposta
  * OCSP — que a página `/validar` usa para conferir o arquivo depois.
  */
-import { eq, sql } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 import { giseDocumentos } from '../../server/schema';
 import type * as schema from '../../server/schema';
 import type { Database } from '../core';
+import { linhasAfetadas } from '../core';
 import { cifrarCpfParaArmazenar } from '../../crypto/cpf-cripto';
 
 // `CircunstanciaAssinatura` traz junto CPF-env, CAdES e passkey — os três tipos
@@ -36,7 +37,7 @@ export interface DocumentoGiseEntrada extends CircunstanciaAssinatura {
 	rubrica?: string;
 }
 
-/** Insere o documento assinado ou substitui o anterior (upsert por `gise_id`). */
+/** Insere o documento assinado. UNIQUE em `gise_id` recusa o segundo (SEC-32). */
 export async function salvarGiseDocumento(db: Database, entrada: DocumentoGiseEntrada) {
 	const {
 		giseId,
@@ -54,9 +55,6 @@ export async function salvarGiseDocumento(db: Database, entrada: DocumentoGiseEn
 	// CPF cifrado em repouso (LGPD Fase 2).
 	const cpfArmazenado = await cifrarCpfParaArmazenar(assinanteCpf, entrada.env);
 
-	// Mesmos campos no INSERT e no UPDATE do upsert — montados uma vez só para
-	// não haver o risco clássico de acrescentar coluna em um lado e esquecer o
-	// outro. `gise_id` fica de fora: é o alvo do conflito.
 	const dados = {
 		r2_key: r2Key,
 		assinante_id: assinanteId,
@@ -72,21 +70,16 @@ export async function salvarGiseDocumento(db: Database, entrada: DocumentoGiseEn
 		...montarCamposMinimizados(entrada)
 	};
 
-	return db
+	const r = await db
 		.insert(giseDocumentos)
 		.values({ gise_id: giseId, ...dados })
-		.onConflictDoUpdate({
-			target: [giseDocumentos.gise_id],
-			// Reassinatura substitui o documento anterior por inteiro, inclusive o
-			// carimbo de criação — o que vale é a assinatura vigente.
-			set: { ...dados, created_at: sql`datetime('now', '-3 hours')` }
-		});
+		.onConflictDoNothing();
+	return { gravado: linhasAfetadas(r) > 0 };
 }
 
 /**
  * A assinatura vigente da escala GISE, ou `undefined` se ainda não foi assinada
- * — há no máximo uma por GISE (`gise_id` é o alvo do conflito no upsert).
- * `assinante_cpf` sai cifrado.
+ * — há no máximo uma por GISE (`gise_id` unique). `assinante_cpf` sai cifrado.
  */
 export async function buscarGiseDocumento(
 	db: Database,

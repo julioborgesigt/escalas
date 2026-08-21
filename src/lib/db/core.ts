@@ -8,6 +8,7 @@
  * funções de corte têm o fuso no próprio nome.
  */
 import { drizzle } from 'drizzle-orm/d1';
+import { sql, type SQL, type SQLWrapper } from 'drizzle-orm';
 import type { BatchItem } from 'drizzle-orm/batch';
 import * as schema from '../server/schema';
 import type { R2Bucket as _R2Bucket } from '@cloudflare/workers-types';
@@ -19,11 +20,25 @@ export type Database = ReturnType<typeof getDB>;
  * livre da UI vire wildcard injection — quem digita `100%` procura o texto
  * `100%`, não "tudo que começa com 100".
  *
- * Exige `ESCAPE '\\'` no SQL. Estava copiado em quatro listagens
- * (escalas, policiais, audit, app-logs); nenhuma delas é dona da regra.
+ * Só vale com `ESCAPE '\'` no SQL. Os call sites passam por `likeContains` /
+ * `likePrefix` — `escapeLike` sozinho, no `like()` do Drizzle, não fecha o
+ * buraco (SEC-08).
  */
 export function escapeLike(str: string): string {
 	return str.replace(/[%_\\]/g, '\\$&');
+}
+
+/** `ESCAPE '\'` do SQLite — string de um backslash, sem o JS engolir a barra. */
+const LIKE_ESCAPE = sql.raw("'\\'");
+
+/** `coluna LIKE '%termo%' ESCAPE '\'` — o único jeito de `escapeLike` valer. */
+export function likeContains(coluna: SQLWrapper, termo: string): SQL {
+	return sql`${coluna} LIKE ${'%' + escapeLike(termo) + '%'} ESCAPE ${LIKE_ESCAPE}`;
+}
+
+/** `coluna LIKE 'prefixo%' ESCAPE '\'` — filtro de mês/`YYYY-MM`. */
+export function likePrefix(coluna: SQLWrapper, prefixo: string): SQL {
+	return sql`${coluna} LIKE ${escapeLike(prefixo) + '%'} ESCAPE ${LIKE_ESCAPE}`;
 }
 
 /**

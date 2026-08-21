@@ -2,20 +2,21 @@
  * Documentos assinados das ESCALAS (`escala_documentos`) e a busca pelo código
  * de validação, que atravessa todos os tipos de documento do sistema.
  *
- * `escala_documentos` tem no máximo UMA linha por escala: assinar de novo
- * substitui a anterior por inteiro (upsert com `created_at` renovado), porque a
- * escala só tem uma versão vigente. O histórico de quem assinou o quê fica na
- * auditoria, não aqui.
+ * `escala_documentos` tem no máximo UMA linha por escala. O UNIQUE em
+ * `escala_id` é a tranca: o segundo INSERT não grava (SEC-32). Reassinar
+ * exige revogar antes (DELETE) — o upsert antigo sobrescrevia o documento
+ * jurídico na corrida entre dois `finalizar`.
  *
  * Minimização LGPD aplicada na gravação, não na exibição — o dado bruto nunca
  * chega ao banco: CPF cifrado, IP anonimizado, user-agent reduzido a
  * navegador/SO (com o original truncado em 1 KB para perícia) e GPS arredondado
  * para ~1 km. Assinar prova identidade e circunstância; não é vigilância.
  */
-import { eq, sql } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 import { escalaDocumentos, giseDocumentos } from '../server/schema';
 import type * as schema from '../server/schema';
 import type { Database } from './core';
+import { linhasAfetadas } from './core';
 import * as fullSchema from '../server/schema';
 import { cifrarCpfParaArmazenar, type CpfCriptoEnv } from '../crypto/cpf-cripto';
 import { anonimizarIp } from './audit';
@@ -117,10 +118,9 @@ export interface CamposMinimizadosDocumento {
  * Minimização LGPD + dossiê CAdES/WebAuthn comum aos quatro pontos que gravam
  * documento assinado (`salvarDocumentoEscala`, `salvarGiseDocumento`,
  * `salvarAssinaturaRelatorioGise`, `salvarTermoPresencaGise`). Cada campo
- * opcional vira `null` EXPLÍCITO, nunca `undefined`: três dos quatro
- * chamadores fazem UPSERT, e o drizzle omite chave `undefined` do `.set()` —
- * a coluna da assinatura ANTERIOR sobreviveria à reassinatura (certificado,
- * selfie e GPS de outra assinatura colados no registro da nova).
+ * opcional vira `null` EXPLÍCITO, nunca `undefined`: o INSERT precisa das
+ * colunas presentes, e um UPDATE futuro (revogar-e-assinar) não pode herdar
+ * certificado, selfie ou GPS da assinatura anterior se a chave faltar.
  */
 export function montarCamposMinimizados(opts: CircunstanciaAssinatura): CamposMinimizadosDocumento {
 	const meta = opts.cadesMeta ?? {};
@@ -148,14 +148,10 @@ export function montarCamposMinimizados(opts: CircunstanciaAssinatura): CamposMi
 }
 
 /**
- * Registra (ou substitui) a assinatura da escala. Recebe os dados brutos e
+ * Insere a assinatura da escala. UNIQUE em `escala_id` recusa o segundo
+ * INSERT (SEC-32) — reassinar exige revogar antes. Recebe os dados brutos e
  * aplica a minimização descrita no cabeçalho — nenhum chamador precisa lembrar
  * de cifrar CPF ou anonimizar IP.
- *
- * A lista de campos é montada UMA vez e usada no INSERT e no UPDATE do upsert.
- * Quando eram duas listas lado a lado, uma coluna nova acrescentada só ao
- * INSERT sobrevivia à primeira assinatura e desaparecia na reassinatura, sem
- * erro nenhum — travado por teste em `__tests__/upserts-assinatura.test.ts`.
  *
  * `cadesMeta` só vem preenchido na assinatura com certificado (CAdES-LT: cadeia,
  * OCSP e carimbo de tempo). Assinatura simples passa `undefined` e as colunas
@@ -204,6 +200,31 @@ export interface CircunstanciaAssinatura {
 	env?: CpfCriptoEnv;
 }
 
+/**
+ * Circunstância a partir dos opts de `persistirEscalaAssinada` /
+ * `persistirGiseAssinada`. Sem isto os dois copiavam ip/UA/GPS/selfie/env/passkey
+ * e o guard de duplicação acusava a janela de 10 linhas.
+ */
+export function circunstanciaDePersistir(opts: {
+	ip?: string;
+	userAgent?: string;
+	latitude?: number | null;
+	longitude?: number | null;
+	selfieKey?: string | null;
+	env?: CpfCriptoEnv;
+	passkeyMeta?: AssinaturaPasskeyMetadata;
+}): CircunstanciaAssinatura {
+	return {
+		ipAddress: opts.ip,
+		userAgent: opts.userAgent,
+		latitude: opts.latitude ?? undefined,
+		longitude: opts.longitude ?? undefined,
+		selfieKey: opts.selfieKey ?? undefined,
+		env: opts.env,
+		passkeyMeta: opts.passkeyMeta
+	};
+}
+
 export interface DocumentoEscalaEntrada extends CircunstanciaAssinatura {
 	escalaId: number;
 	r2Key: string;
@@ -227,8 +248,6 @@ export async function salvarDocumentoEscala(db: Database, entrada: DocumentoEsca
 	// CPF cifrado em repouso (LGPD Fase 2).
 	const cpfArmazenado = (await cifrarCpfParaArmazenar(assinanteCpf, entrada.env)) ?? '';
 
-	// Mesmos campos no INSERT e no UPDATE do upsert — montados uma vez para não
-	// divergirem. `escala_id` fica de fora: é o alvo do conflito.
 	const dados = {
 		r2_key: r2Key,
 		assinante_nome: assinanteNome,
@@ -243,14 +262,11 @@ export async function salvarDocumentoEscala(db: Database, entrada: DocumentoEsca
 		...montarCamposMinimizados(entrada)
 	};
 
-	return db
+	const r = await db
 		.insert(escalaDocumentos)
 		.values({ escala_id: escalaId, ...dados })
-		.onConflictDoUpdate({
-			target: escalaDocumentos.escala_id,
-			// Reassinatura substitui o documento anterior por inteiro.
-			set: { ...dados, created_at: sql`datetime('now', '-3 hours')` }
-		});
+		.onConflictDoNothing();
+	return { gravado: linhasAfetadas(r) > 0 };
 }
 
 /**

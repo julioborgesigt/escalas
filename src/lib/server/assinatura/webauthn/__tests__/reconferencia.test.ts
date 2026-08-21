@@ -14,7 +14,11 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { reconferirAssercaoDocumento } from '../reconferencia';
 import { bytesToBase64Url } from '$lib/crypto/bin';
-import { salvarDocumentoEscala, buscarDocumentoEscala } from '$lib/db/documentos';
+import {
+	salvarDocumentoEscala,
+	buscarDocumentoEscala,
+	excluirDocumentoEscala
+} from '$lib/db/documentos';
 import { bancoMigrado, drizzleSobre } from '$lib/db/__tests__/sqlite-migrado';
 import type { Database } from '$lib/db';
 
@@ -229,7 +233,7 @@ describe('roundtrip salvarDocumentoEscala → reconferirAssercaoDocumento', () =
 
 	it('reassinatura sem passkey zera as colunas — a asserção anterior não cola', async () => {
 		const { documento } = await documentoAssinado();
-		await salvarDocumentoEscala(db, {
+		const primeira = await salvarDocumentoEscala(db, {
 			escalaId: 5,
 			r2Key: 'escalas/5/a.pdf',
 			assinanteNome: 'CICRANO',
@@ -242,6 +246,20 @@ describe('roundtrip salvarDocumentoEscala → reconferirAssercaoDocumento', () =
 				backup_ativo: true
 			}
 		});
+		expect(primeira.gravado).toBe(true);
+		// SEC-32: o segundo INSERT não sobrescreve. Sem o DELETE, a asserção
+		// da primeira assinatura permaneceria — e era exatamente o furo.
+		const recusada = await salvarDocumentoEscala(db, {
+			escalaId: 5,
+			r2Key: 'escalas/5/b.pdf',
+			assinanteNome: 'CICRANO'
+		});
+		expect(recusada.gravado).toBe(false);
+		expect((await buscarDocumentoEscala(db, 5))?.webauthn_credential_id).toBe(
+			documento.webauthn_credential_id
+		);
+
+		await excluirDocumentoEscala(db, 5);
 		await salvarDocumentoEscala(db, {
 			escalaId: 5,
 			r2Key: 'escalas/5/b.pdf',

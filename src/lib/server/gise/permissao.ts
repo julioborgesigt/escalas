@@ -10,10 +10,12 @@ import type { GiseEscala } from '../schema';
 import {
 	buscarGiseEscala,
 	buscarGiseDetalhado,
+	buscarGiseDocumento,
+	buscarAssinaturaRelatorioGise,
 	verificarSaidaCompletaSeccional,
 	type Database
 } from '$lib/db';
-import { badRequest, forbidden, notFound } from '$lib/server/api';
+import { badRequest, conflict, forbidden, notFound } from '$lib/server/api';
 import { giseAutorizaSeccionalRelatorioExtra, secIdEhSupervisaoExtra } from './supervisao-extra';
 
 /**
@@ -157,6 +159,12 @@ export async function carregarGiseParaAssinatura(
 		return { recusa: forbidden('Apenas o Supervisor designado pode assinar esta escala') };
 	}
 
+	if (await buscarGiseDocumento(db, id)) {
+		return {
+			recusa: conflict('Revogue a assinatura existente antes de assinar novamente')
+		};
+	}
+
 	return { gise, id };
 }
 
@@ -227,6 +235,12 @@ export async function carregarRelatorioExtraParaAssinatura(
 			recusa: badRequest(
 				'Todos os participantes precisam confirmar a saída (rubrica) antes de assinar o relatório.'
 			)
+		};
+	}
+
+	if (await buscarAssinaturaRelatorioGise(db, giseId, secId, 'extraordinario')) {
+		return {
+			recusa: conflict('Revogue a assinatura existente antes de assinar novamente')
 		};
 	}
 

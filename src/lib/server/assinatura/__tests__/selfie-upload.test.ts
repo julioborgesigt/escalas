@@ -86,3 +86,13 @@ describe('uploadSelfieDataUri', () => {
 		expect(a.ok && b.ok && a.key !== b.key).toBe(true);
 	});
 });
+
+describe('ePdf (SEC-17)', () => {
+	it('aceita o cabeçalho %PDF e recusa JPEG', async () => {
+		const { ePdf } = await import('../selfie-upload');
+		expect(ePdf(new Uint8Array([0x25, 0x50, 0x44, 0x46, 0x2d, 0x31]))).toBe(true);
+		expect(ePdf(new Uint8Array([0x25, 0x50, 0x44, 0x46]))).toBe(true);
+		expect(ePdf(jpegBytes())).toBe(false);
+		expect(ePdf(new Uint8Array([0x25, 0x50]))).toBe(false);
+	});
+});

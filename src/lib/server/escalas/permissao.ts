@@ -5,7 +5,7 @@
  * Não há `autorizar()` único — a regra deste domínio mora aqui.
  */
 import { temSolicitacaoParaDpcAdmin, buscarEscala, buscarDocumentoEscala } from '$lib/db';
-import { lotacoesAdministradas } from '$lib/server/policial-permissao';
+import { lotacoesAdministradas, lotacaoNoEscopo } from '$lib/server/policial-permissao';
 import type { Database } from '$lib/db';
 import type { Escala } from '$lib/server/schema';
 import { badRequest, conflict, forbidden, notFound } from '$lib/server/api';
@@ -71,27 +71,30 @@ export async function verificarPermissaoEscala(
 
 /**
  * Quem pode ALTERAR a escala de uma lotação: o Admin Geral, em qualquer uma, e
- * o policial COM papel administrativo, na sua.
+ * o policial COM papel administrativo, no ESCOPO DO PAPEL — não na lotação
+ * atual (FLW-RBAC-003 / SEC-06).
  *
  * Até ago/2026 o servidor exigia só a lotação — qualquer policial lotado na
  * unidade, sem papel algum, montava e assinava a escala dela por POST direto
- * (FLW-ESC-001).
- *
- * A tela já calculava esta regra, e é dela que ela vem: `podeEditarEscala &&
- * (podeOIPSolicitar || papel administrativo com cargo DPC)`. Só que a usava em
- * UM dos sete componentes de edição e passava a flag larga para os outros seis.
- * A regra estava certa e escrita; o que faltava era ser a mesma nos sete
- * lugares e no servidor — por isso agora ela é calculada AQUI e desce pronta
- * para a tela, em vez de recalculada lá.
+ * (FLW-ESC-001). Depois passou a exigir papel, mas ainda comparava
+ * `u.lotacao`: o admin_unidade transferido da DP 1 para a DP 5 administrava
+ * a DP 5 (ninguém concedeu) e perdia a DP 1. `excluir` / `criarComBase` já
+ * usavam `lotacoesAdministradas`; edição e criação não.
  *
  * Expandindo os dois ramos: `tipo === 'admin'` ou papel em
  * {admin_seccional, admin_unidade} com cargo em {DPC, OIP}. Como `cargo` só tem
  * esses dois valores, o conjunto é exatamente `isAnyAdmin`.
  */
-export function podeMexerNaEscala(u: App.Locals['usuario'], lotacaoDaEscala: string): boolean {
+export async function podeMexerNaEscala(
+	db: Database,
+	u: App.Locals['usuario'],
+	lotacaoDaEscala: string
+): Promise<boolean> {
 	if (!u) return false;
 	if (u.tipo === 'admin') return true;
-	return u.lotacao === lotacaoDaEscala && isAnyAdmin(u);
+	if (!isAnyAdmin(u)) return false;
+	const escopo = await lotacoesAdministradas(db, u);
+	return lotacaoNoEscopo(escopo, lotacaoDaEscala);
 }
 
 /**

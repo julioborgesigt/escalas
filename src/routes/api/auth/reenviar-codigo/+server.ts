@@ -20,8 +20,9 @@ import { getDB } from '$lib/db';
 import { criarDesafio2FA, gerarCodigo2FA } from '$lib/auth';
 import { enviarCodigo2FA } from '$lib/server/email';
 import { logger } from '$lib/server/logger';
-import { administradores, policiais, doisFatoresTokens } from '$lib/server/schema';
+import { doisFatoresTokens } from '$lib/server/schema';
 import { mascararEmail } from '$lib/server/auth/auth-flow';
+import { emailInstitucionalDoDesafio } from '$lib/server/auth/email-2fa';
 import {
 	contarRecoveryAttempts,
 	registrarRecoveryAttempt
@@ -78,28 +79,9 @@ export const POST: RequestHandler = async ({ request, platform, getClientAddress
 			return badRequest('Código expirado ou inválido. Faça login novamente.');
 		}
 
-		// Busca e-mail do usuário
-		let email: string | null = null;
-		let nome = '';
-		if (desafio.tipo === 'policial') {
-			const row = await db
-				.select({ email: policiais.email, nome: policiais.nome })
-				.from(policiais)
-				.where(eq(policiais.id, desafio.usuario_id))
-				.get();
-			email = row?.email ?? null;
-			nome = row?.nome ?? '';
-		} else {
-			const row = await db
-				.select({ email: administradores.email, nome: administradores.nome })
-				.from(administradores)
-				.where(eq(administradores.id, desafio.usuario_id))
-				.get();
-			email = row?.email ?? null;
-			nome = row?.nome ?? '';
-		}
-
-		if (!email) return badRequest('E-mail não encontrado. Contate o administrador.');
+		const destino = await emailInstitucionalDoDesafio(db, desafio.tipo, desafio.usuario_id);
+		if (!destino) return badRequest('E-mail não encontrado. Contate o administrador.');
+		const { email, nome } = destino;
 
 		// Conta este reenvio para o teto por IP (só após confirmar que há e-mail a
 		// enviar). Fail-open: erro de registro não impede o reenvio.

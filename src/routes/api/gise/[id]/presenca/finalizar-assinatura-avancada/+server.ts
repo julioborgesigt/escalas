@@ -106,7 +106,7 @@ export const POST: RequestHandler = async ({
 
 		const rubrica = prova.contexto.rubrica || '';
 		if (tipo === 'entrada') {
-			await salvarEntradaGise(
+			const entrada = await salvarEntradaGise(
 				db,
 				giseId,
 				u.id,
@@ -117,6 +117,10 @@ export const POST: RequestHandler = async ({
 				prova.contexto.longitude ?? undefined,
 				prova.contexto.selfieKey ?? undefined
 			);
+			if (!entrada.registrada) {
+				await compensarBlobAssinado(db, bucketOk.r2, [r2Key], 'gise-presenca');
+				return conflict('A saída já foi confirmada — a entrada não pode ser refeita.');
+			}
 		} else {
 			const saida = await salvarSaidaGise(
 				db,
@@ -131,13 +135,11 @@ export const POST: RequestHandler = async ({
 			);
 			if (!saida.registrada) {
 				await compensarBlobAssinado(db, bucketOk.r2, [r2Key], 'gise-presenca');
-				return conflict(
-					'Não há confirmação de ENTRADA registrada — a saída não pode ser assinada.'
-				);
+				return conflict('A saída já foi confirmada, ou não há entrada registrada.');
 			}
 		}
 
-		await salvarTermoPresencaGise(
+		const { gravado } = await salvarTermoPresencaGise(
 			db,
 			{
 				gise_id: giseId,
@@ -157,6 +159,10 @@ export const POST: RequestHandler = async ({
 			},
 			platform?.env
 		);
+		if (!gravado) {
+			await compensarBlobAssinado(db, bucketOk.r2, [r2Key], 'gise-presenca');
+			return conflict('Este ato de presença já foi assinado.');
+		}
 
 		await sincronizarStatusGiseAposPresencaRelatorios(db, giseId);
 		await invalidarPapelGise(u.id);
