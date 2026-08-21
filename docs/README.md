@@ -35,8 +35,9 @@ Os relatórios de auditoria e as avaliações arquivadas **não vivem mais no wo
 - **Novas auditorias** podem ser commitadas em `docs/auditorias/` (data no nome ou no cabeçalho) enquanto seus achados estão sendo tratados; quando encerradas, o arquivo é removido e catalogado no [`HISTORICO.md`](HISTORICO.md) — o histórico do Git mantém a rastreabilidade dos achados (A1–A8, I-1…I-4, M-3/M-4, R2-1…R2-4, B-1…B-6…) citados em comentários do código.
 - `docs/auditorias/` tem **uma auditoria aberta**:
   [`AUDITORIA_SEGURANCA_2026-08-21.md`](auditorias/AUDITORIA_SEGURANCA_2026-08-21.md)
-  (SEC-01…SEC-31). Os P0/P1 deste ciclo foram tratados no mesmo PR; o que
-  restou aberto ou aceito está na tabela do documento. A última encerrada
+  (SEC-01…SEC-38). Os P0/P1 deste ciclo foram tratados no mesmo PR; o
+  complemento “banco sem tranca” (SEC-32…) e o que restou aberto ou aceito
+  estão nas tabelas do documento. A última encerrada
   (componentização, 13/ago) foi catalogada no [`HISTORICO.md`](HISTORICO.md);
   a visual (VIS-1…VIS-17) antes dela, com o resíduo manual em
   [`TESTING.md`](../TESTING.md) §16, que é onde mora roteiro que a automação

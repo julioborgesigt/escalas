@@ -20,7 +20,8 @@ assinatura, `requireAuth` ≠ autorização. Os achados abaixo são resíduos:
 cópia que divergiu, allowlist que apertou demais, escopo de papel incompleto
 num caminho, e identidade visual do PDF lida do cliente.
 
-Identificadores **SEC-01…** — não colidem com A/L/FLW/R2.
+Identificadores **SEC-01…** — não colidem com A/L/FLW/R2. O complemento
+“banco sem tranca” / input / clássicos do mesmo dia usa **SEC-32…**.
 
 ---
 
@@ -163,6 +164,68 @@ bootstrap).
 
 ---
 
+## Complemento — “banco sem tranca” / superfície clássica (mesmo dia)
+
+Varredura extra pedida no mesmo ciclo: race/TOCTOU em D1, segredos no
+cliente, input sem schema, e gaps clássicos. **Sem PoC.** Identificadores
+continuam **SEC-** (SEC-32…).
+
+### O que já trava de verdade (não reabrir)
+
+| Controle | Onde | Como trava |
+| -------- | ---- | ---------- |
+| Intenção de assinatura uso único | `src/lib/server/assinatura/intencao.ts` | `UPDATE … WHERE usado = 0 … RETURNING` |
+| 2FA / reset / WebAuthn / reposição passkey | `src/lib/auth.ts`, `src/lib/db/webauthn.ts`, `passkey-reposicao.ts` | mesmo padrão CAS |
+| Webhook replay (quando enforce) | `webhook-auth.ts` + `webhook_nonces` UNIQUE | INSERT atômico |
+| Um documento assinado por escala / GISE / relatório / termo | `schema.ts` (`escala_id` unique, `uq_gise_documento`, `uq_gise_ass_rel`, `uq_gise_presenca_termos_ato`) | unique index |
+| Uma presença por (gise, policial) | `uq_gise_presenca_policial` | unique + upsert |
+| Cookie sessão | `auth-flow.ts` `cookieOptions` | HttpOnly + SameSite=strict |
+| Health público | `api/health/+server.ts` | binário; detalhe só com token ≥16 |
+| `{@html}` | só termo, via `sanitizeTermoHtml` | allowlist |
+| Selfie upload | `selfie-upload.ts` | magic bytes + teto + UUID na chave |
+| SSRF OCSP/TSA | `ocsp.ts`, `tsa.ts` | guard de URL |
+| SQL app | Drizzle parametrizado; `sql.raw` só com constantes (`LOGIN_WINDOW_MINUTES`, `ESCAPE`) | sem user data em `sql.raw` |
+| CORS `*` / JWT / debug endpoints | — | ausentes |
+| Secrets de produção no Git | `.gitignore`, `.env.example` | PEMs = âncoras ICP públicas |
+| `PUBLIC_*` no bundle | só `PUBLIC_SENTRY_DSN` / `PUBLIC_SENTRY_ENVIRONMENT` | sem sync/reset |
+
+### Achados novos (race / TOCTOU)
+
+| ID | Sev. | Status | Resumo |
+| -- | ---- | ------ | ------ |
+| SEC-32 | Média | Aberto | **Dupla assinatura por corrida.** `carregarEscalaParaAssinatura` lê documento e devolve 409 (FLW-AUT-004), mas `salvarDocumentoEscala` / `salvarGiseDocumento` / `salvarAssinaturaRelatorioGise` fazem `onConflictDoUpdate` e **substituem** o PDF vigente. Duas preparações distintas (intenções diferentes, cada uma uso único) que finalizam em paralelo: ambas passam o check, a segunda vence — lost update forense. GISE nem checa documento existente no portão (`carregarGiseParaAssinatura` só status + supervisor). Arquivos: `src/lib/server/escalas/permissao.ts`, `src/lib/db/documentos.ts`, `src/lib/db/gise/documentos.ts`, `src/lib/db/gise/assinaturas.ts`, `src/lib/server/gise/permissao.ts`. Remédio: INSERT puro (falha no unique) **ou** `UPDATE … WHERE` só se ainda não há linha / CAS de `arquivo_hash`; portão GISE alinhado ao da escala. |
+| SEC-33 | Média | Aberto | **Presença: reentrada e saída sem CAS.** `salvarEntradaGise` upsert sempre sobrescreve entrada (comentário: “reconfirmar”) — inclusive depois de `saida_timestamp` preenchido. `salvarSaidaGise` exige entrada (`WHERE entrada_timestamp IS NOT NULL`) mas **não** `saida_timestamp IS NULL`: segunda saída sobrescreve timestamp/rubrica/selfie. Unique do termo A3 (`uq_gise_presenca_termos_ato`) barra segundo termo assinado; o formulário `/res-gise` e o upsert da linha de presença não. Arquivos: `src/lib/db/gise/presencas.ts`, `src/routes/res-gise/+page.server.ts`, `src/routes/api/gise/[id]/presenca/finalizar-assinatura*.ts`. Remédio: entrada só se `saida IS NULL` (e idealmente primeira vez); saída só se `saida IS NULL`; reportar `linhasAfetadas`. |
+| SEC-34 | Média | Aberto | **Criar escala: check-then-act sem unique.** `verificarEscalaExistente` + `criarEscala`; índice `idx_escalas_lotacao_tipo_data` **não** é unique. Comentário em `criarEscala` admite duplicata se alguém não checar. Duas criações paralelas → duas escalas equivalentes. Arquivos: `src/lib/db/escalas.ts`, `src/routes/escalas/+page.server.ts`, `actions-projecao.ts`. Remédio: unique parcial/expressão alinhada à regra FDS vs mensal, ou INSERT que falhe no conflito. |
+| SEC-35 | Baixa | Aberto | **Finalizar / status GISE sem CAS.** `POST …/finalizar` e action `finalizarGise`: leem status, depois `atualizarGiseEscala({ status: 'finalizada' })` **sem** `WHERE status ≠ 'finalizada'`. Idempotente no estado final, mas side-effects (auditoria duplicada, `agendarSyncBaseEquipeAposFinalizar` duas vezes) e o mesmo padrão em outras transições (`atualizarGiseEscala` documenta que não valida transição). Arquivos: `src/routes/api/gise/[id]/finalizar/+server.ts`, `src/routes/gise/[id]/_actions/actions-escala.ts`, `src/lib/db/gise/escalas-crud.ts`. Remédio: `UPDATE … SET status=? WHERE id=? AND status IN (…) RETURNING`. |
+| SEC-36 | Média | Aberto | **Solicitação de cadastro: TOCTOU.** `decidirSolicitacaoCadastro` SELECT `status='pendente'`, depois UPDATE **sem** `WHERE status='pendente'`. Dois admins em paralelo podem ambos aplicar o patch no policial. O `db.batch` une status+patch, mas não serializa a decisão. Arquivo: `src/lib/db/policiais/solicitacoes.ts`. Remédio: `UPDATE … WHERE id=? AND status='pendente' RETURNING`; só então aplicar campo. |
+| SEC-37 | Baixa | Aberto | **Plantão duplicável na composição.** `adicionarMultiplasDatasPlantao` INSERT sem unique em `(escala_id, policial_id, data_plantao)` — só index não-único. Conflito global de horário é check-then-act. Arquivo: `src/lib/db/escalas.ts` + `schema.ts` `escala_policiais`. Remédio: unique + tratamento 409. |
+| SEC-38 | Baixa | Aberto | **Criar GISE:** `criarGiseEscala` INSERT livre; sem unique em `(operacao_id, data_inicio)`. Duplicata de dia é possível por corrida/UI. Arquivo: `src/lib/db/gise/escalas-crud.ts`. Aceitável se produto permite várias no mesmo dia; senão unique. |
+
+### Achados B/C/D (segredos, input, clássicos) — cruzamento
+
+| Tema | Veredicto | ID conhecido / novo |
+| ---- | --------- | ------------------- |
+| Bundle / `PUBLIC_*` | Só Sentry público | — (sólido) |
+| `.env` commitado | Não; PEMs = trust store | — (sólido) |
+| Health detalhe | Token obrigatório | — (sólido); ops SEC-12/25 |
+| Webhook replay opcional | Preview/local | **SEC-13** |
+| SYNC_TOKEN leak em resposta | `unauthorized()` uniforme; reason só em log | — (sólido) |
+| PDF histórico sem magic bytes | Confia `Content-Type` | **SEC-17** (aberto) |
+| JSON.parse sem Zod | Form actions de composição/datas; webhook sync (validação manual por campo); modelos GISE do DB | residual — risco baixo se origem é form autenticado / DB admin; webhook sync já autenticado |
+| `Number()` sem teto | Vários `params.id` / FormData; search de unidades **tem** clamp 1–50 | residual baixo (NaN → 400/redirect) |
+| Path traversal R2 | Chaves montadas no servidor (UUID / ids numéricos); download lê `r2_key` do DB | — (sólido para upload) |
+| SSRF user URL | Não; TSA/OCSP com guard | **SEC-26** (HTTP default) |
+| XSS `{@html}` | Só termo sanitizado | — (sólido) |
+| Open redirect | `goto`/`redirect` com paths fixos ou `obterRotaBemVindo` | — (sólido) |
+| Mass assignment | Schemas LGPD strip; comentários anti-MA | — (sólido pós-remendo) |
+| Cookie HttpOnly | Sim | —; **SEC-22** sessões concorrentes aceitas |
+| Origin ausente no login | Passa | **SEC-14** |
+| SQL cru em erro HTTP | `ehViolacaoUnique` + `serverError` genérico | — (sólido) |
+| Intenção / 2FA reuso | Fechado (CAS); lote `markUsed:false` é contrato | — (sólido; ver JSDoc `verificarDesafio2FA`) |
+| Session fixation | Token novo em `criarSessao`; Origin check em `/api/auth/*`; login não revoga sessões antigas | **SEC-22** |
+
+---
+
 ## Superfície por ator
 
 **Anônimo:** login (rate-limited), reset, 2FA, certificado, `/validar` (PII
@@ -216,3 +279,7 @@ sem derrubar liveness.
 4. Recusar Origin ausente no POST de `/api/auth/login` (SEC-14)
 5. TSA por HTTPS (SEC-26)
 6. Parar de logar `accountId` (SEC-30)
+7. Assinatura: falhar no unique em vez de upsert silencioso (SEC-32)
+8. Presença: CAS em entrada/saída (`saida IS NULL`) (SEC-33)
+9. Unique / CAS em criar escala e decidir solicitação (SEC-34, SEC-36)
+10. Transições de status GISE com `WHERE` de estado (SEC-35)
