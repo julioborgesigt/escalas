@@ -4,17 +4,17 @@ Mapa de toda a documentação do projeto, separada em **documentos vivos** (mant
 
 ## Documentos vivos
 
-| Documento                                                                       | Conteúdo                                                                                                                                    | Público-alvo                       |
-| ------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------- |
-| [`README.md`](../README.md) (raiz)                                              | Visão geral, stack, setup local, arquitetura, módulos, padrões de código, troubleshooting                                                   | Qualquer dev entrando no projeto   |
-| [`DEPLOY.md`](../DEPLOY.md) (raiz)                                              | Runbook de produção: variáveis/secrets, papéis de admin, backup/rollback, staging, trust store ICP-Brasil, TSA, go-live                     | Operador / responsável pelo deploy |
-| [`TESTING.md`](../TESTING.md) (raiz)                                            | Roteiro manual de **exceção** (hardware/ambiente real); o gate de regressão é a suíte automatizada — casos cobertos por spec estão anotados | QA / dev antes de release          |
-| [`CLAUDE.md`](../CLAUDE.md) (raiz)                                              | Diretrizes de código para agentes e devs: Svelte 5, erros de API, autorização, layout de `server/`, `api-fetch`, testes, goldens             | Dev / agente de IA                 |
-| [`QA_ASSINATURA_A3_DESKTOP.md`](QA_ASSINATURA_A3_DESKTOP.md)                    | Roteiro de QA manual do fluxo de presença GISE por Token A3 (exige hardware; não roda em CI)                                                | QA com token físico                |
-| [`.env.example`](../.env.example) (raiz)                                        | **Fonte autoritativa** de todas as variáveis de ambiente, comentadas                                                                        | Dev / operador                     |
-| [`scripts/README.md`](../scripts/README.md)                                     | Scripts utilitários (migrações, senhas) e setup detalhado da integração Google Sheets / Base_Equipe                                         | Operador                           |
+| Documento                                                                                             | Conteúdo                                                                                                                                    | Público-alvo                       |
+| ----------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------- |
+| [`README.md`](../README.md) (raiz)                                                                    | Visão geral, stack, setup local, arquitetura, módulos, padrões de código, troubleshooting                                                   | Qualquer dev entrando no projeto   |
+| [`DEPLOY.md`](../DEPLOY.md) (raiz)                                                                    | Runbook de produção: variáveis/secrets, papéis de admin, backup/rollback, staging, trust store ICP-Brasil, TSA, go-live                     | Operador / responsável pelo deploy |
+| [`TESTING.md`](../TESTING.md) (raiz)                                                                  | Roteiro manual de **exceção** (hardware/ambiente real); o gate de regressão é a suíte automatizada — casos cobertos por spec estão anotados | QA / dev antes de release          |
+| [`CLAUDE.md`](../CLAUDE.md) (raiz)                                                                    | Diretrizes de código para agentes e devs: Svelte 5, erros de API, autorização, layout de `server/`, `api-fetch`, testes, goldens            | Dev / agente de IA                 |
+| [`QA_ASSINATURA_A3_DESKTOP.md`](QA_ASSINATURA_A3_DESKTOP.md)                                          | Roteiro de QA manual do fluxo de presença GISE por Token A3 (exige hardware; não roda em CI)                                                | QA com token físico                |
+| [`.env.example`](../.env.example) (raiz)                                                              | **Fonte autoritativa** de todas as variáveis de ambiente, comentadas                                                                        | Dev / operador                     |
+| [`scripts/README.md`](../scripts/README.md)                                                           | Scripts utilitários (migrações, senhas) e setup detalhado da integração Google Sheets / Base_Equipe                                         | Operador                           |
 | [`src/lib/server/assinatura/icp-brasil/README.md`](../src/lib/server/assinatura/icp-brasil/README.md) | Trust store ICP-Brasil: o que é, como atualizar (script Windows/Linux), frequência                                                          | Dev / operador                     |
-| [`static/face-api/README.md`](../static/face-api/README.md)                     | Modelos de reconhecimento facial servidos localmente e como atualizá-los                                                                    | Dev                                |
+| [`static/face-api/README.md`](../static/face-api/README.md)                                           | Modelos de reconhecimento facial servidos localmente e como atualizá-los                                                                    | Dev                                |
 
 ## Planos de produto em aberto
 
@@ -22,8 +22,8 @@ Decisões de produto ainda não executadas. Quando o comportamento correspondent
 entrar no código, o plano vira registro histórico ([`HISTORICO.md`](HISTORICO.md))
 e os documentos vivos (README/DEPLOY/TESTING/termo) atualizam no mesmo PR.
 
-| Documento | Conteúdo | Status |
-| --------- | -------- | ------ |
+| Documento                                                | Conteúdo                                                                                              | Status                                                               |
+| -------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------- |
 | [`PLANO_CHAVE_ASSINATURA.md`](PLANO_CHAVE_ASSINATURA.md) | Chave de assinatura (passkey) em toda avançada; senha + 2FA + chave como piso; cadastro só no celular | 15/ago/2026 — fases 0–3 no código; fase 4 (trancar a flag) ainda não |
 
 ## Registros históricos e decisões arquivadas
@@ -33,8 +33,11 @@ Os relatórios de auditoria e as avaliações arquivadas **não vivem mais no wo
 ## Convenções
 
 - **Novas auditorias** podem ser commitadas em `docs/auditorias/` (data no nome ou no cabeçalho) enquanto seus achados estão sendo tratados; quando encerradas, o arquivo é removido e catalogado no [`HISTORICO.md`](HISTORICO.md) — o histórico do Git mantém a rastreabilidade dos achados (A1–A8, I-1…I-4, M-3/M-4, R2-1…R2-4, B-1…B-6…) citados em comentários do código.
-- `docs/auditorias/` está VAZIA — nenhuma auditoria aberta. A última (componentização,
-  13/ago) foi encerrada em 19/ago e catalogada no [`HISTORICO.md`](HISTORICO.md);
+- `docs/auditorias/` tem **uma auditoria aberta**:
+  [`AUDITORIA_SEGURANCA_2026-08-21.md`](auditorias/AUDITORIA_SEGURANCA_2026-08-21.md)
+  (SEC-01…SEC-31). Os P0/P1 deste ciclo foram tratados no mesmo PR; o que
+  restou aberto ou aceito está na tabela do documento. A última encerrada
+  (componentização, 13/ago) foi catalogada no [`HISTORICO.md`](HISTORICO.md);
   a visual (VIS-1…VIS-17) antes dela, com o resíduo manual em
   [`TESTING.md`](../TESTING.md) §16, que é onde mora roteiro que a automação
   não alcança.
