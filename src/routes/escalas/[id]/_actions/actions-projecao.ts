@@ -20,6 +20,7 @@ import {
 	inserirPoliciaisEscalaEmLotes
 } from '$lib/db';
 import { proximoMes, primeiroDiaDoMes, ultimoDiaDoMes, MESES_PT } from '$lib/rotacao';
+import { ehViolacaoUnique } from '$lib/server/db-errors';
 import { projetarLinhasMesSeguinte } from '$lib/server/escalas/projetar-mes';
 import { carregarEscalaComPermissao } from './shared';
 
@@ -123,7 +124,13 @@ export const actionsProjecao = {
 				adicionados,
 				nao_processados: naoProcessados
 			};
-		} catch {
+		} catch (err) {
+			// Corrida perdida contra `uq_escalas_mensal` — 409, não 500 (SEC-34).
+			if (ehViolacaoUnique(err)) {
+				return fail(409, {
+					error: 'Já existe uma escala equivalente para esta lotação neste mês.'
+				});
+			}
 			return fail(500, { error: 'Erro ao gerar escala do próximo mês' });
 		}
 	}

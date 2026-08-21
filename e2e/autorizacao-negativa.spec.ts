@@ -395,3 +395,47 @@ test.describe('Autorização negativa', () => {
 		}
 	});
 });
+
+/**
+ * SEC-14 — o login é o único isento de token CSRF, então o `Origin` é a única
+ * camada ali. Origem DIVERGENTE já morria; origem AUSENTE passava, e cliente
+ * não-browser não manda `Origin`.
+ *
+ * O `APIRequestContext` do Playwright é justamente um cliente desses: ele não
+ * injeta `Origin`, o que faz dele o caso de teste exato.
+ */
+test.describe('Origin no login (SEC-14)', () => {
+	const CREDENCIAL = { matricula: 'INEXISTENTE', senha: 'x', tipo: 'policial' };
+
+	test('POST sem Origin morre no hook, com errorType csrf', async ({ request }) => {
+		const r = await request.post('/api/auth/login', { data: CREDENCIAL });
+		expect(r.status()).toBe(403);
+		expect((await r.json()).errorType).toBe('csrf');
+	});
+
+	test('POST com Origin de OUTRA origem continua morrendo', async ({ request }) => {
+		const r = await request.post('/api/auth/login', {
+			headers: { origin: 'https://atacante.example' },
+			data: CREDENCIAL
+		});
+		expect(r.status()).toBe(403);
+		expect((await r.json()).errorType).toBe('csrf');
+	});
+
+	test('POST com a NOSSA origem passa do hook — o 403 que sobra não é de CSRF', async ({
+		request
+	}) => {
+		const r = await request.post('/api/auth/login', {
+			headers: { origin: 'http://localhost:4173' },
+			data: CREDENCIAL
+		});
+		expect((await r.json()).errorType).not.toBe('csrf');
+	});
+
+	test('webhook segue aceitando requisição SEM Origin — só o login exige', async ({ request }) => {
+		// Integração externa legítima não manda Origin. Se esta expectativa cair,
+		// a allowlist de `csrf-origin.ts` cresceu demais e quebrou o sync.
+		const r = await request.post('/api/webhook/sync-policiais', { data: {} });
+		expect(r.status()).not.toBe(403);
+	});
+});

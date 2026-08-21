@@ -172,8 +172,21 @@ export async function buscarEscala(db: Database, id: number): Promise<schema.Esc
  * Cria a escala VAZIA e devolve `[{ id }]` — os policiais entram depois, por
  * `adicionarTodosPoliciais` ou pela adição manual.
  *
- * Não checa duplicidade: chame `verificarEscalaExistente` antes, ou a mesma
- * lotação ganha duas escalas para o mesmo período.
+ * Chame `verificarEscalaExistente` antes: é ele que produz a mensagem de erro
+ * com o período por extenso, que é o que o usuário precisa ler.
+ *
+ * **A tranca, porém, é o banco.** `uq_escalas_mensal` (migração 0063) recusa a
+ * segunda escala mensal do mesmo `(lotacao, tipo, mês)` mesmo quando duas
+ * requisições passam pelo check ao mesmo tempo — duplo clique, retry (SEC-34).
+ * Este comentário dizia "Não checa duplicidade: … ou a mesma lotação ganha duas
+ * escalas para o mesmo período", o que descrevia o defeito em vez de impedi-lo.
+ *
+ * O chamador deve capturar `ehViolacaoUnique` e devolver 409 — sem isso a
+ * corrida perdida vira 500 com SQL cru na tela.
+ *
+ * **FDS não tem tranca**: colide por sobreposição de INTERVALO, que unique não
+ * expressa em SQLite. Ali `verificarEscalaExistente` segue sendo a única
+ * proteção, e a corrida continua possível.
  */
 export async function criarEscala(
 	db: Database,

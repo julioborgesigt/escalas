@@ -477,7 +477,7 @@ escalas/
 ├── docs/                           # Documentação complementar (ver docs/README.md)
 │   ├── QA_ASSINATURA_A3_DESKTOP.md # Roteiro de QA manual do fluxo Token A3
 │   ├── HISTORICO.md                # Catálogo das auditorias/decisões arquivadas (preservadas no Git)
-│   └── auditorias/                 # Auditorias em tratamento (depois vão para o HISTORICO)
+│   └── auditorias/                 # Auditorias em tratamento — AUSENTE quando não há nenhuma aberta
 ├── static/
 │   └── face-api/                   # Modelos ML do face-api (servidos localmente)
 ├── wrangler.toml                   # Config Cloudflare (D1, R2, adapter)

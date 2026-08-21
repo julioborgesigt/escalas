@@ -49,6 +49,7 @@ import { excluirEscalaCompleta } from '$lib/server/escalas/exclusao';
 import { podeOIPSolicitarAssinatura } from '$lib/server/escalas/permissao';
 import { logger } from '$lib/server/logger';
 import { eq, or, and, inArray, sql, desc, type SQL } from 'drizzle-orm';
+import { ehViolacaoUnique } from '$lib/server/db-errors';
 import { lotacoesAdministradas, lotacaoNoEscopo } from '$lib/server/policial-permissao';
 import {
 	escalas as escalasTable,
@@ -391,6 +392,14 @@ export const actions: Actions = {
 
 			return { success: true, id: result[0]?.id };
 		} catch (err) {
+			// Corrida perdida contra `uq_escalas_mensal`: o check acima passou nas
+			// duas requisições, o banco recusou a segunda (SEC-34). É 409, não 500.
+			if (ehViolacaoUnique(err)) {
+				return fail(409, {
+					error: 'Já existe uma escala equivalente para esta lotação neste mês.',
+					fields: { titulo, cidade, data_inicio, data_fim, lotacao, tipo }
+				});
+			}
 			logger.error('[escalas/criar] Erro interno ao criar escala', {
 				lotacao,
 				tipo,
@@ -552,6 +561,11 @@ export const actions: Actions = {
 
 			return { success: true, id: novaEscalaId, adicionados, nao_processados: naoProcessados };
 		} catch (err) {
+			if (ehViolacaoUnique(err)) {
+				return fail(409, {
+					error: 'Já existe uma escala equivalente para esta lotação neste mês.'
+				});
+			}
 			logger.error('[escalas/criarComBase] Erro interno', {
 				lotacao,
 				tipo,

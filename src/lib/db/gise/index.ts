@@ -19,6 +19,7 @@ export {
 	criarGiseEscala,
 	buscarGiseDetalhado,
 	atualizarGiseEscala,
+	finalizarGiseEscala,
 	reabrirGiseEscala,
 	clonarGiseParaData,
 	verificarGiseCompleta,

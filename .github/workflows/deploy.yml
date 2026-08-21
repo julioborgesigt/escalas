@@ -172,6 +172,18 @@ jobs:
       - name: Guard — duplicação entre arquivos
         run: npm run guard:duplicacao
 
+      # Guard de catálogo: sigla de achado citada no código (FLW-RBAC-003,
+      # SEC-34, R2-1) precisa ter onde ser lida. O projeto arquiva auditoria
+      # FORA do working tree — o relatório sai, o HISTORICO.md fica com o
+      # `git show` que o recupera —, e isso só funciona enquanto o catálogo
+      # souber de todas as siglas. Em ago/2026 ele descrevia a auditoria de
+      # fluxos como "FLW-AUT-001…020" e o documento define DOZE famílias: 130
+      # referências apontavam para as onze não nomeadas. Se reprovar: nomeie a
+      # família na linha da auditoria em docs/HISTORICO.md, ou — se o relatório
+      # nunca foi commitado — declare em SEM_DOCUMENTO no script.
+      - name: Guard — siglas de achado catalogadas
+        run: npm run guard:achados
+
       # Guard de documentação: arquivo NOVO em src/lib/db/ tem de nascer com
       # cabeçalho de módulo e JSDoc nos exports. Só arquivos ADICIONADOS no
       # diff — o legado é pago em levas, medido por `npm run docs:inventario`

@@ -11,7 +11,7 @@
  * primeiro estado novo da escada — que foi exatamente como o achado nasceu.
  */
 import { describe, it, expect } from 'vitest';
-import { modoDeFinalizacao, PENDENCIAS_DA_ANTECIPADA } from '../finalizacao';
+import { modoDeFinalizacao, PENDENCIAS_DA_ANTECIPADA, STATUS_FINALIZAVEIS } from '../finalizacao';
 
 describe('modoDeFinalizacao', () => {
 	it('pronta_para_finalizar é a finalização normal', () => {
@@ -52,5 +52,38 @@ describe('o que a antecipada deixa para trás', () => {
 		expect(PENDENCIAS_DA_ANTECIPADA.length).toBeGreaterThan(0);
 		expect(PENDENCIAS_DA_ANTECIPADA.join(' ')).toMatch(/relatório/i);
 		expect(PENDENCIAS_DA_ANTECIPADA.join(' ')).toMatch(/saída/i);
+	});
+});
+
+describe('STATUS_FINALIZAVEIS × modoDeFinalizacao (SEC-35)', () => {
+	// O `WHERE` do CAS em `finalizarGiseEscala` usa esta lista. Se ela divergir
+	// do que `modoDeFinalizacao` libera, a API aceita um status que o UPDATE não
+	// casa (ou o contrário) — e o sintoma seria um 409 inexplicável em produção.
+	const TODOS = [
+		'em_definicao_supervisor',
+		'em_preenchimento',
+		'aguardando_assinatura',
+		'em_andamento',
+		'aguardando_relatorios',
+		'aguardando_assinatura_relat',
+		'pronta_para_finalizar',
+		'finalizada'
+	] as const;
+
+	it('todo status da lista é aceito por modoDeFinalizacao', () => {
+		for (const status of STATUS_FINALIZAVEIS) {
+			expect(modoDeFinalizacao(status)).not.toBe('bloqueado');
+		}
+	});
+
+	it('todo status FORA da lista é bloqueado', () => {
+		const fora = TODOS.filter((s) => !(STATUS_FINALIZAVEIS as readonly string[]).includes(s));
+		for (const status of fora) {
+			expect(modoDeFinalizacao(status)).toBe('bloqueado');
+		}
+	});
+
+	it('`finalizada` não está na lista — é o que faz o CAS recusar a segunda', () => {
+		expect((STATUS_FINALIZAVEIS as readonly string[]).includes('finalizada')).toBe(false);
 	});
 });

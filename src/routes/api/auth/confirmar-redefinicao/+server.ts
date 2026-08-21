@@ -1,8 +1,14 @@
 /**
  * POST /api/auth/confirmar-redefinicao
  *
- * Confirma o código enviado ao e-mail pessoal e, somente então, valida esse
- * e-mail, cria o token de redefinição de senha e envia o link por e-mail.
+ * Confirma o código enviado ao e-mail pessoal, cria o token de redefinição e
+ * envia o link por e-mail.
+ *
+ * **Não marca `email_pessoal_verificado`.** Já marcou: confirmar o OTP aqui
+ * promovia um endereço nunca vinculado a "verificado", e o flag passava a
+ * significar "alguém leu um código" em vez de "o titular vinculou este
+ * endereço" (SEC-29). Verificar o e-mail pessoal é ato próprio, com sessão, em
+ * `/api/auth/solicitar-verificacao-email-pessoal` + `confirmar-…`.
  */
 
 import { json } from '@sveltejs/kit';
@@ -17,6 +23,7 @@ import {
 	registrarRecoveryAttempt
 } from '$lib/server/auth/recovery-rate-limit';
 import { badRequest, rateLimited, validateBody } from '$lib/server/api';
+import { podeAutoatenderResetSenha } from '$lib/server/auth/reset-elegibilidade';
 import { confirmarRedefinicaoSchema } from '$lib/schemas';
 import { resolverAppOrigin } from '$lib/server/app-origin';
 import type { RequestHandler } from './$types';
@@ -107,7 +114,9 @@ export const POST: RequestHandler = async ({ request, platform, url, getClientAd
 		if (row) usuario = row;
 	}
 
-	if (!usuario || !usuario.email_pessoal || !usuario.email) {
+	// Mesmo portão do `solicitar-redefinicao`: um desafio criado antes da regra
+	// do SEC-29 ainda estaria vivo, e este é o passo que entrega o link.
+	if (!podeAutoatenderResetSenha(usuario) || !usuario.email) {
 		return json({ message: RESPOSTA_GENERICA });
 	}
 
@@ -132,20 +141,6 @@ export const POST: RequestHandler = async ({ request, platform, url, getClientAd
 
 	const token = await criarTokenRedefinicao(db, tipo, usuario.id);
 	const link = `${resolverAppOrigin(url, platform)}/redefinir-senha?token=${token}`;
-
-	if (usuario.email_pessoal_verificado !== 1) {
-		if (tipo === 'policial') {
-			await db
-				.update(policiais)
-				.set({ email_pessoal_verificado: 1 })
-				.where(eq(policiais.id, usuario.id));
-		} else {
-			await db
-				.update(administradores)
-				.set({ email_pessoal_verificado: 1 })
-				.where(eq(administradores.id, usuario.id));
-		}
-	}
 
 	await enviarLinkRedefinicaoSenha(usuario.email, usuario.nome, link, platform);
 
