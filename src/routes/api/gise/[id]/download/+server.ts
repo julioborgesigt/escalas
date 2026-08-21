@@ -60,6 +60,7 @@ import {
 } from '$lib/server/gise/xlsx-workbook-append';
 import ExcelJS from 'exceljs';
 import { mensagemDeErro } from '$lib/utils/erro';
+import { recorteSeccionalVisivel } from '$lib/gise/recorte-seccional';
 
 export const GET: RequestHandler = async ({ locals, params, platform, url }) => {
 	const u = requireAuth(locals);
@@ -379,6 +380,11 @@ export const GET: RequestHandler = async ({ locals, params, platform, url }) => 
 			(s) => s.id === seccionalId || s.seccional_id === seccionalId
 		);
 		if (!seccional) return notFound('Seccional');
+
+		// SEC-20: participação na GISE não autoriza o recorte de OUTRA seccional.
+		if (!recorteSeccionalVisivel(u, gise, seccional)) {
+			return forbidden('Sem permissão para o relatório de produtividade desta seccional.');
+		}
 
 		// Achatar todas as equipes da seccional (de todas as unidades)
 		const todasEquipes = (seccional.unidades ?? []).flatMap((u) => u.equipes ?? []);
