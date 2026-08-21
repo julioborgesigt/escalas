@@ -726,10 +726,12 @@ de filtros.
 
 ### O eixo do painel: delegacias ou seccionais
 
-A barra de filtros de `/produtividade` tem **duas linhas**, e a divisão é
-semântica: em cima o que se COMPARA (operação, "Visualizar por", quantidade de
-unidades, ordem) e embaixo o que entra na CONTA (tipo de equipe, período). Só os
-de baixo recortam dado.
+A barra de filtros de `/produtividade` tem **duas linhas**. A divisão já foi
+semântica ("só os de baixo recortam dado") e desde ago/2026 é de USO: em cima o
+que se escolhe ao abrir o painel (operação, "Visualizar por", tipo de equipe),
+embaixo o que se mexe enquanto se lê (quantidade, ordem, período). Quem precisa
+saber o que recorta dado de verdade: **tipo de equipe e período** — quantidade e
+ordem seguem mexendo só na apresentação da MESMA lista.
 
 "Visualizar por" é um EIXO, não um filtro: a mesma resposta pertence às duas
 chaves — `seccional_id` e `unidade_id` (este resolvido em

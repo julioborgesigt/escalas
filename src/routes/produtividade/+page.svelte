@@ -190,9 +190,14 @@
 				transition:slide={{ duration: 250 }}
 			>
 				<div class="space-y-4 p-4 sm:p-5">
-					<!-- LINHA 1 — o que se compara: operação, eixo, quantas unidades e
-					     em que sentido. Os três últimos não recortam dado nenhum: só
-					     mudam a quebra e a ordem da MESMA lista. -->
+					<!-- LINHA 1 — o que está EM FOCO: qual operação, por qual eixo, e de que
+					     tipo de equipe.
+					     A divisão entre as duas linhas já foi SEMÂNTICA ("só os de baixo
+					     recortam dado") e não é mais: o tipo de equipe recorta e mora aqui em
+					     cima. Hoje ela é de USO — em cima o que se escolhe ao abrir o painel,
+					     embaixo o que se mexe enquanto se lê. Quem precisa saber o que recorta
+					     dado: tipo de equipe e período; quantidade e ordem seguem mexendo só na
+					     apresentação da MESMA lista. -->
 					<div class="grid grid-cols-1 gap-4 lg:grid-cols-12 items-end">
 						<!-- Operação: navega (recarrega o `load`), porque trocar de operação
 						     troca os MODELOS e as linhas de base — não é um recorte da
@@ -213,7 +218,7 @@
 							</div>
 						{/if}
 
-						<div class="space-y-1.5 lg:col-span-3">
+						<div class="space-y-1.5 lg:col-span-4">
 							<p class={ROTULO}>Visualizar por</p>
 							<div class="inline-flex w-full rounded-xl bg-surface-100 dark:bg-surface-800 p-1">
 								<button
@@ -229,38 +234,7 @@
 							</div>
 						</div>
 
-						<div class="space-y-1.5 lg:col-span-3">
-							<label for="f-qtd" class={ROTULO}>Quantidade de unidades</label>
-							<select
-								id="f-qtd"
-								value={String(p.quantidade)}
-								onchange={(e) =>
-									(p.quantidade =
-										e.currentTarget.value === 'todas'
-											? 'todas'
-											: (Number(e.currentTarget.value) as 5 | 10))}
-								class={CAMPO}
-							>
-								<option value="5">5 unidades</option>
-								<option value="10">10 unidades</option>
-								<option value="todas">Todas</option>
-							</select>
-						</div>
-
-						<div class="space-y-1.5 lg:col-span-3">
-							<label for="f-ordem" class={ROTULO}>Ordem</label>
-							<select id="f-ordem" bind:value={p.ordem} class={CAMPO}>
-								<option value="melhores">Melhores primeiro</option>
-								<option value="piores">Piores primeiro</option>
-							</select>
-						</div>
-					</div>
-
-					<!-- LINHA 2 — o que entra na conta: recortes de verdade sobre os dados. -->
-					<div
-						class="grid grid-cols-1 gap-4 lg:grid-cols-12 items-end border-t border-surface-200/70 dark:border-white/10 pt-4"
-					>
-						<div class="space-y-1.5 lg:col-span-4">
+						<div class="space-y-1.5 lg:col-span-5">
 							<p class={ROTULO}>Tipo de equipe</p>
 							<div class="inline-flex w-full rounded-xl bg-surface-100 dark:bg-surface-800 p-1">
 								<!-- Desabilitado, e não escondido: o botão apagado diz que a
@@ -290,8 +264,45 @@
 								>
 							</div>
 						</div>
+					</div>
 
-						<div class="space-y-1.5 lg:col-span-8">
+					<!-- LINHA 2 — o RECORTE: quantas unidades, em que ordem, em que período.
+					     As frações do `grid-cols` não são arbitrárias: `1.5fr` é metade das 3
+					     colunas que a quantidade tinha, e `2.1fr` são as 3 da ordem menos 30%.
+					     Os dois guardam duas ou três opções curtas, e a largura que sobra vale
+					     mais no período, que carrega duas datas. -->
+					<div
+						class="grid grid-cols-1 gap-4 lg:grid-cols-[1.5fr_2.1fr_8.4fr] items-end border-t border-surface-200/70 dark:border-white/10 pt-4"
+					>
+						<div class="space-y-1.5">
+							<!-- "Quantidade", e não "Quantidade de unidades": na largura pela metade
+							     o rótulo longo quebrava em três linhas, e as opções ("5 unidades",
+							     "10 unidades") já dizem de que quantidade se trata. -->
+							<label for="f-qtd" class={ROTULO}>Quantidade</label>
+							<select
+								id="f-qtd"
+								value={String(p.quantidade)}
+								onchange={(e) =>
+									(p.quantidade =
+										e.currentTarget.value === 'todas'
+											? 'todas'
+											: (Number(e.currentTarget.value) as 5 | 10))}
+								class={CAMPO}
+							>
+								<option value="5">5 unidades</option>
+								<option value="10">10 unidades</option>
+								<option value="todas">Todas</option>
+							</select>
+						</div>
+
+						<div class="space-y-1.5">
+							<label for="f-ordem" class={ROTULO}>Ordem</label>
+							<select id="f-ordem" bind:value={p.ordem} class={CAMPO}>
+								<option value="melhores">Melhores primeiro</option>
+								<option value="piores">Piores primeiro</option>
+							</select>
+						</div>
+						<div class="space-y-1.5">
 							<label for="f-ano" class={ROTULO}>Período</label>
 							<div class="flex flex-wrap lg:flex-nowrap items-end gap-2">
 								<select

@@ -128,13 +128,14 @@ test('a barra tem os quatro controles de comparação e os dois de recorte', asy
 
 	await page.goto(`/produtividade?operacaoId=${id}`);
 
-	// Linha 1: o que se compara.
+	// Linha 1: o que está em foco — eixo e tipo de equipe (a operação só aparece
+	// quando há mais de uma).
 	await expect(page.getByRole('button', { name: 'Seccionais', exact: true })).toBeVisible();
 	await expect(page.getByRole('button', { name: 'Delegacias', exact: true })).toBeVisible();
+	await expect(page.getByRole('button', { name: 'Operacional', exact: true })).toBeVisible();
+	// Linha 2: o recorte — quantas unidades, em que ordem, em que período.
 	await expect(page.locator('#f-qtd')).toBeVisible();
 	await expect(page.locator('#f-ordem')).toBeVisible();
-	// Linha 2: o que entra na conta.
-	await expect(page.getByRole('button', { name: 'Operacional', exact: true })).toBeVisible();
 	await expect(page.locator('#f-ano')).toBeVisible();
 
 	// O filtro de seccional saiu — quem escolhe o eixo é o "Visualizar por".
