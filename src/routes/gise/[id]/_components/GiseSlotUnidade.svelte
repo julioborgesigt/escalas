@@ -14,6 +14,12 @@
 	 *
 	 * O "Remover DP" saiu da faixa e entrou no menu do lápis, junto de "Alterar
 	 * unidade": são as duas ações DA UNIDADE, e ficam onde se mexe na unidade.
+	 *
+	 * E o painel NÃO leva tarja lateral (a `media` de `getSeccionalColorClass`):
+	 * ela some para devolver os 6px de largura aos quadros de equipe, que é o
+	 * ponto da mudança inteira. A cor da seccional continua onde identifica de
+	 * relance — no card da seccional (`forte`) e em cada equipe (`suave`) —, e no
+	 * meio a aba aberta já diz a que unidade o painel pertence.
 	 */
 	import { enhance } from '$app/forms';
 	import { Popover, Portal } from '@skeletonlabs/skeleton-svelte';
@@ -26,7 +32,6 @@
 	import Building from '@lucide/svelte/icons/building';
 	import UserPlus from '@lucide/svelte/icons/user-plus';
 	import X from '@lucide/svelte/icons/x';
-	import { getSeccionalColorClass } from '$lib/gise/page-helpers';
 
 	type Seccional = GiseDetalhado['seccionais'][number];
 
@@ -80,10 +85,7 @@
 	role="tabpanel"
 	aria-labelledby="aba-un-{sec.id}-{slot.id}"
 	tabindex="-1"
-	class="rounded-b-xl border border-t-0 border-l-[6px] border-surface-300 bg-white p-3 dark:border-surface-700 dark:bg-surface-950 sm:p-4 {getSeccionalColorClass(
-		sec.seccional_id,
-		'media'
-	)}"
+	class="rounded-b-xl border border-t-0 border-surface-300 bg-white p-3 dark:border-surface-700 dark:bg-surface-950 sm:p-4"
 >
 	<!-- Topo do painel: quem é esta unidade e o que se pode fazer com ela -->
 	<div class="mb-3 flex flex-col gap-2">
