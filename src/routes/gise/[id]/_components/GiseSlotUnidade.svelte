@@ -15,11 +15,9 @@
 	 * O "Remover DP" saiu da faixa e entrou no menu do lápis, junto de "Alterar
 	 * unidade": são as duas ações DA UNIDADE, e ficam onde se mexe na unidade.
 	 *
-	 * E o painel NÃO leva tarja lateral (a `media` de `getSeccionalColorClass`):
-	 * ela some para devolver os 6px de largura aos quadros de equipe, que é o
-	 * ponto da mudança inteira. A cor da seccional continua onde identifica de
-	 * relance — no card da seccional (`forte`) e em cada equipe (`suave`) —, e no
-	 * meio a aba aberta já diz a que unidade o painel pertence.
+	 * E o painel NÃO leva tarja lateral: ela some para devolver os 6px de
+	 * largura aos quadros de equipe. O card da seccional e os quadros de equipe
+	 * também não levam tarja — o nome e o tipo já identificam o bloco.
 	 */
 	import { enhance } from '$app/forms';
 	import { Popover, Portal } from '@skeletonlabs/skeleton-svelte';

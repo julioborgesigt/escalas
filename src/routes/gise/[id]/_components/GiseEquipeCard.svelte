@@ -4,6 +4,10 @@
 	 * (com edição inline do Admin Geral), membros e o fluxo de adicionar membro.
 	 * O estado de edição vem de `GiseSeccionalEstado` (compartilhado com os
 	 * demais cards — os fluxos são mutuamente exclusivos por id).
+	 *
+	 * Sem tarja lateral: o tipo já está no título, e a cor da seccional mora no
+	 * card externo. A faixa duplicava o recorte e virava arco-íris nos pares
+	 * Operacional/SEINT.
 	 */
 	import { enhance } from '$app/forms';
 	import type { GiseDetalhado, GiseEquipeComMembros } from '$lib/db/gise';
@@ -19,7 +23,6 @@
 	import type { GiseSeccionalEstado } from './gise-seccional-estado.svelte';
 	import PenLine from '@lucide/svelte/icons/pen-line';
 	import Clock from '@lucide/svelte/icons/clock';
-	import { getSeccionalColorClass } from '$lib/gise/page-helpers';
 
 	type Seccional = GiseDetalhado['seccionais'][number];
 
@@ -90,10 +93,7 @@
 </script>
 
 <div
-	class="flex-1 rounded-xl border border-surface-200 dark:border-surface-700/60 border-l-[6px] p-2.5 sm:p-3 bg-white dark:bg-surface-900 shadow-sm hover:shadow-md transition-shadow duration-200 {getSeccionalColorClass(
-		sec.seccional_id,
-		'suave'
-	)}"
+	class="flex-1 rounded-xl border border-surface-200 dark:border-surface-700/60 p-2.5 sm:p-3 bg-white dark:bg-surface-900 shadow-sm hover:shadow-md transition-shadow duration-200"
 >
 	<div class="mb-3 flex items-start justify-between gap-3">
 		{#if isAdminGeral && podeEditar && modoEdicaoGeral}

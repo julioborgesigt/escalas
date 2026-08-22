@@ -4,10 +4,10 @@
  *
  * Fica aqui, e não dentro de um dos dois composables, porque os dois navegam
  * pela MESMA URL: o editor troca `?operacaoId=`, a presença troca `?mes=` /
- * `?data=`. Escrever a query duas vezes é o caminho para uma das telas apagar o
- * parâmetro da outra — o `?status` da aba já foi perdido assim uma vez (por
- * `limparFiltros` zerando o filtro inteiro, o que jogava quem estava no
- * Histórico de volta para Ativas).
+ * `?data=` / `?tipo=` / `?periodo=` / `?ano=` / `?ciclo=`. Escrever a query duas vezes é o caminho
+ * para uma das telas apagar o parâmetro da outra — o `?status` da aba já foi
+ * perdido assim uma vez (por `limparFiltros` zerando o filtro inteiro, o que
+ * jogava quem estava no Histórico de volta para Ativas).
  *
  * Preserva tudo que não foi citado: só as chaves passadas são escritas, e
  * `null` apaga.

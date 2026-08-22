@@ -59,6 +59,7 @@ export const giseHistoricoExportQuerySchema = z
 	.object({
 		format: z.enum(['xlsx', 'pdf']),
 		seccionalId: z.coerce.number().optional(),
+		tipoEquipe: z.enum(['operacional', 'seint']).optional(),
 		periodo: z.enum(['mes', 'ciclo', 'data']),
 		mesAno: z.string().optional(),
 		ano: z.coerce.number().optional(),

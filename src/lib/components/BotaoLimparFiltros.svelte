@@ -15,13 +15,15 @@
 		temFiltros,
 		onclick,
 		disabledExtra = false,
-		label = 'Limpar filtros'
+		label = 'Limpar filtros',
+		classes = ''
 	}: {
 		temFiltros: boolean;
 		onclick: () => void;
 		/** Extra disable (ex.: enquanto loading). */
 		disabledExtra?: boolean;
 		label?: string;
+		classes?: string;
 	} = $props();
 
 	const disabled = $derived(!temFiltros || disabledExtra);
@@ -31,7 +33,7 @@
 	type="button"
 	class="btn btn-sm {temFiltros
 		? 'preset-filled-warning-500'
-		: 'preset-outlined-primary-500 opacity-40'}"
+		: 'preset-outlined-primary-500 opacity-40'} {classes}"
 	{onclick}
 	{disabled}
 >
