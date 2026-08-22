@@ -1,7 +1,7 @@
 # Plano — os três resíduos que sobreviveram ao arquivamento
 
-**Status:** 2 de 3 fechados (22/ago/2026). **B-6.2 concluído**, **B-5 aceito com
-registro no código**; resta B-1.
+**Status:** 3 de 3 fechados (22/ago/2026). **B-6.2** concluído, **B-5** aceito com
+registro no código, **B-1** resolvido pela janela do servidor.
 Nenhum é defeito ativo; são dívida que a auditoria de origem declarou e o
 arquivamento tornou invisível.
 
@@ -95,7 +95,7 @@ três cards são o MESMO toggle, e o B-6.1 só tinha passado por um deles.
 
 ---
 
-## 2. B-1 — a agregação de `/produtividade` ainda é no cliente
+## 2. B-1 — a agregação de `/produtividade` ainda é no cliente ✅ FECHADO 22/ago
 
 **O que a auditoria pediu:** _"curto prazo: buscar todas as páginas; médio
 prazo: agregar no servidor"_. O curto prazo foi aplicado em 17/jul e é o que
@@ -132,6 +132,38 @@ a chamada de lado é mudança de lugar, não reescrita.
 **Risco:** médio, e é de correção, não de layout — número errado numa tela de
 produtividade é indistinguível de número certo. Comparar agregado
 servidor × cliente para o mesmo conjunto, antes de trocar, é o que protege.
+
+### Desfecho: resolvido sem mover a agregação
+
+O fato que mudou o plano: **a tela já mostrava o ano corrente por padrão**
+(`filterAno` nascia em `currentYear`), enquanto o servidor carregava o histórico
+inteiro. Carregava 4+ anos para exibir 1. O desperdício não era "carrega demais
+para o que o usuário pode querer" — era carregar demais para o que ele **já
+vê**.
+
+Então a janela virou parâmetro do servidor, com default no ano corrente, e a
+agregação ficou onde estava. `stats`/`agrupamento`/`metas` não foram tocados.
+
+Três coisas que a implementação obrigou a resolver:
+
+1. **`ano` não servia como parâmetro.** O filtro tem modo `personalizado`, com
+   date pickers que cruzam anos; `ano` recortaria e o usuário veria menos do que
+   pediu, sem erro. O parâmetro é `inicio`/`fim`.
+2. **`strftime` anulava o índice.** A query filtrava
+   `strftime('%Y', data_inicio) = '2026'` — função sobre coluna. Virou
+   comparação por intervalo, que é a lição que `verificarEscalaExistente` já
+   carregava escrita.
+3. **O filtro tinha de nascer da janela do servidor.** Um seletor que discorde
+   do recorte mostra números de um período com o rótulo de outro; o `load`
+   devolve `janela` e a tela parte dela.
+
+E uma bomba-relógio evitada: os fixtures de e2e fixavam `2026-05-*`. Com o
+recorte no ano corrente, eles cairiam fora da janela em 01/jan/2027 e os specs
+abririam a tela vazia. Passaram a ser ano-relativos — o que também resolve o
+`selectOption('2026')`, que sumiria em 2030 (o seletor oferece quatro anos).
+
+**O custo assumido:** trocar de ano virou round-trip, e não recorte instantâneo.
+Um por troca de ano, contra carregar o histórico em toda abertura.
 
 ---
 

@@ -510,9 +510,9 @@ export async function salvarRespostaGise(
  * Detalhes que o chamador precisa saber:
  * - os `innerJoin` fazem esta consulta ignorar respostas sem equipe (o formato
  *   individual antigo) e respostas cuja seccional não casa com uma unidade;
- * - `mes`/`ano` filtram pela `data_inicio` da GISE via `strftime`, não pelo
- *   `updated_at` da resposta: o que interessa é o período do serviço, não
- *   quando alguém preencheu;
+ * - `inicio`/`fim` recortam pela `data_inicio` da GISE, não pelo `updated_at`
+ *   da resposta: o que interessa é o período do SERVIÇO, não quando alguém
+ *   preencheu. Os dois são inclusivos, e omitir um deixa aquele lado aberto;
  * - `limit` é limitado a 500 por página. O painel pagina em laço até esgotar,
  *   então mudar esse teto muda o número de idas ao banco, não o resultado;
  * - `operacaoId` recorta à operação (os indicadores e as metas são dela);
@@ -526,8 +526,10 @@ export async function listarTodasRespostasGise(
 	opts?: {
 		page?: number;
 		limit?: number;
-		mes?: number;
-		ano?: number;
+		/** Início da janela, `YYYY-MM-DD` inclusivo. Sem ele, não há piso. */
+		inicio?: string;
+		/** Fim da janela, `YYYY-MM-DD` inclusivo. Sem ele, não há teto. */
+		fim?: string;
 		operacaoId?: number;
 		unidadeIds?: number[];
 	}
@@ -566,12 +568,25 @@ export async function listarTodasRespostasGise(
 
 	// Build dynamic conditions
 	const conditions: SQL[] = [];
-	if (opts?.mes) {
-		const monthStr = opts.mes.toString().padStart(2, '0');
-		conditions.push(sql`strftime('%m', ${giseEscalas.data_inicio}) = ${monthStr}`);
+	// Janela por INTERVALO, não por `strftime`. Duas razões, e a segunda é a que
+	// motivou a troca (B-1):
+	//
+	//  - `strftime('%Y', data_inicio) = '2026'` é função sobre a coluna, e função
+	//    sobre coluna anula o índice. É a mesma lição que `verificarEscalaExistente`
+	//    já carrega escrita: lá a comparação mensal virou intervalo justamente
+	//    "para que o índice de `data_inicio` seja usado".
+	//  - Ano e mês não expressam a janela que a tela oferece. O filtro de
+	//    produtividade tem modo `personalizado`, com date pickers livres que
+	//    podem cruzar anos; `ano` recortaria ao ano e o usuário veria menos do
+	//    que pediu, sem erro nenhum.
+	//
+	// `data_inicio` é TEXT em `YYYY-MM-DD`, então a comparação lexicográfica é a
+	// cronológica — o mesmo contrato que o resto do projeto usa em coluna de data.
+	if (opts?.inicio) {
+		conditions.push(sql`${giseEscalas.data_inicio} >= ${opts.inicio}`);
 	}
-	if (opts?.ano) {
-		conditions.push(sql`strftime('%Y', ${giseEscalas.data_inicio}) = ${opts.ano.toString()}`);
+	if (opts?.fim) {
+		conditions.push(sql`${giseEscalas.data_inicio} <= ${opts.fim}`);
 	}
 	if (opts?.operacaoId != null) {
 		conditions.push(sql`${giseEscalas.operacao_id} = ${opts.operacaoId}`);
