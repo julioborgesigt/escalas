@@ -12,6 +12,7 @@
 	import { statusLabel, statusColor, statusStrip, fmtDate, diaSemana } from '$lib/gise/formatters';
 	import { escalaGiseJaAssinada } from '$lib/gise/status-escala';
 	import PenLine from '@lucide/svelte/icons/pen-line';
+	import Check from '@lucide/svelte/icons/check';
 
 	const {
 		ativa,
@@ -152,15 +153,7 @@
 								: 'Ver o que falta para assinar'}
 					>
 						{#if escalaConcluida}
-							<svg
-								class="w-3 h-3 shrink-0"
-								fill="none"
-								viewBox="0 0 24 24"
-								stroke="currentColor"
-								stroke-width="3"
-							>
-								<path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
-							</svg>
+							<Check class="w-3 h-3 shrink-0" strokeWidth={3} aria-hidden="true" />
 						{:else}
 							<PenLine class="w-3 h-3 shrink-0" aria-hidden="true" />
 						{/if}
@@ -186,15 +179,7 @@
 								: 'Ver status dos extras'}
 					>
 						{#if extraConcluido}
-							<svg
-								class="w-3 h-3 shrink-0"
-								fill="none"
-								viewBox="0 0 24 24"
-								stroke="currentColor"
-								stroke-width="3"
-							>
-								<path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
-							</svg>
+							<Check class="w-3 h-3 shrink-0" strokeWidth={3} aria-hidden="true" />
 						{:else}
 							<PenLine class="w-3 h-3 shrink-0" aria-hidden="true" />
 						{/if}

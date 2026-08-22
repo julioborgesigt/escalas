@@ -1,4 +1,5 @@
 <script lang="ts">
+	import Check from '@lucide/svelte/icons/check';
 	import { page } from '$app/state';
 	const usuario = $derived(page.data.usuario);
 </script>
@@ -12,9 +13,7 @@
 		<div
 			class="w-16 h-16 rounded-full bg-success-500/15 border border-success-500/30 flex items-center justify-center mb-6"
 		>
-			<svg class="w-8 h-8 text-success-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-			</svg>
+			<Check class="w-8 h-8 text-success-500" aria-hidden="true" />
 		</div>
 		<h1 class="text-2xl font-bold text-surface-900 dark:text-surface-50 mb-3">
 			Login bem sucedido!

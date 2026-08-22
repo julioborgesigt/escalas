@@ -25,17 +25,28 @@ import { autenticarPagina, execD1Local, queryD1Local } from './session';
  * consegue provar que a TELA obedece a ela.
  */
 
-/** Ids exclusivos deste spec — não colidem com a fixture nem com os outros cenários. */
+/**
+ * Ids exclusivos deste spec. **A frase acima já foi falsa:** `gise`, `sec` e
+ * `equipe` usavam 99501/99502, que são de `presenca-gise.spec.ts` — e o
+ * `semearGisePresenca` de lá apaga por esse id em `gise_presencas`,
+ * `gise_membros`, `gise_equipes`, `gise_seccionais` e `gise_escalas`, ou seja,
+ * destruía a fixture DESTE spec nas cinco tabelas. Um dos dois sempre rodava
+ * sobre restos do outro, dependendo da ordem.
+ *
+ * A faixa deste spec é 995**1**x, ancorada no 99510 da seccional, que já era
+ * exclusivo. `presenca-gise` fica com 9950x. Antes de reaproveitar qualquer
+ * número aqui, procure-o em `e2e/` inteiro — foi assim que a colisão passou.
+ */
 const C = {
 	enxuta: 'OPERACAO E2E GRAFICOS ENXUTA',
 	completa: 'OPERACAO E2E GRAFICOS COMPLETA',
 	seccional: { id: 99510, nome: 'SECCIONAL E2E GRAFICOS' },
-	giseEnxuta: 99501,
-	giseCompleta: 99502,
-	secEnxuta: 99501,
-	secCompleta: 99502,
-	equipeEnxuta: 99501,
-	equipeCompleta: 99502
+	giseEnxuta: 99511,
+	giseCompleta: 99512,
+	secEnxuta: 99511,
+	secCompleta: 99512,
+	equipeEnxuta: 99511,
+	equipeCompleta: 99512
 };
 
 /**
