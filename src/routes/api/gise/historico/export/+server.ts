@@ -35,7 +35,7 @@ import ExcelJS from 'exceljs';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import type { GiseDetalhado } from '$lib/db/gise/types';
-import { getCicloRange } from '$lib/gise/ciclos';
+import { escalaPassaRecorteHistorico } from '$lib/gise/historico-filtro';
 import {
 	appendGiseDetalhadoToXlsxWorkbook,
 	createAppendGiseXlsxState,
@@ -167,7 +167,16 @@ export const GET: RequestHandler = async ({ locals, platform, url }) => {
 		const msg = parsed.error.issues[0]?.message ?? 'Parâmetros inválidos';
 		return badRequest(msg);
 	}
-	const { format, seccionalId, periodo, mesAno, ano, ciclo, data: dataEspecifica } = parsed.data;
+	const {
+		format,
+		seccionalId,
+		tipoEquipe,
+		periodo,
+		mesAno,
+		ano,
+		ciclo,
+		data: dataEspecifica
+	} = parsed.data;
 
 	type EscalaLista = Awaited<ReturnType<typeof listarGiseEscalas>>[number];
 
@@ -177,20 +186,16 @@ export const GET: RequestHandler = async ({ locals, platform, url }) => {
 	const todas = await listarGiseEscalas(db);
 	const historico = todas.filter((e) => e.status === 'finalizada');
 
-	const filtradas = historico.filter((e: EscalaLista) => {
-		if (seccionalId !== undefined && !(e.seccionais ?? []).some((sec) => sec.id === seccionalId)) {
-			return false;
-		}
-		if (periodo === 'mes' && mesAno) {
-			if (!String(e.data_inicio).startsWith(mesAno)) return false;
-		} else if (periodo === 'ciclo' && ano !== undefined && ciclo !== undefined) {
-			const { inicio, fim } = getCicloRange(ano, ciclo);
-			if (String(e.data_inicio) < inicio || String(e.data_inicio) > fim) return false;
-		} else if (periodo === 'data' && dataEspecifica) {
-			if (String(e.data_inicio) !== dataEspecifica) return false;
-		}
-		return true;
-	});
+	const filtradas = historico.filter((e: EscalaLista) =>
+		escalaPassaRecorteHistorico(e, {
+			seccionalId,
+			tipoEquipe,
+			mesAno: periodo === 'mes' ? mesAno : null,
+			data: periodo === 'data' ? dataEspecifica : null,
+			anoCiclo: periodo === 'ciclo' ? ano : null,
+			numeroCiclo: periodo === 'ciclo' ? ciclo : null
+		})
+	);
 
 	if (filtradas.length === 0) {
 		return notFound('Escala finalizada para o filtro informado');
@@ -200,7 +205,7 @@ export const GET: RequestHandler = async ({ locals, platform, url }) => {
 		usuario: u,
 		acao: 'exportar_gise',
 		entidade: 'gise_historico',
-		detalhes: `Formato: ${format} · Filtros: ${JSON.stringify({ seccionalId, periodo, mesAno, ano, ciclo, data: dataEspecifica })}`
+		detalhes: `Formato: ${format} · Filtros: ${JSON.stringify({ seccionalId, tipoEquipe, periodo, mesAno, ano, ciclo, data: dataEspecifica })}`
 	});
 
 	// Nome da seccional para o cabeçalho: aproveita o que já veio na listagem e

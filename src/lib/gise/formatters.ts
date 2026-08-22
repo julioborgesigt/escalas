@@ -1,9 +1,8 @@
 /**
- * Rótulos e cores de status GISE (chips e faixa do card).
+ * Rótulos e cores de status GISE (chip do card).
  *
  * Canais só do tema (`primary`/`secondary`/`tertiary`/`success`/`warning`/
- * `error`/`surface`) — `info` não existe e a classe some no CSS (barra
- * invisível em "Aguardando entradas").
+ * `error`/`surface`) — `info` não existe e a classe some no CSS.
  */
 import { DIAS_SEMANA_CURTO } from '$lib/utils/datas';
 
@@ -18,7 +17,7 @@ const STATUS_LABELS: Record<string, string> = {
 	finalizada: 'Concluída'
 };
 
-/** Chip (fundo suave + texto) — mesmo canal da faixa do card. */
+/** Chip (fundo suave + texto). */
 const STATUS_COLORS: Record<string, string> = {
 	em_definicao_supervisor: 'bg-surface-500/15 text-surface-600 dark:text-surface-300',
 	em_preenchimento: 'bg-warning-500/15 text-warning-700 dark:text-warning-400',
@@ -30,28 +29,12 @@ const STATUS_COLORS: Record<string, string> = {
 	finalizada: 'bg-surface-500/15 text-surface-600 dark:text-surface-400'
 };
 
-/** Faixa sólida de 4 px no topo do card (`CardGiseAtiva`). */
-const STATUS_STRIPS: Record<string, string> = {
-	em_definicao_supervisor: 'bg-surface-500',
-	em_preenchimento: 'bg-warning-500',
-	aguardando_assinatura: 'bg-primary-500',
-	em_andamento: 'bg-success-500',
-	aguardando_relatorios: 'bg-tertiary-500',
-	aguardando_assinatura_relat: 'bg-secondary-500',
-	pronta_para_finalizar: 'bg-success-600',
-	finalizada: 'bg-surface-400'
-};
-
 export function statusLabel(status: string): string {
 	return STATUS_LABELS[status] ?? status;
 }
 
 export function statusColor(status: string): string {
 	return STATUS_COLORS[status] ?? 'bg-surface-500/10 text-surface-600';
-}
-
-export function statusStrip(status: string): string {
-	return STATUS_STRIPS[status] ?? 'bg-surface-400';
 }
 
 /**

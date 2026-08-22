@@ -16,8 +16,8 @@
 	 * Sem essa separação o card passava de mil linhas — foi o que motivou a
 	 * extração.
 	 *
-	 * `getSeccionalColorClass` dá a mesma cor de borda para a mesma seccional em
-	 * qualquer GISE, o que faz a lista longa ficar navegável de relance.
+	 * Sem tarja lateral: o nome da seccional já identifica o bloco, e a faixa
+	 * colorida por id virava arco-íris na lista.
 	 */
 	import { enhance } from '$app/forms';
 	import { Accordion } from '@skeletonlabs/skeleton-svelte';
@@ -25,7 +25,6 @@
 	import type { Unidade, GiseAssinaturaRelatorio } from '$lib/server/schema';
 	import ModalRemoverSeccional from './modais/ModalRemoverSeccional.svelte';
 	import { useGiseSeccionalActions } from '$lib/composables/gise';
-	import { getSeccionalColorClass } from '$lib/gise/page-helpers';
 	import {
 		validarHora,
 		normalizarHora,
@@ -95,6 +94,13 @@
 	// GiseEquipeCard. Vive numa classe única porque é mutuamente exclusivo
 	// entre as equipes/slots renderizados por esta seccional.
 	const estado = new GiseSeccionalEstado();
+
+	// `btn-sm` + `py-2` (~40px): o `.btn` cheio inflava o Finalizar acima do
+	// Cancelar e dos pills de download da mesma barra.
+	const classeAcaoBarra =
+		'btn btn-sm py-2 px-4 text-sm rounded-lg font-semibold inline-flex items-center justify-center';
+	const classeAcaoBarraGise =
+		'border-2 py-2 px-4 text-sm w-full sm:w-auto inline-flex items-center';
 
 	// CRUD: `pendingCrud`, todos os `use:enhance` handlers, fluxo do modal de
 	// remover seccional e factory `buscarPorCargo` vivem no composable.
@@ -228,10 +234,7 @@
 {/snippet}
 
 <div
-	class="rounded-2xl border-2 border-surface-300 dark:border-surface-700 border-l-[6px] mb-4 overflow-hidden bg-white dark:bg-surface-900 {getSeccionalColorClass(
-		sec.seccional_id,
-		'forte'
-	)} shadow-sm hover:shadow-md transition-shadow duration-300"
+	class="rounded-2xl border-2 border-surface-300 dark:border-surface-700 mb-4 overflow-hidden bg-white dark:bg-surface-900 shadow-sm hover:shadow-md transition-shadow duration-300"
 >
 	<!-- Cabeçalho da seccional -->
 	<div
@@ -525,72 +528,75 @@
 							variant="primary"
 							type="filled"
 							onclick={() => (estado.modoEdicaoSeccional = true)}
-							classes="border-2 border-primary-600/30 hover:border-primary-600 px-4 py-1.5 shadow-sm text-sm w-full"
+							classes="border-primary-600/30 hover:border-primary-600 shadow-sm {classeAcaoBarraGise}"
 							{pendingCrud}
 						/>
 					{:else}
-						<form
-							method="POST"
-							action="?/finalizarSeccional"
-							use:enhance={actions.handleFinalizarSeccional}
-							class="contents"
-						>
-							<input type="hidden" name="secId" value={sec.id} />
-							<button
-								type="submit"
-								class="text-sm btn preset-filled-success-500 border-2 border-success-600/30 hover:border-success-600 px-4 py-1.5 rounded-lg shadow-sm disabled:opacity-50 disabled:cursor-not-allowed transition-all font-bold w-full"
-								disabled={pendingCrud ||
-									(sec.unidades ?? []).length === 0 ||
-									(sec.unidades ?? []).some((s: GiseUnidadeSlot) => s.unidade_id === null) ||
-									(sec.unidades ?? []).some(
-										(s: GiseUnidadeSlot) =>
-											!(s.equipes ?? []).some(
-												(eq: GiseEquipeComMembros) => (eq.membros ?? []).length > 0
-											)
-									)}
-								title={(sec.unidades ?? []).length === 0
-									? 'Adicione ao menos uma unidade antes de finalizar'
-									: (sec.unidades ?? []).some((s: GiseUnidadeSlot) => s.unidade_id === null)
-										? 'Todos os slots devem ter uma unidade selecionada'
-										: (sec.unidades ?? []).some(
-													(s: GiseUnidadeSlot) =>
-														!(s.equipes ?? []).some(
-															(eq: GiseEquipeComMembros) => (eq.membros ?? []).length > 0
-														)
-											  )
-											? 'Cada unidade deve ter pelo menos 1 policial alocado'
-											: ''}
+						<div class="flex w-full sm:w-auto items-stretch gap-2">
+							<form
+								method="POST"
+								action="?/finalizarSeccional"
+								use:enhance={actions.handleFinalizarSeccional}
+								class="contents"
 							>
-								{#if pendingFinalizar}
-									{sec.status === 'preenchida'
-										? 'Finalizando edição...'
-										: sec.status === 'retificada'
-											? 'Confirmando...'
-											: 'Enviando escala...'}
-								{:else}
-									{sec.status === 'preenchida'
-										? 'Finalizar edição'
-										: sec.status === 'retificada'
-											? 'Confirmar retificação'
-											: 'Finalizar envio'}
-								{/if}
-							</button>
-						</form>
+								<input type="hidden" name="secId" value={sec.id} />
+								<button
+									type="submit"
+									class="{classeAcaoBarra} preset-filled-success-500 text-white border-2 border-success-600/30 hover:border-success-600 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed transition-all flex-1 sm:flex-initial"
+									disabled={pendingCrud ||
+										(sec.unidades ?? []).length === 0 ||
+										(sec.unidades ?? []).some((s: GiseUnidadeSlot) => s.unidade_id === null) ||
+										(sec.unidades ?? []).some(
+											(s: GiseUnidadeSlot) =>
+												!(s.equipes ?? []).some(
+													(eq: GiseEquipeComMembros) => (eq.membros ?? []).length > 0
+												)
+										)}
+									title={(sec.unidades ?? []).length === 0
+										? 'Adicione ao menos uma unidade antes de finalizar'
+										: (sec.unidades ?? []).some((s: GiseUnidadeSlot) => s.unidade_id === null)
+											? 'Todos os slots devem ter uma unidade selecionada'
+											: (sec.unidades ?? []).some(
+														(s: GiseUnidadeSlot) =>
+															!(s.equipes ?? []).some(
+																(eq: GiseEquipeComMembros) => (eq.membros ?? []).length > 0
+															)
+												  )
+												? 'Cada unidade deve ter pelo menos 1 policial alocado'
+												: ''}
+								>
+									{#if pendingFinalizar}
+										{sec.status === 'preenchida'
+											? 'Finalizando edição...'
+											: sec.status === 'retificada'
+												? 'Confirmando...'
+												: 'Enviando escala...'}
+									{:else}
+										{sec.status === 'preenchida'
+											? 'Finalizar edição'
+											: sec.status === 'retificada'
+												? 'Confirmar retificação'
+												: 'Finalizar envio'}
+									{/if}
+								</button>
+							</form>
 
-						{#if estado.modoEdicaoSeccional}
-							<button
-								type="button"
-								class="btn btn-sm preset-outlined-surface-500 border-2 border-surface-300/60 text-sm font-semibold px-4 py-2 rounded-lg w-full sm:w-auto hover:bg-surface-50 dark:border-surface-600 dark:hover:bg-surface-900 transition-colors"
-								onclick={() => {
-									estado.modoEdicaoSeccional = false;
-									estado.selecionandoUnidadeSlotId = null;
-									estado.equipeParaAdicionar = null;
-									estado.cargoParaAdicionar = null;
-								}}
-							>
-								Cancelar edição
-							</button>
-						{/if}
+							{#if estado.modoEdicaoSeccional}
+								<GiseActionButton
+									label="Cancelar edição"
+									variant="error"
+									type="outlined"
+									onclick={() => {
+										estado.modoEdicaoSeccional = false;
+										estado.selecionandoUnidadeSlotId = null;
+										estado.equipeParaAdicionar = null;
+										estado.cargoParaAdicionar = null;
+									}}
+									classes="border-error-500/30 hover:border-error-500 flex-1 sm:flex-initial {classeAcaoBarraGise}"
+									{pendingCrud}
+								/>
+							{/if}
+						</div>
 					{/if}
 				{/if}
 			</div>

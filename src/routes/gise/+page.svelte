@@ -14,6 +14,9 @@
 	 * O botão Ass. Escala / Ass. Extra do card é atalho: abre a escala com
 	 * `?assinar=` e dispara o mesmo fluxo de dentro (rubrica no celular, token
 	 * no computador). Não há um segundo caminho de assinatura nesta tela.
+	 *
+	 * Sem chips de papel sob o título — a sessão e o que a tela oferece já
+	 * identificam o usuário; repetir "Adm Seccional" / "Membro" era decoração.
 	 */
 	import type { PageProps } from './$types';
 	import Paginador from '$lib/components/Paginador.svelte';
@@ -357,42 +360,8 @@
 </svelte:head>
 
 <div class="min-w-0 space-y-6">
-	<div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between sm:gap-4">
-		<div class="min-w-0">
-			<h1 class="h1 text-2xl font-bold">Escala extra</h1>
-			<div class="mt-0.5 flex flex-wrap gap-x-2 gap-y-1 items-center">
-				{#if isAdminGeral}
-					<span
-						class="text-xs font-bold px-2 py-0.5 rounded-full bg-primary-500/10 text-primary-700 dark:text-primary-400"
-						>Admin Geral</span
-					>
-				{/if}
-				{#if isSeccional}
-					<span
-						class="text-xs font-bold px-2 py-0.5 rounded-full bg-secondary-500/10 text-secondary-700 dark:text-secondary-400"
-						>Adm Seccional</span
-					>
-				{/if}
-				{#if isUnidade}
-					<span
-						class="text-xs font-bold px-2 py-0.5 rounded-full bg-tertiary-500/10 text-tertiary-700 dark:text-tertiary-400"
-						>Adm Unidade</span
-					>
-				{/if}
-				{#if isSupervisor}
-					<span
-						class="text-xs font-bold px-2 py-0.5 rounded-full bg-warning-500/10 text-warning-700 dark:text-warning-400"
-						>Supervisor</span
-					>
-				{/if}
-				{#if isMembro && !isSupervisor}
-					<span
-						class="text-xs font-bold px-2 py-0.5 rounded-full bg-success-500/10 text-success-700 dark:text-success-400"
-						>Membro</span
-					>
-				{/if}
-			</div>
-		</div>
+	<div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+		<h1 class="h1 min-w-0 text-2xl font-bold">Escala extra</h1>
 
 		{#if isAdminGeral}
 			<button
