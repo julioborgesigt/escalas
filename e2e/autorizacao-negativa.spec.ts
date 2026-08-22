@@ -478,6 +478,34 @@ test.describe('Sliding do cookie de sessão (LGPD A14)', () => {
 		expect(sessao!.value).toMatch(/SameSite=Strict/i);
 	});
 
+	test('o POLL de fundo autentica mas NÃO renova o cookie', async ({ request }) => {
+		// É isto que faz "1h de inatividade" significar alguma coisa. O app
+		// consulta `/api/sync/estado` a cada 120s em 17 telas; se esse poll
+		// renovasse, uma aba deixada aberta manteria a sessão viva para sempre e
+		// o TTL só morderia navegador fechado.
+		const token = seedSession(FIXTURE.policialA.id);
+		test.skip(!token, 'D1 local indisponível');
+
+		const poll = await request.get('/api/sync/estado', { headers: cookieDeSessao(token!) });
+		// Autentica normalmente — não é 401.
+		expect(poll.status()).not.toBe(401);
+		const setCookiePoll = poll
+			.headersArray()
+			.filter((h) => h.name.toLowerCase() === 'set-cookie')
+			.filter((h) => h.value.startsWith('session_token='));
+		expect(setCookiePoll, 'o poll renovou a sessão').toHaveLength(0);
+
+		// E a mesma sessão, numa rota de AÇÃO, renova.
+		const acao = await request.get('/api/policiais/search?q=fixture', {
+			headers: cookieDeSessao(token!)
+		});
+		const setCookieAcao = acao
+			.headersArray()
+			.filter((h) => h.name.toLowerCase() === 'set-cookie')
+			.filter((h) => h.value.startsWith('session_token='));
+		expect(setCookieAcao, 'ação de gente deixou de renovar').toHaveLength(1);
+	});
+
 	test('nenhuma resposta autenticada é cacheável por cache COMPARTILHADO', async ({ request }) => {
 		// É este o invariante que protege o `Set-Cookie` novo, e não "no-store":
 		// `/api/policiais/search` e `/api/unidades/search` usam

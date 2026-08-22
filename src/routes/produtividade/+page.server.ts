@@ -20,6 +20,7 @@
  * do GISE. Por isso o `load` resolve uma operação (`?operacaoId=`) e carrega os
  * modelos dela, e não "o modelo global" que existia antes da migração 0048.
  */
+import { dataISOValida, hojeBrasilISO } from '$lib/utils/datas';
 import { error } from '@sveltejs/kit';
 import type { PageServerLoadEvent } from './$types';
 import {
@@ -45,8 +46,20 @@ export async function load({ locals, platform, url }: PageServerLoadEvent) {
 
 	const db = getDB(platform);
 
-	const mes = Number(url.searchParams.get('mes')) || undefined;
-	const ano = Number(url.searchParams.get('ano')) || undefined;
+	// JANELA do painel. Sem parâmetro, o ano CORRENTE — e não "tudo" (B-1).
+	//
+	// A tela já mostrava o ano corrente por padrão (`filterAno` nasce em
+	// `currentYear`), mas o servidor carregava o histórico inteiro da operação
+	// para o cliente recortar. Carregava 4+ anos para exibir 1, e o payload
+	// crescia para sempre. O default do servidor agora é o mesmo default da
+	// tela; trocar de ano ou usar o modo personalizado põe a janela na URL.
+	//
+	// `hojeBrasilISO` e não `new Date().getFullYear()`: o Worker roda em UTC, e
+	// no dia 1º de janeiro às 21h de Brasília o relógio do isolate já virou o
+	// ano — o painel abriria vazio.
+	const anoCorrente = hojeBrasilISO().slice(0, 4);
+	const inicio = dataISOValida(url.searchParams.get('inicio')) ?? `${anoCorrente}-01-01`;
+	const fim = dataISOValida(url.searchParams.get('fim')) ?? `${anoCorrente}-12-31`;
 
 	// A operação em foco. Sem `?operacaoId=` válido, a primeira ativa (com o GISE
 	// preferido, que é a operação histórica) — a tela nunca abre sem uma escolhida,
@@ -72,8 +85,8 @@ export async function load({ locals, platform, url }: PageServerLoadEvent) {
 			listarTodasRespostasGise(db, {
 				page: 1,
 				limit: 500,
-				mes,
-				ano,
+				inicio,
+				fim,
 				operacaoId: operacao?.id,
 				unidadeIds: unidadeIdsPermitidas ?? undefined
 			}),
@@ -100,8 +113,8 @@ export async function load({ locals, platform, url }: PageServerLoadEvent) {
 						listarTodasRespostasGise(db, {
 							page: i + 2,
 							limit: 500,
-							mes,
-							ano,
+							inicio,
+							fim,
 							operacaoId: operacao?.id,
 							unidadeIds: unidadeIdsPermitidas ?? undefined
 						})
@@ -121,6 +134,13 @@ export async function load({ locals, platform, url }: PageServerLoadEvent) {
 		/** Linhas de base já informadas — o denominador das metas percentuais. */
 		linhaBase,
 		/** `true` quando a tela está recortada à unidade do usuário (não é Admin Geral). */
-		escopoRestrito: unidadeIdsPermitidas !== null
+		escopoRestrito: unidadeIdsPermitidas !== null,
+		/**
+		 * A janela que ESTES dados cobrem. Vai para a tela porque o filtro
+		 * precisa nascer igual ao recorte que o servidor aplicou — se o seletor
+		 * mostrasse o ano corrente enquanto `lista` traz outro, o usuário leria
+		 * números de um período com o rótulo de outro (B-1).
+		 */
+		janela: { inicio, fim }
 	};
 }

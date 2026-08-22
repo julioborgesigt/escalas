@@ -22,6 +22,7 @@
  * retificação) e leva até lá.
  */
 
+import { dataISOValida } from '$lib/utils/datas';
 import { redirect, fail } from '@sveltejs/kit';
 import type { RequestEvent } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
@@ -107,7 +108,7 @@ export const load: PageServerLoad = async ({ locals, platform, url, depends }) =
 	const mesRaw = url.searchParams.get('mes') || '';
 	const dataRaw = url.searchParams.get('data') || '';
 	const mesFilter = /^\d{4}-\d{2}$/.test(mesRaw) ? mesRaw : '';
-	const dataFilter = /^\d{4}-\d{2}-\d{2}$/.test(dataRaw) ? dataRaw : '';
+	const dataFilter = dataISOValida(dataRaw) ?? '';
 
 	const db = getDB(platform);
 

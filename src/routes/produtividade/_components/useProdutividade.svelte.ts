@@ -8,6 +8,7 @@
  * Chart.js entra por `import()` dinâmico (~200 KB).
  */
 import { tick, untrack } from 'svelte';
+import { goto } from '$app/navigation';
 import type { PageData } from '../$types';
 import { toaster } from '$lib/toast';
 import type { GiseRespostaListagemItem } from '$lib/db/gise';
@@ -117,8 +118,21 @@ export function useProdutividade(getData: () => PageData) {
 
 	// Filters
 	let filterTipo = $state('operacional');
-	let filterInicio = $state('');
-	let filterFim = $state('');
+
+	/**
+	 * A janela que o SERVIDOR aplicou, traduzida para o par
+	 * (seletor de ano, datas livres). Ano cheio vira o item do ano; qualquer
+	 * outra janela é `personalizado`, com as datas nos pickers.
+	 */
+	const janelaInicial = (() => {
+		const { inicio, fim } = getData().janela;
+		const ano = inicio.slice(0, 4);
+		const anoCheio = inicio === `${ano}-01-01` && fim === `${ano}-12-31`;
+		return anoCheio ? { ano, inicio: '', fim: '' } : { ano: 'personalizado', inicio, fim };
+	})();
+
+	let filterInicio = $state(janelaInicial.inicio);
+	let filterFim = $state(janelaInicial.fim);
 
 	/**
 	 * O EIXO da comparação. Padrão `seccionais`, que é o comportamento histórico
@@ -134,12 +148,22 @@ export function useProdutividade(getData: () => PageData) {
 	/** Semântica, não numérica: "melhores" segue o valor de desempenho de cada seção. */
 	let ordem = $state<Ordem>('melhores');
 
-	// Year filter — defaults to current year; 'personalizado' shows date pickers.
+	// Year filter — 'personalizado' mostra os date pickers.
 	// Leitura pontual (não fica em estado reativo) — SvelteDate não agrega nada aqui.
 	// eslint-disable-next-line svelte/prefer-svelte-reactivity -- getFullYear() one-shot
 	const currentYear = new Date().getFullYear();
 	const anos = Array.from({ length: 4 }, (_, i) => currentYear - i);
-	let filterAno = $state(String(currentYear));
+
+	/**
+	 * O filtro nasce da JANELA QUE O SERVIDOR APLICOU (`janelaInicial`), não de
+	 * `currentYear`.
+	 *
+	 * Antes o servidor mandava o histórico inteiro e a tela recortava; o seletor
+	 * podia dizer o que quisesse porque o dado estava todo aqui. Agora o recorte
+	 * é do SERVIDOR (B-1), e um seletor que discorde dele mostra números de um
+	 * período com o rótulo de outro.
+	 */
+	let filterAno = $state(janelaInicial.ano);
 
 	let mostrarFiltros = $state(true);
 	const filtrosAtivos = $derived(
@@ -160,6 +184,36 @@ export function useProdutividade(getData: () => PageData) {
 	const effectiveEnd = $derived(
 		filterAno === 'personalizado' ? filterFim || defaultEnd : `${filterAno}-12-31`
 	);
+	/**
+	 * Leva a janela escolhida para a URL, que é o que faz o SERVIDOR recarregar.
+	 *
+	 * Trocar de ano deixou de ser recorte instantâneo no cliente e virou ida ao
+	 * servidor — é o preço de o payload parar de crescer com o histórico (B-1).
+	 * Um round-trip por troca de ano contra carregar 4+ anos em toda abertura da
+	 * tela.
+	 *
+	 * Não há laço: navegar recarrega `data.janela` com os MESMOS valores que
+	 * dispararam a navegação, então a comparação abaixo passa a ser falsa. E
+	 * `keepFocus`/`noScroll` porque isto é troca de filtro, não navegação de
+	 * verdade — sem eles o foco salta do seletor e a página volta ao topo.
+	 */
+	$effect(() => {
+		const inicio = effectiveStart;
+		const fim = effectiveEnd;
+		const atual = untrack(() => data.janela);
+		if (inicio === atual.inicio && fim === atual.fim) return;
+
+		// URL descartável para montar o destino — não é estado reativo, mesmo caso
+		// do `getFullYear()` acima. `SvelteURL` só faria sentido se alguém
+		// observasse esta instância, e ela morre na linha seguinte.
+		// eslint-disable-next-line svelte/prefer-svelte-reactivity -- destino de goto, uso único
+		const destino = new URL(window.location.href);
+		destino.searchParams.set('inicio', inicio);
+		destino.searchParams.set('fim', fim);
+		// `operacaoId` e demais parâmetros seguem intactos: partimos da URL atual.
+		void goto(destino, { keepFocus: true, noScroll: true, replaceState: true });
+	});
+
 	const selection = useMultiSelect<number | string>();
 
 	/**

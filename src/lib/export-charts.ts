@@ -163,7 +163,28 @@ function drawDetail(
 }
 
 /**
- * Virtual chart configs para rankings e detalhamentos
+ * Virtual chart configs para rankings e detalhamentos.
+ *
+ * **As cores de gráfico NÃO derivam dos tokens do tema, e isso é decisão
+ * registrada (B-5, auditoria Skeleton de 16/jul).** O achado pedia derivação;
+ * a centralização foi feita em 17/jul e a derivação ficou como "pendente" numa
+ * ressalva que o arquivamento levou junto. Reverificado em ago/2026 e
+ * **encerrado como aceito**, por dois motivos medidos:
+ *
+ * 1. **O obstáculo não some.** Chart.js desenha em `<canvas>` e o export PNG
+ *    roda fora do documento — nenhum dos dois resolve `var(--color-…)`. Token
+ *    de tema é CSS; canvas quer `#rrggbb`. Derivação de verdade exigiria ler
+ *    `getComputedStyle` no cliente e passar como config, o que funciona na tela
+ *    e **não** funciona no export server-side.
+ * 2. **Não é duplicação.** Contados os literais `#rrggbb` em `produtividade/` e
+ *    `lib/produtividade/`: ~29 valores distintos, e a maioria aparece UMA vez.
+ *    É paleta CATEGÓRICA — uma cor por série de gráfico — mais alguns cinzas e
+ *    a paleta institucional do PDF. Consolidar move os valores de lugar sem
+ *    remover cópia divergente, que é o problema que a extração resolve.
+ *
+ * Mesma família de decisão que `DUP-MANTER` e `C-MANTER`: manter registrado
+ * vale mais que extrair por extrair. Se um dia o export PNG migrar para o
+ * cliente, a derivação passa a ser possível e o item pode reabrir.
  */
 export const VIRTUAL_CHARTS: Record<
 	string,

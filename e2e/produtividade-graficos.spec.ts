@@ -3,6 +3,17 @@ import { FIXTURE } from './global-setup';
 import { autenticarPagina, execD1Local, queryD1Local } from './session';
 
 /**
+ * Ano das fixtures = ano CORRENTE, não `2026` fixo.
+ *
+ * Duas razões, e as duas são bomba-relógio:
+ *  - desde o B-1 o painel abre recortado ao ANO CORRENTE no servidor; fixture
+ *    de 2026 ficaria fora da janela em 01/jan/2027 e a tela abriria vazia;
+ *  - o seletor `#f-ano` oferece só QUATRO anos (`currentYear-3`…`currentYear`),
+ *    então `selectOption('2026')` deixaria de existir em 2030.
+ */
+const ANO = new Date().getFullYear();
+
+/**
  * O que o painel de produtividade MOSTRA — e o que ele para de mostrar.
  *
  * Dois bugs relatados em ago/2026, e os dois são da mesma família: a tela
@@ -120,9 +131,9 @@ test.beforeAll(() => {
 		ON CONFLICT(id) DO UPDATE SET nome = excluded.nome;
 
 		INSERT INTO gise_escalas (id, data_inicio, status, hora_entrada, hora_saida, operacao_id) VALUES
-			(${C.giseEnxuta}, '2026-05-11', 'finalizada', '08:00', '16:00',
+			(${C.giseEnxuta}, '${ANO}-05-11', 'finalizada', '08:00', '16:00',
 				(SELECT id FROM operacoes WHERE nome = '${C.enxuta}')),
-			(${C.giseCompleta}, '2026-05-12', 'finalizada', '08:00', '16:00',
+			(${C.giseCompleta}, '${ANO}-05-12', 'finalizada', '08:00', '16:00',
 				(SELECT id FROM operacoes WHERE nome = '${C.completa}'))
 		ON CONFLICT(id) DO UPDATE SET operacao_id = excluded.operacao_id;
 
@@ -172,7 +183,7 @@ async function abrirPainel(page: import('@playwright/test').Page, nome: string) 
 	const id = operacaoId(nome);
 	if (id == null) return false;
 	await page.goto(`/produtividade?operacaoId=${id}`);
-	await page.locator('#f-ano').selectOption('2026');
+	await page.locator('#f-ano').selectOption(String(ANO));
 	return true;
 }
 
@@ -486,7 +497,7 @@ test('o título gravado substitui o enunciado no card do painel', async ({ page 
 	await expect(page.getByText(/Modelo operacional salvo com sucesso/)).toBeVisible();
 
 	await page.goto(`/produtividade?operacaoId=${id}`);
-	await page.locator('#f-ano').selectOption('2026');
+	await page.locator('#f-ano').selectOption(String(ANO));
 	await expect(page.getByText('Atendimentos do dia', { exact: true })).toBeVisible();
 	await expect(page.getByText('ATENDIMENTOS REALIZADOS')).toHaveCount(0);
 
