@@ -53,6 +53,22 @@ Não há variável de ambiente para isto: é `SESSION_TTL_MS` em
 cookie. `SESSION_CACHE_TTL_SECONDS` é outra coisa — o cache de leitura da
 sessão, que atrasa a extensão no BANCO em até 60 s (o cookie não depende dele).
 
+> **Limite conhecido: aba ABERTA não expira.** "Inatividade" aqui é inatividade
+> de REQUISIÇÃO, e a aplicação faz poll de fundo — `useInvalidateOnFocus` está
+> em 17 telas, com intervalo frio de 120 s (`+layout.svelte` inclusive, para o
+> badge da Caixa de Entrada do admin). Uma aba deixada aberta bate no servidor a
+> cada 2 min, renova o cookie e mantém a sessão viva indefinidamente.
+>
+> O que a 1 h efetivamente limita é a aba/navegador **fechado**: o cookie morre
+> 1 h depois da última requisição. Terminal de delegacia com a tela aberta **não**
+> é coberto por este controle — para esse caso a defesa é bloqueio de tela do
+> sistema operacional, não o TTL da aplicação.
+>
+> Fechar essa lacuna exigiria distinguir requisição de POLL de requisição de
+> USUÁRIO (só a segunda renovando), ou medir atividade real de teclado/mouse no
+> cliente. Nenhuma das duas foi feita; a decisão de fazê-las é de produto, e
+> está em aberto.
+
 ### Proteções que só existem se a variável existir
 
 Quatro secrets não são "recomendados": são o **único** motivo pelo qual a

@@ -22,6 +22,14 @@ pedia 1h — foi fechado no mesmo ciclo, porque fechá-lo revelou um defeito
 latente (o sliding só existia no banco, não no cookie). Os três abaixo não têm
 defeito escondido: são custo conhecido.
 
+**O A14 fechou com um limite declarado, e ele é candidato a item 4 deste
+plano:** "1 h de inatividade" é inatividade de REQUISIÇÃO, e o app faz poll de
+fundo em 17 telas a cada 120 s. Aba aberta renova para sempre; o TTL só morde
+aba fechada. Terminal de delegacia com a tela aberta continua descoberto.
+Distinguir poll de atividade humana — ou medir teclado/mouse no cliente — é
+decisão de produto, não de implementação, e por isso não entrou junto. Está no
+[`DEPLOY.md`](../DEPLOY.md) §"Duração da sessão".
+
 ---
 
 ## Ordem sugerida
