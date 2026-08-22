@@ -25,7 +25,7 @@ e os documentos vivos (README/DEPLOY/TESTING/termo) atualizam no mesmo PR.
 | Documento                                                | Conteúdo                                                                                              | Status                                                               |
 | -------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------- |
 | [`PLANO_CHAVE_ASSINATURA.md`](PLANO_CHAVE_ASSINATURA.md) | Chave de assinatura (passkey) em toda avançada; senha + 2FA + chave como piso; cadastro só no celular | 15/ago/2026 — fases 0–3 no código; fase 4 (trancar a flag) ainda não |
-| [`PLANO_RESIDUOS_AUDITORIA.md`](PLANO_RESIDUOS_AUDITORIA.md) | Os três resíduos que sobreviveram ao arquivamento das auditorias: B-6.2 (check-SVG em 10 arquivos), B-1 (agregação de produtividade no cliente), B-5 (cor de chart fora do tema) | 22/ago/2026 — aberto; nenhum é defeito ativo, os três são dívida declarada que a caixa `[x]` tirou do radar |
+| [`PLANO_RESIDUOS_AUDITORIA.md`](PLANO_RESIDUOS_AUDITORIA.md) | Os três resíduos que sobreviveram ao arquivamento das auditorias: B-6.2 (check-SVG em 10 arquivos), B-1 (agregação de produtividade no cliente), B-5 (cor de chart fora do tema) | 22/ago/2026 — **B-6.2 fechado** (grep zerado); B-1 e B-5 abertos. Nenhum é defeito ativo: são dívida declarada que a caixa `[x]` tirou do radar |
 
 ## Registros históricos e decisões arquivadas
 

@@ -1,7 +1,8 @@
 # Plano — os três resíduos que sobreviveram ao arquivamento
 
-**Status:** aberto (22/ago/2026). Nenhum é defeito ativo; os três são dívida
-que a auditoria de origem declarou e o arquivamento tornou invisível.
+**Status:** 1 de 3 fechado (22/ago/2026). **B-6.2 concluído**; B-1 e B-5 abertos.
+Nenhum é defeito ativo; são dívida que a auditoria de origem declarou e o
+arquivamento tornou invisível.
 
 ## Por que este documento existe
 
@@ -46,7 +47,7 @@ que dá para fazer numa sentada.
 
 ---
 
-## 1. B-6.2 — o mesmo check-SVG em 10 arquivos
+## 1. B-6.2 — o mesmo check-SVG em 10 arquivos ✅ FECHADO 22/ago
 
 **Medido em 22/ago:** `grep -rn "M5 13l4 4L19 7" src --include="*.svelte"` devolve
 **13 ocorrências em 10 arquivos**. A auditoria contou ~20 em 12 e trocou os dois
@@ -71,6 +72,24 @@ forma de desenhar um check.
 
 **Risco:** visual. Nenhuma regra de negócio encosta nisto. Playwright cobre as
 telas de assinatura e produtividade, então regressão de layout aparece.
+
+### Resultado
+
+`grep` zerado. 167 linhas removidas contra 59 adicionadas. A referência foi
+`SecaoGraficos.svelte`, irmão já convertido na leva do B-6.1 — copiar o padrão
+existente evitou criar um sexto jeito de desenhar um check.
+
+**A conversão achou duas coisas que valem mais que a troca de ícone:**
+
+1. `GiseLoteAssinaturas` tinha o mesmo teste de status escrito DUAS vezes em
+   paralelo — um escolhia a cor na `class` do `<svg>`, o outro o desenho no
+   `<path>`, e nada obrigava os dois a concordarem. Fundir só foi possível
+   porque o componente lucide carrega cor e ícone juntos.
+2. `SupervisaoDocumentoCard` tinha um `d` corrompido: dois subpaths de
+   prancheta concatenados, o segundo inválido.
+
+`DetailCard`/`RankingCard` ganharam `aria-pressed`/`aria-label` de brinde — os
+três cards são o MESMO toggle, e o B-6.1 só tinha passado por um deles.
 
 ---
 
