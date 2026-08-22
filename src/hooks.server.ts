@@ -50,6 +50,7 @@ import {
 	pathnameLivreDoTermo
 } from '$lib/server/auth/onboarding-gates';
 import { deveRecusarPorOrigem } from '$lib/server/auth/csrf-origin';
+import { renovaSessao } from '$lib/server/auth/sessao-renovacao';
 import { cookieOptions } from '$lib/server/auth/auth-flow';
 
 const ROTAS_PUBLICAS = new Set([
@@ -238,7 +239,12 @@ const handleAuth: Handle = async ({ event, resolve }) => {
 	// `Set-Cookie` não custa round-trip, então o cookie acompanha a atividade
 	// REAL. A resposta autenticada já sai com `private, no-store` (abaixo), que
 	// é o que impede o edge de servir este cabeçalho para outro usuário.
-	if (token) {
+	//
+	// "Atividade REAL" exclui o POLL de fundo: sem `renovaSessao`, a aba deixada
+	// aberta renovava o próprio cookie a cada 120 s e a sessão nunca expirava —
+	// o TTL de 1 h só mordia navegador fechado. A lista de rotas de poll e o
+	// porquê do default ser RENOVAR estão em `auth/sessao-renovacao.ts`.
+	if (token && renovaSessao(pathname)) {
 		event.cookies.set('session_token', token, cookieOptions(event.url));
 	}
 

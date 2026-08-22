@@ -53,21 +53,27 @@ Não há variável de ambiente para isto: é `SESSION_TTL_MS` em
 cookie. `SESSION_CACHE_TTL_SECONDS` é outra coisa — o cache de leitura da
 sessão, que atrasa a extensão no BANCO em até 60 s (o cookie não depende dele).
 
-> **Limite conhecido: aba ABERTA não expira.** "Inatividade" aqui é inatividade
-> de REQUISIÇÃO, e a aplicação faz poll de fundo — `useInvalidateOnFocus` está
-> em 17 telas, com intervalo frio de 120 s (`+layout.svelte` inclusive, para o
-> badge da Caixa de Entrada do admin). Uma aba deixada aberta bate no servidor a
-> cada 2 min, renova o cookie e mantém a sessão viva indefinidamente.
+> **Aba aberta e abandonada também expira** — e isso exigiu uma segunda
+> correção. "Inatividade" é inatividade de REQUISIÇÃO, e a aplicação faz poll de
+> fundo: `useInvalidateOnFocus` está em 17 telas, com intervalo frio de 120 s
+> (`+layout.svelte` inclusive, para o badge da Caixa de Entrada). Enquanto o
+> poll renovava o cookie, a aba parada mantinha a sessão viva para sempre e a
+> 1 h só mordia navegador **fechado** — justamente o cenário que já não
+> preocupava.
 >
-> O que a 1 h efetivamente limita é a aba/navegador **fechado**: o cookie morre
-> 1 h depois da última requisição. Terminal de delegacia com a tela aberta **não**
-> é coberto por este controle — para esse caso a defesa é bloqueio de tela do
-> sistema operacional, não o TTL da aplicação.
+> O poll é UM: os sete `probe` passam todos por `fetchSyncEstado` →
+> `/api/sync/estado`. Essa rota está isenta de renovar a sessão
+> (`auth/sessao-renovacao.ts`): autentica normalmente, mas não conta como
+> atividade. Ação de gente — navegar, salvar, abrir tela — renova.
 >
-> Fechar essa lacuna exigiria distinguir requisição de POLL de requisição de
-> USUÁRIO (só a segunda renovando), ou medir atividade real de teclado/mouse no
-> cliente. Nenhuma das duas foi feita; a decisão de fazê-las é de produto, e
-> está em aberto.
+> O default da lista é **renovar**: rota nova nasce contando como atividade, e
+> só sai de lá quem for poll comprovado. O contrário daria logout silencioso em
+> toda tela que alguém esquecesse de declarar. **Poll novo entra na lista** —
+> senão reabre o buraco sem ninguém ver.
+>
+> Consequência operacional: quem deixa a tela aberta e volta depois de 1 h
+> encontra o login. É o controle funcionando; vale avisar a corporação junto com
+> a mudança de 8 h para 1 h.
 
 ### Proteções que só existem se a variável existir
 

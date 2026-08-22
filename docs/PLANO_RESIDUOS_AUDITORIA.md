@@ -1,6 +1,7 @@
 # Plano — os três resíduos que sobreviveram ao arquivamento
 
-**Status:** 1 de 3 fechado (22/ago/2026). **B-6.2 concluído**; B-1 e B-5 abertos.
+**Status:** 2 de 3 fechados (22/ago/2026). **B-6.2 concluído**, **B-5 aceito com
+registro no código**; resta B-1.
 Nenhum é defeito ativo; são dívida que a auditoria de origem declarou e o
 arquivamento tornou invisível.
 
@@ -23,13 +24,14 @@ pedia 1h — foi fechado no mesmo ciclo, porque fechá-lo revelou um defeito
 latente (o sliding só existia no banco, não no cookie). Os três abaixo não têm
 defeito escondido: são custo conhecido.
 
-**O A14 fechou com um limite declarado, e ele é candidato a item 4 deste
-plano:** "1 h de inatividade" é inatividade de REQUISIÇÃO, e o app faz poll de
-fundo em 17 telas a cada 120 s. Aba aberta renova para sempre; o TTL só morde
-aba fechada. Terminal de delegacia com a tela aberta continua descoberto.
-Distinguir poll de atividade humana — ou medir teclado/mouse no cliente — é
-decisão de produto, não de implementação, e por isso não entrou junto. Está no
-[`DEPLOY.md`](../DEPLOY.md) §"Duração da sessão".
+**O A14 fechou em duas etapas, e a segunda desmentiu minha própria estimativa
+de custo.** Declarei o limite "aba aberta não expira" como decisão de produto
+cara — distinguir poll de atividade humana, ou medir teclado/mouse. Ao medir,
+os sete `probe` do `useInvalidateOnFocus` passam **todos** por `fetchSyncEstado`
+→ `/api/sync/estado`: uma rota. Isentar essa rota de renovar a sessão custou
+três linhas e um teste. O que parecia exigir instrumentação de cliente era uma
+lista de um item — e só dava para ver isso depois de perguntar "por onde o poll
+sai?", que é pergunta diferente de "como detecto atividade humana?".
 
 ---
 
@@ -133,7 +135,7 @@ servidor × cliente para o mesmo conjunto, antes de trocar, é o que protege.
 
 ---
 
-## 3. B-5 — cor de chart não vem do tema
+## 3. B-5 — cor de chart não vem do tema ✅ ACEITO COM REGISTRO 22/ago
 
 **O que foi feito em 17/jul:** os hex duplicados na página saíram, e
 `VIRTUAL_CHARTS` (`$lib/export-charts.ts`) virou a fonte única já usada pelo
@@ -167,6 +169,21 @@ roda fora do documento — nenhum dos dois resolve `var(--color-…)`. Token de 
 **Risco:** baixo na tela, **golden no export**. `pdf-goldens` cobre PDF; se o
 export PNG tiver golden, rodar antes e depois — cor de gráfico é saída visual
 de documento.
+
+### Desfecho: aceito, não feito
+
+A contagem mudou a resposta. Os literais foram medidos por valor DISTINTO, não
+por ocorrência: ~29 valores, e **a maioria aparece uma vez só** (`#64748b` ×5,
+`#f43f5e` ×3, `#94a3b8` ×3, o resto ×1). Isso é paleta **categórica** — uma cor
+por série — mais cinzas e a paleta institucional do PDF. Não é cópia divergente,
+que é o problema que a extração resolve; consolidar moveria valores de lugar sem
+remover risco.
+
+Somado ao obstáculo que não some (canvas não resolve token CSS), o item fecha
+como **aceito com registro** — no JSDoc de `VIRTUAL_CHARTS`
+(`$lib/export-charts.ts`), onde quem for mexer em cor de gráfico lê. Mesma
+família de `DUP-MANTER` e `C-MANTER`. Reabre se o export PNG migrar para o
+cliente.
 
 ---
 
