@@ -31,7 +31,10 @@
 
 	const rotulo = $derived(kind === 'tipo' ? 'Tipo de equipe' : 'Período/Ciclo');
 	const opcoes = $derived(kind === 'tipo' ? OPCOES_TIPO_EQUIPE : OPCOES_PERIODO);
-	const rotulosCurtos = $derived(kind === 'periodo' ? { data: ROTULO_PERIODO_DATA_MOBILE } : {});
+
+	function rotuloCurto(val: string): string | undefined {
+		return kind === 'periodo' && val === 'data' ? ROTULO_PERIODO_DATA_MOBILE : undefined;
+	}
 </script>
 
 <div class={CLASSE_CAMPO_FILTRO}>
@@ -43,7 +46,7 @@
 	>
 		<SegmentedControl.Control class={CLASSE_CONTROLE_SEGMENTO}>
 			{#each opcoes as [val, label] (val)}
-				{@const curto = rotulosCurtos[val]}
+				{@const curto = rotuloCurto(val)}
 				<SegmentedControl.Item value={val} class={CLASSE_ITEM_SEGMENTO}>
 					<SegmentedControl.ItemText>
 						{#if curto}
