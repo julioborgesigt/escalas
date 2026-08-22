@@ -26,7 +26,7 @@ export type FiltrosHistoricoResGise = {
 };
 
 /** Prefixo `YYYY-MM` de uma data ISO. */
-export function mesCivilDe(isoDia: string): string {
+function mesCivilDe(isoDia: string): string {
 	return isoDia.slice(0, 7);
 }
 
