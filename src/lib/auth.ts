@@ -9,7 +9,7 @@
  * do D1 não dá acesso a ninguém. Há um fallback para linhas anteriores à
  * migração (token em claro), que migra a linha ao ser usada.
  *
- * A sessão é SLIDING: 8h que se renovam com o uso, mas o UPDATE só sai quando já
+ * A sessão é SLIDING: 1h que se renova com o uso, mas o UPDATE só sai quando já
  * se passaram mais de 30min (`SESSION_SLIDING_THRESHOLD_MS`) desde a última
  * renovação — senão todo request autenticado escreveria no D1.
  *
@@ -151,16 +151,33 @@ export const gerarToken = gerarTokenOpaco;
  */
 export const compararSegredoUtf8TimingSafe = comparacaoTimingSafe;
 
-/** Tempo de vida da sessão (8h). Toda atividade reseta o relógio (sliding). */
-export const SESSION_TTL_MS = 8 * 60 * 60 * 1000;
+/**
+ * Tempo de vida da sessão: **1h de INATIVIDADE**, não 1h de sessão. Toda
+ * atividade reseta o relógio, nos dois lados — a linha do banco (aqui) e o
+ * `maxAge` do cookie (reemitido pelo `handleAuth` a cada request autenticada).
+ *
+ * O plano de remediação LGPD (achado A14, art. 46) pediu 1h e o código ficou em
+ * 8h sem que a divergência fosse registrada. Baixar para 1h exigiu antes
+ * consertar o sliding, que era **meio sliding**: o banco deslizava, o cookie
+ * não. O `maxAge` era fixado no login e nunca renovado em atividade comum, então
+ * quem trabalhasse 8h seguidas era deslogado às 8h do LOGIN, com o banco achando
+ * que a sessão valia por mais 8h. Com 1h, esse mesmo defeito viraria um logout
+ * duro no meio da cerimônia de assinatura.
+ */
+export const SESSION_TTL_MS = 1 * 60 * 60 * 1000;
 /**
  * Threshold para evitar UPDATE em todo request: só estende `expires_at`
  * quando já se passaram mais de `SESSION_SLIDING_THRESHOLD_MS` desde a última
  * renovação (equivalente a faltar menos que `SESSION_TTL_MS - threshold`,
- * 7h30, para o vencimento). Mantém o throughput sem perder a propriedade
+ * 45 min, para o vencimento). Mantém o throughput sem perder a propriedade
  * sliding.
+ *
+ * Precisa ser uma FRAÇÃO do TTL, não um valor solto: era 30 min quando o TTL
+ * era de 8h, e mantê-lo em 30 min com TTL de 1h deixaria a sessão a meia hora
+ * do vencimento antes da primeira renovação — sem margem para o atraso do cache
+ * de edge (até 60 s) nem para a aba que fica parada.
  */
-const SESSION_SLIDING_THRESHOLD_MS = 30 * 60 * 1000; // 30 min
+const SESSION_SLIDING_THRESHOLD_MS = 15 * 60 * 1000; // 15 min
 
 /**
  * Abre sessão e devolve o token EM CLARO — a única vez que ele existe fora do

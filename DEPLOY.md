@@ -35,6 +35,24 @@ Configurar no projeto Pages (**Settings → Environment variables**) ou via `wra
 
 > **Importante:** `RESET_TOKEN` deve ser **estritamente diferente** de `SYNC_TOKEN`. O design separa os dois para que comprometer o token de webhook não baste para apagar o banco. Gere com `openssl rand -hex 32` e armazene apenas no Cloudflare + na planilha de operações.
 
+### Duração da sessão
+
+**1 hora de INATIVIDADE**, não 1 hora de sessão: qualquer request renova o
+relógio nos dois lados — `sessoes.expires_at` no D1 e o `maxAge` do cookie.
+Quem está trabalhando não é interrompido; quem larga a aba aberta numa
+delegacia perde a sessão em 1h.
+
+Era 8h. O plano de remediação LGPD (achado A14, art. 46) pedia 1h, e a
+divergência ficou anos sem registro. Baixar exigiu antes consertar o sliding,
+que era **meio sliding**: o banco deslizava e o cookie não — o `maxAge` era
+absoluto desde o login, então a sessão morria no navegador com o D1 achando que
+valia. Com 8h ninguém notava; com 1h seria logout no meio da assinatura.
+
+Não há variável de ambiente para isto: é `SESSION_TTL_MS` em
+[`src/lib/auth.ts`](src/lib/auth.ts), com teste travando o casamento com o
+cookie. `SESSION_CACHE_TTL_SECONDS` é outra coisa — o cache de leitura da
+sessão, que atrasa a extensão no BANCO em até 60 s (o cookie não depende dele).
+
 ### Proteções que só existem se a variável existir
 
 Quatro secrets não são "recomendados": são o **único** motivo pelo qual a

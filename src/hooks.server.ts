@@ -50,6 +50,7 @@ import {
 	pathnameLivreDoTermo
 } from '$lib/server/auth/onboarding-gates';
 import { deveRecusarPorOrigem } from '$lib/server/auth/csrf-origin';
+import { cookieOptions } from '$lib/server/auth/auth-flow';
 
 const ROTAS_PUBLICAS = new Set([
 	'/login',
@@ -220,6 +221,25 @@ const handleAuth: Handle = async ({ event, resolve }) => {
 			return apiError('Não autorizado', 401, ErrorCode.AUTH_REQUIRED);
 		}
 		redirect(302, '/login');
+	}
+
+	// Sliding do COOKIE — a outra metade do sliding (LGPD A14).
+	//
+	// `buscarSessaoValida` estende `sessoes.expires_at` no banco, mas o `maxAge`
+	// do cookie só era escrito no login/2FA/troca de senha. As duas metades
+	// discordavam: o banco dizia "1h a partir de agora", o navegador dizia "1h a
+	// partir do login". Quem trabalhasse além do TTL era deslogado pelo cookie,
+	// com a sessão viva no banco — e com TTL de 1h isso seria um logout duro no
+	// meio de uma cerimônia de assinatura.
+	//
+	// Reemitir aqui, e não só quando o banco desliza, é de propósito: a maioria
+	// das requests é servida pelo cache de edge e nem chega ao D1 (por isso o
+	// `session-cache.ts` avisa que request cacheada não estende a sessão). Um
+	// `Set-Cookie` não custa round-trip, então o cookie acompanha a atividade
+	// REAL. A resposta autenticada já sai com `private, no-store` (abaixo), que
+	// é o que impede o edge de servir este cabeçalho para outro usuário.
+	if (token) {
+		event.cookies.set('session_token', token, cookieOptions(event.url));
 	}
 
 	// Propagar userId para contexto de logs e Sentry

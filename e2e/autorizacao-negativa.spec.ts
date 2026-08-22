@@ -33,7 +33,13 @@ import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { FIXTURE } from './global-setup';
-import { seedSession, headersDeSessaoMutacao, headersFormAction, queryD1Local } from './session';
+import {
+	seedSession,
+	cookieDeSessao,
+	headersDeSessaoMutacao,
+	headersFormAction,
+	queryD1Local
+} from './session';
 // @ts-expect-error — script de guard em .mjs, sem tipos; só a lista importa.
 import { PUBLICAS } from '../scripts/guard-autorizacao.mjs';
 
@@ -437,5 +443,59 @@ test.describe('Origin no login (SEC-14)', () => {
 		// a allowlist de `csrf-origin.ts` cresceu demais e quebrou o sync.
 		const r = await request.post('/api/webhook/sync-policiais', { data: {} });
 		expect(r.status()).not.toBe(403);
+	});
+});
+
+/**
+ * LGPD A14 — o sliding do COOKIE, que é a metade que faltava.
+ *
+ * O banco já estendia `sessoes.expires_at`; o `maxAge` do cookie era escrito no
+ * login e nunca mais. As duas metades discordavam, e a menor decidia: com TTL
+ * de 1h, o navegador derrubaria a sessão 1h depois do LOGIN mesmo com o usuário
+ * ativo — no meio de uma cerimônia de assinatura, por exemplo.
+ *
+ * Só o HTTP prova isto: em unidade, `cookieOptions` devolve o objeto certo e o
+ * defeito continua, porque ninguém o chamava por request.
+ */
+test.describe('Sliding do cookie de sessão (LGPD A14)', () => {
+	test('toda request autenticada reemite o session_token com maxAge cheio', async ({ request }) => {
+		const token = seedSession(FIXTURE.policialA.id);
+		test.skip(!token, 'D1 local indisponível');
+
+		const res = await request.get('/api/policiais/search?q=fixture', {
+			headers: cookieDeSessao(token!)
+		});
+		expect(res.status()).toBe(200);
+
+		const setCookie = res.headersArray().filter((h) => h.name.toLowerCase() === 'set-cookie');
+		const sessao = setCookie.find((h) => h.value.startsWith('session_token='));
+		expect(sessao, `sem Set-Cookie de sessão: ${JSON.stringify(setCookie)}`).toBeDefined();
+
+		// 1h em segundos. Se alguém mexer no TTL sem mexer aqui, este número
+		// denuncia — é a mesma checagem do teste de unidade, mas ponta a ponta.
+		expect(sessao!.value).toMatch(/Max-Age=3600/i);
+		expect(sessao!.value).toMatch(/HttpOnly/i);
+		expect(sessao!.value).toMatch(/SameSite=Strict/i);
+	});
+
+	test('nenhuma resposta autenticada é cacheável por cache COMPARTILHADO', async ({ request }) => {
+		// É este o invariante que protege o `Set-Cookie` novo, e não "no-store":
+		// `/api/policiais/search` e `/api/unidades/search` usam
+		// `private, max-age=…` de propósito, e `private` já exclui o edge e os
+		// proxies — só o navegador do próprio dono do cookie guarda. O que NÃO
+		// pode aparecer aqui é `public`: aí o Cloudflare serviria a resposta,
+		// com o cabeçalho de sessão, para outra pessoa.
+		//
+		// (A rota `public` do projeto, `/api/validar/logo`, é rota PÚBLICA: o
+		// `handleAuth` retorna antes de chegar ao cookie.)
+		const token = seedSession(FIXTURE.policialA.id);
+		test.skip(!token, 'D1 local indisponível');
+
+		for (const rota of ['/api/policiais/search?q=fixture', '/api/unidades/search?q=del']) {
+			const res = await request.get(rota, { headers: cookieDeSessao(token!) });
+			const cc = (res.headers()['cache-control'] ?? '').toLowerCase();
+			expect(cc, `${rota} sem Cache-Control`).not.toBe('');
+			expect(cc, `${rota} é cacheável por cache compartilhado`).not.toMatch(/\bpublic\b/);
+		}
 	});
 });
