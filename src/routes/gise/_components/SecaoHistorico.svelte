@@ -7,8 +7,8 @@
 	 * volume for o de um ano de GISEs; se a listagem crescer, é este ponto que
 	 * precisa virar consulta paginada, não a UI ao redor.
 	 *
-	 * A barra de busca detalhada replica `/res-gise` (tokens em
-	 * `$lib/gise/filtro-historico-ui`), com o seletor de seccional a mais.
+	 * A barra de busca detalhada replica `/res-gise` (`FiltroHistoricoSegmento` e
+	 * tokens em `$lib/gise/filtro-historico-ui`), com o seletor de seccional a mais.
 	 *
 	 * Os três modos de tempo (mês civil, ciclo 21→20 e data exata) são MUTUAMENTE
 	 * EXCLUSIVOS na consulta: só o recorte do modo ativo entra no predicado.
@@ -29,24 +29,19 @@
 	import { baixarBlob, nomeArquivoContentDisposition } from '$lib/utils/download';
 	import { loading } from '$lib/loading.svelte';
 	import { toaster } from '$lib/toast';
-	import { Popover, Portal, SegmentedControl } from '@skeletonlabs/skeleton-svelte';
+	import { Popover, Portal } from '@skeletonlabs/skeleton-svelte';
 	import Paginador from '$lib/components/Paginador.svelte';
 	import { statusLabel, statusColor, fmtDate, diaSemana } from '$lib/gise/formatters';
 	import { hojeLocalISO } from '$lib/utils/datas';
 	import { SvelteURLSearchParams } from 'svelte/reactivity';
 	import { escalaPassaRecorteHistorico, type TipoEquipe } from '$lib/gise/historico-filtro';
 	import { anosParaSeletorCiclo, CICLOS, cicloQueContem } from '$lib/gise/ciclos';
+	import FiltroHistoricoSegmento from '$lib/gise/FiltroHistoricoSegmento.svelte';
 	import {
 		CLASSE_BARRA_FILTRO,
 		CLASSE_CAMPO_FILTRO,
-		CLASSE_CONTROLE_SEGMENTO,
 		CLASSE_INPUT_FILTRO,
-		CLASSE_ITEM_SEGMENTO,
-		CLASSE_ROTULO_FILTRO,
-		CLASSE_SELETOR_SEGMENTO,
-		OPCOES_PERIODO,
-		OPCOES_TIPO_EQUIPE,
-		ROTULO_PERIODO_DATA_MOBILE
+		CLASSE_ROTULO_FILTRO
 	} from '$lib/gise/filtro-historico-ui';
 	import Download from '@lucide/svelte/icons/download';
 	import Search from '@lucide/svelte/icons/search';
@@ -251,20 +246,6 @@
 			</p>
 		</div>
 
-		{#snippet itemSegmento(val: string, label: string, curto?: string)}
-			<SegmentedControl.Item value={val} class={CLASSE_ITEM_SEGMENTO}>
-				<SegmentedControl.ItemText>
-					{#if curto}
-						<span class="sm:hidden">{curto}</span>
-						<span class="hidden sm:inline">{label}</span>
-					{:else}
-						{label}
-					{/if}
-				</SegmentedControl.ItemText>
-				<SegmentedControl.ItemHiddenInput />
-			</SegmentedControl.Item>
-		{/snippet}
-
 		<div class="space-y-2 pt-1">
 			<div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
 				<span
@@ -351,42 +332,19 @@
 						{/each}
 					</select>
 				</div>
-				<div class={CLASSE_CAMPO_FILTRO}>
-					<span class={CLASSE_ROTULO_FILTRO}>Tipo de equipe</span>
-					<SegmentedControl
-						value={filtroTipoEquipe}
-						onValueChange={(e) => {
-							const v = e.value;
-							filtroTipoEquipe = v === 'operacional' || v === 'seint' ? v : '';
-							paginaHistorico = 1;
-						}}
-						class={CLASSE_SELETOR_SEGMENTO}
-					>
-						<SegmentedControl.Control class={CLASSE_CONTROLE_SEGMENTO}>
-							{#each OPCOES_TIPO_EQUIPE as [val, label] (val)}
-								{@render itemSegmento(val, label)}
-							{/each}
-						</SegmentedControl.Control>
-					</SegmentedControl>
-				</div>
-				<div class={CLASSE_CAMPO_FILTRO}>
-					<span class={CLASSE_ROTULO_FILTRO}>Período/Ciclo</span>
-					<SegmentedControl
-						value={modoPeriodo}
-						onValueChange={(e) => onModoPeriodoMudou(e.value)}
-						class={CLASSE_SELETOR_SEGMENTO}
-					>
-						<SegmentedControl.Control class={CLASSE_CONTROLE_SEGMENTO}>
-							{#each OPCOES_PERIODO as [val, label] (val)}
-								{@render itemSegmento(
-									val,
-									label,
-									val === 'data' ? ROTULO_PERIODO_DATA_MOBILE : undefined
-								)}
-							{/each}
-						</SegmentedControl.Control>
-					</SegmentedControl>
-				</div>
+				<FiltroHistoricoSegmento
+					kind="tipo"
+					value={filtroTipoEquipe}
+					onValueChange={(v) => {
+						filtroTipoEquipe = v === 'operacional' || v === 'seint' ? v : '';
+						paginaHistorico = 1;
+					}}
+				/>
+				<FiltroHistoricoSegmento
+					kind="periodo"
+					value={modoPeriodo}
+					onValueChange={(v) => onModoPeriodoMudou(v)}
+				/>
 				{#if modoPeriodo === 'ciclo'}
 					<div class={CLASSE_CAMPO_FILTRO}>
 						<span class={CLASSE_ROTULO_FILTRO}>Ciclo</span>

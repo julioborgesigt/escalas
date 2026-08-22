@@ -34,23 +34,17 @@
 	import { usePresencaGise } from './_components/usePresencaGise.svelte';
 	import { fmtDate } from '$lib/gise/formatters';
 	import { CICLOS } from '$lib/gise/ciclos';
+	import FiltroHistoricoSegmento from '$lib/gise/FiltroHistoricoSegmento.svelte';
 	import {
 		CLASSE_BARRA_FILTRO,
 		CLASSE_CAMPO_FILTRO,
-		CLASSE_CONTROLE_SEGMENTO,
 		CLASSE_INPUT_FILTRO,
-		CLASSE_ITEM_SEGMENTO,
-		CLASSE_ROTULO_FILTRO,
-		CLASSE_SELETOR_SEGMENTO,
-		OPCOES_PERIODO,
-		OPCOES_TIPO_EQUIPE,
-		ROTULO_PERIODO_DATA_MOBILE
+		CLASSE_ROTULO_FILTRO
 	} from '$lib/gise/filtro-historico-ui';
 	import { loading } from '$lib/loading.svelte';
 	import ConfigurarFormulario from './_components/ConfigurarFormulario.svelte';
 	import FormularioServico from './_components/FormularioServico.svelte';
 	import { toaster } from '$lib/toast';
-	import { SegmentedControl } from '@skeletonlabs/skeleton-svelte';
 
 	const { data }: PageProps = $props();
 	const auth = useAutorizacao();
@@ -235,19 +229,6 @@
 						     escolhem o recorte; mês civil, ciclo (21→20) e data são
 						     mutuamente exclusivos — o seletor esconde os campos dos outros. -->
 						{#if ehHistorico}
-							{#snippet itemSegmento(val: string, label: string, curto?: string)}
-								<SegmentedControl.Item value={val} class={CLASSE_ITEM_SEGMENTO}>
-									<SegmentedControl.ItemText>
-										{#if curto}
-											<span class="sm:hidden">{curto}</span>
-											<span class="hidden sm:inline">{label}</span>
-										{:else}
-											{label}
-										{/if}
-									</SegmentedControl.ItemText>
-									<SegmentedControl.ItemHiddenInput />
-								</SegmentedControl.Item>
-							{/snippet}
 							<div class="space-y-2 pt-3">
 								<div class="flex flex-col gap-2 xs:flex-row xs:items-center xs:justify-between">
 									<span
@@ -261,43 +242,20 @@
 									/>
 								</div>
 								<div class={CLASSE_BARRA_FILTRO}>
-									<div class={CLASSE_CAMPO_FILTRO}>
-										<span class={CLASSE_ROTULO_FILTRO}>Tipo de equipe</span>
-										<SegmentedControl
-											value={presenca.tipoFilterUrl}
-											onValueChange={(e) => presenca.changeTipoFilter(e.value ?? '')}
-											class={CLASSE_SELETOR_SEGMENTO}
-										>
-											<SegmentedControl.Control class={CLASSE_CONTROLE_SEGMENTO}>
-												{#each OPCOES_TIPO_EQUIPE as [val, label] (val)}
-													{@render itemSegmento(val, label)}
-												{/each}
-											</SegmentedControl.Control>
-										</SegmentedControl>
-									</div>
-									<div class={CLASSE_CAMPO_FILTRO}>
-										<span class={CLASSE_ROTULO_FILTRO}>Período/Ciclo</span>
-										<SegmentedControl
-											value={presenca.modoPeriodo}
-											onValueChange={(e) => {
-												const v = e.value;
-												if (v === 'mes' || v === 'ciclo' || v === 'data') {
-													presenca.changeModoPeriodo(v);
-												}
-											}}
-											class={CLASSE_SELETOR_SEGMENTO}
-										>
-											<SegmentedControl.Control class={CLASSE_CONTROLE_SEGMENTO}>
-												{#each OPCOES_PERIODO as [val, label] (val)}
-													{@render itemSegmento(
-														val,
-														label,
-														val === 'data' ? ROTULO_PERIODO_DATA_MOBILE : undefined
-													)}
-												{/each}
-											</SegmentedControl.Control>
-										</SegmentedControl>
-									</div>
+									<FiltroHistoricoSegmento
+										kind="tipo"
+										value={presenca.tipoFilterUrl}
+										onValueChange={(v) => presenca.changeTipoFilter(v)}
+									/>
+									<FiltroHistoricoSegmento
+										kind="periodo"
+										value={presenca.modoPeriodo}
+										onValueChange={(v) => {
+											if (v === 'mes' || v === 'ciclo' || v === 'data') {
+												presenca.changeModoPeriodo(v);
+											}
+										}}
+									/>
 									{#if presenca.modoPeriodo === 'ciclo'}
 										<div class={CLASSE_CAMPO_FILTRO}>
 											<span class={CLASSE_ROTULO_FILTRO}>Ciclo</span>
