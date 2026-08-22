@@ -1,4 +1,5 @@
 <script lang="ts">
+	import Check from '@lucide/svelte/icons/check';
 	/**
 	 * Badge de status da escala na listagem — Assinada / Enviada / Ass. Pendente /
 	 * Pendente / Em preenchimento. Desktop e mobile compartilham a lógica; o
@@ -31,28 +32,14 @@
 	<span
 		class="badge preset-filled-success-500 font-bold {sizeCls} flex items-center gap-1 w-max shadow-sm"
 	>
-		<svg class={iconCls} fill="none" viewBox="0 0 24 24" stroke="currentColor"
-			><path
-				stroke-linecap="round"
-				stroke-linejoin="round"
-				stroke-width="2"
-				d="M5 13l4 4L19 7"
-			/></svg
-		>
+		<Check class={iconCls} aria-hidden="true" />
 		Assinada
 	</span>
 {:else if tipo === 'fds' && finalizadaEm}
 	<span
 		class="badge preset-filled-success-500 font-bold {sizeCls} flex items-center gap-1 w-max shadow-sm"
 	>
-		<svg class={iconCls} fill="none" viewBox="0 0 24 24" stroke="currentColor"
-			><path
-				stroke-linecap="round"
-				stroke-linejoin="round"
-				stroke-width="2"
-				d="M5 13l4 4L19 7"
-			/></svg
-		>
+		<Check class={iconCls} aria-hidden="true" />
 		Enviada
 	</span>
 {:else if (tipo === 'plantao' || tipo === 'expediente') && assPendente}

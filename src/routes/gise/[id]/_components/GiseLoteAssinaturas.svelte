@@ -1,4 +1,7 @@
 <script lang="ts">
+	import Check from '@lucide/svelte/icons/check';
+	import Clock from '@lucide/svelte/icons/clock';
+	import Clipboard from '@lucide/svelte/icons/clipboard';
 	/**
 	 * Painel do SUPERVISOR para assinar de uma vez os relatórios de
 	 * extraordinário de todas as seccionais.
@@ -256,36 +259,17 @@
 				? 'bg-warning-100 dark:bg-warning-900/30'
 				: 'bg-surface-100 dark:bg-surface-800'}"
 	>
-		<svg
-			class="w-3.5 h-3.5 {statusLoteInfo.text === 'Todos Assinados' ||
-			statusLoteInfo.text === 'Assinados (parcial)'
-				? 'text-success-600 dark:text-success-400'
-				: statusLoteInfo.text === 'Todos prontos para ass.' ||
-					  statusLoteInfo.text === 'pronto para ass. (parcial)'
-					? 'text-warning-600 dark:text-warning-400'
-					: 'text-surface-400 dark:text-surface-500'}"
-			fill="none"
-			stroke="currentColor"
-			viewBox="0 0 24 24"
-		>
-			{#if statusLoteInfo.text === 'Todos Assinados' || statusLoteInfo.text === 'Assinados (parcial)'}
-				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-			{:else if statusLoteInfo.text === 'Todos prontos para ass.' || statusLoteInfo.text === 'pronto para ass. (parcial)'}
-				<path
-					stroke-linecap="round"
-					stroke-linejoin="round"
-					stroke-width="2"
-					d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-				/>
-			{:else}
-				<path
-					stroke-linecap="round"
-					stroke-linejoin="round"
-					stroke-width="2"
-					d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
-				/>
-			{/if}
-		</svg>
+		<!-- Um `{#if}` só. Antes eram DOIS em paralelo — o mesmo teste de status
+		     escolhia a cor na `class` do <svg> e o desenho no <path>, e nada
+		     obrigava os dois a concordarem. Trocar o SVG inline por lucide (B-6.2)
+		     é o que permitiu fundir: o componente carrega cor e ícone juntos. -->
+		{#if statusLoteInfo.text === 'Todos Assinados' || statusLoteInfo.text === 'Assinados (parcial)'}
+			<Check class="w-3.5 h-3.5 text-success-600 dark:text-success-400" aria-hidden="true" />
+		{:else if statusLoteInfo.text === 'Todos prontos para ass.' || statusLoteInfo.text === 'pronto para ass. (parcial)'}
+			<Clock class="w-3.5 h-3.5 text-warning-600 dark:text-warning-400" aria-hidden="true" />
+		{:else}
+			<Clipboard class="w-3.5 h-3.5 text-surface-400 dark:text-surface-500" aria-hidden="true" />
+		{/if}
 	</div>
 {/snippet}
 

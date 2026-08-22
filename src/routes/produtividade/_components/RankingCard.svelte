@@ -1,4 +1,6 @@
 <script lang="ts">
+	import Check from '@lucide/svelte/icons/check';
+	import Plus from '@lucide/svelte/icons/plus';
 	/**
 	 * Card de ranking por unidade (prisões / drogas / armas) no painel de
 	 * produtividade — selecionável para export PNG/PDF.
@@ -42,32 +44,18 @@
 	<button
 		type="button"
 		onclick={() => onToggle(id)}
+		aria-pressed={selected}
+		aria-label={selected
+			? 'Remover ranking da seleção de exportação'
+			: 'Selecionar ranking para exportação'}
 		class="absolute top-2 right-2 md:top-3 md:right-3 w-6 h-6 md:w-8 md:h-8 rounded-lg md:rounded-xl flex items-center justify-center transition-colors {selected
 			? 'bg-primary-500 text-white'
 			: 'bg-surface-100 dark:bg-surface-800 text-surface-500'}"
 	>
 		{#if selected}
-			<svg class="w-4 h-4 md:w-6 md:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"
-				><path
-					stroke-linecap="round"
-					stroke-linejoin="round"
-					stroke-width="4"
-					d="M5 13l4 4L19 7"
-				/></svg
-			>
+			<Check class="w-4 h-4 md:w-6 md:h-6" strokeWidth={4} aria-hidden="true" />
 		{:else}
-			<svg
-				class="w-3 h-3 md:w-5 md:h-5 opacity-40"
-				fill="none"
-				stroke="currentColor"
-				viewBox="0 0 24 24"
-				><path
-					stroke-linecap="round"
-					stroke-linejoin="round"
-					stroke-width="3"
-					d="M12 6v6m0 0v6m0-6h6m-6 0H6"
-				/></svg
-			>
+			<Plus class="w-3 h-3 md:w-5 md:h-5 opacity-40" strokeWidth={3} aria-hidden="true" />
 		{/if}
 	</button>
 
