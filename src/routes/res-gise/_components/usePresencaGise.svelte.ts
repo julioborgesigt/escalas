@@ -66,7 +66,7 @@ export function usePresencaGise(getData: () => ResGisePageData) {
 	const filtrosHistorico = $derived.by(() => {
 		const historico = page.url.searchParams.get('status') === 'finalizadas';
 		return parseFiltrosHistoricoResGise(
-			new URLSearchParams(page.url.search),
+			page.url.searchParams,
 			historico ? hojeLocalISO() : undefined
 		);
 	});
