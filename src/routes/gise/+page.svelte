@@ -441,7 +441,6 @@
 			<p class="text-surface-600 dark:text-surface-400">Nenhuma escala GISE ativa no momento.</p>
 		</div>
 	{/if}
-
 </div>
 
 <ModalCriarGise

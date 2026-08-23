@@ -175,9 +175,7 @@
 						</select>
 					</div>
 
-					<div
-						class="flex w-full gap-2 rounded-xl bg-surface-100 p-1 dark:bg-surface-800 sm:w-fit"
-					>
+					<div class="flex w-full gap-2 rounded-xl bg-surface-100 p-1 dark:bg-surface-800 sm:w-fit">
 						{#each editor.tiposDisponiveis as tipo (tipo)}
 							<button
 								type="button"

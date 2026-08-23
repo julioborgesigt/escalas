@@ -69,28 +69,23 @@ export const load: PageServerLoad = async ({ locals, platform, depends }) => {
 	const seccionalParticipanteId =
 		!isGeral && (isSeccional || isUnidade) ? (u.papel_unidade_id ?? undefined) : undefined;
 	const policialId = !isGeral && u.tipo === 'policial' ? u.id : undefined;
-	const [
-		escalas,
-		supervisaoExtraUnidadeId,
-		defaultHoraEntrada,
-		defaultHoraSaida,
-		minhaRubricaRow
-	] = await Promise.all([
-		listarGiseEscalas(db, undefined, policialId, seccionalParticipanteId),
-		buscarUnidadeIdSupervisaoExtra(db),
-		buscarConfiguracao(db, 'gise_default_hora_entrada'),
-		buscarConfiguracao(db, 'gise_default_hora_saida'),
-		// Rubrica reutilizável do supervisor — reutilizada no modal de assinatura
-		// aberto pelos cards (a página de detalhe já a carregava; a listagem não,
-		// então o pad abria vazio). Só o supervisor assina a GISE por token.
-		isSupervisor
-			? db
-					.select({ rubrica: policiais.rubrica })
-					.from(policiais)
-					.where(eq(policiais.id, u.id))
-					.get()
-			: Promise.resolve(null)
-	]);
+	const [escalas, supervisaoExtraUnidadeId, defaultHoraEntrada, defaultHoraSaida, minhaRubricaRow] =
+		await Promise.all([
+			listarGiseEscalas(db, undefined, policialId, seccionalParticipanteId),
+			buscarUnidadeIdSupervisaoExtra(db),
+			buscarConfiguracao(db, 'gise_default_hora_entrada'),
+			buscarConfiguracao(db, 'gise_default_hora_saida'),
+			// Rubrica reutilizável do supervisor — reutilizada no modal de assinatura
+			// aberto pelos cards (a página de detalhe já a carregava; a listagem não,
+			// então o pad abria vazio). Só o supervisor assina a GISE por token.
+			isSupervisor
+				? db
+						.select({ rubrica: policiais.rubrica })
+						.from(policiais)
+						.where(eq(policiais.id, u.id))
+						.get()
+				: Promise.resolve(null)
+		]);
 
 	const minhaSeccionalId = isSeccional || isUnidade ? u.papel_unidade_id : null;
 

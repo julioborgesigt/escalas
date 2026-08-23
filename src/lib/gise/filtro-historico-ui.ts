@@ -50,11 +50,9 @@ export const CLASSE_SELECT_ANO_CICLO = `${CLASSE_INPUT_FILTRO} w-[5.5rem] shrink
  * Envelope do número do ciclo: largura teto + `overflow-hidden`. Sem o
  * envelope, `width` no `<select>` perde para o min-content das options.
  */
-export const CLASSE_ENVOLVE_SELECT_CICLO =
-	'min-w-0 w-[12rem] max-w-[12rem] shrink overflow-hidden';
+export const CLASSE_ENVOLVE_SELECT_CICLO = 'min-w-0 w-[12rem] max-w-[12rem] shrink overflow-hidden';
 
-export const CLASSE_SELECT_NUMERO_CICLO =
-	`${CLASSE_INPUT_FILTRO} w-full max-w-full truncate [field-sizing:fixed]`;
+export const CLASSE_SELECT_NUMERO_CICLO = `${CLASSE_INPUT_FILTRO} w-full max-w-full truncate [field-sizing:fixed]`;
 
 export const CLASSE_SELETOR_SEGMENTO = 'w-full sm:w-fit h-10 sm:h-11';
 

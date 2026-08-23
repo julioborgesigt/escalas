@@ -66,11 +66,7 @@
 	// inclui qualquer operação (CRAJUBAR, EDGE…), e chamá-las de GISE virou
 	// informação errada. O Admin Geral continua no editor do formulário.
 	const tituloPagina = $derived(
-		isAdminGeral
-			? 'Configurar Formulário'
-			: ehHistorico
-				? 'Histórico'
-				: 'Minhas escalas extras'
+		isAdminGeral ? 'Configurar Formulário' : ehHistorico ? 'Histórico' : 'Minhas escalas extras'
 	);
 	const subtituloPagina = $derived(
 		isAdminGeral

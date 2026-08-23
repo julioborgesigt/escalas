@@ -21,9 +21,7 @@
 	let filtroOperacaoId = $state<number | null>(null);
 
 	const historico = $derived(
-		filtroOperacaoId === null
-			? escalas
-			: escalas.filter((e) => e.operacao_id === filtroOperacaoId)
+		filtroOperacaoId === null ? escalas : escalas.filter((e) => e.operacao_id === filtroOperacaoId)
 	);
 </script>
 

@@ -243,157 +243,157 @@
 <div>
 	<div class="space-y-2">
 		<div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-				<span
-					class="text-2xs font-black text-surface-600 dark:text-surface-400 uppercase tracking-widest"
-					>Busca Detalhada</span
-				>
-				<div class="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:items-center">
-					<div class="min-w-0 w-full sm:w-auto">
-						<Popover positioning={{ placement: 'bottom-end' }}>
-							<Popover.Trigger
-								class="btn btn-sm preset-filled-primary-500 text-white w-full sm:w-auto justify-center disabled:cursor-not-allowed disabled:opacity-40"
-								disabled={!podeExportarHistorico}
-								title={podeExportarHistorico
-									? 'Exportar lista filtrada'
-									: 'Selecione mês/ano, ciclo ou data específica para habilitar'}
+			<span
+				class="text-2xs font-black text-surface-600 dark:text-surface-400 uppercase tracking-widest"
+				>Busca Detalhada</span
+			>
+			<div class="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:items-center">
+				<div class="min-w-0 w-full sm:w-auto">
+					<Popover positioning={{ placement: 'bottom-end' }}>
+						<Popover.Trigger
+							class="btn btn-sm preset-filled-primary-500 text-white w-full sm:w-auto justify-center disabled:cursor-not-allowed disabled:opacity-40"
+							disabled={!podeExportarHistorico}
+							title={podeExportarHistorico
+								? 'Exportar lista filtrada'
+								: 'Selecione mês/ano, ciclo ou data específica para habilitar'}
+						>
+							Baixar
+							<svg
+								class="h-3.5 w-3.5 opacity-80"
+								fill="none"
+								viewBox="0 0 24 24"
+								stroke="currentColor"
+								aria-hidden="true"
 							>
-								Baixar
-								<svg
-									class="h-3.5 w-3.5 opacity-80"
-									fill="none"
-									viewBox="0 0 24 24"
-									stroke="currentColor"
-									aria-hidden="true"
+								<path
+									stroke-linecap="round"
+									stroke-linejoin="round"
+									stroke-width="2"
+									d="M19 9l-7 7-7-7"
+								/>
+							</svg>
+						</Popover.Trigger>
+						<Portal>
+							<Popover.Positioner>
+								<Popover.Content
+									class="z-50 min-w-[11rem] overflow-hidden rounded-xl border border-surface-200 bg-white py-1 shadow-xl dark:border-surface-600 dark:bg-surface-800"
 								>
-									<path
-										stroke-linecap="round"
-										stroke-linejoin="round"
-										stroke-width="2"
-										d="M19 9l-7 7-7-7"
-									/>
-								</svg>
-							</Popover.Trigger>
-							<Portal>
-								<Popover.Positioner>
-									<Popover.Content
-										class="z-50 min-w-[11rem] overflow-hidden rounded-xl border border-surface-200 bg-white py-1 shadow-xl dark:border-surface-600 dark:bg-surface-800"
+									<button
+										type="button"
+										class="flex w-full items-center gap-2 px-3 py-2.5 text-left text-xs font-semibold text-surface-800 hover:bg-surface-100 dark:text-surface-100 dark:hover:bg-surface-700"
+										onclick={() => baixarHistoricoArquivo('xlsx')}
 									>
-										<button
-											type="button"
-											class="flex w-full items-center gap-2 px-3 py-2.5 text-left text-xs font-semibold text-surface-800 hover:bg-surface-100 dark:text-surface-100 dark:hover:bg-surface-700"
-											onclick={() => baixarHistoricoArquivo('xlsx')}
+										<span
+											class="rounded bg-success-500/15 px-1.5 py-0.5 text-3xs font-black text-success-700 dark:text-success-400"
+											>XLSX</span
 										>
-											<span
-												class="rounded bg-success-500/15 px-1.5 py-0.5 text-3xs font-black text-success-700 dark:text-success-400"
-												>XLSX</span
-											>
-											Planilha
-										</button>
-										<button
-											type="button"
-											class="flex w-full items-center gap-2 px-3 py-2.5 text-left text-xs font-semibold text-surface-800 hover:bg-surface-100 dark:text-surface-100 dark:hover:bg-surface-700"
-											onclick={() => baixarHistoricoArquivo('pdf')}
+										Planilha
+									</button>
+									<button
+										type="button"
+										class="flex w-full items-center gap-2 px-3 py-2.5 text-left text-xs font-semibold text-surface-800 hover:bg-surface-100 dark:text-surface-100 dark:hover:bg-surface-700"
+										onclick={() => baixarHistoricoArquivo('pdf')}
+									>
+										<span
+											class="rounded bg-error-500/15 px-1.5 py-0.5 text-3xs font-black text-error-700 dark:text-error-400"
+											>PDF</span
 										>
-											<span
-												class="rounded bg-error-500/15 px-1.5 py-0.5 text-3xs font-black text-error-700 dark:text-error-400"
-												>PDF</span
-											>
-											Documento
-										</button>
-									</Popover.Content>
-								</Popover.Positioner>
-							</Portal>
-						</Popover>
-					</div>
-					<BotaoLimparFiltros
-						{temFiltros}
-						onclick={limparFiltrosHistorico}
-						classes="w-full sm:w-auto"
-					/>
+										Documento
+									</button>
+								</Popover.Content>
+							</Popover.Positioner>
+						</Portal>
+					</Popover>
 				</div>
+				<BotaoLimparFiltros
+					{temFiltros}
+					onclick={limparFiltrosHistorico}
+					classes="w-full sm:w-auto"
+				/>
 			</div>
-			<div class={CLASSE_BARRA_FILTRO}>
-				<div class={CLASSE_CAMPO_FILTRO}>
-					<label class={CLASSE_ROTULO_FILTRO} for="filtro-seccional">Seccional</label>
-					<select
-						id="filtro-seccional"
-						bind:value={filtroSeccional}
-						onchange={() => (paginaHistorico = 1)}
-						class="{CLASSE_INPUT_FILTRO} w-full sm:w-[11.5rem]"
-					>
-						<option value="">Todas</option>
-						{#each seccionaisList as sec (sec.id)}
-							<option value={sec.id}>{sec.nome}</option>
-						{/each}
-					</select>
-				</div>
-				<FiltroHistoricoSegmento
-					kind="tipo"
-					value={filtroTipoEquipe}
-					onValueChange={(v) => {
-						filtroTipoEquipe = v === 'operacional' || v === 'seint' ? v : '';
-						paginaHistorico = 1;
-					}}
-				/>
-				<FiltroHistoricoSegmento
-					kind="periodo"
-					value={modoPeriodo}
-					onValueChange={(v) => onModoPeriodoMudou(v)}
-				/>
-				{#if modoPeriodo === 'ciclo'}
-					<div class={CLASSE_CAMPO_CICLO}>
-						<span class={CLASSE_ROTULO_FILTRO}>Ciclo</span>
-						<div class={CLASSE_LINHA_CICLO}>
-							<label class="sr-only" for="filtro-ano-ciclo">Ano do ciclo</label>
+		</div>
+		<div class={CLASSE_BARRA_FILTRO}>
+			<div class={CLASSE_CAMPO_FILTRO}>
+				<label class={CLASSE_ROTULO_FILTRO} for="filtro-seccional">Seccional</label>
+				<select
+					id="filtro-seccional"
+					bind:value={filtroSeccional}
+					onchange={() => (paginaHistorico = 1)}
+					class="{CLASSE_INPUT_FILTRO} w-full sm:w-[11.5rem]"
+				>
+					<option value="">Todas</option>
+					{#each seccionaisList as sec (sec.id)}
+						<option value={sec.id}>{sec.nome}</option>
+					{/each}
+				</select>
+			</div>
+			<FiltroHistoricoSegmento
+				kind="tipo"
+				value={filtroTipoEquipe}
+				onValueChange={(v) => {
+					filtroTipoEquipe = v === 'operacional' || v === 'seint' ? v : '';
+					paginaHistorico = 1;
+				}}
+			/>
+			<FiltroHistoricoSegmento
+				kind="periodo"
+				value={modoPeriodo}
+				onValueChange={(v) => onModoPeriodoMudou(v)}
+			/>
+			{#if modoPeriodo === 'ciclo'}
+				<div class={CLASSE_CAMPO_CICLO}>
+					<span class={CLASSE_ROTULO_FILTRO}>Ciclo</span>
+					<div class={CLASSE_LINHA_CICLO}>
+						<label class="sr-only" for="filtro-ano-ciclo">Ano do ciclo</label>
+						<select
+							id="filtro-ano-ciclo"
+							class={CLASSE_SELECT_ANO_CICLO}
+							value={filtroAnoCiclo}
+							onchange={onAnoCicloHistoricoMudou}
+						>
+							{#each anosCiclo as ano (ano)}
+								<option value={ano}>{ano}</option>
+							{/each}
+						</select>
+						<label class="sr-only" for="filtro-numero-ciclo">Número do ciclo</label>
+						<div class={CLASSE_ENVOLVE_SELECT_CICLO}>
 							<select
-								id="filtro-ano-ciclo"
-								class={CLASSE_SELECT_ANO_CICLO}
-								value={filtroAnoCiclo}
-								onchange={onAnoCicloHistoricoMudou}
+								id="filtro-numero-ciclo"
+								class={CLASSE_SELECT_NUMERO_CICLO}
+								value={filtroNumeroCiclo}
+								onchange={onNumeroCicloHistoricoMudou}
 							>
-								{#each anosCiclo as ano (ano)}
-									<option value={ano}>{ano}</option>
+								{#each CICLOS as c (c.n)}
+									<option value={c.n}>{c.label}</option>
 								{/each}
 							</select>
-							<label class="sr-only" for="filtro-numero-ciclo">Número do ciclo</label>
-							<div class={CLASSE_ENVOLVE_SELECT_CICLO}>
-								<select
-									id="filtro-numero-ciclo"
-									class={CLASSE_SELECT_NUMERO_CICLO}
-									value={filtroNumeroCiclo}
-									onchange={onNumeroCicloHistoricoMudou}
-								>
-									{#each CICLOS as c (c.n)}
-										<option value={c.n}>{c.label}</option>
-									{/each}
-								</select>
-							</div>
 						</div>
 					</div>
-				{:else if modoPeriodo === 'mes'}
-					<div class={CLASSE_CAMPO_FILTRO}>
-						<label class={CLASSE_ROTULO_FILTRO} for="filtro-mes-ano">Mês</label>
-						<input
-							id="filtro-mes-ano"
-							type="month"
-							class="{CLASSE_INPUT_FILTRO} w-full sm:w-[12.5rem]"
-							value={filtroMesAno}
-							oninput={onMesAnoHistoricoInput}
-						/>
-					</div>
-				{:else}
-					<div class={CLASSE_CAMPO_FILTRO}>
-						<label class={CLASSE_ROTULO_FILTRO} for="filtro-data-especifica">Data específica</label>
-						<input
-							id="filtro-data-especifica"
-							type="date"
-							class="{CLASSE_INPUT_FILTRO} w-full sm:w-[12.5rem]"
-							value={filtroData}
-							oninput={onDataEspecificaHistoricoInput}
-						/>
-					</div>
-				{/if}
-			</div>
+				</div>
+			{:else if modoPeriodo === 'mes'}
+				<div class={CLASSE_CAMPO_FILTRO}>
+					<label class={CLASSE_ROTULO_FILTRO} for="filtro-mes-ano">Mês</label>
+					<input
+						id="filtro-mes-ano"
+						type="month"
+						class="{CLASSE_INPUT_FILTRO} w-full sm:w-[12.5rem]"
+						value={filtroMesAno}
+						oninput={onMesAnoHistoricoInput}
+					/>
+				</div>
+			{:else}
+				<div class={CLASSE_CAMPO_FILTRO}>
+					<label class={CLASSE_ROTULO_FILTRO} for="filtro-data-especifica">Data específica</label>
+					<input
+						id="filtro-data-especifica"
+						type="date"
+						class="{CLASSE_INPUT_FILTRO} w-full sm:w-[12.5rem]"
+						value={filtroData}
+						oninput={onDataEspecificaHistoricoInput}
+					/>
+				</div>
+			{/if}
+		</div>
 	</div>
 
 	<div class="mt-5 border-t border-surface-200 pt-5 dark:border-white/5">
