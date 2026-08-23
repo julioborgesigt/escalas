@@ -39,18 +39,23 @@
 	import FiltroHistoricoSegmento from '$lib/gise/FiltroHistoricoSegmento.svelte';
 	import {
 		CLASSE_BARRA_FILTRO,
+		CLASSE_CAMPO_CICLO,
 		CLASSE_CAMPO_FILTRO,
+		CLASSE_ENVOLVE_SELECT_CICLO,
 		CLASSE_INPUT_FILTRO,
-		CLASSE_ROTULO_FILTRO
+		CLASSE_LINHA_CICLO,
+		CLASSE_ROTULO_FILTRO,
+		CLASSE_SELECT_ANO_CICLO,
+		CLASSE_SELECT_NUMERO_CICLO
 	} from '$lib/gise/filtro-historico-ui';
 	import Download from '@lucide/svelte/icons/download';
 	import Search from '@lucide/svelte/icons/search';
 	import { mensagemDeErro } from '$lib/utils/erro';
 
 	/**
-	 * Bloco "Histórico" da lista `/gise`: escalas finalizadas, com filtros
-	 * (seccional, tipo de equipe, mês, ciclo ou data exata), paginação e — para o
-	 * Admin Geral — exportação em XLSX/PDF do recorte filtrado.
+	 * Corpo da página `/gise/finalizadas`: escalas encerradas, com filtros
+	 * (seccional, tipo de equipe, mês, ciclo ou data exata), paginação e
+	 * exportação em XLSX/PDF do recorte filtrado.
 	 */
 	const {
 		historico,
@@ -235,19 +240,9 @@
 	);
 </script>
 
-{#if isAdminGeral && historico.length > 0}
+<div>
 	<div class="space-y-2">
-		<div>
-			<h2 class="font-heading text-base font-semibold text-surface-700 dark:text-surface-300">
-				Histórico
-			</h2>
-			<p class="text-xs font-medium text-surface-600 dark:text-surface-400">
-				Escalas extras encerradas.
-			</p>
-		</div>
-
-		<div class="space-y-2 pt-1">
-			<div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+		<div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
 				<span
 					class="text-2xs font-black text-surface-600 dark:text-surface-400 uppercase tracking-widest"
 					>Busca Detalhada</span
@@ -346,13 +341,13 @@
 					onValueChange={(v) => onModoPeriodoMudou(v)}
 				/>
 				{#if modoPeriodo === 'ciclo'}
-					<div class={CLASSE_CAMPO_FILTRO}>
+					<div class={CLASSE_CAMPO_CICLO}>
 						<span class={CLASSE_ROTULO_FILTRO}>Ciclo</span>
-						<div class="flex w-full min-w-0 items-center gap-1.5">
+						<div class={CLASSE_LINHA_CICLO}>
 							<label class="sr-only" for="filtro-ano-ciclo">Ano do ciclo</label>
 							<select
 								id="filtro-ano-ciclo"
-								class="{CLASSE_INPUT_FILTRO} w-[5.5rem] shrink-0"
+								class={CLASSE_SELECT_ANO_CICLO}
 								value={filtroAnoCiclo}
 								onchange={onAnoCicloHistoricoMudou}
 							>
@@ -361,16 +356,18 @@
 								{/each}
 							</select>
 							<label class="sr-only" for="filtro-numero-ciclo">Número do ciclo</label>
-							<select
-								id="filtro-numero-ciclo"
-								class="{CLASSE_INPUT_FILTRO} min-w-0 flex-1 sm:w-[13.5rem] sm:flex-none"
-								value={filtroNumeroCiclo}
-								onchange={onNumeroCicloHistoricoMudou}
-							>
-								{#each CICLOS as c (c.n)}
-									<option value={c.n}>{c.label}</option>
-								{/each}
-							</select>
+							<div class={CLASSE_ENVOLVE_SELECT_CICLO}>
+								<select
+									id="filtro-numero-ciclo"
+									class={CLASSE_SELECT_NUMERO_CICLO}
+									value={filtroNumeroCiclo}
+									onchange={onNumeroCicloHistoricoMudou}
+								>
+									{#each CICLOS as c (c.n)}
+										<option value={c.n}>{c.label}</option>
+									{/each}
+								</select>
+							</div>
 						</div>
 					</div>
 				{:else if modoPeriodo === 'mes'}
@@ -397,9 +394,10 @@
 					</div>
 				{/if}
 			</div>
-		</div>
+	</div>
 
-		<div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+	<div class="mt-5 border-t border-surface-200 pt-5 dark:border-white/5">
+		<div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
 			{#if samePathNav.current}
 				<SkeletonCards count={6} />
 			{:else if historicoPaginado.length === 0}
@@ -594,4 +592,4 @@
 			</div>
 		{/if}
 	</div>
-{/if}
+</div>

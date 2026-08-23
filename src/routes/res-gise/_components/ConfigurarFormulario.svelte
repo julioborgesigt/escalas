@@ -149,26 +149,23 @@
 
 <div class="space-y-6">
 	<section class="card-elevated rounded-2xl p-5 sm:p-6 shadow-sm space-y-4">
-		<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-			<div class="w-full sm:w-auto">
-				<h2 class="text-xl sm:text-2xl font-bold tracking-tight">Configurar Formulário</h2>
-				<p class="text-sm text-surface-600 dark:text-surface-400 mt-1">
-					Defina os textos e campos do relatório de produtividade oficial.
-				</p>
-
-				<!-- Operação primeiro, tipo depois: o formulário é POR OPERAÇÃO, e quais
-				     tipos de equipe aparecem depende de quais ela habilita. -->
-				<div class="mt-4 space-y-3">
-					<div class="w-full sm:max-w-xs">
+		<!-- Título da página já diz o que é esta tela; aqui só o recorte (operação
+		     + tipo) e as ações. Botões no canto superior direito do card. -->
+		<div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+			<div class="min-w-0 space-y-3">
+				<!-- Operação e tipo na mesma linha: o formulário é POR OPERAÇÃO, e
+				     quais tipos aparecem depende do que ela habilita. -->
+				<div class="flex flex-col gap-3 sm:flex-row sm:items-end">
+					<div class="w-full sm:w-[14rem] sm:shrink-0">
 						<label
 							for="cfg-operacao"
-							class="block text-3xs font-semibold text-surface-600 dark:text-surface-400 uppercase tracking-widest mb-1"
+							class="mb-1 block text-3xs font-semibold uppercase tracking-widest text-surface-600 dark:text-surface-400"
 						>
 							Operação
 						</label>
 						<select
 							id="cfg-operacao"
-							class="w-full px-4 py-2.5 rounded-xl border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-900 text-sm font-bold"
+							class="w-full rounded-xl border border-surface-300 bg-white px-3 py-2.5 text-sm font-bold dark:border-surface-700 dark:bg-surface-900"
 							value={editor.operacaoSelecionadaId ?? ''}
 							onchange={(e) => editor.trocarOperacao(Number(e.currentTarget.value))}
 						>
@@ -178,13 +175,15 @@
 						</select>
 					</div>
 
-					<div class="flex gap-2 bg-surface-100 dark:bg-surface-800 p-1 rounded-xl w-full sm:w-fit">
+					<div
+						class="flex w-full gap-2 rounded-xl bg-surface-100 p-1 dark:bg-surface-800 sm:w-fit"
+					>
 						{#each editor.tiposDisponiveis as tipo (tipo)}
 							<button
 								type="button"
-								class="flex-1 sm:flex-none px-4 py-2 rounded-lg text-xs font-bold transition-colors {editor.configTipo ===
+								class="flex-1 rounded-lg px-4 py-2 text-xs font-bold transition-colors sm:flex-none {editor.configTipo ===
 								tipo
-									? 'bg-white dark:bg-surface-700 shadow text-primary-600'
+									? 'bg-white text-primary-600 shadow dark:bg-surface-700'
 									: 'text-surface-600 dark:text-surface-400'}"
 								onclick={() => (editor.configTipo = tipo)}
 							>
@@ -192,17 +191,17 @@
 							</button>
 						{/each}
 					</div>
-					{#if editor.tiposDisponiveis.length === 1}
-						<p class="text-2xs text-surface-600 dark:text-surface-400">
-							Esta operação usa apenas equipe {editor.tiposDisponiveis[0] === 'seint'
-								? 'de inteligência'
-								: 'operacional'}. Para mudar isso, edite-a em
-							<a href="/gise/operacoes" class="anchor">Operações</a>.
-						</p>
-					{/if}
 				</div>
+				{#if editor.tiposDisponiveis.length === 1}
+					<p class="text-2xs text-surface-600 dark:text-surface-400">
+						Esta operação usa apenas equipe {editor.tiposDisponiveis[0] === 'seint'
+							? 'de inteligência'
+							: 'operacional'}. Para mudar isso, edite-a em
+						<a href="/gise/operacoes" class="anchor">Operações</a>.
+					</p>
+				{/if}
 			</div>
-			<div class="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+			<div class="flex w-full shrink-0 flex-col gap-2 sm:w-auto sm:flex-row">
 				<!-- Desabilitado enquanto não existe versão anterior (primeira gravação
 				     do tipo, ou JSON corrompido) — o `title` explica, senão o botão
 				     apagado vira mistério. -->
@@ -245,10 +244,13 @@
 		>
 			Etapas do formulário ({etapas.length})
 		</p>
-		<div class="flex flex-wrap items-center gap-2">
+		<div class="flex flex-col items-start gap-2 sm:flex-row sm:flex-wrap sm:items-center">
 			{#each etapas as etapa, i (etapa.chave)}
 				{#if i > 0}
-					<span class="text-surface-400 dark:text-surface-600" aria-hidden="true">→</span>
+					<span
+						class="inline-block px-1 text-surface-400 dark:text-surface-600 rotate-90 sm:rotate-0"
+						aria-hidden="true">→</span
+					>
 				{/if}
 				<span
 					class="badge {etapa.chave

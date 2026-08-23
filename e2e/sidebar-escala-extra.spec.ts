@@ -107,7 +107,8 @@ test.describe('Barra lateral — menu de dois níveis', () => {
 
 		await nav.getByRole('button', { name: PAI }).click();
 		await expect(nav.getByRole('link', { name: 'Operações' })).toHaveCount(0);
-		await expect(nav.getByRole('link', { name: 'Escalas', exact: true })).toBeVisible();
+		await expect(nav.getByRole('link', { name: 'Ativas', exact: true })).toBeVisible();
+		await expect(nav.getByRole('link', { name: 'Finalizadas', exact: true })).toBeVisible();
 		await expect(nav.getByRole('link', { name: 'Produtividade' })).toBeVisible();
 		// Admin Geral não presta serviço: as duas abas do policial não são dele.
 		await expect(nav.getByRole('link', { name: 'Minha presença' })).toHaveCount(0);
@@ -126,23 +127,32 @@ test.describe('Barra lateral — menu de dois níveis', () => {
 		await expect(nav.getByRole('link', { name: 'Minha presença' })).toBeVisible();
 		// Sem papel de admin ele não vê a lista de escalas nem a produtividade — as
 		// mesmas condições de antes do agrupamento.
-		await expect(nav.getByRole('link', { name: 'Escalas', exact: true })).toHaveCount(0);
+		await expect(nav.getByRole('link', { name: 'Ativas', exact: true })).toHaveCount(0);
 		await expect(nav.getByRole('link', { name: 'Produtividade' })).toHaveCount(0);
 		await expect(nav.getByRole('link', { name: 'Dados base' })).toHaveCount(0);
 	});
 
-	test('o rótulo do filho é "Escalas" — a página lista ativas E histórico', async ({ page }) => {
+	test('Admin Geral: Ativas é a lista em andamento; Finalizadas é o arquivo', async ({ page }) => {
 		const ok = await autenticarPagina(page, FIXTURE.adminGeral.id, 'admin');
 		test.skip(!ok, 'D1 local indisponível');
 
 		await page.goto('/gise');
 		const nav = await abrirMenu(page);
 
-		// Chamá-lo de "Escalas ativas" seria rótulo errado: `/gise` traz o histórico
-		// junto, com o filtro dentro da própria página.
-		await expect(nav.getByRole('link', { name: 'Escalas ativas' })).toHaveCount(0);
-		const escalas = nav.getByRole('link', { name: 'Escalas', exact: true });
-		await expect(escalas).toBeVisible();
-		await expect(escalas).toHaveClass(/bg-primary-500\/15/);
+		const ativas = nav.getByRole('link', { name: 'Ativas', exact: true });
+		const finalizadas = nav.getByRole('link', { name: 'Finalizadas', exact: true });
+		await expect(ativas).toBeVisible();
+		await expect(finalizadas).toBeVisible();
+		await expect(ativas).toHaveClass(/bg-primary-500\/15/);
+		await expect(finalizadas).not.toHaveClass(/bg-primary-500\/15/);
+
+		await page.goto('/gise/finalizadas');
+		const navArquivo = await abrirMenu(page);
+		await expect(navArquivo.getByRole('link', { name: 'Ativas', exact: true })).not.toHaveClass(
+			/bg-primary-500\/15/
+		);
+		await expect(navArquivo.getByRole('link', { name: 'Finalizadas', exact: true })).toHaveClass(
+			/bg-primary-500\/15/
+		);
 	});
 });

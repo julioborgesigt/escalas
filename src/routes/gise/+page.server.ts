@@ -1,10 +1,12 @@
 /**
- * `/gise` — lista das escalas GISE (ativas + histórico).
+ * `/gise` — lista das escalas GISE ativas.
  *
  * A GISE é a operação extraordinária: uma escala por data, montada pelo Admin
  * Geral e preenchida pelas seccionais. Esta rota é a porta de entrada dos
  * quatro públicos que a enxergam — Admin Geral, admin seccional/unidade,
  * supervisor DPC e policial escalado —, cada um com um recorte diferente.
+ *
+ * O arquivo das escalas já encerradas mora em `/gise/finalizadas` (Admin Geral).
  *
  * Só o Admin Geral CRIA escalas; a `criar` aceita várias datas de uma vez, do
  * zero ou clonando uma escala existente.
@@ -28,7 +30,7 @@ import {
 import { isAdminGeral, isAdminSeccional, isAdminUnidade } from '$lib/auth';
 import { lerPapelGise } from '$lib/server/gise/papel-cache';
 import { buscarUnidadeIdSupervisaoExtra } from '$lib/server/gise/supervisao-extra';
-import { eq, asc } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 import { unidades, policiais } from '$lib/server/schema';
 import { buscarConfiguracao } from '$lib/db/configuracoes';
 import { mensagemDeErro } from '$lib/utils/erro';
@@ -69,19 +71,12 @@ export const load: PageServerLoad = async ({ locals, platform, depends }) => {
 	const policialId = !isGeral && u.tipo === 'policial' ? u.id : undefined;
 	const [
 		escalas,
-		seccionaisList,
 		supervisaoExtraUnidadeId,
 		defaultHoraEntrada,
 		defaultHoraSaida,
 		minhaRubricaRow
 	] = await Promise.all([
 		listarGiseEscalas(db, undefined, policialId, seccionalParticipanteId),
-		db
-			.select({ id: unidades.id, nome: unidades.nome })
-			.from(unidades)
-			.where(eq(unidades.tipo, 'seccional'))
-			.orderBy(asc(unidades.nome))
-			.all(),
 		buscarUnidadeIdSupervisaoExtra(db),
 		buscarConfiguracao(db, 'gise_default_hora_entrada'),
 		buscarConfiguracao(db, 'gise_default_hora_saida'),
@@ -100,9 +95,8 @@ export const load: PageServerLoad = async ({ locals, platform, depends }) => {
 	const minhaSeccionalId = isSeccional || isUnidade ? u.papel_unidade_id : null;
 
 	// Filtro por operação: aplicado no CLIENTE, sobre a mesma lista que a tela já
-	// recebe inteira. Não vale uma ida ao servidor — a listagem já traz ativas e
-	// histórico juntos, e o filtro é de leitura, não de escopo (o escopo por
-	// participação continua no `listarGiseEscalas`).
+	// recebe inteira. Não vale uma ida ao servidor — o filtro é de leitura, não de
+	// escopo (o escopo por participação continua no `listarGiseEscalas`).
 	const operacoes = await listarOperacoes(db);
 
 	return {
@@ -113,7 +107,6 @@ export const load: PageServerLoad = async ({ locals, platform, depends }) => {
 		isUnidade,
 		isSupervisor,
 		isMembro,
-		seccionaisList,
 		minhaSeccionalId,
 		supervisaoExtraUnidadeId,
 		minhaRubrica: minhaRubricaRow?.rubrica ?? null,

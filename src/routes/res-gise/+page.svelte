@@ -37,9 +37,14 @@
 	import FiltroHistoricoSegmento from '$lib/gise/FiltroHistoricoSegmento.svelte';
 	import {
 		CLASSE_BARRA_FILTRO,
+		CLASSE_CAMPO_CICLO,
 		CLASSE_CAMPO_FILTRO,
+		CLASSE_ENVOLVE_SELECT_CICLO,
 		CLASSE_INPUT_FILTRO,
-		CLASSE_ROTULO_FILTRO
+		CLASSE_LINHA_CICLO,
+		CLASSE_ROTULO_FILTRO,
+		CLASSE_SELECT_ANO_CICLO,
+		CLASSE_SELECT_NUMERO_CICLO
 	} from '$lib/gise/filtro-historico-ui';
 	import { loading } from '$lib/loading.svelte';
 	import ConfigurarFormulario from './_components/ConfigurarFormulario.svelte';
@@ -61,11 +66,15 @@
 	// inclui qualquer operação (CRAJUBAR, EDGE…), e chamá-las de GISE virou
 	// informação errada. O Admin Geral continua no editor do formulário.
 	const tituloPagina = $derived(
-		isAdminGeral ? 'Relatórios GISE' : ehHistorico ? 'Histórico' : 'Minhas escalas extras'
+		isAdminGeral
+			? 'Configurar Formulário'
+			: ehHistorico
+				? 'Histórico'
+				: 'Minhas escalas extras'
 	);
 	const subtituloPagina = $derived(
 		isAdminGeral
-			? 'Gestão de produtividade e relatórios operacionais'
+			? 'Defina os textos e campos do relatório de produtividade oficial.'
 			: ehHistorico
 				? 'Escalas extras em que você foi escalado.'
 				: 'Escalas extras ativas em que você está escalado.'
@@ -257,13 +266,13 @@
 										}}
 									/>
 									{#if presenca.modoPeriodo === 'ciclo'}
-										<div class={CLASSE_CAMPO_FILTRO}>
+										<div class={CLASSE_CAMPO_CICLO}>
 											<span class={CLASSE_ROTULO_FILTRO}>Ciclo</span>
-											<div class="flex w-full min-w-0 items-center gap-1.5">
+											<div class={CLASSE_LINHA_CICLO}>
 												<label class="sr-only" for="anoCicloMember">Ano do ciclo</label>
 												<select
 													id="anoCicloMember"
-													class="{CLASSE_INPUT_FILTRO} w-[5.5rem] shrink-0"
+													class={CLASSE_SELECT_ANO_CICLO}
 													value={presenca.anoFilterUrl ?? ''}
 													onchange={(e) => presenca.changeCicloFilter('ano', e.currentTarget.value)}
 												>
@@ -272,17 +281,19 @@
 													{/each}
 												</select>
 												<label class="sr-only" for="numeroCicloMember">Número do ciclo</label>
-												<select
-													id="numeroCicloMember"
-													class="{CLASSE_INPUT_FILTRO} min-w-0 flex-1 sm:w-[13.5rem] sm:flex-none"
-													value={presenca.cicloFilterUrl ?? ''}
-													onchange={(e) =>
-														presenca.changeCicloFilter('ciclo', e.currentTarget.value)}
-												>
-													{#each CICLOS as c (c.n)}
-														<option value={c.n}>{c.label}</option>
-													{/each}
-												</select>
+												<div class={CLASSE_ENVOLVE_SELECT_CICLO}>
+													<select
+														id="numeroCicloMember"
+														class={CLASSE_SELECT_NUMERO_CICLO}
+														value={presenca.cicloFilterUrl ?? ''}
+														onchange={(e) =>
+															presenca.changeCicloFilter('ciclo', e.currentTarget.value)}
+													>
+														{#each CICLOS as c (c.n)}
+															<option value={c.n}>{c.label}</option>
+														{/each}
+													</select>
+												</div>
 											</div>
 										</div>
 									{:else if presenca.modoPeriodo === 'mes'}
