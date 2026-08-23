@@ -124,6 +124,11 @@ Roteiro de regressão manual dos fluxos de negócio. **Papel deste arquivo: exce
       um deles deixa só as escalas daquela operação, e a paginação volta à
       página 1
 - [ ] Cada card mostra o selo da operação (sigla, ou nome se não houver sigla)
+- [ ] `/gise` lista só as escalas ativas; o histórico não aparece nesta página
+- [ ] Admin Geral vê a aba **Finalizadas** no submenu, entre Ativas e Produtividade
+- [ ] `/gise/finalizadas` mostra a busca detalhada das escalas encerradas
+- [ ] Supervisor / admin seccional / policial não vê a aba Finalizadas; abrir a
+      URL redireciona para `/gise`
 
 ### 4.2 Criar escala extra
 

@@ -33,14 +33,9 @@
 	import BotaoLimparFiltros from '$lib/components/BotaoLimparFiltros.svelte';
 	import { usePresencaGise } from './_components/usePresencaGise.svelte';
 	import { fmtDate } from '$lib/gise/formatters';
-	import { CICLOS } from '$lib/gise/ciclos';
 	import FiltroHistoricoSegmento from '$lib/gise/FiltroHistoricoSegmento.svelte';
-	import {
-		CLASSE_BARRA_FILTRO,
-		CLASSE_CAMPO_FILTRO,
-		CLASSE_INPUT_FILTRO,
-		CLASSE_ROTULO_FILTRO
-	} from '$lib/gise/filtro-historico-ui';
+	import CamposPeriodoHistorico from '$lib/gise/CamposPeriodoHistorico.svelte';
+	import { CLASSE_BARRA_FILTRO } from '$lib/gise/filtro-historico-ui';
 	import { loading } from '$lib/loading.svelte';
 	import ConfigurarFormulario from './_components/ConfigurarFormulario.svelte';
 	import FormularioServico from './_components/FormularioServico.svelte';
@@ -61,11 +56,11 @@
 	// inclui qualquer operação (CRAJUBAR, EDGE…), e chamá-las de GISE virou
 	// informação errada. O Admin Geral continua no editor do formulário.
 	const tituloPagina = $derived(
-		isAdminGeral ? 'Relatórios GISE' : ehHistorico ? 'Histórico' : 'Minhas escalas extras'
+		isAdminGeral ? 'Configurar Formulário' : ehHistorico ? 'Histórico' : 'Minhas escalas extras'
 	);
 	const subtituloPagina = $derived(
 		isAdminGeral
-			? 'Gestão de produtividade e relatórios operacionais'
+			? 'Defina os textos e campos do relatório de produtividade oficial.'
 			: ehHistorico
 				? 'Escalas extras em que você foi escalado.'
 				: 'Escalas extras ativas em que você está escalado.'
@@ -256,58 +251,18 @@
 											}
 										}}
 									/>
-									{#if presenca.modoPeriodo === 'ciclo'}
-										<div class={CLASSE_CAMPO_FILTRO}>
-											<span class={CLASSE_ROTULO_FILTRO}>Ciclo</span>
-											<div class="flex w-full min-w-0 items-center gap-1.5">
-												<label class="sr-only" for="anoCicloMember">Ano do ciclo</label>
-												<select
-													id="anoCicloMember"
-													class="{CLASSE_INPUT_FILTRO} w-[5.5rem] shrink-0"
-													value={presenca.anoFilterUrl ?? ''}
-													onchange={(e) => presenca.changeCicloFilter('ano', e.currentTarget.value)}
-												>
-													{#each presenca.anosCiclo as ano (ano)}
-														<option value={ano}>{ano}</option>
-													{/each}
-												</select>
-												<label class="sr-only" for="numeroCicloMember">Número do ciclo</label>
-												<select
-													id="numeroCicloMember"
-													class="{CLASSE_INPUT_FILTRO} min-w-0 flex-1 sm:w-[13.5rem] sm:flex-none"
-													value={presenca.cicloFilterUrl ?? ''}
-													onchange={(e) =>
-														presenca.changeCicloFilter('ciclo', e.currentTarget.value)}
-												>
-													{#each CICLOS as c (c.n)}
-														<option value={c.n}>{c.label}</option>
-													{/each}
-												</select>
-											</div>
-										</div>
-									{:else if presenca.modoPeriodo === 'mes'}
-										<div class={CLASSE_CAMPO_FILTRO}>
-											<label class={CLASSE_ROTULO_FILTRO} for="mesMember">Mês</label>
-											<input
-												id="mesMember"
-												type="month"
-												class="{CLASSE_INPUT_FILTRO} w-full sm:w-[12.5rem]"
-												value={presenca.mesFilterUrl}
-												onchange={(e) => presenca.changeDateFilter('mes', e.currentTarget.value)}
-											/>
-										</div>
-									{:else}
-										<div class={CLASSE_CAMPO_FILTRO}>
-											<label class={CLASSE_ROTULO_FILTRO} for="dataMember">Data específica</label>
-											<input
-												id="dataMember"
-												type="date"
-												class="{CLASSE_INPUT_FILTRO} w-full sm:w-[12.5rem]"
-												value={presenca.dataFilterUrl}
-												onchange={(e) => presenca.changeDateFilter('data', e.currentTarget.value)}
-											/>
-										</div>
-									{/if}
+									<CamposPeriodoHistorico
+										modoPeriodo={presenca.modoPeriodo}
+										anoCiclo={presenca.anoFilterUrl ?? ''}
+										numeroCiclo={presenca.cicloFilterUrl ?? ''}
+										mesAno={presenca.mesFilterUrl ?? ''}
+										data={presenca.dataFilterUrl ?? ''}
+										anosCiclo={presenca.anosCiclo}
+										onAnoCiclo={(v) => presenca.changeCicloFilter('ano', v)}
+										onNumeroCiclo={(v) => presenca.changeCicloFilter('ciclo', v)}
+										onMesAno={(v) => presenca.changeDateFilter('mes', v)}
+										onData={(v) => presenca.changeDateFilter('data', v)}
+									/>
 								</div>
 							</div>
 						{/if}

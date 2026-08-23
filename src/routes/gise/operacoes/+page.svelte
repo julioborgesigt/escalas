@@ -90,11 +90,16 @@
 
 	/**
 	 * Os botões da linha, na faixa de NAVEGAÇÃO do README §10 (`py-1.5`, ~34px).
-	 * Constante e não string repetida: cinco cópias divergem na primeira vez que
-	 * alguém ajusta uma delas, e é assim que a fileira deixa de ficar alinhada.
+	 * Tamanho numa constante só: cinco cópias divergem na primeira vez que alguém
+	 * ajusta uma delas, e é assim que a fileira deixa de ficar alinhada. O
+	 * preenchimento (`outlined` vs `filled-error`) é o que muda entre ações.
+	 * `w-full` no celular preenche a célula da grade 2×N; de `sm:` para cima
+	 * volta à largura do rótulo.
 	 */
-	const BOTAO_LINHA =
-		'btn btn-sm preset-outlined-surface-500 px-2.5 py-1.5 rounded-xl text-xs whitespace-nowrap';
+	const TAMANHO_BOTAO_LINHA =
+		'btn btn-sm px-2.5 py-1.5 rounded-xl text-xs whitespace-nowrap w-full min-w-0 justify-center sm:w-auto';
+	const BOTAO_LINHA = `${TAMANHO_BOTAO_LINHA} preset-outlined-surface-500`;
+	const BOTAO_EXCLUIR = `${TAMANHO_BOTAO_LINHA} preset-filled-error-500`;
 
 	/** A operação que o admin pediu para excluir — `null` com o modal fechado. */
 	const confirmExcluir = useConfirmationDialog<{ id: number; nome: string }>();
@@ -208,13 +213,13 @@
 									<!-- "Configurações" virou parte de "Editar" — as duas metades
 									     descrevem a mesma operação. `sm:justify-end` mantém os botões
 									     terminando na mesma margem em todas as linhas, com ou sem
-									     "Dados base" e "Excluir"; no celular eles começam à esquerda,
-									     alinhados ao texto acima.
-									     Sem `shrink-0`: com `flex-wrap`, os dois juntos se
-									     contradiziam — o grupo nunca encolhia, então nunca quebrava, e
-									     em vez disso ESTOURAVA a largura (578px numa viewport de
-									     390px). Podendo encolher, ele quebra dentro de si. -->
-									<div class="flex flex-wrap items-center gap-2 sm:justify-end">
+									     "Dados base" e "Excluir". No celular `flex-wrap` deixava
+									     fileiras irregulares (um botão numa linha, dois na outra);
+									     a grade 2×N alinha as larguras. De `sm:` para cima a
+									     fileira compacta à direita volta a valer. -->
+									<div
+										class="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:flex-wrap sm:items-center sm:justify-end"
+									>
 										<a href={`/res-gise?operacaoId=${op.id}`} class={BOTAO_LINHA}>
 											<FileText class="w-3.5 h-3.5" />
 											Formulário
@@ -240,7 +245,7 @@
 										{#if op.escalas === 0}
 											<button
 												type="button"
-												class="btn btn-sm preset-filled-error-500 px-2.5 py-1.5 rounded-xl text-xs whitespace-nowrap"
+												class={BOTAO_EXCLUIR}
 												onclick={() => confirmExcluir.openDialog({ id: op.id, nome: op.nome })}
 											>
 												<Trash2 class="w-3.5 h-3.5" />
@@ -248,6 +253,7 @@
 											</button>
 										{/if}
 										<form
+											class="w-full min-w-0 odd:last:col-span-2 sm:w-auto sm:col-auto"
 											method="POST"
 											action="?/alternarAtivo"
 											use:enhance={enviar(op.ativo ? 'Operação desativada' : 'Operação reativada')}

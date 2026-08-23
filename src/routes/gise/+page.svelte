@@ -2,10 +2,10 @@
 	/**
 	 * Lista de ESCALAS GISE — porta de entrada do módulo.
 	 *
-	 * Divide em dois blocos: as ATIVAS (tudo que não está `finalizada`, em cards
-	 * grandes com o andamento de cada uma) e o HISTÓRICO, que só o Admin Geral
-	 * vê, paginado. Para os demais papéis a página é um painel do que está
-	 * acontecendo agora, não um arquivo.
+	 * Lista as escalas ATIVAS (tudo que não está `finalizada`), em cards grandes
+	 * com o andamento de cada uma. O arquivo das encerradas mora em
+	 * `/gise/finalizadas`, aba só do Admin Geral. Para os demais papéis esta
+	 * página é um painel do que está acontecendo agora, não um arquivo.
 	 *
 	 * O que cada usuário recebe já vem filtrado pelo `load` (por vínculo:
 	 * supervisor, membro, seccional participante) — esta tela não faz controle de
@@ -23,7 +23,7 @@
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import CardGiseAtiva from './_components/CardGiseAtiva.svelte';
-	import SecaoHistorico from './_components/SecaoHistorico.svelte';
+	import FiltroOperacaoGise from './_components/FiltroOperacaoGise.svelte';
 	import ModalCriarGise from './_components/ModalCriarGise.svelte';
 	import ModalDownloadExtras from '$lib/components/ModalDownloadExtras.svelte';
 	import DialogInfo from './_components/DialogInfo.svelte';
@@ -89,9 +89,6 @@
 	);
 
 	const ativas = $derived(escalasFiltradas.filter((e) => e.status !== 'finalizada'));
-	const historico = $derived(
-		isAdminGeral ? escalasFiltradas.filter((e) => e.status === 'finalizada') : []
-	);
 
 	useInvalidateOnFocus('app:gise-list', {
 		isHot: () => ativas.length > 0,
@@ -105,7 +102,6 @@
 		}
 	});
 
-	const seccionaisList = $derived(data.seccionaisList ?? []);
 	const minhaSeccionalId = $derived(data.minhaSeccionalId ?? null);
 	const supervisaoExtraUnidadeId = $derived(data.supervisaoExtraUnidadeId ?? null);
 	// A listagem não carrega o assinante de cada documento; aproxima a regra de
@@ -360,16 +356,16 @@
 </svelte:head>
 
 <div class="min-w-0 space-y-6">
-	<div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+	<div class="flex items-center justify-between gap-3">
 		<h1 class="h1 min-w-0 text-2xl font-bold">Escala extra</h1>
 
 		{#if isAdminGeral}
 			<button
 				type="button"
-				class="btn w-full shrink-0 preset-filled-tertiary-500 text-white border-2 border-tertiary-600/30 hover:border-tertiary-600 px-4 py-2.5 text-sm font-medium transition-all sm:w-auto sm:py-2 rounded-xl"
+				class="btn shrink-0 preset-filled-tertiary-500 text-white border-2 border-tertiary-600/30 hover:border-tertiary-600 px-4 py-2 text-sm font-medium transition-all rounded-xl"
 				onclick={() => (showCriarModal = true)}
 			>
-				+ Nova escala extra
+				Nova escala
 			</button>
 		{/if}
 	</div>
@@ -399,40 +395,7 @@
 		</div>
 	{/if}
 
-	<!-- Filtro por operação: a aba lista TODAS as operações juntas, e este é o
-	     recorte para ver só uma. Só aparece com mais de uma operação — com uma
-	     só, o filtro seria um controle que não filtra nada. -->
-	{#if operacoes.length > 1}
-		<div class="mb-4 flex flex-wrap items-center gap-2">
-			<span
-				class="text-3xs font-semibold uppercase tracking-widest text-surface-600 dark:text-surface-400"
-			>
-				Operação
-			</span>
-			<button
-				type="button"
-				class="rounded-full px-3 py-1 text-2xs font-semibold transition-colors {filtroOperacaoId ===
-				null
-					? 'bg-primary-500 text-white'
-					: 'bg-surface-200 text-surface-700 dark:bg-surface-800 dark:text-surface-300'}"
-				onclick={() => filtrarPorOperacao(null)}
-			>
-				Todas
-			</button>
-			{#each operacoes as op (op.id)}
-				<button
-					type="button"
-					class="rounded-full px-3 py-1 text-2xs font-semibold transition-colors {filtroOperacaoId ===
-					op.id
-						? 'bg-primary-500 text-white'
-						: 'bg-surface-200 text-surface-700 dark:bg-surface-800 dark:text-surface-300'}"
-					onclick={() => filtrarPorOperacao(op.id)}
-				>
-					{op.sigla || op.nome}
-				</button>
-			{/each}
-		</div>
-	{/if}
+	<FiltroOperacaoGise {operacoes} value={filtroOperacaoId} onChange={filtrarPorOperacao} />
 
 	{#if ativas.length > 0 && (isAdminGeral || isSeccional || isUnidade || isSupervisor || !isMembro)}
 		<h2 class="text-base font-semibold text-surface-700 dark:text-surface-300 mb-2">
@@ -478,8 +441,6 @@
 			<p class="text-surface-600 dark:text-surface-400">Nenhuma escala GISE ativa no momento.</p>
 		</div>
 	{/if}
-
-	<SecaoHistorico {historico} {seccionaisList} {isAdminGeral} />
 </div>
 
 <ModalCriarGise

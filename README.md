@@ -559,8 +559,9 @@ e o item solto obrigava a escolher a operação depois de entrar. O caminho é o
 botão **Formulário** de cada linha, e a tela tem o "voltar às operações" acima do
 título.
 
-**A barra lateral tem DOIS NÍVEIS.** Tudo que é de escala extra — Escalas,
-Produtividade, Dados base, Minha presença, Meu histórico — vive sob o item
+**A barra lateral tem DOIS NÍVEIS.** Tudo que é de escala extra — Ativas,
+Finalizadas (Admin Geral), Produtividade, Dados base, Minha presença, Meu
+histórico — vive sob o item
 **"Escala extra"**, que ao ser clicado SUBSTITUI o conteúdo da barra pelo
 submenu. Antes eram até cinco linhas soltas, e o admin seccional via oito itens
 de uma vez sem que nada dissesse que cinco eram do mesmo assunto — estavam só
@@ -575,8 +576,9 @@ Três decisões registradas:
 - **`/gise/operacoes` fica na RAIZ.** É cadastro, não operação do dia a dia, e
   acompanha os outros itens de gestão do Admin Geral.
 
-O filho que leva a `/gise` chama-se **"Escalas"**, e não "Escalas ativas": a
-página lista ativas **e** histórico, com o filtro dentro dela — o rótulo mentiria.
+O filho que leva a `/gise` chama-se **"Ativas"** (as que estão em andamento).
+O arquivo das já encerradas é a aba **"Finalizadas"** (`/gise/finalizadas`), só
+do Admin Geral, imediatamente abaixo de Ativas e acima de Produtividade.
 
 Quem vê cada filho é `filhosExtra` (`+layout.svelte`), com as MESMAS condições de
 antes do agrupamento, uma por uma. O pai só aparece se a lista não estiver vazia,
