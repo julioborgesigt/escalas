@@ -35,18 +35,14 @@
 	import { hojeLocalISO } from '$lib/utils/datas';
 	import { SvelteURLSearchParams } from 'svelte/reactivity';
 	import { escalaPassaRecorteHistorico, type TipoEquipe } from '$lib/gise/historico-filtro';
-	import { anosParaSeletorCiclo, CICLOS, cicloQueContem } from '$lib/gise/ciclos';
+	import { anosParaSeletorCiclo, cicloQueContem } from '$lib/gise/ciclos';
 	import FiltroHistoricoSegmento from '$lib/gise/FiltroHistoricoSegmento.svelte';
+	import CamposPeriodoHistorico from '$lib/gise/CamposPeriodoHistorico.svelte';
 	import {
 		CLASSE_BARRA_FILTRO,
-		CLASSE_CAMPO_CICLO,
 		CLASSE_CAMPO_FILTRO,
-		CLASSE_ENVOLVE_SELECT_CICLO,
 		CLASSE_INPUT_FILTRO,
-		CLASSE_LINHA_CICLO,
-		CLASSE_ROTULO_FILTRO,
-		CLASSE_SELECT_ANO_CICLO,
-		CLASSE_SELECT_NUMERO_CICLO
+		CLASSE_ROTULO_FILTRO
 	} from '$lib/gise/filtro-historico-ui';
 	import Download from '@lucide/svelte/icons/download';
 	import Search from '@lucide/svelte/icons/search';
@@ -181,16 +177,6 @@
 		}
 	}
 
-	function onMesAnoHistoricoInput(e: Event & { currentTarget: HTMLInputElement }) {
-		filtroMesAno = e.currentTarget.value;
-		paginaHistorico = 1;
-	}
-
-	function onDataEspecificaHistoricoInput(e: Event & { currentTarget: HTMLInputElement }) {
-		filtroData = e.currentTarget.value;
-		paginaHistorico = 1;
-	}
-
 	function onModoPeriodoMudou(raw: string | null) {
 		if (raw !== 'data' && raw !== 'ciclo' && raw !== 'mes') return;
 		const modo: ModoPeriodo = raw;
@@ -204,16 +190,6 @@
 			if (!filtroAnoCiclo) filtroAnoCiclo = corrente.ano;
 			if (!filtroNumeroCiclo) filtroNumeroCiclo = corrente.ciclo;
 		}
-		paginaHistorico = 1;
-	}
-
-	function onAnoCicloHistoricoMudou(e: Event & { currentTarget: HTMLSelectElement }) {
-		filtroAnoCiclo = Number(e.currentTarget.value);
-		paginaHistorico = 1;
-	}
-
-	function onNumeroCicloHistoricoMudou(e: Event & { currentTarget: HTMLSelectElement }) {
-		filtroNumeroCiclo = Number(e.currentTarget.value);
 		paginaHistorico = 1;
 	}
 
@@ -340,59 +316,30 @@
 				value={modoPeriodo}
 				onValueChange={(v) => onModoPeriodoMudou(v)}
 			/>
-			{#if modoPeriodo === 'ciclo'}
-				<div class={CLASSE_CAMPO_CICLO}>
-					<span class={CLASSE_ROTULO_FILTRO}>Ciclo</span>
-					<div class={CLASSE_LINHA_CICLO}>
-						<label class="sr-only" for="filtro-ano-ciclo">Ano do ciclo</label>
-						<select
-							id="filtro-ano-ciclo"
-							class={CLASSE_SELECT_ANO_CICLO}
-							value={filtroAnoCiclo}
-							onchange={onAnoCicloHistoricoMudou}
-						>
-							{#each anosCiclo as ano (ano)}
-								<option value={ano}>{ano}</option>
-							{/each}
-						</select>
-						<label class="sr-only" for="filtro-numero-ciclo">Número do ciclo</label>
-						<div class={CLASSE_ENVOLVE_SELECT_CICLO}>
-							<select
-								id="filtro-numero-ciclo"
-								class={CLASSE_SELECT_NUMERO_CICLO}
-								value={filtroNumeroCiclo}
-								onchange={onNumeroCicloHistoricoMudou}
-							>
-								{#each CICLOS as c (c.n)}
-									<option value={c.n}>{c.label}</option>
-								{/each}
-							</select>
-						</div>
-					</div>
-				</div>
-			{:else if modoPeriodo === 'mes'}
-				<div class={CLASSE_CAMPO_FILTRO}>
-					<label class={CLASSE_ROTULO_FILTRO} for="filtro-mes-ano">Mês</label>
-					<input
-						id="filtro-mes-ano"
-						type="month"
-						class="{CLASSE_INPUT_FILTRO} w-full sm:w-[12.5rem]"
-						value={filtroMesAno}
-						oninput={onMesAnoHistoricoInput}
-					/>
-				</div>
-			{:else}
-				<div class={CLASSE_CAMPO_FILTRO}>
-					<label class={CLASSE_ROTULO_FILTRO} for="filtro-data-especifica">Data específica</label>
-					<input
-						id="filtro-data-especifica"
-						type="date"
-						class="{CLASSE_INPUT_FILTRO} w-full sm:w-[12.5rem]"
-						value={filtroData}
-						oninput={onDataEspecificaHistoricoInput}
-					/>
-				</div>
-			{/if}
+			<CamposPeriodoHistorico
+				{modoPeriodo}
+				anoCiclo={filtroAnoCiclo}
+				numeroCiclo={filtroNumeroCiclo}
+				mesAno={filtroMesAno}
+				data={filtroData}
+				{anosCiclo}
+				onAnoCiclo={(v) => {
+					filtroAnoCiclo = Number(v);
+					paginaHistorico = 1;
+				}}
+				onNumeroCiclo={(v) => {
+					filtroNumeroCiclo = Number(v);
+					paginaHistorico = 1;
+				}}
+				onMesAno={(v) => {
+					filtroMesAno = v;
+					paginaHistorico = 1;
+				}}
+				onData={(v) => {
+					filtroData = v;
+					paginaHistorico = 1;
+				}}
+			/>
 		</div>
 	</div>
 
