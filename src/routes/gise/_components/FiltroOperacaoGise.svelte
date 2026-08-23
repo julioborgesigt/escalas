@@ -6,7 +6,7 @@
 	 * filtraria nada. As duas telas compartilham este chip para o guard de
 	 * duplicação não acusar o bloco copiado.
 	 */
-	let {
+	const {
 		operacoes,
 		value,
 		onChange
