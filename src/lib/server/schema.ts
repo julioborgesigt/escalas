@@ -641,6 +641,23 @@ export const giseModeloFormulario = sqliteTable(
 		 *  Admin Geral ("Restaurar anterior"). `null` enquanto só houve a
 		 *  primeira gravação. Ver migração 0039. */
 		config_anterior: text('config_anterior'),
+		/**
+		 * A ordem dos cards no painel de `/produtividade`, como o Admin Geral os
+		 * arrastou — array JSON de ids de card (migração 0064).
+		 *
+		 * **NULL = ordem do formulário**, que é o que toda linha anterior à 0064 é.
+		 * Não é a mesma coisa que `'[]'`: a lista vazia é uma escolha gravada que
+		 * não nomeia card nenhum, e como TODO id ausente da lista cai no fim da
+		 * seção dele, as duas dão o mesmo resultado hoje. Guardar a diferença é o
+		 * que permite a tela distinguir "nunca organizado" de "organizado e depois
+		 * esvaziado" sem adivinhar.
+		 *
+		 * Não decide quem APARECE — isso continua sendo a marca `grafico` da
+		 * pergunta (0053/0054). Id de card que saiu do painel fica órfão aqui e é
+		 * ignorado na leitura; ver `ordenarCardsDoPainel` em
+		 * `$lib/produtividade/ordem`.
+		 */
+		painel_ordem: text('painel_ordem'),
 		updated_at: text('updated_at')
 			.notNull()
 			.default(sql`(datetime('now', '-3 hours'))`)

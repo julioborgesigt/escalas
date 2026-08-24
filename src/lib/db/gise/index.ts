@@ -63,6 +63,7 @@ export {
 	buscarRespostasProdutividadeSeccional,
 	buscarGiseModeloFormulario,
 	salvarGiseModeloFormulario,
+	salvarOrdemPainelProdutividade,
 	buscarRespostaGise,
 	salvarRespostaGise,
 	listarTodasRespostasGise

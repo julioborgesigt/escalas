@@ -43,6 +43,8 @@
 	import TrendingUp from '@lucide/svelte/icons/trending-up';
 	import PieChart from '@lucide/svelte/icons/pie-chart';
 	import Table from '@lucide/svelte/icons/table';
+	import CardOrdenavel from './CardOrdenavel.svelte';
+	import type { OrganizacaoPainel } from './useOrganizacaoPainel.svelte';
 	import type { Chart as ChartJs, TooltipItem } from 'chart.js';
 
 	// Mesmos apelidos de `$lib/composables/useCharts` — o construtor vem de lá,
@@ -52,11 +54,14 @@
 
 	const {
 		paineis,
-		Chart
+		Chart,
+		organizacao
 	}: {
 		paineis: PainelIndicador[];
 		/** Chart.js já carregado pelo painel (import dinâmico); `null` antes disso. */
 		Chart: ChartCtor | null;
+		/** Estado do modo "Organizar"; `ativo` falso deixa a faixa como sempre foi. */
+		organizacao: OrganizacaoPainel;
 	} = $props();
 
 	/**
@@ -284,6 +289,155 @@
 </script>
 
 {#if paineis.length > 0}
+	<!-- O card em si, sem a moldura de arraste — um snippet só para os dois ramos
+	     do modo "Organizar", senão a versão organizável e a normal divergem. -->
+	{#snippet cardIndicador(painel: PainelIndicador)}
+		<article
+			class="card-elevated rounded-2xl border border-surface-200 p-4 sm:p-6 dark:border-surface-800"
+		>
+			<header class="flex flex-wrap items-start justify-between gap-3">
+				<div class="min-w-0">
+					<h3 class="text-base font-semibold">{tituloNoPainel(painel.indicador)}</h3>
+					<p
+						class="mt-1 inline-flex items-center gap-1.5 text-2xs font-semibold text-surface-600 dark:text-surface-400"
+					>
+						<!-- `metaTipo` inline, e não `ehCobertura()`: só a comparação
+							     direta estreita a união e libera `objetivo` no ramo de baixo. -->
+						{#if painel.indicador.config.metaTipo === 'proporcao'}
+							<PieChart class="h-3.5 w-3.5" aria-hidden="true" />
+						{:else if painel.indicador.config.objetivo === 'diminuir'}
+							<TrendingDown class="h-3.5 w-3.5" aria-hidden="true" />
+						{:else}
+							<TrendingUp class="h-3.5 w-3.5" aria-hidden="true" />
+						{/if}
+						Meta: {rotuloMeta(painel)}
+					</p>
+				</div>
+
+				<!-- O número é a manchete do card: "quantas unidades chegaram lá".
+					     Fica em tile, não em gráfico — um gráfico de uma fração só é
+					     mais desenho do que informação. -->
+				<div class="shrink-0 text-right">
+					<p class="text-2xl font-bold leading-none">
+						{painel.unidadesAtingiram}<span
+							class="text-base font-semibold text-surface-600 dark:text-surface-400"
+							>/{painel.unidadesComMeta}</span
+						>
+					</p>
+					<p class="mt-1 text-3xs uppercase tracking-widest text-surface-600 dark:text-surface-400">
+						unidades na meta
+					</p>
+				</div>
+			</header>
+
+			{#if painel.basesPendentes > 0}
+				<p
+					class="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-warning-500/10 px-2.5 py-1.5 text-2xs text-warning-700 dark:text-warning-400"
+				>
+					<Clock class="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+					{painel.basesPendentes === 1
+						? '1 unidade ainda não informou a linha de base — sem ela a meta dela não é calculável.'
+						: `${painel.basesPendentes} unidades ainda não informaram a linha de base — sem ela a meta delas não é calculável.`}
+				</p>
+			{/if}
+
+			<div class="mt-4 w-full" style="height: {alturaDoGrafico(painel.linhas.length)}px">
+				<canvas
+					bind:this={canvases[painel.indicador.key]}
+					aria-label={ehCobertura(painel)
+						? `Cobertura e meta por unidade — ${tituloNoPainel(painel.indicador)}`
+						: `Linha de base, realizado e meta por unidade — ${tituloNoPainel(painel.indicador)}`}
+				></canvas>
+			</div>
+
+			<!-- O gêmeo em texto do gráfico. Não é extra: é como o valor exato fica
+				     acessível sem depender de passar o mouse. -->
+			<button
+				type="button"
+				class="mt-3 inline-flex items-center gap-1.5 text-2xs font-semibold text-surface-600 hover:text-primary-600 dark:text-surface-400"
+				onclick={() => (tabelaAberta[painel.indicador.key] = !tabelaAberta[painel.indicador.key])}
+				aria-expanded={!!tabelaAberta[painel.indicador.key]}
+			>
+				<Table class="h-3.5 w-3.5" aria-hidden="true" />
+				{tabelaAberta[painel.indicador.key] ? 'Ocultar tabela' : 'Ver como tabela'}
+			</button>
+
+			{#if tabelaAberta[painel.indicador.key]}
+				<div class="table-wrap mt-3">
+					<table class="table text-sm">
+						<thead>
+							<tr>
+								<th class="text-left">Unidade</th>
+								{#if ehCobertura(painel)}
+									<!-- O total só aparece aqui: ele não cabe no eixo do gráfico
+										     (é contagem, não porcentagem), mas é o denominador que
+										     torna a cobertura conferível. -->
+									<th class="text-right">Total</th>
+									<th class="text-right">Atendidas</th>
+									<th class="text-right">Cobertura</th>
+								{:else}
+									<th class="text-right">Linha de base</th>
+									<th class="text-right">Realizado</th>
+									<th class="text-right">Meta</th>
+								{/if}
+								<th class="text-right">Atingimento</th>
+							</tr>
+						</thead>
+						<tbody>
+							{#each painel.linhas as linha (linha.unidadeId)}
+								<tr>
+									<td class="text-left">{linha.unidadeNome}</td>
+									{#if ehCobertura(painel)}
+										<td class="text-right tabular-nums">
+											{formatarValorIndicador(linha.total)}
+										</td>
+										<td class="text-right tabular-nums">
+											{formatarValorIndicador(linha.realizado)}
+										</td>
+										<td class="text-right tabular-nums">
+											{#if linha.cobertura == null}
+												<span class="text-surface-600 dark:text-surface-400">sem ocorrências</span>
+											{:else}
+												{formatarPercentual(linha.cobertura)}
+											{/if}
+										</td>
+									{:else}
+										<td class="text-right tabular-nums">
+											{#if linha.basePendente}
+												<span class="text-warning-700 dark:text-warning-400">não informada</span>
+											{:else}
+												{formatarValorIndicador(linha.base)}
+											{/if}
+										</td>
+										<td class="text-right tabular-nums">
+											{formatarValorIndicador(linha.realizado)}
+										</td>
+										<td class="text-right tabular-nums">{formatarValorIndicador(linha.meta)}</td>
+									{/if}
+									<td class="text-right tabular-nums">
+										{#if linha.atingimento == null}
+											—
+										{:else}
+											<span class="inline-flex items-center justify-end gap-1">
+												{#if linha.atingida}
+													<Check
+														class="h-3.5 w-3.5 text-success-600 dark:text-success-400"
+														aria-hidden="true"
+													/>
+												{/if}
+												{Math.round(linha.atingimento)}%
+											</span>
+										{/if}
+									</td>
+								</tr>
+							{/each}
+						</tbody>
+					</table>
+				</div>
+			{/if}
+		</article>
+	{/snippet}
+
 	<section class="space-y-6">
 		<div>
 			<h2 class="text-lg font-bold">Indicadores e metas</h2>
@@ -292,154 +446,22 @@
 			</p>
 		</div>
 
-		{#each paineis as painel (painel.indicador.key)}
-			<article
-				class="card-elevated rounded-2xl border border-surface-200 p-4 sm:p-6 dark:border-surface-800"
-			>
-				<header class="flex flex-wrap items-start justify-between gap-3">
-					<div class="min-w-0">
-						<h3 class="text-base font-semibold">{tituloNoPainel(painel.indicador)}</h3>
-						<p
-							class="mt-1 inline-flex items-center gap-1.5 text-2xs font-semibold text-surface-600 dark:text-surface-400"
-						>
-							<!-- `metaTipo` inline, e não `ehCobertura()`: só a comparação
-							     direta estreita a união e libera `objetivo` no ramo de baixo. -->
-							{#if painel.indicador.config.metaTipo === 'proporcao'}
-								<PieChart class="h-3.5 w-3.5" aria-hidden="true" />
-							{:else if painel.indicador.config.objetivo === 'diminuir'}
-								<TrendingDown class="h-3.5 w-3.5" aria-hidden="true" />
-							{:else}
-								<TrendingUp class="h-3.5 w-3.5" aria-hidden="true" />
-							{/if}
-							Meta: {rotuloMeta(painel)}
-						</p>
-					</div>
-
-					<!-- O número é a manchete do card: "quantas unidades chegaram lá".
-					     Fica em tile, não em gráfico — um gráfico de uma fração só é
-					     mais desenho do que informação. -->
-					<div class="shrink-0 text-right">
-						<p class="text-2xl font-bold leading-none">
-							{painel.unidadesAtingiram}<span
-								class="text-base font-semibold text-surface-600 dark:text-surface-400"
-								>/{painel.unidadesComMeta}</span
-							>
-						</p>
-						<p
-							class="mt-1 text-3xs uppercase tracking-widest text-surface-600 dark:text-surface-400"
-						>
-							unidades na meta
-						</p>
-					</div>
-				</header>
-
-				{#if painel.basesPendentes > 0}
-					<p
-						class="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-warning-500/10 px-2.5 py-1.5 text-2xs text-warning-700 dark:text-warning-400"
+		<div class="space-y-6" role={organizacao.ativo ? 'list' : undefined}>
+			{#each paineis as painel, indice (painel.indicador.key)}
+				{#if organizacao.ativo}
+					<CardOrdenavel
+						{organizacao}
+						secao="indicadores"
+						{indice}
+						total={paineis.length}
+						rotulo={tituloNoPainel(painel.indicador)}
 					>
-						<Clock class="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-						{painel.basesPendentes === 1
-							? '1 unidade ainda não informou a linha de base — sem ela a meta dela não é calculável.'
-							: `${painel.basesPendentes} unidades ainda não informaram a linha de base — sem ela a meta delas não é calculável.`}
-					</p>
+						{@render cardIndicador(painel)}
+					</CardOrdenavel>
+				{:else}
+					{@render cardIndicador(painel)}
 				{/if}
-
-				<div class="mt-4 w-full" style="height: {alturaDoGrafico(painel.linhas.length)}px">
-					<canvas
-						bind:this={canvases[painel.indicador.key]}
-						aria-label={ehCobertura(painel)
-							? `Cobertura e meta por unidade — ${tituloNoPainel(painel.indicador)}`
-							: `Linha de base, realizado e meta por unidade — ${tituloNoPainel(painel.indicador)}`}
-					></canvas>
-				</div>
-
-				<!-- O gêmeo em texto do gráfico. Não é extra: é como o valor exato fica
-				     acessível sem depender de passar o mouse. -->
-				<button
-					type="button"
-					class="mt-3 inline-flex items-center gap-1.5 text-2xs font-semibold text-surface-600 hover:text-primary-600 dark:text-surface-400"
-					onclick={() => (tabelaAberta[painel.indicador.key] = !tabelaAberta[painel.indicador.key])}
-					aria-expanded={!!tabelaAberta[painel.indicador.key]}
-				>
-					<Table class="h-3.5 w-3.5" aria-hidden="true" />
-					{tabelaAberta[painel.indicador.key] ? 'Ocultar tabela' : 'Ver como tabela'}
-				</button>
-
-				{#if tabelaAberta[painel.indicador.key]}
-					<div class="table-wrap mt-3">
-						<table class="table text-sm">
-							<thead>
-								<tr>
-									<th class="text-left">Unidade</th>
-									{#if ehCobertura(painel)}
-										<!-- O total só aparece aqui: ele não cabe no eixo do gráfico
-										     (é contagem, não porcentagem), mas é o denominador que
-										     torna a cobertura conferível. -->
-										<th class="text-right">Total</th>
-										<th class="text-right">Atendidas</th>
-										<th class="text-right">Cobertura</th>
-									{:else}
-										<th class="text-right">Linha de base</th>
-										<th class="text-right">Realizado</th>
-										<th class="text-right">Meta</th>
-									{/if}
-									<th class="text-right">Atingimento</th>
-								</tr>
-							</thead>
-							<tbody>
-								{#each painel.linhas as linha (linha.unidadeId)}
-									<tr>
-										<td class="text-left">{linha.unidadeNome}</td>
-										{#if ehCobertura(painel)}
-											<td class="text-right tabular-nums">
-												{formatarValorIndicador(linha.total)}
-											</td>
-											<td class="text-right tabular-nums">
-												{formatarValorIndicador(linha.realizado)}
-											</td>
-											<td class="text-right tabular-nums">
-												{#if linha.cobertura == null}
-													<span class="text-surface-600 dark:text-surface-400">sem ocorrências</span
-													>
-												{:else}
-													{formatarPercentual(linha.cobertura)}
-												{/if}
-											</td>
-										{:else}
-											<td class="text-right tabular-nums">
-												{#if linha.basePendente}
-													<span class="text-warning-700 dark:text-warning-400">não informada</span>
-												{:else}
-													{formatarValorIndicador(linha.base)}
-												{/if}
-											</td>
-											<td class="text-right tabular-nums">
-												{formatarValorIndicador(linha.realizado)}
-											</td>
-											<td class="text-right tabular-nums">{formatarValorIndicador(linha.meta)}</td>
-										{/if}
-										<td class="text-right tabular-nums">
-											{#if linha.atingimento == null}
-												—
-											{:else}
-												<span class="inline-flex items-center justify-end gap-1">
-													{#if linha.atingida}
-														<Check
-															class="h-3.5 w-3.5 text-success-600 dark:text-success-400"
-															aria-hidden="true"
-														/>
-													{/if}
-													{Math.round(linha.atingimento)}%
-												</span>
-											{/if}
-										</td>
-									</tr>
-								{/each}
-							</tbody>
-						</table>
-					</div>
-				{/if}
-			</article>
-		{/each}
+			{/each}
+		</div>
 	</section>
 {/if}

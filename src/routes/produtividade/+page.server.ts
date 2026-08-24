@@ -34,6 +34,7 @@ import {
 	NOME_OPERACAO_PADRAO
 } from '$lib/db';
 import { isAdminGeral, isAnyAdmin } from '$lib/auth';
+import { lerOrdemPainel } from '$lib/produtividade';
 import { unidadesLinhaBaseAdministradas } from '$lib/server/operacoes/permissao';
 
 export async function load({ locals, platform, url }: PageServerLoadEvent) {
@@ -126,6 +127,31 @@ export async function load({ locals, platform, url }: PageServerLoadEvent) {
 		lista: [...primeira.respostas, ...paginasRestantes.flatMap((p) => p.respostas)],
 		modeloOperacional: JSON.parse(modeloOpRow?.config || '[]'),
 		modeloSeint: JSON.parse(modeloSeintRow?.config || '[]'),
+		/**
+		 * A ordem em que os cards do painel aparecem, por tipo de equipe (migração
+		 * 0064). Lista vazia = ordem do formulário, que é o que toda operação é até
+		 * alguém organizar o painel.
+		 *
+		 * Os DOIS tipos vão juntos porque o seletor "Operacional / Inteligência" é
+		 * de tela e não recarrega o `load` — do mesmo jeito que os dois modelos já
+		 * viajam juntos.
+		 */
+		painelOrdem: {
+			operacional: lerOrdemPainel(modeloOpRow?.painel_ordem),
+			seint: lerOrdemPainel(modeloSeintRow?.painel_ordem)
+		},
+		/**
+		 * Quem pode ARRASTAR os cards. A ordem é única e vale para todos que abrem
+		 * a operação, então organizá-la é configuração — do mesmo tipo que o editor
+		 * do formulário, que já é exclusivo do Admin Geral. Admin de unidade e de
+		 * seccional entram nesta tela para LER o resultado do que informam em
+		 * `/dados-base`, com os dados recortados; o painel deles não é uma cópia
+		 * particular que cada um pudesse arrumar para si.
+		 *
+		 * Esconder o botão não é a autorização: quem recusa o PUT direto é
+		 * `requireAdmin` em `/api/produtividade/ordem`.
+		 */
+		podeOrganizar: isAdminGeral(u),
 		seccionais,
 		operacoes: operacoesLista,
 		operacaoSelecionadaId: operacao?.id ?? null,

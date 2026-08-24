@@ -1,0 +1,36 @@
+-- A ordem dos cards do painel de produtividade deixa de ser a do formulário.
+--
+-- Até aqui não havia ordem a escolher: cada seção de `/produtividade` desenhava
+-- os cards na ordem em que as perguntas aparecem no modelo, e a única forma de
+-- mover um gráfico era mover a PERGUNTA no editor — o que renumera o enunciado
+-- ("4. HOUVE…") e reordena o formulário que o policial preenche. Reordenar a
+-- leitura mexia na coleta.
+--
+-- `painel_ordem` guarda um array JSON com os ids dos cards, na ordem em que o
+-- Admin Geral os arrastou. **NULL = ordem do formulário**, que é o que toda
+-- linha existente é hoje: a migração não muda um pixel da tela, só cria onde
+-- gravar a escolha.
+--
+-- ## Por que aqui, e não em `operacoes`
+--
+-- O painel é por (operação × tipo de equipe) — o seletor "Operacional /
+-- Inteligência" troca o formulário inteiro —, e `gise_modelo_formulario` já é a
+-- tabela com exatamente uma linha por esse par (índice
+-- `uq_gise_modelo_operacao_tipo`). Em `operacoes` a mesma informação precisaria
+-- de uma chave por tipo dentro do JSON, e ainda viajaria em todo `load` que
+-- lista operações — que são muitos.
+--
+-- A consequência de escopo, deliberada: os cards de INDICADOR aparecem nas duas
+-- abas (eles saem dos dois modelos, unificados por `key`), então cada aba guarda
+-- a ordem deles em separado. É o certo — o painel operacional e o de
+-- inteligência são dois relatórios, para públicos diferentes, e a manchete de um
+-- não precisa ser a do outro.
+--
+-- ## O que NÃO é gravado
+--
+-- Nada de quem PODE aparecer: isso continua sendo a marca `grafico` da pergunta
+-- (migrações 0053/0054). Card que sai do painel deixa um id órfão na lista, e
+-- id órfão é ignorado na leitura — não vira card fantasma. Pelo mesmo motivo, id
+-- AUSENTE da lista (a pergunta criada depois) não some: ele vai para o FIM da
+-- seção dele, que é onde uma pergunta nova deve nascer.
+ALTER TABLE `gise_modelo_formulario` ADD COLUMN `painel_ordem` text;

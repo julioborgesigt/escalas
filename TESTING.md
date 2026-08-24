@@ -667,6 +667,33 @@ Verificar cada transição de status:
 - [ ] Dados vazios → estado vazio com mensagem
 - [ ] Com mais de 200 respostas acumuladas → stats/rankings/gráficos contam o conjunto completo (o load pagina internamente em lotes de 500)
 
+**Organizar o painel (arrastar os cards):**
+
+> `[E2E: produtividade-ordem.spec.ts]` cobre o mecanismo: o arraste, as setas, a
+> ida e volta pelo banco, a pergunta marcada depois entrando por último e a
+> recusa (403) ao admin de unidade. A regra do "fim da lista" tem cobertura
+> unitária em `produtividade/__tests__/ordem`. Manual: o gesto no dispositivo
+> real, que é onde o arraste por toque não existe e as setas são o único caminho.
+
+- [ ] Como Admin Geral, **Organizar painel** aparece no alto; como admin de
+      unidade/seccional, não aparece
+- [ ] No modo, cada card ganha a faixa com a posição, a alça e as setas ↑/↓; o
+      conteúdo do card não responde a clique (arrastar não marca card para
+      exportação)
+- [ ] Arrastar um card sobre outro do MESMO bloco troca os dois; soltar sobre
+      outro bloco não move nada
+- [ ] No **celular**, o arraste não existe — as setas ↑/↓ movem, e é por elas que
+      o modo se usa em tela pequena
+- [ ] **Salvar ordem** → a página recarrega já na ordem nova; sair e voltar
+      mantém
+- [ ] **Sair sem salvar** e **Desfazer** devolvem a ordem gravada
+- [ ] **Ordem do formulário** volta os cards à ordem das perguntas (é rascunho —
+      só vale depois de Salvar)
+- [ ] Marcar uma pergunta nova como gráfico no editor → o card dela aparece no
+      **fim** do bloco dele, não no topo
+- [ ] Trocar de tipo de equipe mantém o rascunho de cada aba; o seletor de
+      OPERAÇÃO fica desabilitado enquanto se organiza
+
 **Baixar (PDF) — é o `window.print()` do navegador:**
 
 > `[E2E: produtividade-graficos.spec.ts]` prova em `media: print` que o card pede

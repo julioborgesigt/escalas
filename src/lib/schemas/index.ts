@@ -17,7 +17,8 @@ export {
 	giseSignatureSchema,
 	giseIdParamSchema,
 	giseDownloadSchema,
-	giseHistoricoExportQuerySchema
+	giseHistoricoExportQuerySchema,
+	painelOrdemSchema
 } from './gise';
 export { assinaturaConfigSchema } from './config';
 export { policialSearchQuerySchema } from './policial-search';

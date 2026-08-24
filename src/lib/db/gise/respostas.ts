@@ -406,6 +406,53 @@ export async function salvarGiseModeloFormulario(
 	});
 }
 
+/**
+ * Grava a ordem dos cards do painel de produtividade desta (operação, tipo) —
+ * o array JSON de ids que o Admin Geral montou arrastando em `/produtividade`.
+ *
+ * Escreve SÓ a coluna `painel_ordem`, deliberadamente:
+ *
+ * - o `config` não é tocado, então organizar o painel não renumera pergunta nem
+ *   reordena o formulário que o policial preenche. Era exatamente isso que a
+ *   ordem própria existe para evitar (migração 0064);
+ * - o `config_anterior` também não. Ele é o desfazer do EDITOR DE PERGUNTAS, e
+ *   consumi-lo aqui faria arrastar um card destruir o ponto de retorno de quem
+ *   estava editando o formulário em outra aba.
+ *
+ * Modelo inexistente para o par (operação, tipo) é no-op silencioso, não erro: a
+ * operação pode ter o tipo habilitado sem nunca ter tido formulário salvo, e
+ * nesse caso não há card nenhum no painel — não há ordem que se perca. Inserir
+ * uma linha aqui criaria um modelo VAZIO que o editor mostraria como formulário
+ * apagado.
+ *
+ * @returns `true` se a linha foi atualizada; `false` quando não há modelo.
+ */
+export async function salvarOrdemPainelProdutividade(
+	db: Database,
+	operacaoId: number,
+	tipo: 'operacional' | 'seint',
+	ordem: string[]
+): Promise<boolean> {
+	const existente = await db
+		.select({ id: giseModeloFormulario.id })
+		.from(giseModeloFormulario)
+		.where(
+			and(eq(giseModeloFormulario.operacao_id, operacaoId), eq(giseModeloFormulario.tipo, tipo))
+		)
+		.get();
+
+	if (!existente) return false;
+
+	await db
+		.update(giseModeloFormulario)
+		.set({
+			painel_ordem: JSON.stringify(ordem),
+			updated_at: sql`datetime('now', '-3 hours')`
+		})
+		.where(eq(giseModeloFormulario.id, existente.id));
+	return true;
+}
+
 // ---- Respostas ----
 
 /**
