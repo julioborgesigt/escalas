@@ -140,13 +140,14 @@ export function itensExtraDoMenu(flags: FlagsMenu, url: URL): ItemMenu[] {
 
 	const rotaPath = url.pathname;
 
-	// Rota da escala extra: lista/escala, excluindo `/gise/operacoes`, que tem
-	// entrada própria no menu.
+	// Rota da escala extra: lista/escala, excluindo o cadastro de operações, as
+	// boas-vindas e o arquivo de finalizadas — cada um tem entrada própria.
 	const giseListaOuEscalaPath =
 		rotaPath === '/gise' ||
 		(rotaPath.startsWith('/gise/') &&
 			!rotaPath.startsWith('/gise/operacoes') &&
-			!rotaPath.startsWith('/gise/bem-vindo'));
+			!rotaPath.startsWith('/gise/bem-vindo') &&
+			!rotaPath.startsWith('/gise/finalizadas'));
 
 	// As duas abas de /res-gise dividem a MESMA rota por query string: sem
 	// `?status=finalizadas` é a "Presença GISE" (ativas), com ele é o "Histórico
@@ -160,14 +161,24 @@ export function itensExtraDoMenu(flags: FlagsMenu, url: URL): ItemMenu[] {
 	const naoEhAdmin = !flags.isAdmGeral;
 
 	const itens: Array<ItemMenu | false> = [
-		// "Escalas", e não "Escalas ativas": a página lista ativas E histórico,
-		// com o filtro dentro dela. O pai já diz que a escala é a extra.
+		// "Ativas" é a lista do que está em andamento. O arquivo das encerradas
+		// mora na aba Finalizadas — juntar os dois no mesmo rótulo mentia depois
+		// que o histórico saiu de `/gise`.
 		flags.showGise && {
 			href: '/gise',
-			rotulo: 'Escalas',
+			rotulo: 'Ativas',
 			icone: ICONE.pranchetaLista,
 			ativo: giseListaOuEscalaPath
 		},
+		// Só o Admin Geral via o bloco Histórico em `/gise`; a aba herda esse
+		// recorte. Supervisor e seccional continuam sem o arquivo.
+		flags.isAdmGeral &&
+			flags.showGise && {
+				href: '/gise/finalizadas',
+				rotulo: 'Finalizadas',
+				icone: ICONE.historico,
+				ativo: rotaAtiva(rotaPath, '/gise/finalizadas')
+			},
 		flags.showIndicadores && {
 			href: '/produtividade',
 			rotulo: 'Produtividade',

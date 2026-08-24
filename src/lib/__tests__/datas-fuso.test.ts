@@ -22,7 +22,8 @@ import {
 	diffDiasInclusivo,
 	hojeLocalISO,
 	hojeBrasilISO,
-	intervaloDeDatas
+	intervaloDeDatas,
+	dataISOValida
 } from '../utils/datas';
 import { ultimoDiaDoMes, primeiroDiaDoMes } from '../rotacao';
 
@@ -219,5 +220,29 @@ describe('calcularDataSaida — independente de fuso', () => {
 
 	it('virada de mês no plantão noturno', () => {
 		mesmoResultadoEmTodoFuso(() => calcularDataSaida('2026-07-31', '19:00', '07:00'), '2026-08-01');
+	});
+});
+
+describe('dataISOValida — parâmetro de URL é entrada de fora', () => {
+	it('aceita YYYY-MM-DD', () => {
+		expect(dataISOValida('2026-08-22')).toBe('2026-08-22');
+	});
+
+	it('recusa o que não tem a forma', () => {
+		for (const v of ['abc', '2026-8-2', '22/08/2026', '2026-08', '', ' 2026-08-22']) {
+			expect(dataISOValida(v), v).toBeNull();
+		}
+	});
+
+	it('recusa ausente', () => {
+		expect(dataISOValida(null)).toBeNull();
+		expect(dataISOValida(undefined)).toBeNull();
+	});
+
+	it('valida só a FORMA — data impossível passa, e é de propósito', () => {
+		// Filtro com data inexistente devolve recorte VAZIO, não erro; é o
+		// comportamento certo para janela. Quem precisa de data existente confere
+		// com `new Date`.
+		expect(dataISOValida('2026-13-45')).toBe('2026-13-45');
 	});
 });

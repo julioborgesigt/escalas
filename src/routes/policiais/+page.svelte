@@ -42,11 +42,11 @@
 	import Search from '@lucide/svelte/icons/search';
 	import {
 		useAutorizacao,
-		getSavedFilters,
 		useConfirmationDialog,
 		useFiltrosPaginados,
 		useSamePathNavigating
 	} from '$lib/composables';
+	import { getSavedFilters } from '$lib/utils/localStorage';
 	import type { Policial, Unidade } from '$lib/types';
 	import type { ActionResult } from '@sveltejs/kit';
 

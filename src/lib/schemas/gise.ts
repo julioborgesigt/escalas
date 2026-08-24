@@ -54,11 +54,37 @@ export const giseDownloadSchema = z.object({
 		.transform((v) => v === 'true')
 });
 
+/**
+ * Corpo do PUT que grava a ORDEM dos cards do painel de produtividade.
+ *
+ * `ordem` é a lista de ids de card na ordem em que a tela os mostra — o que o
+ * Admin Geral acabou de arrastar. Três limites, e cada um tem motivo:
+ *
+ * - **`max(64)` por id** porque id de card é gerado pelo próprio painel
+ *   (`rank-q1731…`, `ind-acervo_ip`); qualquer coisa maior não é um id nosso;
+ * - **`max(400)` itens** é teto de sanidade, umas dez vezes o maior painel
+ *   plausível. Sem ele, um POST direto encheria a coluna com megabytes de JSON;
+ * - **lista vazia é válida** e significa "voltar à ordem do formulário", que é o
+ *   botão "Restaurar padrão" da barra de organização.
+ *
+ * O servidor NÃO confere se cada id corresponde a um card existente, e é
+ * deliberado: a lista é ordem, não conteúdo. Id órfão é ignorado na leitura
+ * (`ordenarCardsDoPainel`), e validá-lo aqui exigiria recalcular o painel
+ * inteiro no servidor — a mesma agregação que a tela faz — para rejeitar algo
+ * que já é inócuo.
+ */
+export const painelOrdemSchema = z.object({
+	operacaoId: z.number().int().positive('Operação inválida'),
+	tipo: z.enum(['operacional', 'seint']),
+	ordem: z.array(z.string().min(1).max(64)).max(400, 'Ordem com itens demais')
+});
+
 /** Query string do export agregado do histórico GISE (admin geral). */
 export const giseHistoricoExportQuerySchema = z
 	.object({
 		format: z.enum(['xlsx', 'pdf']),
 		seccionalId: z.coerce.number().optional(),
+		tipoEquipe: z.enum(['operacional', 'seint']).optional(),
 		periodo: z.enum(['mes', 'ciclo', 'data']),
 		mesAno: z.string().optional(),
 		ano: z.coerce.number().optional(),

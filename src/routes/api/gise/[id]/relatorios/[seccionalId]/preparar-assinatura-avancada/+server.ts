@@ -1,25 +1,56 @@
 /**
  * FASE 1 da assinatura avançada por passkey do relatório extraordinário.
- */
+ *
+ * Duas fases porque a asserção WebAuthn acontece NO NAVEGADOR, entre elas: esta
+ * monta o PDF e emite a INTENÇÃO, o `finalizar-assinatura-avancada` confere a
+ * asserção contra ela e sela. Nada é persistido como assinado aqui — cancelar o
+ * Face ID não pode deixar relatório meio-assinado no banco.
+ *
+ * A ordem dos portões é deliberada e vale a pena não mexer: papel → seccional
+ * pertence a esta GISE → **todos confirmaram a saída** → chave ativa → corpo →
+ * evidências. A checagem de saída completa vem ANTES da cerimônia porque é a
+ * mais provável de recusar, e recusar depois queimaria a asserção de quem já
+ * encostou o dedo no leitor.
+ *
+ * `verificarSaidaCompletaSeccional` recebe `isSupExtraGate` porque o quadro de
+ * supervisão é uma "seccional" sintética: quem conta ali são supervisor,
+ * assessor e SEINT, não os membros das equipes.
+ *
+ * A cópia de CONFERÊNCIA (sem manifesto) vai para o R2 já nesta fase, e a falha
+ * dela é `warn`, não erro: é a via que circula, não o documento com valor
+ * probatório. Perder a cópia não pode impedir a assinatura.
+ *
+ * **Só o supervisor DESIGNADO assina. Admin Geral não entra, e isso é decisão
+ * de ago/2026, não descuido.** As CINCO rotas desta família aceitavam
+ * `u.tipo === 'admin'`; nenhuma tela jamais ofereceu isso. O `load` de
+ * `gise/[id]` define `isSupervisor = u.tipo === 'policial' ? … : false`, e os
+ * dois pontos de entrada da assinatura estão atrás dele — `SupervisaoDocExtra`
+ * e `SeccionalRelatoriosDownloads`. O lote (`GiseLoteAssinaturas`) chega a
+ * renderizar para o admin, mas recebe `podeAssinar={isSupervisor}`. O que o
+ * admin alcança é "Conferência": baixar, não assinar.
+ *
+ * O que decidiu não foi a tela — foi o que o documento CARREGARIA. A sessão de
+ * admin é montada sem `cpf`, sem `matrícula` e sem `cargo` (`mapearAdmin`).
+ * Assinando por POST direto, o relatório sairia com matrícula `null` e com o
+ * CPF que o CLIENTE mandasse, ou vazio. Num documento com valor jurídico, a
+ * afirmação de identidade seria a única coisa que ninguém verificou.
+ *
+ * O detalhe que fecha: o Admin Geral VINCULADO é a mesma pessoa com duas linhas
+ * (`policiais` + `administradores`). Em modo usuário ela assina com CPF e
+ * matrícula; em modo admin, sem nenhum dos dois. A identidade no documento
+ * dependeria de qual cookie estava ativo. A UI já a encaminha certo — só o
+ * servidor não encaminhava.
+ *
+ * Mesma remoção que o portão da ESCALA GISE recebeu antes, pelo mesmo motivo
+ * (`CLAUDE.md`, §Duplicação). Coberto por `relatorio-extra-gise.spec.ts`.
+ * */
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { getDB, buscarGiseDetalhado, verificarSaidaCompletaSeccional, tryGetR2 } from '$lib/db';
-import {
-	apiError,
-	ErrorCode,
-	badRequest,
-	notFound,
-	forbidden,
-	serverError,
-	requireAuth,
-	validateBody
-} from '$lib/server/api';
+import { getDB, tryGetR2 } from '$lib/db';
+import { apiError, ErrorCode, serverError, requireAuth, validateBody } from '$lib/server/api';
 import { giseSignatureSchema } from '$lib/schemas';
 import { validarEvidenciasAvancada } from '$lib/server/assinatura/signature-service';
-import {
-	giseAutorizaSeccionalRelatorioExtra,
-	secIdEhSupervisaoExtra
-} from '$lib/server/gise/supervisao-extra';
+import { carregarRelatorioExtraParaAssinatura } from '$lib/server/gise/permissao';
 import { criarIntencaoAssinatura } from '$lib/server/assinatura/intencao';
 import { descreverVinculoCredencial } from '$lib/server/assinatura/webauthn/authenticator-data';
 import { credencialDoUsuario } from '$lib/server/auth/credencial';
@@ -43,33 +74,13 @@ export const POST: RequestHandler = async ({
 }) => {
 	const u = requireAuth(locals);
 	if (u instanceof Response) return u;
-	if (u.tipo !== 'policial' && u.tipo !== 'admin') {
-		return forbidden('Somente policiais supervisores ou administradores podem assinar');
-	}
 
 	const ua = request.headers.get('user-agent') || '';
 	const ip = getClientAddress();
-	const giseIdNum = parseInt(params.id!);
-	const secIdNum = parseInt(params.seccionalId!);
-	if (isNaN(giseIdNum) || isNaN(secIdNum)) return badRequest('ID inválido');
-
 	const db = getDB(platform);
-	const gise = await buscarGiseDetalhado(db, giseIdNum);
-	if (!gise) return notFound('Escala');
-	if (u.tipo !== 'admin' && gise.supervisor_id !== u.id) {
-		return forbidden(
-			'Apenas o supervisor designado ou administradores podem assinar este relatório.'
-		);
-	}
-	if (!(await giseAutorizaSeccionalRelatorioExtra(db, giseIdNum, secIdNum))) {
-		return badRequest('Seccional inválida para esta GISE.');
-	}
-	const isSupExtraGate = await secIdEhSupervisaoExtra(db, secIdNum);
-	if (!(await verificarSaidaCompletaSeccional(db, giseIdNum, secIdNum, isSupExtraGate))) {
-		return badRequest(
-			'Todos os participantes precisam confirmar a saída (rubrica) antes de assinar o relatório.'
-		);
-	}
+	const portao = await carregarRelatorioExtraParaAssinatura(db, params, u);
+	if (portao.recusa) return portao.recusa;
+	const { gise, giseId: giseIdNum, secId: secIdNum } = portao;
 
 	const chave = await exigirChaveAtiva(db, credencialDoUsuario(u), ua);
 	if ('recusa' in chave) return chave.recusa;
@@ -79,8 +90,6 @@ export const POST: RequestHandler = async ({
 	if (!v.ok) return v.response;
 	const {
 		rubrica,
-		signerName,
-		signerCpf,
 		latitude,
 		longitude,
 		selfieBase64,
@@ -126,8 +135,17 @@ export const POST: RequestHandler = async ({
 			giseId: giseIdNum,
 			secId: secIdNum,
 			assinante: {
-				nome: signerName || u.nome,
-				cpf: signerCpf || u.cpf,
+				// Identidade do assinante vem da SESSÃO, não do corpo. No fluxo avançado
+				// não há certificado que ateste nada: `signerCpf`/`signerName` seriam
+				// texto livre do cliente (`z.string().max(20)`, sem formato e sem
+				// cruzamento) gravados num documento com valor jurídico. A rota irmã
+				// de PRESENÇA sempre fez assim (`signerCpf: u.cpf`); esta confiava no
+				// corpo primeiro, e as duas ficaram opostas até ago/2026.
+				//
+				// No fluxo QUALIFICADO é diferente e continua como está: lá o
+				// `signerCpf` é o CPF lido do certificado e existe conferência.
+				nome: u.nome,
+				cpf: u.cpf,
 				matricula: u.tipo === 'policial' ? u.matricula : null
 			},
 			evidencias: {

@@ -10,12 +10,14 @@ import {
 	getR2,
 	buscarGiseEscala,
 	atualizarGiseEscala,
+	finalizarGiseEscala,
 	reabrirGiseEscala,
 	verificarConflitoHorarioPorGise,
 	auditar,
 	contextoDeEvento
 } from '$lib/db';
 import { modoDeFinalizacao, PENDENCIAS_DA_ANTECIPADA } from '$lib/gise/finalizacao';
+import { escalaGiseJaAssinada } from '$lib/gise/status-escala';
 import { invalidarPapelGiseMultiplos, coletarAfetadosGise } from '$lib/server/gise/papel-cache';
 import {
 	agendarSyncBaseEquipeAposFinalizar,
@@ -348,7 +350,13 @@ export const actionsEscala = {
 		// Coleta os policiais ANTES de mexer no status: é a lista de caches de papel
 		// a invalidar depois.
 		const afetados = await coletarAfetadosGise(db, giseId);
-		await atualizarGiseEscala(db, giseId, { status: 'finalizada' });
+
+		// Mesmo CAS da rota de API: o `modoDeFinalizacao` acima escolhe a mensagem,
+		// o UPDATE condicional é que decide. Dois cliques paralelos auditavam duas
+		// vezes e mandavam a base de equipe duas vezes (SEC-35).
+		const { finalizada } = await finalizarGiseEscala(db, giseId);
+		if (!finalizada) return fail(409, { error: 'Escala já finalizada' });
+
 		await invalidarPapelGiseMultiplos(afetados);
 
 		agendarSyncBaseEquipeAposFinalizar(platform, db, giseId);
@@ -426,14 +434,9 @@ export const actionsEscala = {
 		const gise = await buscarGiseEscala(db, giseId);
 		if (!gise) return fail(404, { error: 'GISE não encontrada' });
 
-		const statusValidos = [
-			'em_andamento',
-			'aguardando_relatorios',
-			'aguardando_assinatura_relat',
-			'pronta_para_finalizar',
-			'finalizada'
-		];
-		if (!statusValidos.includes(gise.status)) {
+		// Só se reabre o que já passou da assinatura do supervisor. Mesmo
+		// predicado que a tela usa para dizer "Escala assinada".
+		if (!escalaGiseJaAssinada(gise.status)) {
 			return fail(400, { error: 'Status não permite reabrir' });
 		}
 

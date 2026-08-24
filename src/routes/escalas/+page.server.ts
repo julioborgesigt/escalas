@@ -8,7 +8,8 @@
  * nunca é "todas as unidades".
  *
  * Escopo, na ordem em que é decidido:
- *   1. `admin_unidade` → a lotação dele, ignorando o `?lotacao=` da URL;
+ *   1. `admin_unidade` → a unidade do PAPEL (`papel_unidade_id`), não a
+ *      lotação atual (FLW-RBAC-003 / SEC-06);
  *   2. `admin_seccional` → a seccional e as delegacias abaixo dela; um
  *      `?lotacao=` fora dessa lista é DESCARTADO em vez de recusado, porque
  *      link antigo ou filtro salvo não deve virar erro na cara do usuário;
@@ -48,11 +49,8 @@ import { excluirEscalaCompleta } from '$lib/server/escalas/exclusao';
 import { podeOIPSolicitarAssinatura } from '$lib/server/escalas/permissao';
 import { logger } from '$lib/server/logger';
 import { eq, or, and, inArray, sql, desc, type SQL } from 'drizzle-orm';
-import {
-	lotacoesDaSeccional,
-	lotacoesAdministradas,
-	lotacaoNoEscopo
-} from '$lib/server/policial-permissao';
+import { ehViolacaoUnique } from '$lib/server/db-errors';
+import { lotacoesAdministradas, lotacaoNoEscopo } from '$lib/server/policial-permissao';
 import {
 	escalas as escalasTable,
 	escalaDocumentos,
@@ -94,14 +92,18 @@ export const load: PageServerLoad = async ({ locals, platform, url, depends }) =
 	const statusLista =
 		statusParam === 'aguardando' || statusParam === 'arquivada' ? statusParam : undefined;
 
-	// Escopo por papel: admin_unidade vê só sua unidade; admin_seccional vê sua seccional
+	// Escopo por papel (FLW-RBAC-003): unidade do papel, não a lotação atual.
+	// Conjunto vazio é "nada", não "todas" — `listarEscalas` trata `lotacoes: []`
+	// como zero linhas. Sem isto, admin_unidade sem `papel_unidade_id` via a
+	// listagem inteira (SEC-06).
 	let lotacoesPermitidas: string[] | undefined = undefined;
 	{
+		const escopo = await lotacoesAdministradas(db, u);
 		if (u.papel === 'admin_unidade') {
-			lotacaoParam = u.lotacao ?? undefined;
-		} else if (u.papel === 'admin_seccional' && u.papel_unidade_id) {
-			lotacoesPermitidas = await lotacoesDaSeccional(db, u.papel_unidade_id);
-			// Valida que o filtro manual está dentro do escopo permitido
+			lotacoesPermitidas = escopo ? [...escopo] : [];
+			lotacaoParam = lotacoesPermitidas[0];
+		} else if (u.papel === 'admin_seccional') {
+			lotacoesPermitidas = escopo ? [...escopo] : [];
 			if (lotacaoParam && !lotacoesPermitidas.includes(lotacaoParam)) {
 				lotacaoParam = undefined;
 			}
@@ -115,12 +117,12 @@ export const load: PageServerLoad = async ({ locals, platform, url, depends }) =
 		sql`cast(strftime('%Y', ${escalasTable.data_inicio}) as integer) >= ${anoAtual - 1}` as SQL,
 		sql`cast(strftime('%Y', ${escalasTable.data_inicio}) as integer) <= ${anoAtual + 3}` as SQL
 	);
-	const scopeEscalas =
-		u.papel === 'admin_unidade' && u.lotacao
-			? and(escalasExistentesBase!, eq(escalasTable.lotacao, u.lotacao))
-			: u.papel === 'admin_seccional' && lotacoesPermitidas && lotacoesPermitidas.length > 0
-				? and(escalasExistentesBase!, inArray(escalasTable.lotacao, lotacoesPermitidas))
-				: escalasExistentesBase;
+	const recorteLotacao = lotacaoParam
+		? eq(escalasTable.lotacao, lotacaoParam)
+		: lotacoesPermitidas && lotacoesPermitidas.length > 0
+			? inArray(escalasTable.lotacao, lotacoesPermitidas)
+			: sql`1 = 0`;
+	const scopeEscalas = and(escalasExistentesBase!, recorteLotacao);
 
 	const podeAssinar =
 		(u.papel === 'admin_seccional' || u.papel === 'admin_unidade') && u.cargo === 'DPC';
@@ -163,11 +165,15 @@ export const load: PageServerLoad = async ({ locals, platform, url, depends }) =
 			is_assinada: sql<boolean>`EXISTS (SELECT 1 FROM escala_documentos WHERE escala_id = ${escalasTable.id})`
 		};
 
-		// DPC admin só vê escalas que têm uma solicitação direcionada a eles
-		let scopeCondition;
-		if (u.papel === 'admin_unidade' && u.lotacao) {
+		// DPC admin só vê escalas que têm uma solicitação direcionada a eles.
+		// Sem recorte, o `where` caía só no "sem PDF" e listava o Estado.
+		let scopeCondition: SQL | undefined;
+		if (u.papel === 'admin_unidade' && lotacaoParam) {
 			scopeCondition = or(
-				and(eq(escalaSolicitacoesAssinatura.tipo, 'unidade'), eq(escalasTable.lotacao, u.lotacao)),
+				and(
+					eq(escalaSolicitacoesAssinatura.tipo, 'unidade'),
+					eq(escalasTable.lotacao, lotacaoParam)
+				),
 				and(
 					eq(escalaSolicitacoesAssinatura.tipo, 'respondencia'),
 					eq(escalaSolicitacoesAssinatura.destinatario_id, u.id)
@@ -188,6 +194,8 @@ export const load: PageServerLoad = async ({ locals, platform, url, depends }) =
 					eq(escalaSolicitacoesAssinatura.destinatario_id, u.id)
 				)
 			);
+		} else {
+			scopeCondition = sql`1 = 0`;
 		}
 
 		return db
@@ -197,7 +205,7 @@ export const load: PageServerLoad = async ({ locals, platform, url, depends }) =
 				escalaSolicitacoesAssinatura,
 				eq(escalaSolicitacoesAssinatura.escala_id, escalasTable.id)
 			)
-			.where(scopeCondition ? and(baseWhere, scopeCondition!) : baseWhere)
+			.where(and(baseWhere, scopeCondition))
 			.orderBy(desc(escalasTable.created_at))
 			.limit(50);
 	};
@@ -298,8 +306,31 @@ export const actions: Actions = {
 		const data_fim = data.get('data_fim')?.toString() || '';
 		const hora_entrada = data.get('hora_entrada')?.toString() || '08';
 		const hora_saida = data.get('hora_saida')?.toString() || '08';
-		const lotacao = data.get('lotacao')?.toString() || '';
+		const lotacaoForm = data.get('lotacao')?.toString() || '';
 		const tipo = data.get('tipo')?.toString() as 'plantao' | 'expediente' | 'fds' | '';
+
+		const db = getDB(platform);
+		let lotacao = lotacaoForm;
+		if (u.tipo === 'policial') {
+			const escopo = await lotacoesAdministradas(db, u);
+			if (!escopo || escopo.size === 0) {
+				return fail(403, { error: 'Sem permissão' });
+			}
+			if (lotacaoForm && lotacaoNoEscopo(escopo, lotacaoForm)) {
+				lotacao = lotacaoForm;
+			} else if (escopo.size === 1) {
+				lotacao = [...escopo][0];
+			} else if (u.lotacao && lotacaoNoEscopo(escopo, u.lotacao)) {
+				// Seccional sem lotação no form: cria na própria seccional, que
+				// está no escopo. Não usar lotação atual fora do papel (SEC-06).
+				lotacao = u.lotacao;
+			} else {
+				return fail(400, {
+					error: 'Informe a lotação da escala',
+					fields: { titulo, cidade, data_inicio, data_fim, lotacao: lotacaoForm, tipo }
+				});
+			}
+		}
 
 		const parsed = escalaSchema.safeParse({
 			titulo,
@@ -309,7 +340,7 @@ export const actions: Actions = {
 			horario: `${hora_entrada}H A ${hora_saida}H`,
 			hora_entrada,
 			hora_saida,
-			lotacao: u.tipo === 'policial' ? u.lotacao : lotacao,
+			lotacao,
 			tipo: tipo || undefined
 		});
 
@@ -321,7 +352,6 @@ export const actions: Actions = {
 		}
 
 		const validated = parsed.data;
-		const db = getDB(platform);
 
 		// Valida unicidade
 		if (validated.tipo && validated.lotacao) {
@@ -362,6 +392,14 @@ export const actions: Actions = {
 
 			return { success: true, id: result[0]?.id };
 		} catch (err) {
+			// Corrida perdida contra `uq_escalas_mensal`: o check acima passou nas
+			// duas requisições, o banco recusou a segunda (SEC-34). É 409, não 500.
+			if (ehViolacaoUnique(err)) {
+				return fail(409, {
+					error: 'Já existe uma escala equivalente para esta lotação neste mês.',
+					fields: { titulo, cidade, data_inicio, data_fim, lotacao, tipo }
+				});
+			}
 			logger.error('[escalas/criar] Erro interno ao criar escala', {
 				lotacao,
 				tipo,
@@ -523,6 +561,11 @@ export const actions: Actions = {
 
 			return { success: true, id: novaEscalaId, adicionados, nao_processados: naoProcessados };
 		} catch (err) {
+			if (ehViolacaoUnique(err)) {
+				return fail(409, {
+					error: 'Já existe uma escala equivalente para esta lotação neste mês.'
+				});
+			}
 			logger.error('[escalas/criarComBase] Erro interno', {
 				lotacao,
 				tipo,

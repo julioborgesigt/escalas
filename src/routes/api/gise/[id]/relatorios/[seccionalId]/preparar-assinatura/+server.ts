@@ -27,6 +27,7 @@ import {
 	giseAutorizaSeccionalRelatorioExtra,
 	secIdEhSupervisaoExtra
 } from '$lib/server/gise/supervisao-extra';
+import { identidadeVisualAssinante } from '$lib/server/assinatura/identidade-sessao';
 import {
 	prepararPdfParaAssinatura,
 	adicionarPaginaAuditoria,
@@ -51,14 +52,14 @@ export const POST: RequestHandler = async ({
 }) => {
 	const u = requireAuth(locals);
 	if (u instanceof Response) return u;
-	if (u.tipo !== 'policial' && u.tipo !== 'admin') {
-		return forbidden('Somente policiais supervisores ou administradores podem assinar');
+	if (u.tipo !== 'policial') {
+		return forbidden('Apenas o supervisor designado pode assinar este relatório.');
 	}
 
 	const validated = await validateBody(request, prepararAssinaturaSchema);
 	if (!validated.ok) return validated.response;
 	// `rubrica` do body é ignorada: vem do cadastro do perfil (server-side).
-	const { signerName, signerCpf, latitude, longitude } = validated.data;
+	const { latitude, longitude } = validated.data;
 	const ip = getClientAddress();
 	const ua = request.headers.get('user-agent') || '';
 
@@ -74,17 +75,15 @@ export const POST: RequestHandler = async ({
 	const secOk = await giseAutorizaSeccionalRelatorioExtra(db, id, secIdNum);
 	if (!secOk) return badRequest('Seccional inválida para esta GISE.');
 
-	// Apenas o supervisor designado ou administradores podem assinar relatórios desta GISE
-	if (u.tipo !== 'admin' && gise.supervisor_id !== u.id) {
-		return forbidden(
-			'Apenas o supervisor designado ou administradores podem assinar este relatório.'
-		);
+	// Só o supervisor DESIGNADO. Admin Geral não entra: ver o cabeçalho de
+	// `preparar-assinatura-avancada`.
+	if (gise.supervisor_id !== u.id) {
+		return forbidden('Apenas o supervisor designado pode assinar este relatório.');
 	}
 
 	const presencas = await buscarPresencasGise(db, id, platform?.env);
 
-	const finalSignerName = signerName && signerName.trim() ? signerName : u.nome;
-	const finalSignerCpf = signerCpf && signerCpf.trim() ? signerCpf : u.cpf || '';
+	const { signerName: finalSignerName, signerCpf: finalSignerCpf } = identidadeVisualAssinante(u);
 
 	// Rubrica + matrícula do signatário (supervisor) para o campo + rodapé.
 	const polAss = await buscarPolicial(db, u.id);

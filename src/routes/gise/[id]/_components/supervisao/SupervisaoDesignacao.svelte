@@ -123,6 +123,7 @@
 
 							{#if podeGerenciar}
 								<BotoesEdicaoPapel
+									rotulo="DPC de supervisão"
 									temId={!!quadro.gise.supervisor_id}
 									compacto={false}
 									removendo={quadro.removendoPapel === 'supervisor'}

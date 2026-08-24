@@ -4,6 +4,20 @@
 	 * por tipo de equipe + relatório extraordinário). Extraído do antigo snippet
 	 * `seccionalRelatoriosDownloads` de GiseSeccional; `compact` alterna o layout
 	 * empilhado (accordion mobile) e o inline (barra desktop).
+	 *
+	 * **BAIXAR e ASSINAR têm portões diferentes, e a diferença é o ponto.** O
+	 * bloco de download abre para `isAdminGeral || isSeccional || isSupervisor`;
+	 * os botões que ASSINAM o relatório extraordinário exigem `isSupervisor`
+	 * sozinho. Um Admin Geral vê "Rel. Extra (conferência)" e não vê "Ass. tela"
+	 * nem "Token".
+	 *
+	 * Isto NÃO é divergência: desde ago/2026 as cinco rotas de servidor do
+	 * relatório extra também exigem o supervisor designado. Antes elas aceitavam
+	 * `u.tipo === 'admin'` e admitiam por POST direto o que esta tela nunca
+	 * ofereceu; o porquê da remoção está no cabeçalho de
+	 * `api/gise/[id]/relatorios/[seccionalId]/preparar-assinatura-avancada`.
+	 * Quem afrouxar o `isSupervisor` daqui está afrouxando só a tela — o
+	 * servidor continua recusando.
 	 */
 	import { page } from '$app/state';
 	import type { GiseDetalhado } from '$lib/db/gise';

@@ -8,7 +8,7 @@
 
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { getDB, buscarGiseEscala, atualizarGiseEscala, auditar, contextoDeEvento } from '$lib/db';
+import { getDB, buscarGiseEscala, finalizarGiseEscala, auditar, contextoDeEvento } from '$lib/db';
 import { coletarAfetadosGise, invalidarPapelGiseMultiplos } from '$lib/server/gise/papel-cache';
 import { agendarSyncBaseEquipeAposFinalizar } from '$lib/server/gise/base-equipe-sync';
 import { giseIdParamSchema } from '$lib/schemas';
@@ -41,8 +41,16 @@ export const POST: RequestHandler = async (event) => {
 	}
 
 	// Cache invalidation: supervisor + membros perdem papel ativo após finalizar.
+	// Coletado ANTES de mexer no status — é a lista de caches a invalidar depois.
 	const afetados = await coletarAfetadosGise(db, id);
-	await atualizarGiseEscala(db, id, { status: 'finalizada' });
+
+	// O check de status acima é conveniência para a mensagem; quem DECIDE é o
+	// CAS. Sem ele, duas requisições simultâneas passavam as duas pelo check e
+	// auditavam duas vezes, além de mandar a base de equipe para a planilha
+	// institucional em duplicidade (SEC-35).
+	const { finalizada } = await finalizarGiseEscala(db, id);
+	if (!finalizada) return conflict('Escala já finalizada');
+
 	await invalidarPapelGiseMultiplos(afetados);
 
 	agendarSyncBaseEquipeAposFinalizar(platform, db, id);

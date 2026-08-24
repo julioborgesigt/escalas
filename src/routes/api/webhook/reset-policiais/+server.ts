@@ -6,7 +6,9 @@
  * Antes de executar exige:
  *  1. `Authorization: Bearer <SYNC_TOKEN>`            — segredo padrão de webhooks.
  *  2. `X-Reset-Token: <RESET_TOKEN>`                  — segredo SEPARADO, nunca igual ao SYNC.
- *  3. `X-Confirm-Reset: <YYYY-MM-DD UTC do dia atual>` — anti-replay, válido só hoje.
+ *  3. `X-Confirm-Reset: <YYYY-MM-DD UTC do dia atual>` — confirmação explícita do dia.
+ *  4. `X-Webhook-Timestamp` + `X-Webhook-Nonce`       — anti-replay, janela de 5min.
+ *     **Obrigatórios aqui**, ao contrário dos demais webhooks: ver a nota no corpo.
  *
  * Caso o `RESET_TOKEN` não esteja configurado no ambiente, o endpoint **sempre**
  * retorna 401 — fail-closed por padrão, evitando que um deploy esqueça a guarda.
@@ -22,12 +24,7 @@ import { count } from 'drizzle-orm';
 import { getDB, auditar, contextoDeEvento } from '$lib/db';
 import { logger } from '$lib/server/logger';
 import { compararSegredoUtf8TimingSafe } from '$lib/auth';
-import {
-	SYNC_TOKEN_MIN_LEN,
-	validarReplayProtection,
-	replayEnforceLigado,
-	logFaltaReplayHeaders
-} from '$lib/server/auth/webhook-auth';
+import { SYNC_TOKEN_MIN_LEN, validarReplayProtection } from '$lib/server/auth/webhook-auth';
 import { apiError, ErrorCode, unauthorized, serverError } from '$lib/server/api';
 import {
 	policiais,
@@ -114,20 +111,27 @@ export const POST: RequestHandler = async (event) => {
 
 	const db = getDB(platform);
 
-	// Replay protection (P1.3): EXTRA crítica neste endpoint destrutivo.
-	// A janela X-Confirm-Reset de 24h é grande demais para defender sozinha;
-	// se SYNC+RESET vazarem, o atacante teria 24h para reenviar a mesma
-	// requisição inteira. O nonce + timestamp fecha isso em 5min.
+	// Replay protection (P1.3): INCONDICIONAL neste endpoint.
+	//
+	// A janela do X-Confirm-Reset é de 24h — grande demais para defender sozinha:
+	// se SYNC_TOKEN e RESET_TOKEN vazarem juntos, uma requisição capturada é
+	// reproduzível por um dia inteiro. O nonce + timestamp fecha isso em 5min, e
+	// é justamente por isso que ele não pode ser opcional AQUI.
+	//
+	// Os demais webhooks respeitam `WEBHOOK_REPLAY_ENFORCE` porque a flag existe
+	// para o rollout do emissor (o Apps Script precisa ser atualizado antes de o
+	// receptor endurecer). Este não entra nessa conta: rollout é para operação
+	// contínua, e este endpoint apaga catorze tabelas de forma irreversível. O
+	// custo de exigir os headers é uma linha no script que dispara o reset; o
+	// custo de não exigir é um replay destrutivo dentro da janela de 24h.
 	const replay = await validarReplayProtection(db, request);
 	if (!replay.ok) {
-		const ctx = { ip, reason: replay.reason };
-		if (replay.reason === 'missing-headers' && !replayEnforceLigado(env)) {
-			// Endpoint destrutivo — sempre log alto, ignora isProduction.
-			logFaltaReplayHeaders('reset-policiais (alta sensibilidade)', ctx, true);
-		} else {
-			logger.warn('[reset-policiais] replay protection rejeitou', ctx);
-			return unauthorized();
-		}
+		logger.warn('[reset-policiais] replay protection rejeitou', { ip, reason: replay.reason });
+		return apiError(
+			'Requisição sem proteção anti-replay. Envie X-Webhook-Timestamp e X-Webhook-Nonce.',
+			401,
+			ErrorCode.AUTH_REQUIRED
+		);
 	}
 
 	// Snapshot pré-deleção. Útil para auditoria/recuperação forense.

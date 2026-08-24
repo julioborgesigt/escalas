@@ -89,6 +89,37 @@ const TSA_PUBLICAS_NAO_ICP = [
  * reconhecemos (essa cai no ramo `coerente:true`, e o 422 real — se houver —
  * traz a mensagem genérica).
  */
+/**
+ * `TSA_URL` está em texto claro (`http://`)?
+ *
+ * O carimbo RFC 3161 é ASSINADO pela TSA, então um MITM no caminho **não
+ * forja** um carimbo válido — o que ele consegue é NEGAR o carimbo (derrubando
+ * a resposta, e a assinatura cai para o horário do servidor) e observar o hash
+ * carimbado, que é hash de PDF e revela pouco. Por isso isto é aviso, não
+ * bloqueio (SEC-26).
+ *
+ * **O default do `wrangler.toml` é HTTP de propósito, e foi medido:** o
+ * endpoint RFC 3161 da DigiCert responde 200 `application/timestamp-reply` em
+ * `http://timestamp.digicert.com` e **reseta a conexão em HTTPS** — o 443
+ * daquele host serve o site, não o serviço de carimbo. Trocar o default para
+ * `https://` quebraria o carimbo de toda instalação que não configura
+ * `TSA_URL`. TSAs que servem RFC 3161 sobre TLS existem (`https://freetsa.org/tsr`
+ * responde), e toda ACT ICP-Brasil publica endpoint HTTPS — que é para onde
+ * `TSA_URL` deve apontar em produção de qualquer forma.
+ *
+ * Devolve `false` para URL ausente ou inválida: quem reclama disso é
+ * `avaliarConfiguracaoTsa`, e dois avisos para o mesmo defeito viram ruído.
+ */
+export function tsaEmTextoClaro(env?: Record<string, string | undefined>): boolean {
+	const url = env?.TSA_URL ?? (typeof process !== 'undefined' ? process.env?.TSA_URL : undefined);
+	if (!url || !url.trim()) return false;
+	try {
+		return new URL(url).protocol === 'http:';
+	} catch {
+		return false;
+	}
+}
+
 export function avaliarConfiguracaoTsa(env?: Record<string, string | undefined>): {
 	coerente: boolean;
 	motivo?: string;
@@ -364,7 +395,10 @@ export async function verificarECarimbarAssinatura(
 	}
 	if (tstAplicadoServerSide) {
 		logger.info('[CADES] TST anexado server-side via TSA', {
-			url: options.env?.TSA_URL
+			url: options.env?.TSA_URL,
+			// SEC-26: o carimbo é assinado, então texto claro não permite forjar —
+			// permite NEGAR. Fica no log para o operador que pode trocar por HTTPS.
+			textoClaro: tsaEmTextoClaro(options.env)
 		});
 	}
 

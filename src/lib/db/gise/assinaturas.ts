@@ -14,6 +14,7 @@
 import { eq, and, desc, sql } from 'drizzle-orm';
 import { giseAssinaturasRelatorios, gisePresencaTermos, policiais } from '../../server/schema';
 import type { Database } from '../core';
+import { linhasAfetadas } from '../core';
 import { cifrarCpfParaArmazenar, type CpfCriptoEnv } from '../../crypto/cpf-cripto';
 import {
 	montarCamposMinimizados,
@@ -80,8 +81,8 @@ export async function buscarAssinaturaRelatorioGise(
 }
 
 /**
- * Registra (ou substitui) a assinatura do relatório. Reassinar sobrescreve a
- * linha inteira, inclusive o `created_at`: o que vale é a assinatura vigente.
+ * Insere a assinatura do relatório. UNIQUE na trinca recusa o segundo
+ * (SEC-32). Reassinar exige revogar a linha antes.
  *
  * `tipo_assinatura` guarda COMO foi assinado — `simples` (em tela),
  * `webpki`/`serpro` (certificado ICP-Brasil) — e é o que a validação usa para
@@ -121,10 +122,6 @@ export async function salvarAssinaturaRelatorioGise(
 	// A trinca do conflito fica de fora do payload: identifica a linha, não é
 	// conteúdo a reescrever.
 	const { gise_id, seccional_id, tipo } = data;
-	// Mesmos campos no INSERT e no UPDATE — montados uma vez para não divergirem.
-	// Era um relatório reassinado como `simples` seguindo com o certificado
-	// ICP-Brasil, o carimbo de tempo e a selfie da assinatura qualificada que ele
-	// substituiu — ver `montarCamposMinimizados` para o porquê do `null` explícito.
 	const dados = {
 		assinante_nome: data.assinante_nome,
 		tipo_assinatura: data.tipo_assinatura,
@@ -147,19 +144,11 @@ export async function salvarAssinaturaRelatorioGise(
 		})
 	};
 
-	return db
+	const r = await db
 		.insert(giseAssinaturasRelatorios)
 		.values({ gise_id, seccional_id, tipo, ...dados })
-		.onConflictDoUpdate({
-			target: [
-				giseAssinaturasRelatorios.gise_id,
-				giseAssinaturasRelatorios.seccional_id,
-				giseAssinaturasRelatorios.tipo
-			],
-			// Reassinar substitui a assinatura anterior por inteiro, inclusive o
-			// carimbo de criação.
-			set: { ...dados, created_at: sql`datetime('now', '-3 hours')` }
-		});
+		.onConflictDoNothing();
+	return { gravado: linhasAfetadas(r) > 0 };
 }
 
 /**
@@ -189,27 +178,31 @@ export async function salvarTermoPresencaGise(
 	env?: CpfCriptoEnv
 ) {
 	const cpfArmazenado = (await cifrarCpfParaArmazenar(data.assinante_cpf, env)) ?? null;
-	return db.insert(gisePresencaTermos).values({
-		gise_id: data.gise_id,
-		policial_id: data.policial_id,
-		tipo: data.tipo,
-		assinante_nome: data.assinante_nome,
-		assinante_cpf: cpfArmazenado,
-		assinante_email: data.assinante_email ?? null,
-		verification_hash: data.verification_hash,
-		r2_key: data.r2_key ?? null,
-		arquivo_hash: data.arquivo_hash,
-		...montarCamposMinimizados({
-			ipAddress: data.ip_address,
-			userAgent: data.user_agent,
-			latitude: data.latitude,
-			longitude: data.longitude,
-			tipoCarimboTempo: data.tipo_carimbo_tempo,
-			cadesMeta: data,
-			passkeyMeta: data.passkeyMeta
-		}),
-		created_at: sql`datetime('now', '-3 hours')`
-	});
+	const r = await db
+		.insert(gisePresencaTermos)
+		.values({
+			gise_id: data.gise_id,
+			policial_id: data.policial_id,
+			tipo: data.tipo,
+			assinante_nome: data.assinante_nome,
+			assinante_cpf: cpfArmazenado,
+			assinante_email: data.assinante_email ?? null,
+			verification_hash: data.verification_hash,
+			r2_key: data.r2_key ?? null,
+			arquivo_hash: data.arquivo_hash,
+			...montarCamposMinimizados({
+				ipAddress: data.ip_address,
+				userAgent: data.user_agent,
+				latitude: data.latitude,
+				longitude: data.longitude,
+				tipoCarimboTempo: data.tipo_carimbo_tempo,
+				cadesMeta: data,
+				passkeyMeta: data.passkeyMeta
+			}),
+			created_at: sql`datetime('now', '-3 hours')`
+		})
+		.onConflictDoNothing();
+	return { gravado: linhasAfetadas(r) > 0 };
 }
 
 /** Evidência mínima de um termo de presença qualificado (Token A3), para o

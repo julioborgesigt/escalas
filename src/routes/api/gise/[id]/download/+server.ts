@@ -27,6 +27,7 @@ import {
 	buscarAssinaturaRelatorioGise
 } from '$lib/db';
 import { isAdminGeral, isAdminSeccional } from '$lib/auth';
+import { escalaGiseJaAssinada } from '$lib/gise/status-escala';
 import { verificarPermissaoGise } from '$lib/server/gise/permissao';
 import {
 	podeBaixarComManifesto,
@@ -38,6 +39,7 @@ import { registrarAuditComContexto } from '$lib/db/audit';
 import { tryGetR2 } from '$lib/db';
 import { giseDownloadSchema, giseIdParamSchema } from '$lib/schemas';
 import {
+	CACHE_PRIVADO,
 	contentDisposition,
 	requireAuth,
 	badRequest,
@@ -58,6 +60,7 @@ import {
 } from '$lib/server/gise/xlsx-workbook-append';
 import ExcelJS from 'exceljs';
 import { mensagemDeErro } from '$lib/utils/erro';
+import { recorteSeccionalVisivel } from '$lib/gise/recorte-seccional';
 
 export const GET: RequestHandler = async ({ locals, params, platform, url }) => {
 	const u = requireAuth(locals);
@@ -138,7 +141,7 @@ export const GET: RequestHandler = async ({ locals, params, platform, url }) => 
 							headers: {
 								'Content-Type': 'application/pdf',
 								'Content-Disposition': contentDisposition(filename),
-								'Cache-Control': 'no-cache'
+								'Cache-Control': CACHE_PRIVADO
 							}
 						});
 					} else {
@@ -163,7 +166,7 @@ export const GET: RequestHandler = async ({ locals, params, platform, url }) => 
 						headers: {
 							'Content-Type': 'application/pdf',
 							'Content-Disposition': contentDisposition(filename),
-							'Cache-Control': 'no-cache'
+							'Cache-Control': CACHE_PRIVADO
 						}
 					});
 				}
@@ -199,7 +202,7 @@ export const GET: RequestHandler = async ({ locals, params, platform, url }) => 
 					headers: {
 						'Content-Type': 'application/pdf',
 						'Content-Disposition': contentDisposition(filename),
-						'Cache-Control': 'no-cache'
+						'Cache-Control': CACHE_PRIVADO
 					}
 				});
 			} catch (err) {
@@ -255,7 +258,7 @@ export const GET: RequestHandler = async ({ locals, params, platform, url }) => 
 				headers: {
 					'Content-Type': 'application/pdf',
 					'Content-Disposition': contentDisposition(filename),
-					'Cache-Control': 'no-cache'
+					'Cache-Control': CACHE_PRIVADO
 				}
 			});
 		} catch (err) {
@@ -280,7 +283,7 @@ export const GET: RequestHandler = async ({ locals, params, platform, url }) => 
 								'Content-Disposition': contentDisposition(
 									`gise_${gise.data_inicio}_assinada_manifesto.pdf`
 								),
-								'Cache-Control': 'no-cache'
+								'Cache-Control': CACHE_PRIVADO
 							}
 						});
 					}
@@ -305,7 +308,7 @@ export const GET: RequestHandler = async ({ locals, params, platform, url }) => 
 						headers: {
 							'Content-Type': 'application/pdf',
 							'Content-Disposition': contentDisposition(`conferencia_gise_${gise.data_inicio}.pdf`),
-							'Cache-Control': 'no-cache'
+							'Cache-Control': CACHE_PRIVADO
 						}
 					});
 				}
@@ -352,7 +355,7 @@ export const GET: RequestHandler = async ({ locals, params, platform, url }) => 
 				headers: {
 					'Content-Type': 'application/pdf',
 					'Content-Disposition': contentDisposition(`conferencia_gise_${gise.data_inicio}.pdf`),
-					'Cache-Control': 'no-cache'
+					'Cache-Control': CACHE_PRIVADO
 				}
 			});
 		}
@@ -361,7 +364,7 @@ export const GET: RequestHandler = async ({ locals, params, platform, url }) => 
 			headers: {
 				'Content-Type': 'application/pdf',
 				'Content-Disposition': contentDisposition(`rascunho_${gise.data_inicio}.pdf`),
-				'Cache-Control': 'no-cache'
+				'Cache-Control': CACHE_PRIVADO
 			}
 		});
 	}
@@ -377,6 +380,11 @@ export const GET: RequestHandler = async ({ locals, params, platform, url }) => 
 			(s) => s.id === seccionalId || s.seccional_id === seccionalId
 		);
 		if (!seccional) return notFound('Seccional');
+
+		// SEC-20: participação na GISE não autoriza o recorte de OUTRA seccional.
+		if (!recorteSeccionalVisivel(u, gise, seccional)) {
+			return forbidden('Sem permissão para o relatório de produtividade desta seccional.');
+		}
 
 		// Achatar todas as equipes da seccional (de todas as unidades)
 		const todasEquipes = (seccional.unidades ?? []).flatMap((u) => u.equipes ?? []);
@@ -401,18 +409,12 @@ export const GET: RequestHandler = async ({ locals, params, platform, url }) => 
 			headers: {
 				'Content-Type': 'application/pdf',
 				'Content-Disposition': contentDisposition(filename),
-				'Cache-Control': 'no-cache'
+				'Cache-Control': CACHE_PRIVADO
 			}
 		});
 	}
 
-	if (
-		gise.status !== 'em_andamento' &&
-		gise.status !== 'aguardando_relatorios' &&
-		gise.status !== 'aguardando_assinatura_relat' &&
-		gise.status !== 'pronta_para_finalizar' &&
-		gise.status !== 'finalizada'
-	) {
+	if (!escalaGiseJaAssinada(gise.status)) {
 		return badRequest('Download só é liberado após a assinatura do Supervisor.');
 	}
 
@@ -430,7 +432,7 @@ export const GET: RequestHandler = async ({ locals, params, platform, url }) => 
 		headers: {
 			'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
 			'Content-Disposition': contentDisposition(filename),
-			'Cache-Control': 'no-cache'
+			'Cache-Control': CACHE_PRIVADO
 		}
 	});
 };

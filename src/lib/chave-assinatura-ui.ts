@@ -60,13 +60,17 @@ export function mensagemConviteChave(isMobile: boolean): string {
 /**
  * Já há chave: sync da conta Apple/Google NÃO é cadastro novo. Cadastrar de
  * novo substitui — é só para troca ou perda de aparelho.
+ *
+ * Texto enxugado a pedido do produto (ago/2026): mantém só o essencial —
+ * quando NÃO cadastrar de novo, quando cadastrar, e que documentos antigos
+ * não são afetados. As substrings verificadas em `chave-assinatura.test.ts`
+ * continuam presentes de propósito.
  */
 export function mensagemJaTemChaveNoPerfil(): string {
 	return (
-		'Você já tem chave de assinatura. Se este celular usa a mesma conta Apple/Google, ' +
-		'não cadastre de novo — assine normalmente. Só registre aqui se trocou de aparelho ' +
-		'ou perdeu o anterior: a chave antiga deixa de valer para novas assinaturas. ' +
-		'Os documentos já assinados continuam válidos.'
+		'Mesma conta Apple/Google neste celular? Então não cadastre de novo — assine normalmente. ' +
+		'Só registre aqui se trocou de aparelho ou perdeu o anterior: a chave antiga deixa de ' +
+		'valer, mas os documentos já assinados continuam válidos.'
 	);
 }
 
@@ -99,16 +103,31 @@ export function mensagemChaveNoCartaoAdmin(): string {
 }
 
 /**
+ * Nota junto do provedor (AAGUID): o AAGUID é DECLARADO pelo autenticador na
+ * cerimônia de cadastro, não verificado pelo servidor — mesma ressalva do
+ * `attestation: 'none'` já documentada no resto do módulo `webauthn/`. Por
+ * isso não entra no manifesto do PDF, só nas telas de perfil e da ficha do
+ * policial. Curto de propósito: aparece como parêntese ao lado do nome do
+ * provedor, não como frase separada.
+ */
+export function notaProvedorDeclarado(): string {
+	return 'não verificado';
+}
+
+/**
  * Titular perguntando "em qual celular cadastrei?". Não gravamos modelo,
  * IMEI nem nome (`attestation: 'none'`). O vínculo (conta Apple/Google ×
  * só aquele aparelho) e o recorte são o que dá para mostrar.
+ *
+ * Enxugado a pedido do produto (ago/2026) — a UI move este texto para um
+ * "Onde está minha chave?" recolhível, então a frase não precisa mais
+ * reintroduzir o contexto ("a frase de vínculo acima"). As substrings que
+ * `chave-assinatura.test.ts` verifica continuam presentes de propósito.
  */
 export function mensagemOndeEstaAChave(): string {
 	return (
-		'O sistema não guarda o modelo do celular. A frase de vínculo acima diz se a chave está ' +
-		'na sua conta Apple/Google (vários aparelhos) ou só naquele que cadastrou. ' +
-		'Para localizar: no iPhone, Ajustes → Senhas → Chaves-de-acesso; no Android, ' +
-		'Gerenciador de senhas do Google. Ou tente assinar neste celular — o aparelho que ' +
-		'tiver a chave pede a biometria.'
+		'O sistema não guarda o modelo do celular, só se a chave está numa conta Apple/Google ' +
+		'ou só neste aparelho. Para localizar: iPhone → Ajustes → Senhas → Chaves-de-acesso; ' +
+		'Android → Gerenciador de senhas do Google.'
 	);
 }

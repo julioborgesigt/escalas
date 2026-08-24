@@ -5,46 +5,56 @@
  * assinou, rubrica, prova de vida, GPS, metadados do certificado A3 e resposta
  * OCSP — que a página `/validar` usa para conferir o arquivo depois.
  */
-import { eq, sql } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 import { giseDocumentos } from '../../server/schema';
 import type * as schema from '../../server/schema';
 import type { Database } from '../core';
-import { cifrarCpfParaArmazenar, type CpfCriptoEnv } from '../../crypto/cpf-cripto';
+import { linhasAfetadas } from '../core';
+import { cifrarCpfParaArmazenar } from '../../crypto/cpf-cripto';
 
-/** Tipo usado só localmente (a origem, `$lib/db/documentos`, é quem os outros módulos importam). */
-import type { AssinaturaCadesMetadata, AssinaturaPasskeyMetadata } from '../documentos';
-import { montarCamposMinimizados } from '../documentos';
+// `CircunstanciaAssinatura` traz junto CPF-env, CAdES e passkey — os três tipos
+// que este módulo importava um a um antes de a circunstância virar um tipo só.
+import { montarCamposMinimizados, type CircunstanciaAssinatura } from '../documentos';
 
-/** Insere o documento assinado ou substitui o anterior (upsert por `gise_id`). */
-export async function salvarGiseDocumento(
-	db: Database,
-	giseId: number,
-	r2Key: string,
-	assinanteId: number,
-	assinanteNome: string,
-	assinanteCpf: string,
-	verificacaoHash: string,
-	rubrica?: string,
-	ipAddress?: string,
-	userAgent?: string,
-	latitude?: number,
-	longitude?: number,
-	selfieKey?: string,
-	arquivoHash?: string,
-	assinanteEmail?: string,
-	tipoCarimboTempo?: string,
-	cadesMeta?: AssinaturaCadesMetadata,
-	env?: CpfCriptoEnv,
-	// Depois de `env`, como em `salvarDocumentoEscala`: a lista posicional já
-	// está no limite. Quem usa passkey passa os dois últimos explicitamente.
-	passkeyMeta?: AssinaturaPasskeyMetadata
-) {
+/**
+ * O que se grava numa assinatura de escala GISE. NOMEADO — ver o porquê no
+ * `DocumentoEscalaEntrada` de `$lib/db/documentos`: eram 19 posicionais, e o
+ * call site do `finalizar-assinatura` passava DOIS `undefined` nus, um deles
+ * (`rubrica`) sem nem um comentário ao lado.
+ *
+ * Difere da entrada da escala em três campos, e a diferença é real: aqui
+ * `assinanteId`, `assinanteCpf` e `verificacaoHash` são OBRIGATÓRIOS, e existe
+ * `rubrica`. É por isso que as duas não viram uma função só — o que de fato
+ * compartilhavam (a minimização LGPD) já está em `montarCamposMinimizados`.
+ */
+export interface DocumentoGiseEntrada extends CircunstanciaAssinatura {
+	giseId: number;
+	r2Key: string;
+	assinanteId: number;
+	assinanteNome: string;
+	assinanteCpf: string;
+	verificacaoHash: string;
+	rubrica?: string;
+}
+
+/** Insere o documento assinado. UNIQUE em `gise_id` recusa o segundo (SEC-32). */
+export async function salvarGiseDocumento(db: Database, entrada: DocumentoGiseEntrada) {
+	const {
+		giseId,
+		r2Key,
+		assinanteId,
+		assinanteNome,
+		assinanteCpf,
+		verificacaoHash,
+		rubrica,
+		selfieKey,
+		arquivoHash,
+		assinanteEmail
+	} = entrada;
+
 	// CPF cifrado em repouso (LGPD Fase 2).
-	const cpfArmazenado = await cifrarCpfParaArmazenar(assinanteCpf, env);
+	const cpfArmazenado = await cifrarCpfParaArmazenar(assinanteCpf, entrada.env);
 
-	// Mesmos campos no INSERT e no UPDATE do upsert — montados uma vez só para
-	// não haver o risco clássico de acrescentar coluna em um lado e esquecer o
-	// outro. `gise_id` fica de fora: é o alvo do conflito.
 	const dados = {
 		r2_key: r2Key,
 		assinante_id: assinanteId,
@@ -55,32 +65,21 @@ export async function salvarGiseDocumento(
 		selfie_key: selfieKey ?? null,
 		arquivo_hash: arquivoHash ?? null,
 		rubrica: rubrica || null,
-		...montarCamposMinimizados({
-			ipAddress,
-			userAgent,
-			latitude,
-			longitude,
-			tipoCarimboTempo,
-			cadesMeta,
-			passkeyMeta
-		})
+		// `entrada` já é uma `CircunstanciaAssinatura` — o objeto inteiro vai, e a
+		// lista de campos não se repete entre esta gravação e a da escala.
+		...montarCamposMinimizados(entrada)
 	};
 
-	return db
+	const r = await db
 		.insert(giseDocumentos)
 		.values({ gise_id: giseId, ...dados })
-		.onConflictDoUpdate({
-			target: [giseDocumentos.gise_id],
-			// Reassinatura substitui o documento anterior por inteiro, inclusive o
-			// carimbo de criação — o que vale é a assinatura vigente.
-			set: { ...dados, created_at: sql`datetime('now', '-3 hours')` }
-		});
+		.onConflictDoNothing();
+	return { gravado: linhasAfetadas(r) > 0 };
 }
 
 /**
  * A assinatura vigente da escala GISE, ou `undefined` se ainda não foi assinada
- * — há no máximo uma por GISE (`gise_id` é o alvo do conflito no upsert).
- * `assinante_cpf` sai cifrado.
+ * — há no máximo uma por GISE (`gise_id` unique). `assinante_cpf` sai cifrado.
  */
 export async function buscarGiseDocumento(
 	db: Database,

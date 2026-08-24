@@ -20,6 +20,7 @@ import {
 	adicionarTodosPoliciais
 } from '$lib/db';
 import { logger } from '$lib/server/logger';
+import { ehViolacaoUnique } from '$lib/server/db-errors';
 import { eq, and, inArray } from 'drizzle-orm';
 import { escalaPoliciais } from '$lib/server/schema';
 import {
@@ -193,7 +194,10 @@ export const actionsComposicao = {
 			});
 
 			return { success: true, policiais, conflitantes };
-		} catch {
+		} catch (e) {
+			if (ehViolacaoUnique(e)) {
+				return fail(409, { error: 'Este policial já está escalado neste dia.' });
+			}
 			return fail(500, { error: 'Erro ao adicionar policial à escala de plantão' });
 		}
 	},
@@ -245,6 +249,9 @@ export const actionsComposicao = {
 
 			return { success: true, quantidade, policiais };
 		} catch (err) {
+			if (ehViolacaoUnique(err)) {
+				return fail(409, { error: 'Há servidor já escalado neste dia.' });
+			}
 			logger.error('[escalas/adicionarTodos] Erro ao adicionar servidores', {
 				escalaId,
 				lotacao: escala.lotacao,

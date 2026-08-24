@@ -7,17 +7,19 @@
 	 * volume for o de um ano de GISEs; se a listagem crescer, é este ponto que
 	 * precisa virar consulta paginada, não a UI ao redor.
 	 *
-	 * Os três filtros de tempo (data exata, mês, ciclo) são MUTUAMENTE
-	 * EXCLUSIVOS, e a exclusão é imposta nos handlers: escolher um limpa os
-	 * outros dois. A precedência no `$derived` — data > mês > ciclo — é a rede
-	 * de segurança para qualquer estado que escape disso. Os três campos ficam
-	 * visíveis ao mesmo tempo, então sem essa regra o resultado dependeria da
-	 * ordem em que o usuário tocou nos campos.
+	 * A barra de busca detalhada replica `/res-gise` (`FiltroHistoricoSegmento` e
+	 * tokens em `$lib/gise/filtro-historico-ui`), com o seletor de seccional a mais.
+	 *
+	 * Os três modos de tempo (mês civil, ciclo 21→20 e data exata) são MUTUAMENTE
+	 * EXCLUSIVOS na consulta: só o recorte do modo ativo entra no predicado.
+	 * Os campos nascem preenchidos com o ciclo/mês/dia correntes; o padrão da
+	 * lista é o ciclo que contém hoje. Trocar o seletor esconde o campo inativo
+	 * sem apagar o valor, para o usuário não perder o recorte ao ir e voltar.
 	 *
 	 * Exportar exige um recorte de tempo ativo (`podeExportarHistorico`): sem
 	 * ele o arquivo sairia com a base inteira. É por isso que o botão nasce
 	 * desabilitado mesmo para o Admin Geral, e o histórico já abre filtrado pelo
-	 * mês corrente.
+	 * ciclo corrente.
 	 */
 	import { goto } from '$app/navigation';
 	import SkeletonCards from '$lib/components/SkeletonCards.svelte';
@@ -27,19 +29,28 @@
 	import { baixarBlob, nomeArquivoContentDisposition } from '$lib/utils/download';
 	import { loading } from '$lib/loading.svelte';
 	import { toaster } from '$lib/toast';
-	import { slide } from 'svelte/transition';
 	import { Popover, Portal } from '@skeletonlabs/skeleton-svelte';
 	import Paginador from '$lib/components/Paginador.svelte';
 	import { statusLabel, statusColor, fmtDate, diaSemana } from '$lib/gise/formatters';
+	import { hojeLocalISO } from '$lib/utils/datas';
 	import { SvelteURLSearchParams } from 'svelte/reactivity';
-	import { CICLOS, getCicloRange } from '$lib/gise/ciclos';
+	import { escalaPassaRecorteHistorico, type TipoEquipe } from '$lib/gise/historico-filtro';
+	import { anosParaSeletorCiclo, cicloQueContem } from '$lib/gise/ciclos';
+	import FiltroHistoricoSegmento from '$lib/gise/FiltroHistoricoSegmento.svelte';
+	import CamposPeriodoHistorico from '$lib/gise/CamposPeriodoHistorico.svelte';
+	import {
+		CLASSE_BARRA_FILTRO,
+		CLASSE_CAMPO_FILTRO,
+		CLASSE_INPUT_FILTRO,
+		CLASSE_ROTULO_FILTRO
+	} from '$lib/gise/filtro-historico-ui';
 	import Download from '@lucide/svelte/icons/download';
 	import Search from '@lucide/svelte/icons/search';
 	import { mensagemDeErro } from '$lib/utils/erro';
 
 	/**
-	 * Bloco "Histórico" da lista `/gise`: escalas finalizadas, com filtros
-	 * (seccional, mês, ciclo ou data exata), paginação e — para o Admin Geral —
+	 * Corpo da página `/gise/finalizadas`: escalas encerradas, com filtros
+	 * (seccional, tipo de equipe, mês, ciclo ou data exata), paginação e
 	 * exportação em XLSX/PDF do recorte filtrado.
 	 */
 	const {
@@ -59,74 +70,69 @@
 		isAdminGeral: boolean;
 	} = $props();
 
-	/** "2026-07" — o histórico já abre filtrado pelo mês corrente. */
+	/** "2026-07" — recorte civil, usado quando o modo é mês/ano. */
 	function getCurrentMonth() {
-		const d = new Date();
-		return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+		return hojeLocalISO().slice(0, 7);
 	}
 
+	type ModoPeriodo = 'mes' | 'ciclo' | 'data';
+
+	const cicloCorrente = cicloQueContem(hojeLocalISO());
+
 	let filtroSeccional = $state<number | ''>('');
+	let filtroTipoEquipe = $state<TipoEquipe | ''>('');
+	let modoPeriodo = $state<ModoPeriodo>('ciclo');
 	let filtroMesAno = $state(getCurrentMonth());
-	let filtroAnoCiclo = $state<number | ''>('');
-	let filtroNumeroCiclo = $state<number | ''>('');
-	let filtroData = $state('');
-	let mostrarFiltrosHistorico = $state(false);
+	let filtroData = $state(hojeLocalISO());
+	let filtroAnoCiclo = $state(cicloCorrente.ano);
+	let filtroNumeroCiclo = $state(cicloCorrente.ciclo);
 	let paginaHistorico = $state(1);
 
 	const ITEMS_POR_PAGINA = 5;
 
 	const samePathNav = useSamePathNavigating();
 
-	const anosDisponiveisHistorico = $derived(
-		([...new Set(historico.map((e) => Number(e.data_inicio.slice(0, 4))))] as number[]).sort(
-			(a, b) => b - a
-		)
-	);
-
-	// Precedência dos filtros de tempo: data exata > mês > ciclo. Os três campos
-	// ficam visíveis ao mesmo tempo, então o mais específico é quem manda.
 	const historicoFiltrado = $derived(
-		historico.filter((e) => {
-			if (
-				filtroSeccional !== '' &&
-				!(e.seccionais ?? []).some((sec) => sec.id === Number(filtroSeccional))
-			)
-				return false;
-			if (filtroData) {
-				if ((e.data_inicio as string) !== filtroData) return false;
-			} else if (filtroMesAno && !e.data_inicio.startsWith(filtroMesAno)) return false;
-			else if (!filtroMesAno && !filtroData && filtroAnoCiclo !== '' && filtroNumeroCiclo !== '') {
-				const { inicio, fim } = getCicloRange(Number(filtroAnoCiclo), Number(filtroNumeroCiclo));
-				if ((e.data_inicio as string) < inicio || (e.data_inicio as string) > fim) return false;
-			}
-			return true;
-		})
+		historico.filter((e) =>
+			escalaPassaRecorteHistorico(e, {
+				seccionalId: filtroSeccional === '' ? null : Number(filtroSeccional),
+				tipoEquipe: filtroTipoEquipe || null,
+				mesAno: modoPeriodo === 'mes' ? filtroMesAno : null,
+				data: modoPeriodo === 'data' ? filtroData : null,
+				anoCiclo: modoPeriodo === 'ciclo' ? filtroAnoCiclo : null,
+				numeroCiclo: modoPeriodo === 'ciclo' ? filtroNumeroCiclo : null
+			})
+		)
 	);
 
 	// Exportar exige um recorte de tempo: sem isso o arquivo traria a base inteira.
 	const podeExportarHistorico = $derived(
 		isAdminGeral &&
-			(!!filtroMesAno || (filtroAnoCiclo !== '' && filtroNumeroCiclo !== '') || !!filtroData)
+			((modoPeriodo === 'mes' && !!filtroMesAno) ||
+				(modoPeriodo === 'data' && !!filtroData) ||
+				(modoPeriodo === 'ciclo' && filtroAnoCiclo != null && filtroNumeroCiclo != null))
 	);
 
-	const historicoFiltroMesAtivo = $derived(!!filtroMesAno);
-	const historicoFiltroCicloAtivo = $derived(filtroAnoCiclo !== '' && filtroNumeroCiclo !== '');
-	const historicoFiltroDataAtivo = $derived(!!filtroData);
-	const temFiltros = $derived(
-		filtroSeccional !== '' ||
-			!!filtroMesAno ||
-			filtroAnoCiclo !== '' ||
-			filtroNumeroCiclo !== '' ||
-			!!filtroData
-	);
+	const temFiltros = $derived.by(() => {
+		if (filtroSeccional !== '' || filtroTipoEquipe !== '') return true;
+		if (modoPeriodo === 'data' || modoPeriodo === 'mes') return true;
+		const corrente = cicloQueContem(hojeLocalISO());
+		return filtroAnoCiclo !== corrente.ano || filtroNumeroCiclo !== corrente.ciclo;
+	});
+
+	const anosCiclo = $derived.by(() => {
+		const base = anosParaSeletorCiclo(hojeLocalISO());
+		if (!base.includes(filtroAnoCiclo)) return [...base, filtroAnoCiclo].sort((a, b) => a - b);
+		return base;
+	});
 
 	const historicoExportSlug = $derived(
-		filtroMesAno
+		modoPeriodo === 'mes' && filtroMesAno
 			? filtroMesAno.replace('-', '')
-			: filtroData
+			: modoPeriodo === 'data' && filtroData
 				? `d${filtroData.replace(/-/g, '')}`
-				: filtroAnoCiclo !== '' && filtroNumeroCiclo !== ''
-					? `c${filtroNumeroCiclo}_a${filtroAnoCiclo}`
+				: modoPeriodo === 'ciclo'
+					? `c${filtroAnoCiclo}${String(filtroNumeroCiclo).padStart(2, '0')}`
 					: 'export'
 	);
 
@@ -134,16 +140,17 @@
 		const p = new SvelteURLSearchParams();
 		p.set('format', format);
 		if (filtroSeccional !== '') p.set('seccionalId', String(filtroSeccional));
-		if (filtroMesAno) {
+		if (filtroTipoEquipe) p.set('tipoEquipe', filtroTipoEquipe);
+		if (modoPeriodo === 'mes' && filtroMesAno) {
 			p.set('periodo', 'mes');
 			p.set('mesAno', filtroMesAno);
-		} else if (filtroAnoCiclo !== '' && filtroNumeroCiclo !== '') {
+		} else if (modoPeriodo === 'data' && filtroData) {
+			p.set('periodo', 'data');
+			p.set('data', filtroData);
+		} else if (modoPeriodo === 'ciclo') {
 			p.set('periodo', 'ciclo');
 			p.set('ano', String(filtroAnoCiclo));
 			p.set('ciclo', String(filtroNumeroCiclo));
-		} else if (filtroData) {
-			p.set('periodo', 'data');
-			p.set('data', filtroData);
 		}
 		return `/api/gise/historico/export?${p.toString()}`;
 	}
@@ -170,39 +177,32 @@
 		}
 	}
 
-	function onMesAnoHistoricoInput(e: Event & { currentTarget: HTMLInputElement }) {
-		filtroMesAno = e.currentTarget.value;
-		if (filtroMesAno) {
-			filtroAnoCiclo = '';
-			filtroNumeroCiclo = '';
-			filtroData = '';
+	function onModoPeriodoMudou(raw: string | null) {
+		if (raw !== 'data' && raw !== 'ciclo' && raw !== 'mes') return;
+		const modo: ModoPeriodo = raw;
+		modoPeriodo = modo;
+		if (modo === 'mes') {
+			if (!filtroMesAno) filtroMesAno = getCurrentMonth();
+		} else if (modo === 'data') {
+			if (!filtroData) filtroData = hojeLocalISO();
+		} else {
+			const corrente = cicloQueContem(hojeLocalISO());
+			if (!filtroAnoCiclo) filtroAnoCiclo = corrente.ano;
+			if (!filtroNumeroCiclo) filtroNumeroCiclo = corrente.ciclo;
 		}
-	}
-
-	function onAnoCicloHistoricoMudou() {
-		if (filtroAnoCiclo === '') {
-			filtroNumeroCiclo = '';
-			return;
-		}
-		filtroMesAno = '';
-		filtroData = '';
-	}
-
-	function onDataEspecificaHistoricoInput(e: Event & { currentTarget: HTMLInputElement }) {
-		filtroData = e.currentTarget.value;
-		if (filtroData) {
-			filtroMesAno = '';
-			filtroAnoCiclo = '';
-			filtroNumeroCiclo = '';
-		}
+		paginaHistorico = 1;
 	}
 
 	function limparFiltrosHistorico() {
 		filtroSeccional = '';
-		filtroMesAno = '';
-		filtroAnoCiclo = '';
-		filtroNumeroCiclo = '';
-		filtroData = '';
+		filtroTipoEquipe = '';
+		modoPeriodo = 'ciclo';
+		filtroMesAno = getCurrentMonth();
+		filtroData = hojeLocalISO();
+		const corrente = cicloQueContem(hojeLocalISO());
+		filtroAnoCiclo = corrente.ano;
+		filtroNumeroCiclo = corrente.ciclo;
+		paginaHistorico = 1;
 	}
 
 	const totalPaginasHistorico = $derived(
@@ -214,226 +214,137 @@
 			paginaHistorico * ITEMS_POR_PAGINA
 		)
 	);
-
-	$effect(() => {
-		void [filtroSeccional, filtroMesAno, filtroAnoCiclo, filtroNumeroCiclo, filtroData];
-		paginaHistorico = 1;
-	});
 </script>
 
-{#if isAdminGeral && historico.length > 0}
+<div>
 	<div class="space-y-2">
-		<div class="flex items-center justify-between gap-2">
-			<h2 class="text-base font-semibold text-surface-700 dark:text-surface-300">Histórico</h2>
-			<button
-				type="button"
-				class="inline-flex items-center gap-1.5 rounded-xl border border-surface-300/80 bg-white px-3 py-1.5 text-xs font-semibold text-surface-700 shadow-sm transition-all hover:border-primary-400/50 hover:bg-primary-500/5 dark:border-surface-600/80 dark:bg-surface-800 dark:text-surface-200 dark:hover:bg-surface-700/80 {mostrarFiltrosHistorico
-					? 'border-primary-500/50 bg-primary-500/5 dark:border-primary-500/40 dark:bg-primary-500/10'
-					: ''}"
-				onclick={() => (mostrarFiltrosHistorico = !mostrarFiltrosHistorico)}
-				aria-expanded={mostrarFiltrosHistorico}
+		<div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+			<span
+				class="text-2xs font-black text-surface-600 dark:text-surface-400 uppercase tracking-widest"
+				>Busca Detalhada</span
 			>
-				<svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-					<path
-						stroke-linecap="round"
-						stroke-linejoin="round"
-						stroke-width="2"
-						d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"
-					/>
-				</svg>
-				Filtros
-				{#if temFiltros}
-					<span class="h-1.5 w-1.5 rounded-full bg-primary-500"></span>
-				{/if}
-			</button>
-		</div>
-
-		{#if mostrarFiltrosHistorico}
-			<div class="card-glass overflow-hidden rounded-2xl" transition:slide={{ duration: 250 }}>
-				<div
-					class="border-b border-surface-200/90 bg-white/60 px-4 py-3 dark:border-surface-800 dark:bg-surface-950/40 sm:px-5"
-				>
-					<p
-						class="text-xs font-bold uppercase tracking-wide text-surface-600 dark:text-surface-400"
-					>
-						Filtrar histórico
-					</p>
-				</div>
-
-				<div class="grid grid-cols-1 gap-2 p-3 sm:grid-cols-2 lg:grid-cols-4 lg:gap-2 sm:p-4">
-					<div
-						class="flex min-h-0 min-w-0 flex-col gap-1.5 rounded-lg border p-2.5 shadow-sm transition-all {filtroSeccional !==
-						''
-							? 'border-primary-500/45 bg-primary-500/[0.07] ring-1 ring-primary-500/20 dark:bg-primary-500/10'
-							: 'border-surface-200/90 bg-white/90 dark:border-surface-700 dark:bg-surface-900/50'}"
-					>
-						<label
-							for="filtro-seccional"
-							class="text-3xs font-bold uppercase tracking-wide text-surface-600 dark:text-surface-300"
-							>Seccional</label
+			<div class="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:items-center">
+				<div class="min-w-0 w-full sm:w-auto">
+					<Popover positioning={{ placement: 'bottom-end' }}>
+						<Popover.Trigger
+							class="btn btn-sm preset-filled-primary-500 text-white w-full sm:w-auto justify-center disabled:cursor-not-allowed disabled:opacity-40"
+							disabled={!podeExportarHistorico}
+							title={podeExportarHistorico
+								? 'Exportar lista filtrada'
+								: 'Selecione mês/ano, ciclo ou data específica para habilitar'}
 						>
-						<select
-							id="filtro-seccional"
-							bind:value={filtroSeccional}
-							class="min-h-[2.25rem] w-full min-w-0 cursor-pointer rounded-lg border border-surface-300 bg-white px-2 py-1.5 text-xs font-medium text-surface-800 shadow-sm transition-colors hover:border-primary-400/55 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/25 dark:border-surface-600 dark:bg-surface-800 dark:text-surface-100"
-						>
-							<option value="">Todas</option>
-							{#each seccionaisList as sec (sec.id)}
-								<option value={sec.id}>{sec.nome}</option>
-							{/each}
-						</select>
-					</div>
-
-					<div
-						class="flex min-h-0 min-w-0 flex-col gap-1.5 rounded-lg border p-2.5 shadow-sm transition-all {historicoFiltroMesAtivo
-							? 'border-primary-500/45 bg-primary-500/[0.07] ring-1 ring-primary-500/20 dark:bg-primary-500/10'
-							: 'border-surface-200/90 bg-white/90 dark:border-surface-700 dark:bg-surface-900/50'}"
-					>
-						<label
-							for="filtro-mes-ano"
-							class="text-3xs font-bold uppercase tracking-wide text-surface-600 dark:text-surface-300"
-							>Mês / ano</label
-						>
-						<input
-							id="filtro-mes-ano"
-							type="month"
-							value={filtroMesAno}
-							oninput={onMesAnoHistoricoInput}
-							class="w-full min-h-[2.25rem] min-w-0 cursor-pointer rounded-lg border border-surface-300 bg-white px-2 py-1.5 text-xs font-medium text-surface-800 transition-colors hover:border-primary-400/55 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/25 dark:border-surface-600 dark:bg-surface-800 dark:text-surface-100"
-						/>
-					</div>
-
-					<div
-						class="flex min-h-0 min-w-0 flex-col gap-1.5 rounded-lg border p-2.5 shadow-sm transition-all {historicoFiltroCicloAtivo
-							? 'border-primary-500/45 bg-primary-500/[0.07] ring-1 ring-primary-500/20 dark:bg-primary-500/10'
-							: 'border-surface-200/90 bg-white/90 dark:border-surface-700 dark:bg-surface-900/50'}"
-					>
-						<span
-							class="text-3xs font-bold uppercase tracking-wide text-surface-600 dark:text-surface-300"
-							>Ano / ciclo</span
-						>
-						<div class="grid min-w-0 grid-cols-[4.5rem_1fr] gap-1.5">
-							<select
-								id="filtro-ano-ciclo"
-								bind:value={filtroAnoCiclo}
-								onchange={onAnoCicloHistoricoMudou}
-								class="min-h-[2.25rem] w-full cursor-pointer rounded-lg border border-surface-300 bg-white px-1.5 py-1.5 text-xs font-medium text-surface-800 shadow-sm transition-colors hover:border-primary-400/55 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/25 dark:border-surface-600 dark:bg-surface-800 dark:text-surface-100"
+							Baixar
+							<svg
+								class="h-3.5 w-3.5 opacity-80"
+								fill="none"
+								viewBox="0 0 24 24"
+								stroke="currentColor"
+								aria-hidden="true"
 							>
-								<option value="">Ano</option>
-								{#each anosDisponiveisHistorico as ano (ano)}
-									<option value={ano}>{ano}</option>
-								{/each}
-							</select>
-							<select
-								bind:value={filtroNumeroCiclo}
-								disabled={filtroAnoCiclo === ''}
-								onchange={onAnoCicloHistoricoMudou}
-								class="min-h-[2.25rem] min-w-0 w-full cursor-pointer rounded-lg border border-surface-300 bg-white px-1.5 py-1.5 text-xs font-medium text-surface-800 shadow-sm transition-colors hover:border-primary-400/55 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/25 disabled:cursor-not-allowed disabled:opacity-45 dark:border-surface-600 dark:bg-surface-800 dark:text-surface-100"
-							>
-								<option value="">Ciclo</option>
-								{#each CICLOS as c (c.n)}
-									<option value={c.n}>{c.label}</option>
-								{/each}
-							</select>
-						</div>
-					</div>
-
-					<div
-						class="flex min-h-0 min-w-0 flex-col gap-1.5 rounded-lg border p-2.5 shadow-sm transition-all {historicoFiltroDataAtivo
-							? 'border-primary-500/45 bg-primary-500/[0.07] ring-1 ring-primary-500/20 dark:bg-primary-500/10'
-							: 'border-surface-200/90 bg-white/90 dark:border-surface-700 dark:bg-surface-900/50'}"
-					>
-						<label
-							for="filtro-data-especifica"
-							class="text-3xs font-bold uppercase tracking-wide text-surface-600 dark:text-surface-300"
-							>Data específica</label
-						>
-						<input
-							id="filtro-data-especifica"
-							type="date"
-							value={filtroData}
-							oninput={onDataEspecificaHistoricoInput}
-							class="w-full min-h-[2.25rem] min-w-0 cursor-pointer rounded-lg border border-surface-300 bg-white px-2 py-1.5 text-xs font-medium text-surface-800 transition-colors hover:border-primary-400/55 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/25 dark:border-surface-600 dark:bg-surface-800 dark:text-surface-100"
-						/>
-					</div>
-				</div>
-
-				<div
-					class="flex flex-wrap items-center justify-between gap-3 border-t border-surface-200/90 bg-surface-100/70 px-4 py-3.5 dark:border-surface-800 dark:bg-surface-950/50 sm:px-5"
-				>
-					<p
-						class="inline-flex items-center gap-2 rounded-lg border border-surface-200/90 bg-white px-2.5 py-1.5 text-xs font-semibold text-surface-600 shadow-sm dark:border-surface-700 dark:bg-surface-900 dark:text-surface-300"
-					>
-						<span class="font-black tabular-nums text-primary-600 dark:text-primary-400"
-							>{historicoFiltrado.length}</span
-						>
-						<span class="text-surface-600 dark:text-surface-400">resultado(s)</span>
-					</p>
-					<div class="flex flex-wrap items-center gap-2 sm:gap-3">
-						{#if isAdminGeral}
-							<Popover positioning={{ placement: 'top-end' }}>
-								<Popover.Trigger
-									class="inline-flex items-center gap-1.5 rounded-xl border-2 border-primary-500 bg-primary-500/10 px-3.5 py-2 text-xs font-bold text-primary-700 shadow-sm transition-all hover:bg-primary-500/18 dark:border-primary-400 dark:bg-primary-500/15 dark:text-primary-200 dark:hover:bg-primary-500/25 disabled:cursor-not-allowed disabled:border-surface-300 disabled:bg-surface-100 disabled:text-surface-400 disabled:shadow-none dark:disabled:border-surface-600 dark:disabled:bg-surface-800 dark:disabled:text-surface-500"
-									disabled={!podeExportarHistorico}
-									title={podeExportarHistorico
-										? 'Exportar lista filtrada'
-										: 'Selecione mês/ano, ano/ciclo ou data específica para habilitar'}
+								<path
+									stroke-linecap="round"
+									stroke-linejoin="round"
+									stroke-width="2"
+									d="M19 9l-7 7-7-7"
+								/>
+							</svg>
+						</Popover.Trigger>
+						<Portal>
+							<Popover.Positioner>
+								<Popover.Content
+									class="z-50 min-w-[11rem] overflow-hidden rounded-xl border border-surface-200 bg-white py-1 shadow-xl dark:border-surface-600 dark:bg-surface-800"
 								>
-									Baixar
-									<svg
-										class="h-3.5 w-3.5 opacity-80"
-										fill="none"
-										viewBox="0 0 24 24"
-										stroke="currentColor"
-										aria-hidden="true"
+									<button
+										type="button"
+										class="flex w-full items-center gap-2 px-3 py-2.5 text-left text-xs font-semibold text-surface-800 hover:bg-surface-100 dark:text-surface-100 dark:hover:bg-surface-700"
+										onclick={() => baixarHistoricoArquivo('xlsx')}
 									>
-										<path
-											stroke-linecap="round"
-											stroke-linejoin="round"
-											stroke-width="2"
-											d="M19 9l-7 7-7-7"
-										/>
-									</svg>
-								</Popover.Trigger>
-								<Portal>
-									<Popover.Positioner>
-										<Popover.Content
-											class="z-50 min-w-[11rem] overflow-hidden rounded-xl border border-surface-200 bg-white py-1 shadow-xl dark:border-surface-600 dark:bg-surface-800"
+										<span
+											class="rounded bg-success-500/15 px-1.5 py-0.5 text-3xs font-black text-success-700 dark:text-success-400"
+											>XLSX</span
 										>
-											<button
-												type="button"
-												class="flex w-full items-center gap-2 px-3 py-2.5 text-left text-xs font-semibold text-surface-800 hover:bg-surface-100 dark:text-surface-100 dark:hover:bg-surface-700"
-												onclick={() => baixarHistoricoArquivo('xlsx')}
-											>
-												<span
-													class="rounded bg-success-500/15 px-1.5 py-0.5 text-3xs font-black text-success-700 dark:text-success-400"
-													>XLSX</span
-												>
-												Planilha
-											</button>
-											<button
-												type="button"
-												class="flex w-full items-center gap-2 px-3 py-2.5 text-left text-xs font-semibold text-surface-800 hover:bg-surface-100 dark:text-surface-100 dark:hover:bg-surface-700"
-												onclick={() => baixarHistoricoArquivo('pdf')}
-											>
-												<span
-													class="rounded bg-error-500/15 px-1.5 py-0.5 text-3xs font-black text-error-700 dark:text-error-400"
-													>PDF</span
-												>
-												Documento
-											</button>
-										</Popover.Content>
-									</Popover.Positioner>
-								</Portal>
-							</Popover>
-						{/if}
-						<BotaoLimparFiltros {temFiltros} onclick={limparFiltrosHistorico} />
-					</div>
+										Planilha
+									</button>
+									<button
+										type="button"
+										class="flex w-full items-center gap-2 px-3 py-2.5 text-left text-xs font-semibold text-surface-800 hover:bg-surface-100 dark:text-surface-100 dark:hover:bg-surface-700"
+										onclick={() => baixarHistoricoArquivo('pdf')}
+									>
+										<span
+											class="rounded bg-error-500/15 px-1.5 py-0.5 text-3xs font-black text-error-700 dark:text-error-400"
+											>PDF</span
+										>
+										Documento
+									</button>
+								</Popover.Content>
+							</Popover.Positioner>
+						</Portal>
+					</Popover>
 				</div>
+				<BotaoLimparFiltros
+					{temFiltros}
+					onclick={limparFiltrosHistorico}
+					classes="w-full sm:w-auto"
+				/>
 			</div>
-		{/if}
+		</div>
+		<div class={CLASSE_BARRA_FILTRO}>
+			<div class={CLASSE_CAMPO_FILTRO}>
+				<label class={CLASSE_ROTULO_FILTRO} for="filtro-seccional">Seccional</label>
+				<select
+					id="filtro-seccional"
+					bind:value={filtroSeccional}
+					onchange={() => (paginaHistorico = 1)}
+					class="{CLASSE_INPUT_FILTRO} w-full sm:w-[11.5rem]"
+				>
+					<option value="">Todas</option>
+					{#each seccionaisList as sec (sec.id)}
+						<option value={sec.id}>{sec.nome}</option>
+					{/each}
+				</select>
+			</div>
+			<FiltroHistoricoSegmento
+				kind="tipo"
+				value={filtroTipoEquipe}
+				onValueChange={(v) => {
+					filtroTipoEquipe = v === 'operacional' || v === 'seint' ? v : '';
+					paginaHistorico = 1;
+				}}
+			/>
+			<FiltroHistoricoSegmento
+				kind="periodo"
+				value={modoPeriodo}
+				onValueChange={(v) => onModoPeriodoMudou(v)}
+			/>
+			<CamposPeriodoHistorico
+				{modoPeriodo}
+				anoCiclo={filtroAnoCiclo}
+				numeroCiclo={filtroNumeroCiclo}
+				mesAno={filtroMesAno}
+				data={filtroData}
+				{anosCiclo}
+				onAnoCiclo={(v) => {
+					filtroAnoCiclo = Number(v);
+					paginaHistorico = 1;
+				}}
+				onNumeroCiclo={(v) => {
+					filtroNumeroCiclo = Number(v);
+					paginaHistorico = 1;
+				}}
+				onMesAno={(v) => {
+					filtroMesAno = v;
+					paginaHistorico = 1;
+				}}
+				onData={(v) => {
+					filtroData = v;
+					paginaHistorico = 1;
+				}}
+			/>
+		</div>
+	</div>
 
-		<div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+	<div class="mt-5 border-t border-surface-200 pt-5 dark:border-white/5">
+		<div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
 			{#if samePathNav.current}
 				<SkeletonCards count={6} />
 			{:else if historicoPaginado.length === 0}
@@ -451,8 +362,8 @@
 					<p
 						class="text-xs text-surface-600 dark:text-surface-400 max-w-xs mx-auto leading-relaxed"
 					>
-						Não encontramos escalas para os filtros aplicados. Tente alterar o mês, ano ou
-						seccional.
+						Não encontramos escalas para os filtros aplicados. Tente alterar o período, o tipo de
+						equipe ou a seccional.
 					</p>
 					{#if temFiltros}
 						<div class="mt-2">
@@ -628,4 +539,4 @@
 			</div>
 		{/if}
 	</div>
-{/if}
+</div>

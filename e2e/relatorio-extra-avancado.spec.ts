@@ -39,6 +39,13 @@ function seedPresencaMembro(comSaida: boolean): boolean {
 	);
 }
 
+/** Revoga o extra desta seccional — o unique não admite overwrite (SEC-32). */
+function limparAssinaturaExtra(): boolean {
+	return execD1Local(
+		`DELETE FROM gise_assinaturas_relatorios WHERE gise_id = ${GISE} AND seccional_id = ${SECCIONAL} AND tipo = 'extraordinario'`
+	);
+}
+
 test.beforeAll(() => {
 	tokenSupervisor = seedSession(FIXTURE.supervisor.id);
 	tokenMembro = seedSession(FIXTURE.membroGise.id);
@@ -46,7 +53,12 @@ test.beforeAll(() => {
 });
 
 test.afterAll(() => {
-	if (tokenSupervisor) execD1Local(`DELETE FROM gise_presencas WHERE gise_id = ${GISE};`);
+	if (tokenSupervisor) {
+		execD1Local(
+			`DELETE FROM gise_presencas WHERE gise_id = ${GISE}; ` +
+				`DELETE FROM gise_assinaturas_relatorios WHERE gise_id = ${GISE} AND seccional_id = ${SECCIONAL} AND tipo = 'extraordinario'`
+		);
+	}
 });
 
 test.describe('Relatório extraordinário GISE — assinatura avançada em tela', () => {
@@ -84,6 +96,7 @@ test.describe('Relatório extraordinário GISE — assinatura avançada em tela'
 	});
 
 	test('supervisor assina em tela (rubrica + 2FA + reforço) → 200', async ({ request }) => {
+		expect(limparAssinaturaExtra()).toBe(true);
 		const desafioId = seedDesafioAssinatura(FIXTURE.supervisor.id, CODIGO);
 		const reauthId = seedReauthAssinatura(FIXTURE.supervisor.id, tokenSupervisor!);
 		test.skip(!desafioId || !reauthId, 'D1 local indisponível');
@@ -103,5 +116,26 @@ test.describe('Relatório extraordinário GISE — assinatura avançada em tela'
 		});
 		expect(res.status(), await res.text().catch(() => '')).toBe(200);
 		expect(await res.json()).toMatchObject({ success: true });
+	});
+
+	test('reassinar sem revogar → 409 (SEC-32)', async ({ request }) => {
+		const desafioId = seedDesafioAssinatura(FIXTURE.supervisor.id, CODIGO);
+		const reauthId = seedReauthAssinatura(FIXTURE.supervisor.id, tokenSupervisor!);
+		test.skip(!desafioId || !reauthId, 'D1 local indisponível');
+		const res = await request.post(assinarUrl, {
+			headers: headersDeSessaoMutacao(tokenSupervisor!),
+			data: {
+				rubrica: RUBRICA_PNG,
+				type: 'simples',
+				signerName: FIXTURE.supervisor.nome,
+				signerCpf: FIXTURE.supervisor.cpf,
+				codigoValidação: CODIGO,
+				desafioId,
+				reauthId,
+				...evidenciasReforco()
+			}
+		});
+		expect(res.status()).toBe(409);
+		expect((await res.json()).error).toMatch(/revogue/i);
 	});
 });

@@ -16,7 +16,12 @@ vi.mock('../icp-brasil/trust-store', () => ({
 	trustStoreRequerido: () => false
 }));
 
-import { exigirTsa, rotuloDoCarimbo, avaliarConfiguracaoTsa } from '../cades-finalizer';
+import {
+	exigirTsa,
+	rotuloDoCarimbo,
+	avaliarConfiguracaoTsa,
+	tsaEmTextoClaro
+} from '../cades-finalizer';
 
 describe('exigirTsa', () => {
 	beforeEach(() => {
@@ -113,5 +118,30 @@ describe('avaliarConfiguracaoTsa', () => {
 			TSA_URL: 'https://tsa.soluti.com.br/tsa'
 		});
 		expect(r.coerente).toBe(true);
+	});
+});
+
+describe('tsaEmTextoClaro (SEC-26)', () => {
+	it('http:// é texto claro', () => {
+		expect(tsaEmTextoClaro({ TSA_URL: 'http://timestamp.digicert.com' })).toBe(true);
+	});
+
+	it('https:// não é', () => {
+		expect(tsaEmTextoClaro({ TSA_URL: 'https://freetsa.org/tsr' })).toBe(false);
+	});
+
+	it('independe de EXIGIR_TSA_QUALIFICADA, ao contrário de avaliarConfiguracaoTsa', () => {
+		// O transporte importa mesmo quando a qualificada não é exigida — por isso
+		// esta função não tem o early-return por flag que a outra tem.
+		expect(tsaEmTextoClaro({ TSA_URL: 'http://x.com', EXIGIR_TSA_QUALIFICADA: '1' })).toBe(true);
+		expect(tsaEmTextoClaro({ TSA_URL: 'http://x.com', EXIGIR_TSA_QUALIFICADA: '' })).toBe(true);
+	});
+
+	it('URL ausente ou inválida não vira aviso de transporte', () => {
+		// Quem reclama disso é `avaliarConfiguracaoTsa` — dois avisos para o mesmo
+		// defeito viram ruído.
+		expect(tsaEmTextoClaro({ TSA_URL: '' })).toBe(false);
+		expect(tsaEmTextoClaro({ TSA_URL: 'nao-e-url' })).toBe(false);
+		expect(tsaEmTextoClaro({})).toBe(false);
 	});
 });

@@ -32,12 +32,8 @@
 	import { toaster } from '$lib/toast';
 	import type { Unidade } from '$lib/types';
 	import { CIDADES_CEARA } from '$lib/constants/cidades';
-	import {
-		useAutorizacao,
-		getSavedFilters,
-		useFiltrosPaginados,
-		useSamePathNavigating
-	} from '$lib/composables';
+	import { useAutorizacao, useFiltrosPaginados, useSamePathNavigating } from '$lib/composables';
+	import { getSavedFilters } from '$lib/utils/localStorage';
 	import type { ActionResult } from '@sveltejs/kit';
 	import ModalCadastrarUnidade from './_components/ModalCadastrarUnidade.svelte';
 	import ModalDesativarUnidade from './_components/ModalDesativarUnidade.svelte';

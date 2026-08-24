@@ -26,7 +26,22 @@
  *   indefinido;
  * - `toggleAdminGeral` — cria ou remove a conta administrativa VINCULADA ao
  *   policial. É a concessão mais forte do sistema, e por isso é a única
- *   auditada com `metadados` do estado alvo;
+ *   auditada com `metadados` do estado alvo.
+ *
+ *   **O gate é `isAdminGeral`, não Super Admin, e isso é decisão registrada**
+ *   (auditoria ago/2026, achado I1). Quer dizer que o papel é AUTOPROPAGÁVEL:
+ *   qualquer Admin Geral nomeia outro. Fechá-lo para Super Admin foi
+ *   considerado e recusado — passaria a exigir o login de bootstrap
+ *   (`SUPER_ADMIN_LOGIN`/`SENHA`) para toda promoção, o que empurra na direção
+ *   errada: manter credencial root em uso diário é pior que a autopropagação.
+ *
+ *   O que sustenta a decisão: a concessão é auditada (`toggle_admin_geral`, com
+ *   o estado alvo em `metadados`), o Super Admin de bootstrap NÃO é alcançável
+ *   por aqui (`desvincularAdminGeral` recebe id de policial, e a linha do Super
+ *   Admin é standalone, sem `policial_id`), e os poderes exclusivos dele
+ *   — trilha de auditoria, configuração de assinatura — seguem em
+ *   `requireSuperAdmin`. Reabrir a discussão exige mudar essa relação, não só
+ *   este gate;
  * - `registrarMovimentacao` — troca a lotação E registra na linha do tempo.
  *   Recusa destino igual à origem, que só sujaria o histórico;
  * - `registrarAfastamento` — férias/licença. NÃO altera o cadastro: afastado
@@ -37,6 +52,7 @@
  */
 import { redirect, fail, error } from '@sveltejs/kit';
 import { ehViolacaoUnique } from '$lib/server/db-errors';
+import { ePdf } from '$lib/server/assinatura/selfie-upload';
 import type { PageServerLoad, Actions } from './$types';
 import {
 	getDB,
@@ -58,6 +74,7 @@ import {
 	listarCredenciaisDoDono
 } from '$lib/db';
 import { descreverVinculoCredencial } from '$lib/server/assinatura/webauthn/authenticator-data';
+import { nomeProvedorAaguid } from '$lib/server/assinatura/webauthn/aaguid-provedores';
 import { abreviarCredencial } from '$lib/chave-assinatura-ui';
 import { deletarChavesR2 } from '$lib/server/r2-cleanup';
 import { logger } from '$lib/server/logger';
@@ -139,7 +156,10 @@ async function uploadDocumento(
 	}
 
 	const key = `policial-historico/${policialId}/${crypto.randomUUID()}.pdf`;
-	const bytes = await arquivo.arrayBuffer();
+	const bytes = new Uint8Array(await arquivo.arrayBuffer());
+	if (!ePdf(bytes)) {
+		throw new Error('O documento deve ser um PDF.');
+	}
 	await getR2(event.platform).put(key, bytes, {
 		httpMetadata: { contentType: 'application/pdf' }
 	});
@@ -228,7 +248,11 @@ export const load: PageServerLoad = async ({ locals, params, platform, depends }
 					identificador: abreviarCredencial(credencialPasskey.credentialId),
 					criadoEm: credencialPasskey.criadoEm,
 					ultimoUso: credencialPasskey.ultimoUso,
-					vinculo: descreverVinculoCredencial(credencialPasskey)
+					vinculo: descreverVinculoCredencial(credencialPasskey),
+					// Apelido e provedor: DECLARADOS pelo titular/aparelho no cadastro,
+					// não verificados — a mesma ressalva do manifesto do PDF.
+					apelido: credencialPasskey.apelido,
+					provedor: nomeProvedorAaguid(credencialPasskey.aaguid)
 				}
 			: null,
 		chavesAnteriores: credenciaisPasskey
@@ -236,7 +260,9 @@ export const load: PageServerLoad = async ({ locals, params, platform, depends }
 			.map((c) => ({
 				identificador: abreviarCredencial(c.credentialId),
 				criadoEm: c.criadoEm,
-				revogadoEm: c.revogadoEm as string
+				revogadoEm: c.revogadoEm as string,
+				apelido: c.apelido,
+				provedor: nomeProvedorAaguid(c.aaguid)
 			}))
 	};
 };

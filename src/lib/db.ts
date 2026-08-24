@@ -20,7 +20,16 @@
  * reexportados aqui não tinham um único consumidor pelo barrel e saíram.
  */
 
-export { getDB, getR2, tryGetR2, hasR2, batchNonEmpty, linhasAfetadas } from './db/core';
+export {
+	getDB,
+	getR2,
+	tryGetR2,
+	hasR2,
+	batchNonEmpty,
+	linhasAfetadas,
+	likeContains,
+	likePrefix
+} from './db/core';
 export type { Database } from './db/core';
 
 export {
@@ -135,7 +144,7 @@ export {
 	buscarDocumentoPorHash
 } from './db/documentos';
 export type { AssinaturaPasskeyMetadata } from './db/documentos';
-export { passkeyMetaDeAssercao } from './db/documentos';
+export { passkeyMetaDeAssercao, circunstanciaDePersistir } from './db/documentos';
 
 export type { GiseDetalhado } from './db/gise';
 export {
@@ -144,6 +153,7 @@ export {
 	criarGiseEscala,
 	buscarGiseDetalhado,
 	atualizarGiseEscala,
+	finalizarGiseEscala,
 	upsertGiseSeccional,
 	atualizarGiseSeccional,
 	excluirGiseSeccional,
@@ -170,6 +180,7 @@ export {
 	temPresencaGisePendente,
 	buscarGiseModeloFormulario,
 	salvarGiseModeloFormulario,
+	salvarOrdemPainelProdutividade,
 	buscarRespostaGise,
 	salvarRespostaGise,
 	listarTodasRespostasGise,

@@ -20,6 +20,7 @@
  * do GISE. Por isso o `load` resolve uma operação (`?operacaoId=`) e carrega os
  * modelos dela, e não "o modelo global" que existia antes da migração 0048.
  */
+import { dataISOValida, hojeBrasilISO } from '$lib/utils/datas';
 import { error } from '@sveltejs/kit';
 import type { PageServerLoadEvent } from './$types';
 import {
@@ -33,6 +34,7 @@ import {
 	NOME_OPERACAO_PADRAO
 } from '$lib/db';
 import { isAdminGeral, isAnyAdmin } from '$lib/auth';
+import { lerOrdemPainel } from '$lib/produtividade';
 import { unidadesLinhaBaseAdministradas } from '$lib/server/operacoes/permissao';
 
 export async function load({ locals, platform, url }: PageServerLoadEvent) {
@@ -45,8 +47,20 @@ export async function load({ locals, platform, url }: PageServerLoadEvent) {
 
 	const db = getDB(platform);
 
-	const mes = Number(url.searchParams.get('mes')) || undefined;
-	const ano = Number(url.searchParams.get('ano')) || undefined;
+	// JANELA do painel. Sem parâmetro, o ano CORRENTE — e não "tudo" (B-1).
+	//
+	// A tela já mostrava o ano corrente por padrão (`filterAno` nasce em
+	// `currentYear`), mas o servidor carregava o histórico inteiro da operação
+	// para o cliente recortar. Carregava 4+ anos para exibir 1, e o payload
+	// crescia para sempre. O default do servidor agora é o mesmo default da
+	// tela; trocar de ano ou usar o modo personalizado põe a janela na URL.
+	//
+	// `hojeBrasilISO` e não `new Date().getFullYear()`: o Worker roda em UTC, e
+	// no dia 1º de janeiro às 21h de Brasília o relógio do isolate já virou o
+	// ano — o painel abriria vazio.
+	const anoCorrente = hojeBrasilISO().slice(0, 4);
+	const inicio = dataISOValida(url.searchParams.get('inicio')) ?? `${anoCorrente}-01-01`;
+	const fim = dataISOValida(url.searchParams.get('fim')) ?? `${anoCorrente}-12-31`;
 
 	// A operação em foco. Sem `?operacaoId=` válido, a primeira ativa (com o GISE
 	// preferido, que é a operação histórica) — a tela nunca abre sem uma escolhida,
@@ -72,8 +86,8 @@ export async function load({ locals, platform, url }: PageServerLoadEvent) {
 			listarTodasRespostasGise(db, {
 				page: 1,
 				limit: 500,
-				mes,
-				ano,
+				inicio,
+				fim,
 				operacaoId: operacao?.id,
 				unidadeIds: unidadeIdsPermitidas ?? undefined
 			}),
@@ -100,8 +114,8 @@ export async function load({ locals, platform, url }: PageServerLoadEvent) {
 						listarTodasRespostasGise(db, {
 							page: i + 2,
 							limit: 500,
-							mes,
-							ano,
+							inicio,
+							fim,
 							operacaoId: operacao?.id,
 							unidadeIds: unidadeIdsPermitidas ?? undefined
 						})
@@ -113,6 +127,31 @@ export async function load({ locals, platform, url }: PageServerLoadEvent) {
 		lista: [...primeira.respostas, ...paginasRestantes.flatMap((p) => p.respostas)],
 		modeloOperacional: JSON.parse(modeloOpRow?.config || '[]'),
 		modeloSeint: JSON.parse(modeloSeintRow?.config || '[]'),
+		/**
+		 * A ordem em que os cards do painel aparecem, por tipo de equipe (migração
+		 * 0064). Lista vazia = ordem do formulário, que é o que toda operação é até
+		 * alguém organizar o painel.
+		 *
+		 * Os DOIS tipos vão juntos porque o seletor "Operacional / Inteligência" é
+		 * de tela e não recarrega o `load` — do mesmo jeito que os dois modelos já
+		 * viajam juntos.
+		 */
+		painelOrdem: {
+			operacional: lerOrdemPainel(modeloOpRow?.painel_ordem),
+			seint: lerOrdemPainel(modeloSeintRow?.painel_ordem)
+		},
+		/**
+		 * Quem pode ARRASTAR os cards. A ordem é única e vale para todos que abrem
+		 * a operação, então organizá-la é configuração — do mesmo tipo que o editor
+		 * do formulário, que já é exclusivo do Admin Geral. Admin de unidade e de
+		 * seccional entram nesta tela para LER o resultado do que informam em
+		 * `/dados-base`, com os dados recortados; o painel deles não é uma cópia
+		 * particular que cada um pudesse arrumar para si.
+		 *
+		 * Esconder o botão não é a autorização: quem recusa o PUT direto é
+		 * `requireAdmin` em `/api/produtividade/ordem`.
+		 */
+		podeOrganizar: isAdminGeral(u),
 		seccionais,
 		operacoes: operacoesLista,
 		operacaoSelecionadaId: operacao?.id ?? null,
@@ -121,6 +160,13 @@ export async function load({ locals, platform, url }: PageServerLoadEvent) {
 		/** Linhas de base já informadas — o denominador das metas percentuais. */
 		linhaBase,
 		/** `true` quando a tela está recortada à unidade do usuário (não é Admin Geral). */
-		escopoRestrito: unidadeIdsPermitidas !== null
+		escopoRestrito: unidadeIdsPermitidas !== null,
+		/**
+		 * A janela que ESTES dados cobrem. Vai para a tela porque o filtro
+		 * precisa nascer igual ao recorte que o servidor aplicou — se o seletor
+		 * mostrasse o ano corrente enquanto `lista` traz outro, o usuário leria
+		 * números de um período com o rótulo de outro (B-1).
+		 */
+		janela: { inicio, fim }
 	};
 }

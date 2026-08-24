@@ -41,6 +41,7 @@
 	import { toaster } from '$lib/toast';
 	import { enhance } from '$app/forms';
 	import { useGiseEstado, useGiseAssinatura } from '$lib/composables/gise';
+	import { escalaGiseJaAssinada } from '$lib/gise/status-escala';
 	import { useOfertaRubrica, rubricaValida, useInvalidateOnFocus } from '$lib/composables';
 	import { fetchSyncEstado } from '$lib/sync-estado';
 	import { loading } from '$lib/loading.svelte';
@@ -67,7 +68,7 @@
 	import ModalCadastrarRubrica from '$lib/components/ModalCadastrarRubrica.svelte';
 	import ModalRelatorioDigital from './_components/modais/ModalRelatorioDigital.svelte';
 	import ModalBreveRelatorio from './_components/modais/ModalBreveRelatorio.svelte';
-	import ModalDownloadExtras from '../_components/ModalDownloadExtras.svelte';
+	import ModalDownloadExtras from '$lib/components/ModalDownloadExtras.svelte';
 
 	const { data }: PageProps = $props();
 
@@ -83,7 +84,7 @@
 	const podeDownload = $derived(giseEstado.podeDownload);
 	const podeEditar = $derived(giseEstado.podeEditar);
 	const isMobile = $derived(giseEstado.isMobile);
-	const { statusLabel, statusColor, fmtDate, diaSemana } = giseEstado;
+	const { statusLabel, fmtDate, diaSemana } = giseEstado;
 
 	const gise = $derived(giseEstado.gise);
 
@@ -399,14 +400,7 @@
 			gise?.supervisor_id === data.usuarioAtual?.id &&
 			!documentoAssinadoInfo?.existe
 	);
-	const podeReabrir = $derived(
-		isAdminGeral &&
-			(gise?.status === 'em_andamento' ||
-				gise?.status === 'aguardando_relatorios' ||
-				gise?.status === 'aguardando_assinatura_relat' ||
-				gise?.status === 'pronta_para_finalizar' ||
-				gise?.status === 'finalizada')
-	);
+	const podeReabrir = $derived(isAdminGeral && escalaGiseJaAssinada(gise?.status ?? ''));
 
 	/**
 	 * Quadro de supervisão — publicado por contexto em vez de descido por props.
@@ -526,10 +520,6 @@
 		<GiseCabecalho
 			{gise}
 			operacaoNome={data.operacaoNome}
-			{statusLabel}
-			{statusColor}
-			{diaSemana}
-			{fmtDate}
 			{isAdminGeral}
 			{podeDownload}
 			{podeEditar}
@@ -540,7 +530,6 @@
 			{todasSeccionaisPreenchidas}
 			documentoAssinadoExiste={documentoAssinadoInfo?.existe ?? false}
 			{pendingCrud}
-			{isMobile}
 			onToggleEdit={() => (modoEdicaoGeral = !modoEdicaoGeral)}
 			onAbrirDataHoras={() => (showModalDataHoras = true)}
 			onAbrirExcluir={() => (showExcluirGiseConfirm = true)}

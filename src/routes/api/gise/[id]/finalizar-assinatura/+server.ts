@@ -11,15 +11,19 @@ import {
 	salvarGiseDocumento,
 	atualizarGiseEscala,
 	auditar,
-	contextoDeEvento
+	contextoDeEvento,
+	tryGetR2
 } from '$lib/db';
 import { finalizarAssinaturaGiseSchema } from '$lib/schemas';
 import {
 	finalizarQualificadaDoPayload,
 	respostaPdfAssinado
 } from '$lib/server/assinatura/signature-service';
-import { tryGetR2 } from '$lib/db';
-import { bucketParaAssinatura, guardarPdfAssinado } from '$lib/server/assinatura/blob-assinado';
+import {
+	bucketParaAssinatura,
+	guardarPdfAssinado,
+	recusarPorDocumentoJaGravado
+} from '$lib/server/assinatura/blob-assinado';
 import { requireAuth, badRequest, serverError, validateBody } from '$lib/server/api';
 import {
 	consumirIntencaoAssinatura,
@@ -102,26 +106,26 @@ export const POST: RequestHandler = async (event) => {
 		const guardado = await guardarPdfAssinado(bucket, documentKey, result.pdfFinal, 'gise-escala');
 		if (!guardado.ok) return guardado.resposta;
 
-		await salvarGiseDocumento(
-			db,
-			id,
-			documentKey,
-			u.id,
-			result.signerName,
-			result.signerCpf,
-			verificationHash,
-			undefined,
-			ip,
-			ua,
+		const { gravado } = await salvarGiseDocumento(db, {
+			giseId: id,
+			r2Key: documentKey,
+			assinanteId: u.id,
+			assinanteNome: result.signerName,
+			assinanteCpf: result.signerCpf,
+			verificacaoHash: verificationHash,
+			ipAddress: ip,
+			userAgent: ua,
 			latitude,
 			longitude,
-			undefined, // selfieKey
 			arquivoHash,
 			assinanteEmail,
-			result.tipoCarimboTempo,
-			result.metadata,
-			platform?.env
-		);
+			tipoCarimboTempo: result.tipoCarimboTempo,
+			cadesMeta: result.metadata,
+			env: platform?.env
+		});
+		if (!gravado) {
+			return recusarPorDocumentoJaGravado(db, bucket, [documentKey], 'gise-escala');
+		}
 
 		await atualizarGiseEscala(db, id, { status: 'em_andamento' });
 

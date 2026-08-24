@@ -19,6 +19,7 @@ export {
 	criarGiseEscala,
 	buscarGiseDetalhado,
 	atualizarGiseEscala,
+	finalizarGiseEscala,
 	reabrirGiseEscala,
 	clonarGiseParaData,
 	verificarGiseCompleta,
@@ -62,6 +63,7 @@ export {
 	buscarRespostasProdutividadeSeccional,
 	buscarGiseModeloFormulario,
 	salvarGiseModeloFormulario,
+	salvarOrdemPainelProdutividade,
 	buscarRespostaGise,
 	salvarRespostaGise,
 	listarTodasRespostasGise

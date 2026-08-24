@@ -151,7 +151,7 @@ describe('itens do submenu "Escala extra"', () => {
 		expect(hrefs).toEqual(['/gise']);
 	});
 
-	it('/gise acende na lista e na escala, mas não em /gise/operacoes nem /gise/bem-vindo', () => {
+	it('/gise acende na lista e na escala, mas não em /gise/operacoes nem /gise/bem-vindo nem /gise/finalizadas', () => {
 		const flags = visibilidadeDoMenu(entrada({ isSupervisorGise: true }));
 		const ativoEm = (p: string) =>
 			itensExtraDoMenu(flags, url(p)).find((i) => i.href === '/gise')?.ativo;
@@ -160,6 +160,32 @@ describe('itens do submenu "Escala extra"', () => {
 		expect(ativoEm('/gise/42')).toBe(true);
 		expect(ativoEm('/gise/operacoes')).toBe(false);
 		expect(ativoEm('/gise/bem-vindo')).toBe(false);
+		expect(ativoEm('/gise/finalizadas')).toBe(false);
+	});
+
+	it('Admin Geral ganha Finalizadas entre Ativas e Produtividade', () => {
+		const flags = visibilidadeDoMenu(entrada({ usuario: { tipo: 'admin' } }));
+		const hrefs = itensExtraDoMenu(flags, url('/gise')).map((i) => i.href);
+		expect(hrefs).toEqual(['/gise', '/gise/finalizadas', '/produtividade']);
+	});
+
+	it('/gise/finalizadas acende Finalizadas, não Ativas', () => {
+		const flags = visibilidadeDoMenu(entrada({ usuario: { tipo: 'admin' } }));
+		const ativo = (href: string, path: string) =>
+			itensExtraDoMenu(flags, url(path)).find((i) => i.href === href)?.ativo;
+
+		expect(ativo('/gise', '/gise/finalizadas')).toBe(false);
+		expect(ativo('/gise/finalizadas', '/gise/finalizadas')).toBe(true);
+		expect(ativo('/gise', '/gise/42')).toBe(true);
+		expect(ativo('/gise/finalizadas', '/gise/42')).toBe(false);
+	});
+
+	it('admin seccional não vê Finalizadas — o arquivo é do Admin Geral', () => {
+		const flags = visibilidadeDoMenu(
+			entrada({ usuario: { tipo: 'policial', papel: 'admin_seccional' } })
+		);
+		const hrefs = itensExtraDoMenu(flags, url('/gise')).map((i) => i.href);
+		expect(hrefs).not.toContain('/gise/finalizadas');
 	});
 
 	/**

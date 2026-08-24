@@ -25,7 +25,7 @@ import type { RequestHandler } from './$types';
 import { getDB, buscarGiseEscala, buscarEscala } from '$lib/db';
 import { requireAuth, badRequest, serverError } from '$lib/server/api';
 import { isAdminGeral, isAdminSeccional } from '$lib/auth';
-import { lotacoesDaSeccional } from '$lib/server/policial-permissao';
+import { lotacoesAdministradas } from '$lib/server/policial-permissao';
 import { verificarPermissaoGise } from '$lib/server/gise/permissao';
 import { verificarPermissaoEscala } from '$lib/server/escalas/permissao';
 import { lerPapelGise } from '$lib/server/gise/papel-cache';
@@ -109,12 +109,8 @@ export const GET: RequestHandler = async ({ locals, platform, url }) => {
 		) {
 			tasks.push(
 				(async () => {
-					// `admin_unidade` não passa lista: `resumoEscalasPendentes` escopa
-					// esse papel pela própria `lotacao` do usuário.
-					const lotacoes =
-						u.papel === 'admin_seccional' && u.papel_unidade_id
-							? await lotacoesDaSeccional(db, u.papel_unidade_id)
-							: undefined;
+					const escopo = await lotacoesAdministradas(db, u);
+					const lotacoes = escopo ? [...escopo] : [];
 					body.escalas = await resumoEscalasPendentes(db, u, lotacoes);
 				})()
 			);

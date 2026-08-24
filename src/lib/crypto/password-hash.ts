@@ -183,6 +183,27 @@ export function isHashLegado(storedHash: string, pepperAtivo: boolean = false): 
 }
 
 /**
+ * Hash SENTINELA — formato válido, senha nenhuma. Existe para dar a
+ * `verificarSenha` o que mastigar quando a CONTA NÃO EXISTE.
+ *
+ * Sem ele, `!usuario || !(await verificarSenha(...))` devolve na hora para
+ * matrícula inexistente e paga 100 000 iterações de PBKDF2 para matrícula
+ * existente. Essa diferença é medível de fora e transforma o login num oráculo
+ * de enumeração: dá para varrer a numeração e descobrir quem está cadastrado
+ * sem acertar uma senha sequer.
+ *
+ * O salt é FIXO e o hash é constante: nada aqui é segredo, e não precisa ser —
+ * o valor nunca confere com senha alguma (a probabilidade é a de adivinhar 256
+ * bits). O que importa é só o CUSTO da derivação, que é idêntico ao de uma
+ * conta real.
+ *
+ * Os fluxos de recuperação de senha já nasceram com anti-enumeração explícita
+ * (resposta e máscara de e-mail idênticas para conta que existe e que não
+ * existe); era o login que ficava de fora.
+ */
+export const HASH_SENTINELA = `${PBKDF2_V2_PREFIX}${PBKDF2_V2_ITERATIONS}:${'00'.repeat(16)}:${'00'.repeat(32)}`;
+
+/**
  * Retorna um hash no formato PBKDF2 **inválido para login**: não é derivado da
  * senha. Usado no cadastro/sincronização em massa para evitar derivação pesada.
  *

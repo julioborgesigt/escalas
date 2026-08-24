@@ -27,6 +27,7 @@ import {
 	contarRecoveryAttempts,
 	registrarRecoveryAttempt
 } from '$lib/server/auth/recovery-rate-limit';
+import { podeAutoatenderResetSenha } from '$lib/server/auth/reset-elegibilidade';
 import { solicitarRedefinicaoSchema } from '$lib/schemas';
 import type { RequestHandler } from './$types';
 import { mensagemDeErro } from '$lib/utils/erro';
@@ -128,11 +129,18 @@ export const POST: RequestHandler = async ({ request, platform, getClientAddress
 			if (row) usuario = row;
 		}
 
-		if (!usuario || !usuario.email_pessoal) {
+		// O JSDoc desta rota já prometia "não tem e-mail pessoal verificado" desde
+		// sempre; o código só checava a PRESENÇA do endereço (SEC-29). Quem nunca
+		// vinculou o e-mail pelo caminho autenticado não se autoatende aqui.
+		if (!podeAutoatenderResetSenha(usuario)) {
 			logger.info('[auth/redefinicao] usuário sem reset disponível', {
 				tipo,
 				ip,
-				motivo: !usuario ? 'inexistente' : 'sem_email_pessoal'
+				motivo: !usuario
+					? 'inexistente'
+					: !usuario.email_pessoal
+						? 'sem_email_pessoal'
+						: 'email_pessoal_nao_verificado'
 			});
 			return respostaDummy(emailDummyMascarado(identificador));
 		}

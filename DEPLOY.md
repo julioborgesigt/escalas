@@ -35,6 +35,81 @@ Configurar no projeto Pages (**Settings → Environment variables**) ou via `wra
 
 > **Importante:** `RESET_TOKEN` deve ser **estritamente diferente** de `SYNC_TOKEN`. O design separa os dois para que comprometer o token de webhook não baste para apagar o banco. Gere com `openssl rand -hex 32` e armazene apenas no Cloudflare + na planilha de operações.
 
+### Duração da sessão
+
+**1 hora de INATIVIDADE**, não 1 hora de sessão: qualquer request renova o
+relógio nos dois lados — `sessoes.expires_at` no D1 e o `maxAge` do cookie.
+Quem está trabalhando não é interrompido; quem larga a aba aberta numa
+delegacia perde a sessão em 1h.
+
+Era 8h. O plano de remediação LGPD (achado A14, art. 46) pedia 1h, e a
+divergência ficou anos sem registro. Baixar exigiu antes consertar o sliding,
+que era **meio sliding**: o banco deslizava e o cookie não — o `maxAge` era
+absoluto desde o login, então a sessão morria no navegador com o D1 achando que
+valia. Com 8h ninguém notava; com 1h seria logout no meio da assinatura.
+
+Não há variável de ambiente para isto: é `SESSION_TTL_MS` em
+[`src/lib/auth.ts`](src/lib/auth.ts), com teste travando o casamento com o
+cookie. `SESSION_CACHE_TTL_SECONDS` é outra coisa — o cache de leitura da
+sessão, que atrasa a extensão no BANCO em até 60 s (o cookie não depende dele).
+
+> **Aba aberta e abandonada também expira** — e isso exigiu uma segunda
+> correção. "Inatividade" é inatividade de REQUISIÇÃO, e a aplicação faz poll de
+> fundo: `useInvalidateOnFocus` está em 17 telas, com intervalo frio de 120 s
+> (`+layout.svelte` inclusive, para o badge da Caixa de Entrada). Enquanto o
+> poll renovava o cookie, a aba parada mantinha a sessão viva para sempre e a
+> 1 h só mordia navegador **fechado** — justamente o cenário que já não
+> preocupava.
+>
+> O poll é UM: os sete `probe` passam todos por `fetchSyncEstado` →
+> `/api/sync/estado`. Essa rota está isenta de renovar a sessão
+> (`auth/sessao-renovacao.ts`): autentica normalmente, mas não conta como
+> atividade. Ação de gente — navegar, salvar, abrir tela — renova.
+>
+> O default da lista é **renovar**: rota nova nasce contando como atividade, e
+> só sai de lá quem for poll comprovado. O contrário daria logout silencioso em
+> toda tela que alguém esquecesse de declarar. **Poll novo entra na lista** —
+> senão reabre o buraco sem ninguém ver.
+>
+> Consequência operacional: quem deixa a tela aberta e volta depois de 1 h
+> encontra o login. É o controle funcionando; vale avisar a corporação junto com
+> a mudança de 8 h para 1 h.
+
+### Proteções que só existem se a variável existir
+
+Quatro secrets não são "recomendados": são o **único** motivo pelo qual a
+proteção correspondente existe. Sem cada uma, o sistema não falha nem avisa no
+uso normal — ele grava o dado em claro e segue. A lista completa e comentada
+está em [`.env.example`](.env.example); o que segue é a consequência de
+**deixar a variável vazia em produção**.
+
+| Vazia                     | O que passa a valer                                                                                                                                             |
+| ------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `PASSWORD_PEPPER`         | Hashes ficam em PBKDF2@100k (teto do workerd). Um dump do D1 permite **brute-force offline** do arquivo inteiro.                                                 |
+| `CPF_ENCRYPTION_KEY`      | O CPF é gravado em **texto** na coluna `policiais.cpf` (fallback silencioso). Definir DEPOIS de popular exige re-cifrar ou zerar + re-sincronizar.               |
+| `CPF_INDEX_KEY`           | Sem o índice cego HMAC (`cpf_index`), o login por certificado não acha o titular. Deve ser **distinta** da `CPF_ENCRYPTION_KEY`.                                 |
+| `AUDIT_CHAIN_KEY`         | A cadeia da trilha cai para SHA-256 puro: detecta adulteração acidental, mas **quem tem escrita no banco forja a cauda inteira**. Com a chave, é HMAC-SHA256.    |
+| `AUDIT_IP_ENCRYPTION_KEY` | O IP completo do evento não é preservado (só o anonimizado /24 ou /64) — a perícia autorizada perde o dado que a cifra guardaria em `audit_log.ip_cifrado`.      |
+
+As duas de CPF e as duas de auditoria são **load-bearing**: trocá-las ou
+perdê-las inutiliza o que já foi gravado com a anterior. Gere cada uma uma
+única vez com `openssl rand -hex 32` e guarde em cofre.
+
+`GET /api/health?detail=<HEALTH_DETAIL_TOKEN>` lista as que estão ausentes sem
+derrubar a liveness pública — é como conferir isso sem abrir o dashboard.
+
+**2FA do bootstrap.** `ADMIN_GERAL_EMAIL` e `SUPER_ADMIN_EMAIL` são opcionais no
+código e **obrigatórios na prática**: sem o e-mail, o login por credencial de
+bootstrap entra **direto, sem 2FA** — apenas com a senha da env. É o break-glass
+funcionando como projetado (ele não pode depender de e-mail), mas em produção o
+esperado é ter os dois definidos, o que devolve o segundo fator às duas contas
+mais poderosas do sistema. O login por bootstrap audita e emite `warning` no
+Sentry de qualquer forma.
+
+**R2.** O bucket `escalas_docs` guarda PDF assinado, cópia de conferência e
+selfie de assinatura. Ele **não pode** ter acesso público: o download legítimo
+passa por rota autenticada que lê o `r2_key` do banco.
+
 ### Hashing de senha e o `PASSWORD_PEPPER`
 
 As senhas são hasheadas com **PBKDF2-HMAC-SHA256, 100 000 iterações** (formato versionado em [`src/lib/crypto/password-hash.ts`](src/lib/crypto/password-hash.ts), re-exportado por `$lib/auth`):
@@ -57,11 +132,14 @@ As senhas são hasheadas com **PBKDF2-HMAC-SHA256, 100 000 iterações** (format
 
 ### Endpoint destrutivo `/api/webhook/reset-policiais`
 
-Apaga TODAS as tabelas operacionais (policiais, unidades, escalas, GISE, documentos). Exige **3 camadas** de autenticação:
+Apaga TODAS as tabelas operacionais (policiais, unidades, escalas, GISE, documentos). Exige **4 camadas**:
 
 1. `Authorization: Bearer <SYNC_TOKEN>` — token padrão de webhooks.
 2. `X-Reset-Token: <RESET_TOKEN>` — segredo separado.
-3. `X-Confirm-Reset: <YYYY-MM-DD em UTC>` — janela de 24 h, evita replay.
+3. `X-Confirm-Reset: <YYYY-MM-DD em UTC>` — confirmação explícita do dia.
+4. `X-Webhook-Timestamp` + `X-Webhook-Nonce` — anti-replay, janela de 5 min.
+
+A camada 4 é **obrigatória neste endpoint** e não depende de `WEBHOOK_REPLAY_ENFORCE` (ago/2026). A flag existe para o rollout do emissor; este endpoint não entra nessa conta, porque a camada 3 sozinha deixa uma janela de 24 h — se `SYNC_TOKEN` e `RESET_TOKEN` vazarem juntos, uma requisição capturada é reproduzível por um dia inteiro. Chamada sem os headers devolve 401.
 
 Antes de deletar, o endpoint registra no logger estruturado um snapshot com a contagem de linhas por tabela. Esse snapshot é devolvido na resposta e pode ser consultado em Workers Logs / Sentry para recuperação forense.
 
@@ -69,7 +147,7 @@ Antes de deletar, o endpoint registra no logger estruturado um snapshot com a co
 
 ### Replay protection dos webhooks (P1.3)
 
-Além da autenticação HMAC/Bearer, todos os webhooks (`sync-policiais`, `sync-unidades`, `reset-policiais`) suportam dois headers extras para impedir reenvio de payload capturado:
+Além da autenticação HMAC/Bearer, todos os webhooks (`sync-policiais`, `sync-unidades`, `reset-policiais`) usam dois headers extras para impedir reenvio de payload capturado. Nos dois `sync-*` eles são exigidos conforme `WEBHOOK_REPLAY_ENFORCE`; no `reset-policiais` são **sempre** exigidos:
 
 | Header                | Valor                                                                                                                                   |
 | --------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
@@ -84,6 +162,10 @@ O `scripts/GoogleAppsScript_Sync.gs` já envia ambos os headers em todas as cham
 2. **Republicar a Apps Script**: passa a enviar os headers. Confirmar nos logs do Worker que toda chamada agora vem com timestamp+nonce.
 3. **~~Setar `WEBHOOK_REPLAY_ENFORCE=1`~~** — **FEITO 06/ago** (Pages production secret
    do projeto `escalas`). Qualquer chamada sem os headers devolve 401.
+
+O rollout terminou; a flag continua existindo para preview/local, onde o Apps
+Script de teste pode estar defasado. O `reset-policiais` saiu dela em ago/2026 e
+exige os headers em qualquer ambiente — ver a seção do endpoint acima.
 
 A limpeza periódica de `webhook_nonces` (e das demais tabelas de retenção) é automatizada por `executarLimpezaRetencao`, disparada pelo cron `cleanup-retencao.yml` (GitHub Actions) — ver [Failsafe da limpeza de retenção](#failsafe-da-limpeza-de-retenção).
 
@@ -409,6 +491,10 @@ Provedores credenciados ICP-Brasil: Bry, Soluti, Certisign, AC Safeweb, ICP-EDU.
 
 > **Aviso:** sem `EXIGIR_TSA_QUALIFICADA=1`, o sistema aceita assinaturas com apenas o `signingTime` do servidor — sem oponibilidade a terceiros conforme DOC-ICP-15.
 
+> **Transporte (SEC-26).** O default do `wrangler.toml` é `http://timestamp.digicert.com` — **sem TLS, e isso foi medido, não suposto**: o endpoint RFC 3161 da DigiCert responde `200 application/timestamp-reply` em HTTP e **reseta a conexão em HTTPS** (o 443 daquele host serve o site, não o serviço de carimbo). Trocar o default para `https://` quebraria o carimbo de toda instalação que não configura `TSA_URL`, então ele fica como está.
+>
+> O risco aceito é limitado: o carimbo é **assinado pela TSA**, então um MITM não forja carimbo válido — consegue apenas **negar** o carimbo (a assinatura cai para o horário do servidor) ou observar o hash carimbado. Em produção isso não deveria importar, porque `TSA_URL` já precisa apontar para uma ACT ICP-Brasil, e todas publicam endpoint HTTPS. Quando a URL configurada é `http://`, o log `[CADES] TST anexado server-side via TSA` traz `textoClaro: true` — é como conferir em que transporte a produção está carimbando.
+
 > ⚠️ **Armadilha — não ligue `EXIGIR_TSA_QUALIFICADA=1` sem trocar a `TSA_URL`.** O default embarcado em `wrangler.toml` é a DigiCert (`timestamp.digicert.com`), que **não é ACT ICP-Brasil** → o carimbo é sempre `tsa_externa`, nunca `act_icp`. Com o flag ligado e a `TSA_URL` ainda na DigiCert, o [`cades-finalizer.ts`](src/lib/server/assinatura/cades-finalizer.ts) **rejeita 100% das assinaturas qualificadas com HTTP 422**. Ligue o flag **somente** depois de apontar `TSA_URL` para uma ACT credenciada. O `cades-finalizer` detecta essa combinação e emite `[CADES][CONFIG]` no log (configure alerta no Sentry).
 
 ## Sincronização Google Sheets
@@ -485,6 +571,12 @@ Para esses, qualquer upgrade major precisa ser feito manualmente após testar o 
    - `SYNC_TOKEN` definido.
    - `RESET_TOKEN` definido **e diferente do SYNC_TOKEN** (ou intencionalmente vazio para desabilitar reset).
    - `RATE_LIMIT_IP_SALT` e (se aplicável) `ICP_BRASIL_TRUST_STORE_REQUIRED`, `TSA_*`.
+   - `CPF_ENCRYPTION_KEY`, `CPF_INDEX_KEY`, `AUDIT_CHAIN_KEY`, `AUDIT_IP_ENCRYPTION_KEY` — sem elas o CPF grava em texto e a cadeia de auditoria fica forjável ([detalhe](#proteções-que-só-existem-se-a-variável-existir)).
+   - `ADMIN_GERAL_EMAIL` e `SUPER_ADMIN_EMAIL` definidos: sem eles o login de bootstrap entra **sem 2FA**.
+   - `WEBHOOK_REPLAY_ENFORCE=1` e `WEBHOOK_ALLOW_PAPEL_CHANGES` **vazio**.
+   - `APP_ORIGIN` no domínio canônico (é o RP ID do WebAuthn).
+   - Senhas de bootstrap em hash `pbkdf2v2:`, não em texto claro.
+   - Bucket R2 `escalas_docs` **sem** acesso público.
 3. **Login real validado** (não só o bootstrap): logar → logout → logar de novo, confirmando a migração para `pbkdf2v3`.
 4. Smoke manual: rota protegida, `/api/health`, fluxo crítico de negócio (ex.: validação pública se aplicável).
 5. Conferir que o admin consegue alterar flags em `/api/configuracoes/assinatura` e que a próxima assinatura reflete a mudança em ≤ 5 min (TTL do cache edge).

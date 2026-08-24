@@ -15,8 +15,10 @@
  *    via `SESSION_CACHE_TTL_SECONDS` (auditoria A5): reduza para encurtar a
  *    janela de revogação ou use `0` para desligar o cache (revalidação no D1
  *    a cada request — revogação imediata, ao custo de mais queries).
- *  - Sliding expiration: requests servidos do cache não estendem a sessão;
- *    o atraso máximo da extensão é o próprio TTL (60s em 8h de sessão).
+ *  - Sliding expiration: request servida do cache não estende a sessão NO
+ *    BANCO; o atraso máximo dessa extensão é o próprio TTL (60s em 1h de
+ *    sessão). O COOKIE não depende disto — o `handleAuth` reemite o `maxAge`
+ *    em toda request autenticada, cacheada ou não (LGPD A14).
  *  - Aceite do termo: o aceite registra-se uma vez e o fluxo invalida o cache
  *    na própria action (sem isso o usuário ficaria preso no redirect de
  *    /aceitar-termo por até 60s no mesmo colo).

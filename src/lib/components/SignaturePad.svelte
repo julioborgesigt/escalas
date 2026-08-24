@@ -539,18 +539,7 @@
 								: 'bg-surface-900/90'} text-white backdrop-blur-md px-4 py-2.5 rounded-2xl flex items-center justify-center gap-2 shadow-[0_4px_20px_rgba(0,0,0,0.5)] transition-all duration-300"
 						>
 							{#if liveness.faceDetected}
-								<svg
-									class="w-4 h-4 text-white"
-									fill="none"
-									stroke="currentColor"
-									viewBox="0 0 24 24"
-									><path
-										stroke-linecap="round"
-										stroke-linejoin="round"
-										stroke-width="3"
-										d="M5 13l4 4L19 7"
-									/></svg
-								>
+								<Check class="w-4 h-4 text-white" strokeWidth={3} aria-hidden="true" />
 							{:else}
 								<Spinner size="xs" />
 							{/if}

@@ -41,7 +41,6 @@
 	import type { ActionResult } from '@sveltejs/kit';
 	import {
 		useAutorizacao,
-		getSavedFilters,
 		useAssinaturaEscala,
 		useMobile,
 		useFiltrosPaginados,
@@ -49,6 +48,7 @@
 		rubricaValida,
 		useInvalidateOnFocus
 	} from '$lib/composables';
+	import { getSavedFilters } from '$lib/utils/localStorage';
 	import { fetchSyncEstado } from '$lib/sync-estado';
 	import SignaturePad from '$lib/components/SignaturePad.svelte';
 	import {

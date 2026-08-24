@@ -4,21 +4,15 @@
  *
  * Com a flag de chave ligada, este um-tiro morre (403); o titular usa o par
  * preparar/finalizar. O miolo do PDF vive em `assinatura-extra.ts`.
+ *
+ * Só o supervisor DESIGNADO, como as outras quatro rotas da família — o porquê
+ * da remoção do Admin Geral está no cabeçalho de
+ * `preparar-assinatura-avancada/+server.ts`.
  */
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import {
-	getDB,
-	buscarGiseDetalhado,
-	verificarSaidaCompletaSeccional,
-	auditar,
-	contextoDeEvento,
-	tryGetR2
-} from '$lib/db';
-import {
-	giseAutorizaSeccionalRelatorioExtra,
-	secIdEhSupervisaoExtra
-} from '$lib/server/gise/supervisao-extra';
+import { getDB, auditar, contextoDeEvento, tryGetR2 } from '$lib/db';
+import { carregarRelatorioExtraParaAssinatura } from '$lib/server/gise/permissao';
 import { giseSignatureSchema } from '$lib/schemas';
 import { validarEvidenciasAvancada } from '$lib/server/assinatura/signature-service';
 import { bucketParaAssinatura } from '$lib/server/assinatura/blob-assinado';
@@ -29,26 +23,12 @@ import {
 } from '$lib/server/gise/assinatura-extra';
 import type { EvidenciasMontagem } from '$lib/server/escalas/assinatura-escala';
 import { envComoRegistro } from '$lib/server/assinatura/document-utils';
-import {
-	apiError,
-	ErrorCode,
-	requireAuth,
-	badRequest,
-	notFound,
-	forbidden,
-	serverError,
-	validateBody
-} from '$lib/server/api';
+import { apiError, ErrorCode, requireAuth, serverError, validateBody } from '$lib/server/api';
 
 export const POST: RequestHandler = async (event) => {
 	const { locals, params, request, platform, cookies, getClientAddress, url } = event;
 	const u = requireAuth(locals);
 	if (u instanceof Response) return u;
-	if (u.tipo !== 'policial' && u.tipo !== 'admin') {
-		return forbidden('Somente policiais supervisores ou administradores podem assinar');
-	}
-
-	const { id, seccionalId } = params;
 	const v = await validateBody(request, giseSignatureSchema);
 	if (!v.ok) return v.response;
 
@@ -56,8 +36,6 @@ export const POST: RequestHandler = async (event) => {
 		rubrica,
 		type,
 		hash: inputHash,
-		signerName,
-		signerCpf,
 		latitude,
 		longitude,
 		selfieBase64,
@@ -77,35 +55,11 @@ export const POST: RequestHandler = async (event) => {
 
 	const db = getDB(platform);
 
+	const portao = await carregarRelatorioExtraParaAssinatura(db, params, u);
+	if (portao.recusa) return portao.recusa;
+	const { gise, giseId: giseIdNum, secId: secIdNum } = portao;
+
 	try {
-		const giseIdNum = parseInt(id!);
-		const secIdNum = parseInt(seccionalId!);
-
-		const gise = await buscarGiseDetalhado(db, giseIdNum);
-		if (!gise) return notFound('Escala');
-
-		if (u.tipo !== 'admin' && gise.supervisor_id !== u.id) {
-			return forbidden(
-				'Apenas o supervisor designado ou administradores podem assinar este relatório.'
-			);
-		}
-
-		const secOk = await giseAutorizaSeccionalRelatorioExtra(db, giseIdNum, secIdNum);
-		if (!secOk) return badRequest('Seccional inválida para esta GISE.');
-
-		const isSupExtraGate = await secIdEhSupervisaoExtra(db, secIdNum);
-		const saidaCompleta = await verificarSaidaCompletaSeccional(
-			db,
-			giseIdNum,
-			secIdNum,
-			isSupExtraGate
-		);
-		if (!saidaCompleta) {
-			return badRequest(
-				'Todos os participantes precisam confirmar a saída (rubrica) antes de assinar o relatório.'
-			);
-		}
-
 		let evidenciasMontagem: EvidenciasMontagem = {};
 		if (type !== 'serpro') {
 			const evid = await validarEvidenciasAvancada(
@@ -151,8 +105,17 @@ export const POST: RequestHandler = async (event) => {
 			giseId: giseIdNum,
 			secId: secIdNum,
 			assinante: {
-				nome: signerName || u.nome,
-				cpf: signerCpf || u.cpf,
+				// Identidade do assinante vem da SESSÃO, não do corpo. No fluxo avançado
+				// não há certificado que ateste nada: `signerCpf`/`signerName` seriam
+				// texto livre do cliente (`z.string().max(20)`, sem formato e sem
+				// cruzamento) gravados num documento com valor jurídico. A rota irmã
+				// de PRESENÇA sempre fez assim (`signerCpf: u.cpf`); esta confiava no
+				// corpo primeiro, e as duas ficaram opostas até ago/2026.
+				//
+				// No fluxo QUALIFICADO é diferente e continua como está: lá o
+				// `signerCpf` é o CPF lido do certificado e existe conferência.
+				nome: u.nome,
+				cpf: u.cpf,
 				matricula: u.tipo === 'policial' ? u.matricula : null
 			},
 			evidencias: evidenciasMontagem,
@@ -179,8 +142,8 @@ export const POST: RequestHandler = async (event) => {
 			secId: secIdNum,
 			assinante: {
 				id: u.tipo === 'policial' ? u.id : null,
-				nome: signerName || u.nome,
-				cpf: signerCpf || u.cpf
+				nome: u.nome,
+				cpf: u.cpf
 			},
 			montado,
 			rubrica: evidenciasMontagem.rubrica,
@@ -203,7 +166,7 @@ export const POST: RequestHandler = async (event) => {
 				entidade_id: giseIdNum,
 				alvo_tipo: 'seccional',
 				alvo_id: secIdNum,
-				detalhes: `Relatório extraordinário da GISE ${id} assinado (seccional ${seccionalId})`,
+				detalhes: `Relatório extraordinário da GISE ${giseIdNum} assinado (seccional ${secIdNum})`,
 				metadados: { tipo_assinatura: type ?? 'simples', verification_hash: hash },
 				...contexto
 			},
@@ -213,7 +176,7 @@ export const POST: RequestHandler = async (event) => {
 		return json({ success: true });
 	} catch (e) {
 		return serverError(
-			`[gise/relatorios/assinar] Falha ao salvar assinatura (gise_id=${id}, seccional_id=${seccionalId})`,
+			`[gise/relatorios/assinar] Falha ao salvar assinatura (gise_id=${giseIdNum}, seccional_id=${secIdNum})`,
 			e
 		);
 	}

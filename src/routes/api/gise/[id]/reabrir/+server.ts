@@ -20,6 +20,7 @@ import {
 import { coletarAfetadosGise, invalidarPapelGiseMultiplos } from '$lib/server/gise/papel-cache';
 import { limparR2DaGise } from '$lib/server/r2-cleanup';
 import { giseIdParamSchema } from '$lib/schemas';
+import { escalaGiseJaAssinada } from '$lib/gise/status-escala';
 import { requireAdmin, badRequest, notFound } from '$lib/server/api';
 
 export const POST: RequestHandler = async (event) => {
@@ -36,13 +37,7 @@ export const POST: RequestHandler = async (event) => {
 	const gise = await buscarGiseEscala(db, id);
 	if (!gise) return notFound('Escala GISE');
 
-	if (
-		gise.status !== 'em_andamento' &&
-		gise.status !== 'aguardando_relatorios' &&
-		gise.status !== 'aguardando_assinatura_relat' &&
-		gise.status !== 'pronta_para_finalizar' &&
-		gise.status !== 'finalizada'
-	) {
+	if (!escalaGiseJaAssinada(gise.status)) {
 		return badRequest('Apenas escalas em andamento ou finalizadas podem ser reabertas');
 	}
 

@@ -11,22 +11,45 @@
  * assinado pelo titular (inclusive os que este próprio sistema publica em
  * `/validar`) — o servidor precisa, ANTES de autenticar, confirmar três coisas:
  *
- *   1. **Assinatura válida** sobre os SignedAttributes do CMS — prova de que
+ *   1. **Política criptográfica mínima:** recusa SHA-1, RSA abaixo de 2048 bits
+ *      e certificado sem `keyUsage` de assinatura. Ver a nota abaixo.
+ *   2. **Assinatura válida** sobre os SignedAttributes do CMS — prova de que
  *      a chave privada do certificado assinou algo.
- *   2. **Vínculo ao desafio:** o `messageDigest` assinado é exatamente o hash
+ *   3. **Vínculo ao desafio:** o `messageDigest` assinado é exatamente o hash
  *      do nonce DESTE desafio — impede replay e o reaproveitamento de um CMS
  *      assinado para outro fim.
- *   3. **Cadeia ICP-Brasil** (feito no handler, fail-closed): garante que o CPF
+ *   4. **Cadeia ICP-Brasil** (feito no handler, fail-closed): garante que o CPF
  *      lido do subject pertence de fato ao titular. Sem isso, um atacante geraria
  *      um certificado autoassinado com o CPF da vítima, assinaria o nonce com a
- *      PRÓPRIA chave (passando 1 e 2) e se autenticaria como a vítima.
+ *      PRÓPRIA chave (passando 2 e 3) e se autenticaria como a vítima.
  *
- * Este módulo cobre (1) e (2) e devolve o certificado do signatário já validado
- * para o handler aplicar (3) e extrair a identidade.
+ * Este módulo cobre (1) a (3) e devolve o certificado do signatário já validado
+ * para o handler aplicar (4) e extrair a identidade.
+ *
+ * ## Por que a política criptográfica também roda AQUI
+ *
+ * `avaliarPoliticaCriptografica` é a mesma régua que a finalização CAdES
+ * (`cades-finalizer`) e a verificação de documento (`pdf-verification`) aplicam.
+ * Este era o terceiro caminho que consome um CMS enviado pelo usuário, e o único
+ * que a pulava — e logo o de maior desnível: `/api/auth/certificado/verificar`
+ * concede sessão SEM senha e SEM 2FA. Aceitava, portanto, um CMS assinado em
+ * SHA-1 (colisões de prefixo escolhido são práticas desde 2020), uma chave RSA
+ * fraca, e um e-CPF emitido só para autenticação/cifragem — que não é
+ * certificado de assinatura. A cadeia ICP e o OCSP já barravam a personificação
+ * direta; o que faltava era a régua estar nos três lugares que a precisam, e não
+ * em dois deles.
+ *
+ * Roda ANTES da verificação da assinatura porque é barata (lê OID, tamanho de
+ * módulo e extensão), na mesma ordem que `webauthn/assercao` usa: recusar cedo o
+ * que já está fora da política evita importar chave e verificar curva à toa.
  */
 import forge from 'node-forge';
 import { binStringToBytes } from '$lib/crypto/bin';
-import { parseCms, verificarAssinaturaCmsAsync } from '../assinatura/pdf-verification';
+import {
+	parseCms,
+	verificarAssinaturaCmsAsync,
+	avaliarPoliticaCriptografica
+} from '../assinatura/pdf-verification';
 import { extrairDadosDoCertificado } from '../assinatura/pdf-signing-prepare';
 import { compararSegredoUtf8TimingSafe } from '$lib/auth';
 import { consultarOcsp, type OcspSnapshot } from '../assinatura/ocsp';
@@ -35,11 +58,12 @@ import { cnDoCertificado, encontrarIssuerNoTrustStore } from '../assinatura/icp-
 import { logger } from '../logger';
 import { mensagemDeErro } from '$lib/utils/erro';
 
-type MotivoFalhaCert = 'cms_invalido' | 'assinatura_invalida' | 'nonce_nao_confere';
+type MotivoFalhaCert =
+	'cms_invalido' | 'assinatura_invalida' | 'nonce_nao_confere' | 'politica_cripto';
 
 type ResultadoDesafioCert =
 	| { ok: true; nome: string; cpf: string; certificado: forge.pki.Certificate }
-	| { ok: false; motivo: MotivoFalhaCert };
+	| { ok: false; motivo: MotivoFalhaCert; detalhe?: string };
 
 function base64ParaBytes(b64: string): Uint8Array | null {
 	try {
@@ -71,7 +95,15 @@ export async function verificarRespostaDesafioCertificado(
 	const cms = parseCms(der);
 	if (!cms) return { ok: false, motivo: 'cms_invalido' };
 
-	// (1) Assinatura sobre os SignedAttributes — prova de posse da chave privada.
+	// (1) Política criptográfica mínima — a mesma de `cades-finalizer` e
+	//     `pdf-verification`. Ver a nota no cabeçalho.
+	const politica = avaliarPoliticaCriptografica(cms.sigAlgOid, cms.digestAlgOid, cms.certificate);
+	if (!politica.ok) {
+		logger.warn('[cert-login] Política criptográfica violada', { motivo: politica.motivo });
+		return { ok: false, motivo: 'politica_cripto', detalhe: politica.motivo };
+	}
+
+	// (2) Assinatura sobre os SignedAttributes — prova de posse da chave privada.
 	const assinaturaOk = await verificarAssinaturaCmsAsync(
 		cms.certificate,
 		cms.sigAlgOid,
@@ -84,7 +116,7 @@ export async function verificarRespostaDesafioCertificado(
 		return { ok: false, motivo: 'assinatura_invalida' };
 	}
 
-	// (2) O messageDigest assinado tem de ser o hash do nonce DESTE desafio.
+	// (3) O messageDigest assinado tem de ser o hash do nonce DESTE desafio.
 	//     Comparação timing-safe; ambos os lados são hex SHA-256 (64 chars).
 	const messageDigestHex = forge.util.bytesToHex(cms.messageDigest);
 	const esperado = (expectedMessageDigestHex ?? '').toLowerCase();

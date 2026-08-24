@@ -38,8 +38,15 @@ type SelfieUploadResult =
 	| { ok: true; key: string }
 	| { ok: false; reason: 'formato-invalido' | 'magic-mismatch' | 'too-large' };
 
-/** Magic bytes mínimos para PNG e JPEG. Suficiente para barrar arquivos fora do tipo. */
-function detectarTipo(bytes: Uint8Array): 'png' | 'jpg' | null {
+/**
+ * Magic bytes mínimos para PNG e JPEG. Suficiente para barrar arquivos fora do
+ * tipo — o prefixo `data:image/...` é declaração do cliente, não evidência.
+ *
+ * Exportada porque a rubrica do perfil (`/api/perfil/rubrica`) tem exatamente o
+ * mesmo problema e nasceu confiando só no prefixo. Era a segunda cópia de uma
+ * validação de 10 linhas onde uma das cópias já estava mais fraca que a outra.
+ */
+export function detectarTipo(bytes: Uint8Array): 'png' | 'jpg' | null {
 	if (bytes.length < 4) return null;
 	// PNG: 89 50 4E 47 0D 0A 1A 0A
 	if (bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47) {
@@ -50,6 +57,17 @@ function detectarTipo(bytes: Uint8Array): 'png' | 'jpg' | null {
 		return 'jpg';
 	}
 	return null;
+}
+
+/** `%PDF` no começo do arquivo — o `Content-Type` do cliente não conta (SEC-17). */
+export function ePdf(bytes: Uint8Array): boolean {
+	return (
+		bytes.length >= 4 &&
+		bytes[0] === 0x25 &&
+		bytes[1] === 0x50 &&
+		bytes[2] === 0x44 &&
+		bytes[3] === 0x46
+	);
 }
 
 /**

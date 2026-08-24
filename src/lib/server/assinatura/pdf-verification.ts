@@ -458,6 +458,112 @@ interface CmsParsed {
 	sigPolicyHashHex?: string;
 }
 
+/** Serial number normalizado (hex minúsculo, sem zeros à esquerda) para comparação. */
+function serialNormalizado(hex: string): string {
+	return hex.toLowerCase().replace(/^0+/, '') || '0';
+}
+
+/**
+ * Localiza, entre os certificados embutidos, aquele que o `SignerInfo.sid`
+ * aponta — por `issuerAndSerialNumber` ou por `subjectKeyIdentifier`.
+ *
+ * **Por que não basta `certificatesAsn1[0]`** (que era o que fazíamos): em DER,
+ * `certificates` é um `SET OF`, e a ordem de um `SET OF` é definida pela
+ * ORDENAÇÃO BYTE A BYTE da codificação de cada elemento — não pelo papel de
+ * cada certificado. Quem diz qual deles assinou é o `sid`, e só ele. O próprio
+ * caminho da TSA já reconhecia isso ("a folha pode não ser a primeira do SET") e
+ * procurava o certificado certo por conta própria; o caminho do signatário
+ * ficou com a suposição.
+ *
+ * Não era brecha — a assinatura é verificada CONTRA o certificado escolhido e a
+ * cadeia é ancorada NELE, então errar o certificado reprova em vez de aceitar. O
+ * defeito era o inverso: um CMS legítimo cuja folha não ordenasse primeiro seria
+ * marcado como inválido no `/validar`.
+ *
+ * Devolve `null` quando o `sid` não é legível ou nenhum certificado casa — o
+ * caller cai no primeiro do SET, que é o comportamento histórico e continua
+ * seguro pelo mesmo motivo acima.
+ */
+function acharCertificadoDoSigner(
+	certificatesAsn1: forge.asn1.Asn1[],
+	sid: { issuerAndSerial?: forge.asn1.Asn1; ski?: string } | null
+): { asn1: forge.asn1.Asn1; cert: forge.pki.Certificate } | null {
+	if (!sid) return null;
+
+	const parse = (asn1: forge.asn1.Asn1): forge.pki.Certificate | null => {
+		try {
+			return forge.pki.certificateFromAsn1(asn1);
+		} catch {
+			return null; // entrada que não é Certificate (CertificateChoices exótico)
+		}
+	};
+
+	if (sid.issuerAndSerial) {
+		let issuerDerAlvo: string;
+		let serialAlvo: string;
+		try {
+			const partes = sid.issuerAndSerial.value as forge.asn1.Asn1[];
+			issuerDerAlvo = forge.asn1.toDer(partes[0]).getBytes();
+			serialAlvo = serialNormalizado(forge.util.bytesToHex(partes[1].value as string));
+		} catch {
+			return null;
+		}
+		for (const asn1 of certificatesAsn1) {
+			const ident = issuerESerialDoCertAsn1(asn1);
+			if (!ident) continue;
+			if (ident.issuerDer !== issuerDerAlvo) continue;
+			if (serialNormalizado(ident.serialHex) !== serialAlvo) continue;
+			const cert = parse(asn1);
+			return cert ? { asn1, cert } : null;
+		}
+		return null;
+	}
+
+	if (sid.ski) {
+		const skiAlvo = forge.util.bytesToHex(sid.ski);
+		for (const asn1 of certificatesAsn1) {
+			const cert = parse(asn1);
+			if (!cert) continue;
+			const ext = cert.getExtension('subjectKeyIdentifier') as {
+				subjectKeyIdentifier?: string;
+			} | null;
+			// forge expõe o SKI em hex; o `sid` chega como bytes brutos.
+			if (ext?.subjectKeyIdentifier === skiAlvo) return { asn1, cert };
+		}
+	}
+	return null;
+}
+
+/**
+ * Emissor (bytes DER) e número de série de um certificado, lidos DIRETO da
+ * árvore ASN.1 dele — não do objeto `forge.pki.Certificate`.
+ *
+ * A diferença importa: `forge.pki.distinguishedNameToAsn1(cert.issuer)`
+ * RECONSTRÓI o DN a partir dos campos já parseados, e a reconstrução pode
+ * escolher outro tipo de string (`PrintableString` × `UTF8String`) que a
+ * codificação original. Os bytes sairiam diferentes para o certificado CERTO, e
+ * o casamento com o `sid` falharia silenciosamente. Aqui o nó vem do DER
+ * original, então re-serializá-lo devolve exatamente os mesmos bytes.
+ *
+ * `TBSCertificate ::= SEQUENCE { [0] version OPTIONAL, serialNumber,
+ * signature, issuer, ... }` — sem a `version` (v1) tudo desloca uma posição,
+ * daí a detecção pelo `tagClass` do primeiro filho.
+ */
+function issuerESerialDoCertAsn1(
+	certAsn1: forge.asn1.Asn1
+): { issuerDer: string; serialHex: string } | null {
+	try {
+		const tbs = (certAsn1.value as forge.asn1.Asn1[])[0].value as forge.asn1.Asn1[];
+		const i = tbs[0].tagClass === forge.asn1.Class.CONTEXT_SPECIFIC ? 1 : 0;
+		return {
+			serialHex: forge.util.bytesToHex(tbs[i].value as string),
+			issuerDer: forge.asn1.toDer(tbs[i + 2]).getBytes()
+		};
+	} catch {
+		return null;
+	}
+}
+
 /**
  * Parseia o CMS extraído do PDF e devolve as estruturas necessárias
  * para verificação.
@@ -493,16 +599,14 @@ export function parseCms(cmsDer: Uint8Array): CmsParsed | null {
 			return null;
 		}
 
-		// Pega o primeiro certificado (signatário) e expõe todos para callers
-		// que precisam localizar o cert correto pela assinatura (ex.: TSA, cuja
-		// folha pode não ser a primeira do SET).
+		// Todos os certificados embutidos. QUAL deles assinou é decidido abaixo,
+		// pelo `sid` do SignerInfo — nunca pela posição no SET (ver
+		// `acharCertificadoDoSigner`).
 		if (!certsImpl) {
 			logger.warn('[PDF-VERIFY] CMS sem certificados [0] IMPLICIT no SignedData');
 			return null;
 		}
 		const certificatesAsn1 = certsImpl.value as forge.asn1.Asn1[];
-		const certificateAsn1 = certificatesAsn1[0];
-		const certificate = forge.pki.certificateFromAsn1(certificateAsn1);
 
 		// SignerInfo: version, sid, digestAlgorithm, [0] signedAttrs?, signatureAlgorithm, signature, [1] unsignedAttrs?
 		// signatureAlgorithm vem APÓS signedAttrs e ANTES do signatureValue.
@@ -516,6 +620,12 @@ export function parseCms(cmsDer: Uint8Array): CmsParsed | null {
 		let digestAlgOid: string | undefined;
 		let sigAlgEncontrado: forge.asn1.Asn1 | null = null;
 		let digestAlgEncontrado: forge.asn1.Asn1 | null = null;
+		// `sid` (SignerIdentifier): quem assinou. `issuerAndSerialNumber` é o
+		// PRIMEIRO SEQUENCE universal do SignerInfo; `subjectKeyIdentifier` é um
+		// `[0] IMPLICIT OCTET STRING` — mesma tag do signedAttrs, e o que os
+		// separa é ser primitivo (string) em vez de construído (array).
+		let sidIssuerSerial: forge.asn1.Asn1 | null = null;
+		let sidSki: string | null = null;
 		for (const f of si) {
 			if (
 				f.tagClass === forge.asn1.Class.CONTEXT_SPECIFIC &&
@@ -523,6 +633,13 @@ export function parseCms(cmsDer: Uint8Array): CmsParsed | null {
 				Array.isArray(f.value)
 			) {
 				signedAttrs = f;
+			} else if (
+				f.tagClass === forge.asn1.Class.CONTEXT_SPECIFIC &&
+				(f.type as number) === 0 &&
+				typeof f.value === 'string' &&
+				signedAttrs === null
+			) {
+				sidSki = f.value;
 			} else if (f.tagClass === forge.asn1.Class.CONTEXT_SPECIFIC && (f.type as number) === 1) {
 				unsignedAttrs = f;
 			} else if (
@@ -532,9 +649,11 @@ export function parseCms(cmsDer: Uint8Array): CmsParsed | null {
 			) {
 				// SEQUENCEs universais do SignerInfo: sid (IssuerAndSerialNumber),
 				// digestAlgorithm (ANTES do signedAttrs [0]) e signatureAlgorithm
-				// (DEPOIS, último antes do OCTETSTRING). Capturamos o último antes
-				// do signedAttrs como digestAlgorithm e o seguinte como signatureAlgorithm.
+				// (DEPOIS, último antes do OCTETSTRING). Capturamos o PRIMEIRO antes
+				// do signedAttrs como sid, o ÚLTIMO como digestAlgorithm e o seguinte
+				// como signatureAlgorithm.
 				if (signedAttrs === null) {
+					if (sidIssuerSerial === null) sidIssuerSerial = f;
 					digestAlgEncontrado = f;
 				} else {
 					sigAlgEncontrado = f;
@@ -546,6 +665,23 @@ export function parseCms(cmsDer: Uint8Array): CmsParsed | null {
 				signatureValue = f.value as string;
 			}
 		}
+		// Um SignerInfo com sid por issuerAndSerial tem DOIS SEQUENCEs antes do
+		// signedAttrs (sid, digestAlgorithm). Se só houve um, ele É o
+		// digestAlgorithm e o sid veio por SKI — não há issuerAndSerial a casar.
+		if (sidIssuerSerial === digestAlgEncontrado) sidIssuerSerial = null;
+
+		const doSigner = acharCertificadoDoSigner(certificatesAsn1, {
+			issuerAndSerial: sidIssuerSerial ?? undefined,
+			ski: sidSki ?? undefined
+		});
+		if (!doSigner) {
+			logger.warn(
+				'[PDF-VERIFY] SignerInfo.sid não casou com nenhum certificado embutido — usando o primeiro do SET',
+				{ temIssuerSerial: !!sidIssuerSerial, temSki: !!sidSki, certs: certificatesAsn1.length }
+			);
+		}
+		const certificateAsn1 = doSigner?.asn1 ?? certificatesAsn1[0];
+		const certificate = doSigner?.cert ?? forge.pki.certificateFromAsn1(certificateAsn1);
 		if (!signedAttrs || !signatureValue) {
 			logger.warn(
 				'[PDF-VERIFY] CMS sem signedAttrs ([0]) ou signatureValue (OCTET STRING) no SignerInfo',

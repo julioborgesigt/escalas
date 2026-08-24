@@ -82,6 +82,7 @@
 					</p>
 					{#if podeGerenciar}
 						<BotoesEdicaoPapel
+							rotulo={papel === 'seint1' ? 'NUIP OIP 1' : 'NUIP OIP 2'}
 							temId={!!idPersistido}
 							removendo={quadro.removendoPapel === papel}
 							pending={quadro.pendingCrud}

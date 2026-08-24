@@ -20,7 +20,11 @@ import {
 	respostaPdfAssinado
 } from '$lib/server/assinatura/signature-service';
 import { tryGetR2 } from '$lib/db';
-import { bucketParaAssinatura, guardarPdfAssinado } from '$lib/server/assinatura/blob-assinado';
+import {
+	bucketParaAssinatura,
+	guardarPdfAssinado,
+	recusarPorDocumentoJaGravado
+} from '$lib/server/assinatura/blob-assinado';
 import {
 	requireAuth,
 	badRequest,
@@ -40,8 +44,8 @@ export const POST: RequestHandler = async (event) => {
 	const db = getDB(p);
 	const u = requireAuth(locals);
 	if (u instanceof Response) return u;
-	if (u.tipo !== 'policial' && u.tipo !== 'admin') {
-		return forbidden('Somente policiais supervisores ou administradores podem assinar');
+	if (u.tipo !== 'policial') {
+		return forbidden('Apenas o supervisor designado pode assinar este relatório.');
 	}
 
 	const ip = getClientAddress();
@@ -55,10 +59,8 @@ export const POST: RequestHandler = async (event) => {
 	// Permissão de negócio: admin geral ou supervisor designado.
 	const giseAuth = await buscarGiseEscala(db, id);
 	if (!giseAuth) return notFound('GISE');
-	if (u.tipo !== 'admin' && giseAuth.supervisor_id !== u.id) {
-		return forbidden(
-			'Apenas o supervisor designado ou administradores podem assinar este relatório'
-		);
+	if (giseAuth.supervisor_id !== u.id) {
+		return forbidden('Apenas o supervisor designado pode assinar este relatório');
 	}
 
 	const validated = await validateBody(request, finalizarAssinaturaGiseSchema);
@@ -117,7 +119,7 @@ export const POST: RequestHandler = async (event) => {
 		const guardado = await guardarPdfAssinado(bucket, r2Key, result.pdfFinal, 'gise-relatorio');
 		if (!guardado.ok) return guardado.resposta;
 
-		await salvarAssinaturaRelatorioGise(
+		const { gravado } = await salvarAssinaturaRelatorioGise(
 			db,
 			{
 				gise_id: id,
@@ -151,6 +153,9 @@ export const POST: RequestHandler = async (event) => {
 			},
 			platform?.env
 		);
+		if (!gravado) {
+			return recusarPorDocumentoJaGravado(db, bucket, [r2Key], 'gise-relatorio');
+		}
 
 		await tentarPromoverGiseProntaParaFinalizar(db, id);
 

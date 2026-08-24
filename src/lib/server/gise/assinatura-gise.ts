@@ -12,6 +12,7 @@ import { logger } from '../logger';
 import {
 	salvarGiseDocumento,
 	atualizarGiseEscala,
+	circunstanciaDePersistir,
 	type Database,
 	type AssinaturaPasskeyMetadata
 } from '$lib/db';
@@ -22,7 +23,11 @@ import { selarPdfInstitucional, tipoCarimboPrevisto } from '../assinatura/server
 import { gerarPdfGise, toGisePdfData } from '../export';
 import { uploadSelfieDataUri } from '../assinatura/selfie-upload';
 import { gerarCodigoValidacao } from '$lib/utils/formato';
-import { guardarPdfAssinado, type R2ParaAssinatura } from '../assinatura/blob-assinado';
+import {
+	guardarPdfAssinado,
+	recusarPorDocumentoJaGravado,
+	type R2ParaAssinatura
+} from '../assinatura/blob-assinado';
 import type { EvidenciasMontagem } from '../escalas/assinatura-escala';
 import { mensagemDeErro } from '$lib/utils/erro';
 
@@ -146,30 +151,31 @@ export async function persistirGiseAssinada(opts: {
 		}
 	}
 
-	await Promise.all([
-		salvarGiseDocumento(
-			opts.db,
-			opts.gise.id,
-			documentKey,
-			opts.assinante.id,
-			opts.assinante.nome,
-			'',
-			opts.montado.verificationHash,
-			opts.rubrica ?? undefined,
-			opts.ip,
-			opts.userAgent,
-			opts.latitude ?? undefined,
-			opts.longitude ?? undefined,
-			opts.selfieKey ?? undefined,
-			arquivoHash,
-			undefined,
-			undefined,
-			undefined,
-			opts.env,
-			opts.passkeyMeta
-		),
-		atualizarGiseEscala(opts.db, opts.gise.id, { status: 'em_andamento' })
-	]);
+	const { gravado } = await salvarGiseDocumento(opts.db, {
+		giseId: opts.gise.id,
+		r2Key: documentKey,
+		assinanteId: opts.assinante.id,
+		assinanteNome: opts.assinante.nome,
+		// CPF vazio de propósito no caminho avançado: quem o preenche é o
+		// fluxo qualificado, a partir do certificado.
+		assinanteCpf: '',
+		verificacaoHash: opts.montado.verificationHash,
+		rubrica: opts.rubrica ?? undefined,
+		arquivoHash,
+		...circunstanciaDePersistir(opts)
+	});
+	if (!gravado) {
+		return {
+			ok: false,
+			resposta: await recusarPorDocumentoJaGravado(
+				opts.db,
+				opts.r2,
+				[documentKey, chaveConferencia(opts.montado.verificationHash), opts.selfieKey],
+				'gise-simples'
+			)
+		};
+	}
+	await atualizarGiseEscala(opts.db, opts.gise.id, { status: 'em_andamento' });
 
 	return { ok: true, arquivoHash, pdfComRodape: opts.montado.pdfComRodape };
 }

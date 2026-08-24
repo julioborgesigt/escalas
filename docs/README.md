@@ -4,17 +4,17 @@ Mapa de toda a documentação do projeto, separada em **documentos vivos** (mant
 
 ## Documentos vivos
 
-| Documento                                                                       | Conteúdo                                                                                                                                    | Público-alvo                       |
-| ------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------- |
-| [`README.md`](../README.md) (raiz)                                              | Visão geral, stack, setup local, arquitetura, módulos, padrões de código, troubleshooting                                                   | Qualquer dev entrando no projeto   |
-| [`DEPLOY.md`](../DEPLOY.md) (raiz)                                              | Runbook de produção: variáveis/secrets, papéis de admin, backup/rollback, staging, trust store ICP-Brasil, TSA, go-live                     | Operador / responsável pelo deploy |
-| [`TESTING.md`](../TESTING.md) (raiz)                                            | Roteiro manual de **exceção** (hardware/ambiente real); o gate de regressão é a suíte automatizada — casos cobertos por spec estão anotados | QA / dev antes de release          |
-| [`CLAUDE.md`](../CLAUDE.md) (raiz)                                              | Diretrizes de código para agentes e devs: Svelte 5, erros de API, autorização, layout de `server/`, `api-fetch`, testes, goldens             | Dev / agente de IA                 |
-| [`QA_ASSINATURA_A3_DESKTOP.md`](QA_ASSINATURA_A3_DESKTOP.md)                    | Roteiro de QA manual do fluxo de presença GISE por Token A3 (exige hardware; não roda em CI)                                                | QA com token físico                |
-| [`.env.example`](../.env.example) (raiz)                                        | **Fonte autoritativa** de todas as variáveis de ambiente, comentadas                                                                        | Dev / operador                     |
-| [`scripts/README.md`](../scripts/README.md)                                     | Scripts utilitários (migrações, senhas) e setup detalhado da integração Google Sheets / Base_Equipe                                         | Operador                           |
+| Documento                                                                                             | Conteúdo                                                                                                                                    | Público-alvo                       |
+| ----------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------- |
+| [`README.md`](../README.md) (raiz)                                                                    | Visão geral, stack, setup local, arquitetura, módulos, padrões de código, troubleshooting                                                   | Qualquer dev entrando no projeto   |
+| [`DEPLOY.md`](../DEPLOY.md) (raiz)                                                                    | Runbook de produção: variáveis/secrets, papéis de admin, backup/rollback, staging, trust store ICP-Brasil, TSA, go-live                     | Operador / responsável pelo deploy |
+| [`TESTING.md`](../TESTING.md) (raiz)                                                                  | Roteiro manual de **exceção** (hardware/ambiente real); o gate de regressão é a suíte automatizada — casos cobertos por spec estão anotados | QA / dev antes de release          |
+| [`CLAUDE.md`](../CLAUDE.md) (raiz)                                                                    | Diretrizes de código para agentes e devs: Svelte 5, erros de API, autorização, layout de `server/`, `api-fetch`, testes, goldens            | Dev / agente de IA                 |
+| [`QA_ASSINATURA_A3_DESKTOP.md`](QA_ASSINATURA_A3_DESKTOP.md)                                          | Roteiro de QA manual do fluxo de presença GISE por Token A3 (exige hardware; não roda em CI)                                                | QA com token físico                |
+| [`.env.example`](../.env.example) (raiz)                                                              | **Fonte autoritativa** de todas as variáveis de ambiente, comentadas                                                                        | Dev / operador                     |
+| [`scripts/README.md`](../scripts/README.md)                                                           | Scripts utilitários (migrações, senhas) e setup detalhado da integração Google Sheets / Base_Equipe                                         | Operador                           |
 | [`src/lib/server/assinatura/icp-brasil/README.md`](../src/lib/server/assinatura/icp-brasil/README.md) | Trust store ICP-Brasil: o que é, como atualizar (script Windows/Linux), frequência                                                          | Dev / operador                     |
-| [`static/face-api/README.md`](../static/face-api/README.md)                     | Modelos de reconhecimento facial servidos localmente e como atualizá-los                                                                    | Dev                                |
+| [`static/face-api/README.md`](../static/face-api/README.md)                                           | Modelos de reconhecimento facial servidos localmente e como atualizá-los                                                                    | Dev                                |
 
 ## Planos de produto em aberto
 
@@ -22,9 +22,10 @@ Decisões de produto ainda não executadas. Quando o comportamento correspondent
 entrar no código, o plano vira registro histórico ([`HISTORICO.md`](HISTORICO.md))
 e os documentos vivos (README/DEPLOY/TESTING/termo) atualizam no mesmo PR.
 
-| Documento | Conteúdo | Status |
-| --------- | -------- | ------ |
-| [`PLANO_CHAVE_ASSINATURA.md`](PLANO_CHAVE_ASSINATURA.md) | Chave de assinatura (passkey) em toda avançada; senha + 2FA + chave como piso; cadastro só no celular | 15/ago/2026 — fases 0–3 no código; fase 4 (trancar a flag) ainda não |
+| Documento                                                    | Conteúdo                                                                                                                                                                         | Status                                                                                                                                                                                                          |
+| ------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [`PLANO_CHAVE_ASSINATURA.md`](PLANO_CHAVE_ASSINATURA.md)     | Chave de assinatura (passkey) em toda avançada; senha + 2FA + chave como piso; cadastro só no celular                                                                            | 15/ago/2026 — fases 0–3 no código; fase 4 (trancar a flag) ainda não                                                                                                                                            |
+| [`PLANO_RESIDUOS_AUDITORIA.md`](PLANO_RESIDUOS_AUDITORIA.md) | Os três resíduos que sobreviveram ao arquivamento das auditorias: B-6.2 (check-SVG em 10 arquivos), B-1 (agregação de produtividade no cliente), B-5 (cor de chart fora do tema) | 22/ago/2026 — **os três fechados**: B-6.2 (grep zerado), B-5 (aceito com registro no código), B-1 (janela do servidor, sem mover a agregação). Pronto para sair do working tree e virar linha do `HISTORICO.md` |
 
 ## Registros históricos e decisões arquivadas
 
@@ -33,8 +34,18 @@ Os relatórios de auditoria e as avaliações arquivadas **não vivem mais no wo
 ## Convenções
 
 - **Novas auditorias** podem ser commitadas em `docs/auditorias/` (data no nome ou no cabeçalho) enquanto seus achados estão sendo tratados; quando encerradas, o arquivo é removido e catalogado no [`HISTORICO.md`](HISTORICO.md) — o histórico do Git mantém a rastreabilidade dos achados (A1–A8, I-1…I-4, M-3/M-4, R2-1…R2-4, B-1…B-6…) citados em comentários do código.
-- `docs/auditorias/` está VAZIA — nenhuma auditoria ou plano aberto. O último (visual,
-  VIS-1…VIS-17) foi encerrado e catalogado no [`HISTORICO.md`](HISTORICO.md); o
-  resíduo dele é manual e passou para [`TESTING.md`](../TESTING.md) §16, que é
-  onde mora roteiro que a automação não alcança.
+- `docs/auditorias/` está **vazia — nenhuma auditoria aberta**. A última,
+  segurança de 21/ago (SEC-01…SEC-38), encerrou no mesmo ciclo e foi catalogada
+  no [`HISTORICO.md`](HISTORICO.md): 20 remediados e 17 aceitos com registro, os
+  de operação promovidos ao [`DEPLOY.md`](../DEPLOY.md). Antes dela, a de
+  componentização (13/ago), também catalogada; e a visual (VIS-1…VIS-17), com o
+  resíduo manual em [`TESTING.md`](../TESTING.md) §16, que é onde mora roteiro
+  que a automação não alcança.
+- **Auditoria não se arquiva pela data, e sim pelos achados.** Antes de remover
+  o arquivo, reverifique cada achado contra o código e escreva o resultado no
+  próprio documento; o que sobrar aberto continua no working tree. A de
+  componentização de 13/ago passou seis dias na RAIZ do repositório, como
+  `REVISAO-COMPONENTIZACAO.me` — fora da pasta, fora desta lista e com a
+  extensão errada —, enquanto esta seção afirmava que não havia auditoria
+  aberta. Auditoria fora de `docs/auditorias/` é auditoria que ninguém releva.
 - Documentos **vivos** que ficarem defasados devem ser corrigidos no mesmo PR que muda o comportamento correspondente.
