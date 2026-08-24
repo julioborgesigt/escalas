@@ -71,6 +71,17 @@ export async function resolverParticipacaoGisePolicial(
 			participa: true,
 			dataInicio: eqRow.data_inicio,
 			horarioPrevisto: {
+				// Mesma precedência equipe → seccional → escala de
+				// `horaEfetivaGiseMembro` (`server/escalas/conflict.ts`), que documenta
+				// os quatro sítios da família e por que o alias diferente em cada
+				// consulta esconde uns dos outros.
+				//
+				// O `?? '08:00'` / `?? '16:00'` final é INALCANÇÁVEL:
+				// `gise_escalas.hora_entrada` e `hora_saida` são `NOT NULL DEFAULT`,
+				// então `esc_he`/`esc_hs` nunca chegam nulos aqui. Fica como cinto de
+				// segurança do tipo — se aquelas colunas virarem nullable um dia, este
+				// módulo continua devolvendo horário e os outros três passam a
+				// devolver `null`, que é a divergência a procurar.
 				inicio: eqRow.eq_he ?? eqRow.sec_he ?? eqRow.esc_he ?? '08:00',
 				fim: eqRow.eq_hs ?? eqRow.sec_hs ?? eqRow.esc_hs ?? '16:00'
 			},
