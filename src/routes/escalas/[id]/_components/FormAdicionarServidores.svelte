@@ -177,6 +177,38 @@
 	);
 </script>
 
+<!-- Par Cargo/Servidor — mesma marcação nos dois formulários (FDS rápido e
+     normal), só a largura da coluna de Servidor muda. -->
+{#snippet camposCargoServidor(colSpanServidor: string)}
+	<label class="label sm:col-span-1">
+		<span class="label-text">Cargo</span>
+		<select
+			class="select h-9 py-0 px-2"
+			bind:value={cargoBusca}
+			onchange={() => {
+				policialId = '';
+			}}
+		>
+			<option value="">...</option>
+			<option value="DPC">DPC</option>
+			<option value="OIP">OIP</option>
+		</select>
+	</label>
+	<label class="label {colSpanServidor} self-center">
+		<span class="label-text">Servidor</span>
+		{#key cargoBusca}
+			<SearchableSelect
+				name="policial_id"
+				bind:value={policialId}
+				disabled={!cargoBusca}
+				loadOptions={buscarPoliciaisAsync}
+				placeholder={cargoBusca ? 'Digite para buscar servidor...' : 'Selecione o cargo primeiro'}
+				class="w-full h-9"
+			/>
+		{/key}
+	</label>
+{/snippet}
+
 {#if visivel && isExpediente}
 	<div
 		class="p-4 sm:p-5 mb-4 rounded-3xl bg-primary-500/8 border border-primary-500/25 backdrop-blur-md"
@@ -314,35 +346,7 @@
 				<input type="hidden" name="minuto_saida" value="59" />
 				<input type="hidden" name="equipe" value="1" />
 				<div class="grid grid-cols-1 sm:grid-cols-12 gap-4 items-end">
-					<label class="label sm:col-span-1">
-						<span class="label-text">Cargo</span>
-						<select
-							class="select h-9 py-0 px-2"
-							bind:value={cargoBusca}
-							onchange={() => {
-								policialId = '';
-							}}
-						>
-							<option value="">...</option>
-							<option value="DPC">DPC</option>
-							<option value="OIP">OIP</option>
-						</select>
-					</label>
-					<label class="label sm:col-span-4 self-center">
-						<span class="label-text">Servidor</span>
-						{#key cargoBusca}
-							<SearchableSelect
-								name="policial_id"
-								bind:value={policialId}
-								disabled={!cargoBusca}
-								loadOptions={buscarPoliciaisAsync}
-								placeholder={cargoBusca
-									? 'Digite para buscar servidor...'
-									: 'Selecione o cargo primeiro'}
-								class="w-full h-9"
-							/>
-						{/key}
-					</label>
+					{@render camposCargoServidor('sm:col-span-4')}
 					<label class="label sm:col-span-5">
 						<span class="label-text">Observações</span>
 						<input
@@ -368,35 +372,7 @@
 		{:else}
 			<form method="POST" action="?/adicionar" use:enhance={handleAdd}>
 				<div class="grid grid-cols-1 sm:grid-cols-12 gap-4 items-end mb-4">
-					<label class="label sm:col-span-1">
-						<span class="label-text">Cargo</span>
-						<select
-							class="select h-9 py-0 px-2"
-							bind:value={cargoBusca}
-							onchange={() => {
-								policialId = '';
-							}}
-						>
-							<option value="">...</option>
-							<option value="DPC">DPC</option>
-							<option value="OIP">OIP</option>
-						</select>
-					</label>
-					<label class="label sm:col-span-3 self-center">
-						<span class="label-text">Servidor</span>
-						{#key cargoBusca}
-							<SearchableSelect
-								name="policial_id"
-								bind:value={policialId}
-								disabled={!cargoBusca}
-								loadOptions={buscarPoliciaisAsync}
-								placeholder={cargoBusca
-									? 'Digite para buscar servidor...'
-									: 'Selecione o cargo primeiro'}
-								class="w-full h-9"
-							/>
-						{/key}
-					</label>
+					{@render camposCargoServidor('sm:col-span-3')}
 					<label class="label sm:col-span-2">
 						<span class="label-text">Data</span>
 						<select
