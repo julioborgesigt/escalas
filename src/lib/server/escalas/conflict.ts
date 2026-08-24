@@ -32,6 +32,48 @@ function horaComparavel(h: string | null | undefined): string {
 }
 
 /**
+ * Horário efetivo de um membro de equipe GISE: equipe → seccional → escala, o
+ * primeiro nível que define horário próprio vence. Decide o horário contra o
+ * qual `seOverlapam` compara, então divergir aqui é divergir na detecção de
+ * conflito.
+ *
+ * Unifica os dois call sites DESTE arquivo (`verificarConflitoGlobal` e
+ * `verificarConflitoGlobalBatch`). **A família é maior, e continua espalhada:**
+ *
+ * | onde                                     | como está escrito                                    |
+ * | ---------------------------------------- | ---------------------------------------------------- |
+ * | aqui (single-date + batch)                | `eq_he ?? sec_he ?? gise_he`                         |
+ * | `db/gise/participacao.ts` (horário previsto) | `eq_he ?? sec_he ?? esc_he ?? '08:00'`            |
+ * | `db/gise/membros.ts` (conflito ao inserir)   | `eq_hora_entrada ?? sec_hora_entrada ?? gise_hora_entrada` |
+ *
+ * **O que esconde as cópias é o NOME**: as mesmas três colunas ganham alias
+ * diferente em cada consulta (`gise_he`, `esc_he`, `gise_hora_entrada`), então
+ * procurar por uma delas não encontra as outras. Unificar as quatro exigiria
+ * padronizar os alias nos três módulos — em código de detecção de conflito,
+ * que é onde errar não aparece na tela.
+ *
+ * As três variantes concordam hoje, e isso é verificável, não sorte:
+ * `gise_escalas.hora_entrada` é `NOT NULL DEFAULT '08:00'` (as de seccional e
+ * equipe são nullable), então o ÚLTIMO elo da cadeia nunca é nulo. É por isso
+ * que o `?? '08:00'` extra do `participacao.ts` é inalcançável, e por isso que
+ * a ausência dele aqui não muda nada. Se alguém tornar aquela coluna nullable,
+ * as três divergem no mesmo dia — e é este parágrafo que diz onde procurar.
+ */
+function horaEfetivaGiseMembro(g: {
+	gise_he: string | null;
+	gise_hs: string | null;
+	sec_he: string | null;
+	sec_hs: string | null;
+	eq_he: string | null;
+	eq_hs: string | null;
+}): { he: string | null; hs: string | null } {
+	return {
+		he: g.eq_he ?? g.sec_he ?? g.gise_he,
+		hs: g.eq_hs ?? g.sec_hs ?? g.gise_hs
+	};
+}
+
+/**
  * Verifica conflito apenas nas escalas não-GISE (`escala_policiais`).
  * Utilizado internamente pelas funções GISE para completar a checagem cruzada.
  */
@@ -147,8 +189,7 @@ export async function verificarConflitoGlobal(
 	]);
 
 	for (const g of membrosGise) {
-		const eHe = g.eq_he ?? g.sec_he ?? g.gise_he;
-		const eHs = g.eq_hs ?? g.sec_hs ?? g.gise_hs;
+		const { he: eHe, hs: eHs } = horaEfetivaGiseMembro(g);
 		if (eHe && eHs && seOverlapam(he, hs, eHe, eHs)) {
 			return {
 				ok: false,
@@ -246,8 +287,7 @@ export async function verificarConflitoGlobalBatch(
 
 	for (const g of existentesGiseMembros) {
 		if (conflitos.has(g.data_inicio)) continue;
-		const eHe = g.eq_he ?? g.sec_he ?? g.gise_he;
-		const eHs = g.eq_hs ?? g.sec_hs ?? g.gise_hs;
+		const { he: eHe, hs: eHs } = horaEfetivaGiseMembro(g);
 		if (eHe && eHs && seOverlapam(he, hs, eHe, eHs)) {
 			conflitos.set(
 				g.data_inicio,
