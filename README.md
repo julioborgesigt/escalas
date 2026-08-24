@@ -212,7 +212,7 @@ O projeto usa **Cloudflare D1** (SQLite serverless) via **Drizzle ORM**. O schem
 | `gise_membros`                   | Associação policial ↔ equipe GISE                                                                                   |
 | `gise_presencas`                 | Registros de entrada/saída (GPS, selfie, rubrica)                                                                   |
 | `gise_documentos`                | PDFs assinados de GISE                                                                                              |
-| `gise_modelo_formulario`         | Modelo do formulário de produtividade em JSON, um por (operação, tipo de equipe)                                    |
+| `gise_modelo_formulario`         | Modelo do formulário de produtividade em JSON, um por (operação, tipo de equipe) — e a ordem dos cards do painel    |
 | `gise_respostas_formulario`      | Respostas de formulários (JSON) por policial/equipe                                                                 |
 | `gise_assinaturas_relatorios`    | Assinaturas de relatórios de extra/produtividade                                                                    |
 | `aceites_termos`                 | Histórico de aceite de termos de uso (versão, hash, IP, user-agent)                                                 |
@@ -725,6 +725,65 @@ par ranking + detalhamento que os blocos fixos desenhavam.
 Operação sem indicador, sem bloco e sem pergunta marcada mostra um aviso dizendo
 onde é o conserto (o editor do formulário), em vez de uma página só com a barra
 de filtros.
+
+### A ordem dos cards: arrastada no painel, não herdada do formulário
+
+Até ago/2026 a ordem era a do MODELO, e não havia como escolhê-la. Mover um card
+exigia mover a PERGUNTA no editor — o que renumera o enunciado ("4. HOUVE…") e
+reordena o formulário que o policial preenche: arrumar a leitura mexia na coleta.
+E a pergunta marcada depois caía onde calhava; se a forma dela fosse ranking, no
+TOPO da página, porque a faixa dos rankings vem acima da das colunas.
+
+A ordem passa a ser um dado próprio da operação (`gise_modelo_formulario.painel_ordem`,
+migração **0064**): um array JSON de ids de card, montado pelo Admin Geral no
+botão **"Organizar painel"** da própria `/produtividade`. Organizar na aba de
+verdade, e não numa lista de nomes em outra tela, porque o que se arruma é a
+leitura e a leitura é visual — o card ganha uma faixa com a posição, a alça e as
+setas ↑/↓, e o conteúdo dele fica inerte para o arraste não esbarrar na caixinha
+de exportação do canto.
+
+Quatro regras, e nenhuma é estilo:
+
+- **`NULL` = ordem do formulário.** É o que toda operação é até alguém
+  organizar, e é o que o botão "Ordem do formulário" devolve;
+- **id fora da lista vai para o FIM** do bloco dele. É isto que responde ao
+  "pergunta nova aparece por último" sem exigir uma reorganização a cada campo
+  criado — e a alternativa (a lista ter de cobrir todo card existente) daria
+  posição arbitrária a quem ainda não estivesse nela;
+- **id órfão é ignorado.** A ordenação percorre os CARDS e só consulta a lista
+  para saber a posição de cada um; desmarcar a pergunta no editor não deixa card
+  fantasma;
+- **o card se move dentro do BLOCO dele.** As três faixas têm formatos
+  diferentes — indicador e colunas ocupam a largura inteira, ranking e
+  detalhamento vão dois por linha —, e não há para onde levar um gráfico de
+  colunas na grade dos rankings. A ordem salva é uma lista só para as três; cada
+  faixa consulta a posição dos seus ids e ignora o resto.
+
+O bloco de prisões deixou de ter `<section>` própria e entrou na mesma lista dos
+demais cards de listagem: ele continua escrito no código (o detalhamento
+atravessa três perguntas), mas uma `<section>` acima das outras o pregava no
+topo — e um card pregado seria a única exceção sem motivo. O que sobrou de
+diferente nele é o ícone.
+
+**A ordem é por (operação × tipo de equipe)**, que é o escopo da própria tela: o
+seletor "Operacional / Inteligência" troca o formulário inteiro. A consequência
+deliberada é que os cards de INDICADOR, que saem dos dois modelos unificados por
+`key` e aparecem nas duas abas, guardam a ordem em separado em cada uma — o
+painel operacional e o de inteligência são dois relatórios, para públicos
+diferentes, e a manchete de um não precisa ser a do outro. A barra de organização
+diz isso na tela.
+
+Quem organiza é o **Admin Geral**, e só ele: a ordem é única e vale para todos
+que abrem a operação, então é configuração — do mesmo tipo que o editor do
+formulário. Admin de unidade e de seccional entram no painel para LER o resultado
+do que informam em `/dados-base`, com os dados recortados; esconder o botão não é
+a autorização, quem recusa o PUT direto é `requireAdmin` em
+`/api/produtividade/ordem`.
+
+Cobertura: `src/lib/produtividade/__tests__/ordem.test.ts` (a regra do "fim da
+lista", ids órfãos, JSON inválido) e `e2e/produtividade-ordem.spec.ts` (o arraste,
+a ida e volta pelo banco, a pergunta marcada depois e a recusa ao admin de
+unidade).
 
 ### O eixo do painel: delegacias ou seccionais
 

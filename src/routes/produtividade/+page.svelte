@@ -30,6 +30,14 @@
 	 * vive em uma só. Ele depende do modelo por PRESENÇA da pergunta — ver
 	 * `temBlocoPrisoes`.
 	 *
+	 * A ORDEM dos cards também não é do formulário: é um dado próprio da operação
+	 * (`painel_ordem`, migração 0064) que o Admin Geral monta arrastando NESTA
+	 * tela, no modo "Organizar". Ela é dele porque a alternativa — reordenar as
+	 * perguntas no editor — renumeraria o enunciado e mudaria o formulário que o
+	 * policial preenche: reordenar a leitura mexeria na coleta. Card sem posição
+	 * gravada (a pergunta marcada depois da última organização) entra no fim do
+	 * bloco dele.
+	 *
 	 * Chart.js entra por `import()` dinâmico (~200 KB): a página abre com os
 	 * filtros e a tabela antes de a biblioteca chegar.
 	 */
@@ -37,13 +45,24 @@
 	import { goto } from '$app/navigation';
 	import { slide } from 'svelte/transition';
 	import Spinner from '$lib/components/Spinner.svelte';
+	import GripVertical from '@lucide/svelte/icons/grip-vertical';
 	import { useProdutividade } from './_components/useProdutividade.svelte';
+	import { useOrganizacaoPainel } from './_components/useOrganizacaoPainel.svelte';
 	import SecaoRankings from './_components/SecaoRankings.svelte';
 	import SecaoGraficos from './_components/SecaoGraficos.svelte';
 	import SecaoIndicadores from './_components/SecaoIndicadores.svelte';
+	import BarraOrganizar from './_components/BarraOrganizar.svelte';
 
 	const { data }: PageProps = $props();
 	const p = useProdutividade(() => data);
+
+	// O gesto do arraste vive à parte da ORDEM: aquele nasce e morre num
+	// `dragstart`/`drop`, esta vai ao banco. As três seções recebem o mesmo
+	// objeto, que é o que mantém um arraste por vez na página inteira.
+	const organizacao = useOrganizacaoPainel(
+		() => p.organizando,
+		(secao, de, para) => p.moverCard(secao, de, para)
+	);
 
 	// A barra tem sete controles com três formas repetidas (rótulo, campo,
 	// segmento). Constantes em vez de string repetida: era assim que o "Tipo de
@@ -92,6 +111,19 @@
 				>Baixar gráficos</span
 			>
 			<div class="flex flex-wrap items-center gap-3">
+				<!-- Só o Admin Geral. Esconder o botão NÃO é a autorização: quem recusa
+				     o PUT direto é `requireAdmin` em `/api/produtividade/ordem`. -->
+				{#if p.podeOrganizar && !p.organizando}
+					<button
+						type="button"
+						class="btn bg-surface-200/60 dark:bg-surface-800/60 text-surface-600 dark:text-surface-300 hover:bg-surface-200 dark:hover:bg-surface-700 text-3xs font-black uppercase tracking-widest px-4 py-2 rounded-xl transition-colors flex items-center gap-2"
+						onclick={() => (p.organizando = true)}
+					>
+						<GripVertical class="w-3.5 h-3.5" aria-hidden="true" />
+						Organizar painel
+					</button>
+				{/if}
+
 				{#if p.allChartsCount > 0}
 					<button
 						type="button"
@@ -153,6 +185,19 @@
 		</div>
 	</header>
 
+	{#if p.organizando}
+		<BarraOrganizar
+			tipoEquipe={p.filterTipo === 'seint' ? 'Inteligência' : 'Operacional'}
+			alterada={p.ordemAlterada}
+			salvando={p.salvandoOrdem}
+			temOrdemPropria={p.temOrdemPropria}
+			onSalvar={p.salvarOrdem}
+			onDescartar={p.descartarOrdem}
+			onRestaurarPadrao={p.restaurarOrdemPadrao}
+			onCancelar={p.cancelarOrganizacao}
+		/>
+	{/if}
+
 	<!-- A barra de filtros é controle de tela: no PDF ela só ocuparia a primeira
 	     folha antes do primeiro gráfico. -->
 	<div class="space-y-3 print:hidden">
@@ -205,11 +250,19 @@
 						{#if (p.data.operacoes ?? []).length > 1}
 							<div class="space-y-1.5 lg:col-span-3">
 								<label for="f-op" class={ROTULO}>Operação</label>
+								<!-- Desabilitado enquanto se organiza: trocar de operação recarrega
+								     os modelos, e o rascunho do arraste passaria a valer para cards
+								     de outra operação. Impedir a troca perde menos que avisar
+								     depois da perda. -->
 								<select
 									id="f-op"
 									value={p.data.operacaoSelecionadaId ?? ''}
+									disabled={p.organizando}
+									title={p.organizando
+										? 'Salve ou saia da organização do painel antes de trocar de operação'
+										: undefined}
 									onchange={(e) => goto(`/produtividade?operacaoId=${e.currentTarget.value}`)}
-									class={CAMPO}
+									class="{CAMPO} disabled:opacity-50 disabled:cursor-not-allowed"
 								>
 									{#each p.data.operacoes ?? [] as op (op.id)}
 										<option value={op.id}>{op.nome}</option>
@@ -358,7 +411,7 @@
 	<!-- Antes dos rankings e dos gráficos por pergunta: é a leitura que a
 	     operação existe para produzir ("chegamos onde prometemos?"), e o resto
 	     é o detalhamento dela. -->
-	<SecaoIndicadores paineis={p.paineisIndicadores} Chart={p.ChartCtor} />
+	<SecaoIndicadores paineis={p.paineisIndicadores} Chart={p.ChartCtor} {organizacao} />
 
 	{#if p.painelVazio}
 		<!-- Nem indicador, nem bloco fixo, nem pergunta marcada. Sem este aviso a
@@ -379,16 +432,15 @@
 	{/if}
 
 	<!-- Rankings e detalhamentos. O bloco de prisões só existe no operacional (as
-	     perguntas que o alimentam são de lá); os cards vindos do modelo valem para
-	     os dois tipos de equipe, porque saem do formulário em foco. -->
+	     perguntas que o alimentam são de lá) e chega nesta mesma lista, já na
+	     ordem do painel; os cards vindos do modelo valem para os dois tipos de
+	     equipe, porque saem do formulário em foco. -->
 	<SecaoRankings
-		temPrisoes={p.temPrisoes}
-		rankingPrisoes={p.rankingPrisoes}
 		cards={p.cardsListagem}
-		stats={p.stats}
 		rotuloGrupo={p.modoVisualizacao === 'delegacias' ? 'Delegacia' : 'Seccional'}
 		selectedCharts={p.selectedCharts}
 		onToggle={p.toggleChartSelection}
+		{organizacao}
 	/>
 
 	<SecaoGraficos
@@ -398,6 +450,7 @@
 		selectedCharts={p.selectedCharts}
 		modoVisualizacao={p.modoVisualizacao}
 		onToggle={p.toggleChartSelection}
+		{organizacao}
 	/>
 </div>
 

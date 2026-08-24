@@ -180,6 +180,7 @@ export {
 	temPresencaGisePendente,
 	buscarGiseModeloFormulario,
 	salvarGiseModeloFormulario,
+	salvarOrdemPainelProdutividade,
 	buscarRespostaGise,
 	salvarRespostaGise,
 	listarTodasRespostasGise,

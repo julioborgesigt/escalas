@@ -8,9 +8,10 @@
  * Chart.js entra por `import()` dinâmico (~200 KB).
  */
 import { tick, untrack } from 'svelte';
-import { goto } from '$app/navigation';
+import { goto, invalidateAll } from '$app/navigation';
 import type { PageData } from '../$types';
 import { toaster } from '$lib/toast';
+import { apiFetch } from '$lib/api-fetch';
 import type { GiseRespostaListagemItem } from '$lib/db/gise';
 import { useMultiSelect, useCharts } from '$lib/composables';
 import {
@@ -20,6 +21,12 @@ import {
 	calculateRanking,
 	valorDaResposta,
 	detalhePorTipo,
+	ordenarCardsDoPainel,
+	moverNaLista,
+	idCardColunas,
+	idCardRanking,
+	idCardDetalhe,
+	idCardIndicador,
 	type Question
 } from '$lib/produtividade';
 import { montarPainelIndicadores } from '$lib/produtividade/metas';
@@ -51,53 +58,43 @@ export type ProdutividadeParsedRow = ProdutividadeListaItem & {
 };
 
 /**
- * Os dois cards do bloco de PRISÕES — o único que continua escrito no código.
+ * As três faixas do painel, na ordem em que a tela as empilha.
  *
- * Drogas e armas eram blocos como este e viraram marcação da pergunta. Prisões
- * não cabe numa marca porque o detalhamento dele atravessa três perguntas; ver
- * `temBlocoPrisoes`.
+ * A seção é a FORMA do card, não uma escolha: um gráfico de colunas é uma faixa
+ * inteira com `<canvas>` e não cabe na grade de dois dos rankings; um ranking não
+ * cabe na faixa das colunas. Por isso arrastar move o card DENTRO da seção dele —
+ * é o que a ordenação sabe fazer sem inventar um layout que os componentes não
+ * têm.
  */
-const IDS_PRISOES = ['rank-prisoes', 'detail-prisoes'] as const;
+export type SecaoPainel = 'indicadores' | 'listagem' | 'colunas';
 
 /**
- * O id de exportação de cada card gerado por uma pergunta.
- *
- * Prefixados e derivados do id da pergunta porque a seleção guarda uma lista
- * plana de ids: sem o prefixo, o ranking e o detalhamento da mesma pergunta
- * seriam o mesmo item, e marcar um marcaria o outro.
- */
-function idRanking(perguntaId: number): string {
-	return `rank-q${perguntaId}`;
-}
-function idDetalhe(perguntaId: number): string {
-	return `det-q${perguntaId}`;
-}
-
-/**
- * Um card de listagem gerado por uma pergunta.
+ * Um card de listagem — ranking por unidade ou detalhamento por categoria.
  *
  * União discriminada por `forma`, e não um objeto com campos opcionais: é ela que
  * faz o compilador cobrar do template e da exportação o ramo certo, em vez de
  * deixá-los ler um `ranking` que não existe num card de detalhamento.
+ *
+ * O bloco de PRISÕES entra nesta mesma lista, apesar de continuar escrito no
+ * código (ver `temBlocoPrisoes`): ele era desenhado numa `<section>` própria
+ * ACIMA dos demais, o que o pregava no topo — e um card pregado no topo é
+ * exatamente o que a ordem do painel existe para desfazer. O que ele guarda de
+ * diferente é o ÍCONE, e é só isso que `icone` carrega.
+ *
+ * `titulo` é o título COMPLETO do card ("Ranking de Drogas"), não o assunto. Os
+ * prefixos eram montados em dois lugares — no componente e na exportação — e o
+ * bloco de prisões, que traz o título pronto de `VIRTUAL_CHARTS`, não passava por
+ * nenhum dos dois.
+ *
+ * `unidade` é a de EXIBIÇÃO, já resolvida por forma: peso de droga é somado em
+ * gramas, o ranking o mostra em quilos e o detalhamento em gramas. A conversão
+ * mora aqui porque o card e o PNG precisavam dela, e a mesma linha
+ * (`unidade === 'g' ? 'kg' : unidade`) vivia copiada nos dois.
  */
-export type CardListagem =
-	| {
-			forma: 'ranking';
-			id: string;
-			titulo: string;
-			cor: string;
-			unidade: string;
-			ranking: RankingItem[];
-	  }
-	| {
-			forma: 'detalhe';
-			id: string;
-			titulo: string;
-			cor: string;
-			unidade: string;
-			linhas: [string, number][];
-			total: number;
-	  };
+export type CardListagem = { id: string; titulo: string; cor: string; unidade: string } & (
+	| { forma: 'ranking'; icone: 'prisoes' | 'grafico'; ranking: RankingItem[] }
+	| { forma: 'detalhe'; linhas: [string, number][]; total: number }
+);
 
 export function useProdutividade(getData: () => PageData) {
 	const data = $derived(getData());
@@ -241,6 +238,50 @@ export function useProdutividade(getData: () => PageData) {
 		selection.selectAll(idsExportaveis);
 	}
 
+	// ---- ORDEM DO PAINEL ----
+	//
+	// A ordem é um dado PRÓPRIO da operação (`painel_ordem`, migração 0064), e não
+	// a do formulário: mover um card no editor de perguntas renumeraria o
+	// enunciado e reordenaria o que o policial preenche — reordenar a leitura
+	// mexeria na coleta.
+
+	/** A ordem gravada para o tipo em foco. Vazia = ordem do formulário. */
+	const ordemSalva = $derived(
+		filterTipo === 'seint' ? (data.painelOrdem?.seint ?? []) : (data.painelOrdem?.operacional ?? [])
+	);
+
+	/**
+	 * O rascunho do arraste, POR TIPO DE EQUIPE.
+	 *
+	 * Por tipo, e não uma lista só, porque o seletor "Operacional / Inteligência"
+	 * é de tela: trocar de aba no meio da organização não pode descartar o que já
+	 * foi arrastado na outra. `null` = nada arrastado ali, vale o que veio do
+	 * servidor.
+	 *
+	 * Trocar de OPERAÇÃO é outra história — aquilo navega e recarrega os modelos,
+	 * e um rascunho sobrevivente seria aplicado a cards de outra operação. Por isso
+	 * o seletor de operação sai desabilitado enquanto se organiza (ver
+	 * `organizando`), que evita a perda em vez de avisar depois dela.
+	 */
+	let rascunhoOrdem = $state<Record<'operacional' | 'seint', string[] | null>>({
+		operacional: null,
+		seint: null
+	});
+
+	/** A ordem que a tela ESTÁ mostrando: o rascunho, se houver; senão a salva. */
+	const ordemVigente = $derived(
+		rascunhoOrdem[filterTipo === 'seint' ? 'seint' : 'operacional'] ?? ordemSalva
+	);
+
+	/** Modo de organização ligado (só o Admin Geral chega a ligá-lo). */
+	let organizando = $state(false);
+	let salvandoOrdem = $state(false);
+
+	/** Há arraste não gravado no tipo em foco? Move o rótulo do botão de salvar. */
+	const ordemAlterada = $derived(
+		rascunhoOrdem[filterTipo === 'seint' ? 'seint' : 'operacional'] !== null
+	);
+
 	/**
 	 * Todas as perguntas marcadas do modelo em foco, com as formas de cada uma.
 	 *
@@ -251,8 +292,21 @@ export function useProdutividade(getData: () => PageData) {
 		mapQuestions(filterTipo === 'seint' ? data.modeloSeint : data.modeloOperacional)
 	);
 
-	/** As que viram gráfico de barras — as únicas que precisam de `<canvas>`. */
-	const questoesColunas = $derived(QUESTIONS.filter((q) => q.formas.colunas));
+	/**
+	 * As que viram gráfico de barras — as únicas que precisam de `<canvas>` —, já
+	 * na ordem do painel.
+	 *
+	 * A ordenação é aqui e não dentro de `mapQuestions` de propósito: é lá que cada
+	 * pergunta recebe a COR pela posição no formulário, e ordenar antes faria a
+	 * mesma pergunta trocar de cor a cada arraste.
+	 */
+	const questoesColunas = $derived(
+		ordenarCardsDoPainel(
+			QUESTIONS.filter((q) => q.formas.colunas),
+			ordemVigente,
+			(q) => idCardColunas(q.id)
+		)
+	);
 
 	/**
 	 * O bloco de prisões, único que sobrou escrito no código.
@@ -362,26 +416,32 @@ export function useProdutividade(getData: () => PageData) {
 	 *   o eixo, não.
 	 */
 	const paineisIndicadores = $derived(
-		montarPainelIndicadores(
-			indicadores,
-			data.unidadesDaOperacao ?? [],
-			parsedDataSemTipo,
-			data.linhaBase ?? []
-		).map((painel) => ({
-			...painel,
-			// Ordena e corta por ATINGIMENTO, não pelo realizado: num indicador de
-			// redução a unidade com o menor número é a melhor, e ordenar pelo número
-			// cru poria a pior no topo de "melhores primeiro".
-			//
-			// Só as LINHAS são recortadas. Os contadores do card (`unidadesAtingiram`
-			// / `unidadesComMeta`) continuam sobre o conjunto inteiro: "2 de 12 na
-			// meta" é verdade mesmo mostrando cinco.
-			linhas: ordenarERecortar(painel.linhas, {
-				ordem,
-				quantidade,
-				valor: (l) => l.atingimento
-			})
-		}))
+		ordenarCardsDoPainel(
+			montarPainelIndicadores(
+				indicadores,
+				data.unidadesDaOperacao ?? [],
+				parsedDataSemTipo,
+				data.linhaBase ?? []
+			).map((painel) => ({
+				...painel,
+				// Ordena e corta por ATINGIMENTO, não pelo realizado: num indicador de
+				// redução a unidade com o menor número é a melhor, e ordenar pelo número
+				// cru poria a pior no topo de "melhores primeiro".
+				//
+				// Só as LINHAS são recortadas. Os contadores do card (`unidadesAtingiram`
+				// / `unidadesComMeta`) continuam sobre o conjunto inteiro: "2 de 12 na
+				// meta" é verdade mesmo mostrando cinco.
+				linhas: ordenarERecortar(painel.linhas, {
+					ordem,
+					quantidade,
+					valor: (l) => l.atingimento
+				})
+			})),
+			// A ordenação de fora é a dos CARDS entre si; a de dentro, a das unidades
+			// dentro de um card. Homônimas e independentes.
+			ordemVigente,
+			(p) => idCardIndicador(p.indicador.key)
+		)
 	);
 
 	/** Ordena e corta pelo total — nos volumes, "melhor" é o maior número. */
@@ -389,27 +449,67 @@ export function useProdutividade(getData: () => PageData) {
 		return ordenarERecortar(itens, { ordem, quantidade, valor: (i) => i.total });
 	}
 
-	/** O ranking de prisões — do bloco fixo, somando o total de presos (P7). */
-	const rankingPrisoes = $derived(
-		porTotal(
-			calculateRanking(
-				grupos,
-				parsedData,
-				(res) => Number(res.prisoes_apreensoes_flagrante) || 0,
-				chaveGrupo
-			)
-		)
+	/**
+	 * Os dois cards do bloco fixo de PRISÕES, quando a operação o tem.
+	 *
+	 * Continua escrito no código porque o detalhamento dele soma TRÊS perguntas
+	 * (flagrantes, mandados e total de presos) e uma marca vive numa pergunta só —
+	 * ver `temBlocoPrisoes`. O que mudou é o lugar: ele era desenhado numa
+	 * `<section>` própria acima dos demais, o que o pregava no topo. Entrando na
+	 * MESMA lista, ele passa a ser arrastável como qualquer outro, e a diferença
+	 * fica onde ela de fato existe — no ícone e nos rótulos.
+	 *
+	 * O total de presos (P7) é somado por chave fixa e não pelo laço das perguntas
+	 * marcadas: fosse pelo laço, desmarcar a P7 zeraria o card — um número errado,
+	 * que é pior que um card ausente.
+	 */
+	const cardsPrisoes = $derived<CardListagem[]>(
+		!temPrisoes
+			? []
+			: [
+					{
+						forma: 'ranking',
+						icone: 'prisoes',
+						id: 'rank-prisoes',
+						titulo: VIRTUAL_CHARTS['rank-prisoes'].label,
+						cor: VIRTUAL_CHARTS['rank-prisoes'].color,
+						unidade: '',
+						ranking: porTotal(
+							calculateRanking(
+								grupos,
+								parsedData,
+								(res) => Number(res.prisoes_apreensoes_flagrante) || 0,
+								chaveGrupo
+							)
+						)
+					},
+					{
+						forma: 'detalhe',
+						id: 'detail-prisoes',
+						titulo: VIRTUAL_CHARTS['detail-prisoes'].label,
+						cor: VIRTUAL_CHARTS['detail-prisoes'].color,
+						unidade: '',
+						linhas: [
+							['Flagrantes (P4)', stats.prisaoFlagrante],
+							['Mandados (P5)', stats.prisaoMandado],
+							['Total de Presos (P7)', stats.prisoesTotal]
+						],
+						total: Math.max(stats.prisoesTotal, stats.prisaoFlagrante, stats.prisaoMandado)
+					}
+				]
 	);
 
 	/**
-	 * Os cards de ranking e detalhamento gerados pelas perguntas, NA ORDEM DO
-	 * FORMULÁRIO.
+	 * Os cards de ranking e detalhamento — o bloco de prisões e os das perguntas
+	 * marcadas —, na ORDEM DO PAINEL.
 	 *
 	 * Uma lista só, e não duas, porque a ordem é o que preserva o pareamento: com
 	 * "todos os rankings, depois todos os detalhamentos", o ranking de drogas cairia
 	 * ao lado do de armas e o detalhamento de drogas iria para a linha de baixo. O
 	 * painel sempre mostrou ranking e detalhamento do MESMO assunto lado a lado, e
 	 * é assim que se lê — "quem apreendeu mais" ao lado de "o que foi apreendido".
+	 * Sem ordem salva é o que continua saindo daqui; com ela, o par só se separa se
+	 * alguém arrastar um dos dois.
 	 *
 	 * O extrator do ranking é `valorDaResposta`, o mesmo que desenha as barras e o
 	 * mesmo que soma o total. Antes havia um extrator escrito à mão por bloco aqui,
@@ -421,29 +521,43 @@ export function useProdutividade(getData: () => PageData) {
 	 * mora em `detalhePorTipo`.
 	 */
 	const cardsListagem = $derived<CardListagem[]>(
-		QUESTIONS.filter((q) => q.formas.ranking || q.formas.detalhe).flatMap((q) => {
-			const comum = { titulo: q.titulo, cor: q.color, unidade: q.unidade };
-			const cards: CardListagem[] = [];
-			if (q.formas.ranking) {
-				cards.push({
-					...comum,
-					forma: 'ranking',
-					id: idRanking(q.id),
-					ranking: porTotal(
-						calculateRanking(grupos, parsedData, (res) => valorDaResposta(res, q), chaveGrupo)
-					)
-				});
-			}
-			if (q.formas.detalhe) {
-				cards.push({
-					...comum,
-					forma: 'detalhe',
-					id: idDetalhe(q.id),
-					...detalhePorTipo(parsedData, q)
-				});
-			}
-			return cards;
-		})
+		ordenarCardsDoPainel(
+			[
+				...cardsPrisoes,
+				...QUESTIONS.filter((q) => q.formas.ranking || q.formas.detalhe).flatMap((q) => {
+					const cards: CardListagem[] = [];
+					if (q.formas.ranking) {
+						cards.push({
+							forma: 'ranking',
+							icone: 'grafico',
+							id: idCardRanking(q.id),
+							titulo: `Ranking de ${q.titulo}`,
+							cor: q.color,
+							// Peso de droga é somado em GRAMAS e lido em QUILOS: o ranking
+							// lista totais de unidades (números grandes), o detalhamento lista
+							// tipos de droga dentro da barra.
+							unidade: q.unidade === 'g' ? 'kg' : q.unidade,
+							ranking: porTotal(
+								calculateRanking(grupos, parsedData, (res) => valorDaResposta(res, q), chaveGrupo)
+							)
+						});
+					}
+					if (q.formas.detalhe) {
+						cards.push({
+							forma: 'detalhe',
+							id: idCardDetalhe(q.id),
+							titulo: `Detalhamento de ${q.titulo}`,
+							cor: q.color,
+							unidade: q.unidade,
+							...detalhePorTipo(parsedData, q)
+						});
+					}
+					return cards;
+				})
+			],
+			ordemVigente,
+			(c) => c.id
+		)
 	);
 
 	/**
@@ -452,11 +566,29 @@ export function useProdutividade(getData: () => PageData) {
 	 * Declarado DEPOIS dos cards de propósito: ele depende deles, e um `$derived`
 	 * que referencia uma constante ainda não inicializada é erro de TDZ, não
 	 * preguiça de avaliação.
+	 *
+	 * A ordem é a das SEÇÕES na página — listagem e depois colunas —, e é o que
+	 * decide a sequência dos PNGs de "Selecionar todos". Ela estava trocada
+	 * (colunas primeiro, prisões no fim) desde antes de haver ordem a escolher.
 	 */
 	const idsExportaveis = $derived<Array<number | string>>([
-		...questoesColunas.map((q) => q.id),
 		...cardsListagem.map((c) => c.id),
-		...(temPrisoes ? IDS_PRISOES : [])
+		...questoesColunas.map((q) => q.id)
+	]);
+
+	/**
+	 * Os ids de TODOS os cards na tela, na ordem em que ela os mostra — o que o
+	 * botão "Salvar ordem" grava.
+	 *
+	 * Inclui os indicadores, que não são exportáveis e por isso não estão em
+	 * `idsExportaveis`. As três seções entram concatenadas na ordem da página; a
+	 * leitura depois só consulta a posição de cada id, então o que separa as seções
+	 * na lista salva é irrelevante.
+	 */
+	const idsNaOrdemDaTela = $derived<string[]>([
+		...paineisIndicadores.map((p) => idCardIndicador(p.indicador.key)),
+		...cardsListagem.map((c) => c.id),
+		...questoesColunas.map((q) => idCardColunas(q.id))
 	]);
 
 	/**
@@ -540,58 +672,29 @@ export function useProdutividade(getData: () => PageData) {
 					continue;
 				}
 
-				// Ranking e detalhamento de pergunta: os dados já estão montados nos
-				// cards, e o PNG é desenhado do zero (não há canvas de origem).
+				// Ranking e detalhamento: os dados já estão montados nos cards, e o PNG
+				// é desenhado do zero (não há canvas de origem). O bloco de prisões
+				// entra por aqui como qualquer outro — era o `else` de baixo, com o
+				// título e a unidade montados por conta própria, e foi assim que ele
+				// ficou de fora da correção de unidade que os demais receberam.
 				const card = cardsListagem.find((c) => c.id === id);
-				if (card?.forma === 'ranking') {
+				if (!card) continue;
+				if (card.forma === 'ranking') {
 					const { canvas, filename } = exportRankingAsPng(
-						`Ranking de ${card.titulo}`,
+						card.titulo,
 						card.cor,
 						card.ranking,
-						// Peso vai em quilos no ranking, como no card da tela.
-						card.unidade === 'g' ? 'kg' : card.unidade,
-						payload
-					);
-					await downloadCanvas(canvas, filename);
-					continue;
-				}
-				if (card?.forma === 'detalhe') {
-					const { canvas, filename } = exportDetailAsPng(
-						`Detalhamento de ${card.titulo}`,
-						card.cor,
-						card.linhas.map(([label, value]) => ({ label, value })),
-						card.total,
 						card.unidade,
 						payload
 					);
 					await downloadCanvas(canvas, filename);
-					continue;
-				}
-
-				// O que sobrou é o bloco fixo de prisões.
-				const virtualConfig = VIRTUAL_CHARTS[id];
-				if (!virtualConfig) continue;
-
-				if (id === 'rank-prisoes') {
-					const { canvas, filename } = exportRankingAsPng(
-						virtualConfig.label,
-						virtualConfig.color,
-						rankingPrisoes,
-						'',
-						payload
-					);
-					await downloadCanvas(canvas, filename);
-				} else if (id === 'detail-prisoes') {
+				} else {
 					const { canvas, filename } = exportDetailAsPng(
-						virtualConfig.label,
-						virtualConfig.color,
-						[
-							{ label: 'Flagrantes (P4)', value: stats.prisaoFlagrante },
-							{ label: 'Mandados (P5)', value: stats.prisaoMandado },
-							{ label: 'Total de Presos (P7)', value: stats.prisoesTotal }
-						],
-						Math.max(stats.prisoesTotal, stats.prisaoFlagrante, stats.prisaoMandado),
-						'',
+						card.titulo,
+						card.cor,
+						card.linhas.map(([label, value]) => ({ label, value })),
+						card.total,
+						card.unidade,
 						payload
 					);
 					await downloadCanvas(canvas, filename);
@@ -606,6 +709,116 @@ export function useProdutividade(getData: () => PageData) {
 		} finally {
 			exporting = false;
 		}
+	}
+
+	// ---- ORGANIZAR: arrastar, salvar, desfazer ----
+
+	/**
+	 * Move um card DENTRO da seção dele e regrava a ordem inteira no rascunho.
+	 *
+	 * A ordem salva é uma lista só para as três seções, então mover em uma exige
+	 * reescrever a concatenação — o que `idsNaOrdemDaTela` já é, sobre a lista
+	 * corrente. A seção movida entra com o splice aplicado; as outras duas entram
+	 * como estão.
+	 *
+	 * Um id que não está na lista da seção não pode ser movido para dentro de
+	 * outra: `moverNaLista` opera sobre a lista da própria seção, e o índice vem do
+	 * `{#each}` dela. É o que garante que o arraste nunca produza um card de
+	 * colunas na grade dos rankings — layout que os componentes não têm.
+	 */
+	function moverCard(secao: SecaoPainel, de: number, para: number) {
+		const secoes: Record<SecaoPainel, string[]> = {
+			indicadores: paineisIndicadores.map((p) => idCardIndicador(p.indicador.key)),
+			listagem: cardsListagem.map((c) => c.id),
+			colunas: questoesColunas.map((q) => idCardColunas(q.id))
+		};
+		secoes[secao] = moverNaLista(secoes[secao], de, para);
+		rascunhoOrdem = {
+			...rascunhoOrdem,
+			[filterTipo === 'seint' ? 'seint' : 'operacional']: [
+				...secoes.indicadores,
+				...secoes.listagem,
+				...secoes.colunas
+			]
+		};
+	}
+
+	/** Descarta o arraste do tipo em foco e volta ao que está gravado. */
+	function descartarOrdem() {
+		rascunhoOrdem = {
+			...rascunhoOrdem,
+			[filterTipo === 'seint' ? 'seint' : 'operacional']: null
+		};
+	}
+
+	/**
+	 * Volta o painel à ordem do FORMULÁRIO — a lista VAZIA.
+	 *
+	 * Vazia, e não "a ordem do formulário escrita por extenso". As duas dariam o
+	 * mesmo painel hoje e divergiriam amanhã: a lista explícita CONGELA a ordem
+	 * atual das perguntas, e reordená-las no editor deixaria de chegar ao painel.
+	 * "Ordem do formulário" quer dizer *seguir* o formulário, não copiá-lo uma vez.
+	 * É `salvarOrdem` quem preserva essa intenção até a gravação.
+	 *
+	 * Vira rascunho, não gravação: o admin vê o resultado antes de confirmar, do
+	 * mesmo jeito que vê cada arraste. Um botão que gravasse direto seria o único
+	 * da barra sem volta.
+	 */
+	function restaurarOrdemPadrao() {
+		rascunhoOrdem = {
+			...rascunhoOrdem,
+			[filterTipo === 'seint' ? 'seint' : 'operacional']: []
+		};
+	}
+
+	/**
+	 * Grava a ordem do tipo em foco.
+	 *
+	 * Manda `idsNaOrdemDaTela` — o que a tela mostra AGORA —, e não o rascunho: os
+	 * dois coincidem depois de um arraste, mas o rascunho pode carregar id de card
+	 * que sumiu (a pergunta foi desmarcada em outra aba) e não carrega os que
+	 * apareceram depois. Gravar o que está na tela é o que mantém a lista limpa
+	 * sem uma poda à parte.
+	 *
+	 * A exceção é o rascunho VAZIO, que é "Ordem do formulário" e precisa ser
+	 * gravado como vazio: mandar a tela ali gravaria a ordem atual das perguntas
+	 * como escolha explícita, e o painel deixaria de acompanhar o editor daí em
+	 * diante — o oposto do que o botão diz.
+	 *
+	 * `invalidateAll` no fim porque o `load` é a fonte da ordem salva: sem
+	 * recarregar, `ordemSalva` continuaria a anterior e descartar o rascunho
+	 * desfaria o que acabou de ser gravado. O rascunho só é solto DEPOIS que os
+	 * dados novos chegam, senão a tela pisca na ordem antiga no meio do caminho.
+	 */
+	async function salvarOrdem() {
+		const operacaoId = data.operacaoSelecionadaId;
+		if (!operacaoId || salvandoOrdem) return;
+		const rascunho = rascunhoOrdem[filterTipo === 'seint' ? 'seint' : 'operacional'];
+		salvandoOrdem = true;
+		try {
+			await apiFetch('/api/produtividade/ordem', {
+				method: 'PUT',
+				body: JSON.stringify({
+					operacaoId,
+					tipo: filterTipo === 'seint' ? 'seint' : 'operacional',
+					ordem: rascunho?.length === 0 ? [] : idsNaOrdemDaTela
+				})
+			});
+			await invalidateAll();
+			descartarOrdem();
+			organizando = false;
+			toaster.success({ title: 'Ordem do painel salva' });
+		} catch (err) {
+			toaster.error({ title: err instanceof Error ? err.message : 'Erro ao salvar a ordem' });
+		} finally {
+			salvandoOrdem = false;
+		}
+	}
+
+	/** Sai do modo de organização descartando o que não foi gravado. */
+	function cancelarOrganizacao() {
+		rascunhoOrdem = { operacional: null, seint: null };
+		organizando = false;
 	}
 
 	return {
@@ -675,13 +888,9 @@ export function useProdutividade(getData: () => PageData) {
 		get QUESTIONS() {
 			return questoesColunas;
 		},
-		/** Rankings e detalhamentos gerados pelas perguntas, na ordem do formulário. */
+		/** Rankings e detalhamentos (prisões incluído), na ordem do painel. */
 		get cardsListagem() {
 			return cardsListagem;
-		},
-		/** O bloco fixo de prisões aparece? É o único que sobrou escrito no código. */
-		get temPrisoes() {
-			return temPrisoes;
 		},
 		/**
 		 * Não há o que mostrar: nem indicador, nem bloco fixo, nem pergunta marcada
@@ -714,10 +923,42 @@ export function useProdutividade(getData: () => PageData) {
 		get stats() {
 			return stats;
 		},
-		get rankingPrisoes() {
-			return rankingPrisoes;
-		},
 		canvasElements,
-		exportChartsAsImages
+		exportChartsAsImages,
+
+		// ---- Organizar o painel (Admin Geral) ----
+
+		/** O botão "Organizar" aparece? A recusa de verdade é do servidor, no PUT. */
+		get podeOrganizar() {
+			return data.podeOrganizar === true;
+		},
+		/** Modo de arraste ligado: os cards ganham alça, setas e ficam inertes. */
+		get organizando() {
+			return organizando;
+		},
+		set organizando(v: boolean) {
+			organizando = v;
+		},
+		/** Há arraste não gravado no tipo em foco? */
+		get ordemAlterada() {
+			return ordemAlterada;
+		},
+		get salvandoOrdem() {
+			return salvandoOrdem;
+		},
+		/**
+		 * O painel já foi organizado alguma vez neste tipo?
+		 *
+		 * É o que decide se "Restaurar padrão" tem o que desfazer — sem ordem
+		 * gravada, o painel JÁ está na ordem do formulário.
+		 */
+		get temOrdemPropria() {
+			return ordemVigente.length > 0;
+		},
+		moverCard,
+		salvarOrdem,
+		descartarOrdem,
+		restaurarOrdemPadrao,
+		cancelarOrganizacao
 	};
 }
