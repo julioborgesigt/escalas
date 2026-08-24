@@ -1,0 +1,37 @@
+-- Uma escala mensal por (lotação, tipo, mês) — SEC-34.
+--
+-- A regra já existia, mas só como consulta antes do INSERT
+-- (`verificarEscalaExistente`). Entre a consulta e a gravação cabe outra
+-- requisição: duplo clique ou retry passa as duas pelo check e cria duas
+-- escalas equivalentes. O `criarEscala` chegava a DOCUMENTAR isso ("Não checa
+-- duplicidade: chame `verificarEscalaExistente` antes, ou a mesma lotação
+-- ganha duas escalas para o mesmo período") — comentário no lugar de tranca.
+--
+-- `substr(data_inicio, 1, 7)` é o índice de EXPRESSÃO que expressa a regra
+-- real: mensal colide por MÊS, não por data exata. Um unique em
+-- (lotacao, tipo, data_inicio) só pegaria a corrida de payload idêntico e
+-- deixaria passar duas escalas do mesmo mês com dias de início diferentes —
+-- que é justamente o que `verificarEscalaExistente` recusa.
+--
+-- O índice é PARCIAL (`WHERE tipo IN ('plantao','expediente')`) porque FDS tem
+-- outra regra: sobreposição de INTERVALO, que índice único não expressa em
+-- SQLite (não há exclusion constraint). Para FDS a consulta prévia continua
+-- sendo a única proteção, e isso está registrado em `verificarEscalaExistente`.
+--
+-- ATENÇÃO, DUPLICATAS PRÉ-EXISTENTES: esta migração NÃO apaga nada, ao
+-- contrário da 0047. Apagar escala dispara ON DELETE CASCADE em
+-- `escala_documentos` e leva junto o `r2_key` do PDF ASSINADO — o documento
+-- ficaria órfão no R2 sem ninguém que saiba que existe (R2-1). Se houver
+-- duplicata gravada, este CREATE falha e a migração para: é o comportamento
+-- desejado, porque escolher qual das duas escalas sobrevive exige saber qual
+-- delas tem documento assinado. Detecte antes com:
+--
+--   SELECT lotacao, tipo, substr(data_inicio,1,7) AS mes, COUNT(*) n,
+--          GROUP_CONCAT(id) ids
+--     FROM escalas
+--    WHERE tipo IN ('plantao','expediente')
+--    GROUP BY lotacao, tipo, mes
+--   HAVING n > 1;
+CREATE UNIQUE INDEX IF NOT EXISTS `uq_escalas_mensal`
+	ON `escalas` (`lotacao`, `tipo`, substr(`data_inicio`, 1, 7))
+	WHERE `tipo` IN ('plantao', 'expediente');

@@ -222,6 +222,24 @@ export function intervaloDeDatas(inicio: string, fim: string): string[] {
  * NÃO use no servidor. O Worker roda em UTC, onde "local" não é o fuso de
  * ninguém — lá a data de hoje precisa do offset de Brasília explícito.
  */
+/**
+ * Devolve a data se ela for `YYYY-MM-DD`; `null` caso contrário.
+ *
+ * Para parâmetro de URL, que é entrada de fora: `?inicio=abc` não pode virar
+ * predicado SQL nem janela silenciosamente vazia. O chamador decide o default
+ * quando vem `null` — validar e defaultar são decisões diferentes.
+ *
+ * Só valida a FORMA. `2026-13-45` passa aqui e o SQLite simplesmente não casa
+ * nenhuma linha, que é o comportamento certo para filtro: recorte vazio, não
+ * erro. Quem precisa de data existente usa `new Date` e confere.
+ *
+ * Nasceu inline em `/res-gise` (SEC-08) e virou função no segundo call site,
+ * a janela do painel de produtividade (B-1).
+ */
+export function dataISOValida(v: string | null | undefined): string | null {
+	return v && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : null;
+}
+
 export function hojeLocalISO(): string {
 	const d = new Date();
 	return isoData(d.getFullYear(), d.getMonth() + 1, d.getDate());

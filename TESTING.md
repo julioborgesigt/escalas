@@ -124,6 +124,11 @@ Roteiro de regressão manual dos fluxos de negócio. **Papel deste arquivo: exce
       um deles deixa só as escalas daquela operação, e a paginação volta à
       página 1
 - [ ] Cada card mostra o selo da operação (sigla, ou nome se não houver sigla)
+- [ ] `/gise` lista só as escalas ativas; o histórico não aparece nesta página
+- [ ] Admin Geral vê a aba **Finalizadas** no submenu, entre Ativas e Produtividade
+- [ ] `/gise/finalizadas` mostra a busca detalhada das escalas encerradas
+- [ ] Supervisor / admin seccional / policial não vê a aba Finalizadas; abrir a
+      URL redireciona para `/gise`
 
 ### 4.2 Criar escala extra
 
@@ -147,21 +152,45 @@ Roteiro de regressão manual dos fluxos de negócio. **Papel deste arquivo: exce
 - [ ] Deletar seccional → removida da GISE
 - [ ] Adicionar seccional duplicada → erro
 
-### 4.5 Gerenciar Equipes
+### 4.5 Abas de unidade no quadro da seccional
+
+> `[E2E: gise-abas-unidade.spec.ts]` cobre trocar de aba, a aba nova abrindo
+> selecionada, a barra sem rolagem vertical e o horário herdado saindo como
+> relógio. Manual: o que só aparece com DADO REAL — muitas delegacias na barra e
+> nomes longos.
+
+- [ ] Seccional com **seis ou mais** delegacias → a barra rola na horizontal, em
+      UMA linha só, sem barra de rolagem vertical
+- [ ] Nome longo ("Delegacia de Polícia Civil de …") → a aba mostra o município;
+      o nome completo aparece no `title` e no topo do painel
+- [ ] Unidade com vaga não preenchida → ponto âmbar na aba, sem precisar abri-la
+- [ ] Remover a unidade da aba ABERTA → o painel cai para outra aba existente
+      (não fica em branco)
+- [ ] No celular, tocar nas abas troca o painel e o **+ Equipes** age na unidade
+      aberta
+
+### 4.6 Gerenciar Equipes
 
 - [ ] Criar equipe operacional com slots DPC/OIP
 - [ ] Criar equipe SEINT
 - [ ] Atualizar slots de equipe
 - [ ] Deletar equipe → removida
+- [ ] Equipe SEM horário próprio → o card mostra o relógio (e o horário em vigor
+      ao passar o mouse), não o horário escrito
+- [ ] Editar o horário da equipe para um valor DIFERENTE → o horário passa a
+      aparecer escrito, na tarja âmbar
+- [ ] Editar e salvar o MESMO horário da seccional → volta ao relógio (não é
+      horário próprio)
+- [ ] O mesmo vale para o cabeçalho da seccional contra o horário da escala
 
-### 4.6 Gerenciar Membros
+### 4.7 Gerenciar Membros
 
 - [ ] Adicionar policial ativo à equipe
 - [ ] Remover policial da equipe
 - [ ] Adicionar policial além do limite de slots → erro ou aviso
 - [ ] Adicionar policial inativo → erro
 
-### 4.7 Fluxo de Status GISE
+### 4.8 Fluxo de Status GISE
 
 Verificar cada transição de status:
 
@@ -179,12 +208,12 @@ Verificar cada transição de status:
 - [ ] Reabrir GISE finalizada → status volta ao estado anterior
 - [ ] Tentar forçar transição de status inválida → erro
 
-### 4.8 Finalizar GISE
+### 4.9 Finalizar GISE
 
 - [ ] Finalizar GISE no status correto → status `finalizada`
 - [ ] Tentar finalizar GISE em status incorreto → erro
 
-### 4.9 Operações (`/gise/operacoes`, Admin Geral)
+### 4.10 Operações (`/gise/operacoes`, Admin Geral)
 
 - [ ] A tela lista `GISE` e `OPERAÇÃO CRAJUBAR` (semeadas pelas migrações), com a
       contagem de escalas de cada uma
@@ -281,7 +310,7 @@ Verificar cada transição de status:
 - [ ] Desativar a operação → o item some do menu do admin daquela unidade em até
       1 minuto (cache de 60s)
 
-### 4.10 Indicadores e linha de base
+### 4.13 Indicadores e linha de base
 
 **Configurar o indicador** (`/res-gise`, Admin Geral):
 
@@ -637,6 +666,50 @@ Verificar cada transição de status:
 - [ ] Filtrar por período
 - [ ] Dados vazios → estado vazio com mensagem
 - [ ] Com mais de 200 respostas acumuladas → stats/rankings/gráficos contam o conjunto completo (o load pagina internamente em lotes de 500)
+
+**Organizar o painel (arrastar os cards):**
+
+> `[E2E: produtividade-ordem.spec.ts]` cobre o mecanismo: o arraste, as setas, a
+> ida e volta pelo banco, a pergunta marcada depois entrando por último e a
+> recusa (403) ao admin de unidade. A regra do "fim da lista" tem cobertura
+> unitária em `produtividade/__tests__/ordem`. Manual: o gesto no dispositivo
+> real, que é onde o arraste por toque não existe e as setas são o único caminho.
+
+- [ ] Como Admin Geral, **Organizar painel** aparece no alto; como admin de
+      unidade/seccional, não aparece
+- [ ] No modo, cada card ganha a faixa com a posição, a alça e as setas ↑/↓; o
+      conteúdo do card não responde a clique (arrastar não marca card para
+      exportação)
+- [ ] Arrastar um card sobre outro do MESMO bloco troca os dois; soltar sobre
+      outro bloco não move nada
+- [ ] No **celular**, o arraste não existe — as setas ↑/↓ movem, e é por elas que
+      o modo se usa em tela pequena
+- [ ] **Salvar ordem** → a página recarrega já na ordem nova; sair e voltar
+      mantém
+- [ ] **Sair sem salvar** e **Desfazer** devolvem a ordem gravada
+- [ ] **Ordem do formulário** volta os cards à ordem das perguntas (é rascunho —
+      só vale depois de Salvar)
+- [ ] Marcar uma pergunta nova como gráfico no editor → o card dela aparece no
+      **fim** do bloco dele, não no topo
+- [ ] Trocar de tipo de equipe mantém o rascunho de cada aba; o seletor de
+      OPERAÇÃO fica desabilitado enquanto se organiza
+
+**Baixar (PDF) — é o `window.print()` do navegador:**
+
+> `[E2E: produtividade-graficos.spec.ts]` prova em `media: print` que o card pede
+> `break-inside: avoid`, que ele transborda em vez de cortar, e que filtros,
+> botões e cards não selecionados somem. O que segue é o que só o diálogo de
+> impressão real mostra — paginação de verdade e fidelidade do canvas.
+
+- [ ] Selecionar alguns gráficos → **Baixar (PDF)** → nenhum card sai partido
+      entre duas folhas; o único que quebra é o que sozinho não cabe numa A4
+- [ ] Nenhum gráfico sai cortado na lateral, e o ranking mostra TODAS as linhas
+      (na tela ele rola; no papel tem de transbordar)
+- [ ] Com "Gráficos de plano de fundo" ligado no diálogo, as barras de
+      detalhamento saem preenchidas
+- [ ] Sem barra do topo, sem gaveta, sem barra de filtros e sem os botões de
+      baixar; a data/URL do alto e do pé são do NAVEGADOR (saem em
+      "Mais definições → Cabeçalhos e rodapés")
 
 **O eixo (`Visualizar por`):**
 

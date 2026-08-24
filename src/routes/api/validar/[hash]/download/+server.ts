@@ -75,7 +75,7 @@ export const GET: RequestHandler = async ({ platform, params, url, cookies, getC
 		return unauthorized('Faça login para baixar o documento assinado na íntegra.');
 	}
 
-	// Mesmo autenticado, limita varredura do hash por IP. Fail-closed em erro (AUT-016).
+	// Mesmo autenticado, limita varredura do hash por IP. Fail-closed em erro (FLW-AUT-016).
 	const ip = getClientAddress();
 	try {
 		const { blocked } = await contarRecoveryAttempts(

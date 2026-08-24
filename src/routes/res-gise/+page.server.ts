@@ -22,6 +22,7 @@
  * retificação) e leva até lá.
  */
 
+import { hojeBrasilISO } from '$lib/utils/datas';
 import { redirect, fail } from '@sveltejs/kit';
 import type { RequestEvent } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
@@ -48,7 +49,8 @@ import {
 	operacaoAceitaTipoEquipe,
 	NOME_OPERACAO_PADRAO,
 	DEFAULT_SEINT_QUESTIONS,
-	DEFAULT_QUESTIONS_FORM_OPERACIONAL
+	DEFAULT_QUESTIONS_FORM_OPERACIONAL,
+	likePrefix
 } from '$lib/db';
 import { invalidarPapelGise } from '$lib/server/gise/papel-cache';
 import { buscarUnidadeIdSupervisaoExtra } from '$lib/server/gise/supervisao-extra';
@@ -74,8 +76,25 @@ import {
 	giseRespostasFormulario,
 	policiais
 } from '$lib/server/schema';
-import { eq, and, inArray, desc, like, sql, or } from 'drizzle-orm';
+import { eq, and, inArray, desc, sql, or, gte, lte } from 'drizzle-orm';
 import { gateDePresenca, type TipoPresenca } from '$lib/server/gise/presenca-gate';
+import {
+	linhaResGisePassaTipo,
+	parseFiltrosHistoricoResGise,
+	recorteIsoDataInicio,
+	type FiltrosHistoricoResGise
+} from './_components/filtros-historico';
+
+function predRecorteDataInicio(f: FiltrosHistoricoResGise) {
+	const r = recorteIsoDataInicio(f);
+	if (r.tipo === 'eq') return eq(giseEscalas.data_inicio, r.valor);
+	if (r.tipo === 'prefix') return likePrefix(giseEscalas.data_inicio, r.valor);
+	if (r.tipo === 'intervalo') {
+		return and(gte(giseEscalas.data_inicio, r.inicio), lte(giseEscalas.data_inicio, r.fim));
+	}
+	return sql`1=1`;
+}
+
 interface GiseEscalaItem {
 	id: number;
 	data_inicio: string;
@@ -103,8 +122,12 @@ export const load: PageServerLoad = async ({ locals, platform, url, depends }) =
 	// Filtros da tela. "Ativa × finalizada" NÃO é o status da escala: uma GISE em
 	// andamento já é "finalizada" para quem bateu a saída (ver `isFinished`).
 	const statusFilter = url.searchParams.get('status') || ''; // 'ativas' ou 'finalizadas'
-	const mesFilter = url.searchParams.get('mes') || ''; // YYYY-MM
-	const dataFilter = url.searchParams.get('data') || ''; // YYYY-MM-DD
+	const filtrosHistorico = parseFiltrosHistoricoResGise(
+		url.searchParams,
+		statusFilter === 'finalizadas' ? hojeBrasilISO() : undefined
+	);
+	const tipoFilter = filtrosHistorico.tipo;
+	const recorteData = predRecorteDataInicio(filtrosHistorico);
 
 	const db = getDB(platform);
 
@@ -176,8 +199,8 @@ export const load: PageServerLoad = async ({ locals, platform, url, depends }) =
 			.where(
 				and(
 					eq(giseMembros.policial_id, u.id),
-					mesFilter ? like(giseEscalas.data_inicio, `${mesFilter}%`) : sql`1=1`,
-					dataFilter ? eq(giseEscalas.data_inicio, dataFilter) : sql`1=1`
+					recorteData,
+					tipoFilter ? eq(giseEquipes.tipo, tipoFilter) : sql`1=1`
 				)
 			)
 			.orderBy(desc(giseEscalas.data_inicio))
@@ -186,36 +209,40 @@ export const load: PageServerLoad = async ({ locals, platform, url, depends }) =
 		// Segunda origem: o policial no quadro de supervisão da escala. Sem equipe
 		// e sem seccional, os campos são preenchidos com `0`/NULL para caber no
 		// mesmo shape das linhas de equipe e seguir por um único caminho abaixo.
-		const rawSupervisoes = (await db
-			.select({
-				id: giseEscalas.id,
-				data_inicio: giseEscalas.data_inicio,
-				status: giseEscalas.status,
-				hora_entrada: giseEscalas.hora_entrada,
-				hora_saida: giseEscalas.hora_saida,
-				equipe_id: sql`0`.as('equipe_id'),
-				sec_hora_entrada: sql`NULL`.as('sec_hora_entrada'),
-				sec_hora_saida: sql`NULL`.as('sec_hora_saida'),
-				eq_hora_entrada: sql`NULL`.as('eq_hora_entrada'),
-				eq_hora_saida: sql`NULL`.as('eq_hora_saida'),
-				equipe_tipo: sql<string>`CASE WHEN ${giseEscalas.assessor_id} = ${u.id} THEN 'assessor' ELSE 'seint' END`,
-				seccional_id: sql`0`.as('seccional_id'),
-				seccional_nome: sql`'Supervisão Geral'`.as('seccional_nome')
-			})
-			.from(giseEscalas)
-			.where(
-				and(
-					sql`(${giseEscalas.assessor_id} = ${u.id} OR ${giseEscalas.seint1_id} = ${u.id} OR ${giseEscalas.seint2_id} = ${u.id})`,
-					mesFilter ? like(giseEscalas.data_inicio, `${mesFilter}%`) : sql`1=1`,
-					dataFilter ? eq(giseEscalas.data_inicio, dataFilter) : sql`1=1`
+		// Recorte "operacional" não inclui quadro; "seint" inclui só SEINT 1/2.
+		if (tipoFilter !== 'operacional') {
+			const rawSupervisoes = (await db
+				.select({
+					id: giseEscalas.id,
+					data_inicio: giseEscalas.data_inicio,
+					status: giseEscalas.status,
+					hora_entrada: giseEscalas.hora_entrada,
+					hora_saida: giseEscalas.hora_saida,
+					equipe_id: sql`0`.as('equipe_id'),
+					sec_hora_entrada: sql`NULL`.as('sec_hora_entrada'),
+					sec_hora_saida: sql`NULL`.as('sec_hora_saida'),
+					eq_hora_entrada: sql`NULL`.as('eq_hora_entrada'),
+					eq_hora_saida: sql`NULL`.as('eq_hora_saida'),
+					equipe_tipo: sql<string>`CASE WHEN ${giseEscalas.assessor_id} = ${u.id} THEN 'assessor' ELSE 'seint' END`,
+					seccional_id: sql`0`.as('seccional_id'),
+					seccional_nome: sql`'Supervisão Geral'`.as('seccional_nome')
+				})
+				.from(giseEscalas)
+				.where(
+					and(
+						tipoFilter === 'seint'
+							? sql`(${giseEscalas.seint1_id} = ${u.id} OR ${giseEscalas.seint2_id} = ${u.id})`
+							: sql`(${giseEscalas.assessor_id} = ${u.id} OR ${giseEscalas.seint1_id} = ${u.id} OR ${giseEscalas.seint2_id} = ${u.id})`,
+						recorteData
+					)
 				)
-			)
-			.all()) as unknown as GiseEscalaItem[];
+				.all()) as unknown as GiseEscalaItem[];
 
-		rawEscalas.push(...rawSupervisoes);
+			rawEscalas.push(...rawSupervisoes);
+		}
 
 		// DPC supervisor da escala: mesma UX de assessor (entrada/saída, sem formulário de produtividade aqui)
-		if (isSupervisorGise) {
+		if (isSupervisorGise && !tipoFilter) {
 			const rawSupervisorDpc = (await db
 				.select({
 					id: giseEscalas.id,
@@ -233,13 +260,7 @@ export const load: PageServerLoad = async ({ locals, platform, url, depends }) =
 					seccional_nome: sql`'Supervisão Geral'`.as('seccional_nome')
 				})
 				.from(giseEscalas)
-				.where(
-					and(
-						eq(giseEscalas.supervisor_id, u.id),
-						mesFilter ? like(giseEscalas.data_inicio, `${mesFilter}%`) : sql`1=1`,
-						dataFilter ? eq(giseEscalas.data_inicio, dataFilter) : sql`1=1`
-					)
-				)
+				.where(and(eq(giseEscalas.supervisor_id, u.id), recorteData))
 				.all()) as unknown as GiseEscalaItem[];
 			for (const row of rawSupervisorDpc) {
 				if (!rawEscalas.some((r) => r.id === row.id)) rawEscalas.push(row);
@@ -321,6 +342,7 @@ export const load: PageServerLoad = async ({ locals, platform, url, depends }) =
 
 			if (effectiveStatus === 'ativas' && isFinished) continue;
 			if (effectiveStatus === 'finalizadas' && !isFinished) continue;
+			if (!linhaResGisePassaTipo(e.equipe_tipo, tipoFilter)) continue;
 
 			const docAssinado = docsAssinadosMap.get(e.id);
 			// Linha do quadro de supervisão (`seccional_id === 0`) casa com a unidade
@@ -618,7 +640,20 @@ export const actions: Actions = {
 		if (!prep.ok) return prep.resposta;
 		const { db, u, giseId, rubrica, ip, ua, latitude, longitude, selfieKey } = prep;
 
-		await salvarEntradaGise(db, giseId, u.id, rubrica, ip, ua, latitude, longitude, selfieKey);
+		const entrada = await salvarEntradaGise(
+			db,
+			giseId,
+			u.id,
+			rubrica,
+			ip,
+			ua,
+			latitude,
+			longitude,
+			selfieKey
+		);
+		if (!entrada.registrada) {
+			return fail(409, { error: 'A saída já foi confirmada — a entrada não pode ser refeita.' });
+		}
 		await sincronizarStatusGiseAposPresencaRelatorios(db, giseId);
 		await invalidarPapelGise(u.id);
 
@@ -668,7 +703,7 @@ export const actions: Actions = {
 		);
 		if (!saida.registrada) {
 			return fail(409, {
-				error: 'Não há confirmação de ENTRADA registrada — a saída não pode ser confirmada.',
+				error: 'A saída já foi confirmada, ou não há entrada registrada.',
 				giseId
 			});
 		}

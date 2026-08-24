@@ -30,6 +30,14 @@
 	 * vive em uma só. Ele depende do modelo por PRESENÇA da pergunta — ver
 	 * `temBlocoPrisoes`.
 	 *
+	 * A ORDEM dos cards também não é do formulário: é um dado próprio da operação
+	 * (`painel_ordem`, migração 0064) que o Admin Geral monta arrastando NESTA
+	 * tela, no modo "Organizar". Ela é dele porque a alternativa — reordenar as
+	 * perguntas no editor — renumeraria o enunciado e mudaria o formulário que o
+	 * policial preenche: reordenar a leitura mexeria na coleta. Card sem posição
+	 * gravada (a pergunta marcada depois da última organização) entra no fim do
+	 * bloco dele.
+	 *
 	 * Chart.js entra por `import()` dinâmico (~200 KB): a página abre com os
 	 * filtros e a tabela antes de a biblioteca chegar.
 	 */
@@ -37,13 +45,24 @@
 	import { goto } from '$app/navigation';
 	import { slide } from 'svelte/transition';
 	import Spinner from '$lib/components/Spinner.svelte';
+	import GripVertical from '@lucide/svelte/icons/grip-vertical';
 	import { useProdutividade } from './_components/useProdutividade.svelte';
+	import { useOrganizacaoPainel } from './_components/useOrganizacaoPainel.svelte';
 	import SecaoRankings from './_components/SecaoRankings.svelte';
 	import SecaoGraficos from './_components/SecaoGraficos.svelte';
 	import SecaoIndicadores from './_components/SecaoIndicadores.svelte';
+	import BarraOrganizar from './_components/BarraOrganizar.svelte';
 
 	const { data }: PageProps = $props();
 	const p = useProdutividade(() => data);
+
+	// O gesto do arraste vive à parte da ORDEM: aquele nasce e morre num
+	// `dragstart`/`drop`, esta vai ao banco. As três seções recebem o mesmo
+	// objeto, que é o que mantém um arraste por vez na página inteira.
+	const organizacao = useOrganizacaoPainel(
+		() => p.organizando,
+		(secao, de, para) => p.moverCard(secao, de, para)
+	);
 
 	// A barra tem sete controles com três formas repetidas (rótulo, campo,
 	// segmento). Constantes em vez de string repetida: era assim que o "Tipo de
@@ -63,13 +82,15 @@
 	<title>Produtividade — Escalas PC-CE</title>
 </svelte:head>
 
-<div class="space-y-8 pb-12 {p.selectedCharts.length > 0 ? 'has-selections' : ''}">
+<div
+	class="pagina-produtividade space-y-8 pb-12 {p.selectedCharts.length > 0 ? 'has-selections' : ''}"
+>
 	<header class="flex flex-col md:flex-row md:items-center justify-between gap-4 sm:gap-6">
 		<div class="space-y-1">
 			<h1 class="h1 text-2xl font-bold">
 				Produção {p.filterTipo === 'seint' ? 'Inteligência' : 'Operacional'}
 			</h1>
-			<p class="text-surface-600 dark:text-surface-400 font-medium">
+			<p class="text-surface-600 dark:text-surface-400 font-medium print:hidden">
 				Análise filtrada e segmentada dos resultados reais {p.filterTipo === 'seint'
 					? '(SEINT)'
 					: '(P4-P19)'}
@@ -77,17 +98,32 @@
 			{#if p.data.escopoRestrito}
 				<!-- O recorte é do SERVIDOR, e quem o vê precisa saber: sem este aviso,
 				     um total menor parece queda de produtividade em vez de recorte. -->
-				<p class="text-2xs text-surface-600 dark:text-surface-400 mt-1">
+				<p class="text-2xs text-surface-600 dark:text-surface-400 mt-1 print:hidden">
 					Exibindo apenas os dados das unidades que você administra nesta operação.
 				</p>
 			{/if}
 		</div>
-		<div class="flex flex-col items-start gap-2">
+		<!-- Os controles de exportação não vão para o papel: quem lê o PDF não
+		     clica em "Baixar". -->
+		<div class="flex flex-col items-start gap-2 print:hidden">
 			<span
 				class="text-xs font-bold uppercase tracking-widest text-surface-400 dark:text-surface-500"
 				>Baixar gráficos</span
 			>
 			<div class="flex flex-wrap items-center gap-3">
+				<!-- Só o Admin Geral. Esconder o botão NÃO é a autorização: quem recusa
+				     o PUT direto é `requireAdmin` em `/api/produtividade/ordem`. -->
+				{#if p.podeOrganizar && !p.organizando}
+					<button
+						type="button"
+						class="btn bg-surface-200/60 dark:bg-surface-800/60 text-surface-600 dark:text-surface-300 hover:bg-surface-200 dark:hover:bg-surface-700 text-3xs font-black uppercase tracking-widest px-4 py-2 rounded-xl transition-colors flex items-center gap-2"
+						onclick={() => (p.organizando = true)}
+					>
+						<GripVertical class="w-3.5 h-3.5" aria-hidden="true" />
+						Organizar painel
+					</button>
+				{/if}
+
 				{#if p.allChartsCount > 0}
 					<button
 						type="button"
@@ -129,7 +165,7 @@
 
 				<button
 					type="button"
-					class="export-btn btn {p.selectedCharts.length > 0
+					class="btn {p.selectedCharts.length > 0
 						? 'bg-secondary-600 hover:bg-secondary-700 text-white'
 						: 'bg-surface-200/80 dark:bg-surface-800/80 text-surface-500 dark:text-surface-400 cursor-not-allowed'} text-3xs font-black uppercase py-2 px-6 rounded-xl transition-colors flex items-center gap-2"
 					onclick={() => window.print()}
@@ -149,7 +185,22 @@
 		</div>
 	</header>
 
-	<div class="space-y-3">
+	{#if p.organizando}
+		<BarraOrganizar
+			tipoEquipe={p.filterTipo === 'seint' ? 'Inteligência' : 'Operacional'}
+			alterada={p.ordemAlterada}
+			salvando={p.salvandoOrdem}
+			temOrdemPropria={p.temOrdemPropria}
+			onSalvar={p.salvarOrdem}
+			onDescartar={p.descartarOrdem}
+			onRestaurarPadrao={p.restaurarOrdemPadrao}
+			onCancelar={p.cancelarOrganizacao}
+		/>
+	{/if}
+
+	<!-- A barra de filtros é controle de tela: no PDF ela só ocuparia a primeira
+	     folha antes do primeiro gráfico. -->
+	<div class="space-y-3 print:hidden">
 		<div class="flex items-center justify-between gap-2">
 			<span
 				class="text-xs font-bold uppercase tracking-widest text-surface-400 dark:text-surface-500"
@@ -184,9 +235,14 @@
 				transition:slide={{ duration: 250 }}
 			>
 				<div class="space-y-4 p-4 sm:p-5">
-					<!-- LINHA 1 — o que se compara: operação, eixo, quantas unidades e
-					     em que sentido. Os três últimos não recortam dado nenhum: só
-					     mudam a quebra e a ordem da MESMA lista. -->
+					<!-- LINHA 1 — o que está EM FOCO: qual operação, por qual eixo, e de que
+					     tipo de equipe.
+					     A divisão entre as duas linhas já foi SEMÂNTICA ("só os de baixo
+					     recortam dado") e não é mais: o tipo de equipe recorta e mora aqui em
+					     cima. Hoje ela é de USO — em cima o que se escolhe ao abrir o painel,
+					     embaixo o que se mexe enquanto se lê. Quem precisa saber o que recorta
+					     dado: tipo de equipe e período; quantidade e ordem seguem mexendo só na
+					     apresentação da MESMA lista. -->
 					<div class="grid grid-cols-1 gap-4 lg:grid-cols-12 items-end">
 						<!-- Operação: navega (recarrega o `load`), porque trocar de operação
 						     troca os MODELOS e as linhas de base — não é um recorte da
@@ -194,11 +250,19 @@
 						{#if (p.data.operacoes ?? []).length > 1}
 							<div class="space-y-1.5 lg:col-span-3">
 								<label for="f-op" class={ROTULO}>Operação</label>
+								<!-- Desabilitado enquanto se organiza: trocar de operação recarrega
+								     os modelos, e o rascunho do arraste passaria a valer para cards
+								     de outra operação. Impedir a troca perde menos que avisar
+								     depois da perda. -->
 								<select
 									id="f-op"
 									value={p.data.operacaoSelecionadaId ?? ''}
+									disabled={p.organizando}
+									title={p.organizando
+										? 'Salve ou saia da organização do painel antes de trocar de operação'
+										: undefined}
 									onchange={(e) => goto(`/produtividade?operacaoId=${e.currentTarget.value}`)}
-									class={CAMPO}
+									class="{CAMPO} disabled:opacity-50 disabled:cursor-not-allowed"
 								>
 									{#each p.data.operacoes ?? [] as op (op.id)}
 										<option value={op.id}>{op.nome}</option>
@@ -207,7 +271,7 @@
 							</div>
 						{/if}
 
-						<div class="space-y-1.5 lg:col-span-3">
+						<div class="space-y-1.5 lg:col-span-4">
 							<p class={ROTULO}>Visualizar por</p>
 							<div class="inline-flex w-full rounded-xl bg-surface-100 dark:bg-surface-800 p-1">
 								<button
@@ -223,38 +287,7 @@
 							</div>
 						</div>
 
-						<div class="space-y-1.5 lg:col-span-3">
-							<label for="f-qtd" class={ROTULO}>Quantidade de unidades</label>
-							<select
-								id="f-qtd"
-								value={String(p.quantidade)}
-								onchange={(e) =>
-									(p.quantidade =
-										e.currentTarget.value === 'todas'
-											? 'todas'
-											: (Number(e.currentTarget.value) as 5 | 10))}
-								class={CAMPO}
-							>
-								<option value="5">5 unidades</option>
-								<option value="10">10 unidades</option>
-								<option value="todas">Todas</option>
-							</select>
-						</div>
-
-						<div class="space-y-1.5 lg:col-span-3">
-							<label for="f-ordem" class={ROTULO}>Ordem</label>
-							<select id="f-ordem" bind:value={p.ordem} class={CAMPO}>
-								<option value="melhores">Melhores primeiro</option>
-								<option value="piores">Piores primeiro</option>
-							</select>
-						</div>
-					</div>
-
-					<!-- LINHA 2 — o que entra na conta: recortes de verdade sobre os dados. -->
-					<div
-						class="grid grid-cols-1 gap-4 lg:grid-cols-12 items-end border-t border-surface-200/70 dark:border-white/10 pt-4"
-					>
-						<div class="space-y-1.5 lg:col-span-4">
+						<div class="space-y-1.5 lg:col-span-5">
 							<p class={ROTULO}>Tipo de equipe</p>
 							<div class="inline-flex w-full rounded-xl bg-surface-100 dark:bg-surface-800 p-1">
 								<!-- Desabilitado, e não escondido: o botão apagado diz que a
@@ -284,8 +317,45 @@
 								>
 							</div>
 						</div>
+					</div>
 
-						<div class="space-y-1.5 lg:col-span-8">
+					<!-- LINHA 2 — o RECORTE: quantas unidades, em que ordem, em que período.
+					     As frações do `grid-cols` não são arbitrárias: `1.5fr` é metade das 3
+					     colunas que a quantidade tinha, e `2.1fr` são as 3 da ordem menos 30%.
+					     Os dois guardam duas ou três opções curtas, e a largura que sobra vale
+					     mais no período, que carrega duas datas. -->
+					<div
+						class="grid grid-cols-1 gap-4 lg:grid-cols-[1.5fr_2.1fr_8.4fr] items-end border-t border-surface-200/70 dark:border-white/10 pt-4"
+					>
+						<div class="space-y-1.5">
+							<!-- "Quantidade", e não "Quantidade de unidades": na largura pela metade
+							     o rótulo longo quebrava em três linhas, e as opções ("5 unidades",
+							     "10 unidades") já dizem de que quantidade se trata. -->
+							<label for="f-qtd" class={ROTULO}>Quantidade</label>
+							<select
+								id="f-qtd"
+								value={String(p.quantidade)}
+								onchange={(e) =>
+									(p.quantidade =
+										e.currentTarget.value === 'todas'
+											? 'todas'
+											: (Number(e.currentTarget.value) as 5 | 10))}
+								class={CAMPO}
+							>
+								<option value="5">5 unidades</option>
+								<option value="10">10 unidades</option>
+								<option value="todas">Todas</option>
+							</select>
+						</div>
+
+						<div class="space-y-1.5">
+							<label for="f-ordem" class={ROTULO}>Ordem</label>
+							<select id="f-ordem" bind:value={p.ordem} class={CAMPO}>
+								<option value="melhores">Melhores primeiro</option>
+								<option value="piores">Piores primeiro</option>
+							</select>
+						</div>
+						<div class="space-y-1.5">
 							<label for="f-ano" class={ROTULO}>Período</label>
 							<div class="flex flex-wrap lg:flex-nowrap items-end gap-2">
 								<select
@@ -341,7 +411,7 @@
 	<!-- Antes dos rankings e dos gráficos por pergunta: é a leitura que a
 	     operação existe para produzir ("chegamos onde prometemos?"), e o resto
 	     é o detalhamento dela. -->
-	<SecaoIndicadores paineis={p.paineisIndicadores} Chart={p.ChartCtor} />
+	<SecaoIndicadores paineis={p.paineisIndicadores} Chart={p.ChartCtor} {organizacao} />
 
 	{#if p.painelVazio}
 		<!-- Nem indicador, nem bloco fixo, nem pergunta marcada. Sem este aviso a
@@ -362,16 +432,15 @@
 	{/if}
 
 	<!-- Rankings e detalhamentos. O bloco de prisões só existe no operacional (as
-	     perguntas que o alimentam são de lá); os cards vindos do modelo valem para
-	     os dois tipos de equipe, porque saem do formulário em foco. -->
+	     perguntas que o alimentam são de lá) e chega nesta mesma lista, já na
+	     ordem do painel; os cards vindos do modelo valem para os dois tipos de
+	     equipe, porque saem do formulário em foco. -->
 	<SecaoRankings
-		temPrisoes={p.temPrisoes}
-		rankingPrisoes={p.rankingPrisoes}
 		cards={p.cardsListagem}
-		stats={p.stats}
 		rotuloGrupo={p.modoVisualizacao === 'delegacias' ? 'Delegacia' : 'Seccional'}
 		selectedCharts={p.selectedCharts}
 		onToggle={p.toggleChartSelection}
+		{organizacao}
 	/>
 
 	<SecaoGraficos
@@ -381,36 +450,99 @@
 		selectedCharts={p.selectedCharts}
 		modoVisualizacao={p.modoVisualizacao}
 		onToggle={p.toggleChartSelection}
+		{organizacao}
 	/>
 </div>
 
 <style>
+	/**
+	 * IMPRESSÃO — o botão "Baixar (PDF)" é `window.print()`, então o PDF é a
+	 * folha que estas regras descrevem. Cada card é uma UNIDADE: quebra só
+	 * quando não cabe inteiro numa A4, que é o que `break-inside: avoid` pede ao
+	 * paginador (o navegador ignora o pedido quando ele é impossível de honrar,
+	 * e é exatamente o comportamento desejado).
+	 *
+	 * Os seletores são `:global()` DE PROPÓSITO. Os cards são renderizados por
+	 * `SecaoGraficos`/`SecaoRankings`/`SecaoIndicadores`, e o CSS de componente
+	 * do Svelte só alcança o markup DESTE arquivo: escrito sem `:global()`, o
+	 * bloco compilava para `.card.svelte-hash`, que não casa com card nenhum —
+	 * era por isso que os gráficos quebravam no meio, e também por que os cards
+	 * não selecionados e a barra de filtros iam junto para o papel.
+	 *
+	 * `.pagina-produtividade` no início de cada seletor devolve o limite que o
+	 * escopo dava: as regras valem para esta tela, não para o app inteiro.
+	 */
 	@media print {
-		.card {
-			break-inside: avoid !important;
-			page-break-inside: avoid !important;
-			box-shadow: none !important;
-			border-color: #e2e8f0 !important;
-		}
-
-		/* If selections exist, hide everything except selected cards */
-		:global(.has-selections) .card:not(.selected-for-export) {
-			display: none !important;
-		}
-
-		/* Also hide filters and extra texts if selection is active */
-		:global(.has-selections) section:first-of-type,
-		:global(.has-selections) header p {
-			display: none !important;
-		}
-
-		.export-btn,
-		header p {
-			display: none !important;
+		@page {
+			size: A4 portrait;
+			margin: 10mm;
 		}
 
 		:global(body) {
 			background: white !important;
+		}
+
+		/* A grade de pares vira fluxo: a largura útil da folha (190mm) já cai
+		 * abaixo do breakpoint `lg`, então a grade só tem uma coluna no papel —
+		 * e fragmentar dentro de um container `grid` é irregular no Chrome. Em
+		 * bloco, `gap` não vale mais; a margem recompõe o respiro entre cards. */
+		:global(.pagina-produtividade section.grid) {
+			display: block !important;
+		}
+
+		:global(.pagina-produtividade section.grid > * + *) {
+			margin-top: 6mm;
+		}
+
+		/* A unidade indivisível da paginação. `overflow: visible` porque scroll
+		 * interno (o ranking rola na tela) vira CORTE no papel, e
+		 * `print-color-adjust` porque as barras de detalhamento são preenchimento
+		 * de fundo — sem isso o Chrome imprime a barra vazia. */
+		:global(.pagina-produtividade .card),
+		:global(.pagina-produtividade .card-elevated) {
+			break-inside: avoid;
+			page-break-inside: avoid;
+			overflow: visible !important;
+			box-shadow: none !important;
+			print-color-adjust: exact;
+			-webkit-print-color-adjust: exact;
+		}
+
+		:global(.pagina-produtividade .card + .card),
+		:global(.pagina-produtividade .card-elevated + .card-elevated) {
+			margin-top: 6mm;
+		}
+
+		/* Controles que sobraram DENTRO do card: a caixa de seleção no canto e o
+		 * "ver tabela" do indicador. No papel são tinta sem função. */
+		:global(.pagina-produtividade .card button),
+		:global(.pagina-produtividade .card-elevated > button) {
+			display: none !important;
+		}
+
+		/* A borda azul é marca de SELEÇÃO na tela; no papel ela destacaria um card
+		 * que não tem nada de diferente dos outros. */
+		:global(.pagina-produtividade .card) {
+			border-color: #e2e8f0 !important;
+		}
+
+		/* O canvas do Chart.js carrega a largura em px que tinha na TELA; sem
+		 * este teto ele estoura a folha e o gráfico sai cortado na lateral.
+		 * `height: auto` mantém a proporção do próprio canvas. */
+		:global(.pagina-produtividade canvas) {
+			max-width: 100% !important;
+			height: auto !important;
+		}
+
+		/* Com seleção ativa, o papel leva só o que foi selecionado: os demais
+		 * cards saem, e a seção que não sobrou com nenhum selecionado sai
+		 * inteira (senão restam título e espaço em branco no meio do PDF). */
+		:global(.has-selections .card:not(.selected-for-export)) {
+			display: none !important;
+		}
+
+		:global(.has-selections section:not(:has(.selected-for-export))) {
+			display: none !important;
 		}
 	}
 </style>

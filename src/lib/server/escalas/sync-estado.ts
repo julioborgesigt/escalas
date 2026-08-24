@@ -41,7 +41,9 @@ export async function resumoRecebidosAdmin(db: Database): Promise<{
 	return { naoVistos, stamp: `${naoVistos}:${total}:${maxId}` };
 }
 
-/** Contagem + stamp das solicitações de assinatura visíveis ao DPC admin. */
+/** Contagem + stamp das solicitações de assinatura visíveis ao DPC admin.
+ * `lotacoesPermitidas` é o escopo do PAPEL (`lotacoesAdministradas`) — não a
+ * lotação atual. Sem lista, admin_unidade não vê nada (SEC-06). */
 export async function resumoEscalasPendentes(
 	db: Database,
 	usuario: {
@@ -55,9 +57,10 @@ export async function resumoEscalasPendentes(
 
 	let scopeCondition: SQL | undefined;
 	if (usuario.papel === 'admin_unidade') {
+		if (!lotacoesPermitidas?.length) return { pendentes: 0, stamp: '0:0' };
 		scopeCondition = and(
 			eq(escalaSolicitacoesAssinatura.tipo, 'unidade'),
-			eq(escalas.lotacao, usuario.lotacao ?? '')
+			inArray(escalas.lotacao, lotacoesPermitidas)
 		);
 	} else if (usuario.papel === 'admin_seccional' && lotacoesPermitidas?.length) {
 		scopeCondition = or(

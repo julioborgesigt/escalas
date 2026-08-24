@@ -12,6 +12,7 @@ import { logger } from '../logger';
 import {
 	salvarGiseDocumento,
 	atualizarGiseEscala,
+	circunstanciaDePersistir,
 	type Database,
 	type AssinaturaPasskeyMetadata
 } from '$lib/db';
@@ -22,7 +23,11 @@ import { selarPdfInstitucional, tipoCarimboPrevisto } from '../assinatura/server
 import { gerarPdfGise, toGisePdfData } from '../export';
 import { uploadSelfieDataUri } from '../assinatura/selfie-upload';
 import { gerarCodigoValidacao } from '$lib/utils/formato';
-import { guardarPdfAssinado, type R2ParaAssinatura } from '../assinatura/blob-assinado';
+import {
+	guardarPdfAssinado,
+	recusarPorDocumentoJaGravado,
+	type R2ParaAssinatura
+} from '../assinatura/blob-assinado';
 import type { EvidenciasMontagem } from '../escalas/assinatura-escala';
 import { mensagemDeErro } from '$lib/utils/erro';
 
@@ -146,30 +151,31 @@ export async function persistirGiseAssinada(opts: {
 		}
 	}
 
-	await Promise.all([
-		salvarGiseDocumento(opts.db, {
-			giseId: opts.gise.id,
-			r2Key: documentKey,
-			assinanteId: opts.assinante.id,
-			assinanteNome: opts.assinante.nome,
-			// CPF vazio de propósito no caminho avançado: quem o preenche é o
-			// fluxo qualificado, a partir do certificado.
-			assinanteCpf: '',
-			verificacaoHash: opts.montado.verificationHash,
-			rubrica: opts.rubrica ?? undefined,
-			ipAddress: opts.ip,
-			userAgent: opts.userAgent,
-			latitude: opts.latitude ?? undefined,
-			longitude: opts.longitude ?? undefined,
-			selfieKey: opts.selfieKey ?? undefined,
-			arquivoHash,
-			// Sem `assinanteEmail`, `tipoCarimboTempo` nem `cadesMeta` — eram três
-			// `undefined` seguidos e sem comentário na versão posicional.
-			env: opts.env,
-			passkeyMeta: opts.passkeyMeta
-		}),
-		atualizarGiseEscala(opts.db, opts.gise.id, { status: 'em_andamento' })
-	]);
+	const { gravado } = await salvarGiseDocumento(opts.db, {
+		giseId: opts.gise.id,
+		r2Key: documentKey,
+		assinanteId: opts.assinante.id,
+		assinanteNome: opts.assinante.nome,
+		// CPF vazio de propósito no caminho avançado: quem o preenche é o
+		// fluxo qualificado, a partir do certificado.
+		assinanteCpf: '',
+		verificacaoHash: opts.montado.verificationHash,
+		rubrica: opts.rubrica ?? undefined,
+		arquivoHash,
+		...circunstanciaDePersistir(opts)
+	});
+	if (!gravado) {
+		return {
+			ok: false,
+			resposta: await recusarPorDocumentoJaGravado(
+				opts.db,
+				opts.r2,
+				[documentKey, chaveConferencia(opts.montado.verificationHash), opts.selfieKey],
+				'gise-simples'
+			)
+		};
+	}
+	await atualizarGiseEscala(opts.db, opts.gise.id, { status: 'em_andamento' });
 
 	return { ok: true, arquivoHash, pdfComRodape: opts.montado.pdfComRodape };
 }

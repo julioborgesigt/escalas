@@ -27,6 +27,7 @@ import {
 	giseAutorizaSeccionalRelatorioExtra,
 	secIdEhSupervisaoExtra
 } from '$lib/server/gise/supervisao-extra';
+import { identidadeVisualAssinante } from '$lib/server/assinatura/identidade-sessao';
 import {
 	prepararPdfParaAssinatura,
 	adicionarPaginaAuditoria,
@@ -58,7 +59,7 @@ export const POST: RequestHandler = async ({
 	const validated = await validateBody(request, prepararAssinaturaSchema);
 	if (!validated.ok) return validated.response;
 	// `rubrica` do body é ignorada: vem do cadastro do perfil (server-side).
-	const { signerName, signerCpf, latitude, longitude } = validated.data;
+	const { latitude, longitude } = validated.data;
 	const ip = getClientAddress();
 	const ua = request.headers.get('user-agent') || '';
 
@@ -82,8 +83,7 @@ export const POST: RequestHandler = async ({
 
 	const presencas = await buscarPresencasGise(db, id, platform?.env);
 
-	const finalSignerName = signerName && signerName.trim() ? signerName : u.nome;
-	const finalSignerCpf = signerCpf && signerCpf.trim() ? signerCpf : u.cpf || '';
+	const { signerName: finalSignerName, signerCpf: finalSignerCpf } = identidadeVisualAssinante(u);
 
 	// Rubrica + matrícula do signatário (supervisor) para o campo + rodapé.
 	const polAss = await buscarPolicial(db, u.id);

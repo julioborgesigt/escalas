@@ -11,6 +11,7 @@ import type { RequestHandler } from './$types';
 import { eq } from 'drizzle-orm';
 import { getDB, buscarGiseEscala, resolverParticipacaoGisePolicial } from '$lib/db';
 import { gateDePresenca } from '$lib/server/gise/presenca-gate';
+import { identidadeVisualAssinante } from '$lib/server/assinatura/identidade-sessao';
 import { policiais } from '$lib/server/schema';
 import { prepararPresencaSchema } from '$lib/schemas';
 import { requireAuth, badRequest, notFound, forbidden, validateBody } from '$lib/server/api';
@@ -42,7 +43,7 @@ export const POST: RequestHandler = async ({
 
 	const validated = await validateBody(request, prepararPresencaSchema);
 	if (!validated.ok) return validated.response;
-	const { signerName, signerCpf, latitude, longitude, tipo } = validated.data;
+	const { latitude, longitude, tipo } = validated.data;
 
 	const giseId = parseInt(params.id!);
 	if (isNaN(giseId)) return badRequest('Parâmetro inválido');
@@ -72,8 +73,7 @@ export const POST: RequestHandler = async ({
 		return badRequest('Cadastre sua rubrica antes de assinar pelo computador.');
 	}
 
-	const finalSignerName = signerName?.trim() || u.nome;
-	const finalSignerCpf = signerCpf?.trim() || u.cpf || '';
+	const { signerName: finalSignerName, signerCpf: finalSignerCpf } = identidadeVisualAssinante(u);
 	const ip = getClientAddress();
 	const ua = request.headers.get('user-agent') || '';
 

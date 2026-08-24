@@ -41,10 +41,31 @@ let token: string | null = null;
 /** `escala_policiais.id` da linha que vive na escala Y. */
 let itemDeY = 0;
 
-function seedEscala(id: number, sufixo: string, tipo = 'expediente'): boolean {
+/**
+ * Cada escala MENSAL desta fixture mora num mês próprio, e isso não é
+ * decoração: `uq_escalas_mensal` (SEC-34) recusa duas escalas do mesmo
+ * `(lotacao, tipo, mês)`, que é exatamente a regra que
+ * `verificarEscalaExistente` sempre aplicou na criação. Enquanto as três
+ * dividiam novembro, a fixture semeava um estado que o app se recusa a
+ * produzir — e, com `INSERT OR REPLACE`, o unique fazia a segunda SUBSTITUIR a
+ * primeira em silêncio, deixando o spec sem a escala Y que ele testa.
+ *
+ * A de FDS fica fora do índice (parcial em `tipo IN ('plantao','expediente')`)
+ * e por isso pode compartilhar mês com qualquer uma.
+ *
+ * O isolamento é entre SPECS, não só dentro deste: `escala-crud.spec.ts` já
+ * ocupa ago–dez/2026 para (unidade A, expediente). Daí 2027 aqui.
+ */
+function seedEscala(
+	id: number,
+	sufixo: string,
+	inicio: string,
+	fim: string,
+	tipo = 'expediente'
+): boolean {
 	return execD1Local(
 		`INSERT OR REPLACE INTO escalas (id, titulo, cidade, tipo, lotacao, data_inicio, data_fim, hora_entrada, hora_saida) ` +
-			`VALUES (${id}, '${TITULO} ${sufixo}', 'Fortaleza', '${tipo}', '${LOT_A}', '2026-11-01', '2026-11-30', '08', '08');`
+			`VALUES (${id}, '${TITULO} ${sufixo}', 'Fortaleza', '${tipo}', '${LOT_A}', '${inicio}', '${fim}', '08', '08');`
 	);
 }
 
@@ -79,21 +100,22 @@ test.beforeAll(() => {
 	token = seedSession(FIXTURE.adminUnidade.id);
 	if (!token) return;
 
-	for (const [id, sufixo] of [
-		[ESCALA_X, 'X'],
-		[ESCALA_Y, 'Y'],
-		[ESCALA_ASSINADA, 'Assinada']
+	for (const [id, sufixo, inicio, fim] of [
+		[ESCALA_X, 'X', '2027-01-01', '2027-01-31'],
+		[ESCALA_Y, 'Y', '2027-02-01', '2027-02-28'],
+		[ESCALA_ASSINADA, 'Assinada', '2027-03-01', '2027-03-31']
 	] as const) {
-		seedEscala(id, sufixo);
+		seedEscala(id, sufixo, inicio, fim);
 	}
-	seedEscala(ESCALA_FINALIZADA, 'Finalizada', 'fds');
+	seedEscala(ESCALA_FINALIZADA, 'Finalizada', '2026-11-01', '2026-11-30', 'fds');
 
 	execD1Local(
 		`DELETE FROM escala_policiais WHERE escala_id IN (${ESCALA_X}, ${ESCALA_Y}, ${ESCALA_ASSINADA}, ${ESCALA_FINALIZADA});`
 	);
-	seedItem(ESCALA_X, '2026-11-03');
-	seedItem(ESCALA_Y, '2026-11-04');
-	seedItem(ESCALA_ASSINADA, '2026-11-05');
+	// Cada item dentro do intervalo da SUA escala (ver `seedEscala`).
+	seedItem(ESCALA_X, '2027-01-03');
+	seedItem(ESCALA_Y, '2027-02-04');
+	seedItem(ESCALA_ASSINADA, '2027-03-05');
 	seedItem(ESCALA_FINALIZADA, '2026-11-06');
 
 	// Documento assinado na ESCALA_ASSINADA e `finalizada_em` na de FDS.
@@ -140,8 +162,14 @@ test.describe('FLW-ESC-002 — item de outra escala pelo ID', () => {
 	test('editar: idem — a linha da Y não muda de horário pela rota da X', async ({ request }) => {
 		const res = await postForm(request, `/escalas/${ESCALA_X}?/editar`, {
 			item_id: String(itemDeY),
-			data_plantao: '2026-11-04',
-			data_saida: '2026-11-04',
+			// A data é de JANEIRO (o mês da escala X, dona da ROTA), não de
+			// fevereiro (o mês da Y, dona do item): o `editar` valida a data contra
+			// o período da escala da URL ANTES de conferir a posse do item, e uma
+			// data fora dele devolve 400 de período — o teste passaria a medir a
+			// validação de data em vez do FLW-ESC-002. Enquanto as duas escalas
+			// dividiam o mesmo mês, a diferença não aparecia.
+			data_plantao: '2027-01-04',
+			data_saida: '2027-01-04',
 			hora_entrada: '23:00',
 			hora_saida: '23:59',
 			observacoes: 'invadido'
@@ -162,7 +190,7 @@ test.describe('FLW-ESC-002 — item de outra escala pelo ID', () => {
 
 		const res = await postForm(request, `/escalas/${ESCALA_X}?/editarPlantaoAgrupado`, {
 			ids: JSON.stringify([itemDeY]),
-			datas: JSON.stringify(['2026-11-10']),
+			datas: JSON.stringify(['2027-01-10']), // mês da escala X, dona da rota
 			hora_entrada: '08:00',
 			hora_saida: '18:00',
 			observacoes: ''
@@ -204,7 +232,7 @@ test.describe('FLW-ESC-003 — conteúdo travado depois de assinar ou finalizar'
 	test('escala ASSINADA recusa adição de servidor', async ({ request }) => {
 		const res = await postForm(request, `/escalas/${ESCALA_ASSINADA}?/adicionar`, {
 			policial_id: String(FIXTURE.policialA.id),
-			data_plantao: '2026-11-20',
+			data_plantao: '2027-03-20',
 			hora_entrada: '08:00',
 			hora_saida: '18:00'
 		});

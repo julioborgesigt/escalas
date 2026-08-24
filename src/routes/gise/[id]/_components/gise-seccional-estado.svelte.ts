@@ -38,4 +38,21 @@ export class GiseSeccionalEstado {
 
 	adicionandoSlot = $state(false);
 	novoSlotUnidadeId = $state<number | ''>('');
+
+	/**
+	 * A ABA de unidade aberta no quadro da seccional (`GiseAbasUnidades`).
+	 *
+	 * `null` = ninguém escolheu ainda, e a primeira unidade abre. Guardar o id
+	 * escolhido aqui — e não no componente da barra — é o que faz a aba
+	 * sobreviver ao rerender que toda mutação provoca: adicionar membro
+	 * revalida o `load`, e a aba voltaria para a primeira a cada equipe montada.
+	 */
+	abaSlotId = $state<number | null>(null);
+
+	/**
+	 * Pedido pendente de "abrir a ÚLTIMA aba", usado logo após adicionar uma
+	 * unidade: o id do slot novo só existe depois do próximo `load`, então o que
+	 * se guarda é a intenção. Qualquer clique em outra aba a cancela.
+	 */
+	abrirUltimaAba = $state(false);
 }

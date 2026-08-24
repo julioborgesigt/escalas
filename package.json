@@ -33,6 +33,7 @@
 		"docs:guard": "node scripts/guard-docs-novos.mjs",
 		"guard:autorizacao": "node scripts/guard-autorizacao.mjs",
 		"guard:duplicacao": "node scripts/guard-duplicacao.mjs",
+		"guard:achados": "node scripts/guard-achados.mjs",
 		"lint:fix": "eslint --fix src/",
 		"format": "prettier --write src/",
 		"format:check": "prettier --check src/",

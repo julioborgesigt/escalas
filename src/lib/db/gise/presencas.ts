@@ -4,7 +4,7 @@
  * Cada confirmação guarda rubrica, foto (prova de vida), IP e GPS — é o que
  * sustenta o termo de presença e, depois, o relatório de extra.
  */
-import { eq, and, isNotNull, sql } from 'drizzle-orm';
+import { eq, and, isNotNull, isNull, sql } from 'drizzle-orm';
 import { gisePresencas, policiais } from '../../server/schema';
 import { linhasAfetadas, type Database } from '../core';
 import { anonimizarIp } from '../audit';
@@ -22,7 +22,7 @@ export async function salvarEntradaGise(
 	latitude?: number,
 	longitude?: number,
 	selfieKey?: string
-) {
+): Promise<{ registrada: boolean }> {
 	// Instante REAL em UTC (ISO com Z). A formatação para horário de Brasília é
 	// responsabilidade de cada exibição (Intl com timeZone America/Sao_Paulo).
 	// NÃO usar getNowBR().toISOString() aqui: gravava o horário de Brasília
@@ -42,14 +42,19 @@ export async function salvarEntradaGise(
 		updated_at: sql`datetime('now', '-3 hours')`
 	};
 
-	return db
+	const r = await db
 		.insert(gisePresencas)
 		.values({ gise_id: giseId, policial_id: policialId, ...dados })
 		.onConflictDoUpdate({
 			target: [gisePresencas.gise_id, gisePresencas.policial_id],
-			// Reconfirmar a entrada substitui a anterior (correção de rubrica/foto).
-			set: dados
+			// Reconfirmar a entrada substitui a anterior (correção de rubrica/foto)
+			// SÓ enquanto a saída não foi registrada. Depois disso o ato está
+			// fechado — o UPDATE não casa (SEC-33).
+			set: dados,
+			setWhere: isNull(gisePresencas.saida_timestamp)
 		});
+
+	return { registrada: linhasAfetadas(r) > 0 };
 }
 
 /**
@@ -86,7 +91,9 @@ export async function salvarSaidaGise(
 				// A saída EXIGE a entrada. Sem isto o UPDATE não achava linha, o
 				// resultado era ignorado, e o endpoint gravava termo e auditoria de
 				// sucesso para uma saída que não existe (FLW-GISE-008).
-				isNotNull(gisePresencas.entrada_timestamp)
+				isNotNull(gisePresencas.entrada_timestamp),
+				// Segunda saída não sobrescreve a prova já gravada (SEC-33).
+				isNull(gisePresencas.saida_timestamp)
 			)
 		);
 

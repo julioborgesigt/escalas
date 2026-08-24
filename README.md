@@ -212,7 +212,7 @@ O projeto usa **Cloudflare D1** (SQLite serverless) via **Drizzle ORM**. O schem
 | `gise_membros`                   | Associação policial ↔ equipe GISE                                                                                   |
 | `gise_presencas`                 | Registros de entrada/saída (GPS, selfie, rubrica)                                                                   |
 | `gise_documentos`                | PDFs assinados de GISE                                                                                              |
-| `gise_modelo_formulario`         | Modelo do formulário de produtividade em JSON, um por (operação, tipo de equipe)                                    |
+| `gise_modelo_formulario`         | Modelo do formulário de produtividade em JSON, um por (operação, tipo de equipe) — e a ordem dos cards do painel    |
 | `gise_respostas_formulario`      | Respostas de formulários (JSON) por policial/equipe                                                                 |
 | `gise_assinaturas_relatorios`    | Assinaturas de relatórios de extra/produtividade                                                                    |
 | `aceites_termos`                 | Histórico de aceite de termos de uso (versão, hash, IP, user-agent)                                                 |
@@ -477,7 +477,7 @@ escalas/
 ├── docs/                           # Documentação complementar (ver docs/README.md)
 │   ├── QA_ASSINATURA_A3_DESKTOP.md # Roteiro de QA manual do fluxo Token A3
 │   ├── HISTORICO.md                # Catálogo das auditorias/decisões arquivadas (preservadas no Git)
-│   └── auditorias/                 # Auditorias em tratamento (depois vão para o HISTORICO)
+│   └── auditorias/                 # Auditorias em tratamento — AUSENTE quando não há nenhuma aberta
 ├── static/
 │   └── face-api/                   # Modelos ML do face-api (servidos localmente)
 ├── wrangler.toml                   # Config Cloudflare (D1, R2, adapter)
@@ -559,8 +559,9 @@ e o item solto obrigava a escolher a operação depois de entrar. O caminho é o
 botão **Formulário** de cada linha, e a tela tem o "voltar às operações" acima do
 título.
 
-**A barra lateral tem DOIS NÍVEIS.** Tudo que é de escala extra — Escalas,
-Produtividade, Dados base, Minha presença, Meu histórico — vive sob o item
+**A barra lateral tem DOIS NÍVEIS.** Tudo que é de escala extra — Ativas,
+Finalizadas (Admin Geral), Produtividade, Dados base, Minha presença, Meu
+histórico — vive sob o item
 **"Escala extra"**, que ao ser clicado SUBSTITUI o conteúdo da barra pelo
 submenu. Antes eram até cinco linhas soltas, e o admin seccional via oito itens
 de uma vez sem que nada dissesse que cinco eram do mesmo assunto — estavam só
@@ -575,8 +576,9 @@ Três decisões registradas:
 - **`/gise/operacoes` fica na RAIZ.** É cadastro, não operação do dia a dia, e
   acompanha os outros itens de gestão do Admin Geral.
 
-O filho que leva a `/gise` chama-se **"Escalas"**, e não "Escalas ativas": a
-página lista ativas **e** histórico, com o filtro dentro dela — o rótulo mentiria.
+O filho que leva a `/gise` chama-se **"Ativas"** (as que estão em andamento).
+O arquivo das já encerradas é a aba **"Finalizadas"** (`/gise/finalizadas`), só
+do Admin Geral, imediatamente abaixo de Ativas e acima de Produtividade.
 
 Quem vê cada filho é `filhosExtra` (`+layout.svelte`), com as MESMAS condições de
 antes do agrupamento, uma por uma. O pai só aparece se a lista não estiver vazia,
@@ -724,12 +726,73 @@ Operação sem indicador, sem bloco e sem pergunta marcada mostra um aviso dizen
 onde é o conserto (o editor do formulário), em vez de uma página só com a barra
 de filtros.
 
+### A ordem dos cards: arrastada no painel, não herdada do formulário
+
+Até ago/2026 a ordem era a do MODELO, e não havia como escolhê-la. Mover um card
+exigia mover a PERGUNTA no editor — o que renumera o enunciado ("4. HOUVE…") e
+reordena o formulário que o policial preenche: arrumar a leitura mexia na coleta.
+E a pergunta marcada depois caía onde calhava; se a forma dela fosse ranking, no
+TOPO da página, porque a faixa dos rankings vem acima da das colunas.
+
+A ordem passa a ser um dado próprio da operação (`gise_modelo_formulario.painel_ordem`,
+migração **0064**): um array JSON de ids de card, montado pelo Admin Geral no
+botão **"Organizar painel"** da própria `/produtividade`. Organizar na aba de
+verdade, e não numa lista de nomes em outra tela, porque o que se arruma é a
+leitura e a leitura é visual — o card ganha uma faixa com a posição, a alça e as
+setas ↑/↓, e o conteúdo dele fica inerte para o arraste não esbarrar na caixinha
+de exportação do canto.
+
+Quatro regras, e nenhuma é estilo:
+
+- **`NULL` = ordem do formulário.** É o que toda operação é até alguém
+  organizar, e é o que o botão "Ordem do formulário" devolve;
+- **id fora da lista vai para o FIM** do bloco dele. É isto que responde ao
+  "pergunta nova aparece por último" sem exigir uma reorganização a cada campo
+  criado — e a alternativa (a lista ter de cobrir todo card existente) daria
+  posição arbitrária a quem ainda não estivesse nela;
+- **id órfão é ignorado.** A ordenação percorre os CARDS e só consulta a lista
+  para saber a posição de cada um; desmarcar a pergunta no editor não deixa card
+  fantasma;
+- **o card se move dentro do BLOCO dele.** As três faixas têm formatos
+  diferentes — indicador e colunas ocupam a largura inteira, ranking e
+  detalhamento vão dois por linha —, e não há para onde levar um gráfico de
+  colunas na grade dos rankings. A ordem salva é uma lista só para as três; cada
+  faixa consulta a posição dos seus ids e ignora o resto.
+
+O bloco de prisões deixou de ter `<section>` própria e entrou na mesma lista dos
+demais cards de listagem: ele continua escrito no código (o detalhamento
+atravessa três perguntas), mas uma `<section>` acima das outras o pregava no
+topo — e um card pregado seria a única exceção sem motivo. O que sobrou de
+diferente nele é o ícone.
+
+**A ordem é por (operação × tipo de equipe)**, que é o escopo da própria tela: o
+seletor "Operacional / Inteligência" troca o formulário inteiro. A consequência
+deliberada é que os cards de INDICADOR, que saem dos dois modelos unificados por
+`key` e aparecem nas duas abas, guardam a ordem em separado em cada uma — o
+painel operacional e o de inteligência são dois relatórios, para públicos
+diferentes, e a manchete de um não precisa ser a do outro. A barra de organização
+diz isso na tela.
+
+Quem organiza é o **Admin Geral**, e só ele: a ordem é única e vale para todos
+que abrem a operação, então é configuração — do mesmo tipo que o editor do
+formulário. Admin de unidade e de seccional entram no painel para LER o resultado
+do que informam em `/dados-base`, com os dados recortados; esconder o botão não é
+a autorização, quem recusa o PUT direto é `requireAdmin` em
+`/api/produtividade/ordem`.
+
+Cobertura: `src/lib/produtividade/__tests__/ordem.test.ts` (a regra do "fim da
+lista", ids órfãos, JSON inválido) e `e2e/produtividade-ordem.spec.ts` (o arraste,
+a ida e volta pelo banco, a pergunta marcada depois e a recusa ao admin de
+unidade).
+
 ### O eixo do painel: delegacias ou seccionais
 
-A barra de filtros de `/produtividade` tem **duas linhas**, e a divisão é
-semântica: em cima o que se COMPARA (operação, "Visualizar por", quantidade de
-unidades, ordem) e embaixo o que entra na CONTA (tipo de equipe, período). Só os
-de baixo recortam dado.
+A barra de filtros de `/produtividade` tem **duas linhas**. A divisão já foi
+semântica ("só os de baixo recortam dado") e desde ago/2026 é de USO: em cima o
+que se escolhe ao abrir o painel (operação, "Visualizar por", tipo de equipe),
+embaixo o que se mexe enquanto se lê (quantidade, ordem, período). Quem precisa
+saber o que recorta dado de verdade: **tipo de equipe e período** — quantidade e
+ordem seguem mexendo só na apresentação da MESMA lista.
 
 "Visualizar por" é um EIXO, não um filtro: a mesma resposta pertence às duas
 chaves — `seccional_id` e `unidade_id` (este resolvido em
@@ -759,6 +822,37 @@ por unidade) e agregá-la por seccional exigiria somar bases — o que funciona 
 o acervo de inquéritos e produz um número sem sentido no indicador de tempo
 MÉDIO. Ordem e Top-N valem nela; o eixo, não.
 
+### Baixar os gráficos: PNG e PDF são dois caminhos diferentes
+
+**"Baixar (imagem)"** desenha cada card do zero num canvas próprio
+(`$lib/export-charts`) e salva um PNG por gráfico selecionado — com o recorte
+descrito no cabeçalho, porque o PNG circula sozinho.
+
+**"Baixar (PDF)"** é `window.print()`: quem pagina é o NAVEGADOR, e a folha é o
+que o `@media print` da rota descreve. As duas consequências que importam:
+
+- **quem controla a quebra é CSS**, não um gerador. O card é a unidade
+  indivisível (`break-inside: avoid`), então ele só parte quando não cabe inteiro
+  numa A4 — que é o que se quer. `overflow: visible` acompanha, porque scroll
+  interno (o ranking rola na tela) vira corte no papel, e o teto de largura no
+  `<canvas>` existe porque o Chart.js carrega para o papel a largura em px que o
+  gráfico tinha na TELA;
+- **os seletores são `:global()`, de propósito.** Todo card do painel vem de um
+  componente filho (`SecaoGraficos`, `SecaoRankings`, `SecaoIndicadores`), e o
+  CSS de componente do Svelte só alcança o markup do próprio arquivo. Escrito
+  sem `:global()`, o bloco compilava para `.card.svelte-hash` e não casava com
+  card nenhum: as regras existiam desde sempre e nunca valeram — era esse o
+  gráfico partido ao meio relatado em ago/2026. O prefixo
+  `.pagina-produtividade` devolve o limite que o escopo dava.
+
+O cromo da tela (barra do topo, gaveta, filtros e os próprios botões de baixar)
+sai por `print:hidden`, e com seleção ativa o papel leva só os cards
+selecionados. Cabeçalho e rodapé do PDF (data, URL, número da página) são do
+navegador, não da página: quem imprime tira em **Mais definições → Cabeçalhos e
+rodapés**. Coberto por `e2e/produtividade-graficos.spec.ts`, que roda as
+asserções em `media: print` — na tela as regras não valem, e CSS compilado
+"existe" mesmo quando não seleciona nada.
+
 O tipo de equipe indisponível na operação aparece **desabilitado**, não escondido:
 o botão apagado diz que a operação não usa aquele tipo (`tiposEquipeHabilitados`,
 em `$lib/gise/tipos-equipe`, compartilhado com o editor de formulário).
@@ -766,6 +860,63 @@ em `$lib/gise/tipos-equipe`, compartilhado com o editor de formulário).
 Os indicadores da OPERAÇÃO CRAJUBAR vêm semeados pela migração `0050` a partir
 da tabela §9 do Plano Operacional Estratégico; a `0052` converte o de
 atendimentos em fins de semana para cobertura de 100%, que é o que o plano pede.
+
+### O quadro da seccional: uma ABA por unidade participante
+
+Dentro do card de cada seccional em `/gise/[id]`, as delegacias participantes são
+**abas**: o painel abaixo mostra as equipes da aba aberta, e trocar de aba troca
+o painel inteiro. Até ago/2026 cada unidade era uma CAIXA empilhada — faixa com
+o nome e o "Remover DP", moldura, e as equipes espremidas dentro. Eram três
+linhas de moldura por delegacia, tiradas justamente do espaço dos quadros de
+equipe.
+
+A troca é real e está registrada aqui porque não é gratuita: **só uma unidade
+aparece por vez**. O que devolve a leitura de relance é o que a aba carrega —
+`resumoDoSlot` (`$lib/gise/page-helpers`) dá o contador de equipes e o ponto
+âmbar de "há vaga sem policial nesta unidade", para que "falta gente na Icó" não
+dependa de alguém clicar na Icó. O rótulo usa `rotuloCurtoUnidade` (o município,
+que é o que distingue); o nome completo fica no `title` e no topo do painel.
+
+Três decisões do desenho:
+
+- **`+ Unidades` é a última aba**, tracejada — é onde a próxima aba nasce. E a
+  aba recém-criada **abre selecionada**: criada e deixada fechada, a unidade
+  nasceria escondida atrás da anterior, e quem acabou de criá-la iria procurar o
+  slot que "não apareceu". Como o id do slot só chega no `load` seguinte, o que
+  se guarda é a intenção (`abrirUltimaAba`);
+- **`+ Equipes` fica no rodapé do painel** e não nomeia alvo nenhum: tudo que
+  está visível pertence à aba aberta. Era o problema que a versão empilhada
+  criava, com um botão por caixa;
+- **`Remover DP` saiu da faixa** e entrou no menu do lápis, junto de "Alterar
+  unidade" — são as duas ações DA unidade, e ficam onde se mexe na unidade.
+
+A barra rola na horizontal (`overflow-x-auto`) **e** trava o eixo vertical
+(`overflow-y-hidden`): sem o segundo, o navegador computa o eixo Y como `auto`
+por causa do primeiro e reserva uma barra de rolagem vertical dentro da faixa das
+abas. Coberto por `e2e/gise-abas-unidade.spec.ts`, que é onde mora o resto do
+comportamento — componente `.svelte` não tem teste unitário neste projeto.
+
+### Horário: só aparece o que foge do padrão
+
+O horário cai em cascata — `gise_escalas` → `gise_seccionais` → `gise_equipes` —
+e as duas últimas têm coluna **nulável**: nulo já quer dizer "o mesmo de cima".
+A tela resolvia a cascata e imprimia o resultado sempre, então `08:00h-16:00h`
+repetido no cabeçalho da seccional e em cada card de equipe dizia o horário da
+escala três vezes.
+
+Agora horário **herdado** vira um relógio (com o horário em vigor no rótulo
+acessível) mais o lápis; horário **próprio** aparece escrito, na tarja âmbar —
+que substitui o selo "H. Personalizado", porque num quadro onde todo o resto
+mostra só o relógio o horário escrito já é o destaque.
+
+"Próprio" é comparação de **valor**, não de preenchimento: o selo antigo olhava
+só se a coluna tinha algo, e quem salvasse 08:00 numa equipe cuja seccional já é
+08:00 ganhava um "personalizado" que não personaliza nada. Quem responde é
+`horarioEfetivo` / `temHorarioProprio` (`$lib/gise/horarios`), que também
+substituem a cascata `equipe ?? seccional ?? escala` antes copiada em quatro
+pontos entre `GiseEquipeCard` e `GiseSeccional`. A comparação normaliza antes —
+`'08'` e `'08:00'` são a mesma hora, e essa diferença exata já produziu bug neste
+projeto.
 
 O resto do fluxo:
 

@@ -76,8 +76,8 @@ export function criarNavegacaoEstado() {
 
 	/**
 	 * Os filhos do menu "Escala extra", já filtrados pelo que este usuário vê —
-	 * inclusive o realce das duas abas de `/res-gise`, que dividem a MESMA rota
-	 * e se distinguem só pelo `?status=finalizadas`.
+	 * inclusive o realce das duas abas de `/res-gise` (`?status=finalizadas`) e
+	 * o par `/gise` × `/gise/finalizadas` do Admin Geral.
 	 */
 	const filhosExtra = $derived(itensExtraDoMenu(flags, page.url));
 

@@ -23,6 +23,9 @@
 	import type { Snippet } from 'svelte';
 	import CheckCircle2 from '@lucide/svelte/icons/check-circle-2';
 	import Clock from '@lucide/svelte/icons/clock';
+	import Check from '@lucide/svelte/icons/check';
+	import Clipboard from '@lucide/svelte/icons/clipboard';
+	import ClipboardCheck from '@lucide/svelte/icons/clipboard-check';
 	import Info from '@lucide/svelte/icons/info';
 	import ChevronDown from '@lucide/svelte/icons/chevron-down';
 	import { Popover, Portal } from '@skeletonlabs/skeleton-svelte';
@@ -95,30 +98,18 @@
 {#snippet iconeStatus(tamanho: 'sm' | 'md')}
 	{@const box = tamanho === 'sm' ? 'h-7 w-7' : 'h-8 w-8'}
 	<div class="{box} shrink-0 flex items-center justify-center rounded-lg {iconeBoxClass}">
-		<svg
-			class="w-3.5 h-3.5 {iconeStrokeClass}"
-			fill="none"
-			stroke="currentColor"
-			viewBox="0 0 24 24"
-		>
-			{#if badgeEstado === 'sucesso'}
-				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-			{:else if badgeEstado === 'alerta'}
-				<path
-					stroke-linecap="round"
-					stroke-linejoin="round"
-					stroke-width="2"
-					d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"
-				/>
-			{:else}
-				<path
-					stroke-linecap="round"
-					stroke-linejoin="round"
-					stroke-width="2"
-					d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 012-2h2a2 2 0 012 2"
-				/>
-			{/if}
-		</svg>
+		<!-- A cor vem de `iconeStrokeClass` e só o desenho variava, então aqui o
+		     `{#if}` já era único — a troca por lucide (B-6.2) é direta. O terceiro
+		     path era uma prancheta com o `d` corrompido (dois subpaths de
+		     prancheta concatenados, um deles inválido); `Clipboard` desenha o que
+		     ele tentava desenhar. -->
+		{#if badgeEstado === 'sucesso'}
+			<Check class="w-3.5 h-3.5 {iconeStrokeClass}" aria-hidden="true" />
+		{:else if badgeEstado === 'alerta'}
+			<ClipboardCheck class="w-3.5 h-3.5 {iconeStrokeClass}" aria-hidden="true" />
+		{:else}
+			<Clipboard class="w-3.5 h-3.5 {iconeStrokeClass}" aria-hidden="true" />
+		{/if}
 	</div>
 {/snippet}
 

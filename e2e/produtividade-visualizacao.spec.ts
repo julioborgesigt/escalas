@@ -3,6 +3,17 @@ import { FIXTURE } from './global-setup';
 import { autenticarPagina, execD1Local, queryD1Local } from './session';
 
 /**
+ * Ano das fixtures = ano CORRENTE, não `2026` fixo.
+ *
+ * Duas razões, e as duas são bomba-relógio:
+ *  - desde o B-1 o painel abre recortado ao ANO CORRENTE no servidor; fixture
+ *    de 2026 ficaria fora da janela em 01/jan/2027 e a tela abriria vazia;
+ *  - o seletor `#f-ano` oferece só QUATRO anos (`currentYear-3`…`currentYear`),
+ *    então `selectOption('2026')` deixaria de existir em 2030.
+ */
+const ANO = new Date().getFullYear();
+
+/**
  * O eixo do painel de produtividade: comparar DELEGACIAS ou SECCIONAIS.
  *
  * O que este spec protege é a promessa que torna o seletor legítimo: trocar de
@@ -55,7 +66,7 @@ test.beforeAll(() => {
 		ON CONFLICT(id) DO UPDATE SET nome = excluded.nome, tipo = excluded.tipo;
 
 		INSERT INTO gise_escalas (id, data_inicio, status, hora_entrada, hora_saida, operacao_id)
-		VALUES (${C.gise}, '2026-05-04', 'finalizada', '08:00', '16:00',
+		VALUES (${C.gise}, '${ANO}-05-04', 'finalizada', '08:00', '16:00',
 			(SELECT id FROM operacoes WHERE nome = '${C.operacao}'))
 		ON CONFLICT(id) DO UPDATE SET operacao_id = excluded.operacao_id;
 
@@ -128,13 +139,14 @@ test('a barra tem os quatro controles de comparação e os dois de recorte', asy
 
 	await page.goto(`/produtividade?operacaoId=${id}`);
 
-	// Linha 1: o que se compara.
+	// Linha 1: o que está em foco — eixo e tipo de equipe (a operação só aparece
+	// quando há mais de uma).
 	await expect(page.getByRole('button', { name: 'Seccionais', exact: true })).toBeVisible();
 	await expect(page.getByRole('button', { name: 'Delegacias', exact: true })).toBeVisible();
+	await expect(page.getByRole('button', { name: 'Operacional', exact: true })).toBeVisible();
+	// Linha 2: o recorte — quantas unidades, em que ordem, em que período.
 	await expect(page.locator('#f-qtd')).toBeVisible();
 	await expect(page.locator('#f-ordem')).toBeVisible();
-	// Linha 2: o que entra na conta.
-	await expect(page.getByRole('button', { name: 'Operacional', exact: true })).toBeVisible();
 	await expect(page.locator('#f-ano')).toBeVisible();
 
 	// O filtro de seccional saiu — quem escolhe o eixo é o "Visualizar por".
@@ -149,7 +161,7 @@ test('trocar o eixo não muda o total, só a quebra', async ({ page }) => {
 	test.skip(id == null, 'operação do cenário não foi criada');
 
 	await page.goto(`/produtividade?operacaoId=${id}`);
-	await page.locator('#f-ano').selectOption('2026');
+	await page.locator('#f-ano').selectOption(String(ANO));
 
 	// Seccionais (padrão): tudo numa linha só, com o total do período.
 	await expect(page.getByText(C.seccional.nome.split(' do ')[0]).first()).toBeVisible();
@@ -172,7 +184,7 @@ test('a equipe sem slot aparece como linha própria no modo Delegacias', async (
 	test.skip(id == null, 'operação do cenário não foi criada');
 
 	await page.goto(`/produtividade?operacaoId=${id}`);
-	await page.locator('#f-ano').selectOption('2026');
+	await page.locator('#f-ano').selectOption(String(ANO));
 	await page.getByRole('button', { name: 'Delegacias', exact: true }).click();
 
 	const card = page.locator('.card').filter({ hasText: 'Ranking' }).first();
@@ -192,7 +204,7 @@ test('ordem e quantidade recortam o ranking', async ({ page }) => {
 	test.skip(id == null, 'operação do cenário não foi criada');
 
 	await page.goto(`/produtividade?operacaoId=${id}`);
-	await page.locator('#f-ano').selectOption('2026');
+	await page.locator('#f-ano').selectOption(String(ANO));
 	await page.getByRole('button', { name: 'Delegacias', exact: true }).click();
 
 	// Melhores primeiro (padrão): o maior no topo.

@@ -294,21 +294,24 @@
 
 	<!-- Conteúdo principal: gaveta é overlay (não empurra). `pt-20` reserva a
 	     topbar fixa. Em xl+ o wrapper vira "folha" (borda + bg-white +
-	     rounded-2xl — teste visual 07/ago/2026). -->
+	     rounded-2xl — teste visual 07/ago/2026).
+	     No PAPEL a topbar não existe (`print:hidden` nela), então o `pt-20` viraria
+	     uma faixa em branco no alto de toda impressão; a margem da folha é do
+	     `@page`, não do wrapper. -->
 	<main
 		id="conteudo-principal"
-		class="min-h-screen relative"
+		class="min-h-screen relative print:min-h-0"
 		inert={nav.ehModal}
 		aria-hidden={nav.ehModal}
 	>
 		<div
-			class="max-w-6xl mx-auto min-w-0 px-4 sm:px-6 lg:px-8 pt-20 pb-12 transition-opacity duration-200 {navigating?.to &&
+			class="max-w-6xl mx-auto min-w-0 px-4 sm:px-6 lg:px-8 pt-20 pb-12 print:max-w-none print:px-0 print:pt-0 print:pb-0 transition-opacity duration-200 {navigating?.to &&
 			navigating.to.url.pathname !== page.url.pathname
 				? 'opacity-40 pointer-events-none'
 				: ''}"
 		>
 			<div
-				class="min-w-0 xl:border xl:border-surface-200/80 dark:xl:border-white/10 xl:bg-white dark:xl:bg-surface-900 xl:rounded-2xl xl:px-6 xl:py-6"
+				class="min-w-0 xl:border xl:border-surface-200/80 dark:xl:border-white/10 xl:bg-white dark:xl:bg-surface-900 xl:rounded-2xl xl:px-6 xl:py-6 print:border-0 print:bg-white print:p-0"
 			>
 				{@render children()}
 			</div>

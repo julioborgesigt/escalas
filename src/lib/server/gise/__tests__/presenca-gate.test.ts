@@ -123,6 +123,25 @@ describe('gate: saída exige entrada', () => {
 	it('a ENTRADA nunca depende de entrada anterior', async () => {
 		expect((await gateDePresenca(db, part(), GISE, POL, 'entrada')).ok).toBe(true);
 	});
+
+	it('segunda saída é recusada com 409 (SEC-33)', async () => {
+		await salvarEntradaGise(db, GISE, POL, 'rubrica');
+		await salvarSaidaGise(db, GISE, POL, 'rubrica-saida');
+		const r = await gateDePresenca(db, part(), GISE, POL, 'saida');
+		expect(r.ok).toBe(false);
+		if (r.ok) throw new Error('inalcançável');
+		expect(r.resposta.status).toBe(409);
+	});
+
+	it('entrada depois da saída é recusada com 409 (SEC-33)', async () => {
+		await salvarEntradaGise(db, GISE, POL, 'rubrica');
+		await salvarSaidaGise(db, GISE, POL, 'rubrica-saida');
+		const r = await gateDePresenca(db, part(), GISE, POL, 'entrada');
+		expect(r.ok).toBe(false);
+		if (r.ok) throw new Error('inalcançável');
+		expect(r.resposta.status).toBe(409);
+		expect((await r.resposta.json()).error).toContain('saída');
+	});
 });
 
 describe('a gravação é quem decide', () => {
@@ -148,5 +167,24 @@ describe('a gravação é quem decide', () => {
 		const r = await salvarSaidaGise(db, GISE, POL, 'rubrica');
 		expect(r.registrada).toBe(false);
 		expect(presenca()?.saida).toBeNull();
+	});
+
+	it('segunda saída não sobrescreve o carimbo (SEC-33)', async () => {
+		await salvarEntradaGise(db, GISE, POL, 'rubrica-entrada');
+		const a = await salvarSaidaGise(db, GISE, POL, 'rubrica-saida-1');
+		const saida1 = presenca()?.saida;
+		const b = await salvarSaidaGise(db, GISE, POL, 'rubrica-saida-2');
+		expect(a.registrada).toBe(true);
+		expect(b.registrada).toBe(false);
+		expect(presenca()?.saida).toBe(saida1);
+	});
+
+	it('entrada depois da saída não reabre o ato (SEC-33)', async () => {
+		await salvarEntradaGise(db, GISE, POL, 'entrada-1');
+		const entrada1 = presenca()?.entrada;
+		await salvarSaidaGise(db, GISE, POL, 'saida-1');
+		const r = await salvarEntradaGise(db, GISE, POL, 'entrada-2');
+		expect(r.registrada).toBe(false);
+		expect(presenca()?.entrada).toBe(entrada1);
 	});
 });

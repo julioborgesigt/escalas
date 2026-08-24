@@ -1,4 +1,5 @@
 <script lang="ts">
+	import Check from '@lucide/svelte/icons/check';
 	/**
 	 * Caixa de entrada do DPC: as escalas que ele precisa assinar, com os dois
 	 * caminhos de assinatura lado a lado.
@@ -156,14 +157,7 @@
 									onclick={() => onIniciarAssinaturaTela(esc.id)}
 								>
 									{#if esc.is_assinada}
-										<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-											<path
-												stroke-linecap="round"
-												stroke-linejoin="round"
-												stroke-width="3"
-												d="M5 13l4 4L19 7"
-											/>
-										</svg>
+										<Check class="w-3.5 h-3.5" strokeWidth={3} aria-hidden="true" />
 									{:else}
 										<PenLine class="w-3 h-3 shrink-0" aria-hidden="true" />
 									{/if}
@@ -183,14 +177,7 @@
 									onclick={() => onIniciarAssinaturaToken(esc.id)}
 								>
 									{#if esc.is_assinada}
-										<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-											<path
-												stroke-linecap="round"
-												stroke-linejoin="round"
-												stroke-width="3"
-												d="M5 13l4 4L19 7"
-											/>
-										</svg>
+										<Check class="w-3.5 h-3.5" strokeWidth={3} aria-hidden="true" />
 									{:else}
 										<PenLine class="w-3 h-3 shrink-0" aria-hidden="true" />
 									{/if}

@@ -30,8 +30,12 @@
 	import ModalCadastrarRubrica from '$lib/components/ModalCadastrarRubrica.svelte';
 	import ModalShell from '$lib/components/ModalShell.svelte';
 	import BotaoVoltar from '$lib/components/BotaoVoltar.svelte';
+	import BotaoLimparFiltros from '$lib/components/BotaoLimparFiltros.svelte';
 	import { usePresencaGise } from './_components/usePresencaGise.svelte';
 	import { fmtDate } from '$lib/gise/formatters';
+	import FiltroHistoricoSegmento from '$lib/gise/FiltroHistoricoSegmento.svelte';
+	import CamposPeriodoHistorico from '$lib/gise/CamposPeriodoHistorico.svelte';
+	import { CLASSE_BARRA_FILTRO } from '$lib/gise/filtro-historico-ui';
 	import { loading } from '$lib/loading.svelte';
 	import ConfigurarFormulario from './_components/ConfigurarFormulario.svelte';
 	import FormularioServico from './_components/FormularioServico.svelte';
@@ -46,8 +50,21 @@
 	// Modo da tela: "Histórico GISE" (?status=finalizadas) x "Presença GISE"
 	// (ativas). São duas abas da sidebar apontando para a mesma rota; a lista já
 	// vem filtrada pelo servidor, então aqui o modo só ajusta título, texto de
-	// vazio e a exibição da busca por data (só no histórico).
+	// vazio e a busca detalhada (tipo de equipe, mês, ciclo ou data — só no histórico).
 	const ehHistorico = $derived(presenca.statusFilterUrl === 'finalizadas');
+	// Título da aba (Presença × Histórico). "escalas extras", não "GISE": a lista
+	// inclui qualquer operação (CRAJUBAR, EDGE…), e chamá-las de GISE virou
+	// informação errada. O Admin Geral continua no editor do formulário.
+	const tituloPagina = $derived(
+		isAdminGeral ? 'Configurar Formulário' : ehHistorico ? 'Histórico' : 'Minhas escalas extras'
+	);
+	const subtituloPagina = $derived(
+		isAdminGeral
+			? 'Defina os textos e campos do relatório de produtividade oficial.'
+			: ehHistorico
+				? 'Escalas extras em que você foi escalado.'
+				: 'Escalas extras ativas em que você está escalado.'
+	);
 
 	// Presença/relatório de outra sessão: foco + broadcast + poll (quente se há
 	// serviço ativo sem saída).
@@ -146,7 +163,7 @@
 </script>
 
 <svelte:head>
-	<title>Relatórios GISE - Portal de Escalas</title>
+	<title>{tituloPagina} - Portal de Escalas</title>
 </svelte:head>
 
 <div class="space-y-6">
@@ -158,11 +175,25 @@
 		<BotaoVoltar href="/gise/operacoes" rotulo="Voltar às operações" />
 	{/if}
 
-	<header class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 sm:mb-8">
+	<header class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 sm:mb-6">
 		<div>
-			<h1 class="h1 text-2xl font-bold">Relatórios GISE</h1>
-			<p class="text-sm text-surface-600 dark:text-surface-400 font-medium">
-				Gestão de produtividade e relatórios operacionais
+			<h1
+				class={[
+					'font-bold',
+					ehHistorico
+						? 'font-heading text-base sm:text-lg leading-tight text-surface-700 dark:text-surface-300'
+						: 'h1 text-2xl'
+				]}
+			>
+				{tituloPagina}
+			</h1>
+			<p
+				class={[
+					'font-medium text-surface-600 dark:text-surface-400',
+					ehHistorico ? 'text-xs' : 'text-sm'
+				]}
+			>
+				{subtituloPagina}
 			</p>
 		</div>
 	</header>
@@ -189,70 +220,49 @@
 				<!-- Panel 1: Lista de Escalas -->
 				<div class="min-w-0 space-y-4" style="width: 50%;">
 					<div class="px-2 space-y-3">
-						<!-- Título da aba atual (a troca Presença × Histórico é feita pela
-						     sidebar, não mais por abas internas). -->
-						<div class="flex flex-col gap-0.5">
-							<h2 class="text-lg font-bold">
-								{ehHistorico ? 'Histórico' : 'Minhas escalas extras'}
-							</h2>
-							<p class="text-2xs text-surface-600 dark:text-surface-400 font-medium">
-								<!-- "escalas extras", e não "GISE": esta lista passou a incluir as
-								     escalas de QUALQUER operação (CRAJUBAR, EDGE…), e chamá-las
-								     de GISE virou informação errada, não só rótulo velho. -->
-								{ehHistorico
-									? 'Escalas extras já encerradas em que você participou.'
-									: 'Escalas extras ativas em que você está escalado.'}
-							</p>
-						</div>
-
-						<!-- Busca Detalhada (Apenas no Histórico) -->
+						<!-- Busca detalhada (só no histórico). Tipo de equipe e período
+						     escolhem o recorte; mês civil, ciclo (21→20) e data são
+						     mutuamente exclusivos — o seletor esconde os campos dos outros. -->
 						{#if ehHistorico}
-							<div
-								class="space-y-2 pt-3 border-t border-surface-200 dark:border-surface-800 animate-in fade-in slide-in-from-top-2 duration-300"
-							>
-								<div class="flex items-center justify-between">
+							<div class="space-y-2 pt-3">
+								<div class="flex flex-col gap-2 xs:flex-row xs:items-center xs:justify-between">
 									<span
-										class="text-3xs font-black text-surface-600 dark:text-surface-400 uppercase tracking-widest"
+										class="text-2xs font-black text-surface-600 dark:text-surface-400 uppercase tracking-widest"
 										>Busca Detalhada</span
 									>
-									{#if presenca.mesFilterUrl || presenca.dataFilterUrl}
-										<button
-											type="button"
-											class="text-3xs font-bold text-error-500 hover:underline px-2 py-0.5 bg-error-500/10 rounded-md transition-all"
-											onclick={presenca.limparFiltros}>Limpar</button
-										>
-									{/if}
+									<BotaoLimparFiltros
+										temFiltros={presenca.temFiltrosHistorico}
+										onclick={presenca.limparFiltros}
+										classes="w-full xs:w-auto"
+									/>
 								</div>
-								<!-- Filtros lado a lado -->
-								<div
-									class="grid grid-cols-2 gap-2 bg-surface-100/50 dark:bg-surface-800/30 p-3 rounded-xl border border-surface-200 dark:border-surface-800"
-								>
-									<div class="space-y-1">
-										<label
-											class="text-3xs font-black text-surface-600 dark:text-surface-400 uppercase tracking-wider ml-0.5"
-											for="mesMember">Mês/Ano</label
-										>
-										<input
-											id="mesMember"
-											type="month"
-											class="block w-full px-3 py-2 text-xs rounded-lg border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-900 focus:ring-2 focus:ring-primary-500 transition-all font-bold shadow-sm"
-											value={presenca.mesFilterUrl}
-											onchange={(e) => presenca.changeDateFilter('mes', e.currentTarget.value)}
-										/>
-									</div>
-									<div class="space-y-1">
-										<label
-											class="text-3xs font-black text-surface-600 dark:text-surface-400 uppercase tracking-wider ml-0.5"
-											for="dataMember">Data Específica</label
-										>
-										<input
-											id="dataMember"
-											type="date"
-											class="block w-full px-3 py-2 text-xs rounded-lg border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-900 focus:ring-2 focus:ring-primary-500 transition-all font-bold shadow-sm"
-											value={presenca.dataFilterUrl}
-											onchange={(e) => presenca.changeDateFilter('data', e.currentTarget.value)}
-										/>
-									</div>
+								<div class={CLASSE_BARRA_FILTRO}>
+									<FiltroHistoricoSegmento
+										kind="tipo"
+										value={presenca.tipoFilterUrl}
+										onValueChange={(v) => presenca.changeTipoFilter(v)}
+									/>
+									<FiltroHistoricoSegmento
+										kind="periodo"
+										value={presenca.modoPeriodo}
+										onValueChange={(v) => {
+											if (v === 'mes' || v === 'ciclo' || v === 'data') {
+												presenca.changeModoPeriodo(v);
+											}
+										}}
+									/>
+									<CamposPeriodoHistorico
+										modoPeriodo={presenca.modoPeriodo}
+										anoCiclo={presenca.anoFilterUrl ?? ''}
+										numeroCiclo={presenca.cicloFilterUrl ?? ''}
+										mesAno={presenca.mesFilterUrl ?? ''}
+										data={presenca.dataFilterUrl ?? ''}
+										anosCiclo={presenca.anosCiclo}
+										onAnoCiclo={(v) => presenca.changeCicloFilter('ano', v)}
+										onNumeroCiclo={(v) => presenca.changeCicloFilter('ciclo', v)}
+										onMesAno={(v) => presenca.changeDateFilter('mes', v)}
+										onData={(v) => presenca.changeDateFilter('data', v)}
+									/>
 								</div>
 							</div>
 						{/if}
@@ -375,7 +385,7 @@
 									</div>
 								</div>
 							{:else}
-								<p class="text-sm text-surface-600 dark:text-surface-400 italic col-span-full px-2">
+								<p class="text-xs text-surface-600 dark:text-surface-400 italic col-span-full px-2">
 									{ehHistorico
 										? 'Nenhuma escala GISE encerrada no seu histórico.'
 										: 'Nenhuma escala GISE ativa no momento.'}

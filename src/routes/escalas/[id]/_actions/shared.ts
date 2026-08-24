@@ -64,7 +64,7 @@ export async function carregarEscalaComPermissao(
 	if (!escala) {
 		return { erro: fail(404, { error: 'Escala não encontrada' }) } as const;
 	}
-	if (!podeMexerNaEscala(usuario, escala.lotacao)) {
+	if (!(await podeMexerNaEscala(db, usuario, escala.lotacao))) {
 		return { erro: fail(403, { error: 'Sem permissão para alterar esta escala' }) } as const;
 	}
 

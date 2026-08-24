@@ -234,6 +234,10 @@ async function conflitoEmOutrasGises(
 	]);
 
 	for (const e of membrosExistentes) {
+		// Mesma precedência equipe → seccional → escala de `horaEfetivaGiseMembro`
+		// (`server/escalas/conflict.ts`), escrita com os nomes de coluna inteiros
+		// em vez dos alias curtos de lá. O JSDoc daquela função lista os quatro
+		// sítios e explica por que o alias diferente esconde uns dos outros.
 		const existenteEntrada = e.eq_hora_entrada ?? e.sec_hora_entrada ?? e.gise_hora_entrada;
 		const existenteSaida = e.eq_hora_saida ?? e.sec_hora_saida ?? e.gise_hora_saida;
 		if (seOverlapam(entrada, saida, existenteEntrada, existenteSaida)) {

@@ -43,7 +43,7 @@
 	} = $props();
 
 	const baseClass = $derived(
-		`btn btn-${size} preset-${type}-${variant}-500 rounded-lg font-semibold min-w-0 max-w-full text-center whitespace-normal sm:whitespace-nowrap transition-all flex items-center justify-center gap-1.5 ${classes}`
+		`btn btn-${size} preset-${type}-${variant}-500 rounded-lg font-semibold min-w-0 max-w-full text-center whitespace-normal sm:whitespace-nowrap transition-all flex items-center justify-center gap-1.5 ${type === 'filled' ? 'text-white' : ''} ${classes}`
 	);
 </script>
 

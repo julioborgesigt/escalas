@@ -7,7 +7,7 @@
 Este documento registra a releitura acordada do plano de passkey. Linguagem
 obrigatória: **chave de assinatura** (credencial WebAuthn da pessoa). Não se
 fala em “dispositivo cadastrado”, “celular registrado” nem “este aparelho
-assinou”, salvo quando o manifesto descreve credencial *não sincronizável*
+assinou”, salvo quando o manifesto descreve credencial _não sincronizável_
 (`backupElegivel = false`) — e mesmo aí a atestação continua `none`.
 
 ---
@@ -18,14 +18,14 @@ A assinatura avançada (“em tela”) passa a ter um **piso único** em todos o
 documentos que hoje a usam — escala de serviço, GISE, relatório extraordinário
 e termo de presença — composto por:
 
-| Piso | Papel | Base |
-| --- | --- | --- |
-| Sessão autenticada | quem é | art. 4º II “a” (parcial) |
-| **Reinserir a senha de acesso** | vontade atual; sessão não é bastante | step-up / intenção de assinar |
-| **2FA no e-mail institucional** | posse da caixa corporativa | art. 4º II “b” (piso atual, mantido) |
-| **Chave de assinatura (passkey)** | controle exclusivo da chave privada | art. 4º II “b” (reforço que de fato toca o inciso) |
-| Hash SHA-256 + selo institucional | integridade detectável | art. 4º II “c” |
-| Rubrica gráfica | evidência visual no PDF | prática do produto |
+| Piso                              | Papel                                | Base                                               |
+| --------------------------------- | ------------------------------------ | -------------------------------------------------- |
+| Sessão autenticada                | quem é                               | art. 4º II “a” (parcial)                           |
+| **Reinserir a senha de acesso**   | vontade atual; sessão não é bastante | step-up / intenção de assinar                      |
+| **2FA no e-mail institucional**   | posse da caixa corporativa           | art. 4º II “b” (piso atual, mantido)               |
+| **Chave de assinatura (passkey)** | controle exclusivo da chave privada  | art. 4º II “b” (reforço que de fato toca o inciso) |
+| Hash SHA-256 + selo institucional | integridade detectável               | art. 4º II “c”                                     |
+| Rubrica gráfica                   | evidência visual no PDF              | prática do produto                                 |
 
 Reforços **opcionais** (não rebaixam o nível se desligados): selfie/liveness,
 GPS, restrição da avançada a user-agent móvel.
@@ -44,7 +44,7 @@ Estas frases não se reabrem na implementação sem nova decisão explícita.
    manifesto já diz isso (`descreverVinculoCredencial`); UI, termo e suporte
    usam a mesma frase.
 2. **Uma credencial ativa por pessoa.** É o que permite o manifesto nomear a
-   chave *antes* do hash. “Cadastrar neste celular” **substitui** a chave
+   chave _antes_ do hash. “Cadastrar neste celular” **substitui** a chave
    anterior; não acumula aparelhos. Quem perdeu o celular revoga (titular ou
    Admin Geral) e cadastra de novo.
 3. **Cadastro da chave só no celular**, com autenticador de plataforma,
@@ -61,8 +61,8 @@ Estas frases não se reabrem na implementação sem nova decisão explícita.
    dois. No primeiro acesso isso é redundante: a caixa pessoal acabou de ser
    verificada.
 6. **Não se detecta “este browser é o cadastrado” em silêncio.** Gate de
-   leitura × assinatura: *há chave ativa nesta pessoa?* Se não há, CTA de
-   cadastro **somente** se a tela for móvel. Se há chave e *este* celular não
+   leitura × assinatura: _há chave ativa nesta pessoa?_ Se não há, CTA de
+   cadastro **somente** se a tela for móvel. Se há chave e _este_ celular não
    consegue afirmá-la (outro SO, sem sync), a cerimônia falha e a mensagem é
    “cadastre a chave neste celular” — o que **substitui** a anterior, com o
    step-up do item 5.
@@ -149,7 +149,7 @@ sem chave: lê, não assina
 4. Documentos antigos seguem conferíveis pela linha `revogado_em`.
 
 **Primeiro cadastro** (ainda não há chave ativa): basta sessão autenticada
-no celular. Os dois e-mails *não* se empilham aqui.
+no celular. Os dois e-mails _não_ se empilham aqui.
 
 ---
 
@@ -173,14 +173,14 @@ cerimônia → `finalizar-assinatura-avancada`) vira o caminho único da
 avançada com chave. Cada documento ganha o par preparar/finalizar, a
 intenção de 15 min e o desafio = hash do PDF montado.
 
-| Documento | Situação hoje | Neste plano |
-| --- | --- | --- |
-| Escala de serviço | duas fases; flag opcional | mesmo cano; chave no piso (fase 4) |
-| GISE (assinatura do documento) | um tiro | duas fases + chave |
-| Relatório extraordinário | um tiro | duas fases + chave |
-| Termo de presença | um tiro | duas fases + chave |
-| Escala FDS / e-mail | fora da avançada em tela | fora |
-| Token A3 | desktop, qualificada | inalterado |
+| Documento                      | Situação hoje             | Neste plano                        |
+| ------------------------------ | ------------------------- | ---------------------------------- |
+| Escala de serviço              | duas fases; flag opcional | mesmo cano; chave no piso (fase 4) |
+| GISE (assinatura do documento) | um tiro                   | duas fases + chave                 |
+| Relatório extraordinário       | um tiro                   | duas fases + chave                 |
+| Termo de presença              | um tiro                   | duas fases + chave                 |
+| Escala FDS / e-mail            | fora da avançada em tela  | fora                               |
+| Token A3                       | desktop, qualificada      | inalterado                         |
 
 Quem **assina** cada um não muda: a passkey não amplia legitimidade. OIP
 não passa a assinar escala; policial sem participação não passa a assinar
@@ -214,7 +214,7 @@ Proibido (regressão, não melhoria):
 
 O termo (`termo-vigente.ts`) sobe de versão quando a chave e a senha
 passarem a piso da avançada (hoje a cláusula 2.1 cita login, senha, 2FA e
-chave *quando habilitada*). Novo aceite geral. Goldens de PDF e de e-mail
+chave _quando habilitada_). Novo aceite geral. Goldens de PDF e de e-mail
 só se regravam se a mudança visual for intencional (`UPDATE_PDF_GOLDENS=1`).
 
 `signature-level.ts` continua a fonte única: senha e chave saem de
@@ -285,14 +285,14 @@ administração exigir” e passa a ser o piso. Testes: §11.2 fase 4.
 
 ## 9. Riscos que o plano aceita
 
-| Risco | Por que se aceita | Mitigação |
-| --- | --- | --- |
-| Primeiro acesso no PC da unidade, sem chave | Identidade não pode depender de ter o celular na mão | Lê; assina depois no telefone |
-| iPhone B assina sem “cadastrar” (sync) | É o modelo da Apple/Google; a prova é da conta | Manifesto diz “sincronizada na conta” |
-| Cadastro neste celular revoga o outro | Uma chave é a condição do manifesto completo | Aviso claro antes de substituir |
-| Dois e-mails na reposição travam se uma caixa cair | Melhor que TI sozinha repor a chave | Admin Geral revoga; titular tenta de novo quando a caixa voltar |
-| Senha com autofill | Step-up contra colega na cadeira, não contra o dono do gerenciador | Rate-limit; janela curta |
-| Ligar a fase 4 cedo demais | Corporação inteira sem avançada | Adesão medida; A3 como válvula |
+| Risco                                              | Por que se aceita                                                  | Mitigação                                                       |
+| -------------------------------------------------- | ------------------------------------------------------------------ | --------------------------------------------------------------- |
+| Primeiro acesso no PC da unidade, sem chave        | Identidade não pode depender de ter o celular na mão               | Lê; assina depois no telefone                                   |
+| iPhone B assina sem “cadastrar” (sync)             | É o modelo da Apple/Google; a prova é da conta                     | Manifesto diz “sincronizada na conta”                           |
+| Cadastro neste celular revoga o outro              | Uma chave é a condição do manifesto completo                       | Aviso claro antes de substituir                                 |
+| Dois e-mails na reposição travam se uma caixa cair | Melhor que TI sozinha repor a chave                                | Admin Geral revoga; titular tenta de novo quando a caixa voltar |
+| Senha com autofill                                 | Step-up contra colega na cadeira, não contra o dono do gerenciador | Rate-limit; janela curta                                        |
+| Ligar a fase 4 cedo demais                         | Corporação inteira sem avançada                                    | Adesão medida; A3 como válvula                                  |
 
 ---
 
@@ -339,17 +339,17 @@ falha mesmo sem spec escrito à mão.
 
 Já existem e **não se reescrevem**, só se estendem:
 
-| Superfície | Arquivo |
-| --- | --- |
-| Registro / asserção / reconferência WebAuthn | `src/lib/server/assinatura/webauthn/__tests__/{registro,assercao,reconferencia}.test.ts` |
-| Classificação legal | `src/lib/server/assinatura/__tests__/signature-level.test.ts` |
-| Política de dispositivo | `src/lib/server/assinatura/__tests__/politica-dispositivo.test.ts` |
-| Manifesto visual da passkey | `src/lib/server/assinatura/__tests__/carimbos-visuais.test.ts` |
-| Avançada em tela (escala, um tiro + 403 da passkey) | `e2e/assinatura-simples.spec.ts` |
-| Extra avançada | `e2e/relatorio-extra-avancado.spec.ts` |
-| Presença | `e2e/presenca-gise.spec.ts` |
-| Flag 2FA trancada | `e2e/conf-ass.spec.ts` |
-| Autorização de rota nova | `e2e/autorizacao-negativa.spec.ts` + `scripts/guard-autorizacao.mjs` |
+| Superfície                                          | Arquivo                                                                                  |
+| --------------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| Registro / asserção / reconferência WebAuthn        | `src/lib/server/assinatura/webauthn/__tests__/{registro,assercao,reconferencia}.test.ts` |
+| Classificação legal                                 | `src/lib/server/assinatura/__tests__/signature-level.test.ts`                            |
+| Política de dispositivo                             | `src/lib/server/assinatura/__tests__/politica-dispositivo.test.ts`                       |
+| Manifesto visual da passkey                         | `src/lib/server/assinatura/__tests__/carimbos-visuais.test.ts`                           |
+| Avançada em tela (escala, um tiro + 403 da passkey) | `e2e/assinatura-simples.spec.ts`                                                         |
+| Extra avançada                                      | `e2e/relatorio-extra-avancado.spec.ts`                                                   |
+| Presença                                            | `e2e/presenca-gise.spec.ts`                                                              |
+| Flag 2FA trancada                                   | `e2e/conf-ass.spec.ts`                                                                   |
+| Autorização de rota nova                            | `e2e/autorizacao-negativa.spec.ts` + `scripts/guard-autorizacao.mjs`                     |
 
 Cerimônia biométrica real (Face ID) **não** é gate. No Vitest, gera-se par
 ES256 e monta-se a asserção como os testes de `assercao.ts` já fazem. No

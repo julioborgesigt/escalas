@@ -18,6 +18,7 @@ import { calcularDataSaida } from '$lib/rotacao';
 import { erroDeDatasForaDoPeriodo } from '$lib/server/escalas/periodo';
 import { carregarEscalaComPermissao } from './shared';
 import { registrarMudancaEscala, nomeDoPolicial } from './desfecho';
+import { ehViolacaoUnique } from '$lib/server/db-errors';
 
 /** O `event` das actions desta rota: `params.id` é a escala. */
 type Event = RequestEvent<{ id: string }>;
@@ -343,7 +344,10 @@ export const actionsDatas = {
 			});
 
 			return { success: true, policiais, conflitantes };
-		} catch {
+		} catch (e) {
+			if (ehViolacaoUnique(e)) {
+				return fail(409, { error: 'Este policial já está escalado neste dia.' });
+			}
 			return fail(500, { error: 'Erro ao repetir servidor na escala' });
 		}
 	}

@@ -20,6 +20,7 @@ import { finalizarQualificadaDoPayload } from '$lib/server/assinatura/signature-
 import { carregarEscalaParaAssinatura } from '$lib/server/escalas/permissao';
 import { limparR2ObsoletoEscala } from '$lib/server/r2-cleanup';
 import { chaveConferencia } from '$lib/server/assinatura/copia-conferencia';
+import { recusarPorDocumentoJaGravado } from '$lib/server/assinatura/blob-assinado';
 import {
 	consumirIntencaoAssinatura,
 	mensagemRecusaIntencao
@@ -96,16 +97,16 @@ export const POST: RequestHandler = async ({
 		}
 
 		const bucket = getR2(platform);
-		// R2-4: se esta escala já tinha um documento assinado (re-assinatura), o
-		// onConflict de salvarDocumentoEscala sobrescreve a linha. Capturamos o
-		// documento anterior ANTES de gravar para apagar seus objetos R2 obsoletos.
+		// SEC-32: INSERT fail-closed. Se já houver documento, o unique recusa
+		// e o blob novo é compensado. `docAntigo` só serve ao caminho
+		// revogar-e-assinar, quando a linha antiga ainda está em memória.
 		const docAntigo = await buscarDocumentoEscala(db, id);
 		const r2Key = `escalas/${new Date().getFullYear()}/${id}_${verificationHash}.pdf`;
 		await bucket.put(r2Key, result.pdfFinal, {
 			httpMetadata: { contentType: 'application/pdf' }
 		});
 
-		await salvarDocumentoEscala(db, {
+		const { gravado } = await salvarDocumentoEscala(db, {
 			escalaId: id,
 			r2Key,
 			assinanteNome: result.signerName,
@@ -121,6 +122,14 @@ export const POST: RequestHandler = async ({
 			cadesMeta: result.metadata,
 			env: platform?.env
 		});
+		if (!gravado) {
+			return recusarPorDocumentoJaGravado(
+				db,
+				bucket,
+				[r2Key, chaveConferencia(verificationHash)],
+				'escala-qualificada'
+			);
+		}
 
 		// R2-4: remove os objetos do documento anterior que a re-assinatura tornou
 		// obsoletos (blob/conferência/selfie de hash antigo). No-op se era 1ª assinatura.

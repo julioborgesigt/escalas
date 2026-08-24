@@ -84,7 +84,7 @@ export const POST: RequestHandler = async ({
 
 		await registrarUsoCredencial(db, credencial.id, prova.dados.contador);
 
-		await persistirEscalaAssinada({
+		const persistido = await persistirEscalaAssinada({
 			db,
 			bucket,
 			escalaId: id,
@@ -103,6 +103,7 @@ export const POST: RequestHandler = async ({
 				assercao: validated.data.assercao
 			})
 		});
+		if ('recusa' in persistido) return persistido.recusa;
 
 		await registrarAuditComContexto(db, {
 			usuario: u,

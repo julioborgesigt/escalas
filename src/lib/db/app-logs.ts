@@ -12,7 +12,7 @@
 import { desc, eq, and, gte, lte, sql } from 'drizzle-orm';
 import { appLog } from '../server/schema';
 import type { AppLog } from '../server/schema';
-import { timestampSqliteUtc, paginarComContagem, escapeLike, type Database } from './core';
+import { timestampSqliteUtc, paginarComContagem, likeContains, type Database } from './core';
 
 type AppLogLevel = 'warn' | 'error';
 
@@ -69,9 +69,9 @@ export async function listarAppLogs(
 	if (opts?.de) conditions.push(gte(appLog.created_at, opts.de));
 	if (opts?.ate) conditions.push(lte(appLog.created_at, opts.ate));
 	if (opts?.busca) {
-		const b = '%' + escapeLike(opts.busca) + '%';
+		const termo = opts.busca;
 		conditions.push(
-			sql`(${appLog.message} LIKE ${b} OR ${appLog.contexto} LIKE ${b} OR ${appLog.rota} LIKE ${b})`
+			sql`(${likeContains(appLog.message, termo)} OR ${likeContains(appLog.contexto, termo)} OR ${likeContains(appLog.rota, termo)})`
 		);
 	}
 

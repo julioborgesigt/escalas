@@ -55,10 +55,14 @@ const SEM_EMAIL_2FA_MSG =
 /**
  * Opções de cookie de sessão pós-login (httpOnly, sameSite, secure).
  *
- * `maxAge` é alinhado com `SESSION_TTL_MS` (8h) e estendido implicitamente:
+ * `maxAge` é alinhado com `SESSION_TTL_MS` (1h) e estendido a cada request:
  * cada validação de sessão que cruza o threshold sliding atualiza
- * `sessoes.expires_at` no banco. O cookie em si é renovado quando o navegador
- * recebe um novo `Set-Cookie` (ex.: pós-login, pós-2FA, pós-troca de senha).
+ * `sessoes.expires_at` no banco, e o `handleAuth` reemite este cookie em TODA
+ * request autenticada — as duas metades do sliding (LGPD A14).
+ *
+ * Esta frase já disse que o cookie só era renovado "pós-login, pós-2FA,
+ * pós-troca de senha", e era verdade: o `maxAge` era absoluto desde o login,
+ * então a sessão morria no navegador enquanto o banco a dava por viva.
  */
 export function cookieOptions(url: URL) {
 	return {

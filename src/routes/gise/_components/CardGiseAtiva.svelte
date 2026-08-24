@@ -2,16 +2,19 @@
 	/**
 	 * Card de uma GISE ativa na lista `/gise`.
 	 *
-	 * Concentra o "o que falta" da escala: a faixa colorida no topo dá o status
-	 * num relance e os dois botões (escala × extras) são atalho do mesmo
-	 * controle de dentro da escala (`?assinar=` na URL). Quem não é o supervisor
-	 * da escala vê só os downloads.
+	 * Concentra o "o que falta" da escala: o chip de status e os dois botões
+	 * (escala × extras) são atalho do mesmo controle de dentro da escala
+	 * (`?assinar=` na URL). Quem não é o supervisor da escala vê só os downloads.
+	 *
+	 * Sem faixa colorida no topo — o chip já carrega o status; a barra
+	 * duplicava a informação e virava um arco-íris na grade.
 	 */
 	import { goto } from '$app/navigation';
 	import { slide } from 'svelte/transition';
-	import { statusLabel, statusColor, statusStrip, fmtDate, diaSemana } from '$lib/gise/formatters';
+	import { statusLabel, statusColor, fmtDate, diaSemana } from '$lib/gise/formatters';
 	import { escalaGiseJaAssinada } from '$lib/gise/status-escala';
 	import PenLine from '@lucide/svelte/icons/pen-line';
+	import Check from '@lucide/svelte/icons/check';
 
 	const {
 		ativa,
@@ -64,9 +67,6 @@
 		onToggleMenu: () => void;
 	} = $props();
 
-	/** Faixa de 4 px no topo: mesmo canal do chip (`statusStrip` em formatters). */
-	const faixaStatus = $derived(statusStrip(ativa.status));
-
 	// O quadro de supervisão (supervisor/assessor/SEINT) rende um relatório de
 	// extra próprio, somado ao de cada seccional — daí o "+1" no total esperado.
 	const temSupervisao = $derived(
@@ -85,8 +85,6 @@
 <div
 	class="flex flex-col rounded-2xl bg-white/80 dark:bg-surface-900/60 backdrop-blur-md border border-surface-200 dark:border-white/5 shadow-sm overflow-hidden hover:shadow-md hover:border-primary-500/40 dark:hover:border-primary-400/20 transition-all duration-200 group"
 >
-	<div class="h-1 {faixaStatus}"></div>
-
 	<div class="flex flex-col gap-3 p-4 sm:p-5 flex-1">
 		<div class="flex items-center gap-2 flex-wrap">
 			<span
@@ -152,15 +150,7 @@
 								: 'Ver o que falta para assinar'}
 					>
 						{#if escalaConcluida}
-							<svg
-								class="w-3 h-3 shrink-0"
-								fill="none"
-								viewBox="0 0 24 24"
-								stroke="currentColor"
-								stroke-width="3"
-							>
-								<path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
-							</svg>
+							<Check class="w-3 h-3 shrink-0" strokeWidth={3} aria-hidden="true" />
 						{:else}
 							<PenLine class="w-3 h-3 shrink-0" aria-hidden="true" />
 						{/if}
@@ -186,15 +176,7 @@
 								: 'Ver status dos extras'}
 					>
 						{#if extraConcluido}
-							<svg
-								class="w-3 h-3 shrink-0"
-								fill="none"
-								viewBox="0 0 24 24"
-								stroke="currentColor"
-								stroke-width="3"
-							>
-								<path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
-							</svg>
+							<Check class="w-3 h-3 shrink-0" strokeWidth={3} aria-hidden="true" />
 						{:else}
 							<PenLine class="w-3 h-3 shrink-0" aria-hidden="true" />
 						{/if}

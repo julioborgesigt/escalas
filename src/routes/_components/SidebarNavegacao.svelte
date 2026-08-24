@@ -85,7 +85,7 @@
 {#if nav.aberta}
 	<button
 		type="button"
-		class="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm"
+		class="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm print:hidden"
 		onclick={() => void nav.fechar()}
 		aria-label="Fechar menu"
 	></button>
@@ -99,6 +99,7 @@
 		shadow-xl shadow-black/5 dark:shadow-black/30
 		flex flex-col
 		transition-transform duration-300 ease-in-out
+		print:hidden
 		{nav.aberta ? 'translate-x-0' : '-translate-x-full'}
 	"
 	style="width: var(--sidebar-width, 240px);"

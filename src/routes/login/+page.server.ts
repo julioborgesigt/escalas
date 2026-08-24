@@ -16,6 +16,7 @@ import type { Actions, PageServerLoad } from './$types';
 import { eq, and } from 'drizzle-orm';
 import { getDB, auditar, contextoDeEvento } from '$lib/db';
 import {
+	buscarAdminAtivo,
 	verificarDesafio2FA,
 	criarSessao,
 	criarTokenRedefinicao,
@@ -238,12 +239,10 @@ export const actions: Actions = {
 		let primeiroAcesso: boolean;
 		let mappedUser;
 		if (tipo === 'admin') {
-			const admin = await db
-				.select()
-				.from(administradores)
-				.where(eq(administradores.id, usuarioId))
-				.get();
-			if (!admin) return fail(404, { error: 'Usuário não encontrado' });
+			// Mesma regra da rota JSON (FLW-RBAC-001 / SEC-02): o Admin Geral
+			// vinculado não autentica se o policial foi desativado.
+			const admin = await buscarAdminAtivo(db, usuarioId);
+			if (!admin) return fail(403, { error: 'Usuário inativo' });
 			primeiroAcesso = admin.primeiro_acesso === 1;
 			mappedUser = {
 				id: admin.id,

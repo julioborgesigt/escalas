@@ -140,6 +140,18 @@ const RECEBIDOS: CardBemVindo = {
 };
 
 /**
+ * `/gise/finalizadas` — só o Admin Geral. Era o bloco Histórico no rodapé de
+ * `/gise`; virou aba para o arquivo não competir com as escalas em andamento.
+ */
+const FINALIZADAS: CardBemVindo = {
+	titulo: 'Finalizadas',
+	descricao:
+		'Consulte as escalas extras já encerradas: busque por seccional, tipo de equipe e período, e baixe a lista filtrada.',
+	href: '/gise/finalizadas',
+	cta: 'Ver finalizadas'
+};
+
+/**
  * `/gise/operacoes` — o formulário de produtividade entra no texto de propósito:
  * o editor é alcançado pelo botão "Formulário" de CADA operação, e não por uma
  * aba solta. Havia um card "Configuração de Formulários" apontando para
@@ -291,6 +303,7 @@ export function cardsBemVindo({ usuario, flags }: EntradaCards): CardBemVindo[] 
 	// Grupo 2 — tudo o que é de escala extra (o submenu "Escala extra").
 	if (flags.showGrupo2) {
 		if (flags.showGise) cards.push(cardEscalaExtra(usuario));
+		if (flags.isAdmGeral && flags.showGise) cards.push(FINALIZADAS);
 		if (flags.showIndicadores) cards.push(PRODUTIVIDADE);
 		if (flags.showDadosBase) cards.push(DADOS_BASE);
 		// O Admin Geral não presta serviço: presença e histórico são de quem é

@@ -3,6 +3,17 @@ import { FIXTURE } from './global-setup';
 import { autenticarPagina, execD1Local, queryD1Local } from './session';
 
 /**
+ * Ano das fixtures = ano CORRENTE, não `2026` fixo.
+ *
+ * Duas razões, e as duas são bomba-relógio:
+ *  - desde o B-1 o painel abre recortado ao ANO CORRENTE no servidor; fixture
+ *    de 2026 ficaria fora da janela em 01/jan/2027 e a tela abriria vazia;
+ *  - o seletor `#f-ano` oferece só QUATRO anos (`currentYear-3`…`currentYear`),
+ *    então `selectOption('2026')` deixaria de existir em 2030.
+ */
+const ANO = new Date().getFullYear();
+
+/**
  * O que o painel de produtividade MOSTRA — e o que ele para de mostrar.
  *
  * Dois bugs relatados em ago/2026, e os dois são da mesma família: a tela
@@ -25,17 +36,28 @@ import { autenticarPagina, execD1Local, queryD1Local } from './session';
  * consegue provar que a TELA obedece a ela.
  */
 
-/** Ids exclusivos deste spec — não colidem com a fixture nem com os outros cenários. */
+/**
+ * Ids exclusivos deste spec. **A frase acima já foi falsa:** `gise`, `sec` e
+ * `equipe` usavam 99501/99502, que são de `presenca-gise.spec.ts` — e o
+ * `semearGisePresenca` de lá apaga por esse id em `gise_presencas`,
+ * `gise_membros`, `gise_equipes`, `gise_seccionais` e `gise_escalas`, ou seja,
+ * destruía a fixture DESTE spec nas cinco tabelas. Um dos dois sempre rodava
+ * sobre restos do outro, dependendo da ordem.
+ *
+ * A faixa deste spec é 995**1**x, ancorada no 99510 da seccional, que já era
+ * exclusivo. `presenca-gise` fica com 9950x. Antes de reaproveitar qualquer
+ * número aqui, procure-o em `e2e/` inteiro — foi assim que a colisão passou.
+ */
 const C = {
 	enxuta: 'OPERACAO E2E GRAFICOS ENXUTA',
 	completa: 'OPERACAO E2E GRAFICOS COMPLETA',
 	seccional: { id: 99510, nome: 'SECCIONAL E2E GRAFICOS' },
-	giseEnxuta: 99501,
-	giseCompleta: 99502,
-	secEnxuta: 99501,
-	secCompleta: 99502,
-	equipeEnxuta: 99501,
-	equipeCompleta: 99502
+	giseEnxuta: 99511,
+	giseCompleta: 99512,
+	secEnxuta: 99511,
+	secCompleta: 99512,
+	equipeEnxuta: 99511,
+	equipeCompleta: 99512
 };
 
 /**
@@ -109,9 +131,9 @@ test.beforeAll(() => {
 		ON CONFLICT(id) DO UPDATE SET nome = excluded.nome;
 
 		INSERT INTO gise_escalas (id, data_inicio, status, hora_entrada, hora_saida, operacao_id) VALUES
-			(${C.giseEnxuta}, '2026-05-11', 'finalizada', '08:00', '16:00',
+			(${C.giseEnxuta}, '${ANO}-05-11', 'finalizada', '08:00', '16:00',
 				(SELECT id FROM operacoes WHERE nome = '${C.enxuta}')),
-			(${C.giseCompleta}, '2026-05-12', 'finalizada', '08:00', '16:00',
+			(${C.giseCompleta}, '${ANO}-05-12', 'finalizada', '08:00', '16:00',
 				(SELECT id FROM operacoes WHERE nome = '${C.completa}'))
 		ON CONFLICT(id) DO UPDATE SET operacao_id = excluded.operacao_id;
 
@@ -161,7 +183,7 @@ async function abrirPainel(page: import('@playwright/test').Page, nome: string) 
 	const id = operacaoId(nome);
 	if (id == null) return false;
 	await page.goto(`/produtividade?operacaoId=${id}`);
-	await page.locator('#f-ano').selectOption('2026');
+	await page.locator('#f-ano').selectOption(String(ANO));
 	return true;
 }
 
@@ -475,7 +497,7 @@ test('o título gravado substitui o enunciado no card do painel', async ({ page 
 	await expect(page.getByText(/Modelo operacional salvo com sucesso/)).toBeVisible();
 
 	await page.goto(`/produtividade?operacaoId=${id}`);
-	await page.locator('#f-ano').selectOption('2026');
+	await page.locator('#f-ano').selectOption(String(ANO));
 	await expect(page.getByText('Atendimentos do dia', { exact: true })).toBeVisible();
 	await expect(page.getByText('ATENDIMENTOS REALIZADOS')).toHaveCount(0);
 
@@ -485,4 +507,64 @@ test('o título gravado substitui o enunciado no card do painel', async ({ page 
 		 SET config = json_remove(config, '$[0].rotulo_painel')
 		 WHERE operacao_id = ${id} AND tipo = 'operacional';`
 	);
+});
+
+/**
+ * O PDF do painel — que é `window.print()`, e por isso é CSS, não gerador.
+ *
+ * O bug relatado em ago/2026: gráfico partido no meio, com metade numa folha e
+ * metade na seguinte, e a barra de filtros ocupando a primeira página. As regras
+ * que evitariam isso existiam desde sempre no `<style>` da rota — só que
+ * escopadas: o Svelte compilava `.card` para `.card.svelte-hash`, e TODO card do
+ * painel é renderizado por um componente filho, com outro hash. As regras não
+ * casavam com card nenhum.
+ *
+ * É um caso que só o navegador prova, e só em `media: print` — na tela as mesmas
+ * regras não valem, e o CSS compilado "existe" mesmo quando não seleciona nada.
+ */
+test('em impressão, o card não quebra entre folhas e o cromo da tela some', async ({ page }) => {
+	test.skip(!cenarioOk, 'D1 local indisponível');
+	const ok = await autenticarPagina(page, FIXTURE.adminGeral.id, 'admin');
+	test.skip(!ok, 'D1 local indisponível');
+	test.skip(!(await abrirPainel(page, C.completa)), 'operação do cenário não foi criada');
+
+	const cards = page.locator('.card');
+	await expect(cards.first()).toBeVisible();
+
+	await page.emulateMedia({ media: 'print' });
+
+	// O pedido do relato: o card é indivisível. `avoid` é um PEDIDO ao paginador —
+	// quando o card não cabe inteiro numa A4 o navegador quebra assim mesmo, que é
+	// o comportamento desejado ("quebrar só se realmente não couber").
+	await expect(cards.first()).toHaveCSS('break-inside', 'avoid');
+
+	// Scroll interno vira CORTE no papel: o ranking rola na tela e precisa
+	// transbordar na folha.
+	await expect(cards.first()).toHaveCSS('overflow', 'visible');
+
+	// Filtros e botões de exportação são controles de tela.
+	await expect(page.locator('#f-ano')).toBeHidden();
+	await expect(page.getByRole('button', { name: /Baixar \(PDF\)/ })).toBeHidden();
+
+	await page.emulateMedia({ media: null });
+});
+
+test('com seleção, o PDF leva só os cards selecionados', async ({ page }) => {
+	test.skip(!cenarioOk, 'D1 local indisponível');
+	const ok = await autenticarPagina(page, FIXTURE.adminGeral.id, 'admin');
+	test.skip(!ok, 'D1 local indisponível');
+	test.skip(!(await abrirPainel(page, C.completa)), 'operação do cenário não foi criada');
+
+	const selecionado = page.locator('.card').filter({ hasText: 'Ranking de Drogas' });
+	const outro = page.locator('.card').filter({ hasText: 'Ranking de Armas' });
+	await expect(selecionado).toBeVisible();
+
+	await selecionado.getByRole('button').first().click();
+	await expect(selecionado).toHaveClass(/selected-for-export/);
+
+	await page.emulateMedia({ media: 'print' });
+	await expect(selecionado).toBeVisible();
+	// Sem isto o PDF sai com a tela inteira e a seleção só decora a borda na tela.
+	await expect(outro).toBeHidden();
+	await page.emulateMedia({ media: null });
 });

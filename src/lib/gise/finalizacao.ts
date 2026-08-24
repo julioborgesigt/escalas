@@ -26,6 +26,18 @@ const STATUS_COMPLETO = 'pronta_para_finalizar';
 /** Estado a partir do qual o Admin Geral pode encerrar sem o conjunto documental. */
 const STATUS_ANTECIPAVEL = 'em_andamento';
 
+/**
+ * Os estados a partir dos quais finalizar é permitido — exatamente aqueles que
+ * `modoDeFinalizacao` não bloqueia.
+ *
+ * Existe como constante porque o `WHERE` do CAS em `finalizarGiseEscala`
+ * precisa da MESMA lista (SEC-35). Escrevê-la à mão no SQL criaria a sexta
+ * cópia de um predicado de status — a forma exata que a revisão de 13/ago achou
+ * repetida sete vezes. O teste `__tests__/finalizacao.test.ts` reprova se as
+ * duas divergirem.
+ */
+export const STATUS_FINALIZAVEIS = [STATUS_COMPLETO, STATUS_ANTECIPAVEL] as const;
+
 export type ModoFinalizacao = 'normal' | 'antecipada' | 'bloqueado';
 
 /**

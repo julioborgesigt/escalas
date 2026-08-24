@@ -126,7 +126,7 @@ export const POST: RequestHandler = async ({
 
 		const selfieKey = await subirSelfieEscala(bucket, id, validatedEv.selfieBase64);
 
-		await persistirEscalaAssinada({
+		const persistido = await persistirEscalaAssinada({
 			db,
 			bucket,
 			escalaId: id,
@@ -139,6 +139,7 @@ export const POST: RequestHandler = async ({
 			longitude: validatedEv.longitude,
 			env: envComoRegistro(platform)
 		});
+		if ('recusa' in persistido) return persistido.recusa;
 
 		await registrarAuditComContexto(db, {
 			usuario: u,

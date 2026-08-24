@@ -28,6 +28,13 @@ import type { SignaturePadConfirmPayload } from '$lib/components/SignaturePadTyp
 import { assinarPresencaComPasskey } from '$lib/assinatura-passkey';
 import { ehErroReauthAssinatura } from '$lib/assinatura-reauth';
 import { navigateWithFilters } from './res-gise-navegacao.svelte';
+import {
+	historicoTemFiltroAlemDoPadrao,
+	parseFiltrosHistoricoResGise,
+	type ModoPeriodoResGise
+} from './filtros-historico';
+import { hojeLocalISO } from '$lib/utils/datas';
+import { anosParaSeletorCiclo, cicloQueContem } from '$lib/gise/ciclos';
 import { mensagemDeErro } from '$lib/utils/erro';
 
 function erroDaAction(result: ActionResult, fallback: string): string {
@@ -56,8 +63,28 @@ export function usePresencaGise(getData: () => ResGisePageData) {
 	const statusFilterUrl = $derived(
 		page.url.searchParams.get('status') === 'finalizadas' ? 'finalizadas' : 'ativas'
 	);
-	const mesFilterUrl = $derived(page.url.searchParams.get('mes') || '');
-	const dataFilterUrl = $derived(page.url.searchParams.get('data') || '');
+	const filtrosHistorico = $derived.by(() => {
+		const historico = page.url.searchParams.get('status') === 'finalizadas';
+		return parseFiltrosHistoricoResGise(
+			page.url.searchParams,
+			historico ? hojeLocalISO() : undefined
+		);
+	});
+	const mesFilterUrl = $derived(filtrosHistorico.mes);
+	const dataFilterUrl = $derived(filtrosHistorico.data);
+	const tipoFilterUrl = $derived(filtrosHistorico.tipo);
+	const modoPeriodo = $derived(filtrosHistorico.periodo);
+	const anoFilterUrl = $derived(filtrosHistorico.ano);
+	const cicloFilterUrl = $derived(filtrosHistorico.ciclo);
+	const anosCiclo = $derived.by(() => {
+		const base = anosParaSeletorCiclo(hojeLocalISO());
+		const ano = filtrosHistorico.ano;
+		if (ano != null && !base.includes(ano)) return [...base, ano].sort((a, b) => a - b);
+		return base;
+	});
+	const temFiltrosHistorico = $derived(
+		historicoTemFiltroAlemDoPadrao(filtrosHistorico, hojeLocalISO())
+	);
 
 	let idProdutividadeBaixando = $state<number | null>(null);
 	let idExtraBaixando = $state<number | null>(null);
@@ -74,19 +101,90 @@ export function usePresencaGise(getData: () => ResGisePageData) {
 		if (atualizada) escalaSelecionada = atualizada;
 	});
 
-	// Mês e data são mutuamente exclusivos. Só navega — `mesFilterUrl`/
-	// `dataFilterUrl` são derivados da URL e se reajustam sozinhos depois do
-	// `goto`. O `?status` corrente é preservado por `navigateWithFilters`, então
-	// filtrar por data não tira o usuário do histórico.
+	// Mês civil, ciclo e data são mutuamente exclusivos. Só navega — os derivados
+	// reajustam sozinhos depois do `goto`. O `?status` corrente é preservado por
+	// `navigateWithFilters`, então filtrar não tira o usuário do histórico.
 	function changeDateFilter(type: 'mes' | 'data', value: string) {
-		if (type === 'mes') navigateWithFilters({ mes: value, data: null });
-		else navigateWithFilters({ data: value, mes: null });
+		if (type === 'mes') {
+			navigateWithFilters({
+				mes: value || null,
+				data: null,
+				periodo: 'mes',
+				ano: null,
+				ciclo: null
+			});
+		} else {
+			navigateWithFilters({
+				data: value || null,
+				mes: null,
+				periodo: 'data',
+				ano: null,
+				ciclo: null
+			});
+		}
 	}
 
-	// Limpa só os filtros de data — mantém a aba (o `status` da URL). Antes zerava
+	function changeTipoFilter(value: string) {
+		navigateWithFilters({
+			tipo: value === 'operacional' || value === 'seint' ? value : null
+		});
+	}
+
+	function changeModoPeriodo(modo: ModoPeriodoResGise) {
+		const hoje = hojeLocalISO();
+		if (modo === 'data') {
+			navigateWithFilters({
+				periodo: 'data',
+				mes: null,
+				ano: null,
+				ciclo: null,
+				data: dataFilterUrl || hoje
+			});
+		} else if (modo === 'ciclo') {
+			const corrente = cicloQueContem(hoje);
+			navigateWithFilters({
+				periodo: 'ciclo',
+				mes: null,
+				data: null,
+				ano: String(anoFilterUrl ?? corrente.ano),
+				ciclo: String(cicloFilterUrl ?? corrente.ciclo)
+			});
+		} else {
+			navigateWithFilters({
+				periodo: 'mes',
+				data: null,
+				ano: null,
+				ciclo: null,
+				mes: mesFilterUrl || hoje.slice(0, 7)
+			});
+		}
+	}
+
+	function changeCicloFilter(campo: 'ano' | 'ciclo', value: string) {
+		const corrente = cicloQueContem(hojeLocalISO());
+		const n = Number(value);
+		const ano = campo === 'ano' && Number.isFinite(n) ? n : (anoFilterUrl ?? corrente.ano);
+		const ciclo = campo === 'ciclo' && Number.isFinite(n) ? n : (cicloFilterUrl ?? corrente.ciclo);
+		navigateWithFilters({
+			periodo: 'ciclo',
+			mes: null,
+			data: null,
+			ano: String(ano),
+			ciclo: String(ciclo)
+		});
+	}
+
+	// Limpa a busca detalhada — mantém a aba (o `status` da URL). Antes zerava
 	// `status` também, o que jogava o usuário do Histórico de volta para Ativas.
 	function limparFiltros() {
-		navigateWithFilters({ mes: null, data: null });
+		navigateWithFilters({
+			mes: null,
+			data: null,
+			tipo: null,
+			periodo: null,
+			ano: null,
+			ciclo: null
+		});
 	}
 
 	async function selecionarEscala(escala: ResGiseEscalaSelecionavel) {
@@ -356,8 +454,29 @@ export function usePresencaGise(getData: () => ResGisePageData) {
 		get dataFilterUrl() {
 			return dataFilterUrl;
 		},
+		get tipoFilterUrl() {
+			return tipoFilterUrl;
+		},
+		get modoPeriodo() {
+			return modoPeriodo;
+		},
+		get anoFilterUrl() {
+			return anoFilterUrl;
+		},
+		get cicloFilterUrl() {
+			return cicloFilterUrl;
+		},
+		get anosCiclo() {
+			return anosCiclo;
+		},
+		get temFiltrosHistorico() {
+			return temFiltrosHistorico;
+		},
 
 		changeDateFilter,
+		changeTipoFilter,
+		changeModoPeriodo,
+		changeCicloFilter,
 		limparFiltros,
 		selecionarEscala,
 		reaplicarEscalaSelecionada,

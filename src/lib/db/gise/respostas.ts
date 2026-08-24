@@ -406,6 +406,53 @@ export async function salvarGiseModeloFormulario(
 	});
 }
 
+/**
+ * Grava a ordem dos cards do painel de produtividade desta (operação, tipo) —
+ * o array JSON de ids que o Admin Geral montou arrastando em `/produtividade`.
+ *
+ * Escreve SÓ a coluna `painel_ordem`, deliberadamente:
+ *
+ * - o `config` não é tocado, então organizar o painel não renumera pergunta nem
+ *   reordena o formulário que o policial preenche. Era exatamente isso que a
+ *   ordem própria existe para evitar (migração 0064);
+ * - o `config_anterior` também não. Ele é o desfazer do EDITOR DE PERGUNTAS, e
+ *   consumi-lo aqui faria arrastar um card destruir o ponto de retorno de quem
+ *   estava editando o formulário em outra aba.
+ *
+ * Modelo inexistente para o par (operação, tipo) é no-op silencioso, não erro: a
+ * operação pode ter o tipo habilitado sem nunca ter tido formulário salvo, e
+ * nesse caso não há card nenhum no painel — não há ordem que se perca. Inserir
+ * uma linha aqui criaria um modelo VAZIO que o editor mostraria como formulário
+ * apagado.
+ *
+ * @returns `true` se a linha foi atualizada; `false` quando não há modelo.
+ */
+export async function salvarOrdemPainelProdutividade(
+	db: Database,
+	operacaoId: number,
+	tipo: 'operacional' | 'seint',
+	ordem: string[]
+): Promise<boolean> {
+	const existente = await db
+		.select({ id: giseModeloFormulario.id })
+		.from(giseModeloFormulario)
+		.where(
+			and(eq(giseModeloFormulario.operacao_id, operacaoId), eq(giseModeloFormulario.tipo, tipo))
+		)
+		.get();
+
+	if (!existente) return false;
+
+	await db
+		.update(giseModeloFormulario)
+		.set({
+			painel_ordem: JSON.stringify(ordem),
+			updated_at: sql`datetime('now', '-3 hours')`
+		})
+		.where(eq(giseModeloFormulario.id, existente.id));
+	return true;
+}
+
 // ---- Respostas ----
 
 /**
@@ -510,9 +557,9 @@ export async function salvarRespostaGise(
  * Detalhes que o chamador precisa saber:
  * - os `innerJoin` fazem esta consulta ignorar respostas sem equipe (o formato
  *   individual antigo) e respostas cuja seccional não casa com uma unidade;
- * - `mes`/`ano` filtram pela `data_inicio` da GISE via `strftime`, não pelo
- *   `updated_at` da resposta: o que interessa é o período do serviço, não
- *   quando alguém preencheu;
+ * - `inicio`/`fim` recortam pela `data_inicio` da GISE, não pelo `updated_at`
+ *   da resposta: o que interessa é o período do SERVIÇO, não quando alguém
+ *   preencheu. Os dois são inclusivos, e omitir um deixa aquele lado aberto;
  * - `limit` é limitado a 500 por página. O painel pagina em laço até esgotar,
  *   então mudar esse teto muda o número de idas ao banco, não o resultado;
  * - `operacaoId` recorta à operação (os indicadores e as metas são dela);
@@ -526,8 +573,10 @@ export async function listarTodasRespostasGise(
 	opts?: {
 		page?: number;
 		limit?: number;
-		mes?: number;
-		ano?: number;
+		/** Início da janela, `YYYY-MM-DD` inclusivo. Sem ele, não há piso. */
+		inicio?: string;
+		/** Fim da janela, `YYYY-MM-DD` inclusivo. Sem ele, não há teto. */
+		fim?: string;
 		operacaoId?: number;
 		unidadeIds?: number[];
 	}
@@ -566,12 +615,25 @@ export async function listarTodasRespostasGise(
 
 	// Build dynamic conditions
 	const conditions: SQL[] = [];
-	if (opts?.mes) {
-		const monthStr = opts.mes.toString().padStart(2, '0');
-		conditions.push(sql`strftime('%m', ${giseEscalas.data_inicio}) = ${monthStr}`);
+	// Janela por INTERVALO, não por `strftime`. Duas razões, e a segunda é a que
+	// motivou a troca (B-1):
+	//
+	//  - `strftime('%Y', data_inicio) = '2026'` é função sobre a coluna, e função
+	//    sobre coluna anula o índice. É a mesma lição que `verificarEscalaExistente`
+	//    já carrega escrita: lá a comparação mensal virou intervalo justamente
+	//    "para que o índice de `data_inicio` seja usado".
+	//  - Ano e mês não expressam a janela que a tela oferece. O filtro de
+	//    produtividade tem modo `personalizado`, com date pickers livres que
+	//    podem cruzar anos; `ano` recortaria ao ano e o usuário veria menos do
+	//    que pediu, sem erro nenhum.
+	//
+	// `data_inicio` é TEXT em `YYYY-MM-DD`, então a comparação lexicográfica é a
+	// cronológica — o mesmo contrato que o resto do projeto usa em coluna de data.
+	if (opts?.inicio) {
+		conditions.push(sql`${giseEscalas.data_inicio} >= ${opts.inicio}`);
 	}
-	if (opts?.ano) {
-		conditions.push(sql`strftime('%Y', ${giseEscalas.data_inicio}) = ${opts.ano.toString()}`);
+	if (opts?.fim) {
+		conditions.push(sql`${giseEscalas.data_inicio} <= ${opts.fim}`);
 	}
 	if (opts?.operacaoId != null) {
 		conditions.push(sql`${giseEscalas.operacao_id} = ${opts.operacaoId}`);

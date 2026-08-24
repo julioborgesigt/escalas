@@ -20,7 +20,7 @@
  * o `inArray` com lista vazia gera SQL inválido no D1; use `batchNonEmpty` ou
  * devolva cedo, como já fazem os call sites daqui.
  */
-import { eq, and, or, sql, desc, asc, inArray, like, type SQL } from 'drizzle-orm';
+import { eq, and, or, sql, desc, asc, inArray, type SQL } from 'drizzle-orm';
 import {
 	escalas,
 	escalaPoliciais,
@@ -32,7 +32,7 @@ import type * as schema from '../server/schema';
 import type { EscalaPolicialComDados, EscalaListagem } from '../types';
 import {
 	batchNonEmpty,
-	escapeLike,
+	likeContains,
 	paginarComContagem,
 	timestampSqliteBrasilia,
 	type Database
@@ -78,8 +78,11 @@ export async function listarEscalas(
 
 	if (lotacao) {
 		conditions.push(eq(escalas.lotacao, lotacao));
-	} else if (opts?.lotacoes && opts.lotacoes.length > 0) {
-		conditions.push(inArray(escalas.lotacao, opts.lotacoes));
+	} else if (opts?.lotacoes) {
+		// Array vazio = papel sem unidade (SEC-06): zero linhas, nunca "todas".
+		conditions.push(
+			opts.lotacoes.length > 0 ? inArray(escalas.lotacao, opts.lotacoes) : sql`1 = 0`
+		);
 	}
 	if (mes) {
 		const monthStr = mes.toString().padStart(2, '0');
@@ -93,18 +96,16 @@ export async function listarEscalas(
 
 	// Busca por título ou cidade
 	if (opts?.busca) {
-		const buscaEscapada = escapeLike(opts.busca.trim());
-		conditions.push(
-			or(like(escalas.titulo, `%${buscaEscapada}%`), like(escalas.cidade, `%${buscaEscapada}%`))!
-		);
+		const termo = opts.busca.trim();
+		conditions.push(or(likeContains(escalas.titulo, termo), likeContains(escalas.cidade, termo))!);
 	}
 
 	if (opts?.lotacaoBusca) {
-		conditions.push(like(escalas.lotacao, `%${escapeLike(opts.lotacaoBusca.trim())}%`));
+		conditions.push(likeContains(escalas.lotacao, opts.lotacaoBusca.trim()));
 	}
 
 	if (opts?.dataBusca) {
-		conditions.push(like(escalas.data_inicio, `%${escapeLike(opts.dataBusca.trim())}%`));
+		conditions.push(likeContains(escalas.data_inicio, opts.dataBusca.trim()));
 	}
 
 	// Filtro de status via IS NULL / IS NOT NULL sobre o LEFT JOIN abaixo.
@@ -171,8 +172,21 @@ export async function buscarEscala(db: Database, id: number): Promise<schema.Esc
  * Cria a escala VAZIA e devolve `[{ id }]` — os policiais entram depois, por
  * `adicionarTodosPoliciais` ou pela adição manual.
  *
- * Não checa duplicidade: chame `verificarEscalaExistente` antes, ou a mesma
- * lotação ganha duas escalas para o mesmo período.
+ * Chame `verificarEscalaExistente` antes: é ele que produz a mensagem de erro
+ * com o período por extenso, que é o que o usuário precisa ler.
+ *
+ * **A tranca, porém, é o banco.** `uq_escalas_mensal` (migração 0063) recusa a
+ * segunda escala mensal do mesmo `(lotacao, tipo, mês)` mesmo quando duas
+ * requisições passam pelo check ao mesmo tempo — duplo clique, retry (SEC-34).
+ * Este comentário dizia "Não checa duplicidade: … ou a mesma lotação ganha duas
+ * escalas para o mesmo período", o que descrevia o defeito em vez de impedi-lo.
+ *
+ * O chamador deve capturar `ehViolacaoUnique` e devolver 409 — sem isso a
+ * corrida perdida vira 500 com SQL cru na tela.
+ *
+ * **FDS não tem tranca**: colide por sobreposição de INTERVALO, que unique não
+ * expressa em SQLite. Ali `verificarEscalaExistente` segue sendo a única
+ * proteção, e a corrida continua possível.
  */
 export async function criarEscala(
 	db: Database,

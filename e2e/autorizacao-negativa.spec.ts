@@ -33,7 +33,13 @@ import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { FIXTURE } from './global-setup';
-import { seedSession, headersDeSessaoMutacao, headersFormAction, queryD1Local } from './session';
+import {
+	seedSession,
+	cookieDeSessao,
+	headersDeSessaoMutacao,
+	headersFormAction,
+	queryD1Local
+} from './session';
 // @ts-expect-error — script de guard em .mjs, sem tipos; só a lista importa.
 import { PUBLICAS } from '../scripts/guard-autorizacao.mjs';
 
@@ -392,6 +398,132 @@ test.describe('Autorização negativa', () => {
 		const depois = totalDocumentos();
 		if (antes !== null && depois !== null) {
 			expect(depois, 'nenhum documento pode ter sido criado ou apagado').toBe(antes);
+		}
+	});
+});
+
+/**
+ * SEC-14 — o login é o único isento de token CSRF, então o `Origin` é a única
+ * camada ali. Origem DIVERGENTE já morria; origem AUSENTE passava, e cliente
+ * não-browser não manda `Origin`.
+ *
+ * O `APIRequestContext` do Playwright é justamente um cliente desses: ele não
+ * injeta `Origin`, o que faz dele o caso de teste exato.
+ */
+test.describe('Origin no login (SEC-14)', () => {
+	const CREDENCIAL = { matricula: 'INEXISTENTE', senha: 'x', tipo: 'policial' };
+
+	test('POST sem Origin morre no hook, com errorType csrf', async ({ request }) => {
+		const r = await request.post('/api/auth/login', { data: CREDENCIAL });
+		expect(r.status()).toBe(403);
+		expect((await r.json()).errorType).toBe('csrf');
+	});
+
+	test('POST com Origin de OUTRA origem continua morrendo', async ({ request }) => {
+		const r = await request.post('/api/auth/login', {
+			headers: { origin: 'https://atacante.example' },
+			data: CREDENCIAL
+		});
+		expect(r.status()).toBe(403);
+		expect((await r.json()).errorType).toBe('csrf');
+	});
+
+	test('POST com a NOSSA origem passa do hook — o 403 que sobra não é de CSRF', async ({
+		request
+	}) => {
+		const r = await request.post('/api/auth/login', {
+			headers: { origin: 'http://localhost:4173' },
+			data: CREDENCIAL
+		});
+		expect((await r.json()).errorType).not.toBe('csrf');
+	});
+
+	test('webhook segue aceitando requisição SEM Origin — só o login exige', async ({ request }) => {
+		// Integração externa legítima não manda Origin. Se esta expectativa cair,
+		// a allowlist de `csrf-origin.ts` cresceu demais e quebrou o sync.
+		const r = await request.post('/api/webhook/sync-policiais', { data: {} });
+		expect(r.status()).not.toBe(403);
+	});
+});
+
+/**
+ * LGPD A14 — o sliding do COOKIE, que é a metade que faltava.
+ *
+ * O banco já estendia `sessoes.expires_at`; o `maxAge` do cookie era escrito no
+ * login e nunca mais. As duas metades discordavam, e a menor decidia: com TTL
+ * de 1h, o navegador derrubaria a sessão 1h depois do LOGIN mesmo com o usuário
+ * ativo — no meio de uma cerimônia de assinatura, por exemplo.
+ *
+ * Só o HTTP prova isto: em unidade, `cookieOptions` devolve o objeto certo e o
+ * defeito continua, porque ninguém o chamava por request.
+ */
+test.describe('Sliding do cookie de sessão (LGPD A14)', () => {
+	test('toda request autenticada reemite o session_token com maxAge cheio', async ({ request }) => {
+		const token = seedSession(FIXTURE.policialA.id);
+		test.skip(!token, 'D1 local indisponível');
+
+		const res = await request.get('/api/policiais/search?q=fixture', {
+			headers: cookieDeSessao(token!)
+		});
+		expect(res.status()).toBe(200);
+
+		const setCookie = res.headersArray().filter((h) => h.name.toLowerCase() === 'set-cookie');
+		const sessao = setCookie.find((h) => h.value.startsWith('session_token='));
+		expect(sessao, `sem Set-Cookie de sessão: ${JSON.stringify(setCookie)}`).toBeDefined();
+
+		// 1h em segundos. Se alguém mexer no TTL sem mexer aqui, este número
+		// denuncia — é a mesma checagem do teste de unidade, mas ponta a ponta.
+		expect(sessao!.value).toMatch(/Max-Age=3600/i);
+		expect(sessao!.value).toMatch(/HttpOnly/i);
+		expect(sessao!.value).toMatch(/SameSite=Strict/i);
+	});
+
+	test('o POLL de fundo autentica mas NÃO renova o cookie', async ({ request }) => {
+		// É isto que faz "1h de inatividade" significar alguma coisa. O app
+		// consulta `/api/sync/estado` a cada 120s em 17 telas; se esse poll
+		// renovasse, uma aba deixada aberta manteria a sessão viva para sempre e
+		// o TTL só morderia navegador fechado.
+		const token = seedSession(FIXTURE.policialA.id);
+		test.skip(!token, 'D1 local indisponível');
+
+		const poll = await request.get('/api/sync/estado', { headers: cookieDeSessao(token!) });
+		// Autentica normalmente — não é 401.
+		expect(poll.status()).not.toBe(401);
+		const setCookiePoll = poll
+			.headersArray()
+			.filter((h) => h.name.toLowerCase() === 'set-cookie')
+			.filter((h) => h.value.startsWith('session_token='));
+		expect(setCookiePoll, 'o poll renovou a sessão').toHaveLength(0);
+
+		// E a mesma sessão, numa rota de AÇÃO, renova.
+		const acao = await request.get('/api/policiais/search?q=fixture', {
+			headers: cookieDeSessao(token!)
+		});
+		const setCookieAcao = acao
+			.headersArray()
+			.filter((h) => h.name.toLowerCase() === 'set-cookie')
+			.filter((h) => h.value.startsWith('session_token='));
+		expect(setCookieAcao, 'ação de gente deixou de renovar').toHaveLength(1);
+	});
+
+	test('nenhuma resposta autenticada é cacheável por cache COMPARTILHADO', async ({ request }) => {
+		// É este o invariante que protege o `Set-Cookie` novo, e não "no-store":
+		// `/api/policiais/search` e `/api/unidades/search` usam
+		// `private, max-age=…` de propósito, e `private` já exclui o edge e os
+		// proxies — só o navegador do próprio dono do cookie guarda. O que NÃO
+		// pode aparecer aqui é `public`: aí o Cloudflare serviria a resposta,
+		// com o cabeçalho de sessão, para outra pessoa.
+		//
+		// (A rota `public` do projeto, `/api/validar/logo`, é rota PÚBLICA: o
+		// `handleAuth` retorna antes de chegar ao cookie.)
+		const token = seedSession(FIXTURE.policialA.id);
+		test.skip(!token, 'D1 local indisponível');
+
+		for (const rota of ['/api/policiais/search?q=fixture', '/api/unidades/search?q=del']) {
+			const res = await request.get(rota, { headers: cookieDeSessao(token!) });
+			const cc = (res.headers()['cache-control'] ?? '').toLowerCase();
+			expect(cc, `${rota} sem Cache-Control`).not.toBe('');
+			expect(cc, `${rota} é cacheável por cache compartilhado`).not.toMatch(/\bpublic\b/);
 		}
 	});
 });

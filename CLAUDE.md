@@ -12,6 +12,32 @@ O índice completo está em [`docs/README.md`](docs/README.md). Referências rá
 
 Documentos vivos (README/DEPLOY/TESTING) devem ser atualizados **no mesmo PR** que mudar o comportamento correspondente.
 
+## Sigla de achado precisa ter onde ser lida
+
+Auditoria encerrada sai do working tree e vira linha do
+[`docs/HISTORICO.md`](docs/HISTORICO.md), com o `git show` que a recupera. Isso
+só funciona enquanto o catálogo souber de TODAS as siglas que o código cita —
+senão `// FLW-RBAC-003` vira ponteiro que promete rastreabilidade e não entrega:
+quem procura no catálogo não acha e conclui que a regra ao lado é folclore.
+
+Foi o que a varredura de ago/2026 encontrou. O catálogo descrevia a auditoria de
+fluxos como "achados FLW-AUT-001…020"; o documento define **doze** famílias, e
+130 referências apontavam para as onze não nomeadas. Verificado no CI por
+`npm run guard:achados`.
+
+Duas saídas quando ele reprova, e a escolha é sobre o que é VERDADE:
+
+1. a auditoria de origem existe → **nomeie a família** na linha dela no catálogo;
+2. o relatório nunca foi commitado → **declare em `SEM_DOCUMENTO`**, com o
+   arquivo onde a sigla vive. É o caso de `M-6`, `M-8`, `M-10` e `I-6`: `git log -S`
+   não acha commit que as tenha introduzido, então o comentário ao lado delas é
+   o registro inteiro. Declarar é o ponto — a diferença entre "órfã e ninguém
+   sabe" e "órfã, sabemos, e está escrito" não está no código.
+
+O guard tem um limite conhecido: famílias de UMA letra (`M-1`, `B-2`, `I-3`)
+ficam de fora, porque `includes('M')` casa com qualquer parágrafo do catálogo.
+Elas foram conferidas à mão uma vez; o script diz isso no cabeçalho.
+
 ## Svelte 5 e SvelteKit — Documentação Oficial
 
 Antes de implementar qualquer solução envolvendo Svelte ou SvelteKit, **consulte a documentação oficial mais recente**:

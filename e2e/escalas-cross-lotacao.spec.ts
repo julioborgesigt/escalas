@@ -30,9 +30,15 @@ test.describe('Cross-lotação — regressão P0.1', () => {
 		// o limite de tentativas do IP compartilhado e mudaria o 403 para 429.
 		execD1Local('DELETE FROM login_attempts;');
 		const login = await request.post('/api/auth/login', {
+			// `Origin` explícito: o `APIRequestContext` do Playwright não manda um, e
+			// desde o SEC-14 o login recusa POST sem Origin no hook, ANTES de chegar
+			// ao 2FA. Sem este header o teste continuaria verde medindo a coisa
+			// errada — 403 de CSRF em vez de 403 de fail-closed.
+			headers: { origin: 'http://localhost:4173' },
 			data: { matricula: FIXTURE.policialB.matricula, senha: FIXTURE.password, tipo: 'policial' }
 		});
 		expect(login.status()).toBe(403);
+		expect((await login.json()).errorType).not.toBe('csrf');
 
 		// Sessão semeada no D1 local funciona (fundação de todos os specs
 		// autenticados): endpoint autenticado responde 401 sem cookie e 200 com.

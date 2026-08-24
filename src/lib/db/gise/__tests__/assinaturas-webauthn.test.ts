@@ -58,7 +58,7 @@ describe('salvarAssinaturaRelatorioGise × colunas webauthn_*', () => {
 	});
 
 	it('com passkeyMeta grava a asserção; reassinatura sem ela zera', async () => {
-		await salvarAssinaturaRelatorioGise(db, {
+		const primeira = await salvarAssinaturaRelatorioGise(db, {
 			gise_id: GISE,
 			seccional_id: UNID,
 			tipo: 'extraordinario',
@@ -73,6 +73,7 @@ describe('salvarAssinaturaRelatorioGise × colunas webauthn_*', () => {
 				backup_ativo: false
 			}
 		});
+		expect(primeira.gravado).toBe(true);
 		expect(colunasWebauthn()).toMatchObject({
 			webauthn_credential_id: 'cred-1',
 			webauthn_client_data: 'cd',
@@ -80,7 +81,7 @@ describe('salvarAssinaturaRelatorioGise × colunas webauthn_*', () => {
 			webauthn_backup_ativo: 0
 		});
 
-		await salvarAssinaturaRelatorioGise(db, {
+		const recusada = await salvarAssinaturaRelatorioGise(db, {
 			gise_id: GISE,
 			seccional_id: UNID,
 			tipo: 'extraordinario',
@@ -88,6 +89,19 @@ describe('salvarAssinaturaRelatorioGise × colunas webauthn_*', () => {
 			tipo_assinatura: 'serpro',
 			verification_hash: 'hash-a3-depois'
 		});
+		expect(recusada.gravado).toBe(false);
+		expect(colunasWebauthn().webauthn_credential_id).toBe('cred-1');
+
+		sqlite.exec(`DELETE FROM gise_assinaturas_relatorios WHERE gise_id = ${GISE}`);
+		const nova = await salvarAssinaturaRelatorioGise(db, {
+			gise_id: GISE,
+			seccional_id: UNID,
+			tipo: 'extraordinario',
+			assinante_nome: 'SUPERVISOR',
+			tipo_assinatura: 'serpro',
+			verification_hash: 'hash-a3-depois'
+		});
+		expect(nova.gravado).toBe(true);
 		const row = colunasWebauthn();
 		expect(row.webauthn_credential_id).toBeNull();
 		expect(row.webauthn_backup_ativo).toBeNull();

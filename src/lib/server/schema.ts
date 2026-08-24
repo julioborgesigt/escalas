@@ -113,7 +113,16 @@ export const escalas = sqliteTable(
 		index('idx_escalas_created_at').on(table.created_at),
 		index('idx_escalas_data_inicio').on(table.data_inicio),
 		index('idx_escalas_tipo').on(table.tipo),
-		index('idx_escalas_lotacao_tipo_data').on(table.lotacao, table.tipo, table.data_inicio)
+		index('idx_escalas_lotacao_tipo_data').on(table.lotacao, table.tipo, table.data_inicio),
+		// A tranca da duplicata MENSAL é o UNIQUE — a consulta prévia
+		// (`verificarEscalaExistente`) não fecha a corrida (0063 / SEC-34).
+		// Índice de EXPRESSÃO porque a regra colide por MÊS, não por data exata;
+		// PARCIAL porque FDS colide por sobreposição de intervalo, que unique não
+		// expressa em SQLite. Sem esta linha, a violação chega às actions como
+		// 500 com SQL cru em vez de 409 — foi o que o SEC-37 corrigiu no plantão.
+		uniqueIndex('uq_escalas_mensal')
+			.on(table.lotacao, table.tipo, sql`substr(${table.data_inicio}, 1, 7)`)
+			.where(sql`${table.tipo} IN ('plantao', 'expediente')`)
 	]
 );
 
@@ -142,7 +151,13 @@ export const escalaPoliciais = sqliteTable(
 		index('idx_escala_policiais_policial').on(table.policial_id),
 		index('idx_escala_policiais_escala_policial').on(table.escala_id, table.policial_id),
 		// Conflito de plantão filtra por (policial, data) — ver migration 0030
-		index('idx_escala_policiais_policial_data').on(table.policial_id, table.data_plantao)
+		index('idx_escala_policiais_policial_data').on(table.policial_id, table.data_plantao),
+		// A tranca é o UNIQUE — a consulta prévia não fecha a corrida (0047 / FLW-ESC-005).
+		uniqueIndex('uq_escala_policiais_dia').on(
+			table.escala_id,
+			table.policial_id,
+			table.data_plantao
+		)
 	]
 );
 
@@ -626,6 +641,23 @@ export const giseModeloFormulario = sqliteTable(
 		 *  Admin Geral ("Restaurar anterior"). `null` enquanto só houve a
 		 *  primeira gravação. Ver migração 0039. */
 		config_anterior: text('config_anterior'),
+		/**
+		 * A ordem dos cards no painel de `/produtividade`, como o Admin Geral os
+		 * arrastou — array JSON de ids de card (migração 0064).
+		 *
+		 * **NULL = ordem do formulário**, que é o que toda linha anterior à 0064 é.
+		 * Não é a mesma coisa que `'[]'`: a lista vazia é uma escolha gravada que
+		 * não nomeia card nenhum, e como TODO id ausente da lista cai no fim da
+		 * seção dele, as duas dão o mesmo resultado hoje. Guardar a diferença é o
+		 * que permite a tela distinguir "nunca organizado" de "organizado e depois
+		 * esvaziado" sem adivinhar.
+		 *
+		 * Não decide quem APARECE — isso continua sendo a marca `grafico` da
+		 * pergunta (0053/0054). Id de card que saiu do painel fica órfão aqui e é
+		 * ignorado na leitura; ver `ordenarCardsDoPainel` em
+		 * `$lib/produtividade/ordem`.
+		 */
+		painel_ordem: text('painel_ordem'),
 		updated_at: text('updated_at')
 			.notNull()
 			.default(sql`(datetime('now', '-3 hours'))`)

@@ -20,7 +20,11 @@ import {
 	respostaPdfAssinado
 } from '$lib/server/assinatura/signature-service';
 import { tryGetR2 } from '$lib/db';
-import { bucketParaAssinatura, guardarPdfAssinado } from '$lib/server/assinatura/blob-assinado';
+import {
+	bucketParaAssinatura,
+	guardarPdfAssinado,
+	recusarPorDocumentoJaGravado
+} from '$lib/server/assinatura/blob-assinado';
 import {
 	requireAuth,
 	badRequest,
@@ -115,7 +119,7 @@ export const POST: RequestHandler = async (event) => {
 		const guardado = await guardarPdfAssinado(bucket, r2Key, result.pdfFinal, 'gise-relatorio');
 		if (!guardado.ok) return guardado.resposta;
 
-		await salvarAssinaturaRelatorioGise(
+		const { gravado } = await salvarAssinaturaRelatorioGise(
 			db,
 			{
 				gise_id: id,
@@ -149,6 +153,9 @@ export const POST: RequestHandler = async (event) => {
 			},
 			platform?.env
 		);
+		if (!gravado) {
+			return recusarPorDocumentoJaGravado(db, bucket, [r2Key], 'gise-relatorio');
+		}
 
 		await tentarPromoverGiseProntaParaFinalizar(db, id);
 
