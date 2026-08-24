@@ -29,6 +29,7 @@
 	import { page } from '$app/state';
 	import { toaster } from '$lib/toast';
 	import { apiFetch } from '$lib/api-fetch';
+	import { apagarReauth } from '$lib/assinatura-reauth';
 	import { loading as loadingService } from '$lib/loading.svelte';
 	import { conectarSerproParaLogin } from '$lib/serpro';
 	import type { ActionResult } from '@sveltejs/kit';
@@ -42,6 +43,14 @@
 	type FormResult = ActionResult<ActionData, ActionData>;
 
 	async function navegarAposLogin(destino: string, invalidateAll = false) {
+		// Funil único dos três fluxos de login (senha+2FA, certificado): é o
+		// ponto que garante que a sessão nova nunca herda a janela de senha da
+		// sessão anterior, guardada em `sessionStorage` (sobrevive a
+		// logout+login e a expiração natural de sessão na mesma aba — só
+		// fecha com o `exp` embutido ou quando a aba fecha). Sem isto, um id
+		// de outra sessão ainda parece válido no cliente e o pad de assinatura
+		// pula o passo de senha, indo direto para o 2FA.
+		apagarReauth();
 		await goto(destino, invalidateAll ? { invalidateAll: true } : undefined);
 	}
 

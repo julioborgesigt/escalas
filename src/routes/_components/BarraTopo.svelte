@@ -14,6 +14,7 @@
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
 	import { apiFetch } from '$lib/api-fetch';
+	import { apagarReauth } from '$lib/assinatura-reauth';
 	import { loading } from '$lib/loading.svelte';
 	import { toaster } from '$lib/toast';
 	import { mensagemDeErro } from '$lib/utils/erro';
@@ -34,6 +35,11 @@
 			const result = await apiFetch<{ redirect?: string }>('/api/auth/alternar-acesso', {
 				method: 'POST'
 			});
+			// Nova sessão (token novo), mesma aba: a janela de senha da assinatura
+			// em `sessionStorage` sobreviveria à troca e pareceria válida — mesmo
+			// não pertencendo a esta sessão. É o caso do Admin Geral vinculado
+			// (supervisor) alternando para modo Usuário e vice-versa sem logout.
+			apagarReauth();
 			await goto(result.redirect || '/', { invalidateAll: true });
 		} catch (e: unknown) {
 			toaster.create({ title: mensagemDeErro(e, 'Erro ao alternar acesso'), type: 'error' });
