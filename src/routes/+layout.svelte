@@ -46,6 +46,7 @@
 	import { goto, onNavigate, afterNavigate, beforeNavigate } from '$app/navigation';
 	import { Dialog } from '@skeletonlabs/skeleton-svelte';
 	import { apiFetch } from '$lib/api-fetch';
+	import { apagarReauth } from '$lib/assinatura-reauth';
 	import { loading } from '$lib/loading.svelte';
 	import LoadingOverlay from '$lib/components/LoadingOverlay.svelte';
 	import Spinner from '$lib/components/Spinner.svelte';
@@ -111,6 +112,14 @@
 			}
 			keysToRemove.forEach((k) => localStorage.removeItem(k));
 		}
+
+		// Janela de senha da assinatura fica em `sessionStorage`, que sobrevive à
+		// troca de conta na MESMA aba (logout+login em seguida). Sem isto, quem
+		// loga como outra pessoa herda um id que ainda parece válido no cliente
+		// (formato + prazo ok) mas pertence à sessão anterior — o pad pula
+		// direto para o 2FA achando que a senha já foi confirmada, e o servidor
+		// recusa por sessão/usuário divergente.
+		apagarReauth();
 
 		try {
 			// invalidateAll separado causava duas navegações conflitantes (AbortError na view transition).
