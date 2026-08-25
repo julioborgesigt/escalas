@@ -82,14 +82,6 @@ export function mensagemReposicaoDoisEmails(): string {
 	);
 }
 
-/** Oferta pulável no primeiro acesso, só no celular. */
-export function mensagemOfertaChavePrimeiroAcesso(): string {
-	return (
-		'Opcional agora. Sem ela você entra e lê; a assinatura avançada em tela fica para quando ' +
-		'cadastrar no celular. Depois de cadastrar, um aviso chega no e-mail funcional.'
-	);
-}
-
 /**
  * Cartão da ficha do policial, visão do Admin Geral. Cadastro é do titular;
  * daqui só se revoga. "Chave única" é o contrato: uma ativa por pessoa.

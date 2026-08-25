@@ -1036,7 +1036,11 @@ Quem tem **Admin Geral vinculado** (linha em `administradores` ligada ao seu pol
 
 ### Primeiro acesso
 
-Após criar um policial/admin, a conta fica bloqueada até o usuário definir sua própria senha (`primeiro_acesso = true`). O sistema redireciona automaticamente para `/alterar-senha`.
+Após criar um policial/admin, a conta fica bloqueada até o usuário definir sua própria senha (`primeiro_acesso = true`). O sistema redireciona automaticamente para `/alterar-senha`, onde ele confirma o **e-mail pessoal** por código antes de gravar a senha nova — o e-mail é o canal de recuperação, e sem ele confirmado uma senha perdida deixa a conta inacessível.
+
+O onboarding tem **duas fases, nesta ordem**: (1) `primeiro_acesso` — senha + e-mail pessoal; (2) aceite do Termo de Uso vigente. Enquanto a fase 1 está pendente o portão do Termo **não** é imposto (`impoeAceiteDoTermo` em [`onboarding-gates.ts`](src/lib/server/auth/onboarding-gates.ts)): a superfície alcançável já está reduzida a quatro rotas de onboarding, e exigir o aceite ali produziria um 403 sem saída — `/aceitar-termo` é inalcançável enquanto o portão de `primeiro_acesso` devolve todo mundo para `/alterar-senha`. Definida a senha, o `goto('/')` cai no portão do Termo e segue para `/aceitar-termo`.
+
+A tela de primeiro acesso **não** oferece o cadastro da chave de assinatura. O convite vive onde a falta da chave morde: na hora de assinar, e só com `exigir_passkey_assinatura` ligada — ver [`DEPLOY.md`](DEPLOY.md#chave-de-assinatura-passkey--webauthn).
 
 ### Termo de uso
 
