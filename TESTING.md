@@ -32,9 +32,17 @@ Roteiro de regressão manual dos fluxos de negócio. **Papel deste arquivo: exce
 
 ### 1.4 Primeiro Acesso
 
+> `[Vitest: onboarding-gates.test.ts]` cobre a REGRA das duas fases: com
+> `primeiro_acesso` pendente o portão do Termo não é imposto em rota nenhuma;
+> resolvido, vale a allowlist do Termo. Manual: a tela de ponta a ponta.
+
 - [ ] Login com credencial temporária → redirecionar para `/alterar-senha`
 - [ ] Tentar acessar outra página sem alterar senha → redirecionado de volta
-- [ ] Alterar senha com sucesso → liberar acesso ao sistema
+- [ ] "Enviar código" → o OTP chega no e-mail pessoal informado, e o passo **não** morre com "Aceite o Termo de Uso vigente antes de continuar" (o aceite vem depois — as duas APIs de verificação de e-mail correm dentro da fase 1)
+- [ ] Conta cujo e-mail pessoal JÁ estava preenchido (ex.: após `users:set-default-password`) → o "Enviar código" **não** pede a senha de acesso; fora do primeiro acesso, em Meu Perfil, a troca do e-mail pessoal continua pedindo
+- [ ] Sem confirmar o e-mail pessoal, o botão "Definir senha e continuar" fica desabilitado; POST direto da action → 400 ("Confirme seu e-mail pessoal antes de concluir o primeiro acesso")
+- [ ] Alterar senha com sucesso → **cai em `/aceitar-termo`** (com o termo vigente pendente); aceitar → boas-vindas do papel
+- [ ] A tela de primeiro acesso **não** oferece cadastrar a chave de assinatura — nem no celular, com ou sem `exigir_passkey_assinatura` ligada
 
 ### 1.5 Login por certificado A3 (desktop, Assinador SERPRO)
 
@@ -768,6 +776,7 @@ Verificar cada transição de status:
 - [ ] Ligar `exigir_passkey_assinatura` → em escala, GISE, extra e presença o fluxo passa a preparar → biometria → finalizar; POST direto no um-tiro (`assinar-simples` / `assinar` / form action de presença) → **403**
 - [ ] Presença com a flag ligada: o `preparar-assinatura-avancada` **não** grava entrada/saída. Cancelar a biometria deixa o plantão sem presença; só o `finalizar` (após a asserção) persiste.
 - [ ] Sem chave registrada em `/perfil`, com a flag ligada → lê o documento (200) e o POST de avançada → **403** (no celular aponta Meu Perfil; no desktop, Token A3). Cadastro da chave só no celular; reposição pede os dois e-mails
+- [ ] Com a flag DESLIGADA e sem chave → nenhuma tela convida a cadastrar: assina em tela pelo caminho de um tiro, e o primeiro acesso não menciona chave nenhuma. O convite só aparece com a flag ligada, na hora de assinar
 - [ ] Com chave já cadastrada, o perfil mostra o recorte (igual ao manifesto), o vínculo, o último uso e explica que o sistema **não** guarda o modelo do celular — a pessoa localiza a chave no gerenciador do iPhone/Google ou tentando assinar. Avisa: mesma conta Apple/Google → **não** cadastrar de novo (assinar); só repor se trocou/perdeu o aparelho
 - [ ] Cadastro, reposição e revogação (titular ou Admin Geral) disparam aviso no **e-mail funcional** (recorte da chave, sem IP). Falha de envio **não** desfaz o ato
 - [ ] Manifesto do PDF assinado por passkey traz a linha `CHAVE DE ASSINATURA` com "biometria/PIN do titular" e o vínculo da credencial (sincronizada x deste aparelho)

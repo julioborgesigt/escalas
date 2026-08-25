@@ -47,7 +47,7 @@ import { mensagemDeErro } from '$lib/utils/erro';
 import {
 	pathnameNoEscopo,
 	pathnameLivreEmPrimeiroAcesso,
-	pathnameLivreDoTermo
+	impoeAceiteDoTermo
 } from '$lib/server/auth/onboarding-gates';
 import { deveRecusarPorOrigem } from '$lib/server/auth/csrf-origin';
 import { renovaSessao } from '$lib/server/auth/sessao-renovacao';
@@ -179,10 +179,6 @@ const handleAuth: Handle = async ({ event, resolve }) => {
 
 	const token = event.cookies.get('session_token');
 
-	// Allowlist FECHADA — não o prefixo `/api/auth/` inteiro (SEC-05). A lista
-	// e o porquê de cada rota estão em `onboarding-gates.ts`.
-	const rotasLivresTermo = pathnameLivreDoTermo(pathname);
-
 	let usuario = null;
 	let aceiteVigente = true;
 
@@ -266,10 +262,13 @@ const handleAuth: Handle = async ({ event, resolve }) => {
 	}
 
 	// Fluxo de aceite do Termo de Uso vigente.
-	// Roda APÓS primeiro_acesso resolvido (senha definida + e-mail confirmado).
+	// Roda APÓS primeiro_acesso resolvido (senha definida + e-mail confirmado) —
+	// é `impoeAceiteDoTermo` quem impõe essa ordem, com allowlist FECHADA (não o
+	// prefixo `/api/auth/` inteiro, SEC-05). A lista e o porquê de cada rota
+	// estão em `onboarding-gates.ts`.
 	// O aceite em si já foi verificado dentro do batch de validarSessaoComAceite;
 	// aqui só decidimos o destino com base no resultado.
-	if (!rotasLivresTermo && !aceiteVigente) {
+	if (impoeAceiteDoTermo(pathname, usuario.primeiro_acesso) && !aceiteVigente) {
 		if (pathname.startsWith('/api/')) {
 			return apiError('Aceite o Termo de Uso vigente antes de continuar', 403, ErrorCode.FORBIDDEN);
 		}

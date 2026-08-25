@@ -2,7 +2,8 @@ import { describe, it, expect } from 'vitest';
 import {
 	pathnameNoEscopo,
 	pathnameLivreEmPrimeiroAcesso,
-	pathnameLivreDoTermo
+	pathnameLivreDoTermo,
+	impoeAceiteDoTermo
 } from '../onboarding-gates';
 
 describe('pathnameNoEscopo', () => {
@@ -43,5 +44,47 @@ describe('pathnameLivreDoTermo (SEC-05)', () => {
 		expect(pathnameLivreDoTermo('/api/auth/alternar-acesso')).toBe(false);
 		expect(pathnameLivreDoTermo('/api/auth/solicitar-codigo-assinatura')).toBe(false);
 		expect(pathnameLivreDoTermo('/api/auth/reautenticar-assinatura')).toBe(false);
+	});
+});
+
+describe('impoeAceiteDoTermo — os dois portões são FASES', () => {
+	const OTP_EMAIL = [
+		'/api/auth/solicitar-verificacao-email-pessoal',
+		'/api/auth/confirmar-verificacao-email-pessoal'
+	];
+
+	it('em primeiro acesso, não impõe o termo em NENHUMA rota', () => {
+		// A superfície já está reduzida por `pathnameLivreEmPrimeiroAcesso`; o
+		// termo só teria a acrescentar um 403 sem saída — `/aceitar-termo` é
+		// inalcançável enquanto a fase 1 não fecha.
+		for (const rota of [
+			'/alterar-senha',
+			...OTP_EMAIL,
+			'/api/auth/logout',
+			'/escalas',
+			'/api/escalas/1/assinar-simples'
+		]) {
+			expect(impoeAceiteDoTermo(rota, true)).toBe(false);
+		}
+	});
+
+	it('o OTP do e-mail pessoal não morria por rota, e sim por fase', () => {
+		// O bug: a TELA estava livre do termo e as duas APIs que ela chama não —
+		// "Enviar código" respondia 403 no meio do primeiro acesso.
+		for (const rota of OTP_EMAIL) {
+			expect(impoeAceiteDoTermo(rota, true)).toBe(false);
+			// Fora do onboarding elas voltam a exigir o aceite: trocar o canal de
+			// recuperação com um termo novo pendente não é onboarding.
+			expect(impoeAceiteDoTermo(rota, false)).toBe(true);
+		}
+	});
+
+	it('resolvido o primeiro acesso, vale a allowlist do termo', () => {
+		expect(impoeAceiteDoTermo('/aceitar-termo', false)).toBe(false);
+		expect(impoeAceiteDoTermo('/alterar-senha', false)).toBe(false);
+		expect(impoeAceiteDoTermo('/termo/v1', false)).toBe(false);
+		expect(impoeAceiteDoTermo('/api/auth/logout', false)).toBe(false);
+		expect(impoeAceiteDoTermo('/escalas', false)).toBe(true);
+		expect(impoeAceiteDoTermo('/api/auth/alternar-acesso', false)).toBe(true);
 	});
 });

@@ -19,7 +19,6 @@ import {
 	situacaoChaveNoCadastro,
 	mensagemJaTemChaveNoPerfil,
 	mensagemReposicaoDoisEmails,
-	mensagemOfertaChavePrimeiroAcesso,
 	mensagemChaveNoCartaoAdmin,
 	mensagemOndeEstaAChave
 } from '$lib/chave-assinatura-ui';
@@ -110,8 +109,6 @@ describe('copy da chave no perfil', () => {
 
 		expect(mensagemReposicaoDoisEmails()).toMatch(/dois e-mails/);
 		expect(mensagemReposicaoDoisEmails()).toMatch(/e-mail funcional/);
-		expect(mensagemOfertaChavePrimeiroAcesso()).toMatch(/e-mail funcional/);
-		expect(mensagemOfertaChavePrimeiroAcesso()).not.toMatch(/dispositivo registrado/i);
 	});
 
 	it('cartão do Admin Geral: cadastro do titular, daqui só revoga', () => {
