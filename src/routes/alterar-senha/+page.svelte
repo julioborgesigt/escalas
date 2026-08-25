@@ -178,30 +178,16 @@
 					descricao={primeiroAcesso
 						? 'Confirme seu e-mail pessoal e escolha uma senha segura para continuar.'
 						: 'Preencha os campos abaixo para alterar sua senha.'}
+					mostrarIcone={!primeiroAcesso}
 				/>
 
 				<!-- First-access warning banner -->
 				{#if primeiroAcesso}
 					<div
-						class="flex items-start gap-2.5 p-3 mb-5 rounded-xl bg-warning-500/10 border border-warning-500/25 text-warning-700 dark:text-warning-300 text-sm"
+						class="p-3 mb-5 rounded-xl bg-warning-500/10 border border-warning-500/25 text-warning-700 dark:text-warning-300 text-sm"
 					>
-						<svg
-							class="w-4 h-4 mt-0.5 shrink-0"
-							fill="none"
-							viewBox="0 0 24 24"
-							stroke="currentColor"
-							stroke-width="2"
-						>
-							<path
-								stroke-linecap="round"
-								stroke-linejoin="round"
-								d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"
-							/>
-						</svg>
-						<span
-							>Este é seu <strong>primeiro acesso</strong>. Confirme seu e-mail pessoal e defina uma
-							senha para continuar.</span
-						>
+						Este é seu <strong>primeiro acesso</strong>. Confirme seu e-mail pessoal e defina uma
+						senha para continuar.
 					</div>
 				{/if}
 
@@ -238,9 +224,9 @@
 								E-mail pessoal verificado com sucesso!
 							</div>
 						{:else if verificacaoEmail.etapa === 'dados'}
-							<div class="flex gap-2">
+							<div class="flex flex-col gap-2">
 								<input
-									class="input flex-1 text-sm"
+									class="input w-full text-sm"
 									type="email"
 									placeholder="seu@email.com"
 									bind:value={verificacaoEmail.email}
@@ -248,6 +234,7 @@
 								/>
 								<button
 									type="button"
+									class="btn preset-filled-primary-500 w-full py-2.5 text-sm font-semibold"
 									onclick={enviarCodigoEmailPessoal}
 									disabled={loading.active || !verificacaoEmail.email.trim()}
 								>
@@ -259,7 +246,7 @@
 								Código enviado para <strong>{verificacaoEmail.emailMascarado}</strong>. Válido por
 								10 minutos.
 							</p>
-							<div class="flex gap-2">
+							<div class="flex flex-col xs:flex-row gap-2">
 								<input
 									class="input flex-1 text-center text-xl font-bold tracking-[0.3em]"
 									type="text"
@@ -273,7 +260,12 @@
 											.slice(0, 6))}
 									disabled={loading.active}
 								/>
-								<button type="button" onclick={confirmarCodigoEmailPessoal}>
+								<button
+									type="button"
+									class="btn preset-filled-primary-500 py-2.5 text-sm font-semibold xs:shrink-0"
+									onclick={confirmarCodigoEmailPessoal}
+									disabled={loading.active}
+								>
 									{loading.active ? 'Verificando...' : 'Confirmar'}
 								</button>
 							</div>

@@ -4,6 +4,8 @@
  *
  * Garante que:
  *   - 1º cadastro (sem e-mail pessoal atual) NÃO exige senha;
+ *   - `primeiro_acesso` NÃO exige senha mesmo com e-mail já cadastrado
+ *     (onboarding: a senha ainda está sendo definida);
  *   - troca de e-mail existente exige senha (inclusive para ADMIN — o furo do L-1);
  *   - senha ausente / incorreta são distinguidas e a incorreta grava tentativa
  *     (throttle) sem conceder;
@@ -85,6 +87,19 @@ describe('exigirSenhaParaTrocaEmailPessoal', () => {
 		const db = fakeDb({ policial: { email_pessoal: null, senha: senhaHash }, inserts });
 		const r = await exigirSenhaParaTrocaEmailPessoal(db, policialLogado, undefined, undefined);
 		expect(r).toEqual({ ok: true, trocaDeEmailExistente: false });
+		expect(inserts.count).toBe(0);
+	});
+
+	it('primeiro_acesso com e-mail já cadastrado não exige senha', async () => {
+		const inserts = { count: 0 };
+		const db = fakeDb({ policial: { email_pessoal: 'a@b.com', senha: senhaHash }, inserts });
+		const r = await exigirSenhaParaTrocaEmailPessoal(
+			db,
+			{ ...policialLogado, primeiro_acesso: true },
+			undefined,
+			undefined
+		);
+		expect(r).toEqual({ ok: true, trocaDeEmailExistente: true });
 		expect(inserts.count).toBe(0);
 	});
 

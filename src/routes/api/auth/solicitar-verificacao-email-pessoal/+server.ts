@@ -52,8 +52,9 @@ export const POST: RequestHandler = async ({ request, platform, locals }) => {
 
 	// TROCA de e-mail pessoal (usuário que já tem um cadastrado): exige a
 	// reinserção da senha — uma sessão esquecida/roubada não basta para
-	// redirecionar o canal de recuperação de senha. O 1º cadastro (sem e-mail
-	// anterior) segue sem senha, como no onboarding do /alterar-senha.
+	// redirecionar o canal de recuperação de senha. Isentos: 1º cadastro (sem
+	// e-mail anterior) e `primeiro_acesso` (a senha ainda está sendo definida
+	// em /alterar-senha).
 	//
 	// L-1 da auditoria 2026-07-10: a regra vale para TODAS as sessões (antes,
 	// só policiais — admins trocavam sem senha) e a verificação é throttled por
