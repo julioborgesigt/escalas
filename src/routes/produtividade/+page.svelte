@@ -45,6 +45,7 @@
 	import { goto } from '$app/navigation';
 	import { slide } from 'svelte/transition';
 	import Spinner from '$lib/components/Spinner.svelte';
+	import BotaoLimparFiltros from '$lib/components/BotaoLimparFiltros.svelte';
 	import GripVertical from '@lucide/svelte/icons/grip-vertical';
 	import {
 		useProdutividade,
@@ -82,6 +83,11 @@
 	const SEG_OFF = 'text-surface-600 dark:text-surface-400';
 	/** Tipo de equipe que a operação não usa: visível, apagado e sem clique. */
 	const SEG_OFF_DISABLED = 'opacity-40 cursor-not-allowed';
+	/** Contorno compartilhado por Filtros / Organizar / Baixar — evita drift entre os três. */
+	const BOTAO_OUTLINE =
+		'inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-surface-300/80 bg-white px-3 py-1.5 text-xs font-semibold text-surface-700 transition-colors hover:border-primary-400/50 hover:bg-primary-500/5 dark:border-surface-600/80 dark:bg-surface-800 dark:text-surface-200 dark:hover:bg-surface-700/80';
+	const BOTAO_OUTLINE_ON =
+		'border-primary-500/50 bg-primary-500/5 dark:border-primary-500/40 dark:bg-primary-500/10';
 </script>
 
 <svelte:head>
@@ -89,168 +95,76 @@
 </svelte:head>
 
 <div
-	class="pagina-produtividade space-y-8 pb-12 {p.selectedCharts.length > 0 ? 'has-selections' : ''}"
+	class="pagina-produtividade space-y-5 sm:space-y-8 pb-12 {p.selectedCharts.length > 0
+		? 'has-selections'
+		: ''}"
 >
-	<header class="flex flex-col md:flex-row md:items-start justify-between gap-4 sm:gap-6">
-		<div class="space-y-1">
-			<h1 class="h1 text-2xl font-bold">
-				Produção {p.filterTipo === 'seint' ? 'Inteligência' : 'Operacional'}
-			</h1>
-			<p class="text-surface-600 dark:text-surface-400 font-medium print:hidden">
-				Análise filtrada e segmentada dos resultados reais {p.filterTipo === 'seint'
-					? '(SEINT)'
-					: '(P4-P19)'}
+	<header class="space-y-1">
+		<h1 class="h1 text-2xl font-bold">
+			Produção {p.filterTipo === 'seint' ? 'Inteligência' : 'Operacional'}
+		</h1>
+		<p class="text-surface-600 dark:text-surface-400 font-medium print:hidden">
+			Análise filtrada e segmentada dos resultados reais {p.filterTipo === 'seint'
+				? '(SEINT)'
+				: '(P4-P19)'}
+		</p>
+		{#if p.data.escopoRestrito}
+			<!-- O recorte é do SERVIDOR, e quem o vê precisa saber: sem este aviso,
+			     um total menor parece queda de produtividade em vez de recorte. -->
+			<p class="text-2xs text-surface-600 dark:text-surface-400 mt-1 print:hidden">
+				Exibindo apenas os dados das unidades que você administra nesta operação.
 			</p>
-			{#if p.data.escopoRestrito}
-				<!-- O recorte é do SERVIDOR, e quem o vê precisa saber: sem este aviso,
-				     um total menor parece queda de produtividade em vez de recorte. -->
-				<p class="text-2xs text-surface-600 dark:text-surface-400 mt-1 print:hidden">
-					Exibindo apenas os dados das unidades que você administra nesta operação.
-				</p>
-			{/if}
-		</div>
-		<!-- Os controles não vão para o papel: quem lê o PDF não clica em "Baixar".
-
-		     DOIS grupos, e a separação não é estética: "Organizar painel" muda o que
-		     TODOS veem na operação, enquanto os de baixo produzem um arquivo para
-		     quem clicou. Eles moraram juntos sob o rótulo "Baixar gráficos", que
-		     descrevia três dos quatro botões e mentia sobre o primeiro. -->
-		<div class="flex flex-col items-stretch gap-3 print:hidden md:items-end">
-			<!-- Só o Admin Geral. Esconder o botão NÃO é a autorização: quem recusa
-			     o PUT direto é `requireAdmin` em `/api/produtividade/ordem`. -->
-			{#if p.podeOrganizar && !p.organizando}
-				<button
-					type="button"
-					class="btn self-start md:self-end bg-surface-200/60 dark:bg-surface-800/60 text-surface-600 dark:text-surface-300 hover:bg-surface-200 dark:hover:bg-surface-700 text-3xs font-black uppercase tracking-widest px-4 py-2 rounded-xl transition-colors flex items-center gap-2"
-					onclick={() => (p.organizando = true)}
-				>
-					<GripVertical class="w-3.5 h-3.5" aria-hidden="true" />
-					Organizar painel
-				</button>
-			{/if}
-
-			<!-- Some no modo organizar: ali os cards estão inertes, e um botão de
-			     baixar convidaria a exportar um painel em rascunho. -->
-			{#if !p.organizando}
-				<div class="flex flex-col items-start gap-2 md:items-end">
-					<span
-						class="text-xs font-bold uppercase tracking-widest text-surface-400 dark:text-surface-500"
-						>Baixar gráficos</span
-					>
-					<div class="flex flex-wrap items-center gap-2 md:justify-end">
-						{#if p.allChartsCount > 0}
-							<button
-								type="button"
-								class="btn text-3xs font-black uppercase tracking-widest px-4 py-2 rounded-xl transition-colors {p
-									.selectedCharts.length >= p.allChartsCount
-									? 'bg-surface-900 dark:bg-surface-50 text-white dark:text-surface-950'
-									: 'bg-surface-200/60 dark:bg-surface-800/60 text-surface-600 dark:text-surface-300 hover:bg-surface-200 dark:hover:bg-surface-700'}"
-								onclick={p.selectAllCharts}
-							>
-								{p.selectedCharts.length >= p.allChartsCount
-									? 'Desmarcar Todos'
-									: `Selecionar Todos (${p.allChartsCount})`}
-							</button>
-						{/if}
-
-						<button
-							type="button"
-							class="btn {p.selectedCharts.length > 0
-								? 'bg-error-600 hover:bg-error-700 text-white'
-								: 'bg-surface-200/80 dark:bg-surface-800/80 text-surface-500 dark:text-surface-400 cursor-not-allowed'} text-3xs font-black uppercase tracking-widest py-2 px-4 rounded-xl transition-colors flex items-center gap-2"
-							onclick={p.exportChartsAsImages}
-							disabled={p.selectedCharts.length === 0 || p.exporting}
-						>
-							{#if p.exporting}
-								<Spinner size="sm" />
-								Exportando...
-							{:else}
-								<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"
-									><path
-										stroke-linecap="round"
-										stroke-linejoin="round"
-										stroke-width="3"
-										d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
-									/></svg
-								>
-								Baixar (imagem){p.selectedCharts.length > 0 ? ` (${p.selectedCharts.length})` : ''}
-							{/if}
-						</button>
-
-						<button
-							type="button"
-							class="btn {p.selectedCharts.length > 0
-								? 'bg-secondary-600 hover:bg-secondary-700 text-white'
-								: 'bg-surface-200/80 dark:bg-surface-800/80 text-surface-500 dark:text-surface-400 cursor-not-allowed'} text-3xs font-black uppercase tracking-widest py-2 px-4 rounded-xl transition-colors flex items-center gap-2"
-							onclick={() => window.print()}
-							disabled={p.selectedCharts.length === 0}
-						>
-							<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"
-								><path
-									stroke-linecap="round"
-									stroke-linejoin="round"
-									stroke-width="3"
-									d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-								/></svg
-							>
-							Baixar (PDF){p.selectedCharts.length > 0 ? ` (${p.selectedCharts.length})` : ''}
-						</button>
-					</div>
-				</div>
-			{/if}
-		</div>
+		{/if}
 	</header>
-
-	{#if p.organizando}
-		<BarraOrganizar
-			tipoEquipe={p.filterTipo === 'seint' ? 'Inteligência' : 'Operacional'}
-			alterada={p.ordemAlterada}
-			salvando={p.salvandoOrdem}
-			temOrdemPropria={p.temOrdemPropria}
-			onSalvar={p.salvarOrdem}
-			onDescartar={p.descartarOrdem}
-			onRestaurarPadrao={p.restaurarOrdemPadrao}
-			onCancelar={p.cancelarOrganizacao}
-		/>
-	{/if}
 
 	<!-- A barra de filtros é controle de tela: no PDF ela só ocuparia a primeira
 	     folha antes do primeiro gráfico. -->
 	<div class="space-y-3 print:hidden">
-		<div class="flex items-center justify-between gap-2">
+		<div class="flex items-center justify-between gap-1.5 sm:gap-2">
 			<span
-				class="text-xs font-bold uppercase tracking-widest text-surface-400 dark:text-surface-500"
+				class="shrink-0 text-xs font-bold uppercase tracking-widest text-surface-400 dark:text-surface-500"
 				>Filtros</span
 			>
-			<button
-				type="button"
-				class="inline-flex items-center gap-1.5 rounded-xl border border-surface-300/80 bg-white px-3 py-1.5 text-xs font-semibold text-surface-700 transition-colors hover:border-primary-400/50 hover:bg-primary-500/5 dark:border-surface-600/80 dark:bg-surface-800 dark:text-surface-200 dark:hover:bg-surface-700/80 {p.mostrarFiltros
-					? 'border-primary-500/50 bg-primary-500/5 dark:border-primary-500/40 dark:bg-primary-500/10'
-					: ''}"
-				onclick={() => (p.mostrarFiltros = !p.mostrarFiltros)}
-				aria-expanded={p.mostrarFiltros}
-			>
-				<svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-					<path
-						stroke-linecap="round"
-						stroke-linejoin="round"
-						stroke-width="2"
-						d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"
-					/>
-				</svg>
-				{p.mostrarFiltros ? 'Ocultar filtros' : 'Filtros'}
-				{#if p.filtrosAtivos}
-					<span class="h-1.5 w-1.5 rounded-full bg-primary-500"></span>
-				{/if}
-			</button>
+			<div class="flex shrink-0 items-center gap-1.5 sm:gap-2">
+				<BotaoLimparFiltros
+					temFiltros={p.filtrosAtivos}
+					onclick={p.limparFiltros}
+					classes="shrink-0 whitespace-nowrap"
+				/>
+				<button
+					type="button"
+					class="{BOTAO_OUTLINE} {p.mostrarFiltros ? BOTAO_OUTLINE_ON : ''}"
+					onclick={() => (p.mostrarFiltros = !p.mostrarFiltros)}
+					aria-expanded={p.mostrarFiltros}
+				>
+					<svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+						<path
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							stroke-width="2"
+							d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"
+						/>
+					</svg>
+					{#if p.mostrarFiltros}
+						<span class="xs:hidden">Ocultar</span><span class="hidden xs:inline"
+							>Ocultar filtros</span
+						>
+					{:else}
+						Filtros
+					{/if}
+					{#if p.filtrosAtivos}
+						<span class="h-1.5 w-1.5 rounded-full bg-primary-500"></span>
+					{/if}
+				</button>
+			</div>
 		</div>
 
 		{#if p.mostrarFiltros}
 			<section
-				class="overflow-hidden rounded-3xl border border-surface-200 bg-white dark:border-surface-800 dark:bg-surface-900"
+				class="overflow-hidden rounded-2xl sm:rounded-3xl border border-surface-200 bg-white dark:border-surface-800 dark:bg-surface-900"
 				transition:slide={{ duration: 250 }}
 			>
-				<div class="space-y-4 p-4 sm:p-5">
+				<div class="space-y-4 p-3 sm:p-5">
 					<!-- LINHA 1 — o que está EM FOCO: qual operação, por qual eixo, e de que
 					     tipo de equipe.
 					     A divisão entre as duas linhas já foi SEMÂNTICA ("só os de baixo
@@ -292,13 +206,13 @@
 							<div class="inline-flex w-full rounded-xl bg-surface-100 dark:bg-surface-800 p-1">
 								<button
 									type="button"
-									class="{SEGMENTO} {p.modoVisualizacao === 'delegacias' ? SEG_ON : SEG_OFF}"
-									onclick={() => (p.modoVisualizacao = 'delegacias')}>Delegacias</button
+									class="{SEGMENTO} {p.modoVisualizacao === 'seccionais' ? SEG_ON : SEG_OFF}"
+									onclick={() => (p.modoVisualizacao = 'seccionais')}>Seccionais</button
 								>
 								<button
 									type="button"
-									class="{SEGMENTO} {p.modoVisualizacao === 'seccionais' ? SEG_ON : SEG_OFF}"
-									onclick={() => (p.modoVisualizacao = 'seccionais')}>Seccionais</button
+									class="{SEGMENTO} {p.modoVisualizacao === 'delegacias' ? SEG_ON : SEG_OFF}"
+									onclick={() => (p.modoVisualizacao = 'delegacias')}>Delegacias</button
 								>
 							</div>
 						</div>
@@ -423,6 +337,128 @@
 			</section>
 		{/if}
 	</div>
+
+	<!-- Fora do wrapper curto dos filtros: `sticky` só gruda enquanto o ANCESTOR
+	     cabe na rolagem — dentro do `space-y-3` dos filtros a barra sumia assim
+	     que o bloco curto saía da tela. Aqui o ancestral é a página inteira.
+	     Visualmente continua logo abaixo dos filtros. -->
+	{#if p.organizando}
+		<BarraOrganizar
+			tipoEquipe={p.filterTipo === 'seint' ? 'Inteligência' : 'Operacional'}
+			alterada={p.ordemAlterada}
+			salvando={p.salvandoOrdem}
+			temOrdemPropria={p.temOrdemPropria}
+			onSalvar={p.salvarOrdem}
+			onDescartar={p.descartarOrdem}
+			onRestaurarPadrao={p.restaurarOrdemPadrao}
+			onCancelar={p.cancelarOrganizacao}
+		/>
+	{:else}
+		<!-- Toggle row nowrap: flex-wrap fazia Baixar cair à esquerda na linha de baixo. -->
+		<div class="flex flex-col gap-2 print:hidden">
+			<div class="flex flex-nowrap items-center justify-between gap-2">
+				{#if p.podeOrganizar}
+					<button type="button" class={BOTAO_OUTLINE} onclick={() => (p.organizando = true)}>
+						<GripVertical class="h-3.5 w-3.5" aria-hidden="true" />
+						<span class="xs:hidden">Organizar</span><span class="hidden xs:inline"
+							>Organizar painel</span
+						>
+					</button>
+				{:else}
+					<span class="shrink-0" aria-hidden="true"></span>
+				{/if}
+				<button
+					type="button"
+					class="{BOTAO_OUTLINE} {p.mostrarBaixarGraficos ? BOTAO_OUTLINE_ON : ''}"
+					onclick={() => (p.mostrarBaixarGraficos = !p.mostrarBaixarGraficos)}
+					aria-expanded={p.mostrarBaixarGraficos}
+				>
+					<svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+						<path
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							stroke-width="2"
+							d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
+						/>
+					</svg>
+					{#if p.mostrarBaixarGraficos}
+						<span class="xs:hidden">Ocultar</span><span class="hidden xs:inline"
+							>Ocultar baixar</span
+						>
+					{:else}
+						<span class="xs:hidden">Baixar</span><span class="hidden xs:inline"
+							>Baixar gráficos</span
+						>
+					{/if}
+				</button>
+			</div>
+
+			{#if p.mostrarBaixarGraficos}
+				<div
+					class="flex flex-col gap-2 xs:flex-row xs:flex-wrap xs:justify-end"
+					transition:slide={{ duration: 250 }}
+				>
+					{#if p.allChartsCount > 0}
+						<button
+							type="button"
+							class="btn w-full xs:w-auto text-3xs font-black uppercase tracking-widest px-4 py-2 rounded-xl transition-colors {p
+								.selectedCharts.length >= p.allChartsCount
+								? 'bg-surface-900 dark:bg-surface-50 text-white dark:text-surface-950'
+								: 'bg-surface-200/60 dark:bg-surface-800/60 text-surface-600 dark:text-surface-300 hover:bg-surface-200 dark:hover:bg-surface-700'}"
+							onclick={p.selectAllCharts}
+						>
+							{p.selectedCharts.length >= p.allChartsCount
+								? 'Desmarcar Todos'
+								: `Selecionar Todos (${p.allChartsCount})`}
+						</button>
+					{/if}
+
+					<button
+						type="button"
+						class="btn w-full xs:w-auto {p.selectedCharts.length > 0
+							? 'bg-error-600 hover:bg-error-700 text-white'
+							: 'bg-surface-200/80 dark:bg-surface-800/80 text-surface-500 dark:text-surface-400 cursor-not-allowed'} text-3xs font-black uppercase tracking-widest py-2 px-4 rounded-xl transition-colors flex items-center justify-center gap-2"
+						onclick={p.exportChartsAsImages}
+						disabled={p.selectedCharts.length === 0 || p.exporting}
+					>
+						{#if p.exporting}
+							<Spinner size="sm" />
+							Exportando...
+						{:else}
+							<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+								><path
+									stroke-linecap="round"
+									stroke-linejoin="round"
+									stroke-width="3"
+									d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+								/></svg
+							>
+							Baixar (imagem){p.selectedCharts.length > 0 ? ` (${p.selectedCharts.length})` : ''}
+						{/if}
+					</button>
+
+					<button
+						type="button"
+						class="btn w-full xs:w-auto {p.selectedCharts.length > 0
+							? 'bg-secondary-600 hover:bg-secondary-700 text-white'
+							: 'bg-surface-200/80 dark:bg-surface-800/80 text-surface-500 dark:text-surface-400 cursor-not-allowed'} text-3xs font-black uppercase tracking-widest py-2 px-4 rounded-xl transition-colors flex items-center justify-center gap-2"
+						onclick={() => window.print()}
+						disabled={p.selectedCharts.length === 0}
+					>
+						<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+							><path
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								stroke-width="3"
+								d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+							/></svg
+						>
+						Baixar (PDF){p.selectedCharts.length > 0 ? ` (${p.selectedCharts.length})` : ''}
+					</button>
+				</div>
+			{/if}
+		</div>
+	{/if}
 
 	{#if p.painelVazio}
 		<!-- Nem indicador, nem bloco fixo, nem pergunta marcada. Sem este aviso a

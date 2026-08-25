@@ -5,7 +5,18 @@
 	 *
 	 * Fica `sticky` no topo porque o painel é alto: com a barra no fim da página,
 	 * arrastar o último gráfico deixaria o botão "Salvar" a três telas de
-	 * distância. Ela some do papel (`print:hidden`) como todo o cromo da tela.
+	 * distância. O offset é `top-16` (não `top-0`/`top-2`) para ficar abaixo da
+	 * `BarraTopo` fixa (`h-14`, `z-40`); `z-30` fica abaixo do cromo. Some do
+	 * papel (`print:hidden`) como todo o cromo da tela.
+	 *
+	 * Precisa ser filho da página alta (não do wrapper curto dos filtros):
+	 * `sticky` só permanece enquanto o ancestral cabe na rolagem — dentro do
+	 * bloco dos filtros a barra sumia junto com ele.
+	 *
+	 * Layout vertical de propósito: o texto de instrução em cima, os botões em
+	 * fila abaixo. Em `lg:flex-row` os botões iam ao lado do texto e apertavam
+	 * a instrução — quem organiza pela primeira vez precisa ler as três regras
+	 * abaixo na largura inteira.
 	 *
 	 * O texto não é enfeite. Três coisas surpreendem quem organiza pela primeira
 	 * vez, e as três estão escritas aqui em vez de descobertas por tentativa:
@@ -48,13 +59,13 @@
 	} = $props();
 
 	const BOTAO =
-		'inline-flex items-center justify-center gap-1.5 rounded-xl px-4 py-2 text-3xs font-black uppercase tracking-widest transition-colors disabled:opacity-40 disabled:cursor-not-allowed';
+		'inline-flex w-full sm:w-auto items-center justify-center gap-1.5 rounded-xl px-4 py-2 text-3xs font-black uppercase tracking-widest transition-colors disabled:opacity-40 disabled:cursor-not-allowed';
 </script>
 
 <div
-	class="sticky top-2 z-30 rounded-2xl border-2 border-primary-500/50 bg-white/95 p-3 shadow-xl backdrop-blur dark:bg-surface-900/95 print:hidden sm:p-4"
+	class="sticky top-16 z-30 rounded-2xl border-2 border-primary-500/50 bg-white/95 p-3 shadow-xl backdrop-blur dark:bg-surface-900/95 print:hidden sm:p-4"
 >
-	<div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+	<div class="flex flex-col gap-3">
 		<div class="min-w-0 space-y-1">
 			<p class="flex items-center gap-1.5 text-sm font-bold">
 				<GripVertical class="h-4 w-4 text-primary-500" aria-hidden="true" />
@@ -68,7 +79,7 @@
 			</p>
 		</div>
 
-		<div class="flex flex-wrap items-center gap-2">
+		<div class="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
 			<!-- Desabilitado quando não há ordem própria: o painel JÁ está na ordem do
 			     formulário, e um botão que não muda nada só faz duvidar do estado. -->
 			<button
