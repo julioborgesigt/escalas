@@ -103,7 +103,10 @@ describe('adminPodeAcessarRota', () => {
 
 	it('Super Admin e não-admin passam', () => {
 		expect(
-			adminPodeAcessarRota({ tipo: 'admin', isSuperAdmin: true, modulosAdmin: soEscalas.modulosAdmin }, '/gise')
+			adminPodeAcessarRota(
+				{ tipo: 'admin', isSuperAdmin: true, modulosAdmin: soEscalas.modulosAdmin },
+				'/gise'
+			)
 		).toBe(true);
 		expect(adminPodeAcessarRota({ tipo: 'policial' }, '/gise')).toBe(true);
 		expect(adminPodeAcessarRota(null, '/gise')).toBe(true);

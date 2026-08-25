@@ -35,10 +35,7 @@ import {
 	gravarSessaoCache,
 	ttlCacheSessaoParaMetodo
 } from '$lib/server/auth/session-cache';
-import {
-	adminPodeAcessarRota,
-	resolverPreferenciaModulo
-} from '$lib/server/auth/admin-modulos';
+import { adminPodeAcessarRota, resolverPreferenciaModulo } from '$lib/server/auth/admin-modulos';
 import { VERSAO as TERMO_VERSAO, calcularHashTermo } from '$lib/server/termo/termo-vigente';
 import { logger } from '$lib/server/logger';
 import { requestStore, getRequestCtx, type RequestCtx } from '$lib/server/request-context';

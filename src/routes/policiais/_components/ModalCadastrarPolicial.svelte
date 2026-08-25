@@ -318,7 +318,9 @@
 			{/if}
 
 			{#if isAdmin}
-				<div class="p-3 rounded-xl bg-surface-500/5 border border-surface-500/10 flex flex-col gap-3">
+				<div
+					class="p-3 rounded-xl bg-surface-500/5 border border-surface-500/10 flex flex-col gap-3"
+				>
 					<h4 class="text-2xs font-bold uppercase opacity-50">Admin Geral (Opcional)</h4>
 					<p class="text-xs text-surface-600 dark:text-surface-400 leading-snug">
 						Cria a conta de Administrador Geral vinculada. A pessoa loga com a mesma matrícula/senha
@@ -363,7 +365,11 @@
 						</span>
 					</ToggleSwitch>
 					{#if concederAdminGeral}
-						<ToggleSwitch reverse checked={moduloEscalas} onCheckedChange={(v) => (moduloEscalas = v)}>
+						<ToggleSwitch
+							reverse
+							checked={moduloEscalas}
+							onCheckedChange={(v) => (moduloEscalas = v)}
+						>
 							<span
 								class="text-xs font-semibold {moduloEscalas
 									? 'text-success-700 dark:text-success-400'

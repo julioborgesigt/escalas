@@ -51,8 +51,8 @@
 	<h2 class="text-base font-bold mb-1 text-surface-700 dark:text-surface-300">Admin Geral</h2>
 	<p class="text-xs text-surface-600 dark:text-surface-400 mb-3">
 		Concede acesso de Administrador Geral. A pessoa loga com a <b>mesma matrícula e senha</b>,
-		escolhendo <b>"Administrador"</b> na tela de login. É cumulativo com o papel ao lado. Com o
-		vínculo ligado, libere os consoles que esta pessoa vai administrar.
+		escolhendo <b>"Administrador"</b> na tela de login. É cumulativo com o papel ao lado. Com o vínculo
+		ligado, libere os consoles que esta pessoa vai administrar.
 	</p>
 
 	<div class="mt-auto space-y-3">
