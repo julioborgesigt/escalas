@@ -42,7 +42,12 @@
 	import { enhance } from '$app/forms';
 	import { useGiseEstado, useGiseAssinatura } from '$lib/composables/gise';
 	import { escalaGiseJaAssinada } from '$lib/gise/status-escala';
-	import { useOfertaRubrica, rubricaValida, useInvalidateOnFocus, useMobile } from '$lib/composables';
+	import {
+		useOfertaRubrica,
+		rubricaValida,
+		useInvalidateOnFocus,
+		useMobile
+	} from '$lib/composables';
 	import { fetchSyncEstado } from '$lib/sync-estado';
 	import { loading } from '$lib/loading.svelte';
 	import type { Policial, GiseAssinaturaRelatorio } from '$lib/server/schema';

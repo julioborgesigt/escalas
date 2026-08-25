@@ -67,8 +67,7 @@
 							: 'Desenhe sua rubrica no quadro abaixo para assinar a escala.'
 	);
 	const mostrarOpcaoToken = $derived(
-		Boolean(onAssinarToken) &&
-			(signatureStep === 'signature' || signatureStep === 'credenciais')
+		Boolean(onAssinarToken) && (signatureStep === 'signature' || signatureStep === 'credenciais')
 	);
 </script>
 
@@ -97,7 +96,7 @@
 			bind:step={signatureStep}
 		/>
 		{#if mostrarOpcaoToken && onAssinarToken}
-			<RodapeOpcaoTokenAssinatura onAssinarToken={onAssinarToken} />
+			<RodapeOpcaoTokenAssinatura {onAssinarToken} />
 		{/if}
 	{/if}
 

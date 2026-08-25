@@ -156,11 +156,7 @@
 									{:else}
 										<PenLine class="w-3 h-3 shrink-0" aria-hidden="true" />
 									{/if}
-									{esc.is_assinada
-										? 'Assinado'
-										: isMobile
-											? 'Assinar (Tela)'
-											: 'Assinar'}
+									{esc.is_assinada ? 'Assinado' : isMobile ? 'Assinar (Tela)' : 'Assinar'}
 								</button>
 							{:else if isMobile}
 								<div class="p-3 rounded-xl bg-warning-500/5 border border-warning-500/20">

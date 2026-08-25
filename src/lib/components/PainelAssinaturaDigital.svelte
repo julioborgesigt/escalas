@@ -389,45 +389,45 @@
 
 					<!-- Card 2: Certificado Digital (A1/A3) — oculto no desktop quando avançada já oferece token no modal -->
 					{#if !avancadaDesktopDisponivel}
-					<div
-						class="flex items-center justify-between px-4 py-3 rounded-xl border bg-tertiary-500/5 border-tertiary-500/20"
-					>
-						<div class="flex items-center gap-2 min-w-0">
-							<ShieldCheck class="w-4 h-4 text-tertiary-500 shrink-0" aria-hidden="true" />
-							<div class="min-w-0">
-								<p
-									class="text-xs font-semibold text-surface-700 dark:text-surface-200 leading-none"
-								>
-									Certificado Digital <span class="text-3xs font-black text-tertiary-500 uppercase"
-										>ICP-Brasil</span
+						<div
+							class="flex items-center justify-between px-4 py-3 rounded-xl border bg-tertiary-500/5 border-tertiary-500/20"
+						>
+							<div class="flex items-center gap-2 min-w-0">
+								<ShieldCheck class="w-4 h-4 text-tertiary-500 shrink-0" aria-hidden="true" />
+								<div class="min-w-0">
+									<p
+										class="text-xs font-semibold text-surface-700 dark:text-surface-200 leading-none"
 									>
-								</p>
-								<p class="text-3xs text-surface-600 dark:text-surface-400 mt-0.5">
-									Via Assinador SERPRO (desktop)
-								</p>
+										Certificado Digital <span
+											class="text-3xs font-black text-tertiary-500 uppercase">ICP-Brasil</span
+										>
+									</p>
+									<p class="text-3xs text-surface-600 dark:text-surface-400 mt-0.5">
+										Via Assinador SERPRO (desktop)
+									</p>
+								</div>
 							</div>
+							{#if !isMobile}
+								<button
+									type="button"
+									class="btn btn-sm preset-filled-tertiary-500 font-bold text-xs px-3 shrink-0 transition-all"
+									disabled={assinando}
+									onclick={() => {
+										if (painelTokenControl) painelTokenControl.assinarComSerpro();
+										else
+											toaster.error({
+												title: 'Painel de assinatura não inicializado',
+												description: 'Recarregue a página (F5) e tente novamente.'
+											});
+									}}>Assinar</button
+								>
+							{:else}
+								<span
+									class="text-3xs font-bold uppercase text-surface-600 dark:text-surface-400 shrink-0"
+									>Desktop only</span
+								>
+							{/if}
 						</div>
-						{#if !isMobile}
-							<button
-								type="button"
-								class="btn btn-sm preset-filled-tertiary-500 font-bold text-xs px-3 shrink-0 transition-all"
-								disabled={assinando}
-								onclick={() => {
-									if (painelTokenControl) painelTokenControl.assinarComSerpro();
-									else
-										toaster.error({
-											title: 'Painel de assinatura não inicializado',
-											description: 'Recarregue a página (F5) e tente novamente.'
-										});
-								}}>Assinar</button
-							>
-						{:else}
-							<span
-								class="text-3xs font-bold uppercase text-surface-600 dark:text-surface-400 shrink-0"
-								>Desktop only</span
-							>
-						{/if}
-					</div>
 					{/if}
 				</div>
 			</div>
@@ -566,7 +566,10 @@
 			bind:step={signatureStep}
 		/>
 		{#if mostrarOpcaoTokenNoModal}
-			<RodapeOpcaoTokenAssinatura onAssinarToken={assinarComToken} disabled={assinando || loading.active} />
+			<RodapeOpcaoTokenAssinatura
+				onAssinarToken={assinarComToken}
+				disabled={assinando || loading.active}
+			/>
 		{/if}
 	{/if}
 </ModalShell>

@@ -733,7 +733,9 @@
 						</div>
 					</label>
 					{#if senhaError}
-						<p class="text-xs font-bold text-error-500 uppercase tracking-wider mb-3">{senhaError}</p>
+						<p class="text-xs font-bold text-error-500 uppercase tracking-wider mb-3">
+							{senhaError}
+						</p>
 					{/if}
 				{:else}
 					<p
@@ -750,7 +752,8 @@
 					<div
 						class="flex items-center gap-2 mb-4 px-3 py-2 rounded-xl bg-primary-500/10 border border-primary-500/20 w-fit"
 					>
-						<span class="w-2.5 h-2.5 rounded-full bg-primary-500 shrink-0" aria-hidden="true"></span>
+						<span class="w-2.5 h-2.5 rounded-full bg-primary-500 shrink-0" aria-hidden="true"
+						></span>
 						<span class="text-xs font-semibold text-surface-700 dark:text-surface-200">E-mail</span>
 					</div>
 
@@ -776,7 +779,9 @@
 					</label>
 
 					{#if codigoError}
-						<p class="text-xs font-bold text-error-500 uppercase tracking-wider mt-2">{codigoError}</p>
+						<p class="text-xs font-bold text-error-500 uppercase tracking-wider mt-2">
+							{codigoError}
+						</p>
 					{/if}
 
 					<div class="mt-3">
