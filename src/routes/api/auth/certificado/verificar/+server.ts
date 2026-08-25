@@ -45,6 +45,11 @@ import {
 import { certificadoVerificarSchema } from '$lib/schemas';
 import { checkRateLimit, recordAttempt, cookieOptions } from '$lib/server/auth/auth-flow';
 import {
+	modulosDaContaAdmin,
+	temAlgumModulo,
+	cookieModuloParaGravar
+} from '$lib/server/auth/admin-modulos';
+import {
 	verificarRespostaDesafioCertificado,
 	verificarRevogacaoParaLogin
 } from '$lib/server/auth/cert-login';
@@ -244,6 +249,15 @@ export const POST: RequestHandler = async (event) => {
 			);
 		}
 
+		const permitidos = modulosDaContaAdmin(admin);
+		if (!temAlgumModulo(permitidos)) {
+			await recordAttempt(db, ip, false);
+			return forbidden(
+				'Esta conta de administrador não tem módulos liberados. Contate quem gerencia o cadastro.'
+			);
+		}
+		const modulo = cookieModuloParaGravar(permitidos, adminModulo);
+
 		// Consumo de uso único: se outra requisição gastou o desafio primeiro,
 		// esta NÃO cria sessão. A checagem de `usado` lá em cima é diagnóstico;
 		// a autorização é este UPDATE condicional.
@@ -255,8 +269,6 @@ export const POST: RequestHandler = async (event) => {
 
 		const token = await criarSessao(db, 'admin', admin.id);
 		cookies.set('session_token', token, cookieOptions(url));
-
-		const modulo = adminModulo ?? 'ambas';
 		cookies.set('admin_modulo', modulo, cookieOptions(url));
 
 		const { contexto, env } = contextoDeEvento(event);

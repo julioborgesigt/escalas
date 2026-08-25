@@ -1,11 +1,18 @@
 /**
  * Vínculo policial ↔ conta Admin Geral: a mesma pessoa loga nos dois papéis
  * com a matrícula. A conta admin não tem senha própria.
+ *
+ * Os consoles liberados (`modulo_escalas` / `modulo_gise`) moram nesta linha —
+ * ver `admin-modulos.ts` e a migração 0065.
  */
 import { eq } from 'drizzle-orm';
 import { administradores, policiais } from '../server/schema';
 import { gerarSenhaAleatoriaHash } from '../auth';
 import type { Database } from './core';
+import type { ModulosAdmin } from '../server/auth/admin-modulos';
+import { modulosDaContaAdmin, temAlgumModulo } from '../server/auth/admin-modulos';
+
+export type { ModulosAdmin };
 
 /**
  * Admin Geral VINCULADO: cria (ou mantém) uma linha em `administradores`
@@ -14,10 +21,14 @@ import type { Database } from './core';
  * e-mail/2FA). `login` = matrícula, então a pessoa loga com a MESMA matrícula
  * escolhendo "Administrador". `senha` recebe um placeholder aleatório (nunca
  * usado). `primeiro_acesso=0`: o policial já se onboardou como servidor.
+ *
+ * `modulos` default = os dois liberados (comportamento legado). Quem quer
+ * liberar só um passa o recorte explícito.
  */
 export async function vincularAdminGeral(
 	db: Database,
-	policial: typeof policiais.$inferSelect
+	policial: typeof policiais.$inferSelect,
+	modulos: ModulosAdmin = { escalas: true, gise: true }
 ): Promise<void> {
 	const existente = await db
 		.select({ id: administradores.id })
@@ -35,7 +46,9 @@ export async function vincularAdminGeral(
 		email_pessoal: policial.email_pessoal ?? null,
 		email_pessoal_verificado: policial.email_pessoal_verificado,
 		primeiro_acesso: 0,
-		policial_id: policial.id
+		policial_id: policial.id,
+		modulo_escalas: modulos.escalas ? 1 : 0,
+		modulo_gise: modulos.gise ? 1 : 0
 	});
 }
 
@@ -55,6 +68,69 @@ export async function ehAdminGeralVinculado(db: Database, policialId: number): P
 }
 
 /**
+ * Módulos liberados na conta Admin Geral vinculada, ou `null` se não houver
+ * vínculo. Usado pela ficha do policial (toggles Escalas / GISE).
+ */
+export async function buscarModulosAdminVinculado(
+	db: Database,
+	policialId: number
+): Promise<ModulosAdmin | null> {
+	const row = await db
+		.select({
+			modulo_escalas: administradores.modulo_escalas,
+			modulo_gise: administradores.modulo_gise
+		})
+		.from(administradores)
+		.where(eq(administradores.policial_id, policialId))
+		.get();
+	if (!row) return null;
+	return modulosDaContaAdmin(row);
+}
+
+export type ResultadoToggleModulo = 'ok' | 'nao_vinculado' | 'sem_modulos';
+
+/**
+ * Liga/desliga um console na conta vinculada. Recusa deixar os dois desligados
+ * — Admin Geral sem módulo nenhum não tem console; quem quer isso remove o
+ * vínculo (`desvincularAdminGeral`).
+ */
+export async function atualizarModuloAdminVinculado(
+	db: Database,
+	policialId: number,
+	modulo: 'escalas' | 'gise',
+	ativar: boolean
+): Promise<ResultadoToggleModulo> {
+	const row = await db
+		.select({
+			id: administradores.id,
+			modulo_escalas: administradores.modulo_escalas,
+			modulo_gise: administradores.modulo_gise
+		})
+		.from(administradores)
+		.where(eq(administradores.policial_id, policialId))
+		.get();
+	if (!row) return 'nao_vinculado';
+
+	const atual = modulosDaContaAdmin(row);
+	const proximo: ModulosAdmin =
+		modulo === 'escalas'
+			? { escalas: ativar, gise: atual.gise }
+			: { escalas: atual.escalas, gise: ativar };
+
+	if (!temAlgumModulo(proximo)) return 'sem_modulos';
+
+	await db
+		.update(administradores)
+		.set({
+			modulo_escalas: proximo.escalas ? 1 : 0,
+			modulo_gise: proximo.gise ? 1 : 0
+		})
+		.where(eq(administradores.id, row.id));
+
+	return 'ok';
+}
+
+/**
  * Devolve a conta admin (id/nome) vinculada a um policial, ou `undefined`.
  * Usado pela alternância de sessão Usuário → ADM Geral (a pessoa já poderia
  * logar como admin com as mesmas credenciais; aqui só evitamos o relogin).
@@ -62,9 +138,14 @@ export async function ehAdminGeralVinculado(db: Database, policialId: number): P
 export async function buscarAdminVinculadoPorPolicial(
 	db: Database,
 	policialId: number
-): Promise<{ id: number; nome: string } | undefined> {
+): Promise<{ id: number; nome: string; modulo_escalas: number; modulo_gise: number } | undefined> {
 	return db
-		.select({ id: administradores.id, nome: administradores.nome })
+		.select({
+			id: administradores.id,
+			nome: administradores.nome,
+			modulo_escalas: administradores.modulo_escalas,
+			modulo_gise: administradores.modulo_gise
+		})
 		.from(administradores)
 		.where(eq(administradores.policial_id, policialId))
 		.get();

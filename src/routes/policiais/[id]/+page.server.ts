@@ -26,7 +26,8 @@
  *   indefinido;
  * - `toggleAdminGeral` — cria ou remove a conta administrativa VINCULADA ao
  *   policial. É a concessão mais forte do sistema, e por isso é a única
- *   auditada com `metadados` do estado alvo.
+ *   auditada com `metadados` do estado alvo. Ao criar, os dois consoles
+ *   (Escalas e GISE) nascem liberados; `toggleModuloAdmin` recorta depois.
  *
  *   **O gate é `isAdminGeral`, não Super Admin, e isso é decisão registrada**
  *   (auditoria ago/2026, achado I1). Quer dizer que o papel é AUTOPROPAGÁVEL:
@@ -64,7 +65,8 @@ import {
 	listarUnidades,
 	vincularAdminGeral,
 	desvincularAdminGeral,
-	ehAdminGeralVinculado,
+	buscarModulosAdminVinculado,
+	atualizarModuloAdminVinculado,
 	registrarHistorico,
 	atualizarPolicialComHistorico,
 	listarHistoricoPolicial,
@@ -208,15 +210,16 @@ export const load: PageServerLoad = async ({ locals, params, platform, depends }
 	const isSeccional = isAdminSeccional(u);
 	const isUnidade = isAdminUnidade(u);
 
-	const [lotacoes, todasUnidades, ehAdminGeral, historico, credenciaisPasskey] = await Promise.all([
+	const [lotacoes, todasUnidades, modulosAdmin, historico, credenciaisPasskey] = await Promise.all([
 		isAdm ? listarLotacoes(db) : Promise.resolve<string[]>([]),
 		isAdm || isSeccional || isUnidade ? listarUnidades(db) : Promise.resolve([]),
-		ehAdminGeralVinculado(db, id),
+		buscarModulosAdminVinculado(db, id),
 		listarHistoricoPolicial(db, id),
 		// A credencial pertence à PESSOA: quem tem conta admin vinculada tem duas
 		// linhas, e consultar pelo par cru mostraria "sem chave" para quem tem.
 		resolverCredencial(db, 'policial', id).then((c) => listarCredenciaisDoDono(db, c.dono))
 	]);
+	const ehAdminGeral = modulosAdmin != null;
 
 	const credencialPasskey = credenciaisPasskey.find((c) => c.revogadoEm == null) ?? null;
 
@@ -239,6 +242,7 @@ export const load: PageServerLoad = async ({ locals, params, platform, depends }
 		isAdminOrSeccional: isAdm || isSeccional,
 		isAdminUnidade: isUnidade,
 		ehAdminGeral,
+		modulosAdmin,
 		historico,
 		afastamentoVigenteId: afastamentoAtual?.id ?? null,
 		// Recorte do manifesto, não o id completo nem a chave pública. Chaves
@@ -533,6 +537,61 @@ export const actions: Actions = {
 				resultado: 'sucesso',
 				detalhes: `${ativar ? 'Concedido' : 'Removido'} Admin Geral para ${policial.nome} (mat. ${policial.matricula})`,
 				metadados: { ativar },
+				...contexto
+			},
+			{ env }
+		);
+		return { success: true };
+	},
+
+	// Liga/desliga um console (Escalas ou GISE) na conta Admin Geral vinculada.
+	// Recusa zerar os dois — nesse caso remova o vínculo pelo toggle principal.
+	toggleModuloAdmin: async (event) => {
+		const { request, locals, platform, params } = event;
+		const u = locals.usuario;
+		if (!u || !isAdminGeral(u))
+			return fail(403, { error: 'Apenas o Admin Geral pode alterar módulos' });
+
+		const id = Number(params.id);
+		if (isNaN(id)) return fail(400, { error: 'ID inválido' });
+
+		const form = await request.formData();
+		const moduloRaw = String(form.get('modulo') ?? '');
+		if (moduloRaw !== 'escalas' && moduloRaw !== 'gise') {
+			return fail(400, { error: 'Módulo inválido' });
+		}
+		const ativar = formData2Bool(form.get('ativar'));
+		const db = getDB(platform);
+		const policial = await buscarPolicial(db, id);
+		if (!policial) return fail(404, { error: 'Policial não encontrado' });
+
+		const resultado = await atualizarModuloAdminVinculado(db, id, moduloRaw, ativar);
+		if (resultado === 'nao_vinculado') {
+			return fail(409, {
+				error: 'Este policial ainda não é Admin Geral. Ligue o vínculo antes de liberar módulos.'
+			});
+		}
+		if (resultado === 'sem_modulos') {
+			return fail(400, {
+				error: 'Mantenha ao menos um módulo liberado, ou remova o Admin Geral.'
+			});
+		}
+
+		const rotulo = moduloRaw === 'escalas' ? 'Escalas ordinárias' : 'GISE (extra)';
+		const { contexto, env } = contextoDeEvento(event);
+		await auditar(
+			db,
+			{
+				acao: 'toggle_modulo_admin',
+				usuario: u,
+				entidade: 'policial',
+				entidade_id: id,
+				alvo_tipo: 'policial',
+				alvo_id: id,
+				alvo_nome: policial.nome,
+				resultado: 'sucesso',
+				detalhes: `${ativar ? 'Liberado' : 'Bloqueado'} módulo ${rotulo} para ${policial.nome} (mat. ${policial.matricula})`,
+				metadados: { modulo: moduloRaw, ativar },
 				...contexto
 			},
 			{ env }

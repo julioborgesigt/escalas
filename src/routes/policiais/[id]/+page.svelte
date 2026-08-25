@@ -31,16 +31,13 @@
 	import { limparTelefone, formatarCPF } from '$lib/utils/formato';
 	import { loading } from '$lib/loading.svelte';
 	import type { ActionResult } from '@sveltejs/kit';
-	import ToggleSwitch from '$lib/components/ToggleSwitch.svelte';
 	import PainelAcoesServidor from './_components/PainelAcoesServidor.svelte';
 	import HistoricoServidor from './_components/HistoricoServidor.svelte';
 	import CartaoPasskeyServidor from './_components/CartaoPasskeyServidor.svelte';
+	import CartaoAdminGeral from './_components/CartaoAdminGeral.svelte';
 	import BotaoVoltar from '$lib/components/BotaoVoltar.svelte';
 
 	const { data }: PageProps = $props();
-
-	// Form da chave Admin Geral: o Switch dispara o submit via requestSubmit().
-	let formAdminGeral = $state<HTMLFormElement>();
 
 	const isAdmin = $derived(data.isAdmin);
 	const isAdminOrSeccional = $derived(data.isAdminOrSeccional);
@@ -100,22 +97,6 @@
 			loading.hide();
 			if (result.type === 'success') {
 				toaster.create({ title: 'Papel atualizado com sucesso!', type: 'success' });
-				await invalidateShared(`policial:${data.policial.id}`, 'app:policiais');
-			} else if (result.type === 'failure') {
-				const d = result.data as Record<string, unknown> | undefined;
-				if (d?.error) toaster.create({ title: String(d.error), type: 'error' });
-			}
-		};
-	}
-
-	const ehAdminGeral = $derived(data.ehAdminGeral);
-
-	function handleToggleAdminGeral() {
-		loading.show('Atualizando condição de Admin Geral...');
-		return async ({ result }: { result: ActionResult }) => {
-			loading.hide();
-			if (result.type === 'success') {
-				toaster.create({ title: 'Condição de Admin Geral atualizada!', type: 'success' });
 				await invalidateShared(`policial:${data.policial.id}`, 'app:policiais');
 			} else if (result.type === 'failure') {
 				const d = result.data as Record<string, unknown> | undefined;
@@ -367,36 +348,13 @@
 	{/if}
 
 	{#if isAdmin}
-		<div class="card-elevated rounded-2xl shadow-sm p-4 sm:p-6 flex flex-col">
-			<h2 class="text-base font-bold mb-1 text-surface-700 dark:text-surface-300">Admin Geral</h2>
-			<p class="text-xs text-surface-600 dark:text-surface-400 mb-3">
-				Concede acesso de Administrador Geral. A pessoa loga com a <b>mesma matrícula e senha</b>,
-				escolhendo <b>"Administrador"</b> na tela de login. É cumulativo com o papel ao lado.
-			</p>
-			<form
-				method="POST"
-				action="?/toggleAdminGeral"
-				use:enhance={handleToggleAdminGeral}
-				bind:this={formAdminGeral}
-				class="mt-auto"
-			>
-				<input type="hidden" name="ativar" value={ehAdminGeral ? '0' : '1'} />
-				<ToggleSwitch
-					reverse
-					checked={ehAdminGeral}
-					disabled={loading.active}
-					onCheckedChange={() => formAdminGeral?.requestSubmit()}
-				>
-					<span
-						class="text-sm font-semibold {ehAdminGeral
-							? 'text-success-700 dark:text-success-400'
-							: 'text-surface-600 dark:text-surface-400'}"
-					>
-						{ehAdminGeral ? 'É Admin Geral' : 'Não é Admin Geral'}
-					</span>
-				</ToggleSwitch>
-			</form>
-		</div>
+		<CartaoAdminGeral
+			policialId={data.policial.id}
+			ehAdminGeral={data.ehAdminGeral}
+			moduloEscalas={data.modulosAdmin?.escalas ?? false}
+			moduloGise={data.modulosAdmin?.gise ?? false}
+			disabled={loading.active}
+		/>
 	{/if}
 </div>
 

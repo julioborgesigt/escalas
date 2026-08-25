@@ -180,6 +180,21 @@ export const actions: Actions = {
 		}
 
 		try {
+			const concederAdminGeral = ['1', 'true', 'on'].includes(
+				String(data.get('conceder_admin_geral') ?? '').toLowerCase()
+			);
+			const moduloEscalas = ['1', 'true', 'on'].includes(
+				String(data.get('modulo_escalas') ?? '1').toLowerCase()
+			);
+			const moduloGise = ['1', 'true', 'on'].includes(
+				String(data.get('modulo_gise') ?? '1').toLowerCase()
+			);
+			if (concederAdminGeral && !moduloEscalas && !moduloGise) {
+				return fail(400, {
+					error: 'Libere ao menos um módulo (Escalas ou GISE) ao conceder Admin Geral.'
+				});
+			}
+
 			await criarPolicial(
 				db,
 				{
@@ -191,12 +206,14 @@ export const actions: Actions = {
 			);
 			// Conceder Admin Geral já no cadastro (cria a conta vinculada). Como o
 			// id só existe após o insert, busca pela matrícula.
-			const concederAdminGeral = ['1', 'true', 'on'].includes(
-				String(data.get('conceder_admin_geral') ?? '').toLowerCase()
-			);
 			if (concederAdminGeral) {
 				const novo = await buscarPolicialPorMatricula(db, matricula);
-				if (novo) await vincularAdminGeral(db, novo);
+				if (novo) {
+					await vincularAdminGeral(db, novo, {
+						escalas: moduloEscalas,
+						gise: moduloGise
+					});
+				}
 			}
 			const { contexto, env } = contextoDeEvento(event);
 			await registrarAuditComContexto(db, {

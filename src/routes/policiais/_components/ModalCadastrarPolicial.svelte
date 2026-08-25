@@ -55,6 +55,8 @@
 	let papelUnidadeId = $state<number | null>(null);
 	// Chave "Conceder Admin Geral" no cadastro (submetida via input hidden).
 	let concederAdminGeral = $state(false);
+	let moduloEscalas = $state(true);
+	let moduloGise = $state(true);
 	let pending = $state(false);
 
 	const seccionaisParaPapel = $derived(unidades.filter((u) => u.tipo === 'seccional'));
@@ -87,6 +89,8 @@
 		papel = null;
 		papelUnidadeId = null;
 		concederAdminGeral = false;
+		moduloEscalas = true;
+		moduloGise = true;
 	}
 
 	function handleSalvar() {
@@ -314,11 +318,14 @@
 			{/if}
 
 			{#if isAdmin}
-				<div class="p-3 rounded-xl bg-surface-500/5 border border-surface-500/10 flex flex-col">
+				<div
+					class="p-3 rounded-xl bg-surface-500/5 border border-surface-500/10 flex flex-col gap-3"
+				>
 					<h4 class="text-2xs font-bold uppercase opacity-50">Admin Geral (Opcional)</h4>
-					<p class="text-xs text-surface-600 dark:text-surface-400 leading-snug mt-2">
+					<p class="text-xs text-surface-600 dark:text-surface-400 leading-snug">
 						Cria a conta de Administrador Geral vinculada. A pessoa loga com a mesma matrícula/senha
-						escolhendo "Administrador". Cumulativo com o papel.
+						escolhendo "Administrador". Cumulativo com o papel. Libere os consoles que esta pessoa
+						vai administrar.
 					</p>
 					<input
 						type="hidden"
@@ -326,21 +333,61 @@
 						value={concederAdminGeral ? '1' : '0'}
 						form={formId}
 					/>
-					<div class="mt-auto pt-3">
+					<input
+						type="hidden"
+						name="modulo_escalas"
+						value={concederAdminGeral && moduloEscalas ? '1' : '0'}
+						form={formId}
+					/>
+					<input
+						type="hidden"
+						name="modulo_gise"
+						value={concederAdminGeral && moduloGise ? '1' : '0'}
+						form={formId}
+					/>
+					<ToggleSwitch
+						reverse
+						checked={concederAdminGeral}
+						onCheckedChange={(v) => {
+							concederAdminGeral = v;
+							if (v && !moduloEscalas && !moduloGise) {
+								moduloEscalas = true;
+								moduloGise = true;
+							}
+						}}
+					>
+						<span
+							class="text-xs font-semibold {concederAdminGeral
+								? 'text-success-700 dark:text-success-400'
+								: 'text-surface-600 dark:text-surface-400'}"
+						>
+							{concederAdminGeral ? 'Conceder Admin Geral' : 'Não conceder'}
+						</span>
+					</ToggleSwitch>
+					{#if concederAdminGeral}
 						<ToggleSwitch
 							reverse
-							checked={concederAdminGeral}
-							onCheckedChange={(v) => (concederAdminGeral = v)}
+							checked={moduloEscalas}
+							onCheckedChange={(v) => (moduloEscalas = v)}
 						>
 							<span
-								class="text-xs font-semibold {concederAdminGeral
+								class="text-xs font-semibold {moduloEscalas
 									? 'text-success-700 dark:text-success-400'
 									: 'text-surface-600 dark:text-surface-400'}"
 							>
-								{concederAdminGeral ? 'Conceder Admin Geral' : 'Não conceder'}
+								{moduloEscalas ? 'Escalas ordinárias liberadas' : 'Escalas ordinárias bloqueadas'}
 							</span>
 						</ToggleSwitch>
-					</div>
+						<ToggleSwitch reverse checked={moduloGise} onCheckedChange={(v) => (moduloGise = v)}>
+							<span
+								class="text-xs font-semibold {moduloGise
+									? 'text-success-700 dark:text-success-400'
+									: 'text-surface-600 dark:text-surface-400'}"
+							>
+								{moduloGise ? 'GISE (extra) liberado' : 'GISE (extra) bloqueado'}
+							</span>
+						</ToggleSwitch>
+					{/if}
 				</div>
 			{/if}
 		</div>
@@ -351,7 +398,7 @@
 			type="submit"
 			form={formId}
 			class="btn btn-sm sm:btn-md preset-filled-primary-500 flex items-center justify-center gap-2"
-			disabled={pending || papelSemUnidade}
+			disabled={pending || papelSemUnidade || (concederAdminGeral && !moduloEscalas && !moduloGise)}
 		>
 			{pending ? 'Cadastrando...' : 'Cadastrar Policial'}
 		</button>

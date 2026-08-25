@@ -9,8 +9,10 @@
  * A visibilidade cruza DOIS EIXOS que não se implicam:
  *   - QUEM é (`tipo`/`papel` + os flags de participação na GISE, que vêm do
  *     `+layout.server.ts` porque dependem do banco);
- *   - QUAL MÓDULO o admin escolheu (`adminModulo`: ambas/gise/escalas), que é
- *     preferência de tela, não permissão.
+ *   - QUAL MÓDULO o admin está vendo (`adminModulo`: ambas/gise/escalas), que é
+ *     preferência de tela DENTRO do que `modulosAdmin` na sessão permite. Quem
+ *     tem um módulo só chega aqui já com o cookie/preferência desse módulo
+ *     (ver `admin-modulos.ts`); o botão de alternar some nesse caso.
  * Daí `showGrupo1`/`showGrupo2` responderem `true` para não-admin: o filtro de
  * módulo só existe para admin.
  *

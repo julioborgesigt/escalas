@@ -71,6 +71,11 @@ export interface UsuarioLogado {
 	 * standalone (bootstrap por env).
 	 */
 	adminPolicialId?: number | null;
+	/**
+	 * Consoles liberados nesta conta admin (`administradores.modulo_*`).
+	 * Ausente em sessão policial. Super Admin vem com os dois ligados.
+	 */
+	modulosAdmin?: { escalas: boolean; gise: boolean };
 	// RBAC operacional (papel scoped do servidor; cumulativo com Admin Geral)
 	papel?: 'admin_seccional' | 'admin_unidade' | null;
 	papel_unidade_id?: number | null;
@@ -265,7 +270,15 @@ function mapearAdmin(
 		nome: admin.nome,
 		primeiro_acesso: admin.primeiro_acesso === 1,
 		isSuperAdmin,
-		adminPolicialId: admin.policial_id ?? null
+		adminPolicialId: admin.policial_id ?? null,
+		// Super Admin: console próprio, flags sempre ligadas para não barrar
+		// rotas compartilhadas se ele cair nelas. Demais: colunas da linha.
+		modulosAdmin: isSuperAdmin
+			? { escalas: true, gise: true }
+			: {
+					escalas: Number(admin.modulo_escalas ?? 1) === 1,
+					gise: Number(admin.modulo_gise ?? 1) === 1
+				}
 	};
 }
 
