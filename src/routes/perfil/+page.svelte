@@ -20,8 +20,10 @@
 	 */
 	import type { PageProps } from './$types';
 	import { enhance } from '$app/forms';
+	import { page } from '$app/state';
 	import { untrack } from 'svelte';
 	import { toaster } from '$lib/toast';
+	import { cartaoChaveVisivel } from '$lib/chave-assinatura-ui';
 	import { mostrarErroDeResultado } from '$lib/enhance-handler';
 	import { apiFetch } from '$lib/api-fetch';
 	import ModalCadastrarRubrica from '$lib/components/ModalCadastrarRubrica.svelte';
@@ -287,8 +289,11 @@
 
 	<!-- Chave de assinatura (passkey): vizinha da rubrica na intenção do usuário
 	     ("o que preciso ter cadastrado para assinar?"), mas em seção própria
-	     porque prova outra coisa — a rubrica é o desenho, a passkey é a chave. -->
-	<CartaoPasskey credencialAtual={data.passkey} />
+	     porque prova outra coisa — a rubrica é o desenho, a passkey é a chave.
+	     Só existe na tela com a exigência ligada (ver `cartaoChaveVisivel`). -->
+	{#if cartaoChaveVisivel(page.data)}
+		<CartaoPasskey credencialAtual={data.passkey} />
+	{/if}
 
 	<!-- Dados alteráveis via solicitação -->
 	<section class="card-elevated rounded-2xl p-4 sm:p-6">
@@ -323,7 +328,13 @@
 				</label>
 				<label class="label lg:w-32 lg:shrink-0">
 					<span class="label-text">Classe</span>
+					<!-- A opção vazia é o que faz o campo DIZER que está vazio: sem ela,
+					     quem não tem classe no cadastro (`classe = ''`) via um select em
+					     branco, que lê como falha de carregamento. `disabled` porque
+					     "sem classe" não é escolha a fazer aqui — mesma forma do campo
+					     Classe na ficha do policial e dos outros selects do app. -->
 					<select class="select" name="classe" bind:value={classe}>
+						<option value="" disabled>-</option>
 						{#each data.classes as c (c)}
 							<option value={c}>{c}</option>
 						{/each}

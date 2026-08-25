@@ -44,6 +44,32 @@ export function avancadaEmTelaDoLayout(data: {
 }
 
 /**
+ * O cartão da chave aparece nesta tela?
+ *
+ * Só com `exigir_passkey_assinatura` LIGADA — e vale para as duas telas que
+ * mostram o cartão: Meu Perfil (o titular) e a ficha do policial (Admin Geral).
+ * Desligada, a chave não assina nada: o cartão do titular pedia cadastro para
+ * um reforço que a corporação não usa, e o do administrador anunciava uma
+ * credencial sem função.
+ *
+ * Uma função para as duas telas, e não a flag lida à mão em cada uma — é assim
+ * que as cópias divergem, e aqui a divergência seria o administrador ver o que
+ * o titular não vê.
+ *
+ * **A consequência é deliberada e precisa estar escrita:** desligada a
+ * exigência, uma chave JÁ registrada some da tela levando junto o botão de
+ * revogar, inclusive o do Admin Geral — que o DEPLOY descreve como o
+ * procedimento de "perdi o celular". Enquanto a exigência está desligada não há
+ * urgência nisso (nenhuma tela oferece caminho de assinatura por chave), e
+ * religá-la traz cartão e botão de volta ANTES de qualquer assinatura ser
+ * possível pela interface. Quem precisar revogar com a exigência desligada
+ * liga a flag em `/conf-ass`, revoga, e desliga de novo.
+ */
+export function cartaoChaveVisivel(data: { exigirPasskeyAssinatura?: boolean }): boolean {
+	return Boolean(data.exigirPasskeyAssinatura);
+}
+
+/**
  * Recado quando a avançada em tela não é oferecida. Celular: cadastrar.
  * Desktop: A3 permanece. Nunca afirma "dispositivo registrado".
  */

@@ -1253,6 +1253,17 @@ uma superfície escura fixa, onde seu contraste tenha sido verificado.
 `text-surface-400` puro fica restrito a ícones decorativos, placeholders e
 estados `disabled`/inativos.
 
+**Placeholder** — a cor é regra de base no `app.css` (`input::placeholder` /
+`textarea::placeholder`: `surface-400` no claro, `surface-500` no escuro), não
+utilitário de call site. O Skeleton não pinta `::placeholder`, então o campo
+herdava o cinza escuro do navegador e a dica lia como valor digitado — "Digite
+a nova senha" parecia senha preenchida. O par muda com o tema porque o apagado
+de cada um é diferente: no escuro o texto secundário já é `surface-400`, e
+repeti-lo empataria placeholder com conteúdo. A regra mora em `@layer base`, de
+modo que um `placeholder:*` do call site ainda vence — reserve isso para
+exceção de FORMA (o `/validar` troca fonte e tamanho porque o campo é
+`font-mono text-xl`), nunca para reajustar a cor à mão.
+
 **Foco de teclado** — nunca `outline-none`/`focus:outline-none` sem substituto visível (`focus-visible:ring-2 focus-visible:ring-primary-500 …` ou `focus-within:ring` no container).
 
 **Estilizar componente do Skeleton — `transform` não se anula com `translate-*`** (auditoria visual de ago/2026). Os utilitários `translate-*`/`scale-*`/`rotate-*` do Tailwind v4 escrevem as **propriedades individuais** (`translate`, `scale`, `rotate`); o CSS de componente do Skeleton posiciona peças com a propriedade **`transform`**. São propriedades diferentes: o navegador aplica as duas e os deslocamentos **somam**. A classe parece sobrescrever e não sobrescreve — não gera erro, não gera aviso, só sai do lugar.

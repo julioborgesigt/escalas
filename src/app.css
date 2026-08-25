@@ -202,6 +202,48 @@ select.select:focus {
 	border-color: var(--color-primary-500);
 }
 
+/* Placeholder — a dica de preenchimento estava saindo com peso de conteúdo.
+ *
+ * O `globals.css` do Skeleton pinta `.input::placeholder` com
+ * `--color-surface-700-300`, e esse é O par `light-dark()` contra o qual o
+ * bloco do `select` acima já avisa: o tema escuro deste app é a CLASSE `.dark`
+ * (ver `@custom-variant` no topo), não `color-scheme`, então o par resolve
+ * SEMPRE para o lado claro — `surface-700`. Ou seja, todo campo do app exibia a
+ * dica num cinza de texto de verdade, nos dois temas. "Digite a nova senha"
+ * parecia senha já preenchida, e foi esse o relato.
+ *
+ * Os tokens não são escolha nova: `SearchableSelect` e `SupervisaoPapelAssessor`
+ * já tinham chegado neste mesmo par à mão — eles não usam `.input`, então
+ * escapavam da regra do Skeleton e alguém precisou consertar duas vezes. As
+ * duas cópias saíram; a régua agora é esta, e é uma só.
+ *
+ * O par muda com o tema porque o "apagado" de cada um é diferente: no claro o
+ * corpo é `surface-950` e o texto secundário é `surface-600`, então
+ * `surface-400` se distingue dos dois; no escuro o secundário JÁ é
+ * `surface-400`, e repeti-lo empataria a dica com texto real — daí
+ * `surface-500`.
+ *
+ * FORA de `@layer`, como o resto deste bloco e pelo mesmo motivo: a regra do
+ * Skeleton mora em `@layer base` com especificidade (0,1,0), e uma regra nossa
+ * na mesma camada precisaria empatar em seletor de classe para vencer. Sem
+ * camada, a comparação nem acontece. O preço é o já documentado — um
+ * `placeholder:text-*` de call site não venceria isto. Não use: a cor da dica é
+ * decisão de tema e mora aqui. `placeholder:font-sans`/`text-sm` (o /validar
+ * usa) seguem valendo: são outras propriedades.
+ *
+ * Alvo é o ELEMENTO, não `.input`: campo desenhado à mão (Combobox, inputs sem
+ * a classe do Skeleton) nasce com a mesma dica apagada sem depender de alguém
+ * lembrar de repetir a classe. */
+input::placeholder,
+textarea::placeholder {
+	color: var(--color-surface-400);
+}
+
+.dark input::placeholder,
+.dark textarea::placeholder {
+	color: var(--color-surface-500);
+}
+
 /* Utilitários centralizados de Glass Card (V-6) */
 @utility card-glass {
 	@apply bg-white/80 dark:bg-surface-900/60 backdrop-blur-md

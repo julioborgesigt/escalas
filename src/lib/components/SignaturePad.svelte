@@ -643,7 +643,7 @@
 						bind:value={codigoInput}
 						class="input text-center text-3xl tracking-[0.5em] font-mono h-16 rounded-2xl bg-white dark:bg-surface-900 border-2 {codigoError
 							? 'border-error-500 uppercase'
-							: 'border-surface-300 dark:border-surface-600 placeholder:opacity-50'}"
+							: 'border-surface-300 dark:border-surface-600'}"
 					/>
 
 					{#if codigoError}

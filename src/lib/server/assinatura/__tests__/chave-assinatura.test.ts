@@ -14,6 +14,7 @@ import {
 import {
 	avancadaEmTelaDisponivel,
 	avancadaEmTelaDoLayout,
+	cartaoChaveVisivel,
 	mensagemConviteChave,
 	abreviarCredencial,
 	situacaoChaveNoCadastro,
@@ -75,6 +76,24 @@ describe('avancadaEmTelaDisponivel', () => {
 		expect(mensagemConviteChave(false)).toMatch(/Token A3/);
 		expect(mensagemConviteChave(true)).not.toMatch(/dispositivo registrado/i);
 		expect(mensagemConviteChave(false)).not.toMatch(/dispositivo registrado/i);
+	});
+});
+
+describe('cartaoChaveVisivel', () => {
+	it('some da tela com a exigência desligada, mesmo com chave registrada', () => {
+		// A chave já cadastrada some junto: com a exigência desligada ela não
+		// assina nada, e o cartão anunciava credencial sem função.
+		expect(cartaoChaveVisivel({ exigirPasskeyAssinatura: false })).toBe(false);
+		expect(cartaoChaveVisivel({ exigirPasskeyAssinatura: undefined })).toBe(false);
+		expect(cartaoChaveVisivel({})).toBe(false);
+	});
+
+	it('aparece com a exigência ligada', () => {
+		// Só a flag: o parâmetro NÃO aceita `temChaveAssinatura`, e é o próprio
+		// tipo que garante a independência. Se a regra olhasse "tem chave", o
+		// Admin Geral — cuja sessão carrega a chave DELE, não a do titular da
+		// ficha — veria coisa diferente do titular na mesma condição.
+		expect(cartaoChaveVisivel({ exigirPasskeyAssinatura: true })).toBe(true);
 	});
 });
 

@@ -23,6 +23,8 @@
 	 */
 	import type { PageProps } from './$types';
 	import { goto } from '$app/navigation';
+	import { page } from '$app/state';
+	import { cartaoChaveVisivel } from '$lib/chave-assinatura-ui';
 	import { invalidateShared } from '$lib/cross-tab-invalidate';
 	import { enhance } from '$app/forms';
 	import { toaster } from '$lib/toast';
@@ -352,7 +354,10 @@
 		</div>
 	{/if}
 
-	{#if isAdmin}
+	<!-- Chave de assinatura do servidor: só na tela com a exigência ligada, a
+	     MESMA regra do cartão em Meu Perfil (ver `cartaoChaveVisivel`) — o
+	     administrador não deve ver um cartão que o titular não vê. -->
+	{#if isAdmin && cartaoChaveVisivel(page.data)}
 		<CartaoPasskeyServidor
 			policialId={data.policial.id}
 			nome={data.policial.nome}
