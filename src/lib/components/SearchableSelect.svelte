@@ -162,7 +162,7 @@
 			<Combobox.Input
 				id={id || undefined}
 				aria-label={ariaLabel || undefined}
-				class="flex-1 min-w-0 !m-0 !min-h-0 !rounded-none !border-0 !bg-transparent !px-3 !py-1.5 !shadow-none !ring-0 text-sm text-surface-900 dark:text-surface-50 placeholder:text-surface-400 dark:placeholder:text-surface-500 focus:!outline-none focus:!ring-0 disabled:cursor-not-allowed"
+				class="flex-1 min-w-0 !m-0 !min-h-0 !rounded-none !border-0 !bg-transparent !px-3 !py-1.5 !shadow-none !ring-0 text-sm text-surface-900 dark:text-surface-50 focus:!outline-none focus:!ring-0 disabled:cursor-not-allowed"
 			/>
 			{#if !isValueEmpty(value)}
 				<Combobox.ClearTrigger

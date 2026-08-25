@@ -777,6 +777,8 @@ Verificar cada transição de status:
 - [ ] Presença com a flag ligada: o `preparar-assinatura-avancada` **não** grava entrada/saída. Cancelar a biometria deixa o plantão sem presença; só o `finalizar` (após a asserção) persiste.
 - [ ] Sem chave registrada em `/perfil`, com a flag ligada → lê o documento (200) e o POST de avançada → **403** (no celular aponta Meu Perfil; no desktop, Token A3). Cadastro da chave só no celular; reposição pede os dois e-mails
 - [ ] Com a flag DESLIGADA e sem chave → nenhuma tela convida a cadastrar: assina em tela pelo caminho de um tiro, e o primeiro acesso não menciona chave nenhuma. O convite só aparece com a flag ligada, na hora de assinar
+- [ ] Com a flag DESLIGADA, o cartão "Chave de assinatura" some das DUAS telas — `/perfil` (titular) e `/policiais/[id]` (Admin Geral) — **mesmo com chave já registrada**; o resto de cada tela segue inteiro. Religar a flag traz os dois de volta `[Vitest: chave-assinatura.test.ts]`
+- [ ] Corolário do item acima: com a flag desligada não há botão de revogar em lugar nenhum. Para revogar nesse estado, ligue `exigir_passkey_assinatura` em `/conf-ass`, revogue e desligue de novo
 - [ ] Com chave já cadastrada, o perfil mostra o recorte (igual ao manifesto), o vínculo, o último uso e explica que o sistema **não** guarda o modelo do celular — a pessoa localiza a chave no gerenciador do iPhone/Google ou tentando assinar. Avisa: mesma conta Apple/Google → **não** cadastrar de novo (assinar); só repor se trocou/perdeu o aparelho
 - [ ] Cadastro, reposição e revogação (titular ou Admin Geral) disparam aviso no **e-mail funcional** (recorte da chave, sem IP). Falha de envio **não** desfaz o ato
 - [ ] Manifesto do PDF assinado por passkey traz a linha `CHAVE DE ASSINATURA` com "biometria/PIN do titular" e o vínculo da credencial (sincronizada x deste aparelho)
@@ -893,6 +895,14 @@ roteiro manual, não relatório.
       devolvendo o foco
 - [ ] **VIS-7** — ícones migrados para Lucide mantêm tamanho e alinhamento nas
       telas de escala, GISE e painel
+- [ ] **Placeholder × conteúdo** — nos dois modos, em campo VAZIO a dica
+      ("Digite sua senha", "Buscar unidade…") lê visivelmente mais apagada que
+      o rótulo e que um valor digitado ao lado. Conferir também num campo sem
+      a classe `.input` (o combobox de Lotação em `/perfil`) — a regra é por
+      elemento, não por classe
+- [ ] **Select vazio** — campo de seleção sem valor mostra `-`, nunca uma
+      caixa em branco (que lê como falha de carregamento). O Classe de
+      `/perfil` era o único assim
 
 ---
 

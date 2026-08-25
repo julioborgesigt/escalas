@@ -76,7 +76,7 @@
 						type="text"
 						bind:value={hash}
 						placeholder="Digite o código aqui..."
-						class="w-full pl-12 pr-6 py-5 bg-surface-100 dark:bg-surface-950 border border-surface-200 dark:border-white/5 rounded-2xl text-xl font-mono focus:ring-4 focus:ring-primary-500/20 focus:border-primary-500 outline-none transition-all uppercase placeholder:opacity-30 placeholder:font-sans placeholder:text-sm"
+						class="w-full pl-12 pr-6 py-5 bg-surface-100 dark:bg-surface-950 border border-surface-200 dark:border-white/5 rounded-2xl text-xl font-mono focus:ring-4 focus:ring-primary-500/20 focus:border-primary-500 outline-none transition-all uppercase placeholder:font-sans placeholder:text-sm"
 						autocomplete="off"
 						spellcheck="false"
 					/>

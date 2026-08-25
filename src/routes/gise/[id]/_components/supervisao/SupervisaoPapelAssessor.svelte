@@ -68,7 +68,7 @@
 							name="assessor_email_notificacao"
 							autocomplete="email"
 							bind:value={quadro.assessorEmailNotificacao}
-							class="w-full px-3 py-1.5 rounded-xl border border-surface-300 dark:border-surface-600 bg-white dark:bg-surface-800 text-sm focus:border-primary-400 focus:ring-1 focus:ring-primary-400/30 focus:outline-none transition-colors text-surface-900 dark:text-surface-50 placeholder:text-surface-400 dark:placeholder:text-surface-500 h-[38px]"
+							class="w-full px-3 py-1.5 rounded-xl border border-surface-300 dark:border-surface-600 bg-white dark:bg-surface-800 text-sm focus:border-primary-400 focus:ring-1 focus:ring-primary-400/30 focus:outline-none transition-colors text-surface-900 dark:text-surface-50 h-[38px]"
 							placeholder="nome@provedor.com"
 						/>
 					</div>
