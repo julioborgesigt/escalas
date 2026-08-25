@@ -7,9 +7,12 @@
 	 * arrastar o último gráfico deixaria o botão "Salvar" a três telas de
 	 * distância. Ela some do papel (`print:hidden`) como todo o cromo da tela.
 	 *
-	 * O texto não é enfeite. Duas coisas surpreendem quem organiza pela primeira
-	 * vez, e as duas estão escritas aqui em vez de descobertas por tentativa:
+	 * O texto não é enfeite. Três coisas surpreendem quem organiza pela primeira
+	 * vez, e as três estão escritas aqui em vez de descobertas por tentativa:
 	 *
+	 * - **há dois níveis.** A barra escura move o BLOCO inteiro; a clara, o card
+	 *   dentro dele. Sem dizer isso, quem quer levar os gráficos para o topo tenta
+	 *   arrastar um card de cada vez e conclui que não dá;
 	 * - **o card se move dentro do bloco dele.** As três faixas do painel têm
 	 *   formatos diferentes (indicador e colunas ocupam a largura inteira, ranking
 	 *   e detalhamento vão dois por linha), e não há para onde levar um card de
@@ -58,9 +61,10 @@
 				Organizando o painel — {tipoEquipe}
 			</p>
 			<p class="text-2xs text-surface-600 dark:text-surface-400">
-				Arraste os cards, ou use as setas ↑/↓ de cada um. Cada card se move dentro do bloco dele:
-				indicadores, rankings e gráficos de colunas têm formatos diferentes. A ordem vale para esta
-				operação e este tipo de equipe, e é a mesma que todos veem.
+				Arraste, ou use as setas ↑/↓. A barra <strong>escura</strong> move o bloco inteiro; a clara
+				move um card <strong>dentro</strong> do bloco dele — indicadores, rankings e gráficos de colunas
+				têm formatos diferentes e não se misturam. A ordem vale para esta operação e este tipo de equipe,
+				e é a mesma que todos veem.
 			</p>
 		</div>
 

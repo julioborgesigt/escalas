@@ -677,11 +677,16 @@ Verificar cada transição de status:
 
 - [ ] Como Admin Geral, **Organizar painel** aparece no alto; como admin de
       unidade/seccional, não aparece
-- [ ] No modo, cada card ganha a faixa com a posição, a alça e as setas ↑/↓; o
-      conteúdo do card não responde a clique (arrastar não marca card para
-      exportação)
+- [ ] No modo, cada card ganha a faixa CLARA com a posição, a alça e as setas
+      ↑/↓, e cada bloco ganha a faixa ESCURA com o nome dele; o conteúdo do card
+      não responde a clique (arrastar não marca card para exportação)
 - [ ] Arrastar um card sobre outro do MESMO bloco troca os dois; soltar sobre
       outro bloco não move nada
+- [ ] Arrastar/mover o BLOCO leva a categoria inteira: "Gráficos de colunas"
+      acima de "Rankings" reordena a página toda, e os cards de cada bloco
+      continuam onde estavam
+- [ ] Bloco sem card nenhum (operação sem indicador de meta) não aparece no modo
+      — nem a barra escura dele
 - [ ] No **celular**, o arraste não existe — as setas ↑/↓ movem, e é por elas que
       o modo se usa em tela pequena
 - [ ] **Salvar ordem** → a página recarrega já na ordem nova; sair e voltar
@@ -689,8 +694,13 @@ Verificar cada transição de status:
 - [ ] **Sair sem salvar** e **Desfazer** devolvem a ordem gravada
 - [ ] **Ordem do formulário** volta os cards à ordem das perguntas (é rascunho —
       só vale depois de Salvar)
+- [ ] Arrastar e voltar ao arranjo original antes de salvar → o painel volta a
+      **seguir** o formulário (a coluna `painel_ordem` fica `[]`), e reordenar as
+      perguntas no editor volta a chegar ao painel
 - [ ] Marcar uma pergunta nova como gráfico no editor → o card dela aparece no
       **fim** do bloco dele, não no topo
+- [ ] Fora do modo, "Organizar painel" fica separado do grupo "Baixar gráficos";
+      dentro do modo, o grupo de baixar some
 - [ ] Trocar de tipo de equipe mantém o rascunho de cada aba; o seletor de
       OPERAÇÃO fica desabilitado enquanto se organiza
 

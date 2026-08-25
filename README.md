@@ -742,10 +742,17 @@ leitura e a leitura é visual — o card ganha uma faixa com a posição, a alç
 setas ↑/↓, e o conteúdo dele fica inerte para o arraste não esbarrar na caixinha
 de exportação do canto.
 
-Quatro regras, e nenhuma é estilo:
+Cinco regras, e nenhuma é estilo:
 
 - **`NULL` = ordem do formulário.** É o que toda operação é até alguém
   organizar, e é o que o botão "Ordem do formulário" devolve;
+- **só grava quando DIFERE do formulário.** Se o arranjo na tela é exatamente o
+  que a ordem das perguntas daria — por "Ordem do formulário" ou por arrastar e
+  voltar ao ponto de partida —, o que vai ao banco é a lista VAZIA. Gravar o
+  arranjo natural escrito por extenso daria a mesma tela hoje e CONGELARIA a
+  ordem atual das perguntas: reordená-las no editor deixaria de chegar ao painel,
+  sem nada explicando. O padrão é seguir o formulário, e só se deixa de segui-lo
+  quando alguém de fato personalizou (`mesmaOrdemDeIds`);
 - **id fora da lista vai para o FIM** do bloco dele. É isto que responde ao
   "pergunta nova aparece por último" sem exigir uma reorganização a cada campo
   criado — e a alternativa (a lista ter de cobrir todo card existente) daria
@@ -753,11 +760,29 @@ Quatro regras, e nenhuma é estilo:
 - **id órfão é ignorado.** A ordenação percorre os CARDS e só consulta a lista
   para saber a posição de cada um; desmarcar a pergunta no editor não deixa card
   fantasma;
-- **o card se move dentro do BLOCO dele.** As três faixas têm formatos
-  diferentes — indicador e colunas ocupam a largura inteira, ranking e
-  detalhamento vão dois por linha —, e não há para onde levar um gráfico de
-  colunas na grade dos rankings. A ordem salva é uma lista só para as três; cada
-  faixa consulta a posição dos seus ids e ignora o resto.
+- **o card se move dentro do BLOCO dele; o BLOCO se move entre os blocos.** São
+  dois níveis, e o modo os distingue pela barra: a escura arrasta a faixa
+  inteira, a clara arrasta um card. As três faixas têm formatos diferentes —
+  indicador e colunas ocupam a largura inteira, ranking e detalhamento vão dois
+  por linha —, e não há para onde levar um gráfico de colunas na grade dos
+  rankings; o que se escolhe entre elas é a SEQUÊNCIA.
+
+**As faixas entram na mesma lista salva**, com ids próprios (`bloco-colunas`), e
+por isso a ordem das categorias coube sem coluna nova no banco e sem um segundo
+caminho de leitura: cada consumidor — cada faixa, e a página com as faixas —
+pergunta a posição dos SEUS ids e ignora o resto. Faixa VAZIA não entra na lista
+nem ganha barra de arraste: contá-la faria a primeira seta não fazer nada, e no
+modo apareceria uma barra sem nada embaixo (operação sem indicador é o caso
+comum, não uma borda rara).
+
+Arrastar bloco e arrastar card compartilham o estado, o wrapper e a regra de que
+só se solta dentro do próprio escopo (`CardOrdenavel`, com `variante`). O
+aninhamento cobrou uma coisa: a inércia do conteúdo (`pointer-events-none`, que
+existe para o gesto não esbarrar na caixinha de exportação) pertence à FOLHA — no
+bloco ela apagava as setas dos cards de dentro, e o wrapper do bloco passava a
+interceptar o clique que era do card. Pelo mesmo motivo os manipuladores de
+arraste só param a propagação quando o gesto em curso é do escopo deles: um bloco
+solto sobre os cards de outro precisa que o evento SUBA até a faixa.
 
 O bloco de prisões deixou de ter `<section>` própria e entrou na mesma lista dos
 demais cards de listagem: ele continua escrito no código (o detalhamento
@@ -780,10 +805,18 @@ do que informam em `/dados-base`, com os dados recortados; esconder o botão nã
 a autorização, quem recusa o PUT direto é `requireAdmin` em
 `/api/produtividade/ordem`.
 
+**Os botões do cabeçalho seguem essa mesma divisão.** "Organizar painel" muda o
+que TODOS veem na operação; "Selecionar todos", "Baixar (imagem)" e "Baixar
+(PDF)" produzem um arquivo para quem clicou. Os quatro moraram juntos sob o
+rótulo "Baixar gráficos", que descrevia três deles e mentia sobre o primeiro —
+hoje são dois grupos, e o de baixar some no modo organizar (ali os cards estão
+inertes, e o botão convidaria a exportar um painel em rascunho).
+
 Cobertura: `src/lib/produtividade/__tests__/ordem.test.ts` (a regra do "fim da
-lista", ids órfãos, JSON inválido) e `e2e/produtividade-ordem.spec.ts` (o arraste,
-a ida e volta pelo banco, a pergunta marcada depois e a recusa ao admin de
-unidade).
+lista", ids órfãos, JSON inválido, a ordem das faixas e a comparação com o
+natural) e `e2e/produtividade-ordem.spec.ts` (o arraste de card e de faixa, a ida
+e volta pelo banco, a pergunta marcada depois, o arranjo que volta ao do
+formulário e a recusa ao admin de unidade).
 
 ### O eixo do painel: delegacias ou seccionais
 

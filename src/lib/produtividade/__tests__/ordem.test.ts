@@ -12,10 +12,12 @@ import {
 	lerOrdemPainel,
 	ordenarCardsDoPainel,
 	moverNaLista,
+	mesmaOrdemDeIds,
 	idCardColunas,
 	idCardRanking,
 	idCardDetalhe,
-	idCardIndicador
+	idCardIndicador,
+	idBloco
 } from '../ordem';
 
 /** Um card mínimo: só o id importa para a ordenação. */
@@ -122,6 +124,91 @@ describe('ids de card', () => {
 
 	it('indicador é pela key, que é como os dois modelos o unificam', () => {
 		expect(idCardIndicador('acervo_ip')).toBe('ind-acervo_ip');
+	});
+
+	it('id de FAIXA não colide com id de card', () => {
+		// As faixas entram na MESMA lista salva que os cards. Colisão aqui faria
+		// arrastar um bloco mover um card, ou o contrário.
+		const todos = [
+			idBloco('colunas'),
+			idBloco('listagem'),
+			idBloco('indicadores'),
+			idCardColunas(7),
+			idCardRanking(7),
+			idCardDetalhe(7),
+			idCardIndicador('colunas')
+		];
+		expect(new Set(todos).size).toBe(todos.length);
+	});
+});
+
+describe('ordem das FAIXAS', () => {
+	// As três faixas se ordenam pela mesma função dos cards — é o que permitiu a
+	// ordem das categorias caber sem coluna nova no banco.
+	const SECOES = ['indicadores', 'listagem', 'colunas'] as const;
+
+	it('sem ordem salva, as faixas ficam na sequência de sempre', () => {
+		expect(ordenarCardsDoPainel(SECOES, [], idBloco)).toEqual([
+			'indicadores',
+			'listagem',
+			'colunas'
+		]);
+	});
+
+	it('a ordem salva move a faixa inteira', () => {
+		const ordem = [idBloco('colunas'), idBloco('indicadores'), idBloco('listagem')];
+		expect(ordenarCardsDoPainel(SECOES, ordem, idBloco)).toEqual([
+			'colunas',
+			'indicadores',
+			'listagem'
+		]);
+	});
+
+	it('faixa não nomeada na ordem salva vai para o fim', () => {
+		// Mesma regra dos cards. Vale para uma quarta faixa que venha a existir: ela
+		// nasce embaixo, e não no meio de um painel já arrumado.
+		expect(ordenarCardsDoPainel(SECOES, [idBloco('colunas')], idBloco)).toEqual([
+			'colunas',
+			'indicadores',
+			'listagem'
+		]);
+	});
+
+	it('ids de card na mesma lista não movem faixa', () => {
+		// A lista salva é uma só; cada consumidor pergunta a posição dos SEUS ids.
+		const ordem = ['rank-q1', '7', idBloco('colunas'), 'ind-acervo'];
+		expect(ordenarCardsDoPainel(SECOES, ordem, idBloco)).toEqual([
+			'colunas',
+			'indicadores',
+			'listagem'
+		]);
+	});
+});
+
+describe('mesmaOrdemDeIds', () => {
+	// É a régua de "isto ainda é a ordem das perguntas?". Quando é, o painel grava
+	// a lista VAZIA e volta a SEGUIR o formulário, em vez de congelar a ordem
+	// atual das perguntas numa lista explícita.
+	it('listas iguais', () => {
+		expect(mesmaOrdemDeIds(['a', 'b'], ['a', 'b'])).toBe(true);
+		expect(mesmaOrdemDeIds([], [])).toBe(true);
+	});
+
+	it('mesma composição em ordem diferente NÃO é a mesma', () => {
+		expect(mesmaOrdemDeIds(['a', 'b'], ['b', 'a'])).toBe(false);
+	});
+
+	it('tamanhos diferentes', () => {
+		expect(mesmaOrdemDeIds(['a'], ['a', 'b'])).toBe(false);
+		expect(mesmaOrdemDeIds(['a', 'b'], ['a'])).toBe(false);
+	});
+
+	it('não se deixa enganar por separador dentro do id', () => {
+		// Parte do id sai da `key` que o admin escreve. Comparando por `join`, estes
+		// dois pares passariam por iguais — e o painel gravaria vazio sobre um
+		// arranjo personalizado, ou o contrário.
+		expect(mesmaOrdemDeIds(['a b', 'c'], ['a', 'b c'])).toBe(false);
+		expect(mesmaOrdemDeIds(['ind-x|y'], ['ind-x', 'y'])).toBe(false);
 	});
 });
 

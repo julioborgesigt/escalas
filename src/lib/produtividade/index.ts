@@ -8,5 +8,7 @@ export {
 	idCardColunas,
 	idCardRanking,
 	idCardDetalhe,
-	idCardIndicador
+	idCardIndicador,
+	idBloco,
+	mesmaOrdemDeIds
 } from './ordem';
