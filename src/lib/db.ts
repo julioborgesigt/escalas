@@ -80,8 +80,11 @@ export {
 	vincularAdminGeral,
 	desvincularAdminGeral,
 	ehAdminGeralVinculado,
-	buscarAdminVinculadoPorPolicial
+	buscarAdminVinculadoPorPolicial,
+	buscarModulosAdminVinculado,
+	atualizarModuloAdminVinculado
 } from './db/admin-vinculado';
+export type { ModulosAdmin, ResultadoToggleModulo } from './db/admin-vinculado';
 
 export {
 	listarPoliciais,

@@ -176,6 +176,13 @@ export const administradores = sqliteTable('administradores', {
 	// própria — o login autentica contra as credenciais do policial vinculado
 	// (mesma senha/e-mail/2FA). Nulo = admin standalone (bootstrap por env).
 	policial_id: integer('policial_id'),
+	/**
+	 * Consoles liberados nesta conta. Independentes: dá para liberar só Escalas,
+	 * só GISE, ou os dois. O cookie `admin_modulo` é preferência DENTRO do que
+	 * estas flags permitem (migração 0065). Default 1 = comportamento legado.
+	 */
+	modulo_escalas: integer('modulo_escalas').notNull().default(1),
+	modulo_gise: integer('modulo_gise').notNull().default(1),
 	created_at: text('created_at').default(sql`(datetime('now', '-3 hours'))`)
 });
 

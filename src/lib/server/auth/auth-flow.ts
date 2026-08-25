@@ -24,8 +24,16 @@ import type { Database } from '$lib/db';
 import { chaveRateLimitIp } from '$lib/server/auth/recovery-rate-limit';
 import { mascararEmail } from '$lib/utils/pii';
 import { mensagemDeErro } from '$lib/utils/erro';
+import {
+	modulosDaContaAdmin,
+	temAlgumModulo,
+	cookieModuloParaGravar,
+	type AdminModuloPreferencia
+} from '$lib/server/auth/admin-modulos';
 
 export { mascararEmail };
+
+export type AdminModulo = AdminModuloPreferencia;
 
 // ---- Rate limit e utilitários (antes em login-helpers) ----
 
@@ -199,8 +207,6 @@ async function checkAccountRateLimit(
 	return { blocked: (row?.n ?? 0) >= ACCOUNT_MAX_ATTEMPTS };
 }
 
-export type AdminModulo = 'ambas' | 'gise' | 'escalas';
-
 type TentarLoginArgs = {
 	db: Database;
 	ip: string;
@@ -249,6 +255,20 @@ function adminDestino(modulo: AdminModulo): string {
 	if (modulo === 'gise') return '/gise';
 	if (modulo === 'escalas') return '/recebidos';
 	return '/painel';
+}
+
+/**
+ * Preferência de tela dentro do que a conta permite. `null` = conta sem
+ * módulo nenhum (login deve recusar).
+ */
+function resolverModuloLogin(
+	linha: { modulo_escalas?: number | boolean | null; modulo_gise?: number | boolean | null },
+	preferencia: AdminModulo | undefined,
+	isSuperAdmin = false
+): AdminModulo | null {
+	const permitidos = modulosDaContaAdmin(linha, isSuperAdmin);
+	if (!temAlgumModulo(permitidos)) return null;
+	return cookieModuloParaGravar(permitidos, preferencia);
 }
 
 /**
@@ -399,6 +419,7 @@ export async function tentarLogin({
 				/* auditoria indisponível não bloqueia o break-glass */
 			}
 			const token = await criarSessao(db, 'admin', superAdmin.id);
+			const moduloResolvido = resolverModuloLogin(superAdmin, adminModulo, true) ?? 'ambas';
 			return {
 				sucesso: true,
 				statusCode: 200,
@@ -406,8 +427,8 @@ export async function tentarLogin({
 				nome: superAdmin.nome,
 				primeiroAcesso: false,
 				role: 'admin',
-				formRedirect: isForm ? adminDestino(adminModulo) : undefined,
-				adminModuloCookie: isForm ? adminModulo : undefined
+				formRedirect: isForm ? adminDestino(moduloResolvido) : undefined,
+				adminModuloCookie: isForm ? moduloResolvido : undefined
 			};
 		}
 
@@ -553,6 +574,7 @@ export async function tentarLogin({
 				/* auditoria indisponível não bloqueia o login */
 			}
 			const token = await criarSessao(db, 'admin', envAdmin.id);
+			const moduloResolvido = resolverModuloLogin(envAdmin, adminModulo) ?? 'ambas';
 			return {
 				sucesso: true,
 				statusCode: 200,
@@ -560,8 +582,8 @@ export async function tentarLogin({
 				nome: envAdmin.nome,
 				primeiroAcesso: false,
 				role: 'admin',
-				formRedirect: isForm ? adminDestino(adminModulo) : undefined,
-				adminModuloCookie: isForm ? adminModulo : undefined
+				formRedirect: isForm ? adminDestino(moduloResolvido) : undefined,
+				adminModuloCookie: isForm ? moduloResolvido : undefined
 			};
 		}
 
@@ -599,6 +621,17 @@ export async function tentarLogin({
 				sucesso: false,
 				statusCode: 401,
 				erro: 'Login ou senha inválidos',
+				fields: { matricula, tipo }
+			};
+		}
+
+		const moduloResolvido = resolverModuloLogin(admin, adminModulo);
+		if (!moduloResolvido) {
+			await recordAttempt(db, ip, false, identHash);
+			return {
+				sucesso: false,
+				statusCode: 403,
+				erro: 'Esta conta de administrador não tem módulos liberados. Contate quem gerencia o cadastro.',
 				fields: { matricula, tipo }
 			};
 		}
@@ -666,7 +699,7 @@ export async function tentarLogin({
 			ip,
 			env: platform?.env
 		});
-		const dest = adminDestino(adminModulo);
+		const dest = adminDestino(moduloResolvido);
 		return {
 			sucesso: true,
 			statusCode: 200,
@@ -675,7 +708,7 @@ export async function tentarLogin({
 			primeiroAcesso: credPrimeiroAcesso === 1,
 			role: 'admin',
 			formRedirect: isForm ? (credPrimeiroAcesso === 1 ? '/alterar-senha' : dest) : undefined,
-			adminModuloCookie: isForm ? adminModulo : undefined
+			adminModuloCookie: isForm ? moduloResolvido : undefined
 		};
 	}
 

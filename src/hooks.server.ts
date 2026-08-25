@@ -28,13 +28,17 @@ import { sequence } from '@sveltejs/kit/hooks';
 import { redirect } from '@sveltejs/kit';
 import { comparacaoTimingSafe } from '$lib/crypto/timing-safe';
 import { captureException, setUser } from '@sentry/cloudflare';
-import { validarSessaoComAceite } from '$lib/auth';
+import { validarSessaoComAceite, obterRotaBemVindo } from '$lib/auth';
 import { getDB } from '$lib/db';
 import {
 	lerSessaoCache,
 	gravarSessaoCache,
 	ttlCacheSessaoParaMetodo
 } from '$lib/server/auth/session-cache';
+import {
+	adminPodeAcessarRota,
+	resolverPreferenciaModulo
+} from '$lib/server/auth/admin-modulos';
 import { VERSAO as TERMO_VERSAO, calcularHashTermo } from '$lib/server/termo/termo-vigente';
 import { logger } from '$lib/server/logger';
 import { requestStore, getRequestCtx, type RequestCtx } from '$lib/server/request-context';
@@ -273,6 +277,20 @@ const handleAuth: Handle = async ({ event, resolve }) => {
 			return apiError('Aceite o Termo de Uso vigente antes de continuar', 403, ErrorCode.FORBIDDEN);
 		}
 		redirect(302, '/aceitar-termo');
+	}
+
+	// Consoles Escalas / GISE liberados por conta (migração 0065). O cookie
+	// `admin_modulo` é preferência; estas flags são a permissão. Super Admin
+	// e rotas compartilhadas (policiais, auth…) passam em `adminPodeAcessarRota`.
+	if (!adminPodeAcessarRota(usuario, pathname)) {
+		if (pathname.startsWith('/api/')) {
+			return apiError('Módulo não liberado para esta conta', 403, ErrorCode.FORBIDDEN);
+		}
+		const preferencia = resolverPreferenciaModulo(
+			usuario.modulosAdmin ?? { escalas: true, gise: true },
+			event.cookies.get('admin_modulo')
+		);
+		redirect(302, obterRotaBemVindo(usuario, preferencia));
 	}
 
 	event.locals.usuario = usuario;

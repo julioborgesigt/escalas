@@ -11,6 +11,7 @@ import { criarSessao, excluirSessao, obterRotaBemVindo, type UsuarioLogado } fro
 import { cookieOptions } from '$lib/server/auth/auth-flow';
 import { invalidarSessaoCache } from '$lib/server/auth/session-cache';
 import { requireAuth, forbidden, conflict } from '$lib/server/api';
+import { modulosDaContaAdmin, cookieModuloParaGravar } from '$lib/server/auth/admin-modulos';
 
 /**
  * Alterna o tipo da sessão entre ADM Geral (`admin`) e Usuário (`policial`)
@@ -90,11 +91,14 @@ export const POST: RequestHandler = async (event) => {
 
 	const novoToken = await criarSessao(db, 'admin', admin.id);
 	cookies.set('session_token', novoToken, cookieOptions(url));
-	// Entra no ÚLTIMO módulo admin usado (cookie preservado); default GISE.
-	// Nunca cai em 'ambas' (o antigo "Admin Geral" GISE+Escalas está em desuso).
+	// Preferência de tela dentro do que a conta permite. Default GISE só quando
+	// os dois estão liberados e não há cookie salvo.
+	const permitidos = modulosDaContaAdmin(admin);
 	const moduloSalvo = cookies.get('admin_modulo');
-	const modulo: 'gise' | 'escalas' =
-		moduloSalvo === 'gise' || moduloSalvo === 'escalas' ? moduloSalvo : 'gise';
+	const modulo = cookieModuloParaGravar(
+		permitidos,
+		moduloSalvo === 'gise' || moduloSalvo === 'escalas' ? moduloSalvo : 'gise'
+	);
 	cookies.set('admin_modulo', modulo, cookieOptions(url));
 	if (tokenAtual) {
 		await excluirSessao(db, tokenAtual);

@@ -30,6 +30,7 @@ import {
 	cookieOptions,
 	type AdminModulo
 } from '$lib/server/auth/auth-flow';
+import { cookieModuloParaGravar, modulosDaContaAdmin } from '$lib/server/auth/admin-modulos';
 import {
 	contarRecoveryAttempts,
 	registrarRecoveryAttempt
@@ -238,16 +239,17 @@ export const actions: Actions = {
 
 		let primeiroAcesso: boolean;
 		let mappedUser;
+		let adminLinha: Awaited<ReturnType<typeof buscarAdminAtivo>> = null;
 		if (tipo === 'admin') {
 			// Mesma regra da rota JSON (FLW-RBAC-001 / SEC-02): o Admin Geral
 			// vinculado não autentica se o policial foi desativado.
-			const admin = await buscarAdminAtivo(db, usuarioId);
-			if (!admin) return fail(403, { error: 'Usuário inativo' });
-			primeiroAcesso = admin.primeiro_acesso === 1;
+			adminLinha = await buscarAdminAtivo(db, usuarioId);
+			if (!adminLinha) return fail(403, { error: 'Usuário inativo' });
+			primeiroAcesso = adminLinha.primeiro_acesso === 1;
 			mappedUser = {
-				id: admin.id,
+				id: adminLinha.id,
 				tipo: 'admin' as const,
-				nome: admin.nome,
+				nome: adminLinha.nome,
 				primeiro_acesso: primeiroAcesso
 			};
 		} else {
@@ -286,13 +288,14 @@ export const actions: Actions = {
 			{ env }
 		);
 
-		if (tipo === 'admin') {
+		if (tipo === 'admin' && adminLinha) {
 			const pendingModulo = cookies.get('admin_modulo_pending') || 'ambas';
-			cookies.set('admin_modulo', pendingModulo, cookieOptions(url));
+			const modulo = cookieModuloParaGravar(modulosDaContaAdmin(adminLinha), pendingModulo);
+			cookies.set('admin_modulo', modulo, cookieOptions(url));
 			cookies.delete('admin_modulo_pending', { path: '/' });
 			return {
 				success: true,
-				redirect: primeiroAcesso ? '/alterar-senha' : obterRotaBemVindo(mappedUser, pendingModulo),
+				redirect: primeiroAcesso ? '/alterar-senha' : obterRotaBemVindo(mappedUser, modulo),
 				primeiro_acesso: primeiroAcesso
 			};
 		}

@@ -14,6 +14,11 @@ import { temAssinaturaEscalaPendente } from '$lib/server/escalas/rubrica-pendent
 import { resumoRecebidosAdmin } from '$lib/server/escalas/sync-estado';
 import { logger } from '$lib/server/logger';
 import { mensagemDeErro } from '$lib/utils/erro';
+import {
+	resolverPreferenciaModulo,
+	temAmbosModulos,
+	type AdminModuloPreferencia
+} from '$lib/server/auth/admin-modulos';
 
 export const load: LayoutServerLoad = async ({ locals, platform, cookies, depends }) => {
 	const u = locals.usuario;
@@ -104,10 +109,18 @@ export const load: LayoutServerLoad = async ({ locals, platform, cookies, depend
 		}
 	}
 
-	// Admin module scope set at login
+	// Preferência de tela do Admin Geral, recortada ao que a conta permite.
+	// Conta com um módulo só: cookie inválido/do outro módulo é tratado como o
+	// único liberado (sem regravar aqui — login e alternar-módulo já gravam certo).
 	const rawAdminModulo = cookies.get('admin_modulo');
-	const adminModulo: 'ambas' | 'gise' | 'escalas' =
-		rawAdminModulo === 'gise' || rawAdminModulo === 'escalas' ? rawAdminModulo : 'ambas';
+	const modulos = u?.tipo === 'admin' ? (u.modulosAdmin ?? { escalas: true, gise: true }) : null;
+	const adminModulo: AdminModuloPreferencia = modulos
+		? resolverPreferenciaModulo(modulos, rawAdminModulo)
+		: rawAdminModulo === 'gise' || rawAdminModulo === 'escalas'
+			? rawAdminModulo
+			: 'ambas';
+	const podeAlternarModulo =
+		u?.tipo === 'admin' && !u.isSuperAdmin && !!modulos && temAmbosModulos(modulos);
 
 	return {
 		usuario: u,
@@ -126,6 +139,7 @@ export const load: LayoutServerLoad = async ({ locals, platform, cookies, depend
 		precisaCadastrarRubrica,
 		recebidosNaoVistos,
 		adminModulo,
+		podeAlternarModulo,
 		podeAlternarParaUsuario,
 		podeAlternarParaAdmin
 	};
