@@ -358,11 +358,7 @@
 		<div class="flex flex-col gap-2 print:hidden">
 			<div class="flex flex-nowrap items-center justify-between gap-2">
 				{#if p.podeOrganizar}
-					<button
-						type="button"
-						class={BOTAO_OUTLINE}
-						onclick={() => (p.organizando = true)}
-					>
+					<button type="button" class={BOTAO_OUTLINE} onclick={() => (p.organizando = true)}>
 						<GripVertical class="h-3.5 w-3.5" aria-hidden="true" />
 						<span class="xs:hidden">Organizar</span><span class="hidden xs:inline"
 							>Organizar painel</span
@@ -437,9 +433,7 @@
 									d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
 								/></svg
 							>
-							Baixar (imagem){p.selectedCharts.length > 0
-								? ` (${p.selectedCharts.length})`
-								: ''}
+							Baixar (imagem){p.selectedCharts.length > 0 ? ` (${p.selectedCharts.length})` : ''}
 						{/if}
 					</button>
 
