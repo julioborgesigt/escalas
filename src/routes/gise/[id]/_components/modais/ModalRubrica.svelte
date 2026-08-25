@@ -1,6 +1,7 @@
 <script lang="ts">
 	import ModalShell from '$lib/components/ModalShell.svelte';
 	import SignaturePad from '$lib/components/SignaturePad.svelte';
+	import RodapeOpcaoTokenAssinatura from '$lib/components/RodapeOpcaoTokenAssinatura.svelte';
 	import type {
 		SignaturePadConfirmPayload,
 		SignaturePadStep
@@ -13,6 +14,9 @@
 		exigirCodigoEmail: boolean;
 		/** Rubrica cadastrada do supervisor — reutilizada em vez de exigir novo desenho. */
 		rubricaSalva?: string | null;
+		credenciaisCombinadas?: boolean;
+		cpfUsuario?: string | null;
+		onAssinarToken?: (() => void) | null;
 		onConfirm: (payload: SignaturePadConfirmPayload) => void | Promise<void>;
 		onCancel: () => void;
 	}
@@ -23,6 +27,9 @@
 		exigirGps,
 		exigirCodigoEmail,
 		rubricaSalva = null,
+		credenciaisCombinadas = false,
+		cpfUsuario = null,
+		onAssinarToken = null,
 		onConfirm,
 		onCancel
 	}: Props = $props();
@@ -42,7 +49,9 @@
 				? 'Confirme sua senha'
 				: signatureStep === 'email_code'
 					? 'Confirmação de Identidade'
-					: 'Rubrica do Supervisor'
+					: signatureStep === 'credenciais'
+						? 'Fator de autenticação'
+						: 'Rubrica do Supervisor'
 	);
 	const signatureDescricao = $derived(
 		signatureStep === 'camera'
@@ -51,9 +60,14 @@
 				? 'A sessão sozinha não basta. Digite a senha de acesso para assinar.'
 				: signatureStep === 'email_code'
 					? 'Por razões de segurança, insira o código enviado para o seu e-mail funcional.'
-					: rubricaSalva
-						? 'Confira sua rubrica cadastrada abaixo para assinar a escala ou desenhe uma nova.'
-						: 'Desenhe sua rubrica no quadro abaixo para assinar a escala.'
+					: signatureStep === 'credenciais'
+						? 'Confirme sua senha e o código enviado por e-mail para concluir a assinatura.'
+						: rubricaSalva
+							? 'Confira sua rubrica cadastrada abaixo para assinar a escala ou desenhe uma nova.'
+							: 'Desenhe sua rubrica no quadro abaixo para assinar a escala.'
+	);
+	const mostrarOpcaoToken = $derived(
+		Boolean(onAssinarToken) && (signatureStep === 'signature' || signatureStep === 'credenciais')
 	);
 </script>
 
@@ -77,8 +91,13 @@
 			{exigirGps}
 			{exigirCodigoEmail}
 			{rubricaSalva}
+			{credenciaisCombinadas}
+			{cpfUsuario}
 			bind:step={signatureStep}
 		/>
+		{#if mostrarOpcaoToken && onAssinarToken}
+			<RodapeOpcaoTokenAssinatura {onAssinarToken} />
+		{/if}
 	{/if}
 
 	<p class="text-sm text-surface-600 dark:text-surface-400 text-center italic">

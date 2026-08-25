@@ -80,7 +80,7 @@ export function mensagemConviteChave(isMobile: boolean): string {
 			'Cadastrar de novo substitui a chave anterior.'
 		);
 	}
-	return 'A assinatura avançada em tela é no celular. Neste computador, use o Token A3.';
+	return 'A assinatura avançada em tela exige chave cadastrada no celular. Neste computador, use o certificado digital (Token A3).';
 }
 
 /**

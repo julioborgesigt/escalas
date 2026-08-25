@@ -70,6 +70,7 @@
 	import BotaoVoltar from '$lib/components/BotaoVoltar.svelte';
 	import BotaoLimparFiltros from '$lib/components/BotaoLimparFiltros.svelte';
 	import ModalShell from '$lib/components/ModalShell.svelte';
+	import RodapeOpcaoTokenAssinatura from '$lib/components/RodapeOpcaoTokenAssinatura.svelte';
 	import { mensagemDeErro } from '$lib/utils/erro';
 
 	const { data }: PageProps = $props();
@@ -410,6 +411,9 @@
 	const restringirSmartphone = $derived((page.data.restringirSmartphone as boolean) ?? false);
 	const assinaturaTelaBloqueada = $derived(restringirSmartphone && !isMobile);
 	const avancadaDisponivel = $derived(avancadaEmTelaDoLayout(page.data));
+	const avancadaDesktopDisponivel = $derived(
+		!isMobile && !restringirSmartphone && avancadaDisponivel
+	);
 
 	let escalaAssinandoId = $state<number | null>(null);
 	let dialogAssinaturaTela = $state(false);
@@ -442,6 +446,13 @@
 		await painelTokenRapidoControl?.assinarComSerpro();
 	}
 
+	function assinarComTokenNoModal() {
+		dialogAssinaturaTela = false;
+		if (escalaAssinandoId != null) {
+			void iniciarAssinaturaToken(escalaAssinandoId);
+		}
+	}
+
 	let signatureStep = $state<SignaturePadStep>('signature');
 	$effect(() => {
 		if (dialogAssinaturaTela) {
@@ -457,6 +468,9 @@
 	);
 	const signatureTitulo = $derived(textosEtapa.titulo);
 	const signatureDescricao = $derived(textosEtapa.descricao);
+	const mostrarOpcaoTokenNoModal = $derived(
+		avancadaDesktopDisponivel && (signatureStep === 'signature' || signatureStep === 'credenciais')
+	);
 </script>
 
 <svelte:head>
@@ -850,8 +864,16 @@
 			exigirFoto={page.data.exigirFotoAssinatura ?? true}
 			exigirGps={page.data.exigirGpsAssinatura ?? true}
 			exigirCodigoEmail={page.data.exigirCodigoEmailAssinatura ?? false}
+			credenciaisCombinadas={avancadaDesktopDisponivel}
+			cpfUsuario={usuarioLogado?.cpf ?? null}
 			bind:step={signatureStep}
 		/>
+		{#if mostrarOpcaoTokenNoModal}
+			<RodapeOpcaoTokenAssinatura
+				onAssinarToken={assinarComTokenNoModal}
+				disabled={assinaturaRapida.assinandoSimples}
+			/>
+		{/if}
 	{/if}
 </ModalShell>
 

@@ -150,6 +150,15 @@
 		initialSignerCpf: untrack(() => data.usuarioAtual?.cpf ?? '')
 	});
 
+	const avancadaDesktopDisponivel = $derived(
+		!isMobile && !data.restringirSmartphone && avancadaEmTelaDoLayout(page.data)
+	);
+
+	function assinarGiseComTokenNoModal() {
+		assinatura.fecharModalRubrica();
+		void assinatura.painelTokenGise?.assinarComSerpro();
+	}
+
 	// Estados locais (não extraídos)
 	let showFinalizarConfirm = $state(false);
 	let showDigitalModalRelatorio = $state(false);
@@ -805,6 +814,9 @@
 	exigirGps={page.data.exigirGpsAssinatura ?? true}
 	exigirCodigoEmail={page.data.exigirCodigoEmailAssinatura ?? false}
 	rubricaSalva={minhaRubrica}
+	credenciaisCombinadas={avancadaDesktopDisponivel}
+	cpfUsuario={data.usuarioAtual?.cpf ?? null}
+	onAssinarToken={avancadaDesktopDisponivel ? assinarGiseComTokenNoModal : null}
 	onConfirm={assinatura.confirmarRubrica}
 	onCancel={assinatura.fecharModalRubrica}
 />

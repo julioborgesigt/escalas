@@ -25,6 +25,8 @@
 	import { untrack } from 'svelte';
 	import Camera from '@lucide/svelte/icons/camera';
 	import Check from '@lucide/svelte/icons/check';
+	import Eye from '@lucide/svelte/icons/eye';
+	import EyeOff from '@lucide/svelte/icons/eye-off';
 	import type {
 		SignaturePadLivenessResultado,
 		SignaturePadConfirmPayload,
@@ -45,6 +47,7 @@
 	import { useRubricaCanvas } from '$lib/composables/useRubricaCanvas.svelte';
 	import { useFaceLiveness } from '$lib/composables/useFaceLiveness.svelte';
 	import { mensagemDeErro } from '$lib/utils/erro';
+	import { formatarCPF } from '$lib/utils/formato';
 
 	let {
 		onConfirm,
@@ -54,7 +57,9 @@
 		exigirGps = true,
 		exigirCodigoEmail = false,
 		rubricaSalva = null,
-		step = $bindable('signature')
+		step = $bindable('signature'),
+		credenciaisCombinadas = false,
+		cpfUsuario = null
 	}: {
 		onConfirm: (payload: SignaturePadConfirmPayload) => void | Promise<void>;
 		onCancel: () => void;
@@ -66,6 +71,10 @@
 		    reutiliza-a por padrão — evita obrigar o desenho na tela a cada assinatura. */
 		rubricaSalva?: string | null;
 		step?: SignaturePadStep;
+		/** Desktop: senha e 2FA na mesma etapa, em vez de telas sequenciais. */
+		credenciaisCombinadas?: boolean;
+		/** CPF formatado exibido na etapa combinada (somente leitura). */
+		cpfUsuario?: string | null;
 	} = $props();
 
 	// Reutiliza a rubrica cadastrada por padrão quando ela existe; o usuário
@@ -116,6 +125,11 @@
 	let senhaError = $state<string | null>(null);
 	let confirmandoSenha = $state(false);
 	let emitindo = $state(false);
+	let mostrarSenha = $state(false);
+	let codigoSolicitadoNaEtapa = $state(false);
+
+	const reauthJaConfirmado = $derived(Boolean(lerReauthGuardado()));
+	const cpfFormatado = $derived(cpfUsuario ? formatarCPF(cpfUsuario) : '');
 
 	$effect(() => {
 		if (step === 'camera') {
@@ -125,6 +139,16 @@
 			liveness.aoVoltarDaCamera();
 		}
 		return () => liveness.limparRecursos();
+	});
+
+	$effect(() => {
+		if (step === 'credenciais' && exigirCodigoEmail && !codigoSolicitadoNaEtapa && !desafioId) {
+			codigoSolicitadoNaEtapa = true;
+			void enviarOuReenviarCodigo();
+		}
+		if (step !== 'credenciais') {
+			codigoSolicitadoNaEtapa = false;
+		}
 	});
 
 	// Iniciar captura de localização ao abrir (somente se exigido)
@@ -184,11 +208,59 @@
 			liveness: livenessResultado,
 			reauthId: lerReauthGuardado()
 		};
+		if (credenciaisCombinadas) {
+			step = 'credenciais';
+			return;
+		}
 		if (!pendingSignature.reauthId) {
 			step = 'password';
 			return;
 		}
 		await avancarAposSenha();
+	}
+
+	async function confirmarCredenciaisCombinadas() {
+		senhaError = null;
+		codigoError = null;
+
+		const reauthAtual = pendingSignature?.reauthId ?? lerReauthGuardado();
+		if (!reauthAtual) {
+			if (!senhaInput) {
+				senhaError = 'Digite sua senha de acesso.';
+				return;
+			}
+			confirmandoSenha = true;
+			try {
+				const data = await apiFetch<{ reauthId: string }>('/api/auth/reautenticar-assinatura', {
+					method: 'POST',
+					body: JSON.stringify({ senha: senhaInput })
+				});
+				gravarReauth(data.reauthId);
+				if (pendingSignature) pendingSignature.reauthId = data.reauthId;
+				senhaInput = '';
+			} catch (e: unknown) {
+				senhaError = mensagemDeErro(e, 'Senha incorreta');
+				return;
+			} finally {
+				confirmandoSenha = false;
+			}
+		} else if (pendingSignature && !pendingSignature.reauthId) {
+			pendingSignature.reauthId = reauthAtual;
+		}
+
+		if (exigirCodigoEmail) {
+			if (codigoInput.length !== 6) {
+				codigoError = 'O código deve conter 6 dígitos.';
+				return;
+			}
+			if (!desafioId) {
+				codigoError = 'Aguarde o envio do código por e-mail.';
+				return;
+			}
+			await emitirConfirmacao({ codigoEmail: codigoInput, desafioId });
+		} else {
+			await emitirConfirmacao();
+		}
 	}
 
 	async function avancarAposSenha() {
@@ -249,7 +321,7 @@
 				pendingSignature.reauthId = null;
 				senhaInput = '';
 				senhaError = mensagemDeErro(e, ERRO_REAUTH_AUSENTE);
-				step = 'password';
+				step = credenciaisCombinadas ? 'credenciais' : 'password';
 				return;
 			}
 			codigoError = mensagemDeErro(e);
@@ -327,7 +399,7 @@
 		</p>
 	{/if}
 
-	{#if codigoError && step !== 'email_code'}
+	{#if codigoError && step !== 'email_code' && step !== 'credenciais'}
 		<div
 			class="p-4 bg-error-500/10 border-2 border-error-500/30 rounded-2xl animate-in fade-in slide-in-from-top-2 duration-300"
 		>
@@ -611,6 +683,119 @@
 			</div>
 		{/if}
 
+		{#if step === 'credenciais'}
+			<div
+				class="flex flex-col p-5 sm:p-6 bg-surface-100/50 dark:bg-surface-800/40 rounded-2xl border-2 border-primary-500/20 min-h-[300px]"
+			>
+				{#if cpfFormatado}
+					<label class="label mb-3">
+						<span class="label-text text-3xs font-bold uppercase tracking-wider text-surface-500"
+							>Identificação</span
+						>
+						<input
+							type="text"
+							readonly
+							value={cpfFormatado}
+							class="input w-full h-11 rounded-xl bg-surface-200/60 dark:bg-surface-900/60 border-surface-300 dark:border-surface-600 text-surface-700 dark:text-surface-300 font-mono"
+							tabindex="-1"
+						/>
+					</label>
+				{/if}
+
+				{#if !reauthJaConfirmado}
+					<label class="label mb-3">
+						<span class="label-text text-3xs font-bold uppercase tracking-wider text-surface-500"
+							>Senha de acesso</span
+						>
+						<div class="relative">
+							<input
+								type={mostrarSenha ? 'text' : 'password'}
+								autocomplete="current-password"
+								placeholder="Senha de acesso"
+								aria-label="Senha de acesso"
+								bind:value={senhaInput}
+								class="input w-full h-11 rounded-xl bg-white dark:bg-surface-900 border-2 {senhaError
+									? 'border-error-500'
+									: 'border-surface-300 dark:border-surface-600'} pr-11"
+							/>
+							<button
+								type="button"
+								class="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 text-surface-500 hover:text-surface-700 dark:hover:text-surface-300"
+								onclick={() => (mostrarSenha = !mostrarSenha)}
+								aria-label={mostrarSenha ? 'Ocultar senha' : 'Mostrar senha'}
+							>
+								{#if mostrarSenha}
+									<EyeOff class="w-4 h-4" aria-hidden="true" />
+								{:else}
+									<Eye class="w-4 h-4" aria-hidden="true" />
+								{/if}
+							</button>
+						</div>
+					</label>
+					{#if senhaError}
+						<p class="text-xs font-bold text-error-500 uppercase tracking-wider mb-3">
+							{senhaError}
+						</p>
+					{/if}
+				{:else}
+					<p
+						class="text-3xs font-bold uppercase tracking-wider text-success-600 dark:text-success-400 mb-3 flex items-center gap-1.5"
+					>
+						<Check class="w-3.5 h-3.5" aria-hidden="true" /> Senha confirmada recentemente
+					</p>
+				{/if}
+
+				{#if exigirCodigoEmail}
+					<p class="text-3xs font-bold uppercase tracking-wider text-surface-500 mb-2">
+						Receber código de assinatura por:
+					</p>
+					<div
+						class="flex items-center gap-2 mb-4 px-3 py-2 rounded-xl bg-primary-500/10 border border-primary-500/20 w-fit"
+					>
+						<span class="w-2.5 h-2.5 rounded-full bg-primary-500 shrink-0" aria-hidden="true"
+						></span>
+						<span class="text-xs font-semibold text-surface-700 dark:text-surface-200">E-mail</span>
+					</div>
+
+					<label class="label">
+						<span class="label-text text-3xs font-bold uppercase tracking-wider text-surface-500"
+							>Código de verificação</span
+						>
+						<input
+							type="text"
+							inputmode="numeric"
+							maxlength="6"
+							placeholder="Insira o código"
+							aria-label="Código de verificação de 6 dígitos enviado ao seu e-mail"
+							autocomplete="one-time-code"
+							bind:value={codigoInput}
+							onkeydown={(e) => {
+								if (e.key === 'Enter') confirmarCredenciaisCombinadas();
+							}}
+							class="input w-full h-11 rounded-xl bg-white dark:bg-surface-900 border-2 {codigoError
+								? 'border-error-500'
+								: 'border-surface-300 dark:border-surface-600'} font-mono tracking-widest text-center"
+						/>
+					</label>
+
+					{#if codigoError}
+						<p class="text-xs font-bold text-error-500 uppercase tracking-wider mt-2">
+							{codigoError}
+						</p>
+					{/if}
+
+					<div class="mt-3">
+						<CodigoTimer
+							{emailMascarado}
+							onReenviar={async () => {
+								await enviarOuReenviarCodigo();
+							}}
+						/>
+					</div>
+				{/if}
+			</div>
+		{/if}
+
 		{#if step === 'email_code'}
 			<div
 				class="flex flex-col items-center justify-center p-6 bg-surface-100/50 dark:bg-surface-800/40 rounded-2xl border-2 border-primary-500/20 text-center min-h-[300px]"
@@ -780,6 +965,32 @@
 					<Spinner size="sm" />
 				{:else}
 					Continuar
+				{/if}
+			</button>
+		{:else if step === 'credenciais'}
+			<button
+				type="button"
+				class="btn preset-outlined-surface-500 rounded-xl text-xs font-bold uppercase px-4 py-2 hover:bg-surface-50 dark:hover:bg-surface-900 transition-colors"
+				onclick={() => (step = exigirFoto ? 'camera' : 'signature')}
+				disabled={confirmandoSenha || emitindo}
+			>
+				Voltar
+			</button>
+
+			<button
+				type="button"
+				class="btn preset-filled-primary-500 rounded-xl text-sm font-bold uppercase px-6 py-3 shadow-lg shadow-primary-500/20 transition-all ml-auto w-full sm:w-auto"
+				onclick={confirmarCredenciaisCombinadas}
+				disabled={confirmandoSenha ||
+					emitindo ||
+					solicitandoCodigo ||
+					(exigirCodigoEmail && codigoInput.length !== 6) ||
+					(!reauthJaConfirmado && !senhaInput)}
+			>
+				{#if emitindo || confirmandoSenha}
+					Assinando...
+				{:else}
+					Assinar
 				{/if}
 			</button>
 		{:else if step === 'email_code'}
