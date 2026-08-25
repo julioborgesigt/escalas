@@ -42,7 +42,7 @@
 	import { enhance } from '$app/forms';
 	import { useGiseEstado, useGiseAssinatura } from '$lib/composables/gise';
 	import { escalaGiseJaAssinada } from '$lib/gise/status-escala';
-	import { useOfertaRubrica, rubricaValida, useInvalidateOnFocus } from '$lib/composables';
+	import { useOfertaRubrica, rubricaValida, useInvalidateOnFocus, useMobile } from '$lib/composables';
 	import { fetchSyncEstado } from '$lib/sync-estado';
 	import { loading } from '$lib/loading.svelte';
 	import type { Policial, GiseAssinaturaRelatorio } from '$lib/server/schema';
@@ -149,6 +149,17 @@
 		initialSignerName: untrack(() => data.usuarioAtual?.nome ?? ''),
 		initialSignerCpf: untrack(() => data.usuarioAtual?.cpf ?? '')
 	});
+
+	const mobileState = useMobile();
+	const isMobile = $derived(mobileState.isMobile);
+	const avancadaDesktopDisponivel = $derived(
+		!isMobile && !data.restringirSmartphone && avancadaEmTelaDoLayout(page.data)
+	);
+
+	function assinarGiseComTokenNoModal() {
+		assinatura.fecharModalRubrica();
+		void assinatura.painelTokenGise?.assinarComSerpro();
+	}
 
 	// Estados locais (não extraídos)
 	let showFinalizarConfirm = $state(false);
@@ -805,6 +816,9 @@
 	exigirGps={page.data.exigirGpsAssinatura ?? true}
 	exigirCodigoEmail={page.data.exigirCodigoEmailAssinatura ?? false}
 	rubricaSalva={minhaRubrica}
+	credenciaisCombinadas={avancadaDesktopDisponivel}
+	cpfUsuario={data.usuarioAtual?.cpf ?? null}
+	onAssinarToken={avancadaDesktopDisponivel ? assinarGiseComTokenNoModal : null}
 	onConfirm={assinatura.confirmarRubrica}
 	onCancel={assinatura.fecharModalRubrica}
 />

@@ -28,6 +28,13 @@ describe('textosEtapaAssinatura', () => {
 		});
 	});
 
+	it('etapa credenciais', () => {
+		expect(textosEtapaAssinatura('credenciais', 'fallback')).toEqual({
+			titulo: 'Fator de autenticação',
+			descricao: 'Confirme sua senha e o código enviado por e-mail para concluir a assinatura.'
+		});
+	});
+
 	it('etapa signature usa a descrição específica do chamador', () => {
 		expect(textosEtapaAssinatura('signature', 'Assine a escala X')).toEqual({
 			titulo: 'Assinatura Digital em Tela',

@@ -7,7 +7,7 @@ export type SignaturePadLivenessResultado = {
 	duracaoMs: number;
 };
 
-export type SignaturePadStep = 'signature' | 'camera' | 'password' | 'email_code';
+export type SignaturePadStep = 'signature' | 'camera' | 'password' | 'email_code' | 'credenciais';
 
 export type SignaturePadConfirmPayload = {
 	rubrica: string;
@@ -47,6 +47,11 @@ export function textosEtapaAssinatura(
 			return {
 				titulo: 'Confirmação de Identidade',
 				descricao: 'Por razões de segurança, insira o código enviado para o seu e-mail funcional.'
+			};
+		case 'credenciais':
+			return {
+				titulo: 'Fator de autenticação',
+				descricao: 'Confirme sua senha e o código enviado por e-mail para concluir a assinatura.'
 			};
 		default:
 			return { titulo: 'Assinatura Digital em Tela', descricao: descricaoRubrica };

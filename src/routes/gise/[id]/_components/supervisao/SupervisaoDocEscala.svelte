@@ -16,6 +16,7 @@
 	import { quadroSupervisao } from './quadro-supervisao-estado.svelte';
 
 	const quadro = quadroSupervisao();
+	const restringirSmartphone = $derived((page.data.restringirSmartphone as boolean) ?? false);
 
 	const gise = $derived(quadro.gise);
 	const documentoAssinadoInfo = $derived(quadro.documentoAssinadoInfo);
@@ -33,6 +34,9 @@
 	);
 	const urlDownloadPdf = $derived(`/api/gise/${gise.id}/download?format=pdf`);
 	const avancadaDisponivel = $derived(avancadaEmTelaDoLayout(page.data));
+	const avancadaDesktopDisponivel = $derived(
+		!mobile && !restringirSmartphone && avancadaDisponivel
+	);
 
 	let expandirEscala = $state(false);
 </script>
@@ -121,6 +125,16 @@
 				{:else}
 					<ConviteChaveAssinatura isMobile={true} compact />
 				{/if}
+			{:else if avancadaDesktopDisponivel}
+				<button
+					type="button"
+					class="btn btn-xs preset-filled-warning-500 border border-warning-600/30 px-2.5 py-1.5 text-3xs font-bold rounded-lg hover:border-warning-600 disabled:opacity-40 flex items-center gap-1 hover:scale-[1.02] transition-all"
+					disabled={!quadro.mostrarPainelAssinaturaEscala}
+					onclick={() => quadro.abrirAssinaturaEscalaManual()}
+				>
+					{@render iconeCaneta()}
+					Assinar
+				</button>
 			{:else}
 				<button
 					type="button"

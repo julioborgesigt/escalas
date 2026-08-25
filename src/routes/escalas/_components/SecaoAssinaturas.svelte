@@ -4,10 +4,9 @@
 	 * Caixa de entrada do DPC: as escalas que ele precisa assinar, com os dois
 	 * caminhos de assinatura lado a lado.
 	 *
-	 * A escolha do caminho é do DISPOSITIVO, não do usuário: no celular oferece
-	 * assinatura em tela (avançada, com selfie/GPS conforme a política); no
-	 * desktop, Token A3 (qualificada, ICP-Brasil). São níveis jurídicos
-	 * diferentes do mesmo ato.
+	 * A escolha do caminho depende do dispositivo e da política: no celular,
+	 * assinatura em tela (avançada); no desktop com restrição, Token A3; no
+	 * desktop sem restrição, assinatura avançada com opção de token no modal.
 	 *
 	 * `assinaturaTelaBloqueada` é `restringirSmartphone && !isMobile` — quando o
 	 * administrador restringe a assinatura em tela a dispositivos móveis, o
@@ -142,18 +141,14 @@
 						<div
 							class="pt-3 border-t border-surface-100 dark:border-surface-700/50 flex flex-col gap-2"
 						>
-							{#if isMobile && avancadaDisponivel}
+							{#if (isMobile || !assinaturaTelaBloqueada) && avancadaDisponivel}
 								<button
 									type="button"
 									class="btn btn-sm {esc.is_assinada
 										? 'preset-filled-success-500 text-white'
 										: 'preset-filled-warning-500'} font-bold text-xs px-3 py-2 w-full disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-1.5"
-									disabled={assinaturaTelaBloqueada || esc.is_assinada}
-									title={esc.is_assinada
-										? 'Já assinado'
-										: assinaturaTelaBloqueada
-											? 'Restrito a dispositivos móveis pelo administrador'
-											: undefined}
+									disabled={esc.is_assinada}
+									title={esc.is_assinada ? 'Já assinado' : undefined}
 									onclick={() => onIniciarAssinaturaTela(esc.id)}
 								>
 									{#if esc.is_assinada}
@@ -161,7 +156,11 @@
 									{:else}
 										<PenLine class="w-3 h-3 shrink-0" aria-hidden="true" />
 									{/if}
-									{esc.is_assinada ? 'Assinado' : 'Assinar (Tela)'}
+									{esc.is_assinada
+										? 'Assinado'
+										: isMobile
+											? 'Assinar (Tela)'
+											: 'Assinar'}
 								</button>
 							{:else if isMobile}
 								<div class="p-3 rounded-xl bg-warning-500/5 border border-warning-500/20">

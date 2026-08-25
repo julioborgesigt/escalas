@@ -37,6 +37,7 @@
 	import { podeBaixarComManifesto } from '$lib/manifesto';
 	import { avancadaEmTelaDoLayout } from '$lib/chave-assinatura-ui';
 	import ConviteChaveAssinatura from './ConviteChaveAssinatura.svelte';
+	import RodapeOpcaoTokenAssinatura from './RodapeOpcaoTokenAssinatura.svelte';
 	import CheckCircle2 from '@lucide/svelte/icons/check-circle-2';
 	import Clock from '@lucide/svelte/icons/clock';
 	import Download from '@lucide/svelte/icons/download';
@@ -105,6 +106,10 @@
 	const mobileState = useMobile();
 	const isMobile = $derived(mobileState.isMobile);
 	const avancadaDisponivel = $derived(avancadaEmTelaDoLayout(page.data));
+	const restringirSmartphone = $derived((page.data.restringirSmartphone as boolean) ?? false);
+	const avancadaDesktopDisponivel = $derived(
+		!isMobile && !restringirSmartphone && avancadaDisponivel
+	);
 
 	const assinatura = useAssinaturaEscala({
 		getParams: () => ({ escalaId, isFDS, policiaisCount, usuario }),
@@ -157,6 +162,16 @@
 		assinatura.dialogSignOpen = true;
 	}
 
+	function assinarComToken() {
+		assinatura.dialogSignOpen = false;
+		if (painelTokenControl) painelTokenControl.assinarComSerpro();
+		else
+			toaster.error({
+				title: 'Painel de assinatura não inicializado',
+				description: 'Recarregue a página (F5) e tente novamente.'
+			});
+	}
+
 	async function assinarSimples(payload: SignaturePadConfirmPayload) {
 		await assinatura.assinarSimples(
 			payload.rubrica,
@@ -199,6 +214,9 @@
 	);
 	const signatureTitulo = $derived(textosEtapa.titulo);
 	const signatureDescricao = $derived(textosEtapa.descricao);
+	const mostrarOpcaoTokenNoModal = $derived(
+		avancadaDesktopDisponivel && (signatureStep === 'signature' || signatureStep === 'credenciais')
+	);
 </script>
 
 <!-- Diálogo de confirmação de revogação de assinatura -->
@@ -319,7 +337,9 @@
 				<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
 					<!-- Card 1: Assinar na Tela -->
 					<div
-						class="flex items-center justify-between px-4 py-3 rounded-xl border bg-warning-500/5 border-warning-500/20"
+						class="flex items-center justify-between px-4 py-3 rounded-xl border bg-warning-500/5 border-warning-500/20 {avancadaDesktopDisponivel
+							? 'sm:col-span-2'
+							: ''}"
 					>
 						<div class="flex items-center gap-2 min-w-0">
 							<svg
@@ -339,14 +359,16 @@
 								<p
 									class="text-xs font-semibold text-surface-700 dark:text-surface-200 leading-none"
 								>
-									Rubrica na Tela
+									{avancadaDesktopDisponivel ? 'Assinatura avançada' : 'Rubrica na Tela'}
 								</p>
 								<p class="text-3xs text-surface-600 dark:text-surface-400 mt-0.5">
-									Ideal para tablets e smartphones
+									{avancadaDesktopDisponivel
+										? 'Senha, código por e-mail ou certificado digital'
+										: 'Ideal para tablets e smartphones'}
 								</p>
 							</div>
 						</div>
-						{#if isMobile && avancadaDisponivel}
+						{#if (isMobile || avancadaDesktopDisponivel) && avancadaDisponivel}
 							<button
 								type="button"
 								class="btn btn-sm preset-filled-warning-500 font-bold text-xs px-3 shrink-0 transition-all"
@@ -365,7 +387,8 @@
 						{/if}
 					</div>
 
-					<!-- Card 2: Certificado Digital (A1/A3) -->
+					<!-- Card 2: Certificado Digital (A1/A3) — oculto no desktop quando avançada já oferece token no modal -->
+					{#if !avancadaDesktopDisponivel}
 					<div
 						class="flex items-center justify-between px-4 py-3 rounded-xl border bg-tertiary-500/5 border-tertiary-500/20"
 					>
@@ -405,6 +428,7 @@
 							>
 						{/if}
 					</div>
+					{/if}
 				</div>
 			</div>
 		{/if}
@@ -537,7 +561,12 @@
 			exigirFoto={page.data.exigirFotoAssinatura ?? true}
 			exigirGps={page.data.exigirGpsAssinatura ?? true}
 			exigirCodigoEmail={page.data.exigirCodigoEmailAssinatura ?? false}
+			credenciaisCombinadas={avancadaDesktopDisponivel}
+			cpfUsuario={usuario?.cpf ?? null}
 			bind:step={signatureStep}
 		/>
+		{#if mostrarOpcaoTokenNoModal}
+			<RodapeOpcaoTokenAssinatura onAssinarToken={assinarComToken} disabled={assinando || loading.active} />
+		{/if}
 	{/if}
 </ModalShell>
