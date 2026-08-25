@@ -14,7 +14,7 @@
 	import type { ActionResult } from '@sveltejs/kit';
 	import ToggleSwitch from '$lib/components/ToggleSwitch.svelte';
 
-	let {
+	const {
 		policialId,
 		ehAdminGeral,
 		moduloEscalas,
