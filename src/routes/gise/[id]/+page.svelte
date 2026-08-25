@@ -155,7 +155,20 @@
 	);
 
 	function assinarGiseComTokenNoModal() {
+		const alvo = assinatura.relatorioSendoAssinado;
+		assinatura.relatorioSendoAssinado = null;
 		assinatura.fecharModalRubrica();
+		if (alvo?.lote) {
+			void assinatura.executarAssinarRelatorioLoteSERPRO();
+			return;
+		}
+		if (alvo?.seccionalId != null && alvo.tipo) {
+			const seccionalId = alvo.seccionalId;
+			const tipo = alvo.tipo;
+			const sec = gise?.seccionais?.find((s) => s.seccional_id === seccionalId);
+			abrirAssinaturaRelatorioDigital(seccionalId, tipo, sec?.seccional_nome ?? 'Seccional');
+			return;
+		}
 		void assinatura.painelTokenGise?.assinarComSerpro();
 	}
 
@@ -235,8 +248,9 @@
 			await new Promise((r) => setTimeout(r, 0));
 			const noCelular = via === 'tela' || (via !== 'token' && isMobile);
 			const avancada = avancadaEmTelaDoLayout(page.data);
+			const avancadaNoDesktop = avancada && !data.restringirSmartphone;
 			if (acao === 'escala') {
-				if (noCelular) {
+				if (noCelular || (avancadaNoDesktop && via !== 'token')) {
 					if (avancada) assinatura.abrirModalRubrica('simples');
 				} else {
 					await assinatura.painelTokenGise?.assinarComSerpro();
@@ -244,7 +258,7 @@
 				return;
 			}
 			if (pendentesExtra.length === 0) return;
-			if (noCelular) {
+			if (noCelular || (avancadaNoDesktop && via !== 'token')) {
 				if (avancada) assinatura.abrirAssinaturaLote();
 			} else {
 				await assinatura.executarAssinarRelatorioLoteSERPRO();
@@ -814,7 +828,7 @@
 	exigirGps={page.data.exigirGpsAssinatura ?? true}
 	exigirCodigoEmail={page.data.exigirCodigoEmailAssinatura ?? false}
 	rubricaSalva={minhaRubrica}
-	credenciaisCombinadas={avancadaDesktopDisponivel}
+	credenciaisCombinadas={true}
 	cpfUsuario={data.usuarioAtual?.cpf ?? null}
 	onAssinarToken={avancadaDesktopDisponivel ? assinarGiseComTokenNoModal : null}
 	onConfirm={assinatura.confirmarRubrica}

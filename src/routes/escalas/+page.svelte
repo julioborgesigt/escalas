@@ -864,7 +864,7 @@
 			exigirFoto={page.data.exigirFotoAssinatura ?? true}
 			exigirGps={page.data.exigirGpsAssinatura ?? true}
 			exigirCodigoEmail={page.data.exigirCodigoEmailAssinatura ?? false}
-			credenciaisCombinadas={avancadaDesktopDisponivel}
+			credenciaisCombinadas={true}
 			cpfUsuario={usuarioLogado?.cpf ?? null}
 			bind:step={signatureStep}
 		/>

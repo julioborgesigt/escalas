@@ -38,14 +38,16 @@
 
 	type PresencaGise = ReturnType<typeof usePresencaGise>;
 
-	const {
+	let {
 		presenca,
 		isAdminGeral,
 		isMobile,
 		restringirSmartphone,
 		minhaRubrica = null,
 		abrirCadastroRubrica,
-		voltarParaLista
+		voltarParaLista,
+		painelA3Entrada = $bindable(null),
+		painelA3Saida = $bindable(null)
 	}: {
 		presenca: PresencaGise;
 		isAdminGeral: boolean;
@@ -54,6 +56,9 @@
 		minhaRubrica?: string | null;
 		abrirCadastroRubrica: () => void;
 		voltarParaLista: () => void;
+		/** Controles A3 expostos ao modal de rubrica do `+page` (rodapé Certificado Digital). */
+		painelA3Entrada?: { assinarComSerpro: () => Promise<void> } | null;
+		painelA3Saida?: { assinarComSerpro: () => Promise<void> } | null;
 	} = $props();
 
 	const usuario = $derived(page.data.usuario);
@@ -122,10 +127,8 @@
 			presenca.respostaAtualizadaEm !== presenca.respostaEnviadaEm
 	);
 
-	// Controles dos painéis ocultos de assinatura A3 (um por tipo de presença,
-	// evitando corrida ao alternar o payload `tipo` entre entrada e saída).
-	let painelA3Entrada = $state<{ assinarComSerpro: () => Promise<void> } | null>(null);
-	let painelA3Saida = $state<{ assinarComSerpro: () => Promise<void> } | null>(null);
+	// Controles A3: `$bindable` no pai (modal de rubrica) e aqui nos painéis
+	// ocultos — um por tipo, para não misturar o payload `tipo` entrada/saída.
 
 	async function confirmarPresencaA3(tipo: 'entrada' | 'saida') {
 		const ctrl = tipo === 'entrada' ? painelA3Entrada : painelA3Saida;

@@ -27,7 +27,7 @@
 		exigirGps,
 		exigirCodigoEmail,
 		rubricaSalva = null,
-		credenciaisCombinadas = false,
+		credenciaisCombinadas = true,
 		cpfUsuario = null,
 		onAssinarToken = null,
 		onConfirm,

@@ -26,9 +26,10 @@
 	import { useAutorizacao, useMobile, useInvalidateOnFocus } from '$lib/composables';
 	import { fetchSyncEstado } from '$lib/sync-estado';
 	import SignaturePad from '$lib/components/SignaturePad.svelte';
-	import type { SignaturePadStep } from '$lib/components/SignaturePadTypes';
+	import { textosEtapaAssinatura, type SignaturePadStep } from '$lib/components/SignaturePadTypes';
 	import ModalCadastrarRubrica from '$lib/components/ModalCadastrarRubrica.svelte';
 	import ModalShell from '$lib/components/ModalShell.svelte';
+	import RodapeOpcaoTokenAssinatura from '$lib/components/RodapeOpcaoTokenAssinatura.svelte';
 	import BotaoVoltar from '$lib/components/BotaoVoltar.svelte';
 	import BotaoLimparFiltros from '$lib/components/BotaoLimparFiltros.svelte';
 	import { usePresencaGise } from './_components/usePresencaGise.svelte';
@@ -94,6 +95,27 @@
 			signatureStep = 'signature';
 		}
 	});
+
+	const restringirSmartphone = $derived(Boolean(data.restringirSmartphone));
+	const avancadaDesktopDisponivel = $derived(!isMobile && !restringirSmartphone);
+	const mostrarOpcaoTokenPresenca = $derived(
+		avancadaDesktopDisponivel && (signatureStep === 'signature' || signatureStep === 'credenciais')
+	);
+
+	let painelA3Entrada = $state<{ assinarComSerpro: () => Promise<void> } | null>(null);
+	let painelA3Saida = $state<{ assinarComSerpro: () => Promise<void> } | null>(null);
+
+	function assinarPresencaComToken() {
+		const tipo = !presenca.escalaSelecionada?.presenca?.entrada_timestamp ? 'entrada' : 'saida';
+		presenca.capturandoRubrica = false;
+		const painel = tipo === 'entrada' ? painelA3Entrada : painelA3Saida;
+		if (painel) void painel.assinarComSerpro();
+		else
+			toaster.error({
+				title: 'Painel de assinatura não inicializado',
+				description: 'Recarregue a página (F5) e tente novamente.'
+			});
+	}
 
 	// Cadastro de rubrica reutilizável (assinatura por Token A3 no computador).
 	// `minhaRubrica` espelha `data.minhaRubrica` mas pode mudar localmente após
@@ -431,6 +453,8 @@
 									{minhaRubrica}
 									abrirCadastroRubrica={() => (cadastrandoRubrica = true)}
 									{voltarParaLista}
+									bind:painelA3Entrada
+									bind:painelA3Saida
 								/>
 							</section>
 						{/if}
@@ -453,26 +477,19 @@
 	{@const tipoPresenca = !presenca.escalaSelecionada.presenca?.entrada_timestamp
 		? 'entrada'
 		: 'saida'}
+	{@const textosPadrao = textosEtapaAssinatura(
+		signatureStep,
+		tipoPresenca === 'entrada'
+			? 'Registre sua rubrica para confirmar a entrada no serviço.'
+			: 'Registre sua rubrica para confirmar a saída do serviço.'
+	)}
 	{@const titulo =
-		signatureStep === 'camera'
-			? 'Prova de Vida'
-			: signatureStep === 'password'
-				? 'Confirme sua senha'
-				: signatureStep === 'email_code'
-					? 'Confirmação de Identidade'
-					: tipoPresenca === 'entrada'
-						? 'Confirmação de Entrada'
-						: 'Confirmação de Saída'}
-	{@const descricao =
-		signatureStep === 'camera'
-			? 'Cumpra o desafio de presença na tela para provar que você está ativo.'
-			: signatureStep === 'password'
-				? 'A sessão sozinha não basta. Digite a senha de acesso para assinar.'
-				: signatureStep === 'email_code'
-					? 'Por razões de segurança, insira o código enviado para o seu e-mail funcional.'
-					: tipoPresenca === 'entrada'
-						? 'Registre sua rubrica para confirmar a entrada no serviço.'
-						: 'Registre sua rubrica para confirmar a saída do serviço.'}
+		signatureStep === 'signature'
+			? tipoPresenca === 'entrada'
+				? 'Confirmação de Entrada'
+				: 'Confirmação de Saída'
+			: textosPadrao.titulo}
+	{@const descricao = textosPadrao.descricao}
 	<ModalShell
 		open={presenca.capturandoRubrica}
 		title={titulo}
@@ -502,8 +519,16 @@
 				exigirGps={page.data.exigirGpsAssinatura ?? true}
 				exigirCodigoEmail={page.data.exigirCodigoEmailAssinatura ?? false}
 				rubricaSalva={minhaRubrica}
+				credenciaisCombinadas={true}
+				cpfUsuario={page.data.usuario?.cpf ?? null}
 				bind:step={signatureStep}
 			/>
+			{#if mostrarOpcaoTokenPresenca}
+				<RodapeOpcaoTokenAssinatura
+					onAssinarToken={assinarPresencaComToken}
+					disabled={loading.active}
+				/>
+			{/if}
 		{/if}
 	</ModalShell>
 {/if}
