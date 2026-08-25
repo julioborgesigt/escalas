@@ -4,8 +4,10 @@
  *
  * Regra: quem JÁ TEM e-mail pessoal cadastrado precisa reinserir a senha para
  * trocá-lo — uma sessão esquecida/roubada não basta para redirecionar o canal
- * de recuperação. O 1º cadastro (sem e-mail anterior) segue sem senha, como no
- * onboarding do /alterar-senha.
+ * de recuperação. Exceções sem senha:
+ *   - 1º cadastro (sem e-mail anterior);
+ *   - `primeiro_acesso` — a senha ainda está sendo definida na mesma tela
+ *     (`/alterar-senha`); exigir a provisória/legado trava o onboarding.
  *
  * Antes do L-1, a regra valia só para sessões de policial; sessões de admin
  * trocavam o e-mail sem senha. Aqui a credencial verificada espelha o
@@ -39,8 +41,11 @@ export type ResultadoGuardaEmailPessoal =
  *
  * - Sem e-mail pessoal atual → `{ ok: true, trocaDeEmailExistente: false }`
  *   (1º cadastro; senha não exigida).
- * - Com e-mail pessoal atual → exige `senha` correta (contra a credencial da
- *   conta, com throttle por usuário) ou devolve o erro correspondente.
+ * - `primeiro_acesso` → `{ ok: true, ... }` sem senha (onboarding: a senha
+ *   ainda não é a definitiva).
+ * - Com e-mail pessoal atual (fora do onboarding) → exige `senha` correta
+ *   (contra a credencial da conta, com throttle por usuário) ou devolve o
+ *   erro correspondente.
  */
 export async function exigirSenhaParaTrocaEmailPessoal(
 	db: Database,
@@ -68,6 +73,11 @@ export async function exigirSenhaParaTrocaEmailPessoal(
 				)?.email_pessoal;
 
 	if (!emailPessoalAtual) return { ok: true, trocaDeEmailExistente: false };
+
+	// Onboarding: a senha ainda está sendo definida em /alterar-senha. Exigir a
+	// provisória (set-default-password / placeholder) impede confirmar o canal
+	// de recuperação — o próprio motivo do primeiro acesso.
+	if (u.primeiro_acesso) return { ok: true, trocaDeEmailExistente: true };
 
 	if (!senha) return { ok: false, erro: 'senha_ausente' };
 
