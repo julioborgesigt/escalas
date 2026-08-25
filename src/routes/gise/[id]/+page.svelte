@@ -45,8 +45,7 @@
 	import {
 		useOfertaRubrica,
 		rubricaValida,
-		useInvalidateOnFocus,
-		useMobile
+		useInvalidateOnFocus
 	} from '$lib/composables';
 	import { fetchSyncEstado } from '$lib/sync-estado';
 	import { loading } from '$lib/loading.svelte';
@@ -155,8 +154,6 @@
 		initialSignerCpf: untrack(() => data.usuarioAtual?.cpf ?? '')
 	});
 
-	const mobileState = useMobile();
-	const isMobile = $derived(mobileState.isMobile);
 	const avancadaDesktopDisponivel = $derived(
 		!isMobile && !data.restringirSmartphone && avancadaEmTelaDoLayout(page.data)
 	);
