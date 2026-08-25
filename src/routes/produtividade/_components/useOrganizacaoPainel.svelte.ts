@@ -25,11 +25,17 @@
  * caminho de quem está no celular ou no teclado, e existem pelo mesmo motivo que
  * existem no editor do formulário.
  */
-import type { SecaoPainel } from './useProdutividade.svelte';
+import type { EscopoArraste } from './useProdutividade.svelte';
 
-/** Um card identificado pela faixa em que vive e pela posição dentro dela. */
-interface PosicaoCard {
-	secao: SecaoPainel;
+/**
+ * O que está sendo arrastado: o ESCOPO em que ele vive e a posição dentro dele.
+ *
+ * O escopo é uma faixa (o card anda entre os cards dela) ou `'blocos'` (a faixa
+ * inteira anda entre as outras). Um tipo só para os dois porque o gesto é o
+ * mesmo — muda a lista sobre a qual ele opera.
+ */
+interface PosicaoArrastavel {
+	secao: EscopoArraste;
 	indice: number;
 }
 
@@ -37,18 +43,18 @@ export interface OrganizacaoPainel {
 	/** O modo de organização está ligado? Os cards só ganham alça quando sim. */
 	readonly ativo: boolean;
 	/** O card que está sendo arrastado, ou `null`. */
-	readonly arrastando: PosicaoCard | null;
+	readonly arrastando: PosicaoArrastavel | null;
 	/** O card sob o cursor — o que recebe a marca de destino. */
-	readonly alvo: PosicaoCard | null;
-	iniciarArraste(secao: SecaoPainel, indice: number): void;
+	readonly alvo: PosicaoArrastavel | null;
+	iniciarArraste(secao: EscopoArraste, indice: number): void;
 	/** Marca o card sob o cursor como destino (só dentro da MESMA seção). */
-	entrarEm(secao: SecaoPainel, indice: number): void;
+	entrarEm(secao: EscopoArraste, indice: number): void;
 	/** O arraste pode pousar aqui? Decide o `preventDefault` do `dragover`. */
-	aceita(secao: SecaoPainel): boolean;
-	soltarEm(secao: SecaoPainel, indice: number): void;
+	aceita(secao: EscopoArraste): boolean;
+	soltarEm(secao: EscopoArraste, indice: number): void;
 	limpar(): void;
 	/** Move sem gesto — o caminho das setas ↑/↓, que é o acessível. */
-	mover(secao: SecaoPainel, de: number, para: number): void;
+	mover(secao: EscopoArraste, de: number, para: number): void;
 }
 
 /**
@@ -59,10 +65,10 @@ export interface OrganizacaoPainel {
  */
 export function useOrganizacaoPainel(
 	getAtivo: () => boolean,
-	mover: (secao: SecaoPainel, de: number, para: number) => void
+	mover: (secao: EscopoArraste, de: number, para: number) => void
 ): OrganizacaoPainel {
-	let arrastando = $state<PosicaoCard | null>(null);
-	let alvo = $state<PosicaoCard | null>(null);
+	let arrastando = $state<PosicaoArrastavel | null>(null);
+	let alvo = $state<PosicaoArrastavel | null>(null);
 
 	function limpar() {
 		arrastando = null;

@@ -191,8 +191,10 @@ test('a ordem arrastada vai ao banco e o painel recarregado obedece', async ({ p
 	await expect(page.getByText(/Ordem do painel salva/)).toBeVisible();
 
 	const gravada = JSON.parse(ordemGravada() ?? 'null') as string[] | null;
-	// Ids de card: o de colunas é o id da pergunta em texto.
-	expect(gravada).toEqual(['3', '1', '2']);
+	// Faixas primeiro, cards depois. Só a de colunas tem card neste cenário — faixa
+	// vazia não entra, senão o modo mostraria a barra de arraste sem nada embaixo.
+	// O id do card de colunas é o id da pergunta em texto.
+	expect(gravada).toEqual(['bloco-colunas', '3', '1', '2']);
 
 	// A ida e volta pelo banco é o que este caso protege: sem o `load` devolvendo
 	// a coluna, a tela mostraria a ordem nova até o primeiro reload.
@@ -215,7 +217,14 @@ test('arrastar um card sobre outro troca a posição dos dois', async ({ page })
 	//
 	// Os eventos vão DIRETO porque o Playwright não sintetiza HTML5 drag a partir
 	// do mouse — mesma técnica do spec que cobre o arraste do editor de perguntas.
-	const cards = page.getByRole('listitem').filter({ hasText: 'ORDEM CARD' });
+	//
+	// `hasNotText: 'bloco ·'` separa os cards das FAIXAS: as duas coisas são
+	// `listitem` (o gesto é o mesmo, e por isso o wrapper também é), e a faixa
+	// contém o texto de todos os cards dela — sem o filtro, `nth(0)` seria ela.
+	const cards = page
+		.getByRole('listitem')
+		.filter({ hasText: 'ORDEM CARD' })
+		.filter({ hasNotText: 'bloco ·' });
 	await expect(cards.nth(0)).toHaveAttribute('draggable', 'true');
 	await cards.nth(2).dispatchEvent('dragstart');
 	await cards.nth(0).dispatchEvent('dragenter');
@@ -287,6 +296,84 @@ test('"Ordem do formulário" desfaz a organização', async ({ page }) => {
 	expect(JSON.parse(ordemGravada() ?? 'null')).toEqual([]);
 
 	limparOrdem();
+});
+
+test('arrastar de volta ao arranjo do formulário grava a lista VAZIA', async ({ page }) => {
+	test.skip(!cenarioOk, 'D1 local indisponível');
+	const ok = await autenticarPagina(page, FIXTURE.adminGeral.id, 'admin');
+	test.skip(!ok, 'D1 local indisponível');
+	const id = operacaoId();
+	test.skip(id == null, 'operação do cenário não foi criada');
+
+	execD1Local(
+		`UPDATE gise_modelo_formulario SET painel_ordem = '["bloco-colunas","3","1","2"]'
+		 WHERE operacao_id = ${id} AND tipo = 'operacional';`
+	);
+	await abrirPainel(page);
+	expect(await ordemNaTela(page)).toEqual(['ORDEM CARD C', 'ORDEM CARD A', 'ORDEM CARD B']);
+
+	// O admin arrasta C de volta para baixo, sem usar "Ordem do formulário": o
+	// arranjo volta a ser o do formulário POR ACIDENTE. O painel precisa perceber
+	// isso e voltar a SEGUIR o formulário, em vez de congelar a ordem atual das
+	// perguntas numa lista explícita que diz a mesma coisa.
+	await page.getByRole('button', { name: /Organizar painel/ }).click();
+	await page.getByRole('button', { name: 'Mover ORDEM CARD C para baixo' }).click();
+	await page.getByRole('button', { name: 'Mover ORDEM CARD C para baixo' }).click();
+	expect(await ordemNaTela(page)).toEqual(['ORDEM CARD A', 'ORDEM CARD B', 'ORDEM CARD C']);
+
+	await page.getByRole('button', { name: /Salvar ordem/ }).click();
+	await expect(page.getByText(/Ordem do painel salva/)).toBeVisible();
+	expect(JSON.parse(ordemGravada() ?? 'null')).toEqual([]);
+
+	limparOrdem();
+});
+
+test('a FAIXA inteira se move, e a ordem dela vai ao banco', async ({ page }) => {
+	test.skip(!cenarioOk, 'D1 local indisponível');
+	const ok = await autenticarPagina(page, FIXTURE.adminGeral.id, 'admin');
+	test.skip(!ok, 'D1 local indisponível');
+	const id = operacaoId();
+	test.skip(id == null, 'operação do cenário não foi criada');
+
+	// Duas faixas com card: marcar a pergunta D como RANKING cria a de rankings ao
+	// lado da de colunas. Com uma só, não há ordem de faixa a testar.
+	execD1Local(`
+		UPDATE gise_modelo_formulario
+		SET painel_ordem = NULL,
+		    config = json_set(config, '$[3].grafico', json('{"ranking":true}'))
+		WHERE operacao_id = ${id} AND tipo = 'operacional';
+	`);
+	await abrirPainel(page);
+
+	// Natural: rankings antes de colunas — era a ordem fixa no markup da página.
+	await page.getByRole('button', { name: /Organizar painel/ }).click();
+	await page.getByRole('button', { name: 'Mover Gráficos de colunas para cima' }).click();
+	await page.getByRole('button', { name: /Salvar ordem/ }).click();
+	await expect(page.getByText(/Ordem do painel salva/)).toBeVisible();
+
+	const gravada = JSON.parse(ordemGravada() ?? 'null') as string[];
+	// As faixas trocaram; os cards de cada uma continuam na ordem do formulário.
+	expect(gravada.filter((x) => x.startsWith('bloco-'))).toEqual([
+		'bloco-colunas',
+		'bloco-listagem'
+	]);
+
+	// E o card de colunas passa a vir ANTES do ranking na página.
+	await abrirPainel(page);
+	// Em CAIXA ALTA porque `allInnerTexts` devolve o texto RENDERIZADO, e o título
+	// do card sai de um `uppercase` do CSS — comparar com o texto do código acha -1.
+	const titulos = (await page.locator('.card').allInnerTexts()).map((t) => t.toUpperCase());
+	const iColuna = titulos.findIndex((t) => t.includes('ORDEM CARD A'));
+	const iRanking = titulos.findIndex((t) => t.includes('RANKING DE ORDEM CARD D'));
+	expect(iColuna).toBeGreaterThanOrEqual(0);
+	expect(iRanking).toBeGreaterThanOrEqual(0);
+	expect(iColuna).toBeLessThan(iRanking);
+
+	execD1Local(`
+		UPDATE gise_modelo_formulario
+		SET config = json_remove(config, '$[3].grafico'), painel_ordem = NULL
+		WHERE operacao_id = ${id} AND tipo = 'operacional';
+	`);
 });
 
 test('organizar é do Admin Geral: o admin de unidade não vê o botão', async ({ page }) => {

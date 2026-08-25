@@ -29,12 +29,17 @@
  * PERCORRE os cards existentes e só consulta a lista para saber a posição de
  * cada um. Nada nunca é lido a partir da lista.
  *
- * ## "por último" é dentro da SEÇÃO
+ * ## "por último" é dentro da FAIXA — e as faixas também se ordenam
  *
  * Um card de colunas não cabe na grade dos rankings (é uma faixa inteira com
- * `<canvas>`), e um ranking não cabe na faixa das colunas. As seções são a FORMA
- * do card, não uma escolha — então a ordem é dentro de cada uma, e é uma lista
- * só para as três: cada seção pergunta a posição dos SEUS ids e ignora o resto.
+ * `<canvas>`), e um ranking não cabe na faixa das colunas. As faixas são a FORMA
+ * do card, não uma escolha — então a ordem dos cards é dentro de cada uma.
+ *
+ * O que É escolha é a ordem das TRÊS FAIXAS entre si, e ela entra na mesma lista
+ * salva, com ids próprios (`bloco-colunas`). Uma lista e uma regra para as duas
+ * coisas: cada consumidor — cada faixa, e a página com as faixas — pergunta a
+ * posição dos SEUS ids e ignora o resto. Foi por isso que a ordem das faixas
+ * coube sem coluna nova no banco e sem um segundo caminho de leitura.
  */
 
 /**
@@ -63,6 +68,34 @@ export const idCardDetalhe = (perguntaId: number): string => `det-q${perguntaId}
  * pode depender de qual das duas perguntas foi lida primeiro.
  */
 export const idCardIndicador = (key: string): string => `ind-${key}`;
+/**
+ * A própria FAIXA do painel, para a ordem das três entre si.
+ *
+ * As faixas entram na MESMA lista salva que os cards, e não numa segunda coluna:
+ * `ordenarCardsDoPainel` já sabe ordenar qualquer coisa que tenha id, e um id de
+ * bloco não colide com id de card nenhum. Uma lista, uma regra — inclusive a de
+ * que o que não está nela vai para o fim, que aqui significa "faixa nova nasce
+ * embaixo", se algum dia houver uma quarta.
+ */
+export const idBloco = (secao: string): string => `bloco-${secao}`;
+
+/**
+ * Duas ordens de ids são a MESMA?
+ *
+ * Existe para o painel responder "este arranjo ainda é o do formulário?" antes de
+ * gravar: quando é, o certo é gravar a lista VAZIA, e não o arranjo escrito por
+ * extenso. Os dois dariam a mesma tela hoje e divergiriam amanhã — a lista
+ * explícita congela a ordem atual das perguntas, e reordená-las no editor
+ * deixaria de chegar ao painel.
+ *
+ * Comparação elemento a elemento, e não por `join`: parte de um id sai da `key`
+ * que o admin escreve (`ind-<key>`), então não existe separador que se possa
+ * garantir ausente — e um separador que apareça DENTRO de um id faz duas listas
+ * diferentes passarem por iguais.
+ */
+export function mesmaOrdemDeIds(a: readonly string[], b: readonly string[]): boolean {
+	return a.length === b.length && a.every((id, i) => id === b[i]);
+}
 
 /**
  * A ordem salva, a partir do que está gravado em `painel_ordem`.

@@ -27,6 +27,8 @@ import {
 	idCardRanking,
 	idCardDetalhe,
 	idCardIndicador,
+	idBloco,
+	mesmaOrdemDeIds,
 	type Question
 } from '$lib/produtividade';
 import { montarPainelIndicadores } from '$lib/produtividade/metas';
@@ -58,15 +60,50 @@ export type ProdutividadeParsedRow = ProdutividadeListaItem & {
 };
 
 /**
- * As três faixas do painel, na ordem em que a tela as empilha.
+ * As três faixas do painel.
  *
- * A seção é a FORMA do card, não uma escolha: um gráfico de colunas é uma faixa
- * inteira com `<canvas>` e não cabe na grade de dois dos rankings; um ranking não
- * cabe na faixa das colunas. Por isso arrastar move o card DENTRO da seção dele —
- * é o que a ordenação sabe fazer sem inventar um layout que os componentes não
- * têm.
+ * A faixa é a FORMA do card, não uma escolha: um gráfico de colunas ocupa a
+ * largura inteira com `<canvas>` e não cabe na grade de dois dos rankings; um
+ * ranking não cabe na faixa das colunas. Por isso arrastar move o card DENTRO da
+ * faixa dele — é o que a ordenação sabe fazer sem inventar um layout que os
+ * componentes não têm.
+ *
+ * A ORDEM das três entre si, essa sim, é escolha, e se arrasta igual (ver
+ * `ESCOPO_BLOCOS`). Ela era fixa no markup da página, e o efeito era o card de
+ * uma pergunta nova cair no meio da tela sem ninguém ter escolhido isso: a faixa
+ * dos rankings vinha sempre acima da das colunas.
  */
 export type SecaoPainel = 'indicadores' | 'listagem' | 'colunas';
+
+/**
+ * As faixas na ordem NATURAL — a que a página teve desde sempre.
+ *
+ * Não exportada: quem monta a página consome `secoesNaOrdem`, que é esta já
+ * filtrada pelo que tem card e reordenada pela escolha do admin. Exportar a lista
+ * crua convidaria a tela a desenhar a partir dela e a ignorar as duas coisas.
+ */
+const SECOES_PAINEL: readonly SecaoPainel[] = ['indicadores', 'listagem', 'colunas'];
+
+/**
+ * O escopo de arraste das próprias faixas.
+ *
+ * Um quarto valor ao lado das três faixas, e não um mecanismo à parte: arrastar
+ * bloco e arrastar card são o mesmo gesto sobre listas diferentes, então
+ * compartilham o estado (`useOrganizacaoPainel`), o wrapper (`CardOrdenavel`) e a
+ * regra de que só se solta dentro do próprio escopo. Escrever um segundo caminho
+ * daria duas implementações de arraste na mesma tela.
+ */
+export const ESCOPO_BLOCOS = 'blocos';
+
+/** Onde um arraste acontece: dentro de uma faixa, ou entre as faixas. */
+export type EscopoArraste = SecaoPainel | typeof ESCOPO_BLOCOS;
+
+/** O rótulo de cada faixa na barra de arraste do modo "Organizar". */
+export const ROTULO_SECAO: Record<SecaoPainel, string> = {
+	indicadores: 'Indicadores e metas',
+	listagem: 'Rankings e detalhamentos',
+	colunas: 'Gráficos de colunas'
+};
 
 /**
  * Um card de listagem — ranking por unidade ou detalhamento por categoria.
@@ -293,19 +330,23 @@ export function useProdutividade(getData: () => PageData) {
 	);
 
 	/**
-	 * As que viram gráfico de barras — as únicas que precisam de `<canvas>` —, já
-	 * na ordem do painel.
+	 * As que viram gráfico de barras — as únicas que precisam de `<canvas>`.
+	 *
+	 * Na ordem do FORMULÁRIO: é a lista natural, antes de a ordem do painel entrar.
+	 * Cada faixa tem o seu par natural/ordenado, e é a comparação entre os dois que
+	 * responde "este arranjo ainda é o do formulário?" na hora de gravar.
+	 */
+	const questoesColunasNatural = $derived(QUESTIONS.filter((q) => q.formas.colunas));
+
+	/**
+	 * As mesmas, já na ordem do painel.
 	 *
 	 * A ordenação é aqui e não dentro de `mapQuestions` de propósito: é lá que cada
 	 * pergunta recebe a COR pela posição no formulário, e ordenar antes faria a
 	 * mesma pergunta trocar de cor a cada arraste.
 	 */
 	const questoesColunas = $derived(
-		ordenarCardsDoPainel(
-			QUESTIONS.filter((q) => q.formas.colunas),
-			ordemVigente,
-			(q) => idCardColunas(q.id)
-		)
+		ordenarCardsDoPainel(questoesColunasNatural, ordemVigente, (q) => idCardColunas(q.id))
 	);
 
 	/**
@@ -415,32 +456,35 @@ export function useProdutividade(getData: () => PageData) {
 	 *   um número sem sentido no indicador de tempo MÉDIO. Ordem e Top-N valem;
 	 *   o eixo, não.
 	 */
+	const paineisIndicadoresNatural = $derived(
+		montarPainelIndicadores(
+			indicadores,
+			data.unidadesDaOperacao ?? [],
+			parsedDataSemTipo,
+			data.linhaBase ?? []
+		).map((painel) => ({
+			...painel,
+			// Ordena e corta por ATINGIMENTO, não pelo realizado: num indicador de
+			// redução a unidade com o menor número é a melhor, e ordenar pelo número
+			// cru poria a pior no topo de "melhores primeiro".
+			//
+			// Esta ordenação é a das UNIDADES dentro de um card; a do painel é a dos
+			// CARDS entre si. Homônimas e independentes.
+			//
+			// Só as LINHAS são recortadas. Os contadores do card (`unidadesAtingiram`
+			// / `unidadesComMeta`) continuam sobre o conjunto inteiro: "2 de 12 na
+			// meta" é verdade mesmo mostrando cinco.
+			linhas: ordenarERecortar(painel.linhas, {
+				ordem,
+				quantidade,
+				valor: (l) => l.atingimento
+			})
+		}))
+	);
+
 	const paineisIndicadores = $derived(
-		ordenarCardsDoPainel(
-			montarPainelIndicadores(
-				indicadores,
-				data.unidadesDaOperacao ?? [],
-				parsedDataSemTipo,
-				data.linhaBase ?? []
-			).map((painel) => ({
-				...painel,
-				// Ordena e corta por ATINGIMENTO, não pelo realizado: num indicador de
-				// redução a unidade com o menor número é a melhor, e ordenar pelo número
-				// cru poria a pior no topo de "melhores primeiro".
-				//
-				// Só as LINHAS são recortadas. Os contadores do card (`unidadesAtingiram`
-				// / `unidadesComMeta`) continuam sobre o conjunto inteiro: "2 de 12 na
-				// meta" é verdade mesmo mostrando cinco.
-				linhas: ordenarERecortar(painel.linhas, {
-					ordem,
-					quantidade,
-					valor: (l) => l.atingimento
-				})
-			})),
-			// A ordenação de fora é a dos CARDS entre si; a de dentro, a das unidades
-			// dentro de um card. Homônimas e independentes.
-			ordemVigente,
-			(p) => idCardIndicador(p.indicador.key)
+		ordenarCardsDoPainel(paineisIndicadoresNatural, ordemVigente, (p) =>
+			idCardIndicador(p.indicador.key)
 		)
 	);
 
@@ -520,45 +564,75 @@ export function useProdutividade(getData: () => PageData) {
 	 * card não fala de unidades. O corte dele é o das oito categorias maiores, e
 	 * mora em `detalhePorTipo`.
 	 */
-	const cardsListagem = $derived<CardListagem[]>(
-		ordenarCardsDoPainel(
-			[
-				...cardsPrisoes,
-				...QUESTIONS.filter((q) => q.formas.ranking || q.formas.detalhe).flatMap((q) => {
-					const cards: CardListagem[] = [];
-					if (q.formas.ranking) {
-						cards.push({
-							forma: 'ranking',
-							icone: 'grafico',
-							id: idCardRanking(q.id),
-							titulo: `Ranking de ${q.titulo}`,
-							cor: q.color,
-							// Peso de droga é somado em GRAMAS e lido em QUILOS: o ranking
-							// lista totais de unidades (números grandes), o detalhamento lista
-							// tipos de droga dentro da barra.
-							unidade: q.unidade === 'g' ? 'kg' : q.unidade,
-							ranking: porTotal(
-								calculateRanking(grupos, parsedData, (res) => valorDaResposta(res, q), chaveGrupo)
-							)
-						});
-					}
-					if (q.formas.detalhe) {
-						cards.push({
-							forma: 'detalhe',
-							id: idCardDetalhe(q.id),
-							titulo: `Detalhamento de ${q.titulo}`,
-							cor: q.color,
-							unidade: q.unidade,
-							...detalhePorTipo(parsedData, q)
-						});
-					}
-					return cards;
-				})
-			],
-			ordemVigente,
-			(c) => c.id
+	const cardsListagemNatural = $derived<CardListagem[]>([
+		...cardsPrisoes,
+		...QUESTIONS.filter((q) => q.formas.ranking || q.formas.detalhe).flatMap((q) => {
+			const cards: CardListagem[] = [];
+			if (q.formas.ranking) {
+				cards.push({
+					forma: 'ranking',
+					icone: 'grafico',
+					id: idCardRanking(q.id),
+					titulo: `Ranking de ${q.titulo}`,
+					cor: q.color,
+					// Peso de droga é somado em GRAMAS e lido em QUILOS: o ranking
+					// lista totais de unidades (números grandes), o detalhamento lista
+					// tipos de droga dentro da barra.
+					unidade: q.unidade === 'g' ? 'kg' : q.unidade,
+					ranking: porTotal(
+						calculateRanking(grupos, parsedData, (res) => valorDaResposta(res, q), chaveGrupo)
+					)
+				});
+			}
+			if (q.formas.detalhe) {
+				cards.push({
+					forma: 'detalhe',
+					id: idCardDetalhe(q.id),
+					titulo: `Detalhamento de ${q.titulo}`,
+					cor: q.color,
+					unidade: q.unidade,
+					...detalhePorTipo(parsedData, q)
+				});
+			}
+			return cards;
+		})
+	]);
+
+	const cardsListagem = $derived(
+		ordenarCardsDoPainel(cardsListagemNatural, ordemVigente, (c) => c.id)
+	);
+
+	/**
+	 * As faixas que TÊM card, na sequência natural.
+	 *
+	 * Filtrar aqui, e não na hora de desenhar, é o que mantém os índices honestos:
+	 * as setas ↑/↓ de um bloco andam sobre esta lista, e contar uma faixa vazia
+	 * faria a primeira seta não fazer nada. No modo "Organizar" uma faixa vazia
+	 * também mostraria a barra de arraste sem nada embaixo dela.
+	 *
+	 * Operação sem indicador nenhum é o caso comum disso — a maioria não configura
+	 * meta —, e não uma borda rara.
+	 */
+	const secoesComConteudo = $derived(
+		SECOES_PAINEL.filter((secao) =>
+			secao === 'indicadores'
+				? paineisIndicadoresNatural.length > 0
+				: secao === 'listagem'
+					? cardsListagemNatural.length > 0
+					: questoesColunasNatural.length > 0
 		)
 	);
+
+	/**
+	 * As faixas na ordem em que a página as empilha.
+	 *
+	 * Mesma regra dos cards, com ids próprios: a faixa que a ordem salva não nomeia
+	 * fica depois das nomeadas, na sequência natural — o que vale também para a
+	 * faixa que estava VAZIA quando o painel foi organizado e ganhou card depois.
+	 * Era um `<section>` atrás do outro no markup da página, e por isso a categoria
+	 * não se movia.
+	 */
+	const secoesNaOrdem = $derived(ordenarCardsDoPainel(secoesComConteudo, ordemVigente, idBloco));
 
 	/**
 	 * Tudo o que está na tela e pode virar PNG, na ordem em que a tela mostra.
@@ -567,29 +641,54 @@ export function useProdutividade(getData: () => PageData) {
 	 * que referencia uma constante ainda não inicializada é erro de TDZ, não
 	 * preguiça de avaliação.
 	 *
-	 * A ordem é a das SEÇÕES na página — listagem e depois colunas —, e é o que
-	 * decide a sequência dos PNGs de "Selecionar todos". Ela estava trocada
-	 * (colunas primeiro, prisões no fim) desde antes de haver ordem a escolher.
+	 * Segue a ordem das FAIXAS, que hoje é escolha do admin — é o que decide a
+	 * sequência dos PNGs de "Selecionar todos". Ela estava trocada (colunas
+	 * primeiro, prisões no fim) desde antes de haver ordem a escolher.
 	 */
-	const idsExportaveis = $derived<Array<number | string>>([
-		...cardsListagem.map((c) => c.id),
-		...questoesColunas.map((q) => q.id)
-	]);
+	const idsExportaveis = $derived<Array<number | string>>(
+		secoesNaOrdem.flatMap((secao) =>
+			secao === 'listagem'
+				? cardsListagem.map((c): number | string => c.id)
+				: secao === 'colunas'
+					? questoesColunas.map((q): number | string => q.id)
+					: []
+		)
+	);
 
 	/**
-	 * Os ids de TODOS os cards na tela, na ordem em que ela os mostra — o que o
-	 * botão "Salvar ordem" grava.
+	 * Os ids de TUDO que está na tela — as três faixas e os cards —, na ordem em
+	 * que ela os mostra. É o que o botão "Salvar ordem" grava.
 	 *
 	 * Inclui os indicadores, que não são exportáveis e por isso não estão em
-	 * `idsExportaveis`. As três seções entram concatenadas na ordem da página; a
-	 * leitura depois só consulta a posição de cada id, então o que separa as seções
-	 * na lista salva é irrelevante.
+	 * `idsExportaveis`, e os ids de faixa. A leitura depois só consulta a posição
+	 * de cada id, então a sequência entre grupos na lista salva é irrelevante — o
+	 * que importa é que ela seja a MESMA que `idsNaOrdemNatural` produz, senão a
+	 * comparação que decide gravar acusaria diferença onde não há.
 	 */
 	const idsNaOrdemDaTela = $derived<string[]>([
+		...secoesNaOrdem.map(idBloco),
 		...paineisIndicadores.map((p) => idCardIndicador(p.indicador.key)),
 		...cardsListagem.map((c) => c.id),
 		...questoesColunas.map((q) => idCardColunas(q.id))
 	]);
+
+	/**
+	 * Os mesmos ids como o FORMULÁRIO os daria — sem ordem salva nenhuma.
+	 *
+	 * É a régua de "isto ainda é a ordem das perguntas?". Existe porque o padrão do
+	 * painel é seguir o formulário, e só deixar de segui-lo quando alguém de fato
+	 * personalizou: gravar um arranjo idêntico ao natural congelaria a ordem atual
+	 * das perguntas, e reordená-las no editor deixaria de chegar ao painel.
+	 */
+	const idsNaOrdemNatural = $derived<string[]>([
+		...secoesComConteudo.map(idBloco),
+		...paineisIndicadoresNatural.map((p) => idCardIndicador(p.indicador.key)),
+		...cardsListagemNatural.map((c) => c.id),
+		...questoesColunasNatural.map((q) => idCardColunas(q.id))
+	]);
+
+	/** O que está na tela é exatamente o que o formulário daria? */
+	const ordemEhNatural = $derived(mesmaOrdemDeIds(idsNaOrdemDaTela, idsNaOrdemNatural));
 
 	/**
 	 * A seleção, recortada ao que está na tela.
@@ -714,31 +813,39 @@ export function useProdutividade(getData: () => PageData) {
 	// ---- ORGANIZAR: arrastar, salvar, desfazer ----
 
 	/**
-	 * Move um card DENTRO da seção dele e regrava a ordem inteira no rascunho.
+	 * Move um card dentro da faixa dele — ou uma FAIXA inteira entre as outras — e
+	 * regrava a ordem no rascunho.
 	 *
-	 * A ordem salva é uma lista só para as três seções, então mover em uma exige
-	 * reescrever a concatenação — o que `idsNaOrdemDaTela` já é, sobre a lista
-	 * corrente. A seção movida entra com o splice aplicado; as outras duas entram
-	 * como estão.
+	 * A ordem salva é uma lista só para tudo, então mover em um escopo exige
+	 * reescrever a concatenação inteira: o escopo movido entra com o splice
+	 * aplicado, os demais entram como estão. O resultado tem a MESMA forma que
+	 * `idsNaOrdemDaTela`, e é o que mantém a comparação com o natural honesta.
 	 *
-	 * Um id que não está na lista da seção não pode ser movido para dentro de
-	 * outra: `moverNaLista` opera sobre a lista da própria seção, e o índice vem do
-	 * `{#each}` dela. É o que garante que o arraste nunca produza um card de
-	 * colunas na grade dos rankings — layout que os componentes não têm.
+	 * O escopo é o que impede o arraste de produzir um layout que não existe: um
+	 * card só anda na lista da própria faixa (o índice vem do `{#each}` dela), e
+	 * uma faixa só anda entre faixas. `moverNaLista` nunca vê as duas listas ao
+	 * mesmo tempo.
 	 */
-	function moverCard(secao: SecaoPainel, de: number, para: number) {
-		const secoes: Record<SecaoPainel, string[]> = {
+	function moverCard(escopo: EscopoArraste, de: number, para: number) {
+		const blocos =
+			escopo === ESCOPO_BLOCOS
+				? moverNaLista(secoesNaOrdem, de, para)
+				: (secoesNaOrdem as SecaoPainel[]);
+
+		const cards: Record<SecaoPainel, string[]> = {
 			indicadores: paineisIndicadores.map((p) => idCardIndicador(p.indicador.key)),
 			listagem: cardsListagem.map((c) => c.id),
 			colunas: questoesColunas.map((q) => idCardColunas(q.id))
 		};
-		secoes[secao] = moverNaLista(secoes[secao], de, para);
+		if (escopo !== ESCOPO_BLOCOS) cards[escopo] = moverNaLista(cards[escopo], de, para);
+
 		rascunhoOrdem = {
 			...rascunhoOrdem,
 			[filterTipo === 'seint' ? 'seint' : 'operacional']: [
-				...secoes.indicadores,
-				...secoes.listagem,
-				...secoes.colunas
+				...blocos.map(idBloco),
+				...cards.indicadores,
+				...cards.listagem,
+				...cards.colunas
 			]
 		};
 	}
@@ -780,10 +887,13 @@ export function useProdutividade(getData: () => PageData) {
 	 * apareceram depois. Gravar o que está na tela é o que mantém a lista limpa
 	 * sem uma poda à parte.
 	 *
-	 * A exceção é o rascunho VAZIO, que é "Ordem do formulário" e precisa ser
-	 * gravado como vazio: mandar a tela ali gravaria a ordem atual das perguntas
-	 * como escolha explícita, e o painel deixaria de acompanhar o editor daí em
-	 * diante — o oposto do que o botão diz.
+	 * **Salvo quando a tela já é o que o formulário daria**, e aí grava a lista
+	 * VAZIA. É a regra que mantém o padrão sendo a ordem das perguntas: o painel só
+	 * deixa de seguir o formulário quando alguém de fato personalizou. Gravar o
+	 * arranjo natural escrito por extenso daria a mesma tela hoje e congelaria a
+	 * ordem atual das perguntas — reordená-las no editor deixaria de chegar ao
+	 * painel, sem nada explicando. Vale para o botão "Ordem do formulário" e
+	 * também para quem arrasta e acaba de volta onde estava.
 	 *
 	 * `invalidateAll` no fim porque o `load` é a fonte da ordem salva: sem
 	 * recarregar, `ordemSalva` continuaria a anterior e descartar o rascunho
@@ -793,7 +903,6 @@ export function useProdutividade(getData: () => PageData) {
 	async function salvarOrdem() {
 		const operacaoId = data.operacaoSelecionadaId;
 		if (!operacaoId || salvandoOrdem) return;
-		const rascunho = rascunhoOrdem[filterTipo === 'seint' ? 'seint' : 'operacional'];
 		salvandoOrdem = true;
 		try {
 			await apiFetch('/api/produtividade/ordem', {
@@ -801,7 +910,7 @@ export function useProdutividade(getData: () => PageData) {
 				body: JSON.stringify({
 					operacaoId,
 					tipo: filterTipo === 'seint' ? 'seint' : 'operacional',
-					ordem: rascunho?.length === 0 ? [] : idsNaOrdemDaTela
+					ordem: ordemEhNatural ? [] : idsNaOrdemDaTela
 				})
 			});
 			await invalidateAll();
@@ -947,13 +1056,20 @@ export function useProdutividade(getData: () => PageData) {
 			return salvandoOrdem;
 		},
 		/**
-		 * O painel já foi organizado alguma vez neste tipo?
+		 * O que está na tela difere do que o formulário daria?
 		 *
-		 * É o que decide se "Restaurar padrão" tem o que desfazer — sem ordem
-		 * gravada, o painel JÁ está na ordem do formulário.
+		 * É o que decide se "Ordem do formulário" tem o que desfazer. Pela
+		 * COMPARAÇÃO, e não por "existe ordem gravada": uma lista salva pode
+		 * descrever exatamente o arranjo natural (a pergunta que a compunha foi
+		 * desmarcada, e o que sobrou voltou a coincidir), e ali o botão não tem o que
+		 * fazer.
 		 */
 		get temOrdemPropria() {
-			return ordemVigente.length > 0;
+			return !ordemEhNatural;
+		},
+		/** As três faixas na ordem em que a página deve empilhá-las. */
+		get secoesNaOrdem() {
+			return secoesNaOrdem;
 		},
 		moverCard,
 		salvarOrdem,

@@ -46,12 +46,18 @@
 	import { slide } from 'svelte/transition';
 	import Spinner from '$lib/components/Spinner.svelte';
 	import GripVertical from '@lucide/svelte/icons/grip-vertical';
-	import { useProdutividade } from './_components/useProdutividade.svelte';
+	import {
+		useProdutividade,
+		ESCOPO_BLOCOS,
+		ROTULO_SECAO,
+		type SecaoPainel
+	} from './_components/useProdutividade.svelte';
 	import { useOrganizacaoPainel } from './_components/useOrganizacaoPainel.svelte';
 	import SecaoRankings from './_components/SecaoRankings.svelte';
 	import SecaoGraficos from './_components/SecaoGraficos.svelte';
 	import SecaoIndicadores from './_components/SecaoIndicadores.svelte';
 	import BarraOrganizar from './_components/BarraOrganizar.svelte';
+	import CardOrdenavel from './_components/CardOrdenavel.svelte';
 
 	const { data }: PageProps = $props();
 	const p = useProdutividade(() => data);
@@ -85,7 +91,7 @@
 <div
 	class="pagina-produtividade space-y-8 pb-12 {p.selectedCharts.length > 0 ? 'has-selections' : ''}"
 >
-	<header class="flex flex-col md:flex-row md:items-center justify-between gap-4 sm:gap-6">
+	<header class="flex flex-col md:flex-row md:items-start justify-between gap-4 sm:gap-6">
 		<div class="space-y-1">
 			<h1 class="h1 text-2xl font-bold">
 				Produção {p.filterTipo === 'seint' ? 'Inteligência' : 'Operacional'}
@@ -103,85 +109,95 @@
 				</p>
 			{/if}
 		</div>
-		<!-- Os controles de exportação não vão para o papel: quem lê o PDF não
-		     clica em "Baixar". -->
-		<div class="flex flex-col items-start gap-2 print:hidden">
-			<span
-				class="text-xs font-bold uppercase tracking-widest text-surface-400 dark:text-surface-500"
-				>Baixar gráficos</span
-			>
-			<div class="flex flex-wrap items-center gap-3">
-				<!-- Só o Admin Geral. Esconder o botão NÃO é a autorização: quem recusa
-				     o PUT direto é `requireAdmin` em `/api/produtividade/ordem`. -->
-				{#if p.podeOrganizar && !p.organizando}
-					<button
-						type="button"
-						class="btn bg-surface-200/60 dark:bg-surface-800/60 text-surface-600 dark:text-surface-300 hover:bg-surface-200 dark:hover:bg-surface-700 text-3xs font-black uppercase tracking-widest px-4 py-2 rounded-xl transition-colors flex items-center gap-2"
-						onclick={() => (p.organizando = true)}
-					>
-						<GripVertical class="w-3.5 h-3.5" aria-hidden="true" />
-						Organizar painel
-					</button>
-				{/if}
+		<!-- Os controles não vão para o papel: quem lê o PDF não clica em "Baixar".
 
-				{#if p.allChartsCount > 0}
-					<button
-						type="button"
-						class="btn text-3xs font-black uppercase tracking-widest px-4 py-2 rounded-xl transition-colors {p
-							.selectedCharts.length >= p.allChartsCount
-							? 'bg-surface-900 dark:bg-surface-50 text-white dark:text-surface-950'
-							: 'bg-surface-200/60 dark:bg-surface-800/60 text-surface-600 dark:text-surface-300 hover:bg-surface-200 dark:hover:bg-surface-700'}"
-						onclick={p.selectAllCharts}
-					>
-						{p.selectedCharts.length >= p.allChartsCount
-							? 'Desmarcar Todos'
-							: `Selecionar Todos (${p.allChartsCount})`}
-					</button>
-				{/if}
-
+		     DOIS grupos, e a separação não é estética: "Organizar painel" muda o que
+		     TODOS veem na operação, enquanto os de baixo produzem um arquivo para
+		     quem clicou. Eles moraram juntos sob o rótulo "Baixar gráficos", que
+		     descrevia três dos quatro botões e mentia sobre o primeiro. -->
+		<div class="flex flex-col items-stretch gap-3 print:hidden md:items-end">
+			<!-- Só o Admin Geral. Esconder o botão NÃO é a autorização: quem recusa
+			     o PUT direto é `requireAdmin` em `/api/produtividade/ordem`. -->
+			{#if p.podeOrganizar && !p.organizando}
 				<button
 					type="button"
-					class="btn {p.selectedCharts.length > 0
-						? 'bg-error-600 hover:bg-error-700 text-white'
-						: 'bg-surface-200/80 dark:bg-surface-800/80 text-surface-500 dark:text-surface-400 cursor-not-allowed'} text-3xs font-black uppercase py-2 px-6 rounded-xl transition-colors flex items-center gap-2"
-					onclick={p.exportChartsAsImages}
-					disabled={p.selectedCharts.length === 0 || p.exporting}
+					class="btn self-start md:self-end bg-surface-200/60 dark:bg-surface-800/60 text-surface-600 dark:text-surface-300 hover:bg-surface-200 dark:hover:bg-surface-700 text-3xs font-black uppercase tracking-widest px-4 py-2 rounded-xl transition-colors flex items-center gap-2"
+					onclick={() => (p.organizando = true)}
 				>
-					{#if p.exporting}
-						<Spinner size="sm" />
-						Exportando...
-					{:else}
-						<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"
-							><path
-								stroke-linecap="round"
-								stroke-linejoin="round"
-								stroke-width="3"
-								d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
-							/></svg
+					<GripVertical class="w-3.5 h-3.5" aria-hidden="true" />
+					Organizar painel
+				</button>
+			{/if}
+
+			<!-- Some no modo organizar: ali os cards estão inertes, e um botão de
+			     baixar convidaria a exportar um painel em rascunho. -->
+			{#if !p.organizando}
+				<div class="flex flex-col items-start gap-2 md:items-end">
+					<span
+						class="text-xs font-bold uppercase tracking-widest text-surface-400 dark:text-surface-500"
+						>Baixar gráficos</span
+					>
+					<div class="flex flex-wrap items-center gap-2 md:justify-end">
+						{#if p.allChartsCount > 0}
+							<button
+								type="button"
+								class="btn text-3xs font-black uppercase tracking-widest px-4 py-2 rounded-xl transition-colors {p
+									.selectedCharts.length >= p.allChartsCount
+									? 'bg-surface-900 dark:bg-surface-50 text-white dark:text-surface-950'
+									: 'bg-surface-200/60 dark:bg-surface-800/60 text-surface-600 dark:text-surface-300 hover:bg-surface-200 dark:hover:bg-surface-700'}"
+								onclick={p.selectAllCharts}
+							>
+								{p.selectedCharts.length >= p.allChartsCount
+									? 'Desmarcar Todos'
+									: `Selecionar Todos (${p.allChartsCount})`}
+							</button>
+						{/if}
+
+						<button
+							type="button"
+							class="btn {p.selectedCharts.length > 0
+								? 'bg-error-600 hover:bg-error-700 text-white'
+								: 'bg-surface-200/80 dark:bg-surface-800/80 text-surface-500 dark:text-surface-400 cursor-not-allowed'} text-3xs font-black uppercase tracking-widest py-2 px-4 rounded-xl transition-colors flex items-center gap-2"
+							onclick={p.exportChartsAsImages}
+							disabled={p.selectedCharts.length === 0 || p.exporting}
 						>
-						Baixar (imagem){p.selectedCharts.length > 0 ? ` (${p.selectedCharts.length})` : ''}
-					{/if}
-				</button>
+							{#if p.exporting}
+								<Spinner size="sm" />
+								Exportando...
+							{:else}
+								<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+									><path
+										stroke-linecap="round"
+										stroke-linejoin="round"
+										stroke-width="3"
+										d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+									/></svg
+								>
+								Baixar (imagem){p.selectedCharts.length > 0 ? ` (${p.selectedCharts.length})` : ''}
+							{/if}
+						</button>
 
-				<button
-					type="button"
-					class="btn {p.selectedCharts.length > 0
-						? 'bg-secondary-600 hover:bg-secondary-700 text-white'
-						: 'bg-surface-200/80 dark:bg-surface-800/80 text-surface-500 dark:text-surface-400 cursor-not-allowed'} text-3xs font-black uppercase py-2 px-6 rounded-xl transition-colors flex items-center gap-2"
-					onclick={() => window.print()}
-					disabled={p.selectedCharts.length === 0}
-				>
-					<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"
-						><path
-							stroke-linecap="round"
-							stroke-linejoin="round"
-							stroke-width="3"
-							d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-						/></svg
-					>
-					Baixar (PDF){p.selectedCharts.length > 0 ? ` (${p.selectedCharts.length})` : ''}
-				</button>
-			</div>
+						<button
+							type="button"
+							class="btn {p.selectedCharts.length > 0
+								? 'bg-secondary-600 hover:bg-secondary-700 text-white'
+								: 'bg-surface-200/80 dark:bg-surface-800/80 text-surface-500 dark:text-surface-400 cursor-not-allowed'} text-3xs font-black uppercase tracking-widest py-2 px-4 rounded-xl transition-colors flex items-center gap-2"
+							onclick={() => window.print()}
+							disabled={p.selectedCharts.length === 0}
+						>
+							<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+								><path
+									stroke-linecap="round"
+									stroke-linejoin="round"
+									stroke-width="3"
+									d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+								/></svg
+							>
+							Baixar (PDF){p.selectedCharts.length > 0 ? ` (${p.selectedCharts.length})` : ''}
+						</button>
+					</div>
+				</div>
+			{/if}
 		</div>
 	</header>
 
@@ -408,11 +424,6 @@
 		{/if}
 	</div>
 
-	<!-- Antes dos rankings e dos gráficos por pergunta: é a leitura que a
-	     operação existe para produzir ("chegamos onde prometemos?"), e o resto
-	     é o detalhamento dela. -->
-	<SecaoIndicadores paineis={p.paineisIndicadores} Chart={p.ChartCtor} {organizacao} />
-
 	{#if p.painelVazio}
 		<!-- Nem indicador, nem bloco fixo, nem pergunta marcada. Sem este aviso a
 		     página fica só com a barra de filtros e parece defeito — e o conserto
@@ -431,27 +442,59 @@
 		</section>
 	{/if}
 
-	<!-- Rankings e detalhamentos. O bloco de prisões só existe no operacional (as
-	     perguntas que o alimentam são de lá) e chega nesta mesma lista, já na
-	     ordem do painel; os cards vindos do modelo valem para os dois tipos de
-	     equipe, porque saem do formulário em foco. -->
-	<SecaoRankings
-		cards={p.cardsListagem}
-		rotuloGrupo={p.modoVisualizacao === 'delegacias' ? 'Delegacia' : 'Seccional'}
-		selectedCharts={p.selectedCharts}
-		onToggle={p.toggleChartSelection}
-		{organizacao}
-	/>
+	<!-- O conteúdo de uma faixa. Snippet, e não três blocos soltos, porque a ORDEM
+	     das faixas é escolha do admin: com elas escritas em sequência no markup, a
+	     categoria era a única coisa do painel que não se movia — e era o que fazia
+	     o card de uma pergunta nova cair no meio da tela sem ninguém ter pedido.
 
-	<SecaoGraficos
-		questions={p.QUESTIONS}
-		stats={p.stats}
-		canvasElements={p.canvasElements}
-		selectedCharts={p.selectedCharts}
-		modoVisualizacao={p.modoVisualizacao}
-		onToggle={p.toggleChartSelection}
-		{organizacao}
-	/>
+	     Rankings e detalhamentos: o bloco de prisões só existe no operacional (as
+	     perguntas que o alimentam são de lá) e chega na mesma lista dos demais, já
+	     na ordem do painel; os cards vindos do modelo valem para os dois tipos de
+	     equipe, porque saem do formulário em foco. -->
+	{#snippet faixa(secao: SecaoPainel)}
+		{#if secao === 'indicadores'}
+			<SecaoIndicadores paineis={p.paineisIndicadores} Chart={p.ChartCtor} {organizacao} />
+		{:else if secao === 'listagem'}
+			<SecaoRankings
+				cards={p.cardsListagem}
+				rotuloGrupo={p.modoVisualizacao === 'delegacias' ? 'Delegacia' : 'Seccional'}
+				selectedCharts={p.selectedCharts}
+				onToggle={p.toggleChartSelection}
+				{organizacao}
+			/>
+		{:else}
+			<SecaoGraficos
+				questions={p.QUESTIONS}
+				stats={p.stats}
+				canvasElements={p.canvasElements}
+				selectedCharts={p.selectedCharts}
+				modoVisualizacao={p.modoVisualizacao}
+				onToggle={p.toggleChartSelection}
+				{organizacao}
+			/>
+		{/if}
+	{/snippet}
+
+	<!-- Fora do modo, nenhuma moldura: a página fica exatamente como sempre foi,
+	     com as três faixas empilhadas na ordem escolhida. -->
+	<div class="space-y-8" role={p.organizando ? 'list' : undefined}>
+		{#each p.secoesNaOrdem as secao, indice (secao)}
+			{#if p.organizando}
+				<CardOrdenavel
+					{organizacao}
+					secao={ESCOPO_BLOCOS}
+					{indice}
+					total={p.secoesNaOrdem.length}
+					rotulo={ROTULO_SECAO[secao]}
+					variante="bloco"
+				>
+					{@render faixa(secao)}
+				</CardOrdenavel>
+			{:else}
+				{@render faixa(secao)}
+			{/if}
+		{/each}
+	</div>
 </div>
 
 <style>
