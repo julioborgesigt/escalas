@@ -5,7 +5,7 @@
 	 */
 	import KeyRound from '@lucide/svelte/icons/key-round';
 
-	let {
+	const {
 		onAssinarToken,
 		disabled = false
 	}: {

@@ -13,9 +13,11 @@
 	import { podeBaixarComManifesto } from '$lib/manifesto';
 	import { avancadaEmTelaDoLayout } from '$lib/chave-assinatura-ui';
 	import ConviteChaveAssinatura from '$lib/components/ConviteChaveAssinatura.svelte';
+	import { useMobile } from '$lib/composables';
 	import { quadroSupervisao } from './quadro-supervisao-estado.svelte';
 
 	const quadro = quadroSupervisao();
+	const isMobile = $derived(useMobile().isMobile);
 	const restringirSmartphone = $derived((page.data.restringirSmartphone as boolean) ?? false);
 
 	const gise = $derived(quadro.gise);
@@ -35,7 +37,7 @@
 	const urlDownloadPdf = $derived(`/api/gise/${gise.id}/download?format=pdf`);
 	const avancadaDisponivel = $derived(avancadaEmTelaDoLayout(page.data));
 	const avancadaDesktopDisponivel = $derived(
-		!mobile && !restringirSmartphone && avancadaDisponivel
+		!isMobile && !restringirSmartphone && avancadaDisponivel
 	);
 
 	let expandirEscala = $state(false);
