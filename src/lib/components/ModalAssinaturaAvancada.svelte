@@ -106,6 +106,10 @@
 	const larguraEfetiva = $derived(etapaAuth ? 'sm' : largura);
 	const paddingEfetivo = $derived(etapaAuth ? 'compacto' : padding);
 	const familiaEfetiva = $derived(etapaAuth ? 'assinatura' : familia);
+	/** Token A3 só na tela de senha — na rubrica/2FA o rodapé compete com o fluxo principal. */
+	const mostrarOpcaoToken = $derived(
+		Boolean(onAssinarToken) && !pending && signatureStep === 'credenciais'
+	);
 	/** Nota do PDF só na rubrica — nas telas de senha/2FA ela estica o modal sem necessidade. */
 	const mostrarNotaRodape = $derived(Boolean(notaRodape) && !etapaAuth);
 </script>
