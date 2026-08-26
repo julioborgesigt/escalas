@@ -41,4 +41,19 @@ describe('textosEtapaAssinatura', () => {
 			descricao: 'Assine a escala X'
 		});
 	});
+
+	it('aceita título customizado na etapa de rubrica e câmera', () => {
+		expect(
+			textosEtapaAssinatura('signature', 'desc', { tituloRubrica: 'Rubrica do Supervisor' })
+		).toEqual({
+			titulo: 'Rubrica do Supervisor',
+			descricao: 'desc'
+		});
+		expect(
+			textosEtapaAssinatura('camera', 'desc', { tituloCamera: 'Prova de Vida do Supervisor' })
+		).toEqual({
+			titulo: 'Prova de Vida do Supervisor',
+			descricao: 'Cumpra o desafio de presença na tela para provar que você está ativo.'
+		});
+	});
 });

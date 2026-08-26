@@ -88,6 +88,10 @@
 
 	let expandido = $state(false);
 	const avancadaDisponivel = $derived(avancadaEmTelaDoLayout(page.data));
+	const restringirSmartphone = $derived((page.data.restringirSmartphone as boolean) ?? false);
+	const avancadaDesktopDisponivel = $derived(
+		!isMobile && !restringirSmartphone && avancadaDisponivel
+	);
 
 	const naoIniciou = $derived(
 		['em_definicao_supervisor', 'em_preenchimento', 'aguardando_assinatura'].includes(
@@ -465,15 +469,27 @@
 						Conferência/Downloads
 					</button>
 					{#if !todosAssinados && podeAssinar && !assinandoLote}
-						<button
-							type="button"
-							class="btn btn-xs preset-filled-tertiary-500 border border-tertiary-600/30 px-2.5 py-1.5 text-3xs font-bold rounded-lg hover:border-tertiary-600 disabled:opacity-40 flex items-center gap-1 hover:scale-[1.02] transition-all"
-							disabled={loading.active || quantidadePendentes === 0}
-							onclick={() => (confirmandoLote = true)}
-						>
-							<PenLine class="h-2.5 w-2.5 shrink-0" aria-hidden="true" />
-							Token
-						</button>
+						{#if avancadaDesktopDisponivel}
+							<button
+								type="button"
+								class="btn btn-xs preset-filled-warning-500 border border-warning-600/30 px-2.5 py-1.5 text-3xs font-bold rounded-lg hover:border-warning-600 disabled:opacity-40 flex items-center gap-1 hover:scale-[1.02] transition-all"
+								disabled={loading.active || quantidadePendentes === 0}
+								onclick={onAssinarManualLote}
+							>
+								<PenLine class="h-2.5 w-2.5 shrink-0" aria-hidden="true" />
+								Assinar
+							</button>
+						{:else}
+							<button
+								type="button"
+								class="btn btn-xs preset-filled-tertiary-500 border border-tertiary-600/30 px-2.5 py-1.5 text-3xs font-bold rounded-lg hover:border-tertiary-600 disabled:opacity-40 flex items-center gap-1 hover:scale-[1.02] transition-all"
+								disabled={loading.active || quantidadePendentes === 0}
+								onclick={() => (confirmandoLote = true)}
+							>
+								<PenLine class="h-2.5 w-2.5 shrink-0" aria-hidden="true" />
+								Token
+							</button>
+						{/if}
 					{/if}
 				</div>
 			</div>

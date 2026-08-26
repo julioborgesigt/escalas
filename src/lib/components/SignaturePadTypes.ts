@@ -22,20 +22,19 @@ export type SignaturePadConfirmPayload = {
 };
 
 /**
- * Título e descrição do diálogo de assinatura em tela para cada etapa —
- * usado pelo `PainelAssinaturaDigital` (GISE) e pelo diálogo próprio da
- * escala ordinária em `routes/escalas/+page.svelte`. `descricaoRubrica` é o
- * único ponto de variação real entre os dois: o texto da etapa final, que
- * nomeia o tipo de documento sendo assinado.
+ * Título e descrição do diálogo de assinatura em tela para cada etapa.
+ * `descricaoRubrica` / `tituloRubrica` são o ponto de variação entre documentos
+ * (escala, GISE, presença…); as demais etapas são texto fixo da cerimônia.
  */
 export function textosEtapaAssinatura(
 	step: SignaturePadStep,
-	descricaoRubrica: string
+	descricaoRubrica: string,
+	opcoes?: { tituloRubrica?: string; tituloCamera?: string }
 ): { titulo: string; descricao: string } {
 	switch (step) {
 		case 'camera':
 			return {
-				titulo: 'Prova de Vida',
+				titulo: opcoes?.tituloCamera ?? 'Prova de Vida',
 				descricao: 'Cumpra o desafio de presença na tela para provar que você está ativo.'
 			};
 		case 'password':
@@ -54,6 +53,9 @@ export function textosEtapaAssinatura(
 				descricao: 'Confirme sua senha e o código enviado por e-mail para concluir a assinatura.'
 			};
 		default:
-			return { titulo: 'Assinatura Digital em Tela', descricao: descricaoRubrica };
+			return {
+				titulo: opcoes?.tituloRubrica ?? 'Assinatura Digital em Tela',
+				descricao: descricaoRubrica
+			};
 	}
 }

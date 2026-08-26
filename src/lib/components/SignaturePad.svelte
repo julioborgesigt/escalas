@@ -58,7 +58,7 @@
 		exigirCodigoEmail = false,
 		rubricaSalva = null,
 		step = $bindable('signature'),
-		credenciaisCombinadas = false,
+		credenciaisCombinadas = true,
 		cpfUsuario = null
 	}: {
 		onConfirm: (payload: SignaturePadConfirmPayload) => void | Promise<void>;

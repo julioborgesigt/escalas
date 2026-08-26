@@ -50,13 +50,9 @@
 	} from '$lib/composables';
 	import { getSavedFilters } from '$lib/utils/localStorage';
 	import { fetchSyncEstado } from '$lib/sync-estado';
-	import SignaturePad from '$lib/components/SignaturePad.svelte';
-	import {
-		textosEtapaAssinatura,
-		type SignaturePadConfirmPayload,
-		type SignaturePadStep
-	} from '$lib/components/SignaturePadTypes';
+	import type { SignaturePadConfirmPayload } from '$lib/components/SignaturePadTypes';
 	import PainelAssinaturaToken from '$lib/components/PainelAssinaturaToken.svelte';
+	import ModalAssinaturaAvancada from '$lib/components/ModalAssinaturaAvancada.svelte';
 	import { page } from '$app/state';
 	import { avancadaEmTelaDoLayout } from '$lib/chave-assinatura-ui';
 	import FloatingRefresh from '$lib/components/FloatingRefresh.svelte';
@@ -70,7 +66,6 @@
 	import BotaoVoltar from '$lib/components/BotaoVoltar.svelte';
 	import BotaoLimparFiltros from '$lib/components/BotaoLimparFiltros.svelte';
 	import ModalShell from '$lib/components/ModalShell.svelte';
-	import RodapeOpcaoTokenAssinatura from '$lib/components/RodapeOpcaoTokenAssinatura.svelte';
 	import { mensagemDeErro } from '$lib/utils/erro';
 
 	const { data }: PageProps = $props();
@@ -452,25 +447,6 @@
 			void iniciarAssinaturaToken(escalaAssinandoId);
 		}
 	}
-
-	let signatureStep = $state<SignaturePadStep>('signature');
-	$effect(() => {
-		if (dialogAssinaturaTela) {
-			signatureStep = 'signature';
-		}
-	});
-
-	const textosEtapa = $derived(
-		textosEtapaAssinatura(
-			signatureStep,
-			'Desenhe sua rubrica no quadro abaixo para assinar este documento.'
-		)
-	);
-	const signatureTitulo = $derived(textosEtapa.titulo);
-	const signatureDescricao = $derived(textosEtapa.descricao);
-	const mostrarOpcaoTokenNoModal = $derived(
-		avancadaDesktopDisponivel && (signatureStep === 'signature' || signatureStep === 'credenciais')
-	);
 </script>
 
 <svelte:head>
@@ -837,45 +813,35 @@
 	}}
 />
 
-<ModalShell
+<ModalAssinaturaAvancada
 	bind:open={dialogAssinaturaTela}
-	title={signatureTitulo}
-	description={signatureDescricao}
-	largura="lg"
-	familia="escalas"
+	message="Rubrica do Organizador"
+	descricaoRubrica="Desenhe sua rubrica no quadro abaixo para assinar este documento."
+	exigirFoto={page.data.exigirFotoAssinatura ?? true}
+	exigirGps={page.data.exigirGpsAssinatura ?? true}
+	exigirCodigoEmail={page.data.exigirCodigoEmailAssinatura ?? false}
+	cpfUsuario={usuarioLogado?.cpf ?? null}
+	onConfirm={async (p: SignaturePadConfirmPayload) => {
+		await assinaturaRapida.assinarSimples(
+			p.rubrica,
+			p.lat,
+			p.lng,
+			p.selfie,
+			p.codigoEmail,
+			p.desafioId,
+			p.liveness,
+			p.reauthId
+		);
+	}}
+	onCancel={() => (dialogAssinaturaTela = false)}
+	onAssinarToken={avancadaDesktopDisponivel ? assinarComTokenNoModal : null}
+	tokenDisabled={assinaturaRapida.assinandoSimples}
 	pending={assinaturaRapida.assinandoSimples}
->
-	{#if dialogAssinaturaTela}
-		<SignaturePad
-			message="Rubrica do Organizador"
-			onConfirm={async (p: SignaturePadConfirmPayload) => {
-				await assinaturaRapida.assinarSimples(
-					p.rubrica,
-					p.lat,
-					p.lng,
-					p.selfie,
-					p.codigoEmail,
-					p.desafioId,
-					p.liveness,
-					p.reauthId
-				);
-			}}
-			onCancel={() => (dialogAssinaturaTela = false)}
-			exigirFoto={page.data.exigirFotoAssinatura ?? true}
-			exigirGps={page.data.exigirGpsAssinatura ?? true}
-			exigirCodigoEmail={page.data.exigirCodigoEmailAssinatura ?? false}
-			credenciaisCombinadas={avancadaDesktopDisponivel}
-			cpfUsuario={usuarioLogado?.cpf ?? null}
-			bind:step={signatureStep}
-		/>
-		{#if mostrarOpcaoTokenNoModal}
-			<RodapeOpcaoTokenAssinatura
-				onAssinarToken={assinarComTokenNoModal}
-				disabled={assinaturaRapida.assinandoSimples}
-			/>
-		{/if}
-	{/if}
-</ModalShell>
+	largura="lg"
+	camada="base"
+	familia="escalas"
+	padding="padrao"
+/>
 
 <!-- Cadastro/gestão da rubrica reutilizável (assinatura por token no computador) -->
 <ModalCadastrarRubrica
