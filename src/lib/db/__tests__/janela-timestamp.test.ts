@@ -152,12 +152,22 @@ describe('janela de rate limit sobre `recovery_attempts.attempted_at`', () => {
 	});
 
 	it('com `toISOString()` o contador dá ZERO — o limite não dispararia', async () => {
-		await registrarRecoveryAttempt(db, '10.0.0.1', 'reauth_assinatura');
+		// Relógio fixo: perto da meia-noite UTC a comparação lexicográfica de
+		// `"YYYY-MM-DD HH:MM:SS"` com ISO (`T`/`Z`) pode CASUALMENTE contar a
+		// linha (o dia muda e o bug "some"), o mesmo intermitente documentado
+		// no caso da virada em `dois_fatores_tokens`. Grava `attempted_at` à
+		// mão — `datetime('now')` do DEFAULT não respeita fake timer.
+		sqlite
+			.prepare(
+				`INSERT INTO recovery_attempts (ip, purpose, attempted_at)
+				 VALUES ('10.0.0.1', 'reauth_assinatura', ?)`
+			)
+			.run(timestampSqliteUtc(AGORA));
 		const [row] = await db
 			.select({ n: sql<number>`count(*)` })
 			.from(recoveryAttempts)
 			.where(
-				sql`${recoveryAttempts.attempted_at} > ${new Date(Date.now() - 15 * 60_000).toISOString()}`
+				sql`${recoveryAttempts.attempted_at} > ${new Date(AGORA - 15 * 60_000).toISOString()}`
 			);
 		expect(Number(row?.n ?? 0)).toBe(0);
 	});
