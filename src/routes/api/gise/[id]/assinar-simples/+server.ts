@@ -37,7 +37,6 @@ export const POST: RequestHandler = async (event) => {
 	const validated = await validateBody(request, assinarSimplesSchema);
 	if (!validated.ok) return validated.response;
 	const {
-		rubrica,
 		latitude,
 		longitude,
 		selfieBase64,
@@ -59,7 +58,6 @@ export const POST: RequestHandler = async (event) => {
 		db,
 		u,
 		{
-			rubrica,
 			latitude,
 			longitude,
 			selfieBase64,
@@ -102,7 +100,6 @@ export const POST: RequestHandler = async (event) => {
 			logos: { esq: logoJpgBytes, dir: logoCearaBytes },
 			assinante: { nome: u.nome, cpf: u.cpf, email: u.email },
 			evidencias: {
-				rubrica: validatedEv.rubrica,
 				latitude: validatedEv.latitude,
 				longitude: validatedEv.longitude,
 				selfieBase64: validatedEv.selfieBase64,
@@ -127,7 +124,6 @@ export const POST: RequestHandler = async (event) => {
 			gise: { id, data_inicio: gise.data_inicio },
 			assinante: { id: u.id, nome: u.nome },
 			montado,
-			rubrica: validatedEv.rubrica,
 			selfieKey,
 			ip: ip ?? undefined,
 			userAgent: ua,

@@ -4,7 +4,7 @@
  * Contexto da decisão: unidade não se exclui. `gise_assinaturas_relatorios`
  * referencia `unidades(id)` com `ON DELETE CASCADE` e o D1 aplica FK de
  * verdade — um DELETE levava junto o registro do ato de assinar (nome, CPF,
- * rubrica, selfie, IP, GPS, hash do arquivo, chave do PDF no R2) e fazia o
+ * selfie, IP, GPS, hash do arquivo, chave do PDF no R2) e fazia o
  * portal público `/validar` negar um documento já entregue. Escala e lotação,
  * que ligam por NOME e sem FK, ficavam órfãs sem erro nenhum.
  *

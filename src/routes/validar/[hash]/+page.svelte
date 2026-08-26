@@ -323,7 +323,7 @@
 								</p>
 							{:else}
 								<p class="text-2xs text-surface-600 dark:text-surface-400 italic pt-1">
-									Assinatura avançada (rubrica + selfie + GPS + IP). Validade jurídica conforme Lei
+									Assinatura avançada (selfie + GPS + IP). Validade jurídica conforme Lei
 									14.063/2020 art. 4º, II.
 								</p>
 							{/if}

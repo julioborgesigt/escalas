@@ -2,8 +2,8 @@
  * Barrel dos composables — e SÓ de composables.
  *
  * O critério é o nome: entra aqui o que é `use*` (estado reativo com runes) ou
- * o predicado que acompanha um deles (`rubricaValida`). Nada mais, mesmo que
- * as mesmas telas importem as duas coisas.
+ * o predicado que acompanha um deles. Nada mais, mesmo que as mesmas telas
+ * importem as duas coisas.
  *
  * A regra existe porque a linha 2 deste arquivo já reexportou
  * `getSavedFilters` de `$lib/utils/localStorage`, e as cinco telas que a usam
@@ -26,6 +26,5 @@ export { useScrollLock } from './useScrollLock.svelte';
 export { useFiltrosPaginados } from './useFiltrosPaginados.svelte';
 export { useVerificacaoEmailPessoal } from './useVerificacaoEmailPessoal.svelte';
 export { useBuscaDebounce } from './useBuscaDebounce.svelte';
-export { useOfertaRubrica, rubricaValida } from './useOfertaRubrica.svelte';
 export { useInvalidateOnFocus } from './useInvalidateOnFocus.svelte';
 export { useSamePathNavigating } from './useSamePathNavigating.svelte';

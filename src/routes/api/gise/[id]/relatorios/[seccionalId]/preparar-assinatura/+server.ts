@@ -29,7 +29,6 @@ import {
 } from '$lib/server/gise/supervisao-extra';
 import { identidadeVisualAssinante } from '$lib/server/assinatura/identidade-sessao';
 import {
-	prepararPdfParaAssinatura,
 	adicionarPaginaAuditoria,
 	type AuditTrailOptions,
 	adicionarRodapeUniversal
@@ -40,7 +39,7 @@ import {
 	calcularHashBuffer,
 	resolverTipoCarimboTempo
 } from '$lib/server/assinatura/document-utils';
-import { fecharPreparacaoAssinatura } from '$lib/server/assinatura/preparar-ciclo';
+import { prepararAssinaturaPorToken } from '$lib/server/assinatura/preparar-ciclo';
 
 export const POST: RequestHandler = async ({
 	platform,
@@ -58,7 +57,6 @@ export const POST: RequestHandler = async ({
 
 	const validated = await validateBody(request, prepararAssinaturaSchema);
 	if (!validated.ok) return validated.response;
-	// `rubrica` do body é ignorada: vem do cadastro do perfil (server-side).
 	const { latitude, longitude } = validated.data;
 	const ip = getClientAddress();
 	const ua = request.headers.get('user-agent') || '';
@@ -85,9 +83,8 @@ export const POST: RequestHandler = async ({
 
 	const { signerName: finalSignerName, signerCpf: finalSignerCpf } = identidadeVisualAssinante(u);
 
-	// Rubrica + matrícula do signatário (supervisor) para o campo + rodapé.
+	// Matrícula do signatário (supervisor) para o rodapé de identidade.
 	const polAss = await buscarPolicial(db, u.id);
-	const rubricaAssinatura = polAss?.rubrica ?? undefined;
 	const matriculaAssinatura = u.matricula ?? polAss?.matricula ?? undefined;
 
 	const mockSignature = {
@@ -97,12 +94,12 @@ export const POST: RequestHandler = async ({
 
 	const isSupervisaoExtra = await secIdEhSupervisaoExtra(db, secIdNum);
 
-	// Só prepara a assinatura quando TODOS os participantes confirmaram a saída
-	// (rubrica) — o relatório de extra exige a rubrica de todos.
+	// Só prepara a assinatura quando TODOS os participantes confirmaram a saída —
+	// o relatório de extra exige a confirmação de todos.
 	const saidaCompleta = await verificarSaidaCompletaSeccional(db, id, secIdNum, isSupervisaoExtra);
 	if (!saidaCompleta) {
 		return badRequest(
-			'Todos os participantes precisam confirmar a saída (rubrica) antes de assinar o relatório.'
+			'Todos os participantes precisam confirmar a saída antes de assinar o relatório.'
 		);
 	}
 
@@ -157,7 +154,7 @@ export const POST: RequestHandler = async ({
 	// Construir lista de assinantes para a folha de auditoria. As presenças
 	// (entrada/saída de cada participante) vêm do helper compartilhado — mesma
 	// fonte usada pelo fluxo de assinatura em tela/mobile (`assinar`), para que o
-	// manifesto sempre contenha TODAS as rubricas, não só a do supervisor.
+	// manifesto sempre contenha TODAS as confirmações, não só a do supervisor.
 	const signers: AuditTrailOptions[] = await montarSignersPresencaExtra({
 		db,
 		gise,
@@ -199,63 +196,28 @@ export const POST: RequestHandler = async ({
 
 	// Conversão de mm (jsPDF) para pts (pdf-lib)
 	const mmToPts = 2.8346;
-	const rubW_pts = 130;
-	const rx_pts = (297 / 2 - rubW_pts / mmToPts / 2) * mmToPts; // Centralizado
 
 	// A linha de assinatura está em sigY (mm do topo).
 	// Em pdf-lib (pts da base):
 	const sigY_pts = (210 - sigY) * mmToPts;
 
-	// Queremos a rubrica logo acima da linha
-	const ry_pts = sigY_pts + 2 * mmToPts;
-
-	// O carimbo (box azul) deve ficar acima da linha também.
+	// O carimbo (box azul) deve ficar acima da linha.
 	const boxY_pts = sigY_pts + 5 * mmToPts;
 
-	const prepResult = await prepararPdfParaAssinatura(
-		pdfWithAudit,
-		finalSignerName,
-		'center',
-		verificationHash,
-		verificationUrl,
-		boxY_pts,
-		rubricaAssinatura,
-		rx_pts,
-		ry_pts,
-		contentPageIndex,
-		'rubrica'
-	);
-
-	const { preparedPdf, signedAttrsHashHex, messageDigest, signingTimeISO, dataToSignBase64 } =
-		prepResult;
-
-	return fecharPreparacaoAssinatura({
+	return prepararAssinaturaPorToken({
 		db,
 		platform,
 		alvo: { recurso: 'gise_relatorio', recursoId: id, escopoId: secIdNum },
 		ator: { id: u.id, tipo: u.tipo },
-		preparedPdf,
+		pdfComAuditoria: pdfWithAudit,
+		pdfComRodape: pdfBase,
+		signerName: finalSignerName,
+		assinanteEmail: u.email,
+		documentHash,
 		verificationHash,
-		campos: {
-			signedAttrsHashHex,
-			messageDigest,
-			signingTimeISO,
-			dataToSignBase64,
-			documentHash,
-			assinanteEmail: u.email
-		},
-		conferencia: {
-			pdfComRodape: pdfBase,
-			stamp: {
-				alignment: 'center',
-				customBoxY: boxY_pts,
-				rubricBase64: rubricaAssinatura,
-				customRubricX: rx_pts,
-				customRubricY: ry_pts,
-				targetPageIndex: contentPageIndex
-			},
-			logTag: 'gise/relatorios/preparar-assinatura',
-			logFields: { gise_id: id, seccional_id: secIdNum }
-		}
+		verificationUrl,
+		campo: { alignment: 'center', boxY: boxY_pts, targetPageIndex: contentPageIndex },
+		logTag: 'gise/relatorios/preparar-assinatura',
+		logFields: { gise_id: id, seccional_id: secIdNum }
 	});
 };

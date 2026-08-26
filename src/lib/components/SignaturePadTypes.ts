@@ -10,7 +10,6 @@ export type SignaturePadLivenessResultado = {
 export type SignaturePadStep = 'signature' | 'camera' | 'password' | 'email_code' | 'credenciais';
 
 export type SignaturePadConfirmPayload = {
-	rubrica: string;
 	lat?: number;
 	lng?: number;
 	selfie: string | null;
@@ -23,13 +22,14 @@ export type SignaturePadConfirmPayload = {
 
 /**
  * Título e descrição do diálogo de assinatura em tela para cada etapa.
- * `descricaoRubrica` / `tituloRubrica` são o ponto de variação entre documentos
- * (escala, GISE, presença…); as demais etapas são texto fixo da cerimônia.
+ * `descricaoAssinatura` / `tituloAssinatura` são o ponto de variação entre
+ * documentos (escala, GISE, presença…); as demais etapas são texto fixo da
+ * cerimônia.
  */
 export function textosEtapaAssinatura(
 	step: SignaturePadStep,
-	descricaoRubrica: string,
-	opcoes?: { tituloRubrica?: string; tituloCamera?: string }
+	descricaoAssinatura: string,
+	opcoes?: { tituloAssinatura?: string; tituloCamera?: string }
 ): { titulo: string; descricao: string } {
 	switch (step) {
 		case 'camera':
@@ -54,8 +54,8 @@ export function textosEtapaAssinatura(
 			};
 		default:
 			return {
-				titulo: opcoes?.tituloRubrica ?? 'Assinatura Digital em Tela',
-				descricao: descricaoRubrica
+				titulo: opcoes?.tituloAssinatura ?? 'Assinatura Digital em Tela',
+				descricao: descricaoAssinatura
 			};
 	}
 }

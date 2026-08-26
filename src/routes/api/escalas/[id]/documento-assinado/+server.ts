@@ -13,8 +13,7 @@ import {
 	buscarDocumentoEscala,
 	excluirDocumentoEscala,
 	buscarEscala,
-	listarPoliciaisEscala,
-	buscarRubricaAssinante
+	listarPoliciaisEscala
 } from '$lib/db';
 import { registrarAuditComContexto } from '$lib/db';
 import { requireAuth, badRequest, notFound, forbidden } from '$lib/server/api';
@@ -61,8 +60,7 @@ export const GET: RequestHandler = async ({ platform, params, locals, url }) => 
 		origin: url.origin,
 		gerarRascunho: async () => {
 			const policiais = await listarPoliciaisEscala(db, id);
-			const rubricaAss = await buscarRubricaAssinante(db, documento.assinante_cpf, platform?.env);
-			return gerarRascunhoEscalaPdf(escala, policiais, platform, rubricaAss);
+			return gerarRascunhoEscalaPdf(escala, policiais, platform);
 		}
 	});
 };

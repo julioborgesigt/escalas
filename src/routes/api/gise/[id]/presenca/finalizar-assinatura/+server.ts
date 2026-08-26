@@ -2,12 +2,11 @@
  * POST /api/gise/[id]/presenca/finalizar-assinatura
  *
  * Finaliza a assinatura qualificada (CAdES-LT) do Termo de Presença, persiste a
- * presença (entrada/saída) com a rubrica cadastrada e registra o termo para
+ * presença (entrada/saída) e registra o termo para
  * `/validar`. Devolve o PDF assinado.
  */
 
 import type { RequestHandler } from './$types';
-import { eq } from 'drizzle-orm';
 import {
 	getDB,
 	buscarGiseEscala,
@@ -19,7 +18,6 @@ import {
 	auditar,
 	contextoDeEvento
 } from '$lib/db';
-import { policiais } from '$lib/server/schema';
 import { finalizarPresencaSchema } from '$lib/schemas';
 import {
 	finalizarQualificadaDoPayload,
@@ -122,14 +120,6 @@ export const POST: RequestHandler = async (event) => {
 		if (!result.ok) return result.response;
 		const { arquivoHash: arquivo_hash } = result;
 
-		// Rubrica cadastrada (a mesma estampada) para gravar na presença.
-		const row = await db
-			.select({ rubrica: policiais.rubrica })
-			.from(policiais)
-			.where(eq(policiais.id, u.id))
-			.get();
-		const rubrica = row?.rubrica ?? '';
-
 		const [yyyy, mm, dd] = gise.data_inicio.split('-');
 		const folder = `gise/${yyyy}-${mm}/${dd}/${giseId}/presencas_termos`;
 		const r2Key = `${folder}/termo_${tipo}_pol_${u.id}_${verificationHash}.pdf`;
@@ -138,14 +128,13 @@ export const POST: RequestHandler = async (event) => {
 		const guardado = await guardarPdfAssinado(bucket, r2Key, result.pdfFinal, 'gise-presenca');
 		if (!guardado.ok) return guardado.resposta;
 
-		// Persiste a presença com a rubrica cadastrada (sem selfie/GPS obrigatórios:
-		// a identidade vem do certificado A3).
+		// Persiste a presença (sem selfie/GPS obrigatórios: a identidade vem do
+		// certificado A3).
 		if (tipo === 'entrada') {
 			const entrada = await salvarEntradaGise(
 				db,
 				giseId,
 				u.id,
-				rubrica,
 				ip,
 				ua,
 				latitude ?? undefined,
@@ -161,7 +150,6 @@ export const POST: RequestHandler = async (event) => {
 				db,
 				giseId,
 				u.id,
-				rubrica,
 				ip,
 				ua,
 				latitude ?? undefined,

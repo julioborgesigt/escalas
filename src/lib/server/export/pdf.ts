@@ -39,7 +39,6 @@ import { jsPDF } from 'jspdf';
 import {
 	embutirLogosNoTopo,
 	embutirLogosGise,
-	getImgFormat,
 	LOGOS_EXPEDIENTE,
 	type GisePdfData,
 	type GiseProdutividadeData,
@@ -76,35 +75,6 @@ function fmtHoraGise(h: string | number | null | undefined): string {
 	const n = parseInt(String(h));
 	if (isNaN(n)) return String(h);
 	return `${String(n).padStart(2, '0')}:00`;
-}
-
-/**
- * Desenha a rubrica do signatário centralizada logo ACIMA da linha de assinatura
- * (em `sigY`), preservando o aspecto natural. Usado nas escalas para a CÓPIA DE
- * CONFERÊNCIA — assim o documento impresso mostra a mesma rubrica que o PDF
- * digital assinado por token, em vez do campo vazio. Best-effort: nunca lança.
- */
-function desenharRubricaSobreLinha(
-	doc: jsPDF,
-	rubrica: string,
-	sigCenterX: number,
-	sigY: number
-): void {
-	try {
-		const format = getImgFormat(rubrica);
-		const props = doc.getImageProperties(rubrica);
-		const ratio = props.width > 0 ? props.height / props.width : 22 / 60;
-		let rubW = 60;
-		let rubH = rubW * ratio;
-		const maxH = 24;
-		if (rubH > maxH) {
-			rubH = maxH;
-			rubW = ratio > 0 ? rubH / ratio : 60;
-		}
-		doc.addImage(rubrica, format || 'PNG', sigCenterX - rubW / 2, sigY - 3 - rubH, rubW, rubH);
-	} catch (e) {
-		console.error('Erro ao inserir rubrica na escala:', e);
-	}
 }
 
 /**
@@ -185,7 +155,6 @@ export function toGisePdfData(
 		}),
 		documento: gise.documento
 			? {
-					rubrica: gise.documento.rubrica,
 					verificacao_hash: gise.documento.verificacao_hash
 				}
 			: null
@@ -200,11 +169,7 @@ export function toGisePdfData(
  * curto prazo, distribuído internamente, ao contrário do expediente e do
  * plantão, que são a escala oficial do mês.
  */
-export function gerarPdf(
-	escala: Escala,
-	policiais: EscalaPolicialComDados[],
-	rubrica?: string
-): PdfExportResult {
+export function gerarPdf(escala: Escala, policiais: EscalaPolicialComDados[]): PdfExportResult {
 	const dias = agruparPorData(policiais);
 	const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
 
@@ -264,20 +229,15 @@ export function gerarPdf(
 		sigY = 35;
 	}
 
-	return finalizarEscalaComAssinatura(doc, escala, sigY, rubrica);
+	return finalizarEscalaComAssinatura(doc, escala, sigY);
 }
 
 /**
  * Rodapé de assinatura das escalas (FDS e plantão): cidade + data por extenso
- * à esquerda, rubrica opcional sobre a linha de assinatura à direita.
+ * à esquerda, linha de assinatura à direita.
  * Fonte única do bloco que era copiado nos dois geradores.
  */
-function finalizarEscalaComAssinatura(
-	doc: jsPDF,
-	escala: Escala,
-	sigY: number,
-	rubrica?: string
-): PdfExportResult {
+function finalizarEscalaComAssinatura(doc: jsPDF, escala: Escala, sigY: number): PdfExportResult {
 	const margin = 10;
 	const pageWidth = 297;
 	doc.setFontSize(9);
@@ -289,7 +249,6 @@ function finalizarEscalaComAssinatura(
 	doc.text(textoData, margin, sigY);
 
 	const sigCenterX = pageWidth * 0.75;
-	if (rubrica) desenharRubricaSobreLinha(doc, rubrica, sigCenterX, sigY);
 	doc.line(sigCenterX - 45, sigY, sigCenterX + 45, sigY);
 	doc.setFontSize(8);
 	doc.text('Delegado(a) de Polícia / assinado digitalmente', sigCenterX, sigY + 5, {
@@ -316,8 +275,7 @@ export async function gerarPdfExpediente(
 	escala: Escala,
 	policiais: EscalaPolicialComDados[],
 	logoPoliciaBytes?: Uint8Array,
-	logoCearaBytes?: Uint8Array,
-	rubrica?: string
+	logoCearaBytes?: Uint8Array
 ): Promise<PdfExportResult> {
 	const PAGE_H = 210; // paisagem A4
 	const PAGE_W = 297;
@@ -445,7 +403,6 @@ export async function gerarPdfExpediente(
 
 	sigY += 22;
 	const sigCenterX = PAGE_W * 0.75;
-	if (rubrica) desenharRubricaSobreLinha(doc, rubrica, sigCenterX, sigY);
 	doc.line(sigCenterX - 45, sigY, sigCenterX + 45, sigY);
 	doc.setFontSize(8);
 	doc.setFont('helvetica', 'normal');
@@ -473,8 +430,7 @@ export async function gerarPdfExpediente(
  */
 export function gerarPdfPlantao(
 	escala: Escala,
-	policiais: EscalaPolicialComDados[],
-	rubrica?: string
+	policiais: EscalaPolicialComDados[]
 ): PdfExportResult {
 	const equipes = agruparPlantao(policiais);
 	const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
@@ -552,7 +508,7 @@ export function gerarPdfPlantao(
 	doc.setFont('helvetica', 'normal');
 	doc.text('Obs.: Escala sujeita a alteração conforme necessidade do serviço.', margin, lastY + 8);
 
-	// Bloco de assinatura mais alto (offset menor): sobe a data/linha/rubrica,
+	// Bloco de assinatura mais alto (offset menor): sobe a data e a linha,
 	// deixando folga entre a assinatura e o rodapé de identidade/QR no pé da página.
 	let sigY = lastY + 28;
 	if (sigY > 178) {
@@ -560,7 +516,7 @@ export function gerarPdfPlantao(
 		sigY = 35;
 	}
 
-	return finalizarEscalaComAssinatura(doc, escala, sigY, rubrica);
+	return finalizarEscalaComAssinatura(doc, escala, sigY);
 }
 
 // ---- PDF GISE ----
@@ -700,9 +656,6 @@ export async function gerarPdfGise(
 	}
 
 	const sigCenterX = pageWidth * 0.75;
-	const docData = gise.documento;
-
-	if (docData?.rubrica) desenharRubricaSobreLinha(doc, docData.rubrica, sigCenterX, sigY);
 
 	doc.setFontSize(8);
 	doc.setFont('helvetica', 'bold');

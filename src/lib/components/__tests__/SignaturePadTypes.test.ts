@@ -42,11 +42,11 @@ describe('textosEtapaAssinatura', () => {
 		});
 	});
 
-	it('aceita título customizado na etapa de rubrica e câmera', () => {
+	it('aceita título customizado na etapa de confirmação e câmera', () => {
 		expect(
-			textosEtapaAssinatura('signature', 'desc', { tituloRubrica: 'Rubrica do Supervisor' })
+			textosEtapaAssinatura('signature', 'desc', { tituloAssinatura: 'Assinatura do Supervisor' })
 		).toEqual({
-			titulo: 'Rubrica do Supervisor',
+			titulo: 'Assinatura do Supervisor',
 			descricao: 'desc'
 		});
 		expect(

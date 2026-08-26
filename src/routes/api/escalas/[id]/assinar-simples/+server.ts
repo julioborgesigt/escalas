@@ -1,7 +1,7 @@
 /**
  * Assinatura EM TELA da escala (avançada, sem certificado) — o caminho usado
- * pela maioria: rubrica desenhada, mais foto, GPS e código por e-mail conforme
- * as flags de configuração.
+ * pela maioria: confirmação em tela, mais foto, GPS e código por e-mail
+ * conforme as flags de configuração.
  *
  * Produz e persiste os dois artefatos da escala assinada:
  *   - o PDF com o rodapé e o QR de `/validar`, gravado no R2;
@@ -49,7 +49,6 @@ export const POST: RequestHandler = async ({
 	const validated = await validateBody(request, assinarSimplesSchema);
 	if (!validated.ok) return validated.response;
 	const {
-		rubrica,
 		latitude,
 		longitude,
 		selfieBase64,
@@ -85,7 +84,6 @@ export const POST: RequestHandler = async ({
 		db,
 		u,
 		{
-			rubrica,
 			latitude,
 			longitude,
 			selfieBase64,
@@ -106,7 +104,6 @@ export const POST: RequestHandler = async ({
 			policiais,
 			assinante: { nome: u.nome, cpf: u.cpf, email: u.email },
 			evidencias: {
-				rubrica: validatedEv.rubrica,
 				latitude: validatedEv.latitude,
 				longitude: validatedEv.longitude,
 				selfieBase64: validatedEv.selfieBase64,
@@ -146,7 +143,7 @@ export const POST: RequestHandler = async ({
 			acao: 'assinar_escala',
 			entidade: 'escala',
 			entidade_id: id,
-			detalhes: `Escala ${id} assinada via rubrica (avançada) por ${u.nome}`
+			detalhes: `Escala ${id} assinada em tela (avançada) por ${u.nome}`
 		});
 
 		return json({ success: true, message: 'Escala assinada manualmente com sucesso' });

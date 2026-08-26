@@ -271,7 +271,7 @@ export async function vinculosDaUnidade(db: Database, id: number): Promise<Vincu
  * chave estrangeira de verdade (verificado empiricamente), e
  * `gise_assinaturas_relatorios.seccional_id` referencia `unidades(id)`. Apagar
  * uma unidade levava junto o registro do ato de assinar — nome do assinante,
- * CPF, rubrica, selfie, IP, GPS, hash do arquivo e a chave do PDF no R2 — e o
+ * CPF, selfie, IP, GPS, hash do arquivo e a chave do PDF no R2 — e o
  * portal público `/validar` passava a responder "documento não encontrado" para
  * um papel que alguém já tinha em mãos, indistinguível de documento falso.
  *

@@ -70,7 +70,6 @@ export const POST: RequestHandler = async ({
 	if (!v.ok) return v.response;
 	const {
 		tipo,
-		rubrica,
 		latitude,
 		longitude,
 		selfieBase64,
@@ -84,7 +83,6 @@ export const POST: RequestHandler = async ({
 		db,
 		u,
 		{
-			rubrica,
 			latitude,
 			longitude,
 			selfieBase64,
@@ -116,7 +114,6 @@ export const POST: RequestHandler = async ({
 			if (r.ok) selfieKey = r.key;
 		}
 
-		const rubricaEstampada = evid.validated.rubrica || rubrica || '';
 		const env = envComoRegistro(platform);
 		const { finalPdf, verificationHash } = await prepararTermoPresencaAvancado({
 			tipo,
@@ -127,7 +124,6 @@ export const POST: RequestHandler = async ({
 			signerCpf: u.cpf,
 			matricula: u.matricula ?? null,
 			timestampISO: new Date().toISOString(),
-			rubricaBase64: rubricaEstampada,
 			selfieBase64: evid.validated.selfieBase64 ?? undefined,
 			ip,
 			userAgent: ua,
@@ -154,8 +150,7 @@ export const POST: RequestHandler = async ({
 			{
 				selfieKey: selfieKey ?? null,
 				latitude: evid.validated.latitude,
-				longitude: evid.validated.longitude,
-				rubrica: rubricaEstampada
+				longitude: evid.validated.longitude
 			}
 		);
 

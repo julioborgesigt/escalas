@@ -10,12 +10,8 @@
 	 *
 	 * O estado e as chamadas ficam em DOIS composables, um por audiência —
 	 * `usePresencaGise` e `useEditorModelo`. Este arquivo escolhe o que mostrar e
-	 * hospeda os modais compartilhados (pad de assinatura e cadastro de rubrica).
+	 * hospeda o modal compartilhado da cerimônia de assinatura.
 	 * O editor só é instanciado para o Admin Geral: o policial não paga por ele.
-	 *
-	 * `minhaRubrica` espelha o dado do `load` mas é estado local: salvar ou
-	 * excluir a rubrica precisa refletir na hora, sem recarregar a página inteira
-	 * no meio de uma assinatura.
 	 */
 	import type { PageProps } from './$types';
 	import { actionButton } from './_components/BotoesAcao.svelte';
@@ -25,7 +21,6 @@
 	import { useAutorizacao, useMobile, useInvalidateOnFocus } from '$lib/composables';
 	import { fetchSyncEstado } from '$lib/sync-estado';
 	import ModalAssinaturaAvancada from '$lib/components/ModalAssinaturaAvancada.svelte';
-	import ModalCadastrarRubrica from '$lib/components/ModalCadastrarRubrica.svelte';
 	import BotaoVoltar from '$lib/components/BotaoVoltar.svelte';
 	import BotaoLimparFiltros from '$lib/components/BotaoLimparFiltros.svelte';
 	import { usePresencaGise } from './_components/usePresencaGise.svelte';
@@ -93,7 +88,7 @@
 
 	function assinarPresencaComToken() {
 		const tipo = !presenca.escalaSelecionada?.presenca?.entrada_timestamp ? 'entrada' : 'saida';
-		presenca.capturandoRubrica = false;
+		presenca.capturandoAssinatura = false;
 		const painel = tipo === 'entrada' ? painelA3Entrada : painelA3Saida;
 		if (painel) void painel.assinarComSerpro();
 		else
@@ -106,20 +101,6 @@
 	const tipoPresencaAtiva = $derived(
 		!presenca.escalaSelecionada?.presenca?.entrada_timestamp ? 'entrada' : 'saida'
 	);
-
-	// Cadastro de rubrica reutilizável (assinatura por Token A3 no computador).
-	// `minhaRubrica` espelha `data.minhaRubrica` mas pode mudar localmente após
-	// salvar/excluir sem exigir reload.
-	let cadastrandoRubrica = $state(false);
-	// Só consideramos "tem rubrica" quando o valor é um dataURL de imagem real.
-	// Um valor vazio/corrompido (ex.: `data:image/png;base64,` sem conteúdo, ou
-	// lixo persistido) é tratado como AUSÊNCIA — evita cair no ramo "rubrica
-	// cadastrada" e renderizar uma imagem quebrada no lugar do estado vazio.
-	function rubricaValida(v: string | null | undefined): string | null {
-		return typeof v === 'string' && v.startsWith('data:image/') && v.length > 100 ? v : null;
-	}
-	// Derivado gravável: espelha o load, mas admite o set local pós-cadastro.
-	let minhaRubrica: string | null = $derived(rubricaValida(data.minhaRubrica));
 
 	/**
 	 * A URL manda na seleção. `selecionarEscala` já ESCREVIA `?giseId=&equipeId=`,
@@ -440,8 +421,6 @@
 									{isAdminGeral}
 									{isMobile}
 									restringirSmartphone={data.restringirSmartphone}
-									{minhaRubrica}
-									abrirCadastroRubrica={() => (cadastrandoRubrica = true)}
 									{voltarParaLista}
 									bind:painelA3Entrada
 									bind:painelA3Saida
@@ -457,7 +436,7 @@
 
 <svelte:window
 	onkeydown={(e) => {
-		if (presenca.escalaSelecionada && e.key === 'Escape' && !presenca.capturandoRubrica)
+		if (presenca.escalaSelecionada && e.key === 'Escape' && !presenca.capturandoAssinatura)
 			voltarParaLista();
 	}}
 />
@@ -465,21 +444,20 @@
 <!-- Modal de assinatura avançada — Confirmação de Entrada / Saída do Policial -->
 {#if presenca.escalaSelecionada}
 	<ModalAssinaturaAvancada
-		open={presenca.capturandoRubrica}
-		tituloRubrica={tipoPresencaAtiva === 'entrada'
+		open={presenca.capturandoAssinatura}
+		tituloAssinatura={tipoPresencaAtiva === 'entrada'
 			? 'Confirmação de Entrada'
 			: 'Confirmação de Saída'}
-		descricaoRubrica={tipoPresencaAtiva === 'entrada'
-			? 'Registre sua rubrica para confirmar a entrada no serviço.'
-			: 'Registre sua rubrica para confirmar a saída do serviço.'}
+		descricaoAssinatura={tipoPresencaAtiva === 'entrada'
+			? 'Confirme para registrar a sua entrada no serviço.'
+			: 'Confirme para registrar a sua saída do serviço.'}
 		exigirFoto={page.data.exigirFotoAssinatura ?? true}
 		exigirGps={page.data.exigirGpsAssinatura ?? true}
 		exigirCodigoEmail={page.data.exigirCodigoEmailAssinatura ?? false}
-		rubricaSalva={minhaRubrica}
 		cpfUsuario={page.data.usuario?.cpf ?? null}
 		onConfirm={tipoPresencaAtiva === 'entrada' ? presenca.salvarEntrada : presenca.salvarSaida}
 		onCancel={() => {
-			if (!loading.active) presenca.capturandoRubrica = false;
+			if (!loading.active) presenca.capturandoAssinatura = false;
 		}}
 		onAssinarToken={avancadaDesktopDisponivel ? assinarPresencaComToken : null}
 		tokenDisabled={loading.active}
@@ -492,10 +470,3 @@
 		familia="assinatura"
 	/>
 {/if}
-
-<!-- Modal de cadastro/gestão da rubrica reutilizável (assinatura Token A3 no computador) -->
-<ModalCadastrarRubrica
-	bind:open={cadastrandoRubrica}
-	rubricaAtual={minhaRubrica}
-	onSaved={(nova) => (minhaRubrica = nova)}
-/>

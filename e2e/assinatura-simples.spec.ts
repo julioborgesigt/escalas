@@ -8,7 +8,7 @@ import {
 	seedReauthAssinatura,
 	execD1Local
 } from './session';
-import { RUBRICA_PNG, evidenciasReforco } from './evidencias';
+import { evidenciasReforco } from './evidencias';
 
 /**
  * Assinatura AVANÇADA em tela (assinar-simples) de ponta a ponta, contra o
@@ -41,7 +41,7 @@ test.describe('Assinatura avançada em tela (assinar-simples)', () => {
 
 		const res = await request.post(`/api/escalas/${FIXTURE.escalaAssinavel.id}/assinar-simples`, {
 			headers: headersDeSessaoMutacao(token!),
-			data: { rubrica: RUBRICA_PNG }
+			data: {}
 		});
 		expect(res.status()).toBe(403);
 	});
@@ -76,7 +76,7 @@ test.describe('Assinatura avançada em tela (assinar-simples)', () => {
 						'user-agent':
 							'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36'
 					},
-					data: { rubrica: RUBRICA_PNG }
+					data: {}
 				}
 			);
 			expect(desktop.status()).toBe(403);
@@ -97,7 +97,7 @@ test.describe('Assinatura avançada em tela (assinar-simples)', () => {
 						'user-agent':
 							'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1'
 					},
-					data: { rubrica: RUBRICA_PNG, reauthId }
+					data: { reauthId }
 				}
 			);
 			expect(celular.status()).toBe(400);
@@ -136,7 +136,7 @@ test.describe('Assinatura avançada em tela (assinar-simples)', () => {
 				`/api/escalas/${FIXTURE.escalaAssinavel.id}/assinar-simples`,
 				{
 					headers: headersDeSessaoMutacao(token!),
-					data: { rubrica: RUBRICA_PNG }
+					data: {}
 				}
 			);
 			expect(umTiro.status()).toBe(403);
@@ -148,7 +148,7 @@ test.describe('Assinatura avançada em tela (assinar-simples)', () => {
 				`/api/escalas/${FIXTURE.escalaAssinavel.id}/preparar-assinatura-avancada`,
 				{
 					headers: headersDeSessaoMutacao(token!),
-					data: { rubrica: RUBRICA_PNG }
+					data: {}
 				}
 			);
 			expect(preparar.status()).toBe(403);
@@ -194,7 +194,7 @@ test.describe('Assinatura avançada em tela (assinar-simples)', () => {
 
 		const res = await request.post(`/api/escalas/${FIXTURE.escalaAssinavel.id}/assinar-simples`, {
 			headers: headersDeSessaoMutacao(token!),
-			data: { rubrica: RUBRICA_PNG }
+			data: {}
 		});
 		expect(res.status()).toBe(403);
 		expect((await res.json()).error).toMatch(/senha de acesso|sessão sozinha/i);
@@ -208,7 +208,7 @@ test.describe('Assinatura avançada em tela (assinar-simples)', () => {
 
 		const res = await request.post(`/api/escalas/${FIXTURE.escalaAssinavel.id}/assinar-simples`, {
 			headers: headersDeSessaoMutacao(token!),
-			data: { rubrica: RUBRICA_PNG, reauthId }
+			data: { reauthId }
 		});
 		expect(res.status()).toBe(400);
 		expect((await res.json()).error).toMatch(/código de verificação por e-mail é obrigatório/i);
@@ -223,7 +223,7 @@ test.describe('Assinatura avançada em tela (assinar-simples)', () => {
 
 		const res = await request.post(`/api/escalas/${FIXTURE.escalaAssinavel.id}/assinar-simples`, {
 			headers: headersDeSessaoMutacao(token!),
-			data: { rubrica: RUBRICA_PNG, codigoValidação: '999999', desafioId, reauthId }
+			data: { codigoValidação: '999999', desafioId, reauthId }
 		});
 		expect(res.status()).toBe(400);
 		expect((await res.json()).error).toMatch(/código de verificação inválido/i);
@@ -243,7 +243,7 @@ test.describe('Assinatura avançada em tela (assinar-simples)', () => {
 
 		const res = await request.post(`/api/escalas/${FIXTURE.escalaAssinavel.id}/assinar-simples`, {
 			headers: headersDeSessaoMutacao(token!),
-			data: { rubrica: RUBRICA_PNG, codigoValidação: CODIGO_VALIDO, desafioId, reauthId }
+			data: { codigoValidação: CODIGO_VALIDO, desafioId, reauthId }
 		});
 		expect(res.status()).toBe(403);
 		expect((await res.json()).error).toMatch(/não pertence ao usuário/i);
@@ -257,7 +257,7 @@ test.describe('Assinatura avançada em tela (assinar-simples)', () => {
 		// de documento tem de vir antes do "vazia".
 		const res = await request.post(`/api/escalas/${FIXTURE.escalaA.id}/assinar-simples`, {
 			headers: headersDeSessaoMutacao(token!),
-			data: { rubrica: RUBRICA_PNG }
+			data: {}
 		});
 		expect(res.status()).toBe(409);
 		expect((await res.json()).error).toMatch(/revogue/i);
@@ -275,7 +275,6 @@ test.describe('Assinatura avançada em tela (assinar-simples)', () => {
 		const res = await request.post(`/api/escalas/${FIXTURE.escalaAssinavel.id}/assinar-simples`, {
 			headers: headersDeSessaoMutacao(token!),
 			data: {
-				rubrica: RUBRICA_PNG,
 				codigoValidação: CODIGO_VALIDO,
 				desafioId,
 				reauthId,
@@ -305,7 +304,6 @@ test.describe('Assinatura avançada em tela (assinar-simples)', () => {
 			{
 				headers: headersDeSessaoMutacao(token!),
 				data: {
-					rubrica: RUBRICA_PNG,
 					codigoValidação: CODIGO_VALIDO,
 					desafioId,
 					reauthId,

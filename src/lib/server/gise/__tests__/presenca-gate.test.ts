@@ -116,7 +116,7 @@ describe('gate: saída exige entrada', () => {
 	});
 
 	it('com entrada registrada, a saída é liberada', async () => {
-		await salvarEntradaGise(db, GISE, POL, 'rubrica');
+		await salvarEntradaGise(db, GISE, POL);
 		expect((await gateDePresenca(db, part(), GISE, POL, 'saida')).ok).toBe(true);
 	});
 
@@ -125,8 +125,8 @@ describe('gate: saída exige entrada', () => {
 	});
 
 	it('segunda saída é recusada com 409 (SEC-33)', async () => {
-		await salvarEntradaGise(db, GISE, POL, 'rubrica');
-		await salvarSaidaGise(db, GISE, POL, 'rubrica-saida');
+		await salvarEntradaGise(db, GISE, POL);
+		await salvarSaidaGise(db, GISE, POL);
 		const r = await gateDePresenca(db, part(), GISE, POL, 'saida');
 		expect(r.ok).toBe(false);
 		if (r.ok) throw new Error('inalcançável');
@@ -134,8 +134,8 @@ describe('gate: saída exige entrada', () => {
 	});
 
 	it('entrada depois da saída é recusada com 409 (SEC-33)', async () => {
-		await salvarEntradaGise(db, GISE, POL, 'rubrica');
-		await salvarSaidaGise(db, GISE, POL, 'rubrica-saida');
+		await salvarEntradaGise(db, GISE, POL);
+		await salvarSaidaGise(db, GISE, POL);
 		const r = await gateDePresenca(db, part(), GISE, POL, 'entrada');
 		expect(r.ok).toBe(false);
 		if (r.ok) throw new Error('inalcançável');
@@ -148,14 +148,14 @@ describe('a gravação é quem decide', () => {
 	it('salvarSaidaGise sem entrada não registra nada e AVISA', async () => {
 		// O ponto do achado: antes, o UPDATE não achava linha e o resultado era
 		// descartado — o endpoint seguia como se tivesse dado certo.
-		const r = await salvarSaidaGise(db, GISE, POL, 'rubrica');
+		const r = await salvarSaidaGise(db, GISE, POL);
 		expect(r.registrada).toBe(false);
 		expect(presenca(), 'nenhuma linha foi criada').toBeUndefined();
 	});
 
 	it('com entrada, a saída é gravada e confirmada', async () => {
-		await salvarEntradaGise(db, GISE, POL, 'rubrica-entrada');
-		const r = await salvarSaidaGise(db, GISE, POL, 'rubrica-saida');
+		await salvarEntradaGise(db, GISE, POL);
+		const r = await salvarSaidaGise(db, GISE, POL);
 		expect(r.registrada).toBe(true);
 		expect(presenca()?.saida).not.toBeNull();
 	});
@@ -164,26 +164,26 @@ describe('a gravação é quem decide', () => {
 		// Estado possível por caminhos antigos: existe a linha, falta o carimbo.
 		// Filtrar só por (gise, policial) aceitaria — e é o que fazia.
 		sqlite.exec(`INSERT INTO gise_presencas (gise_id, policial_id) VALUES (${GISE}, ${POL})`);
-		const r = await salvarSaidaGise(db, GISE, POL, 'rubrica');
+		const r = await salvarSaidaGise(db, GISE, POL);
 		expect(r.registrada).toBe(false);
 		expect(presenca()?.saida).toBeNull();
 	});
 
 	it('segunda saída não sobrescreve o carimbo (SEC-33)', async () => {
-		await salvarEntradaGise(db, GISE, POL, 'rubrica-entrada');
-		const a = await salvarSaidaGise(db, GISE, POL, 'rubrica-saida-1');
+		await salvarEntradaGise(db, GISE, POL);
+		const a = await salvarSaidaGise(db, GISE, POL);
 		const saida1 = presenca()?.saida;
-		const b = await salvarSaidaGise(db, GISE, POL, 'rubrica-saida-2');
+		const b = await salvarSaidaGise(db, GISE, POL);
 		expect(a.registrada).toBe(true);
 		expect(b.registrada).toBe(false);
 		expect(presenca()?.saida).toBe(saida1);
 	});
 
 	it('entrada depois da saída não reabre o ato (SEC-33)', async () => {
-		await salvarEntradaGise(db, GISE, POL, 'entrada-1');
+		await salvarEntradaGise(db, GISE, POL);
 		const entrada1 = presenca()?.entrada;
-		await salvarSaidaGise(db, GISE, POL, 'saida-1');
-		const r = await salvarEntradaGise(db, GISE, POL, 'entrada-2');
+		await salvarSaidaGise(db, GISE, POL);
+		const r = await salvarEntradaGise(db, GISE, POL);
 		expect(r.registrada).toBe(false);
 		expect(presenca()?.entrada).toBe(entrada1);
 	});

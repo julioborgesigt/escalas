@@ -35,12 +35,20 @@
  * dever novo de guarda (cláusula 4). A cláusula 2.4 diz, com todas as letras,
  * o que essa chave prova e o que NÃO prova: dizer menos no termo do que o
  * manifesto do PDF afirma seria abrir a divergência que a defesa explora.
+ *
+ * v1.5 (2026-08): a RUBRICA GRÁFICA saiu do Sistema — não é mais desenhada na
+ * cerimônia, não é mais cadastrada no perfil e não é mais tratada como dado
+ * pessoal. Bump obrigatório porque muda DUAS coisas que o Usuário manifestou
+ * aceitar: o conjunto de evidências que compõe a assinatura avançada
+ * (cláusula 2) e a lista de dados tratados (cláusula 3). Deixar o termo
+ * afirmando uma rubrica que o documento não carrega mais é exatamente a
+ * divergência entre termo e manifesto que a v1.4 se preocupou em fechar.
  */
 
 import { sha256Hex } from '$lib/crypto/digest';
 
-export const VERSAO = '1.4';
-export const VIGENTE_DESDE = '2026-08-14';
+export const VERSAO = '1.5';
+export const VIGENTE_DESDE = '2026-08-26';
 
 export const CONTEUDO_HTML = `
 <h2>Termo de Uso e Política de Privacidade</h2>
@@ -57,7 +65,7 @@ Versão ${VERSAO} — vigente desde ${VIGENTE_DESDE}</p>
 <p><strong>2.1.</strong> O Sistema gera assinaturas eletrônicas em duas modalidades, nos termos do art. 4º da Lei nº 14.063/2020:</p>
 <ul>
 	<li><strong>Qualificada</strong> — com certificado ICP-Brasil (e-CPF, token A1/A3). Goza da presunção de autenticidade do art. 10, §1º, da MP nº 2.200-2/2001.</li>
-	<li><strong>Avançada</strong> — assinatura em tela, vinculada ao signatário por login e senha, segundo fator por código enviado ao e-mail cadastrado, rubrica gráfica e, quando habilitadas, fotografia (selfie), geolocalização e <strong>chave de assinatura do aparelho</strong> (cláusula 2.4), mais um <strong>selo criptográfico da PCCE</strong> que torna o documento verificável e detecta qualquer alteração posterior.</li>
+	<li><strong>Avançada</strong> — assinatura em tela, vinculada ao signatário por login e senha, segundo fator por código enviado ao e-mail cadastrado e, quando habilitadas, fotografia (selfie), geolocalização e <strong>chave de assinatura do aparelho</strong> (cláusula 2.4), mais um <strong>selo criptográfico da PCCE</strong> que torna o documento verificável e detecta qualquer alteração posterior.</li>
 </ul>
 <p><strong>2.2.</strong> O selo institucional é gerado com certificado próprio da PCCE, <strong>não emitido pela ICP-Brasil</strong>; por isso a modalidade avançada não tem a presunção automática do art. 10, §1º, da MP nº 2.200-2/2001. Sua validade decorre da <strong>aceitação expressa</strong> do Usuário (art. 4º, II, da Lei nº 14.063/2020 e art. 10, §2º, da MP nº 2.200-2/2001).</p>
 <p><strong>2.3.</strong> O Usuário <strong>aceita expressamente</strong> a assinatura eletrônica avançada do Sistema como meio válido e suficiente de comprovação de autoria e integridade, <strong>equivalente à sua assinatura manuscrita</strong> para todos os fins no âmbito da PCCE, e compromete-se a não impugná-la apenas por ser eletrônica ou por não usar certificado ICP-Brasil. Fica ressalvado o direito de alegar fraude, coação ou adulteração comprovadas.</p>
@@ -66,7 +74,7 @@ Versão ${VERSAO} — vigente desde ${VIGENTE_DESDE}</p>
 
 <h3>3. Dados pessoais (LGPD)</h3>
 <p><strong>3.1.</strong> O tratamento de dados pelo Sistema tem por base o <strong>cumprimento de obrigação legal e o exercício regular de competências da PCCE</strong> (art. 7º, II e III, e art. 23 da Lei nº 13.709/2018 — LGPD), e não depende de consentimento, por se tratar de atividade funcional obrigatória.</p>
-<p><strong>3.2.</strong> Para gerir as escalas e comprovar as assinaturas, o Sistema trata: nome, matrícula e CPF; e-mail (funcional e, se informado, pessoal, usado apenas para acesso e recuperação de senha); endereço IP; dispositivo/navegador; rubrica e, quando exigidas, fotografia com prova de vida, geolocalização e a <strong>parte pública da chave de assinatura</strong> do aparelho com seu identificador (nunca a parte privada, que permanece no celular); além dos dados técnicos da assinatura (hash SHA-256, estrutura criptográfica, data/hora e carimbo de tempo).</p>
+<p><strong>3.2.</strong> Para gerir as escalas e comprovar as assinaturas, o Sistema trata: nome, matrícula e CPF; e-mail (funcional e, se informado, pessoal, usado apenas para acesso e recuperação de senha); endereço IP; dispositivo/navegador; e, quando exigidas, fotografia com prova de vida, geolocalização e a <strong>parte pública da chave de assinatura</strong> do aparelho com seu identificador (nunca a parte privada, que permanece no celular); além dos dados técnicos da assinatura (hash SHA-256, estrutura criptográfica, data/hora e carimbo de tempo).</p>
 <p><strong>3.3.</strong> A finalidade é exclusivamente administrativa e de auditoria. Os dados são retidos pelo prazo mínimo de 5 (cinco) anos a contar da assinatura (Decreto nº 10.278/2020 e art. 16 da LGPD) e não são compartilhados com terceiros nem usados para fins comerciais.</p>
 <p><strong>3.4.</strong> O Usuário pode exercer os direitos do art. 18 da LGPD junto ao <strong>Encarregado de Dados (DPO)</strong> da PCCE pelo e-mail <strong>dpis@pc.ce.gov.br</strong>. Detalhes em <a href="/termo/dpo">/termo/dpo</a>.</p>
 

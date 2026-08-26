@@ -54,8 +54,7 @@ import { lotacoesAdministradas, lotacaoNoEscopo } from '$lib/server/policial-per
 import {
 	escalas as escalasTable,
 	escalaDocumentos,
-	escalaSolicitacoesAssinatura,
-	policiais as policiaisTable
+	escalaSolicitacoesAssinatura
 } from '$lib/server/schema';
 import { primeiroDiaDoMes, ultimoDiaDoMes, MESES_PT } from '$lib/rotacao';
 import { projetarLinhasMesSeguinte } from '$lib/server/escalas/projetar-mes';
@@ -126,19 +125,6 @@ export const load: PageServerLoad = async ({ locals, platform, url, depends }) =
 
 	const podeAssinar =
 		(u.papel === 'admin_seccional' || u.papel === 'admin_unidade') && u.cargo === 'DPC';
-
-	// Rubrica reutilizável do signatário — para o prompt de cadastro (Lógica 2a):
-	// quem pode assinar por token mas ainda não cadastrou a rubrica é convidado a
-	// cadastrá-la (não-bloqueante). Só consulta para quem assina.
-	let minhaRubrica: string | null = null;
-	if (podeAssinar) {
-		const rubRow = await db
-			.select({ rubrica: policiaisTable.rubrica })
-			.from(policiaisTable)
-			.where(eq(policiaisTable.id, u.id))
-			.get();
-		minhaRubrica = rubRow?.rubrica ?? null;
-	}
 
 	// OIP admin (ou Admin Geral) pode solicitar assinatura — FLW-AUT-013.
 	const podeOIPSolicitar = podeOIPSolicitarAssinatura(u);
@@ -281,7 +267,6 @@ export const load: PageServerLoad = async ({ locals, platform, url, depends }) =
 		escalasExistentes,
 		initialView,
 		podeAssinar,
-		minhaRubrica,
 		podeOIPSolicitar,
 		solicitacoesMap,
 		escalasParaAssinar

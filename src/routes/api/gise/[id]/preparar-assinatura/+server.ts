@@ -18,7 +18,6 @@ import {
 } from '$lib/server/export';
 import { getBreveRelatorioEnvMergido } from '$lib/server/gise/breve-relatorio-env';
 import {
-	prepararPdfParaAssinatura,
 	adicionarPaginaAuditoria,
 	adicionarRodapeUniversal
 } from '$lib/server/assinatura/pdf-signing';
@@ -28,7 +27,7 @@ import {
 } from '$lib/server/assinatura/document-utils';
 import { PDFDocument } from 'pdf-lib';
 import { gerarCodigoValidacao } from '$lib/utils/formato';
-import { fecharPreparacaoAssinatura } from '$lib/server/assinatura/preparar-ciclo';
+import { prepararAssinaturaPorToken } from '$lib/server/assinatura/preparar-ciclo';
 import { identidadeVisualAssinante } from '$lib/server/assinatura/identidade-sessao';
 import { carregarGiseParaAssinatura } from '$lib/server/gise/permissao';
 
@@ -47,7 +46,6 @@ export const POST: RequestHandler = async ({
 
 	const validated = await validateBody(request, prepararAssinaturaSchema);
 	if (!validated.ok) return validated.response;
-	// `rubrica` do body é ignorada: vem do cadastro do perfil (server-side).
 	const { latitude, longitude } = validated.data;
 	const ip = getClientAddress();
 	const ua = request.headers.get('user-agent') || '';
@@ -81,11 +79,9 @@ export const POST: RequestHandler = async ({
 	const { signerName: finalSignerName, signerCpf: finalSignerCpf } = identidadeVisualAssinante(u);
 	const assinanteEmail = u.email ?? undefined;
 
-	// Rubrica + matrícula do supervisor (signatário). Rubrica vai no campo de
-	// assinatura (estilo 'rubrica'); matrícula, no rodapé de identidade. `rubrica`
-	// do body é ignorada — a fonte é o cadastro do perfil.
+	// Matrícula do supervisor (signatário), para o rodapé de identidade. O campo
+	// de assinatura fica EM BRANCO (estilo 'campo-limpo').
 	const polAss = await buscarPolicial(db, u.id);
-	const rubricaAssinatura = polAss?.rubrica ?? undefined;
 	const matriculaAssinatura = u.matricula ?? polAss?.matricula ?? undefined;
 
 	// 2. Adicionar rodapé universal nas páginas de conteúdo (+ bloco de identidade
@@ -124,51 +120,23 @@ export const POST: RequestHandler = async ({
 
 	// contentPageIndex = índice da última página de conteúdo (para posicionar o carimbo PKI)
 	const contentPageIndex = contentPageCount - 1;
-	// Campo da rubrica logo acima da linha; piso baixo (campo à direita, rodapé à esquerda).
+	// Campo de assinatura logo acima da linha; piso baixo (campo à direita, rodapé à esquerda).
 	const boxY_pts = Math.max((210 - sigY) * 2.8346 + 3, 40);
 
-	const prepResult = await prepararPdfParaAssinatura(
-		pdfWithAudit,
-		finalSignerName,
-		'right',
-		verificationHash,
-		verificationUrl,
-		boxY_pts,
-		rubricaAssinatura,
-		undefined,
-		undefined,
-		contentPageIndex,
-		'rubrica'
-	);
-
-	const { preparedPdf, signedAttrsHashHex, messageDigest, signingTimeISO, dataToSignBase64 } =
-		prepResult;
-
-	return fecharPreparacaoAssinatura({
+	return prepararAssinaturaPorToken({
 		db,
 		platform,
 		alvo: { recurso: 'gise', recursoId: id },
 		ator: { id: u.id, tipo: u.tipo },
-		preparedPdf,
+		pdfComAuditoria: pdfWithAudit,
+		pdfComRodape,
+		signerName: finalSignerName,
+		assinanteEmail,
+		documentHash,
 		verificationHash,
-		campos: {
-			signedAttrsHashHex,
-			messageDigest,
-			signingTimeISO,
-			dataToSignBase64,
-			documentHash,
-			assinanteEmail
-		},
-		conferencia: {
-			pdfComRodape,
-			stamp: {
-				alignment: 'right',
-				customBoxY: boxY_pts,
-				rubricBase64: rubricaAssinatura,
-				targetPageIndex: contentPageIndex
-			},
-			logTag: 'gise/preparar-assinatura',
-			logFields: { gise_id: id }
-		}
+		verificationUrl,
+		campo: { alignment: 'right', boxY: boxY_pts, targetPageIndex: contentPageIndex },
+		logTag: 'gise/preparar-assinatura',
+		logFields: { gise_id: id }
 	});
 };

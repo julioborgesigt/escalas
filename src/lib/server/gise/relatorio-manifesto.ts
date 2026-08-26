@@ -13,14 +13,14 @@ type Presencas = Awaited<ReturnType<typeof buscarPresencasGise>>;
 
 /**
  * Monta a lista de assinantes das PRESENÇAS (entrada/saída de cada participante)
- * para a folha de auditoria (manifesto) do Relatório Extraordinário — cada rubrica
- * vira um cartão no manifesto, classificado como QUALIFICADA (Token A3 / termo em
- * `gise_presenca_termos`) ou AVANÇADA (tela/mobile).
+ * para a folha de auditoria (manifesto) do Relatório Extraordinário — cada
+ * confirmação vira um cartão no manifesto, classificada como QUALIFICADA
+ * (Token A3 / termo em `gise_presenca_termos`) ou AVANÇADA (tela/mobile).
  *
  * Fonte ÚNICA usada pelos DOIS fluxos de assinatura do supervisor: token A3
  * (`preparar-assinatura`) e tela/mobile (`assinar`). Antes, só o token montava
  * este array; o fluxo mobile passava apenas o supervisor ao manifesto, de modo
- * que o relatório assinado no celular perdia todas as rubricas de presença.
+ * que o relatório assinado no celular perdia todas as confirmações de presença.
  * O caller acrescenta a assinatura do próprio supervisor ao final.
  */
 export async function montarSignersPresencaExtra(opts: {
@@ -58,13 +58,13 @@ export async function montarSignersPresencaExtra(opts: {
 
 	const r2 = tryGetR2(platform as App.Platform | undefined);
 
-	// Selfies do R2 em paralelo (só das presenças avançadas com rubrica).
+	// Selfies do R2 em paralelo (só das confirmações já registradas).
 	const selfieKeys: Array<{ key: string; type: 'entrada' | 'saida'; prId: number }> = [];
 	for (const pr of presencasFiltradas) {
-		if (pr.entrada_rubrica && pr.entrada_selfie_key && r2) {
+		if (pr.entrada_timestamp && pr.entrada_selfie_key && r2) {
 			selfieKeys.push({ key: pr.entrada_selfie_key, type: 'entrada', prId: pr.id });
 		}
-		if (pr.saida_rubrica && pr.saida_selfie_key && r2) {
+		if (pr.saida_timestamp && pr.saida_selfie_key && r2) {
 			selfieKeys.push({ key: pr.saida_selfie_key, type: 'saida', prId: pr.id });
 		}
 	}
@@ -99,16 +99,18 @@ export async function montarSignersPresencaExtra(opts: {
 		pr: (typeof presencasFiltradas)[number],
 		tipo: 'entrada' | 'saida'
 	) => {
-		const rubricaPresenca = tipo === 'entrada' ? pr.entrada_rubrica : pr.saida_rubrica;
-		if (!rubricaPresenca) return;
+		// O carimbo de tempo é o que diz que a confirmação existe: sem ele não há
+		// ato a manifestar. Era `entrada_rubrica`/`saida_rubrica` que fazia esse
+		// papel, e as duas colunas saíram junto com a rubrica.
+		const ts = tipo === 'entrada' ? pr.entrada_timestamp : pr.saida_timestamp;
+		if (!ts) return;
 
 		const termo = termosPresenca.get(`${pr.policial_id}-${tipo}`);
 		const qualificada = !!termo;
 		const sufixo = tipo === 'entrada' ? 'E' : 'S';
-		const ts = tipo === 'entrada' ? pr.entrada_timestamp : pr.saida_timestamp;
 		// entrada/saida_timestamp são UTC real (ISO Z); o manifesto formata em
-		// America/Sao_Paulo. Fallback para new Date() se ausente.
-		const signingTime = ts ? new Date(ts) : new Date();
+		// America/Sao_Paulo.
+		const signingTime = new Date(ts);
 		// Quando qualificada, o hash de verificação é o do PRÓPRIO termo assinado;
 		// senão, o pseudo-hash da presença.
 		const vHash =
@@ -126,8 +128,7 @@ export async function montarSignersPresencaExtra(opts: {
 			userAgent: pr.user_agent ?? undefined,
 			latitude: pr.latitude ?? undefined,
 			longitude: pr.longitude ?? undefined,
-			// Qualificada (Token A3): a prova é o termo/certificado — sem rubrica/selfie.
-			rubricBase64: qualificada ? undefined : (rubricaPresenca ?? undefined),
+			// Qualificada (Token A3): a prova é o termo/certificado — sem selfie.
 			selfieBase64: qualificada ? undefined : selfieMap.get(`${pr.id}-${tipo}`),
 			signatureLevel: qualificada ? 'qualificada' : 'avancada',
 			tipoCarimoTempo: qualificada

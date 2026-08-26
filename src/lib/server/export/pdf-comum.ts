@@ -69,13 +69,11 @@ export interface GisePdfData {
 				presenca?: {
 					entrada_timestamp?: string | null;
 					saida_timestamp?: string | null;
-					entrada_rubrica?: string | null;
-					saida_rubrica?: string | null;
 				} | null;
 			}>;
 		}>;
 	}>;
-	documento: { rubrica?: string | null; verificacao_hash?: string | null } | null;
+	documento: { verificacao_hash?: string | null } | null;
 }
 
 export type GisePresenca = {
@@ -89,10 +87,8 @@ export type GisePresenca = {
 	policial_classe: string | null;
 	policial_lotacao: string | null;
 	entrada_timestamp: string | null;
-	entrada_rubrica: string | null;
 	entrada_selfie_key: string | null;
 	saida_timestamp: string | null;
-	saida_rubrica: string | null;
 	saida_selfie_key: string | null;
 	ip_address: string | null;
 	user_agent: string | null;
@@ -106,7 +102,6 @@ export type GisePresenca = {
 export type RelatorioAssinatura = {
 	assinante_nome?: string | null;
 	assinante_matricula?: string | null;
-	rubrica?: string | null;
 	verification_hash?: string | null;
 	created_at?: string | null;
 };
@@ -129,15 +124,6 @@ export interface GiseProdutividadeData {
 	supervisorDoc?: unknown;
 	baseUrl?: string;
 	respostas?: RespostaProdutividade[];
-}
-
-/** Formato aceito pelo jsPDF a partir do prefixo do data URL. */
-export function getImgFormat(dataUrl: string): string | undefined {
-	if (!dataUrl || typeof dataUrl !== 'string') return undefined;
-	if (dataUrl.includes('image/png')) return 'PNG';
-	if (dataUrl.includes('image/jpeg') || dataUrl.includes('image/jpg')) return 'JPEG';
-	if (dataUrl.includes('image/webp')) return 'WEBP';
-	return undefined;
 }
 
 /** Geometria do par de logos no topo da página, em milímetros. */

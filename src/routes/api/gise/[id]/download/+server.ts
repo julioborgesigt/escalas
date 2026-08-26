@@ -194,8 +194,7 @@ export const GET: RequestHandler = async ({ locals, params, platform, url }) => 
 					pdfRascunho: result.pdf,
 					assinanteNome: reportSignature.assinante_nome,
 					verificationHash: hash,
-					verificationUrl: `${url.origin}/validar/${hash}`,
-					rubricBase64: reportSignature.rubrica ?? undefined
+					verificationUrl: `${url.origin}/validar/${hash}`
 				});
 				const filename = `conferencia_extraordinario_${gise.data_inicio}_sec_${seccionalId}.pdf`;
 				return new Response(buffer as unknown as BodyInit, {

@@ -42,7 +42,7 @@ const GOLDENS_PATH = join(dirname(fileURLToPath(import.meta.url)), 'fixtures', '
 const UPDATE = process.env.UPDATE_PDF_GOLDENS === '1';
 const FUSO_ORIGINAL = process.env.TZ;
 
-// PNG 1×1 válido — exercita os caminhos de addImage (logo/QR/rubrica).
+// PNG 1×1 válido — exercita os caminhos de addImage (logo/QR).
 const PNG_1PX =
 	'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
 const PNG_1PX_BYTES = Uint8Array.from(atob(PNG_1PX.split(',')[1]), (c) => c.charCodeAt(0));
@@ -207,9 +207,7 @@ function giseDetalhadoFixture(): GiseDetalhado {
 										policial_classe: '2ª CLASSE',
 										presenca: {
 											entrada_timestamp: '2026-07-04T08:02:00.000Z',
-											saida_timestamp: '2026-07-04T16:01:00.000Z',
-											entrada_rubrica: PNG_1PX,
-											saida_rubrica: PNG_1PX
+											saida_timestamp: '2026-07-04T16:01:00.000Z'
 										}
 									},
 									{
@@ -247,10 +245,8 @@ function presencasFixture() {
 			policial_classe: '2ª CLASSE',
 			policial_lotacao: 'DELEGACIA GOLDEN',
 			entrada_timestamp: '2026-07-04T08:02:00.000Z',
-			entrada_rubrica: PNG_1PX,
 			entrada_selfie_key: null,
 			saida_timestamp: '2026-07-04T16:01:00.000Z',
-			saida_rubrica: PNG_1PX,
 			saida_selfie_key: null,
 			ip_address: null,
 			user_agent: null,
@@ -268,10 +264,8 @@ function presencasFixture() {
 			policial_classe: '1ª CLASSE',
 			policial_lotacao: 'DELEGACIA GOLDEN',
 			entrada_timestamp: '2026-07-04T08:05:00.000Z',
-			entrada_rubrica: null,
 			entrada_selfie_key: null,
 			saida_timestamp: null,
-			saida_rubrica: null,
 			saida_selfie_key: null,
 			ip_address: null,
 			user_agent: null,
@@ -284,7 +278,6 @@ function presencasFixture() {
 const reportSignatureFixture = {
 	assinante_nome: 'DPC GOLDEN SUPERVISOR',
 	assinante_matricula: 'GG000601',
-	rubrica: PNG_1PX,
 	verification_hash: 'golden-verification-hash',
 	created_at: '2026-07-04T18:30:00.000Z'
 };
@@ -292,18 +285,17 @@ const reportSignatureFixture = {
 // ─── Geradores sob teste ─────────────────────────────────────────────────────
 
 const geradores: Record<string, () => Promise<Uint8Array>> = {
-	fds: async () => gerarPdf(escalaFixture('fds'), policiaisFixture(), PNG_1PX).pdf,
+	fds: async () => gerarPdf(escalaFixture('fds'), policiaisFixture()).pdf,
 	expediente: async () =>
 		(
 			await gerarPdfExpediente(
 				escalaFixture('expediente'),
 				policiaisFixture(),
 				PNG_1PX_BYTES,
-				PNG_1PX_BYTES,
-				PNG_1PX
+				PNG_1PX_BYTES
 			)
 		).pdf,
-	plantao: async () => gerarPdfPlantao(escalaFixture('plantao'), policiaisFixture(), PNG_1PX).pdf,
+	plantao: async () => gerarPdfPlantao(escalaFixture('plantao'), policiaisFixture()).pdf,
 	gise: async () =>
 		(await gerarPdfGise(toGisePdfData(giseDetalhadoFixture()), PNG_1PX_BYTES, PNG_1PX_BYTES)).pdf,
 	// Os dois abaixo repetem os de cima com o timbre em JPEG, para que ele seja
@@ -316,16 +308,16 @@ const geradores: Record<string, () => Promise<Uint8Array>> = {
 				escalaFixture('expediente'),
 				policiaisFixture(),
 				JPG_1PX_BYTES,
-				JPG_1PX_BYTES,
-				PNG_1PX
+				JPG_1PX_BYTES
 			)
 		).pdf,
-	// Este é o GISE COMPLETO: além do timbre, traz `documento.rubrica`, que é o
-	// outro desenho do PDF GISE sem cobertura (`gise` acima passa
-	// `documento: null` e nem chega nele).
+	// GISE com `documento` preenchido: o `gise` acima passa `documento: null`, e
+	// é o hash de verificação daqui que percorre o caminho do documento assinado.
 	gise_com_logos: async () => {
 		const gise = giseDetalhadoFixture();
-		(gise as unknown as { documento: unknown }).documento = { rubrica: PNG_1PX };
+		(gise as unknown as { documento: unknown }).documento = {
+			verificacao_hash: 'golden-verification-hash'
+		};
 		return (await gerarPdfGise(toGisePdfData(gise), JPG_1PX_BYTES, JPG_1PX_BYTES)).pdf;
 	},
 	produtividade: async () =>

@@ -1,12 +1,12 @@
 /**
  * Hook que concentra todos os fluxos de assinatura da página GISE detalhada:
- *   - Modal de rubrica (captura + roteamento de destino)
+ *   - Modal de assinatura em tela (cerimônia + roteamento de destino)
  *   - Assinatura simples da escala GISE (fetch + download do PDF)
  *   - Assinatura com token SERPRO (escala + relatórios extraordinários)
  *   - Assinatura em lote de relatórios (manual e digital via SERPRO)
  *
- * Os estados `painelTokenGise`, `painelTokenRelatorio`, `serproSigner*`,
- * `rubricaCapturada` são expostos com getters/setters para funcionar com
+ * Os estados `painelTokenGise`, `painelTokenRelatorio`, `serproSigner*` e
+ * `selfieCapturada` são expostos com getters/setters para funcionar com
  * `bind:` nas props dos componentes filho (`GiseSupervisao`,
  * `ModalRelatorioDigital`).
  */
@@ -62,10 +62,9 @@ export function useGiseAssinatura({
 	let assinandoLote = $state(false);
 	let progressoLote = $state({ atual: 0, total: 0 });
 
-	// Modal de rubrica
-	let showRubricaModal = $state(false);
+	// Modal da cerimônia de assinatura em tela
+	let showAssinaturaModal = $state(false);
 	let tipoAssinaturaPendente = $state<'simples' | 'serpro' | null>(null);
-	let rubricaCapturada = $state<string | null>(null);
 	let selfieCapturada = $state<string | null>(null);
 
 	// SERPRO — escala GISE principal
@@ -82,18 +81,17 @@ export function useGiseAssinatura({
 	// Relatório alvo (lote ou singular) quando o usuário aciona "Assinar em tela"
 	let relatorioSendoAssinado = $state<RelatorioSendoAssinado>(null);
 
-	function abrirModalRubrica(tipo: 'simples' | 'serpro') {
+	function abrirModalAssinatura(tipo: 'simples' | 'serpro') {
 		tipoAssinaturaPendente = tipo;
-		showRubricaModal = true;
+		showAssinaturaModal = true;
 	}
 
-	function fecharModalRubrica() {
-		showRubricaModal = false;
+	function fecharModalAssinatura() {
+		showAssinaturaModal = false;
 	}
 
-	async function confirmarRubrica(payload: SignaturePadConfirmPayload) {
+	async function confirmarAssinatura(payload: SignaturePadConfirmPayload) {
 		const {
-			rubrica: dataUrl,
 			lat,
 			lng,
 			selfie,
@@ -102,13 +100,11 @@ export function useGiseAssinatura({
 			liveness: livenessChallenge,
 			reauthId
 		} = payload;
-		rubricaCapturada = dataUrl;
 		selfieCapturada = selfie ?? null;
 
 		try {
 			if (relatorioSendoAssinado) {
 				await executarAssinarRelatorio(
-					dataUrl,
 					lat,
 					lng,
 					selfie,
@@ -130,11 +126,11 @@ export function useGiseAssinatura({
 			} else if (tipoAssinaturaPendente === 'serpro') {
 				await executarAssinarComSerpro(lat, lng);
 			}
-			showRubricaModal = false;
+			showAssinaturaModal = false;
 		} catch (e: unknown) {
 			if (ehErroReauthAssinatura(e)) throw e;
 			toaster.error({ title: 'Erro ao assinar', description: mensagemDeErro(e) });
-			showRubricaModal = false;
+			showAssinaturaModal = false;
 		}
 	}
 
@@ -148,7 +144,6 @@ export function useGiseAssinatura({
 	) {
 		const giseId = getGiseId();
 		const evidencias = {
-			rubrica: rubricaCapturada ?? '',
 			latitude,
 			longitude,
 			selfieBase64: selfieCapturada,
@@ -176,7 +171,6 @@ export function useGiseAssinatura({
 			toaster.error({ title: 'Erro ao assinar', description: mensagemDeErro(e) });
 		} finally {
 			loading.hide();
-			rubricaCapturada = null;
 		}
 	}
 
@@ -198,12 +192,12 @@ export function useGiseAssinatura({
 
 	function abrirAssinaturaLote() {
 		relatorioSendoAssinado = { lote: getPendentesExtra() };
-		abrirModalRubrica('simples');
+		abrirModalAssinatura('simples');
 	}
 
 	function abrirAssinaturaRelatorio(seccionalId: number, tipo: 'extraordinario' | 'produtividade') {
 		relatorioSendoAssinado = { seccionalId, tipo };
-		abrirModalRubrica('simples');
+		abrirModalAssinatura('simples');
 	}
 
 	async function executarAssinarRelatorioLoteSERPRO() {
@@ -230,7 +224,7 @@ export function useGiseAssinatura({
 					await executarFluxoAssinaturaToken({
 						prepararUrl: `/api/gise/${giseId}/relatorios/${item.seccionalId}/preparar-assinatura`,
 						finalizarUrl: `/api/gise/${giseId}/relatorios/${item.seccionalId}/finalizar-assinatura`,
-						payloadPreparar: { signerName, signerCpf, rubrica: null },
+						payloadPreparar: { signerName, signerCpf },
 						obterAssinatura: async (prep) => {
 							etapaAssinatura = `Assinando Relatório ${i + 1} de ${pendentesExtra.length}...`;
 							const serproRes = await clientSerpro.sign(digestHexParaBase64(prep.messageDigest));
@@ -263,7 +257,6 @@ export function useGiseAssinatura({
 	}
 
 	async function executarAssinarRelatorio(
-		rubrica: string,
 		latitude?: number,
 		longitude?: number,
 		selfieBase64?: string | null,
@@ -287,7 +280,6 @@ export function useGiseAssinatura({
 					etapaAssinatura = `Assinando ${i + 1} de ${lote.length}...`;
 					const body = {
 						tipo: item.tipo,
-						rubrica,
 						latitude,
 						longitude,
 						selfieBase64,
@@ -329,7 +321,6 @@ export function useGiseAssinatura({
 			etapaAssinatura = 'Processando assinatura...';
 			const body = {
 				tipo: relatorioSendoAssinado.tipo,
-				rubrica,
 				latitude,
 				longitude,
 				selfieBase64,
@@ -381,22 +372,15 @@ export function useGiseAssinatura({
 			return progressoLote;
 		},
 
-		get showRubricaModal() {
-			return showRubricaModal;
+		get showAssinaturaModal() {
+			return showAssinaturaModal;
 		},
-		set showRubricaModal(v: boolean) {
-			showRubricaModal = v;
+		set showAssinaturaModal(v: boolean) {
+			showAssinaturaModal = v;
 		},
 
 		get tipoAssinaturaPendente() {
 			return tipoAssinaturaPendente;
-		},
-
-		get rubricaCapturada() {
-			return rubricaCapturada;
-		},
-		set rubricaCapturada(v: string | null) {
-			rubricaCapturada = v;
 		},
 
 		get selfieCapturada() {
@@ -459,9 +443,9 @@ export function useGiseAssinatura({
 			relatorioSendoAssinado = v;
 		},
 
-		abrirModalRubrica,
-		fecharModalRubrica,
-		confirmarRubrica,
+		abrirModalAssinatura,
+		fecharModalAssinatura,
+		confirmarAssinatura,
 		executarAssinarSimples,
 		executarAssinarComSerpro,
 		prepararSerproLote,

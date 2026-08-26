@@ -210,7 +210,7 @@ O projeto usa **Cloudflare D1** (SQLite serverless) via **Drizzle ORM**. O schem
 | `gise_seccionais`                | Seccionais dentro de uma GISE                                                                                       |
 | `gise_equipes`                   | Equipes (operacional/SEINT) com slots DPC/OIP                                                                       |
 | `gise_membros`                   | Associação policial ↔ equipe GISE                                                                                   |
-| `gise_presencas`                 | Registros de entrada/saída (GPS, selfie, rubrica)                                                                   |
+| `gise_presencas`                 | Registros de entrada/saída (GPS, selfie)                                                                            |
 | `gise_documentos`                | PDFs assinados de GISE                                                                                              |
 | `gise_modelo_formulario`         | Modelo do formulário de produtividade em JSON, um por (operação, tipo de equipe) — e a ordem dos cards do painel    |
 | `gise_respostas_formulario`      | Respostas de formulários (JSON) por policial/equipe                                                                 |
@@ -235,7 +235,7 @@ consequências que valem para qualquer mudança nessa área:
 
   O motivo é a assinatura: `gise_assinaturas_relatorios.seccional_id` referencia
   `unidades(id)`, e o D1 aplica chave estrangeira de verdade. Apagar a unidade
-  levava junto o registro do ato de assinar — assinante, CPF, rubrica, selfie,
+  levava junto o registro do ato de assinar — assinante, CPF, selfie,
   IP, GPS, hash do arquivo e a chave do PDF no R2 — e o portal público
   `/validar` passava a responder "documento não encontrado" para um papel já
   entregue, indistinguível de documento falso. Escala e lotação, que ligam por
@@ -367,7 +367,6 @@ escalas/
 │   │   │   ├── configuracoes/      # Flags de assinatura (com cache edge)
 │   │   │   ├── admin/              # Audit log, compliance, LGPD (incidentes/solicitações/limpeza)
 │   │   │   ├── lgpd/               # Solicitações do titular (art. 18)
-│   │   │   ├── perfil/             # Rubrica reutilizável (POST/DELETE)
 │   │   │   └── health/             # Health check
 │   │   ├── login/                  # Página de login + 2FA + certificado A3
 │   │   ├── alterar-senha/          # Troca de senha obrigatória (primeiro acesso)
@@ -386,7 +385,7 @@ escalas/
 │   │   ├── policiais/              # Gestão de policiais (lista, detalhe, upload CSV)
 │   │   ├── unidades/               # Gestão de unidades
 │   │   ├── produtividade/          # Dashboard de produtividade
-│   │   ├── perfil/                 # Meu perfil (rubrica, e-mail pessoal, solicitações de alteração)
+│   │   ├── perfil/                 # Meu perfil (e-mail pessoal, chave de assinatura, solicitações de alteração)
 │   │   ├── solicitacoes/           # Aprovação de alterações cadastrais (Admin Geral)
 │   │   ├── conf-ass/               # Configuração de assinatura
 │   │   ├── config-geral/           # Configurações gerais (provedor de e-mail)
@@ -400,7 +399,7 @@ escalas/
 │   │   ├── components/             # Componentes Svelte reutilizáveis
 │   │   │   ├── PainelAssinaturaEscala.svelte   # Painel completo de assinatura
 │   │   │   ├── PainelAssinaturaToken.svelte    # Assinatura via WebPKI/SERPRO
-│   │   │   ├── SignaturePad.svelte             # Rubrica + selfie + GPS + 2FA
+│   │   │   ├── SignaturePad.svelte             # Confirmação + selfie + GPS + 2FA
 │   │   │   ├── SearchableSelect.svelte         # Select com busca async
 │   │   │   ├── LoadingOverlay.svelte           # Overlay de loading global
 │   │   │   └── ...
@@ -955,7 +954,7 @@ O resto do fluxo:
 
 - Criação e configuração pelo supervisor (seccionais, equipes, questões)
 - Visão do membro em duas abas da sidebar: **Presença GISE** (só aparece com escala ativa — confirmar entrada, relatório e saída) e **Histórico GISE** (participações já encerradas). Ambas usam a rota `/res-gise`; o histórico é `?status=finalizadas`
-- Registro de presença (entrada/saída com GPS, selfie e rubrica) — em desktop, confirmação por Token A3
+- Registro de presença (entrada/saída com GPS e selfie) — em desktop, confirmação por Token A3
 - Comprovante de presença baixável nos dois fluxos: Token A3 serve o termo qualificado do R2; presença em tela gera o comprovante avançado sob demanda
 - Preenchimento de formulários operacionais e SEINT por membros
 - Assinatura de relatórios de extra/produtividade
@@ -965,11 +964,11 @@ O resto do fluxo:
 
 Três modalidades suportadas:
 
-| Modalidade      | Mecanismo                                                                                  | Dados coletados                                |
-| --------------- | ------------------------------------------------------------------------------------------ | ---------------------------------------------- |
-| **Qualificada** | e-CPF ICP-Brasil via WebPKI (Lacuna) ou Assinador SERPRO Desktop                           | Certificado, OCSP, carimbo de tempo (CAdES-LT) |
-| **Avançada**    | 2FA por e-mail (sempre) + selfie com liveness + rubrica gráfica + GPS + selo institucional | Foto, coordenadas, user-agent, timestamp       |
-| **Simples**     | Confirmação textual — **descontinuada** (restrita a fluxos FDS legados)                    | IP, user-agent, timestamp                      |
+| Modalidade      | Mecanismo                                                                | Dados coletados                                |
+| --------------- | ------------------------------------------------------------------------ | ---------------------------------------------- |
+| **Qualificada** | e-CPF ICP-Brasil via WebPKI (Lacuna) ou Assinador SERPRO Desktop         | Certificado, OCSP, carimbo de tempo (CAdES-LT) |
+| **Avançada**    | 2FA por e-mail (sempre) + selfie com liveness + GPS + selo institucional | Foto, coordenadas, user-agent, timestamp       |
+| **Simples**     | Confirmação textual — **descontinuada** (restrita a fluxos FDS legados)  | IP, user-agent, timestamp                      |
 
 O enquadramento jurídico de cada modalidade (Lei 14.063/2020, MP 2.200-2) está no parecer `ANALISE_JURIDICA_ASSINATURAS.md`, arquivado no histórico do Git — ver [`docs/HISTORICO.md`](docs/HISTORICO.md).
 

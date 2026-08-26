@@ -54,7 +54,7 @@ type PresencaMin = {
  * Todos os integrantes do quadro (definidos) confirmaram entrada e saída
  * (necessário para liberar o relatório de extra da supervisão).
  */
-export function supervisaoExtraRubricasCompletas(
+export function supervisaoExtraPresencasCompletas(
 	gise: Pick<GiseDetalhado, 'supervisor_id' | 'assessor_id' | 'seint1_id' | 'seint2_id'>,
 	presencas: PresencaMin[]
 ): boolean {
@@ -68,16 +68,16 @@ export function supervisaoExtraRubricasCompletas(
 	return true;
 }
 
-/** Prefixo da mensagem quando faltam rubricas (UI pode colorir só este trecho). */
-export const FALTANTE_RUBRICA_SUPER_PREFIX = 'Faltando rubrica de: ';
+/** Prefixo da mensagem quando faltam confirmações (UI pode colorir só este trecho). */
+export const FALTANTE_PRESENCA_SUPER_PREFIX = 'Faltando confirmação de: ';
 
 /**
- * Mensagem de quem, no quadro de supervisão, ainda não rubricou entrada E saída
+ * Mensagem de quem, no quadro de supervisão, ainda não confirmou entrada E saída
  * — ou `''` quando não falta ninguém (o chamador testa a string vazia).
  *
  * Só o PRIMEIRO nome de cada faltante, e o papel (`'Assessor'`, `'SEINT 1'`)
  * quando o nome não está no mapa: a mensagem tem de continuar útil mesmo com o
- * cadastro incompleto. O prefixo sai em `FALTANTE_RUBRICA_SUPER_PREFIX` para a
+ * cadastro incompleto. O prefixo sai em `FALTANTE_PRESENCA_SUPER_PREFIX` para a
  * UI poder destacar só a parte dos nomes.
  */
 export function faltantesSupervisaoExtra(
@@ -96,7 +96,7 @@ export function faltantesSupervisaoExtra(
 		}
 	}
 	if (falt.length === 0) return '';
-	return FALTANTE_RUBRICA_SUPER_PREFIX + falt.join(', ');
+	return FALTANTE_PRESENCA_SUPER_PREFIX + falt.join(', ');
 }
 
 type PapelMarcadorSupervisao = 'supervisor' | 'assessor' | 'seint';

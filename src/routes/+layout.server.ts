@@ -1,6 +1,6 @@
 /**
- * `load` do layout raiz: flags de navegação (papel GISE, rubrica pendente,
- * evidências de assinatura, alternância admin↔usuário) para a sessão inteira.
+ * `load` do layout raiz: flags de navegação (papel GISE, evidências de
+ * assinatura, alternância admin↔usuário) para a sessão inteira.
  * Mutações invalidam chaves pontuais — este load não deve rodar a cada exclusão
  * de escala.
  */
@@ -10,7 +10,6 @@ import { credencialDoUsuario } from '$lib/server/auth/credencial';
 import { lerFlagsAssinatura } from '$lib/server/assinatura/cfg-ass-cache';
 import { lerPapelGise } from '$lib/server/gise/papel-cache';
 import { lerTemLinhaBasePendente } from '$lib/server/operacoes/linha-base-cache';
-import { temAssinaturaEscalaPendente } from '$lib/server/escalas/rubrica-pendente';
 import { resumoRecebidosAdmin } from '$lib/server/escalas/sync-estado';
 import { logger } from '$lib/server/logger';
 import { mensagemDeErro } from '$lib/utils/erro';
@@ -36,7 +35,6 @@ export const load: LayoutServerLoad = async ({ locals, platform, cookies, depend
 	let restringirSmartphone = false;
 	let exigirPasskeyAssinatura = false;
 	let temChaveAssinatura = false;
-	let precisaCadastrarRubrica = false;
 	let recebidosNaoVistos = 0;
 	// Alternância de acesso (ADM Geral ↔ Usuário) para a MESMA pessoa vinculada.
 	// admin → usuário: exige a sessão admin ter policial vinculado (adminPolicialId).
@@ -91,16 +89,6 @@ export const load: LayoutServerLoad = async ({ locals, platform, cookies, depend
 				temGiseHistorico = papel.temHistorico;
 				temPresencaGisePendente = papel.temPresencaPendente;
 			}
-
-			// Aviso "cadastre sua rubrica": só para policial SEM rubrica com
-			// pendência concreta de assinatura — vínculo com GISE ativa (presenças/
-			// relatórios a assinar) ou solicitação de assinatura de escala dirigida
-			// a ele (DPC admin). A checagem extra de solicitação só roda nesse caso
-			// raro (1 EXISTS); `temRubrica` vem da própria sessão.
-			if (u.tipo === 'policial' && u.temRubrica === false) {
-				const papelGiseAtivo = isSupervisorGise || isMembroGise || isSupervisaoGise;
-				precisaCadastrarRubrica = papelGiseAtivo || (await temAssinaturaEscalaPendente(db, u));
-			}
 		} catch (err) {
 			// DB/edge cache indisponível — mantém defaults seguros (exige tudo)
 			logger.warn('[layout] falha ao carregar flags/papel GISE', {
@@ -136,7 +124,6 @@ export const load: LayoutServerLoad = async ({ locals, platform, cookies, depend
 		restringirSmartphone,
 		exigirPasskeyAssinatura,
 		temChaveAssinatura,
-		precisaCadastrarRubrica,
 		recebidosNaoVistos,
 		adminModulo,
 		podeAlternarModulo,

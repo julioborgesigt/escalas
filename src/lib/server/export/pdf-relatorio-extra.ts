@@ -24,7 +24,6 @@ import {
 } from '$lib/gise/breve-relatorio';
 import {
 	embutirLogosGise,
-	getImgFormat,
 	type GisePdfData,
 	type GisePresenca,
 	type JsPDFWithAutoTable,
@@ -95,17 +94,11 @@ function iniciarRelatorioExtra(opts: {
 	return { doc, y, dataSaidaEfetiva };
 }
 
-/** Colunas de presença (hora início/rubrica/hora saída/rubrica) de uma linha da tabela. */
+/** Colunas de presença (hora de início / hora de saída) de uma linha da tabela. */
 function colunasPresencaRelatorio(
 	dataInicio: string,
 	dataSaidaEfetiva: string,
-	pres:
-		| Pick<
-				GisePresenca,
-				'entrada_timestamp' | 'entrada_rubrica' | 'saida_timestamp' | 'saida_rubrica'
-		  >
-		| null
-		| undefined
+	pres: Pick<GisePresenca, 'entrada_timestamp' | 'saida_timestamp'> | null | undefined
 ) {
 	const hora = (ts: string | null | undefined) =>
 		ts
@@ -117,15 +110,19 @@ function colunasPresencaRelatorio(
 			: '';
 	return [
 		`${formatarData(dataInicio)}\n${hora(pres?.entrada_timestamp)}`,
-		{ content: '', image: pres?.entrada_rubrica },
-		`${formatarData(dataSaidaEfetiva)}\n${hora(pres?.saida_timestamp)}`,
-		{ content: '', image: pres?.saida_rubrica }
+		`${formatarData(dataSaidaEfetiva)}\n${hora(pres?.saida_timestamp)}`
 	];
 }
 
-type LinhaRelatorio = Array<string | { content: string; image?: string | null }>;
+type LinhaRelatorio = string[];
 
-/** Tabela de presenças com as rubricas desenhadas nas células 6 e 8. */
+/**
+ * Tabela de presenças. As duas colunas RUBRICA (índices 6 e 8) saíram junto com
+ * a rubrica: sem imagem a desenhar, sobrariam duas caixas vazias rotuladas com
+ * um campo que o sistema não coleta mais. A largura liberada foi redistribuída
+ * entre nome, lotação e horários — o total continua 277 mm, então o bloco de
+ * assinatura abaixo não se move.
+ */
 function tabelaPresencasRelatorio(doc: jsPDF, startY: number, body: LinhaRelatorio[]): number {
 	autoTable(doc, {
 		head: [
@@ -136,9 +133,7 @@ function tabelaPresencasRelatorio(doc: jsPDF, startY: number, body: LinhaRelator
 				'CLASSE',
 				'LOTAÇÃO',
 				'HORA DE INÍCIO',
-				'RUBRICA',
-				'HORA DE SAÍDA',
-				'RUBRICA'
+				'HORA DE SAÍDA'
 			]
 		],
 		body,
@@ -147,50 +142,14 @@ function tabelaPresencasRelatorio(doc: jsPDF, startY: number, body: LinhaRelator
 		margin: { left: REL_EXTRA_MARGIN, right: REL_EXTRA_MARGIN },
 		styles: { fontSize: 8, cellPadding: 2, halign: 'center', valign: 'middle', minCellHeight: 16 },
 		headStyles: { fillColor: [200, 200, 200], textColor: 0, fontStyle: 'bold' },
-		didDrawCell: (data) => {
-			if ((data.column.index === 6 || data.column.index === 8) && data.cell.section === 'body') {
-				const rawCell = data.cell.raw as { image?: string; content?: string } | string | null;
-				const imgData = typeof rawCell === 'object' && rawCell !== null ? rawCell.image : rawCell;
-
-				// Só tenta inserir se for uma string base64 com prefixo data:image/
-				// Qualquer outro valor (URL, string sem prefixo, null) é ignorado
-				// para evitar o quadrado preto gerado pelo jsPDF quando recebe dados inválidos
-				const isValidBase64Image =
-					typeof imgData === 'string' &&
-					imgData.startsWith('data:image/') &&
-					imgData.includes(';base64,') &&
-					imgData.length > 200; // base64 real tem pelo menos 200 caracteres
-
-				if (!isValidBase64Image) return;
-
-				const targetW = data.cell.width - 4;
-				const targetH = targetW / 2;
-				const xPos = data.cell.x + 2;
-				const yPos = data.cell.y + (data.cell.height - targetH) / 2;
-
-				try {
-					const format = getImgFormat(imgData);
-					if (!format) {
-						// Formato indeterminado — não renderizar para evitar quadro preto
-						return;
-					}
-					doc.addImage(imgData, format, xPos, yPos, targetW, targetH, undefined, 'FAST');
-				} catch (e) {
-					// Em caso de erro, não renderizar nada (melhor que quadro preto)
-					console.warn('[relatorio-extra] Erro ao inserir rúbrica na célula:', e);
-				}
-			}
-		},
 		columnStyles: {
-			0: { halign: 'left', cellWidth: 70 },
-			1: { cellWidth: 15 },
-			2: { cellWidth: 25 },
-			3: { cellWidth: 15 },
-			4: { cellWidth: 42 },
-			5: { cellWidth: 25 },
-			6: { cellWidth: 30 },
-			7: { cellWidth: 25 },
-			8: { cellWidth: 30 }
+			0: { halign: 'left', cellWidth: 95 },
+			1: { cellWidth: 18 },
+			2: { cellWidth: 28 },
+			3: { cellWidth: 18 },
+			4: { cellWidth: 58 },
+			5: { cellWidth: 30 },
+			6: { cellWidth: 30 }
 		}
 	});
 	return (doc as JsPDFWithAutoTable).lastAutoTable?.finalY ?? startY;
@@ -239,23 +198,6 @@ function assinaturaRelatorioExtra(
 			});
 		}
 	} else {
-		if (reportSignature.rubrica) {
-			try {
-				const rubW = 65;
-				const rubH = 25;
-				const rubricaFormat = getImgFormat(reportSignature.rubrica) || 'PNG';
-				doc.addImage(
-					reportSignature.rubrica,
-					rubricaFormat,
-					sigCenterX - rubW / 2,
-					sigY - rubH - 2,
-					rubW,
-					rubH
-				);
-			} catch (e) {
-				console.warn('[relatorio-extra] Erro ao inserir rubrica do supervisor:', e);
-			}
-		}
 		doc.line(sigCenterX - 45, sigY, sigCenterX + 45, sigY);
 		doc.setFontSize(8);
 		doc.setFont('helvetica', 'bold');
@@ -316,7 +258,7 @@ function assinaturaRelatorioExtra(
  * registrada em `reportSignature`.
  *
  * O `finalY` devolvido é a coordenada dessa área: é por ele que o fluxo de
- * assinatura ancora rubrica e QR sem remedir o documento.
+ * assinatura ancora o QR sem remedir o documento.
  *
  * Logos e QR chegam como bytes/base64 pelo chamador em vez de serem buscados
  * aqui: geração de PDF roda no Worker e não deve depender de rede nem de R2.

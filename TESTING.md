@@ -504,7 +504,7 @@ Verificar cada transição de status:
 ### 6.1 Assinatura da GISE Principal
 
 - [ ] Preparar assinatura da GISE → PDF gerado
-- [ ] Assinar simples com nome/CPF/rubrica
+- [ ] Assinar simples com nome/CPF
 - [ ] Assinar com WebPKI ou SERPRO
 - [ ] Selfie capturada durante assinatura (se configurado)
 - [ ] GPS coletado durante assinatura (se configurado)
@@ -512,23 +512,15 @@ Verificar cada transição de status:
 
 ### 6.2 Presença (Check-in / Check-out)
 
-> `[E2E: presenca-gise.spec.ts]` cobre entrada/saída em tela com rubrica + 2FA + GPS (2FA **sempre** obrigatório — as actions leem a fonte única `lerFlagsAssinatura`, que o força ligado), o comprovante sob demanda dos dois sentidos, o **vínculo na escrita** (não-participante com 2FA válido → 403, não grava) e as guardas do comprovante (anônimo 401, não-participante 403, tipo inválido 400, sem presença 404). Manual: selfie/câmera real (liveness é client-side) e o fluxo por Token A3 (janela de horário + hardware — QA A3).
+> `[E2E: presenca-gise.spec.ts]` cobre entrada/saída em tela com 2FA + GPS (2FA **sempre** obrigatório — as actions leem a fonte única `lerFlagsAssinatura`, que o força ligado), o comprovante sob demanda dos dois sentidos, o **vínculo na escrita** (não-participante com 2FA válido → 403, não grava) e as guardas do comprovante (anônimo 401, não-participante 403, tipo inválido 400, sem presença 404). Manual: selfie/câmera real (liveness é client-side) e o fluxo por Token A3 (janela de horário + hardware — QA A3).
 
-- [ ] Policial registra entrada com rubrica e selfie
-- [ ] Policial registra saída com rubrica e selfie
+- [ ] Policial registra entrada com selfie
+- [ ] Policial registra saída com selfie
 - [ ] Timestamps de entrada e saída salvos corretamente
-- [ ] No desktop (com restrição de smartphone), a tela de confirmação mostra APENAS o botão "Confirmar … com Certificado Digital" (sem quadro de rubrica/gerenciar); sem rubrica cadastrada, mostra o aviso com botão de cadastro
+- [ ] No desktop (com restrição de smartphone), a tela de confirmação mostra APENAS o botão "Confirmar … com Certificado Digital"
 - [ ] Após confirmar (tela OU Token A3), o botão **"Comprovante"** aparece ao lado do aviso de Entrada/Saída Confirmada e baixa o PDF
   - Presença por Token A3 → serve o termo qualificado (ICP-Brasil) guardado no R2
-  - Presença em tela → gera o comprovante **avançado** sob demanda (rubrica + evidências), SEM menção a ICP-Brasil no rodapé
-
-### 6.2.1 Aviso "Cadastre sua rubrica" (pós-login)
-
-- [ ] Policial SEM rubrica vinculado a GISE ativa (membro/supervisor/supervisão) vê o aviso ao logar
-- [ ] DPC admin SEM rubrica com solicitação de assinatura pendente vê o aviso ao logar
-- [ ] "Deixar para depois" fecha e não reaparece na mesma sessão do navegador; reaparece no próximo login
-- [ ] "Cadastrar rubrica" abre o modal de cadastro; após salvar, o aviso não volta
-- [ ] Policial sem pendência de assinatura NÃO vê o aviso
+  - Presença em tela → gera o comprovante **avançado** sob demanda (evidências do ato), SEM menção a ICP-Brasil no rodapé
 
 ### 6.3 Formulários de Produtividade
 
@@ -539,8 +531,8 @@ Verificar cada transição de status:
 ### 6.4 Assinatura de Relatórios Seccional
 
 > `[E2E: relatorio-extra-gise.spec.ts]` cobre a assinatura **qualificada** do relatório extraordinário pelo supervisor via CA de teste (preparar → CMS → finalizar → documento persistido → `/validar`) e as guardas: não-supervisor → 403, seccional inválida → 400, saída incompleta → 400, CPF do token ≠ supervisor → 400.
-> `[E2E: relatorio-extra-avancado.spec.ts]` cobre a assinatura **avançada em tela** (endpoint `assinar`): supervisor com rubrica + 2FA + selfie/GPS → 200; não-supervisor → 403; saída incompleta → 400; sem 2FA → 400.
-> A montagem do manifesto (todas as rubricas de presença + supervisor, FOTO condicional) é coberta no unitário `manifesto-signers.test.ts`. Manual: o Assinador SERPRO real, a selfie/câmera de verdade e a assinatura do relatório de `produtividade`.
+> `[E2E: relatorio-extra-avancado.spec.ts]` cobre a assinatura **avançada em tela** (endpoint `assinar`): supervisor com 2FA + selfie/GPS → 200; não-supervisor → 403; saída incompleta → 400; sem 2FA → 400.
+> A montagem do manifesto (todas as presenças + supervisor, FOTO condicional) é coberta no unitário `manifesto-signers.test.ts`. Manual: o Assinador SERPRO real, a selfie/câmera de verdade e a assinatura do relatório de `produtividade`.
 
 - [ ] Preparar relatório seccional
 - [ ] Assinar relatório tipo `extraordinario`
@@ -593,7 +585,6 @@ Verificar cada transição de status:
 ### 8.5 Meu Perfil (`/perfil`) e Solicitações (`/solicitacoes`)
 
 - [ ] Policial acessa "Meu perfil": identificação somente leitura (nome, matrícula, cargo, e-mails)
-- [ ] Cadastrar/atualizar/excluir rubrica pelo perfil
 - [ ] Alterar telefone/classe/regime/lotação → botão só habilita com mudança real → cria solicitação PENDENTE (cadastro NÃO muda ainda)
 - [ ] Nova solicitação do mesmo campo substitui a pendente anterior
 - [ ] Admin Geral vê a pendência em "Solicitações" com dados do servidor e de/para

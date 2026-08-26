@@ -233,7 +233,7 @@ export async function carregarRelatorioExtraParaAssinatura(
 	if (!(await verificarSaidaCompletaSeccional(db, giseId, secId, isSupExtraGate))) {
 		return {
 			recusa: badRequest(
-				'Todos os participantes precisam confirmar a saída (rubrica) antes de assinar o relatório.'
+				'Todos os participantes precisam confirmar a saída antes de assinar o relatório.'
 			)
 		};
 	}

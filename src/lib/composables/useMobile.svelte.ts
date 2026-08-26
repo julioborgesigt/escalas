@@ -74,7 +74,7 @@ export function useMobile() {
  * (1024 ≥ 768) e `isMobile` é `true` pelo user-agent — a linha ficaria fechada
  * sem nada na tela capaz de abri-la.
  *
- * Não use para decidir assinatura, rubrica, token ou qualquer aplicação de
+ * Não use para decidir assinatura, token ou qualquer aplicação de
  * `restringirSmartphone`: essas perguntas são sobre o APARELHO e a resposta
  * delas é {@link useMobile}.
  *

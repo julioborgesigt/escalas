@@ -5,7 +5,7 @@
 	 * Escala ordinária, GISE, relatório extraordinário e presença (entrada/saída)
 	 * entram por aqui. O documento só muda textos, o `onConfirm` e se o rodapé
 	 * de Token A3 aparece — a cerimônia é a mesma:
-	 * rubrica → evidências → senha (Assinar dispara o 2FA) → código → concluir.
+	 * confirmação → evidências → senha (Assinar dispara o 2FA) → código → concluir.
 	 *
 	 * O e-mail do 2FA NÃO sai ao abrir a tela de senha: só depois do Assinar
 	 * confirmar a reautenticação.
@@ -36,12 +36,11 @@
 		exigirFoto = true,
 		exigirGps = true,
 		exigirCodigoEmail = false,
-		rubricaSalva = null,
 		cpfUsuario = null,
 		credenciaisCombinadas = true,
 		message = '',
-		tituloRubrica = 'Assinatura Digital em Tela',
-		descricaoRubrica,
+		tituloAssinatura = 'Assinatura Digital em Tela',
+		descricaoAssinatura,
 		tituloCamera = 'Prova de Vida',
 		onAssinarToken = null,
 		tokenDisabled = false,
@@ -61,15 +60,14 @@
 		exigirFoto?: boolean;
 		exigirGps?: boolean;
 		exigirCodigoEmail?: boolean;
-		rubricaSalva?: string | null;
 		cpfUsuario?: string | null;
 		credenciaisCombinadas?: boolean;
-		/** Legenda interna do pad (ex.: "Rubrica do Organizador"). */
+		/** Legenda interna do pad (ex.: "Assinatura do Organizador"). */
 		message?: string;
-		/** Título do modal na etapa de rubrica. */
-		tituloRubrica?: string;
-		/** Descrição do modal na etapa de rubrica — nomeia o documento. */
-		descricaoRubrica: string;
+		/** Título do modal na etapa de confirmação. */
+		tituloAssinatura?: string;
+		/** Descrição do modal na etapa de confirmação — nomeia o documento. */
+		descricaoAssinatura: string;
 		tituloCamera?: string;
 		/** Se definido, mostra "Ou / Certificado Digital" nas etapas iniciais. */
 		onAssinarToken?: (() => void) | null;
@@ -77,7 +75,7 @@
 		pending?: boolean;
 		/** Quando `pending` e este texto existem, o pad vira spinner (ex.: presença). */
 		pendingLabel?: string | null;
-		/** Largura nas etapas de rubrica/câmera. Auth (senha/2FA) usa `sm`. */
+		/** Largura nas etapas de confirmação/câmera. Auth (senha/2FA) usa `sm`. */
 		largura?: Largura;
 		camada?: Camada;
 		familia?: Familia;
@@ -96,7 +94,7 @@
 	});
 
 	const textos = $derived(
-		textosEtapaAssinatura(signatureStep, descricaoRubrica, { tituloRubrica, tituloCamera })
+		textosEtapaAssinatura(signatureStep, descricaoAssinatura, { tituloAssinatura, tituloCamera })
 	);
 	const etapaAuth = $derived(
 		signatureStep === 'password' ||
@@ -106,11 +104,11 @@
 	const larguraEfetiva = $derived(etapaAuth ? 'sm' : largura);
 	const paddingEfetivo = $derived(etapaAuth ? 'compacto' : padding);
 	const familiaEfetiva = $derived(etapaAuth ? 'assinatura' : familia);
-	/** Token A3 só na tela de senha — na rubrica/2FA o rodapé compete com o fluxo principal. */
+	/** Token A3 só na tela de senha — na confirmação/2FA o rodapé compete com o fluxo principal. */
 	const mostrarOpcaoToken = $derived(
 		Boolean(onAssinarToken) && !pending && signatureStep === 'credenciais'
 	);
-	/** Nota do PDF só na rubrica — nas telas de senha/2FA ela estica o modal sem necessidade. */
+	/** Nota do PDF só na confirmação — nas telas de senha/2FA ela estica o modal sem necessidade. */
 	const mostrarNotaRodape = $derived(Boolean(notaRodape) && !etapaAuth);
 </script>
 
@@ -146,7 +144,6 @@
 				{exigirFoto}
 				{exigirGps}
 				{exigirCodigoEmail}
-				{rubricaSalva}
 				{credenciaisCombinadas}
 				{cpfUsuario}
 				{message}

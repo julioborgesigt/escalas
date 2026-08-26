@@ -13,7 +13,7 @@ import {
 /**
  * Presença GISE em TELA (fluxo avançado, mobile-first) + comprovante — cobre a
  * parte do roteiro 6.2 do TESTING.md que não exige hardware: entrada e saída
- * com evidências (rubrica + 2FA semeado + GPS) via form actions do /res-gise,
+ * com evidências (2FA semeado + GPS) via form actions do /res-gise,
  * e o comprovante sob demanda (GET /api/gise/[id]/presenca/termo).
  *
  * As actions são chamadas como o `use:enhance` chamaria (POST form-encoded com
@@ -25,8 +25,6 @@ import {
 
 const GISE = FIXTURE.gise.id;
 const CODIGO = '424242';
-const RUBRICA_PNG =
-	'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
 
 /** POST de form action do SvelteKit como o enhance faz (fora de /api, o CSRF é
  *  o check de origin do próprio kit). */
@@ -64,7 +62,6 @@ test.describe('Presença GISE em tela + comprovante', () => {
 		test.skip(!reauthId, 'D1 local indisponível');
 		const res = await postAction(request, token!, 'salvarEntrada', {
 			giseId: String(GISE),
-			rubrica: RUBRICA_PNG,
 			reauthId: reauthId!
 		});
 		expect(await res.text()).toContain('obrigat');
@@ -77,16 +74,13 @@ test.describe('Presença GISE em tela + comprovante', () => {
 		expect(res.status()).toBe(404);
 	});
 
-	test('entrada com rubrica + 2FA + GPS → registrada e auditável no comprovante', async ({
-		request
-	}) => {
+	test('entrada com 2FA + GPS → registrada e auditável no comprovante', async ({ request }) => {
 		const desafioId = seedDesafioAssinatura(FIXTURE.membroGise.id, CODIGO);
 		const reauthId = seedReauthAssinatura(FIXTURE.membroGise.id, token!);
 		test.skip(!desafioId || !reauthId, 'D1 local indisponível');
 
 		const res = await postAction(request, token!, 'salvarEntrada', {
 			giseId: String(GISE),
-			rubrica: RUBRICA_PNG,
 			latitude: '-3.7319',
 			longitude: '-38.5267',
 			codigoEmail: CODIGO,
@@ -112,14 +106,13 @@ test.describe('Presença GISE em tela + comprovante', () => {
 		expect(res.status()).toBe(404);
 	});
 
-	test('saída com rubrica + 2FA → registrada, comprovante disponível', async ({ request }) => {
+	test('saída com 2FA → registrada, comprovante disponível', async ({ request }) => {
 		const desafioId = seedDesafioAssinatura(FIXTURE.membroGise.id, CODIGO);
 		const reauthId = seedReauthAssinatura(FIXTURE.membroGise.id, token!);
 		test.skip(!desafioId || !reauthId, 'D1 local indisponível');
 
 		const res = await postAction(request, token!, 'salvarSaida', {
 			giseId: String(GISE),
-			rubrica: RUBRICA_PNG,
 			codigoEmail: CODIGO,
 			desafioId: desafioId!,
 			reauthId: reauthId!
@@ -149,7 +142,6 @@ test.describe('Presença GISE em tela + comprovante', () => {
 
 		const res = await postAction(request, tokenForasteiro!, 'salvarEntrada', {
 			giseId: String(GISE),
-			rubrica: RUBRICA_PNG,
 			codigoEmail: CODIGO,
 			desafioId: desafioForasteiro!,
 			reauthId: reauthForasteiro!
@@ -244,7 +236,6 @@ test.describe('FLW-AUT-006 / 007 — janela e GISE finalizada no /res-gise', () 
 
 		const res = await postAction(request, token!, 'salvarEntrada', {
 			giseId: String(GISE_FUTURA),
-			rubrica: RUBRICA_PNG,
 			codigoEmail: CODIGO,
 			desafioId: desafioId!,
 			reauthId: reauthId!
@@ -265,7 +256,6 @@ test.describe('FLW-AUT-006 / 007 — janela e GISE finalizada no /res-gise', () 
 
 		const res = await postAction(request, token!, 'salvarEntrada', {
 			giseId: String(GISE_FECHADA),
-			rubrica: RUBRICA_PNG,
 			codigoEmail: CODIGO,
 			desafioId: desafioId!,
 			reauthId: reauthId!

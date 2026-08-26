@@ -74,8 +74,7 @@ export async function montarPdfExtraAssinado(opts: {
 	const mockSignature = {
 		assinante_nome: opts.assinante.nome,
 		assinante_matricula: opts.assinante.matricula?.trim() || '',
-		verification_hash: opts.verificationHash,
-		rubrica: opts.evidencias.rubrica || ''
+		verification_hash: opts.verificationHash
 	};
 
 	const isSupervisaoExtra = await secIdEhSupervisaoExtra(opts.db, opts.secId);
@@ -138,7 +137,6 @@ export async function montarPdfExtraAssinado(opts: {
 			latitude: opts.evidencias.latitude ?? undefined,
 			longitude: opts.evidencias.longitude ?? undefined,
 			selfieBase64: opts.evidencias.selfieBase64 ?? undefined,
-			rubricBase64: opts.evidencias.rubrica ?? undefined,
 			documentHash,
 			token: crypto.randomUUID(),
 			documentName: `Relatório Extraordinário - GISE ${opts.giseId}`,
@@ -170,7 +168,6 @@ export async function persistirExtraAssinado(opts: {
 		verificationHash: string;
 		documentKey: string;
 	};
-	rubrica?: string | null;
 	selfieKey?: string | null;
 	ip?: string;
 	userAgent?: string;
@@ -219,7 +216,6 @@ export async function persistirExtraAssinado(opts: {
 			assinante_nome: opts.assinante.nome,
 			assinante_cpf: opts.assinante.cpf ?? null,
 			tipo_assinatura: 'simples',
-			rubrica: opts.rubrica || '',
 			verification_hash: opts.montado.verificationHash,
 			ip_address: opts.ip,
 			user_agent: opts.userAgent,

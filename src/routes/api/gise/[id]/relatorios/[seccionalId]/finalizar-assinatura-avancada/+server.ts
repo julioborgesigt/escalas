@@ -5,7 +5,8 @@
  * **Reconfere os portões da fase 1 em vez de confiar na intenção** — papel,
  * seccional válida e saída completa de todos. A intenção prova QUE aquele PDF
  * foi preparado por aquele usuário; não prova que o mundo continua o mesmo. Um
- * participante que perdeu a rubrica entre as duas fases tem de reprovar aqui.
+ * participante que perdeu a confirmação de saída entre as duas fases tem de
+ * reprovar aqui.
  *
  * `conferirFinalizacaoPasskey` é o portão criptográfico e mora em
  * `webauthn/finalizar-avancada` porque os quatro fluxos avançados (escala,

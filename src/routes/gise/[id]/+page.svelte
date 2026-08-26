@@ -10,7 +10,7 @@
 	 *
 	 * - `useGiseEstado` — permissões, formatação e derivações (`podeEditar`,
 	 *   `editaBloqueado`, `todasSeccionaisPreenchidas`);
-	 * - `useGiseAssinatura` — todos os fluxos de assinatura (rubrica, token
+	 * - `useGiseAssinatura` — todos os fluxos de assinatura (em tela, token
 	 *   SERPRO, lote de relatórios);
 	 * - `makeEnhanceHandler` — o padrão dos ~30 forms (pending → invalidate →
 	 *   toast → reset).
@@ -32,7 +32,6 @@
 	 *   sintética de supervisão extra), e por isso aparece nas mesmas listas de
 	 *   pendência e assinatura das seccionais de verdade.
 	 */
-	import PenLine from '@lucide/svelte/icons/pen-line';
 	import { goto, replaceState, afterNavigate } from '$app/navigation';
 	import { invalidateShared } from '$lib/cross-tab-invalidate';
 	import type { PageProps } from './$types';
@@ -42,7 +41,7 @@
 	import { enhance } from '$app/forms';
 	import { useGiseEstado, useGiseAssinatura } from '$lib/composables/gise';
 	import { escalaGiseJaAssinada } from '$lib/gise/status-escala';
-	import { useOfertaRubrica, rubricaValida, useInvalidateOnFocus } from '$lib/composables';
+	import { useInvalidateOnFocus } from '$lib/composables';
 	import { fetchSyncEstado } from '$lib/sync-estado';
 	import { loading } from '$lib/loading.svelte';
 	import type { Policial, GiseAssinaturaRelatorio } from '$lib/server/schema';
@@ -50,7 +49,7 @@
 	import { podeBaixarComManifesto } from '$lib/manifesto';
 	import {
 		quadroSupervisaoExtraExigeRelatorio,
-		supervisaoExtraRubricasCompletas
+		supervisaoExtraPresencasCompletas
 	} from '$lib/gise/supervisao-extra';
 	import { makeEnhanceHandler } from '$lib/enhance-handler';
 	import { avancadaEmTelaDoLayout } from '$lib/chave-assinatura-ui';
@@ -65,7 +64,6 @@
 	import ModalFinalizar from './_components/modais/ModalFinalizar.svelte';
 	import ModalDatasHoras from './_components/modais/ModalDatasHoras.svelte';
 	import ModalAssinaturaAvancada from '$lib/components/ModalAssinaturaAvancada.svelte';
-	import ModalCadastrarRubrica from '$lib/components/ModalCadastrarRubrica.svelte';
 	import ModalRelatorioDigital from './_components/modais/ModalRelatorioDigital.svelte';
 	import ModalBreveRelatorio from './_components/modais/ModalBreveRelatorio.svelte';
 	import ModalDownloadExtras from '$lib/components/ModalDownloadExtras.svelte';
@@ -116,7 +114,7 @@
 			supId &&
 			gise &&
 			quadroSupervisaoExtraExigeRelatorio(gise) &&
-			supervisaoExtraRubricasCompletas(gise, data.presencasGise ?? [])
+			supervisaoExtraPresencasCompletas(gise, data.presencasGise ?? [])
 		) {
 			const relSup = data.assinaturasRelatorios?.find(
 				(a: GiseAssinaturaRelatorio) => a.seccional_id === supId && a.tipo === 'extraordinario'
@@ -141,7 +139,7 @@
 		return lista;
 	});
 
-	// Hook de assinatura (captura de rubrica, assinatura simples/SERPRO, lote de relatórios)
+	// Hook de assinatura (cerimônia em tela, assinatura simples/SERPRO, lote de relatórios)
 	const assinatura = useGiseAssinatura({
 		getGiseId: () => gise?.id ?? 0,
 		getGiseDataInicio: () => gise?.data_inicio,
@@ -157,7 +155,7 @@
 	function assinarGiseComTokenNoModal() {
 		const alvo = assinatura.relatorioSendoAssinado;
 		assinatura.relatorioSendoAssinado = null;
-		assinatura.fecharModalRubrica();
+		assinatura.fecharModalAssinatura();
 		if (alvo?.lote) {
 			void assinatura.executarAssinarRelatorioLoteSERPRO();
 			return;
@@ -232,8 +230,8 @@
 
 	/**
 	 * Atalho dos cards em `/gise`: `?assinar=escala` ou `?assinar=extra` abre
-	 * o mesmo controle de dentro da escala (rubrica no celular, token no
-	 * computador). Consome o param para o F5 não disparar de novo.
+	 * o mesmo controle de dentro da escala (assinatura em tela no celular,
+	 * token no computador). Consome o param para o F5 não disparar de novo.
 	 */
 	afterNavigate(() => {
 		const acao = page.url.searchParams.get('assinar');
@@ -251,7 +249,7 @@
 			const avancadaNoDesktop = avancada && !data.restringirSmartphone;
 			if (acao === 'escala') {
 				if (noCelular || (avancadaNoDesktop && via !== 'token')) {
-					if (avancada) assinatura.abrirModalRubrica('simples');
+					if (avancada) assinatura.abrirModalAssinatura('simples');
 				} else {
 					await assinatura.painelTokenGise?.assinarComSerpro();
 				}
@@ -493,10 +491,9 @@
 			if (id) abrirAssinaturaRelatorioDigital(id, 'extraordinario', 'Supervisão GISE');
 		},
 		abrirAssinaturaEscalaManual() {
-			assinatura.abrirModalRubrica('simples');
+			assinatura.abrirModalAssinatura('simples');
 		},
 		async aoAssinarEscalaDigital() {
-			assinatura.rubricaCapturada = null;
 			await invalidateShared('gise:detail', 'app:gise-list');
 		}
 	});
@@ -507,19 +504,6 @@
 	$effect(() => {
 		quadro.sincronizarEmailAssessor();
 	});
-
-	// --- Rubrica reutilizável (cadastro para assinatura por token, Lógica 2a) ---
-	let minhaRubrica = $state<string | null>(untrack(() => rubricaValida(data.minhaRubrica)));
-	let cadastrandoRubrica = $state(false);
-	// Supervisor que vai assinar (GISE diária ou relatórios) e ainda não tem rubrica.
-	const precisaRubrica = $derived(
-		isSupervisor && !minhaRubrica && (podeAssinar || gise?.status === 'aguardando_assinatura_relat')
-	);
-	useOfertaRubrica(
-		() => precisaRubrica,
-		() => cadastrandoRubrica,
-		() => (cadastrandoRubrica = true)
-	);
 </script>
 
 <svelte:head>
@@ -569,31 +553,6 @@
 	{#if !gise}
 		<p class="text-surface-600 dark:text-surface-400">Escala não encontrada.</p>
 	{:else}
-		{#if precisaRubrica}
-			<div
-				class="mb-4 rounded-xl border border-tertiary-300 bg-tertiary-50 dark:border-tertiary-700 dark:bg-tertiary-900/30 p-4 flex flex-col sm:flex-row sm:items-center gap-3"
-			>
-				<PenLine
-					class="w-7 h-7 shrink-0 text-tertiary-600 dark:text-tertiary-400"
-					aria-hidden="true"
-				/>
-				<div class="flex-1 text-sm">
-					<p class="font-bold">Cadastre sua rubrica</p>
-					<p class="text-surface-600 dark:text-surface-300">
-						Sua rubrica aparecerá no campo de assinatura dos documentos que você assinar por token.
-						É de uso pessoal e opcional — você pode assinar sem ela.
-					</p>
-				</div>
-				<button
-					type="button"
-					class="btn preset-filled-tertiary-500 whitespace-nowrap"
-					onclick={() => (cadastrandoRubrica = true)}
-				>
-					Cadastrar rubrica
-				</button>
-			</div>
-		{/if}
-
 		{#if !isSeccional || isSupervisor}
 			<GiseSupervisao>
 				{#snippet loteSection()}
@@ -823,21 +782,18 @@
 {/if}
 
 <ModalAssinaturaAvancada
-	open={assinatura.showRubricaModal}
-	tituloRubrica="Rubrica do Supervisor"
+	open={assinatura.showAssinaturaModal}
+	tituloAssinatura="Assinatura do Supervisor"
 	tituloCamera="Prova de Vida do Supervisor"
-	descricaoRubrica={minhaRubrica
-		? 'Confira sua rubrica cadastrada abaixo para assinar a escala ou desenhe uma nova.'
-		: 'Desenhe sua rubrica no quadro abaixo para assinar a escala.'}
+	descricaoAssinatura="Confirme para assinar a escala GISE com validade jurídica."
 	exigirFoto={page.data.exigirFotoAssinatura ?? true}
 	exigirGps={page.data.exigirGpsAssinatura ?? true}
 	exigirCodigoEmail={page.data.exigirCodigoEmailAssinatura ?? false}
-	rubricaSalva={minhaRubrica}
 	cpfUsuario={data.usuarioAtual?.cpf ?? null}
 	onAssinarToken={avancadaDesktopDisponivel ? assinarGiseComTokenNoModal : null}
-	onConfirm={assinatura.confirmarRubrica}
-	onCancel={assinatura.fecharModalRubrica}
-	notaRodape="Esta rubrica será anexada permanentemente ao documento PDF desta escala."
+	onConfirm={assinatura.confirmarAssinatura}
+	onCancel={assinatura.fecharModalAssinatura}
+	notaRodape="As evidências desta assinatura serão anexadas permanentemente ao PDF desta escala."
 	largura="lg"
 	camada="empilhado"
 	familia="assinatura"
@@ -849,11 +805,4 @@
 	gise={giseParaDownload}
 	supervisaoExtraUnidadeId={data.supervisaoExtraUnidadeId}
 	podeManifesto={podeManifestoExtras}
-/>
-
-<!-- Cadastro/gestão da rubrica reutilizável (assinatura por token no computador) -->
-<ModalCadastrarRubrica
-	bind:open={cadastrandoRubrica}
-	rubricaAtual={minhaRubrica}
-	onSaved={(nova) => (minhaRubrica = rubricaValida(nova))}
 />

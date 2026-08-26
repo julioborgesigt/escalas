@@ -9,7 +9,7 @@
  *     contrário.
  *   - `adicionarRodapeUniversal` — hash + URL de validação + base legal em toda
  *     página de conteúdo, mais o bloco de identidade na última. É o que carrega
- *     o "assinado por" quando o campo usa o estilo `'rubrica'`.
+ *     o "assinado por" quando o campo usa o estilo `'campo-limpo'`.
  *   - `adicionarPaginaAuditoria` — o MANIFESTO, página final com o dossiê do
  *     ato (IP, GPS, user-agent, selfie, liveness). Aceita vários signatários,
  *     para o manifesto misto do relatório extraordinário.
@@ -34,7 +34,6 @@ import { mascararCPF } from '../../utils/pii';
 import { logger } from '../logger';
 import { formatarDataHora } from './pdf-signing-prepare';
 import { abreviarCredencial } from '$lib/chave-assinatura-ui';
-import { mensagemDeErro } from '$lib/utils/erro';
 
 // ---------------------------------------------------------------------------
 // Assinatura Simples: rodapé textual sem PKI (para escalas de FDS)
@@ -47,9 +46,6 @@ import { mensagemDeErro } from '$lib/utils/erro';
 interface RodapeSimplesOptions {
 	verificationHash?: string;
 	verificationUrl?: string;
-	rubricBase64?: string;
-	customRubricX?: number;
-	customRubricY?: number;
 	ip?: string;
 	latitude?: number | null;
 	longitude?: number | null;
@@ -58,7 +54,7 @@ interface RodapeSimplesOptions {
 
 /**
  * Desenha o rodapé de assinatura na ÚLTIMA página do PDF: nome do assinante,
- * data/hora, rubrica (quando houver), código de validação e QR do `/validar`.
+ * data/hora, código de validação e QR do `/validar`.
  *
  * Só a última página, e as medidas vêm em milímetros convertidos para pontos
  * (`mmToPts`), porque o desenho segue o padrão de documento impresso da
@@ -73,14 +69,13 @@ export async function adicionarRodapeSimples(
 	assinante: string,
 	options: RodapeSimplesOptions = {}
 ): Promise<Uint8Array> {
-	const { verificationHash, verificationUrl, rubricBase64, customRubricX, customRubricY } = options;
+	const { verificationHash, verificationUrl } = options;
 	const pdfDoc = await PDFDocument.load(pdfBytes);
 	const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
 	const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
 
 	const pages = pdfDoc.getPages();
 	const lastPage = pages[pages.length - 1];
-	const { width } = lastPage.getSize();
 
 	// --- Posicionamento simplificado (conversão mm para pontos) ---
 	const mmToPts = 2.8346;
@@ -150,34 +145,6 @@ export async function adicionarRodapeSimples(
 		});
 	}
 
-	// 4 — Rubrica Visual (IP/GPS migrados para o manifesto)
-
-	if (rubricBase64) {
-		try {
-			const rubricImage = rubricBase64.includes('image/jpeg')
-				? await pdfDoc.embedJpg(rubricBase64)
-				: await pdfDoc.embedPng(rubricBase64);
-			const rubW = 100; // Tamanho menor do que na assinatura com PKI (que é 130)
-			const rubH = (rubricImage.height / rubricImage.width) * rubW;
-
-			// Se houver coordenadas personalizadas, usamos. Senão, colocamos no canto direito
-			const rx = customRubricX !== undefined ? customRubricX : width - marginX - rubW;
-			const ry = customRubricY !== undefined ? customRubricY : qrY - rubH / 2 + qrSize / 2;
-
-			lastPage.drawImage(rubricImage, {
-				x: rx,
-				y: ry,
-				width: rubW,
-				height: rubH,
-				opacity: 0.9
-			});
-		} catch (err) {
-			logger.error('Erro ao embutir rubrica simples', {
-				error: mensagemDeErro(err)
-			});
-		}
-	}
-
 	return pdfDoc.save();
 }
 
@@ -197,7 +164,6 @@ export interface AuditTrailOptions {
 	latitude?: number | null;
 	longitude?: number | null;
 	selfieBase64?: string;
-	rubricBase64?: string;
 	/** Hash SHA-256 do PDF original (antes de carimbo visual e assinatura) */
 	documentHash?: string;
 	token?: string;
@@ -213,7 +179,7 @@ export interface AuditTrailOptions {
 	 * O manifesto só imprime a linha quando isto é `true` — e imprime junto a
 	 * ressalva "user-agent declarado", porque é o que de fato se verificou.
 	 * Ausência da linha significa "não registrado", NÃO "política desligada":
-	 * as rubricas de presença que entram no manifesto misto foram gravadas sem
+	 * as confirmações de presença que entram no manifesto misto foram gravadas sem
 	 * este campo. Afirmar mais do que se verificou é o que derruba, em perícia,
 	 * a credibilidade das outras evidências do documento.
 	 */
@@ -409,7 +375,7 @@ export async function adicionarPaginaAuditoria(
 		// Layout do cartão:
 		//   [ header navy: badge + nome + data + token ]
 		//   [ grid 2 colunas: 3 evidências cada      ]
-		//   [ rúbrica   |   foto do ato (liveness)   ]   ← só p/ avançada
+		//   [ foto do ato (liveness)                 ]   ← só p/ avançada COM foto
 		for (let i = 0; i < group.signers.length; i++) {
 			const s = group.signers[i];
 			const isQualified = s.signatureLevel === 'qualificada';
@@ -440,13 +406,21 @@ export async function adicionarPaginaAuditoria(
 				});
 			}
 
-			// Qualificada não tem rúbrica/foto → cartão mais baixo. Grid 2×2 (2 linhas;
+			// Rótulo + frame do bloco de evidências visuais. Sem foto o bloco inteiro
+			// some (ver adiante), e o cartão encolhe exatamente por este tanto — era
+			// a rúbrica que garantia altura constante antes de ela sair do sistema.
+			const ALTURA_EVIDENCIA_VISUAL = 100;
+			const temEvidenciaVisual = !isQualified && !!s.selfieBase64;
+
+			// Qualificada não tem foto → cartão mais baixo. Grid 2×2 (2 linhas;
 			// +1 linha quando há e-mail). Avançada com e-mail ganha uma linha no grid.
 			const boxH = isQualified
 				? s.signerEmail
 					? 122
 					: 104
-				: (s.signerEmail ? 262 : 240) + linhasExtras.length * 18;
+				: (s.signerEmail ? 262 : 240) +
+					linhasExtras.length * 18 -
+					(temEvidenciaVisual ? 0 : ALTURA_EVIDENCIA_VISUAL);
 
 			if (currY - boxH < 90) {
 				page = pdfDoc.addPage();
@@ -579,8 +553,8 @@ export async function adicionarPaginaAuditoria(
 				: 'Não exigida';
 
 			if (isQualified) {
-				// Grid 2×2 balanceado: sem evidências presenciais (rúbrica/foto/GPS/
-				// liveness), as 4 informações da assinatura A3 distribuem-se simétricas.
+				// Grid 2×2 balanceado: sem evidências presenciais (foto/GPS/liveness),
+				// as 4 informações da assinatura A3 distribuem-se simétricas.
 				drawField('IDENTIFICAÇÃO', cpfTexto, colLeftX, gridTopY);
 				drawField('IP', ipTexto, colLeftX, gridTopY - rowGap);
 				drawField('DISPOSITIVO', dispositivoTexto, colRightX, gridTopY);
@@ -626,8 +600,12 @@ export async function adicionarPaginaAuditoria(
 				});
 			}
 
-			// --- Bloco de evidências visuais (só assinaturas avançadas) ---
-			if (!isQualified) {
+			// --- Bloco de evidências visuais (só assinaturas avançadas COM foto) ---
+			// A rúbrica saiu do sistema; a foto do ato é a única evidência visual
+			// que resta. Assinatura com foto dispensada (config de segurança) não
+			// abre o bloco — separador e rótulo sobre o vazio afirmariam que havia
+			// algo a mostrar.
+			if (temEvidenciaVisual && s.selfieBase64) {
 				const sepY = gridTopY - rowGap * ((s.signerEmail ? 4 : 3) + linhasExtras.length) - 6;
 				page.drawLine({
 					start: { x: boxX + 15, y: sepY },
@@ -637,106 +615,50 @@ export async function adicionarPaginaAuditoria(
 				});
 
 				const evidLabelY = sepY - 14;
-				// Rúbrica com a MESMA altura da foto (80) → frames alinhados (mesmo topo
-				// e base, pois ambos partem de evidLabelY-6). Foto recuada ~20pt à esquerda.
-				const rubW = 150,
-					rubH = 80;
 				const fotW = 60,
 					fotH = 80;
-				// Foto/liveness só quando de fato capturada: assinaturas com foto
-				// dispensada (config de segurança) não devem exibir um campo "FOTO DO
-				// ATO" vazio. Sem foto, a rúbrica centraliza no bloco de evidências.
-				const temFoto = !!s.selfieBase64;
-				const rubX = temFoto ? boxX + 25 : boxX + (boxW - rubW) / 2;
-				const fotX = boxX + boxW - 45 - fotW;
+				// Única evidência visual do bloco: centralizada.
+				const fotX = boxX + (boxW - fotW) / 2;
 
-				// Rótulos
-				page.drawText('RÚBRICA', {
-					x: rubX,
+				page.drawText('FOTO DO ATO (LIVENESS)', {
+					x: fotX - fontBold.widthOfTextAtSize('FOTO DO ATO (LIVENESS)', 6.5) / 2 + fotW / 2,
 					y: evidLabelY,
 					size: 6.5,
 					font: fontBold,
 					color: cGray
 				});
-				if (temFoto) {
-					page.drawText('FOTO DO ATO (LIVENESS)', {
-						x: fotX,
-						y: evidLabelY,
-						size: 6.5,
-						font: fontBold,
-						color: cGray
-					});
-				}
 
-				// Frame rúbrica
-				const rubFrameY = evidLabelY - 6 - rubH;
+				// Frame foto (3:4).
+				const fotFrameY = evidLabelY - 6 - fotH;
 				page.drawRectangle({
-					x: rubX,
-					y: rubFrameY,
-					width: rubW,
-					height: rubH,
+					x: fotX,
+					y: fotFrameY,
+					width: fotW,
+					height: fotH,
 					color: rgb(0.99, 0.99, 0.99),
 					borderColor: cBorder,
 					borderWidth: 0.5
 				});
-				if (s.rubricBase64) {
-					try {
-						const img = s.rubricBase64.includes('image/jpeg')
-							? await pdfDoc.embedJpg(s.rubricBase64)
-							: await pdfDoc.embedPng(s.rubricBase64);
-						const ratio = img.width / img.height;
-						let iw = rubW - 12;
-						let ih = iw / ratio;
-						if (ih > rubH - 8) {
-							ih = rubH - 8;
-							iw = ih * ratio;
-						}
-						page.drawImage(img, {
-							x: rubX + (rubW - iw) / 2,
-							y: rubFrameY + (rubH - ih) / 2,
-							width: iw,
-							height: ih
-						});
-					} catch (err) {
-						logger.warn('[pdf-signing] incorporar rúbrica no manifesto', { err: String(err) });
+				try {
+					const data = s.selfieBase64.includes(',') ? s.selfieBase64.split(',')[1] : s.selfieBase64;
+					const bytes = Buffer.from(data, 'base64');
+					const img = await pdfDoc.embedJpg(bytes);
+					const ratio = img.width / img.height;
+					// "Object cover" — preenche o frame, recorta o excesso.
+					let iw = fotW - 4;
+					let ih = iw / ratio;
+					if (ih < fotH - 4) {
+						ih = fotH - 4;
+						iw = ih * ratio;
 					}
-				}
-
-				// Frame foto (3:4) — só quando há selfie capturada.
-				if (temFoto) {
-					const fotFrameY = evidLabelY - 6 - fotH;
-					page.drawRectangle({
-						x: fotX,
-						y: fotFrameY,
-						width: fotW,
-						height: fotH,
-						color: rgb(0.99, 0.99, 0.99),
-						borderColor: cBorder,
-						borderWidth: 0.5
+					page.drawImage(img, {
+						x: fotX + (fotW - iw) / 2,
+						y: fotFrameY + (fotH - ih) / 2,
+						width: iw,
+						height: ih
 					});
-					try {
-						const data = s.selfieBase64!.includes(',')
-							? s.selfieBase64!.split(',')[1]
-							: s.selfieBase64!;
-						const bytes = Buffer.from(data, 'base64');
-						const img = await pdfDoc.embedJpg(bytes);
-						const ratio = img.width / img.height;
-						// "Object cover" — preenche o frame, recorta o excesso.
-						let iw = fotW - 4;
-						let ih = iw / ratio;
-						if (ih < fotH - 4) {
-							ih = fotH - 4;
-							iw = ih * ratio;
-						}
-						page.drawImage(img, {
-							x: fotX + (fotW - iw) / 2,
-							y: fotFrameY + (fotH - ih) / 2,
-							width: iw,
-							height: ih
-						});
-					} catch (err) {
-						logger.warn('[pdf-signing] incorporar selfie no manifesto', { err: String(err) });
-					}
+				} catch (err) {
+					logger.warn('[pdf-signing] incorporar selfie no manifesto', { err: String(err) });
 				}
 			}
 
@@ -801,8 +723,8 @@ interface RodapeUniversalOptions {
 	 * Nome do signatário. Quando presente, a ÚLTIMA página de conteúdo (onde vai o
 	 * campo de assinatura) recebe um bloco de identidade com QR de validação +
 	 * "Assinado digitalmente por: NOME" + matrícula/data/código/URL. É aqui que a
-	 * identidade passa a viver quando o carimbo usa o estilo `'rubrica'` (campo só
-	 * com a rubrica). Sem ele, o rodapé mantém apenas hash + base legal.
+	 * identidade passa a viver quando o carimbo usa o estilo `'campo-limpo'`
+	 * (campo em branco). Sem ele, o rodapé mantém apenas hash + base legal.
 	 */
 	signerName?: string;
 	/** Matrícula do signatário, exibida ao lado do nome (ex.: "301.095-1-1"). */
@@ -920,9 +842,9 @@ export async function adicionarRodapeUniversal(
 		});
 	}
 
-	// Bloco de identidade + QR na página do campo de assinatura (estilo 'rubrica'):
-	// como o campo agora carrega SÓ a rubrica, o "Assinado digitalmente por…", o
-	// código e o QR de validação passam a viver aqui, no canto inferior esquerdo.
+	// Bloco de identidade + QR na página do campo de assinatura (estilo
+	// 'campo-limpo'): como o campo fica em branco, o "Assinado digitalmente
+	// por…", o código e o QR de validação vivem aqui, no canto inferior esquerdo.
 	// COMPACTO (QR ~33pt, y 18..51) para caber abaixo da linha "cidade, data" que a
 	// própria escala imprime no rodapé (~y 57 quando a assinatura fica no pé).
 	if (signerName) {

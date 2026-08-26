@@ -2,8 +2,8 @@
  * Documento assinado de uma GISE (um por escala, relação 1:1).
  *
  * Guarda o ponteiro para o PDF no R2 e todo o dossiê da assinatura — quem
- * assinou, rubrica, prova de vida, GPS, metadados do certificado A3 e resposta
- * OCSP — que a página `/validar` usa para conferir o arquivo depois.
+ * assinou, prova de vida, GPS, metadados do certificado A3 e resposta OCSP —
+ * que a página `/validar` usa para conferir o arquivo depois.
  */
 import { eq } from 'drizzle-orm';
 import { giseDocumentos } from '../../server/schema';
@@ -19,13 +19,13 @@ import { montarCamposMinimizados, type CircunstanciaAssinatura } from '../docume
 /**
  * O que se grava numa assinatura de escala GISE. NOMEADO — ver o porquê no
  * `DocumentoEscalaEntrada` de `$lib/db/documentos`: eram 19 posicionais, e o
- * call site do `finalizar-assinatura` passava DOIS `undefined` nus, um deles
- * (`rubrica`) sem nem um comentário ao lado.
+ * call site do `finalizar-assinatura` passava `undefined` nus, sem nem um
+ * comentário ao lado.
  *
  * Difere da entrada da escala em três campos, e a diferença é real: aqui
- * `assinanteId`, `assinanteCpf` e `verificacaoHash` são OBRIGATÓRIOS, e existe
- * `rubrica`. É por isso que as duas não viram uma função só — o que de fato
- * compartilhavam (a minimização LGPD) já está em `montarCamposMinimizados`.
+ * `assinanteId`, `assinanteCpf` e `verificacaoHash` são OBRIGATÓRIOS. É por
+ * isso que as duas não viram uma função só — o que de fato compartilhavam (a
+ * minimização LGPD) já está em `montarCamposMinimizados`.
  */
 export interface DocumentoGiseEntrada extends CircunstanciaAssinatura {
 	giseId: number;
@@ -34,7 +34,6 @@ export interface DocumentoGiseEntrada extends CircunstanciaAssinatura {
 	assinanteNome: string;
 	assinanteCpf: string;
 	verificacaoHash: string;
-	rubrica?: string;
 }
 
 /** Insere o documento assinado. UNIQUE em `gise_id` recusa o segundo (SEC-32). */
@@ -46,7 +45,6 @@ export async function salvarGiseDocumento(db: Database, entrada: DocumentoGiseEn
 		assinanteNome,
 		assinanteCpf,
 		verificacaoHash,
-		rubrica,
 		selfieKey,
 		arquivoHash,
 		assinanteEmail
@@ -64,7 +62,6 @@ export async function salvarGiseDocumento(db: Database, entrada: DocumentoGiseEn
 		verificacao_hash: verificacaoHash,
 		selfie_key: selfieKey ?? null,
 		arquivo_hash: arquivoHash ?? null,
-		rubrica: rubrica || null,
 		// `entrada` já é uma `CircunstanciaAssinatura` — o objeto inteiro vai, e a
 		// lista de campos não se repete entre esta gravação e a da escala.
 		...montarCamposMinimizados(entrada)

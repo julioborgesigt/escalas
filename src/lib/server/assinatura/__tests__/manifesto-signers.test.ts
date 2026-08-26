@@ -6,8 +6,6 @@ import { adicionarPaginaAuditoria, type AuditTrailOptions } from '../pdf-signing
 // JPEG 1×1 válido (para o signatário avançado COM selfie).
 const JPEG_1X1 =
 	'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAP//////////////////////////////////////////////////////////////////////////////////////wAALCAABAAEBAREA/8QAFAABAAAAAAAAAAAAAAAAAAAAAv/EABQQAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQEAAT8AH//Z';
-const RUBRICA_PNG =
-	'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
 
 /** Extrai o texto (operadores Tj) de todos os content streams do PDF. */
 function extrairTexto(bytes: Uint8Array): string {
@@ -58,7 +56,6 @@ describe('adicionarPaginaAuditoria — manifesto do relatório de extra', () => 
 				verificationHash: 'PRES-1-E',
 				verificationUrl: 'https://x/validar/PRES-1-E',
 				signatureLevel: 'avancada',
-				rubricBase64: RUBRICA_PNG,
 				selfieBase64: JPEG_1X1
 			},
 			{
@@ -67,11 +64,10 @@ describe('adicionarPaginaAuditoria — manifesto do relatório de extra', () => 
 				signingTime: new Date('2026-07-17T19:00:00Z'),
 				verificationHash: 'PRES-1-S',
 				verificationUrl: 'https://x/validar/PRES-1-S',
-				signatureLevel: 'avancada',
-				rubricBase64: RUBRICA_PNG
+				signatureLevel: 'avancada'
 			},
 			{
-				// Qualificado (token) → sem bloco de evidências (rubrica/foto).
+				// Qualificado (token) → sem bloco de evidências (foto).
 				signerName: 'CICLANO SUPERVISOR',
 				signingTime: new Date('2026-07-17T20:00:00Z'),
 				verificationHash: 'ABCD-1234',
@@ -91,10 +87,6 @@ describe('adicionarPaginaAuditoria — manifesto do relatório de extra', () => 
 		// (2) Bug 2: "FOTO DO ATO" aparece só para quem tem selfie (o primeiro).
 		const fotoCount = (texto.match(/FOTO DO ATO/g) ?? []).length;
 		expect(fotoCount).toBe(1);
-
-		// A RÚBRICA aparece para os dois avançados (não para o qualificado).
-		const rubricaCount = (texto.match(/R\xdaBRICA/g) ?? []).length;
-		expect(rubricaCount).toBe(2);
 	});
 
 	it('sem nenhuma selfie, não desenha FOTO DO ATO em lugar nenhum', async () => {
@@ -104,8 +96,7 @@ describe('adicionarPaginaAuditoria — manifesto do relatório de extra', () => 
 				signingTime: new Date(),
 				verificationHash: 'H1',
 				verificationUrl: 'https://x/validar/H1',
-				signatureLevel: 'avancada',
-				rubricBase64: RUBRICA_PNG
+				signatureLevel: 'avancada'
 			}
 		];
 		const out = await adicionarPaginaAuditoria(await basePdf(), signers);

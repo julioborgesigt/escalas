@@ -46,7 +46,7 @@ const usuario = { id: 7, tipo: 'policial' as const, nome: 'Fulano', cpf: '123456
 const SESSAO = 'sessao-politica-dispositivo';
 
 function evidencias(userAgent: string, reauthId?: string) {
-	return { rubrica: 'data:image/png;base64,AAAA', userAgent, reauthId };
+	return { userAgent, reauthId };
 }
 
 async function evidenciasComJanela(db: Database, userAgent: string) {

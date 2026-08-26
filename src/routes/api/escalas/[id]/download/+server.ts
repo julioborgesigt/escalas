@@ -14,13 +14,7 @@
  * oficial. Todo download é auditado, com o formato e a cópia escolhida.
  */
 import type { RequestHandler } from './$types';
-import {
-	getDB,
-	buscarEscala,
-	listarPoliciaisEscala,
-	buscarDocumentoEscala,
-	buscarRubricaAssinante
-} from '$lib/db';
+import { getDB, buscarEscala, listarPoliciaisEscala, buscarDocumentoEscala } from '$lib/db';
 import * as exportLib from '$lib/server/export';
 import {
 	CACHE_PRIVADO,
@@ -125,14 +119,8 @@ export const GET: RequestHandler = async ({ params, platform, url, locals }) => 
 				}
 			}
 			// Fallback legado: regenera a cópia de conferência a partir do rascunho.
-			// Rubrica do signatário acima da linha (igual ao documento digital).
 			const policiaisConf = await listarPoliciaisEscala(db, id);
-			const rubricaConf = await buscarRubricaAssinante(
-				db,
-				docAssinado.assinante_cpf,
-				platform?.env
-			);
-			const rascunho = await gerarRascunhoEscalaPdf(escala, policiaisConf, platform, rubricaConf);
+			const rascunho = await gerarRascunhoEscalaPdf(escala, policiaisConf, platform);
 			const hash = docAssinado.verificacao_hash ?? undefined;
 			const buffer = await gerarCopiaConferencia({
 				pdfRascunho: rascunho,

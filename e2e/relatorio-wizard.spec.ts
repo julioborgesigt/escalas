@@ -20,23 +20,11 @@ const GISE = FIXTURE.gise.id;
 const EQUIPE = FIXTURE.giseEquipe.id;
 const ROTA = `/res-gise/relatorio/${GISE}?equipeId=${EQUIPE}`;
 
-/**
- * Silencia o aviso "Cadastre sua rubrica" do layout, que abre um dialog MODAL
- * por cima da tela e esconde tudo da árvore de acessibilidade.
- *
- * Pelo `sessionStorage` que o próprio aviso usa, e não cadastrando uma rubrica
- * no banco: `membroGise` é o fixture de que o `rubrica-aviso.spec` depende
- * JUSTAMENTE por não ter rubrica.
- */
-async function silenciarAvisoRubrica(page: import('@playwright/test').Page) {
-	await page.addInitScript(() => sessionStorage.setItem('aviso-rubrica-adiado', '1'));
-}
-
 /** Entrada confirmada é o pré-requisito da rota; o global-setup limpa presenças. */
 function confirmarEntrada() {
 	execD1Local(
-		`INSERT INTO gise_presencas (gise_id, policial_id, entrada_timestamp, entrada_rubrica)` +
-			` SELECT ${GISE}, ${FIXTURE.membroGise.id}, datetime('now','-3 hours'), 'x'` +
+		`INSERT INTO gise_presencas (gise_id, policial_id, entrada_timestamp)` +
+			` SELECT ${GISE}, ${FIXTURE.membroGise.id}, datetime('now','-3 hours')` +
 			` WHERE NOT EXISTS (SELECT 1 FROM gise_presencas WHERE gise_id = ${GISE} AND policial_id = ${FIXTURE.membroGise.id});`
 	);
 }
@@ -56,7 +44,6 @@ test.describe('Wizard do relatório de produtividade', () => {
 
 	test('sem entrada confirmada → volta para a tela de presença', async ({ page }) => {
 		execD1Local(`DELETE FROM gise_presencas WHERE gise_id = ${GISE};`);
-		await silenciarAvisoRubrica(page);
 		const ok = await autenticarPagina(page, FIXTURE.membroGise.id);
 		test.skip(!ok, 'D1 local indisponível');
 
@@ -66,7 +53,6 @@ test.describe('Wizard do relatório de produtividade', () => {
 
 	test('etapas, navegação, autosave e envio', async ({ page }) => {
 		confirmarEntrada();
-		await silenciarAvisoRubrica(page);
 		const ok = await autenticarPagina(page, FIXTURE.membroGise.id);
 		test.skip(!ok, 'D1 local indisponível');
 
@@ -115,7 +101,6 @@ test.describe('Wizard do relatório de produtividade', () => {
 	test('desktop: coluna de leitura, sem estouro horizontal', async ({ page }) => {
 		confirmarEntrada();
 		await page.setViewportSize({ width: 1920, height: 900 });
-		await silenciarAvisoRubrica(page);
 		const ok = await autenticarPagina(page, FIXTURE.membroGise.id);
 		test.skip(!ok, 'D1 local indisponível');
 		await page.goto(ROTA);
@@ -135,7 +120,6 @@ test.describe('Wizard do relatório de produtividade', () => {
 	test('celular: navegador mostra só a etapa anterior e a atual', async ({ page }) => {
 		confirmarEntrada();
 		await page.setViewportSize({ width: 390, height: 844 });
-		await silenciarAvisoRubrica(page);
 		const ok = await autenticarPagina(page, FIXTURE.membroGise.id);
 		test.skip(!ok, 'D1 local indisponível');
 		await page.goto(ROTA);
@@ -175,7 +159,6 @@ test.describe('Wizard do relatório de produtividade', () => {
 	});
 
 	test('editor do Admin Geral: campo Etapa por pergunta e prévia ao vivo', async ({ page }) => {
-		await silenciarAvisoRubrica(page);
 		const ok = await autenticarPagina(page, FIXTURE.adminGeral.id, 'admin');
 		test.skip(!ok, 'D1 local indisponível');
 		await page.goto('/res-gise');
@@ -194,7 +177,6 @@ test.describe('Wizard do relatório de produtividade', () => {
 	});
 
 	test('editor: o rodapé de salvar fica FIXO e diz se há alteração pendente', async ({ page }) => {
-		await silenciarAvisoRubrica(page);
 		const ok = await autenticarPagina(page, FIXTURE.adminGeral.id, 'admin');
 		test.skip(!ok, 'D1 local indisponível');
 		await page.goto('/res-gise');

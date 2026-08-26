@@ -58,16 +58,9 @@ export async function montarPdfGiseAssinado(opts: {
 	const verificationHash = gerarCodigoValidacao();
 	const verificationUrl = `${opts.origin}/validar/${verificationHash}`;
 
-	const rubW_pts = 130;
-	const rx_pts = 222.75 * 2.8346 - rubW_pts / 2;
-	const ry_pts = (210 - result.finalY + 2) * 2.8346;
-
 	const pdfComRodape = await adicionarRodapeSimples(result.pdf, opts.assinante.nome, {
 		verificationHash,
 		verificationUrl,
-		rubricBase64: opts.evidencias.rubrica ?? undefined,
-		customRubricX: rx_pts,
-		customRubricY: ry_pts,
 		ip: opts.ip,
 		latitude: opts.evidencias.latitude,
 		longitude: opts.evidencias.longitude
@@ -86,7 +79,6 @@ export async function montarPdfGiseAssinado(opts: {
 		latitude: opts.evidencias.latitude ?? undefined,
 		longitude: opts.evidencias.longitude ?? undefined,
 		selfieBase64: opts.evidencias.selfieBase64 ?? undefined,
-		rubricBase64: opts.evidencias.rubrica ?? undefined,
 		documentHash,
 		token: crypto.randomUUID(),
 		documentName: `Escala de Serviço GISE - ${opts.gise.data_inicio}`,
@@ -110,7 +102,6 @@ export async function persistirGiseAssinada(opts: {
 		finalPdf: Uint8Array;
 		verificationHash: string;
 	};
-	rubrica?: string | null;
 	selfieKey?: string | null;
 	ip?: string;
 	userAgent?: string;
@@ -160,7 +151,6 @@ export async function persistirGiseAssinada(opts: {
 		// fluxo qualificado, a partir do certificado.
 		assinanteCpf: '',
 		verificacaoHash: opts.montado.verificationHash,
-		rubrica: opts.rubrica ?? undefined,
 		arquivoHash,
 		...circunstanciaDePersistir(opts)
 	});

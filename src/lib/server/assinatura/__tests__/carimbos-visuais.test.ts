@@ -113,7 +113,7 @@ const carimbos: Record<string, () => Promise<Uint8Array>> = {
 	/**
 	 * O cartão AVANÇADO com a política de dispositivo aplicada — o único que
 	 * imprime a linha "POLÍTICA DE DISPOSITIVO", e o que cresce 18pt para
-	 * acomodá-la. O golden acima é `qualificada`, que não tem rúbrica, foto nem
+	 * acomodá-la. O golden acima é `qualificada`, que não tem foto nem
 	 * política: sem este caso, o cartão da assinatura em tela (o caminho da
 	 * maioria) seguiria sem rede.
 	 *

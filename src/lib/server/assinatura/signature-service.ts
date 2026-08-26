@@ -101,7 +101,6 @@ interface LivenessResult {
 }
 
 interface SimpleEvidence {
-	rubrica?: string | null;
 	latitude?: number | null;
 	longitude?: number | null;
 	selfieBase64?: string | null;
@@ -119,7 +118,6 @@ interface SimpleEvidence {
  * determinam quais campos estão garantidamente preenchidos.
  */
 interface ValidatedEvidence {
-	rubrica: string | null;
 	latitude: number | null;
 	longitude: number | null;
 	selfieBase64: string | null;
@@ -366,7 +364,7 @@ export const ERRO_POLITICA_DISPOSITIVO =
  * Vale só para a assinatura AVANÇADA (em tela). O caminho QUALIFICADO (Token
  * A3 ICP-Brasil) roda no desktop por projeto — é o que `SecaoAssinaturas` e
  * `docs/QA_ASSINATURA_A3_DESKTOP.md` desenham: com a restrição ligada, o
- * desktop deixa de oferecer a rubrica e passa a oferecer o token. Estender
+ * desktop deixa de oferecer a assinatura em tela e passa a oferecer o token. Estender
  * este gate aos endpoints `finalizar-assinatura` derrubaria o fluxo que a
  * própria restrição existe para induzir. Não é inconsistência a "consertar".
  *
@@ -569,20 +567,9 @@ export async function validarEvidenciasAvancada(
 		};
 	}
 
-	// 4. Rubrica — atualmente todos os endpoints exigem rubrica para assinatura
-	//    em tela (é o elemento gráfico que vai no PDF). Mantemos como obrigatória.
-	if (!evidence.rubrica || evidence.rubrica.trim().length === 0) {
-		return {
-			ok: false,
-			status: 400,
-			error: 'Rubrica é obrigatória para assinatura em tela.'
-		};
-	}
-
 	return {
 		ok: true,
 		validated: {
-			rubrica: evidence.rubrica,
 			latitude: typeof evidence.latitude === 'number' ? evidence.latitude : null,
 			longitude: typeof evidence.longitude === 'number' ? evidence.longitude : null,
 			selfieBase64: evidence.selfieBase64 ?? null,

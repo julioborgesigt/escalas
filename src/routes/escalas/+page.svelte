@@ -19,14 +19,11 @@
 	 * mudança mas NÃO vai para a query: ela só filtra o dropdown de delegacias no
 	 * cliente.
 	 *
-	 * A tela também é um dos pontos de assinatura: hospeda o SignaturePad, o
-	 * painel de token e a oferta de cadastro de RUBRICA reutilizável — oferecida
-	 * apenas a quem pode assinar por token, tem pendência e ainda não tem rubrica
-	 * (`useOfertaRubrica`), para não virar interrupção para o resto.
+	 * A tela também é um dos pontos de assinatura: hospeda o SignaturePad e o
+	 * painel de token.
 	 */
 	import type { PageProps } from './$types';
 	import { opcoesMeses } from '$lib/utils/datas';
-	import PenLine from '@lucide/svelte/icons/pen-line';
 	import Clock from '@lucide/svelte/icons/clock';
 	import Archive from '@lucide/svelte/icons/archive';
 	import Plus from '@lucide/svelte/icons/plus';
@@ -44,8 +41,6 @@
 		useAssinaturaEscala,
 		useMobile,
 		useFiltrosPaginados,
-		useOfertaRubrica,
-		rubricaValida,
 		useInvalidateOnFocus
 	} from '$lib/composables';
 	import { getSavedFilters } from '$lib/utils/localStorage';
@@ -60,7 +55,6 @@
 	import TabelaEscalas from './_components/TabelaEscalas.svelte';
 	import SecaoAssinaturas from './_components/SecaoAssinaturas.svelte';
 	import CardNavegacao from './_components/CardNavegacao.svelte';
-	import ModalCadastrarRubrica from '$lib/components/ModalCadastrarRubrica.svelte';
 	import DialogSolicitarAssinatura from '$lib/components/DialogSolicitarAssinatura.svelte';
 	import SearchableSelect from '$lib/components/SearchableSelect.svelte';
 	import BotaoVoltar from '$lib/components/BotaoVoltar.svelte';
@@ -361,17 +355,6 @@
 			}
 		}
 	});
-
-	// --- Rubrica reutilizável (cadastro para assinatura por token) ---
-	let minhaRubrica = $state<string | null>(untrack(() => rubricaValida(data.minhaRubrica)));
-	let cadastrandoRubrica = $state(false);
-	// Lógica 2a: quem pode assinar por token, tem pendência e NÃO tem rubrica.
-	const precisaRubrica = $derived(podeAssinar && escalasParaAssinar.length > 0 && !minhaRubrica);
-	useOfertaRubrica(
-		() => precisaRubrica,
-		() => cadastrandoRubrica,
-		() => (cadastrandoRubrica = true)
-	);
 
 	const podeOIPSolicitar = $derived(data.podeOIPSolicitar);
 	const solicitacoesMap = $derived(data.solicitacoesMap);
@@ -709,30 +692,6 @@
 		/>
 	</div>
 {:else if visao === 'assinaturas'}
-	{#if precisaRubrica}
-		<div
-			class="mx-auto mb-4 max-w-3xl rounded-xl border border-tertiary-300 bg-tertiary-50 dark:border-tertiary-700 dark:bg-tertiary-900/30 p-4 flex flex-col sm:flex-row sm:items-center gap-3"
-		>
-			<PenLine
-				class="w-7 h-7 shrink-0 text-tertiary-600 dark:text-tertiary-400"
-				aria-hidden="true"
-			/>
-			<div class="flex-1 text-sm">
-				<p class="font-bold">Cadastre sua rubrica</p>
-				<p class="text-surface-600 dark:text-surface-300">
-					Sua rubrica aparecerá no campo de assinatura dos documentos que você assinar por token. É
-					de uso pessoal e opcional — você pode assinar sem ela.
-				</p>
-			</div>
-			<button
-				type="button"
-				class="btn preset-filled-tertiary-500 whitespace-nowrap"
-				onclick={() => (cadastrandoRubrica = true)}
-			>
-				Cadastrar rubrica
-			</button>
-		</div>
-	{/if}
 	<SecaoAssinaturas
 		{escalasParaAssinar}
 		{assinaturaTelaBloqueada}
@@ -815,15 +774,14 @@
 
 <ModalAssinaturaAvancada
 	bind:open={dialogAssinaturaTela}
-	message="Rubrica do Organizador"
-	descricaoRubrica="Desenhe sua rubrica no quadro abaixo para assinar este documento."
+	message="Assinatura do Organizador"
+	descricaoAssinatura="Confirme para assinar este documento."
 	exigirFoto={page.data.exigirFotoAssinatura ?? true}
 	exigirGps={page.data.exigirGpsAssinatura ?? true}
 	exigirCodigoEmail={page.data.exigirCodigoEmailAssinatura ?? false}
 	cpfUsuario={usuarioLogado?.cpf ?? null}
 	onConfirm={async (p: SignaturePadConfirmPayload) => {
 		await assinaturaRapida.assinarSimples(
-			p.rubrica,
 			p.lat,
 			p.lng,
 			p.selfie,
@@ -841,13 +799,6 @@
 	camada="base"
 	familia="escalas"
 	padding="padrao"
-/>
-
-<!-- Cadastro/gestão da rubrica reutilizável (assinatura por token no computador) -->
-<ModalCadastrarRubrica
-	bind:open={cadastrandoRubrica}
-	rubricaAtual={minhaRubrica}
-	onSaved={(nova) => (minhaRubrica = rubricaValida(nova))}
 />
 
 <ModalNovaEscala

@@ -1,8 +1,8 @@
 /**
  * Gera o "Termo de Confirmação de Presença" (entrada/saída) da GISE em PDF,
- * para assinatura por Token A3 no computador. É um documento de UMA página; a
- * rubrica cadastrada e o carimbo de verificação são adicionados depois, por
- * `prepararPdfParaAssinatura`, usando o `signatureLineY` devolvido aqui.
+ * para assinatura por Token A3 no computador. É um documento de UMA página; o
+ * carimbo de verificação é adicionado depois, por `prepararPdfParaAssinatura`,
+ * usando o `signatureLineY` devolvido aqui.
  *
  * Mantém-se enxuto de propósito: a força jurídica vem da assinatura qualificada
  * (CAdES-LT/PAdES) embutida, não do layout.
@@ -14,7 +14,6 @@ import { formatarData, dataHoraBrasilia } from '../../utils/datas';
 import {
 	adicionarRodapeUniversal,
 	adicionarPaginaAuditoria,
-	estamparRubricaLimpa,
 	type AuditTrailOptions
 } from '../assinatura/pdf-signing';
 import { calcularHashBuffer } from '../assinatura/document-utils';
@@ -133,7 +132,7 @@ export async function gerarTermoPresencaPdf(
 	const declaracao = avancada
 		? `Declaro, para os devidos fins e sob as penas da lei, a veracidade do registro de ${acao.toLowerCase()} ` +
 			`no serviço acima identificado, confirmado de forma eletrônica por mim, mediante assinatura eletrônica ` +
-			`avançada (rubrica gráfica, prova de vida e geolocalização), nos termos da Lei 14.063/2020, art. 4º, II.`
+			`avançada (prova de vida e geolocalização), nos termos da Lei 14.063/2020, art. 4º, II.`
 		: `Declaro, para os devidos fins e sob as penas da lei, a veracidade do registro de ${acao.toLowerCase()} ` +
 			`no serviço acima identificado, confirmado de forma eletrônica por mim, mediante assinatura digital ` +
 			`qualificada (certificado digital ICP-Brasil), nos termos da MP 2.200-2/2001 e da Lei 14.063/2020.`;
@@ -142,7 +141,7 @@ export async function gerarTermoPresencaPdf(
 		y -= 16;
 	}
 
-	// Linha de assinatura (a rubrica cadastrada e o carimbo são estampados depois)
+	// Linha de assinatura (o carimbo é estampado depois)
 	const signatureLineY = 150;
 	page.drawLine({
 		start: { x: margin, y: signatureLineY },
@@ -167,8 +166,8 @@ export async function gerarTermoPresencaPdf(
 
 /**
  * Monta o **Termo de Presença AVANÇADO** (Lei 14.063/2020 art. 4º II) SOB DEMANDA,
- * a partir das evidências já persistidas em `gise_presencas` (rubrica, selfie/prova
- * de vida, GPS, IP, carimbo temporal). É o comprovante da confirmação feita em tela/
+ * a partir das evidências já persistidas em `gise_presencas` (selfie/prova de
+ * vida, GPS, IP, carimbo temporal). É o comprovante da confirmação feita em tela/
  * mobile — que NÃO gera PDF no momento da confirmação (a prova fica só nas evidências).
  *
  * Nada é persistido: o PDF é reconstruído a cada download. A integridade vem do
@@ -192,8 +191,6 @@ export async function montarTermoPresencaAvancado(opts: {
 	matricula?: string | null;
 	/** Momento da confirmação (ISO, UTC real). */
 	timestampISO?: string | null;
-	/** Rubrica gráfica desenhada na confirmação (data URI). */
-	rubricaBase64: string;
 	/** Selfie/prova de vida (data URI), já resolvida do R2 pelo caller. */
 	selfieBase64?: string;
 	ip?: string | null;
@@ -230,7 +227,6 @@ export async function prepararTermoPresencaAvancado(opts: {
 	signerCpf?: string | null;
 	matricula?: string | null;
 	timestampISO?: string | null;
-	rubricaBase64: string;
 	selfieBase64?: string;
 	ip?: string | null;
 	userAgent?: string | null;
@@ -242,7 +238,7 @@ export async function prepararTermoPresencaAvancado(opts: {
 }): Promise<{ finalPdf: Uint8Array; verificationHash: string }> {
 	const timestampISO = opts.timestampISO ?? new Date().toISOString();
 
-	const { pdf, signatureLineY } = await gerarTermoPresencaPdf({
+	const { pdf } = await gerarTermoPresencaPdf({
 		tipo: opts.tipo,
 		signerName: opts.signerName,
 		signerCpf: opts.signerCpf,
@@ -273,7 +269,7 @@ export async function prepararTermoPresencaAvancado(opts: {
 		baseLegalIdentidade: 'Lei 14.063/2020 – Assinatura Avançada'
 	});
 
-	// Folha de auditoria (uma assinatura avançada, com rubrica + selfie + GPS/IP).
+	// Folha de auditoria (uma assinatura avançada, com selfie + GPS/IP).
 	const signers: AuditTrailOptions[] = [
 		{
 			signerName: `${opts.signerName} (${opts.tipo === 'entrada' ? 'ENTRADA' : 'SAÍDA'})`,
@@ -286,7 +282,6 @@ export async function prepararTermoPresencaAvancado(opts: {
 			userAgent: opts.userAgent ?? undefined,
 			latitude: opts.latitude ?? undefined,
 			longitude: opts.longitude ?? undefined,
-			rubricBase64: opts.rubricaBase64,
 			selfieBase64: opts.selfieBase64,
 			documentName: `Termo de Presença - GISE ${opts.giseId}`,
 			signatureLevel: 'avancada',
@@ -296,13 +291,5 @@ export async function prepararTermoPresencaAvancado(opts: {
 	];
 	const pdfComAuditoria = await adicionarPaginaAuditoria(pdfComRodape, signers);
 
-	// Estampa a rubrica sobre a linha de assinatura (página de conteúdo = índice 0).
-	const estampado = await estamparRubricaLimpa(pdfComAuditoria, {
-		alignment: 'center',
-		customBoxY: signatureLineY + 3,
-		rubricBase64: opts.rubricaBase64,
-		targetPageIndex: 0
-	});
-
-	return { finalPdf: estampado, verificationHash };
+	return { finalPdf: pdfComAuditoria, verificationHash };
 }

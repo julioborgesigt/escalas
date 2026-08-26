@@ -2,11 +2,9 @@
 	/**
 	 * Cadastro da chave de assinatura (passkey) do próprio titular.
 	 *
-	 * Fica ao lado da rubrica porque a pergunta do usuário é a mesma — "o que eu
-	 * preciso ter cadastrado para assinar?" —, mas as duas provam coisas
-	 * diferentes e a tela não pode embaralhar: a rubrica é o desenho que aparece
-	 * no documento; a passkey é a chave, guardada no aparelho, que prova que foi
-	 * o titular quem assinou.
+	 * Responde à pergunta "o que eu preciso ter cadastrado para assinar?": a
+	 * passkey é a chave, guardada no aparelho, que prova que foi o titular quem
+	 * assinou.
 	 *
 	 * Três estados, e o primeiro é o que evita a pior experiência: aparelho SEM
 	 * biometria/PIN configurado não consegue registrar. Descobrir isso aqui, com
@@ -65,9 +63,9 @@
 	} = $props();
 
 	// Semente do `load`, depois vida própria: registrar e revogar atualizam o
-	// cartão sem recarregar a página. `untrack` é o mesmo padrão da rubrica em
-	// `perfil/+page.svelte` — sem ele, o Svelte avisa que a referência captura
-	// só o valor inicial, que é exatamente a intenção aqui.
+	// cartão sem recarregar a página. `untrack` porque sem ele o Svelte avisa
+	// que a referência captura só o valor inicial, que é exatamente a intenção
+	// aqui.
 	let atual = $state(untrack(() => credencialAtual));
 	let disponivel = $state<boolean | null>(null);
 	let confirmarRevogacao = $state(false);

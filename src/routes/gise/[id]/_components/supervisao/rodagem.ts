@@ -3,7 +3,7 @@
  * marcador por papel (inclui `falta_relatorio` só para SEINT).
  *
  * Extraído de GiseSupervisao para a designação renderizar `<MarcadorPresenca>`
- * e para o bloco de documentos montar nomes ao listar faltantes de rubrica.
+ * e para o bloco de documentos montar nomes ao listar faltantes de presença.
  */
 
 import { SvelteMap } from 'svelte/reactivity';
@@ -36,7 +36,7 @@ export function marcadorRodagem(
 	return estadoMarcadorRodagemSupervisao(papel, policialId, presencasGise ?? [], seintRelatorioSet);
 }
 
-/** Mapa id→nome do quadro (+ fallback da lista de policiais) para faltantes de rubrica. */
+/** Mapa id→nome do quadro (+ fallback da lista de policiais) para faltantes de presença. */
 export function montarNomesSupervisao(
 	gise: GiseSupervisaoGise,
 	policiais: PolicialOpcao[]

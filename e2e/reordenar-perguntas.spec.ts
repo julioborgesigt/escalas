@@ -15,9 +15,7 @@ import { autenticarPagina, execD1Local } from './session';
  * A regra em si tem cobertura unitária em `lib/gise/__tests__/renumerar-perguntas.test`.
  */
 
-async function silenciar(page: import('@playwright/test').Page) {
-	await page.addInitScript(() => sessionStorage.setItem('aviso-rubrica-adiado', '1'));
-}
+async function silenciar(page: import('@playwright/test').Page) {}
 
 const MODELO = JSON.stringify([
 	{

@@ -25,9 +25,7 @@ const GISE = FIXTURE.gise.id;
 const EQUIPE = FIXTURE.giseEquipe.id;
 const ROTA = `/res-gise/relatorio/${GISE}?equipeId=${EQUIPE}`;
 
-async function silenciar(page: import('@playwright/test').Page) {
-	await page.addInitScript(() => sessionStorage.setItem('aviso-rubrica-adiado', '1'));
-}
+async function silenciar(page: import('@playwright/test').Page) {}
 
 const MODELO = JSON.stringify([
 	{
@@ -61,7 +59,7 @@ test.beforeAll(() => {
 		 VALUES ((SELECT id FROM operacoes WHERE nome = 'GISE'), 'operacional', '${MODELO}');`
 	);
 	execD1Local(
-		`INSERT INTO gise_presencas (gise_id, policial_id, entrada_timestamp, entrada_rubrica) SELECT ${GISE}, ${FIXTURE.membroGise.id}, datetime('now','-3 hours'), 'x' WHERE NOT EXISTS (SELECT 1 FROM gise_presencas WHERE gise_id = ${GISE} AND policial_id = ${FIXTURE.membroGise.id});`
+		`INSERT INTO gise_presencas (gise_id, policial_id, entrada_timestamp) SELECT ${GISE}, ${FIXTURE.membroGise.id}, datetime('now','-3 hours') WHERE NOT EXISTS (SELECT 1 FROM gise_presencas WHERE gise_id = ${GISE} AND policial_id = ${FIXTURE.membroGise.id});`
 	);
 });
 

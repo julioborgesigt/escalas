@@ -214,16 +214,6 @@ export const CATALOGO_ACOES = {
 		categoria: 'gise',
 		severidade: 'info'
 	},
-	rubrica_cadastrada: {
-		label: 'Cadastro/atualização de rubrica reutilizável',
-		categoria: 'policial',
-		severidade: 'info'
-	},
-	rubrica_excluida: {
-		label: 'Exclusão de rubrica reutilizável',
-		categoria: 'policial',
-		severidade: 'aviso'
-	},
 	passkey_registrada: {
 		label: 'Registro de chave de assinatura (passkey)',
 		categoria: 'policial',

@@ -159,7 +159,7 @@ describe('validarEvidenciasAvancada — piso de senha', () => {
 		const r = await validarEvidenciasAvancada(
 			db,
 			POLICIAL,
-			{ rubrica: 'data:image/png;base64,AAAA', userAgent: UA_ANDROID },
+			{ userAgent: UA_ANDROID },
 			{ flagsOverride: flagsMinimas(), sessaoToken: SESSAO }
 		);
 		expect(r.ok).toBe(false);
@@ -173,7 +173,7 @@ describe('validarEvidenciasAvancada — piso de senha', () => {
 		const r = await validarEvidenciasAvancada(
 			db,
 			POLICIAL,
-			{ rubrica: 'data:image/png;base64,AAAA', userAgent: UA_ANDROID, reauthId },
+			{ userAgent: UA_ANDROID, reauthId },
 			{ flagsOverride: flagsMinimas(), sessaoToken: SESSAO }
 		);
 		expect(r.ok).toBe(true);

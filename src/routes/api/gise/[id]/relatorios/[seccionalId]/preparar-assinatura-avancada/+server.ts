@@ -89,7 +89,6 @@ export const POST: RequestHandler = async ({
 	const v = await validateBody(request, giseSignatureSchema);
 	if (!v.ok) return v.response;
 	const {
-		rubrica,
 		latitude,
 		longitude,
 		selfieBase64,
@@ -104,7 +103,6 @@ export const POST: RequestHandler = async ({
 		db,
 		u,
 		{
-			rubrica,
 			latitude: latitude ?? undefined,
 			longitude: longitude ?? undefined,
 			selfieBase64,
@@ -149,7 +147,6 @@ export const POST: RequestHandler = async ({
 				matricula: u.tipo === 'policial' ? u.matricula : null
 			},
 			evidencias: {
-				rubrica: evid.validated.rubrica,
 				latitude: evid.validated.latitude,
 				longitude: evid.validated.longitude,
 				selfieBase64: evid.validated.selfieBase64,
