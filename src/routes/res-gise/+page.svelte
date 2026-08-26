@@ -22,14 +22,10 @@
 	import { goto } from '$app/navigation';
 	import { page, navigating } from '$app/state';
 	import SkeletonCard from '$lib/components/SkeletonCard.svelte';
-	import Spinner from '$lib/components/Spinner.svelte';
 	import { useAutorizacao, useMobile, useInvalidateOnFocus } from '$lib/composables';
 	import { fetchSyncEstado } from '$lib/sync-estado';
-	import SignaturePad from '$lib/components/SignaturePad.svelte';
-	import { textosEtapaAssinatura, type SignaturePadStep } from '$lib/components/SignaturePadTypes';
+	import ModalAssinaturaAvancada from '$lib/components/ModalAssinaturaAvancada.svelte';
 	import ModalCadastrarRubrica from '$lib/components/ModalCadastrarRubrica.svelte';
-	import ModalShell from '$lib/components/ModalShell.svelte';
-	import RodapeOpcaoTokenAssinatura from '$lib/components/RodapeOpcaoTokenAssinatura.svelte';
 	import BotaoVoltar from '$lib/components/BotaoVoltar.svelte';
 	import BotaoLimparFiltros from '$lib/components/BotaoLimparFiltros.svelte';
 	import { usePresencaGise } from './_components/usePresencaGise.svelte';
@@ -89,18 +85,8 @@
 		}
 	});
 
-	let signatureStep = $state<SignaturePadStep>('signature');
-	$effect(() => {
-		if (presenca.capturandoRubrica) {
-			signatureStep = 'signature';
-		}
-	});
-
 	const restringirSmartphone = $derived(Boolean(data.restringirSmartphone));
 	const avancadaDesktopDisponivel = $derived(!isMobile && !restringirSmartphone);
-	const mostrarOpcaoTokenPresenca = $derived(
-		avancadaDesktopDisponivel && (signatureStep === 'signature' || signatureStep === 'credenciais')
-	);
 
 	let painelA3Entrada = $state<{ assinarComSerpro: () => Promise<void> } | null>(null);
 	let painelA3Saida = $state<{ assinarComSerpro: () => Promise<void> } | null>(null);
@@ -116,6 +102,10 @@
 				description: 'Recarregue a página (F5) e tente novamente.'
 			});
 	}
+
+	const tipoPresencaAtiva = $derived(
+		!presenca.escalaSelecionada?.presenca?.entrada_timestamp ? 'entrada' : 'saida'
+	);
 
 	// Cadastro de rubrica reutilizável (assinatura por Token A3 no computador).
 	// `minhaRubrica` espelha `data.minhaRubrica` mas pode mudar localmente após
@@ -472,65 +462,35 @@
 	}}
 />
 
-<!-- Modal de Rubrica — Confirmação de Entrada / Saída do Policial -->
+<!-- Modal de assinatura avançada — Confirmação de Entrada / Saída do Policial -->
 {#if presenca.escalaSelecionada}
-	{@const tipoPresenca = !presenca.escalaSelecionada.presenca?.entrada_timestamp
-		? 'entrada'
-		: 'saida'}
-	{@const textosPadrao = textosEtapaAssinatura(
-		signatureStep,
-		tipoPresenca === 'entrada'
-			? 'Registre sua rubrica para confirmar a entrada no serviço.'
-			: 'Registre sua rubrica para confirmar a saída do serviço.'
-	)}
-	{@const titulo =
-		signatureStep === 'signature'
-			? tipoPresenca === 'entrada'
-				? 'Confirmação de Entrada'
-				: 'Confirmação de Saída'
-			: textosPadrao.titulo}
-	{@const descricao = textosPadrao.descricao}
-	<ModalShell
+	<ModalAssinaturaAvancada
 		open={presenca.capturandoRubrica}
-		title={titulo}
-		description={descricao}
+		tituloRubrica={tipoPresencaAtiva === 'entrada'
+			? 'Confirmação de Entrada'
+			: 'Confirmação de Saída'}
+		descricaoRubrica={tipoPresencaAtiva === 'entrada'
+			? 'Registre sua rubrica para confirmar a entrada no serviço.'
+			: 'Registre sua rubrica para confirmar a saída do serviço.'}
+		exigirFoto={page.data.exigirFotoAssinatura ?? true}
+		exigirGps={page.data.exigirGpsAssinatura ?? true}
+		exigirCodigoEmail={page.data.exigirCodigoEmailAssinatura ?? false}
+		rubricaSalva={minhaRubrica}
+		cpfUsuario={page.data.usuario?.cpf ?? null}
+		onConfirm={tipoPresencaAtiva === 'entrada' ? presenca.salvarEntrada : presenca.salvarSaida}
+		onCancel={() => {
+			if (!loading.active) presenca.capturandoRubrica = false;
+		}}
+		onAssinarToken={avancadaDesktopDisponivel ? assinarPresencaComToken : null}
+		tokenDisabled={loading.active}
+		pending={loading.active}
+		pendingLabel={tipoPresencaAtiva === 'entrada'
+			? 'Registrando entrada...'
+			: 'Registrando saída...'}
 		largura="2xl"
 		camada="empilhado"
 		familia="assinatura"
-		pending={loading.active}
-		onOpenChange={(novoOpen) => {
-			if (!novoOpen && !loading.active) presenca.capturandoRubrica = false;
-		}}
-	>
-		{#if loading.active}
-			<div class="flex flex-col items-center gap-4 py-10">
-				<Spinner size="lg" class="text-primary-500" />
-				<p
-					class="text-sm font-semibold text-surface-600 dark:text-surface-400 uppercase tracking-wider"
-				>
-					{tipoPresenca === 'entrada' ? 'Registrando entrada...' : 'Registrando saída...'}
-				</p>
-			</div>
-		{:else if presenca.capturandoRubrica}
-			<SignaturePad
-				onConfirm={tipoPresenca === 'entrada' ? presenca.salvarEntrada : presenca.salvarSaida}
-				onCancel={() => (presenca.capturandoRubrica = false)}
-				exigirFoto={page.data.exigirFotoAssinatura ?? true}
-				exigirGps={page.data.exigirGpsAssinatura ?? true}
-				exigirCodigoEmail={page.data.exigirCodigoEmailAssinatura ?? false}
-				rubricaSalva={minhaRubrica}
-				credenciaisCombinadas={true}
-				cpfUsuario={page.data.usuario?.cpf ?? null}
-				bind:step={signatureStep}
-			/>
-			{#if mostrarOpcaoTokenPresenca}
-				<RodapeOpcaoTokenAssinatura
-					onAssinarToken={assinarPresencaComToken}
-					disabled={loading.active}
-				/>
-			{/if}
-		{/if}
-	</ModalShell>
+	/>
 {/if}
 
 <!-- Modal de cadastro/gestão da rubrica reutilizável (assinatura Token A3 no computador) -->

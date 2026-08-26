@@ -3,7 +3,7 @@
 	 * Painel de assinatura da ESCALA (mensal ou FDS) — o bloco que fica no rodapé
 	 * de `/escalas/[id]` e concentra os três caminhos possíveis:
 	 *
-	 * - assinar EM TELA (assinatura avançada, via `SignaturePad`);
+	 * - assinar EM TELA (assinatura avançada, via `ModalAssinaturaAvancada`);
 	 * - assinar com CERTIFICADO (Token A3 / SERPRO, via `PainelAssinaturaToken`),
 	 *   que produz assinatura qualificada;
 	 * - SOLICITAR que outro DPC assine (`DialogSolicitarAssinatura`), quando quem
@@ -20,13 +20,9 @@
 	import { slide } from 'svelte/transition';
 	import ModalShell from './ModalShell.svelte';
 	import PainelAssinaturaToken from './PainelAssinaturaToken.svelte';
-	import SignaturePad from './SignaturePad.svelte';
+	import ModalAssinaturaAvancada from './ModalAssinaturaAvancada.svelte';
 	import DialogSolicitarAssinatura from './DialogSolicitarAssinatura.svelte';
-	import {
-		textosEtapaAssinatura,
-		type SignaturePadConfirmPayload,
-		type SignaturePadStep
-	} from './SignaturePadTypes';
+	import type { SignaturePadConfirmPayload } from './SignaturePadTypes';
 	import type { UsuarioLogado } from '$lib/auth';
 	import { page } from '$app/state';
 	import { invalidateShared } from '$lib/cross-tab-invalidate';
@@ -37,7 +33,6 @@
 	import { podeBaixarComManifesto } from '$lib/manifesto';
 	import { avancadaEmTelaDoLayout } from '$lib/chave-assinatura-ui';
 	import ConviteChaveAssinatura from './ConviteChaveAssinatura.svelte';
-	import RodapeOpcaoTokenAssinatura from './RodapeOpcaoTokenAssinatura.svelte';
 	import CheckCircle2 from '@lucide/svelte/icons/check-circle-2';
 	import Clock from '@lucide/svelte/icons/clock';
 	import Download from '@lucide/svelte/icons/download';
@@ -198,25 +193,6 @@
 	// regra roda sem assinanteId → só Admin Geral/Super; os demais só veem a cópia
 	// de conferência (sem manifesto), então o botão extra nem aparece para eles.
 	const podeManifesto = $derived(podeBaixarComManifesto(usuario));
-
-	let signatureStep = $state<SignaturePadStep>('signature');
-	$effect(() => {
-		if (dialogSignOpen) {
-			signatureStep = 'signature';
-		}
-	});
-
-	const textosEtapa = $derived(
-		textosEtapaAssinatura(
-			signatureStep,
-			'Desenhe sua rubrica no quadro abaixo para assinar este documento da escala com validade jurídica (nos moldes da assinatura eletrônica).'
-		)
-	);
-	const signatureTitulo = $derived(textosEtapa.titulo);
-	const signatureDescricao = $derived(textosEtapa.descricao);
-	const mostrarOpcaoTokenNoModal = $derived(
-		avancadaDesktopDisponivel && (signatureStep === 'signature' || signatureStep === 'credenciais')
-	);
 </script>
 
 <!-- Diálogo de confirmação de revogação de assinatura -->
@@ -541,35 +517,21 @@
 	}}
 />
 
-<ModalShell
+<ModalAssinaturaAvancada
 	open={dialogSignOpen}
-	title={signatureTitulo}
-	description={signatureDescricao}
+	message="Rubrica do Organizador"
+	descricaoRubrica="Desenhe sua rubrica no quadro abaixo para assinar este documento da escala com validade jurídica (nos moldes da assinatura eletrônica)."
+	exigirFoto={page.data.exigirFotoAssinatura ?? true}
+	exigirGps={page.data.exigirGpsAssinatura ?? true}
+	exigirCodigoEmail={page.data.exigirCodigoEmailAssinatura ?? false}
+	cpfUsuario={usuario?.cpf ?? null}
+	onConfirm={assinarSimples}
+	onCancel={() => (assinatura.dialogSignOpen = false)}
+	onAssinarToken={avancadaDesktopDisponivel ? assinarComToken : null}
+	tokenDisabled={assinando || loading.active}
+	pending={assinando || loading.active}
 	largura="lg"
 	camada="base"
 	familia="escalas"
-	pending={assinando || loading.active}
-	onOpenChange={(novoOpen) => {
-		if (!novoOpen) assinatura.dialogSignOpen = false;
-	}}
->
-	{#if dialogSignOpen}
-		<SignaturePad
-			message="Rubrica do Organizador"
-			onConfirm={assinarSimples}
-			onCancel={() => (assinatura.dialogSignOpen = false)}
-			exigirFoto={page.data.exigirFotoAssinatura ?? true}
-			exigirGps={page.data.exigirGpsAssinatura ?? true}
-			exigirCodigoEmail={page.data.exigirCodigoEmailAssinatura ?? false}
-			credenciaisCombinadas={true}
-			cpfUsuario={usuario?.cpf ?? null}
-			bind:step={signatureStep}
-		/>
-		{#if mostrarOpcaoTokenNoModal}
-			<RodapeOpcaoTokenAssinatura
-				onAssinarToken={assinarComToken}
-				disabled={assinando || loading.active}
-			/>
-		{/if}
-	{/if}
-</ModalShell>
+	padding="padrao"
+/>

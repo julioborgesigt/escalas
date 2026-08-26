@@ -64,7 +64,7 @@
 	import ModalReabrir from './_components/modais/ModalReabrir.svelte';
 	import ModalFinalizar from './_components/modais/ModalFinalizar.svelte';
 	import ModalDatasHoras from './_components/modais/ModalDatasHoras.svelte';
-	import ModalRubrica from './_components/modais/ModalRubrica.svelte';
+	import ModalAssinaturaAvancada from '$lib/components/ModalAssinaturaAvancada.svelte';
 	import ModalCadastrarRubrica from '$lib/components/ModalCadastrarRubrica.svelte';
 	import ModalRelatorioDigital from './_components/modais/ModalRelatorioDigital.svelte';
 	import ModalBreveRelatorio from './_components/modais/ModalBreveRelatorio.svelte';
@@ -822,17 +822,26 @@
 	/>
 {/if}
 
-<ModalRubrica
+<ModalAssinaturaAvancada
 	open={assinatura.showRubricaModal}
+	tituloRubrica="Rubrica do Supervisor"
+	tituloCamera="Prova de Vida do Supervisor"
+	descricaoRubrica={minhaRubrica
+		? 'Confira sua rubrica cadastrada abaixo para assinar a escala ou desenhe uma nova.'
+		: 'Desenhe sua rubrica no quadro abaixo para assinar a escala.'}
 	exigirFoto={page.data.exigirFotoAssinatura ?? true}
 	exigirGps={page.data.exigirGpsAssinatura ?? true}
 	exigirCodigoEmail={page.data.exigirCodigoEmailAssinatura ?? false}
 	rubricaSalva={minhaRubrica}
-	credenciaisCombinadas={true}
 	cpfUsuario={data.usuarioAtual?.cpf ?? null}
 	onAssinarToken={avancadaDesktopDisponivel ? assinarGiseComTokenNoModal : null}
 	onConfirm={assinatura.confirmarRubrica}
 	onCancel={assinatura.fecharModalRubrica}
+	notaRodape="Esta rubrica será anexada permanentemente ao documento PDF desta escala."
+	largura="2xl"
+	camada="empilhado"
+	familia="assinatura"
+	padding="compacto"
 />
 
 <ModalDownloadExtras
