@@ -126,10 +126,13 @@
 	let confirmandoSenha = $state(false);
 	let emitindo = $state(false);
 	let mostrarSenha = $state(false);
-	let codigoSolicitadoNaEtapa = $state(false);
 
 	const reauthJaConfirmado = $derived(Boolean(lerReauthGuardado()));
 	const cpfFormatado = $derived(cpfUsuario ? formatarCPF(cpfUsuario) : '');
+	/** Etapas só de autenticação — layout mais compacto, sem o aviso jurídico da rubrica. */
+	const etapaAuth = $derived(
+		step === 'password' || step === 'credenciais' || step === 'email_code'
+	);
 
 	$effect(() => {
 		if (step === 'camera') {
@@ -139,16 +142,6 @@
 			liveness.aoVoltarDaCamera();
 		}
 		return () => liveness.limparRecursos();
-	});
-
-	$effect(() => {
-		if (step === 'credenciais' && exigirCodigoEmail && !codigoSolicitadoNaEtapa && !desafioId) {
-			codigoSolicitadoNaEtapa = true;
-			void enviarOuReenviarCodigo();
-		}
-		if (step !== 'credenciais') {
-			codigoSolicitadoNaEtapa = false;
-		}
 	});
 
 	// Iniciar captura de localização ao abrir (somente se exigido)
@@ -219,6 +212,10 @@
 		await avancarAposSenha();
 	}
 
+	/**
+	 * Tela de senha (desktop): só confirma senha e, se precisar de 2FA, DISPARA
+	 * o e-mail aqui — nunca ao abrir o passo. Depois vai para `email_code`.
+	 */
 	async function confirmarCredenciaisCombinadas() {
 		senhaError = null;
 		codigoError = null;
@@ -248,19 +245,7 @@
 			pendingSignature.reauthId = reauthAtual;
 		}
 
-		if (exigirCodigoEmail) {
-			if (codigoInput.length !== 6) {
-				codigoError = 'O código deve conter 6 dígitos.';
-				return;
-			}
-			if (!desafioId) {
-				codigoError = 'Aguarde o envio do código por e-mail.';
-				return;
-			}
-			await emitirConfirmacao({ codigoEmail: codigoInput, desafioId });
-		} else {
-			await emitirConfirmacao();
-		}
+		await avancarAposSenha();
 	}
 
 	async function avancarAposSenha() {
@@ -684,157 +669,97 @@
 		{/if}
 
 		{#if step === 'credenciais'}
-			<div
-				class="flex flex-col p-5 sm:p-6 bg-surface-100/50 dark:bg-surface-800/40 rounded-2xl border-2 border-primary-500/20 min-h-[300px]"
-			>
+			<!-- Senha + canal (e-mail). O código SÓ é pedido na etapa seguinte,
+			     depois do Assinar confirmar a senha e disparar o envio. -->
+			<div class="flex flex-col gap-3">
 				{#if cpfFormatado}
-					<label class="label mb-3">
-						<span class="label-text text-3xs font-bold uppercase tracking-wider text-surface-500"
-							>Identificação</span
-						>
-						<input
-							type="text"
-							readonly
-							value={cpfFormatado}
-							class="input w-full h-11 rounded-xl bg-surface-200/60 dark:bg-surface-900/60 border-surface-300 dark:border-surface-600 text-surface-700 dark:text-surface-300 font-mono"
-							tabindex="-1"
-						/>
-					</label>
+					<input
+						type="text"
+						readonly
+						value={cpfFormatado}
+						aria-label="Identificação"
+						class="input w-full h-11 rounded-lg bg-surface-200/70 dark:bg-surface-800/70 border-surface-300 dark:border-surface-600 text-surface-700 dark:text-surface-300 font-mono"
+						tabindex="-1"
+					/>
 				{/if}
 
 				{#if !reauthJaConfirmado}
-					<label class="label mb-3">
-						<span class="label-text text-3xs font-bold uppercase tracking-wider text-surface-500"
-							>Senha de acesso</span
+					<div class="relative">
+						<input
+							type={mostrarSenha ? 'text' : 'password'}
+							autocomplete="current-password"
+							placeholder="Senha de acesso"
+							aria-label="Senha de acesso"
+							bind:value={senhaInput}
+							onkeydown={(e) => {
+								if (e.key === 'Enter') confirmarCredenciaisCombinadas();
+							}}
+							class="input w-full h-11 rounded-lg bg-white dark:bg-surface-900 border {senhaError
+								? 'border-error-500'
+								: 'border-surface-300 dark:border-surface-600'} pr-11"
+						/>
+						<button
+							type="button"
+							class="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 text-surface-500 hover:text-surface-700 dark:hover:text-surface-300"
+							onclick={() => (mostrarSenha = !mostrarSenha)}
+							aria-label={mostrarSenha ? 'Ocultar senha' : 'Mostrar senha'}
 						>
-						<div class="relative">
-							<input
-								type={mostrarSenha ? 'text' : 'password'}
-								autocomplete="current-password"
-								placeholder="Senha de acesso"
-								aria-label="Senha de acesso"
-								bind:value={senhaInput}
-								class="input w-full h-11 rounded-xl bg-white dark:bg-surface-900 border-2 {senhaError
-									? 'border-error-500'
-									: 'border-surface-300 dark:border-surface-600'} pr-11"
-							/>
-							<button
-								type="button"
-								class="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 text-surface-500 hover:text-surface-700 dark:hover:text-surface-300"
-								onclick={() => (mostrarSenha = !mostrarSenha)}
-								aria-label={mostrarSenha ? 'Ocultar senha' : 'Mostrar senha'}
-							>
-								{#if mostrarSenha}
-									<EyeOff class="w-4 h-4" aria-hidden="true" />
-								{:else}
-									<Eye class="w-4 h-4" aria-hidden="true" />
-								{/if}
-							</button>
-						</div>
-					</label>
+							{#if mostrarSenha}
+								<EyeOff class="w-4 h-4" aria-hidden="true" />
+							{:else}
+								<Eye class="w-4 h-4" aria-hidden="true" />
+							{/if}
+						</button>
+					</div>
 					{#if senhaError}
-						<p class="text-xs font-bold text-error-500 uppercase tracking-wider mb-3">
-							{senhaError}
-						</p>
+						<p class="text-xs font-bold text-error-500">{senhaError}</p>
 					{/if}
 				{:else}
 					<p
-						class="text-3xs font-bold uppercase tracking-wider text-success-600 dark:text-success-400 mb-3 flex items-center gap-1.5"
+						class="text-3xs font-bold uppercase tracking-wider text-success-600 dark:text-success-400 flex items-center gap-1.5"
 					>
 						<Check class="w-3.5 h-3.5" aria-hidden="true" /> Senha confirmada recentemente
 					</p>
 				{/if}
 
 				{#if exigirCodigoEmail}
-					<p class="text-3xs font-bold uppercase tracking-wider text-surface-500 mb-2">
+					<p class="text-sm text-surface-600 dark:text-surface-400">
 						Receber código de assinatura por:
 					</p>
 					<div
-						class="flex items-center gap-2 mb-4 px-3 py-2 rounded-xl bg-primary-500/10 border border-primary-500/20 w-fit"
+						class="flex items-center gap-2 text-sm font-medium text-surface-800 dark:text-surface-200"
 					>
-						<span class="w-2.5 h-2.5 rounded-full bg-primary-500 shrink-0" aria-hidden="true"
+						<span
+							class="w-3.5 h-3.5 rounded-full border-2 border-success-500 bg-success-500 shrink-0"
+							aria-hidden="true"
 						></span>
-						<span class="text-xs font-semibold text-surface-700 dark:text-surface-200">E-mail</span>
-					</div>
-
-					<label class="label">
-						<span class="label-text text-3xs font-bold uppercase tracking-wider text-surface-500"
-							>Código de verificação</span
-						>
-						<input
-							type="text"
-							inputmode="numeric"
-							maxlength="6"
-							placeholder="Insira o código"
-							aria-label="Código de verificação de 6 dígitos enviado ao seu e-mail"
-							autocomplete="one-time-code"
-							bind:value={codigoInput}
-							onkeydown={(e) => {
-								if (e.key === 'Enter') confirmarCredenciaisCombinadas();
-							}}
-							class="input w-full h-11 rounded-xl bg-white dark:bg-surface-900 border-2 {codigoError
-								? 'border-error-500'
-								: 'border-surface-300 dark:border-surface-600'} font-mono tracking-widest text-center"
-						/>
-					</label>
-
-					{#if codigoError}
-						<p class="text-xs font-bold text-error-500 uppercase tracking-wider mt-2">
-							{codigoError}
-						</p>
-					{/if}
-
-					<div class="mt-3">
-						<CodigoTimer
-							{emailMascarado}
-							onReenviar={async () => {
-								await enviarOuReenviarCodigo();
-							}}
-						/>
+						E-mail
 					</div>
 				{/if}
 			</div>
 		{/if}
 
 		{#if step === 'email_code'}
-			<div
-				class="flex flex-col items-center justify-center p-6 bg-surface-100/50 dark:bg-surface-800/40 rounded-2xl border-2 border-primary-500/20 text-center min-h-[300px]"
-			>
-				<div class="w-16 h-16 rounded-full bg-primary-500/10 flex items-center justify-center mb-4">
-					<svg
-						class="w-8 h-8 text-primary-500"
-						fill="none"
-						viewBox="0 0 24 24"
-						stroke="currentColor"
-					>
-						<path
-							stroke-linecap="round"
-							stroke-linejoin="round"
-							stroke-width="2"
-							d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
-						/>
-					</svg>
-				</div>
-				<h3 class="h3 font-bold mb-2">Confirme sua Identidade</h3>
-
-				<div class="w-full max-w-xs space-y-4">
+			{#if credenciaisCombinadas}
+				<div class="flex flex-col gap-3">
 					<input
 						type="text"
 						inputmode="numeric"
 						maxlength="6"
-						placeholder="000000"
+						placeholder="Insira o código"
 						aria-label="Código de verificação de 6 dígitos enviado ao seu e-mail"
 						autocomplete="one-time-code"
 						bind:value={codigoInput}
-						class="input text-center text-3xl tracking-[0.5em] font-mono h-16 rounded-2xl bg-white dark:bg-surface-900 border-2 {codigoError
-							? 'border-error-500 uppercase'
+						onkeydown={(e) => {
+							if (e.key === 'Enter') confirmarCodigo();
+						}}
+						class="input w-full h-12 rounded-lg bg-white dark:bg-surface-900 border text-center font-mono tracking-widest {codigoError
+							? 'border-error-500'
 							: 'border-surface-300 dark:border-surface-600'}"
 					/>
-
 					{#if codigoError}
-						<p class="text-xs font-bold text-error-500 uppercase tracking-wider">{codigoError}</p>
+						<p class="text-xs font-bold text-error-500">{codigoError}</p>
 					{/if}
-
 					<CodigoTimer
 						{emailMascarado}
 						onReenviar={async () => {
@@ -842,7 +767,56 @@
 						}}
 					/>
 				</div>
-			</div>
+			{:else}
+				<div
+					class="flex flex-col items-center justify-center p-6 bg-surface-100/50 dark:bg-surface-800/40 rounded-2xl border-2 border-primary-500/20 text-center min-h-[300px]"
+				>
+					<div
+						class="w-16 h-16 rounded-full bg-primary-500/10 flex items-center justify-center mb-4"
+					>
+						<svg
+							class="w-8 h-8 text-primary-500"
+							fill="none"
+							viewBox="0 0 24 24"
+							stroke="currentColor"
+						>
+							<path
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								stroke-width="2"
+								d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
+							/>
+						</svg>
+					</div>
+					<h3 class="h3 font-bold mb-2">Confirme sua Identidade</h3>
+
+					<div class="w-full max-w-xs space-y-4">
+						<input
+							type="text"
+							inputmode="numeric"
+							maxlength="6"
+							placeholder="000000"
+							aria-label="Código de verificação de 6 dígitos enviado ao seu e-mail"
+							autocomplete="one-time-code"
+							bind:value={codigoInput}
+							class="input text-center text-3xl tracking-[0.5em] font-mono h-16 rounded-2xl bg-white dark:bg-surface-900 border-2 {codigoError
+								? 'border-error-500 uppercase'
+								: 'border-surface-300 dark:border-surface-600'}"
+						/>
+
+						{#if codigoError}
+							<p class="text-xs font-bold text-error-500 uppercase tracking-wider">{codigoError}</p>
+						{/if}
+
+						<CodigoTimer
+							{emailMascarado}
+							onReenviar={async () => {
+								await enviarOuReenviarCodigo();
+							}}
+						/>
+					</div>
+				</div>
+			{/if}
 		{/if}
 	</div>
 
@@ -852,23 +826,25 @@
 		</p>
 	{/if}
 
-	<!-- O aviso de consentimento lista só o que este nível de segurança (config
-	     do Super Admin) de fato captura: GPS e/ou selfie; metadados sempre. -->
-	<div class="p-3 bg-primary-500/5 border border-dashed border-primary-500/20 rounded-xl">
-		<p
-			class="text-3xs font-medium text-surface-600 dark:text-surface-400 leading-tight text-center"
-		>
-			Ao assinar, declaro a veracidade destas informações e autorizo o registro de
-			{#if exigirGps && exigirFoto}
-				minha <strong>localização geográfica</strong>, <strong>fotografia (prova de vida)</strong> e
-			{:else if exigirGps}
-				minha <strong>localização geográfica</strong> e
-			{:else if exigirFoto}
-				minha <strong>fotografia (prova de vida)</strong> e
-			{/if}
-			<strong>metadados técnicos</strong> para fins de validade jurídica desta assinatura (Lei 14.063/20).
-		</p>
-	</div>
+	{#if !etapaAuth}
+		<!-- O aviso de consentimento lista só o que este nível de segurança (config
+		     do Super Admin) de fato captura: GPS e/ou selfie; metadados sempre. -->
+		<div class="p-3 bg-primary-500/5 border border-dashed border-primary-500/20 rounded-xl">
+			<p
+				class="text-3xs font-medium text-surface-600 dark:text-surface-400 leading-tight text-center"
+			>
+				Ao assinar, declaro a veracidade destas informações e autorizo o registro de
+				{#if exigirGps && exigirFoto}
+					minha <strong>localização geográfica</strong>, <strong>fotografia (prova de vida)</strong> e
+				{:else if exigirGps}
+					minha <strong>localização geográfica</strong> e
+				{:else if exigirFoto}
+					minha <strong>fotografia (prova de vida)</strong> e
+				{/if}
+				<strong>metadados técnicos</strong> para fins de validade jurídica desta assinatura (Lei 14.063/20).
+			</p>
+		</div>
+	{/if}
 
 	<div class="flex flex-wrap justify-between items-center gap-2 mt-4">
 		{#if step === 'signature'}
@@ -968,53 +944,78 @@
 				{/if}
 			</button>
 		{:else if step === 'credenciais'}
-			<button
-				type="button"
-				class="btn preset-outlined-surface-500 rounded-xl text-xs font-bold uppercase px-4 py-2 hover:bg-surface-50 dark:hover:bg-surface-900 transition-colors"
-				onclick={() => (step = exigirFoto ? 'camera' : 'signature')}
-				disabled={confirmandoSenha || emitindo}
-			>
-				Voltar
-			</button>
-
-			<button
-				type="button"
-				class="btn preset-filled-primary-500 rounded-xl text-sm font-bold uppercase px-6 py-3 shadow-lg shadow-primary-500/20 transition-all ml-auto w-full sm:w-auto"
-				onclick={confirmarCredenciaisCombinadas}
-				disabled={confirmandoSenha ||
-					emitindo ||
-					solicitandoCodigo ||
-					(exigirCodigoEmail && codigoInput.length !== 6) ||
-					(!reauthJaConfirmado && !senhaInput)}
-			>
-				{#if emitindo || confirmandoSenha}
-					Assinando...
-				{:else}
-					Assinar
-				{/if}
-			</button>
+			<div class="flex flex-col gap-2 w-full mt-2">
+				<button
+					type="button"
+					class="btn preset-filled-primary-500 w-full rounded-lg text-sm font-bold uppercase py-3"
+					onclick={confirmarCredenciaisCombinadas}
+					disabled={confirmandoSenha ||
+						emitindo ||
+						solicitandoCodigo ||
+						(!reauthJaConfirmado && !senhaInput)}
+				>
+					{#if confirmandoSenha || solicitandoCodigo}
+						{solicitandoCodigo ? 'Enviando código...' : 'Confirmando...'}
+					{:else}
+						Assinar
+					{/if}
+				</button>
+				<button
+					type="button"
+					class="btn preset-outlined-surface-500 w-full rounded-lg text-xs font-bold uppercase py-2"
+					onclick={() => (step = exigirFoto ? 'camera' : 'signature')}
+					disabled={confirmandoSenha || emitindo || solicitandoCodigo}
+				>
+					Voltar
+				</button>
+			</div>
 		{:else if step === 'email_code'}
-			<button
-				type="button"
-				class="btn preset-outlined-surface-500 rounded-xl text-xs font-bold uppercase px-4 py-2 hover:bg-surface-50 dark:hover:bg-surface-900 transition-colors"
-				onclick={onCancel}
-				disabled={solicitandoCodigo || emitindo}
-			>
-				Cancelar
-			</button>
+			{#if credenciaisCombinadas}
+				<div class="flex flex-col gap-2 w-full mt-2">
+					<button
+						type="button"
+						class="btn preset-filled-primary-500 w-full rounded-lg text-sm font-bold uppercase py-3"
+						onclick={confirmarCodigo}
+						disabled={solicitandoCodigo || emitindo || codigoInput.length !== 6}
+					>
+						{#if emitindo}
+							Assinando...
+						{:else}
+							Assinar
+						{/if}
+					</button>
+					<button
+						type="button"
+						class="btn preset-outlined-surface-500 w-full rounded-lg text-xs font-bold uppercase py-2"
+						onclick={() => (step = 'credenciais')}
+						disabled={solicitandoCodigo || emitindo}
+					>
+						Voltar
+					</button>
+				</div>
+			{:else}
+				<button
+					type="button"
+					class="btn preset-outlined-surface-500 rounded-xl text-xs font-bold uppercase px-4 py-2 hover:bg-surface-50 dark:hover:bg-surface-900 transition-colors"
+					onclick={onCancel}
+					disabled={solicitandoCodigo || emitindo}
+				>
+					Cancelar
+				</button>
 
-			<button
-				type="button"
-				class="btn preset-filled-primary-500 rounded-xl text-sm font-bold uppercase px-6 py-3 shadow-lg shadow-primary-500/20 transition-all ml-auto"
-				onclick={confirmarCodigo}
-				disabled={solicitandoCodigo || emitindo || codigoInput.length !== 6}
-			>
-				{#if emitindo}
-					Assinando...
-				{:else}
-					Assinar
-				{/if}
-			</button>
+				<button
+					type="button"
+					class="btn preset-filled-primary-500 rounded-xl text-sm font-bold uppercase px-6 py-3 shadow-lg shadow-primary-500/20 transition-all ml-auto"
+					onclick={confirmarCodigo}
+					disabled={solicitandoCodigo || emitindo || codigoInput.length !== 6}
+				>
+					{#if emitindo}
+						Assinando...
+					{:else}
+						Assinar
+					{/if}
+				</button>
+			{/if}
 		{/if}
 	</div>
 </div>

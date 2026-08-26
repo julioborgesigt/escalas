@@ -487,7 +487,7 @@
 		pendingLabel={tipoPresencaAtiva === 'entrada'
 			? 'Registrando entrada...'
 			: 'Registrando saída...'}
-		largura="2xl"
+		largura="lg"
 		camada="empilhado"
 		familia="assinatura"
 	/>
