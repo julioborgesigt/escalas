@@ -44,13 +44,13 @@ export function textosEtapaAssinatura(
 			};
 		case 'email_code':
 			return {
-				titulo: 'Confirmação de Identidade',
-				descricao: 'Por razões de segurança, insira o código enviado para o seu e-mail funcional.'
+				titulo: 'Fator de autenticação',
+				descricao: 'Insira o código de verificação que foi enviado por e-mail.'
 			};
 		case 'credenciais':
 			return {
 				titulo: 'Fator de autenticação',
-				descricao: 'Confirme sua senha e o código enviado por e-mail para concluir a assinatura.'
+				descricao: 'Confirme sua senha para receber o código de assinatura por e-mail.'
 			};
 		default:
 			return {

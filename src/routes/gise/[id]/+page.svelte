@@ -838,7 +838,7 @@
 	onConfirm={assinatura.confirmarRubrica}
 	onCancel={assinatura.fecharModalRubrica}
 	notaRodape="Esta rubrica será anexada permanentemente ao documento PDF desta escala."
-	largura="2xl"
+	largura="lg"
 	camada="empilhado"
 	familia="assinatura"
 	padding="compacto"

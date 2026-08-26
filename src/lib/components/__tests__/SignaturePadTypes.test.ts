@@ -23,15 +23,15 @@ describe('textosEtapaAssinatura', () => {
 
 	it('etapa email_code', () => {
 		expect(textosEtapaAssinatura('email_code', 'fallback')).toEqual({
-			titulo: 'Confirmação de Identidade',
-			descricao: 'Por razões de segurança, insira o código enviado para o seu e-mail funcional.'
+			titulo: 'Fator de autenticação',
+			descricao: 'Insira o código de verificação que foi enviado por e-mail.'
 		});
 	});
 
 	it('etapa credenciais', () => {
 		expect(textosEtapaAssinatura('credenciais', 'fallback')).toEqual({
 			titulo: 'Fator de autenticação',
-			descricao: 'Confirme sua senha e o código enviado por e-mail para concluir a assinatura.'
+			descricao: 'Confirme sua senha para receber o código de assinatura por e-mail.'
 		});
 	});
 

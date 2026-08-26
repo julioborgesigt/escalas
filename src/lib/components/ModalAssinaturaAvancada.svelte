@@ -4,7 +4,11 @@
 	 *
 	 * Escala ordinária, GISE, relatório extraordinário e presença (entrada/saída)
 	 * entram por aqui. O documento só muda textos, o `onConfirm` e se o rodapé
-	 * de Token A3 aparece — a cerimônia (rubrica → evidências → senha+2FA) é a mesma.
+	 * de Token A3 aparece — a cerimônia é a mesma:
+	 * rubrica → evidências → senha (Assinar dispara o 2FA) → código → concluir.
+	 *
+	 * O e-mail do 2FA NÃO sai ao abrir a tela de senha: só depois do Assinar
+	 * confirmar a reautenticação.
 	 *
 	 * Montar outro `ModalShell`+`SignaturePad` à mão é o sinal de que o padrão
 	 * voltou a divergir; use este componente.
@@ -43,7 +47,7 @@
 		tokenDisabled = false,
 		pending = false,
 		pendingLabel = null,
-		largura = '2xl',
+		largura = 'lg',
 		camada = 'empilhado',
 		familia = 'assinatura',
 		padding = 'compacto',
@@ -73,6 +77,7 @@
 		pending?: boolean;
 		/** Quando `pending` e este texto existem, o pad vira spinner (ex.: presença). */
 		pendingLabel?: string | null;
+		/** Largura nas etapas de rubrica/câmera. Auth (senha/2FA) usa `sm`. */
 		largura?: Largura;
 		camada?: Camada;
 		familia?: Familia;
@@ -93,21 +98,30 @@
 	const textos = $derived(
 		textosEtapaAssinatura(signatureStep, descricaoRubrica, { tituloRubrica, tituloCamera })
 	);
-	const mostrarOpcaoToken = $derived(
-		Boolean(onAssinarToken) &&
-			!pending &&
-			(signatureStep === 'signature' || signatureStep === 'credenciais')
+	const etapaAuth = $derived(
+		signatureStep === 'password' ||
+			signatureStep === 'credenciais' ||
+			signatureStep === 'email_code'
 	);
+	const larguraEfetiva = $derived(etapaAuth ? 'sm' : largura);
+	const paddingEfetivo = $derived(etapaAuth ? 'compacto' : padding);
+	const familiaEfetiva = $derived(etapaAuth ? 'assinatura' : familia);
+	/** Token A3 só na tela de senha — na rubrica/2FA o rodapé compete com o fluxo principal. */
+	const mostrarOpcaoToken = $derived(
+		Boolean(onAssinarToken) && !pending && signatureStep === 'credenciais'
+	);
+	/** Nota do PDF só na rubrica — nas telas de senha/2FA ela estica o modal sem necessidade. */
+	const mostrarNotaRodape = $derived(Boolean(notaRodape) && !etapaAuth);
 </script>
 
 <ModalShell
 	{open}
 	title={textos.titulo}
-	description={textos.descricao}
-	{largura}
+	description={etapaAuth && signatureStep === 'credenciais' ? undefined : textos.descricao}
+	largura={larguraEfetiva}
 	{camada}
-	{padding}
-	{familia}
+	padding={paddingEfetivo}
+	familia={familiaEfetiva}
 	{portal}
 	{pending}
 	onOpenChange={(novoOpen) => {
@@ -144,12 +158,12 @@
 		{/if}
 	{/if}
 
-	{#if notaRodape}
+	{#if mostrarNotaRodape}
 		<p class="text-sm text-surface-600 dark:text-surface-400 text-center italic">
 			{notaRodape}
 		</p>
 	{/if}
-	{#if rodape}
+	{#if rodape && !etapaAuth}
 		{@render rodape()}
 	{/if}
 </ModalShell>
