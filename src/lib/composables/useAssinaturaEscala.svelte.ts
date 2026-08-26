@@ -47,8 +47,7 @@ export function useAssinaturaEscala({ getParams, onDocumentoAssinado }: UseAssin
 		}
 	});
 
-	// Rubrica/Selfie/GPS
-	let rubricaCapturada = $state<string | null>(null);
+	// Selfie/GPS
 	let selfieCapturada = $state<string | null>(null);
 	let gpsCoords = $state<{ lat: number; lng: number } | null>(null);
 	let gpsIndisponivel = $state(false);
@@ -123,7 +122,6 @@ export function useAssinaturaEscala({ getParams, onDocumentoAssinado }: UseAssin
 	}
 
 	async function assinarSimples(
-		rubrica: string,
 		lat?: number,
 		lng?: number,
 		selfie?: string | null,
@@ -147,7 +145,6 @@ export function useAssinaturaEscala({ getParams, onDocumentoAssinado }: UseAssin
 			}
 
 			const evidencias = {
-				rubrica,
 				selfieBase64: selfie,
 				latitude: gpsCoords?.lat,
 				longitude: gpsCoords?.lng,
@@ -159,8 +156,8 @@ export function useAssinaturaEscala({ getParams, onDocumentoAssinado }: UseAssin
 
 			// Com o reforço de passkey ligado, o caminho de um tiro nem é tentado:
 			// o servidor o recusa com 403, e cair nele só produziria um erro
-			// confuso depois de o usuário já ter desenhado a rubrica e tirado a
-			// foto. A flag vem do `load` do layout, que a lê do cache server-side.
+			// confuso depois de o usuário já ter confirmado a assinatura e tirado
+			// a foto. A flag vem do `load` do layout, que a lê do cache server-side.
 			const info = (page.data.exigirPasskeyAssinatura as boolean | undefined)
 				? await assinarEscalaComPasskey(Number(escalaId), evidencias, (rotulo) =>
 						loading.show(rotulo)
@@ -175,7 +172,6 @@ export function useAssinaturaEscala({ getParams, onDocumentoAssinado }: UseAssin
 
 			toaster.success({ title: 'Escala assinada com sucesso!' });
 			onDocumentoAssinado?.(info);
-			rubricaCapturada = null;
 			selfieCapturada = null;
 		} catch (err: unknown) {
 			if (ehErroReauthAssinatura(err)) throw err;
@@ -191,7 +187,6 @@ export function useAssinaturaEscala({ getParams, onDocumentoAssinado }: UseAssin
 	function reset() {
 		loading.hide();
 		dialogSignOpen = false;
-		rubricaCapturada = null;
 		selfieCapturada = null;
 		gpsCoords = null;
 	}
@@ -220,9 +215,6 @@ export function useAssinaturaEscala({ getParams, onDocumentoAssinado }: UseAssin
 		},
 		set serproSignerCpf(v: string) {
 			serproSignerCpf = v;
-		},
-		get rubricaCapturada() {
-			return rubricaCapturada;
 		},
 		get selfieCapturada() {
 			return selfieCapturada;

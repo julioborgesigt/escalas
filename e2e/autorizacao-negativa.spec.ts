@@ -183,9 +183,6 @@ function idDoMembroFixture(): string {
 /** PDF base64 grande o bastante para o schema (min 100 chars). */
 const PDF_FALSO = Buffer.from('%PDF-1.7\n'.repeat(40)).toString('base64');
 
-/** Data URL de imagem que satisfaz o schema da rubrica. */
-const RUBRICA_FALSA = 'data:image/png;base64,iVBORw0KGgo=';
-
 /** Corpo JSON mínimo das rotas de assinatura, que fazem Zod antes do gate. */
 const CORPO_JSON: Record<string, Record<string, unknown>> = {
 	'/api/escalas/[id]/finalizar-assinatura': {
@@ -210,7 +207,6 @@ const CORPO_JSON: Record<string, Record<string, unknown>> = {
 		signerName: 'Fulano de Tal',
 		signerCpf: '39053344705',
 		assinanteEmail: 'fulano@e2e.local',
-		rubrica: RUBRICA_FALSA,
 		latitude: -3.73,
 		longitude: -38.52
 	},
@@ -240,11 +236,9 @@ const CORPO_JSON: Record<string, Record<string, unknown>> = {
 		signerCpf: '39053344705'
 	},
 	'/api/gise/[id]/presenca/preparar-assinatura-avancada': {
-		tipo: 'entrada',
-		rubrica: RUBRICA_FALSA
+		tipo: 'entrada'
 	},
 	'/api/gise/[id]/relatorios/[seccionalId]/assinar': {
-		rubrica: 'data:image/png;base64,iVBORw0KGgo=',
 		signerName: 'Fulano de Tal'
 	}
 };

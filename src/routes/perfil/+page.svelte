@@ -9,8 +9,8 @@
 	 * administrativa `/policiais/[id]`.
 	 *
 	 * O que muda na hora é o que pertence ao próprio usuário e não afeta a
-	 * escala: e-mail pessoal (com verificação por código) e rubrica — esses vão
-	 * por API e refletem imediatamente.
+	 * escala: o e-mail pessoal (com verificação por código) vai por API e
+	 * reflete imediatamente.
 	 *
 	 * Os `$state` do formulário nascem com `untrack` de propósito: são o
 	 * RASCUNHO do usuário, e re-sincronizar com `data` a cada `invalidate`
@@ -25,17 +25,13 @@
 	import { toaster } from '$lib/toast';
 	import { cartaoChaveVisivel } from '$lib/chave-assinatura-ui';
 	import { mostrarErroDeResultado } from '$lib/enhance-handler';
-	import { apiFetch } from '$lib/api-fetch';
-	import ModalCadastrarRubrica from '$lib/components/ModalCadastrarRubrica.svelte';
 	import CartaoPasskey from './_components/CartaoPasskey.svelte';
-	import ModalShell from '$lib/components/ModalShell.svelte';
 	import ModalAlterarEmailPessoal from './_components/ModalAlterarEmailPessoal.svelte';
 	import SearchableSelect from '$lib/components/SearchableSelect.svelte';
 	import { ROTULO_CAMPO } from '$lib/perfil-campos';
 	import { limparTelefone } from '$lib/utils/formato';
 	import { formatarData } from '$lib/utils/datas';
 	import type { ActionResult } from '@sveltejs/kit';
-	import { mensagemDeErro } from '$lib/utils/erro';
 
 	const { data }: PageProps = $props();
 
@@ -88,29 +84,6 @@
 	let alterandoEmail = $state(false);
 	let emailPessoal = $state(untrack(() => data.perfil.email_pessoal ?? null));
 	let emailPessoalVerificado = $state(untrack(() => !!data.perfil.email_pessoal_verificado));
-
-	// --- Rubrica ---
-	let cadastrandoRubrica = $state(false);
-	let minhaRubrica = $state(untrack(() => data.perfil.rubrica ?? null));
-	let excluindoRubrica = $state(false);
-	let confirmarExcluirRubrica = $state(false);
-
-	async function excluirRubrica() {
-		excluindoRubrica = true;
-		try {
-			await apiFetch('/api/perfil/rubrica', { method: 'DELETE' });
-			minhaRubrica = null;
-			confirmarExcluirRubrica = false;
-			toaster.create({ title: 'Rubrica excluída', type: 'info' });
-		} catch (e: unknown) {
-			toaster.create({
-				title: mensagemDeErro(e, 'Erro ao excluir rubrica'),
-				type: 'error'
-			});
-		} finally {
-			excluindoRubrica = false;
-		}
-	}
 
 	function statusBadge(status: string): { rotulo: string; classe: string } {
 		if (status === 'aprovada')
@@ -166,131 +139,71 @@
 		</p>
 	</div>
 
-	<!-- Identificação + Rubrica lado a lado (rubrica verticalizada à direita) -->
-	<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-		<!-- Identificação (somente leitura) -->
-		<section class="card-elevated rounded-2xl p-4 sm:p-6 lg:col-span-2">
-			<h2
-				class="font-semibold text-sm uppercase tracking-wider text-surface-600 dark:text-surface-400 mb-4"
-			>
-				Identificação
-			</h2>
-			<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-				<div>
-					<span class="label-text text-xs text-surface-600 dark:text-surface-400 block">Nome</span>
-					<p class="font-semibold">{perfil.nome}</p>
-				</div>
-				<div>
-					<span class="label-text text-xs text-surface-600 dark:text-surface-400 block"
-						>Matrícula</span
-					>
-					<p class="font-semibold">{perfil.matricula}</p>
-				</div>
-				<div>
-					<span class="label-text text-xs text-surface-600 dark:text-surface-400 block">Cargo</span>
-					<p class="font-semibold">{perfil.cargo}</p>
-				</div>
-				<div>
-					<span class="label-text text-xs text-surface-600 dark:text-surface-400 block"
-						>E-mail funcional</span
-					>
-					<p class="font-semibold">{perfil.email || '—'}</p>
-				</div>
-				<div class="sm:col-span-2">
-					<span class="label-text text-xs text-surface-600 dark:text-surface-400 block"
-						>E-mail pessoal</span
-					>
-					<div class="flex items-center gap-2 flex-wrap">
-						<p class="font-semibold">
-							{emailPessoal || '—'}
-							{#if emailPessoal}
-								<span
-									class="ml-1 text-3xs font-bold uppercase px-1.5 py-0.5 rounded {emailPessoalVerificado
-										? 'bg-success-500/15 text-success-700 dark:text-success-400'
-										: 'bg-warning-500/15 text-warning-700 dark:text-warning-400'}"
-								>
-									{emailPessoalVerificado ? 'Verificado' : 'Não verificado'}
-								</span>
-							{/if}
-						</p>
-						<button
-							type="button"
-							class="btn btn-sm preset-outlined-primary-500 text-xs"
-							onclick={() => (alterandoEmail = true)}
-						>
-							{emailPessoal ? 'Alterar' : 'Cadastrar'}
-						</button>
-					</div>
-					{#if emailPessoal}
-						<p class="text-2xs text-surface-600 dark:text-surface-400 mt-1">
-							A troca exige sua senha e um código enviado ao novo endereço.
-						</p>
-					{/if}
-				</div>
+	<!-- Identificação (somente leitura) -->
+	<section class="card-elevated rounded-2xl p-4 sm:p-6">
+		<h2
+			class="font-semibold text-sm uppercase tracking-wider text-surface-600 dark:text-surface-400 mb-4"
+		>
+			Identificação
+		</h2>
+		<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+			<div>
+				<span class="label-text text-xs text-surface-600 dark:text-surface-400 block">Nome</span>
+				<p class="font-semibold">{perfil.nome}</p>
 			</div>
-		</section>
-
-		<!-- Rubrica (verticalizada) -->
-		<section class="card-elevated rounded-2xl p-4 sm:p-6 lg:col-span-1">
-			<h2
-				class="font-semibold text-sm uppercase tracking-wider text-surface-600 dark:text-surface-400 mb-4"
-			>
-				Rubrica
-			</h2>
-			<div class="flex flex-col gap-4">
-				{#if minhaRubrica}
-					<div
-						class="bg-white rounded-xl border border-surface-200 p-2 flex items-center justify-center w-full"
-					>
-						<img
-							src={minhaRubrica}
-							alt="Sua rubrica cadastrada"
-							width="400"
-							height="160"
-							class="h-16 object-contain"
-						/>
-					</div>
-					<p class="text-xs text-surface-600 dark:text-surface-400">
-						Usada como assinatura gráfica(visual) nos documentos assinados digitalmente.
-					</p>
-					<div class="flex gap-2">
-						<button
-							type="button"
-							class="btn btn-sm preset-outlined-primary-500 flex-1"
-							onclick={() => (cadastrandoRubrica = true)}
-						>
-							Atualizar
-						</button>
-						<button
-							type="button"
-							class="btn btn-sm preset-outlined-error-500 flex-1"
-							onclick={() => (confirmarExcluirRubrica = true)}
-							disabled={excluindoRubrica}
-						>
-							{excluindoRubrica ? 'Excluindo…' : 'Excluir'}
-						</button>
-					</div>
-				{:else}
-					<p class="text-sm text-surface-600 dark:text-surface-400">
-						Você ainda não cadastrou sua rubrica. Ela é necessária para assinar pelo computador com
-						certificado digital e permite conferência visual em documentos impressos.
+			<div>
+				<span class="label-text text-xs text-surface-600 dark:text-surface-400 block"
+					>Matrícula</span
+				>
+				<p class="font-semibold">{perfil.matricula}</p>
+			</div>
+			<div>
+				<span class="label-text text-xs text-surface-600 dark:text-surface-400 block">Cargo</span>
+				<p class="font-semibold">{perfil.cargo}</p>
+			</div>
+			<div>
+				<span class="label-text text-xs text-surface-600 dark:text-surface-400 block"
+					>E-mail funcional</span
+				>
+				<p class="font-semibold">{perfil.email || '—'}</p>
+			</div>
+			<div class="sm:col-span-2">
+				<span class="label-text text-xs text-surface-600 dark:text-surface-400 block"
+					>E-mail pessoal</span
+				>
+				<div class="flex items-center gap-2 flex-wrap">
+					<p class="font-semibold">
+						{emailPessoal || '—'}
+						{#if emailPessoal}
+							<span
+								class="ml-1 text-3xs font-bold uppercase px-1.5 py-0.5 rounded {emailPessoalVerificado
+									? 'bg-success-500/15 text-success-700 dark:text-success-400'
+									: 'bg-warning-500/15 text-warning-700 dark:text-warning-400'}"
+							>
+								{emailPessoalVerificado ? 'Verificado' : 'Não verificado'}
+							</span>
+						{/if}
 					</p>
 					<button
 						type="button"
-						class="btn btn-sm preset-filled-primary-500 font-bold w-full"
-						onclick={() => (cadastrandoRubrica = true)}
+						class="btn btn-sm preset-outlined-primary-500 text-xs"
+						onclick={() => (alterandoEmail = true)}
 					>
-						Cadastrar rubrica
+						{emailPessoal ? 'Alterar' : 'Cadastrar'}
 					</button>
+				</div>
+				{#if emailPessoal}
+					<p class="text-2xs text-surface-600 dark:text-surface-400 mt-1">
+						A troca exige sua senha e um código enviado ao novo endereço.
+					</p>
 				{/if}
 			</div>
-		</section>
-	</div>
+		</div>
+	</section>
 
-	<!-- Chave de assinatura (passkey): vizinha da rubrica na intenção do usuário
-	     ("o que preciso ter cadastrado para assinar?"), mas em seção própria
-	     porque prova outra coisa — a rubrica é o desenho, a passkey é a chave.
-	     Só existe na tela com a exigência ligada (ver `cartaoChaveVisivel`). -->
+	<!-- Chave de assinatura (passkey): responde "o que preciso ter cadastrado
+	     para assinar?". Só existe na tela com a exigência ligada (ver
+	     `cartaoChaveVisivel`). -->
 	{#if cartaoChaveVisivel(page.data)}
 		<CartaoPasskey credencialAtual={data.passkey} />
 	{/if}
@@ -426,36 +339,6 @@
 		</section>
 	{/if}
 </div>
-
-<ModalCadastrarRubrica
-	bind:open={cadastrandoRubrica}
-	rubricaAtual={minhaRubrica}
-	onSaved={(nova) => (minhaRubrica = nova)}
-/>
-
-<ModalShell
-	bind:open={confirmarExcluirRubrica}
-	title="Excluir rubrica?"
-	largura="sm"
-	pending={excluindoRubrica}
-	cancelLabel="Cancelar"
->
-	{#snippet description()}
-		Excluir sua rubrica cadastrada? Você precisará cadastrá-la novamente para assinar pelo
-		computador.
-	{/snippet}
-
-	{#snippet footer()}
-		<button
-			type="button"
-			class="btn preset-filled-error-500"
-			onclick={excluirRubrica}
-			disabled={excluindoRubrica}
-		>
-			{excluindoRubrica ? 'Excluindo…' : 'Excluir'}
-		</button>
-	{/snippet}
-</ModalShell>
 
 <ModalAlterarEmailPessoal
 	bind:open={alterandoEmail}

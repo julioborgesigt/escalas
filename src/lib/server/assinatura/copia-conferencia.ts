@@ -44,7 +44,7 @@ export { podeBaixarComManifesto } from '$lib/manifesto';
  * relatório e presença — de modo que todos os fluxos gravem e leiam do MESMO lugar
  * conhecendo apenas o `verificationHash` (que já é único, é a chave de `/validar`).
  *
- * A cópia é gerada a partir dos MESMOS bytes (base + rodapé universal + rubrica)
+ * A cópia é gerada a partir dos MESMOS bytes (base + rodapé universal)
  * que compõem o documento assinado, ficando idêntica por construção. É um artefato
  * de conveniência (não-probatório): a fé pública continua no blob assinado + `/validar`.
  */
@@ -59,7 +59,6 @@ interface CopiaConferenciaOpts {
 	/** Hash de verificação (`/validar/[hash]`). Sem ele, não há rodapé de validação. */
 	verificationHash?: string | null;
 	verificationUrl?: string;
-	rubricBase64?: string;
 }
 
 /**
@@ -70,7 +69,7 @@ interface CopiaConferenciaOpts {
  * devolve o rascunho sem rodapé de validação.
  */
 export async function gerarCopiaConferencia(opts: CopiaConferenciaOpts): Promise<Uint8Array> {
-	const { pdfRascunho, assinanteNome, verificationHash, verificationUrl, rubricBase64 } = opts;
+	const { pdfRascunho, assinanteNome, verificationHash, verificationUrl } = opts;
 
 	if (!verificationHash || !verificationUrl) {
 		logger.warn(
@@ -81,8 +80,7 @@ export async function gerarCopiaConferencia(opts: CopiaConferenciaOpts): Promise
 
 	return adicionarRodapeSimples(pdfRascunho, assinanteNome, {
 		verificationHash,
-		verificationUrl,
-		rubricBase64
+		verificationUrl
 	});
 }
 

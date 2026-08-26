@@ -82,13 +82,6 @@ export interface UsuarioLogado {
 	cargo?: 'DPC' | 'OIP';
 	cpf?: string | null;
 	email?: string | null;
-	/**
-	 * Se o policial tem rubrica reutilizável cadastrada. Vem da própria linha
-	 * carregada na validação da sessão (custo zero) e alimenta o aviso de
-	 * cadastro de rubrica no layout. Pode ficar até o TTL do cache de sessão
-	 * (60s) desatualizado após cadastrar/excluir — o cliente compensa localmente.
-	 */
-	temRubrica?: boolean;
 }
 
 export type TipoDesafio2FA =
@@ -301,8 +294,7 @@ async function mapearPolicial(
 		papel_unidade_id: policial.papel_unidade_id ?? null,
 		cargo: policial.cargo as 'DPC' | 'OIP',
 		cpf: cpf || null,
-		email: policial.email ?? null,
-		temRubrica: !!policial.rubrica
+		email: policial.email ?? null
 	};
 }
 

@@ -42,11 +42,12 @@ type SelfieUploadResult =
  * Magic bytes mínimos para PNG e JPEG. Suficiente para barrar arquivos fora do
  * tipo — o prefixo `data:image/...` é declaração do cliente, não evidência.
  *
- * Exportada porque a rubrica do perfil (`/api/perfil/rubrica`) tem exatamente o
- * mesmo problema e nasceu confiando só no prefixo. Era a segunda cópia de uma
- * validação de 10 linhas onde uma das cópias já estava mais fraca que a outra.
+ * Local de novo desde ago/2026: o único importador de fora era
+ * `/api/perfil/rubrica`, que saiu com a rubrica. Voltou a ser export se outro
+ * upload precisar da mesma checagem — o que NÃO se faz é reescrever os magic
+ * bytes numa segunda cópia (foi assim que uma delas nasceu mais fraca).
  */
-export function detectarTipo(bytes: Uint8Array): 'png' | 'jpg' | null {
+function detectarTipo(bytes: Uint8Array): 'png' | 'jpg' | null {
 	if (bytes.length < 4) return null;
 	// PNG: 89 50 4E 47 0D 0A 1A 0A
 	if (bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47) {

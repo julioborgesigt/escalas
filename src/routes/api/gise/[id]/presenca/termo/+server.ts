@@ -82,9 +82,8 @@ export const GET: RequestHandler = async ({ platform, params, locals, url }) => 
 	const presenca = presencas.find((pr) => pr.policial_id === u.id);
 	if (!presenca) return notFound('Confirmação de presença');
 
-	const rubrica = tipo === 'entrada' ? presenca.entrada_rubrica : presenca.saida_rubrica;
 	const ts = tipo === 'entrada' ? presenca.entrada_timestamp : presenca.saida_timestamp;
-	if (!rubrica || !ts) {
+	if (!ts) {
 		return notFound(
 			`Confirmação de ${tipo === 'entrada' ? 'entrada' : 'saída'} ainda não registrada.`
 		);
@@ -116,7 +115,6 @@ export const GET: RequestHandler = async ({ platform, params, locals, url }) => 
 			signerCpf: presenca.policial_cpf,
 			matricula: presenca.policial_matricula,
 			timestampISO: ts,
-			rubricaBase64: rubrica,
 			selfieBase64,
 			ip: presenca.ip_address,
 			userAgent: presenca.user_agent,

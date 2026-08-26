@@ -14,34 +14,21 @@ type EscalaArg = Parameters<typeof exportLib.gerarPdf>[0];
 type PoliciaisArg = Parameters<typeof exportLib.gerarPdf>[1];
 type GiseDetalhado = Parameters<typeof exportLib.toGisePdfData>[0];
 
-/**
- * Gera o rascunho PDF da escala (sem manifesto forense), conforme o tipo.
- *
- * `rubrica` (opcional): quando informada, é desenhada acima da linha de
- * assinatura — usada pela CÓPIA DE CONFERÊNCIA para espelhar o documento
- * digital assinado por token (rubrica no campo, em vez de campo vazio).
- */
+/** Gera o rascunho PDF da escala (sem manifesto forense), conforme o tipo. */
 export async function gerarRascunhoEscalaPdf(
 	escala: EscalaArg,
 	policiais: PoliciaisArg,
-	platform: App.Platform | undefined,
-	rubrica?: string
+	platform: App.Platform | undefined
 ): Promise<Uint8Array> {
 	if (escala.tipo === 'expediente') {
 		const { esq: logoPolicia, dir: logoCeara } = await carregarLogosGise(platform);
-		const result = await exportLib.gerarPdfExpediente(
-			escala,
-			policiais,
-			logoPolicia,
-			logoCeara,
-			rubrica
-		);
+		const result = await exportLib.gerarPdfExpediente(escala, policiais, logoPolicia, logoCeara);
 		return result.pdf;
 	}
 	if (escala.tipo === 'plantao') {
-		return exportLib.gerarPdfPlantao(escala, policiais, rubrica).pdf;
+		return exportLib.gerarPdfPlantao(escala, policiais).pdf;
 	}
-	return exportLib.gerarPdf(escala, policiais, rubrica).pdf;
+	return exportLib.gerarPdf(escala, policiais).pdf;
 }
 
 /** Gera o rascunho PDF de uma GISE detalhada (sem manifesto forense). */

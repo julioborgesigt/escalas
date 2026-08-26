@@ -22,43 +22,8 @@ import { policiais, unidades } from '../../server/schema';
 import type * as schema from '../../server/schema';
 import { limparMatricula } from '../../utils/formato';
 import { gerarSenhaAleatoriaHash } from '../../auth';
-import {
-	prepararCpfParaDB,
-	decifrarCpfDoDB,
-	cpfKeys,
-	indiceCPF,
-	type CpfCriptoEnv
-} from '../../crypto/cpf-cripto';
+import { prepararCpfParaDB, type CpfCriptoEnv } from '../../crypto/cpf-cripto';
 import { paginarComContagem, likeContains, type Database } from '../core';
-
-/**
- * Busca a rubrica reutilizável do policial a partir do CPF CIFRADO gravado no
- * documento (escala_documentos.assinante_cpf). Decifra, resolve pelo índice
- * cego `cpf_index` (ou pelo `cpf` em claro no fallback sem chave) e devolve a
- * rubrica. Best-effort: qualquer falha devolve `undefined` (campo fica vazio).
- *
- * Usado pela CÓPIA DE CONFERÊNCIA para desenhar a mesma rubrica do documento
- * digital sem depender de coluna própria em escala_documentos.
- */
-export async function buscarRubricaAssinante(
-	db: Database,
-	cpfCifrado: string | null | undefined,
-	env?: CpfCriptoEnv
-): Promise<string | undefined> {
-	if (!cpfCifrado) return undefined;
-	try {
-		const cpfClaro = await decifrarCpfDoDB(cpfCifrado, env);
-		if (!cpfClaro) return undefined;
-		const { indexKey } = cpfKeys(env);
-		const filtro = indexKey
-			? eq(policiais.cpf_index, await indiceCPF(cpfClaro, indexKey))
-			: eq(policiais.cpf, cpfClaro);
-		const row = await db.select({ rubrica: policiais.rubrica }).from(policiais).where(filtro).get();
-		return row?.rubrica ?? undefined;
-	} catch {
-		return undefined;
-	}
-}
 
 /**
  * Listagem paginada do cadastro, para a tela de policiais e para o autocomplete.
@@ -66,9 +31,8 @@ export async function buscarRubricaAssinante(
  * Contrato:
  * - devolve **apenas ativos** (`ativo = 1`); inativos só aparecem via
  *   `buscarPolicial`;
- * - a projeção OMITE `senha` e os campos de rubrica — é a lista que vai para o
- *   cliente, e rubrica é dado de assinatura (minimização LGPD). O tipo de
- *   retorno reflete isso;
+ * - a projeção OMITE `senha` — é a lista que vai para o cliente (minimização
+ *   LGPD). O tipo de retorno reflete isso;
  * - `cpf` volta **como está no banco**, ou seja cifrado: quem precisa exibir
  *   chama `decifrarCpfDoDB`;
  * - `lotacao === '__todas__'` é sentinela de "sem filtro" (o `<select>` da UI
@@ -94,10 +58,7 @@ export async function listarPoliciais(
 		limit?: number;
 	}
 ): Promise<{
-	policiais: Omit<
-		schema.Policial,
-		'senha' | 'rubrica' | 'rubrica_atualizada_em' | 'rubrica_consentimento_em'
-	>[];
+	policiais: Omit<schema.Policial, 'senha'>[];
 	total: number;
 	page: number;
 	limit: number;
@@ -181,9 +142,9 @@ export async function listarPoliciais(
 /**
  * Registro completo por id, incluindo inativos.
  *
- * ATENÇÃO: é `select()` sem projeção — traz `senha` (hash) e `rubrica`. Serve
- * para o servidor decidir/assinar, nunca para devolver cru ao cliente; quem
- * expõe em `load` monta o objeto campo a campo.
+ * ATENÇÃO: é `select()` sem projeção — traz `senha` (hash). Serve para o
+ * servidor decidir/assinar, nunca para devolver cru ao cliente; quem expõe em
+ * `load` monta o objeto campo a campo.
  */
 export async function buscarPolicial(
 	db: Database,

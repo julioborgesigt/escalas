@@ -104,13 +104,11 @@ export const POST: RequestHandler = async ({
 		const guardado = await guardarPdfAssinado(bucketOk.r2, r2Key, pdfParaSalvar, 'gise-presenca');
 		if (!guardado.ok) return guardado.resposta;
 
-		const rubrica = prova.contexto.rubrica || '';
 		if (tipo === 'entrada') {
 			const entrada = await salvarEntradaGise(
 				db,
 				giseId,
 				u.id,
-				rubrica,
 				ip,
 				ua,
 				prova.contexto.latitude ?? undefined,
@@ -126,7 +124,6 @@ export const POST: RequestHandler = async ({
 				db,
 				giseId,
 				u.id,
-				rubrica,
 				ip,
 				ua,
 				prova.contexto.latitude ?? undefined,

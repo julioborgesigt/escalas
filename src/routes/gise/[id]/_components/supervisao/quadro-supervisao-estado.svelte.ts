@@ -91,7 +91,6 @@ export type PapelSupervisao = 'supervisor' | 'assessor' | 'seint1' | 'seint2';
  * membros e nenhuma folha do quadro precisa dos outros.
  */
 interface AssinaturaDoQuadro {
-	rubricaCapturada: string | null;
 	painelTokenGise: { assinarComSerpro: () => Promise<void> } | null;
 	serproSignerName: string;
 	serproSignerCpf: string;

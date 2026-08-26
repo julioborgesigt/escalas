@@ -58,18 +58,6 @@ export const load: PageServerLoad = async ({ locals, params, platform, depends, 
 	const parentData = await parent();
 	const isSupervisor = u.tipo === 'policial' ? (parentData.isSupervisorGise ?? false) : false;
 
-	// Rubrica reutilizável do supervisor — para o prompt de cadastro (Lógica 2a).
-	// Só consultamos quando o usuário é o supervisor (quem assina a GISE por token).
-	let minhaRubrica: string | null = null;
-	if (isSupervisor) {
-		const rubRow = await db
-			.select({ rubrica: policiais.rubrica })
-			.from(policiais)
-			.where(eq(policiais.id, u.id))
-			.get();
-		minhaRubrica = rubRow?.rubrica ?? null;
-	}
-
 	// Escopo por participação (Opção B): admin seccional só abre GISEs que
 	// incluem a seccional que ele administra — não qualquer GISE.
 	const isSeccionalParticipante =
@@ -245,7 +233,6 @@ export const load: PageServerLoad = async ({ locals, params, platform, depends, 
 			isSeccional,
 			isUnidade: isAdminUnidade(u),
 			isSupervisor,
-			minhaRubrica,
 			isMembro: u.tipo === 'policial' ? (parentData.isMembroGise ?? false) : false,
 			minhaSeccionalId: isSeccional || isAdminUnidade(u) ? u.papel_unidade_id : null,
 			usuarioAtual: u,

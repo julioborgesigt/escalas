@@ -27,7 +27,7 @@
 	import ConviteChaveAssinatura from '$lib/components/ConviteChaveAssinatura.svelte';
 	import {
 		checkAllSigned,
-		getFaltandoRubrica,
+		getFaltandoPresenca,
 		tiposEquipeNaSeccional
 	} from '$lib/gise/page-helpers';
 	import GiseActionButton from './GiseActionButton.svelte';
@@ -188,7 +188,7 @@
 					target="_blank"
 					rel="noopener noreferrer"
 					title={!checkAllSigned(sec)
-						? getFaltandoRubrica(sec)
+						? getFaltandoPresenca(sec)
 						: 'Aguardando assinatura do supervisor (escala)'}
 				>
 					<PenLine class="w-3.5 h-3.5 shrink-0" aria-hidden="true" />

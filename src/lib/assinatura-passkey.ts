@@ -25,7 +25,6 @@ interface PreparacaoPasskey {
 }
 
 export interface EvidenciasAssinatura {
-	rubrica: string;
 	latitude?: number;
 	longitude?: number;
 	selfieBase64?: string | null;

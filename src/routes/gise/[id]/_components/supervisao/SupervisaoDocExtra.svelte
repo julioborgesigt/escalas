@@ -6,10 +6,10 @@
 	 * Sem props: tudo vem do contexto do quadro.
 	 *
 	 * Os três predicados abaixo NÃO são o mesmo: `downloadExtraSupHabilitado`
-	 * exige rubricas completas e permissão de baixar (é o PDF assinado);
+	 * exige presenças completas e permissão de baixar (é o PDF assinado);
 	 * `downloadExtraSupConferenciaHabilitado` é a via de conferência, aberta a
-	 * Admin Geral e supervisor mesmo sem rubricas; `assinaturaExtraHabilitada`
-	 * é o gate dos botões Tela/Token. Estados de rubrica diferentes precisam
+	 * Admin Geral e supervisor mesmo sem as presenças; `assinaturaExtraHabilitada`
+	 * é o gate dos botões Tela/Token. Estados de presença diferentes precisam
 	 * habilitar coisas diferentes.
 	 */
 	import { page } from '$app/state';
@@ -17,9 +17,9 @@
 	import FileDown from '@lucide/svelte/icons/file-down';
 	import PenLine from '@lucide/svelte/icons/pen-line';
 	import {
-		supervisaoExtraRubricasCompletas,
+		supervisaoExtraPresencasCompletas,
 		faltantesSupervisaoExtra,
-		FALTANTE_RUBRICA_SUPER_PREFIX
+		FALTANTE_PRESENCA_SUPER_PREFIX
 	} from '$lib/gise/supervisao-extra';
 	import { podeBaixarComManifesto } from '$lib/manifesto';
 	import { montarNomesSupervisao } from './rodagem';
@@ -40,7 +40,7 @@
 					(a) => a.seccional_id === supervisaoExtraUnidadeId && a.tipo === 'extraordinario'
 				)
 	);
-	const rubSupOk = $derived(supervisaoExtraRubricasCompletas(gise, quadro.presencasGise ?? []));
+	const presSupOk = $derived(supervisaoExtraPresencasCompletas(gise, quadro.presencasGise ?? []));
 	const faltSup = $derived(
 		faltantesSupervisaoExtra(gise, quadro.presencasGise ?? [], nomesSupervisaoPorId)
 	);
@@ -48,13 +48,13 @@
 	const downloadExtraSupHabilitado = $derived(
 		extraSupervisaoConfigurado &&
 			!!quadro.podeDownload &&
-			rubSupOk &&
+			presSupOk &&
 			(assRelSup || quadro.isAdminGeral || quadro.isSeccional || quadro.isSupervisor)
 	);
 	const downloadExtraSupConferenciaHabilitado = $derived(
 		extraSupervisaoConfigurado && (quadro.isAdminGeral || quadro.isSupervisor)
 	);
-	const assinaturaExtraHabilitada = $derived(!!rubSupOk && !!extraSupervisaoConfigurado);
+	const assinaturaExtraHabilitada = $derived(!!presSupOk && !!extraSupervisaoConfigurado);
 
 	const urlDownloadExtra = $derived(
 		`/api/gise/${gise.id}/download?format=extraordinario&seccionalId=${supervisaoExtraUnidadeId}`
@@ -75,13 +75,13 @@
 		<p class="text-xs font-bold text-surface-800 dark:text-surface-100 break-words">
 			{assRelSup.assinante_nome}
 		</p>
-	{:else if !rubSupOk}
+	{:else if !presSupOk}
 		<p class="text-2xs leading-snug text-surface-600 dark:text-surface-400">
-			{#if faltSup?.startsWith(FALTANTE_RUBRICA_SUPER_PREFIX)}
-				<span class="text-error-600 dark:text-error-400 font-medium">Faltando rúbrica de:</span
-				>{faltSup.slice(FALTANTE_RUBRICA_SUPER_PREFIX.length)}
+			{#if faltSup?.startsWith(FALTANTE_PRESENCA_SUPER_PREFIX)}
+				<span class="text-error-600 dark:text-error-400 font-medium">Faltando confirmação de:</span
+				>{faltSup.slice(FALTANTE_PRESENCA_SUPER_PREFIX.length)}
 			{:else}
-				{faltSup ?? 'Aguardando rúbricas do quadro de supervisão.'}
+				{faltSup ?? 'Aguardando confirmações do quadro de supervisão.'}
 			{/if}
 		</p>
 	{:else}
@@ -180,8 +180,12 @@
 		<SupervisaoDocumentoCard
 			titulo="Relatório de extra (supervisão)"
 			textoInfo="O supervisor poderá assinar o relatório de extra do quadro de supervisão quando todos os integrantes confirmarem sua saída."
-			badgeEstado={assRelSup ? 'sucesso' : rubSupOk ? 'alerta' : 'neutro'}
-			badgeLabel={assRelSup ? 'Assinado' : rubSupOk ? 'pronto para assinar' : 'Aguardando rubricas'}
+			badgeEstado={assRelSup ? 'sucesso' : presSupOk ? 'alerta' : 'neutro'}
+			badgeLabel={assRelSup
+				? 'Assinado'
+				: presSupOk
+					? 'pronto para assinar'
+					: 'Aguardando confirmações'}
 			bind:expandido={expandirExtra}
 			detalhes={detalhesExtra}
 			acoes={acoesExtra}

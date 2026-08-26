@@ -8,7 +8,8 @@
 	 * oponibilidade vem do CONJUNTO de evidências coletadas aqui, em passos
 	 * (`step`), cada um ligável por configuração:
 	 *
-	 *   `signature` → rubrica (desenhada ou a cadastrada)
+	 *   `signature` → declaração de vontade: o titular lê o que será registrado
+	 *                 e confirma (é o único passo que nunca se desliga)
 	 *   `camera`    → foto com prova de vida (`exigirFoto`)
 	 *   `password`  → reinserir a senha de acesso (piso da cerimônia)
 	 *   `email_code`→ código enviado por e-mail (`exigirCodigoEmail`)
@@ -16,13 +17,7 @@
 	 * mais GPS (`exigirGps`), IP e user-agent, capturados pelo servidor no POST.
 	 * As flags vêm das Configurações Gerais: o operador decide o nível de
 	 * exigência, e desligar uma delas enfraquece a prova, não o fluxo.
-	 *
-	 * `rubricaSalva` é reaproveitada por padrão quando existe — assinar várias
-	 * escalas seguidas não deve obrigar a redesenhar. O usuário pode alternar
-	 * para desenhar outra a qualquer momento; como o pad é remontado a cada
-	 * abertura do modal, basta o valor inicial.
 	 */
-	import { untrack } from 'svelte';
 	import Camera from '@lucide/svelte/icons/camera';
 	import Check from '@lucide/svelte/icons/check';
 	import Eye from '@lucide/svelte/icons/eye';
@@ -44,7 +39,6 @@
 	import Spinner from './Spinner.svelte';
 	import IconTooltip from './IconTooltip.svelte';
 	import CodigoTimer from './CodigoTimer.svelte';
-	import { useRubricaCanvas } from '$lib/composables/useRubricaCanvas.svelte';
 	import { useFaceLiveness } from '$lib/composables/useFaceLiveness.svelte';
 	import { mensagemDeErro } from '$lib/utils/erro';
 	import { formatarCPF } from '$lib/utils/formato';
@@ -56,7 +50,6 @@
 		exigirFoto = true,
 		exigirGps = true,
 		exigirCodigoEmail = false,
-		rubricaSalva = null,
 		step = $bindable('signature'),
 		credenciaisCombinadas = true,
 		cpfUsuario = null
@@ -67,9 +60,6 @@
 		exigirFoto?: boolean;
 		exigirGps?: boolean;
 		exigirCodigoEmail?: boolean;
-		/** Rubrica já cadastrada pelo usuário (dataURL). Quando presente, o pad
-		    reutiliza-a por padrão — evita obrigar o desenho na tela a cada assinatura. */
-		rubricaSalva?: string | null;
 		step?: SignaturePadStep;
 		/** Desktop: senha e 2FA na mesma etapa, em vez de telas sequenciais. */
 		credenciaisCombinadas?: boolean;
@@ -77,24 +67,7 @@
 		cpfUsuario?: string | null;
 	} = $props();
 
-	// Reutiliza a rubrica cadastrada por padrão quando ela existe; o usuário
-	// continua podendo alternar para desenhar uma nova a qualquer momento.
-	// O pad é montado a cada abertura do modal, então basta o valor inicial.
-	let usarRubricaSalva = $state(untrack(() => !!rubricaSalva));
-
-	function alternarRubricaSalva() {
-		usarRubricaSalva = !usarRubricaSalva;
-	}
-
-	/** Fonte da rubrica no momento de confirmar: a cadastrada (se reutilizada) ou
-	    o desenho atual do canvas. */
-	function rubricaSelecionada(): string {
-		return usarRubricaSalva && rubricaSalva ? rubricaSalva : rubrica.exportar(100);
-	}
-
-	// Máquinas de captura, extraídas para composables: desenho da rubrica
-	// (canvas + mouse/touch) e prova de vida (câmera + face-api + challenge).
-	const rubrica = useRubricaCanvas();
+	// Prova de vida (câmera + face-api + challenge), extraída para composable.
 	const liveness = useFaceLiveness({ exigirFoto: () => exigirFoto });
 
 	let capturingLocation = $state(false);
@@ -113,7 +86,6 @@
 	// — se chamássemos montarLivenessResultado() depois, devolveria null e o
 	// servidor rejeitaria com "liveness ausente".
 	let pendingSignature = $state<{
-		dataUrl: string;
 		lat: number | undefined;
 		lng: number | undefined;
 		selfieBase64: string | null;
@@ -129,7 +101,7 @@
 
 	const reauthJaConfirmado = $derived(Boolean(lerReauthGuardado()));
 	const cpfFormatado = $derived(cpfUsuario ? formatarCPF(cpfUsuario) : '');
-	/** Etapas só de autenticação — layout mais compacto, sem o aviso jurídico da rubrica. */
+	/** Etapas só de autenticação — layout mais compacto, sem o aviso jurídico. */
 	const etapaAuth = $derived(
 		step === 'password' || step === 'credenciais' || step === 'email_code'
 	);
@@ -172,7 +144,7 @@
 	});
 
 	function confirmarSemFoto() {
-		processarAssinatura(rubricaSelecionada(), coords?.lat, coords?.lng, null);
+		processarAssinatura(coords?.lat, coords?.lng, null);
 	}
 
 	async function confirm() {
@@ -180,11 +152,10 @@
 		// undefined = captura ABORTADA (rosto sumiu/múltiplos no último
 		// milissegundo) — o overlay de erro já foi exibido pelo composable.
 		if (selfieBase64 === undefined) return;
-		processarAssinatura(rubricaSelecionada(), coords?.lat, coords?.lng, selfieBase64);
+		processarAssinatura(coords?.lat, coords?.lng, selfieBase64);
 	}
 
 	async function processarAssinatura(
-		dataUrl: string,
 		lat: number | undefined,
 		lng: number | undefined,
 		selfieBase64: string | null
@@ -194,7 +165,6 @@
 		// recalcular depois devolve null.
 		const livenessResultado = liveness.montarLivenessResultado();
 		pendingSignature = {
-			dataUrl,
 			lat,
 			lng,
 			selfieBase64,
@@ -292,7 +262,6 @@
 		emitindo = true;
 		try {
 			await onConfirm({
-				rubrica: pendingSignature.dataUrl,
 				lat: pendingSignature.lat,
 				lng: pendingSignature.lng,
 				selfie: pendingSignature.selfieBase64,
@@ -356,8 +325,7 @@
 	}
 </script>
 
-<!-- Indicador de GPS — usado tanto na área de desenho quanto na pré-visualização
-     da rubrica cadastrada. -->
+<!-- Indicador de GPS — mostrado no painel de evidências da etapa de confirmação. -->
 {#snippet gpsIndicator()}
 	{#if exigirGps}
 		<div
@@ -412,63 +380,47 @@
 	{/if}
 
 	<div class="flex flex-col gap-4">
+		<!-- Etapa `signature`: declaração de vontade. Não há nada a desenhar — o que
+		     o titular precisa ver antes de confirmar é O QUE o ato vai registrar,
+		     que é o que sustenta a assinatura avançada (Lei 14.063/2020 art. 4º II).
+		     A lista acompanha as flags: desligar uma evidência tira a linha dela. -->
 		<div class="space-y-2 {step !== 'signature' ? 'hidden' : ''}">
-			<div class="flex justify-between items-end">
-				<span
-					class="text-3xs font-bold text-surface-600 dark:text-surface-400 uppercase tracking-wider"
-					>Sua Rubrica</span
-				>
-				{#if rubricaSalva}
-					<button
-						type="button"
-						class="text-3xs font-bold uppercase tracking-wider text-primary-600 dark:text-primary-400 hover:underline"
-						onclick={alternarRubricaSalva}
-					>
-						{usarRubricaSalva ? 'Desenhar nova rubrica' : 'Usar rubrica cadastrada'}
-					</button>
-				{/if}
+			<span
+				class="text-3xs font-bold text-surface-600 dark:text-surface-400 uppercase tracking-wider"
+				>O que será registrado</span
+			>
+			<div
+				class="relative rounded-xl border-2 border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-900/40 p-4 pb-10"
+			>
+				<ul class="space-y-2.5 text-sm text-surface-700 dark:text-surface-300">
+					<li class="flex items-start gap-2.5">
+						<Check class="w-4 h-4 mt-0.5 shrink-0 text-primary-500" aria-hidden="true" />
+						<span
+							>Sua <strong>identificação</strong> (nome, matrícula e CPF) e a sessão autenticada.</span
+						>
+					</li>
+					{#if exigirFoto}
+						<li class="flex items-start gap-2.5">
+							<Check class="w-4 h-4 mt-0.5 shrink-0 text-primary-500" aria-hidden="true" />
+							<span>Sua <strong>fotografia</strong>, com desafio de prova de vida.</span>
+						</li>
+					{/if}
+					{#if exigirGps}
+						<li class="flex items-start gap-2.5">
+							<Check class="w-4 h-4 mt-0.5 shrink-0 text-primary-500" aria-hidden="true" />
+							<span>Sua <strong>localização geográfica</strong> no momento da assinatura.</span>
+						</li>
+					{/if}
+					<li class="flex items-start gap-2.5">
+						<Check class="w-4 h-4 mt-0.5 shrink-0 text-primary-500" aria-hidden="true" />
+						<span>
+							<strong>Data e hora</strong>, endereço IP e dispositivo, mais o
+							<strong>hash</strong> do documento assinado.
+						</span>
+					</li>
+				</ul>
+				{@render gpsIndicator()}
 			</div>
-			{#if usarRubricaSalva && rubricaSalva}
-				<!-- Reutilizando a rubrica cadastrada: sem obrigar novo desenho na tela. -->
-				<div
-					class="bg-white border-2 border-primary-300 dark:border-primary-700 rounded-xl overflow-hidden relative min-h-[280px] flex items-center justify-center p-4"
-				>
-					<span
-						class="absolute top-2 left-2 flex items-center gap-1 px-2 py-1 rounded-full bg-primary-500/10 border border-primary-500/20 text-3xs font-black uppercase text-primary-600 dark:text-primary-400"
-					>
-						<Check class="w-3 h-3" aria-hidden="true" /> Rubrica cadastrada
-					</span>
-					<img
-						src={rubricaSalva}
-						alt="Sua rubrica cadastrada"
-						width="600"
-						height="240"
-						class="max-h-[240px] max-w-full object-contain"
-					/>
-					{@render gpsIndicator()}
-				</div>
-			{:else}
-				<div
-					class="bg-white border-2 border-surface-200 dark:border-surface-700 rounded-xl overflow-hidden touch-none relative min-h-[280px]"
-				>
-					<canvas
-						bind:this={rubrica.canvas}
-						width="500"
-						height="280"
-						aria-label="Área de desenho da assinatura manuscrita — desenhe sua assinatura com o dedo ou mouse"
-						class="w-full h-[280px] cursor-crosshair touch-none"
-						onmousedown={rubrica.startDrawing}
-						onmousemove={rubrica.draw}
-						onmouseup={rubrica.stopDrawing}
-						onmouseleave={rubrica.stopDrawing}
-						ontouchstart={rubrica.startDrawing}
-						ontouchmove={rubrica.draw}
-						ontouchend={rubrica.stopDrawing}
-					></canvas>
-
-					{@render gpsIndicator()}
-				</div>
-			{/if}
 		</div>
 
 		{#if step === 'camera'}
@@ -848,20 +800,6 @@
 
 	<div class="flex flex-wrap justify-between items-center gap-2 mt-4">
 		{#if step === 'signature'}
-			{#if usarRubricaSalva && rubricaSalva}
-				<span class="text-3xs font-medium text-surface-400 italic self-center">
-					Usando sua rubrica cadastrada
-				</span>
-			{:else}
-				<button
-					type="button"
-					class="btn preset-tonal-surface rounded-xl text-xs font-bold uppercase px-4 py-2 hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors"
-					onclick={rubrica.clear}
-				>
-					Limpar
-				</button>
-			{/if}
-
 			<div class="flex items-center gap-2 ml-auto">
 				<button
 					type="button"

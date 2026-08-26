@@ -12,8 +12,9 @@
 	 * acesso, só de apresentação.
 	 *
 	 * O botão Ass. Escala / Ass. Extra do card é atalho: abre a escala com
-	 * `?assinar=` e dispara o mesmo fluxo de dentro (rubrica no celular, token
-	 * no computador). Não há um segundo caminho de assinatura nesta tela.
+	 * `?assinar=` e dispara o mesmo fluxo de dentro (assinatura em tela no
+	 * celular, token no computador). Não há um segundo caminho de assinatura
+	 * nesta tela.
 	 *
 	 * Sem chips de papel sob o título — a sessão e o que a tela oferece já
 	 * identificam o usuário; repetir "Adm Seccional" / "Membro" era decoração.

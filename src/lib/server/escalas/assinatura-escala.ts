@@ -49,7 +49,6 @@ interface R2Putable {
 type DadosEscala = Parameters<typeof gerarPdf>[0];
 
 export interface EvidenciasMontagem {
-	rubrica?: string | null;
 	latitude?: number | null;
 	longitude?: number | null;
 	selfieBase64?: string | null;
@@ -109,7 +108,6 @@ export async function montarPdfEscalaAssinada(opts: {
 	const pdfComRodape = await adicionarRodapeSimples(result.pdf, assinante.nome, {
 		verificationHash,
 		verificationUrl,
-		rubricBase64: evidencias.rubrica ?? undefined,
 		ip: opts.ip,
 		latitude: evidencias.latitude,
 		longitude: evidencias.longitude
@@ -131,7 +129,6 @@ export async function montarPdfEscalaAssinada(opts: {
 		latitude: evidencias.latitude ?? undefined,
 		longitude: evidencias.longitude ?? undefined,
 		selfieBase64: evidencias.selfieBase64 ?? undefined,
-		rubricBase64: evidencias.rubrica ?? undefined,
 		documentHash,
 		token: crypto.randomUUID(),
 		documentName: `Escala de Serviço - ${escala.titulo}`,

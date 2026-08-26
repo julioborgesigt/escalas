@@ -11,8 +11,8 @@
  *   assinaturas de relatório de extra.
  *
  * As duas mutações de presença — confirmar entrada e confirmar saída — são de
- * assinatura AVANÇADA (Lei 14.063/2020 art. 4º II): exigem rubrica, 2FA por
- * e-mail quando a flag está ligada, e gravam IP/GPS/foto como prova. Cada action
+ * assinatura AVANÇADA (Lei 14.063/2020 art. 4º II): exigem confirmação em tela,
+ * 2FA por e-mail quando a flag está ligada, e gravam IP/GPS/foto como prova. Cada action
  * revalida a participação do policial na escala: a UI esconde o botão, mas o
  * POST direto precisa ser recusado no servidor.
  *
@@ -73,8 +73,7 @@ import {
 	giseDocumentos,
 	unidades,
 	giseAssinaturasRelatorios,
-	giseRespostasFormulario,
-	policiais
+	giseRespostasFormulario
 } from '$lib/server/schema';
 import { eq, and, inArray, desc, sql, or, gte, lte } from 'drizzle-orm';
 import { gateDePresenca, type TipoPresenca } from '$lib/server/gise/presenca-gate';
@@ -399,32 +398,23 @@ export const load: PageServerLoad = async ({ locals, platform, url, depends }) =
 		operacoesLista[0] ??
 		null;
 
-	const [[modeloOp, modeloSeintRow], respostaRow, restringirSmartphone, rubricaRow] =
-		await Promise.all([
-			operacaoSelecionada
-				? Promise.all([
-						buscarGiseModeloFormulario(db, operacaoSelecionada.id, 'operacional'),
-						buscarGiseModeloFormulario(db, operacaoSelecionada.id, 'seint')
-					])
-				: Promise.resolve([null, null] as const),
-			giseIdSelected && !isNaN(giseIdSelected)
-				? buscarRespostaGise(
-						db,
-						giseIdSelected,
-						u.tipo === 'policial' ? u.id : null,
-						equipeIdSelected ?? undefined
-					)
-				: Promise.resolve(null),
-			buscarRestringirSmartphone(db),
-			// Rubrica reutilizável do policial (cadastro p/ assinatura A3 no desktop).
-			u.tipo === 'policial'
-				? db
-						.select({ rubrica: policiais.rubrica })
-						.from(policiais)
-						.where(eq(policiais.id, u.id))
-						.get()
-				: Promise.resolve(null)
-		]);
+	const [[modeloOp, modeloSeintRow], respostaRow, restringirSmartphone] = await Promise.all([
+		operacaoSelecionada
+			? Promise.all([
+					buscarGiseModeloFormulario(db, operacaoSelecionada.id, 'operacional'),
+					buscarGiseModeloFormulario(db, operacaoSelecionada.id, 'seint')
+				])
+			: Promise.resolve([null, null] as const),
+		giseIdSelected && !isNaN(giseIdSelected)
+			? buscarRespostaGise(
+					db,
+					giseIdSelected,
+					u.tipo === 'policial' ? u.id : null,
+					equipeIdSelected ?? undefined
+				)
+			: Promise.resolve(null),
+		buscarRestringirSmartphone(db)
+	]);
 
 	let modeloOperacional = DEFAULT_QUESTIONS_FORM_OPERACIONAL;
 	if (modeloOp?.config) {
@@ -471,7 +461,6 @@ export const load: PageServerLoad = async ({ locals, platform, url, depends }) =
 		respostaEnviadaEm: respostaRow?.created_at ?? null,
 		respostaAtualizadaEm: respostaRow?.updated_at ?? null,
 		restringirSmartphone,
-		minhaRubrica: rubricaRow?.rubrica ?? null,
 		// Operações e a escolhida: o editor mostra um formulário por operação, e o
 		// seletor de TIPO só pode oferecer os tipos de equipe que ela habilita.
 		operacoes: operacoesLista,
@@ -501,7 +490,6 @@ async function prepararConfirmacaoPresenca(event: RequestEvent, tipo: TipoPresen
 
 	const formData = await request.formData();
 	const giseId = parseInt(formData.get('giseId') as string);
-	const rubrica = formData.get('rubrica') as string;
 	const latitude = formData.get('latitude')
 		? parseFloat(formData.get('latitude') as string)
 		: undefined;
@@ -513,7 +501,7 @@ async function prepararConfirmacaoPresenca(event: RequestEvent, tipo: TipoPresen
 	const desafioId = formData.get('desafioId') as string | null;
 	const reauthId = formData.get('reauthId') as string | null;
 
-	if (isNaN(giseId) || !rubrica) {
+	if (isNaN(giseId)) {
 		return { ok: false as const, resposta: fail(400, { error: 'Dados inválidos', giseId }) };
 	}
 
@@ -622,7 +610,6 @@ async function prepararConfirmacaoPresenca(event: RequestEvent, tipo: TipoPresen
 		db,
 		u,
 		giseId,
-		rubrica,
 		ip,
 		ua,
 		latitude,
@@ -638,13 +625,12 @@ export const actions: Actions = {
 	salvarEntrada: async (event) => {
 		const prep = await prepararConfirmacaoPresenca(event, 'entrada');
 		if (!prep.ok) return prep.resposta;
-		const { db, u, giseId, rubrica, ip, ua, latitude, longitude, selfieKey } = prep;
+		const { db, u, giseId, ip, ua, latitude, longitude, selfieKey } = prep;
 
 		const entrada = await salvarEntradaGise(
 			db,
 			giseId,
 			u.id,
-			rubrica,
 			ip,
 			ua,
 			latitude,
@@ -685,22 +671,12 @@ export const actions: Actions = {
 	salvarSaida: async (event) => {
 		const prep = await prepararConfirmacaoPresenca(event, 'saida');
 		if (!prep.ok) return prep.resposta;
-		const { db, u, giseId, rubrica, ip, ua, latitude, longitude, selfieKey } = prep;
+		const { db, u, giseId, ip, ua, latitude, longitude, selfieKey } = prep;
 
 		// A gravação exige a entrada no próprio `WHERE`: sem ela o UPDATE não
 		// achava linha, o resultado era ignorado e a auditoria registrava uma
 		// saída que nunca existiu (FLW-GISE-008).
-		const saida = await salvarSaidaGise(
-			db,
-			giseId,
-			u.id,
-			rubrica,
-			ip,
-			ua,
-			latitude,
-			longitude,
-			selfieKey
-		);
+		const saida = await salvarSaidaGise(db, giseId, u.id, ip, ua, latitude, longitude, selfieKey);
 		if (!saida.registrada) {
 			return fail(409, {
 				error: 'A saída já foi confirmada, ou não há entrada registrada.',

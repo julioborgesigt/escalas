@@ -3,7 +3,7 @@
  * identidade dele.
  *
  * Um módulo por assunto, porque as quatro perguntas são independentes:
- *  - `cadastro.ts` — CRUD, lotações, promoção (RBAC) e a rubrica do assinante;
+ *  - `cadastro.ts` — CRUD, lotações, promoção (RBAC);
  *  - `historico.ts` — a linha do tempo funcional, incluindo `afastamentoVigente`
  *    (o predicado que decide se o policial pode ser escalado hoje);
  *  - `exclusao.ts` — o impedimento de excluir quem tem vínculo ASSINADO, que é
@@ -23,7 +23,6 @@ export {
 	listarPoliciais,
 	buscarPolicial,
 	buscarPolicialPorMatricula,
-	buscarRubricaAssinante,
 	criarPolicial,
 	upsertPolicial,
 	atualizarPolicial,

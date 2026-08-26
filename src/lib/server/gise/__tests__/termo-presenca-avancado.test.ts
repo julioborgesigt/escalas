@@ -2,11 +2,9 @@ import { describe, it, expect } from 'vitest';
 import zlib from 'node:zlib';
 import { montarTermoPresencaAvancado, prepararTermoPresencaAvancado } from '../termo-presenca';
 
-// JPEG 1×1 válido (selfie/prova de vida) e PNG 1×1 (rubrica).
+// JPEG 1×1 válido (selfie/prova de vida).
 const JPEG_1X1 =
 	'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAP//////////////////////////////////////////////////////////////////////////////////////wAALCAABAAEBAREA/8QAFAABAAAAAAAAAAAAAAAAAAAAAv/EABQQAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQEAAT8AH//Z';
-const RUBRICA_PNG =
-	'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
 
 /** Extrai o texto (operadores Tj) de todos os content streams do PDF. */
 function extrairTexto(bytes: Uint8Array): string {
@@ -41,7 +39,7 @@ function extrairTexto(bytes: Uint8Array): string {
 }
 
 describe('montarTermoPresencaAvancado — comprovante de presença sob demanda', () => {
-	it('gera termo AVANÇADO com rubrica, foto e base legal correta', async () => {
+	it('gera termo AVANÇADO com foto e base legal correta', async () => {
 		const pdf = await montarTermoPresencaAvancado({
 			tipo: 'entrada',
 			presencaId: 42,
@@ -52,7 +50,6 @@ describe('montarTermoPresencaAvancado — comprovante de presença sob demanda',
 			signerCpf: '12345678901',
 			matricula: '301.095-1',
 			timestampISO: '2026-07-17T11:00:00Z',
-			rubricaBase64: RUBRICA_PNG,
 			selfieBase64: JPEG_1X1,
 			ip: '203.0.113.7',
 			userAgent: 'Mozilla/5.0',
@@ -73,8 +70,7 @@ describe('montarTermoPresencaAvancado — comprovante de presença sob demanda',
 		expect(texto).toContain('Lei 14.063/2020');
 		expect(texto).not.toMatch(/ICP[\s-]?Brasil/i);
 
-		// (3) A folha de auditoria mostra RÚBRICA e FOTO (selfie presente).
-		expect(texto).toMatch(/R\xdaBRICA/);
+		// (3) A folha de auditoria mostra a FOTO (selfie presente).
 		expect(texto).toContain('FOTO DO ATO');
 	});
 
@@ -86,7 +82,6 @@ describe('montarTermoPresencaAvancado — comprovante de presença sob demanda',
 			dataInicio: '2026-07-17',
 			signerName: 'BELTRANO',
 			timestampISO: '2026-07-17T19:00:00Z',
-			rubricaBase64: RUBRICA_PNG,
 			origin: 'https://exemplo.test'
 		});
 		const texto = extrairTexto(pdf);
@@ -103,7 +98,6 @@ describe('prepararTermoPresencaAvancado — duas fases (passkey)', () => {
 			dataInicio: '2026-07-17',
 			signerName: 'FULANO DE TAL',
 			timestampISO: '2026-07-17T11:00:00Z',
-			rubricaBase64: RUBRICA_PNG,
 			origin: 'https://exemplo.test'
 		});
 		expect(verificationHash).toMatch(/^[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}$/);

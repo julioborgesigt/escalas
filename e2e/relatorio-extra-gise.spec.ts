@@ -12,7 +12,7 @@ import { assinarComoSerpro } from './ca-teste/assinador';
  * Cobre as guardas do endpoint (quem assina, seccional válida, saída completa)
  * e o ciclo preparar → CMS → finalizar → persistência → /validar, incluindo o
  * negativo de CPF do token ≠ supervisor logado. A montagem do manifesto (todas
- * as rubricas de presença + supervisor) já é coberta no nível unitário por
+ * as presenças + supervisor) já é coberta no nível unitário por
  * manifesto-signers.test.ts (extração de texto do PDF); aqui garantimos que os
  * ENDPOINTS ligam tudo corretamente.
  *
@@ -28,8 +28,6 @@ import { assinarComoSerpro } from './ca-teste/assinador';
 
 const GISE = FIXTURE.gise.id;
 const SECCIONAL = FIXTURE.seccional.id; // route param = unidade id da seccional
-const RUBRICA_PNG =
-	'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
 
 let tokenSupervisor: string | null = null;
 let tokenMembro: string | null = null;
@@ -37,12 +35,12 @@ let tokenAdminGeral: string | null = null;
 
 /** (Re)semeia a presença do membro: sempre com entrada; saída opcional. */
 function seedPresencaMembro(comSaida: boolean): boolean {
-	const colsSaida = comSaida ? `, saida_timestamp, saida_rubrica` : '';
-	const valsSaida = comSaida ? `, '2026-06-01T16:00:00.000Z', '${RUBRICA_PNG}'` : '';
+	const colsSaida = comSaida ? `, saida_timestamp` : '';
+	const valsSaida = comSaida ? `, '2026-06-01T16:00:00.000Z'` : '';
 	return execD1Local(
 		`DELETE FROM gise_presencas WHERE gise_id = ${GISE}; ` +
-			`INSERT INTO gise_presencas (gise_id, policial_id, entrada_timestamp, entrada_rubrica${colsSaida}) ` +
-			`VALUES (${GISE}, ${FIXTURE.membroGise.id}, '2026-06-01T08:00:00.000Z', '${RUBRICA_PNG}'${valsSaida});`
+			`INSERT INTO gise_presencas (gise_id, policial_id, entrada_timestamp${colsSaida}) ` +
+			`VALUES (${GISE}, ${FIXTURE.membroGise.id}, '2026-06-01T08:00:00.000Z'${valsSaida});`
 	);
 }
 
@@ -143,7 +141,7 @@ test.describe('Relatório extraordinário GISE — assinatura qualificada', () =
 		for (const url of rotas) {
 			const res = await request.post(url, {
 				headers: headersDeSessaoMutacao(tokenAdminGeral!),
-				data: { rubrica: RUBRICA_PNG, signerName: 'Qualquer Nome', signerCpf: '11144477735' }
+				data: { signerName: 'Qualquer Nome', signerCpf: '11144477735' }
 			});
 			expect(res.status(), `${url} devia recusar Admin Geral`).toBe(403);
 			expect((await res.json()).error, url).toMatch(/supervisor designado/i);
@@ -159,7 +157,7 @@ test.describe('Relatório extraordinário GISE — assinatura qualificada', () =
 		expect((await res.json()).error).toMatch(/seccional inválida/i);
 	});
 
-	test('saída incompleta → 400 (relatório exige rubrica de todos)', async ({ request }) => {
+	test('saída incompleta → 400 (relatório exige a saída de todos)', async ({ request }) => {
 		const res = await request.post(prepararUrl(SECCIONAL), {
 			headers: headersDeSessaoMutacao(tokenSupervisor!),
 			data: { signerName: FIXTURE.supervisor.nome, signerCpf: FIXTURE.supervisor.cpf }

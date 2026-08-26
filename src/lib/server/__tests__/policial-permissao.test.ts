@@ -5,7 +5,7 @@
  *
  * Este helper decide QUEM um admin pode administrar, e é consumido por 7 pontos
  * (listagem e edição de policiais, permissão de escala, solicitação de
- * assinatura, rubrica pendente). Até aqui só existia cobertura INDIRETA, com ele
+ * assinatura). Até aqui só existia cobertura INDIRETA, com ele
  * mockado (`escalas/__tests__/permissao.test.ts`) — ou seja, nada verificava a
  * query de expansão da seccional em si. Um erro nela abriria ou fecharia escopo
  * silenciosamente, sem quebrar teste nenhum.

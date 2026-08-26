@@ -167,7 +167,7 @@ async function verificarTodosSairam(db: Database, giseId: number): Promise<boole
 /**
  * Verifica se TODOS os participantes de uma seccional (ou do quadro de supervisão,
  * quando `isSupervisaoExtra`) confirmaram a SAÍDA. O relatório de serviço
- * extraordinário só pode ser assinado quando há rubrica de saída de todos os
+ * extraordinário só pode ser assinado quando há saída confirmada de todos os
  * participantes daquele relatório.
  *
  * `isSupervisaoExtra` é passado pelo chamador (que já resolve via

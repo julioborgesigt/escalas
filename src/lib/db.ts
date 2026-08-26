@@ -90,7 +90,6 @@ export {
 	listarPoliciais,
 	buscarPolicial,
 	buscarPolicialPorMatricula,
-	buscarRubricaAssinante,
 	criarPolicial,
 	atualizarPolicial,
 	excluirPolicial,

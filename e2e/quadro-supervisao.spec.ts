@@ -69,11 +69,6 @@ function supervisorNoBanco(): number | null | undefined {
 	return linhas?.[0]?.supervisor_id;
 }
 
-/** O aviso de rubrica é modal e torna a topbar inerte — mesmo adiamento dos outros specs. */
-async function silenciarAvisoRubrica(page: Page) {
-	await page.addInitScript(() => sessionStorage.setItem('aviso-rubrica-adiado', '1'));
-}
-
 /**
  * Abre a GISE e liga o Modo Edição Geral pelo BOTÃO, como o Admin Geral faz.
  *
@@ -101,7 +96,6 @@ test.describe('Quadro de supervisão — edição por papel', () => {
 		if (!semearGiseEditavel()) test.skip(true, 'D1 local indisponível — sem fixture');
 		const ok = await autenticarPagina(page, FIXTURE.adminGeral.id, 'admin');
 		if (!ok) test.skip(true, 'sessão de Admin Geral não pôde ser semeada');
-		await silenciarAvisoRubrica(page);
 	});
 
 	test('abrir a edição do supervisor troca o nome pelo seletor', async ({ page }) => {

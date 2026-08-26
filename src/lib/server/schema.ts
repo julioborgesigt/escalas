@@ -65,12 +65,6 @@ export const policiais = sqliteTable(
 		// Achado LGPD: `cpf` guarda o CPF cifrado (AES-GCM, `enc:v1:...`); este é
 		// o índice cego HMAC para lookup (login por certificado) sem decifrar.
 		cpf_index: text('cpf_index'),
-		// Rubrica reutilizável (PNG transparente em dataURL) cadastrada pelo policial
-		// para assinatura por Token A3 no computador. LGPD: nova finalidade com
-		// consentimento próprio (`rubrica_consentimento_em`); excluível pelo titular.
-		rubrica: text('rubrica'),
-		rubrica_atualizada_em: text('rubrica_atualizada_em'),
-		rubrica_consentimento_em: text('rubrica_consentimento_em'),
 		created_at: text('created_at')
 			.notNull()
 			.default(sql`(datetime('now', '-3 hours'))`),
@@ -621,7 +615,6 @@ export const giseDocumentos = sqliteTable(
 		verificacao_hash: text('verificacao_hash').unique(),
 		selfie_key: text('selfie_key'),
 		arquivo_hash: text('arquivo_hash'),
-		rubrica: text('rubrica'),
 		...camposMinimizadosDocumento(),
 		created_at: text('created_at').default(sql`(datetime('now', '-3 hours'))`)
 	},
@@ -712,10 +705,8 @@ export const gisePresencas = sqliteTable(
 			.notNull()
 			.references(() => policiais.id, { onDelete: 'cascade' }),
 		entrada_timestamp: text('entrada_timestamp'),
-		entrada_rubrica: text('entrada_rubrica'),
 		entrada_selfie_key: text('entrada_selfie_key'),
 		saida_timestamp: text('saida_timestamp'),
-		saida_rubrica: text('saida_rubrica'),
 		saida_selfie_key: text('saida_selfie_key'),
 		ip_address: text('ip_address'),
 		user_agent: text('user_agent'),
@@ -745,7 +736,7 @@ export const giseAssinaturasRelatorios = sqliteTable(
 		// onDelete: restrict — o banco RECUSA apagar uma unidade que tenha
 		// assinatura de relatório. Era `cascade` até a migração 0038, e apagar a
 		// unidade levava junto o registro do ato de assinar (assinante, CPF,
-		// rubrica, selfie, IP, GPS, hash, chave do PDF no R2), fazendo o `/validar`
+		// selfie, IP, GPS, hash, chave do PDF no R2), fazendo o `/validar`
 		// negar um documento já entregue. A aplicação nem exclui unidade mais (só
 		// desativa); isto fecha o DELETE manual.
 		seccional_id: integer('seccional_id')
@@ -757,7 +748,6 @@ export const giseAssinaturasRelatorios = sqliteTable(
 		assinante_cpf: text('assinante_cpf'),
 		assinante_email: text('assinante_email'),
 		tipo_assinatura: text('tipo_assinatura', { enum: ['simples', 'webpki', 'serpro'] }).notNull(),
-		rubrica: text('rubrica'),
 		selfie_key: text('selfie_key'),
 		arquivo_hash: text('arquivo_hash'),
 		verification_hash: text('verification_hash').unique(),
@@ -1030,16 +1020,12 @@ export const assinaturaIntencoes = sqliteTable(
 		 * (mesma classe do FLW-DOC-001). `latitude`/`longitude` já estão
 		 * desenhadas no PDF que a passkey assinou — recebê-las de novo deixaria
 		 * o banco dizer um lugar e o documento assinado dizer outro.
-		 * `rubrica` é a mesma data URI estampada no termo de presença: o
-		 * `preparar` da passkey não grava `gise_presencas` (cancelar o Face ID
-		 * não marca o plantão), então o `finalizar` lê daqui.
 		 *
-		 * NULL no fluxo por token e quando foto/GPS/rubrica de tela não são exigidos.
+		 * NULL no fluxo por token e quando foto/GPS não são exigidos.
 		 */
 		selfie_key: text('selfie_key'),
 		latitude: real('latitude'),
 		longitude: real('longitude'),
-		rubrica: text('rubrica'),
 		usado: integer('usado').notNull().default(0),
 		expires_at: text('expires_at').notNull(),
 		created_at: text('created_at')

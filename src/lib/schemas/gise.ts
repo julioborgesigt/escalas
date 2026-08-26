@@ -10,10 +10,6 @@ export const giseSignatureSchema = z.object({
 		})
 		.optional(),
 	/** `JSON.stringify` envia `null` para selfie/código quando ausentes; `z.string().optional()` não aceita null. */
-	rubrica: z
-		.union([z.string(), z.null()])
-		.transform((v) => v ?? '')
-		.pipe(z.string().min(1, 'Rubrica é obrigatória')),
 	selfieBase64: optionalNullable(
 		z
 			.string()

@@ -181,7 +181,6 @@
 				prepararUrl="/api/gise/{gise.id}/preparar-assinatura"
 				finalizarUrl="/api/gise/{gise.id}/finalizar-assinatura"
 				nomeArquivo="gise_{gise.data_inicio}_assinada.pdf"
-				extraPayload={{ rubrica: quadro.assinatura.rubricaCapturada }}
 				disabled={false}
 				onSuccess={() => quadro.aoAssinarEscalaDigital()}
 			/>

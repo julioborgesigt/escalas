@@ -144,19 +144,12 @@ export const GET: RequestHandler = async ({ platform, params, url, cookies, getC
 		}
 
 		if (documento.tipo_doc === 'escala') {
-			const { buscarEscala, listarPoliciaisEscala, buscarRubricaAssinante } =
-				await import('$lib/db');
+			const { buscarEscala, listarPoliciaisEscala } = await import('$lib/db');
 			const { gerarRascunhoEscalaPdf } = await import('$lib/server/assinatura/conferencia-pdf');
 			const escala = await buscarEscala(db, documento.escala_id);
 			if (!escala) return notFound('Escala');
 			const policiais = await listarPoliciaisEscala(db, documento.escala_id);
-			// Rubrica do signatário acima da linha (igual ao documento digital).
-			const rubricaAss = await buscarRubricaAssinante(
-				db,
-				(documento as { assinante_cpf?: string | null }).assinante_cpf,
-				platform?.env
-			);
-			const rascunho = await gerarRascunhoEscalaPdf(escala, policiais, platform, rubricaAss);
+			const rascunho = await gerarRascunhoEscalaPdf(escala, policiais, platform);
 			const buffer = await gerarCopiaConferencia({
 				pdfRascunho: rascunho,
 				assinanteNome: documento.assinante_nome,
@@ -272,7 +265,7 @@ export const GET: RequestHandler = async ({ platform, params, url, cookies, getC
 			const seccionalId = documento.seccional_id;
 			const relTipo = documento.rel_tipo;
 
-			// Buscar a assinatura original para garantir que as rubricas/certificação apareçam
+			// Buscar a assinatura original para garantir que a certificação apareça
 			const reportSignature = await buscarAssinaturaRelatorioGise(
 				db,
 				documento.escala_id,
@@ -324,8 +317,7 @@ export const GET: RequestHandler = async ({ platform, params, url, cookies, getC
 				const qrUrl = `${url.origin}/validar/${hash}`;
 				finalPdf = await adicionarRodapeSimples(finalPdf, reportSignature.assinante_nome, {
 					verificationHash: hash,
-					verificationUrl: qrUrl,
-					rubricBase64: reportSignature.rubrica ?? undefined
+					verificationUrl: qrUrl
 				});
 			}
 

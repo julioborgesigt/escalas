@@ -84,13 +84,7 @@ test.afterAll(() => {
 	`);
 });
 
-/** O aviso de rubrica é modal e torna a topbar inerte — mesmo adiamento dos outros specs. */
-async function silenciarAvisoRubrica(page: Page) {
-	await page.addInitScript(() => sessionStorage.setItem('aviso-rubrica-adiado', '1'));
-}
-
 async function abrirQuadro(page: Page) {
-	await silenciarAvisoRubrica(page);
 	const ok = await autenticarPagina(page, FIXTURE.adminGeral.id, 'admin');
 	test.skip(!ok, 'D1 local indisponível');
 	await page.goto(`/gise/${C.gise}`);

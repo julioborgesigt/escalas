@@ -71,9 +71,9 @@ export interface AtorAssinatura {
  * @param contexto estado que só o `preparar` conhece e que o `finalizar`
  * precisa gravar. Vai por aqui, e não pelo corpo do finalizar: `selfieKey` é
  * chave de bucket (deixá-la voltar do cliente permitiria apontar o documento
- * para a foto de outra pessoa — mesma classe do FLW-DOC-001); GPS e rubrica
- * já estão DESENHADOS no PDF assinado, então recebê-los de novo deixaria
- * banco e documento discordando sem nada acusar.
+ * para a foto de outra pessoa — mesma classe do FLW-DOC-001); o GPS já está
+ * DESENHADO no PDF assinado, então recebê-lo de novo deixaria banco e
+ * documento discordando sem nada acusar.
  */
 export async function criarIntencaoAssinatura(
 	db: Database,
@@ -96,7 +96,6 @@ export async function criarIntencaoAssinatura(
 		selfie_key: contexto.selfieKey ?? null,
 		latitude: contexto.latitude ?? null,
 		longitude: contexto.longitude ?? null,
-		rubrica: contexto.rubrica ?? null,
 		expires_at: new Date(Date.now() + VALIDADE_MS).toISOString()
 	});
 	return token;
@@ -118,8 +117,6 @@ export interface ContextoPreparo {
 	selfieKey?: string | null;
 	latitude?: number | null;
 	longitude?: number | null;
-	/** Data URI da rubrica estampada no PDF — presença avançada por passkey. */
-	rubrica?: string | null;
 }
 
 export type ResultadoIntencao =
@@ -170,8 +167,7 @@ export async function consumirIntencaoAssinatura(
 			verificacao_hash: assinaturaIntencoes.verificacao_hash,
 			selfie_key: assinaturaIntencoes.selfie_key,
 			latitude: assinaturaIntencoes.latitude,
-			longitude: assinaturaIntencoes.longitude,
-			rubrica: assinaturaIntencoes.rubrica
+			longitude: assinaturaIntencoes.longitude
 		});
 
 	const intencao = linhas[0];
@@ -199,8 +195,7 @@ export async function consumirIntencaoAssinatura(
 		contexto: {
 			selfieKey: intencao.selfie_key ?? null,
 			latitude: intencao.latitude ?? null,
-			longitude: intencao.longitude ?? null,
-			rubrica: intencao.rubrica ?? null
+			longitude: intencao.longitude ?? null
 		}
 	};
 }

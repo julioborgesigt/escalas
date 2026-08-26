@@ -239,8 +239,6 @@ export type ResGisePageData = {
 	/** Carimbo da última retificação da resposta de produtividade ou null. */
 	respostaAtualizadaEm?: string | null;
 	restringirSmartphone: boolean;
-	/** Rubrica reutilizável cadastrada pelo policial (PNG dataURL) ou `null`. */
-	minhaRubrica?: string | null;
 	/** Operações ativas — o editor mostra um formulário por operação. */
 	operacoes: Operacao[];
 	/** A operação em edição (resolvida no servidor a partir de `?operacaoId=`). */

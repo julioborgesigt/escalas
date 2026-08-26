@@ -33,7 +33,6 @@ export const POST: RequestHandler = async (event) => {
 	if (!v.ok) return v.response;
 
 	const {
-		rubrica,
 		type,
 		hash: inputHash,
 		latitude,
@@ -66,7 +65,6 @@ export const POST: RequestHandler = async (event) => {
 				db,
 				u,
 				{
-					rubrica,
 					latitude: latitude ?? undefined,
 					longitude: longitude ?? undefined,
 					selfieBase64,
@@ -84,7 +82,6 @@ export const POST: RequestHandler = async (event) => {
 			);
 			if (!evid.ok) return apiError(evid.error, evid.status, evid.code ?? ErrorCode.VALIDATION);
 			evidenciasMontagem = {
-				rubrica: evid.validated.rubrica,
 				latitude: evid.validated.latitude,
 				longitude: evid.validated.longitude,
 				selfieBase64: evid.validated.selfieBase64,
@@ -92,7 +89,7 @@ export const POST: RequestHandler = async (event) => {
 				politicaDispositivoMovel: evid.validated.politicaDispositivoMovel
 			};
 		} else {
-			evidenciasMontagem = { rubrica: rubrica || '', politicaDispositivoMovel: false };
+			evidenciasMontagem = { politicaDispositivoMovel: false };
 		}
 
 		const bucketOk = bucketParaAssinatura(tryGetR2(platform));
@@ -146,7 +143,6 @@ export const POST: RequestHandler = async (event) => {
 				cpf: u.cpf
 			},
 			montado,
-			rubrica: evidenciasMontagem.rubrica,
 			selfieKey,
 			ip: ip ?? undefined,
 			userAgent: ua,

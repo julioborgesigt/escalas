@@ -155,7 +155,7 @@ export async function listarGiseEscalas(
 			.where(inArray(giseSeccionais.gise_id, escalaIds))
 			.all(),
 		// IDs das seccionais cujo relatório de extra está PRONTO para assinar:
-		// TODOS os membros confirmaram a saída (rubrica) e o extra ainda não foi
+		// TODOS os membros confirmaram a saída e o extra ainda não foi
 		// assinado. O `having count(*) = count(saida_timestamp)` exige saída de
 		// todos (left join: membro sem presença/sem saída deixa o count menor).
 		db

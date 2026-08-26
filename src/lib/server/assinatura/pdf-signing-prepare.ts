@@ -32,7 +32,7 @@
  * PDF assinado é DOCUMENTO, não saída de função: antes de refatorar, rode
  * `pdf-goldens` e confirme que não mudou um byte.
  */
-import { PDFDocument, StandardFonts, rgb, degrees, type PDFPage } from 'pdf-lib';
+import { PDFDocument, StandardFonts, rgb, degrees } from 'pdf-lib';
 import { pdflibAddPlaceholder } from '@signpdf/placeholder-pdf-lib';
 import { removeTrailingNewLine } from '@signpdf/utils';
 import forge from 'node-forge';
@@ -573,56 +573,10 @@ interface PrepareResult {
 }
 
 /**
- * Desenha o campo de assinatura no estilo LIMPO (`'rubrica'`): apenas a rubrica
- * do signatário, ajustada para caber na área do campo. Sem moldura, nome, faixa
- * navy, QR ou hash — a identidade ("Assinado digitalmente por…"), o código e o
- * QR vivem no rodapé universal + na página de manifesto. Quando não há rubrica,
- * o campo fica EM BRANCO, espelhando o documento impresso para conferência.
+ * Geometria da caixa do campo de assinatura no fluxo por token: onde o widget
+ * de assinatura do PDF é ancorado no estilo `'campo-limpo'`.
  */
-async function desenharCampoRubricaLimpo(
-	pdfDoc: PDFDocument,
-	page: PDFPage,
-	o: {
-		boxX: number;
-		boxY: number;
-		boxW: number;
-		boxH: number;
-		rubricBase64?: string;
-		customRubricX?: number;
-		customRubricY?: number;
-	}
-): Promise<void> {
-	if (!o.rubricBase64) return; // sem rubrica → campo em branco (igual ao impresso)
-	const { boxX, boxY, boxW, boxH } = o;
-	try {
-		const rubricImage = o.rubricBase64.includes('image/jpeg')
-			? await pdfDoc.embedJpg(o.rubricBase64)
-			: await pdfDoc.embedPng(o.rubricBase64);
-		const areaW = boxW - 12;
-		const areaH = boxH - 12;
-		// Ajuste proporcional para caber na área (sem distorcer nem estourar).
-		const escala = Math.min(areaW / rubricImage.width, areaH / rubricImage.height, 1);
-		const rubW = rubricImage.width * escala;
-		const rubH = rubricImage.height * escala;
-		const rx = o.customRubricX !== undefined ? o.customRubricX : boxX + (boxW - rubW) / 2;
-		// Ancorada junto ao PÉ do campo (logo acima da linha de assinatura), como
-		// uma rubrica manuscrita sobre a linha — e não flutuando no meio do campo.
-		const ry = o.customRubricY !== undefined ? o.customRubricY : boxY + 5;
-		page.drawImage(rubricImage, { x: rx, y: ry, width: rubW, height: rubH, opacity: 0.9 });
-	} catch (err) {
-		logger.error('Erro ao embutir rubrica no campo limpo', {
-			error: mensagemDeErro(err)
-		});
-	}
-}
-
-/**
- * Geometria da caixa da rubrica no fluxo por token. FONTE ÚNICA usada tanto pelo
- * documento assinado (`prepararPdfParaAssinatura`, estilo `'rubrica'`) quanto pela
- * cópia de conferência (`estamparRubricaLimpa`) — assim o campo cai exatamente no
- * MESMO lugar nos dois artefatos, por construção, sem drift.
- */
-function calcularCaixaRubrica(
+function calcularCaixaAssinatura(
 	width: number,
 	alignment: 'center' | 'right',
 	customBoxY?: number
@@ -632,42 +586,6 @@ function calcularCaixaRubrica(
 	const boxX = alignment === 'center' ? (width - boxW) / 2 : width * 0.75 - boxW / 2;
 	const boxY = customBoxY !== undefined ? customBoxY : 40;
 	return { boxX, boxY, boxW, boxH };
-}
-
-/**
- * Estampa APENAS a rubrica limpa sobre um PDF já pronto (tipicamente `pdfComRodape`,
- * o mesmo insumo do documento assinado), na MESMA geometria e com o MESMO primitivo
- * (`desenharCampoRubricaLimpo` + `calcularCaixaRubrica`) usados na preparação.
- *
- * É o coração da paridade da cópia de conferência: como recebe os bytes já com o
- * rodapé universal e desenha a rubrica onde ela cai no documento digital, o
- * resultado é visualmente idêntico às páginas de conteúdo do documento assinado —
- * sem placeholder de assinatura e sem página de manifesto forense.
- */
-export async function estamparRubricaLimpa(
-	pdfBytes: Uint8Array,
-	opts: {
-		alignment: 'center' | 'right';
-		customBoxY?: number;
-		rubricBase64?: string;
-		customRubricX?: number;
-		customRubricY?: number;
-		targetPageIndex?: number;
-	}
-): Promise<Uint8Array> {
-	const pdfDoc = await PDFDocument.load(pdfBytes);
-	const pages = pdfDoc.getPages();
-	const idx = opts.targetPageIndex !== undefined ? opts.targetPageIndex : pages.length - 1;
-	const page = pages[idx];
-	const { width } = page.getSize();
-	const caixa = calcularCaixaRubrica(width, opts.alignment, opts.customBoxY);
-	await desenharCampoRubricaLimpo(pdfDoc, page, {
-		...caixa,
-		rubricBase64: opts.rubricBase64,
-		customRubricX: opts.customRubricX,
-		customRubricY: opts.customRubricY
-	});
-	return pdfDoc.save();
 }
 
 /**
@@ -682,19 +600,17 @@ export async function prepararPdfParaAssinatura(
 	verificationHash?: string,
 	verificationUrl?: string,
 	customBoxY?: number,
-	rubricBase64?: string,
-	customRubricX?: number,
-	customRubricY?: number,
 	targetPageIndex?: number,
 	/**
 	 * Estilo do carimbo visual sobre o campo de assinatura:
 	 *   - `'selo-icp'` (default): caixa ICP-Brasil completa (faixa navy + QR +
 	 *     hash fantasma). Preservado para GISE, relatórios e presença.
-	 *   - `'rubrica'`: campo LIMPO — só a rubrica do signatário (ou moldura vazia
-	 *     quando não houver), unificando com a cópia de conferência impressa. QR,
-	 *     código e base legal migram para o rodapé universal + página de manifesto.
+	 *   - `'campo-limpo'`: NADA é desenhado sobre o campo — só o widget de
+	 *     assinatura é ancorado ali, deixando a área em branco como no documento
+	 *     impresso. QR, código e base legal vivem no rodapé universal + na página
+	 *     de manifesto.
 	 */
-	estilo: 'selo-icp' | 'rubrica' = 'selo-icp'
+	estilo: 'selo-icp' | 'campo-limpo' = 'selo-icp'
 ): Promise<PrepareResult> {
 	const pdfDoc = await PDFDocument.load(pdfBytes);
 
@@ -708,9 +624,7 @@ export async function prepararPdfParaAssinatura(
 	const dataHora = formatarDataHora();
 
 	// --- Dimensões do carimbo (+5% largura conforme pedido) ---
-	// Geometria compartilhada com a cópia de conferência (estamparRubricaLimpa) via
-	// calcularCaixaRubrica — garante que o campo caia no MESMO lugar nos dois artefatos.
-	const { boxX, boxY, boxW, boxH } = calcularCaixaRubrica(width, alignment, customBoxY);
+	const { boxX, boxY, boxW, boxH } = calcularCaixaAssinatura(width, alignment, customBoxY);
 	const headerH = 9;
 
 	// --- Paleta ---
@@ -722,21 +636,12 @@ export async function prepararPdfParaAssinatura(
 	const cGray = rgb(0.4, 0.4, 0.45);
 	const cWhite = rgb(1, 1, 1);
 
-	// ── Estilo 'rubrica' (campo limpo) ─────────────────────────────────────────
-	// Auto-contido: desenha só a rubrica (ou moldura vazia) + legenda enxuta e
-	// retorna, deixando TODO o caminho ornamentado abaixo intocado (zero regressão
-	// para GISE/relatórios/presença, que seguem em 'selo-icp'). O QR e o código de
-	// verificação passam a viver no rodapé universal + na página de manifesto.
-	if (estilo === 'rubrica') {
-		await desenharCampoRubricaLimpo(pdfDoc, lastPage, {
-			boxX,
-			boxY,
-			boxW,
-			boxH,
-			rubricBase64,
-			customRubricX,
-			customRubricY
-		});
+	// ── Estilo 'campo-limpo' ───────────────────────────────────────────────────
+	// Auto-contido: NÃO desenha nada sobre o campo e retorna, deixando TODO o
+	// caminho ornamentado abaixo intocado (zero regressão para GISE/relatórios/
+	// presença, que seguem em 'selo-icp'). O QR e o código de verificação vivem
+	// no rodapé universal + na página de manifesto.
+	if (estilo === 'campo-limpo') {
 		return finalizarPreparacao(pdfDoc, {
 			reason: 'Assinatura da escala de plantão',
 			name: signerName,
@@ -762,32 +667,6 @@ export async function prepararPdfParaAssinatura(
 				end: { x: boxX + i + tEnd * boxH, y: boxY + tEnd * boxH },
 				thickness: 0.18,
 				color: cHatch
-			});
-		}
-	}
-
-	// 0 — Rubrica (se fornecida)
-	if (rubricBase64) {
-		try {
-			const rubricImage = rubricBase64.includes('image/jpeg')
-				? await pdfDoc.embedJpg(rubricBase64)
-				: await pdfDoc.embedPng(rubricBase64);
-			const rubW = 100; // Reduzido ligeiramente para caber melhor no box
-			const rubH = (rubricImage.height / rubricImage.width) * rubW;
-
-			const rx = customRubricX !== undefined ? customRubricX : boxX + (boxW - rubW) / 2;
-			const ry = customRubricY !== undefined ? customRubricY : boxY + (boxH - rubH) / 2; // Centralizado no box por padrão
-
-			lastPage.drawImage(rubricImage, {
-				x: rx,
-				y: ry,
-				width: rubW,
-				height: rubH,
-				opacity: 0.85
-			});
-		} catch (err) {
-			logger.error('Erro ao embutir rubrica no prep', {
-				error: mensagemDeErro(err)
 			});
 		}
 	}

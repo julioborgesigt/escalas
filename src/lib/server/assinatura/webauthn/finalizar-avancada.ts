@@ -74,7 +74,7 @@ export type ResultadoFinalizacao =
 			ok: true;
 			/** `verificacao_hash` do SERVIDOR — nomeia o objeto no R2 e o código de `/validar`. */
 			verificacaoHash: string;
-			/** Selfie, GPS e rubrica gravados pelo `preparar`. Nunca vêm do corpo. */
+			/** Selfie e GPS gravados pelo `preparar`. Nunca vêm do corpo. */
 			contexto: Required<ContextoPreparo>;
 			credencial: CredencialConferida;
 			/** Os bytes do PDF preparado, já decodificados — o chamador sela sobre eles. */

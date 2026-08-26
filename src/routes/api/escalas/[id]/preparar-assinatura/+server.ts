@@ -2,9 +2,9 @@
  * POST /api/escalas/[id]/preparar-assinatura
  *
  * Prepara o PDF da escala ordinária (plantão/expediente) com placeholder de
- * assinatura digital. Rubrica vem do cadastro, não do body. Recusa FDS (fluxo
- * por e-mail) e documento já existente. Fecha com `fecharPreparacaoAssinatura`
- * (intenção + cópia de conferência).
+ * assinatura digital. Recusa FDS (fluxo por e-mail) e documento já existente.
+ * Fecha com `prepararAssinaturaPorToken` (placeholder + intenção + cópia de
+ * conferência).
  */
 import type { RequestHandler } from './$types';
 import { getDB, listarPoliciaisEscala, buscarPolicial } from '$lib/db';
@@ -12,7 +12,6 @@ import { prepararAssinaturaSchema } from '$lib/schemas';
 import { requireAuth, badRequest, validateBody } from '$lib/server/api';
 import { gerarPdf, gerarPdfPlantao, gerarPdfExpediente } from '$lib/server/export';
 import {
-	prepararPdfParaAssinatura,
 	adicionarPaginaAuditoria,
 	adicionarRodapeUniversal
 } from '$lib/server/assinatura/pdf-signing';
@@ -24,7 +23,7 @@ import { PDFDocument } from 'pdf-lib';
 import { gerarCodigoValidacao } from '$lib/utils/formato';
 import { carregarEscalaParaAssinatura } from '$lib/server/escalas/permissao';
 import { identidadeVisualAssinante } from '$lib/server/assinatura/identidade-sessao';
-import { fecharPreparacaoAssinatura } from '$lib/server/assinatura/preparar-ciclo';
+import { prepararAssinaturaPorToken } from '$lib/server/assinatura/preparar-ciclo';
 
 export const POST: RequestHandler = async ({
 	platform,
@@ -39,8 +38,6 @@ export const POST: RequestHandler = async ({
 
 	const validated = await validateBody(request, prepararAssinaturaSchema);
 	if (!validated.ok) return validated.response;
-	// `rubrica` do body é ignorada de propósito: a rubrica vem do cadastro do
-	// perfil (server-side), não do cliente.
 	const { latitude, longitude } = validated.data;
 	const ip = getClientAddress();
 	const ua = request.headers.get('user-agent') || '';
@@ -75,18 +72,14 @@ export const POST: RequestHandler = async ({
 	const { signerName: finalSignerName, signerCpf: finalSignerCpf } = identidadeVisualAssinante(u);
 	const assinanteEmail = u.email ?? undefined;
 
-	// Rubrica + matrícula do SIGNATÁRIO (o próprio usuário logado, cujo token
-	// assina — o vínculo CPF token↔usuário é reforçado no finalizar). A rubrica
-	// vai no campo de assinatura (estilo 'rubrica'); a matrícula, no rodapé de
-	// identidade. Admin sem policial vinculado (ou policial sem rubrica) → campo
-	// em branco, espelhando o documento impresso. `rubrica` do body é ignorada:
-	// a fonte é o cadastro do perfil (server-side).
+	// Matrícula do SIGNATÁRIO (o próprio usuário logado, cujo token assina — o
+	// vínculo CPF token↔usuário é reforçado no finalizar), para o rodapé de
+	// identidade. O campo de assinatura em si fica EM BRANCO (estilo
+	// 'campo-limpo'), espelhando o documento impresso.
 	const policialId = u.tipo === 'policial' ? u.id : (u.adminPolicialId ?? null);
-	let rubricaAssinatura: string | undefined;
 	let matriculaAssinatura = u.matricula;
 	if (policialId != null) {
 		const pol = await buscarPolicial(db, policialId);
-		rubricaAssinatura = pol?.rubrica ?? undefined;
 		matriculaAssinatura = matriculaAssinatura ?? pol?.matricula;
 	}
 
@@ -129,54 +122,26 @@ export const POST: RequestHandler = async ({
 
 	// contentPageIndex = índice da última página de conteúdo (para posicionar o carimbo PKI)
 	const contentPageIndex = contentPageCount - 1;
-	// Campo da rubrica logo ACIMA da linha de assinatura (que a escala desenha em
+	// Campo de assinatura logo ACIMA da linha de assinatura (que a escala desenha em
 	// sigY). O campo fica à DIREITA e o rodapé de identidade à ESQUERDA, então não
 	// há colisão horizontal — não é preciso o piso alto de antes. Piso baixo (40pt)
 	// só evita o campo encostar no rodapé fino caso a assinatura fique no extremo pé.
 	const boxY_pts = Math.max((pageHeightMm - sigY) * 2.8346 + 3, 40);
 
-	const prepResult = await prepararPdfParaAssinatura(
-		pdfWithAudit,
-		finalSignerName,
-		'right',
-		verificationHash,
-		verificationUrl,
-		boxY_pts,
-		rubricaAssinatura,
-		undefined,
-		undefined,
-		contentPageIndex,
-		'rubrica'
-	);
-
-	const { preparedPdf, signedAttrsHashHex, messageDigest, signingTimeISO, dataToSignBase64 } =
-		prepResult;
-
-	return fecharPreparacaoAssinatura({
+	return prepararAssinaturaPorToken({
 		db,
 		platform,
 		alvo: { recurso: 'escala', recursoId: id },
 		ator: { id: u.id, tipo: u.tipo },
-		preparedPdf,
+		pdfComAuditoria: pdfWithAudit,
+		pdfComRodape,
+		signerName: finalSignerName,
+		assinanteEmail,
+		documentHash,
 		verificationHash,
-		campos: {
-			signedAttrsHashHex,
-			messageDigest,
-			signingTimeISO,
-			dataToSignBase64,
-			documentHash,
-			assinanteEmail
-		},
-		conferencia: {
-			pdfComRodape,
-			stamp: {
-				alignment: 'right',
-				customBoxY: boxY_pts,
-				rubricBase64: rubricaAssinatura,
-				targetPageIndex: contentPageIndex
-			},
-			logTag: 'escalas/preparar-assinatura',
-			logFields: { escala_id: id }
-		}
+		verificationUrl,
+		campo: { alignment: 'right', boxY: boxY_pts, targetPageIndex: contentPageIndex },
+		logTag: 'escalas/preparar-assinatura',
+		logFields: { escala_id: id }
 	});
 };

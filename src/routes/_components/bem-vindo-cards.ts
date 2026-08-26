@@ -59,7 +59,7 @@ export interface EntradaCards {
 const MEU_PERFIL: CardBemVindo = {
 	titulo: 'Meu perfil',
 	descricao:
-		'Veja seus dados cadastrais, cadastre sua rubrica e a chave de assinatura do celular, e solicite a correção do que estiver desatualizado.',
+		'Veja seus dados cadastrais, cadastre a chave de assinatura do celular e solicite a correção do que estiver desatualizado.',
 	href: '/perfil',
 	cta: 'Abrir meu perfil'
 };

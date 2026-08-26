@@ -181,7 +181,7 @@ export default async function globalSetup() {
 		ON CONFLICT(id) DO UPDATE SET matricula = excluded.matricula, nome = excluded.nome,
 			cargo = excluded.cargo, lotacao = excluded.lotacao, senha = excluded.senha,
 			primeiro_acesso = excluded.primeiro_acesso, email = excluded.email,
-			ativo = excluded.ativo, cpf = excluded.cpf, rubrica = NULL;
+			ativo = excluded.ativo, cpf = excluded.cpf;
 		-- \`operacao_id\` sai do nome, não de um id fixo: quem cria a operação GISE é
 		-- a migração 0048, e o id dela depende da ordem de inserção do banco. Sem
 		-- esta coluna a fixture ficaria como uma escala pré-migração, que é

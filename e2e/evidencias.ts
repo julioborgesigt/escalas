@@ -4,10 +4,6 @@
  * extraordinário avançado…). Antes cada spec duplicava os blobs base64.
  */
 
-/** PNG 1×1 válido — o pdf-lib embute a rubrica de verdade no rodapé. */
-export const RUBRICA_PNG =
-	'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==';
-
 /** JPEG 1×1 válido — a câmera real produz JPEG; o manifesto embute a selfie. */
 export const SELFIE_JPEG =
 	'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/wAALCAABAAEBAREA/8QAFAABAAAAAAAAAAAAAAAAAAAACf/EABQQAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQEAAD8AVN//2Q==';

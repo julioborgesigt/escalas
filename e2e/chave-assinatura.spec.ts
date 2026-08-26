@@ -7,7 +7,6 @@ import {
 	headersFormAction,
 	execD1Local
 } from './session';
-import { RUBRICA_PNG } from './evidencias';
 
 /**
  * Ciclo de vida da chave de assinatura (fases 2 e 3): cadastro só no celular,
@@ -144,7 +143,7 @@ test.describe('Chave de assinatura — cadastro, reposição e recusas', () => {
 			`/api/escalas/${FIXTURE.escalaAssinavel.id}/preparar-assinatura-avancada`,
 			{
 				headers: headersDeSessaoMutacao(token!),
-				data: { rubrica: RUBRICA_PNG }
+				data: {}
 			}
 		);
 		expect(preparar.status()).toBe(403);
@@ -171,7 +170,7 @@ test.describe('Chave de assinatura — GISE, extra e presença', () => {
 		try {
 			const giseUmTiro = await request.post(`/api/gise/${FIXTURE.gise.id}/assinar-simples`, {
 				headers: headersDeSessaoMutacao(tokenSup!),
-				data: { rubrica: RUBRICA_PNG }
+				data: {}
 			});
 			expect(giseUmTiro.status()).toBe(403);
 			expect((await giseUmTiro.json()).error).toMatch(/chave do seu celular|passkey/i);
@@ -180,7 +179,7 @@ test.describe('Chave de assinatura — GISE, extra e presença', () => {
 				`/api/gise/${FIXTURE.gise.id}/preparar-assinatura-avancada`,
 				{
 					headers: headersDeSessaoMutacao(tokenSup!),
-					data: { rubrica: RUBRICA_PNG }
+					data: {}
 				}
 			);
 			expect(gisePrep.status()).toBe(403);
@@ -188,15 +187,15 @@ test.describe('Chave de assinatura — GISE, extra e presença', () => {
 
 			execD1Local(
 				`DELETE FROM gise_presencas WHERE gise_id = ${FIXTURE.gise.id}; ` +
-					`INSERT INTO gise_presencas (gise_id, policial_id, entrada_timestamp, entrada_rubrica, saida_timestamp, saida_rubrica) ` +
-					`VALUES (${FIXTURE.gise.id}, ${FIXTURE.membroGise.id}, '2026-06-01T08:00:00.000Z', '${RUBRICA_PNG}', '2026-06-01T16:00:00.000Z', '${RUBRICA_PNG}');`
+					`INSERT INTO gise_presencas (gise_id, policial_id, entrada_timestamp, saida_timestamp) ` +
+					`VALUES (${FIXTURE.gise.id}, ${FIXTURE.membroGise.id}, '2026-06-01T08:00:00.000Z', '2026-06-01T16:00:00.000Z');`
 			);
 
 			const extraUmTiro = await request.post(
 				`/api/gise/${FIXTURE.gise.id}/relatorios/${FIXTURE.seccional.id}/assinar`,
 				{
 					headers: headersDeSessaoMutacao(tokenSup!),
-					data: { rubrica: RUBRICA_PNG, type: 'simples' }
+					data: { type: 'simples' }
 				}
 			);
 			expect(extraUmTiro.status()).toBe(403);
@@ -206,7 +205,7 @@ test.describe('Chave de assinatura — GISE, extra e presença', () => {
 				`/api/gise/${FIXTURE.gise.id}/relatorios/${FIXTURE.seccional.id}/preparar-assinatura-avancada`,
 				{
 					headers: headersDeSessaoMutacao(tokenSup!),
-					data: { rubrica: RUBRICA_PNG, type: 'simples' }
+					data: { type: 'simples' }
 				}
 			);
 			expect(extraPrep.status()).toBe(403);
@@ -215,14 +214,14 @@ test.describe('Chave de assinatura — GISE, extra e presença', () => {
 				`/api/gise/${FIXTURE.gise.id}/presenca/preparar-assinatura-avancada`,
 				{
 					headers: headersDeSessaoMutacao(tokenMembro!),
-					data: { rubrica: RUBRICA_PNG, tipo: 'entrada' }
+					data: { tipo: 'entrada' }
 				}
 			);
 			expect(presencaPrep.status()).toBe(403);
 
 			const presencaUmTiro = await request.post('/res-gise?/salvarEntrada', {
 				headers: headersFormAction(tokenMembro!),
-				form: { giseId: String(FIXTURE.gise.id), rubrica: RUBRICA_PNG }
+				form: { giseId: String(FIXTURE.gise.id) }
 			});
 			const presencaTxt = await presencaUmTiro.text();
 			expect(presencaTxt).toMatch(/chave do seu celular|403/);

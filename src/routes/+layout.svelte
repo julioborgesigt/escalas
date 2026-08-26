@@ -50,7 +50,6 @@
 	import { loading } from '$lib/loading.svelte';
 	import LoadingOverlay from '$lib/components/LoadingOverlay.svelte';
 	import Spinner from '$lib/components/Spinner.svelte';
-	import AvisoCadastroRubrica from '$lib/components/AvisoCadastroRubrica.svelte';
 	import { useScrollLock, useInvalidateOnFocus } from '$lib/composables';
 	import { fetchSyncEstado } from '$lib/sync-estado';
 	import BarraTopo from './_components/BarraTopo.svelte';
@@ -220,11 +219,6 @@
 <!-- offsetSidebar=false: a gaveta é overlay (não reserva espaço), então o overlay
      de carregamento centraliza na viewport inteira. -->
 <LoadingOverlay active={loading.active} message={loading.message} offsetSidebar={false} />
-
-<!-- Aviso pós-login: policial com assinatura pendente e sem rubrica cadastrada -->
-{#if page.data.precisaCadastrarRubrica}
-	<AvisoCadastroRubrica />
-{/if}
 
 <ToastProvider />
 

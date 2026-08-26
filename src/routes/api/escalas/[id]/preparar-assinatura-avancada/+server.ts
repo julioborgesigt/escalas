@@ -85,7 +85,6 @@ export const POST: RequestHandler = async ({
 	const validated = await validateBody(request, assinarSimplesSchema);
 	if (!validated.ok) return validated.response;
 	const {
-		rubrica,
 		latitude,
 		longitude,
 		selfieBase64,
@@ -99,7 +98,6 @@ export const POST: RequestHandler = async ({
 		db,
 		u,
 		{
-			rubrica,
 			latitude,
 			longitude,
 			selfieBase64,
@@ -121,7 +119,6 @@ export const POST: RequestHandler = async ({
 			policiais,
 			assinante: { nome: u.nome, cpf: u.cpf, email: u.email },
 			evidencias: {
-				rubrica: validatedEv.rubrica,
 				latitude: validatedEv.latitude,
 				longitude: validatedEv.longitude,
 				selfieBase64: validatedEv.selfieBase64,

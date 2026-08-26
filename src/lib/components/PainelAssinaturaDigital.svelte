@@ -169,7 +169,6 @@
 
 	async function assinarSimples(payload: SignaturePadConfirmPayload) {
 		await assinatura.assinarSimples(
-			payload.rubrica,
 			payload.lat,
 			payload.lng,
 			payload.selfie,
@@ -335,7 +334,7 @@
 								<p
 									class="text-xs font-semibold text-surface-700 dark:text-surface-200 leading-none"
 								>
-									{avancadaDesktopDisponivel ? 'Assinatura avançada' : 'Rubrica na Tela'}
+									{avancadaDesktopDisponivel ? 'Assinatura avançada' : 'Assinatura na Tela'}
 								</p>
 								<p class="text-3xs text-surface-600 dark:text-surface-400 mt-0.5">
 									{avancadaDesktopDisponivel
@@ -519,8 +518,8 @@
 
 <ModalAssinaturaAvancada
 	open={dialogSignOpen}
-	message="Rubrica do Organizador"
-	descricaoRubrica="Desenhe sua rubrica no quadro abaixo para assinar este documento da escala com validade jurídica (nos moldes da assinatura eletrônica)."
+	message="Assinatura do Organizador"
+	descricaoAssinatura="Confirme para assinar este documento da escala com validade jurídica (nos moldes da assinatura eletrônica)."
 	exigirFoto={page.data.exigirFotoAssinatura ?? true}
 	exigirGps={page.data.exigirGpsAssinatura ?? true}
 	exigirCodigoEmail={page.data.exigirCodigoEmailAssinatura ?? false}

@@ -46,9 +46,7 @@ export const load: PageServerLoad = async ({ locals, platform }) => {
 				lotacao: policiais.lotacao,
 				email: policiais.email,
 				email_pessoal: policiais.email_pessoal,
-				email_pessoal_verificado: policiais.email_pessoal_verificado,
-				rubrica: policiais.rubrica,
-				rubrica_atualizada_em: policiais.rubrica_atualizada_em
+				email_pessoal_verificado: policiais.email_pessoal_verificado
 			})
 			.from(policiais)
 			.where(eq(policiais.id, u.id))

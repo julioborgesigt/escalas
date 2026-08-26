@@ -32,9 +32,7 @@ async function alternarFoco(page: import('@playwright/test').Page) {
 	});
 }
 
-test.beforeEach(async ({ page }) => {
-	await page.addInitScript(() => sessionStorage.setItem('aviso-rubrica-adiado', '1'));
-});
+test.beforeEach(async ({ page }) => {});
 
 test.afterAll(() => {
 	execD1Local(`UPDATE gise_escalas SET status = 'em_andamento' WHERE id = ${GISE};`);

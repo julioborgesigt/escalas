@@ -1,38 +1,38 @@
 {
 	"fds": {
-		"sha256": "e688888d715da7e9e64030051ff3d3cb43ad3f82acdbc3520f3cebf0a9b448e6",
-		"bytes": 12701
+		"sha256": "5c0acc6e63e2326cb7b6ff60ebd3bff8a1f698297ddbb43aa88252a060f68fcd",
+		"bytes": 12174
 	},
 	"expediente": {
-		"sha256": "193eb46df3b12a3a8c1793582dcdd3b6080ee5d406eaa79eb40e4f8e25f21d23",
-		"bytes": 11071
+		"sha256": "0f9a998e6d99e259804de7465518253cec52158132373d908f4f60e594eb0585",
+		"bytes": 10579
 	},
 	"plantao": {
-		"sha256": "f821347404703d71463a514d91015a33f79e460bdf234dfb5fd6518d05bab559",
-		"bytes": 13572
+		"sha256": "9b3e56591fe29594236889ff6e314bee0bd64fbb198f778e1f28733e8ab8d20d",
+		"bytes": 13044
 	},
 	"gise": {
 		"sha256": "213522c42fbcb3d64006681402be5fab1b6069d3b4978f9166b3fec22a849be2",
 		"bytes": 9126
 	},
 	"expediente_com_logos": {
-		"sha256": "fd6bc58945e6c409a411b10b1dc11e1424388c66d6d5600ac992343567efb4a4",
-		"bytes": 12499
+		"sha256": "ab4d4c5ecbb62d4fe4a49c437f488731aa1310c2625196daa15fdae7bdbca5ca",
+		"bytes": 11997
 	},
 	"gise_com_logos": {
-		"sha256": "2fd6e6085d0da40cbf0d595dbcc7e61c6ded75b36a91b9c268824cef5a1a98ad",
-		"bytes": 11053
+		"sha256": "d8115bcfc8618db0e338aa36c093386b5b6d82c4281cd0fbd2f53b17bc8260bc",
+		"bytes": 10550
 	},
 	"produtividade": {
 		"sha256": "791a4667404510299aef40e204eff107983de63281d6b711fe7ce69fd30c8b66",
 		"bytes": 5493
 	},
 	"relatorio_extra_seccional": {
-		"sha256": "3a2daf5925ca159bfe9ca42500cae31182c09c0b0a74fc0cb1a6e4fd031de35d",
-		"bytes": 10593
+		"sha256": "bb9db8f25168fa040592780c4b5f4a5e9727e9b74eba5a10e0307309e2420003",
+		"bytes": 9287
 	},
 	"relatorio_extra_supervisao": {
-		"sha256": "a90a008dfbd38d36affb5b9ea7c3cc4ad58cd19e8ffd2c09ff4bdde9cfbd0517",
-		"bytes": 11828
+		"sha256": "fecb7517f1eb21249695e1e689d7a2b967b2e6a03990fd9fff26e4a42d4e7361",
+		"bytes": 10275
 	}
 }

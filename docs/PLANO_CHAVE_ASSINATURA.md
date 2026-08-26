@@ -25,7 +25,6 @@ e termo de presença — composto por:
 | **2FA no e-mail institucional**   | posse da caixa corporativa           | art. 4º II “b” (piso atual, mantido)               |
 | **Chave de assinatura (passkey)** | controle exclusivo da chave privada  | art. 4º II “b” (reforço que de fato toca o inciso) |
 | Hash SHA-256 + selo institucional | integridade detectável               | art. 4º II “c”                                     |
-| Rubrica gráfica                   | evidência visual no PDF              | prática do produto                                 |
 
 Reforços **opcionais** (não rebaixam o nível se desligados): selfie/liveness,
 GPS, restrição da avançada a user-agent móvel.

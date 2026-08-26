@@ -36,7 +36,7 @@ export default defineConfig({
 			use: { ...devices['Pixel 7'] },
 			// gise.spec fica de fora: suas asserções miram o layout desktop
 			// (o card da seccional colapsa/oculta o texto no viewport mobile).
-			testMatch: ['**/boas-vindas-rbac.spec.ts', '**/rubrica-aviso.spec.ts']
+			testMatch: ['**/boas-vindas-rbac.spec.ts']
 		}
 	]
 });

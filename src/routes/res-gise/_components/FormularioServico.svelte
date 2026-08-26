@@ -6,7 +6,7 @@
 	 *   confirmar ENTRADA → enviar o RELATÓRIO de produtividade → confirmar SAÍDA
 	 *
 	 * Cada passo só libera quando o anterior está cumprido, e as duas presenças são
-	 * assinatura avançada: exigem rubrica e, conforme as flags, foto, GPS e código
+	 * assinatura avançada: exigem confirmação em tela e, conforme as flags, foto, GPS e código
 	 * por e-mail. A tela esconde o que não cabe, mas quem valida é o servidor —
 	 * cada action revalida participação e horário por conta própria.
 	 *
@@ -43,8 +43,6 @@
 		isAdminGeral,
 		isMobile,
 		restringirSmartphone,
-		minhaRubrica = null,
-		abrirCadastroRubrica,
 		voltarParaLista,
 		painelA3Entrada = $bindable(null),
 		painelA3Saida = $bindable(null)
@@ -53,10 +51,8 @@
 		isAdminGeral: boolean;
 		isMobile: boolean;
 		restringirSmartphone: boolean;
-		minhaRubrica?: string | null;
-		abrirCadastroRubrica: () => void;
 		voltarParaLista: () => void;
-		/** Controles A3 expostos ao modal de rubrica do `+page` (rodapé Certificado Digital). */
+		/** Controles A3 expostos ao modal de assinatura do `+page` (rodapé Certificado Digital). */
 		painelA3Entrada?: { assinarComSerpro: () => Promise<void> } | null;
 		painelA3Saida?: { assinarComSerpro: () => Promise<void> } | null;
 	} = $props();
@@ -127,7 +123,7 @@
 			presenca.respostaAtualizadaEm !== presenca.respostaEnviadaEm
 	);
 
-	// Controles A3: `$bindable` no pai (modal de rubrica) e aqui nos painéis
+	// Controles A3: `$bindable` no pai (modal de assinatura) e aqui nos painéis
 	// ocultos — um por tipo, para não misturar o payload `tipo` entrada/saída.
 
 	async function confirmarPresencaA3(tipo: 'entrada' | 'saida') {
@@ -197,47 +193,14 @@
 				</p>
 			</div>
 
-			{#if minhaRubrica}
-				<!-- Padronizado com as demais telas de assinatura: só o botão de
-				     confirmação. A rubrica é gerida no cadastro (aviso pós-login). -->
-				<button
-					type="button"
-					class="btn btn-sm preset-filled-tertiary-500 rounded-xl py-2.5 text-sm font-bold uppercase w-full shadow-sm transition-all"
-					disabled={loading.active}
-					onclick={() => confirmarPresencaA3(tipo)}
-				>
-					Confirmar {rotulo}
-				</button>
-			{:else}
-				<div
-					class="bg-warning-500/10 border border-warning-500/30 rounded-xl p-3 flex items-start gap-2"
-				>
-					<svg
-						class="w-4 h-4 text-warning-500 shrink-0 mt-0.5"
-						fill="none"
-						viewBox="0 0 24 24"
-						stroke="currentColor"
-					>
-						<path
-							stroke-linecap="round"
-							stroke-linejoin="round"
-							stroke-width="2"
-							d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
-						/>
-					</svg>
-					<p class="text-xs text-surface-600 dark:text-surface-300 leading-snug">
-						Você ainda <strong>não cadastrou sua rubrica</strong>. Para confirmar a {rotulo} é necessário
-						cadastrar primeiro a sua rubrica — ela será usada como sua assinatura gráfica.
-					</p>
-				</div>
-				<button
-					type="button"
-					class="btn btn-sm preset-filled-tertiary-500 rounded-xl text-xs font-bold uppercase w-full shadow-sm"
-					onclick={abrirCadastroRubrica}
-				>
-					Entendi — cadastrar rubrica
-				</button>
-			{/if}
+			<button
+				type="button"
+				class="btn btn-sm preset-filled-tertiary-500 rounded-xl py-2.5 text-sm font-bold uppercase w-full shadow-sm transition-all"
+				disabled={loading.active}
+				onclick={() => confirmarPresencaA3(tipo)}
+			>
+				Confirmar {rotulo}
+			</button>
 			<p class="text-3xs text-surface-600 dark:text-surface-400 italic leading-snug">
 				Caso não possua TOKEN, você pode confirmar acessando pelo celular.
 			</p>
@@ -246,7 +209,7 @@
 {/snippet}
 
 <!-- Painéis ocultos de assinatura A3 da presença (um por tipo) -->
-{#if giseId != null && minhaRubrica}
+{#if giseId != null}
 	<div class="sr-only" aria-hidden="true">
 		<PainelAssinaturaToken
 			bind:control={painelA3Entrada}
@@ -528,13 +491,13 @@
 		A mesma armadilha existe com `contain: layout` (que `container-type`
 		implica) — por isso este arquivo também não usa `@container`.
 
-		`z-50` é o degrau de modal da escala do README; o pad de rubrica e o
-		cadastro de rubrica (no `+page.svelte`) são `z-[60]`/`z-[70]` e abrem POR
-		CIMA destes — empilhamento correto, já que a rubrica é o passo seguinte de
+		`z-50` é o degrau de modal da escala do README; o pad de assinatura (no
+		`+page.svelte`) é `z-[60]` e abre POR CIMA destes — empilhamento correto,
+		já que a cerimônia de assinatura é o passo seguinte de
 		dentro da confirmação.
 
 		Não foram extraídos para componentes: os três dependem de `presenca`,
-		`isMobile`, `restringirSmartphone`, `minhaRubrica`, dos painéis A3 e do
+		`isMobile`, `restringirSmartphone`, dos painéis A3 e do
 		snippet `blocoRestritoDesktop` — a extração custaria mais props do que
 		poupa marcação (corolário do CLAUDE.md sobre quando NÃO extrair).
 	-->
@@ -557,7 +520,7 @@
 				undefined,
 				'primary',
 				'filled',
-				() => (presenca.capturandoRubrica = true),
+				() => (presenca.capturandoAssinatura = true),
 				false,
 				false,
 				'w-full py-2.5 text-sm shadow-sm'
@@ -587,7 +550,7 @@
 	<ModalShell
 		open={modalPresenca === 'saida'}
 		title="Término do Plantão"
-		description="Confirme sua saída do serviço com uma rubrica."
+		description="Confirme sua saída do serviço."
 		largura="sm"
 		camada="base"
 		familia="gise"
@@ -615,7 +578,7 @@
 				undefined,
 				'primary',
 				'filled',
-				() => (presenca.capturandoRubrica = true),
+				() => (presenca.capturandoAssinatura = true),
 				false,
 				false,
 				'w-full py-2.5 text-sm shadow-sm'

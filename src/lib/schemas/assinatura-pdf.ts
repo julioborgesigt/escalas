@@ -34,7 +34,7 @@ const latitudeSchema = optionalNullable(z.number().min(-90).max(90));
 /** Longitude WGS-84. */
 const longitudeSchema = optionalNullable(z.number().min(-180).max(180));
 
-/** Imagem em data URL base64 (rubrica desenhada ou selfie). Limite 5 MB. */
+/** Imagem em data URL base64 (selfie). Limite 5 MB. */
 const dataUrlImagemSchema = optionalNullable(
 	z
 		.string()
@@ -89,15 +89,13 @@ const base64Schema = z
 export const prepararAssinaturaSchema = z.object({
 	signerName: nomeAssinanteSchema,
 	signerCpf: cpfAssinanteSchema,
-	rubrica: dataUrlImagemSchema,
 	latitude: latitudeSchema,
 	longitude: longitudeSchema
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
 // PRESENÇA GISE via Token A3 (desktop) — preparar/finalizar
-// Diferente dos demais: NÃO recebe `rubrica` do cliente (usa a rubrica
-// cadastrada do policial, lida no servidor). `tipo` indica entrada/saída.
+// `tipo` indica entrada/saída.
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const prepararPresencaSchema = z.object({
@@ -159,7 +157,6 @@ export const finalizarAssinaturaGiseSchema = z.object({
 	signerCpf: cpfAssinanteSchema,
 	documentHash: optionalNullable(hashHexSchema),
 	assinanteEmail: emailAssinanteSchema,
-	rubrica: dataUrlImagemSchema,
 	latitude: latitudeSchema,
 	longitude: longitudeSchema,
 	/** Específico do daily GISE: 'manha' | 'tarde' | 'ambos'. */
@@ -170,7 +167,7 @@ export const finalizarAssinaturaGiseSchema = z.object({
 // ASSINAR-SIMPLES — schema canônico (escalas + gise unificados)
 //
 // Antes existiam dois schemas distintos: `assinarSimplesEscalasSchema` (apenas
-// rubrica + GPS) e `assinarSimplesGiseSchema` (rubrica + GPS + selfie + 2FA).
+// GPS) e `assinarSimplesGiseSchema` (GPS + selfie + 2FA).
 // Isso fazia escala mensal ignorar silenciosamente as flags globais
 // `exigirFotoAssinatura` e `exigirCodigoEmailAssinatura`.
 //
@@ -206,7 +203,6 @@ export const livenessChallengeSchema = optionalNullable(
 );
 
 export const assinarSimplesSchema = z.object({
-	rubrica: dataUrlImagemSchema,
 	latitude: latitudeSchema,
 	longitude: longitudeSchema,
 	selfieBase64: dataUrlImagemSchema,

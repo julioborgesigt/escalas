@@ -52,7 +52,7 @@ export function usePresencaGise(getData: () => ResGisePageData) {
 	const data = $derived(getData());
 
 	let escalaSelecionada = $state<ResGiseEscalaSelecionavel | null>(null);
-	let capturandoRubrica = $state(false);
+	let capturandoAssinatura = $state(false);
 
 	// --- Filtros ---
 	// Espelham a URL (fonte única). São as duas abas da sidebar que trocam o
@@ -246,7 +246,6 @@ export function usePresencaGise(getData: () => ResGisePageData) {
 	/** Corpo comum dos dois POSTs de presença — só o rótulo e a action mudam. */
 	function formDataPresenca(giseId: number, payload: SignaturePadConfirmPayload): FormData {
 		const {
-			rubrica,
 			lat: latitude,
 			lng: longitude,
 			selfie: selfieBase64,
@@ -256,7 +255,6 @@ export function usePresencaGise(getData: () => ResGisePageData) {
 		} = payload;
 		const fd = new FormData();
 		fd.set('giseId', String(giseId));
-		fd.set('rubrica', rubrica);
 		if (latitude !== undefined) fd.set('latitude', String(latitude));
 		if (longitude !== undefined) fd.set('longitude', String(longitude));
 		if (selfieBase64) fd.set('selfieBase64', selfieBase64);
@@ -268,7 +266,6 @@ export function usePresencaGise(getData: () => ResGisePageData) {
 
 	function evidenciasPresenca(payload: SignaturePadConfirmPayload) {
 		return {
-			rubrica: payload.rubrica,
 			latitude: payload.lat,
 			longitude: payload.lng,
 			selfieBase64: payload.selfie,
@@ -305,7 +302,7 @@ export function usePresencaGise(getData: () => ResGisePageData) {
 				title:
 					tipo === 'entrada' ? 'Entrada confirmada com sucesso' : 'Saída confirmada com sucesso'
 			});
-			capturandoRubrica = false;
+			capturandoAssinatura = false;
 			await invalidateShared('app:res-gise', 'app:papel-gise');
 			reaplicarEscalaSelecionada(tipo);
 		} catch (e: unknown) {
@@ -422,11 +419,11 @@ export function usePresencaGise(getData: () => ResGisePageData) {
 		set escalaSelecionada(v) {
 			escalaSelecionada = v;
 		},
-		get capturandoRubrica() {
-			return capturandoRubrica;
+		get capturandoAssinatura() {
+			return capturandoAssinatura;
 		},
-		set capturandoRubrica(v) {
-			capturandoRubrica = v;
+		set capturandoAssinatura(v) {
+			capturandoAssinatura = v;
 		},
 		/** Carimbo do 1º envio da resposta de produtividade (ou null) — vem do load. */
 		get respostaEnviadaEm() {

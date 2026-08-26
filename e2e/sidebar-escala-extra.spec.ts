@@ -24,14 +24,6 @@ import { autenticarPagina } from './session';
  * roteiro manual do `TESTING.md` §4.12.
  */
 
-/**
- * O aviso de rubrica é modal e torna a topbar inerte — com ele aberto o botão de
- * menu não recebe clique. Mesmo adiamento que o wizard usa.
- */
-async function silenciarAvisoRubrica(page: Page) {
-	await page.addInitScript(() => sessionStorage.setItem('aviso-rubrica-adiado', '1'));
-}
-
 /** Abre a gaveta e devolve o `<nav>` dela. */
 async function abrirMenu(page: Page) {
 	await page.getByRole('button', { name: 'Menu', exact: true }).click();
@@ -116,7 +108,6 @@ test.describe('Barra lateral — menu de dois níveis', () => {
 	});
 
 	test('policial comum: o pai existe com os filhos dele, e só eles', async ({ page }) => {
-		await silenciarAvisoRubrica(page);
 		const ok = await autenticarPagina(page, FIXTURE.membroGise.id);
 		test.skip(!ok, 'D1 local indisponível');
 

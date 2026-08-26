@@ -2,22 +2,18 @@
  * POST /api/gise/[id]/presenca/preparar-assinatura
  *
  * Prepara o "Termo de Confirmação de Presença" (entrada/saída) em PDF para
- * assinatura por Token A3 no computador. A rubrica usada é a CADASTRADA do
- * policial (lida no servidor) — o cliente não a envia. Valida vínculo na GISE e
- * horário liberado no servidor (o fluxo de tela só checa na UI).
+ * assinatura por Token A3 no computador. Valida vínculo na GISE e horário
+ * liberado no servidor (o fluxo de tela só checa na UI).
  */
 
 import type { RequestHandler } from './$types';
-import { eq } from 'drizzle-orm';
 import { getDB, buscarGiseEscala, resolverParticipacaoGisePolicial } from '$lib/db';
 import { gateDePresenca } from '$lib/server/gise/presenca-gate';
 import { identidadeVisualAssinante } from '$lib/server/assinatura/identidade-sessao';
-import { policiais } from '$lib/server/schema';
 import { prepararPresencaSchema } from '$lib/schemas';
 import { requireAuth, badRequest, notFound, forbidden, validateBody } from '$lib/server/api';
 import { gerarTermoPresencaPdf } from '$lib/server/gise/termo-presenca';
 import {
-	prepararPdfParaAssinatura,
 	adicionarPaginaAuditoria,
 	adicionarRodapeUniversal,
 	type AuditTrailOptions
@@ -27,7 +23,7 @@ import {
 	calcularHashBuffer,
 	resolverTipoCarimboTempo
 } from '$lib/server/assinatura/document-utils';
-import { fecharPreparacaoAssinatura } from '$lib/server/assinatura/preparar-ciclo';
+import { prepararAssinaturaPorToken } from '$lib/server/assinatura/preparar-ciclo';
 
 export const POST: RequestHandler = async ({
 	platform,
@@ -61,17 +57,6 @@ export const POST: RequestHandler = async ({
 	// `preparedPdf` passava por cima dela (FLW-GISE-008).
 	const gate = await gateDePresenca(db, { ...part, statusGise: gise.status }, giseId, u.id, tipo);
 	if (!gate.ok) return gate.resposta;
-
-	// Rubrica cadastrada — obrigatória no fluxo desktop.
-	const row = await db
-		.select({ rubrica: policiais.rubrica })
-		.from(policiais)
-		.where(eq(policiais.id, u.id))
-		.get();
-	const rubrica = row?.rubrica ?? null;
-	if (!rubrica) {
-		return badRequest('Cadastre sua rubrica antes de assinar pelo computador.');
-	}
 
 	const { signerName: finalSignerName, signerCpf: finalSignerCpf } = identidadeVisualAssinante(u);
 	const ip = getClientAddress();
@@ -125,52 +110,24 @@ export const POST: RequestHandler = async ({
 	];
 	const pdfWithAudit = await adicionarPaginaAuditoria(pdfComRodape, signers);
 
-	// 4. Estampa SÓ a rubrica no campo de assinatura (estilo 'rubrica'), centrada
-	//    sobre a linha — agora que o selo box saiu, a largura da linha fica livre.
-	//    O QR + identidade ("Assinado digitalmente por…") vivem no rodapé.
+	// 4. Campo de assinatura EM BRANCO (estilo 'campo-limpo'), ancorado sobre a
+	//    linha. O QR + identidade ("Assinado digitalmente por…") vivem no rodapé.
 	const boxY_pts = signatureLineY + 3; // campo logo acima da linha
 
-	const prep = await prepararPdfParaAssinatura(
-		pdfWithAudit,
-		finalSignerName,
-		'center',
-		verificationHash,
-		verificationUrl,
-		boxY_pts,
-		rubrica,
-		undefined,
-		undefined,
-		0,
-		'rubrica'
-	);
-
-	const { signedAttrsHashHex, preparedPdf, messageDigest, signingTimeISO, dataToSignBase64 } = prep;
-
-	return fecharPreparacaoAssinatura({
+	return prepararAssinaturaPorToken({
 		db,
 		platform,
 		alvo: { recurso: 'gise_presenca', recursoId: giseId },
 		ator: { id: u.id, tipo: u.tipo },
-		preparedPdf,
+		pdfComAuditoria: pdfWithAudit,
+		pdfComRodape,
+		signerName: finalSignerName,
+		assinanteEmail: u.email,
+		documentHash,
 		verificationHash,
-		campos: {
-			signedAttrsHashHex,
-			messageDigest,
-			signingTimeISO,
-			dataToSignBase64,
-			documentHash,
-			assinanteEmail: u.email
-		},
-		conferencia: {
-			pdfComRodape,
-			stamp: {
-				alignment: 'center',
-				customBoxY: boxY_pts,
-				rubricBase64: rubrica,
-				targetPageIndex: 0
-			},
-			logTag: 'gise/presenca/preparar-assinatura',
-			logFields: { gise_id: giseId }
-		}
+		verificationUrl,
+		campo: { alignment: 'center', boxY: boxY_pts, targetPageIndex: 0 },
+		logTag: 'gise/presenca/preparar-assinatura',
+		logFields: { gise_id: giseId }
 	});
 };

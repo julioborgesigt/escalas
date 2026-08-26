@@ -57,7 +57,6 @@ export async function buscarAssinaturaRelatorioGise(
 			assinante_cpf: giseAssinaturasRelatorios.assinante_cpf,
 			assinante_matricula: policiais.matricula,
 			tipo_assinatura: giseAssinaturasRelatorios.tipo_assinatura,
-			rubrica: giseAssinaturasRelatorios.rubrica,
 			verification_hash: giseAssinaturasRelatorios.verification_hash,
 			selfie_key: giseAssinaturasRelatorios.selfie_key,
 			ip_address: giseAssinaturasRelatorios.ip_address,
@@ -101,7 +100,6 @@ export async function salvarAssinaturaRelatorioGise(
 		assinante_nome: string;
 		assinante_cpf?: string | null;
 		tipo_assinatura: 'simples' | 'webpki' | 'serpro';
-		rubrica?: string;
 		verification_hash?: string;
 		ip_address?: string;
 		user_agent?: string;
@@ -128,7 +126,6 @@ export async function salvarAssinaturaRelatorioGise(
 		assinante_id: data.assinante_id ?? null,
 		assinante_cpf: cpfArmazenado,
 		assinante_email: data.assinante_email ?? null,
-		rubrica: data.rubrica ?? null,
 		verification_hash: data.verification_hash ?? null,
 		selfie_key: data.selfie_key ?? null,
 		arquivo_hash: data.arquivo_hash ?? null,

@@ -49,7 +49,7 @@ export function tiposEquipeNaSeccional(sec: {
 
 /**
  * Achata a seccional em uma lista plana de membros (slots → equipes → membros).
- * É a base de `checkAllSigned` e `getFaltandoRubrica`; a tela pergunta sobre "a
+ * É a base de `checkAllSigned` e `getFaltandoPresenca`; a tela pergunta sobre "a
  * seccional", não sobre cada equipe.
  */
 export function getMembrosFromSec(sec: GiseSecComMembros): GiseMembro[] {
@@ -59,7 +59,7 @@ export function getMembrosFromSec(sec: GiseSecComMembros): GiseMembro[] {
 }
 
 /**
- * Todos os membros da seccional já rubricaram ENTRADA **e** SAÍDA?
+ * Todos os membros da seccional já confirmaram ENTRADA **e** SAÍDA?
  *
  * Seccional sem membro devolve `false`, não `true`: "vazia" não é "concluída", e
  * o `every` de lista vazia diria o contrário — é exatamente o tipo de resposta
@@ -72,20 +72,22 @@ export function checkAllSigned(sec: GiseSecComMembros): boolean {
 }
 
 /**
- * Mensagem pronta com quem ainda não rubricou, ou `''` quando não falta ninguém
+ * Mensagem pronta com quem ainda não confirmou, ou `''` quando não falta ninguém
  * (o chamador testa a string vazia para decidir se mostra o aviso).
  *
  * Só o PRIMEIRO nome de cada faltante: o texto vai num tooltip estreito, e a
  * lista completa de nomes de policiais numa tela compartilhada seria exposição
  * desnecessária.
  */
-export function getFaltandoRubrica(sec: GiseSecComMembros): string {
+export function getFaltandoPresenca(sec: GiseSecComMembros): string {
 	const members = getMembrosFromSec(sec);
 	const faltantes = members.filter(
 		(m) => !m.presenca?.entrada_timestamp || !m.presenca?.saida_timestamp
 	);
 	if (faltantes.length === 0) return '';
-	return 'Faltando rubrica de: ' + faltantes.map((m) => m.policial_nome.split(' ')[0]).join(', ');
+	return (
+		'Faltando confirmação de: ' + faltantes.map((m) => m.policial_nome.split(' ')[0]).join(', ')
+	);
 }
 
 const SECCIONAL_TARJA_FORTE: readonly string[] = [

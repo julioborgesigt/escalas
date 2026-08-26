@@ -73,7 +73,6 @@ export const POST: RequestHandler = async (event) => {
 		signingTimeISO,
 		latitude,
 		longitude,
-		rubrica,
 		assinanteEmail
 	} = validated.data;
 
@@ -129,7 +128,6 @@ export const POST: RequestHandler = async (event) => {
 				assinante_nome: result.signerName,
 				assinante_cpf: result.signerCpf || null,
 				tipo_assinatura: type,
-				rubrica: rubrica,
 				verification_hash: verificationHash,
 				ip_address: ip,
 				user_agent: ua,
