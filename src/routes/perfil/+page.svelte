@@ -7,9 +7,13 @@
 	 * próprio cadastro; agora ele também não o SOLICITA. Telefone, classe, regime
 	 * e lotação aparecem em somente leitura, e quem pede a correção é o
 	 * administrador da unidade ou da seccional dele, na ficha administrativa — com
-	 * justificativa e sujeito à aprovação do Admin Geral. Por isso o quadro de
-	 * dados cadastrais diz PARA QUEM reclamar: uma tela que só mostra o dado
-	 * errado, sem dizer quem o conserta, é um beco.
+	 * justificativa e sujeito à aprovação do Admin Geral. Por isso o quadro diz
+	 * PARA QUEM reclamar: uma tela que só mostra o dado errado, sem dizer quem o
+	 * conserta, é um beco.
+	 *
+	 * Identificação e dados cadastrais moram num quadro SÓ. Eram dois enquanto um
+	 * deles era formulário; sem o formulário, a divisão passou a separar campos
+	 * que respondem à mesma pergunta ("o que o sistema sabe sobre mim?").
 	 *
 	 * O que continua sendo do titular: o e-mail pessoal (troca com senha + código
 	 * enviado ao novo endereço) e a chave de assinatura. Os dois vão por API e
@@ -52,15 +56,30 @@
 		</p>
 	</div>
 
-	<!-- Identificação (somente leitura) -->
+	<!--
+		Identificação e dados cadastrais num quadro só: para o servidor eles são a
+		MESMA pergunta ("o que o sistema sabe sobre mim?"), e a divisão em duas
+		seções só existia enquanto uma delas era um formulário.
+
+		O texto abaixo abre com a EXCEÇÃO de propósito. Unir os dois grupos colocou o
+		e-mail pessoal — o único campo que o titular altera — debaixo de "mantidos
+		pela administração", e a frase passaria a contradizer o botão logo ao lado.
+	-->
 	<section class="card-elevated rounded-2xl p-4 sm:p-6">
 		<h2
-			class="font-semibold text-sm uppercase tracking-wider text-surface-600 dark:text-surface-400 mb-4"
+			class="font-semibold text-sm uppercase tracking-wider text-surface-600 dark:text-surface-400 mb-1"
 		>
-			Identificação
+			Identificação/Dados cadastrais
 		</h2>
-		<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-			<div>
+		<p class="text-xs text-surface-600 dark:text-surface-400 mb-4">
+			Com exceção do <strong>e-mail pessoal</strong>, estes dados são mantidos pela administração.
+			Encontrou algo desatualizado? Procure o
+			<strong>administrador da sua unidade ou da sua seccional</strong>: é ele quem registra o
+			pedido de correção, que passa pela aprovação do Administrador Geral.
+		</p>
+
+		<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+			<div class="sm:col-span-2">
 				<span class="label-text text-xs text-surface-600 dark:text-surface-400 block">Nome</span>
 				<p class="font-semibold">{perfil.nome}</p>
 			</div>
@@ -68,24 +87,45 @@
 				<span class="label-text text-xs text-surface-600 dark:text-surface-400 block"
 					>Matrícula</span
 				>
-				<p class="font-semibold">{perfil.matricula}</p>
+				<p class="font-semibold tabular-nums">{perfil.matricula}</p>
 			</div>
 			<div>
 				<span class="label-text text-xs text-surface-600 dark:text-surface-400 block">Cargo</span>
 				<p class="font-semibold">{perfil.cargo}</p>
 			</div>
+
 			<div>
+				<span class="label-text text-xs text-surface-600 dark:text-surface-400 block">Telefone</span
+				>
+				<p class="font-semibold tabular-nums">{telefone || '—'}</p>
+			</div>
+			<div>
+				<span class="label-text text-xs text-surface-600 dark:text-surface-400 block">Classe</span>
+				<p class="font-semibold">{perfil.classe || '—'}</p>
+			</div>
+			<div>
+				<span class="label-text text-xs text-surface-600 dark:text-surface-400 block"
+					>Regime de trabalho</span
+				>
+				<p class="font-semibold">{regime || '—'}</p>
+			</div>
+			<div>
+				<span class="label-text text-xs text-surface-600 dark:text-surface-400 block">Lotação</span>
+				<p class="font-semibold">{perfil.lotacao || '—'}</p>
+			</div>
+
+			<div class="sm:col-span-2">
 				<span class="label-text text-xs text-surface-600 dark:text-surface-400 block"
 					>E-mail funcional</span
 				>
-				<p class="font-semibold">{perfil.email || '—'}</p>
+				<p class="font-semibold break-words">{perfil.email || '—'}</p>
 			</div>
 			<div class="sm:col-span-2">
 				<span class="label-text text-xs text-surface-600 dark:text-surface-400 block"
 					>E-mail pessoal</span
 				>
 				<div class="flex items-center gap-2 flex-wrap">
-					<p class="font-semibold">
+					<p class="font-semibold break-words">
 						{emailPessoal || '—'}
 						{#if emailPessoal}
 							<span
@@ -120,42 +160,6 @@
 	{#if cartaoChaveVisivel(page.data)}
 		<CartaoPasskey credencialAtual={data.passkey} />
 	{/if}
-
-	<!-- Dados cadastrais: leitura, com o caminho da correção. -->
-	<section class="card-elevated rounded-2xl p-4 sm:p-6">
-		<h2
-			class="font-semibold text-sm uppercase tracking-wider text-surface-600 dark:text-surface-400 mb-1"
-		>
-			Dados cadastrais
-		</h2>
-		<p class="text-xs text-surface-600 dark:text-surface-400 mb-4">
-			Estes dados são mantidos pela administração. Encontrou algo desatualizado? Procure o
-			<strong>administrador da sua unidade ou da sua seccional</strong>: é ele quem registra o
-			pedido de correção, que passa pela aprovação do Administrador Geral.
-		</p>
-
-		<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-			<div>
-				<span class="label-text text-xs text-surface-600 dark:text-surface-400 block">Telefone</span
-				>
-				<p class="font-semibold tabular-nums">{telefone || '—'}</p>
-			</div>
-			<div>
-				<span class="label-text text-xs text-surface-600 dark:text-surface-400 block">Classe</span>
-				<p class="font-semibold">{perfil.classe || '—'}</p>
-			</div>
-			<div>
-				<span class="label-text text-xs text-surface-600 dark:text-surface-400 block"
-					>Regime de trabalho</span
-				>
-				<p class="font-semibold">{regime || '—'}</p>
-			</div>
-			<div>
-				<span class="label-text text-xs text-surface-600 dark:text-surface-400 block">Lotação</span>
-				<p class="font-semibold">{perfil.lotacao || '—'}</p>
-			</div>
-		</div>
-	</section>
 </div>
 
 <ModalAlterarEmailPessoal
