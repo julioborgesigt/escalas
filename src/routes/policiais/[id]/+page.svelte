@@ -199,10 +199,10 @@
 		method="POST"
 		action={solicitando ? '?/solicitarAlteracao' : '?/salvar'}
 		use:enhance={solicitando ? handleSolicitar : handleSalvar}
-		class="space-y-2"
+		class="space-y-4"
 	>
 		<!-- Linha 1 -->
-		<div class="grid grid-cols-1 sm:grid-cols-12 gap-2">
+		<div class="grid grid-cols-1 sm:grid-cols-12 gap-x-2 gap-y-4">
 			<label class="label sm:col-span-4">
 				<span class="label-text text-2xs font-bold uppercase opacity-70 ml-1"
 					>Nome completo (Conforme Certificado Digital)</span
@@ -290,8 +290,8 @@
 		</div>
 
 		<!-- Linha 2 -->
-		<div class="grid grid-cols-1 sm:grid-cols-12 gap-2">
-			<label class="label sm:col-span-1">
+		<div class="grid grid-cols-1 sm:grid-cols-12 gap-x-2 gap-y-4">
+			<label class="label sm:col-span-2">
 				<span class="label-text text-2xs font-bold uppercase opacity-70 ml-1">Classe</span>
 				<select
 					class="select py-1 px-3 text-sm"
@@ -308,7 +308,7 @@
 					{/if}
 				</select>
 			</label>
-			<label class="label sm:col-span-4">
+			<label class="label sm:col-span-3">
 				<span class="label-text text-2xs font-bold uppercase opacity-70 ml-1"
 					>Regime de Trabalho</span
 				>
@@ -419,7 +419,7 @@
 				use:enhance={handleSalvarPapel}
 				class="space-y-3 mt-auto"
 			>
-				<div class="grid grid-cols-1 sm:grid-cols-12 gap-2">
+				<div class="grid grid-cols-1 sm:grid-cols-12 gap-x-2 gap-y-4">
 					<label class="label sm:col-span-5">
 						<span class="label-text text-2xs font-bold uppercase opacity-70 ml-1">Papel</span>
 						<select class="select py-1 px-3 text-sm" name="papel" bind:value={papel}>
