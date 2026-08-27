@@ -82,6 +82,55 @@ describe('eixo QUEM é a pessoa', () => {
 	});
 });
 
+/**
+ * Pedir e decidir deixaram de ser o mesmo ato em ago/2026, e a navegação
+ * acompanhou: as duas flags saíram de uma condição só (`isAdmGeral`).
+ *
+ * O caso que este bloco protege é a fusão de volta — juntar as duas outra vez
+ * ou dá ao admin de unidade a fila de decisão do Admin Geral (ele aprovaria os
+ * próprios pedidos, que é o ponto inteiro do fluxo), ou tira dele o cadastro,
+ * que é a única porta por onde ele pede qualquer coisa.
+ */
+describe('Policiais e Solicitações são perguntas diferentes', () => {
+	const PAPEIS_COM_ESCOPO = ['admin_seccional', 'admin_unidade'] as const;
+
+	it('os três papéis administrativos veem o cadastro', () => {
+		expect(visibilidadeDoMenu(entrada({ usuario: { tipo: 'admin' } })).showPoliciais).toBe(true);
+		for (const papel of PAPEIS_COM_ESCOPO) {
+			expect(
+				visibilidadeDoMenu(entrada({ usuario: { tipo: 'policial', papel } })).showPoliciais,
+				papel
+			).toBe(true);
+		}
+	});
+
+	it('policial sem papel não vê o cadastro', () => {
+		expect(visibilidadeDoMenu(entrada()).showPoliciais).toBe(false);
+	});
+
+	it('só o Admin Geral vê a fila de decisão', () => {
+		expect(visibilidadeDoMenu(entrada({ usuario: { tipo: 'admin' } })).showSolicitacoes).toBe(true);
+		for (const papel of PAPEIS_COM_ESCOPO) {
+			expect(
+				visibilidadeDoMenu(entrada({ usuario: { tipo: 'policial', papel } })).showSolicitacoes,
+				papel
+			).toBe(false);
+		}
+		expect(visibilidadeDoMenu(entrada()).showSolicitacoes).toBe(false);
+	});
+
+	it('o separador do grupo aparece só para quem tem item nele', () => {
+		expect(visibilidadeDoMenu(entrada({ usuario: { tipo: 'admin' } })).showGrupo3Separator).toBe(
+			true
+		);
+		expect(
+			visibilidadeDoMenu(entrada({ usuario: { tipo: 'policial', papel: 'admin_unidade' } }))
+				.showGrupo3Separator
+		).toBe(true);
+		expect(visibilidadeDoMenu(entrada()).showGrupo3Separator).toBe(false);
+	});
+});
+
 describe('Dados base não segue Produtividade', () => {
 	/**
 	 * Quem responde é o servidor (`temLinhaBaseAPreencher`), porque a pergunta

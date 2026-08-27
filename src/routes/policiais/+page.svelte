@@ -9,6 +9,13 @@
 	 * as opções de lotação do dropdown, não a consulta. `'__todas__'` é a
 	 * sentinela de "sem filtro" que o servidor entende.
 	 *
+	 * Quem chega aqui são os TRÊS papéis administrativos, com poderes diferentes:
+	 * o Admin Geral vê a corporação inteira e cadastra/exclui; o admin de
+	 * seccional e o de unidade veem só o escopo deles (recorte do servidor, não
+	 * do filtro) e entram pelo botão "Gerenciar" para PEDIR correções na ficha.
+	 * Cadastrar e excluir não aparecem para eles — as actions recusariam de
+	 * qualquer forma, e botão que só serve para receber 403 é armadilha.
+	 *
 	 * O que a tela deliberadamente NÃO faz:
 	 *
 	 * - não define senha. O cadastro cria o registro com senha aleatória e
@@ -211,23 +218,25 @@
 				href="/policiais/upload"
 				class="btn btn-sm preset-outlined-primary-500 hidden sm:inline-flex">Importar Excel</a
 			>
+			<button
+				type="button"
+				class="btn btn-sm preset-filled-primary-500 transition-colors"
+				onclick={() => (cadastroOpen = true)}>Novo Policial</button
+			>
 		{/if}
-		<button
-			type="button"
-			class="btn btn-sm preset-filled-primary-500 transition-colors"
-			onclick={() => (cadastroOpen = true)}>Novo Policial</button
-		>
 	</div>
 </div>
 
-<ModalCadastrarPolicial
-	bind:open={cadastroOpen}
-	{unidades}
-	{isAdmin}
-	{isAdminOrSeccional}
-	{isAdminUnidade}
-	lotacaoUsuario={data.lotacaoUsuario}
-/>
+{#if isAdmin}
+	<ModalCadastrarPolicial
+		bind:open={cadastroOpen}
+		{unidades}
+		{isAdmin}
+		{isAdminOrSeccional}
+		{isAdminUnidade}
+		lotacaoUsuario={data.lotacaoUsuario}
+	/>
+{/if}
 
 <ModalShell
 	bind:open={confirmDialog.isOpen}
@@ -352,7 +361,7 @@
 						? `Nenhum policial com cargo ${filtroCargo} encontrado.`
 						: 'Nenhum policial cadastrado.'}
 				</p>
-				{#if !filtroCargo}
+				{#if isAdmin && !filtroCargo}
 					<a
 						href="/policiais"
 						class="btn preset-filled-primary-500 transition-colors"
@@ -410,11 +419,13 @@
 												class="btn btn-sm preset-outlined-primary-500"
 												title="Gerenciar cadastro, movimentações e histórico">Gerenciar</a
 											>
-											<button
-												type="button"
-												class="btn btn-sm preset-filled-error-500 transition-colors"
-												onclick={() => solicitarExclusao(p.id, p.nome)}>Excluir</button
-											>
+											{#if isAdmin}
+												<button
+													type="button"
+													class="btn btn-sm preset-filled-error-500 transition-colors"
+													onclick={() => solicitarExclusao(p.id, p.nome)}>Excluir</button
+												>
+											{/if}
 										</div>
 									</td>
 								</tr>
@@ -466,11 +477,13 @@
 									class="btn btn-sm preset-outlined-primary-500 hover:bg-primary-500/10 transition-colors flex-1 text-center"
 									title="Gerenciar cadastro, movimentações e histórico">Gerenciar</a
 								>
-								<button
-									type="button"
-									class="btn btn-sm preset-filled-error-500 transition-colors flex-1"
-									onclick={() => solicitarExclusao(p.id, p.nome)}>Excluir</button
-								>
+								{#if isAdmin}
+									<button
+										type="button"
+										class="btn btn-sm preset-filled-error-500 transition-colors flex-1"
+										onclick={() => solicitarExclusao(p.id, p.nome)}>Excluir</button
+									>
+								{/if}
 							</div>
 						</div>
 					{/each}

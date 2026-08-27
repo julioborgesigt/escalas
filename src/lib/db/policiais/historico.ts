@@ -14,22 +14,42 @@ import type { CpfCriptoEnv } from '../../crypto/cpf-cripto';
 
 type TipoHistorico = 'movimentacao' | 'afastamento' | 'desvinculacao' | 'edicao' | 'papel';
 
-/** Dados para registrar um evento no histórico funcional do policial. */
-export interface NovoEventoHistorico {
-	policial_id: number;
-	tipo: TipoHistorico;
+/**
+ * O que um evento funcional DESCREVE: unidades, datas, protocolo e o PDF anexo.
+ *
+ * Está separado do resto de `NovoEventoHistorico` porque estes campos aparecem
+ * três vezes no mesmo fluxo — no evento gravado aqui, no ato que
+ * `$lib/server/policiais/acoes-rh` executa, e no PEDIDO que espera aprovação em
+ * `./acao-solicitacoes`. As três formas são a mesma coisa em momentos
+ * diferentes da vida de um ato de RH, e mantê-las como três listas de campos
+ * copiadas deixaria que uma ganhasse (ou perdesse) um campo sozinha: um pedido
+ * capaz de carregar um dado que a aprovação não sabe gravar.
+ */
+export interface CamposDoEventoFuncional {
+	/** Subtipo do afastamento: ferias | licenca_medica | judicial | licenca_outros | outros. */
 	subtipo?: string | null;
+	/** Motivo/descrição livre (afastamento) ou destino do policial (desvinculação). */
 	descricao?: string | null;
 	unidade_origem?: string | null;
 	unidade_destino?: string | null;
+	/** Data principal do evento (movimentação/desvinculação). */
 	data_evento?: string | null;
 	data_inicio?: string | null;
 	data_fim?: string | null;
 	qtd_dias?: number | null;
+	/** Número Único de Protocolo do processo que fundamenta o ato. */
 	nup?: string | null;
 	documento_r2_key?: string | null;
 	documento_nome?: string | null;
+}
+
+/** Dados para registrar um evento no histórico funcional do policial. */
+export interface NovoEventoHistorico extends CamposDoEventoFuncional {
+	policial_id: number;
+	tipo: TipoHistorico;
+	/** JSON do snapshot ANTES — só nos tipos `edicao` e `papel`. */
 	dados_antes?: Record<string, unknown> | null;
+	/** JSON do snapshot DEPOIS — só nos tipos `edicao` e `papel`. */
 	dados_depois?: Record<string, unknown> | null;
 	registrado_por_id?: number | null;
 	registrado_por_nome?: string | null;

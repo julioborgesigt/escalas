@@ -584,13 +584,40 @@ Verificar cada transição de status:
 
 ### 8.5 Meu Perfil (`/perfil`) e Solicitações (`/solicitacoes`)
 
-- [ ] Policial acessa "Meu perfil": identificação somente leitura (nome, matrícula, cargo, e-mails)
-- [ ] Alterar telefone/classe/regime/lotação → botão só habilita com mudança real → cria solicitação PENDENTE (cadastro NÃO muda ainda)
+> `[E2E: solicitacoes-cadastro.spec.ts]` cobre o caminho feliz completo: o admin
+> de unidade pede, o Admin Geral aprova, o servidor vê o valor aplicado — e
+> confirma que `/perfil` não tem mais botão de solicitar. O que sobra abaixo é o
+> que o E2E não alcança: escopo cruzado, ações de RH e recusa.
+
+**Meu perfil — o que o servidor faz (e não faz mais)**
+
+- [ ] `/perfil` é somente leitura: identificação, dados cadastrais (telefone, classe, regime, lotação) e o texto que manda procurar o administrador da unidade/seccional
+- [ ] Não existe formulário nem botão de solicitar alteração; o único controle é o de e-mail pessoal (§ 8.6) e o cartão da chave de assinatura
+
+**Ficha do servidor (`/policiais/[id]`) — modo `solicitacao`**
+
+- [ ] Admin de unidade/seccional abre `/policiais` e vê APENAS servidores do escopo dele; "Novo Policial", "Importar Excel" e "Excluir" não aparecem
+- [ ] Abrir pela URL a ficha de um servidor de OUTRA unidade → 403 ("não está sob a sua administração")
+- [ ] Editar um campo → botão "Solicitar alteração" só habilita com mudança real **e** justificativa preenchida (contador até 300)
+- [ ] Enviar → cria solicitação PENDENTE (cadastro NÃO muda) e aparece no quadro "Solicitações deste servidor"
 - [ ] Nova solicitação do mesmo campo substitui a pendente anterior
-- [ ] Admin Geral vê a pendência em "Solicitações" com dados do servidor e de/para
-- [ ] Aprovar (✓) → valor aplicado no cadastro imediatamente; Rejeitar (✗) → cadastro intacto; ambos auditados
-- [ ] Policial vê o status (Pendente/Aprovada/Rejeitada) no histórico do perfil
-- [ ] Valores inválidos (classe de outro cargo, lotação inexistente, telefone malformado) → erro de validação
+- [ ] CPF aparece em branco (com placeholder dizendo se há ou não CPF cadastrado); preenchê-lo cria pedido, deixá-lo vazio não
+- [ ] Lotação é somente leitura, com o aviso de que se altera por Movimentação
+- [ ] "Papel Administrativo" e "Admin Geral" aparecem marcados como **informativo**, sem controles; POST direto em `?/salvarPapel` ou `?/toggleAdminGeral` → 403
+- [ ] "Afastar / Movimentar Servidor" aparece; cada modal exige justificativa e o botão diz "Solicitar" (não "Salvar")
+- [ ] Desvinculação pedida por admin de unidade → servidor **continua ativo** até a aprovação
+
+**Fila do Admin Geral (`/solicitacoes`)**
+
+- [ ] Duas seções: "Dados cadastrais" (tabela) e "Movimentação, afastamento e desvinculação" (cartões)
+- [ ] Cada linha/cartão mostra servidor, de/para (ou o pedido inteiro), **justificativa** e quem pediu
+- [ ] Cartão de ação com PDF anexo → botão baixa a portaria antes de decidir
+- [ ] Aprovar (✓) cadastral → valor aplicado imediatamente; Rejeitar (✗) → cadastro intacto; ambos auditados
+- [ ] Aprovar movimentação → lotação trocada **e** evento na timeline do servidor, creditado a quem PEDIU; aprovar desvinculação → servidor inativado e sessões derrubadas
+- [ ] Rejeitar uma ação com anexo → pedido fechado e o PDF sai do bucket
+- [ ] Decidir duas vezes o mesmo pedido (duas abas) → a segunda recebe 409, sem reaplicar o ato
+- [ ] Valores inválidos (classe de outro cargo, CPF malformado, telefone curto, e-mail sem `@`) → erro de validação
+- [ ] Admin de unidade/seccional acessando `/solicitacoes` → redirecionado (a fila é de quem decide)
 
 ### 8.6 E-mail pessoal pelo perfil (cadastro/troca)
 

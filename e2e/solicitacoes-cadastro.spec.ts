@@ -3,9 +3,14 @@ import { FIXTURE } from './global-setup';
 import { autenticarPagina, execD1Local } from './session';
 
 /**
- * "Meu perfil" + aba "Solicitações" do Admin Geral: o policial solicita a
- * alteração de telefone, o admin aprova com um clique e o valor é aplicado
- * no cadastro.
+ * O fluxo de correção cadastral, de ponta a ponta, DEPOIS de ago/2026: quem pede
+ * é o administrador da unidade, na ficha do servidor; quem decide é o Admin
+ * Geral; o servidor apenas VÊ o resultado em "Meu perfil".
+ *
+ * O spec cobre as três pontas porque a mudança foi de DONO, não de tela — e o
+ * caso que ele protege é a volta do formulário para `/perfil`, que devolveria ao
+ * servidor a capacidade de pedir alteração do próprio cadastro. Daí a última
+ * asserção: nenhum botão de solicitar sobrou lá.
  *
  * Telefone no formulário é só dígitos (máx. 11) — preencher máscara antiga
  * `(85) …` com `maxlength=11` truncava antes do limpar e a action recusava
@@ -13,8 +18,9 @@ import { autenticarPagina, execD1Local } from './session';
  */
 
 const ADMIN_TMP = 99003;
-/** DDD + número, só dígitos — contrato do input de /perfil. */
+/** DDD + número, só dígitos — contrato do input da ficha. */
 const NOVO_TELEFONE = '85999990000';
+const JUSTIFICATIVA = 'Servidor informou o novo número por ofício interno.';
 
 test.describe.configure({ mode: 'serial' });
 
@@ -37,29 +43,35 @@ test.afterAll(() => {
 	);
 });
 
-test('policial solicita alteração de telefone no Meu perfil', async ({ page }) => {
-	const ok = await autenticarPagina(page, FIXTURE.policialA.id);
+test('admin de unidade solicita alteração de telefone na ficha do servidor', async ({ page }) => {
+	const ok = await autenticarPagina(page, FIXTURE.adminUnidade.id);
 	if (!ok) test.skip(true, 'D1 indisponível');
 
-	await page.goto('/perfil');
-	await expect(page.getByRole('heading', { name: 'Meu perfil' })).toBeVisible();
-	// Identificação somente leitura
-	await expect(page.getByText(FIXTURE.policialA.matricula)).toBeVisible();
+	await page.goto(`/policiais/${FIXTURE.policialA.id}`);
+	await expect(page.getByRole('heading', { name: 'Ficha do Servidor' })).toBeVisible();
+	// A ficha do modo solicitação avisa o que ela faz — e o que NÃO faz.
+	await expect(page.getByText('Movimentação', { exact: false }).first()).toBeVisible();
 
+	// Escopo explícito: os três modais de RH têm um campo de justificativa com o
+	// MESMO rótulo, e o alvo aqui é o do formulário cadastral.
+	const formulario = page.locator('form[action="?/solicitarAlteracao"]');
 	const botao = page.getByRole('button', { name: 'Solicitar alteração' });
-	await expect(botao).toBeDisabled(); // sem mudanças ainda
+	await expect(botao).toBeDisabled(); // sem mudanças e sem justificativa
 
-	await page.getByLabel('Telefone').fill(NOVO_TELEFONE);
+	await formulario.getByLabel('Telefone').fill(NOVO_TELEFONE);
+	// Ainda falta o motivo: todo pedido vai com justificativa.
+	await expect(botao).toBeDisabled();
+
+	await formulario.getByLabel('Justificativa do pedido').fill(JUSTIFICATIVA);
 	await expect(botao).toBeEnabled();
 	await botao.click();
 
 	await expect(page.getByText('Solicitação enviada')).toBeVisible();
-	await expect(page.getByText('Minhas solicitações')).toBeVisible();
-	await expect(page.getByText('Pendente', { exact: true })).toBeVisible();
-	await expect(page.getByText(NOVO_TELEFONE).first()).toBeVisible();
+	await expect(page.getByText('Solicitações deste servidor')).toBeVisible();
+	await expect(page.getByText('Pendente', { exact: true }).first()).toBeVisible();
 });
 
-test('admin geral aprova na aba Solicitações e o cadastro é atualizado', async ({ page }) => {
+test('admin geral vê o pedido inteiro na fila e aprova', async ({ page }) => {
 	const ok = await autenticarPagina(page, ADMIN_TMP, 'admin');
 	if (!ok) test.skip(true, 'D1 indisponível');
 
@@ -67,6 +79,9 @@ test('admin geral aprova na aba Solicitações e o cadastro é atualizado', asyn
 	await expect(page.getByRole('heading', { name: 'Solicitações' })).toBeVisible();
 	await expect(page.getByText('Policial Fixture A')).toBeVisible();
 	await expect(page.getByText(NOVO_TELEFONE)).toBeVisible();
+	// Decidir sem o motivo à vista seria decidir no escuro.
+	await expect(page.getByText(JUSTIFICATIVA)).toBeVisible();
+	await expect(page.getByText(FIXTURE.adminUnidade.nome)).toBeVisible();
 
 	await page.getByRole('button', { name: /Aprovar solicitação de Policial Fixture A/ }).click();
 	await expect(page.getByText('Alteração aprovada e aplicada')).toBeVisible();
@@ -80,11 +95,19 @@ test('admin geral aprova na aba Solicitações e o cadastro é atualizado', asyn
 	).toBeHidden();
 });
 
-test('policial vê o telefone aplicado e a solicitação aprovada', async ({ page }) => {
+test('o servidor vê o telefone aplicado — e não tem como pedir nada em Meu perfil', async ({
+	page
+}) => {
 	const ok = await autenticarPagina(page, FIXTURE.policialA.id);
 	if (!ok) test.skip(true, 'D1 indisponível');
 
 	await page.goto('/perfil');
-	await expect(page.getByLabel('Telefone')).toHaveValue(NOVO_TELEFONE);
-	await expect(page.getByText('Aprovada', { exact: true })).toBeVisible();
+	await expect(page.getByRole('heading', { name: 'Meu perfil' })).toBeVisible();
+	await expect(page.getByText(NOVO_TELEFONE)).toBeVisible();
+
+	// O que a página deixou de oferecer. `/perfil` virou leitura mais o e-mail
+	// pessoal e a chave de assinatura, que são do titular.
+	await expect(page.getByRole('button', { name: 'Solicitar alteração' })).toHaveCount(0);
+	await expect(page.getByText('Minhas solicitações')).toHaveCount(0);
+	await expect(page.getByText('administrador da sua unidade')).toBeVisible();
 });

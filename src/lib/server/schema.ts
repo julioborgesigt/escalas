@@ -1459,19 +1459,41 @@ export const lgpdSolicitacoes = sqliteTable(
 	]
 );
 
-// ---- Solicitações de alteração cadastral (página "Meu perfil") ----
+// ---- Solicitações de alteração cadastral (ficha do policial) ----
 
-// Uma linha por campo alterado (telefone/classe/regime/lotacao); aprovação do
-// Admin Geral aplica o valor no cadastro. E-mail pessoal tem fluxo próprio
-// (OTP) e não passa por esta tabela.
+// Uma linha por campo alterado; aprovação do Admin Geral aplica o valor no
+// cadastro. Quem PEDE é o administrador seccional ou de unidade, dentro do
+// escopo dele (`solicitante_id`); o servidor não pede alteração do próprio
+// cadastro. E-mail pessoal tem fluxo próprio (OTP) e não passa por esta tabela.
+//
+// `lotacao` continua no enum por causa das linhas antigas: transferir servidor
+// virou pedido de MOVIMENTAÇÃO (`policialAcaoSolicitacoes`), com portaria anexa,
+// e nenhuma solicitação NOVA usa este campo.
 export const cadastroSolicitacoes = sqliteTable(
 	'cadastro_solicitacoes',
 	{
 		id: integer('id').primaryKey({ autoIncrement: true }),
 		policial_id: integer('policial_id').notNull(),
-		campo: text('campo', { enum: ['telefone', 'classe', 'regime', 'lotacao'] }).notNull(),
+		campo: text('campo', {
+			enum: [
+				'nome',
+				'matricula',
+				'cargo',
+				'cpf',
+				'telefone',
+				'classe',
+				'regime',
+				'email',
+				'lotacao'
+			]
+		}).notNull(),
 		valor_atual: text('valor_atual'),
 		valor_novo: text('valor_novo').notNull(),
+		/** Motivo do pedido (até 300 caracteres). Nulo só nas linhas anteriores à migração 0067. */
+		justificativa: text('justificativa'),
+		/** Policial que PEDIU. Nulo nas linhas antigas — ali o solicitante é o próprio `policial_id`. */
+		solicitante_id: integer('solicitante_id'),
+		solicitante_nome: text('solicitante_nome'),
 		status: text('status', { enum: ['pendente', 'aprovada', 'rejeitada'] })
 			.notNull()
 			.default('pendente'),
@@ -1484,6 +1506,59 @@ export const cadastroSolicitacoes = sqliteTable(
 	(table) => [
 		index('idx_cadsol_status').on(table.status),
 		index('idx_cadsol_policial').on(table.policial_id, table.status)
+	]
+);
+
+// ---- Solicitações de ação de RH (movimentar / afastar / desvincular) ----
+//
+// O mesmo ato que o Admin Geral executa direto na ficha, quando pedido por um
+// administrador de seccional ou de unidade, para aqui até a decisão.
+//
+// As colunas espelham `policialHistorico` DE PROPÓSITO: aprovar é copiar esta
+// linha para lá e aplicar o efeito no cadastro. Guardar o pedido em outro
+// formato (um JSON, por exemplo) obrigaria o aprovador a remontar o evento, que
+// é justamente onde os dois caminhos passariam a divergir.
+//
+// O PDF anexo sobe no momento do PEDIDO (`documento_r2_key`) — é o que permite
+// ao Admin Geral BAIXAR a portaria antes de decidir. Aprovar TRANSFERE a chave
+// para `policialHistorico`, que passa a ser a dona dela; recusar a apaga do
+// bucket na hora (`deletarChavesR2`), porque nenhuma outra linha voltaria a
+// referenciá-la e o objeto ficaria irrastreável (a mesma regra do FLW-RBAC-005).
+export const policialAcaoSolicitacoes = sqliteTable(
+	'policial_acao_solicitacoes',
+	{
+		id: integer('id').primaryKey({ autoIncrement: true }),
+		policial_id: integer('policial_id')
+			.notNull()
+			.references(() => policiais.id, { onDelete: 'cascade' }),
+		tipo: text('tipo', { enum: ['movimentacao', 'afastamento', 'desvinculacao'] }).notNull(),
+		subtipo: text('subtipo'),
+		descricao: text('descricao'),
+		unidade_origem: text('unidade_origem'),
+		unidade_destino: text('unidade_destino'),
+		data_evento: text('data_evento'),
+		data_inicio: text('data_inicio'),
+		data_fim: text('data_fim'),
+		qtd_dias: integer('qtd_dias'),
+		nup: text('nup'),
+		documento_r2_key: text('documento_r2_key'),
+		documento_nome: text('documento_nome'),
+		/** Motivo do pedido (até 300 caracteres). Obrigatório. */
+		justificativa: text('justificativa').notNull(),
+		solicitante_id: integer('solicitante_id'),
+		solicitante_nome: text('solicitante_nome'),
+		status: text('status', { enum: ['pendente', 'aprovada', 'rejeitada'] })
+			.notNull()
+			.default('pendente'),
+		decidido_por: integer('decidido_por'),
+		decidido_em: text('decidido_em'),
+		created_at: text('created_at')
+			.notNull()
+			.default(sql`(datetime('now', '-3 hours'))`)
+	},
+	(table) => [
+		index('idx_acaosol_status').on(table.status),
+		index('idx_acaosol_policial').on(table.policial_id, table.status)
 	]
 );
 
@@ -1547,6 +1622,7 @@ export const policialHistorico = sqliteTable(
 export type Policial = typeof policiais.$inferSelect;
 export type PolicialHistorico = typeof policialHistorico.$inferSelect;
 export type CadastroSolicitacao = typeof cadastroSolicitacoes.$inferSelect;
+export type PolicialAcaoSolicitacao = typeof policialAcaoSolicitacoes.$inferSelect;
 export type Escala = typeof escalas.$inferSelect;
 export type NovaEscala = typeof escalas.$inferInsert;
 export type EscalaPolicial = typeof escalaPoliciais.$inferSelect;

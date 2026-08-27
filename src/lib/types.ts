@@ -5,10 +5,19 @@ import type {
 	Unidade,
 	GisePresenca,
 	Operacao,
-	PolicialHistorico
+	PolicialHistorico,
+	CadastroSolicitacao,
+	PolicialAcaoSolicitacao
 } from './server/schema';
 
-export type { Policial, Escala, Unidade, PolicialHistorico };
+export type {
+	Policial,
+	Escala,
+	Unidade,
+	PolicialHistorico,
+	CadastroSolicitacao,
+	PolicialAcaoSolicitacao
+};
 
 /**
  * Meta que move um NÚMERO numa direção — a forma original do indicador.

@@ -308,14 +308,19 @@
 			{/if}
 			<!-- end showGrupo2 -->
 
-			<!-- Separador 2 (Admin Geral: acesso à gestão de policiais) -->
-			{#if flags.isAdmGeral}
+			<!-- Separador 2 (acesso à gestão de pessoas) -->
+			{#if flags.showGrupo3Separator}
 				<hr class="!my-3 border-surface-200 dark:border-white/10" />
 			{/if}
 
-			<!-- Grupo 3: Policiais + Solicitações (Admin Geral) -->
-			{#if flags.isAdmGeral}
+			<!-- Grupo 3: gestão de pessoas.
+			     "Policiais" é dos TRÊS papéis administrativos (o admin de seccional
+			     e o de unidade veem só o escopo deles, e é da ficha que pedem a
+			     correção de um dado); "Solicitações" é a fila de QUEM DECIDE. -->
+			{#if flags.showPoliciais}
 				{@render itemMenu('/policiais', 'Policiais', ICONE.pessoas)}
+			{/if}
+			{#if flags.showSolicitacoes}
 				{@render itemMenu('/solicitacoes', 'Solicitações', ICONE.checkLista)}
 			{/if}
 

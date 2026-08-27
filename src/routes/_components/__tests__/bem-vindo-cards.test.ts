@@ -53,7 +53,8 @@ function destinosDoMenu(usuario: UsuarioDosCards, flags: FlagsMenu): string[] {
 		destinos.push(...itensExtraDoMenu(flags, new URL('http://x/bem-vindo')).map((i) => i.href));
 		if (flags.showGise && ehAdmin) destinos.push('/gise/operacoes');
 	}
-	if (flags.isAdmGeral) destinos.push('/policiais', '/solicitacoes');
+	if (flags.showPoliciais) destinos.push('/policiais');
+	if (flags.showSolicitacoes) destinos.push('/solicitacoes');
 	if (usuario.tipo === 'policial') destinos.push('/perfil');
 
 	return [...new Set(destinos)];

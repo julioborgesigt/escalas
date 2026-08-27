@@ -5,10 +5,23 @@
 	 * actions do `+page.server.ts` (`?/registrarMovimentacao`,
 	 * `?/registrarAfastamento`, `?/registrarDesvinculacao`).
 	 *
-	 * Nenhum deles é só um registro: cada um grava uma linha APPEND-ONLY em
-	 * `policial_historico`, que é a visão de RH do servidor e não se apaga pela
-	 * interface. Daí o `invalidateShared` no sucesso — a timeline logo abaixo
-	 * (`HistoricoServidor`) precisa refletir o que acabou de ser gravado.
+	 * **O mesmo painel tem dois desfechos**, decididos por `modo` (que vem do
+	 * portão da ficha, não da tela):
+	 *
+	 *  - `direto` — Admin Geral: o ato acontece na hora e vira linha na timeline;
+	 *  - `solicitacao` — admin de seccional/unidade: o ato vira PEDIDO, com
+	 *    justificativa obrigatória, e só acontece se o Admin Geral aprovar.
+	 *
+	 * O PDF anexo sobe nos DOIS modos, e é isso que permite ao Admin Geral baixar
+	 * a portaria antes de decidir. O texto dos botões muda junto: um painel que
+	 * diz "Salvar" e apenas envia um pedido é a forma mais barata de alguém
+	 * acreditar que transferiu um servidor que continua onde estava.
+	 *
+	 * Nenhum dos três é só um registro: no modo direto cada um grava uma linha
+	 * APPEND-ONLY em `policial_historico`, que é a visão de RH do servidor e não
+	 * se apaga pela interface. Daí o `invalidateShared` no sucesso — a timeline
+	 * logo abaixo (`HistoricoServidor`) precisa refletir o que acabou de ser
+	 * gravado, e no modo solicitação é o quadro de pedidos que precisa.
 	 *
 	 * No afastamento, "Qtd de dias" e "Data final" são o MESMO dado por dois
 	 * caminhos, e cada campo recalcula o outro. A contagem é INCLUSIVA (um
@@ -22,6 +35,7 @@
 	import { loading } from '$lib/loading.svelte';
 	import { adicionarDias, diffDiasInclusivo } from '$lib/utils/datas';
 	import { formatarNUP } from '$lib/utils/formato';
+	import { MAX_JUSTIFICATIVA } from '$lib/cadastro-campos';
 	import ArrowRightLeft from '@lucide/svelte/icons/arrow-right-left';
 	import CalendarOff from '@lucide/svelte/icons/calendar-off';
 	import UserMinus from '@lucide/svelte/icons/user-minus';
@@ -30,9 +44,13 @@
 	interface Props {
 		policial: { id: number; nome: string; matricula: string; lotacao: string };
 		lotacoes: string[];
+		/** `direto` executa; `solicitacao` envia para aprovação do Admin Geral. */
+		modo: 'direto' | 'solicitacao';
 	}
 
-	const { policial, lotacoes }: Props = $props();
+	const { policial, lotacoes, modo }: Props = $props();
+
+	const solicitando = $derived(modo === 'solicitacao');
 
 	type Modal = 'movimentacao' | 'afastamento' | 'desvinculacao' | null;
 	let modal = $state<Modal>(null);
@@ -48,6 +66,10 @@
 	let destino = $state('');
 	let dataEvento = $state('');
 	let nup = $state('');
+	let justificativa = $state('');
+
+	/** No modo solicitação, nada é enviado sem motivo escrito. */
+	const bloqueado = $derived(enviando || (solicitando && justificativa.trim().length === 0));
 
 	function resetCampos() {
 		unidadeDestino = '';
@@ -59,6 +81,7 @@
 		destino = '';
 		dataEvento = '';
 		nup = '';
+		justificativa = '';
 	}
 
 	function abrir(m: Modal) {
@@ -83,12 +106,18 @@
 
 	function handleSubmit() {
 		enviando = true;
-		loading.show('Registrando...');
+		loading.show(solicitando ? 'Enviando solicitação...' : 'Registrando...');
 		return async ({ result }: { result: ActionResult }) => {
 			loading.hide();
 			enviando = false;
 			if (result.type === 'success') {
-				toaster.create({ title: 'Registro salvo com sucesso!', type: 'success' });
+				toaster.create({
+					title: solicitando ? 'Solicitação enviada' : 'Registro salvo com sucesso!',
+					description: solicitando
+						? 'O ato só acontece após a aprovação do Administrador Geral.'
+						: undefined,
+					type: 'success'
+				});
 				fechar();
 				await invalidateShared(`policial:${policial.id}`, 'app:policiais');
 			} else if (result.type === 'failure') {
@@ -106,7 +135,13 @@
 		Afastar / Movimentar Servidor
 	</h2>
 	<p class="text-xs text-surface-600 dark:text-surface-400 mb-3">
-		Toda movimentação, afastamento ou desvinculação fica registrada no histórico do servidor.
+		{#if solicitando}
+			Movimentação, afastamento e desvinculação são <b>enviados para aprovação</b> do Administrador
+			Geral, com justificativa. A <b>troca de lotação do servidor é feita apenas por aqui</b>, pelo
+			botão Movimentação.
+		{:else}
+			Toda movimentação, afastamento ou desvinculação fica registrada no histórico do servidor.
+		{/if}
 	</p>
 	<div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
 		<button
@@ -156,6 +191,53 @@
 			maxlength="20"
 		/>
 	</label>
+{/snippet}
+
+<!-- Justificativa — só no modo solicitação, e obrigatória ali. No modo direto
+     não há a quem justificar: o ato JÁ é a decisão de quem tem poder para
+     tomá-la, e quem o tomou fica na trilha de auditoria. -->
+{#snippet campoJustificativa()}
+	{#if solicitando}
+		<label class="label">
+			<span class="label-text text-2xs font-bold uppercase opacity-70 ml-1"
+				>Justificativa do pedido</span
+			>
+			<textarea
+				class="textarea py-1 px-3 text-sm"
+				name="justificativa"
+				bind:value={justificativa}
+				rows="2"
+				maxlength={MAX_JUSTIFICATIVA}
+				required
+				placeholder="Motivo do pedido, para o Administrador Geral decidir"></textarea>
+			<span class="text-2xs opacity-60 ml-1 self-end tabular-nums">
+				{justificativa.length}/{MAX_JUSTIFICATIVA}
+			</span>
+		</label>
+	{/if}
+{/snippet}
+
+<!-- Rodapé dos três modais: o verbo segue o MODO, porque um botão "Salvar" que
+     apenas envia um pedido faz o administrador acreditar que transferiu quem
+     continua onde estava. -->
+{#snippet rodapeAcao(classePreset: string, rotuloDireto: string, andamentoDireto: string)}
+	<div
+		class="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 sm:gap-3 pt-2 border-t border-surface-200 dark:border-white/5"
+	>
+		<button
+			type="button"
+			class="btn preset-outlined-surface-500"
+			onclick={fechar}
+			disabled={enviando}>Cancelar</button
+		>
+		<button type="submit" class="btn {classePreset} disabled:opacity-40" disabled={bloqueado}>
+			{#if enviando}
+				{solicitando ? 'Enviando...' : andamentoDireto}
+			{:else}
+				{solicitando ? 'Solicitar' : rotuloDireto}
+			{/if}
+		</button>
+	</div>
 {/snippet}
 
 <!--
@@ -236,19 +318,8 @@
 						accept="application/pdf"
 					/>
 				</label>
-				<div
-					class="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 sm:gap-3 pt-2 border-t border-surface-200 dark:border-white/5"
-				>
-					<button
-						type="button"
-						class="btn preset-outlined-surface-500"
-						onclick={fechar}
-						disabled={enviando}>Cancelar</button
-					>
-					<button type="submit" class="btn preset-filled-primary-500" disabled={enviando}>
-						{enviando ? 'Salvando...' : 'Salvar'}
-					</button>
-				</div>
+				{@render campoJustificativa()}
+				{@render rodapeAcao('preset-filled-primary-500', 'Salvar', 'Salvando...')}
 			</form>
 		</div>
 	</Dialog.Content>
@@ -348,19 +419,8 @@
 						/>
 					</label>
 				</div>
-				<div
-					class="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 sm:gap-3 pt-2 border-t border-surface-200 dark:border-white/5"
-				>
-					<button
-						type="button"
-						class="btn preset-outlined-surface-500"
-						onclick={fechar}
-						disabled={enviando}>Cancelar</button
-					>
-					<button type="submit" class="btn preset-filled-warning-500" disabled={enviando}>
-						{enviando ? 'Salvando...' : 'Salvar'}
-					</button>
-				</div>
+				{@render campoJustificativa()}
+				{@render rodapeAcao('preset-filled-warning-500', 'Salvar', 'Salvando...')}
 			</form>
 		</div>
 	</Dialog.Content>
@@ -380,8 +440,12 @@
 				<UserMinus size={20} /> Confirmar Desvinculação
 			</Dialog.Title>
 			<p class="text-xs text-surface-600 dark:text-surface-400 mb-3">
-				A desvinculação <b>inativa</b> o servidor (sai das listas e escalas). O registro fica preservado
-				no histórico.
+				A desvinculação <b>inativa</b> o servidor (sai das listas e escalas). O registro fica
+				preservado no histórico.
+				{#if solicitando}
+					Aqui o pedido é <b>enviado para aprovação</b> — o servidor continua ativo até o Administrador
+					Geral decidir.
+				{/if}
 			</p>
 			{@render servidorBanner()}
 			<form
@@ -430,19 +494,8 @@
 						accept="application/pdf"
 					/>
 				</label>
-				<div
-					class="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 sm:gap-3 pt-2 border-t border-surface-200 dark:border-white/5"
-				>
-					<button
-						type="button"
-						class="btn preset-outlined-surface-500"
-						onclick={fechar}
-						disabled={enviando}>Cancelar</button
-					>
-					<button type="submit" class="btn preset-filled-error-500" disabled={enviando}>
-						{enviando ? 'Confirmando...' : 'Confirmar Baixa'}
-					</button>
-				</div>
+				{@render campoJustificativa()}
+				{@render rodapeAcao('preset-filled-error-500', 'Confirmar Baixa', 'Confirmando...')}
 			</form>
 		</div>
 	</Dialog.Content>
