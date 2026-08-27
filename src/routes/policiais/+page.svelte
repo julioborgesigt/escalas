@@ -176,10 +176,14 @@
 		};
 	}
 
-	// Valor "base" de lotação para o papel atual (o que deve estar ao limpar filtros)
-	// admin_unidade: sua própria lotação (filtro fixo, não pode limpar)
-	// admin_seccional: '' (o servidor aplica o escopo automaticamente)
-	const filtroLotacaoBase = $derived(isAdminUnidade ? (data.lotacaoUsuario ?? '') : '');
+	// "Limpar filtros" volta para SEM filtro de lotação, em todos os papéis: o
+	// recorte de quem o usuário alcança é do servidor (`escopoLotacoes`), não
+	// deste campo. O admin de unidade tinha aqui a própria `lotacao` como base
+	// fixa, e isso mentia desde que o escopo passou a vir do PAPEL: quem foi
+	// nomeado administrador da DP 1 e é lotado na DP 5 limpava os filtros e via
+	// zero servidores — a interseção de um filtro pela DP 5 com um escopo da
+	// DP 1 (a mesma confusão lotação × papel do FLW-RBAC-003).
+	const filtroLotacaoBase = '';
 
 	function limparFiltros() {
 		filtroLotacao = filtroLotacaoBase;

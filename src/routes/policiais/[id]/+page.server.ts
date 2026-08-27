@@ -113,7 +113,7 @@ import {
 	desvinculacaoSchema,
 	LABEL_SUBTIPO_AFASTAMENTO
 } from '$lib/schemas/policial-historico';
-import { isAdminGeral, isAdminSeccional, isAdminUnidade } from '$lib/auth';
+import { isAdminGeral } from '$lib/auth';
 import {
 	lotacoesAdministradas,
 	lotacaoNoEscopo,
@@ -241,8 +241,6 @@ export const load: PageServerLoad = async ({ locals, params, platform, depends }
 	if (!policial) error(404, 'Policial não encontrado');
 
 	const isAdm = isAdminGeral(u);
-	const isSeccional = isAdminSeccional(u);
-	const isUnidade = isAdminUnidade(u);
 	const modo = modoDaFicha(u);
 
 	// O escopo é reconferido contra o ALVO: a lista só mostra quem o admin
@@ -301,8 +299,6 @@ export const load: PageServerLoad = async ({ locals, params, platform, depends }
 		unidades: todasUnidades,
 		modo,
 		isAdmin: isAdm,
-		isAdminOrSeccional: isAdm || isSeccional,
-		isAdminUnidade: isUnidade,
 		ehAdminGeral,
 		modulosAdmin,
 		historico,
