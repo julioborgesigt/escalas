@@ -1,30 +1,35 @@
-import { redirect, fail } from '@sveltejs/kit';
-import type { PageServerLoad, Actions } from './$types';
+import { redirect } from '@sveltejs/kit';
+import type { PageServerLoad } from './$types';
 import { eq } from 'drizzle-orm';
-import {
-	getDB,
-	listarUnidades,
-	criarSolicitacoesCadastro,
-	listarMinhasSolicitacoesCadastro,
-	registrarAuditComContexto,
-	contextoDeEvento,
-	buscarCredencialAtiva,
-	type CampoSolicitacao
-} from '$lib/db';
+import { getDB, buscarCredencialAtiva } from '$lib/db';
 import { credencialDoUsuario } from '$lib/server/auth/credencial';
 import { descreverVinculoCredencial } from '$lib/server/assinatura/webauthn/authenticator-data';
 import { nomeProvedorAaguid } from '$lib/server/assinatura/webauthn/aaguid-provedores';
 import { abreviarCredencial } from '$lib/chave-assinatura-ui';
 import { policiais } from '$lib/server/schema';
-import { classesDoCargo, TELEFONE_RE } from '$lib/perfil-campos';
-import { limparTelefone } from '$lib/utils/formato';
 
 /**
- * "Meu perfil" (`/perfil`) — visão do próprio servidor.
+ * "Meu perfil" (`/perfil`) — visão do próprio servidor. **Página de leitura**,
+ * com duas exceções que pertencem ao titular e a mais ninguém.
  *
- * O policial não edita o próprio cadastro: ele SOLICITA a alteração, que fica
- * pendente até o Admin Geral decidir em `/solicitacoes`. Nome, matrícula e
- * cargo nem entram na solicitação (vêm da sincronização institucional).
+ * O servidor não pede alteração do próprio cadastro. Telefone, classe, regime e
+ * lotação são corrigidos pelo administrador da unidade ou da seccional dele, na
+ * ficha em `/policiais/[id]`, e a correção ainda passa pela aprovação do Admin
+ * Geral. Até ago/2026 o pedido saía daqui; o fluxo mudou de dono, e com ele a
+ * página — o formulário e o quadro "Minhas solicitações" saíram junto com a
+ * action `solicitar`.
+ *
+ * O que continua sendo do titular, e por isso continua aqui:
+ *
+ *  - o **e-mail pessoal**, que é o canal de recuperação da conta. A troca exige
+ *    a senha dele MAIS um código enviado ao novo endereço; nenhum administrador
+ *    entra nesse caminho, porque quem troca esse endereço assume a identidade da
+ *    pessoa no próximo "esqueci a senha";
+ *  - a **chave de assinatura** (passkey), que prova controle exclusivo do
+ *    aparelho (Lei 14.063/2020, art. 4º II "b") e portanto não pode ser
+ *    cadastrada por terceiro.
+ *
+ * Os dois vão por API, não por form action — daí este arquivo não ter `actions`.
  */
 
 export const load: PageServerLoad = async ({ locals, platform }) => {
@@ -34,7 +39,7 @@ export const load: PageServerLoad = async ({ locals, platform }) => {
 	if (u.tipo !== 'policial') redirect(302, '/escalas/bem-vindo');
 
 	const db = getDB(platform);
-	const [row, unidades, solicitacoes, credencial] = await Promise.all([
+	const [row, credencial] = await Promise.all([
 		db
 			.select({
 				nome: policiais.nome,
@@ -51,8 +56,6 @@ export const load: PageServerLoad = async ({ locals, platform }) => {
 			.from(policiais)
 			.where(eq(policiais.id, u.id))
 			.get(),
-		listarUnidades(db),
-		listarMinhasSolicitacoesCadastro(db, u.id),
 		buscarCredencialAtiva(db, credencialDoUsuario(u))
 	]);
 
@@ -60,9 +63,6 @@ export const load: PageServerLoad = async ({ locals, platform }) => {
 
 	return {
 		perfil: row,
-		classes: classesDoCargo(row.cargo),
-		lotacoes: unidades.map((un) => un.nome),
-		solicitacoes,
 		// Recorte do identificador (o mesmo do manifesto) + último uso. O id
 		// completo e a chave pública NÃO vão para o cliente.
 		passkey: credencial
@@ -79,105 +79,4 @@ export const load: PageServerLoad = async ({ locals, platform }) => {
 				}
 			: null
 	};
-};
-
-export const actions: Actions = {
-	solicitar: async (event) => {
-		const { request, locals, platform } = event;
-		const u = locals.usuario;
-		if (!u || u.tipo !== 'policial') return fail(401, { error: 'Não autorizado' });
-
-		const db = getDB(platform);
-		const atual = await db
-			.select({
-				cargo: policiais.cargo,
-				telefone: policiais.telefone,
-				classe: policiais.classe,
-				regime: policiais.regime,
-				lotacao: policiais.lotacao
-			})
-			.from(policiais)
-			.where(eq(policiais.id, u.id))
-			.get();
-		if (!atual) return fail(404, { error: 'Cadastro não encontrado' });
-
-		const data = await request.formData();
-		// Campo em branco = "não quero mudar isto", não "apagar o valor".
-		const telefone = (data.get('telefone')?.toString() ?? '').trim();
-		const classe = (data.get('classe')?.toString() ?? '').trim();
-		const regime = (data.get('regime')?.toString() ?? '').trim();
-		const lotacao = (data.get('lotacao')?.toString() ?? '').trim();
-
-		// Validações por campo (mesmos domínios do cadastro administrativo)
-		if (telefone && !TELEFONE_RE.test(telefone)) {
-			return fail(400, { error: 'Telefone inválido — use apenas números, espaços, ( ) + -.' });
-		}
-		if (classe && !classesDoCargo(atual.cargo).includes(classe)) {
-			return fail(400, { error: 'Classe inválida para o seu cargo.' });
-		}
-		if (regime && regime !== 'plantao' && regime !== 'expediente') {
-			return fail(400, { error: 'Regime inválido.' });
-		}
-		if (lotacao) {
-			const unidades = await listarUnidades(db);
-			if (!unidades.some((un) => un.nome === lotacao)) {
-				return fail(400, { error: 'Lotação inválida — selecione uma unidade da lista.' });
-			}
-		}
-
-		// Só vira solicitação o que realmente difere do cadastro atual — evita fila
-		// de pedidos que não mudam nada quando o usuário salva o formulário inteiro.
-		const mudancas: Array<{
-			campo: CampoSolicitacao;
-			valorAtual: string | null;
-			valorNovo: string;
-		}> = [];
-		// Compara por DÍGITOS (`limparTelefone`): o formulário envia o telefone só
-		// com números (máx. 11), enquanto o valor no banco pode estar formatado
-		// (espaço/traço). Sem isto, mudar só a classe geraria também uma
-		// "solicitação de telefone" que na prática é o mesmo número, sem formatação.
-		if (telefone && limparTelefone(telefone) !== limparTelefone(atual.telefone)) {
-			mudancas.push({ campo: 'telefone', valorAtual: atual.telefone, valorNovo: telefone });
-		}
-		if (classe && classe !== atual.classe) {
-			mudancas.push({ campo: 'classe', valorAtual: atual.classe, valorNovo: classe });
-		}
-		if (regime && regime !== atual.regime) {
-			mudancas.push({ campo: 'regime', valorAtual: atual.regime, valorNovo: regime });
-		}
-		if (lotacao && lotacao !== atual.lotacao) {
-			mudancas.push({ campo: 'lotacao', valorAtual: atual.lotacao, valorNovo: lotacao });
-		}
-
-		if (mudancas.length === 0) {
-			return fail(400, { error: 'Nenhuma alteração em relação ao cadastro atual.' });
-		}
-
-		// Uma solicitação por campo: o admin pode aprovar telefone e recusar lotação.
-		try {
-			await criarSolicitacoesCadastro(db, u.id, mudancas);
-		} catch {
-			return fail(500, { error: 'Erro ao registrar a solicitação. Tente novamente.' });
-		}
-
-		const { contexto, env } = contextoDeEvento(event);
-		await registrarAuditComContexto(db, {
-			usuario: u,
-			acao: 'solicitar_alteracao_cadastro',
-			entidade: 'policial',
-			entidade_id: u.id,
-			alvo_tipo: 'policial',
-			alvo_id: u.id,
-			alvo_nome: u.nome,
-			detalhes: `Solicitação de alteração cadastral: ${mudancas.map((m) => m.campo).join(', ')}`,
-			metadados: { mudancas },
-			...contexto,
-			env
-		});
-
-		// Devolve a lista já atualizada: a tela troca o quadro "Minhas solicitações"
-		// sem precisar de `invalidateAll`.
-		const solicitacoes = await listarMinhasSolicitacoesCadastro(db, u.id);
-		return { success: true, solicitacoes };
-	}
 };

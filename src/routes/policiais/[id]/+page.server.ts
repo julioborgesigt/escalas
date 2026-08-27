@@ -3,24 +3,46 @@
  * cadastrais, papel administrativo, vínculo de Admin Geral e a linha do tempo
  * de movimentações, afastamentos e desvinculação.
  *
- * **Tudo aqui é restrito ao Admin Geral**, e a restrição é imposta em três
- * camadas independentes: o `load` redireciona, cada action confere de novo, e
- * as ações de histórico passam por `autorizarAcao`. Não é redundância inútil —
- * a tela esconde botões, mas POST direto tem de morrer no servidor.
+ * **A mesma tela serve a dois poderes diferentes**, e a distinção é o assunto
+ * central do arquivo (ver `$lib/server/policiais/ficha-permissao`):
  *
- * As três ações de histórico têm a mesma forma, e a ordem importa:
+ *   - **Admin Geral — modo `direto`.** Escopo irrestrito; o que ele salva ou
+ *     registra vale na hora.
+ *   - **Admin de seccional / de unidade — modo `solicitacao`.** Vê a mesma
+ *     ficha, restrita aos servidores do escopo dele, e nada do que submete muda
+ *     o cadastro: vira pedido para o Admin Geral decidir em `/solicitacoes`.
+ *     Papel administrativo e Admin Geral são informativos para ele — as três
+ *     actions que os alteram continuam exigindo `isAdminGeral`, porque conceder
+ *     permissão não é "corrigir um dado".
  *
- *   autorizar → validar (Zod) → **upload do PDF** → mutar → registrar histórico
+ * O modo é decidido UMA vez, no portão, e cada action confere o que precisa.
+ * Não é redundância inútil: a tela esconde botões, mas POST direto tem de morrer
+ * no servidor.
+ *
+ * As três ações de RH têm a mesma forma, e a ordem importa:
+ *
+ *   autorizar → validar (Zod) → **upload do PDF** → executar OU registrar pedido
  *   → auditar
  *
- * O upload vem ANTES da mutação de propósito: anexo inválido (não-PDF, > 10 MB,
- * R2 fora do ar) aborta com 400 sem ter mexido no cadastro. Invertido, um
- * policial ficaria movimentado com a portaria faltando.
+ * O upload vem ANTES de qualquer gravação de propósito: anexo inválido
+ * (não-PDF, > 10 MB, R2 fora do ar) aborta com 400 sem ter mexido em nada.
+ * Invertido, um policial ficaria movimentado com a portaria faltando. No modo
+ * `solicitacao` o PDF sobe do mesmo jeito, e é por isso que o Admin Geral
+ * consegue BAIXAR a portaria antes de aprovar.
+ *
+ * O EFEITO dos três atos não mora aqui: mora em
+ * `$lib/server/policiais/acoes-rh`, porque a aprovação do pedido executa
+ * exatamente o mesmo ato. Enquanto morava dentro destas actions, o caminho da
+ * aprovação teria de reescrevê-lo — a forma exata dos bugs de cópia divergente
+ * catalogados no `CLAUDE.md`.
  *
  * O que cada ação decide:
  *
- * - `salvar` — dados cadastrais. Matrícula duplicada vira 409 legível
- *   (`ehViolacaoUnique`), não 500 com SQL cru;
+ * - `salvar` — dados cadastrais, modo `direto`. Matrícula duplicada vira 409
+ *   legível (`ehViolacaoUnique`), não 500 com SQL cru;
+ * - `solicitarAlteracao` — os mesmos dados, modo `solicitacao`: uma linha por
+ *   campo que de fato mudou, todas com a mesma justificativa. **Lotação não
+ *   entra**: transferir servidor é movimentação, com data, NUP e portaria;
  * - `salvarPapel` — concede/revoga papel. Papel SEM unidade de
  *   responsabilidade é recusado: papel sem alcance deixa o escopo do RBAC
  *   indefinido;
@@ -67,13 +89,17 @@ import {
 	desvincularAdminGeral,
 	buscarModulosAdminVinculado,
 	atualizarModuloAdminVinculado,
-	registrarHistorico,
 	atualizarPolicialComHistorico,
 	listarHistoricoPolicial,
 	afastamentoVigente,
+	criarSolicitacoesCadastro,
+	criarSolicitacaoAcao,
+	listarSolicitacoesDoPolicial,
+	listarSolicitacoesAcaoDoPolicial,
 	auditar,
 	contextoDeEvento,
-	listarCredenciaisDoDono
+	listarCredenciaisDoDono,
+	type MudancaSolicitada
 } from '$lib/db';
 import { descreverVinculoCredencial } from '$lib/server/assinatura/webauthn/authenticator-data';
 import { nomeProvedorAaguid } from '$lib/server/assinatura/webauthn/aaguid-provedores';
@@ -87,14 +113,29 @@ import {
 	desvinculacaoSchema,
 	LABEL_SUBTIPO_AFASTAMENTO
 } from '$lib/schemas/policial-historico';
-import { isAdminGeral, isAdminSeccional, isAdminUnidade } from '$lib/auth';
+import { isAdminGeral } from '$lib/auth';
 import {
 	lotacoesAdministradas,
 	lotacaoNoEscopo,
 	motivoParaRecusarPapel
 } from '$lib/server/policial-permissao';
+import {
+	carregarFichaDoPolicial,
+	modoDaFicha,
+	podeAbrirFichaDePolicial,
+	type FichaAutorizada
+} from '$lib/server/policiais/ficha-permissao';
+import { executarAcaoRH, type AcaoRH } from '$lib/server/policiais/acoes-rh';
+import {
+	CAMPOS_SOLICITAVEIS,
+	MAX_JUSTIFICATIVA,
+	ROTULO_CAMPO,
+	motivoParaRecusarValor,
+	type CampoSolicitavel
+} from '$lib/cadastro-campos';
 import { decifrarCpfDoDB } from '$lib/crypto/cpf-cripto';
-import { resolverCredencial, revogarSessoesDaCredencial } from '$lib/server/auth/credencial';
+import { limparCPF, limparMatricula, limparTelefone } from '$lib/utils/formato';
+import { resolverCredencial } from '$lib/server/auth/credencial';
 import { hojeBrasilISO } from '$lib/utils/datas';
 import type { RequestEvent } from './$types';
 import { mensagemDeErro } from '$lib/utils/erro';
@@ -170,23 +211,16 @@ async function uploadDocumento(
 }
 
 /**
- * Autoriza a ação e devolve o `{ db, alvo }`, ou uma `Response`/objeto `fail`.
- * Todas as operações de histórico são restritas ao Admin Geral (a própria
- * página já exige isso no `load`).
+ * A justificativa que acompanha TODO pedido: obrigatória e limitada.
+ * Devolve o texto pronto para gravar, ou a mensagem de recusa.
  */
-async function autorizarAcao(event: RequestEvent) {
-	const { locals, platform, params } = event;
-	const u = locals.usuario;
-	if (!u || !isAdminGeral(u)) {
-		return { erro: fail(403, { error: 'Apenas o Admin Geral pode registrar movimentações.' }) };
+function lerJustificativa(formData: FormData): { texto: string } | { erro: string } {
+	const texto = (formData.get('justificativa')?.toString() ?? '').trim();
+	if (!texto) return { erro: 'Informe a justificativa do pedido.' };
+	if (texto.length > MAX_JUSTIFICATIVA) {
+		return { erro: `A justificativa deve ter no máximo ${MAX_JUSTIFICATIVA} caracteres.` };
 	}
-	const id = Number(params.id);
-	if (isNaN(id)) return { erro: fail(400, { error: 'ID inválido' }) };
-
-	const db = getDB(platform);
-	const alvo = await buscarPolicial(db, id);
-	if (!alvo) return { erro: fail(404, { error: 'Policial não encontrado' }) };
-	return { u, db, id, alvo };
+	return { texto };
 }
 
 export const load: PageServerLoad = async ({ locals, params, platform, depends }) => {
@@ -196,7 +230,7 @@ export const load: PageServerLoad = async ({ locals, params, platform, depends }
 	const u = locals.usuario;
 	if (!u) redirect(302, '/login');
 
-	if (!isAdminGeral(u)) {
+	if (!podeAbrirFichaDePolicial(u)) {
 		redirect(302, '/');
 	}
 
@@ -207,25 +241,49 @@ export const load: PageServerLoad = async ({ locals, params, platform, depends }
 	if (!policial) error(404, 'Policial não encontrado');
 
 	const isAdm = isAdminGeral(u);
-	const isSeccional = isAdminSeccional(u);
-	const isUnidade = isAdminUnidade(u);
+	const modo = modoDaFicha(u);
 
-	const [lotacoes, todasUnidades, modulosAdmin, historico, credenciaisPasskey] = await Promise.all([
-		isAdm ? listarLotacoes(db) : Promise.resolve<string[]>([]),
-		isAdm || isSeccional || isUnidade ? listarUnidades(db) : Promise.resolve([]),
+	// O escopo é reconferido contra o ALVO: a lista só mostra quem o admin
+	// alcança, mas o id chega pela URL. Sem isto, trocar o número na barra de
+	// endereço abriria a ficha de um servidor de outra seccional.
+	const escopo = await lotacoesAdministradas(db, u);
+	if (!lotacaoNoEscopo(escopo, policial.lotacao)) {
+		error(403, 'Este servidor não está sob a sua administração');
+	}
+
+	const [
+		lotacoes,
+		todasUnidades,
+		modulosAdmin,
+		historico,
+		credenciaisPasskey,
+		solicitacoesCampo,
+		solicitacoesAcao
+	] = await Promise.all([
+		// A lista de destinos de MOVIMENTAÇÃO é a corporação inteira nos dois
+		// modos, e para o admin com escopo isso é deliberado: transferir servidor
+		// para FORA da unidade é o caso comum, e no modo `solicitacao` quem decide
+		// é o Admin Geral. Restringir aos destinos que ele já administra tornaria
+		// impossível pedir a saída de alguém da unidade.
+		listarLotacoes(db),
+		listarUnidades(db),
 		buscarModulosAdminVinculado(db, id),
 		listarHistoricoPolicial(db, id),
 		// A credencial pertence à PESSOA: quem tem conta admin vinculada tem duas
 		// linhas, e consultar pelo par cru mostraria "sem chave" para quem tem.
-		resolverCredencial(db, 'policial', id).then((c) => listarCredenciaisDoDono(db, c.dono))
+		resolverCredencial(db, 'policial', id).then((c) => listarCredenciaisDoDono(db, c.dono)),
+		listarSolicitacoesDoPolicial(db, id),
+		listarSolicitacoesAcaoDoPolicial(db, id)
 	]);
 	const ehAdminGeral = modulosAdmin != null;
 
 	const credencialPasskey = credenciaisPasskey.find((c) => c.revogadoEm == null) ?? null;
 
-	// CPF é cifrado em repouso (LGPD) — decifra para o formulário de edição
-	// (público restrito a Admin Geral).
-	const cpfClaro = await decifrarCpfDoDB(policial.cpf, platform?.env);
+	// CPF é cifrado em repouso (LGPD) e só é decifrado para quem EDITA o cadastro
+	// direto — o Admin Geral. Quem apenas pede a correção informa o CPF novo e
+	// nunca precisou ler o atual para isso (minimização, LGPD art. 6º III); a
+	// ficha mostra para ele apenas se há CPF cadastrado.
+	const cpfClaro = isAdm ? await decifrarCpfDoDB(policial.cpf, platform?.env) : null;
 
 	const afastamentoAtual = afastamentoVigente(historico, hojeBrasilISO());
 
@@ -233,17 +291,19 @@ export const load: PageServerLoad = async ({ locals, params, platform, depends }
 		policial: {
 			...policial,
 			cpf: cpfClaro || null,
+			temCpfCadastrado: !!policial.cpf,
 			papel: policial.papel ?? null,
 			papel_unidade_id: policial.papel_unidade_id ?? null
 		},
 		lotacoes,
 		unidades: todasUnidades,
+		modo,
 		isAdmin: isAdm,
-		isAdminOrSeccional: isAdm || isSeccional,
-		isAdminUnidade: isUnidade,
 		ehAdminGeral,
 		modulosAdmin,
 		historico,
+		solicitacoesCampo,
+		solicitacoesAcao,
 		afastamentoVigenteId: afastamentoAtual?.id ?? null,
 		// Recorte do manifesto, não o id completo nem a chave pública. Chaves
 		// revogadas entram em `chavesAnteriores` para confrontar PDF antigo.
@@ -306,17 +366,38 @@ function camposAlterados(
 	return { antes: difAntes, depois: difDepois };
 }
 
+/**
+ * O valor de um campo do cadastro na forma COMPARÁVEL — a mesma normalização
+ * dos dois lados da comparação.
+ *
+ * Sem isto, um pedido de mudança só de classe geraria também uma "solicitação de
+ * telefone" porque o banco guarda `85 9999-0000` e o formulário envia
+ * `8599990000`: o mesmo número, com outra formatação. É o mesmo cuidado que a
+ * antiga tela de perfil tomava com `limparTelefone`, estendido aos campos que
+ * ganharam máscara (CPF) ou normalização própria (matrícula).
+ */
+function normalizarCampo(campo: CampoSolicitavel, valor: string | null | undefined): string {
+	const bruto = (valor ?? '').trim();
+	if (campo === 'telefone') return limparTelefone(bruto);
+	if (campo === 'cpf') return limparCPF(bruto);
+	if (campo === 'matricula') return limparMatricula(bruto);
+	return bruto;
+}
+
 export const actions: Actions = {
 	salvar: async (event) => {
-		const { request, locals, platform, params } = event;
-		const u = locals.usuario;
-		if (!u) return fail(401, { error: 'Não autorizado' });
-		if (!isAdminGeral(u)) {
-			return fail(403, { error: 'Sem permissão para editar policiais' });
-		}
+		const auth = await carregarFichaDoPolicial(
+			getDB(event.platform),
+			event.locals.usuario,
+			event.params.id
+		);
+		if ('erro' in auth) return auth.erro;
+		const { u, db, id, alvo, modo, escopo } = auth;
 
-		const id = Number(params.id);
-		if (isNaN(id)) return fail(400, { error: 'ID inválido' });
+		const { request, platform } = event;
+		if (modo !== 'direto') {
+			return fail(403, { error: 'Use "Solicitar alteração" — seu perfil não edita direto.' });
+		}
 
 		const formData = await request.formData();
 		const data = {
@@ -336,17 +417,10 @@ export const actions: Actions = {
 			return fail(400, { error: parsed.error.issues[0].message, fields: data });
 		}
 
-		const db = getDB(platform);
-		const alvo = await buscarPolicial(db, id);
-		if (!alvo) return fail(404, { error: 'Policial não encontrado', fields: data });
-
-		const escopo = await lotacoesAdministradas(db, u);
-		if (!lotacaoNoEscopo(escopo, alvo.lotacao)) {
-			return fail(403, { error: 'Sem permissão para editar este policial', fields: data });
-		}
-		// Bloqueia transferência para fora do escopo do administrador (impede
-		// admin_seccional/admin_unidade de "exportar" um policial e perder o
-		// controle sobre ele depois).
+		// Bloqueia transferência para fora do escopo do administrador. Para o Admin
+		// Geral (`escopo === null`) não recusa nada; a checagem fica porque o modo
+		// é decidido no portão e não no tipo de sessão — quem vier a ganhar modo
+		// `direto` com escopo recortado já entra protegido.
 		if (!lotacaoNoEscopo(escopo, data.lotacao)) {
 			return fail(403, {
 				error: 'Não é possível transferir o policial para fora das unidades sob sua administração',
@@ -410,6 +484,94 @@ export const actions: Actions = {
 			}
 			return fail(500, { error: 'Erro interno ao atualizar policial', fields: data });
 		}
+	},
+
+	/**
+	 * Pedido de correção cadastral (modo `solicitacao`): uma linha por campo que
+	 * de fato mudou, todas com a mesma justificativa.
+	 *
+	 * Campo em branco = "não quero mudar isto", não "apagar o valor" — a mesma
+	 * convenção da antiga tela de perfil. E como o cargo decide quais classes
+	 * valem, a classe é conferida contra o cargo PEDIDO, não contra o gravado:
+	 * quem promove de OIP para DPC pede as duas coisas na mesma submissão.
+	 */
+	solicitarAlteracao: async (event) => {
+		const auth = await carregarFichaDoPolicial(
+			getDB(event.platform),
+			event.locals.usuario,
+			event.params.id
+		);
+		if ('erro' in auth) return auth.erro;
+		const { u, db, id, alvo, modo } = auth;
+
+		if (modo !== 'solicitacao') {
+			return fail(403, { error: 'Seu perfil edita o cadastro direto, sem solicitação.' });
+		}
+
+		const formData = await event.request.formData();
+		const justificativa = lerJustificativa(formData);
+		if ('erro' in justificativa) return fail(400, { error: justificativa.erro });
+
+		const cargoAlvo = (formData.get('cargo')?.toString() || alvo.cargo).trim() || alvo.cargo;
+		const mudancas: MudancaSolicitada[] = [];
+
+		for (const campo of CAMPOS_SOLICITAVEIS) {
+			const enviado = (formData.get(campo)?.toString() ?? '').trim();
+			if (!enviado) continue;
+
+			const recusa = motivoParaRecusarValor(campo, enviado, cargoAlvo);
+			if (recusa) return fail(400, { error: recusa });
+
+			const atual = (alvo as unknown as Record<string, string | null>)[campo] ?? null;
+			if (normalizarCampo(campo, enviado) === normalizarCampo(campo, atual)) continue;
+
+			mudancas.push({ campo, valorAtual: campo === 'cpf' ? null : atual, valorNovo: enviado });
+		}
+
+		if (mudancas.length === 0) {
+			return fail(400, { error: 'Nenhuma alteração em relação ao cadastro atual.' });
+		}
+
+		try {
+			await criarSolicitacoesCadastro(db, id, mudancas, justificativa.texto, {
+				id: u.id,
+				nome: u.nome
+			});
+		} catch (e) {
+			logger.error('[policiais/solicitarAlteracao] Falha ao registrar solicitação', {
+				policial_id: id,
+				error: mensagemDeErro(e)
+			});
+			return fail(500, { error: 'Erro ao registrar a solicitação. Tente novamente.' });
+		}
+
+		const { contexto, env } = contextoDeEvento(event);
+		await auditar(
+			db,
+			{
+				acao: 'solicitar_alteracao_cadastro',
+				usuario: u,
+				entidade: 'policial',
+				entidade_id: id,
+				alvo_tipo: 'policial',
+				alvo_id: id,
+				alvo_nome: alvo.nome,
+				detalhes:
+					`Solicitação de alteração cadastral de ${alvo.nome} (mat. ${alvo.matricula}): ` +
+					mudancas.map((m) => ROTULO_CAMPO[m.campo]).join(', '),
+				// O CPF pedido NÃO entra na trilha: a auditoria é lida por operador e o
+				// número já está protegido no cadastro (cifra + índice cego).
+				metadados: {
+					campos: mudancas.map((m) => m.campo),
+					justificativa: justificativa.texto
+				},
+				...contexto
+			},
+			{ env }
+		);
+
+		const solicitacoesCampo = await listarSolicitacoesDoPolicial(db, id);
+		return { success: true, solicitacoesCampo };
 	},
 
 	salvarPapel: async (event) => {
@@ -601,9 +763,13 @@ export const actions: Actions = {
 
 	// ---- Movimentação: transfere a lotação e registra no histórico ----
 	registrarMovimentacao: async (event) => {
-		const auth = await autorizarAcao(event);
+		const auth = await carregarFichaDoPolicial(
+			getDB(event.platform),
+			event.locals.usuario,
+			event.params.id
+		);
 		if ('erro' in auth) return auth.erro;
-		const { u, db, id, alvo } = auth;
+		const { db, id, alvo, modo } = auth;
 
 		const formData = await event.request.formData();
 		const parsed = movimentacaoSchema.safeParse({
@@ -613,63 +779,36 @@ export const actions: Actions = {
 		});
 		if (!parsed.success) return fail(400, { error: parsed.error.issues[0].message });
 
-		let doc: { key: string; nome: string } | null;
-		try {
-			doc = await uploadDocumento(event, formData, id);
-		} catch (e) {
-			return fail(400, { error: mensagemDeErro(e, 'Falha no upload do documento') });
-		}
-
 		const origem = alvo.lotacao || '';
 		if (parsed.data.unidade_destino === origem) {
 			return fail(400, { error: 'A unidade de destino é igual à unidade atual.' });
 		}
-		try {
-			await atualizarPolicialComHistorico(
-				db,
-				id,
-				{ lotacao: parsed.data.unidade_destino },
-				{
-					policial_id: id,
-					tipo: 'movimentacao',
-					unidade_origem: origem,
-					unidade_destino: parsed.data.unidade_destino,
-					data_evento: parsed.data.data_evento,
-					nup: parsed.data.nup || null,
-					documento_r2_key: doc?.key ?? null,
-					documento_nome: doc?.nome ?? null,
-					registrado_por_id: u.id,
-					registrado_por_nome: u.nome
-				}
-			);
-		} catch (e) {
-			return await abortarComLimpezaR2(event, doc, e, 'movimentacao');
-		}
-		const { contexto, env } = contextoDeEvento(event);
-		await auditar(
-			db,
-			{
-				acao: 'registrar_movimentacao',
-				usuario: u,
-				entidade: 'policial',
-				entidade_id: id,
-				alvo_tipo: 'policial',
-				alvo_id: id,
-				alvo_nome: alvo.nome,
-				detalhes: `Movimentação: ${origem || '—'} → ${parsed.data.unidade_destino}`,
-				metadados: { nup: parsed.data.nup || null, data: parsed.data.data_evento },
-				...contexto
+
+		return concluirAcaoRH(event, auth, formData, {
+			acao: {
+				tipo: 'movimentacao',
+				unidade_origem: origem,
+				unidade_destino: parsed.data.unidade_destino,
+				data_evento: parsed.data.data_evento,
+				nup: parsed.data.nup || null
 			},
-			{ env }
-		);
-		return { success: true, tipo: 'movimentacao' };
+			resumo: `${origem || '—'} → ${parsed.data.unidade_destino}`,
+			metadados: { nup: parsed.data.nup || null, data: parsed.data.data_evento },
+			// Recarrega para devolver o que a tela mostra ao lado do painel.
+			recarregar: () =>
+				modo === 'solicitacao' ? listarSolicitacoesAcaoDoPolicial(db, id) : Promise.resolve(null)
+		});
 	},
 
 	// ---- Afastamento: férias/licenças (apenas registra na linha do tempo) ----
 	registrarAfastamento: async (event) => {
-		const auth = await autorizarAcao(event);
+		const auth = await carregarFichaDoPolicial(
+			getDB(event.platform),
+			event.locals.usuario,
+			event.params.id
+		);
 		if ('erro' in auth) return auth.erro;
-		const { u, db, id, alvo } = auth;
+		const { db, id, modo } = auth;
 
 		const formData = await event.request.formData();
 		const qtdRaw = formData.get('qtd_dias')?.toString() || '';
@@ -686,58 +825,32 @@ export const actions: Actions = {
 			return fail(400, { error: 'A data final não pode ser anterior à data inicial.' });
 		}
 
-		let doc: { key: string; nome: string } | null;
-		try {
-			doc = await uploadDocumento(event, formData, id);
-		} catch (e) {
-			return fail(400, { error: mensagemDeErro(e, 'Falha no upload do documento') });
-		}
-
-		// Não altera cadastro: só a linha do tempo. Nada a transacionar, mas a
-		// compensação do anexo vale igual — o PDF já está no bucket.
-		try {
-			await registrarHistorico(db, {
-				policial_id: id,
+		return concluirAcaoRH(event, auth, formData, {
+			acao: {
 				tipo: 'afastamento',
 				subtipo: parsed.data.subtipo,
 				descricao: parsed.data.descricao || null,
 				data_inicio: parsed.data.data_inicio,
 				data_fim: parsed.data.data_fim,
 				qtd_dias: parsed.data.qtd_dias ?? null,
-				nup: parsed.data.nup || null,
-				documento_r2_key: doc?.key ?? null,
-				documento_nome: doc?.nome ?? null,
-				registrado_por_id: u.id,
-				registrado_por_nome: u.nome
-			});
-		} catch (e) {
-			return await abortarComLimpezaR2(event, doc, e, 'afastamento');
-		}
-		const { contexto, env } = contextoDeEvento(event);
-		await auditar(
-			db,
-			{
-				acao: 'registrar_afastamento',
-				usuario: u,
-				entidade: 'policial',
-				entidade_id: id,
-				alvo_tipo: 'policial',
-				alvo_id: id,
-				alvo_nome: alvo.nome,
-				detalhes: `Afastamento (${LABEL_SUBTIPO_AFASTAMENTO[parsed.data.subtipo]}): ${parsed.data.data_inicio} a ${parsed.data.data_fim}`,
-				metadados: { subtipo: parsed.data.subtipo, nup: parsed.data.nup || null },
-				...contexto
+				nup: parsed.data.nup || null
 			},
-			{ env }
-		);
-		return { success: true, tipo: 'afastamento' };
+			resumo: `${LABEL_SUBTIPO_AFASTAMENTO[parsed.data.subtipo]}: ${parsed.data.data_inicio} a ${parsed.data.data_fim}`,
+			metadados: { subtipo: parsed.data.subtipo, nup: parsed.data.nup || null },
+			recarregar: () =>
+				modo === 'solicitacao' ? listarSolicitacoesAcaoDoPolicial(db, id) : Promise.resolve(null)
+		});
 	},
 
 	// ---- Desvinculação: baixa do policial (inativa e registra) ----
 	registrarDesvinculacao: async (event) => {
-		const auth = await autorizarAcao(event);
+		const auth = await carregarFichaDoPolicial(
+			getDB(event.platform),
+			event.locals.usuario,
+			event.params.id
+		);
 		if ('erro' in auth) return auth.erro;
-		const { u, db, id, alvo } = auth;
+		const { db, id, alvo, modo } = auth;
 
 		const formData = await event.request.formData();
 		const parsed = desvinculacaoSchema.safeParse({
@@ -747,63 +860,127 @@ export const actions: Actions = {
 		});
 		if (!parsed.success) return fail(400, { error: parsed.error.issues[0].message });
 
-		let doc: { key: string; nome: string } | null;
-		try {
-			doc = await uploadDocumento(event, formData, id);
-		} catch (e) {
-			return fail(400, { error: mensagemDeErro(e, 'Falha no upload do documento') });
-		}
-
-		try {
-			await atualizarPolicialComHistorico(
-				db,
-				id,
-				{ ativo: 0 },
-				{
-					policial_id: id,
-					tipo: 'desvinculacao',
-					descricao: parsed.data.destino,
-					unidade_origem: alvo.lotacao || '',
-					unidade_destino: parsed.data.destino,
-					data_evento: parsed.data.data_evento,
-					nup: parsed.data.nup || null,
-					documento_r2_key: doc?.key ?? null,
-					documento_nome: doc?.nome ?? null,
-					registrado_por_id: u.id,
-					registrado_por_nome: u.nome
-				}
-			);
-		} catch (e) {
-			return await abortarComLimpezaR2(event, doc, e, 'desvinculacao');
-		}
-
-		// DEPOIS da baixa persistida: desativar tem de tirar a pessoa de DENTRO,
-		// não só impedir o próximo login — sessão aberta continuaria funcionando
-		// até expirar (8h). Cobre as duas identidades: quem tem Admin Geral
-		// vinculado tem dois cookies possíveis, e o de administrador é o mais
-		// poderoso (FLW-RBAC-001). Fora da transação porque revogar sessão de um
-		// cadastro que voltou a ser ativo é inofensivo; o contrário, não.
-		await revogarSessoesDaCredencial(db, await resolverCredencial(db, 'policial', id));
-		const { contexto, env } = contextoDeEvento(event);
-		await auditar(
-			db,
-			{
-				acao: 'desvincular_policial',
-				usuario: u,
-				entidade: 'policial',
-				entidade_id: id,
-				alvo_tipo: 'policial',
-				alvo_id: id,
-				alvo_nome: alvo.nome,
-				resultado: 'sucesso',
-				detalhes: `Desvinculação de ${alvo.nome} (mat. ${alvo.matricula}) → ${parsed.data.destino}`,
-				metadados: { nup: parsed.data.nup || null, data: parsed.data.data_evento },
-				...contexto
+		return concluirAcaoRH(event, auth, formData, {
+			acao: {
+				tipo: 'desvinculacao',
+				descricao: parsed.data.destino,
+				unidade_origem: alvo.lotacao || '',
+				unidade_destino: parsed.data.destino,
+				data_evento: parsed.data.data_evento,
+				nup: parsed.data.nup || null
 			},
-			{ env }
-		);
-		return { success: true, tipo: 'desvinculacao' };
+			resumo: `${alvo.nome} (mat. ${alvo.matricula}) → ${parsed.data.destino}`,
+			metadados: { nup: parsed.data.nup || null, data: parsed.data.data_evento },
+			recarregar: () =>
+				modo === 'solicitacao' ? listarSolicitacoesAcaoDoPolicial(db, id) : Promise.resolve(null)
+		});
 	}
+};
+
+/** As três ações de RH divergem só nisto; o resto do caminho é comum. */
+interface PedidoRH {
+	acao: AcaoRH;
+	/** Frase curta do ato, para a trilha de auditoria. */
+	resumo: string;
+	metadados: Record<string, unknown>;
+	/** No modo solicitação, a lista que a tela repõe sem `invalidateAll`. */
+	recarregar: () => Promise<unknown>;
+}
+
+/**
+ * O trecho comum das três ações de RH: sobe o anexo, e então EXECUTA (modo
+ * `direto`) ou REGISTRA O PEDIDO (modo `solicitacao`), auditando o que
+ * aconteceu.
+ *
+ * A justificativa só é exigida no modo `solicitacao` — no `direto` não há a quem
+ * justificar: o ato já é a decisão de quem tem poder para tomá-la, e a trilha de
+ * auditoria registra quem o tomou. Ela é lida ANTES do upload de propósito:
+ * pedido sem motivo não deve deixar PDF no bucket.
+ */
+async function concluirAcaoRH(
+	event: RequestEvent,
+	auth: FichaAutorizada,
+	formData: FormData,
+	pedido: PedidoRH
+) {
+	const { u, db, id, alvo, modo } = auth;
+
+	let justificativa = '';
+	if (modo === 'solicitacao') {
+		const lida = lerJustificativa(formData);
+		if ('erro' in lida) return fail(400, { error: lida.erro });
+		justificativa = lida.texto;
+	}
+
+	let doc: { key: string; nome: string } | null;
+	try {
+		doc = await uploadDocumento(event, formData, id);
+	} catch (e) {
+		return fail(400, { error: mensagemDeErro(e, 'Falha no upload do documento') });
+	}
+
+	const acao: AcaoRH = {
+		...pedido.acao,
+		documento_r2_key: doc?.key ?? null,
+		documento_nome: doc?.nome ?? null
+	};
+
+	try {
+		if (modo === 'direto') {
+			await executarAcaoRH(db, id, acao, { id: u.id, nome: u.nome });
+		} else {
+			await criarSolicitacaoAcao(db, {
+				policial_id: id,
+				...acao,
+				justificativa,
+				solicitante_id: u.id,
+				solicitante_nome: u.nome
+			});
+		}
+	} catch (e) {
+		return await abortarComLimpezaR2(event, doc, e, acao.tipo);
+	}
+
+	const ACAO_AUDIT = {
+		movimentacao: 'registrar_movimentacao',
+		afastamento: 'registrar_afastamento',
+		desvinculacao: 'desvincular_policial'
+	} as const;
+
+	const { contexto, env } = contextoDeEvento(event);
+	await auditar(
+		db,
+		{
+			acao: modo === 'direto' ? ACAO_AUDIT[acao.tipo] : 'solicitar_acao_policial',
+			usuario: u,
+			entidade: 'policial',
+			entidade_id: id,
+			alvo_tipo: 'policial',
+			alvo_id: id,
+			alvo_nome: alvo.nome,
+			resultado: 'sucesso',
+			detalhes:
+				modo === 'direto'
+					? `${ROTULO_ACAO[acao.tipo]}: ${pedido.resumo}`
+					: `Solicitação de ${ROTULO_ACAO[acao.tipo].toLowerCase()}: ${pedido.resumo}`,
+			metadados:
+				modo === 'direto'
+					? pedido.metadados
+					: { ...pedido.metadados, tipo: acao.tipo, justificativa },
+			...contexto
+		},
+		{ env }
+	);
+
+	const solicitacoesAcao = await pedido.recarregar();
+	return { success: true, tipo: acao.tipo, modo, solicitacoesAcao };
+}
+
+/** O nome do ato em PT-BR — a mesma palavra na trilha e na tela. */
+const ROTULO_ACAO: Record<AcaoRH['tipo'], string> = {
+	movimentacao: 'Movimentação',
+	afastamento: 'Afastamento',
+	desvinculacao: 'Desvinculação'
 };
 
 function formData2Bool(v: FormDataEntryValue | null): boolean {

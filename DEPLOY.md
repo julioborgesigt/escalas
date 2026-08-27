@@ -220,6 +220,10 @@ Há quatro níveis. O **Super Admin é um Admin Geral com poderes extras** (é `
 | **Baixar PDF forense íntegro** (`?manifesto=true` nos downloads)    |     ✅      |     ✅      |       ❌        |      ❌ (¹)      |
 | **Baixar o forense pelo portal `/validar`** (rota semi-pública)     |     ✅      |     ❌      |       ❌        |        ❌        |
 | Escalas — **escopo**                                                |   global    |   global    |  sua seccional  |   sua unidade    |
+| Ficha do servidor (`/policiais/[id]`) — **escopo de leitura**        |   global    |   global    |  sua seccional  |   sua unidade    |
+| **Alterar o cadastro** do servidor (nome, CPF, telefone, classe…)   |   direto    |   direto    | por solicitação | por solicitação  |
+| **Movimentar / afastar / desvincular** servidor                     |   direto    |   direto    | por solicitação | por solicitação  |
+| **Decidir** as solicitações pendentes (`/solicitacoes`)             |     ✅      |     ✅      |       ❌        |        ❌        |
 | GISE (finalizar/reabrir/exportar histórico)                         |     ✅      |     ✅      |       ❌        |        ❌        |
 | LGPD / Compliance / incidentes / direitos dos titulares             |     ✅      |     ✅      |       ❌        |        ❌        |
 | Consoles de **auditoria** (`/auditoria`, `/auditoria/logs`, export) |     ✅      |     ❌      |       ❌        |        ❌        |
@@ -232,7 +236,18 @@ Há quatro níveis. O **Super Admin é um Admin Geral com poderes extras** (é `
 
 - **Super Admin** = _dono/configurador_: define **quem existe** (policiais), **a estrutura** (unidades), **quem é admin** (papéis) e **a política de assinatura**; único que baixa o forense pelo portal **`/validar`**. **Insubstituível** — sem ele, não há como promover admins nem recriá-lo pela interface. Mantenha-o lacrado (senha em hash `pbkdf2v2` + `SUPER_ADMIN_EMAIL` para 2FA).
 - **Admin Geral** = _operador global_: opera **toda a operação** (escalas/GISE/LGPD) em **todas** as unidades, mas **não remodela a base** (não cadastra policial/unidade, não promove, não configura assinatura). Dispensável após o setup — ver [bootstrap dos admins por env](#variáveis-e-secrets).
-- **Admin Seccional / Unidade** = _operador com escopo_: policiais promovidos pelo Super Admin; operam **escalas** dentro da própria seccional/unidade (fecha IDOR cross-unidade).
+- **Admin Seccional / Unidade** = _operador com escopo_: policiais promovidos pelo Super Admin; operam **escalas** dentro da própria seccional/unidade (fecha IDOR cross-unidade) e **pedem** — nunca executam — as mudanças no cadastro dos servidores desse escopo.
+
+> **"Por solicitação" quer dizer que nada muda até o Admin Geral aprovar.** O
+> admin de seccional/unidade abre a ficha do servidor, altera o que precisa e
+> envia com uma **justificativa** (até 300 caracteres); o pedido entra na fila de
+> `/solicitacoes`, com a portaria em PDF anexa quando houver, e o ato — trocar a
+> lotação, inativar o servidor — só acontece na aprovação. Duas coisas ficam de
+> fora do fluxo por decisão, não por esquecimento: o **e-mail pessoal** (canal de
+> recuperação da conta — só o titular o troca, com senha mais código no novo
+> endereço) e a **troca de lotação por edição de campo**, que existe apenas como
+> Movimentação, porque movimentação tem data, NUP e portaria. Ver
+> [`README.md`](README.md#cadastro-do-servidor-quem-pede-e-quem-decide).
 
 > **Para criar um admin operacional:** logado como Super Admin, abra `/policiais/[id]` da pessoa (que precisa existir como policial — via sync da planilha ou `/policiais/upload`), defina o **papel** (Admin Seccional/Unidade) e salve. Ela passa a logar por matrícula+senha (que nasce `pbkdf2v3`) + 2FA.
 

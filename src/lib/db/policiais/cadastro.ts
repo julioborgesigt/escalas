@@ -17,7 +17,7 @@
  * Convenção de horário: `updated_at` usa `datetime('now','-3 hours')` para
  * gravar horário de Brasília, igual ao resto do schema.
  */
-import { eq, and, or, isNull, asc, sql } from 'drizzle-orm';
+import { eq, and, or, isNull, inArray, asc, sql } from 'drizzle-orm';
 import { policiais, unidades } from '../../server/schema';
 import type * as schema from '../../server/schema';
 import { limparMatricula } from '../../utils/formato';
@@ -40,7 +40,12 @@ import { paginarComContagem, likeContains, type Database } from '../core';
  *   registros com lotação vazia/nula, que são os que a sincronização não
  *   conseguiu casar com nenhuma unidade;
  * - `seccionalId` casa por NOME de unidade (a própria seccional ou qualquer
- *   unidade que aponte para ela), porque `policiais.lotacao` é texto, não FK.
+ *   unidade que aponte para ela), porque `policiais.lotacao` é texto, não FK;
+ * - `escopoLotacoes` é o RECORTE DE PERMISSÃO do administrador que está olhando
+ *   (`lotacoesAdministradas`), e não um filtro de tela: ele se soma aos demais e
+ *   nenhum deles o afrouxa. Omitido = sem recorte (Admin Geral). **Lista vazia
+ *   devolve zero policiais**, e não "todos" — papel sem alcance não enxerga
+ *   ninguém, que é a mesma decisão de `lotacoesAdministradas` (FLW-RBAC-003).
  *
  * A contagem vem de `count(*) OVER()` na mesma query: paginar custa uma ida ao
  * banco, não duas.
@@ -54,6 +59,7 @@ export async function listarPoliciais(
 		cargo?: string;
 		seccionalId?: number;
 		somentePapel?: boolean;
+		escopoLotacoes?: string[];
 		page?: number;
 		limit?: number;
 	}
@@ -70,6 +76,15 @@ export async function listarPoliciais(
 		baseConditions.push(or(eq(policiais.lotacao, ''), isNull(policiais.lotacao))!);
 	} else if (lotacao && lotacao !== '__todas__') {
 		baseConditions.push(eq(policiais.lotacao, lotacao));
+	}
+
+	// Recorte de permissão: entra ANTES dos filtros de tela e independe deles.
+	// `inArray` com lista vazia produziria SQL inválido no D1, e o caso não é
+	// teórico — é o admin cujo `papel_unidade_id` aponta para unidade removida.
+	if (opts?.escopoLotacoes) {
+		baseConditions.push(
+			opts.escopoLotacoes.length > 0 ? inArray(policiais.lotacao, opts.escopoLotacoes) : sql`0 = 1`
+		);
 	}
 
 	if (opts?.seccionalId) {

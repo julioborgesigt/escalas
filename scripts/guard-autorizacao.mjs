@@ -99,7 +99,10 @@ export const DECLARADAS = {
 	// ---- Autosserviço: o recurso é o próprio usuário, não há segundo sujeito ----
 	'src/routes/aceitar-termo/+page.server.ts → aceitar': 'aceita o próprio termo de uso',
 	'src/routes/alterar-senha/+page.server.ts → alterar': 'troca a própria senha (confere a atual)',
-	'src/routes/perfil/+page.server.ts → solicitar': 'solicita alteração do próprio cadastro',
+	// `/perfil` não tem mais form action: pedir correção do cadastro virou ato do
+	// administrador da unidade/seccional, na ficha do servidor. O que sobrou na
+	// página (e-mail pessoal, passkey) vai por API, e cada uma dessas rotas já
+	// está declarada aqui por conta própria.
 	'src/routes/api/lgpd/solicitar/+server.ts → POST': 'exerce direito LGPD sobre os próprios dados',
 	'src/routes/api/auth/solicitar-codigo-assinatura/+server.ts → POST':
 		'envia o código 2FA para o e-mail do próprio usuário logado',
@@ -258,6 +261,22 @@ export const HELPERS_OBRIGATORIOS = {
 	'src/routes/escalas/[id]/_actions/actions-ciclo.ts': ['carregarEscalaComPermissao'],
 	'src/routes/escalas/[id]/_actions/actions-projecao.ts': ['carregarEscalaComPermissao'],
 
+	// Ficha do servidor: o escopo é conferido contra o ALVO, cujo id chega pela
+	// URL. `carregarFichaDoPolicial` é o único lugar que decide (a) se o usuário
+	// administra aquele servidor e (b) se ele EXECUTA ou apenas SOLICITA. Exigir
+	// o nome do portão, e não um 403 qualquer, é o que impede uma das actions de
+	// remontar o gate à mão e cair no modo errado — que aqui significa um admin
+	// de unidade movimentando servidor sem passar pelo Admin Geral.
+	'src/routes/policiais/[id]/+page.server.ts → salvar': ['carregarFichaDoPolicial'],
+	'src/routes/policiais/[id]/+page.server.ts → solicitarAlteracao': ['carregarFichaDoPolicial'],
+	'src/routes/policiais/[id]/+page.server.ts → registrarMovimentacao': [
+		'carregarFichaDoPolicial'
+	],
+	'src/routes/policiais/[id]/+page.server.ts → registrarAfastamento': ['carregarFichaDoPolicial'],
+	'src/routes/policiais/[id]/+page.server.ts → registrarDesvinculacao': [
+		'carregarFichaDoPolicial'
+	],
+
 	// FLW-AUT-006 / 007 — presença: janela de horário + GISE não finalizada.
 	// `gateDePresenca` mora dentro de `prepararConfirmacaoPresenca` (preparo
 	// comum extraído de salvarEntrada/salvarSaida em ago/2026) — o corpo das
@@ -289,7 +308,7 @@ function helpersDaOperacao(arquivo, nome) {
 // carrega mais o helper, e o par nome-aqui + HELPERS_OBRIGATORIOS abaixo passa
 // a exigir a chamada no corpo de CADA uma.
 const RE_403 =
-	/fail\(403|forbidden\(|status:\s*403|error\(403|requireAdmin\(|requireSuperAdmin\(|exigirAdminGeral\(|carregarEscalaComPermissao\(|carregarEscalaParaAssinatura\(|carregarGiseParaAssinatura\(|carregarRelatorioExtraParaAssinatura\(/;
+	/fail\(403|forbidden\(|status:\s*403|error\(403|requireAdmin\(|requireSuperAdmin\(|exigirAdminGeral\(|carregarEscalaComPermissao\(|carregarEscalaParaAssinatura\(|carregarGiseParaAssinatura\(|carregarRelatorioExtraParaAssinatura\(|carregarFichaDoPolicial\(/;
 const RE_401 = /fail\(401|unauthorized\(|requireAuth\(|error\(401/;
 
 /** Do índice da chave `{`, devolve o bloco balanceado. */

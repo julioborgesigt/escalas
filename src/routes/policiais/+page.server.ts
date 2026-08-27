@@ -1,9 +1,17 @@
 /**
  * `load` e actions da lista de policiais (`/policiais`).
  *
- * O `load` só lista — paginação, filtros e escopo por lotação. As duas actions
- * são **exclusivas do Admin Geral**, e é o servidor que impõe isso: a tela
- * esconde os botões, mas quem recusa o POST direto é este arquivo.
+ * O `load` só lista — paginação, filtros e escopo por lotação. Desde ago/2026 a
+ * lista também é vista pelo administrador de SECCIONAL e de UNIDADE, RECORTADA
+ * pelo escopo dele (`lotacoesAdministradas`): é dali que ele abre a ficha do
+ * servidor para pedir a correção de um dado. O recorte é do servidor, não do
+ * filtro de tela — trocar o parâmetro `lotacao` na URL não amplia nada.
+ *
+ * As duas actions continuam **exclusivas do Admin Geral**, e é o servidor que
+ * impõe isso: a tela esconde os botões, mas quem recusa o POST direto é este
+ * arquivo. Cadastrar e EXCLUIR não são "alterar dado do servidor" — o primeiro
+ * cria o vínculo com a corporação, o segundo apaga a linha; nenhum dos dois
+ * entra no fluxo de solicitação.
  *
  * - `criar`: cadastra o policial (senha aleatória + primeiro acesso), vincula
  *   conta de Admin Geral quando pedido e audita. Matrícula duplicada é o erro
@@ -35,6 +43,7 @@ import {
 import { policialSchema } from '$lib/schemas/policial';
 import { isAdminGeral } from '$lib/auth';
 import { lotacoesAdministradas, lotacaoNoEscopo } from '$lib/server/policial-permissao';
+import { escopoDaFicha, podeAbrirFichaDePolicial } from '$lib/server/policiais/ficha-permissao';
 import { decifrarCpfDoDB } from '$lib/crypto/cpf-cripto';
 import { impedimentoParaExcluirPolicial } from '$lib/db/policiais';
 
@@ -44,7 +53,7 @@ export const load: PageServerLoad = async ({ locals, platform, url, depends }) =
 	const u = locals.usuario;
 	if (!u) redirect(302, '/login');
 
-	if (!isAdminGeral(u)) {
+	if (!podeAbrirFichaDePolicial(u)) {
 		redirect(302, '/');
 	}
 
@@ -57,23 +66,29 @@ export const load: PageServerLoad = async ({ locals, platform, url, depends }) =
 	const seccional = url.searchParams.get('seccional');
 	const seccionalId = seccional && seccional !== 'todas' ? Number(seccional) : undefined;
 
+	// `null` = irrestrito (Admin Geral); Set = as lotações do papel.
+	const escopo = await escopoDaFicha(db, u);
+
 	const [resultado, unidades] = await Promise.all([
 		listarPoliciais(db, lotacaoParam, false, {
 			busca,
 			cargo,
 			seccionalId,
+			escopoLotacoes: escopo ? [...escopo] : undefined,
 			page,
 			limit: 20
 		}),
 		listarUnidades(db)
 	]);
 
-	// CPF é cifrado em repouso (LGPD) — decifra para o formulário de edição
-	// inline da lista (público restrito a Admin Geral).
+	// CPF é cifrado em repouso (LGPD) e só é decifrado para quem edita o cadastro
+	// direto — o Admin Geral. Para o administrador com escopo a lista vai SEM
+	// CPF: ele pede a correção informando o número novo, e nunca precisou ler o
+	// atual para isso (minimização, LGPD art. 6º III).
 	const policiaisComCpf = await Promise.all(
 		resultado.policiais.map(async (p) => ({
 			...p,
-			cpf: (await decifrarCpfDoDB(p.cpf, platform?.env)) || null
+			cpf: isAdminGeral(u) ? (await decifrarCpfDoDB(p.cpf, platform?.env)) || null : null
 		}))
 	);
 

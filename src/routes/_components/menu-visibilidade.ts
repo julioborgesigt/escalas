@@ -52,11 +52,17 @@ export interface FlagsMenu {
 	showGise: boolean;
 	showIndicadores: boolean;
 	showDadosBase: boolean;
+	/** Cadastro dos servidores — Admin Geral e os dois papéis com escopo. */
+	showPoliciais: boolean;
+	/** Fila de decisão dos pedidos — só quem decide. */
+	showSolicitacoes: boolean;
 	temPresencaGiseAtiva: boolean;
 	temGiseHistorico: boolean;
 	showGrupo1: boolean;
 	showGrupo2: boolean;
 	showGrupo2Separator: boolean;
+	/** Há o que separar antes do grupo de gestão de pessoas? */
+	showGrupo3Separator: boolean;
 }
 
 /**
@@ -76,6 +82,11 @@ export interface FlagsMenu {
  *   para ele a conferência é por operação, dentro de `/gise/operacoes`.
  * - **Admin Geral não vê a aba Arquivo** (`showEscalasPoliciais`): ela é dos
  *   dois papéis de unidade.
+ * - **`showPoliciais` e `showSolicitacoes` deixaram de andar juntos** (ago/2026).
+ *   O cadastro passou a ser visto pelos três papéis administrativos, porque é da
+ *   ficha do servidor que o admin de seccional/unidade PEDE a correção de um
+ *   dado; a fila de decisão continua só de quem decide — o Admin Geral. Eram uma
+ *   condição só (`isAdmGeral`) enquanto pedir e decidir eram o mesmo ato.
  */
 export function visibilidadeDoMenu(entrada: EntradaVisibilidade): FlagsMenu {
 	const {
@@ -95,19 +106,23 @@ export function visibilidadeDoMenu(entrada: EntradaVisibilidade): FlagsMenu {
 	const showGrupo1 = !ehAdmin || adminModulo === 'ambas' || adminModulo === 'escalas';
 	const showGrupo2 = !ehAdmin || adminModulo === 'ambas' || adminModulo === 'gise';
 
+	const temPapelComEscopo =
+		usuario?.papel === 'admin_seccional' || usuario?.papel === 'admin_unidade';
+
 	return {
 		isAdmGeral,
-		showEscalasPoliciais:
-			usuario?.papel === 'admin_seccional' || usuario?.papel === 'admin_unidade',
+		showEscalasPoliciais: temPapelComEscopo,
 		showGise: ehAdmin || usuario?.papel === 'admin_seccional' || isSupervisorGise,
-		showIndicadores:
-			ehAdmin || usuario?.papel === 'admin_seccional' || usuario?.papel === 'admin_unidade',
+		showIndicadores: ehAdmin || temPapelComEscopo,
 		showDadosBase: temLinhaBasePendente,
+		showPoliciais: ehAdmin || temPapelComEscopo,
+		showSolicitacoes: ehAdmin,
 		temPresencaGiseAtiva: temPresencaGisePendente,
 		temGiseHistorico,
 		showGrupo1,
 		showGrupo2,
-		showGrupo2Separator: ehAdmin && showGrupo1 && showGrupo2
+		showGrupo2Separator: ehAdmin && showGrupo1 && showGrupo2,
+		showGrupo3Separator: ehAdmin || temPapelComEscopo
 	};
 }
 

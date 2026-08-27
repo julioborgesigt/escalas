@@ -50,16 +50,17 @@ export interface EntradaCards {
 /* ── Cards fixos ────────────────────────────────────────────────────────── */
 
 /**
- * `/perfil` — o texto diz SOLICITAR, e não "atualizar", porque é o que a tela
- * faz: o policial não edita o próprio cadastro (`/perfil` abre solicitação, e
- * um admin decide em `/solicitacoes`). Prometer edição direta aqui gerava a
- * expectativa que a tela seguinte frustra. A chave de assinatura entra no texto
- * por ser hoje o item de maior consequência da página.
+ * `/perfil` — o texto promete só o que a tela entrega, e ela entrega menos desde
+ * ago/2026: o servidor deixou de SOLICITAR a correção do próprio cadastro (quem
+ * pede é o administrador da unidade ou da seccional dele). O que sobrou é
+ * leitura mais as duas coisas que pertencem ao titular — o e-mail pessoal e a
+ * chave de assinatura —, e é isso que o texto diz. Manter "solicite a correção"
+ * aqui mandaria o servidor procurar um botão que não existe mais.
  */
 const MEU_PERFIL: CardBemVindo = {
 	titulo: 'Meu perfil',
 	descricao:
-		'Veja seus dados cadastrais, cadastre a chave de assinatura do celular e solicite a correção do que estiver desatualizado.',
+		'Confira seus dados cadastrais, cadastre ou troque o seu e-mail pessoal e registre a chave de assinatura do celular.',
 	href: '/perfil',
 	cta: 'Abrir meu perfil'
 };
@@ -115,10 +116,25 @@ const POLICIAIS: CardBemVindo = {
 	cta: 'Gerenciar policiais'
 };
 
+/**
+ * `/policiais` para quem administra uma seccional ou uma unidade: a MESMA tela,
+ * com outro poder. O texto diz SOLICITAR porque é o que a ficha faz para ele —
+ * prometer "gerencie o cadastro", como no card do Admin Geral, criaria a
+ * expectativa que a tela seguinte frustra (o mesmo cuidado do card de perfil).
+ * A movimentação entra no texto por ser o único caminho de troca de lotação.
+ */
+const POLICIAIS_ESCOPO: CardBemVindo = {
+	titulo: 'Policiais',
+	descricao:
+		'Veja os servidores da sua unidade e solicite, com justificativa, a correção de dados, a movimentação, o afastamento ou a desvinculação de cada um.',
+	href: '/policiais',
+	cta: 'Ver servidores'
+};
+
 const SOLICITACOES: CardBemVindo = {
 	titulo: 'Solicitações',
 	descricao:
-		'Analise e aprove ou recuse os pedidos de alteração de cadastro enviados pelos policiais.',
+		'Analise e aprove ou recuse os pedidos de alteração de cadastro, movimentação, afastamento e desvinculação enviados pelos administradores.',
 	href: '/solicitacoes',
 	cta: 'Ver solicitações'
 };
@@ -313,8 +329,10 @@ export function cardsBemVindo({ usuario, flags }: EntradaCards): CardBemVindo[] 
 		if (ehAdmin && flags.showGise) cards.push(OPERACOES);
 	}
 
-	// Grupo 3 — gestão de pessoas (Admin Geral).
-	if (flags.isAdmGeral) cards.push(POLICIAIS, SOLICITACOES);
+	// Grupo 3 — gestão de pessoas. O cadastro é dos três papéis administrativos,
+	// com texto conforme o poder de cada um; a fila de decisão é de quem decide.
+	if (flags.showPoliciais) cards.push(ehAdmin ? POLICIAIS : POLICIAIS_ESCOPO);
+	if (flags.showSolicitacoes) cards.push(SOLICITACOES);
 
 	// Grupo 4 — todo policial tem perfil; sessão de admin não tem cadastro.
 	if (usuario.tipo === 'policial') cards.push(MEU_PERFIL);

@@ -228,7 +228,7 @@ export const CATALOGO_ACOES = {
 		severidade: 'aviso'
 	},
 	solicitar_alteracao_cadastro: {
-		label: 'Solicitação de alteração cadastral (Meu perfil)',
+		label: 'Solicitação de alteração cadastral',
 		categoria: 'policial',
 		severidade: 'info'
 	},
@@ -239,6 +239,25 @@ export const CATALOGO_ACOES = {
 	},
 	rejeitar_alteracao_cadastro: {
 		label: 'Rejeição de alteração cadastral',
+		categoria: 'policial',
+		severidade: 'info'
+	},
+	// O PEDIDO de movimentar/afastar/desvincular feito pelo administrador de
+	// seccional ou de unidade. Fica separado do ATO (`registrar_movimentacao` e
+	// companhia): pedir não muda o cadastro, e juntar os dois faria a trilha
+	// mostrar duas transferências onde houve uma.
+	solicitar_acao_policial: {
+		label: 'Solicitação de movimentação/afastamento/desvinculação',
+		categoria: 'policial',
+		severidade: 'info'
+	},
+	aprovar_acao_policial: {
+		label: 'Aprovação de movimentação/afastamento/desvinculação',
+		categoria: 'policial',
+		severidade: 'critico'
+	},
+	rejeitar_acao_policial: {
+		label: 'Rejeição de movimentação/afastamento/desvinculação',
 		categoria: 'policial',
 		severidade: 'info'
 	},

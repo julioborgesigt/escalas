@@ -96,16 +96,27 @@ export {
 	listarLotacoes,
 	promoverPolicial,
 	criarSolicitacoesCadastro,
-	listarMinhasSolicitacoesCadastro,
+	listarSolicitacoesDoPolicial,
 	listarSolicitacoesCadastroPendentes,
 	decidirSolicitacaoCadastro,
+	criarSolicitacaoAcao,
+	listarSolicitacoesAcaoDoPolicial,
+	listarSolicitacoesAcaoPendentes,
+	buscarSolicitacaoAcao,
+	fecharSolicitacaoAcao,
 	registrarHistorico,
 	atualizarPolicialComHistorico,
 	listarHistoricoPolicial,
 	buscarEventoHistorico,
 	afastamentoVigente
 } from './db/policiais';
-export type { CampoSolicitacao } from './db/policiais';
+export type {
+	CampoSolicitacao,
+	CamposDoEventoFuncional,
+	MudancaSolicitada,
+	NovaAcaoSolicitada,
+	NovoEventoHistorico
+} from './db/policiais';
 
 export {
 	listarUnidades,

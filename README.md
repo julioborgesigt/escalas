@@ -195,6 +195,8 @@ O projeto usa **Cloudflare D1** (SQLite serverless) via **Drizzle ORM**. O schem
 | -------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
 | `policiais`                      | Servidores (matrícula, CPF, cargo, lotação, senha PBKDF2, papel RBAC)                                               |
 | `policial_historico`             | Histórico funcional por servidor (movimentações, afastamentos, desvinculações, diffs de edição) com PDF anexo no R2 |
+| `cadastro_solicitacoes`          | Pedidos de correção de CAMPO do cadastro (uma linha por campo), com justificativa e solicitante                     |
+| `policial_acao_solicitacoes`     | Pedidos de movimentação/afastamento/desvinculação aguardando o Admin Geral, com a portaria anexa no R2              |
 | `administradores`                | Admins gerais do sistema                                                                                            |
 | `sessoes`                        | Sessões ativas (token, tipo, expiração em 8h)                                                                       |
 | `escalas`                        | Escalas de plantão, expediente e FDS                                                                                |
@@ -385,8 +387,8 @@ escalas/
 │   │   ├── policiais/              # Gestão de policiais (lista, detalhe, upload CSV)
 │   │   ├── unidades/               # Gestão de unidades
 │   │   ├── produtividade/          # Dashboard de produtividade
-│   │   ├── perfil/                 # Meu perfil (e-mail pessoal, chave de assinatura, solicitações de alteração)
-│   │   ├── solicitacoes/           # Aprovação de alterações cadastrais (Admin Geral)
+│   │   ├── perfil/                 # Meu perfil — leitura + e-mail pessoal e chave de assinatura (do titular)
+│   │   ├── solicitacoes/           # Fila de decisão do Admin Geral (cadastro + movimentar/afastar/desvincular)
 │   │   ├── conf-ass/               # Configuração de assinatura
 │   │   ├── config-geral/           # Configurações gerais (provedor de e-mail)
 │   │   ├── auditoria/              # Trilha forense + logs técnicos (/auditoria/logs)
@@ -1051,11 +1053,59 @@ O aceite do termo de uso é obrigatório a cada nova versão. Qualquer mudança 
 | ------------------------ | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `admin` + `isSuperAdmin` | Super Admin       | Tudo do Admin Geral **mais**: promover admins, gerenciar policiais/unidades, configurar política de assinatura, baixar o forense pelo portal `/validar` |
 | `admin`                  | Admin Geral       | Operação global (escalas, GISE, LGPD/compliance) em todas as unidades — não remodela a base; consoles de auditoria são do Super Admin                   |
-| `policial`               | `admin_seccional` | Gerencia escalas e policiais da sua seccional; informa a linha de base dos indicadores das unidades dela (`/dados-base`) e vê `/produtividade` escopado |
-| `policial`               | `admin_unidade`   | Gerencia escalas da sua unidade; informa a linha de base dos indicadores dela e vê `/produtividade` escopado à unidade                                  |
+| `policial`               | `admin_seccional` | Gerencia escalas da sua seccional e **solicita** correções cadastrais e atos de RH dos servidores dela; informa a linha de base dos indicadores das unidades (`/dados-base`) e vê `/produtividade` escopado |
+| `policial`               | `admin_unidade`   | O mesmo, escopado à sua unidade                                                                                                                         |
 | `policial`               | —                 | Acessa apenas suas próprias escalas e GISE                                                                                                              |
 
 A matriz completa de capacidades por papel está em [`DEPLOY.md`](DEPLOY.md#papéis-e-privilégios-de-administrador). Membros de GISE têm papéis adicionais (`supervisor`, `assessor/SEINT`, `membro`) calculados dinamicamente a partir da tabela `gise_membros`.
+
+### Cadastro do servidor: quem pede e quem decide
+
+A ficha em `/policiais/[id]` é **uma tela só, com dois poderes**, e o portão que
+os separa é [`ficha-permissao.ts`](src/lib/server/policiais/ficha-permissao.ts):
+
+| modo           | quem                            | o que acontece ao submeter                             |
+| -------------- | ------------------------------- | ------------------------------------------------------ |
+| `direto`       | Admin Geral                     | grava o cadastro / executa o ato na hora               |
+| `solicitacao`  | `admin_seccional`/`admin_unidade` | vira pedido pendente para o Admin Geral decidir       |
+
+O que cada regra fixa, e por quê:
+
+- **o servidor não pede alteração do próprio cadastro.** `/perfil` é leitura,
+  mais as duas coisas que pertencem ao titular: o **e-mail pessoal** (canal de
+  recuperação da conta — quem o troca assume a identidade no próximo "esqueci a
+  senha", então a troca exige a senha dele mais um código no novo endereço) e a
+  **chave de assinatura**, que prova controle exclusivo do aparelho;
+- **e-mail pessoal não é solicitável por administrador nenhum**, pelo mesmo
+  motivo. Todo o resto do cadastro é: nome, matrícula, cargo, CPF, telefone,
+  classe, regime e e-mail funcional (`CAMPOS_SOLICITAVEIS` em
+  [`cadastro-campos.ts`](src/lib/cadastro-campos.ts));
+- **todo pedido vai com justificativa**, de até 300 caracteres, que acompanha
+  cada linha da fila — decidir sem o motivo à vista é decidir no escuro;
+- **lotação NÃO é campo solicitável**: transferir servidor é MOVIMENTAÇÃO, no
+  quadro "Afastar / Movimentar Servidor", com data, NUP e portaria anexa. Dois
+  caminhos abertos produziriam transferência sem portaria, indistinguível de uma
+  com portaria depois de gravada;
+- **o CPF não é decifrado para quem só pede.** O campo aparece em branco na
+  ficha do modo `solicitacao` e serve para informar o número NOVO — ler o atual
+  nunca foi necessário para isso (minimização, LGPD art. 6º III);
+- **papel administrativo e Admin Geral aparecem, informativos.** Conceder
+  permissão não é "corrigir um dado", e as actions que os alteram seguem
+  exigindo `isAdminGeral`. Mostrar o estado responde "por que esta pessoa
+  administra a minha unidade?" sem obrigar ninguém a perguntar.
+
+O EFEITO dos três atos de RH mora em
+[`acoes-rh.ts`](src/lib/server/policiais/acoes-rh.ts), e é o MESMO objeto nos
+dois caminhos: a ficha o executa direto, e a aprovação em `/solicitacoes` o
+executa a partir da linha do pedido. Enquanto o efeito morava dentro das form
+actions, aprovar teria de reescrevê-lo — a forma exata dos bugs de cópia
+divergente catalogados no [`CLAUDE.md`](CLAUDE.md).
+
+O PDF anexo sobe **no momento do pedido**: é o que permite ao Admin Geral baixar
+a portaria antes de aprovar (`/api/policiais/solicitacoes/[id]/documento`, atrás
+do mesmo portão da ficha). Aprovado, a chave passa a pertencer ao evento em
+`policial_historico`; recusado, o objeto é apagado do bucket — nenhuma outra
+linha voltaria a referenciá-lo.
 
 ### Autorização das operações materiais
 

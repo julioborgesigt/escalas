@@ -2,16 +2,39 @@ import { redirect, fail } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
 import {
 	getDB,
-	listarSolicitacoesCadastroPendentes,
+	getR2,
+	hasR2,
 	decidirSolicitacaoCadastro,
+	listarSolicitacoesCadastroPendentes,
+	listarSolicitacoesAcaoPendentes,
 	registrarAuditComContexto,
 	contextoDeEvento
 } from '$lib/db';
+import { ehViolacaoUnique } from '$lib/server/db-errors';
+import { deletarChavesR2 } from '$lib/server/r2-cleanup';
+import { logger } from '$lib/server/logger';
+import { mensagemDeErro } from '$lib/utils/erro';
+import { ROTULO_CAMPO } from '$lib/cadastro-campos';
+import { decidirSolicitacaoAcao } from '$lib/server/policiais/solicitacoes';
 
 /**
- * Aba "Solicitações" do Admin Geral: alterações cadastrais pedidas pelos
- * servidores no "Meu perfil", aprovadas (aplica no cadastro) ou rejeitadas
- * com um clique.
+ * Aba "Solicitações" do Admin Geral — a fila onde os pedidos dos administradores
+ * de seccional e de unidade viram (ou não) fato.
+ *
+ * Duas filas, porque são dois formatos e duas consequências:
+ *
+ *  - **dados cadastrais** — uma linha por campo, aprovadas ou recusadas
+ *    individualmente: dá para aceitar a correção do telefone e recusar a da
+ *    matrícula do mesmo pedido;
+ *  - **ações de RH** — movimentar, afastar, desvincular. Aprovar aqui EXECUTA o
+ *    ato (troca a lotação, inativa o servidor) pelo mesmo executor que a ficha
+ *    usa no modo direto, e por isso a tela mostra o conteúdo INTEIRO do pedido,
+ *    com o PDF anexo para baixar, antes de qualquer clique.
+ *
+ * Recusar um pedido com anexo apaga o PDF do bucket: nenhuma linha voltaria a
+ * apontar para ele, e um objeto sem referência é dado pessoal guardado sem base
+ * e sem rastro (a mesma regra do FLW-RBAC-005). Aprovar não apaga nada — a chave
+ * passa a pertencer ao evento em `policial_historico`.
  */
 
 export const load: PageServerLoad = async ({ locals, platform }) => {
@@ -20,9 +43,22 @@ export const load: PageServerLoad = async ({ locals, platform }) => {
 	if (u.tipo !== 'admin') redirect(302, '/bem-vindo');
 
 	const db = getDB(platform);
-	const pendentes = await listarSolicitacoesCadastroPendentes(db);
-	return { pendentes };
+	const [pendentes, acoesPendentes] = await Promise.all([
+		listarSolicitacoesCadastroPendentes(db),
+		listarSolicitacoesAcaoPendentes(db)
+	]);
+	return { pendentes, acoesPendentes };
 };
+
+/** `id` + `decisao` do formulário, ou a mensagem de recusa. */
+function lerDecisao(data: FormData): { id: number; aprovar: boolean } | { erro: string } {
+	const id = Number(data.get('id'));
+	const decisao = data.get('decisao')?.toString();
+	if (isNaN(id) || (decisao !== 'aprovar' && decisao !== 'rejeitar')) {
+		return { erro: 'Dados inválidos' };
+	}
+	return { id, aprovar: decisao === 'aprovar' };
+}
 
 export const actions: Actions = {
 	decidir: async (event) => {
@@ -30,18 +66,29 @@ export const actions: Actions = {
 		const u = locals.usuario;
 		if (!u || u.tipo !== 'admin') return fail(403, { error: 'Apenas o Admin Geral decide' });
 
-		const data = await request.formData();
-		const id = Number(data.get('id'));
-		const decisao = data.get('decisao')?.toString();
-		if (isNaN(id) || (decisao !== 'aprovar' && decisao !== 'rejeitar')) {
-			return fail(400, { error: 'Dados inválidos' });
-		}
+		const lida = lerDecisao(await request.formData());
+		if ('erro' in lida) return fail(400, { error: lida.erro });
+		const { id, aprovar } = lida;
 
 		const db = getDB(platform);
 		let sol;
 		try {
-			sol = await decidirSolicitacaoCadastro(db, id, decisao === 'aprovar', u.id);
-		} catch {
+			sol = await decidirSolicitacaoCadastro(db, id, aprovar, u.id, platform?.env);
+		} catch (e) {
+			// Matrícula pedida que já pertence a outro servidor: o índice único
+			// recusa. O pedido já ficou FECHADO e o cadastro não mudou — a mensagem
+			// precisa dizer isso, e não "tente de novo", que convidaria a reaprovar
+			// uma linha que não está mais pendente.
+			if (ehViolacaoUnique(e)) {
+				return fail(409, {
+					error:
+						'Matrícula já cadastrada para outro servidor — a solicitação foi encerrada sem aplicar.'
+				});
+			}
+			logger.error('[solicitacoes/decidir] Falha ao aplicar a decisão', {
+				solicitacao_id: id,
+				error: mensagemDeErro(e)
+			});
 			return fail(500, { error: 'Erro ao aplicar a decisão. Tente novamente.' });
 		}
 		if (!sol) {
@@ -51,20 +98,90 @@ export const actions: Actions = {
 		const { contexto, env } = contextoDeEvento(event);
 		await registrarAuditComContexto(db, {
 			usuario: u,
-			acao: decisao === 'aprovar' ? 'aprovar_alteracao_cadastro' : 'rejeitar_alteracao_cadastro',
+			acao: aprovar ? 'aprovar_alteracao_cadastro' : 'rejeitar_alteracao_cadastro',
 			entidade: 'policial',
 			entidade_id: sol.policial_id,
 			alvo_tipo: 'policial',
 			alvo_id: sol.policial_id,
-			detalhes: `${decisao === 'aprovar' ? 'Aprovada' : 'Rejeitada'} alteração de ${sol.campo}: "${sol.valor_atual ?? '—'}" → "${sol.valor_novo}"`,
-			metadados: { solicitacao_id: sol.id, campo: sol.campo },
-			dados_antes: { [sol.campo]: sol.valor_atual },
-			dados_depois: decisao === 'aprovar' ? { [sol.campo]: sol.valor_novo } : null,
+			detalhes:
+				`${aprovar ? 'Aprovada' : 'Rejeitada'} alteração de ${ROTULO_CAMPO[sol.campo]}` +
+				// O CPF pedido não vai para a trilha (é lida por operador, e o número
+				// já está protegido no cadastro por cifra + índice cego).
+				(sol.campo === 'cpf' ? '' : `: "${sol.valor_atual ?? '—'}" → "${sol.valor_novo}"`),
+			metadados: {
+				solicitacao_id: sol.id,
+				campo: sol.campo,
+				solicitante_id: sol.solicitante_id,
+				justificativa: sol.justificativa
+			},
+			dados_antes: sol.campo === 'cpf' ? null : { [sol.campo]: sol.valor_atual },
+			dados_depois: aprovar && sol.campo !== 'cpf' ? { [sol.campo]: sol.valor_novo } : null,
 			...contexto,
 			env
 		});
 
 		const pendentes = await listarSolicitacoesCadastroPendentes(db);
 		return { success: true, pendentes };
+	},
+
+	decidirAcao: async (event) => {
+		const { request, locals, platform } = event;
+		const u = locals.usuario;
+		if (!u || u.tipo !== 'admin') return fail(403, { error: 'Apenas o Admin Geral decide' });
+
+		const lida = lerDecisao(await request.formData());
+		if ('erro' in lida) return fail(400, { error: lida.erro });
+		const { id, aprovar } = lida;
+
+		const db = getDB(platform);
+		let pedido;
+		try {
+			pedido = await decidirSolicitacaoAcao(db, id, aprovar, u.id);
+		} catch (e) {
+			logger.error('[solicitacoes/decidirAcao] Falha ao executar o ato aprovado', {
+				solicitacao_id: id,
+				error: mensagemDeErro(e)
+			});
+			return fail(500, { error: 'Erro ao aplicar a decisão. Tente novamente.' });
+		}
+		if (!pedido) {
+			return fail(409, { error: 'Solicitação já decidida por outro administrador.' });
+		}
+
+		// Recusado com anexo: o PDF perde a única linha que o referenciava.
+		if (!aprovar && pedido.documento_r2_key && hasR2(platform)) {
+			await deletarChavesR2(
+				db,
+				getR2(platform),
+				[pedido.documento_r2_key],
+				'solicitacao-acao-recusada'
+			);
+		}
+
+		const { contexto, env } = contextoDeEvento(event);
+		await registrarAuditComContexto(db, {
+			usuario: u,
+			acao: aprovar ? 'aprovar_acao_policial' : 'rejeitar_acao_policial',
+			entidade: 'policial',
+			entidade_id: pedido.policial_id,
+			alvo_tipo: 'policial',
+			alvo_id: pedido.policial_id,
+			detalhes:
+				`${aprovar ? 'Aprovada' : 'Rejeitada'} solicitação de ${pedido.tipo} ` +
+				`pedida por ${pedido.solicitante_nome ?? '—'}`,
+			metadados: {
+				solicitacao_id: pedido.id,
+				tipo: pedido.tipo,
+				solicitante_id: pedido.solicitante_id,
+				justificativa: pedido.justificativa,
+				unidade_destino: pedido.unidade_destino,
+				nup: pedido.nup
+			},
+			...contexto,
+			env
+		});
+
+		const acoesPendentes = await listarSolicitacoesAcaoPendentes(db);
+		return { success: true, acoesPendentes };
 	}
 };

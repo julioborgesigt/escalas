@@ -1,28 +1,46 @@
 <script lang="ts">
-	import Check from '@lucide/svelte/icons/check';
 	/**
-	 * Fila de aprovação das alterações cadastrais pedidas em "Meu perfil"
-	 * (`/solicitacoes`, Admin Geral). Aprovar grava o novo valor no cadastro na
-	 * hora; rejeitar apenas encerra a solicitação.
+	 * A fila de decisão do Admin Geral (`/solicitacoes`): o que os administradores
+	 * de seccional e de unidade pediram sobre os servidores deles.
+	 *
+	 * Duas listas, porque são duas consequências diferentes de um mesmo clique:
+	 *
+	 *  - **dados cadastrais** — tabela, uma linha por campo. Aprovar grava o valor
+	 *    no cadastro na hora;
+	 *  - **ações de RH** — cartões, um por pedido, com o conteúdo INTEIRO à vista
+	 *    (datas, NUP, origem/destino, justificativa) e o botão que baixa a portaria
+	 *    anexada. Aprovar aqui movimenta, afasta ou INATIVA um servidor — decisão
+	 *    que ninguém deve tomar por um resumo de uma linha.
+	 *
+	 * As duas actions devolvem a lista já sem o item decidido; usar essa resposta
+	 * evita um `invalidateAll()` (e o piscar da tela) a cada decisão.
 	 */
+	import Check from '@lucide/svelte/icons/check';
 	import type { PageProps } from './$types';
 	import { enhance } from '$app/forms';
 	import { toaster } from '$lib/toast';
 	import { mostrarErroDeResultado } from '$lib/enhance-handler';
-	import { ROTULO_CAMPO } from '$lib/perfil-campos';
+	import { ROTULO_CAMPO } from '$lib/cadastro-campos';
+	import DetalheSolicitacaoAcao from '$lib/components/DetalheSolicitacaoAcao.svelte';
 	import type { ActionResult } from '@sveltejs/kit';
 
 	const { data }: PageProps = $props();
 
-	// Derivado gravável: espelha o load, mas admite a atualização otimista local.
+	// Derivados graváveis: espelham o load, mas admitem a atualização local.
 	let pendentes = $derived(data.pendentes);
+	let acoesPendentes = $derived(data.acoesPendentes);
 
 	let decidindoId = $state<number | null>(null);
+	let decidindoAcaoId = $state<number | null>(null);
 
-	/**
-	 * A action devolve a lista já sem o item decidido — usar essa resposta evita
-	 * um `invalidateAll()` (e o piscar da tabela) a cada decisão.
-	 */
+	const ROTULO_TIPO_ACAO: Record<string, string> = {
+		movimentacao: 'Movimentação',
+		afastamento: 'Afastamento',
+		desvinculacao: 'Desvinculação'
+	};
+
+	const vazio = $derived(pendentes.length === 0 && acoesPendentes.length === 0);
+
 	function handleDecidir(id: number, decisao: 'aprovar' | 'rejeitar') {
 		decidindoId = id;
 		return async ({ result }: { result: ActionResult }) => {
@@ -38,6 +56,30 @@
 			}
 		};
 	}
+
+	function handleDecidirAcao(id: number, decisao: 'aprovar' | 'rejeitar', rotulo: string) {
+		decidindoAcaoId = id;
+		return async ({ result }: { result: ActionResult }) => {
+			decidindoAcaoId = null;
+			if (result.type === 'success') {
+				acoesPendentes = (result.data?.acoesPendentes as typeof acoesPendentes) ?? acoesPendentes;
+				toaster.create({
+					title: decisao === 'aprovar' ? `${rotulo} aprovada e aplicada` : `${rotulo} rejeitada`,
+					type: decisao === 'aprovar' ? 'success' : 'info'
+				});
+			} else {
+				mostrarErroDeResultado(result, 'Erro ao decidir');
+			}
+		};
+	}
+
+	/** `created_at` vem em horário local ("YYYY-MM-DD HH:MM:SS") ou ISO UTC. */
+	function fmtDataHora(ts: string): string {
+		return new Date(ts + (ts.includes('T') ? '' : 'Z')).toLocaleString('pt-BR', {
+			dateStyle: 'short',
+			timeStyle: 'short'
+		});
+	}
 </script>
 
 <svelte:head><title>Solicitações</title></svelte:head>
@@ -46,106 +88,205 @@
 	<div>
 		<h1 class="h2 font-bold">Solicitações</h1>
 		<p class="text-sm text-surface-600 dark:text-surface-400 mt-1">
-			Alterações cadastrais pedidas pelos servidores no "Meu perfil". Aprovar aplica o novo valor
-			imediatamente no cadastro.
+			Pedidos enviados pelos administradores de seccional e de unidade sobre os servidores do escopo
+			deles. Aprovar aplica o pedido imediatamente.
 		</p>
 	</div>
 
-	{#if pendentes.length === 0}
+	{#if vazio}
 		<div class="card-glass p-10 rounded-3xl text-center text-surface-600 dark:text-surface-400">
 			<p class="font-semibold">Nenhuma solicitação pendente.</p>
-			<p class="text-xs mt-1">Quando um servidor pedir alteração cadastral, ela aparecerá aqui.</p>
+			<p class="text-xs mt-1">
+				Quando um administrador pedir alteração de cadastro, movimentação, afastamento ou
+				desvinculação, o pedido aparecerá aqui.
+			</p>
 		</div>
-	{:else}
-		<div class="card-glass rounded-3xl overflow-hidden">
-			<div class="table-wrap">
-				<table class="table w-full text-sm">
-					<thead>
-						<tr
-							class="text-left text-xs uppercase text-surface-600 dark:text-surface-400 border-b border-surface-200 dark:border-white/10"
-						>
-							<th class="py-3 px-4">Servidor</th>
-							<th class="py-3 px-4">Campo</th>
-							<th class="py-3 px-4">De</th>
-							<th class="py-3 px-4">Para</th>
-							<th class="py-3 px-4">Solicitada em</th>
-							<th class="py-3 px-4 text-right">Ações</th>
-						</tr>
-					</thead>
-					<tbody>
-						{#each pendentes as s (s.id)}
+	{/if}
+
+	{#if pendentes.length > 0}
+		<section class="space-y-3">
+			<h2
+				class="font-semibold text-sm uppercase tracking-wider text-surface-600 dark:text-surface-400"
+			>
+				Dados cadastrais
+				<span
+					class="ml-1 text-3xs font-bold px-2 py-0.5 rounded-full bg-warning-500/15 text-warning-700 dark:text-warning-400"
+				>
+					{pendentes.length}
+				</span>
+			</h2>
+			<div class="card-glass rounded-3xl overflow-hidden">
+				<div class="table-wrap">
+					<table class="table w-full text-sm">
+						<thead>
 							<tr
-								class="border-b border-surface-100 dark:border-white/5 hover:bg-surface-100/50 dark:hover:bg-surface-800/30 transition-colors"
+								class="text-left text-xs uppercase text-surface-600 dark:text-surface-400 border-b border-surface-200 dark:border-white/10"
 							>
-								<td class="py-3 px-4">
-									<p class="font-semibold leading-tight">{s.policial_nome}</p>
-									<p class="text-xs text-surface-600 dark:text-surface-400">
-										{s.policial_matricula} · {s.policial_cargo} · {s.policial_lotacao}
-									</p>
-								</td>
-								<td class="py-3 px-4 font-medium">{ROTULO_CAMPO[s.campo]}</td>
-								<td class="py-3 px-4 text-surface-600 dark:text-surface-400"
-									>{s.valor_atual || '—'}</td
-								>
-								<td class="py-3 px-4 font-semibold">{s.valor_novo}</td>
-								<td
-									class="py-3 px-4 text-xs text-surface-600 dark:text-surface-400 whitespace-nowrap"
-								>
-									{new Date(s.created_at + (s.created_at.includes('T') ? '' : 'Z')).toLocaleString(
-										'pt-BR',
-										{ dateStyle: 'short', timeStyle: 'short' }
-									)}
-								</td>
-								<td class="py-3 px-4">
-									<div class="flex items-center gap-1.5 justify-end">
-										<form
-											method="POST"
-											action="?/decidir"
-											use:enhance={() => handleDecidir(s.id, 'aprovar')}
-										>
-											<input type="hidden" name="id" value={s.id} />
-											<input type="hidden" name="decisao" value="aprovar" />
-											<button
-												type="submit"
-												class="w-9 h-9 flex items-center justify-center rounded-xl bg-success-500/10 text-success-600 dark:text-success-400 hover:bg-success-500 hover:text-white active:scale-95 transition-all disabled:opacity-40"
-												title="Aprovar e aplicar"
-												aria-label="Aprovar solicitação de {s.policial_nome}"
-												disabled={decidindoId === s.id}
-											>
-												<Check class="w-5 h-5" strokeWidth={2.5} aria-hidden="true" />
-											</button>
-										</form>
-										<form
-											method="POST"
-											action="?/decidir"
-											use:enhance={() => handleDecidir(s.id, 'rejeitar')}
-										>
-											<input type="hidden" name="id" value={s.id} />
-											<input type="hidden" name="decisao" value="rejeitar" />
-											<button
-												type="submit"
-												class="w-9 h-9 flex items-center justify-center rounded-xl bg-error-500/10 text-error-600 dark:text-error-400 hover:bg-error-500 hover:text-white active:scale-95 transition-all disabled:opacity-40"
-												title="Rejeitar"
-												aria-label="Rejeitar solicitação de {s.policial_nome}"
-												disabled={decidindoId === s.id}
-											>
-												<svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-													<path
-														stroke-linecap="round"
-														stroke-linejoin="round"
-														stroke-width="2.5"
-														d="M6 18L18 6M6 6l12 12"
-													/>
-												</svg>
-											</button>
-										</form>
-									</div>
-								</td>
+								<th class="py-3 px-4">Servidor</th>
+								<th class="py-3 px-4">Campo</th>
+								<th class="py-3 px-4">De</th>
+								<th class="py-3 px-4">Para</th>
+								<th class="py-3 px-4">Justificativa</th>
+								<th class="py-3 px-4">Solicitada em</th>
+								<th class="py-3 px-4 text-right">Ações</th>
 							</tr>
-						{/each}
-					</tbody>
-				</table>
+						</thead>
+						<tbody>
+							{#each pendentes as s (s.id)}
+								<tr
+									class="border-b border-surface-100 dark:border-white/5 hover:bg-surface-100/50 dark:hover:bg-surface-800/30 transition-colors align-top"
+								>
+									<td class="py-3 px-4">
+										<p class="font-semibold leading-tight">{s.policial_nome}</p>
+										<p class="text-xs text-surface-600 dark:text-surface-400">
+											{s.policial_matricula} · {s.policial_cargo} · {s.policial_lotacao}
+										</p>
+									</td>
+									<td class="py-3 px-4 font-medium whitespace-nowrap">{ROTULO_CAMPO[s.campo]}</td>
+									<td class="py-3 px-4 text-surface-600 dark:text-surface-400"
+										>{s.valor_atual || '—'}</td
+									>
+									<td class="py-3 px-4 font-semibold">{s.valor_novo}</td>
+									<td class="py-3 px-4 text-surface-600 dark:text-surface-400 max-w-xs break-words">
+										<p>{s.justificativa || '—'}</p>
+										{#if s.solicitante_nome}
+											<p class="text-2xs mt-1 opacity-70">por {s.solicitante_nome}</p>
+										{/if}
+									</td>
+									<td
+										class="py-3 px-4 text-xs text-surface-600 dark:text-surface-400 whitespace-nowrap"
+									>
+										{fmtDataHora(s.created_at)}
+									</td>
+									<td class="py-3 px-4">
+										<div class="flex items-center gap-1.5 justify-end">
+											<form
+												method="POST"
+												action="?/decidir"
+												use:enhance={() => handleDecidir(s.id, 'aprovar')}
+											>
+												<input type="hidden" name="id" value={s.id} />
+												<input type="hidden" name="decisao" value="aprovar" />
+												<button
+													type="submit"
+													class="w-9 h-9 flex items-center justify-center rounded-xl bg-success-500/10 text-success-600 dark:text-success-400 hover:bg-success-500 hover:text-white active:scale-95 transition-all disabled:opacity-40"
+													title="Aprovar e aplicar"
+													aria-label="Aprovar solicitação de {s.policial_nome}"
+													disabled={decidindoId === s.id}
+												>
+													<Check class="w-5 h-5" strokeWidth={2.5} aria-hidden="true" />
+												</button>
+											</form>
+											<form
+												method="POST"
+												action="?/decidir"
+												use:enhance={() => handleDecidir(s.id, 'rejeitar')}
+											>
+												<input type="hidden" name="id" value={s.id} />
+												<input type="hidden" name="decisao" value="rejeitar" />
+												<button
+													type="submit"
+													class="w-9 h-9 flex items-center justify-center rounded-xl bg-error-500/10 text-error-600 dark:text-error-400 hover:bg-error-500 hover:text-white active:scale-95 transition-all disabled:opacity-40"
+													title="Rejeitar"
+													aria-label="Rejeitar solicitação de {s.policial_nome}"
+													disabled={decidindoId === s.id}
+												>
+													<svg
+														class="w-5 h-5"
+														fill="none"
+														viewBox="0 0 24 24"
+														stroke="currentColor"
+													>
+														<path
+															stroke-linecap="round"
+															stroke-linejoin="round"
+															stroke-width="2.5"
+															d="M6 18L18 6M6 6l12 12"
+														/>
+													</svg>
+												</button>
+											</form>
+										</div>
+									</td>
+								</tr>
+							{/each}
+						</tbody>
+					</table>
+				</div>
 			</div>
-		</div>
+		</section>
+	{/if}
+
+	{#if acoesPendentes.length > 0}
+		<section class="space-y-3">
+			<h2
+				class="font-semibold text-sm uppercase tracking-wider text-surface-600 dark:text-surface-400"
+			>
+				Movimentação, afastamento e desvinculação
+				<span
+					class="ml-1 text-3xs font-bold px-2 py-0.5 rounded-full bg-warning-500/15 text-warning-700 dark:text-warning-400"
+				>
+					{acoesPendentes.length}
+				</span>
+			</h2>
+
+			{#each acoesPendentes as s (s.id)}
+				{@const rotulo = ROTULO_TIPO_ACAO[s.tipo] ?? s.tipo}
+				<div class="card-glass rounded-3xl p-4 sm:p-6 space-y-4">
+					<div class="flex flex-wrap items-start justify-between gap-3">
+						<div>
+							<p class="font-semibold leading-tight">
+								{rotulo} · {s.policial_nome}
+							</p>
+							<p class="text-xs text-surface-600 dark:text-surface-400">
+								{s.policial_matricula} · {s.policial_cargo} · {s.policial_lotacao}
+							</p>
+						</div>
+						<p class="text-xs text-surface-600 dark:text-surface-400 whitespace-nowrap">
+							Pedida por {s.solicitante_nome || '—'} em {fmtDataHora(s.created_at)}
+						</p>
+					</div>
+
+					<DetalheSolicitacaoAcao solicitacao={s} />
+
+					<div
+						class="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 pt-3 border-t border-surface-200 dark:border-white/10"
+					>
+						<form
+							method="POST"
+							action="?/decidirAcao"
+							use:enhance={() => handleDecidirAcao(s.id, 'rejeitar', rotulo)}
+						>
+							<input type="hidden" name="id" value={s.id} />
+							<input type="hidden" name="decisao" value="rejeitar" />
+							<button
+								type="submit"
+								class="btn btn-sm preset-outlined-error-500 w-full sm:w-auto disabled:opacity-40"
+								aria-label="Rejeitar {rotulo.toLowerCase()} de {s.policial_nome}"
+								disabled={decidindoAcaoId === s.id}
+							>
+								Rejeitar
+							</button>
+						</form>
+						<form
+							method="POST"
+							action="?/decidirAcao"
+							use:enhance={() => handleDecidirAcao(s.id, 'aprovar', rotulo)}
+						>
+							<input type="hidden" name="id" value={s.id} />
+							<input type="hidden" name="decisao" value="aprovar" />
+							<button
+								type="submit"
+								class="btn btn-sm preset-filled-success-500 w-full sm:w-auto disabled:opacity-40"
+								aria-label="Aprovar {rotulo.toLowerCase()} de {s.policial_nome}"
+								disabled={decidindoAcaoId === s.id}
+							>
+								Aprovar e aplicar
+							</button>
+						</form>
+					</div>
+				</div>
+			{/each}
+		</section>
 	{/if}
 </div>
