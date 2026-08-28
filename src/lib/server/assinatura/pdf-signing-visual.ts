@@ -159,6 +159,19 @@ export interface AuditTrailOptions {
 	signingTime: Date;
 	verificationHash: string;
 	verificationUrl: string;
+	/**
+	 * `false` quando o identificador do cartão NÃO resolve em `/validar`.
+	 *
+	 * É o caso da confirmação de presença em tela do fluxo um-tiro, cujo
+	 * `PRES-<id>-<E|S>` é referência interna: `buscarDocumentoPorHash` procura
+	 * em quatro tabelas e nenhuma o guarda. O cartão então rotula `Ref.` em vez
+	 * de `Token`, para não prometer uma consulta que devolve "documento não
+	 * encontrado" — o que, no papel entregue, lê como verificação FALHA e não
+	 * como "esta modalidade não gera documento próprio".
+	 *
+	 * Ausente ⇒ `true`: todo identificador de documento assinado resolve.
+	 */
+	identificadorValidavel?: boolean;
 	ip?: string;
 	userAgent?: string;
 	latitude?: number | null;
@@ -499,9 +512,12 @@ export async function adicionarPaginaAuditoria(
 				color: headerTextSoft
 			});
 
-			// Token alinhado à direita no header (truncado p/ caber).
+			// Token alinhado à direita no header (truncado p/ caber). O rótulo
+			// muda para `Ref.` quando o identificador não resolve em `/validar`
+			// — ver `identificadorValidavel`.
 			const tokenFull = s.token || s.verificationHash;
-			const tokenLabel = `Token  ${tokenFull.length > 28 ? tokenFull.slice(0, 28) + '...' : tokenFull}`;
+			const tokenRotulo = s.identificadorValidavel === false ? 'Ref.' : 'Token';
+			const tokenLabel = `${tokenRotulo}  ${tokenFull.length > 28 ? tokenFull.slice(0, 28) + '...' : tokenFull}`;
 			const tokenW = font.widthOfTextAtSize(tokenLabel, 7);
 			page.drawText(tokenLabel, {
 				x: boxX + boxW - 15 - tokenW,

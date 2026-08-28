@@ -333,8 +333,17 @@ export async function buscarDocumentoPorHash(db: Database, hash: string) {
 	if (gise)
 		return { ...gise, escala_id: gise.gise_id, r2_key: gise.r2_key, tipo_doc: 'gise' as const };
 	if (termo) {
-		// Termo de presença (Token A3 no desktop). Tipo qualificado: a verificação
-		// criptográfica em /validar usa r2_key + arquivo_hash + cms_sha256.
+		// Termo de presença. DOIS fluxos gravam aqui, e o nível é diferente:
+		//   - Token A3 (desktop) → CMS do certificado do titular; `cms_sha256`
+		//     preenchido pelo cades-finalizer. Qualificado.
+		//   - Passkey (celular) → asserção WebAuthn guardada nas colunas
+		//     `webauthn_*`; o PDF leva o SELO institucional, não certificado do
+		//     titular. Avançado (Lei 14.063/2020 art. 4º II).
+		//
+		// Era `'serpro'` fixo, e `/validar` estampa o selo "ICP-Brasil" para
+		// webpki/serpro — então o termo assinado por passkey aparecia ao público
+		// como ICP-Brasil. `cms_sha256` é a mesma régua que o `load` da página já
+		// usa para escolher entre verificação CAdES e selo institucional.
 		return {
 			id: termo.id,
 			escala_id: termo.gise_id,
@@ -344,7 +353,7 @@ export async function buscarDocumentoPorHash(db: Database, hash: string) {
 			created_at: termo.created_at,
 			tipo_doc: 'gise_presenca' as const,
 			presenca_tipo: termo.tipo,
-			tipo_assinatura: 'serpro' as const,
+			tipo_assinatura: (termo.cms_sha256 ? 'serpro' : 'simples') as 'serpro' | 'simples',
 			ip_address: termo.ip_address,
 			user_agent: termo.user_agent,
 			latitude: termo.latitude,

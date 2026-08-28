@@ -202,8 +202,8 @@ export async function salvarTermoPresencaGise(
 	return { gravado: linhasAfetadas(r) > 0 };
 }
 
-/** Evidência mínima de um termo de presença qualificado (Token A3), para o
- *  manifesto do relatório extraordinário distinguir avançada × qualificada. */
+/** Evidência mínima de um termo de presença, para o manifesto do relatório
+ *  extraordinário distinguir avançada × qualificada. */
 export interface TermoPresencaEvidencia {
 	verification_hash: string | null;
 	tipo_carimbo_tempo: string | null;
@@ -212,12 +212,24 @@ export interface TermoPresencaEvidencia {
 	user_agent: string | null;
 	latitude: number | null;
 	longitude: number | null;
+	/**
+	 * Marcador do fluxo QUALIFICADO — só o `cades-finalizer` o grava, a partir
+	 * do CMS que o Token A3 devolveu. É a MESMA régua que `/validar` aplica
+	 * (`validar/[hash]/+page.server.ts`), e o motivo de ela precisar sair daqui:
+	 * `gise_presenca_termos` recebe linha dos DOIS fluxos que produzem termo —
+	 * Token A3 e passkey —, então a existência da linha não diz o nível.
+	 */
+	cms_sha256: string | null;
 }
 
 /**
- * Mapa das presenças confirmadas por Token A3 (qualificadas) de uma GISE,
- * indexado por `${policial_id}-${tipo}` (tipo: 'entrada' | 'saida'). A ausência
- * de chave significa que aquela presença foi de tela/mobile (avançada).
+ * Mapa dos termos de presença de uma GISE, indexado por
+ * `${policial_id}-${tipo}` (tipo: 'entrada' | 'saida').
+ *
+ * A ausência de chave significa presença de tela/mobile no fluxo um-tiro, que
+ * não gera termo. A PRESENÇA da chave não significa "qualificada": o fluxo por
+ * passkey (avançada) também grava aqui. Quem decide o nível é `cms_sha256` —
+ * ver o campo em `TermoPresencaEvidencia`.
  */
 export async function buscarTermosPresencaGise(
 	db: Database,
@@ -233,7 +245,8 @@ export async function buscarTermosPresencaGise(
 			ip_address: gisePresencaTermos.ip_address,
 			user_agent: gisePresencaTermos.user_agent,
 			latitude: gisePresencaTermos.latitude,
-			longitude: gisePresencaTermos.longitude
+			longitude: gisePresencaTermos.longitude,
+			cms_sha256: gisePresencaTermos.cms_sha256
 		})
 		.from(gisePresencaTermos)
 		.where(eq(gisePresencaTermos.gise_id, giseId))
@@ -249,7 +262,8 @@ export async function buscarTermosPresencaGise(
 			ip_address: r.ip_address,
 			user_agent: r.user_agent,
 			latitude: r.latitude,
-			longitude: r.longitude
+			longitude: r.longitude,
+			cms_sha256: r.cms_sha256
 		});
 	}
 	return map;

@@ -90,8 +90,10 @@ export async function montarSignersPresencaExtra(opts: {
 	const selfieMap = new Map<string, string | undefined>();
 	for (const r of selfieResults) selfieMap.set(`${r.prId}-${r.type}`, r.data);
 
-	// Presenças confirmadas por Token A3 (desktop) têm termo qualificado em
-	// `gise_presenca_termos` — cruzamos por (policial, tipo) para classificar.
+	// Presenças que geraram TERMO (Token A3 ou passkey) estão em
+	// `gise_presenca_termos` — cruzamos por (policial, tipo). Existir termo diz
+	// que há documento em `/validar`; QUEM assinou é outra pergunta, respondida
+	// pelo `cms_sha256` abaixo.
 	const termosPresenca = await buscarTermosPresencaGise(db, giseId);
 
 	const signers: AuditTrailOptions[] = [];
@@ -106,17 +108,21 @@ export async function montarSignersPresencaExtra(opts: {
 		if (!ts) return;
 
 		const termo = termosPresenca.get(`${pr.policial_id}-${tipo}`);
-		const qualificada = !!termo;
+		// QUALIFICADA exige CMS de certificado do titular (Token A3). Era
+		// `!!termo`, e isso rotulava "QUALIFICADA · ICP-BRASIL" toda presença
+		// por PASSKEY — que também grava em `gise_presenca_termos`, sem
+		// certificado nenhum. O documento passava a afirmar ICP-Brasil onde não
+		// há ICP-Brasil, com a flag `exigir_passkey_assinatura` ligada.
+		const qualificada = !!termo?.cms_sha256;
 		const sufixo = tipo === 'entrada' ? 'E' : 'S';
 		// entrada/saida_timestamp são UTC real (ISO Z); o manifesto formata em
 		// America/Sao_Paulo.
 		const signingTime = new Date(ts);
-		// Quando qualificada, o hash de verificação é o do PRÓPRIO termo assinado;
-		// senão, o pseudo-hash da presença.
-		const vHash =
-			qualificada && termo!.verification_hash
-				? termo!.verification_hash
-				: `PRES-${pr.id}-${sufixo}`;
+		// Havendo termo (A3 ou passkey), o identificador é o do PRÓPRIO termo —
+		// esse resolve em `/validar`. Sem termo (um-tiro), sobra o pseudo-hash da
+		// presença, que NÃO resolve: daí o `identificadorValidavel` abaixo.
+		const vHash = termo?.verification_hash ?? `PRES-${pr.id}-${sufixo}`;
+		const identificadorValidavel = !!termo?.verification_hash;
 
 		signers.push({
 			signerName: `${pr.policial_nome} (${tipo === 'entrada' ? 'ENTRADA' : 'SAÍDA'})`,
@@ -124,6 +130,7 @@ export async function montarSignersPresencaExtra(opts: {
 			signingTime,
 			verificationHash: vHash,
 			verificationUrl: `${origin}/validar/${vHash}`,
+			identificadorValidavel,
 			ip: pr.ip_address ?? undefined,
 			userAgent: pr.user_agent ?? undefined,
 			latitude: pr.latitude ?? undefined,
