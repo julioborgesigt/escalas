@@ -974,6 +974,8 @@ Três modalidades suportadas:
 
 O enquadramento jurídico de cada modalidade (Lei 14.063/2020, MP 2.200-2) está no parecer `ANALISE_JURIDICA_ASSINATURAS.md`, arquivado no histórico do Git — ver [`docs/HISTORICO.md`](docs/HISTORICO.md).
 
+**Quem decide o nível é `cms_sha256`, nunca a existência da linha.** `gise_presenca_termos` recebe termo dos DOIS fluxos que produzem PDF de presença: Token A3 (qualificada) e passkey (avançada — o PDF leva o selo institucional, não certificado do titular). Só o `cades-finalizer` grava `cms_sha256`, então é ele a régua — a mesma que o `load` de `/validar` já aplicava para escolher entre verificação CAdES e selo. Classificar por "tem termo?" fazia o manifesto do Relatório Extraordinário imprimir **QUALIFICADA · ICP-BRASIL** sobre presença por passkey, e a página pública estampar o selo ICP-Brasil no termo dela. Afirmar ICP-Brasil onde não há certificado ICP derruba, em perícia, a credibilidade das outras evidências do mesmo documento.
+
 ### Validação Pública
 
 A rota `/validar/[hash]` é **pública e sem autenticação**. Qualquer pessoa pode verificar a autenticidade de um documento assinado informando o código exibido no PDF. Visitante **autenticado** vê também o recorte da chave de assinatura (o mesmo da linha `CHAVE DE ASSINATURA` no manifesto) para confrontar com a ficha do servidor, sem abrir o banco. O anônimo não recebe esse recorte. O titular vê o mesmo recorte em Meu Perfil, com a data do último uso; o sistema não guarda o modelo do celular.

@@ -89,6 +89,37 @@ describe('adicionarPaginaAuditoria — manifesto do relatório de extra', () => 
 		expect(fotoCount).toBe(1);
 	});
 
+	it('rotula Ref. (não Token) quando o identificador não resolve em /validar', async () => {
+		const signers: AuditTrailOptions[] = [
+			{
+				// Presença de tela no fluxo um-tiro: `PRES-…` é referência interna,
+				// nenhuma tabela o guarda. Prometer "Token" convida a consultar
+				// `/validar` e receber "documento não encontrado", que no papel
+				// entregue lê como verificação FALHA.
+				signerName: 'FULANO ENTRADA',
+				signingTime: new Date('2026-07-17T11:00:00Z'),
+				verificationHash: 'PRES-1-E',
+				verificationUrl: 'https://x/validar/PRES-1-E',
+				signatureLevel: 'avancada',
+				identificadorValidavel: false
+			},
+			{
+				// Termo assinado: o identificador resolve, então segue "Token".
+				signerName: 'CICLANO SUPERVISOR',
+				signingTime: new Date('2026-07-17T20:00:00Z'),
+				verificationHash: 'ABCD-1234',
+				verificationUrl: 'https://x/validar/ABCD-1234',
+				signatureLevel: 'qualificada'
+			}
+		];
+
+		const texto = extrairTexto(await adicionarPaginaAuditoria(await basePdf(), signers));
+
+		expect(texto).toContain('Ref.  PRES-1-E');
+		expect(texto).toContain('Token  ABCD-1234');
+		expect(texto).not.toContain('Token  PRES-1-E');
+	});
+
 	it('sem nenhuma selfie, não desenha FOTO DO ATO em lugar nenhum', async () => {
 		const signers: AuditTrailOptions[] = [
 			{
