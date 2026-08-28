@@ -56,11 +56,29 @@ test.afterAll(() =>
 	)
 );
 
-/** Textos dos cards de nível 0, na ordem da tela. */
+/**
+ * Textos dos cards de nível 0, na ordem da tela.
+ *
+ * O gate antes da leitura é o que impede uma corrida de virar falha com a
+ * mensagem errada. Duas coisas se somam: `expect(await ordem(page))` é asserção
+ * sobre VALOR, então não repete; e `evaluateAll` é das poucas APIs de locator
+ * que NÃO esperam elemento — sem match, devolve `[]` na hora. Juntas, elas
+ * traduzem "a tela ainda não renderizou" em `expected [...] to equal []`, que
+ * aponta para persistência quebrada e manda quem investiga para o lado errado.
+ *
+ * Foi assim que o CI reprovou o último teste deste arquivo: depois do
+ * `page.reload()` não havia nada esperando a lista voltar. Com `retries: 0` no
+ * `playwright.config.ts`, uma corrida latente é falha dura na primeira vez que
+ * o runner estiver lento.
+ *
+ * O gate mora AQUI, e não em cada chamador, porque quem escrever a próxima
+ * chamada não vai saber da armadilha. As sete chamadas esperam três cards —
+ * nenhuma espera lista vazia, então esperar pelo primeiro é seguro em todas.
+ */
 async function ordem(page: import('@playwright/test').Page) {
-	return page
-		.locator('[role="list"] > [role="listitem"] textarea')
-		.evaluateAll((els) => els.map((e) => (e as HTMLTextAreaElement).value));
+	const cards = page.locator('[role="list"] > [role="listitem"] textarea');
+	await expect(cards.first()).toBeVisible();
+	return cards.evaluateAll((els) => els.map((e) => (e as HTMLTextAreaElement).value));
 }
 
 test('setas movem e renumeram os rótulos', async ({ page }) => {
