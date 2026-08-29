@@ -17,7 +17,7 @@ const dbChain = {
 
 const fakeDb = dbChain as unknown as Database;
 
-import { verificarPermissaoGise } from '../permissao';
+import { verificarPermissaoGise, adminParticipaDaGise } from '../permissao';
 
 function gise(overrides: Partial<GiseEscala> = {}): GiseEscala {
 	return {
@@ -156,5 +156,25 @@ describe('verificarPermissaoGise', () => {
 		const u = user({ id: 999, lotacao: 'OUTRA' });
 		await verificarPermissaoGise(fakeDb, gise(), u);
 		expect(getSpy).toHaveBeenCalledTimes(1);
+	});
+});
+
+/**
+ * O guarda de `papelUnidadeId` nulo, testado DIRETO no helper.
+ *
+ * Pelos casos acima ele é inalcançável: `verificarPermissaoGise` barra o nulo
+ * antes de chamar. Mas `gise/[id]/+page.server.ts` chama sem essa pré-checagem
+ * — ali o `return false` interno é a única coisa entre um admin seccional sem
+ * unidade atribuída e o acesso à GISE. Uma varredura de mutação encontrou isso:
+ * trocar o retorno por `true` deixava a suíte inteira verde.
+ */
+describe('adminParticipaDaGise — o guarda de unidade ausente', () => {
+	it('sem papel_unidade_id devolve false, sem consultar o banco', async () => {
+		const spy = vi.spyOn(dbChain, 'get');
+		spy.mockClear();
+		for (const vazio of [null, undefined]) {
+			await expect(adminParticipaDaGise(fakeDb, 100, vazio)).resolves.toBe(false);
+		}
+		expect(spy).not.toHaveBeenCalled();
 	});
 });

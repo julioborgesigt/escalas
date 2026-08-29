@@ -14,9 +14,9 @@
  * em disputa seja o que se quer prender. Daí as duas peças de infraestrutura
  * abaixo:
  *
- *   - `selarPdfInstitucional` produz uma assinatura CMS real sobre os bytes
- *     reais do PDF (RSA-2048, keyUsage de assinatura) — cobre integridade,
- *     assinatura e política criptográfica;
+ *   - o PDF realmente assinado e as adulterações que quebram UM check cada vêm
+ *     de `./selo-fixture`, compartilhada com `cades-finalizer-aceitacao` — que
+ *     prende o outro lado da moeda, a decisão de GUARDAR a assinatura;
  *   - o trust store é substituído por um que contém o certificado do selo, para
  *     que a cadeia feche. É mock de DEPENDÊNCIA, não do módulo sob teste: a
  *     lógica de `verificarCadeiaIcpBrasil` roda inteira, só a lista de âncoras
@@ -28,18 +28,24 @@
 import { describe, it, expect, beforeAll, vi } from 'vitest';
 import forge from 'node-forge';
 import { PDFDocument } from 'pdf-lib';
+import {
+	gerarSelo,
+	selarPdfDeTeste,
+	montarTrustStore,
+	trustStoreVazio,
+	ocspRevogadoB64,
+	comConteudoAnexado,
+	comBitTrocadoNaRegiaoAssinada,
+	comAssinaturaCmsCorrompida,
+	type TrustStoreFalso
+} from './selo-fixture';
 
 /**
  * Preenchido no `beforeAll` com o certificado do selo gerado para esta suíte.
  * O factory do `vi.mock` é içado para o topo do arquivo, então ele lê esta
  * variável de forma preguiçosa, na hora da chamada — nunca no momento do mock.
  */
-let trustStoreFalso: {
-	disponivel: boolean;
-	roots: forge.pki.Certificate[];
-	intermediates: forge.pki.Certificate[];
-	caStore: forge.pki.CAStore;
-} | null = null;
+let trustStoreFalso: TrustStoreFalso | null = null;
 
 vi.mock('../icp-brasil/trust-store', async (importOriginal) => {
 	const real = await importOriginal<typeof import('../icp-brasil/trust-store')>();
@@ -49,155 +55,7 @@ vi.mock('../icp-brasil/trust-store', async (importOriginal) => {
 	};
 });
 
-const { selarPdfInstitucional } = await import('../server-seal');
-const { verificarAssinaturaCompleta, extrairCmsDoPdf, parseCms } =
-	await import('../pdf-verification');
-
-const TE = new TextEncoder();
-
-function concat(a: Uint8Array, b: Uint8Array): Uint8Array {
-	const out = new Uint8Array(a.length + b.length);
-	out.set(a, 0);
-	out.set(b, a.length);
-	return out;
-}
-
-/**
- * Monta um OCSPResponse DER dizendo que o certificado está REVOGADO, assinado
- * pela chave do issuer — é o que o snapshot guarda no banco (modelo CAdES-LT).
- *
- * Precisa ser assinado de verdade: `statusDeSnapshot` reconfere a assinatura do
- * responder contra o issuer e, se ela não bater, descarta o status como não
- * confiável. Um snapshot forjado reprovaria pelo caminho errado — e o objetivo
- * aqui é justamente isolar o termo `revogacao !== 'revoked'` do veredito.
- */
-function ocspRevogadoB64(
-	cert: forge.pki.Certificate,
-	issuerKey: forge.pki.rsa.PrivateKey,
-	issuer: forge.pki.Certificate
-): string {
-	const asn1 = forge.asn1;
-	const { Class, Type } = asn1;
-	const gt = (d: Date) =>
-		d
-			.toISOString()
-			.replace(/[-:]/g, '')
-			.replace(/\.\d{3}/, '');
-
-	const algSha1 = asn1.create(Class.UNIVERSAL, Type.SEQUENCE, true, [
-		asn1.create(Class.UNIVERSAL, Type.OID, false, asn1.oidToDer('1.3.14.3.2.26').getBytes()),
-		asn1.create(Class.UNIVERSAL, Type.NULL, false, '')
-	]);
-	const nomeDer = asn1.toDer(forge.pki.distinguishedNameToAsn1(issuer.subject)).getBytes();
-	const sha1 = (bin: string) => forge.md.sha1.create().update(bin).digest().getBytes();
-	const chavePubBin = asn1.toDer(forge.pki.publicKeyToAsn1(issuer.publicKey)).getBytes();
-
-	// CertID ::= SEQUENCE { hashAlgorithm, issuerNameHash, issuerKeyHash, serialNumber }
-	const certId = asn1.create(Class.UNIVERSAL, Type.SEQUENCE, true, [
-		algSha1,
-		asn1.create(Class.UNIVERSAL, Type.OCTETSTRING, false, sha1(nomeDer)),
-		asn1.create(Class.UNIVERSAL, Type.OCTETSTRING, false, sha1(chavePubBin)),
-		asn1.create(
-			Class.UNIVERSAL,
-			Type.INTEGER,
-			false,
-			forge.util.hexToBytes(
-				cert.serialNumber.length % 2 ? '0' + cert.serialNumber : cert.serialNumber
-			)
-		)
-	]);
-
-	// certStatus revoked = [1] IMPLICIT RevokedInfo { revocationTime GeneralizedTime }
-	const revogado = asn1.create(Class.CONTEXT_SPECIFIC, 1, true, [
-		asn1.create(Class.UNIVERSAL, Type.GENERALIZEDTIME, false, gt(new Date(Date.now() - 3_600_000)))
-	]);
-
-	const single = asn1.create(Class.UNIVERSAL, Type.SEQUENCE, true, [
-		certId,
-		revogado,
-		asn1.create(Class.UNIVERSAL, Type.GENERALIZEDTIME, false, gt(new Date()))
-	]);
-
-	// ResponseData: responderID [1] EXPLICIT Name, producedAt, responses.
-	// A versão (v1) é default e fica implícita — como nos responders reais.
-	const tbs = asn1.create(Class.UNIVERSAL, Type.SEQUENCE, true, [
-		asn1.create(Class.CONTEXT_SPECIFIC, 1, true, [
-			forge.pki.distinguishedNameToAsn1(issuer.subject)
-		]),
-		asn1.create(Class.UNIVERSAL, Type.GENERALIZEDTIME, false, gt(new Date())),
-		asn1.create(Class.UNIVERSAL, Type.SEQUENCE, true, [single])
-	]);
-
-	const tbsDer = asn1.toDer(tbs).getBytes();
-	const md = forge.md.sha256.create();
-	md.update(tbsDer);
-	const assinatura = issuerKey.sign(md);
-
-	const basic = asn1.create(Class.UNIVERSAL, Type.SEQUENCE, true, [
-		tbs,
-		asn1.create(Class.UNIVERSAL, Type.SEQUENCE, true, [
-			asn1.create(
-				Class.UNIVERSAL,
-				Type.OID,
-				false,
-				asn1.oidToDer('1.2.840.113549.1.1.11').getBytes() // sha256WithRSA
-			),
-			asn1.create(Class.UNIVERSAL, Type.NULL, false, '')
-		]),
-		asn1.create(Class.UNIVERSAL, Type.BITSTRING, false, '\x00' + assinatura)
-	]);
-
-	const resposta = asn1.create(Class.UNIVERSAL, Type.SEQUENCE, true, [
-		asn1.create(Class.UNIVERSAL, Type.ENUMERATED, false, '\x00'), // successful
-		asn1.create(Class.CONTEXT_SPECIFIC, 0, true, [
-			asn1.create(Class.UNIVERSAL, Type.SEQUENCE, true, [
-				asn1.create(
-					Class.UNIVERSAL,
-					Type.OID,
-					false,
-					asn1.oidToDer('1.3.6.1.5.5.7.48.1.1').getBytes() // id-pkix-ocsp-basic
-				),
-				asn1.create(Class.UNIVERSAL, Type.OCTETSTRING, false, asn1.toDer(basic).getBytes())
-			])
-		])
-	]);
-
-	return forge.util.encode64(asn1.toDer(resposta).getBytes());
-}
-
-/** Bundle base64 (chave + cert) no mesmo formato que `SELO_INSTITUCIONAL_PEM`. */
-function gerarSelo(bits = 2048): {
-	bundle: string;
-	cert: forge.pki.Certificate;
-	key: forge.pki.rsa.PrivateKey;
-} {
-	const keys = forge.pki.rsa.generateKeyPair(bits);
-	const cert = forge.pki.createCertificate();
-	cert.publicKey = keys.publicKey;
-	cert.serialNumber = '0a';
-	cert.validity.notBefore = new Date(Date.now() - 86_400_000);
-	cert.validity.notAfter = new Date(Date.now() + 10 * 365 * 86_400_000);
-	const attrs = [
-		{ name: 'commonName', value: 'Selo Veredito Teste' },
-		{ name: 'organizationName', value: 'Teste' },
-		{ name: 'countryName', value: 'BR' }
-	];
-	cert.setSubject(attrs);
-	cert.setIssuer(attrs);
-	cert.setExtensions([
-		// cA: true para que o próprio certificado sirva de âncora no caStore —
-		// é autoassinado, então ele é a raiz da sua própria cadeia.
-		{ name: 'basicConstraints', cA: true },
-		{ name: 'keyUsage', digitalSignature: true, nonRepudiation: true, keyCertSign: true }
-	]);
-	cert.sign(keys.privateKey, forge.md.sha256.create());
-	const bundle = forge.util.encode64(
-		forge.pki.privateKeyToPem(keys.privateKey).trim() +
-			'\n' +
-			forge.pki.certificateToPem(cert).trim()
-	);
-	return { bundle, cert, key: keys.privateKey };
-}
+const { verificarAssinaturaCompleta } = await import('../pdf-verification');
 
 let pdfSelado: Uint8Array;
 let seloKey: forge.pki.rsa.PrivateKey;
@@ -206,30 +64,9 @@ let seloCert: forge.pki.Certificate;
 beforeAll(async () => {
 	const { bundle, key } = gerarSelo();
 	seloKey = key;
-
-	const doc = await PDFDocument.create();
-	doc.addPage([595, 842]).drawText('Documento para veredito', { x: 50, y: 800, size: 12 });
-	const selado = await selarPdfInstitucional(await doc.save(), 'FULANO DE TAL', {
-		env: { SELO_INSTITUCIONAL_PEM: bundle }
-	});
-	if (!selado.ok) throw new Error(`selo falhou: ${selado.motivo}`);
-	pdfSelado = selado.pdf;
-
-	// A âncora sai do PRÓPRIO PDF, não do objeto que assinou: o `caStore` do
-	// node-forge indexa por hash do subject, e o certificado reconstruído a
-	// partir do DER embarcado é o único que casa com o que a verificação vai
-	// consultar. Montar a loja com o objeto em memória parece equivalente e não
-	// é — a cadeia reprova sem dizer por quê.
-	const cms = parseCms(extrairCmsDoPdf(pdfSelado)!.cmsDer)!;
-	seloCert = cms.certificate;
-	const caStore = forge.pki.createCaStore();
-	caStore.addCertificate(cms.certificate);
-	trustStoreFalso = {
-		disponivel: true,
-		roots: [cms.certificate],
-		intermediates: [],
-		caStore
-	};
+	pdfSelado = await selarPdfDeTeste(bundle, 'Documento para veredito');
+	trustStoreFalso = await montarTrustStore(pdfSelado);
+	seloCert = trustStoreFalso.roots[0];
 });
 
 describe('verificarAssinaturaCompleta — a linha de base', () => {
@@ -273,7 +110,7 @@ describe('verificarAssinaturaCompleta — cada termo reprova sozinho', () => {
 	 * cai. Se o termo sair da conjunção, este teste fica vermelho.
 	 */
 	it('conteúdo anexado após a assinatura invalida, mesmo com o resto íntegro', async () => {
-		const adulterado = concat(pdfSelado, TE.encode('\nconteudo injetado\n%%EOF\n'));
+		const adulterado = comConteudoAnexado(pdfSelado);
 		const r = await verificarAssinaturaCompleta(adulterado);
 
 		// A integridade CONTINUA passando: o hash dos trechos declarados bate.
@@ -293,11 +130,7 @@ describe('verificarAssinaturaCompleta — cada termo reprova sozinho', () => {
 	 * pode sair da conjunção sem deixar um teste vermelho.
 	 */
 	it('byte trocado dentro da região assinada invalida, com a cobertura intacta', async () => {
-		const [, , c, d] = extrairCmsDoPdf(pdfSelado)!.byteRange;
-		const adulterado = new Uint8Array(pdfSelado);
-		const alvo = c + Math.floor(d / 2);
-		adulterado[alvo] = adulterado[alvo] ^ 0x01; // um bit basta
-
+		const adulterado = await comBitTrocadoNaRegiaoAssinada(pdfSelado);
 		const r = await verificarAssinaturaCompleta(adulterado);
 		expect(r.checks.cobertura).toBe(true);
 		expect(r.checks.assinaturaRsa).toBe(true);
@@ -313,16 +146,7 @@ describe('verificarAssinaturaCompleta — cada termo reprova sozinho', () => {
 	 * e cobertura seguem verdes, e só `assinaturaRsa` cai.
 	 */
 	it('assinatura CMS corrompida invalida, com integridade e cobertura intactas', async () => {
-		const ex = extrairCmsDoPdf(pdfSelado)!;
-		const [a, b] = ex.byteRange;
-		const adulterado = new Uint8Array(pdfSelado);
-		// Byte DER perto do fim do CMS: dentro do signatureValue, longe dos
-		// cabeçalhos de comprimento — o DER continua parseável.
-		const iDer = ex.cmsDer.length - 10;
-		const posHex = a + b + 1 + iDer * 2; // '<' está em a+b
-		const antes = adulterado[posHex];
-		adulterado[posHex] = antes === 0x41 /* 'A' */ ? 0x42 /* 'B' */ : 0x41;
-
+		const adulterado = await comAssinaturaCmsCorrompida(pdfSelado);
 		const r = await verificarAssinaturaCompleta(adulterado);
 		expect(r.checks.integridade).toBe(true);
 		expect(r.checks.cobertura).toBe(true);
@@ -337,25 +161,11 @@ describe('verificarAssinaturaCompleta — cada termo reprova sozinho', () => {
 	 */
 	it('chave RSA abaixo do mínimo invalida, mesmo com assinatura correta', async () => {
 		const { bundle } = gerarSelo(1024);
-		const doc = await PDFDocument.create();
-		doc.addPage([595, 842]).drawText('Chave fraca', { x: 50, y: 800, size: 12 });
-		const fraco = await selarPdfInstitucional(await doc.save(), 'FULANO DE TAL', {
-			env: { SELO_INSTITUCIONAL_PEM: bundle }
-		});
-		if (!fraco.ok) throw new Error(`selo falhou: ${fraco.motivo}`);
-
-		const cmsFraco = parseCms(extrairCmsDoPdf(fraco.pdf)!.cmsDer)!;
+		const fraco = await selarPdfDeTeste(bundle, 'Chave fraca');
 		const anterior = trustStoreFalso;
-		const caStore = forge.pki.createCaStore();
-		caStore.addCertificate(cmsFraco.certificate);
-		trustStoreFalso = {
-			disponivel: true,
-			roots: [cmsFraco.certificate],
-			intermediates: [],
-			caStore
-		};
+		trustStoreFalso = await montarTrustStore(fraco);
 		try {
-			const r = await verificarAssinaturaCompleta(fraco.pdf);
+			const r = await verificarAssinaturaCompleta(fraco);
 			expect(r.checks.integridade).toBe(true);
 			expect(r.checks.assinaturaRsa).toBe(true);
 			expect(r.checks.cobertura).toBe(true);
@@ -420,12 +230,7 @@ describe('verificarAssinaturaCompleta — cada termo reprova sozinho', () => {
 	 */
 	it('trust store indisponível reprova quando a env exige cadeia', async () => {
 		const anterior = trustStoreFalso;
-		trustStoreFalso = {
-			disponivel: false,
-			roots: [],
-			intermediates: [],
-			caStore: forge.pki.createCaStore()
-		};
+		trustStoreFalso = trustStoreVazio();
 		try {
 			const semExigir = await verificarAssinaturaCompleta(pdfSelado);
 			expect(semExigir.checks.cadeiaIcpBrasil).toBe('indisponivel');
