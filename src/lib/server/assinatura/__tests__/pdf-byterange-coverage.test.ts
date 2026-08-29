@@ -138,3 +138,72 @@ describe('avaliarCoberturaAssinatura', () => {
 		expect(res.ok).toBe(false);
 	});
 });
+
+/**
+ * As seis asserções acima cobrem o que vem DEPOIS da região assinada. A defesa
+ * tem outras duas metades, e uma varredura de mutação mostrou que nenhuma
+ * estava presa: apagar a exigência de `a === 0`, ou qualquer das duas checagens
+ * do gap, deixava a suíte inteira verde.
+ *
+ * O /ByteRange é `[a b c d]` = assina `[a, a+b)` ∪ `[c, c+d)`. Sobram dois
+ * lugares para esconder bytes sem tocar no que é assinado:
+ *
+ *   - **antes de `a`** — se `a > 0`, o começo do arquivo fica fora da
+ *     assinatura (header, objetos, o que estiver lá);
+ *   - **no gap `[a+b, c)`** — que só pode conter o placeholder `<hex>` do
+ *     /Contents. Qualquer outra coisa ali é conteúdo não assinado no MEIO do
+ *     documento.
+ */
+describe('avaliarCoberturaAssinatura — o que fica FORA dos dois trechos', () => {
+	it('rejeita /ByteRange que não começa no byte 0', async () => {
+		const extr = extrairCmsDoPdf(signedPdf)!;
+		const [a, b, c, d] = extr.byteRange;
+		expect(a).toBe(0); // o real começa em 0; a mutação é deslocá-lo
+		const res = await avaliarCoberturaAssinatura(signedPdf, [8, b - 8, c, d]);
+		expect(res.ok).toBe(false);
+		expect(res.motivo).toMatch(/byte 0/);
+	});
+
+	it('rejeita byte fora do alfabeto hex dentro do placeholder /Contents', async () => {
+		const extr = extrairCmsDoPdf(signedPdf)!;
+		const [a, b, c, d] = extr.byteRange;
+		// Escreve um 'Z' logo após o '<' — continua do mesmo tamanho, então os
+		// offsets do /ByteRange seguem válidos e só o CONTEÚDO do gap muda.
+		const adulterado = new Uint8Array(signedPdf);
+		expect(adulterado[a + b]).toBe(0x3c); // '<' — o gap realmente começa aqui
+		adulterado[a + b + 1] = 0x5a; // 'Z'
+		const res = await avaliarCoberturaAssinatura(adulterado, [a, b, c, d]);
+		expect(res.ok).toBe(false);
+		expect(res.motivo).toMatch(/fora do placeholder hex/);
+	});
+
+	/**
+	 * O gap real termina exatamente no `>` do placeholder. O ataque, então, não é
+	 * plantar bytes num vão que não existe — é DECLARAR um gap mais largo, já que
+	 * quem escreve o /ByteRange é o próprio arquivo. Alargar `c` empurra bytes de
+	 * conteúdo para dentro do gap, e tudo que cai ali deixa de ser assinado.
+	 */
+	it('rejeita gap alargado que engole conteúdo após o fechamento do /Contents', async () => {
+		const extr = extrairCmsDoPdf(signedPdf)!;
+		const [a, b, c, d] = extr.byteRange;
+		let fecha = c - 1;
+		while (fecha > a + b && signedPdf[fecha] !== 0x3e /* '>' */) fecha--;
+		expect(signedPdf[fecha]).toBe(0x3e); // o gap real acaba no fechamento
+
+		// Empurra o início do 2º trecho 4 bytes adiante: esses 4 bytes de conteúdo
+		// passam a morar no gap, fora da assinatura. `c+d` continua no mesmo lugar.
+		const desloc = 4;
+		expect(signedPdf.subarray(c, c + desloc).some((x) => x > 0x20)).toBe(true);
+		const res = await avaliarCoberturaAssinatura(signedPdf, [a, b, c + desloc, d - desloc]);
+		expect(res.ok).toBe(false);
+		expect(res.motivo).toMatch(/após o fechamento do \/Contents/);
+	});
+
+	it('rejeita /ByteRange cujos trechos estouram o arquivo', async () => {
+		const extr = extrairCmsDoPdf(signedPdf)!;
+		const [a, b, c] = extr.byteRange;
+		const res = await avaliarCoberturaAssinatura(signedPdf, [a, b, c, signedPdf.length]);
+		expect(res.ok).toBe(false);
+		expect(res.motivo).toMatch(/inconsistentes/);
+	});
+});
