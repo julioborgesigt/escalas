@@ -235,9 +235,35 @@ export const CACHE_PRIVADO = 'private, no-store';
  * Usa filename* (UTF-8 percent-encoded) como valor principal e um fallback ASCII.
  *
  * Uso: `'Content-Disposition': contentDisposition('Escala 2024-01-15.pdf')`
+ *
+ * **O nome pode vir DE FORA**, e é por isso que as duas metades escapam coisas
+ * diferentes. `policiais/historico/[eventoId]/documento` e
+ * `policiais/solicitacoes/[solicitacaoId]/documento` servem o `documento_nome`
+ * gravado no upload da portaria, que só passa por `slice(0, 200)`: quem escolhe
+ * o nome é quem sobe o arquivo. As duas metades têm gramáticas distintas:
+ *
+ * - `filename=` é uma **quoted-string** (RFC 9110): dentro dela, `\` é o
+ *   quote-pair. Escapar só a aspa deixava `portaria\` virar `filename="portaria\"`,
+ *   onde o `\` do nome consome a aspa de fechamento — a string nunca fecha e o
+ *   parser passa a ler `; filename*=UTF-8''…` como parte do nome. Os DOIS
+ *   (`\` e `"`) precisam de quote-pair, e a barra primeiro;
+ * - `filename*=` é um **ext-value** (RFC 8187): `attr-char` NÃO inclui `'`,
+ *   `(`, `)` nem `*`, que são justamente os que `encodeURIComponent` deixa
+ *   passar. A apóstrofe é a que machuca — a gramática é
+ *   `charset "'" [language] "'" value-chars`, então uma terceira apóstrofe faz
+ *   um parser estrito cortar o valor no lugar errado.
+ *
+ * CR/LF já morriam nas duas metades (fora de `\x20-\x7E` no fallback,
+ * percent-encoded no ext-value) — nunca houve response splitting aqui, e o
+ * teste em `__tests__/api-content-disposition.test.ts` prende isso.
  */
 export function contentDisposition(filename: string): string {
-	const ascii = filename.replace(/[^\x20-\x7E]/g, '_').replace(/"/g, '\\"');
-	const encoded = encodeURIComponent(filename);
+	// Ordem obrigatória: a barra primeiro, senão o `\` recém-inserido pelo
+	// escape da aspa seria escapado de novo.
+	const ascii = filename.replace(/[^\x20-\x7E]/g, '_').replace(/[\\"]/g, '\\$&');
+	const encoded = encodeURIComponent(filename).replace(
+		/['()*]/g,
+		(c) => `%${c.charCodeAt(0).toString(16).toUpperCase()}`
+	);
 	return `attachment; filename="${ascii}"; filename*=UTF-8''${encoded}`;
 }
