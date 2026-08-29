@@ -90,7 +90,10 @@ describe('carregarRelatorioExtraParaAssinatura — quem passa', () => {
 	 */
 	it('o supervisor designado passa, com tudo em ordem', async () => {
 		const r = await carregarRelatorioExtraParaAssinatura(db, params, supervisor());
-		expect(r.recusa).toBeUndefined();
+		// `if` e não `expect(...).toBeUndefined()`: a asserção é de runtime e não
+		// estreita a união de retorno, então o acesso a `giseId` abaixo não
+		// compilaria. O `throw` é o type guard.
+		if (r.recusa) throw new Error('esperava autorização, veio recusa');
 		expect(r.giseId).toBe(100);
 		expect(r.secId).toBe(7);
 	});
