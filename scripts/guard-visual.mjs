@@ -94,12 +94,24 @@ const REGRAS_ESTRITAS = [
 		// mão — remendo de quando o token dava preto. Redundantes agora, e são
 		// exatamente o vetor pelo qual a divergência voltaria: quem "conserta"
 		// um botão no call site não conserta os outros 105.
-		descricao: '`text-white`/`text-black` à mão sobre preset preenchido',
-		saida: 'Remova. A cor vem de `--color-<canal>-contrast-500` no theme.css.',
-		testeClasse: (cls) =>
-			/\bpreset-filled-/.test(cls) && /(?:^|\s)(text-white|text-black)(?=\s|$)/.test(cls)
-				? [cls.match(/(?:^|\s)(text-white|text-black)(?=\s|$)/)[1]]
-				: []
+		//
+		// **QUALQUER cor de texto conta, não só branco e preto.** A primeira
+		// versão desta regra listava `text-white|text-black` e por isso deixou
+		// passar o `preset-filled-warning-500 text-warning-950` do botão
+		// "Ass. Extra" — que renderizava com texto ESCURO depois de o token já
+		// ter passado a branco, e foi o usuário quem viu na tela. Um remendo de
+		// cor de texto sobre preset preenchido é sempre o mesmo erro,
+		// independentemente do tom que ele escolheu.
+		descricao: 'cor de texto à mão sobre preset preenchido (a cor é decisão de tema)',
+		saida: 'Remova a classe `text-*`. A cor vem de `--color-<canal>-contrast-500` no theme.css.',
+		testeClasse: (cls) => {
+			if (!/\bpreset-filled-/.test(cls)) return [];
+			const re = new RegExp(
+				`(?:^|[\\s'"\`{])(text-(?:white|black|(?:${CANAIS})-[0-9]{2,3}))${LIMITE}`,
+				'g'
+			);
+			return [...cls.matchAll(re)].map((m) => m[1]);
+		}
 	},
 	{
 		id: 'cor-crua',
@@ -148,22 +160,63 @@ function arquivos(dir) {
 }
 
 /**
- * Extrai atributos de classe, com a linha em que cada um começa.
+ * Extrai atributos de classe e os expande nas COMBINAÇÕES que de fato
+ * renderizam, com a linha em que cada uma começa.
  *
- * As três formas que aparecem no projeto: `class="…"`, `` class={`…`} `` e
- * `class={'…'}`. A flag `s` é obrigatória — atributo de classe longo quebra em
- * várias linhas no Prettier deste repo, e sem ela o regex pararia na primeira.
+ * A expansão é o que torna as regras de co-ocorrência corretas, e ela nasceu de
+ * um falso negativo E de um falso positivo no mesmo arquivo. `CardGiseAtiva`
+ * escreve o botão assim:
+ *
+ *   class="btn btn-sm … {concluido
+ *       ? 'preset-filled-success-500'
+ *       : pendente
+ *         ? 'preset-filled-warning-500 text-warning-950'
+ *         : 'bg-surface-200 text-surface-600'}"
+ *
+ * Lendo o atributo inteiro como uma string só, `preset-filled-*` e
+ * `text-surface-600` parecem conviver — e não convivem, são ramos exclusivos.
+ * Lendo cada ramo isolado, some o `btn` do trecho estático. O que renderiza é
+ * **estático + UM ramo**, e é isso que esta função devolve: uma unidade por
+ * ramo, cada uma com o estático concatenado. Sem ramo, uma unidade só.
+ *
+ * As três formas de atributo no projeto: `class="…"`, `` class={`…`} `` e
+ * `class={'…'}`. A flag `s` é obrigatória — atributo longo quebra em várias
+ * linhas no Prettier deste repo, e sem ela o regex pararia na primeira.
  */
 function classesDe(texto) {
 	const saida = [];
 	for (const m of texto.matchAll(/class=(?:"([^"]*)"|\{`([^`]*)`\}|\{'([^']*)'\})/gs)) {
+		const bruto = (m[1] ?? m[2] ?? m[3] ?? '').replace(/\s+/g, ' ').trim();
+		const linha = texto.slice(0, m.index).split('\n').length;
+
+		// Ramos = literais de string dentro de `{…}`; estático = o resto.
+		const ramos = [...bruto.matchAll(/\{[^}]*\}/g)].flatMap((e) =>
+			[...e[0].matchAll(/'([^']*)'|"([^"]*)"|`([^`]*)`/g)].map((s) => s[1] ?? s[2] ?? s[3] ?? '')
+		);
+		const estatico = bruto.replace(/\{[^}]*\}/g, ' ').replace(/\s+/g, ' ').trim();
+
 		saida.push({
-			cls: (m[1] ?? m[2] ?? m[3] ?? '').replace(/\s+/g, ' ').trim(),
-			linha: texto.slice(0, m.index).split('\n').length
+			// Para regras que CONTAM ocorrências: o atributo uma vez só. Contar
+			// sobre as unidades expandidas multiplicaria cada token estático pelo
+			// número de ramos — foi o que inflou a baseline de `rounded` de 3 para
+			// 8 num arquivo em que nada mudou.
+			cls: bruto,
+			// Para regras de CO-OCORRÊNCIA: uma unidade por combinação renderizada.
+			unidades: ramos.length === 0 ? [estatico] : ramos.map((r) => `${estatico} ${r}`.trim()),
+			linha
 		});
 	}
 	return saida;
 }
+
+/**
+ * Um token de classe está delimitado por espaço **ou pelas aspas/chaves** que
+ * cercam um ramo de ternário. Foi exatamente isto que deixou
+ * `'preset-filled-warning-500 text-warning-950'` passar na primeira versão do
+ * guard: o `text-warning-950` termina em `'`, não em espaço, e o lookahead
+ * `(?=\s|$)` não casava. O bug foi encontrado pelo usuário na tela, não aqui.
+ */
+const LIMITE = `(?=[\\s'"\`{}]|$)`;
 
 function achadosDe(arquivo) {
 	const texto = readFileSync(arquivo, 'utf8');
@@ -177,8 +230,13 @@ function achadosDe(arquivo) {
 
 	for (const regra of [...REGRAS_ESTRITAS, ...REGRAS_BASELINE]) {
 		if (regra.testeClasse) {
-			for (const { cls, linha } of classes)
-				for (const t of regra.testeClasse(cls)) anota(regra, linha, t);
+			// Co-ocorrência: uma unidade por combinação renderizada. `Set` porque um
+			// mesmo remendo no trecho ESTÁTICO reapareceria em todos os ramos.
+			for (const { unidades, linha } of classes) {
+				const vistos = new Set();
+				for (const u of unidades)
+					for (const t of regra.testeClasse(u)) if (!vistos.has(t)) (vistos.add(t), anota(regra, linha, t));
+			}
 		} else if (regra.emClasse) {
 			for (const { cls, linha } of classes)
 				for (const m of cls.matchAll(regra.padrao)) anota(regra, linha, m[0].trim());
@@ -215,7 +273,12 @@ if (atualizar) {
 				_doc:
 					'Legado visual ACEITO, por arquivo. Gerado por `node scripts/guard-visual.mjs --atualizar`. ' +
 					'Só as regras COM BASELINE entram aqui — as estritas valem zero e não são negociáveis. ' +
-					'Este arquivo só deve ENCOLHER: número que cresce é regressão, não baseline nova.',
+					'Este arquivo só deve ENCOLHER: número que cresce é regressão, não baseline nova. ' +
+					'A ÚNICA exceção é conserto do próprio detector: quando o guard passa a enxergar ' +
+					'ocorrência que já existia (foi o caso em ago/2026, quando o delimitador de token ' +
+					'deixava passar classe colada em aspa dentro de ternário), o código não piorou e ' +
+					'regravar é o certo — mas diga isso no commit, senão a linha nova é indistinguível ' +
+					'de uma regressão aceita em silêncio.',
 				arquivos: arqs
 			},
 			null,

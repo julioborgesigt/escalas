@@ -61,16 +61,31 @@ de ago/2026 achou 185 botões com texto escuro contra 53 com branco **sem um
 `contrast-dark` e três para `contrast-light`, e os dois grupos se encostavam na
 mesma célula de tabela.
 
-Hoje os sete canais usam branco, com o fundo do preset escurecido um degrau para
-o contraste fechar (a tabela medida está no README §10). **As duas metades são
-inseparáveis** — trocar o token sem escurecer o fundo devolve 2,63:1 no botão
-mais usado do app.
+Hoje os sete canais usam branco, com o próprio `--color-X-500` descido ao tom
+acessível (a tabela medida está no README §10). **As duas metades são
+inseparáveis** — trocar o token de texto sem descer a cor devolve 2,63:1 no
+botão mais usado do app.
+
+**E a descida vai no TOKEN, não no preset.** A primeira tentativa escureceu só o
+fundo de `preset-filled-*` no `app.css`, para "não mexer em quem usa a cor sem
+ser botão". O resultado foi o oposto: os 109 `bg-primary-500` de chip, aba e
+paginação ficaram claros ao lado de botões escuros, e a tela passou a ter dois
+azuis — quem viu foi o dono do produto, não o guard. A lição tem forma própria:
+**escurecer no preset esconde a decisão de todo mundo que usa a cor sem ser
+botão.** Se o tom da cor mudou, ele mudou para todos os usos dela, e o lugar
+disso é a rampa. A exceção é `surface`, e ela está registrada no `app.css` com o
+motivo — lá o `-500` é a borda de 74 outlined e o cinza de 51 textos.
 
 Daí as três regras que o `guard:visual` mantém em ZERO, e o motivo de cada uma
 ser sobre não recopiar a decisão:
 
-1. **`text-white` no botão** — 33 call sites tinham o remendo, de quando o token
-   dava preto. Quem "conserta" um botão no call site não conserta os outros 105.
+1. **Cor de texto no botão** — 33 call sites tinham `text-white`, de quando o
+   token dava preto. Quem "conserta" um botão no call site não conserta os
+   outros 105. A regra cobre QUALQUER tom: a primeira versão dela listava só
+   branco e preto, e por isso deixou passar o
+   `preset-filled-warning-500 text-warning-950` do botão "Ass. Extra" — que
+   seguiu com texto escuro por uma versão inteira depois de o token já ser
+   branco. Um guard que só conhece o remendo que você já viu não é guard.
 2. **Preset preenchido que não é `-500`** — `preset-filled-surface-100` não
    existe no Skeleton. Doze call sites o usavam e renderizavam com fundo
    transparente, sem erro, sem aviso; pareciam outlined de propósito por causa

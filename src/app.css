@@ -120,44 +120,21 @@
  * `border-2` de erro do SignaturePad.
  * ------------------------------------------------------------------------- */
 
-/* Metade dois do texto branco em botão preenchido (BTN-1, ago/2026).
+/* Botão neutro: o único canal que ainda escurece AQUI, e não no token (BTN-4).
  *
- * O `theme.css` apontou `primary`/`warning`/`success`/`tertiary` para
- * `contrast-light`; o comentário de lá explica por quê. Sozinho aquilo
- * reprovaria em contraste — os canais `-500` são claros demais para texto
- * branco (medido sobre os oklch do tema, convertidos para sRGB):
+ * `primary`, `warning`, `success` e `tertiary` tiveram o próprio `--color-X-500`
+ * levado ao tom acessível no `theme.css`, e por isso saíram deste bloco. A
+ * primeira versão fazia o contrário — escurecia só o fundo do preset e deixava
+ * o token claro — e foi exatamente isso que quebrou na tela: os 109
+ * `bg-primary-500` de chip, aba e paginação continuaram claros ao lado de
+ * botões escuros. Escurecer no preset é esconder a decisão de todo mundo que
+ * usa a cor sem ser botão.
  *
- *   | canal        | branco sobre -500 | sobre o degrau abaixo |
- *   | ------------ | ----------------- | --------------------- |
- *   | primary      | 2,63:1  REPROVA   | -700 → 4,94:1         |
- *   | warning      | 2,81:1  REPROVA   | -700 → 5,13:1         |
- *   | success      | 3,43:1  só grande | -600 → 4,79:1         |
- *   | tertiary     | 3,40:1  só grande | -600 → 4,75:1         |
- *
- * `error-500` (4,76:1) e `secondary-500` (4,73:1) já passavam e não mudam.
- *
- * Só o FUNDO do preset preenchido muda — o token `--color-X-500` continua
- * intacto. É isso que mantém `preset-outlined-*` com a borda viva de sempre e
- * não mexe em nenhum `bg-primary-500` de chip ou indicador. Conferido: nenhum
- * call site sobrescreve `bg-*` sobre um `preset-filled-*`, então a regra sem
- * camada não atropela ninguém. */
-.preset-filled-primary-500 {
-	background-color: var(--color-primary-700);
-}
-.preset-filled-warning-500 {
-	background-color: var(--color-warning-700);
-}
-.preset-filled-success-500 {
-	background-color: var(--color-success-600);
-}
-.preset-filled-tertiary-500 {
-	background-color: var(--color-tertiary-600);
-}
-/* `surface` não entrou na troca de token — o botão neutro nunca teve texto
- * preto — mas entra AQUI, e o motivo é o mesmo: ele já vinha com texto claro
- * (`surface-contrast-500` = `surface-50`) sobre um cinza médio, dando 3,90:1.
- * Ficava abaixo do piso desde antes desta mudança, e deixá-lo assim abriria uma
- * exceção à régua no dia em que a régua foi escrita. `surface-600` → 6,81:1. */
+ * `surface` é a exceção, e tem motivo próprio: o `-500` dele é a BORDA de 74
+ * `preset-outlined-surface-500` e a cor de 51 `text-surface-500`. Ali o cinza
+ * médio está certo e é vida própria fora do botão; só o fundo preenchido
+ * precisa descer (3,90:1 → 6,44:1 com o `surface-50` de texto). Mover o token
+ * repintaria as bordas de metade do app para consertar dez botões. */
 .preset-filled-surface-500 {
 	background-color: var(--color-surface-600);
 }
