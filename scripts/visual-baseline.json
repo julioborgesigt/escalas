@@ -1,0 +1,133 @@
+{
+	"_doc": "Legado visual ACEITO, por arquivo. Gerado por `node scripts/guard-visual.mjs --atualizar`. Só as regras COM BASELINE entram aqui — as estritas valem zero e não são negociáveis. Este arquivo só deve ENCOLHER: número que cresce é regressão, não baseline nova.",
+	"arquivos": {
+		"src/lib/components/IconTooltip.svelte": {
+			"raio-legado": 1
+		},
+		"src/lib/components/ModalDownloadExtras.svelte": {
+			"surface-500-em-texto": 1
+		},
+		"src/lib/components/RodapeOpcaoTokenAssinatura.svelte": {
+			"surface-500-em-texto": 1
+		},
+		"src/lib/components/SignaturePad.svelte": {
+			"raio-legado": 1,
+			"surface-500-em-texto": 2
+		},
+		"src/lib/components/SkeletonCard.svelte": {
+			"raio-legado": 1
+		},
+		"src/lib/components/SkeletonTableRows.svelte": {
+			"raio-legado": 1
+		},
+		"src/lib/components/StatusSolicitacao.svelte": {
+			"raio-legado": 1
+		},
+		"src/routes/_components/SidebarNavegacao.svelte": {
+			"raio-legado": 1
+		},
+		"src/routes/auditoria/+page.svelte": {
+			"raio-legado": 2
+		},
+		"src/routes/auditoria/logs/+page.svelte": {
+			"raio-legado": 2
+		},
+		"src/routes/conf-ass/+page.svelte": {
+			"raio-legado": 2
+		},
+		"src/routes/escalas/[id]/_components/CalendarioSelecaoDias.svelte": {
+			"raio-legado": 3
+		},
+		"src/routes/escalas/[id]/_components/ListaFds.svelte": {
+			"raio-legado": 7
+		},
+		"src/routes/escalas/[id]/_components/TabelaPlantao.svelte": {
+			"raio-legado": 4
+		},
+		"src/routes/escalas/[id]/_components/TabelaServidores.svelte": {
+			"raio-legado": 8,
+			"surface-500-em-texto": 20
+		},
+		"src/routes/escalas/_components/ModalNovaEscala.svelte": {
+			"raio-legado": 3
+		},
+		"src/routes/escalas/_components/SecaoAssinaturas.svelte": {
+			"surface-500-em-texto": 1
+		},
+		"src/routes/escalas/_components/TabelaEscalas.svelte": {
+			"raio-legado": 5
+		},
+		"src/routes/gise/[id]/_components/GiseAbasUnidades.svelte": {
+			"surface-500-em-texto": 1
+		},
+		"src/routes/gise/[id]/_components/GiseCabecalho.svelte": {
+			"raio-legado": 1
+		},
+		"src/routes/gise/[id]/_components/GiseEquipeCard.svelte": {
+			"raio-legado": 10
+		},
+		"src/routes/gise/[id]/_components/GiseLoteAssinaturas.svelte": {
+			"raio-legado": 2,
+			"surface-500-em-texto": 5
+		},
+		"src/routes/gise/[id]/_components/GiseSeccional.svelte": {
+			"raio-legado": 6,
+			"surface-500-em-texto": 3
+		},
+		"src/routes/gise/[id]/_components/GiseSlotUnidade.svelte": {
+			"raio-legado": 2
+		},
+		"src/routes/gise/[id]/_components/MarcadorPresenca.svelte": {
+			"raio-legado": 2
+		},
+		"src/routes/gise/[id]/_components/modais/ModalDatasHoras.svelte": {
+			"raio-legado": 1
+		},
+		"src/routes/gise/[id]/_components/supervisao/BotoesEdicaoPapel.svelte": {
+			"raio-legado": 2
+		},
+		"src/routes/gise/[id]/_components/supervisao/SupervisaoPapelAssessor.svelte": {
+			"raio-legado": 1
+		},
+		"src/routes/gise/_components/ModalCriarGise.svelte": {
+			"raio-legado": 3
+		},
+		"src/routes/gise/_components/SecaoHistorico.svelte": {
+			"raio-legado": 2,
+			"surface-500-em-texto": 3
+		},
+		"src/routes/painel/+page.svelte": {
+			"raio-legado": 2
+		},
+		"src/routes/perfil/+page.svelte": {
+			"raio-legado": 1
+		},
+		"src/routes/perfil/_components/CartaoPasskey.svelte": {
+			"surface-500-em-texto": 2
+		},
+		"src/routes/policiais/[id]/_components/CartaoPasskeyServidor.svelte": {
+			"surface-500-em-texto": 1
+		},
+		"src/routes/produtividade/+page.svelte": {
+			"surface-500-em-texto": 2
+		},
+		"src/routes/produtividade/_components/SecaoGraficos.svelte": {
+			"raio-legado": 1
+		},
+		"src/routes/recebidos/+page.svelte": {
+			"raio-legado": 6
+		},
+		"src/routes/res-gise/_components/ConfigurarFormulario.svelte": {
+			"surface-500-em-texto": 3
+		},
+		"src/routes/termo/dpo/+page.svelte": {
+			"raio-legado": 1
+		},
+		"src/routes/unidades/+page.svelte": {
+			"raio-legado": 3
+		},
+		"src/routes/validar/[hash]/+page.svelte": {
+			"raio-legado": 1
+		}
+	}
+}

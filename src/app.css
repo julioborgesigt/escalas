@@ -120,6 +120,94 @@
  * `border-2` de erro do SignaturePad.
  * ------------------------------------------------------------------------- */
 
+/* Metade dois do texto branco em botão preenchido (BTN-1, ago/2026).
+ *
+ * O `theme.css` apontou `primary`/`warning`/`success`/`tertiary` para
+ * `contrast-light`; o comentário de lá explica por quê. Sozinho aquilo
+ * reprovaria em contraste — os canais `-500` são claros demais para texto
+ * branco (medido sobre os oklch do tema, convertidos para sRGB):
+ *
+ *   | canal        | branco sobre -500 | sobre o degrau abaixo |
+ *   | ------------ | ----------------- | --------------------- |
+ *   | primary      | 2,63:1  REPROVA   | -700 → 4,94:1         |
+ *   | warning      | 2,81:1  REPROVA   | -700 → 5,13:1         |
+ *   | success      | 3,43:1  só grande | -600 → 4,79:1         |
+ *   | tertiary     | 3,40:1  só grande | -600 → 4,75:1         |
+ *
+ * `error-500` (4,76:1) e `secondary-500` (4,73:1) já passavam e não mudam.
+ *
+ * Só o FUNDO do preset preenchido muda — o token `--color-X-500` continua
+ * intacto. É isso que mantém `preset-outlined-*` com a borda viva de sempre e
+ * não mexe em nenhum `bg-primary-500` de chip ou indicador. Conferido: nenhum
+ * call site sobrescreve `bg-*` sobre um `preset-filled-*`, então a regra sem
+ * camada não atropela ninguém. */
+.preset-filled-primary-500 {
+	background-color: var(--color-primary-700);
+}
+.preset-filled-warning-500 {
+	background-color: var(--color-warning-700);
+}
+.preset-filled-success-500 {
+	background-color: var(--color-success-600);
+}
+.preset-filled-tertiary-500 {
+	background-color: var(--color-tertiary-600);
+}
+/* `surface` não entrou na troca de token — o botão neutro nunca teve texto
+ * preto — mas entra AQUI, e o motivo é o mesmo: ele já vinha com texto claro
+ * (`surface-contrast-500` = `surface-50`) sobre um cinza médio, dando 3,90:1.
+ * Ficava abaixo do piso desde antes desta mudança, e deixá-lo assim abriria uma
+ * exceção à régua no dia em que a régua foi escrita. `surface-600` → 6,81:1. */
+.preset-filled-surface-500 {
+	background-color: var(--color-surface-600);
+}
+
+/* Hover de botão preenchido escurece; CLAREAR destrói o contraste (BTN-2).
+ *
+ * O `.btn` do Skeleton aplica `filter: brightness(125%)` no hover do tema claro.
+ * Com texto ESCURO isso era inofensivo — o fundo clareava, o texto ficava mais
+ * preto ainda. Com texto BRANCO é fatal, e a razão é aritmética: o `filter`
+ * multiplica os dois lados, mas o branco JÁ está em 1.0 e satura, enquanto o
+ * fundo continua subindo. O par se fecha.
+ *
+ * Medido em todos os canais preenchidos, no hover de hoje:
+ *
+ *   primary 3,34  ·  warning 3,49  ·  success 3,23  ·  tertiary 3,20
+ *   error   3,44  ·  secondary 3,18  ·  surface-500 2,73
+ *
+ * Note as três últimas: `error`, `secondary` e `surface-500` já eram brancas
+ * ANTES desta mudança. Ou seja, 41 botões do app já perdiam o contraste no
+ * hover e ninguém tinha medido — o BTN-1 não criou este problema, só o tornaria
+ * majoritário se ficasse como estava.
+ *
+ * Escurecer é MUITO melhor, mas não é grátis, e o valor foi medido em vez de
+ * escolhido: o `filter` multiplica as luminâncias e o `+0,05` da fórmula WCAG
+ * não acompanha, então qualquer desvio de 1.0 comprime o ratio na direção de
+ * 1 — só que devagar. Sobre o pior canal (`secondary`, 4,71:1 em repouso):
+ *
+ *   brightness | 1.25 | 1.00 | 0.92 | 0.85 | 0.75
+ *   contraste  | 3,18 | 4,71 | 4,51 | 4,32 | 3,97
+ *
+ * `0.92` é o degrau que ainda dá hover perceptível mantendo TODOS os sete
+ * canais em AA — o pior caso da matriz inteira fica em 4,51:1.
+ *
+ * **Vale para os DOIS temas, e isto foi medido, não presumido.** A primeira
+ * versão desta regra escopava em `html:not(.dark)`, no raciocínio de que o
+ * `brightness(75%)` que o Skeleton usa no escuro já escurece e portanto já
+ * estaria certo. Está errado: 75% é escurecimento DEMAIS, e com texto branco
+ * derrubava os sete canais para a faixa de 3,97–4,25:1 no tema escuro. Antes
+ * desta mudança aquilo passava porque o texto era escuro (a razão ia de 7,98
+ * para 5,06); com texto branco, não passa mais. Medir só o tema claro teria
+ * deixado metade do app abaixo do piso.
+ *
+ * Escopo pelo `[class*=...]`, não por lista: preset preenchido NOVO nasce com o
+ * hover certo sem ninguém lembrar de vir aqui. E como todo este bloco fica fora
+ * de `@layer`, a regra vence tanto a base quanto o `@variant dark` do Skeleton
+ * — que é exatamente o que se quer aqui, já que os dois estavam errados. */
+:is(.btn, .btn-icon)[class*='preset-filled-']:not(:disabled):hover {
+	filter: brightness(0.92);
+}
+
 /* `transform` do Skeleton × `translate` do Tailwind v4 — NÃO se substituem.
  *
  * Os utilitários `translate-*`/`scale-*`/`rotate-*` do Tailwind v4 escrevem as

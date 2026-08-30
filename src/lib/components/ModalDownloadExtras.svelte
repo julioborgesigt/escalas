@@ -251,7 +251,7 @@
 						<button
 							type="button"
 							class="btn text-xs px-3 py-2 rounded-xl font-bold flex items-center justify-center gap-1.5 transition-all {todosAssinados
-								? 'preset-filled-primary-500 text-white'
+								? 'preset-filled-primary-500'
 								: 'bg-surface-200 text-surface-700 dark:bg-surface-700 dark:text-surface-200 cursor-not-allowed'}"
 							disabled={!todosAssinados}
 							onclick={() => baixarTodos(false)}
@@ -275,7 +275,7 @@
 							<button
 								type="button"
 								class="btn text-xs px-3 py-2 rounded-xl font-bold flex items-center justify-center gap-1.5 transition-all {todosAssinados
-									? 'preset-filled-tertiary-500 text-white'
+									? 'preset-filled-tertiary-500'
 									: 'bg-surface-200 text-surface-700 dark:bg-surface-700 dark:text-surface-200 cursor-not-allowed'}"
 								disabled={!todosAssinados}
 								onclick={() => baixarTodos(true)}

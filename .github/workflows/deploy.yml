@@ -184,6 +184,19 @@ jobs:
       - name: Guard — siglas de achado catalogadas
         run: npm run guard:achados
 
+      # Guard visual: a régua do README §10 não se desfaz um call site por vez.
+      # Quatro regras ESTRITAS valem zero e não têm baseline, porque zero é o
+      # estado de hoje: preset preenchido que não é `-500` (o `-surface-100` que
+      # 12 call sites usavam não existe no Skeleton e não gerava CSS NENHUM),
+      # `hover:preset-filled-*` (gera classe própria e escapa do fundo
+      # escurecido, voltando a 2,63:1), `text-white` à mão sobre preset
+      # preenchido (a cor do texto é decisão de TEMA, em --color-*-contrast-500)
+      # e cor crua da paleta Tailwind. O legado de `rounded`/`text-surface-500`
+      # entra por `scripts/visual-baseline.json` e só não pode CRESCER. Se
+      # reprovar: a saída nomeia o substituto de cada caso.
+      - name: Guard — régua visual
+        run: npm run guard:visual
+
       # Guard de documentação: arquivo NOVO em src/lib/db/ tem de nascer com
       # cabeçalho de módulo e JSDoc nos exports. Só arquivos ADICIONADOS no
       # diff — o legado é pago em levas, medido por `npm run docs:inventario`
