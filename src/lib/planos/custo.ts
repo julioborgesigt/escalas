@@ -1,0 +1,276 @@
+/**
+ * O cálculo de custo do plano operacional: por membro, por equipe e o
+ * consolidado do Anexo II.
+ *
+ * ## Tudo em centavos, do começo ao fim
+ *
+ * Nenhuma função aqui vê `real`. As diárias entram em MEIAS DIÁRIAS inteiras
+ * (ver `diarias.ts`), e a única divisão do módulo é a do arredondamento da meia
+ * diária, feita uma vez e com regra escrita. É o que faz o total bater com a
+ * planilha da corporação até o último centavo.
+ *
+ * ## Membro sem classe não custa zero — impede a emissão
+ *
+ * `policiais.classe` é `text NOT NULL DEFAULT ''`, então existe servidor sem
+ * classe no cadastro. Sem faixa, não há valor/hora aplicável, e as duas saídas
+ * fáceis são ambas erradas: cobrar zero produz um documento orçado a menor que
+ * nada denuncia, e escolher a faixa mais barata inventa um dado.
+ *
+ * A saída daqui é a terceira: o membro entra em `pendencias` e NÃO entra no
+ * total. `custoDoPlano` devolve essa lista, a tela a exibe como bloqueio e o
+ * endpoint de download recusa a emissão enquanto ela não estiver vazia. O custo
+ * calculado sem os pendentes é PARCIAL de propósito — é número para a tela
+ * mostrar o que já fechou, nunca para imprimir.
+ */
+import { faixaDoPolicial, categoriaDaFaixa, type CategoriaAnexo } from './faixa-custo';
+import type { TipoDiaria } from './diarias';
+import type { TipoCusto } from './rotulos';
+
+/** Os valores aplicados — o recorte de `custo_parametros` que o cálculo usa. */
+export interface ValoresCusto {
+	oip_cd_normal: number;
+	oip_ab_normal: number;
+	dpc_12_normal: number;
+	dpc_3e_normal: number;
+	oip_cd_plus: number;
+	oip_ab_plus: number;
+	dpc_12_plus: number;
+	dpc_3e_plus: number;
+	diaria_estadual: number;
+	diaria_interestadual: number;
+}
+
+/** O recorte de `plano_equipes` que o cálculo consulta. */
+export interface EquipeParaCusto {
+	id: number;
+	nome: string;
+	tipo_custo: TipoCusto;
+	horas_normais: number;
+	horas_plus: number;
+	diaria_tipo: TipoDiaria | null;
+	diarias_meias: number;
+}
+
+/** O recorte de `plano_equipe_membros` (+ join em `policiais`) que o cálculo consulta. */
+export interface MembroParaCusto {
+	id: number;
+	policial_id: number;
+	nome: string;
+	/** Congelado na linha do membro — a base de cálculo não acompanha promoção. */
+	cargo_snapshot: string;
+	classe_snapshot: string;
+}
+
+/** O custo de UM membro, já resolvido. */
+export interface CustoMembro {
+	membro: MembroParaCusto;
+	/** `null` quando a classe não resolve faixa — a linha não entra no total. */
+	categoria: CategoriaAnexo | null;
+	/** Centavos. Zero quando a equipe é `sem_custo` ou quando há pendência. */
+	total: number;
+}
+
+/** Um servidor que impede a emissão do documento. */
+export interface Pendencia {
+	policial_id: number;
+	nome: string;
+	equipe: string;
+	motivo: string;
+}
+
+/** O custo de uma equipe. */
+export interface CustoEquipe {
+	equipe: EquipeParaCusto;
+	membros: CustoMembro[];
+	/** Centavos, somando só os membros com faixa resolvida. */
+	total: number;
+}
+
+/** Uma linha do consolidado do Anexo II. */
+export interface LinhaConsolidado {
+	categoria: CategoriaAnexo;
+	/** Quantos SERVIDORES entram nesta linha (é o que o modelo chama "QUANTIDADE"). */
+	quantidade: number;
+	/** Centavos. */
+	total: number;
+}
+
+/** O Anexo II inteiro. */
+export interface Consolidado {
+	/** Bloco "DIÁRIA DE REFORÇO OPERACIONAL (HORAS EXTRAS)". */
+	dro: LinhaConsolidado[];
+	/** Bloco "DIÁRIAS". */
+	diarias: LinhaConsolidado[];
+	droTotal: number;
+	diariasTotal: number;
+	/** Centavos — o TOTAL GERAL do documento. */
+	totalGeral: number;
+}
+
+/** O resultado completo, que a tela e o PDF consomem. */
+export interface CustoPlano {
+	equipes: CustoEquipe[];
+	consolidado: Consolidado;
+	/**
+	 * Servidores sem faixa resolvida. **Lista não vazia = documento não pode ser
+	 * emitido**, e o total abaixo é parcial.
+	 */
+	pendencias: Pendencia[];
+	/** Centavos, somando só o que fechou. */
+	total: number;
+}
+
+/** O valor/hora aplicável a uma faixa, na espécie pedida. */
+function valorHora(
+	valores: ValoresCusto,
+	faixa: 'oip_cd' | 'oip_ab' | 'dpc_12' | 'dpc_3e',
+	especie: 'normal' | 'plus'
+): number {
+	return valores[`${faixa}_${especie}` as keyof ValoresCusto];
+}
+
+/**
+ * Custo de diárias de UM servidor, em centavos.
+ *
+ * A conta é `meias × valor / 2`. A divisão vem por ÚLTIMO, depois da
+ * multiplicação, para que meia diária de um valor ímpar em centavos não perca
+ * precisão no meio do caminho. O arredondamento é meio-para-cima
+ * (`Math.round`), que é a convenção da corporação para fração de centavo.
+ */
+export function custoDeDiarias(meias: number, valorDiaria: number): number {
+	return Math.round((meias * valorDiaria) / 2);
+}
+
+/** O custo de um membro dentro de uma equipe. */
+function custoDoMembro(
+	membro: MembroParaCusto,
+	equipe: EquipeParaCusto,
+	valores: ValoresCusto
+): CustoMembro {
+	const faixa = faixaDoPolicial(membro.cargo_snapshot, membro.classe_snapshot);
+
+	// Sem custo não precisa de faixa: ninguém recebe, então classe em branco não
+	// impede nada. Tratar isso como pendência travaria a emissão de um plano
+	// inteiramente diurno em dia útil — o caso mais comum de todos.
+	if (equipe.tipo_custo === 'sem_custo') {
+		return { membro, categoria: faixa ? categoriaDaFaixa(faixa) : null, total: 0 };
+	}
+
+	if (!faixa) return { membro, categoria: null, total: 0 };
+
+	const categoria = categoriaDaFaixa(faixa);
+
+	if (equipe.tipo_custo === 'hora_extra') {
+		const total =
+			equipe.horas_normais * valorHora(valores, faixa, 'normal') +
+			equipe.horas_plus * valorHora(valores, faixa, 'plus');
+		return { membro, categoria, total };
+	}
+
+	// Diária: valor único, sem faixa de classe. A faixa ainda foi resolvida
+	// acima porque é ela que decide a CATEGORIA do Anexo II (Delegados/Agentes).
+	const valorDiaria =
+		equipe.diaria_tipo === 'interestadual' ? valores.diaria_interestadual : valores.diaria_estadual;
+	return { membro, categoria, total: custoDeDiarias(equipe.diarias_meias, valorDiaria) };
+}
+
+/**
+ * O custo de uma equipe e de cada um dos seus membros.
+ *
+ * Membro sem faixa resolvida entra na lista com `categoria: null` e `total: 0`,
+ * e NÃO soma. Quem transforma isso em bloqueio é `custoDoPlano`.
+ */
+export function custoDaEquipe(
+	equipe: EquipeParaCusto,
+	membros: MembroParaCusto[],
+	valores: ValoresCusto
+): CustoEquipe {
+	const linhas = membros.map((m) => custoDoMembro(m, equipe, valores));
+	return {
+		equipe,
+		membros: linhas,
+		total: linhas.reduce((soma, l) => soma + l.total, 0)
+	};
+}
+
+/** Acumula uma linha do consolidado, criando-a na primeira ocorrência. */
+function acumular(destino: LinhaConsolidado[], categoria: CategoriaAnexo, total: number): void {
+	const linha = destino.find((l) => l.categoria === categoria);
+	if (linha) {
+		linha.quantidade += 1;
+		linha.total += total;
+		return;
+	}
+	destino.push({ categoria, quantidade: 1, total });
+}
+
+/**
+ * O custo do plano inteiro, com o consolidado do Anexo II e as pendências.
+ *
+ * `equipes` traz cada equipe já com os seus membros. A ordem de saída preserva a
+ * de entrada — o Anexo I imprime as equipes na ordem em que o admin as montou.
+ */
+export function custoDoPlano(
+	equipes: Array<{ equipe: EquipeParaCusto; membros: MembroParaCusto[] }>,
+	valores: ValoresCusto
+): CustoPlano {
+	const calculadas = equipes.map(({ equipe, membros }) => custoDaEquipe(equipe, membros, valores));
+
+	const dro: LinhaConsolidado[] = [];
+	const diarias: LinhaConsolidado[] = [];
+	const pendencias: Pendencia[] = [];
+
+	for (const ce of calculadas) {
+		for (const linha of ce.membros) {
+			if (!linha.categoria) {
+				// Sem custo não vira pendência: ver `custoDoMembro`.
+				if (ce.equipe.tipo_custo !== 'sem_custo') {
+					pendencias.push({
+						policial_id: linha.membro.policial_id,
+						nome: linha.membro.nome,
+						equipe: ce.equipe.nome,
+						motivo: linha.membro.classe_snapshot.trim()
+							? `Classe "${linha.membro.classe_snapshot}" não corresponde ao cargo ${linha.membro.cargo_snapshot || '(vazio)'}`
+							: 'Servidor sem classe cadastrada'
+					});
+				}
+				continue;
+			}
+			if (ce.equipe.tipo_custo === 'hora_extra') acumular(dro, linha.categoria, linha.total);
+			else if (ce.equipe.tipo_custo === 'diaria') acumular(diarias, linha.categoria, linha.total);
+		}
+	}
+
+	// Ordem fixa: Delegados antes de Agentes, como no modelo.
+	const ordenar = (l: LinhaConsolidado[]) =>
+		l.sort((a, b) => (a.categoria === b.categoria ? 0 : a.categoria === 'dpc' ? -1 : 1));
+	ordenar(dro);
+	ordenar(diarias);
+
+	const droTotal = dro.reduce((s, l) => s + l.total, 0);
+	const diariasTotal = diarias.reduce((s, l) => s + l.total, 0);
+
+	return {
+		equipes: calculadas,
+		consolidado: {
+			dro,
+			diarias,
+			droTotal,
+			diariasTotal,
+			totalGeral: droTotal + diariasTotal
+		},
+		pendencias,
+		total: calculadas.reduce((s, ce) => s + ce.total, 0)
+	};
+}
+
+/**
+ * O plano pode ser emitido?
+ *
+ * Fonte única do gate, consultada pela tela e pelo endpoint de download — o
+ * botão escondido não é autorização, e as duas precisam concordar sobre o que
+ * bloqueia.
+ */
+export function podeEmitir(custo: CustoPlano): boolean {
+	return custo.pendencias.length === 0;
+}
