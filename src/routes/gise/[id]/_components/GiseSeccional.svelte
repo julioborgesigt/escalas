@@ -542,7 +542,7 @@
 								<input type="hidden" name="secId" value={sec.id} />
 								<button
 									type="submit"
-									class="{classeAcaoBarra} preset-filled-success-500 text-white border-2 border-success-600/30 hover:border-success-600 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed transition-all flex-1 sm:flex-initial"
+									class="{classeAcaoBarra} preset-filled-success-500 border-2 border-success-600/30 hover:border-success-600 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed transition-all flex-1 sm:flex-initial"
 									disabled={pendingCrud ||
 										(sec.unidades ?? []).length === 0 ||
 										(sec.unidades ?? []).some((s: GiseUnidadeSlot) => s.unidade_id === null) ||

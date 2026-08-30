@@ -49,6 +49,46 @@ Antes de implementar qualquer solução envolvendo Svelte ou SvelteKit, **consul
 
 Padrões visuais (cores, tipografia, modais, botões, z-index, tabelas) vivem no
 [`README.md`](README.md) §10 — não reinventar tokens nem classes à mão.
+Verificado no CI por `npm run guard:visual`.
+
+## Cor de botão é decisão de TEMA, não de call site
+
+O preset preenchido do Skeleton é duas linhas: `background-color:
+var(--color-X-500)` e `color: var(--color-X-contrast-500)`. Nenhum componente
+escolhe a cor do texto — ela sai inteira do token. Foi por isso que a varredura
+de ago/2026 achou 185 botões com texto escuro contra 53 com branco **sem um
+único call site culpado**: o `theme.css` apontava quatro canais para
+`contrast-dark` e três para `contrast-light`, e os dois grupos se encostavam na
+mesma célula de tabela.
+
+Hoje os sete canais usam branco, com o fundo do preset escurecido um degrau para
+o contraste fechar (a tabela medida está no README §10). **As duas metades são
+inseparáveis** — trocar o token sem escurecer o fundo devolve 2,63:1 no botão
+mais usado do app.
+
+Daí as três regras que o `guard:visual` mantém em ZERO, e o motivo de cada uma
+ser sobre não recopiar a decisão:
+
+1. **`text-white` no botão** — 33 call sites tinham o remendo, de quando o token
+   dava preto. Quem "conserta" um botão no call site não conserta os outros 105.
+2. **Preset preenchido que não é `-500`** — `preset-filled-surface-100` não
+   existe no Skeleton. Doze call sites o usavam e renderizavam com fundo
+   transparente, sem erro, sem aviso; pareciam outlined de propósito por causa
+   da `border` ao lado. É a mesma forma de bug dos "shades Tailwind
+   inexistentes" da tabela de duplicação abaixo: classe que não gera CSS nenhum.
+3. **`hover:preset-filled-*`** — gera uma classe PRÓPRIA, que escapa do
+   escurecimento e volta ao `-500` claro.
+
+A lição é a mesma da seção de duplicação: **comentário protege quem lê aquele
+arquivo; o token protege quem não sabe que o arquivo existe.** O guard existe
+porque a régua central morre quando alguém a recopia à mão e a tela continua
+certa — nesse dia a divergência não tem sintoma, só volta.
+
+Uma verificação vale por três leituras aqui: `filter: brightness()` do hover
+multiplica texto E fundo. Com texto escuro, clarear o fundo AUMENTA o contraste;
+com texto branco ele desaba, porque o branco satura em 1.0 e o fundo continua
+subindo. Medir o estado de repouso e parar ali teria deixado todos os botões em
+~3,2:1 no hover — inclusive os três que já eram brancos antes.
 
 Este projeto usa **Svelte 5** com runes. Sempre priorize:
 

@@ -45,6 +45,29 @@
 	--body-background-color: #fff;
 	--body-background-color-dark: var(--color-surface-950);
 
+	/* ===========================================================================
+	 * TEXTO DE BOTÃO PREENCHIDO: branco em todo canal COLORIDO (BTN-1, ago/2026)
+	 *
+	 * O preset do Skeleton é duas linhas — `background-color: var(--color-X-500)`
+	 * e `color: var(--color-X-contrast-500)`. Nenhum componente escolhe a cor do
+	 * texto: ela sai INTEIRA do token `--color-*-contrast-500` daqui. Por isso a
+	 * divergência relatada não tinha call site culpado — o tema apontava quatro
+	 * canais para o lado escuro (primary, warning, success, tertiary) e três para
+	 * o claro (secondary, error, surface), e os dois grupos se encostavam na
+	 * mesma célula de tabela: em `TabelaEscalas.svelte`, "Solicitar Ass."
+	 * (success, texto preto) colado em "Excluir" (error, texto branco).
+	 *
+	 * Os quatro passaram para `contrast-light`. Isso sozinho REPROVARIA em
+	 * contraste — branco sobre `primary-500` dá 2,63:1 e sobre `warning-500`
+	 * 2,81:1, contra o piso de 4,5:1 —, então o fundo do preset PREENCHIDO
+	 * escurece um degrau no `app.css`. As duas metades são inseparáveis: mexer
+	 * numa sem a outra devolve o problema que a outra resolvia.
+	 *
+	 * `surface` fica de fora de propósito e não é esquecimento: `surface-100` é
+	 * fundo CLARO (#eaeff5), e branco sobre ele dá 1,15:1. Ali o texto escuro é
+	 * a resposta certa, e o botão neutro nunca foi o que destoava.
+	 * ========================================================================= */
+
 	/* ============================================ */
 	/* PRIMARY - Neon Teal/Cyan (#06b6d4 -> tailwind cyan-500) */
 	/* ============================================ */
@@ -60,13 +83,20 @@
 	--color-primary-900: oklch(35% 0.09 210deg);
 	--color-primary-950: oklch(25% 0.06 210deg);
 	--color-primary-contrast-dark: oklch(15% 0.03 210deg);
-	--color-primary-contrast-light: oklch(98% 0.01 210deg);
+	/* Branco PURO, como os demais canais. Era `oklch(98% 0.01 210)` — um branco
+	 * levemente ciano, que ninguém nota isolado mas que (a) deixava o texto do
+	 * botão `primary` diferente do de todos os outros agora que os sete usam
+	 * branco, e (b) custava 0,27 de contraste justo no canal mais usado (106
+	 * botões) e mais perto do piso: com ele o hover media 4,46:1, logo abaixo
+	 * dos 4,5. Puro, repouso vai a 4,94 e hover a 4,72 — medidos em navegador. */
+	--color-primary-contrast-light: oklch(100% 0 none);
 	--color-primary-contrast-50: var(--color-primary-contrast-dark);
 	--color-primary-contrast-100: var(--color-primary-contrast-dark);
 	--color-primary-contrast-200: var(--color-primary-contrast-dark);
 	--color-primary-contrast-300: var(--color-primary-contrast-dark);
 	--color-primary-contrast-400: var(--color-primary-contrast-dark);
-	--color-primary-contrast-500: var(--color-primary-contrast-dark);
+	/* BTN-1: branco. Pareado com o `primary-700` de fundo no app.css. */
+	--color-primary-contrast-500: var(--color-primary-contrast-light);
 	--color-primary-contrast-600: var(--color-primary-contrast-light);
 	--color-primary-contrast-700: var(--color-primary-contrast-light);
 	--color-primary-contrast-800: var(--color-primary-contrast-light);
@@ -122,7 +152,8 @@
 	--color-tertiary-contrast-200: var(--color-tertiary-contrast-dark);
 	--color-tertiary-contrast-300: var(--color-tertiary-contrast-dark);
 	--color-tertiary-contrast-400: var(--color-tertiary-contrast-dark);
-	--color-tertiary-contrast-500: var(--color-tertiary-contrast-dark);
+	/* BTN-1: branco. Pareado com o `tertiary-600` de fundo no app.css. */
+	--color-tertiary-contrast-500: var(--color-tertiary-contrast-light);
 	--color-tertiary-contrast-600: var(--color-tertiary-contrast-light);
 	--color-tertiary-contrast-700: var(--color-tertiary-contrast-light);
 	--color-tertiary-contrast-800: var(--color-tertiary-contrast-light);
@@ -150,7 +181,8 @@
 	--color-success-contrast-200: var(--color-success-contrast-dark);
 	--color-success-contrast-300: var(--color-success-contrast-dark);
 	--color-success-contrast-400: var(--color-success-contrast-dark);
-	--color-success-contrast-500: var(--color-success-contrast-dark);
+	/* BTN-1: branco. Pareado com o `success-600` de fundo no app.css. */
+	--color-success-contrast-500: var(--color-success-contrast-light);
 	--color-success-contrast-600: var(--color-success-contrast-light);
 	--color-success-contrast-700: var(--color-success-contrast-light);
 	--color-success-contrast-800: var(--color-success-contrast-light);
@@ -178,7 +210,8 @@
 	--color-warning-contrast-200: var(--color-warning-contrast-dark);
 	--color-warning-contrast-300: var(--color-warning-contrast-dark);
 	--color-warning-contrast-400: var(--color-warning-contrast-dark);
-	--color-warning-contrast-500: var(--color-warning-contrast-dark);
+	/* BTN-1: branco. Pareado com o `warning-700` de fundo no app.css. */
+	--color-warning-contrast-500: var(--color-warning-contrast-light);
 	--color-warning-contrast-600: var(--color-warning-contrast-dark);
 	--color-warning-contrast-700: var(--color-warning-contrast-light);
 	--color-warning-contrast-800: var(--color-warning-contrast-light);

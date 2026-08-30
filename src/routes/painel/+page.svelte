@@ -644,8 +644,7 @@
 										>
 										<td>
 											{#if item.status === 'ok'}
-												<span
-													class="badge preset-filled-success-500 text-white text-xs font-bold px-2"
+												<span class="badge preset-filled-success-500 text-xs font-bold px-2"
 													><CheckCircle2 class="inline w-3.5 h-3.5 -mt-0.5" aria-hidden="true" /> Em dia</span
 												>
 											{:else if item.status === 'nao_assinada' && item.escala_id}

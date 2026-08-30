@@ -48,7 +48,18 @@ const SEM_DOCUMENTO = {
 	'M-6': 'e2e/auth.spec.ts — /api/health público virou binário {status}',
 	'M-8': 'src/lib/server/termo/__tests__/sanitize.test.ts — href protocol-relative e teto anti-ReDoS',
 	'M-10': 'src/lib/db/lgpd/retencao.ts — audit_log crescia sem limite de retenção',
-	'I-6': 'src/lib/schemas/__tests__/schemas.test.ts — expansão da blocklist de senha'
+	'I-6': 'src/lib/schemas/__tests__/schemas.test.ts — expansão da blocklist de senha',
+	/**
+	 * Varredura de padronização de botão, ago/2026. Família NOVA de propósito, e
+	 * não `VIS-18+`: o catálogo descreve a auditoria visual de 29/jul como
+	 * "VIS-1…VIS-17", então um `VIS-18` passaria neste guard (`includes('VIS')`)
+	 * e mentiria para quem fosse procurá-lo — exatamente o ponteiro-para-nada que
+	 * o CLAUDE.md descreve. Não houve relatório commitado: os três achados moram
+	 * nos arquivos abaixo e no README §10, que é o registro inteiro.
+	 */
+	BTN:
+		'src/theme.css + src/app.css — texto branco em botão preenchido (BTN-1), ' +
+		'direção do hover (BTN-2); README §10 — escala de altura em aberto (BTN-3)'
 };
 
 /**
@@ -77,6 +88,7 @@ const FAMILIAS = [
 	'FLW-WEBHOOK',
 	'SEC',
 	'VIS',
+	'BTN',
 	'DUP',
 	'FLX',
 	'R2'
