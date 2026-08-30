@@ -152,7 +152,7 @@
 			<input type="hidden" name="observacoes" value={editObservacoes} />
 			<button
 				type="submit"
-				class="btn text-xs font-bold px-4 py-1.5 rounded-lg preset-filled-primary-500"
+				class="btn text-xs font-bold px-4 rounded-lg preset-filled-primary-500"
 				disabled={pending || ordenados.length === 0}
 			>
 				{pending ? 'Salvando...' : 'Salvar Alterações'}

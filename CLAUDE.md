@@ -61,16 +61,31 @@ de ago/2026 achou 185 botões com texto escuro contra 53 com branco **sem um
 `contrast-dark` e três para `contrast-light`, e os dois grupos se encostavam na
 mesma célula de tabela.
 
-Hoje os sete canais usam branco, com o fundo do preset escurecido um degrau para
-o contraste fechar (a tabela medida está no README §10). **As duas metades são
-inseparáveis** — trocar o token sem escurecer o fundo devolve 2,63:1 no botão
-mais usado do app.
+Hoje os sete canais usam branco, com o próprio `--color-X-500` descido ao tom
+acessível (a tabela medida está no README §10). **As duas metades são
+inseparáveis** — trocar o token de texto sem descer a cor devolve 2,63:1 no
+botão mais usado do app.
+
+**E a descida vai no TOKEN, não no preset.** A primeira tentativa escureceu só o
+fundo de `preset-filled-*` no `app.css`, para "não mexer em quem usa a cor sem
+ser botão". O resultado foi o oposto: os 109 `bg-primary-500` de chip, aba e
+paginação ficaram claros ao lado de botões escuros, e a tela passou a ter dois
+azuis — quem viu foi o dono do produto, não o guard. A lição tem forma própria:
+**escurecer no preset esconde a decisão de todo mundo que usa a cor sem ser
+botão.** Se o tom da cor mudou, ele mudou para todos os usos dela, e o lugar
+disso é a rampa. A exceção é `surface`, e ela está registrada no `app.css` com o
+motivo — lá o `-500` é a borda de 74 outlined e o cinza de 51 textos.
 
 Daí as três regras que o `guard:visual` mantém em ZERO, e o motivo de cada uma
 ser sobre não recopiar a decisão:
 
-1. **`text-white` no botão** — 33 call sites tinham o remendo, de quando o token
-   dava preto. Quem "conserta" um botão no call site não conserta os outros 105.
+1. **Cor de texto no botão** — 33 call sites tinham `text-white`, de quando o
+   token dava preto. Quem "conserta" um botão no call site não conserta os
+   outros 105. A regra cobre QUALQUER tom: a primeira versão dela listava só
+   branco e preto, e por isso deixou passar o
+   `preset-filled-warning-500 text-warning-950` do botão "Ass. Extra" — que
+   seguiu com texto escuro por uma versão inteira depois de o token já ser
+   branco. Um guard que só conhece o remendo que você já viu não é guard.
 2. **Preset preenchido que não é `-500`** — `preset-filled-surface-100` não
    existe no Skeleton. Doze call sites o usavam e renderizavam com fundo
    transparente, sem erro, sem aviso; pareciam outlined de propósito por causa
@@ -78,6 +93,20 @@ ser sobre não recopiar a decisão:
    inexistentes" da tabela de duplicação abaixo: classe que não gera CSS nenhum.
 3. **`hover:preset-filled-*`** — gera uma classe PRÓPRIA, que escapa do
    escurecimento e volta ao `-500` claro.
+
+A **altura** do botão tem a mesma forma e a mesma correção. Eram nove alturas em
+uso, de 17 px a 56 px, sete delas na mesma tela — porque `.btn` do Skeleton só
+embute `--spacing(1)` e cada call site completava com o `py-*` que quisesse. Hoje
+são três degraus (`btn btn-sm` 32 px · `btn` 40 px · `btn btn-destaque` 48 px)
+definidos por `min-height` no `app.css`, e `py-*`/`h-*`/`min-h-*` sobre `.btn`
+reprova no CI.
+
+Duas coisas se aprenderam medindo, e as duas contrariavam o palpite:
+**`padding` não uniformiza altura** (com padding igual sobravam 29, 31 e 38 px,
+vindos de `text-3xs`, de `border` e de um ícone mais alto que a linha — só
+`min-height` é piso); e a regra tinha de ir em **`@layer utilities`**, não
+`components`, porque o CSS do Skeleton mora em `utilities` e camada posterior
+vence — em `components` ela não faria nada.
 
 A lição é a mesma da seção de duplicação: **comentário protege quem lê aquele
 arquivo; o token protege quem não sabe que o arquivo existe.** O guard existe

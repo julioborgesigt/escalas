@@ -1,5 +1,5 @@
 {
-	"_doc": "Legado visual ACEITO, por arquivo. Gerado por `node scripts/guard-visual.mjs --atualizar`. Só as regras COM BASELINE entram aqui — as estritas valem zero e não são negociáveis. Este arquivo só deve ENCOLHER: número que cresce é regressão, não baseline nova.",
+	"_doc": "Legado visual ACEITO, por arquivo. Gerado por `node scripts/guard-visual.mjs --atualizar`. Só as regras COM BASELINE entram aqui — as estritas valem zero e não são negociáveis. Este arquivo só deve ENCOLHER: número que cresce é regressão, não baseline nova. A ÚNICA exceção é conserto do próprio detector: quando o guard passa a enxergar ocorrência que já existia (foi o caso em ago/2026, quando o delimitador de token deixava passar classe colada em aspa dentro de ternário), o código não piorou e regravar é o certo — mas diga isso no commit, senão a linha nova é indistinguível de uma regressão aceita em silêncio.",
 	"arquivos": {
 		"src/lib/components/IconTooltip.svelte": {
 			"raio-legado": 1
@@ -111,8 +111,15 @@
 		"src/routes/produtividade/+page.svelte": {
 			"surface-500-em-texto": 2
 		},
+		"src/routes/produtividade/_components/DetailCard.svelte": {
+			"surface-500-em-texto": 1
+		},
+		"src/routes/produtividade/_components/RankingCard.svelte": {
+			"surface-500-em-texto": 1
+		},
 		"src/routes/produtividade/_components/SecaoGraficos.svelte": {
-			"raio-legado": 1
+			"raio-legado": 1,
+			"surface-500-em-texto": 1
 		},
 		"src/routes/recebidos/+page.svelte": {
 			"raio-legado": 6

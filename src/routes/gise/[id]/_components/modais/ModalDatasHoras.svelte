@@ -332,7 +332,7 @@
 			<div class="flex justify-end gap-2 pt-1">
 				<button
 					type="button"
-					class="btn preset-outlined-surface-500 text-xs sm:text-sm px-4 py-2 rounded-xl"
+					class="btn preset-outlined-surface-500 text-xs sm:text-sm px-4 rounded-xl"
 					onclick={onClose}>Cancelar</button
 				>
 				<form
@@ -347,7 +347,7 @@
 					<input type="hidden" name="feriado" value={feriado ? 'true' : 'false'} />
 					<button
 						type="submit"
-						class="btn preset-filled-primary-500 text-xs sm:text-sm px-6 py-2 rounded-xl font-bold transition-all"
+						class="btn preset-filled-primary-500 text-xs sm:text-sm px-6 rounded-xl font-bold transition-all"
 						disabled={pendingCrud}
 					>
 						{pendingCrud ? 'Salvando...' : 'Salvar Alterações'}

@@ -142,7 +142,7 @@
 {#snippet btnDownloadEtapa(rotulo: string, aoClicar: () => void, carregando: boolean)}
 	<button
 		type="button"
-		class="btn btn-sm inline-flex items-center gap-1.5 rounded-lg preset-tonal-surface-500 px-3 py-1.5 text-3xs font-bold tracking-wide uppercase"
+		class="btn btn-sm inline-flex items-center gap-1.5 rounded-lg preset-tonal-surface-500 px-3 text-3xs font-bold tracking-wide uppercase"
 		onclick={aoClicar}
 		disabled={loading.active || carregando}
 	>
@@ -195,7 +195,7 @@
 
 			<button
 				type="button"
-				class="btn btn-sm preset-filled-tertiary-500 rounded-xl py-2.5 text-sm font-bold uppercase w-full shadow-sm transition-all"
+				class="btn btn-sm preset-filled-tertiary-500 rounded-xl text-sm font-bold uppercase w-full shadow-sm transition-all"
 				disabled={loading.active}
 				onclick={() => confirmarPresencaA3(tipo)}
 			>
@@ -323,7 +323,7 @@
 					{#if primaria}
 						<button
 							type="button"
-							class="btn btn-sm mr-auto rounded-lg px-3 py-1.5 text-3xs font-black tracking-wide uppercase {primaria.disabled
+							class="btn btn-sm mr-auto rounded-lg px-3 text-3xs font-black tracking-wide uppercase {primaria.disabled
 								? 'preset-outlined-surface-500 cursor-not-allowed opacity-45'
 								: 'preset-outlined-primary-500'}"
 							disabled={primaria.disabled || loading.active}
@@ -341,7 +341,7 @@
 			<div class="mt-auto w-full pt-1">
 				<button
 					type="button"
-					class="btn btn-sm w-full rounded-xl py-2 text-3xs font-black tracking-wide whitespace-normal uppercase {primaria.disabled
+					class="btn btn-sm w-full rounded-xl text-3xs font-black tracking-wide whitespace-normal uppercase {primaria.disabled
 						? 'preset-outlined-surface-500 cursor-not-allowed opacity-45'
 						: 'preset-filled-primary-500 shadow-md shadow-primary-500/20'}"
 					disabled={primaria.disabled || loading.active}

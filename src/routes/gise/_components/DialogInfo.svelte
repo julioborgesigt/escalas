@@ -98,14 +98,14 @@
 						<div class="flex gap-2">
 							<button
 								type="button"
-								class="btn flex-1 preset-filled-tertiary-500 rounded-xl px-3 py-2 text-sm font-bold"
+								class="btn flex-1 preset-filled-tertiary-500 rounded-xl px-3 text-sm font-bold"
 								onclick={acao.fn}
 							>
 								{acao.label}
 							</button>
 							<button
 								type="button"
-								class="btn flex-1 preset-outlined-tertiary-500 rounded-xl px-3 py-2 text-sm font-semibold"
+								class="btn flex-1 preset-outlined-tertiary-500 rounded-xl px-3 text-sm font-semibold"
 								onclick={acaoSec.fn}
 							>
 								{acaoSec.label}
@@ -113,7 +113,7 @@
 						</div>
 						<button
 							type="button"
-							class="btn preset-tonal-surface-500 rounded-xl px-4 py-2 text-sm font-semibold w-full"
+							class="btn preset-tonal-surface-500 rounded-xl px-4 text-sm font-semibold w-full"
 							onclick={onClose}
 						>
 							Cancelar
@@ -122,7 +122,7 @@
 						<div class="flex justify-end gap-3">
 							<button
 								type="button"
-								class="btn preset-tonal-surface-500 rounded-xl px-4 py-2 text-sm font-semibold"
+								class="btn preset-tonal-surface-500 rounded-xl px-4 text-sm font-semibold"
 								onclick={onClose}
 							>
 								{dialogInfo.acao ? 'Cancelar' : 'Entendi'}
@@ -131,7 +131,7 @@
 								{@const acao = dialogInfo.acao}
 								<button
 									type="button"
-									class="btn preset-filled-tertiary-500 rounded-xl px-4 py-2 text-sm font-bold"
+									class="btn preset-filled-tertiary-500 rounded-xl px-4 text-sm font-bold"
 									onclick={acao.fn}
 								>
 									{acao.label}

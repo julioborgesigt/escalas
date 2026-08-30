@@ -91,7 +91,7 @@
 			<input type="hidden" name="datas" value={diasJson} />
 			<button
 				type="submit"
-				class="btn text-xs font-bold px-4 py-1.5 rounded-lg preset-filled-warning-500"
+				class="btn text-xs font-bold px-4 rounded-lg preset-filled-warning-500"
 				disabled={pending || ordenados.length === 0}
 			>
 				{pending ? 'Salvando...' : 'Salvar dias'}

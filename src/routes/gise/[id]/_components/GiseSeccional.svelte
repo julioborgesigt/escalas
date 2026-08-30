@@ -314,14 +314,14 @@
 							/>
 							<button
 								type="submit"
-								class="btn btn-sm preset-filled-primary-500 text-sm py-1 px-2 rounded transition-all"
+								class="btn btn-sm preset-filled-primary-500 text-sm px-2 rounded transition-all"
 								disabled={pendingCrud}
 								title="Confirmar">{pendingSalvarHorariosSec ? '…' : '✓'}</button
 							>
 						</form>
 						<button
 							type="button"
-							class="btn btn-sm preset-outlined-primary-500 text-sm py-1 px-2 rounded"
+							class="btn btn-sm preset-outlined-primary-500 text-sm px-2 rounded"
 							onclick={() => (estado.editandoHorariosSeccional = false)}>×</button
 						>
 					</div>
@@ -676,14 +676,14 @@
 								<input type="hidden" name="unidadeId" value={estado.novoSlotUnidadeId} />
 								<button
 									type="submit"
-									class="btn preset-filled-primary-500 text-sm px-3 py-1.5 rounded-xl transition-all w-full sm:w-auto"
+									class="btn preset-filled-primary-500 text-sm px-3 rounded-xl transition-all w-full sm:w-auto"
 									disabled={pendingCrud}
 									>{pendingAdicionarUnidade ? 'Adicionando...' : 'Confirmar'}</button
 								>
 							</form>
 							<button
 								type="button"
-								class="btn preset-outlined-surface-500 text-sm px-3 py-1.5 rounded-xl w-full sm:w-auto"
+								class="btn preset-outlined-surface-500 text-sm px-3 rounded-xl w-full sm:w-auto"
 								onclick={() => {
 									estado.adicionandoSlot = false;
 									estado.novoSlotUnidadeId = '';
@@ -697,7 +697,7 @@
 					<div class="flex justify-end">
 						<button
 							type="button"
-							class="btn preset-outlined-primary-500 text-sm px-3 py-1.5 rounded-xl border-dashed flex items-center gap-2 max-sm:hidden"
+							class="btn preset-outlined-primary-500 text-sm px-3 rounded-xl border-dashed flex items-center gap-2 max-sm:hidden"
 							onclick={() => {
 								estado.adicionandoSlot = true;
 								estado.novoSlotUnidadeId = '';

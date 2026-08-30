@@ -90,7 +90,7 @@
 			{@const rótuloProd = tipo === 'seint' ? 'Prod. SEINT' : 'Prod. Op.'}
 			{#if sec.temRespostas}
 				<a
-					class="btn text-xs font-bold px-3 py-2 rounded-xl border-2 border-success-500/35 hover:border-success-500 preset-outlined-success-500 max-w-full justify-center no-underline inline-flex items-center gap-1.5 transition-all {compact
+					class="btn text-xs font-bold px-3 rounded-xl border-2 border-success-500/35 hover:border-success-500 preset-outlined-success-500 max-w-full justify-center no-underline inline-flex items-center gap-1.5 transition-all {compact
 						? 'w-full'
 						: 'w-auto'}"
 					href={hrefProd}
@@ -113,7 +113,7 @@
 			{:else}
 				<button
 					type="button"
-					class="btn text-xs font-bold px-3 py-2 rounded-xl border-2 max-w-full inline-flex items-center justify-center gap-1.5 select-none border-surface-300/80 bg-surface-100/90 text-surface-600 shadow-sm cursor-not-allowed dark:border-surface-600 dark:bg-surface-800/50 dark:text-surface-400 {compact
+					class="btn text-xs font-bold px-3 rounded-xl border-2 max-w-full inline-flex items-center justify-center gap-1.5 select-none border-surface-300/80 bg-surface-100/90 text-surface-600 shadow-sm cursor-not-allowed dark:border-surface-600 dark:bg-surface-800/50 dark:text-surface-400 {compact
 						? 'w-full'
 						: 'w-full xs:w-auto sm:w-auto'}"
 					disabled
@@ -150,7 +150,7 @@
 				{@const podeManifesto = podeBaixarComManifesto(page.data.usuario, assRel.assinante_id)}
 				<div class="flex gap-2 {compact ? 'w-full' : 'w-full xs:w-auto'}">
 					<a
-						class="btn flex-1 text-xs font-bold px-2 py-2 rounded-xl border-2 no-underline flex items-center justify-center gap-1.5 transition-all preset-filled-primary-500 border-primary-600/30 hover:border-primary-600"
+						class="btn flex-1 text-xs font-bold px-2 rounded-xl border-2 no-underline flex items-center justify-center gap-1.5 transition-all preset-filled-primary-500 border-primary-600/30 hover:border-primary-600"
 						href={`/api/gise/${gise.id}/download?format=extraordinario&seccionalId=${sec.seccional_id}`}
 						target="_blank"
 						rel="noopener noreferrer"
@@ -163,7 +163,7 @@
 					</a>
 					{#if podeManifesto}
 						<a
-							class="btn flex-1 text-xs font-bold px-2 py-2 rounded-xl border-2 no-underline flex items-center justify-center gap-1.5 transition-all preset-outlined-primary-500 border-primary-500/30 hover:border-primary-500"
+							class="btn flex-1 text-xs font-bold px-2 rounded-xl border-2 no-underline flex items-center justify-center gap-1.5 transition-all preset-outlined-primary-500 border-primary-500/30 hover:border-primary-500"
 							href={`/api/gise/${gise.id}/download?format=extraordinario&seccionalId=${sec.seccional_id}&manifesto=true`}
 							target="_blank"
 							rel="noopener noreferrer"
@@ -176,7 +176,7 @@
 				</div>
 			{:else}
 				<a
-					class="btn text-xs font-bold px-3 py-2 rounded-xl border-2 flex items-center justify-center gap-2 transition-all {!(
+					class="btn text-xs font-bold px-3 rounded-xl border-2 flex items-center justify-center gap-2 transition-all {!(
 						checkAllSigned(sec) &&
 						(isAdminGeral || isSeccional || isSupervisor)
 					)

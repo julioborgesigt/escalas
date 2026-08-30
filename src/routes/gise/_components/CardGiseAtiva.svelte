@@ -74,12 +74,17 @@
 	);
 	const totalExtras = $derived(ativa.totalSeccionais + (temSupervisao ? 1 : 0));
 	const escalaConcluida = $derived(escalaGiseJaAssinada(ativa.status));
-	// Três estados do botão de extras: nenhum, alguns (tertiary) e todos (success).
+	// Dois estados de COR no botão de extras: pendente (warning) e concluído
+	// (success). O progresso parcial já é dito pelo contador no rótulo —
+	// "Ass. Extra (1/2)" —, e é ali que ele pertence: um terceiro tom só para
+	// "alguns assinados" fazia a mesma linha exibir dois verdes diferentes
+	// (tertiary parcial ao lado de success concluído) que se liam como estados
+	// distintos sendo o mesmo. Decisão do dono do produto, ago/2026.
+	//
 	// `>=` e não `===` porque uma seccional removida depois da assinatura deixaria
 	// o contador acima do total esperado.
 	const jaAssinados = $derived(ativa.assinaturasRelatorioExtra ?? 0);
 	const extraConcluido = $derived(jaAssinados >= totalExtras);
-	const extraParcial = $derived(jaAssinados > 0 && jaAssinados < totalExtras);
 </script>
 
 <div
@@ -134,9 +139,9 @@
 				<div class="flex gap-2 w-full">
 					<button
 						type="button"
-						class="btn btn-sm flex-1 font-bold text-xs px-3 py-1.5 flex items-center justify-center gap-1 transition-all {ativa.status ===
+						class="btn btn-sm flex-1 font-bold text-xs px-3 flex items-center justify-center gap-1 transition-all {ativa.status ===
 						'aguardando_assinatura'
-							? 'preset-filled-warning-500 text-warning-950'
+							? 'preset-filled-warning-500'
 							: escalaConcluida
 								? 'preset-filled-success-500'
 								: 'bg-surface-200/50 dark:bg-surface-800 text-surface-600 dark:text-surface-400 border border-surface-300/50 dark:border-surface-700'}"
@@ -159,13 +164,11 @@
 
 					<button
 						type="button"
-						class="btn btn-sm flex-1 font-bold text-xs px-3 py-1.5 flex items-center justify-center gap-1 transition-all {extraConcluido
+						class="btn btn-sm flex-1 font-bold text-xs px-3 flex items-center justify-center gap-1 transition-all {extraConcluido
 							? 'preset-filled-success-500'
-							: extraParcial
-								? 'preset-filled-tertiary-500'
-								: ativa.extrasPendentes > 0
-									? 'preset-filled-warning-500 text-warning-950'
-									: 'bg-surface-200/50 dark:bg-surface-800 text-surface-600 dark:text-surface-400 border border-surface-300/50 dark:border-surface-700'}"
+							: ativa.extrasPendentes > 0
+								? 'preset-filled-warning-500'
+								: 'bg-surface-200/50 dark:bg-surface-800 text-surface-600 dark:text-surface-400 border border-surface-300/50 dark:border-surface-700'}"
 						onclick={onAssExtra}
 						title={ativa.extrasPendentes > 0
 							? assinaViaToken
@@ -189,7 +192,7 @@
 				type="button"
 				class="btn btn-sm w-full md:hidden {menuExpandidoId === ativa.id
 					? 'preset-filled-surface-500'
-					: 'preset-outlined-surface-500'} text-xs px-3 py-1.5 transition-all font-bold"
+					: 'preset-outlined-surface-500'} text-xs px-3 transition-all font-bold"
 				onclick={onToggleMenu}
 			>
 				{menuExpandidoId === ativa.id ? 'Ocultar' : 'Opções'}
@@ -208,21 +211,21 @@
 				>
 					<button
 						type="button"
-						class="btn flex-1 justify-center bg-surface-100 dark:bg-surface-800 text-3xs sm:text-2xs py-2 px-1 border border-surface-200 dark:border-surface-700 hover:bg-primary-700 hover:text-white transition-all font-bold uppercase tracking-tight whitespace-nowrap shadow-sm"
+						class="btn flex-1 justify-center bg-surface-100 dark:bg-surface-800 text-3xs sm:text-2xs px-1 border border-surface-200 dark:border-surface-700 hover:bg-primary-700 hover:text-white transition-all font-bold uppercase tracking-tight whitespace-nowrap shadow-sm"
 						onclick={() => goto(`/gise/${ativa.id}`)}
 					>
 						Abrir escala
 					</button>
 					<button
 						type="button"
-						class="btn flex-1 justify-center bg-surface-100 dark:bg-surface-800 text-3xs sm:text-2xs py-2 px-1 border border-surface-200 dark:border-surface-700 hover:bg-primary-700 hover:text-white transition-all font-bold uppercase tracking-tight whitespace-nowrap shadow-sm"
+						class="btn flex-1 justify-center bg-surface-100 dark:bg-surface-800 text-3xs sm:text-2xs px-1 border border-surface-200 dark:border-surface-700 hover:bg-primary-700 hover:text-white transition-all font-bold uppercase tracking-tight whitespace-nowrap shadow-sm"
 						onclick={onEscalaPdf}
 					>
 						Escala PDF
 					</button>
 					<button
 						type="button"
-						class="btn flex-1 justify-center bg-surface-100 dark:bg-surface-800 text-3xs sm:text-2xs py-2 px-1 border border-surface-200 dark:border-surface-700 hover:bg-primary-700 hover:text-white transition-all font-bold uppercase tracking-tight whitespace-nowrap shadow-sm"
+						class="btn flex-1 justify-center bg-surface-100 dark:bg-surface-800 text-3xs sm:text-2xs px-1 border border-surface-200 dark:border-surface-700 hover:bg-primary-700 hover:text-white transition-all font-bold uppercase tracking-tight whitespace-nowrap shadow-sm"
 						onclick={onExtraPdf}
 						title={isSupervisor
 							? 'Baixar relatório de extra da supervisão'
