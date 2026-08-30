@@ -56,7 +56,7 @@
 
 	<button
 		type="submit"
-		class="btn btn-destaque preset-filled-primary-500 w-full flex items-center justify-center gap-2"
+		class="btn preset-filled-primary-500 w-full py-3 flex items-center justify-center gap-2"
 		disabled={loadingService.active || codigo2FA.length !== 6}
 	>
 		{loadingService.active ? 'Verificando...' : 'Confirmar'}

@@ -363,7 +363,7 @@
 		{#if isAdminGeral}
 			<button
 				type="button"
-				class="btn shrink-0 preset-filled-tertiary-500 border-2 border-tertiary-600/30 hover:border-tertiary-600 px-4 text-sm font-medium transition-all rounded-xl"
+				class="btn shrink-0 preset-filled-tertiary-500 text-white border-2 border-tertiary-600/30 hover:border-tertiary-600 px-4 py-2 text-sm font-medium transition-all rounded-xl"
 				onclick={() => (showCriarModal = true)}
 			>
 				Nova escala

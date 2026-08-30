@@ -278,7 +278,7 @@
 	<div class="flex gap-2 items-center flex-wrap">
 		<button
 			type="button"
-			class="btn btn-sm preset-filled-primary-500 font-bold px-4 rounded-lg shadow-sm hover:scale-[1.02] transition-transform w-full sm:w-auto flex items-center justify-center gap-2"
+			class="btn btn-sm preset-filled-primary-500 font-bold px-4 py-2 rounded-lg shadow-sm hover:scale-[1.02] transition-transform w-full sm:w-auto flex items-center justify-center gap-2"
 			onclick={assinarComSerpro}
 			disabled={loading.active || disabled}
 		>

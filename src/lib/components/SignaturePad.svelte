@@ -803,14 +803,14 @@
 			<div class="flex items-center gap-2 ml-auto">
 				<button
 					type="button"
-					class="btn preset-outlined-surface-500 rounded-xl text-3xs sm:text-xs font-bold uppercase px-3 sm:px-4 hover:bg-surface-50 dark:hover:bg-surface-900 transition-colors"
+					class="btn preset-outlined-surface-500 rounded-xl text-3xs sm:text-xs font-bold uppercase px-3 py-2 sm:px-4 sm:py-2 hover:bg-surface-50 dark:hover:bg-surface-900 transition-colors"
 					onclick={onCancel}
 				>
 					Cancelar
 				</button>
 				<button
 					type="button"
-					class="btn preset-filled-primary-500 rounded-xl text-3xs sm:text-xs font-bold uppercase px-3 sm:px-4 shadow-sm shadow-primary-500/20 transition-all w-max"
+					class="btn preset-filled-primary-500 rounded-xl text-3xs sm:text-xs font-bold uppercase px-3 py-2 sm:px-4 sm:py-2 shadow-sm shadow-primary-500/20 transition-all w-max"
 					disabled={solicitandoCodigo}
 					onclick={() => (exigirFoto ? (step = 'camera') : confirmarSemFoto())}
 				>
@@ -827,7 +827,7 @@
 		{:else if step === 'camera'}
 			<button
 				type="button"
-				class="btn preset-outlined-surface-500 rounded-xl text-xs font-bold uppercase px-4 hover:bg-surface-50 dark:hover:bg-surface-900 transition-colors"
+				class="btn preset-outlined-surface-500 rounded-xl text-xs font-bold uppercase px-4 py-2 hover:bg-surface-50 dark:hover:bg-surface-900 transition-colors"
 				onclick={() => (step = 'signature')}
 			>
 				Voltar
@@ -836,9 +836,9 @@
 			{@const challengeOk = !liveness.challengeAtual || liveness.challengeProgresso?.concluido}
 			<button
 				type="button"
-				class="btn btn-destaque {liveness.faceDetected && !liveness.isMoving && challengeOk
+				class="btn {liveness.faceDetected && !liveness.isMoving && challengeOk
 					? 'preset-filled-primary-500'
-					: 'bg-surface-300 dark:bg-surface-700 text-surface-500 opacity-60'} rounded-2xl text-sm font-bold uppercase px-6 shadow-lg shadow-primary-500/20 transition-all ml-auto"
+					: 'bg-surface-300 dark:bg-surface-700 text-surface-500 opacity-60'} rounded-2xl text-sm font-bold uppercase px-6 py-3 shadow-lg shadow-primary-500/20 transition-all ml-auto"
 				onclick={startCaptureSequence}
 				disabled={capturingLocation ||
 					liveness.capturingImage ||
@@ -862,7 +862,7 @@
 		{:else if step === 'password'}
 			<button
 				type="button"
-				class="btn preset-outlined-surface-500 rounded-xl text-xs font-bold uppercase px-4 hover:bg-surface-50 dark:hover:bg-surface-900 transition-colors"
+				class="btn preset-outlined-surface-500 rounded-xl text-xs font-bold uppercase px-4 py-2 hover:bg-surface-50 dark:hover:bg-surface-900 transition-colors"
 				onclick={() => (step = exigirFoto ? 'camera' : 'signature')}
 				disabled={confirmandoSenha}
 			>
@@ -871,7 +871,7 @@
 
 			<button
 				type="button"
-				class="btn btn-destaque preset-filled-primary-500 rounded-xl text-sm font-bold uppercase px-6 shadow-lg shadow-primary-500/20 transition-all ml-auto"
+				class="btn preset-filled-primary-500 rounded-xl text-sm font-bold uppercase px-6 py-3 shadow-lg shadow-primary-500/20 transition-all ml-auto"
 				onclick={confirmarSenha}
 				disabled={confirmandoSenha || !senhaInput}
 			>
@@ -885,7 +885,7 @@
 			<div class="flex flex-col gap-2 w-full mt-2">
 				<button
 					type="button"
-					class="btn btn-destaque preset-filled-primary-500 w-full rounded-lg text-sm font-bold uppercase"
+					class="btn preset-filled-primary-500 w-full rounded-lg text-sm font-bold uppercase py-3"
 					onclick={confirmarCredenciaisCombinadas}
 					disabled={confirmandoSenha ||
 						emitindo ||
@@ -900,7 +900,7 @@
 				</button>
 				<button
 					type="button"
-					class="btn preset-outlined-surface-500 w-full rounded-lg text-xs font-bold uppercase"
+					class="btn preset-outlined-surface-500 w-full rounded-lg text-xs font-bold uppercase py-2"
 					onclick={() => (step = exigirFoto ? 'camera' : 'signature')}
 					disabled={confirmandoSenha || emitindo || solicitandoCodigo}
 				>
@@ -912,7 +912,7 @@
 				<div class="flex flex-col gap-2 w-full mt-2">
 					<button
 						type="button"
-						class="btn btn-destaque preset-filled-primary-500 w-full rounded-lg text-sm font-bold uppercase"
+						class="btn preset-filled-primary-500 w-full rounded-lg text-sm font-bold uppercase py-3"
 						onclick={confirmarCodigo}
 						disabled={solicitandoCodigo || emitindo || codigoInput.length !== 6}
 					>
@@ -924,7 +924,7 @@
 					</button>
 					<button
 						type="button"
-						class="btn preset-outlined-surface-500 w-full rounded-lg text-xs font-bold uppercase"
+						class="btn preset-outlined-surface-500 w-full rounded-lg text-xs font-bold uppercase py-2"
 						onclick={() => (step = 'credenciais')}
 						disabled={solicitandoCodigo || emitindo}
 					>
@@ -934,7 +934,7 @@
 			{:else}
 				<button
 					type="button"
-					class="btn preset-outlined-surface-500 rounded-xl text-xs font-bold uppercase px-4 hover:bg-surface-50 dark:hover:bg-surface-900 transition-colors"
+					class="btn preset-outlined-surface-500 rounded-xl text-xs font-bold uppercase px-4 py-2 hover:bg-surface-50 dark:hover:bg-surface-900 transition-colors"
 					onclick={onCancel}
 					disabled={solicitandoCodigo || emitindo}
 				>
@@ -943,7 +943,7 @@
 
 				<button
 					type="button"
-					class="btn btn-destaque preset-filled-primary-500 rounded-xl text-sm font-bold uppercase px-6 shadow-lg shadow-primary-500/20 transition-all ml-auto"
+					class="btn preset-filled-primary-500 rounded-xl text-sm font-bold uppercase px-6 py-3 shadow-lg shadow-primary-500/20 transition-all ml-auto"
 					onclick={confirmarCodigo}
 					disabled={solicitandoCodigo || emitindo || codigoInput.length !== 6}
 				>

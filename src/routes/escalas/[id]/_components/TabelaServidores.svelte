@@ -203,7 +203,7 @@
 									<div class="flex gap-2 w-full mt-1">
 										<button
 											type="submit"
-											class="btn btn-sm preset-filled-primary-500 rounded-lg px-4 font-bold flex-1"
+											class="btn btn-sm h-9 preset-filled-primary-500 rounded-lg px-4 font-bold flex-1"
 											disabled={edicao.pending}>{edicao.pending ? 'Salvando...' : 'Salvar'}</button
 										>
 										<button
@@ -293,7 +293,7 @@
 										</IconTooltip>
 										<button
 											type="button"
-											class="btn btn-sm preset-filled-error-500 rounded font-bold text-3xs uppercase px-2 transition-all"
+											class="btn btn-sm preset-filled-error-500 rounded font-bold text-3xs uppercase px-2 py-0.5 transition-all"
 											onclick={() => onSolicitarRemocao(p.id, p.nome)}>Rem.</button
 										>
 									</div>
@@ -469,7 +469,7 @@
 												<div class="flex gap-1 mt-1">
 													<button
 														type="submit"
-														class="btn btn-sm preset-filled-primary-500 rounded-lg px-3 font-bold"
+														class="btn btn-sm h-8 preset-filled-primary-500 rounded-lg px-3 font-bold"
 														disabled={edicao.pending}
 													>
 														{edicao.pending ? 'Salvando...' : 'Salvar'}
@@ -584,7 +584,7 @@
 														</IconTooltip>
 														<button
 															type="button"
-															class="btn btn-sm preset-filled-error-500 rounded font-bold text-3xs uppercase px-2 transition-all"
+															class="btn btn-sm preset-filled-error-500 rounded font-bold text-3xs uppercase px-2 py-0.5 transition-all"
 															onclick={() => onSolicitarRemocao(p.id, p.nome)}
 														>
 															Remover

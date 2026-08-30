@@ -88,7 +88,7 @@
 
 		<button
 			type="button"
-			class="btn btn-destaque preset-filled-primary-500 w-full flex items-center justify-center gap-2"
+			class="btn preset-filled-primary-500 w-full py-3 flex items-center justify-center gap-2"
 			disabled={loadingService.active || !identificadorRec.trim()}
 			onclick={solicitarRecuperacao}
 		>
@@ -125,7 +125,7 @@
 
 		<button
 			type="button"
-			class="btn btn-destaque preset-filled-primary-500 w-full flex items-center justify-center gap-2"
+			class="btn preset-filled-primary-500 w-full py-3 flex items-center justify-center gap-2"
 			disabled={loadingService.active || codigoRec.length !== 6}
 			onclick={confirmarRecuperacao}
 		>

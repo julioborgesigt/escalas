@@ -551,7 +551,7 @@
 					<div class="flex justify-end gap-2 pt-1">
 						<button
 							type="button"
-							class="btn preset-outlined-surface-500 text-xs sm:text-sm px-3 sm:px-4 rounded-lg sm:rounded-xl"
+							class="btn preset-outlined-surface-500 text-xs sm:text-sm px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg sm:rounded-xl"
 							onclick={() => (tipo = null)}>← Voltar</button
 						>
 						<form method="POST" action="?/criar" use:enhance={handleCriar} class="contents">
@@ -569,7 +569,7 @@
 							<input type="hidden" name="titulo" value={fdsTituloAuto} />
 							<button
 								type="submit"
-								class="btn preset-filled-warning-500 border-2 border-warning-600/30 hover:border-warning-600 text-xs sm:text-sm px-3 sm:px-4 rounded-lg sm:rounded-xl transition-all"
+								class="btn preset-filled-warning-500 border-2 border-warning-600/30 hover:border-warning-600 text-xs sm:text-sm px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg sm:rounded-xl transition-all"
 								disabled={pendingCriar || fdsDiasOrdenados.length === 0}
 							>
 								{pendingCriar ? 'Criando...' : 'Criar Escala'}

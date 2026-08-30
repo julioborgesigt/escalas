@@ -246,7 +246,7 @@
 	<button
 		type="button"
 		onclick={copiarParaWhatsApp}
-		class="btn text-xs font-semibold px-3 rounded-xl border border-success-500/40 bg-success-500/10 text-success-700 dark:text-success-400 hover:bg-success-500/20 transition-colors flex items-center gap-2"
+		class="btn text-xs font-semibold px-3 py-2 rounded-xl border border-success-500/40 bg-success-500/10 text-success-700 dark:text-success-400 hover:bg-success-500/20 transition-colors flex items-center gap-2"
 	>
 		<svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
 			<path
@@ -263,7 +263,7 @@
 		<button
 			type="button"
 			onclick={() => (showEditarDiasModal = true)}
-			class="btn text-xs font-semibold px-3 rounded-xl border border-warning-500/40 bg-warning-500/10 text-warning-700 dark:text-warning-400 hover:bg-warning-500/20 transition-colors flex items-center gap-2"
+			class="btn text-xs font-semibold px-3 py-2 rounded-xl border border-warning-500/40 bg-warning-500/10 text-warning-700 dark:text-warning-400 hover:bg-warning-500/20 transition-colors flex items-center gap-2"
 		>
 			<svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
 				<path
@@ -325,8 +325,8 @@
 					<div class="flex gap-1.5 shrink-0">
 						<button
 							type="button"
-							class="btn text-xs font-bold px-3 rounded-lg border transition-colors
- {addHere && fdsAddingCargo === 'DPC'
+							class="btn text-xs font-bold px-3 py-1.5 rounded-lg border transition-colors
+								{addHere && fdsAddingCargo === 'DPC'
 								? 'border-primary-500 bg-primary-500/20 text-primary-700 dark:text-primary-300'
 								: 'border-primary-500/30 bg-primary-500/10 text-primary-700 dark:text-primary-300 hover:bg-primary-500/20'}"
 							onclick={() => openFdsAdd(dia, 'DPC')}
@@ -335,8 +335,8 @@
 						</button>
 						<button
 							type="button"
-							class="btn text-xs font-bold px-3 rounded-lg border transition-colors
- {addHere && fdsAddingCargo === 'OIP'
+							class="btn text-xs font-bold px-3 py-1.5 rounded-lg border transition-colors
+								{addHere && fdsAddingCargo === 'OIP'
 								? 'border-warning-500 bg-warning-500/20 text-warning-700 dark:text-warning-300'
 								: 'border-warning-500/30 bg-warning-500/10 text-warning-700 dark:text-warning-300 hover:bg-warning-500/20'}"
 							onclick={() => openFdsAdd(dia, 'OIP')}
@@ -401,7 +401,7 @@
 									<div class="flex gap-1 ml-auto shrink-0">
 										<button
 											type="submit"
-											class="btn btn-sm preset-filled-primary-500 rounded-lg px-3 font-bold"
+											class="btn btn-sm h-8 preset-filled-primary-500 rounded-lg px-3 font-bold"
 											disabled={edicao.pending}
 										>
 											{edicao.pending ? '...' : 'Salvar'}
@@ -533,7 +533,7 @@
 										</IconTooltip>
 										<button
 											type="button"
-											class="btn btn-sm preset-filled-error-500 rounded font-bold text-3xs uppercase px-2 transition-all"
+											class="btn btn-sm preset-filled-error-500 rounded font-bold text-3xs uppercase px-2 py-0.5 transition-all"
 											onclick={() => onSolicitarRemocao(p.id, p.nome)}
 										>
 											Rem.
@@ -579,7 +579,7 @@
 									<div class="flex gap-1.5 flex-wrap">
 										<button
 											type="submit"
-											class="btn btn-sm font-bold px-4 rounded-lg preset-filled-success-500 disabled:opacity-50"
+											class="btn text-xs font-bold h-8 px-4 rounded-lg bg-success-600 text-white hover:bg-success-700 disabled:opacity-50"
 											disabled={pendingRepetir || repeticaoDatas.length === 0}
 										>
 											{pendingRepetir
@@ -661,8 +661,8 @@
 							<div class="flex gap-1.5 shrink-0">
 								<button
 									type="submit"
-									class="btn btn-sm font-bold px-4 rounded-lg
- {fdsAddingCargo === 'DPC' ? 'preset-filled-primary-500' : 'preset-filled-warning-500'}"
+									class="btn text-xs font-bold h-9 px-4 rounded-lg
+										{fdsAddingCargo === 'DPC' ? 'preset-filled-primary-500' : 'preset-filled-warning-500'}"
 									disabled={pendingAdd || !fdsPolicialId}
 								>
 									{pendingAdd ? '...' : 'Adicionar'}

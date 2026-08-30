@@ -146,7 +146,7 @@
 				     README §10 dá um bloco alto demais para um botão de cabeçalho. -->
 				<button
 					type="button"
-					class="btn btn-sm preset-filled-primary-500 px-3.5 rounded-xl font-semibold shrink-0"
+					class="btn btn-sm preset-filled-primary-500 px-3.5 py-2 rounded-xl font-semibold shrink-0"
 					onclick={() => abrir('nova')}
 				>
 					<Plus class="w-4 h-4" />

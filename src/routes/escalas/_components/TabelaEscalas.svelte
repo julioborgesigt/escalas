@@ -326,8 +326,8 @@
 							<button
 								type="button"
 								class="btn btn-sm shrink-0 {menuExpandidoId === esc.id
-									? 'preset-filled-surface-500'
-									: 'preset-outlined-surface-500'} text-xs px-3 transition-all font-bold"
+									? 'preset-filled-surface-500 text-white'
+									: 'preset-outlined-surface-500'} text-xs px-3 py-1.5 transition-all font-bold"
 								onclick={() => (menuExpandidoId = menuExpandidoId === esc.id ? null : esc.id)}
 							>
 								{menuExpandidoId === esc.id ? 'Ocultar' : 'PDF(s)'}
@@ -337,7 +337,7 @@
 							<div class="flex flex-row gap-2 w-full" transition:slide={{ duration: 200 }}>
 								{#if esc.is_assinada}
 									<a
-										class="btn flex-1 justify-center bg-surface-100 dark:bg-surface-800 text-3xs sm:text-2xs px-1 border border-surface-200 dark:border-surface-700 hover:bg-success-600 hover:text-white transition-all no-underline font-bold uppercase tracking-tight whitespace-nowrap shadow-sm"
+										class="btn flex-1 justify-center bg-surface-100 dark:bg-surface-800 text-3xs sm:text-2xs py-2 px-1 border border-surface-200 dark:border-surface-700 hover:preset-filled-success-500 transition-all no-underline font-bold uppercase tracking-tight whitespace-nowrap shadow-sm"
 										href={`/api/escalas/${esc.id}/documento-assinado`}
 										target="_blank"
 										title={podeManifesto ? 'PDF assinado sem folha de auditoria' : 'PDF assinado'}
@@ -345,7 +345,7 @@
 									>
 									{#if podeManifesto}
 										<a
-											class="btn flex-1 justify-center bg-surface-100 dark:bg-surface-800 text-3xs sm:text-2xs px-1 border border-surface-200 dark:border-surface-700 hover:bg-tertiary-600 hover:text-white transition-all no-underline font-bold uppercase tracking-tight whitespace-nowrap shadow-sm"
+											class="btn flex-1 justify-center bg-surface-100 dark:bg-surface-800 text-3xs sm:text-2xs py-2 px-1 border border-surface-200 dark:border-surface-700 hover:preset-filled-tertiary-500 transition-all no-underline font-bold uppercase tracking-tight whitespace-nowrap shadow-sm"
 											href={`/api/escalas/${esc.id}/documento-assinado?manifesto=true`}
 											target="_blank"
 											title="PDF com folha de auditoria (evidências da assinatura)">Manif.</a
@@ -353,23 +353,23 @@
 									{/if}
 								{/if}
 								<a
-									class="btn flex-1 justify-center bg-surface-100 dark:bg-surface-800 text-3xs sm:text-2xs px-1 border border-surface-200 dark:border-surface-700 hover:bg-primary-700 hover:text-white transition-all no-underline font-bold uppercase tracking-tight whitespace-nowrap shadow-sm"
+									class="btn flex-1 justify-center bg-surface-100 dark:bg-surface-800 text-3xs sm:text-2xs py-2 px-1 border border-surface-200 dark:border-surface-700 hover:preset-filled-primary-500 transition-all no-underline font-bold uppercase tracking-tight whitespace-nowrap shadow-sm"
 									href={`/api/escalas/${esc.id}/download?format=pdf`}
 									target="_blank">PDF</a
 								>
 								<a
-									class="btn flex-1 justify-center bg-surface-100 dark:bg-surface-800 text-3xs sm:text-2xs px-1 border border-surface-200 dark:border-surface-700 hover:bg-primary-700 hover:text-white transition-all no-underline font-bold uppercase tracking-tight whitespace-nowrap shadow-sm"
+									class="btn flex-1 justify-center bg-surface-100 dark:bg-surface-800 text-3xs sm:text-2xs py-2 px-1 border border-surface-200 dark:border-surface-700 hover:preset-filled-primary-500 transition-all no-underline font-bold uppercase tracking-tight whitespace-nowrap shadow-sm"
 									href={`/api/escalas/${esc.id}/download?format=docx`}
 									target="_blank">Word</a
 								>
 								<a
-									class="btn flex-1 justify-center bg-surface-100 dark:bg-surface-800 text-3xs sm:text-2xs px-1 border border-surface-200 dark:border-surface-700 hover:bg-primary-700 hover:text-white transition-all no-underline font-bold uppercase tracking-tight whitespace-nowrap shadow-sm"
+									class="btn flex-1 justify-center bg-surface-100 dark:bg-surface-800 text-3xs sm:text-2xs py-2 px-1 border border-surface-200 dark:border-surface-700 hover:preset-filled-primary-500 transition-all no-underline font-bold uppercase tracking-tight whitespace-nowrap shadow-sm"
 									href={`/api/escalas/${esc.id}/download?format=excel`}
 									target="_blank">Excel</a
 								>
 								<button
 									type="button"
-									class="btn flex-1 justify-center bg-surface-100 dark:bg-surface-800 text-3xs sm:text-2xs px-1 border border-error-500/40 hover:bg-error-500 hover:text-white transition-all font-bold uppercase tracking-tight whitespace-nowrap shadow-sm text-error-600 dark:text-error-400"
+									class="btn flex-1 justify-center bg-surface-100 dark:bg-surface-800 text-3xs sm:text-2xs py-2 px-1 border border-error-500/40 hover:preset-filled-error-500 transition-all font-bold uppercase tracking-tight whitespace-nowrap shadow-sm text-error-600 dark:text-error-400"
 									onclick={() => {
 										menuExpandidoId = null;
 										onSolicitarExclusao(esc.id, esc.titulo);

@@ -130,7 +130,7 @@
 		<form method="POST" action="?/excluirGise" use:enhance={onSubmit} class="contents">
 			<button
 				type="submit"
-				class="btn preset-filled-error-500 text-sm px-4 rounded-xl"
+				class="btn preset-filled-error-500 text-sm px-4 py-2 rounded-xl"
 				disabled={pendingCrud || carregando}
 			>
 				{pendingCrud ? 'Excluindo...' : 'Confirmar Exclusão'}

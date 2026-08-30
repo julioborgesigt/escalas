@@ -40,7 +40,7 @@
 		</p>
 	{/if}
 
-	<a href="/" class="mt-6 btn preset-filled-primary-500 text-sm px-6 rounded-xl">
+	<a href="/" class="mt-6 btn preset-filled-primary-500 text-sm px-6 py-2 rounded-xl">
 		Voltar ao início
 	</a>
 </div>
