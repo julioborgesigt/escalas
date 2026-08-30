@@ -158,7 +158,7 @@
 								<input type="hidden" name="slots_oip" value={estado.editSlotsOip} />
 								<button
 									type="submit"
-									class="btn btn-sm preset-filled-primary-500 text-sm px-2 rounded transition-all"
+									class="btn btn-sm preset-filled-primary-500 text-sm py-1 px-2 rounded transition-all"
 									disabled={actions.pendingCrud}
 									aria-label="Salvar vagas"
 									title="Confirmar">{actions.pendingSalvarSlotsEquipe ? '…' : '✓'}</button
@@ -166,7 +166,7 @@
 							</form>
 							<button
 								type="button"
-								class="btn btn-sm preset-outlined-primary-500 text-sm px-2 rounded"
+								class="btn btn-sm preset-outlined-primary-500 text-sm py-1 px-2 rounded"
 								onclick={() => (estado.editandoEquipe = null)}
 								aria-label="Cancelar edição de vagas"
 								title="Cancelar">×</button
@@ -236,14 +236,14 @@
 								/>
 								<button
 									type="submit"
-									class="btn btn-sm preset-filled-primary-500 text-sm px-2 rounded transition-all"
+									class="btn btn-sm preset-filled-primary-500 text-sm py-1 px-2 rounded transition-all"
 									disabled={actions.pendingCrud}
 									title="Confirmar">{actions.pendingSalvarHorariosEquipe ? '…' : '✓'}</button
 								>
 							</form>
 							<button
 								type="button"
-								class="btn btn-sm preset-outlined-primary-500 text-sm px-2 rounded"
+								class="btn btn-sm preset-outlined-primary-500 text-sm py-1 px-2 rounded"
 								onclick={() => (estado.editandoHorariosEquipeId = null)}>×</button
 							>
 						</div>
@@ -288,7 +288,7 @@
 			<button
 				type="submit"
 				form="remover-equipe-form-{equipe.id}"
-				class="btn btn-sm preset-outlined-error-500 inline-flex shrink-0 items-center justify-center gap-1 whitespace-nowrap px-2 text-xs"
+				class="btn btn-sm preset-outlined-error-500 inline-flex shrink-0 items-center justify-center gap-1 whitespace-nowrap px-2 py-1 text-xs"
 				disabled={actions.pendingCrud}
 			>
 				{actions.pendingRemoverEquipe ? 'Removendo...' : 'Remover equipe'}
@@ -366,13 +366,13 @@
 					<div class="w-full sm:w-auto flex gap-2">
 						<button
 							type="submit"
-							class="btn preset-filled-primary-500 text-sm px-3 rounded-lg flex-1 sm:flex-none transition-all"
+							class="btn preset-filled-primary-500 text-sm px-3 py-1.5 rounded-lg flex-1 sm:flex-none transition-all"
 							disabled={!estado.policialParaAdicionar || actions.pendingCrud}
 							>{actions.pendingAdicionarMembro ? 'Adicionando...' : 'Adicionar'}</button
 						>
 						<button
 							type="button"
-							class="btn preset-outlined-primary-500 text-sm px-3 rounded-lg flex-1 sm:flex-none"
+							class="btn preset-outlined-primary-500 text-sm px-3 py-1.5 rounded-lg flex-1 sm:flex-none"
 							onclick={() => {
 								estado.equipeParaAdicionar = null;
 								estado.policialParaAdicionar = '';

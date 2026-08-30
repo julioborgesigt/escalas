@@ -352,7 +352,7 @@
 				</div>
 				<button
 					type="button"
-					class="btn preset-filled-primary-500 text-sm px-6 flex items-center gap-2 shadow-lg shadow-primary-500/20 hover:scale-[1.02] transition-all font-bold"
+					class="btn preset-filled-primary-500 text-sm px-6 py-2.5 flex items-center gap-2 shadow-lg shadow-primary-500/20 hover:scale-[1.02] transition-all font-bold"
 					onclick={salvar}
 					disabled={loading.active}
 				>

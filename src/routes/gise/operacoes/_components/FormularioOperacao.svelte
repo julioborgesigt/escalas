@@ -426,14 +426,14 @@
 		<div class="flex justify-end gap-2 pb-2">
 			<button
 				type="button"
-				class="btn preset-outlined-surface-500 px-4 rounded-xl"
+				class="btn preset-outlined-surface-500 px-4 py-2.5 rounded-xl"
 				onclick={aoVoltar}
 			>
 				Cancelar
 			</button>
 			<button
 				type="submit"
-				class="btn preset-filled-primary-500 px-6 rounded-xl font-semibold"
+				class="btn preset-filled-primary-500 px-6 py-2.5 rounded-xl font-semibold"
 				disabled={loading.active}
 			>
 				{editando ? 'Salvar operação' : 'Criar operação'}

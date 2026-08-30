@@ -113,7 +113,7 @@
 						<input type="hidden" name="unidadeId" value={estado.slotUnidadeId} />
 						<button
 							type="submit"
-							class="btn w-full rounded-xl px-4 text-sm font-semibold transition-all preset-filled-primary-500 sm:w-auto sm:px-6"
+							class="btn w-full rounded-xl px-4 py-1.5 text-sm font-semibold transition-all preset-filled-primary-500 sm:w-auto sm:px-6"
 							disabled={!estado.slotUnidadeId || actions.pendingCrud}
 						>
 							{actions.pendingSelecionarUnidade ? 'Salvando...' : 'Confirmar'}
@@ -121,7 +121,7 @@
 					</form>
 					<button
 						type="button"
-						class="btn flex-1 rounded-xl px-4 text-sm font-semibold preset-outlined-primary-500 sm:w-auto sm:flex-initial sm:px-6"
+						class="btn flex-1 rounded-xl px-4 py-1.5 text-sm font-semibold preset-outlined-primary-500 sm:w-auto sm:flex-initial sm:px-6"
 						onclick={() => {
 							estado.selecionandoUnidadeSlotId = null;
 							estado.slotUnidadeId = '';
@@ -203,7 +203,7 @@
 					{:else}
 						<button
 							type="button"
-							class="btn flex w-auto shrink-0 items-center justify-center gap-1.5 rounded-xl px-3 text-sm preset-outlined-warning-500"
+							class="btn flex w-auto shrink-0 items-center justify-center gap-1.5 rounded-xl px-3 py-1.5 text-sm preset-outlined-warning-500"
 							onclick={abrirSelecaoUnidade}
 						>
 							<Building class="h-3.5 w-3.5" aria-hidden="true" />
@@ -317,14 +317,14 @@
 							<input type="hidden" name="slots_oip" value={estado.novaEquipeOip} />
 							<button
 								type="submit"
-								class="btn w-full rounded-lg px-3 text-sm transition-all preset-filled-primary-500 sm:w-auto"
+								class="btn w-full rounded-lg px-3 py-1.5 text-sm transition-all preset-filled-primary-500 sm:w-auto"
 								disabled={actions.pendingCrud}
 								>{actions.pendingAdicionarEquipe ? 'Adicionando...' : 'Adicionar'}</button
 							>
 						</form>
 						<button
 							type="button"
-							class="btn w-full rounded-lg px-2 text-sm preset-outlined-surface-500 sm:w-auto"
+							class="btn w-full rounded-lg px-2 py-1.5 text-sm preset-outlined-surface-500 sm:w-auto"
 							onclick={() => {
 								estado.adicionandoEquipe = false;
 								estado.adicionandoEquipeSlotId = null;

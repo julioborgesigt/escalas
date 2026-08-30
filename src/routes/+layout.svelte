@@ -262,7 +262,7 @@
 				<div class="flex flex-col gap-2">
 					<button
 						type="button"
-						class="btn btn-destaque preset-filled-error-500 rounded-xl font-bold transition-all flex items-center justify-center gap-2"
+						class="btn preset-filled-error-500 py-3 rounded-xl font-bold transition-all flex items-center justify-center gap-2"
 						onclick={logout}
 						disabled={isLoggingOut}
 					>
@@ -275,7 +275,7 @@
 					</button>
 					<button
 						type="button"
-						class="btn btn-destaque preset-outlined-surface-500 rounded-xl font-bold transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+						class="btn preset-outlined-surface-500 py-3 rounded-xl font-bold transition-all disabled:opacity-40 disabled:cursor-not-allowed"
 						onclick={() => (showLogoutConfirm = false)}
 						disabled={isLoggingOut}
 					>

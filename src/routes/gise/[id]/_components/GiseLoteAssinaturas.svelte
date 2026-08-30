@@ -355,7 +355,7 @@
 						<div class="flex items-center gap-1.5 flex-wrap justify-end">
 							<button
 								type="button"
-								class="btn btn-xs preset-tonal-primary border border-primary-500/30 hover:border-primary-500 px-2.5 text-3xs font-bold rounded-lg flex items-center gap-1"
+								class="btn btn-xs preset-tonal-primary border border-primary-500/30 hover:border-primary-500 px-2.5 py-1.5 text-3xs font-bold rounded-lg flex items-center gap-1"
 								onclick={onConferencia || mostrarOrientaConferencia}
 							>
 								<PenLine class="h-2.5 w-2.5 shrink-0" aria-hidden="true" />
@@ -365,7 +365,7 @@
 								{#if avancadaDisponivel}
 									<button
 										type="button"
-										class="btn btn-xs preset-filled-warning-500 border border-warning-600/30 px-2.5 text-3xs font-bold rounded-lg hover:border-warning-600 disabled:opacity-40 flex items-center gap-1"
+										class="btn btn-xs preset-filled-warning-500 border border-warning-600/30 px-2.5 py-1.5 text-3xs font-bold rounded-lg hover:border-warning-600 disabled:opacity-40 flex items-center gap-1"
 										disabled={loading.active || quantidadePendentes === 0}
 										onclick={onAssinarManualLote}
 									>
@@ -462,7 +462,7 @@
 				>
 					<button
 						type="button"
-						class="btn btn-xs preset-tonal-primary border border-primary-500/30 hover:border-primary-500 px-2.5 text-3xs font-bold rounded-lg flex items-center gap-1 hover:scale-[1.02] transition-all"
+						class="btn btn-xs preset-tonal-primary border border-primary-500/30 hover:border-primary-500 px-2.5 py-1.5 text-3xs font-bold rounded-lg flex items-center gap-1 hover:scale-[1.02] transition-all"
 						onclick={onConferencia || mostrarOrientaConferencia}
 					>
 						<PenLine class="h-2.5 w-2.5 shrink-0" aria-hidden="true" />
@@ -472,7 +472,7 @@
 						{#if avancadaDesktopDisponivel}
 							<button
 								type="button"
-								class="btn btn-xs preset-filled-warning-500 border border-warning-600/30 px-2.5 text-3xs font-bold rounded-lg hover:border-warning-600 disabled:opacity-40 flex items-center gap-1 hover:scale-[1.02] transition-all"
+								class="btn btn-xs preset-filled-warning-500 border border-warning-600/30 px-2.5 py-1.5 text-3xs font-bold rounded-lg hover:border-warning-600 disabled:opacity-40 flex items-center gap-1 hover:scale-[1.02] transition-all"
 								disabled={loading.active || quantidadePendentes === 0}
 								onclick={onAssinarManualLote}
 							>
@@ -482,7 +482,7 @@
 						{:else}
 							<button
 								type="button"
-								class="btn btn-xs preset-filled-tertiary-500 border border-tertiary-600/30 px-2.5 text-3xs font-bold rounded-lg hover:border-tertiary-600 disabled:opacity-40 flex items-center gap-1 hover:scale-[1.02] transition-all"
+								class="btn btn-xs preset-filled-tertiary-500 border border-tertiary-600/30 px-2.5 py-1.5 text-3xs font-bold rounded-lg hover:border-tertiary-600 disabled:opacity-40 flex items-center gap-1 hover:scale-[1.02] transition-all"
 								disabled={loading.active || quantidadePendentes === 0}
 								onclick={() => (confirmandoLote = true)}
 							>
@@ -532,7 +532,7 @@
 
 	<button
 		type="button"
-		class="btn btn-sm preset-filled-primary-500 font-bold px-4 rounded-lg shadow-sm hover:scale-[1.02] transition-transform w-full flex items-center justify-center gap-2"
+		class="btn btn-sm preset-filled-primary-500 font-bold px-4 py-2 rounded-lg shadow-sm hover:scale-[1.02] transition-transform w-full flex items-center justify-center gap-2"
 		onclick={confirmarAssinaturaLote}
 		disabled={assinandoLote || loading.active}
 	>
@@ -542,7 +542,7 @@
 
 	<button
 		type="button"
-		class="w-full btn btn-destaque preset-outlined-surface-500 rounded-2xl text-sm"
+		class="w-full btn preset-outlined-surface-500 py-3 rounded-2xl text-sm"
 		onclick={() => (confirmandoLote = false)}
 		disabled={assinandoLote || loading.active}
 	>

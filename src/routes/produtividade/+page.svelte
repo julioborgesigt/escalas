@@ -401,7 +401,7 @@
 					{#if p.allChartsCount > 0}
 						<button
 							type="button"
-							class="btn w-full xs:w-auto text-3xs font-black uppercase tracking-widest px-4 rounded-xl transition-colors {p
+							class="btn w-full xs:w-auto text-3xs font-black uppercase tracking-widest px-4 py-2 rounded-xl transition-colors {p
 								.selectedCharts.length >= p.allChartsCount
 								? 'bg-surface-900 dark:bg-surface-50 text-white dark:text-surface-950'
 								: 'bg-surface-200/60 dark:bg-surface-800/60 text-surface-600 dark:text-surface-300 hover:bg-surface-200 dark:hover:bg-surface-700'}"
@@ -417,7 +417,7 @@
 						type="button"
 						class="btn w-full xs:w-auto {p.selectedCharts.length > 0
 							? 'bg-error-600 hover:bg-error-700 text-white'
-							: 'bg-surface-200/80 dark:bg-surface-800/80 text-surface-500 dark:text-surface-400 cursor-not-allowed'} text-3xs font-black uppercase tracking-widest px-4 rounded-xl transition-colors flex items-center justify-center gap-2"
+							: 'bg-surface-200/80 dark:bg-surface-800/80 text-surface-500 dark:text-surface-400 cursor-not-allowed'} text-3xs font-black uppercase tracking-widest py-2 px-4 rounded-xl transition-colors flex items-center justify-center gap-2"
 						onclick={p.exportChartsAsImages}
 						disabled={p.selectedCharts.length === 0 || p.exporting}
 					>
@@ -441,7 +441,7 @@
 						type="button"
 						class="btn w-full xs:w-auto {p.selectedCharts.length > 0
 							? 'bg-secondary-600 hover:bg-secondary-700 text-white'
-							: 'bg-surface-200/80 dark:bg-surface-800/80 text-surface-500 dark:text-surface-400 cursor-not-allowed'} text-3xs font-black uppercase tracking-widest px-4 rounded-xl transition-colors flex items-center justify-center gap-2"
+							: 'bg-surface-200/80 dark:bg-surface-800/80 text-surface-500 dark:text-surface-400 cursor-not-allowed'} text-3xs font-black uppercase tracking-widest py-2 px-4 rounded-xl transition-colors flex items-center justify-center gap-2"
 						onclick={() => window.print()}
 						disabled={p.selectedCharts.length === 0}
 					>

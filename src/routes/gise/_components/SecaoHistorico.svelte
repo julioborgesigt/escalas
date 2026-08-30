@@ -288,7 +288,7 @@
 		<div class="flex justify-end">
 			<Popover positioning={{ placement: 'bottom-end' }}>
 				<Popover.Trigger
-					class="btn btn-sm preset-filled-primary-500 justify-center disabled:cursor-not-allowed disabled:opacity-40"
+					class="btn btn-sm preset-filled-primary-500 text-white justify-center disabled:cursor-not-allowed disabled:opacity-40"
 					disabled={!podeExportarHistorico}
 					title={podeExportarHistorico
 						? 'Exportar lista filtrada'

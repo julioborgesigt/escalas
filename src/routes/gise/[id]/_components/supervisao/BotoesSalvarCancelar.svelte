@@ -15,7 +15,7 @@
 <div class="w-full grid grid-cols-2 gap-2 sm:flex sm:w-auto sm:shrink-0 {klass}">
 	<button
 		type="submit"
-		class="btn preset-filled-primary-500 text-sm px-3 rounded-lg w-full sm:w-auto transition-all"
+		class="btn preset-filled-primary-500 text-sm px-3 py-1.5 rounded-lg w-full sm:w-auto transition-all"
 		disabled={pending}
 	>
 		{#if pending}
@@ -26,7 +26,7 @@
 	</button>
 	<button
 		type="button"
-		class="btn preset-outlined-primary-500 text-sm px-3 rounded-lg w-full sm:w-auto"
+		class="btn preset-outlined-primary-500 text-sm px-3 py-1.5 rounded-lg w-full sm:w-auto"
 		onclick={onCancelar}
 		disabled={pending}
 	>

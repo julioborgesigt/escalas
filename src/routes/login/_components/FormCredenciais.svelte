@@ -116,7 +116,7 @@
 
 	<button
 		type="submit"
-		class="btn btn-destaque preset-filled-primary-500 w-full flex items-center justify-center gap-2"
+		class="btn preset-filled-primary-500 w-full py-3 flex items-center justify-center gap-2"
 		disabled={loadingService.active}
 	>
 		{loadingService.active ? 'Entrando...' : 'Entrar'}
@@ -130,7 +130,7 @@
 </div>
 <button
 	type="button"
-	class="btn btn-destaque preset-outlined-surface-500 w-full flex items-center justify-center gap-2 text-sm"
+	class="btn preset-outlined-surface-500 w-full py-3 flex items-center justify-center gap-2 text-sm"
 	disabled={loadingService.active}
 	onclick={() => fazerLoginComCertificado(tipo === 'admin')}
 >

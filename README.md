@@ -1292,98 +1292,7 @@ manualChunks(id) {
 
 Regras estabelecidas na auditoria visual de jul/2026 (`AUDITORIA_VISUAL_UX_2026-07-11.md`, arquivada — ver [`docs/HISTORICO.md`](docs/HISTORICO.md)). Os tokens vivem em [`src/theme.css`](src/theme.css) (paleta oklch de 7 canais) e [`src/app.css`](src/app.css) (`@theme` + `@utility`).
 
-**Cores** — sempre pelos canais do tema (`primary`, `secondary`, `tertiary`, `success`, `warning`, `error`, `surface`). Nunca cores cruas da paleta Tailwind (`text-red-500`, `bg-indigo-600`…). Verificado no CI por `npm run guard:visual`.
-
-**Texto de botão preenchido é BRANCO, e a decisão mora no token** (BTN-1,
-ago/2026). O preset do Skeleton é duas linhas —
-`background-color: var(--color-X-500)` e `color: var(--color-X-contrast-500)`.
-Nenhum componente escolhe a cor do texto: ela sai inteira de
-`--color-*-contrast-500` no [`theme.css`](src/theme.css). Era por isso que a
-divergência relatada não tinha call site culpado — o tema apontava quatro canais
-para o lado escuro (`primary`, `warning`, `success`, `tertiary`) e três para o
-claro, e os dois grupos se encostavam na MESMA célula: em `TabelaEscalas`,
-"Solicitar Ass." (preto) colado em "Excluir" (branco). Eram 185 contra 53.
-
-Os sete canais agora usam branco. Isso sozinho reprovaria em contraste, então o
-próprio `--color-X-500` desceu ao tom acessível:
-
-| canal                  | `-500` hoje | branco sobre ele | no hover |
-| ---------------------- | ----------- | ---------------- | -------- |
-| `primary`              | `#007b92`   | 4,94:1           | 4,72:1   |
-| `warning`              | `#b25b00`   | 4,78:1           | 4,57:1   |
-| `success` / `tertiary` | `#3c812b` / `#17843f` | 4,81 / 4,76:1 | ≥ 4,56:1 |
-| `error` / `secondary`  | `#d63053` / `#3c72cb` | 4,77 / 4,71:1 | ≥ 4,51:1 |
-| `surface`              | fundo do preset em `-600` | 6,44:1 | 6,03:1 |
-
-Medidos em navegador, sobre o CSS compilado. **As duas metades são
-inseparáveis**: branco com o `-500` claro de antes devolve 2,63:1 no botão mais
-usado do app.
-
-**O tom desceu no TOKEN, não no preset — e isso foi correção de rota** (BTN-4).
-A primeira versão escurecia só o fundo de `preset-filled-*` no `app.css`, para
-não mexer nos elementos que usam a cor sem ser botão. O efeito foi o oposto do
-pretendido: os **109 `bg-primary-500`** de chip, aba e paginação continuaram
-claros ao lado de botões escuros, e a tela ficou com dois azuis. Escurecer no
-preset esconde a decisão de todo mundo que usa a cor sem ser botão.
-
-Medido no caminho: **não existe teal mais claro que sustente texto branco**. No
-matiz 210, empurrando o croma até o limite do gamut sRGB, `L54 → 4,87:1` é o
-teto. O botão não podia subir; só os outros elementos podiam descer. A rampa
-`-600`…`-950` acompanha para seguir monotônica, e `-400` para baixo **não se
-move** — são os `dark:text-*-400` (48 usos em `primary`, 49 em `warning`), o
-texto do tema escuro, que precisa continuar claro. Efeito colateral bem-vindo:
-`text-primary-600`, que 48 call sites usam como cor de link, saiu de ~3,5:1
-(reprovava) para 6,70:1.
-
-`surface` é a única exceção que segue escurecendo no `app.css`, e tem motivo
-próprio: o `-500` dele é a borda de 74 `preset-outlined-surface-500` e a cor de
-51 `text-surface-500`. Mover o token repintaria as bordas de metade do app para
-consertar dez botões.
-
-**`warning` mudou de matiz, de 80 (âmbar) para 55 (laranja)** (BTN-5). Âmbar não
-sobrevive a escurecer: para sustentar texto branco precisa descer a ~L56, e ali
-ele lê como **marrom**. No matiz 55 o mesmo contraste devolve laranja de verdade.
-O matiz muda na rampa toda, não só no `-500` — metade dela é
-`dark:text-warning-400`, e uma família com dois matizes se denuncia quando os
-dois aparecem juntos.
-
-Três consequências para código novo, todas verificadas no CI:
-
-- **Não escreva cor de texto no botão.** Eram 33 call sites com `text-white`, de
-  quando o token dava preto. A cor é decisão de tema; recopiá-la no call site é
-  como a divergência volta — e vale para QUALQUER tom, não só branco e preto: o
-  `preset-filled-warning-500 text-warning-950` do "Ass. Extra" escapou da
-  primeira versão do guard e manteve o botão com texto escuro por uma versão
-  inteira. Quem viu foi o usuário, na tela.
-- **Preset preenchido é sempre `-500`.** `preset-filled-surface-100` **não
-  existe** no Skeleton — 12 call sites o usavam e renderizavam com fundo
-  transparente, sem erro nenhum (pareciam outlined por causa da `border`). Os
-  pares `X-a-b` do Skeleton também estão fora: são `light-dark()`, e o tema
-  escuro deste app é a CLASSE `.dark`. Para um neutro que vira com o tema, use
-  `bg-surface-100 dark:bg-surface-800`.
-- **Não use `hover:preset-filled-*`.** Ele gera uma classe PRÓPRIA
-  (`.hover\:preset-filled-…:hover`), que escapa do escurecimento e volta ao
-  `-500` claro — 2,63:1 com texto branco. Use `hover:bg-<canal>-700` (primary,
-  warning) ou `-600` (success, tertiary).
-
-**Hover de botão preenchido ESCURECE** (BTN-2). O `.btn` do Skeleton aplica
-`filter: brightness(125%)` no tema claro. Com texto escuro era inofensivo; com
-texto branco é fatal, e a razão é aritmética — o `filter` multiplica os dois
-lados, mas o branco já está em 1.0 e satura enquanto o fundo continua subindo.
-No hover antigo TODOS os canais caíam para a faixa de 2,7–3,5:1, **incluindo os
-três que já eram brancos antes desta mudança**. O `app.css` inverte a direção
-para `brightness(0.92)`.
-
-O valor foi medido, não escolhido: escurecer também comprime o ratio (o `+0,05`
-da fórmula WCAG não acompanha a multiplicação), só que devagar — sobre o pior
-canal, `brightness` 1.25 → 3,18:1, 1.00 → 4,71, **0.92 → 4,51**, 0.75 → 3,97.
-Vale para os **dois temas**: o `brightness(75%)` que o Skeleton usa no escuro é
-escurecimento demais e derrubava os sete canais para 3,97–4,25:1. Aquilo passava
-enquanto o texto era escuro; com texto branco, não passa. Medir só o tema claro
-teria deixado metade do app abaixo do piso.
-
-Resultado final, medido em navegador sobre o CSS compilado, nos dois temas:
-pior caso da matriz inteira em **4,51:1**, repouso e hover.
+**Cores** — sempre pelos canais do tema (`primary`, `secondary`, `tertiary`, `success`, `warning`, `error`, `surface`). Nunca cores cruas da paleta Tailwind (`text-red-500`, `bg-indigo-600`…).
 
 **Texto pequeno** — dois degraus abaixo de `text-xs`, e só eles: `text-2xs` (0,7rem — labels, badges) e `text-3xs` (0,625rem — metadados densos, piso absoluto). Não criar `text-[...]` arbitrários.
 
@@ -1393,10 +1302,7 @@ par padrão: `text-surface-600 dark:text-surface-400`. `text-surface-500` não
 é permitido sobre `surface-50` ou branco (não atinge AA) e só se justifica em
 uma superfície escura fixa, onde seu contraste tenha sido verificado.
 `text-surface-400` puro fica restrito a ícones decorativos, placeholders e
-estados `disabled`/inativos. O legado de `text-surface-500` sem par `dark:` (48
-ocorrências, 4,10:1 sobre branco) está contado em
-[`scripts/visual-baseline.json`](scripts/visual-baseline.json): paga-se ao tocar
-no arquivo, e o `guard:visual` impede que cresça.
+estados `disabled`/inativos.
 
 **Placeholder** — a cor é regra de base no `app.css` (`input::placeholder` /
 `textarea::placeholder`: `surface-400` no claro, `surface-500` no escuro), não
@@ -1434,41 +1340,7 @@ interação ou regra de domínio.
 
 **Botões (semântica dos presets)** — CTA `preset-filled-primary-500` · destrutivo `preset-filled-error-500` · cancelar/neutro `preset-outlined-surface-500`. O feedback tátil de clique (afundar 5% pressionado) é **global e automático** para `.btn`/`.btn-icon` (regra em `app.css`) — não adicionar `active:scale-95` inline; use-o apenas em elementos interativos custom fora dessas classes.
 
-**Tamanho de botão — três degraus, e o call site não escolhe número** (BTN-3).
-
-| degrau   | classe             | altura | fonte |
-| -------- | ------------------ | ------ | ----- |
-| compacto | `btn btn-sm`       | 32 px  | 12 px |
-| padrão   | `btn`              | 40 px  | 16 px |
-| destaque | `btn btn-destaque` | 48 px  | 16 px |
-
-A escala é de 8 px e não foi escolhida: é onde o código já tinha convergido
-sozinho (`btn py-2` em 50 usos, `btn py-3` em 18). A régua anterior deste
-documento — `py-1.5`/`py-2.5`/`py-3.5` — era ficção: o terceiro degrau tinha
-ZERO usos no app inteiro.
-
-A altura mora em [`src/app.css`](src/app.css), como `min-height` por degrau. Não
-escreva `py-*`, `h-*` nem `min-h-*` num `.btn`, com ou sem prefixo de variante —
-verificado no CI por `npm run guard:visual`. Botão de ícone é outra coisa e tem
-classe própria: `btn-icon`.
-
-**Por que isso virou regra.** A varredura achou NOVE alturas em uso, de 17 px a
-56 px, sete delas na MESMA tela (`/escalas/[id]`). Não eram nove decisões — era
-a ausência de uma: `.btn` e `.btn-sm` do Skeleton embutem
-`padding-block: --spacing(1)` e só, o que põe o piso em 32 px e 24 px, e cada
-call site completava com o `py-*` que achasse melhor. Mesma forma de falha da cor
-do texto, mesma correção: o valor vai para o lugar central e o call site perde o
-direito de inventar.
-
-Os quatro botões "Rem." das tabelas de servidores renderizavam a **17 px** — a
-ação mais destrutiva do app no menor alvo da tela, abaixo do mínimo de 24 px do
-WCAG 2.2 (SC 2.5.8). Hoje são 32 px.
-
-**`min-height`, não `padding` — e isso foi medido.** A primeira tentativa
-uniformizou o `padding-block` e não bastou: a altura ainda dependia do conteúdo,
-e sobraram 29 px (um `text-3xs` de call site encolhendo o line-height), 31 px (o
-mesmo com `border`, que soma 2 px) e 38 px (um ícone mais alto que a linha).
-Padding uniformiza o respiro, não a altura.
+**Tamanho de botão** — `.btn-sm` do tema NÃO embute padding vertical: sem `py-*` o botão fica em ~24px de altura. A escala em uso é `py-1.5` (~34px, botões de navegação como o Voltar), `py-2.5` (~40px, CTA de modal/formulário) e `py-3.5` (~48px, ação final de página). Nada de `py-4 text-lg`, que produz um bloco de ~64px destoante do resto da tela.
 
 **Voltar** — usar `$lib/components/BotaoVoltar.svelte`, sempre **acima do `<h1>`**, nunca no rodapé. `href` para mudar de rota, `onclick` para desfazer estado local. Não repetir a palavra "Voltar" em outro controle da mesma tela (o passo anterior de um wizard é "Anterior") — duas coisas diferentes com o mesmo rótulo trocam de lugar na cabeça de quem usa.
 
@@ -1478,7 +1350,7 @@ O status **tem de dizer algo que mude**. A barra do editor nasceu com dois estad
 
 **Estado de tarefa (marcador)** — o mesmo lugar mostra os dois estados: `Check` em círculo `bg-success-500` cumprida, `Clock` em círculo `bg-warning-500` pendente. Não usar ponto cinza para "falta fazer" (lê-se como "desligado"), e não variar a cor de concluído por tipo de tarefa — na mesma linha, um quadro verde e outro cinza parecem estados diferentes quando são o mesmo.
 
-**Border-radius** — o tema define `--radius-base` (= `rounded-xl`, botões/inputs) e `--radius-container` (= `rounded-2xl`, cards/modais); pills/chips usam `rounded-full`. Em código novo, não usar `rounded`/`rounded-md`; reservar `rounded-lg` para elementos ≤ 32 px de altura. As 89 ocorrências legadas estão na baseline do `guard:visual` — não podem crescer.
+**Border-radius** — o tema define `--radius-base` (= `rounded-xl`, botões/inputs) e `--radius-container` (= `rounded-2xl`, cards/modais); pills/chips usam `rounded-full`. Em código novo, não usar `rounded`/`rounded-md`; reservar `rounded-lg` para elementos ≤ 32 px de altura.
 
 **Z-index (escala)** — `z-10` elementos locais · `z-20`/`z-30` overlays locais e FABs (acima do conteúdo da página, abaixo da chrome) · `z-40` topbar mobile + backdrop da sidebar · `z-50` sidebar, modais e popovers em portal · `z-[60]`/`z-[70]` modal sobre modal · `z-[100]` diálogos globais (logout, avisos) · `9999` toasts · `10000` LoadingOverlay e barra de progresso de navegação. Não inventar valores fora da escala.
 

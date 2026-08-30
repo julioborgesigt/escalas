@@ -644,7 +644,8 @@
 										>
 										<td>
 											{#if item.status === 'ok'}
-												<span class="badge preset-filled-success-500 text-xs font-bold px-2"
+												<span
+													class="badge preset-filled-success-500 text-white text-xs font-bold px-2"
 													><CheckCircle2 class="inline w-3.5 h-3.5 -mt-0.5" aria-hidden="true" /> Em dia</span
 												>
 											{:else if item.status === 'nao_assinada' && item.escala_id}
@@ -795,7 +796,7 @@
 										{:else}
 											<button
 												type="button"
-												class="btn-icon preset-outlined-surface-500 rounded-full"
+												class="btn btn-sm w-9 h-9 !p-0 preset-outlined-surface-500 flex items-center justify-center rounded-full"
 												title="Ignorar"
 												onclick={() => ignorarItem(item)}
 											>

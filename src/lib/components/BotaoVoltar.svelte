@@ -29,7 +29,7 @@
 	} = $props();
 
 	const CLASSES =
-		'btn btn-sm preset-outlined-surface-500 hover:bg-surface-50 dark:hover:bg-surface-900 px-3 rounded-xl transition-all flex w-fit max-w-full items-center gap-2 group';
+		'btn btn-sm preset-outlined-surface-500 hover:bg-surface-50 dark:hover:bg-surface-900 px-3 py-1.5 rounded-xl transition-all flex w-fit max-w-full items-center gap-2 group';
 </script>
 
 {#snippet conteudo()}

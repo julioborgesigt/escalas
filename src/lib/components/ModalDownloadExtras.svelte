@@ -198,7 +198,7 @@
 								<div class="flex gap-1 shrink-0">
 									<button
 										type="button"
-										class="btn btn-sm rounded-lg px-2 transition-all bg-primary-500/10 hover:bg-primary-500 text-primary-600 hover:text-white dark:text-primary-400 text-3xs font-bold leading-tight"
+										class="btn btn-sm rounded-lg px-2 py-1.5 transition-all bg-primary-500/10 hover:bg-primary-500 text-primary-600 hover:text-white dark:text-primary-400 text-3xs font-bold leading-tight"
 										onclick={() => baixarItem(item.id, false)}
 										title={podeManifesto
 											? 'Baixar sem manifesto (para impressão)'
@@ -209,7 +209,7 @@
 									{#if podeManifesto}
 										<button
 											type="button"
-											class="btn btn-sm rounded-lg px-2 transition-all bg-tertiary-500/10 hover:bg-tertiary-500 text-tertiary-600 hover:text-white dark:text-tertiary-400 text-3xs font-bold leading-tight"
+											class="btn btn-sm rounded-lg px-2 py-1.5 transition-all bg-tertiary-500/10 hover:bg-tertiary-500 text-tertiary-600 hover:text-white dark:text-tertiary-400 text-3xs font-bold leading-tight"
 											onclick={() => baixarItem(item.id, true)}
 											title="Baixar com manifesto (folha de auditoria)"
 										>
@@ -221,7 +221,7 @@
 							{:else}
 								<button
 									type="button"
-									class="btn btn-sm rounded-lg px-2 transition-all shrink-0 bg-warning-500/10 hover:bg-warning-500 text-warning-700 hover:text-white dark:text-warning-400 text-3xs font-bold leading-tight"
+									class="btn btn-sm rounded-lg px-2 py-1.5 transition-all shrink-0 bg-warning-500/10 hover:bg-warning-500 text-warning-700 hover:text-white dark:text-warning-400 text-3xs font-bold leading-tight"
 									onclick={() => baixarItem(item.id, false)}
 									title="Baixar via de conferência (rascunho sem assinatura)"
 								>
@@ -250,8 +250,8 @@
 					>
 						<button
 							type="button"
-							class="btn text-xs px-3 rounded-xl font-bold flex items-center justify-center gap-1.5 transition-all {todosAssinados
-								? 'preset-filled-primary-500'
+							class="btn text-xs px-3 py-2 rounded-xl font-bold flex items-center justify-center gap-1.5 transition-all {todosAssinados
+								? 'preset-filled-primary-500 text-white'
 								: 'bg-surface-200 text-surface-700 dark:bg-surface-700 dark:text-surface-200 cursor-not-allowed'}"
 							disabled={!todosAssinados}
 							onclick={() => baixarTodos(false)}
@@ -274,8 +274,8 @@
 						>
 							<button
 								type="button"
-								class="btn text-xs px-3 rounded-xl font-bold flex items-center justify-center gap-1.5 transition-all {todosAssinados
-									? 'preset-filled-tertiary-500'
+								class="btn text-xs px-3 py-2 rounded-xl font-bold flex items-center justify-center gap-1.5 transition-all {todosAssinados
+									? 'preset-filled-tertiary-500 text-white'
 									: 'bg-surface-200 text-surface-700 dark:bg-surface-700 dark:text-surface-200 cursor-not-allowed'}"
 								disabled={!todosAssinados}
 								onclick={() => baixarTodos(true)}

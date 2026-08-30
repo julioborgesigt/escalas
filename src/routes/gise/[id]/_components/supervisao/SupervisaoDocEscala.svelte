@@ -75,7 +75,7 @@
 		<a
 			href={urlDocumentoAssinado}
 			target="_blank"
-			class="btn btn-xs preset-filled-primary-500 px-2.5 text-3xs font-bold rounded-lg no-underline flex items-center gap-1 {mobile
+			class="btn btn-xs preset-filled-primary-500 px-2.5 py-1.5 text-3xs font-bold rounded-lg no-underline flex items-center gap-1 {mobile
 				? ''
 				: 'hover:scale-[1.02] transition-all'}"
 			title={podeManifesto ? 'Baixar sem manifesto (para impressão)' : 'Baixar PDF assinado'}
@@ -87,7 +87,7 @@
 			<a
 				href={urlDocumentoAssinadoManifesto}
 				target="_blank"
-				class="btn btn-xs preset-outlined-primary-500 px-2.5 text-3xs font-bold rounded-lg no-underline flex items-center gap-1 {mobile
+				class="btn btn-xs preset-outlined-primary-500 px-2.5 py-1.5 text-3xs font-bold rounded-lg no-underline flex items-center gap-1 {mobile
 					? ''
 					: 'hover:scale-[1.02] transition-all'}"
 				title="Baixar com manifesto (folha de auditoria)"
@@ -99,7 +99,7 @@
 	{:else}
 		{#if quadro.isSupervisor || quadro.isAdminGeral}
 			<a
-				class="btn btn-xs text-3xs px-2.5 rounded-lg font-semibold no-underline flex items-center gap-1 {mobile
+				class="btn btn-xs text-3xs px-2.5 py-1.5 rounded-lg font-semibold no-underline flex items-center gap-1 {mobile
 					? ''
 					: 'hover:scale-[1.02] transition-all'} {assinaturaEscalaHabilitada
 					? 'preset-tonal-primary border border-primary-500/30 hover:border-primary-500'
@@ -117,7 +117,7 @@
 				{#if avancadaDisponivel}
 					<button
 						type="button"
-						class="btn btn-xs preset-filled-warning-500 border border-warning-600/30 px-2.5 text-3xs font-bold rounded-lg hover:border-warning-600 disabled:opacity-40 flex items-center gap-1"
+						class="btn btn-xs preset-filled-warning-500 border border-warning-600/30 px-2.5 py-1.5 text-3xs font-bold rounded-lg hover:border-warning-600 disabled:opacity-40 flex items-center gap-1"
 						disabled={!quadro.mostrarPainelAssinaturaEscala}
 						onclick={() => quadro.abrirAssinaturaEscalaManual()}
 					>
@@ -130,7 +130,7 @@
 			{:else if avancadaDesktopDisponivel}
 				<button
 					type="button"
-					class="btn btn-xs preset-filled-warning-500 border border-warning-600/30 px-2.5 text-3xs font-bold rounded-lg hover:border-warning-600 disabled:opacity-40 flex items-center gap-1 hover:scale-[1.02] transition-all"
+					class="btn btn-xs preset-filled-warning-500 border border-warning-600/30 px-2.5 py-1.5 text-3xs font-bold rounded-lg hover:border-warning-600 disabled:opacity-40 flex items-center gap-1 hover:scale-[1.02] transition-all"
 					disabled={!quadro.mostrarPainelAssinaturaEscala}
 					onclick={() => quadro.abrirAssinaturaEscalaManual()}
 				>
@@ -140,7 +140,7 @@
 			{:else}
 				<button
 					type="button"
-					class="btn btn-xs preset-filled-tertiary-500 border border-tertiary-600/30 px-2.5 text-3xs font-bold rounded-lg hover:border-tertiary-600 disabled:opacity-40 flex items-center gap-1 hover:scale-[1.02] transition-all"
+					class="btn btn-xs preset-filled-tertiary-500 border border-tertiary-600/30 px-2.5 py-1.5 text-3xs font-bold rounded-lg hover:border-tertiary-600 disabled:opacity-40 flex items-center gap-1 hover:scale-[1.02] transition-all"
 					disabled={!quadro.mostrarPainelAssinaturaEscala}
 					onclick={() => quadro.assinatura.painelTokenGise?.assinarComSerpro()}
 				>
