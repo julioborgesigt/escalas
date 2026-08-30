@@ -21,6 +21,21 @@
  * endpoint de download recusa a emissão enquanto ela não estiver vazia. O custo
  * calculado sem os pendentes é PARCIAL de propósito — é número para a tela
  * mostrar o que já fechou, nunca para imprimir.
+ *
+ * ## `sem_custo` não é estado final — por isso existe `avisos`
+ *
+ * Numa equipe sem custo ninguém recebe, então classe em branco não impede nada
+ * HOJE. Mas ela impediria amanhã: a operação é remarcada para um sábado, o
+ * horário escorrega para depois das 18h, e a mesma equipe passa a custar. Se a
+ * falha de cadastro só aparecesse nesse instante, o bloqueio surgiria na
+ * véspera da emissão — e o cadastro do servidor é justamente o que ninguém
+ * corrige às pressas.
+ *
+ * Daí a mesma falha sair em duas listas de peso diferente: `pendencias` onde já
+ * há custo (impede emitir) e `avisos` onde ainda não há (só alerta). Tratar as
+ * duas como uma só erraria dos dois lados — bloquear a operação diurna em dia
+ * útil, que é o caso mais comum de todos, ou calar sobre um problema que a
+ * primeira remarcação transforma em impedimento.
  */
 import { faixaDoPolicial, categoriaDaFaixa, type CategoriaAnexo } from './faixa-custo';
 import type { TipoDiaria } from './diarias';
@@ -112,10 +127,25 @@ export interface CustoPlano {
 	equipes: CustoEquipe[];
 	consolidado: Consolidado;
 	/**
-	 * Servidores sem faixa resolvida. **Lista não vazia = documento não pode ser
-	 * emitido**, e o total abaixo é parcial.
+	 * Servidores sem faixa resolvida em equipe QUE TEM CUSTO. **Lista não vazia =
+	 * documento não pode ser emitido**, e o total abaixo é parcial.
 	 */
 	pendencias: Pendencia[];
+	/**
+	 * Servidores sem faixa resolvida em equipe SEM CUSTO — não bloqueiam nada
+	 * hoje, mas bloqueariam no instante em que a equipe mudar de tipo de custo.
+	 *
+	 * Existe porque `sem_custo` não é um estado final: a operação é remarcada
+	 * para um sábado, o horário escorrega para depois das 18h, e a equipe que não
+	 * custava nada passa a custar. Se a classe faltando só aparecesse nesse
+	 * momento, o bloqueio surgiria na véspera da emissão — com o efetivo já
+	 * montado e o cadastro do servidor sendo justamente o que ninguém consegue
+	 * corrigir às pressas.
+	 *
+	 * A tela mostra estes como aviso, não como impedimento. É a diferença entre
+	 * "corrija agora, ainda dá tempo" e "não dá para emitir".
+	 */
+	avisos: Pendencia[];
 	/** Centavos, somando só o que fechou. */
 	total: number;
 }
@@ -219,21 +249,25 @@ export function custoDoPlano(
 	const dro: LinhaConsolidado[] = [];
 	const diarias: LinhaConsolidado[] = [];
 	const pendencias: Pendencia[] = [];
+	const avisos: Pendencia[] = [];
 
 	for (const ce of calculadas) {
 		for (const linha of ce.membros) {
 			if (!linha.categoria) {
-				// Sem custo não vira pendência: ver `custoDoMembro`.
-				if (ce.equipe.tipo_custo !== 'sem_custo') {
-					pendencias.push({
-						policial_id: linha.membro.policial_id,
-						nome: linha.membro.nome,
-						equipe: ce.equipe.nome,
-						motivo: linha.membro.classe_snapshot.trim()
-							? `Classe "${linha.membro.classe_snapshot}" não corresponde ao cargo ${linha.membro.cargo_snapshot || '(vazio)'}`
-							: 'Servidor sem classe cadastrada'
-					});
-				}
+				const item: Pendencia = {
+					policial_id: linha.membro.policial_id,
+					nome: linha.membro.nome,
+					equipe: ce.equipe.nome,
+					motivo: linha.membro.classe_snapshot.trim()
+						? `Classe "${linha.membro.classe_snapshot}" não corresponde ao cargo ${linha.membro.cargo_snapshot || '(vazio)'}`
+						: 'Servidor sem classe cadastrada'
+				};
+				// A MESMA falha de cadastro, em dois pesos: onde já há custo ela
+				// impede a emissão; onde não há, ela é o alerta de que a equipe não
+				// pode mudar de tipo de custo sem antes corrigir o cadastro. Ver o
+				// JSDoc de `CustoPlano.avisos`.
+				if (ce.equipe.tipo_custo === 'sem_custo') avisos.push(item);
+				else pendencias.push(item);
 				continue;
 			}
 			if (ce.equipe.tipo_custo === 'hora_extra') acumular(dro, linha.categoria, linha.total);
@@ -260,6 +294,7 @@ export function custoDoPlano(
 			totalGeral: droTotal + diariasTotal
 		},
 		pendencias,
+		avisos,
 		total: calculadas.reduce((s, ce) => s + ce.total, 0)
 	};
 }

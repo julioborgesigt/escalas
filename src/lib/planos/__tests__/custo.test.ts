@@ -98,20 +98,72 @@ describe('custoDaEquipe — sem custo', () => {
 		expect(r.total).toBe(0);
 	});
 
-	it('servidor sem classe numa equipe sem custo NÃO é pendência', () => {
+	it('servidor sem classe numa equipe sem custo NÃO bloqueia, mas AVISA', () => {
 		// O caso mais comum de todos: operação diurna em dia útil. Travar a emissão
-		// por classe faltando aqui bloquearia um plano que não custa nada.
+		// por classe faltando aqui bloquearia um plano que não custa nada — mas
+		// calar seria pior, porque `sem_custo` não é estado final.
 		const r = custoDoPlano(
 			[
 				{
 					equipe: equipe({ tipo_custo: 'sem_custo' }),
-					membros: [membro({ classe_snapshot: '' })]
+					membros: [membro({ nome: 'SEM CLASSE', classe_snapshot: '' })]
 				}
 			],
 			VALORES
 		);
 		expect(r.pendencias).toEqual([]);
 		expect(podeEmitir(r)).toBe(true);
+		expect(r.avisos).toHaveLength(1);
+		expect(r.avisos[0]).toMatchObject({
+			nome: 'SEM CLASSE',
+			motivo: 'Servidor sem classe cadastrada'
+		});
+	});
+
+	it('a MESMA equipe, virando hora extra, troca o aviso por bloqueio', () => {
+		// É a razão de `avisos` existir: `sem_custo` vira `hora_extra` quando a
+		// operação é remarcada para sábado ou escorrega para depois das 18h. O
+		// aviso de hoje é o impedimento de amanhã, e o cadastro do servidor é o
+		// que ninguém corrige na véspera.
+		const membros = [membro({ nome: 'SEM CLASSE', classe_snapshot: '' })];
+
+		const antes = custoDoPlano([{ equipe: equipe({ tipo_custo: 'sem_custo' }), membros }], VALORES);
+		expect(antes.avisos).toHaveLength(1);
+		expect(antes.pendencias).toHaveLength(0);
+		expect(podeEmitir(antes)).toBe(true);
+
+		const depois = custoDoPlano(
+			[{ equipe: equipe({ tipo_custo: 'hora_extra' }), membros }],
+			VALORES
+		);
+		expect(depois.avisos).toHaveLength(0);
+		expect(depois.pendencias).toHaveLength(1);
+		expect(podeEmitir(depois)).toBe(false);
+
+		// O motivo é o MESMO nos dois — muda o peso, não o diagnóstico.
+		expect(depois.pendencias[0].motivo).toBe(antes.avisos[0].motivo);
+	});
+
+	it('virar diária também bloqueia', () => {
+		const r = custoDoPlano(
+			[
+				{
+					equipe: equipe({ tipo_custo: 'diaria', diaria_tipo: 'estadual', diarias_meias: 2 }),
+					membros: [membro({ classe_snapshot: '' })]
+				}
+			],
+			VALORES
+		);
+		expect(podeEmitir(r)).toBe(false);
+	});
+
+	it('servidor COM classe numa equipe sem custo não gera aviso nenhum', () => {
+		const r = custoDoPlano(
+			[{ equipe: equipe({ tipo_custo: 'sem_custo' }), membros: [membro()] }],
+			VALORES
+		);
+		expect(r.avisos).toEqual([]);
+		expect(r.pendencias).toEqual([]);
 	});
 });
 

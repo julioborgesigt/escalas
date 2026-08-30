@@ -243,3 +243,35 @@ export {
 	unidadesParticipantesDaOperacao
 } from './db/operacoes';
 export type { TipoEquipeOperacao } from './db/operacoes';
+
+export {
+	criarPlano,
+	buscarPlano,
+	buscarPlanoPorNumero,
+	listarPlanos,
+	atualizarPlano,
+	excluirPlano,
+	criarEquipes,
+	listarEquipes,
+	buscarEquipe,
+	atualizarEquipe,
+	excluirEquipe,
+	renumerarEquipes,
+	nomePadraoEquipe,
+	janelaDaEquipe,
+	briefingDaEquipe,
+	adicionarMembro,
+	removerMembro,
+	definirChefe,
+	limparChefe,
+	listarMembrosDoPlano,
+	agruparPorEquipe,
+	ressincronizarSnapshots,
+	buscarCustoParametrosVigente,
+	buscarCustoParametros,
+	listarCustoParametros,
+	criarCustoParametros,
+	valoresDe,
+	sugerirPlus
+} from './db/planos';
+export type { PlanoDaLista, MembroDoPlano } from './db/planos';
