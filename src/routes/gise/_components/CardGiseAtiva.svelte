@@ -208,21 +208,21 @@
 				>
 					<button
 						type="button"
-						class="btn flex-1 justify-center preset-filled-surface-100 dark:preset-filled-surface-800 text-3xs sm:text-2xs py-2 px-1 border border-surface-200 dark:border-surface-700 hover:preset-filled-primary-500 hover:text-white transition-all font-bold uppercase tracking-tight whitespace-nowrap shadow-sm"
+						class="btn flex-1 justify-center bg-surface-100 dark:bg-surface-800 text-3xs sm:text-2xs py-2 px-1 border border-surface-200 dark:border-surface-700 hover:preset-filled-primary-500 transition-all font-bold uppercase tracking-tight whitespace-nowrap shadow-sm"
 						onclick={() => goto(`/gise/${ativa.id}`)}
 					>
 						Abrir escala
 					</button>
 					<button
 						type="button"
-						class="btn flex-1 justify-center preset-filled-surface-100 dark:preset-filled-surface-800 text-3xs sm:text-2xs py-2 px-1 border border-surface-200 dark:border-surface-700 hover:preset-filled-primary-500 hover:text-white transition-all font-bold uppercase tracking-tight whitespace-nowrap shadow-sm"
+						class="btn flex-1 justify-center bg-surface-100 dark:bg-surface-800 text-3xs sm:text-2xs py-2 px-1 border border-surface-200 dark:border-surface-700 hover:preset-filled-primary-500 transition-all font-bold uppercase tracking-tight whitespace-nowrap shadow-sm"
 						onclick={onEscalaPdf}
 					>
 						Escala PDF
 					</button>
 					<button
 						type="button"
-						class="btn flex-1 justify-center preset-filled-surface-100 dark:preset-filled-surface-800 text-3xs sm:text-2xs py-2 px-1 border border-surface-200 dark:border-surface-700 hover:preset-filled-primary-500 hover:text-white transition-all font-bold uppercase tracking-tight whitespace-nowrap shadow-sm"
+						class="btn flex-1 justify-center bg-surface-100 dark:bg-surface-800 text-3xs sm:text-2xs py-2 px-1 border border-surface-200 dark:border-surface-700 hover:preset-filled-primary-500 transition-all font-bold uppercase tracking-tight whitespace-nowrap shadow-sm"
 						onclick={onExtraPdf}
 						title={isSupervisor
 							? 'Baixar relatório de extra da supervisão'

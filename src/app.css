@@ -120,6 +120,38 @@
  * `border-2` de erro do SignaturePad.
  * ------------------------------------------------------------------------- */
 
+/* Hover de botão preenchido: escurece, e o valor foi MEDIDO.
+ *
+ * O `.btn` do Skeleton aplica `filter: brightness(125%)` no hover do tema claro
+ * e `75%` no escuro. Os dois derrubam contraste, por motivos diferentes, e o
+ * `filter` é o culpado nos dois casos porque multiplica TEXTO e FUNDO juntos:
+ *
+ *  - Clarear (125%) mata o botão de texto CLARO. O branco já está em 1.0 e
+ *    satura; o fundo continua subindo, e a distância entre os dois encolhe.
+ *    Medido no tema claro: `error` 4,77 → 3,44 · `secondary` 4,71 → 3,17 ·
+ *    `surface` 3,90 → 2,74. (Nos de texto escuro, clarear AJUDA: 7,49 → 11,46.)
+ *  - Escurecer 25% de uma vez mata todos. No tema escuro os SETE canais caem
+ *    abaixo do piso no hover — inclusive os de texto escuro, que vão de 7,49
+ *    para 4,50 e de 6,10 para 3,74.
+ *
+ * `0.92` é o degrau que atende os dois grupos nos dois temas: escurecer preserva
+ * o ratio (o multiplicador incide sobre os dois lados em proporção) e 8% é pouco
+ * o bastante para o `+0,05` da fórmula WCAG não comprimir a razão. Uma direção
+ * só, um valor só: hover que clareia num botão e escurece no vizinho seria uma
+ * inconsistência nova na mesma linha de tabela.
+ *
+ * Fora de `@layer` como o resto deste bloco e pelo mesmo motivo — é o único
+ * jeito determinístico de vencer o CSS de componente do Skeleton, aqui inclusive
+ * o `@variant dark` dele. Escopo por `[class*=…]` e não por lista: preset
+ * preenchido novo nasce com o hover certo sem ninguém lembrar de vir aqui.
+ *
+ * O que isto NÃO conserta, porque é cor e não hover: `preset-filled-surface-500`
+ * está em 3,90:1 já em REPOUSO (o `surface-50` de texto sobre o cinza médio).
+ * Sair disso exige mexer na rampa, que é decisão de tema — não deste bloco. */
+:is(.btn, .btn-icon)[class*='preset-filled-']:not(:disabled):hover {
+	filter: brightness(0.92);
+}
+
 /* `transform` do Skeleton × `translate` do Tailwind v4 — NÃO se substituem.
  *
  * Os utilitários `translate-*`/`scale-*`/`rotate-*` do Tailwind v4 escrevem as
