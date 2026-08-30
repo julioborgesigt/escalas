@@ -56,6 +56,5 @@ export {
 	listarCustoParametros,
 	criarCustoParametros,
 	valoresDe,
-	sugerirPlus,
 	type EntradaCustoParametros
 } from './custo-parametros';

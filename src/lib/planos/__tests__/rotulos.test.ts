@@ -4,7 +4,13 @@
  * milhar e a casa decimal são responsabilidade deste código.
  */
 import { describe, it, expect } from 'vitest';
-import { formatarBRL, resumoHoras, rotuloCustoDaEquipe, ROTULO_TIPO_CUSTO } from '../rotulos';
+import {
+	formatarBRL,
+	lerBRL,
+	resumoHoras,
+	rotuloCustoDaEquipe,
+	ROTULO_TIPO_CUSTO
+} from '../rotulos';
 import { formatarDiarias, lerDiarias, meiasDiariasValidas } from '../diarias';
 
 describe('formatarBRL', () => {
@@ -129,5 +135,50 @@ describe('lerDiarias', () => {
 		expect(lerDiarias('')).toBeNull();
 		expect(lerDiarias('  ')).toBeNull();
 		expect(lerDiarias('duas')).toBeNull();
+	});
+});
+
+describe('lerBRL', () => {
+	it('lê o que o teclado brasileiro produz', () => {
+		expect(lerBRL('27,30')).toBe(2730);
+		expect(lerBRL('R$ 27,30')).toBe(2730);
+		expect(lerBRL('1.234,56')).toBe(123456);
+		expect(lerBRL('0,05')).toBe(5);
+	});
+
+	it('lê o que vem colado de planilha americana', () => {
+		expect(lerBRL('27.30')).toBe(2730);
+		expect(lerBRL('1,234.56')).toBe(123456);
+	});
+
+	it('sem separador, o número são REAIS inteiros', () => {
+		expect(lerBRL('2730')).toBe(273000);
+		expect(lerBRL('123')).toBe(12300);
+	});
+
+	it('uma casa decimal é DÉCIMO de real, não centavo', () => {
+		// padEnd, não padStart: trocar os dois divide o valor por dez em silêncio.
+		expect(lerBRL('27,3')).toBe(2730);
+		expect(lerBRL('0,5')).toBe(50);
+	});
+
+	it('agrupamento de milhar não vira decimal', () => {
+		expect(lerBRL('1.234')).toBe(123400);
+		expect(lerBRL('1,234')).toBe(123400);
+	});
+
+	it('recusa o que não é valor em reais, em vez de inventar um número', () => {
+		expect(lerBRL('')).toBeNull();
+		expect(lerBRL('   ')).toBeNull();
+		expect(lerBRL('abc')).toBeNull();
+		expect(lerBRL('1,2345')).toBeNull();
+		expect(lerBRL('12.34.56')).toBeNull();
+		expect(lerBRL('R$')).toBeNull();
+	});
+
+	it('é o inverso exato de formatarBRL', () => {
+		for (const c of [0, 5, 50, 100, 2730, 16380, 20481, 36861, 123456789]) {
+			expect(lerBRL(formatarBRL(c)), `${c}`).toBe(c);
+		}
 	});
 });

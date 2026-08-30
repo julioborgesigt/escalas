@@ -122,15 +122,3 @@ export function valoresDe(p: CustoParametros): ValoresCusto {
 		diaria_interestadual: p.diaria_interestadual
 	};
 }
-
-/**
- * O acréscimo de 30% que define a hora "plus", como FRAÇÃO SUGERIDA.
- *
- * A tela usa isto para pré-preencher os quatro campos `_plus` a partir dos
- * `_normal`. Não é aplicado no cálculo: lá o valor lido é o que está gravado na
- * versão, justamente para um reajuste futuro na alíquota não reescrever
- * documento já emitido.
- */
-export function sugerirPlus(normal: number): number {
-	return Math.round(normal * 1.3);
-}

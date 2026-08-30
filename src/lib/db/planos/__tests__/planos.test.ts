@@ -41,9 +41,9 @@ import {
 	criarCustoParametros,
 	buscarCustoParametrosVigente,
 	listarCustoParametros,
-	valoresDe,
-	sugerirPlus
+	valoresDe
 } from '../custo-parametros';
+import { sugerirPlus } from '$lib/planos/custo';
 import type { Database } from '../../core';
 
 let sqlite: DatabaseSync;

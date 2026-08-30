@@ -249,6 +249,13 @@ export const HELPERS_OBRIGATORIOS = {
 	],
 	'src/routes/gise/[id]/_actions/actions-unidade.ts': ['carregarSeccionalDaGise'],
 
+	// PLANO OPERACIONAL: um portão só (`carregarPlanoParaEdicao`) decide quem
+	// mexe no plano, e as duas conferências de posse provam que o id vindo do
+	// FORMULÁRIO pertence ao plano da URL. Exigir o nome aqui é o que impede uma
+	// action nova de se contentar com `isAdminGeral` e aceitar equipe de outro
+	// plano por POST direto — a classe do FLW-ESC-002.
+	'src/routes/gise/planos/+page.server.ts': ['carregarPlanoParaEdicao'],
+
 	// FLW-AUT-002 / 009 — lotação do FormData no escopo administrado
 	'src/routes/escalas/+page.server.ts → criarComBase': ['lotacaoNoEscopo'],
 	'src/routes/escalas/+page.server.ts → excluir': ['lotacaoNoEscopo'],
@@ -307,8 +314,15 @@ function helpersDaOperacao(arquivo, nome) {
 // esquecesse de chamá-lo. Com as actions em `_actions/`, o preâmbulo não
 // carrega mais o helper, e o par nome-aqui + HELPERS_OBRIGATORIOS abaixo passa
 // a exigir a chamada no corpo de CADA uma.
+//
+// `carregarPlanoParaEdicao` é o portão do PLANO OPERACIONAL, e segue o mesmo
+// desenho: devolve a `Response` de recusa (403 de quem não é Admin Geral, 404
+// de plano inexistente) e a action repassa com `fail(acesso.status, …)`. O
+// status vem de variável, então o `fail(403)` literal nunca aparece no corpo —
+// sem o nome aqui, o guard leria "não recusa ninguém" com o POST já morrendo no
+// servidor.
 const RE_403 =
-	/fail\(403|forbidden\(|status:\s*403|error\(403|requireAdmin\(|requireSuperAdmin\(|exigirAdminGeral\(|carregarEscalaComPermissao\(|carregarEscalaParaAssinatura\(|carregarGiseParaAssinatura\(|carregarRelatorioExtraParaAssinatura\(|carregarFichaDoPolicial\(/;
+	/fail\(403|forbidden\(|status:\s*403|error\(403|requireAdmin\(|requireSuperAdmin\(|exigirAdminGeral\(|carregarEscalaComPermissao\(|carregarEscalaParaAssinatura\(|carregarGiseParaAssinatura\(|carregarRelatorioExtraParaAssinatura\(|carregarFichaDoPolicial\(|carregarPlanoParaEdicao\(/;
 const RE_401 = /fail\(401|unauthorized\(|requireAuth\(|error\(401/;
 
 /** Do índice da chave `{`, devolve o bloco balanceado. */

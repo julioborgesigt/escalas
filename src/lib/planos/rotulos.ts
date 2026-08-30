@@ -77,3 +77,57 @@ export function formatarBRL(centavos: number): string {
 	const inteiro = String(reais).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
 	return `${negativo ? '-' : ''}R$ ${inteiro},${String(cents).padStart(2, '0')}`;
 }
+
+/**
+ * O inverso: lê o valor digitado e devolve CENTAVOS inteiros, ou `null` quando
+ * não é um valor monetário válido.
+ *
+ * Reconhece TRÊS FORMAS INTEIRAS, e recusa o resto — em vez de adivinhar o
+ * separador pela posição. É o que torna a função previsível num campo em que
+ * errar significa emitir documento com o valor errado:
+ *
+ * | forma       | exemplo    | por que existe                          |
+ * | ----------- | ---------- | --------------------------------------- |
+ * | brasileira  | `1.234,56` | o que o teclado brasileiro produz       |
+ * | americana   | `1,234.56` | colado de planilha em locale en-US      |
+ * | simples     | `27,30`    | sem agrupamento — a digitação do dia a dia |
+ *
+ * `1,2345` e `12.34.56` são recusados: não são valor em reais, e interpretá-los
+ * seria inventar um número que ninguém digitou.
+ *
+ * **Nunca use `parseFloat` para dinheiro.** `parseFloat('27,30')` devolve 27 em
+ * silêncio — os centavos somem e o total do documento sai errado sem nada
+ * denunciar.
+ */
+export function lerBRL(entrada: string): number | null {
+	const bruto = entrada.replace(/[R$\s\u00a0]/g, '');
+	if (bruto === '') return null;
+
+	const negativo = bruto.startsWith('-');
+	const corpo = negativo ? bruto.slice(1) : bruto;
+
+	// Testadas nesta ordem. A "simples" vem por último porque é a mais permissiva
+	// e engoliria `1.234` como "um real e vinte e três" se viesse antes.
+	const BRASILEIRA = /^(\d{1,3}(?:\.\d{3})+)(?:,(\d{1,2}))?$/;
+	const AMERICANA = /^(\d{1,3}(?:,\d{3})+)(?:\.(\d{1,2}))?$/;
+	const SIMPLES = /^(\d+)(?:[.,](\d{1,2}))?$/;
+
+	let inteiro: string | undefined;
+	let centavos = '0';
+
+	for (const forma of [BRASILEIRA, AMERICANA, SIMPLES]) {
+		const m = forma.exec(corpo);
+		if (m) {
+			inteiro = m[1].replace(/[.,]/g, '');
+			centavos = m[2] ?? '0';
+			break;
+		}
+	}
+	if (inteiro === undefined) return null;
+
+	// `padEnd`, não `padStart`: em `27,3` o 3 é DÉCIMO de real (30 centavos), não
+	// 3 centavos. Trocar os dois divide o valor por dez sem erro nenhum.
+	const total = Number(inteiro) * 100 + Number(centavos.padEnd(2, '0'));
+	if (!Number.isSafeInteger(total)) return null;
+	return negativo ? -total : total;
+}

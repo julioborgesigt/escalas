@@ -1819,7 +1819,9 @@ export const planoEquipeMembros = sqliteTable(
 		// e a dupla contagem inflaria o custo sem aparecer em lugar nenhum.
 		uniqueIndex('uq_plano_membros_plano_policial').on(table.plano_id, table.policial_id),
 		// Um chefe por equipe. PARCIAL: só as linhas com `chefe = 1` colidem.
-		uniqueIndex('uq_plano_membros_chefe').on(table.equipe_id).where(sql`${table.chefe} = 1`),
+		uniqueIndex('uq_plano_membros_chefe')
+			.on(table.equipe_id)
+			.where(sql`${table.chefe} = 1`),
 		index('idx_plano_membros_equipe').on(table.equipe_id),
 		index('idx_plano_membros_policial').on(table.policial_id)
 	]

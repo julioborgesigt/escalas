@@ -353,6 +353,40 @@ export const CATALOGO_ACOES = {
 		categoria: 'configuracao',
 		severidade: 'aviso'
 	},
+	// Os valores de hora extra e diária que o plano operacional aplica. Fica em
+	// `aviso`, como as outras ações de configuração: `critico` neste catálogo é
+	// identidade e RBAC (criar/excluir policial, mudar papel), e valor de custo
+	// não é dessa classe. O que dá rastreabilidade aqui não é a severidade — é a
+	// tabela ser append-only, com uma linha por gravação.
+	salvar_custo_parametros: {
+		label: 'Nova versão dos valores de custo (hora extra / diária)',
+		categoria: 'configuracao',
+		severidade: 'aviso'
+	},
+
+	// Plano operacional (operação com deslocamento). `exportar_*` fica em `aviso`
+	// como os outros exports: o PDF leva nome, matrícula, lotação e telefone do
+	// efetivo, então baixar é acesso a dado pessoal e precisa ficar registrado.
+	criar_plano_operacional: {
+		label: 'Criação de plano operacional',
+		categoria: 'operacao',
+		severidade: 'info'
+	},
+	editar_plano_operacional: {
+		label: 'Alteração de plano operacional',
+		categoria: 'operacao',
+		severidade: 'info'
+	},
+	excluir_plano_operacional: {
+		label: 'Exclusão de plano operacional',
+		categoria: 'operacao',
+		severidade: 'aviso'
+	},
+	exportar_plano_operacional: {
+		label: 'Download do plano operacional',
+		categoria: 'operacao',
+		severidade: 'aviso'
+	},
 
 	// LGPD
 	registrar_incidente: {

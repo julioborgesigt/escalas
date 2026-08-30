@@ -309,3 +309,22 @@ export function custoDoPlano(
 export function podeEmitir(custo: CustoPlano): boolean {
 	return custo.pendencias.length === 0;
 }
+
+/**
+ * O acréscimo de 30% que define a hora "plus", como valor SUGERIDO.
+ *
+ * A tela de `/config-custos` usa isto para pré-preencher os quatro campos
+ * `_plus` a partir dos `_normal`. **Não é aplicado no cálculo**: lá o valor lido
+ * é o que está gravado na versão, justamente para um reajuste futuro na
+ * alíquota não reescrever documento já emitido.
+ *
+ * Mora aqui, em `$lib/planos/`, e não na camada de dados — é função pura, e a
+ * tela precisa dela. Enquanto estava em `$lib/db/planos/custo-parametros.ts`, o
+ * import do `.svelte` arrastava `$lib/server/schema` para o bundle do browser e
+ * o SvelteKit derrubava a rota inteira ("Cannot import $lib/server/schema.ts
+ * into code that runs in the browser"). O `svelte-check` não vê esse erro: a
+ * fronteira servidor/cliente é do bundler, não do TypeScript.
+ */
+export function sugerirPlus(normal: number): number {
+	return Math.round(normal * 1.3);
+}
