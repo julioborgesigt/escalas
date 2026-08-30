@@ -78,7 +78,7 @@
 		"dompurify": "^3.4.14"
 	},
 	"dependencies": {
-		"@fontsource/inter": "^5.2.8",
+		"@fontsource/inter": "^5.3.0",
 		"@fontsource/outfit": "^5.2.8",
 		"@lucide/svelte": "^1.28.0",
 		"@sentry/browser": "^10.59.0",
