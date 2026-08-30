@@ -795,7 +795,7 @@
 										{:else}
 											<button
 												type="button"
-												class="btn btn-sm w-9 h-9 !p-0 preset-outlined-surface-500 flex items-center justify-center rounded-full"
+												class="btn-icon preset-outlined-surface-500 rounded-full"
 												title="Ignorar"
 												onclick={() => ignorarItem(item)}
 											>

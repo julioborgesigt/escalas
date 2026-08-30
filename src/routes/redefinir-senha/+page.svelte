@@ -125,7 +125,7 @@
 						<input type="hidden" name="token" value={data.token} />
 						<button
 							type="submit"
-							class="btn preset-filled-primary-500 w-full py-3 font-semibold justify-center"
+							class="btn btn-destaque preset-filled-primary-500 w-full font-semibold justify-center"
 							disabled={loading.active}
 						>
 							{loading.active ? 'Entrando…' : 'Continuar primeiro acesso'}
@@ -160,7 +160,7 @@
 
 					<button
 						type="submit"
-						class="btn preset-filled-primary-500 w-full py-3 mt-1 font-semibold tracking-wide flex items-center justify-center gap-2"
+						class="btn btn-destaque preset-filled-primary-500 w-full mt-1 font-semibold tracking-wide flex items-center justify-center gap-2"
 						disabled={loading.active || !forca.senhaOk || !forca.confirmaOk}
 					>
 						{loading.active ? 'Salvando...' : 'Definir nova senha'}

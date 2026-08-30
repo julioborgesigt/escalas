@@ -1434,25 +1434,41 @@ interação ou regra de domínio.
 
 **Botões (semântica dos presets)** — CTA `preset-filled-primary-500` · destrutivo `preset-filled-error-500` · cancelar/neutro `preset-outlined-surface-500`. O feedback tátil de clique (afundar 5% pressionado) é **global e automático** para `.btn`/`.btn-icon` (regra em `app.css`) — não adicionar `active:scale-95` inline; use-o apenas em elementos interativos custom fora dessas classes.
 
-**Tamanho de botão** — `.btn` e `.btn-sm` do Skeleton embutem `padding-block: --spacing(1)` (4px), e só. Com `--spacing: 0.25rem`, isso põe o piso em **32px** para `.btn` (line-height de `text-base`) e **24px** para `.btn-sm` (line-height de `text-xs`) — abaixo do alvo de toque recomendado, num app usado no celular. Por isso a altura vem do `py-*` do call site.
+**Tamanho de botão — três degraus, e o call site não escolhe número** (BTN-3).
 
-A escala pretendida é `py-1.5` (36px, navegação), `py-2.5` (44px, CTA de modal/formulário) e `py-3.5` (52px, ação final de página); nada de `py-4`.
+| degrau   | classe             | altura | fonte |
+| -------- | ------------------ | ------ | ----- |
+| compacto | `btn btn-sm`       | 32 px  | 12 px |
+| padrão   | `btn`              | 40 px  | 16 px |
+| destaque | `btn btn-destaque` | 48 px  | 16 px |
 
-**A escala pretendida ainda não é a escala real, e isto está aberto** (BTN-3, medido em ago/2026). São nove alturas distintas em uso para botão de texto:
+A escala é de 8 px e não foi escolhida: é onde o código já tinha convergido
+sozinho (`btn py-2` em 50 usos, `btn py-3` em 18). A régua anterior deste
+documento — `py-1.5`/`py-2.5`/`py-3.5` — era ficção: o terceiro degrau tinha
+ZERO usos no app inteiro.
 
-| altura   | classes            | usos | situação                    |
-| -------- | ------------------ | ---- | --------------------------- |
-| 20px     | `btn-sm py-0.5`    | 4    | todos `preset-filled-error` |
-| **24px** | `btn-sm` sem `py`  | 114  | abaixo do alvo de toque     |
-| 28px     | `btn-sm py-1.5`    | 12   |                             |
-| 32px     | `.btn` sem `py`    | 69   |                             |
-| 36px     | `btn py-1.5`       | 41   | na escala                   |
-| **40px** | `btn py-2`         | 50   | fora da escala              |
-| 44px     | `btn py-2.5`       | 10   | na escala                   |
-| 48px     | `btn py-3`         | 18   | fora da escala              |
-| 56px     | `btn py-4`         | 1    | a régua proíbe              |
+A altura mora em [`src/app.css`](src/app.css), como `min-height` por degrau. Não
+escreva `py-*`, `h-*` nem `min-h-*` num `.btn`, com ou sem prefixo de variante —
+verificado no CI por `npm run guard:visual`. Botão de ícone é outra coisa e tem
+classe própria: `btn-icon`.
 
-`py-3.5` não aparece em lugar nenhum, e `py-2`+`py-3` (68 usos) superam os dois degraus da escala que estão em uso. A decisão pendente é qual verdade preservar — corrigir os 68 call sites, ou reescrever a régua para `py-2`/`py-3`, que é o que a equipe escolheu ao escrever código. Enquanto estiver aberta, **não há guard de tamanho**: seria carimbar uma das duas respostas sem que ninguém a tenha dado.
+**Por que isso virou regra.** A varredura achou NOVE alturas em uso, de 17 px a
+56 px, sete delas na MESMA tela (`/escalas/[id]`). Não eram nove decisões — era
+a ausência de uma: `.btn` e `.btn-sm` do Skeleton embutem
+`padding-block: --spacing(1)` e só, o que põe o piso em 32 px e 24 px, e cada
+call site completava com o `py-*` que achasse melhor. Mesma forma de falha da cor
+do texto, mesma correção: o valor vai para o lugar central e o call site perde o
+direito de inventar.
+
+Os quatro botões "Rem." das tabelas de servidores renderizavam a **17 px** — a
+ação mais destrutiva do app no menor alvo da tela, abaixo do mínimo de 24 px do
+WCAG 2.2 (SC 2.5.8). Hoje são 32 px.
+
+**`min-height`, não `padding` — e isso foi medido.** A primeira tentativa
+uniformizou o `padding-block` e não bastou: a altura ainda dependia do conteúdo,
+e sobraram 29 px (um `text-3xs` de call site encolhendo o line-height), 31 px (o
+mesmo com `border`, que soma 2 px) e 38 px (um ícone mais alto que a linha).
+Padding uniformiza o respiro, não a altura.
 
 **Voltar** — usar `$lib/components/BotaoVoltar.svelte`, sempre **acima do `<h1>`**, nunca no rodapé. `href` para mudar de rota, `onclick` para desfazer estado local. Não repetir a palavra "Voltar" em outro controle da mesma tela (o passo anterior de um wizard é "Anterior") — duas coisas diferentes com o mesmo rótulo trocam de lugar na cabeça de quem usa.
 

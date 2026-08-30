@@ -63,7 +63,7 @@
 
 	<button
 		type="button"
-		class="w-full btn preset-outlined-surface-500 py-3 rounded-2xl text-sm"
+		class="w-full btn btn-destaque preset-outlined-surface-500 rounded-2xl text-sm"
 		onclick={onClose}
 		{disabled}
 	>

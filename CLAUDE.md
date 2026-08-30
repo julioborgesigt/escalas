@@ -94,6 +94,20 @@ ser sobre não recopiar a decisão:
 3. **`hover:preset-filled-*`** — gera uma classe PRÓPRIA, que escapa do
    escurecimento e volta ao `-500` claro.
 
+A **altura** do botão tem a mesma forma e a mesma correção. Eram nove alturas em
+uso, de 17 px a 56 px, sete delas na mesma tela — porque `.btn` do Skeleton só
+embute `--spacing(1)` e cada call site completava com o `py-*` que quisesse. Hoje
+são três degraus (`btn btn-sm` 32 px · `btn` 40 px · `btn btn-destaque` 48 px)
+definidos por `min-height` no `app.css`, e `py-*`/`h-*`/`min-h-*` sobre `.btn`
+reprova no CI.
+
+Duas coisas se aprenderam medindo, e as duas contrariavam o palpite:
+**`padding` não uniformiza altura** (com padding igual sobravam 29, 31 e 38 px,
+vindos de `text-3xs`, de `border` e de um ícone mais alto que a linha — só
+`min-height` é piso); e a regra tinha de ir em **`@layer utilities`**, não
+`components`, porque o CSS do Skeleton mora em `utilities` e camada posterior
+vence — em `components` ela não faria nada.
+
 A lição é a mesma da seção de duplicação: **comentário protege quem lê aquele
 arquivo; o token protege quem não sabe que o arquivo existe.** O guard existe
 porque a régua central morre quando alguém a recopia à mão e a tela continua

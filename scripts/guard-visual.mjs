@@ -114,6 +114,28 @@ const REGRAS_ESTRITAS = [
 		}
 	},
 	{
+		id: 'altura-em-call-site',
+		// A altura de botão é decisão da camada (`app.css`, três degraus), não do
+		// call site. Antes desta regra havia NOVE alturas em uso, de 17 px a
+		// 56 px, sete delas na mesma tela — porque `.btn` do Skeleton só embute
+		// `--spacing(1)` e cada arquivo completava com o `py-*` que quisesse.
+		// Mesma forma da regra de cor de texto acima: o call site não recopia a
+		// decisão. Para o degrau alto existe `btn-destaque`; não há quarto degrau.
+		descricao: 'altura de botão escrita no call site (`py-*`/`h-*` sobre `.btn`)',
+		saida: 'Remova. Os três degraus são `btn btn-sm` (32px), `btn` (40px) e `btn btn-destaque` (48px).',
+		// O prefixo de variante é opcional no padrão porque `sm:py-2` é a MESMA
+		// decisão, só condicionada — e depois do `min-height` ela virou pior que
+		// divergência: é código morto que ainda parece governar a altura.
+		testeClasse: (cls) => {
+			if (!/(?:^|[\s'"`{])btn(?=[\s'"`{}]|$)/.test(cls)) return [];
+			const re = new RegExp(
+				`(?:^|[\\s'"\`{])((?:[a-z-]+:)*(?:py|h|min-h)-[0-9.]+)${LIMITE}`,
+				'g'
+			);
+			return [...cls.matchAll(re)].map((m) => m[1]);
+		}
+	},
+	{
 		id: 'cor-crua',
 		descricao: 'cor crua da paleta Tailwind (não segue o tema nem o modo escuro)',
 		saida: 'Use um canal do tema: primary, secondary, tertiary, success, warning, error, surface.',

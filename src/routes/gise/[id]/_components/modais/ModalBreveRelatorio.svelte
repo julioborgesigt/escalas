@@ -116,7 +116,7 @@
 				>
 					<button
 						type="button"
-						class="btn preset-outlined-surface-500 text-sm px-4 py-2 rounded-xl"
+						class="btn preset-outlined-surface-500 text-sm px-4 rounded-xl"
 						onclick={onClose}
 						disabled={pendingCrud}
 					>
@@ -124,7 +124,7 @@
 					</button>
 					<button
 						type="submit"
-						class="btn preset-filled-primary-500 text-sm px-4 py-2 rounded-xl"
+						class="btn preset-filled-primary-500 text-sm px-4 rounded-xl"
 						disabled={pendingCrud}
 					>
 						{pendingCrud ? 'Salvando...' : 'Salvar textos'}

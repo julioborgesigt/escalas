@@ -108,6 +108,62 @@
 	}
 }
 
+/* ALTURA DE BOTÃO: três degraus, e o call site não escolhe número (BTN-3).
+ *
+ * A varredura achou NOVE alturas de botão de texto em uso, de 17 px a 56 px —
+ * sete delas na mesma tela (`/escalas/[id]`). A causa não são nove decisões, é
+ * a ausência de uma: `.btn` e `.btn-sm` do Skeleton embutem
+ * `padding-block: --spacing(1)` e só, o que põe o piso em 32 px e 24 px, e daí
+ * cada call site punha o `py-*` que achava melhor. É a mesma forma de falha da
+ * cor do texto — decisão no call site diverge — e a mesma correção: o valor
+ * passa para o lugar central e o call site perde o direito de inventar.
+ *
+ * A escala é de 8 px, e não foi escolhida: é onde o código já tinha convergido
+ * sozinho (`btn py-2` em 50 usos, `btn py-3` em 18). A do README anterior
+ * (`py-1.5`/`py-2.5`/`py-3.5`) era ficção — o terceiro degrau tinha ZERO usos.
+ *
+ *   | degrau   | classe                | altura | fonte |
+ *   | -------- | --------------------- | ------ | ----- |
+ *   | compacto | `btn btn-sm`          |  32 px | 12 px |
+ *   | padrão   | `btn`                 |  40 px | 16 px |
+ *   | destaque | `btn btn-destaque`    |  48 px | 16 px |
+ *
+ * 32 px e não 36 no compacto: são 114 botões hoje em 24 px, e +8 px por linha
+ * de tabela é absorvível onde +12 px engordaria a tabela visivelmente. 32 px já
+ * passa folgado no mínimo de 24 px do WCAG 2.2 (SC 2.5.8) — que os quatro
+ * botões "Rem." de 17 px, a ação mais destrutiva do app no menor alvo da tela,
+ * não passavam.
+ *
+ * **`min-height` e não `padding`, e isso também foi medido.** A primeira versão
+ * uniformizava o `padding-block`, e não bastou: a altura final ainda dependia do
+ * conteúdo, então sobravam 29 px (um `text-3xs` de call site encolhendo o
+ * line-height), 31 px (o mesmo com `border`, que soma 2 px) e 38 px (um ícone
+ * mais alto que a linha). Padding uniformiza o RESPIRO, não a altura. Com
+ * `min-height` a altura é piso garantido: `border-box` absorve a borda, fonte
+ * menor só centraliza, e ícone maior ainda pode crescer — que é o comportamento
+ * certo para um piso.
+ *
+ * **`@layer utilities` e não `components`, e isso foi medido.** O CSS do
+ * Skeleton mora na camada `utilities` (via `@utility`), e camada posterior
+ * vence: uma regra nossa em `components` PERDERIA para ele e não faria nada. Já
+ * aqui, mesma camada e ordem de fonte posterior, ela vence — inclusive os
+ * `py-*` de call site, que por isso ficam mortos e foram removidos. Foi por
+ * isso também que `btn-destaque` teve de entrar NESTE bloco em vez de virar um
+ * `@utility` próprio: como `@utility`, ele perdia para o `.btn` daqui e o
+ * botão de 48 px saía com 40. */
+@layer utilities {
+	.btn {
+		min-height: --spacing(10);
+	}
+	.btn-sm {
+		min-height: --spacing(8);
+	}
+	/* Depois dos dois acima de propósito: mesma especificidade, ordem decide. */
+	.btn-destaque {
+		min-height: --spacing(12);
+	}
+}
+
 /* ---------------------------------------------------------------------------
  * Correções de base sobre o CSS do Skeleton (auditoria visual de ago/2026).
  *

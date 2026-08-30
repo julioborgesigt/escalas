@@ -32,7 +32,7 @@
 		<form method="POST" action="?/reabrirEscala" use:enhance={onSubmit} class="contents">
 			<button
 				type="submit"
-				class="btn preset-filled-warning-500 text-sm px-4 py-2 rounded-xl"
+				class="btn preset-filled-warning-500 text-sm px-4 rounded-xl"
 				disabled={pendingCrud}
 			>
 				{pendingCrud ? 'Reabrindo...' : 'Confirmar Reabertura'}

@@ -29,7 +29,7 @@
 	<button
 		type="button"
 		onclick={() => (expandidos = !expandidos)}
-		class="btn btn-sm preset-outlined-surface-500 lg:hidden flex items-center gap-1 text-xs py-1 px-2.5"
+		class="btn btn-sm preset-outlined-surface-500 lg:hidden flex items-center gap-1 text-xs px-2.5"
 	>
 		{#if expandidos}
 			Ocultar Filtros

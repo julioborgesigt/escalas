@@ -596,7 +596,7 @@
 					{#if supervisorSomente}
 						<button
 							type="button"
-							class="btn btn-sm preset-filled-primary-500 text-xs px-3 py-1.5 rounded-lg font-bold shadow-sm transition-all"
+							class="btn btn-sm preset-filled-primary-500 text-xs px-3 rounded-lg font-bold shadow-sm transition-all"
 							onclick={() =>
 								(supervisorExpandiuQuadroSeccionais = !supervisorExpandiuQuadroSeccionais)}
 						>
@@ -669,14 +669,14 @@
 							<input type="hidden" name="seccionalId" value={seccionalParaAdicionarIdx} />
 							<button
 								type="submit"
-								class="btn preset-filled-primary-500 text-sm px-4 py-2 rounded-xl flex-1 sm:flex-none transition-all"
+								class="btn preset-filled-primary-500 text-sm px-4 rounded-xl flex-1 sm:flex-none transition-all"
 								disabled={!seccionalParaAdicionarIdx || pendingCrud}
 							>
 								{pendingCrud ? 'Adicionando...' : 'Confirmar'}
 							</button>
 							<button
 								type="button"
-								class="btn preset-outlined-surface-500 text-sm px-4 py-2 rounded-xl flex-1 sm:flex-none"
+								class="btn preset-outlined-surface-500 text-sm px-4 rounded-xl flex-1 sm:flex-none"
 								onclick={() => (adicionandoSeccional = false)}
 							>
 								Cancelar
@@ -686,7 +686,7 @@
 				{:else}
 					<button
 						type="button"
-						class="btn preset-outlined-success-500 text-sm px-4 py-2 rounded-xl border-dashed mt-4 flex items-center gap-2"
+						class="btn preset-outlined-success-500 text-sm px-4 rounded-xl border-dashed mt-4 flex items-center gap-2"
 						onclick={() => (adicionandoSeccional = true)}
 					>
 						<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"

@@ -175,7 +175,7 @@
 							/>
 							<button
 								type="button"
-								class="btn preset-filled-primary-500 w-full py-2.5 text-sm font-semibold"
+								class="btn preset-filled-primary-500 w-full text-sm font-semibold"
 								onclick={enviarCodigoEmailPessoal}
 								disabled={loading.active || !verificacaoEmail.email.trim()}
 							>
@@ -201,7 +201,7 @@
 							/>
 							<button
 								type="button"
-								class="btn preset-filled-primary-500 py-2.5 text-sm font-semibold xs:shrink-0"
+								class="btn preset-filled-primary-500 text-sm font-semibold xs:shrink-0"
 								onclick={confirmarCodigoEmailPessoal}
 								disabled={loading.active}
 							>
@@ -269,7 +269,7 @@
 
 				<button
 					type="submit"
-					class="btn preset-filled-primary-500 w-full py-3 mt-1 font-semibold tracking-wide flex items-center justify-center gap-2"
+					class="btn btn-destaque preset-filled-primary-500 w-full mt-1 font-semibold tracking-wide flex items-center justify-center gap-2"
 					disabled={loading.active || !podeAlterarSenha}
 				>
 					{loading.active

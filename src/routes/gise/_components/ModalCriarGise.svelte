@@ -432,7 +432,7 @@
 				<div class="grid grid-cols-3 gap-1 sm:gap-2">
 					<button
 						type="button"
-						class="btn py-2 rounded-lg flex flex-col items-center gap-0.5 border transition-all min-h-0 {modoCriacao ===
+						class="btn rounded-lg flex flex-col items-center gap-0.5 border transition-all {modoCriacao ===
 						'completa'
 							? 'border-primary-500 bg-primary-500/10 text-primary-600'
 							: 'border-surface-200 dark:border-surface-700 text-surface-600 dark:text-surface-400'}"
@@ -445,7 +445,7 @@
 					</button>
 					<button
 						type="button"
-						class="btn py-2 rounded-lg flex flex-col items-center gap-0.5 border transition-all min-h-0 {modoCriacao ===
+						class="btn rounded-lg flex flex-col items-center gap-0.5 border transition-all {modoCriacao ===
 						'branco'
 							? 'border-primary-500 bg-primary-500/10 text-primary-600'
 							: 'border-surface-200 dark:border-surface-700 text-surface-600 dark:text-surface-400'}"
@@ -458,7 +458,7 @@
 					</button>
 					<button
 						type="button"
-						class="btn py-2 rounded-lg flex flex-col items-center gap-0.5 border transition-all min-h-0 {modoCriacao ===
+						class="btn rounded-lg flex flex-col items-center gap-0.5 border transition-all {modoCriacao ===
 						'clonada'
 							? 'border-primary-500 bg-primary-500/10 text-primary-600'
 							: 'border-surface-200 dark:border-surface-700 text-surface-600 dark:text-surface-400'}"
@@ -497,7 +497,7 @@
 			<div class="flex justify-end gap-2 pt-1">
 				<button
 					type="button"
-					class="btn preset-outlined-surface-500 text-xs sm:text-sm px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg sm:rounded-xl"
+					class="btn preset-outlined-surface-500 text-xs sm:text-sm px-3 sm:px-4 rounded-lg sm:rounded-xl"
 					onclick={() => (open = false)}
 				>
 					Cancelar
@@ -515,7 +515,7 @@
 					{/if}
 					<button
 						type="submit"
-						class="btn preset-filled-tertiary-500 border-2 border-tertiary-600/30 hover:border-tertiary-600 text-xs sm:text-sm px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg sm:rounded-xl transition-all transition-all"
+						class="btn preset-filled-tertiary-500 border-2 border-tertiary-600/30 hover:border-tertiary-600 text-xs sm:text-sm px-3 sm:px-4 rounded-lg sm:rounded-xl transition-all transition-all"
 						disabled={loading.active ||
 							diasModalOrdenados.length === 0 ||
 							(modoCriacao === 'clonada' && !clonarDeId)}

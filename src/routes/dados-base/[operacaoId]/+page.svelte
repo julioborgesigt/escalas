@@ -214,7 +214,7 @@
 					<div class="flex justify-end">
 						<button
 							type="submit"
-							class="btn preset-filled-primary-500 px-6 py-2.5 rounded-xl font-semibold"
+							class="btn preset-filled-primary-500 px-6 rounded-xl font-semibold"
 							disabled={loading.active}
 						>
 							Salvar {unidade.nome}

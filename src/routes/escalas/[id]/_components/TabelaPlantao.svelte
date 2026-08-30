@@ -274,7 +274,7 @@
 												</IconTooltip>
 												<button
 													type="button"
-													class="btn btn-sm preset-filled-error-500 rounded font-bold text-3xs uppercase px-2 py-0.5 transition-all"
+													class="btn btn-sm preset-filled-error-500 rounded font-bold text-3xs uppercase px-2 transition-all"
 													onclick={() => onSolicitarRemocao(p.ids, p.nome)}>Rem.</button
 												>
 											</div>

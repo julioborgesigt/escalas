@@ -27,7 +27,7 @@
 	</div>
 	<button
 		type="button"
-		class="btn preset-outlined-surface-500 w-full rounded-lg text-xs font-bold uppercase py-2.5 flex items-center justify-center gap-2 hover:bg-surface-50 dark:hover:bg-surface-800 transition-colors"
+		class="btn preset-outlined-surface-500 w-full rounded-lg text-xs font-bold uppercase flex items-center justify-center gap-2 hover:bg-surface-50 dark:hover:bg-surface-800 transition-colors"
 		onclick={onAssinarToken}
 		{disabled}
 	>
