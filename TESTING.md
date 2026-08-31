@@ -471,13 +471,16 @@ Verificar cada transição de status:
 > Módulo de ago/2026 — a operação COM deslocamento de equipes. Cobertura
 > automatizada: `src/lib/planos/__tests__/` (faixa de custo, janela de horas,
 > diárias, consolidado), `src/lib/db/planos/__tests__/` (numeração, chefe único,
-> um servidor por plano) e os goldens `plano_operacional*` em
-> `pdf-goldens.test.ts`. O que sobra para a mão é o que atravessa as duas telas.
+> um servidor por plano), os goldens `plano_operacional*` em
+> `pdf-goldens.test.ts` e `[E2E: plano-operacional.spec.ts]`, que percorre
+> valores → plano → equipe → PDF, incluindo a recusa por classe faltando e o
+> congelamento da tabela de valores. O que sobra para a mão é o VISUAL do
+> documento e o que atravessa as telas com o mouse.
 
 ### 5.1 Valores de custo (Super Admin)
 
 - [ ] `/config-custos` abre para o Super Admin e mostra a versão vigente mais o histórico
-- [ ] **Admin Geral em `/config-custos` → sai da tela** (não é dele: quem planeja escolhe quantas horas, não quanto vale a hora)
+- [ ] **Admin Geral em `/config-custos` → sai da tela** `[E2E: plano-operacional.spec.ts]` (não é dele: quem planeja escolhe quantas horas, não quanto vale a hora)
 - [ ] Preencher os quatro valores normais → "Aplicar +30% nos quatro" preenche os `plus` (27,30 → 35,49) e eles continuam editáveis
 - [ ] Campo de dinheiro **vazio** → erro com mensagem; zero tem de ser DIGITADO (vazio virando R$ 0 em silêncio foi bug corrigido na entrega)
 - [ ] Gravar → aparece uma VERSÃO nova no histórico; a anterior continua listada (a tabela é append-only)
@@ -489,7 +492,7 @@ Verificar cada transição de status:
 - [ ] Escolher _Plano operacional_ → `/gise/planos/novo`
 - [ ] Sem tabela de valores gravada, a tela avisa que o Anexo II sairia zerado — e ainda assim deixa criar o plano
 - [ ] Criar → redireciona para o editor, com o número `N/ANO` sequencial do ano corrente
-- [ ] Dois planos criados no mesmo ano recebem números diferentes (o `UNIQUE (ano, numero)` é a tranca real, não a consulta prévia)
+- [ ] Dois planos criados no mesmo ano recebem números diferentes `[Vitest: planos.test.ts]` (o `UNIQUE (ano, numero)` é a tranca real, não a consulta prévia)
 
 ### 5.3 Editor, custo e o que bloqueia a emissão
 
@@ -497,7 +500,7 @@ Verificar cada transição de status:
 - [ ] O mesmo plano movido para **sábado** → sugere as mesmas horas como hora extra **plus**
 - [ ] Equipe com horário próprio (ex.: apresentação 03:30) usa o dela; equipe sem horário HERDA o do plano — o Anexo I imprime o valor efetivo
 - [ ] Servidor **sem classe no cadastro** numa equipe com custo → linha em vermelho, "impede a emissão", e o botão de baixar o PDF desabilitado
-- [ ] Com a pendência aberta, **GET direto em `/api/planos/<id>/download` → 409** nomeando quem falta (o botão escondido nunca foi autorização)
+- [ ] Com a pendência aberta, **GET direto em `/api/planos/<id>/download` → 409** nomeando quem falta `[E2E: plano-operacional.spec.ts]` (o botão escondido nunca foi autorização)
 - [ ] O mesmo servidor sem classe numa equipe **sem custo** → AVISO, não pendência: a emissão continua liberada (equipe sem custo pode virar com custo, e o problema tem de aparecer antes da véspera)
 - [ ] Um servidor não entra DUAS vezes no mesmo plano, nem em equipes diferentes
 - [ ] Definir outro chefe na equipe → o anterior perde a marca (um chefe por equipe)
@@ -511,7 +514,7 @@ Verificar cada transição de status:
 - [ ] **CPF não aparece em lugar nenhum do documento** (minimização LGPD — o papel circula)
 - [ ] Anexo II: os dois blocos com as colunas ALINHADAS entre si, `TOTAL GERAL` = soma dos dois, e igual à soma dos totais do Anexo I e ao painel da tela
 - [ ] O rodapé institucional aparece nas três páginas
-- [ ] **Reajustar os valores em `/config-custos` NÃO muda o PDF do plano já criado** — é a prova de que a versão ficou congelada; a linha de procedência do Anexo II segue citando a versão antiga
+- [ ] **Reajustar os valores em `/config-custos` NÃO muda o PDF do plano já criado** `[E2E: plano-operacional.spec.ts]` — é a prova de que a versão ficou congelada; a linha de procedência do Anexo II segue citando a versão antiga
 
 ## 6. Assinatura Digital — Escalas
 
