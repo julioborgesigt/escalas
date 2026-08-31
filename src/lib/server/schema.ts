@@ -1707,7 +1707,6 @@ export const planosOperacionais = sqliteTable(
 			onDelete: 'restrict'
 		}),
 		departamento: text('departamento').notNull().default('DPI SUL'),
-		local_briefing_padrao: text('local_briefing_padrao').notNull().default(''),
 		oip_por_equipe_padrao: integer('oip_por_equipe_padrao').notNull().default(4),
 		/**
 		 * Signatário do documento — escolhido POR PLANO (o Titular assina umas
@@ -1839,6 +1838,47 @@ export const planoEquipeMembros = sqliteTable(
 	]
 );
 
+/**
+ * As opções de LOCAL DE BRIEFING e CIDADE DE DESTINO que o plano oferece às
+ * suas equipes, com uma PADRÃO de cada tipo.
+ *
+ * Existe contra a redigitação: numa operação com oito equipes saindo para três
+ * cidades, o nome do destino era escrito oito vezes, e bastava um acento
+ * diferente para o Anexo I listar dois destinos onde só há um. O plano declara
+ * a lista uma vez; a equipe escolhe num seletor.
+ *
+ * **Uma tabela para os dois tipos** porque são a mesma forma — lista de texto
+ * com uma padrão. Separá-las duplicaria índice, action e componente de tela
+ * para nada.
+ *
+ * A padrão é decidida por ÍNDICE PARCIAL, como o chefe de equipe: só as linhas
+ * com `padrao = 1` colidem, então quem arbitra a troca é o banco, e não uma
+ * consulta prévia que duas abas abertas conseguem furar.
+ */
+export const planoOpcoes = sqliteTable(
+	'plano_opcoes',
+	{
+		id: integer('id').primaryKey({ autoIncrement: true }),
+		plano_id: integer('plano_id')
+			.notNull()
+			.references(() => planosOperacionais.id, { onDelete: 'cascade' }),
+		tipo: text('tipo', { enum: ['briefing', 'destino'] }).notNull(),
+		valor: text('valor').notNull(),
+		padrao: integer('padrao', { mode: 'boolean' }).notNull().default(false),
+		ordem: integer('ordem').notNull().default(0),
+		created_at: text('created_at')
+			.notNull()
+			.default(sql`(datetime('now', '-3 hours'))`)
+	},
+	(table) => [
+		uniqueIndex('uq_plano_opcoes_padrao')
+			.on(table.plano_id, table.tipo)
+			.where(sql`${table.padrao} = 1`),
+		uniqueIndex('uq_plano_opcoes_valor').on(table.plano_id, table.tipo, table.valor),
+		index('idx_plano_opcoes_plano').on(table.plano_id, table.tipo, table.ordem)
+	]
+);
+
 // ---- Tipos inferidos ----
 
 export type Policial = typeof policiais.$inferSelect;
@@ -1857,6 +1897,7 @@ export type NovoCustoParametros = typeof custoParametros.$inferInsert;
 export type PlanoOperacional = typeof planosOperacionais.$inferSelect;
 export type PlanoEquipe = typeof planoEquipes.$inferSelect;
 export type PlanoEquipeMembro = typeof planoEquipeMembros.$inferSelect;
+export type PlanoOpcao = typeof planoOpcoes.$inferSelect;
 export type GiseEscala = typeof giseEscalas.$inferSelect;
 export type GiseSeccional = typeof giseSeccionais.$inferSelect;
 export type GiseEquipe = typeof giseEquipes.$inferSelect;

@@ -40,6 +40,7 @@ import {
 	getDB,
 	criarPlano,
 	criarEquipes,
+	adicionarOpcao,
 	buscarCustoParametrosVigente,
 	auditar,
 	contextoDeEvento,
@@ -170,7 +171,6 @@ export const actions: Actions = {
 				coordenador_id: coordenadorId,
 				demandante_unidade_id: demandanteId,
 				departamento: texto(fd, 'departamento', 60) || DEPARTAMENTO_PADRAO,
-				local_briefing_padrao: texto(fd, 'local_briefing_padrao', 200),
 				oip_por_equipe_padrao: oipPorEquipe,
 				diretor_id: escolhido?.id ?? null,
 				diretor_nome: diretorNome,
@@ -182,12 +182,27 @@ export const actions: Actions = {
 			return fail(500, { error: 'Erro ao criar o plano operacional.' });
 		}
 
-		// Equipes num segundo passo: falhar aqui deixa o plano existindo sem
+		// O briefing e o destino informados aqui viram a PRIMEIRA opção de cada
+		// lista, já marcada como padrão (é `adicionarOpcao` quem decide isso). O
+		// editor acrescenta as demais depois — a criação pede uma de cada porque é
+		// o caso comum, e uma lista vazia deixaria as equipes nascendo em branco.
+		const briefingPadrao = texto(fd, 'local_briefing_padrao', 200);
+		const destinoPadrao = texto(fd, 'cidade_destino_padrao', 200);
+		try {
+			if (briefingPadrao) await adicionarOpcao(db, criado.id, 'briefing', briefingPadrao);
+			if (destinoPadrao) await adicionarOpcao(db, criado.id, 'destino', destinoPadrao);
+		} catch (e) {
+			logger.error('[gise/planos/novo] criar opções', { error: String(e), plano: criado.id });
+		}
+
+		// Equipes num terceiro passo: falhar aqui deixa o plano existindo sem
 		// equipe, que o editor resolve. Derrubar a requisição esconderia isso.
 		try {
 			await criarEquipes(db, criado.id, {
 				quantidade: qtdEquipes,
-				comSeint: fd.get('tem_seint') != null
+				comSeint: fd.get('tem_seint') != null,
+				briefingPadrao,
+				destinoPadrao
 			});
 		} catch (e) {
 			logger.error('[gise/planos/novo] criar equipes', { error: String(e), plano: criado.id });

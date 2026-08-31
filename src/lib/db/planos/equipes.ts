@@ -75,7 +75,14 @@ export async function buscarEquipe(db: Database, id: number): Promise<PlanoEquip
 export async function criarEquipes(
 	db: Database,
 	planoId: number,
-	opts: { quantidade: number; comSeint?: boolean }
+	opts: {
+		quantidade: number;
+		comSeint?: boolean;
+		/** Opção padrão de briefing do plano, copiada para cada equipe nova. */
+		briefingPadrao?: string;
+		/** Opção padrão de destino do plano, copiada para cada equipe nova. */
+		destinoPadrao?: string;
+	}
 ): Promise<number[]> {
 	const existentes = await listarEquipes(db, planoId);
 	let ordem = existentes.reduce((max, e) => Math.max(max, e.ordem), 0);
@@ -85,18 +92,40 @@ export async function criarEquipes(
 		ordem: number;
 		nome: string;
 		tipo: 'operacional' | 'seint';
+		local_briefing: string;
+		cidade_destino: string;
 	}> = [];
+
+	// Os padrões do plano entram COPIADOS, não herdados por cascata: a equipe é
+	// dona do que o documento imprime, e trocar a opção padrão depois não pode
+	// reescrever o destino de equipes já montadas.
+	const briefing = opts.briefingPadrao?.trim() ?? '';
+	const destino = opts.destinoPadrao?.trim() ?? '';
 
 	for (let i = 0; i < opts.quantidade; i++) {
 		ordem += 1;
-		novas.push({ plano_id: planoId, ordem, nome: nomePadraoEquipe(ordem), tipo: 'operacional' });
+		novas.push({
+			plano_id: planoId,
+			ordem,
+			nome: nomePadraoEquipe(ordem),
+			tipo: 'operacional',
+			local_briefing: briefing,
+			cidade_destino: destino
+		});
 	}
 
 	if (opts.comSeint) {
 		ordem += 1;
 		// A SEINT nasce nomeada pelo que é, não por número: ela é uma só e atende
 		// todas as operacionais, então "Equipe 04" esconderia a função dela.
-		novas.push({ plano_id: planoId, ordem, nome: 'Equipe SEINT', tipo: 'seint' });
+		novas.push({
+			plano_id: planoId,
+			ordem,
+			nome: 'Equipe SEINT',
+			tipo: 'seint',
+			local_briefing: briefing,
+			cidade_destino: destino
+		});
 	}
 
 	if (novas.length === 0) return [];
@@ -180,15 +209,35 @@ export function janelaDaEquipe(
 }
 
 /**
- * O local de briefing efetivo: o da equipe, ou o padrão do plano.
+ * O local de briefing efetivo: o da equipe, ou o VALOR da opção padrão do plano.
  *
  * Mesma cascata de `janelaDaEquipe`, e pelo mesmo motivo — o Anexo I imprime
  * este texto por equipe.
+ *
+ * O segundo argumento é o valor já resolvido (ver `valorPadrao` em
+ * `opcoes.ts`), e não o plano: desde que as opções viraram lista, "o padrão do
+ * plano" é uma linha de outra tabela, e passar o plano inteiro aqui obrigaria
+ * esta função a consultá-la.
  */
 export function briefingDaEquipe(
 	equipe: Pick<PlanoEquipe, 'local_briefing'>,
-	plano: Pick<PlanoOperacional, 'local_briefing_padrao'>
+	padrao: string
 ): string {
 	const proprio = equipe.local_briefing?.trim();
-	return proprio ? proprio : plano.local_briefing_padrao;
+	return proprio ? proprio : padrao;
+}
+
+/**
+ * A cidade de destino efetiva: a da equipe, ou a opção padrão do plano.
+ *
+ * Gêmea de `briefingDaEquipe`. As duas existem porque o Anexo I imprime os
+ * dois campos por equipe, e equipe com o campo em branco não é equipe sem
+ * destino — é equipe que ficou no destino que a operação declarou.
+ */
+export function destinoDaEquipe(
+	equipe: Pick<PlanoEquipe, 'cidade_destino'>,
+	padrao: string
+): string {
+	const proprio = equipe.cidade_destino?.trim();
+	return proprio ? proprio : padrao;
 }

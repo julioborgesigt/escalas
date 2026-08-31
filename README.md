@@ -219,6 +219,7 @@ O projeto usa **Cloudflare D1** (SQLite serverless) via **Drizzle ORM**. O schem
 | `gise_assinaturas_relatorios`    | Assinaturas de relatórios de extra/produtividade                                                                             |
 | `custo_parametros`               | Valores de hora extra por faixa e das diárias, em centavos — **append-only**: cada gravação é uma versão nova                |
 | `planos_operacionais`            | Plano operacional (operação COM deslocamento): número/ano, janela, coordenador, demandante, signatário e a versão de valores |
+| `plano_opcoes`                   | Listas de LOCAL DE BRIEFING e CIDADE DE DESTINO que o plano oferece aos seletores das equipes — uma marcada como padrão      |
 | `plano_equipes`                  | Equipes do plano: viatura, destino, briefing, horário próprio e a rubrica (sem custo / hora extra / diária)                  |
 | `plano_equipe_membros`           | Efetivo do plano, com `cargo`/`classe` CONGELADOS — são a base de cálculo, não acompanham promoção                           |
 | `aceites_termos`                 | Histórico de aceite de termos de uso (versão, hash, IP, user-agent)                                                          |
@@ -1026,6 +1027,33 @@ quase sempre, ou leva a mudar a configuração de todos os planos seguintes para
 acertar um. Sem escolha, o documento imprime a linha de assinatura em branco —
 que é o estado honesto de um plano cujo signatário ainda não foi definido, e
 visível para quem for emitir. `/config-custos` trata só de dinheiro.
+
+**Briefing e destino são LISTAS do plano** (`plano_opcoes`), não campo livre por
+equipe. Numa operação com oito equipes saindo para três cidades o destino era
+redigitado oito vezes, e bastava um acento diferente para o Anexo I listar dois
+destinos onde só há um. O plano declara as opções uma vez, nos Parâmetros
+gerais, e a equipe escolhe num `<select>`.
+
+Uma opção de cada tipo é a **padrão** (estrela, como o chefe de equipe) e a
+arbitragem é do BANCO: `uq_plano_opcoes_padrao` é único PARCIAL sobre
+`(plano_id, tipo) WHERE padrao = 1`, então trocar a padrão é limpar a anterior e
+marcar a nova no mesmo `batch` — duas abas não conseguem deixar duas padrões.
+`uq_plano_opcoes_valor` recusa valor repetido no mesmo tipo, pelo índice e não
+por um `SELECT` antes.
+
+A padrão é **copiada** para a equipe nova, não herdada por referência: a equipe
+guarda o TEXTO. É o que permite remover uma opção da lista sem esvaziar o
+destino de uma equipe montada — muito menos o de um plano cujo documento já
+circulou. Pelo mesmo motivo o seletor da equipe oferece o valor próprio dela
+mesmo quando ele saiu da lista (`escolhasDaEquipe`): um `<select>` cujo `value`
+não casa com nenhum `<option>` exibe o primeiro item, e salvar sem tocar no
+campo trocaria o destino impresso.
+
+Equipe com o campo VAZIO cai no padrão do plano (`briefingDaEquipe`,
+`destinoDaEquipe`) — a mesma cascata que o PDF usa. Lista com opções e nenhuma
+padrão é estado possível (é como a migração encontrou os planos antigos, que não
+tinham onde declarar qual seria) e o editor **avisa**: sem estrela, a equipe nova
+continua nascendo em branco.
 
 **Classe vazia não vira R$ 0 em silêncio.** `policiais.classe` é
 `text NOT NULL DEFAULT ''`; sem faixa resolvida a linha sai como PENDÊNCIA na

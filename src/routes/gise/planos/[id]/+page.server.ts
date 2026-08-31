@@ -16,7 +16,14 @@
  */
 import { error, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
-import { getDB, janelaDaEquipe, briefingDaEquipe, buscarPolicial } from '$lib/db';
+import {
+	getDB,
+	janelaDaEquipe,
+	destinoDaEquipe,
+	opcoesDoPlano,
+	valorPadrao,
+	buscarPolicial
+} from '$lib/db';
 import { unidades } from '$lib/server/schema';
 import { eq } from 'drizzle-orm';
 import { carregarPlanoParaEdicao } from '$lib/server/planos/permissao';
@@ -26,6 +33,7 @@ import { classificarJanela } from '$lib/planos/horas-extras';
 import { actionsPlano } from './_actions/actions-plano';
 import { actionsEquipe } from './_actions/actions-equipe';
 import { actionsMembros } from './_actions/actions-membros';
+import { actionsOpcoes } from './_actions/actions-opcoes';
 
 export const load: PageServerLoad = async ({ locals, params, platform, depends }) => {
 	depends('planos:detalhe');
@@ -51,6 +59,10 @@ export const load: PageServerLoad = async ({ locals, params, platform, depends }
 	// mostrando a seleção em vez de um campo vazio. Sem eles, um plano com
 	// coordenador designado parece não ter nenhum — e salvar por cima apagaria a
 	// designação sem que ninguém tivesse pedido isso.
+	const opcoes = await opcoesDoPlano(db, plano.id);
+	const briefingPadrao = valorPadrao(opcoes.briefing);
+	const destinoPadrao = valorPadrao(opcoes.destino);
+
 	const [coordenador, demandante] = await Promise.all([
 		plano.coordenador_id ? buscarPolicial(db, plano.coordenador_id) : Promise.resolve(null),
 		plano.demandante_unidade_id
@@ -65,10 +77,17 @@ export const load: PageServerLoad = async ({ locals, params, platform, depends }
 	return {
 		coordenadorNome: coordenador?.nome ?? '',
 		demandanteNome: demandante?.nome ?? '',
+		/**
+		 * As listas que alimentam os seletores das equipes, e o valor da padrão de
+		 * cada tipo — que é o que a equipe nova recebe pré-preenchido.
+		 */
+		opcoes,
+		briefingPadrao,
+		destinoPadrao,
 		plano,
 		/**
 		 * Cada equipe com o que a tela precisa: os membros, a janela EFETIVA (já
-		 * resolvida pela cascata equipe → plano), o briefing efetivo e a sugestão
+		 * resolvida pela cascata equipe → plano), o destino efetivo e a sugestão
 		 * de horas daquela janela.
 		 *
 		 * A sugestão é calculada aqui, e não no `.svelte`, porque depende da mesma
@@ -81,7 +100,7 @@ export const load: PageServerLoad = async ({ locals, params, platform, depends }
 				...e,
 				membros: porEquipe.get(e.id) ?? [],
 				janela,
-				briefingEfetivo: briefingDaEquipe(e, plano),
+				destinoEfetivo: destinoDaEquipe(e, destinoPadrao),
 				sugestaoHoras: classificarJanela(janela),
 				custo: custo.equipes.find((c) => c.equipe.id === e.id)?.total ?? 0
 			};
@@ -96,5 +115,6 @@ export const load: PageServerLoad = async ({ locals, params, platform, depends }
 export const actions: Actions = {
 	...actionsPlano,
 	...actionsEquipe,
-	...actionsMembros
+	...actionsMembros,
+	...actionsOpcoes
 };

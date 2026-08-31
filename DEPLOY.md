@@ -601,6 +601,8 @@ Para esses, qualquer upgrade major precisa ser feito manualmente após testar o 
 
    O signatário é escolhido **por plano** (o Titular assina umas operações, o Adjunto outras) — não há mais padrão global, e `/config-custos` trata só de dinheiro. A migração `0069` faz duas correções de dado: reescreve o cargo do padrão antigo ("Diretor Titular do Departamento de Polícia do Interior Sul") para a grafia da lista fechada ("Diretor Titular do DPI SUL"), sem o que um plano criado antes dela mostraria um cargo na tela e imprimiria outro no PDF; e apaga as chaves `plano.diretor_nome`/`plano.diretor_cargo` de `configuracoes`, que ninguém mais lê nem escreve.
 
+   A migração `0070` transforma briefing e destino em **listas por plano** (`plano_opcoes`) e **derruba a coluna `planos_operacionais.local_briefing_padrao`** — não é retrocompatível com o código anterior, então é deploy de código e migração na mesma janela, não `expand/contract`. Ela migra o dado existente: o `local_briefing_padrao` de cada plano vira a opção de briefing marcada como padrão, e cada `cidade_destino` distinta já usada pelas equipes entra como opção de destino do plano — estas **sem** padrão, porque qual das cidades seria a padrão daquele plano não está em lugar nenhum do banco. O editor avisa quando a lista está sem estrela; marcar uma é ação do Admin Geral no plano, não do deploy. Nenhuma equipe existente muda de briefing ou destino: elas guardam o texto, e a migração não toca em `plano_equipes`.
+
 7. Monitorar logs no dashboard Pages e alertas no Sentry, se configurado.
 
 ## Versão

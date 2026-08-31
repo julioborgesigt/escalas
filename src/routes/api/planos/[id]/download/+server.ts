@@ -22,7 +22,16 @@
  * as duas não poderem discordar.
  */
 import type { RequestHandler } from './$types';
-import { getDB, janelaDaEquipe, briefingDaEquipe, buscarPolicial, tryGetR2 } from '$lib/db';
+import {
+	getDB,
+	janelaDaEquipe,
+	briefingDaEquipe,
+	destinoDaEquipe,
+	opcoesDoPlano,
+	valorPadrao,
+	buscarPolicial,
+	tryGetR2
+} from '$lib/db';
 import { unidades } from '$lib/server/schema';
 import { eq } from 'drizzle-orm';
 import { carregarPlanoParaEdicao } from '$lib/server/planos/permissao';
@@ -54,6 +63,13 @@ export const GET: RequestHandler = async ({ locals, params, platform }) => {
 	// A MESMA montagem do editor — ver `custo-do-plano.ts`. O total impresso aqui
 	// é, por construção, o que o admin conferiu na tela antes de emitir.
 	const { equipes, porEquipe, parametros, custo } = await montarCustoDoPlano(db, plano);
+
+	// As opções do plano, para resolver a cascata da equipe com campo vazio —
+	// equipe em branco não é equipe sem destino, é equipe no destino que a
+	// operação declarou.
+	const opcoes = await opcoesDoPlano(db, plano.id);
+	const briefingPadrao = valorPadrao(opcoes.briefing);
+	const destinoPadrao = valorPadrao(opcoes.destino);
 
 	if (!podeEmitir(custo)) {
 		const nomes = custo.pendencias.map((p) => `${p.nome} (${p.equipe})`).join('; ');
@@ -121,7 +137,7 @@ export const GET: RequestHandler = async ({ locals, params, platform }) => {
 					tipo: e.tipo,
 					viatura_modelo: e.viatura_modelo,
 					viatura_placa: e.viatura_placa,
-					cidade_destino: e.cidade_destino,
+					cidade_destino: destinoDaEquipe(e, destinoPadrao),
 					tipo_custo: e.tipo_custo,
 					horas_normais: e.horas_normais,
 					horas_plus: e.horas_plus,
@@ -131,7 +147,7 @@ export const GET: RequestHandler = async ({ locals, params, platform }) => {
 					// tela usa: o gerador recebe o valor efetivo e não reimplementa a
 					// herança.
 					horaApresentacao: janelaDaEquipe(e, plano).horaInicio,
-					briefing: briefingDaEquipe(e, plano),
+					briefing: briefingDaEquipe(e, briefingPadrao),
 					membros: (porEquipe.get(e.id) ?? []).map((m) => ({
 						policial_id: m.policial_id,
 						nome: m.nome,

@@ -507,6 +507,18 @@ Verificar cada transição de status:
 - [ ] Equipe com horário próprio (ex.: apresentação 03:30) usa o dela; equipe sem horário HERDA o do plano — o Anexo I imprime o valor efetivo
 - [ ] O editor abre com coordenador, demandante e signatário **já preenchidos** quando o plano os tem — campo vazio ali significaria "ninguém designado", e salvar por cima apagaria a designação
 - [ ] Trocar o signatário de UM plano não muda o padrão global nem os outros planos
+- [ ] **Parâmetros gerais → "Opções das equipes"**: acrescentar um local de briefing e uma cidade de destino; a PRIMEIRA de cada tipo nasce com a estrela
+- [ ] Acrescentar o MESMO valor de novo → recusa nomeando a lista ("já está na lista de cidades de destino") `[Vitest: planos.test.ts]` — quem recusa é o índice, não uma consulta prévia
+- [ ] Marcar outra como padrão → a estrela SAI da anterior (nunca duas), e remover a padrão faz a primeira das restantes assumir
+- [ ] Lista com opções e nenhuma padrão (é como os planos antigos vieram da migração) → o editor avisa que as equipes novas continuam nascendo em branco
+- [ ] As duas listas gravam **sozinhas**, sem passar pelo "Salvar parâmetros" — uma edição pela metade nos outros campos não vai junto
+- [ ] Criar equipe DEPOIS de marcar as padrões → ela nasce com briefing e destino já preenchidos `[E2E: plano-operacional.spec.ts]`
+- [ ] No card da equipe, os dois campos são `<select>` com as opções do plano; a opção vazia nomeia **o padrão do plano** ("— padrão: Iguatu —"), não o valor que a equipe já tem
+- [ ] Remover da lista uma opção que uma equipe já usa → o destino da equipe **continua lá** e ainda aparece no seletor dela (a equipe guarda o texto, não uma referência)
+- [ ] POST direto em `?/definirOpcaoPadrao` com o `opcao_id` de OUTRO plano → recusa, e a linha alheia não muda `[E2E: plano-operacional.spec.ts]` (classe do FLW-ESC-002)
+- [ ] "Custo da equipe" aparece DEPOIS do bloco "Efetivo"; "Excluir equipe" e "Salvar Alterações" ficam juntos no rodapé do card
+- [ ] Editar horas/diárias e salvar → os campos de custo persistem, mesmo estando FORA do `<form>` (chegam por `form=`)
+- [ ] "Excluir equipe" **pede confirmação** dizendo quantos servidores vão junto; "Cancelar" não apaga nada
 - [ ] Servidor **sem classe no cadastro** numa equipe com custo → linha em vermelho, "impede a emissão", e o botão de baixar o PDF desabilitado
 - [ ] Com a pendência aberta, **GET direto em `/api/planos/<id>/download` → 409** nomeando quem falta `[E2E: plano-operacional.spec.ts]` (o botão escondido nunca foi autorização)
 - [ ] O mesmo servidor sem classe numa equipe **sem custo** → AVISO, não pendência: a emissão continua liberada (equipe sem custo pode virar com custo, e o problema tem de aparecer antes da véspera)
