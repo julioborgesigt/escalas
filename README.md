@@ -217,6 +217,10 @@ O projeto usa **Cloudflare D1** (SQLite serverless) via **Drizzle ORM**. O schem
 | `gise_modelo_formulario`         | Modelo do formulário de produtividade em JSON, um por (operação, tipo de equipe) — e a ordem dos cards do painel    |
 | `gise_respostas_formulario`      | Respostas de formulários (JSON) por policial/equipe                                                                 |
 | `gise_assinaturas_relatorios`    | Assinaturas de relatórios de extra/produtividade                                                                    |
+| `custo_parametros`               | Valores de hora extra por faixa e das diárias, em centavos — **append-only**: cada gravação é uma versão nova       |
+| `planos_operacionais`            | Plano operacional (operação COM deslocamento): número/ano, janela, coordenador, demandante e a versão de valores    |
+| `plano_equipes`                  | Equipes do plano: viatura, destino, briefing, horário próprio e a rubrica (sem custo / hora extra / diária)         |
+| `plano_equipe_membros`           | Efetivo do plano, com `cargo`/`classe` CONGELADOS — são a base de cálculo, não acompanham promoção                  |
 | `aceites_termos`                 | Histórico de aceite de termos de uso (versão, hash, IP, user-agent)                                                 |
 | `audit_log`                      | Trilha de auditoria forense (eventos de negócio, cadeia de hash tamper-evident)                                     |
 | `app_log`                        | Logs técnicos do servidor (warn/error do logger, correlacionados por `request_id`)                                  |
@@ -273,7 +277,7 @@ npm run db:migrate:prod -- --yes
 
 ### Histórico de migrações
 
-O histórico completo está na própria pasta [`migrations/`](migrations/) — os nomes dos arquivos são autoexplicativos (`0000_initial_schema.sql` … `0052_indicador_cobertura.sql`). Para entender uma migração específica, leia o SQL dela e o trecho correspondente do [`src/lib/server/schema.ts`](src/lib/server/schema.ts).
+O histórico completo está na própria pasta [`migrations/`](migrations/) — os nomes dos arquivos são autoexplicativos (`0000_initial_schema.sql` … `0068_plano_operacional.sql`). Para entender uma migração específica, leia o SQL dela e o trecho correspondente do [`src/lib/server/schema.ts`](src/lib/server/schema.ts).
 
 O que já rodou em cada ambiente é rastreado pela tabela `_migrations_aplicadas`, gravada pelo runner [`scripts/migrate.ts`](scripts/migrate.ts). (O `migrations/meta/` do `drizzle-kit` foi removido em jul/2026: ficou parado em 2 entradas para dezenas de arquivos e só induzia a erro.)
 
@@ -362,6 +366,7 @@ escalas/
 │   │   │   ├── auth/               # Login, logout, 2FA, reset de senha
 │   │   │   ├── escalas/            # CRUD escalas, geração PDF, assinaturas
 │   │   │   ├── gise/               # GISE (escalas, equipes, presenças, formulários)
+│   │   │   ├── planos/             # Plano operacional: download do PDF
 │   │   │   ├── policiais/          # CRUD policiais, busca
 │   │   │   ├── unidades/           # Hierarquia de unidades
 │   │   │   ├── validar/            # Validação pública de assinaturas
@@ -383,6 +388,7 @@ escalas/
 │   │   ├── painel/                 # Dashboard admin
 │   │   ├── recebidos/              # Caixa de entrada de escalas recebidas
 │   │   ├── gise/                   # GISE (lista, detalhe, config de questões)
+│   │   │   └── planos/             # Planos operacionais (lista, criação, editor) — operação COM deslocamento
 │   │   ├── res-gise/               # GISE do membro: "Presença GISE" (ativas) e "Histórico GISE" (?status=finalizadas) — duas abas da sidebar, mesma rota
 │   │   ├── policiais/              # Gestão de policiais (lista, detalhe, upload CSV)
 │   │   ├── unidades/               # Gestão de unidades
@@ -391,6 +397,7 @@ escalas/
 │   │   ├── solicitacoes/           # Fila de decisão do Admin Geral (cadastro + movimentar/afastar/desvincular)
 │   │   ├── conf-ass/               # Configuração de assinatura
 │   │   ├── config-geral/           # Configurações gerais (provedor de e-mail)
+│   │   ├── config-custos/          # Valores de hora extra e diária (Super Admin) — versionados
 │   │   ├── auditoria/              # Trilha forense + logs técnicos (/auditoria/logs)
 │   │   ├── validar/                # Validação pública de PDF assinado
 │   │   ├── termo/                  # Consulta pública do termo de uso (/termo → versão vigente)
@@ -426,6 +433,7 @@ escalas/
 │   │   │   ├── auth/               # Login, certificado A3, sessão, CSRF, webhooks
 │   │   │   ├── escalas/            # Regras de escala: conflito, exclusão, permissão
 │   │   │   ├── gise/               # Regras GISE: permissão, papéis, termo de presença
+│   │   │   ├── planos/             # Plano operacional: portão de permissão e montagem do custo
 │   │   │   ├── export/             # Geração de PDF/XLSX/DOCX
 │   │   │   ├── sync/               # Contrato de resposta dos webhooks de sincronização
 │   │   │   ├── termo/              # Conteúdo e hash do termo de uso vigente
@@ -435,6 +443,7 @@ escalas/
 │   │   │   ├── policiais.ts        # Queries de policiais
 │   │   │   ├── escalas.ts          # Queries de escalas
 │   │   │   ├── gise/               # Sub-módulo GISE
+│   │   │   ├── planos/             # Planos operacionais, equipes, membros e valores de custo
 │   │   │   └── ...
 │   │   ├── schemas/                # Schemas Zod de validação
 │   │   │   ├── auth.ts             # Login, reset, 2FA
@@ -447,6 +456,7 @@ escalas/
 │   │   ├── enhance-handler.ts      # Resultado de form action → toast (fonte única)
 │   │   ├── sync-estado.ts          # Poll de revalidação no cliente (par de server/*/sync-estado)
 │   │   ├── institucional.ts        # Nome oficial da corporação e dos órgãos (timbre e prosa)
+│   │   ├── planos/                 # Regras puras do plano operacional (faixa de custo, horas, diárias, rótulos)
 │   │   ├── serpro.ts               # Cliente WebSocket para Assinador SERPRO Desktop
 │   │   ├── csrf.ts                 # Helpers CSRF (cliente)
 │   │   ├── loading.svelte.ts       # Estado global de loading
@@ -469,6 +479,8 @@ escalas/
 │   ├── migrate.ts                  # Runner de migrações
 │   ├── guard-autorizacao.mjs       # Gate CI: operação material precisa recusar alguém
 │   ├── guard-docs-novos.mjs        # Gate CI: arquivo novo em lib/db com cabeçalho/JSDoc
+│   ├── guard-duplicacao.mjs        # Gate CI: bloco repetido entre arquivos (baseline em duplicacao-baseline.json)
+│   ├── guard-achados.mjs           # Gate CI: sigla de achado citada no código tem onde ser lida
 │   ├── inventario-docs.mjs         # Inventário de documentação (`docs:inventario`)
 │   ├── set-default-password-all-users.ts
 │   ├── clear-passwords-non-admins.ts
@@ -962,6 +974,65 @@ O resto do fluxo:
 - Assinatura de relatórios de extra/produtividade
 - Relatórios e dashboards de produtividade
 
+### Plano operacional (operação com deslocamento)
+
+A escala extra acima é serviço **sem** deslocamento fora da circunscrição, com
+ponto de origem fixo e pagamento sempre em hora extra. O **plano operacional**
+(`/gise/planos`, Admin Geral) cobre o outro caso: uma ou mais equipes se
+deslocam para cumprir mandados demandados por uma delegacia ou seccional, e o
+pagamento passa a depender do dia e do horário.
+
+Os dois nascem no MESMO botão de `/gise/operacoes`, que pergunta qual dos dois
+se está cadastrando — mas não compartilham tabela, rota nem PDF. `operacoes` é o
+CATÁLOGO do qual as escalas GISE pendem (`gise_escalas.operacao_id`); um plano é
+evento único, com equipes próprias. Discriminar por coluna faria toda consulta
+de `/gise` passar a filtrar.
+
+**As três rubricas**, decididas por equipe:
+
+| Quando                                                        | Rubrica                                       |
+| ------------------------------------------------------------- | --------------------------------------------- |
+| 08:00–18:00 em dia útil                                       | sem custo                                     |
+| 06:00–08:00 e 18:00–00:00 útil                                | hora extra normal                             |
+| 00:00–06:00 útil, ou fim de semana e feriado em qualquer hora | hora extra **plus** (+30%)                    |
+| Deslocamento com pernoite                                     | diária estadual ou interestadual, de 0,5 a 15 |
+
+A janela SUGERE a quantidade (`classificarJanela`); quem grava é o Admin Geral,
+porque a equipe que desloca antes é o caso normal, não a exceção.
+
+**Os valores são do Super Admin** (`/config-custos`): hora extra por faixa de
+cargo/classe (DPC 1ª/2ª, DPC 3ª/especial, OIP A/B, OIP C/D) e as duas diárias,
+tudo em centavos. Quem planeja escolhe QUANTAS horas; quanto vale a hora é
+decisão de outro nível.
+
+**A tabela é versionada e o plano guarda a versão que usou** (append-only, nunca
+`UPDATE`). Reemitir em junho o PDF de um plano de março tem de devolver os
+mesmos números depois de um reajuste — e o Anexo II imprime a versão aplicada,
+para o total não ser confundido com erro de cálculo.
+
+**`cargo` e `classe` congelam na linha do membro**: são a base de cálculo, e não
+acompanham promoção posterior. Nome, matrícula, lotação e telefone continuam
+vindo vivos do cadastro — são identificação, não mudam o valor pago.
+
+**Classe vazia não vira R$ 0 em silêncio.** `policiais.classe` é
+`text NOT NULL DEFAULT ''`; sem faixa resolvida a linha sai como PENDÊNCIA na
+tela e o endpoint de download **recusa com 409** nomeando quem falta. Equipe
+`sem_custo` com membro sem classe gera AVISO, não pendência: ela pode virar com
+custo, e o problema tem de aparecer enquanto ainda há tempo — não na véspera da
+emissão.
+
+O PDF (`GET /api/planos/[id]/download`) sai em três páginas: corpo com as nove
+seções numeradas e a assinatura do Diretor, **Anexo I** com uma tabela por
+equipe (efetivo, jornada, rubrica e valor de cada servidor) e **Anexo II** com o
+consolidado por categoria. **CPF não entra no documento** — minimização LGPD: o
+papel circula, e a Classe basta para justificar o valor da linha.
+
+O que a tela mostra e o que o PDF imprime saem da MESMA chamada
+(`montarCustoDoPlano`), e não de dois cálculos parecidos.
+
+**Fora de escopo nesta entrega:** confirmação de presença, relatórios extras e
+assinatura digital do plano.
+
 ### Assinatura Digital
 
 Três modalidades suportadas:
@@ -1051,13 +1122,13 @@ O aceite do termo de uso é obrigatório a cada nova versão. Qualquer mudança 
 
 ### Papéis (RBAC)
 
-| Tipo                     | Papel             | Acesso                                                                                                                                                  |
-| ------------------------ | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `admin` + `isSuperAdmin` | Super Admin       | Tudo do Admin Geral **mais**: promover admins, gerenciar policiais/unidades, configurar política de assinatura, baixar o forense pelo portal `/validar` |
-| `admin`                  | Admin Geral       | Operação global (escalas, GISE, LGPD/compliance) em todas as unidades — não remodela a base; consoles de auditoria são do Super Admin                   |
+| Tipo                     | Papel             | Acesso                                                                                                                                                                                                      |
+| ------------------------ | ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `admin` + `isSuperAdmin` | Super Admin       | Tudo do Admin Geral **mais**: promover admins, gerenciar policiais/unidades, configurar política de assinatura, baixar o forense pelo portal `/validar`                                                     |
+| `admin`                  | Admin Geral       | Operação global (escalas, GISE, LGPD/compliance) em todas as unidades — não remodela a base; consoles de auditoria são do Super Admin                                                                       |
 | `policial`               | `admin_seccional` | Gerencia escalas da sua seccional e **solicita** correções cadastrais e atos de RH dos servidores dela; informa a linha de base dos indicadores das unidades (`/dados-base`) e vê `/produtividade` escopado |
-| `policial`               | `admin_unidade`   | O mesmo, escopado à sua unidade                                                                                                                         |
-| `policial`               | —                 | Acessa apenas suas próprias escalas e GISE                                                                                                              |
+| `policial`               | `admin_unidade`   | O mesmo, escopado à sua unidade                                                                                                                                                                             |
+| `policial`               | —                 | Acessa apenas suas próprias escalas e GISE                                                                                                                                                                  |
 
 A matriz completa de capacidades por papel está em [`DEPLOY.md`](DEPLOY.md#papéis-e-privilégios-de-administrador). Membros de GISE têm papéis adicionais (`supervisor`, `assessor/SEINT`, `membro`) calculados dinamicamente a partir da tabela `gise_membros`.
 
@@ -1066,10 +1137,10 @@ A matriz completa de capacidades por papel está em [`DEPLOY.md`](DEPLOY.md#pap�
 A ficha em `/policiais/[id]` é **uma tela só, com dois poderes**, e o portão que
 os separa é [`ficha-permissao.ts`](src/lib/server/policiais/ficha-permissao.ts):
 
-| modo           | quem                            | o que acontece ao submeter                             |
-| -------------- | ------------------------------- | ------------------------------------------------------ |
-| `direto`       | Admin Geral                     | grava o cadastro / executa o ato na hora               |
-| `solicitacao`  | `admin_seccional`/`admin_unidade` | vira pedido pendente para o Admin Geral decidir       |
+| modo          | quem                              | o que acontece ao submeter                      |
+| ------------- | --------------------------------- | ----------------------------------------------- |
+| `direto`      | Admin Geral                       | grava o cadastro / executa o ato na hora        |
+| `solicitacao` | `admin_seccional`/`admin_unidade` | vira pedido pendente para o Admin Geral decidir |
 
 O que cada regra fixa, e por quê:
 

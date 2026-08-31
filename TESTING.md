@@ -311,6 +311,15 @@ Verificar cada transição de status:
 - [ ] Policial sem nenhuma participação: **o pai não aparece** (submenu vazio não
       ganha porta)
 
+**Os itens da RAIZ (Admin Geral):**
+
+- [ ] "Operações" e "Planos" aparecem lado a lado, e a rota atual acende só um
+      dos dois — estar em `/gise/planos` **não** pode acender "Ativas"
+- [ ] "Valores de custo" NÃO aparece para o Admin Geral: é aba do Super Admin
+- [ ] A tela de boas-vindas do módulo tem um quadro para cada item do menu
+      (`__tests__/bem-vindo-cards.test.ts` reprova o esquecimento, mas a
+      conferência visual é a que pega texto trocado)
+
 **Herdado dos ciclos anteriores:**
 
 - [ ] `/res-gise` (Admin Geral) mostra "VOLTAR ÀS OPERAÇÕES" acima do título
@@ -457,16 +466,63 @@ Verificar cada transição de status:
 
 ---
 
-## 5. Assinatura Digital — Escalas
+## 5. Plano operacional (`/gise/planos` e `/config-custos`)
 
-### 5.1 Assinatura Simples (Nome/CPF) — descontinuada, restrita a fluxos FDS legados
+> Módulo de ago/2026 — a operação COM deslocamento de equipes. Cobertura
+> automatizada: `src/lib/planos/__tests__/` (faixa de custo, janela de horas,
+> diárias, consolidado), `src/lib/db/planos/__tests__/` (numeração, chefe único,
+> um servidor por plano) e os goldens `plano_operacional*` em
+> `pdf-goldens.test.ts`. O que sobra para a mão é o que atravessa as duas telas.
+
+### 5.1 Valores de custo (Super Admin)
+
+- [ ] `/config-custos` abre para o Super Admin e mostra a versão vigente mais o histórico
+- [ ] **Admin Geral em `/config-custos` → sai da tela** (não é dele: quem planeja escolhe quantas horas, não quanto vale a hora)
+- [ ] Preencher os quatro valores normais → "Aplicar +30% nos quatro" preenche os `plus` (27,30 → 35,49) e eles continuam editáveis
+- [ ] Campo de dinheiro **vazio** → erro com mensagem; zero tem de ser DIGITADO (vazio virando R$ 0 em silêncio foi bug corrigido na entrega)
+- [ ] Gravar → aparece uma VERSÃO nova no histórico; a anterior continua listada (a tabela é append-only)
+
+### 5.2 Criação do plano
+
+- [ ] `/gise/operacoes` → "Nova operação" pergunta **Operação** ou **Plano operacional**
+- [ ] Escolher _Operação_ → abre o painel de sempre, sem nenhuma mudança de comportamento
+- [ ] Escolher _Plano operacional_ → `/gise/planos/novo`
+- [ ] Sem tabela de valores gravada, a tela avisa que o Anexo II sairia zerado — e ainda assim deixa criar o plano
+- [ ] Criar → redireciona para o editor, com o número `N/ANO` sequencial do ano corrente
+- [ ] Dois planos criados no mesmo ano recebem números diferentes (o `UNIQUE (ano, numero)` é a tranca real, não a consulta prévia)
+
+### 5.3 Editor, custo e o que bloqueia a emissão
+
+- [ ] Plano em **dia útil das 14:00 às 17:00** → "Sugerir pelo horário" propõe SEM CUSTO
+- [ ] O mesmo plano movido para **sábado** → sugere as mesmas horas como hora extra **plus**
+- [ ] Equipe com horário próprio (ex.: apresentação 03:30) usa o dela; equipe sem horário HERDA o do plano — o Anexo I imprime o valor efetivo
+- [ ] Servidor **sem classe no cadastro** numa equipe com custo → linha em vermelho, "impede a emissão", e o botão de baixar o PDF desabilitado
+- [ ] Com a pendência aberta, **GET direto em `/api/planos/<id>/download` → 409** nomeando quem falta (o botão escondido nunca foi autorização)
+- [ ] O mesmo servidor sem classe numa equipe **sem custo** → AVISO, não pendência: a emissão continua liberada (equipe sem custo pode virar com custo, e o problema tem de aparecer antes da véspera)
+- [ ] Um servidor não entra DUAS vezes no mesmo plano, nem em equipes diferentes
+- [ ] Definir outro chefe na equipe → o anterior perde a marca (um chefe por equipe)
+
+### 5.4 O PDF
+
+- [ ] Três páginas: corpo, `ANEXO I` e `ANEXO II`
+- [ ] O corpo cabe numa folha só, com a data e a assinatura do Diretor **na mesma página** do texto — assinatura sozinha na folha seguinte é defeito
+- [ ] Anexo I: uma tabela por equipe, com destino, VTR, apresentação e briefing; chefe marcado com `*`; `Total:` por equipe
+- [ ] Jornada sai como `6h (5N/1A)` na hora extra e `1,5 diárias` na diária; equipe sem custo imprime `Sem custo` e `R$ 0,00`
+- [ ] **CPF não aparece em lugar nenhum do documento** (minimização LGPD — o papel circula)
+- [ ] Anexo II: os dois blocos com as colunas ALINHADAS entre si, `TOTAL GERAL` = soma dos dois, e igual à soma dos totais do Anexo I e ao painel da tela
+- [ ] O rodapé institucional aparece nas três páginas
+- [ ] **Reajustar os valores em `/config-custos` NÃO muda o PDF do plano já criado** — é a prova de que a versão ficou congelada; a linha de procedência do Anexo II segue citando a versão antiga
+
+## 6. Assinatura Digital — Escalas
+
+### 6.1 Assinatura Simples (Nome/CPF) — descontinuada, restrita a fluxos FDS legados
 
 - [ ] Preparar assinatura → PDF gerado com sucesso
 - [ ] Assinar com nome e CPF → documento assinado
 - [ ] Hash de verificação gerado após assinatura
 - [ ] Download do PDF assinado disponível
 
-### 5.2 Assinatura WebPKI (Certificado ICP-Brasil)
+### 6.2 Assinatura WebPKI (Certificado ICP-Brasil)
 
 - [ ] Selecionar método WebPKI
 - [ ] Extensão WebPKI detectada no navegador
@@ -477,21 +533,21 @@ Verificar cada transição de status:
 
 > `[E2E: assinatura-qualificada-a3.spec.ts]` cobre a cadeia criptográfica do fluxo qualificado (preparar → CMS → finalizar → download → `/validar`, com negativos de CA desconhecida, CPF divergente e digest adulterado) usando CA de teste. O que segue manual em 5.2/5.3 é a integração com o assinador real (WebPKI/SERPRO, PIN, token físico, certificado expirado de verdade).
 
-### 5.3 Assinatura SERPRO
+### 6.3 Assinatura SERPRO
 
 - [ ] Selecionar método SERPRO
 - [ ] Aplicação desktop SERPRO conectada via WebSocket
 - [ ] Assinar com sucesso → finalizar com sucesso
 - [ ] SERPRO não conectado → mensagem de erro
 
-### 5.4 Código de Assinatura por E-mail
+### 6.4 Código de Assinatura por E-mail
 
 - [ ] Solicitar código de assinatura por e-mail
 - [ ] Inserir código correto → autorização concedida
 - [ ] Código incorreto → erro de validação
 - [ ] Código expirado → erro com instrução para solicitar novo
 
-### 5.5 Re-assinatura e revogação
+### 6.5 Re-assinatura e revogação
 
 > `[E2E: escala-revogacao.spec.ts]` cobre o ciclo qualificado (CA de teste): assinar → documento baixável e `/validar` encontra → revogar (DELETE) → documento some do banco e do `/validar` → reassinar (hash novo). Também a re-assinatura sem revogar (overwrite): o hash antigo deixa de resolver (achado R2-4). Guarda: policial de outra lotação não revoga → 403. A limpeza dos objetos R2 em si (quais apagar) é coberta no unitário `r2-cleanup.test.ts`.
 
@@ -499,9 +555,9 @@ Verificar cada transição de status:
 
 ---
 
-## 6. Assinatura Digital — GISE
+## 7. Assinatura Digital — GISE
 
-### 6.1 Assinatura da GISE Principal
+### 7.1 Assinatura da GISE Principal
 
 - [ ] Preparar assinatura da GISE → PDF gerado
 - [ ] Assinar simples com nome/CPF
@@ -510,7 +566,7 @@ Verificar cada transição de status:
 - [ ] GPS coletado durante assinatura (se configurado)
 - [ ] Hash de verificação gerado após assinatura
 
-### 6.2 Presença (Check-in / Check-out)
+### 7.2 Presença (Check-in / Check-out)
 
 > `[E2E: presenca-gise.spec.ts]` cobre entrada/saída em tela com 2FA + GPS (2FA **sempre** obrigatório — as actions leem a fonte única `lerFlagsAssinatura`, que o força ligado), o comprovante sob demanda dos dois sentidos, o **vínculo na escrita** (não-participante com 2FA válido → 403, não grava) e as guardas do comprovante (anônimo 401, não-participante 403, tipo inválido 400, sem presença 404). Manual: selfie/câmera real (liveness é client-side) e o fluxo por Token A3 (janela de horário + hardware — QA A3).
 
@@ -522,13 +578,13 @@ Verificar cada transição de status:
   - Presença por Token A3 → serve o termo qualificado (ICP-Brasil) guardado no R2
   - Presença em tela → gera o comprovante **avançado** sob demanda (evidências do ato), SEM menção a ICP-Brasil no rodapé
 
-### 6.3 Formulários de Produtividade
+### 7.3 Formulários de Produtividade
 
 - [ ] Policial preenche formulário de respostas
 - [ ] Salvar respostas → persistido no banco
 - [ ] Atualizar respostas já salvas → substituído corretamente
 
-### 6.4 Assinatura de Relatórios Seccional
+### 7.4 Assinatura de Relatórios Seccional
 
 > `[E2E: relatorio-extra-gise.spec.ts]` cobre a assinatura **qualificada** do relatório extraordinário pelo supervisor via CA de teste (preparar → CMS → finalizar → documento persistido → `/validar`) e as guardas: não-supervisor → 403, seccional inválida → 400, saída incompleta → 400, CPF do token ≠ supervisor → 400.
 > `[E2E: relatorio-extra-avancado.spec.ts]` cobre a assinatura **avançada em tela** (endpoint `assinar`): supervisor com 2FA + selfie/GPS → 200; não-supervisor → 403; saída incompleta → 400; sem 2FA → 400.
@@ -543,7 +599,7 @@ Verificar cada transição de status:
 
 ---
 
-## 7. Validação Pública de Documentos (`/validar/[hash]`)
+## 8. Validação Pública de Documentos (`/validar/[hash]`)
 
 - [ ] Acessar URL pública com hash válido → exibir informações do documento
 - [ ] Hash inválido ou inexistente → página de erro adequada
@@ -554,35 +610,35 @@ Verificar cada transição de status:
 
 ---
 
-## 8. Gestão de Policiais (`/policiais`)
+## 9. Gestão de Policiais (`/policiais`)
 
-### 8.1 Listagem
+### 9.1 Listagem
 
 - [ ] Filtrar por lotação, cargo, seccional
 - [ ] Busca por nome ou matrícula
 - [ ] Paginação funcional
 
-### 8.2 Criar Policial
+### 9.2 Criar Policial
 
 - [ ] Criar com todos os campos obrigatórios preenchidos
 - [ ] Matrícula duplicada → erro de unicidade
 - [ ] CPF em formato inválido → validação (se houver)
 - [ ] Atribuir papel (admin_seccional, admin_unidade) + unidade → persistido
 
-### 8.3 Editar Policial (`/policiais/[id]`)
+### 9.3 Editar Policial (`/policiais/[id]`)
 
 - [ ] Editar dados básicos (nome, telefone, cargo, lotação)
 - [ ] Alterar papel → permissões atualizadas
 - [ ] Desativar policial → flag `ativo = false`
 - [ ] Policial desativado não aparece em seleções de equipe/escala
 
-### 8.4 Upload em Lote (`/policiais/upload`)
+### 9.4 Upload em Lote (`/policiais/upload`)
 
 - [ ] Upload de CSV válido → policiais criados em lote
 - [ ] CSV com linhas inválidas → relatório de erros por linha
 - [ ] CSV vazio → mensagem de erro
 
-### 8.5 Meu Perfil (`/perfil`) e Solicitações (`/solicitacoes`)
+### 9.5 Meu Perfil (`/perfil`) e Solicitações (`/solicitacoes`)
 
 > `[E2E: solicitacoes-cadastro.spec.ts]` cobre o caminho feliz completo: o admin
 > de unidade pede, o Admin Geral aprova, o servidor vê o valor aplicado — e
@@ -619,7 +675,7 @@ Verificar cada transição de status:
 - [ ] Valores inválidos (classe de outro cargo, CPF malformado, telefone curto, e-mail sem `@`) → erro de validação
 - [ ] Admin de unidade/seccional acessando `/solicitacoes` → redirecionado (a fila é de quem decide)
 
-### 8.6 E-mail pessoal pelo perfil (cadastro/troca)
+### 9.6 E-mail pessoal pelo perfil (cadastro/troca)
 
 > `[E2E: email-pessoal.spec.ts]` também protege o contrato do `ModalShell`:
 > foco inicial e restaurado, fechamento por Escape/backdrop e bloqueio desses
@@ -633,7 +689,7 @@ Verificar cada transição de status:
 
 ---
 
-## 9. Gestão de Unidades (`/unidades`)
+## 10. Gestão de Unidades (`/unidades`)
 
 - [ ] Criar unidade do tipo `seccional` (sem seccional_id)
 - [ ] Criar unidade do tipo `delegacia` com seccional vinculada
@@ -645,14 +701,14 @@ Verificar cada transição de status:
 
 ---
 
-## 10. Painel Administrativo (`/painel`)
+## 11. Painel Administrativo (`/painel`)
 
-### 10.1 Controle de Acesso
+### 11.1 Controle de Acesso
 
 - [ ] Acesso negado para não-admin → redirecionamento
 - [ ] Admin acessa painel completo sem erro
 
-### 10.2 Relatório de Compliance
+### 11.2 Relatório de Compliance
 
 - [ ] Filtrar por mês/ano
 - [ ] Unidades com escala assinada → indicador correto
@@ -660,7 +716,7 @@ Verificar cada transição de status:
 - [ ] Unidades sem escala → indicador correto
 - [ ] Endpoint `/api/admin/compliance` retorna dados no formato esperado
 
-### 10.3 Auditoria
+### 11.3 Auditoria
 
 > `[E2E: auditoria.spec.ts]` cobre o caminho do Super Admin: `/api/admin/audit` lista paginado; a trilha **captura** um evento ponta a ponta (webhook `sync_policiais` recuperável filtrando por ação); export CSV → 200 `text/csv`; janela longa demais → 400. Os negativos de RBAC (anônimo 401, policial/Admin Geral 403) estão em `boas-vindas-rbac.spec.ts`. A cadeia de hash/canonicalização está no unitário `audit-forense.test.ts`.
 
@@ -668,7 +724,7 @@ Verificar cada transição de status:
 - [ ] Filtrar por usuário, ação ou entidade
 - [ ] Endpoint `/api/admin/audit` retorna dados no formato esperado
 
-### 10.4 Logs técnicos (`/auditoria/logs`)
+### 11.4 Logs técnicos (`/auditoria/logs`)
 
 > Acesso exclusivo do **Super Admin** (mesma política de `/auditoria`). Grava apenas `warn`/`error` do servidor; a persistência acontece após a resposta (waitUntil), então o registro pode levar alguns segundos para aparecer.
 >
@@ -683,7 +739,7 @@ Verificar cada transição de status:
 
 ---
 
-## 11. Produtividade (`/produtividade`)
+## 12. Produtividade (`/produtividade`)
 
 > `[E2E: produtividade.spec.ts]` cobre o acesso: Admin Geral entra e vê o dashboard; policial → 403; anônimo → `/login`. `[E2E: produtividade-visualizacao.spec.ts]` cobre o eixo: os seis controles da barra, o total que não muda ao alternar delegacias × seccionais, a equipe sem slot como linha própria, ordem/Top-N e o tipo de equipe desabilitado. A agregação tem cobertura unitária em `produtividade/__tests__/{stats,agrupamento}`. Manual: gráficos com dados reais e o PNG exportado.
 
@@ -780,7 +836,7 @@ Verificar cada transição de status:
 
 ---
 
-## 12. Configurações de Assinatura (`/conf-ass`)
+## 13. Configurações de Assinatura (`/conf-ass`)
 
 > Acesso exclusivo do **Super Admin**. As flags são cacheadas no edge por até 5 min — a alteração deve refletir no fluxo de assinatura em ≤ 5 min.
 >
@@ -807,13 +863,13 @@ Verificar cada transição de status:
 
 ---
 
-## 13. Resultados GISE (`/res-gise`)
+## 14. Resultados GISE (`/res-gise`)
 
 - [ ] Membro GISE acessa seus resultados e formulários
 - [ ] Formulários de produtividade preenchidos exibidos corretamente
 - [ ] Sem GISE atribuída → estado vazio com mensagem
 
-### 13.1 Wizard do relatório (`/res-gise/relatorio/[giseId]`)
+### 14.1 Wizard do relatório (`/res-gise/relatorio/[giseId]`)
 
 > O gate de entrada, a navegação entre etapas, o autosave e o envio têm
 > cobertura E2E. Manual: o rascunho em condições que o navegador headless não
@@ -827,7 +883,7 @@ Verificar cada transição de status:
 - [ ] Modelo antigo (nenhuma pergunta com etapa) → uma etapa só, sem navegador
 - [ ] Celular: o navegador mostra só a etapa anterior (esquerda) e a atual (direita); na 1ª etapa, só a atual, encostada à direita
 
-### 13.2 Reordenar perguntas no editor
+### 14.2 Reordenar perguntas no editor
 
 > Arraste, setas e renumeração têm cobertura automatizada
 > (`e2e/reordenar-perguntas.spec.ts` + `lib/gise/renumerar-perguntas.test`).
@@ -839,7 +895,7 @@ Verificar cada transição de status:
 - [ ] Reordenar e **não salvar** → sair da tela desfaz tudo, inclusive a renumeração
 - [ ] Pergunta cujo texto não começa com número ("Quantos?") → continua sem número após reordenar
 
-### 13.3 Tipo "Quantidade + Lista Nome/Procedimento" (`lista_detalhada`)
+### 14.3 Tipo "Quantidade + Lista Nome/Procedimento" (`lista_detalhada`)
 
 > Escrita e expansão têm cobertura automatizada
 > (`e2e/lista-reutilizavel.spec.ts` + `db/__tests__/produtividade-lista-reutilizavel`).
@@ -849,7 +905,7 @@ Verificar cada transição de status:
 - [ ] Mesma conferência com um tipo original (ex.: "Prisões Maiores") junto na tela — as listas não podem se cruzar
 - [ ] Trocar o tipo de uma pergunta já respondida → o detalhe antigo some do relatório (é esperado: a chave mudou)
 
-### 13.4 Tipo "Cobertura (total e atendidas)" (`proporcao`)
+### 14.4 Tipo "Cobertura (total e atendidas)" (`proporcao`)
 
 > Escrita, rótulos e a reconstrução da meta ao trocar de tipo têm cobertura
 > automatizada (`e2e/cobertura.spec.ts` + `gise/__tests__/indicadores` +
@@ -863,14 +919,14 @@ Verificar cada transição de status:
 
 ---
 
-## 14. Documentos Recebidos (`/recebidos`)
+## 15. Documentos Recebidos (`/recebidos`)
 
 - [ ] Listar documentos recebidos pelo usuário logado
 - [ ] Sem documentos → estado vazio com mensagem
 
 ---
 
-## 15. Controle de Acesso (RBAC)
+## 16. Controle de Acesso (RBAC)
 
 > `[E2E: boas-vindas-rbac.spec.ts]` cobre: policial comum barrado em `/painel` e `/auditoria`; Admin Geral com `/painel` liberado e consoles de auditoria vetados (Super Admin only, inclusive na API `/api/admin/audit`); anônimo → `/login`. `[E2E: escalas-cross-lotacao.spec.ts]` cobre o isolamento entre lotações. Manual: perfis que dependem de env (Super Admin) e a varredura exploratória completa da tabela.
 
@@ -890,7 +946,7 @@ Verificar cada transição de status:
 
 ---
 
-## 16. Acessibilidade e visual (resíduo da auditoria VIS-1…VIS-17)
+## 17. Acessibilidade e visual (resíduo da auditoria VIS-1…VIS-17)
 
 Os dezessete achados da auditoria visual de 29/jul/2026 estão implementados e
 verificados por medição (contraste calculado de `theme.css`, CSS compilado,
@@ -924,7 +980,7 @@ roteiro manual, não relatório.
 
 ---
 
-## 17. Segurança
+## 18. Segurança
 
 - [ ] Submeter formulário sem token CSRF → request bloqueada
 - [ ] Injeção de caracteres especiais em campos de busca → sem efeito (ORM parameterizado)
@@ -934,14 +990,14 @@ roteiro manual, não relatório.
 
 ---
 
-## 18. Health Check
+## 19. Health Check
 
 - [ ] `GET /api/health` → retorna 200 com status OK
 - [ ] Conectividade com banco de dados refletida no health check
 
 ---
 
-## 19. Webhooks de Sincronização (operador / Apps Script)
+## 20. Webhooks de Sincronização (operador / Apps Script)
 
 > `[E2E: webhook-sync.spec.ts]` cobre o contrato ponta a ponta contra o D1: `sync-policiais` cria e atualiza (upsert) a partir do payload do Apps Script, cargo inválido conta como falha sem derrubar o lote, `sync-unidades` cria a seccional; **M-4** — um SYNC_TOKEN válido tentando `papel: seccional` NÃO promove (fica `null`); **reset destrutivo** fail-closed (SYNC válido mas sem a 2ª credencial → 401, nada apagado); auth negativa (sem/errado bearer → 401). A lógica de auth (Bearer/HMAC/replay) tem cobertura unitária em `webhook-auth.test.ts`.
 
@@ -950,7 +1006,7 @@ roteiro manual, não relatório.
 
 ---
 
-## 20. Direitos do Titular — LGPD art. 18
+## 21. Direitos do Titular — LGPD art. 18
 
 > `[E2E: lgpd-solicitacoes.spec.ts]` cobre o ciclo completo: o titular abre a solicitação (`/api/lgpd/solicitar` → 201) e a vê na sua lista; um policial não acessa a lista administrativa (403); o Admin Geral lista, detalha e responde (conclui); o titular vê o desfecho; reencerrar uma solicitação já concluída → 409.
 

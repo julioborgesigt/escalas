@@ -31,6 +31,7 @@
 	const usuario = $derived(nav.usuario);
 	const flags = $derived(nav.flags);
 	const giseOperacoesPathAtivo = $derived(page.url.pathname.startsWith('/gise/operacoes'));
+	const planosPathAtivo = $derived(page.url.pathname.startsWith('/gise/planos'));
 
 	/**
 	 * A métrica das linhas da barra, uma só para as três formas: item que navega,
@@ -223,12 +224,18 @@
 				{@render itemMenu(filho.href, filho.rotulo, filho.icone, filho.ativo)}
 			{/each}
 		{:else if usuario?.isSuperAdmin}
-			<!-- Super Admin: menu exclusivo — apenas estas 6 abas, nesta ordem. -->
+			<!-- Super Admin: menu exclusivo — apenas estas 7 abas, nesta ordem.
+
+			     "Valores de custo" é do Super Admin, e não do Admin Geral que monta
+			     os planos, porque é a tabela de hora extra e diária da corporação:
+			     quem planeja a operação escolhe QUANTAS horas, não QUANTO vale a
+			     hora. -->
 			{@render itemMenu('/super-admin', 'Boas-vindas', ICONE.casa)}
 			{@render itemMenu('/unidades', 'Unidades', ICONE.predio)}
 			{@render itemMenu('/policiais', 'Policiais', ICONE.pessoas)}
 			{@render itemMenu('/conf-ass', 'Config. Ass.', ICONE.engrenagem)}
 			{@render itemMenu('/config-geral', 'Config. Geral', ICONE.sliders)}
+			{@render itemMenu('/config-custos', 'Valores de custo', ICONE.barras)}
 			{@render itemMenu('/auditoria', 'Auditoria', ICONE.documento)}
 		{:else}
 			{#if usuario?.tipo === 'policial' && !usuario.papel}
@@ -304,6 +311,12 @@
 						ICONE.engrenagem,
 						giseOperacoesPathAtivo
 					)}
+
+					<!-- O plano operacional NASCE em /gise/operacoes (o botão pergunta
+					     qual dos dois se está cadastrando), mas a lista precisa de
+					     entrada própria: sem ela, um plano já criado só se alcançaria
+					     pela URL. -->
+					{@render itemMenu('/gise/planos', 'Planos', ICONE.pranchetaLista, planosPathAtivo)}
 				{/if}
 			{/if}
 			<!-- end showGrupo2 -->

@@ -157,12 +157,15 @@ export function itensExtraDoMenu(flags: FlagsMenu, url: URL): ItemMenu[] {
 
 	const rotaPath = url.pathname;
 
-	// Rota da escala extra: lista/escala, excluindo o cadastro de operações, as
-	// boas-vindas e o arquivo de finalizadas — cada um tem entrada própria.
+	// Rota da escala extra: lista/escala, excluindo o cadastro de operações, os
+	// planos operacionais, as boas-vindas e o arquivo de finalizadas — cada um
+	// tem entrada própria, e sem excluir aqui o realce de "Ativas" acenderia
+	// junto com o do item certo.
 	const giseListaOuEscalaPath =
 		rotaPath === '/gise' ||
 		(rotaPath.startsWith('/gise/') &&
 			!rotaPath.startsWith('/gise/operacoes') &&
+			!rotaPath.startsWith('/gise/planos') &&
 			!rotaPath.startsWith('/gise/bem-vindo') &&
 			!rotaPath.startsWith('/gise/finalizadas'));
 

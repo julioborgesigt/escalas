@@ -182,6 +182,19 @@ const OPERACOES: CardBemVindo = {
 	cta: 'Gerenciar operações'
 };
 
+/**
+ * `/gise/planos` — a operação COM deslocamento, que é o que a distingue da
+ * escala extra e o que o texto precisa dizer: quem lê o card decide por aqui
+ * qual dos dois cadastros abrir.
+ */
+const PLANOS: CardBemVindo = {
+	titulo: 'Planos operacionais',
+	descricao:
+		'Monte as operações com deslocamento de equipes: viatura, destino e efetivo de cada uma, o custo em hora extra ou diária, e o plano em PDF com os dois anexos.',
+	href: '/gise/planos',
+	cta: 'Ver planos operacionais'
+};
+
 /* ── Super Admin ────────────────────────────────────────────────────────── */
 
 const UNIDADES: CardBemVindo = {
@@ -220,6 +233,19 @@ const CONFIG_GERAL: CardBemVindo = {
 		'Ajustes globais do sistema, como o provedor de e-mail padrão (Cloudflare ou Resend) e o seu substituto em caso de falha.',
 	href: '/config-geral',
 	cta: 'Abrir configurações'
+};
+
+/**
+ * `/config-custos` — do Super Admin, e não do Admin Geral que monta os planos:
+ * é a tabela de hora extra e diária da corporação. Quem planeja a operação
+ * escolhe QUANTAS horas; quanto vale a hora é decisão de outro nível.
+ */
+const CONFIG_CUSTOS: CardBemVindo = {
+	titulo: 'Valores de custo',
+	descricao:
+		'Defina os valores de hora extra por cargo e classe e os das diárias. É a tabela que os planos operacionais aplicam — cada versão fica gravada, e um plano antigo continua com a que usou.',
+	href: '/config-custos',
+	cta: 'Abrir valores de custo'
 };
 
 const AUDITORIA: CardBemVindo = {
@@ -304,7 +330,7 @@ export function cardsBemVindo({ usuario, flags }: EntradaCards): CardBemVindo[] 
 
 	// Super Admin: console próprio, sem as abas operacionais.
 	if (usuario.isSuperAdmin) {
-		return [UNIDADES, POLICIAIS_SUPER, CONF_ASS, CONFIG_GERAL, AUDITORIA];
+		return [UNIDADES, POLICIAIS_SUPER, CONF_ASS, CONFIG_GERAL, CONFIG_CUSTOS, AUDITORIA];
 	}
 
 	const cards: CardBemVindo[] = [];
@@ -326,7 +352,7 @@ export function cardsBemVindo({ usuario, flags }: EntradaCards): CardBemVindo[] 
 		// escalado. Mesma condição do menu.
 		if (!ehAdmin && flags.temPresencaGiseAtiva) cards.push(MINHA_PRESENCA);
 		if (!ehAdmin && flags.temGiseHistorico) cards.push(MEU_HISTORICO);
-		if (ehAdmin && flags.showGise) cards.push(OPERACOES);
+		if (ehAdmin && flags.showGise) cards.push(OPERACOES, PLANOS);
 	}
 
 	// Grupo 3 — gestão de pessoas. O cadastro é dos três papéis administrativos,
