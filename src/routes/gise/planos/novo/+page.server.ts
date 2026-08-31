@@ -19,14 +19,20 @@
  * signatário de então — reajustar valores ou trocar o Diretor depois não pode
  * reescrever um documento já emitido.
  *
- * ## O signatário: escolhido aqui, com o padrão global só pré-preenchendo
+ * ## O signatário é escolhido AQUI, e não há padrão global
  *
  * Quem assina VARIA por operação (o Titular assina umas, o Adjunto outras),
  * então o formulário tem o campo. O nome vem da busca no cadastro, como o
  * coordenador, e o que se grava são os dois: `diretor_id` (para o editor
  * reabrir mostrando a seleção) e `diretor_nome` (o texto congelado que o PDF
- * imprime). Sem escolha explícita, cai no padrão de `configuracoes` — que é o
- * caso comum e evita rebuscar o mesmo Diretor a cada plano.
+ * imprime).
+ *
+ * Sem escolha, o plano nasce sem signatário e o documento imprime a linha de
+ * assinatura em BRANCO — que é o estado honesto de um plano cujo signatário
+ * ainda não foi definido, e visível para quem for emitir. Houve um padrão
+ * global em `/config-custos`; ele saiu porque um padrão único para um dado que
+ * varia ou é ignorado quase sempre, ou leva a mudar a configuração de todos os
+ * planos seguintes para acertar um.
  */
 import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
@@ -35,11 +41,8 @@ import {
 	criarPlano,
 	criarEquipes,
 	buscarCustoParametrosVigente,
-	buscarConfiguracao,
 	auditar,
 	contextoDeEvento,
-	PLANO_DIRETOR_NOME,
-	PLANO_DIRETOR_CARGO,
 	buscarPolicial
 } from '$lib/db';
 import { isAdminGeral } from '$lib/auth';
@@ -50,6 +53,7 @@ import {
 	FINALIDADE_PADRAO,
 	ACOES_PADRAO,
 	DEPARTAMENTO_PADRAO,
+	CARGO_SIGNATARIO_PADRAO,
 	cargoSignatarioValido
 } from '$lib/planos/padroes';
 
@@ -57,11 +61,7 @@ export const load: PageServerLoad = async ({ locals, platform }) => {
 	if (!isAdminGeral(locals.usuario)) redirect(302, '/gise');
 
 	const db = getDB(platform);
-	const [vigente, diretorNome, diretorCargo] = await Promise.all([
-		buscarCustoParametrosVigente(db),
-		buscarConfiguracao(db, PLANO_DIRETOR_NOME),
-		buscarConfiguracao(db, PLANO_DIRETOR_CARGO)
-	]);
+	const vigente = await buscarCustoParametrosVigente(db);
 
 	return {
 		hoje: hojeBrasilISO(),
@@ -73,13 +73,8 @@ export const load: PageServerLoad = async ({ locals, platform }) => {
 		 * nada" é pior do que um aviso na criação.
 		 */
 		temValores: vigente !== null,
-		diretorNome: diretorNome ?? '',
-		/**
-		 * Cargo pré-selecionado. Passa por `cargoSignatarioValido` porque o
-		 * `<select>` só consegue mostrar como selecionado um valor que esteja na
-		 * lista — um padrão antigo fora dela abriria o campo em branco.
-		 */
-		diretorCargo: cargoSignatarioValido(diretorCargo ?? '')
+		/** O primeiro da lista fechada — quem assina de fato se escolhe no campo. */
+		diretorCargo: CARGO_SIGNATARIO_PADRAO
 	};
 };
 
@@ -149,18 +144,15 @@ export const actions: Actions = {
 
 		const db = getDB(platform);
 
-		// A versão de valores e o signatário são copiados AGORA e congelados no
-		// plano — ver o cabeçalho do módulo.
-		const [vigente, padraoNome, escolhido] = await Promise.all([
+		// A versão de valores e o signatário são congelados AGORA — ver o cabeçalho
+		// do módulo. Sem escolha, o nome fica vazio e o documento imprime a linha
+		// de assinatura em branco.
+		const [vigente, escolhido] = await Promise.all([
 			buscarCustoParametrosVigente(db),
-			buscarConfiguracao(db, PLANO_DIRETOR_NOME),
 			diretorId ? buscarPolicial(db, diretorId) : Promise.resolve(null)
 		]);
 
-		// Escolha explícita ganha do padrão global; sem nenhuma das duas o campo
-		// fica vazio e o PDF imprime a linha de assinatura em branco, que é o
-		// estado honesto de um plano cujo signatário ainda não foi definido.
-		const diretorNome = escolhido?.nome ?? padraoNome ?? '';
+		const diretorNome = escolhido?.nome ?? '';
 		const diretorCargo = cargoSignatarioValido(texto(fd, 'diretor_cargo', 160));
 
 		let criado: { id: number; numero: number; ano: number };

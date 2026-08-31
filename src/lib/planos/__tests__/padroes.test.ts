@@ -8,7 +8,6 @@
  */
 import { describe, it, expect } from 'vitest';
 import { CARGOS_SIGNATARIO, CARGO_SIGNATARIO_PADRAO, cargoSignatarioValido } from '../padroes';
-import { PLANO_DIRETOR_CARGO_PADRAO } from '$lib/db/configuracoes';
 
 describe('cargoSignatarioValido', () => {
 	it('devolve intacto cada um dos cargos da lista', () => {
@@ -29,15 +28,5 @@ describe('cargoSignatarioValido', () => {
 	it('não casa por prefixo nem ignora caixa — é igualdade exata', () => {
 		expect(cargoSignatarioValido('diretor titular do dpi sul')).toBe(CARGO_SIGNATARIO_PADRAO);
 		expect(cargoSignatarioValido('Diretor Titular do DPI SUL ')).toBe(CARGO_SIGNATARIO_PADRAO);
-	});
-
-	/**
-	 * O padrão GLOBAL (`configuracoes`) e a lista da tela têm de falar a mesma
-	 * língua. Divergindo, o formulário do plano abre com o `<select>` sem nada
-	 * selecionado — e o admin que não reparasse gravaria o primeiro da lista sem
-	 * ter escolhido nada.
-	 */
-	it('o padrão gravado em configuracoes é um cargo da lista', () => {
-		expect(CARGOS_SIGNATARIO as readonly string[]).toContain(PLANO_DIRETOR_CARGO_PADRAO);
 	});
 });

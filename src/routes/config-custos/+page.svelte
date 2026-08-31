@@ -18,7 +18,6 @@
 	import { toaster } from '$lib/toast';
 	import { formatarBRL, lerBRL } from '$lib/planos/rotulos';
 	import { sugerirPlus } from '$lib/planos/custo';
-	import { CARGOS_SIGNATARIO } from '$lib/planos/padroes';
 	import Info from '@lucide/svelte/icons/info';
 	import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
 
@@ -62,12 +61,6 @@
 	// svelte-ignore state_referenced_locally
 	let vigenteDesde = $state(data.hoje);
 	let salvandoValores = $state(false);
-	let salvandoSignatario = $state(false);
-
-	// svelte-ignore state_referenced_locally
-	let diretorNome = $state(data.diretorNome);
-	// svelte-ignore state_referenced_locally
-	let diretorCargo = $state(data.diretorCargo);
 
 	/** O campo tem conteúdo que `lerBRL` não entende? */
 	function invalido(v: string): boolean {
@@ -280,66 +273,6 @@
 	</section>
 
 	<!-- ---- Signatário ---- -->
-	<section
-		class="rounded-2xl border border-surface-200 dark:border-white/10 bg-surface-50 dark:bg-surface-900 p-5 space-y-4"
-	>
-		<div>
-			<h2 class="text-lg font-semibold text-surface-900 dark:text-white">
-				Signatário do plano operacional
-			</h2>
-			<p class="text-sm text-surface-600 dark:text-surface-400">
-				O <strong>padrão</strong> que a criação de um plano pré-preenche. Cada plano escolhe o seu signatário
-				no próprio formulário — o Titular assina umas operações, o Adjunto outras — e trocar aqui não
-				altera plano já criado.
-			</p>
-		</div>
-
-		<form
-			method="POST"
-			action="?/salvarSignatario"
-			use:enhance={() => {
-				salvandoSignatario = true;
-				return async ({ result, update }) => {
-					salvandoSignatario = false;
-					if (result.type === 'success') toaster.success({ title: 'Signatário salvo' });
-					else if (result.type === 'failure') {
-						toaster.error({ title: String(result.data?.error ?? 'Erro ao salvar') });
-					}
-					await update({ reset: false });
-				};
-			}}
-			class="space-y-3"
-		>
-			<label class="block space-y-1">
-				<span class="text-xs font-medium text-surface-700 dark:text-surface-200">Nome</span>
-				<input
-					name="diretor_nome"
-					bind:value={diretorNome}
-					maxlength="120"
-					placeholder="CRISTIANO DE MORAIS PEREIRA"
-					class="input"
-				/>
-			</label>
-			<label class="block space-y-1">
-				<span class="text-xs font-medium text-surface-700 dark:text-surface-200">Cargo</span>
-				<!-- A MESMA lista fechada do formulário do plano: se aqui fosse texto
-				     livre, o padrão poderia sair da lista e o `<select>` de lá abriria
-				     sem nada selecionado. -->
-				<select name="diretor_cargo" bind:value={diretorCargo} class="select">
-					{#each CARGOS_SIGNATARIO as cargo (cargo)}
-						<option value={cargo}>{cargo}</option>
-					{/each}
-				</select>
-			</label>
-			<button
-				type="submit"
-				class="btn preset-filled-primary-500 py-2.5 px-4 rounded-xl text-sm"
-				disabled={salvandoSignatario || !diretorNome.trim()}
-			>
-				{salvandoSignatario ? 'Salvando…' : 'Salvar signatário'}
-			</button>
-		</form>
-	</section>
 
 	<!-- ---- Histórico ---- -->
 	{#if data.historico.length > 0}

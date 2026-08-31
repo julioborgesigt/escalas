@@ -479,7 +479,7 @@ Verificar cada transição de status:
 
 ### 5.1 Valores de custo (Super Admin)
 
-- [ ] `/config-custos` abre para o Super Admin e mostra a versão vigente mais o histórico
+- [ ] `/config-custos` abre para o Super Admin e mostra a versão vigente mais o histórico — e **não** traz mais o quadro de signatário, que foi para o formulário do plano
 - [ ] **Admin Geral em `/config-custos` → sai da tela** `[E2E: plano-operacional.spec.ts]` (não é dele: quem planeja escolhe quantas horas, não quanto vale a hora)
 - [ ] Preencher os quatro valores normais → "Aplicar +30% nos quatro" preenche os `plus` (27,30 → 35,49) e eles continuam editáveis
 - [ ] Campo de dinheiro **vazio** → erro com mensagem; zero tem de ser DIGITADO (vazio virando R$ 0 em silêncio foi bug corrigido na entrega)
@@ -491,7 +491,7 @@ Verificar cada transição de status:
 - [ ] **NUP**: digitar só números aplica a máscara `00000.000000/0000-00` conforme se digita, e para em 17 dígitos
 - [ ] Horário de apresentação, previsão de término e data de término ficam na **mesma linha**
 - [ ] **Signatário**: o nome é buscado no cadastro (como o coordenador) e o cargo é um `<select>` com três opções — Diretor Titular do DPI SUL, Diretor Adjunto do DPI SUL, Delegado de Polícia
-- [ ] Sem escolher signatário, a legenda diz qual nome o padrão global usará — e o plano nasce com ele
+- [ ] Sem escolher signatário, o plano nasce sem ele e o PDF imprime a linha de assinatura em branco (não há padrão global — `/config-custos` é só sobre dinheiro)
 
 - [ ] `/gise/operacoes` → "Nova operação" pergunta **Operação** ou **Plano operacional**
 - [ ] Escolher _Operação_ → abre o painel de sempre, sem nenhuma mudança de comportamento

@@ -73,10 +73,7 @@ export {
 	buscarRestringirSmartphone,
 	buscarExigirPasskeyAssinatura,
 	buscarProvedorEmailPadrao,
-	EMAIL_PROVEDOR_PADRAO,
-	PLANO_DIRETOR_NOME,
-	PLANO_DIRETOR_CARGO,
-	PLANO_DIRETOR_CARGO_PADRAO
+	EMAIL_PROVEDOR_PADRAO
 } from './db/configuracoes';
 export type { EmailProvedor } from './db/configuracoes';
 

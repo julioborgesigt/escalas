@@ -274,7 +274,7 @@
 				'Quem assina o documento. Varia por operação — o Titular assina umas, o Adjunto outras.'
 			)}
 
-			<CamposSignatario bind:diretorId bind:cargo={diretorCargo} nomePadrao={data.diretorNome} />
+			<CamposSignatario bind:diretorId bind:cargo={diretorCargo} />
 		</section>
 
 		<!-- ---- Equipes ---- -->

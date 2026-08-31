@@ -34,7 +34,14 @@ UPDATE `planos_operacionais`
    SET `diretor_cargo` = 'Diretor Titular do DPI SUL'
  WHERE `diretor_cargo` = 'Diretor Titular do Departamento de Polícia do Interior Sul';
 --> statement-breakpoint
-UPDATE `configuracoes`
-   SET `valor` = 'Diretor Titular do DPI SUL'
- WHERE `chave` = 'plano.diretor_cargo'
-   AND `valor` = 'Diretor Titular do Departamento de Polícia do Interior Sul';
+-- O PADRÃO GLOBAL do signatário sai junto.
+--
+-- Ele existia em `/config-custos` para o plano copiar na criação. Mas quem
+-- assina varia por operação — o Titular assina umas, o Adjunto outras —, e um
+-- padrão único para um dado que varia ou é ignorado quase sempre, ou leva a
+-- mudar a configuração de TODOS os planos seguintes para acertar um. O campo
+-- passou a ser do plano, e a tela do Super Admin voltou a ser só sobre dinheiro.
+--
+-- As chaves são apagadas em vez de ficarem paradas: chave que ninguém mais lê
+-- nem escreve é a que o próximo leitor encontra e acredita estar em uso.
+DELETE FROM `configuracoes` WHERE `chave` IN ('plano.diretor_nome', 'plano.diretor_cargo');

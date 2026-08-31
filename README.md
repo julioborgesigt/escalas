@@ -1019,8 +1019,13 @@ operações, o Adjunto outras. O nome vem da busca no cadastro (como o
 coordenador) e vai congelado em `diretor_nome`; `diretor_id` guarda quem foi
 escolhido, só para o editor reabrir mostrando a seleção. O cargo é lista
 **fechada** (`CARGOS_SIGNATARIO`) porque sai impresso sob a assinatura — campo
-livre põe erro de digitação no papel, e ninguém revisa o rodapé de um PDF. O
-padrão de `/config-custos` continua existindo, mas só pré-preenche.
+livre põe erro de digitação no papel, e ninguém revisa o rodapé de um PDF.
+
+**Não há padrão global.** Um padrão único para um dado que VARIA ou é ignorado
+quase sempre, ou leva a mudar a configuração de todos os planos seguintes para
+acertar um. Sem escolha, o documento imprime a linha de assinatura em branco —
+que é o estado honesto de um plano cujo signatário ainda não foi definido, e
+visível para quem for emitir. `/config-custos` trata só de dinheiro.
 
 **Classe vazia não vira R$ 0 em silêncio.** `policiais.classe` é
 `text NOT NULL DEFAULT ''`; sem faixa resolvida a linha sai como PENDÊNCIA na
