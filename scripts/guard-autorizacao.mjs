@@ -256,6 +256,14 @@ export const HELPERS_OBRIGATORIOS = {
 	// plano por POST direto — a classe do FLW-ESC-002.
 	'src/routes/gise/planos/+page.server.ts': ['carregarPlanoParaEdicao'],
 
+	// O editor: cada action entra pelo preâmbulo do seu assunto. As que recebem
+	// um id de equipe ou de membro pelo FORMULÁRIO usam o preâmbulo que PROVA a
+	// posse — `planoDaRota` sozinho autorizaria o plano e deixaria a equipe de
+	// outro plano passar.
+	'src/routes/gise/planos/[id]/_actions/actions-plano.ts': ['planoDaRota'],
+	'src/routes/gise/planos/[id]/_actions/actions-equipe.ts': ['planoDaRota', 'equipeDaRota'],
+	'src/routes/gise/planos/[id]/_actions/actions-membros.ts': ['equipeDaRota', 'membroDaRota'],
+
 	// FLW-AUT-002 / 009 — lotação do FormData no escopo administrado
 	'src/routes/escalas/+page.server.ts → criarComBase': ['lotacaoNoEscopo'],
 	'src/routes/escalas/+page.server.ts → excluir': ['lotacaoNoEscopo'],
@@ -321,8 +329,16 @@ function helpersDaOperacao(arquivo, nome) {
 // status vem de variável, então o `fail(403)` literal nunca aparece no corpo —
 // sem o nome aqui, o guard leria "não recusa ninguém" com o POST já morrendo no
 // servidor.
+//
+// `planoDaRota` / `equipeDaRota` / `membroDaRota` são os PREÂMBULOS do editor
+// (`/gise/planos/[id]/_actions/shared.ts`): cada um chama o portão acima e, nos
+// dois últimos, ainda amarra o id vindo do FORMULÁRIO ao plano da URL. É por
+// eles que as nove actions do editor entram, e é o nome deles que
+// `HELPERS_OBRIGATORIOS` exige no corpo de cada uma — exigir só
+// `carregarPlanoParaEdicao` deixaria passar uma action que carregasse o plano e
+// esquecesse de provar a posse da equipe (a classe do FLW-ESC-002).
 const RE_403 =
-	/fail\(403|forbidden\(|status:\s*403|error\(403|requireAdmin\(|requireSuperAdmin\(|exigirAdminGeral\(|carregarEscalaComPermissao\(|carregarEscalaParaAssinatura\(|carregarGiseParaAssinatura\(|carregarRelatorioExtraParaAssinatura\(|carregarFichaDoPolicial\(|carregarPlanoParaEdicao\(/;
+	/fail\(403|forbidden\(|status:\s*403|error\(403|requireAdmin\(|requireSuperAdmin\(|exigirAdminGeral\(|carregarEscalaComPermissao\(|carregarEscalaParaAssinatura\(|carregarGiseParaAssinatura\(|carregarRelatorioExtraParaAssinatura\(|carregarFichaDoPolicial\(|carregarPlanoParaEdicao\(|planoDaRota\(|equipeDaRota\(|membroDaRota\(/;
 const RE_401 = /fail\(401|unauthorized\(|requireAuth\(|error\(401/;
 
 /** Do índice da chave `{`, devolve o bloco balanceado. */

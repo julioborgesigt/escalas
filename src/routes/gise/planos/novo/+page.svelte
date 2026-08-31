@@ -17,7 +17,7 @@
 	import BotaoVoltar from '$lib/components/BotaoVoltar.svelte';
 	import CalendarioDia from '$lib/components/CalendarioDia.svelte';
 	import SearchableSelect from '$lib/components/SearchableSelect.svelte';
-	import { apiFetch } from '$lib/api-fetch';
+	import { buscarCoordenadores, buscarUnidades, MIN_BUSCA } from '../_components/buscas';
 	import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
 
 	const { data, form }: PageProps = $props();
@@ -41,28 +41,6 @@
 
 	let coordenadorId = $state<unknown>(null);
 	let demandanteId = $state<unknown>(null);
-
-	/** Busca de DPCs para coordenador — o documento pede um delegado no item 8. */
-	async function buscarCoordenadores(termo: string) {
-		const q = termo.trim();
-		if (q.length < 2) return [];
-		const r = await apiFetch<{ policiais: Array<{ id: number; nome: string; matricula: string }> }>(
-			`/api/policiais/search?q=${encodeURIComponent(q)}&cargo=DPC&limit=20`
-		);
-		return r.policiais.map((p) => ({ value: p.id, label: `${p.nome} — Mat. ${p.matricula}` }));
-	}
-
-	/** Busca de unidades para a delegacia/seccional demandante. */
-	async function buscarUnidades(termo: string) {
-		const q = termo.trim();
-		if (q.length < 2) return [];
-		// `/api/unidades/search` devolve `{ items }` (e não `{ unidades }`, como
-		// `/api/policiais/search` faz com `{ policiais }`).
-		const r = await apiFetch<{ items: Array<{ id: number; nome: string }> }>(
-			`/api/unidades/search?q=${encodeURIComponent(q)}&limit=20`
-		);
-		return r.items.map((u) => ({ value: u.id, label: u.nome }));
-	}
 
 	const podeCriar = $derived(nome.trim().length > 0 && dataInicio !== '');
 </script>
@@ -222,7 +200,7 @@
 					name="coordenador_id"
 					bind:value={coordenadorId}
 					loadOptions={buscarCoordenadores}
-					minSearchChars={2}
+					minSearchChars={MIN_BUSCA}
 					placeholder="Busque por nome ou matrícula"
 				/>
 			</div>
@@ -239,7 +217,7 @@
 					name="demandante_unidade_id"
 					bind:value={demandanteId}
 					loadOptions={buscarUnidades}
-					minSearchChars={2}
+					minSearchChars={MIN_BUSCA}
 					placeholder="Busque a unidade"
 				/>
 			</div>
