@@ -50,6 +50,7 @@
 	// svelte-ignore state_referenced_locally
 	let acoes = $state(data.acoesPadrao);
 	let localBriefing = $state('');
+	let cidadeDestino = $state('');
 	let qtdEquipes = $state(3);
 	let oipPorEquipe = $state(4);
 	let temSeint = $state(false);
@@ -250,21 +251,40 @@
 				</div>
 			</div>
 
-			<label class="block space-y-1">
-				<span class="text-xs font-medium text-surface-700 dark:text-surface-200">
-					Local de briefing padrão
-				</span>
-				<input
-					name="local_briefing_padrao"
-					bind:value={localBriefing}
-					maxlength="200"
-					placeholder="Sede da 4ª Seccional do Interior Sul"
-					class="input"
-				/>
-				<span class="block text-2xs text-surface-600 dark:text-surface-400">
-					Cada equipe pode ter um local diferente — inclusive em outro estado.
-				</span>
-			</label>
+			<!-- Os dois viram a PRIMEIRA opção de cada lista, já como padrão, e as
+			     equipes criadas nascem com eles preenchidos. O editor acrescenta as
+			     outras opções depois — a operação que sai para três cidades declara
+			     as três lá e cada equipe escolhe a sua no seletor. -->
+			<div class="grid gap-4 sm:grid-cols-2">
+				<label class="block space-y-1">
+					<span class="text-xs font-medium text-surface-700 dark:text-surface-200">
+						Local de briefing padrão
+					</span>
+					<input
+						name="local_briefing_padrao"
+						bind:value={localBriefing}
+						maxlength="200"
+						placeholder="Sede da 4ª Seccional do Interior Sul"
+						class="input"
+					/>
+				</label>
+				<label class="block space-y-1">
+					<span class="text-xs font-medium text-surface-700 dark:text-surface-200">
+						Cidade destino padrão
+					</span>
+					<input
+						name="cidade_destino_padrao"
+						bind:value={cidadeDestino}
+						maxlength="200"
+						placeholder="Iguatu"
+						class="input"
+					/>
+				</label>
+			</div>
+			<p class="text-2xs text-surface-600 dark:text-surface-400">
+				As equipes nascem com esses dois preenchidos e trocam num seletor. Outras opções se
+				acrescentam no editor do plano.
+			</p>
 		</section>
 
 		<!-- ---- Signatário ---- -->

@@ -87,7 +87,6 @@ export const actionsPlano = {
 				coordenador_id: Number.isInteger(coordenadorId) ? coordenadorId : null,
 				demandante_unidade_id: Number.isInteger(demandanteId) ? demandanteId : null,
 				departamento: getTexto(fd, 'departamento', 60) || 'DPI SUL',
-				local_briefing_padrao: getTexto(fd, 'local_briefing_padrao', 200),
 				oip_por_equipe_padrao: oipPorEquipe,
 				diretor_id: escolhido?.id ?? plano.diretor_id,
 				diretor_nome: escolhido?.nome ?? plano.diretor_nome,

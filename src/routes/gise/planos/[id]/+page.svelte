@@ -24,6 +24,7 @@
 	import { cargoSignatarioValido } from '$lib/planos/padroes';
 	import CampoNup from '../_components/CampoNup.svelte';
 	import CamposSignatario from '../_components/CamposSignatario.svelte';
+	import EditorOpcoes from './_components/EditorOpcoes.svelte';
 	import { formatarNUP } from '$lib/utils/formato';
 	import EquipeCard from './_components/EquipeCard.svelte';
 	import PainelCustos from './_components/PainelCustos.svelte';
@@ -289,18 +290,6 @@
 					</label>
 				</div>
 
-				<label class="block space-y-1">
-					<span class="text-xs font-medium text-surface-700 dark:text-surface-200"
-						>Local de briefing padrão</span
-					>
-					<input
-						name="local_briefing_padrao"
-						value={data.plano.local_briefing_padrao}
-						maxlength="200"
-						class="input"
-					/>
-				</label>
-
 				<!-- Signatário: é campo DO PLANO porque varia por operação — o Titular
 				     assina umas, o Adjunto outras. O nome vai congelado no documento;
 				     trocar aqui só vale para este plano. -->
@@ -327,6 +316,39 @@
 					</button>
 				</div>
 			</form>
+
+			<!-- As duas listas ficam FORA do formulário acima: cada opção grava
+			     sozinha, como os membros da equipe. Dentro dele, acrescentar um
+			     destino exigiria salvar o plano inteiro — levando junto qualquer
+			     edição pela metade que estivesse nos outros campos. -->
+			<div
+				class="grid gap-5 sm:grid-cols-2 p-5 pt-0 border-t border-surface-200/70 dark:border-white/10"
+			>
+				<div class="sm:col-span-2 pt-4">
+					<h3 class="text-sm font-semibold text-surface-900 dark:text-white">Opções das equipes</h3>
+					<p class="text-xs text-surface-600 dark:text-surface-400">
+						O que os seletores de cada equipe oferecem. A marcada com estrela vem pré-preenchida nas
+						equipes novas.
+					</p>
+				</div>
+
+				<EditorOpcoes
+					tipo="briefing"
+					rotulo="Locais de briefing"
+					descricao="Onde as equipes se apresentam."
+					exemplo="Sede da 4ª Seccional do Interior Sul"
+					opcoes={data.opcoes.briefing}
+					{enviar}
+				/>
+				<EditorOpcoes
+					tipo="destino"
+					rotulo="Cidades de destino"
+					descricao="Para onde as equipes se deslocam."
+					exemplo="Iguatu"
+					opcoes={data.opcoes.destino}
+					{enviar}
+				/>
+			</div>
 		{/if}
 	</section>
 
@@ -375,7 +397,15 @@
 			<ul class="space-y-3">
 				{#each data.equipes as eq (eq.id)}
 					{#key `${eq.id}-${eq.tipo_custo}-${eq.horas_normais}-${eq.horas_plus}-${eq.diarias_meias}`}
-						<EquipeCard equipe={eq} {enviar} {pendentes} />
+						<EquipeCard
+							equipe={eq}
+							{enviar}
+							{pendentes}
+							opcoesBriefing={data.opcoes.briefing}
+							opcoesDestino={data.opcoes.destino}
+							briefingPadrao={data.briefingPadrao}
+							destinoPadrao={data.destinoPadrao}
+						/>
 					{/key}
 				{/each}
 			</ul>

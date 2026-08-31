@@ -261,6 +261,13 @@ export {
 	nomePadraoEquipe,
 	janelaDaEquipe,
 	briefingDaEquipe,
+	destinoDaEquipe,
+	listarOpcoes,
+	opcoesDoPlano,
+	valorPadrao,
+	adicionarOpcao,
+	definirOpcaoPadrao,
+	removerOpcao,
 	adicionarMembro,
 	removerMembro,
 	definirChefe,
@@ -274,4 +281,4 @@ export {
 	criarCustoParametros,
 	valoresDe
 } from './db/planos';
-export type { PlanoDaLista, MembroDoPlano } from './db/planos';
+export type { PlanoDaLista, MembroDoPlano, TipoOpcao } from './db/planos';

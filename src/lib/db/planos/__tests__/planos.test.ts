@@ -21,13 +21,22 @@ import {
 import {
 	criarEquipes,
 	listarEquipes,
+	buscarEquipe,
 	atualizarEquipe,
 	excluirEquipe,
 	renumerarEquipes,
 	nomePadraoEquipe,
 	janelaDaEquipe,
-	briefingDaEquipe
+	briefingDaEquipe,
+	destinoDaEquipe
 } from '../equipes';
+import {
+	listarOpcoes,
+	valorPadrao,
+	adicionarOpcao,
+	definirOpcaoPadrao,
+	removerOpcao
+} from '../opcoes';
 import {
 	adicionarMembro,
 	removerMembro,
@@ -227,9 +236,16 @@ describe('cascata equipe → plano', () => {
 		hora_inicio: '05:00',
 		data_fim: null,
 		hora_fim: '11:00',
-		feriado: false,
-		local_briefing_padrao: 'Sede da 4ª Seccional'
+		feriado: false
 	};
+
+	/**
+	 * O valor da opção padrão do plano. Desde que briefing e destino viraram
+	 * LISTA, "o padrão do plano" é linha de outra tabela — a cascata recebe o
+	 * valor já resolvido, e não o plano (ver `valorPadrao` em `opcoes.ts`).
+	 */
+	const BRIEFING_PADRAO = 'Sede da 4ª Seccional';
+	const DESTINO_PADRAO = 'Iguatu';
 
 	it('equipe sem horário próprio herda o do plano', () => {
 		expect(janelaDaEquipe({ data_inicio: null, hora_inicio: null, hora_fim: null }, plano)).toEqual(
@@ -251,11 +267,110 @@ describe('cascata equipe → plano', () => {
 	});
 
 	it('briefing próprio vence o padrão; vazio e espaço em branco herdam', () => {
-		expect(briefingDaEquipe({ local_briefing: 'Delegacia de Iguatu' }, plano)).toBe(
+		expect(briefingDaEquipe({ local_briefing: 'Delegacia de Iguatu' }, BRIEFING_PADRAO)).toBe(
 			'Delegacia de Iguatu'
 		);
-		expect(briefingDaEquipe({ local_briefing: null }, plano)).toBe('Sede da 4ª Seccional');
-		expect(briefingDaEquipe({ local_briefing: '   ' }, plano)).toBe('Sede da 4ª Seccional');
+		expect(briefingDaEquipe({ local_briefing: null }, BRIEFING_PADRAO)).toBe(BRIEFING_PADRAO);
+		expect(briefingDaEquipe({ local_briefing: '   ' }, BRIEFING_PADRAO)).toBe(BRIEFING_PADRAO);
+	});
+
+	it('destino segue a mesma cascata do briefing', () => {
+		// As duas existem porque o Anexo I imprime os DOIS campos por equipe.
+		// Divergirem seria a duplicação do CLAUDE.md: uma corrigida, a outra não.
+		expect(destinoDaEquipe({ cidade_destino: 'Juazeiro do Norte' }, DESTINO_PADRAO)).toBe(
+			'Juazeiro do Norte'
+		);
+		expect(destinoDaEquipe({ cidade_destino: '' }, DESTINO_PADRAO)).toBe(DESTINO_PADRAO);
+		expect(destinoDaEquipe({ cidade_destino: '  ' }, DESTINO_PADRAO)).toBe(DESTINO_PADRAO);
+	});
+
+	it('sem opção padrão no plano, a equipe vazia fica vazia — e não com um palpite', () => {
+		expect(briefingDaEquipe({ local_briefing: null }, '')).toBe('');
+		expect(destinoDaEquipe({ cidade_destino: '' }, '')).toBe('');
+	});
+});
+
+describe('opções de briefing e destino', () => {
+	it('a PRIMEIRA de cada tipo nasce padrão; as seguintes, não', async () => {
+		const { id } = await novoPlano();
+		await adicionarOpcao(db, id, 'briefing', 'Sede da Seccional');
+		await adicionarOpcao(db, id, 'briefing', 'Delegacia de Icó');
+		const lista = await listarOpcoes(db, id, 'briefing');
+		expect(lista.map((o) => [o.valor, o.padrao])).toEqual([
+			['Sede da Seccional', true],
+			['Delegacia de Icó', false]
+		]);
+	});
+
+	it('os dois tipos têm padrões independentes', async () => {
+		const { id } = await novoPlano();
+		await adicionarOpcao(db, id, 'briefing', 'Sede');
+		await adicionarOpcao(db, id, 'destino', 'Iguatu');
+		expect(valorPadrao(await listarOpcoes(db, id, 'briefing'))).toBe('Sede');
+		expect(valorPadrao(await listarOpcoes(db, id, 'destino'))).toBe('Iguatu');
+	});
+
+	it('valor repetido no mesmo tipo é recusado, e no outro tipo passa', async () => {
+		const { id } = await novoPlano();
+		await adicionarOpcao(db, id, 'destino', 'Iguatu');
+		expect(await adicionarOpcao(db, id, 'destino', 'Iguatu')).toEqual({
+			ok: false,
+			motivo: 'repetida'
+		});
+		// O índice é por (plano, TIPO, valor): a mesma cidade pode ser destino e
+		// local de briefing, e frequentemente é.
+		expect((await adicionarOpcao(db, id, 'briefing', 'Iguatu')).ok).toBe(true);
+	});
+
+	it('trocar a padrão tira a marca da anterior — nunca duas', async () => {
+		const { id } = await novoPlano();
+		await adicionarOpcao(db, id, 'destino', 'Iguatu');
+		const r = await adicionarOpcao(db, id, 'destino', 'Icó');
+		expect(r.ok).toBe(true);
+		if (!r.ok) return;
+
+		expect(await definirOpcaoPadrao(db, id, r.id)).toBe(true);
+		const lista = await listarOpcoes(db, id, 'destino');
+		expect(lista.filter((o) => o.padrao).map((o) => o.valor)).toEqual(['Icó']);
+	});
+
+	it('opção de OUTRO plano não vira padrão nem some por id no corpo', async () => {
+		// O id vem do formulário; o índice conta padrões POR PLANO e não impediria
+		// marcar como padrão a opção de um plano vizinho.
+		const a = await novoPlano();
+		const b = await novoPlano();
+		const r = await adicionarOpcao(db, a.id, 'destino', 'Iguatu');
+		expect(r.ok).toBe(true);
+		if (!r.ok) return;
+
+		expect(await definirOpcaoPadrao(db, b.id, r.id)).toBe(false);
+		expect(await removerOpcao(db, b.id, r.id)).toBe(false);
+		expect((await listarOpcoes(db, a.id, 'destino')).length).toBe(1);
+	});
+
+	it('removida a padrão, a primeira das restantes assume', async () => {
+		const { id } = await novoPlano();
+		const primeira = await adicionarOpcao(db, id, 'briefing', 'Sede');
+		await adicionarOpcao(db, id, 'briefing', 'Delegacia');
+		expect(primeira.ok).toBe(true);
+		if (!primeira.ok) return;
+
+		expect(await removerOpcao(db, id, primeira.id)).toBe(true);
+		// Deixar o tipo sem padrão faria a próxima equipe nascer em branco, e o
+		// motivo (a padrão saiu da lista) não estaria em lugar nenhum da tela.
+		expect(valorPadrao(await listarOpcoes(db, id, 'briefing'))).toBe('Delegacia');
+	});
+
+	it('a equipe nova nasce com os padrões COPIADOS, não referenciados', async () => {
+		const { id } = await novoPlano();
+		const [eq] = await criarEquipes(db, id, {
+			quantidade: 1,
+			briefingPadrao: 'Sede da Seccional',
+			destinoPadrao: 'Iguatu'
+		});
+		const equipe = await buscarEquipe(db, eq);
+		expect(equipe?.local_briefing).toBe('Sede da Seccional');
+		expect(equipe?.cidade_destino).toBe('Iguatu');
 	});
 });
 

@@ -32,8 +32,19 @@ export {
 	renumerarEquipes,
 	nomePadraoEquipe,
 	janelaDaEquipe,
-	briefingDaEquipe
+	briefingDaEquipe,
+	destinoDaEquipe
 } from './equipes';
+
+export {
+	listarOpcoes,
+	opcoesDoPlano,
+	valorPadrao,
+	adicionarOpcao,
+	definirOpcaoPadrao,
+	removerOpcao,
+	type TipoOpcao
+} from './opcoes';
 
 export {
 	adicionarMembro,

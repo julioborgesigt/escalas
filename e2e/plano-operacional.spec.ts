@@ -37,11 +37,14 @@ import {
 const MAT_COM_CLASSE = 'PLANE2E01';
 const MAT_SEM_CLASSE = 'PLANE2E02';
 const NOME_PLANO = 'OPERACAO E2E PLANO OPERACIONAL';
+/** Um SEGUNDO plano, só para provar que a lista dele não é alcançável do primeiro. */
+const NOME_VIZINHO = 'OPERACAO E2E PLANO VIZINHO';
 
 let tokenSuper: string | null = null;
 let tokenAdmin: string | null = null;
 let ehSuperAdmin = false;
 let planoId: number | null = null;
+let planoVizinhoId: number | null = null;
 /** As versões de valores que ESTE spec gravou — apagadas no fim. */
 const versoesCriadas: number[] = [];
 
@@ -110,6 +113,7 @@ test.afterAll(() => {
 	// Ordem obrigatória: `custo_parametro_id` é RESTRICT, então o plano sai antes
 	// das versões que ele referencia.
 	if (planoId) execD1Local(`DELETE FROM planos_operacionais WHERE id = ${planoId};`);
+	if (planoVizinhoId) execD1Local(`DELETE FROM planos_operacionais WHERE id = ${planoVizinhoId};`);
 	if (versoesCriadas.length > 0) {
 		execD1Local(`DELETE FROM custo_parametros WHERE id IN (${versoesCriadas.join(',')});`);
 	}
@@ -178,6 +182,7 @@ test.describe.serial('Plano operacional — valores, plano e PDF', () => {
 				hora_inicio: '05:00',
 				hora_fim: '11:00',
 				local_briefing_padrao: 'Sede E2E',
+				cidade_destino_padrao: 'Cidade E2E',
 				qtd_equipes: '2',
 				oip_por_equipe: '4',
 				// Cargo INVÁLIDO de propósito: o `<select>` da tela oferece três
@@ -212,6 +217,83 @@ test.describe.serial('Plano operacional — valores, plano e PDF', () => {
 		// Sem `diretor_id` no formulário, o plano nasce com o padrão global e
 		// nenhum servidor amarrado — o editor mostra isso e deixa escolher.
 		expect(assinatura![0].diretor_id).toBeFalsy();
+	});
+
+	test('o briefing e o destino da criação viram opção PADRÃO e chegam copiados nas equipes', async () => {
+		const opcoes = queryD1Local<{ tipo: string; valor: string; padrao: number }>(
+			`SELECT tipo, valor, padrao FROM plano_opcoes WHERE plano_id = ${planoId} ORDER BY tipo;`
+		);
+		expect(opcoes).toEqual([
+			{ tipo: 'briefing', valor: 'Sede E2E', padrao: 1 },
+			{ tipo: 'destino', valor: 'Cidade E2E', padrao: 1 }
+		]);
+
+		// COPIADOS, não herdados por cascata: a equipe é dona do que o Anexo I
+		// imprime, e trocar a opção padrão depois não pode reescrever equipe já
+		// montada. Sem esta asserção, `criarEquipes` podia voltar a ignorar os
+		// padrões sem que nada reprovasse.
+		const equipes = queryD1Local<{ local_briefing: string; cidade_destino: string }>(
+			`SELECT local_briefing, cidade_destino FROM plano_equipes WHERE plano_id = ${planoId} ORDER BY ordem;`
+		);
+		expect(equipes).toHaveLength(2);
+		for (const e of equipes!) {
+			expect(e.local_briefing).toBe('Sede E2E');
+			expect(e.cidade_destino).toBe('Cidade E2E');
+		}
+	});
+
+	test('opção de OUTRO plano não é alcançável pela rota deste', async ({ request }) => {
+		// A classe do FLW-ESC-002: o id da opção vem do FORMULÁRIO, e ser Admin
+		// Geral não pode bastar para mexer na lista do plano vizinho por POST
+		// direto. Quem recusa é a camada de dados, que confere o `plano_id` —
+		// nenhum índice faria isso, porque o único parcial conta padrões POR
+		// PLANO e ficaria satisfeito com a troca no plano errado.
+		// O plano vizinho é CRIADO aqui, e não procurado no banco: depender de já
+		// existir outro plano no D1 local faria este teste passar por skip na
+		// máquina limpa do CI, que é onde ele mais precisa rodar.
+		const criacao = await request.post('/gise/planos/novo?/criar', {
+			headers: {
+				...headersFormAction(tokenAdmin!),
+				'content-type': 'application/x-www-form-urlencoded'
+			},
+			data: form({
+				nome: NOME_VIZINHO,
+				departamento: 'DPI SUL',
+				data_inicio: '2026-08-01',
+				hora_inicio: '05:00',
+				cidade_destino_padrao: 'Cidade Vizinha E2E',
+				qtd_equipes: '1',
+				oip_por_equipe: '1'
+			})
+		});
+		expect(criacao.status()).toBe(200);
+		planoVizinhoId = idDe(
+			`SELECT id FROM planos_operacionais WHERE nome = '${NOME_VIZINHO}' ORDER BY id DESC LIMIT 1;`
+		);
+		expect(planoVizinhoId).not.toBeNull();
+
+		const alheia = idDe(`SELECT id FROM plano_opcoes WHERE plano_id = ${planoVizinhoId};`);
+		expect(alheia, 'o plano vizinho tem de ter a opção que nasceu com ele').not.toBeNull();
+
+		const antes = queryD1Local<{ padrao: number }>(
+			`SELECT padrao FROM plano_opcoes WHERE id = ${alheia};`
+		);
+
+		for (const acao of ['definirOpcaoPadrao', 'removerOpcao']) {
+			const res = await request.post(`/gise/planos/${planoId}?/${acao}`, {
+				headers: {
+					...headersFormAction(tokenAdmin!),
+					'content-type': 'application/x-www-form-urlencoded'
+				},
+				data: form({ opcao_id: String(alheia) })
+			});
+			// Form action recusada volta 200 com `type: 'failure'` no corpo — o
+			// status HTTP do `fail()` não sobe até aqui.
+			expect(String(await res.text())).toContain('não encontrada neste plano');
+		}
+
+		// E, sobretudo, a linha alheia continua exatamente como estava.
+		expect(queryD1Local(`SELECT padrao FROM plano_opcoes WHERE id = ${alheia};`)).toEqual(antes);
 	});
 
 	test('servidor sem classe resolvida faz o download recusar com 409', async ({ request }) => {

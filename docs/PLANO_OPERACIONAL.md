@@ -5,6 +5,14 @@
 **Não é:** confirmação de presença, relatório extraordinário, nem assinatura
 digital do plano. Esses três ficam **fora deste ciclo**, por decisão explícita.
 
+> **Registro do que foi PLANEJADO, não do que está no código.** O módulo foi
+> implementado e o modelo evoluiu depois: o signatário virou campo do plano (não
+> há mais padrão global em `/config-custos`), e o `local_briefing_padrao` desta
+> Fase 0 **não existe mais** — briefing e destino são listas por plano
+> (`plano_opcoes`), com uma opção padrão arbitrada por índice único parcial. A
+> descrição vigente está no [`README.md`](../README.md) §8; este documento fica
+> como o registro da decisão original.
+
 ---
 
 ## 1. Contexto

@@ -20,6 +20,11 @@
 	import type { SubmitFunction } from '@sveltejs/kit';
 	import SearchableSelect from '$lib/components/SearchableSelect.svelte';
 	import { buscarServidores, MIN_BUSCA } from '../../_components/buscas';
+	import ModalShell from '$lib/components/ModalShell.svelte';
+	import { useConfirmationDialog } from '$lib/composables';
+	import { loading } from '$lib/loading.svelte';
+	import type { PlanoOpcao } from '$lib/server/schema';
+	import { escolhasDaEquipe } from '$lib/planos/opcoes';
 	import { formatarBRL, resumoHoras, rotuloCustoDaEquipe } from '$lib/planos/rotulos';
 	import { formatarDiarias, MIN_MEIAS, MAX_MEIAS } from '$lib/planos/diarias';
 	import type { HorasClassificadas } from '$lib/planos/horas-extras';
@@ -48,7 +53,8 @@
 		membros: MembroDoPlano[];
 		/** Janela EFETIVA já resolvida pela cascata equipe → plano (vem do servidor). */
 		janela: { horaInicio: string; horaFim?: string | null };
-		briefingEfetivo: string;
+		/** Destino já resolvido pela cascata equipe → plano — o que o Anexo I imprime. */
+		destinoEfetivo: string;
 		sugestaoHoras: HorasClassificadas;
 		custo: number;
 	};
@@ -56,14 +62,38 @@
 	const {
 		equipe,
 		enviar,
-		pendentes
+		pendentes,
+		opcoesBriefing,
+		opcoesDestino,
+		briefingPadrao,
+		destinoPadrao
 	}: {
 		equipe: EquipeNaTela;
 		/** `use:enhance` comum, vindo da página. */
 		enviar: (msg: string, aoConcluir?: () => void) => SubmitFunction;
 		/** `policial_id` dos membros que bloqueiam a emissão (classe não resolvida). */
 		pendentes: Set<number>;
+		/** As listas que o plano declara — ver `EditorOpcoes`. */
+		opcoesBriefing: PlanoOpcao[];
+		opcoesDestino: PlanoOpcao[];
+		/**
+		 * O valor da opção PADRÃO de cada tipo — o que a equipe passa a usar se o
+		 * campo dela ficar vazio.
+		 *
+		 * Vem separado de `equipe.destinoEfetivo` de propósito: o efetivo é o
+		 * RESULTADO da cascata, e numa equipe que tem valor próprio ele É o valor
+		 * próprio. Rotular a opção vazia com o efetivo dizia "padrão: X" exibindo
+		 * justamente o que se perderia ao escolhê-la.
+		 */
+		briefingPadrao: string;
+		destinoPadrao: string;
 	} = $props();
+
+	// As escolhas do seletor saem de `escolhasDaEquipe` — a regra (e o motivo de
+	// o valor próprio da equipe entrar na lista) mora em `$lib/planos/opcoes`,
+	// com teste.
+	const escolhasBriefing = $derived(escolhasDaEquipe(opcoesBriefing, equipe.local_briefing));
+	const escolhasDestino = $derived(escolhasDaEquipe(opcoesDestino, equipe.cidade_destino));
 
 	// Estado local do formulário. Reinicia quando a equipe muda de identidade —
 	// a `key` no pai garante isso; aqui a captura inicial é intencional.
@@ -80,6 +110,18 @@
 
 	let novoPolicial = $state<unknown>(null);
 	let aberto = $state(false);
+	// APARADOS, como as escolhas do seletor: um `<select>` cujo `value` não casa
+	// com nenhum `<option>` não fica vazio — o navegador mostra o primeiro item, e
+	// salvar sem tocar no campo gravaria esse outro valor.
+	// svelte-ignore state_referenced_locally
+	let briefing = $state((equipe.local_briefing ?? '').trim());
+	// svelte-ignore state_referenced_locally
+	let destino = $state(equipe.cidade_destino.trim());
+
+	const confirmExcluir = useConfirmationDialog<{ nome: string }>();
+
+	/** `id` do formulário dos dados — o rodapé o alcança por `form=`. */
+	const idForm = $derived(`equipe-${equipe.id}`);
 
 	const temSugestao = $derived(
 		equipe.sugestaoHoras.normais + equipe.sugestaoHoras.plus + equipe.sugestaoHoras.semCusto > 0
@@ -94,7 +136,13 @@
 	}
 </script>
 
-<li class="rounded-2xl border border-surface-200/70 dark:border-white/10 overflow-hidden">
+<!-- Contorno no estilo do quadro de seccional da GISE (`GiseSeccional.svelte`):
+     `border-2` numa surface mais escura, fundo branco e sombra que reage ao
+     hover. A borda de 1px translúcida que estava aqui somava com a folha do
+     layout, e dois cards vizinhos pareciam um bloco só. -->
+<li
+	class="rounded-2xl border-2 border-surface-300 dark:border-surface-700 overflow-hidden bg-white dark:bg-surface-900 shadow-sm hover:shadow-md transition-shadow duration-300"
+>
 	<!-- Cabeçalho: resumo sempre visível -->
 	<div class="flex flex-wrap items-center gap-3 p-4 bg-surface-50 dark:bg-surface-900/40">
 		<button
@@ -117,7 +165,9 @@
 				</span>
 			</span>
 			<span class="block text-xs text-surface-600 dark:text-surface-400 mt-0.5 truncate">
-				{equipe.cidade_destino || 'sem destino'}
+				<!-- O destino EFETIVO, não a coluna: equipe com o campo vazio sai no
+				     Anexo I com o padrão do plano, e o resumo tem de dizer o mesmo. -->
+				{equipe.destinoEfetivo || 'sem destino'}
 				{#if equipe.viatura_placa}· VTR {equipe.viatura_placa}{/if}
 				· {rotuloCustoDaEquipe(equipe.tipo_custo, equipe.diaria_tipo)}
 				{#if equipe.tipo_custo === 'hora_extra'}
@@ -144,7 +194,12 @@
 	{#if aberto}
 		<div class="p-4 space-y-5 border-t border-surface-200/70 dark:border-white/10">
 			<!-- ---- Dados da equipe ---- -->
-			<form method="POST" action="?/salvarEquipe" use:enhance={enviar('Equipe salva')}>
+			<form
+				id={idForm}
+				method="POST"
+				action="?/salvarEquipe"
+				use:enhance={enviar('Alterações salvas')}
+			>
 				<input type="hidden" name="equipe_id" value={equipe.id} />
 				<input type="hidden" name="tipo" value={equipe.tipo} />
 
@@ -157,12 +212,17 @@
 						<span class="text-xs font-medium text-surface-700 dark:text-surface-200"
 							>Cidade destino</span
 						>
-						<input
-							name="cidade_destino"
-							value={equipe.cidade_destino}
-							maxlength="120"
-							class="input"
-						/>
+						<!-- Seletor, e não campo livre: o destino redigitado em oito equipes
+						     vira dois destinos no Anexo I à primeira diferença de acento. As
+						     opções são as do plano (Parâmetros gerais). -->
+						<select name="cidade_destino" bind:value={destino} class="select">
+							<option value="">
+								{destinoPadrao ? `— padrão: ${destinoPadrao} —` : '— sem destino —'}
+							</option>
+							{#each escolhasDestino as valor (valor)}
+								<option value={valor}>{valor}</option>
+							{/each}
+						</select>
 					</label>
 					<label class="block space-y-1">
 						<span class="text-xs font-medium text-surface-700 dark:text-surface-200"
@@ -211,133 +271,15 @@
 							>(vazio = usa o padrão do plano)</span
 						>
 					</span>
-					<input
-						name="local_briefing"
-						value={equipe.local_briefing ?? ''}
-						maxlength="200"
-						placeholder={equipe.briefingEfetivo || 'sem local definido'}
-						class="input"
-					/>
-				</label>
-
-				<!-- ---- Custo ---- -->
-				<div class="mt-4 rounded-xl border border-surface-200 dark:border-white/10 p-3 space-y-3">
-					<div class="flex flex-wrap items-center justify-between gap-2">
-						<span class="text-xs font-semibold text-surface-800 dark:text-surface-100"
-							>Custo da equipe</span
-						>
-						{#if temSugestao}
-							<button
-								type="button"
-								class="btn btn-sm preset-outlined-surface-500 py-1.5 px-3 rounded-lg text-2xs"
-								onclick={aplicarSugestao}
-							>
-								<Wand class="w-3.5 h-3.5" />
-								Sugerir pelo horário
-							</button>
-						{/if}
-					</div>
-
-					{#if temSugestao}
-						<p class="text-2xs text-surface-600 dark:text-surface-400">
-							Pelo horário desta equipe: <strong
-								>{equipe.sugestaoHoras.normais}h normais · {equipe.sugestaoHoras.plus}h plus · {equipe
-									.sugestaoHoras.semCusto}h sem custo</strong
-							>. A quantidade gravada é a que estiver nos campos.
-						</p>
-					{:else}
-						<p class="text-2xs text-surface-600 dark:text-surface-400">
-							Sem previsão de término no plano, não há como sugerir a quantidade — informe à mão.
-						</p>
-					{/if}
-
-					<div class="flex flex-wrap gap-2">
-						{#each [['sem_custo', 'Sem custo'], ['hora_extra', 'Hora extra (DRO)'], ['diaria', 'Diária']] as [valor, rotulo] (valor)}
-							<label
-								class="cursor-pointer rounded-lg border px-3 py-1.5 text-xs transition-colors {tipoCusto ===
-								valor
-									? 'border-primary-500 bg-primary-500/10 text-primary-700 dark:text-primary-300'
-									: 'border-surface-200 dark:border-white/10 text-surface-700 dark:text-surface-300'}"
-							>
-								<input
-									type="radio"
-									name="tipo_custo"
-									value={valor}
-									bind:group={tipoCusto}
-									class="sr-only"
-								/>
-								{rotulo}
-							</label>
+					<select name="local_briefing" bind:value={briefing} class="select">
+						<option value="">
+							{briefingPadrao ? `— padrão: ${briefingPadrao} —` : '— sem local —'}
+						</option>
+						{#each escolhasBriefing as valor (valor)}
+							<option value={valor}>{valor}</option>
 						{/each}
-					</div>
-
-					{#if tipoCusto === 'hora_extra'}
-						<div class="grid gap-3 sm:grid-cols-2">
-							<label class="block space-y-1">
-								<span class="text-xs font-medium text-surface-700 dark:text-surface-200"
-									>Horas normais</span
-								>
-								<input
-									type="number"
-									name="horas_normais"
-									bind:value={horasNormais}
-									min="0"
-									max="744"
-									class="input"
-								/>
-							</label>
-							<label class="block space-y-1">
-								<span class="text-xs font-medium text-surface-700 dark:text-surface-200">
-									Horas plus <span class="text-surface-600 dark:text-surface-400">(+30%)</span>
-								</span>
-								<input
-									type="number"
-									name="horas_plus"
-									bind:value={horasPlus}
-									min="0"
-									max="744"
-									class="input"
-								/>
-							</label>
-						</div>
-					{:else if tipoCusto === 'diaria'}
-						<div class="grid gap-3 sm:grid-cols-2">
-							<label class="block space-y-1">
-								<span class="text-xs font-medium text-surface-700 dark:text-surface-200"
-									>Tipo de diária</span
-								>
-								<select name="diaria_tipo" bind:value={diariaTipo} class="select">
-									<option value="estadual">Estadual</option>
-									<option value="interestadual">Interestadual</option>
-								</select>
-							</label>
-							<label class="block space-y-1">
-								<span class="text-xs font-medium text-surface-700 dark:text-surface-200">
-									Quantidade <span class="text-surface-600 dark:text-surface-400"
-										>({formatarDiarias(diariasMeias)})</span
-									>
-								</span>
-								<!-- Em MEIAS diárias: o passo é meio, e o inteiro evita float no
-								     caminho do dinheiro. O rótulo acima mostra o valor em diárias. -->
-								<input
-									type="range"
-									name="diarias_meias"
-									bind:value={diariasMeias}
-									min={MIN_MEIAS}
-									max={MAX_MEIAS}
-									step="1"
-									class="w-full"
-								/>
-							</label>
-						</div>
-					{/if}
-				</div>
-
-				<div class="flex justify-end mt-3">
-					<button type="submit" class="btn preset-filled-primary-500 py-2 px-4 rounded-xl text-sm">
-						Salvar equipe
-					</button>
-				</div>
+					</select>
+				</label>
 			</form>
 
 			<!-- ---- Efetivo ---- -->
@@ -449,22 +391,187 @@
 				</form>
 			</div>
 
-			<!-- ---- Excluir ---- -->
-			<form
-				method="POST"
-				action="?/excluirEquipe"
-				use:enhance={enviar('Equipe excluída')}
-				class="flex justify-end pt-1 border-t border-surface-200/70 dark:border-white/10"
+			<!-- ---- Custo ---- -->
+			<div class="mt-4 rounded-xl border border-surface-200 dark:border-white/10 p-3 space-y-3">
+				<div class="flex flex-wrap items-center justify-between gap-2">
+					<span class="text-xs font-semibold text-surface-800 dark:text-surface-100"
+						>Custo da equipe</span
+					>
+					{#if temSugestao}
+						<button
+							type="button"
+							class="btn btn-sm preset-outlined-surface-500 py-1.5 px-3 rounded-lg text-2xs"
+							onclick={aplicarSugestao}
+						>
+							<Wand class="w-3.5 h-3.5" />
+							Sugerir pelo horário
+						</button>
+					{/if}
+				</div>
+
+				{#if temSugestao}
+					<p class="text-2xs text-surface-600 dark:text-surface-400">
+						Pelo horário desta equipe: <strong
+							>{equipe.sugestaoHoras.normais}h normais · {equipe.sugestaoHoras.plus}h plus · {equipe
+								.sugestaoHoras.semCusto}h sem custo</strong
+						>. A quantidade gravada é a que estiver nos campos.
+					</p>
+				{:else}
+					<p class="text-2xs text-surface-600 dark:text-surface-400">
+						Sem previsão de término no plano, não há como sugerir a quantidade — informe à mão.
+					</p>
+				{/if}
+
+				<div class="flex flex-wrap gap-2">
+					{#each [['sem_custo', 'Sem custo'], ['hora_extra', 'Hora extra (DRO)'], ['diaria', 'Diária']] as [valor, rotulo] (valor)}
+						<label
+							class="cursor-pointer rounded-lg border px-3 py-1.5 text-xs transition-colors {tipoCusto ===
+							valor
+								? 'border-primary-500 bg-primary-500/10 text-primary-700 dark:text-primary-300'
+								: 'border-surface-200 dark:border-white/10 text-surface-700 dark:text-surface-300'}"
+						>
+							<input
+								type="radio"
+								name="tipo_custo"
+								value={valor}
+								bind:group={tipoCusto}
+								form={idForm}
+								class="sr-only"
+							/>
+							{rotulo}
+						</label>
+					{/each}
+				</div>
+
+				{#if tipoCusto === 'hora_extra'}
+					<div class="grid gap-3 sm:grid-cols-2">
+						<label class="block space-y-1">
+							<span class="text-xs font-medium text-surface-700 dark:text-surface-200"
+								>Horas normais</span
+							>
+							<input
+								type="number"
+								name="horas_normais"
+								bind:value={horasNormais}
+								min="0"
+								max="744"
+								form={idForm}
+								class="input"
+							/>
+						</label>
+						<label class="block space-y-1">
+							<span class="text-xs font-medium text-surface-700 dark:text-surface-200">
+								Horas plus <span class="text-surface-600 dark:text-surface-400">(+30%)</span>
+							</span>
+							<input
+								type="number"
+								name="horas_plus"
+								bind:value={horasPlus}
+								min="0"
+								max="744"
+								form={idForm}
+								class="input"
+							/>
+						</label>
+					</div>
+				{:else if tipoCusto === 'diaria'}
+					<div class="grid gap-3 sm:grid-cols-2">
+						<label class="block space-y-1">
+							<span class="text-xs font-medium text-surface-700 dark:text-surface-200"
+								>Tipo de diária</span
+							>
+							<select name="diaria_tipo" bind:value={diariaTipo} form={idForm} class="select">
+								<option value="estadual">Estadual</option>
+								<option value="interestadual">Interestadual</option>
+							</select>
+						</label>
+						<label class="block space-y-1">
+							<span class="text-xs font-medium text-surface-700 dark:text-surface-200">
+								Quantidade <span class="text-surface-600 dark:text-surface-400"
+									>({formatarDiarias(diariasMeias)})</span
+								>
+							</span>
+							<!-- Em MEIAS diárias: o passo é meio, e o inteiro evita float no
+								     caminho do dinheiro. O rótulo acima mostra o valor em diárias. -->
+							<input
+								type="range"
+								name="diarias_meias"
+								bind:value={diariasMeias}
+								min={MIN_MEIAS}
+								max={MAX_MEIAS}
+								step="1"
+								form={idForm}
+								class="w-full"
+							/>
+						</label>
+					</div>
+				{/if}
+			</div>
+
+			<!-- ---- Ações da equipe ---- -->
+			<!-- Os dois botões juntos, no fim do card: quem termina de mexer na
+			     equipe decide ali entre gravar e descartar. O "Salvar" vive FORA do
+			     formulário dos dados e o alcança por `form={idForm}` — é o atributo
+			     que o HTML tem para isso, e evita duplicar o form ou mover o
+			     efetivo para dentro dele. -->
+			<div
+				class="flex flex-wrap items-center justify-between gap-2 pt-3 border-t border-surface-200/70 dark:border-white/10"
 			>
-				<input type="hidden" name="equipe_id" value={equipe.id} />
 				<button
-					type="submit"
-					class="btn btn-sm preset-filled-error-500 py-1.5 px-3 rounded-xl text-xs mt-3"
+					type="button"
+					class="btn btn-sm preset-filled-error-500 py-1.5 px-3 rounded-xl text-xs"
+					onclick={() => confirmExcluir.openDialog({ nome: equipe.nome })}
 				>
 					<Trash2 class="w-3.5 h-3.5" />
 					Excluir equipe
 				</button>
-			</form>
+				<button
+					type="submit"
+					form={idForm}
+					class="btn preset-filled-primary-500 py-2 px-4 rounded-xl text-sm"
+					disabled={loading.active}
+				>
+					Salvar Alterações
+				</button>
+			</div>
 		</div>
 	{/if}
 </li>
+
+<!-- Confirmação da exclusão, no padrão do projeto (`ModalShell` +
+     `useConfirmationDialog`, como em `/gise/planos`). A equipe leva o efetivo
+     alocado junto, e um clique errado num botão vermelho ao lado do de salvar
+     custaria remontar a equipe inteira. -->
+<ModalShell
+	bind:open={confirmExcluir.isOpen}
+	title="Excluir equipe?"
+	largura="sm"
+	pending={loading.active}
+	cancelLabel="Cancelar"
+>
+	{#snippet description()}
+		A equipe <strong>{confirmExcluir.currentItem?.nome}</strong> e os
+		{equipe.membros.length}
+		{equipe.membros.length === 1 ? 'servidor alocado' : 'servidores alocados'} nela serão apagados. As
+		demais equipes são renumeradas.
+	{/snippet}
+
+	{#snippet footer()}
+		<form
+			method="POST"
+			action="?/excluirEquipe"
+			use:enhance={enviar('Equipe excluída', () => confirmExcluir.closeDialog())}
+			class="contents"
+		>
+			<input type="hidden" name="equipe_id" value={equipe.id} />
+			<button
+				type="submit"
+				class="btn btn-sm preset-filled-error-500 flex items-center gap-2"
+				disabled={loading.active}
+			>
+				<Trash2 class="w-4 h-4" />
+				Excluir equipe
+			</button>
+		</form>
+	{/snippet}
+</ModalShell>
