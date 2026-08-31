@@ -502,18 +502,33 @@ Verificar cada transição de status:
 
 ### 5.3 Editor, custo e o que bloqueia a emissão
 
-- [ ] Plano em **dia útil das 14:00 às 17:00** → "Sugerir pelo horário" propõe SEM CUSTO
+### 5.3.1 Distância × horário — qual rubrica a equipe recebe
+
+- [ ] Equipe **sem distância informada** → aviso na tela dizendo que a rubrica sai só pelo horário; o campo aparece SEMPRE, não só quando origem e destino estão preenchidos
+- [ ] Distância de **40 km** em janela noturna → "Sugerir custeio" propõe HORA EXTRA, e o texto diz "abaixo do limite de diária — vale o horário"
+- [ ] Distância de **180 km** na MESMA janela → propõe DIÁRIA, e o texto explica que a partir de 100 km o horário não decide mais
+- [ ] **100 km exatos** já são diária — o limite é inclusivo `[Vitest: custeio.test.ts]`
+- [ ] Deslocamento longo em **pleno expediente** (terça, 09:00–17:00) → diária, não "sem custo" `[Vitest: custeio.test.ts]` — é o caso que inverte conforme a ordem das perguntas
+- [ ] Ao propor diária, as horas são ZERADAS (as duas rubricas não se somam), mas a quantidade de diárias e o tipo estadual/interestadual continuam sendo escolha do admin
+- [ ] Apagar o campo de distância → volta a `NULL` no banco, não a zero `[E2E: plano-operacional.spec.ts]`
+- [ ] Distância acima de 9999 → recusa nomeando o campo, sem gravar truncado `[E2E: plano-operacional.spec.ts]`
+- [ ] A distância NÃO é copiada para equipe nova: ela é do par origem→destino daquela equipe `[E2E: plano-operacional.spec.ts]`
+
+- [ ] Plano em **dia útil das 14:00 às 17:00**, sem distância → "Sugerir custeio" propõe SEM CUSTO
 - [ ] O mesmo plano movido para **sábado** → sugere as mesmas horas como hora extra **plus**
+- [ ] **Bordas**: Parâmetros gerais, cards de equipe, Anexo II e Documento têm o MESMO contorno (`card-quadro`), e dois blocos vizinhos não se leem como um só
 - [ ] Equipe com horário próprio (ex.: apresentação 03:30) usa o dela; equipe sem horário HERDA o do plano — o Anexo I imprime o valor efetivo
 - [ ] O editor abre com coordenador, demandante e signatário **já preenchidos** quando o plano os tem — campo vazio ali significaria "ninguém designado", e salvar por cima apagaria a designação
 - [ ] Trocar o signatário de UM plano não muda o padrão global nem os outros planos
-- [ ] **Parâmetros gerais → "Opções das equipes"**: acrescentar um local de briefing e uma cidade de destino; a PRIMEIRA de cada tipo nasce com a estrela
+- [ ] **Na tela de CRIAÇÃO**, "Opções das equipes" já deixa montar as três listas (briefing, origem, destino) antes de o plano existir — acrescentar, remover e trocar a estrela sem nunca submeter o formulário por engano
+- [ ] Marcar como padrão a SEGUNDA opção de uma lista na criação → o plano nasce com ela estrelada, e não com a primeira que foi digitada (a escolha vence a ordem de inserção) `[E2E: plano-operacional.spec.ts]`
+- [ ] **Parâmetros gerais → "Opções das equipes"**: acrescentar um local de briefing, uma cidade de origem e uma de destino; a PRIMEIRA de cada tipo nasce com a estrela
 - [ ] Acrescentar o MESMO valor de novo → recusa nomeando a lista ("já está na lista de cidades de destino") `[Vitest: planos.test.ts]` — quem recusa é o índice, não uma consulta prévia
 - [ ] Marcar outra como padrão → a estrela SAI da anterior (nunca duas), e remover a padrão faz a primeira das restantes assumir
 - [ ] Lista com opções e nenhuma padrão (é como os planos antigos vieram da migração) → o editor avisa que as equipes novas continuam nascendo em branco
 - [ ] As duas listas gravam **sozinhas**, sem passar pelo "Salvar parâmetros" — uma edição pela metade nos outros campos não vai junto
 - [ ] Criar equipe DEPOIS de marcar as padrões → ela nasce com briefing e destino já preenchidos `[E2E: plano-operacional.spec.ts]`
-- [ ] No card da equipe, os dois campos são `<select>` com as opções do plano; a opção vazia nomeia **o padrão do plano** ("— padrão: Iguatu —"), não o valor que a equipe já tem
+- [ ] No card da equipe, briefing/origem/destino são `<select>` com as opções do plano; a opção vazia nomeia **o padrão do plano** ("— padrão: Iguatu —"), não o valor que a equipe já tem
 - [ ] Remover da lista uma opção que uma equipe já usa → o destino da equipe **continua lá** e ainda aparece no seletor dela (a equipe guarda o texto, não uma referência)
 - [ ] POST direto em `?/definirOpcaoPadrao` com o `opcao_id` de OUTRO plano → recusa, e a linha alheia não muda `[E2E: plano-operacional.spec.ts]` (classe do FLW-ESC-002)
 - [ ] "Custo da equipe" aparece DEPOIS do bloco "Efetivo"; "Excluir equipe" e "Salvar Alterações" ficam juntos no rodapé do card

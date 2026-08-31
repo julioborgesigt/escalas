@@ -143,12 +143,12 @@
 					<h3 class="text-sm font-semibold text-surface-800 dark:text-surface-100">
 						Hora extra normal
 					</h3>
-					<span class="text-2xs text-surface-600 dark:text-surface-400">valor por hora</span>
+					<span class="text-xs text-surface-600 dark:text-surface-400">valor por hora</span>
 				</div>
 				<div class="grid gap-3 sm:grid-cols-2">
 					{#each PARES as par (par.normal)}
 						<label class="block space-y-1">
-							<span class="text-xs font-medium text-surface-700 dark:text-surface-200"
+							<span class="text-sm font-medium text-surface-700 dark:text-surface-200"
 								>{par.rotulo}</span
 							>
 							<span class="flex items-center gap-2">
@@ -197,7 +197,7 @@
 				<div class="grid gap-3 sm:grid-cols-2">
 					{#each PARES as par (par.plus)}
 						<label class="block space-y-1">
-							<span class="text-xs font-medium text-surface-700 dark:text-surface-200"
+							<span class="text-sm font-medium text-surface-700 dark:text-surface-200"
 								>{par.rotulo}</span
 							>
 							<span class="flex items-center gap-2">
@@ -220,13 +220,13 @@
 
 			<div class="space-y-3">
 				<h3 class="text-sm font-semibold text-surface-800 dark:text-surface-100">Diárias</h3>
-				<p class="text-2xs text-surface-600 dark:text-surface-400">
+				<p class="text-xs text-surface-600 dark:text-surface-400">
 					Valor único para todos os servidores — a diária não varia por classe.
 				</p>
 				<div class="grid gap-3 sm:grid-cols-2">
 					{#each [['diaria_estadual', 'Estadual'], ['diaria_interestadual', 'Interestadual']] as [chave, rotulo] (chave)}
 						<label class="block space-y-1">
-							<span class="text-xs font-medium text-surface-700 dark:text-surface-200"
+							<span class="text-sm font-medium text-surface-700 dark:text-surface-200"
 								>{rotulo}</span
 							>
 							<span class="flex items-center gap-2">
@@ -247,7 +247,7 @@
 
 			<div class="flex flex-wrap items-end gap-3 pt-1">
 				<label class="block space-y-1">
-					<span class="text-xs font-medium text-surface-700 dark:text-surface-200"
+					<span class="text-sm font-medium text-surface-700 dark:text-surface-200"
 						>Vigente desde</span
 					>
 					<input type="date" name="vigente_desde" bind:value={vigenteDesde} class="input" />
@@ -305,7 +305,7 @@
 									#{v.id}
 									{#if i === 0}
 										<span
-											class="ml-1 rounded-full bg-success-500/15 px-2 py-0.5 text-3xs font-medium text-success-700 dark:text-success-400"
+											class="ml-1 rounded-full bg-success-500/15 px-2 py-0.5 text-2xs font-medium text-success-700 dark:text-success-400"
 											>vigente</span
 										>
 									{/if}
@@ -330,7 +330,7 @@
 							<span class="font-mono text-xs">#{v.id}</span>
 							{#if i === 0}
 								<span
-									class="rounded-full bg-success-500/15 px-2 py-0.5 text-3xs font-medium text-success-700 dark:text-success-400"
+									class="rounded-full bg-success-500/15 px-2 py-0.5 text-2xs font-medium text-success-700 dark:text-success-400"
 									>vigente</span
 								>
 							{/if}

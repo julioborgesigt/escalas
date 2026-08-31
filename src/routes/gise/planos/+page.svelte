@@ -92,12 +92,12 @@
 									</h2>
 									{#if p.status === 'concluido'}
 										<span
-											class="rounded-full bg-success-500/15 px-2 py-0.5 text-3xs font-medium text-success-700 dark:text-success-400"
+											class="rounded-full bg-success-500/15 px-2 py-0.5 text-2xs font-medium text-success-700 dark:text-success-400"
 											>concluído</span
 										>
 									{:else}
 										<span
-											class="rounded-full bg-warning-500/15 px-2 py-0.5 text-3xs font-medium text-warning-700 dark:text-warning-400"
+											class="rounded-full bg-warning-500/15 px-2 py-0.5 text-2xs font-medium text-warning-700 dark:text-warning-400"
 											>rascunho</span
 										>
 									{/if}

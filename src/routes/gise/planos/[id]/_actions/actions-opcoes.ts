@@ -22,8 +22,8 @@ import {
 } from '$lib/db';
 import { planoDaRota, getInt, getTexto, type EventoPlano } from './shared';
 
-/** Os dois tipos aceitos. Qualquer outro valor no corpo é recusado. */
-const TIPOS: readonly TipoOpcao[] = ['briefing', 'destino'];
+/** Os três tipos aceitos. Qualquer outro valor no corpo é recusado. */
+const TIPOS: readonly TipoOpcao[] = ['briefing', 'origem', 'destino'];
 
 /**
  * Como a lista se chama nas mensagens ao usuário.
@@ -35,6 +35,7 @@ const TIPOS: readonly TipoOpcao[] = ['briefing', 'destino'];
  */
 const LISTA: Record<TipoOpcao, string> = {
 	briefing: 'locais de briefing',
+	origem: 'cidades de origem',
 	destino: 'cidades de destino'
 };
 

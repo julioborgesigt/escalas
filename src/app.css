@@ -96,6 +96,21 @@
 	@apply bg-surface-100 dark:bg-surface-800 border border-surface-200 dark:border-white/10;
 }
 
+/* QUADRO: bloco de preenchimento que precisa se separar do vizinho.
+ *
+ * Nasceu no card de seccional da GISE e virou utilitário quando o plano
+ * operacional precisou do mesmo contorno em quatro lugares. O que o distingue
+ * de `card-elevated` é a BORDA: 2px numa surface mais escura, em vez de 1px
+ * translúcida. A de 1px somava com a folha do layout e dois blocos vizinhos
+ * pareciam um só — foi o relato que originou este utilitário.
+ *
+ * Só o contorno e o fundo. O `rounded-*`, o padding e o `hover:shadow-md`
+ * ficam no call site: sombra que reage ao ponteiro é promessa de clique, e
+ * quadro que não abre nada não deve fazê-la. */
+@utility card-quadro {
+	@apply border-2 border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-900 shadow-sm;
+}
+
 /* Feedback tátil de clique (decisão pós-auditoria UX-10): todo botão
  * Skeleton "afunda" 5% enquanto pressionado — antes era um utilitário
  * inline presente em só 28% dos botões. `scale` (propriedade própria,

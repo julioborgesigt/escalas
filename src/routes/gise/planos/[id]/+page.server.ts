@@ -61,6 +61,7 @@ export const load: PageServerLoad = async ({ locals, params, platform, depends }
 	// designação sem que ninguém tivesse pedido isso.
 	const opcoes = await opcoesDoPlano(db, plano.id);
 	const briefingPadrao = valorPadrao(opcoes.briefing);
+	const origemPadrao = valorPadrao(opcoes.origem);
 	const destinoPadrao = valorPadrao(opcoes.destino);
 
 	const [coordenador, demandante] = await Promise.all([
@@ -83,6 +84,7 @@ export const load: PageServerLoad = async ({ locals, params, platform, depends }
 		 */
 		opcoes,
 		briefingPadrao,
+		origemPadrao,
 		destinoPadrao,
 		plano,
 		/**

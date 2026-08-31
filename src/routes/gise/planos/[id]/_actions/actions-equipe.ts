@@ -120,6 +120,22 @@ export const actionsEquipe = {
 			}
 		}
 
+		// Campo vazio é `null` — "ninguém mediu" —, e não zero: zero é a afirmação
+		// de que origem e destino são a mesma cidade. A diferença decide se a tela
+		// avisa que falta a medida ou trata a rubrica como conferida
+		// (ver `sugerirCusteio`).
+		const distanciaBruta = getTexto(fd, 'distancia_km', 8);
+		let distanciaKm: number | null = null;
+		if (distanciaBruta) {
+			const n = Number(distanciaBruta);
+			if (!Number.isInteger(n) || n < 0 || n > 9999) {
+				return fail(400, {
+					error: 'Distância inválida — informe um número inteiro de 0 a 9999 km.'
+				});
+			}
+			distanciaKm = n;
+		}
+
 		try {
 			await atualizarEquipe(db, equipe.id, {
 				nome,
@@ -128,7 +144,9 @@ export const actionsEquipe = {
 				viatura_placa: getTexto(fd, 'viatura_placa', 20),
 				hora_inicio: horaInicio,
 				hora_fim: horaFim,
+				cidade_origem: getTexto(fd, 'cidade_origem', 120),
 				cidade_destino: getTexto(fd, 'cidade_destino', 120),
+				distancia_km: distanciaKm,
 				local_briefing: getTextoOuNulo(fd, 'local_briefing', 200),
 				tipo_custo: tipoCusto,
 				horas_normais: horasNormais,

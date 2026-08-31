@@ -33,6 +33,16 @@
 	import { DEPARTAMENTO_PADRAO } from '$lib/planos/padroes';
 	import CampoNup from '../_components/CampoNup.svelte';
 	import CamposSignatario from '../_components/CamposSignatario.svelte';
+	import ListaOpcoes from '../_components/ListaOpcoes.svelte';
+	import {
+		acrescentarNaLista,
+		definirPadraoNaLista,
+		removerDaLista,
+		padraoDaLista,
+		type OpcaoEmLista
+	} from '$lib/planos/opcoes';
+	import Star from '@lucide/svelte/icons/star';
+	import Trash2 from '@lucide/svelte/icons/trash-2';
 	import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
 
 	const { data, form }: PageProps = $props();
@@ -49,8 +59,18 @@
 	let finalidade = $state(data.finalidadePadrao);
 	// svelte-ignore state_referenced_locally
 	let acoes = $state(data.acoesPadrao);
-	let localBriefing = $state('');
-	let cidadeDestino = $state('');
+	/**
+	 * As três listas de opções, montadas ANTES de o plano existir.
+	 *
+	 * Ficam em memória e viajam como arrays de campos ocultos no mesmo POST que
+	 * cria o plano — não há `plano_id` para gravá-las contra. As regras (primeira
+	 * nasce padrão, sem repetir valor, removida a padrão a próxima assume) vêm de
+	 * `$lib/planos/opcoes`, as MESMAS que o editor aplica depois contra o banco.
+	 */
+	let listaBriefing = $state<OpcaoEmLista[]>([]);
+	let listaOrigem = $state<OpcaoEmLista[]>([]);
+	let listaDestino = $state<OpcaoEmLista[]>([]);
+
 	let qtdEquipes = $state(3);
 	let oipPorEquipe = $state(4);
 	let temSeint = $state(false);
@@ -89,6 +109,36 @@
 		</p>
 	</div>
 
+	<!-- Os botões de cada linha das três listas. Um snippet só porque são os
+	     mesmos três em cada uma — e `type="button"`, porque este bloco vive dentro
+	     do formulário que cria o plano: um submit aqui enviaria o plano pela
+	     metade ao marcar uma estrela. -->
+	{#snippet botoes(
+		o: { chave: string | number; padrao: boolean },
+		aoPadrao: () => void,
+		aoRemover: () => void
+	)}
+		{#if !o.padrao}
+			<button
+				type="button"
+				class="btn btn-sm preset-outlined-surface-500 px-2 py-1 rounded-lg text-2xs"
+				title="Usar como padrão nas equipes criadas"
+				onclick={aoPadrao}
+			>
+				<Star class="w-3.5 h-3.5" />
+				Padrão
+			</button>
+		{/if}
+		<button
+			type="button"
+			class="btn btn-sm preset-outlined-surface-500 px-2 py-1 rounded-lg text-2xs"
+			title="Remover da lista"
+			onclick={aoRemover}
+		>
+			<Trash2 class="w-3.5 h-3.5" />
+		</button>
+	{/snippet}
+
 	{#if !data.temValores}
 		<p
 			class="flex gap-2 rounded-xl border border-warning-500/30 bg-warning-500/10 p-3 text-sm text-warning-700 dark:text-warning-300"
@@ -122,7 +172,7 @@
 			{@render tituloSecao('Identificação')}
 
 			<label class="block space-y-1">
-				<span class="text-xs font-medium text-surface-700 dark:text-surface-200"
+				<span class="text-sm font-medium text-surface-700 dark:text-surface-200"
 					>Nome da operação</span
 				>
 				<input
@@ -138,7 +188,7 @@
 			<div class="grid gap-4 sm:grid-cols-2">
 				<CampoNup bind:valor={nup} opcional />
 				<label class="block space-y-1">
-					<span class="text-xs font-medium text-surface-700 dark:text-surface-200"
+					<span class="text-sm font-medium text-surface-700 dark:text-surface-200"
 						>Departamento responsável</span
 					>
 					<input name="departamento" value={DEPARTAMENTO_PADRAO} maxlength="60" class="input" />
@@ -146,7 +196,7 @@
 			</div>
 
 			<label class="block space-y-1">
-				<span class="text-xs font-medium text-surface-700 dark:text-surface-200">Finalidade</span>
+				<span class="text-sm font-medium text-surface-700 dark:text-surface-200">Finalidade</span>
 				<textarea
 					name="finalidade"
 					bind:value={finalidade}
@@ -156,7 +206,7 @@
 			</label>
 
 			<label class="block space-y-1">
-				<span class="text-xs font-medium text-surface-700 dark:text-surface-200">
+				<span class="text-sm font-medium text-surface-700 dark:text-surface-200">
 					Ações a serem realizadas <span class="text-surface-600 dark:text-surface-400"
 						>(uma por linha)</span
 					>
@@ -182,30 +232,35 @@
 			     ficava longe do horário que ela completa. -->
 			<div class="grid gap-4 sm:grid-cols-3">
 				<label class="block space-y-1">
-					<span class="text-xs font-medium text-surface-700 dark:text-surface-200"
+					<span class="text-sm font-medium text-surface-700 dark:text-surface-200"
 						>Horário de apresentação</span
 					>
-					<input name="hora_inicio" bind:value={horaInicio} placeholder="05:00" class="input" />
+					<input
+						name="hora_inicio"
+						bind:value={horaInicio}
+						placeholder="05:00"
+						class="input w-32"
+					/>
 				</label>
 				<label class="block space-y-1">
-					<span class="text-xs font-medium text-surface-700 dark:text-surface-200">
+					<span class="text-sm font-medium text-surface-700 dark:text-surface-200">
 						Previsão de término <span class="text-surface-600 dark:text-surface-400"
 							>(opcional)</span
 						>
 					</span>
-					<input name="hora_fim" bind:value={horaFim} placeholder="11:00" class="input" />
+					<input name="hora_fim" bind:value={horaFim} placeholder="11:00" class="input w-32" />
 				</label>
 				<label class="block space-y-1">
-					<span class="text-xs font-medium text-surface-700 dark:text-surface-200">
+					<span class="text-sm font-medium text-surface-700 dark:text-surface-200">
 						Data de término <span class="text-surface-600 dark:text-surface-400"
 							>(se virar o dia)</span
 						>
 					</span>
-					<input type="date" name="data_fim" bind:value={dataFim} class="input" />
+					<input type="date" name="data_fim" bind:value={dataFim} class="input w-44" />
 				</label>
 			</div>
 
-			<p class="text-2xs text-surface-600 dark:text-surface-400">
+			<p class="text-xs text-surface-600 dark:text-surface-400">
 				Sem previsão de término, o sistema não sugere a quantidade de horas — ela é digitada por
 				equipe no editor.
 			</p>
@@ -219,7 +274,7 @@
 				<div class="space-y-1">
 					<label
 						for="coordenador"
-						class="block text-xs font-medium text-surface-700 dark:text-surface-200"
+						class="block text-sm font-medium text-surface-700 dark:text-surface-200"
 					>
 						DPC coordenador da operação
 					</label>
@@ -236,7 +291,7 @@
 				<div class="space-y-1">
 					<label
 						for="demandante"
-						class="block text-xs font-medium text-surface-700 dark:text-surface-200"
+						class="block text-sm font-medium text-surface-700 dark:text-surface-200"
 					>
 						Delegacia / seccional demandante
 					</label>
@@ -251,40 +306,84 @@
 				</div>
 			</div>
 
-			<!-- Os dois viram a PRIMEIRA opção de cada lista, já como padrão, e as
-			     equipes criadas nascem com eles preenchidos. O editor acrescenta as
-			     outras opções depois — a operação que sai para três cidades declara
-			     as três lá e cada equipe escolhe a sua no seletor. -->
-			<div class="grid gap-4 sm:grid-cols-2">
-				<label class="block space-y-1">
-					<span class="text-xs font-medium text-surface-700 dark:text-surface-200">
-						Local de briefing padrão
-					</span>
-					<input
-						name="local_briefing_padrao"
-						bind:value={localBriefing}
-						maxlength="200"
-						placeholder="Sede da 4ª Seccional do Interior Sul"
-						class="input"
-					/>
-				</label>
-				<label class="block space-y-1">
-					<span class="text-xs font-medium text-surface-700 dark:text-surface-200">
-						Cidade destino padrão
-					</span>
-					<input
-						name="cidade_destino_padrao"
-						bind:value={cidadeDestino}
-						maxlength="200"
-						placeholder="Iguatu"
-						class="input"
-					/>
-				</label>
+			<!-- As três listas que os seletores das equipes vão oferecer. Montadas
+			     AQUI, e não só no editor: a operação que sai para três cidades
+			     declara as três antes de criar o plano, em vez de criar, entrar no
+			     editor e voltar para acrescentar. Cada lista vira campos ocultos no
+			     POST; o servidor as grava depois de o plano existir. -->
+			<div class="space-y-1">
+				<h3 class="text-sm font-semibold text-surface-900 dark:text-white">Opções das equipes</h3>
+				<p class="text-xs text-surface-600 dark:text-surface-400">
+					O que os seletores de cada equipe vão oferecer. A marcada com estrela vem pré-preenchida
+					nas equipes criadas — e todas continuam editáveis no plano.
+				</p>
 			</div>
-			<p class="text-2xs text-surface-600 dark:text-surface-400">
-				As equipes nascem com esses dois preenchidos e trocam num seletor. Outras opções se
-				acrescentam no editor do plano.
-			</p>
+
+			<div class="grid gap-5 sm:grid-cols-3">
+				<ListaOpcoes
+					rotulo="Locais de briefing"
+					descricao="Onde as equipes se apresentam."
+					exemplo="Sede da 4ª Seccional do Interior Sul"
+					opcoes={listaBriefing.map((o) => ({ chave: o.valor, ...o }))}
+					aoAcrescentar={(v) => (listaBriefing = acrescentarNaLista(listaBriefing, v))}
+				>
+					{#snippet acoes(o)}
+						{@render botoes(
+							o,
+							() => (listaBriefing = definirPadraoNaLista(listaBriefing, String(o.chave))),
+							() => (listaBriefing = removerDaLista(listaBriefing, String(o.chave)))
+						)}
+					{/snippet}
+				</ListaOpcoes>
+
+				<ListaOpcoes
+					rotulo="Cidades de origem"
+					descricao="De onde as equipes saem — mede a distância."
+					exemplo="Jucás"
+					opcoes={listaOrigem.map((o) => ({ chave: o.valor, ...o }))}
+					aoAcrescentar={(v) => (listaOrigem = acrescentarNaLista(listaOrigem, v))}
+				>
+					{#snippet acoes(o)}
+						{@render botoes(
+							o,
+							() => (listaOrigem = definirPadraoNaLista(listaOrigem, String(o.chave))),
+							() => (listaOrigem = removerDaLista(listaOrigem, String(o.chave)))
+						)}
+					{/snippet}
+				</ListaOpcoes>
+
+				<ListaOpcoes
+					rotulo="Cidades de destino"
+					descricao="Para onde as equipes se deslocam."
+					exemplo="Acopiara"
+					opcoes={listaDestino.map((o) => ({ chave: o.valor, ...o }))}
+					aoAcrescentar={(v) => (listaDestino = acrescentarNaLista(listaDestino, v))}
+				>
+					{#snippet acoes(o)}
+						{@render botoes(
+							o,
+							() => (listaDestino = definirPadraoNaLista(listaDestino, String(o.chave))),
+							() => (listaDestino = removerDaLista(listaDestino, String(o.chave)))
+						)}
+					{/snippet}
+				</ListaOpcoes>
+			</div>
+
+			<!-- O que de fato viaja no POST. Um campo por opção, mais o valor da
+			     padrão de cada tipo — o servidor recria a lista na ordem e marca a
+			     estrela depois de inserir todas. -->
+			{#each listaBriefing as o (o.valor)}
+				<input type="hidden" name="opcao_briefing" value={o.valor} />
+			{/each}
+			{#each listaOrigem as o (o.valor)}
+				<input type="hidden" name="opcao_origem" value={o.valor} />
+			{/each}
+			{#each listaDestino as o (o.valor)}
+				<input type="hidden" name="opcao_destino" value={o.valor} />
+			{/each}
+			<input type="hidden" name="padrao_briefing" value={padraoDaLista(listaBriefing)} />
+			<input type="hidden" name="padrao_origem" value={padraoDaLista(listaOrigem)} />
+			<input type="hidden" name="padrao_destino" value={padraoDaLista(listaDestino)} />
 		</section>
 
 		<!-- ---- Signatário ---- -->
@@ -306,7 +405,7 @@
 
 			<div class="grid gap-4 sm:grid-cols-2">
 				<label class="block space-y-1">
-					<span class="text-xs font-medium text-surface-700 dark:text-surface-200"
+					<span class="text-sm font-medium text-surface-700 dark:text-surface-200"
 						>Quantidade de equipes</span
 					>
 					<input
@@ -315,11 +414,11 @@
 						bind:value={qtdEquipes}
 						min="0"
 						max="50"
-						class="input"
+						class="input w-28"
 					/>
 				</label>
 				<label class="block space-y-1">
-					<span class="text-xs font-medium text-surface-700 dark:text-surface-200"
+					<span class="text-sm font-medium text-surface-700 dark:text-surface-200"
 						>OIPs por equipe</span
 					>
 					<input
@@ -328,9 +427,9 @@
 						bind:value={oipPorEquipe}
 						min="0"
 						max="99"
-						class="input"
+						class="input w-28"
 					/>
-					<span class="block text-2xs text-surface-600 dark:text-surface-400">
+					<span class="block text-xs text-surface-600 dark:text-surface-400">
 						Referência para montar o efetivo; cada equipe pode ter tamanho próprio.
 					</span>
 				</label>
@@ -344,7 +443,7 @@
 					<span class="block text-sm font-medium text-surface-900 dark:text-white"
 						>Incluir equipe SEINT</span
 					>
-					<span class="block text-2xs text-surface-600 dark:text-surface-400">
+					<span class="block text-xs text-surface-600 dark:text-surface-400">
 						Uma só, atendendo todas as operacionais. Nasce como "Equipe SEINT".
 					</span>
 				</span>

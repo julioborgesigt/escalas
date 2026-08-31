@@ -35,7 +35,9 @@ export type PatchEquipe = Partial<{
 	data_inicio: string | null;
 	hora_inicio: string | null;
 	hora_fim: string | null;
+	cidade_origem: string;
 	cidade_destino: string;
+	distancia_km: number | null;
 	local_briefing: string | null;
 	tipo_custo: 'sem_custo' | 'hora_extra' | 'diaria';
 	horas_normais: number;
@@ -80,6 +82,8 @@ export async function criarEquipes(
 		comSeint?: boolean;
 		/** Opção padrão de briefing do plano, copiada para cada equipe nova. */
 		briefingPadrao?: string;
+		/** Opção padrão de origem do plano, copiada para cada equipe nova. */
+		origemPadrao?: string;
 		/** Opção padrão de destino do plano, copiada para cada equipe nova. */
 		destinoPadrao?: string;
 	}
@@ -93,13 +97,19 @@ export async function criarEquipes(
 		nome: string;
 		tipo: 'operacional' | 'seint';
 		local_briefing: string;
+		cidade_origem: string;
 		cidade_destino: string;
 	}> = [];
 
 	// Os padrões do plano entram COPIADOS, não herdados por cascata: a equipe é
 	// dona do que o documento imprime, e trocar a opção padrão depois não pode
 	// reescrever o destino de equipes já montadas.
+	//
+	// `distancia_km` NÃO é copiada, e não há padrão dela: a distância é do PAR
+	// origem→destino daquela equipe. Copiar a de outra equipe embutiria no
+	// cálculo da diária um número que ninguém mediu para este trajeto.
 	const briefing = opts.briefingPadrao?.trim() ?? '';
+	const origem = opts.origemPadrao?.trim() ?? '';
 	const destino = opts.destinoPadrao?.trim() ?? '';
 
 	for (let i = 0; i < opts.quantidade; i++) {
@@ -110,6 +120,7 @@ export async function criarEquipes(
 			nome: nomePadraoEquipe(ordem),
 			tipo: 'operacional',
 			local_briefing: briefing,
+			cidade_origem: origem,
 			cidade_destino: destino
 		});
 	}
@@ -124,6 +135,7 @@ export async function criarEquipes(
 			nome: 'Equipe SEINT',
 			tipo: 'seint',
 			local_briefing: briefing,
+			cidade_origem: origem,
 			cidade_destino: destino
 		});
 	}
@@ -239,5 +251,18 @@ export function destinoDaEquipe(
 	padrao: string
 ): string {
 	const proprio = equipe.cidade_destino?.trim();
+	return proprio ? proprio : padrao;
+}
+
+/**
+ * A cidade de ORIGEM efetiva: a da equipe, ou a opção padrão do plano.
+ *
+ * Terceira da mesma família. Existe porque é ela, com o destino, que mede o
+ * deslocamento — e é o deslocamento que decide entre diária e hora extra (ver
+ * `sugerirCusteio` em `$lib/planos/custeio`). Uma equipe sem origem própria
+ * saiu de onde a operação declarou que todas saem.
+ */
+export function origemDaEquipe(equipe: Pick<PlanoEquipe, 'cidade_origem'>, padrao: string): string {
+	const proprio = equipe.cidade_origem?.trim();
 	return proprio ? proprio : padrao;
 }

@@ -41,6 +41,8 @@ import {
 	criarPlano,
 	criarEquipes,
 	adicionarOpcao,
+	definirOpcaoPadrao,
+	type TipoOpcao,
 	buscarCustoParametrosVigente,
 	auditar,
 	contextoDeEvento,
@@ -91,6 +93,31 @@ function texto(fd: FormData, campo: string, max: number): string {
 	return String(fd.get(campo) ?? '')
 		.trim()
 		.slice(0, max);
+}
+
+/** Os três tipos de opção, na ordem em que a tela os apresenta. */
+const TIPOS_OPCAO: readonly TipoOpcao[] = ['briefing', 'origem', 'destino'];
+
+/**
+ * Os valores repetidos sob o mesmo nome, aparados e sem repetição.
+ *
+ * A tela manda um campo oculto por opção. A deduplicação aqui é a mesma que
+ * `acrescentarNaLista` já faz no cliente — repetida porque o corpo do POST não
+ * é obrigado a ter passado por aquela tela, e duas linhas iguais no seletor não
+ * ajudam ninguém a escolher.
+ */
+function listaDoCorpo(fd: FormData, campo: string): string[] {
+	const vistos = new Set<string>();
+	const saida: string[] = [];
+	for (const bruto of fd.getAll(campo)) {
+		const v = String(bruto).trim().slice(0, 200);
+		if (v && !vistos.has(v)) {
+			vistos.add(v);
+			saida.push(v);
+		}
+		if (saida.length >= 50) break;
+	}
+	return saida;
 }
 
 export const actions: Actions = {
@@ -182,15 +209,31 @@ export const actions: Actions = {
 			return fail(500, { error: 'Erro ao criar o plano operacional.' });
 		}
 
-		// O briefing e o destino informados aqui viram a PRIMEIRA opção de cada
-		// lista, já marcada como padrão (é `adicionarOpcao` quem decide isso). O
-		// editor acrescenta as demais depois — a criação pede uma de cada porque é
-		// o caso comum, e uma lista vazia deixaria as equipes nascendo em branco.
-		const briefingPadrao = texto(fd, 'local_briefing_padrao', 200);
-		const destinoPadrao = texto(fd, 'cidade_destino_padrao', 200);
+		// As três listas montadas na tela viram opções agora que o plano tem id.
+		// Insere na ordem em que o admin as declarou e só então marca a estrela:
+		// `adicionarOpcao` faz da PRIMEIRA a padrão, então marcar depois é o que
+		// respeita a escolha da tela sem depender da ordem de inserção.
+		const padroes: Record<TipoOpcao, string> = {
+			briefing: '',
+			origem: '',
+			destino: ''
+		};
 		try {
-			if (briefingPadrao) await adicionarOpcao(db, criado.id, 'briefing', briefingPadrao);
-			if (destinoPadrao) await adicionarOpcao(db, criado.id, 'destino', destinoPadrao);
+			for (const tipo of TIPOS_OPCAO) {
+				const valores = listaDoCorpo(fd, `opcao_${tipo}`);
+				const escolhida = texto(fd, `padrao_${tipo}`, 200);
+				let idPadrao: number | null = null;
+
+				for (const valor of valores) {
+					const r = await adicionarOpcao(db, criado.id, tipo, valor);
+					if (r.ok && valor === escolhida) idPadrao = r.id;
+				}
+				if (idPadrao !== null) await definirOpcaoPadrao(db, criado.id, idPadrao);
+
+				// O que a equipe nova recebe COPIADO. Sem estrela na lista, fica vazio
+				// — e o editor avisa, em vez de eleger uma opção por conta própria.
+				padroes[tipo] = idPadrao !== null ? escolhida : '';
+			}
 		} catch (e) {
 			logger.error('[gise/planos/novo] criar opções', { error: String(e), plano: criado.id });
 		}
@@ -201,8 +244,9 @@ export const actions: Actions = {
 			await criarEquipes(db, criado.id, {
 				quantidade: qtdEquipes,
 				comSeint: fd.get('tem_seint') != null,
-				briefingPadrao,
-				destinoPadrao
+				briefingPadrao: padroes.briefing,
+				origemPadrao: padroes.origem,
+				destinoPadrao: padroes.destino
 			});
 		} catch (e) {
 			logger.error('[gise/planos/novo] criar equipes', { error: String(e), plano: criado.id });

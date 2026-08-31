@@ -34,7 +34,9 @@
 	} = $props();
 </script>
 
-<section class="card-elevated rounded-2xl p-5 space-y-4">
+<!-- Quadro estático (ver `card-quadro` em app.css): o mesmo contorno das
+     equipes, sem o `hover:shadow-md` — este painel não abre nada. -->
+<section class="card-quadro rounded-2xl p-5 space-y-4">
 	<div>
 		<h2 class="text-base font-semibold text-surface-900 dark:text-white">
 			Anexo II — consolidado financeiro
@@ -177,7 +179,7 @@
 		</span>
 	</div>
 
-	<p class="text-3xs text-surface-600 dark:text-surface-400">
+	<p class="text-xs text-surface-600 dark:text-surface-400">
 		* Valores estimados.
 		{#if versaoValores}
 			Tabela de valores #{versaoValores.id}, vigente desde {versaoValores.vigente_desde}.
