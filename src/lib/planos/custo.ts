@@ -55,6 +55,32 @@ export interface ValoresCusto {
 	diaria_interestadual: number;
 }
 
+/**
+ * Tabela zerada — o que se usa enquanto o Super Admin não gravou nenhuma.
+ *
+ * Existe para o cálculo não estourar antes da primeira configuração, e **nunca
+ * é um valor legítimo**: as telas que a usam avisam que o Anexo II sairia
+ * zerado. Não confundir com custo zero de verdade, que é a equipe `sem_custo`
+ * ou a janela inteira dentro de 08:00–18:00 em dia útil.
+ *
+ * Mora aqui, e não no call site, porque são DEZ campos: uma segunda cópia que
+ * esqueça um deles depois de a interface crescer não dá erro de tipo enquanto o
+ * campo novo for opcional — dá R$ 0 numa faixa só, que é o modo de falhar que
+ * este módulo inteiro existe para evitar.
+ */
+export const VALORES_ZERADOS: ValoresCusto = {
+	oip_cd_normal: 0,
+	oip_ab_normal: 0,
+	dpc_12_normal: 0,
+	dpc_3e_normal: 0,
+	oip_cd_plus: 0,
+	oip_ab_plus: 0,
+	dpc_12_plus: 0,
+	dpc_3e_plus: 0,
+	diaria_estadual: 0,
+	diaria_interestadual: 0
+};
+
 /** O recorte de `plano_equipes` que o cálculo consulta. */
 export interface EquipeParaCusto {
 	id: number;

@@ -34,5 +34,13 @@
 	"relatorio_extra_supervisao": {
 		"sha256": "fecb7517f1eb21249695e1e689d7a2b967b2e6a03990fd9fff26e4a42d4e7361",
 		"bytes": 10275
+	},
+	"plano_operacional": {
+		"sha256": "3d3897975a216d17bb121e5546b17d444c50d3db5f847b82956f6f098d104a87",
+		"bytes": 30196
+	},
+	"plano_operacional_com_logos": {
+		"sha256": "12310b9422983bf1b4719ae395ea16a9315e95b48258741e7ab5288e5ddfb20f",
+		"bytes": 29791
 	}
 }

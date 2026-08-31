@@ -16,37 +16,14 @@
  */
 import { error, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
-import {
-	getDB,
-	listarEquipes,
-	listarMembrosDoPlano,
-	agruparPorEquipe,
-	buscarCustoParametros,
-	buscarCustoParametrosVigente,
-	valoresDe,
-	janelaDaEquipe,
-	briefingDaEquipe
-} from '$lib/db';
+import { getDB, janelaDaEquipe, briefingDaEquipe } from '$lib/db';
 import { carregarPlanoParaEdicao } from '$lib/server/planos/permissao';
-import { custoDoPlano, podeEmitir, type ValoresCusto } from '$lib/planos/custo';
+import { montarCustoDoPlano, versaoDeValores } from '$lib/server/planos/custo-do-plano';
+import { podeEmitir } from '$lib/planos/custo';
 import { classificarJanela } from '$lib/planos/horas-extras';
 import { actionsPlano } from './_actions/actions-plano';
 import { actionsEquipe } from './_actions/actions-equipe';
 import { actionsMembros } from './_actions/actions-membros';
-
-/** Valores zerados: só para o cálculo não estourar quando não há tabela gravada. */
-const SEM_VALORES: ValoresCusto = {
-	oip_cd_normal: 0,
-	oip_ab_normal: 0,
-	dpc_12_normal: 0,
-	dpc_3e_normal: 0,
-	oip_cd_plus: 0,
-	oip_ab_plus: 0,
-	dpc_12_plus: 0,
-	dpc_3e_plus: 0,
-	diaria_estadual: 0,
-	diaria_interestadual: 0
-};
 
 export const load: PageServerLoad = async ({ locals, params, platform, depends }) => {
 	depends('planos:detalhe');
@@ -64,48 +41,9 @@ export const load: PageServerLoad = async ({ locals, params, platform, depends }
 	}
 	const { plano } = acesso;
 
-	const [equipes, membros] = await Promise.all([
-		listarEquipes(db, plano.id),
-		listarMembrosDoPlano(db, plano.id)
-	]);
-	const porEquipe = agruparPorEquipe(membros);
-
-	/**
-	 * A versão de valores que ESTE plano aplica.
-	 *
-	 * A congelada na criação, sempre que existir. A vigente só entra quando o
-	 * plano nasceu sem tabela nenhuma — nesse caso ele adota a primeira que
-	 * aparecer, o que é melhor do que ficar preso em zero para sempre. Um plano
-	 * que já tem versão NUNCA migra para a vigente: é isso que faz o PDF sair
-	 * igual depois de um reajuste.
-	 */
-	const parametros = plano.custo_parametro_id
-		? await buscarCustoParametros(db, plano.custo_parametro_id)
-		: await buscarCustoParametrosVigente(db);
-
-	const valores = parametros ? valoresDe(parametros) : SEM_VALORES;
-
-	const custo = custoDoPlano(
-		equipes.map((e) => ({
-			equipe: {
-				id: e.id,
-				nome: e.nome,
-				tipo_custo: e.tipo_custo,
-				horas_normais: e.horas_normais,
-				horas_plus: e.horas_plus,
-				diaria_tipo: e.diaria_tipo,
-				diarias_meias: e.diarias_meias
-			},
-			membros: (porEquipe.get(e.id) ?? []).map((m) => ({
-				id: m.id,
-				policial_id: m.policial_id,
-				nome: m.nome,
-				cargo_snapshot: m.cargo_snapshot,
-				classe_snapshot: m.classe_snapshot
-			}))
-		})),
-		valores
-	);
+	// A MESMA montagem que o PDF usa — ver `custo-do-plano.ts`. É o que impede o
+	// documento de imprimir um total diferente do que o admin conferiu aqui.
+	const { equipes, porEquipe, parametros, custo } = await montarCustoDoPlano(db, plano);
 
 	return {
 		plano,
@@ -132,9 +70,7 @@ export const load: PageServerLoad = async ({ locals, params, platform, depends }
 		custo,
 		podeEmitir: podeEmitir(custo),
 		/** A versão aplicada, para a tela dizer de onde vêm os números. */
-		versaoValores: parametros
-			? { id: parametros.id, vigente_desde: parametros.vigente_desde }
-			: null
+		versaoValores: versaoDeValores(parametros)
 	};
 };
 

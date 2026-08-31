@@ -31,9 +31,40 @@ export function escapeLike(str: string): string {
 /** `ESCAPE '\'` do SQLite — string de um backslash, sem o JS engolir a barra. */
 const LIKE_ESCAPE = sql.raw("'\\'");
 
-/** `coluna LIKE '%termo%' ESCAPE '\'` — o único jeito de `escapeLike` valer. */
+/**
+ * `SQLITE_MAX_LIKE_PATTERN_LENGTH` do D1 — **50**, não os 50 000 do SQLite
+ * compilado por padrão. Padrão maior que isso não devolve zero linhas: o D1
+ * responde `LIKE or GLOB pattern too complex: SQLITE_ERROR`, que sobe como 500.
+ *
+ * Medido no D1 local (o mesmo limite do remoto): termo de 48 caracteres passa
+ * (`%` + 48 + `%` = 50), o de 49 reprova.
+ */
+const MAX_LIKE_PATTERN = 50;
+
+/**
+ * `coluna LIKE '%termo%' ESCAPE '\'` — o único jeito de `escapeLike` valer.
+ *
+ * **Acima do limite do D1 a forma muda para `instr`**, e não é otimização: com
+ * `LIKE` a busca virava 500. Acontecia na vida real — todo `SearchableSelect`
+ * reescreve no campo o RÓTULO do item escolhido ("FULANO DE TAL — OIP Mat.
+ * 30010124", 52 caracteres), e esse eco dispara uma busca nova; qualquer
+ * servidor de nome comprido derrubava a requisição seguinte à seleção.
+ *
+ * `instr(lower(col), lower(termo)) > 0` é a MESMA semântica: o `LIKE` do SQLite
+ * é insensível a caixa só em ASCII, exatamente como `lower()`. E `instr` casa
+ * literal, então o termo entra sem `escapeLike` — `%` ali é `%`.
+ *
+ * Truncar o padrão seria a saída errada: devolveria um SUPERCONJUNTO em
+ * silêncio, que é pior que o 500 — ninguém percebe resultado a mais.
+ *
+ * `likePrefix` não precisa do mesmo cuidado: o único call site passa `YYYY-MM`.
+ */
 export function likeContains(coluna: SQLWrapper, termo: string): SQL {
-	return sql`${coluna} LIKE ${'%' + escapeLike(termo) + '%'} ESCAPE ${LIKE_ESCAPE}`;
+	const padrao = '%' + escapeLike(termo) + '%';
+	if (padrao.length > MAX_LIKE_PATTERN) {
+		return sql`instr(lower(${coluna}), lower(${termo})) > 0`;
+	}
+	return sql`${coluna} LIKE ${padrao} ESCAPE ${LIKE_ESCAPE}`;
 }
 
 /** `coluna LIKE 'prefixo%' ESCAPE '\'` — filtro de mês/`YYYY-MM`. */

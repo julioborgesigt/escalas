@@ -119,6 +119,35 @@ export function labelFds(inicioISO: string, fimISO: string): string {
  */
 export const DIAS_SEMANA_CURTO = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'] as const;
 
+/** Dias da semana por extenso, índice 0 = domingo. */
+const DIAS_SEMANA_EXTENSO = [
+	'Domingo',
+	'Segunda-feira',
+	'Terça-feira',
+	'Quarta-feira',
+	'Quinta-feira',
+	'Sexta-feira',
+	'Sábado'
+] as const;
+
+/**
+ * O dia da semana por extenso de uma data ISO — "Terça-feira".
+ *
+ * O plano operacional imprime isto ao lado da data na capa. Existe além de
+ * `diaSemana` (`$lib/gise/formatters`, que devolve "Ter") porque documento
+ * oficial não abrevia.
+ *
+ * A conta sai de `Date.UTC` + `getUTCDay`, sem string local no caminho: é
+ * aritmética de calendário pura, e o resultado não depende de fuso nem de como
+ * a engine resolve um horário local inexistente numa virada de horário de
+ * verão. Mesmo raciocínio de `$lib/planos/horas-extras`.
+ */
+export function diaSemanaExtenso(iso: string): string {
+	if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) return '';
+	const [ano, mes, dia] = iso.split('-').map(Number);
+	return DIAS_SEMANA_EXTENSO[new Date(Date.UTC(ano, mes - 1, dia)).getUTCDay()];
+}
+
 /**
  * Opções de mês para `<select>`, na ordem 1-12, com uma entrada inicial "Todos"
  * (valor 0). `valorTexto` devolve os valores como string (formulários que
