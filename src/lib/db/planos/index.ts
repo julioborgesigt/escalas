@@ -20,8 +20,6 @@ export {
 	listarPlanos,
 	atualizarPlano,
 	excluirPlano,
-	type EntradaPlano,
-	type PatchPlano,
 	type PlanoDaLista
 } from './crud';
 
@@ -34,8 +32,7 @@ export {
 	renumerarEquipes,
 	nomePadraoEquipe,
 	janelaDaEquipe,
-	briefingDaEquipe,
-	type PatchEquipe
+	briefingDaEquipe
 } from './equipes';
 
 export {
@@ -46,8 +43,7 @@ export {
 	listarMembrosDoPlano,
 	agruparPorEquipe,
 	ressincronizarSnapshots,
-	type MembroDoPlano,
-	type ResultadoAlocacao
+	type MembroDoPlano
 } from './membros';
 
 export {
@@ -55,6 +51,5 @@ export {
 	buscarCustoParametros,
 	listarCustoParametros,
 	criarCustoParametros,
-	valoresDe,
-	type EntradaCustoParametros
+	valoresDe
 } from './custo-parametros';

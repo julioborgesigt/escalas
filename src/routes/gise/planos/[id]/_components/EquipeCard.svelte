@@ -21,7 +21,7 @@
 	import SearchableSelect from '$lib/components/SearchableSelect.svelte';
 	import { buscarServidores, MIN_BUSCA } from '../../_components/buscas';
 	import { formatarBRL, resumoHoras, rotuloCustoDaEquipe } from '$lib/planos/rotulos';
-	import { formatarDiarias } from '$lib/planos/diarias';
+	import { formatarDiarias, MIN_MEIAS, MAX_MEIAS } from '$lib/planos/diarias';
 	import type { HorasClassificadas } from '$lib/planos/horas-extras';
 	import type { MembroDoPlano } from '$lib/db/planos';
 	import Trash2 from '@lucide/svelte/icons/trash-2';
@@ -323,8 +323,8 @@
 									type="range"
 									name="diarias_meias"
 									bind:value={diariasMeias}
-									min="1"
-									max="30"
+									min={MIN_MEIAS}
+									max={MAX_MEIAS}
 									step="1"
 									class="w-full"
 								/>

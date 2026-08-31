@@ -103,7 +103,7 @@ export interface MembroParaCusto {
 }
 
 /** O custo de UM membro, já resolvido. */
-export interface CustoMembro {
+interface CustoMembro {
 	membro: MembroParaCusto;
 	/** `null` quando a classe não resolve faixa — a linha não entra no total. */
 	categoria: CategoriaAnexo | null;
@@ -112,7 +112,7 @@ export interface CustoMembro {
 }
 
 /** Um servidor que impede a emissão do documento. */
-export interface Pendencia {
+interface Pendencia {
 	policial_id: number;
 	nome: string;
 	equipe: string;
@@ -128,7 +128,7 @@ export interface CustoEquipe {
 }
 
 /** Uma linha do consolidado do Anexo II. */
-export interface LinhaConsolidado {
+interface LinhaConsolidado {
 	categoria: CategoriaAnexo;
 	/** Quantos SERVIDORES entram nesta linha (é o que o modelo chama "QUANTIDADE"). */
 	quantidade: number;
@@ -137,7 +137,7 @@ export interface LinhaConsolidado {
 }
 
 /** O Anexo II inteiro. */
-export interface Consolidado {
+interface Consolidado {
 	/** Bloco "DIÁRIA DE REFORÇO OPERACIONAL (HORAS EXTRAS)". */
 	dro: LinhaConsolidado[];
 	/** Bloco "DIÁRIAS". */

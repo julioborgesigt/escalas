@@ -18,6 +18,7 @@
 	import CalendarioDia from '$lib/components/CalendarioDia.svelte';
 	import SearchableSelect from '$lib/components/SearchableSelect.svelte';
 	import { buscarCoordenadores, buscarUnidades, MIN_BUSCA } from '../_components/buscas';
+	import { DEPARTAMENTO_PADRAO } from '$lib/planos/padroes';
 	import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
 
 	const { data, form }: PageProps = $props();
@@ -114,7 +115,7 @@
 					<span class="text-xs font-medium text-surface-700 dark:text-surface-200"
 						>Departamento responsável</span
 					>
-					<input name="departamento" value="DPI SUL" maxlength="60" class="input" />
+					<input name="departamento" value={DEPARTAMENTO_PADRAO} maxlength="60" class="input" />
 				</label>
 			</div>
 

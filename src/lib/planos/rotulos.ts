@@ -18,10 +18,14 @@ import { ROTULO_DIARIA } from './diarias';
 /** Como a equipe é paga. Espelha `plano_equipes.tipo_custo`. */
 export type TipoCusto = 'sem_custo' | 'hora_extra' | 'diaria';
 
-/** Os três, na ordem em que a UI os apresenta. */
-export const TIPOS_CUSTO: readonly TipoCusto[] = ['sem_custo', 'hora_extra', 'diaria'];
-
-/** Rótulo curto do tipo de custo, como sai na linha do membro no Anexo I. */
+/**
+ * Rótulo curto do tipo de custo, como sai na linha do membro no Anexo I.
+ *
+ * `Record<TipoCusto, …>` para que um tipo novo no union não passe daqui sem
+ * rótulo. A ordem em que a TELA apresenta as três opções é da tela — o texto
+ * dela é mais longo ("Hora extra (DRO)") porque o botão tem espaço, e o daqui
+ * é o do documento, onde a coluna é estreita.
+ */
 export const ROTULO_TIPO_CUSTO: Record<TipoCusto, string> = {
 	sem_custo: 'Sem custo',
 	hora_extra: 'DRO (H. Extra)',

@@ -22,14 +22,19 @@ export const MAX_MEIAS = 30;
 /** Os dois tipos de diária. O valor de cada um está em `custo_parametros`. */
 export type TipoDiaria = 'estadual' | 'interestadual';
 
-/** Rótulos na grafia do documento. */
+/**
+ * Rótulos na grafia do documento.
+ *
+ * É `Record<TipoDiaria, …>` de propósito: acrescentar um tipo de diária ao
+ * union QUEBRA a compilação aqui, que é a exaustividade que interessa. Uma
+ * lista ordenada dos tipos ao lado disto não acrescentaria garantia nenhuma —
+ * seria uma segunda lista para manter em dia, e o `<select>` da tela, que é
+ * quem escolhe a ordem, não a lia.
+ */
 export const ROTULO_DIARIA: Record<TipoDiaria, string> = {
 	estadual: 'Diária estadual',
 	interestadual: 'Diária interestadual'
 };
-
-/** Os tipos na ordem em que a UI os apresenta. */
-export const TIPOS_DIARIA: readonly TipoDiaria[] = ['estadual', 'interestadual'];
 
 /**
  * `true` se `n` é uma contagem de meias diárias concedível (inteiro de 1 a 30).
@@ -46,11 +51,11 @@ export function meiasDiariasValidas(n: unknown): n is number {
 /**
  * Converte meias diárias em diárias para EXIBIÇÃO (`3` → `1,5`).
  *
- * Só para tela e PDF. O cálculo de dinheiro nunca passa por aqui — ele fica em
- * meias diárias até o último passo, justamente para não introduzir o float que
- * este módulo existe para evitar.
+ * Privada: quem exibe chama `formatarDiarias`, que já devolve o texto pronto.
+ * Publicar o número solto convidaria um call site a formatá-lo à mão e a
+ * reintroduzir o float que este módulo existe para evitar.
  */
-export function meiasParaDiarias(meias: number): number {
+function meiasParaDiarias(meias: number): number {
 	return meias / 2;
 }
 

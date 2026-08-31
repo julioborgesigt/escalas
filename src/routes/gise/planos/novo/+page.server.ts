@@ -36,7 +36,7 @@ import { isAdminGeral } from '$lib/auth';
 import { hojeBrasilISO } from '$lib/utils/datas';
 import { validarHora, normalizarHora } from '$lib/gise/horarios';
 import { logger } from '$lib/server/logger';
-import { FINALIDADE_PADRAO, ACOES_PADRAO } from '$lib/planos/padroes';
+import { FINALIDADE_PADRAO, ACOES_PADRAO, DEPARTAMENTO_PADRAO } from '$lib/planos/padroes';
 
 export const load: PageServerLoad = async ({ locals, platform }) => {
 	if (!isAdminGeral(locals.usuario)) redirect(302, '/gise');
@@ -150,7 +150,7 @@ export const actions: Actions = {
 				feriado: fd.get('feriado') != null,
 				coordenador_id: coordenadorId,
 				demandante_unidade_id: demandanteId,
-				departamento: texto(fd, 'departamento', 60) || 'DPI SUL',
+				departamento: texto(fd, 'departamento', 60) || DEPARTAMENTO_PADRAO,
 				local_briefing_padrao: texto(fd, 'local_briefing_padrao', 200),
 				oip_por_equipe_padrao: oipPorEquipe,
 				diretor_nome: diretorNome ?? '',

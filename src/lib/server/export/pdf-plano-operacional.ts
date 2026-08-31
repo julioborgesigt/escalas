@@ -75,8 +75,15 @@ const LOGOS_PLANO = {
 	paginaMm: PAGINA_L
 };
 
-/** Uma equipe como o Anexo I a imprime. */
-export interface EquipePdf {
+/**
+ * Uma equipe como o Anexo I a imprime.
+ *
+ * Não é exportada: quem monta o documento é a rota de download, que constrói
+ * estes objetos inline a partir das linhas do banco. Publicar o nome sem
+ * consumidor é superfície que envelhece — se um dia outro gerador precisar da
+ * forma, ela sobe junto com o call site.
+ */
+interface EquipePdf {
 	id: number;
 	nome: string;
 	tipo: 'operacional' | 'seint';
