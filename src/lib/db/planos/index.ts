@@ -33,7 +33,8 @@ export {
 	nomePadraoEquipe,
 	janelaDaEquipe,
 	briefingDaEquipe,
-	destinoDaEquipe
+	destinoDaEquipe,
+	origemDaEquipe
 } from './equipes';
 
 export {

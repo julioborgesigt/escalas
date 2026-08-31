@@ -129,10 +129,13 @@
 	</div>
 
 	<!-- ---- Parâmetros gerais ---- -->
-	<!-- Borda, e não `card-elevated`: a folha do layout já é o cartão da página, e
-	     empilhar superfície elevada aqui desenha cartão sobre cartão. O contorno
-	     existe porque a seção é um DISCLOSURE — ele delimita o que abre e fecha. -->
-	<section class="rounded-2xl border border-surface-200/70 dark:border-white/10 overflow-hidden">
+	<!-- `card-quadro`, o mesmo contorno das equipes: a seção é um DISCLOSURE e a
+	     borda delimita o que abre e fecha. Com 1px translúcida ela se confundia
+	     com a folha do layout. O `hover:shadow-md` acompanha porque este bloco
+	     também abre ao clique. -->
+	<section
+		class="card-quadro rounded-2xl overflow-hidden hover:shadow-md transition-shadow duration-300"
+	>
 		<button
 			type="button"
 			class="w-full flex items-center justify-between gap-3 p-5 text-left"
@@ -162,14 +165,14 @@
 			>
 				<div class="grid gap-3 sm:grid-cols-2 pt-4">
 					<label class="block space-y-1 sm:col-span-2">
-						<span class="text-xs font-medium text-surface-700 dark:text-surface-200"
+						<span class="text-sm font-medium text-surface-700 dark:text-surface-200"
 							>Nome da operação</span
 						>
 						<input name="nome" value={data.plano.nome} maxlength="160" required class="input" />
 					</label>
 					<CampoNup bind:valor={nup} />
 					<label class="block space-y-1">
-						<span class="text-xs font-medium text-surface-700 dark:text-surface-200"
+						<span class="text-sm font-medium text-surface-700 dark:text-surface-200"
 							>Departamento</span
 						>
 						<input
@@ -182,7 +185,7 @@
 				</div>
 
 				<label class="block space-y-1">
-					<span class="text-xs font-medium text-surface-700 dark:text-surface-200">Finalidade</span>
+					<span class="text-sm font-medium text-surface-700 dark:text-surface-200">Finalidade</span>
 					<textarea
 						name="finalidade"
 						value={data.plano.finalidade}
@@ -192,7 +195,7 @@
 				</label>
 
 				<label class="block space-y-1">
-					<span class="text-xs font-medium text-surface-700 dark:text-surface-200">
+					<span class="text-sm font-medium text-surface-700 dark:text-surface-200">
 						Ações a serem realizadas <span class="text-surface-600 dark:text-surface-400"
 							>(uma por linha)</span
 						>
@@ -202,7 +205,7 @@
 				</label>
 
 				<div class="space-y-2">
-					<span class="block text-xs font-medium text-surface-700 dark:text-surface-200"
+					<span class="block text-sm font-medium text-surface-700 dark:text-surface-200"
 						>Data da operação</span
 					>
 					<CalendarioDia bind:valor={dataInicio} bind:feriado />
@@ -215,26 +218,31 @@
 				     longe do horário que ela completa. -->
 				<div class="grid gap-3 sm:grid-cols-3">
 					<label class="block space-y-1">
-						<span class="text-xs font-medium text-surface-700 dark:text-surface-200"
+						<span class="text-sm font-medium text-surface-700 dark:text-surface-200"
 							>Apresentação</span
 						>
-						<input name="hora_inicio" value={data.plano.hora_inicio} class="input" />
+						<input name="hora_inicio" value={data.plano.hora_inicio} class="input w-32" />
 					</label>
 					<label class="block space-y-1">
-						<span class="text-xs font-medium text-surface-700 dark:text-surface-200">
+						<span class="text-sm font-medium text-surface-700 dark:text-surface-200">
 							Previsão de término <span class="text-surface-600 dark:text-surface-400"
 								>(liga a sugestão)</span
 							>
 						</span>
-						<input name="hora_fim" value={data.plano.hora_fim ?? ''} class="input" />
+						<input name="hora_fim" value={data.plano.hora_fim ?? ''} class="input w-32" />
 					</label>
 					<label class="block space-y-1">
-						<span class="text-xs font-medium text-surface-700 dark:text-surface-200">
+						<span class="text-sm font-medium text-surface-700 dark:text-surface-200">
 							Data de término <span class="text-surface-600 dark:text-surface-400"
 								>(se virar o dia)</span
 							>
 						</span>
-						<input type="date" name="data_fim" value={data.plano.data_fim ?? ''} class="input" />
+						<input
+							type="date"
+							name="data_fim"
+							value={data.plano.data_fim ?? ''}
+							class="input w-44"
+						/>
 					</label>
 				</div>
 
@@ -242,7 +250,7 @@
 					<div class="space-y-1">
 						<label
 							for="coord"
-							class="block text-xs font-medium text-surface-700 dark:text-surface-200"
+							class="block text-sm font-medium text-surface-700 dark:text-surface-200"
 						>
 							DPC coordenador
 						</label>
@@ -260,7 +268,7 @@
 					<div class="space-y-1">
 						<label
 							for="dem"
-							class="block text-xs font-medium text-surface-700 dark:text-surface-200"
+							class="block text-sm font-medium text-surface-700 dark:text-surface-200"
 						>
 							Delegacia / seccional demandante
 						</label>
@@ -276,7 +284,7 @@
 					</div>
 
 					<label class="block space-y-1">
-						<span class="text-xs font-medium text-surface-700 dark:text-surface-200"
+						<span class="text-sm font-medium text-surface-700 dark:text-surface-200"
 							>OIPs por equipe (referência)</span
 						>
 						<input
@@ -285,7 +293,7 @@
 							value={data.plano.oip_por_equipe_padrao}
 							min="0"
 							max="99"
-							class="input"
+							class="input w-28"
 						/>
 					</label>
 				</div>
@@ -322,7 +330,7 @@
 			     destino exigiria salvar o plano inteiro — levando junto qualquer
 			     edição pela metade que estivesse nos outros campos. -->
 			<div
-				class="grid gap-5 sm:grid-cols-2 p-5 pt-0 border-t border-surface-200/70 dark:border-white/10"
+				class="grid gap-5 sm:grid-cols-3 p-5 pt-0 border-t border-surface-200/70 dark:border-white/10"
 			>
 				<div class="sm:col-span-2 pt-4">
 					<h3 class="text-sm font-semibold text-surface-900 dark:text-white">Opções das equipes</h3>
@@ -341,10 +349,18 @@
 					{enviar}
 				/>
 				<EditorOpcoes
+					tipo="origem"
+					rotulo="Cidades de origem"
+					descricao="De onde as equipes saem — mede a distância."
+					exemplo="Jucás"
+					opcoes={data.opcoes.origem}
+					{enviar}
+				/>
+				<EditorOpcoes
 					tipo="destino"
 					rotulo="Cidades de destino"
 					descricao="Para onde as equipes se deslocam."
-					exemplo="Iguatu"
+					exemplo="Acopiara"
 					opcoes={data.opcoes.destino}
 					{enviar}
 				/>
@@ -402,8 +418,10 @@
 							{enviar}
 							{pendentes}
 							opcoesBriefing={data.opcoes.briefing}
+							opcoesOrigem={data.opcoes.origem}
 							opcoesDestino={data.opcoes.destino}
 							briefingPadrao={data.briefingPadrao}
+							origemPadrao={data.origemPadrao}
 							destinoPadrao={data.destinoPadrao}
 						/>
 					{/key}
@@ -416,7 +434,10 @@
 	<PainelCustos custo={data.custo} versaoValores={data.versaoValores} />
 
 	<!-- ---- Ações do documento ---- -->
-	<section class="card-elevated rounded-2xl p-5 space-y-3">
+	<!-- Quadro estático: leva o contorno, mas NÃO o `hover:shadow-md` dos dois
+	     blocos que abrem — aqui não há disclosure, e sombra reagindo ao ponteiro
+	     prometeria um clique que a seção não tem. -->
+	<section class="card-quadro rounded-2xl p-5 space-y-3">
 		<h2 class="text-base font-semibold text-surface-900 dark:text-white">Documento</h2>
 
 		<div class="flex flex-wrap gap-2">

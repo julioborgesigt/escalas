@@ -234,7 +234,7 @@
 {/snippet}
 
 <div
-	class="rounded-2xl border-2 border-surface-300 dark:border-surface-700 mb-4 overflow-hidden bg-white dark:bg-surface-900 shadow-sm hover:shadow-md transition-shadow duration-300"
+	class="card-quadro rounded-2xl mb-4 overflow-hidden hover:shadow-md transition-shadow duration-300"
 >
 	<!-- Cabeçalho da seccional -->
 	<div

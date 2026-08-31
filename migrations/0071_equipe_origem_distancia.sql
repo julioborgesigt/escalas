@@ -1,0 +1,36 @@
+-- A equipe passa a declarar DE ONDE sai e QUANTO percorre.
+--
+-- A rubrica deixa de ser decidida só pelo relógio. A regra da corporação é de
+-- DISTÂNCIA: deslocamento de 100 km ou mais entre a cidade de origem da equipe
+-- e a cidade de destino é pago em diária, não em hora extra — e isso independe
+-- de a janela cair em horário de expediente.
+--
+-- Origem e destino são cidades diferentes do local de briefing: a equipe pode
+-- sair de Jucás, fazer o briefing em Iguatu e cumprir mandados em Acopiara. O
+-- que mede a diária é o par origem→destino; o briefing é ponto de passagem.
+ALTER TABLE `plano_equipes` ADD COLUMN `cidade_origem` text NOT NULL DEFAULT '';
+--> statement-breakpoint
+-- NULL é "ainda não informada", e não zero. Zero é uma distância — diria que
+-- origem e destino são a mesma cidade, que é afirmação sobre o mundo. Equipe
+-- criada antes desta migração não tem ninguém que tenha medido nada, e o
+-- editor precisa conseguir dizer isso na tela em vez de sugerir hora extra
+-- como se a distância tivesse sido conferida e dado abaixo do limite.
+ALTER TABLE `plano_equipes` ADD COLUMN `distancia_km` integer;
+--> statement-breakpoint
+-- A lista de CIDADES DE ORIGEM entra no mesmo mecanismo das outras duas
+-- (`plano_opcoes`, migração 0070): mesma tabela, mesmo índice parcial de
+-- padrão, mesma tela. `tipo` é TEXT sem CHECK, então o valor novo não exige
+-- alteração de coluna — só o enum do Drizzle.
+--
+-- A origem das equipes que já existem é semeada com a cidade de briefing do
+-- plano quando ela também é uma opção de destino... o que não se pode afirmar
+-- do dado atual: "Sede da 4ª Seccional do Interior Sul" é um PRÉDIO, não uma
+-- cidade, e não há coluna no banco que diga em que cidade ele fica. Semear a
+-- origem a partir dele escreveria um endereço no campo de cidade e o cálculo
+-- de distância herdaria o erro em silêncio.
+--
+-- Por isso a origem nasce VAZIA e a distância nasce NULL: o editor mostra as
+-- duas como pendentes e quem conhece a operação preenche. É a mesma escolha da
+-- 0070 para a cidade padrão de destino — não inventar o fato que o banco não
+-- tem.
+CREATE INDEX IF NOT EXISTS `idx_plano_equipes_distancia` ON `plano_equipes` (`plano_id`, `distancia_km`);

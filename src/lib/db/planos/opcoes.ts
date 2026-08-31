@@ -28,8 +28,14 @@ import type { PlanoOpcao } from '../../server/schema';
 import { type Database, batchNonEmpty } from '../core';
 import { ehViolacaoUnique } from '../../server/db-errors';
 
-/** Os dois tipos de opção. */
-export type TipoOpcao = 'briefing' | 'destino';
+/**
+ * Os três tipos de opção.
+ *
+ * `origem` e `destino` são CIDADES; `briefing` é um local (a sede de uma
+ * seccional, uma delegacia). São listas separadas porque a equipe percorre as
+ * três: sai de Jucás, se apresenta em Iguatu, cumpre mandados em Acopiara.
+ */
+export type TipoOpcao = 'briefing' | 'origem' | 'destino';
 
 /** Motivo pelo qual uma opção não entrou. */
 export type ResultadoOpcao = { ok: true; id: number } | { ok: false; motivo: 'repetida' | 'erro' };
@@ -53,16 +59,17 @@ export async function listarOpcoes(
 		.all();
 }
 
-/** Todas as opções do plano, já separadas nos dois tipos. */
+/** Todas as opções do plano, já separadas nos três tipos. */
 export async function opcoesDoPlano(
 	db: Database,
 	planoId: number
-): Promise<{ briefing: PlanoOpcao[]; destino: PlanoOpcao[] }> {
-	const [briefing, destino] = await Promise.all([
+): Promise<{ briefing: PlanoOpcao[]; origem: PlanoOpcao[]; destino: PlanoOpcao[] }> {
+	const [briefing, origem, destino] = await Promise.all([
 		listarOpcoes(db, planoId, 'briefing'),
+		listarOpcoes(db, planoId, 'origem'),
 		listarOpcoes(db, planoId, 'destino')
 	]);
-	return { briefing, destino };
+	return { briefing, origem, destino };
 }
 
 /**

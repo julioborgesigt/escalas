@@ -42,7 +42,7 @@
 
 <div class="grid gap-4 sm:grid-cols-2">
 	<div class="space-y-1">
-		<label for="diretor" class="block text-xs font-medium text-surface-700 dark:text-surface-200">
+		<label for="diretor" class="block text-sm font-medium text-surface-700 dark:text-surface-200">
 			Nome do DPC
 		</label>
 		<SearchableSelect
@@ -55,14 +55,14 @@
 			placeholder="Busque por nome ou matrícula"
 		/>
 		{#if nomePadrao}
-			<span class="block text-2xs text-surface-600 dark:text-surface-400">
+			<span class="block text-xs text-surface-600 dark:text-surface-400">
 				Em branco, o documento sai com <strong>{nomePadrao}</strong>.
 			</span>
 		{/if}
 	</div>
 
 	<label class="block space-y-1">
-		<span class="text-xs font-medium text-surface-700 dark:text-surface-200">Cargo</span>
+		<span class="text-sm font-medium text-surface-700 dark:text-surface-200">Cargo</span>
 		<select name="diretor_cargo" bind:value={cargo} class="select">
 			{#each CARGOS_SIGNATARIO as opcao (opcao)}
 				<option value={opcao}>{opcao}</option>

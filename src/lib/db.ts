@@ -262,6 +262,7 @@ export {
 	janelaDaEquipe,
 	briefingDaEquipe,
 	destinoDaEquipe,
+	origemDaEquipe,
 	listarOpcoes,
 	opcoesDoPlano,
 	valorPadrao,

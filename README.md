@@ -219,8 +219,8 @@ O projeto usa **Cloudflare D1** (SQLite serverless) via **Drizzle ORM**. O schem
 | `gise_assinaturas_relatorios`    | Assinaturas de relatórios de extra/produtividade                                                                             |
 | `custo_parametros`               | Valores de hora extra por faixa e das diárias, em centavos — **append-only**: cada gravação é uma versão nova                |
 | `planos_operacionais`            | Plano operacional (operação COM deslocamento): número/ano, janela, coordenador, demandante, signatário e a versão de valores |
-| `plano_opcoes`                   | Listas de LOCAL DE BRIEFING e CIDADE DE DESTINO que o plano oferece aos seletores das equipes — uma marcada como padrão      |
-| `plano_equipes`                  | Equipes do plano: viatura, destino, briefing, horário próprio e a rubrica (sem custo / hora extra / diária)                  |
+| `plano_opcoes`                   | Listas de BRIEFING, CIDADE DE ORIGEM e CIDADE DE DESTINO que o plano oferece aos seletores das equipes — uma padrão por tipo |
+| `plano_equipes`                  | Equipes do plano: viatura, origem/destino e a distância entre eles, briefing, horário próprio e a rubrica                    |
 | `plano_equipe_membros`           | Efetivo do plano, com `cargo`/`classe` CONGELADOS — são a base de cálculo, não acompanham promoção                           |
 | `aceites_termos`                 | Histórico de aceite de termos de uso (versão, hash, IP, user-agent)                                                          |
 | `audit_log`                      | Trilha de auditoria forense (eventos de negócio, cadeia de hash tamper-evident)                                              |
@@ -989,17 +989,35 @@ CATÁLOGO do qual as escalas GISE pendem (`gise_escalas.operacao_id`); um plano 
 evento único, com equipes próprias. Discriminar por coluna faria toda consulta
 de `/gise` passar a filtrar.
 
-**As três rubricas**, decididas por equipe:
+**A DISTÂNCIA decide primeiro, e só então o relógio** (`sugerirCusteio`):
 
-| Quando                                                        | Rubrica                                       |
+| Pergunta, nesta ordem                                         | Rubrica                                       |
 | ------------------------------------------------------------- | --------------------------------------------- |
-| 08:00–18:00 em dia útil                                       | sem custo                                     |
-| 06:00–08:00 e 18:00–00:00 útil                                | hora extra normal                             |
+| Origem → destino ≥ **100 km**?                                | diária estadual ou interestadual, de 0,5 a 15 |
+| Abaixo disso: 08:00–18:00 em dia útil                         | sem custo                                     |
+| Abaixo disso: 06:00–08:00 e 18:00–00:00 útil                  | hora extra normal                             |
 | 00:00–06:00 útil, ou fim de semana e feriado em qualquer hora | hora extra **plus** (+30%)                    |
-| Deslocamento com pernoite                                     | diária estadual ou interestadual, de 0,5 a 15 |
 
-A janela SUGERE a quantidade (`classificarJanela`); quem grava é o Admin Geral,
-porque a equipe que desloca antes é o caso normal, não a exceção.
+A ordem não é comutativa, e é o motivo de a distância vir primeiro: uma equipe
+que sai de Jucás para Acopiara numa terça às 09:00 percorre mais de 100 km
+DENTRO do expediente ordinário. Pelo relógio ela custaria zero; pela distância
+ela custa diária. Consultar o horário primeiro produziria "sem custo" para uma
+equipe que dormiu fora.
+
+A distância é **digitada por equipe** (`plano_equipes.distancia_km`), não
+calculada: não há serviço de rotas no ambiente, e quem monta o plano conhece o
+trajeto. `NULL` é "ninguém mediu ainda" e é distinto de zero — zero afirma que
+origem e destino são a mesma cidade. Sem a medida, a sugestão cai no horário e a
+tela **avisa**, porque a diária não sugerida é a que não é paga.
+
+O que a regra **não** decide: quantas diárias (é o Admin Geral quem sabe se a
+equipe dorme fora uma ou três noites) e se a diária é estadual ou interestadual
+— atravessar divisa de estado é outra pergunta, e 500 km dentro do Ceará
+continuam sendo diária estadual.
+
+Abaixo do limite, a janela SUGERE a quantidade de horas (`classificarJanela`);
+quem grava é o Admin Geral, porque a equipe que desloca antes é o caso normal,
+não a exceção.
 
 **Os valores são do Super Admin** (`/config-custos`): hora extra por faixa de
 cargo/classe (DPC 1ª/2ª, DPC 3ª/especial, OIP A/B, OIP C/D) e as duas diárias,
@@ -1028,11 +1046,23 @@ acertar um. Sem escolha, o documento imprime a linha de assinatura em branco —
 que é o estado honesto de um plano cujo signatário ainda não foi definido, e
 visível para quem for emitir. `/config-custos` trata só de dinheiro.
 
-**Briefing e destino são LISTAS do plano** (`plano_opcoes`), não campo livre por
-equipe. Numa operação com oito equipes saindo para três cidades o destino era
-redigitado oito vezes, e bastava um acento diferente para o Anexo I listar dois
-destinos onde só há um. O plano declara as opções uma vez, nos Parâmetros
-gerais, e a equipe escolhe num `<select>`.
+**Briefing, origem e destino são LISTAS do plano** (`plano_opcoes`), não campo
+livre por equipe. Numa operação com oito equipes saindo para três cidades o
+destino era redigitado oito vezes, e bastava um acento diferente para o Anexo I
+listar dois destinos onde só há um. O plano declara as opções uma vez — na
+CRIAÇÃO ou depois, nos Parâmetros gerais — e a equipe escolhe num `<select>`.
+
+São três porque a equipe percorre três lugares: sai de Jucás (**origem**), se
+apresenta em Iguatu (**briefing**) e cumpre mandados em Acopiara (**destino**).
+Uma tabela só para os três tipos, porque são a mesma forma — lista de texto com
+uma padrão — e separá-las duplicaria índice, action e componente de tela.
+
+As listas montadas na tela de CRIAÇÃO vivem em memória e viajam como campos
+repetidos no mesmo POST que cria o plano: não há `plano_id` para gravá-las
+antes. As regras de lista (primeira nasce padrão, sem repetir valor, removida a
+padrão a próxima assume) ficam em `$lib/planos/opcoes` — enunciadas uma vez e
+testadas —, porque valem nos dois lados e o array em memória não pode chamar o
+SQL que o editor usa.
 
 Uma opção de cada tipo é a **padrão** (estrela, como o chefe de equipe) e a
 arbitragem é do BANCO: `uq_plano_opcoes_padrao` é único PARCIAL sobre
@@ -1050,7 +1080,7 @@ não casa com nenhum `<option>` exibe o primeiro item, e salvar sem tocar no
 campo trocaria o destino impresso.
 
 Equipe com o campo VAZIO cai no padrão do plano (`briefingDaEquipe`,
-`destinoDaEquipe`) — a mesma cascata que o PDF usa. Lista com opções e nenhuma
+`origemDaEquipe`, `destinoDaEquipe`) — a mesma cascata que o PDF usa. Lista com opções e nenhuma
 padrão é estado possível (é como a migração encontrou os planos antigos, que não
 tinham onde declarar qual seria) e o editor **avisa**: sem estrela, a equipe nova
 continua nascendo em branco.
@@ -1440,6 +1470,8 @@ Para neutralizar um `transform` do Skeleton, zere **`transform`** — as duas oc
 Essas regras ficam **fora de `@layer`** no `app.css`: CSS sem camada vence qualquer `@layer` (inclusive `utilities`), que é o único jeito determinístico de ganhar do CSS de componente do Skeleton sem espalhar `!important`. O preço é que elas vencem também os utilitários do call site — por isso só tocam propriedades que ninguém sobrescreve. Não acrescente `border-*` de `.input` ali (quebraria o `border-2` de erro do `SignaturePad`), e não use os pares `--color-*-200-800` do Skeleton, que são `light-dark()` e seguem `color-scheme`: o tema escuro deste app é a **classe** `.dark`, então o par resolveria sempre para o valor claro.
 
 **Superfícies elevadas** — `card-elevated` (fundo canônico de modal/card sobre a página) e `card-elevated-2` (sub-card aninhado); translúcidas: `card-glass` / `card-glass-auth`. Hierarquia: glass/blur só na chrome (sidebar/topbar); conteúdo da página preferir `card-elevated` opaco — evita empilhar translucidez com a folha xl. Não montar pares `bg-* dark:bg-*` à mão.
+
+**Quadro de preenchimento** — `card-quadro`: bloco que precisa se separar do VIZINHO, não da página. Difere de `card-elevated` na borda (2px numa surface mais escura, em vez de 1px translúcida) — a de 1px somava com a folha do layout e dois blocos seguidos pareciam um só. Em uso nos quadros de seccional da GISE e nos quatro blocos do plano operacional. O utilitário traz só contorno e fundo; `rounded-*`, padding e `hover:shadow-md` ficam no call site, e a sombra que reage ao ponteiro só entra em bloco que ABRE ao clique — num quadro estático ela promete interação que não existe.
 
 **Modais** — código novo usa `$lib/components/ModalShell.svelte`, que mantém
 o `Dialog` do Skeleton por dentro e centraliza backdrop, painel, rodapé,

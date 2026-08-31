@@ -181,8 +181,16 @@ test.describe.serial('Plano operacional — valores, plano e PDF', () => {
 				data_inicio: '2026-08-01',
 				hora_inicio: '05:00',
 				hora_fim: '11:00',
-				local_briefing_padrao: 'Sede E2E',
-				cidade_destino_padrao: 'Cidade E2E',
+				// As listas viajam como campos REPETIDOS, montados na tela de criação.
+				// `padrao_*` elege a estrela — e a de origem é deliberadamente a
+				// SEGUNDA da lista, para provar que a escolha vence a ordem de
+				// inserção (é `adicionarOpcao` que faria da primeira a padrão).
+				opcao_briefing: 'Sede E2E',
+				opcao_origem: 'Origem E2E',
+				opcao_destino: 'Cidade E2E',
+				padrao_briefing: 'Sede E2E',
+				padrao_origem: 'Origem E2E',
+				padrao_destino: 'Cidade E2E',
 				qtd_equipes: '2',
 				oip_por_equipe: '4',
 				// Cargo INVÁLIDO de propósito: o `<select>` da tela oferece três
@@ -225,21 +233,110 @@ test.describe.serial('Plano operacional — valores, plano e PDF', () => {
 		);
 		expect(opcoes).toEqual([
 			{ tipo: 'briefing', valor: 'Sede E2E', padrao: 1 },
-			{ tipo: 'destino', valor: 'Cidade E2E', padrao: 1 }
+			{ tipo: 'destino', valor: 'Cidade E2E', padrao: 1 },
+			{ tipo: 'origem', valor: 'Origem E2E', padrao: 1 }
 		]);
 
 		// COPIADOS, não herdados por cascata: a equipe é dona do que o Anexo I
 		// imprime, e trocar a opção padrão depois não pode reescrever equipe já
 		// montada. Sem esta asserção, `criarEquipes` podia voltar a ignorar os
 		// padrões sem que nada reprovasse.
-		const equipes = queryD1Local<{ local_briefing: string; cidade_destino: string }>(
-			`SELECT local_briefing, cidade_destino FROM plano_equipes WHERE plano_id = ${planoId} ORDER BY ordem;`
+		const equipes = queryD1Local<{
+			local_briefing: string;
+			cidade_origem: string;
+			cidade_destino: string;
+			distancia_km: number | null;
+		}>(
+			`SELECT local_briefing, cidade_origem, cidade_destino, distancia_km FROM plano_equipes WHERE plano_id = ${planoId} ORDER BY ordem;`
 		);
 		expect(equipes).toHaveLength(2);
 		for (const e of equipes!) {
 			expect(e.local_briefing).toBe('Sede E2E');
+			expect(e.cidade_origem).toBe('Origem E2E');
 			expect(e.cidade_destino).toBe('Cidade E2E');
+			// A distância NÃO é copiada de padrão nenhum: ela é do par origem→destino
+			// daquela equipe, e herdá-la embutiria no cálculo da diária um número que
+			// ninguém mediu para este trajeto.
+			expect(e.distancia_km).toBeNull();
 		}
+	});
+
+	test('a distância manda na rubrica: 100 km viram diária mesmo em pleno expediente', async ({
+		request
+	}) => {
+		// O caso que inverte o resultado conforme a ordem das perguntas. Este plano
+		// é de SÁBADO, então o relógio já daria hora extra; o que se prova aqui é o
+		// caminho da PERSISTÊNCIA — que `distancia_km` chega ao banco e volta —, e
+		// não a regra em si, que é dos unitários (`custeio.test.ts`).
+		const equipe = idDe(
+			`SELECT id FROM plano_equipes WHERE plano_id = ${planoId} ORDER BY ordem LIMIT 1;`
+		);
+
+		const res = await request.post(`/gise/planos/${planoId}?/salvarEquipe`, {
+			headers: {
+				...headersFormAction(tokenAdmin!),
+				'content-type': 'application/x-www-form-urlencoded'
+			},
+			data: form({
+				equipe_id: String(equipe),
+				nome: 'Equipe 01',
+				tipo: 'operacional',
+				cidade_origem: 'Origem E2E',
+				cidade_destino: 'Cidade E2E',
+				distancia_km: '180',
+				tipo_custo: 'diaria',
+				diaria_tipo: 'estadual',
+				diarias_meias: '2'
+			})
+		});
+		expect(res.status()).toBe(200);
+
+		const linha = queryD1Local<{ distancia_km: number | null; tipo_custo: string }>(
+			`SELECT distancia_km, tipo_custo FROM plano_equipes WHERE id = ${equipe};`
+		);
+		expect(linha![0].distancia_km).toBe(180);
+		expect(linha![0].tipo_custo).toBe('diaria');
+
+		// Campo VAZIO volta a NULL, e não a zero: zero é a afirmação de que origem e
+		// destino são a mesma cidade, e a tela precisa distinguir "não medido" para
+		// poder avisar (ver `sugerirCusteio`).
+		const limpa = await request.post(`/gise/planos/${planoId}?/salvarEquipe`, {
+			headers: {
+				...headersFormAction(tokenAdmin!),
+				'content-type': 'application/x-www-form-urlencoded'
+			},
+			data: form({
+				equipe_id: String(equipe),
+				nome: 'Equipe 01',
+				tipo: 'operacional',
+				cidade_origem: 'Origem E2E',
+				cidade_destino: 'Cidade E2E',
+				distancia_km: '',
+				tipo_custo: 'sem_custo'
+			})
+		});
+		expect(limpa.status()).toBe(200);
+		expect(
+			queryD1Local<{ distancia_km: number | null }>(
+				`SELECT distancia_km FROM plano_equipes WHERE id = ${equipe};`
+			)![0].distancia_km
+		).toBeNull();
+
+		// Distância fora da faixa é recusada — não gravada truncada.
+		const ruim = await request.post(`/gise/planos/${planoId}?/salvarEquipe`, {
+			headers: {
+				...headersFormAction(tokenAdmin!),
+				'content-type': 'application/x-www-form-urlencoded'
+			},
+			data: form({
+				equipe_id: String(equipe),
+				nome: 'Equipe 01',
+				tipo: 'operacional',
+				distancia_km: '99999',
+				tipo_custo: 'sem_custo'
+			})
+		});
+		expect(String(await ruim.text())).toContain('Distância inválida');
 	});
 
 	test('opção de OUTRO plano não é alcançável pela rota deste', async ({ request }) => {
@@ -261,7 +358,8 @@ test.describe.serial('Plano operacional — valores, plano e PDF', () => {
 				departamento: 'DPI SUL',
 				data_inicio: '2026-08-01',
 				hora_inicio: '05:00',
-				cidade_destino_padrao: 'Cidade Vizinha E2E',
+				opcao_destino: 'Cidade Vizinha E2E',
+				padrao_destino: 'Cidade Vizinha E2E',
 				qtd_equipes: '1',
 				oip_por_equipe: '1'
 			})

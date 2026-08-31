@@ -1772,7 +1772,17 @@ export const planoEquipes = sqliteTable(
 		data_inicio: text('data_inicio'),
 		hora_inicio: text('hora_inicio'),
 		hora_fim: text('hora_fim'),
+		cidade_origem: text('cidade_origem').notNull().default(''),
 		cidade_destino: text('cidade_destino').notNull().default(''),
+		/**
+		 * Quilômetros entre a origem e o destino, medidos por quem monta o plano.
+		 *
+		 * `NULL` é "ainda não informada", e não zero: zero é uma distância — diria
+		 * que origem e destino são a mesma cidade. A diferença decide o que a tela
+		 * mostra, porque 0 km sugeriria hora extra como se a medida tivesse sido
+		 * feita e dado abaixo do limite de diária.
+		 */
+		distancia_km: integer('distancia_km'),
 		local_briefing: text('local_briefing'),
 		tipo_custo: text('tipo_custo', { enum: ['sem_custo', 'hora_extra', 'diaria'] })
 			.notNull()
@@ -1862,7 +1872,7 @@ export const planoOpcoes = sqliteTable(
 		plano_id: integer('plano_id')
 			.notNull()
 			.references(() => planosOperacionais.id, { onDelete: 'cascade' }),
-		tipo: text('tipo', { enum: ['briefing', 'destino'] }).notNull(),
+		tipo: text('tipo', { enum: ['briefing', 'origem', 'destino'] }).notNull(),
 		valor: text('valor').notNull(),
 		padrao: integer('padrao', { mode: 'boolean' }).notNull().default(false),
 		ordem: integer('ordem').notNull().default(0),
