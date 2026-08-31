@@ -24,3 +24,21 @@ export const DEPARTAMENTO = 'DEPARTAMENTO DE POLÍCIA DO INTERIOR SUL - DPI SUL'
 
 /** A mesma corporação em texto corrido: e-mails e páginas. */
 export const CORPORACAO_PROSA = 'Polícia Civil do Estado do Ceará';
+
+/**
+ * Endereço e contato do DPI SUL — o rodapé que o plano operacional repete em
+ * todas as páginas.
+ *
+ * Aqui pelo mesmo motivo das linhas acima: é texto institucional que aparece em
+ * documento oficial, e literal no gerador é como as quatro grafias divergentes
+ * da corporação nasceram.
+ */
+export const DPI_SUL_ENDERECO =
+	'Rua Professor Guilhon, 2º andar, Aeroporto, Fortaleza-CE, CEP 60415-330';
+export const DPI_SUL_EMAIL = 'dpis@pc.ce.gov.br';
+
+/** Nome do departamento em texto corrido, como o rodapé o imprime. */
+export const DEPARTAMENTO_PROSA = 'Departamento de Polícia do Interior Sul (DPI SUL)';
+
+/** Cidade da emissão — o fecho do documento ("Fortaleza, 30 de agosto de 2026."). */
+export const CIDADE_EMISSAO = 'Fortaleza';

@@ -1,0 +1,81 @@
+/**
+ * `load` do editor de plano operacional e o ponto de junção das suas actions.
+ *
+ * O `load` monta a árvore inteira (plano → equipes → membros) e já devolve o
+ * CUSTO calculado. Calcular no servidor, e não na tela, é o que garante que o
+ * número que o admin confere seja o mesmo que o PDF imprime: são a mesma
+ * chamada a `custoDoPlano`, com os mesmos valores congelados.
+ *
+ * As actions estão divididas por ASSUNTO em `_actions/` — plano, equipe e
+ * membros — e espalhadas aqui num objeto só, como em `/gise/[id]`. O preâmbulo
+ * que todas repetem (carregar, autorizar, amarrar o id filho ao plano) mora em
+ * `_actions/shared.ts`.
+ *
+ * `depends('planos:detalhe')` é a chave que as actions invalidam: a página se
+ * recarrega sem `invalidateAll()`, que derrubaria o layout junto.
+ */
+import { error, redirect } from '@sveltejs/kit';
+import type { Actions, PageServerLoad } from './$types';
+import { getDB, janelaDaEquipe, briefingDaEquipe } from '$lib/db';
+import { carregarPlanoParaEdicao } from '$lib/server/planos/permissao';
+import { montarCustoDoPlano, versaoDeValores } from '$lib/server/planos/custo-do-plano';
+import { podeEmitir } from '$lib/planos/custo';
+import { classificarJanela } from '$lib/planos/horas-extras';
+import { actionsPlano } from './_actions/actions-plano';
+import { actionsEquipe } from './_actions/actions-equipe';
+import { actionsMembros } from './_actions/actions-membros';
+
+export const load: PageServerLoad = async ({ locals, params, platform, depends }) => {
+	depends('planos:detalhe');
+
+	const db = getDB(platform);
+	const id = Number(params.id);
+	const acesso = await carregarPlanoParaEdicao(db, id, locals.usuario);
+	if (acesso instanceof Response) {
+		// O portão devolve 403 para quem não é Admin Geral e 404 para plano
+		// inexistente. Aqui vira redirect no primeiro caso (a barra lateral nem
+		// mostra o item, então cair na lista é o comportamento esperado) e `error`
+		// no segundo, que é a página de fato inexistente.
+		if (acesso.status === 404) error(404, 'Plano operacional não encontrado');
+		redirect(302, '/gise');
+	}
+	const { plano } = acesso;
+
+	// A MESMA montagem que o PDF usa — ver `custo-do-plano.ts`. É o que impede o
+	// documento de imprimir um total diferente do que o admin conferiu aqui.
+	const { equipes, porEquipe, parametros, custo } = await montarCustoDoPlano(db, plano);
+
+	return {
+		plano,
+		/**
+		 * Cada equipe com o que a tela precisa: os membros, a janela EFETIVA (já
+		 * resolvida pela cascata equipe → plano), o briefing efetivo e a sugestão
+		 * de horas daquela janela.
+		 *
+		 * A sugestão é calculada aqui, e não no `.svelte`, porque depende da mesma
+		 * cascata que o PDF usa — duas resoluções do horário efetivo divergiriam,
+		 * e a divergência sairia como hora extra a mais ou a menos no documento.
+		 */
+		equipes: equipes.map((e) => {
+			const janela = janelaDaEquipe(e, plano);
+			return {
+				...e,
+				membros: porEquipe.get(e.id) ?? [],
+				janela,
+				briefingEfetivo: briefingDaEquipe(e, plano),
+				sugestaoHoras: classificarJanela(janela),
+				custo: custo.equipes.find((c) => c.equipe.id === e.id)?.total ?? 0
+			};
+		}),
+		custo,
+		podeEmitir: podeEmitir(custo),
+		/** A versão aplicada, para a tela dizer de onde vêm os números. */
+		versaoValores: versaoDeValores(parametros)
+	};
+};
+
+export const actions: Actions = {
+	...actionsPlano,
+	...actionsEquipe,
+	...actionsMembros
+};

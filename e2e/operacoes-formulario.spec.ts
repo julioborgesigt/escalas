@@ -82,6 +82,14 @@ test('criar pede identificação E configuração no mesmo formulário, e grava 
 	await page.goto('/gise/operacoes');
 	await page.getByRole('button', { name: 'Nova operação' }).click();
 
+	// Desde ago/2026 o botão PERGUNTA o tipo antes de abrir: operação (este
+	// fluxo, o catálogo de que as escalas extras dependem) ou plano operacional
+	// (a operação com deslocamento, que vai para /gise/planos/novo). Escolher
+	// "Operação" tem de cair exatamente no painel de sempre — é o que este
+	// clique a mais garante que a bifurcação não mudou.
+	await expect(page.getByText('O que você vai cadastrar?')).toBeVisible();
+	await page.getByRole('button', { name: /^Operação/ }).click();
+
 	// O painel aberto vive na URL — é o que faz o "voltar" do navegador desfazer.
 	await expect(page).toHaveURL(/\?form=nova/);
 	await expect(page.getByRole('heading', { name: 'Nova operação' })).toBeVisible();

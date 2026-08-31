@@ -75,6 +75,22 @@
 		window.scrollTo({ top: 0, behavior: 'smooth' });
 	}
 
+	/**
+	 * A escolha entre os DOIS tipos de cadastro que começam neste botão.
+	 *
+	 * "Operação" é o que esta tela sempre fez: o catálogo do qual as escalas
+	 * extras pendem (GISE, CRAJUBAR), com formulário de produtividade e
+	 * indicadores. "Plano operacional" é outra coisa — a operação COM
+	 * deslocamento, evento único, com equipes, viaturas e custo próprios; mora em
+	 * `/gise/planos` e não recebe escala nenhuma.
+	 *
+	 * A pergunta vem ANTES do formulário porque os dois divergem já no primeiro
+	 * campo. Um seletor de tipo dentro de um formulário só teria de esconder
+	 * metade dele conforme a escolha, e as duas metades não compartilham nada
+	 * além do nome.
+	 */
+	let escolhendoTipo = $state(false);
+
 	function voltarParaLista() {
 		goto(page.url.pathname, { keepFocus: true, noScroll: true });
 		window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -147,7 +163,7 @@
 				<button
 					type="button"
 					class="btn btn-sm preset-filled-primary-500 px-3.5 py-2 rounded-xl font-semibold shrink-0"
-					onclick={() => abrir('nova')}
+					onclick={() => (escolhendoTipo = true)}
 				>
 					<Plus class="w-4 h-4" />
 					Nova operação
@@ -296,6 +312,57 @@
 </div>
 
 <!-- Fora do slider: dentro dele o modal deslizaria junto com o painel. -->
+<ModalShell
+	bind:open={escolhendoTipo}
+	title="O que você vai cadastrar?"
+	largura="lg"
+	familia="gise"
+	cancelLabel="Cancelar"
+>
+	{#snippet description()}
+		São dois cadastros diferentes, e a escolha não se desfaz depois: cada um tem tela, dados e
+		documento próprios.
+	{/snippet}
+
+	<div class="grid gap-3 sm:grid-cols-2">
+		<button
+			type="button"
+			class="rounded-xl border border-surface-200 dark:border-white/10 p-4 text-left space-y-1.5 transition-colors hover:border-primary-500/60 hover:bg-primary-500/5 focus-visible:ring-2 focus-visible:ring-primary-500"
+			onclick={() => {
+				escolhendoTipo = false;
+				abrir('nova');
+			}}
+		>
+			<span class="flex items-center gap-2 font-semibold text-surface-900 dark:text-white">
+				<ClipboardCheck class="w-4 h-4 text-primary-600 dark:text-primary-400" />
+				Operação
+			</span>
+			<span class="block text-xs text-surface-600 dark:text-surface-400">
+				O catálogo de que as escalas extras dependem — GISE, CRAJUBAR. Tem formulário de
+				produtividade, indicadores e recebe escala por dia.
+			</span>
+		</button>
+
+		<button
+			type="button"
+			class="rounded-xl border border-surface-200 dark:border-white/10 p-4 text-left space-y-1.5 transition-colors hover:border-primary-500/60 hover:bg-primary-500/5 focus-visible:ring-2 focus-visible:ring-primary-500"
+			onclick={() => {
+				escolhendoTipo = false;
+				goto('/gise/planos/novo');
+			}}
+		>
+			<span class="flex items-center gap-2 font-semibold text-surface-900 dark:text-white">
+				<FileText class="w-4 h-4 text-primary-600 dark:text-primary-400" />
+				Plano operacional
+			</span>
+			<span class="block text-xs text-surface-600 dark:text-surface-400">
+				Operação com deslocamento de equipes para cumprimento de mandados. Tem viatura, destino e
+				custo por equipe, e gera o PDF do plano.
+			</span>
+		</button>
+	</div>
+</ModalShell>
+
 <ModalShell
 	bind:open={confirmExcluir.isOpen}
 	title="Excluir operação?"

@@ -40,7 +40,14 @@ function flagsDe(
 /** Os destinos que a sidebar oferece — espelho do markup de `+layout.svelte`. */
 function destinosDoMenu(usuario: UsuarioDosCards, flags: FlagsMenu): string[] {
 	if (usuario.isSuperAdmin) {
-		return ['/unidades', '/policiais', '/conf-ass', '/config-geral', '/auditoria'];
+		return [
+			'/unidades',
+			'/policiais',
+			'/conf-ass',
+			'/config-geral',
+			'/config-custos',
+			'/auditoria'
+		];
 	}
 	const ehAdmin = usuario.tipo === 'admin';
 	const destinos: string[] = [];
@@ -51,7 +58,7 @@ function destinosDoMenu(usuario: UsuarioDosCards, flags: FlagsMenu): string[] {
 	}
 	if (flags.showGrupo2) {
 		destinos.push(...itensExtraDoMenu(flags, new URL('http://x/bem-vindo')).map((i) => i.href));
-		if (flags.showGise && ehAdmin) destinos.push('/gise/operacoes');
+		if (flags.showGise && ehAdmin) destinos.push('/gise/operacoes', '/gise/planos');
 	}
 	if (flags.showPoliciais) destinos.push('/policiais');
 	if (flags.showSolicitacoes) destinos.push('/solicitacoes');

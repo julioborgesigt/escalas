@@ -220,7 +220,7 @@ Há quatro níveis. O **Super Admin é um Admin Geral com poderes extras** (é `
 | **Baixar PDF forense íntegro** (`?manifesto=true` nos downloads)    |     ✅      |     ✅      |       ❌        |      ❌ (¹)      |
 | **Baixar o forense pelo portal `/validar`** (rota semi-pública)     |     ✅      |     ❌      |       ❌        |        ❌        |
 | Escalas — **escopo**                                                |   global    |   global    |  sua seccional  |   sua unidade    |
-| Ficha do servidor (`/policiais/[id]`) — **escopo de leitura**        |   global    |   global    |  sua seccional  |   sua unidade    |
+| Ficha do servidor (`/policiais/[id]`) — **escopo de leitura**       |   global    |   global    |  sua seccional  |   sua unidade    |
 | **Alterar o cadastro** do servidor (nome, CPF, telefone, classe…)   |   direto    |   direto    | por solicitação | por solicitação  |
 | **Movimentar / afastar / desvincular** servidor                     |   direto    |   direto    | por solicitação | por solicitação  |
 | **Decidir** as solicitações pendentes (`/solicitacoes`)             |     ✅      |     ✅      |       ❌        |        ❌        |
@@ -595,7 +595,11 @@ Para esses, qualquer upgrade major precisa ser feito manualmente após testar o 
 3. **Login real validado** (não só o bootstrap): logar → logout → logar de novo, confirmando a migração para `pbkdf2v3`.
 4. Smoke manual: rota protegida, `/api/health`, fluxo crítico de negócio (ex.: validação pública se aplicável).
 5. Conferir que o admin consegue alterar flags em `/api/configuracoes/assinatura` e que a próxima assinatura reflete a mudança em ≤ 5 min (TTL do cache edge).
-6. Monitorar logs no dashboard Pages e alertas no Sentry, se configurado.
+6. **Plano operacional — a tabela de valores tem de existir ANTES do primeiro plano.** `custo_parametros` nasce vazia e o módulo não recusa por causa disso: o plano é criado, o editor abre, e é o Anexo II do PDF que sai **zerado**. O Super Admin preenche em `/config-custos` (hora extra por faixa de cargo/classe e as duas diárias) e as telas avisam enquanto não houver tabela. Confira também `plano.diretor_nome` e `plano.diretor_cargo` na mesma tela — é o bloco de assinatura do documento; em branco, o PDF imprime uma linha vazia no lugar do nome.
+
+   Um plano guarda a versão de valores que aplicou. Reajuste posterior **não** reescreve documento já emitido — e é por isso que o Anexo II imprime qual versão usou.
+
+7. Monitorar logs no dashboard Pages e alertas no Sentry, se configurado.
 
 ## Versão
 

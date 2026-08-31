@@ -1617,6 +1617,216 @@ export const policialHistorico = sqliteTable(
 	]
 );
 
+// ---- Plano Operacional (operação COM deslocamento) ----
+//
+// Família própria, separada de `operacoes`/`gise_*` de propósito: `operacoes` é
+// o CATÁLOGO do qual as escalas GISE pendem, e um plano operacional é um evento
+// único que nunca recebe escala. O raciocínio inteiro está no cabeçalho de
+// `migrations/0068_plano_operacional.sql`.
+//
+// **Todo valor monetário aqui é inteiro em CENTAVOS.** Não há `real` de dinheiro
+// nesta família e não deve passar a haver.
+
+/**
+ * Os valores de hora extra e diária, versionados. **Append-only.**
+ *
+ * Cada gravação do Super Admin insere uma linha NOVA; o plano guarda em
+ * `planos_operacionais.custo_parametro_id` qual usou. É o que faz o PDF de um
+ * plano de março, reemitido em junho, sair com os mesmos totais depois de um
+ * reajuste.
+ *
+ * Os quatro `_plus` não são derivados de `normal * 1.3`: a tela sugere o
+ * acréscimo, mas o valor aplicado fica gravado. Derivar na leitura faria uma
+ * mudança futura de alíquota reescrever documento já entregue.
+ */
+export const custoParametros = sqliteTable(
+	'custo_parametros',
+	{
+		id: integer('id').primaryKey({ autoIncrement: true }),
+		/** Hora extra normal, OIP classes D e C (centavos). */
+		oip_cd_normal: integer('oip_cd_normal').notNull().default(0),
+		/** Hora extra normal, OIP classes B e A (centavos). */
+		oip_ab_normal: integer('oip_ab_normal').notNull().default(0),
+		/** Hora extra normal, DPC 1ª e 2ª classe (centavos). */
+		dpc_12_normal: integer('dpc_12_normal').notNull().default(0),
+		/** Hora extra normal, DPC 3ª classe e especial (centavos). */
+		dpc_3e_normal: integer('dpc_3e_normal').notNull().default(0),
+		oip_cd_plus: integer('oip_cd_plus').notNull().default(0),
+		oip_ab_plus: integer('oip_ab_plus').notNull().default(0),
+		dpc_12_plus: integer('dpc_12_plus').notNull().default(0),
+		dpc_3e_plus: integer('dpc_3e_plus').notNull().default(0),
+		/** Diária estadual — valor único, sem faixa de classe (centavos). */
+		diaria_estadual: integer('diaria_estadual').notNull().default(0),
+		/** Diária interestadual (centavos). */
+		diaria_interestadual: integer('diaria_interestadual').notNull().default(0),
+		vigente_desde: text('vigente_desde').notNull(),
+		criado_por_id: integer('criado_por_id'),
+		/** Copiado para a linha: precisa dizer quem gravou depois que o cadastro mudar. */
+		criado_por_nome: text('criado_por_nome').notNull().default(''),
+		created_at: text('created_at')
+			.notNull()
+			.default(sql`(datetime('now', '-3 hours'))`)
+	},
+	(table) => [index('idx_custo_parametros_vigencia').on(table.vigente_desde, table.id)]
+);
+
+/**
+ * O plano operacional: os parâmetros gerais da operação com deslocamento.
+ *
+ * `numero` é sequencial POR ANO ("PLANO OPERACIONAL 123/2026"), e quem fecha a
+ * corrida é o UNIQUE `(ano, numero)` — a consulta do MAX antes de inserir não
+ * fecha (mesma lição de `uq_escalas_mensal`).
+ */
+export const planosOperacionais = sqliteTable(
+	'planos_operacionais',
+	{
+		id: integer('id').primaryKey({ autoIncrement: true }),
+		numero: integer('numero').notNull(),
+		ano: integer('ano').notNull(),
+		nome: text('nome').notNull(),
+		finalidade: text('finalidade').notNull().default(''),
+		/** Item 2b do documento ("Ações a serem realizadas"), uma por linha. */
+		acoes: text('acoes').notNull().default(''),
+		/** Nº do NUP — opcional: o plano é montado antes de o procedimento existir. */
+		nup: text('nup'),
+		data_inicio: text('data_inicio').notNull(),
+		hora_inicio: text('hora_inicio').notNull().default('08:00'),
+		/**
+		 * Previsão de término. Nulo desliga a SUGESTÃO automática de horas — sem
+		 * janela fechada não há o que classificar, e chutar um fim produziria um
+		 * palpite com cara de cálculo.
+		 */
+		data_fim: text('data_fim'),
+		hora_fim: text('hora_fim'),
+		/** Feriado no dia de início: joga a hora extra do dia inteiro para "plus". */
+		feriado: integer('feriado', { mode: 'boolean' }).notNull().default(false),
+		coordenador_id: integer('coordenador_id').references(() => policiais.id, {
+			onDelete: 'restrict'
+		}),
+		demandante_unidade_id: integer('demandante_unidade_id').references(() => unidades.id, {
+			onDelete: 'restrict'
+		}),
+		departamento: text('departamento').notNull().default('DPI SUL'),
+		local_briefing_padrao: text('local_briefing_padrao').notNull().default(''),
+		oip_por_equipe_padrao: integer('oip_por_equipe_padrao').notNull().default(4),
+		/** Signatário do documento, congelado na criação (vem de `configuracoes`). */
+		diretor_nome: text('diretor_nome').notNull().default(''),
+		diretor_cargo: text('diretor_cargo').notNull().default(''),
+		custo_parametro_id: integer('custo_parametro_id').references(() => custoParametros.id, {
+			onDelete: 'restrict'
+		}),
+		status: text('status', { enum: ['rascunho', 'concluido'] })
+			.notNull()
+			.default('rascunho'),
+		created_at: text('created_at')
+			.notNull()
+			.default(sql`(datetime('now', '-3 hours'))`),
+		updated_at: text('updated_at')
+			.notNull()
+			.default(sql`(datetime('now', '-3 hours'))`)
+	},
+	(table) => [
+		uniqueIndex('uq_planos_ano_numero').on(table.ano, table.numero),
+		index('idx_planos_data_inicio').on(table.data_inicio),
+		index('idx_planos_status').on(table.status)
+	]
+);
+
+/**
+ * Uma equipe do plano.
+ *
+ * **NULL nos horários e em `local_briefing` = HERDA DO PLANO**, não "vazio" —
+ * mesma convenção das colunas de configuração de `operacoes`. A equipe que sai
+ * no horário padrão não congela cópia dele, senão mudar o horário do plano
+ * deixaria de alcançá-la.
+ *
+ * `horas_normais` e `horas_plus` convivem porque a jornada pode ser MISTA: sair
+ * às 05:00 de um dia útil dá uma hora plus e o resto normal.
+ */
+export const planoEquipes = sqliteTable(
+	'plano_equipes',
+	{
+		id: integer('id').primaryKey({ autoIncrement: true }),
+		plano_id: integer('plano_id')
+			.notNull()
+			.references(() => planosOperacionais.id, { onDelete: 'cascade' }),
+		/** Posição na sequência. O `nome` é editável e pode deixar de refletir a ordem. */
+		ordem: integer('ordem').notNull().default(0),
+		nome: text('nome').notNull(),
+		tipo: text('tipo', { enum: ['operacional', 'seint'] })
+			.notNull()
+			.default('operacional'),
+		viatura_modelo: text('viatura_modelo').notNull().default(''),
+		viatura_placa: text('viatura_placa').notNull().default(''),
+		data_inicio: text('data_inicio'),
+		hora_inicio: text('hora_inicio'),
+		hora_fim: text('hora_fim'),
+		cidade_destino: text('cidade_destino').notNull().default(''),
+		local_briefing: text('local_briefing'),
+		tipo_custo: text('tipo_custo', { enum: ['sem_custo', 'hora_extra', 'diaria'] })
+			.notNull()
+			.default('sem_custo'),
+		horas_normais: integer('horas_normais').notNull().default(0),
+		horas_plus: integer('horas_plus').notNull().default(0),
+		diaria_tipo: text('diaria_tipo', { enum: ['estadual', 'interestadual'] }),
+		/** Meias diárias: 1 a 30 (= 0,5 a 15). Inteiro — não há float no caminho do dinheiro. */
+		diarias_meias: integer('diarias_meias').notNull().default(0)
+	},
+	(table) => [index('idx_plano_equipes_plano').on(table.plano_id, table.ordem)]
+);
+
+/**
+ * Um servidor alocado a uma equipe do plano.
+ *
+ * `cargo_snapshot`/`classe_snapshot` são a BASE DE CÁLCULO e ficam congelados;
+ * nome, matrícula, lotação e telefone continuam vindo vivos de `policiais` pelo
+ * join. Promoção muda o que a pessoa ganha daqui para a frente — não o que foi
+ * orçado num plano já emitido.
+ *
+ * O CHEFE é flag desta linha, e não `chefe_policial_id` na equipe: assim o
+ * CASCADE leva a chefia junto quando o membro sai. Com o ponteiro na equipe,
+ * alguém teria de lembrar de limpá-lo, e o dia em que esquecesse o PDF
+ * imprimiria como chefe quem não está na equipe.
+ */
+export const planoEquipeMembros = sqliteTable(
+	'plano_equipe_membros',
+	{
+		id: integer('id').primaryKey({ autoIncrement: true }),
+		equipe_id: integer('equipe_id')
+			.notNull()
+			.references(() => planoEquipes.id, { onDelete: 'cascade' }),
+		/**
+		 * Denormalizado para o índice de exclusividade — o SQLite não indexa
+		 * através de join. Sai derivado da própria equipe no INSERT, e equipe não
+		 * muda de plano (mesmo desenho de `gise_membros.gise_id`).
+		 */
+		plano_id: integer('plano_id')
+			.notNull()
+			.references(() => planosOperacionais.id, { onDelete: 'cascade' }),
+		/**
+		 * RESTRICT, não CASCADE: o membro é linha de um documento orçado. Excluir o
+		 * cadastro não pode esvaziar em silêncio o efetivo de um plano emitido.
+		 */
+		policial_id: integer('policial_id')
+			.notNull()
+			.references(() => policiais.id, { onDelete: 'restrict' }),
+		cargo_snapshot: text('cargo_snapshot').notNull().default(''),
+		classe_snapshot: text('classe_snapshot').notNull().default(''),
+		chefe: integer('chefe', { mode: 'boolean' }).notNull().default(false)
+	},
+	(table) => [
+		// Um servidor por PLANO: ninguém desloca em duas equipes da mesma operação,
+		// e a dupla contagem inflaria o custo sem aparecer em lugar nenhum.
+		uniqueIndex('uq_plano_membros_plano_policial').on(table.plano_id, table.policial_id),
+		// Um chefe por equipe. PARCIAL: só as linhas com `chefe = 1` colidem.
+		uniqueIndex('uq_plano_membros_chefe')
+			.on(table.equipe_id)
+			.where(sql`${table.chefe} = 1`),
+		index('idx_plano_membros_equipe').on(table.equipe_id),
+		index('idx_plano_membros_policial').on(table.policial_id)
+	]
+);
+
 // ---- Tipos inferidos ----
 
 export type Policial = typeof policiais.$inferSelect;
@@ -1630,6 +1840,11 @@ export type Unidade = typeof unidades.$inferSelect;
 export type EscalaDocumento = typeof escalaDocumentos.$inferSelect;
 export type Operacao = typeof operacoes.$inferSelect;
 export type OperacaoLinhaBase = typeof operacaoLinhaBase.$inferSelect;
+export type CustoParametros = typeof custoParametros.$inferSelect;
+export type NovoCustoParametros = typeof custoParametros.$inferInsert;
+export type PlanoOperacional = typeof planosOperacionais.$inferSelect;
+export type PlanoEquipe = typeof planoEquipes.$inferSelect;
+export type PlanoEquipeMembro = typeof planoEquipeMembros.$inferSelect;
 export type GiseEscala = typeof giseEscalas.$inferSelect;
 export type GiseSeccional = typeof giseSeccionais.$inferSelect;
 export type GiseEquipe = typeof giseEquipes.$inferSelect;

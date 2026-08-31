@@ -65,6 +65,7 @@ export {
 export type { CredencialWebauthn, CredencialWebauthnResumo, DonoCredencial } from './db/webauthn';
 
 export {
+	buscarConfiguracao,
 	salvarConfiguracao,
 	buscarExigirFotoAssinatura,
 	buscarExigirGpsAssinatura,
@@ -72,7 +73,10 @@ export {
 	buscarRestringirSmartphone,
 	buscarExigirPasskeyAssinatura,
 	buscarProvedorEmailPadrao,
-	EMAIL_PROVEDOR_PADRAO
+	EMAIL_PROVEDOR_PADRAO,
+	PLANO_DIRETOR_NOME,
+	PLANO_DIRETOR_CARGO,
+	PLANO_DIRETOR_CARGO_PADRAO
 } from './db/configuracoes';
 export type { EmailProvedor } from './db/configuracoes';
 
@@ -243,3 +247,34 @@ export {
 	unidadesParticipantesDaOperacao
 } from './db/operacoes';
 export type { TipoEquipeOperacao } from './db/operacoes';
+
+export {
+	criarPlano,
+	buscarPlano,
+	buscarPlanoPorNumero,
+	listarPlanos,
+	atualizarPlano,
+	excluirPlano,
+	criarEquipes,
+	listarEquipes,
+	buscarEquipe,
+	atualizarEquipe,
+	excluirEquipe,
+	renumerarEquipes,
+	nomePadraoEquipe,
+	janelaDaEquipe,
+	briefingDaEquipe,
+	adicionarMembro,
+	removerMembro,
+	definirChefe,
+	limparChefe,
+	listarMembrosDoPlano,
+	agruparPorEquipe,
+	ressincronizarSnapshots,
+	buscarCustoParametrosVigente,
+	buscarCustoParametros,
+	listarCustoParametros,
+	criarCustoParametros,
+	valoresDe
+} from './db/planos';
+export type { PlanoDaLista, MembroDoPlano } from './db/planos';

@@ -35,8 +35,10 @@ import {
 	gerarRelatorioExtraordinarioSupervisaoPdf,
 	gerarPdfRelatorioExtraordinario
 } from '../pdf-relatorio-extra';
+import { gerarPdfPlanoOperacional, type PlanoPdfData } from '../pdf-plano-operacional';
 import type { Escala, EscalaPolicialComDados } from '../../../types';
 import type { GiseDetalhado } from '$lib/db';
+import type { CustoPlano } from '$lib/planos/custo';
 
 const GOLDENS_PATH = join(dirname(fileURLToPath(import.meta.url)), 'fixtures', 'pdf-goldens.json');
 const UPDATE = process.env.UPDATE_PDF_GOLDENS === '1';
@@ -282,6 +284,164 @@ const reportSignatureFixture = {
 	created_at: '2026-07-04T18:30:00.000Z'
 };
 
+/**
+ * Plano operacional com os três tipos de custo ao mesmo tempo.
+ *
+ * As três equipes não são decoração: cada uma congela um caminho diferente do
+ * gerador — a de hora extra imprime `6h (5N/1A)` e as duas categorias do bloco
+ * DRO, a de diária alimenta o segundo bloco do Anexo II, e a SEINT sem custo
+ * prova que o rótulo "Sem custo" e o subtotal zerado continuam saindo (equipe
+ * omitida do anexo deixaria o leitor sem saber se é zero ou se faltou
+ * imprimir).
+ *
+ * O `custo` vem escrito à mão, e não de `custoDoPlano`: o golden trava o
+ * LAYOUT. Recalcular aqui faria uma mudança na regra de custo quebrar o golden
+ * do PDF, que é o teste errado reclamando.
+ */
+function planoFixture(): PlanoPdfData {
+	const membro = (
+		policial_id: number,
+		nome: string,
+		cargo: string,
+		classe: string,
+		chefe = false
+	) => ({
+		policial_id,
+		nome,
+		matricula: `GG${String(policial_id).padStart(6, '0')}`,
+		lotacao: '4ª Seccional do Interior Sul',
+		telefone: '(85) 99999-0001',
+		cargo_snapshot: cargo,
+		classe_snapshot: classe,
+		chefe
+	});
+
+	return {
+		numero: 7,
+		ano: 2026,
+		nome: 'Operação Golden',
+		finalidade: 'Cumprimento de mandados judiciais na comarca golden, com apoio das equipes.',
+		acoes: 'Cumprimento de Mandados;\nLavratura de APF;\nOutros atos de Polícia Judiciária.',
+		nup: '2026.01.00000',
+		data_inicio: '2026-07-04',
+		hora_inicio: '05:00',
+		departamento: 'DPI SUL',
+		coordenador: {
+			nome: 'DPC GOLDEN COORDENADOR',
+			matricula: 'GG000601',
+			lotacao: '4ª Seccional do Interior Sul'
+		},
+		demandante: 'Delegacia Regional Golden',
+		diretor_nome: 'DIRETOR GOLDEN',
+		diretor_cargo: 'Diretor Titular do Departamento de Polícia do Interior Sul',
+		equipes: [
+			{
+				id: 1,
+				nome: 'Equipe 01',
+				tipo: 'operacional',
+				viatura_modelo: 'Hilux',
+				viatura_placa: 'GLD-0001',
+				cidade_destino: 'Iguatu',
+				tipo_custo: 'hora_extra',
+				horas_normais: 5,
+				horas_plus: 1,
+				diaria_tipo: null,
+				diarias_meias: 0,
+				horaApresentacao: '05:00',
+				briefing: 'Sede da Seccional Golden',
+				membros: [
+					membro(701, 'DPC GOLDEN UM', 'DPC', '2ª', true),
+					membro(702, 'OIP GOLDEN UM', 'OIP', 'C')
+				]
+			},
+			{
+				id: 2,
+				nome: 'Equipe 02',
+				tipo: 'operacional',
+				viatura_modelo: 'Duster',
+				viatura_placa: 'GLD-0002',
+				cidade_destino: 'Juazeiro do Norte',
+				tipo_custo: 'diaria',
+				horas_normais: 0,
+				horas_plus: 0,
+				diaria_tipo: 'estadual',
+				diarias_meias: 3,
+				horaApresentacao: '03:30',
+				briefing: 'Sede da Seccional Golden',
+				membros: [membro(703, 'OIP GOLDEN DOIS', 'OIP', 'A', true)]
+			},
+			{
+				id: 3,
+				nome: 'Equipe SEINT',
+				tipo: 'seint',
+				viatura_modelo: '',
+				viatura_placa: '',
+				cidade_destino: '',
+				tipo_custo: 'sem_custo',
+				horas_normais: 0,
+				horas_plus: 0,
+				diaria_tipo: null,
+				diarias_meias: 0,
+				horaApresentacao: '08:00',
+				briefing: '',
+				membros: [membro(704, 'OIP GOLDEN TRES', 'OIP', 'D')]
+			}
+		],
+		custo: {
+			equipes: [
+				{
+					equipe: { id: 1, nome: 'Equipe 01' },
+					membros: [
+						{
+							membro: { policial_id: 701, nome: 'DPC GOLDEN UM' },
+							faixa: 'dpc_12',
+							total: 39000
+						},
+						{
+							membro: { policial_id: 702, nome: 'OIP GOLDEN UM' },
+							faixa: 'oip_cd',
+							total: 17145
+						}
+					],
+					total: 56145
+				},
+				{
+					equipe: { id: 2, nome: 'Equipe 02' },
+					membros: [
+						{
+							membro: { policial_id: 703, nome: 'OIP GOLDEN DOIS' },
+							faixa: 'oip_ab',
+							total: 52500
+						}
+					],
+					total: 52500
+				},
+				{
+					equipe: { id: 3, nome: 'Equipe SEINT' },
+					membros: [
+						{ membro: { policial_id: 704, nome: 'OIP GOLDEN TRES' }, faixa: 'oip_cd', total: 0 }
+					],
+					total: 0
+				}
+			],
+			consolidado: {
+				dro: [
+					{ categoria: 'dpc', quantidade: 1, total: 39000 },
+					{ categoria: 'oip', quantidade: 1, total: 17145 }
+				],
+				droTotal: 56145,
+				diarias: [{ categoria: 'oip', quantidade: 1, total: 52500 }],
+				diariasTotal: 52500,
+				totalGeral: 108645
+			},
+			pendencias: [],
+			avisos: []
+		} as unknown as CustoPlano,
+		versaoValores: { id: 3, vigente_desde: '2026-01-01' },
+		emitidoEm: '2026-07-01'
+	};
+}
+
 // ─── Geradores sob teste ─────────────────────────────────────────────────────
 
 const geradores: Record<string, () => Promise<Uint8Array>> = {
@@ -361,7 +521,13 @@ const geradores: Record<string, () => Promise<Uint8Array>> = {
 				PNG_1PX_BYTES,
 				PNG_1PX_BYTES
 			)
-		).pdf
+		).pdf,
+	plano_operacional: async () => (await gerarPdfPlanoOperacional(planoFixture())).pdf,
+	// Com timbre em JPEG: o plano é RETRATO e sua geometria de logo (35mm a 8mm
+	// do topo, numa página de 210mm) é diferente da do expediente e da do GISE.
+	// Sem este caso, `embutirLogosNoTopo` só rodaria aqui pelo caminho do catch.
+	plano_operacional_com_logos: async () =>
+		(await gerarPdfPlanoOperacional(planoFixture(), JPG_1PX_BYTES, JPG_1PX_BYTES)).pdf
 };
 
 // ─── Testes ──────────────────────────────────────────────────────────────────

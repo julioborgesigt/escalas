@@ -24,6 +24,7 @@
 	import { toaster } from '$lib/toast';
 	import { loading } from '$lib/loading.svelte';
 	import { Dialog } from '@skeletonlabs/skeleton-svelte';
+	import CalendarioNavMes from '$lib/components/CalendarioNavMes.svelte';
 	import { page } from '$app/state';
 	import type { ActionResult } from '@sveltejs/kit';
 
@@ -235,43 +236,11 @@
 			<div
 				class="rounded-xl border border-surface-200 dark:border-surface-700 p-2 sm:p-2.5 space-y-1 bg-white dark:bg-surface-800/40"
 			>
-				<div class="flex items-center justify-between gap-1.5">
-					<button
-						type="button"
-						class="btn preset-outlined-surface-500 p-1.5 rounded-lg shrink-0"
-						aria-label="Mês anterior"
-						onclick={calMesAnterior}
-					>
-						<svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"
-							><path
-								stroke-linecap="round"
-								stroke-linejoin="round"
-								stroke-width="2"
-								d="M15 19l-7-7 7-7"
-							/></svg
-						>
-					</button>
-					<p
-						class="text-xs sm:text-sm font-semibold text-surface-800 dark:text-surface-100 text-center min-w-0 flex-1"
-					>
-						{calTitulo}
-					</p>
-					<button
-						type="button"
-						class="btn preset-outlined-surface-500 p-1.5 rounded-lg shrink-0"
-						aria-label="Próximo mês"
-						onclick={calMesProximo}
-					>
-						<svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"
-							><path
-								stroke-linecap="round"
-								stroke-linejoin="round"
-								stroke-width="2"
-								d="M9 5l7 7-7 7"
-							/></svg
-						>
-					</button>
-				</div>
+				<CalendarioNavMes
+					titulo={calTitulo}
+					onAnterior={calMesAnterior}
+					onProximo={calMesProximo}
+				/>
 				<div
 					class="grid grid-cols-7 gap-px text-center text-3xs font-semibold uppercase tracking-wide text-surface-600 dark:text-surface-400 py-0.5"
 				>
