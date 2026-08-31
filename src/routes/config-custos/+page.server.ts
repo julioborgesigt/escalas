@@ -1,6 +1,6 @@
 /**
- * `/config-custos` — os valores de hora extra e diária, e o signatário do plano
- * operacional. **Restrito ao SUPER ADMIN**, no `load` E na action.
+ * `/config-custos` — os valores de hora extra e diária do plano operacional.
+ * **Restrito ao SUPER ADMIN**, no `load` E na action.
  *
  * O gate é o mesmo de `/config-geral`, e a razão de não ser o Admin Geral está
  * na divisão de papéis: quem MONTA a operação (Admin Geral, em `/gise/planos`)
@@ -15,12 +15,13 @@
  * histórico justamente para o operador conseguir responder "por que aquele
  * plano soma diferente?" sem abrir o banco.
  *
- * ## Os dois campos do signatário são outra coisa
+ * ## O signatário NÃO mora aqui
  *
- * `diretor_nome`/`diretor_cargo` não são dinheiro e não versionam junto: vão
- * para `configuracoes` (chave/valor) e servem de PADRÃO no momento em que um
- * plano é criado — o plano copia os dois para si e os congela. Trocar o Diretor
- * aqui não reescreve documento já emitido.
+ * Quem assina é campo do PLANO (`/gise/planos`), escolhido na criação e
+ * editável depois. Já esteve nesta tela como padrão global e saiu: quem assina
+ * varia por operação — o Titular assina umas, o Adjunto outras —, então um
+ * padrão único ou seria ignorado na maioria das vezes ou induziria a trocar a
+ * configuração de TODOS os planos seguintes para acertar um.
  */
 import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
@@ -29,13 +30,8 @@ import {
 	criarCustoParametros,
 	listarCustoParametros,
 	buscarCustoParametrosVigente,
-	buscarConfiguracao,
-	salvarConfiguracao,
 	auditar,
-	contextoDeEvento,
-	PLANO_DIRETOR_NOME,
-	PLANO_DIRETOR_CARGO,
-	PLANO_DIRETOR_CARGO_PADRAO
+	contextoDeEvento
 } from '$lib/db';
 import { lerBRL } from '$lib/planos/rotulos';
 import { hojeBrasilISO } from '$lib/utils/datas';
@@ -68,11 +64,9 @@ export const load: PageServerLoad = async ({ locals, platform }) => {
 	if (!locals.usuario?.isSuperAdmin) redirect(302, '/');
 
 	const db = getDB(platform);
-	const [vigente, historico, diretorNome, diretorCargo] = await Promise.all([
+	const [vigente, historico] = await Promise.all([
 		buscarCustoParametrosVigente(db),
-		listarCustoParametros(db),
-		buscarConfiguracao(db, PLANO_DIRETOR_NOME),
-		buscarConfiguracao(db, PLANO_DIRETOR_CARGO)
+		listarCustoParametros(db)
 	]);
 
 	return {
@@ -81,8 +75,6 @@ export const load: PageServerLoad = async ({ locals, platform }) => {
 		// últimos para caber sem paginação — quem precisa de mais consulta a
 		// auditoria, onde cada gravação está registrada com autor.
 		historico: historico.slice(0, 10),
-		diretorNome: diretorNome ?? '',
-		diretorCargo: diretorCargo ?? PLANO_DIRETOR_CARGO_PADRAO,
 		hoje: hojeBrasilISO()
 	};
 };
@@ -168,42 +160,5 @@ export const actions: Actions = {
 		);
 
 		return { success: true, versao: novoId };
-	},
-
-	/** Nome e cargo de quem assina o plano operacional. Não versiona — ver o cabeçalho. */
-	salvarSignatario: async (event) => {
-		const { request, locals, platform } = event;
-		const u = locals.usuario;
-		if (!u?.isSuperAdmin) return fail(403, { error: 'Acesso restrito ao Super Administrador' });
-
-		const fd = await request.formData();
-		const nome = String(fd.get('diretor_nome') ?? '')
-			.trim()
-			.slice(0, 120);
-		const cargo = String(fd.get('diretor_cargo') ?? '')
-			.trim()
-			.slice(0, 160);
-
-		if (!nome) return fail(400, { error: 'Informe o nome de quem assina o plano.' });
-
-		const db = getDB(platform);
-		await salvarConfiguracao(db, PLANO_DIRETOR_NOME, nome);
-		await salvarConfiguracao(db, PLANO_DIRETOR_CARGO, cargo || PLANO_DIRETOR_CARGO_PADRAO);
-
-		const { contexto, env } = contextoDeEvento(event);
-		await auditar(
-			db,
-			{
-				acao: 'salvar_config_geral',
-				usuario: u,
-				entidade: 'configuracao',
-				detalhes: `Signatário do plano operacional: ${nome}`,
-				dados_depois: { diretor_nome: nome, diretor_cargo: cargo || PLANO_DIRETOR_CARGO_PADRAO },
-				...contexto
-			},
-			{ env }
-		);
-
-		return { success: true };
 	}
 };

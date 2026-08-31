@@ -595,9 +595,11 @@ Para esses, qualquer upgrade major precisa ser feito manualmente após testar o 
 3. **Login real validado** (não só o bootstrap): logar → logout → logar de novo, confirmando a migração para `pbkdf2v3`.
 4. Smoke manual: rota protegida, `/api/health`, fluxo crítico de negócio (ex.: validação pública se aplicável).
 5. Conferir que o admin consegue alterar flags em `/api/configuracoes/assinatura` e que a próxima assinatura reflete a mudança em ≤ 5 min (TTL do cache edge).
-6. **Plano operacional — a tabela de valores tem de existir ANTES do primeiro plano.** `custo_parametros` nasce vazia e o módulo não recusa por causa disso: o plano é criado, o editor abre, e é o Anexo II do PDF que sai **zerado**. O Super Admin preenche em `/config-custos` (hora extra por faixa de cargo/classe e as duas diárias) e as telas avisam enquanto não houver tabela. Confira também `plano.diretor_nome` e `plano.diretor_cargo` na mesma tela — é o bloco de assinatura do documento; em branco, o PDF imprime uma linha vazia no lugar do nome.
+6. **Plano operacional — a tabela de valores tem de existir ANTES do primeiro plano.** `custo_parametros` nasce vazia e o módulo não recusa por causa disso: o plano é criado, o editor abre, e é o Anexo II do PDF que sai **zerado**. O Super Admin preenche em `/config-custos` (hora extra por faixa de cargo/classe e as duas diárias) e as telas avisam enquanto não houver tabela. O signatário NÃO está aqui: ele é escolhido no formulário de cada plano, e sem escolha o PDF imprime a linha de assinatura em branco.
 
    Um plano guarda a versão de valores que aplicou. Reajuste posterior **não** reescreve documento já emitido — e é por isso que o Anexo II imprime qual versão usou.
+
+   O signatário é escolhido **por plano** (o Titular assina umas operações, o Adjunto outras) — não há mais padrão global, e `/config-custos` trata só de dinheiro. A migração `0069` faz duas correções de dado: reescreve o cargo do padrão antigo ("Diretor Titular do Departamento de Polícia do Interior Sul") para a grafia da lista fechada ("Diretor Titular do DPI SUL"), sem o que um plano criado antes dela mostraria um cargo na tela e imprimiria outro no PDF; e apaga as chaves `plano.diretor_nome`/`plano.diretor_cargo` de `configuracoes`, que ninguém mais lê nem escreve.
 
 7. Monitorar logs no dashboard Pages e alertas no Sentry, se configurado.
 

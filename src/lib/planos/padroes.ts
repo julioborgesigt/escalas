@@ -42,3 +42,40 @@ export const REFERENCIAS_PADRAO = 'Constituição Federal, CPP e legislação ex
 
 /** Departamento responsável (item 5 e o cabeçalho do plano). */
 export const DEPARTAMENTO_PADRAO = 'DPI SUL';
+
+/**
+ * Os cargos que podem assinar o plano — o `<select>` da tela e a régua do
+ * servidor, numa lista só.
+ *
+ * É lista fechada, e não campo livre, porque o cargo aparece IMPRESSO sob a
+ * assinatura de um documento oficial: "Diretor Titular" digitado com um dedo
+ * torto sai no papel e ninguém revisa depois. Os três são os que assinam plano
+ * no DPI SUL.
+ *
+ * `as const` para o tipo sair do próprio dado: acrescentar um cargo aqui já o
+ * oferece na tela e o torna aceito no servidor, sem uma segunda lista.
+ */
+export const CARGOS_SIGNATARIO = [
+	'Diretor Titular do DPI SUL',
+	'Diretor Adjunto do DPI SUL',
+	'Delegado de Polícia'
+] as const;
+
+/** Um cargo de signatário válido. */
+export type CargoSignatario = (typeof CARGOS_SIGNATARIO)[number];
+
+/** O cargo pré-selecionado quando o plano nasce sem padrão gravado. */
+export const CARGO_SIGNATARIO_PADRAO: CargoSignatario = CARGOS_SIGNATARIO[0];
+
+/**
+ * O cargo, se for um dos válidos; senão o padrão.
+ *
+ * O `<select>` da tela já limita a escolha, mas o POST direto não — e cargo
+ * livre vindo do corpo iria impresso no documento sem passar por revisão
+ * nenhuma. É a mesma razão de o servidor não confiar no `disabled` de um botão.
+ */
+export function cargoSignatarioValido(valor: string): CargoSignatario {
+	return (CARGOS_SIGNATARIO as readonly string[]).includes(valor)
+		? (valor as CargoSignatario)
+		: CARGO_SIGNATARIO_PADRAO;
+}

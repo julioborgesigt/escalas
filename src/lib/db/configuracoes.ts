@@ -21,22 +21,6 @@ export const EMAIL_PROVEDOR_PADRAO = 'email.provedor_padrao';
 export type EmailProvedor = 'cloudflare' | 'resend';
 
 /**
- * Signatário PADRÃO do plano operacional — nome e cargo de quem assina o
- * documento (hoje, o Diretor Titular do DPI SUL).
- *
- * Mora aqui, e não numa coluna de `custo_parametros`, porque não é dinheiro e
- * não versiona junto com os valores: é o default que um plano NOVO copia para
- * si na criação. Depois de copiado, o plano é dono do seu signatário — trocar o
- * Diretor não reescreve documento já emitido.
- */
-export const PLANO_DIRETOR_NOME = 'plano.diretor_nome';
-export const PLANO_DIRETOR_CARGO = 'plano.diretor_cargo';
-
-/** Cargo do signatário quando o Super Admin ainda não o definiu. */
-export const PLANO_DIRETOR_CARGO_PADRAO =
-	'Diretor Titular do Departamento de Polícia do Interior Sul';
-
-/**
  * Valor bruto da chave, ou `null` se nunca foi salva — todo leitor precisa ter
  * um padrão próprio para esse caso (ver as flags abaixo). `configuracoes` é
  * chave/valor em TEXTO: números e JSON são convertidos por quem lê.

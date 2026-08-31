@@ -1,5 +1,6 @@
 import { test, expect, request as pwRequest } from '@playwright/test';
 import { FIXTURE } from './global-setup';
+import { CARGOS_SIGNATARIO } from '../src/lib/planos/padroes';
 import {
 	seedSession,
 	cookieDeSessao,
@@ -178,7 +179,11 @@ test.describe.serial('Plano operacional — valores, plano e PDF', () => {
 				hora_fim: '11:00',
 				local_briefing_padrao: 'Sede E2E',
 				qtd_equipes: '2',
-				oip_por_equipe: '4'
+				oip_por_equipe: '4',
+				// Cargo INVÁLIDO de propósito: o `<select>` da tela oferece três
+				// opções, o POST direto não é obrigado a respeitá-las, e este campo
+				// sai impresso sob a assinatura do documento.
+				diretor_cargo: 'Imperador Supremo do DPI SUL'
 			})
 		});
 		expect(res.status()).toBe(200);
@@ -197,6 +202,16 @@ test.describe.serial('Plano operacional — valores, plano e PDF', () => {
 			`SELECT id FROM plano_equipes WHERE plano_id = ${planoId} ORDER BY ordem;`
 		);
 		expect(equipes?.length).toBe(2);
+
+		// O cargo inventado no POST não pode ter chegado à coluna que o PDF
+		// imprime — o servidor recai na lista fechada.
+		const assinatura = queryD1Local<{ diretor_cargo: string; diretor_id: number | null }>(
+			`SELECT diretor_cargo, diretor_id FROM planos_operacionais WHERE id = ${planoId};`
+		);
+		expect(CARGOS_SIGNATARIO as readonly string[]).toContain(assinatura![0].diretor_cargo);
+		// Sem `diretor_id` no formulário, o plano nasce com o padrão global e
+		// nenhum servidor amarrado — o editor mostra isso e deixa escolher.
+		expect(assinatura![0].diretor_id).toBeFalsy();
 	});
 
 	test('servidor sem classe resolvida faz o download recusar com 409', async ({ request }) => {

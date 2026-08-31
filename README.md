@@ -191,39 +191,39 @@ O projeto usa **Cloudflare D1** (SQLite serverless) via **Drizzle ORM**. O schem
 
 ### Principais tabelas
 
-| Tabela                           | Descrição                                                                                                           |
-| -------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
-| `policiais`                      | Servidores (matrícula, CPF, cargo, lotação, senha PBKDF2, papel RBAC)                                               |
-| `policial_historico`             | Histórico funcional por servidor (movimentações, afastamentos, desvinculações, diffs de edição) com PDF anexo no R2 |
-| `cadastro_solicitacoes`          | Pedidos de correção de CAMPO do cadastro (uma linha por campo), com justificativa e solicitante                     |
-| `policial_acao_solicitacoes`     | Pedidos de movimentação/afastamento/desvinculação aguardando o Admin Geral, com a portaria anexa no R2              |
-| `administradores`                | Admins gerais do sistema                                                                                            |
-| `sessoes`                        | Sessões ativas (token, tipo, expiração em 8h)                                                                       |
-| `escalas`                        | Escalas de plantão, expediente e FDS                                                                                |
-| `escala_policiais`               | Associação policial ↔ escala (data, horário, equipe)                                                                |
-| `escala_documentos`              | PDFs assinados com metadados CAdES-LT (OCSP, TST, selfie, GPS, IP)                                                  |
-| `audit_pendencias`               | Evento de auditoria que a cadeia recusou — reprocessado pelo cron de retenção                                       |
-| `assinatura_intencoes`           | Amarra cada PDF preparado ao documento, ao assinante e a um único uso (15 min)                                      |
-| `escala_solicitacoes_assinatura` | Solicitações de assinatura por unidade/respondência                                                                 |
-| `unidades`                       | Hierarquia: departamento → seccional → delegacia. Ligada por **nome** (ver abaixo)                                  |
-| `operacoes`                      | Operações extraordinárias (GISE, CRAJUBAR, EDGE): tipos de equipe, ciclo, `ativo` e a config de escala da operação  |
-| `operacao_linha_base`            | Valor inicial de cada indicador por (operação, unidade) — o denominador das metas percentuais                       |
-| `gise_escalas`                   | Escalas extras (status, supervisor, assessor, configuração) — cada uma pertence a uma `operacao`                    |
-| `gise_seccionais`                | Seccionais dentro de uma GISE                                                                                       |
-| `gise_equipes`                   | Equipes (operacional/SEINT) com slots DPC/OIP                                                                       |
-| `gise_membros`                   | Associação policial ↔ equipe GISE                                                                                   |
-| `gise_presencas`                 | Registros de entrada/saída (GPS, selfie)                                                                            |
-| `gise_documentos`                | PDFs assinados de GISE                                                                                              |
-| `gise_modelo_formulario`         | Modelo do formulário de produtividade em JSON, um por (operação, tipo de equipe) — e a ordem dos cards do painel    |
-| `gise_respostas_formulario`      | Respostas de formulários (JSON) por policial/equipe                                                                 |
-| `gise_assinaturas_relatorios`    | Assinaturas de relatórios de extra/produtividade                                                                    |
-| `custo_parametros`               | Valores de hora extra por faixa e das diárias, em centavos — **append-only**: cada gravação é uma versão nova       |
-| `planos_operacionais`            | Plano operacional (operação COM deslocamento): número/ano, janela, coordenador, demandante e a versão de valores    |
-| `plano_equipes`                  | Equipes do plano: viatura, destino, briefing, horário próprio e a rubrica (sem custo / hora extra / diária)         |
-| `plano_equipe_membros`           | Efetivo do plano, com `cargo`/`classe` CONGELADOS — são a base de cálculo, não acompanham promoção                  |
-| `aceites_termos`                 | Histórico de aceite de termos de uso (versão, hash, IP, user-agent)                                                 |
-| `audit_log`                      | Trilha de auditoria forense (eventos de negócio, cadeia de hash tamper-evident)                                     |
-| `app_log`                        | Logs técnicos do servidor (warn/error do logger, correlacionados por `request_id`)                                  |
+| Tabela                           | Descrição                                                                                                                    |
+| -------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| `policiais`                      | Servidores (matrícula, CPF, cargo, lotação, senha PBKDF2, papel RBAC)                                                        |
+| `policial_historico`             | Histórico funcional por servidor (movimentações, afastamentos, desvinculações, diffs de edição) com PDF anexo no R2          |
+| `cadastro_solicitacoes`          | Pedidos de correção de CAMPO do cadastro (uma linha por campo), com justificativa e solicitante                              |
+| `policial_acao_solicitacoes`     | Pedidos de movimentação/afastamento/desvinculação aguardando o Admin Geral, com a portaria anexa no R2                       |
+| `administradores`                | Admins gerais do sistema                                                                                                     |
+| `sessoes`                        | Sessões ativas (token, tipo, expiração em 8h)                                                                                |
+| `escalas`                        | Escalas de plantão, expediente e FDS                                                                                         |
+| `escala_policiais`               | Associação policial ↔ escala (data, horário, equipe)                                                                         |
+| `escala_documentos`              | PDFs assinados com metadados CAdES-LT (OCSP, TST, selfie, GPS, IP)                                                           |
+| `audit_pendencias`               | Evento de auditoria que a cadeia recusou — reprocessado pelo cron de retenção                                                |
+| `assinatura_intencoes`           | Amarra cada PDF preparado ao documento, ao assinante e a um único uso (15 min)                                               |
+| `escala_solicitacoes_assinatura` | Solicitações de assinatura por unidade/respondência                                                                          |
+| `unidades`                       | Hierarquia: departamento → seccional → delegacia. Ligada por **nome** (ver abaixo)                                           |
+| `operacoes`                      | Operações extraordinárias (GISE, CRAJUBAR, EDGE): tipos de equipe, ciclo, `ativo` e a config de escala da operação           |
+| `operacao_linha_base`            | Valor inicial de cada indicador por (operação, unidade) — o denominador das metas percentuais                                |
+| `gise_escalas`                   | Escalas extras (status, supervisor, assessor, configuração) — cada uma pertence a uma `operacao`                             |
+| `gise_seccionais`                | Seccionais dentro de uma GISE                                                                                                |
+| `gise_equipes`                   | Equipes (operacional/SEINT) com slots DPC/OIP                                                                                |
+| `gise_membros`                   | Associação policial ↔ equipe GISE                                                                                            |
+| `gise_presencas`                 | Registros de entrada/saída (GPS, selfie)                                                                                     |
+| `gise_documentos`                | PDFs assinados de GISE                                                                                                       |
+| `gise_modelo_formulario`         | Modelo do formulário de produtividade em JSON, um por (operação, tipo de equipe) — e a ordem dos cards do painel             |
+| `gise_respostas_formulario`      | Respostas de formulários (JSON) por policial/equipe                                                                          |
+| `gise_assinaturas_relatorios`    | Assinaturas de relatórios de extra/produtividade                                                                             |
+| `custo_parametros`               | Valores de hora extra por faixa e das diárias, em centavos — **append-only**: cada gravação é uma versão nova                |
+| `planos_operacionais`            | Plano operacional (operação COM deslocamento): número/ano, janela, coordenador, demandante, signatário e a versão de valores |
+| `plano_equipes`                  | Equipes do plano: viatura, destino, briefing, horário próprio e a rubrica (sem custo / hora extra / diária)                  |
+| `plano_equipe_membros`           | Efetivo do plano, com `cargo`/`classe` CONGELADOS — são a base de cálculo, não acompanham promoção                           |
+| `aceites_termos`                 | Histórico de aceite de termos de uso (versão, hash, IP, user-agent)                                                          |
+| `audit_log`                      | Trilha de auditoria forense (eventos de negócio, cadeia de hash tamper-evident)                                              |
+| `app_log`                        | Logs técnicos do servidor (warn/error do logger, correlacionados por `request_id`)                                           |
 
 ### Unidade é referenciada por NOME
 
@@ -277,7 +277,7 @@ npm run db:migrate:prod -- --yes
 
 ### Histórico de migrações
 
-O histórico completo está na própria pasta [`migrations/`](migrations/) — os nomes dos arquivos são autoexplicativos (`0000_initial_schema.sql` … `0068_plano_operacional.sql`). Para entender uma migração específica, leia o SQL dela e o trecho correspondente do [`src/lib/server/schema.ts`](src/lib/server/schema.ts).
+O histórico completo está na própria pasta [`migrations/`](migrations/) — os nomes dos arquivos são autoexplicativos (`0000_initial_schema.sql` … `0069_plano_signatario.sql`). Para entender uma migração específica, leia o SQL dela e o trecho correspondente do [`src/lib/server/schema.ts`](src/lib/server/schema.ts).
 
 O que já rodou em cada ambiente é rastreado pela tabela `_migrations_aplicadas`, gravada pelo runner [`scripts/migrate.ts`](scripts/migrate.ts). (O `migrations/meta/` do `drizzle-kit` foi removido em jul/2026: ficou parado em 2 entradas para dezenas de arquivos e só induzia a erro.)
 
@@ -1013,6 +1013,19 @@ para o total não ser confundido com erro de cálculo.
 **`cargo` e `classe` congelam na linha do membro**: são a base de cálculo, e não
 acompanham promoção posterior. Nome, matrícula, lotação e telefone continuam
 vindo vivos do cadastro — são identificação, não mudam o valor pago.
+
+**O signatário é campo DO PLANO**, não configuração global: o Titular assina umas
+operações, o Adjunto outras. O nome vem da busca no cadastro (como o
+coordenador) e vai congelado em `diretor_nome`; `diretor_id` guarda quem foi
+escolhido, só para o editor reabrir mostrando a seleção. O cargo é lista
+**fechada** (`CARGOS_SIGNATARIO`) porque sai impresso sob a assinatura — campo
+livre põe erro de digitação no papel, e ninguém revisa o rodapé de um PDF.
+
+**Não há padrão global.** Um padrão único para um dado que VARIA ou é ignorado
+quase sempre, ou leva a mudar a configuração de todos os planos seguintes para
+acertar um. Sem escolha, o documento imprime a linha de assinatura em branco —
+que é o estado honesto de um plano cujo signatário ainda não foi definido, e
+visível para quem for emitir. `/config-custos` trata só de dinheiro.
 
 **Classe vazia não vira R$ 0 em silêncio.** `policiais.classe` é
 `text NOT NULL DEFAULT ''`; sem faixa resolvida a linha sai como PENDÊNCIA na

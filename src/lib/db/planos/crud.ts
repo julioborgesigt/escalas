@@ -46,6 +46,8 @@ export interface EntradaPlano {
 	departamento?: string;
 	local_briefing_padrao?: string;
 	oip_por_equipe_padrao?: number;
+	/** O DPC escolhido na busca; `diretor_nome` é o texto congelado que o PDF imprime. */
+	diretor_id?: number | null;
 	diretor_nome?: string;
 	diretor_cargo?: string;
 	custo_parametro_id?: number | null;
@@ -67,6 +69,7 @@ export type PatchPlano = Partial<{
 	departamento: string;
 	local_briefing_padrao: string;
 	oip_por_equipe_padrao: number;
+	diretor_id: number | null;
 	diretor_nome: string;
 	diretor_cargo: string;
 	custo_parametro_id: number | null;
@@ -112,6 +115,7 @@ export async function criarPlano(
 			departamento: dados.departamento ?? 'DPI SUL',
 			local_briefing_padrao: dados.local_briefing_padrao ?? '',
 			oip_por_equipe_padrao: dados.oip_por_equipe_padrao ?? 4,
+			diretor_id: dados.diretor_id ?? null,
 			diretor_nome: dados.diretor_nome ?? '',
 			diretor_cargo: dados.diretor_cargo ?? '',
 			custo_parametro_id: dados.custo_parametro_id ?? null

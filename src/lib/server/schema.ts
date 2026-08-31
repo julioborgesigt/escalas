@@ -1709,7 +1709,19 @@ export const planosOperacionais = sqliteTable(
 		departamento: text('departamento').notNull().default('DPI SUL'),
 		local_briefing_padrao: text('local_briefing_padrao').notNull().default(''),
 		oip_por_equipe_padrao: integer('oip_por_equipe_padrao').notNull().default(4),
-		/** Signatário do documento, congelado na criação (vem de `configuracoes`). */
+		/**
+		 * Signatário do documento — escolhido POR PLANO (o Titular assina umas
+		 * operações, o Adjunto outras), com o padrão global de `configuracoes`
+		 * apenas pré-preenchendo o formulário.
+		 *
+		 * `diretor_id` é quem foi escolhido na busca; `diretor_nome` é o nome
+		 * CONGELADO que o PDF imprime. Os dois, pela mesma razão de
+		 * `cargo_snapshot` no efetivo: o id reabre a tela mostrando a seleção, e o
+		 * nome congelado impede que renomear o cadastro altere documento emitido.
+		 */
+		diretor_id: integer('diretor_id').references(() => policiais.id, {
+			onDelete: 'restrict'
+		}),
 		diretor_nome: text('diretor_nome').notNull().default(''),
 		diretor_cargo: text('diretor_cargo').notNull().default(''),
 		custo_parametro_id: integer('custo_parametro_id').references(() => custoParametros.id, {

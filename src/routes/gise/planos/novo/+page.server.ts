@@ -18,6 +18,21 @@
  * aqui. O plano guarda a versão de valores vigente no momento em que nasceu e o
  * signatário de então — reajustar valores ou trocar o Diretor depois não pode
  * reescrever um documento já emitido.
+ *
+ * ## O signatário é escolhido AQUI, e não há padrão global
+ *
+ * Quem assina VARIA por operação (o Titular assina umas, o Adjunto outras),
+ * então o formulário tem o campo. O nome vem da busca no cadastro, como o
+ * coordenador, e o que se grava são os dois: `diretor_id` (para o editor
+ * reabrir mostrando a seleção) e `diretor_nome` (o texto congelado que o PDF
+ * imprime).
+ *
+ * Sem escolha, o plano nasce sem signatário e o documento imprime a linha de
+ * assinatura em BRANCO — que é o estado honesto de um plano cujo signatário
+ * ainda não foi definido, e visível para quem for emitir. Houve um padrão
+ * global em `/config-custos`; ele saiu porque um padrão único para um dado que
+ * varia ou é ignorado quase sempre, ou leva a mudar a configuração de todos os
+ * planos seguintes para acertar um.
  */
 import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
@@ -26,27 +41,27 @@ import {
 	criarPlano,
 	criarEquipes,
 	buscarCustoParametrosVigente,
-	buscarConfiguracao,
 	auditar,
 	contextoDeEvento,
-	PLANO_DIRETOR_NOME,
-	PLANO_DIRETOR_CARGO
+	buscarPolicial
 } from '$lib/db';
 import { isAdminGeral } from '$lib/auth';
 import { hojeBrasilISO } from '$lib/utils/datas';
 import { validarHora, normalizarHora } from '$lib/gise/horarios';
 import { logger } from '$lib/server/logger';
-import { FINALIDADE_PADRAO, ACOES_PADRAO, DEPARTAMENTO_PADRAO } from '$lib/planos/padroes';
+import {
+	FINALIDADE_PADRAO,
+	ACOES_PADRAO,
+	DEPARTAMENTO_PADRAO,
+	CARGO_SIGNATARIO_PADRAO,
+	cargoSignatarioValido
+} from '$lib/planos/padroes';
 
 export const load: PageServerLoad = async ({ locals, platform }) => {
 	if (!isAdminGeral(locals.usuario)) redirect(302, '/gise');
 
 	const db = getDB(platform);
-	const [vigente, diretorNome, diretorCargo] = await Promise.all([
-		buscarCustoParametrosVigente(db),
-		buscarConfiguracao(db, PLANO_DIRETOR_NOME),
-		buscarConfiguracao(db, PLANO_DIRETOR_CARGO)
-	]);
+	const vigente = await buscarCustoParametrosVigente(db);
 
 	return {
 		hoje: hojeBrasilISO(),
@@ -58,8 +73,8 @@ export const load: PageServerLoad = async ({ locals, platform }) => {
 		 * nada" é pior do que um aviso na criação.
 		 */
 		temValores: vigente !== null,
-		diretorNome: diretorNome ?? '',
-		diretorCargo: diretorCargo ?? ''
+		/** O primeiro da lista fechada — quem assina de fato se escolhe no campo. */
+		diretorCargo: CARGO_SIGNATARIO_PADRAO
 	};
 };
 
@@ -125,16 +140,20 @@ export const actions: Actions = {
 
 		const coordenadorId = inteiro(fd, 'coordenador_id', 1, Number.MAX_SAFE_INTEGER);
 		const demandanteId = inteiro(fd, 'demandante_unidade_id', 1, Number.MAX_SAFE_INTEGER);
+		const diretorId = inteiro(fd, 'diretor_id', 1, Number.MAX_SAFE_INTEGER);
 
 		const db = getDB(platform);
 
-		// A versão de valores e o signatário são copiados AGORA e congelados no
-		// plano — ver o cabeçalho do módulo.
-		const [vigente, diretorNome, diretorCargo] = await Promise.all([
+		// A versão de valores e o signatário são congelados AGORA — ver o cabeçalho
+		// do módulo. Sem escolha, o nome fica vazio e o documento imprime a linha
+		// de assinatura em branco.
+		const [vigente, escolhido] = await Promise.all([
 			buscarCustoParametrosVigente(db),
-			buscarConfiguracao(db, PLANO_DIRETOR_NOME),
-			buscarConfiguracao(db, PLANO_DIRETOR_CARGO)
+			diretorId ? buscarPolicial(db, diretorId) : Promise.resolve(null)
 		]);
+
+		const diretorNome = escolhido?.nome ?? '';
+		const diretorCargo = cargoSignatarioValido(texto(fd, 'diretor_cargo', 160));
 
 		let criado: { id: number; numero: number; ano: number };
 		try {
@@ -153,8 +172,9 @@ export const actions: Actions = {
 				departamento: texto(fd, 'departamento', 60) || DEPARTAMENTO_PADRAO,
 				local_briefing_padrao: texto(fd, 'local_briefing_padrao', 200),
 				oip_por_equipe_padrao: oipPorEquipe,
-				diretor_nome: diretorNome ?? '',
-				diretor_cargo: diretorCargo ?? '',
+				diretor_id: escolhido?.id ?? null,
+				diretor_nome: diretorNome,
+				diretor_cargo: diretorCargo,
 				custo_parametro_id: vigente?.id ?? null
 			});
 		} catch (e) {

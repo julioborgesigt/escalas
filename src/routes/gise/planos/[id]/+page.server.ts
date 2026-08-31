@@ -16,7 +16,9 @@
  */
 import { error, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
-import { getDB, janelaDaEquipe, briefingDaEquipe } from '$lib/db';
+import { getDB, janelaDaEquipe, briefingDaEquipe, buscarPolicial } from '$lib/db';
+import { unidades } from '$lib/server/schema';
+import { eq } from 'drizzle-orm';
 import { carregarPlanoParaEdicao } from '$lib/server/planos/permissao';
 import { montarCustoDoPlano, versaoDeValores } from '$lib/server/planos/custo-do-plano';
 import { podeEmitir } from '$lib/planos/custo';
@@ -45,7 +47,24 @@ export const load: PageServerLoad = async ({ locals, params, platform, depends }
 	// documento de imprimir um total diferente do que o admin conferiu aqui.
 	const { equipes, porEquipe, parametros, custo } = await montarCustoDoPlano(db, plano);
 
+	// Os rótulos de quem JÁ está escolhido, para os `SearchableSelect` abrirem
+	// mostrando a seleção em vez de um campo vazio. Sem eles, um plano com
+	// coordenador designado parece não ter nenhum — e salvar por cima apagaria a
+	// designação sem que ninguém tivesse pedido isso.
+	const [coordenador, demandante] = await Promise.all([
+		plano.coordenador_id ? buscarPolicial(db, plano.coordenador_id) : Promise.resolve(null),
+		plano.demandante_unidade_id
+			? db
+					.select({ nome: unidades.nome })
+					.from(unidades)
+					.where(eq(unidades.id, plano.demandante_unidade_id))
+					.get()
+			: Promise.resolve(undefined)
+	]);
+
 	return {
+		coordenadorNome: coordenador?.nome ?? '',
+		demandanteNome: demandante?.nome ?? '',
 		plano,
 		/**
 		 * Cada equipe com o que a tela precisa: os membros, a janela EFETIVA (já
