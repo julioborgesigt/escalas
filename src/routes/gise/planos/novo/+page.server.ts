@@ -18,6 +18,15 @@
  * aqui. O plano guarda a versão de valores vigente no momento em que nasceu e o
  * signatário de então — reajustar valores ou trocar o Diretor depois não pode
  * reescrever um documento já emitido.
+ *
+ * ## O signatário: escolhido aqui, com o padrão global só pré-preenchendo
+ *
+ * Quem assina VARIA por operação (o Titular assina umas, o Adjunto outras),
+ * então o formulário tem o campo. O nome vem da busca no cadastro, como o
+ * coordenador, e o que se grava são os dois: `diretor_id` (para o editor
+ * reabrir mostrando a seleção) e `diretor_nome` (o texto congelado que o PDF
+ * imprime). Sem escolha explícita, cai no padrão de `configuracoes` — que é o
+ * caso comum e evita rebuscar o mesmo Diretor a cada plano.
  */
 import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
@@ -30,13 +39,19 @@ import {
 	auditar,
 	contextoDeEvento,
 	PLANO_DIRETOR_NOME,
-	PLANO_DIRETOR_CARGO
+	PLANO_DIRETOR_CARGO,
+	buscarPolicial
 } from '$lib/db';
 import { isAdminGeral } from '$lib/auth';
 import { hojeBrasilISO } from '$lib/utils/datas';
 import { validarHora, normalizarHora } from '$lib/gise/horarios';
 import { logger } from '$lib/server/logger';
-import { FINALIDADE_PADRAO, ACOES_PADRAO, DEPARTAMENTO_PADRAO } from '$lib/planos/padroes';
+import {
+	FINALIDADE_PADRAO,
+	ACOES_PADRAO,
+	DEPARTAMENTO_PADRAO,
+	cargoSignatarioValido
+} from '$lib/planos/padroes';
 
 export const load: PageServerLoad = async ({ locals, platform }) => {
 	if (!isAdminGeral(locals.usuario)) redirect(302, '/gise');
@@ -59,7 +74,12 @@ export const load: PageServerLoad = async ({ locals, platform }) => {
 		 */
 		temValores: vigente !== null,
 		diretorNome: diretorNome ?? '',
-		diretorCargo: diretorCargo ?? ''
+		/**
+		 * Cargo pré-selecionado. Passa por `cargoSignatarioValido` porque o
+		 * `<select>` só consegue mostrar como selecionado um valor que esteja na
+		 * lista — um padrão antigo fora dela abriria o campo em branco.
+		 */
+		diretorCargo: cargoSignatarioValido(diretorCargo ?? '')
 	};
 };
 
@@ -125,16 +145,23 @@ export const actions: Actions = {
 
 		const coordenadorId = inteiro(fd, 'coordenador_id', 1, Number.MAX_SAFE_INTEGER);
 		const demandanteId = inteiro(fd, 'demandante_unidade_id', 1, Number.MAX_SAFE_INTEGER);
+		const diretorId = inteiro(fd, 'diretor_id', 1, Number.MAX_SAFE_INTEGER);
 
 		const db = getDB(platform);
 
 		// A versão de valores e o signatário são copiados AGORA e congelados no
 		// plano — ver o cabeçalho do módulo.
-		const [vigente, diretorNome, diretorCargo] = await Promise.all([
+		const [vigente, padraoNome, escolhido] = await Promise.all([
 			buscarCustoParametrosVigente(db),
 			buscarConfiguracao(db, PLANO_DIRETOR_NOME),
-			buscarConfiguracao(db, PLANO_DIRETOR_CARGO)
+			diretorId ? buscarPolicial(db, diretorId) : Promise.resolve(null)
 		]);
+
+		// Escolha explícita ganha do padrão global; sem nenhuma das duas o campo
+		// fica vazio e o PDF imprime a linha de assinatura em branco, que é o
+		// estado honesto de um plano cujo signatário ainda não foi definido.
+		const diretorNome = escolhido?.nome ?? padraoNome ?? '';
+		const diretorCargo = cargoSignatarioValido(texto(fd, 'diretor_cargo', 160));
 
 		let criado: { id: number; numero: number; ano: number };
 		try {
@@ -153,8 +180,9 @@ export const actions: Actions = {
 				departamento: texto(fd, 'departamento', 60) || DEPARTAMENTO_PADRAO,
 				local_briefing_padrao: texto(fd, 'local_briefing_padrao', 200),
 				oip_por_equipe_padrao: oipPorEquipe,
-				diretor_nome: diretorNome ?? '',
-				diretor_cargo: diretorCargo ?? '',
+				diretor_id: escolhido?.id ?? null,
+				diretor_nome: diretorNome,
+				diretor_cargo: diretorCargo,
 				custo_parametro_id: vigente?.id ?? null
 			});
 		} catch (e) {

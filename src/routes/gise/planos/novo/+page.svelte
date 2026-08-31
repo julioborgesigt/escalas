@@ -2,12 +2,24 @@
 	/**
 	 * Criação do plano operacional — os parâmetros gerais.
 	 *
-	 * Rota, e não modal (README §10): são quinze campos mais o calendário. O
+	 * Rota, e não modal (README §10): são dezoito campos mais o calendário. O
 	 * agrupamento segue a ordem do documento — identificação, calendário, quem
-	 * demanda e quem coordena, e por fim a estrutura inicial das equipes.
+	 * demanda e quem coordena, quem assina, e por fim a estrutura das equipes.
 	 *
-	 * Tudo aqui é EDITÁVEL depois no editor do plano. O que se pede na criação é
-	 * só o que o plano precisa para existir com um número e uma data; obrigar o
+	 * ## Diagramação: seções, não cartões dentro de cartão
+	 *
+	 * O `+layout.svelte` já entrega a página dentro de uma FOLHA (`max-w-6xl` com
+	 * borda e fundo branco em `xl`). Empilhar `card-elevated` aqui dentro desenha
+	 * cartão sobre cartão, e travar a largura de novo (`max-w-3xl`) deixa o
+	 * formulário estreito dentro de uma folha larga, com o título deslocado.
+	 *
+	 * Então: a folha é o contêiner, as seções se separam por TÍTULO e por linha,
+	 * e o formulário ocupa a largura que tem. É o padrão de `/solicitacoes` e o
+	 * que o README §10 chama de "dentro de um card largo, o conteúdo que ganha
+	 * com a largura fica solto".
+	 *
+	 * Tudo aqui é EDITÁVEL depois no editor. O que se pede na criação é só o que
+	 * o plano precisa para existir com um número e uma data; obrigar o
 	 * preenchimento completo antes de criar transformaria a tela num muro.
 	 */
 	import type { PageProps } from './$types';
@@ -19,6 +31,8 @@
 	import SearchableSelect from '$lib/components/SearchableSelect.svelte';
 	import { buscarCoordenadores, buscarUnidades, MIN_BUSCA } from '../_components/buscas';
 	import { DEPARTAMENTO_PADRAO } from '$lib/planos/padroes';
+	import CampoNup from '../_components/CampoNup.svelte';
+	import CamposSignatario from '../_components/CamposSignatario.svelte';
 	import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
 
 	const { data, form }: PageProps = $props();
@@ -42,17 +56,33 @@
 
 	let coordenadorId = $state<unknown>(null);
 	let demandanteId = $state<unknown>(null);
+	let diretorId = $state<unknown>(null);
+	// svelte-ignore state_referenced_locally
+	let diretorCargo = $state(data.diretorCargo);
 
 	const podeCriar = $derived(nome.trim().length > 0 && dataInicio !== '');
 </script>
 
 <svelte:head><title>Novo plano operacional | Escalas</title></svelte:head>
 
-<div class="max-w-3xl mx-auto space-y-5 px-1">
+{#snippet tituloSecao(texto: string, apoio?: string)}
+	<div class="border-b border-surface-200/70 dark:border-white/10 pb-2">
+		<h2
+			class="text-sm font-semibold uppercase tracking-wider text-surface-600 dark:text-surface-400"
+		>
+			{texto}
+		</h2>
+		{#if apoio}
+			<p class="text-xs text-surface-600 dark:text-surface-400 mt-1 normal-case">{apoio}</p>
+		{/if}
+	</div>
+{/snippet}
+
+<div class="space-y-6">
 	<div>
 		<BotaoVoltar href="/gise/planos" />
-		<h1 class="h1 text-2xl font-bold mt-2">Novo plano operacional</h1>
-		<p class="text-sm text-surface-600 dark:text-surface-400 mt-0.5">
+		<h1 class="h2 font-bold mt-2">Novo plano operacional</h1>
+		<p class="text-sm text-surface-600 dark:text-surface-400 mt-1">
 			Os parâmetros gerais da operação. Tudo pode ser ajustado depois — viaturas, destinos, efetivo
 			e custos são preenchidos por equipe no editor.
 		</p>
@@ -84,11 +114,11 @@
 				await update({ reset: false });
 			};
 		}}
-		class="space-y-5"
+		class="space-y-8"
 	>
 		<!-- ---- Identificação ---- -->
-		<section class="card-elevated rounded-2xl p-5 space-y-4">
-			<h2 class="text-base font-semibold text-surface-900 dark:text-white">Identificação</h2>
+		<section class="space-y-4">
+			{@render tituloSecao('Identificação')}
 
 			<label class="block space-y-1">
 				<span class="text-xs font-medium text-surface-700 dark:text-surface-200"
@@ -104,13 +134,8 @@
 				/>
 			</label>
 
-			<div class="grid gap-3 sm:grid-cols-2">
-				<label class="block space-y-1">
-					<span class="text-xs font-medium text-surface-700 dark:text-surface-200">
-						Nº do NUP <span class="text-surface-600 dark:text-surface-400">(opcional)</span>
-					</span>
-					<input name="nup" bind:value={nup} maxlength="40" class="input" />
-				</label>
+			<div class="grid gap-4 sm:grid-cols-2">
+				<CampoNup bind:valor={nup} opcional />
 				<label class="block space-y-1">
 					<span class="text-xs font-medium text-surface-700 dark:text-surface-200"
 						>Departamento responsável</span
@@ -141,19 +166,20 @@
 		</section>
 
 		<!-- ---- Calendário ---- -->
-		<section class="card-elevated rounded-2xl p-5 space-y-4">
-			<div>
-				<h2 class="text-base font-semibold text-surface-900 dark:text-white">Calendário</h2>
-				<p class="text-xs text-surface-600 dark:text-surface-400">
-					A data e o horário decidem se a operação gera hora extra, e de qual tipo.
-				</p>
-			</div>
+		<section class="space-y-4">
+			{@render tituloSecao(
+				'Calendário',
+				'A data e o horário decidem se a operação gera hora extra, e de qual tipo.'
+			)}
 
 			<CalendarioDia bind:valor={dataInicio} bind:feriado />
 			<input type="hidden" name="data_inicio" value={dataInicio} />
 			{#if feriado}<input type="hidden" name="feriado" value="1" />{/if}
 
-			<div class="grid gap-3 sm:grid-cols-2">
+			<!-- Os três campos de tempo numa linha só: são curtos e se leem juntos
+			     ("das 05:00 às 11:00, terminando em"). Empilhados, a data de término
+			     ficava longe do horário que ela completa. -->
+			<div class="grid gap-4 sm:grid-cols-3">
 				<label class="block space-y-1">
 					<span class="text-xs font-medium text-surface-700 dark:text-surface-200"
 						>Horário de apresentação</span
@@ -168,16 +194,15 @@
 					</span>
 					<input name="hora_fim" bind:value={horaFim} placeholder="11:00" class="input" />
 				</label>
+				<label class="block space-y-1">
+					<span class="text-xs font-medium text-surface-700 dark:text-surface-200">
+						Data de término <span class="text-surface-600 dark:text-surface-400"
+							>(se virar o dia)</span
+						>
+					</span>
+					<input type="date" name="data_fim" bind:value={dataFim} class="input" />
+				</label>
 			</div>
-
-			<label class="block space-y-1">
-				<span class="text-xs font-medium text-surface-700 dark:text-surface-200">
-					Data de término <span class="text-surface-600 dark:text-surface-400"
-						>(só se a operação virar o dia)</span
-					>
-				</span>
-				<input type="date" name="data_fim" bind:value={dataFim} class="input" />
-			</label>
 
 			<p class="text-2xs text-surface-600 dark:text-surface-400">
 				Sem previsão de término, o sistema não sugere a quantidade de horas — ela é digitada por
@@ -186,41 +211,43 @@
 		</section>
 
 		<!-- ---- Comando e demanda ---- -->
-		<section class="card-elevated rounded-2xl p-5 space-y-4">
-			<h2 class="text-base font-semibold text-surface-900 dark:text-white">Comando e demanda</h2>
+		<section class="space-y-4">
+			{@render tituloSecao('Comando e demanda')}
 
-			<div class="space-y-1">
-				<label
-					for="coordenador"
-					class="block text-xs font-medium text-surface-700 dark:text-surface-200"
-				>
-					DPC coordenador da operação
-				</label>
-				<SearchableSelect
-					id="coordenador"
-					name="coordenador_id"
-					bind:value={coordenadorId}
-					loadOptions={buscarCoordenadores}
-					minSearchChars={MIN_BUSCA}
-					placeholder="Busque por nome ou matrícula"
-				/>
-			</div>
+			<div class="grid gap-4 sm:grid-cols-2">
+				<div class="space-y-1">
+					<label
+						for="coordenador"
+						class="block text-xs font-medium text-surface-700 dark:text-surface-200"
+					>
+						DPC coordenador da operação
+					</label>
+					<SearchableSelect
+						id="coordenador"
+						name="coordenador_id"
+						bind:value={coordenadorId}
+						loadOptions={buscarCoordenadores}
+						minSearchChars={MIN_BUSCA}
+						placeholder="Busque por nome ou matrícula"
+					/>
+				</div>
 
-			<div class="space-y-1">
-				<label
-					for="demandante"
-					class="block text-xs font-medium text-surface-700 dark:text-surface-200"
-				>
-					Delegacia / seccional demandante
-				</label>
-				<SearchableSelect
-					id="demandante"
-					name="demandante_unidade_id"
-					bind:value={demandanteId}
-					loadOptions={buscarUnidades}
-					minSearchChars={MIN_BUSCA}
-					placeholder="Busque a unidade"
-				/>
+				<div class="space-y-1">
+					<label
+						for="demandante"
+						class="block text-xs font-medium text-surface-700 dark:text-surface-200"
+					>
+						Delegacia / seccional demandante
+					</label>
+					<SearchableSelect
+						id="demandante"
+						name="demandante_unidade_id"
+						bind:value={demandanteId}
+						loadOptions={buscarUnidades}
+						minSearchChars={MIN_BUSCA}
+						placeholder="Busque a unidade"
+					/>
+				</div>
 			</div>
 
 			<label class="block space-y-1">
@@ -240,17 +267,24 @@
 			</label>
 		</section>
 
-		<!-- ---- Equipes ---- -->
-		<section class="card-elevated rounded-2xl p-5 space-y-4">
-			<div>
-				<h2 class="text-base font-semibold text-surface-900 dark:text-white">Estrutura inicial</h2>
-				<p class="text-xs text-surface-600 dark:text-surface-400">
-					As equipes nascem como "Equipe 01", "Equipe 02"… e podem ser renomeadas, acrescentadas ou
-					removidas no editor.
-				</p>
-			</div>
+		<!-- ---- Signatário ---- -->
+		<section class="space-y-4">
+			{@render tituloSecao(
+				'Signatário do plano',
+				'Quem assina o documento. Varia por operação — o Titular assina umas, o Adjunto outras.'
+			)}
 
-			<div class="grid gap-3 sm:grid-cols-2">
+			<CamposSignatario bind:diretorId bind:cargo={diretorCargo} nomePadrao={data.diretorNome} />
+		</section>
+
+		<!-- ---- Equipes ---- -->
+		<section class="space-y-4">
+			{@render tituloSecao(
+				'Estrutura inicial',
+				'As equipes nascem como "Equipe 01", "Equipe 02"… e podem ser renomeadas, acrescentadas ou removidas no editor.'
+			)}
+
+			<div class="grid gap-4 sm:grid-cols-2">
 				<label class="block space-y-1">
 					<span class="text-xs font-medium text-surface-700 dark:text-surface-200"
 						>Quantidade de equipes</span
@@ -305,7 +339,9 @@
 			</p>
 		{/if}
 
-		<div class="flex justify-end gap-2 pb-4">
+		<div
+			class="flex justify-end gap-2 pt-4 pb-4 border-t border-surface-200/70 dark:border-white/10"
+		>
 			<a href="/gise/planos" class="btn preset-outlined-surface-500 py-2.5 px-4 rounded-xl text-sm">
 				Cancelar
 			</a>

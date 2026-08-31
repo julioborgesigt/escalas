@@ -599,6 +599,8 @@ Para esses, qualquer upgrade major precisa ser feito manualmente após testar o 
 
    Um plano guarda a versão de valores que aplicou. Reajuste posterior **não** reescreve documento já emitido — e é por isso que o Anexo II imprime qual versão usou.
 
+   O signatário é escolhido **por plano** (o Titular assina umas operações, o Adjunto outras); o que `/config-custos` guarda é só o padrão que pré-preenche o formulário. A migração `0069` reescreve o cargo do padrão antigo ("Diretor Titular do Departamento de Polícia do Interior Sul") para a grafia da lista fechada ("Diretor Titular do DPI SUL") — sem isso, plano criado antes dela mostraria um cargo na tela e imprimiria outro no PDF.
+
 7. Monitorar logs no dashboard Pages e alertas no Sentry, se configurado.
 
 ## Versão

@@ -18,6 +18,7 @@
 	import { toaster } from '$lib/toast';
 	import { formatarBRL, lerBRL } from '$lib/planos/rotulos';
 	import { sugerirPlus } from '$lib/planos/custo';
+	import { CARGOS_SIGNATARIO } from '$lib/planos/padroes';
 	import Info from '@lucide/svelte/icons/info';
 	import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
 
@@ -287,8 +288,9 @@
 				Signatário do plano operacional
 			</h2>
 			<p class="text-sm text-surface-600 dark:text-surface-400">
-				Quem assina o documento. Serve de <strong>padrão</strong> na criação de um plano — cada plano
-				copia o nome e o cargo para si, e trocar aqui não altera documento já emitido.
+				O <strong>padrão</strong> que a criação de um plano pré-preenche. Cada plano escolhe o seu signatário
+				no próprio formulário — o Titular assina umas operações, o Adjunto outras — e trocar aqui não
+				altera plano já criado.
 			</p>
 		</div>
 
@@ -320,7 +322,14 @@
 			</label>
 			<label class="block space-y-1">
 				<span class="text-xs font-medium text-surface-700 dark:text-surface-200">Cargo</span>
-				<input name="diretor_cargo" bind:value={diretorCargo} maxlength="160" class="input" />
+				<!-- A MESMA lista fechada do formulário do plano: se aqui fosse texto
+				     livre, o padrão poderia sair da lista e o `<select>` de lá abriria
+				     sem nada selecionado. -->
+				<select name="diretor_cargo" bind:value={diretorCargo} class="select">
+					{#each CARGOS_SIGNATARIO as cargo (cargo)}
+						<option value={cargo}>{cargo}</option>
+					{/each}
+				</select>
 			</label>
 			<button
 				type="submit"

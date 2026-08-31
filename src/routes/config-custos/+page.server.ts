@@ -37,6 +37,7 @@ import {
 	PLANO_DIRETOR_CARGO,
 	PLANO_DIRETOR_CARGO_PADRAO
 } from '$lib/db';
+import { cargoSignatarioValido } from '$lib/planos/padroes';
 import { lerBRL } from '$lib/planos/rotulos';
 import { hojeBrasilISO } from '$lib/utils/datas';
 import { logger } from '$lib/server/logger';
@@ -82,7 +83,7 @@ export const load: PageServerLoad = async ({ locals, platform }) => {
 		// auditoria, onde cada gravação está registrada com autor.
 		historico: historico.slice(0, 10),
 		diretorNome: diretorNome ?? '',
-		diretorCargo: diretorCargo ?? PLANO_DIRETOR_CARGO_PADRAO,
+		diretorCargo: cargoSignatarioValido(diretorCargo ?? PLANO_DIRETOR_CARGO_PADRAO),
 		hoje: hojeBrasilISO()
 	};
 };
@@ -180,15 +181,20 @@ export const actions: Actions = {
 		const nome = String(fd.get('diretor_nome') ?? '')
 			.trim()
 			.slice(0, 120);
-		const cargo = String(fd.get('diretor_cargo') ?? '')
-			.trim()
-			.slice(0, 160);
+		// Lista fechada também aqui: o `<select>` da tela limita a escolha, o POST
+		// direto não, e um cargo fora da lista faria o formulário do plano abrir
+		// sem nada selecionado.
+		const cargo = cargoSignatarioValido(
+			String(fd.get('diretor_cargo') ?? '')
+				.trim()
+				.slice(0, 160)
+		);
 
 		if (!nome) return fail(400, { error: 'Informe o nome de quem assina o plano.' });
 
 		const db = getDB(platform);
 		await salvarConfiguracao(db, PLANO_DIRETOR_NOME, nome);
-		await salvarConfiguracao(db, PLANO_DIRETOR_CARGO, cargo || PLANO_DIRETOR_CARGO_PADRAO);
+		await salvarConfiguracao(db, PLANO_DIRETOR_CARGO, cargo);
 
 		const { contexto, env } = contextoDeEvento(event);
 		await auditar(
@@ -198,7 +204,7 @@ export const actions: Actions = {
 				usuario: u,
 				entidade: 'configuracao',
 				detalhes: `Signatário do plano operacional: ${nome}`,
-				dados_depois: { diretor_nome: nome, diretor_cargo: cargo || PLANO_DIRETOR_CARGO_PADRAO },
+				dados_depois: { diretor_nome: nome, diretor_cargo: cargo },
 				...contexto
 			},
 			{ env }

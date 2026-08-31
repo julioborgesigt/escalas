@@ -66,7 +66,10 @@
 		</a>
 	</div>
 
-	<section class="card-elevated min-w-0 rounded-2xl p-5 sm:p-6 space-y-3">
+	<!-- Sem `card-elevated`: a folha do layout já é o cartão da página, e cada
+	     plano da lista já é um cartão com contorno. Envolver a lista num terceiro
+	     desenha cartão dentro de cartão dentro de cartão. -->
+	<section class="min-w-0 space-y-3">
 		{#if data.planos.length === 0}
 			<EstadoVazio
 				mensagem="Nenhum plano operacional"

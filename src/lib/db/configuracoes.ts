@@ -32,9 +32,15 @@ export type EmailProvedor = 'cloudflare' | 'resend';
 export const PLANO_DIRETOR_NOME = 'plano.diretor_nome';
 export const PLANO_DIRETOR_CARGO = 'plano.diretor_cargo';
 
-/** Cargo do signatário quando o Super Admin ainda não o definiu. */
-export const PLANO_DIRETOR_CARGO_PADRAO =
-	'Diretor Titular do Departamento de Polícia do Interior Sul';
+/**
+ * Cargo do signatário quando o Super Admin ainda não o definiu.
+ *
+ * Tem de ser um dos `CARGOS_SIGNATARIO` de `$lib/planos/padroes` — a tela
+ * oferece aquela lista fechada, e um padrão fora dela abriria o formulário com
+ * um valor que o `<select>` não consegue mostrar selecionado. Por isso a forma
+ * curta ("DPI SUL"), e não o nome do órgão por extenso.
+ */
+export const PLANO_DIRETOR_CARGO_PADRAO = 'Diretor Titular do DPI SUL';
 
 /**
  * Valor bruto da chave, ou `null` se nunca foi salva — todo leitor precisa ter

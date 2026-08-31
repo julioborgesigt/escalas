@@ -21,6 +21,10 @@
 	import { buscarCoordenadores, buscarUnidades, MIN_BUSCA } from '../_components/buscas';
 	import { fmtDate } from '$lib/gise/formatters';
 	import { formatarBRL } from '$lib/planos/rotulos';
+	import { cargoSignatarioValido } from '$lib/planos/padroes';
+	import CampoNup from '../_components/CampoNup.svelte';
+	import CamposSignatario from '../_components/CamposSignatario.svelte';
+	import { formatarNUP } from '$lib/utils/formato';
 	import EquipeCard from './_components/EquipeCard.svelte';
 	import PainelCustos from './_components/PainelCustos.svelte';
 	import Plus from '@lucide/svelte/icons/plus';
@@ -42,6 +46,34 @@
 	let coordenadorId = $state<unknown>(data.plano.coordenador_id);
 	// svelte-ignore state_referenced_locally
 	let demandanteId = $state<unknown>(data.plano.demandante_unidade_id);
+	// svelte-ignore state_referenced_locally
+	let diretorId = $state<unknown>(data.plano.diretor_id);
+	// svelte-ignore state_referenced_locally
+	let diretorCargo = $state(cargoSignatarioValido(data.plano.diretor_cargo));
+	// svelte-ignore state_referenced_locally
+	let nup = $state(formatarNUP(data.plano.nup ?? ''));
+
+	/**
+	 * O que os `SearchableSelect` mostram ao abrir a tela, sem ir ao servidor.
+	 *
+	 * Sem isto o campo abre VAZIO num plano que tem coordenador — parece que
+	 * ninguém foi designado, e salvar por cima apagaria a designação.
+	 */
+	const opcaoCoordenador = $derived(
+		data.coordenadorNome && data.plano.coordenador_id
+			? { value: data.plano.coordenador_id, label: data.coordenadorNome }
+			: null
+	);
+	const opcaoDiretor = $derived(
+		data.plano.diretor_id && data.plano.diretor_nome
+			? { value: data.plano.diretor_id, label: data.plano.diretor_nome }
+			: null
+	);
+	const opcaoDemandante = $derived(
+		data.demandanteNome && data.plano.demandante_unidade_id
+			? { value: data.plano.demandante_unidade_id, label: data.demandanteNome }
+			: null
+	);
 
 	/** `policial_id` de quem impede a emissão — o card marca esses membros. */
 	const pendentes = $derived(new Set(data.custo.pendencias.map((p) => p.policial_id)));
@@ -71,7 +103,7 @@
 	<title>Plano {data.plano.numero}/{data.plano.ano} | Escalas</title>
 </svelte:head>
 
-<div class="max-w-4xl mx-auto space-y-5 px-1">
+<div class="space-y-6">
 	<div>
 		<BotaoVoltar href="/gise/planos" />
 		<div class="flex flex-wrap items-center gap-2 mt-2">
@@ -96,7 +128,10 @@
 	</div>
 
 	<!-- ---- Parâmetros gerais ---- -->
-	<section class="card-elevated rounded-2xl overflow-hidden">
+	<!-- Borda, e não `card-elevated`: a folha do layout já é o cartão da página, e
+	     empilhar superfície elevada aqui desenha cartão sobre cartão. O contorno
+	     existe porque a seção é um DISCLOSURE — ele delimita o que abre e fecha. -->
+	<section class="rounded-2xl border border-surface-200/70 dark:border-white/10 overflow-hidden">
 		<button
 			type="button"
 			class="w-full flex items-center justify-between gap-3 p-5 text-left"
@@ -131,11 +166,7 @@
 						>
 						<input name="nome" value={data.plano.nome} maxlength="160" required class="input" />
 					</label>
-					<label class="block space-y-1">
-						<span class="text-xs font-medium text-surface-700 dark:text-surface-200">Nº do NUP</span
-						>
-						<input name="nup" value={data.plano.nup ?? ''} maxlength="40" class="input" />
-					</label>
+					<CampoNup bind:valor={nup} />
 					<label class="block space-y-1">
 						<span class="text-xs font-medium text-surface-700 dark:text-surface-200"
 							>Departamento</span
@@ -178,7 +209,10 @@
 					{#if feriado}<input type="hidden" name="feriado" value="1" />{/if}
 				</div>
 
-				<div class="grid gap-3 sm:grid-cols-2">
+				<!-- Os três campos de tempo na MESMA linha: leem-se juntos ("das 05:00
+				     às 11:00, terminando em"), e a data de término separada delas ficava
+				     longe do horário que ela completa. -->
+				<div class="grid gap-3 sm:grid-cols-3">
 					<label class="block space-y-1">
 						<span class="text-xs font-medium text-surface-700 dark:text-surface-200"
 							>Apresentação</span
@@ -188,17 +222,58 @@
 					<label class="block space-y-1">
 						<span class="text-xs font-medium text-surface-700 dark:text-surface-200">
 							Previsão de término <span class="text-surface-600 dark:text-surface-400"
-								>(liga a sugestão de horas)</span
+								>(liga a sugestão)</span
 							>
 						</span>
 						<input name="hora_fim" value={data.plano.hora_fim ?? ''} class="input" />
 					</label>
 					<label class="block space-y-1">
-						<span class="text-xs font-medium text-surface-700 dark:text-surface-200"
-							>Data de término</span
-						>
+						<span class="text-xs font-medium text-surface-700 dark:text-surface-200">
+							Data de término <span class="text-surface-600 dark:text-surface-400"
+								>(se virar o dia)</span
+							>
+						</span>
 						<input type="date" name="data_fim" value={data.plano.data_fim ?? ''} class="input" />
 					</label>
+				</div>
+
+				<div class="grid gap-3 sm:grid-cols-2">
+					<div class="space-y-1">
+						<label
+							for="coord"
+							class="block text-xs font-medium text-surface-700 dark:text-surface-200"
+						>
+							DPC coordenador
+						</label>
+						<SearchableSelect
+							id="coord"
+							name="coordenador_id"
+							bind:value={coordenadorId}
+							selectedOption={opcaoCoordenador}
+							loadOptions={buscarCoordenadores}
+							minSearchChars={MIN_BUSCA}
+							placeholder="Busque por nome ou matrícula"
+						/>
+					</div>
+
+					<div class="space-y-1">
+						<label
+							for="dem"
+							class="block text-xs font-medium text-surface-700 dark:text-surface-200"
+						>
+							Delegacia / seccional demandante
+						</label>
+						<SearchableSelect
+							id="dem"
+							name="demandante_unidade_id"
+							bind:value={demandanteId}
+							selectedOption={opcaoDemandante}
+							loadOptions={buscarUnidades}
+							minSearchChars={MIN_BUSCA}
+							placeholder="Busque a unidade"
+						/>
+					</div>
+
 					<label class="block space-y-1">
 						<span class="text-xs font-medium text-surface-700 dark:text-surface-200"
 							>OIPs por equipe (referência)</span
@@ -214,37 +289,6 @@
 					</label>
 				</div>
 
-				<div class="space-y-1">
-					<label
-						for="coord"
-						class="block text-xs font-medium text-surface-700 dark:text-surface-200"
-					>
-						DPC coordenador
-					</label>
-					<SearchableSelect
-						id="coord"
-						name="coordenador_id"
-						bind:value={coordenadorId}
-						loadOptions={buscarCoordenadores}
-						minSearchChars={MIN_BUSCA}
-						placeholder="Busque por nome ou matrícula"
-					/>
-				</div>
-
-				<div class="space-y-1">
-					<label for="dem" class="block text-xs font-medium text-surface-700 dark:text-surface-200">
-						Delegacia / seccional demandante
-					</label>
-					<SearchableSelect
-						id="dem"
-						name="demandante_unidade_id"
-						bind:value={demandanteId}
-						loadOptions={buscarUnidades}
-						minSearchChars={MIN_BUSCA}
-						placeholder="Busque a unidade"
-					/>
-				</div>
-
 				<label class="block space-y-1">
 					<span class="text-xs font-medium text-surface-700 dark:text-surface-200"
 						>Local de briefing padrão</span
@@ -256,6 +300,18 @@
 						class="input"
 					/>
 				</label>
+
+				<!-- Signatário: é campo DO PLANO porque varia por operação — o Titular
+				     assina umas, o Adjunto outras. O nome vai congelado no documento;
+				     trocar aqui só vale para este plano. -->
+				<div class="pt-3 border-t border-surface-200/70 dark:border-white/10">
+					<CamposSignatario
+						bind:diretorId
+						bind:cargo={diretorCargo}
+						selecionado={opcaoDiretor}
+						nomePadrao={data.plano.diretor_id ? '' : data.plano.diretor_nome}
+					/>
+				</div>
 
 				{#if form?.error}
 					<p class="text-xs text-error-600 dark:text-error-400">{form.error}</p>

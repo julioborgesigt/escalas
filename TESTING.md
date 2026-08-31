@@ -487,6 +487,12 @@ Verificar cada transição de status:
 
 ### 5.2 Criação do plano
 
+- [ ] O formulário ocupa a **largura da folha** e as seções se separam por título e linha — sem cartão dentro de cartão, e sem o título deslocado para uma coluna estreita
+- [ ] **NUP**: digitar só números aplica a máscara `00000.000000/0000-00` conforme se digita, e para em 17 dígitos
+- [ ] Horário de apresentação, previsão de término e data de término ficam na **mesma linha**
+- [ ] **Signatário**: o nome é buscado no cadastro (como o coordenador) e o cargo é um `<select>` com três opções — Diretor Titular do DPI SUL, Diretor Adjunto do DPI SUL, Delegado de Polícia
+- [ ] Sem escolher signatário, a legenda diz qual nome o padrão global usará — e o plano nasce com ele
+
 - [ ] `/gise/operacoes` → "Nova operação" pergunta **Operação** ou **Plano operacional**
 - [ ] Escolher _Operação_ → abre o painel de sempre, sem nenhuma mudança de comportamento
 - [ ] Escolher _Plano operacional_ → `/gise/planos/novo`
@@ -499,6 +505,8 @@ Verificar cada transição de status:
 - [ ] Plano em **dia útil das 14:00 às 17:00** → "Sugerir pelo horário" propõe SEM CUSTO
 - [ ] O mesmo plano movido para **sábado** → sugere as mesmas horas como hora extra **plus**
 - [ ] Equipe com horário próprio (ex.: apresentação 03:30) usa o dela; equipe sem horário HERDA o do plano — o Anexo I imprime o valor efetivo
+- [ ] O editor abre com coordenador, demandante e signatário **já preenchidos** quando o plano os tem — campo vazio ali significaria "ninguém designado", e salvar por cima apagaria a designação
+- [ ] Trocar o signatário de UM plano não muda o padrão global nem os outros planos
 - [ ] Servidor **sem classe no cadastro** numa equipe com custo → linha em vermelho, "impede a emissão", e o botão de baixar o PDF desabilitado
 - [ ] Com a pendência aberta, **GET direto em `/api/planos/<id>/download` → 409** nomeando quem falta `[E2E: plano-operacional.spec.ts]` (o botão escondido nunca foi autorização)
 - [ ] O mesmo servidor sem classe numa equipe **sem custo** → AVISO, não pendência: a emissão continua liberada (equipe sem custo pode virar com custo, e o problema tem de aparecer antes da véspera)
@@ -509,6 +517,7 @@ Verificar cada transição de status:
 
 - [ ] Três páginas: corpo, `ANEXO I` e `ANEXO II`
 - [ ] O corpo cabe numa folha só, com a data e a assinatura do Diretor **na mesma página** do texto — assinatura sozinha na folha seguinte é defeito
+- [ ] O bloco de assinatura traz o nome e o cargo **escolhidos naquele plano**
 - [ ] Anexo I: uma tabela por equipe, com destino, VTR, apresentação e briefing; chefe marcado com `*`; `Total:` por equipe
 - [ ] Jornada sai como `6h (5N/1A)` na hora extra e `1,5 diárias` na diária; equipe sem custo imprime `Sem custo` e `R$ 0,00`
 - [ ] **CPF não aparece em lugar nenhum do documento** (minimização LGPD — o papel circula)

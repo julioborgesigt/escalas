@@ -8,7 +8,14 @@
  * não pode reescrever o que foi orçado).
  */
 import { fail } from '@sveltejs/kit';
-import { atualizarPlano, ressincronizarSnapshots, auditar, contextoDeEvento } from '$lib/db';
+import {
+	atualizarPlano,
+	ressincronizarSnapshots,
+	auditar,
+	contextoDeEvento,
+	buscarPolicial
+} from '$lib/db';
+import { cargoSignatarioValido } from '$lib/planos/padroes';
 import { validarHora, normalizarHora } from '$lib/gise/horarios';
 import { logger } from '$lib/server/logger';
 import { planoDaRota, getInt, getTexto, type EventoPlano } from './shared';
@@ -58,6 +65,12 @@ export const actionsPlano = {
 		const coordenadorId = getInt(fd, 'coordenador_id');
 		const demandanteId = getInt(fd, 'demandante_unidade_id');
 
+		// Signatário: o nome vai CONGELADO no plano, resolvido do cadastro agora.
+		// Sem escolha, o que já estava gravado permanece — limpar o campo não pode
+		// esvaziar em silêncio a linha de assinatura de um documento pronto.
+		const diretorId = getInt(fd, 'diretor_id');
+		const escolhido = Number.isInteger(diretorId) ? await buscarPolicial(db, diretorId) : null;
+
 		try {
 			await atualizarPlano(db, plano.id, {
 				nome,
@@ -75,7 +88,10 @@ export const actionsPlano = {
 				demandante_unidade_id: Number.isInteger(demandanteId) ? demandanteId : null,
 				departamento: getTexto(fd, 'departamento', 60) || 'DPI SUL',
 				local_briefing_padrao: getTexto(fd, 'local_briefing_padrao', 200),
-				oip_por_equipe_padrao: oipPorEquipe
+				oip_por_equipe_padrao: oipPorEquipe,
+				diretor_id: escolhido?.id ?? plano.diretor_id,
+				diretor_nome: escolhido?.nome ?? plano.diretor_nome,
+				diretor_cargo: cargoSignatarioValido(getTexto(fd, 'diretor_cargo', 160))
 			});
 		} catch (e) {
 			logger.error('[planos/editor] salvarPlano', { error: String(e), plano: plano.id });
