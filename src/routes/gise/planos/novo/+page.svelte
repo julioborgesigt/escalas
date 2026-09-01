@@ -391,14 +391,17 @@
 		{/if}
 
 		<div
-			class="flex justify-end gap-2 pt-4 pb-4 border-t border-surface-200/70 dark:border-white/10"
+			class="flex flex-col-reverse gap-2 pt-4 pb-4 border-t border-surface-200/70 dark:border-white/10 xs:flex-row xs:justify-end"
 		>
-			<a href="/gise/planos" class="btn preset-outlined-surface-500 py-2.5 px-4 rounded-xl text-sm">
+			<a
+				href="/gise/planos"
+				class="btn preset-outlined-surface-500 py-2.5 px-4 rounded-xl text-sm w-full xs:w-auto justify-center"
+			>
 				Cancelar
 			</a>
 			<button
 				type="submit"
-				class="btn preset-filled-primary-500 py-2.5 px-4 rounded-xl text-sm"
+				class="btn preset-filled-primary-500 py-2.5 px-4 rounded-xl text-sm w-full xs:w-auto justify-center"
 				disabled={loading.active || !podeCriar}
 			>
 				Criar plano

@@ -44,9 +44,10 @@ export type OpcaoEmLista = { valor: string; padrao: boolean; municipio: string |
  * O acréscimo não é cortesia: é o que impede perda silenciosa. A equipe guarda
  * o TEXTO, não uma referência à opção (é o que permite remover uma opção sem
  * esvaziar equipe montada), então uma equipe anterior à lista — ou cuja opção
- * foi removida depois — abriria o `<select>` sem o próprio valor entre os
- * `<option>`. O navegador então exibe o primeiro item, e salvar sem tocar no
- * campo trocaria o destino impresso no Anexo I sem que ninguém tivesse pedido.
+ * foi removida depois — abriria o seletor sem o próprio valor na lista. No
+ * `<select>` nativo o navegador exibe o primeiro item; no combobox, o valor
+ * some das opções. Nos dois casos, salvar sem tocar no campo perderia (ou
+ * trocaria) o destino impresso no Anexo I sem que ninguém tivesse pedido.
  *
  * `null` e string em branco são a mesma coisa aqui: equipe sem valor próprio,
  * que herda o padrão do plano (ver `briefingDaEquipe`/`destinoDaEquipe`).
