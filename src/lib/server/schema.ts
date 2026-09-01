@@ -31,7 +31,8 @@ import {
 	real,
 	index,
 	uniqueIndex,
-	unique
+	unique,
+	primaryKey
 } from 'drizzle-orm/sqlite-core';
 import { sql } from 'drizzle-orm';
 
@@ -1874,6 +1875,18 @@ export const planoOpcoes = sqliteTable(
 			.references(() => planosOperacionais.id, { onDelete: 'cascade' }),
 		tipo: text('tipo', { enum: ['briefing', 'origem', 'destino'] }).notNull(),
 		valor: text('valor').notNull(),
+		/**
+		 * O município a que esta opção corresponde — o que permite MEDIR o trajeto.
+		 *
+		 * Para `origem` e `destino`, é a própria cidade do rótulo. Para `briefing`,
+		 * é onde o PRÉDIO fica: "Sede da 4ª Seccional do Interior Sul" é um
+		 * endereço, e o trajeto da equipe passa pela cidade dele.
+		 *
+		 * Anulável porque nem toda opção resolve — as anteriores a esta coluna, e
+		 * qualquer local fora do Ceará. `NULL` é "não dá para medir por aqui", que a
+		 * tela explica e o preenchimento manual cobre.
+		 */
+		municipio_ibge: text('municipio_ibge').references(() => municipios.ibge),
 		padrao: integer('padrao', { mode: 'boolean' }).notNull().default(false),
 		ordem: integer('ordem').notNull().default(0),
 		created_at: text('created_at')
@@ -1888,6 +1901,72 @@ export const planoOpcoes = sqliteTable(
 		index('idx_plano_opcoes_plano').on(table.plano_id, table.tipo, table.ordem)
 	]
 );
+
+/**
+ * Os municípios do Ceará, com a coordenada da SEDE.
+ *
+ * Semeados por `scripts/gerar-distancias.mjs` a partir do Wikidata (CC0). O
+ * código IBGE é a chave: nome de município muda de grafia, código não.
+ *
+ * A coordenada é da sede, e não o centroide do polígono — a viatura sai da
+ * sede, e em município alongado o centro geométrico fica dezenas de km fora.
+ * Fica gravada porque é dela que o script parte para regerar a matriz.
+ */
+export const municipios = sqliteTable(
+	'municipios',
+	{
+		ibge: text('ibge').primaryKey(),
+		nome: text('nome').notNull(),
+		uf: text('uf').notNull(),
+		lat: real('lat').notNull(),
+		lon: real('lon').notNull()
+	},
+	(table) => [index('idx_municipios_nome').on(table.uf, table.nome)]
+);
+
+/**
+ * A distância RODOVIÁRIA entre duas sedes municipais, em quilômetros.
+ *
+ * Uma linha por par NÃO ordenado, sempre com o menor código primeiro: ida e
+ * volta diferem menos de 1,5% e o valor gravado é a média arredondada. Duas
+ * linhas obrigariam a explicar por que ir e voltar dão números diferentes num
+ * documento.
+ *
+ * É medida, não estimativa: linha reta erra por um fator que vai de 1,10 a 1,62
+ * e trocaria a rubrica em cima do limite de 100 km. Ver o cabeçalho de
+ * `scripts/gerar-distancias.mjs`.
+ *
+ * Só PRÉ-PREENCHE. O número que vale para um plano fica em
+ * `plano_equipes.distancia_km`, então atualizar esta tabela nunca reescreve
+ * documento já emitido — a mesma decisão de `custo_parametros`.
+ */
+export const distanciasMunicipios = sqliteTable(
+	'distancias_municipios',
+	{
+		origem_ibge: text('origem_ibge')
+			.notNull()
+			.references(() => municipios.ibge, { onDelete: 'cascade' }),
+		destino_ibge: text('destino_ibge')
+			.notNull()
+			.references(() => municipios.ibge, { onDelete: 'cascade' }),
+		km: integer('km').notNull()
+	},
+	(table) => [primaryKey({ columns: [table.origem_ibge, table.destino_ibge] })]
+);
+
+/**
+ * Procedência da matriz: de onde veio e quando foi medida.
+ *
+ * Uma linha para a tabela inteira, porque a matriz é gerada de uma vez — datar
+ * par a par repetiria o mesmo valor 16.836 vezes. A tela mostra esta data ao
+ * lado da distância preenchida, para quem confere saber a idade da medida.
+ */
+export const distanciasMedicao = sqliteTable('distancias_medicao', {
+	id: integer('id').primaryKey({ autoIncrement: true }),
+	fonte: text('fonte').notNull(),
+	medido_em: text('medido_em').notNull(),
+	pares: integer('pares').notNull()
+});
 
 // ---- Tipos inferidos ----
 
@@ -1908,6 +1987,8 @@ export type PlanoOperacional = typeof planosOperacionais.$inferSelect;
 export type PlanoEquipe = typeof planoEquipes.$inferSelect;
 export type PlanoEquipeMembro = typeof planoEquipeMembros.$inferSelect;
 export type PlanoOpcao = typeof planoOpcoes.$inferSelect;
+export type Municipio = typeof municipios.$inferSelect;
+export type DistanciaMunicipios = typeof distanciasMunicipios.$inferSelect;
 export type GiseEscala = typeof giseEscalas.$inferSelect;
 export type GiseSeccional = typeof giseSeccionais.$inferSelect;
 export type GiseEquipe = typeof giseEquipes.$inferSelect;

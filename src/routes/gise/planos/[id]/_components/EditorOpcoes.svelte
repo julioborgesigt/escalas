@@ -36,6 +36,8 @@
 		descricao,
 		exemplo,
 		opcoes,
+		municipios,
+		modo = 'local',
 		enviar
 	}: {
 		tipo: TipoOpcao;
@@ -43,17 +45,32 @@
 		descricao: string;
 		exemplo: string;
 		opcoes: PlanoOpcao[];
+		/** Os 184 municípios, para o seletor da linha de acrescentar. */
+		municipios: { ibge: string; nome: string }[];
+		modo?: 'cidade' | 'local';
 		/** `use:enhance` comum, vindo da página. */
 		enviar: (msg: string, aoConcluir?: () => void) => SubmitFunction;
 	} = $props();
 
 	let formAcrescentar: HTMLFormElement;
 	let campoValor: HTMLInputElement;
+	let campoMunicipio: HTMLInputElement;
 
-	const naLista = $derived(opcoes.map((o) => ({ chave: o.id, valor: o.valor, padrao: o.padrao })));
+	/** Nome do município por código, para a linha da lista exibi-lo. */
+	const nomePorIbge = $derived(new Map(municipios.map((m) => [m.ibge, m.nome])));
 
-	function acrescentar(valor: string) {
+	const naLista = $derived(
+		opcoes.map((o) => ({
+			chave: o.id,
+			valor: o.valor,
+			padrao: o.padrao,
+			municipio: o.municipio_ibge ? (nomePorIbge.get(o.municipio_ibge) ?? null) : null
+		}))
+	);
+
+	function acrescentar(valor: string, municipioIbge: string | null) {
 		campoValor.value = valor;
+		campoMunicipio.value = municipioIbge ?? '';
 		formAcrescentar.requestSubmit();
 	}
 </script>
@@ -62,6 +79,8 @@
 	{rotulo}
 	{descricao}
 	{exemplo}
+	{modo}
+	{municipios}
 	opcoes={naLista}
 	aoAcrescentar={acrescentar}
 	ocupado={loading.active}
@@ -116,4 +135,5 @@
 >
 	<input type="hidden" name="tipo" value={tipo} />
 	<input bind:this={campoValor} type="hidden" name="valor" />
+	<input bind:this={campoMunicipio} type="hidden" name="municipio_ibge" />
 </form>

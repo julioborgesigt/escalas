@@ -344,6 +344,8 @@
 					<div class="grid gap-4 md:grid-cols-3">
 						<EditorOpcoes
 							tipo="origem"
+							modo="cidade"
+							municipios={data.municipios}
 							rotulo="Cidades de origem"
 							descricao="De onde as equipes saem — mede a distância."
 							exemplo="Jucás"
@@ -352,6 +354,8 @@
 						/>
 						<EditorOpcoes
 							tipo="briefing"
+							modo="local"
+							municipios={data.municipios}
 							rotulo="Locais de briefing"
 							descricao="Onde as equipes se apresentam."
 							exemplo="Sede da 4ª Seccional do Interior Sul"
@@ -360,6 +364,8 @@
 						/>
 						<EditorOpcoes
 							tipo="destino"
+							modo="cidade"
+							municipios={data.municipios}
 							rotulo="Cidades de destino"
 							descricao="Para onde as equipes se deslocam."
 							exemplo="Acopiara"
@@ -426,6 +432,8 @@
 							opcoesBriefing={data.opcoes.briefing}
 							opcoesOrigem={data.opcoes.origem}
 							opcoesDestino={data.opcoes.destino}
+							matriz={new Map(Object.entries(data.matrizDistancias))}
+							medicao={data.medicao}
 							briefingPadrao={data.briefingPadrao}
 							origemPadrao={data.origemPadrao}
 							destinoPadrao={data.destinoPadrao}

@@ -81,6 +81,10 @@
 	// svelte-ignore state_referenced_locally
 	let diretorCargo = $state(data.diretorCargo);
 
+	/** Nome do município por código — a lista exibe o nome, o POST manda o código. */
+	const nomePorIbge = $derived(new Map(data.municipios.map((m) => [m.ibge, m.nome])));
+	const nomeDoMunicipio = (ibge: string | null) => (ibge ? (nomePorIbge.get(ibge) ?? null) : null);
+
 	const podeCriar = $derived(nome.trim().length > 0 && dataInicio !== '');
 </script>
 
@@ -221,7 +225,9 @@
 					descricao="De onde as equipes saem — mede a distância."
 					exemplo="Jucás"
 					opcoes={listaOrigem.map((o) => ({ chave: o.valor, ...o }))}
-					aoAcrescentar={(v) => (listaOrigem = acrescentarNaLista(listaOrigem, v))}
+					modo="cidade"
+					municipios={data.municipios}
+					aoAcrescentar={(v, m) => (listaOrigem = acrescentarNaLista(listaOrigem, v, m))}
 				>
 					{#snippet acoes(o)}
 						{@render botoes(
@@ -236,8 +242,14 @@
 					rotulo="Locais de briefing"
 					descricao="Onde as equipes se apresentam."
 					exemplo="Sede da 4ª Seccional do Interior Sul"
-					opcoes={listaBriefing.map((o) => ({ chave: o.valor, ...o }))}
-					aoAcrescentar={(v) => (listaBriefing = acrescentarNaLista(listaBriefing, v))}
+					opcoes={listaBriefing.map((o) => ({
+						chave: o.valor,
+						...o,
+						municipio: nomeDoMunicipio(o.municipio)
+					}))}
+					modo="local"
+					municipios={data.municipios}
+					aoAcrescentar={(v, m) => (listaBriefing = acrescentarNaLista(listaBriefing, v, m))}
 				>
 					{#snippet acoes(o)}
 						{@render botoes(
@@ -253,7 +265,9 @@
 					descricao="Para onde as equipes se deslocam."
 					exemplo="Acopiara"
 					opcoes={listaDestino.map((o) => ({ chave: o.valor, ...o }))}
-					aoAcrescentar={(v) => (listaDestino = acrescentarNaLista(listaDestino, v))}
+					modo="cidade"
+					municipios={data.municipios}
+					aoAcrescentar={(v, m) => (listaDestino = acrescentarNaLista(listaDestino, v, m))}
 				>
 					{#snippet acoes(o)}
 						{@render botoes(
@@ -270,12 +284,15 @@
 			     estrela depois de inserir todas. -->
 			{#each listaBriefing as o (o.valor)}
 				<input type="hidden" name="opcao_briefing" value={o.valor} />
+				<input type="hidden" name="municipio_briefing" value={o.municipio ?? ''} />
 			{/each}
 			{#each listaOrigem as o (o.valor)}
 				<input type="hidden" name="opcao_origem" value={o.valor} />
+				<input type="hidden" name="municipio_origem" value={o.municipio ?? ''} />
 			{/each}
 			{#each listaDestino as o (o.valor)}
 				<input type="hidden" name="opcao_destino" value={o.valor} />
+				<input type="hidden" name="municipio_destino" value={o.municipio ?? ''} />
 			{/each}
 			<input type="hidden" name="padrao_briefing" value={padraoDaLista(listaBriefing)} />
 			<input type="hidden" name="padrao_origem" value={padraoDaLista(listaOrigem)} />

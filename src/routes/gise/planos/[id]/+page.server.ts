@@ -19,9 +19,14 @@ import type { Actions, PageServerLoad } from './$types';
 import {
 	getDB,
 	janelaDaEquipe,
+	briefingDaEquipe,
+	origemDaEquipe,
 	destinoDaEquipe,
 	opcoesDoPlano,
 	valorPadrao,
+	listarMunicipios,
+	matrizDoPlano,
+	procedenciaDaMedicao,
 	buscarPolicial
 } from '$lib/db';
 import { unidades } from '$lib/server/schema';
@@ -30,6 +35,7 @@ import { carregarPlanoParaEdicao } from '$lib/server/planos/permissao';
 import { montarCustoDoPlano, versaoDeValores } from '$lib/server/planos/custo-do-plano';
 import { podeEmitir } from '$lib/planos/custo';
 import { classificarJanela } from '$lib/planos/horas-extras';
+import { distanciaDoTrajeto } from '$lib/planos/distancia';
 import { actionsPlano } from './_actions/actions-plano';
 import { actionsEquipe } from './_actions/actions-equipe';
 import { actionsMembros } from './_actions/actions-membros';
@@ -60,6 +66,27 @@ export const load: PageServerLoad = async ({ locals, params, platform, depends }
 	// coordenador designado parece não ter nenhum — e salvar por cima apagaria a
 	// designação sem que ninguém tivesse pedido isso.
 	const opcoes = await opcoesDoPlano(db, plano.id);
+	// A matriz vai REDUZIDA aos municípios deste plano — algumas dezenas de pares
+	// em vez de 16.836. É ela que deixa o card recalcular a distância enquanto o
+	// admin troca os seletores, sem uma ida ao servidor por clique.
+	const [municipios, matriz, medicao] = await Promise.all([
+		listarMunicipios(db),
+		matrizDoPlano(db, plano.id),
+		procedenciaDaMedicao(db)
+	]);
+	/**
+	 * Código IBGE por VALOR de opção.
+	 *
+	 * A equipe guarda o texto ("Acopiara"), não o id da opção — é o que permite
+	 * remover uma opção sem esvaziar equipe montada. Para medir o trajeto é
+	 * preciso voltar do texto ao município, e é este mapa que faz isso.
+	 */
+	const ibgePorValor = new Map(
+		[...opcoes.briefing, ...opcoes.origem, ...opcoes.destino]
+			.filter((o) => o.municipio_ibge)
+			.map((o) => [o.valor, o.municipio_ibge as string])
+	);
+
 	const briefingPadrao = valorPadrao(opcoes.briefing);
 	const origemPadrao = valorPadrao(opcoes.origem);
 	const destinoPadrao = valorPadrao(opcoes.destino);
@@ -83,6 +110,10 @@ export const load: PageServerLoad = async ({ locals, params, platform, depends }
 		 * cada tipo — que é o que a equipe nova recebe pré-preenchido.
 		 */
 		opcoes,
+		municipios,
+		/** Serializável: `Map` não sobrevive ao `load`. A tela remonta o `Map`. */
+		matrizDistancias: Object.fromEntries(matriz),
+		medicao,
 		briefingPadrao,
 		origemPadrao,
 		destinoPadrao,
@@ -98,10 +129,22 @@ export const load: PageServerLoad = async ({ locals, params, platform, depends }
 		 */
 		equipes: equipes.map((e) => {
 			const janela = janelaDaEquipe(e, plano);
+			// A medida do trajeto pela MESMA função que a tela usa. Vem daqui para a
+			// tela poder distinguir "este número é o medido" de "alguém corrigiu à
+			// mão" — sem isso, reabrir o editor sobrescreveria a correção.
+			const trajeto = distanciaDoTrajeto(
+				{
+					origem: ibgePorValor.get(origemDaEquipe(e, origemPadrao)) ?? null,
+					briefing: ibgePorValor.get(briefingDaEquipe(e, briefingPadrao)) ?? null,
+					destino: ibgePorValor.get(destinoDaEquipe(e, destinoPadrao)) ?? null
+				},
+				matriz
+			);
 			return {
 				...e,
 				membros: porEquipe.get(e.id) ?? [],
 				janela,
+				distanciaMedida: trajeto,
 				destinoEfetivo: destinoDaEquipe(e, destinoPadrao),
 				sugestaoHoras: classificarJanela(janela),
 				custo: custo.equipes.find((c) => c.equipe.id === e.id)?.total ?? 0

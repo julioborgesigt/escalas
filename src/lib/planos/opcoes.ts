@@ -28,8 +28,14 @@
 /** O mínimo que uma opção precisa ter para virar item de seletor. */
 export type OpcaoSelecionavel = { valor: string };
 
-/** Uma opção de lista ainda não gravada: sem `id`, porque o plano não existe. */
-export type OpcaoEmLista = { valor: string; padrao: boolean };
+/**
+ * Uma opção de lista ainda não gravada: sem `id`, porque o plano não existe.
+ *
+ * `municipio` é o código IBGE — o que permite MEDIR o trajeto da equipe. `null`
+ * quando a opção não resolve uma cidade (um local de briefing cuja cidade
+ * ninguém informou, por exemplo).
+ */
+export type OpcaoEmLista = { valor: string; padrao: boolean; municipio: string | null };
 
 /**
  * As opções do plano MAIS o valor que a equipe já tem, quando ele não está na
@@ -63,10 +69,14 @@ export function escolhasDaEquipe(opcoes: OpcaoSelecionavel[], atual: string | nu
  * no seletor não ajudam ninguém a escolher. No banco quem recusa é o índice;
  * aqui, esta comparação.
  */
-export function acrescentarNaLista(lista: OpcaoEmLista[], valor: string): OpcaoEmLista[] {
+export function acrescentarNaLista(
+	lista: OpcaoEmLista[],
+	valor: string,
+	municipio: string | null = null
+): OpcaoEmLista[] {
 	const limpo = valor.trim().slice(0, 200);
 	if (!limpo || lista.some((o) => o.valor === limpo)) return lista;
-	return [...lista, { valor: limpo, padrao: lista.length === 0 }];
+	return [...lista, { valor: limpo, padrao: lista.length === 0, municipio: municipio || null }];
 }
 
 /**

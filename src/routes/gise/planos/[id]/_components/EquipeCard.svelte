@@ -26,6 +26,7 @@
 	import type { PlanoOpcao, PlanoEquipe } from '$lib/server/schema';
 	import { escolhasDaEquipe } from '$lib/planos/opcoes';
 	import { sugerirCusteio, DISTANCIA_MINIMA_DIARIA_KM } from '$lib/planos/custeio';
+	import { distanciaDoTrajeto } from '$lib/planos/distancia';
 	import { formatarBRL, resumoHoras, rotuloCustoDaEquipe } from '$lib/planos/rotulos';
 	import { formatarDiarias, MIN_MEIAS, MAX_MEIAS } from '$lib/planos/diarias';
 	import type { HorasClassificadas } from '$lib/planos/horas-extras';
@@ -71,6 +72,8 @@
 		janela: { horaInicio: string; horaFim?: string | null };
 		/** Destino já resolvido pela cascata equipe → plano — o que o Anexo I imprime. */
 		destinoEfetivo: string;
+		/** O trajeto medido pelo servidor na abertura — `null` quando não dá para medir. */
+		distanciaMedida: { km: number; via: 'briefing' | 'direto' } | null;
 		sugestaoHoras: HorasClassificadas;
 		custo: number;
 	};
@@ -82,6 +85,8 @@
 		opcoesBriefing,
 		opcoesOrigem,
 		opcoesDestino,
+		matriz,
+		medicao,
 		briefingPadrao,
 		origemPadrao,
 		destinoPadrao
@@ -95,6 +100,10 @@
 		opcoesBriefing: PlanoOpcao[];
 		opcoesOrigem: PlanoOpcao[];
 		opcoesDestino: PlanoOpcao[];
+		/** Pares de distância entre os municípios DESTE plano — ver `matrizDoPlano`. */
+		matriz: ReadonlyMap<string, number>;
+		/** Quando a matriz foi medida, para a tela dizer a idade do número. */
+		medicao: { fonte: string; medido_em: string } | null;
 		/**
 		 * O valor da opção PADRÃO de cada tipo — o que a equipe passa a usar se o
 		 * campo dela ficar vazio.
@@ -150,6 +159,20 @@
 	// svelte-ignore state_referenced_locally
 	let distancia = $state<number | undefined>(equipe.distancia_km ?? undefined);
 
+	/**
+	 * O valor gravado é uma CORREÇÃO à mão, e não a medida?
+	 *
+	 * Deduzido da comparação com o que o servidor mediu — não há coluna para isso,
+	 * e não precisa haver: se o número gravado é o medido, ele veio da medição.
+	 * A distinção importa porque decide se reabrir o editor pode sobrescrever o
+	 * campo. Sem ela, uma correção feita por quem conhece um desvio real seria
+	 * apagada na próxima abertura da tela, em silêncio.
+	 */
+	// svelte-ignore state_referenced_locally
+	let manual = $state(
+		equipe.distancia_km !== null && equipe.distancia_km !== (equipe.distanciaMedida?.km ?? null)
+	);
+
 	const confirmExcluir = useConfirmationDialog<{ nome: string }>();
 
 	/** `id` do formulário dos dados — o rodapé o alcança por `form=`. */
@@ -161,6 +184,59 @@
 	 * Lida do ESTADO do campo, e não da coluna: quem acabou de digitar 150 km
 	 * espera que "Sugerir custeio" já use 150, sem ter de salvar antes.
 	 */
+	/**
+	 * Código IBGE por valor de opção — o caminho de volta do texto ao município.
+	 *
+	 * As três listas entram no mesmo mapa: um mesmo nome de cidade pode estar em
+	 * origem e destino, e o município dele é o mesmo nos dois.
+	 */
+	const ibgePorValor = $derived(
+		new Map(
+			[...opcoesBriefing, ...opcoesOrigem, ...opcoesDestino]
+				.filter((o) => o.municipio_ibge)
+				.map((o) => [o.valor, o.municipio_ibge as string])
+		)
+	);
+
+	/**
+	 * O trajeto medido para o que está NOS SELETORES agora.
+	 *
+	 * Recalculado a cada troca, sem ida ao servidor: a matriz do plano já subiu no
+	 * `load` (algumas dezenas de pares). É por isso que trocar o briefing muda o
+	 * número na hora, antes de salvar.
+	 */
+	const trajeto = $derived(
+		distanciaDoTrajeto(
+			{
+				origem: ibgePorValor.get(origem || origemPadrao) ?? null,
+				briefing: ibgePorValor.get(briefing || briefingPadrao) ?? null,
+				destino: ibgePorValor.get(destino || destinoPadrao) ?? null
+			},
+			matriz
+		)
+	);
+
+	/**
+	 * Enquanto o campo não foi corrigido à mão, ele SEGUE a medida.
+	 *
+	 * É o que faz o número mudar ao trocar a cidade. Assim que alguém digita,
+	 * `manual` trava e o efeito para de escrever — a correção é de quem conhece o
+	 * desvio, e a tela não a desfaz.
+	 */
+	$effect(() => {
+		if (!manual && trajeto) distancia = trajeto.km;
+	});
+
+	/** "Jucás → Iguatu → Acopiara, 72 km" — o caminho que o número mediu. */
+	const rotuloDoTrajeto = $derived.by(() => {
+		if (!trajeto) return '';
+		const pontas =
+			trajeto.via === 'briefing'
+				? [origem || origemPadrao, briefing || briefingPadrao, destino || destinoPadrao]
+				: [origem || origemPadrao, destino || destinoPadrao];
+		return `${pontas.filter(Boolean).join(' → ')}, ${trajeto.km} km`;
+	});
+
 	const distanciaKm = $derived(
 		typeof distancia === 'number' && Number.isFinite(distancia) && distancia >= 0 ? distancia : null
 	);
@@ -326,14 +402,47 @@
 							step="1"
 							placeholder="—"
 							class="input w-28"
+							oninput={() => (manual = true)}
 						/>
 					</label>
 				</div>
 
-				{#if distanciaKm === null}
+				<!-- De ONDE veio o número. Um campo preenchido sozinho sem dizer por quem
+				     é pior do que um campo vazio: quem confere não sabe se pode confiar,
+				     e quem corrige não sabe o que está sobrescrevendo. -->
+				{#if trajeto && !manual}
+					<p class="mt-1.5 text-xs text-surface-600 dark:text-surface-400">
+						Medida automática: <strong>{rotuloDoTrajeto}</strong>.
+						{#if trajeto.via === 'direto'}
+							<span class="text-warning-700 dark:text-warning-400">
+								A parada do briefing não entrou — falta a cidade dela nos Parâmetros gerais.
+							</span>
+						{/if}
+						{#if medicao}
+							<span class="text-2xs">Medido em {medicao.medido_em}.</span>
+						{/if}
+					</p>
+				{:else if trajeto && manual}
+					<p class="mt-1.5 flex flex-wrap items-center gap-2 text-xs">
+						<span class="text-surface-600 dark:text-surface-400">
+							Informada à mão. A medida do trajeto é <strong>{trajeto.km} km</strong>.
+						</span>
+						<button
+							type="button"
+							class="btn btn-sm preset-outlined-surface-500 rounded-lg px-2 py-1 text-2xs"
+							onclick={() => {
+								manual = false;
+								distancia = trajeto?.km;
+							}}
+						>
+							Usar a medida
+						</button>
+					</p>
+				{:else if distanciaKm === null}
 					<p class="mt-1.5 text-xs text-warning-700 dark:text-warning-400">
 						Sem a distância, a rubrica é decidida só pelo horário — e um deslocamento de {DISTANCIA_MINIMA_DIARIA_KM}
-						km ou mais é pago em diária mesmo dentro do expediente.
+						km ou mais é pago em diária mesmo dentro do expediente. Escolha origem e destino nas listas
+						do plano para a medida sair sozinha.
 					</p>
 				{/if}
 

@@ -502,7 +502,19 @@ Verificar cada transição de status:
 
 ### 5.3 Editor, custo e o que bloqueia a emissão
 
-### 5.3.1 Distância × horário — qual rubrica a equipe recebe
+### 5.3.1 Distância medida sozinha
+
+- [ ] Opção de origem/destino é escolhida num **seletor dos 184 municípios**, não digitada; a de briefing mantém o texto livre e ganha a **cidade onde fica**
+- [ ] Briefing sem cidade → a lista avisa, e a distância da equipe sai medida de ponta a ponta (sem a parada)
+- [ ] Equipe criada com as três cidades resolvidas **nasce com a distância preenchida** `[E2E: plano-operacional.spec.ts]`, e o texto ao lado nomeia o trajeto: "Jucás → Sede da 4ª Seccional do Interior Sul → Acopiara, 72 km"
+- [ ] **Trocar o destino no seletor muda o número na hora**, sem salvar — a matriz do plano já subiu no `load`
+- [ ] Digitar no campo **trava** a medida ("Informada à mão"), e trocar a cidade depois disso NÃO sobrescreve o valor digitado
+- [ ] O botão **"Usar a medida"** devolve o controle ao cálculo
+- [ ] O trajeto passa pelo briefing: Jucás → Iguatu → Juazeiro do Norte dá **189 km**, e não os 114 km diretos `[Vitest: distancia.test.ts]`
+- [ ] `node scripts/gerar-distancias.mjs --diff` mostra só o que mudou e **destaca em separado** quem cruzou os 100 km
+- [ ] A auditoria de `salvarEquipe` registra `distancia_procedencia` como `medida` ou `manual` — decidido pelo SERVIDOR, não por campo do formulário
+
+### 5.3.2 Distância × horário — qual rubrica a equipe recebe
 
 - [ ] Equipe **sem distância informada** → aviso na tela dizendo que a rubrica sai só pelo horário; o campo aparece SEMPRE, não só quando origem e destino estão preenchidos
 - [ ] Distância de **40 km** em janela noturna → "Sugerir custeio" propõe HORA EXTRA, e o texto diz "abaixo do limite de diária — vale o horário"
