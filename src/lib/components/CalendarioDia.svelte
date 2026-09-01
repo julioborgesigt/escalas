@@ -15,7 +15,8 @@
 	 * teria de esconder metade do markup nos dois sentidos.
 	 *
 	 * Ciclo de clique: 1º seleciona · 2º marca feriado · 3º desmarca o feriado
-	 * (mas mantém o dia).
+	 * (mas mantém o dia). Sem contorno próprio: o quadro é o da seção que o
+	 * abriga (Comando e demanda é o modelo — um retângulo, campos dentro).
 	 */
 	import { MESES_PT, DIAS_SEMANA_CURTO, isoData, hojeLocalISO } from '$lib/utils/datas';
 	import CalendarioNavMes from '$lib/components/CalendarioNavMes.svelte';
@@ -84,10 +85,7 @@
 	const hoje = hojeLocalISO();
 </script>
 
-<div
-	{id}
-	class="rounded-xl border border-surface-200 dark:border-surface-700 p-2 sm:p-2.5 space-y-1 bg-white dark:bg-surface-800/40"
->
+<div {id} class="space-y-1">
 	<CalendarioNavMes titulo={calTitulo} onAnterior={mesAnterior} onProximo={mesProximo} />
 
 	<div

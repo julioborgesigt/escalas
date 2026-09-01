@@ -26,7 +26,7 @@
 	}: { valor: string; opcional?: boolean } = $props();
 </script>
 
-<label class="block space-y-1">
+<label class="block min-w-0 space-y-1">
 	<span class="text-sm font-medium text-surface-700 dark:text-surface-200">
 		Nº do NUP
 		{#if opcional}<span class="text-surface-600 dark:text-surface-400">(opcional)</span>{/if}
@@ -37,6 +37,6 @@
 		oninput={(e) => (valor = formatarNUP(e.currentTarget.value))}
 		placeholder="00000.000000/0000-00"
 		maxlength="20"
-		class="input font-mono w-56"
+		class="input w-full font-mono"
 	/>
 </label>

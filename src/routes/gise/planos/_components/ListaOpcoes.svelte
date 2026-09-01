@@ -18,10 +18,11 @@
 	 *
 	 * As AÇÕES de cada linha vêm por snippet justamente por isso: o editor passa
 	 * dois `<form>`, a criação passa dois `<button>`.
+	 *
+	 * Sem quadro próprio: o contorno é o da seção (o mesmo de Comando e demanda).
 	 */
 	import type { Snippet } from 'svelte';
 	import Star from '@lucide/svelte/icons/star';
-	import Plus from '@lucide/svelte/icons/plus';
 
 	/** O mínimo que a lista precisa de cada opção para desenhá-la. */
 	export type OpcaoNaLista = {
@@ -133,9 +134,10 @@
 			class="btn preset-outlined-surface-500 py-2 px-3 rounded-xl text-sm shrink-0"
 			disabled={ocupado || !novo.trim()}
 			onclick={acrescentar}
+			aria-label="Acrescentar"
+			title="Acrescentar"
 		>
-			<Plus class="w-4 h-4" />
-			Acrescentar
+			+
 		</button>
 	</div>
 </div>
