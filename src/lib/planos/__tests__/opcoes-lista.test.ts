@@ -19,11 +19,11 @@ describe('regras da lista de opções', () => {
 		it('a primeira nasce padrão; as seguintes, não', () => {
 			let l: OpcaoEmLista[] = [];
 			l = acrescentarNaLista(l, 'Iguatu');
-			expect(l).toEqual([{ valor: 'Iguatu', padrao: true }]);
+			expect(l).toEqual([{ valor: 'Iguatu', padrao: true, municipio: null }]);
 			l = acrescentarNaLista(l, 'Acopiara');
 			expect(l).toEqual([
-				{ valor: 'Iguatu', padrao: true },
-				{ valor: 'Acopiara', padrao: false }
+				{ valor: 'Iguatu', padrao: true, municipio: null },
+				{ valor: 'Acopiara', padrao: false, municipio: null }
 			]);
 		});
 
@@ -33,7 +33,9 @@ describe('regras da lista de opções', () => {
 		});
 
 		it('apara o valor e recusa o que fica em branco', () => {
-			expect(acrescentarNaLista([], '  Jucás  ')).toEqual([{ valor: 'Jucás', padrao: true }]);
+			expect(acrescentarNaLista([], '  Jucás  ')).toEqual([
+				{ valor: 'Jucás', padrao: true, municipio: null }
+			]);
 			expect(acrescentarNaLista([], '   ')).toEqual([]);
 		});
 	});
@@ -42,7 +44,9 @@ describe('regras da lista de opções', () => {
 		it('move a estrela, deixando exatamente uma', () => {
 			const l = acrescentarNaLista(acrescentarNaLista([], 'Iguatu'), 'Acopiara');
 			const r = definirPadraoNaLista(l, 'Acopiara');
-			expect(r.filter((o) => o.padrao)).toEqual([{ valor: 'Acopiara', padrao: true }]);
+			expect(r.filter((o) => o.padrao)).toEqual([
+				{ valor: 'Acopiara', padrao: true, municipio: null }
+			]);
 		});
 
 		it('valor ausente não muda nada — e não deixa a lista sem padrão', () => {
@@ -57,14 +61,16 @@ describe('regras da lista de opções', () => {
 			l = acrescentarNaLista(l, 'Jucás');
 			const r = removerDaLista(l, 'Iguatu');
 			expect(r).toEqual([
-				{ valor: 'Acopiara', padrao: true },
-				{ valor: 'Jucás', padrao: false }
+				{ valor: 'Acopiara', padrao: true, municipio: null },
+				{ valor: 'Jucás', padrao: false, municipio: null }
 			]);
 		});
 
 		it('removida uma não-padrão, a estrela fica onde estava', () => {
 			const l = acrescentarNaLista(acrescentarNaLista([], 'Iguatu'), 'Acopiara');
-			expect(removerDaLista(l, 'Acopiara')).toEqual([{ valor: 'Iguatu', padrao: true }]);
+			expect(removerDaLista(l, 'Acopiara')).toEqual([
+				{ valor: 'Iguatu', padrao: true, municipio: null }
+			]);
 		});
 
 		it('esvaziar a lista é permitido', () => {
@@ -75,6 +81,6 @@ describe('regras da lista de opções', () => {
 	it('padraoDaLista devolve vazio quando não há estrela', () => {
 		expect(padraoDaLista(acrescentarNaLista([], 'Iguatu'))).toBe('Iguatu');
 		expect(padraoDaLista([])).toBe('');
-		expect(padraoDaLista([{ valor: 'Iguatu', padrao: false }])).toBe('');
+		expect(padraoDaLista([{ valor: 'Iguatu', padrao: false, municipio: null }])).toBe('');
 	});
 });

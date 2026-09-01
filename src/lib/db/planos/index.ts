@@ -65,3 +65,10 @@ export {
 	criarCustoParametros,
 	valoresDe
 } from './custo-parametros';
+
+export {
+	listarMunicipios,
+	matrizDoPlano,
+	distanciaEntreMunicipios,
+	procedenciaDaMedicao
+} from './distancias';

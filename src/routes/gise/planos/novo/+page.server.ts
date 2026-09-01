@@ -42,6 +42,7 @@ import {
 	criarEquipes,
 	adicionarOpcao,
 	definirOpcaoPadrao,
+	listarMunicipios,
 	type TipoOpcao,
 	buscarCustoParametrosVigente,
 	auditar,
@@ -64,7 +65,10 @@ export const load: PageServerLoad = async ({ locals, platform }) => {
 	if (!isAdminGeral(locals.usuario)) redirect(302, '/gise');
 
 	const db = getDB(platform);
-	const vigente = await buscarCustoParametrosVigente(db);
+	const [vigente, municipios] = await Promise.all([
+		buscarCustoParametrosVigente(db),
+		listarMunicipios(db)
+	]);
 
 	return {
 		hoje: hojeBrasilISO(),
@@ -76,6 +80,8 @@ export const load: PageServerLoad = async ({ locals, platform }) => {
 		 * nada" é pior do que um aviso na criação.
 		 */
 		temValores: vigente !== null,
+		/** Os 184 do Ceará: as opções de origem/destino saem daqui, não de texto livre. */
+		municipios,
 		/** O primeiro da lista fechada — quem assina de fato se escolhe no campo. */
 		diretorCargo: CARGO_SIGNATARIO_PADRAO
 	};
@@ -106,18 +112,29 @@ const TIPOS_OPCAO: readonly TipoOpcao[] = ['briefing', 'origem', 'destino'];
  * é obrigado a ter passado por aquela tela, e duas linhas iguais no seletor não
  * ajudam ninguém a escolher.
  */
-function listaDoCorpo(fd: FormData, campo: string): string[] {
+function listaDoCorpo(
+	fd: FormData,
+	tipo: TipoOpcao
+): { valores: string[]; municipios: Map<string, string> } {
+	const brutos = fd.getAll(`opcao_${tipo}`);
+	// Os dois arrays viajam PAREADOS — um campo oculto de cada por opção, na mesma
+	// ordem. É o índice que os liga, então a leitura precisa andar junta: ler o
+	// município por posição errada amarraria a cidade de uma opção à outra, e o
+	// trajeto sairia medido pelo lugar errado sem erro nenhum.
+	const codigos = fd.getAll(`municipio_${tipo}`);
+
 	const vistos = new Set<string>();
-	const saida: string[] = [];
-	for (const bruto of fd.getAll(campo)) {
-		const v = String(bruto).trim().slice(0, 200);
-		if (v && !vistos.has(v)) {
-			vistos.add(v);
-			saida.push(v);
-		}
-		if (saida.length >= 50) break;
+	const valores: string[] = [];
+	const municipios = new Map<string, string>();
+	for (let i = 0; i < brutos.length && valores.length < 50; i++) {
+		const v = String(brutos[i]).trim().slice(0, 200);
+		if (!v || vistos.has(v)) continue;
+		vistos.add(v);
+		valores.push(v);
+		const ibge = String(codigos[i] ?? '').trim();
+		if (/^\d{7}$/.test(ibge)) municipios.set(v, ibge);
 	}
-	return saida;
+	return { valores, municipios };
 }
 
 export const actions: Actions = {
@@ -220,12 +237,12 @@ export const actions: Actions = {
 		};
 		try {
 			for (const tipo of TIPOS_OPCAO) {
-				const valores = listaDoCorpo(fd, `opcao_${tipo}`);
+				const { valores, municipios } = listaDoCorpo(fd, tipo);
 				const escolhida = texto(fd, `padrao_${tipo}`, 200);
 				let idPadrao: number | null = null;
 
 				for (const valor of valores) {
-					const r = await adicionarOpcao(db, criado.id, tipo, valor);
+					const r = await adicionarOpcao(db, criado.id, tipo, valor, municipios.get(valor) ?? null);
 					if (r.ok && valor === escolhida) idPadrao = r.id;
 				}
 				if (idPadrao !== null) await definirOpcaoPadrao(db, criado.id, idPadrao);

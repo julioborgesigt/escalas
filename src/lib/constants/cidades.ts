@@ -4,6 +4,13 @@
  * Alimenta o campo "cidade" do cadastro de unidades — lista fechada em vez de
  * texto livre para que o filtro por cidade em `/escalas` continue casando
  * (antes havia "Juazeiro do Norte", "juazeiro" e "JUAZEIRO DO N." na base).
+ *
+ * **A grafia é a do IBGE**, e `__tests__/cidades.test.ts` reprova se esta lista
+ * divergir da tabela `municipios` — a mesma que a matriz de distâncias usa. Um
+ * nome escrito diferente nos dois lados faz a opção de origem/destino do plano
+ * não casar com município nenhum, e a distância que era automática volta a ser
+ * manual sem erro nem aviso. Foi assim que "Ererê" ficou aqui por engano até
+ * set/2026; o IBGE escreve **Ereré**.
  */
 export const CIDADES_CEARA = [
 	'Abaiara',
@@ -60,7 +67,7 @@ export const CIDADES_CEARA = [
 	'Croatá',
 	'Cruz',
 	'Deputado Irapuan Pinheiro',
-	'Ererê',
+	'Ereré',
 	'Eusébio',
 	'Farias Brito',
 	'Forquilha',

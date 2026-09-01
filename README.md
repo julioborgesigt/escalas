@@ -220,6 +220,9 @@ O projeto usa **Cloudflare D1** (SQLite serverless) via **Drizzle ORM**. O schem
 | `custo_parametros`               | Valores de hora extra por faixa e das diárias, em centavos — **append-only**: cada gravação é uma versão nova                |
 | `planos_operacionais`            | Plano operacional (operação COM deslocamento): número/ano, janela, coordenador, demandante, signatário e a versão de valores |
 | `plano_opcoes`                   | Listas de BRIEFING, CIDADE DE ORIGEM e CIDADE DE DESTINO que o plano oferece aos seletores das equipes — uma padrão por tipo |
+| `municipios`                     | Os 184 municípios do Ceará: código IBGE, nome oficial e coordenada da SEDE                                                   |
+| `distancias_municipios`          | Distância RODOVIÁRIA entre duas sedes, em km — 16.836 pares, uma linha por par não ordenado                                  |
+| `distancias_medicao`             | Procedência da matriz: de onde veio e quando foi medida                                                                      |
 | `plano_equipes`                  | Equipes do plano: viatura, origem/destino e a distância entre eles, briefing, horário próprio e a rubrica                    |
 | `plano_equipe_membros`           | Efetivo do plano, com `cargo`/`classe` CONGELADOS — são a base de cálculo, não acompanham promoção                           |
 | `aceites_termos`                 | Histórico de aceite de termos de uso (versão, hash, IP, user-agent)                                                          |
@@ -1004,9 +1007,46 @@ DENTRO do expediente ordinário. Pelo relógio ela custaria zero; pela distânci
 ela custa diária. Consultar o horário primeiro produziria "sem custo" para uma
 equipe que dormiu fora.
 
-A distância é **digitada por equipe** (`plano_equipes.distancia_km`), não
-calculada: não há serviço de rotas no ambiente, e quem monta o plano conhece o
-trajeto. `NULL` é "ninguém mediu ainda" e é distinto de zero — zero afirma que
+### A distância é MEDIDA, e o trajeto passa pelo briefing
+
+O deslocamento é `origem → briefing → destino`, não a reta entre as pontas: a
+equipe sai de Jucás, se apresenta em Iguatu e cumpre mandados em Acopiara. A
+diferença não é decorativa — Jucás → Iguatu → Juazeiro do Norte dá **189 km**
+contra 114 km diretos.
+
+O número vem de uma **matriz rodoviária gravada** (`distancias_municipios`,
+16.836 pares), gerada uma vez por `scripts/gerar-distancias.mjs` e consultada
+como busca local. Três razões para tabela em vez de API na hora:
+REPRODUTIBILIDADE (o mesmo par devolve sempre o mesmo valor), DISPONIBILIDADE
+(serviço fora do ar não pode impedir a montagem de um plano) e AUDITABILIDADE
+(dá para dizer de onde veio cada número, e quando).
+
+**Linha reta foi descartada com medição, não por gosto.** Em 12 pares reais do
+Ceará o fator rodovia/reta variou de **1,10 a 1,62** — nenhum multiplicador fixo
+serve — e em **3 dos 12** ela daria a rubrica errada, sempre para menos
+(Iguatu → Juazeiro do Norte: 95 km em reta, 154 km por estrada). O erro cai em
+cima do limite de 100 km, que é onde ele custa dinheiro.
+
+As fontes, e por que cada uma: **IBGE** para nomes e códigos (é o nome que sai
+impresso, e nem o Wikidata nem a constante do projeto acertavam os 184 —
+"Guaiuba" sem acento num, "Ererê" por "Ereré" no outro); **Wikidata** (CC0) para
+a coordenada da SEDE, não o centroide do polígono; **OSRM/OpenStreetMap** (ODbL)
+para a rodovia, cuja licença permite ARMAZENAR o resultado — o Google Distance
+Matrix proíbe guardar além de ~30 dias, o que inviabiliza tabela permanente.
+
+O campo **continua editável**: uma equipe pode ter um desvio real. Quem decide se
+o valor gravado é a medida ou uma correção é o SERVIDOR, que remede na gravação e
+registra na auditoria — confiar num campo do formulário deixaria o corpo do POST
+afirmar a procedência de um número que vira dinheiro.
+
+**Atualizar a matriz é sob demanda e revisado.** `node scripts/gerar-distancias.mjs
+--diff` regera e mostra só o que mudou, destacando em separado os pares que
+CRUZARAM os 100 km — esses trocam a rubrica de todo plano futuro naquela rota, o
+que é mudança de dinheiro e pede gente olhando. Não há rotina automática. Plano
+já emitido nunca muda: `plano_equipes.distancia_km` guarda o número na linha da
+equipe, e a tabela só PRÉ-PREENCHE — a mesma decisão de `custo_parametros`.
+
+`NULL` é "ninguém mediu ainda" e é distinto de zero — zero afirma que
 origem e destino são a mesma cidade. Sem a medida, a sugestão cai no horário e a
 tela **avisa**, porque a diária não sugerida é a que não é paga.
 

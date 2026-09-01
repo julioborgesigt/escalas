@@ -59,7 +59,11 @@ export const actionsOpcoes = {
 		const valor = getTexto(fd, 'valor', 200);
 		if (!valor) return fail(400, { error: `Preencha antes de acrescentar à lista.` });
 
-		const r = await adicionarOpcao(db, plano.id, tipo, valor);
+		// O município é OPCIONAL: briefing sem cidade informada é estado válido (a
+		// tela avisa), e sem ele o trajeto da equipe é medido de ponta a ponta.
+		const municipio = getTexto(fd, 'municipio_ibge', 7) || null;
+
+		const r = await adicionarOpcao(db, plano.id, tipo, valor, municipio);
 		if (!r.ok) {
 			return fail(409, {
 				error:
@@ -78,7 +82,7 @@ export const actionsOpcoes = {
 				entidade: 'plano_operacional',
 				entidade_id: plano.id,
 				detalhes: `Opção "${valor}" acrescentada à lista de ${LISTA[tipo]}`,
-				dados_depois: { tipo, valor },
+				dados_depois: { tipo, valor, municipio },
 				...contexto
 			},
 			{ env }

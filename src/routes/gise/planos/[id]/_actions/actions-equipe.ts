@@ -9,6 +9,12 @@ import { fail } from '@sveltejs/kit';
 import {
 	criarEquipes,
 	atualizarEquipe,
+	opcoesDoPlano,
+	valorPadrao,
+	briefingDaEquipe,
+	origemDaEquipe,
+	destinoDaEquipe,
+	matrizDoPlano,
 	excluirEquipe,
 	renumerarEquipes,
 	auditar,
@@ -16,6 +22,7 @@ import {
 } from '$lib/db';
 import { validarHora, normalizarHora } from '$lib/gise/horarios';
 import { meiasDiariasValidas } from '$lib/planos/diarias';
+import { distanciaDoTrajeto } from '$lib/planos/distancia';
 import { logger } from '$lib/server/logger';
 import {
 	planoDaRota,
@@ -136,6 +143,45 @@ export const actionsEquipe = {
 			distanciaKm = n;
 		}
 
+		// O SERVIDOR remede o trajeto com as cidades que estão sendo gravadas, e
+		// compara. Não é para corrigir o número — o que o admin gravou vale, porque
+		// uma equipe pode ter um desvio real — é para a AUDITORIA registrar se
+		// aquele valor é a medida ou uma correção. Confiar num campo do formulário
+		// para dizer isso deixaria o corpo do POST afirmar a procedência de um
+		// número que vira dinheiro.
+		const cidadeOrigem = getTexto(fd, 'cidade_origem', 120);
+		const cidadeDestino = getTexto(fd, 'cidade_destino', 120);
+		const localBriefing = getTextoOuNulo(fd, 'local_briefing', 200);
+
+		const [opcoes, matriz] = await Promise.all([
+			opcoesDoPlano(db, plano.id),
+			matrizDoPlano(db, plano.id)
+		]);
+		const ibgePorValor = new Map(
+			[...opcoes.briefing, ...opcoes.origem, ...opcoes.destino]
+				.filter((o) => o.municipio_ibge)
+				.map((o) => [o.valor, o.municipio_ibge as string])
+		);
+		const medido = distanciaDoTrajeto(
+			{
+				origem:
+					ibgePorValor.get(
+						origemDaEquipe({ cidade_origem: cidadeOrigem }, valorPadrao(opcoes.origem))
+					) ?? null,
+				briefing:
+					ibgePorValor.get(
+						briefingDaEquipe({ local_briefing: localBriefing }, valorPadrao(opcoes.briefing))
+					) ?? null,
+				destino:
+					ibgePorValor.get(
+						destinoDaEquipe({ cidade_destino: cidadeDestino }, valorPadrao(opcoes.destino))
+					) ?? null
+			},
+			matriz
+		);
+		const distanciaProcedencia =
+			distanciaKm === null ? 'ausente' : distanciaKm === medido?.km ? 'medida' : 'manual';
+
 		try {
 			await atualizarEquipe(db, equipe.id, {
 				nome,
@@ -144,10 +190,10 @@ export const actionsEquipe = {
 				viatura_placa: getTexto(fd, 'viatura_placa', 20),
 				hora_inicio: horaInicio,
 				hora_fim: horaFim,
-				cidade_origem: getTexto(fd, 'cidade_origem', 120),
-				cidade_destino: getTexto(fd, 'cidade_destino', 120),
+				cidade_origem: cidadeOrigem,
+				cidade_destino: cidadeDestino,
 				distancia_km: distanciaKm,
-				local_briefing: getTextoOuNulo(fd, 'local_briefing', 200),
+				local_briefing: localBriefing,
 				tipo_custo: tipoCusto,
 				horas_normais: horasNormais,
 				horas_plus: horasPlus,
@@ -177,6 +223,8 @@ export const actionsEquipe = {
 				},
 				dados_depois: {
 					nome,
+					distancia_km: distanciaKm,
+					distancia_procedencia: distanciaProcedencia,
 					tipo_custo: tipoCusto,
 					horas_normais: horasNormais,
 					horas_plus: horasPlus,

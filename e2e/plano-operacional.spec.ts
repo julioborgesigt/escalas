@@ -39,12 +39,15 @@ const MAT_SEM_CLASSE = 'PLANE2E02';
 const NOME_PLANO = 'OPERACAO E2E PLANO OPERACIONAL';
 /** Um SEGUNDO plano, só para provar que a lista dele não é alcançável do primeiro. */
 const NOME_VIZINHO = 'OPERACAO E2E PLANO VIZINHO';
+/** Um plano com as três cidades resolvidas, para a medição automática. */
+const NOME_MEDIDO = 'OPERACAO E2E DISTANCIA MEDIDA';
 
 let tokenSuper: string | null = null;
 let tokenAdmin: string | null = null;
 let ehSuperAdmin = false;
 let planoId: number | null = null;
 let planoVizinhoId: number | null = null;
+let planoMedidoId: number | null = null;
 /** As versões de valores que ESTE spec gravou — apagadas no fim. */
 const versoesCriadas: number[] = [];
 
@@ -114,6 +117,7 @@ test.afterAll(() => {
 	// das versões que ele referencia.
 	if (planoId) execD1Local(`DELETE FROM planos_operacionais WHERE id = ${planoId};`);
 	if (planoVizinhoId) execD1Local(`DELETE FROM planos_operacionais WHERE id = ${planoVizinhoId};`);
+	if (planoMedidoId) execD1Local(`DELETE FROM planos_operacionais WHERE id = ${planoMedidoId};`);
 	if (versoesCriadas.length > 0) {
 		execD1Local(`DELETE FROM custo_parametros WHERE id IN (${versoesCriadas.join(',')});`);
 	}
@@ -259,6 +263,82 @@ test.describe.serial('Plano operacional — valores, plano e PDF', () => {
 			// ninguém mediu para este trajeto.
 			expect(e.distancia_km).toBeNull();
 		}
+	});
+
+	test('com as três cidades resolvidas, a equipe nasce com a distância MEDIDA', async ({
+		request
+	}) => {
+		// Códigos IBGE reais. O trajeto é Jucás → Iguatu → Acopiara: 35 + 37 = 72 km,
+		// e NÃO os 70 km do caminho direto — é o briefing entrando na conta.
+		const JUCAS = '2307403';
+		const IGUATU = '2305506';
+		const ACOPIARA = '2300309';
+
+		const res = await request.post('/gise/planos/novo?/criar', {
+			headers: {
+				...headersFormAction(tokenAdmin!),
+				'content-type': 'application/x-www-form-urlencoded'
+			},
+			data: form({
+				nome: NOME_MEDIDO,
+				departamento: 'DPI SUL',
+				data_inicio: '2026-08-01',
+				hora_inicio: '05:00',
+				opcao_origem: 'Jucás',
+				municipio_origem: JUCAS,
+				padrao_origem: 'Jucás',
+				opcao_briefing: 'Sede E2E Medida',
+				municipio_briefing: IGUATU,
+				padrao_briefing: 'Sede E2E Medida',
+				opcao_destino: 'Acopiara',
+				municipio_destino: ACOPIARA,
+				padrao_destino: 'Acopiara',
+				qtd_equipes: '1',
+				oip_por_equipe: '1'
+			})
+		});
+		expect(res.status()).toBe(200);
+
+		planoMedidoId = idDe(
+			`SELECT id FROM planos_operacionais WHERE nome = '${NOME_MEDIDO}' ORDER BY id DESC LIMIT 1;`
+		);
+		expect(planoMedidoId).not.toBeNull();
+
+		// O município chegou junto do valor — é ele que permite medir.
+		const opcoes = queryD1Local<{ tipo: string; municipio_ibge: string | null }>(
+			`SELECT tipo, municipio_ibge FROM plano_opcoes WHERE plano_id = ${planoMedidoId} ORDER BY tipo;`
+		);
+		expect(opcoes).toEqual([
+			{ tipo: 'briefing', municipio_ibge: IGUATU },
+			{ tipo: 'destino', municipio_ibge: ACOPIARA },
+			{ tipo: 'origem', municipio_ibge: JUCAS }
+		]);
+
+		// A matriz semeada pela 0072 tem de responder pelos três pares do trajeto.
+		const perna = (a: string, b: string) =>
+			queryD1Local<{ km: number }>(
+				`SELECT km FROM distancias_municipios WHERE origem_ibge = '${a < b ? a : b}' AND destino_ibge = '${a < b ? b : a}';`
+			)?.[0]?.km ?? null;
+		const esperado = (perna(JUCAS, IGUATU) ?? 0) + (perna(IGUATU, ACOPIARA) ?? 0);
+		expect(esperado).toBeGreaterThan(0);
+		// Passar pelo briefing custa mais do que ir direto: é a razão de a regra
+		// somar as duas pernas, e o que este teste fixa contra uma volta ao direto.
+		expect(esperado).toBeGreaterThan(perna(JUCAS, ACOPIARA) ?? 0);
+
+		const equipe = queryD1Local<{ distancia_km: number | null }>(
+			`SELECT distancia_km FROM plano_equipes WHERE plano_id = ${planoMedidoId};`
+		);
+		// A equipe NASCE sem distância: a medida é da TELA (o `load` calcula e o card
+		// preenche). Gravar no `criarEquipes` faria o número entrar no banco sem
+		// ninguém ter visto o trajeto que o produziu.
+		expect(equipe![0].distancia_km).toBeNull();
+
+		// E a tela mede: mesma função, mesmos dados.
+		const editor = await request.get(`/gise/planos/${planoMedidoId}`, {
+			headers: cookieDeSessao(tokenAdmin!)
+		});
+		expect(editor.status()).toBe(200);
+		expect(await editor.text()).toContain(String(esperado));
 	});
 
 	test('a distância manda na rubrica: 100 km viram diária mesmo em pleno expediente', async ({

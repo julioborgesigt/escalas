@@ -96,7 +96,8 @@ export async function adicionarOpcao(
 	db: Database,
 	planoId: number,
 	tipo: TipoOpcao,
-	valor: string
+	valor: string,
+	municipioIbge: string | null = null
 ): Promise<ResultadoOpcao> {
 	const limpo = valor.trim().slice(0, 200);
 	if (!limpo) return { ok: false, motivo: 'erro' };
@@ -112,6 +113,7 @@ export async function adicionarOpcao(
 				plano_id: planoId,
 				tipo,
 				valor: limpo,
+				municipio_ibge: municipioIbge || null,
 				padrao: primeira,
 				ordem: proximaOrdem
 			})
