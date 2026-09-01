@@ -19,14 +19,13 @@
 	import { loading } from '$lib/loading.svelte';
 	import { toaster } from '$lib/toast';
 	import BotaoVoltar from '$lib/components/BotaoVoltar.svelte';
-	import CalendarioDia from '$lib/components/CalendarioDia.svelte';
-	import SearchableSelect from '$lib/components/SearchableSelect.svelte';
-	import { buscarCoordenadores, buscarUnidades, MIN_BUSCA } from '../_components/buscas';
 	import { fmtDate } from '$lib/gise/formatters';
 	import { formatarBRL } from '$lib/planos/rotulos';
 	import { cargoSignatarioValido } from '$lib/planos/padroes';
 	import CampoNup from '../_components/CampoNup.svelte';
 	import CamposAcoes from '../_components/CamposAcoes.svelte';
+	import CamposComando from '../_components/CamposComando.svelte';
+	import CamposDataExecucao from '../_components/CamposDataExecucao.svelte';
 	import CamposSignatario from '../_components/CamposSignatario.svelte';
 	import TituloSecao from '../_components/TituloSecao.svelte';
 	import EditorOpcoes from './_components/EditorOpcoes.svelte';
@@ -45,6 +44,12 @@
 	let dataInicio = $state(data.plano.data_inicio);
 	// svelte-ignore state_referenced_locally
 	let feriado = $state(data.plano.feriado);
+	// svelte-ignore state_referenced_locally
+	let horaInicio = $state(data.plano.hora_inicio);
+	// svelte-ignore state_referenced_locally
+	let horaFim = $state(data.plano.hora_fim ?? '');
+	// svelte-ignore state_referenced_locally
+	let dataFim = $state(data.plano.data_fim ?? '');
 
 	// Captura intencional: os dois selects passam a ser do usuário depois da
 	// primeira renderização, e re-derivá-los apagaria uma escolha em curso.
@@ -223,50 +228,15 @@
 					</section>
 
 					<div class="grid order-5 gap-6 md:grid-cols-[2fr_3fr] md:items-start">
-						<section class="card-quadro min-w-0 rounded-2xl p-5 sm:p-6 space-y-4">
-							<TituloSecao
-								texto="Data de execução"
-								apoio="Escolha a data da operação. Caso seja feriado, dê um clique duplo no dia escolhido."
-							/>
-
-							<CalendarioDia bind:valor={dataInicio} bind:feriado />
-							<input type="hidden" name="data_inicio" value={dataInicio} />
-							{#if feriado}<input type="hidden" name="feriado" value="1" />{/if}
-
-							<div class="flex flex-wrap gap-4">
-								<label class="block space-y-1">
-									<span class="text-sm font-medium text-surface-700 dark:text-surface-200"
-										>Horário de apresentação</span
-									>
-									<input name="hora_inicio" value={data.plano.hora_inicio} class="input w-32" />
-								</label>
-								<label class="block space-y-1">
-									<span class="text-sm font-medium text-surface-700 dark:text-surface-200">
-										Previsão de término <span class="text-surface-600 dark:text-surface-400"
-											>(liga a sugestão)</span
-										>
-									</span>
-									<input name="hora_fim" value={data.plano.hora_fim ?? ''} class="input w-32" />
-								</label>
-								<label class="block space-y-1">
-									<span class="text-sm font-medium text-surface-700 dark:text-surface-200">
-										Data de término <span class="text-surface-600 dark:text-surface-400"
-											>(se virar o dia)</span
-										>
-									</span>
-									<input
-										type="date"
-										name="data_fim"
-										value={data.plano.data_fim ?? ''}
-										class="input w-44"
-									/>
-								</label>
-							</div>
-							<p class="text-xs text-surface-600 dark:text-surface-400">
-								Sem previsão de término, o sistema não sugere a quantidade de horas — ela é digitada
-								por equipe.
-							</p>
-						</section>
+						<CamposDataExecucao
+							bind:dataInicio
+							bind:feriado
+							bind:horaInicio
+							bind:horaFim
+							bind:dataFim
+							apoioTermino="(liga a sugestão)"
+							notaRodape="Sem previsão de término, o sistema não sugere a quantidade de horas — ela é digitada por equipe."
+						/>
 
 						<div class="min-w-0 space-y-6">
 							<section class="card-quadro rounded-2xl p-5 sm:p-6 space-y-4">
@@ -323,45 +293,12 @@
 								</div>
 							</section>
 
-							<section class="card-quadro rounded-2xl p-5 sm:p-6 space-y-4">
-								<TituloSecao texto="Comando e demanda" />
-								<div class="space-y-4">
-									<div class="space-y-1">
-										<label
-											for="coord"
-											class="block text-sm font-medium text-surface-700 dark:text-surface-200"
-										>
-											DPC coordenador da operação
-										</label>
-										<SearchableSelect
-											id="coord"
-											name="coordenador_id"
-											bind:value={coordenadorId}
-											selectedOption={opcaoCoordenador}
-											loadOptions={buscarCoordenadores}
-											minSearchChars={MIN_BUSCA}
-											placeholder="Busque por nome ou matrícula"
-										/>
-									</div>
-									<div class="space-y-1">
-										<label
-											for="dem"
-											class="block text-sm font-medium text-surface-700 dark:text-surface-200"
-										>
-											Delegacia / seccional demandante
-										</label>
-										<SearchableSelect
-											id="dem"
-											name="demandante_unidade_id"
-											bind:value={demandanteId}
-											selectedOption={opcaoDemandante}
-											loadOptions={buscarUnidades}
-											minSearchChars={MIN_BUSCA}
-											placeholder="Busque a unidade"
-										/>
-									</div>
-								</div>
-							</section>
+							<CamposComando
+								bind:coordenadorId
+								bind:demandanteId
+								coordenadorSelecionado={opcaoCoordenador}
+								demandanteSelecionado={opcaoDemandante}
+							/>
 
 							<section class="card-quadro rounded-2xl p-5 sm:p-6 space-y-4">
 								<TituloSecao

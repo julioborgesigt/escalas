@@ -28,12 +28,11 @@
 	import { loading } from '$lib/loading.svelte';
 	import { toaster } from '$lib/toast';
 	import BotaoVoltar from '$lib/components/BotaoVoltar.svelte';
-	import CalendarioDia from '$lib/components/CalendarioDia.svelte';
-	import SearchableSelect from '$lib/components/SearchableSelect.svelte';
-	import { buscarCoordenadores, buscarUnidades, MIN_BUSCA } from '../_components/buscas';
 	import { DEPARTAMENTO_PADRAO } from '$lib/planos/padroes';
 	import CampoNup from '../_components/CampoNup.svelte';
 	import CamposAcoes from '../_components/CamposAcoes.svelte';
+	import CamposComando from '../_components/CamposComando.svelte';
+	import CamposDataExecucao from '../_components/CamposDataExecucao.svelte';
 	import CamposSignatario from '../_components/CamposSignatario.svelte';
 	import ListaOpcoes from '../_components/ListaOpcoes.svelte';
 	import TituloSecao from '../_components/TituloSecao.svelte';
@@ -288,50 +287,17 @@
 		     empilhados à direita. Horários ficam ABAIXO do calendário. Em tela
 		     estreita os quadros empilham. Sem `hover:shadow`: nenhum abre ao clique. -->
 		<div class="grid gap-6 md:grid-cols-[2fr_3fr] md:items-start">
-			<section class="card-quadro min-w-0 rounded-2xl p-5 sm:p-6 space-y-4">
-				<TituloSecao
-					texto="Data de execução"
-					apoio="Escolha a data da operação. Caso seja feriado, dê um clique duplo no dia escolhido."
-				/>
-
-				<CalendarioDia bind:valor={dataInicio} bind:feriado />
-				<input type="hidden" name="data_inicio" value={dataInicio} />
-				{#if feriado}<input type="hidden" name="feriado" value="1" />{/if}
-
-				<div class="flex flex-wrap gap-4">
-					<label class="block space-y-1">
-						<span class="text-sm font-medium text-surface-700 dark:text-surface-200"
-							>Horário de apresentação</span
-						>
-						<input
-							name="hora_inicio"
-							bind:value={horaInicio}
-							placeholder="05:00"
-							class="input w-32"
-						/>
-					</label>
-					<label class="block space-y-1">
-						<span class="text-sm font-medium text-surface-700 dark:text-surface-200">
-							Previsão de término <span class="text-surface-600 dark:text-surface-400"
-								>(opcional)</span
-							>
-						</span>
-						<input name="hora_fim" bind:value={horaFim} placeholder="11:00" class="input w-32" />
-					</label>
-					<label class="block space-y-1">
-						<span class="text-sm font-medium text-surface-700 dark:text-surface-200">
-							Data de término <span class="text-surface-600 dark:text-surface-400"
-								>(se virar o dia)</span
-							>
-						</span>
-						<input type="date" name="data_fim" bind:value={dataFim} class="input w-44" />
-					</label>
-				</div>
-				<p class="text-xs text-surface-600 dark:text-surface-400">
-					Sem previsão de término, o sistema não sugere a quantidade de horas — ela é digitada por
-					equipe no editor.
-				</p>
-			</section>
+			<CamposDataExecucao
+				bind:dataInicio
+				bind:feriado
+				bind:horaInicio
+				bind:horaFim
+				bind:dataFim
+				apoioTermino="(opcional)"
+				notaRodape="Sem previsão de término, o sistema não sugere a quantidade de horas — ela é digitada por equipe no editor."
+				placeholderHoraInicio="05:00"
+				placeholderHoraFim="11:00"
+			/>
 
 			<div class="min-w-0 space-y-6">
 				<section class="card-quadro rounded-2xl p-5 sm:p-6 space-y-4">
@@ -386,45 +352,7 @@
 					</div>
 				</section>
 
-				<section class="card-quadro rounded-2xl p-5 sm:p-6 space-y-4">
-					<TituloSecao texto="Comando e demanda" />
-
-					<div class="space-y-4">
-						<div class="space-y-1">
-							<label
-								for="coordenador"
-								class="block text-sm font-medium text-surface-700 dark:text-surface-200"
-							>
-								DPC coordenador da operação
-							</label>
-							<SearchableSelect
-								id="coordenador"
-								name="coordenador_id"
-								bind:value={coordenadorId}
-								loadOptions={buscarCoordenadores}
-								minSearchChars={MIN_BUSCA}
-								placeholder="Busque por nome ou matrícula"
-							/>
-						</div>
-
-						<div class="space-y-1">
-							<label
-								for="demandante"
-								class="block text-sm font-medium text-surface-700 dark:text-surface-200"
-							>
-								Delegacia / seccional demandante
-							</label>
-							<SearchableSelect
-								id="demandante"
-								name="demandante_unidade_id"
-								bind:value={demandanteId}
-								loadOptions={buscarUnidades}
-								minSearchChars={MIN_BUSCA}
-								placeholder="Busque a unidade"
-							/>
-						</div>
-					</div>
-				</section>
+				<CamposComando bind:coordenadorId bind:demandanteId />
 
 				<section class="card-quadro rounded-2xl p-5 sm:p-6 space-y-4">
 					<TituloSecao
