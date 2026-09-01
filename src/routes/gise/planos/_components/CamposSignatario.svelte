@@ -63,7 +63,7 @@
 
 	<label class="block space-y-1">
 		<span class="text-sm font-medium text-surface-700 dark:text-surface-200">Cargo</span>
-		<select name="diretor_cargo" bind:value={cargo} class="select">
+		<select name="diretor_cargo" bind:value={cargo} class="select w-full">
 			{#each CARGOS_SIGNATARIO as opcao (opcao)}
 				<option value={opcao}>{opcao}</option>
 			{/each}

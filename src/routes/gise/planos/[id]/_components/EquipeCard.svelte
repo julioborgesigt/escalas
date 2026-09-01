@@ -37,6 +37,20 @@
 	import Wand from '@lucide/svelte/icons/wand-sparkles';
 	import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
 
+	/** SearchableSelect limpa com `null`; o campo vazio herda o padrão do plano. */
+	function textoDoSeletor(v: unknown): string {
+		return typeof v === 'string' ? v : '';
+	}
+
+	function opcoesDoSeletor(valores: string[]): { value: string; label: string }[] {
+		return valores.map((valor) => ({ value: valor, label: valor }));
+	}
+
+	function opcaoDoSeletor(v: unknown): { value: string; label: string } | null {
+		const texto = textoDoSeletor(v);
+		return texto ? { value: texto, label: texto } : null;
+	}
+
 	/**
 	 * A equipe como esta tela a recebe: as COLUNAS da tabela mais o que o `load`
 	 * calculou.
@@ -124,6 +138,9 @@
 	const escolhasBriefing = $derived(escolhasDaEquipe(opcoesBriefing, equipe.local_briefing));
 	const escolhasOrigem = $derived(escolhasDaEquipe(opcoesOrigem, equipe.cidade_origem));
 	const escolhasDestino = $derived(escolhasDaEquipe(opcoesDestino, equipe.cidade_destino));
+	const opcoesOrigemSelect = $derived(opcoesDoSeletor(escolhasOrigem));
+	const opcoesBriefingSelect = $derived(opcoesDoSeletor(escolhasBriefing));
+	const opcoesDestinoSelect = $derived(opcoesDoSeletor(escolhasDestino));
 
 	// Estado local do formulário. Reinicia quando a equipe muda de identidade —
 	// a `key` no pai garante isso; aqui a captura inicial é intencional.
@@ -140,15 +157,15 @@
 
 	let novoPolicial = $state<unknown>(null);
 	let aberto = $state(false);
-	// APARADOS, como as escolhas do seletor: um `<select>` cujo `value` não casa
-	// com nenhum `<option>` não fica vazio — o navegador mostra o primeiro item, e
-	// salvar sem tocar no campo gravaria esse outro valor.
+	// APARADOS, como as escolhas do seletor: o valor próprio entra na lista via
+	// `escolhasDaEquipe`. Sem isso o combobox não oferece o que a equipe já tem,
+	// e salvar sem tocar no campo perderia o texto do Anexo I.
 	// svelte-ignore state_referenced_locally
-	let briefing = $state((equipe.local_briefing ?? '').trim());
+	let briefing = $state<unknown>((equipe.local_briefing ?? '').trim() || null);
 	// svelte-ignore state_referenced_locally
-	let destino = $state(equipe.cidade_destino.trim());
+	let destino = $state<unknown>(equipe.cidade_destino.trim() || null);
 	// svelte-ignore state_referenced_locally
-	let origem = $state(equipe.cidade_origem.trim());
+	let origem = $state<unknown>(equipe.cidade_origem.trim() || null);
 	/**
 	 * Vazio é "não informada" — ver `distancia_km` no schema: zero é uma medida.
 	 *
@@ -208,9 +225,9 @@
 	const trajeto = $derived(
 		distanciaDoTrajeto(
 			{
-				origem: ibgePorValor.get(origem || origemPadrao) ?? null,
-				briefing: ibgePorValor.get(briefing || briefingPadrao) ?? null,
-				destino: ibgePorValor.get(destino || destinoPadrao) ?? null
+				origem: ibgePorValor.get(textoDoSeletor(origem) || origemPadrao) ?? null,
+				briefing: ibgePorValor.get(textoDoSeletor(briefing) || briefingPadrao) ?? null,
+				destino: ibgePorValor.get(textoDoSeletor(destino) || destinoPadrao) ?? null
 			},
 			matriz
 		)
@@ -232,8 +249,12 @@
 		if (!trajeto) return '';
 		const pontas =
 			trajeto.via === 'briefing'
-				? [origem || origemPadrao, briefing || briefingPadrao, destino || destinoPadrao]
-				: [origem || origemPadrao, destino || destinoPadrao];
+				? [
+						textoDoSeletor(origem) || origemPadrao,
+						textoDoSeletor(briefing) || briefingPadrao,
+						textoDoSeletor(destino) || destinoPadrao
+					]
+				: [textoDoSeletor(origem) || origemPadrao, textoDoSeletor(destino) || destinoPadrao];
 		return `${pontas.filter(Boolean).join(' → ')}, ${trajeto.km} km`;
 	});
 
@@ -260,14 +281,12 @@
 	}
 </script>
 
-<!-- Cartão interno do Anexo I: o contorno do ANEXO é o `card-quadro` da página.
-     Aqui só a borda 1px, como as opções das equipes. O `hover:shadow-md` fica
-     porque este card ABRE ao ser clicado. -->
-<li
-	class="rounded-xl border border-surface-200/70 dark:border-white/10 overflow-hidden hover:shadow-md transition-shadow duration-300"
->
+<!-- `card-quadro` (o mesmo de Comando e demanda): este card ABRE ao clique, e
+     é o quadro de preenchimento — a borda 1px sumia na folha. O `hover:shadow-md`
+     fica porque a sombra reage ao ponteiro. -->
+<li class="card-quadro rounded-2xl overflow-hidden hover:shadow-md transition-shadow duration-300">
 	<!-- Cabeçalho: resumo sempre visível -->
-	<div class="flex flex-wrap items-center gap-3 p-4 bg-surface-50 dark:bg-surface-900/40">
+	<div class="flex flex-wrap items-center gap-3 p-5 bg-surface-50 dark:bg-surface-900/40">
 		<button
 			type="button"
 			class="flex-1 min-w-0 text-left"
@@ -315,184 +334,187 @@
 	</div>
 
 	{#if aberto}
-		<div class="p-4 space-y-5 border-t border-surface-200/70 dark:border-white/10">
+		<div class="p-5 sm:p-6 space-y-6 border-t border-surface-200/70 dark:border-white/10">
 			<!-- ---- Dados da equipe ---- -->
 			<form
 				id={idForm}
 				method="POST"
 				action="?/salvarEquipe"
 				use:enhance={enviar('Alterações salvas')}
+				class="space-y-4"
 			>
 				<input type="hidden" name="equipe_id" value={equipe.id} />
 				<input type="hidden" name="tipo" value={equipe.tipo} />
 
-				<div class="grid gap-3 sm:grid-cols-2">
-					<label class="block space-y-1">
+				<!-- No telefone empilha; a partir de `sm` nome|modelo, placa
+				     sozinha, início|término; em `lg` os cinco na mesma linha. -->
+				<div
+					class="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_9rem_7rem_7rem]"
+				>
+					<label class="block min-w-0 space-y-1">
 						<span class="text-sm font-medium text-surface-700 dark:text-surface-200">Nome</span>
-						<input name="nome" value={equipe.nome} maxlength="80" required class="input" />
-					</label>
-					<div class="grid grid-cols-[1fr_auto] gap-3">
-						<label class="block min-w-0 space-y-1">
-							<span class="text-sm font-medium text-surface-700 dark:text-surface-200"
-								>Modelo da viatura</span
-							>
-							<input
-								name="viatura_modelo"
-								value={equipe.viatura_modelo}
-								maxlength="60"
-								class="input"
-							/>
-						</label>
-						<label class="block space-y-1">
-							<span class="text-sm font-medium text-surface-700 dark:text-surface-200">Placa</span>
-							<input
-								name="viatura_placa"
-								value={equipe.viatura_placa}
-								maxlength="20"
-								class="input w-36"
-							/>
-						</label>
-					</div>
-				</div>
-
-				<!-- Origem, destino e distância JUNTOS: os três compõem uma afirmação só —
-				     de onde a equipe sai, para onde vai e quanto percorre — e é ela que
-				     decide entre diária e hora extra. Separá-los deixaria a distância
-				     parecendo um detalhe da viatura. -->
-				<div class="mt-3 grid gap-3 sm:grid-cols-[1fr_1fr_auto]">
-					<label class="block min-w-0 space-y-1">
-						<span class="text-sm font-medium text-surface-700 dark:text-surface-200"
-							>Cidade de origem</span
-						>
-						<select name="cidade_origem" bind:value={origem} class="select">
-							<option value="">
-								{origemPadrao ? `— padrão: ${origemPadrao} —` : '— sem origem —'}
-							</option>
-							{#each escolhasOrigem as valor (valor)}
-								<option value={valor}>{valor}</option>
-							{/each}
-						</select>
+						<input name="nome" value={equipe.nome} maxlength="80" required class="input w-full" />
 					</label>
 					<label class="block min-w-0 space-y-1">
 						<span class="text-sm font-medium text-surface-700 dark:text-surface-200"
-							>Cidade destino</span
-						>
-						<!-- Seletor, e não campo livre: o destino redigitado em oito equipes
-						     vira dois destinos no Anexo I à primeira diferença de acento. As
-						     opções são as do plano (Parâmetros gerais). -->
-						<select name="cidade_destino" bind:value={destino} class="select">
-							<option value="">
-								{destinoPadrao ? `— padrão: ${destinoPadrao} —` : '— sem destino —'}
-							</option>
-							{#each escolhasDestino as valor (valor)}
-								<option value={valor}>{valor}</option>
-							{/each}
-						</select>
-					</label>
-					<label class="block space-y-1">
-						<span class="text-sm font-medium text-surface-700 dark:text-surface-200"
-							>Distância (km)</span
+							>Modelo da viatura</span
 						>
 						<input
-							type="number"
-							name="distancia_km"
-							bind:value={distancia}
-							min="0"
-							max="9999"
-							step="1"
-							placeholder="—"
-							class="input w-28"
-							oninput={() => (manual = true)}
+							name="viatura_modelo"
+							value={equipe.viatura_modelo}
+							maxlength="60"
+							class="input w-full"
 						/>
 					</label>
-				</div>
-
-				<!-- De ONDE veio o número. Um campo preenchido sozinho sem dizer por quem
-				     é pior do que um campo vazio: quem confere não sabe se pode confiar,
-				     e quem corrige não sabe o que está sobrescrevendo. -->
-				{#if trajeto && !manual}
-					<p class="mt-1.5 text-xs text-surface-600 dark:text-surface-400">
-						Medida automática: <strong>{rotuloDoTrajeto}</strong>.
-						{#if trajeto.via === 'direto'}
-							<span class="text-warning-700 dark:text-warning-400">
-								A parada do briefing não entrou — falta a cidade dela nos Parâmetros gerais.
-							</span>
-						{/if}
-						{#if medicao}
-							<span class="text-2xs">Medido em {medicao.medido_em}.</span>
-						{/if}
-					</p>
-				{:else if trajeto && manual}
-					<p class="mt-1.5 flex flex-wrap items-center gap-2 text-xs">
-						<span class="text-surface-600 dark:text-surface-400">
-							Informada à mão. A medida do trajeto é <strong>{trajeto.km} km</strong>.
-						</span>
-						<button
-							type="button"
-							class="btn btn-sm preset-outlined-surface-500 rounded-lg px-2 py-1 text-2xs"
-							onclick={() => {
-								manual = false;
-								distancia = trajeto?.km;
-							}}
-						>
-							Usar a medida
-						</button>
-					</p>
-				{:else if distanciaKm === null}
-					<p class="mt-1.5 text-xs text-warning-700 dark:text-warning-400">
-						Sem a distância, a rubrica é decidida só pelo horário — e um deslocamento de {DISTANCIA_MINIMA_DIARIA_KM}
-						km ou mais é pago em diária mesmo dentro do expediente. Escolha origem e destino nas listas
-						do plano para a medida sair sozinha.
-					</p>
-				{/if}
-
-				<div class="mt-3 grid gap-3 sm:grid-cols-2">
-					<label class="block space-y-1">
-						<span class="text-sm font-medium text-surface-700 dark:text-surface-200">
-							Apresentação <span class="text-surface-600 dark:text-surface-400"
-								>(vazio = herda)</span
-							>
-						</span>
+					<label class="block min-w-0 space-y-1 sm:col-span-2 lg:col-span-1">
+						<span class="text-sm font-medium text-surface-700 dark:text-surface-200">Placa</span>
+						<input
+							name="viatura_placa"
+							value={equipe.viatura_placa}
+							maxlength="20"
+							class="input w-full"
+						/>
+					</label>
+					<label class="block min-w-0 space-y-1">
+						<span class="text-sm font-medium text-surface-700 dark:text-surface-200">Início</span>
 						<input
 							name="hora_inicio"
 							value={equipe.hora_inicio ?? ''}
 							placeholder={equipe.janela.horaInicio}
-							class="input w-32"
+							class="input w-full"
 						/>
 					</label>
-					<label class="block space-y-1">
-						<span class="text-sm font-medium text-surface-700 dark:text-surface-200">
-							Término <span class="text-surface-600 dark:text-surface-400">(vazio = herda)</span>
-						</span>
+					<label class="block min-w-0 space-y-1">
+						<span class="text-sm font-medium text-surface-700 dark:text-surface-200">Término</span>
 						<input
 							name="hora_fim"
 							value={equipe.hora_fim ?? ''}
 							placeholder={equipe.janela.horaFim ?? 'sem término'}
-							class="input w-32"
+							class="input w-full"
 						/>
 					</label>
 				</div>
 
-				<label class="mt-3 block space-y-1">
-					<span class="text-sm font-medium text-surface-700 dark:text-surface-200">
-						Local de briefing <span class="text-surface-600 dark:text-surface-400"
-							>(vazio = usa o padrão do plano)</span
-						>
-					</span>
-					<select name="local_briefing" bind:value={briefing} class="select">
-						<option value="">
-							{briefingPadrao ? `— padrão: ${briefingPadrao} —` : '— sem local —'}
-						</option>
-						{#each escolhasBriefing as valor (valor)}
-							<option value={valor}>{valor}</option>
-						{/each}
-					</select>
-				</label>
+				<div class="space-y-1.5">
+					<!-- Origem → briefing → destino, e o km do trajeto: é essa afirmação
+					     que decide entre diária e hora extra. O briefing no meio é a
+					     parada que a medida usa (ou ignora, se faltar na lista). -->
+					<div
+						class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)_minmax(0,1fr)_8rem]"
+					>
+						<div class="min-w-0 space-y-1">
+							<label
+								for="equipe-{equipe.id}-origem"
+								class="block text-sm font-medium text-surface-700 dark:text-surface-200"
+								>Cidade de origem</label
+							>
+							<SearchableSelect
+								id="equipe-{equipe.id}-origem"
+								name="cidade_origem"
+								options={opcoesOrigemSelect}
+								bind:value={origem}
+								selectedOption={opcaoDoSeletor(origem)}
+								placeholder={origemPadrao ? `— padrão: ${origemPadrao} —` : '— sem origem —'}
+							/>
+						</div>
+						<div class="min-w-0 space-y-1">
+							<label
+								for="equipe-{equipe.id}-briefing"
+								class="block text-sm font-medium text-surface-700 dark:text-surface-200"
+							>
+								Local de briefing
+							</label>
+							<SearchableSelect
+								id="equipe-{equipe.id}-briefing"
+								name="local_briefing"
+								options={opcoesBriefingSelect}
+								bind:value={briefing}
+								selectedOption={opcaoDoSeletor(briefing)}
+								placeholder={briefingPadrao ? `— padrão: ${briefingPadrao} —` : '— sem local —'}
+							/>
+						</div>
+						<div class="min-w-0 space-y-1">
+							<label
+								for="equipe-{equipe.id}-destino"
+								class="block text-sm font-medium text-surface-700 dark:text-surface-200"
+								>Cidade destino</label
+							>
+							<!-- Seletor, e não campo livre: o destino redigitado em oito equipes
+						     vira dois destinos no Anexo I à primeira diferença de acento. As
+						     opções são as do plano (Parâmetros gerais). -->
+							<SearchableSelect
+								id="equipe-{equipe.id}-destino"
+								name="cidade_destino"
+								options={opcoesDestinoSelect}
+								bind:value={destino}
+								selectedOption={opcaoDoSeletor(destino)}
+								placeholder={destinoPadrao ? `— padrão: ${destinoPadrao} —` : '— sem destino —'}
+							/>
+						</div>
+						<label class="block min-w-0 space-y-1">
+							<span class="text-sm font-medium text-surface-700 dark:text-surface-200"
+								>Distância (km)</span
+							>
+							<input
+								type="number"
+								name="distancia_km"
+								bind:value={distancia}
+								min="0"
+								max="9999"
+								step="1"
+								placeholder="—"
+								class="input w-full"
+								oninput={() => (manual = true)}
+							/>
+						</label>
+					</div>
+
+					<!-- De ONDE veio o número. Um campo preenchido sozinho sem dizer por quem
+				     é pior do que um campo vazio: quem confere não sabe se pode confiar,
+				     e quem corrige não sabe o que está sobrescrevendo. -->
+					{#if trajeto && !manual}
+						<p class="text-xs text-surface-600 dark:text-surface-400">
+							Medida automática: <strong>{rotuloDoTrajeto}</strong>.
+							{#if trajeto.via === 'direto'}
+								<span class="text-warning-700 dark:text-warning-400">
+									A parada do briefing não entrou — falta a cidade dela nos Parâmetros gerais.
+								</span>
+							{/if}
+							{#if medicao}
+								<span class="text-2xs">Medido em {medicao.medido_em}.</span>
+							{/if}
+						</p>
+					{:else if trajeto && manual}
+						<p class="flex flex-wrap items-center gap-2 text-xs">
+							<span class="text-surface-600 dark:text-surface-400">
+								Informada à mão. A medida do trajeto é <strong>{trajeto.km} km</strong>.
+							</span>
+							<button
+								type="button"
+								class="btn btn-sm preset-outlined-surface-500 rounded-lg px-2 py-1 text-2xs"
+								onclick={() => {
+									manual = false;
+									distancia = trajeto?.km;
+								}}
+							>
+								Usar a medida
+							</button>
+						</p>
+					{:else if distanciaKm === null}
+						<p class="text-xs text-warning-700 dark:text-warning-400">
+							Sem a distância, a rubrica é decidida só pelo horário — e um deslocamento de {DISTANCIA_MINIMA_DIARIA_KM}
+							km ou mais é pago em diária mesmo dentro do expediente. Escolha origem e destino nas listas
+							do plano para a medida sair sozinha.
+						</p>
+					{/if}
+				</div>
 			</form>
 
 			<!-- ---- Efetivo ---- -->
-			<div class="space-y-2">
-				<h4 class="text-xs font-semibold text-surface-800 dark:text-surface-100">
+			<div class="space-y-3">
+				<h4
+					class="text-sm font-semibold uppercase tracking-wider text-surface-600 dark:text-surface-400"
+				>
 					Efetivo ({equipe.membros.length})
 				</h4>
 
@@ -576,7 +598,7 @@
 					method="POST"
 					action="?/adicionarMembro"
 					use:enhance={enviar('Servidor alocado', () => (novoPolicial = null))}
-					class="flex flex-wrap items-end gap-2 pt-1"
+					class="flex flex-col gap-2 pt-1 xs:flex-row xs:flex-wrap xs:items-end"
 				>
 					<input type="hidden" name="equipe_id" value={equipe.id} />
 					<div class="min-w-0 flex-1">
@@ -590,7 +612,7 @@
 					</div>
 					<button
 						type="submit"
-						class="btn preset-outlined-surface-500 py-2 px-3 rounded-xl text-xs shrink-0"
+						class="btn preset-outlined-surface-500 py-2 px-3 rounded-xl text-xs shrink-0 w-full xs:w-auto justify-center"
 						disabled={!novoPolicial}
 					>
 						<UserPlus class="w-3.5 h-3.5" />
@@ -600,9 +622,12 @@
 			</div>
 
 			<!-- ---- Custo ---- -->
-			<div class="mt-4 rounded-xl border border-surface-200 dark:border-white/10 p-3 space-y-3">
+			<div
+				class="rounded-xl border border-surface-200/70 dark:border-white/10 p-4 sm:p-5 space-y-4"
+			>
 				<div class="flex flex-wrap items-center justify-between gap-2">
-					<span class="text-sm font-semibold text-surface-800 dark:text-surface-100"
+					<span
+						class="text-sm font-semibold uppercase tracking-wider text-surface-600 dark:text-surface-400"
 						>Custo da equipe</span
 					>
 					{#if temSugestao}
@@ -646,31 +671,35 @@
 					</p>
 				{/if}
 
-				<div class="flex flex-wrap gap-2">
-					{#each [['sem_custo', 'Sem custo'], ['hora_extra', 'Hora extra (DRO)'], ['diaria', 'Diária']] as [valor, rotulo] (valor)}
-						<label
-							class="cursor-pointer rounded-lg border px-3 py-1.5 text-xs transition-colors {tipoCusto ===
-							valor
-								? 'border-primary-500 bg-primary-500/10 text-primary-700 dark:text-primary-300'
-								: 'border-surface-200 dark:border-white/10 text-surface-700 dark:text-surface-300'}"
-						>
-							<input
-								type="radio"
-								name="tipo_custo"
-								value={valor}
-								bind:group={tipoCusto}
-								form={idForm}
-								class="sr-only"
-							/>
-							{rotulo}
-						</label>
-					{/each}
-				</div>
+				<!-- Rubrica e quantidade na MESMA linha: os três botões escolhem
+				     COMO paga; os campos ao lado dizem QUANTO. Separar em duas
+				     faixas fazia a quantidade parecer outro assunto. -->
+				<div class="flex flex-wrap items-end gap-x-3 gap-y-3">
+					<div class="flex flex-wrap gap-2">
+						{#each [['sem_custo', 'Sem custo'], ['hora_extra', 'Hora extra (DRO)'], ['diaria', 'Diária']] as [valor, rotulo] (valor)}
+							<label
+								class="cursor-pointer rounded-lg border px-3 py-1.5 text-xs transition-colors {tipoCusto ===
+								valor
+									? 'border-primary-500 bg-primary-500/10 text-primary-700 dark:text-primary-300'
+									: 'border-surface-200 dark:border-white/10 text-surface-700 dark:text-surface-300'}"
+							>
+								<input
+									type="radio"
+									name="tipo_custo"
+									value={valor}
+									bind:group={tipoCusto}
+									form={idForm}
+									class="sr-only"
+								/>
+								{rotulo}
+							</label>
+						{/each}
+					</div>
 
-				{#if tipoCusto === 'hora_extra'}
-					<div class="grid gap-3 sm:grid-cols-2">
-						<label class="block space-y-1">
-							<span class="text-sm font-medium text-surface-700 dark:text-surface-200"
+					{#if tipoCusto === 'hora_extra'}
+						<label class="block w-max max-w-full shrink-0 space-y-1">
+							<span
+								class="block whitespace-nowrap text-xs font-medium text-surface-700 dark:text-surface-200"
 								>Horas normais</span
 							>
 							<input
@@ -680,11 +709,13 @@
 								min="0"
 								max="744"
 								form={idForm}
-								class="input w-28"
+								class="input w-full"
 							/>
 						</label>
-						<label class="block space-y-1">
-							<span class="text-sm font-medium text-surface-700 dark:text-surface-200">
+						<label class="block w-max max-w-full shrink-0 space-y-1">
+							<span
+								class="block whitespace-nowrap text-xs font-medium text-surface-700 dark:text-surface-200"
+							>
 								Horas plus <span class="text-surface-600 dark:text-surface-400">(+30%)</span>
 							</span>
 							<input
@@ -694,23 +725,26 @@
 								min="0"
 								max="744"
 								form={idForm}
-								class="input w-28"
+								class="input w-full"
 							/>
 						</label>
-					</div>
-				{:else if tipoCusto === 'diaria'}
-					<div class="grid gap-3 sm:grid-cols-2">
-						<label class="block space-y-1">
-							<span class="text-sm font-medium text-surface-700 dark:text-surface-200"
+					{:else if tipoCusto === 'diaria'}
+						<label class="block w-40 shrink-0 space-y-1">
+							<span class="text-xs font-medium text-surface-700 dark:text-surface-200"
 								>Tipo de diária</span
 							>
-							<select name="diaria_tipo" bind:value={diariaTipo} form={idForm} class="select">
+							<select
+								name="diaria_tipo"
+								bind:value={diariaTipo}
+								form={idForm}
+								class="select w-full"
+							>
 								<option value="estadual">Estadual</option>
 								<option value="interestadual">Interestadual</option>
 							</select>
 						</label>
-						<label class="block space-y-1">
-							<span class="text-sm font-medium text-surface-700 dark:text-surface-200">
+						<label class="block min-w-[8rem] flex-1 space-y-1">
+							<span class="text-xs font-medium text-surface-700 dark:text-surface-200">
 								Quantidade <span class="text-surface-600 dark:text-surface-400"
 									>({formatarDiarias(diariasMeias)})</span
 								>
@@ -728,8 +762,8 @@
 								class="w-full"
 							/>
 						</label>
-					</div>
-				{/if}
+					{/if}
+				</div>
 			</div>
 
 			<!-- ---- Ações da equipe ---- -->
@@ -739,11 +773,11 @@
 			     que o HTML tem para isso, e evita duplicar o form ou mover o
 			     efetivo para dentro dele. -->
 			<div
-				class="flex flex-wrap items-center justify-between gap-2 pt-3 border-t border-surface-200/70 dark:border-white/10"
+				class="flex flex-col-reverse gap-2 pt-4 border-t border-surface-200/70 dark:border-white/10 xs:flex-row xs:flex-wrap xs:items-center xs:justify-between"
 			>
 				<button
 					type="button"
-					class="btn btn-sm preset-filled-error-500 py-1.5 px-3 rounded-xl text-xs"
+					class="btn btn-sm preset-filled-error-500 py-1.5 px-3 rounded-xl text-xs w-full xs:w-auto justify-center"
 					onclick={() => confirmExcluir.openDialog({ nome: equipe.nome })}
 				>
 					<Trash2 class="w-3.5 h-3.5" />
@@ -752,7 +786,7 @@
 				<button
 					type="submit"
 					form={idForm}
-					class="btn preset-filled-primary-500 py-2 px-4 rounded-xl text-sm"
+					class="btn preset-filled-primary-500 py-2 px-4 rounded-xl text-sm w-full xs:w-auto justify-center"
 					disabled={loading.active}
 				>
 					Salvar Alterações

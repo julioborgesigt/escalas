@@ -382,7 +382,7 @@
 	<!-- Quadro estático, como o Documento: agrupa o anexo. Sem `hover:shadow` —
 	     quem abre ao clique é cada equipe, não este contorno. -->
 	<section class="card-quadro rounded-2xl p-5 sm:p-6 space-y-4">
-		<div class="flex flex-wrap items-center justify-between gap-2">
+		<div class="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
 			<div>
 				<h2 class="text-base font-semibold text-surface-900 dark:text-white">
 					Anexo I — equipes e efetivo
@@ -392,21 +392,31 @@
 				</p>
 			</div>
 			<div class="flex gap-2">
-				<form method="POST" action="?/adicionarEquipe" use:enhance={enviar('Equipe acrescentada')}>
+				<form
+					method="POST"
+					action="?/adicionarEquipe"
+					use:enhance={enviar('Equipe acrescentada')}
+					class="min-w-0 flex-1 sm:flex-none"
+				>
 					<input type="hidden" name="tipo" value="operacional" />
 					<button
 						type="submit"
-						class="btn btn-sm preset-outlined-surface-500 px-3 py-1.5 rounded-xl text-xs"
+						class="btn btn-sm preset-outlined-surface-500 px-3 py-1.5 rounded-xl text-xs w-full justify-center"
 					>
 						<Plus class="w-3.5 h-3.5" />
 						Equipe
 					</button>
 				</form>
-				<form method="POST" action="?/adicionarEquipe" use:enhance={enviar('Equipe SEINT criada')}>
+				<form
+					method="POST"
+					action="?/adicionarEquipe"
+					use:enhance={enviar('Equipe SEINT criada')}
+					class="min-w-0 flex-1 sm:flex-none"
+				>
 					<input type="hidden" name="tipo" value="seint" />
 					<button
 						type="submit"
-						class="btn btn-sm preset-outlined-surface-500 px-3 py-1.5 rounded-xl text-xs"
+						class="btn btn-sm preset-outlined-surface-500 px-3 py-1.5 rounded-xl text-xs w-full justify-center"
 					>
 						<Plus class="w-3.5 h-3.5" />
 						SEINT
@@ -454,10 +464,10 @@
 	<section class="card-quadro rounded-2xl p-5 space-y-3">
 		<h2 class="text-base font-semibold text-surface-900 dark:text-white">Documento</h2>
 
-		<div class="flex flex-wrap gap-2">
+		<div class="flex flex-col gap-2 xs:flex-row xs:flex-wrap">
 			<a
 				href="/api/planos/{data.plano.id}/download"
-				class="btn preset-filled-primary-500 py-2.5 px-4 rounded-xl text-sm {data.podeEmitir
+				class="btn preset-filled-primary-500 py-2.5 px-4 rounded-xl text-sm w-full xs:w-auto justify-center {data.podeEmitir
 					? ''
 					: 'pointer-events-none opacity-50'}"
 				aria-disabled={!data.podeEmitir}
@@ -472,7 +482,7 @@
 			>
 				<button
 					type="submit"
-					class="btn preset-outlined-surface-500 py-2.5 px-4 rounded-xl text-sm"
+					class="btn preset-outlined-surface-500 py-2.5 px-4 rounded-xl text-sm w-full xs:w-auto justify-center"
 					title="Reaplica cargo e classe atuais do cadastro aos membros já alocados"
 				>
 					<RefreshCw class="w-4 h-4" />
@@ -483,7 +493,7 @@
 			<form method="POST" action="?/alternarStatus" use:enhance={enviar('Status alterado')}>
 				<button
 					type="submit"
-					class="btn preset-outlined-surface-500 py-2.5 px-4 rounded-xl text-sm"
+					class="btn preset-outlined-surface-500 py-2.5 px-4 rounded-xl text-sm w-full xs:w-auto justify-center"
 				>
 					{data.plano.status === 'concluido' ? 'Reabrir como rascunho' : 'Marcar como concluído'}
 				</button>

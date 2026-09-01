@@ -189,6 +189,37 @@
 	transform: none;
 }
 
+/* Item selecionado do combobox: o Skeleton aplica `preset-filled`.
+ *
+ * `preset-filled` pinta `--color-surface-950-50` — o par `light-dark()` cujo
+ * lado claro é quase preto. O tema escuro deste app é a CLASSE `.dark`, então
+ * o par resolve sempre para o lado claro: fundo preto. O `SearchableSelect`
+ * ainda põe `text-surface-800` no item, e essa classe (camada `utilities`)
+ * ganha da `color` do preset (camada `base`): texto escuro no preto.
+ *
+ * Só aparece ao sair do item. Com `data-highlighted` o próprio Skeleton
+ * aplica `preset-tonal` e as classes de hover do componente (utilities)
+ * cobrem o preto. Sem highlight, sobra o checked.
+ *
+ * Fundo transparente: o checkmark já marca a seleção. A regra de highlighted
+ * vem DEPOIS para o item selecionado sob o ponteiro não perder o wash. */
+[data-scope='combobox'][data-part='item'][data-state='checked'] {
+	background-color: transparent;
+	color: var(--color-surface-800);
+}
+
+.dark [data-scope='combobox'][data-part='item'][data-state='checked'] {
+	color: var(--color-surface-100);
+}
+
+[data-scope='combobox'][data-part='item'][data-highlighted] {
+	background-color: var(--color-surface-100);
+}
+
+.dark [data-scope='combobox'][data-part='item'][data-highlighted] {
+	background-color: var(--color-surface-700);
+}
+
 /* iOS não pinta `box-shadow` em campo de formulário com aparência nativa.
  *
  * `.input`/`.select`/`.textarea` do Skeleton desenham o contorno com
@@ -223,30 +254,66 @@
 	appearance: none;
 }
 
-/* `<select>` recebe tratamento diferente: `appearance: none` levaria a seta
- * nativa embora, e o próprio CSS do Skeleton avisa disso. Então aqui o contorno
- * passa a ser uma BORDA de verdade (que o iOS pinta), com o ring de repouso
- * neutralizado para não somar duas arestas de 1px. Os dois estados saem da mesma
- * propriedade — no iOS o foco continua visível porque é a BORDA que muda.
+/* `<select>` nativo recusa pintar borda CSS de forma estável.
  *
- * Os tokens são `surface-300`/`surface-600`, o mesmo par que o Control do
- * SearchableSelect usa: é a borda de campo deste projeto, e deixa os dois tipos
- * de seletor com a mesma aresta. Não usar os pares `*-200-800` do Skeleton aqui
- * — eles são `light-dark()`, que segue `color-scheme`, e o tema escuro deste
- * app é a CLASSE `.dark` (ver `@custom-variant` no topo); o par resolveria
- * sempre para o valor claro. */
+ * O Skeleton desenha o contorno com ring inset (`box-shadow`) e
+ * `border-width: 0`. iOS não pinta esse ring em controle nativo — daí a
+ * borda de verdade. No Windows/Chromium o contrário: o chrome nativo, depois
+ * de abrir a lista, deixa de pintar as arestas retas da `border` e sobram
+ * só os cantos arredondados (o relato “borda falha ao preencher”).
+ *
+ * `appearance: none` tira o chrome e a seta nativa; a seta passa a ser um
+ * `background-image`, e a borda passa a ser uma caixa comum — o mesmo
+ * desenho em repouso, foco e depois de escolher. O ring do Skeleton é
+ * zerado em TODOS os estados: no `:focus` ele reaplicava a cor primária e
+ * o inset reaparecia por baixo da borda, fragmentado nos cantos.
+ *
+ * Recuo: início igual ao `.input` (`0.75rem`); fim reserva a seta. Com a
+ * seta nativa isso quebrava o controle; com a nossa, é o espaço dela.
+ *
+ * Tokens `surface-300`/`surface-600`, o mesmo par do Control do
+ * SearchableSelect. Não usar os pares `*-200-800` do Skeleton aqui — eles
+ * são `light-dark()`, que segue `color-scheme`, e o tema escuro deste app
+ * é a CLASSE `.dark`.
+ *
+ * Em `forced-colors` (Alto contraste do Windows) devolve o controle ao
+ * sistema: a seta em SVG some e a seta nativa volta a ser visível. */
 select.select {
+	appearance: none;
+	background-color: #fff;
+	background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+	background-repeat: no-repeat;
+	background-position: right 0.65rem center;
+	background-size: 1rem;
 	border-width: 1px;
 	border-color: var(--color-surface-300);
+	box-shadow: none;
 	--tw-ring-shadow: 0 0 #0000;
+	padding-inline-start: 0.75rem;
+	padding-inline-end: 2rem;
 }
 
 .dark select.select {
+	background-color: var(--color-surface-900);
+	background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%23a1a1aa' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
 	border-color: var(--color-surface-600);
 }
 
-select.select:focus {
+select.select:is(:hover, :active, :focus, :focus-visible, :focus-within) {
+	box-shadow: none;
+	--tw-ring-shadow: 0 0 #0000;
+}
+
+select.select:is(:focus, :focus-visible) {
 	border-color: var(--color-primary-500);
+}
+
+@media (forced-colors: active) {
+	select.select {
+		appearance: auto;
+		background-image: none;
+		padding-inline-end: 0.75rem;
+	}
 }
 
 /* Placeholder — a dica de preenchimento estava saindo com peso de conteúdo.

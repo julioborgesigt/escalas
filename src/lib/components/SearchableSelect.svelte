@@ -18,7 +18,10 @@
 	 * Contorno e clear: o CSS do Skeleton (`[data-scope=combobox]`) aplica
 	 * `@apply input` no Input e `btn preset-tonal` (+ hover error) no
 	 * ClearTrigger SEM ícone. Sem neutralizar, o Control + Input geram borda
-	 * dupla e o clear vira bolinha vermelha vazia.
+	 * dupla e o clear vira bolinha vermelha vazia. O item selecionado
+	 * (`data-state=checked`) leva `preset-filled` — fundo preto com o texto
+	 * do item por cima; a recusa mora no `app.css`, junto do `transform` do
+	 * gatilho.
 	 *
 	 * O gatilho (chevron) é tirado do `position: absolute` do Skeleton com
 	 * `!static !inset-auto` para entrar na fileira do Control. O `transform:
@@ -167,7 +170,7 @@
 			{#if !isValueEmpty(value)}
 				<Combobox.ClearTrigger
 					aria-label="Limpar seleção"
-					class="mr-1.5 flex !h-6 !w-6 !min-h-0 !min-w-0 shrink-0 items-center justify-center !rounded-full !border-0 !bg-transparent !p-0 !shadow-none text-surface-400 transition-colors hover:!bg-error-500/15 hover:!text-error-600 dark:hover:!text-error-400"
+					class="flex !h-6 !w-6 !min-h-0 !min-w-0 shrink-0 items-center justify-center !rounded-full !border-0 !bg-transparent !p-0 !shadow-none text-surface-400 transition-colors hover:!bg-error-500/15 hover:!text-error-600 dark:hover:!text-error-400"
 				>
 					<X class="h-3.5 w-3.5" aria-hidden="true" />
 				</Combobox.ClearTrigger>
@@ -204,7 +207,7 @@
 						{#each items as item (String(item.value))}
 							<Combobox.Item
 								{item}
-								class="flex items-center justify-between gap-2 px-3 py-2 text-sm text-surface-800 dark:text-surface-100 cursor-pointer hover:bg-surface-100 dark:hover:bg-surface-700 data-[highlighted]:bg-surface-100 dark:data-[highlighted]:bg-surface-700"
+								class="flex items-center justify-between gap-2 px-3 py-2 text-sm text-surface-800 dark:text-surface-100 cursor-pointer hover:bg-surface-100 dark:hover:bg-surface-700 data-[highlighted]:bg-surface-100 dark:data-[highlighted]:bg-surface-700 data-[state=checked]:not-data-[highlighted]:bg-transparent"
 							>
 								<Combobox.ItemText>{item.label}</Combobox.ItemText>
 								<Combobox.ItemIndicator />
