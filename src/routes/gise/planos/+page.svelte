@@ -21,7 +21,6 @@
 	import { fmtDate } from '$lib/gise/formatters';
 	import Plus from '@lucide/svelte/icons/plus';
 	import Trash2 from '@lucide/svelte/icons/trash-2';
-	import Users from '@lucide/svelte/icons/users';
 	import FileText from '@lucide/svelte/icons/file-text';
 
 	const { data }: PageProps = $props();
@@ -78,18 +77,18 @@
 		{:else}
 			<ul class="space-y-3">
 				{#each data.planos as p (p.id)}
-					<li class="rounded-xl border border-surface-200/70 dark:border-white/10 p-4">
-						<div class="flex flex-col sm:flex-row sm:items-start gap-3">
-							<div class="min-w-0 flex-1 space-y-1">
+					<li class="card-quadro rounded-2xl p-4 sm:p-5">
+						<div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+							<div class="min-w-0 flex-1">
 								<div class="flex flex-wrap items-center gap-2">
+									<h2 class="font-semibold text-surface-900 dark:text-white truncate">
+										{p.nome}
+									</h2>
 									<span
 										class="rounded-full bg-primary-500/15 px-2 py-0.5 font-mono text-2xs font-semibold text-primary-700 dark:text-primary-300"
 									>
 										{p.numero}/{p.ano}
 									</span>
-									<h2 class="font-semibold text-surface-900 dark:text-white truncate">
-										{p.nome}
-									</h2>
 									{#if p.status === 'concluido'}
 										<span
 											class="rounded-full bg-success-500/15 px-2 py-0.5 text-2xs font-medium text-success-700 dark:text-success-400"
@@ -102,18 +101,17 @@
 										>
 									{/if}
 								</div>
-								<p class="text-xs text-surface-600 dark:text-surface-400">
+								<p class="text-2xs text-surface-600 dark:text-surface-400 mt-1">
 									{fmtDate(p.data_inicio)} às {p.hora_inicio}
 									{#if p.nup}· NUP {p.nup}{/if}
-								</p>
-								<p class="flex items-center gap-1.5 text-xs text-surface-600 dark:text-surface-400">
-									<Users class="w-3.5 h-3.5" aria-hidden="true" />
-									{p.equipes}
+									· {p.equipes}
 									{p.equipes === 1 ? 'equipe' : 'equipes'}
 								</p>
 							</div>
 
-							<div class="grid grid-cols-2 sm:flex gap-2 shrink-0">
+							<div
+								class="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:flex-wrap sm:items-center sm:justify-end"
+							>
 								<a
 									href="/gise/planos/{p.id}"
 									class="btn btn-sm preset-outlined-surface-500 px-2.5 py-1.5 rounded-xl text-xs whitespace-nowrap w-full min-w-0 justify-center sm:w-auto"

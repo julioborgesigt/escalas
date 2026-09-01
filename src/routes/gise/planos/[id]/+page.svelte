@@ -7,7 +7,10 @@
 	 *
 	 * O cabeçalho abre RECOLHIDO. Depois da criação ele já está preenchido, e o
 	 * trabalho do dia a dia é nas equipes — deixá-lo expandido empurraria a
-	 * primeira equipe para fora da tela em todo acesso.
+	 * primeira equipe para fora da tela em todo acesso. Aberto, o mesmo quadro
+	 * permanece (o contorno não some) e os blocos internos usam o mesmo
+	 * `card-quadro` da criação (`novo/+page.svelte`): identificação, finalidade,
+	 * ações, opções, calendário ao lado de estrutura/comando/signatário.
 	 */
 	import type { PageProps } from './$types';
 	import { enhance } from '$app/forms';
@@ -16,14 +19,15 @@
 	import { loading } from '$lib/loading.svelte';
 	import { toaster } from '$lib/toast';
 	import BotaoVoltar from '$lib/components/BotaoVoltar.svelte';
-	import CalendarioDia from '$lib/components/CalendarioDia.svelte';
-	import SearchableSelect from '$lib/components/SearchableSelect.svelte';
-	import { buscarCoordenadores, buscarUnidades, MIN_BUSCA } from '../_components/buscas';
 	import { fmtDate } from '$lib/gise/formatters';
 	import { formatarBRL } from '$lib/planos/rotulos';
 	import { cargoSignatarioValido } from '$lib/planos/padroes';
 	import CampoNup from '../_components/CampoNup.svelte';
+	import CamposAcoes from '../_components/CamposAcoes.svelte';
+	import CamposComando from '../_components/CamposComando.svelte';
+	import CamposDataExecucao from '../_components/CamposDataExecucao.svelte';
 	import CamposSignatario from '../_components/CamposSignatario.svelte';
+	import TituloSecao from '../_components/TituloSecao.svelte';
 	import EditorOpcoes from './_components/EditorOpcoes.svelte';
 	import { formatarNUP } from '$lib/utils/formato';
 	import EquipeCard from './_components/EquipeCard.svelte';
@@ -40,6 +44,12 @@
 	let dataInicio = $state(data.plano.data_inicio);
 	// svelte-ignore state_referenced_locally
 	let feriado = $state(data.plano.feriado);
+	// svelte-ignore state_referenced_locally
+	let horaInicio = $state(data.plano.hora_inicio);
+	// svelte-ignore state_referenced_locally
+	let horaFim = $state(data.plano.hora_fim ?? '');
+	// svelte-ignore state_referenced_locally
+	let dataFim = $state(data.plano.data_fim ?? '');
 
 	// Captura intencional: os dois selects passam a ser do usuário depois da
 	// primeira renderização, e re-derivá-los apagaria uma escolha em curso.
@@ -80,6 +90,9 @@
 	const pendentes = $derived(new Set(data.custo.pendencias.map((p) => p.policial_id)));
 
 	const efetivoTotal = $derived(data.equipes.reduce((s, e) => s + e.membros.length, 0));
+	/** Quantidade operacional — a mesma conta do campo na criação; SEINT é à parte. */
+	const qtdOperacionais = $derived(data.equipes.filter((e) => e.tipo !== 'seint').length);
+	const temSeint = $derived(data.equipes.some((e) => e.tipo === 'seint'));
 
 	/** `use:enhance` comum: toast do erro do servidor e revalidação da página. */
 	function enviar(mensagemOk: string, aoConcluir?: () => void): SubmitFunction {
@@ -104,16 +117,16 @@
 	<title>Plano {data.plano.numero}/{data.plano.ano} | Escalas</title>
 </svelte:head>
 
-<div class="space-y-6">
+<div class="min-w-0 space-y-6">
 	<div>
 		<BotaoVoltar href="/gise/planos" />
 		<div class="flex flex-wrap items-center gap-2 mt-2">
+			<h1 class="h1 text-2xl font-bold min-w-0">{data.plano.nome}</h1>
 			<span
 				class="rounded-full bg-primary-500/15 px-2.5 py-0.5 font-mono text-xs font-semibold text-primary-700 dark:text-primary-300"
 			>
 				{data.plano.numero}/{data.plano.ano}
 			</span>
-			<h1 class="h1 text-2xl font-bold min-w-0">{data.plano.nome}</h1>
 		</div>
 		<p class="text-sm text-surface-600 dark:text-surface-400 mt-0.5">
 			{fmtDate(data.plano.data_inicio)} às {data.plano.hora_inicio}
@@ -129,12 +142,13 @@
 	</div>
 
 	<!-- ---- Parâmetros gerais ---- -->
-	<!-- `card-quadro`, o mesmo contorno das equipes: a seção é um DISCLOSURE e a
-	     borda delimita o que abre e fecha. Com 1px translúcida ela se confundia
-	     com a folha do layout. O `hover:shadow-md` acompanha porque este bloco
-	     também abre ao clique. -->
+	<!-- Quadro permanente: o contorno não some ao abrir. Aberto, cada bloco
+	     interno é `card-quadro rounded-2xl` — o mesmo de Comando e demanda em
+	     `/gise/planos/novo`. `hover:shadow` só recolhido. -->
 	<section
-		class="card-quadro rounded-2xl overflow-hidden hover:shadow-md transition-shadow duration-300"
+		class="card-quadro rounded-2xl {cabecalhoAberto
+			? ''
+			: 'hover:shadow-md transition-shadow duration-300'}"
 	>
 		<button
 			type="button"
@@ -157,219 +171,211 @@
 		</button>
 
 		{#if cabecalhoAberto}
-			<form
-				method="POST"
-				action="?/salvarPlano"
-				use:enhance={enviar('Plano salvo')}
-				class="p-5 pt-0 space-y-4 border-t border-surface-200/70 dark:border-white/10"
-			>
-				<div class="grid gap-3 sm:grid-cols-2 pt-4">
-					<label class="block space-y-1 sm:col-span-2">
-						<span class="text-sm font-medium text-surface-700 dark:text-surface-200"
-							>Nome da operação</span
-						>
-						<input name="nome" value={data.plano.nome} maxlength="160" required class="input" />
-					</label>
-					<CampoNup bind:valor={nup} />
-					<label class="block space-y-1">
-						<span class="text-sm font-medium text-surface-700 dark:text-surface-200"
-							>Departamento</span
-						>
-						<input
-							name="departamento"
-							value={data.plano.departamento}
-							maxlength="60"
-							class="input"
+			<!-- `contents` no form: as opções têm form próprio e NÃO podem viver
+			     dentro deste. Sem `contents` elas só caberiam depois do Salvar;
+			     com ele o `order` as encaixa depois das ações, como na criação. -->
+			<div class="flex flex-col gap-6 px-5 pb-5 sm:px-6 sm:pb-6">
+				<form
+					method="POST"
+					action="?/salvarPlano"
+					use:enhance={enviar('Plano salvo')}
+					class="contents"
+				>
+					<section class="card-quadro order-1 rounded-2xl p-5 sm:p-6 space-y-4">
+						<TituloSecao texto="Identificação" />
+						<div class="grid grid-cols-1 gap-4 md:grid-cols-[4.6fr_2.4fr_3fr]">
+							<label class="block min-w-0 space-y-1">
+								<span class="text-sm font-medium text-surface-700 dark:text-surface-200"
+									>Nome da operação</span
+								>
+								<input
+									name="nome"
+									value={data.plano.nome}
+									maxlength="160"
+									required
+									class="input w-full"
+								/>
+							</label>
+							<CampoNup bind:valor={nup} />
+							<label class="block min-w-0 space-y-1">
+								<span class="text-sm font-medium text-surface-700 dark:text-surface-200"
+									>Departamento</span
+								>
+								<input
+									name="departamento"
+									value={data.plano.departamento}
+									maxlength="60"
+									class="input w-full"
+								/>
+							</label>
+						</div>
+					</section>
+
+					<section class="card-quadro order-2 rounded-2xl p-5 sm:p-6 space-y-4">
+						<TituloSecao texto="Finalidade" />
+						<textarea
+							name="finalidade"
+							value={data.plano.finalidade}
+							rows="4"
+							maxlength="2000"
+							class="textarea"
+							aria-label="Finalidade"></textarea>
+					</section>
+
+					<section class="card-quadro order-3 rounded-2xl p-5 sm:p-6 space-y-4">
+						<TituloSecao texto="Ações a serem realizadas" />
+						<CamposAcoes valor={data.plano.acoes} rotulo={false} />
+					</section>
+
+					<div class="grid order-5 gap-6 md:grid-cols-[2fr_3fr] md:items-start">
+						<CamposDataExecucao
+							bind:dataInicio
+							bind:feriado
+							bind:horaInicio
+							bind:horaFim
+							bind:dataFim
+							apoioTermino="(liga a sugestão)"
+							notaRodape="Sem previsão de término, o sistema não sugere a quantidade de horas — ela é digitada por equipe."
 						/>
-					</label>
-				</div>
 
-				<label class="block space-y-1">
-					<span class="text-sm font-medium text-surface-700 dark:text-surface-200">Finalidade</span>
-					<textarea
-						name="finalidade"
-						value={data.plano.finalidade}
-						rows="4"
-						maxlength="2000"
-						class="textarea"></textarea>
-				</label>
+						<div class="min-w-0 space-y-6">
+							<section class="card-quadro rounded-2xl p-5 sm:p-6 space-y-4">
+								<TituloSecao
+									texto="Estrutura"
+									apoio="Quantidade e SEINT mudam pelos botões do Anexo I."
+								/>
+								<div class="flex flex-wrap items-start gap-4">
+									<label class="block shrink-0 space-y-1">
+										<span class="text-sm font-medium text-surface-700 dark:text-surface-200"
+											>Qtd. de equipes</span
+										>
+										<input
+											type="number"
+											value={qtdOperacionais}
+											disabled
+											title="Altere no Anexo I"
+											class="input w-28"
+										/>
+									</label>
+									<label class="block shrink-0 space-y-1">
+										<span class="text-sm font-medium text-surface-700 dark:text-surface-200"
+											>OIPs por equipe</span
+										>
+										<input
+											type="number"
+											name="oip_por_equipe"
+											value={data.plano.oip_por_equipe_padrao}
+											min="0"
+											max="99"
+											class="input w-28"
+										/>
+									</label>
+									<div
+										class="flex min-w-0 flex-1 items-start gap-3 opacity-70"
+										title="Altere no Anexo I"
+									>
+										<input
+											type="checkbox"
+											checked={temSeint}
+											disabled
+											class="checkbox mt-0.5"
+											aria-label="Incluir equipe SEINT"
+										/>
+										<span class="space-y-0.5">
+											<span class="block text-sm font-medium text-surface-900 dark:text-white"
+												>Incluir equipe SEINT</span
+											>
+											<span class="block text-xs text-surface-600 dark:text-surface-400">
+												Uma só, atendendo todas as operacionais.
+											</span>
+										</span>
+									</div>
+								</div>
+							</section>
 
-				<label class="block space-y-1">
-					<span class="text-sm font-medium text-surface-700 dark:text-surface-200">
-						Ações a serem realizadas <span class="text-surface-600 dark:text-surface-400"
-							>(uma por linha)</span
+							<CamposComando
+								bind:coordenadorId
+								bind:demandanteId
+								coordenadorSelecionado={opcaoCoordenador}
+								demandanteSelecionado={opcaoDemandante}
+							/>
+
+							<section class="card-quadro rounded-2xl p-5 sm:p-6 space-y-4">
+								<TituloSecao
+									texto="Signatário do plano"
+									apoio="Quem assina o documento. Varia por operação — o Titular assina umas, o Adjunto outras."
+								/>
+								<CamposSignatario
+									bind:diretorId
+									bind:cargo={diretorCargo}
+									selecionado={opcaoDiretor}
+									nomePadrao={data.plano.diretor_id ? '' : data.plano.diretor_nome}
+								/>
+							</section>
+						</div>
+					</div>
+
+					{#if form?.error}
+						<p
+							class="order-6 rounded-xl border border-error-500/30 bg-error-500/10 p-3 text-sm text-error-700 dark:text-error-300"
 						>
-					</span>
-					<textarea name="acoes" value={data.plano.acoes} rows="4" maxlength="2000" class="textarea"
-					></textarea>
-				</label>
+							{form.error}
+						</p>
+					{/if}
 
-				<div class="space-y-2">
-					<span class="block text-sm font-medium text-surface-700 dark:text-surface-200"
-						>Data da operação</span
+					<div
+						class="order-7 flex justify-end gap-2 pt-4 pb-4 border-t border-surface-200/70 dark:border-white/10"
 					>
-					<CalendarioDia bind:valor={dataInicio} bind:feriado />
-					<input type="hidden" name="data_inicio" value={dataInicio} />
-					{#if feriado}<input type="hidden" name="feriado" value="1" />{/if}
-				</div>
-
-				<!-- Os três campos de tempo na MESMA linha: leem-se juntos ("das 05:00
-				     às 11:00, terminando em"), e a data de término separada delas ficava
-				     longe do horário que ela completa. -->
-				<div class="grid gap-3 sm:grid-cols-3">
-					<label class="block space-y-1">
-						<span class="text-sm font-medium text-surface-700 dark:text-surface-200"
-							>Apresentação</span
+						<button
+							type="submit"
+							class="btn preset-filled-primary-500 py-2.5 px-4 rounded-xl text-sm"
+							disabled={loading.active}
 						>
-						<input name="hora_inicio" value={data.plano.hora_inicio} class="input w-32" />
-					</label>
-					<label class="block space-y-1">
-						<span class="text-sm font-medium text-surface-700 dark:text-surface-200">
-							Previsão de término <span class="text-surface-600 dark:text-surface-400"
-								>(liga a sugestão)</span
-							>
-						</span>
-						<input name="hora_fim" value={data.plano.hora_fim ?? ''} class="input w-32" />
-					</label>
-					<label class="block space-y-1">
-						<span class="text-sm font-medium text-surface-700 dark:text-surface-200">
-							Data de término <span class="text-surface-600 dark:text-surface-400"
-								>(se virar o dia)</span
-							>
-						</span>
-						<input
-							type="date"
-							name="data_fim"
-							value={data.plano.data_fim ?? ''}
-							class="input w-44"
-						/>
-					</label>
-				</div>
-
-				<div class="grid gap-3 sm:grid-cols-2">
-					<div class="space-y-1">
-						<label
-							for="coord"
-							class="block text-sm font-medium text-surface-700 dark:text-surface-200"
-						>
-							DPC coordenador
-						</label>
-						<SearchableSelect
-							id="coord"
-							name="coordenador_id"
-							bind:value={coordenadorId}
-							selectedOption={opcaoCoordenador}
-							loadOptions={buscarCoordenadores}
-							minSearchChars={MIN_BUSCA}
-							placeholder="Busque por nome ou matrícula"
-						/>
+							Salvar parâmetros
+						</button>
 					</div>
+				</form>
 
-					<div class="space-y-1">
-						<label
-							for="dem"
-							class="block text-sm font-medium text-surface-700 dark:text-surface-200"
-						>
-							Delegacia / seccional demandante
-						</label>
-						<SearchableSelect
-							id="dem"
-							name="demandante_unidade_id"
-							bind:value={demandanteId}
-							selectedOption={opcaoDemandante}
-							loadOptions={buscarUnidades}
-							minSearchChars={MIN_BUSCA}
-							placeholder="Busque a unidade"
-						/>
-					</div>
-
-					<label class="block space-y-1">
-						<span class="text-sm font-medium text-surface-700 dark:text-surface-200"
-							>OIPs por equipe (referência)</span
-						>
-						<input
-							type="number"
-							name="oip_por_equipe"
-							value={data.plano.oip_por_equipe_padrao}
-							min="0"
-							max="99"
-							class="input w-28"
-						/>
-					</label>
-				</div>
-
-				<!-- Signatário: é campo DO PLANO porque varia por operação — o Titular
-				     assina umas, o Adjunto outras. O nome vai congelado no documento;
-				     trocar aqui só vale para este plano. -->
-				<div class="pt-3 border-t border-surface-200/70 dark:border-white/10">
-					<CamposSignatario
-						bind:diretorId
-						bind:cargo={diretorCargo}
-						selecionado={opcaoDiretor}
-						nomePadrao={data.plano.diretor_id ? '' : data.plano.diretor_nome}
+				<section class="card-quadro order-4 rounded-2xl p-5 sm:p-6 space-y-4">
+					<TituloSecao
+						texto="Opções das equipes"
+						apoio="O que os seletores de cada equipe oferecem. A marcada com estrela vem pré-preenchida nas equipes novas."
 					/>
-				</div>
-
-				{#if form?.error}
-					<p class="text-xs text-error-600 dark:text-error-400">{form.error}</p>
-				{/if}
-
-				<div class="flex justify-end">
-					<button
-						type="submit"
-						class="btn preset-filled-primary-500 py-2.5 px-4 rounded-xl text-sm"
-						disabled={loading.active}
-					>
-						Salvar parâmetros
-					</button>
-				</div>
-			</form>
-
-			<!-- As duas listas ficam FORA do formulário acima: cada opção grava
-			     sozinha, como os membros da equipe. Dentro dele, acrescentar um
-			     destino exigiria salvar o plano inteiro — levando junto qualquer
-			     edição pela metade que estivesse nos outros campos. -->
-			<div
-				class="grid gap-5 sm:grid-cols-3 p-5 pt-0 border-t border-surface-200/70 dark:border-white/10"
-			>
-				<div class="sm:col-span-2 pt-4">
-					<h3 class="text-sm font-semibold text-surface-900 dark:text-white">Opções das equipes</h3>
-					<p class="text-xs text-surface-600 dark:text-surface-400">
-						O que os seletores de cada equipe oferecem. A marcada com estrela vem pré-preenchida nas
-						equipes novas.
-					</p>
-				</div>
-
-				<EditorOpcoes
-					tipo="briefing"
-					rotulo="Locais de briefing"
-					descricao="Onde as equipes se apresentam."
-					exemplo="Sede da 4ª Seccional do Interior Sul"
-					opcoes={data.opcoes.briefing}
-					{enviar}
-				/>
-				<EditorOpcoes
-					tipo="origem"
-					rotulo="Cidades de origem"
-					descricao="De onde as equipes saem — mede a distância."
-					exemplo="Jucás"
-					opcoes={data.opcoes.origem}
-					{enviar}
-				/>
-				<EditorOpcoes
-					tipo="destino"
-					rotulo="Cidades de destino"
-					descricao="Para onde as equipes se deslocam."
-					exemplo="Acopiara"
-					opcoes={data.opcoes.destino}
-					{enviar}
-				/>
+					<div class="grid gap-4 md:grid-cols-3">
+						<EditorOpcoes
+							tipo="origem"
+							rotulo="Cidades de origem"
+							descricao="De onde as equipes saem — mede a distância."
+							exemplo="Jucás"
+							opcoes={data.opcoes.origem}
+							{enviar}
+						/>
+						<EditorOpcoes
+							tipo="briefing"
+							rotulo="Locais de briefing"
+							descricao="Onde as equipes se apresentam."
+							exemplo="Sede da 4ª Seccional do Interior Sul"
+							opcoes={data.opcoes.briefing}
+							{enviar}
+						/>
+						<EditorOpcoes
+							tipo="destino"
+							rotulo="Cidades de destino"
+							descricao="Para onde as equipes se deslocam."
+							exemplo="Acopiara"
+							opcoes={data.opcoes.destino}
+							{enviar}
+						/>
+					</div>
+				</section>
 			</div>
 		{/if}
 	</section>
 
 	<!-- ---- Equipes (Anexo I) ---- -->
-	<section class="space-y-3">
+	<!-- Quadro estático, como o Documento: agrupa o anexo. Sem `hover:shadow` —
+	     quem abre ao clique é cada equipe, não este contorno. -->
+	<section class="card-quadro rounded-2xl p-5 sm:p-6 space-y-4">
 		<div class="flex flex-wrap items-center justify-between gap-2">
 			<div>
 				<h2 class="text-base font-semibold text-surface-900 dark:text-white">
@@ -434,9 +440,9 @@
 	<PainelCustos custo={data.custo} versaoValores={data.versaoValores} />
 
 	<!-- ---- Ações do documento ---- -->
-	<!-- Quadro estático: leva o contorno, mas NÃO o `hover:shadow-md` dos dois
-	     blocos que abrem — aqui não há disclosure, e sombra reagindo ao ponteiro
-	     prometeria um clique que a seção não tem. -->
+	<!-- Quadro estático: leva o contorno, mas NÃO o `hover:shadow-md` dos blocos
+	     que abrem (parâmetros, equipes, Anexo II) — aqui não há disclosure, e
+	     sombra reagindo ao ponteiro prometeria um clique que a seção não tem. -->
 	<section class="card-quadro rounded-2xl p-5 space-y-3">
 		<h2 class="text-base font-semibold text-surface-900 dark:text-white">Documento</h2>
 

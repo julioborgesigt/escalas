@@ -3,20 +3,21 @@
 	 * Criação do plano operacional — os parâmetros gerais.
 	 *
 	 * Rota, e não modal (README §10): são dezoito campos mais o calendário. O
-	 * agrupamento segue a ordem do documento — identificação, calendário, quem
-	 * demanda e quem coordena, quem assina, e por fim a estrutura das equipes.
+	 * agrupamento segue a ordem do documento — identificação, finalidade, ações,
+	 * opções das equipes, calendário ao lado de estrutura/comando/signatário.
 	 *
-	 * ## Diagramação: seções, não cartões dentro de cartão
+	 * ## Diagramação: `card-quadro`, não `card-elevated` e não um fluxo único
 	 *
 	 * O `+layout.svelte` já entrega a página dentro de uma FOLHA (`max-w-6xl` com
 	 * borda e fundo branco em `xl`). Empilhar `card-elevated` aqui dentro desenha
-	 * cartão sobre cartão, e travar a largura de novo (`max-w-3xl`) deixa o
-	 * formulário estreito dentro de uma folha larga, com o título deslocado.
+	 * cartão sobre cartão. Separar só por título e uma linha, porém, deixa os
+	 * dezoito campos no mesmo peso — identificação, calendário, listas e
+	 * estrutura viram um bloco só.
 	 *
-	 * Então: a folha é o contêiner, as seções se separam por TÍTULO e por linha,
-	 * e o formulário ocupa a largura que tem. É o padrão de `/solicitacoes` e o
-	 * que o README §10 chama de "dentro de um card largo, o conteúdo que ganha
-	 * com a largura fica solto".
+	 * `card-quadro` é o contorno que o editor já usa nos quatro blocos do plano:
+	 * separa o vizinho (borda 2px), não a página. Sem `hover:shadow-md` — estes
+	 * quadros não abrem ao clique. O formulário ocupa a largura da folha; só
+	 * campo intrinsecamente curto (hora, quantidade) ganha teto.
 	 *
 	 * Tudo aqui é EDITÁVEL depois no editor. O que se pede na criação é só o que
 	 * o plano precisa para existir com um número e uma data; obrigar o
@@ -27,13 +28,14 @@
 	import { loading } from '$lib/loading.svelte';
 	import { toaster } from '$lib/toast';
 	import BotaoVoltar from '$lib/components/BotaoVoltar.svelte';
-	import CalendarioDia from '$lib/components/CalendarioDia.svelte';
-	import SearchableSelect from '$lib/components/SearchableSelect.svelte';
-	import { buscarCoordenadores, buscarUnidades, MIN_BUSCA } from '../_components/buscas';
 	import { DEPARTAMENTO_PADRAO } from '$lib/planos/padroes';
 	import CampoNup from '../_components/CampoNup.svelte';
+	import CamposAcoes from '../_components/CamposAcoes.svelte';
+	import CamposComando from '../_components/CamposComando.svelte';
+	import CamposDataExecucao from '../_components/CamposDataExecucao.svelte';
 	import CamposSignatario from '../_components/CamposSignatario.svelte';
 	import ListaOpcoes from '../_components/ListaOpcoes.svelte';
+	import TituloSecao from '../_components/TituloSecao.svelte';
 	import {
 		acrescentarNaLista,
 		definirPadraoNaLista,
@@ -57,8 +59,6 @@
 	let nup = $state('');
 	// svelte-ignore state_referenced_locally
 	let finalidade = $state(data.finalidadePadrao);
-	// svelte-ignore state_referenced_locally
-	let acoes = $state(data.acoesPadrao);
 	/**
 	 * As três listas de opções, montadas ANTES de o plano existir.
 	 *
@@ -86,23 +86,10 @@
 
 <svelte:head><title>Novo plano operacional | Escalas</title></svelte:head>
 
-{#snippet tituloSecao(texto: string, apoio?: string)}
-	<div class="border-b border-surface-200/70 dark:border-white/10 pb-2">
-		<h2
-			class="text-sm font-semibold uppercase tracking-wider text-surface-600 dark:text-surface-400"
-		>
-			{texto}
-		</h2>
-		{#if apoio}
-			<p class="text-xs text-surface-600 dark:text-surface-400 mt-1 normal-case">{apoio}</p>
-		{/if}
-	</div>
-{/snippet}
-
-<div class="space-y-6">
+<div class="min-w-0 space-y-6">
 	<div>
 		<BotaoVoltar href="/gise/planos" />
-		<h1 class="h2 font-bold mt-2">Novo plano operacional</h1>
+		<h1 class="h1 text-2xl font-bold mt-2">Novo plano operacional</h1>
 		<p class="text-sm text-surface-600 dark:text-surface-400 mt-1">
 			Os parâmetros gerais da operação. Tudo pode ser ajustado depois — viaturas, destinos, efetivo
 			e custos são preenchidos por equipe no editor.
@@ -165,177 +152,70 @@
 				await update({ reset: false });
 			};
 		}}
-		class="space-y-8"
+		class="space-y-6"
 	>
 		<!-- ---- Identificação ---- -->
-		<section class="space-y-4">
-			{@render tituloSecao('Identificação')}
+		<section class="card-quadro rounded-2xl p-5 sm:p-6 space-y-4">
+			<TituloSecao texto="Identificação" />
 
-			<label class="block space-y-1">
-				<span class="text-sm font-medium text-surface-700 dark:text-surface-200"
-					>Nome da operação</span
-				>
-				<input
-					name="nome"
-					bind:value={nome}
-					maxlength="160"
-					required
-					placeholder="CUMPRIMENTO DE MANDADOS JUDICIAIS"
-					class="input"
-				/>
-			</label>
-
-			<div class="grid gap-4 sm:grid-cols-2">
-				<CampoNup bind:valor={nup} opcional />
-				<label class="block space-y-1">
+			<!-- Nome, NUP e departamento na mesma linha a partir de `md`. NUP a 60%
+			     da fatia que tinha (40% menor); o que sobra vai para o nome. -->
+			<div class="grid grid-cols-1 gap-4 md:grid-cols-[4.6fr_2.4fr_3fr]">
+				<label class="block min-w-0 space-y-1">
 					<span class="text-sm font-medium text-surface-700 dark:text-surface-200"
-						>Departamento responsável</span
-					>
-					<input name="departamento" value={DEPARTAMENTO_PADRAO} maxlength="60" class="input" />
-				</label>
-			</div>
-
-			<label class="block space-y-1">
-				<span class="text-sm font-medium text-surface-700 dark:text-surface-200">Finalidade</span>
-				<textarea
-					name="finalidade"
-					bind:value={finalidade}
-					rows="4"
-					maxlength="2000"
-					class="textarea"></textarea>
-			</label>
-
-			<label class="block space-y-1">
-				<span class="text-sm font-medium text-surface-700 dark:text-surface-200">
-					Ações a serem realizadas <span class="text-surface-600 dark:text-surface-400"
-						>(uma por linha)</span
-					>
-				</span>
-				<textarea name="acoes" bind:value={acoes} rows="4" maxlength="2000" class="textarea"
-				></textarea>
-			</label>
-		</section>
-
-		<!-- ---- Calendário ---- -->
-		<section class="space-y-4">
-			{@render tituloSecao(
-				'Calendário',
-				'A data e o horário decidem se a operação gera hora extra, e de qual tipo.'
-			)}
-
-			<CalendarioDia bind:valor={dataInicio} bind:feriado />
-			<input type="hidden" name="data_inicio" value={dataInicio} />
-			{#if feriado}<input type="hidden" name="feriado" value="1" />{/if}
-
-			<!-- Os três campos de tempo numa linha só: são curtos e se leem juntos
-			     ("das 05:00 às 11:00, terminando em"). Empilhados, a data de término
-			     ficava longe do horário que ela completa. -->
-			<div class="grid gap-4 sm:grid-cols-3">
-				<label class="block space-y-1">
-					<span class="text-sm font-medium text-surface-700 dark:text-surface-200"
-						>Horário de apresentação</span
+						>Nome da operação</span
 					>
 					<input
-						name="hora_inicio"
-						bind:value={horaInicio}
-						placeholder="05:00"
-						class="input w-32"
+						name="nome"
+						bind:value={nome}
+						maxlength="160"
+						required
+						placeholder="Ex.: Operação Gladius"
+						class="input w-full"
 					/>
 				</label>
-				<label class="block space-y-1">
-					<span class="text-sm font-medium text-surface-700 dark:text-surface-200">
-						Previsão de término <span class="text-surface-600 dark:text-surface-400"
-							>(opcional)</span
-						>
-					</span>
-					<input name="hora_fim" bind:value={horaFim} placeholder="11:00" class="input w-32" />
-				</label>
-				<label class="block space-y-1">
-					<span class="text-sm font-medium text-surface-700 dark:text-surface-200">
-						Data de término <span class="text-surface-600 dark:text-surface-400"
-							>(se virar o dia)</span
-						>
-					</span>
-					<input type="date" name="data_fim" bind:value={dataFim} class="input w-44" />
+				<CampoNup bind:valor={nup} opcional />
+				<label class="block min-w-0 space-y-1">
+					<span class="text-sm font-medium text-surface-700 dark:text-surface-200"
+						>Departamento</span
+					>
+					<input
+						name="departamento"
+						value={DEPARTAMENTO_PADRAO}
+						maxlength="60"
+						class="input w-full"
+					/>
 				</label>
 			</div>
-
-			<p class="text-xs text-surface-600 dark:text-surface-400">
-				Sem previsão de término, o sistema não sugere a quantidade de horas — ela é digitada por
-				equipe no editor.
-			</p>
 		</section>
 
-		<!-- ---- Comando e demanda ---- -->
-		<section class="space-y-4">
-			{@render tituloSecao('Comando e demanda')}
+		<section class="card-quadro rounded-2xl p-5 sm:p-6 space-y-4">
+			<TituloSecao texto="Finalidade" />
+			<textarea
+				name="finalidade"
+				bind:value={finalidade}
+				rows="4"
+				maxlength="2000"
+				class="textarea"
+				aria-label="Finalidade"></textarea>
+		</section>
 
-			<div class="grid gap-4 sm:grid-cols-2">
-				<div class="space-y-1">
-					<label
-						for="coordenador"
-						class="block text-sm font-medium text-surface-700 dark:text-surface-200"
-					>
-						DPC coordenador da operação
-					</label>
-					<SearchableSelect
-						id="coordenador"
-						name="coordenador_id"
-						bind:value={coordenadorId}
-						loadOptions={buscarCoordenadores}
-						minSearchChars={MIN_BUSCA}
-						placeholder="Busque por nome ou matrícula"
-					/>
-				</div>
+		<section class="card-quadro rounded-2xl p-5 sm:p-6 space-y-4">
+			<TituloSecao texto="Ações a serem realizadas" />
+			<CamposAcoes valor={data.acoesPadrao} rotulo={false} />
+		</section>
 
-				<div class="space-y-1">
-					<label
-						for="demandante"
-						class="block text-sm font-medium text-surface-700 dark:text-surface-200"
-					>
-						Delegacia / seccional demandante
-					</label>
-					<SearchableSelect
-						id="demandante"
-						name="demandante_unidade_id"
-						bind:value={demandanteId}
-						loadOptions={buscarUnidades}
-						minSearchChars={MIN_BUSCA}
-						placeholder="Busque a unidade"
-					/>
-				</div>
-			</div>
+		<!-- ---- Opções das equipes ---- -->
+		<!-- Montadas AQUI, e não só no editor: a operação que sai para três cidades
+		     declara as três antes de criar o plano. Cada lista vira campos ocultos
+		     no POST; o servidor as grava depois de o plano existir. -->
+		<section class="card-quadro rounded-2xl p-5 sm:p-6 space-y-4">
+			<TituloSecao
+				texto="Opções das equipes"
+				apoio="O que os seletores de cada equipe vão oferecer. A marcada com estrela vem pré-preenchida nas equipes criadas — e todas continuam editáveis no plano."
+			/>
 
-			<!-- As três listas que os seletores das equipes vão oferecer. Montadas
-			     AQUI, e não só no editor: a operação que sai para três cidades
-			     declara as três antes de criar o plano, em vez de criar, entrar no
-			     editor e voltar para acrescentar. Cada lista vira campos ocultos no
-			     POST; o servidor as grava depois de o plano existir. -->
-			<div class="space-y-1">
-				<h3 class="text-sm font-semibold text-surface-900 dark:text-white">Opções das equipes</h3>
-				<p class="text-xs text-surface-600 dark:text-surface-400">
-					O que os seletores de cada equipe vão oferecer. A marcada com estrela vem pré-preenchida
-					nas equipes criadas — e todas continuam editáveis no plano.
-				</p>
-			</div>
-
-			<div class="grid gap-5 sm:grid-cols-3">
-				<ListaOpcoes
-					rotulo="Locais de briefing"
-					descricao="Onde as equipes se apresentam."
-					exemplo="Sede da 4ª Seccional do Interior Sul"
-					opcoes={listaBriefing.map((o) => ({ chave: o.valor, ...o }))}
-					aoAcrescentar={(v) => (listaBriefing = acrescentarNaLista(listaBriefing, v))}
-				>
-					{#snippet acoes(o)}
-						{@render botoes(
-							o,
-							() => (listaBriefing = definirPadraoNaLista(listaBriefing, String(o.chave))),
-							() => (listaBriefing = removerDaLista(listaBriefing, String(o.chave)))
-						)}
-					{/snippet}
-				</ListaOpcoes>
-
+			<div class="grid gap-4 md:grid-cols-3">
 				<ListaOpcoes
 					rotulo="Cidades de origem"
 					descricao="De onde as equipes saem — mede a distância."
@@ -348,6 +228,22 @@
 							o,
 							() => (listaOrigem = definirPadraoNaLista(listaOrigem, String(o.chave))),
 							() => (listaOrigem = removerDaLista(listaOrigem, String(o.chave)))
+						)}
+					{/snippet}
+				</ListaOpcoes>
+
+				<ListaOpcoes
+					rotulo="Locais de briefing"
+					descricao="Onde as equipes se apresentam."
+					exemplo="Sede da 4ª Seccional do Interior Sul"
+					opcoes={listaBriefing.map((o) => ({ chave: o.valor, ...o }))}
+					aoAcrescentar={(v) => (listaBriefing = acrescentarNaLista(listaBriefing, v))}
+				>
+					{#snippet acoes(o)}
+						{@render botoes(
+							o,
+							() => (listaBriefing = definirPadraoNaLista(listaBriefing, String(o.chave))),
+							() => (listaBriefing = removerDaLista(listaBriefing, String(o.chave)))
 						)}
 					{/snippet}
 				</ListaOpcoes>
@@ -386,69 +282,88 @@
 			<input type="hidden" name="padrao_destino" value={padraoDaLista(listaDestino)} />
 		</section>
 
-		<!-- ---- Signatário ---- -->
-		<section class="space-y-4">
-			{@render tituloSecao(
-				'Signatário do plano',
-				'Quem assina o documento. Varia por operação — o Titular assina umas, o Adjunto outras.'
-			)}
+		<!-- ---- Calendário ---- -->
+		<!-- Calendário (40%) à esquerda; estrutura, comando e signatário
+		     empilhados à direita. Horários ficam ABAIXO do calendário. Em tela
+		     estreita os quadros empilham. Sem `hover:shadow`: nenhum abre ao clique. -->
+		<div class="grid gap-6 md:grid-cols-[2fr_3fr] md:items-start">
+			<CamposDataExecucao
+				bind:dataInicio
+				bind:feriado
+				bind:horaInicio
+				bind:horaFim
+				bind:dataFim
+				apoioTermino="(opcional)"
+				notaRodape="Sem previsão de término, o sistema não sugere a quantidade de horas — ela é digitada por equipe no editor."
+				placeholderHoraInicio="05:00"
+				placeholderHoraFim="11:00"
+			/>
 
-			<CamposSignatario bind:diretorId bind:cargo={diretorCargo} />
-		</section>
-
-		<!-- ---- Equipes ---- -->
-		<section class="space-y-4">
-			{@render tituloSecao(
-				'Estrutura inicial',
-				'As equipes nascem como "Equipe 01", "Equipe 02"… e podem ser renomeadas, acrescentadas ou removidas no editor.'
-			)}
-
-			<div class="grid gap-4 sm:grid-cols-2">
-				<label class="block space-y-1">
-					<span class="text-sm font-medium text-surface-700 dark:text-surface-200"
-						>Quantidade de equipes</span
-					>
-					<input
-						type="number"
-						name="qtd_equipes"
-						bind:value={qtdEquipes}
-						min="0"
-						max="50"
-						class="input w-28"
+			<div class="min-w-0 space-y-6">
+				<section class="card-quadro rounded-2xl p-5 sm:p-6 space-y-4">
+					<TituloSecao
+						texto="Estrutura inicial"
+						apoio="As equipes nascem como “Equipe 01”, “Equipe 02”… e podem ser renomeadas, acrescentadas ou removidas no editor."
 					/>
-				</label>
-				<label class="block space-y-1">
-					<span class="text-sm font-medium text-surface-700 dark:text-surface-200"
-						>OIPs por equipe</span
-					>
-					<input
-						type="number"
-						name="oip_por_equipe"
-						bind:value={oipPorEquipe}
-						min="0"
-						max="99"
-						class="input w-28"
+
+					<div class="flex flex-wrap items-start gap-4">
+						<label class="block shrink-0 space-y-1">
+							<span class="text-sm font-medium text-surface-700 dark:text-surface-200"
+								>Qtd. de equipes</span
+							>
+							<input
+								type="number"
+								name="qtd_equipes"
+								bind:value={qtdEquipes}
+								min="0"
+								max="50"
+								class="input w-28"
+							/>
+						</label>
+						<label class="block shrink-0 space-y-1">
+							<span class="text-sm font-medium text-surface-700 dark:text-surface-200"
+								>OIPs por equipe</span
+							>
+							<input
+								type="number"
+								name="oip_por_equipe"
+								bind:value={oipPorEquipe}
+								min="0"
+								max="99"
+								class="input w-28"
+							/>
+						</label>
+						<label class="flex min-w-0 flex-1 items-start gap-3 cursor-pointer">
+							<input
+								type="checkbox"
+								name="tem_seint"
+								bind:checked={temSeint}
+								class="checkbox mt-0.5"
+							/>
+							<span class="space-y-0.5">
+								<span class="block text-sm font-medium text-surface-900 dark:text-white"
+									>Incluir equipe SEINT</span
+								>
+								<span class="block text-xs text-surface-600 dark:text-surface-400">
+									Uma só, atendendo todas as operacionais.
+								</span>
+							</span>
+						</label>
+					</div>
+				</section>
+
+				<CamposComando bind:coordenadorId bind:demandanteId />
+
+				<section class="card-quadro rounded-2xl p-5 sm:p-6 space-y-4">
+					<TituloSecao
+						texto="Signatário do plano"
+						apoio="Quem assina o documento. Varia por operação — o Titular assina umas, o Adjunto outras."
 					/>
-					<span class="block text-xs text-surface-600 dark:text-surface-400">
-						Referência para montar o efetivo; cada equipe pode ter tamanho próprio.
-					</span>
-				</label>
+
+					<CamposSignatario bind:diretorId bind:cargo={diretorCargo} />
+				</section>
 			</div>
-
-			<label
-				class="flex items-start gap-3 rounded-xl border border-surface-200 dark:border-white/10 p-3 cursor-pointer"
-			>
-				<input type="checkbox" name="tem_seint" bind:checked={temSeint} class="checkbox mt-0.5" />
-				<span class="space-y-0.5">
-					<span class="block text-sm font-medium text-surface-900 dark:text-white"
-						>Incluir equipe SEINT</span
-					>
-					<span class="block text-xs text-surface-600 dark:text-surface-400">
-						Uma só, atendendo todas as operacionais. Nasce como "Equipe SEINT".
-					</span>
-				</span>
-			</label>
-		</section>
+		</div>
 
 		{#if form?.error}
 			<p

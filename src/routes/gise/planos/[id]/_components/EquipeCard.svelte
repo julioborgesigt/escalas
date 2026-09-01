@@ -184,11 +184,12 @@
 	}
 </script>
 
-<!-- `card-quadro` (app.css): o contorno que separa um bloco de preenchimento do
-     vizinho. O `hover:shadow-md` fica aqui, e não no utilitário, porque este
-     card ABRE ao ser clicado — a sombra que reage ao ponteiro é a promessa
-     desse clique. -->
-<li class="card-quadro rounded-2xl overflow-hidden hover:shadow-md transition-shadow duration-300">
+<!-- Cartão interno do Anexo I: o contorno do ANEXO é o `card-quadro` da página.
+     Aqui só a borda 1px, como as opções das equipes. O `hover:shadow-md` fica
+     porque este card ABRE ao ser clicado. -->
+<li
+	class="rounded-xl border border-surface-200/70 dark:border-white/10 overflow-hidden hover:shadow-md transition-shadow duration-300"
+>
 	<!-- Cabeçalho: resumo sempre visível -->
 	<div class="flex flex-wrap items-center gap-3 p-4 bg-surface-50 dark:bg-surface-900/40">
 		<button

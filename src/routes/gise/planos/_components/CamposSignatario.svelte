@@ -40,7 +40,7 @@
 	} = $props();
 </script>
 
-<div class="grid gap-4 sm:grid-cols-2">
+<div class="space-y-4">
 	<div class="space-y-1">
 		<label for="diretor" class="block text-sm font-medium text-surface-700 dark:text-surface-200">
 			Nome do DPC
