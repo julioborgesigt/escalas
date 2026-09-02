@@ -2,6 +2,11 @@
 
 Roteiro de regressão manual dos fluxos de negócio. **Papel deste arquivo: exceção, não gate** — a regressão padrão é a suíte automatizada (`npm run test` + `npm run test:e2e`, ambas no CI). Use este roteiro para o que a automação não alcança (hardware físico, caixa de e-mail real, ACT ICP) e para QA exploratório antes de releases grandes. Casos já automatizados estão marcados com `[E2E: <spec>]` — não precisam de reexecução manual.
 
+> **Rodando o E2E na sua máquina — duas armadilhas que dão FALSO VERDE:**
+>
+> 1. **`SUPER_ADMIN_LOGIN` de dev no `.dev.vars` faz os specs de Super Admin PULAREM, em silêncio.** `e2e/servidor-e2e.ts` preserva o valor que já existe (para não destruir seu ambiente), e `isSuperAdmin` sai da igualdade com `administradores.login` do fixture. Com um login diferente de `e2e-super-admin`, o probe do `beforeAll` dá 403 e os testes viram `-` no relatório em vez de `✓`. **Confira a contagem de `skipped`**, não só o "passed" — foi assim que um teste quebrado do `plano-operacional.spec.ts` passou local e reprovou no CI. Para exercitá-los, fixe `SUPER_ADMIN_LOGIN=e2e-super-admin` (e restaure depois).
+> 2. **Form action postada com `x-sveltekit-action` responde HTTP 200 mesmo quando recusa.** O `fail()` vira `action_json({ type: 'failure', status }, undefined)` e o status real vai no CORPO. Asserte o corpo (`resultadoDaAction` em `plano-operacional.spec.ts`), nunca `res.status()`.
+
 > **Fluxo Token A3 (presença GISE no desktop):** roteiro dedicado em [`docs/QA_ASSINATURA_A3_DESKTOP.md`](docs/QA_ASSINATURA_A3_DESKTOP.md) — o Assinador SERPRO + token físico seguem manuais, mas a cadeia criptográfica do fluxo A3 (preparar → CMS → finalizar → validar) roda em CI com CA de teste (`e2e/assinatura-qualificada-a3.spec.ts`).
 
 ## 1. Autenticação e Sessão

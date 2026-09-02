@@ -1,4 +1,5 @@
 import { test, expect, request as pwRequest } from '@playwright/test';
+import type { APIResponse } from '@playwright/test';
 import { FIXTURE } from './global-setup';
 import { CARGOS_SIGNATARIO } from '../src/lib/planos/padroes';
 import {
@@ -54,6 +55,24 @@ const versoesCriadas: number[] = [];
 /** Um `<form>` do SvelteKit: `FormData` serializado como urlencoded. */
 function form(campos: Record<string, string>): string {
 	return new URLSearchParams(campos).toString();
+}
+
+/**
+ * O resultado de uma form action postada com `x-sveltekit-action`.
+ *
+ * **O HTTP é SEMPRE 200 nesse modo.** Um `fail()` vira
+ * `action_json({ type: 'failure', status }, undefined)` — sem `init` —, então o
+ * status real viaja no CORPO e `res.status()` não distingue sucesso de recusa.
+ * Asserir o status da resposta dá falso verde em toda recusa, e já deu: o teste
+ * do limite de km passou no meu run e reprovou no CI por isso.
+ */
+async function resultadoDaAction(res: APIResponse) {
+	const corpo = JSON.parse(await res.text());
+	return {
+		tipo: String(corpo.type),
+		status: Number(corpo.status),
+		dados: String(corpo.data ?? '')
+	};
 }
 
 /** O `id` do único registro que a consulta devolve, ou `null`. */
@@ -195,7 +214,9 @@ test.describe.serial('Plano operacional — valores, plano e PDF', () => {
 			},
 			data: form({ ...valores, distancia_minima_diaria_km: '', vigente_desde: proximaVigencia() })
 		});
-		expect(semKm.status()).toBe(400);
+		const recusaVazio = await resultadoDaAction(semKm);
+		expect(recusaVazio.tipo).toBe('failure');
+		expect(recusaVazio.status).toBe(400);
 
 		// Fora da faixa também — inclusive o zero, que pagaria diária a quem não
 		// sai da cidade.
@@ -211,7 +232,9 @@ test.describe.serial('Plano operacional — valores, plano e PDF', () => {
 					vigente_desde: proximaVigencia()
 				})
 			});
-			expect(invalido.status(), `km ${km} devia ser recusado`).toBe(400);
+			const recusa = await resultadoDaAction(invalido);
+			expect(recusa.tipo, `km ${km} devia ser recusado`).toBe('failure');
+			expect(recusa.status, `km ${km} devia ser recusado`).toBe(400);
 		}
 
 		const ok = await request.post('/config-custos?/salvarValores', {
@@ -225,7 +248,10 @@ test.describe.serial('Plano operacional — valores, plano e PDF', () => {
 				vigente_desde: proximaVigencia()
 			})
 		});
-		expect(ok.status()).toBe(200);
+		// `tipo === 'success'` e não só o 200: nesse modo a recusa TAMBÉM devolve
+		// 200, então conferir só o status faria este teste passar por não ter
+		// gravado nada.
+		expect((await resultadoDaAction(ok)).tipo).toBe('success');
 
 		const versao = versaoVigente();
 		versoesCriadas.push(versao!);
