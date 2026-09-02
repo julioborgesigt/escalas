@@ -30,6 +30,7 @@ import {
 	briefingDaEquipe,
 	destinoDaEquipe
 } from '../equipes';
+import { classificarJanela, duracaoDaJanela } from '../../../planos/horas-extras';
 import {
 	listarOpcoes,
 	valorPadrao,
@@ -50,7 +51,8 @@ import {
 	criarCustoParametros,
 	buscarCustoParametrosVigente,
 	listarCustoParametros,
-	valoresDe
+	valoresDe,
+	regrasDe
 } from '../custo-parametros';
 import { sugerirPlus } from '$lib/planos/custo';
 import type { Database } from '../../core';
@@ -264,6 +266,57 @@ describe('cascata equipe → plano', () => {
 		const j = janelaDaEquipe({ data_inicio: null, hora_inicio: '03:00', hora_fim: null }, plano);
 		expect(j.horaInicio).toBe('03:00');
 		expect(j.horaFim).toBe('11:00'); // o resto continua herdado
+	});
+
+	describe('a janela que VIRA O DIA', () => {
+		it('equipe que sai às 23h da véspera termina no dia seguinte', () => {
+			// Sem derivar a data de fim, `hora_fim < hora_inicio` no mesmo dia é uma
+			// janela invertida e `classificarJanela` devolve tudo zerado — a equipe
+			// que rodou a noite inteira ficava sem hora nenhuma sugerida.
+			const j = janelaDaEquipe(
+				{ data_inicio: '2026-09-28', hora_inicio: '23:00', hora_fim: '10:00' },
+				plano
+			);
+			expect(j.dataInicio).toBe('2026-09-28');
+			expect(j.dataFim).toBe('2026-09-29');
+		});
+
+		it('e a classificação passa a contar as horas dela', () => {
+			const j = janelaDaEquipe(
+				{ data_inicio: '2026-09-28', hora_inicio: '23:00', hora_fim: '10:00' },
+				plano
+			);
+			// 23h da segunda + 00h–09h da terça = 11 horas cheias iniciadas.
+			expect(duracaoDaJanela(classificarJanela(j))).toBe(11);
+		});
+
+		it('a operação das 04h às 08h continua no mesmo dia', () => {
+			const j = janelaDaEquipe(
+				{ data_inicio: '2026-09-29', hora_inicio: '04:00', hora_fim: '08:00' },
+				plano
+			);
+			expect(j.dataFim).toBe('2026-09-29');
+			expect(duracaoDaJanela(classificarJanela(j))).toBe(4);
+		});
+
+		it('sem hora de fim a data NÃO avança — não há janela para virar', () => {
+			const semFim = { ...plano, hora_fim: null };
+			const j = janelaDaEquipe(
+				{ data_inicio: '2026-09-29', hora_inicio: '23:00', hora_fim: null },
+				semFim
+			);
+			expect(j.dataFim).toBe('2026-09-29');
+			expect(duracaoDaJanela(classificarJanela(j))).toBe(0);
+		});
+
+		it('o fim do PLANO ainda vale como teto quando é mais tarde', () => {
+			const multiDia = { ...plano, data_fim: '2026-10-02' };
+			const j = janelaDaEquipe(
+				{ data_inicio: '2026-09-29', hora_inicio: '05:00', hora_fim: '11:00' },
+				multiDia
+			);
+			expect(j.dataFim).toBe('2026-10-02');
+		});
 	});
 
 	it('briefing próprio vence o padrão; vazio e espaço em branco herdam', () => {
@@ -556,7 +609,8 @@ describe('custo_parametros', () => {
 		dpc_12_plus: 6500,
 		dpc_3e_plus: 7800,
 		diaria_estadual: 35000,
-		diaria_interestadual: 60000
+		diaria_interestadual: 60000,
+		distancia_minima_diaria_km: 100
 	};
 
 	it('sem gravação nenhuma, a vigente é null — estado real do sistema novo', async () => {
@@ -603,15 +657,35 @@ describe('custo_parametros', () => {
 		);
 	});
 
-	it('valoresDe entrega só os dez valores ao cálculo', async () => {
+	it('valoresDe entrega só DINHEIRO; a regra sai por regrasDe', async () => {
+		// A separação é o ponto: `valoresDe` alimenta `custoDoPlano`, cujo contrato
+		// é "tudo aqui é centavos". Um número de quilômetros naquele objeto
+		// convidaria a multiplicá-lo por uma quantidade.
+		const { distancia_minima_diaria_km, ...dinheiro } = VALORES;
 		const id = await criarCustoParametros(db, {
 			...VALORES,
 			vigente_desde: '2026-01-01',
 			criado_por_nome: 'ADMIN'
 		});
 		const p = (await listarCustoParametros(db)).find((x) => x.id === id)!;
-		expect(valoresDe(p)).toEqual(VALORES);
+		expect(valoresDe(p)).toEqual(dinheiro);
 		expect(Object.keys(valoresDe(p))).not.toContain('vigente_desde');
+		expect(Object.keys(valoresDe(p))).not.toContain('distancia_minima_diaria_km');
+		expect(regrasDe(p)).toEqual({ distancia_minima_diaria_km });
+	});
+
+	it('o limite de km é gravado na versão, e congela com ela', async () => {
+		// É o que impede um plano de março mudar de rubrica quando o Super Admin
+		// subir o limite em junho — a mesma garantia dos valores.
+		await criarCustoParametros(db, { ...VALORES, vigente_desde: '2026-01-01' });
+		const nova = await criarCustoParametros(db, {
+			...VALORES,
+			distancia_minima_diaria_km: 120,
+			vigente_desde: '2026-06-01'
+		});
+		const versoes = await listarCustoParametros(db);
+		expect(versoes.find((v) => v.id === nova)?.distancia_minima_diaria_km).toBe(120);
+		expect(versoes.find((v) => v.id !== nova)?.distancia_minima_diaria_km).toBe(100);
 	});
 
 	it('sugerirPlus acrescenta 30% e arredonda para centavo inteiro', () => {

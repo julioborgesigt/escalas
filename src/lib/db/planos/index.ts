@@ -63,8 +63,11 @@ export {
 	buscarCustoParametros,
 	listarCustoParametros,
 	criarCustoParametros,
-	valoresDe
+	valoresDe,
+	regrasDe
 } from './custo-parametros';
+
+export { lancamentosMensais, piorExtratoDaEquipe } from './diarias-mensais';
 
 export {
 	listarMunicipios,

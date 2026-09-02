@@ -2,6 +2,11 @@
 
 Roteiro de regressão manual dos fluxos de negócio. **Papel deste arquivo: exceção, não gate** — a regressão padrão é a suíte automatizada (`npm run test` + `npm run test:e2e`, ambas no CI). Use este roteiro para o que a automação não alcança (hardware físico, caixa de e-mail real, ACT ICP) e para QA exploratório antes de releases grandes. Casos já automatizados estão marcados com `[E2E: <spec>]` — não precisam de reexecução manual.
 
+> **Rodando o E2E na sua máquina — duas armadilhas que dão FALSO VERDE:**
+>
+> 1. **`SUPER_ADMIN_LOGIN` de dev no `.dev.vars` faz os specs de Super Admin PULAREM, em silêncio.** `e2e/servidor-e2e.ts` preserva o valor que já existe (para não destruir seu ambiente), e `isSuperAdmin` sai da igualdade com `administradores.login` do fixture. Com um login diferente de `e2e-super-admin`, o probe do `beforeAll` dá 403 e os testes viram `-` no relatório em vez de `✓`. **Confira a contagem de `skipped`**, não só o "passed" — foi assim que um teste quebrado do `plano-operacional.spec.ts` passou local e reprovou no CI. Para exercitá-los, fixe `SUPER_ADMIN_LOGIN=e2e-super-admin` (e restaure depois).
+> 2. **Form action postada com `x-sveltekit-action` responde HTTP 200 mesmo quando recusa.** O `fail()` vira `action_json({ type: 'failure', status }, undefined)` e o status real vai no CORPO. Asserte o corpo (`resultadoDaAction` em `plano-operacional.spec.ts`), nunca `res.status()`.
+
 > **Fluxo Token A3 (presença GISE no desktop):** roteiro dedicado em [`docs/QA_ASSINATURA_A3_DESKTOP.md`](docs/QA_ASSINATURA_A3_DESKTOP.md) — o Assinador SERPRO + token físico seguem manuais, mas a cadeia criptográfica do fluxo A3 (preparar → CMS → finalizar → validar) roda em CI com CA de teste (`e2e/assinatura-qualificada-a3.spec.ts`).
 
 ## 1. Autenticação e Sessão
@@ -514,14 +519,35 @@ Verificar cada transição de status:
 - [ ] `node scripts/gerar-distancias.mjs --diff` mostra só o que mudou e **destaca em separado** quem cruzou os 100 km
 - [ ] A auditoria de `salvarEquipe` registra `distancia_procedencia` como `medida` ou `manual` — decidido pelo SERVIDOR, não por campo do formulário
 
-### 5.3.2 Distância × horário — qual rubrica a equipe recebe
+### 5.3.2 A diária primeiro, o horário na recusa
 
 - [ ] Equipe **sem distância informada** → aviso na tela dizendo que a rubrica sai só pelo horário; o campo aparece SEMPRE, não só quando origem e destino estão preenchidos
-- [ ] Distância de **40 km** em janela noturna → "Sugerir custeio" propõe HORA EXTRA, e o texto diz "abaixo do limite de diária — vale o horário"
-- [ ] Distância de **180 km** na MESMA janela → propõe DIÁRIA, e o texto explica que a partir de 100 km o horário não decide mais
+- [ ] Distância de **40 km** em janela noturna → "Sugerir custeio" propõe HORA EXTRA, e o texto diz "abaixo do limite de 100 km — vale o horário"
+- [ ] Distância de **180 km** na MESMA janela (04:00–08:00) → propõe DIÁRIA, e a quantidade nasce em **1,5 diária**, o piso da corporação
 - [ ] **100 km exatos** já são diária — o limite é inclusivo `[Vitest: custeio.test.ts]`
-- [ ] Deslocamento longo em **pleno expediente** (terça, 09:00–17:00) → diária, não "sem custo" `[Vitest: custeio.test.ts]` — é o caso que inverte conforme a ordem das perguntas
-- [ ] Ao propor diária, as horas são ZERADAS (as duas rubricas não se somam), mas a quantidade de diárias e o tipo estadual/interestadual continuam sendo escolha do admin
+- [ ] Deslocamento longo em **pleno expediente** (terça, 09:00–17:00) → **SEM CUSTO**, e o texto diz que a diária não é devida citando o dispositivo: a missão de um dia não extrapolou as 8 horas. **Antes desta regra isso dava diária** — a distância decidia sozinha
+- [ ] A MESMA equipe às **04:00–08:00** → diária, porque a saída antes das 6h extrapola
+- [ ] O mesmo deslocamento **no sábado** → diária, pela presunção do art. 22
+- [ ] Ao propor diária, as horas são ZERADAS — as duas verbas não se somam (política do DPI SUL, e a tela não sugere o contrário)
+
+**O portão de 4 horas e o limite manejável**
+
+- [ ] Operação de **2 horas** a 300 km → hora extra, com o texto "a operação tem menos de 4 horas — o percurso não alcança a jornada de 8 horas"
+- [ ] Operação de **exatamente 4 horas** a 150 km → diária; com 3 horas, hora extra `[Vitest: custeio.test.ts]`
+- [ ] Equipe **sem hora de término** a 300 km → aviso próprio ("sem a janela fechada não há como aferir"), diferente do aviso de operação curta
+- [ ] Em `/config-custos`, gravar **120 km** como distância mínima → a equipe de 110 km deixa de sugerir diária, e a de 130 km continua sugerindo
+- [ ] Campo de km vazio, com vírgula, zero ou acima de 2000 → recusa nomeando o campo, sem gravar a versão pela metade
+- [ ] A tabela **Versões gravadas** mostra a coluna "Diária a partir de" — é por ela que se explica um plano antigo com rubrica diferente
+- [ ] Plano criado ANTES da troca continua com o limite da versão dele (o `custo_parametro_id` congela) `[Vitest: planos.test.ts]`
+
+**A janela que vira o dia, e os alertas do decreto**
+
+- [ ] Equipe com **23:00 → 10:00** → a janela termina no dia seguinte e a sugestão traz **11 horas**, não zero `[Vitest: planos.test.ts]`
+- [ ] A mesma equipe recebe **1,5 diária** (`N = 2`, pernoite), não 0,5
+- [ ] Equipe 04:00 → 08:00 continua no mesmo dia, com 4 horas `[Vitest: planos.test.ts]`
+- [ ] Equipe de Juazeiro do Norte para Crato (12 km, ambos na RMC) **em pleno expediente** → alerta de vedação com "art. 4º, §1º, II"; a MESMA equipe às 04:00 **não** alerta, porque extrapola `[Vitest: vedacoes.test.ts]`
+- [ ] Servidor que já passaria de 15 diárias no mês → alerta de teto com "art. 13", e a diária **continua sendo concedida** (o alerta pede conferência, não bloqueia)
+- [ ] Missão de 28/set a 03/out lança 3 diárias em setembro e 2,5 em outubro — o teto é por mês de cada data `[Vitest: contagem.test.ts]`
 - [ ] Apagar o campo de distância → volta a `NULL` no banco, não a zero `[E2E: plano-operacional.spec.ts]`
 - [ ] Distância acima de 9999 → recusa nomeando o campo, sem gravar truncado `[E2E: plano-operacional.spec.ts]`
 - [ ] A distância NÃO é copiada para equipe nova: ela é do par origem→destino daquela equipe `[E2E: plano-operacional.spec.ts]`

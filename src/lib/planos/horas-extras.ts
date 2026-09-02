@@ -13,6 +13,23 @@
  * têm expediente ordinário nenhum — daí a linha inteira ser paga, e com o
  * acréscimo de 30% que define a hora "plus".
  *
+ * ## A hora extra é SUBORDINADA à diária, e o dispositivo dela está pendente
+ *
+ * A corporação define hora extra como trabalho fora do expediente de 08h às 18h
+ * **quando não couber diária** — a subordinação é aplicada em `sugerirCusteio`,
+ * que consulta o parecer de `$lib/diarias` antes de olhar o relógio.
+ *
+ * A tabela acima é regra da corporação e **o dispositivo legal ainda não foi
+ * fornecido**. Está escrito porque a alternativa é pior: o Decreto nº
+ * 35.922/2024, que este projeto agora cita em `$lib/diarias`, trata só da
+ * diária, e quem chegar aqui depois de lê-lo vai procurar nesta tabela um artigo
+ * que não existe. É a mesma doutrina que o `CLAUDE.md` aplica a sigla de achado
+ * órfã: declarar a ausência é o que a separa de um esquecimento.
+ *
+ * O limite de 06:00 desta tabela **não é o mesmo** do teste de extrapolação do
+ * decreto, e confundi-los custaria dinheiro: aqui 06:00–07:59 é hora extra
+ * normal; lá, saída às 06:30 não extrapola a jornada. Dois testes, duas verbas.
+ *
  * ## Isto é SUGESTÃO, não cálculo final
  *
  * A quantidade que vai ao documento é digitada pelo Admin Geral. Esta função
@@ -197,4 +214,20 @@ export function classificarJanela(janela: JanelaOperacao): HorasClassificadas {
  */
 export function horasPagas(h: HorasClassificadas): number {
 	return h.normais + h.plus;
+}
+
+/**
+ * O TAMANHO da janela em horas cheias — os três baldes somados.
+ *
+ * É uma medida exata, e não uma estimativa: `classificarJanela` põe cada hora
+ * cheia iniciada em exatamente um balde, então a soma é a duração. Existe para
+ * quem precisa da jornada inteira, e não da despesa — hoje `sugerirCusteio`, que
+ * só admite diária em operação de 4h ou mais.
+ *
+ * Zero tem dois significados que quem chama precisa distinguir: janela vazia
+ * (sem `hora_fim`, que o plano permite) e janela inválida. Nos dois casos não há
+ * duração aferida, que é diferente de duração curta.
+ */
+export function duracaoDaJanela(h: HorasClassificadas): number {
+	return h.normais + h.plus + h.semCusto;
 }

@@ -54,7 +54,7 @@ import {
 	TITULO_DRO,
 	TITULO_DIARIAS
 } from '../../planos/rotulos';
-import { formatarDiarias } from '../../planos/diarias';
+import { formatarDiarias } from '../../planos/meias-diarias';
 import { ROTULO_CATEGORIA } from '../../planos/faixa-custo';
 import type { CustoPlano } from '../../planos/custo';
 import { embutirLogosNoTopo, type JsPDFWithAutoTable, type PdfExportResult } from './pdf-comum';

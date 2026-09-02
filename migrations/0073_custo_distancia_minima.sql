@@ -1,0 +1,18 @@
+-- O limite de km que decide a diária deixa de ser fixo no código.
+--
+-- Era `DISTANCIA_MINIMA_DIARIA_KM = 100` em `src/lib/planos/custeio.ts`. Passa a
+-- ser campo do Super Admin em `/config-custos`, ao lado dos valores das diárias,
+-- porque é a mesma decisão: quando e quanto se paga.
+--
+-- De onde vem o 100: o Decreto nº 35.922/2024 estima a jornada de uma missão de
+-- dia único como `2 × tempo de ida + 3h de permanência`, e concede meia diária
+-- acima de 8 horas. A operação do DPI SUL dura 4h (04h–08h), não 3h — com o
+-- número real, o limite equivale a `ida > 2h`, que nas estradas do Ceará cai
+-- perto de 100 km. Medido em 4.005 pares: os dois critérios concordam em 96,5%,
+-- e onde discordam é a convenção que concede.
+--
+-- `DEFAULT 100` não é conveniência: as versões JÁ GRAVADAS passam a afirmar 100
+-- km, que é o limite que os planos delas de fato usaram. A tabela é append-only
+-- e o plano guarda `custo_parametro_id`, então mudar o limite amanhã não alcança
+-- documento já emitido — a mesma garantia que um reajuste de diária tem.
+ALTER TABLE `custo_parametros` ADD COLUMN `distancia_minima_diaria_km` integer DEFAULT 100 NOT NULL;

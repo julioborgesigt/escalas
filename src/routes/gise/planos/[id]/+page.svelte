@@ -444,6 +444,7 @@
 							opcoesDestino={data.opcoes.destino}
 							matriz={new Map(Object.entries(data.matrizDistancias))}
 							medicao={data.medicao}
+							limiteKm={data.limiteKm}
 							briefingPadrao={data.briefingPadrao}
 							origemPadrao={data.origemPadrao}
 							destinoPadrao={data.destinoPadrao}

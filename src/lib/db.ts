@@ -284,6 +284,9 @@ export {
 	buscarCustoParametros,
 	listarCustoParametros,
 	criarCustoParametros,
-	valoresDe
+	valoresDe,
+	regrasDe,
+	lancamentosMensais,
+	piorExtratoDaEquipe
 } from './db/planos';
 export type { PlanoDaLista, MembroDoPlano, TipoOpcao } from './db/planos';

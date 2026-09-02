@@ -22,8 +22,20 @@ import type { CustoParametros } from '../../server/schema';
 import type { Database } from '../core';
 import type { ValoresCusto } from '../../planos/custo';
 
-/** Os dez valores que o Super Admin edita, em centavos. */
-export interface EntradaCustoParametros extends ValoresCusto {
+/**
+ * As REGRAS gravadas na versão — o que não é dinheiro.
+ *
+ * Interface própria, e não campo solto, porque a versão de custo tem duas
+ * naturezas: valores (centavos) e regras (quando se aplicam). Um tipo para cada
+ * é o que impede a segunda entrar por engano no cálculo da primeira.
+ */
+export interface RegrasCusto {
+	/** A partir de quantos km o deslocamento é pago em diária. */
+	distancia_minima_diaria_km: number;
+}
+
+/** O que o Super Admin edita: os dez valores em centavos, mais as regras. */
+export interface EntradaCustoParametros extends ValoresCusto, RegrasCusto {
 	/** `YYYY-MM-DD` a partir de quando estes valores passam a valer. */
 	vigente_desde: string;
 	criado_por_id?: number | null;
@@ -94,6 +106,7 @@ export async function criarCustoParametros(
 			dpc_3e_plus: dados.dpc_3e_plus,
 			diaria_estadual: dados.diaria_estadual,
 			diaria_interestadual: dados.diaria_interestadual,
+			distancia_minima_diaria_km: dados.distancia_minima_diaria_km,
 			vigente_desde: dados.vigente_desde,
 			criado_por_id: dados.criado_por_id ?? null,
 			criado_por_nome: dados.criado_por_nome ?? ''
@@ -121,4 +134,17 @@ export function valoresDe(p: CustoParametros): ValoresCusto {
 		diaria_estadual: p.diaria_estadual,
 		diaria_interestadual: p.diaria_interestadual
 	};
+}
+
+/**
+ * O que a versão diz que NÃO é dinheiro — hoje, o limite de km da diária.
+ *
+ * Separado de `valoresDe()` de propósito. Aquele recorte é o que `custoDoPlano`
+ * consome, e o contrato dele é "tudo aqui é centavos": deixar um número de
+ * quilômetros entrar naquele objeto convidaria a multiplicá-lo por uma
+ * quantidade. São duas perguntas diferentes feitas à mesma linha — quanto vale,
+ * e quando se aplica.
+ */
+export function regrasDe(p: CustoParametros): RegrasCusto {
+	return { distancia_minima_diaria_km: p.distancia_minima_diaria_km };
 }

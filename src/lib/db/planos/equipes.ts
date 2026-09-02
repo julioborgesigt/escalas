@@ -25,6 +25,7 @@ import { planoEquipes } from '../../server/schema';
 import type { PlanoEquipe, PlanoOperacional } from '../../server/schema';
 import { batchNonEmpty, linhasAfetadas, type Database } from '../core';
 import type { JanelaOperacao } from '../../planos/horas-extras';
+import { calcularDataSaida } from '../../utils/datas';
 
 /** Os campos que a tela edita numa equipe. */
 export type PatchEquipe = Partial<{
@@ -206,16 +207,31 @@ export function janelaDaEquipe(
 	plano: Pick<PlanoOperacional, 'data_inicio' | 'hora_inicio' | 'data_fim' | 'hora_fim' | 'feriado'>
 ): JanelaOperacao {
 	const dataInicio = equipe.data_inicio ?? plano.data_inicio;
+	const horaInicio = equipe.hora_inicio ?? plano.hora_inicio;
+	const horaFim = equipe.hora_fim ?? plano.hora_fim;
+
+	// A equipe não tem `data_fim` própria — ela é DERIVADA do par de horários,
+	// que é o mesmo desenho de `calcularDataSaida` no plantão das escalas.
+	//
+	// A coluna chegou a ser cogitada e recusada por "não haver caso de uso
+	// conhecido". Há: equipe que sai às 23h da véspera para garantir a chegada.
+	// Sem derivar, `hora_fim < hora_inicio` no mesmo dia é uma janela invertida, e
+	// `classificarJanela` devolve TUDO ZERADO — a equipe que rodou a noite inteira
+	// fica sem hora nenhuma sugerida, em silêncio. A `data_fim` do plano cobria o
+	// caso por acidente, quando estava preenchida, porque ela descreve a operação
+	// e não aquela equipe.
+	//
+	// Sem hora de fim não há janela para virar o dia — e `calcularDataSaida` leria
+	// a string vazia como meia-noite, empurrando a data para a frente.
+	const viraODia = horaFim ? calcularDataSaida(dataInicio, horaInicio, horaFim) : dataInicio;
+
 	return {
 		dataInicio,
-		horaInicio: equipe.hora_inicio ?? plano.hora_inicio,
-		// A equipe não tem data de fim própria: ela herda a do plano, ou — quando o
-		// plano também não tem — encerra no dia em que começou. Dar `data_fim`
-		// própria à equipe seria um quarto campo para manter em dia sem caso de uso
-		// conhecido; a equipe que estende a jornada ajusta a QUANTIDADE de horas,
-		// que é o número que vai ao documento.
-		dataFim: plano.data_fim ?? dataInicio,
-		horaFim: equipe.hora_fim ?? plano.hora_fim,
+		horaInicio,
+		// O fim do PLANO ainda vale como teto: operação de vários dias tem a data
+		// dela, e a equipe não termina depois do que a operação declarou.
+		dataFim: plano.data_fim && plano.data_fim > viraODia ? plano.data_fim : viraODia,
+		horaFim,
 		feriado: plano.feriado
 	};
 }

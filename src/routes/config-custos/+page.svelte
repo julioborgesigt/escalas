@@ -55,6 +55,19 @@
 		)
 	);
 
+	/**
+	 * O limite de km fica FORA de `campos`: aquele objeto é percorrido por
+	 * `invalido()`, que valida moeda. Um "120" ali seria lido como R$ 1,20 e
+	 * marcaria o campo de vermelho.
+	 */
+	// svelte-ignore state_referenced_locally
+	let distanciaMinima = $state(String(data.vigente?.distancia_minima_diaria_km ?? 100));
+
+	const kmInvalido = $derived.by(() => {
+		const n = Number(distanciaMinima.trim().replace(',', '.'));
+		return distanciaMinima.trim() === '' || !Number.isInteger(n) || n < 1 || n > 2000;
+	});
+
 	// Captura intencional do valor inicial: a data de vigência é sugerida como
 	// "hoje" e passa a ser do usuário — recalcular a cada navegação apagaria uma
 	// data que ele digitou.
@@ -245,6 +258,39 @@
 				</div>
 			</div>
 
+			<div class="space-y-3">
+				<h3 class="text-sm font-semibold text-surface-800 dark:text-surface-100">
+					Quando a diária se aplica
+				</h3>
+				<p class="text-xs text-surface-600 dark:text-surface-400">
+					Deslocamento igual ou acima desta distância é pago em diária; abaixo dela, o horário
+					decide entre hora extra e sem custo. Vale só para operação de <strong
+						>4 horas ou mais</strong
+					> — abaixo disso o percurso não alcança a jornada de 8 horas que o decreto exige.
+				</p>
+				<label class="block max-w-xs space-y-1">
+					<span class="text-sm font-medium text-surface-700 dark:text-surface-200"
+						>Distância mínima para diária</span
+					>
+					<span class="flex items-center gap-2">
+						<input
+							name="distancia_minima_diaria_km"
+							bind:value={distanciaMinima}
+							inputmode="numeric"
+							placeholder="100"
+							required
+							class="input flex-1 {kmInvalido ? 'border-2 border-error-500' : ''}"
+						/>
+						<span class="text-sm text-surface-600 dark:text-surface-400">km</span>
+					</span>
+				</label>
+				{#if kmInvalido}
+					<p class="text-2xs text-error-600 dark:text-error-400">
+						Use um número inteiro de 1 a 2000.
+					</p>
+				{/if}
+			</div>
+
 			<div class="flex flex-wrap items-end gap-3 pt-1">
 				<label class="block space-y-1">
 					<span class="text-sm font-medium text-surface-700 dark:text-surface-200"
@@ -255,7 +301,7 @@
 				<button
 					type="submit"
 					class="btn preset-filled-primary-500 py-2.5 px-4 rounded-xl text-sm"
-					disabled={salvandoValores || algumInvalido}
+					disabled={salvandoValores || algumInvalido || kmInvalido}
 				>
 					{salvandoValores ? 'Salvando…' : 'Gravar nova versão'}
 				</button>
@@ -295,6 +341,7 @@
 							<th>OIP D/C</th>
 							<th>DPC 1ª/2ª</th>
 							<th>Diária est.</th>
+							<th>Diária a partir de</th>
 							<th>Gravada por</th>
 						</tr>
 					</thead>
@@ -314,6 +361,7 @@
 								<td>{formatarBRL(v.oip_cd_normal)}</td>
 								<td>{formatarBRL(v.dpc_12_normal)}</td>
 								<td>{formatarBRL(v.diaria_estadual)}</td>
+								<td>{v.distancia_minima_diaria_km} km</td>
 								<td class="text-xs text-surface-600 dark:text-surface-400"
 									>{v.criado_por_nome || '—'}</td
 								>
@@ -340,7 +388,7 @@
 						</p>
 						<p class="text-xs">
 							OIP D/C {formatarBRL(v.oip_cd_normal)} · DPC 1ª/2ª {formatarBRL(v.dpc_12_normal)} · Diária
-							{formatarBRL(v.diaria_estadual)}
+							{formatarBRL(v.diaria_estadual)} a partir de {v.distancia_minima_diaria_km} km
 						</p>
 					</li>
 				{/each}
