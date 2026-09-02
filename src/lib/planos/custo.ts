@@ -38,7 +38,7 @@
  * primeira remarcação transforma em impedimento.
  */
 import { faixaDoPolicial, categoriaDaFaixa, type CategoriaAnexo } from './faixa-custo';
-import type { TipoDiaria } from './diarias';
+import type { TipoDiaria } from './meias-diarias';
 import type { TipoCusto } from './rotulos';
 
 /** Os valores aplicados — o recorte de `custo_parametros` que o cálculo usa. */

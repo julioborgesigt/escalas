@@ -38,13 +38,26 @@ import { hojeBrasilISO } from '$lib/utils/datas';
 import { logger } from '$lib/server/logger';
 
 /**
- * Os dez campos de valor, na ordem em que a tela os apresenta.
+ * Os dez campos de DINHEIRO, na ordem em que a tela os apresenta.
+ *
+ * O limite de km da diária NÃO entra aqui, embora apareça no mesmo formulário:
+ * esta lista é percorrida por um laço que valida com `lerBRL` e grava centavos.
  *
  * Uma lista só, consumida pelo `load`, pela action e pelo `.svelte`: é ela que
  * garante que um campo novo apareça nos três lugares. Três listas escritas à
  * mão divergiriam, e o sintoma seria um valor que a tela mostra e a action não
  * grava — silencioso, porque o campo faltante simplesmente fica zero.
  */
+/**
+ * Limites do campo de quilômetros, em km.
+ *
+ * `1` porque zero pagaria diária a quem não sai da cidade, e `2000` porque o
+ * Ceará inteiro cabe em menos de 800 km — o teto existe contra o dedo pesado,
+ * não contra uma regra.
+ */
+const KM_MINIMO = 1;
+const KM_MAXIMO = 2000;
+
 const CAMPOS_VALOR = [
 	{ chave: 'oip_cd_normal', rotulo: 'OIP classes D e C', grupo: 'normal' },
 	{ chave: 'oip_ab_normal', rotulo: 'OIP classes B e A', grupo: 'normal' },
@@ -125,6 +138,28 @@ export const actions: Actions = {
 			valores[campo.chave] = centavos;
 		}
 
+		// FORA do laço acima de propósito: `CAMPOS_VALOR` tem contrato de dinheiro
+		// (valida com `lerBRL`, grava centavos). Quilômetro é inteiro e tem faixa
+		// própria — enfiá-lo naquela lista faria `lerBRL('120')` gravar 12000.
+		const kmBruto = String(fd.get('distancia_minima_diaria_km') ?? '').trim();
+		if (kmBruto === '') {
+			return fail(400, {
+				error: 'Preencha a distância mínima para diária.',
+				campo: 'distancia_minima_diaria_km'
+			});
+		}
+		const distanciaMinima = Number(kmBruto.replace(',', '.'));
+		if (
+			!Number.isInteger(distanciaMinima) ||
+			distanciaMinima < KM_MINIMO ||
+			distanciaMinima > KM_MAXIMO
+		) {
+			return fail(400, {
+				error: `Distância mínima inválida. Use um número inteiro de ${KM_MINIMO} a ${KM_MAXIMO} km.`,
+				campo: 'distancia_minima_diaria_km'
+			});
+		}
+
 		const vigenteDesde = String(fd.get('vigente_desde') ?? '').trim();
 		if (!/^\d{4}-\d{2}-\d{2}$/.test(vigenteDesde)) {
 			return fail(400, { error: 'Informe a data de vigência (AAAA-MM-DD).' });
@@ -135,6 +170,7 @@ export const actions: Actions = {
 		try {
 			novoId = await criarCustoParametros(db, {
 				...valores,
+				distancia_minima_diaria_km: distanciaMinima,
 				vigente_desde: vigenteDesde,
 				criado_por_id: u.tipo === 'policial' ? u.id : null,
 				criado_por_nome: u.nome ?? ''
@@ -153,7 +189,11 @@ export const actions: Actions = {
 				entidade: 'configuracao',
 				entidade_id: novoId,
 				detalhes: `Nova versão de valores de custo (vigente desde ${vigenteDesde})`,
-				dados_depois: { ...valores, vigente_desde: vigenteDesde },
+				dados_depois: {
+					...valores,
+					distancia_minima_diaria_km: distanciaMinima,
+					vigente_desde: vigenteDesde
+				},
 				...contexto
 			},
 			{ env }

@@ -150,6 +150,7 @@ test.describe.serial('Plano operacional — valores, plano e PDF', () => {
 				dpc_3e_plus: '78,00',
 				diaria_estadual: '350,00',
 				diaria_interestadual: '600,00',
+				distancia_minima_diaria_km: '100',
 				vigente_desde: proximaVigencia()
 			})
 		});
@@ -167,6 +168,71 @@ test.describe.serial('Plano operacional — valores, plano e PDF', () => {
 		});
 		expect(negado.status()).toBeGreaterThanOrEqual(300);
 		expect(negado.status()).toBeLessThan(400);
+	});
+
+	test('o limite de km é GRAVADO na versão, e a versão o congela', async ({ request }) => {
+		test.skip(!ehSuperAdmin, 'Super Admin fixture indisponível (SUPER_ADMIN_LOGIN)');
+
+		const valores = {
+			oip_cd_normal: '27,30',
+			oip_ab_normal: '34,13',
+			dpc_12_normal: '50,00',
+			dpc_3e_normal: '60,00',
+			oip_cd_plus: '35,49',
+			oip_ab_plus: '44,37',
+			dpc_12_plus: '65,00',
+			dpc_3e_plus: '78,00',
+			diaria_estadual: '350,00',
+			diaria_interestadual: '600,00'
+		};
+
+		// Km vazio é ERRO, como os valores: gravar 100 por omissão faria a versão
+		// afirmar um limite que ninguém escolheu.
+		const semKm = await request.post('/config-custos?/salvarValores', {
+			headers: {
+				...headersFormAction(tokenSuper!),
+				'content-type': 'application/x-www-form-urlencoded'
+			},
+			data: form({ ...valores, distancia_minima_diaria_km: '', vigente_desde: proximaVigencia() })
+		});
+		expect(semKm.status()).toBe(400);
+
+		// Fora da faixa também — inclusive o zero, que pagaria diária a quem não
+		// sai da cidade.
+		for (const km of ['0', '2001', '99,5']) {
+			const invalido = await request.post('/config-custos?/salvarValores', {
+				headers: {
+					...headersFormAction(tokenSuper!),
+					'content-type': 'application/x-www-form-urlencoded'
+				},
+				data: form({
+					...valores,
+					distancia_minima_diaria_km: km,
+					vigente_desde: proximaVigencia()
+				})
+			});
+			expect(invalido.status(), `km ${km} devia ser recusado`).toBe(400);
+		}
+
+		const ok = await request.post('/config-custos?/salvarValores', {
+			headers: {
+				...headersFormAction(tokenSuper!),
+				'content-type': 'application/x-www-form-urlencoded'
+			},
+			data: form({
+				...valores,
+				distancia_minima_diaria_km: '120',
+				vigente_desde: proximaVigencia()
+			})
+		});
+		expect(ok.status()).toBe(200);
+
+		const versao = versaoVigente();
+		versoesCriadas.push(versao!);
+		const gravado = queryD1Local<{ km: number }>(
+			`SELECT distancia_minima_diaria_km AS km FROM custo_parametros WHERE id = ${versao};`
+		);
+		expect(gravado![0].km).toBe(120);
 	});
 
 	test('Admin Geral cria o plano, que nasce amarrado à versão vigente', async ({ request }) => {
@@ -341,13 +407,11 @@ test.describe.serial('Plano operacional — valores, plano e PDF', () => {
 		expect(await editor.text()).toContain(String(esperado));
 	});
 
-	test('a distância manda na rubrica: 100 km viram diária mesmo em pleno expediente', async ({
-		request
-	}) => {
-		// O caso que inverte o resultado conforme a ordem das perguntas. Este plano
-		// é de SÁBADO, então o relógio já daria hora extra; o que se prova aqui é o
-		// caminho da PERSISTÊNCIA — que `distancia_km` chega ao banco e volta —, e
-		// não a regra em si, que é dos unitários (`custeio.test.ts`).
+	test('a distância e a rubrica escolhidas chegam ao banco e voltam', async ({ request }) => {
+		// Caminho da PERSISTÊNCIA — que `distancia_km` e `tipo_custo` atravessam a
+		// action —, não a regra em si, que é dos unitários (`custeio.test.ts`). A
+		// action grava o que o admin escolheu: a sugestão é da tela, e sobrepor-se
+		// a ela aqui impediria a correção que o card existe para permitir.
 		const equipe = idDe(
 			`SELECT id FROM plano_equipes WHERE plano_id = ${planoId} ORDER BY ordem LIMIT 1;`
 		);
@@ -586,6 +650,7 @@ test.describe.serial('Plano operacional — valores, plano e PDF', () => {
 				dpc_3e_plus: '156,00',
 				diaria_estadual: '700,00',
 				diaria_interestadual: '1200,00',
+				distancia_minima_diaria_km: '100',
 				vigente_desde: proximaVigencia()
 			})
 		});

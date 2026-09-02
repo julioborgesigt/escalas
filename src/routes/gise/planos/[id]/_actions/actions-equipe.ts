@@ -21,7 +21,7 @@ import {
 	contextoDeEvento
 } from '$lib/db';
 import { validarHora, normalizarHora } from '$lib/gise/horarios';
-import { meiasDiariasValidas } from '$lib/planos/diarias';
+import { meiasDiariasValidas } from '$lib/planos/meias-diarias';
 import { distanciaDoTrajeto } from '$lib/planos/distancia';
 import { logger } from '$lib/server/logger';
 import {

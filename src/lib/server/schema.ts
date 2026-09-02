@@ -1660,6 +1660,19 @@ export const custoParametros = sqliteTable(
 		diaria_estadual: integer('diaria_estadual').notNull().default(0),
 		/** Diária interestadual (centavos). */
 		diaria_interestadual: integer('diaria_interestadual').notNull().default(0),
+		/**
+		 * A partir de quantos km o deslocamento é pago em diária.
+		 *
+		 * Mora aqui, e não numa constante, porque é decisão do Super Admin — a mesma
+		 * autoridade que fixa quanto vale a diária. E mora nesta tabela, que é
+		 * append-only, porque **congela junto com os valores**: o plano guarda
+		 * `custo_parametro_id`, então subir o limite para 120 amanhã não muda a
+		 * rubrica de um plano de março que já foi impresso e assinado.
+		 *
+		 * Não é dinheiro, então fica FORA de `valoresDe()` — ver `regrasDe()` ao
+		 * lado dele.
+		 */
+		distancia_minima_diaria_km: integer('distancia_minima_diaria_km').notNull().default(100),
 		vigente_desde: text('vigente_desde').notNull(),
 		criado_por_id: integer('criado_por_id'),
 		/** Copiado para a linha: precisa dizer quem gravou depois que o cadastro mudar. */
@@ -1919,9 +1932,22 @@ export const municipios = sqliteTable(
 		nome: text('nome').notNull(),
 		uf: text('uf').notNull(),
 		lat: real('lat').notNull(),
-		lon: real('lon').notNull()
+		lon: real('lon').notNull(),
+		/**
+		 * `'RMF'`, `'RMC'`, `'RMS'` — ou `NULL`, que é o caso de 138 dos 184.
+		 *
+		 * Semeada do IBGE por `scripts/gerar-regioes-metropolitanas.mjs`. Serve à
+		 * vedação do Decreto nº 35.922/2024, art. 4º, §1º, II: deslocamento dentro
+		 * da MESMA região, até 120 km e sem extrapolação de jornada, não gera
+		 * diária. As três condições valem juntas, e a terceira é de relógio — por
+		 * isso o código alerta em vez de bloquear (ver `$lib/diarias/vedacoes`).
+		 */
+		regiao_metropolitana: text('regiao_metropolitana', { enum: ['RMF', 'RMC', 'RMS'] })
 	},
-	(table) => [index('idx_municipios_nome').on(table.uf, table.nome)]
+	(table) => [
+		index('idx_municipios_nome').on(table.uf, table.nome),
+		index('idx_municipios_rm').on(table.regiao_metropolitana)
+	]
 );
 
 /**

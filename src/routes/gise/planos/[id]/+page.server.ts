@@ -27,6 +27,8 @@ import {
 	listarMunicipios,
 	matrizDoPlano,
 	procedenciaDaMedicao,
+	lancamentosMensais,
+	piorExtratoDaEquipe,
 	buscarPolicial
 } from '$lib/db';
 import { unidades } from '$lib/server/schema';
@@ -36,6 +38,9 @@ import { montarCustoDoPlano, versaoDeValores } from '$lib/server/planos/custo-do
 import { podeEmitir } from '$lib/planos/custo';
 import { classificarJanela } from '$lib/planos/horas-extras';
 import { distanciaDoTrajeto } from '$lib/planos/distancia';
+import { DISTANCIA_MINIMA_DIARIA_KM } from '$lib/planos/custeio';
+import { analisarDiaria } from '$lib/diarias/parecer';
+import { mesesAcimaDoTeto } from '$lib/diarias/contagem';
 import { actionsPlano } from './_actions/actions-plano';
 import { actionsEquipe } from './_actions/actions-equipe';
 import { actionsMembros } from './_actions/actions-membros';
@@ -86,6 +91,26 @@ export const load: PageServerLoad = async ({ locals, params, platform, depends }
 			.filter((o) => o.municipio_ibge)
 			.map((o) => [o.valor, o.municipio_ibge as string])
 	);
+
+	/**
+	 * Região metropolitana por código IBGE — entrada da vedação do art. 4º, §1º,
+	 * II. Sai da lista que já foi carregada; não custa consulta nova.
+	 */
+	const rmPorIbge = new Map(municipios.map((m) => [m.ibge, m.regiao_metropolitana]));
+
+	/**
+	 * Quanto cada servidor já tem lançado em cada mês, para o teto de 15 diárias
+	 * do art. 13.
+	 *
+	 * ESTE plano fica de fora da soma (`plano.id`): a equipe que estou reavaliando
+	 * não pode contar contra si mesma — ela apareceria estourando o teto por causa
+	 * da diária que ela própria já concedeu.
+	 */
+	const idsDosMembros = [...porEquipe.values()].flat().map((m) => m.policial_id);
+	const lancamentos = await lancamentosMensais(db, idsDosMembros, plano.id);
+
+	/** O limite de km CONGELADO na versão de valores que este plano aplica. */
+	const limiteKm = parametros?.distancia_minima_diaria_km ?? DISTANCIA_MINIMA_DIARIA_KM;
 
 	const briefingPadrao = valorPadrao(opcoes.briefing);
 	const origemPadrao = valorPadrao(opcoes.origem);
@@ -140,17 +165,49 @@ export const load: PageServerLoad = async ({ locals, params, platform, depends }
 				},
 				matriz
 			);
+			const membros = porEquipe.get(e.id) ?? [];
+			const origemIbge = ibgePorValor.get(origemDaEquipe(e, origemPadrao)) ?? null;
+			const destinoIbge = ibgePorValor.get(destinoDaEquipe(e, destinoPadrao)) ?? null;
+			const dataFim = janela.dataFim ?? janela.dataInicio;
+
+			// O parecer é do SERVIDOR pelo mesmo motivo do custo: ele cita
+			// dispositivo legal e vai virar linha de documento. Recalculá-lo na tela
+			// deixaria duas versões da mesma análise circulando.
+			const parecer = analisarDiaria({
+				dataInicio: janela.dataInicio,
+				dataFim,
+				feriado: janela.feriado,
+				horaInicio: janela.horaInicio,
+				horaFim: janela.horaFim,
+				regiaoOrigem: (origemIbge && rmPorIbge.get(origemIbge)) || null,
+				regiaoDestino: (destinoIbge && rmPorIbge.get(destinoIbge)) || null,
+				mesmaCidade: Boolean(origemIbge && origemIbge === destinoIbge),
+				// A distância GRAVADA, não a medida: é ela que o Anexo II usa, e a
+				// vedação dos 120 km precisa olhar o mesmo número.
+				distanciaKm: e.distancia_km ?? trajeto?.km ?? null,
+				mesesAcimaDoTeto: mesesAcimaDoTeto(
+					janela.dataInicio,
+					dataFim,
+					piorExtratoDaEquipe(
+						lancamentos,
+						membros.map((m) => m.policial_id)
+					)
+				)
+			});
+
 			return {
 				...e,
-				membros: porEquipe.get(e.id) ?? [],
+				membros,
 				janela,
 				distanciaMedida: trajeto,
 				destinoEfetivo: destinoDaEquipe(e, destinoPadrao),
 				sugestaoHoras: classificarJanela(janela),
+				parecer,
 				custo: custo.equipes.find((c) => c.equipe.id === e.id)?.total ?? 0
 			};
 		}),
 		custo,
+		limiteKm,
 		podeEmitir: podeEmitir(custo),
 		/** A versão aplicada, para a tela dizer de onde vêm os números. */
 		versaoValores: versaoDeValores(parametros)

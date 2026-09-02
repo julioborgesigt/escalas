@@ -992,20 +992,93 @@ CATÁLOGO do qual as escalas GISE pendem (`gise_escalas.operacao_id`); um plano 
 evento único, com equipes próprias. Discriminar por coluna faria toda consulta
 de `/gise` passar a filtrar.
 
-**A DISTÂNCIA decide primeiro, e só então o relógio** (`sugerirCusteio`):
+**A DIÁRIA é verificada primeiro; não sendo devida, o relógio decide**
+(`sugerirCusteio`). As duas verbas **nunca se somam** — e essa recusa é política
+do DPI SUL, não do decreto: o Decreto nº 36.182/2024 permite percebê-las
+concomitantemente. Precisa estar escrito, senão quem ler o decreto depois
+"corrige" a inconsistência somando as duas.
 
-| Pergunta, nesta ordem                                         | Rubrica                                       |
-| ------------------------------------------------------------- | --------------------------------------------- |
-| Origem → destino ≥ **100 km**?                                | diária estadual ou interestadual, de 0,5 a 15 |
-| Abaixo disso: 08:00–18:00 em dia útil                         | sem custo                                     |
-| Abaixo disso: 06:00–08:00 e 18:00–00:00 útil                  | hora extra normal                             |
-| 00:00–06:00 útil, ou fim de semana e feriado em qualquer hora | hora extra **plus** (+30%)                    |
+| Pergunta, nesta ordem                                              | Rubrica                                       |
+| ------------------------------------------------------------------ | --------------------------------------------- |
+| Deslocamento ≥ **limite** (padrão 100 km) **e** operação ≥ **4h** — com parecer favorável | diária, no mínimo **1,5** (piso da corporação) |
+| Distância bastaria, mas a operação tem menos de 4h                 | vale o relógio                                |
+| Distância bastaria, mas a equipe não tem hora de término           | vale o relógio, e a tela avisa                |
+| Abaixo do limite: 08:00–18:00 em dia útil                          | sem custo                                     |
+| Abaixo do limite: 06:00–08:00 e 18:00–00:00 útil                   | hora extra normal                             |
+| 00:00–06:00 útil, ou fim de semana e feriado em qualquer hora      | hora extra **plus** (+30%)                    |
 
-A ordem não é comutativa, e é o motivo de a distância vir primeiro: uma equipe
-que sai de Jucás para Acopiara numa terça às 09:00 percorre mais de 100 km
-DENTRO do expediente ordinário. Pelo relógio ela custaria zero; pela distância
-ela custa diária. Consultar o horário primeiro produziria "sem custo" para uma
-equipe que dormiu fora.
+A ordem não é comutativa, e o exemplo mudou quando o decreto entrou. Uma equipe
+que sai de Jucás para Acopiara **às 04:00** percorre mais de 100 km: o relógio
+sozinho diria hora extra pelas horas de madrugada, e a regra completa diz
+DIÁRIA — a saída antes das 6h extrapola a jornada, e a diária substitui.
+
+A MESMA equipe numa terça das 09:00 às 17:00 recebe **sem custo**, não diária:
+a missão de um dia inteiramente dentro do expediente não extrapola a jornada
+ordinária, e o decreto não concede diária por distância nenhuma. Antes desta
+regra ela recebia diária, porque a distância decidia sozinha. É a correção que
+este módulo trouxe, e é dinheiro nos dois sentidos.
+
+### De onde vêm os 100 km, e por que 4 horas
+
+O limite **não está no decreto** — os números de lá são outros: 8 horas de
+jornada (o teste de mérito) e 120 km, este só dentro de região metropolitana e só
+combinado com ausência de extrapolação. Os 100 km são a aritmética do próprio
+decreto com a permanência REAL no lugar da presumida:
+
+- o cálculo estimado do decreto é `2 × tempo de ida + 3h de permanência > 8h`;
+- a operação do DPI SUL dura **4h** (04h–08h), não 3h;
+- com o número real o teste vira `ida > 2h`, que nas estradas do Ceará cai perto
+  de 100 km — a mediana medida é 123 km.
+
+Medido em **4.005 pares** do Ceará (90 municípios, distância e tempo na mesma
+chamada ao OSRM), `km ≥ 100` e `2×ida + 4h > 8h` concordam em **96,5%**; onde
+discordam, é a convenção dos 100 km que concede. Daí o portão de duração: numa
+operação de 2h, 100 km dariam `2×2 + 2 = 6h`, e a diária deixaria de se
+justificar.
+
+**O limite é campo do Super Admin** (`/config-custos`, ao lado dos valores das
+diárias) e **congela na versão** — o plano guarda `custo_parametro_id`, então
+subir o limite para 120 km amanhã não muda a rubrica de um plano de março já
+impresso. As 4 horas seguem constante nomeada (`DURACAO_MINIMA_DIARIA_HORAS`):
+foi o km que a corporação pediu para manejar.
+
+### O parecer do decreto, e os alertas que ele emite
+
+Quem decide se a diária é DEVIDA é `$lib/diarias/` — domínio próprio, porque a
+futura aba de solicitação avulsa consome o mesmo motor:
+
+| módulo | pergunta |
+| --- | --- |
+| `contagem.ts` | quantas diárias, e em qual **mês** cada uma cai |
+| `jornada.ts` | a missão de um dia extrapolou as 8 horas? |
+| `vedacoes.ts` | o que precisa de conferência humana |
+| `parecer.ts` | o veredito, com o **dispositivo citado** |
+
+A quantidade é `N − 0,5` com pernoite (`N` = dias, início e fim inclusive), e ela
+é escrita como **atribuição por dia** — cada dia vale 2 meias, o último vale 1.
+Somado dá o mesmo `2N − 1`, mas quebrado por mês responde ao teto de 15
+diárias/mês do art. 13 sem uma segunda regra: uma missão de 28/set a 03/out lança
+3 diárias em setembro e 2,5 em outubro. **Saída às 23h da véspera é pernoite** —
+`N = 2`, 1,5 diária, não 0,5.
+
+A ordem do teste de jornada é do decreto e não é comutativa: fim de semana ou
+feriado (presunção do art. 22) → horário declarado (saída antes das 6h ou retorno
+após as 18h) → e **só na falta de horário declarado** a fórmula estimada. Como o
+plano operacional sempre declara horário e a operação começa às 04h, toda equipe
+extrapola pelo segundo caminho, a 20 km ou a 300 km — a fórmula estimada é
+inalcançável ali, e existe para a aba futura.
+
+**Os alertas não bloqueiam.** A vedação do art. 4º, §1º, II exige três condições
+juntas — mesma região metropolitana, até 120 km e **sem** extrapolação —, e a
+terceira é de relógio: na operação das 04h ela nunca fecha. Barrar pela geografia
+sozinha recusaria o que a lei permite, então o código alerta e uma pessoa decide.
+As três regiões (RMF 19, RMC 9, RMS 18 municípios) vêm do IBGE por
+`scripts/gerar-regioes-metropolitanas.mjs`, chaveadas por código.
+
+**A hora extra segue sem dispositivo citado.** A corporação a define como
+trabalho fora de 08h–18h quando não couber diária; a norma que a rege ainda não
+foi fornecida, e o cabeçalho de `horas-extras.ts` declara isso em vez de deixar
+quem leu o decreto procurar ali um artigo que não existe.
 
 ### A distância é MEDIDA, e o trajeto passa pelo briefing
 
@@ -1049,6 +1122,15 @@ equipe, e a tabela só PRÉ-PREENCHE — a mesma decisão de `custo_parametros`.
 `NULL` é "ninguém mediu ainda" e é distinto de zero — zero afirma que
 origem e destino são a mesma cidade. Sem a medida, a sugestão cai no horário e a
 tela **avisa**, porque a diária não sugerida é a que não é paga.
+
+**A janela da equipe VIRA O DIA quando o horário assim diz.** A equipe não tem
+`data_fim` própria: ela é derivada do par `hora_inicio`/`hora_fim` por
+`calcularDataSaida`, o mesmo desenho do plantão nas escalas. Sem derivar, a
+equipe que sai às 23h da véspera tinha `hora_fim < hora_inicio` no mesmo dia,
+`classificarJanela` devolvia TUDO ZERADO e ela ficava sem hora nenhuma sugerida,
+em silêncio — e agora ficaria também sem a diária, porque o portão de 4h leria
+duração zero. A `data_fim` do plano segue como teto, para operação de vários
+dias.
 
 O que a regra **não** decide: quantas diárias (é o Admin Geral quem sabe se a
 equipe dorme fora uma ou três noites) e se a diária é estadual ou interestadual

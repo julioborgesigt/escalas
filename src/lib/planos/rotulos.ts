@@ -12,8 +12,8 @@
  * uma escolha de estilo: **DRO** é "Diária de Reforço Operacional", que é como
  * a hora extra é chamada no documento, e o Anexo II traz o título por extenso.
  */
-import type { TipoDiaria } from './diarias';
-import { ROTULO_DIARIA } from './diarias';
+import type { TipoDiaria } from './meias-diarias';
+import { ROTULO_DIARIA } from './meias-diarias';
 
 /** Como a equipe é paga. Espelha `plano_equipes.tipo_custo`. */
 export type TipoCusto = 'sem_custo' | 'hora_extra' | 'diaria';

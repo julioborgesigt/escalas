@@ -1,5 +1,10 @@
 /**
- * Diárias do plano operacional — a contagem em MEIAS DIÁRIAS e sua formatação.
+ * A UNIDADE em que a diária é contada — a meia diária — e sua formatação.
+ *
+ * Só a unidade. **Quem decide se a diária é devida, e quantas, é
+ * `$lib/diarias/`**, que aplica o Decreto nº 35.922/2024. A separação é o que
+ * o nome deste arquivo diz: aqui mora "3 meias se escrevem 1,5 diárias"; lá
+ * mora "esta missão gera 3 meias".
  *
  * A corporação concede de meia diária a 15 diárias, em passos de meia. Guardar
  * isso como `2.5` num `real` colocaria float no caminho do dinheiro: o total do

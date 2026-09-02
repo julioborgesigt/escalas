@@ -25,10 +25,11 @@
 	import { loading } from '$lib/loading.svelte';
 	import type { PlanoOpcao, PlanoEquipe } from '$lib/server/schema';
 	import { escolhasDaEquipe } from '$lib/planos/opcoes';
-	import { sugerirCusteio, DISTANCIA_MINIMA_DIARIA_KM } from '$lib/planos/custeio';
+	import { sugerirCusteio, DURACAO_MINIMA_DIARIA_HORAS } from '$lib/planos/custeio';
+	import type { Parecer } from '$lib/diarias/parecer';
 	import { distanciaDoTrajeto } from '$lib/planos/distancia';
 	import { formatarBRL, resumoHoras, rotuloCustoDaEquipe } from '$lib/planos/rotulos';
-	import { formatarDiarias, MIN_MEIAS, MAX_MEIAS } from '$lib/planos/diarias';
+	import { formatarDiarias, MIN_MEIAS, MAX_MEIAS } from '$lib/planos/meias-diarias';
 	import type { HorasClassificadas } from '$lib/planos/horas-extras';
 	import type { MembroDoPlano } from '$lib/db/planos';
 	import Trash2 from '@lucide/svelte/icons/trash-2';
@@ -89,6 +90,8 @@
 		/** O trajeto medido pelo servidor na abertura — `null` quando não dá para medir. */
 		distanciaMedida: { km: number; via: 'briefing' | 'direto' } | null;
 		sugestaoHoras: HorasClassificadas;
+		/** O parecer de diária, calculado no servidor — ver `$lib/diarias/parecer`. */
+		parecer: Parecer;
 		custo: number;
 	};
 
@@ -101,6 +104,7 @@
 		opcoesDestino,
 		matriz,
 		medicao,
+		limiteKm,
 		briefingPadrao,
 		origemPadrao,
 		destinoPadrao
@@ -118,6 +122,14 @@
 		matriz: ReadonlyMap<string, number>;
 		/** Quando a matriz foi medida, para a tela dizer a idade do número. */
 		medicao: { fonte: string; medido_em: string } | null;
+		/**
+		 * O limite de km CONGELADO na versão de valores deste plano.
+		 *
+		 * Vem do servidor, e não da constante do módulo: o Super Admin pode ter
+		 * mudado o limite depois, e a tela precisa dizer o número que ESTE plano
+		 * aplica — senão ela explica a rubrica com um valor que não é o dela.
+		 */
+		limiteKm: number;
 		/**
 		 * O valor da opção PADRÃO de cada tipo — o que a equipe passa a usar se o
 		 * campo dela ficar vazio.
@@ -262,7 +274,14 @@
 		typeof distancia === 'number' && Number.isFinite(distancia) && distancia >= 0 ? distancia : null
 	);
 
-	const sugestao = $derived(sugerirCusteio({ distanciaKm, horas: equipe.sugestaoHoras }));
+	const sugestao = $derived(
+		sugerirCusteio({
+			distanciaKm,
+			horas: equipe.sugestaoHoras,
+			limiteKm,
+			parecer: equipe.parecer
+		})
+	);
 
 	/** Só faz sentido oferecer o botão quando há algo que decida a rubrica. */
 	const temSugestao = $derived(
@@ -274,10 +293,10 @@
 		tipoCusto = sugestao.tipo_custo;
 		horasNormais = sugestao.horas.normais;
 		horasPlus = sugestao.horas.plus;
-		// A quantidade de diárias continua sendo do admin — a distância diz que a
-		// rubrica é diária, não quantas noites a equipe dorme fora. Só garante um
-		// valor utilizável quando o campo ainda estava zerado.
-		if (sugestao.tipo_custo === 'diaria' && diariasMeias < MIN_MEIAS) diariasMeias = 2;
+		// A quantidade vem do PARECER, com o piso de 1,5 diária que a corporação
+		// fixou para o plano operacional (ver `MEIAS_MINIMAS_PLANO`). Continua
+		// editável: quem sabe quantas noites a equipe dorme fora é quem monta.
+		if (sugestao.tipo_custo === 'diaria') diariasMeias = sugestao.meias;
 	}
 </script>
 
@@ -502,7 +521,7 @@
 						</p>
 					{:else if distanciaKm === null}
 						<p class="text-xs text-warning-700 dark:text-warning-400">
-							Sem a distância, a rubrica é decidida só pelo horário — e um deslocamento de {DISTANCIA_MINIMA_DIARIA_KM}
+							Sem a distância, a rubrica é decidida só pelo horário — e um deslocamento de {limiteKm}
 							km ou mais é pago em diária mesmo dentro do expediente. Escolha origem e destino nas listas
 							do plano para a medida sair sozinha.
 						</p>
@@ -642,20 +661,42 @@
 					{/if}
 				</div>
 
-				<!-- O texto diz QUAL regra decidiu, não só os números: a distância manda
-				     na rubrica e o relógio só entra abaixo do limite, então "pelo horário"
-				     seria uma explicação errada na metade dos casos. -->
+				<!-- O texto diz QUAL regra decidiu, não só os números. São quatro
+				     recusas diferentes ("não mediram", "operação curta", "sem janela",
+				     "o parecer negou") e todas levam à hora extra: colapsá-las faria a
+				     tela afirmar o motivo errado, e a diária não sugerida é a que não é
+				     paga. -->
 				{#if sugestao.motivo === 'distancia'}
 					<p class="text-xs text-surface-600 dark:text-surface-400">
-						Deslocamento de <strong>{distanciaKm} km</strong> — a partir de {DISTANCIA_MINIMA_DIARIA_KM}
-						km o pagamento é em <strong>diária</strong>, qualquer que seja o horário. Quantas
-						diárias e se é estadual ou interestadual continuam sendo sua escolha.
+						Deslocamento de <strong>{distanciaKm} km</strong> — a partir de {limiteKm} km, e com operação
+						de {DURACAO_MINIMA_DIARIA_HORAS} horas ou mais, o pagamento é em
+						<strong>diária</strong>. A quantidade nasce em
+						<strong>{formatarDiarias(sugestao.meias)}</strong>, o mínimo da corporação, e continua
+						sua para ajustar.
+					</p>
+				{:else if sugestao.motivo === 'duracao_curta'}
+					<p class="text-xs text-surface-600 dark:text-surface-400">
+						Deslocamento de <strong>{distanciaKm} km</strong>, mas a operação tem menos de
+						{DURACAO_MINIMA_DIARIA_HORAS} horas — o percurso não alcança a jornada de 8 horas que a diária
+						exige. Vale o horário.
+					</p>
+				{:else if sugestao.motivo === 'sem_janela'}
+					<p class="text-xs text-warning-700 dark:text-warning-400">
+						Deslocamento de <strong>{distanciaKm} km</strong>, mas esta equipe não tem hora de
+						término — sem a janela fechada não há como aferir as 4 horas que a diária exige.
+						Preencha o término para a sugestão sair.
+					</p>
+				{:else if sugestao.motivo === 'parecer'}
+					<p class="text-xs text-warning-700 dark:text-warning-400">
+						Distância e duração bastariam, mas a diária não é devida:
+						<strong>{equipe.parecer.fundamentos[0]?.texto}</strong>
+						({equipe.parecer.fundamentos[0]?.dispositivo}). Vale o horário.
 					</p>
 				{:else if temSugestao}
 					<p class="text-xs text-surface-600 dark:text-surface-400">
 						{#if distanciaKm !== null}
-							Deslocamento de <strong>{distanciaKm} km</strong>, abaixo do limite de diária — vale o
-							horário:
+							Deslocamento de <strong>{distanciaKm} km</strong>, abaixo do limite de {limiteKm} km — vale
+							o horário:
 						{:else}
 							Pelo horário desta equipe:
 						{/if}
@@ -670,6 +711,25 @@
 						informe a rubrica à mão.
 					</p>
 				{/if}
+
+				<!-- Os alertas do decreto NÃO impedem a concessão: eles pedem
+				     conferência. Ver `alertasDaViagem` — a vedação de região
+				     metropolitana tem três condições, e a terceira é de relógio. -->
+				{#each equipe.parecer.alertas as alerta (alerta)}
+					{@const f = equipe.parecer.fundamentos.find((x) =>
+						alerta === 'teto_mensal'
+							? x.dispositivo === 'art. 13'
+							: alerta === 'mesma_regiao_metropolitana'
+								? x.dispositivo === 'art. 4º, §1º, II'
+								: x.texto.startsWith('Origem e destino')
+					)}
+					{#if f}
+						<p class="flex items-start gap-1.5 text-xs text-warning-700 dark:text-warning-400">
+							<TriangleAlert class="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+							<span>{f.texto} <em class="not-italic opacity-70">({f.dispositivo})</em></span>
+						</p>
+					{/if}
+				{/each}
 
 				<!-- Rubrica e quantidade na MESMA linha: os três botões escolhem
 				     COMO paga; os campos ao lado dizem QUANTO. Separar em duas

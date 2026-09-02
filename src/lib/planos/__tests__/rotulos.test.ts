@@ -11,7 +11,7 @@ import {
 	rotuloCustoDaEquipe,
 	ROTULO_TIPO_CUSTO
 } from '../rotulos';
-import { formatarDiarias, lerDiarias, meiasDiariasValidas } from '../diarias';
+import { formatarDiarias, lerDiarias, meiasDiariasValidas } from '../meias-diarias';
 
 describe('formatarBRL', () => {
 	it.each([
