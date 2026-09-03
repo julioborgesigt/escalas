@@ -1,3 +1,5 @@
+import type { MotivoSemEvidencia } from '$lib/assinatura-evidencia';
+
 export type SignaturePadLivenessResultado = {
 	tipo: string;
 	cumprido: boolean;
@@ -18,6 +20,15 @@ export type SignaturePadConfirmPayload = {
 	liveness: SignaturePadLivenessResultado | null;
 	/** Janela de reautenticação por senha — o servidor recusa se faltar. */
 	reauthId?: string;
+	/**
+	 * Por que a coordenada não veio, quando não veio.
+	 *
+	 * O servidor recusa o ato sem GPS enquanto a flag estiver ligada; declarar o
+	 * motivo é a alternativa a travar quem tem a permissão negada pelo aparelho, e
+	 * é o que a trilha de auditoria passa a registrar. Lista fechada em
+	 * `$lib/assinatura-evidencia`.
+	 */
+	motivoSemGps?: MotivoSemEvidencia;
 };
 
 /**

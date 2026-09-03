@@ -1244,6 +1244,65 @@ O enquadramento jurídico de cada modalidade (Lei 14.063/2020, MP 2.200-2) está
 
 A rota `/validar/[hash]` é **pública e sem autenticação**. Qualquer pessoa pode verificar a autenticidade de um documento assinado informando o código exibido no PDF. Visitante **autenticado** vê também o recorte da chave de assinatura (o mesmo da linha `CHAVE DE ASSINATURA` no manifesto) para confrontar com a ficha do servidor, sem abrir o banco. O anônimo não recebe esse recorte. O titular vê o mesmo recorte em Meu Perfil, com a data do último uso; o sistema não guarda o modelo do celular.
 
+### Trava de tela não é trava
+
+`maxlength`, botão escondido e `disabled` são dicas de digitação: somem num POST
+direto, num `curl` ou com uma linha no devtools. A régua do projeto é que **toda
+regra material recusa também no servidor** — o mesmo princípio de
+"esconder o botão não é autorização" ([`CLAUDE.md`](CLAUDE.md)), aplicado a
+ESTADO, EVIDÊNCIA e TAMANHO, não só a permissão.
+
+A varredura de set/2026 encontrou três formas de a régua falhar, todas com a
+mesma assinatura: a regra existia certa em um caminho e faltava no vizinho.
+
+**1. A trava que não travava.** O gate de `exigirGpsAssinatura` checava
+`typeof latitude !== 'number'` — e **`typeof NaN === 'number'`**. O cliente manda
+a coordenada em texto e o servidor faz `parseFloat`, então `latitude=abc` chegava
+como `NaN`, passava e a assinatura seguia com o manifesto imprimindo "Não
+capturado". Pior que ausente: `latitude=999` passava também, e essa o manifesto
+IMPRIME como o local do ato — evidência inventada corrói a credibilidade das
+outras evidências do mesmo documento. Hoje o gate é
+`coordenadaGeograficaValida` (finito + faixa), e coordenada implausível é
+persistida como ausência mesmo com a flag desligada.
+
+**2. Evidência exigida só na tela.** A confirmação de presença não passa por
+`validarEvidenciasAvancada` (checa o 2FA à mão), e por isso `exigirFoto` e
+`exigirGps` — **as duas com default `true`** — viviam apenas no `SignaturePad`.
+Um POST direto registrava presença sem nenhuma das duas enquanto o painel do
+admin as anunciava obrigatórias.
+
+O gate agora é [`$lib/assinatura-evidencia`](src/lib/assinatura-evidencia.ts),
+client-safe para a tela pedir pela MESMA regra, e ele **aceita ausência
+DECLARADA**: a presença tem janela de horário e é a base do pagamento da diária,
+então recusa seca deixaria de fora quem tem o GPS negado pelo aparelho — e a
+tela já permitia seguir nesse caso. O motivo vem de lista FECHADA
+(`permissao_negada`, `indisponivel_no_aparelho`, `falha_tecnica`) e entra na
+trilha de auditoria.
+
+Sendo preciso sobre o que isso compra: não impede quem quer burlar — um cliente
+adulterado sempre pode declarar "GPS negado", que é a mesma fronteira de garantia
+que o liveness já declara. O que muda é que a ausência deixa de ser INVISÍVEL:
+antes o servidor gravava sem GPS e sem registrar nada; agora todo ato sem
+evidência carrega o motivo, e o padrão fica CONTÁVEL no console de auditoria (um
+servidor que declara "GPS negado" em todas as presenças aparece).
+
+**3. `maxlength` sem contraparte.** Rota de API não cai nessa (o padrão
+obrigatório é `validateBody` com Zod, que tem `.max()`); **form action lê
+`FormData` na mão**. A regra estava certa em `gise/operacoes` e em
+`planos/novo` — cada um com a SUA cópia de `texto(fd, campo, max)` — e ausente
+num terceiro: `salvarBreveRelatorio` gravava as MESMAS três colunas que
+`operacoes` limita a 200/2000 sem limite nenhum, nem na tela; e as
+`observacoes` da escala tinham `maxlength=500` em quatro telas, servidor sem cap
+e coluna sem CHECK. Os dois entram em PDF assinado. A implementação virou
+[`$lib/server/form-data`](src/lib/server/form-data.ts), as duas cópias delegam, e
+os limites do breve relatório são UMA constante lida pelas duas telas que editam
+e pelas duas actions que gravam.
+
+Corolário para código novo: **campo com `maxlength` na tela precisa do mesmo
+número no servidor** — `textoLimitado(fd, campo, MAX)` em form action, `.max()`
+no Zod em rota de API. Regex de e-mail prova o FORMATO e casa com string de
+qualquer tamanho; o cap é `MAX_EMAIL`.
+
 ### PII forense não sai do servidor por engano
 
 O manifesto do PDF assinado carrega **CPF, IP, GPS e selfie** de quem assinou, e

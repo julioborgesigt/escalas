@@ -27,6 +27,7 @@
 		SignaturePadConfirmPayload,
 		SignaturePadStep
 	} from './SignaturePadTypes';
+	import type { MotivoSemEvidencia } from '$lib/assinatura-evidencia';
 	import { apiFetch } from '$lib/api-fetch';
 	import { toaster } from '$lib/toast';
 	import {
@@ -93,6 +94,16 @@
 		reauthId: string | null;
 	} | null>(null);
 
+	/**
+	 * Por que o GPS não veio — `null` quando veio, ou quando nem foi pedido.
+	 *
+	 * Existe porque o servidor passou a RECUSAR presença sem GPS com a flag
+	 * ligada, e a alternativa a travar quem tem a permissão negada é declarar o
+	 * motivo, que fica na trilha de auditoria. Antes esta tela apenas mostrava
+	 * `locationError` e seguia: o ato era gravado sem GPS e sem nada dizendo por quê.
+	 */
+	let motivoSemGps = $state<MotivoSemEvidencia | null>(null);
+
 	let senhaInput = $state('');
 	let senhaError = $state<string | null>(null);
 	let confirmandoSenha = $state(false);
@@ -127,18 +138,27 @@
 							lat: pos.coords.latitude,
 							lng: pos.coords.longitude
 						};
+						// Chegou: não há ausência a declarar (uma tentativa anterior pode
+						// ter deixado o motivo preenchido).
+						motivoSemGps = null;
+						locationError = null;
 						capturingLocation = false;
 					},
 					(err) => {
 						console.warn('Erro ao capturar localização:', err);
 						locationError =
 							'Não foi possível capturar sua localização. Por favor, permita o acesso ao GPS.';
+						// O motivo vai junto no POST: sem ele o servidor recusa o ato (a
+						// flag está ligada), e com ele a ausência fica registrada COM causa.
+						// `PERMISSION_DENIED` é o código 1 do `GeolocationPositionError`.
+						motivoSemGps = err.code === 1 ? 'permissao_negada' : 'falha_tecnica';
 						capturingLocation = false;
 					},
 					{ enableHighAccuracy: true, timeout: 10000 }
 				);
 			} else {
 				locationError = 'GPS não disponível neste dispositivo.';
+				motivoSemGps = 'indisponivel_no_aparelho';
 			}
 		}
 	});
@@ -267,6 +287,9 @@
 				selfie: pendingSignature.selfieBase64,
 				liveness: pendingSignature.liveness,
 				reauthId: pendingSignature.reauthId ?? undefined,
+				// Só quando a coordenada de fato não veio — coordenada presente COM
+				// motivo declarado seria contraditório na trilha.
+				motivoSemGps: pendingSignature.lat == null ? (motivoSemGps ?? undefined) : undefined,
 				...extras
 			});
 		} catch (e: unknown) {

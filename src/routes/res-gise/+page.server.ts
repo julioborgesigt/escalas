@@ -64,6 +64,12 @@ import { exigirJanelaReauth } from '$lib/server/assinatura/reauth';
 import { verificarDesafio2FA } from '$lib/auth';
 import { logger } from '$lib/server/logger';
 import { uploadSelfieDataUri } from '$lib/server/assinatura/selfie-upload';
+import { coordenadaGeograficaValida } from '$lib/server/assinatura/document-utils';
+import {
+	lerMotivoSemEvidencia,
+	recusaPorEvidenciaDePresenca,
+	metadadosDeEvidenciaPresenca
+} from '$lib/assinatura-evidencia';
 import {
 	giseEscalas,
 	giseMembros,
@@ -500,6 +506,11 @@ async function prepararConfirmacaoPresenca(event: RequestEvent, tipo: TipoPresen
 	const codigoEmail = formData.get('codigoEmail') as string | null;
 	const desafioId = formData.get('desafioId') as string | null;
 	const reauthId = formData.get('reauthId') as string | null;
+	// Declaração de que a captura não foi possível. Lista FECHADA
+	// (`lerMotivoSemEvidencia` devolve `null` para qualquer coisa fora dela), para
+	// o campo não virar texto livre entrando na trilha por POST direto.
+	const motivoSemGps = lerMotivoSemEvidencia(formData.get('motivoSemGps'));
+	const motivoSemFoto = lerMotivoSemEvidencia(formData.get('motivoSemFoto'));
 
 	if (isNaN(giseId)) {
 		return { ok: false as const, resposta: fail(400, { error: 'Dados inválidos', giseId }) };
@@ -619,6 +630,29 @@ async function prepararConfirmacaoPresenca(event: RequestEvent, tipo: TipoPresen
 		selfieKey = r.key;
 	}
 
+	// As flags de FOTO e GPS passam a recusar AQUI. Estas actions não passam por
+	// `validarEvidenciasAvancada` (checam o 2FA à mão), e por isso as duas viviam
+	// só no `SignaturePad`: um POST direto registrava presença sem nenhuma das
+	// duas enquanto o painel do admin as anunciava obrigatórias.
+	//
+	// O gate é o de `$lib/assinatura-evidencia`, client-safe, para a tela pedir
+	// pela MESMA regra — e ele aceita ausência DECLARADA, porque a presença tem
+	// janela de horário e recusa seca deixaria de fora quem tem o GPS negado pelo
+	// aparelho. O motivo declarado entra na trilha (ver `metadadosDeEvidenciaPresenca`).
+	//
+	// `coordenadaGeograficaValida`, e não "veio um número": o cliente manda texto
+	// e isto é `parseFloat`, então `latitude=abc` chega como `NaN`.
+	const evidencia = {
+		gpsValido: coordenadaGeograficaValida(latitude, longitude),
+		temSelfie: !!selfieKey,
+		motivoSemGps,
+		motivoSemFoto
+	};
+	const recusa = recusaPorEvidenciaDePresenca(flagsAssinatura, evidencia);
+	if (recusa) {
+		return { ok: false as const, resposta: fail(400, { error: recusa.error, giseId }) };
+	}
+
 	return {
 		ok: true as const,
 		db,
@@ -628,7 +662,8 @@ async function prepararConfirmacaoPresenca(event: RequestEvent, tipo: TipoPresen
 		ua,
 		latitude,
 		longitude,
-		selfieKey
+		selfieKey,
+		evidencia
 	};
 }
 
@@ -639,7 +674,7 @@ export const actions: Actions = {
 	salvarEntrada: async (event) => {
 		const prep = await prepararConfirmacaoPresenca(event, 'entrada');
 		if (!prep.ok) return prep.resposta;
-		const { db, u, giseId, ip, ua, latitude, longitude, selfieKey } = prep;
+		const { db, u, giseId, ip, ua, latitude, longitude, selfieKey, evidencia } = prep;
 
 		const entrada = await salvarEntradaGise(
 			db,
@@ -669,7 +704,7 @@ export const actions: Actions = {
 				alvo_id: u.id,
 				alvo_nome: u.nome,
 				detalhes: `Registro de entrada na GISE ${giseId}`,
-				metadados: { temSelfie: !!selfieKey, temGps: latitude != null && longitude != null },
+				metadados: metadadosDeEvidenciaPresenca(evidencia),
 				...contexto
 			},
 			{ env }
@@ -685,7 +720,7 @@ export const actions: Actions = {
 	salvarSaida: async (event) => {
 		const prep = await prepararConfirmacaoPresenca(event, 'saida');
 		if (!prep.ok) return prep.resposta;
-		const { db, u, giseId, ip, ua, latitude, longitude, selfieKey } = prep;
+		const { db, u, giseId, ip, ua, latitude, longitude, selfieKey, evidencia } = prep;
 
 		// A gravação exige a entrada no próprio `WHERE`: sem ela o UPDATE não
 		// achava linha, o resultado era ignorado e a auditoria registrava uma
@@ -713,7 +748,7 @@ export const actions: Actions = {
 				alvo_id: u.id,
 				alvo_nome: u.nome,
 				detalhes: `Registro de saída na GISE ${giseId}`,
-				metadados: { temSelfie: !!selfieKey, temGps: latitude != null && longitude != null },
+				metadados: metadadosDeEvidenciaPresenca(evidencia),
 				...contexto
 			},
 			{ env }
