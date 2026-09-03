@@ -49,6 +49,17 @@ export interface VerificationResult {
 		timestampQualificado: boolean;
 		revogacao: StatusOcsp;
 		/**
+		 * A assinatura do RESPONDEDOR OCSP foi conferida?
+		 *
+		 * `statusDeSnapshot` já calculava isto e só o usava para a falha dura
+		 * (`invalida` → veredito inválido). O caso `nao_verificada` era descartado
+		 * em silêncio, e ele não é raro nem inofensivo: acontece quando o issuer
+		 * não é localizado no trust store, e aí um `good` do snapshot é aceito
+		 * SEM prova criptográfica — sustentando "não revogado" com o que é, ali,
+		 * só um blob parseado. Quem audita precisa distinguir os dois.
+		 */
+		revogacaoAssinaturaResponder: 'valida' | 'invalida' | 'nao_verificada';
+		/**
 		 * O /ByteRange da assinatura principal cobre o arquivo INTEIRO (ou o
 		 * que sobra após `c+d` é apenas um incremental update DSS legítimo).
 		 * Sem este check, um atacante anexa um incremental update redefinindo
@@ -799,17 +810,43 @@ export function parseCms(cmsDer: Uint8Array): CmsParsed | null {
 // Verificações individuais
 // ---------------------------------------------------------------------------
 
+/**
+ * O conteúdo assinado bate com o `messageDigest` dos SignedAttributes?
+ *
+ * É O vínculo que transforma "existe uma assinatura válida" em "esta assinatura
+ * é DESTE documento". Sem ele, uma assinatura legítima sobre os SignedAttributes
+ * de OUTRO documento passaria — a verificação de `crypto-verify` cobre os
+ * atributos, não os bytes do PDF.
+ *
+ * `digestAlgOid` é o `digestAlgorithm` do SignerInfo, e precisa ser o MESMO que o
+ * assinador usou: o hash era fixo em SHA-256 aqui, enquanto `crypto-verify`
+ * aceita SHA-384 e SHA-512 e `avaliarPoliticaCriptografica` só barra SHA-1.
+ * Documento assinado com SHA-384/512 tinha, então, `assinaturaRsa: true` e
+ * `integridade: false` — e o veredito saía como "Hash do conteúdo do PDF não
+ * confere", isto é, o portal `/validar` ACUSANDO DE ADULTERAÇÃO um documento
+ * autêntico. Falha fechada, mas a consequência é jurídica, não técnica.
+ *
+ * `undefined` cai em SHA-256 de propósito, e são dois casos legítimos: o selo
+ * institucional (que o próprio servidor gera em SHA-256) e o CMS legado cujo
+ * `digestAlgorithm` o parser não conseguiu ler. A conferência de comprimento
+ * abaixo continua sendo a rede: OID que não reconhecemos não vira "passou".
+ */
 export async function verificarIntegridadePdf(
 	bytesAssinados: Uint8Array,
-	expectedDigestBytes: string
+	expectedDigestBytes: string,
+	digestAlgOid?: string
 ): Promise<boolean> {
-	const hash = await crypto.subtle.digest('SHA-256', bytesAssinados as unknown as ArrayBuffer);
+	const hash = await crypto.subtle.digest(
+		nomeDigestPorOid(digestAlgOid),
+		bytesAssinados as unknown as ArrayBuffer
+	);
 	const arr = new Uint8Array(hash);
 	if (arr.length !== expectedDigestBytes.length) return false;
+	let diff = 0;
 	for (let i = 0; i < arr.length; i++) {
-		if (arr[i] !== (expectedDigestBytes.charCodeAt(i) & 0xff)) return false;
+		diff |= arr[i] ^ (expectedDigestBytes.charCodeAt(i) & 0xff);
 	}
-	return true;
+	return diff === 0;
 }
 
 /**
@@ -970,14 +1007,37 @@ function verificarCadeiaTsa(
 }
 
 /** Seleciona o algoritmo de digest a partir do OID (default SHA-256). */
-function mdPorOid(oid?: string): forge.md.MessageDigest {
+/**
+ * Nome Web Crypto do digest a partir do OID do `digestAlgorithm`.
+ *
+ * FONTE ÚNICA da resposta "qual hash este SignerInfo usou": `mdPorOid` (forge,
+ * para o caminho da TSA) deriva daqui, e `verificarIntegridadePdf` usa o nome
+ * direto. Enquanto eram dois `switch`, o da TSA respeitava SHA-384/512 e o da
+ * integridade do documento estava fixo em SHA-256 — a divergência que fazia o
+ * `/validar` acusar de adulteração um PDF assinado com SHA-384.
+ *
+ * Desconhecido e ausente caem em SHA-256, que é o obrigatório da ICP-Brasil
+ * (DOC-ICP-15.03) e o que o selo institucional emite. SHA-1 não precisa de caso
+ * próprio: `avaliarPoliticaCriptografica` já reprova a assinatura antes.
+ */
+function nomeDigestPorOid(oid?: string): 'SHA-256' | 'SHA-384' | 'SHA-512' {
 	switch (oid) {
-		case '2.16.840.1.101.3.4.2.2':
+		case DIGEST_OIDS.SHA384:
+			return 'SHA-384';
+		case DIGEST_OIDS.SHA512:
+			return 'SHA-512';
+		default:
+			return 'SHA-256';
+	}
+}
+
+function mdPorOid(oid?: string): forge.md.MessageDigest {
+	switch (nomeDigestPorOid(oid)) {
+		case 'SHA-384':
 			return forge.md.sha384.create();
-		case '2.16.840.1.101.3.4.2.3':
+		case 'SHA-512':
 			return forge.md.sha512.create();
 		default:
-			// 2.16.840.1.101.3.4.2.1 (SHA-256) e fallback.
 			return forge.md.sha256.create();
 	}
 }
@@ -1173,6 +1233,7 @@ export async function verificarAssinaturaCompleta(
 			cadeiaIcpBrasil: false,
 			timestampQualificado: false,
 			revogacao: 'unknown',
+			revogacaoAssinaturaResponder: 'nao_verificada',
 			cobertura: false
 		},
 		erros
@@ -1214,7 +1275,8 @@ export async function verificarAssinaturaCompleta(
 	// 1. Integridade
 	result.checks.integridade = await verificarIntegridadePdf(
 		extracao.bytesAssinados,
-		cms.messageDigest
+		cms.messageDigest,
+		cms.digestAlgOid
 	);
 	if (!result.checks.integridade) {
 		erros.push('Hash do conteúdo do PDF não confere com o messageDigest assinado');
@@ -1313,6 +1375,7 @@ export async function verificarAssinaturaCompleta(
 		}
 		const snap = statusDeSnapshot(options.ocspSnapshotB64, issuerCert);
 		result.checks.revogacao = snap.status;
+		result.checks.revogacaoAssinaturaResponder = snap.assinaturaResponder ?? 'nao_verificada';
 		if (snap.status === 'revoked') {
 			erros.push(
 				`Certificado REVOGADO${snap.revokedAt ? ` em ${snap.revokedAt}` : ''} (snapshot OCSP)`
@@ -1360,7 +1423,14 @@ export async function verificarAssinaturaCompleta(
 					});
 					continue;
 				}
-				const integOk = await verificarIntegridadePdf(t.bytesAssinados, cmsAnt.messageDigest);
+				// O `digestAlgOid` vai aqui também, e não só na verificação de assinatura
+				// duas linhas abaixo: era a segunda cópia da chamada fixa em SHA-256, e uma
+				// co-assinatura em SHA-384 sairia como "Assinatura adicional inválida".
+				const integOk = await verificarIntegridadePdf(
+					t.bytesAssinados,
+					cmsAnt.messageDigest,
+					cmsAnt.digestAlgOid
+				);
 				const rsaOk = await verificarAssinaturaCmsAsync(
 					cmsAnt.certificate,
 					cmsAnt.sigAlgOid,

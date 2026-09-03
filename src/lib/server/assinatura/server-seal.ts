@@ -236,7 +236,14 @@ export async function verificarSeloInstitucional(
 	const cms = parseCms(extra.cmsDer);
 	if (!cms) return vazio;
 
-	const integridade = await verificarIntegridadePdf(extra.bytesAssinados, cms.messageDigest);
+	// O selo é emitido pelo próprio servidor em SHA-256, mas o OID vai explícito:
+	// quem lê não precisa deduzir de qual algoritmo se trata, e trocar o algoritmo
+	// do selo um dia não deixa esta linha para trás.
+	const integridade = await verificarIntegridadePdf(
+		extra.bytesAssinados,
+		cms.messageDigest,
+		cms.digestAlgOid
+	);
 	// Cobertura do /ByteRange: mesma defesa anti shadow-attack do fluxo qualificado.
 	// Tolera apenas incremental update DSS legítimo (PAdES-LT) após a assinatura.
 	const cobertura = await avaliarCoberturaAssinatura(pdfBytes, extra.byteRange);
