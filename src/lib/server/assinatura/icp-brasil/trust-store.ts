@@ -26,6 +26,7 @@
  */
 
 import forge from 'node-forge';
+import { logger } from '../../logger';
 import rootsPem from './roots.pem?raw';
 import intermediatesPem from './intermediates.pem?raw';
 
@@ -111,6 +112,27 @@ export function loadTrustStore(): TrustStore {
 	const intermediates = intermediatesBlocos
 		.map(parsePemSeguro)
 		.filter((c): c is forge.pki.Certificate => c !== null);
+
+	// Bloco PEM que não parseia era descartado EM SILÊNCIO. O sintoma disso não
+	// aparece aqui: aparece como "Certificado não encadeia até uma AC Raiz da
+	// ICP-Brasil reconhecida" no `/validar` — ou seja, o sistema acusando de
+	// inválido um documento autêntico, porque a âncora dele sumiu do store sem
+	// que nada tenha sido dito. Com 182 blocos hoje e um cron mensal que
+	// regrava os dois arquivos, um download truncado é cenário real, e é
+	// justamente o tipo de degradação que ninguém procura no lugar certo.
+	//
+	// `error`, não `warn`: isto é persistido em `app_log` e sobe no Sentry, que
+	// é onde o operador vai olhar quando reclamarem da validação.
+	const perdidosRoots = rootsBlocos.length - roots.length;
+	const perdidosInter = intermediatesBlocos.length - intermediates.length;
+	if (perdidosRoots > 0 || perdidosInter > 0) {
+		logger.error('[TRUST-STORE] Bloco PEM não parseou — âncora ICP-Brasil ausente do store', {
+			rootsLidos: rootsBlocos.length,
+			rootsValidos: roots.length,
+			intermediariasLidas: intermediatesBlocos.length,
+			intermediariasValidas: intermediates.length
+		});
+	}
 
 	const caStore = forge.pki.createCaStore([...roots, ...intermediates]);
 
