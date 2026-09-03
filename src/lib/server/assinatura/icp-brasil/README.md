@@ -61,6 +61,17 @@ ativas (v5 e v10), o zip oficial das ACs intermediárias, anotam
 subject / validade / SHA-256 antes de cada certificado, e substituem
 os PEMs versionados. Idempotentes — rode quando precisar atualizar.
 
+> **`acraiz.icpbrasil.gov.br` não envia a intermediária da própria cadeia TLS
+> no handshake** (comum em sites gov.br) — navegadores contornam buscando-a
+> via AIA (Authority Information Access) e reaproveitando de visitas
+> anteriores; `curl` não faz isso sozinho, e falha com
+> `curl: (60) unable to get local issuer certificate` mesmo com a raiz já
+> confiada pelo sistema. `update-trust-store.sh` reproduz o mesmo contorno via
+> a função `fetch_com_aia`: só entra em ação quando o erro é especificamente
+> esse (nunca desliga a verificação, nunca usa `-k`/`--insecure`). O
+> `.ps1` não precisa disso — o CryptoAPI do Windows já faz AIA chasing
+> nativamente.
+
 > **Aviso comum em Windows:** rodar `./update-trust-store.sh` no
 > PowerShell **não funciona** (PowerShell não executa `.sh`
 > nativamente). Use `.\update-trust-store.ps1` ou, se preferir o bash,

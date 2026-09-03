@@ -26,6 +26,95 @@ for cmd in curl openssl unzip; do
 	command -v "$cmd" >/dev/null || err "Comando '$cmd' não encontrado no PATH."
 done
 
+# acraiz.icpbrasil.gov.br é conhecido por não enviar a(s) intermediária(s) da
+# SUA PRÓPRIA cadeia TLS no handshake — um problema comum em sites gov.br,
+# documentado em vários relatos de curl/wget contra domínios ICP-Brasil.
+# Navegadores contornam isso buscando a intermediária ausente via AIA
+# (Authority Information Access, extensão "CA Issuers" do certificado) e
+# reaproveitando de visitas anteriores; curl não faz isso sozinho, e falha
+# com "curl: (60) unable to get local issuer certificate" mesmo com a raiz já
+# confiada pelo sistema. `fetch_com_aia` reproduz esse comportamento: tenta o
+# download normal e, só se falhar especificamente por esse motivo, busca a
+# intermediária via AIA e tenta de novo com ela somada ao bundle do sistema.
+# Nunca desliga a verificação (nunca usa -k/--insecure) — isso corromperia a
+# credibilidade do próprio arquivo que este script produz.
+fetch_com_aia() {
+	local url="$1" dst="$2" max_time="${3:-30}"
+	local err_log; err_log="$(mktemp)"
+	local sys_bundle="${CURL_CA_BUNDLE:-/etc/ssl/certs/ca-certificates.crt}"
+
+	local rc=0
+	curl -fsSL --max-time "$max_time" -o "$dst" "$url" 2>"$err_log" || rc=$?
+	if [ "$rc" -eq 0 ]; then
+		rm -f "$err_log"
+		return 0
+	fi
+	if [ "$rc" -ne 60 ] || ! grep -qi 'unable to get local issuer certificate' "$err_log"; then
+		cat "$err_log" >&2
+		rm -f "$err_log"
+		return "$rc"
+	fi
+	log "  ⚠ cadeia TLS incompleta em $url — buscando intermediária(s) via AIA"
+
+	local work; work="$(mktemp -d)"
+	trap 'rm -rf "$work"' RETURN
+
+	local hostport; hostport="$(printf '%s' "$url" | sed -E 's#^https://([^/]+).*#\1#')"
+	local host="${hostport%%:*}"
+	local port="443"; [ "$hostport" != "$host" ] && port="${hostport##*:}"
+	local leaf="$work/leaf.pem"
+	if ! echo | openssl s_client -connect "${host}:${port}" -servername "$host" 2>/dev/null \
+			| openssl x509 -outform PEM > "$leaf" 2>/dev/null || [ ! -s "$leaf" ]; then
+		log "  ⚠ não consegui obter o certificado de $host para extrair a AIA"
+		cat "$err_log" >&2
+		rm -f "$err_log"
+		return "$rc"
+	fi
+
+	# Encadeia até 3 saltos: a intermediária buscada pode, ela mesma, apontar
+	# para outra via AIA antes de chegar numa raiz que o sistema já confia.
+	local extra="$work/extra-ca.pem" current="$leaf"
+	: > "$extra"
+	local hop
+	for hop in 1 2 3; do
+		local aia
+		aia="$(openssl x509 -in "$current" -noout -text 2>/dev/null \
+			| grep -oE 'CA Issuers - URI:[^[:space:]]+' | head -1 \
+			| sed 's/^CA Issuers - URI://' || true)"
+		[ -n "$aia" ] || break
+
+		local raw="$work/aia_${hop}.raw"
+		curl -fsSL --max-time 15 -o "$raw" "$aia" || break
+
+		local fmt=""
+		if openssl x509 -inform DER -in "$raw" -noout >/dev/null 2>&1; then
+			fmt=DER
+		elif openssl x509 -inform PEM -in "$raw" -noout >/dev/null 2>&1; then
+			fmt=PEM
+		else
+			break
+		fi
+		local as_pem="$work/aia_${hop}.pem"
+		openssl x509 -inform "$fmt" -in "$raw" -outform PEM > "$as_pem"
+		cat "$as_pem" >> "$extra"
+		current="$as_pem"
+	done
+
+	if [ ! -s "$extra" ]; then
+		log "  ⚠ AIA não trouxe intermediária nenhuma"
+		cat "$err_log" >&2
+		rm -f "$err_log"
+		return "$rc"
+	fi
+
+	local combined="$work/combined-ca.pem"
+	cat "$sys_bundle" "$extra" > "$combined" 2>/dev/null || cp "$extra" "$combined"
+
+	log "  → repetindo com $(grep -c -- '-----BEGIN CERTIFICATE-----' "$extra") intermediária(s) extra via AIA"
+	rm -f "$err_log"
+	curl -fsSL --cacert "$combined" --max-time "$max_time" -o "$dst" "$url"
+}
+
 ROOTS_URL_BASE="https://acraiz.icpbrasil.gov.br/credenciadas/RAIZ"
 ZIP_URL="https://acraiz.icpbrasil.gov.br/credenciadas/CertificadosAC-ICP-Brasil/ACcompactado.zip"
 # Versões da AC Raiz cujos certificados emitidos ainda podem aparecer em assinaturas:
@@ -46,8 +135,7 @@ for v in "${ROOT_VERSIONS[@]}"; do
 	src="$ROOTS_URL_BASE/ICP-Brasil${v}.crt"
 	dst="$WORK/ICP-Brasil${v}.crt"
 	log "  → $src"
-	curl -fsSL --max-time 30 -o "$dst" "$src" \
-		|| err "Falha ao baixar $src"
+	fetch_com_aia "$src" "$dst" 30 || err "Falha ao baixar $src"
 
 	# A ITI publica em DER; alguns mirrors entregam em PEM. Detecta automaticamente.
 	if openssl x509 -inform DER -in "$dst" -noout >/dev/null 2>&1; then
@@ -77,8 +165,7 @@ done
 
 log "Baixando ACs intermediárias (zip oficial)..."
 ZIP_PATH="$WORK/ACcompactado.zip"
-curl -fsSL --max-time 120 -o "$ZIP_PATH" "$ZIP_URL" \
-	|| err "Falha ao baixar $ZIP_URL"
+fetch_com_aia "$ZIP_URL" "$ZIP_PATH" 120 || err "Falha ao baixar $ZIP_URL"
 
 UNZIP_DIR="$WORK/intermediates"
 mkdir -p "$UNZIP_DIR"

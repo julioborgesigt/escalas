@@ -8,9 +8,15 @@
  *
  * Autenticado por SYNC_TOKEN (Bearer), igual aos demais webhooks — pensado para
  * um agendador externo (GitHub Actions cron em `.github/workflows/cleanup-retencao.yml`),
- * já que o Cloudflare Pages não oferece cron triggers nativos. É idempotente:
- * remove apenas registros já expirados, então reexecuções são inofensivas
- * (não precisa de replay-protection).
+ * já que o Cloudflare Pages não oferece cron triggers nativos.
+ *
+ * A operação é idempotente (remove só o que já expirou), mas o anti-replay
+ * abaixo NÃO é opcional para quem chama: com `WEBHOOK_REPLAY_ENFORCE=1` — o
+ * estado de produção desde ago/2026 — faltar `X-Webhook-Timestamp` +
+ * `X-Webhook-Nonce` devolve 401. O caller precisa mandar os dois, com nonce
+ * NOVO a cada tentativa; reenviar o mesmo volta como 401 de replay, que parece
+ * token errado e não é. O workflow do cron faz isso — se você escrever outro
+ * agendador, ele também precisa.
  */
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';

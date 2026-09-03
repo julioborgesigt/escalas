@@ -191,6 +191,19 @@ FROM audit_pendencias ORDER BY tentativas DESC, created_at;
 Um `tentativas` alto com o mesmo `motivo` é defeito, não ruído: o evento nunca
 vai entrar sozinho, e a trilha está incompleta até alguém agir.
 
+### Secrets do agendador (GitHub Actions)
+
+O `cleanup-retencao.yml` roda **fora** do Cloudflare, então ele não enxerga os secrets do Pages. Os dois valores abaixo vão em **Settings → Secrets and variables → Actions → New repository secret** do repositório, e o workflow reprova com mensagem explícita enquanto faltarem:
+
+| Secret do GitHub | Valor                                                                                                                                                                 |
+| ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `APP_BASE_URL`   | URL pública de **produção**, sem barra final — o domínio próprio, ou o `https://<projeto>.pages.dev`. Deployment de preview tem outro secret e responde 401.          |
+| `SYNC_TOKEN`     | **O mesmo valor** já configurado no Cloudflare Pages (Production). Não é um token novo: o app compara com o dele. Gerar outro aqui é a forma mais comum de tomar 401. |
+
+Rotacionar o `SYNC_TOKEN` significa trocá-lo **nos dois lugares** — o cron é o primeiro a quebrar quando só um lado é atualizado, e quebra em silêncio até alguém olhar a aba Actions (é para isso que serve o monitor de `retencao.atrasada` abaixo).
+
+O workflow envia `X-Webhook-Timestamp` + `X-Webhook-Nonce` em toda chamada, com **nonce novo a cada tentativa**. Isso não é zelo extra: `WEBHOOK_REPLAY_ENFORCE=1` está ligado em produção, e sem os dois headers o endpoint devolve 401 mesmo com os secrets corretos — configurar os secrets sozinho não faz o cron funcionar. O nonce por tentativa é o motivo de a retentativa ser um laço em vez de `curl --retry`: reenviar o mesmo nonce volta como 401 de replay, o que apontaria para "token errado" quando o problema foi uma indisponibilidade passageira.
+
 ### Failsafe da limpeza de retenção
 
 O Cloudflare Pages não tem cron nativo, então a limpeza depende do agendador externo (`cleanup-retencao.yml`, diário). Se ele parar de disparar (workflow desabilitado, segredo rotacionado, repositório arquivado), as tabelas de retenção crescem **silenciosamente** e consomem cota do D1.
