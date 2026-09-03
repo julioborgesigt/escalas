@@ -1244,6 +1244,42 @@ O enquadramento jurídico de cada modalidade (Lei 14.063/2020, MP 2.200-2) está
 
 A rota `/validar/[hash]` é **pública e sem autenticação**. Qualquer pessoa pode verificar a autenticidade de um documento assinado informando o código exibido no PDF. Visitante **autenticado** vê também o recorte da chave de assinatura (o mesmo da linha `CHAVE DE ASSINATURA` no manifesto) para confrontar com a ficha do servidor, sem abrir o banco. O anônimo não recebe esse recorte. O titular vê o mesmo recorte em Meu Perfil, com a data do último uso; o sistema não guarda o modelo do celular.
 
+### PII forense não sai do servidor por engano
+
+O manifesto do PDF assinado carrega **CPF, IP, GPS e selfie** de quem assinou, e
+quem alcança esse conjunto é **só o Super Admin** — `podeBaixarForense`, em
+[`cpf-assinante.ts`](src/lib/server/assinatura/cpf-assinante.ts). O portal
+`/validar` já dizia isso por escrito ("IP, user-agent e GPS: omitidos").
+
+O que faltava era a régua valer para o **payload de hidratação**, que é a
+superfície fácil de esquecer: nada ali aparece na tela, então uma revisão visual
+não flagra o excesso. Duas telas devolviam ao navegador dado que a interface não
+usa — `/gise/[id]` e `/escalas/[id]` mandavam o `assinante_cpf` **completo**
+(decifrado) enquanto a API do MESMO campo,
+`/api/gise/[id]/documento-assinado/info`, mascarava para todo mundo que não é
+Super Admin; e `/gise/[id]` mandava a linha CRUA de `buscarPresencasGise` — CPF,
+IP, user-agent, latitude, longitude e as chaves R2 das selfies de cada
+integrante — para o Admin Geral, o admin de seccional e o **supervisor**, que é
+policial comum.
+
+Duas regras, uma para cada metade, e as duas com teste:
+
+- **CPF de assinante que sai do servidor passa por `cpfAssinanteParaExibir`**,
+  que decifra e mascara na MESMA chamada. É o ponto: o helper conveniente já é o
+  recortado, então não se obtém a versão crua por distração. `decifrarCpfDoDB`
+  direto continua certo para quem GERA o manifesto — ali o dado forense é o
+  produto;
+- **presenças que vão à tela passam por `presencasParaCliente`**
+  ([`presenca-cliente.ts`](src/lib/server/gise/presenca-cliente.ts)), que devolve
+  `policial_id` + entrada/saída e nada mais. Objeto NOVO, campo a campo, não
+  `delete` das chaves indesejadas: coluna nova em `buscarPresencasGise`
+  (evidência é o tipo de tabela que cresce) não passa a viajar de graça.
+
+A minimização por PROJEÇÃO — recortar antes de serializar, e de preferência no
+`SELECT` — é a mesma que os e-mails do quadro de supervisão já recebiam dentro
+desse próprio `load`. A lição é que ela precisava valer para as duas metades do
+mesmo `return`.
+
 ### Observabilidade e Auditoria
 
 Dois registros complementares, ambos restritos ao **Super Admin**:

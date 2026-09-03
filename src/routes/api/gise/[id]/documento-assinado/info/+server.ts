@@ -11,9 +11,7 @@ import * as schema from '$lib/server/schema';
 import { eq } from 'drizzle-orm';
 import { requireAuth, badRequest, notFound, forbidden } from '$lib/server/api';
 import { verificarPermissaoGise } from '$lib/server/gise/permissao';
-import { podeBaixarForense } from '$lib/server/assinatura/copia-conferencia';
-import { mascararCPF } from '$lib/utils/pii';
-import { decifrarCpfDoDB } from '$lib/crypto/cpf-cripto';
+import { cpfAssinanteParaExibir } from '$lib/server/assinatura/cpf-assinante';
 
 export const GET: RequestHandler = async ({ params, locals, platform }) => {
 	const u = requireAuth(locals);
@@ -46,9 +44,9 @@ export const GET: RequestHandler = async ({ params, locals, platform }) => {
 
 	// A2/LGPD: CPF completo do assinante só para o Super Admin; os demais (mesmo
 	// com permissão na GISE) recebem o CPF mascarado, como na página /validar.
-	// CPF cifrado em repouso (LGPD) — decifra antes de exibir/mascarar.
-	const cpf = await decifrarCpfDoDB(doc.assinante_cpf, platform?.env);
-	const cpfExibido = podeBaixarForense(u) ? cpf : mascararCPF(cpf);
+	// A regra saiu daqui para `cpf-assinante.ts` porque ela valia para TRÊS
+	// caminhos que servem este mesmo campo, e só este a aplicava.
+	const cpfExibido = await cpfAssinanteParaExibir(doc.assinante_cpf, platform?.env, u);
 
 	return json({
 		existe: true,
