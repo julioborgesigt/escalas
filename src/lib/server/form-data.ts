@@ -65,3 +65,33 @@ export const MAX_EMAIL = 254;
  * que é documento assinado.
  */
 export const MAX_OBSERVACOES = 500;
+
+/**
+ * Inteiro de `FormData` dentro de uma faixa, ou `null` quando ausente/inválido.
+ *
+ * O par com `textoLimitado`, para o outro tipo de trava que a tela promete e o
+ * servidor precisa repetir: `min`/`max` de `<input type="number">`. Quem chama
+ * decide o que fazer com `null` — recusar (é o caso das vagas de equipe) ou cair
+ * num padrão.
+ *
+ * Devolve `null` também para vazio, para o chamador distinguir "não informado"
+ * de zero: em vagas de equipe `0` é uma afirmação (equipe sem aquela vaga), e
+ * tratar os dois igual faz "0 DPC" virar outro número no salvamento seguinte.
+ */
+export function inteiroNaFaixa(
+	fd: FormData,
+	campo: string,
+	min: number,
+	max: number
+): number | null {
+	const bruto = String(fd.get(campo) ?? '').trim();
+	if (bruto === '') return null;
+	// Dígitos decimais, e só. `Number()` sozinho aceita as notações do JavaScript:
+	// `Number('0x10')` é 16 e `Number('1e3')` é 1000 — nenhuma das duas sai de um
+	// `<input type="number">`, e um validador que aceita grafia que a tela não
+	// produz é um validador com entrada por onde não se olha.
+	if (!/^-?\d+$/.test(bruto)) return null;
+	const n = Number(bruto);
+	if (!Number.isInteger(n) || n < min || n > max) return null;
+	return n;
+}

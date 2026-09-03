@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { textoLimitado, textoLimitadoOuNulo, MAX_EMAIL, MAX_OBSERVACOES } from '../form-data';
+import {
+	textoLimitado,
+	textoLimitadoOuNulo,
+	inteiroNaFaixa,
+	MAX_EMAIL,
+	MAX_OBSERVACOES
+} from '../form-data';
 
 function fd(pares: Record<string, string>): FormData {
 	const f = new FormData();
@@ -46,5 +52,40 @@ describe('MAX_EMAIL', () => {
 		const gigante = 'a'.repeat(5000) + '@b.com';
 		expect(/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(gigante)).toBe(true);
 		expect(textoLimitado(fd({ e: gigante }), 'e', MAX_EMAIL)).toHaveLength(254);
+	});
+});
+
+describe('inteiroNaFaixa', () => {
+	it('aceita dentro da faixa, extremos incluídos', () => {
+		expect(inteiroNaFaixa(fd({ v: '0' }), 'v', 0, 20)).toBe(0);
+		expect(inteiroNaFaixa(fd({ v: '20' }), 'v', 0, 20)).toBe(20);
+		expect(inteiroNaFaixa(fd({ v: '7' }), 'v', 0, 20)).toBe(7);
+	});
+
+	it('recusa fora da faixa — as vagas entram numa comparação SQL de lotação', () => {
+		// `999999` apagava o controle de vaga (`COUNT(*) < slots`); `-1` fazia a
+		// equipe recusar todo mundo dizendo "vagas esgotadas".
+		expect(inteiroNaFaixa(fd({ v: '999999' }), 'v', 0, 20)).toBeNull();
+		expect(inteiroNaFaixa(fd({ v: '-1' }), 'v', 0, 20)).toBeNull();
+		expect(inteiroNaFaixa(fd({ v: '21' }), 'v', 0, 20)).toBeNull();
+	});
+
+	it('recusa não-inteiro e lixo', () => {
+		// `0x10` e `1e3` entram na lista de propósito: `Number()` os aceita (16 e
+		// 1000), e nenhum sai de um `<input type="number">`.
+		for (const ruim of ['1.5', 'abc', 'NaN', 'Infinity', '1e3', '0x10', '  ', '2,5', '+5']) {
+			expect(inteiroNaFaixa(fd({ v: ruim }), 'v', 0, 20), ruim).toBeNull();
+		}
+	});
+
+	it('apara espaços, como o `textoLimitado` — FormData traz o que a tela mandou', () => {
+		expect(inteiroNaFaixa(fd({ v: ' 5 ' }), 'v', 0, 20)).toBe(5);
+	});
+
+	it('ausente e vazio devolvem null — o chamador distingue de zero', () => {
+		expect(inteiroNaFaixa(fd({}), 'v', 0, 20)).toBeNull();
+		expect(inteiroNaFaixa(fd({ v: '' }), 'v', 0, 20)).toBeNull();
+		// `0` é uma AFIRMAÇÃO (equipe sem aquela vaga), não ausência.
+		expect(inteiroNaFaixa(fd({ v: '0' }), 'v', 0, 20)).toBe(0);
 	});
 });

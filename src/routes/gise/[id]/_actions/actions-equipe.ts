@@ -25,6 +25,8 @@ import {
 import { giseMembros } from '$lib/server/schema';
 import { eq } from 'drizzle-orm';
 import { getInt, carregarEquipeDaGise, carregarSeccionalDaGise, exigirAdminGeral } from './shared';
+import { inteiroNaFaixa } from '$lib/server/form-data';
+import { MAX_VAGAS_EQUIPE } from '$lib/gise/tipos-equipe';
 import {
 	concluirMudancaGise,
 	invalidarAssinaturasDaSeccional,
@@ -45,9 +47,16 @@ export const actionsEquipe = {
 		const equipeId = getInt(formData, 'equipeId');
 		if (isNaN(giseId) || isNaN(equipeId)) return fail(400, { error: 'IDs inválidos' });
 
-		const slotsDpc = parseInt(formData.get('slots_dpc') as string);
-		const slotsOip = parseInt(formData.get('slots_oip') as string);
-		if (isNaN(slotsDpc) || isNaN(slotsOip)) return fail(400, { error: 'Dados inválidos' });
+		// FAIXA, não só "é número". As vagas entram na comparação
+		// `COUNT(*) < e.slots_dpc` que decide a alocação atomicamente: `999999` por
+		// POST direto apagava o controle de lotação, `-1` fazia a equipe recusar
+		// todo mundo dizendo "vagas esgotadas" para uma equipe vazia. O `max` das
+		// telas é o MESMO `MAX_VAGAS_EQUIPE`.
+		const slotsDpc = inteiroNaFaixa(formData, 'slots_dpc', 0, MAX_VAGAS_EQUIPE);
+		const slotsOip = inteiroNaFaixa(formData, 'slots_oip', 0, MAX_VAGAS_EQUIPE);
+		if (slotsDpc === null || slotsOip === null) {
+			return fail(400, { error: `Vagas inválidas — informe de 0 a ${MAX_VAGAS_EQUIPE}.` });
+		}
 
 		const db = getDB(platform);
 		const r2 = tryGetR2(platform) ?? null;
@@ -144,11 +153,23 @@ export const actionsEquipe = {
 		if (isNaN(giseId) || isNaN(secId)) return fail(400, { error: 'IDs inválidos' });
 
 		const tipo = formData.get('tipo') as 'operacional' | 'seint';
-		const slotsDpc = parseInt(formData.get('slots_dpc') as string);
-		const slotsOip = parseInt(formData.get('slots_oip') as string);
+		// Mesma faixa de `salvarSlotsEquipe` — aqui o valor ausente cai em 0
+		// (equipe nasce sem vaga daquele cargo), mas valor FORA da faixa é recusa,
+		// não silenciosamente convertido.
+		const slotsDpc = inteiroNaFaixa(formData, 'slots_dpc', 0, MAX_VAGAS_EQUIPE);
+		const slotsOip = inteiroNaFaixa(formData, 'slots_oip', 0, MAX_VAGAS_EQUIPE);
 
 		if (!tipo || (tipo !== 'operacional' && tipo !== 'seint'))
 			return fail(400, { error: 'Tipo inválido' });
+
+		// Campo PRESENTE e fora da faixa é erro; ausente cai em 0 mais abaixo.
+		for (const campo of ['slots_dpc', 'slots_oip'] as const) {
+			const bruto = String(formData.get(campo) ?? '').trim();
+			const lido = inteiroNaFaixa(formData, campo, 0, MAX_VAGAS_EQUIPE);
+			if (bruto !== '' && lido === null) {
+				return fail(400, { error: `Vagas inválidas — informe de 0 a ${MAX_VAGAS_EQUIPE}.` });
+			}
+		}
 
 		// `null` = equipe ainda sem unidade escolhida (slot em aberto na seccional).
 		const unidadeIdRaw = formData.get('unidadeId') as string;
@@ -172,8 +193,8 @@ export const actionsEquipe = {
 			});
 		}
 
-		const dpc = isNaN(slotsDpc) ? 0 : slotsDpc;
-		const oip = isNaN(slotsOip) ? 0 : slotsOip;
+		const dpc = slotsDpc ?? 0;
+		const oip = slotsOip ?? 0;
 		const novaEquipeId = await criarGiseEquipe(db, secId, tipo, dpc, oip, unidadeId);
 
 		// Equipe nova = escala diferente da que foi para assinatura.
