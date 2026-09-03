@@ -58,7 +58,14 @@ type TsaResult =
  *   - `version` = 1
  *   - `messageImprint` = { sha256, hash(signatureValue) }
  *   - `reqPolicy` omitido (deixamos a TSA escolher a policy default)
- *   - `nonce` = 64 bits aleatórios (mitiga replay; opcional pela RFC)
+ *   - `nonce` = 64 bits aleatórios, opcional pela RFC. **O eco NÃO é conferido
+ *     na resposta**, então ele não mitiga replay — quem faz esse trabalho aqui é
+ *     o `messageImprint`, que amarra o token a ESTE `signatureValue`: um TST de
+ *     outra assinatura reprova em `verificarTimestampToken`, e um TST desta
+ *     mesma assinatura é idêntico ao legítimo. Só a ACT produz um token cujo
+ *     imprint case, e só no instante em que é pedido. O nonce vai porque a RFC o
+ *     prevê e algumas ACTs o usam do próprio lado; conferir o eco (como
+ *     `verificarNonceEco` faz no OCSP) seria reforço, não o vínculo.
  *   - `certReq` = TRUE (queremos o cert do responder no TST, para auditar offline)
  */
 function montarTimeStampReq(signatureValue: string): Uint8Array {
