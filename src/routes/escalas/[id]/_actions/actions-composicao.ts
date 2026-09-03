@@ -32,6 +32,7 @@ import { erroDeDatasForaDoPeriodo } from '$lib/server/escalas/periodo';
 import { carregarEscalaComPermissao } from './shared';
 import { registrarMudancaEscala, nomeDoPolicial } from './desfecho';
 import { mensagemDeErro } from '$lib/utils/erro';
+import { textoLimitado, MAX_OBSERVACOES } from '$lib/server/form-data';
 
 /** O `event` das actions desta rota: `params.id` é a escala. */
 type Event = RequestEvent<{ id: string }>;
@@ -52,7 +53,7 @@ export const actionsComposicao = {
 		const hora_saida = data.get('hora_saida')?.toString() || '08';
 		const minuto_saida = data.get('minuto_saida')?.toString() || '00';
 		const equipe = data.get('equipe')?.toString() || '';
-		const observacoes = data.get('observacoes')?.toString() || '';
+		const observacoes = textoLimitado(data, 'observacoes', MAX_OBSERVACOES);
 		const dataSaidaOverride = data.get('data_saida_override')?.toString() || '';
 
 		if (isNaN(policial_id) || !data_plantao) {
@@ -276,7 +277,7 @@ export const actionsComposicao = {
 		const data_saida = data.get('data_saida')?.toString() || '';
 		const hora_entrada = data.get('hora_entrada')?.toString() || '';
 		const hora_saida = data.get('hora_saida')?.toString() || '';
-		const observacoes = data.get('observacoes')?.toString() || '';
+		const observacoes = textoLimitado(data, 'observacoes', MAX_OBSERVACOES);
 
 		if (isNaN(item_id)) return fail(400, { error: 'ID inválido' });
 

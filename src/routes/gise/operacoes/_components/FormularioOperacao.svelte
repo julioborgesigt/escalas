@@ -27,6 +27,9 @@
 	import { loading } from '$lib/loading.svelte';
 	import BotaoVoltar from '$lib/components/BotaoVoltar.svelte';
 	import type { SubmitFunction } from '@sveltejs/kit';
+	// Os limites dos campos de breve relatório: MESMA constante que a action
+	// grava e que o modal de `/gise/[id]` usa nos campos equivalentes.
+	import { MAX_BREVE_TITULO, MAX_BREVE_PARAGRAFO } from '$lib/gise/breve-relatorio';
 
 	type Operacao = {
 		id: number;
@@ -385,7 +388,7 @@
 					id="breve_tit"
 					name="breve_titulo"
 					type="text"
-					maxlength="200"
+					maxlength={MAX_BREVE_TITULO}
 					placeholder={herdado.breveTitulo}
 					value={ouVazio(operacao?.breve_relatorio_titulo)}
 					class={CAMPO}
@@ -400,7 +403,7 @@
 					id="breve_sec"
 					name="breve_texto_seccional"
 					rows="4"
-					maxlength="2000"
+					maxlength={MAX_BREVE_PARAGRAFO}
 					placeholder={herdado.breveTextoSeccional}
 					class="{CAMPO} min-h-[110px] resize-y break-words"
 					>{ouVazio(operacao?.breve_relatorio_texto_seccional)}</textarea
@@ -415,7 +418,7 @@
 					id="breve_sup"
 					name="breve_texto_supervisao"
 					rows="4"
-					maxlength="2000"
+					maxlength={MAX_BREVE_PARAGRAFO}
 					placeholder={herdado.breveTextoSupervisao}
 					class="{CAMPO} min-h-[110px] resize-y break-words"
 					>{ouVazio(operacao?.breve_relatorio_texto_supervisao)}</textarea

@@ -48,6 +48,7 @@ import type { Database } from '../../db/core';
 import type { AssinaturaCadesMetadata } from '../../db/documentos';
 import {
 	calcularHashBuffer,
+	coordenadaGeograficaValida,
 	ehDispositivoMovelUA,
 	envComoRegistro,
 	type TipoCarimoTempo
@@ -556,10 +557,15 @@ export async function validarEvidenciasAvancada(
 	}
 
 	// 3. GPS — reforço opcional.
-	if (
-		flags.exigirGpsAssinatura &&
-		(typeof evidence.latitude !== 'number' || typeof evidence.longitude !== 'number')
-	) {
+	//
+	// `coordenadaGeograficaValida`, e não `typeof === 'number'`: o cliente manda
+	// a coordenada em texto e o servidor faz `parseFloat`, então `latitude=abc`
+	// chegava como `NaN` — que É `typeof 'number'` — passava por este gate e a
+	// assinatura seguia com o manifesto imprimindo "Não capturado". A trava
+	// anunciada no painel não travava. `latitude=999` passava também, e essa
+	// IMPRIMIA no manifesto como o local do ato.
+	const gpsValido = coordenadaGeograficaValida(evidence.latitude, evidence.longitude);
+	if (flags.exigirGpsAssinatura && !gpsValido) {
 		return {
 			ok: false,
 			status: 400,
@@ -570,8 +576,11 @@ export async function validarEvidenciasAvancada(
 	return {
 		ok: true,
 		validated: {
-			latitude: typeof evidence.latitude === 'number' ? evidence.latitude : null,
-			longitude: typeof evidence.longitude === 'number' ? evidence.longitude : null,
+			// Coordenada implausível não vira evidência nem quando a flag está
+			// desligada: sem o gate acima para barrá-la, `latitude=999` seria
+			// persistida e impressa. Ausência é registrada como ausência.
+			latitude: gpsValido ? (evidence.latitude as number) : null,
+			longitude: gpsValido ? (evidence.longitude as number) : null,
 			selfieBase64: evidence.selfieBase64 ?? null,
 			doisFatorOk: !!flags.exigirCodigoEmailAssinatura,
 			politicaDispositivoMovel: flags.restringirSmartphone,

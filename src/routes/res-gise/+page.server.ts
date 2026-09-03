@@ -602,7 +602,21 @@ async function prepararConfirmacaoPresenca(event: RequestEvent, tipo: TipoPresen
 		// Helper compartilhado: valida magic bytes, limita 5 MB e usa UUID
 		// na chave para esconder o `policial_id` da URL do R2.
 		const r = await uploadSelfieDataUri(r2, folder, selfieBase64);
-		if (r.ok) selfieKey = r.key;
+		// Selfie RECUSADA não segue em silêncio. `if (r.ok) selfieKey = r.key` sem
+		// `else` gravava a presença sem foto quando o upload era rejeitado — e o
+		// policial, que tirou a foto e viu a tela confirmar, ficava com um termo
+		// assinado que diz "sem selfie". A UI legítima captura sempre
+		// `canvas.toDataURL('image/jpeg')`, então chegar aqui recusado significa
+		// conteúdo que aquela tela não produz: recusar é o certo, e nomear o
+		// motivo é o que permite ao policial saber o que fazer.
+		if (!r.ok) {
+			const motivo =
+				r.reason === 'too-large'
+					? 'A foto excede o tamanho máximo (5 MB). Tente novamente.'
+					: 'A foto enviada não é uma imagem válida (JPEG ou PNG). Tente novamente.';
+			return { ok: false as const, resposta: fail(400, { error: motivo, giseId }) };
+		}
+		selfieKey = r.key;
 	}
 
 	return {
