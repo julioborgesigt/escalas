@@ -600,6 +600,7 @@ Para esses, qualquer upgrade major precisa ser feito manualmente após testar o 
    - `RESET_TOKEN` definido **e diferente do SYNC_TOKEN** (ou intencionalmente vazio para desabilitar reset).
    - `RATE_LIMIT_IP_SALT` e (se aplicável) `ICP_BRASIL_TRUST_STORE_REQUIRED`, `TSA_*`.
    - `CPF_ENCRYPTION_KEY`, `CPF_INDEX_KEY`, `AUDIT_CHAIN_KEY`, `AUDIT_IP_ENCRYPTION_KEY` — sem elas o CPF grava em texto e a cadeia de auditoria fica forjável ([detalhe](#proteções-que-só-existem-se-a-variável-existir)).
+     **Como CONFERIR que a chave da cadeia pegou:** `/auditoria` → "Verificar integridade". O resultado agora diz o modo do encadeamento — `HMAC-SHA256` (correto), `SHA-256 puro` (a chave não está definida) ou `misto` (adotada no meio da vida do log; as linhas anteriores seguem forjáveis). Antes o console dizia apenas "Cadeia íntegra", que é verdade sobre o elo e nada diz sobre o valor da garantia — um deploy sem a chave passava por conforme.
    - `ADMIN_GERAL_EMAIL` e `SUPER_ADMIN_EMAIL` definidos: sem eles o login de bootstrap entra **sem 2FA**.
    - `WEBHOOK_REPLAY_ENFORCE=1` e `WEBHOOK_ALLOW_PAPEL_CHANGES` **vazio**.
    - `APP_ORIGIN` no domínio canônico (é o RP ID do WebAuthn).

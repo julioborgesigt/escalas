@@ -240,6 +240,33 @@
 					? ` (seq ${integridade.primeiroProblemaSeq})`
 					: ''}: {integridade.problema}
 			{/if}
+
+			<!--
+				A FORÇA do encadeamento, em todo resultado — íntegro ou não.
+				"Cadeia íntegra" sem isto diz a verdade sobre o elo e cala sobre o
+				valor da garantia: sem `AUDIT_CHAIN_KEY` a cadeia é SHA-256 puro, e
+				quem tem escrita no banco reescreve a cauda inteira produzindo uma
+				cadeia que fecha. O modo vivia implícito no prefixo `h:`/`s:` do hash
+				da âncora — legível só por quem soubesse procurar.
+			-->
+			{#if integridade.modoCadeia === 'sha256'}
+				<p class="mt-2 text-xs border-t border-current/20 pt-2">
+					<strong>Encadeamento SHA-256 puro</strong> — `AUDIT_CHAIN_KEY` não está configurada. A trilha
+					detecta adulteração acidental, mas quem tem escrita no banco consegue reescrever a cauda e produzir
+					uma cadeia que fecha. Defina a chave para elevar a HMAC-SHA256.
+				</p>
+			{:else if integridade.modoCadeia === 'misto'}
+				<p class="mt-2 text-xs border-t border-current/20 pt-2">
+					<strong>Encadeamento misto</strong> — {integridade.encadeamento?.hmac} registro(s) em HMAC e
+					{integridade.encadeamento?.sha256} em SHA-256 puro. A chave foi adotada no meio da vida do log;
+					as linhas anteriores a ela seguem forjáveis por quem escreve no banco.
+				</p>
+			{:else if integridade.modoCadeia === 'hmac'}
+				<p class="mt-2 text-xs opacity-70 border-t border-current/20 pt-2">
+					Encadeamento HMAC-SHA256 ({integridade.encadeamento?.hmac} registro(s)): forjar a continuação
+					exige a `AUDIT_CHAIN_KEY`, que não está no banco.
+				</p>
+			{/if}
 		</div>
 	{/if}
 
