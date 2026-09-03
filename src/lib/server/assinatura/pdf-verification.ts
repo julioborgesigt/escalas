@@ -74,7 +74,27 @@ export interface VerificationResult {
 	politica?: AvaliacaoPolitica;
 	/** Sinaliza se o PDF tem DSS Dictionary embarcado (PAdES-LT auto-contido). */
 	padesLt?: { presente: boolean; certCount: number; ocspCount: number; crlCount: number };
+	/** O que REPROVOU o documento — `valid` é falso sempre que houver item aqui. */
 	erros: string[];
+	/**
+	 * Detectado, registrado, e NÃO reprova — mas ninguém pode deixar de ver.
+	 *
+	 * Três achados iam para `erros` sem entrar no cálculo de `valid`: token TSA
+	 * presente mas inválido, co-assinatura corrompida no meio do PDF, e falha ao
+	 * extrair os metadados do certificado. Como a página `/validar` só listava
+	 * `erros` QUANDO o veredito já era negativo (`{#if !v.valid && ...}`), os três
+	 * eram detectados e nunca exibidos: o terceiro que confere o papel recebia um
+	 * veredito positivo e nada sobre eles.
+	 *
+	 * Os dois primeiros são sinal de ADULTERAÇÃO — alguém anexou um carimbo que
+	 * não verifica, ou uma assinatura anterior deixou de fechar. Não reprovam de
+	 * propósito: podem ser limitação NOSSA de parsing (o responder OCSP em ECDSA,
+	 * declarado como TODO no código, é o exemplo vivo), e transformar isso em
+	 * reprovação seria acusar de adulteração um documento autêntico — o erro que
+	 * `verificarIntegridadePdf` cometia com SHA-384. Então: separados de `erros`,
+	 * fora do veredito, e exibidos SEMPRE.
+	 */
+	avisos: string[];
 	/**
 	 * Resumo das assinaturas adicionais quando o PDF tem mais de 1
 	 * (workflow multi-signature). A "principal" do resultado é sempre a
@@ -1225,6 +1245,7 @@ export async function verificarAssinaturaCompleta(
 	options: VerifyOptions = {}
 ): Promise<VerificationResult> {
 	const erros: string[] = [];
+	const avisos: string[] = [];
 	const result: VerificationResult = {
 		valid: false,
 		checks: {
@@ -1236,7 +1257,8 @@ export async function verificarAssinaturaCompleta(
 			revogacaoAssinaturaResponder: 'nao_verificada',
 			cobertura: false
 		},
-		erros
+		erros,
+		avisos
 	};
 
 	const extracao = extrairCmsDoPdf(pdfBytes);
@@ -1269,7 +1291,7 @@ export async function verificarAssinaturaCompleta(
 			validoAte: cms.certificate.validity.notAfter.toISOString()
 		};
 	} catch {
-		erros.push('Falha ao extrair metadados do certificado');
+		avisos.push('Falha ao extrair metadados do certificado');
 	}
 
 	// 1. Integridade
@@ -1331,7 +1353,7 @@ export async function verificarAssinaturaCompleta(
 				momento: tst.momento
 			};
 		} else {
-			erros.push('Token TSA presente mas inválido (assinatura ou messageImprint não conferem)');
+			avisos.push('Token TSA presente mas inválido (assinatura ou messageImprint não conferem)');
 			result.timestamp = { tipo: 'servidor', momento: cms.signingTimeISO ?? '' };
 		}
 	} else if (cms.signingTimeISO) {
@@ -1446,7 +1468,7 @@ export async function verificarAssinaturaCompleta(
 					assinaturaRsa: rsaOk
 				});
 				if (!integOk || !rsaOk) {
-					erros.push(
+					avisos.push(
 						`Assinatura adicional #${i + 1} inválida (integridade=${integOk}, rsa=${rsaOk})`
 					);
 				}

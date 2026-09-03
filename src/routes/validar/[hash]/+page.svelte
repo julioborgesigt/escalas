@@ -298,6 +298,26 @@
 									</ul>
 								</div>
 							{/if}
+							<!--
+								Ressalvas SEM `!v.valid`, de propósito: são achados que não reprovam
+								o documento e por isso convivem com o veredito positivo — carimbo
+								anexado que não verifica, co-assinatura anterior que deixou de
+								fechar. Enquanto viviam em `v.erros`, a condição acima os escondia
+								exatamente nos casos em que o veredito era favorável, que é quando
+								quem confere o papel mais precisa saber deles.
+							-->
+							{#if v.avisos.length > 0}
+								<div
+									class="mt-2 p-2 bg-warning-50 dark:bg-warning-900/20 border border-warning-200 dark:border-warning-700/30 rounded text-2xs text-warning-800 dark:text-warning-200"
+								>
+									<strong>Ressalvas:</strong>
+									<ul class="list-disc pl-4 mt-1">
+										{#each v.avisos as a (a)}
+											<li>{a}</li>
+										{/each}
+									</ul>
+								</div>
+							{/if}
 						{:else if !ehQualificada}
 							{#if data.selo?.presente}
 								<!-- Selo institucional (CMS autoassinado, não-ICP) -->
