@@ -6,9 +6,20 @@ name: Limpeza de retenção (LGPD)
 # audit_log além do prazo configurado). A lógica e os prazos ficam no app
 # (executarLimpezaRetencao / configurações de retenção).
 #
-# Secrets necessários (Settings → Secrets and variables → Actions):
-#   - APP_BASE_URL : URL pública de produção, ex.: https://escalas.pages.dev
-#   - SYNC_TOKEN   : mesmo valor configurado no ambiente do app (Bearer)
+# Secrets necessários (Settings → Secrets and variables → Actions → New
+# repository secret) — ver DEPLOY.md, "Failsafe da limpeza de retenção":
+#   - APP_BASE_URL : URL pública de PRODUÇÃO, sem barra final.
+#                    Ex.: https://escalas.pages.dev (ou o domínio próprio).
+#                    Precisa ser o MESMO deployment onde o SYNC_TOKEN vale.
+#   - SYNC_TOKEN   : valor IDÊNTICO ao secret SYNC_TOKEN do Cloudflare Pages
+#                    (Production). Não gere um novo aqui — o app compara com o
+#                    dele e recusa qualquer outro.
+#
+# Por que os headers de anti-replay estão aqui: `WEBHOOK_REPLAY_ENFORCE=1` está
+# ligado em produção desde ago/2026, então TODO webhook sem
+# `X-Webhook-Timestamp` + `X-Webhook-Nonce` devolve 401 — inclusive este, que é
+# idempotente e em tese não precisaria deles. Sem os dois headers, configurar os
+# secrets não basta: o cron autentica e mesmo assim leva 401.
 
 on:
   schedule:
@@ -16,7 +27,6 @@ on:
     # pico de :00 nos agendadores do GitHub.
     - cron: '17 4 * * *'
   workflow_dispatch: {} # permite disparo manual pela aba Actions
-
 
 # Escopo do GITHUB_TOKEN — declarado em vez de herdado.
 #
@@ -32,17 +42,72 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Disparar limpeza de retenção
+        # Os secrets entram por `env`, não interpolados no corpo do script: o
+        # valor nunca vira texto do shell (que o `set -x` de um debug futuro
+        # imprimiria) e o mascaramento do Actions continua valendo.
+        env:
+          APP_BASE_URL: ${{ secrets.APP_BASE_URL }}
+          SYNC_TOKEN: ${{ secrets.SYNC_TOKEN }}
         run: |
-          if [ -z "${{ secrets.APP_BASE_URL }}" ] || [ -z "${{ secrets.SYNC_TOKEN }}" ]; then
-            echo "::error::Defina os secrets APP_BASE_URL e SYNC_TOKEN."
+          set -euo pipefail
+
+          if [ -z "${APP_BASE_URL}" ] || [ -z "${SYNC_TOKEN}" ]; then
+            echo "::error::Defina os secrets APP_BASE_URL e SYNC_TOKEN em Settings → Secrets and variables → Actions. APP_BASE_URL é a URL pública de produção (ex.: https://escalas.pages.dev); SYNC_TOKEN é o MESMO valor já configurado no Cloudflare Pages."
             exit 1
           fi
-          code=$(curl -sS -o /tmp/resp.json -w '%{http_code}' \
-            -X POST "${{ secrets.APP_BASE_URL }}/api/webhook/limpeza-retencao" \
-            -H "Authorization: Bearer ${{ secrets.SYNC_TOKEN }}" \
-            -H "Content-Type: application/json" \
-            --data '{}')
-          echo "HTTP $code"
-          cat /tmp/resp.json || true
-          echo ""
-          test "$code" = "200"
+
+          # Barra final digitada no secret viraria `//api/webhook/...`.
+          base="${APP_BASE_URL%/}"
+
+          # Anti-replay (DEPLOY.md, "Replay protection dos webhooks"): timestamp
+          # dentro da janela de 5 min e nonce de uso único (>= 16 chars).
+          #
+          # O nonce é gerado DENTRO do laço, e é por isso que a retentativa não
+          # usa `curl --retry`: o servidor grava o nonce antes de trabalhar, e
+          # reenviar o mesmo valor volta como 401 de replay — a retentativa
+          # embutida do curl transformaria uma falha transitória em falha de
+          # autenticação, que é o diagnóstico errado.
+          code=""
+          for tentativa in 1 2 3; do
+            timestamp="$(date -u +%s)"
+            nonce="$(openssl rand -hex 16)"
+
+            code=$(curl -sS -o /tmp/resp.json -w '%{http_code}' --max-time 120 \
+              -X POST "${base}/api/webhook/limpeza-retencao" \
+              -H "Authorization: Bearer ${SYNC_TOKEN}" \
+              -H "X-Webhook-Timestamp: ${timestamp}" \
+              -H "X-Webhook-Nonce: ${nonce}" \
+              -H "Content-Type: application/json" \
+              --data '{}') || code="000"
+
+            echo "Tentativa ${tentativa}: HTTP ${code}"
+            cat /tmp/resp.json || true
+            echo ""
+
+            # Só falha de rede/servidor merece nova tentativa. 4xx é
+            # configuração: repetir dá o mesmo erro e esconde a causa.
+            case "$code" in
+              200) break ;;
+              000 | 5??)
+                # `if` explícito, não `[ ... ] && sleep`: sob `set -e`, o teste
+                # falso na última tentativa seria o status do laço e mataria o
+                # script antes da mensagem de erro abaixo.
+                if [ "$tentativa" -lt 3 ]; then sleep $((tentativa * 10)); fi
+                ;;
+              *) break ;;
+            esac
+          done
+
+          # 401 é o erro de configuração, não de indisponibilidade — vale
+          # nomear as três causas em vez de deixar só o código na tela.
+          if [ "$code" = "401" ]; then
+            echo "::error::401 do endpoint. Causas prováveis: (1) SYNC_TOKEN do GitHub diferente do configurado no Cloudflare Pages (Production); (2) APP_BASE_URL apontando para um deployment de preview, que tem outro secret; (3) o secret tem menos de 32 caracteres (o app recusa token fraco, fail-closed)."
+            exit 1
+          fi
+
+          if [ "$code" != "200" ]; then
+            echo "::error::A limpeza de retenção não completou (HTTP ${code}). O corpo da resposta está acima."
+            exit 1
+          fi
+
+          echo "Limpeza de retenção concluída."
