@@ -1,7 +1,4 @@
 <script lang="ts">
-	import Check from '@lucide/svelte/icons/check';
-	import Clock from '@lucide/svelte/icons/clock';
-	import Clipboard from '@lucide/svelte/icons/clipboard';
 	/**
 	 * Painel do SUPERVISOR para assinar de uma vez os relatórios de
 	 * extraordinário de todas as seccionais.
@@ -22,6 +19,9 @@
 	 * equipes, então não há atalho S/C manifesto aqui — o modal deixa escolher
 	 * por seccional ou em lote.
 	 */
+	import Check from '@lucide/svelte/icons/check';
+	import Clock from '@lucide/svelte/icons/clock';
+	import Clipboard from '@lucide/svelte/icons/clipboard';
 	import { slide } from 'svelte/transition';
 	import PenLine from '@lucide/svelte/icons/pen-line';
 	import SquarePen from '@lucide/svelte/icons/square-pen';

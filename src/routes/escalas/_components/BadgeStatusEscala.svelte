@@ -1,10 +1,10 @@
 <script lang="ts">
-	import Check from '@lucide/svelte/icons/check';
 	/**
 	 * Badge de status da escala na listagem — Assinada / Enviada / Ass. Pendente /
 	 * Pendente / Em preenchimento. Desktop e mobile compartilham a lógica; o
 	 * `tamanho` ajusta tipografia, padding e ícones.
 	 */
+	import Check from '@lucide/svelte/icons/check';
 	import Clock from '@lucide/svelte/icons/clock';
 	import SquarePen from '@lucide/svelte/icons/square-pen';
 

@@ -1,4 +1,15 @@
 <script lang="ts">
+	/**
+	 * Importação de policiais por CSV — a tela que mostra o RESULTADO linha a linha.
+	 *
+	 * O acordeão de erros é o ponto: uma importação de centenas de linhas quase
+	 * nunca é toda válida, e um "falhou" sem dizer QUAL linha obriga o operador a
+	 * conferir a planilha inteira à mão. O servidor devolve `{importados, pulados,
+	 * erros[]}` com número da linha e nome, e esta tela não resume isso — mostra.
+	 *
+	 * O arquivo é validado no SERVIDOR (extensão, MIME e teto de 5 MB em
+	 * `+page.server.ts`); o `accept` do input é conveniência de seleção, não trava.
+	 */
 	import { toaster } from '$lib/toast';
 	import { loading } from '$lib/loading.svelte';
 	import { Accordion } from '@skeletonlabs/skeleton-svelte';

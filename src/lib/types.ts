@@ -1,3 +1,17 @@
+/**
+ * Os tipos que a TELA usa — e a fronteira entre eles e os do banco.
+ *
+ * Metade do arquivo é reexport puro do `server/schema` (`Policial`, `Escala`,
+ * `Unidade`…), para que componente não importe de `$lib/server/` e acabe
+ * arrastando código de servidor para o bundle do cliente. A outra metade são as
+ * formas que só existem DEPOIS da consulta: linha de listagem com os campos
+ * calculados (`EscalaListagem`), a escala como o `/res-gise` a enxerga, o
+ * modelo de pergunta da produtividade.
+ *
+ * Por isso `EscalaListagem extends Escala` em vez de repetir os campos: o que
+ * está aqui é o ACRÉSCIMO da consulta, e herdar deixa visível quais campos são
+ * do banco e quais a query inventou.
+ */
 import type {
 	Policial,
 	Escala,

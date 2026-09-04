@@ -1,3 +1,16 @@
+/**
+ * Troca da própria senha — e o único brute-force ONLINE que sobrava.
+ *
+ * Com uma sessão roubada, conferir `senha_atual` aqui era caminho ilimitado
+ * para adivinhar a senha e depois trocá-la "legitimamente". O throttle usa
+ * chave POR USUÁRIO e não por IP, porque o atacante já está autenticado: o IP
+ * dele não diz nada, a conta sim.
+ *
+ * Esta rota também é o destino do primeiro acesso (ver
+ * `redefinir-senha/+page.server.ts`): é aqui que senha e e-mail pessoal são
+ * definidos na mesma passagem, e é por isso que ela precisa funcionar para quem
+ * ainda tem `primeiro_acesso = 1`.
+ */
 import { fail } from '@sveltejs/kit';
 import { eq } from 'drizzle-orm';
 import { getDB, auditar, contextoDeEvento } from '$lib/db';

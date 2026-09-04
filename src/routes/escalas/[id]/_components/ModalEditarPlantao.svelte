@@ -1,4 +1,16 @@
 <script lang="ts">
+	/**
+	 * Edição EM LOTE dos plantões de um servidor: vários dias de uma vez.
+	 *
+	 * Os dias selecionados viajam como JSON num campo oculto (`datas`) porque o
+	 * calendário é markup desenhado à mão, não `<input type="date">`. Campo
+	 * oculto é markup também — quem confere as datas é a action
+	 * (`editarPlantaoAgrupado`, contra o período da escala), nunca esta tela.
+	 *
+	 * Os dias em CONFLITO não bloqueiam o salvamento: são ignorados e listados no
+	 * aviso. Recusar o lote inteiro por causa de um dia obrigaria o usuário a
+	 * descobrir qual, na mão, e refazer a seleção.
+	 */
 	import { enhance } from '$app/forms';
 	import { invalidateShared } from '$lib/cross-tab-invalidate';
 	import ModalShell from '$lib/components/ModalShell.svelte';

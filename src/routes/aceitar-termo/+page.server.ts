@@ -1,3 +1,16 @@
+/**
+ * O aceite do termo de uso — porta que todo usuário atravessa uma vez.
+ *
+ * O que se grava não é um "sim": é a VERSÃO e o HASH do termo vigente no
+ * momento do aceite. Sem o hash, "fulano aceitou o termo" não diz o que ele
+ * aceitou — o texto muda com o tempo, e provar o conteúdo depois seria
+ * impossível. É o mesmo motivo pelo qual o termo é versionado em código, e não
+ * no banco.
+ *
+ * O aceite é ÚNICO e cobre também a assinatura avançada (cláusula 7): não há
+ * segundo consentimento na cerimônia de assinatura, e mexer nisso aqui muda a
+ * base do que foi consentido lá.
+ */
 import { error, fail, redirect } from '@sveltejs/kit';
 import { getDB, registrarAceite, registrarAuditComContexto } from '$lib/db';
 import {

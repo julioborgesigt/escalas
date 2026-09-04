@@ -1,6 +1,4 @@
 <script lang="ts">
-	import Check from '@lucide/svelte/icons/check';
-	import Plus from '@lucide/svelte/icons/plus';
 	/**
 	 * Card de ranking por unidade (prisões / drogas / armas) no painel de
 	 * produtividade — selecionável para export PNG/PDF.
@@ -9,6 +7,8 @@
 	 * dois eixos do painel: dizer "Seccional" acima do nome de uma delegacia é
 	 * informação errada, não rótulo velho.
 	 */
+	import Check from '@lucide/svelte/icons/check';
+	import Plus from '@lucide/svelte/icons/plus';
 	import type { Snippet } from 'svelte';
 	import type { RankingItem } from '$lib/export-charts';
 

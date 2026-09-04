@@ -1,4 +1,16 @@
 <script lang="ts">
+	/**
+	 * A tela do link de redefinição — e o motivo de ela NÃO se enviar sozinha.
+	 *
+	 * No primeiro acesso o link é magic link, e seria natural submeter no
+	 * `onMount` para poupar um clique. Não se faz: scanner de e-mail corporativo
+	 * e prefetch de cliente abrem os links da mensagem para checar segurança, e o
+	 * auto-submit consumiria o token de USO ÚNICO antes de a pessoa clicar — ela
+	 * receberia "link inválido" num link que nunca usou.
+	 *
+	 * A conferência das duas senhas é conveniência de digitação; o que vale é a
+	 * validação do servidor.
+	 */
 	import { goto } from '$app/navigation';
 	import { enhance } from '$app/forms';
 	import { loading } from '$lib/loading.svelte';

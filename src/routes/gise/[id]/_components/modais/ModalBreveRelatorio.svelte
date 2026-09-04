@@ -1,4 +1,17 @@
 <script lang="ts">
+	/**
+	 * Edição do breve relatório da GISE — o texto que vai para dentro do PDF.
+	 *
+	 * Os `maxlength` daqui usam as MESMAS constantes que a action grava
+	 * (`MAX_BREVE_TITULO`, `MAX_BREVE_PARAGRAFO`, de `$lib/gise/breve-relatorio`)
+	 * e que `/gise/operacoes` já aplicava nos campos equivalentes. Este modal não
+	 * tinha limite nenhum: a mesma coluna era limitada numa tela e livre na
+	 * outra, e o texto entra em documento ASSINADO.
+	 *
+	 * O `maxlength` continua sendo dica de digitação — quem impõe é o servidor.
+	 * Importar a constante, em vez de repetir o número, é o que impede a tela de
+	 * prometer um limite e o banco guardar outro.
+	 */
 	import { enhance } from '$app/forms';
 	import type { SubmitFunction } from '@sveltejs/kit';
 	import type { BreveRelatorioEnv } from '$lib/gise/breve-relatorio';
