@@ -136,7 +136,17 @@ export const LIMITADO_POR = {
 	'src/routes/escalas/[id]/_actions/actions-datas.ts → editarPlantaoAgrupado → datas':
 		'erroDeDatasForaDoPeriodo',
 	'src/routes/escalas/[id]/_actions/actions-datas.ts → repetir → datas': 'erroDeDatasForaDoPeriodo',
-	'src/routes/escalas/[id]/_actions/actions-datas.ts → editarDiasEscala → datas': 'dataISOValida'
+	'src/routes/escalas/[id]/_actions/actions-datas.ts → editarDiasEscala → datas': 'dataISOValida',
+
+	// Parser local que confere JSON, array, objeto por item, formato ISO de cada
+	// data, e ainda deduplica — limite melhor que qualquer regex de campo.
+	'src/routes/gise/+page.server.ts → criar → datas_json': 'parseDatasCriacaoGise',
+
+	// Identificador da escala de ORIGEM. Não se valida por formato e sim por
+	// existência, que é o que `clonarGiseParaData` faz ao carregar a GISE e
+	// lançar 'GISE não encontrada'. A action é só do Admin Geral, cujo escopo é
+	// global — não há posse a conferir além de a escala existir.
+	'src/routes/gise/+page.server.ts → criar → clonar_de': 'clonarGiseParaData'
 };
 
 /**
@@ -150,19 +160,19 @@ export const LIMITADO_POR = {
  * uma vez, em código que grava documento ASSINADO, sem teste que cubra a
  * mudança. Guard que não entra não protege nada.
  *
- * Encolher é o trabalho, e a primeira leva já saiu: as 22 entradas da escala
- * ordinária (hora, minuto, equipe, datas) foram pagas em set/2026 com
- * `horaDeCamposSeparados`, `horaOuPadrao` e `lerEquipe`, mais quatro entradas
- * promovidas a `LIMITADO_POR`. Sobram cinco, cada uma de um assunto diferente —
- * não são mais uma família, são cinco decisões separadas.
+ * **Hoje ela está VAZIA**, e essa é a única forma boa de uma baseline terminar.
+ * Foram duas levas em set/2026: primeiro as 22 entradas da escala ordinária
+ * (hora, minuto, equipe, datas), com `horaDeCamposSeparados`, `horaOuPadrao` e
+ * `lerEquipe`; depois as cinco restantes, que já não eram família — `papel`
+ * ganhou leitura de lista fechada, `codigo` passou a usar o MESMO schema da
+ * rota de API, `config` ganhou teto e checagem de item, e `datas_json` e
+ * `clonar_de` foram para `LIMITADO_POR` porque já tinham limite.
+ *
+ * Vazia ela continua útil: é o lugar declarado para a próxima dívida que
+ * alguém precise assumir conscientemente — e a advertência acima vale para
+ * quem for usá-la.
  */
-export const BASELINE = new Set([
-	'src/routes/gise/+page.server.ts → criar → datas_json',
-	'src/routes/gise/+page.server.ts → criar → clonar_de',
-	'src/routes/login/+page.server.ts → verificar2FA → codigo',
-	'src/routes/policiais/[id]/+page.server.ts → salvarPapel → papel',
-	'src/routes/res-gise/+page.server.ts → salvarModelo → config'
-]);
+export const BASELINE = new Set([]);
 
 /** Leitores limitados de `$lib/server/form-data`. */
 const LEITORES = ['textoLimitado', 'textoLimitadoOuNulo', 'inteiroNaFaixa', 'dataIso', 'horaHhMm'];

@@ -108,6 +108,52 @@ export function lotacaoNoEscopo(escopo: Set<string> | null, lotacao: string): bo
  *
  * Devolve `null` quando pode; a mensagem de recusa quando não.
  */
+/**
+ * Os papéis administrativos que existem. Lista FECHADA — a coluna tem três
+ * estados possíveis: um destes dois, ou `null` (sem papel).
+ */
+export const PAPEIS_ADMINISTRATIVOS = ['admin_seccional', 'admin_unidade'] as const;
+
+export type PapelAdministrativo = (typeof PAPEIS_ADMINISTRATIVOS)[number];
+
+/**
+ * Lê o papel de um valor cru, ou `undefined` quando ele não é papel nenhum.
+ *
+ * `null` e `undefined` são respostas DIFERENTES aqui: `null` é "sem papel", que
+ * é escolha legítima (é assim que se remove o papel de alguém); `undefined` é
+ * "isto não é um papel", que a action recusa.
+ *
+ * Existe porque `salvarPapel` fazia
+ * `formData.get('papel')?.toString() || null as 'admin_seccional' | 'admin_unidade' | null`
+ * — e `as` é CAST de TypeScript, que não existe em runtime. Um POST direto com
+ * `papel=qualquer_coisa` atravessava: `motivoParaRecusarPapel` só confere a
+ * UNIDADE (existe? serve ao papel?) e devolve `null` para papel desconhecido,
+ * porque a única regra de papel que ela tem é sobre `admin_seccional`.
+ *
+ * Sendo preciso sobre o que isso era e o que não era: **não era escalada de
+ * privilégio**. Todo consumidor compara por igualdade estrita contra os dois
+ * nomes (`escalas/permissao.ts`, `gise/permissao.ts`, `sync-estado.ts`,
+ * `useAutorizacao`), então papel desconhecido não concede nada — falha fechado
+ * em toda parte. Era integridade: a coluna de RBAC aceitava valor que o sistema
+ * não entende, gravado com linha no histórico e evento de auditoria dizendo
+ * "papel alterado para <lixo>". Permissão que ninguém consegue explicar depois
+ * é exatamente o que o histórico existe para evitar.
+ */
+export function lerPapelAdministrativo(bruto: unknown): PapelAdministrativo | null | undefined {
+	// AUSENTE e LIXO não são a mesma coisa: `FormData.get` devolve `null` quando
+	// o campo não veio (sem papel, legítimo) e um `File` quando alguém posta um
+	// arquivo naquele nome (não é papel). Tratar os dois como `null` faria o
+	// segundo REMOVER o papel de quem tinha — a versão anterior desta função
+	// fazia isso, e o teste ao lado a pegou.
+	if (bruto === null || bruto === undefined) return null;
+	if (typeof bruto !== 'string') return undefined;
+	const v = bruto.trim();
+	if (v === '') return null;
+	return (PAPEIS_ADMINISTRATIVOS as readonly string[]).includes(v)
+		? (v as PapelAdministrativo)
+		: undefined;
+}
+
 export async function motivoParaRecusarPapel(
 	db: Database,
 	papel: 'admin_seccional' | 'admin_unidade',

@@ -65,6 +65,7 @@ import { verificarDesafio2FA } from '$lib/auth';
 import { logger } from '$lib/server/logger';
 import { uploadSelfieDataUri } from '$lib/server/assinatura/selfie-upload';
 import { coordenadaGeograficaValida } from '$lib/server/assinatura/document-utils';
+import { textoLimitado, MAX_CONFIG_FORMULARIO } from '$lib/server/form-data';
 import {
 	lerMotivoSemEvidencia,
 	recusaPorEvidenciaDePresenca,
@@ -802,7 +803,11 @@ export const actions: Actions = {
 		if (!u || u.tipo !== 'admin') return fail(403, { error: 'Somente administradores gerais' });
 
 		const formData = await request.formData();
-		const configStr = formData.get('config') as string;
+		// A string CRUA é o que vai para a coluna (`salvarGiseModeloFormulario`
+		// grava `configStr`, não o objeto parseado), então o teto tem de valer
+		// sobre ela. Um formulário real fica na casa dos KB; 256 KB é folga larga
+		// e ainda impede JSON de megabytes numa coluna de texto.
+		const configStr = textoLimitado(formData, 'config', MAX_CONFIG_FORMULARIO);
 		const tipo = formData.get('tipo') as 'operacional' | 'seint';
 		const operacaoId = Number(formData.get('operacaoId'));
 
@@ -821,6 +826,12 @@ export const actions: Actions = {
 			return fail(400, { error: 'Configuração JSON inválida' });
 		}
 		if (!Array.isArray(perguntas)) {
+			return fail(400, { error: 'Configuração deve ser uma lista de perguntas' });
+		}
+		// Cada item tem de ser OBJETO — é o que todo o resto assume ao ler `p.tipo`
+		// e `p.chave`. Uma lista de strings passava pelo `Array.isArray` e ia
+		// inteira para a coluna, quebrando a tela de quem fosse preencher depois.
+		if (!perguntas.every((p) => !!p && typeof p === 'object' && !Array.isArray(p))) {
 			return fail(400, { error: 'Configuração deve ser uma lista de perguntas' });
 		}
 
