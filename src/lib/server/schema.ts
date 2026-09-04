@@ -1124,7 +1124,8 @@ export const recoveryAttempts = sqliteTable(
 				'solicitar_codigo_assinatura',
 				'alterar_senha',
 				'reauth_assinatura',
-				'passkey_reposicao'
+				'passkey_reposicao',
+				'geracao_pesada'
 			]
 		}).notNull(),
 		attempted_at: text('attempted_at')
