@@ -59,6 +59,36 @@ interface EmailOptions {
 const LIMITE_TEXTO_ERRO = 500;
 
 /**
+ * Teto de espera por provedor de e-mail. Sem ele, provedor pendurado prende a
+ * requisição até o limite da plataforma — e envio de e-mail NÃO é caminho
+ * secundário aqui: `enviarCodigo2FA` está no caminho crítico do login (relança
+ * de propósito, porque sem o código ninguém entra) e `solicitar-redefinicao` é
+ * rota PÚBLICA. Provedor lento viraria, por essas duas portas,
+ * indisponibilidade do login — e a única defesa era o limite da plataforma.
+ *
+ * 15 s alinhado à TSA (o OCSP usa 10 s): e-mail transacional responde em menos
+ * de um segundo quando o provedor está de pé. Falhar em 15 s e cair para o
+ * provedor de fallback é melhor do que esperar.
+ */
+const EMAIL_TIMEOUT_MS = 15_000;
+
+/**
+ * `fetch` com AbortController — o mesmo padrão de `ocsp.ts` e `tsa.ts`.
+ *
+ * O `clearTimeout` no `finally` importa: sem ele o timer fica pendente depois da
+ * resposta e mantém o isolate vivo à espera de nada.
+ */
+async function fetchComTimeout(url: string, init: RequestInit): Promise<Response> {
+	const ctrl = new AbortController();
+	const t = setTimeout(() => ctrl.abort(), EMAIL_TIMEOUT_MS);
+	try {
+		return await fetch(url, { ...init, signal: ctrl.signal });
+	} finally {
+		clearTimeout(t);
+	}
+}
+
+/**
  * Corpo de erro do provedor, pronto para log e para mensagem de exceção.
  *
  * O corpo ECOA a requisição — inclusive o destinatário —, e a mensagem do
@@ -141,7 +171,7 @@ async function dispararEmailCloudflare(
 			: {})
 	};
 
-	const response = await fetch(
+	const response = await fetchComTimeout(
 		`https://api.cloudflare.com/client/v4/accounts/${accountId}/email/sending/send`,
 		{
 			method: 'POST',
@@ -208,7 +238,7 @@ async function dispararEmailResend(
 		...(options.attachments ? { attachments: options.attachments } : {})
 	};
 
-	const response = await fetch('https://api.resend.com/emails', {
+	const response = await fetchComTimeout('https://api.resend.com/emails', {
 		method: 'POST',
 		headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
 		body: JSON.stringify(bodyPayload)
