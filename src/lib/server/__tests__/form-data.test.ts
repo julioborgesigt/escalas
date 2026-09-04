@@ -3,6 +3,8 @@ import {
 	textoLimitado,
 	textoLimitadoOuNulo,
 	inteiroNaFaixa,
+	dataIso,
+	horaHhMm,
 	MAX_EMAIL,
 	MAX_OBSERVACOES
 } from '../form-data';
@@ -87,5 +89,80 @@ describe('inteiroNaFaixa', () => {
 		expect(inteiroNaFaixa(fd({ v: '' }), 'v', 0, 20)).toBeNull();
 		// `0` é uma AFIRMAÇÃO (equipe sem aquela vaga), não ausência.
 		expect(inteiroNaFaixa(fd({ v: '0' }), 'v', 0, 20)).toBe(0);
+	});
+});
+
+describe('dataIso', () => {
+	it('aceita a data que `<input type="date">` emite', () => {
+		expect(dataIso(fd({ d: '2026-09-04' }), 'd')).toBe('2026-09-04');
+	});
+
+	it('recusa data que só PARECE data — 31 de fevereiro passa no regex', () => {
+		// É o caso que motiva conferir o calendário: casa com
+		// /^\d{4}-\d{2}-\d{2}$/, e `new Date` normaliza para 03/03 sem lançar.
+		expect(dataIso(fd({ d: '2026-02-31' }), 'd')).toBeNull();
+		expect(dataIso(fd({ d: '2026-13-01' }), 'd')).toBeNull();
+		expect(dataIso(fd({ d: '2026-00-10' }), 'd')).toBeNull();
+	});
+
+	it('recusa formato fora do que a tela produz', () => {
+		expect(dataIso(fd({ d: '04/09/2026' }), 'd')).toBeNull();
+		expect(dataIso(fd({ d: '2026-9-4' }), 'd')).toBeNull();
+		expect(dataIso(fd({ d: '2026-09-04T00:00' }), 'd')).toBeNull();
+		expect(dataIso(fd({ d: 'banana' }), 'd')).toBeNull();
+	});
+
+	it('ausente e vazio viram null', () => {
+		expect(dataIso(new FormData(), 'd')).toBeNull();
+		expect(dataIso(fd({ d: '   ' }), 'd')).toBeNull();
+	});
+
+	it('o valor que fazia o portão de presença liberar é recusado na escrita', () => {
+		// `horarioGiseLiberado` faz `new Date(`${dataInicio}T...`)` e libera quando
+		// dá Invalid Date (fail-open deliberado). Estes são os valores que chegavam
+		// lá; agora morrem na action.
+		for (const ruim of ['banana', '0000-00-00', '2026-02-30', '']) {
+			expect(dataIso(fd({ d: ruim }), 'd'), ruim).toBeNull();
+		}
+	});
+});
+
+describe('horaHhMm', () => {
+	it('aceita a hora que `<input type="time">` emite', () => {
+		expect(horaHhMm(fd({ h: '08:00' }), 'h')).toBe('08:00');
+		expect(horaHhMm(fd({ h: '00:00' }), 'h')).toBe('00:00');
+		expect(horaHhMm(fd({ h: '23:59' }), 'h')).toBe('23:59');
+	});
+
+	it('recusa hora fora da faixa do relógio', () => {
+		expect(horaHhMm(fd({ h: '24:00' }), 'h')).toBeNull();
+		expect(horaHhMm(fd({ h: '08:60' }), 'h')).toBeNull();
+		expect(horaHhMm(fd({ h: '99:99' }), 'h')).toBeNull();
+	});
+
+	it('aceita `H:MM` — é o que a tela manda — e NORMALIZA para `HH:MM`', () => {
+		// `validarHora` do cliente testa /^\d{1,2}:\d{2}$/ e `normalizarHora` não
+		// preenche o zero: `8:00` sai do formulário legítimo. Exigir dois dígitos
+		// recusaria quem digitou certo.
+		expect(horaHhMm(fd({ h: '8:00' }), 'h')).toBe('08:00');
+		expect(horaHhMm(fd({ h: '7:30' }), 'h')).toBe('07:30');
+		// Normalizar na escrita é o que impede o banco de guardar `8:00` numa linha
+		// e `08:00` na outra para o mesmo horário.
+		expect(horaHhMm(fd({ h: '08:00' }), 'h')).toBe('08:00');
+	});
+
+	it('recusa grafia que a tela não produz', () => {
+		// `'08'` (só a hora) é a convenção das colunas de escala ordinária, não da
+		// GISE — aceitar as duas aqui recriaria a divergência que o CLAUDE.md
+		// cataloga na família "fallback de hora do plantão".
+		expect(horaHhMm(fd({ h: '08' }), 'h')).toBeNull();
+		expect(horaHhMm(fd({ h: '08:00:00' }), 'h')).toBeNull();
+		expect(horaHhMm(fd({ h: '8h00' }), 'h')).toBeNull();
+		expect(horaHhMm(fd({ h: 'meio-dia' }), 'h')).toBeNull();
+	});
+
+	it('ausente e vazio viram null', () => {
+		expect(horaHhMm(new FormData(), 'h')).toBeNull();
+		expect(horaHhMm(fd({ h: '' }), 'h')).toBeNull();
 	});
 });

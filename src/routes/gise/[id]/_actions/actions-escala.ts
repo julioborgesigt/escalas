@@ -33,7 +33,7 @@ import {
 } from '$lib/server/r2-cleanup';
 import { eq } from 'drizzle-orm';
 import { saiuDaFaseDeEdicao, carregarGiseEditavel, exigirAdminGeral } from './shared';
-import { textoLimitado, MAX_EMAIL } from '$lib/server/form-data';
+import { textoLimitado, dataIso, horaHhMm, MAX_EMAIL } from '$lib/server/form-data';
 import { MAX_BREVE_TITULO, MAX_BREVE_PARAGRAFO } from '$lib/gise/breve-relatorio';
 
 type Event = RequestEvent<{ id: string }>;
@@ -255,13 +255,22 @@ export const actionsEscala = {
 		if (isNaN(giseId)) return fail(400, { error: 'ID inválido' });
 
 		const formData = await request.formData();
-		const dataInicio = formData.get('data_inicio') as string;
-		const horaEntrada = formData.get('hora_entrada') as string;
-		const horaSaida = formData.get('hora_saida') as string;
+		// FORMATO conferido, não só "veio algo". Estes três alimentam
+		// `horarioGiseLiberado`, que falha ABERTO quando a data/hora não parseia
+		// (`isNaN(alvo.getTime()) → return true`, para não trancar a GISE inteira
+		// por um dado ruim). O fail-open é a escolha certa lá; o preço é que um
+		// `data_inicio` inválido gravado AQUI libera a confirmação de presença
+		// fora do horário para todos os membros desta escala, sem erro nenhum.
+		// Validar na escrita é o que dá piso ao portão sem mexer no fail-open.
+		const dataInicio = dataIso(formData, 'data_inicio');
+		const horaEntrada = horaHhMm(formData, 'hora_entrada');
+		const horaSaida = horaHhMm(formData, 'hora_saida');
 		const feriado = formData.get('feriado') === 'true';
 
 		if (!dataInicio || !horaEntrada || !horaSaida) {
-			return fail(400, { error: 'Preencha todos os campos' });
+			return fail(400, {
+				error: 'Preencha todos os campos com data (AAAA-MM-DD) e horários (HH:MM) válidos'
+			});
 		}
 
 		const db = getDB(platform);

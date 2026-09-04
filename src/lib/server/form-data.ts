@@ -95,3 +95,74 @@ export function inteiroNaFaixa(
 	if (!Number.isInteger(n) || n < min || n > max) return null;
 	return n;
 }
+
+/**
+ * O campo veio PREENCHIDO?
+ *
+ * Existe para separar "não informado" de "informado e inválido": os leitores
+ * acima devolvem `null` para os dois, e quem chama precisa recusar só o
+ * segundo — em vaga de equipe e horário herdado, vazio é uma resposta legítima
+ * ("herda do pai"), então tratar os dois igual transformaria "deixe em branco"
+ * em erro de validação.
+ */
+export function informado(fd: FormData, campo: string): boolean {
+	return String(fd.get(campo) ?? '').trim() !== '';
+}
+
+/**
+ * Data `YYYY-MM-DD` de `FormData`, ou `null` quando ausente/inválida.
+ *
+ * O terceiro membro da família de `textoLimitado` e `inteiroNaFaixa`: o que
+ * `<input type="date">` promete e o servidor precisa repetir. Aqui a repetição
+ * vale mais que nas outras duas, porque a data da GISE alimenta o PORTÃO da
+ * janela de presença — e `horarioGiseLiberado` falha ABERTO de propósito
+ * (`isNaN(alvo.getTime()) → return true`, para não trancar a GISE inteira por
+ * um dado ruim). Fail-open é a escolha certa lá; o preço é que uma data
+ * inválida gravada aqui LIBERA a confirmação de presença fora do horário para
+ * todos os membros daquela escala, sem erro nenhum. Validar na ESCRITA é o que
+ * dá piso ao portão sem mexer no fail-open.
+ *
+ * Confere o CALENDÁRIO, não só o formato: `2026-02-31` casa com
+ * `/^\d{4}-\d{2}-\d{2}$/` e é `Invalid Date` — exatamente o valor que faz o
+ * portão liberar.
+ */
+export function dataIso(fd: FormData, campo: string): string | null {
+	const bruto = String(fd.get(campo) ?? '').trim();
+	if (!/^\d{4}-\d{2}-\d{2}$/.test(bruto)) return null;
+	// `new Date('2026-02-31')` não lança: normaliza para 03/03. Comparar de volta
+	// é o que separa data real de data que só PARECE data.
+	const d = new Date(`${bruto}T00:00:00Z`);
+	if (isNaN(d.getTime()) || d.toISOString().slice(0, 10) !== bruto) return null;
+	return bruto;
+}
+
+/**
+ * Hora de `FormData` NORMALIZADA para `HH:MM`, ou `null` quando ausente/inválida.
+ *
+ * O par de `dataIso`, e pelo mesmo motivo: é a hora que o portão de presença
+ * compara, e ele libera quando ela não parseia.
+ *
+ * **Aceita `H:MM` além de `HH:MM` porque é o que a tela manda.** O contrato do
+ * cliente é `validarHora` (`$lib/gise/horarios`), que testa
+ * `/^\d{1,2}:\d{2}$/`, e `normalizarHora` só troca `.`/`,` por `:` — não
+ * preenche o zero. Ou seja, `8:00` sai do formulário legítimo, e um validador
+ * de servidor exigindo dois dígitos recusaria o usuário que digitou certo.
+ *
+ * Devolve SEMPRE com zero à esquerda, e é a metade que interessa: as colunas da
+ * GISE nascem `DEFAULT '08:00'`, então sem normalizar o banco fica com `8:00`
+ * numa linha e `08:00` na outra para o mesmo horário — a divergência de grafia
+ * que o `CLAUDE.md` cataloga na família "fallback de hora do plantão". Comparar
+ * hora como texto (`'8:00' < '10:00'` é falso) é o próximo bug dessa família.
+ *
+ * As colunas de escala ordinária usam outra convenção (`'08'`, só a hora); este
+ * helper não serve para elas.
+ */
+export function horaHhMm(fd: FormData, campo: string): string | null {
+	const bruto = String(fd.get(campo) ?? '').trim();
+	const m = /^(\d{1,2}):(\d{2})$/.exec(bruto);
+	if (!m) return null;
+	const h = Number(m[1]);
+	const min = Number(m[2]);
+	if (h > 23 || min > 59) return null;
+	return `${String(h).padStart(2, '0')}:${m[2]}`;
+}

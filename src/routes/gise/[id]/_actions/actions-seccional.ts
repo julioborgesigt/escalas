@@ -42,6 +42,7 @@ import {
 import { concluirMudancaGise, invalidarAssinaturasDaSeccional } from './desfecho';
 import { coletarChavesR2DaRevogacaoSeccional, deletarChavesR2 } from '$lib/server/r2-cleanup';
 import { mensagemDeErro } from '$lib/utils/erro';
+import { horaHhMm, informado } from '$lib/server/form-data';
 
 type Event = RequestEvent<{ id: string }>;
 
@@ -372,8 +373,17 @@ export const actionsSeccional = {
 		const secId = getInt(formData, 'secId');
 		if (isNaN(giseId) || isNaN(secId)) return fail(400, { error: 'IDs inválidos' });
 
-		const horaEntrada = formData.get('hora_entrada') as string | null;
-		const horaSaida = formData.get('hora_saida') as string | null;
+		// Vazio é resposta legítima aqui (herda o horário da escala), então só o
+		// PREENCHIDO-e-inválido recusa. O valor alimenta o portão da janela de
+		// presença, que falha aberto com hora que não parseia — ver `dataIso`.
+		const horaEntrada = horaHhMm(formData, 'hora_entrada');
+		const horaSaida = horaHhMm(formData, 'hora_saida');
+		if (
+			(informado(formData, 'hora_entrada') && horaEntrada === null) ||
+			(informado(formData, 'hora_saida') && horaSaida === null)
+		) {
+			return fail(400, { error: 'Horário inválido — use HH:MM.' });
+		}
 
 		const db = getDB(platform);
 		const r2 = tryGetR2(platform) ?? null;
@@ -393,8 +403,8 @@ export const actionsSeccional = {
 		}
 
 		await atualizarGiseSeccional(db, secId, {
-			hora_entrada: horaEntrada || null,
-			hora_saida: horaSaida || null
+			hora_entrada: horaEntrada,
+			hora_saida: horaSaida
 		});
 
 		// Horário sai impresso no relatório de extra: mudou, as assinaturas desta

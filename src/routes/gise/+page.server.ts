@@ -34,6 +34,7 @@ import { eq } from 'drizzle-orm';
 import { unidades } from '$lib/server/schema';
 import { buscarConfiguracao } from '$lib/db/configuracoes';
 import { mensagemDeErro } from '$lib/utils/erro';
+import { horaHhMm, informado } from '$lib/server/form-data';
 
 export const load: PageServerLoad = async ({ locals, platform, depends }) => {
 	depends('app:gise-list');
@@ -197,8 +198,18 @@ export const actions: Actions = {
 			(await buscarConfiguracao(db, 'gise_default_hora_saida')) ??
 			'16:00';
 
-		const hora_entrada = data.get('hora_entrada')?.toString() || defaultHoraEntrada;
-		const hora_saida = data.get('hora_saida')?.toString() || defaultHoraSaida;
+		// Ausente cai no padrão (da operação, da configuração, ou o literal);
+		// preenchido tem de ser HH:MM. É o horário que o portão da janela de
+		// presença compara, e ele libera quando a hora não parseia — ver `dataIso`.
+		const hora_entrada = informado(data, 'hora_entrada')
+			? horaHhMm(data, 'hora_entrada')
+			: defaultHoraEntrada;
+		const hora_saida = informado(data, 'hora_saida')
+			? horaHhMm(data, 'hora_saida')
+			: defaultHoraSaida;
+		if (!hora_entrada || !hora_saida) {
+			return fail(400, { error: 'Horário inválido — use HH:MM.' });
+		}
 
 		try {
 			let ids: number[];
