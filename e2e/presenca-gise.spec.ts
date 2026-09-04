@@ -6,6 +6,7 @@ import {
 	seedDesafioAssinatura,
 	seedReauthAssinatura,
 	cookieDeSessao,
+	headersFormAction,
 	execD1Local,
 	queryD1Local,
 	BASE_URL
@@ -302,6 +303,14 @@ function limparGisePresenca(id: number): void {
 	);
 }
 
+function dataInicioDa(giseId: number): string | null {
+	return (
+		queryD1Local<{ data_inicio: string }>(
+			`SELECT data_inicio FROM gise_escalas WHERE id=${giseId}`
+		)?.[0]?.data_inicio ?? null
+	);
+}
+
 function presencasDa(giseId: number): number {
 	return Number(
 		queryD1Local<{ n: number }>(
@@ -357,5 +366,80 @@ test.describe('FLW-AUT-006 / 007 — janela e GISE finalizada no /res-gise', () 
 		expect(body, `status=${res.status()} body=${body}`).toMatch(/finalizada/i);
 		expect(body).not.toContain('"success":1');
 		expect(presencasDa(GISE_FECHADA)).toBe(0);
+	});
+});
+
+/**
+ * O PISO do portão de janela.
+ *
+ * `horarioGiseLiberado` falha ABERTO quando a data/hora não parseia
+ * (`isNaN(alvo.getTime()) → return true`), para não trancar a GISE inteira por
+ * um dado ruim. A decisão é deliberada, e o preço é que a validade do dado
+ * passa a ser a única coisa sustentando FLW-AUT-006 — que é o teste logo acima.
+ * `salvarDatasHorarios` gravava com checagem de truthiness apenas, então
+ * `data_inicio='banana'` liberava a confirmação fora do horário para todos os
+ * membros daquela escala, sem erro nenhum.
+ */
+test.describe('o portão de janela tem piso: data e hora recusadas na escrita', () => {
+	const GISE_EDITAVEL = 99503;
+
+	test.afterAll(() => limparGisePresenca(GISE_EDITAVEL));
+
+	for (const [rotulo, payload] of [
+		['data que não é data', { data_inicio: 'banana', hora_entrada: '08:00', hora_saida: '16:00' }],
+		[
+			'data que só PARECE data (31 de fevereiro)',
+			{ data_inicio: '2026-02-31', hora_entrada: '08:00', hora_saida: '16:00' }
+		],
+		[
+			'hora fora do relógio',
+			{ data_inicio: '2026-07-15', hora_entrada: '99:99', hora_saida: '16:00' }
+		]
+	] as const) {
+		test(`${rotulo} → recusada, e a data gravada não muda`, async ({ request }) => {
+			const semeou = semearGisePresenca(GISE_EDITAVEL, '2026-07-15', 'em_preenchimento');
+			test.skip(!semeou, 'D1 local indisponível');
+			const tokenAdmin = seedSession(FIXTURE.adminGeral.id, 'admin');
+			test.skip(!tokenAdmin, 'D1 local indisponível');
+
+			const res = await request.post(`/gise/${GISE_EDITAVEL}?/salvarDatasHorarios`, {
+				headers: headersFormAction(tokenAdmin!),
+				form: { ...payload, feriado: 'false' }
+			});
+			const body = await res.text();
+			expect(body, body).not.toContain('"type":"success"');
+			expect(dataInicioDa(GISE_EDITAVEL)).toBe('2026-07-15');
+		});
+	}
+
+	test('data e hora válidas passam — a recusa é do formato, não da action', async ({ request }) => {
+		// O contraponto obrigatório: sem ele os três testes acima passariam mesmo
+		// se a action tivesse quebrado por completo.
+		const semeou = semearGisePresenca(GISE_EDITAVEL, '2026-07-15', 'em_preenchimento');
+		test.skip(!semeou, 'D1 local indisponível');
+		const tokenAdmin = seedSession(FIXTURE.adminGeral.id, 'admin');
+		test.skip(!tokenAdmin, 'D1 local indisponível');
+
+		const res = await request.post(`/gise/${GISE_EDITAVEL}?/salvarDatasHorarios`, {
+			headers: headersFormAction(tokenAdmin!),
+			// `9:00` de propósito, e DIFERENTE do horário semeado (08:00): é o que a
+			// tela manda (`validarHora` aceita um dígito e `normalizarHora` não
+			// preenche o zero), e a diferença é o que prova que a gravação ocorreu —
+			// esperar `08:00` sobre uma semente `08:00` passaria com a action morta.
+			form: {
+				data_inicio: '2026-07-20',
+				hora_entrada: '9:00',
+				hora_saida: '17:00',
+				feriado: 'false'
+			}
+		});
+		const body = await res.text();
+		expect(body, body).not.toContain('"type":"failure"');
+		expect(dataInicioDa(GISE_EDITAVEL)).toBe('2026-07-20');
+
+		const hora = queryD1Local<{ hora_entrada: string }>(
+			`SELECT hora_entrada FROM gise_escalas WHERE id=${GISE_EDITAVEL}`
+		)?.[0]?.hora_entrada;
+		expect(hora).toBe('09:00');
 	});
 });
