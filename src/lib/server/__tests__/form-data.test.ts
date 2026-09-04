@@ -5,6 +5,8 @@ import {
 	inteiroNaFaixa,
 	dataIso,
 	horaHhMm,
+	horaOuPadrao,
+	horaDeCamposSeparados,
 	MAX_EMAIL,
 	MAX_OBSERVACOES
 } from '../form-data';
@@ -164,5 +166,50 @@ describe('horaHhMm', () => {
 	it('ausente e vazio viram null', () => {
 		expect(horaHhMm(new FormData(), 'h')).toBeNull();
 		expect(horaHhMm(fd({ h: '' }), 'h')).toBeNull();
+	});
+});
+
+describe('horaOuPadrao', () => {
+	it('campo ausente ou vazio herda o padrão', () => {
+		expect(horaOuPadrao(new FormData(), 'h', '08:00')).toBe('08:00');
+		expect(horaOuPadrao(fd({ h: '  ' }), 'h', '08:00')).toBe('08:00');
+	});
+
+	it('campo preenchido e válido normaliza', () => {
+		expect(horaOuPadrao(fd({ h: '9:30' }), 'h', '08:00')).toBe('09:30');
+	});
+
+	it('campo preenchido e INVÁLIDO devolve null — é o único caso de recusa', () => {
+		// A distinção é o ponto do helper: em branco herda, errado recusa.
+		expect(horaOuPadrao(fd({ h: '99:99' }), 'h', '08:00')).toBeNull();
+		expect(horaOuPadrao(fd({ h: 'banana' }), 'h', '08:00')).toBeNull();
+	});
+});
+
+describe('horaDeCamposSeparados', () => {
+	it('junta hora e minuto na saída canônica HH:MM', () => {
+		expect(horaDeCamposSeparados(fd({ h: '8', m: '5' }), 'h', 'm', 8, 0)).toBe('08:05');
+		expect(horaDeCamposSeparados(fd({ h: '23', m: '59' }), 'h', 'm', 8, 0)).toBe('23:59');
+	});
+
+	it('ausentes caem nos padrões recebidos', () => {
+		expect(horaDeCamposSeparados(new FormData(), 'h', 'm', 8, 0)).toBe('08:00');
+		expect(horaDeCamposSeparados(fd({ h: '23' }), 'h', 'm', 8, 59)).toBe('23:59');
+	});
+
+	it('recusa o que virava horário impossível GRAVADO', () => {
+		// `hora_entrada=99` produzia `99:00` na coluna e no PDF assinado.
+		expect(horaDeCamposSeparados(fd({ h: '99', m: '00' }), 'h', 'm', 8, 0)).toBeNull();
+		expect(horaDeCamposSeparados(fd({ h: '08', m: '99' }), 'h', 'm', 8, 0)).toBeNull();
+		expect(horaDeCamposSeparados(fd({ h: '-1', m: '00' }), 'h', 'm', 8, 0)).toBeNull();
+		expect(horaDeCamposSeparados(fd({ h: 'x', m: '00' }), 'h', 'm', 8, 0)).toBeNull();
+	});
+
+	it('as duas convenções da escala produzem a MESMA saída', () => {
+		// É o ponto de existirem os dois helpers: `08` + `00` e `08:00` são o
+		// mesmo horário, e antes viravam grafias diferentes na coluna.
+		expect(horaDeCamposSeparados(fd({ h: '08', m: '00' }), 'h', 'm', 8, 0)).toBe(
+			horaOuPadrao(fd({ x: '08:00' }), 'x', '08:00')
+		);
 	});
 });

@@ -27,10 +27,6 @@ import {
 	rateLimited,
 	serverError
 } from '$lib/server/api';
-import {
-	contarRecoveryAttempts,
-	registrarRecoveryAttempt
-} from '$lib/server/auth/recovery-rate-limit';
 import { registrarAuditComContexto } from '$lib/db/audit';
 import {
 	podeBaixarForense,
@@ -39,13 +35,9 @@ import {
 } from '$lib/server/assinatura/copia-conferencia';
 import { carregarLogosGise } from '$lib/server/gise/logos';
 import { logger } from '$lib/server/logger';
+import { tetoDeVarreduraDeHash } from '$lib/server/assinatura/validar-rate-limit';
 import type { RequestHandler } from './$types';
 import { mensagemDeErro } from '$lib/utils/erro';
-
-// Rate-limit do download por IP — defesa em profundidade contra enumeração do
-// hash (~40 bits) por um usuário autenticado. Estado em D1 (serverless-safe).
-const VALIDAR_DOWNLOAD_MAX = 60;
-const VALIDAR_DOWNLOAD_WINDOW_MIN = 10;
 
 /** Response de cópia de conferência (sem cache em proxies compartilhados). */
 function pdfConferencia(buffer: Uint8Array, filename: string): Response {
@@ -75,28 +67,21 @@ export const GET: RequestHandler = async ({ platform, params, url, cookies, getC
 		return unauthorized('Faça login para baixar o documento assinado na íntegra.');
 	}
 
-	// Mesmo autenticado, limita varredura do hash por IP. Fail-closed em erro (FLW-AUT-016).
 	const ip = getClientAddress();
-	try {
-		const { blocked } = await contarRecoveryAttempts(
-			db,
-			ip,
-			'validar_download',
-			VALIDAR_DOWNLOAD_WINDOW_MIN,
-			VALIDAR_DOWNLOAD_MAX
+
+	// Mesmo autenticado, limita varredura do hash por IP (FLW-AUT-016). A regra
+	// mora em `validar-rate-limit.ts` porque a PÁGINA de /validar faz a mesma
+	// pergunta pela porta anônima — e enquanto eram duas cópias, só esta existia.
+	const teto = await tetoDeVarreduraDeHash(db, ip, 'validar_download', hash);
+	if (teto === 'excedido') {
+		return rateLimited('Muitas validações a partir deste IP. Tente novamente em alguns minutos.');
+	}
+	if (teto === 'indisponivel') {
+		// D1 fora = não liberar enumeração do hash.
+		return serverError(
+			'[validar/download] Rate-limit indisponível',
+			new Error('contador de varredura indisponível')
 		);
-		if (blocked) {
-			logger.warn('[validar/download] Rate-limit excedido', { hash });
-			return rateLimited('Muitas validações a partir deste IP. Tente novamente em alguns minutos.');
-		}
-		await registrarRecoveryAttempt(db, ip, 'validar_download');
-	} catch (err) {
-		logger.error('[validar/download] Falha no rate-limit (fail-closed)', {
-			hash,
-			error: mensagemDeErro(err)
-		});
-		// FLW-AUT-016: D1 fora = não liberar enumeração do hash.
-		return serverError('[validar/download] Rate-limit indisponível', err);
 	}
 
 	logger.info('[validar/download] Iniciando', { hash });

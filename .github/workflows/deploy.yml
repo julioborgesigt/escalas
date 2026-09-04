@@ -184,6 +184,20 @@ jobs:
       - name: Guard — siglas de achado catalogadas
         run: npm run guard:achados
 
+      # Guard de entrada: campo lido de `FormData` em form action tem limite no
+      # SERVIDOR, ou está declarado. Rota de API já tem trilho (`validateBody`
+      # com Zod); form action lê na mão, e era ali que TODA falha de entrada da
+      # auditoria de set/2026 morava — `mes=99`, vagas sem faixa, `observacoes`
+      # sem cap indo para PDF assinado, `data_inicio='banana'` anulando o portão
+      # da janela de presença. Aceita cinco formas de limite (schema, leitor de
+      # $lib/server/form-data, leitura booleana, identificador, comparação
+      # inline) e trabalha contra uma BASELINE: o que já existia está aceito, só
+      # o NOVO reprova. Se reprovar: use um leitor limitado, ou nomeie em
+      # LIMITADO_POR a função que já impõe o limite. Encher a baseline para
+      # passar é trocar um achado por uma linha de código.
+      - name: Guard — entrada de FormData limitada
+        run: npm run guard:entrada
+
       # Guard de documentação: arquivo NOVO em src/lib/db/ tem de nascer com
       # cabeçalho de módulo e JSDoc nos exports. Só arquivos ADICIONADOS no
       # diff — o legado é pago em levas, medido por `npm run docs:inventario`

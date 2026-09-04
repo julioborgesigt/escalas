@@ -170,3 +170,47 @@ export function horaHhMm(fd: FormData, campo: string): string | null {
 	if (h > 23 || min > 59) return null;
 	return `${String(h).padStart(2, '0')}:${m[2]}`;
 }
+
+/**
+ * Hora `HH:MM` de um campo só, com PADRÃO quando o campo não veio.
+ *
+ * `horaHhMm` devolve `null` para ausente e para inválido, e quem chama quase
+ * sempre precisa separar os dois: campo em branco herda o padrão da escala,
+ * campo preenchido errado tem de recusar. A dança `informado(...) && x === null`
+ * estava para ser escrita pela quarta vez quando este helper nasceu.
+ *
+ * Devolve `null` SÓ para informado-e-inválido — é o único caso em que o chamador
+ * precisa recusar.
+ */
+export function horaOuPadrao(fd: FormData, campo: string, padrao: string): string | null {
+	if (!informado(fd, campo)) return padrao;
+	return horaHhMm(fd, campo);
+}
+
+/**
+ * Hora `HH:MM` montada de DOIS campos separados — a segunda convenção da escala
+ * ordinária.
+ *
+ * `FormAdicionarServidores` manda `hora_entrada=08` e `minuto_entrada=00` em
+ * campos distintos, e a action concatenava `${hora}:${minuto}` sem conferir
+ * nenhum dos dois: `hora_entrada=99` virava `99:00` gravado na coluna e
+ * IMPRESSO no PDF assinado. O mesmo arquivo tem a outra convenção
+ * (`hora_entrada=08:00`, campo único) — são as duas grafias que o `CLAUDE.md`
+ * cataloga na família "fallback de hora do plantão", e este helper existe para
+ * que as duas produzam a MESMA saída canônica.
+ *
+ * Devolve `null` só quando algum dos dois veio preenchido e inválido; ausente
+ * cai nos padrões recebidos.
+ */
+export function horaDeCamposSeparados(
+	fd: FormData,
+	campoHora: string,
+	campoMinuto: string,
+	horaPadrao: number,
+	minutoPadrao: number
+): string | null {
+	const h = informado(fd, campoHora) ? inteiroNaFaixa(fd, campoHora, 0, 23) : horaPadrao;
+	const m = informado(fd, campoMinuto) ? inteiroNaFaixa(fd, campoMinuto, 0, 59) : minutoPadrao;
+	if (h === null || m === null) return null;
+	return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+}

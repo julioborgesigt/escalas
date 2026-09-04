@@ -1119,6 +1119,7 @@ export const recoveryAttempts = sqliteTable(
 				'confirmar_redefinicao',
 				'primeiro_acesso',
 				'validar_download',
+				'validar_consulta',
 				'verificar_2fa',
 				'reenviar_codigo',
 				'solicitar_codigo_assinatura',

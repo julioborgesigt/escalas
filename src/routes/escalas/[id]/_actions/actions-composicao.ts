@@ -28,11 +28,19 @@ import {
 	verificarConflitoGlobalBatch
 } from '$lib/server/escalas/conflict';
 import { calcularDataSaida } from '$lib/rotacao';
+import { dataISOValida } from '$lib/utils/datas';
 import { erroDeDatasForaDoPeriodo } from '$lib/server/escalas/periodo';
-import { carregarEscalaComPermissao } from './shared';
+import { carregarEscalaComPermissao, lerEquipe, MAX_EQUIPE_ESCALA } from './shared';
 import { registrarMudancaEscala, nomeDoPolicial } from './desfecho';
 import { mensagemDeErro } from '$lib/utils/erro';
-import { textoLimitado, MAX_OBSERVACOES } from '$lib/server/form-data';
+import {
+	textoLimitado,
+	horaDeCamposSeparados,
+	horaOuPadrao,
+	dataIso,
+	informado,
+	MAX_OBSERVACOES
+} from '$lib/server/form-data';
 
 /** O `event` das actions desta rota: `params.id` é a escala. */
 type Event = RequestEvent<{ id: string }>;
@@ -48,24 +56,33 @@ export const actionsComposicao = {
 		const data = await request.formData();
 		const policial_id = Number(data.get('policial_id'));
 		const data_plantao = data.get('data_plantao')?.toString() || '';
-		const hora_entrada = data.get('hora_entrada')?.toString() || '08';
-		const minuto_entrada = data.get('minuto_entrada')?.toString() || '00';
-		const hora_saida = data.get('hora_saida')?.toString() || '08';
-		const minuto_saida = data.get('minuto_saida')?.toString() || '00';
-		const equipe = data.get('equipe')?.toString() || '';
+		// Hora e minuto vinham CRUS e eram concatenados: `hora_entrada=99` virava
+		// `99:00` gravado na coluna e impresso no PDF assinado.
+		const horaEnt = horaDeCamposSeparados(data, 'hora_entrada', 'minuto_entrada', 8, 0);
+		const horaSai = horaDeCamposSeparados(data, 'hora_saida', 'minuto_saida', 8, 0);
+		const equipe = lerEquipe(data);
 		const observacoes = textoLimitado(data, 'observacoes', MAX_OBSERVACOES);
-		const dataSaidaOverride = data.get('data_saida_override')?.toString() || '';
+		const dataSaidaOverride = informado(data, 'data_saida_override')
+			? dataIso(data, 'data_saida_override')
+			: '';
 
 		if (isNaN(policial_id) || !data_plantao) {
 			return fail(400, { error: 'Dados inválidos' });
+		}
+		if (horaEnt === null || horaSai === null) {
+			return fail(400, { error: 'Horário inválido — use hora 0–23 e minuto 0–59.' });
+		}
+		if (equipe === null) {
+			return fail(400, { error: `Equipe inválida — informe de 1 a ${MAX_EQUIPE_ESCALA}.` });
+		}
+		if (dataSaidaOverride === null) {
+			return fail(400, { error: 'Data de saída inválida — use AAAA-MM-DD.' });
 		}
 
 		// A data vem do cliente e o calendário é markup (FLW-ESC-005).
 		const foraDoPeriodo = erroDeDatasForaDoPeriodo(escala, [data_plantao]);
 		if (foraDoPeriodo) return fail(400, { error: foraDoPeriodo });
 
-		const horaEnt = `${hora_entrada}:${minuto_entrada}`;
-		const horaSai = `${hora_saida}:${minuto_saida}`;
 		const dataSaida = dataSaidaOverride || calcularDataSaida(data_plantao, horaEnt, horaSai);
 
 		// -1 = sem exclusão: verifica TODAS as escalas, inclusive a atual (impede duplicatas)
@@ -131,11 +148,9 @@ export const actionsComposicao = {
 
 		const data = await request.formData();
 		const policial_id = Number(data.get('policial_id'));
-		const hora_entrada = data.get('hora_entrada')?.toString() || '08';
-		const minuto_entrada = data.get('minuto_entrada')?.toString() || '00';
-		const hora_saida = data.get('hora_saida')?.toString() || '08';
-		const minuto_saida = data.get('minuto_saida')?.toString() || '00';
-		const equipe = data.get('equipe')?.toString() || '';
+		const he = horaDeCamposSeparados(data, 'hora_entrada', 'minuto_entrada', 8, 0);
+		const hs = horaDeCamposSeparados(data, 'hora_saida', 'minuto_saida', 8, 0);
+		const equipe = lerEquipe(data);
 
 		// Parse datas selecionadas (JSON string no hidden field)
 		const datasJson = data.get('datas')?.toString() || '[]';
@@ -149,15 +164,25 @@ export const actionsComposicao = {
 		if (isNaN(policial_id) || datas.length === 0) {
 			return fail(400, { error: 'Selecione pelo menos uma data' });
 		}
+		if (he === null || hs === null) {
+			return fail(400, { error: 'Horário inválido — use hora 0–23 e minuto 0–59.' });
+		}
+		if (equipe === null) {
+			return fail(400, { error: `Equipe inválida — informe de 1 a ${MAX_EQUIPE_ESCALA}.` });
+		}
+
+		// `data_plantao` de cada par é conferida contra o período logo abaixo; a
+		// `data_saida` do MESMO par não era conferida por nada, e o JSON vem de
+		// campo oculto — que é markup, não promessa.
+		if (!datas.every((d) => dataISOValida(d?.data_saida))) {
+			return fail(400, { error: 'Data de saída inválida — use AAAA-MM-DD.' });
+		}
 
 		const foraDoPeriodo = erroDeDatasForaDoPeriodo(
 			escala,
 			datas.map((d) => d.data_plantao)
 		);
 		if (foraDoPeriodo) return fail(400, { error: foraDoPeriodo });
-
-		const he = `${hora_entrada}:${minuto_entrada}`;
-		const hs = `${hora_saida}:${minuto_saida}`;
 
 		// Verifica conflitos em batch (-1 = sem exclusão, verifica inclusive a escala atual)
 		const datasStr = datas.map((d) => d.data_plantao);
@@ -274,9 +299,21 @@ export const actionsComposicao = {
 		const data = await request.formData();
 		const item_id = Number(data.get('item_id'));
 		const data_plantao = data.get('data_plantao')?.toString() || '';
-		const data_saida = data.get('data_saida')?.toString() || '';
-		const hora_entrada = data.get('hora_entrada')?.toString() || '';
-		const hora_saida = data.get('hora_saida')?.toString() || '';
+		// `data_plantao` é conferida contra o período mais abaixo; `data_saida` não
+		// era conferida por NADA e ia direto para a coluna — o plantão podia sair
+		// num dia que não existe.
+		const data_saida = informado(data, 'data_saida') ? dataIso(data, 'data_saida') : '';
+		// Aqui a convenção é o campo ÚNICO `HH:MM` — o mesmo ARQUIVO tem, em
+		// `adicionar`, a leitura de hora e minuto separados. As duas grafias
+		// convivem desde sempre; o que muda é que agora as duas passam por leitor.
+		const hora_entrada = horaOuPadrao(data, 'hora_entrada', '');
+		const hora_saida = horaOuPadrao(data, 'hora_saida', '');
+		if (hora_entrada === null || hora_saida === null) {
+			return fail(400, { error: 'Horário inválido — use HH:MM.' });
+		}
+		if (data_saida === null) {
+			return fail(400, { error: 'Data de saída inválida — use AAAA-MM-DD.' });
+		}
 		const observacoes = textoLimitado(data, 'observacoes', MAX_OBSERVACOES);
 
 		if (isNaN(item_id)) return fail(400, { error: 'ID inválido' });

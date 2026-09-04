@@ -10,6 +10,7 @@
 import { fail } from '@sveltejs/kit';
 import { getDB, buscarEscala, buscarDocumentoEscala } from '$lib/db';
 import { podeMexerNaEscala } from '$lib/server/escalas/permissao';
+import { inteiroNaFaixa, informado } from '$lib/server/form-data';
 
 /**
  * O que a action vai fazer com a escala. **Parâmetro obrigatório de
@@ -86,4 +87,26 @@ export async function carregarEscalaComPermissao(
 	}
 
 	return { db, escala, escalaId, usuario } as const;
+}
+
+/**
+ * Quantas equipes uma escala de plantão oferece — o mesmo 1..5 do `<select>`
+ * de `FormAdicionarServidores`. Aqui porque três actions leem o campo, e o
+ * número precisa ser o mesmo nas três.
+ */
+export const MAX_EQUIPE_ESCALA = 5;
+
+/**
+ * Lê `equipe` do formulário: `''` quando não veio, o número como texto quando
+ * válido, `null` quando veio FORA da faixa.
+ *
+ * A coluna é `text NOT NULL DEFAULT ''` e o campo é um `<select>` de 1 a 5 —
+ * ou seja, lista fechada que o servidor não repetia: `equipe=999` era gravado e
+ * saía impresso no PDF da escala. `null` é o único caso de recusa, para não
+ * transformar "sem equipe" (legítimo em expediente) em erro.
+ */
+export function lerEquipe(fd: FormData): string | null {
+	if (!informado(fd, 'equipe')) return '';
+	const n = inteiroNaFaixa(fd, 'equipe', 1, MAX_EQUIPE_ESCALA);
+	return n === null ? null : String(n);
 }

@@ -56,9 +56,16 @@ import {
 	verificarSeloInstitucional,
 	type ResultadoVerificacaoSelo
 } from '$lib/server/assinatura/server-seal';
+import { tetoDeVarreduraDeHash } from '$lib/server/assinatura/validar-rate-limit';
 import type { PageServerLoad } from './$types';
 
-export const load: PageServerLoad = async ({ params, platform, setHeaders, cookies }) => {
+export const load: PageServerLoad = async ({
+	params,
+	platform,
+	setHeaders,
+	cookies,
+	getClientAddress
+}) => {
 	const hash = params.hash;
 
 	logger.info('[validar] Iniciando validação', { hash });
@@ -74,6 +81,21 @@ export const load: PageServerLoad = async ({ params, platform, setHeaders, cooki
 	} catch (err) {
 		logger.error('[validar] Falha ao conectar ao banco de dados', { err: String(err) });
 		return { encontrado: false as const, motivo: 'erro_db' };
+	}
+
+	// Teto de varredura ANTES de consultar: é a consulta que custa, e é a
+	// resposta dela que diz se o hash existe. A rota de download já limitava
+	// (FLW-AUT-016); esta página, que é a porta ANÔNIMA e responde à mesma
+	// pergunta, não limitava nada.
+	const teto = await tetoDeVarreduraDeHash(db, getClientAddress(), 'validar_consulta', hash);
+	if (teto === 'excedido') {
+		return { encontrado: false as const, motivo: 'rate_limit' };
+	}
+	if (teto === 'indisponivel') {
+		// Fail-closed (FLW-AUT-016): contador fora do ar não vira enumeração
+		// livre. Cai no mesmo estado de "erro ao consultar" — que NÃO afirma nada
+		// sobre o documento.
+		return { encontrado: false as const, motivo: 'erro_consulta' };
 	}
 
 	let documento;
