@@ -280,14 +280,9 @@ export async function verificarIntegridadeAudit(
 	 * quebrou é uma informação, e saber se ela era forjável desde o início é
 	 * outra — quem investiga precisa das duas juntas.
 	 */
-	const forca = () => ({
-		modoCadeia: (nHmac > 0 && nSha > 0
-			? 'misto'
-			: nHmac > 0
-				? 'hmac'
-				: nSha > 0
-					? 'sha256'
-					: 'vazia') as 'hmac' | 'sha256' | 'misto' | 'vazia',
+	const forca = (): Pick<ResultadoIntegridade, 'modoCadeia' | 'encadeamento'> => ({
+		modoCadeia:
+			nHmac > 0 && nSha > 0 ? 'misto' : nHmac > 0 ? 'hmac' : nSha > 0 ? 'sha256' : 'vazia',
 		encadeamento: { hmac: nHmac, sha256: nSha }
 	});
 

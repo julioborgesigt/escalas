@@ -606,7 +606,28 @@ async function prepararConfirmacaoPresenca(event: RequestEvent, tipo: TipoPresen
 	}
 
 	let selfieKey: string | undefined = undefined;
-	if (hasR2(platform) && selfieBase64) {
+	if (selfieBase64) {
+		// Sem bucket, a foto que o policial acabou de tirar não tem onde ser
+		// gravada. Como `temSelfie` abaixo é `!!selfieKey`, cair no gate com a
+		// flag ligada recusaria dizendo "permita o acesso à câmera e tente
+		// novamente" — culpando a pessoa por uma falha de infraestrutura e
+		// mandando repetir o que ela já fez. A alternativa que sobra para ela é
+		// declarar um motivo falso, o que sujaria a trilha.
+		//
+		// Fail-closed continua certo (gravar presença sem a foto que a flag exige
+		// produz termo afirmando evidência que não existe); o que muda é NOMEAR a
+		// causa, para o policial saber que não é o aparelho dele.
+		if (!hasR2(platform)) {
+			return {
+				ok: false as const,
+				resposta: fail(503, {
+					error:
+						'O armazenamento de fotos está indisponível no momento. ' +
+						'Avise a administração — não é problema do seu aparelho.',
+					giseId
+				})
+			};
+		}
 		const r2 = getR2(platform);
 		const [yyyy, mm, dd] = gise.data_inicio.split('-');
 		const folder = `gise/${yyyy}-${mm}/${dd}/${giseId}/selfies`;
@@ -660,8 +681,16 @@ async function prepararConfirmacaoPresenca(event: RequestEvent, tipo: TipoPresen
 		giseId,
 		ip,
 		ua,
-		latitude,
-		longitude,
+		// Coordenada implausível NÃO vira evidência, nem com a flag desligada. Com
+		// a flag ligada o gate acima já recusou; sem ela, `latitude=999` seguia
+		// para o banco e o termo de presença IMPRIMIA `999.0000` como o lugar onde
+		// a pessoa estava. Ausência é registrada como ausência — "Não capturado" é
+		// honesto, coordenada inventada apresentada como capturada não é.
+		//
+		// Mesma decisão que `validarEvidenciasAvancada` toma no caminho de
+		// assinatura; era o caminho de presença que ficara de fora dela.
+		latitude: evidencia.gpsValido ? latitude : undefined,
+		longitude: evidencia.gpsValido ? longitude : undefined,
 		selfieKey,
 		evidencia
 	};

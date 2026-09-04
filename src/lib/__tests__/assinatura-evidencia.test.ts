@@ -125,3 +125,40 @@ describe('metadadosDeEvidenciaPresenca', () => {
 		expect('motivoSemGps' in semMotivo).toBe(false);
 	});
 });
+
+/**
+ * Coordenada implausível não vira evidência NEM com a flag desligada.
+ *
+ * Isto é o par da decisão que `validarEvidenciasAvancada` toma no caminho de
+ * assinatura, e que o caminho de PRESENÇA não tomava: com `exigirGps` desligada
+ * não há recusa, e `latitude=999` seguia para o banco — o termo de presença
+ * imprimia `999.0000` como o lugar onde a pessoa estava.
+ *
+ * `gpsValido` é o predicado que decide as DUAS coisas: se recusa (flag ligada) e
+ * se persiste (sempre). Prender isso aqui é o que impede as duas de divergirem.
+ */
+describe('gpsValido governa recusa E persistência', () => {
+	it('a mesma coordenada implausível é recusada com a flag e descartada sem ela', () => {
+		const implausivel = ev({ gpsValido: false });
+
+		// Com a flag: recusa (a menos que declarem o motivo).
+		expect(recusaPorEvidenciaDePresenca(flags(), implausivel)).not.toBeNull();
+
+		// Sem a flag: passa, mas `gpsValido: false` é o que o chamador usa para
+		// NÃO persistir a coordenada. A trilha registra `temGps: false`.
+		expect(
+			recusaPorEvidenciaDePresenca(flags({ exigirGpsAssinatura: false }), implausivel)
+		).toBeNull();
+		expect(metadadosDeEvidenciaPresenca(implausivel)).toMatchObject({ temGps: false });
+	});
+
+	it('motivo declarado libera o ato mas não inventa coordenada', () => {
+		const declarado = ev({ gpsValido: false, motivoSemGps: 'permissao_negada' });
+		expect(recusaPorEvidenciaDePresenca(flags(), declarado)).toBeNull();
+		// Segue sendo "sem GPS" — o motivo explica a ausência, não a preenche.
+		expect(metadadosDeEvidenciaPresenca(declarado)).toMatchObject({
+			temGps: false,
+			motivoSemGps: 'permissao_negada'
+		});
+	});
+});

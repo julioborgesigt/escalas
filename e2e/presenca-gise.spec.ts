@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { FIXTURE } from './global-setup';
+import { SELFIE_JPEG } from './evidencias';
 import {
 	seedSession,
 	seedDesafioAssinatura,
@@ -21,10 +22,28 @@ import {
  * mesma técnica do assinatura-simples.spec. Fica de fora: câmera/liveness
  * (client-side por decisão de produto) e a presença por Token A3 (validação de
  * janela de horário depende da hora corrente — roteiro manual/QA A3).
+ *
+ * **Evidências são EXIGIDAS pelo servidor** (flags padrão do banco: foto e GPS
+ * ligadas), e é o que os três testes de política cobrem: sem evidência e sem
+ * motivo → recusado e nada gravado; motivo de lista fechada → aceito, com o
+ * motivo na trilha; evidência completa → aceito com a selfie no R2. Até
+ * ago/2026 as duas flags viviam só no `SignaturePad`, então o caso de sucesso
+ * daqui passava mandando apenas GPS — o spec documentava a lacuna sem notá-la.
  */
 
 const GISE = FIXTURE.gise.id;
 const CODIGO = '424242';
+
+/**
+ * O que a tela de presença captura com as flags de foto e GPS ligadas.
+ * Form-encoded (só strings) — é assim que o `use:enhance` manda; a selfie é a
+ * mesma JPEG 1x1 dos specs de assinatura avançada (`./evidencias`).
+ */
+const EVIDENCIAS = {
+	latitude: '-3.7319',
+	longitude: '-38.5267',
+	selfieBase64: SELFIE_JPEG
+};
 
 /** POST de form action do SvelteKit como o enhance faz (fora de /api, o CSRF é
  *  o check de origin do próprio kit). */
@@ -64,7 +83,10 @@ test.describe('Presença GISE em tela + comprovante', () => {
 			giseId: String(GISE),
 			reauthId: reauthId!
 		});
-		expect(await res.text()).toContain('obrigat');
+		// A mensagem DO 2FA, não 'obrigat' solto: o gate de evidência introduzido
+		// em ago/2026 também diz "obrigatória", e a asserção larga passaria a
+		// aceitar a recusa errada como prova de que o 2FA é exigido.
+		expect(await res.text()).toContain('Código de verificação por e-mail é obrigatório');
 	});
 
 	test('comprovante antes da presença → 404', async ({ request }) => {
@@ -74,7 +96,9 @@ test.describe('Presença GISE em tela + comprovante', () => {
 		expect(res.status()).toBe(404);
 	});
 
-	test('entrada com 2FA + GPS → registrada e auditável no comprovante', async ({ request }) => {
+	test('sem foto e sem motivo declarado → recusada e nada gravado', async ({ request }) => {
+		// Este era o payload do caso de SUCESSO deste spec (GPS e mais nada) —
+		// enquanto as flags viviam só na tela, ele gravava presença sem foto.
 		const desafioId = seedDesafioAssinatura(FIXTURE.membroGise.id, CODIGO);
 		const reauthId = seedReauthAssinatura(FIXTURE.membroGise.id, token!);
 		test.skip(!desafioId || !reauthId, 'D1 local indisponível');
@@ -87,7 +111,69 @@ test.describe('Presença GISE em tela + comprovante', () => {
 			desafioId: desafioId!,
 			reauthId: reauthId!
 		});
-		expect(res.status()).toBe(200);
+		const body = await res.text();
+		expect(body, `status=${res.status()} body=${body}`).toMatch(/foto é obrigatória/i);
+		expect(body).not.toContain('"success":1');
+		expect(presencasDa(GISE)).toBe(0);
+	});
+
+	test('foto ausente COM motivo declarado → aceita, e o motivo fica na trilha', async ({
+		request
+	}) => {
+		// O caminho de exceção: a ausência é aceita, mas precisa vir DECLARADA com
+		// um motivo de lista fechada — e o que a torna auditável é ela aparecer nos
+		// metadados do evento, não só a presença ter sido gravada.
+		const desafioId = seedDesafioAssinatura(FIXTURE.membroGise.id, CODIGO);
+		const reauthId = seedReauthAssinatura(FIXTURE.membroGise.id, token!);
+		test.skip(!desafioId || !reauthId, 'D1 local indisponível');
+
+		const res = await postAction(request, token!, 'salvarEntrada', {
+			giseId: String(GISE),
+			latitude: '-3.7319',
+			longitude: '-38.5267',
+			motivoSemFoto: 'permissao_negada',
+			codigoEmail: CODIGO,
+			desafioId: desafioId!,
+			reauthId: reauthId!
+		});
+		expect(res.status(), await res.text().catch(() => '')).toBe(200);
+		expect(presencasDa(GISE)).toBe(1);
+
+		// Gravou SEM selfie (é o ponto da exceção) e o motivo está na auditoria.
+		const linha = queryD1Local<{ entrada_selfie_key: string | null }>(
+			`SELECT entrada_selfie_key FROM gise_presencas
+			 WHERE gise_id=${GISE} AND policial_id=${FIXTURE.membroGise.id}`
+		)?.[0];
+		expect(linha?.entrada_selfie_key ?? null).toBeNull();
+
+		const evento = queryD1Local<{ metadados: string | null }>(
+			`SELECT metadados FROM audit_log
+			 WHERE acao='presenca_gise_entrada' AND entidade_id=${GISE}
+			 ORDER BY id DESC LIMIT 1`
+		)?.[0];
+		expect(evento?.metadados ?? '').toContain('motivoSemFoto');
+		expect(evento?.metadados ?? '').toContain('permissao_negada');
+
+		// Limpa para os testes seguintes: a entrada já registrada recusaria a
+		// entrada COM evidência completa que vem a seguir.
+		execD1Local(`DELETE FROM gise_presencas WHERE gise_id = ${GISE};`);
+	});
+
+	test('entrada com 2FA + GPS + foto → registrada e auditável no comprovante', async ({
+		request
+	}) => {
+		const desafioId = seedDesafioAssinatura(FIXTURE.membroGise.id, CODIGO);
+		const reauthId = seedReauthAssinatura(FIXTURE.membroGise.id, token!);
+		test.skip(!desafioId || !reauthId, 'D1 local indisponível');
+
+		const res = await postAction(request, token!, 'salvarEntrada', {
+			giseId: String(GISE),
+			...EVIDENCIAS,
+			codigoEmail: CODIGO,
+			desafioId: desafioId!,
+			reauthId: reauthId!
+		});
+		expect(res.status(), await res.text().catch(() => '')).toBe(200);
 		expect(await res.text()).toContain('success');
 
 		// Comprovante AVANÇADO gerado sob demanda a partir das evidências.
@@ -106,18 +192,22 @@ test.describe('Presença GISE em tela + comprovante', () => {
 		expect(res.status()).toBe(404);
 	});
 
-	test('saída com 2FA → registrada, comprovante disponível', async ({ request }) => {
+	test('saída com 2FA + evidências → registrada, comprovante disponível', async ({ request }) => {
+		// A saída passa pelo MESMO gate de evidência da entrada (é o mesmo
+		// `prepararConfirmacaoPresenca`) — antes deste spec ela era exercitada sem
+		// nenhuma evidência, o que só passava porque o gate não existia.
 		const desafioId = seedDesafioAssinatura(FIXTURE.membroGise.id, CODIGO);
 		const reauthId = seedReauthAssinatura(FIXTURE.membroGise.id, token!);
 		test.skip(!desafioId || !reauthId, 'D1 local indisponível');
 
 		const res = await postAction(request, token!, 'salvarSaida', {
 			giseId: String(GISE),
+			...EVIDENCIAS,
 			codigoEmail: CODIGO,
 			desafioId: desafioId!,
 			reauthId: reauthId!
 		});
-		expect(res.status()).toBe(200);
+		expect(res.status(), await res.text().catch(() => '')).toBe(200);
 		expect(await res.text()).toContain('success');
 
 		const termo = await request.get(`/api/gise/${GISE}/presenca/termo?tipo=saida`, {

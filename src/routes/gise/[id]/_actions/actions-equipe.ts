@@ -162,13 +162,15 @@ export const actionsEquipe = {
 		if (!tipo || (tipo !== 'operacional' && tipo !== 'seint'))
 			return fail(400, { error: 'Tipo inválido' });
 
-		// Campo PRESENTE e fora da faixa é erro; ausente cai em 0 mais abaixo.
-		for (const campo of ['slots_dpc', 'slots_oip'] as const) {
-			const bruto = String(formData.get(campo) ?? '').trim();
-			const lido = inteiroNaFaixa(formData, campo, 0, MAX_VAGAS_EQUIPE);
-			if (bruto !== '' && lido === null) {
-				return fail(400, { error: `Vagas inválidas — informe de 0 a ${MAX_VAGAS_EQUIPE}.` });
-			}
+		// Campo PRESENTE e fora da faixa é recusa; AUSENTE cai em 0 mais abaixo
+		// (equipe nasce sem vaga daquele cargo). `inteiroNaFaixa` devolve `null` para
+		// os dois casos, então quem os separa é ter vindo texto ou não.
+		const informado = (campo: string) => String(formData.get(campo) ?? '').trim() !== '';
+		if (
+			(informado('slots_dpc') && slotsDpc === null) ||
+			(informado('slots_oip') && slotsOip === null)
+		) {
+			return fail(400, { error: `Vagas inválidas — informe de 0 a ${MAX_VAGAS_EQUIPE}.` });
 		}
 
 		// `null` = equipe ainda sem unidade escolhida (slot em aberto na seccional).
