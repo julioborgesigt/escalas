@@ -26,6 +26,7 @@
  */
 
 import forge from 'node-forge';
+import { logger } from '../../logger';
 import rootsPem from './roots.pem?raw';
 import intermediatesPem from './intermediates.pem?raw';
 
@@ -77,12 +78,38 @@ function extrairBlocosPem(texto: string): string[] {
 	return blocos;
 }
 
-function parsePemSeguro(pem: string): forge.pki.Certificate | null {
+/**
+ * `null` quando o bloco não vira certificado, e o MOTIVO vai no acumulador.
+ *
+ * O motivo importa porque separa duas coisas que exigem reações opostas:
+ *
+ *  - **`OID is not RSA`** — limitação do node-forge, que não lê chave EdDSA/EC
+ *    em X.509. Hoje isso atinge 5 blocos deste trust store, entre eles as
+ *    raízes **v6 e v7** (Ed448). Todos os cinco estão no ramo de METROLOGIA da
+ *    ICP-Brasil (OU do INMETRO), não no de e-CPF, e as raízes que de fato
+ *    ancoram e-CPF — v5 e v10 — são RSA e carregam normalmente. É condição
+ *    conhecida e estável: `warn`, para ficar visível sem virar alarme a cada
+ *    boot de isolate;
+ *  - **qualquer outro motivo** — bloco truncado, base64 corrompido, encoding
+ *    quebrado. Esse é o cenário do cron mensal que regrava os dois arquivos, e
+ *    é anomalia de verdade: `error`.
+ *
+ * A distinção existe para o log não ser silenciado por fadiga de alerta. Um
+ * `error` mensal que sempre foi benigno é um `error` que ninguém lê mais — e aí
+ * o dia em que o bloco corrompido chega, ele passa junto.
+ */
+function parsePemSeguro(pem: string, motivos: string[]): forge.pki.Certificate | null {
 	try {
 		return forge.pki.certificateFromPem(pem);
-	} catch {
+	} catch (e) {
+		motivos.push(e instanceof Error ? e.message : String(e));
 		return null;
 	}
+}
+
+/** `true` quando TODA falha é a limitação de chave não-RSA do node-forge. */
+function apenasChaveNaoSuportada(motivos: readonly string[]): boolean {
+	return motivos.length > 0 && motivos.every((m) => /OID is not RSA/i.test(m));
 }
 
 /**
@@ -105,12 +132,43 @@ export function loadTrustStore(): TrustStore {
 		rootsBlocos.push(...extrairBlocosPem(testRootsPem));
 	}
 
+	const motivos: string[] = [];
 	const roots = rootsBlocos
-		.map(parsePemSeguro)
+		.map((pem) => parsePemSeguro(pem, motivos))
 		.filter((c): c is forge.pki.Certificate => c !== null);
 	const intermediates = intermediatesBlocos
-		.map(parsePemSeguro)
+		.map((pem) => parsePemSeguro(pem, motivos))
 		.filter((c): c is forge.pki.Certificate => c !== null);
+
+	// Bloco PEM que não parseia era descartado EM SILÊNCIO. O sintoma disso não
+	// aparece aqui: aparece como "Certificado não encadeia até uma AC Raiz da
+	// ICP-Brasil reconhecida" no `/validar` — ou seja, o sistema acusando de
+	// inválido um documento autêntico, porque a âncora dele sumiu do store sem
+	// que nada tenha sido dito. Com 182 blocos hoje e um cron mensal que
+	// regrava os dois arquivos, um download truncado é cenário real, e é
+	// justamente o tipo de degradação que ninguém procura no lugar certo.
+	//
+	// `error`, não `warn`: isto é persistido em `app_log` e sobe no Sentry, que
+	// é onde o operador vai olhar quando reclamarem da validação.
+	if (motivos.length > 0) {
+		const ctx = {
+			rootsLidos: rootsBlocos.length,
+			rootsValidos: roots.length,
+			intermediariasLidas: intermediatesBlocos.length,
+			intermediariasValidas: intermediates.length,
+			// Distintos, não a lista inteira: 5 blocos com a mesma causa são UMA
+			// informação, e a mensagem do forge não carrega dado do certificado.
+			motivos: [...new Set(motivos)]
+		};
+		if (apenasChaveNaoSuportada(motivos)) {
+			logger.warn(
+				'[TRUST-STORE] Âncora ICP-Brasil com chave não-RSA (EdDSA/EC) — node-forge não a carrega',
+				ctx
+			);
+		} else {
+			logger.error('[TRUST-STORE] Bloco PEM não parseou — âncora ICP-Brasil ausente do store', ctx);
+		}
+	}
 
 	const caStore = forge.pki.createCaStore([...roots, ...intermediates]);
 

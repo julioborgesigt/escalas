@@ -29,6 +29,7 @@ import {
 	serverError,
 	contentDisposition
 } from '$lib/server/api';
+import { limitarGeracaoPesada } from '$lib/server/rate-limit-pesado';
 import { envComoRegistro } from '$lib/server/assinatura/document-utils';
 import { montarTermoPresencaAvancado } from '$lib/server/gise/termo-presenca';
 
@@ -88,6 +89,15 @@ export const GET: RequestHandler = async ({ platform, params, locals, url }) => 
 			`Confirmação de ${tipo === 'entrada' ? 'entrada' : 'saída'} ainda não registrada.`
 		);
 	}
+
+	// Teto por CONTA — só neste ramo. O caminho A3 acima apenas serve um blob
+	// pronto do R2; é DAQUI para baixo que o comprovante é montado a cada
+	// chamada (busca de presenças, selfie, render do PDF). Limitar o ramo caro
+	// em vez do endpoint deixa o download do termo qualificado livre.
+	// Depois do 404 de "presença não registrada": recusar por teto quem nem tem
+	// presença esconderia o motivo real. Ver `rate-limit-pesado.ts`.
+	const excedeu = await limitarGeracaoPesada(db, u);
+	if (excedeu) return excedeu;
 
 	// Selfie (prova de vida) opcional, guardada no R2 como imagem.
 	const selfieKey = tipo === 'entrada' ? presenca.entrada_selfie_key : presenca.saida_selfie_key;

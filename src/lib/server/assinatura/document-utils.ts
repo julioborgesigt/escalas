@@ -30,14 +30,50 @@ export async function calcularHashBuffer(bytes: Uint8Array): Promise<string> {
 // ---------------------------------------------------------------------------
 
 /**
+ * A coordenada é uma LEITURA DE GPS PLAUSÍVEL?
+ *
+ * `typeof v === 'number'` não responde isso, e era a checagem que o gate de
+ * `exigirGpsAssinatura` usava: **`typeof NaN === 'number'`**. Como o cliente
+ * manda a coordenada em texto e o servidor faz `parseFloat`, um
+ * `latitude=abc` chegava como `NaN`, passava pelo gate e a assinatura seguia —
+ * com o manifesto imprimindo "Não capturado", porque `NaN` é falsy no render.
+ * A trava anunciada no painel do admin não travava (a forma exata da falha que
+ * `restringirSmartphone` tinha enquanto vivia só na tela).
+ *
+ * A faixa também importa, e por outro motivo: `latitude=999` é um número finito
+ * e passava, e aí o manifesto IMPRIME `999.0000` como o lugar onde a pessoa
+ * assinou. Evidência inventada é pior que evidência ausente — "Não capturado" é
+ * honesto, uma coordenada impossível apresentada como capturada não é.
+ */
+export function coordenadaGeograficaValida(lat: unknown, lon: unknown): boolean {
+	return (
+		typeof lat === 'number' &&
+		typeof lon === 'number' &&
+		Number.isFinite(lat) &&
+		Number.isFinite(lon) &&
+		lat >= -90 &&
+		lat <= 90 &&
+		lon >= -180 &&
+		lon <= 180
+	);
+}
+
+/**
  * Reduz a coordenada a 2 casas decimais (~1 km).
  *
  * A evidência exigida é "a assinatura ocorreu nesta região", não a localização
  * exata do servidor — guardar menos precisão é o mínimo necessário (LGPD, art.
  * 6º III). Estava reescrita como `gps2` em quatro módulos de dados.
+ *
+ * Valor não-finito vira `undefined` em vez de ser arredondado: `Math.round(NaN)`
+ * é `NaN`, e um `NaN` gravado numa coluna REAL do SQLite chega como NULL — isto
+ * é, "sem GPS", mas por acidente e sem nada dizendo isso no caminho. Aqui a
+ * ausência fica explícita, para qualquer chamador, inclusive os que não passam
+ * pelo gate de evidência.
  */
 export function reduzirPrecisaoGps(v?: number): number | undefined {
-	return v !== undefined ? Math.round(v * 100) / 100 : undefined;
+	if (v === undefined || !Number.isFinite(v)) return undefined;
+	return Math.round(v * 100) / 100;
 }
 
 // ---------------------------------------------------------------------------

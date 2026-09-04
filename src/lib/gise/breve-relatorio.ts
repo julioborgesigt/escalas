@@ -10,6 +10,20 @@
 
 import type { GiseEscala } from '$lib/server/schema';
 
+/**
+ * Limites de digitação dos campos `breve_relatorio_*` — UM número por campo,
+ * lido pelo `maxlength` das DUAS telas que os editam e pelas DUAS actions que os
+ * gravam.
+ *
+ * Moram aqui, e não em cada tela, porque as colunas têm dois caminhos de escrita
+ * (`/gise/operacoes`, por operação, e o modal de `/gise/[id]`, por escala) e eles
+ * discordavam: o primeiro limitava a 200/2000 na tela E no servidor, o segundo
+ * não limitava em lugar nenhum. Número solto em cada arquivo é o que permite a
+ * tela prometer um limite e o banco guardar outro.
+ */
+export const MAX_BREVE_TITULO = 200;
+export const MAX_BREVE_PARAGRAFO = 2000;
+
 export const DEFAULT_BREVE_RELATORIO_TITULO = 'BREVE RELATÓRIO:';
 
 export const DEFAULT_BREVE_RELATORIO_TEXTO_SECCIONAL =

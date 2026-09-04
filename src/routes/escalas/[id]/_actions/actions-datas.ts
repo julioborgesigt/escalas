@@ -19,6 +19,7 @@ import { erroDeDatasForaDoPeriodo } from '$lib/server/escalas/periodo';
 import { carregarEscalaComPermissao } from './shared';
 import { registrarMudancaEscala, nomeDoPolicial } from './desfecho';
 import { ehViolacaoUnique } from '$lib/server/db-errors';
+import { textoLimitado, MAX_OBSERVACOES } from '$lib/server/form-data';
 
 /** O `event` das actions desta rota: `params.id` é a escala. */
 type Event = RequestEvent<{ id: string }>;
@@ -41,7 +42,7 @@ export const actionsDatas = {
 		const datasJson = data.get('datas')?.toString() || '[]';
 		const hora_entrada = data.get('hora_entrada')?.toString() || '08:00';
 		const hora_saida = data.get('hora_saida')?.toString() || '08:00';
-		const observacoes = data.get('observacoes')?.toString() || '';
+		const observacoes = textoLimitado(data, 'observacoes', MAX_OBSERVACOES);
 
 		let ids: number[];
 		let datasStr: string[];

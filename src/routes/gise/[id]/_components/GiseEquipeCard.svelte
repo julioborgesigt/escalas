@@ -10,6 +10,8 @@
 	 * Operacional/SEINT.
 	 */
 	import { enhance } from '$app/forms';
+	// O MESMO teto que a action impõe no servidor.
+	import { MAX_VAGAS_EQUIPE } from '$lib/gise/tipos-equipe';
 	import type { GiseDetalhado, GiseEquipeComMembros } from '$lib/db/gise';
 	import SearchableSelect from '$lib/components/SearchableSelect.svelte';
 	import MarcadorPresenca from './MarcadorPresenca.svelte';
@@ -131,7 +133,7 @@
 							id="edit-dpc-{equipe.id}"
 							type="number"
 							min="0"
-							max="20"
+							max={MAX_VAGAS_EQUIPE}
 							bind:value={estado.editSlotsDpc}
 							class="w-14 px-2 py-1 rounded-xl border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-sm text-center"
 						/>
@@ -142,7 +144,7 @@
 							id="edit-oip-{equipe.id}"
 							type="number"
 							min="0"
-							max="20"
+							max={MAX_VAGAS_EQUIPE}
 							bind:value={estado.editSlotsOip}
 							class="w-14 px-2 py-1 rounded-xl border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-sm text-center"
 						/>

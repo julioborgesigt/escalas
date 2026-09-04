@@ -64,6 +64,12 @@ import { exigirJanelaReauth } from '$lib/server/assinatura/reauth';
 import { verificarDesafio2FA } from '$lib/auth';
 import { logger } from '$lib/server/logger';
 import { uploadSelfieDataUri } from '$lib/server/assinatura/selfie-upload';
+import { coordenadaGeograficaValida } from '$lib/server/assinatura/document-utils';
+import {
+	lerMotivoSemEvidencia,
+	recusaPorEvidenciaDePresenca,
+	metadadosDeEvidenciaPresenca
+} from '$lib/assinatura-evidencia';
 import {
 	giseEscalas,
 	giseMembros,
@@ -500,6 +506,11 @@ async function prepararConfirmacaoPresenca(event: RequestEvent, tipo: TipoPresen
 	const codigoEmail = formData.get('codigoEmail') as string | null;
 	const desafioId = formData.get('desafioId') as string | null;
 	const reauthId = formData.get('reauthId') as string | null;
+	// Declaração de que a captura não foi possível. Lista FECHADA
+	// (`lerMotivoSemEvidencia` devolve `null` para qualquer coisa fora dela), para
+	// o campo não virar texto livre entrando na trilha por POST direto.
+	const motivoSemGps = lerMotivoSemEvidencia(formData.get('motivoSemGps'));
+	const motivoSemFoto = lerMotivoSemEvidencia(formData.get('motivoSemFoto'));
 
 	if (isNaN(giseId)) {
 		return { ok: false as const, resposta: fail(400, { error: 'Dados inválidos', giseId }) };
@@ -595,14 +606,72 @@ async function prepararConfirmacaoPresenca(event: RequestEvent, tipo: TipoPresen
 	}
 
 	let selfieKey: string | undefined = undefined;
-	if (hasR2(platform) && selfieBase64) {
+	if (selfieBase64) {
+		// Sem bucket, a foto que o policial acabou de tirar não tem onde ser
+		// gravada. Como `temSelfie` abaixo é `!!selfieKey`, cair no gate com a
+		// flag ligada recusaria dizendo "permita o acesso à câmera e tente
+		// novamente" — culpando a pessoa por uma falha de infraestrutura e
+		// mandando repetir o que ela já fez. A alternativa que sobra para ela é
+		// declarar um motivo falso, o que sujaria a trilha.
+		//
+		// Fail-closed continua certo (gravar presença sem a foto que a flag exige
+		// produz termo afirmando evidência que não existe); o que muda é NOMEAR a
+		// causa, para o policial saber que não é o aparelho dele.
+		if (!hasR2(platform)) {
+			return {
+				ok: false as const,
+				resposta: fail(503, {
+					error:
+						'O armazenamento de fotos está indisponível no momento. ' +
+						'Avise a administração — não é problema do seu aparelho.',
+					giseId
+				})
+			};
+		}
 		const r2 = getR2(platform);
 		const [yyyy, mm, dd] = gise.data_inicio.split('-');
 		const folder = `gise/${yyyy}-${mm}/${dd}/${giseId}/selfies`;
 		// Helper compartilhado: valida magic bytes, limita 5 MB e usa UUID
 		// na chave para esconder o `policial_id` da URL do R2.
 		const r = await uploadSelfieDataUri(r2, folder, selfieBase64);
-		if (r.ok) selfieKey = r.key;
+		// Selfie RECUSADA não segue em silêncio. `if (r.ok) selfieKey = r.key` sem
+		// `else` gravava a presença sem foto quando o upload era rejeitado — e o
+		// policial, que tirou a foto e viu a tela confirmar, ficava com um termo
+		// assinado que diz "sem selfie". A UI legítima captura sempre
+		// `canvas.toDataURL('image/jpeg')`, então chegar aqui recusado significa
+		// conteúdo que aquela tela não produz: recusar é o certo, e nomear o
+		// motivo é o que permite ao policial saber o que fazer.
+		if (!r.ok) {
+			const motivo =
+				r.reason === 'too-large'
+					? 'A foto excede o tamanho máximo (5 MB). Tente novamente.'
+					: 'A foto enviada não é uma imagem válida (JPEG ou PNG). Tente novamente.';
+			return { ok: false as const, resposta: fail(400, { error: motivo, giseId }) };
+		}
+		selfieKey = r.key;
+	}
+
+	// As flags de FOTO e GPS passam a recusar AQUI. Estas actions não passam por
+	// `validarEvidenciasAvancada` (checam o 2FA à mão), e por isso as duas viviam
+	// só no `SignaturePad`: um POST direto registrava presença sem nenhuma das
+	// duas enquanto o painel do admin as anunciava obrigatórias.
+	//
+	// O gate é o de `$lib/assinatura-evidencia`, client-safe, para a tela pedir
+	// pela MESMA regra — e ele aceita ausência DECLARADA, porque a presença tem
+	// janela de horário e recusa seca deixaria de fora quem tem o GPS negado pelo
+	// aparelho. O motivo declarado entra na trilha (ver `metadadosDeEvidenciaPresenca`).
+	//
+	// `coordenadaGeograficaValida`, e não "veio um número": o cliente manda texto
+	// e isto é `parseFloat`, então `latitude=abc` chega como `NaN`.
+	const evidencia = {
+		gpsValido: coordenadaGeograficaValida(latitude, longitude),
+		temSelfie: !!selfieKey,
+		motivoSemGps,
+		motivoSemFoto
+	};
+	const recusa = recusaPorEvidenciaDePresenca(flagsAssinatura, evidencia);
+	if (recusa) {
+		return { ok: false as const, resposta: fail(400, { error: recusa.error, giseId }) };
 	}
 
 	return {
@@ -612,9 +681,18 @@ async function prepararConfirmacaoPresenca(event: RequestEvent, tipo: TipoPresen
 		giseId,
 		ip,
 		ua,
-		latitude,
-		longitude,
-		selfieKey
+		// Coordenada implausível NÃO vira evidência, nem com a flag desligada. Com
+		// a flag ligada o gate acima já recusou; sem ela, `latitude=999` seguia
+		// para o banco e o termo de presença IMPRIMIA `999.0000` como o lugar onde
+		// a pessoa estava. Ausência é registrada como ausência — "Não capturado" é
+		// honesto, coordenada inventada apresentada como capturada não é.
+		//
+		// Mesma decisão que `validarEvidenciasAvancada` toma no caminho de
+		// assinatura; era o caminho de presença que ficara de fora dela.
+		latitude: evidencia.gpsValido ? latitude : undefined,
+		longitude: evidencia.gpsValido ? longitude : undefined,
+		selfieKey,
+		evidencia
 	};
 }
 
@@ -625,7 +703,7 @@ export const actions: Actions = {
 	salvarEntrada: async (event) => {
 		const prep = await prepararConfirmacaoPresenca(event, 'entrada');
 		if (!prep.ok) return prep.resposta;
-		const { db, u, giseId, ip, ua, latitude, longitude, selfieKey } = prep;
+		const { db, u, giseId, ip, ua, latitude, longitude, selfieKey, evidencia } = prep;
 
 		const entrada = await salvarEntradaGise(
 			db,
@@ -655,7 +733,7 @@ export const actions: Actions = {
 				alvo_id: u.id,
 				alvo_nome: u.nome,
 				detalhes: `Registro de entrada na GISE ${giseId}`,
-				metadados: { temSelfie: !!selfieKey, temGps: latitude != null && longitude != null },
+				metadados: metadadosDeEvidenciaPresenca(evidencia),
 				...contexto
 			},
 			{ env }
@@ -671,7 +749,7 @@ export const actions: Actions = {
 	salvarSaida: async (event) => {
 		const prep = await prepararConfirmacaoPresenca(event, 'saida');
 		if (!prep.ok) return prep.resposta;
-		const { db, u, giseId, ip, ua, latitude, longitude, selfieKey } = prep;
+		const { db, u, giseId, ip, ua, latitude, longitude, selfieKey, evidencia } = prep;
 
 		// A gravação exige a entrada no próprio `WHERE`: sem ela o UPDATE não
 		// achava linha, o resultado era ignorado e a auditoria registrava uma
@@ -699,7 +777,7 @@ export const actions: Actions = {
 				alvo_id: u.id,
 				alvo_nome: u.nome,
 				detalhes: `Registro de saída na GISE ${giseId}`,
-				metadados: { temSelfie: !!selfieKey, temGps: latitude != null && longitude != null },
+				metadados: metadadosDeEvidenciaPresenca(evidencia),
 				...contexto
 			},
 			{ env }

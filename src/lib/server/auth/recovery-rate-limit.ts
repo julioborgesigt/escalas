@@ -24,7 +24,8 @@ type RecoveryPurpose =
 	| 'solicitar_codigo_assinatura' // envio do código 2FA de assinatura (e-mail bombing / quota)
 	| 'alterar_senha' // brute-force da senha atual com sessão roubada (chave por usuário, não IP)
 	| 'reauth_assinatura' // brute-force da senha na cerimônia de assinatura (chave por usuário)
-	| 'passkey_reposicao'; // e-mail bombing dos dois códigos de reposição da chave
+	| 'passkey_reposicao' // e-mail bombing dos dois códigos de reposição da chave
+	| 'geracao_pesada'; // teto de geração de PDF/export por CONTA (ver rate-limit-pesado.ts)
 
 /**
  * Chave de rate-limit derivada do IP.

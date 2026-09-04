@@ -478,12 +478,27 @@ export const actions: Actions = {
 
 		const data = await request.formData();
 		const lotacao = data.get('lotacao')?.toString() || '';
-		const tipo = data.get('tipo')?.toString() as 'plantao' | 'expediente';
+		// Enum e faixas CONFERIDOS, não apenas "veio algo". O `as` do TypeScript não
+		// valida em runtime, e a checagem era só de truthiness: `tipo=fds` entrava
+		// pela projeção mensal (que titula tudo como PLANTÃO/EXPEDIENTE) e
+		// `mes=99`/`ano=-5` produziam escala com `MESES_PT[98]` — `undefined` no
+		// título — e data absurda. Escala é documento assinado; o `criar` ao lado já
+		// passava por `escalaSchema`, esta action nascera sem.
+		const tipoBruto = data.get('tipo')?.toString() ?? '';
+		const tipo = tipoBruto === 'plantao' || tipoBruto === 'expediente' ? tipoBruto : null;
 		const mes = Number(data.get('mes'));
 		const ano = Number(data.get('ano'));
 
-		if (!lotacao || !tipo || !mes || !ano) {
+		if (!lotacao || !tipo) {
 			return fail(400, { error: 'Dados inválidos' });
+		}
+		if (!Number.isInteger(mes) || mes < 1 || mes > 12) {
+			return fail(400, { error: 'Mês inválido' });
+		}
+		// Teto folgado, mas finito: projeção é sempre para o mês seguinte ao de uma
+		// escala que existe, não para o ano 3000.
+		if (!Number.isInteger(ano) || ano < 2000 || ano > 2200) {
+			return fail(400, { error: 'Ano inválido' });
 		}
 
 		const db = getDB(platform);

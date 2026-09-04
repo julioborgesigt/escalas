@@ -20,6 +20,8 @@
 	 * também não levam tarja — o nome e o tipo já identificam o bloco.
 	 */
 	import { enhance } from '$app/forms';
+	// O MESMO teto que a action impõe no servidor.
+	import { MAX_VAGAS_EQUIPE } from '$lib/gise/tipos-equipe';
 	import { Popover, Portal } from '@skeletonlabs/skeleton-svelte';
 	import type { GiseDetalhado, GiseUnidadeSlot } from '$lib/db/gise';
 	import type { Unidade } from '$lib/server/schema';
@@ -281,7 +283,7 @@
 							id="novaEquipeDpc-{slot.id}"
 							type="number"
 							min="0"
-							max="20"
+							max={MAX_VAGAS_EQUIPE}
 							bind:value={estado.novaEquipeDpc}
 							class="w-14 rounded-xl border border-surface-300 bg-white px-2 py-1.5 text-center text-sm dark:border-surface-700 dark:bg-surface-800"
 						/>
@@ -296,7 +298,7 @@
 							id="novaEquipeOip-{slot.id}"
 							type="number"
 							min="0"
-							max="20"
+							max={MAX_VAGAS_EQUIPE}
 							bind:value={estado.novaEquipeOip}
 							class="w-14 rounded-xl border border-surface-300 bg-white px-2 py-1.5 text-center text-sm dark:border-surface-700 dark:bg-surface-800"
 						/>

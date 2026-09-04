@@ -30,8 +30,23 @@ jobs:
 
       - name: Verificar se houve mudança
         id: diff
+        # update-trust-store.sh grava "# Atualizado em <timestamp da execução>"
+        # no topo dos dois arquivos TODA vez que roda — mesmo quando nenhum
+        # certificado mudou. Um `git diff` cru nunca fica vazio por causa
+        # dessa linha, então o job abriria PR TODO mês independente da ITI
+        # ter mudado algo, contradizendo o "sai silencioso" do cabeçalho
+        # deste workflow. Compara ignorando só essa linha — o resto do
+        # arquivo (certificados, Subject, Validade, SHA-256) decide de
+        # verdade se houve mudança.
         run: |
-          if git diff --quiet src/lib/server/assinatura/icp-brasil/roots.pem src/lib/server/assinatura/icp-brasil/intermediates.pem; then
+          normalizar() { sed 's/^# Atualizado em .*/# Atualizado em <normalizado>/'; }
+          mudou=false
+          for f in src/lib/server/assinatura/icp-brasil/roots.pem src/lib/server/assinatura/icp-brasil/intermediates.pem; do
+            if ! diff -q <(git show "HEAD:$f" | normalizar) <(normalizar < "$f") >/dev/null; then
+              mudou=true
+            fi
+          done
+          if [ "$mudou" = false ]; then
             echo "changed=false" >> "$GITHUB_OUTPUT"
             echo "Cadeia ICP-Brasil sem alterações — nada a fazer."
           else

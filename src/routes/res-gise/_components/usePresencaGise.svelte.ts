@@ -251,7 +251,8 @@ export function usePresencaGise(getData: () => ResGisePageData) {
 			selfie: selfieBase64,
 			codigoEmail,
 			desafioId,
-			reauthId
+			reauthId,
+			motivoSemGps
 		} = payload;
 		const fd = new FormData();
 		fd.set('giseId', String(giseId));
@@ -261,6 +262,10 @@ export function usePresencaGise(getData: () => ResGisePageData) {
 		if (codigoEmail) fd.set('codigoEmail', codigoEmail);
 		if (desafioId) fd.set('desafioId', desafioId);
 		if (reauthId) fd.set('reauthId', reauthId);
+		// Sem isto o servidor recusa o ato quando a flag de GPS está ligada e a
+		// coordenada não veio — é a declaração que substitui a evidência ausente e
+		// entra na trilha de auditoria (ver `$lib/assinatura-evidencia`).
+		if (motivoSemGps) fd.set('motivoSemGps', motivoSemGps);
 		return fd;
 	}
 

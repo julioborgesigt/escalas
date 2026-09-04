@@ -18,6 +18,21 @@
 /** Os tipos de equipe, na ordem em que a UI os apresenta. */
 export type TipoEquipe = 'operacional' | 'seint';
 
+/**
+ * Teto de vagas (DPC ou OIP) de UMA equipe — o `max` dos campos de vaga em
+ * `GiseEquipeCard` e `GiseSlotUnidade`, e a faixa que o servidor impõe.
+ *
+ * Mora aqui porque o número estava escrito à mão em quatro `max="20"` de tela e
+ * em NENHUM lugar do servidor: `salvarSlotsEquipe` e `adicionarEquipe` faziam só
+ * `parseInt` + `isNaN`. As vagas entram na comparação `COUNT(*) < e.slots_dpc`
+ * que decide a alocação ATOMICAMENTE (FLW-GISE-009) — com `slots_dpc=999999` por
+ * POST direto o controle de lotação deixava de existir, e com `-1` a equipe
+ * passava a recusar todo mundo respondendo "vagas esgotadas" para uma equipe
+ * vazia. O nível equivalente em `/gise/operacoes` (vagas padrão da operação) JÁ
+ * validava 0..999 no servidor; era este que não validava.
+ */
+export const MAX_VAGAS_EQUIPE = 20;
+
 /** Os tipos que ESTA operação usa. `null`/indefinida devolve os dois. */
 export function tiposEquipeHabilitados(
 	op: { usa_equipe_operacional: boolean; usa_equipe_seint: boolean } | null | undefined

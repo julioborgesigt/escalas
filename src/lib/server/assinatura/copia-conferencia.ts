@@ -14,20 +14,17 @@
  * nos endpoints de download.
  */
 
-import { type UsuarioLogado } from '$lib/auth';
 import { getR2, hasR2 } from '$lib/db';
 import { contentDisposition, notFound, serverError } from '../api';
 import { adicionarRodapeSimples } from './pdf-signing-visual';
 import { logger } from '../logger';
 
-/**
- * Quem pode baixar o blob forense pelo portal `/validar` (rota semi-pública,
- * indexada só pelo hash): SOMENTE Super Admin — mais restrito que o
- * `podeBaixarComManifesto` dos endpoints autenticados de download.
- */
-export function podeBaixarForense(u: UsuarioLogado | null): boolean {
-	return u?.isSuperAdmin === true;
-}
+// Quem vê PII forense (Super Admin): definida em `./cpf-assinante`, que é leve,
+// para que um `load` de página aplique a MESMA regra sem arrastar o bundle do
+// assinador (é o que fez `gise/[id]` e `escalas/[id]` não a aplicarem). O nome
+// é reexportado aqui porque os endpoints de download já o importavam deste
+// módulo.
+export { podeBaixarForense } from './cpf-assinante';
 
 // Regra de acesso ao manifesto: definida em $lib/manifesto (módulo client-safe)
 // para que a UI esconda o botão "C/ manifesto" com a MESMA regra que o servidor

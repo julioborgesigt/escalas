@@ -159,6 +159,8 @@ npm run test       # testes unitários
 | `PASSWORD_PEPPER`                                                  | ⚠️ produção | Pepper de senha (HMAC antes do PBKDF2, formato `pbkdf2v3`). **Nunca rotacionar** sem plano de migração — ver [`DEPLOY.md`](DEPLOY.md#hashing-de-senha-e-o-password_pepper). |
 | `CPF_ENCRYPTION_KEY` / `CPF_INDEX_KEY`                             | ⚠️ produção | Cifra de CPF em repouso (AES-256-GCM) + índice cego para lookup (LGPD).                                                                                                     |
 | `RATE_LIMIT_IP_SALT`                                               | ⚠️ produção | Muda a chave do rate-limit de "/24 anonimizada" para hash salteado do IP completo (evita lockout do NAT corporativo).                                                       |
+
+> **Teto de geração pesada.** As rotas que MONTAM documento (PDF da escala, comprovante de presença avançado) têm limite por **conta**, não por IP — ver [`rate-limit-pesado.ts`](src/lib/server/rate-limit-pesado.ts). São rotas autenticadas e autorizadas: o que faltava não era permissão, era custo. Contar por conta é o que evita o lockout que o `RATE_LIMIT_IP_SALT` acima descreve — numa delegacia todos saem pelo mesmo endereço, e um plantão em laço derrubaria o download dos colegas. Reusa `recovery_attempts` com propósito próprio, sem migration.
 | `APP_ORIGIN`                                                       | ⚠️ produção | Origem canônica (`https://...`) usada nos links de e-mail.                                                                                                                  |
 | `SUPER_ADMIN_LOGIN` / `SUPER_ADMIN_SENHA` / `SUPER_ADMIN_EMAIL`    |     ❌      | Conta root de break-glass via env. Prefira senha em hash PBKDF2 e defina o e-mail para exigir 2FA — ver [`DEPLOY.md`](DEPLOY.md#variáveis-e-secrets).                       |
 | `ADMIN_GERAL_LOGIN` / `ADMIN_GERAL_SENHA`                          |     ❌      | Login de Admin Geral via env (bootstrap). Logins por credencial de bootstrap são auditados (`login_bootstrap`).                                                             |
@@ -326,10 +328,12 @@ npm run db:migrate:staging       # Aplica migrações no D1 de staging
 npm run db:migrate:prod -- --yes # Aplica migrações em produção (--yes obrigatório)
 
 # Utilitários de usuários (scripts/)
-npm run users:set-default-password          # Define senha padrão para todos os usuários (local)
-npm run users:set-default-password:prod     # Idem, em produção
-npm run users:clear-passwords-non-admins    # Limpa senhas de não-admins (local)
-npm run users:clear-passwords-non-admins:prod  # Idem, em produção
+# `--yes` nunca vem embutido (igual ao db:migrate:prod); contra produção,
+# CONFIRMO_PRODUCAO precisa conter o nome do banco. Ver scripts/confirmar-producao.ts
+npm run users:set-default-password -- --yes              # senha padrão p/ todos (local)
+npm run users:clear-passwords-non-admins -- --yes        # limpa senhas de não-admins (local)
+CONFIRMO_PRODUCAO=escalas-db npm run users:set-default-password:prod -- --yes
+CONFIRMO_PRODUCAO=escalas-db npm run users:clear-passwords-non-admins:prod -- --yes
 ```
 
 > **Duplicação / código morto:** além do `knip`, o repositório versiona [`.fallowrc.json`](.fallowrc.json) para o [`fallow`](https://github.com/fallow-rs/fallow) (`fallow dupes`) — sinal de investigação nas auditorias de compreensibilidade, não gate de CI.
@@ -1243,6 +1247,109 @@ O enquadramento jurídico de cada modalidade (Lei 14.063/2020, MP 2.200-2) está
 ### Validação Pública
 
 A rota `/validar/[hash]` é **pública e sem autenticação**. Qualquer pessoa pode verificar a autenticidade de um documento assinado informando o código exibido no PDF. Visitante **autenticado** vê também o recorte da chave de assinatura (o mesmo da linha `CHAVE DE ASSINATURA` no manifesto) para confrontar com a ficha do servidor, sem abrir o banco. O anônimo não recebe esse recorte. O titular vê o mesmo recorte em Meu Perfil, com a data do último uso; o sistema não guarda o modelo do celular.
+
+### Trava de tela não é trava
+
+`maxlength`, botão escondido e `disabled` são dicas de digitação: somem num POST
+direto, num `curl` ou com uma linha no devtools. A régua do projeto é que **toda
+regra material recusa também no servidor** — o mesmo princípio de
+"esconder o botão não é autorização" ([`CLAUDE.md`](CLAUDE.md)), aplicado a
+ESTADO, EVIDÊNCIA e TAMANHO, não só a permissão.
+
+A varredura de set/2026 encontrou três formas de a régua falhar, todas com a
+mesma assinatura: a regra existia certa em um caminho e faltava no vizinho.
+
+**1. A trava que não travava.** O gate de `exigirGpsAssinatura` checava
+`typeof latitude !== 'number'` — e **`typeof NaN === 'number'`**. O cliente manda
+a coordenada em texto e o servidor faz `parseFloat`, então `latitude=abc` chegava
+como `NaN`, passava e a assinatura seguia com o manifesto imprimindo "Não
+capturado". Pior que ausente: `latitude=999` passava também, e essa o manifesto
+IMPRIME como o local do ato — evidência inventada corrói a credibilidade das
+outras evidências do mesmo documento. Hoje o gate é
+`coordenadaGeograficaValida` (finito + faixa), e coordenada implausível é
+persistida como ausência mesmo com a flag desligada.
+
+**2. Evidência exigida só na tela.** A confirmação de presença não passa por
+`validarEvidenciasAvancada` (checa o 2FA à mão), e por isso `exigirFoto` e
+`exigirGps` — **as duas com default `true`** — viviam apenas no `SignaturePad`.
+Um POST direto registrava presença sem nenhuma das duas enquanto o painel do
+admin as anunciava obrigatórias.
+
+O gate agora é [`$lib/assinatura-evidencia`](src/lib/assinatura-evidencia.ts),
+client-safe para a tela pedir pela MESMA regra, e ele **aceita ausência
+DECLARADA**: a presença tem janela de horário e é a base do pagamento da diária,
+então recusa seca deixaria de fora quem tem o GPS negado pelo aparelho — e a
+tela já permitia seguir nesse caso. O motivo vem de lista FECHADA
+(`permissao_negada`, `indisponivel_no_aparelho`, `falha_tecnica`) e entra na
+trilha de auditoria.
+
+**A exceção tem caminho de interface só para o GPS**, e a assimetria é do
+produto, não um esquecimento do gate: o `SignaturePad` detecta a falha de
+localização e manda o motivo, mas para a câmera ele DESABILITA o botão de
+captura — não existe tela que envie `motivoSemFoto`. O servidor aceita os dois
+porque a política é uma só; na prática, hoje, foto ausente é recusa, e o caminho
+do policial com câmera quebrada é a presença por Token A3 no desktop. Se algum
+dia a tela oferecer a exceção para a foto, o servidor já a entende.
+
+Sendo preciso sobre o que isso compra: não impede quem quer burlar — um cliente
+adulterado sempre pode declarar "GPS negado", que é a mesma fronteira de garantia
+que o liveness já declara. O que muda é que a ausência deixa de ser INVISÍVEL:
+antes o servidor gravava sem GPS e sem registrar nada; agora todo ato sem
+evidência carrega o motivo, e o padrão fica CONTÁVEL no console de auditoria (um
+servidor que declara "GPS negado" em todas as presenças aparece).
+
+**3. `maxlength` sem contraparte.** Rota de API não cai nessa (o padrão
+obrigatório é `validateBody` com Zod, que tem `.max()`); **form action lê
+`FormData` na mão**. A regra estava certa em `gise/operacoes` e em
+`planos/novo` — cada um com a SUA cópia de `texto(fd, campo, max)` — e ausente
+num terceiro: `salvarBreveRelatorio` gravava as MESMAS três colunas que
+`operacoes` limita a 200/2000 sem limite nenhum, nem na tela; e as
+`observacoes` da escala tinham `maxlength=500` em quatro telas, servidor sem cap
+e coluna sem CHECK. Os dois entram em PDF assinado. A implementação virou
+[`$lib/server/form-data`](src/lib/server/form-data.ts), as duas cópias delegam, e
+os limites do breve relatório são UMA constante lida pelas duas telas que editam
+e pelas duas actions que gravam.
+
+Corolário para código novo: **campo com `maxlength` na tela precisa do mesmo
+número no servidor** — `textoLimitado(fd, campo, MAX)` em form action, `.max()`
+no Zod em rota de API. Regex de e-mail prova o FORMATO e casa com string de
+qualquer tamanho; o cap é `MAX_EMAIL`.
+
+### PII forense não sai do servidor por engano
+
+O manifesto do PDF assinado carrega **CPF, IP, GPS e selfie** de quem assinou, e
+quem alcança esse conjunto é **só o Super Admin** — `podeBaixarForense`, em
+[`cpf-assinante.ts`](src/lib/server/assinatura/cpf-assinante.ts). O portal
+`/validar` já dizia isso por escrito ("IP, user-agent e GPS: omitidos").
+
+O que faltava era a régua valer para o **payload de hidratação**, que é a
+superfície fácil de esquecer: nada ali aparece na tela, então uma revisão visual
+não flagra o excesso. Duas telas devolviam ao navegador dado que a interface não
+usa — `/gise/[id]` e `/escalas/[id]` mandavam o `assinante_cpf` **completo**
+(decifrado) enquanto a API do MESMO campo,
+`/api/gise/[id]/documento-assinado/info`, mascarava para todo mundo que não é
+Super Admin; e `/gise/[id]` mandava a linha CRUA de `buscarPresencasGise` — CPF,
+IP, user-agent, latitude, longitude e as chaves R2 das selfies de cada
+integrante — para o Admin Geral, o admin de seccional e o **supervisor**, que é
+policial comum.
+
+Duas regras, uma para cada metade, e as duas com teste:
+
+- **CPF de assinante que sai do servidor passa por `cpfAssinanteParaExibir`**,
+  que decifra e mascara na MESMA chamada. É o ponto: o helper conveniente já é o
+  recortado, então não se obtém a versão crua por distração. `decifrarCpfDoDB`
+  direto continua certo para quem GERA o manifesto — ali o dado forense é o
+  produto;
+- **presenças que vão à tela passam por `presencasParaCliente`**
+  ([`presenca-cliente.ts`](src/lib/server/gise/presenca-cliente.ts)), que devolve
+  `policial_id` + entrada/saída e nada mais. Objeto NOVO, campo a campo, não
+  `delete` das chaves indesejadas: coluna nova em `buscarPresencasGise`
+  (evidência é o tipo de tabela que cresce) não passa a viajar de graça.
+
+A minimização por PROJEÇÃO — recortar antes de serializar, e de preferência no
+`SELECT` — é a mesma que os e-mails do quadro de supervisão já recebiam dentro
+desse próprio `load`. A lição é que ela precisava valer para as duas metades do
+mesmo `return`.
 
 ### Observabilidade e Auditoria
 
