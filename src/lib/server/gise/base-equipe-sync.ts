@@ -371,15 +371,27 @@ export function agendarSyncBaseEquipeAposFinalizar(
 ): void {
 	// Mesma regra que getDB: em alguns ambientes os bindings ficam em `platform` direto.
 	const raw = (platform?.env ?? platform) as BaseEquipeEnv | undefined;
-	const job = syncGiseBaseEquipeAposFinalizar(raw, db, giseId);
+	// O `.catch` vai ANTES do ramo, não dentro dele.
+	//
+	// `syncGiseBaseEquipeAposFinalizar` trata o `!r.ok` (vira pendência durável),
+	// mas ainda pode REJEITAR: se o D1 cair ao gravar a pendência — justamente o
+	// cenário que ela existe para cobrir — ou ao esquecê-la no caminho de sucesso.
+	//
+	// Antes o `.catch` com o diagnóstico (`giseId` + motivo) morava só no ramo SEM
+	// `waitUntil`, que é o que NÃO roda em produção. No ramo de produção a
+	// rejeição ia crua para o `waitUntil`: vira exceção não tratada da invocação,
+	// atribuída à requisição e não ao sync, e sem dizer QUAL escala ficou fora da
+	// planilha que paga o extraordinário — que é a única pergunta que importa aqui
+	// (FLW-WEBHOOK-003).
+	const job = syncGiseBaseEquipeAposFinalizar(raw, db, giseId).catch((e) =>
+		logger.error('[GISE Base_Equipe] Sync pós-finalizar falhou', {
+			giseId,
+			error: mensagemDeErro(e)
+		})
+	);
 	if (platform?.ctx?.waitUntil) {
 		platform.ctx.waitUntil(job);
 	} else {
-		void job.catch((e) =>
-			logger.error('[GISE Base_Equipe] Sync (sem waitUntil) falhou', {
-				giseId,
-				error: mensagemDeErro(e)
-			})
-		);
+		void job;
 	}
 }
