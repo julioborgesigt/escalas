@@ -1,4 +1,16 @@
 <script lang="ts">
+	/**
+	 * A cortina de carregamento — e o motivo de ela conhecer a barra lateral.
+	 *
+	 * `offsetSidebar` desloca a cortina em desktop para não cobrir a navegação:
+	 * cobrir a sidebar inteira faz a tela parecer travada, quando o que está
+	 * carregando é só o conteúdo. Nos poucos casos em que a espera é global
+	 * (troca de sessão), o call site desliga o deslocamento.
+	 *
+	 * O `zIndex` é prop porque esta cortina convive com modais que têm z-index
+	 * próprio; o padrão vale para a tela, e o modal que a usa por dentro precisa
+	 * subir. Ver README §10 para a escala de z-index do projeto.
+	 */
 	import { fade } from 'svelte/transition';
 	import { Progress } from '@skeletonlabs/skeleton-svelte';
 	import { useScrollLock } from '$lib/composables';

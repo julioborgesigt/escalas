@@ -1,4 +1,12 @@
 <script lang="ts">
+	/**
+	 * A tela do aceite do termo — porta obrigatória, uma vez por usuário.
+	 *
+	 * O texto exibido é o MESMO que o servidor hasheia ao gravar o aceite (ver
+	 * `+page.server.ts`): a página não resume nem parafraseia. Mostrar uma
+	 * versão "amigável" e gravar o hash de outra tornaria o registro inútil como
+	 * prova do que a pessoa leu.
+	 */
 	import type { PageProps } from './$types';
 	import { enhance } from '$app/forms';
 

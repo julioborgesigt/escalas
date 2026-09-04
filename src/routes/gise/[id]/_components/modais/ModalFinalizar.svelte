@@ -1,4 +1,15 @@
 <script lang="ts">
+	/**
+	 * Confirmação de FINALIZAR a GISE — o ato que a torna imutável.
+	 *
+	 * O modal muda de texto conforme o `status`: finalizar antes de todas as
+	 * seccionais preencherem é ANTECIPADO, e o aviso precisa dizer isso. Sem a
+	 * distinção, o supervisor confirmaria o mesmo diálogo nos dois casos e
+	 * descobriria depois que fechou a escala com equipe faltando.
+	 *
+	 * Reabrir tem caminho próprio e auditado (`reabrirEscala`) — não se desfaz
+	 * daqui, e é por isso que o texto fala em "não poderá ser desfeita".
+	 */
 	import { enhance } from '$app/forms';
 	import type { SubmitFunction } from '@sveltejs/kit';
 	import ModalShell from '$lib/components/ModalShell.svelte';

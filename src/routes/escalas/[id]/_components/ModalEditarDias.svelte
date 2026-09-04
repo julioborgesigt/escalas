@@ -1,4 +1,16 @@
 <script lang="ts">
+	/**
+	 * Troca os DIAS de um servidor na escala, mantendo tudo o mais.
+	 *
+	 * Existe separado do `ModalEditarPlantao` (que edita horário e observação em
+	 * lote) porque as duas operações têm consequências diferentes: mexer no dia
+	 * pode gerar conflito com outra escala do mesmo servidor, mexer no horário
+	 * não. Fundir os dois faria a checagem de conflito rodar em edição que não
+	 * precisa dela, e a mensagem de erro deixaria de dizer o que aconteceu.
+	 *
+	 * Os dias viajam como JSON em campo oculto — que é markup. Quem confere
+	 * contra o período da escala é a action.
+	 */
 	import { enhance } from '$app/forms';
 	import { invalidateShared } from '$lib/cross-tab-invalidate';
 	import ModalShell from '$lib/components/ModalShell.svelte';

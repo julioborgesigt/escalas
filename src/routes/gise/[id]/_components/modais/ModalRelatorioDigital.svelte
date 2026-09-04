@@ -1,4 +1,15 @@
 <script lang="ts">
+	/**
+	 * Assinatura INDIVIDUAL do relatório de extraordinário de uma seccional.
+	 *
+	 * O irmão é `GiseLoteAssinaturas`, que assina todas de uma vez. Os dois
+	 * exibem o mesmo aviso jurídico antes de assinar, e isso não é redundância:
+	 * o lote já assinou sem ele uma vez — o mesmo ato com duas cerimônias
+	 * diferentes. Ao mexer no texto de um, mexa no outro.
+	 *
+	 * Aqui ficam os downloads por seccional (conferência e manifesto); o card de
+	 * lote não os oferece porque lá o recorte é a GISE inteira.
+	 */
 	import ModalShell from '$lib/components/ModalShell.svelte';
 	import PainelAssinaturaToken from '$lib/components/PainelAssinaturaToken.svelte';
 

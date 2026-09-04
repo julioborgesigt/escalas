@@ -1,3 +1,14 @@
+/**
+ * Busca de unidades para os `SearchableSelect` das telas.
+ *
+ * O `tipo` da query é conferido contra lista fechada em vez de ir direto ao
+ * `WHERE`: são quatro níveis de hierarquia (delegacia, seccional, departamento,
+ * sub-departamento) e um valor fora deles não é filtro novo — é consulta que
+ * devolve vazio e faz a tela parecer quebrada.
+ *
+ * Exige sessão, mas não recorta por escopo: a lista de unidades é catálogo
+ * institucional, não dado de ninguém. Quem recorta é a ação que usa o valor.
+ */
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { asc, eq, and, inArray } from 'drizzle-orm';

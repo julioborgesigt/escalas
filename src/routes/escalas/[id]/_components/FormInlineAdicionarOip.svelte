@@ -1,4 +1,15 @@
 <script lang="ts">
+	/**
+	 * Acrescenta um OIP a uma equipe de plantão JÁ existente, sem sair da tabela.
+	 *
+	 * O irmão é `FormAdicionarServidores`, que CRIA a equipe. Os dois calculam as
+	 * mesmas datas de plantão a partir do dia inicial, e é por isso que a conta
+	 * mora em `plantao-datas.ts`: enquanto cada um tinha a sua cópia, corrigir a
+	 * virada de mês num não corrigia no outro.
+	 *
+	 * O que este formulário faz de diferente é herdar a equipe e o horário do
+	 * plantão que já está na linha — o usuário escolhe a pessoa, não o turno.
+	 */
 	import { enhance } from '$app/forms';
 	import { buscarPoliciaisOptions } from '$lib/busca-policiais';
 	import SearchableSelect from '$lib/components/SearchableSelect.svelte';

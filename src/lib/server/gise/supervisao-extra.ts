@@ -1,3 +1,20 @@
+/**
+ * Resolve, no servidor, QUAL unidade responde pelo quadro de supervisão da GISE.
+ *
+ * O quadro não pertence a nenhuma unidade operacional (ver
+ * `$lib/gise/supervisao-extra`), então o id que o relatório dele usa precisa ser
+ * descoberto por NOME no banco — e não fixado em código, porque cada corporação
+ * nomeia o seu departamento.
+ *
+ * O cache de módulo existe porque essa resolução acontece em quase toda request
+ * de GISE e o valor não muda em produção. As três formas de `undefined | number
+ * | null` são distintas de propósito: "ainda não consultei", "é este id" e "não
+ * há departamento no banco" — colapsar as duas últimas faria o sistema
+ * reconsultar para sempre num banco que legitimamente não tem a unidade.
+ *
+ * O id LEGADO continua aceito ao lado do atual porque URLs antigas e dados
+ * migrados ainda o carregam; recusá-lo quebraria link que já foi distribuído.
+ */
 import { and, asc, eq } from 'drizzle-orm';
 import { unidades, giseSeccionais } from '$lib/server/schema';
 import type { Database } from '$lib/db/core';

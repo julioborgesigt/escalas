@@ -1,17 +1,19 @@
-<!-- O alternador Policial × Administrador da tela de login.
-
-     Aparece duas vezes no mesmo fluxo — no formulário de credenciais e no de
-     recuperação de senha —, e as duas cópias carregavam a MESMA string de
-     classe do `Tabs.Trigger` escrita à mão quatro vezes (dois gatilhos × dois
-     arquivos). Uma string de ~230 caracteres com `data-[selected]:` e variantes
-     de tema é exatamente o tipo de coisa que diverge sem ninguém notar: basta
-     um ajuste de contraste aplicado num arquivo só para as duas abas do mesmo
-     fluxo ficarem diferentes.
-
-     O ESTADO continua de quem chama (`tipo` é `$bindable`): quem decide o que
-     fazer com a troca é o formulário — `/recuperar` limpa o identificador
-     digitado ao alternar, o de credenciais não. -->
 <script lang="ts">
+	/**
+	 * O alternador Policial × Administrador da tela de login.
+	 *
+	 * Aparece duas vezes no mesmo fluxo — no formulário de credenciais e no de
+	 * recuperação de senha —, e as duas cópias carregavam a MESMA string de
+	 * classe do `Tabs.Trigger` escrita à mão quatro vezes (dois gatilhos × dois
+	 * arquivos). Uma string de ~230 caracteres com `data-[selected]:` e variantes
+	 * de tema é exatamente o tipo de coisa que diverge sem ninguém notar: basta
+	 * um ajuste de contraste aplicado num arquivo só para as duas abas do mesmo
+	 * fluxo ficarem diferentes.
+	 *
+	 * O ESTADO continua de quem chama (`tipo` é `$bindable`): quem decide o que
+	 * fazer com a troca é o formulário — `/recuperar` limpa o identificador
+	 * digitado ao alternar, o de credenciais não.
+	 */
 	import { Tabs } from '@skeletonlabs/skeleton-svelte';
 
 	interface Props {
