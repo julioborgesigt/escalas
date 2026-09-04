@@ -9,17 +9,17 @@
  */
 import { fail } from '@sveltejs/kit';
 import type { RequestEvent } from '@sveltejs/kit';
-import { intervaloDeDatas } from '$lib/utils/datas';
+import { intervaloDeDatas, dataISOValida } from '$lib/utils/datas';
 import { listarPoliciaisEscala, adicionarMultiplasDatasPlantao } from '$lib/db';
 import { eq, and, inArray } from 'drizzle-orm';
 import { escalaPoliciais, escalas as escalasTable } from '$lib/server/schema';
 import { verificarConflitoGlobalBatch } from '$lib/server/escalas/conflict';
 import { calcularDataSaida } from '$lib/rotacao';
 import { erroDeDatasForaDoPeriodo } from '$lib/server/escalas/periodo';
-import { carregarEscalaComPermissao } from './shared';
+import { carregarEscalaComPermissao, lerEquipe, MAX_EQUIPE_ESCALA } from './shared';
 import { registrarMudancaEscala, nomeDoPolicial } from './desfecho';
 import { ehViolacaoUnique } from '$lib/server/db-errors';
-import { textoLimitado, MAX_OBSERVACOES } from '$lib/server/form-data';
+import { textoLimitado, horaOuPadrao, MAX_OBSERVACOES } from '$lib/server/form-data';
 
 /** O `event` das actions desta rota: `params.id` é a escala. */
 type Event = RequestEvent<{ id: string }>;
@@ -40,9 +40,12 @@ export const actionsDatas = {
 		const data = await request.formData();
 		const idsJson = data.get('ids')?.toString() || '[]';
 		const datasJson = data.get('datas')?.toString() || '[]';
-		const hora_entrada = data.get('hora_entrada')?.toString() || '08:00';
-		const hora_saida = data.get('hora_saida')?.toString() || '08:00';
+		const hora_entrada = horaOuPadrao(data, 'hora_entrada', '08:00');
+		const hora_saida = horaOuPadrao(data, 'hora_saida', '08:00');
 		const observacoes = textoLimitado(data, 'observacoes', MAX_OBSERVACOES);
+		if (hora_entrada === null || hora_saida === null) {
+			return fail(400, { error: 'Horário inválido — use HH:MM.' });
+		}
 
 		let ids: number[];
 		let datasStr: string[];
@@ -163,6 +166,14 @@ export const actionsDatas = {
 		if (!Array.isArray(novasDatas) || novasDatas.length === 0) {
 			return fail(400, { error: 'Selecione pelo menos um dia' });
 		}
+		// Estas datas viram `data_inicio` e `data_fim` da ESCALA (o menor e o maior
+		// do conjunto), e nada as conferia: `datas=["banana"]` gravava "banana"
+		// como o período do documento. Diferente das outras actions, aqui não há
+		// período contra o qual comparar — é ele que está sendo redefinido —,
+		// então o que se pode exigir é o FORMATO.
+		if (!novasDatas.every((d) => dataISOValida(d))) {
+			return fail(400, { error: 'Datas inválidas — use AAAA-MM-DD.' });
+		}
 
 		const sorted = [...novasDatas].sort();
 		const novaDataInicio = sorted[0];
@@ -257,9 +268,9 @@ export const actionsDatas = {
 
 		const data = await request.formData();
 		const policial_id = Number(data.get('policial_id'));
-		const hora_entrada = data.get('hora_entrada')?.toString() || '08:00';
-		const hora_saida = data.get('hora_saida')?.toString() || '08:00';
-		const equipe = data.get('equipe')?.toString() || '';
+		const hora_entrada = horaOuPadrao(data, 'hora_entrada', '08:00');
+		const hora_saida = horaOuPadrao(data, 'hora_saida', '08:00');
+		const equipe = lerEquipe(data);
 		const datasJson = data.get('datas')?.toString() || '[]';
 
 		let datasStr: string[];
@@ -271,6 +282,12 @@ export const actionsDatas = {
 
 		if (isNaN(policial_id) || datasStr.length === 0) {
 			return fail(400, { error: 'Selecione pelo menos uma data' });
+		}
+		if (hora_entrada === null || hora_saida === null) {
+			return fail(400, { error: 'Horário inválido — use HH:MM.' });
+		}
+		if (equipe === null) {
+			return fail(400, { error: `Equipe inválida — informe de 1 a ${MAX_EQUIPE_ESCALA}.` });
 		}
 
 		const foraDoPeriodo = erroDeDatasForaDoPeriodo(escala, datasStr);

@@ -89,6 +89,15 @@ export const DECLARADOS = {};
  * continuar dando verde por uma entrada que virou promessa vazia.
  *
  * Diferente de `DECLARADOS`, isto NÃO é dispensa: é o limite, dito por nome.
+ *
+ * **Limite conhecido, e ele já me mordeu.** O guard confere que a função é
+ * CHAMADA no corpo, não que é chamada NAQUELE campo. Ao montar esta lista eu
+ * declarei `editar → data_saida` limitada por `erroDeDatasForaDoPeriodo`; a
+ * função está no corpo, mas recebe `data_plantao` — `data_saida` ia crua para a
+ * coluna. O guard deu verde para um atestado falso MEU. Amarrar função a campo
+ * exigiria seguir o argumento até a chamada, que este parser não faz; então a
+ * regra prática é: entrada aqui se escreve LENDO a chamada, não confiando no
+ * nome estar por perto.
  */
 export const LIMITADO_POR = {
 	// `lotacaoNoEscopo` recusa lotação fora do escopo administrado de quem chama
@@ -101,8 +110,6 @@ export const LIMITADO_POR = {
 	'src/routes/escalas/[id]/_actions/actions-composicao.ts → adicionar → data_plantao':
 		'erroDeDatasForaDoPeriodo',
 	'src/routes/escalas/[id]/_actions/actions-composicao.ts → editar → data_plantao':
-		'erroDeDatasForaDoPeriodo',
-	'src/routes/escalas/[id]/_actions/actions-composicao.ts → editar → data_saida':
 		'erroDeDatasForaDoPeriodo',
 
 	// `motivoParaRecusarValor` conferre CADA campo solicitável, `cargo` inclusive
@@ -118,7 +125,18 @@ export const LIMITADO_POR = {
 
 	// Parser estrito do JSON de respostas: recusa o que não casa com o formulário.
 	'src/routes/res-gise/relatorio/[giseId]/+page.server.ts → salvarResposta → respostas':
-		'parseRespostasFormularioJsonStrict'
+		'parseRespostasFormularioJsonStrict',
+
+	// `datas` é JSON de campo oculto — markup, não promessa. Nos três primeiros o
+	// conjunto é conferido contra o PERÍODO da escala; no `editarDiasEscala` não
+	// há período contra o que comparar (é ele que está sendo redefinido), então
+	// o que se exige é o formato de cada item.
+	'src/routes/escalas/[id]/_actions/actions-composicao.ts → adicionarPlantao → datas':
+		'erroDeDatasForaDoPeriodo',
+	'src/routes/escalas/[id]/_actions/actions-datas.ts → editarPlantaoAgrupado → datas':
+		'erroDeDatasForaDoPeriodo',
+	'src/routes/escalas/[id]/_actions/actions-datas.ts → repetir → datas': 'erroDeDatasForaDoPeriodo',
+	'src/routes/escalas/[id]/_actions/actions-datas.ts → editarDiasEscala → datas': 'dataISOValida'
 };
 
 /**
@@ -132,35 +150,13 @@ export const LIMITADO_POR = {
  * uma vez, em código que grava documento ASSINADO, sem teste que cubra a
  * mudança. Guard que não entra não protege nada.
  *
- * Encolher é o trabalho. O grosso é UMA família: os campos de data e hora da
- * escala ordinária, que usam a convenção `'08'` + `'00'` concatenada em
- * `${hora}:${minuto}` — diferente do `HH:MM` da GISE, e por isso `horaHhMm` não
- * serve como está. Migrá-la pede um leitor próprio e goldens de PDF conferidos,
- * que é mudança para um PR só dela.
+ * Encolher é o trabalho, e a primeira leva já saiu: as 22 entradas da escala
+ * ordinária (hora, minuto, equipe, datas) foram pagas em set/2026 com
+ * `horaDeCamposSeparados`, `horaOuPadrao` e `lerEquipe`, mais quatro entradas
+ * promovidas a `LIMITADO_POR`. Sobram cinco, cada uma de um assunto diferente —
+ * não são mais uma família, são cinco decisões separadas.
  */
 export const BASELINE = new Set([
-	'src/routes/escalas/[id]/_actions/actions-composicao.ts → adicionar → hora_entrada',
-	'src/routes/escalas/[id]/_actions/actions-composicao.ts → adicionar → minuto_entrada',
-	'src/routes/escalas/[id]/_actions/actions-composicao.ts → adicionar → hora_saida',
-	'src/routes/escalas/[id]/_actions/actions-composicao.ts → adicionar → minuto_saida',
-	'src/routes/escalas/[id]/_actions/actions-composicao.ts → adicionar → equipe',
-	'src/routes/escalas/[id]/_actions/actions-composicao.ts → adicionar → data_saida_override',
-	'src/routes/escalas/[id]/_actions/actions-composicao.ts → adicionarPlantao → hora_entrada',
-	'src/routes/escalas/[id]/_actions/actions-composicao.ts → adicionarPlantao → minuto_entrada',
-	'src/routes/escalas/[id]/_actions/actions-composicao.ts → adicionarPlantao → hora_saida',
-	'src/routes/escalas/[id]/_actions/actions-composicao.ts → adicionarPlantao → minuto_saida',
-	'src/routes/escalas/[id]/_actions/actions-composicao.ts → adicionarPlantao → equipe',
-	'src/routes/escalas/[id]/_actions/actions-composicao.ts → adicionarPlantao → datas',
-	'src/routes/escalas/[id]/_actions/actions-composicao.ts → editar → hora_entrada',
-	'src/routes/escalas/[id]/_actions/actions-composicao.ts → editar → hora_saida',
-	'src/routes/escalas/[id]/_actions/actions-datas.ts → editarPlantaoAgrupado → datas',
-	'src/routes/escalas/[id]/_actions/actions-datas.ts → editarPlantaoAgrupado → hora_entrada',
-	'src/routes/escalas/[id]/_actions/actions-datas.ts → editarPlantaoAgrupado → hora_saida',
-	'src/routes/escalas/[id]/_actions/actions-datas.ts → editarDiasEscala → datas',
-	'src/routes/escalas/[id]/_actions/actions-datas.ts → repetir → hora_entrada',
-	'src/routes/escalas/[id]/_actions/actions-datas.ts → repetir → hora_saida',
-	'src/routes/escalas/[id]/_actions/actions-datas.ts → repetir → equipe',
-	'src/routes/escalas/[id]/_actions/actions-datas.ts → repetir → datas',
 	'src/routes/gise/+page.server.ts → criar → datas_json',
 	'src/routes/gise/+page.server.ts → criar → clonar_de',
 	'src/routes/login/+page.server.ts → verificar2FA → codigo',
