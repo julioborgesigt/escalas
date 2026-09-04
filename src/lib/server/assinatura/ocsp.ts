@@ -474,6 +474,61 @@ const SIG_ALG_DIGEST: Record<string, () => forge.md.MessageDigest> = {
 };
 
 /**
+ * POR QUE a assinatura do responder foi recusada.
+ *
+ * O veredito continua sendo `'invalida'` nos três casos — a recusa é
+ * fail-closed e assim tem de permanecer. O motivo existe só para a MENSAGEM, e
+ * a distinção importa porque duas destas não são ataque:
+ *
+ *   - `nao_confere` é o caso grave: a matemática falhou, e aí "possível MITM"
+ *     é a leitura certa;
+ *   - `algoritmo_nao_suportado` é limitação NOSSA. `SIG_ALG_DIGEST` cobre RSA
+ *     (sha1/256/384/512); um responder ECDSA ou EdDSA cai aqui sem que nada
+ *     esteja errado do lado de lá;
+ *   - `estrutura_invalida` é resposta malformada, que não chegou a ser
+ *     verificada.
+ *
+ * Anunciar "possível MITM ou responder comprometido" para os dois últimos manda
+ * o operador caçar um ataque que não existe, no meio de uma assinatura que
+ * falhou. É o mesmo erro que o trust store cometia com as âncoras Ed448 — que o
+ * `forge` não parseia — e que esta auditoria já corrigiu lá: separar limitação
+ * de biblioteca de sinal de adulteração.
+ *
+ * Não é hipótese remota: das 182 âncoras ICP-Brasil do trust store, 177 são
+ * RSA e 4 são ED448 — a certificadora JÁ está diversificando algoritmo. O que
+ * não existe hoje é responder ECDSA, e é por isso que implementá-lo seria
+ * escrever verificação criptográfica sem nenhum caso real para exercitá-la;
+ * nomear a causa custa nada e é o que faz falta no dia em que aparecer.
+ */
+type MotivoRecusaResponder =
+	'nao_confere' | 'algoritmo_nao_suportado' | 'estrutura_invalida' | 'responder_nao_confiavel';
+
+/** A mensagem que o operador lê, de acordo com a causa real da recusa. */
+function mensagemRecusaResponder(motivo: MotivoRecusaResponder): string {
+	switch (motivo) {
+		case 'algoritmo_nao_suportado':
+			return (
+				'Algoritmo de assinatura do responder OCSP não suportado por este verificador ' +
+				'(apenas RSA) — a resposta foi DESCARTADA por precaução, mas isto NÃO é indício ' +
+				'de ataque: é limitação da nossa verificação.'
+			);
+		case 'estrutura_invalida':
+			return (
+				'Resposta OCSP malformada — não foi possível extrair os componentes para ' +
+				'verificar a assinatura do responder.'
+			);
+		case 'responder_nao_confiavel':
+			return (
+				'Responder OCSP não autorizado a responder por esta AC — a assinatura CONFERE, ' +
+				'mas o certificado do responder não foi emitido pelo issuer ou não tem o EKU ' +
+				'id-kp-OCSPSigning (RFC 6960 §4.2.2.2 b).'
+			);
+		case 'nao_confere':
+			return 'Assinatura do responder OCSP NÃO confere — possível MITM ou responder comprometido';
+	}
+}
+
+/**
  * Verifica a assinatura matemática do `BasicOCSPResponse` contra a chave
  * pública do responder, e checa que o responder é confiável:
  *
@@ -483,15 +538,17 @@ const SIG_ALG_DIGEST: Record<string, () => forge.md.MessageDigest> = {
  *      foi emitido pelo issuer, e tem o EKU `id-kp-OCSPSigning` (RFC 6960
  *      §4.2.2.2 b).
  *
- * Retorna `'valida' | 'invalida'` sempre — `'nao_verificada'` é decisão
- * do caller quando não temos issuer disponível.
+ * Retorna sempre `'valida'` ou `'invalida'` — `'nao_verificada'` é decisão do
+ * caller quando não temos issuer disponível. Na recusa vem junto o MOTIVO, que
+ * não muda o veredito (todo `'invalida'` continua descartando a resposta) e
+ * serve só para a mensagem: ver `MotivoRecusaResponder`.
  */
 function verificarSignatureBasic(
 	basicAsn1: forge.asn1.Asn1,
 	issuer: forge.pki.Certificate
-): 'valida' | 'invalida' {
+): { veredito: 'valida' | 'invalida'; motivo?: MotivoRecusaResponder } {
 	const comp = extrairComponentesBasic(basicAsn1);
-	if (!comp) return 'invalida';
+	if (!comp) return { veredito: 'invalida', motivo: 'estrutura_invalida' };
 
 	// Selecionar a chave pública do responder.
 	const responderEhDelegate = comp.responderCerts.length > 0;
@@ -506,7 +563,7 @@ function verificarSignatureBasic(
 		logger.warn('[OCSP] Algoritmo de assinatura do responder não suportado', {
 			oid: comp.sigAlgOid
 		});
-		return 'invalida';
+		return { veredito: 'invalida', motivo: 'algoritmo_nao_suportado' };
 	}
 
 	try {
@@ -516,28 +573,28 @@ function verificarSignatureBasic(
 		const ok = pubKey.verify(md.digest().getBytes(), comp.signatureValue);
 		if (!ok) {
 			logger.info('[OCSP] Assinatura do responder NÃO confere matematicamente');
-			return 'invalida';
+			return { veredito: 'invalida', motivo: 'nao_confere' };
 		}
 	} catch (e) {
 		logger.warn('[OCSP] Erro na verificação RSA do responder', {
 			error: mensagemDeErro(e)
 		});
-		return 'invalida';
+		return { veredito: 'invalida', motivo: 'nao_confere' };
 	}
 
 	// 2. Confirmar confiança no responder.
 	if (!responderEhDelegate) {
 		// Já é o issuer — confiável por construção.
-		return 'valida';
+		return { veredito: 'valida' };
 	}
 
 	// É delegate: cert do responder deve ter sido emitido PELO issuer.
 	try {
 		const issuerCaStore = forge.pki.createCaStore([issuer]);
 		const cadeiaOk = forge.pki.verifyCertificateChain(issuerCaStore, [responderCert]);
-		if (!cadeiaOk) return 'invalida';
+		if (!cadeiaOk) return { veredito: 'invalida', motivo: 'responder_nao_confiavel' };
 	} catch {
-		return 'invalida';
+		return { veredito: 'invalida', motivo: 'responder_nao_confiavel' };
 	}
 
 	// E ter o EKU id-kp-OCSPSigning (RFC 6960 §4.2.2.2 b).
@@ -545,10 +602,10 @@ function verificarSignatureBasic(
 		{ serverAuth?: boolean; OCSPSigning?: boolean } | null | undefined;
 	if (!eku?.OCSPSigning) {
 		logger.info('[OCSP] Cert responder delegate sem EKU id-kp-OCSPSigning');
-		return 'invalida';
+		return { veredito: 'invalida', motivo: 'responder_nao_confiavel' };
 	}
 
-	return 'valida';
+	return { veredito: 'valida' };
 }
 
 /**
@@ -759,8 +816,11 @@ export async function consultarOcsp(
 		// Validar assinatura matemática + confiança do responder.
 		let assinaturaResponder: 'valida' | 'invalida' | 'nao_verificada' = 'nao_verificada';
 		let nonceEcoadoOk: boolean | undefined;
+		let motivoRecusa: MotivoRecusaResponder | undefined;
 		if (parsed.basicAsn1) {
-			assinaturaResponder = verificarSignatureBasic(parsed.basicAsn1, issuer);
+			const r = verificarSignatureBasic(parsed.basicAsn1, issuer);
+			assinaturaResponder = r.veredito;
+			motivoRecusa = r.motivo;
 			// Checar eco do nonce (apenas informativo — responder pode não suportar).
 			const comp = extrairComponentesBasic(parsed.basicAsn1);
 			if (comp) {
@@ -777,7 +837,9 @@ export async function consultarOcsp(
 				responseDerB64: respB64,
 				url,
 				consultadoEm,
-				erro: 'Assinatura do responder OCSP NÃO confere — possível MITM ou responder comprometido',
+				// O veredito continua `'invalida'` (fail-closed); só a MENSAGEM
+				// distingue limitação nossa de sinal de ataque.
+				erro: mensagemRecusaResponder(motivoRecusa ?? 'nao_confere'),
 				assinaturaResponder
 			};
 		}
@@ -831,7 +893,7 @@ export function statusDeSnapshot(
 		const parsed = parseOcspStatus(binStringToBytes(der));
 		let assinaturaResponder: 'valida' | 'invalida' | 'nao_verificada' = 'nao_verificada';
 		if (parsed.basicAsn1 && issuer) {
-			assinaturaResponder = verificarSignatureBasic(parsed.basicAsn1, issuer);
+			assinaturaResponder = verificarSignatureBasic(parsed.basicAsn1, issuer).veredito;
 		}
 		// Se temos o issuer e a assinatura não bate, status é inutilizável.
 		if (assinaturaResponder === 'invalida') {

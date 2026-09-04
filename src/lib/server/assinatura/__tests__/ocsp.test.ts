@@ -7,6 +7,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import forge from 'node-forge';
 import { extrairUrlOcsp, statusDeSnapshot, consultarOcsp } from '../ocsp';
+import { gerarSelo, ocspRevogadoB64 } from './selo-fixture';
 
 // ---------------------------------------------------------------------------
 // Helpers — geram um certificado mínimo via node-forge para usar nos testes.
@@ -94,6 +95,35 @@ describe('statusDeSnapshot', () => {
 	it('retorna unknown para DER válido mas não-OCSP', () => {
 		// Apenas um INTEGER mínimo (02 01 00) em base64
 		expect(statusDeSnapshot('AgEA').status).toBe('unknown');
+	});
+
+	it('resposta bem assinada e com issuer → o status VALE (a base dos dois seguintes)', () => {
+		const { cert, key } = gerarSelo(1024);
+		const snap = statusDeSnapshot(ocspRevogadoB64(cert, key, cert), cert);
+		expect(snap.assinaturaResponder).toBe('valida');
+		expect(snap.status).toBe('revoked');
+	});
+
+	it('algoritmo de assinatura NÃO suportado continua descartando o status', () => {
+		// Regressão do refactor que separou o MOTIVO da recusa: `verificarSignatureBasic`
+		// passou a devolver `{ veredito, motivo }` em vez de uma string, e SEIS pontos do
+		// código decidem por `=== 'invalida'`. Se o motivo tivesse virado um valor novo do
+		// enum, os seis parariam de barrar — fail-OPEN. O veredito tem de continuar
+		// `'invalida'`, e é isto que este teste prende.
+		const { cert, key } = gerarSelo(1024);
+		// ecdsa-with-SHA256: OID ausente de `SIG_ALG_DIGEST`. A assinatura de dentro
+		// continua RSA válida — o que se exercita aqui é a reação ao OID declarado.
+		const b64 = ocspRevogadoB64(cert, key, cert, '1.2.840.10045.4.3.2');
+		const snap = statusDeSnapshot(b64, cert);
+		expect(snap.assinaturaResponder).toBe('invalida');
+		expect(snap.status).toBe('unknown');
+	});
+
+	it('sem issuer não há o que verificar — nao_verificada, e o status não é descartado', () => {
+		const { cert, key } = gerarSelo(1024);
+		const snap = statusDeSnapshot(ocspRevogadoB64(cert, key, cert));
+		expect(snap.assinaturaResponder).toBe('nao_verificada');
+		expect(snap.status).toBe('revoked');
 	});
 });
 
