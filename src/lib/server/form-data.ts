@@ -67,6 +67,21 @@ export const MAX_EMAIL = 254;
 export const MAX_OBSERVACOES = 500;
 
 /**
+ * Teto do JSON do modelo de formulário da produtividade (`salvarModelo`).
+ *
+ * A string CRUA é o que vai para a coluna — `salvarGiseModeloFormulario` grava
+ * o texto, não o objeto parseado —, então o cap vale sobre ela. Um formulário
+ * real fica na casa dos KB; 256 KB é folga larga e ainda impede JSON de
+ * megabytes numa coluna de texto.
+ *
+ * NÃO é validação de FORMA: os itens só são conferidos como objetos, porque é o
+ * que o resto do código assume ao ler `p.tipo`/`p.chave`. Um schema completo do
+ * modelo de pergunta precisaria espelhar exatamente o que o editor emite, e
+ * errar isso quebraria o editor — é trabalho de PR próprio.
+ */
+export const MAX_CONFIG_FORMULARIO = 256 * 1024;
+
+/**
  * Inteiro de `FormData` dentro de uma faixa, ou `null` quando ausente/inválido.
  *
  * O par com `textoLimitado`, para o outro tipo de trava que a tela promete e o

@@ -117,7 +117,8 @@ import { isAdminGeral } from '$lib/auth';
 import {
 	lotacoesAdministradas,
 	lotacaoNoEscopo,
-	motivoParaRecusarPapel
+	motivoParaRecusarPapel,
+	lerPapelAdministrativo
 } from '$lib/server/policial-permissao';
 import {
 	carregarFichaDoPolicial,
@@ -584,8 +585,13 @@ export const actions: Actions = {
 		if (isNaN(id)) return fail(400, { error: 'ID inválido' });
 
 		const formData = await request.formData();
-		const papel = (formData.get('papel')?.toString() || null) as
-			'admin_seccional' | 'admin_unidade' | null;
+		// Lista fechada conferida em RUNTIME: o `as` que havia aqui é cast de
+		// TypeScript e não existe depois do build. `undefined` = não é papel;
+		// `null` = sem papel, que é escolha legítima (é assim que se remove).
+		const papel = lerPapelAdministrativo(formData.get('papel'));
+		if (papel === undefined) {
+			return fail(400, { error: 'Papel administrativo inválido.' });
+		}
 		const papelUnidadeIdStr = formData.get('papel_unidade_id')?.toString();
 		const papelUnidadeId = papelUnidadeIdStr ? Number(papelUnidadeIdStr) : null;
 

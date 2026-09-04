@@ -166,11 +166,15 @@ entrada que virou promessa vazia reprova em vez de dar verde.
 
 O guard trabalha contra uma `BASELINE`, como o de duplicação: o que já existia
 está aceito, só o NOVO reprova. E vale a mesma advertência — **encher a
-baseline para o guard passar troca um achado por uma linha de código**. O grosso
-dela é uma família só: os campos de data e hora da escala ordinária, que usam a
-convenção `'08'` + `'00'` concatenada em `${hora}:${minuto}` (diferente do
-`HH:MM` da GISE, por isso `horaHhMm` não serve como está). Migrá-la pede leitor
-próprio e goldens de PDF conferidos — PR só dela.
+baseline para o guard passar troca um achado por uma linha de código**.
+
+**Hoje ela está VAZIA**: as 27 leituras que existiam quando o guard nasceu foram
+pagas em duas levas (set/2026) — as 22 da escala ordinária com
+`horaDeCamposSeparados`, `horaOuPadrao` e `lerEquipe`, e as cinco restantes com
+`lerPapelAdministrativo`, o reuso do `verificar2faSchema`, teto no JSON do
+modelo de formulário e duas promoções a `LIMITADO_POR`. Vazia ela continua
+útil: é o lugar declarado para a próxima dívida que alguém precise assumir
+conscientemente.
 
 ## Onde colocar código novo em `src/lib/server/`
 

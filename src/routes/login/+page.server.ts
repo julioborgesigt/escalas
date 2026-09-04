@@ -36,7 +36,7 @@ import {
 	registrarRecoveryAttempt
 } from '$lib/server/auth/recovery-rate-limit';
 import { administradores, policiais } from '$lib/server/schema';
-import { loginSchema } from '$lib/schemas';
+import { loginSchema, verificar2faSchema } from '$lib/schemas';
 import { resolverAppOrigin } from '$lib/server/app-origin';
 import { mensagemDeErro } from '$lib/utils/erro';
 
@@ -180,12 +180,17 @@ export const actions: Actions = {
 		const db = getDB(platform);
 		const ip = getClientAddress();
 		const formData = await request.formData();
-		const desafioId = formData.get('desafioId') as string;
-		const codigo = formData.get('codigo') as string;
-
-		if (!desafioId || !codigo) {
+		// MESMO schema da rota de API (`/api/auth/verificar-2fa`), e não uma
+		// checagem paralela: a form action conferia só truthiness, então o cap de
+		// 16 chars do `codigoField` valia num caminho e faltava no irmão.
+		const v = verificar2faSchema.safeParse({
+			desafioId: formData.get('desafioId'),
+			codigo: formData.get('codigo')
+		});
+		if (!v.success) {
 			return fail(400, { error: 'Dados inválidos' });
 		}
+		const { desafioId, codigo } = v.data;
 
 		// Teto por IP (mesmo da rota JSON): o contador de 5 tentativas por desafio
 		// é resetável via reenvio de código, então sem este teto o atacante recicla
