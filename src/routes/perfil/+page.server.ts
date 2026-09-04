@@ -1,13 +1,3 @@
-import { redirect } from '@sveltejs/kit';
-import type { PageServerLoad } from './$types';
-import { eq } from 'drizzle-orm';
-import { getDB, buscarCredencialAtiva } from '$lib/db';
-import { credencialDoUsuario } from '$lib/server/auth/credencial';
-import { descreverVinculoCredencial } from '$lib/server/assinatura/webauthn/authenticator-data';
-import { nomeProvedorAaguid } from '$lib/server/assinatura/webauthn/aaguid-provedores';
-import { abreviarCredencial } from '$lib/chave-assinatura-ui';
-import { policiais } from '$lib/server/schema';
-
 /**
  * "Meu perfil" (`/perfil`) — visão do próprio servidor. **Página de leitura**,
  * com duas exceções que pertencem ao titular e a mais ninguém.
@@ -31,6 +21,15 @@ import { policiais } from '$lib/server/schema';
  *
  * Os dois vão por API, não por form action — daí este arquivo não ter `actions`.
  */
+import { redirect } from '@sveltejs/kit';
+import type { PageServerLoad } from './$types';
+import { eq } from 'drizzle-orm';
+import { getDB, buscarCredencialAtiva } from '$lib/db';
+import { credencialDoUsuario } from '$lib/server/auth/credencial';
+import { descreverVinculoCredencial } from '$lib/server/assinatura/webauthn/authenticator-data';
+import { nomeProvedorAaguid } from '$lib/server/assinatura/webauthn/aaguid-provedores';
+import { abreviarCredencial } from '$lib/chave-assinatura-ui';
+import { policiais } from '$lib/server/schema';
 
 export const load: PageServerLoad = async ({ locals, platform }) => {
 	const u = locals.usuario;

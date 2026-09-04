@@ -1,15 +1,14 @@
 <script lang="ts">
-	import { toaster } from '$lib/toast';
-	import { useVerificacaoEmailPessoal } from '$lib/composables';
-	import CodigoTimer from '$lib/components/CodigoTimer.svelte';
-	import ModalShell from '$lib/components/ModalShell.svelte';
-
 	/**
 	 * Cadastro/TROCA do e-mail pessoal pelo "Meu perfil", em duas etapas:
 	 *  1. novo e-mail (+ senha de acesso quando é TROCA — exigida pelo servidor);
 	 *  2. código OTP de 6 dígitos enviado ao NOVO endereço.
 	 * Na troca, o servidor ainda envia um aviso de segurança ao e-mail funcional.
 	 */
+	import { toaster } from '$lib/toast';
+	import { useVerificacaoEmailPessoal } from '$lib/composables';
+	import CodigoTimer from '$lib/components/CodigoTimer.svelte';
+	import ModalShell from '$lib/components/ModalShell.svelte';
 	let {
 		open = $bindable(false),
 		emailAtual,

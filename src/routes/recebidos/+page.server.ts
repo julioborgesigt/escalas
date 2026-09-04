@@ -1,3 +1,15 @@
+/**
+ * "Recebidos" — a caixa de entrada das escalas que chegaram para o usuário.
+ *
+ * O `marcarVisto` é o ponto delicado: visto é do USUÁRIO, não do documento.
+ * Marcar no documento faria a leitura de um apagar o aviso de todos os outros
+ * destinatários, e ninguém mais saberia que precisa olhar.
+ *
+ * A paginação é do SERVIDOR desde que a lista passou a crescer sem teto — a
+ * versão anterior trazia tudo e paginava no cliente, o que significa mandar a
+ * escala inteira da corporação para o navegador de quem só queria ver a
+ * primeira página.
+ */
 import { redirect, fail } from '@sveltejs/kit';
 import { eq, or } from 'drizzle-orm';
 import type { PageServerLoad, Actions } from './$types';

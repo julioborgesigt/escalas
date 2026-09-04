@@ -1,6 +1,4 @@
 <script lang="ts">
-	import { loading } from '$lib/loading.svelte';
-
 	/**
 	 * Botão/link de ação padrão das telas de GISE. Substitui o antigo snippet
 	 * `actionButton` de GiseSeccional — como componente, pode ser usado pelos
@@ -13,6 +11,7 @@
 	 * visualmente (href/loading/pendingCrud vs snippet module); fundir seria
 	 * forçar uma API comum pior que a duplicação deliberada.
 	 */
+	import { loading } from '$lib/loading.svelte';
 	const {
 		label,
 		iconPath = undefined,

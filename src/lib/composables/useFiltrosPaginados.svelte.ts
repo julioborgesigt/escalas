@@ -1,3 +1,16 @@
+/**
+ * O motor dos filtros de listagem: persiste, navega e RESETA a página.
+ *
+ * O reset é a razão de existir. Filtro que muda sem voltar à página 1 leva o
+ * usuário para uma página que talvez não exista mais no novo recorte — a tela
+ * fica vazia e parece que o filtro não achou nada, quando na verdade achou e a
+ * paginação é que ficou para trás.
+ *
+ * A `assinatura` é explícita, e não "todos os filtros", porque nem todo filtro
+ * deve ir ao servidor: busca textual tem debounce próprio e recorte de
+ * dropdown (a seccional, em `/escalas`) só afeta o cliente. Incluí-los aqui
+ * dispararia consulta a cada tecla ou a cada troca de recorte local.
+ */
 import { browser } from '$app/environment';
 import { goto } from '$app/navigation';
 import { page } from '$app/state';

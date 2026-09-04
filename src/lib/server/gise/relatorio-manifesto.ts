@@ -1,3 +1,19 @@
+/**
+ * O manifesto de auditoria do Relatório Extraordinário — a lista de quem
+ * assinou o quê, montada uma vez para os dois fluxos.
+ *
+ * Existe como módulo próprio porque a mesma folha é anexada por caminhos
+ * diferentes: o supervisor que assina por Token A3 (`preparar-assinatura`) e o
+ * que assina em tela (`assinar`). Enquanto cada rota montava a sua lista, uma
+ * delas incluía as presenças e a outra não — o mesmo documento saía com dois
+ * conteúdos dependendo de como foi assinado, o que é exatamente o que um
+ * manifesto de auditoria não pode fazer.
+ *
+ * A classificação por modalidade (QUALIFICADA quando há termo em
+ * `gise_presenca_termos`, AVANÇADA quando a confirmação foi em tela) vive aqui
+ * pelo mesmo motivo: é a informação que dá valor probatório a cada cartão, e
+ * duplicá-la faria as duas cópias divergirem na primeira mudança de regra.
+ */
 import type { AuditTrailOptions } from '$lib/server/assinatura/pdf-signing';
 import type { Database } from '$lib/db';
 import type { GiseDetalhado } from '$lib/db/gise';
