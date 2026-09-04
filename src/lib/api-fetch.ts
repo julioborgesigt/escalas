@@ -1,5 +1,3 @@
-import { csrfHeaders } from '$lib/csrf';
-
 /**
  * Helpers padrão para chamadas à API interna a partir do cliente.
  *
@@ -7,6 +5,7 @@ import { csrfHeaders } from '$lib/csrf';
  * `fetch` cru só se justifica quando o chamador precisa de semântica que os
  * helpers não cobrem: POST de form action do SvelteKit (body FormData).
  */
+import { csrfHeaders } from '$lib/csrf';
 type ApiFetchInit = Omit<RequestInit, 'headers'> & { headers?: Record<string, string> };
 
 /**

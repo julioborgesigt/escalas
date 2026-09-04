@@ -1,3 +1,17 @@
+/**
+ * O contexto da request corrente, via `AsyncLocalStorage` — quem é, de onde
+ * veio, e o que precisa ser gravado DEPOIS da resposta.
+ *
+ * Existe para resolver dois problemas de uma vez. O primeiro é a trilha de
+ * auditoria: `requestId`, rota e usuário são herdados daqui pelas ~25 chamadas
+ * legadas de `auditar` que não os recebiam por parâmetro — sem isso, seria
+ * preciso tocar todos os call sites para manter a trilha consistente.
+ *
+ * O segundo é custo: `logger.warn`/`error` acumulam no buffer em vez de
+ * escrever no D1 na hora, e `hooks.server.ts` persiste depois da resposta, no
+ * `waitUntil`. Log técnico não pode competir com o caminho crítico da
+ * requisição do usuário.
+ */
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { timestampSqliteUtc } from '$lib/db/core';
 

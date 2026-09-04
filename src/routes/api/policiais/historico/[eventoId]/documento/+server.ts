@@ -1,8 +1,3 @@
-import type { RequestHandler } from './$types';
-import { getDB, getR2, hasR2, buscarEventoHistorico } from '$lib/db';
-import { badRequest, notFound, serverError, contentDisposition } from '$lib/server/api';
-import { carregarFichaDoPolicial, recusaComoResposta } from '$lib/server/policiais/ficha-permissao';
-
 /**
  * Baixa o documento PDF (Portaria/afastamento/desvinculação) anexado a um
  * evento do histórico funcional do policial.
@@ -13,6 +8,10 @@ import { carregarFichaDoPolicial, recusaComoResposta } from '$lib/server/policia
  * de repetir um `requireAdmin` aqui, é o que impede a tela e o download de
  * discordarem sobre quem alcança o quê.
  */
+import type { RequestHandler } from './$types';
+import { getDB, getR2, hasR2, buscarEventoHistorico } from '$lib/db';
+import { badRequest, notFound, serverError, contentDisposition } from '$lib/server/api';
+import { carregarFichaDoPolicial, recusaComoResposta } from '$lib/server/policiais/ficha-permissao';
 export const GET: RequestHandler = async ({ platform, params, locals }) => {
 	const eventoId = Number(params.eventoId);
 	if (isNaN(eventoId)) return badRequest('ID inválido');

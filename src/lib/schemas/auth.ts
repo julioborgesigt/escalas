@@ -1,3 +1,17 @@
+/**
+ * Os schemas dos endpoints de autenticação — e o teto de tamanho como defesa.
+ *
+ * O cap de cada campo não é preciosismo de validação: sem ele, um corpo de
+ * vários MB era lido, coagido e — no caso da senha — HASHEADO antes de a
+ * requisição falhar. Hash de senha é caro de propósito, então um campo sem
+ * limite transforma a rota de login em amplificador de custo. Os limites são
+ * folgados para uso legítimo (128 chars de senha, 32 de matrícula).
+ *
+ * `codigoField` e `desafioIdField` são compartilhados pelos fluxos de 2FA
+ * porque o mesmo par viaja em quatro rotas; duplicá-los faria uma delas ficar
+ * sem cap na próxima vez que alguém acrescentasse um fluxo — foi o que houve
+ * com a form action de `verificar2FA`, que conferia só truthiness até set/2026.
+ */
 import { z } from 'zod';
 
 export const loginSchema = z.object({

@@ -1,3 +1,15 @@
+/**
+ * As flags da política de assinatura — e a lista do que NÃO pode ser desligado.
+ *
+ * O GET não devolve só os valores: devolve também quais requisitos são
+ * `bloqueados`, para a tela mostrá-los marcados e inertes em vez de omiti-los.
+ * Requisito que some da tela parece requisito que não existe, e o operador
+ * conclui que a assinatura avançada é mais frouxa do que é.
+ *
+ * O PUT recusa desligar os obrigatórios da modalidade avançada
+ * (Lei 14.063/2020 art. 4º II) — a UI já os bloqueia, e esta recusa é o que
+ * torna a trava real contra um PUT direto. Ver `signature-level.ts`.
+ */
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { getDB, salvarConfiguracao, auditar, contextoDeEvento } from '$lib/db';

@@ -1,22 +1,3 @@
-import { redirect, fail } from '@sveltejs/kit';
-import type { PageServerLoad, Actions } from './$types';
-import {
-	getDB,
-	getR2,
-	hasR2,
-	decidirSolicitacaoCadastro,
-	listarSolicitacoesCadastroPendentes,
-	listarSolicitacoesAcaoPendentes,
-	registrarAuditComContexto,
-	contextoDeEvento
-} from '$lib/db';
-import { ehViolacaoUnique } from '$lib/server/db-errors';
-import { deletarChavesR2 } from '$lib/server/r2-cleanup';
-import { logger } from '$lib/server/logger';
-import { mensagemDeErro } from '$lib/utils/erro';
-import { ROTULO_CAMPO } from '$lib/cadastro-campos';
-import { decidirSolicitacaoAcao } from '$lib/server/policiais/solicitacoes';
-
 /**
  * Aba "Solicitações" do Admin Geral — a fila onde os pedidos dos administradores
  * de seccional e de unidade viram (ou não) fato.
@@ -36,6 +17,24 @@ import { decidirSolicitacaoAcao } from '$lib/server/policiais/solicitacoes';
  * e sem rastro (a mesma regra do FLW-RBAC-005). Aprovar não apaga nada — a chave
  * passa a pertencer ao evento em `policial_historico`.
  */
+import { redirect, fail } from '@sveltejs/kit';
+import type { PageServerLoad, Actions } from './$types';
+import {
+	getDB,
+	getR2,
+	hasR2,
+	decidirSolicitacaoCadastro,
+	listarSolicitacoesCadastroPendentes,
+	listarSolicitacoesAcaoPendentes,
+	registrarAuditComContexto,
+	contextoDeEvento
+} from '$lib/db';
+import { ehViolacaoUnique } from '$lib/server/db-errors';
+import { deletarChavesR2 } from '$lib/server/r2-cleanup';
+import { logger } from '$lib/server/logger';
+import { mensagemDeErro } from '$lib/utils/erro';
+import { ROTULO_CAMPO } from '$lib/cadastro-campos';
+import { decidirSolicitacaoAcao } from '$lib/server/policiais/solicitacoes';
 
 export const load: PageServerLoad = async ({ locals, platform }) => {
 	const u = locals.usuario;

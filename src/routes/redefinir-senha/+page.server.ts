@@ -1,3 +1,15 @@
+/**
+ * Redefinição de senha por link de e-mail — e o desvio do PRIMEIRO ACESSO.
+ *
+ * O token do link é a credencial: quem o tem redefine a senha sem sessão. Por
+ * isso ele é de uso único e a troca revoga as OUTRAS sessões da credencial —
+ * senha nova com sessão velha ativa deixaria o invasor dentro.
+ *
+ * O primeiro acesso não termina aqui, e isso é decisão: fechá-lo só com a senha
+ * deixaria o e-mail PESSOAL (o canal de recuperação) por coletar. O link então
+ * age como magic link — autentica e manda para `/alterar-senha`, onde senha e
+ * e-mail pessoal são definidos e verificados juntos. Ver `ehPrimeiroAcesso`.
+ */
 import { fail, redirect } from '@sveltejs/kit';
 import { eq } from 'drizzle-orm';
 import { getDB, registrarAuditComContexto } from '$lib/db';

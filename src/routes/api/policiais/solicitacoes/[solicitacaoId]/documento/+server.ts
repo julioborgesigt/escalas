@@ -1,8 +1,3 @@
-import type { RequestHandler } from './$types';
-import { getDB, getR2, hasR2, buscarSolicitacaoAcao } from '$lib/db';
-import { badRequest, notFound, serverError, contentDisposition } from '$lib/server/api';
-import { carregarFichaDoPolicial, recusaComoResposta } from '$lib/server/policiais/ficha-permissao';
-
 /**
  * Baixa a portaria/documento anexado a uma SOLICITAÇÃO de movimentação,
  * afastamento ou desvinculação ainda pendente de decisão.
@@ -18,6 +13,10 @@ import { carregarFichaDoPolicial, recusaComoResposta } from '$lib/server/policia
  * escrever um `requireAdmin` aqui, é o que mantém as duas telas e este download
  * concordando sobre quem alcança o quê.
  */
+import type { RequestHandler } from './$types';
+import { getDB, getR2, hasR2, buscarSolicitacaoAcao } from '$lib/db';
+import { badRequest, notFound, serverError, contentDisposition } from '$lib/server/api';
+import { carregarFichaDoPolicial, recusaComoResposta } from '$lib/server/policiais/ficha-permissao';
 export const GET: RequestHandler = async ({ platform, params, locals }) => {
 	const solicitacaoId = Number(params.solicitacaoId);
 	if (isNaN(solicitacaoId)) return badRequest('ID inválido');

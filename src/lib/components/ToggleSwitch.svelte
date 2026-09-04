@@ -1,7 +1,4 @@
 <script lang="ts">
-	import { Switch } from '@skeletonlabs/skeleton-svelte';
-	import type { Snippet } from 'svelte';
-
 	/**
 	 * Chave liga/desliga estilizada sobre o `Switch` (headless) do Skeleton v4.
 	 * Centraliza o estilo do toggle (trilho + thumb) para não repetir as
@@ -16,6 +13,8 @@
 	 * no `app.css`, porque `translate` e `transform` são propriedades diferentes
 	 * e se somam em vez de substituir. Ver o comentário lá.
 	 */
+	import { Switch } from '@skeletonlabs/skeleton-svelte';
+	import type { Snippet } from 'svelte';
 	interface Props {
 		checked: boolean;
 		disabled?: boolean;

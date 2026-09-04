@@ -1,4 +1,16 @@
 <script lang="ts">
+	/**
+	 * Configurações gerais — hoje, a escolha do PROVEDOR de e-mail.
+	 *
+	 * A escolha não é cosmética: o 2FA e o primeiro acesso são fail-closed em
+	 * cima do envio de e-mail, então um provedor mal configurado tranca o login
+	 * de todo mundo. Por isso a tela testa o envio antes de o operador confiar na
+	 * mudança, em vez de só gravar a preferência.
+	 *
+	 * O `state_referenced_locally` é intencional e está anotado no ponto: o valor
+	 * inicial é capturado uma vez e o `$effect` o re-sincroniza quando o servidor
+	 * confirma — sem isso, o radio saltaria de volta enquanto o salvamento corre.
+	 */
 	import type { PageProps } from './$types';
 	import AlertTriangle from '@lucide/svelte/icons/alert-triangle';
 	import { enhance } from '$app/forms';

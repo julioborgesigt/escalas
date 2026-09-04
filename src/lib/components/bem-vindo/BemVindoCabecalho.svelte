@@ -1,8 +1,16 @@
-<!-- Cabeçalho das telas de boas-vindas: identificação do módulo, saudação, data
-     corrente e metadados do usuário (perfil, matrícula, lotação). O título usa a
-     MESMA classe `.h1` das demais páginas (fonte Outfit, cor e tracking do tema),
-     para não destoar. Sem ícone ilustrativo. -->
 <script lang="ts">
+	/**
+	 * Cabeçalho das telas de boas-vindas: identificação do módulo, saudação, data
+	 * corrente e metadados do usuário (perfil, matrícula, lotação).
+	 *
+	 * O título usa a MESMA classe `.h1` das demais páginas (fonte Outfit, cor e
+	 * tracking do tema) para não destoar, e não há ícone ilustrativo — a tela de
+	 * entrada não é lugar de identidade visual própria.
+	 *
+	 * Estava em comentário HTML antes do `<script>`: conteúdo certo, forma que a
+	 * régua (`docs:inventario`) não enxerga e que diverge do resto dos
+	 * componentes.
+	 */
 	import type { UsuarioLogado } from '$lib/auth';
 
 	interface Props {

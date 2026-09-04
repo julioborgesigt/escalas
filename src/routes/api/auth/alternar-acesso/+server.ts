@@ -1,3 +1,14 @@
+/**
+ * Alterna o tipo da sessão entre ADM Geral (`admin`) e Usuário (`policial`)
+ * para a MESMA pessoa, sem exigir novo login.
+ *
+ * Segurança: não concede privilégio novo. Só funciona quando as duas
+ * identidades já pertencem à mesma pessoa (Admin Geral VINCULADO —
+ * `administradores.policial_id`), isto é, quem já conseguiria logar como
+ * ADM Geral com o mesmo login/senha. Um policial sem vínculo é recusado.
+ * O 2FA já foi satisfeito no login desta sessão (mesma credencial/e-mail),
+ * então a troca é imediata — espelha o swap de módulo GISE/Escalas.
+ */
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import {
@@ -12,18 +23,6 @@ import { cookieOptions } from '$lib/server/auth/auth-flow';
 import { invalidarSessaoCache } from '$lib/server/auth/session-cache';
 import { requireAuth, forbidden, conflict } from '$lib/server/api';
 import { modulosDaContaAdmin, cookieModuloParaGravar } from '$lib/server/auth/admin-modulos';
-
-/**
- * Alterna o tipo da sessão entre ADM Geral (`admin`) e Usuário (`policial`)
- * para a MESMA pessoa, sem exigir novo login.
- *
- * Segurança: não concede privilégio novo. Só funciona quando as duas
- * identidades já pertencem à mesma pessoa (Admin Geral VINCULADO —
- * `administradores.policial_id`), isto é, quem já conseguiria logar como
- * ADM Geral com o mesmo login/senha. Um policial sem vínculo é recusado.
- * O 2FA já foi satisfeito no login desta sessão (mesma credencial/e-mail),
- * então a troca é imediata — espelha o swap de módulo GISE/Escalas.
- */
 export const POST: RequestHandler = async (event) => {
 	const { locals, platform, cookies, url } = event;
 	const u = requireAuth(locals);

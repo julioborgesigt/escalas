@@ -1,3 +1,15 @@
+/**
+ * Envia o código 2FA da cerimônia de assinatura para o e-mail do próprio usuário.
+ *
+ * Cada chamada dispara um E-MAIL e cria um desafio, e é isso que o teto por IP
+ * protege: sem ele a rota é vetor de e-mail bombing contra o titular e de
+ * exaustão da quota do provedor — que derrubaria junto o 2FA de login e a
+ * recuperação de senha de todo mundo, porque saem pelo mesmo canal.
+ *
+ * Não aceita id de terceiro: o destino é sempre o e-mail de `locals.usuario`.
+ * É por isso que ela está declarada como dispensada de autorização no
+ * `guard-autorizacao.mjs` — não há segundo sujeito a autorizar.
+ */
 import { json } from '@sveltejs/kit';
 import { getDB } from '$lib/db';
 import { policiais, administradores } from '$lib/server/schema';

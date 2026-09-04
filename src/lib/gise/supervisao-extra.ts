@@ -1,3 +1,17 @@
+/**
+ * O quadro de SUPERVISÃO e apoio da GISE — que não é uma seccional, mas assina
+ * relatório como se fosse.
+ *
+ * Supervisor, assessor e SEINT 1/2 não pertencem a nenhuma unidade operacional,
+ * e o relatório de extraordinário deles precisa de um `seccional_id` para
+ * existir como as outras linhas. A solução é vinculá-lo ao DEPARTAMENTO pai —
+ * daí a constante de nome, que é lida do banco e não é um id fixo.
+ *
+ * `GISE_SUPERVISAO_EXTRA_UNIDADE_NOME` é o resquício de antes da hierarquia de
+ * departamentos: uma unidade sintética que existia só para dar endereço a este
+ * quadro. Ela permanece para reconhecer ids antigos em URL e em dado migrado —
+ * não use em código novo.
+ */
 import type { GiseDetalhado } from '$lib/db/gise';
 
 /**

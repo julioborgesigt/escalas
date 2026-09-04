@@ -1,9 +1,11 @@
-<!-- Card de ação das telas de boas-vindas: âncora inteira clicável apoiada
-     direto no fundo da página (card-elevated), sem botão preenchido — o CTA é
-     um link discreto com seta. `horizontal` vira uma linha larga (usada quando
-     o papel do usuário tem uma única ação disponível). Sem ícone ilustrativo:
-     o layout de boas-vindas é textual. -->
 <script lang="ts">
+	/**
+	 * Card de ação das telas de boas-vindas: âncora inteira clicável apoiada
+	 * direto no fundo da página (card-elevated), sem botão preenchido — o CTA é
+	 * um link discreto com seta. `horizontal` vira uma linha larga (usada quando
+	 * o papel do usuário tem uma única ação disponível). Sem ícone ilustrativo:
+	 * o layout de boas-vindas é textual.
+	 */
 	import { ICONE } from '$lib/constants/icones';
 	import IconeSvg from './IconeSvg.svelte';
 

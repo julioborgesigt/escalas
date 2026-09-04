@@ -1,3 +1,14 @@
+/**
+ * Abre o desafio de login por Token A3 — o passo ANTES de saber quem é.
+ *
+ * A rota é pública por natureza: ela existe para quem ainda não tem sessão, e o
+ * que ela devolve é um nonce que o certificado vai assinar. Por isso o
+ * rate-limit por IP é a única defesa disponível aqui — não há conta para
+ * cobrar, e sem teto o endpoint vira gerador infinito de desafios.
+ *
+ * O TTL de 5 minutos é curto de propósito: o desafio é material para replay
+ * enquanto vive, e a cerimônia de assinatura no cliente leva segundos.
+ */
 import { json } from '@sveltejs/kit';
 import { bytesToHex } from '$lib/crypto/hex';
 import { getDB } from '$lib/db';

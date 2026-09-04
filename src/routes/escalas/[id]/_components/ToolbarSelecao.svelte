@@ -1,4 +1,16 @@
 <script lang="ts">
+	/**
+	 * A barra do modo SELEÇÃO da tabela de servidores — remover em lote.
+	 *
+	 * O modo é explícito (entra e sai por botão) em vez de checkboxes sempre
+	 * visíveis, e isso é decisão de segurança de uso: remover servidor de escala
+	 * assinada derruba a assinatura, e um clique acidental numa caixinha teria
+	 * esse custo. Entrar no modo é o passo que declara a intenção.
+	 *
+	 * "Remover todos" e "remover selecionados" são ações distintas de propósito —
+	 * a primeira não depende do que está marcado, e confundi-las esvaziaria a
+	 * escala de quem quis tirar duas linhas.
+	 */
 	const {
 		totalSelecionados,
 		modoSelecao,

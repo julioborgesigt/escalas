@@ -1,9 +1,3 @@
-import { eq } from 'drizzle-orm';
-import { buscarConfiguracao } from '$lib/db/configuracoes';
-import { operacoes } from '$lib/server/schema';
-import type { Database } from '$lib/db/core';
-import type { BreveRelatorioEnv } from '$lib/gise/breve-relatorio';
-
 /**
  * Chaves em `configuracoes` — o nível GLOBAL da cadeia, hoje só de leitura.
  *
@@ -14,6 +8,11 @@ import type { BreveRelatorioEnv } from '$lib/gise/breve-relatorio';
  *
  * Não exportadas: nada fora deste módulo escreve nelas desde então.
  */
+import { eq } from 'drizzle-orm';
+import { buscarConfiguracao } from '$lib/db/configuracoes';
+import { operacoes } from '$lib/server/schema';
+import type { Database } from '$lib/db/core';
+import type { BreveRelatorioEnv } from '$lib/gise/breve-relatorio';
 const GISE_BREVE_RELATORIO_CONFIG_KEYS = {
 	titulo: 'gise_breve_relatorio_titulo',
 	textoSeccional: 'gise_breve_relatorio_texto_seccional',

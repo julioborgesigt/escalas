@@ -1,10 +1,10 @@
 <script lang="ts">
-	import Check from '@lucide/svelte/icons/check';
-	import Plus from '@lucide/svelte/icons/plus';
 	/**
 	 * Card de detalhamento (breakdown) ao lado do ranking — selecionável
 	 * para export PNG/PDF.
 	 */
+	import Check from '@lucide/svelte/icons/check';
+	import Plus from '@lucide/svelte/icons/plus';
 	const {
 		id,
 		title,

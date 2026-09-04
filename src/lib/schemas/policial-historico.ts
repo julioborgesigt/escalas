@@ -1,3 +1,17 @@
+/**
+ * Schemas dos eventos de histórico funcional — movimentação, afastamento,
+ * desvinculação.
+ *
+ * O que estes schemas guardam é a diferença entre um registro de RH e uma
+ * anotação solta: NUP no formato oficial, faixa de dias que não aceita 3650+,
+ * subtipo em enum. O histórico funcional é consultado anos depois para
+ * fundamentar decisão administrativa, e campo livre ali vira registro que
+ * ninguém consegue interpretar nem contestar.
+ *
+ * `nupSchema` aceita string vazia de propósito: nem todo evento tem processo
+ * associado, e exigir um faria o operador inventar número para conseguir
+ * salvar — que é pior que o campo em branco.
+ */
 import { z } from 'zod';
 
 /**

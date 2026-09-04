@@ -1,4 +1,17 @@
 <script lang="ts">
+	/**
+	 * A página de erro de TODA a aplicação — o que o usuário vê quando uma rota
+	 * lança.
+	 *
+	 * Ela distingue 404 e 403 com texto próprio e cai numa mensagem genérica no
+	 * resto. A distinção importa porque as três situações pedem ações
+	 * diferentes: conferir o endereço, pedir acesso, ou tentar de novo. Um "algo
+	 * deu errado" único faria o usuário sem permissão ficar recarregando.
+	 *
+	 * `page.error?.message` só aparece quando o SvelteKit o expõe — mensagem de
+	 * 5xx não vaza detalhe interno para a tela; o rastreio fica no `errorId` que
+	 * `serverError` gera e o usuário pode reportar (ver `$lib/server/api`).
+	 */
 	import { page } from '$app/state';
 </script>
 

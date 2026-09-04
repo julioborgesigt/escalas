@@ -1,3 +1,17 @@
+/**
+ * Painel da política de assinatura — onde o Super Admin liga os reforços.
+ *
+ * A tela não é uma lista de interruptores independentes: ela classifica o NÍVEL
+ * jurídico resultante (`classificarNivelAssinaturaTela`) e mostra a base legal
+ * dele. É o que impede a leitura errada de que desligar um reforço só "deixa
+ * mais fácil" — desligar certos itens muda a modalidade da assinatura, e com ela
+ * o valor probatório do documento.
+ *
+ * Por isso os requisitos se dividem em três grupos em `signature-level.ts`:
+ * os SEMPRE ativos (que a tela nem oferece), os obrigatórios da avançada
+ * (Lei 14.063/2020 art. 4º II) e os reforços opcionais. Só o último grupo é
+ * escolha do operador.
+ */
 import { redirect } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 import {

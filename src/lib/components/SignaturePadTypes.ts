@@ -1,3 +1,17 @@
+/**
+ * Os tipos da cerimônia de assinatura em tela — o contrato entre o
+ * `SignaturePad` e quem o hospeda.
+ *
+ * Ficam em arquivo próprio, e não dentro do componente, porque cinco telas
+ * montam o pad e o servidor precisa dos MESMOS nomes para ler a evidência do
+ * corpo da requisição. Tipo declarado dentro do `.svelte` não é importável por
+ * `$lib/server/`, e a alternativa seria redigitar os campos — que é como
+ * `motivoSemGps` chegou a existir na tela e faltar no servidor.
+ *
+ * `livenessChallenge` carrega o veredito calculado NO CLIENTE. O servidor
+ * confere consistência estrutural e temporal, não a imagem: é reforço da
+ * assinatura avançada, não prova de identidade forte (ver `signature-service.ts`).
+ */
 import type { MotivoSemEvidencia } from '$lib/assinatura-evidencia';
 
 export type SignaturePadLivenessResultado = {

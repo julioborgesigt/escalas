@@ -1,15 +1,14 @@
-import { toaster } from '$lib/toast';
-import { mostrarErroDeResultado } from '$lib/enhance-handler';
-import type { ActionResult } from '@sveltejs/kit';
-import type { EscalaPolicialComDados } from '$lib/types';
-import type { criarHelpersHorario } from './escala-horarios';
-
 /**
  * Estado + handlers da edição inline de um servidor da escala (linha vira
  * formulário da action `?/editar`). Compartilhado por `ListaFds` e
  * `TabelaServidores`, que antes duplicavam os 9 estados, o `startEdit` e o
  * pós-processamento do submit.
  */
+import { toaster } from '$lib/toast';
+import { mostrarErroDeResultado } from '$lib/enhance-handler';
+import type { ActionResult } from '@sveltejs/kit';
+import type { EscalaPolicialComDados } from '$lib/types';
+import type { criarHelpersHorario } from './escala-horarios';
 export function useEdicaoInlineServidor(deps: {
 	helpers: Pick<
 		ReturnType<typeof criarHelpersHorario>,

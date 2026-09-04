@@ -1,3 +1,17 @@
+/**
+ * Schemas Zod das rotas da GISE — assinatura, download e ordenação do painel.
+ *
+ * O que estes schemas guardam, além do formato, é o TETO: PDF em base64,
+ * selfie, CMS do SERPRO. São campos que chegam com megabytes por natureza, e
+ * um endpoint de Worker que os processa antes de validar é um amplificador de
+ * custo — o mesmo raciocínio de `schemas/auth.ts`.
+ *
+ * `giseSignatureSchema` reusa os blocos de `assinatura-pdf.ts`
+ * (`optionalNullable`, os campos de coordenada) em vez de redefini-los: a GISE
+ * e a escala assinam o MESMO tipo de documento, e duas definições de latitude
+ * divergiriam na primeira correção — foi assim que a faixa de coordenada
+ * chegou a valer num caminho e faltar no irmão.
+ */
 import { z } from 'zod';
 import { optionalNullable, livenessChallengeSchema } from './assinatura-pdf';
 

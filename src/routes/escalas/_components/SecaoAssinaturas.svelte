@@ -1,5 +1,4 @@
 <script lang="ts">
-	import Check from '@lucide/svelte/icons/check';
 	/**
 	 * Caixa de entrada do DPC: as escalas que ele precisa assinar, com os dois
 	 * caminhos de assinatura lado a lado.
@@ -17,6 +16,7 @@
 	 * chamador (`onIniciarAssinaturaTela` / `onIniciarAssinaturaToken`), que é
 	 * quem tem o painel de assinatura montado.
 	 */
+	import Check from '@lucide/svelte/icons/check';
 	import { slide } from 'svelte/transition';
 	import { page } from '$app/state';
 	import { formatarData, MESES_PT } from '$lib/utils/datas';

@@ -1,4 +1,15 @@
 <script lang="ts">
+	/**
+	 * O termo de uso em página própria, endereçável por VERSÃO.
+	 *
+	 * Existe separada da tela de aceite porque o termo precisa ser consultável
+	 * depois — por quem já aceitou, por quem audita, e pelo link que o rodapé
+	 * dos documentos carrega. O hash SHA-256 aparece na página pelo mesmo
+	 * motivo: é ele que amarra "este texto" ao aceite registrado.
+	 *
+	 * É o único `{@html}` do projeto, e o conteúdo é constante do código-fonte
+	 * passada por `sanitizeTermoHtml` — defesa em camadas, não confiança.
+	 */
 	import type { PageProps } from './$types';
 	const { data }: PageProps = $props();
 </script>

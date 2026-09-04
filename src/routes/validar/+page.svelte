@@ -1,4 +1,17 @@
 <script lang="ts">
+	/**
+	 * A porta do portal público de validação: um campo para o código, e nada mais.
+	 *
+	 * **Não há upload aqui, e é decisão.** Conferir a assinatura de um PDF de
+	 * terceiro é competência do ITI — a tela de resultado (`/validar/[hash]`)
+	 * aponta para `validar.iti.gov.br`, que é a autoridade para isso. O que este
+	 * portal prova é outra coisa: que o código de verificação corresponde a um
+	 * documento REGISTRADO neste sistema, com assinante, data e hash.
+	 *
+	 * A consequência prática é que a superfície pública não parseia arquivo
+	 * nenhum: só consulta por hash, com teto de varredura no servidor
+	 * (`validar-rate-limit.ts`).
+	 */
 	import { goto } from '$app/navigation';
 	import { loading } from '$lib/loading.svelte';
 	import ShieldCheck from '@lucide/svelte/icons/shield-check';
