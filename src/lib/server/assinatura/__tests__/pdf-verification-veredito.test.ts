@@ -246,3 +246,78 @@ describe('verificarAssinaturaCompleta — cada termo reprova sozinho', () => {
 		}
 	});
 });
+
+/**
+ * `erros` × `avisos`: a separação que faz o achado APARECER.
+ *
+ * A página `/validar` listava `v.erros` sob `{#if !v.valid && ...}` — só quando o
+ * veredito já era negativo. E TRÊS achados iam para `erros` sem entrar no
+ * cálculo de `valid`: token TSA presente mas inválido, co-assinatura corrompida
+ * no meio do PDF, e falha ao extrair os metadados do certificado. Resultado: o
+ * sistema detectava, registrava, e a tela escondia exatamente nos casos em que o
+ * veredito era favorável — que é quando quem confere o papel mais precisa saber.
+ *
+ * O que se prende aqui é a INVARIANTE, não um cenário: `erros` contém apenas o
+ * que reprova. Colocar de novo um achado não-reprovante em `erros` quebra este
+ * teste, mesmo que o cenário específico não esteja coberto.
+ */
+describe('verificarAssinaturaCompleta — erros reprovam, avisos ressalvam', () => {
+	it('PDF íntegro: nenhum erro e nenhuma ressalva', async () => {
+		const r = await verificarAssinaturaCompleta(pdfSelado);
+		expect(r.erros).toEqual([]);
+		expect(r.avisos).toEqual([]);
+	});
+
+	/** A invariante, sobre TODOS os cenários que a suíte sabe produzir. */
+	it('`valid` é falso exatamente quando há erro — em todo cenário', async () => {
+		const cenarios: Array<
+			[string, () => Promise<Awaited<ReturnType<typeof verificarAssinaturaCompleta>>>]
+		> = [
+			['íntegro', () => verificarAssinaturaCompleta(pdfSelado)],
+			['conteúdo anexado', async () => verificarAssinaturaCompleta(comConteudoAnexado(pdfSelado))],
+			[
+				'bit trocado na região assinada',
+				async () => verificarAssinaturaCompleta(await comBitTrocadoNaRegiaoAssinada(pdfSelado))
+			],
+			[
+				'CMS corrompido',
+				async () => verificarAssinaturaCompleta(await comAssinaturaCmsCorrompida(pdfSelado))
+			],
+			[
+				'certificado revogado',
+				() =>
+					verificarAssinaturaCompleta(pdfSelado, {
+						ocspSnapshotB64: ocspRevogadoB64(seloCert, seloKey, seloCert)
+					})
+			],
+			[
+				'trust store exigido e vazio',
+				() =>
+					verificarAssinaturaCompleta(pdfSelado, {
+						env: { ICP_BRASIL_TRUST_STORE_REQUIRED: 'true' }
+					})
+			]
+		];
+
+		for (const [nome, executar] of cenarios) {
+			const r = await executar();
+			expect(r.valid, `${nome}: valid=${r.valid} com erros=${JSON.stringify(r.erros)}`).toBe(
+				r.erros.length === 0
+			);
+		}
+	});
+
+	it('o array de ressalvas existe sempre — a tela itera sem guarda de nulo', async () => {
+		const r = await verificarAssinaturaCompleta(await comAssinaturaCmsCorrompida(pdfSelado));
+		expect(Array.isArray(r.avisos)).toBe(true);
+	});
+
+	it('PDF sem assinatura: erro de estrutura, não ressalva', async () => {
+		const doc = await PDFDocument.create();
+		doc.addPage();
+		const r = await verificarAssinaturaCompleta(await doc.save());
+		expect(r.valid).toBe(false);
+		expect(r.erros.length).toBeGreaterThan(0);
+		expect(r.avisos).toEqual([]);
+	});
+});

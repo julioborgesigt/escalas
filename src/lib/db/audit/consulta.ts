@@ -194,6 +194,26 @@ export interface ResultadoIntegridade {
 	 * (anchoring): se o log for adulterado depois, este valor não bate mais.
 	 */
 	ultimoHash?: string;
+	/**
+	 * COM QUE FORÇA a cadeia está encadeada — o que `ok: true` vale.
+	 *
+	 * `hmac`: com `AUDIT_CHAIN_KEY`, quem tem escrita no banco NÃO forja a
+	 * continuação. `sha256`: sem a chave, quem reescreve a cauda inteira produz
+	 * uma cadeia que fecha — a trilha detecta adulteração ACIDENTAL e nada mais.
+	 * `misto`: a chave foi adotada (ou perdida) no meio da vida do log; a tag por
+	 * linha é o que permite verificar as duas metades.
+	 *
+	 * Existia só implícito, no prefixo `h:`/`s:` do `ultimoHash` — legível por
+	 * quem soubesse procurar. O `.env.example` e o `DEPLOY.md` explicam a
+	 * consequência de não definir a chave, mas NADA em runtime dizia em que modo
+	 * a trilha de fato está: um deploy sem a chave (ou uma rotação de segredo que
+	 * a perdeu) roda forjável, e o console reporta "íntegra" — verdade sobre o
+	 * elo, silêncio sobre o valor da garantia. É o que alguém descobriria no pior
+	 * momento possível, que é durante uma perícia.
+	 */
+	modoCadeia?: 'hmac' | 'sha256' | 'misto' | 'vazia';
+	/** Quantas linhas em cada modo — o numerador de `modoCadeia`. */
+	encadeamento?: { hmac: number; sha256: number };
 }
 
 /**
@@ -251,11 +271,27 @@ export async function verificarIntegridadeAudit(
 	const ancoraPorSeq = new Map(checkpoints.map((c) => [c.seq_ate, c.hash_ate]));
 
 	let anterior: { seq: number; hash_registro: string } | null = null;
+	// Tag por linha (`h:` HMAC / `s:` SHA-256): é o que permite dizer o modo
+	// mesmo quando a chave foi adotada no meio da vida do log.
+	let nHmac = 0;
+	let nSha = 0;
+	/**
+	 * O modo vai em TODO retorno, inclusive nos de falha: saber que a cadeia
+	 * quebrou é uma informação, e saber se ela era forjável desde o início é
+	 * outra — quem investiga precisa das duas juntas.
+	 */
+	const forca = (): Pick<ResultadoIntegridade, 'modoCadeia' | 'encadeamento'> => ({
+		modoCadeia:
+			nHmac > 0 && nSha > 0 ? 'misto' : nHmac > 0 ? 'hmac' : nSha > 0 ? 'sha256' : 'vazia',
+		encadeamento: { hmac: nHmac, sha256: nSha }
+	});
 
 	for (const r of rows) {
 		const seq = r.seq as number;
 		const hashAnterior = r.hash_anterior ?? GENESIS;
 		const hashRegistro = r.hash_registro ?? '';
+		if (hashRegistro.startsWith('h:')) nHmac++;
+		else if (hashRegistro.startsWith('s:')) nSha++;
 
 		// (a) Elo: o hash_anterior deve casar com o hash_registro do antecessor.
 		if (!anterior) {
@@ -278,7 +314,8 @@ export async function verificarIntegridadeAudit(
 						primeiroProblemaSeq: seq,
 						problema:
 							`A cadeia começa em seq ${seq} sem checkpoint de retenção para o corte ` +
-							`até seq ${seq - 1}. Prefixo removido fora da política de retenção.`
+							`até seq ${seq - 1}. Prefixo removido fora da política de retenção.`,
+						...forca()
 					};
 				}
 				if (ancora !== hashAnterior) {
@@ -288,7 +325,8 @@ export async function verificarIntegridadeAudit(
 						primeiroProblemaSeq: seq,
 						problema:
 							`Checkpoint de retenção em seq ${seq - 1} não casa com o hash_anterior ` +
-							`de seq ${seq}: o corte registrado não é o que aconteceu.`
+							`de seq ${seq}: o corte registrado não é o que aconteceu.`,
+						...forca()
 					};
 				}
 			}
@@ -300,7 +338,8 @@ export async function verificarIntegridadeAudit(
 					ok: false,
 					verificados: rows.length,
 					primeiroProblemaSeq: seq,
-					problema: `Buraco na sequência: esperado seq ${anterior.seq + 1}, achei ${seq} (linha removida ou retenção).`
+					problema: `Buraco na sequência: esperado seq ${anterior.seq + 1}, achei ${seq} (linha removida ou retenção).`,
+					...forca()
 				};
 			}
 			if (hashAnterior !== anterior.hash_registro) {
@@ -308,7 +347,8 @@ export async function verificarIntegridadeAudit(
 					ok: false,
 					verificados: rows.length,
 					primeiroProblemaSeq: seq,
-					problema: `Elo quebrado em seq ${seq}: hash_anterior não corresponde ao antecessor.`
+					problema: `Elo quebrado em seq ${seq}: hash_anterior não corresponde ao antecessor.`,
+					...forca()
 				};
 			}
 		}
@@ -320,7 +360,8 @@ export async function verificarIntegridadeAudit(
 				ok: false,
 				verificados: rows.length,
 				primeiroProblemaSeq: seq,
-				problema: `Não foi possível verificar seq ${seq}: linha usa HMAC e AUDIT_CHAIN_KEY não está configurada.`
+				problema: `Não foi possível verificar seq ${seq}: linha usa HMAC e AUDIT_CHAIN_KEY não está configurada.`,
+				...forca()
 			};
 		}
 		const canonical = canonicalAudit({
@@ -361,7 +402,8 @@ export async function verificarIntegridadeAudit(
 				ok: false,
 				verificados: rows.length,
 				primeiroProblemaSeq: seq,
-				problema: `Conteúdo adulterado em seq ${seq}: hash recalculado diverge do gravado.`
+				problema: `Conteúdo adulterado em seq ${seq}: hash recalculado diverge do gravado.`,
+				...forca()
 			};
 		}
 
@@ -372,7 +414,8 @@ export async function verificarIntegridadeAudit(
 		ok: true,
 		verificados: rows.length,
 		ultimoSeq: anterior?.seq,
-		ultimoHash: anterior?.hash_registro
+		ultimoHash: anterior?.hash_registro,
+		...forca()
 	};
 }
 

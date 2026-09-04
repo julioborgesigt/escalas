@@ -230,8 +230,14 @@ export async function verificarECarimbarAssinatura(
 		};
 	}
 
-	// 2. Integridade do byte-range vs messageDigest
-	const integridadeOk = await verificarIntegridadePdf(extracao.bytesAssinados, cms.messageDigest);
+	// 2. Integridade do byte-range vs messageDigest, no digestAlgorithm que o
+	//    ASSINADOR declarou — fixo em SHA-256, esta aceitação recusava com 422 um
+	//    CMS legítimo em SHA-384/512, e o policial não conseguia finalizar.
+	const integridadeOk = await verificarIntegridadePdf(
+		extracao.bytesAssinados,
+		cms.messageDigest,
+		cms.digestAlgOid
+	);
 	if (!integridadeOk) {
 		return {
 			ok: false,

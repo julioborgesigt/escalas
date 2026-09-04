@@ -35,6 +35,7 @@ import {
 } from '$lib/server/assinatura/copia-conferencia';
 import { gerarRascunhoEscalaPdf } from '$lib/server/assinatura/conferencia-pdf';
 import { registrarAuditComContexto } from '$lib/db/audit';
+import { limitarGeracaoPesada } from '$lib/server/rate-limit-pesado';
 
 export const GET: RequestHandler = async ({ params, platform, url, locals }) => {
 	const u = requireAuth(locals);
@@ -49,6 +50,11 @@ export const GET: RequestHandler = async ({ params, platform, url, locals }) => 
 
 	const perm = await verificarPermissaoEscala(db, id, escala.lotacao, u);
 	if (!perm.permitido) return forbidden(perm.motivo ?? 'Sem permissão para baixar esta escala');
+
+	// Teto por CONTA, depois da autorização: 429 não deve vazar para quem nem
+	// podia baixar esta escala. Ver `rate-limit-pesado.ts`.
+	const excedeu = await limitarGeracaoPesada(db, u);
+	if (excedeu) return excedeu;
 
 	const format = url.searchParams.get('format')?.toLowerCase() || 'pdf';
 	const querManifesto = url.searchParams.get('manifesto') === 'true';

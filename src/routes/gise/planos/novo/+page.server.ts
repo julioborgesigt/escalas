@@ -53,6 +53,7 @@ import { isAdminGeral } from '$lib/auth';
 import { hojeBrasilISO } from '$lib/utils/datas';
 import { validarHora, normalizarHora } from '$lib/gise/horarios';
 import { logger } from '$lib/server/logger';
+import { textoLimitado } from '$lib/server/form-data';
 import {
 	FINALIDADE_PADRAO,
 	ACOES_PADRAO,
@@ -95,11 +96,7 @@ function inteiro(fd: FormData, campo: string, min: number, max: number): number 
 }
 
 /** Texto aparado e limitado. */
-function texto(fd: FormData, campo: string, max: number): string {
-	return String(fd.get(campo) ?? '')
-		.trim()
-		.slice(0, max);
-}
+const texto = textoLimitado;
 
 /** Os três tipos de opção, na ordem em que a tela os apresenta. */
 const TIPOS_OPCAO: readonly TipoOpcao[] = ['briefing', 'origem', 'destino'];

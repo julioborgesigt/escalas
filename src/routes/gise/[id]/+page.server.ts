@@ -27,7 +27,8 @@ import {
 	TIPOS_EQUIPE
 } from '$lib/db';
 import { isAdminGeral, isAdminSeccional, isAdminUnidade } from '$lib/auth';
-import { decifrarCpfDoDB } from '$lib/crypto/cpf-cripto';
+import { cpfAssinanteParaExibir } from '$lib/server/assinatura/cpf-assinante';
+import { presencasParaCliente } from '$lib/server/gise/presenca-cliente';
 import { getBreveRelatorioEnvMergido } from '$lib/server/gise/breve-relatorio-env';
 import { buscarUnidadeIdSupervisaoExtra } from '$lib/server/gise/supervisao-extra';
 import { adminParticipaDaGise } from '$lib/server/gise/permissao';
@@ -70,11 +71,16 @@ export const load: PageServerLoad = async ({ locals, params, platform, depends, 
 		const gise = await buscarGiseDetalhado(db, id);
 		if (!gise) error(404, 'Escala GISE não encontrada');
 
-		// CPF do documento assinado é cifrado em repouso (LGPD) — decifra p/ exibição.
+		// Mascarado para quem não é Super Admin — a MESMA regra que
+		// `/api/gise/[id]/documento-assinado/info` aplica a este mesmo campo, e que
+		// este `load` não aplicava: decifrava e devolvia o CPF COMPLETO no payload
+		// de hidratação, para o supervisor (policial comum) e o admin de seccional,
+		// sem que tela nenhuma o renderize. Ver `cpf-assinante.ts`.
 		if (gise.documento) {
-			gise.documento.assinante_cpf = await decifrarCpfDoDB(
+			gise.documento.assinante_cpf = await cpfAssinanteParaExibir(
 				gise.documento.assinante_cpf,
-				platform?.env
+				platform?.env,
+				u
 			);
 		}
 
@@ -219,7 +225,13 @@ export const load: PageServerLoad = async ({ locals, params, platform, depends, 
 			assessorEmailSugerido,
 			todasUnidades,
 			assinaturasRelatorios,
-			presencasGise,
+			// RECORTADO a `policial_id` + entrada/saída. A linha crua de
+			// `buscarPresencasGise` é o manifesto forense (CPF decifrado, IP,
+			// user-agent, GPS e as chaves R2 das selfies) e viajava INTEIRA para o
+			// cliente — inclusive para o supervisor, que é policial comum —, sem que
+			// tela nenhuma use nada além dos dois timestamps. É a mesma minimização
+			// que os e-mails acima já recebiam neste mesmo `load`.
+			presencasGise: presencasParaCliente(presencasGise),
 			supervisaoExtraUnidadeId,
 			seintSupervisaoComRelatorio,
 			papelGise: isGeral

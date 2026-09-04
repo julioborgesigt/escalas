@@ -33,6 +33,8 @@ import {
 } from '$lib/server/r2-cleanup';
 import { eq } from 'drizzle-orm';
 import { saiuDaFaseDeEdicao, carregarGiseEditavel, exigirAdminGeral } from './shared';
+import { textoLimitado, dataIso, horaHhMm, MAX_EMAIL } from '$lib/server/form-data';
+import { MAX_BREVE_TITULO, MAX_BREVE_PARAGRAFO } from '$lib/gise/breve-relatorio';
 
 type Event = RequestEvent<{ id: string }>;
 
@@ -104,9 +106,10 @@ export const actionsEscala = {
 		// O assessor recebe aviso por e-mail a cada seccional que finaliza o
 		// preenchimento; sem endereço confirmado a função não faz sentido, por isso
 		// a confirmação é obrigatória quando há assessor.
-		const assessorEmailRaw = (
-			(formData.get('assessor_email_notificacao') as string | null) ?? ''
-		).trim();
+		// O cap é o do endereço (RFC 5321): o regex abaixo prova o FORMATO e casa
+		// com string de qualquer tamanho, então sem ele um `a@b.` seguido de 1 MB
+		// de texto era gravado e mandado para o provedor de e-mail.
+		const assessorEmailRaw = textoLimitado(formData, 'assessor_email_notificacao', MAX_EMAIL);
 		const confirmarRaw = formData.get('confirmar_email_assessor');
 		const confirmarEmailAssessor = confirmarRaw === '1' || confirmarRaw === 'on';
 		const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(assessorEmailRaw);
@@ -211,11 +214,20 @@ export const actionsEscala = {
 		if (isNaN(giseId)) return fail(400, { error: 'ID inválido' });
 
 		const formData = await request.formData();
-		const titulo = (formData.get('breve_relatorio_titulo') as string | null)?.trim() ?? '';
-		const textoSec =
-			(formData.get('breve_relatorio_texto_seccional') as string | null)?.trim() ?? '';
-		const textoSup =
-			(formData.get('breve_relatorio_texto_supervisao') as string | null)?.trim() ?? '';
+		// Os MESMOS limites que `/gise/operacoes` aplica a estas TRÊS colunas
+		// (200/2000, via `textoOuHerda`). Aqui não havia limite nenhum — nem na
+		// tela, nem no servidor —, e o texto entra em PDF assinado.
+		const titulo = textoLimitado(formData, 'breve_relatorio_titulo', MAX_BREVE_TITULO);
+		const textoSec = textoLimitado(
+			formData,
+			'breve_relatorio_texto_seccional',
+			MAX_BREVE_PARAGRAFO
+		);
+		const textoSup = textoLimitado(
+			formData,
+			'breve_relatorio_texto_supervisao',
+			MAX_BREVE_PARAGRAFO
+		);
 
 		const db = getDB(platform);
 		const carga = await carregarGiseEditavel(db, giseId);
@@ -243,13 +255,22 @@ export const actionsEscala = {
 		if (isNaN(giseId)) return fail(400, { error: 'ID inválido' });
 
 		const formData = await request.formData();
-		const dataInicio = formData.get('data_inicio') as string;
-		const horaEntrada = formData.get('hora_entrada') as string;
-		const horaSaida = formData.get('hora_saida') as string;
+		// FORMATO conferido, não só "veio algo". Estes três alimentam
+		// `horarioGiseLiberado`, que falha ABERTO quando a data/hora não parseia
+		// (`isNaN(alvo.getTime()) → return true`, para não trancar a GISE inteira
+		// por um dado ruim). O fail-open é a escolha certa lá; o preço é que um
+		// `data_inicio` inválido gravado AQUI libera a confirmação de presença
+		// fora do horário para todos os membros desta escala, sem erro nenhum.
+		// Validar na escrita é o que dá piso ao portão sem mexer no fail-open.
+		const dataInicio = dataIso(formData, 'data_inicio');
+		const horaEntrada = horaHhMm(formData, 'hora_entrada');
+		const horaSaida = horaHhMm(formData, 'hora_saida');
 		const feriado = formData.get('feriado') === 'true';
 
 		if (!dataInicio || !horaEntrada || !horaSaida) {
-			return fail(400, { error: 'Preencha todos os campos' });
+			return fail(400, {
+				error: 'Preencha todos os campos com data (AAAA-MM-DD) e horários (HH:MM) válidos'
+			});
 		}
 
 		const db = getDB(platform);

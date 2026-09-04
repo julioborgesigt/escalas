@@ -42,7 +42,7 @@
  */
 import { redirect } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
-import { decifrarCpfDoDB } from '$lib/crypto/cpf-cripto';
+import { cpfAssinanteParaExibir } from '$lib/server/assinatura/cpf-assinante';
 import {
 	getDB,
 	buscarEscala,
@@ -97,8 +97,13 @@ export const load: PageServerLoad = async ({ locals, platform, params, depends }
 				? {
 						existe: true,
 						assinante_nome: d.assinante_nome,
-						// CPF cifrado em repouso (LGPD) — decifra para exibição.
-						assinante_cpf: await decifrarCpfDoDB(d.assinante_cpf, platform?.env),
+						// Mascarado para quem não é Super Admin, igual à API que serve o
+						// MESMO campo (`/api/gise/[id]/documento-assinado/info`) e à página
+						// pública `/validar`. Este `load` decifrava e devolvia o CPF
+						// COMPLETO no payload de hidratação — para qualquer um que alcance
+						// a escala, inclusive policial comum da lotação — enquanto nenhuma
+						// tela o renderiza. Ver `cpf-assinante.ts`.
+						assinante_cpf: await cpfAssinanteParaExibir(d.assinante_cpf, platform?.env, u),
 						data: d.created_at
 					}
 				: { existe: false }

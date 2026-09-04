@@ -2,10 +2,14 @@
  * Define uma senha para TODOS os usuários (policiais + administradores).
  *
  * Uso (local):
- *   SET_PASSWORD=SENHA npx tsx scripts/set-default-password-all-users.ts --yes
+ *   SET_PASSWORD=SENHA npm run users:set-default-password -- --yes
  *
  * Uso (produção/remoto):
- *   SET_PASSWORD=SENHA npx tsx scripts/set-default-password-all-users.ts --remote --yes
+ *   SET_PASSWORD=SENHA CONFIRMO_PRODUCAO=escalas-db \
+ *     npm run users:set-default-password:prod -- --yes
+ *
+ * O `--yes` NÃO vem embutido no `npm run` de propósito — ver
+ * `scripts/confirmar-producao.ts`.
  *
  * A senha vem da env `SET_PASSWORD` (ou de `--password=SENHA`, DEPRECADO:
  * argv vaza no histórico do shell e em `ps`). Todos os usuários ficam com
@@ -20,12 +24,10 @@ import { execSync } from 'node:child_process';
 // Mesma função do app ($lib/auth re-exporta deste módulo PURO) — sem cópia local
 // que poderia divergir (item C6 da auditoria).
 import { hashSenha } from '../src/lib/crypto/password-hash';
-
-const DB_NAME = 'escalas-db';
+import { exigirConfirmacao, DB_NAME } from './confirmar-producao';
 
 async function main() {
 	const isRemote = process.argv.includes('--remote');
-	const confirmed = process.argv.includes('--yes');
 	const flag = isRemote ? '--remote' : '--local';
 
 	const passwordArg = process.argv.find((a) => a.startsWith('--password='));
@@ -40,7 +42,7 @@ async function main() {
 	if (!DEFAULT_PASSWORD) {
 		console.error('Erro: forneça a senha via env SET_PASSWORD (preferido) ou --password=SENHA.');
 		console.error(
-			'Exemplo: SET_PASSWORD=MinhaSenh@123 npx tsx scripts/set-default-password-all-users.ts --yes'
+			'Exemplo: SET_PASSWORD=MinhaSenh@123 npm run users:set-default-password -- --yes'
 		);
 		console.error(
 			'NUNCA use senhas fixas ou conhecidas. Gere uma senha aleatória e comunique por canal seguro.'
@@ -48,10 +50,14 @@ async function main() {
 		process.exit(1);
 	}
 
-	if (!confirmed) {
-		console.error('Confirmação obrigatória: adicione --yes para executar.');
-		process.exit(1);
-	}
+	exigirConfirmacao({
+		remoto: isRemote,
+		confirmado: process.argv.includes('--yes'),
+		efeito: 'sobrescrever a senha de TODOS os usuários (policiais e administradores)',
+		exemplo: isRemote
+			? 'SET_PASSWORD=... CONFIRMO_PRODUCAO=escalas-db npm run users:set-default-password:prod -- --yes'
+			: 'SET_PASSWORD=... npm run users:set-default-password -- --yes'
+	});
 
 	// Pepper-aware: com PASSWORD_PEPPER no ambiente, as senhas já nascem v3
 	// (mesma proteção do app). Sem ele, emite v2 e o login migra para v3 depois.

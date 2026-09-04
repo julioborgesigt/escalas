@@ -97,8 +97,14 @@ export default async function globalSetup() {
 	// com `reuseExistingServer`). Sessões semeadas (e2e/session.ts) das contas
 	// fixture também são purgadas — após o primeiro uso o token é re-gravado
 	// hasheado, então a limpeza é por usuario_id, não por prefixo.
+	// `recovery_attempts` entra junto pelo mesmo motivo que `login_attempts`: é
+	// contador de rate-limit e a tabela não é recriada entre execuções. Sem a
+	// limpeza, as contas fixture chegariam à suíte seguinte já com tentativas na
+	// janela — e o teto de geração pesada (`rate-limit-pesado.ts`) recusaria
+	// downloads legítimos, com a falha aparecendo num spec que não tem nada a ver.
 	execSqlSafe(
-		'DELETE FROM login_attempts; DELETE FROM sessoes WHERE usuario_id BETWEEN 99000 AND 99999;'
+		'DELETE FROM login_attempts; DELETE FROM recovery_attempts;' +
+			' DELETE FROM sessoes WHERE usuario_id BETWEEN 99000 AND 99999;'
 	);
 
 	// ── Fixture cross-lotação ────────────────────────────────────────────

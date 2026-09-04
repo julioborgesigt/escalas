@@ -645,11 +645,18 @@ Verificar cada transição de status:
 
 ### 7.2 Presença (Check-in / Check-out)
 
-> `[E2E: presenca-gise.spec.ts]` cobre entrada/saída em tela com 2FA + GPS (2FA **sempre** obrigatório — as actions leem a fonte única `lerFlagsAssinatura`, que o força ligado), o comprovante sob demanda dos dois sentidos, o **vínculo na escrita** (não-participante com 2FA válido → 403, não grava) e as guardas do comprovante (anônimo 401, não-participante 403, tipo inválido 400, sem presença 404). Manual: selfie/câmera real (liveness é client-side) e o fluxo por Token A3 (janela de horário + hardware — QA A3).
+> `[E2E: presenca-gise.spec.ts]` cobre entrada/saída em tela com 2FA + GPS + foto (2FA **sempre** obrigatório — as actions leem a fonte única `lerFlagsAssinatura`, que o força ligado), o comprovante sob demanda dos dois sentidos, o **vínculo na escrita** (não-participante com 2FA válido → 403, não grava) e as guardas do comprovante (anônimo 401, não-participante 403, tipo inválido 400, sem presença 404). Manual: selfie/câmera real (liveness é client-side) e o fluxo por Token A3 (janela de horário + hardware — QA A3).
+>
+> Desde ago/2026 cobre também a **política de evidência** que o servidor passou a impor (ver README §"Evidência de presença"): sem foto e sem motivo declarado → recusado e nada gravado; motivo de lista fechada → aceito, gravado sem selfie e com o motivo nos metadados do evento de auditoria. Os itens abaixo marcados com ⚠️ dependem da flag correspondente em `/conf-ass`.
+>
+> **A exceção declarada tem caminho de interface só para o GPS.** O `SignaturePad` detecta a falha de localização e manda o motivo; para a câmera ele desabilita o botão de captura, então `motivoSemFoto` é aceito pelo servidor mas nenhuma tela do produto o envia hoje.
 
 - [ ] Policial registra entrada com selfie
 - [ ] Policial registra saída com selfie
 - [ ] Timestamps de entrada e saída salvos corretamente
+- [ ] ⚠️ Com `exigir_gps` ligada, negar a permissão de localização: a tela segue com o MOTIVO detectado (`permissao_negada`), a confirmação passa, e o motivo aparece no console de auditoria nos metadados do evento
+- [ ] ⚠️ Com `exigir_foto` ligada, negar a permissão da câmera: a tela **bloqueia** o botão de captura (não há caminho de exceção na interface para a foto — só para o GPS). O caminho do policial nesse caso é a presença por Token A3 no desktop
+- [ ] ⚠️ POST direto na form action sem foto e sem motivo, com a flag ligada → recusado, e `gise_presencas` continua sem a linha
 - [ ] No desktop (com restrição de smartphone), a tela de confirmação mostra APENAS o botão "Confirmar … com Certificado Digital"
 - [ ] Após confirmar (tela OU Token A3), o botão **"Comprovante"** aparece ao lado do aviso de Entrada/Saída Confirmada e baixa o PDF
   - Presença por Token A3 → serve o termo qualificado (ICP-Brasil) guardado no R2

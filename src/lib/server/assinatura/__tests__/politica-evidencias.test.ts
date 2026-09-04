@@ -233,6 +233,52 @@ describe('validarEvidenciasAvancada — cada reforço recusa sozinho', () => {
 		}
 	});
 
+	/**
+	 * O furo que o gate tinha: ele checava `typeof latitude !== 'number'`, e
+	 * **`typeof NaN === 'number'`**. Como o servidor recebe a coordenada em texto
+	 * e faz `parseFloat`, um `latitude=abc` chegava como `NaN`, PASSAVA por aqui e
+	 * a assinatura seguia — com o manifesto imprimindo "Não capturado", porque
+	 * `NaN` é falsy no render. A trava anunciada no painel do admin não travava.
+	 */
+	it('NaN é recusado com a flag ligada — não é "número" para efeito de evidência', async () => {
+		for (const ruim of [
+			{ latitude: NaN },
+			{ longitude: NaN },
+			{ latitude: Number.parseFloat('abc') },
+			{ latitude: Infinity }
+		]) {
+			const r = await validar({ exigirGpsAssinatura: true }, ruim);
+			expect(r.ok, `deveria recusar ${JSON.stringify(ruim)}`).toBe(false);
+			if (r.ok) return;
+			expect(r.error).toMatch(/GPS/);
+		}
+	});
+
+	/** Coordenada impossível é PIOR que ausente: o manifesto a imprime como o local do ato. */
+	it('coordenada fora de faixa é recusada com a flag ligada', async () => {
+		for (const ruim of [{ latitude: 999 }, { longitude: -5000 }, { latitude: 90.1 }]) {
+			const r = await validar({ exigirGpsAssinatura: true }, ruim);
+			expect(r.ok, `deveria recusar ${JSON.stringify(ruim)}`).toBe(false);
+			if (r.ok) return;
+			expect(r.error).toMatch(/GPS/);
+		}
+	});
+
+	/**
+	 * Com a flag DESLIGADA não há recusa — mas também não há evidência inventada:
+	 * o que não é coordenada plausível é persistido como ausência, e não
+	 * arredondado para dentro do manifesto.
+	 */
+	it('com a flag desligada, coordenada implausível vira null em vez de virar evidência', async () => {
+		for (const ruim of [{ latitude: NaN }, { latitude: 999 }, { longitude: -5000 }]) {
+			const r = await validar({ exigirGpsAssinatura: false }, ruim);
+			expect(r.ok, !r.ok ? r.error : '').toBe(true);
+			if (!r.ok) return;
+			expect(r.validated.latitude).toBeNull();
+			expect(r.validated.longitude).toBeNull();
+		}
+	});
+
 	/** A senha da cerimônia é piso, sem flag para desligar. */
 	it('janela de reautenticação recusada propaga status e mensagem', async () => {
 		cenario.reauth = { ok: false, status: 403, error: 'Reinsira sua senha para assinar.' };

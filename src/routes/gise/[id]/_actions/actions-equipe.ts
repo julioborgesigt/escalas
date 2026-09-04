@@ -25,6 +25,8 @@ import {
 import { giseMembros } from '$lib/server/schema';
 import { eq } from 'drizzle-orm';
 import { getInt, carregarEquipeDaGise, carregarSeccionalDaGise, exigirAdminGeral } from './shared';
+import { inteiroNaFaixa, horaHhMm, informado } from '$lib/server/form-data';
+import { MAX_VAGAS_EQUIPE } from '$lib/gise/tipos-equipe';
 import {
 	concluirMudancaGise,
 	invalidarAssinaturasDaSeccional,
@@ -45,9 +47,16 @@ export const actionsEquipe = {
 		const equipeId = getInt(formData, 'equipeId');
 		if (isNaN(giseId) || isNaN(equipeId)) return fail(400, { error: 'IDs inválidos' });
 
-		const slotsDpc = parseInt(formData.get('slots_dpc') as string);
-		const slotsOip = parseInt(formData.get('slots_oip') as string);
-		if (isNaN(slotsDpc) || isNaN(slotsOip)) return fail(400, { error: 'Dados inválidos' });
+		// FAIXA, não só "é número". As vagas entram na comparação
+		// `COUNT(*) < e.slots_dpc` que decide a alocação atomicamente: `999999` por
+		// POST direto apagava o controle de lotação, `-1` fazia a equipe recusar
+		// todo mundo dizendo "vagas esgotadas" para uma equipe vazia. O `max` das
+		// telas é o MESMO `MAX_VAGAS_EQUIPE`.
+		const slotsDpc = inteiroNaFaixa(formData, 'slots_dpc', 0, MAX_VAGAS_EQUIPE);
+		const slotsOip = inteiroNaFaixa(formData, 'slots_oip', 0, MAX_VAGAS_EQUIPE);
+		if (slotsDpc === null || slotsOip === null) {
+			return fail(400, { error: `Vagas inválidas — informe de 0 a ${MAX_VAGAS_EQUIPE}.` });
+		}
 
 		const db = getDB(platform);
 		const r2 = tryGetR2(platform) ?? null;
@@ -90,8 +99,17 @@ export const actionsEquipe = {
 		const eqId = getInt(formData, 'eqId');
 		if (isNaN(giseId) || isNaN(eqId)) return fail(400, { error: 'IDs inválidos' });
 
-		const horaEntrada = formData.get('hora_entrada') as string | null;
-		const horaSaida = formData.get('hora_saida') as string | null;
+		// Vazio herda o horário da seccional; preenchido tem de ser HH:MM. Mesmo
+		// motivo do `salvarHorariosSec`: é o horário que o portão de presença
+		// compara, e ele libera quando a hora não parseia.
+		const horaEntrada = horaHhMm(formData, 'hora_entrada');
+		const horaSaida = horaHhMm(formData, 'hora_saida');
+		if (
+			(informado(formData, 'hora_entrada') && horaEntrada === null) ||
+			(informado(formData, 'hora_saida') && horaSaida === null)
+		) {
+			return fail(400, { error: 'Horário inválido — use HH:MM.' });
+		}
 
 		const db = getDB(platform);
 		const r2 = tryGetR2(platform) ?? null;
@@ -144,11 +162,24 @@ export const actionsEquipe = {
 		if (isNaN(giseId) || isNaN(secId)) return fail(400, { error: 'IDs inválidos' });
 
 		const tipo = formData.get('tipo') as 'operacional' | 'seint';
-		const slotsDpc = parseInt(formData.get('slots_dpc') as string);
-		const slotsOip = parseInt(formData.get('slots_oip') as string);
+		// Mesma faixa de `salvarSlotsEquipe` — aqui o valor ausente cai em 0
+		// (equipe nasce sem vaga daquele cargo), mas valor FORA da faixa é recusa,
+		// não silenciosamente convertido.
+		const slotsDpc = inteiroNaFaixa(formData, 'slots_dpc', 0, MAX_VAGAS_EQUIPE);
+		const slotsOip = inteiroNaFaixa(formData, 'slots_oip', 0, MAX_VAGAS_EQUIPE);
 
 		if (!tipo || (tipo !== 'operacional' && tipo !== 'seint'))
 			return fail(400, { error: 'Tipo inválido' });
+
+		// Campo PRESENTE e fora da faixa é recusa; AUSENTE cai em 0 mais abaixo
+		// (equipe nasce sem vaga daquele cargo). `inteiroNaFaixa` devolve `null` para
+		// os dois casos, então quem os separa é ter vindo texto ou não.
+		if (
+			(informado(formData, 'slots_dpc') && slotsDpc === null) ||
+			(informado(formData, 'slots_oip') && slotsOip === null)
+		) {
+			return fail(400, { error: `Vagas inválidas — informe de 0 a ${MAX_VAGAS_EQUIPE}.` });
+		}
 
 		// `null` = equipe ainda sem unidade escolhida (slot em aberto na seccional).
 		const unidadeIdRaw = formData.get('unidadeId') as string;
@@ -172,8 +203,8 @@ export const actionsEquipe = {
 			});
 		}
 
-		const dpc = isNaN(slotsDpc) ? 0 : slotsDpc;
-		const oip = isNaN(slotsOip) ? 0 : slotsOip;
+		const dpc = slotsDpc ?? 0;
+		const oip = slotsOip ?? 0;
 		const novaEquipeId = await criarGiseEquipe(db, secId, tipo, dpc, oip, unidadeId);
 
 		// Equipe nova = escala diferente da que foi para assinatura.

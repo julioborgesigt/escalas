@@ -209,7 +209,14 @@ function indiceDaSubsequencia(palheiro: Uint8Array, agulha: Uint8Array): number 
 export function ocspRevogadoB64(
 	cert: forge.pki.Certificate,
 	issuerKey: forge.pki.rsa.PrivateKey,
-	issuer: forge.pki.Certificate
+	issuer: forge.pki.Certificate,
+	/**
+	 * OID do algoritmo de assinatura DECLARADO na resposta. O padrão é o real
+	 * (`sha256WithRSA`); passar outro permite exercitar o caminho "algoritmo não
+	 * suportado" sem precisar de uma chave ECDSA de verdade — o que se testa ali
+	 * é a reação do verificador ao OID, não a matemática do algoritmo.
+	 */
+	sigAlgOid = '1.2.840.113549.1.1.11'
 ): string {
 	const asn1 = forge.asn1;
 	const { Class, Type } = asn1;
@@ -275,7 +282,7 @@ export function ocspRevogadoB64(
 				Class.UNIVERSAL,
 				Type.OID,
 				false,
-				asn1.oidToDer('1.2.840.113549.1.1.11').getBytes() // sha256WithRSA
+				asn1.oidToDer(sigAlgOid).getBytes() // sha256WithRSA, salvo override do teste
 			),
 			asn1.create(Class.UNIVERSAL, Type.NULL, false, '')
 		]),

@@ -58,6 +58,7 @@ import {
 import { validarHora, normalizarHora } from '$lib/gise/horarios';
 import { ehViolacaoUnique } from '$lib/server/db-errors';
 import { logger } from '$lib/server/logger';
+import { textoLimitado, textoLimitadoOuNulo } from '$lib/server/form-data';
 
 /**
  * GISE "vazia" passada aos resolvedores do breve relatório: com os três campos
@@ -121,12 +122,14 @@ export const load: PageServerLoad = async ({ locals, platform, depends }) => {
 	};
 };
 
-/** Texto do formulário, aparado e limitado. Vazio vira `''`, nunca `undefined`. */
-function texto(fd: FormData, campo: string, max: number): string {
-	return String(fd.get(campo) ?? '')
-		.trim()
-		.slice(0, max);
-}
+/**
+ * Texto do formulário, aparado e limitado. Vazio vira `''`, nunca `undefined`.
+ *
+ * A implementação mora em `$lib/server/form-data` — este arquivo e
+ * `planos/novo/+page.server.ts` tinham cada um a sua cópia idêntica, e foi com a
+ * regra sem casa própria que `salvarBreveRelatorio` nasceu sem cap nenhum.
+ */
+const texto = textoLimitado;
 
 /** Checkbox do HTML: presente = ligado. */
 function marcado(fd: FormData, campo: string): boolean {
@@ -154,11 +157,8 @@ function inteiroOuHerda(fd: FormData, campo: string): number | null | 'invalido'
 	return n;
 }
 
-/** Texto aparado, ou `null` quando vazio (herda). */
-function textoOuHerda(fd: FormData, campo: string, max: number): string | null {
-	const s = String(fd.get(campo) ?? '').trim();
-	return s === '' ? null : s.slice(0, max);
-}
+/** Texto aparado, ou `null` quando vazio (herda). Ver `texto` acima. */
+const textoOuHerda = textoLimitadoOuNulo;
 
 /** As nove colunas de configuração de escala, prontas para `atualizarOperacao`. */
 type ConfigEscala = {

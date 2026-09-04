@@ -17,7 +17,10 @@ Thumbs.db
 .env.*
 !.env.example
 !.env.test
-!.dev.vars
+# NÃO adicionar `!.dev.vars` aqui: `.dev.vars` não casa com `.env.*`, então a
+# negação não libera nada — só cria a armadilha de DESFAZER o ignore da linha
+# abaixo, que é o arquivo com SYNC_TOKEN, RESET_TOKEN, CPF_ENCRYPTION_KEY e
+# PASSWORD_PEPPER. Hoje o ignore vence só porque vem depois.
 
 # Vite
 vite.config.js.timestamp-*

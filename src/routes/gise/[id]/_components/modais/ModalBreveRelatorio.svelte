@@ -8,7 +8,11 @@
 		DEFAULT_BREVE_RELATORIO_TEXTO_SUPERVISAO,
 		resolveBreveRelatorioTitulo,
 		resolveBreveRelatorioConteudoSeccional,
-		resolveBreveRelatorioConteudoSupervisao
+		resolveBreveRelatorioConteudoSupervisao,
+		// Os MESMOS limites que a action grava e que `/gise/operacoes` já usava
+		// nos campos equivalentes. Este modal não tinha `maxlength` nenhum.
+		MAX_BREVE_TITULO,
+		MAX_BREVE_PARAGRAFO
 	} from '$lib/gise/breve-relatorio';
 	import { Dialog } from '@skeletonlabs/skeleton-svelte';
 
@@ -82,6 +86,7 @@
 						id="br_modal_tit"
 						name="breve_relatorio_titulo"
 						type="text"
+						maxlength={MAX_BREVE_TITULO}
 						bind:value={titulo}
 						class="w-full px-2 py-1.5 text-sm rounded-xl border border-surface-300 dark:border-surface-600 bg-white dark:bg-surface-900"
 						placeholder={DEFAULT_BREVE_RELATORIO_TITULO}
@@ -95,6 +100,7 @@
 						id="br_modal_sec"
 						name="breve_relatorio_texto_seccional"
 						rows="3"
+						maxlength={MAX_BREVE_PARAGRAFO}
 						bind:value={textoSeccional}
 						class="w-full px-2 py-1.5 text-sm rounded-xl border border-surface-300 dark:border-surface-600 bg-white dark:bg-surface-900"
 						placeholder={DEFAULT_BREVE_RELATORIO_TEXTO_SECCIONAL}></textarea>
@@ -107,6 +113,7 @@
 						id="br_modal_sup"
 						name="breve_relatorio_texto_supervisao"
 						rows="3"
+						maxlength={MAX_BREVE_PARAGRAFO}
 						bind:value={textoSupervisao}
 						class="w-full px-2 py-1.5 text-sm rounded-xl border border-surface-300 dark:border-surface-600 bg-white dark:bg-surface-900"
 						placeholder={DEFAULT_BREVE_RELATORIO_TEXTO_SUPERVISAO}></textarea>

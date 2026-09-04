@@ -25,6 +25,7 @@ import { escalas as escalasTable } from '$lib/server/schema';
 import { carregarEscalaComPermissao } from './shared';
 import { registrarMudancaEscala } from './desfecho';
 import { mensagemDeErro } from '$lib/utils/erro';
+import { textoLimitado, MAX_EMAIL } from '$lib/server/form-data';
 
 /** O `event` das actions desta rota: `params.id` é a escala. */
 type Event = RequestEvent<{ id: string }>;
@@ -46,7 +47,7 @@ export const actionsCiclo = {
 			return fail(400, { error: 'Operação válida apenas para escalas de FDS' });
 
 		const formData = await request.formData();
-		const emailDestino = (formData.get('email_destino') as string | null)?.trim() ?? '';
+		const emailDestino = textoLimitado(formData, 'email_destino', MAX_EMAIL);
 		if (!emailDestino || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailDestino)) {
 			return fail(400, { error: 'E-mail de destino inválido' });
 		}
@@ -199,7 +200,7 @@ export const actionsCiclo = {
 		}
 
 		const formData = await request.formData();
-		const emailDestino = (formData.get('email_destino') as string | null)?.trim() ?? '';
+		const emailDestino = textoLimitado(formData, 'email_destino', MAX_EMAIL);
 		if (!emailDestino || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailDestino)) {
 			return fail(400, { error: 'E-mail de destino inválido' });
 		}
