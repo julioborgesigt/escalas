@@ -18,6 +18,16 @@
  * ausência é ACEITA, mas precisa vir DECLARADA com um motivo de lista fechada,
  * que entra na trilha de auditoria.
  *
+ * **A exceção só tem caminho de tela para o GPS.** `SignaturePad` mapeia a falha
+ * de geolocalização para um motivo e `usePresencaGise` o envia; para a câmera
+ * ele DESABILITA o botão de captura, então nenhuma tela do produto manda
+ * `motivoSemFoto` hoje. A política é escrita simétrica de propósito — a regra é
+ * a mesma para as duas evidências, e é a INTERFACE que difere —, mas quem for
+ * mexer aqui precisa saber que, na prática, foto ausente é recusa. Está anotado
+ * porque caminho inalcançável que ninguém declarou é o que o `CLAUDE.md` chama
+ * de sintoma (o `admitirAdmin` do portão GISE): a diferença entre "reservado de
+ * propósito" e "esqueceram de ligar" não está no código.
+ *
  * O que isso compra, sendo preciso: não é impedir quem quer burlar — um cliente
  * adulterado sempre pode declarar "GPS negado", e nada client-side resiste a
  * isso (é a mesma fronteira de garantia que o liveness já declara em

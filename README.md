@@ -1279,6 +1279,14 @@ tela já permitia seguir nesse caso. O motivo vem de lista FECHADA
 (`permissao_negada`, `indisponivel_no_aparelho`, `falha_tecnica`) e entra na
 trilha de auditoria.
 
+**A exceção tem caminho de interface só para o GPS**, e a assimetria é do
+produto, não um esquecimento do gate: o `SignaturePad` detecta a falha de
+localização e manda o motivo, mas para a câmera ele DESABILITA o botão de
+captura — não existe tela que envie `motivoSemFoto`. O servidor aceita os dois
+porque a política é uma só; na prática, hoje, foto ausente é recusa, e o caminho
+do policial com câmera quebrada é a presença por Token A3 no desktop. Se algum
+dia a tela oferecer a exceção para a foto, o servidor já a entende.
+
 Sendo preciso sobre o que isso compra: não impede quem quer burlar — um cliente
 adulterado sempre pode declarar "GPS negado", que é a mesma fronteira de garantia
 que o liveness já declara. O que muda é que a ausência deixa de ser INVISÍVEL:
