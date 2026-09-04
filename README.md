@@ -326,10 +326,12 @@ npm run db:migrate:staging       # Aplica migrações no D1 de staging
 npm run db:migrate:prod -- --yes # Aplica migrações em produção (--yes obrigatório)
 
 # Utilitários de usuários (scripts/)
-npm run users:set-default-password          # Define senha padrão para todos os usuários (local)
-npm run users:set-default-password:prod     # Idem, em produção
-npm run users:clear-passwords-non-admins    # Limpa senhas de não-admins (local)
-npm run users:clear-passwords-non-admins:prod  # Idem, em produção
+# `--yes` nunca vem embutido (igual ao db:migrate:prod); contra produção,
+# CONFIRMO_PRODUCAO precisa conter o nome do banco. Ver scripts/confirmar-producao.ts
+npm run users:set-default-password -- --yes              # senha padrão p/ todos (local)
+npm run users:clear-passwords-non-admins -- --yes        # limpa senhas de não-admins (local)
+CONFIRMO_PRODUCAO=escalas-db npm run users:set-default-password:prod -- --yes
+CONFIRMO_PRODUCAO=escalas-db npm run users:clear-passwords-non-admins:prod -- --yes
 ```
 
 > **Duplicação / código morto:** além do `knip`, o repositório versiona [`.fallowrc.json`](.fallowrc.json) para o [`fallow`](https://github.com/fallow-rs/fallow) (`fallow dupes`) — sinal de investigação nas auditorias de compreensibilidade, não gate de CI.

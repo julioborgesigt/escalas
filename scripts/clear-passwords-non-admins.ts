@@ -2,25 +2,30 @@
  * Limpa a senha de TODOS os policiais, preservando os administradores.
  *
  * Uso (local):
- *   npx tsx scripts/clear-passwords-non-admins.ts --yes
+ *   npm run users:clear-passwords-non-admins -- --yes
  *
  * Uso (produção/remoto):
- *   npx tsx scripts/clear-passwords-non-admins.ts --remote --yes
+ *   CONFIRMO_PRODUCAO=escalas-db npm run users:clear-passwords-non-admins:prod -- --yes
+ *
+ * O `--yes` NÃO vem embutido no `npm run` de propósito — ver
+ * `scripts/confirmar-producao.ts`.
  */
 
 import { execSync } from 'node:child_process';
-
-const DB_NAME = 'escalas-db';
+import { exigirConfirmacao, DB_NAME } from './confirmar-producao';
 
 async function main() {
 	const isRemote = process.argv.includes('--remote');
-	const confirmed = process.argv.includes('--yes');
 	const flag = isRemote ? '--remote' : '--local';
 
-	if (!confirmed) {
-		console.error('Confirmação obrigatória: adicione --yes para executar.');
-		process.exit(1);
-	}
+	exigirConfirmacao({
+		remoto: isRemote,
+		confirmado: process.argv.includes('--yes'),
+		efeito: 'zerar a senha de TODOS os policiais (administradores preservados)',
+		exemplo: isRemote
+			? 'CONFIRMO_PRODUCAO=escalas-db npm run users:clear-passwords-non-admins:prod -- --yes'
+			: 'npm run users:clear-passwords-non-admins -- --yes'
+	});
 
 	// Preserva administradores: atualiza apenas a tabela policiais.
 	// Mantemos primeiro_acesso=1 para forçar novo fluxo de definição de senha.
@@ -42,4 +47,3 @@ main().catch((err) => {
 	console.error('Falha ao limpar senhas:', err);
 	process.exit(1);
 });
-

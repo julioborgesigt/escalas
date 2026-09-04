@@ -350,8 +350,16 @@ escalas antigas exibem o selo **GISE**.
 No go-live (ou ao limpar dados de teste), reset todos os **policiais** para o fluxo de primeiro acesso — eles definem a própria senha (que nasce em `pbkdf2v3`) e verificam o e-mail pessoal:
 
 ```sh
-npm run users:clear-passwords-non-admins:prod   # zera senha + primeiro_acesso=1 (PRESERVA admins)
+CONFIRMO_PRODUCAO=escalas-db \
+  npm run users:clear-passwords-non-admins:prod -- --yes   # zera senha + primeiro_acesso=1 (PRESERVA admins)
 ```
+
+> **Por que duas confirmações.** `--yes` não vem embutido no `npm run` (mesma
+> convenção do `db:migrate:prod`), e contra produção a env `CONFIRMO_PRODUCAO`
+> precisa conter o NOME do banco. O comando local e o de produção só diferem
+> pelo sufixo `:prod` — um Tab no autocomplete —, e este aqui não tem desfazer:
+> o `UPDATE` sobrescreve `updated_at` de todo mundo, então depois nem se
+> distingue quem já estava sem senha de quem o comando atingiu.
 
 **Antes de rodar para toda a base:**
 
@@ -359,7 +367,7 @@ npm run users:clear-passwords-non-admins:prod   # zera senha + primeiro_acesso=1
 2. **Teste com UMA conta** o ciclo completo: primeiro acesso → define senha → verifica e-mail → 2FA → login → **logout → login de novo** (o 2º login confirma o caminho `v3`+pepper de ponta a ponta).
 3. Só então rode o script acima e **comunique** aos policiais como fazer o primeiro acesso.
 
-> Para **re-habilitar** uma senha-padrão compartilhada em ambiente de teste (não produção real), use `SET_PASSWORD=... PASSWORD_PEPPER=<valor> npm run users:set-default-password:prod` — o script é pepper-aware e grava em `pbkdf2v3`.
+> Para **re-habilitar** uma senha-padrão compartilhada em ambiente de teste (não produção real), use `SET_PASSWORD=... PASSWORD_PEPPER=<valor> CONFIRMO_PRODUCAO=escalas-db npm run users:set-default-password:prod -- --yes` — o script é pepper-aware e grava em `pbkdf2v3`.
 
 ## Backup, restauração e rollback (D1 + R2)
 
