@@ -136,7 +136,10 @@ test.describe('Presença GISE em tela + comprovante', () => {
 			desafioId: desafioId!,
 			reauthId: reauthId!
 		});
-		expect(res.status(), await res.text().catch(() => '')).toBe(200);
+		// `fail()` em form action responde HTTP 200 com `{"type":"failure"}` no
+		// CORPO — `toBe(200)` não distingue aceito de recusado aqui.
+		const corpo = await res.text();
+		expect(corpo, corpo).toContain('"type":"success"');
 		expect(presencasDa(GISE)).toBe(1);
 
 		// Gravou SEM selfie (é o ponto da exceção) e o motivo está na auditoria.
@@ -173,8 +176,8 @@ test.describe('Presença GISE em tela + comprovante', () => {
 			desafioId: desafioId!,
 			reauthId: reauthId!
 		});
-		expect(res.status(), await res.text().catch(() => '')).toBe(200);
-		expect(await res.text()).toContain('success');
+		const corpo = await res.text();
+		expect(corpo, corpo).toContain('"type":"success"');
 
 		// Comprovante AVANÇADO gerado sob demanda a partir das evidências.
 		const termo = await request.get(`/api/gise/${GISE}/presenca/termo?tipo=entrada`, {
@@ -207,8 +210,8 @@ test.describe('Presença GISE em tela + comprovante', () => {
 			desafioId: desafioId!,
 			reauthId: reauthId!
 		});
-		expect(res.status(), await res.text().catch(() => '')).toBe(200);
-		expect(await res.text()).toContain('success');
+		const corpo = await res.text();
+		expect(corpo, corpo).toContain('"type":"success"');
 
 		const termo = await request.get(`/api/gise/${GISE}/presenca/termo?tipo=saida`, {
 			headers: cookieDeSessao(token!)
