@@ -19,6 +19,7 @@ type RecoveryPurpose =
 	// Reuso da mesma tabela genérica (ip, purpose, attempted_at) para throttle por
 	// IP de endpoints sensíveis sem sessão — isolados por purpose (ver schema.ts):
 	| 'validar_download' // download público de /validar
+	| 'validar_consulta' // consulta da PÁGINA de /validar (ver validar-rate-limit.ts)
 	| 'verificar_2fa' // brute-force do código 2FA no login
 	| 'reenviar_codigo' // reenvio de 2FA (reset do contador + e-mail bombing)
 	| 'solicitar_codigo_assinatura' // envio do código 2FA de assinatura (e-mail bombing / quota)

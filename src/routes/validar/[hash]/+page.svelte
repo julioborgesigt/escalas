@@ -619,7 +619,14 @@
 			</footer>
 		{:else}
 			<!-- ❌ DOCUMENTO NÃO ENCONTRADO / ERRO -->
-			{@const erroInterno = data.motivo === 'erro_db' || data.motivo === 'erro_consulta'}
+			{@const excedido = data.motivo === 'rate_limit'}
+			<!-- `semVeredito` reúne os estados em que o sistema NÃO afirma nada sobre o
+			     documento: erro interno e teto de consultas. É a distinção que importa
+			     nesta tela — o outro ramo diz "pode ser falso ou adulterado", e dizer
+			     isso a quem só esbarrou num limite de requisições seria acusar um
+			     documento legítimo por causa da nossa contagem. -->
+			{@const erroInterno =
+				data.motivo === 'erro_db' || data.motivo === 'erro_consulta' || excedido}
 
 			<div class="flex flex-col items-center mb-6 sm:mb-10">
 				<img
@@ -661,12 +668,16 @@
 						? 'text-warning-600 dark:text-warning-400'
 						: 'text-error-600 dark:text-error-400'} uppercase tracking-tighter text-center"
 				>
-					{erroInterno ? 'Erro ao Consultar' : 'Documento Não Encontrado'}
+					{#if excedido}Muitas Consultas{:else if erroInterno}Erro ao Consultar{:else}Documento Não
+						Encontrado{/if}
 				</h1>
 				<p
 					class="text-surface-600 dark:text-surface-400 font-medium text-center mt-2 text-sm sm:text-base"
 				>
-					{#if erroInterno}
+					{#if excedido}
+						Foram feitas muitas consultas a partir desta rede. Aguarde alguns minutos e tente
+						novamente — <strong>isto não diz nada sobre o documento</strong>.
+					{:else if erroInterno}
 						Ocorreu um erro interno ao consultar o sistema. Tente novamente em alguns instantes.
 					{:else}
 						O código de verificação informado não corresponde a nenhum documento registrado no
@@ -680,7 +691,12 @@
 					? 'bg-warning-50 dark:bg-warning-900/20 border-warning-200 dark:border-warning-700/30'
 					: 'bg-error-50 dark:bg-error-900/20 border-error-200 dark:border-error-700/30'} border rounded-xl sm:rounded-2xl text-center space-y-3"
 			>
-				{#if erroInterno}
+				{#if excedido}
+					<p class="text-sm text-warning-800 dark:text-warning-300">
+						O limite de consultas por rede foi atingido. A verificação deste documento
+						<strong>não foi realizada</strong> — repita em alguns minutos.
+					</p>
+				{:else if erroInterno}
 					<p class="text-sm text-warning-800 dark:text-warning-300">
 						Não foi possível verificar a autenticidade neste momento. Por favor, tente novamente ou
 						contate o suporte.
