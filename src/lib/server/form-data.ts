@@ -148,11 +148,15 @@ export function dataIso(fd: FormData, campo: string): string | null {
  * preenche o zero. Ou seja, `8:00` sai do formulário legítimo, e um validador
  * de servidor exigindo dois dígitos recusaria o usuário que digitou certo.
  *
- * Devolve SEMPRE com zero à esquerda, e é a metade que interessa: as colunas da
- * GISE nascem `DEFAULT '08:00'`, então sem normalizar o banco fica com `8:00`
- * numa linha e `08:00` na outra para o mesmo horário — a divergência de grafia
- * que o `CLAUDE.md` cataloga na família "fallback de hora do plantão". Comparar
- * hora como texto (`'8:00' < '10:00'` é falso) é o próximo bug dessa família.
+ * Devolve SEMPRE com zero à esquerda. Sendo preciso sobre o que isso compra:
+ * NÃO é consertar comparação quebrada — o projeto já tem `mesmaHora`
+ * (`$lib/gise/horarios`) justamente porque a divergência `8:00`/`08:00` existe,
+ * e `horarioGiseLiberado` preenche o zero antes de comparar. O que a
+ * normalização na escrita faz é parar de PRODUZIR a divergência, para que a
+ * grafia canônica no banco seja a regra e não a sorte de qual caminho gravou.
+ * Não normaliza o que já está gravado, nem o padrão que vem de
+ * `hora_entrada_padrao` (gravado por `gise/operacoes`, que valida mas não
+ * preenche o zero) — essas linhas continuam dependendo de `mesmaHora`.
  *
  * As colunas de escala ordinária usam outra convenção (`'08'`, só a hora); este
  * helper não serve para elas.
