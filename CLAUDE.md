@@ -136,6 +136,42 @@ webhook por segredo) vai declarada **com o motivo** em
 `scripts/guard-autorizacao.mjs`. Declarar é o ponto: a diferença entre "público
 de propósito" e "esqueceram o guard" não está no código.
 
+## Campo de `FormData` tem limite no servidor
+
+Autorizar diz QUEM pode agir. Falta dizer o QUE pode entrar — e as duas metades
+do projeto tratam isso de forma desigual. Rota de API tem trilho: o padrão
+obrigatório é `validateBody` com Zod, que traz `.max()`, faixa e enum de graça.
+**Form action lê `FormData` na mão**, e cada autor decidiu sozinho o que
+conferir; a maioria decidiu por truthiness.
+
+Não é hipótese. TODA falha de entrada da auditoria de set/2026 caiu desse lado,
+sempre com a mesma forma — a regra certa num caminho, ausente no irmão:
+`mes=99` gerando `MESES_PT[98]` no título enquanto o `criar` ao lado passava
+por `escalaSchema`; vagas com `999999` desarmando o `COUNT(*) < slots` que
+aloca; `observacoes` sem cap indo para dentro de PDF **assinado**;
+`data_inicio='banana'` liberando presença fora do horário, porque
+`horarioGiseLiberado` falha ABERTO em data que não parseia.
+
+Nenhum foi descuido isolado — foi ausência de padrão. Verificado no CI por
+`npm run guard:entrada`, que aceita cinco formas de limite: schema Zod, leitor
+de [`$lib/server/form-data`](src/lib/server/form-data.ts) (`textoLimitado`,
+`inteiroNaFaixa`, `dataIso`, `horaHhMm`), leitura booleana, identificador (que
+se valida por POSSE — é a pergunta do guard acima, não desta) e comparação
+escrita à mão (`mes < 1 || mes > 12` conta).
+
+Limite que vem de função de domínio — `erroDeDatasForaDoPeriodo`,
+`lotacaoNoEscopo`, `parseRespostasFormularioJsonStrict` — entra em
+`LIMITADO_POR` **pelo nome**, e o guard confere que a chamada existe no corpo:
+entrada que virou promessa vazia reprova em vez de dar verde.
+
+O guard trabalha contra uma `BASELINE`, como o de duplicação: o que já existia
+está aceito, só o NOVO reprova. E vale a mesma advertência — **encher a
+baseline para o guard passar troca um achado por uma linha de código**. O grosso
+dela é uma família só: os campos de data e hora da escala ordinária, que usam a
+convenção `'08'` + `'00'` concatenada em `${hora}:${minuto}` (diferente do
+`HH:MM` da GISE, por isso `horaHhMm` não serve como está). Migrá-la pede leitor
+próprio e goldens de PDF conferidos — PR só dela.
+
 ## Onde colocar código novo em `src/lib/server/`
 
 **Raiz = infra transversal. Subpasta = domínio.** A raiz de `server/` só
