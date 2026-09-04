@@ -23,6 +23,14 @@
  * `schema.ts` e a migration 0022). Purpose próprio, então um flood daqui não
  * infla o contador de login nem o de reset, e vice-versa. Sem migration.
  *
+ * **Volume.** Diferente dos usos de autenticação da mesma tabela, que só gravam
+ * a FALHA, este grava em toda requisição liberada — é o custo que se cobra, não
+ * o erro. Some linhas na ordem do número de downloads da corporação, e não do
+ * número de abusos. Isso é limitado pelo expurgo de retenção
+ * (`LGPD_RETENCAO_RECOVERY_ATTEMPTS_DIAS`, 90 dias por padrão, em
+ * `lgpd/retencao.ts`) e coberto pelo índice `(ip, purpose, attempted_at)`; quem
+ * for baixar o teto ou subir a janela deve olhar esses dois antes.
+ *
  * Sendo preciso sobre o que isto NÃO é: não é defesa contra DDoS distribuído
  * (que se resolve na borda, na Cloudflare, e não aqui) nem contra quem tenha
  * várias contas. É o teto que impede UMA conta de monopolizar a geração — o
