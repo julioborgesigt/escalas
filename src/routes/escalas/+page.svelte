@@ -61,6 +61,15 @@
 	import BotaoLimparFiltros from '$lib/components/BotaoLimparFiltros.svelte';
 	import ModalShell from '$lib/components/ModalShell.svelte';
 	import { mensagemDeErro } from '$lib/utils/erro';
+	import {
+		filtrosPadrao,
+		temFiltrosAtivos,
+		queryDeFiltros,
+		delegaciasVisiveis,
+		destinoDaEdicao,
+		tituloDaLista,
+		anosDisponiveis
+	} from './_components/filtros-escalas';
 
 	const { data }: PageProps = $props();
 
@@ -73,15 +82,11 @@
 	const isAdminDPC = $derived(
 		!isAdmin && (auth.isAdminSeccional || auth.isAdminUnidade) && page.data.usuario?.cargo === 'DPC'
 	);
-	const savedFilters = getSavedFilters('filtros_escalas', {
-		lotacao: '',
-		mes: new Date().getMonth() + 1,
-		ano: new Date().getFullYear(),
-		tipo: 'todos',
-		seccional: 'todas',
-		busca: '',
-		status: ''
-	});
+	// `filtrosPadrao()` é a fonte ÚNICA dos padrões — antes eles estavam escritos
+	// aqui, no `limparFiltros` e no `temFiltros`, e o daqui discordava dos outros
+	// dois em `lotacao` (ver `_components/filtros-escalas.ts`).
+	const PADRAO = filtrosPadrao();
+	const savedFilters = getSavedFilters('filtros_escalas', PADRAO);
 
 	const unidades = $derived(data.unidades);
 	const paginaAtual = $derived(data.pagination.page);
@@ -139,13 +144,7 @@
 	});
 
 	const seccionais = $derived(unidades.filter((u: Unidade) => u.tipo === 'seccional'));
-	const delegaciasDropdown = $derived(
-		filtroSeccional === 'todas'
-			? unidades.filter((u: Unidade) => u.tipo === 'delegacia')
-			: unidades.filter(
-					(u: Unidade) => u.tipo === 'delegacia' && u.seccional_id === filtroSeccional
-				)
-	);
+	const delegaciasDropdown = $derived(delegaciasVisiveis(unidades, filtroSeccional));
 	const delegaciasDaSeccional = $derived(
 		unidades.filter((u: Unidade) => u.tipo === 'delegacia' && u.seccional_id === papelUnidadeId)
 	);
@@ -181,7 +180,7 @@
 	let pendingRevogar = $state(false);
 
 	const meses = opcoesMeses();
-	const anos = [0, ...Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - 1 + i)];
+	const anos = anosDisponiveis();
 
 	const tiposOptions = [
 		{ value: 'todos', label: 'Todos' },
@@ -196,27 +195,29 @@
 	);
 
 	function buildQueryParamsComFiltros(p: number) {
-		// eslint-disable-next-line svelte/prefer-svelte-reactivity
-		const params = new URLSearchParams();
-		if (filtroLotacao && filtroLotacao !== 'todas') params.set('lotacao', filtroLotacao);
-		if (filtroMes) params.set('mes', String(filtroMes));
-		if (filtroAno) params.set('ano', String(filtroAno));
-		if (filtroTipo && filtroTipo !== 'todos') params.set('tipo', filtroTipo);
-		if (filtroBusca) params.set('busca', filtroBusca);
-		if (filtroStatus === 'aguardando' || filtroStatus === 'arquivada') {
-			params.set('status', filtroStatus);
-		}
-		params.set('page', String(p));
-		return params;
+		return queryDeFiltros(snapshotFiltros(), p);
+	}
+
+	/** Os filtros correntes como valor puro — a fronteira com as regras testadas. */
+	function snapshotFiltros() {
+		return {
+			lotacao: filtroLotacao,
+			mes: filtroMes,
+			ano: filtroAno,
+			tipo: filtroTipo,
+			seccional: filtroSeccional,
+			busca: filtroBusca,
+			status: filtroStatus
+		};
 	}
 
 	function limparFiltros() {
-		filtroSeccional = 'todas';
-		filtroLotacao = 'todas';
-		filtroMes = new Date().getMonth() + 1;
-		filtroAno = new Date().getFullYear();
-		filtroTipo = 'todos';
-		filtroBusca = '';
+		filtroSeccional = PADRAO.seccional;
+		filtroLotacao = PADRAO.lotacao;
+		filtroMes = PADRAO.mes;
+		filtroAno = PADRAO.ano;
+		filtroTipo = PADRAO.tipo;
+		filtroBusca = PADRAO.busca;
 		// Mantém `filtroStatus`: limpar filtros não troca a pasta (aguardando/arquivada).
 
 		filtros.navegar(1);
@@ -231,10 +232,16 @@
 	let dialogRevogarSolicitacaoOpen = $state(false);
 
 	function solicitarEdicao(esc: EscalaListagem) {
-		if (esc.is_assinada) {
+		// A ordem entre os três destinos é regra, e está testada em
+		// `_components/filtros-escalas.ts` — não a reescreva aqui.
+		const destino = destinoDaEdicao(esc, {
+			podeOIPSolicitar,
+			temSolicitacao: !!solicitacoesMap[esc.id]
+		});
+		if (destino === 'revogar') {
 			escalaParaRevogar = { id: esc.id, titulo: esc.titulo };
 			dialogRevogarOpen = true;
-		} else if (podeOIPSolicitar && solicitacoesMap[esc.id]) {
+		} else if (destino === 'solicitacao') {
 			escalaAbrirComSolicitacao = esc.id;
 			dialogRevogarSolicitacaoOpen = true;
 		} else {
@@ -266,13 +273,7 @@
 		}
 	}
 
-	const temFiltros = $derived(
-		filtroSeccional !== 'todas' ||
-			filtroLotacao !== 'todas' ||
-			filtroMes !== new Date().getMonth() + 1 ||
-			filtroAno !== new Date().getFullYear() ||
-			filtroTipo !== 'todos'
-	);
+	const temFiltros = $derived(temFiltrosAtivos(snapshotFiltros(), PADRAO));
 
 	function handleExcluir() {
 		pendingExcluir = true;
@@ -331,13 +332,7 @@
 		else if (data.initialView === 'home') filtroStatus = '';
 	});
 
-	const tituloLista = $derived(
-		filtroStatus === 'arquivada'
-			? 'Escalas criadas (arquivo)'
-			: filtroStatus === 'aguardando'
-				? 'Escalas aguardando ass'
-				: 'Arquivo'
-	);
+	const tituloLista = $derived(tituloDaLista(filtroStatus));
 
 	const podeAssinar = $derived(data.podeAssinar);
 	const escalasParaAssinar = $derived(data.escalasParaAssinar);
