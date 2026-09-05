@@ -20,6 +20,7 @@
 	import ChipNivel from '../_components/ChipNivel.svelte';
 	import FiltrosToggle from '../_components/FiltrosToggle.svelte';
 	import Paginacao from '../_components/Paginacao.svelte';
+	import CardExpansivel from '../_components/CardExpansivel.svelte';
 	import { parseJson } from '../_components/parse-json';
 
 	const { data }: PageProps = $props();
@@ -260,18 +261,9 @@
 			{#each data.logs as log (log.id)}
 				{@const ctx = parseJson(log.contexto)}
 
-				<div
-					class="rounded-xl card-elevated p-4 space-y-3 cursor-pointer transition-colors active:bg-surface-100 dark:active:bg-surface-800/40"
-					role="button"
-					tabindex="0"
-					aria-expanded={expandido === log.id}
-					onclick={() => (expandido = expandido === log.id ? null : log.id)}
-					onkeydown={(e) => {
-						if (e.key === 'Enter' || e.key === ' ') {
-							e.preventDefault();
-							expandido = expandido === log.id ? null : log.id;
-						}
-					}}
+				<CardExpansivel
+					aberto={expandido === log.id}
+					onalternar={() => (expandido = expandido === log.id ? null : log.id)}
 				>
 					<div class="flex items-center justify-between gap-2">
 						<ChipNivel nivel={log.level} fallback="warn" />
@@ -346,7 +338,7 @@
 							{/if}
 						</div>
 					{/if}
-				</div>
+				</CardExpansivel>
 			{/each}
 		</div>
 	{:else}
