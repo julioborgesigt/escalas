@@ -7,6 +7,7 @@
  * rota /validar, que só verifica.
  */
 
+import { env as envPrivate } from '$env/dynamic/private';
 import { logger } from '../logger';
 
 /**
@@ -64,9 +65,18 @@ const HASH_PLACEHOLDER_ZEROS = '0'.repeat(64);
  * `PA_AD_RB_HASH_HEX` (64 hex), mas REJEITA o placeholder histórico de zeros,
  * caindo no valor oficial embutido — assim nunca emitimos um `sigPolicyHash`
  * sabidamente inválido em produção.
+ *
+ * Lê `$env/dynamic/private` ANTES de `process.env` porque no Pages é ali que a
+ * variável do painel aparece: lendo só `process.env`, a sobrescrita anunciada
+ * acima simplesmente não acontecia em produção — o valor embutido vencia
+ * sempre, em silêncio. Aqui o custo era baixo (o default é o hash oficial), mas
+ * a fonte errada é a mesma de `chaveRateLimitIp`, onde custava a proteção.
  */
 export function resolverHashPolitica(): string {
-	const env = (typeof process !== 'undefined' && process.env?.PA_AD_RB_HASH_HEX) || '';
+	const env =
+		envPrivate?.PA_AD_RB_HASH_HEX ||
+		(typeof process !== 'undefined' && process.env?.PA_AD_RB_HASH_HEX) ||
+		'';
 	const limpo = env.trim().toLowerCase();
 	if (limpo === HASH_PLACEHOLDER_ZEROS) {
 		logger.warn(

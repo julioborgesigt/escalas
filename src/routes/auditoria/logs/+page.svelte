@@ -20,6 +20,7 @@
 	import ChipNivel from '../_components/ChipNivel.svelte';
 	import FiltrosToggle from '../_components/FiltrosToggle.svelte';
 	import Paginacao from '../_components/Paginacao.svelte';
+	import CardExpansivel from '../_components/CardExpansivel.svelte';
 	import { parseJson } from '../_components/parse-json';
 
 	const { data }: PageProps = $props();
@@ -69,7 +70,7 @@
 
 <svelte:head><title>Logs técnicos — Escalas PC</title></svelte:head>
 
-<div class="max-w-7xl mx-auto p-4 sm:p-6 space-y-6">
+<div class="space-y-6">
 	<header class="flex flex-wrap items-center justify-between gap-3">
 		<div>
 			<a
@@ -96,9 +97,7 @@
 	</div>
 
 	<!-- Filtros (GET → URL) -->
-	<div
-		class="rounded-xl border border-surface-200 dark:border-white/10 bg-surface-50 dark:bg-surface-900 p-4 space-y-4"
-	>
+	<div class="rounded-xl card-elevated p-4 space-y-4">
 		<FiltrosToggle ativos={filtrosAtivos} bind:expandidos={filtrosExpandidos} />
 
 		<form
@@ -170,9 +169,7 @@
 
 	{#if data.logs.length > 0}
 		<!-- Tabela (Desktop) -->
-		<div
-			class="hidden md:block table-wrap rounded-xl border border-surface-200 dark:border-white/10 bg-surface-50 dark:bg-surface-900"
-		>
+		<div class="hidden md:block table-wrap rounded-xl card-elevated">
 			<table class="table w-full text-sm">
 				<thead
 					class="text-left text-xs uppercase tracking-wide text-surface-600 dark:text-surface-400 border-b border-surface-200 dark:border-white/10"
@@ -264,18 +261,9 @@
 			{#each data.logs as log (log.id)}
 				{@const ctx = parseJson(log.contexto)}
 
-				<div
-					class="rounded-xl border border-surface-200 dark:border-white/10 bg-surface-50 dark:bg-surface-900 p-4 space-y-3 cursor-pointer transition-colors active:bg-surface-100 dark:active:bg-surface-800/40"
-					role="button"
-					tabindex="0"
-					aria-expanded={expandido === log.id}
-					onclick={() => (expandido = expandido === log.id ? null : log.id)}
-					onkeydown={(e) => {
-						if (e.key === 'Enter' || e.key === ' ') {
-							e.preventDefault();
-							expandido = expandido === log.id ? null : log.id;
-						}
-					}}
+				<CardExpansivel
+					aberto={expandido === log.id}
+					onalternar={() => (expandido = expandido === log.id ? null : log.id)}
 				>
 					<div class="flex items-center justify-between gap-2">
 						<ChipNivel nivel={log.level} fallback="warn" />
@@ -350,12 +338,12 @@
 							{/if}
 						</div>
 					{/if}
-				</div>
+				</CardExpansivel>
 			{/each}
 		</div>
 	{:else}
 		<div
-			class="rounded-xl border border-surface-200 dark:border-white/10 p-10 text-center bg-surface-50 dark:bg-surface-900 text-surface-600 dark:text-surface-400 text-sm"
+			class="rounded-xl card-elevated p-10 text-center text-surface-600 dark:text-surface-400 text-sm"
 		>
 			Nenhum log encontrado para os filtros atuais.
 		</div>

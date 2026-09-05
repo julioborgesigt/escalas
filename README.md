@@ -200,7 +200,7 @@ O projeto usa **Cloudflare D1** (SQLite serverless) via **Drizzle ORM**. O schem
 | `cadastro_solicitacoes`          | Pedidos de correção de CAMPO do cadastro (uma linha por campo), com justificativa e solicitante                              |
 | `policial_acao_solicitacoes`     | Pedidos de movimentação/afastamento/desvinculação aguardando o Admin Geral, com a portaria anexa no R2                       |
 | `administradores`                | Admins gerais do sistema                                                                                                     |
-| `sessoes`                        | Sessões ativas (token, tipo, expiração em 8h)                                                                                |
+| `sessoes`                        | Sessões ativas (token, tipo, expiração em 1h de inatividade)                                                                                |
 | `escalas`                        | Escalas de plantão, expediente e FDS                                                                                         |
 | `escala_policiais`               | Associação policial ↔ escala (data, horário, equipe)                                                                         |
 | `escala_documentos`              | PDFs assinados com metadados CAdES-LT (OCSP, TST, selfie, GPS, IP)                                                           |
@@ -313,6 +313,8 @@ npm run docs:inventario    # Inventário de documentação (cabeçalhos, contrat
 npm run docs:guard         # Falha se arquivo NOVO em lib/db vier sem doc (roda no CI)
 npm run guard:autorizacao  # Falha se operação material não recusar ninguém (roda no CI)
 npm run guard:duplicacao   # Falha em bloco de 10 linhas copiado entre arquivos (roda no CI)
+npm run guard:achados      # Falha se sigla de achado citada no código não tiver onde ser lida (roda no CI)
+npm run guard:entrada      # Falha se campo de FormData for lido sem limite no servidor (roda no CI)
 
 # Testes
 npm run test               # Vitest (run once)
@@ -1399,7 +1401,7 @@ center.
 1. Usuário informa matrícula + senha
 2. Servidor verifica com PBKDF2-HMAC-SHA256 (100k iterações — teto do runtime da Cloudflare —, salt 16 bytes, timing-safe). Em produção, a senha passa antes por HMAC com o `PASSWORD_PEPPER` (formato `pbkdf2v3`) — ver [`DEPLOY.md`](DEPLOY.md#hashing-de-senha-e-o-password_pepper)
 3. 2FA: gera código de 6 dígitos e envia por e-mail (fail-closed — conta sem e-mail cadastrado não recebe sessão)
-4. Sessão criada com token de 256 bits, expira em 8 horas (`SESSION_TTL_MS` em `src/lib/auth.ts`)
+4. Sessão criada com token de 256 bits, expira em **1 hora de inatividade** — qualquer requisição de gente renova o relógio no banco e no cookie (`SESSION_TTL_MS` em `src/lib/auth.ts`; o poll de fundo não conta como atividade, ver [`DEPLOY.md`](DEPLOY.md#duração-da-sessão))
 5. Sessão armazenada em cookie `session_token` (httpOnly, secure, SameSite=strict)
 
 Alternativa: **login por certificado digital A3** (e-CPF ICP-Brasil) via `/api/auth/certificado/*`, dispensa senha e 2FA por e-mail. Além da assinatura do desafio e da cadeia ICP-Brasil, o login consulta a **revogação (OCSP)** do certificado: um e-CPF revogado é recusado; se o responder da AC estiver indisponível, o login prossegue e registra `metadados.ocsp = 'unknown'` na auditoria (soft-fail). O botão existe nas duas abas do `/login`: na aba **Policial** cria sessão operacional; na aba **Administrador** (`comoAdmin`) resolve a conta admin vinculada ao policial do certificado e cria sessão de administrador no módulo escolhido.
@@ -1855,12 +1857,17 @@ O arquivo [`TESTING.md`](TESTING.md) é o roteiro de **exceção**: cobre o que 
 Faça push ou abra PR para as branches `main` ou `staging`. O GitHub Actions (`.github/workflows/deploy.yml`) executa automaticamente:
 
 1. `npm run lint:ci` + `npm run format:check` + `npm run format:check:e2e`
-2. `npx svelte-check --threshold error`
-3. `npx vitest run`
-4. `npm run build`
-5. Guards de padrão (erros de API via `$lib/server/api`, permissão de documento assinado)
-6. Migrações D1 locais + `npx playwright test` (E2E)
-7. `wrangler pages deploy` (push em `staging` gera um _preview deployment_ com D1/R2 dedicados)
+2. `npm run knip` (código e exports mortos)
+3. `npx svelte-check --threshold error`
+4. `npx vitest run --coverage`
+5. `npm run build`
+6. **Oito guards**, cada um num passo próprio: convenção de testes (`__tests__/`), padrão de erros de API
+   (`$lib/server/api`), permissão de documento assinado, `guard:autorizacao`, `guard:duplicacao`,
+   `guard:achados`, `guard:entrada` e `docs:guard`
+7. Migrações D1 locais + `npx playwright test` (E2E)
+8. Migração D1 do ambiente alvo **e** `wrangler pages deploy` (push em `staging` gera um
+   _preview deployment_ com D1/R2 dedicados) — a migração roda ANTES do deploy, e falhar nela
+   impede o deploy
 
 ### Deploy manual
 
