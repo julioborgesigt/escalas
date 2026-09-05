@@ -45,9 +45,10 @@ import { mensagemDeErro } from '$lib/utils/erro';
  * a admin_seccional/admin_unidade. O caminho legítimo permanece sendo o
  * endpoint dedicado `salvarPapel` em /policiais/[id] (Admin Geral via UI).
  */
-function papelChangesAllowed(env: unknown): boolean {
-	if (!env || typeof env !== 'object') return false;
-	const raw = (env as Record<string, unknown>).WEBHOOK_ALLOW_PAPEL_CHANGES;
+function papelChangesAllowed(
+	env: Pick<Env, 'WEBHOOK_ALLOW_PAPEL_CHANGES'> | null | undefined
+): boolean {
+	const raw = env?.WEBHOOK_ALLOW_PAPEL_CHANGES;
 	if (typeof raw !== 'string') return false;
 	const v = raw.trim().toLowerCase();
 	return v === '1' || v === 'true' || v === 'yes' || v === 'on';

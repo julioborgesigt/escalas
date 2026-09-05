@@ -42,12 +42,14 @@ Leia a coluna "Se faltar" mesmo das variáveis que você decidir não usar. Ela 
 - 💡 marca dica de operação.
 - 🔐 marca segredo que precisa ir para o cofre.
 
-## Duas divergências conhecidas na documentação do repositório
+## O que esta apostila já consertou no repositório
 
-Encontradas ao preparar esta apostila. Elas estão corrigidas **aqui**, mas você vai encontrá-las nos documentos originais:
+Escrever este documento do começo ao fim expôs pontos em que a documentação afirmava um estado que o código já não tinha. Eles foram **corrigidos no mesmo ciclo**, e ficam registrados aqui porque explicam decisões que você vai encontrar:
 
-1. **`scripts/hash-password.ts` não existe.** O `DEPLOY.md` manda gerar o hash da senha de bootstrap com `HASH_PASSWORD=SENHA npx tsx scripts/hash-password.ts`. Esse arquivo nunca foi commitado. O apêndice E traz um script equivalente, testado, que produz exatamente o formato que o sistema aceita.
-2. **A duração da sessão é 1 hora, não 8.** O `README.md` ainda diz 8 horas; o código está em 1 hora de inatividade (`SESSION_TTL_MS`), com o `DEPLOY.md` correto. Comunique 1 hora aos usuários.
+1. **`scripts/hash-senha.mjs` passou a existir.** O `DEPLOY.md` mandava gerar o hash da senha de bootstrap com um `scripts/hash-password.ts` que nunca foi commitado. O script agora existe, tem teste que executa o arquivo de verdade e confere a saída contra o `verificarSenha` do login, e o runbook aponta para ele. Ver apêndice D.
+2. **A duração da sessão é 1 hora de inatividade**, não 8 — o `README.md` dizia 8 em dois lugares e foi corrigido.
+3. **O salt do rate-limit era lido da fonte errada.** `RATE_LIMIT_IP_SALT` só era lido de `process.env`, que no Pages não é a fonte canônica, enquanto o `/api/health` conferia sua presença em `platform.env`. Ou funcionava por acidente da data de compatibilidade, ou a proteção estava desligada com o failsafe verde. As duas metades agora leem a mesma fonte.
+4. **O tipo `Env` (`src/app.d.ts`) ganhou as dez variáveis que faltavam**, entre elas quatro segredos de proteção. Os casts `as Record<string, unknown>` que as mantinham fora dos tipos saíram — um typo em `WEBHOK_REPLAY_ENFORCE` compilava e desligava a proteção em silêncio.
 
 # Parte 0 — Antes de começar
 
@@ -585,7 +587,7 @@ O sistema tem dois provedores e escolhe o padrão em **Configurações Gerais** 
 
 - **O que é:** não é variável de ambiente — é um **binding**, configurado no painel do projeto (Settings → Functions/Bindings → Email) ou no `wrangler.toml`.
 - **Se faltar:** o caminho Cloudflare tenta a API REST (ver abaixo) e, falhando, cai no Resend.
-- ⚠️ **Armadilha do remetente:** o endereço de envio é **fixo no código** — `sistema@nao-responda.escalaspcce.com.br`, constante `CF_FROM` em `src/lib/server/email.ts`. Se esse domínio não estiver na sua conta Cloudflare com Email Sending habilitado, o envio falha sempre. Para usar domínio próprio, altere a constante.
+- ⚠️ **Armadilha do remetente:** o endereço de envio é **fixo no código** — `sistema@nao-responda.escalaspcce.com.br`, constante `CF_FROM` em `src/lib/server/email.ts`. Se esse domínio não estiver na sua conta Cloudflare com Email Sending habilitado, o envio falha sempre **e o sistema cai no Resend** — que funciona, e por isso ninguém investiga o log `[email/cloudflare]`. Para usar domínio próprio, altere a constante no mesmo PR em que configurar o Email Sending. Não há variável de ambiente para isso de propósito: o serviço só entrega de domínio verificado na conta, então um valor configurável só moveria a falha para o runtime (o motivo está escrito na própria constante).
 
 ### `CLOUDFLARE_API_TOKEN` + `CLOUDFLARE_ACCOUNT_ID`
 
@@ -682,7 +684,7 @@ git add roots.pem intermediates.pem
 git commit -m "chore(icp-brasil): popula trust store ($(date +%F))"
 ```
 
-⚠️ O `.env.example` cita o caminho antigo `src/lib/server/icp-brasil`. O caminho correto é `src/lib/server/assinatura/icp-brasil`.
+💡 O `.env.example` citava o caminho antigo `src/lib/server/icp-brasil`; foi corrigido para `src/lib/server/assinatura/icp-brasil`, que é onde os arquivos vivem.
 
 💡 Existe um workflow mensal (`update-icp-brasil-trust-store.yml`) que roda esse script sozinho e **abre um PR** quando a ITI publica mudanças. Capítulo 27.
 
@@ -1137,7 +1139,7 @@ O workflow declara `contents: write` e `pull-requests: write`. Para que ele cons
 
 O passo tem `continue-on-error: true`, então **a ausência dos secrets não quebra o workflow** — o PR é aberto de qualquer forma; só a notificação falha.
 
-⚠️ Um comentário no arquivo menciona uma variável `vars.NOTIFY` que **não existe** na condição real do passo. Não perca tempo procurando: o que controla é o `continue-on-error` mais a condição de ter havido mudança e PR aberto.
+💡 A notificação vem **ligada** e se desliga pela variável de repositório `NOTIFY=false` (Settings → Secrets and variables → Actions → **Variables**). O gate precisa ser `vars` e não `secrets`: o contexto `secrets` não está disponível em condição de step, então não há como pular o passo "quando os secrets faltarem" — sem eles, o passo falha e o `continue-on-error` segura o workflow. O X vermelho nesse passo é o sinal de notificação configurada pela metade.
 
 **Por que a notificação importa:** o PR pode ficar parado na aba Pull Requests por dias. A ITI eventualmente publica uma cadeia nova, com certificado que **só vai validar depois do merge** — e o sintoma, no sistema, é assinatura qualificada legítima sendo recusada.
 
@@ -1715,9 +1717,9 @@ curl -s "https://<dominio>/api/health?detail=<TOKEN>" | jq
 
 ## Apêndice D — Gerar o hash da senha de bootstrap
 
-⚠️ O `DEPLOY.md` cita `scripts/hash-password.ts`, que **não existe no repositório**. Use o script abaixo — ele produz exatamente o formato que o sistema aceita (`pbkdf2v2:<iterações>:<salt hex>:<hash hex>`, PBKDF2-HMAC-SHA256, 100 000 iterações, salt de 16 bytes, saída de 32 bytes), e foi verificado contra a implementação de `src/lib/crypto/password-hash.ts`.
+O script vive em **`scripts/hash-senha.mjs`**. Ele produz o formato que o sistema aceita (`pbkdf2v2:<iterações>:<salt hex>:<hash hex>` — PBKDF2-HMAC-SHA256, 100 000 iterações, salt de 16 bytes, saída de 32 bytes), e `src/lib/crypto/__tests__/hash-senha-script.test.ts` executa o arquivo de verdade e confere o resultado contra o `verificarSenha` do login, para que os parâmetros não divirjam em silêncio.
 
-Salve como `hash-senha.mjs` (fora do repositório, ou em `scripts/` se quiser versioná-lo):
+Conteúdo, para referência:
 
 ```js
 // Gera hash pbkdf2v2 para SUPER_ADMIN_SENHA / ADMIN_GERAL_SENHA.
@@ -1740,7 +1742,7 @@ console.log(`pbkdf2v2:${ITER}:${hex(salt)}:${hex(bits)}`);
 ```
 
 ```bash
-HASH_PASSWORD='SuaSenhaForte' node hash-senha.mjs
+HASH_PASSWORD='SuaSenhaForte' node scripts/hash-senha.mjs
 # pbkdf2v2:100000:8726693d34de607dffe209dcfa7cc785:08cd5b47...
 ```
 

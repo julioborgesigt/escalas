@@ -103,10 +103,19 @@ jobs:
       #   GMAIL_APP_PASSWORD     — App Password do Gmail (NAO a senha)
       #   ICP_TRUST_NOTIFY_TO    — destinatario(s); separe multiplos com virgula
       #
-      # Se algum dos secrets nao estiver setado, o step e pulado silencioso
-      # (nao quebra o workflow) — controlado pela condicao `vars.NOTIFY ==`.
+      # A notificacao vem LIGADA e se desliga pela variavel de repositorio
+      # `NOTIFY=false` (Settings → Secrets and variables → Actions → Variables).
+      #
+      # O `if` precisa ser `vars`, e nao `secrets`: o contexto `secrets` NAO
+      # esta disponivel em condicao de step, entao nao da para pular o passo
+      # "quando os secrets faltarem" — que era o que o comentario antigo
+      # descrevia e o `if` nao fazia. Sem os secrets, o step FALHA e o
+      # `continue-on-error` segura o workflow; o X vermelho no passo e o sinal
+      # de que a notificacao esta configurada pela metade.
       - name: Notificar por e-mail
-        if: steps.diff.outputs.changed == 'true' && steps.pr.outputs.pull-request-url != ''
+        if: >-
+          vars.NOTIFY != 'false' && steps.diff.outputs.changed == 'true' &&
+          steps.pr.outputs.pull-request-url != ''
         uses: dawidd6/action-send-mail@v18
         continue-on-error: true
         with:

@@ -1054,7 +1054,7 @@ Duas constantes/funções que você deve usar em vez de escrever à mão:
 
 **O TTL da sessão é de 1 hora** (`SESSION_TTL_MS` em `src/lib/auth.ts`), com *sliding*: cada uso estende o vencimento no banco, e o cookie é reemitido junto (§6.3). O plano de remediação LGPD pediu 1 h; o valor só pôde ser reduzido depois que o *sliding* foi consertado nas duas metades.
 
-> 📖 O `README.md` ainda cita 8 horas nesta seção — o código é a fonte de verdade. Quando encontrar divergência assim, o certo é corrigir o documento vivo no mesmo PR em que você mexer na área.
+> 📖 O `README.md` citava 8 horas nesta seção até set/2026 — resquício de antes da remediação do achado A14. Foi corrigido no mesmo ciclo em que esta apostila foi escrita. Quando encontrar divergência assim, o certo é o mesmo: consertar o documento vivo no PR que passar pela área, em vez de anotar a diferença em outro lugar.
 
 ### 9.2 Por que o pepper importa
 

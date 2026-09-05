@@ -33,6 +33,20 @@ function escapeHtml(value: string): string {
 		.replace(/'/g, '&#x27;');
 }
 
+/**
+ * Remetente do caminho Cloudflare — **constante, e o domínio é o da conta**.
+ *
+ * Não há env para isto de propósito: o Cloudflare Email Sending só entrega de
+ * um domínio verificado NA CONTA, então um valor configurável apenas moveria a
+ * falha para o runtime. O preço é uma armadilha de implantação: numa instalação
+ * cujo domínio não seja `escalaspcce.com.br`, este caminho falha SEMPRE e o
+ * sistema cai no Resend — que funciona, e por isso ninguém investiga o log
+ * `[email/cloudflare]`.
+ *
+ * Quem for implantar em outro domínio troca esta constante no mesmo PR em que
+ * configurar o Email Sending. O Resend tem remetente próprio
+ * (`RESEND_FROM_EMAIL`) e não depende daqui.
+ */
 const CF_FROM = 'sistema@nao-responda.escalaspcce.com.br';
 const CF_FROM_NAME = 'Sistema de Escalas - PCCE';
 

@@ -6,6 +6,7 @@
  */
 
 import { and, count, eq, gt } from 'drizzle-orm';
+import { env as envPrivate } from '$env/dynamic/private';
 import { sha256Hex } from '$lib/crypto/digest';
 import { timestampSqliteUtc } from '$lib/db/core';
 import { recoveryAttempts } from '../schema';
@@ -40,9 +41,27 @@ type RecoveryPurpose =
  *
  * Aceita também chaves sintéticas não-IP (ex.: `senha-atual:policial:42`)
  * para throttle por usuário: passam intactas sem salt, hasheadas com salt.
+ *
+ * **O salt vem de `$env/dynamic/private`, não de `process.env`** — e a
+ * diferença já custou a proteção. No Cloudflare Pages, variável do painel
+ * chega ao worker por `platform.env`, que o SvelteKit expõe nesse módulo;
+ * `process.env` depende de flag/data de compatibilidade do runtime e é o
+ * ÚNICO lugar de onde este arquivo lia. Ou funcionava por acidente da
+ * `compatibility_date`, ou o salt nunca chegava aqui e o rate-limit caía no
+ * `/24` em silêncio.
+ *
+ * O que tornava isso indetectável é que o failsafe olhava para o outro lado:
+ * `/api/health?detail=` confere a presença de `RATE_LIMIT_IP_SALT` em
+ * `platform.env` (`SEGREDOS_DE_PROTECAO`), então reportava `ok` para um valor
+ * que o consumidor podia não estar vendo. As duas metades agora leem a mesma
+ * fonte. `process.env` fica como fallback para script/teste fora do worker —
+ * é o mesmo par que `cades-finalizer`, `server-seal` e `trust-store` usam.
  */
 export async function chaveRateLimitIp(ip: string): Promise<string> {
-	const salt = typeof process !== 'undefined' ? process.env?.RATE_LIMIT_IP_SALT?.trim() : undefined;
+	const salt = (
+		envPrivate?.RATE_LIMIT_IP_SALT ??
+		(typeof process !== 'undefined' ? process.env?.RATE_LIMIT_IP_SALT : undefined)
+	)?.trim();
 	if (!salt) return anonimizarIp(ip) ?? ip;
 	const hex = await sha256Hex(`${salt}\x1f${ip}`);
 	return `iph:${hex.slice(0, 40)}`;

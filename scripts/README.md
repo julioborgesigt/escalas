@@ -47,6 +47,14 @@ Este arquivo descreve o objetivo de cada script utilitário e os comandos de ata
   - Local: `npx tsx scripts/clear-passwords-non-admins.ts --yes`
   - Remoto: `npx tsx scripts/clear-passwords-non-admins.ts --remote --yes`
 
+### `hash-senha.mjs`
+
+- **Função:** gera o hash `pbkdf2v2` das senhas de bootstrap (`SUPER_ADMIN_SENHA` / `ADMIN_GERAL_SENHA`), para que a credencial de break-glass não fique em texto claro no painel do Cloudflare.
+- **Uso:** `HASH_PASSWORD='SenhaForte' node scripts/hash-senha.mjs` → cole a saída inteira (com o prefixo `pbkdf2v2:`) na variável.
+- **Por que v2 e não v3:** o bootstrap é conferido SEM o `PASSWORD_PEPPER`, de propósito — é o que mantém a conta root entrando no cenário em que o pepper foi perdido, que é justamente para o que ela existe.
+- **Atalho npm:** não tem; é comando avulso de operação.
+- O casamento com `verificarSenha` é travado por `src/lib/crypto/__tests__/hash-senha-script.test.ts`, que executa o script de verdade — os parâmetros vivem em dois arquivos, e nada além do teste liga as duas metades.
+
 ## Assinatura digital
 
 ### `gerar-selo-institucional.mjs`

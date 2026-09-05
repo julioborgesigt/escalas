@@ -198,13 +198,16 @@ export async function validarReplayProtection(
  * `WEBHOOK_REPLAY_ENFORCE` estiver definida (qualquer valor truthy), faltar
  * headers vira erro 401. Caso contrário, apenas loga.
  *
- * Aceita `unknown` em vez do tipo `Env` gerado pelo wrangler porque a flag é
- * opcional, nem sempre está nos types, e o caller pode passar `platform?.env`
- * direto sem cast.
+ * O parâmetro é o RECORTE do `Env` (`app.d.ts`) que esta função lê, e não
+ * `unknown`: a flag entrou nos types em set/2026, e o cast que existia aqui era
+ * justamente o que a mantinha fora deles — um typo em `WEBHOK_REPLAY_ENFORCE`
+ * compilava e desligava a proteção em silêncio. O recorte também deixa o caller
+ * passar `platform?.env` direto, que continua sendo o uso normal.
  */
-export function replayEnforceLigado(env: unknown): boolean {
-	if (!env || typeof env !== 'object') return false;
-	const raw = (env as Record<string, unknown>).WEBHOOK_REPLAY_ENFORCE;
+export function replayEnforceLigado(
+	env: Pick<Env, 'WEBHOOK_REPLAY_ENFORCE'> | null | undefined
+): boolean {
+	const raw = env?.WEBHOOK_REPLAY_ENFORCE;
 	if (typeof raw !== 'string') return false;
 	const v = raw.trim().toLowerCase();
 	return v === '1' || v === 'true' || v === 'yes' || v === 'on';

@@ -31,10 +31,16 @@ solução de problemas por sintoma.
 
 Ela é derivada de [`DEPLOY.md`](../../DEPLOY.md), [`.env.example`](../../.env.example)
 e dos workflows em `.github/workflows/`, que continuam sendo a referência
-oficial. Duas divergências encontradas ao escrevê-la estão registradas no
-próprio texto: `scripts/hash-password.ts` (citado no `DEPLOY.md`) não existe — o
-apêndice D traz um substituto testado —, e o `README.md` ainda diz que a sessão
-dura 8 horas quando o código está em 1 hora.
+oficial.
+
+Escrevê-la do começo ao fim expôs pontos em que a documentação afirmava um
+estado que o código já não tinha — todos **corrigidos no mesmo ciclo** e
+listados na abertura do próprio documento: o script de hash da senha de
+bootstrap que o runbook mandava usar e não existia (hoje
+[`scripts/hash-senha.mjs`](../../scripts/hash-senha.mjs), com teste), a duração
+da sessão no `README.md`, o caminho do trust store no `.env.example`, a fonte de
+onde `RATE_LIMIT_IP_SALT` era lido e as dez variáveis que faltavam no tipo
+`Env`.
 
 ## Relação com os documentos vivos
 
