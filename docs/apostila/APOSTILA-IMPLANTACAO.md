@@ -1542,7 +1542,7 @@ Se a rotação for inevitável (comprometimento), ela deixa de ser troca de vari
 | Código 2FA não chega | E-mail não configurado ou remetente inválido | Logs do Worker: `[email/cloudflare]` e a resposta do Resend |
 | Envio pela Cloudflare falha sempre | Domínio do `CF_FROM` não é seu | `src/lib/server/email.ts`, constante `CF_FROM` |
 | Login com senha correta é recusado | Hash `v3` com pepper trocado/ausente | `/api/health?detail=` → `checks.senhaPepper` |
-| "Muitas tentativas" para a unidade inteira | `RATE_LIMIT_IP_SALT` ausente (bloqueio por /24) | `checks.rateLimitIpSalt` |
+| "Muitas tentativas" para a unidade inteira | `RATE_LIMIT_IP_SALT` ausente (bloqueio por /24) | `checks.rateLimitIpSalt` **e** `scripts/diagnostico-salt-rate-limit.sql`, que diz se o salt chegou às chaves já gravadas |
 | Sessão cai logo após entrar | Relógio fora de sincronia (o D1 usa UTC) | NTP da máquina que consulta |
 
 💡 A sessão dura **1 hora de inatividade**, com renovação a cada ação real. Quem deixa a aba aberta e volta depois de uma hora encontra o login — é o controle funcionando; vale avisar a corporação.
@@ -1690,6 +1690,11 @@ age-keygen -o backup-key.txt
 # ── Conferência ───────────────────────────────────────────────
 curl -s https://<dominio>/api/health
 curl -s "https://<dominio>/api/health?detail=<TOKEN>" | jq
+
+# O salt do rate-limit chegou às chaves gravadas? (cruze com o health acima —
+# a matriz das quatro combinações está no cabeçalho do arquivo)
+npx wrangler d1 execute escalas-db --remote \
+  --file=scripts/diagnostico-salt-rate-limit.sql
 ```
 
 ## Apêndice C — Permissões dos tokens de API

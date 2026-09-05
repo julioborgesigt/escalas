@@ -68,6 +68,16 @@ Este arquivo descreve o objetivo de cada script utilitário e os comandos de ata
 - **Função:** baixa o PDF oficial da Política de Assinatura ICP-Brasil (PA-AD-RB), calcula o SHA-256 e imprime o valor para configurar `PA_AD_RB_HASH_HEX` em produção (sem o hash exato, o Validador ITI rejeita o `signaturePolicyId`).
 - **Comando direto:** `pwsh scripts/calc-policy-hash.ps1` (Windows PowerShell / PowerShell Core).
 
+## Diagnóstico
+
+### `diagnostico-salt-rate-limit.sql`
+
+- **Função:** responde se o `RATE_LIMIT_IP_SALT` está de fato chegando ao código que grava as chaves de rate-limit — e, quando não estava, desde quando. Duas consultas: o veredito por formato de chave (com o intervalo de cada um) e a linha do tempo por dia.
+- **Uso:** `npx wrangler d1 execute escalas-db --remote --file=scripts/diagnostico-salt-rate-limit.sql`
+- **Por que existe:** até set/2026 o salt era lido só de `process.env`, que no Pages não é a fonte canônica, enquanto o `/api/health?detail=` conferia a presença em `platform.env` — o failsafe podia reportar `ok` para um valor que o consumidor não via. As duas metades foram unificadas, e este arquivo é o que lê o registro que sobrou daquele período (e a verificação de qualquer deploy futuro que mexa na variável).
+- **Não conclui sozinho:** o resultado precisa ser cruzado com a presença da variável no `/api/health?detail=`. A matriz das quatro combinações está no cabeçalho do próprio `.sql`.
+- **LGPD:** a saída traz chave pseudonimizada — as linhas `/24` identificam uma rede. Trate como dado pessoal.
+
 ## Manutenção do repositório
 
 ### `purgar-dump-historico.sh`
