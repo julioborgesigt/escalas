@@ -566,7 +566,8 @@ export async function salvarRespostaGise(
  * - `unidadeIds` é o ESCOPO do admin de unidade/seccional, e é filtro de
  *   SERVIDOR. Lista vazia significa "nenhuma unidade" e devolve zero linhas —
  *   nunca "sem filtro". Casa pela mesma cadeia de precedência que resolve a
- *   unidade de uma equipe: slot → unidade operacional → seccional.
+ *   unidade de uma equipe: slot → unidade operacional → seccional;
+ * - `totalConhecido` pula o `count(*)`. Ver o parâmetro.
  */
 export async function listarTodasRespostasGise(
 	db: Database,
@@ -579,6 +580,24 @@ export async function listarTodasRespostasGise(
 		fim?: string;
 		operacaoId?: number;
 		unidadeIds?: number[];
+		/**
+		 * Total já sabido para ESTE mesmo filtro — pula o `count(*)`.
+		 *
+		 * O painel de produtividade lê a página 1, descobre `totalPages` e busca
+		 * as demais em paralelo. Sem isto, cada uma dessas chamadas refaz um
+		 * `count(*)` sobre a junção de cinco tabelas para chegar ao número que a
+		 * página 1 já devolveu: seis páginas custavam doze consultas, seis delas
+		 * idênticas e descartadas.
+		 *
+		 * Só passe o total obtido com os MESMOS `inicio`/`fim`/`operacaoId`/
+		 * `unidadeIds`. Um total de outro filtro não erra a página devolvida (o
+		 * `WHERE` é o que recorta), mas mente no `total`/`totalPages`.
+		 *
+		 * Não relaxa consistência: contar uma vez e paginar é MAIS coerente que
+		 * contar de novo a cada página, que já podia devolver números diferentes
+		 * entre si se uma escrita caísse no meio do laço.
+		 */
+		totalConhecido?: number;
 	}
 ): Promise<{
 	respostas: Array<{
@@ -649,20 +668,27 @@ export async function listarTodasRespostasGise(
 	}
 	const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
 
-	// Count total
-	const countResult = await db
-		.select({ count: sql<number>`count(*)` })
-		.from(giseRespostasFormulario)
-		.innerJoin(giseEquipes, eq(giseRespostasFormulario.equipe_id, giseEquipes.id))
-		.innerJoin(giseSeccionais, eq(giseEquipes.gise_seccional_id, giseSeccionais.id))
-		// LEFT: equipe legada pode não ter slot. O join precisa estar aqui também,
-		// e não só no SELECT, porque `unidadeDaEquipe` participa do WHERE — sem ele
-		// a contagem e a página divergiriam e a paginação perderia linhas.
-		.leftJoin(giseSeccionalUnidades, eq(giseEquipes.gise_unidade_id, giseSeccionalUnidades.id))
-		.innerJoin(giseEscalas, eq(giseSeccionais.gise_id, giseEscalas.id))
-		.where(whereClause)
-		.get();
-	const total = Number(countResult?.count ?? 0);
+	// Count total — pulado quando o chamador já sabe o total deste mesmo filtro
+	// (ver `totalConhecido`). É a consulta cara do par: a mesma junção de cinco
+	// tabelas da página, sem `LIMIT` para recortá-la.
+	let total: number;
+	if (opts?.totalConhecido !== undefined) {
+		total = opts.totalConhecido;
+	} else {
+		const countResult = await db
+			.select({ count: sql<number>`count(*)` })
+			.from(giseRespostasFormulario)
+			.innerJoin(giseEquipes, eq(giseRespostasFormulario.equipe_id, giseEquipes.id))
+			.innerJoin(giseSeccionais, eq(giseEquipes.gise_seccional_id, giseSeccionais.id))
+			// LEFT: equipe legada pode não ter slot. O join precisa estar aqui também,
+			// e não só no SELECT, porque `unidadeDaEquipe` participa do WHERE — sem ele
+			// a contagem e a página divergiriam e a paginação perderia linhas.
+			.leftJoin(giseSeccionalUnidades, eq(giseEquipes.gise_unidade_id, giseSeccionalUnidades.id))
+			.innerJoin(giseEscalas, eq(giseSeccionais.gise_id, giseEscalas.id))
+			.where(whereClause)
+			.get();
+		total = Number(countResult?.count ?? 0);
+	}
 	const totalPages = Math.ceil(total / limit);
 
 	const resultados = await db
