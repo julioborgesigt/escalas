@@ -222,9 +222,7 @@
 		</details>
 	</div>
 
-	<div
-		class="card p-4 sm:p-6 bg-surface-50 dark:bg-surface-900 border border-surface-200 dark:border-white/10 rounded-2xl space-y-4 sm:space-y-6"
-	>
+	<div class="card-elevated p-4 sm:p-6 rounded-2xl space-y-4 sm:space-y-6">
 		<!-- Exigir foto -->
 		<div class="flex items-start justify-between gap-4">
 			<div class="flex-1">

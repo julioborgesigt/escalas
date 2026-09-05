@@ -45,7 +45,7 @@
 
 <svelte:head><title>Configurações Gerais — Escalas PC</title></svelte:head>
 
-<div class="max-w-3xl mx-auto p-4 sm:p-6 space-y-6">
+<div class="max-w-3xl mx-auto space-y-6">
 	<header>
 		<h1 class="text-2xl font-bold text-surface-900 dark:text-white">Configurações Gerais</h1>
 		<p class="text-sm text-surface-600 dark:text-surface-400">
@@ -53,9 +53,7 @@
 		</p>
 	</header>
 
-	<section
-		class="rounded-xl border border-surface-200 dark:border-white/10 bg-surface-50 dark:bg-surface-900 p-5 space-y-4"
-	>
+	<section class="rounded-xl card-elevated p-5 space-y-4">
 		<div>
 			<h2 class="text-lg font-semibold text-surface-900 dark:text-white">
 				Provedor de e-mail padrão
