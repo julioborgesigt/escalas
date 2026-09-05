@@ -107,6 +107,10 @@ export async function load({ locals, platform, url }: PageServerLoadEvent) {
 	// 200 respostas os números erravam silenciosamente (auditoria 2026-07-16,
 	// achado B-1). Médio prazo: agregar no servidor para o payload parar de
 	// crescer com o histórico.
+	//
+	// `totalConhecido` repassa o total que a 1ª página já pagou: sem ele, cada
+	// página seguinte refazia o mesmo `count(*)` sobre a junção de cinco tabelas
+	// para chegar ao número que já está aqui na mão (auditoria de set/2026).
 	const paginasRestantes =
 		primeira.totalPages > 1
 			? await Promise.all(
@@ -117,7 +121,8 @@ export async function load({ locals, platform, url }: PageServerLoadEvent) {
 							inicio,
 							fim,
 							operacaoId: operacao?.id,
-							unidadeIds: unidadeIdsPermitidas ?? undefined
+							unidadeIds: unidadeIdsPermitidas ?? undefined,
+							totalConhecido: primeira.total
 						})
 					)
 				)

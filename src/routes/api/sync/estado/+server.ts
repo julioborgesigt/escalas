@@ -29,13 +29,14 @@ import { lotacoesAdministradas } from '$lib/server/policial-permissao';
 import { verificarPermissaoGise } from '$lib/server/gise/permissao';
 import { verificarPermissaoEscala } from '$lib/server/escalas/permissao';
 import { lerPapelGise } from '$lib/server/gise/papel-cache';
-import {
-	resumoRecebidosAdmin,
-	resumoEscalasPendentes,
-	carimboPainel,
-	carimboEscala
-} from '$lib/server/escalas/sync-estado';
-import { carimboGise, carimboResGise, carimboGiseList } from '$lib/server/gise/sync-estado';
+import { resumoEscalasPendentes, carimboEscala } from '$lib/server/escalas/sync-estado';
+import { carimboGise, carimboResGise } from '$lib/server/gise/sync-estado';
+// Carimbos GLOBAIS (iguais para todo usuário) vêm da variante cacheada: sem
+// ela, N abas abertas produzem N varreduras idênticas das mesmas tabelas a cada
+// tique. Os carimbos POR USUÁRIO e POR RECURSO acima ficam sem cache — ver o
+// cabeçalho de `escalas/sync-estado-cache.ts`.
+import { carimboPainelDoPoll, resumoRecebidosDoPoll } from '$lib/server/escalas/sync-estado-cache';
+import { carimboGiseListDoPoll } from '$lib/server/gise/sync-estado-cache';
 
 export const GET: RequestHandler = async ({ locals, platform, url }) => {
 	const u = requireAuth(locals);
@@ -76,16 +77,16 @@ export const GET: RequestHandler = async ({ locals, platform, url }) => {
 					const papel = await lerPapelGise(db, u.id);
 					temVinculoGise = papel.isSupervisor || papel.isMembro;
 				}
-				if (temVinculoGise) body.giseList = { stamp: await carimboGiseList(db) };
+				if (temVinculoGise) body.giseList = { stamp: await carimboGiseListDoPoll(db) };
 			})()
 		);
 
 		if (u.tipo === 'admin') {
 			tasks.push(
-				resumoRecebidosAdmin(db).then((r) => {
+				resumoRecebidosDoPoll(db).then((r) => {
 					body.recebidos = r;
 				}),
-				carimboPainel(db).then((stamp) => {
+				carimboPainelDoPoll(db).then((stamp) => {
 					body.painel = { stamp };
 				}),
 				carimboResGise(db, null).then((stamp) => {

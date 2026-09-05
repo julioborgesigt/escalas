@@ -1,10 +1,11 @@
 /**
- * Acesso à Cache API do edge (`caches.default`), compartilhado pelos quatro
- * caches do projeto: sessão (`auth/session-cache`), papel GISE
- * (`gise/papel-cache`), flags de assinatura (`assinatura/cfg-ass-cache`) e
- * pendência de linha de base (`operacoes/linha-base-cache`).
+ * Acesso à Cache API do edge (`caches.default`), compartilhado pelos caches do
+ * projeto: sessão (`auth/session-cache`), papel GISE (`gise/papel-cache`),
+ * flags de assinatura (`assinatura/cfg-ass-cache`), pendência de linha de base
+ * (`operacoes/linha-base-cache`) e os carimbos globais do poll
+ * (`escalas/sync-estado-cache`, `gise/sync-estado-cache`).
  *
- * Os quatro escreviam o mesmo `safeCacheRef` e os mesmos três `try/catch` em
+ * Os quatro primeiros escreviam o mesmo `safeCacheRef` e os mesmos três `try/catch` em
  * volta de `match`/`put`/`delete`. A repetição não era estética: o contrato
  * embutido nela é que **falha de cache nunca propaga**. Cache aqui é sempre
  * otimização — a resposta correta está no D1, e um `caches` ausente (CI, teste,
@@ -88,6 +89,41 @@ export async function gravarJsonEdge(
 	} catch {
 		// ambiente restrito recusa `put` — só perde o cache
 	}
+}
+
+/**
+ * Lê a entrada; em MISS, chama `calcular`, grava e devolve o resultado.
+ *
+ * É o laço ler→calcular→gravar que todo cache daqui escreve à mão. Sai daqui
+ * porque é sempre o MESMO laço; o que continua com quem chama é o que de fato
+ * varia — a chave (com o sufixo de versão) e o TTL, as duas decisões que o
+ * cabeçalho deste módulo já reservava ao chamador.
+ *
+ * **Só serve onde TODO resultado pode ser cacheado.** `session-cache` grava só
+ * sessão válida e por isso não usa este atalho: um `null` de token expirado
+ * viraria entrada de cache, e o cache passaria a afirmar o que ele nunca
+ * verificou. Cache negativo aqui é decisão de quem chama, não default.
+ *
+ * `ttlSeconds <= 0` desliga o cache e cai direto no cálculo — mesmo botão de
+ * `session-cache`, para quando o valor vivo importa mais que a latência.
+ *
+ * Limite conhecido: `lerJsonEdge` devolve `null` tanto para MISS quanto para
+ * uma entrada gravada COM o valor `null`, e este laço não distingue os dois. Um
+ * `calcular` que devolva `null` grava a entrada e depois recalcula sempre —
+ * degrada para "sem cache", nunca para resposta errada. Se algum dia isso pesar,
+ * embrulhe o valor (`{ v: T }`) em vez de mexer aqui.
+ */
+export async function memoEdge<T>(
+	chave: Request,
+	ttlSeconds: number,
+	calcular: () => Promise<T>
+): Promise<T> {
+	if (ttlSeconds <= 0) return calcular();
+	const hit = await lerJsonEdge<T>(chave);
+	if (hit !== null) return hit;
+	const valor = await calcular();
+	await gravarJsonEdge(chave, valor, ttlSeconds);
+	return valor;
 }
 
 /** Remove a entrada (best-effort). Em falha, o TTL natural resolve. */

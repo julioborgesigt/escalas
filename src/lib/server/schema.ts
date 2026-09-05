@@ -691,7 +691,10 @@ export const giseRespostasFormulario = sqliteTable(
 	},
 	(table) => [
 		unique('uq_gise_resposta_policial').on(table.gise_id, table.policial_id),
-		index('idx_gise_respostas_equipe').on(table.gise_id, table.equipe_id)
+		index('idx_gise_respostas_equipe').on(table.gise_id, table.equipe_id),
+		// Busca por policial SEM fixar a GISE — o carimbo de `/api/sync/estado`.
+		// O UNIQUE acima não cobre: `policial_id` não é a coluna líder dele.
+		index('idx_gise_respostas_policial').on(table.policial_id)
 	]
 );
 
@@ -723,7 +726,10 @@ export const gisePresencas = sqliteTable(
 	},
 	(table) => [
 		unique('uq_gise_presenca_policial').on(table.gise_id, table.policial_id),
-		index('idx_gise_presencas_gise').on(table.gise_id)
+		index('idx_gise_presencas_gise').on(table.gise_id),
+		// Busca por policial SEM fixar a GISE — o carimbo de `/api/sync/estado`.
+		// O UNIQUE acima não cobre: `policial_id` não é a coluna líder dele.
+		index('idx_gise_presencas_policial').on(table.policial_id)
 	]
 );
 
