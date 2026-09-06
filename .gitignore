@@ -55,6 +55,9 @@ backup/
 # Drizzle migrations (geradas por drizzle-kit)
 /drizzle
 
+# Lixo local de reinstalação/npm (native addon, cópia de node_modules)
+.tmp-*/
+
 # Playwright — artefatos de execução local (screenshots, traces, last-run)
 test-results/
 playwright-report/

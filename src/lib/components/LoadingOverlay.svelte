@@ -10,8 +10,14 @@
 	 * O `zIndex` é prop porque esta cortina convive com modais que têm z-index
 	 * próprio; o padrão vale para a tela, e o modal que a usa por dentro precisa
 	 * subir. Ver README §10 para a escala de z-index do projeto.
+	 *
+	 * Sem `transition:` no `{#if}`: o Progress do Skeleton (Zag) cria `$derived`
+	 * internos. O outro do Svelte marca a árvore INERT por ~200ms, o machine
+	 * continua sendo lido, e o runtime avisa `derived_inert` (login com
+	 * certificado: overlay some no `afterNavigate` no mesmo flush em que a
+	 * página de login é destruída). A entrada usa animação CSS; a saída é
+	 * imediata — o conteúdo por baixo já está pronto.
 	 */
-	import { fade } from 'svelte/transition';
 	import { Progress } from '@skeletonlabs/skeleton-svelte';
 	import { useScrollLock } from '$lib/composables';
 
@@ -35,8 +41,7 @@
 
 {#if active}
 	<div
-		transition:fade={{ duration: 200 }}
-		class="fixed inset-0 bg-surface-50/80 dark:bg-surface-950/80 backdrop-blur-sm pointer-events-auto cursor-wait"
+		class="overlay-in fixed inset-0 bg-surface-50/80 dark:bg-surface-950/80 backdrop-blur-sm pointer-events-auto cursor-wait"
 		style="z-index: {zIndex};"
 		aria-busy="true"
 		aria-live="polite"
@@ -77,3 +82,17 @@
 		</div>
 	</div>
 {/if}
+
+<style>
+	@keyframes overlay-in {
+		from {
+			opacity: 0;
+		}
+		to {
+			opacity: 1;
+		}
+	}
+	.overlay-in {
+		animation: overlay-in 200ms ease-out;
+	}
+</style>

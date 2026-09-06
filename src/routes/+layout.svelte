@@ -26,11 +26,13 @@
 	 * aceite do termo. `/aceitar-termo` é autenticado e por isso precisa estar
 	 * listado à mão, senão a sidebar aparece atrás do card de aceite.
 	 *
-	 * Duas armadilhas de navegação já resolvidas aqui, ambas invisíveis em teste
+	 * Três armadilhas de navegação já resolvidas aqui, invisíveis em teste
 	 * unitário: o `tick()` antes de `startViewTransition` (sem ele a barra de
-	 * progresso é fotografada ainda em `opacity:0` e nunca aparece) e o
+	 * progresso é fotografada ainda em `opacity:0` e nunca aparece); o
 	 * `afterNavigate(() => loading.hide())`, que solta o overlay quando um
-	 * `loading.show()` anterior a um `goto` ficaria preso pedindo refresh.
+	 * `loading.show()` anterior a um `goto` ficaria preso pedindo refresh; e
+	 * pular o view-transition na troca de chrome do portão (login/senha/termo),
+	 * que deixava `$derived` do Skeleton inertes (`derived_inert`).
 	 */
 	import type { LayoutProps } from './$types';
 	import '../app.css';
@@ -136,7 +138,19 @@
 		if (nav.aberta) {
 			void nav.fechar({ aposNavegacao: true });
 		}
-		if (!document.startViewTransition) return;
+		// Portão (login / senha / termo) ↔ sessão (sidebar): o chrome inteiro
+		// troca. O view-transition deixava a árvore antiga INERT enquanto o
+		// `page` global já tinha mudado, e os `$derived` do Skeleton (Progress
+		// do overlay, Tabs do login) disparavam `derived_inert`.
+		const de = navigation.from?.url.pathname ?? '';
+		const para = navigation.to?.url.pathname ?? '';
+		if (
+			!document.startViewTransition ||
+			ROTAS_SEM_SIDEBAR.includes(de) ||
+			ROTAS_SEM_SIDEBAR.includes(para)
+		) {
+			return;
+		}
 		// await tick() flushes Svelte's pending DOM updates (e.g. nav-progress-visible)
 		// BEFORE startViewTransition captures the old-state screenshot. Without this,
 		// the progress bar is still opacity:0 in the snapshot and never appears.
