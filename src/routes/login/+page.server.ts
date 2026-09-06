@@ -24,12 +24,12 @@ import {
 } from '$lib/auth';
 import { enviarLinkPrimeiroAcesso } from '$lib/server/email';
 import { logger } from '$lib/server/logger';
+import { tentarLogin, LOGIN_WINDOW_MINUTES, cookieOptions } from '$lib/server/auth/auth-flow';
 import {
-	tentarLogin,
-	LOGIN_WINDOW_MINUTES,
-	cookieOptions
-} from '$lib/server/auth/auth-flow';
-import { cookieModuloParaGravar, modulosDaContaAdmin, preferenciaDoCookie } from '$lib/server/auth/admin-modulos';
+	cookieModuloParaGravar,
+	modulosDaContaAdmin,
+	preferenciaDoCookie
+} from '$lib/server/auth/admin-modulos';
 import {
 	contarRecoveryAttempts,
 	registrarRecoveryAttempt
