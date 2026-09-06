@@ -109,12 +109,17 @@ export const load: PageServerLoad = async ({ locals, platform, url, depends }) =
 		}
 	}
 
-	// Meses já ocupados para o picker de nova escala (plantão/expediente)
+	// Meses já ocupados para o picker de nova escala (plantão/expediente).
+	//
+	// A janela de anos é INTERVALO sobre `data_inicio`, não `cast(strftime(...))`:
+	// função sobre a coluna anula `idx_escalas_lotacao_tipo_data`. `data_inicio` é
+	// TEXT `YYYY-MM-DD`, então a comparação lexicográfica é a cronológica. O teto
+	// é exclusivo — o primeiro dia do ano seguinte ao último ano aceito.
 	const anoAtual = new Date().getFullYear();
 	const escalasExistentesBase = and(
 		or(eq(escalasTable.tipo, 'plantao'), eq(escalasTable.tipo, 'expediente'))!,
-		sql`cast(strftime('%Y', ${escalasTable.data_inicio}) as integer) >= ${anoAtual - 1}` as SQL,
-		sql`cast(strftime('%Y', ${escalasTable.data_inicio}) as integer) <= ${anoAtual + 3}` as SQL
+		sql`${escalasTable.data_inicio} >= ${`${anoAtual - 1}-01-01`}` as SQL,
+		sql`${escalasTable.data_inicio} < ${`${anoAtual + 4}-01-01`}` as SQL
 	);
 	const recorteLotacao = lotacaoParam
 		? eq(escalasTable.lotacao, lotacaoParam)
@@ -208,6 +213,9 @@ export const load: PageServerLoad = async ({ locals, platform, url, depends }) =
 			lotacoes: !lotacaoParam ? lotacoesPermitidas : undefined
 		}),
 		listarUnidades(db),
+		// `strftime` aqui é PROJEÇÃO, não predicado: o picker quer ano e mês
+		// separados de cada linha já recortada. Não custa índice nenhum — o
+		// recorte é o `where` acima. Não trocar por intervalo.
 		db
 			.select({
 				lotacao: escalasTable.lotacao,

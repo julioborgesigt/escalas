@@ -38,6 +38,21 @@ import {
 	type Database
 } from './core';
 
+/** `YYYY-MM-01` — o piso do intervalo de um mês. */
+function primeiroDiaDoMes(ano: number, mes: number): string {
+	return `${ano}-${String(mes).padStart(2, '0')}-01`;
+}
+
+/**
+ * `YYYY-MM-01` do mês SEGUINTE — o teto exclusivo do intervalo.
+ *
+ * Exclusivo, e não o último dia do mês, para não precisar saber se fevereiro
+ * tem 28 ou 29. Dezembro vira janeiro do ano seguinte.
+ */
+function primeiroDiaDoMesSeguinte(ano: number, mes: number): string {
+	return mes === 12 ? `${ano + 1}-01-01` : primeiroDiaDoMes(ano, mes + 1);
+}
+
 /**
  * Listagem paginada de escalas, com todos os filtros da UI (lotação, status,
  * mês/ano, tipo, "visto", busca livre). Os parâmetros posicionais são herança
@@ -84,11 +99,31 @@ export async function listarEscalas(
 			opts.lotacoes.length > 0 ? inArray(escalas.lotacao, opts.lotacoes) : sql`1 = 0`
 		);
 	}
-	if (mes) {
+	// Mês e ano viram INTERVALO sobre `data_inicio`, não `strftime`.
+	//
+	// `strftime('%Y', data_inicio) = '2026'` é função sobre a coluna, e função
+	// sobre coluna anula o índice — a mesma lição que `listarTodasRespostasGise`
+	// já carrega escrita (B-1), do outro lado do sistema. Aqui o índice em jogo é
+	// `idx_escalas_lotacao_tipo_data (lotacao, tipo, data_inicio)`, que existia e
+	// não era usado.
+	//
+	// `data_inicio` é TEXT em `YYYY-MM-DD`, então a comparação lexicográfica é a
+	// cronológica — o mesmo contrato que o resto do projeto usa em coluna de
+	// data. O teto é EXCLUSIVO (`<` no primeiro dia do período seguinte) para
+	// não depender de quantos dias o mês tem.
+	if (ano && mes) {
+		conditions.push(sql`${escalas.data_inicio} >= ${primeiroDiaDoMes(ano, mes)}`);
+		conditions.push(sql`${escalas.data_inicio} < ${primeiroDiaDoMesSeguinte(ano, mes)}`);
+	} else if (ano) {
+		conditions.push(sql`${escalas.data_inicio} >= ${`${ano}-01-01`}`);
+		conditions.push(sql`${escalas.data_inicio} < ${`${ano + 1}-01-01`}`);
+	} else if (mes) {
+		// "Todo mês de junho, de QUALQUER ano" não é um intervalo, então este ramo
+		// continua pagando a varredura. É o único que sobra: a tela manda os dois
+		// campos juntos, e mês solto só chega por URL montada à mão.
 		const monthStr = mes.toString().padStart(2, '0');
 		conditions.push(sql`strftime('%m', ${escalas.data_inicio}) = ${monthStr}`);
 	}
-	if (ano) conditions.push(sql`strftime('%Y', ${escalas.data_inicio}) = ${ano.toString()}`);
 	if (tipo && tipo !== 'todos')
 		conditions.push(eq(escalas.tipo, tipo as 'plantao' | 'expediente' | 'fds'));
 	if (visto !== undefined) conditions.push(eq(escalas.visto_por_admin, visto ? 1 : 0));

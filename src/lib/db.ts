@@ -166,6 +166,7 @@ export {
 	buscarGiseEscala,
 	criarGiseEscala,
 	buscarGiseDetalhado,
+	buscarGiseDetalhadoEmLote,
 	atualizarGiseEscala,
 	finalizarGiseEscala,
 	upsertGiseSeccional,

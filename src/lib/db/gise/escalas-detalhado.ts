@@ -396,6 +396,38 @@ export async function listarGiseEscalas(
  * de verdade contra o D1 local.
  */
 export async function buscarGiseDetalhado(db: Database, id: number): Promise<GiseDetalhado | null> {
+	return (await buscarGiseDetalhadoEmLote(db, [id])).get(id) ?? null;
+}
+
+/**
+ * A versão em LOTE: as mesmas duas idas ao banco para N escalas.
+ *
+ * Existe porque o export do histórico chamava `buscarGiseDetalhado` num laço —
+ * 13 consultas por escala, em série. Quarenta escalas eram 520 idas ao D1, e o
+ * comentário que defendia o laço dizia que paralelizar "aumentaria a chance de
+ * estourar o limite de subrequests". Paralelizar não muda a QUANTIDADE de
+ * subrequests, só a concorrência: o que muda a quantidade é buscar em lote.
+ *
+ * O agrupamento em memória custa quase nada além do que já se fazia porque as
+ * chaves envolvidas — id de slot, de seccional e de equipe — são PKs, únicas
+ * ENTRE escalas. Duas exceções, e são as que exigem cuidado:
+ *
+ *  - **presença** é `(gise_id, policial_id)`: o mesmo policial tem uma linha por
+ *    escala, então a chave do mapa precisa das duas partes. Chavear só por
+ *    policial faria a presença de uma escala vazar para outra;
+ *  - **assinaturas de relatório extra** viram `count(*)` com `GROUP BY gise_id`,
+ *    em vez de um count por escala.
+ *
+ * Devolve um `Map` por id. Escala inexistente simplesmente não aparece — quem
+ * quiser `null` usa `buscarGiseDetalhado`.
+ */
+export async function buscarGiseDetalhadoEmLote(
+	db: Database,
+	ids: readonly number[]
+): Promise<Map<number, GiseDetalhado>> {
+	const alvo = [...new Set(ids)];
+	if (alvo.length === 0) return new Map();
+
 	const [
 		giseRows,
 		documentoRows,
@@ -407,8 +439,8 @@ export async function buscarGiseDetalhado(db: Database, id: number): Promise<Gis
 		assExtraRows,
 		todosSlotsUnidade
 	] = await db.batch([
-		db.select().from(giseEscalas).where(eq(giseEscalas.id, id)).limit(1),
-		db.select().from(giseDocumentos).where(eq(giseDocumentos.gise_id, id)).limit(1),
+		db.select().from(giseEscalas).where(inArray(giseEscalas.id, alvo)),
+		db.select().from(giseDocumentos).where(inArray(giseDocumentos.gise_id, alvo)),
 		db
 			.select({
 				id: giseSeccionais.id,
@@ -422,7 +454,7 @@ export async function buscarGiseDetalhado(db: Database, id: number): Promise<Gis
 			})
 			.from(giseSeccionais)
 			.innerJoin(unidades, eq(giseSeccionais.seccional_id, unidades.id))
-			.where(eq(giseSeccionais.gise_id, id))
+			.where(inArray(giseSeccionais.gise_id, alvo))
 			.orderBy(asc(unidades.nome)),
 		// Colunas de UMA tabela só, e isto não é estilo — é o que torna a consulta
 		// segura dentro de `db.batch()`. Ver "A armadilha do batch com join" no
@@ -446,7 +478,7 @@ export async function buscarGiseDetalhado(db: Database, id: number): Promise<Gis
 			})
 			.from(giseEquipes)
 			.innerJoin(giseSeccionais, eq(giseEquipes.gise_seccional_id, giseSeccionais.id))
-			.where(eq(giseSeccionais.gise_id, id)),
+			.where(inArray(giseSeccionais.gise_id, alvo)),
 		db
 			.select({
 				id: giseMembros.id,
@@ -464,24 +496,30 @@ export async function buscarGiseDetalhado(db: Database, id: number): Promise<Gis
 			.innerJoin(policiais, eq(giseMembros.policial_id, policiais.id))
 			.innerJoin(giseEquipes, eq(giseMembros.equipe_id, giseEquipes.id))
 			.innerJoin(giseSeccionais, eq(giseEquipes.gise_seccional_id, giseSeccionais.id))
-			.where(eq(giseSeccionais.gise_id, id)),
-		db.select().from(gisePresencas).where(eq(gisePresencas.gise_id, id)),
+			.where(inArray(giseSeccionais.gise_id, alvo)),
+		db.select().from(gisePresencas).where(inArray(gisePresencas.gise_id, alvo)),
 		db
-			.select({ equipe_seccional_id: giseEquipes.gise_seccional_id })
+			.select({
+				gise_id: giseRespostasFormulario.gise_id,
+				equipe_seccional_id: giseEquipes.gise_seccional_id
+			})
 			.from(giseRespostasFormulario)
 			.innerJoin(giseMembros, eq(giseRespostasFormulario.policial_id, giseMembros.policial_id))
 			.innerJoin(giseEquipes, eq(giseMembros.equipe_id, giseEquipes.id))
-			.where(eq(giseRespostasFormulario.gise_id, id)),
+			.where(inArray(giseRespostasFormulario.gise_id, alvo)),
 		db
-			.select({ count: sql<number>`count(*)` })
+			.select({
+				gise_id: giseAssinaturasRelatorios.gise_id,
+				count: sql<number>`count(*)`
+			})
 			.from(giseAssinaturasRelatorios)
 			.where(
 				and(
-					eq(giseAssinaturasRelatorios.gise_id, id),
+					inArray(giseAssinaturasRelatorios.gise_id, alvo),
 					eq(giseAssinaturasRelatorios.tipo, 'extraordinario')
 				)
 			)
-			.limit(1),
+			.groupBy(giseAssinaturasRelatorios.gise_id),
 		// Slots de unidade por seccional (LEFT JOIN: `unidade_id` pode ser null).
 		db
 			.select({
@@ -493,23 +531,20 @@ export async function buscarGiseDetalhado(db: Database, id: number): Promise<Gis
 			.from(giseSeccionalUnidades)
 			.leftJoin(unidades, eq(giseSeccionalUnidades.unidade_id, unidades.id))
 			.innerJoin(giseSeccionais, eq(giseSeccionalUnidades.gise_seccional_id, giseSeccionais.id))
-			.where(eq(giseSeccionais.gise_id, id))
+			.where(inArray(giseSeccionais.gise_id, alvo))
 			.orderBy(asc(giseSeccionalUnidades.id))
 	]);
 
-	const gise = giseRows[0];
-	if (!gise) return null;
-	const documento = documentoRows[0] ?? null;
-	const assExtraRow = assExtraRows[0];
+	if (giseRows.length === 0) return new Map();
 
-	// Segunda ida: o quadro de supervisão, por ids que só existem depois de ler a
-	// escala. Uma consulta para os quatro papéis — o mapa por id também cobre a
-	// mesma pessoa acumulando dois deles.
+	// Segunda ida: o quadro de supervisão de TODAS as escalas, por ids que só
+	// existem depois de lê-las. Uma consulta para os quatro papéis de todas — o
+	// mapa por id também cobre a mesma pessoa acumulando dois deles.
 	const idsQuadro = [
 		...new Set(
-			[gise.supervisor_id, gise.assessor_id, gise.seint1_id, gise.seint2_id].filter(
-				(v): v is number => v != null
-			)
+			giseRows
+				.flatMap((g) => [g.supervisor_id, g.assessor_id, g.seint1_id, g.seint2_id])
+				.filter((v): v is number => v != null)
 		)
 	];
 	const quadro = new Map<number, { nome: string; matricula: string; telefone: string | null }>();
@@ -526,16 +561,28 @@ export async function buscarGiseDetalhado(db: Database, id: number): Promise<Gis
 		for (const p of linhas) quadro.set(p.id, p);
 	}
 	const doQuadro = (pid: number | null) => (pid == null ? undefined : quadro.get(pid));
-	const supervisorRow = doQuadro(gise.supervisor_id);
-	const assessorRow = doQuadro(gise.assessor_id);
-	const seint1Row = doQuadro(gise.seint1_id);
-	const seint2Row = doQuadro(gise.seint2_id);
 
-	const temSaidaConfirmada = todasPresencas.some((p) => p.saida_timestamp !== null);
-
-	// Índices em memória para lookups O(1)
-	const presencaMap = new Map(todasPresencas.map((p) => [p.policial_id, p]));
+	// Índices em memória para lookups O(1). Slot, seccional e equipe são PKs —
+	// únicos entre escalas —, então um mapa só serve o lote inteiro. Presença
+	// NÃO é: a chave carrega o gise, senão a presença de uma escala apareceria
+	// na outra para o mesmo policial.
+	const chavePresenca = (giseId: number, policialId: number) => `${giseId}:${policialId}`;
+	const presencaMap = new Map(
+		todasPresencas.map((p) => [chavePresenca(p.gise_id, p.policial_id), p])
+	);
 	const seccionalComRespostas = new Set(todasRespostas.map((r) => r.equipe_seccional_id));
+	const documentoPorGise = new Map(documentoRows.map((d) => [d.gise_id, d]));
+	const assExtraPorGise = new Map(assExtraRows.map((a) => [a.gise_id, Number(a.count ?? 0)]));
+
+	const saidaConfirmadaPorGise = new Set(
+		todasPresencas.filter((p) => p.saida_timestamp !== null).map((p) => p.gise_id)
+	);
+
+	const secsPorGise = new Map<number, typeof secsRows>();
+	for (const sec of secsRows) {
+		if (!secsPorGise.has(sec.gise_id)) secsPorGise.set(sec.gise_id, []);
+		secsPorGise.get(sec.gise_id)!.push(sec);
+	}
 
 	// Agrupa slots por seccional
 	const slotsPorSeccional = new Map<number, typeof todosSlotsUnidade>();
@@ -567,60 +614,71 @@ export async function buscarGiseDetalhado(db: Database, id: number): Promise<Gis
 		membrosPorEquipe.get(m.equipe_id)!.push(m);
 	}
 
-	function buildEquipes(rows: typeof todasEquipes) {
+	/** `giseId` entra porque a presença é por (escala, policial), não por policial. */
+	function buildEquipes(rows: typeof todasEquipes, giseId: number) {
 		return rows.map((equipe) => {
 			const membrosRaw = membrosPorEquipe.get(equipe.id) ?? [];
 			const membros = membrosRaw.map((m) => ({
 				...m,
-				presenca: presencaMap.get(m.policial_id) ?? null
+				presenca: presencaMap.get(chavePresenca(giseId, m.policial_id)) ?? null
 			}));
 			return { ...equipe, membros };
 		});
 	}
 
-	const seccionais = secsRows.map((sec) => {
-		const slots = slotsPorSeccional.get(sec.id) ?? [];
+	const saida = new Map<number, GiseDetalhado>();
+	for (const gise of giseRows) {
+		const seccionais = (secsPorGise.get(gise.id) ?? []).map((sec) => {
+			const slots = slotsPorSeccional.get(sec.id) ?? [];
 
-		let unidades: GiseUnidadeSlot[] = [];
-		if (slots.length > 0) {
-			unidades = slots.map((slot) => ({
-				id: slot.id,
-				unidade_id: slot.unidade_id,
-				nome: slot.nome,
-				equipes: buildEquipes(equipesPorUnidade.get(slot.id) ?? [])
-			}));
-		}
-		// Equipes sem unidade (legado ou mal formadas) aparecem em um slot avulso com ID 0
-		const equipesLegado = buildEquipes(equipesSemUnidadePorSeccional.get(sec.id) ?? []);
-		if (equipesLegado.length > 0) {
-			unidades.unshift({ id: 0, unidade_id: null, nome: null, equipes: equipesLegado });
-		}
+			let unidades: GiseUnidadeSlot[] = [];
+			if (slots.length > 0) {
+				unidades = slots.map((slot) => ({
+					id: slot.id,
+					unidade_id: slot.unidade_id,
+					nome: slot.nome,
+					equipes: buildEquipes(equipesPorUnidade.get(slot.id) ?? [], gise.id)
+				}));
+			}
+			// Equipes sem unidade (legado ou mal formadas) aparecem em um slot avulso com ID 0
+			const equipesLegado = buildEquipes(equipesSemUnidadePorSeccional.get(sec.id) ?? [], gise.id);
+			if (equipesLegado.length > 0) {
+				unidades.unshift({ id: 0, unidade_id: null, nome: null, equipes: equipesLegado });
+			}
 
-		return {
-			...sec,
-			unidades,
-			temRespostas: seccionalComRespostas.has(sec.id)
-		};
-	});
+			return {
+				...sec,
+				unidades,
+				temRespostas: seccionalComRespostas.has(sec.id)
+			};
+		});
 
-	return {
-		...gise,
-		seccionais,
-		supervisor_nome: supervisorRow?.nome ?? null,
-		supervisor_matricula: supervisorRow?.matricula ?? null,
-		supervisor_telefone: supervisorRow?.telefone ?? null,
-		assessor_nome: assessorRow?.nome ?? null,
-		assessor_matricula: assessorRow?.matricula ?? null,
-		assessor_telefone: assessorRow?.telefone ?? null,
-		seint1_nome: seint1Row?.nome ?? null,
-		seint1_matricula: seint1Row?.matricula ?? null,
-		seint1_telefone: seint1Row?.telefone ?? null,
-		seint2_nome: seint2Row?.nome ?? null,
-		seint2_matricula: seint2Row?.matricula ?? null,
-		seint2_telefone: seint2Row?.telefone ?? null,
-		documento,
-		totalSeccionais: seccionais.length,
-		assinaturasRelatorioExtra: assExtraRow?.count ?? 0,
-		temSaidaConfirmada
-	};
+		const supervisorRow = doQuadro(gise.supervisor_id);
+		const assessorRow = doQuadro(gise.assessor_id);
+		const seint1Row = doQuadro(gise.seint1_id);
+		const seint2Row = doQuadro(gise.seint2_id);
+
+		saida.set(gise.id, {
+			...gise,
+			seccionais,
+			supervisor_nome: supervisorRow?.nome ?? null,
+			supervisor_matricula: supervisorRow?.matricula ?? null,
+			supervisor_telefone: supervisorRow?.telefone ?? null,
+			assessor_nome: assessorRow?.nome ?? null,
+			assessor_matricula: assessorRow?.matricula ?? null,
+			assessor_telefone: assessorRow?.telefone ?? null,
+			seint1_nome: seint1Row?.nome ?? null,
+			seint1_matricula: seint1Row?.matricula ?? null,
+			seint1_telefone: seint1Row?.telefone ?? null,
+			seint2_nome: seint2Row?.nome ?? null,
+			seint2_matricula: seint2Row?.matricula ?? null,
+			seint2_telefone: seint2Row?.telefone ?? null,
+			documento: documentoPorGise.get(gise.id) ?? null,
+			totalSeccionais: seccionais.length,
+			assinaturasRelatorioExtra: assExtraPorGise.get(gise.id) ?? 0,
+			temSaidaConfirmada: saidaConfirmadaPorGise.has(gise.id)
+		});
+	}
+
+	return saida;
 }
