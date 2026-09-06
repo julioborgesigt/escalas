@@ -60,6 +60,11 @@
 	import BotaoVoltar from '$lib/components/BotaoVoltar.svelte';
 	import BotaoLimparFiltros from '$lib/components/BotaoLimparFiltros.svelte';
 	import ModalShell from '$lib/components/ModalShell.svelte';
+	import {
+		CLASSE_CAIXA_FILTRO,
+		CLASSE_INPUT_SEARCHABLE,
+		CLASSE_ROTULO_FILTRO
+	} from '$lib/gise/filtro-historico-ui';
 	import { mensagemDeErro } from '$lib/utils/erro';
 	import {
 		filtrosPadrao,
@@ -432,10 +437,16 @@
 </svelte:head>
 
 {#if visao === 'home'}
-	<div class="space-y-8 sm:space-y-10">
+	<!-- A folha desta visão é curta (só o título e três atalhos). Sem altura
+	     mínima ela colava no topo e o resto da página ficava vazio; o `calc`
+	     desconta topbar (`pt-20`) e as margens do `<main>` (`pb-12`, e em
+	     `xl` o padding da folha). O título fica no lugar de sempre; os
+	     quadros ocupam o centro do espaço que sobra, um pouco acima do
+	     meio geométrico (`pb-[28vh]`), lado a lado. -->
+	<div class="flex min-h-[calc(100dvh-8rem)] flex-col xl:min-h-[calc(100dvh-11rem)] print:min-h-0">
 		<h1 class="h1 text-2xl font-bold">Escalas ordinárias</h1>
 
-		<div class="flex flex-col items-center gap-4 sm:gap-6">
+		<div class="flex flex-1 items-center justify-center pb-[28vh]">
 			{#if isAdminDPC}
 				<div class="grid grid-cols-1 gap-6 w-full max-w-xs">
 					{#if podeAssinar && escalasParaAssinar.length > 0}
@@ -478,6 +489,7 @@
 					<CardNavegacao
 						titulo="Escalas aguardando ass"
 						descricao="Em preenchimento ou com assinatura pendente"
+						realce="warning"
 						onclick={() => abrirLista('aguardando')}
 					>
 						{#snippet icone()}
@@ -593,81 +605,79 @@
 	</ModalShell>
 
 	<div class="card-glass p-4 rounded-3xl overflow-hidden mt-4">
-		<div
-			class="grid grid-cols-12 gap-2 mb-6 p-3 rounded-2xl bg-surface-100/30 dark:bg-surface-800/20 border border-surface-200 dark:border-white/5 items-end"
-		>
+		<div class="{CLASSE_CAIXA_FILTRO} mb-6 grid grid-cols-12 gap-3 sm:gap-4 items-end">
 			{#if isAdmin}
-				<div class="flex flex-col gap-1 col-span-12 lg:col-span-3">
-					<span class="label-text font-semibold mb-1">Seccional</span>
+				<div class="flex flex-col gap-1.5 col-span-12 lg:col-span-3">
+					<span class={CLASSE_ROTULO_FILTRO}>Seccional</span>
 					<SearchableSelect
 						options={seccionaisOptions}
 						bind:value={filtroSeccional}
 						ariaLabel="Filtrar por seccional"
 						placeholder="Todas as Seccionais"
-						class="[&_input]:px-2.5 [&_input]:py-1.5 [&_input]:text-xs sm:[&_input]:text-sm"
+						class={CLASSE_INPUT_SEARCHABLE}
 					/>
 				</div>
-				<div class="flex flex-col gap-1 col-span-12 lg:col-span-3">
-					<span class="label-text font-semibold mb-1">Unidade de Lotação</span>
+				<div class="flex flex-col gap-1.5 col-span-12 lg:col-span-3">
+					<span class={CLASSE_ROTULO_FILTRO}>Unidade de Lotação</span>
 					<SearchableSelect
 						options={unidadesOptions}
 						bind:value={filtroLotacao}
 						ariaLabel="Filtrar por unidade de lotação"
 						placeholder="Selecione uma unidade..."
-						class="[&_input]:px-2.5 [&_input]:py-1.5 [&_input]:text-xs sm:[&_input]:text-sm"
+						class={CLASSE_INPUT_SEARCHABLE}
 					/>
 				</div>
 			{:else if isAdminSeccional}
-				<div class="flex flex-col gap-1 col-span-12 lg:col-span-6">
-					<span class="label-text font-semibold mb-1">Unidade de Lotação</span>
+				<div class="flex flex-col gap-1.5 col-span-12 lg:col-span-6">
+					<span class={CLASSE_ROTULO_FILTRO}>Unidade de Lotação</span>
 					<SearchableSelect
 						options={unidadesDaSeccionalOptions}
 						bind:value={filtroLotacao}
 						ariaLabel="Filtrar por unidade de lotação"
 						placeholder="Todas as unidades"
-						class="[&_input]:px-2.5 [&_input]:py-1.5 [&_input]:text-xs sm:[&_input]:text-sm"
+						class={CLASSE_INPUT_SEARCHABLE}
 					/>
 				</div>
 			{/if}
 
 			<div
-				class="flex flex-col gap-1 col-span-12 {isAdmin || isAdminSeccional
+				class="flex flex-col gap-1.5 col-span-12 {isAdmin || isAdminSeccional
 					? 'lg:col-span-2'
 					: 'lg:col-span-6'}"
 			>
-				<span class="label-text font-semibold mb-1">Tipo</span>
+				<span class={CLASSE_ROTULO_FILTRO}>Tipo</span>
 				<SearchableSelect
 					options={tiposOptions}
 					bind:value={filtroTipo}
 					ariaLabel="Filtrar por tipo de escala"
 					placeholder="Todos"
-					class="[&_input]:px-2.5 [&_input]:py-1.5 [&_input]:text-xs sm:[&_input]:text-sm"
+					class={CLASSE_INPUT_SEARCHABLE}
 				/>
 			</div>
 
 			<div
-				class="flex flex-col gap-1 col-span-6 {isAdmin || isAdminSeccional
+				class="flex flex-col gap-1.5 col-span-6 {isAdmin || isAdminSeccional
 					? 'lg:col-span-2'
 					: 'lg:col-span-4'}"
 			>
-				<span class="label-text font-semibold mb-1">Mês</span>
+				<span class={CLASSE_ROTULO_FILTRO}>Mês</span>
 				<SearchableSelect
 					options={mesesOptions}
 					bind:value={filtroMes}
 					ariaLabel="Filtrar por mês"
 					placeholder="Todos"
-					class="[&_input]:px-2.5 [&_input]:py-1.5 [&_input]:text-xs sm:[&_input]:text-sm"
+					class={CLASSE_INPUT_SEARCHABLE}
 				/>
 			</div>
 
-			<div class="flex flex-col gap-1 col-span-6 lg:col-span-2">
-				<span class="label-text font-semibold mb-1">Ano</span>
+			<div class="flex flex-col gap-1.5 col-span-6 lg:col-span-2">
+				<span class={CLASSE_ROTULO_FILTRO}>Ano</span>
 				<SearchableSelect
 					options={anosOptions}
 					bind:value={filtroAno}
 					ariaLabel="Filtrar por ano"
 					placeholder="Todos"
-					class="[&_input]:px-2.5 [&_input]:py-1.5 [&_input]:text-xs sm:[&_input]:text-sm"
+					class={CLASSE_INPUT_SEARCHABLE}
 				/>
 			</div>
 		</div>

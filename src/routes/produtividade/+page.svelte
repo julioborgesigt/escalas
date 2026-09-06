@@ -59,6 +59,12 @@
 	import SecaoIndicadores from './_components/SecaoIndicadores.svelte';
 	import BarraOrganizar from './_components/BarraOrganizar.svelte';
 	import CardOrdenavel from './_components/CardOrdenavel.svelte';
+	import {
+		CLASSE_CAIXA_FILTRO_CROMO,
+		CLASSE_INPUT_FILTRO,
+		CLASSE_ROTULO_FILTRO,
+		CLASSE_TITULO_FILTRO
+	} from '$lib/gise/filtro-historico-ui';
 
 	const { data }: PageProps = $props();
 	const p = useProdutividade(() => data);
@@ -74,10 +80,8 @@
 	// A barra tem sete controles com três formas repetidas (rótulo, campo,
 	// segmento). Constantes em vez de string repetida: era assim que o "Tipo de
 	// equipe" e a "Seccional" já divergiam em padding entre si.
-	const ROTULO =
-		'text-3xs font-black uppercase tracking-widest text-surface-400 dark:text-surface-500 pl-0.5 block';
-	const CAMPO =
-		'w-full px-3 py-2.5 rounded-xl border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-950 text-xs font-bold';
+	const ROTULO = `${CLASSE_ROTULO_FILTRO} block`;
+	const CAMPO = `${CLASSE_INPUT_FILTRO} w-full`;
 	const SEGMENTO = 'flex-1 rounded-lg py-1.5 text-xs font-bold transition-colors';
 	const SEG_ON = 'bg-white dark:bg-surface-700 shadow text-primary-600';
 	const SEG_OFF = 'text-surface-600 dark:text-surface-400';
@@ -121,10 +125,7 @@
 	     folha antes do primeiro gráfico. -->
 	<div class="space-y-3 print:hidden">
 		<div class="flex items-center justify-between gap-1.5 sm:gap-2">
-			<span
-				class="shrink-0 text-xs font-bold uppercase tracking-widest text-surface-400 dark:text-surface-500"
-				>Filtros</span
-			>
+			<span class="shrink-0 {CLASSE_TITULO_FILTRO}">Filtros</span>
 			<div class="flex shrink-0 items-center gap-1.5 sm:gap-2">
 				<BotaoLimparFiltros
 					temFiltros={p.filtrosAtivos}
@@ -161,7 +162,7 @@
 
 		{#if p.mostrarFiltros}
 			<section
-				class="overflow-hidden rounded-2xl sm:rounded-3xl border border-surface-200 bg-white dark:border-surface-800 dark:bg-surface-900"
+				class="overflow-hidden {CLASSE_CAIXA_FILTRO_CROMO}"
 				transition:slide={{ duration: 250 }}
 			>
 				<div class="space-y-4 p-3 sm:p-5">
@@ -291,7 +292,7 @@
 								<select
 									id="f-ano"
 									bind:value={p.filterAno}
-									class="w-full lg:w-auto min-w-[120px] px-3 py-2.5 rounded-xl border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-950 text-xs font-bold"
+									class="{CLASSE_INPUT_FILTRO} w-full lg:w-auto min-w-[120px]"
 								>
 									{#each p.anos as ano (ano)}
 										<option value={String(ano)}>{ano}</option>
@@ -302,30 +303,22 @@
 								{#if p.filterAno === 'personalizado'}
 									<div class="flex items-end gap-2 w-full lg:w-auto">
 										<div class="space-y-0.5 flex-1 lg:flex-initial">
-											<label
-												for="f-ini"
-												class="text-3xs font-black text-surface-600 dark:text-surface-400 uppercase tracking-widest block pl-0.5"
-												>De</label
-											>
+											<label for="f-ini" class="{CLASSE_ROTULO_FILTRO} block">De</label>
 											<input
 												id="f-ini"
 												type="date"
 												bind:value={p.filterInicio}
-												class="w-full px-3 py-2 rounded-xl border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-950 text-xs font-bold"
+												class="{CLASSE_INPUT_FILTRO} w-full"
 											/>
 										</div>
 										<span class="text-surface-400 pb-2">—</span>
 										<div class="space-y-0.5 flex-1 lg:flex-initial">
-											<label
-												for="f-fim"
-												class="text-3xs font-black text-surface-600 dark:text-surface-400 uppercase tracking-widest block pl-0.5"
-												>Até</label
-											>
+											<label for="f-fim" class="{CLASSE_ROTULO_FILTRO} block">Até</label>
 											<input
 												id="f-fim"
 												type="date"
 												bind:value={p.filterFim}
-												class="w-full px-3 py-2 rounded-xl border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-950 text-xs font-bold"
+												class="{CLASSE_INPUT_FILTRO} w-full"
 											/>
 										</div>
 									</div>

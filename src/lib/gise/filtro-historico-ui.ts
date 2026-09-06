@@ -1,10 +1,10 @@
 /**
- * Tokens visuais da busca detalhada do histórico GISE.
+ * Tokens visuais das barras de filtro do projeto.
  *
- * `/res-gise` (policial) e `/gise/finalizadas` (admin) compartilham a mesma barra; o admin
- * só acrescenta o seletor de seccional. No telefone os controles ficam um
- * degrau abaixo do desktop (`h-10` / `text-2xs`) para caber na largura do
- * card; a partir de `sm` voltam ao tamanho de leitura (`h-11` / `text-sm`).
+ * A régua é a caixa de `/produtividade`: contorno 1px `surface-200`, fundo da
+ * folha, rótulo `text-3xs` e campo `text-xs` / `py-2.5`. A busca detalhada do
+ * histórico GISE (`/res-gise`, `/gise/finalizadas`) e as listagens reusam estes
+ * tokens para não voltar o drift de `h-11` / `text-sm` / fundo cinza.
  */
 
 export const OPCOES_TIPO_EQUIPE = [
@@ -22,16 +22,29 @@ export const OPCOES_PERIODO = [
 /** "Data específica" não cabe no segmento do telefone; o campo abaixo já diz o nome. */
 export const ROTULO_PERIODO_DATA_MOBILE = 'Data';
 
+/** Título da barra ("Filtros", "Busca detalhada"), fora da caixa. */
+export const CLASSE_TITULO_FILTRO =
+	'text-xs font-bold uppercase tracking-widest text-surface-400 dark:text-surface-500';
+
 export const CLASSE_ROTULO_FILTRO =
-	'text-2xs sm:text-xs font-black text-surface-600 dark:text-surface-400 uppercase tracking-wider ml-0.5';
+	'text-3xs font-black uppercase tracking-widest text-surface-400 dark:text-surface-500 pl-0.5';
 
-export const CLASSE_BARRA_FILTRO =
-	'flex flex-col sm:flex-row sm:flex-wrap xl:flex-nowrap sm:items-end gap-3 sm:gap-2 bg-surface-100/50 dark:bg-surface-800/30 p-3 rounded-xl border border-surface-200 dark:border-surface-800';
+/** Contorno e fundo da caixa — sem padding, para o slide de `/produtividade`. */
+export const CLASSE_CAIXA_FILTRO_CROMO =
+	'rounded-2xl sm:rounded-3xl border border-surface-200 bg-white dark:border-surface-800 dark:bg-surface-900';
 
-export const CLASSE_CAMPO_FILTRO = 'flex w-full min-w-0 flex-col gap-1 sm:w-auto sm:shrink-0';
+/** Só o chrome da caixa — listagens que já têm o próprio `flex`/`grid` por dentro. */
+export const CLASSE_CAIXA_FILTRO = `${CLASSE_CAIXA_FILTRO_CROMO} p-3 sm:p-5`;
+
+export const CLASSE_BARRA_FILTRO = `${CLASSE_CAIXA_FILTRO} flex flex-col sm:flex-row sm:flex-wrap xl:flex-nowrap sm:items-end gap-3 sm:gap-4`;
+
+/** Override do input interno do `SearchableSelect` na barra de filtros. */
+export const CLASSE_INPUT_SEARCHABLE = '[&_input]:!px-3 [&_input]:!py-2.5 [&_input]:!text-xs';
+
+export const CLASSE_CAMPO_FILTRO = 'flex w-full min-w-0 flex-col gap-1.5 sm:w-auto sm:shrink-0';
 
 export const CLASSE_INPUT_FILTRO =
-	'box-border block h-10 sm:h-11 min-w-0 px-2.5 sm:px-3.5 text-xs sm:text-sm rounded-lg border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-900 font-semibold shadow-sm focus:ring-2 focus:ring-primary-500 transition-all';
+	'box-border block min-w-0 px-3 py-2.5 text-xs font-bold rounded-xl border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-950 focus:ring-2 focus:ring-primary-500 transition-all';
 
 /**
  * Campo Ciclo (ano + número). Pode encolher: o `<select>` nativo toma a
@@ -39,7 +52,7 @@ export const CLASSE_INPUT_FILTRO =
  * `sm:shrink-0` + `xl:flex-nowrap`, fura a barra. O fechado recorta; o
  * dropdown aberto continua com o texto inteiro.
  */
-export const CLASSE_CAMPO_CICLO = 'flex w-full min-w-0 flex-col gap-1 sm:w-auto sm:min-w-0';
+export const CLASSE_CAMPO_CICLO = 'flex w-full min-w-0 flex-col gap-1.5 sm:w-auto sm:min-w-0';
 
 export const CLASSE_LINHA_CICLO = 'flex w-full min-w-0 items-center gap-1.5';
 
@@ -54,10 +67,16 @@ export const CLASSE_ENVOLVE_SELECT_CICLO = 'min-w-0 w-[12rem] max-w-[12rem] shri
 
 export const CLASSE_SELECT_NUMERO_CICLO = `${CLASSE_INPUT_FILTRO} w-full max-w-full truncate [field-sizing:fixed]`;
 
-export const CLASSE_SELETOR_SEGMENTO = 'w-full sm:w-fit h-10 sm:h-11';
+export const CLASSE_SELETOR_SEGMENTO = 'w-full sm:w-fit';
 
-export const CLASSE_CONTROLE_SEGMENTO =
-	'inline-flex items-center w-full min-w-0 sm:w-fit h-10 sm:h-11 overflow-hidden rounded-xl border border-surface-200 dark:border-surface-700 bg-surface-100 dark:bg-surface-800 p-0.5 gap-0.5';
+/** Trilho do segmento em largura cheia (cargo em `/policiais`). */
+export const CLASSE_CONTROLE_SEGMENTO_LARGO =
+	'inline-flex items-center w-full min-w-0 overflow-hidden rounded-xl bg-surface-100 dark:bg-surface-800 p-1 gap-0.5';
 
-export const CLASSE_ITEM_SEGMENTO =
-	'flex flex-1 sm:flex-none min-w-0 items-center justify-center h-full px-2 sm:px-3.5 text-center text-2xs sm:text-sm font-semibold leading-tight whitespace-nowrap rounded-lg cursor-pointer select-none transition-colors duration-200 text-surface-600 dark:text-surface-400 data-[state=checked]:bg-primary-500 data-[state=checked]:text-white data-[state=checked]:shadow-md data-[state=checked]:shadow-primary-500/25 hover:text-surface-700 dark:hover:text-surface-200';
+export const CLASSE_CONTROLE_SEGMENTO = `${CLASSE_CONTROLE_SEGMENTO_LARGO} sm:w-fit`;
+
+/** Item que divide o trilho em partes iguais. */
+export const CLASSE_ITEM_SEGMENTO_LARGO =
+	'flex flex-1 min-w-0 items-center justify-center px-3 py-1.5 text-center text-xs font-bold leading-tight whitespace-nowrap rounded-lg cursor-pointer select-none transition-colors duration-200 text-surface-600 dark:text-surface-400 data-[state=checked]:bg-primary-500 data-[state=checked]:text-white data-[state=checked]:shadow-md data-[state=checked]:shadow-primary-500/25 hover:text-surface-700 dark:hover:text-surface-200';
+
+export const CLASSE_ITEM_SEGMENTO = `${CLASSE_ITEM_SEGMENTO_LARGO} sm:flex-none`;

@@ -15,13 +15,18 @@
 	import type { PageProps } from './$types';
 	import ChevronDown from '@lucide/svelte/icons/chevron-down';
 	import ChevronUp from '@lucide/svelte/icons/chevron-up';
-	import ArrowLeft from '@lucide/svelte/icons/arrow-left';
 	import KpiCard from '../_components/KpiCard.svelte';
 	import ChipNivel from '../_components/ChipNivel.svelte';
 	import FiltrosToggle from '../_components/FiltrosToggle.svelte';
 	import Paginacao from '../_components/Paginacao.svelte';
 	import CardExpansivel from '../_components/CardExpansivel.svelte';
 	import { parseJson } from '../_components/parse-json';
+	import BotaoVoltar from '$lib/components/BotaoVoltar.svelte';
+	import {
+		CLASSE_CAIXA_FILTRO,
+		CLASSE_INPUT_FILTRO,
+		CLASSE_ROTULO_FILTRO
+	} from '$lib/gise/filtro-historico-ui';
 
 	const { data }: PageProps = $props();
 
@@ -71,21 +76,13 @@
 <svelte:head><title>Logs técnicos — Escalas PC</title></svelte:head>
 
 <div class="space-y-6">
-	<header class="flex flex-wrap items-center justify-between gap-3">
-		<div>
-			<a
-				href="/auditoria"
-				class="inline-flex items-center gap-1 text-xs text-primary-600 dark:text-primary-400 hover:underline mb-1"
-			>
-				<ArrowLeft class="w-3.5 h-3.5" />
-				Trilha de Auditoria
-			</a>
-			<h1 class="text-2xl font-bold text-surface-900 dark:text-white">Logs técnicos</h1>
-			<p class="text-sm text-surface-600 dark:text-surface-400">
-				Avisos e erros do servidor, correlacionáveis com a auditoria pelo Request ID. O mesmo
-				Request ID é o "código do erro" exibido ao usuário em falhas internas.
-			</p>
-		</div>
+	<header>
+		<BotaoVoltar href="/auditoria" />
+		<h1 class="h1 text-2xl font-bold mt-2">Logs técnicos</h1>
+		<p class="text-sm text-surface-600 dark:text-surface-400">
+			Avisos e erros do servidor, correlacionáveis com a auditoria pelo Request ID. O mesmo Request
+			ID é o "código do erro" exibido ao usuário em falhas internas.
+		</p>
 	</header>
 
 	<!-- KPIs -->
@@ -97,51 +94,59 @@
 	</div>
 
 	<!-- Filtros (GET → URL) -->
-	<div class="rounded-xl card-elevated p-4 space-y-4">
+	<div class="space-y-3">
 		<FiltrosToggle ativos={filtrosAtivos} bind:expandidos={filtrosExpandidos} />
 
 		<form
 			method="GET"
-			class="{filtrosExpandidos
+			class="{CLASSE_CAIXA_FILTRO} {filtrosExpandidos
 				? 'grid'
 				: 'hidden lg:grid'} grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3"
 		>
-			<label class="flex flex-col gap-1 text-sm">
-				<span class="text-surface-600 dark:text-surface-400">Nível</span>
-				<select name="level" class="select">
+			<label class="flex flex-col gap-1.5">
+				<span class={CLASSE_ROTULO_FILTRO}>Nível</span>
+				<select name="level" class="{CLASSE_INPUT_FILTRO} w-full">
 					<option value="" selected={!data.filtros.level}>Todos</option>
 					<option value="warn" selected={data.filtros.level === 'warn'}>Aviso</option>
 					<option value="error" selected={data.filtros.level === 'error'}>Erro</option>
 				</select>
 			</label>
-			<label class="flex flex-col gap-1 text-sm">
-				<span class="text-surface-600 dark:text-surface-400"
-					>Busca (mensagem / contexto / rota)</span
-				>
+			<label class="flex flex-col gap-1.5">
+				<span class={CLASSE_ROTULO_FILTRO}>Busca (mensagem / contexto / rota)</span>
 				<input
 					name="busca"
-					class="input"
+					class="{CLASSE_INPUT_FILTRO} w-full"
 					value={data.filtros.busca ?? ''}
 					placeholder="texto livre"
 				/>
 			</label>
-			<label class="flex flex-col gap-1 text-sm">
-				<span class="text-surface-600 dark:text-surface-400">Request ID</span>
+			<label class="flex flex-col gap-1.5">
+				<span class={CLASSE_ROTULO_FILTRO}>Request ID</span>
 				<input
 					name="request_id"
-					class="input font-mono"
+					class="{CLASSE_INPUT_FILTRO} w-full font-mono"
 					value={data.filtros.request_id ?? ''}
 					placeholder="ex.: 3fa1b2c4"
 				/>
 			</label>
 			<div class="grid grid-cols-2 gap-3">
-				<label class="flex flex-col gap-1 text-sm">
-					<span class="text-surface-600 dark:text-surface-400">De</span>
-					<input type="date" name="de" class="input" value={data.filtros.de ?? ''} />
+				<label class="flex flex-col gap-1.5">
+					<span class={CLASSE_ROTULO_FILTRO}>De</span>
+					<input
+						type="date"
+						name="de"
+						class="{CLASSE_INPUT_FILTRO} w-full"
+						value={data.filtros.de ?? ''}
+					/>
 				</label>
-				<label class="flex flex-col gap-1 text-sm">
-					<span class="text-surface-600 dark:text-surface-400">Até</span>
-					<input type="date" name="ate" class="input" value={data.filtros.ate ?? ''} />
+				<label class="flex flex-col gap-1.5">
+					<span class={CLASSE_ROTULO_FILTRO}>Até</span>
+					<input
+						type="date"
+						name="ate"
+						class="{CLASSE_INPUT_FILTRO} w-full"
+						value={data.filtros.ate ?? ''}
+					/>
 				</label>
 			</div>
 			<div class="flex items-end gap-2 pt-2 lg:pt-0 col-span-1 sm:col-span-2 lg:col-span-4">
@@ -169,7 +174,7 @@
 
 	{#if data.logs.length > 0}
 		<!-- Tabela (Desktop) -->
-		<div class="hidden md:block table-wrap rounded-xl card-elevated">
+		<div class="hidden md:block table-wrap card-elevated rounded-2xl shadow-sm overflow-hidden">
 			<table class="table w-full text-sm">
 				<thead
 					class="text-left text-xs uppercase tracking-wide text-surface-600 dark:text-surface-400 border-b border-surface-200 dark:border-white/10"
@@ -343,7 +348,7 @@
 		</div>
 	{:else}
 		<div
-			class="rounded-xl card-elevated p-10 text-center text-surface-600 dark:text-surface-400 text-sm"
+			class="card-elevated rounded-2xl shadow-sm p-10 text-center text-surface-600 dark:text-surface-400 text-sm"
 		>
 			Nenhum log encontrado para os filtros atuais.
 		</div>

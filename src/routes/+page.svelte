@@ -15,7 +15,7 @@
 		>
 			<Check class="w-8 h-8 text-success-500" aria-hidden="true" />
 		</div>
-		<h1 class="text-2xl font-bold text-surface-900 dark:text-surface-50 mb-3">
+		<h1 class="h1 text-2xl font-bold text-surface-900 dark:text-surface-50 mb-3">
 			Login bem sucedido!
 		</h1>
 		<p class="text-surface-600 dark:text-surface-400 text-base max-w-sm">

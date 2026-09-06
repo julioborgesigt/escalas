@@ -55,7 +55,7 @@
 		>
 			{isExpediente ? 'Expediente' : isFDS ? 'FDS' : 'Plantão'}
 		</p>
-		<h1 class="font-bold text-lg sm:text-xl text-surface-900 dark:text-surface-50">
+		<h1 class="h1 text-2xl font-bold">
 			{#if isFDS}
 				{formatarData(escala.data_inicio)} a {formatarData(escala.data_fim)}
 			{:else}

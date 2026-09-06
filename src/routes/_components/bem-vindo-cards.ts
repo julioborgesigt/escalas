@@ -60,7 +60,7 @@ export interface EntradaCards {
 const MEU_PERFIL: CardBemVindo = {
 	titulo: 'Meu perfil',
 	descricao:
-		'Confira seus dados cadastrais, cadastre ou troque o seu e-mail pessoal e registre a chave de assinatura do celular.',
+		'Você pode conferir seus dados cadastrais, trocar o seu e-mail pessoal e registrar a chave de assinatura do celular (caso solicitado).',
 	href: '/perfil',
 	cta: 'Abrir meu perfil'
 };
@@ -90,7 +90,7 @@ const MEU_HISTORICO: CardBemVindo = {
 const PRODUTIVIDADE: CardBemVindo = {
 	titulo: 'Produtividade',
 	descricao:
-		'Acompanhe os indicadores e as metas configurados em cada operação, com os rankings por unidade e gráficos que você pode exportar.',
+		'Acompanhe os indicadores e as metas em cada operação através de gráficos que você pode exportar.',
 	href: '/produtividade',
 	cta: 'Ver produtividade'
 };
@@ -126,7 +126,7 @@ const POLICIAIS: CardBemVindo = {
 const POLICIAIS_ESCOPO: CardBemVindo = {
 	titulo: 'Policiais',
 	descricao:
-		'Veja os servidores da sua unidade e solicite, com justificativa, a correção de dados, a movimentação, o afastamento ou a desvinculação de cada um.',
+		'Gerencie o cadastro dos servidores da sua unidade e solicite a correção de dados, a movimentação, o afastamento ou a desvinculação de cada um.',
 	href: '/policiais',
 	cta: 'Ver servidores'
 };
@@ -134,7 +134,7 @@ const POLICIAIS_ESCOPO: CardBemVindo = {
 const SOLICITACOES: CardBemVindo = {
 	titulo: 'Solicitações',
 	descricao:
-		'Analise e aprove ou recuse os pedidos de alteração de cadastro, movimentação, afastamento e desvinculação enviados pelos administradores.',
+		'Analise os pedidos de alteração de cadastro, movimentação, afastamento e desvinculação enviados.',
 	href: '/solicitacoes',
 	cta: 'Ver solicitações'
 };
@@ -162,7 +162,7 @@ const RECEBIDOS: CardBemVindo = {
 const FINALIZADAS: CardBemVindo = {
 	titulo: 'Finalizadas',
 	descricao:
-		'Consulte as escalas extras já encerradas: busque por seccional, tipo de equipe e período, e baixe a lista filtrada.',
+		'Consulte o histórico das escalas extras já encerradas.',
 	href: '/gise/finalizadas',
 	cta: 'Ver finalizadas'
 };
@@ -177,7 +177,7 @@ const FINALIZADAS: CardBemVindo = {
 const OPERACOES: CardBemVindo = {
 	titulo: 'Operações',
 	descricao:
-		'Cadastre as operações extraordinárias e configure, em cada uma, as vagas das equipes, os horários, o formulário de produtividade e os textos do relatório.',
+		'Crie e gerencie as operações extraordinárias e configure o formulário de produtividade para cada uma.',
 	href: '/gise/operacoes',
 	cta: 'Gerenciar operações'
 };
@@ -190,7 +190,7 @@ const OPERACOES: CardBemVindo = {
 const PLANOS: CardBemVindo = {
 	titulo: 'Planos operacionais',
 	descricao:
-		'Monte as operações com deslocamento de equipes: viatura, destino e efetivo de cada uma, o custo em hora extra ou diária, e o plano em PDF com os dois anexos.',
+		'Crie o plano operacional, configure as equipes, os custos e gere o plano em PDF.',
 	href: '/gise/planos',
 	cta: 'Ver planos operacionais'
 };
@@ -295,7 +295,7 @@ function cardEscalaExtra(u: UsuarioDosCards): CardBemVindo {
 		return {
 			titulo: 'Escala extra',
 			descricao:
-				'Planeje e valide a escalação das equipes operacionais e de inteligência em serviço extraordinário, em todas as operações.',
+				'Planeje e valide a escalação das equipes operacionais e de inteligência em serviço extraordinário.',
 			href: '/gise',
 			cta: 'Acessar escalas extras'
 		};
