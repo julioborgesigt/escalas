@@ -137,12 +137,22 @@ export const load: PageServerLoad = async ({ locals, platform, url, depends }) =
 
 	const db = getDB(platform);
 
-	const supervisaoExtraUnidadeId = await buscarUnidadeIdSupervisaoExtra(db);
-
-	// Supervisor DPC com GISE ativa (não finalizada) — mesmo critério do menu / cache de papel
-	const isSupervisorGise = u.tipo === 'policial' ? await isSupervisorGiseAtiva(db, u.id) : false;
-	const isSupervisaoGise = u.tipo === 'policial' ? await isSupervisaoGiseAtiva(db, u.id) : false;
-
+	// ## As ondas deste `load`
+	//
+	// Esta é a tela do policial EM CAMPO — a que abre no celular, em rede móvel,
+	// durante a operação. Cada `await` em série é uma ida à rede esperando a
+	// anterior, e aqui eram DEZ, das quais só três dependiam de fato de algo
+	// anterior. Agora são quatro ondas, e cada uma existe por uma dependência
+	// REAL:
+	//
+	//   1. esta — o que só depende do usuário e da URL;
+	//   2. as escalas do policial: `rawSupervisorDpc` precisa de `isSupervisorGise`;
+	//   3. presenças/documentos/relatórios: precisam dos `giseIds` da onda 2;
+	//   4. os modelos de formulário: precisam da operação resolvida na onda 2.
+	//
+	// Quem acrescentar consulta aqui: ponha na onda mais CEDO cuja dependência
+	// ela respeite, não numa nova.
+	const ehPolicial = u.tipo === 'policial';
 	// Quem pode abrir esta rota (as duas abas — Presença e Histórico — moram nela):
 	// qualquer policial que JÁ tenha participado de uma GISE, ativa ou encerrada.
 	// Por isso o vínculo é checado sem filtro de status: membro de equipe (em
@@ -150,127 +160,181 @@ export const load: PageServerLoad = async ({ locals, platform, url, depends }) =
 	// qualquer GISE). Sem isso, um policial cujo histórico é só de quadro (nunca
 	// foi membro de equipe) e sem GISE ativa era barrado na própria aba de
 	// histórico. Admin Geral entra sempre (usa a rota como editor do formulário).
-	if (u.tipo !== 'admin') {
-		const [membroEver, quadroEver] = await Promise.all([
-			db
-				.select({ id: giseMembros.id })
-				.from(giseMembros)
-				.where(eq(giseMembros.policial_id, u.id))
-				.limit(1)
-				.get(),
-			db
-				.select({ id: giseEscalas.id })
-				.from(giseEscalas)
-				.where(
-					or(
-						eq(giseEscalas.supervisor_id, u.id),
-						eq(giseEscalas.assessor_id, u.id),
-						eq(giseEscalas.seint1_id, u.id),
-						eq(giseEscalas.seint2_id, u.id)
-					)
-				)
-				.limit(1)
-				.get()
+	//
+	// O portão continua ANTES de qualquer consulta de dado (onda 2): juntar as
+	// duas ondas economizaria uma ida, ao custo de trabalhar em nome de quem vai
+	// ser redirecionado.
+	//
+	// `precisaDeVinculo` e `ehPolicial` têm hoje o MESMO valor — `tipo` só assume
+	// 'policial' e 'admin'. São dois nomes porque são duas perguntas: uma é de
+	// autorização (quem passa no portão), a outra é de forma do dado (quem tem
+	// escala própria para listar). Um terceiro tipo de usuário separaria as duas.
+	const precisaDeVinculo = u.tipo !== 'admin';
+	const [supervisaoExtraUnidadeId, isSupervisorGise, isSupervisaoGise, membroEver, quadroEver] =
+		await Promise.all([
+			buscarUnidadeIdSupervisaoExtra(db),
+			// Supervisor DPC com GISE ativa (não finalizada) — mesmo critério do menu / cache de papel
+			ehPolicial ? isSupervisorGiseAtiva(db, u.id) : Promise.resolve(false),
+			ehPolicial ? isSupervisaoGiseAtiva(db, u.id) : Promise.resolve(false),
+			precisaDeVinculo
+				? db
+						.select({ id: giseMembros.id })
+						.from(giseMembros)
+						.where(eq(giseMembros.policial_id, u.id))
+						.limit(1)
+						.get()
+				: Promise.resolve(undefined),
+			precisaDeVinculo
+				? db
+						.select({ id: giseEscalas.id })
+						.from(giseEscalas)
+						.where(
+							or(
+								eq(giseEscalas.supervisor_id, u.id),
+								eq(giseEscalas.assessor_id, u.id),
+								eq(giseEscalas.seint1_id, u.id),
+								eq(giseEscalas.seint2_id, u.id)
+							)
+						)
+						.limit(1)
+						.get()
+				: Promise.resolve(undefined)
 		]);
-		if (!membroEver && !quadroEver) redirect(302, '/');
-	}
+
+	if (precisaDeVinculo && !membroEver && !quadroEver) redirect(302, '/');
 
 	const minhasEscalas: ResGiseMinhaEscalaLinha[] = [];
 
 	const effectiveStatus = statusFilter || 'ativas';
 
-	if (u.tipo === 'policial') {
-		const rawEscalas = (await db
-			.select({
-				id: giseEscalas.id,
-				data_inicio: giseEscalas.data_inicio,
-				status: giseEscalas.status,
-				hora_entrada: giseEscalas.hora_entrada,
-				hora_saida: giseEscalas.hora_saida,
-				equipe_id: giseEquipes.id,
-				// Horas por nível (equipe > seccional > escala)
-				sec_hora_entrada: giseSeccionais.hora_entrada,
-				sec_hora_saida: giseSeccionais.hora_saida,
-				eq_hora_entrada: giseEquipes.hora_entrada,
-				eq_hora_saida: giseEquipes.hora_saida,
-				equipe_tipo: giseEquipes.tipo,
-				seccional_id: giseSeccionais.seccional_id,
-				seccional_nome: unidades.nome
-			})
-			.from(giseMembros)
-			.innerJoin(giseEquipes, eq(giseMembros.equipe_id, giseEquipes.id))
-			.innerJoin(giseSeccionais, eq(giseEquipes.gise_seccional_id, giseSeccionais.id))
-			.innerJoin(unidades, eq(giseSeccionais.seccional_id, unidades.id))
-			.innerJoin(giseEscalas, eq(giseSeccionais.gise_id, giseEscalas.id))
-			.where(
-				and(
-					eq(giseMembros.policial_id, u.id),
-					recorteData,
-					tipoFilter ? eq(giseEquipes.tipo, tipoFilter) : sql`1=1`
-				)
-			)
-			.orderBy(desc(giseEscalas.data_inicio))
-			.all()) as unknown as GiseEscalaItem[];
+	// Lidos da URL, sem consulta — por isso `respostaRow` cabe na onda 2 junto
+	// das escalas, e não numa onda depois delas.
+	const giseIdSelected = url.searchParams.get('giseId')
+		? parseInt(url.searchParams.get('giseId')!)
+		: null;
+	const equipeIdSelected = url.searchParams.get('equipeId')
+		? parseInt(url.searchParams.get('equipeId')!)
+		: null;
 
+	// ONDA 2 — as três origens de escala do policial mais o que a aba do editor
+	// precisa. As três origens eram três `await` em série e não dependem uma da
+	// outra: `rawSupervisorDpc` depende de `isSupervisorGise`, que veio da onda 1.
+	//
+	// `operacoesLista`, `respostaRow` e `restringirSmartphone` moravam no FIM do
+	// `load`, em duas ondas próprias, e nenhum dos três depende das escalas —
+	// só da URL. Estar aqui não muda o que devolvem.
+	const [
+		escalasDeEquipe,
+		escalasDeQuadro,
+		escalasDeSupervisorDpc,
+		operacoesLista,
+		respostaRow,
+		restringirSmartphone
+	] = await Promise.all([
+		ehPolicial
+			? (db
+					.select({
+						id: giseEscalas.id,
+						data_inicio: giseEscalas.data_inicio,
+						status: giseEscalas.status,
+						hora_entrada: giseEscalas.hora_entrada,
+						hora_saida: giseEscalas.hora_saida,
+						equipe_id: giseEquipes.id,
+						// Horas por nível (equipe > seccional > escala)
+						sec_hora_entrada: giseSeccionais.hora_entrada,
+						sec_hora_saida: giseSeccionais.hora_saida,
+						eq_hora_entrada: giseEquipes.hora_entrada,
+						eq_hora_saida: giseEquipes.hora_saida,
+						equipe_tipo: giseEquipes.tipo,
+						seccional_id: giseSeccionais.seccional_id,
+						seccional_nome: unidades.nome
+					})
+					.from(giseMembros)
+					.innerJoin(giseEquipes, eq(giseMembros.equipe_id, giseEquipes.id))
+					.innerJoin(giseSeccionais, eq(giseEquipes.gise_seccional_id, giseSeccionais.id))
+					.innerJoin(unidades, eq(giseSeccionais.seccional_id, unidades.id))
+					.innerJoin(giseEscalas, eq(giseSeccionais.gise_id, giseEscalas.id))
+					.where(
+						and(
+							eq(giseMembros.policial_id, u.id),
+							recorteData,
+							tipoFilter ? eq(giseEquipes.tipo, tipoFilter) : sql`1=1`
+						)
+					)
+					.orderBy(desc(giseEscalas.data_inicio))
+					.all() as unknown as Promise<GiseEscalaItem[]>)
+			: Promise.resolve([] as GiseEscalaItem[]),
 		// Segunda origem: o policial no quadro de supervisão da escala. Sem equipe
 		// e sem seccional, os campos são preenchidos com `0`/NULL para caber no
 		// mesmo shape das linhas de equipe e seguir por um único caminho abaixo.
 		// Recorte "operacional" não inclui quadro; "seint" inclui só SEINT 1/2.
-		if (tipoFilter !== 'operacional') {
-			const rawSupervisoes = (await db
-				.select({
-					id: giseEscalas.id,
-					data_inicio: giseEscalas.data_inicio,
-					status: giseEscalas.status,
-					hora_entrada: giseEscalas.hora_entrada,
-					hora_saida: giseEscalas.hora_saida,
-					equipe_id: sql`0`.as('equipe_id'),
-					sec_hora_entrada: sql`NULL`.as('sec_hora_entrada'),
-					sec_hora_saida: sql`NULL`.as('sec_hora_saida'),
-					eq_hora_entrada: sql`NULL`.as('eq_hora_entrada'),
-					eq_hora_saida: sql`NULL`.as('eq_hora_saida'),
-					equipe_tipo: sql<string>`CASE WHEN ${giseEscalas.assessor_id} = ${u.id} THEN 'assessor' ELSE 'seint' END`,
-					seccional_id: sql`0`.as('seccional_id'),
-					seccional_nome: sql`'Supervisão Geral'`.as('seccional_nome')
-				})
-				.from(giseEscalas)
-				.where(
-					and(
-						tipoFilter === 'seint'
-							? sql`(${giseEscalas.seint1_id} = ${u.id} OR ${giseEscalas.seint2_id} = ${u.id})`
-							: sql`(${giseEscalas.assessor_id} = ${u.id} OR ${giseEscalas.seint1_id} = ${u.id} OR ${giseEscalas.seint2_id} = ${u.id})`,
-						recorteData
+		ehPolicial && tipoFilter !== 'operacional'
+			? (db
+					.select({
+						id: giseEscalas.id,
+						data_inicio: giseEscalas.data_inicio,
+						status: giseEscalas.status,
+						hora_entrada: giseEscalas.hora_entrada,
+						hora_saida: giseEscalas.hora_saida,
+						equipe_id: sql`0`.as('equipe_id'),
+						sec_hora_entrada: sql`NULL`.as('sec_hora_entrada'),
+						sec_hora_saida: sql`NULL`.as('sec_hora_saida'),
+						eq_hora_entrada: sql`NULL`.as('eq_hora_entrada'),
+						eq_hora_saida: sql`NULL`.as('eq_hora_saida'),
+						equipe_tipo: sql<string>`CASE WHEN ${giseEscalas.assessor_id} = ${u.id} THEN 'assessor' ELSE 'seint' END`,
+						seccional_id: sql`0`.as('seccional_id'),
+						seccional_nome: sql`'Supervisão Geral'`.as('seccional_nome')
+					})
+					.from(giseEscalas)
+					.where(
+						and(
+							tipoFilter === 'seint'
+								? sql`(${giseEscalas.seint1_id} = ${u.id} OR ${giseEscalas.seint2_id} = ${u.id})`
+								: sql`(${giseEscalas.assessor_id} = ${u.id} OR ${giseEscalas.seint1_id} = ${u.id} OR ${giseEscalas.seint2_id} = ${u.id})`,
+							recorteData
+						)
 					)
-				)
-				.all()) as unknown as GiseEscalaItem[];
-
-			rawEscalas.push(...rawSupervisoes);
-		}
-
+					.all() as unknown as Promise<GiseEscalaItem[]>)
+			: Promise.resolve([] as GiseEscalaItem[]),
 		// DPC supervisor da escala: mesma UX de assessor (entrada/saída, sem formulário de produtividade aqui)
-		if (isSupervisorGise && !tipoFilter) {
-			const rawSupervisorDpc = (await db
-				.select({
-					id: giseEscalas.id,
-					data_inicio: giseEscalas.data_inicio,
-					status: giseEscalas.status,
-					hora_entrada: giseEscalas.hora_entrada,
-					hora_saida: giseEscalas.hora_saida,
-					equipe_id: sql`0`.as('equipe_id'),
-					sec_hora_entrada: sql`NULL`.as('sec_hora_entrada'),
-					sec_hora_saida: sql`NULL`.as('sec_hora_saida'),
-					eq_hora_entrada: sql`NULL`.as('eq_hora_entrada'),
-					eq_hora_saida: sql`NULL`.as('eq_hora_saida'),
-					equipe_tipo: sql<string>`'supervisor'`,
-					seccional_id: sql`0`.as('seccional_id'),
-					seccional_nome: sql`'Supervisão Geral'`.as('seccional_nome')
-				})
-				.from(giseEscalas)
-				.where(and(eq(giseEscalas.supervisor_id, u.id), recorteData))
-				.all()) as unknown as GiseEscalaItem[];
-			for (const row of rawSupervisorDpc) {
-				if (!rawEscalas.some((r) => r.id === row.id)) rawEscalas.push(row);
-			}
+		ehPolicial && isSupervisorGise && !tipoFilter
+			? (db
+					.select({
+						id: giseEscalas.id,
+						data_inicio: giseEscalas.data_inicio,
+						status: giseEscalas.status,
+						hora_entrada: giseEscalas.hora_entrada,
+						hora_saida: giseEscalas.hora_saida,
+						equipe_id: sql`0`.as('equipe_id'),
+						sec_hora_entrada: sql`NULL`.as('sec_hora_entrada'),
+						sec_hora_saida: sql`NULL`.as('sec_hora_saida'),
+						eq_hora_entrada: sql`NULL`.as('eq_hora_entrada'),
+						eq_hora_saida: sql`NULL`.as('eq_hora_saida'),
+						equipe_tipo: sql<string>`'supervisor'`,
+						seccional_id: sql`0`.as('seccional_id'),
+						seccional_nome: sql`'Supervisão Geral'`.as('seccional_nome')
+					})
+					.from(giseEscalas)
+					.where(and(eq(giseEscalas.supervisor_id, u.id), recorteData))
+					.all() as unknown as Promise<GiseEscalaItem[]>)
+			: Promise.resolve([] as GiseEscalaItem[]),
+		listarOperacoes(db, { somenteAtivas: true }),
+		giseIdSelected && !isNaN(giseIdSelected)
+			? buscarRespostaGise(
+					db,
+					giseIdSelected,
+					u.tipo === 'policial' ? u.id : null,
+					equipeIdSelected ?? undefined
+				)
+			: Promise.resolve(null),
+		buscarRestringirSmartphone(db)
+	]);
+
+	if (u.tipo === 'policial') {
+		const rawEscalas = [...escalasDeEquipe, ...escalasDeQuadro];
+		// O supervisor DPC pode já constar por outra origem — só entra o que falta.
+		for (const row of escalasDeSupervisorDpc) {
+			if (!rawEscalas.some((r) => r.id === row.id)) rawEscalas.push(row);
 		}
 
 		// Ordenar novamente já que fundimos duas listas
@@ -384,20 +448,12 @@ export const load: PageServerLoad = async ({ locals, platform, url, depends }) =
 			});
 		}
 	}
-	const giseIdSelected = url.searchParams.get('giseId')
-		? parseInt(url.searchParams.get('giseId')!)
-		: null;
-	const equipeIdSelected = url.searchParams.get('equipeId')
-		? parseInt(url.searchParams.get('equipeId')!)
-		: null;
-
 	// Qual operação o editor está editando. O formulário é POR OPERAÇÃO desde a
 	// migração 0048, então a tela precisa de uma escolhida — `?operacaoId=` quando
 	// o admin trocou no seletor, a primeira ativa em ordem alfabética caso
 	// contrário. Um id que não existe cai no mesmo padrão em vez de dar 404: a
 	// aba é do editor, e derrubá-la por causa de um parâmetro velho na URL não
 	// ajuda ninguém.
-	const operacoesLista = await listarOperacoes(db, { somenteAtivas: true });
 	const operacaoIdParam = Number(url.searchParams.get('operacaoId'));
 	const operacaoSelecionada =
 		operacoesLista.find((o) => o.id === operacaoIdParam) ??
@@ -405,23 +461,16 @@ export const load: PageServerLoad = async ({ locals, platform, url, depends }) =
 		operacoesLista[0] ??
 		null;
 
-	const [[modeloOp, modeloSeintRow], respostaRow, restringirSmartphone] = await Promise.all([
-		operacaoSelecionada
-			? Promise.all([
-					buscarGiseModeloFormulario(db, operacaoSelecionada.id, 'operacional'),
-					buscarGiseModeloFormulario(db, operacaoSelecionada.id, 'seint')
-				])
-			: Promise.resolve([null, null] as const),
-		giseIdSelected && !isNaN(giseIdSelected)
-			? buscarRespostaGise(
-					db,
-					giseIdSelected,
-					u.tipo === 'policial' ? u.id : null,
-					equipeIdSelected ?? undefined
-				)
-			: Promise.resolve(null),
-		buscarRestringirSmartphone(db)
-	]);
+	// ONDA 4 — só os modelos: são a única coisa que depende da operação, e a
+	// operação só é conhecida depois da onda 2. `respostaRow` e
+	// `restringirSmartphone` viajaram para lá, porque nenhum dos dois depende
+	// dela.
+	const [modeloOp, modeloSeintRow] = operacaoSelecionada
+		? await Promise.all([
+				buscarGiseModeloFormulario(db, operacaoSelecionada.id, 'operacional'),
+				buscarGiseModeloFormulario(db, operacaoSelecionada.id, 'seint')
+			])
+		: [null, null];
 
 	let modeloOperacional = DEFAULT_QUESTIONS_FORM_OPERACIONAL;
 	if (modeloOp?.config) {

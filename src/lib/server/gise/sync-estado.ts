@@ -32,27 +32,31 @@ import {
  * relatório (tamanho), slots e unidades — não só contagens grossas.
  */
 export async function carimboGise(db: Database, giseId: number): Promise<string | null> {
-	const [gise] = await db
-		.select({
-			status: giseEscalas.status,
-			data_inicio: giseEscalas.data_inicio,
-			hora_entrada: giseEscalas.hora_entrada,
-			hora_saida: giseEscalas.hora_saida,
-			supervisor_id: giseEscalas.supervisor_id,
-			assessor_id: giseEscalas.assessor_id,
-			seint1_id: giseEscalas.seint1_id,
-			seint2_id: giseEscalas.seint2_id,
-			brTitulo: sql<number>`length(coalesce(${giseEscalas.breve_relatorio_titulo}, ''))`,
-			brSec: sql<number>`length(coalesce(${giseEscalas.breve_relatorio_texto_seccional}, ''))`,
-			brSup: sql<number>`length(coalesce(${giseEscalas.breve_relatorio_texto_supervisao}, ''))`
-		})
-		.from(giseEscalas)
-		.where(eq(giseEscalas.id, giseId))
-		.limit(1);
-	if (!gise) return null;
-
-	const [[pres], [rels], [secs], [equipes], [membros], [unidadesSlot], [docs], [resps]] =
-		await Promise.all([
+	// UMA ida ao banco para as nove consultas. `Promise.all` dispara as nove ao
+	// mesmo tempo, mas são nove idas à rede; no D1 o que custa é o número de
+	// idas. A linha da escala entra no mesmo lote — checar antes custaria de
+	// volta a ida economizada, e as outras oito devolvem vazio para id
+	// inexistente. Bônus: `batch` é transação, então o carimbo descreve UM
+	// instante do banco, não oito.
+	const [[gise], [pres], [rels], [secs], [equipes], [membros], [unidadesSlot], [docs], [resps]] =
+		await db.batch([
+			db
+				.select({
+					status: giseEscalas.status,
+					data_inicio: giseEscalas.data_inicio,
+					hora_entrada: giseEscalas.hora_entrada,
+					hora_saida: giseEscalas.hora_saida,
+					supervisor_id: giseEscalas.supervisor_id,
+					assessor_id: giseEscalas.assessor_id,
+					seint1_id: giseEscalas.seint1_id,
+					seint2_id: giseEscalas.seint2_id,
+					brTitulo: sql<number>`length(coalesce(${giseEscalas.breve_relatorio_titulo}, ''))`,
+					brSec: sql<number>`length(coalesce(${giseEscalas.breve_relatorio_texto_seccional}, ''))`,
+					brSup: sql<number>`length(coalesce(${giseEscalas.breve_relatorio_texto_supervisao}, ''))`
+				})
+				.from(giseEscalas)
+				.where(eq(giseEscalas.id, giseId))
+				.limit(1),
 			db
 				.select({
 					n: sql<number>`count(*)`,
@@ -103,6 +107,7 @@ export async function carimboGise(db: Database, giseId: number): Promise<string 
 				.from(giseRespostasFormulario)
 				.where(eq(giseRespostasFormulario.gise_id, giseId))
 		]);
+	if (!gise) return null;
 
 	return [
 		gise.status,
@@ -134,7 +139,7 @@ export async function carimboGise(db: Database, giseId: number): Promise<string 
 
 /** Lista `/gise` — ativas + histórico resumido. */
 export async function carimboGiseList(db: Database): Promise<string> {
-	const [[tot], [ativas]] = await Promise.all([
+	const [[tot], [ativas]] = await db.batch([
 		db
 			.select({
 				n: sql<number>`count(*)`,
@@ -166,7 +171,7 @@ export async function carimboResGise(db: Database, policialId: number | null): P
 		return `admin:${Number(row?.n ?? 0)}:${row?.maxUp ?? ''}`;
 	}
 
-	const [[pres], [resp], [membro], [sup]] = await Promise.all([
+	const [[pres], [resp], [membro], [sup]] = await db.batch([
 		db
 			.select({
 				n: sql<number>`count(*)`,

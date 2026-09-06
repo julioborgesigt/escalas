@@ -336,64 +336,79 @@ export async function listarGiseEscalas(
 
 /**
  * Carrega uma GISE completa com todas as suas seccionais, equipes, membros e presenças.
- * Usa batch loading para evitar N+1 queries.
+ *
+ * ## Duas idas ao banco, e por que não uma nem treze
+ *
+ * Antes eram TREZE: a escala, depois um `Promise.all` de onze, depois os slots
+ * de unidade em série. `Promise.all` dispara as onze ao mesmo tempo, mas cada
+ * uma continua sendo uma ida à rede — no D1 o que custa é o número de idas, e
+ * paralelizar não reduz esse número. `db.batch()` resolve N statements em UMA.
+ *
+ * O que sobra são duas idas porque uma delas DEPENDE da outra: o quadro de
+ * supervisão (supervisor, assessor, SEINT 1 e 2) é buscado por ids que só
+ * existem depois de ler a linha da escala. As quatro consultas viraram uma só,
+ * por `inArray` — e o mapa por id resolve de graça o caso de a mesma pessoa
+ * acumular dois papéis, que quatro consultas separadas tratavam por acidente.
+ *
+ * O primeiro lote roda inteiro mesmo quando o id não existe (devolve tudo
+ * vazio, e a função devolve `null` logo abaixo). É deliberado: separar a
+ * checagem custaria de volta a ida que este lote economiza, e GISE inexistente
+ * é o caminho raro.
+ *
+ * Efeito colateral bem-vindo: o `batch` do D1 roda em TRANSAÇÃO, então as nove
+ * leituras do primeiro lote enxergam o mesmo instante do banco. Onze consultas
+ * concorrentes podiam pegar a escala antes e os membros depois de uma escrita.
+ *
+ * ## A armadilha do batch com join: NOMES DE COLUNA repetidos no SQL
+ *
+ * Dentro de `db.batch()`, nenhuma consulta pode produzir duas colunas com o
+ * MESMO NOME. Não é preferência de estilo — é corretude, e o modo de falhar é
+ * silencioso.
+ *
+ * Repare no que conta: o nome da COLUNA no SQL, não a chave do objeto em
+ * TypeScript. `select({ sec_id: giseSeccionais.id })` NÃO resolve nada — o
+ * drizzle não emite `AS` para seleção simples de coluna, então o SQL continua
+ * com `"gise_seccionais"."id"` e continua colidindo com `"gise_equipes"."id"`.
+ * A saída aqui foi não selecionar a coluna duplicada: a seccional entra só no
+ * `innerJoin`, e quem precisa do id dela usa a FK `gise_seccional_id` da
+ * própria equipe.
+ *
+ * Fora do batch, o driver do D1 pede as linhas com `stmt.raw()` e recebe arrays
+ * POSICIONAIS. Dentro do batch não existe `.raw()`: o D1 devolve cada linha como
+ * OBJETO chaveado por nome de coluna, e o drizzle reconstrói o array com
+ * `Object.keys(row).map(...)` (`d1ToRawMapping`, em `drizzle-orm/d1/session.js`).
+ * Se duas tabelas do join têm colunas de mesmo nome, o objeto guarda UMA chave
+ * só: o array sai mais curto que o `SELECT`, e todo campo depois da colisão é
+ * lido da posição errada.
+ *
+ * Foi o que aconteceu aqui em set/2026, em duas rodadas. `select().from(
+ * giseEquipes).innerJoin(giseSeccionais, …)` repete `id`, `status`,
+ * `hora_entrada` e `hora_saida`: a equipe com horário próprio (07:00-13:00)
+ * passou a exibir o da seccional (NULL). Trocar para lista explícita mantendo
+ * `giseSeccionais.id` moveu a colisão em vez de removê-la — as horas voltaram
+ * (estão antes dela na ordem) e o `id` da equipe passou a ser o da seccional,
+ * o que desmontou o agrupamento de membros e o card da seccional. Sem erro,
+ * sem log, nas duas vezes.
+ *
+ * **O vitest não pega isto**, e é o ponto mais importante deste aviso: o harness
+ * (`sqlite-proxy`) devolve arrays nos DOIS caminhos, então ele é mais tolerante
+ * que a produção. Quem pegou foi o E2E `gise-abas-unidade.spec.ts`, com browser
+ * de verdade contra o D1 local.
  */
 export async function buscarGiseDetalhado(db: Database, id: number): Promise<GiseDetalhado | null> {
-	const gise = await db.select().from(giseEscalas).where(eq(giseEscalas.id, id)).get();
-	if (!gise) return null;
-
-	// Carrega dados em paralelo para minimizar round-trips ao banco
-	const parallelResults = await Promise.all([
-		gise.supervisor_id
-			? db
-					.select({
-						nome: policiais.nome,
-						matricula: policiais.matricula,
-						telefone: policiais.telefone
-					})
-					.from(policiais)
-					.where(eq(policiais.id, gise.supervisor_id))
-					.get()
-			: Promise.resolve(null),
-		gise.assessor_id
-			? db
-					.select({
-						nome: policiais.nome,
-						matricula: policiais.matricula,
-						telefone: policiais.telefone
-					})
-					.from(policiais)
-					.where(eq(policiais.id, gise.assessor_id))
-					.get()
-			: Promise.resolve(null),
-		gise.seint1_id
-			? db
-					.select({
-						nome: policiais.nome,
-						matricula: policiais.matricula,
-						telefone: policiais.telefone
-					})
-					.from(policiais)
-					.where(eq(policiais.id, gise.seint1_id))
-					.get()
-			: Promise.resolve(null),
-		gise.seint2_id
-			? db
-					.select({
-						nome: policiais.nome,
-						matricula: policiais.matricula,
-						telefone: policiais.telefone
-					})
-					.from(policiais)
-					.where(eq(policiais.id, gise.seint2_id))
-					.get()
-			: Promise.resolve(null),
-		db
-			.select()
-			.from(giseDocumentos)
-			.where(eq(giseDocumentos.gise_id, id))
-			.get()
-			.then((r) => r ?? null),
+	const [
+		giseRows,
+		documentoRows,
+		secsRows,
+		todasEquipes,
+		todosMembros,
+		todasPresencas,
+		todasRespostas,
+		assExtraRows,
+		todosSlotsUnidade
+	] = await db.batch([
+		db.select().from(giseEscalas).where(eq(giseEscalas.id, id)).limit(1),
+		db.select().from(giseDocumentos).where(eq(giseDocumentos.gise_id, id)).limit(1),
 		db
 			.select({
 				id: giseSeccionais.id,
@@ -409,8 +424,26 @@ export async function buscarGiseDetalhado(db: Database, id: number): Promise<Gis
 			.innerJoin(unidades, eq(giseSeccionais.seccional_id, unidades.id))
 			.where(eq(giseSeccionais.gise_id, id))
 			.orderBy(asc(unidades.nome)),
+		// Colunas de UMA tabela só, e isto não é estilo — é o que torna a consulta
+		// segura dentro de `db.batch()`. Ver "A armadilha do batch com join" no
+		// cabeçalho: o que colide são os NOMES DE COLUNA no SQL, e o join traz
+		// `id`, `status`, `hora_entrada` e `hora_saida` nas duas tabelas.
+		//
+		// A seccional entra só no `innerJoin`, para o `WHERE` alcançar `gise_id`;
+		// nada dela é selecionado. Quem precisa do id da seccional usa
+		// `gise_seccional_id`, que é a FK da própria equipe para aquela linha —
+		// mesmo valor, sem duplicar nome de coluna.
 		db
-			.select()
+			.select({
+				id: giseEquipes.id,
+				gise_seccional_id: giseEquipes.gise_seccional_id,
+				gise_unidade_id: giseEquipes.gise_unidade_id,
+				tipo: giseEquipes.tipo,
+				slots_dpc: giseEquipes.slots_dpc,
+				slots_oip: giseEquipes.slots_oip,
+				hora_entrada: giseEquipes.hora_entrada,
+				hora_saida: giseEquipes.hora_saida
+			})
 			.from(giseEquipes)
 			.innerJoin(giseSeccionais, eq(giseEquipes.gise_seccional_id, giseSeccionais.id))
 			.where(eq(giseSeccionais.gise_id, id)),
@@ -448,36 +481,55 @@ export async function buscarGiseDetalhado(db: Database, id: number): Promise<Gis
 					eq(giseAssinaturasRelatorios.tipo, 'extraordinario')
 				)
 			)
-			.get()
+			.limit(1),
+		// Slots de unidade por seccional (LEFT JOIN: `unidade_id` pode ser null).
+		db
+			.select({
+				id: giseSeccionalUnidades.id,
+				gise_seccional_id: giseSeccionalUnidades.gise_seccional_id,
+				unidade_id: giseSeccionalUnidades.unidade_id,
+				nome: unidades.nome
+			})
+			.from(giseSeccionalUnidades)
+			.leftJoin(unidades, eq(giseSeccionalUnidades.unidade_id, unidades.id))
+			.innerJoin(giseSeccionais, eq(giseSeccionalUnidades.gise_seccional_id, giseSeccionais.id))
+			.where(eq(giseSeccionais.gise_id, id))
+			.orderBy(asc(giseSeccionalUnidades.id))
 	]);
 
-	const [
-		supervisorRow,
-		assessorRow,
-		seint1Row,
-		seint2Row,
-		documento,
-		secsRows,
-		todasEquipes,
-		todosMembros,
-		todasPresencas,
-		todasRespostas,
-		assExtraRow
-	] = parallelResults;
+	const gise = giseRows[0];
+	if (!gise) return null;
+	const documento = documentoRows[0] ?? null;
+	const assExtraRow = assExtraRows[0];
 
-	// Carrega slots de unidade por seccional (LEFT JOIN: unidade_id pode ser null)
-	const todosSlotsUnidade = await db
-		.select({
-			id: giseSeccionalUnidades.id,
-			gise_seccional_id: giseSeccionalUnidades.gise_seccional_id,
-			unidade_id: giseSeccionalUnidades.unidade_id,
-			nome: unidades.nome
-		})
-		.from(giseSeccionalUnidades)
-		.leftJoin(unidades, eq(giseSeccionalUnidades.unidade_id, unidades.id))
-		.innerJoin(giseSeccionais, eq(giseSeccionalUnidades.gise_seccional_id, giseSeccionais.id))
-		.where(eq(giseSeccionais.gise_id, id))
-		.orderBy(asc(giseSeccionalUnidades.id));
+	// Segunda ida: o quadro de supervisão, por ids que só existem depois de ler a
+	// escala. Uma consulta para os quatro papéis — o mapa por id também cobre a
+	// mesma pessoa acumulando dois deles.
+	const idsQuadro = [
+		...new Set(
+			[gise.supervisor_id, gise.assessor_id, gise.seint1_id, gise.seint2_id].filter(
+				(v): v is number => v != null
+			)
+		)
+	];
+	const quadro = new Map<number, { nome: string; matricula: string; telefone: string | null }>();
+	if (idsQuadro.length > 0) {
+		const linhas = await db
+			.select({
+				id: policiais.id,
+				nome: policiais.nome,
+				matricula: policiais.matricula,
+				telefone: policiais.telefone
+			})
+			.from(policiais)
+			.where(inArray(policiais.id, idsQuadro));
+		for (const p of linhas) quadro.set(p.id, p);
+	}
+	const doQuadro = (pid: number | null) => (pid == null ? undefined : quadro.get(pid));
+	const supervisorRow = doQuadro(gise.supervisor_id);
+	const assessorRow = doQuadro(gise.assessor_id);
+	const seint1Row = doQuadro(gise.seint1_id);
+	const seint2Row = doQuadro(gise.seint2_id);
 
 	const temSaidaConfirmada = todasPresencas.some((p) => p.saida_timestamp !== null);
 
@@ -498,12 +550,12 @@ export async function buscarGiseDetalhado(db: Database, id: number): Promise<Gis
 	const equipesPorUnidade = new Map<number, typeof todasEquipes>();
 	const equipesSemUnidadePorSeccional = new Map<number, typeof todasEquipes>();
 	for (const row of todasEquipes) {
-		const unidadeId = row.gise_equipes.gise_unidade_id;
+		const unidadeId = row.gise_unidade_id;
 		if (unidadeId !== null && unidadeId !== undefined) {
 			if (!equipesPorUnidade.has(unidadeId)) equipesPorUnidade.set(unidadeId, []);
 			equipesPorUnidade.get(unidadeId)!.push(row);
 		} else {
-			const secId = row.gise_seccionais.id;
+			const secId = row.gise_seccional_id;
 			if (!equipesSemUnidadePorSeccional.has(secId)) equipesSemUnidadePorSeccional.set(secId, []);
 			equipesSemUnidadePorSeccional.get(secId)!.push(row);
 		}
@@ -516,8 +568,7 @@ export async function buscarGiseDetalhado(db: Database, id: number): Promise<Gis
 	}
 
 	function buildEquipes(rows: typeof todasEquipes) {
-		return rows.map((row) => {
-			const equipe = row.gise_equipes;
+		return rows.map((equipe) => {
 			const membrosRaw = membrosPorEquipe.get(equipe.id) ?? [];
 			const membros = membrosRaw.map((m) => ({
 				...m,

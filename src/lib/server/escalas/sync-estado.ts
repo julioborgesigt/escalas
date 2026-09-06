@@ -94,7 +94,7 @@ export async function resumoEscalasPendentes(
 
 /** Mudanças em escalas (criar/assinar/excluir/ver) — suficiente para o compliance. */
 export async function carimboPainel(db: Database): Promise<string> {
-	const [[esc], [docs]] = await Promise.all([
+	const [[esc], [docs]] = await db.batch([
 		db
 			.select({
 				n: sql<number>`count(*)`,
@@ -118,20 +118,19 @@ export async function carimboPainel(db: Database): Promise<string> {
 
 /** Detalhe `/escalas/[id]` — servidores, documento e solicitação. */
 export async function carimboEscala(db: Database, escalaId: number): Promise<string | null> {
-	const [esc] = await db
-		.select({
-			id: escalas.id,
-			finalizada_em: escalas.finalizada_em,
-			visto: escalas.visto_por_admin,
-			data_inicio: escalas.data_inicio,
-			data_fim: escalas.data_fim
-		})
-		.from(escalas)
-		.where(eq(escalas.id, escalaId))
-		.limit(1);
-	if (!esc) return null;
-
-	const [[pols], [doc], [sol]] = await Promise.all([
+	// Um lote, quatro consultas, UMA ida — ver o comentário de `carimboGise`.
+	const [[esc], [pols], [doc], [sol]] = await db.batch([
+		db
+			.select({
+				id: escalas.id,
+				finalizada_em: escalas.finalizada_em,
+				visto: escalas.visto_por_admin,
+				data_inicio: escalas.data_inicio,
+				data_fim: escalas.data_fim
+			})
+			.from(escalas)
+			.where(eq(escalas.id, escalaId))
+			.limit(1),
 		db
 			.select({
 				n: sql<number>`count(*)`,
@@ -151,6 +150,7 @@ export async function carimboEscala(db: Database, escalaId: number): Promise<str
 			.from(escalaSolicitacoesAssinatura)
 			.where(eq(escalaSolicitacoesAssinatura.escala_id, escalaId))
 	]);
+	if (!esc) return null;
 
 	return [
 		esc.finalizada_em ?? '',
