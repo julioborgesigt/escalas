@@ -17,7 +17,7 @@
  * consulta quando o filtro aponta para uma seccional que não aparece nele.
  */
 import type { RequestHandler } from './$types';
-import { getDB, listarGiseEscalas, buscarGiseDetalhado } from '$lib/db';
+import { getDB, listarGiseEscalas, buscarGiseDetalhadoEmLote } from '$lib/db';
 import { registrarAuditComContexto } from '$lib/db/audit';
 import { giseHistoricoExportQuerySchema } from '$lib/schemas';
 import { dataHoraBrasilia } from '$lib/utils/datas';
@@ -240,14 +240,26 @@ export const GET: RequestHandler = async ({ locals, platform, url }) => {
 		return Number(b.id) - Number(a.id);
 	});
 
-	// Uma consulta detalhada por escala (a listagem não traz equipes/membros).
-	// Sequencial de propósito: o D1 serializa as queries e o paralelo só
-	// aumentaria a chance de estourar o limite de subrequests do Worker.
-	const gisesDetalhadas: GiseDetalhado[] = [];
-	for (const e of ordenadas) {
-		const g = await buscarGiseDetalhado(db, e.id);
-		if (g) gisesDetalhadas.push(g);
-	}
+	// A listagem não traz equipes nem membros, então o detalhe vem à parte — mas
+	// EM LOTE, não uma escala por vez.
+	//
+	// Era um laço com `buscarGiseDetalhado` por escala: 13 consultas cada, em
+	// série. Quarenta escalas eram 520 idas ao D1, e o comentário que defendia o
+	// laço dizia que paralelizar "aumentaria a chance de estourar o limite de
+	// subrequests do Worker". A premissa não sustentava a conclusão —
+	// paralelizar muda a concorrência, não a QUANTIDADE de subrequests. Quem
+	// muda a quantidade é o lote: agora são duas idas, independentemente de
+	// quantas escalas o filtro pegou.
+	//
+	// A ordem é a de `ordenadas` (data desc, id desc) e é a do arquivo gerado —
+	// por isso a leitura sai do `Map` pela lista, e não do `Map` direto.
+	const detalhePorId = await buscarGiseDetalhadoEmLote(
+		db,
+		ordenadas.map((e) => e.id)
+	);
+	const gisesDetalhadas: GiseDetalhado[] = ordenadas
+		.map((e) => detalhePorId.get(e.id))
+		.filter((g): g is GiseDetalhado => g !== undefined);
 
 	if (gisesDetalhadas.length === 0) {
 		return serverError(
