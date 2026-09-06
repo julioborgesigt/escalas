@@ -336,64 +336,43 @@ export async function listarGiseEscalas(
 
 /**
  * Carrega uma GISE completa com todas as suas seccionais, equipes, membros e presenças.
- * Usa batch loading para evitar N+1 queries.
+ *
+ * ## Duas idas ao banco, e por que não uma nem treze
+ *
+ * Antes eram TREZE: a escala, depois um `Promise.all` de onze, depois os slots
+ * de unidade em série. `Promise.all` dispara as onze ao mesmo tempo, mas cada
+ * uma continua sendo uma ida à rede — no D1 o que custa é o número de idas, e
+ * paralelizar não reduz esse número. `db.batch()` resolve N statements em UMA.
+ *
+ * O que sobra são duas idas porque uma delas DEPENDE da outra: o quadro de
+ * supervisão (supervisor, assessor, SEINT 1 e 2) é buscado por ids que só
+ * existem depois de ler a linha da escala. As quatro consultas viraram uma só,
+ * por `inArray` — e o mapa por id resolve de graça o caso de a mesma pessoa
+ * acumular dois papéis, que quatro consultas separadas tratavam por acidente.
+ *
+ * O primeiro lote roda inteiro mesmo quando o id não existe (devolve tudo
+ * vazio, e a função devolve `null` logo abaixo). É deliberado: separar a
+ * checagem custaria de volta a ida que este lote economiza, e GISE inexistente
+ * é o caminho raro.
+ *
+ * Efeito colateral bem-vindo: o `batch` do D1 roda em TRANSAÇÃO, então as nove
+ * leituras do primeiro lote enxergam o mesmo instante do banco. Onze consultas
+ * concorrentes podiam pegar a escala antes e os membros depois de uma escrita.
  */
 export async function buscarGiseDetalhado(db: Database, id: number): Promise<GiseDetalhado | null> {
-	const gise = await db.select().from(giseEscalas).where(eq(giseEscalas.id, id)).get();
-	if (!gise) return null;
-
-	// Carrega dados em paralelo para minimizar round-trips ao banco
-	const parallelResults = await Promise.all([
-		gise.supervisor_id
-			? db
-					.select({
-						nome: policiais.nome,
-						matricula: policiais.matricula,
-						telefone: policiais.telefone
-					})
-					.from(policiais)
-					.where(eq(policiais.id, gise.supervisor_id))
-					.get()
-			: Promise.resolve(null),
-		gise.assessor_id
-			? db
-					.select({
-						nome: policiais.nome,
-						matricula: policiais.matricula,
-						telefone: policiais.telefone
-					})
-					.from(policiais)
-					.where(eq(policiais.id, gise.assessor_id))
-					.get()
-			: Promise.resolve(null),
-		gise.seint1_id
-			? db
-					.select({
-						nome: policiais.nome,
-						matricula: policiais.matricula,
-						telefone: policiais.telefone
-					})
-					.from(policiais)
-					.where(eq(policiais.id, gise.seint1_id))
-					.get()
-			: Promise.resolve(null),
-		gise.seint2_id
-			? db
-					.select({
-						nome: policiais.nome,
-						matricula: policiais.matricula,
-						telefone: policiais.telefone
-					})
-					.from(policiais)
-					.where(eq(policiais.id, gise.seint2_id))
-					.get()
-			: Promise.resolve(null),
-		db
-			.select()
-			.from(giseDocumentos)
-			.where(eq(giseDocumentos.gise_id, id))
-			.get()
-			.then((r) => r ?? null),
+	const [
+		giseRows,
+		documentoRows,
+		secsRows,
+		todasEquipes,
+		todosMembros,
+		todasPresencas,
+		todasRespostas,
+		assExtraRows,
+		todosSlotsUnidade
+	] = await db.batch([
+		db.select().from(giseEscalas).where(eq(giseEscalas.id, id)).limit(1),
+		db.select().from(giseDocumentos).where(eq(giseDocumentos.gise_id, id)).limit(1),
 		db
 			.select({
 				id: giseSeccionais.id,
@@ -448,36 +427,55 @@ export async function buscarGiseDetalhado(db: Database, id: number): Promise<Gis
 					eq(giseAssinaturasRelatorios.tipo, 'extraordinario')
 				)
 			)
-			.get()
+			.limit(1),
+		// Slots de unidade por seccional (LEFT JOIN: `unidade_id` pode ser null).
+		db
+			.select({
+				id: giseSeccionalUnidades.id,
+				gise_seccional_id: giseSeccionalUnidades.gise_seccional_id,
+				unidade_id: giseSeccionalUnidades.unidade_id,
+				nome: unidades.nome
+			})
+			.from(giseSeccionalUnidades)
+			.leftJoin(unidades, eq(giseSeccionalUnidades.unidade_id, unidades.id))
+			.innerJoin(giseSeccionais, eq(giseSeccionalUnidades.gise_seccional_id, giseSeccionais.id))
+			.where(eq(giseSeccionais.gise_id, id))
+			.orderBy(asc(giseSeccionalUnidades.id))
 	]);
 
-	const [
-		supervisorRow,
-		assessorRow,
-		seint1Row,
-		seint2Row,
-		documento,
-		secsRows,
-		todasEquipes,
-		todosMembros,
-		todasPresencas,
-		todasRespostas,
-		assExtraRow
-	] = parallelResults;
+	const gise = giseRows[0];
+	if (!gise) return null;
+	const documento = documentoRows[0] ?? null;
+	const assExtraRow = assExtraRows[0];
 
-	// Carrega slots de unidade por seccional (LEFT JOIN: unidade_id pode ser null)
-	const todosSlotsUnidade = await db
-		.select({
-			id: giseSeccionalUnidades.id,
-			gise_seccional_id: giseSeccionalUnidades.gise_seccional_id,
-			unidade_id: giseSeccionalUnidades.unidade_id,
-			nome: unidades.nome
-		})
-		.from(giseSeccionalUnidades)
-		.leftJoin(unidades, eq(giseSeccionalUnidades.unidade_id, unidades.id))
-		.innerJoin(giseSeccionais, eq(giseSeccionalUnidades.gise_seccional_id, giseSeccionais.id))
-		.where(eq(giseSeccionais.gise_id, id))
-		.orderBy(asc(giseSeccionalUnidades.id));
+	// Segunda ida: o quadro de supervisão, por ids que só existem depois de ler a
+	// escala. Uma consulta para os quatro papéis — o mapa por id também cobre a
+	// mesma pessoa acumulando dois deles.
+	const idsQuadro = [
+		...new Set(
+			[gise.supervisor_id, gise.assessor_id, gise.seint1_id, gise.seint2_id].filter(
+				(v): v is number => v != null
+			)
+		)
+	];
+	const quadro = new Map<number, { nome: string; matricula: string; telefone: string | null }>();
+	if (idsQuadro.length > 0) {
+		const linhas = await db
+			.select({
+				id: policiais.id,
+				nome: policiais.nome,
+				matricula: policiais.matricula,
+				telefone: policiais.telefone
+			})
+			.from(policiais)
+			.where(inArray(policiais.id, idsQuadro));
+		for (const p of linhas) quadro.set(p.id, p);
+	}
+	const doQuadro = (pid: number | null) => (pid == null ? undefined : quadro.get(pid));
+	const supervisorRow = doQuadro(gise.supervisor_id);
+	const assessorRow = doQuadro(gise.assessor_id);
+	const seint1Row = doQuadro(gise.seint1_id);
+	const seint2Row = doQuadro(gise.seint2_id);
 
 	const temSaidaConfirmada = todasPresencas.some((p) => p.saida_timestamp !== null);
 
