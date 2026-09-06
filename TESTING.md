@@ -17,7 +17,7 @@ Roteiro de regressão manual dos fluxos de negócio. **Papel deste arquivo: exce
 - [ ] Submeter matrícula + senha corretos → receber e-mail com código 2FA
 - [ ] Inserir código 2FA correto → redirecionar para a tela de boas-vindas conforme papel `[E2E: boas-vindas-rbac.spec.ts — exceto Super Admin, que depende de SUPER_ADMIN_LOGIN]`
   - Super Admin → `/super-admin`
-  - Admin Geral → `/escalas/bem-vindo` ou `/gise/bem-vindo` (conforme o módulo escolhido)
+  - Admin Geral → `/escalas/bem-vindo` ou `/gise/bem-vindo` (um módulo só: o sistema escolhe; os dois: `'ambas'` e troca na sidebar)
   - Admin Seccional / Unidade → `/escalas/bem-vindo`
   - Demais policiais → `/bem-vindo` (cards de atalho conforme papel/GISE)
 
@@ -48,11 +48,12 @@ Roteiro de regressão manual dos fluxos de negócio. **Papel deste arquivo: exce
 - [ ] Sem confirmar o e-mail pessoal, o botão "Definir senha e continuar" fica desabilitado; POST direto da action → 400 ("Confirme seu e-mail pessoal antes de concluir o primeiro acesso")
 - [ ] Alterar senha com sucesso → **cai em `/aceitar-termo`** (com o termo vigente pendente); aceitar → boas-vindas do papel
 - [ ] A tela de primeiro acesso **não** oferece cadastrar a chave de assinatura — nem no celular, com ou sem `exigir_passkey_assinatura` ligada
+- [ ] "Sair e voltar ao login" encerra a sessão; reabrir o sistema cai em `/login`, **não** devolve para `/alterar-senha`
 
 ### 1.5 Login por certificado A3 (desktop, Assinador SERPRO)
 
 - [ ] Aba **Policial** → "Entrar com Certificado Digital" → assinar o desafio no token → sessão operacional criada (sem senha e sem 2FA)
-- [ ] Aba **Administrador** → mesmo botão com módulo escolhido → sessão de admin criada se o policial do certificado tiver conta admin vinculada; redireciona para a boas-vindas do módulo
+- [ ] Aba **Administrador** → sessão de admin criada se o policial do certificado tiver conta admin vinculada; redireciona para a boas-vindas do módulo que a conta permite (troca na sidebar se tiver os dois)
 - [ ] Certificado de policial SEM vínculo admin na aba Administrador → 403 com mensagem clara
 - [ ] Certificado revogado (OCSP) → login recusado
 

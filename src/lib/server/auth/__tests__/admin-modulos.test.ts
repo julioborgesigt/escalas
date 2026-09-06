@@ -6,7 +6,8 @@ import {
 	moduloExigidoPelaRota,
 	adminPodeAcessarRota,
 	temAmbosModulos,
-	temAlgumModulo
+	temAlgumModulo,
+	preferenciaDoCookie
 } from '../admin-modulos';
 
 describe('modulosDaContaAdmin', () => {
@@ -45,6 +46,16 @@ describe('resolverPreferenciaModulo', () => {
 		expect(resolverPreferenciaModulo(ambos, 'escalas')).toBe('escalas');
 		expect(resolverPreferenciaModulo(ambos, null)).toBe('ambas');
 		expect(resolverPreferenciaModulo(ambos, 'ambas')).toBe('ambas');
+	});
+});
+
+describe('preferenciaDoCookie', () => {
+	it('só aceita gise/escalas/ambas', () => {
+		expect(preferenciaDoCookie('gise')).toBe('gise');
+		expect(preferenciaDoCookie('escalas')).toBe('escalas');
+		expect(preferenciaDoCookie('ambas')).toBe('ambas');
+		expect(preferenciaDoCookie(undefined)).toBe('ambas');
+		expect(preferenciaDoCookie('foo')).toBe('ambas');
 	});
 });
 

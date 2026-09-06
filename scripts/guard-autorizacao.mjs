@@ -99,6 +99,8 @@ export const DECLARADAS = {
 	// ---- Autosserviço: o recurso é o próprio usuário, não há segundo sujeito ----
 	'src/routes/aceitar-termo/+page.server.ts → aceitar': 'aceita o próprio termo de uso',
 	'src/routes/alterar-senha/+page.server.ts → alterar': 'troca a própria senha (confere a atual)',
+	'src/routes/alterar-senha/+page.server.ts → sair':
+		'logout: destrói a própria sessão (primeiro acesso sem sidebar)',
 	// `/perfil` não tem mais form action: pedir correção do cadastro virou ato do
 	// administrador da unidade/seccional, na ficha do servidor. O que sobrou na
 	// página (e-mail pessoal, passkey) vai por API, e cada uma dessas rotas já

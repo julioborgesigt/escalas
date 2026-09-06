@@ -73,6 +73,12 @@ export function cookieModuloParaGravar(
 	return resolverPreferenciaModulo(permitidos, preferencia);
 }
 
+/** Cookie cru: só `gise`/`escalas`/`ambas` contam; o resto vira `'ambas'`. */
+export function preferenciaDoCookie(raw?: string | null): AdminModuloPreferencia {
+	if (raw === 'gise' || raw === 'escalas' || raw === 'ambas') return raw;
+	return 'ambas';
+}
+
 /**
  * Qual módulo a rota exige do Admin Geral. `null` = compartilhada (policiais,
  * auth, perfil…) ou fora dos consoles — não recusa por módulo.

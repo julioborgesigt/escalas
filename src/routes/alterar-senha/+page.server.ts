@@ -9,9 +9,11 @@
  * Esta rota também é o destino do primeiro acesso (ver
  * `redefinir-senha/+page.server.ts`): é aqui que senha e e-mail pessoal são
  * definidos na mesma passagem, e é por isso que ela precisa funcionar para quem
- * ainda tem `primeiro_acesso = 1`.
+ * ainda tem `primeiro_acesso = 1`. A action `sair` existe porque esta rota não
+ * tem o "Sair" do layout: sem ela, fechar a aba deixava o cookie vivo e o hook
+ * devolvia o usuário para cá.
  */
-import { fail } from '@sveltejs/kit';
+import { fail, redirect } from '@sveltejs/kit';
 import { eq } from 'drizzle-orm';
 import { getDB, auditar, contextoDeEvento } from '$lib/db';
 import { hashSenha, verificarSenha, criarSessao } from '$lib/auth';
@@ -24,6 +26,7 @@ import {
 	revogarSessoesDaCredencial
 } from '$lib/server/auth/credencial';
 import { invalidarSessaoCache } from '$lib/server/auth/session-cache';
+import { encerrarSessaoAtual } from '$lib/server/auth/encerrar-sessao';
 import {
 	contarRecoveryAttempts,
 	registrarRecoveryAttempt
@@ -184,5 +187,16 @@ export const actions = {
 		);
 
 		return { success: true };
+	},
+
+	// A tela é `ROTAS_SEM_SIDEBAR`: sem o Sair do layout, o cookie de sessão
+	// sobrevive ao fechar a aba e o hook devolve o usuário para cá. O POST
+	// `/api/auth/logout` já era livre em primeiro acesso; faltava o controle.
+	sair: async (event) => {
+		if (!event.locals.usuario) {
+			return fail(401, { error: 'Não autorizado' });
+		}
+		await encerrarSessaoAtual(event);
+		redirect(303, '/login');
 	}
 } satisfies Actions;
