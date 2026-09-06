@@ -10,7 +10,7 @@
 	import type { Snippet } from 'svelte';
 	import { CLASSE_INPUT_FILTRO, CLASSE_ROTULO_FILTRO } from '$lib/gise/filtro-historico-ui';
 
-	let {
+	const {
 		label,
 		name,
 		value = '',
