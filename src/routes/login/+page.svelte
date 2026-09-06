@@ -16,7 +16,7 @@
 	 *
 	 * Dois cuidados que parecem detalhe e não são:
 	 *
-	 * - o erro de login é exibido por `loginErrorDisplay`, que lê o estado do
+	 * - o erro de login é exibido por `erroDeLoginExibido()`, que lê o estado do
 	 *   cliente OU o `page.form` do submit sem JS. A tela precisa funcionar com
 	 *   JavaScript bloqueado pelo CSP;
 	 * - `?resetado=1` é removido com `replaceState`, não com `goto()`: uma
@@ -89,10 +89,13 @@
 	let mostrarBannerResetado = $state(page.url.searchParams.get('resetado') === '1');
 	let resetadoParamConsumido = false;
 
-	// Exibe o erro do último attempt — funciona com JS (loginError) e sem JS (page.form)
-	const loginErrorDisplay = $derived(
-		loginError ?? (page.form as { error?: string } | null)?.error ?? null
-	);
+	// Erro do último attempt — JS (`loginError`) ou submit sem JS (`page.form`).
+	// Função lida pelo template, não `$derived` de `page`: na saída do login o
+	// `page` global atualiza depois da árvore já destruída, e o derived inerte
+	// dispara `derived_inert`.
+	function erroDeLoginExibido(): string | null {
+		return loginError ?? (page.form as { error?: string } | null)?.error ?? null;
+	}
 
 	// Remove `?resetado=1` sem `goto()`: uma navegação cliente extra aqui pode correr com o
 	// `goto` pós-2FA e deixar o layout sem `usuario` (sidebar some, parece sem estilo).
@@ -438,7 +441,7 @@
 				bind:adminModulo
 				bind:matricula
 				bind:senha
-				{loginErrorDisplay}
+				loginErrorDisplay={erroDeLoginExibido()}
 				{handleLogin}
 				{fazerLoginComCertificado}
 				onPrimeiroAcesso={() => {
