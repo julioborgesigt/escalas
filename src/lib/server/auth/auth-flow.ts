@@ -33,8 +33,6 @@ import {
 
 export { mascararEmail };
 
-export type AdminModulo = AdminModuloPreferencia;
-
 // ---- Rate limit e utilitários (antes em login-helpers) ----
 
 const LOGIN_MAX_ATTEMPTS = 5;
@@ -215,7 +213,7 @@ type TentarLoginArgs = {
 	tipo: 'policial' | 'admin';
 	platform: App.Platform | undefined;
 	/** Preferência de tela já gravada (cookie) ou `'ambas'`. Não vem da UI. */
-	formAdminModulo?: AdminModulo;
+	formAdminModulo?: AdminModuloPreferencia;
 };
 
 type Pendente2FA = {
@@ -235,7 +233,7 @@ type TentarLoginResult =
 			primeiroAcesso: boolean;
 			role: 'admin' | 'policial';
 			formRedirect?: string;
-			adminModuloCookie?: AdminModulo;
+			adminModuloCookie?: AdminModuloPreferencia;
 	  }
 	| {
 			sucesso: false;
@@ -251,7 +249,7 @@ type TentarLoginResult =
 			fields?: { matricula?: string; tipo?: string };
 	  };
 
-function adminDestino(modulo: AdminModulo): string {
+function adminDestino(modulo: AdminModuloPreferencia): string {
 	if (modulo === 'gise') return '/gise';
 	if (modulo === 'escalas') return '/recebidos';
 	return '/painel';
@@ -263,9 +261,9 @@ function adminDestino(modulo: AdminModulo): string {
  */
 function resolverModuloLogin(
 	linha: { modulo_escalas?: number | boolean | null; modulo_gise?: number | boolean | null },
-	preferencia: AdminModulo | undefined,
+	preferencia: AdminModuloPreferencia | undefined,
 	isSuperAdmin = false
-): AdminModulo | null {
+): AdminModuloPreferencia | null {
 	const permitidos = modulosDaContaAdmin(linha, isSuperAdmin);
 	if (!temAlgumModulo(permitidos)) return null;
 	return cookieModuloParaGravar(permitidos, preferencia);
@@ -311,7 +309,7 @@ export async function tentarLogin({
 		};
 	}
 
-	const adminModulo: AdminModulo = formAdminModulo ?? 'ambas';
+	const adminModulo: AdminModuloPreferencia = formAdminModulo ?? 'ambas';
 	const isForm = formAdminModulo !== undefined;
 	const _env = platform?.env as Env | undefined;
 
