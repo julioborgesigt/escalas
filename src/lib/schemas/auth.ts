@@ -64,9 +64,7 @@ export const certificadoVerificarSchema = z.object({
 	// Intenção de entrar no console de Admin Geral (aba "Administrador" da tela de
 	// login). Só concede sessão admin se o CPF do certificado tiver uma conta
 	// vinculada em `administradores.policial_id`; caso contrário, erro claro.
-	comoAdmin: z.boolean().optional(),
-	// Módulo escolhido pelo admin (Escalas/GISE). Ignorado quando `comoAdmin` é falso.
-	adminModulo: z.enum(['ambas', 'gise', 'escalas']).optional()
+	comoAdmin: z.boolean().optional()
 });
 
 /**

@@ -24,9 +24,9 @@ npm run dev             # http://127.0.0.1:5173
 ## Logins por perfil
 
 - **Admin Geral / Super Admin (bootstrap por env)**: tela de login → aba
-  "Administrador" → escolher módulo (atenção: o padrão do seletor é **GISE**,
-  clique em "Escalas ordinárias" explicitamente) → login/senha do `.dev.vars`. Sem 2FA
-  quando `ADMIN_GERAL_EMAIL`/`SUPER_ADMIN_EMAIL` não estão definidos.
+  "Administrador" → login/senha do `.dev.vars`. Sem seletor de módulo: um só
+  é recortado pela conta; os dois entram em ambos e a troca é na sidebar.
+  Sem 2FA quando `ADMIN_GERAL_EMAIL`/`SUPER_ADMIN_EMAIL` não estão definidos.
 - **Policial comum**: o login normal exige 2FA por e-mail (sem provedor
   local, inviável). Contorno para teste local: criar o policial via SQL e
   **forjar uma sessão legada** (token em claro de 64 hex é aceito pelo
@@ -62,7 +62,6 @@ script `.cjs` fora do repo. Tema: perfil limpo abre no claro; para escuro,
 
 - `npm run db:migrate` roda um `wrangler d1 execute` por migration — não
   assuma travamento antes de ~5 min.
-- Formulário de login: campos `matricula` e `senha`; botão de módulo dentro
-  de `label:has-text("Módulo de Acesso")` (há "Escalas ordinárias"/"GISE" duplicados
-  fora dele).
+- Formulário de login: campos `matricula` e `senha`; aba Administrador não
+  tem seletor de módulo (a conta decide; troca depois do login na sidebar).
 - A ordem de tabulação passa pela sidebar inteira antes do conteúdo.

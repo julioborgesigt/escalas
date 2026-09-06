@@ -9,6 +9,7 @@
 import { json } from '@sveltejs/kit';
 import { getDB } from '$lib/db';
 import { tentarLogin, cookieOptions } from '$lib/server/auth/auth-flow';
+import { preferenciaDoCookie } from '$lib/server/auth/admin-modulos';
 import { loginSchema } from '$lib/schemas';
 import { apiError, ErrorCode, badRequest, rateLimited } from '$lib/server/api';
 import type { RequestHandler } from './$types';
@@ -36,7 +37,8 @@ export const POST: RequestHandler = async ({
 		matricula,
 		senha,
 		tipo,
-		platform
+		platform,
+		formAdminModulo: preferenciaDoCookie(cookies.get('admin_modulo'))
 	});
 
 	if (!result.sucesso && result.statusCode === 429) return rateLimited(result.erro);
@@ -68,6 +70,9 @@ export const POST: RequestHandler = async ({
 	}
 
 	cookies.set('session_token', result.token, cookieOptions(url));
+	if (result.role === 'admin' && result.adminModuloCookie !== undefined) {
+		cookies.set('admin_modulo', result.adminModuloCookie, cookieOptions(url));
+	}
 	return json({
 		success: true,
 		primeiro_acesso: result.primeiroAcesso,

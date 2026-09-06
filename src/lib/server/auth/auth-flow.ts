@@ -214,7 +214,7 @@ type TentarLoginArgs = {
 	senha: string;
 	tipo: 'policial' | 'admin';
 	platform: App.Platform | undefined;
-	/** Só no login por formulário admin — define cookie admin_modulo após 2FA */
+	/** Preferência de tela já gravada (cookie) ou `'ambas'`. Não vem da UI. */
 	formAdminModulo?: AdminModulo;
 };
 

@@ -27,10 +27,9 @@ import { logger } from '$lib/server/logger';
 import {
 	tentarLogin,
 	LOGIN_WINDOW_MINUTES,
-	cookieOptions,
-	type AdminModulo
+	cookieOptions
 } from '$lib/server/auth/auth-flow';
-import { cookieModuloParaGravar, modulosDaContaAdmin } from '$lib/server/auth/admin-modulos';
+import { cookieModuloParaGravar, modulosDaContaAdmin, preferenciaDoCookie } from '$lib/server/auth/admin-modulos';
 import {
 	contarRecoveryAttempts,
 	registrarRecoveryAttempt
@@ -70,7 +69,10 @@ export const actions: Actions = {
 		const matricula = formData.get('matricula') as string;
 		const senha = formData.get('senha') as string;
 		const tipo = formData.get('tipo') as 'policial' | 'admin';
-		const adminModulo = ((formData.get('adminModulo') as string) || 'ambas') as AdminModulo;
+		// A tela não escolhe módulo: um só é recortado pela conta; os dois
+		// ficam em `'ambas'` (ou no cookie da sessão anterior) e a troca é
+		// na sidebar (`/api/auth/alternar-modulo`).
+		const preferenciaModulo = preferenciaDoCookie(cookies.get('admin_modulo'));
 
 		const parsed = loginSchema.safeParse({ matricula, senha, tipo });
 		if (!parsed.success) {
@@ -84,7 +86,7 @@ export const actions: Actions = {
 			senha: parsed.data.senha,
 			tipo: parsed.data.tipo,
 			platform,
-			formAdminModulo: adminModulo
+			formAdminModulo: preferenciaModulo
 		});
 
 		if (!result.sucesso && result.statusCode === 429) {
@@ -96,7 +98,7 @@ export const actions: Actions = {
 
 		if (!result.sucesso && 'pendente2FA' in result) {
 			if (result.setAdminModuloPendingCookie) {
-				cookies.set('admin_modulo_pending', adminModulo, {
+				cookies.set('admin_modulo_pending', preferenciaModulo, {
 					...cookieOptions(url),
 					maxAge: 15 * 60
 				});
@@ -294,7 +296,8 @@ export const actions: Actions = {
 		);
 
 		if (tipo === 'admin' && adminLinha) {
-			const pendingModulo = cookies.get('admin_modulo_pending') || 'ambas';
+			const pendingModulo =
+				cookies.get('admin_modulo_pending') || cookies.get('admin_modulo') || 'ambas';
 			const modulo = cookieModuloParaGravar(modulosDaContaAdmin(adminLinha), pendingModulo);
 			cookies.set('admin_modulo', modulo, cookieOptions(url));
 			cookies.delete('admin_modulo_pending', { path: '/' });

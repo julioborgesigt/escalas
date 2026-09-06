@@ -4,8 +4,6 @@
 	 * e entrada por certificado digital SERPRO (dispensa 2FA).
 	 */
 	import AlertCircle from '@lucide/svelte/icons/alert-circle';
-	import Calendar from '@lucide/svelte/icons/calendar';
-	import Shield from '@lucide/svelte/icons/shield';
 	import { enhance } from '$app/forms';
 	import { loading as loadingService } from '$lib/loading.svelte';
 	import SeletorPolicialAdmin from './SeletorPolicialAdmin.svelte';
@@ -13,7 +11,6 @@
 
 	let {
 		tipo = $bindable(),
-		adminModulo = $bindable(),
 		matricula = $bindable(),
 		senha = $bindable(),
 		loginErrorDisplay,
@@ -23,7 +20,6 @@
 		onRecuperacao
 	}: {
 		tipo: 'policial' | 'admin';
-		adminModulo: 'gise' | 'escalas';
 		matricula: string;
 		senha: string;
 		loginErrorDisplay: string | null;
@@ -40,33 +36,6 @@
 
 <form method="POST" action="?/login" use:enhance={handleLogin} class="flex flex-col gap-4 sm:gap-6">
 	<input type="hidden" name="tipo" value={tipo} />
-	{#if tipo === 'admin'}
-		<input type="hidden" name="adminModulo" value={adminModulo} />
-		<label class="label">
-			<span
-				class="label-text text-xs font-semibold uppercase tracking-wider text-surface-600 dark:text-surface-400"
-				>Módulo de Acesso</span
-			>
-			<div class="flex gap-2 mt-1">
-				{#each [{ value: 'escalas', label: 'Escalas ordinárias' }, { value: 'gise', label: 'GISE' }] as opt (opt.value)}
-					<button
-						type="button"
-						class="flex-1 flex flex-col items-center gap-1 py-2 px-1 rounded-xl border text-xs font-medium transition-all
-							{adminModulo === opt.value
-							? 'bg-primary-500/15 border-primary-500/50 text-primary-700 dark:text-primary-400'
-							: 'border-surface-200 dark:border-surface-700 text-surface-600 dark:text-surface-400 hover:border-surface-400 dark:hover:border-surface-500'}"
-						onclick={() => (adminModulo = opt.value as typeof adminModulo)}
-					>
-						{#if opt.value === 'escalas'}<Calendar
-								class="w-5 h-5"
-								aria-hidden="true"
-							/>{:else}<Shield class="w-5 h-5" aria-hidden="true" />{/if}
-						<span>{opt.label}</span>
-					</button>
-				{/each}
-			</div>
-		</label>
-	{/if}
 	<label class="label">
 		<span class="label-text">{tipo === 'admin' ? 'Login' : 'Matrícula'}</span>
 		<!-- svelte-ignore a11y_autofocus -->

@@ -47,7 +47,8 @@ import { checkRateLimit, recordAttempt, cookieOptions } from '$lib/server/auth/a
 import {
 	modulosDaContaAdmin,
 	temAlgumModulo,
-	cookieModuloParaGravar
+	cookieModuloParaGravar,
+	preferenciaDoCookie
 } from '$lib/server/auth/admin-modulos';
 import {
 	verificarRespostaDesafioCertificado,
@@ -66,7 +67,7 @@ export const POST: RequestHandler = async (event) => {
 
 	const v = await validateBody(request, certificadoVerificarSchema);
 	if (!v.ok) return v.response;
-	const { desafioId, cmsBase64, comoAdmin, adminModulo } = v.data;
+	const { desafioId, cmsBase64, comoAdmin } = v.data;
 
 	// Rate limit compartilhado com o fluxo normal de login
 	const rateLimit = await checkRateLimit(db, ip);
@@ -256,7 +257,10 @@ export const POST: RequestHandler = async (event) => {
 				'Esta conta de administrador não tem módulos liberados. Contate quem gerencia o cadastro.'
 			);
 		}
-		const modulo = cookieModuloParaGravar(permitidos, adminModulo);
+		const modulo = cookieModuloParaGravar(
+			permitidos,
+			preferenciaDoCookie(cookies.get('admin_modulo'))
+		);
 
 		// Consumo de uso único: se outra requisição gastou o desafio primeiro,
 		// esta NÃO cria sessão. A checagem de `usado` lá em cima é diagnóstico;

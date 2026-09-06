@@ -55,7 +55,6 @@
 	}
 
 	let tipo = $state<'policial' | 'admin'>('policial');
-	let adminModulo = $state<'gise' | 'escalas'>('gise');
 	let matricula = $state('');
 	let senha = $state('');
 
@@ -288,8 +287,8 @@
 			serproClient = null;
 
 			// 4. Verificar no servidor. Na aba Administrador, sinaliza `comoAdmin`
-			//    (+ módulo escolhido) — o servidor cria sessão admin se o CPF tiver
-			//    conta vinculada e devolve a rota de destino no `redirect`.
+			//    — o servidor cria sessão admin se o CPF tiver conta vinculada,
+			//    recorta o módulo ao que a conta permite e devolve a rota no `redirect`.
 			loadingService.show('Verificando certificado...');
 			const data = await apiFetch<{
 				success?: boolean;
@@ -301,8 +300,7 @@
 				body: JSON.stringify({
 					desafioId: did,
 					cmsBase64: resultado.rawSignature,
-					comoAdmin,
-					adminModulo: comoAdmin ? adminModulo : undefined
+					comoAdmin
 				})
 			});
 
@@ -438,7 +436,6 @@
 		{#if !pendente2FA && !primeiroAcesso && !recuperacao}
 			<FormCredenciais
 				bind:tipo
-				bind:adminModulo
 				bind:matricula
 				bind:senha
 				loginErrorDisplay={erroDeLoginExibido()}

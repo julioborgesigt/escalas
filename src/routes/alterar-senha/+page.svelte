@@ -23,15 +23,20 @@
 	 * convite vive onde a falta da chave morde — na hora de assinar, e só com a
 	 * exigência ligada: `ConviteChaveAssinatura` + `avancadaEmTelaDoLayout`
 	 * levam a Meu Perfil a partir do próprio documento.
+	 *
+	 * Sem sidebar, fechar a aba não encerra a sessão: o cookie sobrevive e o
+	 * hook devolve para cá. "Sair e voltar ao login" é a action `sair` (POST),
+	 * a mesma higiene de `/api/auth/logout` — GET no endpoint não destrói nada.
 	 */
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import { loading } from '$lib/loading.svelte';
 	import { useVerificacaoEmailPessoal } from '$lib/composables';
-	import type { ActionResult } from '@sveltejs/kit';
+	import type { ActionResult, SubmitFunction } from '@sveltejs/kit';
 	import { enhance } from '$app/forms';
 	import CamposNovaSenha, { validarForcaSenha } from '$lib/components/CamposNovaSenha.svelte';
 	import CabecalhoAuth from '$lib/components/CabecalhoAuth.svelte';
+	import { apagarReauth } from '$lib/assinatura-reauth';
 	import AlertCircle from '@lucide/svelte/icons/alert-circle';
 
 	let senhaAtual = $state('');
@@ -104,6 +109,25 @@
 			}
 		};
 	}
+
+	const handleSair: SubmitFunction = () => {
+		error = '';
+		apagarReauth();
+		loading.show('Saindo...');
+		return async ({ result, update }) => {
+			if (result.type === 'failure') {
+				loading.hide();
+				const d = result.data as Record<string, unknown> | undefined;
+				error = String(d?.error || 'Não foi possível sair.');
+				return;
+			}
+			try {
+				await update();
+			} finally {
+				loading.hide();
+			}
+		};
+	};
 </script>
 
 <svelte:head>
@@ -277,6 +301,16 @@
 						: primeiroAcesso
 							? 'Definir senha e continuar'
 							: 'Salvar nova senha'}
+				</button>
+			</form>
+
+			<form method="POST" action="?/sair" use:enhance={handleSair} class="mt-3">
+				<button
+					type="submit"
+					class="btn preset-outlined-surface-500 w-full py-3 font-semibold tracking-wide"
+					disabled={loading.active}
+				>
+					Sair e voltar ao login
 				</button>
 			</form>
 		</div>
