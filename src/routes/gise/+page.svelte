@@ -140,11 +140,7 @@
 		ativas.slice((paginaAtivasExibida - 1) * ITEMS_ATIVAS, paginaAtivasExibida * ITEMS_ATIVAS)
 	);
 	const mostraRodapeLista = $derived(
-		isAdminGeral ||
-			isSeccional ||
-			isUnidade ||
-			isSupervisor ||
-			(ativas.length > 0 && !isMembro)
+		isAdminGeral || isSeccional || isUnidade || isSupervisor || (ativas.length > 0 && !isMembro)
 	);
 
 	/**

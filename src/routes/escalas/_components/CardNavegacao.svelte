@@ -76,7 +76,6 @@
 	);
 </script>
 
-
 {#snippet conteudo()}
 	<span
 		class={[

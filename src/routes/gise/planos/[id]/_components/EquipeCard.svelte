@@ -329,7 +329,9 @@
 <!-- `card-quadro` (o mesmo de Comando e demanda): a ficha ABRE o modal de
      preenchimento ao clique — a borda 1px sumia na folha. O `hover:shadow-md`
      fica porque a sombra reage ao ponteiro. -->
-<li class="card-quadro min-w-0 h-full rounded-2xl overflow-hidden hover:shadow-md transition-shadow duration-300">
+<li
+	class="card-quadro min-w-0 h-full rounded-2xl overflow-hidden hover:shadow-md transition-shadow duration-300"
+>
 	<!-- Cabeçalho: ficha da equipe — marca, fatos em chips, custo, ações. -->
 	<div class="flex flex-wrap items-center gap-3 px-4 py-4 sm:px-5">
 		<button

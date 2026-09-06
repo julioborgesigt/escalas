@@ -161,8 +161,7 @@ const RECEBIDOS: CardBemVindo = {
  */
 const FINALIZADAS: CardBemVindo = {
 	titulo: 'Finalizadas',
-	descricao:
-		'Consulte o histórico das escalas extras já encerradas.',
+	descricao: 'Consulte o histórico das escalas extras já encerradas.',
 	href: '/gise/finalizadas',
 	cta: 'Ver finalizadas'
 };
@@ -189,8 +188,7 @@ const OPERACOES: CardBemVindo = {
  */
 const PLANOS: CardBemVindo = {
 	titulo: 'Planos operacionais',
-	descricao:
-		'Crie o plano operacional, configure as equipes, os custos e gere o plano em PDF.',
+	descricao: 'Crie o plano operacional, configure as equipes, os custos e gere o plano em PDF.',
 	href: '/gise/planos',
 	cta: 'Ver planos operacionais'
 };
