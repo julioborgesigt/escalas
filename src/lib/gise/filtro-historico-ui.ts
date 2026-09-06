@@ -36,6 +36,9 @@ export const CLASSE_CAIXA_FILTRO_CROMO =
 /** Só o chrome da caixa — listagens que já têm o próprio `flex`/`grid` por dentro. */
 export const CLASSE_CAIXA_FILTRO = `${CLASSE_CAIXA_FILTRO_CROMO} p-3 sm:p-5`;
 
+/** Form GET de `/auditoria` e `/auditoria/logs` — a visibilidade (`grid` / `hidden lg:grid`) fica no call site. */
+export const CLASSE_FORM_FILTRO_GET = `${CLASSE_CAIXA_FILTRO} grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3`;
+
 export const CLASSE_BARRA_FILTRO = `${CLASSE_CAIXA_FILTRO} flex flex-col sm:flex-row sm:flex-wrap xl:flex-nowrap sm:items-end gap-3 sm:gap-4`;
 
 /** Override do input interno do `SearchableSelect` na barra de filtros. */

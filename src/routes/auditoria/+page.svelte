@@ -30,16 +30,13 @@
 	import EstadoVazio from '$lib/components/EstadoVazio.svelte';
 	import KpiCard from './_components/KpiCard.svelte';
 	import ChipNivel from './_components/ChipNivel.svelte';
+	import CampoFiltroGet from './_components/CampoFiltroGet.svelte';
 	import FiltrosToggle from './_components/FiltrosToggle.svelte';
 	import Paginacao from './_components/Paginacao.svelte';
 	import CardExpansivel from './_components/CardExpansivel.svelte';
 	import { parseJson } from './_components/parse-json';
 	import { mensagemDeErro } from '$lib/utils/erro';
-	import {
-		CLASSE_CAIXA_FILTRO,
-		CLASSE_INPUT_FILTRO,
-		CLASSE_ROTULO_FILTRO
-	} from '$lib/gise/filtro-historico-ui';
+	import { CLASSE_FORM_FILTRO_GET } from '$lib/gise/filtro-historico-ui';
 
 	const { data, form }: PageProps = $props();
 
@@ -315,73 +312,41 @@
 
 		<form
 			method="GET"
-			class="{CLASSE_CAIXA_FILTRO} {filtrosExpandidos
-				? 'grid'
-				: 'hidden lg:grid'} grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3"
+			class="{CLASSE_FORM_FILTRO_GET} {filtrosExpandidos ? 'grid' : 'hidden lg:grid'}"
 		>
-			<label class="flex flex-col gap-1.5">
-				<span class={CLASSE_ROTULO_FILTRO}>Categoria</span>
-				<select name="categoria" class="{CLASSE_INPUT_FILTRO} w-full">
-					<option value="" selected={!data.filtros.categoria}>Todas</option>
-					{#each data.facetas.categorias as c (c)}
-						<option value={c} selected={data.filtros.categoria === c}>{CATEGORIA[c] ?? c}</option>
-					{/each}
-				</select>
-			</label>
-			<label class="flex flex-col gap-1.5">
-				<span class={CLASSE_ROTULO_FILTRO}>Ação</span>
-				<select name="acao" class="{CLASSE_INPUT_FILTRO} w-full">
-					<option value="" selected={!data.filtros.acao}>Todas</option>
-					{#each data.facetas.acoes as a (a.valor)}
-						<option value={a.valor} selected={data.filtros.acao === a.valor}>{a.label}</option>
-					{/each}
-				</select>
-			</label>
-			<label class="flex flex-col gap-1.5">
-				<span class={CLASSE_ROTULO_FILTRO}>Severidade</span>
-				<select name="severidade" class="{CLASSE_INPUT_FILTRO} w-full">
-					<option value="" selected={!data.filtros.severidade}>Todas</option>
-					<option value="info" selected={data.filtros.severidade === 'info'}>Info</option>
-					<option value="aviso" selected={data.filtros.severidade === 'aviso'}>Aviso</option>
-					<option value="critico" selected={data.filtros.severidade === 'critico'}>Crítico</option>
-				</select>
-			</label>
-			<label class="flex flex-col gap-1.5">
-				<span class={CLASSE_ROTULO_FILTRO}>Resultado</span>
-				<select name="resultado" class="{CLASSE_INPUT_FILTRO} w-full">
-					<option value="" selected={!data.filtros.resultado}>Todos</option>
-					<option value="sucesso" selected={data.filtros.resultado === 'sucesso'}>Sucesso</option>
-					<option value="falha" selected={data.filtros.resultado === 'falha'}>Falha</option>
-					<option value="negado" selected={data.filtros.resultado === 'negado'}>Negado</option>
-				</select>
-			</label>
-			<label class="flex flex-col gap-1.5 col-span-1 sm:col-span-2 lg:col-span-1">
-				<span class={CLASSE_ROTULO_FILTRO}>Busca (ator / detalhes / alvo)</span>
-				<input
-					name="busca"
-					class="{CLASSE_INPUT_FILTRO} w-full"
-					value={data.filtros.busca ?? ''}
-					placeholder="texto livre"
-				/>
-			</label>
-			<label class="flex flex-col gap-1.5">
-				<span class={CLASSE_ROTULO_FILTRO}>De</span>
-				<input
-					type="date"
-					name="de"
-					class="{CLASSE_INPUT_FILTRO} w-full"
-					value={data.filtros.de ?? ''}
-				/>
-			</label>
-			<label class="flex flex-col gap-1.5">
-				<span class={CLASSE_ROTULO_FILTRO}>Até</span>
-				<input
-					type="date"
-					name="ate"
-					class="{CLASSE_INPUT_FILTRO} w-full"
-					value={data.filtros.ate ?? ''}
-				/>
-			</label>
+			<CampoFiltroGet label="Categoria" name="categoria">
+				<option value="" selected={!data.filtros.categoria}>Todas</option>
+				{#each data.facetas.categorias as c (c)}
+					<option value={c} selected={data.filtros.categoria === c}>{CATEGORIA[c] ?? c}</option>
+				{/each}
+			</CampoFiltroGet>
+			<CampoFiltroGet label="Ação" name="acao">
+				<option value="" selected={!data.filtros.acao}>Todas</option>
+				{#each data.facetas.acoes as a (a.valor)}
+					<option value={a.valor} selected={data.filtros.acao === a.valor}>{a.label}</option>
+				{/each}
+			</CampoFiltroGet>
+			<CampoFiltroGet label="Severidade" name="severidade">
+				<option value="" selected={!data.filtros.severidade}>Todas</option>
+				<option value="info" selected={data.filtros.severidade === 'info'}>Info</option>
+				<option value="aviso" selected={data.filtros.severidade === 'aviso'}>Aviso</option>
+				<option value="critico" selected={data.filtros.severidade === 'critico'}>Crítico</option>
+			</CampoFiltroGet>
+			<CampoFiltroGet label="Resultado" name="resultado">
+				<option value="" selected={!data.filtros.resultado}>Todos</option>
+				<option value="sucesso" selected={data.filtros.resultado === 'sucesso'}>Sucesso</option>
+				<option value="falha" selected={data.filtros.resultado === 'falha'}>Falha</option>
+				<option value="negado" selected={data.filtros.resultado === 'negado'}>Negado</option>
+			</CampoFiltroGet>
+			<CampoFiltroGet
+				label="Busca (ator / detalhes / alvo)"
+				name="busca"
+				value={data.filtros.busca ?? ''}
+				placeholder="texto livre"
+				class="col-span-1 sm:col-span-2 lg:col-span-1"
+			/>
+			<CampoFiltroGet label="De" name="de" type="date" value={data.filtros.de ?? ''} />
+			<CampoFiltroGet label="Até" name="ate" type="date" value={data.filtros.ate ?? ''} />
 			<div class="flex items-end gap-2 pt-2 lg:pt-0 col-span-1 sm:col-span-2 lg:col-span-1">
 				<button type="submit" class="btn preset-filled-primary-500 text-sm flex-1 justify-center"
 					>Filtrar</button

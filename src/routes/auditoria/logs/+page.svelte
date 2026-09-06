@@ -22,11 +22,8 @@
 	import CardExpansivel from '../_components/CardExpansivel.svelte';
 	import { parseJson } from '../_components/parse-json';
 	import BotaoVoltar from '$lib/components/BotaoVoltar.svelte';
-	import {
-		CLASSE_CAIXA_FILTRO,
-		CLASSE_INPUT_FILTRO,
-		CLASSE_ROTULO_FILTRO
-	} from '$lib/gise/filtro-historico-ui';
+	import CampoFiltroGet from '../_components/CampoFiltroGet.svelte';
+	import { CLASSE_FORM_FILTRO_GET } from '$lib/gise/filtro-historico-ui';
 
 	const { data }: PageProps = $props();
 
@@ -99,55 +96,29 @@
 
 		<form
 			method="GET"
-			class="{CLASSE_CAIXA_FILTRO} {filtrosExpandidos
-				? 'grid'
-				: 'hidden lg:grid'} grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3"
+			class="{CLASSE_FORM_FILTRO_GET} {filtrosExpandidos ? 'grid' : 'hidden lg:grid'}"
 		>
-			<label class="flex flex-col gap-1.5">
-				<span class={CLASSE_ROTULO_FILTRO}>Nível</span>
-				<select name="level" class="{CLASSE_INPUT_FILTRO} w-full">
-					<option value="" selected={!data.filtros.level}>Todos</option>
-					<option value="warn" selected={data.filtros.level === 'warn'}>Aviso</option>
-					<option value="error" selected={data.filtros.level === 'error'}>Erro</option>
-				</select>
-			</label>
-			<label class="flex flex-col gap-1.5">
-				<span class={CLASSE_ROTULO_FILTRO}>Busca (mensagem / contexto / rota)</span>
-				<input
-					name="busca"
-					class="{CLASSE_INPUT_FILTRO} w-full"
-					value={data.filtros.busca ?? ''}
-					placeholder="texto livre"
-				/>
-			</label>
-			<label class="flex flex-col gap-1.5">
-				<span class={CLASSE_ROTULO_FILTRO}>Request ID</span>
-				<input
-					name="request_id"
-					class="{CLASSE_INPUT_FILTRO} w-full font-mono"
-					value={data.filtros.request_id ?? ''}
-					placeholder="ex.: 3fa1b2c4"
-				/>
-			</label>
+			<CampoFiltroGet label="Nível" name="level">
+				<option value="" selected={!data.filtros.level}>Todos</option>
+				<option value="warn" selected={data.filtros.level === 'warn'}>Aviso</option>
+				<option value="error" selected={data.filtros.level === 'error'}>Erro</option>
+			</CampoFiltroGet>
+			<CampoFiltroGet
+				label="Busca (mensagem / contexto / rota)"
+				name="busca"
+				value={data.filtros.busca ?? ''}
+				placeholder="texto livre"
+			/>
+			<CampoFiltroGet
+				label="Request ID"
+				name="request_id"
+				value={data.filtros.request_id ?? ''}
+				placeholder="ex.: 3fa1b2c4"
+				inputClass="font-mono"
+			/>
 			<div class="grid grid-cols-2 gap-3">
-				<label class="flex flex-col gap-1.5">
-					<span class={CLASSE_ROTULO_FILTRO}>De</span>
-					<input
-						type="date"
-						name="de"
-						class="{CLASSE_INPUT_FILTRO} w-full"
-						value={data.filtros.de ?? ''}
-					/>
-				</label>
-				<label class="flex flex-col gap-1.5">
-					<span class={CLASSE_ROTULO_FILTRO}>Até</span>
-					<input
-						type="date"
-						name="ate"
-						class="{CLASSE_INPUT_FILTRO} w-full"
-						value={data.filtros.ate ?? ''}
-					/>
-				</label>
+				<CampoFiltroGet label="De" name="de" type="date" value={data.filtros.de ?? ''} />
+				<CampoFiltroGet label="Até" name="ate" type="date" value={data.filtros.ate ?? ''} />
 			</div>
 			<div class="flex items-end gap-2 pt-2 lg:pt-0 col-span-1 sm:col-span-2 lg:col-span-4">
 				<button
