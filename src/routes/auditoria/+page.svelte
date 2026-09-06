@@ -30,11 +30,13 @@
 	import EstadoVazio from '$lib/components/EstadoVazio.svelte';
 	import KpiCard from './_components/KpiCard.svelte';
 	import ChipNivel from './_components/ChipNivel.svelte';
+	import CampoFiltroGet from './_components/CampoFiltroGet.svelte';
 	import FiltrosToggle from './_components/FiltrosToggle.svelte';
 	import Paginacao from './_components/Paginacao.svelte';
 	import CardExpansivel from './_components/CardExpansivel.svelte';
 	import { parseJson } from './_components/parse-json';
 	import { mensagemDeErro } from '$lib/utils/erro';
+	import { CLASSE_FORM_FILTRO_GET } from '$lib/gise/filtro-historico-ui';
 
 	const { data, form }: PageProps = $props();
 
@@ -165,7 +167,7 @@
 <div class="space-y-6">
 	<header class="flex flex-wrap items-center justify-between gap-3">
 		<div>
-			<h1 class="text-2xl font-bold text-surface-900 dark:text-white">Trilha de Auditoria</h1>
+			<h1 class="h1 text-2xl font-bold">Trilha de Auditoria</h1>
 			<p class="text-sm text-surface-600 dark:text-surface-400">
 				Registro forense de ações do sistema — cadeia de hash verificável.
 			</p>
@@ -305,68 +307,46 @@
 	{/if}
 
 	<!-- Filtros (GET → URL) -->
-	<div class="rounded-xl card-elevated p-4 space-y-4">
+	<div class="space-y-3">
 		<FiltrosToggle ativos={filtrosAtivos} bind:expandidos={filtrosExpandidos} />
 
 		<form
 			method="GET"
-			class="{filtrosExpandidos
-				? 'grid'
-				: 'hidden lg:grid'} grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3"
+			class="{CLASSE_FORM_FILTRO_GET} {filtrosExpandidos ? 'grid' : 'hidden lg:grid'}"
 		>
-			<label class="flex flex-col gap-1 text-sm">
-				<span class="text-surface-600 dark:text-surface-400">Categoria</span>
-				<select name="categoria" class="select">
-					<option value="" selected={!data.filtros.categoria}>Todas</option>
-					{#each data.facetas.categorias as c (c)}
-						<option value={c} selected={data.filtros.categoria === c}>{CATEGORIA[c] ?? c}</option>
-					{/each}
-				</select>
-			</label>
-			<label class="flex flex-col gap-1 text-sm">
-				<span class="text-surface-600 dark:text-surface-400">Ação</span>
-				<select name="acao" class="select">
-					<option value="" selected={!data.filtros.acao}>Todas</option>
-					{#each data.facetas.acoes as a (a.valor)}
-						<option value={a.valor} selected={data.filtros.acao === a.valor}>{a.label}</option>
-					{/each}
-				</select>
-			</label>
-			<label class="flex flex-col gap-1 text-sm">
-				<span class="text-surface-600 dark:text-surface-400">Severidade</span>
-				<select name="severidade" class="select">
-					<option value="" selected={!data.filtros.severidade}>Todas</option>
-					<option value="info" selected={data.filtros.severidade === 'info'}>Info</option>
-					<option value="aviso" selected={data.filtros.severidade === 'aviso'}>Aviso</option>
-					<option value="critico" selected={data.filtros.severidade === 'critico'}>Crítico</option>
-				</select>
-			</label>
-			<label class="flex flex-col gap-1 text-sm">
-				<span class="text-surface-600 dark:text-surface-400">Resultado</span>
-				<select name="resultado" class="select">
-					<option value="" selected={!data.filtros.resultado}>Todos</option>
-					<option value="sucesso" selected={data.filtros.resultado === 'sucesso'}>Sucesso</option>
-					<option value="falha" selected={data.filtros.resultado === 'falha'}>Falha</option>
-					<option value="negado" selected={data.filtros.resultado === 'negado'}>Negado</option>
-				</select>
-			</label>
-			<label class="flex flex-col gap-1 text-sm col-span-1 sm:col-span-2 lg:col-span-1">
-				<span class="text-surface-600 dark:text-surface-400">Busca (ator / detalhes / alvo)</span>
-				<input
-					name="busca"
-					class="input"
-					value={data.filtros.busca ?? ''}
-					placeholder="texto livre"
-				/>
-			</label>
-			<label class="flex flex-col gap-1 text-sm">
-				<span class="text-surface-600 dark:text-surface-400">De</span>
-				<input type="date" name="de" class="input" value={data.filtros.de ?? ''} />
-			</label>
-			<label class="flex flex-col gap-1 text-sm">
-				<span class="text-surface-600 dark:text-surface-400">Até</span>
-				<input type="date" name="ate" class="input" value={data.filtros.ate ?? ''} />
-			</label>
+			<CampoFiltroGet label="Categoria" name="categoria">
+				<option value="" selected={!data.filtros.categoria}>Todas</option>
+				{#each data.facetas.categorias as c (c)}
+					<option value={c} selected={data.filtros.categoria === c}>{CATEGORIA[c] ?? c}</option>
+				{/each}
+			</CampoFiltroGet>
+			<CampoFiltroGet label="Ação" name="acao">
+				<option value="" selected={!data.filtros.acao}>Todas</option>
+				{#each data.facetas.acoes as a (a.valor)}
+					<option value={a.valor} selected={data.filtros.acao === a.valor}>{a.label}</option>
+				{/each}
+			</CampoFiltroGet>
+			<CampoFiltroGet label="Severidade" name="severidade">
+				<option value="" selected={!data.filtros.severidade}>Todas</option>
+				<option value="info" selected={data.filtros.severidade === 'info'}>Info</option>
+				<option value="aviso" selected={data.filtros.severidade === 'aviso'}>Aviso</option>
+				<option value="critico" selected={data.filtros.severidade === 'critico'}>Crítico</option>
+			</CampoFiltroGet>
+			<CampoFiltroGet label="Resultado" name="resultado">
+				<option value="" selected={!data.filtros.resultado}>Todos</option>
+				<option value="sucesso" selected={data.filtros.resultado === 'sucesso'}>Sucesso</option>
+				<option value="falha" selected={data.filtros.resultado === 'falha'}>Falha</option>
+				<option value="negado" selected={data.filtros.resultado === 'negado'}>Negado</option>
+			</CampoFiltroGet>
+			<CampoFiltroGet
+				label="Busca (ator / detalhes / alvo)"
+				name="busca"
+				value={data.filtros.busca ?? ''}
+				placeholder="texto livre"
+				class="col-span-1 sm:col-span-2 lg:col-span-1"
+			/>
+			<CampoFiltroGet label="De" name="de" type="date" value={data.filtros.de ?? ''} />
+			<CampoFiltroGet label="Até" name="ate" type="date" value={data.filtros.ate ?? ''} />
 			<div class="flex items-end gap-2 pt-2 lg:pt-0 col-span-1 sm:col-span-2 lg:col-span-1">
 				<button type="submit" class="btn preset-filled-primary-500 text-sm flex-1 justify-center"
 					>Filtrar</button
@@ -387,7 +367,7 @@
 	<!-- Logs List Section -->
 	{#if data.logs.length > 0}
 		<!-- Tabela (Desktop) -->
-		<div class="hidden md:block table-wrap rounded-xl card-elevated">
+		<div class="hidden md:block table-wrap card-elevated rounded-2xl shadow-sm overflow-hidden">
 			<table class="table w-full text-sm">
 				<thead
 					class="text-left text-xs uppercase tracking-wide text-surface-600 dark:text-surface-400 border-b border-surface-200 dark:border-white/10"

@@ -45,15 +45,15 @@
 
 <svelte:head><title>Configurações Gerais — Escalas PC</title></svelte:head>
 
-<div class="max-w-3xl mx-auto space-y-6">
+<div class="space-y-6">
 	<header>
-		<h1 class="text-2xl font-bold text-surface-900 dark:text-white">Configurações Gerais</h1>
+		<h1 class="h1 text-2xl font-bold">Configurações Gerais</h1>
 		<p class="text-sm text-surface-600 dark:text-surface-400">
 			Ajustes globais do sistema. Alterações ficam registradas na auditoria.
 		</p>
 	</header>
 
-	<section class="rounded-xl card-elevated p-5 space-y-4">
+	<section class="card-elevated rounded-2xl shadow-sm p-4 sm:p-6 space-y-4">
 		<div>
 			<h2 class="text-lg font-semibold text-surface-900 dark:text-white">
 				Provedor de e-mail padrão
@@ -88,7 +88,7 @@
 			<div class="grid gap-3 sm:grid-cols-2">
 				{#each OPCOES as op (op.valor)}
 					<label
-						class="flex cursor-pointer gap-3 rounded-xl border p-4 transition-all {provedor ===
+						class="flex cursor-pointer gap-3 rounded-xl border p-4 transition-colors {provedor ===
 						op.valor
 							? 'border-primary-500/60 bg-primary-500/10'
 							: 'border-surface-200 dark:border-white/10 hover:bg-surface-100/50 dark:hover:bg-surface-800/40'}"

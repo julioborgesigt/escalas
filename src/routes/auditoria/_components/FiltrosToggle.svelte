@@ -6,6 +6,7 @@
 	 */
 	import ChevronDown from '@lucide/svelte/icons/chevron-down';
 	import ChevronUp from '@lucide/svelte/icons/chevron-up';
+	import { CLASSE_TITULO_FILTRO } from '$lib/gise/filtro-historico-ui';
 
 	let {
 		ativos,
@@ -18,7 +19,7 @@
 
 <div class="flex items-center justify-between">
 	<div class="flex items-center gap-2">
-		<span class="font-semibold text-surface-900 dark:text-white">Filtros</span>
+		<span class={CLASSE_TITULO_FILTRO}>Filtros</span>
 		{#if ativos > 0}
 			<span class="badge preset-filled-primary-500 text-xs">
 				{ativos}

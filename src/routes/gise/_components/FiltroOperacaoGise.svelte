@@ -6,6 +6,8 @@
 	 * filtraria nada. As duas telas compartilham este chip para o guard de
 	 * duplicação não acusar o bloco copiado.
 	 */
+	import { CLASSE_ROTULO_FILTRO } from '$lib/gise/filtro-historico-ui';
+
 	const {
 		operacoes,
 		value,
@@ -19,11 +21,7 @@
 
 {#if operacoes.length > 1}
 	<div class="mb-4 flex flex-wrap items-center gap-2">
-		<span
-			class="text-3xs font-semibold uppercase tracking-widest text-surface-600 dark:text-surface-400"
-		>
-			Operação
-		</span>
+		<span class={CLASSE_ROTULO_FILTRO}>Operação</span>
 		<button
 			type="button"
 			class="rounded-full px-3 py-1 text-2xs font-semibold transition-colors {value === null

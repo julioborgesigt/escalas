@@ -52,6 +52,11 @@
 	import BadgeTipoEscala from '$lib/components/BadgeTipoEscala.svelte';
 	import EstadoVazio from '$lib/components/EstadoVazio.svelte';
 	import { fetchSyncEstado } from '$lib/sync-estado';
+	import {
+		CLASSE_CAIXA_FILTRO,
+		CLASSE_INPUT_FILTRO,
+		CLASSE_ROTULO_FILTRO
+	} from '$lib/gise/filtro-historico-ui';
 
 	const { data }: PageProps = $props();
 
@@ -354,7 +359,7 @@
 	</div>
 
 	<!-- Filtros Rápidos -->
-	<div class="p-4 sm:p-5 mb-4 rounded-2xl card-glass flex flex-col gap-4">
+	<div class="{CLASSE_CAIXA_FILTRO} mb-4 flex flex-col gap-4">
 		<div class="flex flex-col lg:flex-row gap-3 items-stretch lg:items-end w-full">
 			<CampoFiltroSelect
 				label="Seccional"
@@ -365,13 +370,13 @@
 				placeholder="Todas"
 			/>
 
-			<label class="label w-full lg:w-64">
-				<span class="label-text text-sm font-semibold mb-1">Unidade</span>
+			<label class="flex flex-col gap-1.5 w-full lg:w-64">
+				<span class={CLASSE_ROTULO_FILTRO}>Unidade</span>
 				<div class="relative w-full">
 					<Search class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-surface-400" />
 					<input
 						type="text"
-						class="input pl-10 w-full"
+						class="{CLASSE_INPUT_FILTRO} w-full pl-10"
 						bind:value={filtroUnidade}
 						placeholder="Buscar por unidade..."
 					/>
@@ -404,8 +409,7 @@
 						checked={!mostrarApenasNaoVistos}
 						onchange={() => (mostrarApenasNaoVistos = false)}
 					/>
-					<span
-						class="text-sm font-semibold whitespace-nowrap text-surface-600 dark:text-surface-300"
+					<span class="text-xs font-bold whitespace-nowrap text-surface-600 dark:text-surface-300"
 						>Todas</span
 					>
 				</label>
@@ -417,8 +421,7 @@
 						checked={mostrarApenasNaoVistos}
 						onchange={() => (mostrarApenasNaoVistos = true)}
 					/>
-					<span
-						class="text-sm font-semibold whitespace-nowrap text-surface-600 dark:text-surface-300"
+					<span class="text-xs font-bold whitespace-nowrap text-surface-600 dark:text-surface-300"
 						>Não lidas</span
 					>
 				</label>

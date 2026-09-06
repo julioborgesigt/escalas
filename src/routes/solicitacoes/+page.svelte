@@ -86,7 +86,7 @@
 
 <div class="max-w-5xl mx-auto space-y-6">
 	<div>
-		<h1 class="h2 font-bold">Solicitações</h1>
+		<h1 class="h1 text-2xl font-bold">Solicitações</h1>
 		<p class="text-sm text-surface-600 dark:text-surface-400 mt-1">
 			Pedidos enviados pelos administradores de seccional e de unidade sobre os servidores do escopo
 			deles. Aprovar aplica o pedido imediatamente.

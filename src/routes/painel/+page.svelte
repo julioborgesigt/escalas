@@ -48,6 +48,7 @@
 	import { invalidateShared } from '$lib/cross-tab-invalidate';
 	import { fetchSyncEstado } from '$lib/sync-estado';
 	import { loading as loadingService } from '$lib/loading.svelte';
+	import { CLASSE_CAIXA_FILTRO } from '$lib/gise/filtro-historico-ui';
 	import BadgeTipoEscala from '$lib/components/BadgeTipoEscala.svelte';
 	import EstadoVazio from '$lib/components/EstadoVazio.svelte';
 	import type { ActionResult } from '@sveltejs/kit';
@@ -449,9 +450,7 @@
 	{/if}
 
 	<!-- Filtros -->
-	<div
-		class="p-4 sm:p-5 mb-6 rounded-2xl bg-white dark:bg-surface-900 border border-surface-200 dark:border-white/10 shadow-sm flex flex-col gap-4 sm:gap-5"
-	>
+	<div class="{CLASSE_CAIXA_FILTRO} mb-6 flex flex-col gap-4 sm:gap-5">
 		<div class="flex flex-col lg:flex-row flex-wrap gap-3 items-stretch lg:items-end w-full">
 			<CampoFiltroSelect
 				label="Seccional"

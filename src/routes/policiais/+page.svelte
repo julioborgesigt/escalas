@@ -56,6 +56,13 @@
 	import { getSavedFilters } from '$lib/utils/localStorage';
 	import type { Policial, Unidade } from '$lib/types';
 	import type { ActionResult } from '@sveltejs/kit';
+	import {
+		CLASSE_CAIXA_FILTRO,
+		CLASSE_CONTROLE_SEGMENTO_LARGO,
+		CLASSE_INPUT_FILTRO,
+		CLASSE_ITEM_SEGMENTO_LARGO,
+		CLASSE_ROTULO_FILTRO
+	} from '$lib/gise/filtro-historico-ui';
 
 	const { data }: PageProps = $props();
 
@@ -269,12 +276,12 @@
 </ModalShell>
 
 <div class="space-y-6 mt-2">
-	<section class="card-elevated rounded-2xl shadow-sm p-4 sm:p-6 space-y-4">
+	<section class="{CLASSE_CAIXA_FILTRO} space-y-4">
 		<div
 			class="flex flex-col md:flex-row md:flex-wrap xl:flex-nowrap items-stretch md:items-end gap-4"
 		>
 			<div class="flex flex-col gap-1.5 flex-1 min-w-[220px] lg:max-w-xs">
-				<span class="label-text font-semibold ml-0.5">Cargo</span>
+				<span class={CLASSE_ROTULO_FILTRO}>Cargo</span>
 				<SegmentedControl
 					value={filtroCargo || ''}
 					onValueChange={(e) => {
@@ -283,14 +290,9 @@
 					}}
 					class="w-full"
 				>
-					<SegmentedControl.Control
-						class="flex items-center w-full rounded-xl border border-surface-200 dark:border-surface-700 bg-surface-100 dark:bg-surface-800 p-1 gap-1"
-					>
+					<SegmentedControl.Control class={CLASSE_CONTROLE_SEGMENTO_LARGO}>
 						{#each [['', 'Todos'], ['DPC', 'DPC'], ['OIP', 'OIP']] as [val, label] (val)}
-							<SegmentedControl.Item
-								value={val}
-								class="flex-1 px-3 py-1.5 text-center text-sm font-semibold rounded-lg cursor-pointer select-none transition-colors duration-200 text-surface-600 dark:text-surface-400 data-[state=checked]:bg-primary-500 data-[state=checked]:text-white data-[state=checked]:shadow-md data-[state=checked]:shadow-primary-500/25 hover:text-surface-700 dark:hover:text-surface-200"
-							>
+							<SegmentedControl.Item value={val} class={CLASSE_ITEM_SEGMENTO_LARGO}>
 								<SegmentedControl.ItemText>{label}</SegmentedControl.ItemText>
 								<SegmentedControl.ItemHiddenInput />
 							</SegmentedControl.Item>
@@ -299,10 +301,10 @@
 				</SegmentedControl>
 			</div>
 			{#if isAdmin}
-				<label class="label flex-1 min-w-[220px] lg:max-w-xs">
-					<span class="label-text font-semibold mb-1 ml-0.5">Seccional</span>
+				<label class="flex flex-col gap-1.5 flex-1 min-w-[220px] lg:max-w-xs">
+					<span class={CLASSE_ROTULO_FILTRO}>Seccional</span>
 					<select
-						class="select w-full"
+						class="{CLASSE_INPUT_FILTRO} w-full"
 						bind:value={filtroSeccional}
 						onchange={() => {
 							filtroLotacao = '';
@@ -315,9 +317,13 @@
 						{/each}
 					</select>
 				</label>
-				<label class="label flex-1 min-w-[240px] lg:max-w-xs">
-					<span class="label-text font-semibold mb-1 ml-0.5">Unidade de Lotação</span>
-					<select class="select w-full" bind:value={filtroLotacao} onchange={navegarComFiltros}>
+				<label class="flex flex-col gap-1.5 flex-1 min-w-[240px] lg:max-w-xs">
+					<span class={CLASSE_ROTULO_FILTRO}>Unidade de Lotação</span>
+					<select
+						class="{CLASSE_INPUT_FILTRO} w-full"
+						bind:value={filtroLotacao}
+						onchange={navegarComFiltros}
+					>
 						<option value="">Selecione uma unidade...</option>
 						<option value={TODAS_UNIDADES}>Todas as unidades</option>
 						{#each delegaciasDropdown as del (del.id)}
@@ -328,12 +334,12 @@
 				</label>
 			{/if}
 
-			<label class="label flex-1 min-w-[220px]">
-				<span class="label-text font-semibold mb-1 ml-0.5">Buscar por Nome ou Matrícula</span>
+			<label class="flex flex-col gap-1.5 flex-1 min-w-[220px]">
+				<span class={CLASSE_ROTULO_FILTRO}>Buscar por Nome ou Matrícula</span>
 				<div class="relative w-full">
 					<input
 						type="text"
-						class="input pl-10 pr-4 w-full"
+						class="{CLASSE_INPUT_FILTRO} w-full pl-10 pr-4"
 						bind:value={filtroBusca}
 						placeholder="Nome ou matrícula..."
 						oninput={handleBuscaInput}

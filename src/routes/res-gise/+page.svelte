@@ -23,11 +23,12 @@
 	import ModalAssinaturaAvancada from '$lib/components/ModalAssinaturaAvancada.svelte';
 	import BotaoVoltar from '$lib/components/BotaoVoltar.svelte';
 	import BotaoLimparFiltros from '$lib/components/BotaoLimparFiltros.svelte';
+	import PaginationControls from '$lib/components/PaginationControls.svelte';
 	import { usePresencaGise } from './_components/usePresencaGise.svelte';
 	import { fmtDate } from '$lib/gise/formatters';
 	import FiltroHistoricoSegmento from '$lib/gise/FiltroHistoricoSegmento.svelte';
 	import CamposPeriodoHistorico from '$lib/gise/CamposPeriodoHistorico.svelte';
-	import { CLASSE_BARRA_FILTRO } from '$lib/gise/filtro-historico-ui';
+	import { CLASSE_BARRA_FILTRO, CLASSE_TITULO_FILTRO } from '$lib/gise/filtro-historico-ui';
 	import { loading } from '$lib/loading.svelte';
 	import ConfigurarFormulario from './_components/ConfigurarFormulario.svelte';
 	import FormularioServico from './_components/FormularioServico.svelte';
@@ -153,13 +154,20 @@
 			navigating.to.url.pathname === page.url.pathname &&
 			!navegandoParaEscala
 	);
+	const totalEscalasLista = $derived(data.minhasEscalas.length);
 </script>
 
 <svelte:head>
 	<title>{tituloPagina} - Portal de Escalas</title>
 </svelte:head>
 
-<div class="space-y-6">
+<!-- A folha desta tela é curta quando o policial tem poucas escalas. Sem
+     altura mínima ela colava no topo; o `calc` desconta topbar (`pt-20`) e
+     as margens do `<main>` (`pb-12`, e em `xl` o padding da folha). O
+     título permanece no lugar de sempre. -->
+<div
+	class="flex min-h-[calc(100dvh-8rem)] flex-col gap-6 xl:min-h-[calc(100dvh-11rem)] print:min-h-0"
+>
 	<!-- Voltar ACIMA do título, como nas demais telas de detalhe: para o Admin
 	     Geral esta tela é o editor do formulário DE UMA OPERAÇÃO, alcançado pelo
 	     botão "Formulário" de /gise/operacoes — e desde que o item saiu da barra
@@ -170,22 +178,10 @@
 
 	<header class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 sm:mb-6">
 		<div>
-			<h1
-				class={[
-					'font-bold',
-					ehHistorico
-						? 'font-heading text-base sm:text-lg leading-tight text-surface-700 dark:text-surface-300'
-						: 'h1 text-2xl'
-				]}
-			>
+			<h1 class="h1 text-2xl font-bold">
 				{tituloPagina}
 			</h1>
-			<p
-				class={[
-					'font-medium text-surface-600 dark:text-surface-400',
-					ehHistorico ? 'text-xs' : 'text-sm'
-				]}
-			>
+			<p class="text-sm font-medium text-surface-600 dark:text-surface-400">
 				{subtituloPagina}
 			</p>
 		</div>
@@ -219,10 +215,7 @@
 						{#if ehHistorico}
 							<div class="space-y-2 pt-3">
 								<div class="flex flex-col gap-2 xs:flex-row xs:items-center xs:justify-between">
-									<span
-										class="text-2xs font-black text-surface-600 dark:text-surface-400 uppercase tracking-widest"
-										>Busca Detalhada</span
-									>
+									<span class={CLASSE_TITULO_FILTRO}>Busca detalhada</span>
 									<BotaoLimparFiltros
 										temFiltros={presenca.temFiltrosHistorico}
 										onclick={presenca.limparFiltros}
@@ -430,6 +423,17 @@
 					</div>
 				</div>
 			</div>
+		</div>
+		<div class="mt-auto">
+			<PaginationControls
+				class="!mt-0"
+				paginaAtual={1}
+				totalPaginas={1}
+				totalItens={totalEscalasLista}
+				itensPorPagina={Math.max(totalEscalasLista, 1)}
+				labelSingular="escala"
+				labelPlural="escala(s)"
+			/>
 		</div>
 	{/if}
 </div>

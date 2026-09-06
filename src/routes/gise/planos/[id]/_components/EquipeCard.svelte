@@ -97,6 +97,7 @@
 
 	const {
 		equipe,
+		indice,
 		enviar,
 		pendentes,
 		opcoesBriefing,
@@ -110,6 +111,8 @@
 		destinoPadrao
 	}: {
 		equipe: EquipeNaTela;
+		/** Ordem na lista (1-based) — a marca do quadro, não o id. */
+		indice: number;
 		/** `use:enhance` comum, vindo da página. */
 		enviar: (msg: string, aoConcluir?: () => void) => SubmitFunction;
 		/** `policial_id` dos membros que bloqueiam a emissão (classe não resolvida). */
@@ -169,6 +172,10 @@
 
 	let novoPolicial = $state<unknown>(null);
 	let aberto = $state(false);
+
+	function abrirEdicao() {
+		aberto = true;
+	}
 	// APARADOS, como as escolhas do seletor: o valor próprio entra na lista via
 	// `escolhasDaEquipe`. Sem isso o combobox não oferece o que a equipe já tem,
 	// e salvar sem tocar no campo perderia o texto do Anexo I.
@@ -283,6 +290,25 @@
 		})
 	);
 
+	const CHIP =
+		'inline-flex items-center rounded-full px-2 py-0.5 text-2xs font-medium bg-surface-200/80 text-surface-700 dark:bg-surface-800 dark:text-surface-300';
+	const CHIP_AVISO =
+		'inline-flex items-center rounded-full px-2 py-0.5 text-2xs font-medium bg-warning-500/15 text-warning-800 dark:text-warning-300';
+	const CHIP_SEINT =
+		'inline-flex items-center rounded-full px-2 py-0.5 text-2xs font-medium bg-secondary-500/15 text-secondary-700 dark:text-secondary-300';
+
+	const nServidores = $derived(equipe.membros.length);
+	const rotuloServidores = $derived(
+		`${nServidores} ${nServidores === 1 ? 'servidor' : 'servidores'}`
+	);
+	const rotuloCusto = $derived(rotuloCustoDaEquipe(equipe.tipo_custo, equipe.diaria_tipo));
+	const detalheCusto = $derived(
+		equipe.tipo_custo === 'hora_extra'
+			? resumoHoras(equipe.horas_normais, equipe.horas_plus)
+			: equipe.tipo_custo === 'diaria'
+				? formatarDiarias(equipe.diarias_meias)
+				: ''
+	);
 	/** Só faz sentido oferecer o botão quando há algo que decida a rubrica. */
 	const temSugestao = $derived(
 		distanciaKm !== null ||
@@ -300,66 +326,102 @@
 	}
 </script>
 
-<!-- `card-quadro` (o mesmo de Comando e demanda): este card ABRE ao clique, e
-     é o quadro de preenchimento — a borda 1px sumia na folha. O `hover:shadow-md`
+<!-- `card-quadro` (o mesmo de Comando e demanda): a ficha ABRE o modal de
+     preenchimento ao clique — a borda 1px sumia na folha. O `hover:shadow-md`
      fica porque a sombra reage ao ponteiro. -->
-<li class="card-quadro rounded-2xl overflow-hidden hover:shadow-md transition-shadow duration-300">
-	<!-- Cabeçalho: resumo sempre visível -->
-	<div class="flex flex-wrap items-center gap-3 p-5 bg-surface-50 dark:bg-surface-900/40">
+<li
+	class="card-quadro min-w-0 h-full rounded-2xl overflow-hidden hover:shadow-md transition-shadow duration-300"
+>
+	<!-- Cabeçalho: ficha da equipe — marca, fatos em chips, custo, ações. -->
+	<div class="flex flex-wrap items-center gap-3 px-4 py-4 sm:px-5">
 		<button
 			type="button"
-			class="flex-1 min-w-0 text-left"
-			onclick={() => (aberto = !aberto)}
+			class="flex min-w-0 flex-1 items-start gap-3 text-left"
+			onclick={abrirEdicao}
+			aria-haspopup="dialog"
 			aria-expanded={aberto}
 		>
-			<span class="flex flex-wrap items-center gap-2">
-				<span class="font-semibold text-surface-900 dark:text-white">{equipe.nome}</span>
-				{#if equipe.tipo === 'seint'}
-					<span
-						class="rounded-full bg-secondary-500/15 px-2 py-0.5 text-2xs font-medium text-secondary-700 dark:text-secondary-300"
-						>SEINT</span
+			<span
+				class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl font-heading text-sm font-bold tabular-nums {equipe.tipo ===
+				'seint'
+					? 'bg-secondary-500/15 text-secondary-700 dark:text-secondary-300'
+					: 'bg-primary-500/10 text-primary-800 dark:text-primary-200'}"
+			>
+				{String(indice).padStart(2, '0')}
+			</span>
+			<span class="min-w-0 flex-1">
+				<span class="flex flex-wrap items-center gap-2">
+					<span class="font-semibold text-surface-900 dark:text-white">{equipe.nome}</span>
+					{#if equipe.tipo === 'seint'}
+						<span class={CHIP_SEINT}>SEINT</span>
+					{/if}
+				</span>
+				<span class="mt-1.5 flex flex-wrap gap-1.5">
+					<span class={nServidores === 0 ? CHIP_AVISO : CHIP}>{rotuloServidores}</span>
+					<!-- O destino EFETIVO, não a coluna: equipe com o campo vazio sai no
+					     Anexo I com o padrão do plano, e o resumo tem de dizer o mesmo. -->
+					<span class={CHIP}>{equipe.destinoEfetivo || 'sem destino'}</span>
+					{#if equipe.viatura_placa}
+						<span class={CHIP}>VTR {equipe.viatura_placa}</span>
+					{/if}
+					<span class={CHIP}
+						>{rotuloCusto}{detalheCusto && detalheCusto !== '—' ? ` · ${detalheCusto}` : ''}</span
 					>
-				{/if}
-				<span class="text-xs text-surface-600 dark:text-surface-400">
-					{equipe.membros.length}
-					{equipe.membros.length === 1 ? 'servidor' : 'servidores'}
 				</span>
 			</span>
-			<span class="block text-xs text-surface-600 dark:text-surface-400 mt-0.5 truncate">
-				<!-- O destino EFETIVO, não a coluna: equipe com o campo vazio sai no
-				     Anexo I com o padrão do plano, e o resumo tem de dizer o mesmo. -->
-				{equipe.destinoEfetivo || 'sem destino'}
-				{#if equipe.viatura_placa}· VTR {equipe.viatura_placa}{/if}
-				· {rotuloCustoDaEquipe(equipe.tipo_custo, equipe.diaria_tipo)}
-				{#if equipe.tipo_custo === 'hora_extra'}
-					{resumoHoras(equipe.horas_normais, equipe.horas_plus)}
-				{:else if equipe.tipo_custo === 'diaria'}
-					{formatarDiarias(equipe.diarias_meias)}
-				{/if}
-			</span>
 		</button>
 
-		<span class="text-sm font-semibold text-surface-900 dark:text-white shrink-0">
-			{formatarBRL(equipe.custo)}
-		</span>
-
-		<button
-			type="button"
-			class="btn btn-sm preset-outlined-surface-500 px-2.5 py-1.5 rounded-xl text-xs shrink-0"
-			onclick={() => (aberto = !aberto)}
-		>
-			{aberto ? 'Fechar' : 'Editar'}
-		</button>
+		<div class="flex items-center gap-3 sm:gap-4 shrink-0 ml-auto">
+			<div class="flex flex-col items-end">
+				<span
+					class="text-3xs font-semibold uppercase tracking-wider text-surface-600 dark:text-surface-400"
+					>Custo</span
+				>
+				<span class="font-heading text-sm font-bold tabular-nums text-surface-900 dark:text-white">
+					{formatarBRL(equipe.custo)}
+				</span>
+			</div>
+			<div class="flex items-center gap-2">
+				<button
+					type="button"
+					class="btn btn-sm preset-outlined-surface-500 px-2.5 py-1.5 rounded-xl text-xs"
+					onclick={abrirEdicao}
+				>
+					Editar
+				</button>
+				<button
+					type="button"
+					class="btn btn-sm preset-filled-error-500 px-2.5 py-1.5 rounded-xl text-xs"
+					onclick={() => confirmExcluir.openDialog({ nome: equipe.nome })}
+				>
+					Excluir
+				</button>
+			</div>
+		</div>
 	</div>
 
-	{#if aberto}
-		<div class="p-5 sm:p-6 space-y-6 border-t border-surface-200/70 dark:border-white/10">
+	<!-- O preenchimento saiu do acordeão e foi para o modal: a lista de fichas
+     continua só o resumo, e a grade de campos é a mesma de antes. `5xl`
+     existe no ModalShell por causa dessa grade (`lg:` cinco colunas) — em
+     `2xl` o desktop cairia no empilhamento do telefone. `portal` porque o
+     `li` tem `overflow-hidden` (o raio da ficha) e o overlay não pode ficar
+     preso nele. -->
+	<ModalShell
+		bind:open={aberto}
+		title="Editar {equipe.nome}"
+		largura="5xl"
+		familia="gise"
+		portal={true}
+		pending={loading.active}
+		cancelLabel="Fechar"
+	>
+		<div class="space-y-6">
 			<!-- ---- Dados da equipe ---- -->
 			<form
 				id={idForm}
 				method="POST"
 				action="?/salvarEquipe"
-				use:enhance={enviar('Alterações salvas')}
+				use:enhance={enviar('Alterações salvas', () => (aberto = false))}
 				class="space-y-4"
 			>
 				<input type="hidden" name="equipe_id" value={equipe.id} />
@@ -537,12 +599,40 @@
 					Efetivo ({equipe.membros.length})
 				</h4>
 
+				<!-- A busca fica acima da lista: quem aloca começa pelo campo, e a
+				     lista cresce abaixo sem empurrar o input para fora da vista. -->
+				<form
+					method="POST"
+					action="?/adicionarMembro"
+					use:enhance={enviar('Servidor alocado', () => (novoPolicial = null))}
+					class="flex flex-col gap-2 xs:flex-row xs:flex-wrap xs:items-end"
+				>
+					<input type="hidden" name="equipe_id" value={equipe.id} />
+					<div class="min-w-0 flex-1">
+						<SearchableSelect
+							name="policial_id"
+							bind:value={novoPolicial}
+							loadOptions={buscarServidores}
+							minSearchChars={MIN_BUSCA}
+							placeholder="Buscar por nome ou matrícula"
+						/>
+					</div>
+					<button
+						type="submit"
+						class="btn preset-outlined-surface-500 py-2 px-3 rounded-xl text-xs shrink-0 w-full xs:w-auto justify-center"
+						disabled={!novoPolicial}
+					>
+						<UserPlus class="w-3.5 h-3.5" />
+						Adicionar
+					</button>
+				</form>
+
 				{#if equipe.membros.length > 0}
-					<ul class="space-y-1.5">
+					<ul class="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
 						{#each equipe.membros as m (m.id)}
 							{@const pendente = pendentes.has(m.policial_id)}
 							<li
-								class="flex flex-wrap items-center gap-2 rounded-lg border p-2.5 {pendente
+								class="flex min-w-0 items-center gap-2 rounded-lg border p-2.5 {pendente
 									? 'border-error-500/40 bg-error-500/5'
 									: 'border-surface-200/70 dark:border-white/10'}"
 							>
@@ -556,11 +646,13 @@
 										{/if}
 										{m.nome}
 									</p>
-									<p class="text-xs text-surface-600 dark:text-surface-400 truncate">
-										{m.cargo_snapshot}
-										{m.classe_snapshot || '—'} · Mat. {m.matricula} · {m.lotacao}
-										{#if m.telefone}· {m.telefone}{/if}
-									</p>
+									<!-- Cargo, classe e matrícula saem no Anexo I; aqui só lotação e
+									     telefone, para a linha caber em duas colunas. -->
+									{#if m.lotacao || m.telefone}
+										<p class="text-xs text-surface-600 dark:text-surface-400 truncate">
+											{[m.lotacao, m.telefone].filter(Boolean).join(' · ')}
+										</p>
+									{/if}
 									{#if pendente}
 										<p class="text-xs text-error-600 dark:text-error-400 mt-0.5">
 											<TriangleAlert class="inline w-3 h-3 -mt-0.5" aria-hidden="true" />
@@ -612,32 +704,6 @@
 						Nenhum servidor alocado nesta equipe.
 					</p>
 				{/if}
-
-				<form
-					method="POST"
-					action="?/adicionarMembro"
-					use:enhance={enviar('Servidor alocado', () => (novoPolicial = null))}
-					class="flex flex-col gap-2 pt-1 xs:flex-row xs:flex-wrap xs:items-end"
-				>
-					<input type="hidden" name="equipe_id" value={equipe.id} />
-					<div class="min-w-0 flex-1">
-						<SearchableSelect
-							name="policial_id"
-							bind:value={novoPolicial}
-							loadOptions={buscarServidores}
-							minSearchChars={MIN_BUSCA}
-							placeholder="Buscar por nome ou matrícula"
-						/>
-					</div>
-					<button
-						type="submit"
-						class="btn preset-outlined-surface-500 py-2 px-3 rounded-xl text-xs shrink-0 w-full xs:w-auto justify-center"
-						disabled={!novoPolicial}
-					>
-						<UserPlus class="w-3.5 h-3.5" />
-						Adicionar
-					</button>
-				</form>
 			</div>
 
 			<!-- ---- Custo ---- -->
@@ -826,70 +892,61 @@
 				</div>
 			</div>
 
-			<!-- ---- Ações da equipe ---- -->
-			<!-- Os dois botões juntos, no fim do card: quem termina de mexer na
-			     equipe decide ali entre gravar e descartar. O "Salvar" vive FORA do
-			     formulário dos dados e o alcança por `form={idForm}` — é o atributo
-			     que o HTML tem para isso, e evita duplicar o form ou mover o
-			     efetivo para dentro dele. -->
-			<div
-				class="flex flex-col-reverse gap-2 pt-4 border-t border-surface-200/70 dark:border-white/10 xs:flex-row xs:flex-wrap xs:items-center xs:justify-between"
-			>
-				<button
-					type="button"
-					class="btn btn-sm preset-filled-error-500 py-1.5 px-3 rounded-xl text-xs w-full xs:w-auto justify-center"
-					onclick={() => confirmExcluir.openDialog({ nome: equipe.nome })}
-				>
-					<Trash2 class="w-3.5 h-3.5" />
-					Excluir equipe
-				</button>
-				<button
-					type="submit"
-					form={idForm}
-					class="btn preset-filled-primary-500 py-2 px-4 rounded-xl text-sm w-full xs:w-auto justify-center"
-					disabled={loading.active}
-				>
-					Salvar Alterações
-				</button>
-			</div>
+			<!-- O "Salvar" vive FORA do formulário dos dados e o alcança por
+			     `form={idForm}` — é o atributo que o HTML tem para isso, e evita
+			     duplicar o form ou mover o efetivo para dentro dele. Excluir
+			     fica na ficha, ao lado de Editar: um clique errado no vermelho
+			     ao lado de Salvar custaria remontar a equipe. -->
 		</div>
-	{/if}
-</li>
 
-<!-- Confirmação da exclusão, no padrão do projeto (`ModalShell` +
-     `useConfirmationDialog`, como em `/gise/planos`). A equipe leva o efetivo
-     alocado junto, e um clique errado num botão vermelho ao lado do de salvar
-     custaria remontar a equipe inteira. -->
-<ModalShell
-	bind:open={confirmExcluir.isOpen}
-	title="Excluir equipe?"
-	largura="sm"
-	pending={loading.active}
-	cancelLabel="Cancelar"
->
-	{#snippet description()}
-		A equipe <strong>{confirmExcluir.currentItem?.nome}</strong> e os
-		{equipe.membros.length}
-		{equipe.membros.length === 1 ? 'servidor alocado' : 'servidores alocados'} nela serão apagados. As
-		demais equipes são renumeradas.
-	{/snippet}
-
-	{#snippet footer()}
-		<form
-			method="POST"
-			action="?/excluirEquipe"
-			use:enhance={enviar('Equipe excluída', () => confirmExcluir.closeDialog())}
-			class="contents"
-		>
-			<input type="hidden" name="equipe_id" value={equipe.id} />
+		{#snippet footer()}
 			<button
 				type="submit"
-				class="btn btn-sm preset-filled-error-500 flex items-center gap-2"
+				form={idForm}
+				class="btn preset-filled-primary-500 py-2.5 px-4 rounded-xl text-sm w-full sm:w-auto justify-center"
 				disabled={loading.active}
 			>
-				<Trash2 class="w-4 h-4" />
-				Excluir equipe
+				Salvar Alterações
 			</button>
-		</form>
-	{/snippet}
-</ModalShell>
+		{/snippet}
+	</ModalShell>
+
+	<!-- Confirmação da exclusão, no padrão do projeto (`ModalShell` +
+     `useConfirmationDialog`, como em `/gise/planos`). A equipe leva o efetivo
+     alocado junto, e o botão vermelho no cabeçalho (ao lado de Editar, não de
+     Salvar) ainda pede esta confirmação antes de apagar. -->
+	<ModalShell
+		bind:open={confirmExcluir.isOpen}
+		title="Excluir equipe?"
+		largura="sm"
+		portal={true}
+		pending={loading.active}
+		cancelLabel="Cancelar"
+	>
+		{#snippet description()}
+			A equipe <strong>{confirmExcluir.currentItem?.nome}</strong> e os
+			{equipe.membros.length}
+			{equipe.membros.length === 1 ? 'servidor alocado' : 'servidores alocados'} nela serão apagados.
+			As demais equipes são renumeradas.
+		{/snippet}
+
+		{#snippet footer()}
+			<form
+				method="POST"
+				action="?/excluirEquipe"
+				use:enhance={enviar('Equipe excluída', () => confirmExcluir.closeDialog())}
+				class="contents"
+			>
+				<input type="hidden" name="equipe_id" value={equipe.id} />
+				<button
+					type="submit"
+					class="btn btn-sm preset-filled-error-500 flex items-center gap-2"
+					disabled={loading.active}
+				>
+					<Trash2 class="w-4 h-4" />
+					Excluir equipe
+				</button>
+			</form>
+		{/snippet}
+	</ModalShell>
+</li>

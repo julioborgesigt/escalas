@@ -42,7 +42,8 @@
 		CLASSE_BARRA_FILTRO,
 		CLASSE_CAMPO_FILTRO,
 		CLASSE_INPUT_FILTRO,
-		CLASSE_ROTULO_FILTRO
+		CLASSE_ROTULO_FILTRO,
+		CLASSE_TITULO_FILTRO
 	} from '$lib/gise/filtro-historico-ui';
 	import Download from '@lucide/svelte/icons/download';
 	import Search from '@lucide/svelte/icons/search';
@@ -219,10 +220,7 @@
 <div>
 	<div class="space-y-2">
 		<div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-			<span
-				class="text-2xs font-black text-surface-600 dark:text-surface-400 uppercase tracking-widest"
-				>Busca Detalhada</span
-			>
+			<span class={CLASSE_TITULO_FILTRO}>Busca detalhada</span>
 			<BotaoLimparFiltros
 				{temFiltros}
 				onclick={limparFiltrosHistorico}

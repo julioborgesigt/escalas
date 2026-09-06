@@ -7,7 +7,7 @@
 	import { Dialog, Portal } from '@skeletonlabs/skeleton-svelte';
 	import type { Snippet } from 'svelte';
 
-	type Largura = 'sm' | 'md' | 'lg' | '2xl';
+	type Largura = 'sm' | 'md' | 'lg' | '2xl' | '5xl';
 	type Camada = 'base' | 'empilhado' | 'duplo' | 'topo';
 	type Padding = 'padrao' | 'compacto' | 'mobile';
 	type Familia = 'escalas' | 'gise' | 'assinatura';
@@ -36,7 +36,9 @@
 		sm: 'max-w-sm',
 		md: 'max-w-md',
 		lg: 'max-w-lg',
-		'2xl': 'max-w-2xl'
+		'2xl': 'max-w-2xl',
+		/** Formulário largo que no desktop usa a grade `lg:` (ex.: edição de equipe do plano). */
+		'5xl': 'max-w-5xl'
 	};
 
 	const camadas: Record<Camada, { zIndex: string; blur: string }> = {

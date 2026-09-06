@@ -14,7 +14,7 @@
 	} = $props();
 </script>
 
-<div class="rounded-xl card-elevated p-4 flex flex-col justify-between min-h-[90px]">
+<div class="card-elevated rounded-2xl shadow-sm p-4 flex flex-col justify-between min-h-[90px]">
 	<div class="text-xs uppercase tracking-wide text-surface-600 dark:text-surface-400">
 		{rotulo}
 	</div>

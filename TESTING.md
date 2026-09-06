@@ -570,7 +570,7 @@ Verificar cada transição de status:
 - [ ] No card da equipe, briefing/origem/destino são `<select>` com as opções do plano; a opção vazia nomeia **o padrão do plano** ("— padrão: Iguatu —"), não o valor que a equipe já tem
 - [ ] Remover da lista uma opção que uma equipe já usa → o destino da equipe **continua lá** e ainda aparece no seletor dela (a equipe guarda o texto, não uma referência)
 - [ ] POST direto em `?/definirOpcaoPadrao` com o `opcao_id` de OUTRO plano → recusa, e a linha alheia não muda `[E2E: plano-operacional.spec.ts]` (classe do FLW-ESC-002)
-- [ ] "Custo da equipe" aparece DEPOIS do bloco "Efetivo"; "Excluir equipe" e "Salvar Alterações" ficam juntos no rodapé do card
+- [ ] "Editar" (ou o clique na ficha) abre o preenchimento num modal, com os mesmos campos; "Custo da equipe" aparece DEPOIS do bloco "Efetivo"; "Salvar Alterações" fica no rodapé do modal; "Excluir" fica no cabeçalho da ficha, ao lado de Editar
 - [ ] Editar horas/diárias e salvar → os campos de custo persistem, mesmo estando FORA do `<form>` (chegam por `form=`)
 - [ ] "Excluir equipe" **pede confirmação** dizendo quantos servidores vão junto; "Cancelar" não apaga nada
 - [ ] Servidor **sem classe no cadastro** numa equipe com custo → linha em vermelho, "impede a emissão", e o botão de baixar o PDF desabilitado

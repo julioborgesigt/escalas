@@ -112,13 +112,9 @@
 	<div class="min-w-0 flex-1 space-y-3">
 		<BotaoVoltar onclick={() => goto('/gise')} />
 
-		<h1
-			class="break-words font-bold leading-tight text-surface-900 dark:text-surface-50 text-xl sm:text-2xl xl:text-3xl"
-		>
+		<h1 class="h1 break-words text-2xl font-bold leading-tight">
 			<span class="block">Escala extra #{gise.id}</span>
-			<span
-				class="mt-1 block font-semibold text-surface-700 dark:text-surface-200 text-base sm:text-lg xl:text-xl"
-			>
+			<span class="mt-1 block text-base font-semibold text-surface-700 dark:text-surface-200">
 				{diaSemana(gise.data_inicio)}, {fmtDate(gise.data_inicio)}
 			</span>
 		</h1>

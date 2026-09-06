@@ -432,11 +432,12 @@
 				Nenhuma equipe. Use os botões acima para acrescentar.
 			</p>
 		{:else}
-			<ul class="space-y-3">
-				{#each data.equipes as eq (eq.id)}
+			<ul class="grid grid-cols-1 gap-3 lg:grid-cols-2">
+				{#each data.equipes as eq, i (eq.id)}
 					{#key `${eq.id}-${eq.tipo_custo}-${eq.horas_normais}-${eq.horas_plus}-${eq.diarias_meias}`}
 						<EquipeCard
 							equipe={eq}
+							indice={i + 1}
 							{enviar}
 							{pendentes}
 							opcoesBriefing={data.opcoes.briefing}

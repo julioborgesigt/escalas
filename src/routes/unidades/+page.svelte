@@ -41,6 +41,11 @@
 	import EstadoVazio from '$lib/components/EstadoVazio.svelte';
 	import Building2 from '@lucide/svelte/icons/building-2';
 	import Search from '@lucide/svelte/icons/search';
+	import {
+		CLASSE_CAIXA_FILTRO,
+		CLASSE_INPUT_FILTRO,
+		CLASSE_ROTULO_FILTRO
+	} from '$lib/gise/filtro-historico-ui';
 
 	const { data }: PageProps = $props();
 
@@ -297,23 +302,23 @@
 	</div>
 </div>
 
-<div class="p-4 sm:p-6 rounded-2xl card-elevated mb-6">
+<div class="{CLASSE_CAIXA_FILTRO} mb-6">
 	<div class="flex flex-col sm:flex-row gap-4">
-		<label class="label flex-1">
-			<span class="label-text font-semibold mb-1">Filtrar por Seccional</span>
-			<select class="select" bind:value={filtroSeccional}>
+		<label class="flex flex-col gap-1.5 flex-1">
+			<span class={CLASSE_ROTULO_FILTRO}>Filtrar por Seccional</span>
+			<select class="{CLASSE_INPUT_FILTRO} w-full" bind:value={filtroSeccional}>
 				<option value="todas">Todas as Seccionais</option>
 				{#each seccionais as sec (sec.id)}
 					<option value={sec.id}>{sec.nome}</option>
 				{/each}
 			</select>
 		</label>
-		<label class="label flex-1">
-			<span class="label-text font-semibold mb-1">Buscar por Nome</span>
+		<label class="flex flex-col gap-1.5 flex-1">
+			<span class={CLASSE_ROTULO_FILTRO}>Buscar por Nome</span>
 			<div class="relative">
 				<input
 					type="text"
-					class="input pl-10"
+					class="{CLASSE_INPUT_FILTRO} w-full pl-10"
 					bind:value={filtroBusca}
 					placeholder="Digite o nome da unidade..."
 				/>
@@ -328,7 +333,7 @@
 <ModalDesativarUnidade bind:open={dialogDesativarOpen} unidade={unidadeParaDesativar} />
 <ModalCadastrarUnidade bind:open={cadastroOpen} {seccionais} />
 
-<div class="p-4 sm:p-6 rounded-2xl card-elevated overflow-hidden">
+<div class="p-4 sm:p-6 rounded-2xl card-elevated shadow-sm overflow-hidden">
 	{#if data.unidades.length === 0}
 		<EstadoVazio
 			class="py-20"

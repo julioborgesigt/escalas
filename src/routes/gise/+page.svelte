@@ -131,18 +131,23 @@
 	const viewport = useLarguraDesktop();
 	const avancadaDisponivel = $derived(avancadaEmTelaDoLayout(page.data));
 
-	const ITEMS_ATIVAS = 4;
+	// Duas colunas (`sm:grid-cols-2`) × três linhas na folha com altura mínima.
+	const ITEMS_ATIVAS = 6;
 	let paginaAtivas = $state(1);
 	const totalPaginasAtivas = $derived(Math.max(1, Math.ceil(ativas.length / ITEMS_ATIVAS)));
+	const paginaAtivasExibida = $derived(Math.min(paginaAtivas, totalPaginasAtivas));
 	const ativasPaginadas = $derived(
-		ativas.slice((paginaAtivas - 1) * ITEMS_ATIVAS, paginaAtivas * ITEMS_ATIVAS)
+		ativas.slice((paginaAtivasExibida - 1) * ITEMS_ATIVAS, paginaAtivasExibida * ITEMS_ATIVAS)
+	);
+	const mostraRodapeLista = $derived(
+		isAdminGeral || isSeccional || isUnidade || isSupervisor || (ativas.length > 0 && !isMembro)
 	);
 
 	/**
 	 * Troca o filtro e volta para a primeira página.
 	 *
 	 * As duas coisas juntas, e não num efeito: manter a página 3 numa lista que
-	 * encolheu para 4 itens mostra tela vazia com "página 3 de 1", e o reset
+	 * encolheu para caber numa página só mostra tela vazia com "página 3 de 1", e o reset
 	 * pertence à ação que causou o encolhimento.
 	 */
 	function filtrarPorOperacao(id: number | null) {
@@ -356,7 +361,13 @@
 	<title>Escala extra - Portal de Escalas</title>
 </svelte:head>
 
-<div class="min-w-0 space-y-6">
+<!-- A folha desta tela é curta com poucas escalas. Sem altura mínima ela
+     colava no topo; o `calc` desconta topbar (`pt-20`) e as margens do
+     `<main>` (`pb-12`, e em `xl` o padding da folha). O título permanece
+     no lugar de sempre; o rodapé de página ancora o pé da folha. -->
+<div
+	class="flex min-h-[calc(100dvh-8rem)] min-w-0 flex-col gap-6 xl:min-h-[calc(100dvh-11rem)] print:min-h-0"
+>
 	<div class="flex items-center justify-between gap-3">
 		<h1 class="h1 min-w-0 text-2xl font-bold">Escala extra</h1>
 
@@ -399,9 +410,6 @@
 	<FiltroOperacaoGise {operacoes} value={filtroOperacaoId} onChange={filtrarPorOperacao} />
 
 	{#if ativas.length > 0 && (isAdminGeral || isSeccional || isUnidade || isSupervisor || !isMembro)}
-		<h2 class="text-base font-semibold text-surface-700 dark:text-surface-300 mb-2">
-			Escalas Ativas
-		</h2>
 		<div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
 			{#each ativasPaginadas as ativa (ativa.id)}
 				<CardGiseAtiva
@@ -420,26 +428,27 @@
 				/>
 			{/each}
 		</div>
-		{#if totalPaginasAtivas > 1}
-			<div
-				class="mt-3 pt-3 border-t border-surface-200 dark:border-white/5 flex flex-col sm:flex-row items-center justify-between gap-3"
-			>
-				<span class="text-xs text-surface-600 dark:text-surface-400">
-					{ativas.length} escalas ativas — página {paginaAtivas} de {totalPaginasAtivas}
-				</span>
-				<Paginador
-					count={ativas.length}
-					pageSize={ITEMS_ATIVAS}
-					page={paginaAtivas}
-					onPageChange={(p) => (paginaAtivas = p)}
-				/>
-			</div>
-		{/if}
 	{:else if isAdminGeral || isSeccional || isUnidade || isSupervisor}
 		<div
 			class="rounded-2xl border border-dashed border-surface-300 dark:border-surface-700 p-4 sm:p-6 text-center"
 		>
 			<p class="text-surface-600 dark:text-surface-400">Nenhuma escala GISE ativa no momento.</p>
+		</div>
+	{/if}
+
+	{#if mostraRodapeLista}
+		<div
+			class="mt-auto pt-6 border-t border-surface-200 dark:border-white/5 flex flex-col sm:flex-row items-center justify-between gap-4"
+		>
+			<span class="text-xs text-surface-600 dark:text-surface-400 px-1">
+				{ativas.length} escalas ativas — página {paginaAtivasExibida} de {totalPaginasAtivas}
+			</span>
+			<Paginador
+				count={Math.max(ativas.length, 1)}
+				pageSize={ITEMS_ATIVAS}
+				page={paginaAtivasExibida}
+				onPageChange={(p) => (paginaAtivas = p)}
+			/>
 		</div>
 	{/if}
 </div>

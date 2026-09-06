@@ -170,9 +170,10 @@
 				</button>
 			</div>
 
-			<section class="card-elevated min-w-0 rounded-2xl p-5 sm:p-6 space-y-3">
-				<h2 class="text-base font-semibold">Operações cadastradas</h2>
-
+			<!-- Sem `card-elevated`: a folha do layout já é o cartão da página, e
+			     cada operação da lista já é um cartão com contorno. Envolver a
+			     lista num terceiro desenha cartão dentro de cartão. -->
+			<section class="min-w-0 space-y-3">
 				{#if data.operacoes.length === 0}
 					<p class="text-sm text-surface-600 dark:text-surface-400">Nenhuma operação cadastrada.</p>
 				{:else}

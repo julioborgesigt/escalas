@@ -3,8 +3,12 @@
 	 * Paginação com contador ("Mostrando X–Y de Z") + `Paginador`. Contrato
 	 * diferente do `Paginador` puro (só botões): listagens de página inteira
 	 * precisam do texto e do scroll ao topo. Não unificar os dois.
+	 *
+	 * Os botões ficam visíveis mesmo na folha única: escondê-los deixava o
+	 * rodapé só com o contador, e a borda inferior da folha parecia vazia.
 	 */
 	import Paginador from './Paginador.svelte';
+	import type { ClassValue } from 'svelte/elements';
 
 	interface Props {
 		paginaAtual: number;
@@ -14,6 +18,7 @@
 		labelSingular?: string;
 		labelPlural?: string;
 		onPageChange?: (pagina: number) => void;
+		class?: ClassValue;
 	}
 
 	const {
@@ -23,7 +28,8 @@
 		itensPorPagina = 10,
 		labelSingular = 'escala',
 		labelPlural = 'escala(s)',
-		onPageChange
+		onPageChange,
+		class: classe = ''
 	}: Props = $props();
 
 	const itensInicio = $derived((paginaAtual - 1) * itensPorPagina + 1);
@@ -37,8 +43,12 @@
 	}
 </script>
 
-<div
-	class="mt-6 pt-6 border-t border-surface-200 dark:border-white/5 flex flex-col sm:flex-row items-center justify-between gap-4"
+<nav
+	class={[
+		'mt-6 pt-6 border-t border-surface-200 dark:border-white/5 flex flex-col sm:flex-row items-center justify-between gap-4',
+		classe
+	]}
+	aria-label="Página {paginaAtual} de {Math.max(totalPaginas, 1)}"
 >
 	<p class="text-surface-600 dark:text-surface-400 text-xs px-1">
 		Mostrando <strong>{totalItens > 0 ? itensInicio : 0}</strong>–<strong>{itensFim}</strong>
@@ -46,12 +56,10 @@
 		{totalItens === 1 ? labelSingular : labelPlural}
 	</p>
 
-	{#if totalPaginas > 1}
-		<Paginador
-			count={totalItens}
-			pageSize={itensPorPagina}
-			page={paginaAtual}
-			onPageChange={handlePageChange}
-		/>
-	{/if}
-</div>
+	<Paginador
+		count={Math.max(totalItens, 1)}
+		pageSize={itensPorPagina}
+		page={paginaAtual}
+		onPageChange={handlePageChange}
+	/>
+</nav>

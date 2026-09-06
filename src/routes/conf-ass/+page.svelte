@@ -126,24 +126,24 @@
 </svelte:head>
 
 <div class="space-y-6">
-	<h1 class="h2 font-bold mb-1">Configurações de Assinatura</h1>
-	<p class="text-surface-600 dark:text-surface-400 text-sm mb-6">
-		Parâmetros globais que afetam todas as assinaturas em tela do sistema.
-	</p>
+	<header>
+		<h1 class="h1 text-2xl font-bold">Configurações de Assinatura</h1>
+		<p class="text-sm text-surface-600 dark:text-surface-400">
+			Parâmetros globais que afetam todas as assinaturas em tela do sistema.
+		</p>
+	</header>
 
 	<!-- Painel de classificação legal: indica o nível efetivo das assinaturas
 	     em tela e os requisitos legais que NÃO podem ser desligados. -->
-	<div
-		class="card p-4 sm:p-6 mb-6 bg-gradient-to-br from-primary-50/40 to-surface-50 dark:from-primary-900/20 dark:to-surface-900 border border-primary-300/40 dark:border-primary-700/30 rounded-2xl"
-	>
+	<div class="card-elevated rounded-2xl shadow-sm p-4 sm:p-6">
 		<div class="flex items-center justify-between mb-3 gap-3 flex-wrap">
 			<div>
 				<p
-					class="text-3xs font-black uppercase tracking-widest text-surface-600 dark:text-surface-400"
+					class="text-3xs font-bold uppercase tracking-widest text-surface-600 dark:text-surface-400"
 				>
 					Nível Legal das Assinaturas em Tela
 				</p>
-				<p class="text-xl font-black text-surface-900 dark:text-white mt-1">
+				<p class="h1 text-xl font-bold mt-1">
 					{nivelEfetivo === 'avancada' ? 'AVANÇADA' : 'SIMPLES'}
 				</p>
 				<p class="text-2xs text-surface-600 dark:text-surface-400 italic mt-0.5">
@@ -151,7 +151,7 @@
 				</p>
 			</div>
 			<span
-				class="badge font-black px-3 py-1.5 rounded-full text-2xs uppercase whitespace-nowrap
+				class="badge font-bold px-3 py-1.5 rounded-full text-2xs uppercase whitespace-nowrap
 				{nivelEfetivo === 'avancada'
 					? 'text-success-600 dark:text-success-400 bg-success-500/10'
 					: 'text-warning-600 dark:text-warning-400 bg-warning-500/10'}"
@@ -210,7 +210,7 @@
 					<li class="text-surface-700 dark:text-surface-300">
 						{r.descricao}
 						<span
-							class="text-3xs uppercase font-black ml-1 px-1 rounded bg-surface-200 dark:bg-surface-700"
+							class="text-3xs uppercase font-bold ml-1 px-1 rounded bg-surface-200 dark:bg-surface-700"
 						>
 							valor {r.valorProbatorio}
 						</span>
@@ -222,7 +222,7 @@
 		</details>
 	</div>
 
-	<div class="card-elevated p-4 sm:p-6 rounded-2xl space-y-4 sm:space-y-6">
+	<div class="card-elevated rounded-2xl shadow-sm p-4 sm:p-6 space-y-4 sm:space-y-6">
 		<!-- Exigir foto -->
 		<div class="flex items-start justify-between gap-4">
 			<div class="flex-1">
@@ -258,7 +258,7 @@
 				<p class="font-semibold text-sm mb-0.5 flex items-center gap-1.5">
 					Exigir código via E-mail
 					<span
-						class="text-3xs uppercase font-black px-1.5 py-0.5 rounded bg-primary-500/15 text-primary-700 dark:text-primary-300 tracking-widest"
+						class="text-3xs uppercase font-bold px-1.5 py-0.5 rounded bg-primary-500/15 text-primary-700 dark:text-primary-300 tracking-widest"
 						title="Requisito legal — Lei 14.063/2020 art. 4º II"
 					>
 						<Lock class="inline w-3 h-3 -mt-0.5" aria-hidden="true" /> Obrigatório
@@ -340,7 +340,7 @@
 							class="text-3xs font-bold uppercase tracking-wider text-surface-600 dark:text-surface-400"
 							>Reforços ativos:</span
 						>
-						<span class="badge {reforcoCor} font-black px-3 py-1 rounded-full text-3xs uppercase"
+						<span class="badge {reforcoCor} font-bold px-3 py-1 rounded-full text-3xs uppercase"
 							>{reforcoNivel} ({reforcoScore}/4)</span
 						>
 					</div>
@@ -350,7 +350,7 @@
 				</div>
 				<button
 					type="button"
-					class="btn preset-filled-primary-500 text-sm px-6 py-2.5 flex items-center gap-2 shadow-lg shadow-primary-500/20 hover:scale-[1.02] transition-all font-bold"
+					class="btn preset-filled-primary-500 py-2.5 px-4 text-sm flex items-center gap-2"
 					onclick={salvar}
 					disabled={loading.active}
 				>

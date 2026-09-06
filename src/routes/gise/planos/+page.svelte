@@ -75,9 +75,9 @@
 				descricao="Cada plano criado aparece aqui com o número que sai impresso na capa do documento."
 			/>
 		{:else}
-			<ul class="space-y-3">
+			<ul class="grid grid-cols-1 gap-3 lg:grid-cols-2">
 				{#each data.planos as p (p.id)}
-					<li class="card-quadro rounded-2xl p-4 sm:p-5">
+					<li class="card-quadro min-w-0 h-full rounded-2xl p-4 sm:p-5">
 						<div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
 							<div class="min-w-0 flex-1">
 								<div class="flex flex-wrap items-center gap-2">
