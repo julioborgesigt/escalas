@@ -43,15 +43,15 @@
      equipes. Recolhido, o TOTAL GERAL fica visível — conferir o consolidado
      sem empurrar o Documento para fora da tela. -->
 <section
-	class="card-quadro rounded-2xl overflow-hidden hover:shadow-md transition-shadow duration-300"
+	class="card-quadro min-w-0 rounded-2xl overflow-hidden hover:shadow-md transition-shadow duration-300"
 >
 	<button
 		type="button"
-		class="w-full flex items-center justify-between gap-3 p-5 text-left"
+		class="w-full flex items-start sm:items-center justify-between gap-3 p-4 sm:p-5 text-left"
 		onclick={() => (aberto = !aberto)}
 		aria-expanded={aberto}
 	>
-		<span>
+		<span class="min-w-0">
 			<span class="block text-base font-semibold text-surface-900 dark:text-white">
 				Anexo II — consolidado financeiro
 			</span>
@@ -72,7 +72,7 @@
 		/>
 	</button>
 
-	<div class="px-5 pb-5 space-y-4">
+	<div class="px-4 pb-4 sm:px-5 sm:pb-5 space-y-4">
 		{#if aberto}
 			{#if custo.pendencias.length > 0}
 				<div
@@ -129,7 +129,7 @@
 						Nenhuma equipe em hora extra.
 					</p>
 				{:else}
-					<div class="table-wrap">
+					<div class="hidden md:block table-wrap">
 						<table class="table">
 							<thead>
 								<tr>
@@ -156,6 +156,30 @@
 							</tbody>
 						</table>
 					</div>
+					<ul class="md:hidden space-y-2">
+						{#each custo.consolidado.dro as l (l.categoria)}
+							<li
+								class="flex items-baseline justify-between gap-3 rounded-xl border border-surface-200 dark:border-white/10 p-3"
+							>
+								<span class="min-w-0 text-sm text-surface-800 dark:text-surface-100"
+									>{ROTULO_CATEGORIA[l.categoria]}</span
+								>
+								<span class="shrink-0 text-sm tabular-nums text-surface-700 dark:text-surface-200">
+									{l.quantidade} · {formatarBRL(l.total)}
+								</span>
+							</li>
+						{/each}
+						<li
+							class="flex items-baseline justify-between gap-3 rounded-xl border border-surface-200 dark:border-white/10 p-3 font-semibold"
+						>
+							<span class="text-sm">TOTAL</span>
+							<span class="shrink-0 text-sm tabular-nums">
+								{custo.consolidado.dro.reduce((s, l) => s + l.quantidade, 0)} · {formatarBRL(
+									custo.consolidado.droTotal
+								)}
+							</span>
+						</li>
+					</ul>
 				{/if}
 			</div>
 
@@ -169,7 +193,7 @@
 				{#if custo.consolidado.diarias.length === 0}
 					<p class="text-xs text-surface-600 dark:text-surface-400">Nenhuma equipe em diária.</p>
 				{:else}
-					<div class="table-wrap">
+					<div class="hidden md:block table-wrap">
 						<table class="table">
 							<thead>
 								<tr>
@@ -196,6 +220,30 @@
 							</tbody>
 						</table>
 					</div>
+					<ul class="md:hidden space-y-2">
+						{#each custo.consolidado.diarias as l (l.categoria)}
+							<li
+								class="flex items-baseline justify-between gap-3 rounded-xl border border-surface-200 dark:border-white/10 p-3"
+							>
+								<span class="min-w-0 text-sm text-surface-800 dark:text-surface-100"
+									>{ROTULO_CATEGORIA[l.categoria]}</span
+								>
+								<span class="shrink-0 text-sm tabular-nums text-surface-700 dark:text-surface-200">
+									{l.quantidade} · {formatarBRL(l.total)}
+								</span>
+							</li>
+						{/each}
+						<li
+							class="flex items-baseline justify-between gap-3 rounded-xl border border-surface-200 dark:border-white/10 p-3 font-semibold"
+						>
+							<span class="text-sm">TOTAL</span>
+							<span class="shrink-0 text-sm tabular-nums">
+								{custo.consolidado.diarias.reduce((s, l) => s + l.quantidade, 0)} · {formatarBRL(
+									custo.consolidado.diariasTotal
+								)}
+							</span>
+						</li>
+					</ul>
 				{/if}
 			</div>
 		{/if}

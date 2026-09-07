@@ -36,7 +36,7 @@
 	} = $props();
 </script>
 
-<section class="card-quadro min-w-0 rounded-2xl p-5 sm:p-6 space-y-4">
+<section class="card-quadro min-w-0 rounded-2xl p-4 sm:p-6 space-y-4">
 	<TituloSecao
 		texto="Data de execução"
 		apoio="Escolha a data da operação. Caso seja feriado, dê um clique duplo no dia escolhido."
@@ -46,8 +46,8 @@
 	<input type="hidden" name="data_inicio" value={dataInicio} />
 	{#if feriado}<input type="hidden" name="feriado" value="1" />{/if}
 
-	<div class="flex flex-wrap gap-4">
-		<label class="block space-y-1">
+	<div class="grid grid-cols-1 gap-4 xs:grid-cols-2 sm:flex sm:flex-wrap">
+		<label class="block min-w-0 space-y-1">
 			<span class="text-sm font-medium text-surface-700 dark:text-surface-200"
 				>Horário de apresentação</span
 			>
@@ -55,10 +55,10 @@
 				name="hora_inicio"
 				bind:value={horaInicio}
 				placeholder={placeholderHoraInicio}
-				class="input w-32"
+				class="input w-full sm:w-32"
 			/>
 		</label>
-		<label class="block space-y-1">
+		<label class="block min-w-0 space-y-1">
 			<span class="text-sm font-medium text-surface-700 dark:text-surface-200">
 				Previsão de término <span class="text-surface-600 dark:text-surface-400"
 					>{apoioTermino}</span
@@ -68,14 +68,14 @@
 				name="hora_fim"
 				bind:value={horaFim}
 				placeholder={placeholderHoraFim}
-				class="input w-32"
+				class="input w-full sm:w-32"
 			/>
 		</label>
-		<label class="block space-y-1">
+		<label class="block min-w-0 space-y-1 xs:col-span-2 sm:col-auto">
 			<span class="text-sm font-medium text-surface-700 dark:text-surface-200">
 				Data de término <span class="text-surface-600 dark:text-surface-400">(se virar o dia)</span>
 			</span>
-			<input type="date" name="data_fim" bind:value={dataFim} class="input w-44" />
+			<input type="date" name="data_fim" bind:value={dataFim} class="input w-full sm:w-44" />
 		</label>
 	</div>
 	<p class="text-xs text-surface-600 dark:text-surface-400">{notaRodape}</p>

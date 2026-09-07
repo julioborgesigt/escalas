@@ -49,7 +49,7 @@
 		</p>
 
 		{#if campos.length > 0}
-			<div class="table-wrap">
+			<div class="hidden md:block table-wrap">
 				<table class="table w-full text-sm">
 					<thead>
 						<tr class="text-left text-xs uppercase text-surface-600 dark:text-surface-400">
@@ -79,6 +79,44 @@
 					</tbody>
 				</table>
 			</div>
+
+			<ul class="md:hidden space-y-3">
+				{#each campos as s (s.id)}
+					<li class="rounded-xl border border-surface-200 dark:border-white/10 p-3 space-y-2">
+						<div class="flex items-start justify-between gap-2">
+							<p class="min-w-0 font-medium text-sm break-words">{ROTULO_CAMPO[s.campo]}</p>
+							<div class="shrink-0"><StatusSolicitacao status={s.status} /></div>
+						</div>
+						<dl class="grid grid-cols-1 gap-1.5 text-sm">
+							<div>
+								<dt class="text-2xs font-semibold uppercase text-surface-600 dark:text-surface-400">
+									De
+								</dt>
+								<dd class="text-surface-600 dark:text-surface-400 break-words">
+									{s.valor_atual || '—'}
+								</dd>
+							</div>
+							<div>
+								<dt class="text-2xs font-semibold uppercase text-surface-600 dark:text-surface-400">
+									Para
+								</dt>
+								<dd class="font-semibold break-words">{s.valor_novo}</dd>
+							</div>
+							<div>
+								<dt class="text-2xs font-semibold uppercase text-surface-600 dark:text-surface-400">
+									Justificativa
+								</dt>
+								<dd class="text-surface-600 dark:text-surface-400 break-words">
+									{s.justificativa || '—'}
+								</dd>
+							</div>
+							<p class="text-2xs text-surface-600 dark:text-surface-400">
+								Solicitado por {s.solicitante_nome || '—'}
+							</p>
+						</dl>
+					</li>
+				{/each}
+			</ul>
 		{/if}
 
 		{#if acoes.length > 0}

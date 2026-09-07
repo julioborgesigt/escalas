@@ -296,7 +296,7 @@
 		>
 			<!-- Header do dia -->
 			<div
-				class="flex items-center justify-between gap-3 px-4 py-3 bg-surface-50 dark:bg-surface-800/50 border-b border-surface-100 dark:border-white/5 rounded-t-2xl"
+				class="flex flex-col gap-2 px-4 py-3 bg-surface-50 dark:bg-surface-800/50 border-b border-surface-100 dark:border-white/5 rounded-t-2xl xs:flex-row xs:items-center xs:justify-between"
 			>
 				<div class="flex flex-col gap-1 min-w-0">
 					<span class="font-bold text-sm text-surface-900 dark:text-surface-50">
@@ -322,10 +322,10 @@
 					{/if}
 				</div>
 				{#if podeEditarEscala && modoEdicao && !documentoAssinadoExiste && !finalizadaEm && !solicitacaoAtual}
-					<div class="flex gap-1.5 shrink-0">
+					<div class="grid w-full grid-cols-2 gap-1.5 xs:flex xs:w-auto xs:shrink-0">
 						<button
 							type="button"
-							class="btn text-xs font-bold px-3 py-1.5 rounded-lg border transition-colors
+							class="btn text-xs font-bold px-3 py-1.5 rounded-lg border transition-colors w-full xs:w-auto
 								{addHere && fdsAddingCargo === 'DPC'
 								? 'border-primary-500 bg-primary-500/20 text-primary-700 dark:text-primary-300'
 								: 'border-primary-500/30 bg-primary-500/10 text-primary-700 dark:text-primary-300 hover:bg-primary-500/20'}"
@@ -335,7 +335,7 @@
 						</button>
 						<button
 							type="button"
-							class="btn text-xs font-bold px-3 py-1.5 rounded-lg border transition-colors
+							class="btn text-xs font-bold px-3 py-1.5 rounded-lg border transition-colors w-full xs:w-auto
 								{addHere && fdsAddingCargo === 'OIP'
 								? 'border-warning-500 bg-warning-500/20 text-warning-700 dark:text-warning-300'
 								: 'border-warning-500/30 bg-warning-500/10 text-warning-700 dark:text-warning-300 hover:bg-warning-500/20'}"

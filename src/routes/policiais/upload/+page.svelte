@@ -14,6 +14,7 @@
 	import { loading } from '$lib/loading.svelte';
 	import { Accordion } from '@skeletonlabs/skeleton-svelte';
 	import type { ActionResult } from '@sveltejs/kit';
+	import BotaoVoltar from '$lib/components/BotaoVoltar.svelte';
 
 	let file = $state<File | null>(null);
 	let result = $state<{
@@ -65,9 +66,9 @@
 	<title>Importar policiais — Escalas PC-CE</title>
 </svelte:head>
 
-<div class="flex items-center justify-between mb-6">
+<div class="mb-6 space-y-3">
+	<BotaoVoltar href="/policiais" />
 	<h1 class="h1 text-2xl font-bold">Importar Planilha</h1>
-	<a href="/policiais" class="btn preset-outlined-primary-500">Voltar</a>
 </div>
 
 <div class="space-y-6">

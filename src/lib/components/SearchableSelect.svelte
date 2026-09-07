@@ -145,7 +145,7 @@
 	};
 </script>
 
-<div class="relative w-full {className}">
+<div class="relative w-full min-w-0 {className}">
 	<input type="hidden" {name} value={isValueEmpty(value) ? '' : String(value)} />
 	<Combobox
 		value={comboboxValue}
@@ -155,7 +155,7 @@
 		{onValueChange}
 		{onOpenChange}
 		{onInputValueChange}
-		class="w-full"
+		class="w-full min-w-0"
 	>
 		<Combobox.Control
 			class="flex items-center w-full rounded-lg border border-surface-300 dark:border-surface-600 bg-white dark:bg-surface-800 focus-within:border-primary-400 focus-within:ring-1 focus-within:ring-primary-400/30 transition-colors overflow-hidden {disabled

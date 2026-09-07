@@ -37,7 +37,7 @@
 				</span>
 			</div>
 			<div class="flex flex-wrap lg:flex-nowrap items-end gap-3 w-full">
-				<div class="flex-1 min-w-[200px]">
+				<div class="flex-1 min-w-0 w-full">
 					<span class="block text-3xs font-semibold text-surface-600 dark:text-surface-400 mb-1">
 						Nome do Assessor
 					</span>
@@ -55,7 +55,7 @@
 				</div>
 
 				{#if quadro.ids.assessor != null}
-					<div class="flex-1 min-w-[200px]">
+					<div class="flex-1 min-w-0 w-full">
 						<label
 							for="assessorEmailNotif"
 							class="block text-3xs font-semibold text-surface-600 dark:text-surface-400 mb-1"

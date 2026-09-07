@@ -215,10 +215,10 @@
 
 {#if updated.current && showSidebar}
 	<div
-		class="fixed inset-x-0 top-0 z-[60] flex items-center justify-center gap-3 bg-warning-500 px-4 py-2 text-sm font-semibold text-surface-950 shadow-md"
+		class="fixed inset-x-0 top-0 z-[60] flex flex-wrap items-center justify-center gap-3 bg-warning-500 px-4 py-2 text-sm font-semibold text-surface-950 shadow-md"
 		role="status"
 	>
-		<span>Nova versão do sistema disponível.</span>
+		<span class="text-center">Nova versão do sistema disponível.</span>
 		<button
 			type="button"
 			class="rounded-lg bg-surface-950/15 px-3 py-1 text-xs font-bold uppercase tracking-wide hover:bg-surface-950/25"

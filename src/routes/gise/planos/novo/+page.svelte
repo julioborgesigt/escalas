@@ -28,7 +28,7 @@
 	import { loading } from '$lib/loading.svelte';
 	import { toaster } from '$lib/toast';
 	import BotaoVoltar from '$lib/components/BotaoVoltar.svelte';
-	import { DEPARTAMENTO_PADRAO } from '$lib/planos/padroes';
+	import { DEPARTAMENTO_PADRAO, HORA_FIM_PADRAO, HORA_INICIO_PADRAO } from '$lib/planos/padroes';
 	import CampoNup from '../_components/CampoNup.svelte';
 	import CamposAcoes from '../_components/CamposAcoes.svelte';
 	import CamposComando from '../_components/CamposComando.svelte';
@@ -52,8 +52,8 @@
 	// svelte-ignore state_referenced_locally
 	let dataInicio = $state(data.hoje);
 	let feriado = $state(false);
-	let horaInicio = $state('05:00');
-	let horaFim = $state('11:00');
+	let horaInicio = $state(HORA_INICIO_PADRAO);
+	let horaFim = $state(HORA_FIM_PADRAO);
 	let dataFim = $state('');
 	let nome = $state('');
 	let nup = $state('');
@@ -159,7 +159,7 @@
 		class="space-y-6"
 	>
 		<!-- ---- Identificação ---- -->
-		<section class="card-quadro rounded-2xl p-5 sm:p-6 space-y-4">
+		<section class="card-quadro min-w-0 rounded-2xl p-4 sm:p-6 space-y-4">
 			<TituloSecao texto="Identificação" />
 
 			<!-- Nome, NUP e departamento na mesma linha a partir de `md`. NUP a 60%
@@ -193,18 +193,18 @@
 			</div>
 		</section>
 
-		<section class="card-quadro rounded-2xl p-5 sm:p-6 space-y-4">
+		<section class="card-quadro min-w-0 rounded-2xl p-4 sm:p-6 space-y-4">
 			<TituloSecao texto="Finalidade" />
 			<textarea
 				name="finalidade"
 				bind:value={finalidade}
 				rows="4"
 				maxlength="2000"
-				class="textarea"
+				class="textarea w-full min-w-0"
 				aria-label="Finalidade"></textarea>
 		</section>
 
-		<section class="card-quadro rounded-2xl p-5 sm:p-6 space-y-4">
+		<section class="card-quadro min-w-0 rounded-2xl p-4 sm:p-6 space-y-4">
 			<TituloSecao texto="Ações a serem realizadas" />
 			<CamposAcoes valor={data.acoesPadrao} rotulo={false} />
 		</section>
@@ -213,7 +213,7 @@
 		<!-- Montadas AQUI, e não só no editor: a operação que sai para três cidades
 		     declara as três antes de criar o plano. Cada lista vira campos ocultos
 		     no POST; o servidor as grava depois de o plano existir. -->
-		<section class="card-quadro rounded-2xl p-5 sm:p-6 space-y-4">
+		<section class="card-quadro min-w-0 rounded-2xl p-4 sm:p-6 space-y-4">
 			<TituloSecao
 				texto="Opções das equipes"
 				apoio="O que os seletores de cada equipe vão oferecer. A marcada com estrela vem pré-preenchida nas equipes criadas — e todas continuam editáveis no plano."
@@ -312,19 +312,19 @@
 				bind:dataFim
 				apoioTermino="(opcional)"
 				notaRodape="Sem previsão de término, o sistema não sugere a quantidade de horas — ela é digitada por equipe no editor."
-				placeholderHoraInicio="05:00"
-				placeholderHoraFim="11:00"
+				placeholderHoraInicio={HORA_INICIO_PADRAO}
+				placeholderHoraFim={HORA_FIM_PADRAO}
 			/>
 
 			<div class="min-w-0 space-y-6">
-				<section class="card-quadro rounded-2xl p-5 sm:p-6 space-y-4">
+				<section class="card-quadro min-w-0 rounded-2xl p-4 sm:p-6 space-y-4">
 					<TituloSecao
 						texto="Estrutura inicial"
 						apoio="As equipes nascem como “Equipe 01”, “Equipe 02”… e podem ser renomeadas, acrescentadas ou removidas no editor."
 					/>
 
 					<div class="flex flex-wrap items-start gap-4">
-						<label class="block shrink-0 space-y-1">
+						<label class="block min-w-0 w-full space-y-1 xs:w-auto">
 							<span class="text-sm font-medium text-surface-700 dark:text-surface-200"
 								>Qtd. de equipes</span
 							>
@@ -334,10 +334,10 @@
 								bind:value={qtdEquipes}
 								min="0"
 								max="50"
-								class="input w-28"
+								class="input w-full xs:w-28"
 							/>
 						</label>
-						<label class="block shrink-0 space-y-1">
+						<label class="block min-w-0 w-full space-y-1 xs:w-auto">
 							<span class="text-sm font-medium text-surface-700 dark:text-surface-200"
 								>OIPs por equipe</span
 							>
@@ -347,10 +347,10 @@
 								bind:value={oipPorEquipe}
 								min="0"
 								max="99"
-								class="input w-28"
+								class="input w-full xs:w-28"
 							/>
 						</label>
-						<label class="flex min-w-0 flex-1 items-start gap-3 cursor-pointer">
+						<label class="flex min-w-0 w-full items-start gap-3 cursor-pointer xs:flex-1">
 							<input
 								type="checkbox"
 								name="tem_seint"
@@ -371,7 +371,7 @@
 
 				<CamposComando bind:coordenadorId bind:demandanteId />
 
-				<section class="card-quadro rounded-2xl p-5 sm:p-6 space-y-4">
+				<section class="card-quadro min-w-0 rounded-2xl p-4 sm:p-6 space-y-4">
 					<TituloSecao
 						texto="Signatário do plano"
 						apoio="Quem assina o documento. Varia por operação — o Titular assina umas, o Adjunto outras."

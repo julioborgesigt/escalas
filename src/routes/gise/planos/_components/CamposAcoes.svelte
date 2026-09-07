@@ -89,7 +89,7 @@
 
 	<button
 		type="button"
-		class="btn preset-outlined-surface-500 py-2 px-3 rounded-xl text-sm"
+		class="btn preset-outlined-surface-500 py-2 px-3 rounded-xl text-sm w-full sm:w-auto justify-center"
 		onclick={acrescentar}
 	>
 		<Plus class="w-4 h-4" />

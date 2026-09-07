@@ -333,7 +333,7 @@
 				Escalas assinadas enviadas ao Admin Geral — atualiza ao voltar à aba ou pelo botão Atualizar
 			</p>
 		</div>
-		<div class="flex gap-2 justify-end w-full sm:w-auto">
+		<div class="flex flex-wrap gap-2 justify-end w-full sm:w-auto">
 			<BotaoLimparFiltros {temFiltros} onclick={limparFiltros} />
 			<button
 				type="button"

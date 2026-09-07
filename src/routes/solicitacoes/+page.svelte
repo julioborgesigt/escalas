@@ -116,7 +116,7 @@
 				</span>
 			</h2>
 			<div class="card-glass rounded-3xl overflow-hidden">
-				<div class="table-wrap">
+				<div class="hidden md:block table-wrap">
 					<table class="table w-full text-sm">
 						<thead>
 							<tr
@@ -213,6 +213,94 @@
 						</tbody>
 					</table>
 				</div>
+
+				<ul class="md:hidden divide-y divide-surface-200 dark:divide-white/10">
+					{#each pendentes as s (s.id)}
+						<li class="p-4 space-y-3">
+							<div class="min-w-0">
+								<p class="font-semibold leading-tight break-words">{s.policial_nome}</p>
+								<p class="text-xs text-surface-600 dark:text-surface-400 break-words">
+									{s.policial_matricula} · {s.policial_cargo} · {s.policial_lotacao}
+								</p>
+							</div>
+							<dl class="grid grid-cols-1 gap-2 text-sm">
+								<div>
+									<dt class="text-2xs font-semibold uppercase text-surface-600 dark:text-surface-400">
+										Campo
+									</dt>
+									<dd class="font-medium">{ROTULO_CAMPO[s.campo]}</dd>
+								</div>
+								<div>
+									<dt class="text-2xs font-semibold uppercase text-surface-600 dark:text-surface-400">
+										De
+									</dt>
+									<dd class="text-surface-600 dark:text-surface-400 break-words">
+										{s.valor_atual || '—'}
+									</dd>
+								</div>
+								<div>
+									<dt class="text-2xs font-semibold uppercase text-surface-600 dark:text-surface-400">
+										Para
+									</dt>
+									<dd class="font-semibold break-words">{s.valor_novo}</dd>
+								</div>
+								<div>
+									<dt class="text-2xs font-semibold uppercase text-surface-600 dark:text-surface-400">
+										Justificativa
+									</dt>
+									<dd class="text-surface-600 dark:text-surface-400 break-words">
+										{s.justificativa || '—'}
+										{#if s.solicitante_nome}
+											<span class="block text-2xs mt-1 opacity-70">por {s.solicitante_nome}</span>
+										{/if}
+									</dd>
+								</div>
+								<div>
+									<dt class="text-2xs font-semibold uppercase text-surface-600 dark:text-surface-400">
+										Solicitada em
+									</dt>
+									<dd class="text-xs text-surface-600 dark:text-surface-400">
+										{fmtDataHora(s.created_at)}
+									</dd>
+								</div>
+							</dl>
+							<div class="grid grid-cols-2 gap-2 pt-1">
+								<form
+									method="POST"
+									action="?/decidir"
+									use:enhance={() => handleDecidir(s.id, 'rejeitar')}
+								>
+									<input type="hidden" name="id" value={s.id} />
+									<input type="hidden" name="decisao" value="rejeitar" />
+									<button
+										type="submit"
+										class="btn btn-sm preset-outlined-error-500 w-full justify-center disabled:opacity-40"
+										aria-label="Rejeitar solicitação de {s.policial_nome}"
+										disabled={decidindoId === s.id}
+									>
+										Rejeitar
+									</button>
+								</form>
+								<form
+									method="POST"
+									action="?/decidir"
+									use:enhance={() => handleDecidir(s.id, 'aprovar')}
+								>
+									<input type="hidden" name="id" value={s.id} />
+									<input type="hidden" name="decisao" value="aprovar" />
+									<button
+										type="submit"
+										class="btn btn-sm preset-filled-success-500 w-full justify-center disabled:opacity-40"
+										aria-label="Aprovar solicitação de {s.policial_nome}"
+										disabled={decidindoId === s.id}
+									>
+										Aprovar
+									</button>
+								</form>
+							</div>
+						</li>
+					{/each}
+				</ul>
 			</div>
 		</section>
 	{/if}

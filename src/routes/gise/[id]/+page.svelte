@@ -577,26 +577,26 @@
 			</GiseSupervisao>
 		{/if}
 
-		<div class="flex items-center gap-3 my-6">
-			<hr class="flex-1 border-surface-200 dark:border-white/10" />
+		<div class="flex items-center gap-3 my-6 min-w-0">
+			<hr class="min-w-0 flex-1 border-surface-200 dark:border-white/10" />
 			<span
-				class="text-xs font-semibold text-surface-400 dark:text-surface-500 uppercase tracking-wider"
+				class="min-w-0 text-center text-xs font-semibold text-surface-400 dark:text-surface-500 uppercase tracking-wider"
 				>Seccionais Participantes</span
 			>
-			<hr class="flex-1 border-surface-200 dark:border-white/10" />
+			<hr class="min-w-0 flex-1 border-surface-200 dark:border-white/10" />
 		</div>
 
 		<!-- Seccionais -->
 		<div>
 			{#if !isSeccional}
-				<div class="mb-3 flex items-center justify-between gap-2">
+				<div class="mb-3 flex flex-col gap-2 xs:flex-row xs:items-center xs:justify-between">
 					<h2 class="font-semibold text-surface-900 dark:text-surface-50">
 						Seccionais ({gise.seccionais?.length ?? 0})
 					</h2>
 					{#if supervisorSomente}
 						<button
 							type="button"
-							class="btn btn-sm preset-filled-primary-500 text-xs px-3 py-1.5 rounded-lg font-bold shadow-sm transition-all"
+							class="btn btn-sm preset-filled-primary-500 text-xs px-3 py-1.5 rounded-lg font-bold shadow-sm transition-all w-full xs:w-auto"
 							onclick={() =>
 								(supervisorExpandiuQuadroSeccionais = !supervisorExpandiuQuadroSeccionais)}
 						>

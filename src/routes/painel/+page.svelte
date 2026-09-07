@@ -381,7 +381,7 @@
 				Controle de envio e assinatura de escalas por unidade
 			</p>
 		</div>
-		<div class="flex gap-2 justify-end w-full sm:w-auto">
+		<div class="flex flex-wrap gap-2 justify-end w-full sm:w-auto">
 			<BotaoLimparFiltros
 				{temFiltros}
 				onclick={limparFiltros}

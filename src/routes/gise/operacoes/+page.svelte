@@ -162,7 +162,7 @@
 				     README §10 dá um bloco alto demais para um botão de cabeçalho. -->
 				<button
 					type="button"
-					class="btn btn-sm preset-filled-primary-500 px-3.5 py-2 rounded-xl font-semibold shrink-0"
+					class="btn btn-sm preset-filled-primary-500 px-3.5 py-2 rounded-xl font-semibold shrink-0 w-full sm:w-auto"
 					onclick={() => (escolhendoTipo = true)}
 				>
 					<Plus class="w-4 h-4" />
@@ -255,20 +255,6 @@
 											<SquarePen class="w-3.5 h-3.5" />
 											Editar
 										</button>
-										<!-- Excluir só existe sem escala nenhuma: com escala, o que
-										     resta é desativar (o histórico e o PDF assinado continuam
-										     apontando para a operação). Quem recusa de verdade é a
-										     action, que reconta no servidor. -->
-										{#if op.escalas === 0}
-											<button
-												type="button"
-												class={BOTAO_EXCLUIR}
-												onclick={() => confirmExcluir.openDialog({ id: op.id, nome: op.nome })}
-											>
-												<Trash2 class="w-3.5 h-3.5" />
-												Excluir
-											</button>
-										{/if}
 										<form
 											class="w-full min-w-0 odd:last:col-span-2 sm:w-auto sm:col-auto"
 											method="POST"
@@ -281,6 +267,21 @@
 												{op.ativo ? 'Desativar' : 'Reativar'}
 											</button>
 										</form>
+										<!-- Excluir só existe sem escala nenhuma: com escala, o que
+										     resta é desativar (o histórico e o PDF assinado continuam
+										     apontando para a operação). Quem recusa de verdade é a
+										     action, que reconta no servidor. Fica por último: é a
+										     ação destrutiva. -->
+										{#if op.escalas === 0}
+											<button
+												type="button"
+												class="{BOTAO_EXCLUIR} odd:last:col-span-2 sm:col-auto"
+												onclick={() => confirmExcluir.openDialog({ id: op.id, nome: op.nome })}
+											>
+												<Trash2 class="w-3.5 h-3.5" />
+												Excluir
+											</button>
+										{/if}
 									</div>
 								</div>
 							</li>

@@ -46,10 +46,10 @@
 				Selecionar Todos
 			</button>
 		</div>
-		<div class="flex gap-2">
+		<div class="flex flex-wrap gap-2 w-full sm:w-auto">
 			<button
 				type="button"
-				class="btn text-xs font-semibold px-3 py-1.5 rounded-xl border border-error-500/40 bg-error-500/10 text-error-700 dark:text-error-400 hover:bg-error-500/20 transition-colors disabled:opacity-40"
+				class="btn text-xs font-semibold px-3 py-1.5 rounded-xl border border-error-500/40 bg-error-500/10 text-error-700 dark:text-error-400 hover:bg-error-500/20 transition-colors disabled:opacity-40 flex-1 sm:flex-initial"
 				disabled={totalSelecionados === 0 || pendingRemoverSelecionados}
 				onclick={onRemoverSelecionados}
 			>
@@ -57,7 +57,7 @@
 			</button>
 			<button
 				type="button"
-				class="btn text-xs px-3 py-1.5 rounded-xl border border-surface-300 dark:border-surface-600 text-surface-600 dark:text-surface-400 hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors"
+				class="btn text-xs px-3 py-1.5 rounded-xl border border-surface-300 dark:border-surface-600 text-surface-600 dark:text-surface-400 hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors flex-1 sm:flex-initial"
 				onclick={onCancelarSelecao}
 			>
 				Cancelar
@@ -65,17 +65,17 @@
 		</div>
 	{:else}
 		<div></div>
-		<div class="flex gap-2">
+		<div class="flex flex-wrap gap-2 w-full sm:w-auto">
 			<button
 				type="button"
-				class="btn text-xs px-3 py-1.5 rounded-xl border border-surface-300 dark:border-surface-600 text-surface-600 dark:text-surface-400 hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors"
+				class="btn text-xs px-3 py-1.5 rounded-xl border border-surface-300 dark:border-surface-600 text-surface-600 dark:text-surface-400 hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors flex-1 sm:flex-initial"
 				onclick={onIniciarSelecao}
 			>
 				Selecionar
 			</button>
 			<button
 				type="button"
-				class="btn text-xs font-semibold px-3 py-1.5 rounded-xl border border-error-500/40 bg-error-500/10 text-error-700 dark:text-error-400 hover:bg-error-500/20 transition-colors"
+				class="btn text-xs font-semibold px-3 py-1.5 rounded-xl border border-error-500/40 bg-error-500/10 text-error-700 dark:text-error-400 hover:bg-error-500/20 transition-colors flex-1 sm:flex-initial"
 				onclick={onRemoverTodos}
 			>
 				Remover Todos

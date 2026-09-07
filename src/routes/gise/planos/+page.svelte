@@ -58,7 +58,7 @@
 		</div>
 		<a
 			href="/gise/planos/novo"
-			class="btn btn-sm preset-filled-primary-500 px-3.5 py-2 rounded-xl font-semibold shrink-0"
+			class="btn btn-sm preset-filled-primary-500 px-3.5 py-2 rounded-xl font-semibold shrink-0 w-full sm:w-auto"
 		>
 			<Plus class="w-4 h-4" />
 			Novo plano

@@ -312,7 +312,7 @@
 				<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
 					<!-- Card 1: Assinar na Tela -->
 					<div
-						class="flex items-center justify-between px-4 py-3 rounded-xl border bg-warning-500/5 border-warning-500/20 {avancadaDesktopDisponivel
+						class="flex flex-wrap items-center justify-between gap-2 px-4 py-3 rounded-xl border bg-warning-500/5 border-warning-500/20 {avancadaDesktopDisponivel
 							? 'sm:col-span-2'
 							: ''}"
 					>
@@ -351,7 +351,7 @@
 								onclick={abrirModalAssinatura}>Assinar</button
 							>
 						{:else if isMobile}
-							<div class="max-w-[14rem] text-right">
+							<div class="min-w-0 flex-1 text-right">
 								<ConviteChaveAssinatura isMobile={true} compact />
 							</div>
 						{:else}
@@ -365,7 +365,7 @@
 					<!-- Card 2: Certificado Digital (A1/A3) — oculto no desktop quando avançada já oferece token no modal -->
 					{#if !avancadaDesktopDisponivel}
 						<div
-							class="flex items-center justify-between px-4 py-3 rounded-xl border bg-tertiary-500/5 border-tertiary-500/20"
+							class="flex flex-wrap items-center justify-between gap-2 px-4 py-3 rounded-xl border bg-tertiary-500/5 border-tertiary-500/20"
 						>
 							<div class="flex items-center gap-2 min-w-0">
 								<ShieldCheck class="w-4 h-4 text-tertiary-500 shrink-0" aria-hidden="true" />

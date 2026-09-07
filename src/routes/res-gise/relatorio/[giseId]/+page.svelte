@@ -302,17 +302,17 @@
 				Há um <strong>rascunho salvo neste aparelho</strong> às {rascunhoOferecido.salvoEm}. A tela
 				mostra o relatório já entregue pela equipe.
 			</p>
-			<div class="flex shrink-0 gap-2">
+			<div class="flex shrink-0 flex-col gap-2 xs:flex-row">
 				<button
 					type="button"
-					class="btn btn-sm preset-outlined-surface-500"
+					class="btn btn-sm preset-outlined-surface-500 w-full xs:w-auto"
 					onclick={descartarRascunho}
 				>
 					Descartar
 				</button>
 				<button
 					type="button"
-					class="btn btn-sm preset-filled-warning-500"
+					class="btn btn-sm preset-filled-warning-500 w-full xs:w-auto"
 					onclick={aplicarRascunhoOferecido}
 				>
 					Usar rascunho

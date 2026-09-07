@@ -478,7 +478,7 @@
 				{#each unidadesAgrupadas as u (u.id)}
 					<div
 						class="p-4 rounded-2xl bg-surface-100/50 dark:bg-surface-800/50 border {u.isChild
-							? 'border-l-4 border-l-surface-400 dark:border-l-surface-600 border-surface-200 dark:border-white/10 ml-6'
+							? 'border-l-4 border-l-surface-400 dark:border-l-surface-600 border-surface-200 dark:border-white/10 ml-3 sm:ml-6'
 							: 'border-surface-200 dark:border-white/10'}"
 					>
 						{#if isAdmin && editandoId === u.id}

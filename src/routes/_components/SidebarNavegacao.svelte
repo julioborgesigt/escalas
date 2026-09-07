@@ -316,7 +316,7 @@
 					     qual dos dois se está cadastrando), mas a lista precisa de
 					     entrada própria: sem ela, um plano já criado só se alcançaria
 					     pela URL. -->
-					{@render itemMenu('/gise/planos', 'Planos', ICONE.pranchetaLista, planosPathAtivo)}
+					{@render itemMenu('/gise/planos', 'Plano Op.', ICONE.pranchetaLista, planosPathAtivo)}
 				{/if}
 			{/if}
 			<!-- end showGrupo2 -->
