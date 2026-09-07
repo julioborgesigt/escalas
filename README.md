@@ -843,12 +843,13 @@ formulário e a recusa ao admin de unidade).
 
 ### O eixo do painel: delegacias ou seccionais
 
-A barra de filtros de `/produtividade` tem **duas linhas**. A divisão já foi
-semântica ("só os de baixo recortam dado") e desde ago/2026 é de USO: em cima o
-que se escolhe ao abrir o painel (operação, "Visualizar por", tipo de equipe),
-embaixo o que se mexe enquanto se lê (quantidade, ordem, período). Quem precisa
-saber o que recorta dado de verdade: **tipo de equipe e período** — quantidade e
-ordem seguem mexendo só na apresentação da MESMA lista.
+A barra de filtros de `/produtividade` tem **duas linhas**. A de baixo
+(quantidade, ordem, período) começa **recolhida** atrás de "Mais filtros" — é o
+que se mexe enquanto se lê. Em cima fica o que se escolhe ao abrir o painel
+(operação, "Visualizar por", tipo de equipe). A divisão já foi semântica ("só
+os de baixo recortam dado") e desde ago/2026 é de USO. Quem precisa saber o que
+recorta dado de verdade: **tipo de equipe e período** — quantidade e ordem
+seguem mexendo só na apresentação da MESMA lista.
 
 "Visualizar por" é um EIXO, não um filtro: a mesma resposta pertence às duas
 chaves — `seccional_id` e `unidade_id` (este resolvido em

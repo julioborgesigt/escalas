@@ -201,14 +201,15 @@ export function useProdutividade(getData: () => PageData) {
 
 	let mostrarFiltros = $state(true);
 	let mostrarBaixarGraficos = $state(false);
-	const filtrosAtivos = $derived(
-		modoVisualizacao !== 'seccionais' ||
-			quantidade !== 'todas' ||
+	/** Quantidade, ordem e período — a linha que "Mais filtros" esconde. */
+	const maisFiltrosAtivos = $derived(
+		quantidade !== 'todas' ||
 			ordem !== 'melhores' ||
 			filterInicio !== '' ||
 			filterFim !== '' ||
 			filterAno !== String(currentYear)
 	);
+	const filtrosAtivos = $derived(modoVisualizacao !== 'seccionais' || maisFiltrosAtivos);
 
 	/** Só os campos de `filtrosAtivos` — tipo de equipe e operação ficam. */
 	function limparFiltros() {
@@ -1009,6 +1010,10 @@ export function useProdutividade(getData: () => PageData) {
 		},
 		get filtrosAtivos() {
 			return filtrosAtivos;
+		},
+		/** Quantidade, ordem e período — a linha atrás de "Mais filtros". */
+		get maisFiltrosAtivos() {
+			return maisFiltrosAtivos;
 		},
 		limparFiltros,
 		/** As perguntas que viram gráfico de BARRAS — as únicas com `<canvas>`. */

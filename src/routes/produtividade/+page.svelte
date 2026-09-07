@@ -8,10 +8,12 @@
 	 * dados, e refazer a consulta a cada mexida de filtro seria uma ida ao
 	 * servidor por clique.
 	 *
-	 * A barra tem DUAS linhas, e a divisão é semântica: em cima o que se compara
-	 * (operação, eixo, quantas unidades, em que ordem) e embaixo o que entra na
-	 * conta (tipo de equipe, período). Só os de baixo recortam dado — trocar de
-	 * eixo não muda o total do painel, só a quebra.
+	 * A barra tem DUAS linhas, e a de baixo começa recolhida atrás de "Mais
+	 * filtros": em cima o que se escolhe ao abrir o painel (operação, eixo,
+	 * tipo de equipe), embaixo o que se mexe enquanto se lê (quantidade, ordem,
+	 * período). Quem recorta dado: tipo de equipe e período. Quantidade e
+	 * ordem só mudam a apresentação da mesma lista; o eixo não recorta — trocar
+	 * de "Visualizar por" não muda o total do painel.
 	 *
 	 * A cadeia de `$derived` mora em `_components/useProdutividade.svelte.ts`,
 	 * nesta ordem por causa de custo:
@@ -47,6 +49,7 @@
 	import Spinner from '$lib/components/Spinner.svelte';
 	import BotaoLimparFiltros from '$lib/components/BotaoLimparFiltros.svelte';
 	import GripVertical from '@lucide/svelte/icons/grip-vertical';
+	import ChevronDown from '@lucide/svelte/icons/chevron-down';
 	import {
 		useProdutividade,
 		ESCOPO_BLOCOS,
@@ -69,6 +72,10 @@
 	const { data }: PageProps = $props();
 	const p = useProdutividade(() => data);
 
+	// Quantidade, ordem e período: a linha de baixo da caixa, atrás de "Mais
+	// filtros". Começa recolhida — o recorte continua valendo mesmo fechada.
+	let mostrarMaisFiltros = $state(false);
+
 	// O gesto do arraste vive à parte da ORDEM: aquele nasce e morre num
 	// `dragstart`/`drop`, esta vai ao banco. As três seções recebem o mesmo
 	// objeto, que é o que mantém um arraste por vez na página inteira.
@@ -77,9 +84,8 @@
 		(secao, de, para) => p.moverCard(secao, de, para)
 	);
 
-	// A barra tem sete controles com três formas repetidas (rótulo, campo,
-	// segmento). Constantes em vez de string repetida: era assim que o "Tipo de
-	// equipe" e a "Seccional" já divergiam em padding entre si.
+	// Rótulo, campo e segmento: constantes em vez de string repetida. Era assim
+	// que o "Tipo de equipe" e a "Seccional" já divergiam em padding entre si.
 	const ROTULO = `${CLASSE_ROTULO_FILTRO} block`;
 	const CAMPO = `${CLASSE_INPUT_FILTRO} w-full`;
 	const SEGMENTO = 'flex-1 rounded-lg py-1.5 text-xs font-bold transition-colors';
@@ -250,81 +256,111 @@
 						</div>
 					</div>
 
-					<!-- LINHA 2 — o RECORTE: quantas unidades, em que ordem, em que período.
-					     As frações do `grid-cols` não são arbitrárias: `1.5fr` é metade das 3
-					     colunas que a quantidade tinha, e `2.1fr` são as 3 da ordem menos 30%.
-					     Os dois guardam duas ou três opções curtas, e a largura que sobra vale
-					     mais no período, que carrega duas datas. -->
-					<div
-						class="grid grid-cols-1 gap-4 lg:grid-cols-[1.5fr_2.1fr_8.4fr] items-end border-t border-surface-200/70 dark:border-white/10 pt-4"
-					>
-						<div class="space-y-1.5">
-							<!-- "Quantidade", e não "Quantidade de unidades": na largura pela metade
-							     o rótulo longo quebrava em três linhas, e as opções ("5 unidades",
-							     "10 unidades") já dizem de que quantidade se trata. -->
-							<label for="f-qtd" class={ROTULO}>Quantidade</label>
-							<select
-								id="f-qtd"
-								value={String(p.quantidade)}
-								onchange={(e) =>
-									(p.quantidade =
-										e.currentTarget.value === 'todas'
-											? 'todas'
-											: (Number(e.currentTarget.value) as 5 | 10))}
-								class={CAMPO}
+					<!-- LINHA 2 — quantidade, ordem, período. Recolhida atrás de
+					     "Mais filtros": é o que se mexe enquanto se lê, não o que
+					     se escolhe ao abrir o painel. As frações do `grid-cols`
+					     não são arbitrárias: `1.5fr` é metade das 3 colunas que a
+					     quantidade tinha, e `2.1fr` são as 3 da ordem menos 30%.
+					     Os dois guardam duas ou três opções curtas, e a largura
+					     que sobra vale mais no período, que carrega duas datas. -->
+					<div>
+						<div class="flex items-center gap-2 pt-1">
+							<div
+								class="min-h-px flex-1 border-t border-surface-200/70 dark:border-white/10"
+								aria-hidden="true"
+							></div>
+							<button
+								type="button"
+								class="{CLASSE_ROTULO_FILTRO} inline-flex shrink-0 items-center gap-1 cursor-pointer hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
+								aria-expanded={mostrarMaisFiltros}
+								aria-controls="mais-filtros-produtividade"
+								onclick={() => (mostrarMaisFiltros = !mostrarMaisFiltros)}
 							>
-								<option value="5">5 unidades</option>
-								<option value="10">10 unidades</option>
-								<option value="todas">Todas</option>
-							</select>
-						</div>
-
-						<div class="space-y-1.5">
-							<label for="f-ordem" class={ROTULO}>Ordem</label>
-							<select id="f-ordem" bind:value={p.ordem} class={CAMPO}>
-								<option value="melhores">Melhores primeiro</option>
-								<option value="piores">Piores primeiro</option>
-							</select>
-						</div>
-						<div class="space-y-1.5">
-							<label for="f-ano" class={ROTULO}>Período</label>
-							<div class="flex flex-wrap lg:flex-nowrap items-end gap-2">
-								<select
-									id="f-ano"
-									bind:value={p.filterAno}
-									class="{CLASSE_INPUT_FILTRO} w-full lg:w-auto min-w-[120px]"
-								>
-									{#each p.anos as ano (ano)}
-										<option value={String(ano)}>{ano}</option>
-									{/each}
-									<option value="personalizado">Personalizado</option>
-								</select>
-
-								{#if p.filterAno === 'personalizado'}
-									<div class="flex items-end gap-2 w-full lg:w-auto">
-										<div class="space-y-0.5 flex-1 lg:flex-initial">
-											<label for="f-ini" class="{CLASSE_ROTULO_FILTRO} block">De</label>
-											<input
-												id="f-ini"
-												type="date"
-												bind:value={p.filterInicio}
-												class="{CLASSE_INPUT_FILTRO} w-full"
-											/>
-										</div>
-										<span class="text-surface-400 pb-2">—</span>
-										<div class="space-y-0.5 flex-1 lg:flex-initial">
-											<label for="f-fim" class="{CLASSE_ROTULO_FILTRO} block">Até</label>
-											<input
-												id="f-fim"
-												type="date"
-												bind:value={p.filterFim}
-												class="{CLASSE_INPUT_FILTRO} w-full"
-											/>
-										</div>
-									</div>
+								{mostrarMaisFiltros ? 'Menos filtros' : 'Mais filtros'}
+								<ChevronDown
+									class="h-3.5 w-3.5 transition-transform {mostrarMaisFiltros ? 'rotate-180' : ''}"
+									aria-hidden="true"
+								/>
+								{#if !mostrarMaisFiltros && p.maisFiltrosAtivos}
+									<span class="h-1.5 w-1.5 rounded-full bg-primary-500"></span>
 								{/if}
-							</div>
+							</button>
 						</div>
+						{#if mostrarMaisFiltros}
+							<div
+								id="mais-filtros-produtividade"
+								class="grid grid-cols-1 gap-4 lg:grid-cols-[1.5fr_2.1fr_8.4fr] items-end pt-4"
+								transition:slide={{ duration: 250 }}
+							>
+								<div class="space-y-1.5">
+									<!-- "Quantidade", e não "Quantidade de unidades": na largura pela metade
+									     o rótulo longo quebrava em três linhas, e as opções ("5 unidades",
+									     "10 unidades") já dizem de que quantidade se trata. -->
+									<label for="f-qtd" class={ROTULO}>Quantidade</label>
+									<select
+										id="f-qtd"
+										value={String(p.quantidade)}
+										onchange={(e) =>
+											(p.quantidade =
+												e.currentTarget.value === 'todas'
+													? 'todas'
+													: (Number(e.currentTarget.value) as 5 | 10))}
+										class={CAMPO}
+									>
+										<option value="5">5 unidades</option>
+										<option value="10">10 unidades</option>
+										<option value="todas">Todas</option>
+									</select>
+								</div>
+
+								<div class="space-y-1.5">
+									<label for="f-ordem" class={ROTULO}>Ordem</label>
+									<select id="f-ordem" bind:value={p.ordem} class={CAMPO}>
+										<option value="melhores">Melhores primeiro</option>
+										<option value="piores">Piores primeiro</option>
+									</select>
+								</div>
+								<div class="space-y-1.5">
+									<label for="f-ano" class={ROTULO}>Período</label>
+									<div class="flex flex-wrap lg:flex-nowrap items-end gap-2">
+										<select
+											id="f-ano"
+											bind:value={p.filterAno}
+											class="{CLASSE_INPUT_FILTRO} w-full lg:w-auto min-w-[120px]"
+										>
+											{#each p.anos as ano (ano)}
+												<option value={String(ano)}>{ano}</option>
+											{/each}
+											<option value="personalizado">Personalizado</option>
+										</select>
+
+										{#if p.filterAno === 'personalizado'}
+											<div class="flex items-end gap-2 w-full lg:w-auto">
+												<div class="space-y-0.5 flex-1 lg:flex-initial">
+													<label for="f-ini" class="{CLASSE_ROTULO_FILTRO} block">De</label>
+													<input
+														id="f-ini"
+														type="date"
+														bind:value={p.filterInicio}
+														class="{CLASSE_INPUT_FILTRO} w-full"
+													/>
+												</div>
+												<span class="text-surface-400 pb-2">—</span>
+												<div class="space-y-0.5 flex-1 lg:flex-initial">
+													<label for="f-fim" class="{CLASSE_ROTULO_FILTRO} block">Até</label>
+													<input
+														id="f-fim"
+														type="date"
+														bind:value={p.filterFim}
+														class="{CLASSE_INPUT_FILTRO} w-full"
+													/>
+												</div>
+											</div>
+										{/if}
+									</div>
+								</div>
+							</div>
+						{/if}
 					</div>
 				</div>
 			</section>

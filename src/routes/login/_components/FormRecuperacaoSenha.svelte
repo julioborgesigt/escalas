@@ -1,15 +1,18 @@
 <script lang="ts">
 	/**
-	 * Fluxo 4: recuperação de senha em três passos (`recuperacaoEtapa`).
-	 * Respostas genéricas — não revela se a matrícula/login existe.
+	 * Fluxo 4: recuperação de senha em dois passos visíveis (`recuperacaoEtapa`).
+	 * Identificação e Código cabem no cartão; "Concluído" não entra no stepper —
+	 * a senha só muda depois do link no e-mail (`/redefinir-senha`). A tela de
+	 * aviso pós-código é instrução, não fase. Respostas genéricas — não revela se
+	 * a matrícula/login existe.
 	 */
-	import Inbox from '@lucide/svelte/icons/inbox';
-	import Lock from '@lucide/svelte/icons/lock';
 	import Mail from '@lucide/svelte/icons/mail';
 	import { loading as loadingService } from '$lib/loading.svelte';
 	import CodigoTimer from '$lib/components/CodigoTimer.svelte';
 	import { Steps } from '@skeletonlabs/skeleton-svelte';
 	import SeletorPolicialAdmin from './SeletorPolicialAdmin.svelte';
+
+	const ETAPAS = ['Identificação', 'Código'] as const;
 
 	let {
 		tipo = $bindable(),
@@ -21,8 +24,7 @@
 		emailMascaradoRec,
 		solicitarRecuperacao,
 		confirmarRecuperacao,
-		onVoltar,
-		onVoltarIdentificador
+		onSair
 	}: {
 		tipo: 'policial' | 'admin';
 		identificadorRec: string;
@@ -33,39 +35,36 @@
 		emailMascaradoRec: string;
 		solicitarRecuperacao: () => Promise<void>;
 		confirmarRecuperacao: () => Promise<void>;
-		onVoltar: () => void;
-		onVoltarIdentificador: () => void;
+		onSair: () => void;
 	} = $props();
 </script>
 
-<Steps step={currentRecStep} count={3} class="mb-6">
-	<Steps.List class="flex items-center justify-center gap-2">
-		{#each ['Identificação', 'Código', 'Concluído'] as label, i (i)}
-			<Steps.Item index={i}>
-				<Steps.Trigger
-					tabindex={-1}
-					class="flex items-center gap-2 text-xs font-semibold data-[current]:text-primary-500 data-[complete]:text-success-500 text-surface-400 pointer-events-none"
-				>
-					<Steps.Indicator
-						class="w-6 h-6 rounded-full border-2 flex items-center justify-center text-3xs"
-						>{i + 1}</Steps.Indicator
+{#if recuperacaoEtapa !== 'concluida'}
+	<Steps step={currentRecStep} count={2} class="mb-6">
+		<Steps.List class="flex w-full min-w-0 items-center justify-center gap-2">
+			{#each ETAPAS as label, i (label)}
+				<Steps.Item index={i} class="min-w-0">
+					<Steps.Trigger
+						tabindex={-1}
+						class="flex min-w-0 items-center gap-2 text-xs font-semibold data-[current]:text-primary-500 data-[complete]:text-success-500 text-surface-400 pointer-events-none"
 					>
-					<span class="hidden sm:inline">{label}</span>
-				</Steps.Trigger>
-				{#if i < 2}
-					<Steps.Separator class="w-6 sm:w-12 h-px bg-surface-300 dark:bg-surface-700" />
-				{/if}
-			</Steps.Item>
-		{/each}
-	</Steps.List>
-</Steps>
+						<Steps.Indicator
+							class="w-6 h-6 shrink-0 rounded-full border-2 flex items-center justify-center text-3xs"
+							>{i + 1}</Steps.Indicator
+						>
+						<span class="truncate">{label}</span>
+					</Steps.Trigger>
+					{#if i < ETAPAS.length - 1}
+						<Steps.Separator class="w-8 sm:w-12 h-px bg-surface-300 dark:bg-surface-700" />
+					{/if}
+				</Steps.Item>
+			{/each}
+		</Steps.List>
+	</Steps>
+{/if}
 {#if recuperacaoEtapa === 'identificador'}
 	<div class="text-center mb-6">
-		<Lock
-			class="w-12 h-12 mx-auto mb-3 text-surface-600 dark:text-surface-400"
-			aria-hidden="true"
-		/>
-		<p class="font-semibold mb-1">Recuperar senha</p>
+		<h1 class="h1 text-2xl font-bold mb-2">Recuperar senha</h1>
 		<p class="text-sm text-surface-600 dark:text-surface-400">
 			Informe {tipo === 'policial' ? 'sua matrícula' : 'seu login'} para receber um código de validação
 			por e-mail.
@@ -95,7 +94,7 @@
 			{loadingService.active ? 'Enviando...' : 'Enviar código de validação'}
 		</button>
 
-		<button type="button" class="btn preset-outlined w-full" onclick={onVoltar}> ← Voltar </button>
+		<button type="button" class="btn preset-outlined w-full" onclick={onSair}>Sair</button>
 	</div>
 {:else if recuperacaoEtapa === 'codigo'}
 	<div class="text-center mb-6">
@@ -132,29 +131,21 @@
 			{loadingService.active ? 'Validando...' : 'Confirmar código'}
 		</button>
 
-		<button type="button" class="btn preset-outlined w-full" onclick={onVoltarIdentificador}>
-			← Voltar
-		</button>
+		<button type="button" class="btn preset-outlined w-full" onclick={onSair}>Sair</button>
 	</div>
 {:else}
 	<div class="text-center">
-		<Inbox
-			class="w-12 h-12 mx-auto mb-4 text-surface-600 dark:text-surface-400"
-			aria-hidden="true"
-		/>
-		<p class="font-semibold mb-2">
+		<h1 class="h1 text-2xl font-bold mb-2">
 			{recuperacaoResultado === 'link' ? 'Link enviado!' : 'Código enviado!'}
-		</p>
+		</h1>
 		<p class="text-sm text-surface-600 dark:text-surface-400 mb-6">
 			{#if recuperacaoResultado === 'link'}
-				Dentro de instantes você receberá em seu e-mail funcional um link de redefinição de senha.
-				Verifique também sua caixa de spam.
+				Dentro de instantes você receberá em seu e-mail funcional um link de redefinição de senha. O
+				código pode demorar até 5 minutos para chegar. Verifique também sua caixa de spam.
 			{:else}
 				Você receberá um código de validação em instantes.
 			{/if}
 		</p>
-		<button type="button" class="btn preset-filled-primary-500 w-full" onclick={onVoltar}>
-			Ir para o login
-		</button>
+		<button type="button" class="btn preset-outlined w-full" onclick={onSair}>Sair</button>
 	</div>
 {/if}

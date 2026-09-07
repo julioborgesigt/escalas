@@ -826,7 +826,7 @@ Verificar cada transição de status:
 
 ## 12. Produtividade (`/produtividade`)
 
-> `[E2E: produtividade.spec.ts]` cobre o acesso: Admin Geral entra e vê o dashboard; policial → 403; anônimo → `/login`. `[E2E: produtividade-visualizacao.spec.ts]` cobre o eixo: os seis controles da barra, o total que não muda ao alternar delegacias × seccionais, a equipe sem slot como linha própria, ordem/Top-N e o tipo de equipe desabilitado. A agregação tem cobertura unitária em `produtividade/__tests__/{stats,agrupamento}`. Manual: gráficos com dados reais e o PNG exportado.
+> `[E2E: produtividade.spec.ts]` cobre o acesso: Admin Geral entra e vê o dashboard; policial → 403; anônimo → `/login`. `[E2E: produtividade-visualizacao.spec.ts]` cobre o eixo: os controles da barra (a linha de quantidade/ordem/período atrás de "Mais filtros"), o total que não muda ao alternar delegacias × seccionais, a equipe sem slot como linha própria, ordem/Top-N e o tipo de equipe desabilitado. A agregação tem cobertura unitária em `produtividade/__tests__/{stats,agrupamento}`. Manual: gráficos com dados reais e o PNG exportado.
 
 - [ ] Carregar dados de produtividade das GISE finalizadas
 - [ ] Gráficos renderizados corretamente

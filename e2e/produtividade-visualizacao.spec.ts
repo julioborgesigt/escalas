@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { FIXTURE } from './global-setup';
-import { autenticarPagina, execD1Local, queryD1Local } from './session';
+import { autenticarPagina, execD1Local, queryD1Local, expandirMaisFiltros } from './session';
 
 /**
  * Ano das fixtures = ano CORRENTE, não `2026` fixo.
@@ -144,6 +144,10 @@ test('a barra tem os quatro controles de comparação e os dois de recorte', asy
 	await expect(page.getByRole('button', { name: 'Seccionais', exact: true })).toBeVisible();
 	await expect(page.getByRole('button', { name: 'Delegacias', exact: true })).toBeVisible();
 	await expect(page.getByRole('button', { name: 'Operacional', exact: true })).toBeVisible();
+	await expect(page.getByRole('button', { name: 'Mais filtros', exact: true })).toBeVisible();
+	await expect(page.locator('#f-qtd')).toHaveCount(0);
+
+	await expandirMaisFiltros(page);
 	// Linha 2: o recorte — quantas unidades, em que ordem, em que período.
 	await expect(page.locator('#f-qtd')).toBeVisible();
 	await expect(page.locator('#f-ordem')).toBeVisible();
@@ -161,6 +165,7 @@ test('trocar o eixo não muda o total, só a quebra', async ({ page }) => {
 	test.skip(id == null, 'operação do cenário não foi criada');
 
 	await page.goto(`/produtividade?operacaoId=${id}`);
+	await expandirMaisFiltros(page);
 	await page.locator('#f-ano').selectOption(String(ANO));
 
 	// Seccionais (padrão): tudo numa linha só, com o total do período.
@@ -184,6 +189,7 @@ test('a equipe sem slot aparece como linha própria no modo Delegacias', async (
 	test.skip(id == null, 'operação do cenário não foi criada');
 
 	await page.goto(`/produtividade?operacaoId=${id}`);
+	await expandirMaisFiltros(page);
 	await page.locator('#f-ano').selectOption(String(ANO));
 	await page.getByRole('button', { name: 'Delegacias', exact: true }).click();
 
@@ -204,6 +210,7 @@ test('ordem e quantidade recortam o ranking', async ({ page }) => {
 	test.skip(id == null, 'operação do cenário não foi criada');
 
 	await page.goto(`/produtividade?operacaoId=${id}`);
+	await expandirMaisFiltros(page);
 	await page.locator('#f-ano').selectOption(String(ANO));
 	await page.getByRole('button', { name: 'Delegacias', exact: true }).click();
 

@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
 import { FIXTURE } from './global-setup';
-import { autenticarPagina, execD1Local, queryD1Local } from './session';
+import { autenticarPagina, execD1Local, queryD1Local, expandirMaisFiltros } from './session';
 
 /**
  * A ORDEM dos cards do painel de produtividade — arrastada pelo Admin Geral na
@@ -137,6 +137,7 @@ async function abrirPainel(page: Page) {
 	const id = operacaoId();
 	if (id == null) return false;
 	await page.goto(`/produtividade?operacaoId=${id}`);
+	await expandirMaisFiltros(page);
 	await page.locator('#f-ano').selectOption(String(ANO));
 	await expect(page.getByText('ORDEM CARD A')).toBeVisible();
 	return true;

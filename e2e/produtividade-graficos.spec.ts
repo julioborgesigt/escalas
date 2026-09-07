@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { FIXTURE } from './global-setup';
-import { autenticarPagina, execD1Local, queryD1Local } from './session';
+import { autenticarPagina, execD1Local, queryD1Local, expandirMaisFiltros } from './session';
 
 /**
  * Ano das fixtures = ano CORRENTE, não `2026` fixo.
@@ -183,6 +183,7 @@ async function abrirPainel(page: import('@playwright/test').Page, nome: string) 
 	const id = operacaoId(nome);
 	if (id == null) return false;
 	await page.goto(`/produtividade?operacaoId=${id}`);
+	await expandirMaisFiltros(page);
 	await page.locator('#f-ano').selectOption(String(ANO));
 	return true;
 }
@@ -497,6 +498,7 @@ test('o título gravado substitui o enunciado no card do painel', async ({ page 
 	await expect(page.getByText(/Modelo operacional salvo com sucesso/)).toBeVisible();
 
 	await page.goto(`/produtividade?operacaoId=${id}`);
+	await expandirMaisFiltros(page);
 	await page.locator('#f-ano').selectOption(String(ANO));
 	await expect(page.getByText('Atendimentos do dia', { exact: true })).toBeVisible();
 	await expect(page.getByText('ATENDIMENTOS REALIZADOS')).toHaveCount(0);
