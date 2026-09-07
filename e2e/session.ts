@@ -182,3 +182,13 @@ export async function autenticarPagina(
 	await page.context().addCookies([{ name: 'session_token', value: token, url: BASE_URL }]);
 	return true;
 }
+
+/**
+ * A linha de quantidade/ordem/período de `/produtividade` começa recolhida
+ * atrás de "Mais filtros". Specs que mexem em `#f-ano` / `#f-qtd` / `#f-ordem`
+ * precisam abrir antes.
+ */
+export async function expandirMaisFiltros(page: Page): Promise<void> {
+	const btn = page.getByRole('button', { name: 'Mais filtros', exact: true });
+	if (await btn.isVisible()) await btn.click();
+}
