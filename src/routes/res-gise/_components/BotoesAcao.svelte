@@ -27,7 +27,7 @@
 {#snippet actionButton(
 	label: string,
 	iconPath?: string,
-	variant = 'primary',
+	variant = 'surface',
 	type = 'outlined',
 	onclick?: ((e: MouseEvent) => void) | undefined,
 	disabled = false,
@@ -36,7 +36,7 @@
 	btnType: 'button' | 'submit' = 'button',
 	size = 'sm'
 )}
-	{@const baseClass = `btn btn-${size} preset-${type}-${variant}-500 rounded-xl font-bold whitespace-nowrap transition-all flex items-center justify-center gap-2 ${classes}`}
+	{@const baseClass = `btn btn-${size} preset-${type}-${variant}-500 rounded-xl font-semibold whitespace-nowrap transition-all flex items-center justify-center gap-2 ${classes}`}
 	<button
 		type={btnType}
 		class={baseClass}

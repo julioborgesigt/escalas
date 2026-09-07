@@ -195,7 +195,7 @@
 
 			<button
 				type="button"
-				class="btn btn-sm preset-filled-tertiary-500 rounded-xl py-2.5 text-sm font-bold uppercase w-full shadow-sm transition-all"
+				class="btn btn-sm preset-filled-warning-500 rounded-xl py-2.5 text-sm font-semibold w-full"
 				disabled={loading.active}
 				onclick={() => confirmarPresencaA3(tipo)}
 			>
@@ -325,7 +325,7 @@
 							type="button"
 							class="btn btn-sm mr-auto rounded-lg px-3 py-1.5 text-3xs font-black tracking-wide uppercase {primaria.disabled
 								? 'preset-outlined-surface-500 cursor-not-allowed opacity-45'
-								: 'preset-outlined-primary-500'}"
+								: 'preset-outlined-surface-500'}"
 							disabled={primaria.disabled || loading.active}
 							title={primaria.titulo}
 							onclick={primaria.onclick}

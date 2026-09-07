@@ -319,7 +319,7 @@ Verificar cada transição de status:
 
 **Os itens da RAIZ (Admin Geral):**
 
-- [ ] "Operações" e "Planos" aparecem lado a lado, e a rota atual acende só um
+- [ ] "Operações" e "Plano Op." aparecem lado a lado, e a rota atual acende só um
       dos dois — estar em `/gise/planos` **não** pode acender "Ativas"
 - [ ] "Valores de custo" NÃO aparece para o Admin Geral: é aba do Super Admin
 - [ ] A tela de boas-vindas do módulo tem um quadro para cada item do menu

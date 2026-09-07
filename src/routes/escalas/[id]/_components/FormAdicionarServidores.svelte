@@ -231,7 +231,7 @@
 			>
 				<button
 					type="submit"
-					class="btn preset-filled-primary-500 shrink-0 font-semibold flex items-center gap-2 transition-all"
+					class="btn preset-filled-primary-500 w-full sm:w-auto shrink-0 font-semibold flex items-center justify-center gap-2 transition-all"
 					disabled={pendingAdicionarTodos}
 				>
 					{pendingAdicionarTodos ? 'Adicionando...' : '+ Adicionar Todos'}

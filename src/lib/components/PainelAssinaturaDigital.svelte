@@ -252,7 +252,7 @@
 			{#if podeManifesto}
 				<a
 					href={`/api/escalas/${escalaId}/documento-assinado?manifesto=true`}
-					class="btn preset-outlined-success-500 font-bold px-5 py-2.5 rounded-xl transition-all flex-1 sm:flex-none justify-center no-underline"
+					class="btn preset-outlined-surface-500 font-bold px-5 py-2.5 rounded-xl transition-all flex-1 sm:flex-none justify-center no-underline"
 					target="_blank"
 					title="PDF com folha de auditoria (evidências da assinatura: CPF, IP, GPS, selfie)"
 				>
@@ -312,7 +312,7 @@
 				<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
 					<!-- Card 1: Assinar na Tela -->
 					<div
-						class="flex items-center justify-between px-4 py-3 rounded-xl border bg-warning-500/5 border-warning-500/20 {avancadaDesktopDisponivel
+						class="flex flex-wrap items-center justify-between gap-2 px-4 py-3 rounded-xl border bg-warning-500/5 border-warning-500/20 {avancadaDesktopDisponivel
 							? 'sm:col-span-2'
 							: ''}"
 					>
@@ -351,7 +351,7 @@
 								onclick={abrirModalAssinatura}>Assinar</button
 							>
 						{:else if isMobile}
-							<div class="max-w-[14rem] text-right">
+							<div class="min-w-0 flex-1 text-right">
 								<ConviteChaveAssinatura isMobile={true} compact />
 							</div>
 						{:else}
@@ -365,7 +365,7 @@
 					<!-- Card 2: Certificado Digital (A1/A3) — oculto no desktop quando avançada já oferece token no modal -->
 					{#if !avancadaDesktopDisponivel}
 						<div
-							class="flex items-center justify-between px-4 py-3 rounded-xl border bg-tertiary-500/5 border-tertiary-500/20"
+							class="flex flex-wrap items-center justify-between gap-2 px-4 py-3 rounded-xl border bg-tertiary-500/5 border-tertiary-500/20"
 						>
 							<div class="flex items-center gap-2 min-w-0">
 								<ShieldCheck class="w-4 h-4 text-tertiary-500 shrink-0" aria-hidden="true" />
@@ -385,7 +385,7 @@
 							{#if !isMobile}
 								<button
 									type="button"
-									class="btn btn-sm preset-filled-tertiary-500 font-bold text-xs px-3 shrink-0 transition-all"
+									class="btn btn-sm preset-filled-warning-500 font-semibold text-xs px-3 shrink-0"
 									disabled={assinando}
 									onclick={() => {
 										if (painelTokenControl) painelTokenControl.assinarComSerpro();
@@ -494,7 +494,7 @@
 		<div class="flex gap-2 flex-wrap">
 			{#each ['DOCX', 'XLSX', 'PDF'] as format (format)}
 				<a
-					class="btn btn-sm bg-surface-100 dark:bg-surface-800 hover:bg-surface-200 dark:hover:bg-surface-700 border border-surface-200 dark:border-white/5 text-3xs font-bold uppercase px-3 py-1.5 no-underline transition-all rounded-lg"
+					class="btn btn-sm preset-outlined-surface-500 text-3xs font-semibold px-3 py-1.5 no-underline"
 					href={`/api/escalas/${escalaId}/download?format=${format.toLowerCase()}`}
 					target="_blank">{format}</a
 				>

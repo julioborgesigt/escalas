@@ -76,7 +76,7 @@
 		<form method="POST" action="?/finalizarGise" use:enhance={onSubmit} class="contents">
 			<button
 				type="submit"
-				class="w-full btn py-4 rounded-2xl flex items-center justify-center gap-2 group transition-all duration-300 bg-error-500 hover:bg-error-600 text-white font-bold"
+				class="w-full btn preset-filled-error-500 py-3.5 rounded-2xl flex items-center justify-center gap-2 font-bold"
 				disabled={pendingCrud}
 			>
 				{pendingCrud ? 'Finalizando...' : 'Finalizar Agora'}

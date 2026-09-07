@@ -75,7 +75,7 @@
 			href="/api/policiais/solicitacoes/{s.id}/documento"
 			target="_blank"
 			rel="noopener"
-			class="btn btn-sm preset-outlined-primary-500 inline-flex items-center gap-2"
+			class="btn btn-sm preset-outlined-surface-500 inline-flex items-center gap-2"
 		>
 			<FileText size={16} aria-hidden="true" />
 			{s.documento_nome || 'Baixar documento (PDF)'}

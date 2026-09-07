@@ -146,14 +146,14 @@
 	<div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
 		<button
 			type="button"
-			class="btn preset-outlined-primary-500 flex items-center justify-center gap-2"
+			class="btn preset-outlined-surface-500 flex items-center justify-center gap-2"
 			onclick={() => abrir('movimentacao')}
 		>
 			<ArrowRightLeft size={16} /> Movimentação
 		</button>
 		<button
 			type="button"
-			class="btn preset-outlined-warning-500 flex items-center justify-center gap-2"
+			class="btn preset-outlined-surface-500 flex items-center justify-center gap-2"
 			onclick={() => abrir('afastamento')}
 		>
 			<CalendarOff size={16} /> Afastamento

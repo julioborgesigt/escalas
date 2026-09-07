@@ -216,7 +216,7 @@
 		<div class="flex flex-wrap gap-2 justify-end">
 			{#each ['DOCX', 'XLSX', 'PDF'] as format (format)}
 				<a
-					class="btn btn-sm bg-surface-100 dark:bg-surface-800 border border-surface-200 dark:border-white/5 text-3xs font-bold uppercase px-3 no-underline rounded-lg"
+					class="btn btn-sm preset-outlined-surface-500 text-3xs font-semibold px-3 no-underline"
 					href={`/api/escalas/${escalaId}/download?format=${format.toLowerCase()}`}
 					target="_blank">{format}</a
 				>
@@ -224,7 +224,7 @@
 			{#if podeEditar}
 				<button
 					type="button"
-					class="btn btn-sm preset-outlined-primary-500 font-bold"
+					class="btn btn-sm preset-outlined-surface-500 font-bold"
 					onclick={abrirModalReenviar}
 					disabled={pendingReenviar || pendingReenvioAuto}
 				>

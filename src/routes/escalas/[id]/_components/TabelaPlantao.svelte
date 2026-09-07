@@ -155,7 +155,86 @@
 					>
 				</div>
 
-				<div class="table-wrap p-2 overflow-x-auto">
+				<div class="md:hidden divide-y divide-surface-100 dark:divide-white/5">
+					{#each items as p (p.policial_id)}
+						<div class="flex items-start gap-3 px-4 py-3">
+							{#if modoSelecao}
+								<div class="flex items-center shrink-0 pt-0.5">
+									<input
+										type="checkbox"
+										class="checkbox"
+										aria-label={`Selecionar ${p.nome}`}
+										checked={p.ids.every((id) => selecionados.has(id))}
+										onchange={(e) => {
+											if ((e.target as HTMLInputElement).checked) {
+												p.ids.forEach((id) => selecionados.add(id));
+											} else {
+												p.ids.forEach((id) => selecionados.delete(id));
+											}
+										}}
+									/>
+								</div>
+							{/if}
+							<div class="min-w-0 flex-1 space-y-1.5">
+								<div class="flex flex-wrap items-center gap-1.5">
+									<span
+										class="font-bold text-sm text-surface-900 dark:text-surface-100 uppercase leading-tight"
+										>{p.nome}</span
+									>
+									<span
+										class="badge px-1.5 py-0.5 rounded font-bold text-3xs uppercase {p.cargo ===
+										'DPC'
+											? 'bg-primary-500/20 text-primary-700'
+											: 'bg-warning-500/20 text-warning-700'}"
+									>
+										{p.cargo}
+									</span>
+								</div>
+								<div class="text-xs text-surface-600 dark:text-surface-400 space-y-0.5">
+									<p class="font-mono tabular-nums break-words">
+										{p.matricula}{p.telefone ? ` · ${p.telefone}` : ''}
+									</p>
+									{#if p.lotacao}
+										<p class="break-words">{p.lotacao}</p>
+									{/if}
+									<p class="font-mono tabular-nums">{p.hora_entrada} - {p.hora_saida}</p>
+									{#if p.observacoes}
+										<p class="italic break-words">{p.observacoes}</p>
+									{/if}
+								</div>
+								<div class="flex flex-wrap gap-1">
+									{#each p.dias as dia (dia)}
+										<span
+											class="badge bg-surface-200 dark:bg-surface-700 px-1.5 py-0.5 rounded text-3xs font-bold tracking-wider"
+											>{formatarDiaMes(dia)}</span
+										>
+									{/each}
+								</div>
+							</div>
+							{#if podeEditarEscala && !modoSelecao && !documentoAssinadoExiste && !finalizadaEm}
+								<div class="flex shrink-0 items-center gap-1">
+									<IconTooltip label="Editar">
+										<button
+											type="button"
+											aria-label="Editar"
+											class="p-1.5 rounded transition-colors text-surface-400 hover:text-primary-500 hover:bg-primary-500/10"
+											onclick={() => startEdit(p)}
+										>
+											<PenLine class="w-4 h-4" aria-hidden="true" />
+										</button>
+									</IconTooltip>
+									<button
+										type="button"
+										class="btn btn-sm preset-filled-error-500 rounded font-bold text-3xs uppercase px-2 py-0.5 transition-all"
+										onclick={() => onSolicitarRemocao(p.ids, p.nome)}>Rem.</button
+									>
+								</div>
+							{/if}
+						</div>
+					{/each}
+				</div>
+
+				<div class="hidden md:block table-wrap p-2">
 					<table class="table w-full text-xs !bg-transparent min-w-[800px]">
 						<thead>
 							<tr class="!bg-transparent border-b border-surface-100 dark:border-white/5">
@@ -303,7 +382,7 @@
 						>
 							<button
 								type="button"
-								class="btn btn-sm preset-outlined-primary-500"
+								class="btn btn-sm preset-outlined-surface-500 w-full sm:w-auto"
 								onclick={() => (addingOipEquipe = equipe)}
 							>
 								+ Adicionar OIP à Equipe {equipe}

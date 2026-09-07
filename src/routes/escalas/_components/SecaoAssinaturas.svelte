@@ -167,7 +167,7 @@
 									type="button"
 									class="btn btn-sm {esc.is_assinada
 										? 'preset-filled-success-500 text-white'
-										: 'preset-filled-tertiary-500'} font-bold text-xs px-3 py-2 w-full transition-all flex items-center justify-center gap-1.5"
+										: 'preset-filled-warning-500'} font-bold text-xs px-3 py-2 w-full transition-all flex items-center justify-center gap-1.5"
 									disabled={esc.is_assinada}
 									onclick={() => onIniciarAssinaturaToken(esc.id)}
 								>
@@ -183,7 +183,7 @@
 							<button
 								type="button"
 								class="btn btn-sm {menuExpandidoId === esc.id
-									? 'preset-filled-surface-500 text-white'
+									? 'preset-filled-primary-500'
 									: 'preset-outlined-surface-500'} text-xs px-3 py-1.5 transition-all font-bold w-full"
 								onclick={() => (menuExpandidoId = menuExpandidoId === esc.id ? null : esc.id)}
 							>
@@ -198,7 +198,7 @@
 										{@const podeManifesto = podeBaixarComManifesto(page.data.usuario)}
 										<div class="flex flex-row gap-2 w-full">
 											<a
-												class="btn flex-1 justify-center bg-surface-100 dark:bg-surface-800 text-3xs sm:text-2xs py-2 px-1 border border-surface-200 dark:border-surface-700 hover:preset-filled-primary-500 transition-all no-underline font-bold uppercase tracking-tight whitespace-nowrap shadow-sm"
+												class="btn flex-1 justify-center preset-outlined-surface-500 text-xs py-2 px-1 no-underline font-semibold whitespace-nowrap"
 												href="/api/escalas/{esc.id}/documento-assinado"
 												target="_blank"
 												title={podeManifesto
@@ -209,7 +209,7 @@
 											</a>
 											{#if podeManifesto}
 												<a
-													class="btn flex-1 justify-center bg-surface-100 dark:bg-surface-800 text-3xs sm:text-2xs py-2 px-1 border border-surface-200 dark:border-surface-700 hover:preset-filled-tertiary-500 transition-all no-underline font-bold uppercase tracking-tight whitespace-nowrap shadow-sm"
+													class="btn flex-1 justify-center preset-outlined-surface-500 text-xs py-2 px-1 no-underline font-semibold whitespace-nowrap"
 													href="/api/escalas/{esc.id}/documento-assinado?manifesto=true"
 													target="_blank"
 													title="PDF com folha de auditoria (evidências da assinatura)"
@@ -220,7 +220,7 @@
 										</div>
 									{:else}
 										<a
-											class="btn w-full justify-center bg-surface-100 dark:bg-surface-800 text-3xs sm:text-2xs py-2 px-1 border border-surface-200 dark:border-surface-700 hover:preset-filled-primary-500 transition-all no-underline font-bold uppercase tracking-tight whitespace-nowrap shadow-sm"
+											class="btn w-full justify-center preset-outlined-surface-500 text-xs py-2 px-1 no-underline font-semibold whitespace-nowrap"
 											href="/api/escalas/{esc.id}/download?format=pdf"
 											target="_blank"
 										>

@@ -111,7 +111,7 @@
 			<a
 				href={urlDownloadExtraManifesto}
 				target="_blank"
-				class="btn btn-xs preset-outlined-primary-500 px-2.5 py-1.5 text-3xs font-bold rounded-lg no-underline flex items-center gap-1 {mobile
+				class="btn btn-xs preset-outlined-surface-500 px-2.5 py-1.5 text-3xs font-bold rounded-lg no-underline flex items-center gap-1 {mobile
 					? ''
 					: 'hover:scale-[1.02] transition-all'} {!downloadExtraSupHabilitado
 					? 'pointer-events-none opacity-60'
@@ -127,8 +127,8 @@
 			class="btn btn-xs text-3xs px-2.5 py-1.5 rounded-lg font-semibold no-underline flex items-center gap-1 {mobile
 				? ''
 				: 'hover:scale-[1.02] transition-all'} {downloadExtraSupConferenciaHabilitado
-				? 'preset-tonal-primary border border-primary-500/30 hover:border-primary-500'
-				: 'preset-tonal-surface opacity-50 pointer-events-none'}"
+				? 'preset-outlined-surface-500'
+				: 'preset-outlined-surface-500 opacity-50 pointer-events-none'}"
 			href={urlDownloadExtra}
 			target="_blank"
 		>
@@ -149,7 +149,7 @@
 			{:else}
 				<button
 					type="button"
-					class="btn btn-xs preset-filled-tertiary-500 border border-tertiary-600/30 px-2.5 py-1.5 text-3xs font-bold rounded-lg hover:border-tertiary-600 disabled:opacity-40 flex items-center gap-1 hover:scale-[1.02] transition-all"
+					class="btn btn-xs preset-filled-warning-500 px-2.5 py-1.5 text-3xs font-semibold rounded-lg disabled:opacity-40 flex items-center gap-1"
 					disabled={!assinaturaExtraHabilitada}
 					onclick={() => quadro.assinarExtraDigital()}
 				>

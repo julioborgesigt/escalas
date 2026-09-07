@@ -27,7 +27,7 @@
 	} = $props();
 </script>
 
-<section class="card-quadro rounded-2xl p-5 sm:p-6 space-y-4">
+<section class="card-quadro min-w-0 rounded-2xl p-4 sm:p-6 space-y-4">
 	<TituloSecao texto="Comando e demanda" />
 
 	<div class="space-y-4">

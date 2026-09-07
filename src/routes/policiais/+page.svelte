@@ -227,7 +227,7 @@
 		{#if isAdmin}
 			<a
 				href="/policiais/upload"
-				class="btn btn-sm preset-outlined-primary-500 hidden sm:inline-flex">Importar Excel</a
+				class="btn btn-sm preset-outlined-surface-500 hidden sm:inline-flex">Importar Excel</a
 			>
 			<button
 				type="button"
@@ -426,7 +426,7 @@
 										<div class="flex gap-2">
 											<a
 												href="/policiais/{p.id}"
-												class="btn btn-sm preset-outlined-primary-500"
+												class="btn btn-sm preset-outlined-surface-500"
 												title="Gerenciar cadastro, movimentações e histórico">Gerenciar</a
 											>
 											{#if isAdmin}
@@ -484,7 +484,7 @@
 							<div class="flex gap-2 pt-3 border-t border-surface-200 dark:border-white/5">
 								<a
 									href="/policiais/{p.id}"
-									class="btn btn-sm preset-outlined-primary-500 hover:bg-primary-500/10 transition-colors flex-1 text-center"
+									class="btn btn-sm preset-outlined-surface-500 flex-1 text-center"
 									title="Gerenciar cadastro, movimentações e histórico">Gerenciar</a
 								>
 								{#if isAdmin}

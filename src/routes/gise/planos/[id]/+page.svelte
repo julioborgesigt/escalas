@@ -120,15 +120,15 @@
 <div class="min-w-0 space-y-6">
 	<div>
 		<BotaoVoltar href="/gise/planos" />
-		<div class="flex flex-wrap items-center gap-2 mt-2">
-			<h1 class="h1 text-2xl font-bold min-w-0">{data.plano.nome}</h1>
+		<div class="flex min-w-0 flex-wrap items-center gap-2 mt-2">
+			<h1 class="h1 text-2xl font-bold min-w-0 break-words">{data.plano.nome}</h1>
 			<span
 				class="rounded-full bg-primary-500/15 px-2.5 py-0.5 font-mono text-xs font-semibold text-primary-700 dark:text-primary-300"
 			>
 				{data.plano.numero}/{data.plano.ano}
 			</span>
 		</div>
-		<p class="text-sm text-surface-600 dark:text-surface-400 mt-0.5">
+		<p class="text-sm text-surface-600 dark:text-surface-400 mt-0.5 break-words">
 			{fmtDate(data.plano.data_inicio)} às {data.plano.hora_inicio}
 			{#if data.plano.feriado}
 				<span class="text-error-600 dark:text-error-400 font-medium">· feriado</span>
@@ -146,17 +146,17 @@
 	     interno é `card-quadro rounded-2xl` — o mesmo de Comando e demanda em
 	     `/gise/planos/novo`. `hover:shadow` só recolhido. -->
 	<section
-		class="card-quadro rounded-2xl {cabecalhoAberto
+		class="card-quadro min-w-0 rounded-2xl {cabecalhoAberto
 			? ''
 			: 'hover:shadow-md transition-shadow duration-300'}"
 	>
 		<button
 			type="button"
-			class="w-full flex items-center justify-between gap-3 p-5 text-left"
+			class="w-full flex items-start sm:items-center justify-between gap-3 p-4 sm:p-5 text-left"
 			onclick={() => (cabecalhoAberto = !cabecalhoAberto)}
 			aria-expanded={cabecalhoAberto}
 		>
-			<span>
+			<span class="min-w-0">
 				<span class="block text-base font-semibold text-surface-900 dark:text-white"
 					>Parâmetros gerais</span
 				>
@@ -174,14 +174,14 @@
 			<!-- `contents` no form: as opções têm form próprio e NÃO podem viver
 			     dentro deste. Sem `contents` elas só caberiam depois do Salvar;
 			     com ele o `order` as encaixa depois das ações, como na criação. -->
-			<div class="flex flex-col gap-6 px-5 pb-5 sm:px-6 sm:pb-6">
+			<div class="flex min-w-0 flex-col gap-6 px-4 pb-4 sm:px-6 sm:pb-6">
 				<form
 					method="POST"
 					action="?/salvarPlano"
 					use:enhance={enviar('Plano salvo')}
 					class="contents"
 				>
-					<section class="card-quadro order-1 rounded-2xl p-5 sm:p-6 space-y-4">
+					<section class="card-quadro order-1 min-w-0 rounded-2xl p-4 sm:p-6 space-y-4">
 						<TituloSecao texto="Identificação" />
 						<div class="grid grid-cols-1 gap-4 md:grid-cols-[4.6fr_2.4fr_3fr]">
 							<label class="block min-w-0 space-y-1">
@@ -211,23 +211,23 @@
 						</div>
 					</section>
 
-					<section class="card-quadro order-2 rounded-2xl p-5 sm:p-6 space-y-4">
+					<section class="card-quadro order-2 min-w-0 rounded-2xl p-4 sm:p-6 space-y-4">
 						<TituloSecao texto="Finalidade" />
 						<textarea
 							name="finalidade"
 							value={data.plano.finalidade}
 							rows="4"
 							maxlength="2000"
-							class="textarea"
+							class="textarea w-full min-w-0"
 							aria-label="Finalidade"></textarea>
 					</section>
 
-					<section class="card-quadro order-3 rounded-2xl p-5 sm:p-6 space-y-4">
+					<section class="card-quadro order-3 min-w-0 rounded-2xl p-4 sm:p-6 space-y-4">
 						<TituloSecao texto="Ações a serem realizadas" />
 						<CamposAcoes valor={data.plano.acoes} rotulo={false} />
 					</section>
 
-					<div class="grid order-5 gap-6 md:grid-cols-[2fr_3fr] md:items-start">
+					<div class="grid order-5 min-w-0 gap-6 md:grid-cols-[2fr_3fr] md:items-start">
 						<CamposDataExecucao
 							bind:dataInicio
 							bind:feriado
@@ -239,13 +239,13 @@
 						/>
 
 						<div class="min-w-0 space-y-6">
-							<section class="card-quadro rounded-2xl p-5 sm:p-6 space-y-4">
+							<section class="card-quadro min-w-0 rounded-2xl p-4 sm:p-6 space-y-4">
 								<TituloSecao
 									texto="Estrutura"
 									apoio="Quantidade e SEINT mudam pelos botões do Anexo I."
 								/>
 								<div class="flex flex-wrap items-start gap-4">
-									<label class="block shrink-0 space-y-1">
+									<label class="block min-w-0 w-full space-y-1 xs:w-auto">
 										<span class="text-sm font-medium text-surface-700 dark:text-surface-200"
 											>Qtd. de equipes</span
 										>
@@ -254,10 +254,10 @@
 											value={qtdOperacionais}
 											disabled
 											title="Altere no Anexo I"
-											class="input w-28"
+											class="input w-full xs:w-28"
 										/>
 									</label>
-									<label class="block shrink-0 space-y-1">
+									<label class="block min-w-0 w-full space-y-1 xs:w-auto">
 										<span class="text-sm font-medium text-surface-700 dark:text-surface-200"
 											>OIPs por equipe</span
 										>
@@ -267,11 +267,11 @@
 											value={data.plano.oip_por_equipe_padrao}
 											min="0"
 											max="99"
-											class="input w-28"
+											class="input w-full xs:w-28"
 										/>
 									</label>
 									<div
-										class="flex min-w-0 flex-1 items-start gap-3 opacity-70"
+										class="flex min-w-0 w-full items-start gap-3 opacity-70 xs:flex-1"
 										title="Altere no Anexo I"
 									>
 										<input
@@ -300,7 +300,7 @@
 								demandanteSelecionado={opcaoDemandante}
 							/>
 
-							<section class="card-quadro rounded-2xl p-5 sm:p-6 space-y-4">
+							<section class="card-quadro min-w-0 rounded-2xl p-4 sm:p-6 space-y-4">
 								<TituloSecao
 									texto="Signatário do plano"
 									apoio="Quem assina o documento. Varia por operação — o Titular assina umas, o Adjunto outras."
@@ -324,11 +324,11 @@
 					{/if}
 
 					<div
-						class="order-7 flex justify-end gap-2 pt-4 pb-4 border-t border-surface-200/70 dark:border-white/10"
+						class="order-7 flex justify-stretch sm:justify-end gap-2 pt-4 pb-4 border-t border-surface-200/70 dark:border-white/10"
 					>
 						<button
 							type="submit"
-							class="btn preset-filled-primary-500 py-2.5 px-4 rounded-xl text-sm"
+							class="btn preset-filled-primary-500 py-2.5 px-4 rounded-xl text-sm w-full sm:w-auto justify-center"
 							disabled={loading.active}
 						>
 							Salvar parâmetros
@@ -336,7 +336,7 @@
 					</div>
 				</form>
 
-				<section class="card-quadro order-4 rounded-2xl p-5 sm:p-6 space-y-4">
+				<section class="card-quadro order-4 min-w-0 rounded-2xl p-4 sm:p-6 space-y-4">
 					<TituloSecao
 						texto="Opções das equipes"
 						apoio="O que os seletores de cada equipe oferecem. A marcada com estrela vem pré-preenchida nas equipes novas."
@@ -381,7 +381,7 @@
 	<!-- ---- Equipes (Anexo I) ---- -->
 	<!-- Quadro estático, como o Documento: agrupa o anexo. Sem `hover:shadow` —
 	     quem abre ao clique é cada equipe, não este contorno. -->
-	<section class="card-quadro rounded-2xl p-5 sm:p-6 space-y-4">
+	<section class="card-quadro min-w-0 rounded-2xl p-4 sm:p-6 space-y-4">
 		<div class="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
 			<div>
 				<h2 class="text-base font-semibold text-surface-900 dark:text-white">
@@ -463,7 +463,7 @@
 	<!-- Quadro estático: leva o contorno, mas NÃO o `hover:shadow-md` dos blocos
 	     que abrem (parâmetros, equipes, Anexo II) — aqui não há disclosure, e
 	     sombra reagindo ao ponteiro prometeria um clique que a seção não tem. -->
-	<section class="card-quadro rounded-2xl p-5 space-y-3">
+	<section class="card-quadro min-w-0 rounded-2xl p-4 sm:p-5 space-y-3">
 		<h2 class="text-base font-semibold text-surface-900 dark:text-white">Documento</h2>
 
 		<div class="flex flex-col gap-2 xs:flex-row xs:flex-wrap">

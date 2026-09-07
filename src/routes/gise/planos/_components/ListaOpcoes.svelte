@@ -118,7 +118,7 @@
 		<ul class="space-y-1.5">
 			{#each opcoes as o (o.chave)}
 				<li
-					class="flex items-center gap-2 rounded-lg border p-2 {o.padrao
+					class="flex flex-wrap items-center gap-2 rounded-lg border p-2 {o.padrao
 						? 'border-primary-500/40 bg-primary-500/5'
 						: 'border-surface-200/70 dark:border-white/10'}"
 				>
@@ -145,7 +145,7 @@
 						{/if}
 					</span>
 
-					<div class="flex gap-1.5 shrink-0">
+					<div class="flex w-full justify-end gap-1.5 sm:w-auto sm:shrink-0">
 						{@render acoes(o)}
 					</div>
 				</li>
@@ -193,7 +193,7 @@
 				}}
 			/>
 		{/if}
-		<div class="flex gap-2">
+		<div class="flex min-w-0 flex-col gap-2 xs:flex-row">
 			<div class="min-w-0 flex-1">
 				<SearchableSelect
 					options={opcoesMunicipio}
@@ -203,7 +203,7 @@
 			</div>
 			<button
 				type="button"
-				class="btn preset-outlined-surface-500 py-2 px-3 rounded-xl text-sm shrink-0"
+				class="btn preset-outlined-surface-500 py-2 px-3 rounded-xl text-sm w-full xs:w-auto justify-center shrink-0"
 				disabled={ocupado || !podeAcrescentar}
 				onclick={acrescentar}
 				aria-label="Acrescentar"

@@ -333,11 +333,11 @@
 				Escalas assinadas enviadas ao Admin Geral — atualiza ao voltar à aba ou pelo botão Atualizar
 			</p>
 		</div>
-		<div class="flex gap-2 justify-end w-full sm:w-auto">
+		<div class="flex flex-wrap gap-2 justify-end w-full sm:w-auto">
 			<BotaoLimparFiltros {temFiltros} onclick={limparFiltros} />
 			<button
 				type="button"
-				class="btn preset-outlined-primary-500 btn-sm flex items-center gap-1.5"
+				class="btn preset-outlined-surface-500 btn-sm flex items-center gap-1.5"
 				onclick={recarregar}
 				disabled={loadingService.active}
 			>
@@ -512,7 +512,7 @@
 										<div class="flex gap-2 justify-center items-center">
 											<a
 												href="/escalas/{escala.id}"
-												class="btn btn-sm preset-outlined-primary-500 text-xs"
+												class="btn btn-sm preset-outlined-surface-500 text-xs"
 												title="Ver Detalhes"
 											>
 												<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"
@@ -542,7 +542,7 @@
 												</a>
 												<a
 													href="/api/escalas/{escala.id}/documento-assinado?manifesto=true"
-													class="btn btn-sm preset-outlined-tertiary-500 text-xs font-bold transition-all"
+													class="btn btn-sm preset-outlined-surface-500 text-xs font-semibold"
 													target="_blank"
 													title={TITULO_MANIFESTO}
 												>
@@ -552,7 +552,7 @@
 
 											<Popover positioning={{ placement: 'bottom-end', offset: { mainAxis: 4 } }}>
 												<Popover.Trigger
-													class="btn btn-sm preset-outlined-primary-500 text-xs font-bold"
+													class="btn btn-sm preset-outlined-surface-500 text-xs font-bold"
 													>Exportar ▾</Popover.Trigger
 												>
 												<Portal>
@@ -660,7 +660,7 @@
 							>
 								<a
 									href="/escalas/{escala.id}"
-									class="btn btn-sm preset-outlined-primary-500 flex-1 text-xs">Detalhes</a
+									class="btn btn-sm preset-outlined-surface-500 flex-1 text-xs">Detalhes</a
 								>
 
 								{#if escala.is_assinada}
@@ -672,7 +672,7 @@
 									>
 									<a
 										href="/api/escalas/{escala.id}/documento-assinado?manifesto=true"
-										class="btn btn-sm preset-outlined-tertiary-500 flex-1 text-xs transition-all"
+										class="btn btn-sm preset-outlined-surface-500 flex-1 text-xs"
 										target="_blank"
 										title={TITULO_MANIFESTO}>C/ manifesto</a
 									>
@@ -680,7 +680,7 @@
 
 								<Popover positioning={{ placement: 'bottom', offset: { mainAxis: 4 } }}>
 									<Popover.Trigger
-										class="btn btn-sm preset-outlined-primary-500 w-full text-xs font-bold"
+										class="btn btn-sm preset-outlined-surface-500 w-full text-xs font-bold"
 										>Exportar ▾</Popover.Trigger
 									>
 									<Portal>

@@ -43,6 +43,12 @@ export const REFERENCIAS_PADRAO = 'Constituição Federal, CPP e legislação ex
 /** Departamento responsável (item 5 e o cabeçalho do plano). */
 export const DEPARTAMENTO_PADRAO = 'DPI SUL';
 
+/** Horário de apresentação pré-preenchido na criação. */
+export const HORA_INICIO_PADRAO = '04:00';
+
+/** Previsão de término pré-preenchida na criação (o campo continua opcional). */
+export const HORA_FIM_PADRAO = '08:00';
+
 /**
  * Os cargos que podem assinar o plano — o `<select>` da tela e a régua do
  * servidor, numa lista só.

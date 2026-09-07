@@ -291,11 +291,11 @@
 	);
 
 	const CHIP =
-		'inline-flex items-center rounded-full px-2 py-0.5 text-2xs font-medium bg-surface-200/80 text-surface-700 dark:bg-surface-800 dark:text-surface-300';
+		'inline-flex max-w-full items-center rounded-full px-2 py-0.5 text-2xs font-medium bg-surface-200/80 text-surface-700 dark:bg-surface-800 dark:text-surface-300';
 	const CHIP_AVISO =
-		'inline-flex items-center rounded-full px-2 py-0.5 text-2xs font-medium bg-warning-500/15 text-warning-800 dark:text-warning-300';
+		'inline-flex max-w-full items-center rounded-full px-2 py-0.5 text-2xs font-medium bg-warning-500/15 text-warning-800 dark:text-warning-300';
 	const CHIP_SEINT =
-		'inline-flex items-center rounded-full px-2 py-0.5 text-2xs font-medium bg-secondary-500/15 text-secondary-700 dark:text-secondary-300';
+		'inline-flex max-w-full items-center rounded-full px-2 py-0.5 text-2xs font-medium bg-secondary-500/15 text-secondary-700 dark:text-secondary-300';
 
 	const nServidores = $derived(equipe.membros.length);
 	const rotuloServidores = $derived(
@@ -332,11 +332,14 @@
 <li
 	class="card-quadro min-w-0 h-full rounded-2xl overflow-hidden hover:shadow-md transition-shadow duration-300"
 >
-	<!-- Cabeçalho: ficha da equipe — marca, fatos em chips, custo, ações. -->
-	<div class="flex flex-wrap items-center gap-3 px-4 py-4 sm:px-5">
+	<!-- Cabeçalho: ficha da equipe — marca, fatos em chips, custo, ações.
+	     No telefone empilha (título, depois custo + Editar/Excluir na mesma
+	     faixa). `shrink-0` + `ml-auto` na faixa de ações era o que furava a
+	     ficha em ~360px: custo e os dois botões não cabiam ao lado do nome. -->
+	<div class="flex flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:px-5">
 		<button
 			type="button"
-			class="flex min-w-0 flex-1 items-start gap-3 text-left"
+			class="flex min-w-0 w-full flex-1 items-start gap-3 text-left"
 			onclick={abrirEdicao}
 			aria-haspopup="dialog"
 			aria-expanded={aberto}
@@ -351,7 +354,9 @@
 			</span>
 			<span class="min-w-0 flex-1">
 				<span class="flex flex-wrap items-center gap-2">
-					<span class="font-semibold text-surface-900 dark:text-white">{equipe.nome}</span>
+					<span class="min-w-0 break-words font-semibold text-surface-900 dark:text-white"
+						>{equipe.nome}</span
+					>
 					{#if equipe.tipo === 'seint'}
 						<span class={CHIP_SEINT}>SEINT</span>
 					{/if}
@@ -371,8 +376,8 @@
 			</span>
 		</button>
 
-		<div class="flex items-center gap-3 sm:gap-4 shrink-0 ml-auto">
-			<div class="flex flex-col items-end">
+		<div class="flex min-w-0 w-full items-center gap-2 sm:ml-auto sm:w-auto sm:shrink-0">
+			<div class="flex min-w-0 flex-1 flex-col sm:flex-none sm:items-end">
 				<span
 					class="text-3xs font-semibold uppercase tracking-wider text-surface-600 dark:text-surface-400"
 					>Custo</span
@@ -381,7 +386,7 @@
 					{formatarBRL(equipe.custo)}
 				</span>
 			</div>
-			<div class="flex items-center gap-2">
+			<div class="flex shrink-0 items-center gap-2">
 				<button
 					type="button"
 					class="btn btn-sm preset-outlined-surface-500 px-2.5 py-1.5 rounded-xl text-xs"
@@ -410,6 +415,7 @@
 		bind:open={aberto}
 		title="Editar {equipe.nome}"
 		largura="5xl"
+		padding="compacto"
 		familia="gise"
 		portal={true}
 		pending={loading.active}
@@ -632,7 +638,7 @@
 						{#each equipe.membros as m (m.id)}
 							{@const pendente = pendentes.has(m.policial_id)}
 							<li
-								class="flex min-w-0 items-center gap-2 rounded-lg border p-2.5 {pendente
+								class="flex min-w-0 flex-wrap items-center gap-2 rounded-lg border p-2.5 {pendente
 									? 'border-error-500/40 bg-error-500/5'
 									: 'border-surface-200/70 dark:border-white/10'}"
 							>
@@ -661,7 +667,7 @@
 									{/if}
 								</div>
 
-								<div class="flex gap-1.5 shrink-0">
+								<div class="flex shrink-0 gap-1.5 ml-auto">
 									{#if !m.chefe}
 										<form
 											method="POST"
@@ -802,7 +808,7 @@
 				     faixas fazia a quantidade parecer outro assunto. -->
 				<div class="flex flex-wrap items-end gap-x-3 gap-y-3">
 					<div class="flex flex-wrap gap-2">
-						{#each [['sem_custo', 'Sem custo'], ['hora_extra', 'Hora extra (DRO)'], ['diaria', 'Diária']] as [valor, rotulo] (valor)}
+						{#each [['sem_custo', 'Sem custo'], ['hora_extra', 'Hora extra'], ['diaria', 'Diária']] as [valor, rotulo] (valor)}
 							<label
 								class="cursor-pointer rounded-lg border px-3 py-1.5 text-xs transition-colors {tipoCusto ===
 								valor
@@ -823,9 +829,8 @@
 					</div>
 
 					{#if tipoCusto === 'hora_extra'}
-						<label class="block w-max max-w-full shrink-0 space-y-1">
-							<span
-								class="block whitespace-nowrap text-xs font-medium text-surface-700 dark:text-surface-200"
+						<label class="block min-w-0 w-full space-y-1 xs:w-auto xs:max-w-full">
+							<span class="block text-xs font-medium text-surface-700 dark:text-surface-200"
 								>Horas normais</span
 							>
 							<input
@@ -835,13 +840,11 @@
 								min="0"
 								max="744"
 								form={idForm}
-								class="input w-full"
+								class="input w-full xs:w-28"
 							/>
 						</label>
-						<label class="block w-max max-w-full shrink-0 space-y-1">
-							<span
-								class="block whitespace-nowrap text-xs font-medium text-surface-700 dark:text-surface-200"
-							>
+						<label class="block min-w-0 w-full space-y-1 xs:w-auto xs:max-w-full">
+							<span class="block text-xs font-medium text-surface-700 dark:text-surface-200">
 								Horas plus <span class="text-surface-600 dark:text-surface-400">(+30%)</span>
 							</span>
 							<input
@@ -851,11 +854,11 @@
 								min="0"
 								max="744"
 								form={idForm}
-								class="input w-full"
+								class="input w-full xs:w-28"
 							/>
 						</label>
 					{:else if tipoCusto === 'diaria'}
-						<label class="block w-40 shrink-0 space-y-1">
+						<label class="block min-w-0 w-full space-y-1 xs:w-40">
 							<span class="text-xs font-medium text-surface-700 dark:text-surface-200"
 								>Tipo de diária</span
 							>

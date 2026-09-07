@@ -136,7 +136,7 @@
 						type="button"
 						class="btn btn-sm flex-1 font-bold text-xs px-3 py-1.5 flex items-center justify-center gap-1 transition-all {ativa.status ===
 						'aguardando_assinatura'
-							? 'preset-filled-warning-500 text-warning-950'
+							? 'preset-filled-warning-500'
 							: escalaConcluida
 								? 'preset-filled-success-500 text-white'
 								: 'bg-surface-200/50 dark:bg-surface-800 text-surface-600 dark:text-surface-400 border border-surface-300/50 dark:border-surface-700'}"
@@ -162,9 +162,9 @@
 						class="btn btn-sm flex-1 font-bold text-xs px-3 py-1.5 flex items-center justify-center gap-1 transition-all {extraConcluido
 							? 'preset-filled-success-500 text-white'
 							: extraParcial
-								? 'preset-filled-tertiary-500'
+								? 'preset-filled-warning-500'
 								: ativa.extrasPendentes > 0
-									? 'preset-filled-warning-500 text-warning-950'
+									? 'preset-filled-warning-500'
 									: 'bg-surface-200/50 dark:bg-surface-800 text-surface-600 dark:text-surface-400 border border-surface-300/50 dark:border-surface-700'}"
 						onclick={onAssExtra}
 						title={ativa.extrasPendentes > 0
@@ -188,7 +188,7 @@
 			<button
 				type="button"
 				class="btn btn-sm w-full md:hidden {menuExpandidoId === ativa.id
-					? 'preset-filled-surface-500 text-white'
+					? 'preset-filled-primary-500'
 					: 'preset-outlined-surface-500'} text-xs px-3 py-1.5 transition-all font-bold"
 				onclick={onToggleMenu}
 			>
@@ -208,21 +208,21 @@
 				>
 					<button
 						type="button"
-						class="btn flex-1 justify-center bg-surface-100 dark:bg-surface-800 text-3xs sm:text-2xs py-2 px-1 border border-surface-200 dark:border-surface-700 hover:preset-filled-primary-500 transition-all font-bold uppercase tracking-tight whitespace-nowrap shadow-sm"
+						class="btn flex-1 justify-center preset-outlined-surface-500 text-xs py-2 px-1 font-semibold whitespace-nowrap"
 						onclick={() => goto(`/gise/${ativa.id}`)}
 					>
 						Abrir escala
 					</button>
 					<button
 						type="button"
-						class="btn flex-1 justify-center bg-surface-100 dark:bg-surface-800 text-3xs sm:text-2xs py-2 px-1 border border-surface-200 dark:border-surface-700 hover:preset-filled-primary-500 transition-all font-bold uppercase tracking-tight whitespace-nowrap shadow-sm"
+						class="btn flex-1 justify-center preset-outlined-surface-500 text-xs py-2 px-1 font-semibold whitespace-nowrap"
 						onclick={onEscalaPdf}
 					>
 						Escala PDF
 					</button>
 					<button
 						type="button"
-						class="btn flex-1 justify-center bg-surface-100 dark:bg-surface-800 text-3xs sm:text-2xs py-2 px-1 border border-surface-200 dark:border-surface-700 hover:preset-filled-primary-500 transition-all font-bold uppercase tracking-tight whitespace-nowrap shadow-sm"
+						class="btn flex-1 justify-center preset-outlined-surface-500 text-xs py-2 px-1 font-semibold whitespace-nowrap"
 						onclick={onExtraPdf}
 						title={isSupervisor
 							? 'Baixar relatório de extra da supervisão'

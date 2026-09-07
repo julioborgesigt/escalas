@@ -381,7 +381,7 @@
 				Controle de envio e assinatura de escalas por unidade
 			</p>
 		</div>
-		<div class="flex gap-2 justify-end w-full sm:w-auto">
+		<div class="flex flex-wrap gap-2 justify-end w-full sm:w-auto">
 			<BotaoLimparFiltros
 				{temFiltros}
 				onclick={limparFiltros}
@@ -389,7 +389,7 @@
 			/>
 			<button
 				type="button"
-				class="btn preset-outlined-primary-500 btn-sm"
+				class="btn preset-outlined-surface-500 btn-sm"
 				onclick={carregar}
 				disabled={loadingService.active}
 			>
@@ -682,7 +682,7 @@
 												{#if mostrarIgnorados}
 													<button
 														type="button"
-														class="btn btn-sm preset-outlined-primary-500"
+														class="btn btn-sm preset-outlined-surface-500"
 														onclick={() => restaurarItem(item)}>Restaurar</button
 													>
 												{:else}
@@ -789,7 +789,7 @@
 										{#if mostrarIgnorados}
 											<button
 												type="button"
-												class="btn btn-sm preset-outlined-primary-500 text-xs font-bold"
+												class="btn btn-sm preset-outlined-surface-500 text-xs font-bold"
 												onclick={() => restaurarItem(item)}>Restaurar</button
 											>
 										{:else}

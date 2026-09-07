@@ -85,7 +85,7 @@
 	const hoje = hojeLocalISO();
 </script>
 
-<div {id} class="space-y-1">
+<div {id} class="min-w-0 space-y-1">
 	<CalendarioNavMes titulo={calTitulo} onAnterior={mesAnterior} onProximo={mesProximo} />
 
 	<div

@@ -656,7 +656,7 @@
 			</div>
 
 			<div
-				class="flex flex-col gap-1.5 col-span-6 {isAdmin || isAdminSeccional
+				class="flex flex-col gap-1.5 col-span-12 xs:col-span-6 {isAdmin || isAdminSeccional
 					? 'lg:col-span-2'
 					: 'lg:col-span-4'}"
 			>
@@ -670,7 +670,7 @@
 				/>
 			</div>
 
-			<div class="flex flex-col gap-1.5 col-span-6 lg:col-span-2">
+			<div class="flex flex-col gap-1.5 col-span-12 xs:col-span-6 lg:col-span-2">
 				<span class={CLASSE_ROTULO_FILTRO}>Ano</span>
 				<SearchableSelect
 					options={anosOptions}

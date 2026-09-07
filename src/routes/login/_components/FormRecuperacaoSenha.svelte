@@ -94,7 +94,9 @@
 			{loadingService.active ? 'Enviando...' : 'Enviar código de validação'}
 		</button>
 
-		<button type="button" class="btn preset-outlined w-full" onclick={onSair}>Sair</button>
+		<button type="button" class="btn preset-outlined-surface-500 w-full" onclick={onSair}
+			>Sair</button
+		>
 	</div>
 {:else if recuperacaoEtapa === 'codigo'}
 	<div class="text-center mb-6">
@@ -131,7 +133,9 @@
 			{loadingService.active ? 'Validando...' : 'Confirmar código'}
 		</button>
 
-		<button type="button" class="btn preset-outlined w-full" onclick={onSair}>Sair</button>
+		<button type="button" class="btn preset-outlined-surface-500 w-full" onclick={onSair}
+			>Sair</button
+		>
 	</div>
 {:else}
 	<div class="text-center">
@@ -146,6 +150,8 @@
 				Você receberá um código de validação em instantes.
 			{/if}
 		</p>
-		<button type="button" class="btn preset-outlined w-full" onclick={onSair}>Sair</button>
+		<button type="button" class="btn preset-outlined-surface-500 w-full" onclick={onSair}
+			>Sair</button
+		>
 	</div>
 {/if}

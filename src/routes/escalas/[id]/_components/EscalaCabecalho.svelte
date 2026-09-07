@@ -76,12 +76,12 @@
 			{/if}
 		</p>
 	</div>
-	<div class="flex items-center gap-2 shrink-0">
+	<div class="flex flex-wrap items-center gap-2 w-full sm:w-auto sm:shrink-0">
 		{#if podeEditar && !documentoAssinadoExiste && !finalizadaEm && !solicitacaoAtual}
 			{#if !modoEdicao}
 				<button
 					type="button"
-					class="btn preset-filled-primary-500 transition-all"
+					class="btn preset-filled-primary-500 transition-all w-full sm:w-auto"
 					onclick={() => (modoEdicao = true)}
 				>
 					Editar escala
@@ -89,7 +89,7 @@
 			{:else if !isFDS && (isExpediente || escala.tipo === 'plantao')}
 				<button
 					type="button"
-					class="btn preset-filled-success-500 transition-all"
+					class="btn preset-filled-success-500 transition-all w-full sm:w-auto"
 					onclick={onFinalizarEdicao}
 				>
 					Finalizar edição

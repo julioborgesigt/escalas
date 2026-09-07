@@ -157,7 +157,7 @@
 						<button
 							type="button"
 							aria-label="Editar Data/Horários"
-							class="btn btn-xs preset-filled-surface-500 rounded p-1"
+							class="btn btn-xs preset-outlined-surface-500 rounded p-1"
 							onclick={onAbrirDataHoras}
 						>
 							<PenLine class="w-3 h-3" aria-hidden="true" />
@@ -173,7 +173,7 @@
 	>
 		{#if isAdminGeral && podeDownload && gise.status === 'finalizada'}
 			<a
-				class="btn btn-sm preset-outlined-success-500 rounded-lg font-semibold whitespace-nowrap transition-all flex items-center justify-center gap-1.5 flex-1 sm:flex-initial"
+				class="btn btn-sm preset-outlined-surface-500 rounded-lg font-semibold whitespace-nowrap transition-all flex items-center justify-center gap-1.5 flex-1 sm:flex-initial"
 				href={`/api/gise/${gise.id}/download?format=xlsx`}
 				target="_blank"
 			>
@@ -183,7 +183,7 @@
 		{#if isAdminGeral && modoEdicaoGeral && onAbrirBreveRelatorio}
 			<button
 				type="button"
-				class="btn btn-sm preset-outlined-primary-500 rounded-lg font-semibold whitespace-nowrap transition-all flex items-center justify-center gap-1.5 border-2 flex-1 sm:flex-initial"
+				class="btn btn-sm preset-outlined-surface-500 rounded-lg font-semibold whitespace-nowrap transition-all flex items-center justify-center gap-1.5 flex-1 sm:flex-initial"
 				onclick={onAbrirBreveRelatorio}
 				disabled={loading.active || pendingCrud}
 			>
@@ -193,10 +193,8 @@
 		{#if isAdminGeral}
 			<button
 				class="btn btn-sm preset-{modoEdicaoGeral
-					? 'filled'
-					: 'outlined'}-primary-500 rounded-lg font-semibold whitespace-nowrap transition-all flex items-center justify-center gap-1.5 flex-1 sm:flex-initial {modoEdicaoGeral
-					? 'border-2 border-primary-600 shadow-xl'
-					: 'border-2 border-primary-500/30 hover:border-primary-500'}"
+					? 'filled-primary-500'
+					: 'outlined-surface-500'} rounded-lg font-semibold whitespace-nowrap transition-all flex items-center justify-center gap-1.5 flex-1 sm:flex-initial"
 				onclick={onToggleEdit}
 				disabled={editaBloqueado || loading.active || pendingCrud}
 				type="button"
@@ -211,7 +209,7 @@
 					class="contents"
 				>
 					<button
-						class="btn btn-sm preset-filled-success-500 rounded-lg font-semibold transition-all flex items-center justify-center gap-1.5 border-2 border-success-600/30 hover:border-success-600 text-center leading-tight whitespace-nowrap flex-1 sm:flex-initial"
+						class="btn btn-sm preset-filled-success-500 rounded-lg font-semibold text-center leading-tight whitespace-nowrap flex-1 sm:flex-initial"
 						disabled={loading.active || modoEdicaoGeral || pendingCrud}
 						type="submit"
 					>
@@ -227,7 +225,7 @@
 					class="contents"
 				>
 					<button
-						class="btn btn-sm preset-outlined-warning-500 rounded-lg font-semibold transition-all flex items-center justify-center gap-1.5 border-2 border-warning-500/30 hover:border-warning-500 text-center leading-tight whitespace-nowrap flex-1 sm:flex-initial"
+						class="btn btn-sm preset-outlined-error-500 rounded-lg font-semibold text-center leading-tight whitespace-nowrap flex-1 sm:flex-initial"
 						disabled={loading.active || pendingCrud}
 						type="submit"
 					>
@@ -236,7 +234,7 @@
 				</form>
 			{/if}
 			<button
-				class="btn btn-sm preset-outlined-error-500 rounded-lg font-semibold whitespace-nowrap transition-all flex items-center justify-center gap-1.5 border-2 border-error-500/30 hover:border-error-500 flex-1 sm:flex-initial"
+				class="btn btn-sm preset-filled-error-500 rounded-lg font-semibold whitespace-nowrap flex-1 sm:flex-initial"
 				onclick={onAbrirExcluir}
 				disabled={editaBloqueado || loading.active || pendingCrud}
 				type="button"
@@ -273,7 +271,7 @@
 			>
 				<button
 					type="submit"
-					class="btn btn-sm preset-outlined-primary-500 rounded-lg font-semibold whitespace-nowrap transition-all flex items-center justify-center gap-1.5 border-2 flex-1 sm:flex-initial"
+					class="btn btn-sm preset-outlined-surface-500 rounded-lg font-semibold whitespace-nowrap transition-all flex items-center justify-center gap-1.5 flex-1 sm:flex-initial"
 					disabled={loading.active || pendingCrud}
 					title={planilhaBaseEquipeAlimentadaOk
 						? 'Planilha Base_Equipe já recebeu estes dados; clique para reenviar.'

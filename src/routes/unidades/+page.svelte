@@ -448,13 +448,13 @@
 											<div class="flex gap-2">
 												<button
 													type="button"
-													class="btn btn-sm preset-outlined-primary-500"
+													class="btn btn-sm preset-outlined-surface-500"
 													onclick={() => iniciarEdicao(u)}>Editar</button
 												>
 												<button
 													type="button"
 													class="btn btn-sm {u.ativo
-														? 'preset-outlined-warning-500'
+														? 'preset-outlined-surface-500'
 														: 'preset-filled-success-500'} transition-all"
 													onclick={() => solicitarDesativacao(u.id, u.nome, u.ativo)}
 													>{u.ativo ? 'Desativar' : 'Reativar'}</button
@@ -478,7 +478,7 @@
 				{#each unidadesAgrupadas as u (u.id)}
 					<div
 						class="p-4 rounded-2xl bg-surface-100/50 dark:bg-surface-800/50 border {u.isChild
-							? 'border-l-4 border-l-surface-400 dark:border-l-surface-600 border-surface-200 dark:border-white/10 ml-6'
+							? 'border-l-4 border-l-surface-400 dark:border-l-surface-600 border-surface-200 dark:border-white/10 ml-3 sm:ml-6'
 							: 'border-surface-200 dark:border-white/10'}"
 					>
 						{#if isAdmin && editandoId === u.id}
@@ -536,13 +536,13 @@
 									<div class="flex gap-2 shrink-0">
 										<button
 											type="button"
-											class="btn btn-sm preset-outlined-primary-500"
+											class="btn btn-sm preset-outlined-surface-500"
 											onclick={() => iniciarEdicao(u)}>Editar</button
 										>
 										<button
 											type="button"
 											class="btn btn-sm {u.ativo
-												? 'preset-outlined-warning-500'
+												? 'preset-outlined-surface-500'
 												: 'preset-filled-success-500'} transition-all"
 											onclick={() => solicitarDesativacao(u.id, u.nome, u.ativo)}
 											>{u.ativo ? 'Desativar' : 'Reativar'}</button

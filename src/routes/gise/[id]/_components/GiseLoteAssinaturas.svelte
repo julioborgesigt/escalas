@@ -355,7 +355,7 @@
 						<div class="flex items-center gap-1.5 flex-wrap justify-end">
 							<button
 								type="button"
-								class="btn btn-xs preset-tonal-primary border border-primary-500/30 hover:border-primary-500 px-2.5 py-1.5 text-3xs font-bold rounded-lg flex items-center gap-1"
+								class="btn btn-xs preset-outlined-surface-500 px-2.5 py-1.5 text-3xs font-semibold rounded-lg flex items-center gap-1"
 								onclick={onConferencia || mostrarOrientaConferencia}
 							>
 								<PenLine class="h-2.5 w-2.5 shrink-0" aria-hidden="true" />
@@ -462,7 +462,7 @@
 				>
 					<button
 						type="button"
-						class="btn btn-xs preset-tonal-primary border border-primary-500/30 hover:border-primary-500 px-2.5 py-1.5 text-3xs font-bold rounded-lg flex items-center gap-1 hover:scale-[1.02] transition-all"
+						class="btn btn-xs preset-outlined-surface-500 px-2.5 py-1.5 text-3xs font-semibold rounded-lg flex items-center gap-1"
 						onclick={onConferencia || mostrarOrientaConferencia}
 					>
 						<PenLine class="h-2.5 w-2.5 shrink-0" aria-hidden="true" />
@@ -482,7 +482,7 @@
 						{:else}
 							<button
 								type="button"
-								class="btn btn-xs preset-filled-tertiary-500 border border-tertiary-600/30 px-2.5 py-1.5 text-3xs font-bold rounded-lg hover:border-tertiary-600 disabled:opacity-40 flex items-center gap-1 hover:scale-[1.02] transition-all"
+								class="btn btn-xs preset-filled-warning-500 px-2.5 py-1.5 text-3xs font-semibold rounded-lg disabled:opacity-40 flex items-center gap-1"
 								disabled={loading.active || quantidadePendentes === 0}
 								onclick={() => (confirmandoLote = true)}
 							>

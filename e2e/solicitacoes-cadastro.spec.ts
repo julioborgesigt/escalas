@@ -77,13 +77,17 @@ test('admin geral vê o pedido inteiro na fila e aprova', async ({ page }) => {
 
 	await page.goto('/solicitacoes');
 	await expect(page.getByRole('heading', { name: 'Solicitações' })).toBeVisible();
-	await expect(page.getByText('Policial Fixture A')).toBeVisible();
-	await expect(page.getByText(NOVO_TELEFONE)).toBeVisible();
+	// A fila cadastral pinta o MESMO pedido duas vezes no DOM — tabela (`md+`)
+	// e cards (abaixo de `md`). `getByText` casa os dois mesmo com um
+	// `display:none`, e o Chromium desktop deste spec só vê a tabela.
+	const tabela = page.getByRole('table');
+	await expect(tabela.getByText('Policial Fixture A')).toBeVisible();
+	await expect(tabela.getByText(NOVO_TELEFONE)).toBeVisible();
 	// Decidir sem o motivo à vista seria decidir no escuro.
-	await expect(page.getByText(JUSTIFICATIVA)).toBeVisible();
-	await expect(page.getByText(FIXTURE.adminUnidade.nome)).toBeVisible();
+	await expect(tabela.getByText(JUSTIFICATIVA)).toBeVisible();
+	await expect(tabela.getByText(FIXTURE.adminUnidade.nome)).toBeVisible();
 
-	await page.getByRole('button', { name: /Aprovar solicitação de Policial Fixture A/ }).click();
+	await tabela.getByRole('button', { name: /Aprovar solicitação de Policial Fixture A/ }).click();
 	await expect(page.getByText('Alteração aprovada e aplicada')).toBeVisible();
 	// Asserção sobre a FIXTURE, não sobre o estado global da tabela. Antes era
 	// `getByText('Nenhuma solicitação pendente.')`, que exige a lista INTEIRA

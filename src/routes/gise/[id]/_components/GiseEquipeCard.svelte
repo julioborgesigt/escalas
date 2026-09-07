@@ -95,9 +95,9 @@
 </script>
 
 <div
-	class="flex-1 rounded-xl border border-surface-200 dark:border-surface-700/60 p-2.5 sm:p-3 bg-white dark:bg-surface-900 shadow-sm hover:shadow-md transition-shadow duration-200"
+	class="flex-1 min-w-0 rounded-xl border border-surface-200 dark:border-surface-700/60 p-2.5 sm:p-3 bg-white dark:bg-surface-900 shadow-sm hover:shadow-md transition-shadow duration-200"
 >
-	<div class="mb-3 flex items-start justify-between gap-3">
+	<div class="mb-3 flex flex-col gap-2 xs:flex-row xs:items-start xs:justify-between">
 		{#if isAdminGeral && podeEditar && modoEdicaoGeral}
 			<form
 				id="remover-equipe-form-{equipe.id}"
@@ -168,7 +168,7 @@
 							</form>
 							<button
 								type="button"
-								class="btn btn-sm preset-outlined-primary-500 text-sm py-1 px-2 rounded"
+								class="btn btn-sm preset-outlined-surface-500 text-sm py-1 px-2 rounded"
 								onclick={() => (estado.editandoEquipe = null)}
 								aria-label="Cancelar edição de vagas"
 								title="Cancelar">×</button
@@ -183,7 +183,7 @@
 						{#if isAdminGeral && podeEditar && modoEdicaoGeral}
 							<button
 								type="button"
-								class="btn btn-xs preset-filled-surface-500 rounded p-1 shrink-0"
+								class="btn btn-xs preset-outlined-surface-500 rounded p-1 shrink-0"
 								onclick={() => {
 									estado.editandoEquipe = equipe.id;
 									estado.editSlotsDpc = equipe.slots_dpc;
@@ -202,7 +202,7 @@
 						<input
 							type="text"
 							placeholder="08:00"
-							class="w-16 px-2 py-1 text-sm rounded border bg-white dark:bg-surface-900 {estado.editEqHoraEnt &&
+							class="min-w-0 flex-1 xs:flex-none xs:w-20 px-2 py-1 text-sm rounded border bg-white dark:bg-surface-900 {estado.editEqHoraEnt &&
 							!validarHora(estado.editEqHoraEnt)
 								? 'border-error-500'
 								: 'border-surface-300 dark:border-surface-600'}"
@@ -212,7 +212,7 @@
 						<input
 							type="text"
 							placeholder="16:00"
-							class="w-16 px-2 py-1 text-sm rounded border bg-white dark:bg-surface-900 {estado.editEqHoraSai &&
+							class="min-w-0 flex-1 xs:flex-none xs:w-20 px-2 py-1 text-sm rounded border bg-white dark:bg-surface-900 {estado.editEqHoraSai &&
 							!validarHora(estado.editEqHoraSai)
 								? 'border-error-500'
 								: 'border-surface-300 dark:border-surface-600'}"
@@ -245,7 +245,7 @@
 							</form>
 							<button
 								type="button"
-								class="btn btn-sm preset-outlined-primary-500 text-sm py-1 px-2 rounded"
+								class="btn btn-sm preset-outlined-surface-500 text-sm py-1 px-2 rounded"
 								onclick={() => (estado.editandoHorariosEquipeId = null)}>×</button
 							>
 						</div>
@@ -270,7 +270,7 @@
 						{#if podeEditarHorario}
 							<button
 								type="button"
-								class="btn btn-xs preset-filled-surface-500 rounded p-1 shrink-0"
+								class="btn btn-xs preset-outlined-surface-500 rounded p-1 shrink-0"
 								onclick={() => {
 									estado.editandoHorariosEquipeId = equipe.id;
 									estado.editEqHoraEnt = horario.entrada;
@@ -290,7 +290,7 @@
 			<button
 				type="submit"
 				form="remover-equipe-form-{equipe.id}"
-				class="btn btn-sm preset-outlined-error-500 inline-flex shrink-0 items-center justify-center gap-1 whitespace-nowrap px-2 py-1 text-xs"
+				class="btn btn-sm preset-outlined-error-500 inline-flex w-full xs:w-auto shrink-0 items-center justify-center gap-1 whitespace-nowrap px-2 py-1 text-xs"
 				disabled={actions.pendingCrud}
 			>
 				{actions.pendingRemoverEquipe ? 'Removendo...' : 'Remover equipe'}
@@ -303,10 +303,10 @@
 		<div class="space-y-1 mb-2">
 			{#each equipe.membros as m (m.id)}
 				<div
-					class="flex items-center justify-between text-sm px-3 py-1.5 rounded-lg bg-surface-100 dark:bg-surface-800"
+					class="flex items-start justify-between gap-2 text-sm px-3 py-1.5 rounded-lg bg-surface-100 dark:bg-surface-800"
 				>
-					<div class="flex items-center gap-2">
-						<span class="font-semibold text-surface-900 dark:text-surface-100"
+					<div class="min-w-0 flex-1 flex flex-wrap items-center gap-x-2 gap-y-1">
+						<span class="min-w-0 break-words font-semibold text-surface-900 dark:text-surface-100"
 							>{m.policial_nome}</span
 						>
 						<span class="text-surface-600 dark:text-surface-400"
@@ -325,7 +325,7 @@
 							method="POST"
 							action="?/removerMembro"
 							use:enhance={actions.handleRemoverMembro}
-							class="ml-2"
+							class="shrink-0"
 						>
 							<input type="hidden" name="memId" value={m.id} />
 							<button
@@ -374,7 +374,7 @@
 						>
 						<button
 							type="button"
-							class="btn preset-outlined-primary-500 text-sm px-3 py-1.5 rounded-lg flex-1 sm:flex-none"
+							class="btn preset-outlined-surface-500 text-sm px-3 py-1.5 rounded-lg flex-1 sm:flex-none"
 							onclick={() => {
 								estado.equipeParaAdicionar = null;
 								estado.policialParaAdicionar = '';
@@ -388,7 +388,7 @@
 			<div class="flex flex-wrap gap-2">
 				<button
 					type="button"
-					class="btn btn-sm preset-outlined-success-500 w-full sm:w-auto flex items-center justify-center gap-1 whitespace-nowrap"
+					class="btn btn-sm preset-outlined-surface-500 w-full sm:w-auto flex items-center justify-center gap-1 whitespace-nowrap"
 					onclick={() => {
 						estado.equipeParaAdicionar = equipe.id;
 						estado.cargoParaAdicionar = 'OIP';
@@ -408,7 +408,7 @@
 				{#if equipe.slots_dpc > 0}
 					<button
 						type="button"
-						class="btn btn-sm preset-outlined-success-500 w-full sm:w-auto flex items-center justify-center gap-1 whitespace-nowrap"
+						class="btn btn-sm preset-outlined-surface-500 w-full sm:w-auto flex items-center justify-center gap-1 whitespace-nowrap"
 						onclick={() => {
 							estado.equipeParaAdicionar = equipe.id;
 							estado.cargoParaAdicionar = 'DPC';

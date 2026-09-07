@@ -53,7 +53,9 @@
 		>
 			{loadingService.active ? 'Enviando...' : 'Enviar senha provisória'}
 		</button>
-		<button type="button" class="btn preset-outlined w-full" onclick={onVoltar}> ← Voltar </button>
+		<button type="button" class="btn preset-outlined-surface-500 w-full" onclick={onVoltar}>
+			← Voltar
+		</button>
 	</form>
 {:else}
 	<div class="text-center">

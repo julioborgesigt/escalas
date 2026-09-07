@@ -39,7 +39,7 @@
 <div class="flex items-center gap-1 shrink-0">
 	<button
 		type="button"
-		class="btn btn-xs preset-filled-surface-500 rounded p-1"
+		class="btn btn-xs preset-outlined-surface-500 rounded p-1"
 		title="Editar {rotulo}"
 		aria-label="Editar {rotulo}"
 		onclick={onEditar}
