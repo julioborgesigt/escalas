@@ -5,8 +5,8 @@
 	 *
 	 * Duas listas, porque são duas consequências diferentes de um mesmo clique:
 	 *
-	 *  - **dados cadastrais** — tabela, uma linha por campo. Aprovar grava o valor
-	 *    no cadastro na hora;
+	 *  - **dados cadastrais** — tabela no desktop, cards abaixo de `md`, uma linha
+	 *    por campo. Aprovar grava o valor no cadastro na hora;
 	 *  - **ações de RH** — cartões, um por pedido, com o conteúdo INTEIRO à vista
 	 *    (datas, NUP, origem/destino, justificativa) e o botão que baixa a portaria
 	 *    anexada. Aprovar aqui movimenta, afasta ou INATIVA um servidor — decisão
