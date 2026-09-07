@@ -448,13 +448,13 @@
 											<div class="flex gap-2">
 												<button
 													type="button"
-													class="btn btn-sm preset-outlined-primary-500"
+													class="btn btn-sm preset-outlined-surface-500"
 													onclick={() => iniciarEdicao(u)}>Editar</button
 												>
 												<button
 													type="button"
 													class="btn btn-sm {u.ativo
-														? 'preset-outlined-warning-500'
+														? 'preset-outlined-surface-500'
 														: 'preset-filled-success-500'} transition-all"
 													onclick={() => solicitarDesativacao(u.id, u.nome, u.ativo)}
 													>{u.ativo ? 'Desativar' : 'Reativar'}</button
@@ -536,13 +536,13 @@
 									<div class="flex gap-2 shrink-0">
 										<button
 											type="button"
-											class="btn btn-sm preset-outlined-primary-500"
+											class="btn btn-sm preset-outlined-surface-500"
 											onclick={() => iniciarEdicao(u)}>Editar</button
 										>
 										<button
 											type="button"
 											class="btn btn-sm {u.ativo
-												? 'preset-outlined-warning-500'
+												? 'preset-outlined-surface-500'
 												: 'preset-filled-success-500'} transition-all"
 											onclick={() => solicitarDesativacao(u.id, u.nome, u.ativo)}
 											>{u.ativo ? 'Desativar' : 'Reativar'}</button

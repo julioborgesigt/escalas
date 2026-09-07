@@ -430,10 +430,10 @@
 					{#if p.allChartsCount > 0}
 						<button
 							type="button"
-							class="btn w-full xs:w-auto text-3xs font-black uppercase tracking-widest px-4 py-2 rounded-xl transition-colors {p
-								.selectedCharts.length >= p.allChartsCount
-								? 'bg-surface-900 dark:bg-surface-50 text-white dark:text-surface-950'
-								: 'bg-surface-200/60 dark:bg-surface-800/60 text-surface-600 dark:text-surface-300 hover:bg-surface-200 dark:hover:bg-surface-700'}"
+							class="btn btn-sm w-full xs:w-auto font-semibold px-4 py-2 {p.selectedCharts.length >=
+							p.allChartsCount
+								? 'preset-filled-primary-500'
+								: 'preset-outlined-surface-500'}"
 							onclick={p.selectAllCharts}
 						>
 							{p.selectedCharts.length >= p.allChartsCount
@@ -444,9 +444,10 @@
 
 					<button
 						type="button"
-						class="btn w-full xs:w-auto {p.selectedCharts.length > 0
-							? 'bg-error-600 hover:bg-error-700 text-white'
-							: 'bg-surface-200/80 dark:bg-surface-800/80 text-surface-500 dark:text-surface-400 cursor-not-allowed'} text-3xs font-black uppercase tracking-widest py-2 px-4 rounded-xl transition-colors flex items-center justify-center gap-2"
+						class="btn btn-sm w-full xs:w-auto font-semibold py-2 px-4 flex items-center justify-center gap-2 {p
+							.selectedCharts.length > 0
+							? 'preset-filled-primary-500'
+							: 'preset-outlined-surface-500 opacity-50'}"
 						onclick={p.exportChartsAsImages}
 						disabled={p.selectedCharts.length === 0 || p.exporting}
 					>
@@ -468,9 +469,10 @@
 
 					<button
 						type="button"
-						class="btn w-full xs:w-auto {p.selectedCharts.length > 0
-							? 'bg-secondary-600 hover:bg-secondary-700 text-white'
-							: 'bg-surface-200/80 dark:bg-surface-800/80 text-surface-500 dark:text-surface-400 cursor-not-allowed'} text-3xs font-black uppercase tracking-widest py-2 px-4 rounded-xl transition-colors flex items-center justify-center gap-2"
+						class="btn btn-sm w-full xs:w-auto font-semibold py-2 px-4 flex items-center justify-center gap-2 {p
+							.selectedCharts.length > 0
+							? 'preset-outlined-surface-500'
+							: 'preset-outlined-surface-500 opacity-50'}"
 						onclick={() => window.print()}
 						disabled={p.selectedCharts.length === 0}
 					>

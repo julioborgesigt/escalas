@@ -169,7 +169,7 @@
 												<input type="hidden" name="decisao" value="aprovar" />
 												<button
 													type="submit"
-													class="w-9 h-9 flex items-center justify-center rounded-xl bg-success-500/10 text-success-600 dark:text-success-400 hover:bg-success-500 hover:text-white active:scale-95 transition-all disabled:opacity-40"
+													class="btn-icon btn-sm preset-filled-success-500 disabled:opacity-40"
 													title="Aprovar e aplicar"
 													aria-label="Aprovar solicitação de {s.policial_nome}"
 													disabled={decidindoId === s.id}
@@ -186,7 +186,7 @@
 												<input type="hidden" name="decisao" value="rejeitar" />
 												<button
 													type="submit"
-													class="w-9 h-9 flex items-center justify-center rounded-xl bg-error-500/10 text-error-600 dark:text-error-400 hover:bg-error-500 hover:text-white active:scale-95 transition-all disabled:opacity-40"
+													class="btn-icon btn-sm preset-outlined-error-500 disabled:opacity-40"
 													title="Rejeitar"
 													aria-label="Rejeitar solicitação de {s.policial_nome}"
 													disabled={decidindoId === s.id}
@@ -225,13 +225,17 @@
 							</div>
 							<dl class="grid grid-cols-1 gap-2 text-sm">
 								<div>
-									<dt class="text-2xs font-semibold uppercase text-surface-600 dark:text-surface-400">
+									<dt
+										class="text-2xs font-semibold uppercase text-surface-600 dark:text-surface-400"
+									>
 										Campo
 									</dt>
 									<dd class="font-medium">{ROTULO_CAMPO[s.campo]}</dd>
 								</div>
 								<div>
-									<dt class="text-2xs font-semibold uppercase text-surface-600 dark:text-surface-400">
+									<dt
+										class="text-2xs font-semibold uppercase text-surface-600 dark:text-surface-400"
+									>
 										De
 									</dt>
 									<dd class="text-surface-600 dark:text-surface-400 break-words">
@@ -239,13 +243,17 @@
 									</dd>
 								</div>
 								<div>
-									<dt class="text-2xs font-semibold uppercase text-surface-600 dark:text-surface-400">
+									<dt
+										class="text-2xs font-semibold uppercase text-surface-600 dark:text-surface-400"
+									>
 										Para
 									</dt>
 									<dd class="font-semibold break-words">{s.valor_novo}</dd>
 								</div>
 								<div>
-									<dt class="text-2xs font-semibold uppercase text-surface-600 dark:text-surface-400">
+									<dt
+										class="text-2xs font-semibold uppercase text-surface-600 dark:text-surface-400"
+									>
 										Justificativa
 									</dt>
 									<dd class="text-surface-600 dark:text-surface-400 break-words">
@@ -256,7 +264,9 @@
 									</dd>
 								</div>
 								<div>
-									<dt class="text-2xs font-semibold uppercase text-surface-600 dark:text-surface-400">
+									<dt
+										class="text-2xs font-semibold uppercase text-surface-600 dark:text-surface-400"
+									>
 										Solicitada em
 									</dt>
 									<dd class="text-xs text-surface-600 dark:text-surface-400">

@@ -168,7 +168,7 @@
 							</form>
 							<button
 								type="button"
-								class="btn btn-sm preset-outlined-primary-500 text-sm py-1 px-2 rounded"
+								class="btn btn-sm preset-outlined-surface-500 text-sm py-1 px-2 rounded"
 								onclick={() => (estado.editandoEquipe = null)}
 								aria-label="Cancelar edição de vagas"
 								title="Cancelar">×</button
@@ -183,7 +183,7 @@
 						{#if isAdminGeral && podeEditar && modoEdicaoGeral}
 							<button
 								type="button"
-								class="btn btn-xs preset-filled-surface-500 rounded p-1 shrink-0"
+								class="btn btn-xs preset-outlined-surface-500 rounded p-1 shrink-0"
 								onclick={() => {
 									estado.editandoEquipe = equipe.id;
 									estado.editSlotsDpc = equipe.slots_dpc;
@@ -245,7 +245,7 @@
 							</form>
 							<button
 								type="button"
-								class="btn btn-sm preset-outlined-primary-500 text-sm py-1 px-2 rounded"
+								class="btn btn-sm preset-outlined-surface-500 text-sm py-1 px-2 rounded"
 								onclick={() => (estado.editandoHorariosEquipeId = null)}>×</button
 							>
 						</div>
@@ -270,7 +270,7 @@
 						{#if podeEditarHorario}
 							<button
 								type="button"
-								class="btn btn-xs preset-filled-surface-500 rounded p-1 shrink-0"
+								class="btn btn-xs preset-outlined-surface-500 rounded p-1 shrink-0"
 								onclick={() => {
 									estado.editandoHorariosEquipeId = equipe.id;
 									estado.editEqHoraEnt = horario.entrada;
@@ -374,7 +374,7 @@
 						>
 						<button
 							type="button"
-							class="btn preset-outlined-primary-500 text-sm px-3 py-1.5 rounded-lg flex-1 sm:flex-none"
+							class="btn preset-outlined-surface-500 text-sm px-3 py-1.5 rounded-lg flex-1 sm:flex-none"
 							onclick={() => {
 								estado.equipeParaAdicionar = null;
 								estado.policialParaAdicionar = '';
@@ -388,7 +388,7 @@
 			<div class="flex flex-wrap gap-2">
 				<button
 					type="button"
-					class="btn btn-sm preset-outlined-success-500 w-full sm:w-auto flex items-center justify-center gap-1 whitespace-nowrap"
+					class="btn btn-sm preset-outlined-surface-500 w-full sm:w-auto flex items-center justify-center gap-1 whitespace-nowrap"
 					onclick={() => {
 						estado.equipeParaAdicionar = equipe.id;
 						estado.cargoParaAdicionar = 'OIP';
@@ -408,7 +408,7 @@
 				{#if equipe.slots_dpc > 0}
 					<button
 						type="button"
-						class="btn btn-sm preset-outlined-success-500 w-full sm:w-auto flex items-center justify-center gap-1 whitespace-nowrap"
+						class="btn btn-sm preset-outlined-surface-500 w-full sm:w-auto flex items-center justify-center gap-1 whitespace-nowrap"
 						onclick={() => {
 							estado.equipeParaAdicionar = equipe.id;
 							estado.cargoParaAdicionar = 'DPC';

@@ -255,7 +255,7 @@
 									href="/api/policiais/historico/{ev.id}/documento"
 									target="_blank"
 									rel="noopener"
-									class="btn btn-sm preset-outlined-primary-500 flex items-center gap-1.5 text-xs"
+									class="btn btn-sm preset-outlined-surface-500 flex items-center gap-1.5 text-xs"
 								>
 									<FileText size={14} /> Documento
 								</a>

@@ -33,7 +33,7 @@
 	type="button"
 	class="btn btn-sm {temFiltros
 		? 'preset-filled-warning-500'
-		: 'preset-outlined-primary-500 opacity-40'} {classes}"
+		: 'preset-outlined-surface-500 opacity-40'} {classes}"
 	{onclick}
 	{disabled}
 >

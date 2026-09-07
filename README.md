@@ -161,11 +161,11 @@ npm run test       # testes unitários
 | `RATE_LIMIT_IP_SALT`                                               | ⚠️ produção | Muda a chave do rate-limit de "/24 anonimizada" para hash salteado do IP completo (evita lockout do NAT corporativo).                                                       |
 
 > **Teto de geração pesada.** As rotas que MONTAM documento (PDF da escala, comprovante de presença avançado) têm limite por **conta**, não por IP — ver [`rate-limit-pesado.ts`](src/lib/server/rate-limit-pesado.ts). São rotas autenticadas e autorizadas: o que faltava não era permissão, era custo. Contar por conta é o que evita o lockout que o `RATE_LIMIT_IP_SALT` acima descreve — numa delegacia todos saem pelo mesmo endereço, e um plantão em laço derrubaria o download dos colegas. Reusa `recovery_attempts` com propósito próprio, sem migration.
-| `APP_ORIGIN`                                                       | ⚠️ produção | Origem canônica (`https://...`) usada nos links de e-mail.                                                                                                                  |
-| `SUPER_ADMIN_LOGIN` / `SUPER_ADMIN_SENHA` / `SUPER_ADMIN_EMAIL`    |     ❌      | Conta root de break-glass via env. Prefira senha em hash PBKDF2 e defina o e-mail para exigir 2FA — ver [`DEPLOY.md`](DEPLOY.md#variáveis-e-secrets).                       |
-| `ADMIN_GERAL_LOGIN` / `ADMIN_GERAL_SENHA`                          |     ❌      | Login de Admin Geral via env (bootstrap). Logins por credencial de bootstrap são auditados (`login_bootstrap`).                                                             |
-| `GISE_BASE_EQUIPE_WEBHOOK_URL`                                     |     ❌      | URL do Google Apps Script que popula a aba `Base_Equipe` da planilha. Ex: `https://script.google.com/macros/s/AKfy.../exec`                                                 |
-| `GISE_BASE_EQUIPE_SECRET`                                          |     ❌      | Segredo compartilhado com `ScriptProperties.BASE_EQUIPE_SECRET` no Apps Script. Gere com `openssl rand -hex 32`.                                                            |
+> | `APP_ORIGIN` | ⚠️ produção | Origem canônica (`https://...`) usada nos links de e-mail. |
+> | `SUPER_ADMIN_LOGIN` / `SUPER_ADMIN_SENHA` / `SUPER_ADMIN_EMAIL` | ❌ | Conta root de break-glass via env. Prefira senha em hash PBKDF2 e defina o e-mail para exigir 2FA — ver [`DEPLOY.md`](DEPLOY.md#variáveis-e-secrets). |
+> | `ADMIN_GERAL_LOGIN` / `ADMIN_GERAL_SENHA` | ❌ | Login de Admin Geral via env (bootstrap). Logins por credencial de bootstrap são auditados (`login_bootstrap`). |
+> | `GISE_BASE_EQUIPE_WEBHOOK_URL` | ❌ | URL do Google Apps Script que popula a aba `Base_Equipe` da planilha. Ex: `https://script.google.com/macros/s/AKfy.../exec` |
+> | `GISE_BASE_EQUIPE_SECRET` | ❌ | Segredo compartilhado com `ScriptProperties.BASE_EQUIPE_SECRET` no Apps Script. Gere com `openssl rand -hex 32`. |
 
 > **Dica:** Use `openssl rand -hex 32` para gerar qualquer token seguro de 256 bits.
 >
@@ -200,7 +200,7 @@ O projeto usa **Cloudflare D1** (SQLite serverless) via **Drizzle ORM**. O schem
 | `cadastro_solicitacoes`          | Pedidos de correção de CAMPO do cadastro (uma linha por campo), com justificativa e solicitante                              |
 | `policial_acao_solicitacoes`     | Pedidos de movimentação/afastamento/desvinculação aguardando o Admin Geral, com a portaria anexa no R2                       |
 | `administradores`                | Admins gerais do sistema                                                                                                     |
-| `sessoes`                        | Sessões ativas (token, tipo, expiração em 1h de inatividade)                                                                                |
+| `sessoes`                        | Sessões ativas (token, tipo, expiração em 1h de inatividade)                                                                 |
 | `escalas`                        | Escalas de plantão, expediente e FDS                                                                                         |
 | `escala_policiais`               | Associação policial ↔ escala (data, horário, equipe)                                                                         |
 | `escala_documentos`              | PDFs assinados com metadados CAdES-LT (OCSP, TST, selfie, GPS, IP)                                                           |
@@ -1005,14 +1005,14 @@ do DPI SUL, não do decreto: o Decreto nº 36.182/2024 permite percebê-las
 concomitantemente. Precisa estar escrito, senão quem ler o decreto depois
 "corrige" a inconsistência somando as duas.
 
-| Pergunta, nesta ordem                                              | Rubrica                                       |
-| ------------------------------------------------------------------ | --------------------------------------------- |
+| Pergunta, nesta ordem                                                                     | Rubrica                                        |
+| ----------------------------------------------------------------------------------------- | ---------------------------------------------- |
 | Deslocamento ≥ **limite** (padrão 100 km) **e** operação ≥ **4h** — com parecer favorável | diária, no mínimo **1,5** (piso da corporação) |
-| Distância bastaria, mas a operação tem menos de 4h                 | vale o relógio                                |
-| Distância bastaria, mas a equipe não tem hora de término           | vale o relógio, e a tela avisa                |
-| Abaixo do limite: 08:00–18:00 em dia útil                          | sem custo                                     |
-| Abaixo do limite: 06:00–08:00 e 18:00–00:00 útil                   | hora extra normal                             |
-| 00:00–06:00 útil, ou fim de semana e feriado em qualquer hora      | hora extra **plus** (+30%)                    |
+| Distância bastaria, mas a operação tem menos de 4h                                        | vale o relógio                                 |
+| Distância bastaria, mas a equipe não tem hora de término                                  | vale o relógio, e a tela avisa                 |
+| Abaixo do limite: 08:00–18:00 em dia útil                                                 | sem custo                                      |
+| Abaixo do limite: 06:00–08:00 e 18:00–00:00 útil                                          | hora extra normal                              |
+| 00:00–06:00 útil, ou fim de semana e feriado em qualquer hora                             | hora extra **plus** (+30%)                     |
 
 A ordem não é comutativa, e o exemplo mudou quando o decreto entrou. Uma equipe
 que sai de Jucás para Acopiara **às 04:00** percorre mais de 100 km: o relógio
@@ -1054,12 +1054,12 @@ foi o km que a corporação pediu para manejar.
 Quem decide se a diária é DEVIDA é `$lib/diarias/` — domínio próprio, porque a
 futura aba de solicitação avulsa consome o mesmo motor:
 
-| módulo | pergunta |
-| --- | --- |
+| módulo        | pergunta                                        |
+| ------------- | ----------------------------------------------- |
 | `contagem.ts` | quantas diárias, e em qual **mês** cada uma cai |
-| `jornada.ts` | a missão de um dia extrapolou as 8 horas? |
-| `vedacoes.ts` | o que precisa de conferência humana |
-| `parecer.ts` | o veredito, com o **dispositivo citado** |
+| `jornada.ts`  | a missão de um dia extrapolou as 8 horas?       |
+| `vedacoes.ts` | o que precisa de conferência humana             |
+| `parecer.ts`  | o veredito, com o **dispositivo citado**        |
 
 A quantidade é `N − 0,5` com pernoite (`N` = dias, início e fim inclusive), e ela
 é escrita como **atribuição por dia** — cada dia vale 2 meias, o último vale 1.
@@ -1716,7 +1716,18 @@ reimplemente foco, Escape, ARIA ou scroll lock. Um modal que não cabe nesse
 contrato permanece explícito e registra no próprio arquivo a diferença de
 interação ou regra de domínio.
 
-**Botões (semântica dos presets)** — CTA `preset-filled-primary-500` · destrutivo `preset-filled-error-500` · cancelar/neutro `preset-outlined-surface-500`. O feedback tátil de clique (afundar 5% pressionado) é **global e automático** para `.btn`/`.btn-icon` (regra em `app.css`) — não adicionar `active:scale-95` inline; use-o apenas em elementos interativos custom fora dessas classes.
+**Botões (semântica dos presets)** — seis papéis, e só esses. Preenchido colorido leva **texto branco** (regra global em `app.css` sobre `.btn`/`.btn-icon`); não pintar `text-white` nem `text-warning-950` no call site. O feedback tátil de clique (afundar 5% pressionado) é **global e automático** para `.btn`/`.btn-icon` (regra em `app.css`) — não adicionar `active:scale-95` inline; use-o apenas em elementos interativos custom fora dessas classes.
+
+| Papel     | Preset                        | Exemplos                                          |
+| --------- | ----------------------------- | ------------------------------------------------- |
+| CTA       | `preset-filled-primary-500`   | Salvar, Criar, Novo plano, Nova escala            |
+| Confirmar | `preset-filled-success-500`   | Aprovar, já assinado, solicitar assinatura        |
+| Destruir  | `preset-filled-error-500`     | Excluir, Sair                                     |
+| Recusar   | `preset-outlined-error-500`   | Rejeitar, Remover membro, revogar pedido          |
+| Neutro    | `preset-outlined-surface-500` | Cancelar, Voltar, Abrir, Editar, PDF, Detalhes    |
+| Atenção   | `preset-filled-warning-500`   | Assinar (pendente), Limpar filtros ativo, reabrir |
+
+`tertiary` e `outlined-primary` **não** são papéis de botão — chip/badge e, no máximo, link. `preset-filled-surface-500` não vai em `.btn` (contraste 3,90:1 já em repouso). Peso: `font-semibold` no botão comum; `font-bold` só no CTA final da página. Sem `font-black` e sem `uppercase` em botão de linha.
 
 **Tamanho de botão** — `.btn-sm` do tema NÃO embute padding vertical: sem `py-*` o botão fica em ~24px de altura. A escala em uso é `py-1.5` (~34px, botões de navegação como o Voltar), `py-2.5` (~40px, CTA de modal/formulário) e `py-3.5` (~48px, ação final de página). Nada de `py-4 text-lg`, que produz um bloco de ~64px destoante do resto da tela.
 

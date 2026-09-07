@@ -408,7 +408,7 @@
 							{#if page.data.podeAlternarModulo}
 								<button
 									type="button"
-									class="btn-icon btn-sm preset-outlined-primary-500 flex cursor-pointer items-center justify-center rounded-md p-1 text-primary-600 transition-all hover:bg-primary-500/10 dark:text-primary-400"
+									class="btn-icon btn-sm preset-outlined-surface-500 flex cursor-pointer items-center justify-center rounded-md p-1 transition-all"
 									onclick={alternarModulo}
 									title="Alternar módulo (GISE ↔ Escalas)"
 									aria-label="Alternar módulo"

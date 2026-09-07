@@ -321,7 +321,7 @@
 						</form>
 						<button
 							type="button"
-							class="btn btn-sm preset-outlined-primary-500 text-sm py-1 px-2 rounded"
+							class="btn btn-sm preset-outlined-surface-500 text-sm py-1 px-2 rounded"
 							onclick={() => (estado.editandoHorariosSeccional = false)}>×</button
 						>
 					</div>
@@ -346,7 +346,7 @@
 					{#if podeEditarHorarioSec}
 						<button
 							type="button"
-							class="btn btn-xs preset-filled-surface-500 rounded p-1 shrink-0 ml-1"
+							class="btn btn-xs preset-outlined-surface-500 rounded p-1 shrink-0 ml-1"
 							onclick={(e) => {
 								e.stopPropagation();
 								estado.editandoHorariosSeccional = true;
@@ -484,7 +484,7 @@
 
 							<button
 								type="button"
-								class="btn btn-sm preset-outlined-primary-500 w-full flex items-center justify-center gap-1 whitespace-nowrap"
+								class="btn btn-sm preset-outlined-surface-500 w-full flex items-center justify-center gap-1 whitespace-nowrap"
 								onclick={() => {
 									estado.adicionandoSlot = true;
 									estado.novoSlotUnidadeId = '';
@@ -528,7 +528,7 @@
 							variant="primary"
 							type="filled"
 							onclick={() => (estado.modoEdicaoSeccional = true)}
-							classes="border-primary-600/30 hover:border-primary-600 shadow-sm {classeAcaoBarraGise}"
+							classes={classeAcaoBarraGise}
 							{pendingCrud}
 						/>
 					{:else}
@@ -542,7 +542,7 @@
 								<input type="hidden" name="secId" value={sec.id} />
 								<button
 									type="submit"
-									class="{classeAcaoBarra} preset-filled-success-500 text-white border-2 border-success-600/30 hover:border-success-600 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed transition-all flex-1 sm:flex-initial"
+									class="{classeAcaoBarra} preset-filled-success-500 disabled:opacity-50 disabled:cursor-not-allowed flex-1 sm:flex-initial"
 									disabled={pendingCrud ||
 										(sec.unidades ?? []).length === 0 ||
 										(sec.unidades ?? []).some((s: GiseUnidadeSlot) => s.unidade_id === null) ||
@@ -584,7 +584,7 @@
 							{#if estado.modoEdicaoSeccional}
 								<GiseActionButton
 									label="Cancelar edição"
-									variant="error"
+									variant="surface"
 									type="outlined"
 									onclick={() => {
 										estado.modoEdicaoSeccional = false;
@@ -592,7 +592,7 @@
 										estado.equipeParaAdicionar = null;
 										estado.cargoParaAdicionar = null;
 									}}
-									classes="border-error-500/30 hover:border-error-500 flex-1 sm:flex-initial {classeAcaoBarraGise}"
+									classes="flex-1 sm:flex-initial {classeAcaoBarraGise}"
 									{pendingCrud}
 								/>
 							{/if}
@@ -697,7 +697,7 @@
 					<div class="flex justify-end">
 						<button
 							type="button"
-							class="btn preset-outlined-primary-500 text-sm px-3 py-1.5 rounded-xl border-dashed flex items-center gap-2 max-sm:hidden"
+							class="btn preset-outlined-surface-500 text-sm px-3 py-1.5 rounded-xl border-dashed flex items-center gap-2 max-sm:hidden"
 							onclick={() => {
 								estado.adicionandoSlot = true;
 								estado.novoSlotUnidadeId = '';

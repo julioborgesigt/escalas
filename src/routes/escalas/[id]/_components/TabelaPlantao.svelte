@@ -382,7 +382,7 @@
 						>
 							<button
 								type="button"
-								class="btn btn-sm preset-outlined-primary-500 w-full sm:w-auto"
+								class="btn btn-sm preset-outlined-surface-500 w-full sm:w-auto"
 								onclick={() => (addingOipEquipe = equipe)}
 							>
 								+ Adicionar OIP à Equipe {equipe}

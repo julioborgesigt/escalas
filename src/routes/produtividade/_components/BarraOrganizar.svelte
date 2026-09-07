@@ -58,8 +58,7 @@
 		onCancelar: () => void;
 	} = $props();
 
-	const BOTAO =
-		'inline-flex w-full sm:w-auto items-center justify-center gap-1.5 rounded-xl px-4 py-2 text-3xs font-black uppercase tracking-widest transition-colors disabled:opacity-40 disabled:cursor-not-allowed';
+	const BOTAO = 'btn btn-sm font-semibold';
 </script>
 
 <div
@@ -84,7 +83,7 @@
 			     formulário, e um botão que não muda nada só faz duvidar do estado. -->
 			<button
 				type="button"
-				class="{BOTAO} bg-surface-200/70 text-surface-700 hover:bg-surface-300 dark:bg-surface-800/70 dark:text-surface-200 dark:hover:bg-surface-700"
+				class="{BOTAO} preset-outlined-surface-500"
 				disabled={!temOrdemPropria || salvando}
 				title="Volta os cards à ordem em que as perguntas estão no formulário"
 				onclick={onRestaurarPadrao}
@@ -95,7 +94,7 @@
 
 			<button
 				type="button"
-				class="{BOTAO} bg-surface-200/70 text-surface-700 hover:bg-surface-300 dark:bg-surface-800/70 dark:text-surface-200 dark:hover:bg-surface-700"
+				class="{BOTAO} preset-outlined-surface-500"
 				disabled={!alterada || salvando}
 				onclick={onDescartar}
 			>
@@ -104,7 +103,7 @@
 
 			<button
 				type="button"
-				class="{BOTAO} bg-surface-200/70 text-surface-700 hover:bg-surface-300 dark:bg-surface-800/70 dark:text-surface-200 dark:hover:bg-surface-700"
+				class="{BOTAO} preset-outlined-surface-500"
 				disabled={salvando}
 				onclick={onCancelar}
 			>
@@ -113,7 +112,7 @@
 
 			<button
 				type="button"
-				class="{BOTAO} bg-primary-600 text-white hover:bg-primary-700"
+				class="{BOTAO} preset-filled-primary-500"
 				disabled={!alterada || salvando}
 				onclick={onSalvar}
 			>

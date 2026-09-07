@@ -252,7 +252,7 @@
 			{#if podeManifesto}
 				<a
 					href={`/api/escalas/${escalaId}/documento-assinado?manifesto=true`}
-					class="btn preset-outlined-success-500 font-bold px-5 py-2.5 rounded-xl transition-all flex-1 sm:flex-none justify-center no-underline"
+					class="btn preset-outlined-surface-500 font-bold px-5 py-2.5 rounded-xl transition-all flex-1 sm:flex-none justify-center no-underline"
 					target="_blank"
 					title="PDF com folha de auditoria (evidências da assinatura: CPF, IP, GPS, selfie)"
 				>
@@ -385,7 +385,7 @@
 							{#if !isMobile}
 								<button
 									type="button"
-									class="btn btn-sm preset-filled-tertiary-500 font-bold text-xs px-3 shrink-0 transition-all"
+									class="btn btn-sm preset-filled-warning-500 font-semibold text-xs px-3 shrink-0"
 									disabled={assinando}
 									onclick={() => {
 										if (painelTokenControl) painelTokenControl.assinarComSerpro();
@@ -494,7 +494,7 @@
 		<div class="flex gap-2 flex-wrap">
 			{#each ['DOCX', 'XLSX', 'PDF'] as format (format)}
 				<a
-					class="btn btn-sm bg-surface-100 dark:bg-surface-800 hover:bg-surface-200 dark:hover:bg-surface-700 border border-surface-200 dark:border-white/5 text-3xs font-bold uppercase px-3 py-1.5 no-underline transition-all rounded-lg"
+					class="btn btn-sm preset-outlined-surface-500 text-3xs font-semibold px-3 py-1.5 no-underline"
 					href={`/api/escalas/${escalaId}/download?format=${format.toLowerCase()}`}
 					target="_blank">{format}</a
 				>

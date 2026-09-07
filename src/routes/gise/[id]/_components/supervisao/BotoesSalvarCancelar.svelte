@@ -26,7 +26,7 @@
 	</button>
 	<button
 		type="button"
-		class="btn preset-outlined-primary-500 text-sm px-3 py-1.5 rounded-lg w-full sm:w-auto"
+		class="btn preset-outlined-surface-500 text-sm px-3 py-1.5 rounded-lg w-full sm:w-auto"
 		onclick={onCancelar}
 		disabled={pending}
 	>

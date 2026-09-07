@@ -686,7 +686,7 @@
 				{:else}
 					<button
 						type="button"
-						class="btn preset-outlined-success-500 text-sm px-4 py-2 rounded-xl border-dashed mt-4 flex items-center gap-2"
+						class="btn preset-outlined-surface-500 text-sm px-4 py-2 rounded-xl border-dashed mt-4 flex items-center gap-2"
 						onclick={() => (adicionandoSeccional = true)}
 					>
 						<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"

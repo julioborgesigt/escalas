@@ -506,7 +506,7 @@
 					type="submit"
 					class="btn btn-sm px-6 {naUltima
 						? 'preset-filled-primary-500'
-						: 'preset-outlined-primary-500'}"
+						: 'preset-outlined-surface-500'}"
 					disabled={enviando}
 				>
 					{#if enviando}

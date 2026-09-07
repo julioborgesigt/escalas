@@ -123,7 +123,7 @@
 					</form>
 					<button
 						type="button"
-						class="btn flex-1 rounded-xl px-4 py-1.5 text-sm font-semibold preset-outlined-primary-500 sm:w-auto sm:flex-initial sm:px-6"
+						class="btn flex-1 rounded-xl px-4 py-1.5 text-sm font-semibold preset-outlined-surface-500 sm:w-auto sm:flex-initial sm:px-6"
 						onclick={() => {
 							estado.selecionandoUnidadeSlotId = null;
 							estado.slotUnidadeId = '';
@@ -152,7 +152,7 @@
 						     faixa, o "Remover DP" gastava uma linha inteira do quadro. -->
 						<Popover positioning={{ placement: 'bottom-start' }}>
 							<Popover.Trigger
-								class="btn btn-xs shrink-0 rounded p-1 preset-filled-surface-500"
+								class="btn btn-xs shrink-0 rounded p-1 preset-outlined-surface-500"
 								title="Ações desta unidade"
 								aria-label="Ações desta unidade"
 							>
@@ -195,7 +195,7 @@
 					{:else if slot.nome}
 						<button
 							type="button"
-							class="btn btn-xs shrink-0 rounded p-1 preset-filled-surface-500"
+							class="btn btn-xs shrink-0 rounded p-1 preset-outlined-surface-500"
 							title="Alterar unidade"
 							aria-label="Alterar unidade"
 							onclick={abrirSelecaoUnidade}
@@ -337,7 +337,7 @@
 			{:else}
 				<button
 					type="button"
-					class="btn btn-sm flex w-full items-center justify-center gap-1 whitespace-nowrap preset-outlined-success-500 sm:w-auto"
+					class="btn btn-sm flex w-full items-center justify-center gap-1 whitespace-nowrap preset-outlined-surface-500 sm:w-auto"
 					onclick={() => {
 						estado.adicionandoEquipe = true;
 						estado.adicionandoEquipeSlotId = slot.id;

@@ -167,6 +167,19 @@
 	filter: brightness(0.92);
 }
 
+/* Texto branco em botão preenchido colorido.
+ *
+ * O Skeleton escolhe claro ou escuro por canal — warning e primary às vezes
+ * saem com texto escuro. A decisão da UI é uma só: fundo colorido (primary,
+ * success, error, warning, tertiary) = texto branco. Surface preenchido fica
+ * de fora: cinza médio + branco falha AA, e `.btn` não usa esse preset.
+ *
+ * Fora de `@layer` para vencer o `color` do preset. Ícones herdam via
+ * `currentColor`. Não pintar `text-white` / `text-warning-950` no call site. */
+:is(.btn, .btn-icon)[class*='preset-filled-']:not([class*='preset-filled-surface']) {
+	color: #fff;
+}
+
 /* `transform` do Skeleton × `translate` do Tailwind v4 — NÃO se substituem.
  *
  * Os utilitários `translate-*`/`scale-*`/`rotate-*` do Tailwind v4 escrevem as

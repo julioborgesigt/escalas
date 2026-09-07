@@ -139,7 +139,7 @@
 					</p>
 					<button
 						type="button"
-						class="btn btn-sm preset-outlined-primary-500 text-xs"
+						class="btn btn-sm preset-outlined-surface-500 text-xs"
 						onclick={() => (alterandoEmail = true)}
 					>
 						{emailPessoal ? 'Alterar' : 'Cadastrar'}

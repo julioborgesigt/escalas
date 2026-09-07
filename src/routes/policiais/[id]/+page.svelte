@@ -365,7 +365,7 @@
 		{/if}
 
 		<div class="flex justify-end gap-2 pt-1 border-t border-surface-200 dark:border-white/5 mt-2">
-			<a href="/policiais" class="btn btn-sm preset-outlined-primary-500">Cancelar</a>
+			<a href="/policiais" class="btn btn-sm preset-outlined-surface-500">Cancelar</a>
 			<button
 				type="submit"
 				class="btn btn-sm sm:btn-md preset-filled-primary-500 flex items-center gap-2 disabled:opacity-40"
