@@ -4,7 +4,6 @@
 	 * Respostas genéricas: a tela só repete o que o servidor devolve.
 	 */
 	import Inbox from '@lucide/svelte/icons/inbox';
-	import KeyRound from '@lucide/svelte/icons/key-round';
 	import { enhance } from '$app/forms';
 	import { loading as loadingService } from '$lib/loading.svelte';
 	import type { SubmitFunction } from '@sveltejs/kit';
@@ -24,11 +23,7 @@
 
 {#if !primeiroAcessoEnviado}
 	<div class="text-center mb-6">
-		<KeyRound
-			class="w-12 h-12 mx-auto mb-3 text-surface-600 dark:text-surface-400"
-			aria-hidden="true"
-		/>
-		<p class="font-semibold mb-1">Primeiro acesso</p>
+		<h1 class="h1 text-2xl font-bold mb-2">Primeiro acesso</h1>
 		<p class="text-sm text-surface-600 dark:text-surface-400">
 			Informe sua matrícula para receber uma senha provisória no e-mail cadastrado.
 		</p>

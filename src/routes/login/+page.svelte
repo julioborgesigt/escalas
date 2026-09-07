@@ -7,7 +7,9 @@
 	 *   2. certificado digital (Token A3 via SERPRO), que dispensa o 2FA porque
 	 *      já é posse criptográfica;
 	 *   3. primeiro acesso — pede o link por matrícula;
-	 *   4. recuperação de senha, em três passos (`recuperacaoEtapa`).
+	 *   4. recuperação de senha, em dois passos visíveis (`recuperacaoEtapa`:
+	 *      identificação → código). O aviso pós-código não é fase — a senha só
+	 *      muda no e-mail (`/redefinir-senha`).
 	 *
 	 * Ficam juntos porque são a mesma decisão do usuário ("não consigo entrar") e
 	 * porque nenhum deles pode revelar se a matrícula existe: as respostas de
@@ -78,8 +80,9 @@
 	let codigoRec = $state('');
 	let emailMascaradoRec = $state('');
 
-	const currentRecStep = $derived(
-		recuperacaoEtapa === 'identificador' ? 0 : recuperacaoEtapa === 'codigo' ? 1 : 2
+	const currentRecStep = $derived(recuperacaoEtapa === 'codigo' ? 1 : 0);
+	const tituloDaAba = $derived(
+		primeiroAcesso ? 'Primeiro acesso' : recuperacao ? 'Recuperar senha' : 'Login'
 	);
 
 	// Erro inline de login (fallback para quando JS estiver bloqueado pelo CSP)
@@ -338,17 +341,10 @@
 		recuperacao = true;
 	}
 
-	function voltarParaRecuperacao() {
+	function sairDaRecuperacao() {
 		recuperacao = false;
 		resetarRecuperacao();
 		mostrarBannerResetado = false;
-	}
-
-	function voltarParaIdentificadorRec() {
-		recuperacaoEtapa = 'identificador';
-		desafioIdRec = '';
-		codigoRec = '';
-		emailMascaradoRec = '';
 	}
 
 	async function solicitarRecuperacao() {
@@ -407,14 +403,16 @@
 </script>
 
 <svelte:head>
-	<title>Login | Sistema de Escalas</title>
+	<title>{tituloDaAba} | Sistema de Escalas</title>
 </svelte:head>
 
 <div class="min-h-screen flex items-center justify-center p-4">
 	<div class="w-full max-w-sm p-6 sm:p-8 rounded-3xl card-glass-auth">
-		<div class="text-center mb-6">
-			<h1 class="h1 text-xl font-bold mb-1">Sistema de Escalas</h1>
-		</div>
+		{#if !recuperacao && !primeiroAcesso}
+			<div class="text-center mb-6">
+				<h1 class="h1 text-xl font-bold mb-1">Sistema de Escalas</h1>
+			</div>
+		{/if}
 
 		{#if mostrarBannerResetado && !recuperacao}
 			<div
@@ -457,8 +455,7 @@
 				{emailMascaradoRec}
 				{solicitarRecuperacao}
 				{confirmarRecuperacao}
-				onVoltar={voltarParaRecuperacao}
-				onVoltarIdentificador={voltarParaIdentificadorRec}
+				onSair={sairDaRecuperacao}
 			/>
 		{:else if primeiroAcesso}
 			<FormPrimeiroAcesso
