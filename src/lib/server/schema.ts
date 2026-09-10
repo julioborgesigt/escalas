@@ -214,6 +214,12 @@ export const unidades = sqliteTable(
 		/** ID da unidade pai na hierarquia (dept → subdept → seccional → delegacia). */
 		seccional_id: integer('seccional_id'),
 		cidade: text('cidade').notNull().default(''),
+		/**
+		 * Forma curta ("DPI SUL"), atributo de departamento e subdepartamento;
+		 * seccional e delegacia ficam com '' (migração 0076). Documento assinado
+		 * usa o `nome` por extenso; a sigla é para indexador e interface.
+		 */
+		sigla: text('sigla').notNull().default(''),
 		tem_plantao: integer('tem_plantao', { mode: 'boolean' }).default(false).notNull(),
 		tem_expediente: integer('tem_expediente', { mode: 'boolean' }).default(false).notNull(),
 		tem_fds: integer('tem_fds', { mode: 'boolean' }).default(false).notNull(),

@@ -11,5 +11,12 @@ export const unidadeSchema = z.object({
 	tem_plantao: z.boolean().default(false),
 	tem_expediente: z.boolean().default(false),
 	tem_fds: z.boolean().default(false),
-	cidade: z.string().max(200).default('')
+	cidade: z.string().max(200).default(''),
+	// Forma curta do departamento ("DPI SUL"). Vai para indexador e interface,
+	// nunca para o cargo impresso — por isso o teto é curto e o vazio é válido.
+	sigla: z
+		.string()
+		.max(20, 'Sigla muito longa (máx. 20)')
+		.transform((s) => s.trim())
+		.default('')
 });

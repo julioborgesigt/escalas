@@ -34,7 +34,8 @@ const DADOS = {
 	tem_plantao: true,
 	tem_expediente: true,
 	tem_fds: true,
-	cidade: 'CIDADE X'
+	cidade: 'CIDADE X',
+	sigla: ''
 };
 
 const estado = () => ({
