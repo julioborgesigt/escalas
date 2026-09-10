@@ -55,7 +55,8 @@ function lerUnidadeDoForm(data: FormData) {
 		tem_plantao: data.get('tem_plantao') === 'on',
 		tem_expediente: data.get('tem_expediente') === 'on',
 		tem_fds: data.get('tem_fds') === 'on',
-		cidade
+		cidade,
+		sigla: data.get('sigla')?.toString() || ''
 	});
 	return { parsed, nome, tipo, cidade };
 }

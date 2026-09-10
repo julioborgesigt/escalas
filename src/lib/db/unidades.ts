@@ -28,6 +28,7 @@ type DadosUnidade = {
 	tem_expediente: boolean;
 	tem_fds: boolean;
 	cidade: string;
+	sigla: string;
 };
 
 /**
@@ -64,6 +65,7 @@ export async function criarUnidade(db: Database, data: DadosUnidade) {
 		tem_expediente: data.tem_expediente,
 		tem_fds: data.tem_fds,
 		cidade: data.cidade || '',
+		sigla: data.sigla || '',
 		seccional_id: data.seccional_id ?? null
 	});
 }
@@ -134,7 +136,8 @@ export async function atualizarUnidade(
 			tem_plantao: data.tem_plantao,
 			tem_expediente: data.tem_expediente,
 			tem_fds: data.tem_fds,
-			cidade: data.cidade || ''
+			cidade: data.cidade || '',
+			sigla: data.sigla || ''
 		})
 		.where(and(eq(unidades.id, id), eq(unidades.nome, nomeAntigo)));
 

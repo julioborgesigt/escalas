@@ -207,7 +207,7 @@ O projeto usa **Cloudflare D1** (SQLite serverless) via **Drizzle ORM**. O schem
 | `audit_pendencias`               | Evento de auditoria que a cadeia recusou — reprocessado pelo cron de retenção                                                |
 | `assinatura_intencoes`           | Amarra cada PDF preparado ao documento, ao assinante e a um único uso (15 min)                                               |
 | `escala_solicitacoes_assinatura` | Solicitações de assinatura por unidade/respondência                                                                          |
-| `unidades`                       | Hierarquia: departamento → seccional → delegacia. Ligada por **nome** (ver abaixo)                                           |
+| `unidades`                       | Hierarquia: departamento → seccional → delegacia. Ligada por **nome** (ver abaixo). `sigla` ("DPI SUL") só em departamento   |
 | `operacoes`                      | Operações extraordinárias (GISE, CRAJUBAR, EDGE): tipos de equipe, ciclo, `ativo` e a config de escala da operação           |
 | `operacao_linha_base`            | Valor inicial de cada indicador por (operação, unidade) — o denominador das metas percentuais                                |
 | `gise_escalas`                   | Escalas extras (status, supervisor, assessor, configuração) — cada uma pertence a uma `operacao`                             |

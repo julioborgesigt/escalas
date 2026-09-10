@@ -147,6 +147,7 @@
 	let editTemExpediente = $state(false);
 	let editTemFds = $state(false);
 	let editCidade = $state('');
+	let editSigla = $state('');
 	let pendingEditar = $state(false);
 
 	// Desativação (não há exclusão de unidade — ver o cabeçalho)
@@ -167,6 +168,7 @@
 		editTemExpediente = u.tem_expediente ?? false;
 		editTemFds = u.tem_fds ?? false;
 		editCidade = u.cidade ?? '';
+		editSigla = u.sigla ?? '';
 	}
 
 	function cancelarEdicao() {
@@ -178,6 +180,7 @@
 		editTemExpediente = false;
 		editTemFds = false;
 		editCidade = '';
+		editSigla = '';
 	}
 
 	function handleEditar() {
@@ -239,6 +242,7 @@
 	<input type="hidden" name="tem_expediente" value={editTemExpediente ? 'on' : ''} />
 	<input type="hidden" name="tem_fds" value={editTemFds ? 'on' : ''} />
 	<input type="hidden" name="cidade" value={editCidade} />
+	<input type="hidden" name="sigla" value={editSigla} />
 {/snippet}
 
 {#snippet editFields(datalistId: string)}
@@ -275,6 +279,17 @@
 				<option value={c}></option>
 			{/each}
 		</datalist>
+		{#if editTipo === 'departamento' || editTipo === 'sub_departamento'}
+			<!-- Sigla é atributo de departamento; delegacia e seccional não têm. -->
+			<input
+				class="input text-xs w-full sm:w-auto sm:max-w-[140px]"
+				type="text"
+				maxlength="20"
+				bind:value={editSigla}
+				placeholder="Sigla (DPI SUL)"
+				aria-label="Sigla do departamento"
+			/>
+		{/if}
 	</div>
 {/snippet}
 
@@ -402,6 +417,12 @@
 												class="inline-block mt-1 text-3xs font-bold uppercase tracking-wide px-2 py-0.5 rounded-md bg-surface-200/80 dark:bg-surface-700/80 text-surface-600 dark:text-surface-300"
 												>{tipoLabel(u.tipo)}</span
 											>
+											{#if u.sigla}
+												<span
+													class="inline-block mt-1 ml-1 text-3xs font-bold uppercase tracking-wide px-2 py-0.5 rounded-md bg-primary-500/15 text-primary-700 dark:text-primary-300"
+													>{u.sigla}</span
+												>
+											{/if}
 											<div class="flex gap-1.5 mt-1.5 items-center">
 												{@render badges(u)}
 											</div>
@@ -516,6 +537,9 @@
 										class="text-3xs font-bold uppercase text-surface-600 dark:text-surface-400 mt-0.5"
 									>
 										{tipoLabel(u.tipo)}
+										{#if u.sigla}
+											<span class="ml-1 text-primary-700 dark:text-primary-300">{u.sigla}</span>
+										{/if}
 									</p>
 									{#if u.seccional_id}
 										<p class="text-3xs text-surface-600 dark:text-surface-400 mt-0.5 truncate">
