@@ -225,6 +225,7 @@ O projeto usa **Cloudflare D1** (SQLite serverless) via **Drizzle ORM**. O schem
 | `municipios`                     | Os 184 municípios do Ceará: código IBGE, nome oficial e coordenada da SEDE                                                   |
 | `distancias_municipios`          | Distância RODOVIÁRIA entre duas sedes, em km — 16.836 pares, uma linha por par não ordenado                                  |
 | `distancias_medicao`             | Procedência da matriz: de onde veio e quando foi medida                                                                      |
+| `feriados`                       | Calendário nacional 2026–2030, gerado por `scripts/gerar-feriados.mjs`; só SUGERE, o pedido guarda a própria declaração      |
 | `plano_equipes`                  | Equipes do plano: viatura, origem/destino e a distância entre eles, briefing, horário próprio e a rubrica                    |
 | `plano_equipe_membros`           | Efetivo do plano, com `cargo`/`classe` CONGELADOS — são a base de cálculo, não acompanham promoção                           |
 | `aceites_termos`                 | Histórico de aceite de termos de uso (versão, hash, IP, user-agent)                                                          |
