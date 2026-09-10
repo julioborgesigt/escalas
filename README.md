@@ -222,7 +222,7 @@ O projeto usa **Cloudflare D1** (SQLite serverless) via **Drizzle ORM**. O schem
 | `custo_parametros`               | Valores de hora extra por faixa e das diárias, em centavos — **append-only**: cada gravação é uma versão nova                |
 | `planos_operacionais`            | Plano operacional (operação COM deslocamento): número/ano, janela, coordenador, demandante, signatário e a versão de valores |
 | `plano_opcoes`                   | Listas de BRIEFING, CIDADE DE ORIGEM e CIDADE DE DESTINO que o plano oferece aos seletores das equipes — uma padrão por tipo |
-| `municipios`                     | Os 184 municípios do Ceará: código IBGE, nome oficial e coordenada da SEDE                                                   |
+| `municipios`                     | Os 5.571 municípios do Brasil: código IBGE, nome oficial e coordenada da SEDE (CE na 0072, o resto na 0078)                  |
 | `distancias_municipios`          | Distância RODOVIÁRIA entre duas sedes, em km — 16.836 pares, uma linha por par não ordenado                                  |
 | `distancias_medicao`             | Procedência da matriz: de onde veio e quando foi medida                                                                      |
 | `feriados`                       | Calendário nacional 2026–2030, gerado por `scripts/gerar-feriados.mjs`; só SUGERE, o pedido guarda a própria declaração      |
