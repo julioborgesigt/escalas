@@ -2002,6 +2002,32 @@ export const distanciasMedicao = sqliteTable('distancias_medicao', {
 	pares: integer('pares').notNull()
 });
 
+/**
+ * Calendário de feriados (módulo de diárias). Semeada por
+ * `scripts/gerar-feriados.mjs` — hoje só o calendário NACIONAL; o cabeçalho do
+ * script diz o que entra e o que fica de fora.
+ *
+ * `uf` é `''` quando nacional, e não NULL: a chave primária é composta e NULL
+ * não casa consigo mesmo num UNIQUE. `abrangencia` é vocabulário aberto
+ * (`nacional` hoje; `estadual` quando entrar), sem CHECK — a mesma decisão dos
+ * estados do módulo.
+ *
+ * Só SUGERE: o pedido guarda a própria declaração de feriado, com a origem
+ * (`calendario` ou `manual`), então mudar esta tabela nunca reescreve pedido já
+ * feito.
+ */
+export const feriados = sqliteTable(
+	'feriados',
+	{
+		data: text('data').notNull(),
+		abrangencia: text('abrangencia').notNull().default('nacional'),
+		uf: text('uf').notNull().default(''),
+		descricao: text('descricao').notNull(),
+		fonte: text('fonte').notNull()
+	},
+	(table) => [primaryKey({ columns: [table.data, table.abrangencia, table.uf] })]
+);
+
 // ---- Tipos inferidos ----
 
 export type Policial = typeof policiais.$inferSelect;
@@ -2023,6 +2049,7 @@ export type PlanoEquipeMembro = typeof planoEquipeMembros.$inferSelect;
 export type PlanoOpcao = typeof planoOpcoes.$inferSelect;
 export type Municipio = typeof municipios.$inferSelect;
 export type DistanciaMunicipios = typeof distanciasMunicipios.$inferSelect;
+export type Feriado = typeof feriados.$inferSelect;
 export type GiseEscala = typeof giseEscalas.$inferSelect;
 export type GiseSeccional = typeof giseSeccionais.$inferSelect;
 export type GiseEquipe = typeof giseEquipes.$inferSelect;
