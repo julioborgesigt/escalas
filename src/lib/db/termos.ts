@@ -13,7 +13,7 @@ import { anonimizarIp } from './audit';
 import { parseUserAgent } from '../server/assinatura/document-utils';
 
 interface RegistrarAceiteInput {
-	usuario_tipo: 'policial' | 'admin';
+	usuario_tipo: 'policial' | 'admin' | 'colaborador';
 	usuario_id: number;
 	versao_termo: string;
 	hash_termo: string;
