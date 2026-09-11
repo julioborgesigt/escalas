@@ -1438,7 +1438,7 @@ O aceite do termo de uso é obrigatório a cada nova versão. Qualquer mudança 
 | Tipo                     | Papel             | Acesso                                                                                                                                                                                                      |
 | ------------------------ | ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `admin` + `isSuperAdmin` | Super Admin       | Tudo do Admin Geral **mais**: promover admins, gerenciar policiais/unidades, configurar política de assinatura, baixar o forense pelo portal `/validar`                                                     |
-| `admin`                  | Admin Geral       | Operação global (escalas, GISE, LGPD/compliance) em todas as unidades — não remodela a base; consoles de auditoria são do Super Admin                                                                       |
+| `admin`                  | Admin Geral       | Operação global (escalas, GISE, LGPD/compliance) em todas as unidades — não remodela a base; cadastra colaboradores; consoles de auditoria são do Super Admin                                               |
 | `policial`               | `admin_seccional` | Gerencia escalas da sua seccional e **solicita** correções cadastrais e atos de RH dos servidores dela; informa a linha de base dos indicadores das unidades (`/dados-base`) e vê `/produtividade` escopado |
 | `policial`               | `admin_unidade`   | O mesmo, escopado à sua unidade                                                                                                                                                                             |
 | `policial`               | —                 | Acessa apenas suas próprias escalas e GISE                                                                                                                                                                  |
@@ -1465,11 +1465,22 @@ sessão `colaborador` (migrações 0081–0083), e o desenho é **falhar fechado
   tipo estreitado (`UsuarioComCadastro`) — é o que impede um
   `tipo === 'policial' ? … : …` lá dentro de tratá-lo como admin por exclusão.
 
-Só o **Super Admin** cria a conta (`/colaboradores`). O login é por **e-mail +
-senha + código por e-mail**, sempre — inclusive no primeiro acesso, porque o
-e-mail é obrigatório na conta e é o que prova, no primeiro login, que a pessoa
-controla o endereço cadastrado. A senha nasce provisória, gerada pelo servidor e
-mostrada uma vez ao Super Admin; não há recuperação por link — ele gera outra.
+O **Admin Geral** cria e gerencia a conta (`/colaboradores`) — e o Super Admin
+junto, por ser um Admin Geral com poderes extras. Admin de seccional e de
+unidade ficam de fora: eles têm escopo sobre servidor já cadastrado, e criar uma
+identidade de acesso é outra coisa.
+
+**A assimetria é sabida**: o Admin Geral não cadastra policial nem unidade (ver
+a matriz em [`DEPLOY.md`](DEPLOY.md#papéis-e-privilégios-de-administrador)), mas
+cadastra colaborador. Ela se sustenta no que a identidade alcança — o
+colaborador falha fechado em tudo e só age onde for designado — e em quem opera
+o módulo de diárias no dia a dia.
+
+O login é por **e-mail + senha + código por e-mail**, sempre — inclusive no
+primeiro acesso, porque o e-mail é obrigatório na conta e é o que prova, no
+primeiro login, que a pessoa controla o endereço cadastrado. A senha nasce
+provisória, gerada pelo servidor e mostrada uma vez a quem cadastrou; não há
+recuperação por link — o administrador gera outra.
 
 ### Cadastro do servidor: quem pede e quem decide
 

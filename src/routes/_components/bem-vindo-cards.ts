@@ -375,6 +375,7 @@ export function cardsBemVindo({ usuario, flags }: EntradaCards): CardBemVindo[] 
 	// Grupo 3 — gestão de pessoas. O cadastro é dos três papéis administrativos,
 	// com texto conforme o poder de cada um; a fila de decisão é de quem decide.
 	if (flags.showPoliciais) cards.push(ehAdmin ? POLICIAIS : POLICIAIS_ESCOPO);
+	if (flags.showColaboradores) cards.push(COLABORADORES);
 	if (flags.showSolicitacoes) cards.push(SOLICITACOES);
 
 	// Grupo 4 — todo policial tem perfil; sessão de admin não tem cadastro.

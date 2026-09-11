@@ -336,9 +336,14 @@
 			<!-- Grupo 3: gestão de pessoas.
 			     "Policiais" é dos TRÊS papéis administrativos (o admin de seccional
 			     e o de unidade veem só o escopo deles, e é da ficha que pedem a
-			     correção de um dado); "Solicitações" é a fila de QUEM DECIDE. -->
+			     correção de um dado); "Solicitações" é a fila de QUEM DECIDE;
+			     "Colaboradores" é só do Admin Geral — criar identidade de acesso
+			     não é administrar pessoa já cadastrada. -->
 			{#if flags.showPoliciais}
 				{@render itemMenu('/policiais', 'Policiais', ICONE.pessoas)}
+			{/if}
+			{#if flags.showColaboradores}
+				{@render itemMenu('/colaboradores', 'Colaboradores', ICONE.pessoas)}
 			{/if}
 			{#if flags.showSolicitacoes}
 				{@render itemMenu('/solicitacoes', 'Solicitações', ICONE.checkLista)}

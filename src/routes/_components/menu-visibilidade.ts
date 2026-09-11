@@ -56,6 +56,12 @@ export interface FlagsMenu {
 	showPoliciais: boolean;
 	/** Fila de decisão dos pedidos — só quem decide. */
 	showSolicitacoes: boolean;
+	/**
+	 * Cadastro de colaboradores — **só o Admin Geral**, não os papéis com
+	 * escopo. Criar identidade de acesso é outra coisa que administrar pessoas
+	 * já cadastradas, e por isso esta flag não acompanha `showPoliciais`.
+	 */
+	showColaboradores: boolean;
 	temPresencaGiseAtiva: boolean;
 	temGiseHistorico: boolean;
 	showGrupo1: boolean;
@@ -117,6 +123,7 @@ export function visibilidadeDoMenu(entrada: EntradaVisibilidade): FlagsMenu {
 		showDadosBase: temLinhaBasePendente,
 		showPoliciais: ehAdmin || temPapelComEscopo,
 		showSolicitacoes: ehAdmin,
+		showColaboradores: ehAdmin,
 		temPresencaGiseAtiva: temPresencaGisePendente,
 		temGiseHistorico,
 		showGrupo1,
