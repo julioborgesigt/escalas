@@ -1442,8 +1442,34 @@ O aceite do termo de uso é obrigatório a cada nova versão. Qualquer mudança 
 | `policial`               | `admin_seccional` | Gerencia escalas da sua seccional e **solicita** correções cadastrais e atos de RH dos servidores dela; informa a linha de base dos indicadores das unidades (`/dados-base`) e vê `/produtividade` escopado |
 | `policial`               | `admin_unidade`   | O mesmo, escopado à sua unidade                                                                                                                                                                             |
 | `policial`               | —                 | Acessa apenas suas próprias escalas e GISE                                                                                                                                                                  |
+| `colaborador`            | —                 | Terceira identidade (servidora administrativa, terceirizada): entra por e-mail, sempre com 2FA; alcança SÓ a lista fechada de `colaboradorPodeAcessarRota` e o que o módulo de diárias designar             |
 
 A matriz completa de capacidades por papel está em [`DEPLOY.md`](DEPLOY.md#papéis-e-privilégios-de-administrador). Membros de GISE têm papéis adicionais (`supervisor`, `assessor/SEINT`, `membro`) calculados dinamicamente a partir da tabela `gise_membros`.
+
+### A terceira identidade: colaborador
+
+Servidora administrativa e colaboradora terceirizada não cabem em `policiais`
+(entrariam nos seletores de escala e no efetivo do plano, com matrícula e cargo
+que não têm) nem em `administradores` (ganhariam Admin Geral nos ~160 pontos
+que perguntam `tipo === 'admin'`). São a tabela `colaboradores` com o tipo de
+sessão `colaborador` (migrações 0081–0083), e o desenho é **falhar fechado**:
+
+- toda verificação que pergunta por `admin` ou `policial` responde "não";
+- a validação de sessão decide POR TIPO e recusa o que não conhece — nunca "o
+  que não é admin é policial", porque os ids das tabelas colidem;
+- o `hooks.server.ts` só deixa a sessão de colaborador entrar na lista fechada
+  de `colaboradorPodeAcessarRota` (`/colaborador`, onboarding, logout); o resto
+  responde 403 ou volta para a área dele;
+- as rotas de credencial e assinatura (passkey, e-mail pessoal, reautenticação,
+  LGPD do titular) usam `requireAuthComCadastro`, que recusa colaborador com o
+  tipo estreitado (`UsuarioComCadastro`) — é o que impede um
+  `tipo === 'policial' ? … : …` lá dentro de tratá-lo como admin por exclusão.
+
+Só o **Super Admin** cria a conta (`/colaboradores`). O login é por **e-mail +
+senha + código por e-mail**, sempre — inclusive no primeiro acesso, porque o
+e-mail é obrigatório na conta e é o que prova, no primeiro login, que a pessoa
+controla o endereço cadastrado. A senha nasce provisória, gerada pelo servidor e
+mostrada uma vez ao Super Admin; não há recuperação por link — ele gera outra.
 
 ### Cadastro do servidor: quem pede e quem decide
 

@@ -22,7 +22,7 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { getDB, registrarUsoCredencial, registrarAuditComContexto, getR2, hasR2 } from '$lib/db';
-import { serverError, requireAuth, validateBody } from '$lib/server/api';
+import { serverError, requireAuthComCadastro, validateBody } from '$lib/server/api';
 import { finalizarPasskeyEscalaSchema } from '$lib/schemas';
 import { persistirEscalaAssinada } from '$lib/server/escalas/assinatura-escala';
 import { descreverVinculoCredencial } from '$lib/server/assinatura/webauthn/authenticator-data';
@@ -40,7 +40,7 @@ export const POST: RequestHandler = async ({
 	request,
 	getClientAddress
 }) => {
-	const u = requireAuth(locals);
+	const u = requireAuthComCadastro(locals);
 	if (u instanceof Response) return u;
 
 	const ip = getClientAddress();

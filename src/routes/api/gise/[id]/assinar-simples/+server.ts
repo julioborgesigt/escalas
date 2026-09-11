@@ -11,7 +11,7 @@ import {
 	apiError,
 	ErrorCode,
 	contentDisposition,
-	requireAuth,
+	requireAuthComCadastro,
 	serverError,
 	validateBody
 } from '$lib/server/api';
@@ -31,7 +31,7 @@ import { envComoRegistro } from '$lib/server/assinatura/document-utils';
 
 export const POST: RequestHandler = async (event) => {
 	const { platform, params, locals, url, request, cookies, getClientAddress } = event;
-	const u = requireAuth(locals);
+	const u = requireAuthComCadastro(locals);
 	if (u instanceof Response) return u;
 
 	const validated = await validateBody(request, assinarSimplesSchema);

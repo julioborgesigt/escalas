@@ -9,7 +9,7 @@
 import type { RequestHandler } from './$types';
 import { getDB, listarPoliciaisEscala, buscarPolicial } from '$lib/db';
 import { prepararAssinaturaSchema } from '$lib/schemas';
-import { requireAuth, badRequest, validateBody } from '$lib/server/api';
+import { requireAuthComCadastro, badRequest, validateBody } from '$lib/server/api';
 import { gerarPdf, gerarPdfPlantao, gerarPdfExpediente } from '$lib/server/export';
 import {
 	adicionarPaginaAuditoria,
@@ -33,7 +33,7 @@ export const POST: RequestHandler = async ({
 	request,
 	getClientAddress
 }) => {
-	const u = requireAuth(locals);
+	const u = requireAuthComCadastro(locals);
 	if (u instanceof Response) return u;
 
 	const validated = await validateBody(request, prepararAssinaturaSchema);

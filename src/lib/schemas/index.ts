@@ -26,6 +26,7 @@ export {
 	reautenticarAssinaturaSchema
 } from './auth';
 export { unidadeSchema } from './unidade';
+export { colaboradorSchema } from './colaborador';
 export {
 	giseSignatureSchema,
 	giseIdParamSchema,

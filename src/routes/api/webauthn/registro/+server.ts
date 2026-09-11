@@ -27,7 +27,13 @@ import {
 	revogarCredenciaisAtivas,
 	registrarAuditComContexto
 } from '$lib/db';
-import { requireAuth, apiError, ErrorCode, badRequest, validateBody } from '$lib/server/api';
+import {
+	requireAuthComCadastro,
+	apiError,
+	ErrorCode,
+	badRequest,
+	validateBody
+} from '$lib/server/api';
 import { webauthnRegistroSchema } from '$lib/schemas';
 import { credencialDoUsuario } from '$lib/server/auth/credencial';
 import { resolverAppOrigin } from '$lib/server/app-origin';
@@ -50,7 +56,7 @@ import { abreviarCredencial } from '$lib/chave-assinatura-ui';
 import { base64UrlToBytes } from '$lib/crypto/bin';
 
 export const GET: RequestHandler = async ({ platform, locals, url, request }) => {
-	const u = requireAuth(locals);
+	const u = requireAuthComCadastro(locals);
 	if (u instanceof Response) return u;
 
 	const recusaUa = recusaCadastroChaveDesktop(request.headers.get('user-agent') || '');
@@ -89,7 +95,7 @@ export const GET: RequestHandler = async ({ platform, locals, url, request }) =>
 };
 
 export const POST: RequestHandler = async ({ platform, locals, request, url }) => {
-	const u = requireAuth(locals);
+	const u = requireAuthComCadastro(locals);
 	if (u instanceof Response) return u;
 
 	const recusaUa = recusaCadastroChaveDesktop(request.headers.get('user-agent') || '');
@@ -183,7 +189,7 @@ export const POST: RequestHandler = async ({ platform, locals, request, url }) =
  * trocou de aparelho e quer limpar o anterior antes de registrar o novo.
  */
 export const DELETE: RequestHandler = async ({ platform, locals }) => {
-	const u = requireAuth(locals);
+	const u = requireAuthComCadastro(locals);
 	if (u instanceof Response) return u;
 
 	const db = getDB(platform);

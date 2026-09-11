@@ -6,6 +6,7 @@
  */
 import type { LayoutServerLoad } from './$types';
 import { getDB, ehAdminGeralVinculado, buscarCredencialAtiva } from '$lib/db';
+import { temCadastro } from '$lib/auth';
 import { credencialDoUsuario } from '$lib/server/auth/credencial';
 import { lerFlagsAssinatura } from '$lib/server/assinatura/cfg-ass-cache';
 import { lerPapelGise } from '$lib/server/gise/papel-cache';
@@ -70,7 +71,7 @@ export const load: LayoutServerLoad = async ({ locals, platform, cookies, depend
 					// Cache próprio (TTL 60s): a resposta cruza operações ativas, modelos e
 					// participação — cara demais para o `load` que roda a cada navegação.
 					lerTemLinhaBasePendente(db, u),
-					buscarCredencialAtiva(db, credencialDoUsuario(u))
+					temCadastro(u) ? buscarCredencialAtiva(db, credencialDoUsuario(u)) : Promise.resolve(null)
 				]);
 			temLinhaBasePendente = linhaBasePendente;
 			podeAlternarParaAdmin = vinculadoAdmin;

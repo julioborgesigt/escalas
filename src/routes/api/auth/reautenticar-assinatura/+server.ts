@@ -9,7 +9,13 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { getDB } from '$lib/db';
-import { requireAuth, unauthorized, validateBody, apiError, ErrorCode } from '$lib/server/api';
+import {
+	requireAuthComCadastro,
+	unauthorized,
+	validateBody,
+	apiError,
+	ErrorCode
+} from '$lib/server/api';
 import { reautenticarAssinaturaSchema } from '$lib/schemas';
 import { abrirJanelaReauthAssinatura } from '$lib/server/assinatura/reauth';
 
@@ -20,7 +26,7 @@ export const POST: RequestHandler = async ({
 	cookies,
 	getClientAddress
 }) => {
-	const u = requireAuth(locals);
+	const u = requireAuthComCadastro(locals);
 	if (u instanceof Response) return u;
 
 	const sessaoToken = cookies.get('session_token');

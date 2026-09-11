@@ -223,8 +223,14 @@
 			{#each nav.filhosExtra as filho (filho.href)}
 				{@render itemMenu(filho.href, filho.rotulo, filho.icone, filho.ativo)}
 			{/each}
+		{:else if usuario?.tipo === 'colaborador'}
+			<!-- Colaborador (terceira identidade): só a própria área. As funções
+			     designadas no módulo de diárias acrescentam itens aqui quando
+			     existirem; até lá a lista é esta, e o portão do hooks.server.ts
+			     recusa qualquer outra rota. -->
+			{@render itemMenu('/colaborador', 'Boas-vindas', ICONE.casa)}
 		{:else if usuario?.isSuperAdmin}
-			<!-- Super Admin: menu exclusivo — apenas estas 7 abas, nesta ordem.
+			<!-- Super Admin: menu exclusivo — apenas estas 8 abas, nesta ordem.
 
 			     "Valores de custo" é do Super Admin, e não do Admin Geral que monta
 			     os planos, porque é a tabela de hora extra e diária da corporação:
@@ -233,6 +239,7 @@
 			{@render itemMenu('/super-admin', 'Boas-vindas', ICONE.casa)}
 			{@render itemMenu('/unidades', 'Unidades', ICONE.predio)}
 			{@render itemMenu('/policiais', 'Policiais', ICONE.pessoas)}
+			{@render itemMenu('/colaboradores', 'Colaboradores', ICONE.pessoas)}
 			{@render itemMenu('/conf-ass', 'Config. Ass.', ICONE.engrenagem)}
 			{@render itemMenu('/config-geral', 'Config. Geral', ICONE.sliders)}
 			{@render itemMenu('/config-custos', 'Valores de custo', ICONE.barras)}

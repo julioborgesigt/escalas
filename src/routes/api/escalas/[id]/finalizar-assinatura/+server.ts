@@ -6,7 +6,7 @@
  */
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { requireAuth, badRequest, serverError, validateBody } from '$lib/server/api';
+import { requireAuthComCadastro, badRequest, serverError, validateBody } from '$lib/server/api';
 import {
 	getDB,
 	getR2,
@@ -33,7 +33,7 @@ export const POST: RequestHandler = async ({
 	request,
 	getClientAddress
 }) => {
-	const u = requireAuth(locals);
+	const u = requireAuthComCadastro(locals);
 	if (u instanceof Response) return u;
 
 	const ip = getClientAddress();

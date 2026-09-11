@@ -26,7 +26,7 @@ import { ICONE } from '$lib/constants/icones';
 
 /** Só o recorte de `UsuarioLogado` que a navegação consulta. */
 interface UsuarioDoMenu {
-	tipo?: 'policial' | 'admin';
+	tipo?: 'policial' | 'admin' | 'colaborador';
 	papel?: 'admin_seccional' | 'admin_unidade' | null;
 }
 

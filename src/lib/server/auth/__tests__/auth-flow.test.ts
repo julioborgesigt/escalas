@@ -11,7 +11,7 @@
  * o envio de e-mail (fire-and-forget) é mockado para não tocar a rede.
  */
 import { describe, it, expect, vi, beforeAll, beforeEach } from 'vitest';
-import { administradores, policiais } from '$lib/server/schema';
+import { administradores, policiais, colaboradores } from '$lib/server/schema';
 import { hashSenha } from '$lib/auth';
 import type { Database } from '$lib/db';
 
@@ -294,5 +294,92 @@ describe('tentarLogin — alerta de credencial de bootstrap', () => {
 		});
 		expect('pendente2FA' in r).toBe(true);
 		expect(captureMessage).not.toHaveBeenCalled();
+	});
+});
+
+describe('tentarLogin — colaborador (terceira identidade, decisão 71)', () => {
+	function fakeDbColaborador(conta: Row | undefined): Database {
+		const select = (fields?: Record<string, unknown>) => ({
+			from: (table: unknown) => ({
+				where: () => {
+					const isCount = !!fields && 'n' in fields;
+					return {
+						all: async () => [] as Row[],
+						get: async () => (table === colaboradores ? conta : undefined),
+						then: (resolve: (v: Row[]) => unknown, reject: (e: unknown) => unknown) =>
+							Promise.resolve(isCount ? [{ n: 0 }] : ([] as Row[])).then(resolve, reject)
+					};
+				}
+			})
+		});
+		const insert = () => ({ values: async () => undefined });
+		const update = () => ({ set: () => ({ where: async () => undefined }) });
+		return { select, insert, update } as unknown as Database;
+	}
+	const conta = (over: Row = {}): Row => ({
+		id: 7,
+		nome: 'Ana Servidora',
+		email: 'ana@pc.ce.gov.br',
+		senha: senhaHash,
+		ativo: 1,
+		primeiro_acesso: 0,
+		vinculo: 'Empresa X',
+		...over
+	});
+
+	it('entra por e-mail e para SEMPRE no 2º fator — o e-mail é obrigatório na conta', async () => {
+		const r = await tentarLogin({
+			db: fakeDbColaborador(conta()),
+			ip: '1.2.3.4',
+			matricula: 'Ana@PC.CE.GOV.BR',
+			senha: SENHA,
+			tipo: 'colaborador',
+			platform: undefined
+		});
+		expect(r.sucesso).toBe(false);
+		expect('pendente2FA' in r).toBe(true);
+		if (!r.sucesso && 'pendente2FA' in r) {
+			expect(r.pendente2FA.tipoUsuario2FA).toBe('colaborador');
+			expect(r.pendente2FA.nome).toBe('Ana Servidora');
+		}
+	});
+
+	it('no primeiro acesso TAMBÉM passa pelo 2FA — não há atalho sem segundo fator', async () => {
+		const r = await tentarLogin({
+			db: fakeDbColaborador(conta({ primeiro_acesso: 1 })),
+			ip: '1.2.3.4',
+			matricula: 'ana@pc.ce.gov.br',
+			senha: SENHA,
+			tipo: 'colaborador',
+			platform: undefined
+		});
+		expect(r.sucesso).toBe(false);
+		expect('pendente2FA' in r && r.pendente2FA.primeiroAcesso).toBe(true);
+	});
+
+	it('senha errada e conta inexistente dão a MESMA resposta (401, sem oráculo)', async () => {
+		const errada = await tentarLogin({
+			db: fakeDbColaborador(conta()),
+			ip: '1.2.3.4',
+			matricula: 'ana@pc.ce.gov.br',
+			senha: 'outra',
+			tipo: 'colaborador',
+			platform: undefined
+		});
+		const inexistente = await tentarLogin({
+			db: fakeDbColaborador(undefined),
+			ip: '1.2.3.4',
+			matricula: 'ninguem@pc.ce.gov.br',
+			senha: SENHA,
+			tipo: 'colaborador',
+			platform: undefined
+		});
+		expect(errada.sucesso).toBe(false);
+		expect(inexistente.sucesso).toBe(false);
+		if (!errada.sucesso && !inexistente.sucesso && 'erro' in errada && 'erro' in inexistente) {
+			expect(errada.statusCode).toBe(401);
+			expect(inexistente.statusCode).toBe(401);
+			expect(errada.erro).toBe(inexistente.erro);
+		}
 	});
 });

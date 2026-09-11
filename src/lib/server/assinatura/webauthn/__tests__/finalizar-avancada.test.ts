@@ -19,6 +19,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { bancoMigrado, drizzleSobre } from '$lib/db/__tests__/sqlite-migrado';
 import type { Database } from '$lib/db';
+import type { UsuarioComCadastro } from '$lib/auth';
 import { registrarCredencial } from '$lib/db/webauthn';
 import { criarIntencaoAssinatura } from '../../intencao';
 import { conferirFinalizacaoPasskey } from '../finalizar-avancada';
@@ -121,7 +122,7 @@ describe('conferirFinalizacaoPasskey', () => {
 	const chamar = (intencao: string, assercao: Awaited<ReturnType<typeof montarAssercao>>) =>
 		conferirFinalizacaoPasskey({
 			db,
-			usuario: USUARIO as unknown as NonNullable<App.Locals['usuario']>,
+			usuario: USUARIO as unknown as UsuarioComCadastro,
 			alvo: ALVO,
 			corpo: { intencao, preparedPdf: btoa(String.fromCharCode(...PDF)), assercao },
 			url: URL_REQ,
@@ -214,7 +215,7 @@ describe('conferirFinalizacaoPasskey', () => {
 
 		const r = await conferirFinalizacaoPasskey({
 			db,
-			usuario: USUARIO as unknown as NonNullable<App.Locals['usuario']>,
+			usuario: USUARIO as unknown as UsuarioComCadastro,
 			alvo: ALVO,
 			corpo: {
 				intencao,
