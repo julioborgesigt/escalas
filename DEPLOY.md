@@ -224,31 +224,32 @@ Para flagrar isso sem nova tabela nem armazenamento extra, `GET /api/health?deta
 
 Há quatro níveis. O **Super Admin é um Admin Geral com poderes extras** (é `tipo='admin'` + `isSuperAdmin`), então faz tudo que o Admin Geral faz **mais** a coluna exclusiva. Os dois admins de banco (`administradores`) nascem **só** dos bootstraps por env (`SUPER_ADMIN_*` / `ADMIN_GERAL_*`); **não há tela para criá-los**. Já os admins **operacionais** (Seccional/Unidade) são **policiais promovidos** — e só o **Super Admin** promove.
 
-| Capacidade                                                          | Super Admin | Admin Geral | Admin Seccional |  Admin Unidade   |
-| ------------------------------------------------------------------- | :---------: | :---------: | :-------------: | :--------------: |
-| **Promover/alterar papéis** (criar admins)                          |     ✅      |     ❌      |       ❌        |        ❌        |
-| **Gerenciar policiais** (cadastrar/editar/excluir/upload CSV)       |     ✅      |     ❌      |       ❌        |        ❌        |
-| **Gerenciar unidades/seccionais** (CRUD)                            |     ✅      |     ❌      |       ❌        |        ❌        |
-| **Configurar política de assinatura** (foto/GPS/código/smartphone)  |     ✅      |     ❌      |       ❌        |        ❌        |
-| **Baixar PDF forense íntegro** (`?manifesto=true` nos downloads)    |     ✅      |     ✅      |       ❌        |      ❌ (¹)      |
-| **Baixar o forense pelo portal `/validar`** (rota semi-pública)     |     ✅      |     ❌      |       ❌        |        ❌        |
-| Escalas — **escopo**                                                |   global    |   global    |  sua seccional  |   sua unidade    |
-| Ficha do servidor (`/policiais/[id]`) — **escopo de leitura**       |   global    |   global    |  sua seccional  |   sua unidade    |
-| **Alterar o cadastro** do servidor (nome, CPF, telefone, classe…)   |   direto    |   direto    | por solicitação | por solicitação  |
-| **Movimentar / afastar / desvincular** servidor                     |   direto    |   direto    | por solicitação | por solicitação  |
-| **Decidir** as solicitações pendentes (`/solicitacoes`)             |     ✅      |     ✅      |       ❌        |        ❌        |
-| GISE (finalizar/reabrir/exportar histórico)                         |     ✅      |     ✅      |       ❌        |        ❌        |
-| LGPD / Compliance / incidentes / direitos dos titulares             |     ✅      |     ✅      |       ❌        |        ❌        |
-| Consoles de **auditoria** (`/auditoria`, `/auditoria/logs`, export) |     ✅      |     ❌      |       ❌        |        ❌        |
-| Alternar módulo (escalas ↔ GISE)                                    |     ✅      |     ✅      |       ❌        |        ❌        |
-| Receber a **cópia de conferência** dos documentos                   |     ✅      |     ✅      |       ✅        | ✅ (e policiais) |
+| Capacidade                                                               | Super Admin | Admin Geral | Admin Seccional |  Admin Unidade   |
+| ------------------------------------------------------------------------ | :---------: | :---------: | :-------------: | :--------------: |
+| **Promover/alterar papéis** (criar admins)                               |     ✅      |     ❌      |       ❌        |        ❌        |
+| **Gerenciar policiais** (cadastrar/editar/excluir/upload CSV)            |     ✅      |     ❌      |       ❌        |        ❌        |
+| **Gerenciar unidades/seccionais** (CRUD)                                 |     ✅      |     ❌      |       ❌        |        ❌        |
+| **Gerenciar colaboradores** (terceira identidade: criar/desativar/senha) |     ✅      |     ✅      |       ❌        |        ❌        |
+| **Configurar política de assinatura** (foto/GPS/código/smartphone)       |     ✅      |     ❌      |       ❌        |        ❌        |
+| **Baixar PDF forense íntegro** (`?manifesto=true` nos downloads)         |     ✅      |     ✅      |       ❌        |      ❌ (¹)      |
+| **Baixar o forense pelo portal `/validar`** (rota semi-pública)          |     ✅      |     ❌      |       ❌        |        ❌        |
+| Escalas — **escopo**                                                     |   global    |   global    |  sua seccional  |   sua unidade    |
+| Ficha do servidor (`/policiais/[id]`) — **escopo de leitura**            |   global    |   global    |  sua seccional  |   sua unidade    |
+| **Alterar o cadastro** do servidor (nome, CPF, telefone, classe…)        |   direto    |   direto    | por solicitação | por solicitação  |
+| **Movimentar / afastar / desvincular** servidor                          |   direto    |   direto    | por solicitação | por solicitação  |
+| **Decidir** as solicitações pendentes (`/solicitacoes`)                  |     ✅      |     ✅      |       ❌        |        ❌        |
+| GISE (finalizar/reabrir/exportar histórico)                              |     ✅      |     ✅      |       ❌        |        ❌        |
+| LGPD / Compliance / incidentes / direitos dos titulares                  |     ✅      |     ✅      |       ❌        |        ❌        |
+| Consoles de **auditoria** (`/auditoria`, `/auditoria/logs`, export)      |     ✅      |     ❌      |       ❌        |        ❌        |
+| Alternar módulo (escalas ↔ GISE)                                         |     ✅      |     ✅      |       ❌        |        ❌        |
+| Receber a **cópia de conferência** dos documentos                        |     ✅      |     ✅      |       ✅        | ✅ (e policiais) |
 
 (¹) Exceção pontual à linha do forense: um **DPC que assinou o próprio documento** também pode baixá-lo com manifesto (`podeBaixarComManifesto` em `src/lib/manifesto.ts` — fonte única da regra, aplicada pelo servidor e pela visibilidade do botão "C/ manifesto").
 
 **Leitura rápida:**
 
 - **Super Admin** = _dono/configurador_: define **quem existe** (policiais), **a estrutura** (unidades), **quem é admin** (papéis) e **a política de assinatura**; único que baixa o forense pelo portal **`/validar`**. **Insubstituível** — sem ele, não há como promover admins nem recriá-lo pela interface. Mantenha-o lacrado (senha em hash `pbkdf2v2` + `SUPER_ADMIN_EMAIL` para 2FA).
-- **Admin Geral** = _operador global_: opera **toda a operação** (escalas/GISE/LGPD) em **todas** as unidades, mas **não remodela a base** (não cadastra policial/unidade, não promove, não configura assinatura). Dispensável após o setup — ver [bootstrap dos admins por env](#variáveis-e-secrets).
+- **Admin Geral** = _operador global_: opera **toda a operação** (escalas/GISE/LGPD) em **todas** as unidades e cadastra **colaboradores** (a terceira identidade, que falha fechado e só age onde for designada), mas **não remodela a base** (não cadastra policial/unidade, não promove, não configura assinatura). Dispensável após o setup — ver [bootstrap dos admins por env](#variáveis-e-secrets).
 - **Admin Seccional / Unidade** = _operador com escopo_: policiais promovidos pelo Super Admin; operam **escalas** dentro da própria seccional/unidade (fecha IDOR cross-unidade) e **pedem** — nunca executam — as mudanças no cadastro dos servidores desse escopo.
 
 > **"Por solicitação" quer dizer que nada muda até o Admin Geral aprovar.** O

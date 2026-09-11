@@ -62,6 +62,7 @@ function destinosDoMenu(usuario: UsuarioDosCards, flags: FlagsMenu): string[] {
 		if (flags.showGise && ehAdmin) destinos.push('/gise/operacoes', '/gise/planos');
 	}
 	if (flags.showPoliciais) destinos.push('/policiais');
+	if (flags.showColaboradores) destinos.push('/colaboradores');
 	if (flags.showSolicitacoes) destinos.push('/solicitacoes');
 	if (usuario.tipo === 'policial') destinos.push('/perfil');
 

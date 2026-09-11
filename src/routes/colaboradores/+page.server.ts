@@ -1,13 +1,23 @@
 /**
- * Cadastro de colaboradores (`/colaboradores`) — restrito ao SUPER ADMIN
- * (decisão 23 do plano do módulo de diárias): é ele quem cria a conta da
- * servidora ou terceirizada, e é ele quem a desativa.
+ * Cadastro de colaboradores (`/colaboradores`) — **Admin Geral** (o Super
+ * Admin é um Admin Geral com poderes extras, então entra por aqui também).
+ *
+ * A decisão 23 do plano do módulo de diárias dizia Super Admin; mudou em
+ * set/2026, a pedido: quem opera o módulo é o Admin Geral do departamento, e
+ * fazer a criação da conta subir um nível travaria o dia a dia. A assimetria é
+ * sabida e está registrada — o Admin Geral **não** cadastra policial nem
+ * unidade (ver a matriz em DEPLOY.md), mas cadastra colaborador. Ela se
+ * justifica pelo que a identidade alcança: o colaborador falha fechado em tudo
+ * e só age onde for designado.
+ *
+ * Admin de seccional e de unidade continuam FORA: eles têm escopo sobre
+ * pessoas já cadastradas, não sobre a criação de identidade de acesso.
  *
  * A senha nasce PROVISÓRIA, gerada pelo servidor e mostrada uma única vez na
  * resposta desta action — nunca gravada em claro nem registrada na auditoria.
  * No primeiro login a pessoa passa pelo 2FA por e-mail (obrigatório para
  * colaborador) e é forçada a trocá-la. Esqueceu a senha? Não há fluxo de
- * recuperação por e-mail para esta identidade: o Super Admin gera outra
+ * recuperação por e-mail para esta identidade: o administrador gera outra
  * provisória aqui (`redefinirSenha`), o que derruba as sessões da conta.
  *
  * **Colaborador não se exclui, só se desativa** — pela mesma razão das
@@ -26,6 +36,7 @@ import {
 	contextoDeEvento
 } from '$lib/db';
 import { colaboradores } from '$lib/server/schema';
+import { isAdminGeral } from '$lib/auth';
 import { eq } from 'drizzle-orm';
 import { colaboradorSchema } from '$lib/schemas';
 import { hashSenha } from '$lib/auth';
@@ -38,7 +49,7 @@ export const load: PageServerLoad = async ({ locals, platform, depends }) => {
 	depends('app:colaboradores');
 	const u = locals.usuario;
 	if (!u) redirect(302, '/login');
-	if (!u.isSuperAdmin) redirect(302, '/');
+	if (!isAdminGeral(u)) redirect(302, '/');
 
 	const db = getDB(platform);
 	return { colaboradores: await listarColaboradores(db) };
@@ -53,8 +64,8 @@ export const actions: Actions = {
 	criar: async (event) => {
 		const { request, locals, platform } = event;
 		const u = locals.usuario;
-		if (!u || !u.isSuperAdmin) {
-			return fail(403, { error: 'Apenas o Super Administrador pode cadastrar colaboradores' });
+		if (!u || !isAdminGeral(u)) {
+			return fail(403, { error: 'Acesso restrito a administradores gerais' });
 		}
 
 		const data = await request.formData();
@@ -115,8 +126,8 @@ export const actions: Actions = {
 	definirAtivo: async (event) => {
 		const { request, locals, platform } = event;
 		const u = locals.usuario;
-		if (!u || !u.isSuperAdmin) {
-			return fail(403, { error: 'Apenas o Super Administrador pode desativar colaboradores' });
+		if (!u || !isAdminGeral(u)) {
+			return fail(403, { error: 'Acesso restrito a administradores gerais' });
 		}
 
 		const data = await request.formData();
@@ -156,8 +167,8 @@ export const actions: Actions = {
 	redefinirSenha: async (event) => {
 		const { request, locals, platform } = event;
 		const u = locals.usuario;
-		if (!u || !u.isSuperAdmin) {
-			return fail(403, { error: 'Apenas o Super Administrador pode redefinir a senha' });
+		if (!u || !isAdminGeral(u)) {
+			return fail(403, { error: 'Acesso restrito a administradores gerais' });
 		}
 
 		const data = await request.formData();
