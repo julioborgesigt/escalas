@@ -222,10 +222,12 @@ O projeto usa **Cloudflare D1** (SQLite serverless) via **Drizzle ORM**. O schem
 | `custo_parametros`               | Valores de hora extra por faixa e das diárias, em centavos — **append-only**: cada gravação é uma versão nova                |
 | `planos_operacionais`            | Plano operacional (operação COM deslocamento): número/ano, janela, coordenador, demandante, signatário e a versão de valores |
 | `plano_opcoes`                   | Listas de BRIEFING, CIDADE DE ORIGEM e CIDADE DE DESTINO que o plano oferece aos seletores das equipes — uma padrão por tipo |
-| `municipios`                     | Os 184 municípios do Ceará: código IBGE, nome oficial e coordenada da SEDE                                                   |
+| `municipios`                     | Os 5.571 municípios do Brasil: código IBGE, nome oficial e coordenada da SEDE (CE na 0072, o resto na 0078)                  |
 | `distancias_municipios`          | Distância RODOVIÁRIA entre duas sedes, em km — 16.836 pares, uma linha por par não ordenado                                  |
 | `distancias_medicao`             | Procedência da matriz: de onde veio e quando foi medida                                                                      |
 | `feriados`                       | Calendário nacional 2026–2030, gerado por `scripts/gerar-feriados.mjs`; só SUGERE, o pedido guarda a própria declaração      |
+| `tempos_municipios`              | Matriz de TEMPO de trajeto (minutos) entre os municípios do Ceará, para a jornada da diária — separada da de km por decisão  |
+| `tempos_medicao`                 | Procedência da matriz de tempos                                                                                              |
 | `plano_equipes`                  | Equipes do plano: viatura, origem/destino e a distância entre eles, briefing, horário próprio e a rubrica                    |
 | `plano_equipe_membros`           | Efetivo do plano, com `cargo`/`classe` CONGELADOS — são a base de cálculo, não acompanham promoção                           |
 | `aceites_termos`                 | Histórico de aceite de termos de uso (versão, hash, IP, user-agent)                                                          |

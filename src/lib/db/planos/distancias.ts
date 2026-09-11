@@ -27,9 +27,16 @@ import type { Database } from '../core';
 /** Quando a matriz foi medida e de onde veio — a tela mostra ao lado do número. */
 export type ProcedenciaMedicao = { fonte: string; medido_em: string } | null;
 
-/** Os municípios de uma UF, em ordem alfabética — alimenta os seletores. */
+/**
+ * Os municípios de uma UF, em ordem alfabética — alimenta os seletores.
+ *
+ * A ordem é feita AQUI, não no `ORDER BY`: o SQLite compara por byte, e "Água
+ * Preta" iria para depois de "Xexéu". No Ceará nenhum nome começa com acento e
+ * o defeito nunca apareceu; nos outros estados são 37 (migração 0078).
+ */
 export async function listarMunicipios(db: Database, uf = 'CE'): Promise<Municipio[]> {
-	return db.select().from(municipios).where(eq(municipios.uf, uf)).orderBy(municipios.nome).all();
+	const lista = await db.select().from(municipios).where(eq(municipios.uf, uf)).all();
+	return lista.sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
 }
 
 /**

@@ -2034,6 +2034,39 @@ export const feriados = sqliteTable(
 	(table) => [primaryKey({ columns: [table.data, table.abrangencia, table.uf] })]
 );
 
+/**
+ * Matriz de TEMPO de trajeto entre os municípios do Ceará, em minutos — para
+ * o módulo de diárias estimar a jornada da viagem (`$lib/diarias/jornada`,
+ * entrada `minutosIda`).
+ *
+ * Separada de `distanciasMunicipios` por decisão: aquela decide a rubrica do
+ * plano operacional (100 km) e não muda por causa do módulo novo. Mesma chave
+ * (par não ordenado, menor código primeiro, `chaveDoPar`), mesmas sedes —
+ * `scripts/gerar-tempos.mjs` mede entre as coordenadas da 0072 e confere a
+ * distância contra ela. Só PRÉ-PREENCHE: o que vale para um pedido fica nele.
+ */
+export const temposMunicipios = sqliteTable(
+	'tempos_municipios',
+	{
+		origem_ibge: text('origem_ibge')
+			.notNull()
+			.references(() => municipios.ibge, { onDelete: 'cascade' }),
+		destino_ibge: text('destino_ibge')
+			.notNull()
+			.references(() => municipios.ibge, { onDelete: 'cascade' }),
+		minutos: integer('minutos').notNull()
+	},
+	(table) => [primaryKey({ columns: [table.origem_ibge, table.destino_ibge] })]
+);
+
+/** Procedência da matriz de tempos — uma linha, como `distanciasMedicao`. */
+export const temposMedicao = sqliteTable('tempos_medicao', {
+	id: integer('id').primaryKey({ autoIncrement: true }),
+	fonte: text('fonte').notNull(),
+	medido_em: text('medido_em').notNull(),
+	pares: integer('pares').notNull()
+});
+
 // ---- Tipos inferidos ----
 
 export type Policial = typeof policiais.$inferSelect;
@@ -2056,6 +2089,7 @@ export type PlanoOpcao = typeof planoOpcoes.$inferSelect;
 export type Municipio = typeof municipios.$inferSelect;
 export type DistanciaMunicipios = typeof distanciasMunicipios.$inferSelect;
 export type Feriado = typeof feriados.$inferSelect;
+export type TempoMunicipios = typeof temposMunicipios.$inferSelect;
 export type GiseEscala = typeof giseEscalas.$inferSelect;
 export type GiseSeccional = typeof giseSeccionais.$inferSelect;
 export type GiseEquipe = typeof giseEquipes.$inferSelect;
