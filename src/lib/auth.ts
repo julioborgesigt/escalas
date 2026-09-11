@@ -397,6 +397,11 @@ export async function validarSessao(
 		return admin ? mapearAdmin(admin, platform) : null;
 	}
 
+	// Decide POR TIPO, nunca "o que não é admin é policial": `usuario_id` de
+	// tabelas diferentes colidem, e uma sessão de outro tipo carregaria o
+	// policial de mesmo id. Tipo que este código não conhece é sessão inválida.
+	if (sessao.tipo !== 'policial') return null;
+
 	const policial = await db
 		.select()
 		.from(policiais)
@@ -455,6 +460,10 @@ export async function validarSessaoComAceite(
 		const admin = adminDaSessao(linhas[0]);
 		usuario = admin ? mapearAdmin(admin, platform) : null;
 		ultimoAceite = aceites[0];
+	} else if (sessao.tipo !== 'policial') {
+		// Mesma regra de `validarSessao`: tipo desconhecido é sessão inválida,
+		// não "policial por exclusão" — os ids das tabelas colidem.
+		usuario = null;
 	} else {
 		const userQuery = db
 			.select()

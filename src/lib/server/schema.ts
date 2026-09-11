@@ -181,6 +181,39 @@ export const administradores = sqliteTable('administradores', {
 	created_at: text('created_at').default(sql`(datetime('now', '-3 hours'))`)
 });
 
+/**
+ * A terceira identidade (migração 0082): servidora administrativa ou
+ * colaboradora terceirizada. Não é policial (não entra em escala nem em
+ * efetivo) nem admin (não ganha Admin Geral): tipo de sessão próprio, que
+ * FALHA FECHADO nos ~160 pontos que perguntam `tipo === 'admin'`. O acesso é só
+ * o que a designação (módulo de diárias) conceder.
+ *
+ * `email` é o identificador de login e o canal do 2FA — por isso único. CPF
+ * cifrado em repouso e índice cego, como em `policiais`.
+ */
+export const colaboradores = sqliteTable(
+	'colaboradores',
+	{
+		id: integer('id').primaryKey({ autoIncrement: true }),
+		nome: text('nome').notNull(),
+		email: text('email').notNull().unique(),
+		senha: text('senha').notNull(),
+		cpf: text('cpf'),
+		cpf_index: text('cpf_index'),
+		/** Empresa ou contrato — a quem a conta pertence, para saber quando revogar. */
+		vinculo: text('vinculo').notNull().default(''),
+		primeiro_acesso: integer('primeiro_acesso').notNull().default(1),
+		ativo: integer('ativo').notNull().default(1),
+		/** Quem criou (Super Admin, decisão 23), em snapshot. */
+		criado_por_id: integer('criado_por_id'),
+		criado_por_nome: text('criado_por_nome').notNull().default(''),
+		created_at: text('created_at')
+			.notNull()
+			.default(sql`(datetime('now', '-3 hours'))`)
+	},
+	(table) => [index('idx_colaboradores_cpf_index').on(table.cpf_index)]
+);
+
 // ---- Sessoes ----
 
 export const sessoes = sqliteTable(
@@ -188,7 +221,13 @@ export const sessoes = sqliteTable(
 	{
 		id: integer('id').primaryKey({ autoIncrement: true }),
 		token: text('token').notNull().unique(),
-		tipo: text('tipo', { enum: ['policial', 'admin'] }).notNull(),
+		/**
+		 * `colaborador` é a terceira identidade (migração 0082). A coluna não tem
+		 * CHECK — o vocabulário é só TypeScript. Quem valida sessão decide POR
+		 * TIPO e recusa o que não conhece (`$lib/auth`); nunca "o que não é admin
+		 * é policial", porque `usuario_id` de tabelas diferentes colidem.
+		 */
+		tipo: text('tipo', { enum: ['policial', 'admin', 'colaborador'] }).notNull(),
 		usuario_id: integer('usuario_id').notNull(),
 		created_at: text('created_at').default(sql`(datetime('now', '-3 hours'))`),
 		expires_at: text('expires_at').notNull()
@@ -812,7 +851,8 @@ export const aceitesTermos = sqliteTable(
 	'aceites_termos',
 	{
 		id: integer('id').primaryKey({ autoIncrement: true }),
-		usuario_tipo: text('usuario_tipo', { enum: ['policial', 'admin'] }).notNull(),
+		/** `colaborador` desde a migração 0081, que refez o CHECK do banco. */
+		usuario_tipo: text('usuario_tipo', { enum: ['policial', 'admin', 'colaborador'] }).notNull(),
 		usuario_id: integer('usuario_id').notNull(),
 		versao_termo: text('versao_termo').notNull(),
 		hash_termo: text('hash_termo').notNull(),
@@ -2089,6 +2129,7 @@ export type PlanoOpcao = typeof planoOpcoes.$inferSelect;
 export type Municipio = typeof municipios.$inferSelect;
 export type DistanciaMunicipios = typeof distanciasMunicipios.$inferSelect;
 export type Feriado = typeof feriados.$inferSelect;
+export type Colaborador = typeof colaboradores.$inferSelect;
 export type TempoMunicipios = typeof temposMunicipios.$inferSelect;
 export type GiseEscala = typeof giseEscalas.$inferSelect;
 export type GiseSeccional = typeof giseSeccionais.$inferSelect;

@@ -230,7 +230,8 @@ O projeto usa **Cloudflare D1** (SQLite serverless) via **Drizzle ORM**. O schem
 | `tempos_medicao`                 | Procedência da matriz de tempos                                                                                              |
 | `plano_equipes`                  | Equipes do plano: viatura, origem/destino e a distância entre eles, briefing, horário próprio e a rubrica                    |
 | `plano_equipe_membros`           | Efetivo do plano, com `cargo`/`classe` CONGELADOS — são a base de cálculo, não acompanham promoção                           |
-| `aceites_termos`                 | Histórico de aceite de termos de uso (versão, hash, IP, user-agent)                                                          |
+| `colaboradores`                  | A terceira identidade: servidora administrativa e terceirizada. Tipo de sessão próprio, que FALHA FECHADO fora do concedido  |
+| `aceites_termos`                 | Histórico de aceite de termos de uso (versão, hash, IP, user-agent). `usuario_tipo` admite `colaborador` desde a 0081        |
 | `audit_log`                      | Trilha de auditoria forense (eventos de negócio, cadeia de hash tamper-evident)                                              |
 | `app_log`                        | Logs técnicos do servidor (warn/error do logger, correlacionados por `request_id`)                                           |
 
