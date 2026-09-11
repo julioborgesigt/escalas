@@ -1,0 +1,198 @@
+/**
+ * Cadastro de colaboradores (`/colaboradores`) — restrito ao SUPER ADMIN
+ * (decisão 23 do plano do módulo de diárias): é ele quem cria a conta da
+ * servidora ou terceirizada, e é ele quem a desativa.
+ *
+ * A senha nasce PROVISÓRIA, gerada pelo servidor e mostrada uma única vez na
+ * resposta desta action — nunca gravada em claro nem registrada na auditoria.
+ * No primeiro login a pessoa passa pelo 2FA por e-mail (obrigatório para
+ * colaborador) e é forçada a trocá-la. Esqueceu a senha? Não há fluxo de
+ * recuperação por e-mail para esta identidade: o Super Admin gera outra
+ * provisória aqui (`redefinirSenha`), o que derruba as sessões da conta.
+ *
+ * **Colaborador não se exclui, só se desativa** — pela mesma razão das
+ * unidades e dos policiais: o que ele fizer no módulo de diárias (autuações,
+ * pedidos montados) aponta para o id dele.
+ */
+import { fail, redirect } from '@sveltejs/kit';
+import type { PageServerLoad, Actions } from './$types';
+import {
+	getDB,
+	listarColaboradores,
+	criarColaborador,
+	buscarColaborador,
+	definirColaboradorAtivo,
+	auditar,
+	contextoDeEvento
+} from '$lib/db';
+import { colaboradores } from '$lib/server/schema';
+import { eq } from 'drizzle-orm';
+import { colaboradorSchema } from '$lib/schemas';
+import { hashSenha } from '$lib/auth';
+import { gerarSenhaProvisoria } from '$lib/server/auth/senha-provisoria';
+import { resolverCredencial, revogarSessoesDaCredencial } from '$lib/server/auth/credencial';
+import { ehViolacaoUnique, mensagemComCausas } from '$lib/server/db-errors';
+import { logger } from '$lib/server/logger';
+
+export const load: PageServerLoad = async ({ locals, platform, depends }) => {
+	depends('app:colaboradores');
+	const u = locals.usuario;
+	if (!u) redirect(302, '/login');
+	if (!u.isSuperAdmin) redirect(302, '/');
+
+	const db = getDB(platform);
+	return { colaboradores: await listarColaboradores(db) };
+};
+
+/** O pepper do ambiente — o mesmo de todo hash de senha do sistema. */
+function pepperDe(platform: App.Platform | undefined): string | undefined {
+	return (platform?.env as Env | undefined)?.PASSWORD_PEPPER?.trim() || undefined;
+}
+
+export const actions: Actions = {
+	criar: async (event) => {
+		const { request, locals, platform } = event;
+		const u = locals.usuario;
+		if (!u || !u.isSuperAdmin) {
+			return fail(403, { error: 'Apenas o Super Administrador pode cadastrar colaboradores' });
+		}
+
+		const data = await request.formData();
+		const parsed = colaboradorSchema.safeParse({
+			nome: data.get('nome')?.toString() ?? '',
+			email: data.get('email')?.toString() ?? '',
+			cpf: data.get('cpf')?.toString() ?? '',
+			vinculo: data.get('vinculo')?.toString() ?? ''
+		});
+		if (!parsed.success) {
+			return fail(400, { error: parsed.error.issues[0].message });
+		}
+
+		const db = getDB(platform);
+		const senhaProvisoria = gerarSenhaProvisoria();
+		try {
+			const criado = await criarColaborador(
+				db,
+				{
+					nome: parsed.data.nome,
+					email: parsed.data.email,
+					cpf: parsed.data.cpf || null,
+					vinculo: parsed.data.vinculo,
+					senhaHash: await hashSenha(senhaProvisoria, pepperDe(platform)),
+					criadoPor: { id: u.id, nome: u.nome }
+				},
+				platform?.env
+			);
+			const { contexto, env } = contextoDeEvento(event);
+			await auditar(
+				db,
+				{
+					acao: 'criar_colaborador',
+					usuario: u,
+					entidade: 'colaborador',
+					entidade_id: criado.id,
+					alvo_tipo: 'colaborador',
+					alvo_id: criado.id,
+					alvo_nome: criado.nome,
+					detalhes: `Colaborador criado: ${criado.nome} (${criado.email})`,
+					// Sem CPF e sem senha: a auditoria guarda o que identifica, não o que expõe.
+					dados_depois: { nome: criado.nome, email: criado.email, vinculo: criado.vinculo },
+					...contexto
+				},
+				{ env }
+			);
+			// A senha provisória sai UMA vez, nesta resposta, para o admin repassar.
+			return { success: true, criado: { id: criado.id, nome: criado.nome }, senhaProvisoria };
+		} catch (e: unknown) {
+			if (ehViolacaoUnique(e)) {
+				return fail(409, { error: 'Já existe um colaborador com este e-mail' });
+			}
+			logger.error('[colaboradores/criar]', { error: mensagemComCausas(e) });
+			return fail(500, { error: 'Erro ao cadastrar o colaborador. Tente novamente.' });
+		}
+	},
+
+	definirAtivo: async (event) => {
+		const { request, locals, platform } = event;
+		const u = locals.usuario;
+		if (!u || !u.isSuperAdmin) {
+			return fail(403, { error: 'Apenas o Super Administrador pode desativar colaboradores' });
+		}
+
+		const data = await request.formData();
+		const id = Number(data.get('colaborador_id'));
+		if (!Number.isInteger(id) || id < 1) return fail(400, { error: 'ID inválido' });
+		const ativo = data.get('ativo') === 'true';
+
+		const db = getDB(platform);
+		const alvo = await buscarColaborador(db, id);
+		if (!alvo) return fail(404, { error: 'Colaborador não encontrado' });
+
+		await definirColaboradorAtivo(db, id, ativo);
+		const { contexto, env } = contextoDeEvento(event);
+		await auditar(
+			db,
+			{
+				acao: ativo ? 'reativar_colaborador' : 'desativar_colaborador',
+				usuario: u,
+				entidade: 'colaborador',
+				entidade_id: id,
+				alvo_tipo: 'colaborador',
+				alvo_id: id,
+				alvo_nome: alvo.nome,
+				detalhes: `${ativo ? 'Reativado' : 'Desativado'}: ${alvo.nome}`,
+				...contexto
+			},
+			{ env }
+		);
+		return { success: true };
+	},
+
+	/**
+	 * Nova senha provisória: `primeiro_acesso` volta a 1 (troca obrigatória no
+	 * próximo login) e as sessões da conta caem — quem estava logado com a senha
+	 * antiga, inclusive um cookie roubado, perde o acesso agora.
+	 */
+	redefinirSenha: async (event) => {
+		const { request, locals, platform } = event;
+		const u = locals.usuario;
+		if (!u || !u.isSuperAdmin) {
+			return fail(403, { error: 'Apenas o Super Administrador pode redefinir a senha' });
+		}
+
+		const data = await request.formData();
+		const id = Number(data.get('colaborador_id'));
+		if (!Number.isInteger(id) || id < 1) return fail(400, { error: 'ID inválido' });
+
+		const db = getDB(platform);
+		const alvo = await buscarColaborador(db, id);
+		if (!alvo) return fail(404, { error: 'Colaborador não encontrado' });
+		if (alvo.ativo !== 1)
+			return fail(409, { error: 'Reative o colaborador antes de redefinir a senha' });
+
+		const senhaProvisoria = gerarSenhaProvisoria();
+		await db
+			.update(colaboradores)
+			.set({ senha: await hashSenha(senhaProvisoria, pepperDe(platform)), primeiro_acesso: 1 })
+			.where(eq(colaboradores.id, id));
+		await revogarSessoesDaCredencial(db, await resolverCredencial(db, 'colaborador', id));
+
+		const { contexto, env } = contextoDeEvento(event);
+		await auditar(
+			db,
+			{
+				acao: 'redefinir_senha_colaborador',
+				usuario: u,
+				entidade: 'colaborador',
+				entidade_id: id,
+				alvo_tipo: 'colaborador',
+				alvo_id: id,
+				alvo_nome: alvo.nome,
+				detalhes: `Senha provisória gerada para ${alvo.nome}; sessões revogadas`,
+				...contexto
+			},
+			{ env }
+		);
+		return { success: true, criado: { id, nome: alvo.nome }, senhaProvisoria };
+	}
+};

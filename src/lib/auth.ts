@@ -35,6 +35,7 @@ import {
 	sessoes,
 	administradores,
 	policiais,
+	colaboradores,
 	doisFatoresTokens,
 	resetSenhaTokens,
 	aceitesTermos
@@ -58,7 +59,13 @@ export {
 
 export interface UsuarioLogado {
 	id: number;
-	tipo: 'policial' | 'admin';
+	/**
+	 * `colaborador` é a terceira identidade (migração 0082): servidora ou
+	 * terceirizada. Não é admin nem policial — toda verificação que pergunta por
+	 * um dos dois responde "não" para ela, e é assim que ela falha fechado. O
+	 * que alcança está em `colaboradorPodeAcessarRota` e nas designações.
+	 */
+	tipo: 'policial' | 'admin' | 'colaborador';
 	nome: string;
 	matricula?: string;
 	lotacao?: string;
@@ -82,11 +89,14 @@ export interface UsuarioLogado {
 	cargo?: 'DPC' | 'OIP';
 	cpf?: string | null;
 	email?: string | null;
+	/** Colaborador: empresa ou contrato a que a conta pertence. */
+	vinculo?: string;
 }
 
 export type TipoDesafio2FA =
 	| 'policial'
 	| 'admin'
+	| 'colaborador'
 	| 'assinatura'
 	| 'reset_policial'
 	| 'reset_admin'
@@ -107,6 +117,18 @@ export type TipoDesafio2FA =
  */
 export function isAdminGeral(u: UsuarioLogado | null): boolean {
 	return u?.tipo === 'admin';
+}
+
+/**
+ * Policial ou admin — as duas identidades com CADASTRO na corporação, que
+ * assinam documentos, têm passkey, e-mail pessoal e credencial vinculável. O
+ * colaborador fica de fora de tudo isso por construção.
+ */
+export type UsuarioComCadastro = UsuarioLogado & { tipo: 'policial' | 'admin' };
+
+/** Narrowing para os caminhos de assinatura e credencial — colaborador não entra. */
+export function temCadastro(u: UsuarioLogado): u is UsuarioComCadastro {
+	return u.tipo === 'policial' || u.tipo === 'admin';
 }
 
 /** Retorna true se o usuário é Admin Seccional */
@@ -188,7 +210,7 @@ const SESSION_SLIDING_THRESHOLD_MS = 15 * 60 * 1000; // 15 min
  */
 export async function criarSessao(
 	db: Database,
-	tipo: 'policial' | 'admin',
+	tipo: UsuarioLogado['tipo'],
 	usuarioId: number
 ): Promise<string> {
 	const token = gerarToken();
@@ -299,6 +321,30 @@ async function mapearPolicial(
 }
 
 /**
+ * Sessão de colaborador. Sem CPF na sessão de propósito: nenhuma tela do
+ * colaborador precisa dele, e a tela do Protocolo não exibe CPF (plano, 4.3).
+ */
+function mapearColaborador(c: typeof colaboradores.$inferSelect): UsuarioLogado {
+	return {
+		id: c.id,
+		tipo: 'colaborador' as const,
+		nome: c.nome,
+		primeiro_acesso: c.primeiro_acesso === 1,
+		email: c.email,
+		vinculo: c.vinculo
+	};
+}
+
+/** A linha do colaborador que ainda autentica: `ativo = 1`, como o policial. */
+function queryColaboradorDaSessao(db: Database, id: number) {
+	return db
+		.select()
+		.from(colaboradores)
+		.where(and(eq(colaboradores.id, id), eq(colaboradores.ativo, 1)))
+		.limit(1);
+}
+
+/**
  * Consulta a linha admin de uma sessão JUNTO com o `ativo` do policial
  * vinculado — as duas informações de que a validação precisa, numa query só
  * (a versão em batch não pode pagar um round-trip a mais).
@@ -397,6 +443,11 @@ export async function validarSessao(
 		return admin ? mapearAdmin(admin, platform) : null;
 	}
 
+	if (sessao.tipo === 'colaborador') {
+		const c = (await queryColaboradorDaSessao(db, sessao.usuario_id))[0];
+		return c ? mapearColaborador(c) : null;
+	}
+
 	// Decide POR TIPO, nunca "o que não é admin é policial": `usuario_id` de
 	// tabelas diferentes colidem, e uma sessão de outro tipo carregaria o
 	// policial de mesmo id. Tipo que este código não conhece é sessão inválida.
@@ -459,6 +510,13 @@ export async function validarSessaoComAceite(
 			: await db.batch([userQuery, aceiteQuery]);
 		const admin = adminDaSessao(linhas[0]);
 		usuario = admin ? mapearAdmin(admin, platform) : null;
+		ultimoAceite = aceites[0];
+	} else if (sessao.tipo === 'colaborador') {
+		const userQuery = queryColaboradorDaSessao(db, sessao.usuario_id);
+		const [cols, aceites] = slidingUpdate
+			? await db.batch([userQuery, aceiteQuery, slidingUpdate])
+			: await db.batch([userQuery, aceiteQuery]);
+		usuario = cols[0] ? mapearColaborador(cols[0]) : null;
 		ultimoAceite = aceites[0];
 	} else if (sessao.tipo !== 'policial') {
 		// Mesma regra de `validarSessao`: tipo desconhecido é sessão inválida,
@@ -747,6 +805,9 @@ export function obterRotaBemVindo(u: UsuarioLogado, adminModulo?: string | null)
 	}
 	if (u.tipo === 'admin') {
 		return adminModulo === 'gise' ? '/gise/bem-vindo' : '/escalas/bem-vindo';
+	}
+	if (u.tipo === 'colaborador') {
+		return '/colaborador';
 	}
 	if (u.papel === 'admin_seccional') {
 		return '/escalas/bem-vindo';

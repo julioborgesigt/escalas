@@ -61,7 +61,7 @@ import {
 } from '$lib/server/assinatura/signature-service';
 import { ERRO_PASSKEY_UM_TIRO } from '$lib/server/assinatura/chave-assinatura';
 import { exigirJanelaReauth } from '$lib/server/assinatura/reauth';
-import { verificarDesafio2FA } from '$lib/auth';
+import { verificarDesafio2FA, temCadastro } from '$lib/auth';
 import { logger } from '$lib/server/logger';
 import { uploadSelfieDataUri } from '$lib/server/assinatura/selfie-upload';
 import { coordenadaGeograficaValida } from '$lib/server/assinatura/document-utils';
@@ -543,6 +543,7 @@ async function prepararConfirmacaoPresenca(event: RequestEvent, tipo: TipoPresen
 	const { request, locals, platform, cookies, getClientAddress } = event;
 	const u = locals.usuario;
 	if (!u) return { ok: false as const, resposta: fail(401, { error: 'Não autorizado' }) };
+	if (!temCadastro(u)) return { ok: false as const, resposta: fail(403, { error: 'Não autorizado' }) };
 
 	const formData = await request.formData();
 	const giseId = parseInt(formData.get('giseId') as string);

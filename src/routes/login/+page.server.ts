@@ -34,7 +34,7 @@ import {
 	contarRecoveryAttempts,
 	registrarRecoveryAttempt
 } from '$lib/server/auth/recovery-rate-limit';
-import { administradores, policiais } from '$lib/server/schema';
+import { administradores, policiais, colaboradores } from '$lib/server/schema';
 import { loginSchema, verificar2faSchema } from '$lib/schemas';
 import { resolverAppOrigin } from '$lib/server/app-origin';
 import { mensagemDeErro } from '$lib/utils/erro';
@@ -68,7 +68,7 @@ export const actions: Actions = {
 		const formData = await request.formData();
 		const matricula = formData.get('matricula') as string;
 		const senha = formData.get('senha') as string;
-		const tipo = formData.get('tipo') as 'policial' | 'admin';
+		const tipo = formData.get('tipo') as 'policial' | 'admin' | 'colaborador';
 		// A tela não escolhe módulo: um só é recortado pela conta; os dois
 		// ficam em `'ambas'` (ou no cookie da sessão anterior) e a troca é
 		// na sidebar (`/api/auth/alternar-modulo`).
@@ -216,7 +216,8 @@ export const actions: Actions = {
 
 		const resultado = await verificarDesafio2FA(db, desafioId, String(codigo), [
 			'policial',
-			'admin'
+			'admin',
+			'colaborador'
 		]);
 
 		if (resultado === 'expirado' || resultado === 'esgotado' || !resultado) {
@@ -259,6 +260,16 @@ export const actions: Actions = {
 				nome: adminLinha.nome,
 				primeiro_acesso: primeiroAcesso
 			};
+		} else if (tipo === 'colaborador') {
+			const c = await db.select().from(colaboradores).where(eq(colaboradores.id, usuarioId)).get();
+			if (!c || c.ativo === 0) return fail(403, { error: 'Usuário inativo' });
+			primeiroAcesso = c.primeiro_acesso === 1;
+			mappedUser = {
+				id: c.id,
+				tipo: 'colaborador' as const,
+				nome: c.nome,
+				primeiro_acesso: primeiroAcesso
+			};
 		} else {
 			const policial = await db.select().from(policiais).where(eq(policiais.id, usuarioId)).get();
 			if (!policial || policial.ativo === 0) return fail(403, { error: 'Usuário inativo' });
@@ -274,7 +285,7 @@ export const actions: Actions = {
 			};
 		}
 
-		const token = await criarSessao(db, tipo as 'policial' | 'admin', usuarioId);
+		const token = await criarSessao(db, tipo as 'policial' | 'admin' | 'colaborador', usuarioId);
 		cookies.set('session_token', token, cookieOptions(url));
 
 		// Auditoria do login. ESTE é o caminho que a tela de login usa (form action),
@@ -285,7 +296,11 @@ export const actions: Actions = {
 			db,
 			{
 				acao: 'login',
-				usuario: { id: usuarioId, nome: mappedUser.nome, tipo: tipo as 'policial' | 'admin' },
+				usuario: {
+					id: usuarioId,
+					nome: mappedUser.nome,
+					tipo: tipo as 'policial' | 'admin' | 'colaborador'
+				},
 				entidade: tipo,
 				entidade_id: usuarioId,
 				detalhes: `Login com 2FA por e-mail (${tipo})`,

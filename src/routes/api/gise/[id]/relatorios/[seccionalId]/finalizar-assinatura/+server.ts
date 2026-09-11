@@ -26,7 +26,7 @@ import {
 	recusarPorDocumentoJaGravado
 } from '$lib/server/assinatura/blob-assinado';
 import {
-	requireAuth,
+	requireAuthComCadastro,
 	badRequest,
 	notFound,
 	forbidden,
@@ -42,7 +42,7 @@ export const POST: RequestHandler = async (event) => {
 	const { platform, params, locals, request, getClientAddress } = event;
 	const p = platform as App.Platform | undefined;
 	const db = getDB(p);
-	const u = requireAuth(locals);
+	const u = requireAuthComCadastro(locals);
 	if (u instanceof Response) return u;
 	if (u.tipo !== 'policial') {
 		return forbidden('Apenas o supervisor designado pode assinar este relatório.');

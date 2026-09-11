@@ -36,7 +36,7 @@ export interface CardBemVindo {
 
 /** Só o recorte de `UsuarioLogado` que a escolha dos cards consulta. */
 export interface UsuarioDosCards {
-	tipo?: 'policial' | 'admin';
+	tipo?: 'policial' | 'admin' | 'colaborador';
 	papel?: 'admin_seccional' | 'admin_unidade' | null;
 	cargo?: string | null;
 	isSuperAdmin?: boolean;
@@ -211,6 +211,14 @@ const POLICIAIS_SUPER: CardBemVindo = {
 	cta: 'Gerenciar policiais'
 };
 
+const COLABORADORES: CardBemVindo = {
+	titulo: 'Colaboradores',
+	descricao:
+		'Cadastre servidores administrativos e terceirizados — a identidade que entra por e-mail e só alcança as funções designadas.',
+	href: '/colaboradores',
+	cta: 'Gerenciar colaboradores'
+};
+
 /**
  * `/conf-ass` — o texto acompanha as CINCO chaves da tela. Ficou por um tempo
  * em "foto, GPS e código por e-mail", de quando eram três: as duas que faltavam
@@ -328,8 +336,19 @@ export function cardsBemVindo({ usuario, flags }: EntradaCards): CardBemVindo[] 
 
 	// Super Admin: console próprio, sem as abas operacionais.
 	if (usuario.isSuperAdmin) {
-		return [UNIDADES, POLICIAIS_SUPER, CONF_ASS, CONFIG_GERAL, CONFIG_CUSTOS, AUDITORIA];
+		return [
+			UNIDADES,
+			POLICIAIS_SUPER,
+			COLABORADORES,
+			CONF_ASS,
+			CONFIG_GERAL,
+			CONFIG_CUSTOS,
+			AUDITORIA
+		];
 	}
+
+	// Colaborador: nenhum card — a área dele diz que nada foi designado ainda.
+	if (usuario.tipo === 'colaborador') return [];
 
 	const cards: CardBemVindo[] = [];
 	const ehAdmin = usuario.tipo === 'admin';

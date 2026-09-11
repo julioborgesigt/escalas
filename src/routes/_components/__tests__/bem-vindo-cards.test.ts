@@ -43,6 +43,7 @@ function destinosDoMenu(usuario: UsuarioDosCards, flags: FlagsMenu): string[] {
 		return [
 			'/unidades',
 			'/policiais',
+			'/colaboradores',
 			'/conf-ass',
 			'/config-geral',
 			'/config-custos',

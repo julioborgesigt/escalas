@@ -33,7 +33,11 @@ beforeEach(() => {
 	`);
 });
 
-function semearSessao(tipo: 'policial' | 'admin', usuarioId: number, token: string) {
+function semearSessao(
+	tipo: 'policial' | 'admin' | 'colaborador',
+	usuarioId: number,
+	token: string
+) {
 	sqlite
 		.prepare(
 			`INSERT INTO sessoes (token, tipo, usuario_id, expires_at) VALUES (?, ?, ?, '2099-01-01T00:00:00.000Z')`
@@ -170,6 +174,35 @@ describe('credencialDoUsuario (sem ida ao banco)', () => {
 
 	it('sessão de policial aponta para si', () => {
 		expect(credencialDoUsuario({ tipo: 'policial', id: POLICIAL })).toEqual({
+			tipo: 'policial',
+			id: POLICIAL
+		});
+	});
+});
+
+describe('colaborador — a terceira identidade nunca se vincula', () => {
+	it('a credencial é só a dele, e o dono é ele mesmo', async () => {
+		await expect(resolverCredencial(db, 'colaborador', POLICIAL)).resolves.toEqual({
+			dono: { tipo: 'colaborador', id: POLICIAL },
+			identidades: [{ tipo: 'colaborador', id: POLICIAL }],
+			vinculado: false
+		});
+	});
+
+	it('revogar derruba só as sessões de colaborador com aquele id — não o policial de mesmo id', async () => {
+		semearSessao('colaborador', POLICIAL, 'tok-col');
+		semearSessao('policial', POLICIAL, 'tok-pol-mesmo-id');
+		semearSessao('colaborador', POLICIAL_SOLTO, 'tok-col-outro');
+
+		await revogarSessoesDaCredencial(db, await resolverCredencial(db, 'colaborador', POLICIAL));
+		expect(tokensVivos()).toEqual(['tok-col-outro', 'tok-pol-mesmo-id']);
+	});
+
+	it('e a senha do policial vinculado continua na linha dele — o colaborador não entra nessa conta', async () => {
+		await revogarSessoesDaCredencial(db, await resolverCredencial(db, 'admin', ADMIN_VINCULADO));
+		expect(
+			credencialDoUsuario({ tipo: 'admin', id: ADMIN_VINCULADO, adminPolicialId: POLICIAL })
+		).toEqual({
 			tipo: 'policial',
 			id: POLICIAL
 		});

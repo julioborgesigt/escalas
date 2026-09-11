@@ -25,6 +25,7 @@ import { redirect } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 import { eq } from 'drizzle-orm';
 import { getDB, buscarCredencialAtiva } from '$lib/db';
+import { temCadastro } from '$lib/auth';
 import { credencialDoUsuario } from '$lib/server/auth/credencial';
 import { descreverVinculoCredencial } from '$lib/server/assinatura/webauthn/authenticator-data';
 import { nomeProvedorAaguid } from '$lib/server/assinatura/webauthn/aaguid-provedores';
@@ -35,7 +36,8 @@ export const load: PageServerLoad = async ({ locals, platform }) => {
 	const u = locals.usuario;
 	if (!u) redirect(302, '/login');
 	// Admin geral não tem cadastro de policial próprio — perfil é do servidor.
-	if (u.tipo !== 'policial') redirect(302, '/escalas/bem-vindo');
+	// `temCadastro` é o narrowing de tipo (colaborador também não tem perfil).
+	if (!temCadastro(u) || u.tipo !== 'policial') redirect(302, '/escalas/bem-vindo');
 
 	const db = getDB(platform);
 	const [row, credencial] = await Promise.all([

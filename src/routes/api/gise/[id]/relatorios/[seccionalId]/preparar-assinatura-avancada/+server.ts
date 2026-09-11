@@ -47,7 +47,7 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { getDB, tryGetR2 } from '$lib/db';
-import { apiError, ErrorCode, serverError, requireAuth, validateBody } from '$lib/server/api';
+import { apiError, ErrorCode, serverError, requireAuthComCadastro, validateBody } from '$lib/server/api';
 import { giseSignatureSchema } from '$lib/schemas';
 import { validarEvidenciasAvancada } from '$lib/server/assinatura/signature-service';
 import { carregarRelatorioExtraParaAssinatura } from '$lib/server/gise/permissao';
@@ -72,7 +72,7 @@ export const POST: RequestHandler = async ({
 	cookies,
 	getClientAddress
 }) => {
-	const u = requireAuth(locals);
+	const u = requireAuthComCadastro(locals);
 	if (u instanceof Response) return u;
 
 	const ua = request.headers.get('user-agent') || '';

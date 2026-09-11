@@ -990,10 +990,12 @@ export const doisFatoresTokens = sqliteTable(
 	{
 		id: integer('id').primaryKey({ autoIncrement: true }),
 		desafio_id: text('desafio_id').notNull().unique(),
+		/** O CHECK do banco acompanha (migração 0083 acrescentou `colaborador`). */
 		tipo: text('tipo', {
 			enum: [
 				'policial',
 				'admin',
+				'colaborador',
 				'assinatura',
 				'reset_policial',
 				'reset_admin',
@@ -1347,7 +1349,9 @@ export const auditLog = sqliteTable(
 		usuario_id: integer('usuario_id'),
 		usuario_nome: text('usuario_nome').notNull().default(''),
 		usuario_papel: text('usuario_papel'),
-		actor_tipo: text('actor_tipo', { enum: ['policial', 'admin', 'sistema', 'webhook'] }),
+		actor_tipo: text('actor_tipo', {
+			enum: ['policial', 'admin', 'colaborador', 'sistema', 'webhook']
+		}),
 		// ---- Ação e classificação ----
 		acao: text('acao').notNull(),
 		categoria: text('categoria'),

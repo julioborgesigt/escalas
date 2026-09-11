@@ -8,7 +8,7 @@ import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { getDB, auditar, contextoDeEvento } from '$lib/db';
 import { buscarAdminAtivo, criarSessao, verificarDesafio2FA } from '$lib/auth';
-import { policiais } from '$lib/server/schema';
+import { policiais, colaboradores } from '$lib/server/schema';
 import { eq } from 'drizzle-orm';
 import { cookieOptions } from '$lib/server/auth/auth-flow';
 import {
@@ -53,7 +53,11 @@ export const POST: RequestHandler = async (event) => {
 	if (!v.ok) return v.response;
 	const { desafioId, codigo } = v.data;
 
-	const resultado = await verificarDesafio2FA(db, desafioId, codigo, ['policial', 'admin']);
+	const resultado = await verificarDesafio2FA(db, desafioId, codigo, [
+		'policial',
+		'admin',
+		'colaborador'
+	]);
 
 	// Registra a tentativa malsucedida (código errado/expirado/esgotado) para o
 	// teto por IP acima. Sucesso não conta. Fail-open: erro de registro não
@@ -113,6 +117,11 @@ export const POST: RequestHandler = async (event) => {
 		if (!admin) return forbidden('Usuário inativo');
 		primeiroAcesso = admin.primeiro_acesso === 1;
 		nomeUsuario = admin.nome;
+	} else if (tipo === 'colaborador') {
+		const c = await db.select().from(colaboradores).where(eq(colaboradores.id, usuarioId)).get();
+		if (!c || c.ativo === 0) return forbidden('Usuário inativo');
+		primeiroAcesso = c.primeiro_acesso === 1;
+		nomeUsuario = c.nome;
 	} else {
 		const policial = await db.select().from(policiais).where(eq(policiais.id, usuarioId)).get();
 		if (!policial || policial.ativo === 0) {
@@ -122,7 +131,7 @@ export const POST: RequestHandler = async (event) => {
 		nomeUsuario = policial.nome;
 	}
 
-	const token = await criarSessao(db, tipo as 'policial' | 'admin', usuarioId);
+	const token = await criarSessao(db, tipo as 'policial' | 'admin' | 'colaborador', usuarioId);
 	cookies.set('session_token', token, cookieOptions(url));
 
 	const { contexto, env } = contextoDeEvento(event);
@@ -130,7 +139,11 @@ export const POST: RequestHandler = async (event) => {
 		db,
 		{
 			acao: 'login',
-			usuario: { id: usuarioId, nome: nomeUsuario, tipo: tipo as 'policial' | 'admin' },
+			usuario: {
+				id: usuarioId,
+				nome: nomeUsuario,
+				tipo: tipo as 'policial' | 'admin' | 'colaborador'
+			},
 			entidade: tipo,
 			entidade_id: usuarioId,
 			detalhes: `Login com 2FA por e-mail (${tipo})`,

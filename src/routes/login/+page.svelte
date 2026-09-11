@@ -57,6 +57,8 @@
 	}
 
 	let tipo = $state<'policial' | 'admin'>('policial');
+	/** Modo colaborador (terceira identidade): e-mail no lugar da matrícula. */
+	let comoColaborador = $state(false);
 	let matricula = $state('');
 	let senha = $state('');
 
@@ -434,6 +436,7 @@
 		{#if !pendente2FA && !primeiroAcesso && !recuperacao}
 			<FormCredenciais
 				bind:tipo
+				bind:comoColaborador
 				bind:matricula
 				bind:senha
 				loginErrorDisplay={erroDeLoginExibido()}

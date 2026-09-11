@@ -19,7 +19,7 @@ import {
 	contarRecoveryAttempts,
 	registrarRecoveryAttempt
 } from '$lib/server/auth/recovery-rate-limit';
-import { requireAuth, badRequest, rateLimited, serverError } from '$lib/server/api';
+import { requireAuthComCadastro, badRequest, rateLimited, serverError } from '$lib/server/api';
 import { recusaCadastroChaveDesktop } from '$lib/server/assinatura/chave-assinatura';
 import {
 	buscarEmailsReposicao,
@@ -33,7 +33,7 @@ const JANELA_MIN = 15;
 
 export const POST: RequestHandler = async ({ platform, locals, request, getClientAddress }) => {
 	try {
-		const u = requireAuth(locals);
+		const u = requireAuthComCadastro(locals);
 		if (u instanceof Response) return u;
 
 		const ua = request.headers.get('user-agent') || '';

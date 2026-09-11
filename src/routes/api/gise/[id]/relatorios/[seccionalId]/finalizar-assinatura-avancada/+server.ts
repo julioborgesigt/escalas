@@ -21,7 +21,7 @@ import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { carregarRelatorioExtraParaAssinatura } from '$lib/server/gise/permissao';
 import { getDB, registrarUsoCredencial, registrarAuditComContexto, tryGetR2 } from '$lib/db';
-import { serverError, requireAuth, validateBody } from '$lib/server/api';
+import { serverError, requireAuthComCadastro, validateBody } from '$lib/server/api';
 import { finalizarPasskeyEscalaSchema } from '$lib/schemas';
 import { persistirExtraAssinado, chaveDocumentoExtra } from '$lib/server/gise/assinatura-extra';
 import { descreverVinculoCredencial } from '$lib/server/assinatura/webauthn/authenticator-data';
@@ -39,7 +39,7 @@ export const POST: RequestHandler = async ({
 	request,
 	getClientAddress
 }) => {
-	const u = requireAuth(locals);
+	const u = requireAuthComCadastro(locals);
 	if (u instanceof Response) return u;
 
 	const ua = request.headers.get('user-agent') || '';

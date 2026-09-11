@@ -11,7 +11,13 @@ import { getDB, buscarGiseEscala, resolverParticipacaoGisePolicial } from '$lib/
 import { gateDePresenca } from '$lib/server/gise/presenca-gate';
 import { identidadeVisualAssinante } from '$lib/server/assinatura/identidade-sessao';
 import { prepararPresencaSchema } from '$lib/schemas';
-import { requireAuth, badRequest, notFound, forbidden, validateBody } from '$lib/server/api';
+import {
+	requireAuthComCadastro,
+	badRequest,
+	notFound,
+	forbidden,
+	validateBody
+} from '$lib/server/api';
 import { gerarTermoPresencaPdf } from '$lib/server/gise/termo-presenca';
 import {
 	adicionarPaginaAuditoria,
@@ -33,7 +39,7 @@ export const POST: RequestHandler = async ({
 	request,
 	getClientAddress
 }) => {
-	const u = requireAuth(locals);
+	const u = requireAuthComCadastro(locals);
 	if (u instanceof Response) return u;
 	if (u.tipo !== 'policial') return forbidden('Apenas policiais confirmam presença.');
 
