@@ -93,7 +93,16 @@ const SENHA_ATUAL_JANELA_MIN = 15;
 
 export const load: PageServerLoad = async ({ locals }) => {
 	return {
-		primeiro_acesso: locals.usuario?.primeiro_acesso ?? false
+		primeiro_acesso: locals.usuario?.primeiro_acesso ?? false,
+		/**
+		 * O tipo decide se a tela pede E-MAIL PESSOAL no primeiro acesso.
+		 * Colaborador não tem — `colaboradores` não tem a coluna, e o e-mail da
+		 * conta já É o login, provado pelo código do 2FA que ele acabou de
+		 * digitar. Sem isto a tela pedia algo inexistente e o botão "Enviar
+		 * código" batia no portão do `hooks.server.ts` ("Acesso não liberado para
+		 * colaborador"), deixando o primeiro acesso travado.
+		 */
+		tipo_usuario: locals.usuario?.tipo ?? null
 	};
 };
 
