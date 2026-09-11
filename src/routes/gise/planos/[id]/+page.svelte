@@ -60,7 +60,7 @@
 	// svelte-ignore state_referenced_locally
 	let diretorId = $state<unknown>(data.plano.diretor_id);
 	// svelte-ignore state_referenced_locally
-	let diretorCargo = $state(cargoSignatarioValido(data.plano.diretor_cargo));
+	let diretorCargo = $state(cargoSignatarioValido(data.plano.diretor_cargo, data.cargos));
 	// svelte-ignore state_referenced_locally
 	let nup = $state(formatarNUP(data.plano.nup ?? ''));
 
@@ -308,6 +308,7 @@
 								<CamposSignatario
 									bind:diretorId
 									bind:cargo={diretorCargo}
+									cargos={data.cargos}
 									selecionado={opcaoDiretor}
 									nomePadrao={data.plano.diretor_id ? '' : data.plano.diretor_nome}
 								/>

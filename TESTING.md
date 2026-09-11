@@ -496,7 +496,7 @@ Verificar cada transição de status:
 - [ ] O formulário ocupa a **largura da folha** e as seções se separam por título e linha — sem cartão dentro de cartão, e sem o título deslocado para uma coluna estreita
 - [ ] **NUP**: digitar só números aplica a máscara `00000.000000/0000-00` conforme se digita, e para em 17 dígitos
 - [ ] Horário de apresentação, previsão de término e data de término ficam na **mesma linha**
-- [ ] **Signatário**: o nome é buscado no cadastro (como o coordenador) e o cargo é um `<select>` com três opções — Diretor Titular do DPI SUL, Diretor Adjunto do DPI SUL, Delegado de Polícia
+- [ ] **Signatário**: o nome é buscado no cadastro (como o coordenador) e o cargo é um `<select>` com três opções geradas do departamento cadastrado — Diretor Titular do Departamento de Polícia do Interior Sul, Diretor Adjunto do Departamento de Polícia do Interior Sul, Delegado de Polícia
 - [ ] Sem escolher signatário, o plano nasce sem ele e o PDF imprime a linha de assinatura em branco (não há padrão global — `/config-custos` é só sobre dinheiro)
 
 - [ ] `/gise/operacoes` → "Nova operação" pergunta **Operação** ou **Plano operacional**

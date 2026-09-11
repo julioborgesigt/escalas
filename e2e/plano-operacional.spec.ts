@@ -1,7 +1,7 @@
 import { test, expect, request as pwRequest } from '@playwright/test';
 import type { APIResponse } from '@playwright/test';
 import { FIXTURE } from './global-setup';
-import { CARGOS_SIGNATARIO } from '../src/lib/planos/padroes';
+import { cargosSignatario } from '../src/lib/planos/padroes';
 import {
 	seedSession,
 	cookieDeSessao,
@@ -317,7 +317,10 @@ test.describe.serial('Plano operacional — valores, plano e PDF', () => {
 		const assinatura = queryD1Local<{ diretor_cargo: string; diretor_id: number | null }>(
 			`SELECT diretor_cargo, diretor_id FROM planos_operacionais WHERE id = ${planoId};`
 		);
-		expect(CARGOS_SIGNATARIO as readonly string[]).toContain(assinatura![0].diretor_cargo);
+		// A lista é gerada do departamento em `unidades` — o DPI SUL semeado.
+		expect(cargosSignatario('Departamento de Polícia do Interior Sul')).toContain(
+			assinatura![0].diretor_cargo
+		);
 		// Sem `diretor_id` no formulário, o plano nasce com o padrão global e
 		// nenhum servidor amarrado — o editor mostra isso e deixa escolher.
 		expect(assinatura![0].diretor_id).toBeFalsy();

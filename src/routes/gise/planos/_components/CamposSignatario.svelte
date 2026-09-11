@@ -23,11 +23,12 @@
 	 */
 	import SearchableSelect from '$lib/components/SearchableSelect.svelte';
 	import { buscarCoordenadores, MIN_BUSCA } from './buscas';
-	import { CARGOS_SIGNATARIO } from '$lib/planos/padroes';
 
 	let {
 		diretorId = $bindable(),
 		cargo = $bindable(''),
+		/** Os cargos aceitos — vêm do servidor, gerados do departamento (`cargosSignatario`). */
+		cargos,
 		/** O que o campo mostra ao abrir, sem ir ao servidor. */
 		selecionado = null,
 		/** Nome que o documento usa hoje quando ninguém foi escolhido aqui. */
@@ -35,6 +36,7 @@
 	}: {
 		diretorId: unknown;
 		cargo: string;
+		cargos: readonly string[];
 		selecionado?: { value: unknown; label: string } | null;
 		nomePadrao?: string;
 	} = $props();
@@ -64,7 +66,7 @@
 	<label class="block space-y-1">
 		<span class="text-sm font-medium text-surface-700 dark:text-surface-200">Cargo</span>
 		<select name="diretor_cargo" bind:value={cargo} class="select w-full">
-			{#each CARGOS_SIGNATARIO as opcao (opcao)}
+			{#each cargos as opcao (opcao)}
 				<option value={opcao}>{opcao}</option>
 			{/each}
 		</select>

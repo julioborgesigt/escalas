@@ -127,7 +127,9 @@ export {
 	definirUnidadeAtiva,
 	vinculosDaUnidade,
 	descreverVinculosUnidade,
-	buscarSeccionaisUnidades
+	buscarSeccionaisUnidades,
+	buscarDepartamentoPadrao,
+	type Departamento
 } from './db/unidades';
 
 export {
