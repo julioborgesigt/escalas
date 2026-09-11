@@ -9,7 +9,13 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { getDB } from '$lib/db';
-import { requireAuthComCadastro, unauthorized, validateBody, apiError, ErrorCode } from '$lib/server/api';
+import {
+	requireAuthComCadastro,
+	unauthorized,
+	validateBody,
+	apiError,
+	ErrorCode
+} from '$lib/server/api';
 import { reautenticarAssinaturaSchema } from '$lib/schemas';
 import { abrirJanelaReauthAssinatura } from '$lib/server/assinatura/reauth';
 

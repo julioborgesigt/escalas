@@ -23,7 +23,13 @@ import {
 } from '$lib/server/gise/assinatura-extra';
 import type { EvidenciasMontagem } from '$lib/server/escalas/assinatura-escala';
 import { envComoRegistro } from '$lib/server/assinatura/document-utils';
-import { apiError, ErrorCode, requireAuthComCadastro, serverError, validateBody } from '$lib/server/api';
+import {
+	apiError,
+	ErrorCode,
+	requireAuthComCadastro,
+	serverError,
+	validateBody
+} from '$lib/server/api';
 
 export const POST: RequestHandler = async (event) => {
 	const { locals, params, request, platform, cookies, getClientAddress, url } = event;

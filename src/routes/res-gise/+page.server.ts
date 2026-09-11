@@ -543,7 +543,8 @@ async function prepararConfirmacaoPresenca(event: RequestEvent, tipo: TipoPresen
 	const { request, locals, platform, cookies, getClientAddress } = event;
 	const u = locals.usuario;
 	if (!u) return { ok: false as const, resposta: fail(401, { error: 'Não autorizado' }) };
-	if (!temCadastro(u)) return { ok: false as const, resposta: fail(403, { error: 'Não autorizado' }) };
+	if (!temCadastro(u))
+		return { ok: false as const, resposta: fail(403, { error: 'Não autorizado' }) };
 
 	const formData = await request.formData();
 	const giseId = parseInt(formData.get('giseId') as string);

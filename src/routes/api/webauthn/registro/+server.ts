@@ -27,7 +27,13 @@ import {
 	revogarCredenciaisAtivas,
 	registrarAuditComContexto
 } from '$lib/db';
-import { requireAuthComCadastro, apiError, ErrorCode, badRequest, validateBody } from '$lib/server/api';
+import {
+	requireAuthComCadastro,
+	apiError,
+	ErrorCode,
+	badRequest,
+	validateBody
+} from '$lib/server/api';
 import { webauthnRegistroSchema } from '$lib/schemas';
 import { credencialDoUsuario } from '$lib/server/auth/credencial';
 import { resolverAppOrigin } from '$lib/server/app-origin';

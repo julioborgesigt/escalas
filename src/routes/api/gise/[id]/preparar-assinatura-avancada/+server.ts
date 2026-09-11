@@ -8,7 +8,13 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { getDB, buscarGiseDetalhado, tryGetR2 } from '$lib/db';
-import { apiError, ErrorCode, serverError, requireAuthComCadastro, validateBody } from '$lib/server/api';
+import {
+	apiError,
+	ErrorCode,
+	serverError,
+	requireAuthComCadastro,
+	validateBody
+} from '$lib/server/api';
 import { assinarSimplesSchema } from '$lib/schemas';
 import { validarEvidenciasAvancada } from '$lib/server/assinatura/signature-service';
 import { giseDetalhadoComMatriculaSupervisorSessao } from '$lib/server/export';
