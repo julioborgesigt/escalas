@@ -138,6 +138,9 @@ describe('CRUD do plano', () => {
 			acoes: '- Cumprimento de Mandados;\n- Lavratura de APF;',
 			diretor_nome: 'CRISTIANO DE MORAIS PEREIRA',
 			diretor_cargo: 'Diretor Titular do Departamento de Polícia do Interior Sul',
+			// A sigla vem da rota (de `unidades`, via `departamentoDoPlano`); o CRUD
+			// não tem mais padrão literal.
+			departamento: 'DPI SUL',
 			feriado: true
 		});
 		const p = await buscarPlano(db, id);

@@ -40,9 +40,6 @@ export const ACOES_PADRAO = [
 /** Item 3 do documento — fixo, sem campo no formulário. */
 export const REFERENCIAS_PADRAO = 'Constituição Federal, CPP e legislação extravagante.';
 
-/** Departamento responsável (item 5 e o cabeçalho do plano). */
-export const DEPARTAMENTO_PADRAO = 'DPI SUL';
-
 /** Horário de apresentação pré-preenchido na criação. */
 export const HORA_INICIO_PADRAO = '04:00';
 
@@ -51,37 +48,40 @@ export const HORA_FIM_PADRAO = '08:00';
 
 /**
  * Os cargos que podem assinar o plano — o `<select>` da tela e a régua do
- * servidor, numa lista só.
+ * servidor, numa lista só, GERADA a partir do departamento.
  *
  * É lista fechada, e não campo livre, porque o cargo aparece IMPRESSO sob a
  * assinatura de um documento oficial: "Diretor Titular" digitado com um dedo
  * torto sai no papel e ninguém revisa depois. Os três são os que assinam plano
- * no DPI SUL.
+ * num departamento.
  *
- * `as const` para o tipo sair do próprio dado: acrescentar um cargo aqui já o
- * oferece na tela e o torna aceito no servidor, sem uma segunda lista.
+ * O órgão vai POR EXTENSO ("Diretor Titular do Departamento de Polícia do
+ * Interior Sul"), nunca pela sigla: sob a assinatura o cargo é qualificação da
+ * autoridade que decide, e abreviação em documento que circula assinado
+ * empobrece o ato (plano do módulo de diárias, decisão 69). O nome vem de
+ * `unidades.nome` — o departamento é dado, não constante (decisão 17), e é o
+ * que permite o mesmo código servir outro departamento sem edição.
+ *
+ * Sem departamento cadastrado (não deveria acontecer: a migração 0006 semeia o
+ * DPI SUL), a lista sai sem o órgão, em vez de imprimir "do " seguido de nada.
  */
-export const CARGOS_SIGNATARIO = [
-	'Diretor Titular do DPI SUL',
-	'Diretor Adjunto do DPI SUL',
-	'Delegado de Polícia'
-] as const;
+export function cargosSignatario(departamentoNome: string): readonly string[] {
+	const nome = departamentoNome.trim();
+	const sufixo = nome ? ` do ${nome}` : '';
+	return [`Diretor Titular${sufixo}`, `Diretor Adjunto${sufixo}`, 'Delegado de Polícia'];
+}
 
-/** Um cargo de signatário válido. */
-export type CargoSignatario = (typeof CARGOS_SIGNATARIO)[number];
-
-/** O cargo pré-selecionado quando o plano nasce sem padrão gravado. */
-export const CARGO_SIGNATARIO_PADRAO: CargoSignatario = CARGOS_SIGNATARIO[0];
+/** Um cargo de signatário — sempre um dos de `cargosSignatario`. */
+export type CargoSignatario = string;
 
 /**
- * O cargo, se for um dos válidos; senão o padrão.
+ * O cargo, se for um dos válidos para este departamento; senão o primeiro
+ * (Diretor Titular).
  *
  * O `<select>` da tela já limita a escolha, mas o POST direto não — e cargo
  * livre vindo do corpo iria impresso no documento sem passar por revisão
  * nenhuma. É a mesma razão de o servidor não confiar no `disabled` de um botão.
  */
-export function cargoSignatarioValido(valor: string): CargoSignatario {
-	return (CARGOS_SIGNATARIO as readonly string[]).includes(valor)
-		? (valor as CargoSignatario)
-		: CARGO_SIGNATARIO_PADRAO;
+export function cargoSignatarioValido(valor: string, cargos: readonly string[]): CargoSignatario {
+	return cargos.includes(valor) ? valor : cargos[0];
 }

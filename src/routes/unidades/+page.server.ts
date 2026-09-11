@@ -62,13 +62,20 @@ function lerUnidadeDoForm(data: FormData) {
 }
 
 /**
- * Nome duplicado vira 409 legível; o resto é logado e sai como 500 genérico —
- * a mensagem crua do Drizzle traz o SQL e os parâmetros, que não devem chegar
- * à tela.
+ * Nome ou sigla duplicados viram 409 legível; o resto é logado e sai como 500
+ * genérico — a mensagem crua do Drizzle traz o SQL e os parâmetros, que não
+ * devem chegar à tela.
+ *
+ * As duas colunas únicas se distinguem pela coluna que o SQLite nomeia na
+ * mensagem ("UNIQUE constraint failed: unidades.sigla"); sem isso, sigla
+ * repetida diria "este nome" e o admin procuraria o erro no campo errado.
  */
 function falhaDeGravacao(e: unknown, acao: string) {
 	if (ehViolacaoUnique(e)) {
-		return fail(409, { error: 'Já existe uma unidade com este nome' });
+		const coluna = /unidades\.sigla/.test(mensagemComCausas(e)) ? 'sigla' : 'nome';
+		return fail(409, {
+			error: `Já existe uma unidade com est${coluna === 'sigla' ? 'a' : 'e'} ${coluna}`
+		});
 	}
 	// Renomeação concorrente: 409 com a mensagem da própria exceção, que já
 	// explica o que aconteceu e o que fazer (FLW-UNIDADE-004).

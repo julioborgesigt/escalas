@@ -54,21 +54,17 @@ import { hojeBrasilISO } from '$lib/utils/datas';
 import { validarHora, normalizarHora } from '$lib/gise/horarios';
 import { logger } from '$lib/server/logger';
 import { textoLimitado } from '$lib/server/form-data';
-import {
-	FINALIDADE_PADRAO,
-	ACOES_PADRAO,
-	DEPARTAMENTO_PADRAO,
-	CARGO_SIGNATARIO_PADRAO,
-	cargoSignatarioValido
-} from '$lib/planos/padroes';
+import { FINALIDADE_PADRAO, ACOES_PADRAO, cargoSignatarioValido } from '$lib/planos/padroes';
+import { departamentoDoPlano } from '$lib/server/planos/departamento';
 
 export const load: PageServerLoad = async ({ locals, platform }) => {
 	if (!isAdminGeral(locals.usuario)) redirect(302, '/gise');
 
 	const db = getDB(platform);
-	const [vigente, municipios] = await Promise.all([
+	const [vigente, municipios, depto] = await Promise.all([
 		buscarCustoParametrosVigente(db),
-		listarMunicipios(db)
+		listarMunicipios(db),
+		departamentoDoPlano(db)
 	]);
 
 	return {
@@ -83,8 +79,10 @@ export const load: PageServerLoad = async ({ locals, platform }) => {
 		temValores: vigente !== null,
 		/** Os 184 do Ceará: as opções de origem/destino saem daqui, não de texto livre. */
 		municipios,
-		/** O primeiro da lista fechada — quem assina de fato se escolhe no campo. */
-		diretorCargo: CARGO_SIGNATARIO_PADRAO
+		/** Sigla do departamento ativo — pré-preenche o campo, que continua editável. */
+		departamentoSigla: depto.sigla,
+		/** Os cargos do signatário para este departamento; o primeiro é o pré-selecionado. */
+		cargos: depto.cargos
 	};
 };
 
@@ -189,13 +187,14 @@ export const actions: Actions = {
 		// A versão de valores e o signatário são congelados AGORA — ver o cabeçalho
 		// do módulo. Sem escolha, o nome fica vazio e o documento imprime a linha
 		// de assinatura em branco.
-		const [vigente, escolhido] = await Promise.all([
+		const [vigente, escolhido, depto] = await Promise.all([
 			buscarCustoParametrosVigente(db),
-			diretorId ? buscarPolicial(db, diretorId) : Promise.resolve(null)
+			diretorId ? buscarPolicial(db, diretorId) : Promise.resolve(null),
+			departamentoDoPlano(db)
 		]);
 
 		const diretorNome = escolhido?.nome ?? '';
-		const diretorCargo = cargoSignatarioValido(texto(fd, 'diretor_cargo', 160));
+		const diretorCargo = cargoSignatarioValido(texto(fd, 'diretor_cargo', 160), depto.cargos);
 
 		let criado: { id: number; numero: number; ano: number };
 		try {
@@ -211,7 +210,7 @@ export const actions: Actions = {
 				feriado: fd.get('feriado') != null,
 				coordenador_id: coordenadorId,
 				demandante_unidade_id: demandanteId,
-				departamento: texto(fd, 'departamento', 60) || DEPARTAMENTO_PADRAO,
+				departamento: texto(fd, 'departamento', 60) || depto.sigla,
 				oip_por_equipe_padrao: oipPorEquipe,
 				diretor_id: escolhido?.id ?? null,
 				diretor_nome: diretorNome,
