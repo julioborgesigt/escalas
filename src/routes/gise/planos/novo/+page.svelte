@@ -28,7 +28,7 @@
 	import { loading } from '$lib/loading.svelte';
 	import { toaster } from '$lib/toast';
 	import BotaoVoltar from '$lib/components/BotaoVoltar.svelte';
-	import { DEPARTAMENTO_PADRAO, HORA_FIM_PADRAO, HORA_INICIO_PADRAO } from '$lib/planos/padroes';
+	import { HORA_FIM_PADRAO, HORA_INICIO_PADRAO } from '$lib/planos/padroes';
 	import CampoNup from '../_components/CampoNup.svelte';
 	import CamposAcoes from '../_components/CamposAcoes.svelte';
 	import CamposComando from '../_components/CamposComando.svelte';
@@ -79,7 +79,7 @@
 	let demandanteId = $state<unknown>(null);
 	let diretorId = $state<unknown>(null);
 	// svelte-ignore state_referenced_locally
-	let diretorCargo = $state(data.diretorCargo);
+	let diretorCargo = $state(data.cargos[0]);
 
 	/** Nome do município por código — a lista exibe o nome, o POST manda o código. */
 	const nomePorIbge = $derived(new Map(data.municipios.map((m) => [m.ibge, m.nome])));
@@ -185,7 +185,7 @@
 					>
 					<input
 						name="departamento"
-						value={DEPARTAMENTO_PADRAO}
+						value={data.departamentoSigla}
 						maxlength="60"
 						class="input w-full"
 					/>
@@ -377,7 +377,7 @@
 						apoio="Quem assina o documento. Varia por operação — o Titular assina umas, o Adjunto outras."
 					/>
 
-					<CamposSignatario bind:diretorId bind:cargo={diretorCargo} />
+					<CamposSignatario bind:diretorId bind:cargo={diretorCargo} cargos={data.cargos} />
 				</section>
 			</div>
 		</div>

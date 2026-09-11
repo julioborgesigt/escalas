@@ -41,6 +41,7 @@ import { distanciaDoTrajeto } from '$lib/planos/distancia';
 import { DISTANCIA_MINIMA_DIARIA_KM } from '$lib/planos/custeio';
 import { analisarDiaria } from '$lib/diarias/parecer';
 import { mesesAcimaDoTeto } from '$lib/diarias/contagem';
+import { departamentoDoPlano } from '$lib/server/planos/departamento';
 import { actionsPlano } from './_actions/actions-plano';
 import { actionsEquipe } from './_actions/actions-equipe';
 import { actionsMembros } from './_actions/actions-membros';
@@ -116,7 +117,7 @@ export const load: PageServerLoad = async ({ locals, params, platform, depends }
 	const origemPadrao = valorPadrao(opcoes.origem);
 	const destinoPadrao = valorPadrao(opcoes.destino);
 
-	const [coordenador, demandante] = await Promise.all([
+	const [coordenador, demandante, depto] = await Promise.all([
 		plano.coordenador_id ? buscarPolicial(db, plano.coordenador_id) : Promise.resolve(null),
 		plano.demandante_unidade_id
 			? db
@@ -124,10 +125,13 @@ export const load: PageServerLoad = async ({ locals, params, platform, depends }
 					.from(unidades)
 					.where(eq(unidades.id, plano.demandante_unidade_id))
 					.get()
-			: Promise.resolve(undefined)
+			: Promise.resolve(undefined),
+		departamentoDoPlano(db)
 	]);
 
 	return {
+		/** Os cargos aceitos para o signatário — a mesma lista que a action confere. */
+		cargos: depto.cargos,
 		coordenadorNome: coordenador?.nome ?? '',
 		demandanteNome: demandante?.nome ?? '',
 		/**

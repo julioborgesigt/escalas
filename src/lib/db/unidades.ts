@@ -344,6 +344,28 @@ export async function buscarUnidadePorNome(db: Database, nome: string) {
 	return db.select().from(unidades).where(eq(unidades.nome, trimmedNome)).get();
 }
 
+/** O departamento que responde pelos documentos: sigla para a interface, nome por extenso para o cargo. */
+export type Departamento = { id: number; nome: string; sigla: string };
+
+/**
+ * O departamento ATIVO — hoje há um só (o DPI SUL, semeado pela migração 0006),
+ * e é dele que saem a sigla do plano e os cargos do signatário
+ * (`cargosSignatario`). Com mais de um, devolve o mais antigo: escolher o
+ * departamento por plano é a extensão prevista para quando o módulo servir
+ * outros (plano do módulo de diárias, seção 15), e aí este ponto vira seletor.
+ *
+ * `null` só se ninguém cadastrou departamento; quem chama decide o fallback.
+ */
+export async function buscarDepartamentoPadrao(db: Database): Promise<Departamento | null> {
+	const linha = await db
+		.select({ id: unidades.id, nome: unidades.nome, sigla: unidades.sigla })
+		.from(unidades)
+		.where(and(eq(unidades.tipo, 'departamento'), eq(unidades.ativo, true)))
+		.orderBy(asc(unidades.id))
+		.get();
+	return linha ?? null;
+}
+
 /** Apenas as unidades do tipo seccional (montagem da GISE e vínculo de delegacias). */
 export async function buscarSeccionaisUnidades(db: Database) {
 	return db

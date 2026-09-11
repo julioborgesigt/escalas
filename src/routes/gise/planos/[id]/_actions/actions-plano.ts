@@ -16,6 +16,7 @@ import {
 	buscarPolicial
 } from '$lib/db';
 import { cargoSignatarioValido } from '$lib/planos/padroes';
+import { departamentoDoPlano } from '$lib/server/planos/departamento';
 import { validarHora, normalizarHora } from '$lib/gise/horarios';
 import { logger } from '$lib/server/logger';
 import { planoDaRota, getInt, getTexto, type EventoPlano } from './shared';
@@ -69,7 +70,10 @@ export const actionsPlano = {
 		// Sem escolha, o que já estava gravado permanece — limpar o campo não pode
 		// esvaziar em silêncio a linha de assinatura de um documento pronto.
 		const diretorId = getInt(fd, 'diretor_id');
-		const escolhido = Number.isInteger(diretorId) ? await buscarPolicial(db, diretorId) : null;
+		const [escolhido, depto] = await Promise.all([
+			Number.isInteger(diretorId) ? buscarPolicial(db, diretorId) : Promise.resolve(null),
+			departamentoDoPlano(db)
+		]);
 
 		try {
 			await atualizarPlano(db, plano.id, {
@@ -86,11 +90,11 @@ export const actionsPlano = {
 				// legítima, e gravar NaN estouraria a FK.
 				coordenador_id: Number.isInteger(coordenadorId) ? coordenadorId : null,
 				demandante_unidade_id: Number.isInteger(demandanteId) ? demandanteId : null,
-				departamento: getTexto(fd, 'departamento', 60) || 'DPI SUL',
+				departamento: getTexto(fd, 'departamento', 60) || depto.sigla,
 				oip_por_equipe_padrao: oipPorEquipe,
 				diretor_id: escolhido?.id ?? plano.diretor_id,
 				diretor_nome: escolhido?.nome ?? plano.diretor_nome,
-				diretor_cargo: cargoSignatarioValido(getTexto(fd, 'diretor_cargo', 160))
+				diretor_cargo: cargoSignatarioValido(getTexto(fd, 'diretor_cargo', 160), depto.cargos)
 			});
 		} catch (e) {
 			logger.error('[planos/editor] salvarPlano', { error: String(e), plano: plano.id });

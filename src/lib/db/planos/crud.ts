@@ -110,7 +110,7 @@ export async function criarPlano(
 			feriado: dados.feriado ?? false,
 			coordenador_id: dados.coordenador_id ?? null,
 			demandante_unidade_id: dados.demandante_unidade_id ?? null,
-			departamento: dados.departamento ?? 'DPI SUL',
+			departamento: dados.departamento ?? '',
 			oip_por_equipe_padrao: dados.oip_por_equipe_padrao ?? 4,
 			diretor_id: dados.diretor_id ?? null,
 			diretor_nome: dados.diretor_nome ?? '',

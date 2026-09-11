@@ -1169,8 +1169,14 @@ vindo vivos do cadastro — são identificação, não mudam o valor pago.
 operações, o Adjunto outras. O nome vem da busca no cadastro (como o
 coordenador) e vai congelado em `diretor_nome`; `diretor_id` guarda quem foi
 escolhido, só para o editor reabrir mostrando a seleção. O cargo é lista
-**fechada** (`CARGOS_SIGNATARIO`) porque sai impresso sob a assinatura — campo
-livre põe erro de digitação no papel, e ninguém revisa o rodapé de um PDF.
+**fechada** (`cargosSignatario`) porque sai impresso sob a assinatura — campo
+livre põe erro de digitação no papel, e ninguém revisa o rodapé de um PDF. A
+lista é **gerada do departamento** em `unidades` (`departamentoDoPlano`), com o
+órgão por extenso — "Diretor Titular do Departamento de Polícia do Interior
+Sul", nunca a sigla — porque sob a assinatura o cargo qualifica a autoridade
+que decide. A sigla (`unidades.sigla`) vai no cabeçalho e no item 5. Nada disso
+é constante desde set/2026: cadastrar outro departamento é o que basta para o
+plano sair em nome dele.
 
 **Não há padrão global.** Um padrão único para um dado que VARIA ou é ignorado
 quase sempre, ou leva a mudar a configuração de todos os planos seguintes para
