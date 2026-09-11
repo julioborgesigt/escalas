@@ -20,7 +20,7 @@ import {
 	SENHA_ATUAL_JANELA_MIN
 } from '$lib/server/auth/email-pessoal-guard';
 import {
-	requireAuth,
+	requireAuthComCadastro,
 	badRequest,
 	forbidden,
 	rateLimited,
@@ -33,7 +33,7 @@ import type { RequestHandler } from './$types';
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export const POST: RequestHandler = async ({ request, platform, locals }) => {
-	const u = requireAuth(locals);
+	const u = requireAuthComCadastro(locals);
 	if (u instanceof Response) return u;
 
 	const v = await validateBody(request, solicitarVerificacaoEmailSchema);

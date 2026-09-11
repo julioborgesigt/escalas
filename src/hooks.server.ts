@@ -36,6 +36,7 @@ import {
 	ttlCacheSessaoParaMetodo
 } from '$lib/server/auth/session-cache';
 import { adminPodeAcessarRota, resolverPreferenciaModulo } from '$lib/server/auth/admin-modulos';
+import { colaboradorPodeAcessarRota } from '$lib/server/auth/colaborador-rotas';
 import { VERSAO as TERMO_VERSAO, calcularHashTermo } from '$lib/server/termo/termo-vigente';
 import { logger } from '$lib/server/logger';
 import { requestStore, getRequestCtx, type RequestCtx } from '$lib/server/request-context';
@@ -274,6 +275,17 @@ const handleAuth: Handle = async ({ event, resolve }) => {
 			return apiError('Aceite o Termo de Uso vigente antes de continuar', 403, ErrorCode.FORBIDDEN);
 		}
 		redirect(302, '/aceitar-termo');
+	}
+
+	// Colaborador (terceira identidade): lista FECHADA de rotas, conferida
+	// antes de qualquer rota rodar — o que não está em
+	// `colaboradorPodeAcessarRota` responde 403 ou volta para a área dele. Fica
+	// DEPOIS dos portões de primeiro acesso e termo, que ele também atravessa.
+	if (usuario.tipo === 'colaborador' && !colaboradorPodeAcessarRota(pathname)) {
+		if (pathname.startsWith('/api/')) {
+			return apiError('Acesso não liberado para colaborador', 403, ErrorCode.FORBIDDEN);
+		}
+		redirect(302, '/colaborador');
 	}
 
 	// Consoles Escalas / GISE liberados por conta (migração 0065). O cookie

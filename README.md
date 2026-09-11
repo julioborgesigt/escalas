@@ -1438,12 +1438,49 @@ O aceite do termo de uso é obrigatório a cada nova versão. Qualquer mudança 
 | Tipo                     | Papel             | Acesso                                                                                                                                                                                                      |
 | ------------------------ | ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `admin` + `isSuperAdmin` | Super Admin       | Tudo do Admin Geral **mais**: promover admins, gerenciar policiais/unidades, configurar política de assinatura, baixar o forense pelo portal `/validar`                                                     |
-| `admin`                  | Admin Geral       | Operação global (escalas, GISE, LGPD/compliance) em todas as unidades — não remodela a base; consoles de auditoria são do Super Admin                                                                       |
+| `admin`                  | Admin Geral       | Operação global (escalas, GISE, LGPD/compliance) em todas as unidades — não remodela a base; cadastra colaboradores; consoles de auditoria são do Super Admin                                               |
 | `policial`               | `admin_seccional` | Gerencia escalas da sua seccional e **solicita** correções cadastrais e atos de RH dos servidores dela; informa a linha de base dos indicadores das unidades (`/dados-base`) e vê `/produtividade` escopado |
 | `policial`               | `admin_unidade`   | O mesmo, escopado à sua unidade                                                                                                                                                                             |
 | `policial`               | —                 | Acessa apenas suas próprias escalas e GISE                                                                                                                                                                  |
+| `colaborador`            | —                 | Terceira identidade (servidora administrativa, terceirizada): entra por e-mail, sempre com 2FA; alcança SÓ a lista fechada de `colaboradorPodeAcessarRota` e o que o módulo de diárias designar             |
 
 A matriz completa de capacidades por papel está em [`DEPLOY.md`](DEPLOY.md#papéis-e-privilégios-de-administrador). Membros de GISE têm papéis adicionais (`supervisor`, `assessor/SEINT`, `membro`) calculados dinamicamente a partir da tabela `gise_membros`.
+
+### A terceira identidade: colaborador
+
+Servidora administrativa e colaboradora terceirizada não cabem em `policiais`
+(entrariam nos seletores de escala e no efetivo do plano, com matrícula e cargo
+que não têm) nem em `administradores` (ganhariam Admin Geral nos ~160 pontos
+que perguntam `tipo === 'admin'`). São a tabela `colaboradores` com o tipo de
+sessão `colaborador` (migrações 0081–0083), e o desenho é **falhar fechado**:
+
+- toda verificação que pergunta por `admin` ou `policial` responde "não";
+- a validação de sessão decide POR TIPO e recusa o que não conhece — nunca "o
+  que não é admin é policial", porque os ids das tabelas colidem;
+- o `hooks.server.ts` só deixa a sessão de colaborador entrar na lista fechada
+  de `colaboradorPodeAcessarRota` (`/colaborador`, onboarding, logout); o resto
+  responde 403 ou volta para a área dele;
+- as rotas de credencial e assinatura (passkey, e-mail pessoal, reautenticação,
+  LGPD do titular) usam `requireAuthComCadastro`, que recusa colaborador com o
+  tipo estreitado (`UsuarioComCadastro`) — é o que impede um
+  `tipo === 'policial' ? … : …` lá dentro de tratá-lo como admin por exclusão.
+
+O **Admin Geral** cria e gerencia a conta (`/colaboradores`) — e o Super Admin
+junto, por ser um Admin Geral com poderes extras. Admin de seccional e de
+unidade ficam de fora: eles têm escopo sobre servidor já cadastrado, e criar uma
+identidade de acesso é outra coisa.
+
+**A assimetria é sabida**: o Admin Geral não cadastra policial nem unidade (ver
+a matriz em [`DEPLOY.md`](DEPLOY.md#papéis-e-privilégios-de-administrador)), mas
+cadastra colaborador. Ela se sustenta no que a identidade alcança — o
+colaborador falha fechado em tudo e só age onde for designado — e em quem opera
+o módulo de diárias no dia a dia.
+
+O login é por **e-mail + senha + código por e-mail**, sempre — inclusive no
+primeiro acesso, porque o e-mail é obrigatório na conta e é o que prova, no
+primeiro login, que a pessoa controla o endereço cadastrado. A senha nasce
+provisória, gerada pelo servidor e mostrada uma vez a quem cadastrou; não há
+recuperação por link — o administrador gera outra.
 
 ### Cadastro do servidor: quem pede e quem decide
 

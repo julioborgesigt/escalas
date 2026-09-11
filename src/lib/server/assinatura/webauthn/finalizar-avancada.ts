@@ -32,6 +32,7 @@
  * avançar o contador de uma assinatura que vai falhar em seguida.
  */
 import type { Database } from '$lib/db';
+import type { UsuarioComCadastro } from '$lib/auth';
 import { buscarCredencialPorId, passkeyMetaDeAssercao } from '$lib/db';
 import { apiError, ErrorCode, badRequest, serverError } from '$lib/server/api';
 import {
@@ -98,7 +99,7 @@ export type ResultadoFinalizacao =
 export async function conferirFinalizacaoPasskey(opts: {
 	db: Database;
 	/** `locals.usuario` já estreitado por `requireAuth`. O ATOR sai daqui. */
-	usuario: NonNullable<App.Locals['usuario']>;
+	usuario: UsuarioComCadastro;
 	alvo: AlvoAssinatura;
 	corpo: CorpoFinalizacao;
 	url: URL;

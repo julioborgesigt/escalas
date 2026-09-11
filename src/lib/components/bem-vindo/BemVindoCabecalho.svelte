@@ -34,13 +34,15 @@
 	const perfil = $derived(
 		usuario?.isSuperAdmin
 			? 'Super Administrador'
-			: usuario?.tipo === 'admin'
-				? 'Administrador Geral'
-				: usuario?.papel === 'admin_seccional'
-					? 'Administração Seccional'
-					: usuario?.papel === 'admin_unidade'
-						? 'Administração de Unidade'
-						: 'Acesso Operacional'
+			: usuario?.tipo === 'colaborador'
+				? 'Colaborador(a)'
+				: usuario?.tipo === 'admin'
+					? 'Administrador Geral'
+					: usuario?.papel === 'admin_seccional'
+						? 'Administração Seccional'
+						: usuario?.papel === 'admin_unidade'
+							? 'Administração de Unidade'
+							: 'Acesso Operacional'
 	);
 
 	// Data corrente apenas no cliente: o fuso do servidor (UTC) pode divergir do

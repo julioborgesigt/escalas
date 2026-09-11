@@ -21,7 +21,7 @@ import {
 	notFound,
 	forbidden,
 	serverError,
-	requireAuth,
+	requireAuthComCadastro,
 	validateBody
 } from '$lib/server/api';
 import { assinarPresencaAvancadaSchema } from '$lib/schemas';
@@ -46,7 +46,7 @@ export const POST: RequestHandler = async ({
 	cookies,
 	getClientAddress
 }) => {
-	const u = requireAuth(locals);
+	const u = requireAuthComCadastro(locals);
 	if (u instanceof Response) return u;
 	if (u.tipo !== 'policial') return forbidden('Apenas policiais confirmam presença.');
 

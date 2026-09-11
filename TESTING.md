@@ -50,6 +50,20 @@ Roteiro de regressão manual dos fluxos de negócio. **Papel deste arquivo: exce
 - [ ] A tela de primeiro acesso **não** oferece cadastrar a chave de assinatura — nem no celular, com ou sem `exigir_passkey_assinatura` ligada
 - [ ] "Sair e voltar ao login" encerra a sessão; reabrir o sistema cai em `/login`, **não** devolve para `/alterar-senha`
 
+### 1.4b Colaborador (terceira identidade)
+
+> `[Vitest: colaborador-rotas.test.ts, auth-flow.test.ts (colaborador), credencial.test.ts (colaborador), colaboradores.test.ts]` cobrem a lista fechada de rotas, o login sempre com 2FA, a credencial standalone e a recusa de sessão de tipo desconhecido. Manual: o fluxo de ponta a ponta.
+
+- [ ] **Admin Geral** (não só o Super Admin) vê "Colaboradores" na barra lateral, ao lado de "Policiais", e abre `/colaboradores`; admin de seccional e de unidade **não** veem o item, e a URL direta os manda para fora
+- [ ] Admin Geral → `/colaboradores` → "Cadastrar" (nome, e-mail, CPF opcional, vínculo) → a senha provisória aparece UMA vez na caixa amarela; "Copiar" funciona; "Fechar" some com ela
+- [ ] E-mail repetido (mesmo com caixa diferente) → "Já existe um colaborador com este e-mail"; CPF inválido → "CPF inválido"
+- [ ] `/login` → "Sou colaborador(a)" → campo vira E-mail, some o certificado e "Esqueceu a senha?"; "Voltar" restaura o alternador
+- [ ] Login com a senha provisória → **pede o código por e-mail mesmo sendo primeiro acesso** → código certo → `/alterar-senha` sem pedir e-mail pessoal → senha nova → `/aceitar-termo` → `/colaborador` (área com "Nenhuma função designada")
+- [ ] Sidebar do colaborador tem só "Boas-vindas" e "Sair"; digitar `/escalas`, `/perfil`, `/res-gise` ou `/painel` na URL volta para `/colaborador`; `fetch` de `/api/sync/estado` responde 403
+- [ ] Admin Geral → "Nova senha" → nova provisória; a sessão aberta do colaborador cai no próximo request; o próximo login exige troca de novo
+- [ ] "Desativar" → o login responde "E-mail ou senha inválidos" (mesma mensagem de senha errada); "Reativar" restaura
+- [ ] Policial e admin: login, 2FA, primeiro acesso e assinatura **inalterados**
+
 ### 1.5 Login por certificado A3 (desktop, Assinador SERPRO)
 
 - [ ] Aba **Policial** → "Entrar com Certificado Digital" → assinar o desafio no token → sessão operacional criada (sem senha e sem 2FA)

@@ -2,6 +2,13 @@
 	/**
 	 * Fluxo 1+2 da tela de login: formulário de senha (→ 2FA no orquestrador)
 	 * e entrada por certificado digital SERPRO (dispensa 2FA).
+	 *
+	 * O COLABORADOR (terceira identidade) entra pela mesma tela, por um link
+	 * abaixo do formulário e não por uma terceira opção no alternador: o
+	 * alternador é de duas posições por desenho, e colaborador é exceção —
+	 * meia dúzia de contas. Nesse modo o campo é o e-mail (decisão 71), sem
+	 * certificado, sem primeiro acesso por link e sem recuperação de senha
+	 * (a senha provisória e a redefinição são do Super Admin).
 	 */
 	import AlertCircle from '@lucide/svelte/icons/alert-circle';
 	import { enhance } from '$app/forms';
@@ -11,6 +18,7 @@
 
 	let {
 		tipo = $bindable(),
+		comoColaborador = $bindable(false),
 		matricula = $bindable(),
 		senha = $bindable(),
 		loginErrorDisplay,
@@ -20,6 +28,8 @@
 		onRecuperacao
 	}: {
 		tipo: 'policial' | 'admin';
+		/** Modo colaborador: e-mail no lugar da matrícula; o POST leva `tipo=colaborador`. */
+		comoColaborador?: boolean;
 		matricula: string;
 		senha: string;
 		loginErrorDisplay: string | null;
@@ -30,25 +40,37 @@
 	} = $props();
 </script>
 
-<div class="mb-8">
-	<SeletorPolicialAdmin bind:tipo />
-</div>
+{#if comoColaborador}
+	<p class="mb-6 text-sm text-surface-600 dark:text-surface-400 text-center">
+		Acesso de <strong>colaborador(a)</strong> — entre com o e-mail cadastrado.
+	</p>
+{:else}
+	<div class="mb-8">
+		<SeletorPolicialAdmin bind:tipo />
+	</div>
+{/if}
 
 <form method="POST" action="?/login" use:enhance={handleLogin} class="flex flex-col gap-4 sm:gap-6">
-	<input type="hidden" name="tipo" value={tipo} />
+	<input type="hidden" name="tipo" value={comoColaborador ? 'colaborador' : tipo} />
 	<label class="label">
-		<span class="label-text">{tipo === 'admin' ? 'Login' : 'Matrícula'}</span>
+		<span class="label-text"
+			>{comoColaborador ? 'E-mail' : tipo === 'admin' ? 'Login' : 'Matrícula'}</span
+		>
 		<!-- svelte-ignore a11y_autofocus -->
 		<!-- Página dedicada de login: foco inicial no campo é padrão aceito por a11y. -->
 		<input
 			class="input"
-			type="text"
+			type={comoColaborador ? 'email' : 'text'}
 			name="matricula"
 			bind:value={matricula}
-			placeholder={tipo === 'admin' ? 'Digite seu login' : 'Digite sua matrícula (8 caracteres)'}
-			maxlength={tipo === 'admin' ? undefined : 8}
+			placeholder={comoColaborador
+				? 'Digite seu e-mail'
+				: tipo === 'admin'
+					? 'Digite seu login'
+					: 'Digite sua matrícula (8 caracteres)'}
+			maxlength={comoColaborador ? 254 : tipo === 'admin' ? undefined : 8}
 			autocomplete="username"
-			inputmode={tipo === 'policial' ? 'numeric' : 'text'}
+			inputmode={comoColaborador ? 'email' : tipo === 'policial' ? 'numeric' : 'text'}
 			enterkeyhint="next"
 			aria-describedby={loginErrorDisplay ? 'login-error' : undefined}
 			autofocus
@@ -92,66 +114,95 @@
 	</button>
 </form>
 
-<div class="flex items-center gap-3 my-4">
-	<div class="flex-1 h-px bg-surface-200 dark:bg-surface-700"></div>
-	<span class="text-xs text-surface-600 dark:text-surface-400 shrink-0">ou</span>
-	<div class="flex-1 h-px bg-surface-200 dark:bg-surface-700"></div>
-</div>
-<button
-	type="button"
-	class="btn preset-outlined-surface-500 w-full py-3 flex items-center justify-center gap-2 text-sm"
-	disabled={loadingService.active}
-	onclick={() => fazerLoginComCertificado(tipo === 'admin')}
->
-	<!-- Token A3 / pendrive USB — Lucide não tem flash-drive; silhueta lateral. -->
-	<svg
-		class="w-4 h-4 shrink-0"
-		viewBox="0 0 24 24"
-		fill="none"
-		stroke="currentColor"
-		stroke-width="2"
-		stroke-linecap="round"
-		stroke-linejoin="round"
-		aria-hidden="true"
+{#if comoColaborador}
+	<div class="mt-4 text-xs text-surface-600 dark:text-surface-400 text-center">
+		<button
+			type="button"
+			class="text-primary-600 dark:text-primary-400 underline underline-offset-2 hover:opacity-80 transition-opacity"
+			onclick={() => {
+				comoColaborador = false;
+				matricula = '';
+			}}
+		>
+			Voltar ao acesso de policial ou administrador
+		</button>
+	</div>
+{:else}
+	<div class="flex items-center gap-3 my-4">
+		<div class="flex-1 h-px bg-surface-200 dark:bg-surface-700"></div>
+		<span class="text-xs text-surface-600 dark:text-surface-400 shrink-0">ou</span>
+		<div class="flex-1 h-px bg-surface-200 dark:bg-surface-700"></div>
+	</div>
+	<button
+		type="button"
+		class="btn preset-outlined-surface-500 w-full py-3 flex items-center justify-center gap-2 text-sm"
+		disabled={loadingService.active}
+		onclick={() => fazerLoginComCertificado(tipo === 'admin')}
 	>
-		<!-- Conector USB-A -->
-		<path d="M2 9h5v6H2z" />
-		<path d="M4 11v2M6 11v2" />
-		<!-- Corpo do token -->
-		<rect x="7" y="7" width="15" height="10" rx="2" />
-	</svg>
-	Certificado Digital (SERPRO)
-</button>
+		<!-- Token A3 / pendrive USB — Lucide não tem flash-drive; silhueta lateral. -->
+		<svg
+			class="w-4 h-4 shrink-0"
+			viewBox="0 0 24 24"
+			fill="none"
+			stroke="currentColor"
+			stroke-width="2"
+			stroke-linecap="round"
+			stroke-linejoin="round"
+			aria-hidden="true"
+		>
+			<!-- Conector USB-A -->
+			<path d="M2 9h5v6H2z" />
+			<path d="M4 11v2M6 11v2" />
+			<!-- Corpo do token -->
+			<rect x="7" y="7" width="15" height="10" rx="2" />
+		</svg>
+		Certificado Digital (SERPRO)
+	</button>
 
-<div
-	class="mt-4 flex flex-wrap items-center justify-center gap-x-2 gap-y-1.5 text-xs text-surface-600 dark:text-surface-400 text-center"
-	role="navigation"
-	aria-label="Ajuda de acesso"
->
-	{#if tipo === 'policial'}
+	<div
+		class="mt-4 flex flex-wrap items-center justify-center gap-x-2 gap-y-1.5 text-xs text-surface-600 dark:text-surface-400 text-center"
+		role="navigation"
+		aria-label="Ajuda de acesso"
+	>
+		{#if tipo === 'policial'}
+			<span class="inline-flex flex-nowrap items-baseline gap-1">
+				<span class="shrink-0">Primeiro acesso?</span>
+				<button
+					type="button"
+					class="shrink-0 text-primary-600 dark:text-primary-400 underline underline-offset-2 hover:opacity-80 transition-opacity"
+					onclick={onPrimeiroAcesso}
+				>
+					Clique aqui
+				</button>
+			</span>
+			<span
+				class="hidden sm:inline text-surface-300 dark:text-surface-600 select-none"
+				aria-hidden="true">·</span
+			>
+		{/if}
 		<span class="inline-flex flex-nowrap items-baseline gap-1">
-			<span class="shrink-0">Primeiro acesso?</span>
+			<span class="shrink-0">Esqueceu a senha?</span>
 			<button
 				type="button"
 				class="shrink-0 text-primary-600 dark:text-primary-400 underline underline-offset-2 hover:opacity-80 transition-opacity"
-				onclick={onPrimeiroAcesso}
+				onclick={onRecuperacao}
 			>
-				Clique aqui
+				Recuperar
 			</button>
 		</span>
 		<span
 			class="hidden sm:inline text-surface-300 dark:text-surface-600 select-none"
 			aria-hidden="true">·</span
 		>
-	{/if}
-	<span class="inline-flex flex-nowrap items-baseline gap-1">
-		<span class="shrink-0">Esqueceu a senha?</span>
 		<button
 			type="button"
 			class="shrink-0 text-primary-600 dark:text-primary-400 underline underline-offset-2 hover:opacity-80 transition-opacity"
-			onclick={onRecuperacao}
+			onclick={() => {
+				comoColaborador = true;
+				matricula = '';
+			}}
 		>
-			Recuperar
+			Sou colaborador(a)
 		</button>
-	</span>
-</div>
+	</div>
+{/if}

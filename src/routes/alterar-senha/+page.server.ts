@@ -16,8 +16,8 @@
 import { fail, redirect } from '@sveltejs/kit';
 import { eq } from 'drizzle-orm';
 import { getDB, auditar, contextoDeEvento } from '$lib/db';
-import { hashSenha, verificarSenha, criarSessao } from '$lib/auth';
-import { administradores, policiais } from '$lib/server/schema';
+import { hashSenha, verificarSenha, criarSessao, temCadastro } from '$lib/auth';
+import { administradores, policiais, colaboradores } from '$lib/server/schema';
 import { alterarSenhaSchema } from '$lib/schemas';
 import { cookieOptions } from '$lib/server/auth/auth-flow';
 import {
@@ -32,6 +32,58 @@ import {
 	registrarRecoveryAttempt
 } from '$lib/server/auth/recovery-rate-limit';
 import type { Actions, PageServerLoad } from './$types';
+import type { Identidade } from '$lib/server/auth/credencial';
+
+/**
+ * A linha onde a senha mora, por tipo de identidade — a tabela é decidida
+ * AQUI, uma vez, e não em cada leitura/escrita. O colaborador é a terceira;
+ * "o que não é policial é admin" gravaria a senha dele na linha de um admin de
+ * mesmo id.
+ */
+async function lerLinhaDaSenha(
+	db: ReturnType<typeof getDB>,
+	alvo: Identidade
+): Promise<{ senha: string; email_pessoal_verificado: number } | undefined> {
+	if (alvo.tipo === 'policial') {
+		return db
+			.select({
+				senha: policiais.senha,
+				email_pessoal_verificado: policiais.email_pessoal_verificado
+			})
+			.from(policiais)
+			.where(eq(policiais.id, alvo.id))
+			.get();
+	}
+	if (alvo.tipo === 'admin') {
+		return db
+			.select({
+				senha: administradores.senha,
+				email_pessoal_verificado: administradores.email_pessoal_verificado
+			})
+			.from(administradores)
+			.where(eq(administradores.id, alvo.id))
+			.get();
+	}
+	// Colaborador não tem e-mail pessoal: o e-mail da conta é o do login, e o
+	// 2FA que ele acabou de passar já provou que o controla.
+	const c = await db
+		.select({ senha: colaboradores.senha })
+		.from(colaboradores)
+		.where(eq(colaboradores.id, alvo.id))
+		.get();
+	return c ? { senha: c.senha, email_pessoal_verificado: 1 } : undefined;
+}
+
+async function gravarSenha(db: ReturnType<typeof getDB>, alvo: Identidade, hash: string) {
+	const valores = { senha: hash, primeiro_acesso: 0 };
+	if (alvo.tipo === 'policial') {
+		await db.update(policiais).set(valores).where(eq(policiais.id, alvo.id));
+	} else if (alvo.tipo === 'admin') {
+		await db.update(administradores).set(valores).where(eq(administradores.id, alvo.id));
+	} else {
+		await db.update(colaboradores).set(valores).where(eq(colaboradores.id, alvo.id));
+	}
+}
 
 // Throttle da verificação de senha_atual: com uma sessão roubada, este era o
 // único caminho de brute-force online ilimitado da senha (para depois trocá-la
@@ -71,22 +123,13 @@ export const actions = {
 		// policial, não a linha admin (que tem só um placeholder). Regra única em
 		// `credencialDoUsuario`; escrita à mão aqui, ela não protegia o
 		// `redefinir-senha`, que nasceu sem ela.
-		const alvo = credencialDoUsuario(usuario);
-		const alvoEhPolicial = alvo.tipo === 'policial';
+		const alvo: Identidade = temCadastro(usuario)
+			? credencialDoUsuario(usuario)
+			: { tipo: 'colaborador', id: usuario.id };
 		const alvoId = alvo.id;
 
 		if (usuario.primeiro_acesso) {
-			const registroEmail = alvoEhPolicial
-				? await db
-						.select({ email_pessoal_verificado: policiais.email_pessoal_verificado })
-						.from(policiais)
-						.where(eq(policiais.id, alvoId))
-						.get()
-				: await db
-						.select({ email_pessoal_verificado: administradores.email_pessoal_verificado })
-						.from(administradores)
-						.where(eq(administradores.id, alvoId))
-						.get();
+			const registroEmail = await lerLinhaDaSenha(db, alvo);
 
 			if (!registroEmail || registroEmail.email_pessoal_verificado !== 1) {
 				return fail(400, {
@@ -117,17 +160,7 @@ export const actions = {
 				});
 			}
 
-			const registro = alvoEhPolicial
-				? await db
-						.select({ senha: policiais.senha })
-						.from(policiais)
-						.where(eq(policiais.id, alvoId))
-						.get()
-				: await db
-						.select({ senha: administradores.senha })
-						.from(administradores)
-						.where(eq(administradores.id, alvoId))
-						.get();
+			const registro = await lerLinhaDaSenha(db, alvo);
 			if (!registro || !(await verificarSenha(senha_atual, registro.senha, pepper))) {
 				await registrarRecoveryAttempt(db, chaveThrottle, 'alterar_senha');
 				return fail(401, { error: 'Senha atual incorreta' });
@@ -135,18 +168,7 @@ export const actions = {
 		}
 
 		const novaSenhaHash = await hashSenha(parsed.data.nova_senha, pepper);
-
-		if (alvoEhPolicial) {
-			await db
-				.update(policiais)
-				.set({ senha: novaSenhaHash, primeiro_acesso: 0 })
-				.where(eq(policiais.id, alvoId));
-		} else {
-			await db
-				.update(administradores)
-				.set({ senha: novaSenhaHash, primeiro_acesso: 0 })
-				.where(eq(administradores.id, alvoId));
-		}
+		await gravarSenha(db, alvo, novaSenhaHash);
 
 		// Rotação completa: invalida TODAS as sessões (inclusive a atual) e cria
 		// uma nova. Se um atacante tinha o cookie roubado, o `Set-Cookie` novo
@@ -172,9 +194,9 @@ export const actions = {
 			{
 				acao: 'alterar_senha',
 				usuario,
-				entidade: alvoEhPolicial ? 'policial' : 'admin',
+				entidade: alvo.tipo,
 				entidade_id: alvoId,
-				alvo_tipo: alvoEhPolicial ? 'policial' : 'admin',
+				alvo_tipo: alvo.tipo,
 				alvo_id: alvoId,
 				alvo_nome: usuario.nome,
 				detalhes: usuario.primeiro_acesso

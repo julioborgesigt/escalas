@@ -13,8 +13,8 @@
 
 import { json } from '@sveltejs/kit';
 import type { z } from 'zod';
-import type { UsuarioLogado } from '$lib/auth';
-import { isAdminGeral } from '$lib/auth';
+import type { UsuarioLogado, UsuarioComCadastro } from '$lib/auth';
+import { isAdminGeral, temCadastro } from '$lib/auth';
 import { logger } from './logger';
 import { mensagemDeErro } from '$lib/utils/erro';
 
@@ -89,6 +89,24 @@ export function requireAuth(locals: App.Locals): UsuarioLogado | Response {
 		return apiError('Não autorizado', 401, ErrorCode.AUTH_REQUIRED);
 	}
 	return locals.usuario;
+}
+
+/**
+ * Retorna o usuário logado se for policial ou admin, ou uma Response 403.
+ *
+ * É o portão das rotas de ASSINATURA e de CREDENCIAL (passkey, reautenticação,
+ * e-mail pessoal, LGPD do titular): elas assumem que a pessoa tem cadastro na
+ * corporação, e o colaborador (terceira identidade) não tem. Recusar aqui, com
+ * o tipo estreitado, é o que impede um `u.tipo === 'policial' ? … : …` lá
+ * dentro de tratar colaborador como admin por exclusão.
+ */
+export function requireAuthComCadastro(locals: App.Locals): UsuarioComCadastro | Response {
+	const usuario = requireAuth(locals);
+	if (usuario instanceof Response) return usuario;
+	if (!temCadastro(usuario)) {
+		return apiError('Acesso restrito a policiais e administradores', 403, ErrorCode.FORBIDDEN);
+	}
+	return usuario;
 }
 
 /**

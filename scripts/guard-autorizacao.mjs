@@ -105,23 +105,15 @@ export const DECLARADAS = {
 	// administrador da unidade/seccional, na ficha do servidor. O que sobrou na
 	// página (e-mail pessoal, passkey) vai por API, e cada uma dessas rotas já
 	// está declarada aqui por conta própria.
-	'src/routes/api/lgpd/solicitar/+server.ts → POST': 'exerce direito LGPD sobre os próprios dados',
 	'src/routes/api/auth/solicitar-codigo-assinatura/+server.ts → POST':
 		'envia o código 2FA para o e-mail do próprio usuário logado',
-	'src/routes/api/auth/reautenticar-assinatura/+server.ts → POST':
-		'reinsere a própria senha para abrir a janela da cerimônia de assinatura; não aceita id de terceiro',
-	// A credencial é sempre a de `credencialDoUsuario(u)` — nunca um id vindo do
-	// corpo —, então não há segundo sujeito a autorizar. Registrar passkey PARA
-	// OUTRA PESSOA não é operação restrita: é operação que não existe, e não
-	// pode passar a existir. Um admin que cadastrasse a chave alheia esvaziaria
-	// o "controle exclusivo" (Lei 14.063/2020 art. 4º II "b") que a passkey
-	// prova. Admin revoga (rota própria, com permissão); registrar é do titular.
-	'src/routes/api/webauthn/registro/+server.ts → POST':
-		'registra a passkey do próprio usuário logado; não aceita id de terceiro',
-	'src/routes/api/webauthn/registro/+server.ts → DELETE':
-		'revoga a própria passkey (troca de aparelho)',
-	'src/routes/api/webauthn/solicitar-codigo-reposicao/+server.ts → POST':
-		'envia os dois códigos de reposição da própria chave; não aceita id de terceiro',
+	// As rotas do TITULAR (LGPD, reautenticação de assinatura, passkey própria)
+	// saíram desta lista em set/2026: com a terceira identidade, elas passaram a
+	// recusar COLABORADOR por `requireAuthComCadastro` — quem não tem cadastro
+	// não tem passkey, e-mail pessoal nem cerimônia de assinatura. A credencial
+	// continua sendo sempre a de `credencialDoUsuario(u)`, nunca um id vindo do
+	// corpo: registrar passkey PARA OUTRA PESSOA segue sendo operação que não
+	// existe (Lei 14.063/2020 art. 4º II "b" — controle exclusivo).
 
 	// ---- Webhook: autenticado por segredo compartilhado + HMAC, não por sessão ----
 	'src/routes/api/webhook/limpeza-retencao/+server.ts → POST': 'segredo compartilhado (cron)',
@@ -286,13 +278,9 @@ export const HELPERS_OBRIGATORIOS = {
 	// de unidade movimentando servidor sem passar pelo Admin Geral.
 	'src/routes/policiais/[id]/+page.server.ts → salvar': ['carregarFichaDoPolicial'],
 	'src/routes/policiais/[id]/+page.server.ts → solicitarAlteracao': ['carregarFichaDoPolicial'],
-	'src/routes/policiais/[id]/+page.server.ts → registrarMovimentacao': [
-		'carregarFichaDoPolicial'
-	],
+	'src/routes/policiais/[id]/+page.server.ts → registrarMovimentacao': ['carregarFichaDoPolicial'],
 	'src/routes/policiais/[id]/+page.server.ts → registrarAfastamento': ['carregarFichaDoPolicial'],
-	'src/routes/policiais/[id]/+page.server.ts → registrarDesvinculacao': [
-		'carregarFichaDoPolicial'
-	],
+	'src/routes/policiais/[id]/+page.server.ts → registrarDesvinculacao': ['carregarFichaDoPolicial'],
 
 	// FLW-AUT-006 / 007 — presença: janela de horário + GISE não finalizada.
 	// `gateDePresenca` mora dentro de `prepararConfirmacaoPresenca` (preparo
@@ -340,7 +328,7 @@ function helpersDaOperacao(arquivo, nome) {
 // `carregarPlanoParaEdicao` deixaria passar uma action que carregasse o plano e
 // esquecesse de provar a posse da equipe (a classe do FLW-ESC-002).
 const RE_403 =
-	/fail\(403|forbidden\(|status:\s*403|error\(403|requireAdmin\(|requireSuperAdmin\(|exigirAdminGeral\(|carregarEscalaComPermissao\(|carregarEscalaParaAssinatura\(|carregarGiseParaAssinatura\(|carregarRelatorioExtraParaAssinatura\(|carregarFichaDoPolicial\(|carregarPlanoParaEdicao\(|planoDaRota\(|equipeDaRota\(|membroDaRota\(/;
+	/fail\(403|forbidden\(|status:\s*403|error\(403|requireAdmin\(|requireSuperAdmin\(|requireAuthComCadastro\(|exigirAdminGeral\(|carregarEscalaComPermissao\(|carregarEscalaParaAssinatura\(|carregarGiseParaAssinatura\(|carregarRelatorioExtraParaAssinatura\(|carregarFichaDoPolicial\(|carregarPlanoParaEdicao\(|planoDaRota\(|equipeDaRota\(|membroDaRota\(/;
 const RE_401 = /fail\(401|unauthorized\(|requireAuth\(|error\(401/;
 
 /** Do índice da chave `{`, devolve o bloco balanceado. */

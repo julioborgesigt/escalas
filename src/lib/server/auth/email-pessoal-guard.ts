@@ -23,7 +23,7 @@
  */
 
 import { eq } from 'drizzle-orm';
-import { verificarSenha, type UsuarioLogado } from '$lib/auth';
+import { verificarSenha, type UsuarioComCadastro } from '$lib/auth';
 import { administradores, policiais } from '../schema';
 import { contarRecoveryAttempts, registrarRecoveryAttempt } from './recovery-rate-limit';
 import type { Database } from '$lib/db';
@@ -49,7 +49,7 @@ export type ResultadoGuardaEmailPessoal =
  */
 export async function exigirSenhaParaTrocaEmailPessoal(
 	db: Database,
-	u: UsuarioLogado,
+	u: UsuarioComCadastro,
 	senha: string | undefined,
 	pepper: string | undefined
 ): Promise<ResultadoGuardaEmailPessoal> {

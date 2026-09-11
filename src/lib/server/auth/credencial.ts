@@ -29,12 +29,19 @@ import { and, eq, inArray } from 'drizzle-orm';
 import { administradores, sessoes } from '../schema';
 import type { Database } from '$lib/db';
 
-export type TipoIdentidade = 'policial' | 'admin';
+export type TipoIdentidade = 'policial' | 'admin' | 'colaborador';
 
 export interface Identidade {
 	tipo: TipoIdentidade;
 	id: number;
 }
+
+/**
+ * Policial ou admin — quem tem cadastro, passkey e e-mail pessoal. O
+ * colaborador tem credencial (senha) mas não entra aqui: passkey e
+ * reautenticação de assinatura são das identidades que assinam.
+ */
+export type IdentidadeComCadastro = { tipo: 'policial' | 'admin'; id: number };
 
 export interface Credencial {
 	/** Linha que o login LÊ — é onde a senha nova deve ser gravada. */
@@ -52,11 +59,30 @@ export interface Credencial {
  * Quem já tem `locals.usuario` pode usar `credencialDoUsuario`, que não
  * consulta o banco.
  */
+/** A credencial de policial ou admin: o dono sempre tem cadastro (passkey, e-mail pessoal). */
+export type CredencialComCadastro = Credencial & { dono: IdentidadeComCadastro };
+
+export async function resolverCredencial(
+	db: Database,
+	tipo: 'policial' | 'admin',
+	id: number
+): Promise<CredencialComCadastro>;
+export async function resolverCredencial(
+	db: Database,
+	tipo: TipoIdentidade,
+	id: number
+): Promise<Credencial>;
 export async function resolverCredencial(
 	db: Database,
 	tipo: TipoIdentidade,
 	id: number
 ): Promise<Credencial> {
+	// Colaborador não se vincula a nada: a senha é dele e destrava só ele.
+	if (tipo === 'colaborador') {
+		const eu: Identidade = { tipo: 'colaborador', id };
+		return { dono: eu, identidades: [eu], vinculado: false };
+	}
+
 	if (tipo === 'policial') {
 		const admin = await db
 			.select({ id: administradores.id })
@@ -94,10 +120,10 @@ export async function resolverCredencial(
  * `resolverCredencial`, que enxerga os dois lados.
  */
 export function credencialDoUsuario(u: {
-	tipo: TipoIdentidade;
+	tipo: 'policial' | 'admin';
 	id: number;
 	adminPolicialId?: number | null;
-}): Identidade {
+}): IdentidadeComCadastro {
 	return u.adminPolicialId != null
 		? { tipo: 'policial', id: u.adminPolicialId }
 		: { tipo: u.tipo, id: u.id };
@@ -118,6 +144,7 @@ export async function revogarSessoesDaCredencial(db: Database, cred: Credencial)
 
 	const policiais = porTipo('policial');
 	const admins = porTipo('admin');
+	const colaboradores = porTipo('colaborador');
 
 	if (policiais.length) {
 		await db
@@ -128,5 +155,10 @@ export async function revogarSessoesDaCredencial(db: Database, cred: Credencial)
 		await db
 			.delete(sessoes)
 			.where(and(eq(sessoes.tipo, 'admin'), inArray(sessoes.usuario_id, admins)));
+	}
+	if (colaboradores.length) {
+		await db
+			.delete(sessoes)
+			.where(and(eq(sessoes.tipo, 'colaborador'), inArray(sessoes.usuario_id, colaboradores)));
 	}
 }

@@ -28,7 +28,7 @@ export type AuditCategoria =
 
 export type AuditSeveridade = 'info' | 'aviso' | 'critico';
 export type AuditResultado = 'sucesso' | 'falha' | 'negado';
-export type AuditActorTipo = 'policial' | 'admin' | 'sistema' | 'webhook';
+export type AuditActorTipo = 'policial' | 'admin' | 'colaborador' | 'sistema' | 'webhook';
 
 interface AcaoMeta {
 	label: string;
@@ -123,6 +123,28 @@ export const CATALOGO_ACOES = {
 		label: 'Desvinculação (baixa) de policial',
 		categoria: 'policial',
 		severidade: 'critico'
+	},
+
+	// Colaboradores (terceira identidade — só o Super Admin cria e desativa)
+	criar_colaborador: {
+		label: 'Criação de colaborador',
+		categoria: 'policial',
+		severidade: 'aviso'
+	},
+	desativar_colaborador: {
+		label: 'Desativação de colaborador',
+		categoria: 'policial',
+		severidade: 'aviso'
+	},
+	reativar_colaborador: {
+		label: 'Reativação de colaborador',
+		categoria: 'policial',
+		severidade: 'aviso'
+	},
+	redefinir_senha_colaborador: {
+		label: 'Senha provisória de colaborador',
+		categoria: 'autenticacao',
+		severidade: 'aviso'
 	},
 
 	// Unidades

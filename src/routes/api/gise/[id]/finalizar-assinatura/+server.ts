@@ -24,7 +24,7 @@ import {
 	guardarPdfAssinado,
 	recusarPorDocumentoJaGravado
 } from '$lib/server/assinatura/blob-assinado';
-import { requireAuth, badRequest, serverError, validateBody } from '$lib/server/api';
+import { requireAuthComCadastro, badRequest, serverError, validateBody } from '$lib/server/api';
 import {
 	consumirIntencaoAssinatura,
 	mensagemRecusaIntencao
@@ -35,7 +35,7 @@ export const POST: RequestHandler = async (event) => {
 	const { platform, params, locals, request, getClientAddress } = event;
 	const p = platform as App.Platform | undefined;
 	const db = getDB(p);
-	const u = requireAuth(locals);
+	const u = requireAuthComCadastro(locals);
 	if (u instanceof Response) return u;
 
 	const ip = getClientAddress();

@@ -14,11 +14,19 @@
  */
 import { z } from 'zod';
 
-export const loginSchema = z.object({
-	matricula: z.string().min(1, 'Matrícula é obrigatória').max(32, 'Matrícula muito longa'),
-	senha: z.string().min(1, 'Senha é obrigatória').max(128, 'Senha muito longa'),
-	tipo: z.enum(['policial', 'admin']).default('policial')
-});
+export const loginSchema = z
+	.object({
+		/** Matrícula (policial), login (admin) ou E-MAIL (colaborador, decisão 71). */
+		matricula: z.string().min(1, 'Matrícula é obrigatória').max(254, 'Identificador muito longo'),
+		senha: z.string().min(1, 'Senha é obrigatória').max(128, 'Senha muito longa'),
+		tipo: z.enum(['policial', 'admin', 'colaborador']).default('policial')
+	})
+	// O cap de 32 continua valendo para matrícula e login; só o e-mail do
+	// colaborador precisa de mais.
+	.refine((v) => v.tipo === 'colaborador' || v.matricula.length <= 32, {
+		message: 'Matrícula muito longa',
+		path: ['matricula']
+	});
 
 // ---- Endpoints de autenticação: validação Zod + caps de tamanho ----
 // Cumpre a diretriz do CLAUDE.md (sempre Zod/validateBody) e fecha DoS-leve:

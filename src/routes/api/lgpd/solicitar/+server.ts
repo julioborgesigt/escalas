@@ -6,11 +6,11 @@ import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { getDB, registrarAuditComContexto } from '$lib/db';
 import { criarSolicitacao, listarSolicitacoesPorUsuario } from '$lib/db/lgpd';
-import { requireAuth, validateBody } from '$lib/server/api';
+import { requireAuthComCadastro, validateBody } from '$lib/server/api';
 import { novaSolicitacaoTitularSchema } from '$lib/schemas';
 
 export const GET: RequestHandler = async ({ platform, locals }) => {
-	const u = requireAuth(locals);
+	const u = requireAuthComCadastro(locals);
 	if (u instanceof Response) return u;
 
 	const db = getDB(platform);
@@ -19,7 +19,7 @@ export const GET: RequestHandler = async ({ platform, locals }) => {
 };
 
 export const POST: RequestHandler = async ({ platform, locals, request }) => {
-	const u = requireAuth(locals);
+	const u = requireAuthComCadastro(locals);
 	if (u instanceof Response) return u;
 
 	// Schema Zod: enum fechado em `tipo_direito` (8 valores LGPD), limite de

@@ -10,7 +10,7 @@ import type { RequestHandler } from './$types';
 import { carregarLogosGise } from '$lib/server/gise/logos';
 import { getDB, buscarGiseDetalhado, buscarPolicial } from '$lib/db';
 import { prepararAssinaturaSchema } from '$lib/schemas';
-import { requireAuth, forbidden, serverError, validateBody } from '$lib/server/api';
+import { requireAuthComCadastro, forbidden, serverError, validateBody } from '$lib/server/api';
 import {
 	gerarPdfGise,
 	toGisePdfData,
@@ -39,7 +39,7 @@ export const POST: RequestHandler = async ({
 	request,
 	getClientAddress
 }) => {
-	const u = requireAuth(locals);
+	const u = requireAuthComCadastro(locals);
 	if (u instanceof Response) return u;
 	if (u.tipo !== 'policial')
 		return forbidden('Apenas policiais designados como supervisor podem assinar');

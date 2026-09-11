@@ -119,6 +119,25 @@ describe('Policiais e Solicitações são perguntas diferentes', () => {
 		expect(visibilidadeDoMenu(entrada()).showSolicitacoes).toBe(false);
 	});
 
+	it('Colaboradores é SÓ do Admin Geral — os papéis com escopo não criam identidade', () => {
+		// A flag não acompanha `showPoliciais` de propósito: administrar servidor
+		// já cadastrado (o que o escopo permite) é outra coisa que criar uma conta
+		// de acesso ao sistema. O Super Admin entra por aqui por ser `tipo: 'admin'`.
+		expect(visibilidadeDoMenu(entrada({ usuario: { tipo: 'admin' } })).showColaboradores).toBe(
+			true
+		);
+		for (const papel of PAPEIS_COM_ESCOPO) {
+			expect(
+				visibilidadeDoMenu(entrada({ usuario: { tipo: 'policial', papel } })).showColaboradores,
+				papel
+			).toBe(false);
+		}
+		expect(visibilidadeDoMenu(entrada()).showColaboradores).toBe(false);
+		expect(
+			visibilidadeDoMenu(entrada({ usuario: { tipo: 'colaborador' } })).showColaboradores
+		).toBe(false);
+	});
+
 	it('o separador do grupo aparece só para quem tem item nele', () => {
 		expect(visibilidadeDoMenu(entrada({ usuario: { tipo: 'admin' } })).showGrupo3Separator).toBe(
 			true
