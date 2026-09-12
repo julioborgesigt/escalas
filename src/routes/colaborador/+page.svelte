@@ -21,8 +21,8 @@
 		modulo="Área do colaborador"
 		{usuario}
 		descricao={usuario.vinculo
-			? `Conta vinculada a ${usuario.vinculo}. As funções que você pode exercer são designadas pelo Super Administrador.`
-			: 'As funções que você pode exercer são designadas pelo Super Administrador.'}
+			? `Conta vinculada a ${usuario.vinculo}. As funções que você pode exercer são designadas pelo Administrador Geral.`
+			: 'As funções que você pode exercer são designadas pelo Administrador Geral.'}
 		accent="primary"
 	/>
 

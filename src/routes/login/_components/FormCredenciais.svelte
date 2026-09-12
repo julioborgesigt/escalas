@@ -3,12 +3,20 @@
 	 * Fluxo 1+2 da tela de login: formulário de senha (→ 2FA no orquestrador)
 	 * e entrada por certificado digital SERPRO (dispensa 2FA).
 	 *
-	 * O COLABORADOR (terceira identidade) entra pela mesma tela, por um link
-	 * abaixo do formulário e não por uma terceira opção no alternador: o
-	 * alternador é de duas posições por desenho, e colaborador é exceção —
-	 * meia dúzia de contas. Nesse modo o campo é o e-mail (decisão 71), sem
-	 * certificado, sem primeiro acesso por link e sem recuperação de senha
-	 * (a senha provisória e a redefinição são do Super Admin).
+	 * O COLABORADOR (terceira identidade) entra pela mesma tela, por um BOTÃO
+	 * ao lado do certificado — e não por uma terceira posição no alternador nem
+	 * por um link no rodapé de ajuda. As duas decisões têm motivo:
+	 *
+	 * - o alternador é de duas posições por desenho, e colaborador é exceção
+	 *   (meia dúzia de contas contra centenas de policiais);
+	 * - o rodapé de ajuda responde dúvidas de quem já sabe entrar ("esqueci a
+	 *   senha"), e ali o caminho não foi encontrado nem por quem conhece o
+	 *   sistema — o campo diz "Matrícula (8 caracteres)" e a conclusão de quem
+	 *   chega é que não tem acesso. Caminho fica com os outros caminhos.
+	 *
+	 * Nesse modo o campo é o e-mail (decisão 71), sem certificado, sem primeiro
+	 * acesso por link e sem recuperação de senha (a senha provisória e a
+	 * redefinição são do administrador).
 	 */
 	import AlertCircle from '@lucide/svelte/icons/alert-circle';
 	import { enhance } from '$app/forms';
@@ -159,6 +167,37 @@
 		Certificado Digital (SERPRO)
 	</button>
 
+	<!-- Terceira identidade. Botão de largura inteira, e não um link no rodapé de
+	     ajuda: quem entra por aqui é servidora administrativa ou terceirizada, no
+	     primeiro acesso, sem intimidade com o sistema — e o campo acima diz
+	     "Matrícula (8 caracteres)", que a faz concluir que não tem acesso. O
+	     rodapé de ajuda responde dúvidas de quem já sabe entrar; este botão é um
+	     CAMINHO, e caminho fica com os outros caminhos (senha, certificado). -->
+	<button
+		type="button"
+		class="btn preset-outlined-surface-500 w-full py-3 mt-3 flex items-center justify-center gap-2 text-sm"
+		onclick={() => {
+			comoColaborador = true;
+			matricula = '';
+		}}
+	>
+		<svg
+			class="w-4 h-4 shrink-0"
+			viewBox="0 0 24 24"
+			fill="none"
+			stroke="currentColor"
+			stroke-width="2"
+			stroke-linecap="round"
+			stroke-linejoin="round"
+			aria-hidden="true"
+		>
+			<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+			<circle cx="9" cy="7" r="4" />
+			<path d="M22 11h-6" />
+		</svg>
+		Entrar como colaborador(a)
+	</button>
+
 	<div
 		class="mt-4 flex flex-wrap items-center justify-center gap-x-2 gap-y-1.5 text-xs text-surface-600 dark:text-surface-400 text-center"
 		role="navigation"
@@ -190,19 +229,5 @@
 				Recuperar
 			</button>
 		</span>
-		<span
-			class="hidden sm:inline text-surface-300 dark:text-surface-600 select-none"
-			aria-hidden="true">·</span
-		>
-		<button
-			type="button"
-			class="shrink-0 text-primary-600 dark:text-primary-400 underline underline-offset-2 hover:opacity-80 transition-opacity"
-			onclick={() => {
-				comoColaborador = true;
-				matricula = '';
-			}}
-		>
-			Sou colaborador(a)
-		</button>
 	</div>
 {/if}

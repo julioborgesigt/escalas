@@ -57,8 +57,9 @@ Roteiro de regressão manual dos fluxos de negócio. **Papel deste arquivo: exce
 - [ ] **Admin Geral** (não só o Super Admin) vê "Colaboradores" na barra lateral, ao lado de "Policiais", e abre `/colaboradores`; admin de seccional e de unidade **não** veem o item, e a URL direta os manda para fora
 - [ ] Admin Geral → `/colaboradores` → "Cadastrar" (nome, e-mail, CPF opcional, vínculo) → a senha provisória aparece UMA vez na caixa amarela; "Copiar" funciona; "Fechar" some com ela
 - [ ] E-mail repetido (mesmo com caixa diferente) → "Já existe um colaborador com este e-mail"; CPF inválido → "CPF inválido"
-- [ ] `/login` → "Sou colaborador(a)" → campo vira E-mail, some o certificado e "Esqueceu a senha?"; "Voltar" restaura o alternador
-- [ ] Login com a senha provisória → **pede o código por e-mail mesmo sendo primeiro acesso** → código certo → `/alterar-senha` sem pedir e-mail pessoal → senha nova → `/aceitar-termo` → `/colaborador` (área com "Nenhuma função designada")
+- [ ] `/login` → o botão **"Entrar como colaborador(a)"** aparece abaixo do "Certificado Digital (SERPRO)", com a mesma largura (não é link no rodapé) → clicar: campo vira E-mail, somem alternador, certificado e "Esqueceu a senha?"; "Voltar ao acesso de policial ou administrador" restaura tudo
+- [ ] Login com a senha provisória → **pede o código por e-mail mesmo sendo primeiro acesso** → código certo → `/alterar-senha` **sem o bloco "E-MAIL PESSOAL OBRIGATÓRIO"** (colaborador não tem e-mail pessoal; o subtítulo diz só "Escolha uma senha segura para continuar") → o botão "Definir senha e continuar" habilita com a senha válida → `/aceitar-termo` → `/colaborador` (área com "Nenhuma função designada")
+- [ ] O MESMO primeiro acesso, agora com um POLICIAL: o bloco do e-mail pessoal continua lá e continua obrigatório — a correção do colaborador não pode ter afrouxado o dele
 - [ ] Sidebar do colaborador tem só "Boas-vindas" e "Sair"; digitar `/escalas`, `/perfil`, `/res-gise` ou `/painel` na URL volta para `/colaborador`; `fetch` de `/api/sync/estado` responde 403
 - [ ] Admin Geral → "Nova senha" → nova provisória; a sessão aberta do colaborador cai no próximo request; o próximo login exige troca de novo
 - [ ] "Desativar" → o login responde "E-mail ou senha inválidos" (mesma mensagem de senha errada); "Reativar" restaura

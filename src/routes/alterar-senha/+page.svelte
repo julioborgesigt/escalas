@@ -45,6 +45,12 @@
 	let error = $state('');
 
 	const primeiroAcesso = $derived(page.data.primeiro_acesso);
+	/**
+	 * Colaborador não tem e-mail pessoal (ver o `load`): o bloco inteiro some e
+	 * o primeiro acesso dele é só a troca de senha.
+	 */
+	const ehColaborador = $derived(page.data.tipo_usuario === 'colaborador');
+	const exigeEmailPessoal = $derived(primeiroAcesso && !ehColaborador);
 
 	// --- E-mail pessoal (apenas no primeiro acesso) ---
 	const verificacaoEmail = useVerificacaoEmailPessoal();
@@ -69,13 +75,13 @@
 
 	const forca = $derived(validarForcaSenha(novaSenha, confirmarSenha));
 	const senhaOk = $derived(forca.senhaOk);
-	const emailPessoalOk = $derived(!primeiroAcesso || verificacaoEmail.etapa === 'verificado');
+	const emailPessoalOk = $derived(!exigeEmailPessoal || verificacaoEmail.etapa === 'verificado');
 	const podeAlterarSenha = $derived(senhaOk && forca.confirmaOk && emailPessoalOk);
 
 	function handleAlterarSenha({ cancel }: { cancel: () => void }) {
 		error = '';
 
-		if (primeiroAcesso && verificacaoEmail.etapa !== 'verificado') {
+		if (exigeEmailPessoal && verificacaoEmail.etapa !== 'verificado') {
 			error = 'Confirme seu e-mail pessoal para continuar o primeiro acesso.';
 			cancel();
 			return;
@@ -140,9 +146,11 @@
 		<div class="p-6 sm:p-8 rounded-3xl card-glass-auth">
 			<CabecalhoAuth
 				titulo={primeiroAcesso ? 'Defina sua nova senha' : 'Alterar Senha'}
-				descricao={primeiroAcesso
-					? 'Confirme seu e-mail pessoal e escolha uma senha segura para continuar.'
-					: 'Preencha os campos abaixo para alterar sua senha.'}
+				descricao={!primeiroAcesso
+					? 'Preencha os campos abaixo para alterar sua senha.'
+					: exigeEmailPessoal
+						? 'Confirme seu e-mail pessoal e escolha uma senha segura para continuar.'
+						: 'Escolha uma senha segura para continuar.'}
 				mostrarIcone={!primeiroAcesso}
 			/>
 
@@ -151,13 +159,18 @@
 				<div
 					class="p-3 mb-5 rounded-xl bg-warning-500/10 border border-warning-500/25 text-warning-700 dark:text-warning-300 text-sm"
 				>
-					Este é seu <strong>primeiro acesso</strong>. Confirme seu e-mail pessoal e defina uma
-					senha para continuar.
+					{#if ehColaborador}
+						Este é seu <strong>primeiro acesso</strong>. Defina uma senha para continuar.
+					{:else}
+						Este é seu <strong>primeiro acesso</strong>. Confirme seu e-mail pessoal e defina uma
+						senha para continuar.
+					{/if}
 				</div>
 			{/if}
 
-			<!-- Seção de e-mail pessoal (apenas no primeiro acesso) -->
-			{#if primeiroAcesso}
+			<!-- Seção de e-mail pessoal (primeiro acesso de policial e admin; o
+			     colaborador não tem e-mail pessoal — ver o `load`). -->
+			{#if exigeEmailPessoal}
 				<div
 					class="mb-5 p-4 rounded-2xl bg-surface-100/80 dark:bg-surface-800/50 border border-surface-200 dark:border-white/5 space-y-3"
 				>
